@@ -49,15 +49,15 @@ RED_PROOF = [
     {
         "why": "2026-09-28 - the disk floor takes the oldest reel even when a law pins it and an unpinned one could go",
         "file": "tv_diablo.py",
-        "find": "    order = [c for c in candidates if c not in pinned] + [c for c in candidates if c in pinned]\n",
-        "replace": "    order = list(candidates)\n",
+        "find": "        return (c in pinned, (river.get(c) not in done) if asked else False)\n",
+        "replace": "        return (False, (river.get(c) not in done) if asked else False)\n",
         "matches": 1,
     },
     {
         "why": "2026-09-28 - the recorder's reaper stops asking which reels a law pins",
         "file": "tv_diablo.py",
-        "find": "_reel_reap_pick(HIST_DIR, _all[:-2], _ev, _test_pinned_reels())",
-        "replace": "_reel_reap_pick(HIST_DIR, _all[:-2], _ev, set())",
+        "find": "_reel_reap_pick(HIST_DIR, _all[:-2], _ev, _test_pinned_reels(),",
+        "replace": "_reel_reap_pick(HIST_DIR, _all[:-2], _ev, set(),",
         "matches": 1,
     },
     {
@@ -145,7 +145,7 @@ class TheReaperRefusesEvidence(unittest.TestCase):
         b = self._block()
         self.assertIn("_ev = _reel_evidence()", b,
                       "the reel reaper does not ask the evidence authority whether a reel is still cited")
-        self.assertIn("_reel_reap_pick(HIST_DIR, _all[:-2], _ev, _test_pinned_reels())", b,
+        self.assertIn("_reel_reap_pick(HIST_DIR, _all[:-2], _ev, _test_pinned_reels(),", b,
                       "the reel reaper does not decide through the evidence-aware pick")
 
     def test_an_UNREADABLE_ledger_refuses_the_reap(self):
@@ -228,7 +228,7 @@ class TheReaperSparesPinnedFootage(unittest.TestCase):
         import inspect
         src = inspect.getsource(T.archive_read_frame)
         i = src.index("REELS DIE WHOLE")
-        self.assertIn("_reel_reap_pick(HIST_DIR, _all[:-2], _ev, _test_pinned_reels())",
+        self.assertIn("_reel_reap_pick(HIST_DIR, _all[:-2], _ev, _test_pinned_reels(),",
                       src[i:src.index("YOUTH SHIELD", i)],
                       "the reaper no longer asks the chooser with the pinned list")
 

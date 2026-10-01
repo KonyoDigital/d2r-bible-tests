@@ -272,6 +272,12 @@ def _recorder(reel, session, src, list_frames):
         mine = [r for r in reaps if str(r.get("reel") or "") in (reel, session)]
     removed = None if mine is None else any(bool(r.get("removed")) for r in mine)
     last_reap = None if not mine else max((_int(r.get("ts")) or 0) for r in mine) or None
+    # REG-1678 — a reap row says what the river had the reel at when it was taken. True only when a row that
+    # REMOVED it carries readOwed true; a row from before the field (or one where the river could not be asked)
+    # says nothing either way, and None is never read as "it was finished". [[unknown-stays-unknown]]
+    owed_rows = [] if not mine else [r for r in mine if r.get("removed") and r.get("readOwed") is True]
+    reaped_owed = None if mine is None else bool(owed_rows)
+    reaped_at = (owed_rows[-1].get("riverStation") or "no stamp at all") if owed_rows else None
     # the recorder's refusal record: pictures it did NOT write for this session (disk floor / budget)
     refusals = src.get("refusals")
     refused = None
@@ -287,6 +293,7 @@ def _recorder(reel, session, src, list_frames):
         why = "not on the shelf, and the recorder's reap record does not name it"
     return _hand("recorder", on_disk, at, why, clock=clock, frames=frames,
                  reaps=(None if mine is None else len(mine)), removedByReaper=removed,
+                 reapedReadOwed=reaped_owed, reapedAtStation=reaped_at,
                  refusals=(None if refused is None else len(refused)))
 
 
@@ -496,6 +503,13 @@ def _contradictions(reel, hands, journey):
                     "left": {"who": WRITER["tombstone"], "says": "closed out on %s" % _when(t.get("at"))},
                     "right": {"who": WRITER["recorder"], "says": "the directory is still on the shelf"},
                     "why": "the ledger records a removal the shelf does not show"})
+    if r.get("reapedReadOwed") is True:
+        out.append({"kind": "reaped-before-extracted",
+                    "left": {"who": WRITER["recorder"], "says": "its disk floor removed the reel"},
+                    "right": {"who": "river_stamp", "says": "it was at %s - a read was still owed"
+                                                            % (r.get("reapedAtStation") or "?")},
+                    "why": "his chain is extract, tombstone, then delete; this footage left before its "
+                           "items were read, because the disk was full"})
     if journey.get("ok") and journey.get("current") == "TOMBSTONE" and t["held"] is False:
         out.append({"kind": "stamped-tombstone-no-ledger-row",
                     "left": {"who": "river_stamp (%s)" % ((journey["stations"][-1].get("by") or "?")
@@ -569,7 +583,11 @@ def census(src=None, plan=None, hist=None, stamp_path=None, limit=200):
     if shelf is None and tombs is None:
         out["why"] = "neither the shelf nor the tombstone ledger could be read — the census is UNKNOWN, not empty"
         return out
-    names = sorted(set(shelf or ()) | set((tombs or {}).keys()))
+    # REG-1678 — and every reel the recorder's disk floor took while the river still owed it a read: it is on
+    # neither the shelf nor the ledger, so without this the one contradiction it carries is never looked at
+    reaped_owed = set(str(r.get("reel")) for r in (src.get("reaps") or ())
+                      if r.get("removed") and r.get("readOwed") is True and str(r.get("reel") or "").startswith("reel_"))
+    names = sorted(set(shelf or ()) | set((tombs or {}).keys()) | reaped_owed)
     out.update({"ok": True, "n": len(names), "shelf": (None if shelf is None else len(shelf)),
                 "tombstoned": (None if tombs is None else len(tombs)),
                 # reels the ledger records as removed MORE THAN ONCE, and rows that name no reel at all —

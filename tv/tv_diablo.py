@@ -3288,7 +3288,8 @@ def _reap_log_path(hist=None):
     return os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(hist or HIST_DIR))), "reel_reaps.jsonl")
 
 
-def _reap_record(reel, frames, removed, shelf, by="recorder-disk-floor", names=None, kept=None, spared=None):
+def _reap_record(reel, frames, removed, shelf, by="recorder-disk-floor", names=None, kept=None, spared=None,
+                 river=None):
     """A durable line for every emergency reel deletion. -> None
 
     ⚠⚠ THIS IS NOT THE TOMBSTONE STORE, ON PURPOSE. `reel_retention._tombstone` is the ONE writer
@@ -3310,6 +3311,11 @@ def _reap_record(reel, frames, removed, shelf, by="recorder-disk-floor", names=N
             row["kept"] = [str(x) for x in list(kept)[:1200]]
         if spared is not None:
             row["spared"] = int(spared)
+        # REG-1678 — what the river said about the reel at the moment it was taken: its last stamped station and
+        # whether a read was still owed (None = the river could not be asked - said as null, never as false)
+        if river is not None:
+            row["riverStation"] = river.get("station")
+            row["readOwed"] = river.get("readOwed")
         with open(path, "a", encoding="utf-8") as fh:
             fh.write(json.dumps(row, ensure_ascii=False) + "\n")
     except Exception:
@@ -3450,7 +3456,20 @@ def _reel_evidence(hist_dir=None):
     return {"sessions": sessions, "frames": frames, "reels": reels, "reads": reads, "readReels": read_reels}
 
 
-def _reel_reap_pick(hist_dir, candidates, ev, pinned=None):
+def _river_positions():
+    """REG-1678 — where the river last stamped each reel, for the disk floor. -> dict reel -> station | None
+
+    The cheap read river_stamp keeps for a lane that ticks (one walk of its own store, no router pass). None = the
+    store could not be asked, and the reaper then keeps its old order and says so - never "nothing is owed"."""
+    try:
+        import river_stamp as _rs
+        pos, _why = _rs.positions()
+    except Exception:
+        return None
+    return pos if isinstance(pos, dict) else None
+
+
+def _reel_reap_pick(hist_dir, candidates, ev, pinned=None, river=None):
     """2026-09-28 — (c) the disk-floor reel reaper's choice, oldest first. -> dict | None
 
     A reel holding a CITED picture keeps those files and releases the rest (reel_retention.release_uncited's
@@ -3461,9 +3480,28 @@ def _reel_reap_pick(hist_dir, candidates, ev, pinned=None):
 
     REG-1361 (merged from main, 2026-09-28) — a reel a law pins (`pinned`, test_reel_refs.json 'accepted') is asked
     only after every unpinned one, oldest first within each; a pinned reel still goes when nothing else may, because a
-    full disk stops recording. None = the pin list could not be read = plain oldest-first. The answer says "pinned"."""
+    full disk stops recording. None = the pin list could not be read = plain oldest-first. The answer says "pinned".
+
+    REG-1678 (2026-10-01) — INSIDE each of those two tiers, a reel the river has FINISHED (`river` = reel ->
+    station, its last stamp at one of reel_router.READ_DONE) goes before one that still owes a survey, a read, a
+    seal or a join - or was never walked, which is not finished. Oldest first within each. The 09-28 reaps took the
+    oldest reels whatever the river said; his chain is extract, tombstone, THEN delete, and a full disk still stops
+    recording, so an owed reel still goes when nothing finished may - and the answer says so (`readOwed`).
+    `river` None = the stamp store could not be asked: the old order, and `readOwed` None (UNKNOWN, not false)."""
     pinned = pinned or set()
-    order = [c for c in candidates if c not in pinned] + [c for c in candidates if c in pinned]
+    done = None
+    if river is not None:
+        try:
+            import reel_router as _rtr
+            done = frozenset(_rtr.READ_DONE)
+        except Exception:
+            done = None
+    asked = river is not None and done is not None
+
+    def _rank(c):
+        return (c in pinned, (river.get(c) not in done) if asked else False)
+
+    order = sorted(candidates, key=_rank)     # stable: the caller's oldest-first order holds inside each tier
     for cand in order:
         sid = cand[5:] if cand.startswith("reel_") else cand
         path = os.path.join(hist_dir, cand)
@@ -3483,14 +3521,17 @@ def _reel_reap_pick(hist_dir, candidates, ev, pinned=None):
             if not gone:
                 continue
             return {"reel": cand, "mode": "partial", "gone": gone, "kept": sorted(keep), "frames": len(jpgs),
-                    "pinned": cand in pinned}
+                    "pinned": cand in pinned, "station": river.get(cand) if asked else None,
+                    "readOwed": (river.get(cand) not in done) if asked else None}
         if sid in ev["sessions"] or cand in ev["reels"]:
             continue
         # M1 — NAMED BUT ABSENT: the journal names a picture of THIS reel that is not among its files, so which
         # picture matters cannot be told — the reel is kept whole, exactly like a reel cited by its session.
         if named_here or cand in (ev.get("readReels") or set()):
             continue
-        return {"reel": cand, "mode": "whole", "gone": jpgs, "kept": [], "frames": len(jpgs), "pinned": cand in pinned}
+        return {"reel": cand, "mode": "whole", "gone": jpgs, "kept": [], "frames": len(jpgs), "pinned": cand in pinned,
+                "station": river.get(cand) if asked else None,
+                "readOwed": (river.get(cand) not in done) if asked else None}
     return None
 
 
@@ -3757,7 +3798,17 @@ def archive_read_frame(src_path, n, ts_ms=None):
                         else:
                             # never the two newest; never a cited picture; a reel a law pins (test_reel_refs.json)
                             # only when nothing else may go (REG-1361) - one chooser, the evidence-aware pick
-                            _pick = _reel_reap_pick(HIST_DIR, _all[:-2], _ev, _test_pinned_reels())
+                            _pick = _reel_reap_pick(HIST_DIR, _all[:-2], _ev, _test_pinned_reels(),
+                                                    river=_river_positions())
+                            _rv = None if _pick is None else {"station": _pick.get("station"),
+                                                              "readOwed": _pick.get("readOwed")}
+                            if _pick is not None and _pick.get("readOwed"):
+                                _dbg("reel-reap: no reel the river has finished may go - taking %s, which the river "
+                                     "has at %s (a read is still owed), because a full disk stops recording"
+                                     % (_pick["reel"], _pick.get("station") or "no stamp at all"))
+                            elif _pick is not None and _pick.get("readOwed") is None:
+                                _dbg("reel-reap: the river's stamp store could not be asked, so whether %s still owes "
+                                     "a read is UNKNOWN - oldest first, as before" % _pick["reel"])
                             if _pick is not None and _pick.get("pinned"):
                                 _dbg("reel-reap: every reel it may take is pinned by a law - taking the oldest "
                                      "pinned one, because a full disk stops recording")
@@ -3772,7 +3823,7 @@ def archive_read_frame(src_path, n, ts_ms=None):
                                 _n = _pick["frames"]
                                 _shr.rmtree(_vp, ignore_errors=True)
                                 _gone = not os.path.exists(_vp)
-                                _reap_record(_pick["reel"], _n, _gone, len(_all), names=_pick["gone"])
+                                _reap_record(_pick["reel"], _n, _gone, len(_all), names=_pick["gone"], river=_rv)
                                 _dbg("reel-reap took %s (%s frame(s)) under the disk floor; "
                                      "removed=%s" % (_pick["reel"], _n, _gone))
                             else:
@@ -3787,7 +3838,7 @@ def archive_read_frame(src_path, n, ts_ms=None):
                                     except OSError:
                                         _dbg("reel-reap could not release %s/%s" % (_pick["reel"], _f))
                                 _reap_record(_pick["reel"], len(_took), bool(_took), len(_all),
-                                             names=_took, kept=_pick["kept"])
+                                             names=_took, kept=_pick["kept"], river=_rv)
                                 _dbg("reel-reap released %d frame(s) of %s and KEPT its %d cited picture(s)"
                                      % (len(_took), _pick["reel"], len(_pick["kept"])))
                 except Exception as _e:

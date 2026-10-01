@@ -63,6 +63,13 @@ if HERE not in sys.path:
 STATIONS = ("INTAKE", "TRIAGE", "EMPTY", "STATION", "PRINTER", "JOIN", "CAPTURE",
             "ROUTED", "TOMBSTONE")
 
+#: REG-1678 (2026-10-01) — the stations where NO READ IS OWED: the survey found no panel (EMPTY), the reader
+#: yielded no name from a sealed reel (CAPTURE), or the river closed it (ROUTED, TOMBSTONE). The ONE list, here
+#: beside the vocabulary: the recorder's disk floor takes a reel at one of these before a reel that still owes a
+#: survey, a read, a seal or a join, and the custody record calls a reap of any other station a reap before
+#: extraction. EMPTY is reopenable (one survey's verdict), which is why it ranks a reel, never releases one.
+READ_DONE = ("EMPTY", "CAPTURE", "ROUTED", "TOMBSTONE")
+
 #: ⚠⚠ v2987 — HIS RULING, 2026-09-12, ON A SCREENSHOT OF HIS OWN SHELF: *"EMPTY and STATION aren't
 #: river stages — remove it then.. it is confusing"*, and before that *"i want it down a river lane.
 #: from top to bottom intake/WHATEVER IS REALLY FIRST and then tombstone at the bottom of it all"*.

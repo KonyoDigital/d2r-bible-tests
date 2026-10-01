@@ -8780,6 +8780,13 @@ GATES = [
              "ten minutes and, while a proof runs, the cheap guard every ten seconds, which stands it aside through the "
              "tick's own kill-and-book door; the start bar fits an idle 8 GB PC with the game off, still never beside "
              "his game and never near the running floor."),
+    Gate("test_the_disk_floor_takes_finished_footage_first",
+         [sys.executable, os.path.join(HERE, "test_the_disk_floor_takes_finished_footage_first.py")], 60,
+         needs_app=False,
+         why="REG-1678 (2026-10-01) - the recorder's disk floor chose a reel by age alone, so the oldest reel went "
+             "whether the river had read it or not, and its reap row said nothing about it. Inside each pin tier a "
+             "reel at reel_router.READ_DONE now goes first; an owed reel still goes when nothing finished may (a full "
+             "disk stops recording) and the row says readOwed; reel_custody names a reap before extraction."),
     Gate("test_a_slice_banks_what_it_proved",
          [sys.executable, os.path.join(HERE, "test_a_slice_banks_what_it_proved.py")], 60,
          needs_app=False,

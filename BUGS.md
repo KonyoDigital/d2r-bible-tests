@@ -406,6 +406,24 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1678 - THE DISK FLOOR TOOK A REEL BY AGE, WHETHER THE RIVER HAD READ IT OR NOT (the river-chain audit, 2026-10-01)
+
+**Found by** the river-chain audit he asked for ("ledgered and extracted properly and then tombstoned and obviously then
+deleted"). It first reported the recorder's disk-floor reaper as UNGATED - **stale**: REG-1361 (09-28) already spares
+cited pictures, refuses when the evidence authority cannot answer, logs every reap by name and takes a law-pinned reel
+last. **What stood:** inside those tiers it chose by AGE alone, so under a full disk the oldest reel went even when the
+river still owed it a survey, a read, a seal or a join and a finished (EMPTY / CAPTURE / ROUTED) reel could have gone
+instead - and the reap row carried nothing to say which, so the 09-28 reaps on his Mac cannot be judged after the fact.
+**Now** the emergency branch asks `river_stamp.positions()` (the cheap per-reel read a ticking lane uses);
+`_reel_reap_pick` ranks a reel at `reel_router.READ_DONE` (the ONE list, beside the vocabulary) before an owed or
+never-stamped one, inside REG-1361's pin tier; an owed reel still goes when nothing finished may (a full disk stops
+recording) and the recorder says so aloud; an unreadable stamp store keeps the old order with `readOwed` None, never
+"finished". Every reel reap row carries `riverStation` + `readOwed`; `reel_custody` names a reap of an owed reel as the
+contradiction `reaped-before-extracted` (the doctor reads MISSING) and counts it although it is on neither the shelf nor
+the ledger; rows from before the field raise nothing. The audit's other half - "refuse loudly when nothing is reapable" -
+already held (the "found NOTHING it may take" line). Law: `tv/test_the_disk_floor_takes_finished_footage_first.py` (12
+cases, 7 red-proofs); `test_reel_reaper` re-anchored on the call's new shape (2 assertions, 2 red-proofs).
+
 ### REG-1677 - A REUSED CLEAN RUN COULD BANK A FALSE BLIND (the v3543 cross-family eye, 2026-10-01)
 
 **Found by** the Grok seat on v3543 (third ask; two `cannot-tell` before it). **Was:** REG-1669 let a gate's later proofs
