@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3550",
+  "ver": "v3551",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3550: a read filed under a D2R panel, a zone or a D2R item keeps a cloud reel the game; the launcher seals only after 3 minutes with none; every seal row names its reel and what the judge was fed, and the river IN station quotes it; three runtime files ignored",
+  "note": "v3551: three positions on every read lane - CLAUDE, + GROK, GROK ONLY; at GROK ONLY Claude is never asked, its cap never stops a Grok read, a failed Grok read is said and owed, and the doctor row reader switch says when Grok cannot read",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

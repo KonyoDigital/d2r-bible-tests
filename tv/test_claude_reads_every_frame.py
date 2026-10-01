@@ -20,6 +20,13 @@ morning; this law makes the architecture say it:
      turns Grok on BESIDE Claude; the intake always asks Claude first.
   4. THE PAGE - no Grok-first control and no Grok-first request.
 Dean's PC (no Grok at all) is the default path: off, Claude only, nothing else needed.
+
+⚠ #151, HIS RULING OF 2026-10-01, NARROWS THIS LAW AND DOES NOT REPEAL IT: "make the toggle optional to use GROK ONLY no
+claude as a secondary at all ... so i can save and when you max out i can use just him". A THIRD position, GROK ONLY,
+reads every frame with the Grok CLI and never asks Claude at all - not first, not as a backup. What stays forbidden is
+what this law was written for: Grok FIRST with Claude behind it, by any door. So: a saved or requested "primary" is still
+read as the extra layer (BOTH), and the only Grok read outside a shadow job is tv_diablo._grok_oneshot - the GROK ONLY
+seat, which holds no Claude call of its own. test_his_switch_picks_who_reads.py drives the three positions.
 [[the-unjoined-end]] [[unknown-stays-unknown]]
 RED_PROOF below.
 """
@@ -70,8 +77,8 @@ RED_PROOF = [
     {
         "why": "the frame reader grows a Grok-first branch again",
         "file": "tv_diablo.py",
-        "find": "        _G5 = None\n    # ══ END GROK EYES (G5) ════════════════════════════════════════════════════\n\n    t0 = time.time()\n",
-        "replace": "        _G5 = None\n    if _G5 is not None and _G5.is_primary():\n        return _G5.g5_vision_read(ap)\n    # ══ END GROK EYES (G5) ════════════════════════════════════════════════════\n\n    t0 = time.time()\n",
+        "find": "        _G5 = None\n    # ══ END GROK EYES (G5) ════════════════════════════════════════════════════\n    # #151 HIS SWITCH AT GROK ONLY",
+        "replace": "        _G5 = None\n    if _G5 is not None and _G5.is_primary():\n        return _G5.g5_vision_read(ap)\n    # ══ END GROK EYES (G5) ════════════════════════════════════════════════════\n    # #151 HIS SWITCH AT GROK ONLY",
         "matches": 1,
     },
     {
@@ -150,7 +157,9 @@ class TheSwitchNeverPutsGrokFirst(_State):
         self._write({"on": True, "mode": "primary"})
         self.assertEqual(g5.mode_intent(), "shadow")
         st = g5.status()
-        self.assertEqual(st.get("reader"), "claude")
+        # #151 - the extra layer is now named for what it is: BOTH (Claude reads every frame, Grok beside it)
+        self.assertEqual(st.get("reader"), "both")
+        self.assertTrue(str(st.get("readerRule") or "").startswith("Claude reads every frame"), st.get("readerRule"))
         self.assertIn("retired", st.get("primaryRetired") or "", "a saved Grok-first choice was mapped silently")
         self._write({"on": True, "mode": "off"})
         self.assertEqual(g5.mode_intent(), "shadow", "a legacy on:true read as Grok-first")
@@ -179,7 +188,8 @@ class TheFrameReaderHasNoGrokFirstBranch(unittest.TestCase):
                         bad.append("is_primary asked in %s (line %d)" % (fn, ch.lineno))
                     if ch.func.attr == "g5_vision_read":
                         nonlocal_reads[0] += 1
-                        if "shadow" not in (fn or ""):
+                        # #151 - the GROK ONLY seat is the one other home, and it is Grok ALONE (checked below)
+                        if "shadow" not in (fn or "") and fn != "_grok_oneshot":
                             bad.append("a Grok read outside a shadow job, in %s (line %d)" % (fn, ch.lineno))
                 walk(ch, nfn)
         nonlocal_reads = [0]
@@ -187,6 +197,22 @@ class TheFrameReaderHasNoGrokFirstBranch(unittest.TestCase):
         reads = nonlocal_reads[0]
         self.assertGreaterEqual(reads, 2, "premise: the scanner saw the shadow jobs' Grok reads (%d)" % reads)
         self.assertEqual(bad, [], "the frame reader can still put Grok first: %s" % bad)
+
+    def test_the_grok_only_seat_has_no_claude_behind_it(self):
+        """#151 - _grok_oneshot is Grok ALONE: no warm Claude reader, no Claude one-shot, no budget-gated Claude path
+        inside it, so it can never become Grok-first-then-Claude. [[source-reading-guard]]"""
+        with io.open(os.path.join(HERE, "tv_diablo.py"), encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+        fns = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "_grok_oneshot"]
+        self.assertEqual(len(fns), 1, "the GROK ONLY seat is not one function")
+        called = set()
+        for n in ast.walk(fns[0]):
+            if isinstance(n, ast.Call):
+                f = n.func
+                called.add(f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", ""))
+        self.assertIn("g5_vision_read", called, "premise: the seat reads with Grok")
+        self.assertEqual(called & {"ask", "_oneshot", "_oneshot_inner", "claude_read", "_maybe_genius"}, set(),
+                         "the GROK ONLY seat reaches a Claude reader")
 
 
 # ══ 3 — THE CONSOLE ══════════════════════════════════════════════════════════════════════════════════════════════

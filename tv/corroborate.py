@@ -2572,6 +2572,12 @@ COVERED_BY = {
 }
 # Engines with NO invariant, each with the reason — a blank here would read as covered.
 NO_JOINT_YET = {
+    # #151 (v3551) — his reader switch: one source today, said so rather than claimed covered.
+    'reader switch':
+        "the row reads the switch file and the Grok CLI's login through g5_grok_eyes - the same module that decides who "
+        "reads. An independent second source would be the reads themselves: the journal rows' own model stamps (at "
+        "GROK ONLY none may carry a Claude model after the switch was set) - no joint walks the journal against the "
+        "switch yet.",
     # #54 (v3526 integration) — the equipped lane's own row: one source today, said so rather than claimed covered.
     'picker census':
         "the row reads each PC's own page counting its picker's list function against its own type table - two halves "

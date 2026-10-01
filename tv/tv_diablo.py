@@ -63,7 +63,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3550"   # one session whatever he does
+VERSION = "v3551"   # his reader switch
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -5598,6 +5598,8 @@ def _rewarm(worker=None):
     it there; keep it for the real multi-reader pool it was written for."""
     if POOL_N <= 1:
         return
+    if _reader_choice() == "grok":   # #151 Grok only: a Claude reader is never pinged awake
+        return
     w = worker or _WORKER
     key = id(w)
     if time.time() - _REWARM_AT.get(key, 0.0) < 60: return
@@ -6748,6 +6750,66 @@ def _is_throttled():
 
 _ONESHOT_GATE = threading.Semaphore(1)   # v864 — a throttled pool must not herd 8 oneshots
 _ASK_NONE_STREAK = 0
+def _reader_choice():
+    """#151 HIS SWITCH, read at the moment of each read. -> "claude" | "both" | "grok" ("claude" when the Grok module is
+    absent, which is also the only position a PC without it can be on)."""
+    try:
+        import g5_grok_eyes as _G5r
+        return _G5r.reader()
+    except Exception:
+        return "claude"
+
+
+#: #151 — at most this many Grok-only reads at once (Claude's one-shot gate is about Claude's throttle, not Grok's)
+_GROK_ONLY_GATE = threading.BoundedSemaphore(2)
+#: #151 — why the last Grok-only read did not happen, for the deep-read row that says so
+_GROK_ONLY_LAST = {"why": None}
+#: the keys g5_vision_read stamps on its answer - not the reader's words
+_G5_STAMP_KEYS = ("model", "mode", "escalated", "ms", "_raw_txt", "_g5", "_lane")
+
+
+def _grok_only_failed(why):
+    why = str(why or "the Grok CLI gave no answer")[:200]
+    _GROK_ONLY_LAST["why"] = why
+    ev("cap", "GROK ONLY - not read: %s" % why)
+    journal_skip("grok-only", why)
+    return None
+
+
+def _grok_oneshot(ap, timeout=90, prompt=None, raw_json=False):
+    """#151 — one read on the Grok CLI ALONE (his switch at GROK ONLY). -> what _oneshot returns, or None with the reason
+    said. NEVER hands the frame to Claude: a failed Grok read is a failed read, left owed for the next pass."""
+    try:
+        import g5_grok_eyes as _G5o
+    except Exception as e:
+        return _grok_only_failed("the Grok module would not load (%s)" % type(e).__name__)
+    _why = _G5o.grok_only_blocked_why()
+    if _why:
+        return _grok_only_failed(_why)
+    if not _GROK_ONLY_GATE.acquire(timeout=max(1.0, float(timeout or 90))):
+        return _grok_only_failed("two Grok reads were already running for the whole wait")
+    try:
+        gr = _G5o.g5_vision_read(ap, prompt=(prompt if prompt else READ_PROMPT.format(path=ap)))
+    except Exception as e:
+        gr = None
+        _G5o._STATS["last_error"] = "%s: %s" % (type(e).__name__, str(e)[:120])
+    finally:
+        _GROK_ONLY_GATE.release()
+    if not isinstance(gr, dict):
+        return _grok_only_failed(_G5o._STATS.get("last_error"))
+    _GROK_ONLY_LAST["why"] = None
+    body = {k: v for k, v in gr.items() if k not in _G5_STAMP_KEYS}
+    globals()["_LAST_RAW"] = str(gr.get("_raw_txt") or "")[:2048]
+    if raw_json:
+        return body
+    pr = _parse_read(json.dumps(body, ensure_ascii=False))
+    if pr is not None:
+        pr["_raw_txt"] = str(gr.get("_raw_txt") or "")[:2048]
+        pr["model"] = "grok-subscription-cli"
+        pr["mode"] = "g5-only"
+    return pr
+
+
 def _oneshot(ap, model, timeout=90, prompt=None, raw_json=False):
     """v864 — serialized: under subscription throttle all 8 workers can time out together;
     eight parallel one-shot bridges would herd the same throttle. One at a time.
@@ -6766,6 +6828,8 @@ def _oneshot(ap, model, timeout=90, prompt=None, raw_json=False):
     `remaining` well past the caller's intended budget — the same clock-skew class as
     VisionWorker.ask(), just bending the number the other way (too much budget instead of
     too little)."""
+    if _reader_choice() == "grok":   # #151 his switch at GROK ONLY: this frame goes to the Grok CLI and nowhere else
+        return _grok_oneshot(ap, timeout=timeout, prompt=prompt, raw_json=raw_json)
     t0 = time.monotonic()
     if not _ONESHOT_GATE.acquire(timeout=timeout):
         return None
@@ -7096,9 +7160,9 @@ def claude_vault_read(image_path, surface, timeout=None):
     vault_retro already understands as NOT read, so a blocked lane can never be mistaken for an
     empty shelf. That is REG-180/181's rule, applied at birth rather than retrofitted.
     """
-    if _is_throttled():
+    if _reader_choice() != "grok" and _is_throttled():   # #151 Claude's throttle gates Claude's reads only
         return {"note": "reader throttled — not read"}
-    _blocked = _sub_budget_check("oneshot")
+    _blocked = None if _reader_choice() == "grok" else _sub_budget_check("oneshot")   # #151 Claude's cap, Claude's reads
     if _blocked:
         return {"note": "not read — %s" % _blocked}
 
@@ -7247,12 +7311,12 @@ def claude_chronicle_read(image_path, kind, timeout=None):
     # with 6 names came back gameplay/0 minutes later.
     # A `note` is the shape chronicle_retro already understands as "not read" — it counts as refused
     # rather than as an empty page, so nothing downstream mistakes a silence for an answer.
-    if _is_throttled():
+    if _reader_choice() != "grok" and _is_throttled():   # #151 Claude's throttle gates Claude's reads only
         return {"note": "reader throttled — not read"}
     # v1777 — a page the SUBSCRIPTION CAP refused is not a page that held nothing. This one already
     # returned None (its own contract), but saying WHICH refusal it was is the difference between
     # "your footage is empty" and "you are out of reads until the window rolls".
-    _blocked = _sub_budget_check("oneshot")
+    _blocked = None if _reader_choice() == "grok" else _sub_budget_check("oneshot")   # #151 Claude's cap, Claude's reads
     if _blocked:
         return {"note": "not read — %s" % _blocked}
     if os.environ.get("TV_STUB"):
@@ -7352,9 +7416,9 @@ CHARSEL_READ_PROMPT = (
 def charselect_read(image_path, timeout=None):
     """One character-select panel crop -> the reader's JSON (char_select.normalize() judges it), or a {"note"} that
     says why it was NOT read. Never an empty list for a read that did not happen."""
-    if _is_throttled():
+    if _reader_choice() != "grok" and _is_throttled():   # #151 Claude's throttle gates Claude's reads only
         return {"note": "reader throttled - not read"}
-    _blocked = _sub_budget_check("oneshot")
+    _blocked = None if _reader_choice() == "grok" else _sub_budget_check("oneshot")
     if _blocked:
         return {"note": "not read - %s" % _blocked}
     if os.environ.get("TV_STUB"):
@@ -7432,7 +7496,7 @@ def claude_read(path, worker=None, out_jpg=None):
     # v1774 — see claude_chronicle_read: a throttled classify that answers "gameplay" is how a
     # whole reel gets skipped and then marked swept. None here means "no answer", which the sweep's
     # classifier() already treats as unknown rather than as a verdict.
-    if _is_throttled():
+    if _reader_choice() != "grok" and _is_throttled():   # #151 Claude's throttle gates Claude's reads only
         return None
     # v1777 — AND THE SAME DEFECT THROUGH THE OTHER DOOR: THE SUBSCRIPTION CAP.
     # _sub_budget_check is a circuit breaker protecting his account, and it works. What did not work
@@ -7482,6 +7546,15 @@ def claude_read(path, worker=None, out_jpg=None):
     except Exception:
         _G5 = None
     # ══ END GROK EYES (G5) ════════════════════════════════════════════════════
+    # #151 HIS SWITCH AT GROK ONLY: the frame is read by the Grok CLI and nobody else - no warm Claude reader, no Claude
+    # one-shot, no genius escalation. A Grok read that did not happen is the failed-read row (mode "empty", its reason
+    # in readErr) - REG-1603's shape, so nothing downstream mistakes it for a look that saw nothing.
+    if _reader_choice() == "grok":
+        _gp = _grok_oneshot(ap, timeout=LIVE_READ_TIMEOUT_S)
+        if _gp is None:
+            return dict(EMPTY, model="grok-subscription-cli", readFailed=True,
+                        readErr=str(_GROK_ONLY_LAST.get("why") or "the Grok read did not happen")[:200])
+        return _gp
 
     t0 = time.time()
     # v1778 — THE CLAUDE CAP GATES THE CLAUDE PATH, AND ONLY IT. v1777 put this check at the top of
@@ -7625,11 +7698,16 @@ def verify_read(path, prior_names, worker=None, timeout=75):
     ap = _readable_frame(os.path.abspath(path))
     if not os.path.isfile(ap):
         return None
-    w = worker or _WORKER
-    try:
-        out = w.ask(VERIFY_PROMPT.format(path=ap, prior=json.dumps(list(prior_names))), timeout=timeout)
-    except Exception:
-        return None
+    if _reader_choice() == "grok":   # #151 Grok only: the re-read goes to Grok too, never to a warm Claude reader
+        _gj = _grok_oneshot(ap, timeout=timeout, raw_json=True,
+                            prompt=VERIFY_PROMPT.format(path=ap, prior=json.dumps(list(prior_names))))
+        out = json.dumps(_gj, ensure_ascii=False) if isinstance(_gj, dict) else None
+    else:
+        w = worker or _WORKER
+        try:
+            out = w.ask(VERIFY_PROMPT.format(path=ap, prior=json.dumps(list(prior_names))), timeout=timeout)
+        except Exception:
+            return None
     if out is None:
         return None
     try:
@@ -7787,6 +7865,9 @@ def main():
     if _KNOWN_DEAD: ev("boot", f"{len(_KNOWN_DEAD)} learned transition frame(s) loaded — they cost 0ms now")
     if not os.environ.get("TV_STUB"):
         def _warm():
+            if _reader_choice() == "grok":   # #151 Grok only: the Claude readers stay cold, and say so once
+                ev("boot", "GROK ONLY - the Claude readers stay cold (your switch); every frame goes to the Grok CLI")
+                return
             # v870 (farm-video run 2: pool cold 60s, reads blind) — the v863 warm was
             # SEQUENTIAL: each reader's boot blocked the next (~8×8s). Now the STARTS stagger
             # 400ms (no login herd) but the boots run in parallel — full pool warm in ~boot+3s.

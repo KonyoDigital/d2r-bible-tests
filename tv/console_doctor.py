@@ -394,6 +394,33 @@ def _check_subscription_burn():
         hour, hourly, day, daily)
 
 
+def _check_his_reader_switch_can_read():
+    """#151 - HIS SWITCH (CLAUDE · + GROK · GROK ONLY) and whether the reader it names can read on this PC.
+
+    At GROK ONLY nothing falls back to Claude - his rule, "no claude as a secondary at all" - so a Grok that cannot
+    read here means frames wait unread. That has to reach him as a row the heart carries, not only as a line on the
+    EYES card he may never open. [[heart-first]] [[unknown-stays-unknown]]"""
+    try:
+        import g5_grok_eyes as g5
+    except Exception as e:
+        return UNKNOWN, "the Grok module will not import (%s) - which reader is on cannot be said" % type(e).__name__
+    try:
+        who = g5.reader()
+    except Exception as e:
+        return UNKNOWN, "the reader switch could not be read (%s)" % type(e).__name__
+    label = {"claude": "CLAUDE", "both": "+ GROK", "grok": "GROK ONLY"}.get(who, str(who))
+    rule = g5.READER_RULES.get(who, "")
+    if who != "grok":
+        return OK, "EYES at %s - %s" % (label, rule)
+    try:
+        why = g5.grok_only_blocked_why()
+    except Exception as e:
+        return UNKNOWN, "GROK ONLY is on and Grok's readiness could not be read (%s)" % type(e).__name__
+    if why:
+        return MISSING, why
+    return OK, "EYES at GROK ONLY - %s" % rule
+
+
 def _check_a_reel_is_not_recording_unattended():
     """v2019's class. A reel that outlives the thing that started it burns ~9GB/hour in silence."""
     sh = _get("/api/shadow")
@@ -10186,6 +10213,8 @@ CHECKS = [
     ("the vault can say what it proves", _check_the_vault_can_say_what_it_proves),
     # v2336 — the suites belong on GitHub; this notices when one comes back to his laptop
     ("test venue", _check_no_browser_suite_is_scheduled_on_this_mac),
+    # #151 - his reader switch: at GROK ONLY a Grok that cannot read leaves frames unread, and nothing falls back
+    ("reader switch", _check_his_reader_switch_can_read),
     # v2761 — the river's ELEVEN joints reach a screen; the existing "the river" row
     # watches reel_router (WHERE reels are stationed), which is a different question.
     ("river joints", _check_the_river_joints_carry),
@@ -10979,6 +11008,7 @@ WATCHES = {
     "engines corroborate":         (),
     "panels on screen":            ("console", "page"),
     "test venue":                  (),
+    "reader switch":               ("advanced",),    # #151 - the 👁 EYES card under ⚙ ADVANCED
     "river joints":                ("river-strip",),
     "river outlet":                ("river-strip",),
     "vault proposal":              ("vault.apply",),

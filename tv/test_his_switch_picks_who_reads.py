@@ -1,0 +1,361 @@
+# -*- coding: utf-8 -*-
+"""#151 - HIS SWITCH PICKS WHO READS: CLAUDE ONLY · BOTH · GROK ONLY, on every read lane.
+
+His words, 2026-10-01: "make the toggle optional to use GROK ONLY no claude as a secondary at all", then "still have
+the option of just GROK so i can save and when you max out i can use just him if needed and toggle between the two so
+the console and coding one of either you can run it without the other", and "im pretty sure this is how it was in the
+super super beginning". He was right: the 👁 EYES card had off / shadow / primary, and primary (Grok FIRST, Claude its
+backup) was retired on 09-30 after 3,150 of 6,132 Grok-first calls errored. GROK ONLY is not that: Claude is not a
+backup at all, so a Grok read that fails is a FAILED read - said, and left owed - never a quiet Claude read that spends
+the very subscription he switched it to save.
+
+What this law drives (the real functions; Claude's own doors are stubbed to RAISE, so any Claude call fails the case):
+  * the switch - off / shadow / only (and a retired primary) -> claude / both / grok, from his INTENT
+  * claude_read (the live deep read), _oneshot (the one door every Claude one-shot leaves by), charselect_read and
+    verify_read - at GROK ONLY each goes to the Grok CLI and nowhere else, past Claude's throttle and cap
+  * a failed Grok read is the failed-read row (mode "empty", readFailed, its reason) - REG-1603's shape
+  * at CLAUDE ONLY no Grok read happens at all; the intake's lanes follow the switch; no Claude warm-up at GROK ONLY
+  * the console's pre-flight: at GROK ONLY Grok's readiness blocks, Claude is not pinged
+  * the page offers the three positions
+RED_PROOF below.
+"""
+import io
+import json
+import os
+import shutil
+import sys
+import tempfile
+import unittest
+from unittest import mock
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import fixture_tmp as _fx_tmp  # noqa: E402
+_fx_tmp.contain()
+
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
+
+_WORLD = tempfile.mkdtemp(prefix="his_switch_")
+os.environ["TV_HIST"] = _WORLD
+os.environ["TV_SESSIONS"] = os.path.join(_WORLD, "sessions.jsonl")
+os.environ.pop("TV_STUB", None)
+
+import g5_grok_eyes as g5  # noqa: E402
+import tv_diablo as tv  # noqa: E402
+import control_app as ca  # noqa: E402
+
+#: what g5_vision_read hands back: the reader's JSON plus its own stamps
+GROK_ANSWER = {"area": "", "scene": "stash", "names": ["Nokozan Relic"], "names_loc": {"Nokozan Relic": "stash"},
+               "tz": [], "conf": 0.9, "model": "grok-subscription-cli", "mode": "g5-only", "escalated": False, "ms": 9,
+               "_raw_txt": '{"scene":"stash","names":["Nokozan Relic"]}', "_g5": True, "_lane": "subscription-cli"}
+
+
+class _Claude(object):
+    """Claude's doors, every one of which fails the case if it is knocked on."""
+
+    def __init__(self):
+        self.asked = []
+
+    def ask(self, *a, **k):
+        self.asked.append("worker")
+        raise AssertionError("a warm Claude reader was asked")
+
+    def oneshot_inner(self, *a, **k):
+        self.asked.append("oneshot")
+        raise AssertionError("a Claude one-shot ran")
+
+
+class _Switch(unittest.TestCase):
+
+    def setUp(self):
+        self.td = tempfile.mkdtemp(prefix="his_switch_case_")
+        self.addCleanup(shutil.rmtree, self.td, True)
+        self.pic = os.path.join(self.td, "f_1.jpg")
+        with open(self.pic, "wb") as fh:
+            fh.write(b"\xff\xd8\xff\xe0 not a real picture - the readers are stubbed")
+        self.state = os.path.join(self.td, "g5.state")
+        saved_env = os.environ.pop("TV_G5_GROK_EYES", None)
+        if saved_env is not None:
+            self.addCleanup(os.environ.__setitem__, "TV_G5_GROK_EYES", saved_env)
+        self.claude = _Claude()
+        self.grok_calls = []
+        self.grok_answer = dict(GROK_ANSWER)
+        self.skips = []
+        for obj, name, val in (
+                (g5, "_STATE_FILE", self.state),
+                (g5, "has_subscription", lambda: True),
+                (g5, "_grok_bin", lambda: "/stub/grok"),
+                (g5, "g5_vision_read", self._grok),
+                (tv, "_oneshot_inner", self.claude.oneshot_inner),
+                (tv._WORKER, "ask", self.claude.ask),
+                (tv, "_readable_frame", lambda ap, out_jpg=None: ap),
+                (tv, "journal_skip", lambda why, detail="": self.skips.append((why, detail))),
+                (tv, "_is_throttled", lambda: False),
+                (tv, "_sub_budget_check", lambda kind: None)):
+            p = mock.patch.object(obj, name, val)
+            p.start()
+            self.addCleanup(p.stop)
+
+    def _grok(self, path, prompt=None, force=False):
+        self.grok_calls.append(prompt)
+        if self.grok_answer is None:
+            g5._STATS["last_error"] = "grok -p timeout 140s"
+            return None
+        return dict(self.grok_answer)
+
+    def switch(self, mode):
+        with io.open(self.state, "w", encoding="utf-8") as fh:
+            json.dump({"on": mode != "off", "mode": mode}, fh)
+
+
+class TheSwitchHasThreePositions(_Switch):
+
+    def test_each_position_names_its_reader(self):
+        for mode, who in (("off", "claude"), ("shadow", "both"), ("only", "grok"), ("primary", "both")):
+            self.switch(mode)
+            self.assertEqual(g5.reader(), who, "the switch at %s" % mode)
+            self.assertEqual(tv._reader_choice(), who)
+
+    def test_grok_only_is_saved_as_grok_only(self):
+        g5.set_mode("only")
+        with io.open(self.state, encoding="utf-8") as fh:
+            self.assertEqual(json.load(fh).get("mode"), "only")
+        self.assertEqual(g5.reader(), "grok")
+
+    def test_the_environment_can_choose_grok_only_but_never_grok_first(self):
+        with mock.patch.dict(os.environ, {"TV_G5_GROK_EYES": "only"}):
+            self.assertEqual(g5.reader(), "grok")
+        with mock.patch.dict(os.environ, {"TV_G5_GROK_EYES": "primary"}):
+            self.assertEqual(g5.reader(), "both")
+
+    def test_grok_only_without_a_login_is_still_grok_only_and_says_why(self):
+        self.switch("only")
+        with mock.patch.object(g5, "has_subscription", lambda: False):
+            self.assertEqual(g5.reader(), "grok", "an unsigned Grok quietly handed the reads back to Claude")
+            st = g5.status()
+            self.assertEqual(st.get("reader"), "grok")
+            self.assertIn("not signed in", st.get("readerBlocked") or "")
+            self.assertIn("Claude is not asked", st.get("readerRule") or "")
+
+    def test_dean_s_pc_is_claude_only(self):
+        self.assertEqual(g5.reader(), "claude", "no choice made must mean Claude only")
+        self.assertIsNone(g5.status().get("readerBlocked"))
+
+
+class GrokOnlyNeverAsksClaude(_Switch):
+
+    def setUp(self):
+        super(GrokOnlyNeverAsksClaude, self).setUp()
+        self.switch("only")
+
+    def test_the_live_read_goes_to_grok_alone(self):
+        got = tv.claude_read(self.pic)
+        self.assertEqual(self.claude.asked, [])
+        self.assertEqual(len(self.grok_calls), 1)
+        self.assertEqual(got.get("names"), ["Nokozan Relic"])
+        self.assertEqual(got.get("scene"), "stash")
+        self.assertEqual(got.get("model"), "grok-subscription-cli")
+        self.assertEqual(got.get("mode"), "g5-only")
+
+    def test_a_failed_grok_read_is_a_failed_read_never_claude(self):
+        self.grok_answer = None
+        got = tv.claude_read(self.pic)
+        self.assertEqual(self.claude.asked, [], "a failed Grok read was handed to Claude")
+        self.assertEqual(got.get("mode"), "empty", "a read that did not happen must not look like a look")
+        self.assertTrue(got.get("readFailed"))
+        self.assertIn("timeout", got.get("readErr") or "")
+        self.assertEqual(self.skips[-1][0], "grok-only")
+
+    def test_claudes_throttle_and_cap_do_not_stop_a_grok_read(self):
+        with mock.patch.object(tv, "_is_throttled", lambda: True), \
+                mock.patch.object(tv, "_sub_budget_check", lambda kind: "the Claude cap is spent"):
+            got = tv.charselect_read(self.pic)
+            live = tv.claude_read(self.pic)
+        self.assertEqual(got.get("scene"), "stash", "his maxed-out Claude stopped a Grok-only read: %s" % got)
+        self.assertEqual(live.get("names"), ["Nokozan Relic"])
+        self.assertEqual(self.claude.asked, [])
+
+    def test_every_one_shot_leaves_by_the_grok_door(self):
+        got = tv._oneshot(self.pic, tv.GENIUS_MODEL, prompt="ASK", raw_json=True)
+        self.assertEqual(self.grok_calls, ["ASK"], "the reader's own question was not the one Grok was asked")
+        self.assertNotIn("_raw_txt", got, "Grok's stamps leaked into the reader's answer")
+        self.assertEqual(got.get("names"), ["Nokozan Relic"])
+        self.assertEqual(self.claude.asked, [])
+
+    def test_the_verify_reread_goes_to_grok_too(self):
+        self.grok_answer = {"confirm": ["Nokozan Relic"], "missed": [], "not_present": [], "conf": 0.8}
+        got = tv.verify_read(self.pic, ["Nokozan Relic"])
+        self.assertEqual(self.claude.asked, [])
+        self.assertEqual((got or {}).get("confirm"), ["Nokozan Relic"])
+
+    def test_no_claude_reader_is_pinged_awake(self):
+        with mock.patch.object(tv, "POOL_N", 3):
+            tv._rewarm(tv._WORKER)
+        self.assertEqual(self.claude.asked, [])
+
+    def test_the_intake_asks_grok_alone(self):
+        here = self.td
+        for n in ("intake_local.mjs", "intake_grok_sub.mjs"):
+            io.open(os.path.join(here, n), "w").close()
+        self.assertEqual([lab for lab, _ in ca._intake_dual_runners(here, "only")], ["grok-subscription"])
+        self.assertEqual([lab for lab, _ in ca._intake_dual_runners(here, "shadow")],
+                         ["subscription", "grok-subscription"])
+        self.assertEqual([lab for lab, _ in ca._intake_dual_runners(here, "off")], ["subscription"])
+
+
+class ClaudeOnlyNeverAsksGrok(_Switch):
+
+    def test_no_grok_read_happens(self):
+        self.switch("off")
+        with mock.patch.object(tv._WORKER, "ask", lambda *a, **k: '{"area":"","scene":"town","names":[]}'):
+            got = tv.claude_read(self.pic)
+        self.assertEqual(self.grok_calls, [], "Grok was asked with the switch at CLAUDE")
+        self.assertEqual(got.get("scene"), "town")
+
+
+class ThePreflightFollowsTheSwitch(_Switch):
+
+    def _rows(self):
+        class _PR:
+            returncode = 0
+            stdout = b"ok"
+            stderr = b""
+        pinged = []
+
+        def _run(*a, **k):
+            pinged.append(a[0] if a else k.get("args"))
+            return _PR()
+        with mock.patch.object(ca.subprocess, "run", _run), \
+                mock.patch.object(ca.shutil, "which", lambda *a, **k: None), \
+                mock.patch.object(ca, "_find_claude_bin", lambda *a, **k: None), \
+                mock.patch.dict(os.environ, {"TV_CLAUDE_BIN": ""}), \
+                mock.patch.object(ca, "_G5", g5):
+            got = ca.farmgate_payload()
+        self.pinged = [c for c in pinged if isinstance(c, (list, tuple)) and "-p" in c]
+        return {c["id"]: c for c in got.get("checks", [])}
+
+    def test_grok_only_does_not_need_claude_and_needs_grok(self):
+        self.switch("only")
+        rows = self._rows()
+        self.assertEqual(self.pinged, [], "Claude was pinged at GROK ONLY")
+        self.assertEqual(rows["claude_cli"]["severity"], "warn", "a missing Claude blocked a GROK ONLY console")
+        self.assertIn("not asked", rows["claude_auth"]["detail"])
+        self.assertTrue(rows["grok_only"]["ok"])
+        with mock.patch.object(g5, "has_subscription", lambda: False):
+            rows = self._rows()
+        self.assertFalse(rows["grok_only"]["ok"])
+        self.assertEqual(rows["grok_only"]["severity"], "block")
+
+
+class TheHeartCarriesTheSwitch(_Switch):
+    """the doctor row: a GROK ONLY console whose Grok cannot read must reach him, not only the EYES card"""
+
+    def test_the_doctor_says_which_reader_and_whether_it_can_read(self):
+        import console_doctor as CD
+        self.assertIn("reader switch", [n for n, _ in CD.CHECKS])
+        self.switch("off")
+        self.assertEqual(CD._check_his_reader_switch_can_read()[0], CD.OK)
+        self.switch("only")
+        st, line = CD._check_his_reader_switch_can_read()
+        self.assertEqual(st, CD.OK, line)
+        self.assertIn("GROK ONLY", line)
+        with mock.patch.object(g5, "has_subscription", lambda: False):
+            st, line = CD._check_his_reader_switch_can_read()
+        self.assertEqual(st, CD.MISSING, "a GROK ONLY console that cannot read was carried as fine: %s" % line)
+        self.assertIn("not signed in", line)
+
+
+class ThePageOffersThreePositions(unittest.TestCase):
+
+    def test_the_eyes_card_has_claude_both_and_grok_only(self):
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            ui = fh.read()
+        import re
+        for mode, bid, label in (("off", "btn-g5-off", "CLAUDE"), ("shadow", "btn-g5-shadow", "+ GROK"),
+                                 ("only", "btn-g5-only", "GROK ONLY")):
+            self.assertEqual(len(re.findall(r'<button[^>]*data-g5="%s"' % mode, ui)), 1, "the EYES card's %s position" % mode)
+            m = re.findall(r'<button[^>]*data-g5="%s" id="%s"[^>]*>([^<]*)</button>' % (mode, bid), ui)
+            self.assertEqual(m, [label], "the %s button says %r" % (bid, m))
+        self.assertNotIn('data-g5="primary"', ui, "Grok-first came back to the page")
+
+
+RED_PROOF = [
+    {
+        "why": "#151 - the heart stops saying that a GROK ONLY console cannot read",
+        "file": "console_doctor.py",
+        "find": "    if why:\n        return MISSING, why\n    return OK, \"EYES at GROK ONLY - %s\" % rule\n",
+        "replace": "    return OK, \"EYES at GROK ONLY - %s\" % rule\n",
+        "matches": 1,
+    },
+    {
+        "why": "#151 - Grok only is read as Claude only again: the switch has two positions",
+        "file": "g5_grok_eyes.py",
+        "find": '    return {"only": "grok", "shadow": "both", "primary": "both"}.get(m, "claude")\n',
+        "replace": '    return {"shadow": "both", "primary": "both"}.get(m, "claude")\n',
+        "matches": 1,
+    },
+    {
+        "why": "#151 - the one-shot door forgets the switch and every one-shot reads with Claude",
+        "file": "tv_diablo.py",
+        "find": "    if _reader_choice() == \"grok\":   # #151 his switch at GROK ONLY: this frame goes to the Grok CLI and nowhere else\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "#151 - a failed Grok-only live read falls back to Claude",
+        "file": "tv_diablo.py",
+        "find": "        if _gp is None:\n            return dict(EMPTY, model=\"grok-subscription-cli\", readFailed=True,\n",
+        "replace": "        if _gp is None and False:\n            return dict(EMPTY, model=\"grok-subscription-cli\", readFailed=True,\n",
+        "matches": 1,
+    },
+    {
+        "why": "#151 - his maxed-out Claude cap stops a Grok-only read again",
+        "file": "tv_diablo.py",
+        "find": "    _blocked = None if _reader_choice() == \"grok\" else _sub_budget_check(\"oneshot\")\n    if _blocked:\n        return {\"note\": \"not read - %s\" % _blocked}\n",
+        "replace": "    _blocked = _sub_budget_check(\"oneshot\")\n    if _blocked:\n        return {\"note\": \"not read - %s\" % _blocked}\n",
+        "matches": 1,
+    },
+    {
+        "why": "#151 - the verify re-read asks a warm Claude reader at Grok only",
+        "file": "tv_diablo.py",
+        "find": "    if _reader_choice() == \"grok\":   # #151 Grok only: the re-read goes to Grok too, never to a warm Claude reader\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "#151 - a Claude reader is pinged awake at Grok only",
+        "file": "tv_diablo.py",
+        "find": "    if _reader_choice() == \"grok\":   # #151 Grok only: a Claude reader is never pinged awake\n        return\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#151 - the intake asks Claude at Grok only",
+        "file": "control_app.py",
+        "find": "    if mode == \"only\":\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "#151 - Grok's stamps leak into the reader's answer",
+        "file": "tv_diablo.py",
+        "find": "    body = {k: v for k, v in gr.items() if k not in _G5_STAMP_KEYS}\n",
+        "replace": "    body = dict(gr)\n",
+        "matches": 1,
+    },
+    {
+        "why": "#151 - the page loses the GROK ONLY position",
+        "file": "control_ui.html",
+        "find": " data-g5=\"only\" id=\"btn-g5-only\"",
+        "replace": " data-g5=\"shadow\" id=\"btn-g5-only\"",
+        "matches": 1,
+    },
+]
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

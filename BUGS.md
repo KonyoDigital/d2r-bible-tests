@@ -406,6 +406,31 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1698 - "TOGGLE BETWEEN THE TWO... EITHER YOU CAN RUN IT WITHOUT THE OTHER": THE READER SWITCH GETS ITS THIRD POSITION BACK, AS GROK ONLY (#151, 2026-10-01)
+
+**His words:** "make the toggle optional to use GROK ONLY no claude as a secondary at all", then "still have the option
+of just GROK so i can save and when you max out i can use just him if needed and toggle between the two so the console
+and coding one of either you can run it without the other", and "im pretty sure this is how it was in the super super
+beginning then somehow it changed". **He was right:** the 👁 EYES card was a three-way switch - off (Claude only),
+shadow (Claude, Grok beside it), primary (Grok FIRST, Claude its backup) - and primary was retired on 09-30 (REG-1586)
+after 3,150 of 6,132 Grok-first calls on his Mac errored, mostly 140 s timeouts, each holding a frame before Claude read
+it. **GROK ONLY is not that:** Claude is not a backup at all. **Measured before building:** Grok's own guard allows
+4,000 reads an hour and 20,000 a day against his busiest hour today of ~300 deep reads; and his Claude cap and throttle
+stood IN FRONT of the vault, Chronicle and select-screen readers, so "when you max out" would have stopped a Grok-only
+read before Grok was ever asked.
+**Now:** one switch, owned by `g5_grok_eyes` (`reader()` -> claude | both | grok, decided by his INTENT so an unsigned
+Grok never quietly hands the reads back to Claude), honoured by every read lane: the live deep read, `_oneshot` (the one
+door every Claude one-shot leaves by - vault, Chronicle, select screen, the live fallback, genius), the verify re-read,
+the intake (Grok lane alone, and the website proxy - Claude on the site's key - is not a fallback either), the warm-up and
+re-warm (no Claude reader pinged awake), and the pre-flight (Claude is not pinged; Grok's own readiness BLOCKS, a missing
+Claude CLI only warns). At GROK ONLY Claude's throttle and cap never stop a Grok read. A Grok read that fails is the
+failed-read row (mode "empty", readFailed, its reason in readErr - REG-1603's shape) and the frame stays owed; at most two
+Grok-only reads run at once. The card says GROK ONLY, CLAUDE, + GROK; a Grok-only PC that cannot read leads the card with
+why. Dean's PC stays on CLAUDE - nothing changes there. Laws: `tv/test_his_switch_picks_who_reads.py` (15 cases, 9/9
+PROVEN; every Claude door stubbed to RAISE); `test_claude_reads_every_frame` narrowed to the new ruling (Grok-FIRST still
+forbidden by any door; the one other home of a Grok read is `_grok_oneshot`, which holds no Claude call - a new AST case),
+proof [3] re-anchored, 8/8 PROVEN. **Seen:** the card rendered at 1120/1280/1440/901/375 - painted 3/3, clipped 0/14, covered 0 at every width; a lone "+" over "GROK" at 1120 fixed with nowrap on that one button; the Grok CLI, shown the crop cold, read CLAUDE · + GROK · GROK ONLY with CLAUDE selected and nothing broken. The `advanced` coverage floor raised 1 -> 3 (it had watched 3 nodes since its selector grew). **The heart carries it:** a doctor row `reader switch` says which reader is on and goes MISSING, with the reason, when GROK ONLY is on and Grok cannot read here - frames would otherwise wait unread with only the EYES card saying so (watches `advanced`; NO_JOINT_YET names the second source - the read rows' own model stamps).
+
 ### REG-1697 - THREE FILES THE CONSOLE WRITES WERE ONE `git add -A` FROM A PUBLIC REPO (found building #148, 2026-10-01)
 
 **Found** while reading the shadow door's record: `tv/shadow_seals.jsonl` (REG-1675) sat UNTRACKED and NOT IGNORED on his

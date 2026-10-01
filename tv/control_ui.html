@@ -6852,6 +6852,11 @@
   .g5-seg-btn.is-on { background: rgba(185,162,224,.28); color: #f2ebff; font-weight: var(--fw-semibold); }
   .g5-eyes-card[data-mode="shadow"] { border-color: rgba(185,162,224,.55); }
   .g5-eyes-card[data-mode="shadow"] .g5-seg-btn[data-g5="shadow"].is-on { background: rgba(150,120,220,.45); }
+  /* #151 - "+ GROK" broke as a lone "+" over "GROK" in the 1120 rail once a third position joined the row */
+  .g5-seg-btn[data-g5="shadow"] { white-space: nowrap; }
+  /* #151 his switch at GROK ONLY: the card says so in its frame, the way + GROK does */
+  .g5-eyes-card[data-mode="only"] { border-color: rgba(185,162,224,.7); }
+  .g5-eyes-card[data-mode="only"] .g5-seg-btn[data-g5="only"].is-on { background: rgba(150,120,220,.6); }
   /* 2026-09-30 - the Grok-first ("primary") position is retired: Claude reads every frame, Grok is the + GROK layer */
   /* v1504 — was 10px at 60% opacity: this line carries the third eye's WHY — "switched to PRIMARY
      but NOT running" lands here. A warning nobody can read is not a warning. */
@@ -8468,8 +8473,10 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
                    [[label-outlived-referent]] -->
               <span class="g5-eyes-lab">👁 EYES</span>
               <span class="g5-seg" role="group" aria-label="Grok Eyes mode">
-                <button type="button" class="g5-seg-btn" data-g5="off" id="btn-g5-off" title="Claude reads every frame; Grok is off (the default - a PC without Grok needs nothing else)">OFF</button>
+                <button type="button" class="g5-seg-btn" data-g5="off" id="btn-g5-off" title="Claude reads every frame; Grok is off (the default - a PC without Grok needs nothing else)">CLAUDE</button>
                 <button type="button" class="g5-seg-btn" data-g5="shadow" id="btn-g5-shadow" title="Claude still reads every frame; Grok also reads beside it as an extra layer and never replaces Claude (SuperGrok login · NO API keys)">+ GROK</button>
+                <!-- #151 his switch, 2026-10-01: "make the toggle optional to use GROK ONLY no claude as a secondary at all" -->
+                <button type="button" class="g5-seg-btn" data-g5="only" id="btn-g5-only" title="Grok reads every frame; Claude is not asked at all - not first, not as a backup. Saves the Claude subscription. A Grok read that fails waits unread and says why.">GROK ONLY</button>
               </span>
               <!-- v1381.2 — ⚡ one-click SuperGrok authorize (browser once; no-spam when already linked) -->
               <button type="button" class="g5-auth-btn" id="btn-g5-auth" title="Install is via TV installer / x.ai CLI. This opens grok login in the browser once per PC. Already authorized = no re-prompt.">⚡ Authorize</button>
@@ -21222,11 +21229,14 @@ window._lockMark = function(isOpen, px, label){
         bits.push('install Grok CLI via TV installer (or: irm https://x.ai/cli/install.ps1 | iex)');
       else if (st.needsLogin || (cli && !authorized && !sub))
         bits.push('click ⚡ Authorize — browser SuperGrok login once · NO API keys');
+      else if (intent === 'only') bits.push('GROK ONLY · Grok reads every frame · Claude is not asked at all');
       else if (mode === 'off') bits.push('Claude reads every frame · Grok off');
       else if (mode === 'shadow') bits.push('Claude reads every frame · + Grok reads beside it (extra layer, never replaces Claude)');
       /* 2026-09-30 - his ruling: Claude is the reader, Grok only an extra layer. Grok-first ("primary") is retired;
          a PC whose saved choice still said it is told so here, never silently. */
       if (st.primaryRetired) bits.push(String(st.primaryRetired));
+      /* #151 - Grok only that cannot read is the headline: frames wait unread, and Claude is not quietly used instead */
+      if (st.readerBlocked) bits.unshift('⚠ ' + esc(st.readerBlocked));
       if (sub && intent !== mode && intent !== 'off')
         bits.push('effective still ' + mode);
       // v1457 HONESTY (audit): G5 is the MANDATED primary lane here. Its failures were recorded in

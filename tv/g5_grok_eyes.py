@@ -12,6 +12,12 @@
 # Modes:
 #   off      — instant no-op (default, cousin-safe)
 #   shadow   — Claude still drives ON AIR; Grok also reads & is logged (no replace)
+#   only     — #151 GROK ONLY (2026-10-01, his switch): the Grok CLI reads every frame and Claude is not asked at all -
+#              not first, not as a backup. His words: "make the toggle optional to use GROK ONLY no claude as a secondary
+#              at all ... so i can save and when you max out i can use just him". A failed Grok read is a FAILED read,
+#              said and left owed - never handed to Claude, never an empty verdict. Chosen on a PC whose Grok cannot run,
+#              the reads fail and SAY why: the switch is his, and quietly reading with Claude would spend the very
+#              subscription he chose it to save. The default stays off (Claude only) - Dean's PC needs nothing.
 #   primary  — RETIRED 2026-09-30. His ruling: "make sure the subscription CLI is using claude and not grok..
 #              grok is just an extra layer if toggled on.. dean does not use grok.. so it shouldnt need both to work".
 #              MEASURED that morning: his Mac and his ALT were both on primary (linking Grok auto-set it), so Grok
@@ -68,7 +74,7 @@ _BUDGET_PATH = os.path.join(HERE, "g5_subscription_budget.json")
 _HOURLY_MAX = max(0, int(os.environ.get("G5_GROK_HOURLY_MAX", "4000")))
 _DAILY_MAX = max(0, int(os.environ.get("G5_GROK_DAILY_MAX", "20000")))
 _TIMEOUT_S = float(os.environ.get("G5_GROK_TIMEOUT_S", "140"))
-_MODES = ("off", "shadow", "primary")
+_MODES = ("off", "shadow", "primary", "only")
 
 # API-style secrets we ALWAYS strip so vision cannot ride console tokens
 _API_STRIP = (
@@ -79,7 +85,7 @@ _API_STRIP = (
 
 _CALL_LOG: list[float] = []
 _STATS = {
-    "calls": 0, "ok": 0, "errors": 0, "skipped_budget": 0, "skipped_blocked": 0, "shadow": 0, "primary": 0,
+    "calls": 0, "ok": 0, "errors": 0, "skipped_budget": 0, "skipped_blocked": 0, "shadow": 0, "primary": 0, "only": 0,
     "last": None, "last_error": None, "last_error_ts": None, "lane": "subscription-cli",
 }
 _LOCK = threading.Lock()
@@ -415,7 +421,7 @@ def _load_state():
             mode = "shadow"            # a legacy {"on": true} is the extra layer, never Grok-first (2026-09-30)
         if retired:
             mode = "shadow"            # primary is retired: Claude reads, Grok watches beside it
-        return {"on": bool(d.get("on")) or mode == "shadow", "mode": mode, "retired": retired}
+        return {"on": bool(d.get("on")) or mode in ("shadow", "only"), "mode": mode, "retired": retired}
     except Exception:
         return {"on": False, "mode": "off", "retired": False}
 
@@ -442,7 +448,7 @@ def switch_on():
     env = (os.environ.get("TV_G5_GROK_EYES") or "").strip().lower()
     if env in ("0", "off", "false", "no"):
         return False
-    if env in ("1", "on", "true", "yes", "shadow", "primary"):
+    if env in ("1", "on", "true", "yes", "shadow", "primary", "only", "grok", "grok-only"):
         return True
     st = _load_state()
     return st["on"] and st["mode"] != "off"
@@ -454,6 +460,8 @@ def mode_intent():
         return "off"
     if env in ("shadow", "sh"):
         return "shadow"
+    if env in ("only", "grok", "grok-only"):
+        return "only"                  # #151 his switch: Grok reads every frame, Claude is not asked
     if env in ("1", "on", "true", "yes", "primary", "pri"):
         return "shadow"                # ON is the extra layer; "primary" is retired (2026-09-30)
     st = _load_state()
@@ -473,7 +481,37 @@ def mode():
 
 
 def is_on():
-    return mode() in ("shadow", "primary")
+    return mode() in ("shadow", "primary", "only")
+
+
+#: #151 — what each position of his switch means, in his words, for the status line and the card
+READER_RULES = {
+    "claude": "Claude reads every frame; Grok is not asked",
+    "both": "Claude reads every frame; Grok reads beside it and never replaces it",
+    "grok": "Grok reads every frame; Claude is not asked at all - not first, not as a backup",
+}
+
+
+def reader():
+    """#151 HIS SWITCH - who reads a frame on this PC. -> "claude" | "both" | "grok"
+
+    From the INTENT (mode_intent), never the effective mode: Grok-only chosen on a PC whose Grok cannot run is still
+    Grok-only - its reads fail and say why - because "no claude as a secondary at all" is the whole point of it."""
+    try:
+        m = mode_intent()
+    except Exception:
+        m = "off"
+    return {"only": "grok", "shadow": "both", "primary": "both"}.get(m, "claude")
+
+
+def grok_only_blocked_why():
+    """#151 - with the switch at GROK ONLY, why Grok cannot read here right now. -> a sentence, or None when it can."""
+    if not _grok_bin():
+        return "GROK ONLY is chosen and the Grok CLI is not installed on this PC - frames wait unread (Claude is not used)"
+    if not has_subscription():
+        return ("GROK ONLY is chosen and Grok is not signed in on this PC (click ⚡ Authorize) - frames wait unread "
+                "(Claude is not used)")
+    return None
 
 
 def is_primary():
@@ -622,8 +660,10 @@ def status():
         "switch": mode_intent(),
         "mode": mode(),
         # 2026-09-30 - his ruling, on every status: Claude is the reader, Grok only an extra layer when on
-        "reader": "claude",
-        "readerRule": "Claude reads every frame on every PC; Grok, when on, reads beside it and never replaces it",
+        # #151 - his switch: claude | both | grok, and what it means. readerBlocked is said whenever Grok-only cannot read.
+        "reader": reader(),
+        "readerRule": READER_RULES.get(reader(), READER_RULES["claude"]),
+        "readerBlocked": (grok_only_blocked_why() if reader() == "grok" else None),
         "primaryRetired": primary_retired_note(),
         # v1501 — SAY IT WHEN INTENT AND REALITY DISAGREE. Konyo had this switched to PRIMARY while
         # the effective mode sat at off, and nothing said so: a lane that never attempts never
@@ -1142,6 +1182,8 @@ def g5_vision_read(image_path, prompt=None, *, force=False):
         _STATS["shadow"] += 1
     elif m == "primary":
         _STATS["primary"] += 1
+    elif m == "only":
+        _STATS["only"] += 1
     _stats_flush()
     parsed["model"] = "grok-subscription-cli"
     parsed["mode"] = "g5-" + m

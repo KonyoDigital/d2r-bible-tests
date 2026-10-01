@@ -3,12 +3,12 @@
   "_why": "COVERAGE RATCHET — how many nodes each target measured on a clean run. It may only RISE. A drop means a surface this gate used to watch has gone, which in a green run reads exactly like clean. Regenerate with: python3 tv/render_check.py --bless",
   "floor": {
     "advanced": {
-      "1120x628": 1,
-      "1120x900": 1,
-      "1280x720": 1,
-      "1440x1000": 1,
-      "375x800": 1,
-      "901x900": 1
+      "1120x628": 3,
+      "1120x900": 3,
+      "1280x720": 3,
+      "1440x1000": 3,
+      "375x800": 3,
+      "901x900": 3
     },
     "advanced-fleet": {
       "1120x628": 19,

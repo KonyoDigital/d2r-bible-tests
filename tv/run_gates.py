@@ -8794,6 +8794,14 @@ GATES = [
              "alt and also on deans' - four routes (local, crossover, boosteroid, geforce-now). A bare GeForce NOW app "
              "window was a near-miss on every PC and the bare-window HUD check asked Boosteroid by name. One table "
              "now goes through BOTH finders and every row names the same route on the Mac and on Windows."),
+    Gate("test_his_switch_picks_who_reads",
+         [sys.executable, os.path.join(HERE, "test_his_switch_picks_who_reads.py")], 90,
+         needs_app=False,
+         why="#151 - his switch, 2026-10-01: 'make the toggle optional to use GROK ONLY no claude as a secondary at all... "
+             "so i can save and when you max out i can use just him'. Three positions - CLAUDE, + GROK (both), GROK "
+             "ONLY - honoured by every read lane (the live read, the one-shot door, the select-screen and verify reads, "
+             "the intake, the warm-up, the pre-flight). At GROK ONLY Claude is never asked, its throttle and cap never "
+             "stop a Grok read, and a failed Grok read is a failed read, said and owed."),
     Gate("test_a_session_is_one_session_whatever_he_does",
          [sys.executable, os.path.join(HERE, "test_a_session_is_one_session_whatever_he_does.py")], 90,
          needs_app=False,

@@ -37842,7 +37842,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3550",
+        "ver": "v3551",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
@@ -38558,7 +38558,26 @@ def farmgate_payload():
     # v924-R4 (Grok): during ON AIR the live readers already prove the lane — never stack a
     # second `claude -p` on top of a warm pool; the gate belongs BEFORE air.
     # (2026-09-30: no Grok-primary skip here any more - Claude is the reader on every PC, so its auth is always asked)
-    if exe and _sock_open(AGENT_PORT):
+    # #151 HIS SWITCH AT GROK ONLY: nothing reads with Claude, so nothing pings it - and a missing Claude CLI is the reader
+    # he switched OFF, not a broken one ("either ... you can run it without the other"). Grok's own readiness BLOCKS
+    # instead, because at GROK ONLY it is the only reader there is.
+    _grok_only_pf = False
+    try:
+        _grok_only_pf = bool(_G5 is not None and _G5.reader() == "grok")
+    except Exception:
+        _grok_only_pf = False
+    if _grok_only_pf:
+        if not exe and checks and checks[-1].get("id") == "claude_cli":
+            checks[-1]["severity"] = "warn"
+        _gw = None
+        try:
+            _gw = _G5.grok_only_blocked_why()
+        except Exception as _ge:
+            _gw = "Grok's readiness could not be read (%s)" % type(_ge).__name__
+        checks.append(_chk("claude_auth", True, "warn", "not asked - your switch is at GROK ONLY, so nothing pings Claude"))
+        checks.append(_chk("grok_only", not _gw, "block", _gw or "GROK ONLY - the Grok CLI reads every frame",
+                           "click ⚡ Authorize under ⚙ ADVANCED -> 👁 EYES, or switch EYES back to CLAUDE"))
+    elif exe and _sock_open(AGENT_PORT):
         checks.append(_chk("claude_auth", True, "warn",
                            "skipped during ON AIR — the live readers already prove the lane (press the gate before air next time)"))
     elif exe:
@@ -39360,6 +39379,11 @@ def _intake_dual_runners(here, g5_mode, *, local_on=True):
     if mode == "primary":
         mode = "shadow"
     out = []
+    if mode == "only":
+        # #151 his switch at GROK ONLY: the Grok lane alone - Claude is not a backup here either
+        if os.path.isfile(grok):
+            out.append(("grok-subscription", grok))
+        return out
     if mode == "shadow":
         if os.path.isfile(claude):
             out.append(("subscription", claude))
@@ -42021,8 +42045,8 @@ class Handler(BaseHTTPRequestHandler):
             self._json(200, {"ok": True, "identity": data})
             return
         if path == "/api/g5_toggle":
-            # {"mode":"off"|"shadow"} or {"on":true} → shadow. "primary" is RETIRED (2026-09-30): it is saved and read
-            # as shadow - Claude reads every frame, Grok only reads beside it.
+            # {"mode":"off"|"shadow"|"only"} or {"on":true} → shadow. off = Claude only, shadow = both, only = GROK ONLY
+            # (#151, his switch: Claude is not asked at all). "primary" is RETIRED (2026-09-30) and read as shadow.
             if _G5 is None:
                 self._json(200, {"present": False, "on": False, "mode": "off", "hasKey": False})
                 return
@@ -42299,9 +42323,13 @@ class Handler(BaseHTTPRequestHandler):
             _here_i = os.path.dirname(os.path.abspath(__file__))
             # ══ GROK EYES (G5) — dual intake receiver (subscription CLI only) ══
             _g5_mode = "off"
+            _grok_only_i = False
             try:
                 if _G5 is not None:
                     _g5_mode = str(_G5.mode() or "off")
+                    # #151 - his switch decides by INTENT: Grok only on a PC whose Grok cannot run is still Grok only
+                    if _G5.reader() == "grok":
+                        _g5_mode, _grok_only_i = "only", True
             except Exception:
                 _g5_mode = "off"
             _runners = _intake_dual_runners(
@@ -42312,7 +42340,8 @@ class Handler(BaseHTTPRequestHandler):
             # v919 (Grok REAL EYES R1) — STRICT mode: a silent local-lane failure falling
             # through to the website proxy can fake-green a "real subscription" run on the
             # website's key. TV_INTAKE_LOCAL_STRICT=1 → answer 502 honestly, never fall back.
-            _strict = os.environ.get("TV_INTAKE_LOCAL_STRICT") == "1"
+            # #151 - and at GROK ONLY the website proxy is not a fallback either: it reads with Claude on the site's key
+            _strict = os.environ.get("TV_INTAKE_LOCAL_STRICT") == "1" or _grok_only_i
             if _runners:
                 try:
                     globals()["_INTAKE_INFLIGHT"] = _inflight_i + 1
