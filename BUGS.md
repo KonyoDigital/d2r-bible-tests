@@ -406,6 +406,18 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1683 - A MULTI-LANE PROVER HELD ITS LOG STILL FOR A WHOLE GATE, AND THE SILENCE WATCHDOG WOULD END IT (the v3544 eye, 2026-10-01)
+
+**Found by** the Grok seat on v3544 (69,739 chars). **Was:** REG-1674 ends a prover whose log stands still past
+`silent_bound_s` (three scaled runs + 600 s), on the premise that "every proof verdict is a line when it is judged". That
+holds for one lane only: with HEART2_PROVE_WORKERS > 1 each lane's `_LaneSay` holds its gate's lines until the gate
+ends. The eye's case: two lanes (the Dean-sized PC `lanes_for` is written for), one gate with three proofs at a scaled
+480 s a run = 2,400 s of silence against a 2,040 s bound - the prover is ended mid-law, its gates booked stalled, and
+the next slice repeats it. **Now** a buffered lane writes one short line straight through at most every
+`LANE_BEAT_EVERY_S` (60 s) - "a proving lane is working - N line(s) of its gate held" - so the log moves per proof,
+while the gate's own lines still arrive together, in order, at its end. One lane is unbuffered and unchanged. Law:
+`tv/test_a_silent_prover_is_ended_and_said.py` (AMultiLaneLogStillMoves, 4 cases, 2 red-proofs).
+
 ### REG-1684 - v3544'S CI WENT RED ON A SIBLING LAW WHOSE REELS CROSSED THE CLOCK HOUR (agent tests, 2026-10-01)
 
 **Seen:** v3544 (acf09f7a) agent tests red - `test_an_update_lands_beside_a_shadow_reel`, 6 failures, all "the shadow

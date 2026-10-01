@@ -162,6 +162,50 @@ class TheLogIsAHeartbeat(unittest.TestCase):
         self.assertEqual(SP.silent_bound_s(None, scale=4, timeouts=t), 3 * 4 * 900 + 600)
 
 
+class AMultiLaneLogStillMoves(unittest.TestCase):
+    """REG-1683 (the v3544 eye) - with two or more lanes, heart2 holds a gate's lines until the gate ends, so a long
+    gate left the log still past silent_bound_s while it worked. A buffered lane now says it is alive, at most once a
+    minute, and the gate's own lines still arrive together, in order."""
+
+    def setUp(self):
+        import heart2 as H
+        import threading
+        self.H, self.out, self.t = H, [], [1000.0]
+        self.lock = threading.Lock()
+
+    def lane(self, buffered=True):
+        return self.H._LaneSay(self.out.append, self.lock, buffered=buffered, clock=lambda: self.t[0])
+
+    def test_a_buffered_lane_says_it_is_alive_as_it_works(self):
+        say = self.lane()
+        say("     gate_x[0]  PROVEN")
+        self.assertEqual(len(self.out), 1, "a buffered lane wrote nothing while its gate worked - the log stood still")
+        self.assertNotIn("PROVEN", self.out[0], "the heartbeat let a held verdict out early, out of its gate's block")
+        self.t[0] += 30
+        say("     gate_x[1]  PROVEN")
+        self.assertEqual(len(self.out), 1, "the heartbeat is not throttled - one line per proof floods the log")
+        self.t[0] += self.H.LANE_BEAT_EVERY_S
+        say("     gate_x[2]  PROVEN")
+        self.assertEqual(len(self.out), 2, "a minute later the lane said nothing - a long gate still reads as silent")
+
+    def test_the_gates_lines_still_arrive_together_in_order(self):
+        say = self.lane()
+        for k in range(3):
+            say("     gate_x[%d]  PROVEN" % k)
+        say.flush()
+        verdicts = [x for x in self.out if "PROVEN" in x]
+        self.assertEqual(verdicts, ["     gate_x[%d]  PROVEN" % k for k in range(3)], self.out)
+
+    def test_one_lane_is_unbuffered_and_carries_no_beat(self):
+        say = self.lane(buffered=False)
+        say("     gate_x[0]  PROVEN")
+        self.assertEqual(self.out, ["     gate_x[0]  PROVEN"])
+
+    def test_the_beat_comes_well_inside_the_bound(self):
+        self.assertLess(self.H.LANE_BEAT_EVERY_S * 2, SP.PROVER_SILENT_MIN_S,
+                        "the heartbeat is slower than the silence bound can tolerate")
+
+
 class TheHeartSeesIt(unittest.TestCase):
     """The console doctor and the fleet beacon read the lane's key - "silent" must reach both as a warning."""
 
@@ -215,6 +259,16 @@ RED_PROOF = [
      "file": "control_app.py",
      "find": "    _sp_ok = (_sp_key in (None, \"current\", \"running\", \"start\", \"dev\", \"off\", \"busy\",\n",
      "replace": "    _sp_ok = (_sp_key in (None, \"current\", \"running\", \"start\", \"dev\", \"off\", \"busy\", \"silent\",\n",
+     "matches": 1},
+    {"why": "REG-1683 - a buffered lane writes nothing until its gate ends: a long multi-lane gate reads as a silent prover",
+     "file": "heart2.py",
+     "find": "            self._sink(\"  · a proving lane is working - %d line(s) of its gate held until the gate ends\"\n",
+     "replace": "            (lambda *_: None)(\"  · a proving lane is working - %d line(s) of its gate held until the gate ends\"\n",
+     "matches": 1},
+    {"why": "REG-1683 - the heartbeat is unthrottled: one extra line per proof",
+     "file": "heart2.py",
+     "find": "        if self._beat is None or now - self._beat >= LANE_BEAT_EVERY_S:\n",
+     "replace": "        if True:\n",
      "matches": 1},
 ]
 

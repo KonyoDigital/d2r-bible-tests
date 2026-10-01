@@ -1401,6 +1401,12 @@ def prove_workers(n_gates=None, say=None):
     return max(1, n)
 
 
+#: REG-1683 (the v3544 eye) — a BUFFERED lane says it is alive at most this often, so the prover's log moves while a
+#: gate's verdicts are still held. self_prove ends a prover whose log stands still past silent_bound_s, and that bound
+#: assumes a line per proof - a multi-lane gate held every line until the WHOLE gate ended.
+LANE_BEAT_EVERY_S = 60
+
+
 class _LaneSay(object):
     """One lane's printer: it buffers, and flushes a whole gate's lines at once under a lock.
 
@@ -1414,8 +1420,9 @@ class _LaneSay(object):
     it is stuck on. Nothing can interleave with itself, so there is nothing to buffer for.
     """
 
-    def __init__(self, sink, lock, buffered=True):
+    def __init__(self, sink, lock, buffered=True, clock=None):
         self._buf, self._sink, self._lock, self._buffered = [], sink, lock, buffered
+        self._clock, self._beat = clock or time.monotonic, None
 
     def __call__(self, *a):
         line = " ".join(str(x) for x in a)
@@ -1423,6 +1430,16 @@ class _LaneSay(object):
             self._sink(line)
             return
         self._buf.append(line)
+        # REG-1683 — ONE short line, straight through, at most every LANE_BEAT_EVERY_S: the gate's own lines stay
+        # together (they flush at its end), and the log still moves, so a working prover never reads as a silent one.
+        # A two-lane slice with one gate of three proofs at a scaled 480 s per run held its log 2,400 s against a
+        # 2,040 s bound - ended mid-law, booked stalled, and the next slice repeated it.
+        now = self._clock()
+        if self._beat is None or now - self._beat >= LANE_BEAT_EVERY_S:
+            self._beat = now
+            with self._lock:
+                self._sink("  · a proving lane is working - %d line(s) of its gate held until the gate ends"
+                           % len(self._buf))
 
     def flush(self):
         if not self._buf:
