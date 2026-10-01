@@ -30856,11 +30856,12 @@ def _first_content_reads(sid, n):
 
 
 def _bare_hud_verdict(pre):
-    """True, False, or None. None means not a bare Boosteroid window, or the reads are not in."""
+    """True, False, or None. None means not a bare cloud-service window, or the reads are not in.
+    #147 - any service, on every PC (label_is_bare_cloud): a bare GeForce NOW window is judged exactly like Boosteroid."""
     import tv_diablo as _tv
     if not isinstance(pre, dict):
         return None
-    if not _tv.label_is_bare_boosteroid(pre.get("windowLabel") or ""):
+    if not _tv.label_is_bare_cloud(pre.get("windowLabel") or ""):
         return None
     try:
         reads = bare_content_reads()
@@ -30871,7 +30872,7 @@ def _bare_hud_verdict(pre):
 
 def tv_label_is_bare(pre):
     import tv_diablo as _tv
-    return bool(isinstance(pre, dict) and _tv.label_is_bare_boosteroid(pre.get("windowLabel") or ""))
+    return bool(isinstance(pre, dict) and _tv.label_is_bare_cloud(pre.get("windowLabel") or ""))
 
 
 def _bare_relook_open(now):

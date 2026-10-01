@@ -365,8 +365,8 @@ RED_PROOF = [
     {
         "why": "every window is put through the Boosteroid content check, so a titled game with launcher reads does not start",
         "file": "control_app.py",
-        "find": "    if not _tv.label_is_bare_boosteroid(pre.get(\"windowLabel\") or \"\"):\n",
-        "replace": "    if False and _tv.label_is_bare_boosteroid(pre.get(\"windowLabel\") or \"\"):\n",
+        "find": "    if not _tv.label_is_bare_cloud(pre.get(\"windowLabel\") or \"\"):\n",
+        "replace": "    if False and _tv.label_is_bare_cloud(pre.get(\"windowLabel\") or \"\"):\n",
         "matches": 1,
     },
     {

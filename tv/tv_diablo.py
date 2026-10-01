@@ -1224,7 +1224,13 @@ _GAME_RX = re.compile(r"\bdiablo\s*(?:ii|2)\b|\bd2r\b")
 #: streams, so the rule "the title must name the game" held that PC's eye shut for every session. A NATIVE app
 #: window whose whole title is exactly one of these pins as that route; a browser tab never does (a tab titled
 #: "Boosteroid" is their website), and any other bare title stays a named near-miss.
-_NATIVE_BARE_TITLES = {"boosteroid": ("boosteroid",)}
+#: #147 — HIS RULE, 2026-10-01: "it should be universal though... nvidea play also if it opens it can be dual on macbook and
+#: on windows alt and also on deans". Boosteroid's bare title was MEASURED; GeForce NOW's own app was never given the same
+#: rule, so a stream window titled only with its service's name was a near-miss on every PC (no reels, and the provers
+#: did not stand aside). Every cloud route's own app now pins on a bare service-name title, and _is_bare_cloud below
+#: makes the "first reads must show the D2R HUD" check hold for whichever service it is. One table, every PC.
+_NATIVE_BARE_TITLES = {"boosteroid": ("boosteroid",),
+                       "geforce-now": ("geforce now", "geforcenow", "nvidia geforce now")}
 
 
 def _norm_title(t):
@@ -1284,6 +1290,21 @@ def label_is_bare_boosteroid(label):
     """True when a pinned label names only Boosteroid. A title that also names the game is not bare."""
     parts = [p for p in _norm_title(label).replace("·", " ").replace(":", " ").split() if p]
     return bool(parts) and all(p == "boosteroid" for p in parts)
+
+
+def label_is_bare_cloud(label):
+    """#147 — True when a pinned label names ONE cloud service and nothing else (its app window carries no game words),
+    for every route in _NATIVE_BARE_TITLES: "Boosteroid · Boosteroid", "GeForce NOW · GeForce NOW". Such a window may be
+    the stream or the service's launcher, so the first reads must show a D2R HUD word before a shadow reel calls it the
+    game - the same rule Boosteroid's window was measured into, now for every service on every PC."""
+    segs = [s.strip() for s in _norm_title(label).replace(":", " ").split("·")]
+    segs = [" ".join(s.split()) for s in segs if s.strip()]
+    if not segs:
+        return False
+    for route, names in _NATIVE_BARE_TITLES.items():
+        if all(s in names or s == route for s in segs):
+            return True
+    return False
 
 
 def _first_line(text):

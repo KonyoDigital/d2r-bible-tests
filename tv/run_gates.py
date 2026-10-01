@@ -8787,6 +8787,13 @@ GATES = [
              "its own with rmtree(ignore_errors=True), which fails silently on Windows while grok still holds a file "
              "there. A read's session is removed with retries or counted, and every read sweeps earlier reads' "
              "leftovers by their unique tvd-g5- name only."),
+    Gate("test_one_route_table_on_every_pc",
+         [sys.executable, os.path.join(HERE, "test_one_route_table_on_every_pc.py")], 90,
+         needs_app=False,
+         why="#147 - his rule, 2026-10-01: 'it should be universal... nvidea play also... dual on macbook and on windows "
+             "alt and also on deans' - four routes (local, crossover, boosteroid, geforce-now). A bare GeForce NOW app "
+             "window was a near-miss on every PC and the bare-window HUD check asked Boosteroid by name. One table "
+             "now goes through BOTH finders and every row names the same route on the Mac and on Windows."),
     Gate("test_a_session_opens_by_its_own_id",
          [sys.executable, os.path.join(HERE, "test_a_session_opens_by_its_own_id.py")], 90,
          needs_app=False,
