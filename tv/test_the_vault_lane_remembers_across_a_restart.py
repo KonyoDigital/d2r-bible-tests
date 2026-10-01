@@ -70,12 +70,12 @@ class TheVaultLaneRemembersAcrossARestart(unittest.TestCase):
         store "where the cursor changes", and a law checked that `_vault_autoread_save()` sits beside the
         assignment - it did, and the payload it wrote never carried `cursor`, nor did the loader read one. So
         every relaunch restarted the rotation at the head of the owed list, while the law stayed green."""
-        CA._VAULT_AUTOREAD["cursor"] = "reel_s_1700000000000_00042"
+        CA._VAULT_AUTOREAD["cursor"] = "reel_s_1500000000042_16510"
         self.assertTrue(CA._vault_autoread_save(), "the store could not be written at all")
         self._restart()
         self.assertIsNone(CA._VAULT_AUTOREAD.get("cursor"), "the fixture did not clear memory - proves nothing")
         self.assertIs(CA._vault_autoread_load(), True)
-        self.assertEqual(CA._VAULT_AUTOREAD.get("cursor"), "reel_s_1700000000000_00042",
+        self.assertEqual(CA._VAULT_AUTOREAD.get("cursor"), "reel_s_1500000000042_16510",
                          "the rotation position was lost across a restart - the head of the owed list gets "
                          "the first turn after every relaunch")
 

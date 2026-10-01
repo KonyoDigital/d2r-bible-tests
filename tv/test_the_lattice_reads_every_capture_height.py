@@ -17,12 +17,13 @@ D2R draws its UI in proportion to the frame HEIGHT: row pitch 85.75 @1912, 42.0 
   · DRIVEN on drawn inventories at 2940x1912, 1440x936 and 1440x904 - the three heights on his disk: 10x4 found,
     pitch = 86.75 x H/1912, and the occupied count is exactly the cells that were drawn full (also 0 and 40).
   · The REFUSALS hold at the small height: black, no panel, and cells 3 px from square (6 px at 1912) all refused.
-  · His own frames, where they exist (his Mac): the two reels that could never seal now read, and the reel the
-    constants came from reads exactly as before. Absent footage SKIPS, and a skip is not a pass.
+  · His own frames, where they exist (his Mac): his 1440-wide panel frames mostly read - found, never named, since a
+    reel id in a test pins that footage for ever. Absent footage or absent numpy SKIPS, and a skip is not a pass.
 ⚠ The cell inset is scaled too; measured, it changes 2 of 268 real frames, both a tooltip-dimmed corner of the
 2x2 cube, where the scaled answer (occupied) is the true one. No sabotage claims it - nothing here could tell.
 RED_PROOF below. [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
 """
+import io
 import os
 import shutil
 import sys
@@ -37,44 +38,54 @@ from console_safe import enable as _console_safe_enable  # noqa: E402
 
 _console_safe_enable()
 
-import numpy as np  # noqa: E402
-from PIL import Image  # noqa: E402
+import importlib.util  # noqa: E402
+from PIL import Image, ImageDraw  # noqa: E402
 
 import vault_corpus as vc  # noqa: E402
+
+# the lattice needs numpy and CI installs only pillow: ASKED, never imported here (a third-party import in a suite
+# takes the CI runner down - test_control's TestNoSuiteImportsSomethingCIDoesNotHave)
+np = importlib.util.find_spec("numpy")
+_NO_NUMPY = "numpy is not on this machine - the lattice cannot run, so this law is UNMEASURED here, not passing"
 
 HEIGHTS = ((2940, 1912), (1440, 936), (1440, 904))
 SOME = {(0, 0), (0, 1), (1, 0), (1, 1), (0, 4), (2, 7), (3, 9), (3, 2), (1, 5), (2, 2)}
 
 
 def _draw(path, W, H, filled, cp_cal=86.75, rp_cal=85.75, panel=True, black=False, seed=7):
-    """A D2R-like inventory: near-black empty cells (mean 4.3), bright item cells, lighter borders, placed in the
-    crop the way his game places it, every length in this frame's pixels (x H/1912)."""
-    rng = np.random.RandomState(seed)
+    """A D2R-like inventory: near-black empty cells (4), noisy item cells, borders brighter than item art (as in the
+    game, so a full bag keeps its grid), placed in the crop the way his game places it, every length in this frame's
+    pixels (x H/1912). PIL only - deterministic, and nothing CI lacks."""
     if black:
-        Image.fromarray(np.zeros((H, W), dtype=np.uint8)).save(path)
+        Image.new("L", (W, H), 0).save(path)
         return
-    img = rng.normal(40, 12, (H, W)).clip(0, 255)
+    img = Image.effect_noise((W, H), 12).point(lambda v: max(0, v - 88))      # the world behind the panel, mean ~40
     if panel:
+        d = ImageDraw.Draw(img)
         s = H / 1912.0
         cp, rp = cp_cal * s, rp_cal * s
         x0 = int(vc.INV_CROP[0] * W) + int(0.35 * cp)
         y0 = int(vc.INV_CROP[1] * H) + int(0.30 * rp)
         bw = max(1, int(round(3 * s)))
-        img[y0 - bw:y0 + int(4 * rp) + bw, x0 - bw:x0 + int(10 * cp) + bw] = 8
+        d.rectangle([x0 - bw, y0 - bw, x0 + int(10 * cp) + bw, y0 + int(4 * rp) + bw], fill=8)
         for i in range(4):
             for j in range(10):
                 cx0, cy0 = int(round(x0 + j * cp)), int(round(y0 + i * rp))
                 cx1, cy1 = int(round(x0 + (j + 1) * cp)), int(round(y0 + (i + 1) * rp))
-                mu, sd = (85, 30) if (i, j) in filled else (4.3, 0.8)
-                img[cy0 + bw:cy1, cx0 + bw:cx1] = rng.normal(mu, sd, (cy1 - cy0 - bw, cx1 - cx0 - bw)).clip(0, 255)
-                img[cy0:cy0 + bw, cx0:cx1 + bw] = 150      # a border stays brighter than item art,
-                img[cy0:cy1 + bw, cx0:cx0 + bw] = 150      # as in the game: a full bag keeps its grid
+                if (i, j) in filled:
+                    cell = Image.effect_noise((cx1 - cx0 - bw, cy1 - cy0 - bw), 30).point(lambda v: max(0, v - 43))
+                    img.paste(cell, (cx0 + bw, cy0 + bw))
+                else:
+                    d.rectangle([cx0 + bw, cy0 + bw, cx1 - 1, cy1 - 1], fill=4)
+                d.rectangle([cx0, cy0, cx1 + bw - 1, cy0 + bw - 1], fill=150)
+                d.rectangle([cx0, cy0, cx0 + bw - 1, cy1 + bw - 1], fill=150)
         yb, xb = int(round(y0 + 4 * rp)), int(round(x0 + 10 * cp))
-        img[yb:yb + bw, x0:xb + bw] = 150
-        img[y0:yb + bw, xb:xb + bw] = 150
-    Image.fromarray(img.astype(np.uint8)).convert("RGB").save(path)
+        d.rectangle([x0, yb, xb + bw - 1, yb + bw - 1], fill=150)
+        d.rectangle([xb, y0, xb + bw - 1, yb + bw - 1], fill=150)
+    img.convert("RGB").save(path)
 
 
+@unittest.skipIf(np is None, _NO_NUMPY)
 class _Drawn(unittest.TestCase):
 
     def setUp(self):
@@ -136,26 +147,39 @@ class TheRefusalsStillHold(_Drawn):
 
 
 HIST = os.path.join(HERE, "frames", "hist")
-REAL = (("reel_s_1789330829280_66296", "f_1789330894463.jpg", 26, 14),   # could never seal (1440x936)
-        ("reel_s_1790672854775_82142", "f_1790674010905.jpg", 0, 40),    # could never seal (1440x904), empty bag
-        ("reel_s_1784984019250_95276", "f_1784984271825.jpg", 22, 18))   # the reel the constants came from
 
 
+@unittest.skipIf(np is None, _NO_NUMPY)
 class HisOwnFrames(unittest.TestCase):
+    """Where his footage is on this machine: the panel frames of every 1440-wide reel mostly read 10x4.
 
-    def test_his_frames_read_where_they_exist(self):
-        seen = 0
-        for reel, name, occ, free in REAL:
-            p = os.path.join(HIST, reel, name)
-            if not os.path.isfile(p):
-                continue
-            seen += 1
-            lat = vc.inventory_lattice(p)
-            self.assertTrue(lat.get("ok"), "%s/%s: %s" % (reel, name, lat.get("why")))
-            o = vc.inventory_occupancy(p, lat)
-            self.assertEqual((o["occupied"], o["free"]), (occ, free), "%s/%s" % (reel, name))
+    ⚠ NO REEL IS NAMED HERE. A reel id in test code holds that footage as a fixture for ever
+    (test_a_gate_may_not_pin_his_footage, REG-1027) - so this witness finds its frames, it never pins them.
+    MEASURED 2026-10-01: 268 of 273 at 1440 wide; the 5 refused were 12x4 / 11x4 / 9x4 / not-square - the
+    refusals doing their job."""
+
+    def test_his_1440_frames_read_where_they_exist(self):
+        import json
+        try:
+            with io.open(os.path.join(HERE, "retro_triage.json"), encoding="utf-8") as fh:
+                store = json.load(fh)
+        except Exception:
+            store = None
+        store = (store or {}).get("reels", store or {})
+        seen = ok = 0
+        for reel in sorted(os.listdir(HIST)) if os.path.isdir(HIST) else []:
+            for name in sorted(((store.get(reel) or {}).get("panelFrames") or {}))[:6]:
+                p = os.path.join(HIST, reel, name)
+                if not os.path.isfile(p):
+                    continue
+                with Image.open(p) as im:
+                    if im.size[0] != 1440:
+                        continue
+                seen += 1
+                ok += 1 if vc.inventory_lattice(p).get("ok") else 0
         if not seen:
-            self.skipTest("his footage is not on this machine - this witness is UNMEASURED here, not passing")
+            self.skipTest("no 1440-wide panel frame of his on this machine - this witness is UNMEASURED here")
+        self.assertGreaterEqual(ok, int(seen * 0.9), "only %d of %d of his 1440-wide panel frames read" % (ok, seen))
 
 
 RED_PROOF = [

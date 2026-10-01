@@ -121,7 +121,7 @@ RED_PROOF = [
     {
         "why": "REG-1650 - the vault store's function ignores the suite's sandbox again: test_control writes his lane memory",
         "file": "control_app.py",
-        "find": "    if _VAULT_AUTOREAD_PATH != os.path.join(HERE, \".vault_autoread.json\"):\n"
+        "find": "    if _VAULT_AUTOREAD_PATH != _VAULT_AUTOREAD_AT_IMPORT:\n"
                 "        return _VAULT_AUTOREAD_PATH       # patched on purpose (a suite's sandbox) — honour it\n",
         "replace": "",
         "matches": 1,

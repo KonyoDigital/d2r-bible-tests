@@ -28155,11 +28155,15 @@ _VAULT_AUTOREAD_STORE = {"tried": False, "readable": None}
 #: EXPLICIT BEATS AMBIENT, the precedence _chron_swept_path already carries: a patched global is an
 #: instruction; otherwise the world TV_HIST describes, resolved at call time as before.
 #: [[feedback-fixtures-never-touch-live-data]] [[copy-drift]]
-_VAULT_AUTOREAD_PATH = os.path.join(HERE, ".vault_autoread.json")
+#: ⚠ Resolved through the fixture root even at import, like every sibling: a module-level path that names his live
+#: tree inside a fixture world is what test_the_harness_isolates_the_world refuses. "Patched" means CHANGED SINCE
+#: IMPORT, so a law that moves TV_HIST later is still followed at call time.
+_VAULT_AUTOREAD_PATH = os.path.join(_fixture_root_for_state(), ".vault_autoread.json")
+_VAULT_AUTOREAD_AT_IMPORT = _VAULT_AUTOREAD_PATH
 
 
 def _vault_autoread_path():
-    if _VAULT_AUTOREAD_PATH != os.path.join(HERE, ".vault_autoread.json"):
+    if _VAULT_AUTOREAD_PATH != _VAULT_AUTOREAD_AT_IMPORT:
         return _VAULT_AUTOREAD_PATH       # patched on purpose (a suite's sandbox) — honour it
     return os.path.join(_fixture_root_for_state(), ".vault_autoread.json")
 

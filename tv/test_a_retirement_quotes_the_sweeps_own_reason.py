@@ -39,7 +39,7 @@ os.environ["TV_SESSIONS"] = os.path.join(_WORLD, "sessions.jsonl")
 
 import control_app as ca  # noqa: E402
 
-REEL = os.path.join(_WORLD, "reel_s_1700000000000_00077")
+REEL = os.path.join(_WORLD, "reel_s_1500000000077_16490")
 RID = os.path.basename(REEL)
 NOT_X = "28 of 28 read frame(s) were never cross-checked"
 

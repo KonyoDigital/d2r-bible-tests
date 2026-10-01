@@ -41,8 +41,8 @@ import reel_retention as RR  # noqa: E402
 import retro_triage as RT  # noqa: E402
 import frame_authority as FA  # noqa: E402
 
-BANKED = "reel_s_1700000000000_00001"
-UNBANKED = "reel_s_1700000000000_00002"
+BANKED = "reel_s_1500000000001_16471"
+UNBANKED = "reel_s_1500000000002_16472"
 SURVEY = {r: {"full": True, "panels": 4, "frames": 40} for r in (BANKED, UNBANKED)}
 
 
