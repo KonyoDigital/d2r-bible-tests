@@ -1731,7 +1731,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3538** | `(this commit)` | v3538 — the page reports which session dossier is on screen so a visual pass can tell an opened dossier from a shelf tile; an owing vault lane with no recorded tick says why it waits and a raising tick leaves a trace; the doctor child spawns and never forks |
+| **v3539** | `(this commit)` | v3539 — REG-1647 to 1655. The inventory lattice reads 1440-wide frames (blind on every new frame for a month), the boot re-entry stops re-admitting retired reels, a retirement quotes the sweeps own reason, test_control stops writing his live vault store, the rotation cursor persists. Cross-family findings fixed: an unreadable prover is still running and its ps read spawns, the no-tick sentence is true in every window on a monotonic clock, the dossier stamps its number after its content. |
+| **v3538** | `1fe10c8d` | v3538 — the page reports which session dossier is on screen so a visual pass can tell an opened dossier from a shelf tile; an owing vault lane with no recorded tick says why it waits and a raising tick leaves a trace; the doctor child spawns and never forks |
 | **v3537** | `47d5fe79` | v3537 — the doctor runs its sweep check in a child process so the vault lamp never freezes; a stack dump never kills the console; a shell law with no real bash says unmeasured; a reused pid is never read as the prover; an unreadable PROOF_NEEDS is never graded |
 | **v3536** | `fe207fd3` | v3536 — an un-tick then a re-tick within ten minutes gives back the first date, the sightings and the vault entry; a second sign-in click on the Mac opens nothing while the first is open |
 | **v3535** | `8cff66f1` | v3535 — an idle PC proves slice after slice; shell laws run a real bash on Windows; the vault gates prove on every PC; a Grok refusal is a stated code |
