@@ -8780,6 +8780,14 @@ GATES = [
              "ten minutes and, while a proof runs, the cheap guard every ten seconds, which stands it aside through the "
              "tick's own kill-and-book door; the start bar fits an idle 8 GB PC with the game off, still never beside "
              "his game and never near the running floor."),
+    Gate("test_the_heart_opens_on_one_click_and_never_sticks",
+         [sys.executable, os.path.join(HERE, "test_the_heart_opens_on_one_click_and_never_sticks.py")], 90,
+         needs_app=False,
+         why="REG-1685 (2026-10-01) - his words: on the ALT the HEART 'doesnt open', on his Mac 'it opens after its "
+             "double clicked ... it says couple seconds it will open but its stuck. needs a mechanism to refresh it'. "
+             "The census took seconds to half a minute while the panel promised 'a couple of seconds', its fetch had "
+             "no bound, and a click while one census ran was swallowed. The panel reads the last census at once, "
+             "refreshes itself until the fresh one lands, never swallows a click, and has a refresh button."),
     Gate("test_the_disk_floor_takes_finished_footage_first",
          [sys.executable, os.path.join(HERE, "test_the_disk_floor_takes_finished_footage_first.py")], 60,
          needs_app=False,

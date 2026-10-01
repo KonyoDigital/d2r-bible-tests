@@ -406,6 +406,26 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1685 - THE HEART STUCK ON "A COUPLE OF SECONDS", AND A CLICK COULD VANISH (his report, 2026-10-01)
+
+**His words:** on the Windows ALT "it doesnt open", on his Mac "it opens after its double clicked like it says couple
+seconds it will open but its stuck. needs a mechanism to refresh it". **MEASURED that hour:** /api/heart 8.9 s on his
+Mac and 27 s cold on the ALT (0 s inside its 45 s memo). Each console derives its OWN heart (its source, its locks, its
+shelf, its own prover's census), so the ALT's is slower on a bigger shelf. **Three defects:** the placeholder promised "a
+couple of seconds"; the fetch had NO bound; `if (_hrtBusy) return` swallowed every click while a census was in flight -
+closing the panel did not reset it, so the next click did nothing (his "double click"). **Now** the panel reads
+`/api/heart?fast=1` (`heart_state_now`): the last census AT ONCE with its real age, one fresh census in the background
+(a second ask joins it), a quick one still lands inside the same answer, a console with no census yet says `pending`,
+a failed census says why (never pending for nothing). The read is bounded (25 s), a click while busy RE-SHOWS the panel,
+the panel asks again every 3 s until the fresh census lands and fills itself in, then stops; closing it stops the
+asking; a "census taken N ago - a fresh one is being taken (the last one took N s)" line opens the body; ↻ takes a
+fresh census. Same memo as REG-1229 - nothing new stored. **Photographed** (render gate, 6 widths, 95/95 painted, 0
+clipped) - the first cut put the age line in the header as a third flex column, squeezed under ↻ at 375 px; it opens
+the body now. **Grok CLI** looked cold at 1440 and 375: no overlap, both buttons clear, the age line readable. Law:
+`tv/test_the_heart_opens_on_one_click_and_never_sticks.py` (15 cases - the server half on the real heart_state_now, the
+panel half the SHIPPED block run in node on a virtual clock; it caught a self-refresh that blanked the status line),
+9 red-proofs PROVEN. GrokBot asked to drive it live (#230).
+
 ### REG-1683 - A MULTI-LANE PROVER HELD ITS LOG STILL FOR A WHOLE GATE, AND THE SILENCE WATCHDOG WOULD END IT (the v3544 eye, 2026-10-01)
 
 **Found by** the Grok seat on v3544 (69,739 chars). **Was:** REG-1674 ends a prover whose log stands still past

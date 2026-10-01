@@ -23924,6 +23924,100 @@ def _heart_memo_store(started, out):
     _HEART_MEMO["v"] = out
 
 
+# ── REG-1685 — THE CLICK'S OWN ANSWER ────────────────────────────────────────────────────────────────────────────
+# His words, 2026-10-01: on the ALT "it doesnt open", on his Mac "it opens after its double clicked like it says couple
+# seconds it will open but its stuck. needs a mechanism to refresh it". MEASURED that hour: /api/heart took 8.9 s on his
+# Mac and 27 s cold on the ALT (0 s inside the 45 s memo) - while the panel promised "a couple of seconds", had no
+# timeout, and swallowed every click while one census was in flight. The panel now reads /api/heart?fast=1: the last
+# census AT ONCE with its age, a fresh one taken in the background (one at a time - a second ask joins it), and a quick
+# census still lands inside the same answer. The memo is the same one (REG-1229's two clocks); nothing new is stored.
+_HEART_REFRESH = {"running": False, "startedAt": None, "lastTookMs": None, "lastError": None, "runs": 0}
+_HEART_REFRESH_LOCK = threading.Lock()
+#: REG-1685 — how long the fast read waits for a census already on its way before answering with the last one
+_HEART_FAST_WAIT_S = 4.0
+
+
+def _heart_memo_last(now):
+    """REG-1685 — the last census at ANY age: the TTL decides whether to take a fresh one, never whether he may see
+    the last. -> dict with its honest ageMs | None (none was ever taken on this console)"""
+    last = _HEART_MEMO["v"]
+    if last is None:
+        return None
+    shown = dict(last)
+    shown["ageMs"] = int((now - float(_HEART_MEMO["t"])) * 1000)     # its honest age, from when its reading began
+    return shown
+
+
+def _heart_refresh_async():
+    """REG-1685 — take ONE fresh census in the background. -> True when this call started it, False when one is
+    already running (that ask joins it) or the thread would not start (said in lastError, never silent)."""
+    import time as _t
+    with _HEART_REFRESH_LOCK:
+        if _HEART_REFRESH["running"]:
+            return False
+        _HEART_REFRESH.update(running=True, startedAt=_t.time())
+
+    def _go():
+        t0, err = _t.time(), None
+        try:
+            got = heart_state(force=True)
+            if not isinstance(got, dict) or got.get("ok") is False:
+                err = str((got or {}).get("why") if isinstance(got, dict) else "no census came back")[:160]
+        except Exception as e:
+            err = "%s: %s" % (type(e).__name__, str(e)[:120])
+        finally:
+            with _HEART_REFRESH_LOCK:
+                _HEART_REFRESH.update(running=False, lastTookMs=int((_t.time() - t0) * 1000), lastError=err,
+                                      runs=int(_HEART_REFRESH.get("runs") or 0) + 1)
+    try:
+        threading.Thread(target=_go, daemon=True, name="tvd-heart-refresh").start()
+    except Exception as e:
+        with _HEART_REFRESH_LOCK:
+            _HEART_REFRESH.update(running=False, lastError="the refresh would not start: %s" % str(e)[:120])
+        return False
+    return True
+
+
+def heart_state_now(refresh=False, wait_s=None):
+    """REG-1685 — /api/heart?fast=1, the panel's read: never a wait longer than wait_s. -> dict
+
+    A fresh memo answers as it is. Otherwise a background census is asked for (refresh=True asks even when the memo is
+    fresh - his ↻) and given wait_s to land; if it has not, the LAST census is shown with its real age, `stale` and
+    `refreshing`, and the panel asks again until the fresh one lands. No census ever taken on this console is
+    `pending` while one is on its way, and ok:False with the refresh's own reason when it failed - never a quiet panel
+    that waits for nothing. `refresh` carries running / lastTookMs / lastError / startedAgoMs for the panel's words."""
+    import time as _t
+    wait_s = _HEART_FAST_WAIT_S if wait_s is None else max(0.0, float(wait_s))
+    hit = None if refresh else _heart_memo_hit(_t.time())
+    if hit is None:
+        _heart_refresh_async()
+        end = _t.time() + wait_s
+        while _HEART_REFRESH["running"] and _t.time() < end:
+            _t.sleep(0.1)
+        if not _HEART_REFRESH["running"]:
+            hit = _heart_memo_hit(_t.time())
+    st = dict(_HEART_REFRESH)
+    now = _t.time()
+    if hit is not None:
+        out = hit
+    else:
+        out = _heart_memo_last(now)
+        if out is not None:
+            out["stale"] = True
+        elif st.get("running"):
+            out = {"ok": None, "pending": True, "counts": None, "vessels": [], "locks": [], "ageMs": None,
+                   "why": "the first census on this console is being taken now - nothing to show until it lands"}
+        else:
+            out = {"ok": False, "counts": None, "vessels": [], "locks": [], "ageMs": None,
+                   "why": "no census could be taken: %s" % (st.get("lastError") or "the refresh ended with nothing")}
+    out["refreshing"] = bool(st.get("running"))
+    out["refresh"] = {"running": bool(st.get("running")), "lastTookMs": st.get("lastTookMs"),
+                      "lastError": st.get("lastError"), "runs": st.get("runs"),
+                      "startedAgoMs": (int((now - st["startedAt"]) * 1000)
+                                       if st.get("running") and st.get("startedAt") else None)}
+    return out
+
+
 def _heart2_census():
     """What Heart 2.0 last measured about the gates themselves. -> dict
 
@@ -40374,6 +40468,10 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/heart":
             # v2443 — ♥ THE HEART. Derived per read (45 s memo), never stored. ?force=1 re-derives.
+            # REG-1685 — ?fast=1 is the panel's read: the last census at once, a fresh one in the background.
+            if "fast=1" in (self.path or ""):
+                self._json(200, heart_state_now(refresh=("refresh=1" in (self.path or ""))))
+                return
             self._json(200, heart_state(force=("force=1" in (self.path or ""))))
             return
         if path == "/api/chronicle_sweep":

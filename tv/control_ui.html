@@ -6214,6 +6214,9 @@
   .fleet-xref .fx-body { display: block; }
   #ver-xref .fx-head, #heart-ov .fx-head { position: relative; padding-right: 40px; }
   #ver-xref .fx-head .th-x, #heart-ov .fx-head .th-x { position: absolute; right: 0; top: -2px; }
+  /* REG-1685 — the heart's ↻ sits beside its ✕, so its header keeps room for two */
+  #heart-ov .fx-head { padding-right: 84px; }
+  #heart-ov .fx-head #hrt-refresh { right: 44px; }
   #ver-xref .vx-sec { margin: 0 0 18px; }
   /* ⚠ v3283 — THE LEAD, and it is the first thing he reads. The brief asked for sentences he can
      act on in under 5s, so this sits above every section and carries no jargon: which Chiliad he
@@ -15398,16 +15401,94 @@ window._lockMark = function(isOpen, px, label){
      dropping 343 to 157 would take font-size 9.5 to 4.3. Every one of these lines is arithmetic;
      a sub-legible or clipped tail hides a digit, and "a number nobody can read is worse than no
      number, because it is read anyway". [[unknown-stays-unknown]] */
-  function _heartOpen(){
+  /* ⚠⚠ REG-1685 — THE PANEL WAS STUCK, AND A CLICK COULD VANISH. His words, 2026-10-01: on the ALT "it doesnt open",
+     on his Mac "it opens after its double clicked like it says couple seconds it will open but its stuck. needs a
+     mechanism to refresh it". MEASURED that hour: /api/heart 8.9 s on his Mac, 27 s cold on the ALT - against a
+     placeholder promising "a couple of seconds", a fetch with NO timeout, and `if (_hrtBusy) return` swallowing every
+     click while one census was in flight (closing the panel did not reset it, so the next click did nothing).
+     Now: the panel reads /api/heart?fast=1 (the last census at once, with its age; a fresh one taken in the
+     background), the read is bounded, a click while busy RE-SHOWS the panel, the panel asks again every few seconds
+     until the fresh census lands and fills itself in, and ↻ asks for a fresh one. Closing it stops the asking. */
+  var _hrtPollT = null, _hrtPolls = 0, _hrtTookMs = null, _hrtForceNext = false;
+  var _HRT_FETCH_MS = 25000, _HRT_POLL_MS = 3000, _HRT_POLL_MAX = 100;   /* 100 x 3 s: five minutes, then ↻ */
+  function _hrtFetch(url, ms){
+    return new Promise(function(res, rej){
+      var done = false;
+      var t = setTimeout(function(){
+        if (!done) { done = true; rej(new Error('the console gave no answer in ' + Math.round(ms / 1000) + ' s')); }
+      }, ms);
+      fetch(url).then(function(r){ return r.json(); }).then(
+        function(d){ if (!done) { done = true; clearTimeout(t); res(d); } },
+        function(e){ if (!done) { done = true; clearTimeout(t); rej(e); } });
+    });
+  }
+  function _hrtSchedule(ms, mode){
+    if (_hrtPollT) clearTimeout(_hrtPollT);
+    _hrtPollT = setTimeout(function(){ _hrtPollT = null; _heartOpen(mode || 'again'); }, ms);
+  }
+  function _hrtAgo(ms){
+    var s = Math.max(0, Math.round(ms / 1000));
+    return s < 90 ? s + ' s' : (s < 5400 ? Math.round(s / 60) + ' min' : Math.round(s / 3600) + ' h');
+  }
+  function _hrtRefreshBtn(ov){
+    var head = ov.querySelector('.hrt-head');
+    if (!head || head.querySelector('#hrt-refresh')) return;
+    var b = document.createElement('button');
+    b.className = 'th-x'; b.id = 'hrt-refresh'; b.type = 'button'; b.textContent = '↻';
+    b.title = 'take a fresh census now'; b.setAttribute('aria-label', 'take a fresh census now');
+    head.insertBefore(b, head.querySelector('#hrt-close'));
+  }
+  function _hrtStatus(ov, d){
+    /* the census's own age, whether a fresh one is on its way, and the ↻. The line opens the BODY, full width: as a
+       header child it became a third flex column, squeezed under the ↻ at 375 px (photographed) */
+    var head = ov.querySelector('.hrt-head');
+    if (!head) return;
+    var rf = (d && d.refresh) || {};
+    var took = rf.lastTookMs != null ? ' (the last one took ' + _hrtAgo(rf.lastTookMs) + ')' : '';
+    var line = (d && d.ok === true)
+      ? ('census taken ' + (d.ageMs != null ? _hrtAgo(d.ageMs) + ' ago' : 'at an unknown time'))
+      : 'no census is showing';
+    if (d && d.refreshing) line += ' · a fresh one is being taken' + took + ' - this panel fills itself in';
+    else if (rf.lastError) line += ' · the last refresh failed: ' + rf.lastError + ' - ↻ asks again';
+    var el = head.querySelector('#hrt-age');
+    if (!el) {
+      el = document.createElement('div'); el.className = 'hrt-note'; el.id = 'hrt-age';
+      var body = ov.querySelector('.fx-body');
+      if (body) body.insertBefore(el, body.firstChild); else head.appendChild(el);
+    }
+    el.textContent = line;
+    _hrtRefreshBtn(ov);
+  }
+  function _heartOpen(again){
     var ov = document.getElementById('heart-ov');
-    if (!ov || _hrtBusy) return;
+    if (!ov) return;
+    /* REG-1685 — a click while a census is on its way RE-SHOWS the panel; it is never swallowed. */
+    if (_hrtBusy) {
+      if (again === 'force') _hrtForceNext = true;
+      else if (again !== 'again') ov.hidden = false;
+      return;
+    }
+    if (again === 'again' && ov.hidden) return;          /* closed: the panel stops asking */
+    if (again !== 'again') _hrtPolls = 0;
     _hrtBusy = true;
-    ov.innerHTML = '<div class="fxr-win hrt-win"><div class="fx-head hrt-head"><b>♥ THE HEART</b>'
-      + '<button class="th-x" id="hrt-close" type="button" aria-label="close">✕</button></div>'
-      + '<div class="fx-body"><div class="hrt-note">taking the census… this walks the source, so '
-      + 'it takes a couple of seconds.</div></div></div>';
+    /* a census on screen stays while a fresh one is asked, and a self-refresh never repaints - it only replaces
+       what is there when the answer lands (repainting dropped the status line for the length of every ask) */
+    if (again !== 'again' && !(again && ov.querySelector('.hrt-h'))) {
+      ov.innerHTML = '<div class="fxr-win hrt-win"><div class="fx-head hrt-head"><b>♥ THE HEART</b>'
+        + '<button class="th-x" id="hrt-close" type="button" aria-label="close">✕</button></div>'
+        + '<div class="fx-body"><div class="hrt-note">taking the census… this walks the source, '
+        + (_hrtTookMs != null ? 'and the last one on this console took ' + _hrtAgo(_hrtTookMs)
+                              : 'which can take half a minute on a busy PC')
+        + ' - this panel fills itself in when it lands.</div></div></div>';
+    }
     ov.hidden = false;
-    fetch('/api/heart').then(function(r){ return r.json(); }).then(function(d){
+    _hrtFetch('/api/heart?fast=1' + (again === 'force' ? '&refresh=1' : ''), _HRT_FETCH_MS).then(function(d){
+      if (d && d.refresh && d.refresh.lastTookMs != null) _hrtTookMs = d.refresh.lastTookMs;
+      if (d && d.pending) {                              /* no census yet on this console: say so, ask again */
+        _hrtStatus(ov, d);
+        if (_hrtPolls++ < _HRT_POLL_MAX) _hrtSchedule(_HRT_POLL_MS);
+        return;
+      }
       ov.innerHTML = _hrtBuild(d || {});
       /* ⚠ AFTER THE HTML LANDS, NEVER INSIDE THE BUILDER. `_hrtBuild` returns a string; a label's
          width does not exist until the browser has laid that string out, which is the reason every
@@ -15460,8 +15541,18 @@ window._lockMark = function(isOpen, px, label){
                 JSON.stringify({ ok: false, threw: String((e && e.message) || e) })); } catch (e3) {}
       }
       _heartChipPaint(d);
+      _hrtStatus(ov, d);
+      if (d && d.refreshing && _hrtPolls++ < _HRT_POLL_MAX) _hrtSchedule(_HRT_POLL_MS);
     })['catch'](function(e){
       /* a failed fetch is not an empty heart — say which it was */
+      /* REG-1685 — a REFRESH that could not ask keeps the census on screen and says so; the panel asks again. */
+      if (again === 'again' && ov.querySelector('.hrt-h')) {
+        var _ae = ov.querySelector('#hrt-age');
+        if (_ae) _ae.textContent = 'could not ask for the fresh census (' + String(e && e.message || e)
+                                   + ') - asking again';
+        if (_hrtPolls++ < _HRT_POLL_MAX) _hrtSchedule(5000);
+        return;
+      }
       /* v3414 — AND THE CHIP MUST NOT GO ON SAYING 'heart' BESIDE THIS. The overlay printed THE
          CONSOLE DID NOT ANSWER while the chip two centimetres away still wore the last clean
          census: two surfaces of one fact, disagreeing, with only the overlay telling the truth.
@@ -15471,8 +15562,13 @@ window._lockMark = function(isOpen, px, label){
         + '<button class="th-x" id="hrt-close" type="button" aria-label="close">✕</button></div>'
         + '<div class="fx-body"><div class="hrt-note"><b class="st-UNKNOWN">THE CONSOLE DID NOT ANSWER</b>'
         + ' (' + _hrtEsc(String(e && e.message || e)) + '). Nothing was derived, so nothing here is a '
-        + 'claim about the system.</div></div></div>';
-    })['finally'](function(){ _hrtBusy = false; });
+        + 'claim about the system. This panel asks again in 5 s, or press ↻.</div></div></div>';
+      _hrtRefreshBtn(ov);
+      if (_hrtPolls++ < _HRT_POLL_MAX) _hrtSchedule(5000);
+    })['finally'](function(){
+      _hrtBusy = false;
+      if (_hrtForceNext) { _hrtForceNext = false; _hrtSchedule(0, 'force'); }
+    });
   }
   function _heartClose(){ var ov = document.getElementById('heart-ov'); if (ov) ov.hidden = true; }
 
@@ -15547,6 +15643,8 @@ window._lockMark = function(isOpen, px, label){
     if (_hcEl) _hcEl.addEventListener('click', function(ev){ ev.preventDefault(); _heartOpen(); });
     var _hOv = document.getElementById('heart-ov');
     if (_hOv) _hOv.addEventListener('click', function(ev){
+      /* REG-1685 — ↻ takes a fresh census now; the panel stays open and fills itself in */
+      if (ev.target.closest && ev.target.closest('#hrt-refresh')) { _hrtPolls = 0; _heartOpen('force'); return; }
       if (ev.target === _hOv || (ev.target.closest && ev.target.closest('#hrt-close'))) _heartClose();
     });
     document.addEventListener('keydown', function(ev){
