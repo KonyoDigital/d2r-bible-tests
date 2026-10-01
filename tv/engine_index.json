@@ -1541,7 +1541,7 @@
       "read_index",
       "main"
     ],
-    "gotcha": "Blank flags are NOT reconstructed, on purpose: a guessed `blank:true` makes a sweep skip a frame and hides real footage forever, and the per-frame JPEG decode (0.076 s/frame) is the exact expense that lost the index in the first place. The rebuild itself is delegated to reel_index.ensure_reel_index() — never re-implemented — which is why a second --apply is idempotent. A CORRUPT index is copied to `.bad-<epoch>` before replacement, and a reel with `index.json.tmp` present is SKIPPED as a seal in flight.",
+    "gotcha": "Blank flags are NOT reconstructed, on purpose: a guessed `blank:true` makes a sweep skip a frame and hides real footage forever, and the per-frame JPEG decode (0.076 s/frame) is the exact expense that lost the index in the first place. The rebuild itself is delegated to reel_index.ensure_reel_index() — never re-implemented — which is why a second --apply is idempotent. A CORRUPT index is copied to `.bad-<epoch>` before replacement, a reel with a FRESH `index.json.tmp` (younger than STALE_TMP_S) is SKIPPED as a seal in flight, and an older one is an ABANDONED seal that repair finishes - its temp installed when it lists at least what index.json lists, otherwise kept aside (REG-1679).",
     "purpose": "Surveys tv/frames/hist for sealed reels whose index.json is missing or unparseable and rebuilds it from the frame filenames — dry-run by default, --apply writes.",
     "territory": "river-reels"
   },
