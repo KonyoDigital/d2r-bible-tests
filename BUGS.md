@@ -406,6 +406,55 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1693 - "IT SHOULD BE UNIVERSAL": A BARE GEFORCE NOW WINDOW WAS A NEAR-MISS ON EVERY PC (his rule, 2026-10-01, #147)
+
+**HIS WORDS** after installing Boosteroid on his Mac: "it should be universal though like i said... nvidea play also if it
+opens it can be dual on macbook and on windows alt and also on deans", then "also the native route the local... so 4".
+**MEASURED:** the Mac finder pinned his new Boosteroid app at once (one OS-blind judge, `game_route`). The gap was in the
+table: only Boosteroid had a bare-title rule (its app titles the stream with nothing but its name, measured on the ALT
+09-27), so GeForce NOW's own app titled the same way would be a near-miss on the Mac, the ALT and Dean's PC alike - no
+reels, and no prover standing aside - and the console's "a bare window must show the D2R HUD" check asked
+`label_is_bare_boosteroid` by name. **Now** `_NATIVE_BARE_TITLES` carries geforce-now and `label_is_bare_cloud` judges any
+service; the console asks it. Law: `tv/test_one_route_table_on_every_pc.py` drives ONE table (local, crossover,
+Boosteroid app/tab, GeForce NOW app/tab; owner as macOS names it vs as an exe) through both finders; every row names the
+same route on both, and a service's website or a guide tab pins on neither.
+
+### REG-1692 - PICK "SESSION 28", GET THE DOSSIER OF 46, THEN 175 (GrokBot, v3544 + v3546, #135)
+
+**SEEN** by GrokBot on every rotating pass: the theatre opened WRONG after picking Session 28. Every door that opens a
+dossier - the shelf card, the four highlight cards, the hero row, the route link, three re-renders - handed
+`_sessionDossier` a NUMBER, and that number is a position when a session carries none, in whichever list the door painted
+from (the highlights paint from a newest-first copy without ghosts), looked up again in `TH.sessions`. The cards already
+carried `data-sid`; nothing passed it. **Now** every door passes the id, the dossier opens by id (the number only as a
+fallback; an id the shelf does not hold opens nothing), and the box carries `data-sid` beside `data-n`. The anchor law
+caught `test_the_shelf_joins_on_the_key_the_river_uses[5]` matching twice (the hero row carries the same text now);
+re-anchored on the shelf card's own `data-n`. Law: `tv/test_a_session_opens_by_its_own_id.py` (7 cases, node-driven).
+
+### REG-1691 - THE v3544-v3546 EYES: FOUR REAL, ONE REFUTED (the #231 code seat + the range reads, #145)
+
+Reproduced on the shipped code before fixing: (1) a HEART census that never returns held the refresh slot for ever -
+now abandoned past `_HEART_REFRESH_STUCK_S`, said, its late finish clears nothing (`gen`), and after
+`_HEART_REFRESH_MAX_ABANDONED` the console stops and says the census hangs; (2) the memo was written in three steps and
+read in two looks - one census's body with another's clock - now one `update` and one look; (3) `_hrtStatus` looked for
+its line in the header and put it in the body, adding one per pending answer; (4) heart2: a push banked an
+all-ELSEWHERE gate PROVEN (`_push_gate_verdict`), and a slice's banker outlived a raising run. REFUTED: "a failed refresh
+is unsaid" - `control_ui.html` prints "the last refresh failed: ... ↻ asks again". REG-1229's three and REG-1685's one
+red-proof re-anchored to the new spelling. Laws: `tv/test_a_heart_refresh_never_wedges.py` (8 cases),
+`test_a_proof_that_needs_what_this_pc_lacks_is_elsewhere.py` (+4).
+
+### REG-1690 - HIS CHARACTERS COULD NEVER FILL: 12 LEARNED, 0 LOGINS, 19 WORN READS UNATTRIBUTED (#234 step 1, 2026-10-01)
+
+**HIS ASK:** the in-game characters fill themselves - "i want to see the items slowly appearing based on the character
+they were witnessed in". **MEASURED on his Mac first:** `char_select` knew 12 characters (class + level from the select
+screen's pixels) and had **0 logins**; `equipped_ledger` held **0 characters**, 19 worn reads (Harlequin Crest, Grief,
+Call to Arms...) and 158 game sessions reading "no login in this reel". The 5 visits were filed before v3530 kept a
+visit's last frame and highlighted row, so their closing read was never owed and the scan cursor was long past them; and
+an ingested reel was never looked at again, so a later login could change nothing. **Now** an old visit is given its
+last select-screen frame and one closing read (the hourly cap still decides when), and a reel filed with no character is
+filed again once a login names one, taking back exactly what it added to `unattributed`, never twice; `gear_by_key`
+hands each card its ten doll slots on the Vault's bars. Law: `tv/test_a_character_learned_late_still_gets_its_gear.py`
+(10 cases; baseline red on the old code).
+
 ### REG-1689 - THE BADGE SAID "v3546 · 2026-10-01 · v3546", AND CI'S BADGE SPEC WENT RED AFTER THE PUBLISH (2026-10-01)
 
 **SEEN on CI after v3545+v3546 landed (64648adc):** Routine I failed on exactly one spec,

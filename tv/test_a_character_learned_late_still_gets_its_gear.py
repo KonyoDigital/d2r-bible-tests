@@ -127,6 +127,17 @@ class AReelFiledWithNoCharacterIsFiledAgain(_World):
         self.assertTrue(all(n == 1 for n in slot_sightings + unplaced), "a sighting was counted twice: %r"
                         % d3["characters"]["Hammerdin"])
 
+    def test_a_reel_already_filed_under_its_character_is_not_filed_again(self):
+        """A MIXED reel: gear worn before the login stays unattributed, gear after it is the character's - so the reel is
+        on the unattributed list AND under a character. It was filed whole the first time; filing it again on every
+        ingest is work that never ends and a receipt that lies (heart2 found the first cut of this law BLIND here)."""
+        login = dict(self.LOGIN, ts=T0 + 30000, visit="reel_s_A#%d" % (T0 + 30000))
+        r1, d1 = self.ingest(self.rows(), now_ms=T0 + 9700000, logins=[login], cs=None)
+        self.assertIn("s_A", d1["unattributed"]["reels"], "PREMISE: the reel is not mixed")
+        self.assertIn("s_A", d1["characters"]["Hammerdin"]["reels"], "PREMISE: the reel is not mixed")
+        r2, _d2 = self.ingest(self.rows(), now_ms=T0 + 9800000, logins=[login], cs=None)
+        self.assertEqual(r2.get("refiled"), [], "a reel already filed under its character was filed again")
+
     def test_a_reel_still_with_no_login_stays_unattributed(self):
         self.ingest(self.rows(), now_ms=T0 + 9700000, logins=[], cs=None)
         r2, d2 = self.ingest(self.rows(), now_ms=T0 + 9800000, logins=[], cs=None)
