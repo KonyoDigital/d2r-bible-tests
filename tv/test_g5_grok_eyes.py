@@ -63,7 +63,7 @@ RED_PROOF = [
     {
         "why": "2026-09-29 (REG-1549) - a read leaves its Grok session directory behind (4.7 GB on the Mac)",
         "file": "tv/g5_grok_eyes.py",
-        "find": "                if base in name:\n                    shutil.rmtree(os.path.join(sd, name), ignore_errors=True)\n",
+        "find": "                if base in name:\n                    _drop_session_dir(os.path.join(sd, name))\n",
         "replace": "                if base in name:\n                    pass\n",
         "matches": 1,
     },
