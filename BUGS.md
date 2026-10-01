@@ -406,6 +406,23 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1688 - AFTER v3546 TWO MORE ALT BLINDS KEPT ITS RIVER SHUT, AND SEVEN MORE WERE COMING (2026-10-01)
+
+**SEEN 17:56:** his ALT pulled v3546 by itself; `may()` still answered False for all four river locks, citing three BLIND
+records - the builder law (cleared by REG-1686 on its re-prove) and two more. **`test_the_character_sheet_sums_picked_affixes`
+[6],[11]:** the REG-1686 shape - generator proofs whose one catching case skips on a PC with no local D2R install ("1 of
+16 law(s) SKIPPED"). **`test_a_stub_agent_never_films_his_screen` [2],[3]:** no skip - [2] guards the film loop, which
+`start_film_thread()` starts only when `sys.platform == "darwin"`; [3] guards the farewell look, which the law reaches
+with SIGTERM, and on Windows SIGTERM ends the process before any handler runs. **Swept, not guessed:** every law that
+touches the install was run on a scratch copy with and without it (`D2R_INSTALL` pointed nowhere); five skip without it,
+and proving those four (besides the builder) the ALT's way named every proof that would go BLIND there -
+`test_the_affix_tables_are_the_installs` [3]-[9], the sheet law [6],[11], `test_the_character_sheet_sums_the_game_data` [6]
+(the mule-window law's skip touches no proof). **Now** those 10 declare `"needs": "d2r-install"`; the stub-agent pair
+declares `"macos"` and `"posix-signals"`, two capabilities added to heart2's `PROOF_NEEDS_HOST` with probes on
+`sys.platform`. On the Mac every declared proof is still judged (and PROVEN); on a PC without the capability it is
+ELSEWHERE, never BLIND. Law: `tv/test_a_proof_that_needs_what_this_pc_lacks_is_elsewhere.py` (+3 cases: Windows lacks
+both, macOS has both, Linux has signals only; +2 red-proofs, 6/6 PROVEN).
+
 ### REG-1687 - THE GROK SESSIONS LEAK CAME BACK ON THE ALT, SILENTLY (2026-10-01)
 
 **MEASURED on his ALT:** `~/.grok/sessions` held 115 directories (86.6 MB) - 76 created 09-30, 35 on 10-01, the newest at

@@ -123,7 +123,23 @@ ELSEWHERE = "ELSEWHERE"
 #: capability -> (module, probe, his words for it). A name not listed here is INVALID: a typo must never excuse a proof.
 PROOF_NEEDS_HOST = {
     "d2r-install": ("affix_lexicon", "install_present", "the D2R install (its CASC data and the extractor)"),
+    # REG-1688 — the ALT filed test_a_stub_agent_never_films_his_screen BLIND on [2] and [3]: the film loop it guards
+    # starts only on macOS (start_film_thread returns unless sys.platform == "darwin"), and the law reaches the farewell
+    # look with SIGTERM, which on Windows ends the process before any handler runs.
+    "macos": ("heart2", "_host_is_macos", "macOS (the code it guards runs only there)"),
+    "posix-signals": ("heart2", "_host_has_posix_signals",
+                      "a SIGTERM that reaches the process's handler (Windows ends the process instead)"),
 }
+
+
+def _host_is_macos():
+    """REG-1688 — the PROOF_NEEDS_HOST probe for "macos". -> bool"""
+    return sys.platform == "darwin"
+
+
+def _host_has_posix_signals():
+    """REG-1688 — the PROOF_NEEDS_HOST probe for "posix-signals". -> bool"""
+    return not sys.platform.startswith("win")
 
 
 def host_lacks(need):

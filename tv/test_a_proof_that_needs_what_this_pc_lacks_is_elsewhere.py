@@ -121,6 +121,25 @@ class TheGateCountsWhatWasJudgedHere(unittest.TestCase):
         self.assertEqual(self.gate([H.BLIND, H.ELSEWHERE]), H.BLIND)
 
 
+class ThePlatformCapabilitiesAreTheProbes(unittest.TestCase):
+    """REG-1688 - "macos" and "posix-signals" answer from the platform the prover runs on, never from a guess."""
+
+    def test_windows_lacks_both(self):
+        with mock.patch.object(H.sys, "platform", "win32"):
+            self.assertIs(H.host_lacks("macos")[0], True, "a Windows PC claimed macOS")
+            self.assertIs(H.host_lacks("posix-signals")[0], True, "a Windows PC claimed SIGTERM reaches a handler")
+
+    def test_macos_has_both(self):
+        with mock.patch.object(H.sys, "platform", "darwin"):
+            self.assertIs(H.host_lacks("macos")[0], False)
+            self.assertIs(H.host_lacks("posix-signals")[0], False)
+
+    def test_linux_has_signals_but_is_not_macos(self):
+        with mock.patch.object(H.sys, "platform", "linux"):
+            self.assertIs(H.host_lacks("macos")[0], True)
+            self.assertIs(H.host_lacks("posix-signals")[0], False)
+
+
 class TheBuilderDeclaresItsInstall(unittest.TestCase):
 
     def test_the_two_generator_proofs_declare_the_install(self):
@@ -159,6 +178,16 @@ RED_PROOF = [
      "file": "affix_lexicon.py",
      "find": "    if not install_present():\n        return None\n",
      "replace": "    if not (os.path.exists(EXTRACT) and os.path.isdir(os.path.join(D2R, \"Data\"))):\n        return None\n",
+     "matches": 1},
+    {"why": "REG-1688 - every PC claims macOS: a Windows prover judges the macOS-only film loop and files it BLIND",
+     "file": "heart2.py",
+     "find": "    return sys.platform == \"darwin\"\n",
+     "replace": "    return True\n",
+     "matches": 1},
+    {"why": "REG-1688 - Windows claims a SIGTERM reaches the handler, so the farewell proof is judged where it cannot run",
+     "file": "heart2.py",
+     "find": "    return not sys.platform.startswith(\"win\")\n",
+     "replace": "    return True\n",
      "matches": 1},
 ]
 

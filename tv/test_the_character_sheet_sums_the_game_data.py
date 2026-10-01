@@ -634,7 +634,7 @@ RED_PROOF = [
         "file": "char_props.py",
         "find": "                           walk_class(r.get(\"type\") or \"\")]\n",
         "replace": "                           \"\"]\n",
-        "matches": 1,
+        "matches": 1, "needs": "d2r-install",
     },
     {
         "why": "#174 v-B2 - the Hell penalty dropped: a bare Hell sheet reads the items alone, 100 points too kind",

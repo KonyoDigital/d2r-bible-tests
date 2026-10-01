@@ -340,7 +340,7 @@ RED_PROOF = [
         "file": "char_props.py",
         "find": "            if kind != \"q\" and r.get(\"spawnable\") != \"1\":\n",
         "replace": "            if False:\n",
-        "matches": 1,
+        "matches": 1, "needs": "d2r-install",
     },
     {
         "why": "#174 v-B3 fix round - a magic / rare / superior item born with Enhanced Defense reads its base's min..max",
@@ -375,7 +375,7 @@ RED_PROOF = [
         "file": "char_props.py",
         "find": "rows_of[kind + str(i)] = [(naff.get(nk) or names.get(nk) or nk) if nk else",
         "replace": "rows_of[kind + str(i)] = [nk if nk else",
-        "matches": 1,
+        "matches": 1, "needs": "d2r-install",
     },
 ]
 

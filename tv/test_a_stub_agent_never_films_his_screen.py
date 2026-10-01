@@ -426,14 +426,14 @@ RED_PROOF = [
         "file": "tv_diablo.py",
         "find": "            if _stub_capture_only():\n                time.sleep(1.5)\n                continue\n",
         "replace": "            if False:\n                time.sleep(1.5)\n                continue\n",
-        "matches": 1,
+        "matches": 1, "needs": "macos",
     },
     {
         "why": "#63 - the farewell look of a stub agent must be synthetic too, never a last grab of his screen",
         "file": "tv_diablo.py",
         "find": "            elif _stub_capture_only():\n                # #63 \u2014 a stub agent's last look",
         "replace": "            elif False:\n                # #63 \u2014 a stub agent's last look",
-        "matches": 1,
+        "matches": 1, "needs": "posix-signals",
     },
     {
         "why": "#63 - a TV_STUB console's live agent (TV_STUB popped) read his real screen - the roundtrip's agent",
