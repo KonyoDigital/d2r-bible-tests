@@ -23906,12 +23906,13 @@ def _heart_memo_hit(now):
     memo matters, it never served once. Two clocks now, two questions:
       t    - when the READING began: the honest age of what is shown (ageMs), unchanged.
       done - when it LANDED: the reuse window counts from here. [[stale-reading]]"""
-    if _HEART_MEMO["v"] is None:
+    m = dict(_HEART_MEMO)          # #145 - one look: the refresh thread stores while a request reads
+    if m["v"] is None:
         return None
-    if (now - (_HEART_MEMO.get("done") or _HEART_MEMO["t"])) >= _HEART_TTL:
+    if (now - (m.get("done") or m["t"])) >= _HEART_TTL:
         return None
-    out = dict(_HEART_MEMO["v"])
-    out["ageMs"] = int((now - _HEART_MEMO["t"]) * 1000)
+    out = dict(m["v"])
+    out["ageMs"] = int((now - m["t"]) * 1000)
     return out
 
 
@@ -23919,9 +23920,9 @@ def _heart_memo_store(started, out):
     """Keep a derived heart: `started` is when its reading began, and it lands NOW. See
     _heart_memo_hit for why the two are different clocks."""
     import time as _t
-    _HEART_MEMO["t"] = started
-    _HEART_MEMO["done"] = _t.time()
-    _HEART_MEMO["v"] = out
+    # #145 (the #231 eye on v3545) - ONE write. Three assignments let a request read the new clock beside the old body
+    # (a replaced census shown as ~0 ms old) or the reverse; dict.update with plain keys is a single step for a reader.
+    _HEART_MEMO.update(t=started, done=_t.time(), v=out)
 
 
 # ── REG-1685 — THE CLICK'S OWN ANSWER ────────────────────────────────────────────────────────────────────────────
@@ -23931,8 +23932,14 @@ def _heart_memo_store(started, out):
 # timeout, and swallowed every click while one census was in flight. The panel now reads /api/heart?fast=1: the last
 # census AT ONCE with its age, a fresh one taken in the background (one at a time - a second ask joins it), and a quick
 # census still lands inside the same answer. The memo is the same one (REG-1229's two clocks); nothing new is stored.
-_HEART_REFRESH = {"running": False, "startedAt": None, "lastTookMs": None, "lastError": None, "runs": 0}
+_HEART_REFRESH = {"running": False, "startedAt": None, "lastTookMs": None, "lastError": None, "runs": 0,
+                  "gen": 0, "abandoned": 0}
 _HEART_REFRESH_LOCK = threading.Lock()
+#: #145 (the #231 eye on v3545) - a census still "running" this long never came back (a stuck walk, a lock, a hung child):
+#: the next ask takes a new one beside it and says so; its late finish can never clear the new one's flag (`gen`)
+_HEART_REFRESH_STUCK_S = 300.0
+#: ... and after this many abandoned in one process the console stops starting more and says the census hangs
+_HEART_REFRESH_MAX_ABANDONED = 3
 #: REG-1685 — how long the fast read waits for a census already on its way before answering with the last one
 _HEART_FAST_WAIT_S = 4.0
 
@@ -23940,11 +23947,12 @@ _HEART_FAST_WAIT_S = 4.0
 def _heart_memo_last(now):
     """REG-1685 — the last census at ANY age: the TTL decides whether to take a fresh one, never whether he may see
     the last. -> dict with its honest ageMs | None (none was ever taken on this console)"""
-    last = _HEART_MEMO["v"]
+    m = dict(_HEART_MEMO)          # #145 (the #231 eye on v3545) - body and clock from ONE look, never two
+    last = m["v"]
     if last is None:
         return None
     shown = dict(last)
-    shown["ageMs"] = int((now - float(_HEART_MEMO["t"])) * 1000)     # its honest age, from when its reading began
+    shown["ageMs"] = int((now - float(m["t"])) * 1000)     # its honest age, from when its reading began
     return shown
 
 
@@ -23954,8 +23962,18 @@ def _heart_refresh_async():
     import time as _t
     with _HEART_REFRESH_LOCK:
         if _HEART_REFRESH["running"]:
-            return False
-        _HEART_REFRESH.update(running=True, startedAt=_t.time())
+            age = _t.time() - float(_HEART_REFRESH.get("startedAt") or _t.time())
+            gave_up = int(_HEART_REFRESH.get("abandoned") or 0) >= _HEART_REFRESH_MAX_ABANDONED
+            if age < _HEART_REFRESH_STUCK_S or gave_up:
+                if gave_up and age >= _HEART_REFRESH_STUCK_S:
+                    _HEART_REFRESH["lastError"] = ("the census has hung %d times in this console - no new one is started; "
+                                                   "a console restart clears it" % int(_HEART_REFRESH["abandoned"]))
+                return False
+            _HEART_REFRESH["abandoned"] = int(_HEART_REFRESH.get("abandoned") or 0) + 1
+            _HEART_REFRESH["lastError"] = ("the census started %d s ago never came back - abandoned, a new one is being "
+                                           "taken" % int(age))
+        gen = int(_HEART_REFRESH.get("gen") or 0) + 1
+        _HEART_REFRESH.update(running=True, startedAt=_t.time(), gen=gen)
 
     def _go():
         t0, err = _t.time(), None
@@ -23967,8 +23985,9 @@ def _heart_refresh_async():
             err = "%s: %s" % (type(e).__name__, str(e)[:120])
         finally:
             with _HEART_REFRESH_LOCK:
-                _HEART_REFRESH.update(running=False, lastTookMs=int((_t.time() - t0) * 1000), lastError=err,
-                                      runs=int(_HEART_REFRESH.get("runs") or 0) + 1)
+                if _HEART_REFRESH.get("gen") == gen:      # #145 - an abandoned census's late finish clears nothing
+                    _HEART_REFRESH.update(running=False, lastTookMs=int((_t.time() - t0) * 1000), lastError=err,
+                                          runs=int(_HEART_REFRESH.get("runs") or 0) + 1)
     try:
         threading.Thread(target=_go, daemon=True, name="tvd-heart-refresh").start()
     except Exception as e:

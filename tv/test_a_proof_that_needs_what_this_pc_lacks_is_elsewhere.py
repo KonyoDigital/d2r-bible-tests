@@ -121,6 +121,52 @@ class TheGateCountsWhatWasJudgedHere(unittest.TestCase):
         self.assertEqual(self.gate([H.BLIND, H.ELSEWHERE]), H.BLIND)
 
 
+class ThePushPathCountsTheSameWay(unittest.TestCase):
+    """#145 (the #231 eye on v3546) - _prove_gate returns _prove_gate_push's verdict first whenever a push is running,
+    and _push_gate_verdict knew BLIND, INVALID, NOT RUN and UNPROVABLE only: a gate whose every proof was ELSEWHERE fell
+    through to PROVEN and was banked by a push on a PC that judged none of it. The rule is the same on both paths."""
+
+    def test_every_proof_elsewhere_is_unprovable_at_push_time_too(self):
+        self.assertEqual(H._push_gate_verdict([H.ELSEWHERE, H.ELSEWHERE]), H.UNPROVABLE,
+                         "a push banked a gate no proof had judged on this PC")
+
+    def test_a_mix_and_a_stop_are_as_before(self):
+        self.assertEqual(H._push_gate_verdict([H.PROVEN, H.ELSEWHERE]), H.PROVEN)
+        self.assertEqual(H._push_gate_verdict([H.ELSEWHERE, None]), H.NOT_RUN)
+        self.assertEqual(H._push_gate_verdict([H.BLIND, H.ELSEWHERE]), H.BLIND)
+
+
+class ASliceBankerNeverOutlivesItsRun(unittest.TestCase):
+    """#145 (the #231 eye on v3545) - prove() installed the slice banker on _GATE_HOOK and cleared it only on the line
+    after _prove_gates returned: a raise left it installed, closed over that slice's blank set, and a later push in the
+    same process would call it at every finished gate. Cleared in a finally, and a push clears it on entry."""
+
+    ONLY = ["test_a_proof_that_needs_what_this_pc_lacks_is_elsewhere"]
+
+    def setUp(self):
+        self._hook = H._GATE_HOOK.get("fn")
+        self.addCleanup(H._GATE_HOOK.__setitem__, "fn", self._hook)
+
+    def test_a_slice_that_raises_leaves_no_banker_behind(self):
+        def boom(*a, **k):
+            raise RuntimeError("a lane died")
+        with mock.patch.object(H, "_prove_gates", boom), mock.patch.object(H, "_write_state", lambda *a, **k: None):
+            with self.assertRaises(RuntimeError):
+                H.prove(only=self.ONLY, say=_say, stamp=False)
+        self.assertIsNone(H._GATE_HOOK.get("fn"), "a raising slice left its banker installed for the next run")
+
+    def test_a_push_never_banks_through_a_left_over_banker(self):
+        seen = []
+        H._GATE_HOOK["fn"] = lambda *a, **k: seen.append("leaked")
+        def push(have, say, stopped=None, cache=None, blank=None):
+            seen.append(H._GATE_HOOK.get("fn"))
+            return {}, {}
+        with mock.patch.object(H, "_prove_push", push), mock.patch.object(H, "open_cache", lambda say: None), \
+                mock.patch.object(H, "_write_state", lambda *a, **k: None):
+            H.prove(only=self.ONLY, say=_say, push=True)
+        self.assertEqual(seen, [None], "the push ran with another run's banker on the hook: %r" % seen)
+
+
 class ThePlatformCapabilitiesAreTheProbes(unittest.TestCase):
     """REG-1688 - "macos" and "posix-signals" answer from the platform the prover runs on, never from a guess."""
 
@@ -188,6 +234,21 @@ RED_PROOF = [
      "file": "heart2.py",
      "find": "    return not sys.platform.startswith(\"win\")\n",
      "replace": "    return True\n",
+     "matches": 1},
+    {"why": "#145 - at push time a gate whose every proof is ELSEWHERE is banked PROVEN",
+     "file": "heart2.py",
+     "find": "    if got and all(v == ELSEWHERE for v in got):\n        return UNPROVABLE\n",
+     "replace": "    if False:\n        return UNPROVABLE\n",
+     "matches": 1},
+    {"why": "#145 - a slice that raises leaves its banker installed",
+     "file": "heart2.py",
+     "find": "            _GATE_HOOK[\"fn\"] = None     # #145 (the v3545 eye) - a raise must not leave this slice's banker installed\n",
+     "replace": "            pass\n",
+     "matches": 1},
+    {"why": "#145 - a push runs with whatever banker the last run left on the hook",
+     "file": "heart2.py",
+     "find": "        _GATE_HOOK[\"fn\"] = None         # #145 (the v3545 eye) - a push banks once at the end, never through a slice's banker\n",
+     "replace": "        pass\n",
      "matches": 1},
 ]
 

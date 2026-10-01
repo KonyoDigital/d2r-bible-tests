@@ -8787,6 +8787,14 @@ GATES = [
              "its own with rmtree(ignore_errors=True), which fails silently on Windows while grok still holds a file "
              "there. A read's session is removed with retries or counted, and every read sweeps earlier reads' "
              "leftovers by their unique tvd-g5- name only."),
+    Gate("test_a_heart_refresh_never_wedges",
+         [sys.executable, os.path.join(HERE, "test_a_heart_refresh_never_wedges.py")], 90,
+         needs_app=False,
+         why="#145 (the #231 eyes on v3544/v3545) - a HEART census that never returned held the refresh slot for ever; "
+             "the memo was read in two looks while the refresh thread wrote it in three steps (one census's body with "
+             "another's clock); the panel looked for its status line in the header and put it in the body. A census "
+             "past the ceiling is abandoned and said, its late finish clears nothing, the memo is one look and one "
+             "write, and the line is found where it is put."),
     Gate("test_a_character_learned_late_still_gets_its_gear",
          [sys.executable, os.path.join(HERE, "test_a_character_learned_late_still_gets_its_gear.py")], 60,
          needs_app=False,

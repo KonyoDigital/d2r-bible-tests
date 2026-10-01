@@ -112,22 +112,22 @@ RED_PROOF = [
     {
         "why": "#237 - the reuse window counts from the START of the census again: a 48 s census is born expired and every open re-walks the source",
         "file": "control_app.py",
-        "find": "    if (now - (_HEART_MEMO.get(\"done\") or _HEART_MEMO[\"t\"])) >= _HEART_TTL:\n",
-        "replace": "    if (now - _HEART_MEMO[\"t\"]) >= _HEART_TTL:\n",
+        "find": "    if (now - (m.get(\"done\") or m[\"t\"])) >= _HEART_TTL:\n",
+        "replace": "    if (now - m[\"t\"]) >= _HEART_TTL:\n",
         "matches": 1,
     },
     {
         "why": "#237 - the store stamps the landing with the start time again",
         "file": "control_app.py",
-        "find": "    _HEART_MEMO[\"done\"] = _t.time()\n",
-        "replace": "    _HEART_MEMO[\"done\"] = started\n",
+        "find": "    _HEART_MEMO.update(t=started, done=_t.time(), v=out)\n",
+        "replace": "    _HEART_MEMO.update(t=started, done=started, v=out)\n",
         "matches": 1,
     },
     {
         "why": "#237 - the shown age is the age of the landing, hiding the 48 s the reading took",
         "file": "control_app.py",
-        "find": "    out[\"ageMs\"] = int((now - _HEART_MEMO[\"t\"]) * 1000)\n    return out\n",
-        "replace": "    out[\"ageMs\"] = int((now - _HEART_MEMO[\"done\"]) * 1000)\n    return out\n",
+        "find": "    out[\"ageMs\"] = int((now - m[\"t\"]) * 1000)\n    return out\n",
+        "replace": "    out[\"ageMs\"] = int((now - m[\"done\"]) * 1000)\n    return out\n",
         "matches": 1,
     },
 ]

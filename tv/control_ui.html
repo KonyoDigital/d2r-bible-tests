@@ -15450,7 +15450,7 @@ window._lockMark = function(isOpen, px, label){
       : 'no census is showing';
     if (d && d.refreshing) line += ' · a fresh one is being taken' + took + ' - this panel fills itself in';
     else if (rf.lastError) line += ' · the last refresh failed: ' + rf.lastError + ' - ↻ asks again';
-    var el = head.querySelector('#hrt-age');
+    var el = ov.querySelector('#hrt-age');   /* #145 (#231, v3544) - it lives in the BODY; looked for in the head, every pending answer added one more */
     if (!el) {
       el = document.createElement('div'); el.className = 'hrt-note'; el.id = 'hrt-age';
       var body = ov.querySelector('.fx-body');
