@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3539",
+  "ver": "v3540",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3539: REG-1647 to 1655. The inventory lattice reads 1440-wide frames (blind on every new frame for a month), the boot re-entry stops re-admitting retired reels, a retirement quotes the sweeps own reason, test_control stops writing his live vault store, the rotation cursor persists. Cross-family findings fixed: an unreadable prover is still running and its ps read spawns, the no-tick sentence is true in every window on a monotonic clock, the dossier stamps its number after its content.",
+  "note": "v3540: REG-1657 to 1659. A read of a stash panel is no longer called a fabrication for what the bag beside it holds, two retirements judged by a blind instrument get one more attempt each, and the board names the full squares of the bag as your inventory instead of a stash tab.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
