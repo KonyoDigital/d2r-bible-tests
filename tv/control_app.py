@@ -7513,6 +7513,9 @@ def _vault_autoread_kick():
             if _r.get("readmitted"):
                 print("[vault] re-admitted %d retired reel(s) that still owe an extraction"
                       % len(_r["readmitted"]), flush=True)
+            if _r.get("rejudged"):   # REG-1658
+                print("[vault] re-judging %d retirement(s) made without a reason - one attempt each: %s"
+                      % (len(_r["rejudged"]), ", ".join(_r["rejudged"][:3])), flush=True)
         except Exception as _e:
             print("[vault] re-entry sweep raised %s — retirements left as they were"
                   % type(_e).__name__, flush=True)
@@ -26074,6 +26077,29 @@ def reconcile_verdict(named, occupied):
     return "agree"
 
 
+#: the one panel the free pixel layer counts - vault_corpus.inventory_lattice crops the player's INVENTORY (10x4)
+_LATTICE_PANEL = "inventory"
+
+
+def cross_panel_verdict(verdict, surface):
+    """v3540 REG-1657 — an over-read is a fabrication signal only about the panel the cells were counted on. -> str
+
+    reconcile_verdict compares the names a read returned with the OCCUPIED CELLS the lattice counted - and the lattice
+    always counts the INVENTORY, while the vault reads stash panels. MEASURED 2026-10-01 across every surveyed reel on
+    his Mac: panel kinds read = stash 2002, shared 407, personal 121, materials 41, runes 12, gems 4, inventory 0.
+    So for every vault read the comparison is between two different panels. While the lattice was blind (REG-1648)
+    it never ran; working again, reel 82142 - an EMPTY bag beside a stash tooltip naming one real item - would have
+    put "the read named 1 item(s) but only 0 square(s) are filled, so at least one name did not come from this
+    picture" on his board: a fabrication claim about a correct read.
+    A read of another panel naming more than the bag holds is "other-panel": NOT an over-read (no false accusation)
+    and NOT settled either - vault_seal_is_definitive admits only under-read and agree, so no seal loosens and the
+    footage stays readable. A read whose panel cannot be told is treated the same way: UNKNOWN never accuses.
+    Pure, so it is argued with directly. [[unknown-stays-unknown]] [[feedback-contradiction-is-the-finding]]"""
+    if verdict == "over-read" and str(surface or "").strip().lower() != _LATTICE_PANEL:
+        return "other-panel"
+    return verdict
+
+
 def _shadow_path():
     """The switch file, resolved through tv_diablo so BOTH processes agree on one path — including
     the fixture redirect. Deriving it here independently is how two halves drift."""
@@ -26214,7 +26240,13 @@ def why_not_definitive(read_ok, reconciled, over_read, pix_err):
     if len(rec) != read_ok:
         out.append("%d frame(s) were READ but only %d were cross-checked — a read frame with no "
                    "cross-check is unmeasured, not empty" % (read_ok, len(rec)))
-    bad = [r for r in rec if str(r.get("verdict") or "") not in ("under-read", "agree")]
+    other = [r for r in rec if str(r.get("verdict") or "") == "other-panel"]
+    if other:
+        # REG-1657 - said as what it is, never as a fabrication
+        out.append("%d frame(s) named items on a panel the pixel layer does not count (%s) - the cross-check "
+                   "cannot speak for them" % (len(other), ", ".join(sorted({str(r.get("surface") or "?")
+                                                                            for r in other}))))
+    bad = [r for r in rec if str(r.get("verdict") or "") not in ("under-read", "agree", "other-panel")]
     if bad:
         out.append("%d cross-check(s) came back %s"
                    % (len(bad), sorted({str(r.get("verdict")) for r in bad})))
@@ -28168,6 +28200,16 @@ def _vault_autoread_path():
     return os.path.join(_fixture_root_for_state(), ".vault_autoread.json")
 
 
+#: REG-1658 — at most this many blind retirements are re-judged per console boot
+_VAULT_REJUDGE_PER_BOOT = 3
+
+
+def _vault_retired_blind(rec):
+    """Was this retirement made with no reason recorded (the REG-1649 gap)? -> bool"""
+    return (isinstance(rec, dict) and rec.get("lastWhy") is None
+            and "no attempt left a reason" in str(rec.get("why") or ""))
+
+
 def vault_reentry_sweep(dry=True):
     """Send retired reels that still hold UNEXTRACTED panels back to the top of the river. -> dict
 
@@ -28192,7 +28234,7 @@ def vault_reentry_sweep(dry=True):
     ⚠ `dry=True` by default so a caller must ASK to change anything — the same shape as every
     other door in this file that spends. [[the-unjoined-end]] [[unknown-stays-unknown]]
     """
-    out = {"ok": True, "checked": 0, "readmitted": [], "kept": [], "why": "", "dry": bool(dry)}
+    out = {"ok": True, "checked": 0, "readmitted": [], "kept": [], "rejudged": [], "why": "", "dry": bool(dry)}
     st = _vault_autoread_load()
     if st is None:
         out["ok"] = False
@@ -28215,6 +28257,20 @@ def vault_reentry_sweep(dry=True):
         except Exception:
             continue                    # cannot ask -> leave it alone, never guess
         if not unextracted:
+            # REG-1658 — A RETIREMENT MADE BLIND IS RE-JUDGED ONCE, BY ONE ATTEMPT. Until v3539 a sweep that could not
+            # seal never told the lane why (REG-1649), and the cross-check was blind on every 1440-wide frame
+            # (REG-1648) - so "no attempt left a reason" retirements were judged by a broken instrument. One attempt
+            # each, with the reason recorded this time: a failure retires again WITH a reason (so it is never blind
+            # again, and never re-judged again); a success seals. Bounded per boot - a machine whose count is unknown
+            # (the ALT's could not be read 2026-10-01) must not buy a backlog in one relaunch.
+            if _vault_retired_blind(retired.get(rid)) and len(out["rejudged"]) < _VAULT_REJUDGE_PER_BOOT:
+                out["rejudged"].append(rid)
+                if not dry:
+                    with _VAULT_AUTOREAD_LOCK:
+                        _VAULT_AUTOREAD["retired"].pop(rid, None)
+                        _VAULT_AUTOREAD["tries"][rid] = max(0, _VAULT_AUTOREAD_MAX_TRIES - 1)   # ONE attempt left
+                    _vault_autoread_save()
+                continue
             out["kept"].append(rid)
             continue
         out["readmitted"].append(rid)
@@ -28227,6 +28283,9 @@ def vault_reentry_sweep(dry=True):
                   "to the top of the lane; %d were left retired because they are no longer holding "
                   "unextracted panels."
                   % (len(out["readmitted"]), "WOULD BE" if dry else "were", len(out["kept"])))
+    if out["rejudged"]:
+        out["why"] += (" %d retirement(s) made without a reason %s given one more attempt each."
+                       % (len(out["rejudged"]), "WOULD BE" if dry else "were"))
     return out
 
 
@@ -31372,6 +31431,7 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
                             if _oc2.get("ok"):
                                 _occN = int(_oc2.get("occupied") or 0)
                                 _verdict = reconcile_verdict(_named, _occN)
+                                _verdict = cross_panel_verdict(_verdict, surface)   # REG-1657
                                 _reconciled.append({"frame": os.path.basename(p), "surface": surface,
                                                     "named": _named, "occupied": _occN,
                                                     "free": _oc2.get("free"), "verdict": _verdict})
@@ -31508,6 +31568,12 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
                                     _glimpsed.append({
                                         "frame": os.path.basename(p),
                                         "surface": surface,
+                                        # v3540 REG-1659 — the screen the frame shows is `surface`; the
+                                        # CELLS are the bag's (INV_CROP, the comment above). The board
+                                        # named the row by `surface`, so his bag read as "stash · <frame>
+                                        # - film that tab": a call to film a stash tab for squares that
+                                        # are his inventory. The row now says which panel was counted.
+                                        "panel": _LATTICE_PANEL,
                                         "occupied": _occ.get("occupied"),
                                         "free": _occ.get("free"),
                                         # the CELLS are the reliable half: 33 derived == 33
@@ -31623,12 +31689,13 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
         # UNNAMED, verify with a tooltip pass — instead of leaving him to read a bare shelf.
         if _glimpsed:
             _tot = sum(int(g.get("occupied") or 0) for g in _glimpsed)
-            print("   \U0001f9e9 %d item(s) are VISIBLY THERE across %d panel(s) \u2014 occupied "
-                  "cells counted from the pixels, names unknown. Film those tabs once with the "
-                  "tooltip up and the same sweep will name them." % (_tot, len(_glimpsed)))
+            # REG-1659 - the squares are counted in his INVENTORY beside the stash, never in the stash tab
+            print("   \U0001f9e9 %d square(s) are VISIBLY FULL in your inventory across %d frame(s) \u2014 "
+                  "counted from the pixels, names unknown. Hover them once on film and the next sweep "
+                  "will name them." % (_tot, len(_glimpsed)))
             for _g in _glimpsed[:6]:
-                print("      \u00b7 %s %s \u2014 %s occupied / %s free"
-                      % (_g.get("surface") or "?", _g.get("frame") or "?",
+                print("      \u00b7 %s beside the %s, %s \u2014 %s occupied / %s free"
+                      % (_g.get("panel") or _LATTICE_PANEL, _g.get("surface") or "?", _g.get("frame") or "?",
                          _g.get("occupied"), _g.get("free")))
             try:
                 prop["glimpsed"] = _glimpsed

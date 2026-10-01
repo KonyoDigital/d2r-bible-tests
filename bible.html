@@ -60027,15 +60027,30 @@ window._renderStashFresh = function(){
            simply vanished. glimpsedTotal said 55 (22+33) while only one row survived, which is the
            tell: the work happened and the record did not. The FRAME is the thing he can actually go
            and look at, so it belongs in the identity, not only in the detail. */
-        (payload.glimpsed || []).slice(0, 12).forEach(function(g){
+        /* ⟦GLIMPSE ROW BEGIN⟧ */
+        /* v3540 REG-1659 — THE SQUARES ARE IN HIS INVENTORY, NOT IN THE TAB THE FRAME SHOWS. The pixel layer counts
+           the INVENTORY (vault_corpus INV_CROP) on frames whose screen is a stash tab, and this row was named by that
+           screen: "stash · <frame> ... Film that tab once with the tooltip up" - a call to film a stash tab for
+           squares that are his bag, and "the read named none of them" about squares the read was never aimed at.
+           The row now names the panel that was counted. Every glimpse row ever produced came from that one crop, so
+           a row with no `panel` (an older payload) is the inventory too: a fact about the instrument, not a guess. */
+        var _glimpseRow = function(g){
           var n = Number(g && g.occupied) || 0;
-          if (!n) return;
-          _rec((g.surface || 'stash') + ' · ' + (g.frame || '?'), 'glimpsed',
-               n + ' square(s) are visibly full and the read named none of them — D2R prints no '
-               + 'names in a grid, only in the hover tooltip. Film that tab once with the tooltip '
-               + 'up and the same sweep will name them.', g.frame);
-          out.glimpsedTotal = (out.glimpsedTotal || 0) + n;
+          if (!n) return null;
+          var p = String((g && g.panel) || 'inventory').trim().toLowerCase();
+          var where = (p === 'inventory') ? 'your inventory' : ('the ' + p);
+          return { n: n, name: where + ' · ' + ((g && g.frame) || '?'),
+                   why: n + ' square(s) in ' + where + ' are visibly full and nothing on this frame names them — '
+                        + 'D2R prints no names in a grid, only in the hover tooltip. Hover them once on film and '
+                        + 'the next sweep will name them.' };
+        };
+        (payload.glimpsed || []).slice(0, 12).forEach(function(g){
+          var row = _glimpseRow(g);
+          if (!row) return;
+          _rec(row.name, 'glimpsed', row.why, g.frame);
+          out.glimpsedTotal = (out.glimpsedTotal || 0) + row.n;
         });
+        /* ⟦GLIMPSE ROW END⟧ */
         (payload.overRead || []).slice(0, 12).forEach(function(o){
           _rec((o.surface || 'stash') + ' · ' + (o.frame || '?'), 'over-read',
                'the read named ' + o.named + ' item(s) but only ' + o.occupied + ' square(s) are '

@@ -8726,7 +8726,9 @@ GATES = [
              "so the console's boot re-entry - which asks first - read every surveyed reel as never banked and "
              "re-admitted the vault lane's two retired reels on every relaunch: 2 passes of ~30 panel reads each, "
              "retired again, 9 relaunches, about 1,000 reads. The set now loads on first use; an unreadable index "
-             "raises DurableUnknown to callers that each price UNKNOWN, and plan() publishes only what it read."),
+             "raises DurableUnknown to callers that each price UNKNOWN, and plan() publishes only what it read. "
+             "REG-1658: a retirement made BLIND - no attempt left a reason, judged while the lattice could not see "
+             "- is re-judged once, by one attempt, a few per boot; one that carries its reason stays retired."),
     Gate("test_a_retirement_quotes_the_sweeps_own_reason",
          [sys.executable, os.path.join(HERE, "test_a_retirement_quotes_the_sweeps_own_reason.py")], 120,
          needs_app=False,
@@ -8742,6 +8744,17 @@ GATES = [
              "forgot it beside his game; and the birth read ran a bare ps with close_fds=True inside the console, "
              "every 10 s - fork_exec in a process holding the ObjC runtime. identity() is three-valued now, and "
              "the read takes the posix_spawn shape."),
+    Gate("test_a_stash_read_is_never_called_a_fabrication",
+         [sys.executable, os.path.join(HERE, "test_a_stash_read_is_never_called_a_fabrication.py")], 120,
+         needs_app=False,
+         why="REG-1657 (2026-10-01) - the vault's free cross-check counts the INVENTORY grid and the vault reads "
+             "STASH panels: across every surveyed reel on his Mac the panels read were stash, shared, personal, "
+             "materials, runes and gems, and never the inventory. With the lattice working again (REG-1648), an "
+             "empty bag beside a stash tooltip would have told him 'at least one name did not come from this "
+             "picture' about a correct read. An over-read on any panel the lattice does not count is now "
+             "'other-panel': said in its own words, never settled, and it never loosens a seal. REG-1659: the "
+             "board named the bag's squares by the screen ('stash · <frame> - film that tab'); the row now names the "
+             "panel that was counted, driven on the real page code in node and seen on pixels by Grok."),
     Gate("test_a_proof_yields_the_moment_the_game_starts",
          [sys.executable, os.path.join(HERE, "test_a_proof_yields_the_moment_the_game_starts.py")], 60,
          needs_app=False,

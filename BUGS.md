@@ -405,6 +405,61 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+
+### REG-1659 - HIS BAG'S SQUARES WERE FILED AS A STASH TAB, WITH "FILM THAT TAB" (#126, 2026-10-01)
+
+**Was:** the glimpse row (v1989: squares visibly full on a frame whose read named nothing) is counted by
+`vault_corpus.inventory_occupancy`, which crops the INVENTORY (INV_CROP), on frames whose screen is a stash tab. The
+board named the row by that screen: *"stash · <frame> - N square(s) are visibly full and the read named none of them
+... Film that tab once with the tooltip up"* - a call to film a stash tab for squares that are his bag, and "the read
+named none of them" about squares the read was never aimed at. Dark for a month on 1440-wide frames (REG-1648); v3539
+re-lit it, and v3540's own re-judge (REG-1658) would have filed such rows.
+
+**Now:** the sweep's glimpse row carries `panel` (the lattice's own panel, `_LATTICE_PANEL`); the board names it
+"your inventory · <frame>" and says "N square(s) in your inventory are visibly full and nothing on this frame names
+them ... Hover them once on film and the next sweep will name them." A row with no `panel` (an older payload) is the
+inventory too - every glimpse row ever produced came from that one crop. The console's print says the same. Rendered
+headless: both rows read "your inventory · <frame>"; the Grok CLI, shown the crop with no premise, placed the full
+squares "in your inventory". Its wording note ("the same sweep" read as one pass both failing and naming) was taken -
+"the next sweep"; its contrast note (the dim row text, about 3.7:1) is the inbox's existing style and was left alone.
+Law: `tv/test_a_stash_read_is_never_called_a_fabrication.py` - the row's panel read from the sweep's code, and the
+real page code (helper AND the loop that files it) driven in node. 3 red-proofs RED.
+
+### REG-1658 - TWO RETIREMENTS JUDGED BY A BLIND INSTRUMENT WOULD NEVER BE LOOKED AT AGAIN (#126, 2026-10-01)
+
+**Was:** his two retired reels (…66296, …82142) said "no attempt left a reason, so WHY is UNKNOWN": both were judged
+before a sweep could tell the lane why it did not seal (REG-1649), on frames where the cross-check could not see a
+grid (REG-1648). Nothing revisits a retirement except the boot re-entry, and that only re-admits a reel still holding
+UNEXTRACTED panels - so a retirement made by a broken instrument stood for ever.
+
+**Now:** `vault_reentry_sweep` re-judges a retirement made blind (`lastWhy` None and "no attempt left a reason") ONCE:
+it leaves the retired list with `tries = MAX - 1`, exactly one attempt. A failure retires again WITH its reason
+(REG-1649 writes one on every exit path), so it is never blind again and never re-judged again; a success seals. At
+most `_VAULT_REJUDGE_PER_BOOT` (3) per boot - the ALT's count could not be read (SSH timed out), so one relaunch must
+not buy a backlog. A retirement that carries its reason stays retired. The boot prints "[vault] re-judging N
+retirement(s) made without a reason - one attempt each: ...". Cost, stated: one sweep per re-judged reel, once (the
+last ones ran ~30 panel reads each). Law: `tv/test_the_durable_set_is_loaded_before_it_is_asked.py` gains the cases
+(blind -> one attempt; reasoned -> kept; five blind -> three). 3 new red-proofs RED.
+
+### REG-1657 - A STASH READ WAS CROSS-CHECKED AGAINST THE BAG BESIDE IT (#126, 2026-10-01)
+
+**Was:** the vault's free cross-check compares the names a read returned with the occupied cells the lattice
+counted - and the lattice counts the INVENTORY, while the vault reads stash panels. MEASURED 2026-10-01 across every surveyed
+reel on his Mac, panel kinds read: stash 2002 · shared 407 · personal 121 · materials 41 · runes 12 · gems 4 ·
+inventory 0. Every comparison was between two panels. With the lattice working again (REG-1648), reel …82142 - an
+EMPTY bag beside a stash tooltip naming one real item - would have filed "the read named 1 item(s) but only 0
+square(s) are filled, so at least one name did not come from this picture": a fabrication claim about a correct read.
+
+**Now:** `cross_panel_verdict` - an over-read on any panel but the inventory (or one nobody can tell) is
+"other-panel": never filed as an over-read, said in its own words ("N frame(s) named items on a panel the pixel layer
+does not count (stash) - the cross-check cannot speak for them"), and never settled - `vault_seal_is_definitive`
+admits only under-read and agree, so no seal loosens and the footage stays readable. An inventory over-read stays an
+over-read. The sweep asks it once, after `reconcile_verdict` and before the over-read list.
+**NOT fixed, stated:** agree and under-read on a stash read still compare against the bag's count. They cannot accuse
+(the read named no more than the bag holds), but they are not a cross-check of the stash either, and they can settle
+a session that grounded no rows. A real one needs the stash's own grid counted - a design question, not made here.
+Law: `tv/test_a_stash_read_is_never_called_a_fabrication.py`. 4 red-proofs RED.
+
 ### REG-1655 - THE DOSSIER STAMPED ITS NUMBER BEFORE ITS CONTENT WAS IN (the v3538 eye, 2026-10-01)
 
 `_sessionDossier` wrote `data-n` before `_dossierHtml(sm)` ran. With session 28's dossier showing, opening 87 whose

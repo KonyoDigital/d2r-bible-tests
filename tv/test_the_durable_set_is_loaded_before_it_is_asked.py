@@ -15,6 +15,9 @@ plan() - retired them again: 9 relaunches since 2026-09-30 10:18, about 1,000 re
     a failed load and publishes the set on a good one.
   · DRIVEN in a fixture world: the vault re-entry keeps a banked retired reel retired on its very first ask, and
     leaves a reel alone ("cannot ask -> never guess") when the index is unreadable.
+  · v3540 REG-1658, DRIVEN: a retirement made BLIND (no reason recorded - the REG-1649 gap, judged by the REG-1648
+    blind lattice) is re-judged ONCE, by ONE attempt, at most _VAULT_REJUDGE_PER_BOOT per boot; one that carries its
+    reason stays retired.
 RED_PROOF below. [[unknown-stays-unknown]] [[copy-drift]]
 """
 import json
@@ -154,11 +157,66 @@ class TheVaultReentryAsksTheSameQuestion(_World):
         self.assertEqual(out["readmitted"], [], "re-admitted on an index nobody could read: %r" % out)
 
 
+    # ── REG-1658 — a retirement made BLIND is re-judged once, by one attempt, a few per boot ──────────────────────
+    BLIND = {"why": "2 attempt(s) ran and this reel is STILL owed afterwards — and no attempt left a reason, so WHY is "
+                    "UNKNOWN, not diagnosed", "lastWhy": None, "tries": 2, "at": 1}
+    REASONED = {"why": "2 attempt(s) ran and this reel is STILL owed afterwards — the last one said: 28 of 28 read "
+                       "frame(s) were never cross-checked", "lastWhy": "28 of 28 read frame(s) were never cross-checked",
+                "tries": 2, "at": 1}
+
+    def test_a_blind_retirement_gets_one_more_attempt(self):
+        self.ca._VAULT_AUTOREAD["retired"] = {BANKED: dict(self.BLIND)}
+        out = self.ca.vault_reentry_sweep(dry=False)
+        self.assertEqual(out["rejudged"], [BANKED], "a retirement judged by a blind instrument was left standing: %r" % out)
+        self.assertNotIn(BANKED, self.ca._VAULT_AUTOREAD["retired"])
+        self.assertEqual(self.ca._VAULT_AUTOREAD["tries"].get(BANKED), self.ca._VAULT_AUTOREAD_MAX_TRIES - 1,
+                         "the re-judge bought more than ONE attempt")
+
+    def test_a_reasoned_retirement_stays_retired(self):
+        self.ca._VAULT_AUTOREAD["retired"] = {BANKED: dict(self.REASONED)}
+        out = self.ca.vault_reentry_sweep(dry=True)
+        self.assertEqual(out["rejudged"], [], "a retirement that carries its reason was re-bought: %r" % out)
+        self.assertIn(BANKED, out["kept"])
+
+    def test_a_boot_rejudges_only_a_few(self):
+        names = ["reel_s_15000000001%02d_165%02d" % (i, i) for i in range(5)]
+        real = RR._durable_sessions
+        RR._durable_sessions = lambda here=None: ({RR._reel_ts_key(n) for n in names}, True, None)
+        RR._DURABLE = None
+        try:
+            self.ca._VAULT_AUTOREAD["retired"] = {n: dict(self.BLIND) for n in names}
+            SURVEY.update({n: {"full": True, "panels": 4, "frames": 40} for n in names})
+            RR._TRIAGE_CACHE["store"] = dict(SURVEY)
+            out = self.ca.vault_reentry_sweep(dry=True)
+        finally:
+            RR._durable_sessions = real
+            for n in names:
+                SURVEY.pop(n, None)
+        self.assertEqual(len(out["rejudged"]), self.ca._VAULT_REJUDGE_PER_BOOT,
+                         "a boot re-bought %d blind retirements at once" % len(out["rejudged"]))
+        self.assertEqual(len(out["kept"]), 5 - self.ca._VAULT_REJUDGE_PER_BOOT)
+
+
 def tearDownModule():
     shutil.rmtree(_WORLD, ignore_errors=True)
 
 
 RED_PROOF = [
+    {"why": "REG-1658 - a retirement judged blind is never looked at again (his two reels stay retired for ever)",
+     "file": "control_app.py",
+     "find": "            if _vault_retired_blind(retired.get(rid)) and len(out[\"rejudged\"]) < _VAULT_REJUDGE_PER_BOOT:\n",
+     "replace": "            if False:\n",
+     "matches": 1},
+    {"why": "REG-1658 - the re-judge is unbounded: one relaunch re-buys a whole backlog of blind retirements",
+     "file": "control_app.py",
+     "find": " and len(out[\"rejudged\"]) < _VAULT_REJUDGE_PER_BOOT:\n",
+     "replace": ":\n",
+     "matches": 1},
+    {"why": "REG-1658 - the re-judge buys the full try budget instead of one attempt",
+     "file": "control_app.py",
+     "find": "                        _VAULT_AUTOREAD[\"tries\"][rid] = max(0, _VAULT_AUTOREAD_MAX_TRIES - 1)   # ONE attempt left\n",
+     "replace": "                        _VAULT_AUTOREAD[\"tries\"][rid] = 0\n",
+     "matches": 1},
     {"why": "REG-1647 - the predicate asks the unloaded global again: before any plan() every reel reads 'never banked'",
      "file": "reel_retention.py",
      "find": "        return _reel_ts_key(reel) not in _durable_loaded()     # REG-1647 — never the unloaded global\n",
