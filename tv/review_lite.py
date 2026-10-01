@@ -34,10 +34,17 @@ ca = read(os.path.join(HERE, "control_app.py"))
 paths = set(re.findall(r"^(_[A-Z0-9_]*_PATH)\s*=", ca, re.M))
 tc = read(os.path.join(HERE, "test_control.py"))
 rg = read(os.path.join(HERE, "run_gates.py"))
+# v3539 REG-1650 — REG-1281 made test_control's isolation DISCOVERED, not listed: `_isolate_live_state()` redirects
+# every global matching this pattern at import, so a name it matches IS isolated without being spelled out. This
+# check still demanded the literal name and blocked _VAULT_AUTOREAD_PATH, which the discovery redirects (its law
+# proves the function lands in the sandbox). Accepted ONLY while test_control still carries that discovery - remove
+# it and the literal-name rule comes back on its own.
+_DISCOVERY = r"^_(CHRON|VAULT)_[A-Z_]*_PATH$"
+_discovered = ("def _isolate_live_state" in tc and _DISCOVERY in tc)
 for var in sorted(paths):
     if not var.startswith("_CHRON") and "SWEPT" not in var and "AUTOREAD" not in var:
         continue
-    if var not in tc:
+    if var not in tc and not (_discovered and re.match(_DISCOVERY, var)):
         add("BLOCK", "%s is not isolated in test_control.py" % var,
             "a new state file is live until every suite redirects it (REG-179, twice)")
     m = re.search(re.escape(var) + r"\s*=.*?join\(HERE,\s*[\"']([^\"']+)[\"']", ca)
