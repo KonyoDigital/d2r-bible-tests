@@ -9232,7 +9232,13 @@ def close_session(reason="stop", farewell=True):
                         json.dump(_doc, _jf)
                         _jf.flush()
                         os.fsync(_jf.fileno())
-                    os.replace(_tmp, os.path.join(_reel, "index.json"))
+                    # REG-1679 — the ONE replace rule: a brief lock (an indexer, an antivirus on his ALT) is waited out.
+                    # An immediate retry hit the same lock and left the NEWER index stranded in index.json.tmp.
+                    try:
+                        import reel_index as _rix
+                        _rix.replace_with_retry(_tmp, os.path.join(_reel, "index.json"))
+                    except ImportError:
+                        os.replace(_tmp, os.path.join(_reel, "index.json"))
 
                 # ── phase 1: filenames only ───────────────────────────────────────────────
                 _meta = []

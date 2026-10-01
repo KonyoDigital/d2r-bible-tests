@@ -406,6 +406,19 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1679 - AN ABANDONED SEAL HELD THREE ALT REELS "IN FLIGHT" FOR UP TO 86 HOURS (the river-chain audit, 2026-10-01)
+
+**Found by** the river-chain audit he asked for, reproduced on his ALT: `reel_s_1790547050218_16904` (85.8 h, 1,283 jpg vs
+1,280 listed), `reel_s_1790728822983_19720` (36.3 h, 72/70), `reel_s_1790773606979_20268` (23.7 h, 288/286) each kept an
+`index.json.tmp` holding the NEWER index. **Cause:** the recorder's seal writes the temp in milliseconds, then retried
+`os.replace` immediately - into the same brief Windows lock (an indexer / antivirus) - and left the temp; `reel_repair`
+read ANY temp as "a seal in flight" and skipped the reel for ever, so the frames past the stale index were never
+listed. **Now** `reel_index.replace_with_retry` is the one replace rule (6 tries, 0.25 s apart, the last error raised),
+used by the recorder's seal and reel_index's own writer; `reel_repair` calls a temp older than STALE_TMP_S (600 s) an
+ABANDONED seal and finishes it - installs the temp when it parses and lists at least what index.json lists (the seal's
+own last step), else keeps it aside as `index.json.tmp.abandoned-<epoch>` (never dropped) and leaves the index; a fresh
+temp is still in flight. Law: `tv/test_an_abandoned_seal_is_finished_not_waited_on.py` (7 cases, 5 red-proofs).
+
 ### REG-1686 - ONE MISFILED BLIND SHUT THE ALT'S WHOLE RIVER AGAIN (measured on his ALT, 2026-10-01)
 
 **SEEN ~16:45:** the ALT's census filed `test_the_character_builder_is_their_builder` BLIND, and `self_arming.may()`

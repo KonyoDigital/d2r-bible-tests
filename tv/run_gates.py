@@ -8780,6 +8780,13 @@ GATES = [
              "ten minutes and, while a proof runs, the cheap guard every ten seconds, which stands it aside through the "
              "tick's own kill-and-book door; the start bar fits an idle 8 GB PC with the game off, still never beside "
              "his game and never near the running floor."),
+    Gate("test_an_abandoned_seal_is_finished_not_waited_on",
+         [sys.executable, os.path.join(HERE, "test_an_abandoned_seal_is_finished_not_waited_on.py")], 60,
+         needs_app=False,
+         why="REG-1679 (2026-10-01) - three reels on his ALT kept an index.json.tmp for 23-86 h, each holding the newer "
+             "index; reel_repair read any temp as a seal in flight and skipped the reel for ever, and the recorder's seal "
+             "retried its replace at once, into the same Windows lock. An old temp is an abandoned seal that repair "
+             "finishes (or keeps aside when it lists less), and both index writers wait out a brief lock."),
     Gate("test_a_proof_that_needs_what_this_pc_lacks_is_elsewhere",
          [sys.executable, os.path.join(HERE, "test_a_proof_that_needs_what_this_pc_lacks_is_elsewhere.py")], 60,
          needs_app=False,

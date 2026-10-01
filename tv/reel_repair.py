@@ -86,6 +86,10 @@ REPAIR = "repair"      # frames on disk, no usable index — the one case --appl
 CORRUPT = "corrupt"    # index.json present but does not parse — repairable, old file preserved
 EMPTY = "empty"        # no frames and no index — nothing recoverable, nothing to do
 SEALING = "sealing"    # index.json.tmp present — the agent is mid-seal, do not race it
+ABANDONED = "abandoned"  # REG-1679 — index.json.tmp older than STALE_TMP_S: a seal that never finished
+#: REG-1679 — a seal writes its temp index in milliseconds; one older than this was left by a write that failed (his ALT
+#: kept three for 23-86 h, each holding the NEWER index: 1,283 frames on disk, 1,280 in index.json). Never "in flight".
+STALE_TMP_S = 600
 
 THIN_FRAMES = 2
 
@@ -96,6 +100,20 @@ def frame_names(reel_dir):
         return sorted(n for n in os.listdir(reel_dir) if FRAME_RE.match(n))
     except OSError:
         return []
+
+
+def _listed_in(path):
+    """REG-1679 — frames listed by an index FILE at `path` (the abandoned temp). -> int | None (unparseable)"""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            idx = json.load(fh)
+    except Exception:
+        return None
+    if isinstance(idx, dict) and isinstance(idx.get("frames"), list):
+        return len(idx["frames"])
+    if isinstance(idx, list):
+        return len(idx)
+    return None
 
 
 def read_index(reel_dir):
@@ -127,8 +145,19 @@ def inspect(reel_dir):
     """Classify ONE reel dir. Pure read — opens nothing but index.json, decodes no JPEG."""
     row = {"reel": os.path.basename(reel_dir), "dir": reel_dir,
            "jpgs": len(frame_names(reel_dir)), "listed": None}
-    if os.path.exists(os.path.join(reel_dir, "index.json.tmp")):
-        row["state"] = SEALING
+    _tmp = os.path.join(reel_dir, "index.json.tmp")
+    if os.path.exists(_tmp):
+        try:
+            row["tmpAgeS"] = int(time.time() - os.path.getmtime(_tmp))
+        except OSError:
+            row["tmpAgeS"] = None
+        # REG-1679 — a fresh temp is a seal in flight; an old one is a seal that failed. An unreadable age is in flight
+        # (never raced on a guess).
+        row["state"] = ABANDONED if (row["tmpAgeS"] is not None and row["tmpAgeS"] >= STALE_TMP_S) else SEALING
+        if row["state"] == SEALING:
+            return row
+        row["tmpListed"] = _listed_in(_tmp)
+        row["listed"] = read_index(reel_dir)[1]
         return row
     exists, listed = read_index(reel_dir)
     row["listed"] = listed
@@ -160,11 +189,12 @@ VERDICT = {
     CORRUPT: "%s (index.json does not parse; old file kept as .bad-<epoch>)",
     EMPTY: "nothing to recover (no frames)",
     SEALING: "SKIP — index.json.tmp present, a seal is in flight",
+    ABANDONED: "%s an abandoned seal (index.json.tmp older than a seal ever takes)",
 }
 
 # What the index: column says. An EMPTY reel has no index either, but there is nothing to rebuild
 # from, so it must not read "ok" — that is the one wording that could make a real gap look handled.
-INDEX_COL = {REPAIR: "MISSING", CORRUPT: "unparseable", SEALING: "in-flight", EMPTY: "none"}
+INDEX_COL = {REPAIR: "MISSING", CORRUPT: "unparseable", SEALING: "in-flight", EMPTY: "none", ABANDONED: "abandoned"}
 
 
 def repair(row):
@@ -175,6 +205,8 @@ def repair(row):
     is stamped, and it is a no-op when a usable index is already there, which is what makes a second
     --apply run idempotent even if this module's own view of the dir went stale.
     """
+    if row["state"] == ABANDONED:
+        return _finish_abandoned(row)
     if row["state"] == CORRUPT:
         # Additive: the unparseable file is preserved, never dropped, before the writer replaces it.
         bad = os.path.join(row["dir"], "index.json")
@@ -199,6 +231,37 @@ def repair(row):
         return False
     print("  + %s: rebuilt index.json — %d frames" % (row["reel"], listed))
     return True
+
+
+def _finish_abandoned(row):
+    """REG-1679 — finish the seal that never finished. -> True when the reel ends with a usable index.
+
+    The temp holds what the seal MEANT to install. When it parses and lists at least what index.json lists (or there is
+    no usable index), it is installed - the seal's own last step, nothing invented. Otherwise it is kept aside as
+    index.json.tmp.abandoned-<epoch> (additive, never dropped) and the reel gets a usable index the usual way."""
+    tmp = os.path.join(row["dir"], "index.json.tmp")
+    have = row.get("listed")
+    want = row.get("tmpListed")
+    try:
+        if want is not None and (have is None or want >= have):
+            _ri.replace_with_retry(tmp, os.path.join(row["dir"], "index.json"))
+            print("  + %s: finished an abandoned seal — index.json now lists %d frames (was %s)"
+                  % (row["reel"], want, "none" if have is None else have))
+            return True
+        aside = tmp + ".abandoned-%d" % int(time.time())
+        shutil.move(tmp, aside)
+        print("  ~ %s: the abandoned temp lists %s (index %s) — kept aside as %s, not installed"
+              % (row["reel"], "nothing readable" if want is None else want, have, os.path.basename(aside)))
+    except OSError as exc:
+        print("  ! %s: could not finish the abandoned seal (%s) — SKIPPED" % (row["reel"], exc))
+        return False
+    if have is None:
+        try:
+            _ri.ensure_reel_index(row["dir"])
+        except Exception as exc:
+            print("  ! %s: rebuild FAILED (%s: %s)" % (row["reel"], type(exc).__name__, exc))
+            return False
+    return read_index(row["dir"])[1] is not None
 
 
 def main(argv=None):
@@ -229,7 +292,7 @@ def main(argv=None):
             width, row["reel"], row["jpgs"], INDEX_COL.get(row["state"], "ok"),
             listed, (note % verb) if "%s" in note else note))
 
-    todo = [r for r in rows if r["state"] in (REPAIR, CORRUPT)]
+    todo = [r for r in rows if r["state"] in (REPAIR, CORRUPT, ABANDONED)]
     thin = [r for r in rows if r["state"] == THIN]
     print("")
     print("  reels total ................. %d" % len(rows))

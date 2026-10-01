@@ -18,6 +18,32 @@ import os
 from chronicle_retro import INDEX_REBUILD_MARK, _index_ok, reconstruct_index  # noqa: F401
 
 
+#: REG-1679 — how often and how long a replace waits out a file lock before it gives up (an indexer or an antivirus on
+#: his ALT holds index.json for a moment; an IMMEDIATE retry hits the same lock, and the newer index stays in the .tmp)
+REPLACE_ATTEMPTS, REPLACE_PAUSE_S = 6, 0.25
+
+
+def replace_with_retry(src, dst, attempts=None, pause_s=None, _replace=None, _sleep=None):
+    """REG-1679 — os.replace(src, dst), waiting out a brief lock. -> None; raises the LAST error when every try failed.
+
+    The one rule both index writers use (this module's and the recorder's seal), so a lock on Windows is waited out
+    instead of leaving the newer index stranded in a temp file that reads "a seal in flight" for days."""
+    import time as _t
+    n = REPLACE_ATTEMPTS if attempts is None else max(1, int(attempts))
+    pause = REPLACE_PAUSE_S if pause_s is None else float(pause_s)
+    rep, nap = (_replace or os.replace), (_sleep or _t.sleep)
+    last = None
+    for k in range(n):
+        try:
+            rep(src, dst)
+            return
+        except OSError as e:
+            last = e
+            if k + 1 < n:
+                nap(pause)
+    raise last
+
+
 def _write_json_atomic(path, obj):
     """Write JSON so a reader never sees a half-file: tmp in the SAME dir → flush → fsync → replace.
     os.replace is atomic within a directory, so index.json is either the old one or the whole new
@@ -29,7 +55,7 @@ def _write_json_atomic(path, obj):
             json.dump(obj, fh)
             fh.flush()
             os.fsync(fh.fileno())
-        os.replace(tmp, path)
+        replace_with_retry(tmp, path)          # REG-1679 — a brief lock is waited out, not failed on
     except Exception:
         try:
             if os.path.basename(tmp).startswith(".index.json.") and os.path.isfile(tmp):
