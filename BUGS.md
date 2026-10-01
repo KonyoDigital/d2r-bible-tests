@@ -447,7 +447,9 @@ a directory still will not go, COUNTS it (`_STATS["session_dirs_left"]`); every 
 leftovers older than `G5_SESSION_STALE_S` (600 s) by the unique `tvd-g5-` name only (`session_dirs_swept`) - a
 concurrent read's fresh session, the lean home and his own sessions are never touched. Law:
 `tv/test_a_reads_grok_session_is_gone_or_counted.py` (4 cases, 6 red-proofs). The ALT's 111 leftovers go with its first
-read after it pulls.
+read after it pulls. **Follow-up (v3547 pre-flight):** the swallow ratchet caught the sweep returning `0` for a sessions
+folder it could not list - "swept nothing" and "could not look" were one value. It now returns None (UNKNOWN) and records
+the reason in `_STATS["session_sweep_unread"]`; the ratchet holds at 68.
 
 ### REG-1679 - AN ABANDONED SEAL HELD THREE ALT REELS "IN FLIGHT" FOR UP TO 86 HOURS (the river-chain audit, 2026-10-01)
 

@@ -1272,13 +1272,15 @@ def _drop_session_dir(path, attempts=4, pause_s=0.25):
 def _sweep_stale_sessions(sd, now=None):
     """REG-1687 — every read also removes the leftovers of EARLIER reads: a session directory whose name carries a
     read's unique tvd-g5- cwd and is older than G5_SESSION_STALE_S. Matched by that name only, so none of his own
-    sessions can match, and a concurrent read's fresh one is left alone. -> how many it removed."""
+    sessions can match, and a concurrent read's fresh one is left alone. -> how many it removed, or None when the folder
+    could not be listed (UNKNOWN, with the reason in _STATS["session_sweep_unread"] - never "0 swept")."""
     now = time.time() if now is None else float(now)
     gone = 0
     try:
         names = os.listdir(sd)
-    except OSError:
-        return 0
+    except OSError as e:
+        _STATS["session_sweep_unread"] = "%s: %s" % (type(e).__name__, str(e)[:80])
+        return None
     for name in names:
         if "tvd-g5-" not in name or "tvd-g5-home" in name:
             continue
