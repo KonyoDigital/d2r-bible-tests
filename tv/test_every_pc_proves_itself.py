@@ -741,13 +741,15 @@ def _int0(v):
 
 
 class TwoLanesOnlyWithRoom(unittest.TestCase):
-    """REG-1670 — two proving lanes only when the PC clearly has room for both (his ALT, ~1.9 GB free, stays on one)."""
+    """REG-1670 — as many proving lanes as the PC has clear room for (his ALT, ~1.9 GB free, stays on one)."""
 
     def test_the_rule(self):
-        self.assertEqual(SP.lanes_for(8000, 8), 2)
-        self.assertEqual(SP.lanes_for(SP.TWO_LANES_MIN_FREE_MB, SP.TWO_LANES_MIN_CPUS), 2)
-        self.assertEqual(SP.lanes_for(1900, 8), 1, "his ALT at ~1.9 GB free was given two lanes")
-        self.assertEqual(SP.lanes_for(8000, 2), 1, "a two-core PC was given two lanes")
+        self.assertEqual(SP.lanes_for(1900, 8), 1, "his ALT at ~1.9 GB free was given more than one lane")
+        self.assertEqual(SP.lanes_for(3072, 4), 2, "3 GB free and 4 cores is room for two")
+        self.assertEqual(SP.lanes_for(9000, 16), 4, "a 16 GB PC like Dean's did not scale up")
+        self.assertEqual(SP.lanes_for(30000, 32), SP.MAX_PROVE_LANES, "the lanes were not capped")
+        self.assertEqual(SP.lanes_for(8000, 2), 1, "a two-core PC was given more than one lane")
+        self.assertEqual(SP.lanes_for(8000, 6), 3, "the cores did not bound the lanes")
         self.assertEqual(SP.lanes_for(None, 8), 1, "an unmeasured memory read as room")
         self.assertEqual(SP.lanes_for(float("nan"), 8), 1)
         self.assertEqual(SP.lanes_for(8000, None), 1, "an unknown core count read as enough")
@@ -768,7 +770,7 @@ class TwoLanesOnlyWithRoom(unittest.TestCase):
             with mock.patch.object(SP, "free_mb", lambda: 1900), mock.patch.object(SP.os, "cpu_count", lambda: 8):
                 SP.spawn(log, popen=popen)
             SP.spawn(log, popen=popen, workers=1)
-        self.assertEqual(seen, ["2", "1", "1"], "the prover's lane count did not follow the memory free at spawn")
+        self.assertEqual(seen, ["4", "1", "1"], "the prover's lane count did not follow the memory free at spawn")
 
 RED_PROOF = [
     {
@@ -1021,10 +1023,10 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "2026-10-01 (REG-1670) - two proving lanes whatever the memory, so his 8 GB ALT is pushed under its floor",
+        "why": "2026-10-01 (REG-1670) - the lanes ignore free memory, so his 8 GB ALT is pushed under its floor",
         "file": "tv/self_prove.py",
-        "find": "    return 2 if (f >= TWO_LANES_MIN_FREE_MB and c >= TWO_LANES_MIN_CPUS) else 1\n",
-        "replace": "    return 2\n",
+        "find": "    return max(1, min(int(f // LANE_BUDGET_MB), c // 2, MAX_PROVE_LANES))\n",
+        "replace": "    return max(1, min(c // 2, MAX_PROVE_LANES))\n",
         "matches": 1,
     },
     {

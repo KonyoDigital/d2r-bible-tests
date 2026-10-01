@@ -61,13 +61,15 @@ PLAY_EXES = ("boosteroid.exe", "geforcenow.exe", "nvidia geforce now.exe")
 #: memory falling under the running floor. So the start bar only has to leave the proof room above that floor.
 MIN_FREE_MB_TO_START = 1536
 MIN_FREE_MB_WHILE_RUNNING = 1024
-#: REG-1670 — a PC with clearly room for two proves on two lanes (heart2's HEART2_PROVE_WORKERS). His words, 2026-10-01:
-#: "yea good idea" - MEASURED on his ALT that morning: one lane, a 40-gate slice in 82 minutes. Two lanes only when two
-#: can never push it under the running floor: each lane is one law run at a time (a few hundred MB), so 3 GB free
-#: leaves both well above MIN_FREE_MB_WHILE_RUNNING - and the 10-second guard still stands the whole proof aside if
-#: memory falls there anyway. His ALT at ~1.9 GB free stays on one lane.
-TWO_LANES_MIN_FREE_MB = 3072
-TWO_LANES_MIN_CPUS = 4
+#: REG-1670 — a PC proves on as many lanes as it has clear room for (heart2's HEART2_PROVE_WORKERS). His words,
+#: 2026-10-01: "yea good idea" and "this is genius to scale even further maybe.. for DEANS pc he has like 16g ram or 32g
+#: ram". MEASURED on his ALT that morning: one lane, a 40-gate slice in 82 minutes. One lane per LANE_BUDGET_MB free
+#: (each lane runs one law at a time, a few hundred MB, so the budget keeps every lane well above the running floor),
+#: one per two cores, at most MAX_PROVE_LANES (every lane is a copy of the tree on disk; heart2 caps that too). The
+#: 10-second guard still stands the whole proof aside the moment memory falls under MIN_FREE_MB_WHILE_RUNNING or he
+#: starts playing. His ALT at ~1.9 GB free: one lane. 3 GB and 4 cores: two. Dean's 16 GB PC: up to four.
+LANE_BUDGET_MB = 1536
+MAX_PROVE_LANES = 4
 
 # ⚠⚠ REG-1511 — THE REVIEW OF v3524 FOUND THE STAND-ASIDE COULD KILL A STRANGER, FLAP, AND NEVER LET THE ALT PROVE.
 #   · a finished prover's pid stayed in `_STARTED`, and the store's pid outlived a restart; `pid_alive` asks only
@@ -752,8 +754,8 @@ def ensure_prover_deps(find=None, run=None):
 
 
 def lanes_for(free, cpus):
-    """REG-1670 — how many proving lanes this PC may run now. -> 1 | 2. Pure.
-    Two only with TWO_LANES_MIN_FREE_MB free and TWO_LANES_MIN_CPUS cores; unknown memory or cores is one lane."""
+    """REG-1670 — how many proving lanes this PC may run now. -> 1..MAX_PROVE_LANES. Pure.
+    One per LANE_BUDGET_MB free, one per two cores, at most MAX_PROVE_LANES; unknown memory or cores is one lane."""
     try:
         f = None if free is None else float(free)
         c = None if cpus is None else int(cpus)
@@ -761,7 +763,7 @@ def lanes_for(free, cpus):
         return 1
     if f is None or f != f or c is None:
         return 1
-    return 2 if (f >= TWO_LANES_MIN_FREE_MB and c >= TWO_LANES_MIN_CPUS) else 1
+    return max(1, min(int(f // LANE_BUDGET_MB), c // 2, MAX_PROVE_LANES))
 
 
 def spawn(log_path, python=None, workers=None, popen=None, names=None):

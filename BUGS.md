@@ -406,13 +406,15 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
-### REG-1670 - A PC WITH ROOM FOR TWO STILL PROVED ON ONE LANE (his "yea good idea", 2026-10-01)
+### REG-1670 - EVERY PC PROVED ON ONE LANE, WHATEVER ROOM IT HAD (his "yea good idea", 2026-10-01)
 
-**Was:** the self-prove lane always started heart2 with one lane. **Now** `self_prove.spawn` asks `lanes_for()` with the
-memory free at that moment: two lanes only with 3 GB free and 4 cores (each lane runs one law at a time, a few hundred MB,
-so both stay well above the 1,024 MB running floor - and the 10-second guard still stands the proof aside if memory
-falls there anyway); unknown memory or cores is one lane. **His ALT, at ~1.9 GB free, stays on one lane** - REG-1669 is
-what speeds it up today. Law: `tv/test_every_pc_proves_itself.py` (TwoLanesOnlyWithRoom); 2 red-proofs RED.
+**His words:** "yea good idea", then "this is genius to scale even further maybe.. for DEANS pc he has like 16g ram or
+32g ram". **Was:** the self-prove lane always started heart2 with one lane. **Now** `self_prove.spawn` asks
+`lanes_for()` with the memory free at that moment: one lane per 1.5 GB free, one per two cores, at most four (each lane
+runs one law at a time - a few hundred MB - and is a copy of the tree on disk, which heart2 caps too); unknown memory or
+cores is one lane, and the 10-second guard still stands the whole proof aside when memory falls under the running
+floor or he starts playing. **His ALT at ~1.9 GB free: one lane** (REG-1669 is what speeds it up today); 3 GB and 4
+cores: two; a 16 GB PC like Dean's: four. Law: `tv/test_every_pc_proves_itself.py` (TwoLanesOnlyWithRoom); 2 red-proofs.
 
 ### REG-1669 - EVERY PROOF RAN THE CLEAN LAW AGAIN: AN 82-MINUTE CENSUS SLICE ON HIS ALT (#42, 2026-10-01)
 
