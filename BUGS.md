@@ -406,6 +406,18 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1676 - A SLICE THAT STOOD ASIDE THREW AWAY EVERY VERDICT IT HAD PROVED (2026-10-01)
+
+**Measured on his ALT:** the census slice that began 13:13 proved the four once-BLIND REG-1668 gates PROVEN
+(frame_index 4/4, keep_floors 4/4, armed_prune 4/4, drain_ring 18/18 red), then stood aside at "only 972 MB of memory
+left" before its end. A slice wrote the census only when every gate in it was done, so those verdicts were thrown away,
+the BLIND records stood, and every lock on that PC - the river - stayed shut for another hour while he watched it read
+0%. **Now** each finished gate is handed to `_slice_banker`, which writes the verdicts so far through the same
+`_write_state` a slice ends with (a partial result merged over the census, atomically), at most once a minute (the gate
+scan costs seconds on the ALT). A stand-aside loses at most the gates since the last bank, the lane reads the banked
+ones as progress (`_slice_landed`), and a bank that fails is said and never kills the lane. Full runs keep their single
+write. Law: `tv/test_a_slice_banks_what_it_proved.py` (real lanes and banker); 5 red-proofs.
+
 ### REG-1675 - HIS ALT'S SHADOW SESSIONS CAME IN PARTS, NOT ONE PER CLOCK HOUR (his report, 2026-10-01)
 
 **His words:** "i see alot of sesssion all like parts instead of 1 hour long each ... should be an hourly session..

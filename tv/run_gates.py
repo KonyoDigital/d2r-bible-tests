@@ -8780,6 +8780,14 @@ GATES = [
              "ten minutes and, while a proof runs, the cheap guard every ten seconds, which stands it aside through the "
              "tick's own kill-and-book door; the start bar fits an idle 8 GB PC with the game off, still never beside "
              "his game and never near the running floor."),
+    Gate("test_a_slice_banks_what_it_proved",
+         [sys.executable, os.path.join(HERE, "test_a_slice_banks_what_it_proved.py")], 60,
+         needs_app=False,
+         why="REG-1676 (2026-10-01) - measured on his ALT: a 27-gate slice proved four once-BLIND gates PROVEN, then "
+             "stood aside at 972 MB free before its end; a slice wrote the census only at its end, so the verdicts were "
+             "lost and the river stayed shut another hour. A slice now banks each finished gate through the same "
+             "_write_state (throttled), so a stand-aside loses at most the gates since the last bank. Real lanes and "
+             "banker; the sandbox and the law runs are stand-ins; the census is a temp file."),
     Gate("test_a_silent_prover_is_ended_and_said",
          [sys.executable, os.path.join(HERE, "test_a_silent_prover_is_ended_and_said.py")], 60,
          needs_app=False,

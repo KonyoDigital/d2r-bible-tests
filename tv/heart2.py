@@ -2259,7 +2259,7 @@ def _prove_gate_proofs(sandbox, name, filename, proofs, say):
     return verdicts
 
 
-def _prove_lane(lane, work, out, lock, sink, built, buffered=True, blank=None):
+def _prove_lane(lane, work, out, lock, sink, built, buffered=True, blank=None, on_gate=None):
     """ONE lane: build a sandbox nobody else touches, then drain the shared queue into `out`.
 
     ⚠⚠ EVERY GATE THIS LANE TAKES COMES BACK WITH A ROW, INCLUDING WHEN THE LANE DIES HOLDING IT.
@@ -2311,6 +2311,14 @@ def _prove_lane(lane, work, out, lock, sink, built, buffered=True, blank=None):
             with lock:
                 out[name] = (v, per)
             holding = []
+            # REG-1676 — a slice banks what it has proved AS IT GOES (see _slice_banker). Never fatal: a bank that
+            # fails is said and the lane keeps proving - the slice's own write at its end still runs.
+            if on_gate is not None:
+                try:
+                    on_gate(out, lock)
+                except Exception as _be:
+                    say("    ⚠ banking the slice so far raised %s - it is retried after the next gate"
+                        % type(_be).__name__)
             say.flush()
     except Exception as _le:
         say("  ⚠ lane %d died: %s: %s" % (lane, type(_le).__name__, str(_le)[:140]))
@@ -2326,7 +2334,42 @@ def _prove_lane(lane, work, out, lock, sink, built, buffered=True, blank=None):
             _drop_sandbox(root)
 
 
-def _prove_gates(have, say=print, workers=None, blank=None):
+#: REG-1676 — how often (seconds) a slice may write its verdicts so far into the census; the gate scan costs ~1 s on his
+#: Mac and a few on the ALT, so a bank per gate is throttled, and the slice's final write is never skipped
+SLICE_BANK_EVERY_S = 60
+
+
+def _slice_banker(blank, say=print, every_s=None):
+    """REG-1676 — A SLICE BANKS WHAT IT HAS PROVED AS IT GOES. -> callable(out, lock)
+
+    MEASURED on his ALT 2026-10-01: a 27-gate slice proved four once-BLIND gates PROVEN, then stood aside at "only 972 MB
+    of memory left" before its end - and a slice wrote the census only at its end, so 70+ minutes of verdicts were
+    thrown away, the BLIND records stood, and every lock on that PC (the river) stayed shut. Now each finished gate is
+    banked through the same _write_state a slice ends with (a partial result merged over the census, atomically), at
+    most once per `every_s`; a stand-aside then loses at most the gates since the last bank, and the lane reads the
+    banked ones as progress, never a failure."""
+    st = {"last": 0.0, "lk": threading.Lock()}
+    every = SLICE_BANK_EVERY_S if every_s is None else every_s
+
+    def bank(out, lock):
+        if not st["lk"].acquire(False):
+            return                                  # a bank is already writing: the next gate banks
+        try:
+            now = __import__("time").time()
+            if now - st["last"] < every:
+                return
+            with lock:
+                snap = {k: v for k, (v, _p) in out.items()}
+                unm = set(blank or ())
+            if snap:
+                _write_state(snap, stamp=False, unmeasured=unm)
+                st["last"] = now
+        finally:
+            st["lk"].release()
+    return bank
+
+
+def _prove_gates(have, say=print, workers=None, blank=None, on_gate=None):
     """Prove every gate in `have` across isolated lanes. -> ({name: verdict}, {name: [verdicts]})
 
     (None, None) means NOT ONE lane could build a sandbox — the same "nothing was proven" answer
@@ -2355,12 +2398,12 @@ def _prove_gates(have, say=print, workers=None, blank=None):
     DEADLINE_SCALE = _deadline_scale(n, say=say)
     try:
         if n == 1:
-            _prove_lane(1, work, out, lock, say, built, buffered=False, blank=blank)
+            _prove_lane(1, work, out, lock, say, built, buffered=False, blank=blank, on_gate=on_gate)
         else:
             say("  every gate's deadline is x%d while %d lanes are running, because the lanes "
                 "make the load themselves" % (DEADLINE_SCALE, n))
             with ThreadPoolExecutor(max_workers=n) as ex:
-                futs = [ex.submit(_prove_lane, i + 1, work, out, lock, say, built, True, blank)
+                futs = [ex.submit(_prove_lane, i + 1, work, out, lock, say, built, True, blank, on_gate)
                         for i in range(n)]
                 for f in futs:
                     _e = f.exception()
@@ -2436,7 +2479,9 @@ def prove(only=None, say=print, detail=None, push=False, stopped=None, stamp=Tru
             say("  #42 no gate was judged to the end, so the census is left exactly as it was")
             return {}
     else:
-        results, per_proof = _prove_gates(have, say, blank=_blank)
+        # REG-1676 — a SLICE (stamp=False) banks as it goes; a full run keeps its one write at the end
+        results, per_proof = _prove_gates(have, say, blank=_blank,
+                                          on_gate=(None if stamp else _slice_banker(_blank, say)))
     if results is None:
         return {}
     # `detail` is the per-PROOF verdict list, and it exists so an A/B can compare the lanes
