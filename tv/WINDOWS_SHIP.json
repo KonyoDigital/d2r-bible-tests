@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3542",
+  "ver": "v3543",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3542: a cloud client - Boosteroid or GeForce NOW - counts as playing only while the game is on his screen, D2R.exe always, Battle.net never; the launcher never resets a checkout and a sign-in start stays hidden; five checks his ALT filed BLIND repaired, two of them blind on the Mac too",
+  "note": "v3543: the red-proofs of one gate share one clean run with a closing check, so a census needs about a third fewer law runs; the prover runs as many lanes as the PC has clear room for, up to four - one on his ALT today, four on a 16 GB PC",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
