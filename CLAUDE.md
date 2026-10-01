@@ -83,6 +83,10 @@ cat .claude/skills/human-eyes-harness/SKILL.md #   and that is NOT absence
 
 ## 2. THE KONYO WAY — how this repo has been worked for six days
 
+- **Read the live maps BEFORE a build, regenerate them AFTER** (his order 2026-09-04, re-asserted 2026-10-01: *"you
+  need to check blueprints and heart they both derive live"*): `grep -n -i "<concept>" BLUEPRINT.md HEART.md BUGS.md`
+  first, name the existing store / lane / door the build sits on, then `python3 tv/blueprint.py` and
+  `python3 tv/heart_map.py` when done. Everything new is built on the heart's chassis, never beside it.
 - **Fix it, don't offer it.** In-territory, broken, and I know the fix → do it and report in past tense.
 - **Verify the thing, never a proxy.** A passing test is not a look. A rect is not a picture.
 - **Every UI change is verified on real pixels**, then shown to a DIFFERENT model family to refute.
