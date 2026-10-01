@@ -234,7 +234,9 @@ def _seal_path():
         import tv_diablo as _tvd
         root = _tvd._fixture_root(HERE)
     except Exception:
-        root = HERE
+        # a request for isolation that cannot be honoured must not degrade to HIS world (the equipped_ledger rule)
+        _h = (os.environ.get("TV_HIST") or "").strip()
+        root = _h if (_h and os.path.isabs(_h)) else HERE
     return os.path.join(root, "shadow_seals.jsonl")
 
 

@@ -192,22 +192,34 @@
   "nodes": {
     "advanced": {
       "1120x628": [
-        "div.g5-eyes-card|👁 EYES OFF SHADOW PRIMARY ⚡ Linked dual "
+        "div.g5-eyes-card|🧠 CLAUDE ⚡ Linked",
+        "button.g5-auth-btn|⚡ Linked",
+        "div.g5-eyes-card|👁 EYES CLAUDE + GROK GROK ONLY ⚡ Linked "
       ],
       "1120x900": [
-        "div.g5-eyes-card|👁 EYES OFF SHADOW PRIMARY ⚡ Linked dual "
+        "div.g5-eyes-card|🧠 CLAUDE ⚡ Linked",
+        "button.g5-auth-btn|⚡ Linked",
+        "div.g5-eyes-card|👁 EYES CLAUDE + GROK GROK ONLY ⚡ Linked "
       ],
       "1280x720": [
-        "div.g5-eyes-card|👁 EYES OFF SHADOW PRIMARY ⚡ Linked dual "
+        "div.g5-eyes-card|🧠 CLAUDE ⚡ Linked",
+        "button.g5-auth-btn|⚡ Linked",
+        "div.g5-eyes-card|👁 EYES CLAUDE + GROK GROK ONLY ⚡ Linked "
       ],
       "1440x1000": [
-        "div.g5-eyes-card|👁 EYES OFF SHADOW PRIMARY ⚡ Linked dual "
+        "div.g5-eyes-card|🧠 CLAUDE ⚡ Linked",
+        "button.g5-auth-btn|⚡ Linked",
+        "div.g5-eyes-card|👁 EYES CLAUDE + GROK GROK ONLY ⚡ Linked "
       ],
       "375x800": [
-        "div.g5-eyes-card|👁 EYES OFF SHADOW PRIMARY ⚡ Linked dual "
+        "div.g5-eyes-card|🧠 CLAUDE ⚡ Linked",
+        "button.g5-auth-btn|⚡ Linked",
+        "div.g5-eyes-card|👁 EYES CLAUDE + GROK GROK ONLY ⚡ Linked "
       ],
       "901x900": [
-        "div.g5-eyes-card|👁 EYES OFF SHADOW PRIMARY ⚡ Linked dual "
+        "div.g5-eyes-card|🧠 CLAUDE ⚡ Linked",
+        "button.g5-auth-btn|⚡ Linked",
+        "div.g5-eyes-card|👁 EYES CLAUDE + GROK GROK ONLY ⚡ Linked "
       ]
     },
     "advanced-fleet": {
