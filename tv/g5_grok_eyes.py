@@ -1243,9 +1243,56 @@ def _cleanup(work):
         if base.startswith("tvd-g5-") and len(base) > len("tvd-g5-") and os.path.isdir(sd):
             for name in os.listdir(sd):
                 if base in name:
-                    shutil.rmtree(os.path.join(sd, name), ignore_errors=True)
+                    _drop_session_dir(os.path.join(sd, name))
+            _sweep_stale_sessions(sd)
     except Exception:
         pass
+
+
+#: REG-1687 — a read's own Grok session directory older than this is a leftover nobody will come back for
+G5_SESSION_STALE_S = 600
+
+
+def _drop_session_dir(path, attempts=4, pause_s=0.25):
+    """REG-1687 — remove one Grok session directory a read minted. -> True when it is gone.
+
+    MEASURED on his ALT 2026-10-01: 111 of them (86.6 MB) survived 09-30/10-01 although every read "removed" its own,
+    because rmtree(ignore_errors=True) failed SILENTLY while grok still held a file there (chat_history.jsonl.lock) -
+    Windows cannot delete an open file. So: retry briefly, and when it is still there COUNT it, never pretend."""
+    for k in range(max(1, int(attempts))):
+        shutil.rmtree(path, ignore_errors=True)
+        if not os.path.exists(path):
+            return True
+        if k + 1 < attempts:
+            time.sleep(pause_s)
+    _STATS["session_dirs_left"] = int(_STATS.get("session_dirs_left") or 0) + 1
+    return False
+
+
+def _sweep_stale_sessions(sd, now=None):
+    """REG-1687 — every read also removes the leftovers of EARLIER reads: a session directory whose name carries a
+    read's unique tvd-g5- cwd and is older than G5_SESSION_STALE_S. Matched by that name only, so none of his own
+    sessions can match, and a concurrent read's fresh one is left alone. -> how many it removed."""
+    now = time.time() if now is None else float(now)
+    gone = 0
+    try:
+        names = os.listdir(sd)
+    except OSError:
+        return 0
+    for name in names:
+        if "tvd-g5-" not in name or "tvd-g5-home" in name:
+            continue
+        p = os.path.join(sd, name)
+        try:
+            if now - os.path.getmtime(p) < G5_SESSION_STALE_S:
+                continue
+        except OSError:
+            continue
+        if _drop_session_dir(p, attempts=2, pause_s=0.1):
+            gone += 1
+    if gone:
+        _STATS["session_dirs_swept"] = int(_STATS.get("session_dirs_swept") or 0) + gone
+    return gone
 
 
 def _loose_parse(txt):

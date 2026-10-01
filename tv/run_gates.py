@@ -8780,6 +8780,13 @@ GATES = [
              "ten minutes and, while a proof runs, the cheap guard every ten seconds, which stands it aside through the "
              "tick's own kill-and-book door; the start bar fits an idle 8 GB PC with the game off, still never beside "
              "his game and never near the running floor."),
+    Gate("test_a_reads_grok_session_is_gone_or_counted",
+         [sys.executable, os.path.join(HERE, "test_a_reads_grok_session_is_gone_or_counted.py")], 60,
+         needs_app=False,
+         why="REG-1687 (2026-10-01) - his ALT's Grok sessions folder grew to 115 directories again: each G5 read removed "
+             "its own with rmtree(ignore_errors=True), which fails silently on Windows while grok still holds a file "
+             "there. A read's session is removed with retries or counted, and every read sweeps earlier reads' "
+             "leftovers by their unique tvd-g5- name only."),
     Gate("test_an_abandoned_seal_is_finished_not_waited_on",
          [sys.executable, os.path.join(HERE, "test_an_abandoned_seal_is_finished_not_waited_on.py")], 60,
          needs_app=False,

@@ -406,6 +406,19 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1687 - THE GROK SESSIONS LEAK CAME BACK ON THE ALT, SILENTLY (2026-10-01)
+
+**MEASURED on his ALT:** `~/.grok/sessions` held 115 directories (86.6 MB) - 76 created 09-30, 35 on 10-01, the newest at
+10:44 - every one named after a G5 scene read's throwaway `tvd-g5-` cwd ("Reply with STRICT JSON only ... area, tz,
+scene"). REG-1549 (v3525) made each read remove its own, but with `shutil.rmtree(ignore_errors=True)`: on Windows a file
+grok still holds (`chat_history.jsonl.lock`) cannot be deleted, so the removal failed with no word and the directory
+stayed. The same class once filled his Mac's disk (11 GB, ENOSPC). **Now** `_drop_session_dir` retries briefly and, when
+a directory still will not go, COUNTS it (`_STATS["session_dirs_left"]`); every read also sweeps EARLIER reads'
+leftovers older than `G5_SESSION_STALE_S` (600 s) by the unique `tvd-g5-` name only (`session_dirs_swept`) - a
+concurrent read's fresh session, the lean home and his own sessions are never touched. Law:
+`tv/test_a_reads_grok_session_is_gone_or_counted.py` (4 cases, 6 red-proofs). The ALT's 111 leftovers go with its first
+read after it pulls.
+
 ### REG-1679 - AN ABANDONED SEAL HELD THREE ALT REELS "IN FLIGHT" FOR UP TO 86 HOURS (the river-chain audit, 2026-10-01)
 
 **Found by** the river-chain audit he asked for, reproduced on his ALT: `reel_s_1790547050218_16904` (85.8 h, 1,283 jpg vs
