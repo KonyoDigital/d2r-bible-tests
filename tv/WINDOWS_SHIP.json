@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3546",
+  "ver": "v3547",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3546: the ALT river reopens: a proof that needs what a PC lacks is judged elsewhere, never BLIND",
+  "note": "v3547: the ALT river reopens for good: proofs that need an install or macOS are judged where those are, never BLIND; abandoned reel seals are finished; Grok read leftovers are swept",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
