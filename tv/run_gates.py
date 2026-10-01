@@ -4574,7 +4574,8 @@ GATES = [
              "and refuses everything. ⚠ heart_block_kind() matches TEXT, so this gate PARSES "
              "self_arming and proves both phrases still live inside _heart_says_watched's own "
              "body: a silent reword would classify every stale census as 'other' and refuse "
-             "everything again, quietly."),
+             "everything again, quietly. v3542 REG-1665: a census still being proven is a prover catching up - it reads STALE, and the "
+             "BLIND instruments it already recorded still close everything."),
     Gate("test_a_frame_label_is_not_an_item_location",
          [sys.executable, os.path.join(HERE, "test_a_frame_label_is_not_an_item_location.py")], 120,
          why="ONE FRAME LABEL WAS STAMPED ONTO A WHOLE LIST OF ITEMS, and that is why the wrong "
@@ -8731,7 +8732,8 @@ GATES = [
              "retired again, 9 relaunches, about 1,000 reads. The set now loads on first use; an unreadable index "
              "raises DurableUnknown to callers that each price UNKNOWN, and plan() publishes only what it read. "
              "REG-1658: a retirement made BLIND - no attempt left a reason, judged while the lattice could not see "
-             "- is re-judged once, by one attempt, a few per boot; one that carries its reason stays retired."),
+             "- is re-judged once, by one attempt, a few per boot; one that carries its reason stays retired. "
+             "REG-1663: at most once per reel, ever - the mark is persisted with the lane store."),
     Gate("test_a_retirement_quotes_the_sweeps_own_reason",
          [sys.executable, os.path.join(HERE, "test_a_retirement_quotes_the_sweeps_own_reason.py")], 120,
          needs_app=False,
@@ -8766,7 +8768,9 @@ GATES = [
              "shadow reader, no fleet lights and no auto-pull until someone opened it. Each Windows console now "
              "makes its own Startup entry (the installer's shortcut shape, launcher -Background: hidden, never "
              "brought forward, no dialog), records it, never makes it again after a removal, never overrules a "
-             "'No, I open it myself', and makes nothing on an UNKNOWN; only the primary console process does it."),
+             "'No, I open it myself', and makes nothing on an UNKNOWN; only the primary console process does it. "
+             "REG-1667 (the v3541 eye): a console that comes up DURING the start-up pull is left hidden too, and the "
+             "pull is fast-forward only - it never resets a checkout holding commits origin does not have."),
     Gate("test_a_proof_yields_the_moment_the_game_starts",
          [sys.executable, os.path.join(HERE, "test_a_proof_yields_the_moment_the_game_starts.py")], 60,
          needs_app=False,
@@ -8776,6 +8780,15 @@ GATES = [
              "ten minutes and, while a proof runs, the cheap guard every ten seconds, which stands it aside through the "
              "tick's own kill-and-book door; the start bar fits an idle 8 GB PC with the game off, still never beside "
              "his game and never near the running floor."),
+    Gate("test_the_game_on_screen_decides_play_not_the_app",
+         [sys.executable, os.path.join(HERE, "test_the_game_on_screen_decides_play_not_the_app.py")], 60,
+         needs_app=False,
+         why="REG-1666 (2026-10-01) - his words: 'it needs to like register when im ingame and playing not just when its "
+             "open', for every route. Measured on his ALT: Boosteroid on its launcher, then in the tray holding 2,190 MB "
+             "(more than a live stream), read as playing for eight hours and 178 proofs waited. The game itself (D2R.exe: "
+             "Battle.net, CrossOver) is play while it runs; a cloud client (Boosteroid, GeForce NOW) only while the shadow "
+             "watch - the console's one judge - says the game is on his screen; nobody looked or a stale look still counts "
+             "as playing. Driven through the real watch tick, the real Toolhelp walk and a stubbed ps."),
     Gate("test_each_lamp_links_its_own_reader",
          [sys.executable, os.path.join(HERE, "test_each_lamp_links_its_own_reader.py")], 60,
          needs_app=False,

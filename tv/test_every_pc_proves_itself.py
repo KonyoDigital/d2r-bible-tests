@@ -441,11 +441,11 @@ VM_STAT_SAMPLE = (  # measured on his Mac 2026-09-29 (no psutil there, and Darwi
 
 class _FakeWin(object):
     """The Windows edges, stubbed: a Toolhelp32 snapshot over `procs` [(exe, pid)], and a private kernel32 whose
-    OpenProcess / K32GetProcessMemoryInfo / GetProcessTimes answer from `private_mb` and `births` by pid. The real
-    Python in tv_diablo._toolhelp_any and self_prove.proc_private_mb / proc_birth fills and reads the structures."""
+    OpenProcess / GetProcessTimes answer from `births` by pid. The real Python in tv_diablo._toolhelp_any and
+    self_prove.proc_birth fills and reads the structures. (REG-1666: no client's memory is read any more.)"""
 
-    def __init__(self, procs, private_mb=None, births=None):
-        self.procs, self.private_mb, self.births = list(procs), dict(private_mb or {}), dict(births or {})
+    def __init__(self, procs, births=None):
+        self.procs, self.births = list(procs), dict(births or {})
         self._i = 0
         self.kernel32 = self                      # ctypes.windll.kernel32
 
@@ -473,14 +473,7 @@ class _FakeWin(object):
 
     # -- the private kernel32 self_prove._k32() returns --
     def OpenProcess(self, access, inherit, pid):
-        return (10_000 + pid) if (pid in self.private_mb or pid in self.births) else None
-
-    def K32GetProcessMemoryInfo(self, h, ref, cb):
-        mb = self.private_mb.get(h - 10_000)
-        if mb is None:
-            return 0
-        ref._obj.PrivateUsage = int(mb * 1024 * 1024)
-        return 1
+        return (10_000 + pid) if pid in self.births else None
 
     def GetProcessTimes(self, h, c, e, k, u):
         v = self.births.get(h - 10_000)
@@ -651,35 +644,47 @@ class TheStandAsideIsSafe(unittest.TestCase):
                                                    "beside his game forever")
         self.assertEqual(("stood-aside", 1), (r["key"], r["worked"]))
 
-    # (3) a cloud client plays only while it streams
-    def test_a_cloud_client_idling_in_the_tray_is_not_play(self):
-        self.assertFalse(SP.is_play_proc("Boosteroid.exe", 150), "Boosteroid in the tray counted as playing - the "
-                                                                  "ALT would never prove")
-        self.assertTrue(SP.is_play_proc("Boosteroid.exe", 2100), "a live ~2 GB stream did not count as playing")
-        self.assertTrue(SP.is_play_proc("Boosteroid.exe", None), "an unreadable client was guessed idle")
-        self.assertTrue(SP.is_play_proc("Boosteroid.exe", float("nan")))
-        # GeForce NOW's streaming footprint was never measured, so a Boosteroid number never decides for it
-        self.assertTrue(SP.is_play_proc("GeForceNOW.exe", 150), "an unmeasured client was ruled idle on another's number")
-        self.assertTrue(SP.is_play_proc("D2R.exe", 0), "the game itself must always count")
-        self.assertFalse(SP.is_play_proc("chrome.exe", 5000))
+    # (3) a cloud client plays only while the GAME is on his screen (REG-1666 - memory was the wrong signal: MEASURED
+    #     2026-10-01, Boosteroid in the tray held 2,190 MB private bytes, more than a live stream)
+    def test_a_cloud_client_plays_only_with_the_game_on_his_screen(self):
+        for client in ("Boosteroid.exe", "GeForceNOW.exe", "NVIDIA GeForce NOW.exe"):
+            self.assertFalse(SP.is_play_proc(client, False), "%s with no game on his screen (the tray, the launcher, "
+                                                             "the library) counted as playing - the ALT would never "
+                                                             "prove" % client)
+            self.assertTrue(SP.is_play_proc(client, True), "%s streaming the game did not count" % client)
+            self.assertTrue(SP.is_play_proc(client, None), "%s nobody could look at was guessed idle" % client)
+        self.assertTrue(SP.is_play_proc("D2R.exe", False), "the game itself must always count - exclusive fullscreen "
+                                                           "can hide its window from the walk")
+        self.assertFalse(SP.is_play_proc("Battle.net.exe", True), "the Battle.net launcher is not the game")
+        self.assertFalse(SP.is_play_proc("chrome.exe", True))
 
-    def test_the_windows_walk_reads_the_clients_memory(self):
+    def test_the_windows_walk_asks_the_screen_once_and_only_for_a_client(self):
         import ctypes
         real_playing = _REAL_PROBES[0]
 
-        def ask(procs, private_mb):
-            fake = _FakeWin(procs, private_mb=private_mb)
+        def ask(procs, game):
+            asked = []
+
+            def judge():
+                asked.append(1)
+                return game() if callable(game) else game
+            fake = _FakeWin(procs)
             with self.mock.patch.object(SP, "IS_WIN", True), \
-                    self.mock.patch.object(ctypes, "windll", fake, create=True), \
-                    self.mock.patch.object(SP, "_k32", lambda: fake):
-                return real_playing()
+                    self.mock.patch.object(ctypes, "windll", fake, create=True):
+                return real_playing(game_on_screen=judge), len(asked)
         tray = [("System", 4), ("Boosteroid.exe", 700), ("chrome.exe", 800)]
-        self.assertIs(False, ask(tray, {700: 150, 800: 3000}),
-                      "Boosteroid idling in the tray (150 MB) read as playing through the real Toolhelp walk")
-        self.assertIs(True, ask(tray, {700: 2100}), "a streaming client (2.1 GB) did not read as playing")
-        self.assertIs(True, ask(tray, {}), "a client whose memory could not be read was guessed idle")
-        self.assertIs(True, ask([("D2R.exe", 900)], {}), "the game did not read as playing")
-        self.assertIs(False, ask([("chrome.exe", 800)], {800: 3000}))
+        self.assertEqual((False, 1), ask(tray, False),
+                         "Boosteroid with no game on his screen read as playing through the real Toolhelp walk")
+        self.assertEqual((True, 1), ask(tray, True), "Boosteroid streaming the game did not read as playing")
+        self.assertEqual((True, 1), ask(tray, None), "a client nobody could look at was guessed idle")
+        self.assertEqual((True, 1), ask(tray, lambda: 1 / 0), "a judge that raised was read as 'not on screen'")
+        two = [("Boosteroid.exe", 700), ("GeForceNOW.exe", 701)]
+        self.assertEqual((False, 1), ask(two, False), "the screen was asked once per client, not once per walk")
+        self.assertEqual((True, 0), ask([("D2R.exe", 900)], False), "the game did not read as playing")
+        self.assertEqual((False, 0), ask([("chrome.exe", 800)], True), "the screen was asked with no client running")
+        fake = _FakeWin(tray)
+        with self.mock.patch.object(SP, "IS_WIN", True), self.mock.patch.object(ctypes, "windll", fake, create=True):
+            self.assertIs(True, real_playing(), "with no judge handed in, a client was guessed idle")
         fake = _FakeWin([], births={700: (0x01DC << 32) | 0x1234})
         with self.mock.patch.object(SP, "IS_WIN", True), self.mock.patch.object(SP, "_k32", lambda: fake):
             self.assertEqual("ft:%d" % ((0x01DC << 32) | 0x1234), SP.proc_birth(700), "GetProcessTimes misread")
@@ -891,31 +896,31 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "2026-09-29 (REG-1511) - Boosteroid idling in the tray counts as playing, so the ALT never proves",
+        "why": "2026-10-01 (REG-1666) - a cloud client with no game on his screen (the tray, the launcher) counts as playing",
         "file": "tv/self_prove.py",
-        "find": "    return mb >= CLOUD_STREAM_MIN_MB\n",
+        "find": "    return on_screen is not False             # every cloud client in PLAY_EXES is judged by the screen\n",
         "replace": "    return True\n",
         "matches": 1,
     },
     {
-        "why": "2026-09-29 (REG-1511) - GeForce NOW is ruled idle on a threshold only Boosteroid was measured against",
+        "why": "2026-10-01 (REG-1666) - the game itself is judged by the screen, so D2R hidden by fullscreen is not play",
         "file": "tv/self_prove.py",
-        "find": "    if n not in MEMORY_GATED_EXES:\n        return True\n",
-        "replace": "",
+        "find": "    if _is_game_exe(n):\n        return True\n",
+        "replace": "    if _is_game_exe(n):\n        return on_screen is not False\n",
         "matches": 1,
     },
     {
-        "why": "2026-09-29 (REG-1511) - the Windows walk asks the name alone again, never the client's memory",
+        "why": "2026-10-01 (REG-1666) - the Windows walk asks the name alone again, never whether the game is on screen",
         "file": "tv/self_prove.py",
-        "find": "            return _tvd._toolhelp_any(_play_proc_pred, with_pid=True)\n",
-        "replace": "            return _tvd._toolhelp_any(is_play_exe)\n",
+        "find": "                    return is_play_proc(name, _screen())\n",
+        "replace": "                    return is_play_exe(name)\n",
         "matches": 1,
     },
     {
-        "why": "2026-09-29 (REG-1511) - the Toolhelp walk hands the wrong pid, so the client's memory is never read",
-        "file": "tv/tv_diablo.py",
-        "find": "                if (pred(n, int(pe.th32ProcessID)) if with_pid else pred(n)):\n",
-        "replace": "                if (pred(n, 0) if with_pid else pred(n)):\n",
+        "why": "2026-10-01 (REG-1666) - the screen is asked for every process, not once and only for a cloud client",
+        "file": "tv/self_prove.py",
+        "find": "        if \"v\" not in seen:\n            seen[\"v\"] = _ask(game_on_screen, lambda: None)\n        return seen[\"v\"]\n",
+        "replace": "        seen[\"v\"] = _ask(game_on_screen, lambda: None)\n        return seen[\"v\"]\n",
         "matches": 1,
     },
     {

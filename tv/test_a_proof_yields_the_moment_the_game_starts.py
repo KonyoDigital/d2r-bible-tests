@@ -82,8 +82,8 @@ RED_PROOF = [
      "replace": "            return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn)\n", "matches": 1},
     {"why": "REG-1628 - the console asks the guard without its load probe (the measured ALT defect)",
      "file": "control_app.py",
-     "find": "        r = _sp.guard(busy=_cpu_busy_pct)       # REG-1628",
-     "replace": "        r = _sp.guard()                          # REG-1628", "matches": 1},
+     "find": "        r = _sp.guard(busy=_cpu_busy_pct, playing=_sp_playing_here)\n",     # REG-1666 re-anchor
+     "replace": "        r = _sp.guard(playing=_sp_playing_here)\n", "matches": 1},
     {"why": "REG-1624 - the guard runs a tick even when no proof is running (a 10 s full tick on an idle PC)",
      "file": "self_prove.py",
      "find": "        pid = mem.get(\"pid\") or _STARTED.get(\"pid\")\n        if not pid:\n            return None\n",
@@ -228,7 +228,7 @@ class TheNextSliceStartsTheMomentOneEnds(unittest.TestCase):
                            ("spawn", lambda log_path, names=None, **k: self.spawned.append(names) or self.NEW),
                            ("ensure_prover_deps", lambda *a, **k: {"ok": True, "installed": [], "why": "fixture"}),
                            ("_gate_costs", lambda path=None: None),
-                           ("playing_state", lambda: False),
+                           ("playing_state", lambda **k: False),     # REG-1666 - asked with the screen judge
                            ("free_mb", lambda: 3000.0)):
             p = mock.patch.object(SP, name, fake)
             p.start()

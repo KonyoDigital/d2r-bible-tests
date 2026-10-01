@@ -69,7 +69,8 @@ MIN_FREE_MB_WHILE_RUNNING = 1024
 #   · a proof its own memory pushed under the line was killed, restarted once RAM came back, killed again - every ten
 #     minutes, the census never current. Now nothing starts for STAND_ASIDE_COOLDOWN_S after a stand-aside.
 #   · Boosteroid sitting in his tray counted as "playing" forever, so the ALT - the PC this lane exists for - never
-#     proved and the doctor called it healthy. Now a cloud client plays only above CLOUD_STREAM_MIN_MB private bytes.
+#     proved and the doctor called it healthy. A cloud client then played only above a private-bytes bar - ⚠ which
+#     REG-1666 MEASURED wrong (the tray held MORE than a stream): see CLOUD_EXES_JUDGED_ON_SCREEN.
 #: after a proof stands aside, no new proof starts for this long (seconds) - whatever the reason was
 STAND_ASIDE_COOLDOWN_S = 1800
 #: #99 — ONE SLICE of a census: the owed gates, cheapest first, up to this many estimated seconds of proving (a gate's
@@ -83,13 +84,24 @@ SLICE_UNKNOWN_COST_S = 30.0
 #: a proof whose census is ALREADY current for its gates is left to finish its cleanup this long (seconds) before a
 #: stand-aside may end it; one console tick is 600 s, so it gets exactly one tick
 FINISH_GRACE_S = 600
-#: private bytes (MB) above which a cloud client counts as STREAMING. A live Boosteroid stream was measured at ~2 GB;
-#: the client idling in the tray is a fraction of that. D2R.exe itself always counts.
-CLOUD_STREAM_MIN_MB = 600
-#: the clients whose streaming footprint HAS been measured, so the threshold may decide for them. GeForce NOW has not
-#: been: whether its stream lives in GeForceNOW.exe or in a child process is unknown here, and a Boosteroid number is
-#: not a measurement of it - so its name alone still counts, as before, until someone measures it.
-MEMORY_GATED_EXES = ("boosteroid.exe",)
+# ⚠⚠ REG-1666 — A CLOUD CLIENT IS PLAY ONLY WHILE THE GAME IS ON HIS SCREEN, NOT WHILE THE APP IS OPEN. His words,
+# 2026-10-01: "it needs to like register when im ingame and playing not just when its open" - and "make sure this logic
+# is known to all routes... like nvidea play and also the local way of playing the game the way dean usually plays".
+# MEASURED on his ALT that morning: the prover read "playing" from 02:29 to 10:49 and 178 proofs waited, while the
+# shadow watch said "Boosteroid is open and the last reads showed no D2R HUD word" (the launcher) and later the app sat
+# in the tray holding 2,190 MB private bytes - MORE than the ~2 GB a live stream was measured at, so the REG-1511
+# memory bar (600 MB) could never tell idle from playing. Memory is not the signal; the screen is. THE ROUTES:
+#   · the game itself (D2R.exe - Battle.net on his PC or Dean's, CrossOver on the Mac) is play while it runs, even at
+#     its menu: it IS the game, and exclusive fullscreen often hides its window from the window walk (v1413), so the
+#     process is the only honest witness. Battle.net alone is a launcher and was never play.
+#   · a cloud client (Boosteroid, GeForce NOW) is play only while the console's ONE judge of "is the game on his
+#     screen" - the shadow watch: the window finder, then the first reads of a bare Boosteroid window - says so. Its
+#     library, launcher or tray icon is not the game. The judge is handed in as `game_on_screen`; when it cannot answer
+#     (nobody looked, the look is stale, the shadow reader is off) the client counts as playing, as it always did.
+#: exe names (lowercased) of the cloud clients judged by the screen rather than by the process - every one in PLAY_EXES
+CLOUD_EXES_JUDGED_ON_SCREEN = PLAY_EXES
+#: what the POSIX `ps` listing calls the game itself, as opposed to a cloud client
+_POSIX_GAME = re.compile(r"D2R\.exe", re.I)
 #: how long end_tree watches for the prover to be gone after it was told to end (seconds)
 END_WAIT_S = 10.0
 
@@ -105,32 +117,19 @@ def is_play_exe(name):
     return _is_game_exe(n) or n in PLAY_EXES
 
 
-def is_play_proc(name, private_mb=None):
+def is_play_proc(name, on_screen=None):
     """Does THIS process mean he is playing here? -> bool. Pure.
 
-    REG-1511 — the game always counts. A measured cloud client (MEMORY_GATED_EXES) counts only while it streams: at
-    CLOUD_STREAM_MIN_MB private bytes or more; any other cloud client still counts by name. `private_mb` None (its
-    memory could not be read) counts as playing - the conservative answer, because a proof beside a live stream is
-    what crashed dwm on the ALT, and a proof deferred is only a proof later."""
+    REG-1666 — the game always counts (it IS the game, at its menu too). A cloud client counts only while the GAME is
+    on his screen: `on_screen` False (the console looked: no game window, or the launcher) does not count; True counts;
+    None (nobody could look) counts - the conservative answer, because a proof beside a live stream is what this lane
+    must never be, and a proof deferred is only a proof later. Anything else (Battle.net, a browser) is not play."""
     n = (name or "").lower()
     if _is_game_exe(n):
         return True
     if n not in PLAY_EXES:
         return False
-    if n not in MEMORY_GATED_EXES:
-        return True
-    try:
-        mb = None if private_mb is None else float(private_mb)
-    except (TypeError, ValueError):
-        mb = None
-    if mb is None or mb != mb:
-        return True
-    return mb >= CLOUD_STREAM_MIN_MB
-
-
-def _play_proc_pred(name, pid):
-    """The Toolhelp walk's question for one process. Its memory is read only for a cloud client's name."""
-    return is_play_proc(name, proc_private_mb(pid) if (name or "").lower() in MEMORY_GATED_EXES else None)
+    return on_screen is not False             # every cloud client in PLAY_EXES is judged by the screen
 
 
 #: what the POSIX `ps` listing is searched for - the same three names the Windows walk knows
@@ -155,17 +154,36 @@ def posix_play_line(line):
     return True
 
 
-def playing_state():
-    """Is he playing on THIS machine - D2R.exe or a cloud client streaming it? -> True | False | None (UNKNOWN)"""
+def playing_state(game_on_screen=None):
+    """Is he playing on THIS machine - the game itself, or a cloud client with the GAME on his screen?
+    -> True | False | None (UNKNOWN)
+
+    REG-1666 — `game_on_screen` is the console's one judge of whether the game is on his screen (a callable -> True |
+    False | None). It is asked at most once, and only when a cloud client is running; without it, or when it cannot
+    answer, a running cloud client counts as playing. The same rule on Windows and on the Mac."""
+    seen = {}
+
+    def _screen():
+        if "v" not in seen:
+            seen["v"] = _ask(game_on_screen, lambda: None)
+        return seen["v"]
     try:
         if IS_WIN:
             import tv_diablo as _tvd
-            return _tvd._toolhelp_any(_play_proc_pred, with_pid=True)
+
+            def _pred(name):
+                if (name or "").lower() in CLOUD_EXES_JUDGED_ON_SCREEN:
+                    return is_play_proc(name, _screen())
+                return is_play_proc(name)
+            return _tvd._toolhelp_any(_pred)
         out = subprocess.run(["ps", "-Ao", "pid=,command="], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=3)
         lines = [ln for ln in (out.stdout or "").splitlines() if ln.strip()]
         if out.returncode != 0 or not lines:
             return None                        # no listing is not "nobody is playing" [[zero-needs-a-denominator]]
-        return any(posix_play_line(ln) for ln in lines)
+        hits = [ln for ln in lines if posix_play_line(ln)]
+        if any(_POSIX_GAME.search(ln) for ln in hits):
+            return True                        # the game itself (D2R.exe under CrossOver)
+        return bool(hits) and _screen() is not False      # a cloud client: only with the game on his screen
     except Exception:
         return None
 
@@ -186,11 +204,6 @@ def _k32():
         k.CloseHandle.argtypes = (wintypes.HANDLE,)
         k.GetProcessTimes.restype = wintypes.BOOL
         k.GetProcessTimes.argtypes = (wintypes.HANDLE,) + (ctypes.POINTER(wintypes.FILETIME),) * 4
-        try:
-            k.K32GetProcessMemoryInfo.restype = wintypes.BOOL
-            k.K32GetProcessMemoryInfo.argtypes = (wintypes.HANDLE, ctypes.c_void_p, wintypes.DWORD)
-        except AttributeError:
-            pass                                  # an older kernel32: proc_private_mb asks psapi instead
         _K32["k"] = k
     return k
 
@@ -257,46 +270,6 @@ def proc_birth(pid):
         if r.returncode != 0 or len(parts) < 2 or parts[0].upper().startswith("Z"):
             return None                         # gone, or a zombie: an exited prover is not a running one
         return "ps:" + " ".join(parts[1:])
-    except Exception:
-        return None
-
-
-def proc_private_mb(pid):
-    """Windows: the private bytes of process `pid`, in MB, or None when they cannot be read. Never raises.
-    OpenProcess(QUERY_LIMITED | VM_READ) + K32GetProcessMemoryInfo (psapi's GetProcessMemoryInfo on an older
-    kernel32), PROCESS_MEMORY_COUNTERS_EX.PrivateUsage - the number Task Manager calls the commit size."""
-    if not IS_WIN:
-        return None
-    try:
-        import ctypes
-        from ctypes import wintypes
-
-        class _PMC(ctypes.Structure):
-            _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD),
-                        ("PeakWorkingSetSize", ctypes.c_size_t), ("WorkingSetSize", ctypes.c_size_t),
-                        ("QuotaPeakPagedPoolUsage", ctypes.c_size_t), ("QuotaPagedPoolUsage", ctypes.c_size_t),
-                        ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t), ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
-                        ("PagefileUsage", ctypes.c_size_t), ("PeakPagefileUsage", ctypes.c_size_t),
-                        ("PrivateUsage", ctypes.c_size_t)]
-        k = _k32()
-        h = k.OpenProcess(0x1000 | 0x0010, False, int(pid))   # QUERY_LIMITED_INFORMATION | VM_READ, as documented
-        if not h:
-            h = k.OpenProcess(0x1000, False, int(pid))         # an elevated client refuses VM_READ; Windows 8.1+
-        if not h:                                               # answers with QUERY_LIMITED alone
-            return None
-        try:
-            c = _PMC()
-            c.cb = ctypes.sizeof(_PMC)
-            fn = getattr(k, "K32GetProcessMemoryInfo", None)
-            if fn is None:
-                fn = ctypes.WinDLL("psapi").GetProcessMemoryInfo
-                fn.restype = wintypes.BOOL
-                fn.argtypes = (wintypes.HANDLE, ctypes.c_void_p, wintypes.DWORD)
-            if not fn(h, ctypes.byref(c), c.cb):
-                return None
-            return int(c.PrivateUsage // (1024 * 1024))
-        finally:
-            k.CloseHandle(h)
     except Exception:
         return None
 

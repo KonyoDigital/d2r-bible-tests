@@ -7208,6 +7208,7 @@ def capture_preflight(door, look_for_window=True):
     # drawer targets red) and the agent starved the render step. Looked-and-refused is False, with why.
     if look_for_window and (os.environ.get("TV_CAPTURE") or "").strip().lower() in ("off", "none"):
         facts["windowSeen"] = False
+        facts["windowLooked"] = False            # REG-1666 - a refusal, not a look: the game verdict stays UNKNOWN
         facts["windowWhy"] = ("capture is OFF on this console (TV_CAPTURE) - it never looks for a game "
                               "window, so nothing here can start a reel")
     elif look_for_window:
@@ -18380,7 +18381,8 @@ def _self_prove_tick():
     does: there the pre-push gate is the prover."""
     try:
         import self_prove as _sp
-        r = _sp.tick(busy=_cpu_busy_pct)
+        r = _sp.tick(busy=_cpu_busy_pct, playing=_sp_playing_here)     # REG-1666 - the game on his screen
+        r = dict(r, gameOnScreen=shadow_game_detail())
     except Exception as e:
         r = {"on": None, "worked": None, "lastTs": None, "owed": None, "key": "raised",
              "say": "the self-prove tick raised %s" % type(e).__name__}
@@ -18413,7 +18415,10 @@ def _self_prove_guard():
     """REG-1624 — the 10-second stand-aside while a proof runs. Never raises; the rescue loop must keep going."""
     try:
         import self_prove as _sp
-        r = _sp.guard(busy=_cpu_busy_pct)       # REG-1628 — the same load probe as the tick, or no next slice starts
+        # REG-1628 — the same load probe as the tick, or no next slice starts; REG-1666 — and the same play judge
+        r = _sp.guard(busy=_cpu_busy_pct, playing=_sp_playing_here)
+        if r:
+            r = dict(r, gameOnScreen=shadow_game_detail())
     except Exception as e:
         r = {"on": None, "worked": None, "lastTs": None, "owed": None, "key": "raised",
              "say": "the self-prove guard raised %s" % type(e).__name__}
@@ -28192,7 +28197,9 @@ _VAULT_AUTOREAD = {"tries": {}, "skipped": {}, "reads": 0, "lastTs": 0, "retired
                    "lastWhy": {},
                    # prompt version already given one solo pass. A barren seal is not an
                    # extraction, and a second pass on the same reader is the 3052-resweep loop.
-                   "reextract": {}}
+                   "reextract": {},
+                   # v3542 REG-1663 — reels whose blind retirement was re-judged (rid -> ms). ONCE per reel, ever.
+                   "rejudged": {}}
 
 #: ⚠⚠⚠ v2901 (#60) — WHAT THE LANE LEARNS MUST SURVIVE THE PROCESS. MEASURED 2026-09-10: the dict
 #: above had **14 write sites and ZERO persistence sites** — no save, no load, no json anywhere.
@@ -28288,6 +28295,7 @@ def vault_reentry_sweep(dry=True):
         return out
     with _VAULT_AUTOREAD_LOCK:
         retired = dict(_VAULT_AUTOREAD.get("retired") or {})
+        done = dict(_VAULT_AUTOREAD.get("rejudged") or {})      # REG-1663 — re-judged already, ever
     for rid in sorted(retired):
         out["checked"] += 1
         try:
@@ -28301,12 +28309,18 @@ def vault_reentry_sweep(dry=True):
             # each, with the reason recorded this time: a failure retires again WITH a reason (so it is never blind
             # again, and never re-judged again); a success seals. Bounded per boot - a machine whose count is unknown
             # (the ALT's could not be read 2026-10-01) must not buy a backlog in one relaunch.
-            if _vault_retired_blind(retired.get(rid)) and len(out["rejudged"]) < _VAULT_REJUDGE_PER_BOOT:
+            # ⚠ v3542 REG-1663 — ONCE PER REEL, DURABLY. The v3540 eye: an attempt that dies before it can leave a
+            # reason (a console killed mid-sweep - a poison reel) retires the reel blind AGAIN, and without a mark
+            # every boot re-bought it, and three such reels would take the cap for ever. The mark is persisted with
+            # the store, so a reel's one re-judge survives every restart.
+            if (_vault_retired_blind(retired.get(rid)) and rid not in done
+                    and len(out["rejudged"]) < _VAULT_REJUDGE_PER_BOOT):
                 out["rejudged"].append(rid)
                 if not dry:
                     with _VAULT_AUTOREAD_LOCK:
                         _VAULT_AUTOREAD["retired"].pop(rid, None)
                         _VAULT_AUTOREAD["tries"][rid] = max(0, _VAULT_AUTOREAD_MAX_TRIES - 1)   # ONE attempt left
+                        _VAULT_AUTOREAD.setdefault("rejudged", {})[rid] = int(time.time() * 1000)
                     _vault_autoread_save()
                 continue
             out["kept"].append(rid)
@@ -28366,7 +28380,7 @@ def _vault_autoread_load():
         for k in ("reads", "lastTs"):
             if isinstance(d.get(k), int):
                 _VAULT_AUTOREAD[k] = d[k]
-        for k in ("retired", "tries", "lastWhy", "reextract"):
+        for k in ("retired", "tries", "lastWhy", "reextract", "rejudged"):
             if isinstance(d.get(k), dict):
                 _VAULT_AUTOREAD[k] = dict(d[k])
         # REG-1651 — the rotation's place in the owed list, so a relaunch resumes where it was
@@ -28408,6 +28422,7 @@ def _vault_autoread_save():
                "tries": _VAULT_AUTOREAD.get("tries") or {},
                "lastWhy": _VAULT_AUTOREAD.get("lastWhy") or {},
                "reextract": _VAULT_AUTOREAD.get("reextract") or {},
+               "rejudged": _VAULT_AUTOREAD.get("rejudged") or {},      # REG-1663
                # ⚠ REG-1651 — v3283 saved "on every cursor change" and this payload never carried
                # the cursor, so every save it added wrote everything EXCEPT the thing it was for, and
                # each relaunch restarted the rotation at the head of the owed list.
@@ -30037,6 +30052,76 @@ def vault_autoreel_tick():
 # that has already cost a whole feature here. [[d2r-board-window-kill-loses-writes]]
 _SHADOW_WATCH_EVERY_S = 20
 _SHADOW_AWAY_GRACE_S = 60   # looked, and the game window stayed gone this long, before a shadow hour seals
+# ⚠⚠ REG-1666 — "IS THE GAME ON HIS SCREEN" HAS ONE JUDGE, AND IT IS THIS WATCH. It already looks every 20 s with the
+# window finder (every route: D2R.exe, a GeForce NOW stream titled with the game, a bare Boosteroid window) and, for a
+# bare Boosteroid window, the first reads - the launcher prints no D2R HUD word. So the lanes that must never run beside
+# his game ask IT instead of guessing from a process: MEASURED on his ALT 2026-10-01, the self-prove lane read Boosteroid
+# as "playing" from 02:29 to 10:49 (178 proofs waited) while this watch said "Boosteroid is open and the last reads showed
+# no D2R HUD word". His words: "it needs to like register when im ingame and playing not just when its open".
+# IN MEMORY, NOT ON DISK, unlike the record above: its one reader (the self-prove lane) runs in this process, and a look
+# older than _SHADOW_GAME_FRESH_S is no verdict - a disk copy could only ever be read stale. (at_ms, True|False|None, why)
+_SHADOW_GAME = {"v": (None, None, "the shadow watch has not looked since this console started")}
+#: a look older than this (three watch periods) says nothing about the screen NOW
+_SHADOW_GAME_FRESH_S = 3 * _SHADOW_WATCH_EVERY_S
+
+
+def _shadow_game_note(now, game, why):
+    """REG-1666 — what one look found about the GAME on his screen. One tuple, swapped whole: another thread reads it."""
+    _SHADOW_GAME["v"] = (int(now), game, str(why or "")[:200])
+
+
+def _game_verdict(pre, hud, relook_open=True):
+    """REG-1666 — one look's answer to "is the GAME on his screen". Pure. -> (True | False | None, why)
+
+    `pre` is capture_preflight's facts, `hud` the first-reads verdict on a bare Boosteroid window (True / False / None),
+    `relook_open` whether the wait after a launcher verdict is over. Nobody looked = None, never False."""
+    pre = pre if isinstance(pre, dict) else {}
+    if pre.get("windowLooked") is False:
+        return None, "this console does not look for the game window (capture is off)"
+    seen = pre.get("windowSeen")
+    if seen is None:
+        return None, "the window finder could not look"
+    if seen is False:
+        return False, "no game window on his screen (the game is shut, or its app is in the tray or on its library)"
+    if hud is True:
+        return True, "the first reads show a D2R HUD word"
+    if hud is False:
+        return False, "Boosteroid is open on its launcher - the first reads show no D2R HUD word"
+    if tv_label_is_bare(pre):
+        if not relook_open:
+            return False, ("Boosteroid is open and its last reads, under %d s ago, showed the launcher"
+                           % _BARE_HUD_RELOOK_S)
+        return None, "Boosteroid is open and no read has said yet whether the game is on it"
+    return True, "a window naming the game is on his screen"
+
+
+def shadow_game_on_screen(now_ms=None):
+    """REG-1666 — is the GAME on his screen, by this watch's latest look? -> True | False | None (UNKNOWN)
+
+    A look older than _SHADOW_GAME_FRESH_S, or none since this console started (the shadow reader off, its loop
+    stopped), is UNKNOWN - never "not playing"."""
+    at, game, _why = _SHADOW_GAME.get("v") or (None, None, "")
+    if not isinstance(at, (int, float)):
+        return None
+    now = _shadow_now_ms() if now_ms is None else now_ms
+    if now - at > _SHADOW_GAME_FRESH_S * 1000:
+        return None
+    return game
+
+
+def shadow_game_detail(now_ms=None):
+    """REG-1666 — the verdict with its age and words, for /api/status. -> dict"""
+    at, _game, why = _SHADOW_GAME.get("v") or (None, None, "")
+    now = _shadow_now_ms() if now_ms is None else now_ms
+    return {"game": shadow_game_on_screen(now), "why": why,
+            "ageS": (int((now - at) / 1000) if isinstance(at, (int, float)) else None)}
+
+
+def _sp_playing_here():
+    """REG-1666 — the self-prove lane's "is he playing here": the game itself by its process, a cloud client
+    (Boosteroid, GeForce NOW) only while this watch says the GAME is on his screen."""
+    import self_prove as _sp
+    return _sp.playing_state(game_on_screen=shadow_game_on_screen)
 def _shadow_watch_path():
     """v2423 — the same defect as shadow_ledger and capture_doors, found the same way.
 
@@ -30635,6 +30720,9 @@ def shadow_watch_tick():
         roll = _rolling_reel()
         if roll.get("door") == "shadow":
             pre = capture_preflight("shadow", look_for_window=True)
+            # REG-1666 — the first-reads verdict ONCE per look, and what this look says about the game on his screen
+            _hud = _bare_hud_verdict(pre) if pre.get("windowSeen") is True else None
+            _shadow_game_note(now, *_game_verdict(pre, _hud))
             _since = roll.get("since")
             _age_s = ((now - int(_since)) / 1000.0) if isinstance(_since, (int, float)) else None
             # an hour already owed still rolls over below. The grace is only for a reel that
@@ -30659,7 +30747,7 @@ def shadow_watch_tick():
                     return {"ok": True, "cut": True, "why": why}
                 return {"ok": True, "away": True, "why": "Diablo is still not on screen"}
             if pre.get("windowSeen") is True:
-                hud = _bare_hud_verdict(pre)
+                hud = _hud
                 if hud is False:   # a rolling shadow reel on the launcher
                     return _seal_bare_launcher(now)
                 cur = _shadow_watch_stored() or {}
@@ -30696,6 +30784,9 @@ def shadow_watch_tick():
     # performed is still performed; it now also SEES the grant, and can decline instead of
     # opening a reel that could never hold a frame. [[the-unjoined-end]]
     pre = capture_preflight("shadow", look_for_window=True)
+    # REG-1666 — what this look says about the GAME on his screen, for the lanes that must never run beside it
+    hud = _bare_hud_verdict(pre) if pre.get("windowSeen") is True else None
+    _shadow_game_note(now, *_game_verdict(pre, hud, relook_open=_bare_relook_open(now)))
     if pre.get("diskOk") is False:
         _shadow_watch_note(lookedAt=now, why=pre["why"])
         return {"ok": False, "why": pre["why"], "pre": pre}
@@ -30715,7 +30806,6 @@ def shadow_watch_tick():
         _nwhy = pre.get("windowWhy") or "Diablo is not on screen"
         _shadow_watch_note(lookedAt=now, why=_nwhy)
         return {"ok": True, "seen": False, "why": _nwhy, "pre": pre}
-    hud = _bare_hud_verdict(pre)
     if hud is False:   # bare Boosteroid, first reads have no D2R HUD word
         why = ("Boosteroid is open, and the first reads show no D2R HUD word — "
                "the launcher, not the game")
@@ -32106,13 +32196,18 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
                              "at %s; a newer vault reader reopens it by itself."
                              % (_not_stash[0], _pv or "?"))
             else:
+                # ⚠⚠ v3542 REG-1661 — THE INCOMPLETE REASON ASKS THE PURE FUNCTION. This was a second, hand-written copy
+                # of why_not_definitive's conditions, and it did not know REG-1657's other-panel verdict: MEASURED live on
+                # 2026-10-01, the one re-judge attempt on reel …82142 (a stash read beside an empty bag) fell through to
+                # its last line and retired the reel with "0 of 28 read frame(s) were never cross-checked" - a sentence
+                # about nothing wrong - while notDefinitiveWhy, computed by the pure function a few lines up, held the
+                # true reason; the lane note prefers this one. Two copies of one rule disagreed, exactly as warned at
+                # the call site above. [[copy-drift]] [[unknown-stays-unknown]]
                 _whynot = ("the lane could not be proven live, so 'no stash here' is UNKNOWN"
                            if (not _read_ok[0] and _not_stash[0] and not _canary)
                            else "nothing was read" if not _read_ok[0]
-                           else "the pixel lane could not run" if _pix_err
-                           else "a frame named more than its panel holds" if _over_read
-                           else "%d of %d read frame(s) were never cross-checked"
-                                % (_read_ok[0] - len(_reconciled), _read_ok[0]))
+                           else ("; ".join(why_not_definitive(_read_ok[0], _reconciled, _over_read, _pix_err))
+                                 or "the seal was refused and no condition says why - UNKNOWN"))
                 print("   \u26a0 vault sweep produced no rows and the answer is INCOMPLETE (%s) "
                       "\u2014 sealing nothing, so the footage stays readable. The lines above say "
                       "which of the three it was: refused by the template, "

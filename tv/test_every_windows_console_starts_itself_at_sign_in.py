@@ -257,6 +257,25 @@ class TheLauncherStartsHidden(unittest.TestCase):
         body = self.raw[3:] if self.raw[:3] == b"\xef\xbb\xbf" else self.raw
         self.assertTrue(all(b < 128 for b in body), "Windows PowerShell 5.1 mis-parses non-ASCII in this file")
 
+    def test_a_console_that_came_up_during_the_pull_is_left_hidden_too(self):
+        """REG-1667 (the v3541 cross-family eye) - the SECOND already-up check honours -Background as the first does."""
+        late = self._block("# Re-check after pull: another click may have won", "\n  return\n}")
+        self.assertIn("if (Test-TvdControlUp) {\n  if ($Background) {", late,
+                      "the re-check after the pull does not ask -Background first")
+        sign_in = late[late.index("if ($Background) {"):late.index("} else {")]
+        for wrong in ("Focus-TvdWindow", "Invoke-RestMethod"):
+            self.assertNotIn(wrong, sign_in, "a sign-in start brings a console that came up during the pull over his "
+                                             "desktop (%s)" % wrong)
+
+    def test_the_launcher_never_resets_his_checkout(self):
+        """REG-1667 - a refused fast-forward means commits origin does not have; the launcher keeps them, as the
+        console's own update lane always has."""
+        code = "\n".join(ln for ln in self.src.splitlines() if not ln.lstrip().startswith("#"))   # prose may name it
+        self.assertNotIn("reset --hard", code, "the launcher can still throw away local commits at sign-in")
+        pull = self._block("$fetchJob = Start-Job -ScriptBlock {", "} -ArgumentList $repo")
+        self.assertIn("merge --ff-only origin/main", pull)
+        self.assertIn("the fast-forward was refused", self.src, "a refused fast-forward is not said in the launch log")
+
 
 RED_PROOF = [
     {"why": "REG-1660 - the console makes a removed sign-in entry again on every boot (it fights his choice)",
@@ -298,6 +317,16 @@ RED_PROOF = [
      "file": "start_tvd_win.ps1",
      "find": "    Write-TvdLaunchLog 'sign-in start: control already up - left exactly as it is'\n",
      "replace": "    Write-TvdLaunchLog 'sign-in start: control already up'\n    [void](Focus-TvdWindow)\n",
+     "matches": 1},
+    {"why": "REG-1667 - a sign-in start brings a console that came up during the pull over his desktop again",
+     "file": "start_tvd_win.ps1",
+     "find": "    Write-TvdLaunchLog 'sign-in start: control came up during pull - left exactly as it is'\n",
+     "replace": "    Write-TvdLaunchLog 'sign-in start: control came up during pull - left exactly as it is'\n    [void](Focus-TvdWindow)\n",
+     "matches": 1},
+    {"why": "REG-1667 - the launcher resets a diverged checkout again, throwing his local commits away at sign-in",
+     "file": "start_tvd_win.ps1",
+     "find": "        \"ffexit=$LASTEXITCODE\"\n",
+     "replace": "        if ($LASTEXITCODE -ne 0) { git -C $r reset --hard origin/main 2>$null }\n        \"ffexit=$LASTEXITCODE\"\n",
      "matches": 1},
 ]
 

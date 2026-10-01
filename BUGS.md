@@ -406,6 +406,90 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1667 - A SIGN-IN START COULD STILL POP THE CONSOLE, AND ITS PULL COULD THROW AWAY LOCAL COMMITS (the v3541 eye, 2026-10-01)
+
+Found by the Grok CLI's look at v3541 (4 findings), each checked against the code before acting:
+
+| finding | measured | outcome |
+|---|---|---|
+| the re-check after the cold-start pull focuses and unhides with no -Background check | read: the branch `control came up during pull - focus only` called `Focus-TvdWindow` (SW_SHOW + SetForegroundWindow) for every launch - a console slow to answer at sign-in was brought over his desktop by the shortcut that promised not to | FIXED: a sign-in start leaves it exactly as it is, like the first check |
+| the cold-start pull runs `reset --hard origin/main` when a fast-forward is refused | read: on a clean tree a refused fast-forward means commits origin does not have; the reset threw them away, and since REG-1660 that runs at every sign-in with no dialog. The console's own update lane (`_pull_once`) has always refused instead and says why | FIXED: fast-forward only; a refusal is written to the launch log ("nothing reset") and the console's lane says why |
+| a `%` in the repo path raises ValueError in `_make_sign_in_shortcut` | driven with a real `100%real` folder: the call returned `(True, '')` - Python formats the ARGUMENT verbatim, only the format string is parsed | REFUTED |
+| NOT SHOWN: bible.html, most of control_app.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+
+The edited launcher parsed with 0 errors in Windows PowerShell 5.1 on his ALT; still ASCII with its BOM. Law:
+`tv/test_every_windows_console_starts_itself_at_sign_in.py` +2 cases (the late re-check stays hidden; no code line
+resets the checkout - comments may still name the old behaviour). 2 red-proofs.
+
+### REG-1666 - BOOSTEROID SITTING ON ITS LAUNCHER OR IN THE TRAY READ AS "PLAYING" FOR EIGHT HOURS (his ask, 2026-10-01)
+
+**His words:** "the game is off.. i need you checking to make sure its all working and flowing automatically", then
+"it needs to like register when im ingame and playing not just when its open", then "make sure this logic is known to
+all routes... like nvidea play and also the local way of playing the game the way dean usually plays on his PC".
+**Measured on his ALT:** the self-prove lane said "he is playing" from 02:29 to 10:49 and 178 proofs waited. At 10:45 the
+shadow watch said "Boosteroid is open and the last reads showed no D2R HUD word" (the launcher); at 10:49 the client sat
+in the tray - no stream (no UDP endpoint, 1.3 kB/s in) - holding **2,190 MB private bytes, more than the ~2 GB live
+stream** REG-1511's 600 MB bar was calibrated on. Memory can never tell idle from playing; the screen can.
+**Now, one rule on every route and both OSes:** the game itself - D2R.exe through Battle.net (his PC, Dean's) or
+CrossOver (the Mac) - is play while it runs, menu included (exclusive fullscreen can hide its window from the walk,
+v1413). A cloud client - Boosteroid, GeForce NOW - is play only while the console's ONE judge of "is the game on his
+screen" says so: the shadow watch (the window finder for every route, then the first reads of a bare Boosteroid window).
+Its tray, launcher or library is not the game; Battle.net alone never was. Nobody could look, a look older than 60 s,
+or the reader switched off: a cloud client still counts as playing. The watch records its verdict on every look (in
+memory - its one reader is in the same process); both doors into the lane (the 10-minute tick and the 10-second guard)
+ask it, and `/api/status` selfProve.gameOnScreen says what it saw. The private-bytes reader is gone.
+**The lag, stated:** after a launcher verdict the watch looks again every 120 s; a proof already running when he starts
+the game stands aside when the first reads show the HUD (one relook and its reads - minutes, not hours) or sooner if
+memory falls under the 1,024 MB running floor; while those reads are pending the answer is UNKNOWN, which starts
+nothing.
+**Live:** he closed Boosteroid to the tray and asked me to end it - ended by pid (2,190 MB): free memory 682 -> 1,921 MB.
+The ALT pulled v3541 by itself at 10:52 and its prover started a 40-gate slice at 11:05 (playing false, 1,947 MB free,
+179 owed). Laws: `tv/test_the_game_on_screen_decides_play_not_the_app.py` (every route, driven through the real watch
+tick and the real Toolhelp walk; 12 red-proofs RED) and `tv/test_every_pc_proves_itself.py` (the REG-1511 memory
+cases rewritten for the screen rule; 4 red-proofs RED).
+
+### REG-1665 - A CENSUS STILL BEING PROVEN SHUT EVERY ORDINARY LOCK ON A PC HE PLAYS ON (2026-10-01)
+
+**Was:** #99 stamps the census fingerprint only once no declaring gate is owed, and a PC he plays on proves only while
+he does not. MEASURED on his Windows PC: 524 of 714 proven, 161 owed, no fingerprint - and `may()` answered every lock
+"the heart census carries no gate fingerprint ... UNKNOWN fails CLOSED". reel.route's own merit was 0.904 (36 of 36
+attacks refused), and 250 reels with nothing to read sat at ROUTE for up to 3.5 days. His v3042 ruling already said
+what an unfinished prover means for an ordinary act - judged on MERIT while it catches up; only acts with no undo
+wait - and the in-progress census was never joined to it.
+**Now:** a census that exists and is still being proven reads STALE (ordinary acts on merit, destructive acts still
+refuse), and the BLIND instruments it has already recorded still fail closed for everything. A census of unknown
+standing stays UNKNOWN. **His Windows PC is still shut today, and correctly:** its prover recorded 5 instruments BLIND
+there (all 5 PROVEN on his Mac) - test_chronicle_template skips all 12 cases on Windows, the frame-index law's symlink
+case cannot run there, and armed-prune, journal-ring drain and keep-floors stayed green under their own sabotage on
+Windows. Those need the PC idle with the game closed to investigate. Law: `tv/test_a_stale_prover_is_not_a_safety_
+verdict.py` - three census files driven through the real `_heart_says_watched()`. 2 red-proofs RED.
+
+### REG-1663 - A BLIND RETIREMENT COULD BE RE-JUDGED ON EVERY BOOT (the v3540 eye, finding 2, 2026-10-01)
+
+**Was:** REG-1658 re-judged a retirement made blind, and kept no mark of having done it. An attempt that dies before
+leaving a reason (a console killed mid-sweep) retires the reel blind again, so every boot re-bought it - and three
+such reels would hold the per-boot cap for ever. **Now:** each re-judge stamps `rejudged[rid]`, persisted with the
+lane store, and a reel is re-judged at most ONCE, ever. Law: `tv/test_the_durable_set_is_loaded_before_it_is_asked.py`
+(re-judged once even if it retires blind again; the mark is saved and loaded). 2 red-proofs RED.
+**The eye's finding 3 (the per-reel save outside the lock), measured:** the save snapshots the store and a concurrent
+change makes `json.dump` raise inside its own try - the old file stays whole (tmp + replace) and the in-memory state,
+changed under the lock, is written by the next save. A skipped save, not corruption; the readmit path has the same
+contract. **Finding 4 (review-lite's discovery check is textual):** true, and the behaviour is driven elsewhere -
+`test_importing_a_suite_isolates_his_stores` imports test_control in a fresh interpreter and fails if ANY `_CHRON_`/
+`_VAULT_*_PATH` is still live. **Finding 1 (agree/under-read on a stash read):** real and pre-existing (stated under
+REG-1657); flipping them to unsettled would stop every reel whose stash reads named non-grail items from sealing - two
+paid re-reads and a retirement each, the ping-pong just removed. The fix is counting the stash's own grid: queued as a
+build, not a rule flip. **Finding 5:** a reach note - bible.html and most of control_app were not in its payload.
+
+### REG-1661 - A RETIREMENT QUOTED "0 OF 28 READ FRAMES WERE NEVER CROSS-CHECKED" (copy-drift, measured live 2026-10-01)
+
+**Was:** the sweep's INCOMPLETE reason was a second, hand-written copy of `why_not_definitive`'s conditions that did
+not know REG-1657's other-panel verdict. The one re-judge attempt on reel …82142 fell through to its last line and
+retired the reel with a sentence about nothing wrong, while `notDefinitiveWhy` - computed by the pure function a few
+lines up - held the true reason; the lane note prefers the incomplete one. **Now:** the incomplete reason IS the pure
+function's words (the lane-not-proven and nothing-read cases kept). Law: `tv/test_a_stash_read_is_never_called_a_
+fabrication.py` (the reason's assignment calls the pure function and re-derives nothing). 1 red-proof RED.
+
 ### REG-1664 - TWO HEART LAWS JUDGED "SCORABLE" WITH A FORMULA THE HEART STOPPED USING (found by the v3541 pre-flight, 2026-10-01)
 
 **Was:** `test_heart_surface` recomputed whether a watcher could ever be scored from the organ rows' IDS alone, and

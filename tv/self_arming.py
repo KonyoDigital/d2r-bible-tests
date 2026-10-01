@@ -1196,6 +1196,23 @@ def _heart_says_watched():
     # instruments changed since they were proved? [[stale-reading]]
     _want = _st.get("gatesFingerprint")
     if not _want:
+        # ⚠⚠ v3542 REG-1665 — A CENSUS STILL BEING PROVEN IS A PROVER THAT HAS NOT CAUGHT UP. #99 stamps the
+        # fingerprint only once no declaring gate is owed, and a PC he plays on proves only while he does not - so
+        # MEASURED 2026-10-01 his Windows PC had proved 524 of 714 with 161 still owed and NO fingerprint, and every
+        # lock read "UNKNOWN fails CLOSED": 250 reels with nothing to read sat at ROUTE for days while reel.route's
+        # own merit was 0.904. His v3042 ruling covers exactly this: an ordinary act refuses on MERIT while the prover
+        # catches up; only an act with no undo waits. So a census that EXISTS and is unfinished reads as STALE -
+        # and the BLIND instruments it has already recorded still fail closed for everything, because blind is a
+        # fact about supervision, not about lateness. [[stale-reading]] [[the-unjoined-end]]
+        _blind0 = list(_st.get("blind") or [])
+        if _blind0:
+            return False, ("%d instrument(s) are BLIND (%s) — a surface may not arm itself while the gates that would "
+                           "catch its failure cannot go red (recorded by a census still being proven)."
+                           % (len(_blind0), ", ".join(sorted(_blind0)[:3])))
+        if _st.get("partial") or _st.get("sliceOwed"):
+            return False, ("the heart census is STALE: it is still being proven (%s gate(s) owed) and carries no gate "
+                           "fingerprint yet, so it cannot speak for the instruments now on disk."
+                           % (_st.get("sliceOwed") if isinstance(_st.get("sliceOwed"), int) else "some"))
         return False, ("the heart census carries no gate fingerprint, so nothing can say whether it "
                        "still describes the instruments on disk. UNKNOWN fails CLOSED.")
     try:

@@ -308,13 +308,15 @@ if (-not $env:TV_NO_AUTO_PULL) {
     try {
       $env:GIT_TERMINAL_PROMPT = '0'
       # shallow-ish: fetch with 10s kill via job
+      # REG-1667 (the v3541 cross-family eye) - FAST-FORWARD ONLY, NEVER RESET. A refused fast-forward on a clean
+      # tree means commits here that origin does not have, and the old 'reset --hard origin/main' threw them away -
+      # since REG-1660 at every sign-in, with no dialog. The console's own update lane (_pull_once) has always
+      # refused instead and says why on the doctor row 'this checkout can update': one rule for both doors.
       $fetchJob = Start-Job -ScriptBlock {
         param($r)
         git -C $r fetch origin --quiet 2>$null
         git -C $r merge --ff-only origin/main 2>$null
-        if ($LASTEXITCODE -ne 0) {
-          git -C $r reset --hard origin/main 2>$null
-        }
+        "ffexit=$LASTEXITCODE"
       } -ArgumentList $repo
       $null = Wait-Job $fetchJob -Timeout 12
       if ($fetchJob.State -eq 'Running') {
@@ -332,7 +334,13 @@ if (-not $env:TV_NO_AUTO_PULL) {
         $script:TvdPullJobStopped = $true
         Write-TvdLaunchLog ("auto-pull: timed out (12s) - stopped job state={0}; launching with local tree" -f $fetchJob.State)
       } else {
-        Write-TvdLaunchLog 'auto-pull: done'
+        $ffOut = @(Receive-Job $fetchJob -ErrorAction SilentlyContinue | ForEach-Object { "$_" })
+        $ffLine = @($ffOut | Where-Object { $_ -like 'ffexit=*' } | Select-Object -Last 1)
+        if ($ffLine.Count -and $ffLine[0] -ne 'ffexit=0') {
+          Write-TvdLaunchLog ("auto-pull: the fast-forward was refused ({0}) - launching with the local tree, nothing reset; the console's update lane says why" -f $ffLine[0])
+        } else {
+          Write-TvdLaunchLog 'auto-pull: done'
+        }
       }
       Remove-Job $fetchJob -Force -ErrorAction SilentlyContinue
     } catch {
@@ -364,8 +372,15 @@ function Wait-TvdGitQuiet([int]$maxMs = 6000) {
 
 # Re-check after pull: another click may have won
 if (Test-TvdControlUp) {
-  Write-TvdLaunchLog 'control came up during pull - focus only'
-  [void](Focus-TvdWindow)
+  if ($Background) {
+    # REG-1667 (the v3541 cross-family eye) - a sign-in start leaves a console that came up DURING the pull exactly
+    # as it is, the same as one that was already up: only the first check honoured -Background, so a console slow
+    # to answer at sign-in was unhidden and brought over his desktop by the shortcut that promised not to.
+    Write-TvdLaunchLog 'sign-in start: control came up during pull - left exactly as it is'
+  } else {
+    Write-TvdLaunchLog 'control came up during pull - focus only'
+    [void](Focus-TvdWindow)
+  }
   if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
   return
 }

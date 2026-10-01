@@ -132,7 +132,74 @@ class TestAStaleProverIsNotASafetyVerdict(unittest.TestCase):
                             "%s is marked destructive and does not say what it does" % k)
 
 
+
+class AnUnfinishedCensusIsAProverCatchingUp(unittest.TestCase):
+    """v3542 REG-1665 — a census still being proven (no fingerprint YET) is STALE; what it already found blind stays blind.
+
+    MEASURED 2026-10-01 on his Windows PC: 524 of 714 proven, 161 owed, no fingerprint - every lock read UNKNOWN, and
+    250 reels with nothing to read sat at ROUTE for days while reel.route's own merit was 0.904. DRIVEN through the real
+    _heart_says_watched() on census files, via its own TV_HEART_CENSUS seam."""
+
+    def setUp(self):
+        import tempfile
+        self.d = tempfile.mkdtemp(prefix="census_")
+        self.p = os.path.join(self.d, ".heart2.json")
+        self.saved = os.environ.get("TV_HEART_CENSUS")
+        os.environ["TV_HEART_CENSUS"] = self.p
+
+    def tearDown(self):
+        import shutil
+        if self.saved is None:
+            os.environ.pop("TV_HEART_CENSUS", None)
+        else:
+            os.environ["TV_HEART_CENSUS"] = self.saved
+        shutil.rmtree(self.d, True)
+
+    def _census(self, **kw):
+        import json
+        with io.open(self.p, "w", encoding="utf-8") as fh:
+            json.dump(dict({"proved": 524, "declared": 714, "total": 749}, **kw), fh)
+        return SA._heart_says_watched()
+
+    def _a_lock(self, destructive):
+        for k, v in SA.LOCKS.items():
+            if bool(v.get("destructive")) is destructive:
+                return k
+        return None
+
+    def test_an_unfinished_census_reads_stale_and_an_ordinary_act_is_judged_on_merit(self):
+        ok, why = self._census(partial=True, sliceOwed=161, blind=[])
+        self.assertFalse(ok)
+        self.assertEqual(SA.heart_block_kind(why), "stale", "an unfinished census was not read as a prover catching up: %r" % why)
+        lock = self._a_lock(False)
+        ok2, why2 = SA.may(lock)
+        self.assertNotIn("fingerprint", str(why2), "%s still refused for the unfinished census: %r" % (lock, why2))
+        d = self._a_lock(True)
+        okd, whyd = SA.may(d)
+        self.assertFalse(okd, "%s has no undo and was permitted while the census was unfinished" % d)
+
+    def test_what_an_unfinished_census_found_blind_still_closes_everything(self):
+        ok, why = self._census(partial=True, sliceOwed=161, blind=["test_chronicle_template"])
+        self.assertEqual(SA.heart_block_kind(why), "blind", "a recorded BLIND instrument was softened: %r" % why)
+        for destructive in (True, False):
+            lock = self._a_lock(destructive)
+            self.assertFalse(SA.may(lock)[0], "%s was permitted beside a recorded BLIND instrument" % lock)
+
+    def test_a_census_that_is_neither_finished_nor_in_progress_stays_unknown(self):
+        ok, why = self._census(partial=False, blind=[])
+        self.assertEqual(SA.heart_block_kind(why), "other", "a census of unknown standing was guessed at: %r" % why)
+
 RED_PROOF = [
+    {"why": "REG-1665 - an unfinished census refuses every ordinary act again (his Windows river stays at ROUTE)",
+     "file": "self_arming.py",
+     "find": "        if _st.get(\"partial\") or _st.get(\"sliceOwed\"):\n",
+     "replace": "        if False:\n",
+     "matches": 1},
+    {"why": "REG-1665 - a BLIND instrument recorded by an unfinished census is softened like lateness",
+     "file": "self_arming.py",
+     "find": "        if _blind0:\n",
+     "replace": "        if False:\n",
+     "matches": 1},
     {
         "why": "softens the rule to ALL locks, so an irreversible door — deleting footage with no "
                "undo, dropping the ledger — would act while the prover has not caught up",

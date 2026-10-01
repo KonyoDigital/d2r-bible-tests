@@ -108,6 +108,33 @@ class TheSweepAsksIt(unittest.TestCase):
                         "the over-read list is filled before the panel is asked about")
 
 
+class TheIncompleteReasonIsThePureFunctions(unittest.TestCase):
+    """REG-1661 — the sweep's INCOMPLETE reason (what a retirement quotes) is why_not_definitive's own words."""
+
+    def test_the_reason_a_retirement_quotes_comes_from_the_pure_function(self):
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+        fn = next((n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "_vault_sweep_run"), None)
+        self.assertIsNotNone(fn, "_vault_sweep_run is gone - re-point this law")
+        assigns = [n for n in ast.walk(fn) if isinstance(n, ast.Assign) and any(
+            isinstance(t, ast.Name) and t.id == "_whynot" for t in n.targets)]
+        self.assertEqual(len(assigns), 1, "PREMISE: the sweep builds its incomplete reason once")
+        calls = [c for c in ast.walk(assigns[0].value) if isinstance(c, ast.Call)
+                 and isinstance(c.func, ast.Name) and c.func.id == "why_not_definitive"]
+        self.assertEqual(len(calls), 1, "the incomplete reason re-derives the conditions instead of asking the pure "
+                                        "function - an other-panel read retires as '0 of 28 never cross-checked'")
+        text = ast.get_source_segment(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read(),
+                                      assigns[0]) or ""
+        self.assertNotIn("were never cross-checked", text, "a hand-written copy of a condition is back")
+
+    def test_the_other_panel_case_says_what_it_is(self):
+        rec = [dict(frame="f_%d.jpg" % i, surface="stash", named=0, occupied=3, verdict="under-read") for i in range(27)]
+        rec.append(dict(frame="f_x.jpg", surface="stash", named=1, occupied=0, verdict="other-panel"))
+        why = "; ".join(ca.why_not_definitive(28, rec, [], []))
+        self.assertIn("a panel the pixel layer does not count (stash)", why)
+        self.assertNotIn("never cross-checked", why)
+
+
 class TheGlimpseNamesThePanelItCounted(unittest.TestCase):
     """REG-1659 — the board's glimpse row says where the full squares ARE."""
 
@@ -202,6 +229,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "          _rec(row.name, 'glimpsed', row.why, g.frame);\n",
      "replace": "          _rec((g.surface || 'stash') + ' · ' + (g.frame || '?'), 'glimpsed', row.why, g.frame);\n",
+     "matches": 1},
+    {"why": "REG-1661 - the incomplete reason re-derives the conditions again and drifts from the pure function",
+     "file": "control_app.py",
+     "find": "                           else (\"; \".join(why_not_definitive(_read_ok[0], _reconciled, _over_read, _pix_err))\n",
+     "replace": "                           else (\"%d of %d read frame(s) were never cross-checked\" % (_read_ok[0] - len(_reconciled), _read_ok[0])\n",
      "matches": 1},
 ]
 

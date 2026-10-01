@@ -20,6 +20,7 @@ plan() - retired them again: 9 relaunches since 2026-09-30 10:18, about 1,000 re
     reason stays retired.
 RED_PROOF below. [[unknown-stays-unknown]] [[copy-drift]]
 """
+import io
 import json
 import os
 import shutil
@@ -136,13 +137,15 @@ class TheVaultReentryAsksTheSameQuestion(_World):
         self.assertTrue(os.path.realpath(ca._vault_autoread_path()).startswith(os.path.realpath(_WORLD)),
                         "PREMISE: the lane's store is not in this law's world")
         saved = {"ret": dict(ca._VAULT_AUTOREAD.get("retired") or {}), "tries": dict(ca._VAULT_AUTOREAD.get("tries") or {}),
-                 "load": ca._vault_autoread_load}
+                 "rej": dict(ca._VAULT_AUTOREAD.get("rejudged") or {}), "load": ca._vault_autoread_load}
         ca._vault_autoread_load = lambda: True
         ca._VAULT_AUTOREAD["retired"] = {r: {"why": "x", "tries": 2, "at": 1} for r in (BANKED, UNBANKED)}
+        ca._VAULT_AUTOREAD["rejudged"] = {}
 
         def _restore():
             ca._VAULT_AUTOREAD["retired"] = saved["ret"]
             ca._VAULT_AUTOREAD["tries"] = saved["tries"]
+            ca._VAULT_AUTOREAD["rejudged"] = saved["rej"]
             ca._vault_autoread_load = saved["load"]
         self.addCleanup(_restore)
 
@@ -171,6 +174,24 @@ class TheVaultReentryAsksTheSameQuestion(_World):
         self.assertNotIn(BANKED, self.ca._VAULT_AUTOREAD["retired"])
         self.assertEqual(self.ca._VAULT_AUTOREAD["tries"].get(BANKED), self.ca._VAULT_AUTOREAD_MAX_TRIES - 1,
                          "the re-judge bought more than ONE attempt")
+
+    def test_a_reel_is_re_judged_once_ever_even_if_it_retires_blind_again(self):
+        """REG-1663 — the v3540 eye: an attempt that dies before leaving a reason retires the reel blind again."""
+        self.ca._VAULT_AUTOREAD["retired"] = {BANKED: dict(self.BLIND)}
+        self.ca.vault_reentry_sweep(dry=False)
+        self.assertIn(BANKED, self.ca._VAULT_AUTOREAD.get("rejudged") or {}, "the re-judge left no durable mark")
+        self.ca._VAULT_AUTOREAD["retired"] = {BANKED: dict(self.BLIND)}       # its one attempt died blind
+        out = self.ca.vault_reentry_sweep(dry=False)
+        self.assertEqual(out["rejudged"], [], "a reel was re-judged a second time: %r" % out)
+        self.assertIn(BANKED, self.ca._VAULT_AUTOREAD["retired"])
+
+    def test_the_mark_is_persisted_with_the_store(self):
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        save = src[src.index("def _vault_autoread_save():"):src.index("def ", src.index("def _vault_autoread_save():") + 10)]
+        self.assertIn('"rejudged": _VAULT_AUTOREAD.get("rejudged")', save, "the re-judge mark is not saved")
+        load = src[src.index("def _vault_autoread_load():"):src.index("def ", src.index("def _vault_autoread_load():") + 10)]
+        self.assertIn('"rejudged"', load, "the re-judge mark is not loaded")
 
     def test_a_reasoned_retirement_stays_retired(self):
         self.ca._VAULT_AUTOREAD["retired"] = {BANKED: dict(self.REASONED)}
@@ -202,15 +223,25 @@ def tearDownModule():
 
 
 RED_PROOF = [
+    {"why": "REG-1663 - a reel is re-judged again every boot when its one attempt died blind",
+     "file": "control_app.py",
+     "find": "            if (_vault_retired_blind(retired.get(rid)) and rid not in done\n",
+     "replace": "            if (_vault_retired_blind(retired.get(rid))\n",
+     "matches": 1},
+    {"why": "REG-1663 - the re-judge mark lives only in memory: a restart re-buys the reel",
+     "file": "control_app.py",
+     "find": "               \"rejudged\": _VAULT_AUTOREAD.get(\"rejudged\") or {},      # REG-1663\n",
+     "replace": "",
+     "matches": 1},
     {"why": "REG-1658 - a retirement judged blind is never looked at again (his two reels stay retired for ever)",
      "file": "control_app.py",
-     "find": "            if _vault_retired_blind(retired.get(rid)) and len(out[\"rejudged\"]) < _VAULT_REJUDGE_PER_BOOT:\n",
-     "replace": "            if False:\n",
+     "find": "            if (_vault_retired_blind(retired.get(rid)) and rid not in done\n",          # REG-1663 re-anchor
+     "replace": "            if (False and rid not in done\n",
      "matches": 1},
     {"why": "REG-1658 - the re-judge is unbounded: one relaunch re-buys a whole backlog of blind retirements",
      "file": "control_app.py",
-     "find": " and len(out[\"rejudged\"]) < _VAULT_REJUDGE_PER_BOOT:\n",
-     "replace": ":\n",
+     "find": " and len(out[\"rejudged\"]) < _VAULT_REJUDGE_PER_BOOT):\n",                          # REG-1663 re-anchor
+     "replace": "):\n",
      "matches": 1},
     {"why": "REG-1658 - the re-judge buys the full try budget instead of one attempt",
      "file": "control_app.py",

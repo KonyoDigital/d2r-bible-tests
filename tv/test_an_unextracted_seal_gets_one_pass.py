@@ -142,8 +142,8 @@ RED_PROOF = [
     {
         "why": "a restart forgets the solo pass and buys the same reel again",
         "file": "control_app.py",
-        "find": "        for k in (\"retired\", \"tries\", \"lastWhy\", \"reextract\"):\n",
-        "replace": "        for k in (\"retired\", \"tries\", \"lastWhy\"):\n",
+        "find": "        for k in (\"retired\", \"tries\", \"lastWhy\", \"reextract\", \"rejudged\"):\n",   # REG-1663 re-anchor
+        "replace": "        for k in (\"retired\", \"tries\", \"lastWhy\", \"rejudged\"):\n",
         "matches": 1,
     },
 ]
