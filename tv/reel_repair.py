@@ -40,11 +40,14 @@ USAGE
 
 SAFETY RAILS (this runs over his real farming footage)
     * Frames are never modified, renamed or deleted. Nothing is ever deleted.
-    * An index.json that EXISTS AND PARSES is never overwritten — it is skipped and said so.
+    * An index.json that EXISTS AND PARSES is never overwritten — it is skipped and said so. ONE EXCEPTION
+      (REG-1679): an ABANDONED seal's temp that lists at least what index.json lists is installed over it,
+      which is the seal's own unfinished last step; a temp that lists less is kept aside, never dropped.
     * Only directories whose basename starts with "reel_" are considered at all. tv/frames/hist also
       holds cache1280/ and cache160/, which are THUMBNAIL CACHES full of f_*.jpg and legitimately
       have no index. They are neither touched nor counted nor flagged.
-    * A reel with a live index.json.tmp is being sealed right now; it is skipped rather than raced.
+    * A reel with a FRESH index.json.tmp (younger than STALE_TMP_S) is being sealed right now; it is
+      skipped rather than raced. An older one is an ABANDONED seal and is finished (REG-1679).
 """
 
 # v1608.1 — ENCODING-SAFE BEFORE IT PRINTS ANYTHING (REG-044/054/077/078). This file prints
