@@ -697,14 +697,17 @@ def ingest(journals, hist_dir, now_ms=None, store=None, gap_ms=None, logins=_UNS
         if not reel["sealed"]:
             rolling.append(reel["sid"])
             continue
-        if reel["sid"] in done:
-            if not _refile_due(d, reel):
-                continue
-            _unfile_unattributed(d, reel, hist_dir)        # #234 - a login now names this reel's character
-            refiled.append(reel["sid"])
+        _refile = reel["sid"] in done
+        if _refile and not _refile_due(d, reel):
+            continue
         if cs_waits(cs, reel, hist_dir, now):
             waiting.append(reel["sid"])
             continue
+        if _refile:
+            # #234 (the v3548 eye) - taken back only once the reel is really filed again: un-filed BEFORE the learner's
+            # wait, a waiting reel lost its worn items from both the character and the unattributed count for good
+            _unfile_unattributed(d, reel, hist_dir)        # #234 - a login now names this reel's character
+            refiled.append(reel["sid"])
         for sp in reel.get("spans") or []:
             gid = sp.get("session")
             for r in sp["rows"]:

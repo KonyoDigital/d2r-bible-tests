@@ -471,18 +471,26 @@ def _backfill_last_frames(d, root, stats, t0, budget_s, clock):
             first = int(str(vid).split("#", 1)[1])
         except (IndexError, ValueError):
             first = int(v.get("ts") or 0)
-        last = None
+        # the v3548 eye: the walk RESUMES where a spent budget left it (a cut used to restart the reel from its first
+        # frame on every tick, holding the closing reads and the live scan behind it for ever)
+        bf = v.get("bf") if isinstance(v.get("bf"), dict) else {}
+        start = int(bf.get("pos") or first)
+        last = tuple(bf["last"]) if isinstance(bf.get("last"), list) and len(bf["last"]) == 2 else None
         for p in sorted(glob.glob(os.path.join(rd, "f_*.jpg"))):
             ts = _frame_ts(p) or 0
-            if ts < first:
+            if ts < start:
                 continue
-            if last is not None and ts - last[1] > VISIT_GAP_S * 1000:
+            # the visit is over VISIT_GAP_S after its last select frame - or after it BEGAN, when none is seen (the v3548
+            # eye: with no hit near its start the walk ran on and took the NEXT visit's screen as this one's)
+            if ts - (last[1] if last else first) > VISIT_GAP_S * 1000:
                 break
             if clock() - t0 > budget_s:
+                v["bf"] = {"pos": ts, "last": list(last) if last else None}
                 return n, "tick budget spent"
             hit, _w = looks_like_char_select(stats(p))
             if hit:
                 last = (os.path.basename(p), ts)
+        v.pop("bf", None)
         if last is None:
             v["closed"] = "no character-select frame of this visit is left in its reel"
             continue

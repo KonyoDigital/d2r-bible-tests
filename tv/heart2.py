@@ -2554,8 +2554,8 @@ def prove(only=None, say=print, detail=None, push=False, stopped=None, stamp=Tru
     if push:
         # #42 — hooks/pre-push's run: declared widths, likeliest failure first, stop at the first, one browser at a time,
         # and (P3) a PROVEN reused only over byte-identical inputs - the cache is opened HERE and nowhere else
-        _cache = open_cache(say)
         _GATE_HOOK["fn"] = None         # #145 (the v3545 eye) - a push banks once at the end, never through a slice's banker
+        _cache = open_cache(say)
         results, per_proof = _prove_push(have, say, stopped, cache=_cache, blank=_blank)
         _ages = dict(getattr(_cache, "measured", None) or {})     # gate -> oldest provedAt among its reused proofs
         if results is not None and not results:

@@ -406,6 +406,34 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1695 - THE v3548 EYE: FOUR REAL, THREE REFUTED (the #231 range read, 2026-10-01)
+
+Each reproduced against the code before fixing. **Real:** (1) a reel whose login arrived was taken off the unattributed
+list BEFORE the learner's wait, so a waiting reel lost its worn items from both the character and the count - now taken
+back only when it is really filed again; (2) the back-fill walk ran on through the whole reel when no select frame sat
+near the visit's start and took the NEXT visit's screen (and so its login) - now the visit ends `VISIT_GAP_S` after it
+began when nothing is seen; (3) a back-fill cut by the tick budget restarted from the first frame every tick, holding the
+closing reads and the live scan behind it - now it resumes from `v["bf"]`; (4) an abandoned HEART census that returned
+late overwrote the newer memo - the memo now only moves forward. Also moved the push path's hook clear ahead of
+`open_cache`. **Refuted:** an "unclosed docstring" in `_bare_hud_verdict` (it closes on its second line; the eye saw a
+cut hunk), a unit mismatch in `_unfile_unattributed` (it walks the same rows through the same `worn_from_row`), and
+callers of `_sweep_stale_sessions`'s new None (its one caller ignores the value). Laws: +4 cases across
+`test_a_character_learned_late_still_gets_its_gear.py` and `test_a_heart_refresh_never_wedges.py`, each with its proof.
+
+### REG-1694 - HIS CHARACTERS NOW SHOW WHAT THEY WEAR - AND A BOARD WITH NO HAND BUILD HID THEM ALL (#234 step 2, 2026-10-01)
+
+**His ruling:** the in-game section is automated - "i want to see the items slowly appearing based on the character they
+were witnessed in... when i click a mule it shouldnt let me do PLAN BUILD". Each in-game card now lists the ten doll slots
+from the gear ledger (`/api/chars_learned` carries `gear`, built by `equipped_ledger.gear_by_key` with the learner's fold),
+on the Vault's tier words; a slot nothing showed says "not seen yet", a console that never said says UNKNOWN, and no
+in-game or mule card offers Plan a build (that stays in Simulation). **Found while photographing it:** with no build saved
+by hand the room returned "No characters yet" BEFORE drawing the in-game section, so a PC where he never planned a build
+(the ALT, Dean's PC, a fresh board) never showed the characters its console learned - measured on a served board. The
+empty state is now only for nothing learned and nothing built. **Also caught before it shipped:** the card's key is the
+planner's `seen:` template key while the gear map is keyed by the bare fold, so every card would have read "nothing seen".
+Render target `chars-ingame` (new, served, fixture roster with made-up names): 1440/1120/901/375 painted 6/6, nothing
+clipped or covered; the Grok CLI read the 1440 and 375 crops cold and its transcription matched every slot.
+
 ### REG-1693 - "IT SHOULD BE UNIVERSAL": A BARE GEFORCE NOW WINDOW WAS A NEAR-MISS ON EVERY PC (his rule, 2026-10-01, #147)
 
 **HIS WORDS** after installing Boosteroid on his Mac: "it should be universal though like i said... nvidea play also if it

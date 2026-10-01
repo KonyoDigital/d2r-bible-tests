@@ -154,21 +154,51 @@ class TheRoomHasTwoSections(unittest.TestCase):
         self.assertTrue(out["badge"])
         self.assertEqual(out["ing"], ["bHAM"])
 
-    def test_plan_a_build_opens_the_planner_on_that_character_and_writes_nothing(self):
+    def test_learned_characters_stand_with_no_build_made_by_hand(self):
+        """#234 - MEASURED on a served board: with no build saved by hand the room returned "No characters yet" before it
+        drew the in-game section, so a PC where he never planned a build (the ALT, Dean's PC, a fresh board) never showed
+        the characters its console learned. The empty state is only for nothing learned AND nothing built (the manual
+        law keeps that case)."""
         out = _run(r"""
-          seed(null); LEARNED_ANSWER = ROSTER; window.renderCharsTab();
-          var m = /data-act="plan" data-for="seen:frostnova" onclick="([^"]*)"/.exec(secHtml('ingame') || '');
-          OUT.found = !!m; WRITES.length = 0;
-          OUT.r = m ? (new Function('return (' + decode(m[1]) + ');'))() : null;
-          var d = window._cbState().draft;
-          OUT.draft = d ? [d.name, d.cls, d.level, d.from] : null;
-          OUT.writes = WRITES.map(function(w){ return w[1]; });
+          seed(null); delete RAW['d2r_charBuilds']; LEARNED_ANSWER = ROSTER; window.renderCharsTab();
+          var h = ELS['chars-list']._html;
+          OUT.secs = (h.match(/data-sec="(\w+)"/g) || []);
+          OUT.ghosts = ghosts('ingame');
+          OUT.empty = /No characters yet/.test(h);
         """)
-        self.assertTrue(out["found"], "the learned character's card has no Plan a build")
-        self.assertTrue(out["r"])
-        self.assertEqual(out["draft"], ["Frostnova", "Sorceress", 71, "seen:frostnova"],
-                         "the planner did not open on a draft of that character, as the reels saw it")
-        self.assertNotIn("d2r_charBuilds", out["writes"], "planning a build wrote a build he never changed")
+        self.assertFalse(out["empty"], "a board with no hand build hid the characters its console learned")
+        self.assertEqual(out["secs"], ['data-sec="ingame"', 'data-sec="sim"'])
+        self.assertEqual(out["ghosts"], ["seen:hammerdin", "seen:frostnova", "seen:mulebox"],
+                         "every learned character stands as its own card when nothing was built by hand")
+
+    def test_an_in_game_card_shows_what_it_wears_and_offers_no_plan(self):
+        """#234 step 2 — HIS RULING, 2026-10-01: an in-game card (main or mule) is AI-automated, "i want to see the items
+        slowly appearing based on the character they were witnessed in... when i click a mule it shouldnt let me do PLAN
+        BUILD". It used to carry "Plan a build"; planning by hand lives in Simulation (+ New character). The card shows
+        the gear ledger's slots for its character, keyed by the learner's own fold (the card's 'seen:' key stripped)."""
+        out = _run(r"""
+          seed(null);
+          var A = JSON.parse(JSON.stringify(ROSTER));
+          var slots = ['helm','amulet','weapon','torso','off-hand','gloves','ring1','belt','ring2','boots'].map(function(s){
+            return s === 'helm' ? {slot: s, item: 'Harlequin Crest', sightings: 4, tier: 'PROVEN'}
+                                : {slot: s, item: null, sightings: 0, tier: null}; });
+          A.gear = { frostnova: { name: 'Frostnova', slots: slots, unplaced: [{item: 'String of Ears', sightings: 2, tier: 'WATCHED'}], reels: 2 } };
+          LEARNED_ANSWER = A; window.renderCharsTab();
+          var ing = secHtml('ingame') || '';
+          OUT.frost = (/<article class="chx-card chx-ghost" data-learned="seen:frostnova">([\s\S]*?)<\/article>/.exec(ing) || [])[1] || '';
+          OUT.mule = (/<article class="chx-card chx-ghost" data-learned="seen:mulebox">([\s\S]*?)<\/article>/.exec(ing) || [])[1] || '';
+          OUT.plans = (ing.match(/data-act="plan"/g) || []).length;
+          LEARNED_ANSWER = ROSTER; window.renderCharsTab();
+          OUT.unknown = (/<article class="chx-card chx-ghost" data-learned="seen:frostnova">([\s\S]*?)<\/article>/.exec(secHtml('ingame') || '') || [])[1] || '';
+        """)
+        self.assertEqual(out["plans"], 0, "an in-game card still offers Plan a build - his ruling: this section is automated")
+        self.assertIn('data-slot="helm" data-tier="PROVEN"', out["frost"], "the card does not show what the game showed it wearing")
+        self.assertIn("Harlequin Crest", out["frost"])
+        self.assertIn("1 of 10 slots so far", out["frost"])
+        self.assertIn('data-slot="boots" data-state="unseen"', out["frost"], "a slot nothing showed is not said as not seen")
+        self.assertIn("String of Ears", out["frost"], "a worn item whose slot is not told went unsaid")
+        self.assertIn("Nothing seen on Mulebox yet", out["mule"], "a character with no gear on file is not said as such")
+        self.assertIn("UNKNOWN", out["unknown"], "a console that did not say what its characters wear read as 'nothing'")
 
     def test_no_console_is_unknown_not_none_and_every_build_stays_in_simulation(self):
         out = _run(r"""
@@ -450,6 +480,26 @@ RED_PROOF = [
         "replace": "",
         "matches": 1,
     },
+    {"why": "#234 - the in-game card stops showing what its character wears",
+     "file": "../bible.html",
+     "find": "      + _gearHtml(t)\n      + '</article>';",
+     "replace": "      + '</article>';",
+     "matches": 1},
+    {"why": "#234 - the card looks its gear up by the planner's 'seen:' key, so every card reads nothing seen",
+     "file": "../bible.html",
+     "find": "    var k = String(t.key || ''); if (k.indexOf('seen:') === 0) k = k.slice(5);\n",
+     "replace": "    var k = String(t.key || '');\n",
+     "matches": 1},
+    {"why": "#234 - a console that never said what its characters wear reads as 'nothing seen'",
+     "file": "../bible.html",
+     "find": "    if (!L || !Object.prototype.hasOwnProperty.call(L, 'gear')) return { state: 'unknown',",
+     "replace": "    if (!L) return { state: 'unknown',",
+     "matches": 1},
+    {"why": "#234 - with no build made by hand the room hides the characters its console learned",
+     "file": "../bible.html",
+     "find": "    if (!Object.keys(r.all).length && !_learnedAny){\n",
+     "replace": "    if (!Object.keys(r.all).length){\n",
+     "matches": 1},
 ]
 
 

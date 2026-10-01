@@ -133,6 +133,25 @@ class TheMemoIsOneCensus(unittest.TestCase):
             ca._HEART_MEMO.update(ca_memo)
 
 
+class ALateCensusNeverReplacesANewerOne(unittest.TestCase):
+    """the v3548 eye: the abandoned census still stores its memo when it finally returns, over the newer census the
+    replacement already stored - and the panel serves the old one until the TTL."""
+
+    def test_the_memo_only_moves_forward(self):
+        keep = dict(ca._HEART_MEMO)
+        try:
+            now = time.time()
+            ca._heart_memo_store(now - 5, {"ok": True, "which": "the replacement"})
+            ca._heart_memo_store(now - 400, {"ok": True, "which": "the abandoned one, late"})
+            self.assertEqual(ca._HEART_MEMO["v"]["which"], "the replacement",
+                             "a census that began earlier replaced the newer one when it returned late")
+            ca._heart_memo_store(now - 1, {"ok": True, "which": "a fresher one"})
+            self.assertEqual(ca._HEART_MEMO["v"]["which"], "a fresher one", "a newer census could not replace the memo")
+        finally:
+            ca._HEART_MEMO.clear()
+            ca._HEART_MEMO.update(keep)
+
+
 class TheStatusLineIsFoundWhereItIsPut(unittest.TestCase):
 
     def test_it_is_looked_for_in_the_panel_not_the_header(self):
@@ -169,6 +188,11 @@ RED_PROOF = [
      "file": "control_ui.html",
      "find": "    var el = ov.querySelector('#hrt-age');",
      "replace": "    var el = head.querySelector('#hrt-age');",
+     "matches": 1},
+    {"why": "#145 (the v3548 eye) - an abandoned census that returns late replaces the newer memo",
+     "file": "control_app.py",
+     "find": "    if _m.get(\"v\") is not None and float(started) < float(_m.get(\"t\") or 0):\n        return\n",
+     "replace": "    if False:\n        return\n",
      "matches": 1},
 ]
 

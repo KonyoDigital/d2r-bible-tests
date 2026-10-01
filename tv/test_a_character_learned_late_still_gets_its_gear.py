@@ -81,6 +81,48 @@ class AnOldVisitGetsItsClosingRead(_Reels):
         self.tick(lambda ts: "Frostnova", T0 + 500000)
         self.assertEqual(self.reads, [], "a visit that already named its row was read again")
 
+    def test_a_visit_never_takes_the_next_visits_screen(self):
+        """the v3548 eye: with no select frame near the visit's start (its own frames thinned away) the walk ran on through
+        the reel and took a LATER visit's screen - and so its login - as this visit's"""
+        vid = self._old_visit("reel_s_11", [(T0 + i * 1000, True) for i in range(2)] + [(T0 + 200000, False)])
+        rd = os.path.join(self.hist, "reel_s_11")
+        for ts in (T0, T0 + 1000):                                # its own frames no longer show the screen
+            with open(os.path.join(rd, "f_%d.jpg" % ts), "wb") as f:
+                f.write(b"no")
+        self.reel("reel_s_11", [(T0 + 300000 + i * 1000, True) for i in range(2)])   # a LATER visit, same reel
+        self.tick(lambda ts: "Frostnova", T0 + 700000)
+        v = CS.load()["visits"][vid]
+        self.assertNotEqual((v.get("lastFrame") or {}).get("ts"), T0 + 301000,
+                            "the old visit took the next visit's screen as its own")
+        self.assertIn("no character-select frame", str(v.get("closed")), v)
+
+    def test_a_walk_cut_by_the_budget_resumes_where_it_stopped(self):
+        """the v3548 eye: a cut walk restarted the reel from its first frame on every tick, so one long old visit held
+        the closing reads and the live scan behind it for ever"""
+        self._old_visit("reel_s_12", [(T0 + i * 1000, True) for i in range(2)] + [(T0 + 200000, False)])
+        self.reel("reel_s_12", [(T0 + 2000 + i * 1000, True) for i in range(20)])     # the visit ran on: 22 frames in all
+        seen = []
+        real_stats = self.stats
+
+        def stats(p):
+            seen.append(CS._frame_ts(p))
+            return real_stats(p)
+        tick = [0.0]
+
+        def clock():
+            tick[0] += 1.0
+            return tick[0]
+        for _ in range(12):
+            CS.tick(root=self.hist, stats=stats, reader=self.reader_for(lambda ts: "Frostnova"),
+                    now=(T0 + 900000) / 1000.0, budget_s=6.0, clock=clock)
+            if CS.logins(CS.load()):
+                break
+        self.assertEqual([x["character"] for x in CS.logins(CS.load())], ["Frostnova"], "the cut walk never finished")
+        self.assertIn(T0 + 21000, self.reads, "the closing read was not the visit's LAST frame")
+        walked = [t for t in seen if t is not None and t <= T0 + 21000]
+        self.assertLess(len(walked), 2 * 22, "the walk started over after every cut (%d frame looks for 22 frames)"
+                        % len(walked))
+
     def test_the_hourly_cap_still_decides_when(self):
         self._old_visit("reel_s_10", [(T0 + i * 1000, True) for i in range(2)] + [(T0 + 200000, False)])
         d = CS.load()
@@ -138,6 +180,22 @@ class AReelFiledWithNoCharacterIsFiledAgain(_World):
         r2, _d2 = self.ingest(self.rows(), now_ms=T0 + 9800000, logins=[login], cs=None)
         self.assertEqual(r2.get("refiled"), [], "a reel already filed under its character was filed again")
 
+    def test_a_reel_that_waits_for_the_learner_loses_nothing(self):
+        """the v3548 eye: the reel was taken back off the unattributed list BEFORE the learner's wait, so a waiting reel
+        lost its worn items from both the character and the unattributed count for good."""
+        self.ingest(self.rows(), now_ms=T0 + 9700000, logins=[], cs=None)
+        os.makedirs(os.path.join(self.hist, "reel_s_A"), exist_ok=True)
+        cs = CS._empty()
+        cs["reels"] = {"reel_s_A": {"pos": 1, "frames": 50}}          # the learner has not walked it yet
+        r2, d2 = self.ingest(self.rows(), now_ms=T0 + 9800000, logins=[self.LOGIN], cs=cs)
+        self.assertEqual(r2.get("refiled"), [], "a reel was filed again while the learner had not walked it")
+        self.assertEqual(d2["unattributed"]["reads"], 3, "a waiting reel's worn items left the unattributed count")
+        self.assertIn("s_A", d2["unattributed"]["reels"])
+        cs["reels"]["reel_s_A"]["pos"] = 50
+        r3, d3 = self.ingest(self.rows(), now_ms=T0 + 9900000, logins=[self.LOGIN], cs=cs)
+        self.assertEqual(r3.get("refiled"), ["s_A"])
+        self.assertIn("Enigma", json.dumps(d3["characters"].get("Hammerdin")))
+
     def test_a_reel_still_with_no_login_stays_unattributed(self):
         self.ingest(self.rows(), now_ms=T0 + 9700000, logins=[], cs=None)
         r2, d2 = self.ingest(self.rows(), now_ms=T0 + 9800000, logins=[], cs=None)
@@ -178,6 +236,16 @@ class EachCardIsHandedWhatItsCharacterWears(unittest.TestCase):
         self.assertEqual([u["item"] for u in g["unplaced"]], ["String of Ears"])
         self.assertEqual(g["reels"], 2)
 
+    def test_the_console_hands_each_card_its_gear(self):
+        """the route the in-game room asks (/api/chars_learned) carries the gear map built by THIS rule, keyed by the
+        learner's own fold - read as code, comments dropped"""
+        import io
+        src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        code = "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
+        self.assertEqual(code.count("_gear = _el.gear_by_key(_gd, _cs._fold, _cs.tier_bars())"), 1,
+                         "/api/chars_learned does not build the cards' gear with gear_by_key and the learner's fold")
+        self.assertEqual(code.count('"gear": _gear, "gearWhy": _gwhy})'), 1, "the gear never reaches the room")
+
     def test_no_bars_is_unknown_and_no_ledger_is_unknown(self):
         g = E.gear_by_key(self.ledger(), CS._fold, None)["konyorush"]
         self.assertEqual({s["slot"]: s["tier"] for s in g["slots"]}["helm"], "UNKNOWN")
@@ -202,8 +270,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "#234 - an ingested reel is never filed again when a login arrives later",
      "file": "equipped_ledger.py",
-     "find": "            if not _refile_due(d, reel):\n                continue\n",
-     "replace": "            continue\n",
+     "find": "        if _refile and not _refile_due(d, reel):\n            continue\n",
+     "replace": "        if _refile:\n            continue\n",
      "matches": 1},
     {"why": "#234 - a re-filed reel leaves its old unattributed counts behind (counted twice)",
      "file": "equipped_ledger.py",
@@ -214,6 +282,26 @@ RED_PROOF = [
      "file": "equipped_ledger.py",
      "find": "    return not any(reel[\"sid\"] in (rec.get(\"reels\") or []) for rec in (d.get(\"characters\") or {}).values())\n",
      "replace": "    return True\n",
+     "matches": 1},
+    {"why": "#234 - the room's route stops carrying the cards' gear",
+     "file": "control_app.py",
+     "find": "                                 \"gear\": _gear, \"gearWhy\": _gwhy})\n",
+     "replace": "                                 })\n",
+     "matches": 1},
+    {"why": "#234 (the v3548 eye) - the reel is taken back BEFORE the learner's wait, so a waiting reel loses its items",
+     "file": "equipped_ledger.py",
+     "find": "        if cs_waits(cs, reel, hist_dir, now):\n            waiting.append(reel[\"sid\"])\n            continue\n        if _refile:\n",
+     "replace": "        if _refile and _unfile_unattributed(d, reel, hist_dir) is None and cs_waits(cs, reel, hist_dir, now):\n            waiting.append(reel[\"sid\"])\n            continue\n        if _refile:\n",
+     "matches": 1},
+    {"why": "#234 (the v3548 eye) - with no select frame near its start the walk runs on and takes the next visit's screen",
+     "file": "char_select.py",
+     "find": "            if ts - (last[1] if last else first) > VISIT_GAP_S * 1000:\n",
+     "replace": "            if last is not None and ts - last[1] > VISIT_GAP_S * 1000:\n",
+     "matches": 1},
+    {"why": "#234 (the v3548 eye) - a walk cut by the budget restarts from the visit's first frame every tick",
+     "file": "char_select.py",
+     "find": "                v[\"bf\"] = {\"pos\": ts, \"last\": list(last) if last else None}\n",
+     "replace": "                pass\n",
      "matches": 1},
 ]
 

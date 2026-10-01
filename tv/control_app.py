@@ -23922,6 +23922,11 @@ def _heart_memo_store(started, out):
     import time as _t
     # #145 (the #231 eye on v3545) - ONE write. Three assignments let a request read the new clock beside the old body
     # (a replaced census shown as ~0 ms old) or the reverse; dict.update with plain keys is a single step for a reader.
+    # #145 (the v3548 eye) - and the memo only moves FORWARD: an abandoned census that returns late (its reading began
+    # before the one already stored) never replaces the newer census the panel is serving.
+    _m = dict(_HEART_MEMO)
+    if _m.get("v") is not None and float(started) < float(_m.get("t") or 0):
+        return
     _HEART_MEMO.update(t=started, done=_t.time(), v=out)
 
 
@@ -41109,8 +41114,17 @@ class Handler(BaseHTTPRequestHandler):
             try:
                 import char_select as _cs
                 _d = _cs.load()
+                # #234 step 2 - each in-game card is handed what the game showed its character wearing (gear None = the
+                # gear ledger is UNKNOWN, never an empty doll); keyed by the learner's own fold
+                try:
+                    import equipped_ledger as _el
+                    _gd, _gwhy = _el.load()
+                    _gear = _el.gear_by_key(_gd, _cs._fold, _cs.tier_bars())
+                except Exception as _ge:
+                    _gear, _gwhy = None, "the gear ledger raised %s" % type(_ge).__name__
                 self._json(200, {"ok": _d is not None, "chars": _cs.learned(_d), "status": _cs.status(),
-                                 "minVisits": _cs.MIN_VISITS, "tierBars": _cs.tier_bars()})
+                                 "minVisits": _cs.MIN_VISITS, "tierBars": _cs.tier_bars(),
+                                 "gear": _gear, "gearWhy": _gwhy})
             except Exception as e:
                 self._json(200, {"ok": False, "chars": None, "why": "the learner raised %s" % type(e).__name__})
             return

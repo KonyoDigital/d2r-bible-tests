@@ -94,7 +94,7 @@ RED_PROOF = [
      "find": 'out["say"] = "no journal could be read, so what is owed is UNKNOWN — not zero"',
      "replace": 'out["owed"] = 0', "matches": 1},
     {"why": "ingest is idempotent: a reel already in the ledger is not filed twice, so sightings count frames",
-     "file": "equipped_ledger.py", "find": 'if reel["sid"] in done:', "replace": "if False:", "matches": 1},
+     "file": "equipped_ledger.py", "find": 'done = set(d["lane"].get("ingested") or [])', "replace": "done = set()", "matches": 1},
     {"why": "the parse keeps the char-select scene; clamped to gameplay, the login screen has no word and the name goes nowhere",
      "file": "tv_diablo.py", "find": '"transition", "chronicle", "char-select"):', "replace": '"transition", "chronicle"):',
      "matches": 1},

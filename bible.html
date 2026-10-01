@@ -10294,6 +10294,15 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #tab-chars .chx-proof[data-tier="HARDENED"]{border-color:rgba(240,192,96,.6);color:var(--chx-gold)}
 #tab-chars .chx-proof[data-tier="PROVEN"]{border-color:rgba(111,192,111,.55);color:var(--norm)}
 #tab-chars .chx-proof[data-tier="WATCHED"]{border-color:rgba(111,184,232,.5);color:var(--acc-intel)}
+#tab-chars .chx-gear{display:flex;flex-direction:column;gap:3px;font-size:var(--fs-meta);min-width:0}
+#tab-chars .chx-gear-h{color:var(--text-dim)}
+#tab-chars .chx-slots{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:8px;row-gap:2px}
+#tab-chars .chx-slots li{display:contents}
+#tab-chars .chx-slot{color:var(--text-dim)}
+#tab-chars .chx-item{min-width:0;overflow-wrap:anywhere}
+#tab-chars .chx-slots li[data-tier="HARDENED"] .chx-item{color:var(--chx-gold)}
+#tab-chars .chx-slots li[data-tier="PROVEN"] .chx-item{color:var(--norm)}
+#tab-chars .chx-slots li[data-tier="WATCHED"] .chx-item{color:var(--acc-intel)}
 #tab-chars .chx-how{margin:0;padding-left:18px;font-size:var(--fs-body);color:var(--text-muted);line-height:var(--lh-normal)}
 #tab-chars .chx-how li{margin:2px 0}
 #tab-chars .chx-empty-t{font-family:var(--serif-display);font-size:var(--fs-chx-name);color:var(--text)}
@@ -10518,7 +10527,13 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       return false;
     }
     if (nw) nw.disabled = false;
-    if (!Object.keys(r.all).length){
+    /* #234 — THE CHARACTERS THE GAME SHOWED STAND WITHOUT A HAND BUILD. The empty state below used to return before the
+       in-game section was drawn, so a PC where he never saved a build by hand (the ALT, Dean's PC, a fresh board) showed
+       "No characters yet" while its console had learned his characters and what they wear - measured with a served
+       board, 2026-10-01. It is the empty state only when there is nothing learned either. */
+    var _S0 = (!Object.keys(r.all).length && typeof window._cbSections === 'function') ? window._cbSections({}, []) : null;
+    var _learnedAny = !!(_S0 && ((_S0.ingame || []).length || (_S0.mules || []).length));
+    if (!Object.keys(r.all).length && !_learnedAny){
       list.innerHTML = '<div class="chx-empty" data-state="empty"><div class="chx-empty-t">No characters yet</div>'
         + '<div>Build one by hand in the planner. It is kept here, apart from the Vault\'s mules — the readers never add to it.</div>'
         + '<ul class="chx-how"><li><b>+ New character</b> opens the planner: pick a class and level, then click a slot on the doll to equip any item in the game, and click an inventory cell to add charms.</li>'
@@ -10550,6 +10565,45 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     return '<div class="chx-proof" data-tier="' + esc(t.tier || 'UNKNOWN') + '">' + esc(say) + esc(lv)
       + (seen ? '<span class="chx-proof-when"> · last seen ' + esc(seen) + '</span>' : '') + '</div>';
   }
+  /* #234 step 2 — HIS ASK, 2026-10-01: "i want to see the items slowly appearing based on the character they were
+     witnessed in... when i click a mule it shouldnt let me do PLAN BUILD". An in-game card shows what the game showed its
+     character wearing, slot by slot, on the Vault's own tier words - the console's gear ledger (equipped_ledger.
+     gear_by_key, keyed by the learner's own fold). A slot nothing has shown is "not seen yet", never empty; a console
+     that could not read the ledger says UNKNOWN. Planning by hand stays in Simulation builds (+ New character). */
+  var _SLOT_WORD = { helm: 'Helm', amulet: 'Amulet', weapon: 'Weapon', torso: 'Armor', 'off-hand': 'Off-hand',
+                     gloves: 'Gloves', ring1: 'Ring 1', belt: 'Belt', ring2: 'Ring 2', boots: 'Boots' };
+  var _TIER_FACE = { HARDENED: '🔒 HARDENED', PROVEN: '✓ PROVEN', WATCHED: '👁 WATCHED' };
+  function _gearOf(t){
+    var L = (typeof window._cbLearnedNow === 'function') ? window._cbLearnedNow() : null;
+    if (!L || !Object.prototype.hasOwnProperty.call(L, 'gear')) return { state: 'unknown', why: 'this console has not said what its characters wear' };
+    if (L.gear === null) return { state: 'unknown', why: L.gearWhy || 'its gear ledger could not be read' };
+    /* the card's key is the planner's template key ('seen:' + the learner's fold); the gear map is keyed by that fold */
+    var k = String(t.key || ''); if (k.indexOf('seen:') === 0) k = k.slice(5);
+    var g = (L.gear || {})[k];
+    return g ? { state: 'seen', g: g } : { state: 'none' };
+  }
+  function _looks(n){ n = n | 0; return n + (n === 1 ? ' look' : ' looks'); }
+  function _gearHtml(t){
+    var G = _gearOf(t), nm = esc(t.name || 'this character');
+    if (G.state === 'unknown') return '<div class="chx-gear" data-state="unknown"><div class="chx-gear-h">What ' + nm
+      + ' wears is UNKNOWN here — ' + esc(G.why) + '.</div></div>';
+    if (G.state === 'none') return '<div class="chx-gear" data-state="none"><div class="chx-gear-h">Nothing seen on ' + nm
+      + ' yet — items appear here as your reels see them worn.</div></div>';
+    var seen = 0;
+    var rows = (G.g.slots || []).map(function(s){
+      var word = '<span class="chx-slot">' + esc(_SLOT_WORD[s.slot] || s.slot) + '</span>';
+      if (!s.item) return '<li data-slot="' + esc(s.slot) + '" data-state="unseen">' + word + '<span class="chx-item chx-unk">not seen yet</span></li>';
+      seen++;
+      return '<li data-slot="' + esc(s.slot) + '" data-tier="' + esc(s.tier || 'UNKNOWN') + '">' + word
+        + '<span class="chx-item">' + esc(s.item) + ' · ' + esc(_TIER_FACE[s.tier] || 'tier UNKNOWN') + ' · ' + _looks(s.sightings) + '</span></li>';
+    }).join('');
+    var un = (G.g.unplaced || []);
+    var unTxt = un.length ? '<div class="chx-gear-h">Worn, slot not told yet: ' + un.map(function(u){
+      return esc(u.item) + ' (' + _looks(u.sightings) + ')'; }).join(' · ') + '</div>' : '';
+    return '<div class="chx-gear" data-state="seen"><div class="chx-gear-h">Seen on ' + nm + ' in game · ' + seen + ' of '
+      + (G.g.slots || []).length + ' slots so far</div><ul class="chx-slots">' + rows + '</ul>' + unTxt + '</div>';
+  }
+  window._chxGearHtml = _gearHtml;
   function _ghost(t){
     return '<article class="chx-card chx-ghost" data-learned="' + esc(t.key) + '">'
       + '<div class="chx-top"><span class="chx-crest" aria-hidden="true">' + esc(String(t.cls || '?').charAt(0)) + '</span>'
@@ -10557,8 +10611,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       +   '<div class="chx-cls">' + (t.cls ? esc(t.cls) : '<span class="chx-unk">class UNKNOWN</span>') + ' · '
       +     (t.level ? 'level ' + (t.level | 0) : '<span class="chx-unk">level UNKNOWN</span>') + (t.title ? ' · ' + esc(t.title) : '') + '</div></div></div>'
       + _proof(t)
-      + '<div class="chx-when">no build saved for this character yet</div>'
-      + '<div class="chx-acts"><button type="button" class="chx-btn chx-open" data-act="plan" data-for="' + esc(t.key) + '" onclick="window._charsPlan(' + arg(t.key) + ')">Plan a build</button></div>'
+      + _gearHtml(t)
       + '</article>';
   }
   function _sections(all, order, mainId){

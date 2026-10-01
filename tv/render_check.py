@@ -1326,6 +1326,49 @@ TARGETS = {
         "warmup": 4.0,
         "widths": ((1440, 1000), (901, 900), (375, 800)),   # one breakpoint; see check()      # fixture-seeded; waits only for the page (the gate is 300s)
     },
+    "chars-ingame": {
+        "serve": True,
+        "path": "/board?app=1#chars",
+        "why": "#234 step 2 - THE IN-GAME CARD SHOWS WHAT ITS CHARACTER WEARS. His ask: 'i want to see the items "
+               "slowly appearing based on the character they were witnessed in'. Each learned character's card lists "
+               "the ten doll slots on the Vault's tier words (a slot nothing showed says 'not seen yet'), and no "
+               "in-game or mule card offers Plan a build. Served, because the roster arrives from the console; the "
+               "roster is a FIXTURE (two made-up characters - the repo is public) answered at /api/chars_learned",
+        "seed": """(function(){ return 1; })()""",
+        "activate": """(function(){
+            /* ⚠ IDEMPOTENT: the harness re-runs this every 0.4s, so the fetch is wrapped and asked once */
+            if (!window.__rcCharsAsked) {
+              var slots = ['helm','amulet','weapon','torso','off-hand','gloves','ring1','belt','ring2','boots'];
+              var worn = {helm: ['Harlequin Crest', 4, 'PROVEN'], torso: ['Enigma', 7, 'HARDENED'],
+                          weapon: ['Grief', 1, 'WATCHED'], ring1: ['Stone of Jordan', 3, 'PROVEN']};
+              var FIX = {ok: true, minVisits: 2, tierBars: {proven: 3, hardened: 6, wilson: 0.6},
+                chars: [{name: 'Frostnova', key: 'frostnova', cls: 'Sorceress', level: 81, pendingLevel: null, visits: 9,
+                         title: null, lastTs: Date.now() - 3600000, tier: 'PROVEN', looks: 9, trials: 9, misses: 0},
+                        {name: 'Mulebox', key: 'mulebox', cls: 'Warlock', level: 1, pendingLevel: null, visits: 3,
+                         title: null, lastTs: Date.now() - 86400000, tier: 'WATCHED', looks: 3, trials: 3, misses: 0}],
+                gear: {frostnova: {name: 'Frostnova', reels: 3, slots: slots.map(function(s){
+                         var w = worn[s]; return w ? {slot: s, item: w[0], sightings: w[1], tier: w[2]}
+                                                   : {slot: s, item: null, sightings: 0, tier: null}; }),
+                       unplaced: [{item: 'String of Ears', sightings: 2, tier: 'WATCHED'}]}}};
+              var real = window.fetch;
+              window.fetch = function(u){ if (String(u).indexOf('/api/chars_learned') >= 0)
+                  return Promise.resolve({ok: true, json: function(){ return Promise.resolve(FIX); }});
+                return real.apply(this, arguments); };
+              window.__rcCharsAsked = 1;
+              try { if (typeof window.switchTab === 'function') window.switchTab('chars'); } catch (e) {}
+              try { if (typeof window.renderCharsTab === 'function') window.renderCharsTab(); } catch (e) {}
+            }
+            var g = document.querySelector('#chars-list .chx-gear[data-state="seen"]');
+            if (!g) return false;
+            g.scrollIntoView({block: 'center'});
+            var r = g.getBoundingClientRect();
+            return !!(r.width > 50 && r.height > 20
+                      && !document.querySelector('#chars-list [data-sec="ingame"] [data-act="plan"]')); })()""",
+        "sel": "#chars-list .chx-gear, #chars-list .chx-ghost .chx-name, #chars-list .chx-ghost .chx-proof",
+        "settles": False,
+        "warmup": 4.0,
+        "widths": ((1440, 1000), (1120, 900), (901, 900), (375, 800)),
+    },
     "pop-asks": {
         "serve": True,
         "path": "/board?app=1#tools",
