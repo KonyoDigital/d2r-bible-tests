@@ -165,6 +165,25 @@ class TestTheBumpRefusesATreeThatDoesNotParse(unittest.TestCase):
         self.assertEqual(io.open(os.path.join(d, "bible.html"), encoding="utf-8").read(), before,
                          "the bump REFUSED and still wrote — 'nothing written' must mean nothing")
 
+    def test_the_bump_refuses_a_name_that_repeats_the_version(self):
+        """REG-1689 — v3545 and v3546 were bumped with the version as their name, so the badge read
+        "v3546 · 2026-10-01 · v3546" and CI's badge spec (v1748) went red after the publish. The
+        name is the badge's words; it must say what the version does. Baseline first: a real name
+        passes THIS guard (it may still stop later, at the parse), so a refusal below is the name's."""
+        d = self._temp_repo()
+        before = io.open(os.path.join(d, "bible.html"), encoding="utf-8").read()
+        for bad in ("v99999", "V99999 ", "v99999 - again", ""):
+            with self.assertRaises(SystemExit) as cm:
+                B.bump("v99999", bad, "a plain note", repo=d)
+            self.assertIn("never repeat the version", str(cm.exception), "name %r: %s" % (bad, cm.exception))
+        self.assertEqual(io.open(os.path.join(d, "bible.html"), encoding="utf-8").read(), before,
+                         "the bump REFUSED a name and still wrote")
+        try:
+            B.bump("v99999", "the river reopens", "closed the </script> tag", repo=d)
+        except SystemExit as e:
+            self.assertNotIn("never repeat the version", str(e), "a real name was refused as a repeat")
+
+
 class TheHeartGateGradesTheTreeBeingBumped(unittest.TestCase):
     """#223 — `bump(repo=...)` stamps the tree it is handed, and its heart gate ran `git diff` beside
     the SCRIPT regardless: a bump aimed at a temp tree was refused for uncommitted edits in the LIVE
@@ -234,6 +253,13 @@ RED_PROOF = [
         "file": "bump_version.py",
         "find": "    _preflight(repo)\n\n    today = datetime.date.today().isoformat()",
         "replace": "    today = datetime.date.today().isoformat()",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1689 - the bump stamps a name that repeats the version, and the badge prints it twice",
+        "file": "bump_version.py",
+        "find": "    if not _nm or _nm.startswith(str(ver).strip().lower()):\n",
+        "replace": "    if False:\n",
         "matches": 1,
     },
 ]

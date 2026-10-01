@@ -244,6 +244,12 @@ def bump(ver, name, note, repo=None):
             % (ver, _busy))
     if "'" in note or "'" in name:
         raise SystemExit("apostrophe in note/name would break the single-quoted D2R_BUILD literal")
+    # REG-1689 - THE NAME IS THE BADGE'S WORDS, NEVER THE VERSION AGAIN. v3545-v3546 were bumped with the version as their
+    # name, and the badge read "v3546 · 2026-10-01 · v3546" - CI's v1748 badge spec went red after the publish.
+    _nm = str(name or "").strip().lower()
+    if not _nm or _nm.startswith(str(ver).strip().lower()):
+        raise SystemExit("the short name must say what %s DOES (e.g. \"one clock hour\"), never repeat the version - "
+                         "the badge printed it twice (tests/v1748_build_badge_says_it_once.spec.ts)" % ver)
     _heart_gate(note, repo)
 
     # 2026-08-20 — AND A NOTE MAY NOT NAME A CSS TOKEN IN CALLABLE FORM.

@@ -406,6 +406,19 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1689 - THE BADGE SAID "v3546 · 2026-10-01 · v3546", AND CI'S BADGE SPEC WENT RED AFTER THE PUBLISH (2026-10-01)
+
+**SEEN on CI after v3545+v3546 landed (64648adc):** Routine I failed on exactly one spec,
+`tests/v1748_build_badge_says_it_once.spec.ts:23` - "neither the badge nor the tab title repeats the version". I had
+bumped v3545, v3546 and v3547 with the version itself as the short name, and the badge prints `id · date · name`.
+Attributed by delta: Routine I was green on acf09f7a; the other spec in that shard (`v1812_tab_strip_edge_fade:39`) was
+FLAKY (passed on retry), not failed. **Now** v3547's name says what it does ("the river reopens"), and
+`bump_version.bump()` refuses an empty name or one that starts with the version, before anything is written - the
+browser spec only ever saw it after the site had published. Law: `tv/test_the_bump_refuses_a_tree_that_does_not_parse.py`
+(+1 case: four repeat spellings refused with nothing written; a real name passes this guard), red-proof [5] PROVEN.
+**Same push:** the agent-tests shard law went red because the gate cost table covered 94.9% of the registry after the new
+laws; refreshed from that run's CI log (767 gates).
+
 ### REG-1688 - AFTER v3546 TWO MORE ALT BLINDS KEPT ITS RIVER SHUT, AND SEVEN MORE WERE COMING (2026-10-01)
 
 **SEEN 17:56:** his ALT pulled v3546 by itself; `may()` still answered False for all four river locks, citing three BLIND
