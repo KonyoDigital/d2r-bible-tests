@@ -8787,6 +8787,13 @@ GATES = [
              "its own with rmtree(ignore_errors=True), which fails silently on Windows while grok still holds a file "
              "there. A read's session is removed with retries or counted, and every read sweeps earlier reads' "
              "leftovers by their unique tvd-g5- name only."),
+    Gate("test_a_character_learned_late_still_gets_its_gear",
+         [sys.executable, os.path.join(HERE, "test_a_character_learned_late_still_gets_its_gear.py")], 60,
+         needs_app=False,
+         why="#234 step 1 (2026-10-01) - his Mac's learner knew 12 characters and had 0 logins, so the gear ledger held 0 "
+             "characters and all 19 worn reads were UNATTRIBUTED: visits filed before v3530 never got their closing "
+             "read, and an ingested reel was never filed again. An old visit is given its last frame and one closing "
+             "read; a reel filed with no character is filed again once a login names one, counted once."),
     Gate("test_an_abandoned_seal_is_finished_not_waited_on",
          [sys.executable, os.path.join(HERE, "test_an_abandoned_seal_is_finished_not_waited_on.py")], 60,
          needs_app=False,

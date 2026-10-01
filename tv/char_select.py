@@ -443,7 +443,53 @@ def _close_owed(vid, v):
     lf = v.get("lastFrame") if isinstance(v, dict) else None
     if not isinstance(lf, dict) or v.get("closed"):
         return False
+    if v.get("closeOwed"):
+        return True                     # #234 - a back-filled visit owes its close whatever the gap (see below)
     return int(lf.get("ts") or 0) - int(v.get("ts") or 0) >= CLOSE_READ_GAP_MS
+
+
+def _backfill_last_frames(d, root, stats, t0, budget_s, clock):
+    """#234 step 1 - A VISIT FILED BEFORE v3530 NEVER GETS ITS CLOSING READ. -> (n_found, why)
+
+    MEASURED on his Mac 2026-10-01: the learner knew 12 characters from 5 visits and had 0 logins, so the gear ledger filed
+    every worn read UNATTRIBUTED (19 reads, 0 characters) and the in-game cards stayed empty. Each of those visits was
+    recorded before v3530 began keeping a visit's lastFrame and the highlighted row (`sel`); with no lastFrame
+    _close_owed answers no, and the reel's scan cursor walked past them long ago - so the one read that names the
+    character he entered with could never run. This finds such a visit's LAST character-select frame in its own reel,
+    once, and owes it one closing read (the hourly cap and tick budget still decide when). A visit that already named its
+    row, or whose reel is gone (closed with that reason), is left as it is. [[the-unjoined-end]]"""
+    n = 0
+    for vid, v in list((d.get("visits") or {}).items()):
+        if not isinstance(v, dict) or v.get("closed") or isinstance(v.get("lastFrame"), dict) or v.get("sel"):
+            continue
+        reel = str(v.get("reel") or str(vid).split("#")[0])
+        rd = os.path.join(root, reel)
+        if not os.path.isdir(rd):
+            v["closed"] = "the reel is gone - its last frame cannot be read"
+            continue
+        try:
+            first = int(str(vid).split("#", 1)[1])
+        except (IndexError, ValueError):
+            first = int(v.get("ts") or 0)
+        last = None
+        for p in sorted(glob.glob(os.path.join(rd, "f_*.jpg"))):
+            ts = _frame_ts(p) or 0
+            if ts < first:
+                continue
+            if last is not None and ts - last[1] > VISIT_GAP_S * 1000:
+                break
+            if clock() - t0 > budget_s:
+                return n, "tick budget spent"
+            hit, _w = looks_like_char_select(stats(p))
+            if hit:
+                last = (os.path.basename(p), ts)
+        if last is None:
+            v["closed"] = "no character-select frame of this visit is left in its reel"
+            continue
+        v["lastFrame"] = {"reel": reel, "frame": last[0], "ts": last[1]}
+        v["closeOwed"] = "backfill"
+        n += 1
+    return n, ""
 
 
 def _closing_reads(d, root, reader, st, now_s, work, t0, budget_s, clock):
@@ -576,8 +622,13 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
     finished = []
     why = ""
     try:
+        # #234 - a visit filed before v3530 is given its last frame first, so the close below can read it
+        _bf, why = _backfill_last_frames(d, root, stats, t0, budget_s, clock)
+        if _bf:
+            st["backfilled"] = int(st.get("backfilled") or 0) + _bf
         # #103 step B - a visit that ended in an earlier tick and still owes its closing read goes first
-        closed, why = _closing_reads(d, root, reader, st, now_s, work, t0, budget_s, clock)
+        if not why:
+            closed, why = _closing_reads(d, root, reader, st, now_s, work, t0, budget_s, clock)
         for rd in ([] if why else reels):
             name = os.path.basename(rd)
             frames = sorted(glob.glob(os.path.join(rd, "f_*.jpg")))

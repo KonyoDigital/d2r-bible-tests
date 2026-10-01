@@ -631,6 +631,38 @@ def _file_worn(char_rec, w, sid, gid):
     char_rec["lastTs"] = _newest(char_rec.get("lastTs"), w["ts"])
 
 
+def _refile_due(d, reel):
+    """#234 step 1 - A REEL FILED WITH NO CHARACTER IS FILED AGAIN ONCE A LOGIN NAMES ONE. -> bool
+
+    MEASURED on his Mac 2026-10-01: 19 worn reads in 10 reels sat UNATTRIBUTED, 0 characters, because the learner had no
+    logins yet; a login that arrives later (char_select's back-filled closing read) changed nothing, since an ingested
+    reel was never looked at again. Due only when the reel is on the unattributed list, its spans now name a character,
+    and no character record lists it - so a reel already filed under someone is never filed twice."""
+    u = d.get("unattributed") or {}
+    if reel["sid"] not in (u.get("reels") or []):
+        return False
+    if not any(sp.get("character") for sp in reel.get("spans") or []):
+        return False
+    return not any(reel["sid"] in (rec.get("reels") or []) for rec in (d.get("characters") or {}).values())
+
+
+def _unfile_unattributed(d, reel, hist_dir):
+    """#234 - take back what this reel added to `unattributed` before it is filed again: every worn item it carries went
+    there (no character record lists it - _refile_due), so the counts come back down by exactly those, floored at 0. The
+    spans still without a character are added again by the filing that follows, with the same reason."""
+    u = d["unattributed"]
+    nm = u.setdefault("names", {})
+    for sp in reel.get("spans") or []:
+        for r in sp["rows"]:
+            for w in worn_from_row(r, hist_dir):
+                u["reads"] = max(0, int(u.get("reads") or 0) - 1)
+                if w["item"] in nm:
+                    nm[w["item"]] = int(nm[w["item"]] or 0) - 1
+                    if nm[w["item"]] <= 0:
+                        nm.pop(w["item"], None)
+    u["reels"] = [s for s in (u.get("reels") or []) if s != reel["sid"]]
+
+
 def ingest(journals, hist_dir, now_ms=None, store=None, gap_ms=None, logins=_UNSET, cs=_UNSET):
     """Read the journals, file every worn item of every SEALED reel not yet ingested. -> receipt
 
@@ -660,12 +692,16 @@ def ingest(journals, hist_dir, now_ms=None, store=None, gap_ms=None, logins=_UNS
         d["gameSessions"][s["id"]] = {k: v for k, v in s.items()}
     done = set(d["lane"].get("ingested") or [])
     ingested, rolling, waiting, filed, unatt = [], [], [], 0, 0
+    refiled = []
     for reel in reels:
         if not reel["sealed"]:
             rolling.append(reel["sid"])
             continue
         if reel["sid"] in done:
-            continue
+            if not _refile_due(d, reel):
+                continue
+            _unfile_unattributed(d, reel, hist_dir)        # #234 - a login now names this reel's character
+            refiled.append(reel["sid"])
         if cs_waits(cs, reel, hist_dir, now):
             waiting.append(reel["sid"])
             continue
@@ -693,11 +729,14 @@ def ingest(journals, hist_dir, now_ms=None, store=None, gap_ms=None, logins=_UNS
                         u["why"] = ("worn items seen in a reel with no login and no rollover chain — %s"
                                     % (d["gameSessions"].get(gid, {}).get("why") or "the reel's session names no character"))
                         unatt += 1
-        ingested.append(reel["sid"])
-    if ingested:
+        if reel["sid"] not in done:
+            ingested.append(reel["sid"])
+    if ingested or refiled:
         lane = d["lane"]
         lane["ingested"] = (list(lane.get("ingested") or []) + ingested)[-_INGESTED_KEPT:]
-        lane["worked"] = int(lane.get("worked") or 0) + len(ingested)
+        lane["worked"] = int(lane.get("worked") or 0) + len(ingested) + len(refiled)
+        if refiled:
+            lane["refiled"] = int(lane.get("refiled") or 0) + len(refiled)
         lane["lastTs"] = now
         try:
             _save(d, store)
@@ -708,6 +747,9 @@ def ingest(journals, hist_dir, now_ms=None, store=None, gap_ms=None, logins=_UNS
     why = ("ingested %d sealed reel(s): %d worn item(s) filed under %d character(s), %d unattributed"
            % (len(ingested), filed, len(d["characters"]), unatt)
            if ingested else "nothing new: every sealed reel in the journal is already in the ledger")
+    if refiled:
+        why += (" · %d reel(s) filed earlier with no character were filed again under the character a login now names"
+                % len(refiled))
     if rolling:
         why += " · %d reel(s) still rolling, left for their seal" % len(rolling)
     if waiting:
@@ -715,7 +757,55 @@ def ingest(journals, hist_dir, now_ms=None, store=None, gap_ms=None, logins=_UNS
                 "entered with is filed first)" % len(waiting))
     return {"ok": True, "why": why, "ingested": ingested, "rolling": rolling, "waiting": waiting,
             "logins": len(lrows), "filed": filed, "unattributed": unatt, "characters": sorted(d["characters"]),
-            "journal": rep}
+            "refiled": refiled, "journal": rep}
+
+
+# ── #234 step 2 — what each in-game card shows ─────────────────────────────────────────────────────────
+#: the doll in the game's own order; the slots slot_identity has not measured yet stay listed, said as not told
+DOLL_ORDER = ("helm", "amulet", "weapon", "torso", "off-hand", "gloves", "ring1", "belt", "ring2", "boots")
+
+
+def _tier_of(n, bars):
+    """sightings -> the Vault's own words, on the Vault's own bars; UNKNOWN when the bars cannot be read"""
+    if not bars:
+        return "UNKNOWN"
+    if n >= int(bars.get("hardened") or 0) > 0:
+        return "HARDENED"
+    if n >= int(bars.get("proven") or 0) > 0:
+        return "PROVEN"
+    return "WATCHED"
+
+
+def gear_by_key(d, fold, bars):
+    """#234 step 2 — HIS ASK: "i want to see the items slowly appearing based on the character they were witnessed in".
+    -> {folded name: {slots: [{slot, item, sightings, tier, ts, reel}], unplaced: [...], reels, lastTs}} | None
+
+    Keyed by the SAME fold the character-select learner keys its characters by (passed in, never a second copy), so a
+    learned card finds its gear by its own key. Every doll slot is listed: a slot with nothing seen is `item: None`
+    (not seen yet - never "empty"), and a worn item whose slot could not be told sits in `unplaced` with its reason.
+    None when the ledger is UNKNOWN. [[unknown-stays-unknown]]"""
+    if d is None:
+        return None
+    out = {}
+    for name, rec in (d.get("characters") or {}).items():
+        if not isinstance(rec, dict):
+            continue
+        slots = rec.get("slots") or {}
+        rows = []
+        for s in DOLL_ORDER:
+            cur = slots.get(s) if isinstance(slots.get(s), dict) else None
+            n = int((cur or {}).get("sightings") or 0)
+            rows.append({"slot": s, "item": (cur or {}).get("item"), "sightings": n,
+                         "tier": _tier_of(n, bars) if cur else None, "ts": (cur or {}).get("ts"),
+                         "reel": (cur or {}).get("reel")})
+        unplaced = []
+        for item, u in sorted((rec.get("unplaced") or {}).items()):
+            n = int((u or {}).get("sightings") or 0)
+            unplaced.append({"item": item, "sightings": n, "tier": _tier_of(n, bars),
+                             "why": (u or {}).get("why"), "ts": (u or {}).get("lastTs")})
+        out[fold(name)] = {"name": name, "slots": rows, "unplaced": unplaced,
+                           "reels": len(rec.get("reels") or []), "lastTs": rec.get("lastTs")}
+    return out
 
 
 # ── the heart's vocabulary ─────────────────────────────────────────────────────────────────────────────
