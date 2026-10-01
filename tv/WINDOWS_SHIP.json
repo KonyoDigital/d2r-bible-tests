@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3547",
+  "ver": "v3548",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3547: the ALT river reopens for good: proofs that need an install or macOS are judged where those are, never BLIND; abandoned reel seals are finished; Grok read leftovers are swept",
+  "note": "v3548: characters learned late get their logins and gear (each card is handed its ten doll slots); a session opens by its own id at every door; one route table on every PC - a bare GeForce NOW window counts like Boosteroid; the HEART refresh never wedges and shows one census; a push never banks an all-ELSEWHERE gate",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

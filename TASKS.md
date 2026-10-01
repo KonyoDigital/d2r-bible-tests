@@ -1733,7 +1733,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3547** | `(this commit)` | v3547 — the ALT river reopens for good: proofs that need an install or macOS are judged where those are, never BLIND; abandoned reel seals are finished; Grok read leftovers are swept |
+| **v3548** | `(this commit)` | v3548 — characters learned late get their logins and gear (each card is handed its ten doll slots); a session opens by its own id at every door; one route table on every PC - a bare GeForce NOW window counts like Boosteroid; the HEART refresh never wedges and shows one census; a push never banks an all-ELSEWHERE gate |
+| **v3547** | `005708bf` | v3547 — the ALT river reopens for good: proofs that need an install or macOS are judged where those are, never BLIND; abandoned reel seals are finished; Grok read leftovers are swept |
 | **v3546** | `64648adc` | v3546 — the ALT river reopens: a proof that needs what a PC lacks is judged elsewhere, never BLIND |
 | **v3545** | `83766079` | v3545 — the HEART opens on one click and refreshes itself, the disk floor takes finished footage first, and a shadow hour holds across the fall-back night |
 | **v3544** | `302e0971` | v3544 — a shadow session is one clock hour and a proof slice keeps what it proved |
