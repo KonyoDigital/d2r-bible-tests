@@ -406,6 +406,48 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1684 - v3544'S CI WENT RED ON A SIBLING LAW WHOSE REELS CROSSED THE CLOCK HOUR (agent tests, 2026-10-01)
+
+**Seen:** v3544 (acf09f7a) agent tests red - `test_an_update_lands_beside_a_shadow_reel`, 6 failures, all "the shadow
+reel was cut". Every other workflow green. **Cause, mine:** REG-1675 made a shadow reel close at the clock hour; this
+law begins its reels 10 min back, so when the gate set reached it a few minutes past an hour (13:0x UTC on the runner)
+the reel straddled :00 and the real hour rule closed it. Green on the Mac at 16:1x - the same wall-clock shape the #231
+seat found in the shadow law itself (263715fb). **Reproduced** with the clock shifted to 2 min past an hour: the same 6.
+**Fix:** this law pins a reel's hour to its own 60 minutes (the clock hour is the shadow law's subject, not this one's);
+42/42 at :02, :30 and :59; its 20 red-proofs PROVEN. **Swept:** every law that ticks the shadow watch, at :02 and :58 -
+test_a_bare_boosteroid_window_must_show_the_hud, test_a_read_verdict_is_never_stored,
+test_the_game_on_screen_decides_play_not_the_app and test_control's 3 classes were already clean.
+
+### REG-1682 - THE SHADOW DOCTOR PASSED AN "UNKNOWN" FRAGMENT READING AS A HEALTHY WATCH (the v3544 eye, 2026-10-01)
+
+**Found by** the Grok seat on v3544. `check_shadow_watch` warned only on state "warn"; any other state fell through to
+the OK row. Latent today, and its other half was real: `_shadow_fragment_reading` answered a record it could not read
+with state None - "a quiet hour". **Now** the reading says "unknown" for an unreadable record, and the doctor says every
+state but the quiet one (WARN as WARN, anything else UNKNOWN). Law: `tv/test_a_shadow_session_rolls_over_every_hour.py`
+(TheV3544EyeFindings), 2 red-proofs; the REG-1675 doctor proof re-anchored.
+
+### REG-1681 - ONE UNREADABLE "IS THE GAME RUNNING" ERASED A CONFIRMED ABSENCE AND RESTARTED THE GRACE (the v3544 eye, 2026-10-01)
+
+**Found by** the Grok seat on v3544. In the away branch, `_run is not False` (True OR None) wrote `gameGoneSince=None`.
+None is what a timed-out process probe answers - the case the lane already treats as UNKNOWN, not gone (REG-1652). So a
+game absent for 170 s, then one failed probe, started the three minutes over; a probe failing once every couple of
+minutes meant the away-seal never came and the reel ran to the clock hour. **Now** only a RUNNING answer ends an
+absence; an unreadable one neither seals nor erases the absence a False already confirmed. Law: TheV3544EyeFindings
+(reproduced: False, then None at 150 s, then False at 185 s seals), 1 red-proof.
+
+### REG-1680 - HIS FALL-BACK NIGHT WOULD SEAL A SHADOW SESSION THE MOMENT IT OPENED (the v3544 eye, 2026-10-01)
+
+**Found by** the Grok seat on v3544; **reproduced in his own zone**: Asia/Jerusalem falls back 2026-10-25 (02:00 IDT ->
+01:00 IST). `_shadow_hour_end_ms` round-tripped the wall hour through `mktime(..., isdst=-1)` + 3600 s; the repeated
+01:00 is one struct for two absolute hours, so a reel begun in the SECOND 01:40 got an end 40 min in the PAST and sealed
+"clock-hour" within seconds. Same in New York on 2026-11-01. And `_shadow_hour_key` ("2026-10-25 01") named both hours,
+so the breaker's cuts and the opens count of two hours were one. **Now** the end is the local minute-of-hour taken off
+the start, plus one hour - always the next :00 in real time, across the fold, the spring gap and half-hour zones
+(checked: Jerusalem, New York, Kolkata) - and the key carries its UTC offset ("2026-10-25 01 +03:00" / "+02:00"; tm_gmtoff
+is filled on every platform). Law: TheV3544EyeFindings, driven on a localtime that carries his zone's real offsets -
+never tzset, which Windows lacks, so the cases run and prove on the ALT. 2 red-proofs; the REG-1675 hour proof
+re-anchored. All 28 of the law's red-proofs PROVEN.
+
 ### REG-1678 - THE DISK FLOOR TOOK A REEL BY AGE, WHETHER THE RIVER HAD READ IT OR NOT (the river-chain audit, 2026-10-01)
 
 **Found by** the river-chain audit he asked for ("ledgered and extracted properly and then tombstoned and obviously then

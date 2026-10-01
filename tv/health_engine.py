@@ -280,8 +280,12 @@ def check_shadow_watch():
         _fr = _ca._shadow_fragment_reading(w)
     except Exception as e:
         return _row("shadowWatch", UNKNOWN, "could not judge whether this hour's sessions fragmented: %s" % str(e)[:60])
-    if _fr.get("state") == WARN:
-        return _row("shadowWatch", WARN, _fr["line"], _ev)
+    # REG-1682 (the v3544 eye) — every state but the quiet one is said: an UNKNOWN reading fell through to the OK row
+    if not isinstance(_fr, dict) or _fr.get("state") is not None:
+        _fs = _fr.get("state") if isinstance(_fr, dict) else None
+        return _row("shadowWatch", WARN if _fs == WARN else UNKNOWN,
+                    (_fr.get("line") if isinstance(_fr, dict) else "") or
+                    "whether this hour's shadow sessions fragmented could not be judged", _ev)
     return _row("shadowWatch", OK,
                 "watching for the game every 20 s (last look %.0f s ago) · %s reel(s) started · "
                 "%s rolled over on the hour · %s"

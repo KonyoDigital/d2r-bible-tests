@@ -43,6 +43,7 @@ The cases above keep their meaning with the hour boundary stubbed to "start + 60
 so none of them depends on the wall clock or on what is running on the machine that runs them. RED_PROOF below.
 """
 import ast
+import calendar
 import io
 import json
 import os
@@ -51,6 +52,7 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -455,6 +457,100 @@ class TheShadowHourIsTheClockHour(_Base):
         self.assertIn("shadow_seals.jsonl", row.get("line") or "")
 
 
+class TheV3544EyeFindings(_Base):
+    """REG-1680..1682 - the cross-family eye on v3544, each finding reproduced before it was fixed.
+
+    REG-1680: his zone falls back on 2026-10-25 (02:00 IDT -> 01:00 IST). The old hour end round-tripped the wall hour
+    through mktime, so a reel begun in the SECOND 01:40 got an end 40 min in the past and sealed at once; and the key
+    "2026-10-25 01" named both 01:00 hours. Driven on a localtime that carries his zone's real offsets - never tzset,
+    which Windows lacks, so the cases run (and their red-proofs prove) on the ALT too.
+    REG-1681: one unreadable "is the game running" answer erased a confirmed absence and restarted the grace.
+    REG-1682: the doctor passed an UNKNOWN fragment reading as OK, and the reading called an unreadable record quiet."""
+
+    FOLD = calendar.timegm((2026, 10, 24, 23, 0, 0))      # 02:00 IDT -> 01:00 IST
+
+    def _jerusalem(self, secs=None):
+        secs = time.time() if secs is None else float(secs)
+        off = 10800 if secs < self.FOLD else 7200
+        g = time.gmtime(secs + off)
+        return time.struct_time(tuple(g)[:8] + (1 if off == 10800 else 0,),
+                                {"tm_zone": "IDT" if off == 10800 else "IST", "tm_gmtoff": off})
+
+    def _in_his_zone(self):
+        p = mock.patch.object(time, "localtime", self._jerusalem)
+        p.start()
+        self.addCleanup(p.stop)
+
+    def test_the_folded_hour_ends_at_the_next_top_of_the_clock_both_times(self):
+        self._in_his_zone()
+        real = self._saved["_shadow_hour_end_ms"]
+        first = (self.FOLD - 20 * 60) * 1000                 # 01:40 IDT
+        second = first + 3600 * 1000                          # 01:40 IST - the repeated hour
+        self.assertEqual(real(first) - first, 20 * MIN, "the first 01:40 does not end at the next :00")
+        self.assertEqual(real(second) - second, 20 * MIN,
+                         "the SECOND 01:40 on his fall-back night ends %.0f min from its start - a session that "
+                         "seals the moment it opens" % ((real(second) - second) / 60000.0))
+
+    def test_the_two_folded_hours_are_two_keys(self):
+        self._in_his_zone()
+        first = (self.FOLD - 20 * 60) * 1000
+        k1, k2 = ca._shadow_hour_key(first), ca._shadow_hour_key(first + 3600 * 1000)
+        self.assertNotEqual(k1, k2, "both 01:00 hours of his fall-back night share one key (%s): the breaker's cuts "
+                                    "and the opens count of two hours are one" % k1)
+        self.assertTrue(k1.startswith("2026-10-25 01") and k2.startswith("2026-10-25 01"), (k1, k2))
+
+    def test_the_spring_gap_ends_at_the_next_real_top_of_the_clock(self):
+        spring = calendar.timegm((2026, 3, 26, 23, 40, 0))   # 01:40 IST, the night 02:00 does not exist
+
+        def lt(secs=None):
+            secs = time.time() if secs is None else float(secs)
+            off = 7200 if secs < calendar.timegm((2026, 3, 27, 0, 0, 0)) else 10800
+            return time.struct_time(tuple(time.gmtime(secs + off))[:8] + (0,), {"tm_zone": "x", "tm_gmtoff": off})
+        with mock.patch.object(time, "localtime", lt):
+            end = self._saved["_shadow_hour_end_ms"](spring * 1000)
+        self.assertEqual(end - spring * 1000, 20 * MIN, "01:40 on the spring night does not end at the next :00 (03:00)")
+
+    def test_an_unreadable_answer_does_not_restart_the_grace(self):
+        self.begin("shadow", self.now - 10 * MIN)
+        self.window = None
+        self.running = False
+        ca.shadow_watch_tick()                                    # gone, and confirmed gone: the clock arms
+        armed = self.record().get("gameGoneSince")
+        self.assertIsNotNone(armed, "PREMISE: a confirmed absence did not arm the grace")
+        self.now += (ca._SHADOW_AWAY_GRACE_S - 30) * 1000
+        self.running = None
+        r = ca.shadow_watch_tick()                                # one ps that could not answer
+        self.assertEqual(self.stops, [], "a reel was sealed on an answer nobody could read: %r" % (r,))
+        self.assertEqual(self.record().get("gameGoneSince"), armed,
+                         "one unreadable answer erased an absence already confirmed - the grace starts over")
+        self.now += 35 * 1000
+        self.running = False
+        r = ca.shadow_watch_tick()
+        self.assertEqual(len(self.stops), 1, "the game was gone %d s across one unreadable answer and the hour kept "
+                                             "rolling: %r" % (ca._SHADOW_AWAY_GRACE_S + 5, r))
+
+    def test_a_running_answer_still_ends_the_absence(self):
+        self.begin("shadow", self.now - 10 * MIN)
+        self.window = None
+        self.running = False
+        ca.shadow_watch_tick()
+        self.running = True
+        ca.shadow_watch_tick()
+        self.assertIsNone(self.record().get("gameGoneSince"), "a game seen RUNNING did not end the absence")
+
+    def test_an_unknown_fragment_reading_is_said_never_ok(self):
+        self.alive = False
+        ca.shadow_watch_tick()                                    # a fresh look, so only the reading decides
+        with mock.patch.object(ca, "_shadow_fragment_reading",
+                               lambda w=None, now_ms=None: {"state": "unknown", "opens": None, "line": "cannot tell"}):
+            row = self.doctor()
+        self.assertEqual(row.get("state"), "unknown", "an UNKNOWN fragment reading read as a healthy watch: %r" % row)
+
+    def test_an_unreadable_record_is_unknown_not_a_quiet_hour(self):
+        r = ca._shadow_fragment_reading(w="not a record")
+        self.assertEqual(r.get("state"), "unknown", r)
+
+
 class TheDoorStampsWhenAReelBegan(unittest.TestCase):
 
     def test_start_agent_stamps_WHEN_beside_WHO_under_one_lock(self):
@@ -544,8 +640,9 @@ RED_PROOF = [
      "file": "control_app.py", "find": "    if now < _hour_end and age_s < limit:\n",
      "replace": "    if age_s < limit:\n", "matches": 1},
     {"why": "REG-1675 - the hour function returns start + 60 min instead of the next top of the clock",
-     "file": "control_app.py", "find": "    return int((top + 3600) * 1000)\n",
-     "replace": "    return int(float(since_ms) + 3600 * 1000)\n", "matches": 1},
+     "file": "control_app.py",
+     "find": "    return ms - ((t.tm_min * 60 + t.tm_sec) * 1000 + ms % 1000) + 3600 * 1000\n",
+     "replace": "    return ms + 3600 * 1000\n", "matches": 1},
     {"why": "REG-1675 - a window gone while the game RUNS (minimized, covered) seals the hour - the morning's 13 cuts",
      "file": "control_app.py",
      "find": "                if _run is not False or _cuts >= _SHADOW_AWAY_CUTS_PER_HOUR:\n",
@@ -561,7 +658,8 @@ RED_PROOF = [
      "file": "control_app.py", "find": "                    _shadow_seal_log(\"close\", reason=\"game-gone\",",
      "replace": "                    (lambda *a, **k: None)(\"close\", reason=\"game-gone\",", "matches": 1},
     {"why": "REG-1675 - the doctor reads a fragmented hour as clean",
-     "file": "health_engine.py", "find": "    if _fr.get(\"state\") == WARN:\n",
+     "file": "health_engine.py",
+     "find": "    if not isinstance(_fr, dict) or _fr.get(\"state\") is not None:\n",
      "replace": "    if False:\n", "matches": 1},
     {"why": "REG-1675 - opens are not counted per clock hour, so no hour can ever read as fragmented",
      "file": "control_app.py",
@@ -676,6 +774,31 @@ RED_PROOF = [
         "replace": "    if False:\n",
         "matches": 1,
     },
+    {"why": "REG-1680 - the hour end round-trips the wall hour through mktime again: the second 01:40 of his fall-back night ends in the past",
+     "file": "control_app.py",
+     "find": "    return ms - ((t.tm_min * 60 + t.tm_sec) * 1000 + ms % 1000) + 3600 * 1000\n",
+     "replace": "    return int((time.mktime((t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, 0, 0, 0, 0, -1)) + 3600) * 1000)\n",
+     "matches": 1},
+    {"why": "REG-1680 - the hour key drops its UTC offset: both 01:00 hours of the fold are one key",
+     "file": "control_app.py",
+     "find": "    return \"%s %s%02d:%02d\" % (time.strftime(\"%Y-%m-%d %H\", t), \"-\" if off < 0 else \"+\", abs(off) // 60, abs(off) % 60)\n",
+     "replace": "    return time.strftime(\"%Y-%m-%d %H\", t)\n",
+     "matches": 1},
+    {"why": "REG-1681 - an unreadable 'is the game running' erases the confirmed absence and restarts the grace",
+     "file": "control_app.py",
+     "find": "                    if _run is not None:\n                        _pn[\"gameGoneSince\"] = None\n",
+     "replace": "                    _pn[\"gameGoneSince\"] = None\n",
+     "matches": 1},
+    {"why": "REG-1682 - the fragment reading calls an unreadable record a quiet hour",
+     "file": "control_app.py",
+     "find": "        return {\"state\": \"unknown\", \"opens\": None,\n",
+     "replace": "        return {\"state\": None, \"opens\": None,\n",
+     "matches": 1},
+    {"why": "REG-1682 - the doctor passes an UNKNOWN fragment reading as a healthy watch",
+     "file": "health_engine.py",
+     "find": "    if not isinstance(_fr, dict) or _fr.get(\"state\") is not None:\n",
+     "replace": "    if not isinstance(_fr, dict) or _fr.get(\"state\") == WARN:\n",
+     "matches": 1},
 ]
 
 

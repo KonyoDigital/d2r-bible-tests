@@ -30295,14 +30295,23 @@ def _shadow_hour_end_ms(since_ms):
     His ruling, 2026-10-01: "should be an hourly session.. starting from 00:00 so its always round.. if i start the game
     in 14:40 ... it should close as a session ... then 1 hour session start again from 15:00 to 16:00". So a reel begun
     at 14:40 closes at 15:00 (a third of a session), and the next runs 15:00 -> 16:00."""
-    t = time.localtime(float(since_ms) / 1000.0)
-    top = time.mktime((t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, 0, 0, 0, 0, -1))
-    return int((top + 3600) * 1000)
+    # REG-1680 (the v3544 eye) — NOT localtime -> mktime(wall hour) + 3600. Across the autumn fold the wall hour is one
+    # struct for two absolute hours, so the SECOND 01:40 got the FIRST 01:00 + 1 h - an end already 40 min past, and the
+    # session sealed seconds after it opened (his zone falls back 2026-10-25). The local minute-of-hour is the same in
+    # both occurrences, so the next :00 is always that many minutes ahead in real time - fold, spring gap or not.
+    ms = int(since_ms)
+    t = time.localtime(ms / 1000.0)
+    return ms - ((t.tm_min * 60 + t.tm_sec) * 1000 + ms % 1000) + 3600 * 1000
 
 
 def _shadow_hour_key(ms):
-    """REG-1675 — the clock hour a moment falls in, as a stable key ("YYYY-MM-DD HH", local). -> str"""
-    return time.strftime("%Y-%m-%d %H", time.localtime(float(ms) / 1000.0))
+    """REG-1675 — the clock hour a moment falls in, as a stable key ("YYYY-MM-DD HH +03:00", local). -> str
+
+    REG-1680 — WITH ITS UTC OFFSET: the autumn fold repeats a wall hour, and "2026-10-25 01" named both, so the breaker's
+    cuts and the opens count of two different hours were one. tm_gmtoff is filled on every platform (Python 3.6+)."""
+    t = time.localtime(float(ms) / 1000.0)
+    off = int(getattr(t, "tm_gmtoff", 0) or 0) // 60
+    return "%s %s%02d:%02d" % (time.strftime("%Y-%m-%d %H", t), "-" if off < 0 else "+", abs(off) // 60, abs(off) % 60)
 
 
 #: REG-1675 — the breaker: a clock hour that has already been cut this many times by an absence closes only on the clock
@@ -30818,8 +30827,13 @@ def shadow_watch_tick():
                             "never cut on a guess; this shadow hour closes at %s" % _ends) if _run is None else
                            ("this clock hour was already cut %d times by an absence - the rest of it closes only on "
                             "the clock, at %s" % (_cuts, _ends)))
-                    _shadow_watch_note(lookedAt=now, gameGoneSince=None, pausedSince=(cur.get("pausedSince") or now),
-                                       why=why)
+                    # REG-1681 (the v3544 eye) — only a RUNNING answer ends an absence. An unreadable one (a ps that
+                    # timed out) neither seals nor erases the absence a False already confirmed: wiping it restarted the
+                    # three-minute grace, and one failed read every couple of minutes meant the seal never came.
+                    _pn = dict(lookedAt=now, pausedSince=(cur.get("pausedSince") or now), why=why)
+                    if _run is not None:
+                        _pn["gameGoneSince"] = None
+                    _shadow_watch_note(**_pn)
                     return {"ok": True, "away": True, "paused": True, "why": why}
                 gone = cur.get("gameGoneSince")
                 if not isinstance(gone, (int, float)):
@@ -30956,7 +30970,9 @@ def _shadow_fragment_reading(w=None, now_ms=None):
     if w is None:
         w = shadow_watch_state()
     if not isinstance(w, dict):
-        return {"state": None, "opens": None, "line": ""}
+        # REG-1682 (the v3544 eye) — a record that cannot be read is UNKNOWN, never a quiet hour
+        return {"state": "unknown", "opens": None,
+                "line": "the shadow watcher's record could not be read, so whether this hour came in parts is UNKNOWN"}
     now = _shadow_now_ms() if now_ms is None else int(now_ms)
     n = int(w.get("opensThisHour") or 0) if w.get("opensHour") == _shadow_hour_key(now) else 0
     if n >= _SHADOW_FRAGMENT_OPENS:

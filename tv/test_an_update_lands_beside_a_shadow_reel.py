@@ -107,7 +107,7 @@ class _Base(object):
              "_stop_inflight", "_exec_relaunch_now", "ui_fault_record", "_CHRON_JOB", "_VAULT_JOB",
              "board_identity_drift", "_tree_is_mid_edit", "_sweep_lock_path", "status_payload",
              "_disk_ver", "_pull_once", "_lane_tick", "IS_WIN", "bare_content_reads",
-             "_RELAUNCH_HOLD", "_DRIFT", "time")
+             "_RELAUNCH_HOLD", "_DRIFT", "time", "_shadow_hour_end_ms")
 
     def setUp(self):
         self.world = tempfile.mkdtemp(prefix="update_beside_shadow_case_")
@@ -132,6 +132,11 @@ class _Base(object):
         self.addCleanup(self._restore)
 
         self.now = int(time.time() * 1000)
+        # REG-1675 made a shadow reel close at the CLOCK hour; this law's reels begin 10 min back, so run in the first
+        # minutes of an hour (v3544's CI, 13:0x UTC) they crossed :00 and the hour closed them - six reds about the
+        # clock, not the update. The clock hour is test_a_shadow_session_rolls_over_every_hour's subject; here a
+        # reel's hour is its own 60 minutes, whatever the wall clock says.
+        ca._shadow_hour_end_ms = lambda since_ms: int(since_ms) + 60 * MIN
         self.alive = False
         self.stop_takes = True
         self.starts, self.stops, self.kills, self.execs, self.faults = [], [], [], [], []
