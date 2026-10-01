@@ -405,6 +405,108 @@ not shown). Every finding was put to the code before anything changed:
 | the console accepts any count >= 0 while the worker caps at 100,000 | `accept_handed_picker._count` refuses above 100,000, the same bound | REFUTED |
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+### REG-1655 - THE DOSSIER STAMPED ITS NUMBER BEFORE ITS CONTENT WAS IN (the v3538 eye, 2026-10-01)
+
+`_sessionDossier` wrote `data-n` before `_dossierHtml(sm)` ran. With session 28's dossier showing, opening 87 whose
+render throws left `innerHTML` and `hidden` as they were - and the beat then read 87 off a live box still showing 28,
+so `/api/status` published a dossier that never rendered. **Now** the number is stamped only after the content is in;
+a render that throws leaves the number of what is still on screen. Law: `tv/test_the_beat_says_which_dossier_is_on_screen.py`
+gains the throwing-render case (28 showing, 87 throws, the beat says 28); its v3538 red-proof re-anchored. 6 red-proofs RED.
+
+### REG-1654 - "THE FIRST TICK RUNS WITHIN 45 S" WAS SAID WHILE IT WAS ALREADY DUE, ON A CLOCK NTP CAN STEP (the v3538 eye, 2026-10-01)
+
+REG-1646's no-tick sentence covered the whole window up to two intervals with "the first runs within 45 s" - but the
+loop sleeps one interval before its first tick, so between 45 s and 90 s the tick was already due and the sentence
+read a lane that had missed its wake as one still on time. And the uptime was `time.time() - _BOOT_AT`, a wall-clock
+stamp, while the loop waits with `time.sleep`: an NTP or manual step moved the verdict ("not ticking" before the first
+wake, or "first runs within" for a lane silent an hour). **Now** uptime is monotonic (`_BOOT_MONO`), and each window
+has its own true sentence: due-at before one interval, "was due and none is recorded yet" in the slack, "not ticking
+... UNKNOWN" after two. Law: `tv/test_an_owing_lane_says_why_it_waits.py` - the slack window and a day-long wall-clock
+step. 7 red-proofs RED.
+
+### REG-1653 - THE PROVER'S BIRTH READ FORKED INSIDE HIS CONSOLE EVERY 10 S (the v3537 eye on REG-1643, 2026-10-01)
+
+`proc_birth()` ran `["ps", ...]` - a bare name with the default `close_fds=True`. That takes `fork_exec`, and his
+console holds the Objective-C runtime, where a fork can wedge between fork and exec at 0% CPU (measured once for 28
+minutes - `test_the_doctor_never_forks_a_quartz_process`). REG-1643 put this read on the 10 s rescue loop for every
+healthy tick of a running proof. That law scans `console_doctor.py` only, so `self_prove.py` was never asked. **Now**
+the read uses an absolute `ps` (looked up once), `close_fds=False` and no `cwd` - the posix_spawn shape - and a
+machine with no absolute `ps` answers UNKNOWN. Law: `tv/test_an_unreadable_prover_is_still_running.py`. 2 of its 4
+red-proofs.
+
+### REG-1652 - A PROVER WHOSE IDENTITY COULD NOT BE READ WAS BOOKED ENDED AND FORGOTTEN, ALIVE (the v3537 eye on REG-1643, 2026-10-01)
+
+`is_ours()` answered False for a reused pid AND for a `proc_birth()` that returned None - ps timing out at 3 s on a
+paging machine, refused, missing - while `pid_alive()` was still True. `guard()` (since REG-1643) and the tick read
+that False as "the proof ended": booked it, `_forget()` dropped the pid, and the prover went on running beside his
+game with nothing tracking it. The tick's `unverified` branch kept a live pid only when no birth had ever been stored,
+and `end_tree`'s wait after a kill ended on the same False, reporting a possible survivor gone. **Now** `identity()` is
+three-valued - ours, not ours, UNKNOWN - and only a definite "not ours" ends a proof; UNKNOWN stays tracked, is never
+killed and nothing starts beside it, in words that say which unknown it is. `is_ours()` stays the strict kill question.
+Laws: `tv/test_an_unreadable_prover_is_still_running.py` (7 cases, 4 red-proofs RED); three self-prove red-proofs that
+anchored on the replaced lines re-anchored (REG-1643, the fix24 skeptic's no-birth case, REG-1511's reused pid) - all RED.
+
+### REG-1651 - THE VAULT LANE'S ROTATION CURSOR WAS NEVER PERSISTED (v3283's claim, 2026-10-01)
+
+v3283 saved the store "where the cursor changes" so a relaunch would resume the rotation - and `_vault_autoread_save()`'s
+payload never carried `cursor`, nor did the loader read one. Every relaunch restarted at the head of the owed list.
+The law that guarded it checked only that `_vault_autoread_save()` sat beside the assignment, which it did - a
+presence-law, green the whole time. **Now** the writer saves the cursor and the loader restores it. Law:
+`tv/test_the_vault_lane_remembers_across_a_restart.py` - a driven save / restart / load round trip. 2 red-proofs RED.
+
+### REG-1650 - EVERY PUSH WROTE HIS LIVE VAULT-LANE MEMORY FROM test_control (2026-10-01)
+
+MEASURED in his live `tv/.vault_autoread.json`: `lastWhy["reel_qqq"] = "vault_retro exploded"` - the fixture of
+`test_a_REAL_failure_still_burns_a_try`, which pops `tries` and `skipped` and not `lastWhy`. test_control isolates every
+`_CHRON_*/_VAULT_*_PATH` global at import (REG-1281, discovered by NAME); this store had no such global, only the
+function `_vault_autoread_path()`, so every test_control run inside his checkout read and wrote his real lane memory -
+and the pre-push hook runs test_control from the pushing checkout, which is his. The run_gates live-state guard never
+saw it: the file was not in `_LIVE_STATE`, and that guard stands down while his console is up. Read from the code (not
+measured): the boot re-entry is reached from `status_payload()`, and five suites call that with no store isolation.
+**Now** `_VAULT_AUTOREAD_PATH` exists and `_vault_autoread_path()` honours a patched one (explicit beats ambient, as
+`_chron_swept_path` does); only a console process (`frame_ref.on_console_path()`) runs the boot re-entry that writes
+the store; `.vault_autoread.json` joins `_LIVE_STATE`. The `reel_qqq` row in his live store is inert and left for his
+call. Law: `tv/test_importing_a_suite_isolates_his_stores.py` - 3 new cases, 3 red-proofs RED (REG-1281's 2 still RED).
+
+### REG-1649 - A RETIREMENT SAID "WHY IS UNKNOWN" UNDER THE SWEEP'S OWN REASON (2026-10-01)
+
+Both of his retired PRINTER reels read "2 attempt(s) ran and this reel is STILL owed afterwards — and no attempt left a
+reason, so WHY is UNKNOWN, not diagnosed" directly under four sweep lines saying "28 frame(s) were READ but only 0 were
+cross-checked". `lastWhy[reel]` was written only when `vault_sweep_start` refused synchronously; a sweep that started
+and could not seal told stdout and `_VAULT_JOB`, never the lane. **Now** a run aimed at one reel writes its own reason
+for that reel on every exit path (raised, INCOMPLETE, not definitive, or "gave no reason" in words), a sealed reel gets
+nothing, and a start clears the last run's reasons. Law: `tv/test_a_retirement_quotes_the_sweeps_own_reason.py` - 7
+cases including the retirement end to end. 3 red-proofs RED.
+
+### REG-1648 - THE VAULT'S CROSS-CHECK HAD BEEN BLIND ON EVERY NEW FRAME FOR A MONTH (2026-10-01)
+
+`vault_corpus.inventory_lattice` is the vault sweep's free second witness: it finds the 10x4 inventory and counts its
+occupied cells, so an over-read is caught and an unnameable stash can still be sealed. Its crop is in fractions of the
+frame; its pitch search (70-100), ridge window (12), square tolerance (4) and cell inset (12) were PIXELS measured on
+his 2940x1912 reel. From 2026-08-31 his Mac records 1440x936 and 1440x904, where a cell is ~42 px: no pitch >= 70 fits
+four rows into the 192 px crop, so every frame read "no grid is visible here". MEASURED across every reel on his Mac:
+0 of 76 sampled 1440-wide frames before, 268 of 273 after; the 2940 reel unchanged (94/94, pitch 86.8 x 85.8, 22/18).
+D2R draws its UI by frame HEIGHT (row pitch 85.75 @1912, 42.0 @936, 40.5 @904), so every pixel constant now scales by
+H/1912; widening the search instead locks onto the 2x column harmonic and was rejected. Six panels from five reels
+checked cell for cell by eye; the Grok CLI, given no premise, counted the hardest one 10x4 / 26 / 14 - the same.
+**What it unlocks:** reels whose seal could never be definitive (his 66296 and 82142 among them) can now seal under
+the existing rules and move on down the river; no deletion rule changed. Law:
+`tv/test_the_lattice_reads_every_capture_height.py` - drawn inventories at all three heights, the refusals at 1440, and
+his frames where they exist. 2 red-proofs RED.
+
+### REG-1647 - THE BOOT RE-ENTRY RE-ADMITTED TWO RETIRED REELS ON EVERY RELAUNCH (2026-10-01)
+
+`reel_retention._panels_never_banked` answered `not in _DURABLE`, a module global only `plan()` filled. The console's
+boot re-entry (`vault_reentry_sweep`) asks before any plan, so every surveyed reel with panels read "never banked".
+MEASURED on his Mac, same reel, same process, a minute apart: before plan() True, after plan() False (in durable). So
+every relaunch re-admitted both reels the vault lane had retired, the lane paid 2 passes of ~30 panel reads on each
+that could never seal (REG-1648), and its retire path - asking after plan() - retired them again: 9 relaunches since
+2026-09-30 10:18, about 1,000 reads. end_routes had hit the same unloaded global once and fixed it for itself only.
+**Now** `_DURABLE` starts None (never loaded) and loads on first ask; an unreadable index raises `DurableUnknown`, is
+not cached, and each caller prices it with the rule it already had (the re-entry leaves a retirement alone, the retire
+path refuses to retire); `plan()` publishes the set only when it read it. Law:
+`tv/test_the_durable_set_is_loaded_before_it_is_asked.py` - 8 cases incl. the re-entry in a fixture world. 3 red-proofs RED.
+
 ### REG-1646 - AN OWING LANE WITH NO RECORDED TICK STILL SAID NOTHING (REG-1627's gap, 2026-10-01)
 
 REG-1627 gave an owing vault lane its last tick's own words - and left `owedWhy` null whenever there was NO last

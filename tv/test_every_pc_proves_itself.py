@@ -745,7 +745,7 @@ RED_PROOF = [
     {
         "why": "2026-09-29 (skeptic on fix24-selfprove) - a live prover with no recorded birth is booked as ended and a second one starts",
         "file": "tv/self_prove.py",
-        "find": "    unverified = bool(pid) and not running and birth is None and pid_alive(pid)\n",
+        "find": "    unverified = bool(pid) and _who is None\n",
         "replace": "    unverified = False\n",
         "matches": 1,
     },
@@ -865,7 +865,7 @@ RED_PROOF = [
     {
         "why": "2026-09-29 (REG-1511) - any live process at the stored pid is taken for the prover (a reused pid is killed)",
         "file": "tv/self_prove.py",
-        "find": "        return proc_birth(pid) == birth\n",
+        "find": "        return now == birth\n",
         "replace": "        return True\n",
         "matches": 1,
     },

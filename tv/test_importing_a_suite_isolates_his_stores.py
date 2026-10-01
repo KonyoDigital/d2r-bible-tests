@@ -11,6 +11,9 @@ evidence caught it. The hand list also covered only five of the eight state path
   · DRIVEN (a fresh interpreter imports test_control and runs NOTHING): every control_app
     _CHRON_*/_VAULT_*_PATH points into the suite's sandbox, and there are at least the eight known today.
   · DRIVEN: importing test_g5_grok_eyes / test_console_fleet points G5_STATS_PATH into their sandbox.
+  · REG-1650 (v3539) DRIVEN: the vault lane's store - resolved by a FUNCTION, so the discovery above never saw it -
+    resolves into the sandbox after importing test_control; only a console process runs the boot re-entry that
+    writes it; and the run_gates live-state guard names the file.
 RED_PROOF below.
 """
 import json
@@ -51,6 +54,48 @@ class ImportingASuiteIsolatesHisStores(unittest.TestCase):
         self.assertGreaterEqual(got["n"], 8, "premise: the eight state paths known on 2026-09-25 are found")
         self.assertEqual(got["live"], [], "importing test_control left these paths on his live tree: %r" % got["live"])
 
+    def test_importing_test_control_moves_the_vault_lanes_store_too(self):
+        """REG-1650 — the vault lane's memory had no _VAULT_*_PATH global, only a function, so the discovery above
+        could not see it and every test_control run in his tree read and wrote his REAL .vault_autoread.json.
+        MEASURED in his live file 2026-10-01: lastWhy["reel_qqq"] = "vault_retro exploded" - a test_control fixture.
+        The FUNCTION is asked, because the function is what every reader and writer calls."""
+        got = _child(
+            "import sys, json; sys.argv=['x']; sys.path.insert(0,'.')\n"
+            "import test_control as tc, control_app as ca\n"
+            "p = ca._vault_autoread_path()\n"
+            "print(json.dumps({'p': p, 'ok': p.startswith(tc._MOD_TMP)}))")
+        self.assertTrue(got["ok"], "importing test_control left the vault lane's store on his live tree: %r" % got["p"])
+
+    def test_only_a_console_clears_the_parking_bay(self):
+        """REG-1650 — the boot re-entry WRITES his lane memory, and status_payload() reaches it in ANY process that
+        imports control_app; five suites call it with no store isolation, from his checkout, at every push."""
+        import control_app as ca
+        import frame_ref as fr
+        calls = []
+        saved = (ca.vault_reentry_sweep, ca._VAULT_REENTRY_DONE, dict(ca._VAULT_AUTOREAD_REFRESH), fr.on_console_path())
+        ca.vault_reentry_sweep = lambda dry=True: calls.append(dry) or {"readmitted": []}
+        ca._VAULT_AUTOREAD_REFRESH["running"] = True          # the kick returns before starting its survey thread
+        try:
+            fr.mark_console_path(False)
+            ca._VAULT_REENTRY_DONE = False
+            ca._vault_autoread_kick()
+            self.assertEqual(calls, [], "a process that is not a console cleared the bay - a test or the gate wrote "
+                                        "his lane memory")
+            fr.mark_console_path(True)
+            ca._VAULT_REENTRY_DONE = False
+            ca._vault_autoread_kick()
+            self.assertEqual(calls, [False], "PREMISE: the console no longer clears the bay at all")
+        finally:
+            ca.vault_reentry_sweep, ca._VAULT_REENTRY_DONE = saved[0], saved[1]
+            ca._VAULT_AUTOREAD_REFRESH.clear()
+            ca._VAULT_AUTOREAD_REFRESH.update(saved[2])
+            fr.mark_console_path(saved[3])
+
+    def test_the_gate_watches_the_vault_lanes_store(self):
+        import run_gates
+        self.assertIn(".vault_autoread.json", run_gates._LIVE_STATE,
+                      "a suite that writes the vault lane's memory would not be named by the live-state guard")
+
     def test_importing_the_g5_suites_moves_the_stats_path(self):
         for mod, var in (("test_g5_grok_eyes", "_G5_SANDBOX"), ("test_console_fleet", "_G5_STATS_SANDBOX")):
             got = _child(
@@ -71,6 +116,28 @@ RED_PROOF = [
         "file": "test_control.py",
         "find": "\n_isolate_live_state()\n\n\ndef setUpModule():\n",
         "replace": "\n\n\ndef setUpModule():\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1650 - the vault store's function ignores the suite's sandbox again: test_control writes his lane memory",
+        "file": "control_app.py",
+        "find": "    if _VAULT_AUTOREAD_PATH != os.path.join(HERE, \".vault_autoread.json\"):\n"
+                "        return _VAULT_AUTOREAD_PATH       # patched on purpose (a suite's sandbox) — honour it\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1650 - any process that asks for a status clears the bay again, writing his lane memory",
+        "file": "control_app.py",
+        "find": "    if not _VAULT_REENTRY_DONE and _bay_ours:\n",
+        "replace": "    if not _VAULT_REENTRY_DONE:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1650 - the live-state guard forgets the vault lane's store again",
+        "file": "run_gates.py",
+        "find": "               \".vault_autoread.json\")\n",
+        "replace": "               )\n",
         "matches": 1,
     },
     {

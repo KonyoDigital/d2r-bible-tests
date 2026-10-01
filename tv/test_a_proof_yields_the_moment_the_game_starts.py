@@ -53,7 +53,7 @@ import control_app as ca  # noqa: E402
 RED_PROOF = [
     {"why": "REG-1643 - the fast path reads a stranger holding the ended prover's pid as the prover again",
      "file": "self_prove.py",
-     "find": "        alive = is_ours(pid, birth) if birth is not None else pid_alive(pid)\n",
+     "find": "        alive = identity(pid, birth) is not False\n",
      "replace": "        alive = pid_alive(pid)\n", "matches": 1},
     {"why": "REG-1624 - the guard never stands a running proof aside: it waits for the 10-minute tick",
      "file": "self_prove.py",

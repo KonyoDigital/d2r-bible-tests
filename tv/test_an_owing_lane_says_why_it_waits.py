@@ -34,6 +34,14 @@ os.environ["TV_SESSIONS"] = os.path.join(_WORLD, "sessions.jsonl")
 import control_app as ca  # noqa: E402
 
 RED_PROOF = [
+    {"why": "REG-1654 - the uptime is read off the wall clock again: an NTP step decides whether the lane is late",
+     "file": "control_app.py",
+     "find": "    up = max(0, int((time.monotonic() - _BOOT_MONO) if up_s is None else up_s))\n",
+     "replace": "    up = max(0, int((time.time() - _BOOT_AT) if up_s is None else up_s))\n", "matches": 1},
+    {"why": "REG-1654 - a first tick that is already due is described as still on its way again",
+     "file": "control_app.py",
+     "find": "    if up < _VAULT_AUTOREAD_EVERY_S:\n",
+     "replace": "    if up < 2 * _VAULT_AUTOREAD_EVERY_S:\n", "matches": 1},
     {"why": "REG-1627 - the vault loop drops its tick's reason again: an owing lane is silent",
      "file": "control_app.py",
      "find": "            _vault_autoread_note(_r)        # REG-1627",
@@ -93,7 +101,7 @@ class AnOwingLaneSaysWhyItWaits(unittest.TestCase):
     def test_no_recorded_tick_right_after_a_start_says_so(self):
         """REG-1646 - owed, and no tick recorded yet: the first one is up to an interval away, and that is SAID"""
         ca._VAULT_AUTOREAD.pop("lastTick", None)
-        with mock.patch.object(ca, "_BOOT_AT", __import__("time").time() - 10):
+        with mock.patch.object(ca, "_BOOT_MONO", __import__("time").monotonic() - 10):   # REG-1654
             why = self._state(OWED)["owedWhy"]
         self.assertIsNotNone(why, "an owing lane with no recorded tick said nothing - it reads as nothing to explain")
         self.assertIn("no tick yet", why)
@@ -101,10 +109,29 @@ class AnOwingLaneSaysWhyItWaits(unittest.TestCase):
     def test_no_recorded_tick_long_after_a_start_is_a_lane_that_is_not_ticking(self):
         """REG-1646 - past two intervals with nothing recorded, the loop is not ticking: REG-1640's frozen lane"""
         ca._VAULT_AUTOREAD.pop("lastTick", None)
-        with mock.patch.object(ca, "_BOOT_AT", __import__("time").time() - 600):
+        with mock.patch.object(ca, "_BOOT_MONO", __import__("time").monotonic() - 600):   # REG-1654
             why = self._state(OWED)["owedWhy"]
         self.assertIn("not ticking", why or "")
         self.assertIn("UNKNOWN", why or "")
+
+    def test_a_first_tick_that_is_due_is_not_called_on_time(self):
+        """REG-1654 (the v3538 eye) - between one interval and two the first tick is DUE: "the first runs within 45 s"
+        said then read a lane that had missed its wake as one still on time"""
+        ca._VAULT_AUTOREAD.pop("lastTick", None)
+        up = int(ca._VAULT_AUTOREAD_EVERY_S * 1.5)
+        with mock.patch.object(ca, "_BOOT_MONO", __import__("time").monotonic() - up):
+            why = self._state(OWED)["owedWhy"] or ""
+        self.assertIn("was due", why, why)
+        self.assertNotIn("within", why, "a due tick was described as still on its way: %r" % why)
+
+    def test_a_wall_clock_step_does_not_move_the_verdict(self):
+        """REG-1654 - the loop sleeps on a clock no NTP step moves; so does the question of whether it is late"""
+        ca._VAULT_AUTOREAD.pop("lastTick", None)
+        import time as _t
+        with mock.patch.object(ca, "_BOOT_MONO", _t.monotonic() - 10), \
+                mock.patch.object(ca, "_BOOT_AT", _t.time() - 86400):        # the wall clock stepped a day
+            why = self._state(OWED)["owedWhy"] or ""
+        self.assertIn("no tick yet", why, "a wall-clock step read a lane 10 s old as not ticking: %r" % why)
 
     def test_a_tick_that_returns_is_recorded_in_its_own_words(self):
         """One real pass of the loop with a tick that RETURNS: its words are recorded. The pass is stopped at the

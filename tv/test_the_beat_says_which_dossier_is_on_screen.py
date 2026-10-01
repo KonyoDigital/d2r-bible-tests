@@ -134,6 +134,21 @@ class OpeningByNumberIsWhatTheBeatReports(unittest.TestCase):
         self.assertEqual(self._run("_sessionDossier(28); _sessionDossier(87);")["beat"], 87)
         self.assertEqual(self._run("_sessionDossier(87); _sessionDossier(28);")["beat"], 28)
 
+    def test_a_render_that_throws_leaves_the_number_of_what_is_still_showing(self):
+        """v3540 REG-1655 (the v3538 eye) - 28 is showing, 87's render throws: the box still shows 28, so 28 is said"""
+        script = (_FAKE_OV + "var OV = makeOv({hidden: true});\n"
+                  "var document = { getElementById: function(id){ return id === 'th-dossier-ov' ? OV : null; } };\n"
+                  "var TH = { sessions: [{n: 28, sessionId: 's28'}, {n: 87, sessionId: 's87'}] };\n"
+                  "var DOSSIER = {}; function _dossierHtml(sm){ if (sm.n === 87) throw new Error('render'); "
+                  "return '<div>Session ' + sm.n + '</div>'; }\n"
+                  "function _animCounts(){}\n"
+                  + _open_fn() + "\n_sessionDossier(28); try { _sessionDossier(87); } catch (e) {}\n"
+                  "var st = {" + _beat_field() + "};\n"
+                  "console.log(JSON.stringify({beat: st.dossier, html: OV.innerHTML}));\n")
+        got = _node(script)
+        self.assertIn("Session 28", got["html"], "PREMISE: 28's dossier is not what is showing")
+        self.assertEqual(got["beat"], 28, "the beat names a dossier that never rendered: %r" % got)
+
     def test_a_session_not_on_the_shelf_opens_nothing(self):
         got = self._run("_sessionDossier(5);")
         self.assertTrue(got["hidden"])
@@ -178,8 +193,12 @@ class TheStatusPublishesIt(unittest.TestCase):
 RED_PROOF = [
     {"why": "v3538 - the dossier opens without stamping its number: the beat can only say UNKNOWN",
      "file": "control_ui.html",
-     "find": "    ov.setAttribute('data-n', String(n));   // v3538",
-     "replace": "    void 0;   // v3538", "matches": 1},
+     "find": "    ov.setAttribute('data-n', String(n));\n",
+     "replace": "    void 0;\n", "matches": 1},
+    {"why": "v3540 REG-1655 - the number is stamped before the content: a render that throws leaves 87 over 28's dossier",
+     "file": "control_ui.html",
+     "find": "    ov.innerHTML = _dossierHtml(sm);\n",
+     "replace": "    ov.setAttribute('data-n', String(n));\n    ov.innerHTML = _dossierHtml(sm);\n", "matches": 1},
     {"why": "v3538 - a HIDDEN dossier is reported as on screen (the shelf-tile false positive, one layer down)",
      "file": "control_ui.html",
      "find": "                if (!o || o.hidden) return null;\n",

@@ -8709,6 +8709,39 @@ GATES = [
              "now stamps the dossier overlay with its session number, the beat reads it only while the overlay is "
              "on screen with real size, and /api/status publishes uiBeat.dossier (number, None, or UNKNOWN). Driven "
              "on the real page code in node and on the real record -> status path."),
+    Gate("test_the_lattice_reads_every_capture_height",
+         [sys.executable, os.path.join(HERE, "test_the_lattice_reads_every_capture_height.py")], 180,
+         needs_app=False,
+         why="REG-1648 (2026-10-01) - the vault's free cross-check (the 10x4 inventory lattice) was calibrated in "
+             "PIXELS at his 2940x1912 reel and his Mac has recorded 1440x936 / 1440x904 since 2026-08-31: no pitch "
+             ">= 70 fits four rows into a 192 px crop, so every frame read 'no grid is visible here' - 0 of 76 "
+             "sampled before, 268 of 273 after, the 2940 reel unchanged. No read frame was cross-checked for a "
+             "month and no seal could be definitive. Every pixel constant now scales by H/1912 (D2R's UI follows "
+             "the frame height). Driven on drawn inventories at all three heights, the refusals at the small one, "
+             "and his own frames where they exist; Grok counted the hardest panel 26/14 with no premise."),
+    Gate("test_the_durable_set_is_loaded_before_it_is_asked",
+         [sys.executable, os.path.join(HERE, "test_the_durable_set_is_loaded_before_it_is_asked.py")], 180,
+         needs_app=False,
+         why="REG-1647 (2026-10-01) - reel_retention._panels_never_banked asked a module global only plan() filled, "
+             "so the console's boot re-entry - which asks first - read every surveyed reel as never banked and "
+             "re-admitted the vault lane's two retired reels on every relaunch: 2 passes of ~30 panel reads each, "
+             "retired again, 9 relaunches, about 1,000 reads. The set now loads on first use; an unreadable index "
+             "raises DurableUnknown to callers that each price UNKNOWN, and plan() publishes only what it read."),
+    Gate("test_a_retirement_quotes_the_sweeps_own_reason",
+         [sys.executable, os.path.join(HERE, "test_a_retirement_quotes_the_sweeps_own_reason.py")], 120,
+         needs_app=False,
+         why="REG-1649 (2026-10-01) - both of his retired reels said 'WHY is UNKNOWN' directly under the sweep's "
+             "own '28 of 28 read frames were never cross-checked': lastWhy was written only by a synchronous "
+             "refusal. The run aimed at one reel now writes its own reason (raised, INCOMPLETE, not definitive, or "
+             "'gave no reason' in words) on every exit path, and a start clears the last run's."),
+    Gate("test_an_unreadable_prover_is_still_running",
+         [sys.executable, os.path.join(HERE, "test_an_unreadable_prover_is_still_running.py")], 120,
+         needs_app=False,
+         why="REG-1652/1653 (the v3537 cross-family eye, on REG-1643) - is_ours() said False for a reused pid AND for "
+             "a ps that did not answer, so guard(), the tick and end_tree's wait booked a live prover ended and "
+             "forgot it beside his game; and the birth read ran a bare ps with close_fds=True inside the console, "
+             "every 10 s - fork_exec in a process holding the ObjC runtime. identity() is three-valued now, and "
+             "the read takes the posix_spawn shape."),
     Gate("test_a_proof_yields_the_moment_the_game_starts",
          [sys.executable, os.path.join(HERE, "test_a_proof_yields_the_moment_the_game_starts.py")], 60,
          needs_app=False,
@@ -9246,7 +9279,11 @@ _LIVE_STATE = ("tooltip_find.json",      # v2321 — did a located tooltip reall
                # suites wrote fixture checks into them on every run and this list never
                # named them, so CI filed it under "also touched", never as a failure.
                ".unknown_age.json", ".eagle_slow.json",
-               ".bake_seed_receipt.json")   # v3475 — the baker's receipt
+               ".bake_seed_receipt.json",   # v3475 — the baker's receipt
+               # v3539 REG-1650 — the vault lane's memory (retired · tries · lastWhy · cursor). Every
+               # push wrote it from test_control and this list never named it; a fixture reason
+               # ("reel_qqq": "vault_retro exploded") sat in his live copy.
+               ".vault_autoread.json")
 
 
 def _console_is_running(port=17772):

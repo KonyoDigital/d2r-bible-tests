@@ -219,6 +219,33 @@ _LAT_LO, _LAT_HI = 70.0, 100.0
 INV_CROP = (0.595, 0.495, 0.915, 0.70)   # fractions of the frame
 INV_COLS, INV_ROWS = 10, 4               # the D2 inventory is ALWAYS this
 
+# ⚠⚠ v3539 REG-1648 — EVERY PIXEL CONSTANT IN THIS LATTICE WAS MEASURED AT ONE FRAME HEIGHT, AND HIS
+# CAPTURE CHANGED HEIGHT. The crop above is in FRACTIONS of the frame; the pitch search (70-100), the
+# ridge window (12), the square tolerance (4) and the occupancy inset (12) are PIXELS, all taken from
+# his 2940x1912 Retina reel. From reel_s_1788087297344 (2026-08-31) on, his Mac records 1440x936 and
+# 1440x904, where a cell is ~42 px: the rows crop is 192 px tall, no pitch >= 70 fits four rows into
+# it, and the fit returned None on EVERY frame - "no grid is visible here" over a plain 10x4 grid.
+#     MEASURED 2026-10-01, the panel frames of every reel on his Mac:
+#         2940x1912  1 reel    lattice ok 12 of 12 sampled
+#         1440x936   7 reels   lattice ok  0 of 64 sampled
+#         1440x904   1 reel    lattice ok  0 of 12 sampled
+# So the vault's free cross-check had been blind on all new footage for a month: no read frame was
+# ever reconciled, no seal could be definitive, and the vault lane re-read two of his reels on every
+# relaunch with no possible way to finish them (REG-1647).
+# D2R draws its UI in proportion to the frame HEIGHT, not its width - the row pitch measured 85.75
+# @1912, 42.0 @936 and 40.5 @904, which is 85.75 x H/1912 each time, while 1440 wide is the same at
+# both heights. So every pixel constant scales by H / _CAL_H; at 1912 it is exactly the constant it
+# was, and every refusal below is kept: a menu still has to be 10x4 SQUARE cells at the scaled pitch.
+# ⚠ Widening the search instead of scaling it is WRONG and was measured: on a 1440 frame an open
+# 20-110 search locks onto the 2x column harmonic (84.5 / 81.75) - a lattice of every other border.
+# [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
+_CAL_H = 1912.0                          # the frame height every pixel constant here was measured at
+
+
+def _ui_scale(h):
+    """Pixels-per-calibration-pixel for a frame of height `h`. -> float (1.0 at his 2940x1912 reel)"""
+    return float(h) / _CAL_H
+
 # ── v2016 — WHY THERE IS NO STASH LATTICE, AND WHY WIDENING THE CROP WILL NOT MAKE ONE ─────────
 # The obvious next feature is "do the same for the stash" — it holds far more than the inventory, and
 # vault_doctor reports 220 occupied cells with zero names on his film. It was attempted 2026-08-23 and
@@ -249,24 +276,24 @@ INV_COLS, INV_ROWS = 10, 4               # the D2 inventory is ALWAYS this
 INV_SAMPLE = 8                           # frames per reel: corroboration, not volume
 
 
-def _ridge(v, k=12):
+def _ridge(v, k=12, a=2, b=3):
     import numpy as _np
     n = len(v)
     out = _np.zeros(n)
     for i in range(n):
-        l = v[max(0, i - k):max(1, i - 2)]
-        r = v[min(n - 1, i + 3):min(n, i + k + 1)]
+        l = v[max(0, i - k):max(1, i - a)]
+        r = v[min(n - 1, i + b):min(n, i + k + 1)]
         if len(l) and len(r):
             out[i] = max(0.0, v[i] - max(l.mean(), r.mean()))
     return out
 
 
-def _fit(v):
+def _fit(v, lo=_LAT_LO, hi=_LAT_HI, phase_step=1.0):
     import numpy as _np
     best = None
     n = len(v)
-    for pitch in _np.arange(_LAT_LO, _LAT_HI, 0.25):
-        for phase in _np.arange(0, pitch, 1.0):
+    for pitch in _np.arange(lo, hi, 0.25):
+        for phase in _np.arange(0, pitch, phase_step):
             xs = _np.arange(phase, n, pitch)
             if len(xs) < 4:
                 continue
@@ -305,8 +332,14 @@ def inventory_lattice(frame_path):
     # his own reel"). This one path threw instead, so MINI AUTO's caller reported the generic
     # "reading the frame raised TypeError" and the actual fact — the ridge fit found no grid —
     # never reached him. An exception is not a reason. [[unknown-stays-unknown]]
-    _cfit = _fit(_ridge(_np.median(g, axis=0)))
-    _rfit = _fit(_ridge(_np.median(g, axis=1)))
+    # REG-1648 — the pitch search, the ridge window and the phase step in THIS frame's pixels
+    _s = _ui_scale(H)
+    _lo, _hi = _LAT_LO * _s, _LAT_HI * _s
+    _k, _a, _b = max(4, int(round(12 * _s))), max(1, int(round(2 * _s))), max(1, int(round(3 * _s)))
+    _ph = 1.0 if _s >= 0.75 else 0.5
+    _cands = _np.arange(_lo, _hi, 0.25)
+    _cfit = _fit(_ridge(_np.median(g, axis=0), _k, _a, _b), _lo, _hi, _ph)
+    _rfit = _fit(_ridge(_np.median(g, axis=1), _k, _a, _b), _lo, _hi, _ph)
     for _nm, _got in (("columns", _cfit), ("rows", _rfit)):
         if _got is None:
             return {"ok": False,
@@ -317,7 +350,7 @@ def inventory_lattice(frame_path):
     sc, cp, _cph, cols = _cfit
     sr, rp, _rph, rows = _rfit
     for nm, pitch, score in (("columns", cp, sc), ("rows", rp, sr)):
-        if abs(pitch - _LAT_LO) < 0.3 or abs(pitch - (_LAT_HI - 0.25)) < 0.3:
+        if abs(pitch - _cands[0]) < 0.3 or abs(pitch - _cands[-1]) < 0.3:
             return {"ok": False, "why": "%s pitch pinned to the search bound (%.2f) — the fit found "
                                         "nothing, which is not a narrow grid" % (nm, pitch)}
         if score < 3.0:
@@ -327,12 +360,12 @@ def inventory_lattice(frame_path):
     if (nc, nr) != (INV_COLS, INV_ROWS):
         return {"ok": False, "why": "found %dx%d cells; the D2 inventory is ALWAYS %dx%d"
                                     % (nc, nr, INV_COLS, INV_ROWS)}
-    if abs(cp - rp) > 4.0:
+    if abs(cp - rp) > 4.0 * _s:
         return {"ok": False, "why": "cells are not square (%.1f x %.1f) — a menu fits a lattice "
                                     "too, and this is how it is told apart" % (cp, rp)}
     return {"ok": True, "colPitch": cp, "rowPitch": rp,
             "cols": [int(x) for x in cols], "rows": [int(y) for y in rows],
-            "cells": nc * nr, "crop": INV_CROP}
+            "cells": nc * nr, "crop": INV_CROP, "scale": round(_s, 4)}
 
 
 def inventory_occupancy(frame_path, lat=None):
@@ -365,11 +398,12 @@ def inventory_occupancy(frame_path, lat=None):
     g = _np.asarray(im.crop((int(INV_CROP[0] * W), int(INV_CROP[1] * H),
                              int(INV_CROP[2] * W), int(INV_CROP[3] * H))), dtype=_np.float32)
     cols, rows = r["cols"], r["rows"]
+    _in = max(3, int(round(12 * _ui_scale(H))))   # REG-1648 — the cell inset in this frame's pixels
     grid, occ, free = [], 0, 0
     for i in range(len(rows) - 1):
         line = []
         for j in range(len(cols) - 1):
-            cell = g[rows[i] + 12:rows[i + 1] - 12, cols[j] + 12:cols[j + 1] - 12]
+            cell = g[rows[i] + _in:rows[i + 1] - _in, cols[j] + _in:cols[j + 1] - _in]
             if cell.size == 0:
                 line.append(None)
                 continue

@@ -195,6 +195,24 @@ def _k32():
     return k
 
 
+_PS_EXE = {"path": None, "looked": False}
+
+
+def _ps_exe():
+    """The ABSOLUTE path of ps, looked up once. -> str | None (REG-1653 - posix_spawn needs a directory in the exe)"""
+    if not _PS_EXE["looked"]:
+        _PS_EXE["looked"] = True
+        try:
+            import shutil as _sh
+            for c in ("/bin/ps", "/usr/bin/ps", _sh.which("ps")):
+                if c and os.path.isabs(c) and os.path.isfile(c) and os.access(c, os.X_OK):
+                    _PS_EXE["path"] = c
+                    break
+        except Exception:
+            _PS_EXE["path"] = None
+    return _PS_EXE["path"]
+
+
 def proc_birth(pid):
     """When was process `pid` created? -> an opaque string that is equal only for the SAME process, or None when it
     cannot be told (dead, a zombie, refused, no tool). Never raises.
@@ -224,8 +242,16 @@ def proc_birth(pid):
                 return ("ft:%d" % v) if v else None
             finally:
                 k.CloseHandle(h)
-        r = subprocess.run(["ps", "-o", "stat=,lstart=", "-p", str(pid)], capture_output=True, text=True,
-                           encoding="utf-8", errors="replace",
+        # ⚠⚠ v3540 REG-1653 — SPAWN, NEVER FORK: this runs INSIDE his console (guard() on the 10 s rescue loop, since
+        # REG-1643 on every healthy tick of a running proof), which has the Objective-C runtime loaded. A bare "ps" and
+        # the default close_fds=True take fork_exec, and a fork of such a process can wedge between fork and exec at
+        # 0% CPU - measured once for 28 minutes (test_the_doctor_never_forks_a_quartz_process). An ABSOLUTE exe,
+        # close_fds=False and no cwd take posix_spawn. Raised by the v3537 cross-family eye.
+        _ps = _ps_exe()
+        if not _ps:
+            return None                         # no absolute ps on this machine - who it is cannot be read
+        r = subprocess.run([_ps, "-o", "stat=,lstart=", "-p", str(pid)], capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", close_fds=False,
                            timeout=3, env=dict(os.environ, LC_ALL="C", TZ="UTC"))
         parts = (r.stdout or "").split()
         if r.returncode != 0 or len(parts) < 2 or parts[0].upper().startswith("Z"):
@@ -336,19 +362,39 @@ def stand_aside(playing, free):
     return False, ""
 
 
+def identity(pid, birth):
+    """Who holds `pid` now? -> True the prover this lane started · False not ours (gone, or the pid names another
+    process) · None UNKNOWN (alive, and who it is cannot be read: no birth was recorded, or the read failed NOW).
+    Never raises.
+
+    ⚠⚠ v3540 REG-1652 — "COULD NOT READ" IS NOT "SOMEONE ELSE". The v3537 cross-family eye on REG-1643: is_ours()
+    answered False both for a reused pid and for a proc_birth() that returned None - ps timing out at 3 s on a machine
+    that is paging, ps refused, ps missing - while pid_alive() was still True. guard() and the tick read that False
+    as "the proof ended": booked it, _forget() dropped the pid, and the prover went on running beside his game with
+    nothing tracking it, which is the one thing this lane exists to prevent. The tick's own `unverified` branch kept
+    a live pid only when NO birth had been stored, so a failed FRESH read fell through it. [[unknown-stays-unknown]]"""
+    try:
+        if not pid_alive(pid):
+            return False
+        if birth is None:
+            return None
+        now = proc_birth(pid)
+        if now is None:
+            return None                     # alive, and who it is cannot be read right now - never "ended"
+        return now == birth
+    except Exception:
+        return None
+
+
 def is_ours(pid, birth):
     """Is `pid` alive AND the very process this lane started - the same BIRTH recorded at spawn? -> bool. Never raises.
 
     REG-1511 — `pid_alive` alone answers "is SOME process there". A pid is handed out again once its process ends
     (Windows reuses them quickly), so a stored pid that outlived its prover named whatever came next. No recorded
     birth (a store from before this fix, or a spawn whose birth could not be read) is NOT ours: an identity that
-    cannot be checked is never trusted with a kill."""
-    try:
-        if birth is None or not pid_alive(pid):
-            return False
-        return proc_birth(pid) == birth
-    except Exception:
-        return False
+    cannot be checked is never trusted with a kill. REG-1652 — this is the KILL question; whether a proof is still
+    running is identity(), where UNKNOWN keeps the proof tracked."""
+    return identity(pid, birth) is True
 
 
 def end_tree(pid, birth=None, wait_s=None):
@@ -374,7 +420,9 @@ def end_tree(pid, birth=None, wait_s=None):
     except Exception:
         pass
     deadline = time.time() + (END_WAIT_S if wait_s is None else float(wait_s))
-    while is_ours(pid, birth):
+    # REG-1652 - GONE MEANS PROVEN GONE: a read that fails after the signal is not a death certificate, so only a
+    # definite "not ours" ends the wait; an unreadable identity runs out the clock and reports SURVIVED
+    while identity(pid, birth) is not False:
         if time.time() >= deadline:
             return False                  # it SURVIVED: the caller keeps it, and asks again next tick
         time.sleep(0.2)
@@ -802,7 +850,8 @@ def guard(now_s=None, path=None, playing=None, free=None, kill_fn=None, _tick=No
         # REG-1628 - AND IT IS HANDED THE LOAD PROBE THE LANE'S OWN TICK USES. MEASURED on the ALT on v3534: slices still
         # started only on the 10-minute tick (23:13:24, then 23:23:32). This call booked the ended slice and then decide()
         # met busy=None - "load-unknown", never started on a guess - so the next slice waited for the tick after all.
-        alive = is_ours(pid, birth) if birth is not None else pid_alive(pid)
+        # REG-1652 - only a DEFINITE "not ours" is an ended proof; alive-but-unreadable is still running
+        alive = identity(pid, birth) is not False
         if not alive:
             return (_tick or tick)(now_s=now_s, path=path, kill_fn=kill_fn, busy=busy)
         play_now = _ask(playing, playing_state)
@@ -851,16 +900,19 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
         census = {"state": "unknown", "why": "the census reading was not a record"}
     pid, birth = mem.get("pid"), mem.get("pidBirth")
     if not pid and _STARTED["pid"]:
-        if is_ours(_STARTED["pid"], _STARTED.get("birth")):
+        if identity(_STARTED["pid"], _STARTED.get("birth")) is not False:     # REG-1652 - unknown is not gone
             pid, birth = _STARTED["pid"], _STARTED.get("birth")   # the store lost it; this process did not
         else:
             _STARTED.update(pid=None, birth=None)          # it ended (or its pid moved on) while the store had lost it
-    running = pid if (pid and is_ours(pid, birth)) else None
+    _who = identity(pid, birth) if pid else False
+    running = pid if _who is True else None
     # the skeptic on fix24-selfprove: a store from before REG-1511 (or a spawn whose birth could not be read) holds a
     # LIVE pid with no birth. is_ours() rightly refuses to trust it with a kill, but the tick then booked it as ENDED -
     # a failure and a 3 h backoff, the pid forgotten, and a second prover could start beside the first. UNVERIFIED:
     # left alone, not booked, and no new proof until that pid is gone.
-    unverified = bool(pid) and not running and birth is None and pid_alive(pid)
+    # REG-1652 - AND THE SAME FOR A STORED BIRTH THAT CANNOT BE READ NOW (ps timing out under memory pressure): this
+    # required `birth is None`, so a failed fresh read fell through to "ended" and the prover was forgotten alive.
+    unverified = bool(pid) and _who is None
     # REG-1511 — A PROOF WHOSE CENSUS IS ALREADY CURRENT FOR ITS GATES HAS DONE ITS WORK; it is only cleaning up
     # (heart2 removes its sandbox after the write). Booked as worked NOW, once, and left to finish for one tick: a
     # kill there cost the booking, and one landing inside heart2's plain census write left it truncated for good.
@@ -925,8 +977,10 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
                         "(pid %s)" % running)
     if unverified:
         d = {"start": False, "key": "running-unverified",
-             "why": "proof pid %s is alive but its start time was never recorded (a store from before REG-1511) - it "
-                    "is left to finish, never killed, and no second proof starts beside it" % pid}
+             "why": ("proof pid %s is alive but its start time was never recorded (a store from before REG-1511) - it "
+                     "is left to finish, never killed, and no second proof starts beside it" % pid) if birth is None
+             else ("proof pid %s is alive but its start time could not be read right now - it stays tracked, is never "
+                   "killed on a guess, and no second proof starts beside it; asked again next tick" % pid)}
     if d["start"]:
         try:
             if spawn_fn is None:                           # a real start, not a law's recording spawn

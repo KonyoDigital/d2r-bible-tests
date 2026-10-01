@@ -12215,8 +12215,10 @@ window._lockMark = function(isOpen, px, label){
     if (!sm){ ov.hidden = true; return; }
     var freshOpen = ov.hidden || DOSSIER.n !== n;   // D20 — only count up on a real open, not the 12s poll re-render
     DOSSIER.n = n; DOSSIER.sid = sm.sessionId || ''; DOSSIER.sm = sm;   // D25 — stable key for notes/naming · D27 — recap source
-    ov.setAttribute('data-n', String(n));   // v3538 — the beat reads WHICH dossier is on screen from the overlay itself
     ov.innerHTML = _dossierHtml(sm);
+    // v3538 — the beat reads WHICH dossier is on screen from the overlay itself. v3540 REG-1655 (the v3538 eye): stamped
+    // only AFTER its content is in - stamped first, a render that throws left 87 on a box still showing 28's dossier
+    ov.setAttribute('data-n', String(n));
     ov.hidden = false; ov.scrollTop = 0;
     if (freshOpen){
       _animCounts(ov);   // D20 — animate the key numbers up from 0 (cosmetic; lands on the exact value)

@@ -7492,7 +7492,21 @@ def _vault_autoread_kick():
     # re-ask the prune about every retirement forever for no new answer.
     # It never retires and never deletes — the worst it can cost is another read.
     global _VAULT_REENTRY_DONE
-    if not _VAULT_REENTRY_DONE:
+    # ⚠⚠ v3539 REG-1650 — ONLY A CONSOLE CLEARS THE BAY. This is a WRITE of his lane memory, and the
+    # kick runs from every status_payload() (via _vault_autoread_state_cached) - so ANY process that
+    # imports this module and asks for a status runs it once. Read from the code, not measured: five
+    # suites call status_payload() with no store isolation, and the pre-push runs them from HIS
+    # checkout, where this would load his live retirements and - with REG-1647's unloaded durable set
+    # answering "never banked" for all of them - re-admit and save. Whether a suite ever did is
+    # UNKNOWN: the hook keeps no output from a green suite. The door is closed either way:
+    # frame_ref.on_console_path() is True only once control_app.main() booted this process, so a
+    # law, the gate, CI and a CLI run never clear the bay.
+    try:
+        import frame_ref as _fr_bay
+        _bay_ours = bool(_fr_bay.on_console_path())
+    except Exception:
+        _bay_ours = False                # cannot tell -> do not write; the console will run it
+    if not _VAULT_REENTRY_DONE and _bay_ours:
         _VAULT_REENTRY_DONE = True
         try:
             _r = vault_reentry_sweep(dry=False)
@@ -21649,6 +21663,7 @@ _DRIFT_EVERY_S = float(os.environ.get("TV_DRIFT_EVERY_S", "300") or 300)
 # question, and it is the one the gate has been trying to ask.
 # [[unknown-stays-unknown]] [[the-unjoined-end]]
 _BOOT_AT = time.time()
+_BOOT_MONO = time.monotonic()   # REG-1654 - uptime for "is a lane late", on the clock time.sleep follows
 
 
 def _src_sha():
@@ -28128,7 +28143,24 @@ _VAULT_AUTOREAD = {"tries": {}, "skipped": {}, "reads": 0, "lastTs": 0, "retired
 _VAULT_AUTOREAD_STORE = {"tried": False, "readable": None}
 
 
+#: ⚠⚠ v3539 REG-1650 — THE ONE VAULT STORE THE SUITE'S ISOLATION COULD NOT SEE. test_control isolates
+#: every `_CHRON_*/_VAULT_*_PATH` global at import (REG-1281, discovered by NAME), and this store had
+#: no such global - only the function below - so every test_control run inside his tree read and
+#: wrote his REAL lane memory. The pre-push hook runs `python3 "$REPO/tv/test_control.py"`, and the
+#: push runs from his checkout, so it happened on EVERY push. MEASURED in his live file 2026-10-01:
+#:     lastWhy["reel_qqq"] = "vault_retro exploded"
+#: - the fixture of test_a_REAL_failure_still_burns_a_try, which pops `tries` and `skipped` and not
+#: `lastWhy`. The run_gates live-state guard never saw it: the file was not in _LIVE_STATE, and that
+#: guard stands down whenever his console is up - which on his Mac is always.
+#: EXPLICIT BEATS AMBIENT, the precedence _chron_swept_path already carries: a patched global is an
+#: instruction; otherwise the world TV_HIST describes, resolved at call time as before.
+#: [[feedback-fixtures-never-touch-live-data]] [[copy-drift]]
+_VAULT_AUTOREAD_PATH = os.path.join(HERE, ".vault_autoread.json")
+
+
 def _vault_autoread_path():
+    if _VAULT_AUTOREAD_PATH != os.path.join(HERE, ".vault_autoread.json"):
+        return _VAULT_AUTOREAD_PATH       # patched on purpose (a suite's sandbox) — honour it
     return os.path.join(_fixture_root_for_state(), ".vault_autoread.json")
 
 
@@ -28236,6 +28268,9 @@ def _vault_autoread_load():
         for k in ("retired", "tries", "lastWhy", "reextract"):
             if isinstance(d.get(k), dict):
                 _VAULT_AUTOREAD[k] = dict(d[k])
+        # REG-1651 — the rotation's place in the owed list, so a relaunch resumes where it was
+        if isinstance(d.get("cursor"), str) and d.get("cursor"):
+            _VAULT_AUTOREAD["cursor"] = d["cursor"]
         # ⚠ LAST. Nothing may observe `tried` until `retired` is actually in memory.
         st["tried"], st["readable"] = True, True
         return True
@@ -28271,7 +28306,11 @@ def _vault_autoread_save():
                "retired": _VAULT_AUTOREAD.get("retired") or {},
                "tries": _VAULT_AUTOREAD.get("tries") or {},
                "lastWhy": _VAULT_AUTOREAD.get("lastWhy") or {},
-               "reextract": _VAULT_AUTOREAD.get("reextract") or {}}
+               "reextract": _VAULT_AUTOREAD.get("reextract") or {},
+               # ⚠ REG-1651 — v3283 saved "on every cursor change" and this payload never carried
+               # the cursor, so every save it added wrote everything EXCEPT the thing it was for, and
+               # each relaunch restarted the rotation at the head of the owed list.
+               "cursor": _VAULT_AUTOREAD.get("cursor")}
         with io.open(tmp, "w", encoding="utf-8") as fh:
             json.dump(rec, fh, indent=1, sort_keys=True)
         os.replace(tmp, dest)
@@ -30733,18 +30772,27 @@ def _vault_autoread_note(r, now_ms=None):
     return note
 
 
-def _vault_no_tick_why(now_s=None):
+def _vault_no_tick_why(up_s=None):
     """REG-1646 — AN OWING LANE WITH NO RECORDED TICK IS NOT A LANE WITH NOTHING TO SAY. -> str
 
     REG-1627 gave an owing lane its last tick's words, and left `owedWhy` null when there was no last tick - which reads
     exactly like "nothing to explain". Right after a start the first tick is up to one interval away and that is said
     plainly. Past two intervals with nothing recorded, the loop is not ticking - REG-1640's shape, a thread started
     inside a swapped window that never ran records nothing, ever - and why it waits is UNKNOWN. [[unknown-stays-unknown]]"""
-    now_s = time.time() if now_s is None else now_s
-    up = max(0, int(now_s - _BOOT_AT))
-    if up < 2 * _VAULT_AUTOREAD_EVERY_S:
-        return ("no tick yet since this console started %d s ago - the first runs within %d s"
+    # ⚠ v3540 REG-1654 (the v3538 cross-family eye, both halves reproduced by reading):
+    #   · ON THE CLOCK THE LOOP SLEEPS ON. _BOOT_AT is wall-clock (it is compared with a file mtime) and the loop waits
+    #     with time.sleep, which no NTP or manual step moves - a step forward read "not ticking" before the first wake
+    #     was even due, a step back read "first runs within" for a lane silent for an hour. Uptime is monotonic now.
+    #   · A SENTENCE TRUE IN EVERY WINDOW. "the first runs within 45 s" was said up to 90 s after start, when the first
+    #     tick was already due - a lane that had missed its wake read as one still on time.
+    up = max(0, int((time.monotonic() - _BOOT_MONO) if up_s is None else up_s))
+    if up < _VAULT_AUTOREAD_EVERY_S:
+        return ("no tick yet - this console started %d s ago and the lane's first tick is due %d s after start"
                 % (up, _VAULT_AUTOREAD_EVERY_S))
+    if up < 2 * _VAULT_AUTOREAD_EVERY_S:
+        return ("the lane's first tick was due %d s after start and none is recorded yet (%d s now) - a tick that is "
+                "still running is recorded when it ends; if none is by %d s, the lane is not ticking"
+                % (_VAULT_AUTOREAD_EVERY_S, up, 2 * _VAULT_AUTOREAD_EVERY_S))
     return ("no tick has been recorded in the %d s since this console started - the lane is not ticking (it should, "
             "every %d s), so why it waits is UNKNOWN" % (up, _VAULT_AUTOREAD_EVERY_S))
 
@@ -30957,7 +31005,10 @@ def vault_sweep_start(hist_dir=None, limit=None, force=False, reel_dir=None):
                     "lanes": lanes, "laneDetail": _chron_lane_detail()}
         _VAULT_JOB.update({"running": True, "startedTs": int(time.time() * 1000), "phase": "grouping",
                            "reelsDone": 0, "reelsTotal": 0, "classified": 0, "pagesRead": 0,
-                           "result": None, "error": None, "lanes": lanes})
+                           "result": None, "error": None, "lanes": lanes,
+                           # REG-1649 — a reason belongs to the run that found it; never carried
+                           # into the next one, which may seal cleanly
+                           "notDefinitiveWhy": None, "incompleteWhy": None})
     threading.Thread(target=_vault_sweep_run, args=(hist_dir, limit, force, reel_dir),
                      daemon=True, name="tvd-vault-sweep").start()
     return {"ok": True, "started": True, "lanes": lanes}
@@ -31957,6 +32008,8 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
                       "\u2014 sealing nothing, so the footage stays readable. The lines above say "
                       "which of the three it was: refused by the template, "
                       "read-and-nothing-nameable, or genuinely empty." % _whynot)
+                with _VAULT_LOCK:
+                    _VAULT_JOB["incompleteWhy"] = _whynot      # REG-1649 \u2014 the run's own reason
 
         # ACCUMULATE ACROSS SESSIONS — merge-max only, and the merge itself lives in vault_retro.
         # This ledger is what the readers have SEEN; it is never what he owns.
@@ -32042,6 +32095,43 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
     except Exception as e:
         with _VAULT_LOCK:
             _VAULT_JOB.update({"running": False, "phase": "error", "error": str(e)[:200]})
+    finally:
+        _vault_lane_note_outcome(reel_dir)     # REG-1649
+
+
+def _vault_lane_note_outcome(reel_dir, swept=None):
+    """REG-1649 — a sweep aimed at ONE reel tells the lane why that reel is still owed. -> str|None
+
+    ⚠⚠ THE RETIREMENT SAID "WHY IS UNKNOWN" WHILE THE SWEEP HAD PRINTED WHY. `lastWhy[reel]` was
+    written only when `vault_sweep_start` refused synchronously; a sweep that STARTED, read every
+    panel and then could not seal reported its reason to stdout and to `_VAULT_JOB` - and the lane
+    never heard it. MEASURED on his console 2026-10-01: both reels retired at 03:12 with "2
+    attempt(s) ran and this reel is STILL owed afterwards — and no attempt left a reason, so WHY is
+    UNKNOWN, not diagnosed", directly under four lines reading "read 28 panel(s) but the seal cannot
+    be definitive: 28 frame(s) were READ but only 0 were cross-checked" (that was REG-1648).
+    So the run that KNOWS writes it, per reel, at the end of every exit path. A reel this run sealed
+    is not owed and gets nothing; a run that ended with no reason at all says THAT, in words, rather
+    than leaving the field empty for the retirement to call unknown. [[the-unjoined-end]] [[heart-first]]
+    """
+    if not reel_dir:
+        return None                      # a sweep of everything is not an attempt on one reel
+    try:
+        rid = os.path.basename(str(reel_dir).rstrip("/\\"))
+        _sw = _vault_swept_load() if swept is None else swept
+        if isinstance(_sw, dict) and (rid in _sw or rid.replace("reel_", "", 1) in _sw):
+            return None                  # sealed by this run (or before it) — nothing is owed
+        with _VAULT_LOCK:
+            _job = dict(_VAULT_JOB)
+        why = (("the sweep raised: %s" % _job.get("error")) if _job.get("error")
+               else _job.get("incompleteWhy") or _job.get("notDefinitiveWhy")
+               or "the sweep ran on this reel and ended without a seal, and it gave no reason")
+        why = str(why)[:200]
+        with _VAULT_AUTOREAD_LOCK:
+            _VAULT_AUTOREAD.setdefault("lastWhy", {})[rid] = why
+        _vault_autoread_save()
+        return why
+    except Exception:
+        return None                      # a note that fails must never fail the sweep it describes
 
 
 _VAULT_LAST_PROPOSAL = None

@@ -62,8 +62,22 @@ class TheVaultLaneRemembersAcrossARestart(unittest.TestCase):
     def _restart(self):
         """Everything a new process would start with, and nothing more."""
         CA._VAULT_AUTOREAD.update({"reads": 0, "lastTs": 0, "retired": {}, "tries": {},
-                                   "lastWhy": {}, "skipped": {}, "reextract": {}})
+                                   "lastWhy": {}, "skipped": {}, "reextract": {}, "cursor": None})
         CA._VAULT_AUTOREAD_STORE.update({"tried": False, "readable": None})
+
+    def test_the_rotation_cursor_survives_a_restart(self):
+        """★ v3539 REG-1651 — DRIVEN, because the source law below this class could not see it. v3283 saved the
+        store "where the cursor changes", and a law checked that `_vault_autoread_save()` sits beside the
+        assignment - it did, and the payload it wrote never carried `cursor`, nor did the loader read one. So
+        every relaunch restarted the rotation at the head of the owed list, while the law stayed green."""
+        CA._VAULT_AUTOREAD["cursor"] = "reel_s_1700000000000_00042"
+        self.assertTrue(CA._vault_autoread_save(), "the store could not be written at all")
+        self._restart()
+        self.assertIsNone(CA._VAULT_AUTOREAD.get("cursor"), "the fixture did not clear memory - proves nothing")
+        self.assertIs(CA._vault_autoread_load(), True)
+        self.assertEqual(CA._VAULT_AUTOREAD.get("cursor"), "reel_s_1700000000000_00042",
+                         "the rotation position was lost across a restart - the head of the owed list gets "
+                         "the first turn after every relaunch")
 
     # ── the store must not be able to reach his live console ─────────────────────────────────
     def test_the_store_lives_under_the_fixture_root(self):
@@ -378,6 +392,20 @@ RED_PROOF = [
         'file': 'control_app.py',
         'find': '    if _mem is None:\n        return False\n    try:\n        dest = _vault_autoread_path()',
         'replace': '    if False:\n        return False\n    try:\n        dest = _vault_autoread_path()',
+        'matches': 1,
+    },
+    {
+        'why': 'REG-1651 - the writer leaves the cursor out again: every relaunch restarts the rotation at the head',
+        'file': 'control_app.py',
+        'find': '               "cursor": _VAULT_AUTOREAD.get("cursor")}\n',
+        'replace': '               }\n',
+        'matches': 1,
+    },
+    {
+        'why': 'REG-1651 - the loader ignores a saved cursor: the position is on disk and never comes back',
+        'file': 'control_app.py',
+        'find': '        if isinstance(d.get("cursor"), str) and d.get("cursor"):\n            _VAULT_AUTOREAD["cursor"] = d["cursor"]\n',
+        'replace': '',
         'matches': 1,
     },
 ]

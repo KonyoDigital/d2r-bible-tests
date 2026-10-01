@@ -197,7 +197,40 @@ def _dir_mb(path):
     return total / (1024.0 * 1024.0)
 
 
-_DURABLE = set()
+# ⚠⚠ v3539 REG-1647 — None MEANS "NEVER LOADED", AND IT IS NOT THE EMPTY SET. This started as set(),
+# filled only by plan(). `_panels_never_banked` asks `not in _DURABLE`, so any caller that asked
+# BEFORE a plan() ran in its process was told every surveyed reel with panels had never been banked.
+# MEASURED on his Mac 2026-10-01, same reel, same process, a minute apart:
+#     reel_s_1789330829280_66296   before plan(): never_banked True   after plan(): False (in durable)
+# The console's boot re-entry (vault_reentry_sweep) asks first, so on EVERY relaunch it re-admitted
+# the two reels the vault lane had retired; the lane then paid 2 passes of ~30 panel reads each on
+# both, and its retire path - asking after plan() - retired them again. 9 relaunches since
+# 2026-09-30 10:18, about 1,000 reads that could never seal (REG-1648). end_routes fell into this
+# same unloaded global once and fixed it for itself only. [[unknown-stays-unknown]] [[copy-drift]]
+_DURABLE = None
+
+
+class DurableUnknown(Exception):
+    """The durable witness index could not be read, so whether a reel's panels were banked is UNKNOWN.
+
+    Raised to the caller rather than collapsed to a bool: the callers disagree on what UNKNOWN costs.
+    The vault re-entry leaves a retirement alone ("never guess" - re-admitting spends), the retire
+    path refuses to retire ("retiring wrongly costs the extraction for ever"). Each already says so in
+    its own except arm; a bool would have picked one of them for both."""
+
+
+def _durable_loaded():
+    """The durable session set, loaded on first use when no plan() has run in this process. -> set
+
+    ⚠ A failed load is NOT cached: an unreadable index read once must not stand as "nothing is
+    durable" for the life of the console (the v2386 lesson, one module over)."""
+    global _DURABLE
+    if _DURABLE is None:
+        _sess, _ok, _why = _durable_sessions(HERE)
+        if not _ok:
+            raise DurableUnknown(_why or "the durable witness index could not be read")
+        _DURABLE = set(_sess)
+    return _DURABLE
 
 
 def _reel_ts_key(reel):
@@ -391,7 +424,9 @@ def _panels_never_banked(reel, seal=_UNSUPPLIED):
             _n = _row.get("rows")
             if isinstance(_n, bool) or not isinstance(_n, int) or _n <= 0:
                 return True
-        return _reel_ts_key(reel) not in _DURABLE
+        return _reel_ts_key(reel) not in _durable_loaded()     # REG-1647 — never the unloaded global
+    except DurableUnknown:
+        raise                             # REG-1647 — UNKNOWN travels; each caller prices it itself
     except Exception:
         return False
 
@@ -1132,7 +1167,11 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT, *, _fresh=False):
 
     # v2056 — sessions whose witnesses survive without the frames, read ONCE per plan.
     global _DURABLE
-    _DURABLE, _durable_ok, _durable_why = _durable_sessions(HERE)
+    _dur_set, _durable_ok, _durable_why = _durable_sessions(HERE)
+    # REG-1647 — PUBLISHED ONLY WHEN IT WAS READ. A failed load stays None (UNKNOWN), so a caller
+    # outside plan() is never handed an empty set meaning "nothing is durable"; plan's own rules use
+    # the local set, and its `ledger-unreadable` rule already holds every reel in that case.
+    _DURABLE = set(_dur_set) if _durable_ok else None
     if not _durable_ok:
         # NAME THE REAL REASON. `_durable_sessions` returns ok=False both when a store will not
         # parse AND when frame_authority itself could not be imported — and saying "vault_accum.json
@@ -1324,7 +1363,7 @@ def plan(hist_dir=None, free_mb=None, keep_recent=KEEP_RECENT, *, _fresh=False):
                         "a FULL survey found panel frames here and the vault ledger holds NO row "
                         "from this reel — its stash rows have never been extracted, so deleting it "
                         "destroys the only copy. A seal is not an extraction.")
-        elif (ve or {}).get("rows") and _reel_ts_key(reel) not in _DURABLE:
+        elif (ve or {}).get("rows") and _reel_ts_key(reel) not in _dur_set:
             # v2056 — READ IS NOT BANKED. This reel produced rows and none of them reached a store
             # that outlives the frames, so deleting it destroys the only record of those witnesses.
             why = _rule("rows-not-banked",
