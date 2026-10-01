@@ -8787,6 +8787,13 @@ GATES = [
              "its own with rmtree(ignore_errors=True), which fails silently on Windows while grok still holds a file "
              "there. A read's session is removed with retries or counted, and every read sweeps earlier reads' "
              "leftovers by their unique tvd-g5- name only."),
+    Gate("test_a_session_opens_by_its_own_id",
+         [sys.executable, os.path.join(HERE, "test_a_session_opens_by_its_own_id.py")], 90,
+         needs_app=False,
+         why="#135 (GrokBot on v3544/v3546) - pick Session 28 opened the dossier of 46, then 175: every door handed "
+             "_sessionDossier a NUMBER that is a position in the list that door painted from. A session now opens by "
+             "its own id at every door (shelf card, highlight cards, hero row, route, re-renders); the number is only "
+             "a fallback, and an id the shelf does not hold opens nothing."),
     Gate("test_a_heart_refresh_never_wedges",
          [sys.executable, os.path.join(HERE, "test_a_heart_refresh_never_wedges.py")], 90,
          needs_app=False,

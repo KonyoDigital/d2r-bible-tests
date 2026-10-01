@@ -279,8 +279,9 @@ RED_PROOF = [
         "why": "dropping data-sid from the card builder leaves the lookups asking for an attribute "
                "no card carries — every reel renders as not stamped again",
         "file": "control_ui.html",
-        "find": 'data-sid="\' + esc(sm.sessionId || \'\') + \'" ',
-        "replace": "",
+        # #135 re-anchored: the hero row now carries the same data-sid text, so the shelf CARD is named by what follows it
+        "find": 'data-sid="\' + esc(sm.sessionId || \'\') + \'" data-n="\' + n',
+        "replace": 'data-n="\' + n',
         "matches": 1,
     },
 ]

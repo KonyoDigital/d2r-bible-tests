@@ -12114,7 +12114,7 @@ window._lockMark = function(isOpen, px, label){
     function close(save){
       if (closed) return; closed = true;
       if (save){ var m = _sesNoteGet(DOSSIER.sid) || {}; m[field] = inp.value; _sesNoteSet(DOSSIER.sid, m); }
-      if (typeof _sessionDossier === 'function') _sessionDossier(DOSSIER.n);   // re-render the dossier
+      if (typeof _sessionDossier === 'function') _sessionDossier(DOSSIER.n, DOSSIER.sid);   // re-render the dossier
       try { var _sov = document.getElementById('th-shelfov'); if (_sov && !_sov.hidden && typeof thShelf === 'function') thShelf(true); } catch(e){}   // D25 — refresh the shelf so its card + search index pick up the new name
     }
     inp.onkeydown = function(e){ e.stopPropagation(); if (e.key === 'Enter'){ close(true); } else if (e.key === 'Escape'){ close(false); } };
@@ -12131,7 +12131,7 @@ window._lockMark = function(isOpen, px, label){
   window._dossierTogglePin = function(){
     if (!DOSSIER.sid) return;
     _sesPinToggle(DOSSIER.sid);
-    if (typeof _sessionDossier === 'function') _sessionDossier(DOSSIER.n);   // re-render the dossier toggle
+    if (typeof _sessionDossier === 'function') _sessionDossier(DOSSIER.n, DOSSIER.sid);   // re-render the dossier toggle
     try { var _sov = document.getElementById('th-shelfov'); if (_sov && !_sov.hidden && typeof thShelf === 'function') thShelf(true); } catch(e){}   // reflow the shelf so the pin floats
   };
   // ══ D27 · RECAP EXPORT — a clean, honest text recap of a run (title/name · when · area · stats · verdict ·
@@ -12208,13 +12208,19 @@ window._lockMark = function(isOpen, px, label){
     } catch(e){ _recapFlash('dsr-save', '⚠ Save failed'); }
   };
   /* ⟦SESSION DOSSIER BEGIN⟧ */
-  function _sessionDossier(n){
+  function _sessionDossier(n, sid){
     var ov = document.getElementById('th-dossier-ov'); if (!ov) return;
     var list = (typeof TH !== 'undefined' && TH.sessions && TH.sessions.length) ? TH.sessions
              : (typeof HD_ALL !== 'undefined' ? HD_ALL : []);
     list = list || [];
     var sm = null;
-    for (var i = 0; i < list.length; i++){ if ((list[i].n || (i + 1)) === n){ sm = list[i]; break; } }
+    /* #135 — GrokBot on v3544/v3546: pick "Session 28" -> the dossier of 46, then 175. Every door handed over a NUMBER,
+       and a number here is a position when a session carries none - in whichever list that door painted from (the
+       shelf, the highlights' newest-first copy, the hero row) - looked up again in this one. A session now opens by its
+       OWN id; the number is only the fallback for a door that has none, and the box says both. */
+    if (!sid && typeof n === 'string' && n.indexOf('s_') === 0){ sid = n; n = null; }
+    if (sid){ for (var j = 0; j < list.length; j++){ if (list[j] && list[j].sessionId === sid){ sm = list[j]; n = list[j].n || (j + 1); break; } } }
+    if (!sm && !sid){ for (var i = 0; i < list.length; i++){ if ((list[i].n || (i + 1)) === n){ sm = list[i]; break; } } }
     if (!sm){ ov.hidden = true; return; }
     var freshOpen = ov.hidden || DOSSIER.n !== n;   // D20 — only count up on a real open, not the 12s poll re-render
     DOSSIER.n = n; DOSSIER.sid = sm.sessionId || ''; DOSSIER.sm = sm;   // D25 — stable key for notes/naming · D27 — recap source
@@ -12222,6 +12228,7 @@ window._lockMark = function(isOpen, px, label){
     // v3538 — the beat reads WHICH dossier is on screen from the overlay itself. v3540 REG-1655 (the v3538 eye): stamped
     // only AFTER its content is in - stamped first, a render that throws left 87 on a box still showing 28's dossier
     ov.setAttribute('data-n', String(n));
+    ov.setAttribute('data-sid', String(sm.sessionId || ''));
     ov.hidden = false; ov.scrollTop = 0;
     if (freshOpen){
       _animCounts(ov);   // D20 — animate the key numbers up from 0 (cosmetic; lands on the exact value)
@@ -15741,7 +15748,7 @@ window._lockMark = function(isOpen, px, label){
       var spanS = (s.t0 && s.t1) ? Math.max(0, Math.round((s.t1 - s.t0) / 1000)) : 0;
       var reads = s.reads || 0;
       var grails = (s.finds || []).filter(function(f){ return f.tier === 'grail'; }).length;
-      return { n: s.n || 0, reads: reads, grails: grails,
+      return { n: s.n || 0, sid: s.sessionId || '', reads: reads, grails: grails,
         rph: (reads && spanS > 0) ? Math.round(reads / (spanS / 3600)) : null,
         cov: (s.coverage && s.coverage.total) ? Math.round((s.coverage.read || 0) / s.coverage.total * 100) : null };
     });
@@ -15752,16 +15759,16 @@ window._lockMark = function(isOpen, px, label){
     var dset = {}; runs.forEach(function(s){ if (s.t0){ var d = new Date(s.t0); dset[d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate()] = 1; } });
     var dkeys = Object.keys(dset).map(function(k){ var p = k.split('-'); return new Date(+p[0], +p[1], +p[2]).getTime(); }).sort(function(a, b){ return b - a; });
     var streak = 0; if (dkeys.length){ streak = 1; for (var i = 1; i < dkeys.length; i++){ if (Math.round((dkeys[i - 1] - dkeys[i]) / 86400000) === 1) streak++; else break; } }
-    function card(ic, lab, val, sub, n){
-      var clk = n ? (' class="sh-hi-card shi-clk" data-n="' + n + '" title="open session ' + n + '"') : ' class="sh-hi-card"';
+    function card(ic, lab, val, sub, n, sid){
+      var clk = n ? (' class="sh-hi-card shi-clk" data-n="' + n + '" data-sid="' + esc(sid || '') + '" title="open session ' + n + '"') : ' class="sh-hi-card"';
       return '<div' + clk + '><div class="shi-ic">' + ic + '</div><div class="shi-body"><div class="shi-lab">' + lab + '</div>'
         + '<div class="shi-val">' + val + '</div>' + (sub ? '<div class="shi-sub">' + sub + '</div>' : '') + '</div></div>';
     }
     var cards = [];
-    if (bGrail && bGrail.grails > 0) cards.push(card('🏆', 'Best run', 'Session ' + bGrail.n, bGrail.grails + ' chronicle' + (bGrail.grails > 1 ? 's' : '') + ' · ' + _kpiFmt(bGrail.reads) + ' reads', bGrail.n));
-    if (bReads) cards.push(card('⚡', 'Most reads', 'Session ' + bReads.n, _kpiFmt(bReads.reads) + ' reads', bReads.n));
-    if (bRph) cards.push(card('📈', 'Top reads/hr', 'Session ' + bRph.n, _kpiFmt(bRph.rph) + ' /hr', bRph.n));
-    if (bCov) cards.push(card('📊', 'Best coverage', 'Session ' + bCov.n, bCov.cov + '%', bCov.n));
+    if (bGrail && bGrail.grails > 0) cards.push(card('🏆', 'Best run', 'Session ' + bGrail.n, bGrail.grails + ' chronicle' + (bGrail.grails > 1 ? 's' : '') + ' · ' + _kpiFmt(bGrail.reads) + ' reads', bGrail.n, bGrail.sid));
+    if (bReads) cards.push(card('⚡', 'Most reads', 'Session ' + bReads.n, _kpiFmt(bReads.reads) + ' reads', bReads.n, bReads.sid));
+    if (bRph) cards.push(card('📈', 'Top reads/hr', 'Session ' + bRph.n, _kpiFmt(bRph.rph) + ' /hr', bRph.n, bRph.sid));
+    if (bCov) cards.push(card('📊', 'Best coverage', 'Session ' + bCov.n, bCov.cov + '%', bCov.n, bCov.sid));
     cards.push(card('🔥', 'Streak', streak ? (streak + ' day' + (streak > 1 ? 's' : '')) : '—', runs.length + ' run' + (runs.length > 1 ? 's' : '') + ' logged'));
     return '<div class="sh-hi">' + cards.join('') + '</div>';
   }
@@ -15993,7 +16000,7 @@ window._lockMark = function(isOpen, px, label){
     // v1267 (D1) — the WHAT I FOUND cards carry HD item art; repaint them once the art map arrives
     try { if (typeof hdLastSession === 'function') hdLastSession(); } catch (e) {}
     try { var _sov = document.getElementById('th-shelfov'); if (_sov && !_sov.hidden && typeof thShelf === 'function') thShelf(true); } catch (e) {}
-    try { var _dov = document.getElementById('th-dossier-ov'); if (_dov && !_dov.hidden && !_dov.querySelector('.dsr-edit-input') && typeof _sessionDossier === 'function') _sessionDossier(DOSSIER.n); } catch (e) {}   // v1268 (D2) — dossier finds carry art too · D25 — never re-render while a name/note edit is open
+    try { var _dov = document.getElementById('th-dossier-ov'); if (_dov && !_dov.hidden && !_dov.querySelector('.dsr-edit-input') && typeof _sessionDossier === 'function') _sessionDossier(DOSSIER.n, DOSSIER.sid); } catch (e) {}   // v1268 (D2) — dossier finds carry art too · D25 — never re-render while a name/note edit is open
   }
   // tally counts arrive as an ARRAY of [name,n] (dossier) OR an OBJECT {name:n} (/api/tallies) — take both.
   function thCountPairs(counts){
@@ -18271,10 +18278,10 @@ window._lockMark = function(isOpen, px, label){
       var pin = e.target.closest && e.target.closest('.shc-pin');
       if (pin){ _sesPinToggle(pin.dataset.pinSid); thShelf(true); return; }   // D26 — ⭐ toggles pin (never opens the dossier)
       var hi = e.target.closest && e.target.closest('.shi-clk');
-      if (hi && hi.dataset.n){ _sessionDossier(Number(hi.dataset.n) || 1); return; }   // D17 — a highlight card jumps to that run's dossier
+      if (hi && hi.dataset.n){ _sessionDossier(Number(hi.dataset.n) || 1, hi.dataset.sid || ''); return; }   // D17 — a highlight card jumps to that run's dossier
       var c = e.target.closest('.sh-card');
       if (!c){ _shDismiss(); return; }   // click-outside a card = dismiss, the SAME way ✕ does
-      _sessionDossier(Number(c.dataset.n) || 1);   // v1268 (D2) — a card opens its DOSSIER (over the shelf), not straight to scrubbing
+      _sessionDossier(Number(c.dataset.n) || 1, c.dataset.sid || '');   // v1268 (D2) — a card opens its DOSSIER (over the shelf), not straight to scrubbing
     };
     };   // end _paintShelf
     // always refresh metadata; paint immediately when we already have sessions
@@ -22972,7 +22979,7 @@ window._lockMark = function(isOpen, px, label){
       var topGrail = (sm.finds || []).filter(function(f){ return f.tier === 'grail'; })[0];
       var sealed = (sm.kaiMissed != null), clean = !(sm.watchdogViolations > 0);
       var badge = !sealed ? '' : (clean ? '<span class="hh-seal hh-clean">🛡</span>' : '<span class="hh-seal hh-flag">🚨</span>');
-      return '<button type="button" class="hh-card" data-hn="' + n + '" title="open session ' + n + ' dossier">'
+      return '<button type="button" class="hh-card" data-hn="' + n + '" data-sid="' + esc(sm.sessionId || '') + '" title="open session ' + n + ' dossier">'
         + art + badge
         + '<div class="hh-body"><div class="hh-t">Session ' + n + '</div>'
         + '<div class="hh-when">' + (d0 ? d0.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : '—') + '</div>'
@@ -22980,7 +22987,7 @@ window._lockMark = function(isOpen, px, label){
         + (topGrail ? '<div class="hh-grail' + _nameRarCls(topGrail.name) + '" title="' + esc(topGrail.name) + '">🏆 ' + esc(topGrail.name) + '</div>' : '')
         + '</div></button>';
     }).join('');
-    el.onclick = function(e){ var c = e.target.closest('.hh-card'); if (c) _sessionDossier(Number(c.dataset.hn) || 1); };
+    el.onclick = function(e){ var c = e.target.closest('.hh-card'); if (c) _sessionDossier(Number(c.dataset.hn) || 1, c.dataset.sid || ''); };
   }
   async function hdShelf(){
     try {
