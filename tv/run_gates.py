@@ -8780,6 +8780,15 @@ GATES = [
              "ten minutes and, while a proof runs, the cheap guard every ten seconds, which stands it aside through the "
              "tick's own kill-and-book door; the start bar fits an idle 8 GB PC with the game off, still never beside "
              "his game and never near the running floor."),
+    Gate("test_a_silent_prover_is_ended_and_said",
+         [sys.executable, os.path.join(HERE, "test_a_silent_prover_is_ended_and_said.py")], 60,
+         needs_app=False,
+         why="REG-1674 (2026-10-01) - his ask: 'a stale safegaurd for this so it doesnt happen future wise', 'connect it "
+             "to the heart'. Measured on his ALT: the prover's log sat still 13:13 -> 14:25 while 15 gates were proved "
+             "(block-buffered), so a working prover and a hung one looked the same. The log is unbuffered now; a prover "
+             "silent past its slice's honest bound (3 runs at their deadline) is ended through the lane's one kill door, "
+             "its gates proved after the others, and the lane's key says 'silent' - which the doctor warns on and the "
+             "fleet beacon carries. Real self_prove.tick; only the machine is faked."),
     Gate("test_one_clean_run_serves_a_gates_proofs",
          [sys.executable, os.path.join(HERE, "test_one_clean_run_serves_a_gates_proofs.py")], 60,
          needs_app=False,

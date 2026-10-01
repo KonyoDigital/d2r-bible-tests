@@ -260,6 +260,14 @@ class TheLaneProvesASliceAtATime(unittest.TestCase):
             return SP.tick(now_s=now, busy=3.0, tree=self.INSTALLED, census=census, path=self.path,
                            spawn_fn=self._spawn, env={}, playing=False, free=8000)
 
+    def test_the_tick_proves_a_recorded_blind_first(self):
+        """REG-1673 - the tick hands the census's BLIND list to the planner: the slice is the BLIND gate alone"""
+        census = dict(self._census("stale", ["g1", "g2", "harness"]), blind=["harness"])
+        r = self._tick(census, 1000.0)
+        self.assertEqual(r["key"], "start")
+        self.assertEqual(self.spawned, [["harness"]],
+                         "the recorded BLIND gate was not proved first and alone: %s" % self.spawned)
+
     def test_the_tick_starts_a_slice_and_names_its_gates(self):
         r = self._tick(self._census("missing", ["g1", "g2", "g3"]), 1000.0)
         self.assertEqual(r["key"], "start")
@@ -327,8 +335,29 @@ class TheSlicePlan(unittest.TestCase):
     def test_nothing_owed_plans_nothing(self):
         self.assertEqual(SP.plan_slice([], {}), [])
 
+    def test_a_recorded_blind_is_a_slice_of_its_own(self):
+        """REG-1673 - one BLIND record shuts every lock on the PC; the gates that can lift it go first and alone"""
+        owed = [("cheap", 0), ("blind_b", 3), ("mid", 1), ("blind_a", 5)]
+        costs = {"cheap": 1, "mid": 5, "blind_a": 50, "blind_b": 60}
+        self.assertEqual(SP.plan_slice(owed, costs, budget_s=10 ** 6, blind=["blind_a", "blind_b", "not_owed"]),
+                         ["blind_b", "blind_a"],
+                         "a slice mixed other gates in with the BLIND ones, so their verdict waits for all of them")
+        self.assertEqual(SP.plan_slice(owed, costs, budget_s=10 ** 6, blind=["not_owed"]),
+                         ["cheap", "mid", "blind_b", "blind_a"],
+                         "a BLIND gate that is not owed (its file unchanged) cannot be re-proved; it must not empty "
+                         "the slice")
+        self.assertEqual(SP.plan_slice(owed, costs, budget_s=10 ** 6, blind=None)[0], "cheap")
+
 
 RED_PROOF = [
+    {"why": "REG-1673 - a recorded BLIND waits inside a slice of cheaper gates: the river stays shut for the whole slice",
+     "file": "tv/self_prove.py",
+     "find": "    if _first:\n        owed = _first\n",
+     "replace": "    if False:\n        owed = _first\n", "matches": 1},
+    {"why": "REG-1673 - the tick never hands the census's BLIND list to the planner",
+     "file": "tv/self_prove.py",
+     "find": "plan_slice(_plan, _costs, blind=census.get(\"blind\"))",     # REG-1674 re-anchor
+     "replace": "plan_slice(_plan, _costs)", "matches": 1},
     {"why": "REG-1623 - a full run stamps the census over a gate it could not measure",
      "file": "tv/heart2.py",
      "find": "    if _unm_owed:\n        _fp_out = None\n    else:\n",

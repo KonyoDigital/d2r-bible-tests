@@ -87,6 +87,11 @@ STAND_ASIDE_COOLDOWN_S = 1800
 #: day never gave a whole census (~90 min on his Mac) one idle window, so it never wrote one and every lock stayed shut;
 #: a slice fits an idle gap, and a stand-aside costs only the slice it ends.
 SLICE_BUDGET_S = 600
+#: REG-1454 / REG-1674 — every law run in a proof gets this many times its registered patience (the prover runs below
+#: everything he does); ONE number, handed to heart2 by spawn() and used by silent_bound_s() to bound its silence
+PROVER_DEADLINE_SCALE = 4
+#: REG-1674 — the least a running prover may write nothing to its log before the lane calls it SILENT (seconds)
+PROVER_SILENT_MIN_S = 1800
 SLICE_MAX_GATES = 40
 #: a gate gate_costs.json has never timed is planned at this many seconds per run
 SLICE_UNKNOWN_COST_S = 30.0
@@ -665,12 +670,23 @@ def _gate_costs(path=None):
         return None
 
 
-def plan_slice(owed, costs=None, budget_s=None, max_gates=None):
+def plan_slice(owed, costs=None, budget_s=None, max_gates=None, blind=None):
     """#99 — ONE SLICE of the owed gates. Pure. -> [names]
 
     `owed` is [(name, n_proofs)]. Cheapest first (a gate's cost x (n_proofs + 1): one clean run and one per tamper), up
     to `budget_s` and `max_gates`, and never empty while anything is owed - a gate costlier than the whole budget is a
-    slice of its own rather than a gate no slice ever takes."""
+    slice of its own rather than a gate no slice ever takes.
+
+    REG-1673 — A RECORDED BLIND GOES FIRST, AND ALONE. `blind` is the census's BLIND list. One BLIND record shuts every
+    lock on this PC (self_arming: "BLIND IS NOT STALE AND NEVER SOFTENS"), so re-proving it is the only proof that can
+    change what the PC may do - and a slice writes its census only when ALL its gates are done. MEASURED on his ALT
+    2026-10-01: the four REG-1668 gates proved PROVEN inside a 27-gate slice that ran 70+ minutes before any of them
+    could reach the census, with the river shut the whole time. So an owed gate the census records BLIND is a slice of
+    its own kind: only those gates, cheapest first, and the rest wait for the next one."""
+    _blind = {str(b) for b in (blind or ()) if b}
+    _first = [t for t in (owed or []) if t and str(t[0]) in _blind]
+    if _first:
+        owed = _first
     costs = costs if costs is not None else {}
     budget = SLICE_BUDGET_S if budget_s is None else budget_s
     cap = SLICE_MAX_GATES if max_gates is None else max_gates
@@ -779,8 +795,11 @@ def spawn(log_path, python=None, workers=None, popen=None, names=None):
             py = cand
     # HEART2_DEADLINE_SCALE (REG-1454): this proof runs below everything he does, on whatever PC this is, so
     # every gate gets 4x its registered patience - measured on the ALT, a 120 s law timed out every time.
+    # REG-1674 - PYTHONUNBUFFERED: the log is a FILE, so Python held heart2's verdicts in 8 KB blocks. MEASURED on his ALT
+    # 2026-10-01: the log did not move from 13:13 to 14:25 while 15 gates were proved - a working prover and a hung one
+    # looked the same. Unbuffered, every verdict is a line the moment it is judged, and the log's age is a heartbeat.
     env = dict(os.environ, HEART2_PROVE_WORKERS=str(int(workers)), PYTHONIOENCODING="utf-8",
-               HEART2_DEADLINE_SCALE="4")
+               HEART2_DEADLINE_SCALE=str(PROVER_DEADLINE_SCALE), PYTHONUNBUFFERED="1")
     kw = {"cwd": HERE, "env": env, "stdin": subprocess.DEVNULL}
     if IS_WIN:
         kw["creationflags"] = _BELOW_NORMAL | _CREATE_NO_WINDOW
@@ -866,6 +885,47 @@ def guard(now_s=None, path=None, playing=None, free=None, kill_fn=None, _tick=No
                 "say": "the self-prove guard raised %s - the tick will ask again" % type(e).__name__}
 
 
+def log_silence(log_path, now_s):
+    """REG-1674 — how long the prover's log has been still, and its last line. -> (seconds | None, str | None)
+
+    None when the log cannot be read: UNKNOWN, never "silent" - a lane must not end a proof on a reading it never got."""
+    try:
+        age = max(0.0, float(now_s) - os.path.getmtime(log_path))
+    except Exception:
+        return None, None
+    last = None
+    try:
+        with io.open(log_path, "rb") as fh:
+            fh.seek(0, 2)
+            fh.seek(max(0, fh.tell() - 4096))
+            tail = fh.read().decode("utf-8", "replace").splitlines()
+        tail = [ln.strip() for ln in tail if ln.strip()]
+        last = tail[-1][:160] if tail else None
+    except Exception:
+        pass
+    return age, last
+
+
+def silent_bound_s(names, scale=None, timeouts=None):
+    """REG-1674 — how long THIS slice's prover may write nothing and still be honest. -> int seconds. Never raises.
+
+    heart2 kills every law run at its deadline (the gate's registered timeout x the deadline scale), and its log is
+    unbuffered, so every proof verdict is a line when it is judged. The longest honest silence between two lines is
+    three runs: one gate's closing clean run (REG-1669), then the next gate's clean run and its first tampered run.
+    Past 3 x scale x the slice's largest timeout (+ 10 min for its sandbox), heart2 ITSELF is stuck, never a law. A
+    gate the registry does not know is bounded by the largest timeout any gate carries."""
+    try:
+        if timeouts is None:
+            import run_gates as _rg
+            timeouts = {g.name: getattr(g, "timeout", 180) for g in _rg.GATES}
+        top = max([float(v) for v in timeouts.values()] or [180.0])
+        per = [float(timeouts.get(n, top)) for n in (names or [])] or [top]
+        sc = float(PROVER_DEADLINE_SCALE if scale is None else scale)
+        return int(max(PROVER_SILENT_MIN_S, 3 * sc * max(per) + 600))
+    except Exception:
+        return int(3 * PROVER_DEADLINE_SCALE * 900 + 600)       # the registry would not read: the widest honest bound
+
+
 def _int(v):
     try:
         return int(v or 0)
@@ -925,6 +985,29 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
     aside, aside_why = stand_aside(play_now, free_now) if running else (False, "")
     if aside and finishing and now_ms - _int(mem.get("finishingSince")) < FINISH_GRACE_S * 1000:
         aside, aside_why = False, ""                       # finishing - still running a tick later is a hang
+    # REG-1674 — A PROVER THAT HAS GONE SILENT IS ENDED THROUGH THE SAME DOOR, AND SAYS SO. His ask, 2026-10-01, after
+    # the ALT's log sat still for 70 minutes and nobody could tell a working prover from a hung one: "a stale safeguard
+    # for this so it doesnt happen future wise". The log is unbuffered (spawn), so its age is a heartbeat; past this
+    # slice's honest bound (silent_bound_s) heart2 itself is stuck. It is ended, its gates stay owed and are proved
+    # AFTER the others (a hung gate must not hold every other proof - and the river - behind it), and the lane's key
+    # says "silent", which the console doctor, the fleet beacon and the river's stuck line all read.
+    _quiet, _last = log_silence(_store_path(path) + ".log", now_s) if running else (None, None)
+    _bound = silent_bound_s(mem.get("sliceGates")) if running else None
+    silent = bool(running) and not aside and not finishing and _quiet is not None and _quiet > _bound
+    stall_gone, stall_why = None, ""
+    if silent:
+        stall_why = ("the prover wrote nothing for %d min - past this slice's honest bound of %d min, so heart2 itself "
+                     "was stuck, not a law (its last line: %s). It was ended; its %d gate(s) stay owed and are proved "
+                     "after the others" % (_quiet // 60, _bound // 60, _last or "none",
+                                           len(mem.get("sliceGates") or [])))
+        stall_gone = bool((kill_fn or end_tree)(running, birth))
+        if stall_gone:
+            mem.update(stalled=_int(mem.get("stalled")) + 1, lastStallAt=now_ms, lastStallWhy=stall_why,
+                       stalledGates=list(mem.get("sliceGates") or []), stalledFor=census.get("fingerprint"))
+            _forget(mem)
+            pid = running = None
+        else:
+            mem.update(stallSurvived=_int(mem.get("stallSurvived")) + 1, pid=running, pidBirth=birth)
     gone = None
     if aside:
         # REG-1502 — stood aside, not failed: no failure count, no 3 h backoff; REG-1511 — a cooldown, and a kill
@@ -967,6 +1050,14 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
     on = enabled(env)
     d = decide(census, tree if tree is not None else tree_state(), running,
                busy() if callable(busy) else busy, mem, now_s, on=on, playing=play_now, free=free_now)
+    if stall_gone is True:
+        d = {"start": False, "key": "silent", "why": stall_why}
+    elif stall_gone is False:
+        d = {"start": False, "key": "silent-survived",
+             "why": "%s - but pid %s did not end; it stays tracked and is asked again next tick" % (stall_why, running)}
+    elif d.get("key") == "running" and _quiet is not None:
+        d = dict(d, why="%s - its log last moved %d min ago (this slice's bound: %d min)%s" % (
+            d.get("why"), _quiet // 60, _bound // 60, ("; last line: " + _last) if _last else ""))
     if gone is True:
         d = {"start": False, "key": "stood-aside", "why": "the running proof stood aside: " + aside_why}
     elif gone is False:
@@ -989,7 +1080,12 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
             log_path = _store_path(path) + ".log"
             _owed_g = census.get("owedGates")
             _costs = _gate_costs() if isinstance(_owed_g, list) and _owed_g else None
-            _slice = plan_slice(_owed_g, _costs) if isinstance(_owed_g, list) and _owed_g else None
+            # REG-1674 - a slice whose prover went silent is proved AFTER every other owed gate (for these gates)
+            _stuck = (set(mem.get("stalledGates") or []) if mem.get("stalledFor") == census.get("fingerprint")
+                      else set())
+            _plan = ([t for t in _owed_g if str(t[0]) not in _stuck] or _owed_g) if isinstance(_owed_g, list) else _owed_g
+            _slice = (plan_slice(_plan, _costs, blind=census.get("blind"))     # REG-1673 - a recorded BLIND first
+                      if isinstance(_owed_g, list) and _owed_g else None)
             if _slice:
                 mem["pid"] = (spawn_fn or spawn)(log_path, names=_slice)
                 mem["sliceGates"] = _slice
@@ -1018,4 +1114,7 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
             "slices": _int(mem.get("slices")),
             "key": d["key"], "say": d["why"], "census": st, "blind": census.get("blind"),
             "running": bool(mem.get("pid")), "playing": play_now, "freeMb": free_now,
-            "stoodAside": _int(mem.get("stoodAside")), "asideSurvived": _int(mem.get("asideSurvived"))}
+            "stoodAside": _int(mem.get("stoodAside")), "asideSurvived": _int(mem.get("asideSurvived")),
+            # REG-1674 - the heartbeat, in the lane's own words: how long its log has been still, the bound, the stalls
+            "logAgeS": (int(_quiet) if _quiet is not None else None), "silentBoundS": _bound,
+            "stalled": _int(mem.get("stalled")), "lastStallWhy": mem.get("lastStallWhy")}

@@ -413,7 +413,11 @@ class TheHarnessIsolatesTheWorld(unittest.TestCase):
                 "builtins.__import__ = _boom\n"
                 "fb = CA._fixture_root_for_state()\n"
                 "print('PAIR:' + canon + '|' + fb)\n" % (HERE,))
-            out = subprocess.check_output([sys.executable, "-c", code], env=env,
+            # REG-1672 - FROM THE REPO ROOT, where a blank or relative TV_HIST lands OUTSIDE tv/. heart2 runs a law with
+            # its cwd IN tv/, where `realpath("relative/path")` falls back inside HERE, so an unnarrowed fallback still
+            # answered HERE and agreed: BLIND on his ALT. On the Mac it went red only through the /var -> /private/var
+            # symlink of its sandbox - an accident, not this law. The repo root is the cwd REG-875 was measured at.
+            out = subprocess.check_output([sys.executable, "-c", code], env=env, cwd=os.path.dirname(HERE),
                                           stderr=subprocess.STDOUT, timeout=180)
             line = [l for l in out.decode("utf-8", "replace").splitlines()
                     if l.startswith("PAIR:")]
@@ -494,21 +498,26 @@ class TheHarnessIsolatesTheWorld(unittest.TestCase):
 
         MEASURED with the import forced to fail and `TV_HIST="   "`, from the repo root: both arms
         planted their files at `<repo>/   `. [[gate-blind-to-unexercised-input]] [[copy-drift]]"""
+        # REG-1672 - THE IMPORT IS BLOCKED BY A None IN sys.modules, AND THE BLOCK IS A PREMISE. This used a legacy
+        # meta-path finder (find_module/load_module); Python 3.12 removed that protocol, so on his ALT (3.12.10) the
+        # import simply SUCCEEDED, neither arm ever ran, and both of their red-proofs stayed green through their own
+        # defeat - BLIND there, PROVEN on the Mac's 3.9. `sys.modules[name] = None` refuses the import on every version
+        # (MEASURED on both), and each child now says whether it really refused before an arm is graded.
         repo = os.path.dirname(HERE)
         code = (
             "import os, sys\n"
             "sys.path.insert(0, %r)\n"
-            "class _B:\n"
-            "    def find_module(self, n, p=None):\n"
-            "        return self if n == 'tv_diablo' else None\n"
-            "    def load_module(self, n):\n"
-            "        raise ImportError('forced')\n"
-            "sys.meta_path.insert(0, _B())\n"
             "for mod, attr in (('chronicle_routes', '_routes_cache_root'),\n"
             "                  ('g5_grok_eyes', '_g5_stats_root')):\n"
             "    for k in list(sys.modules):\n"
             "        if k in (mod, 'tv_diablo'):\n"
             "            del sys.modules[k]\n"
+            "    sys.modules['tv_diablo'] = None\n"
+            "    try:\n"
+            "        import tv_diablo\n"
+            "        print('P:' + mod + '=NOT BLOCKED')\n"
+            "    except ImportError:\n"
+            "        print('P:' + mod + '=blocked')\n"
             "    try:\n"
             "        m = __import__(mod)\n"
             "        print('R:' + mod + '=' + os.path.realpath(str(getattr(m, attr)())))\n"
@@ -518,8 +527,12 @@ class TheHarnessIsolatesTheWorld(unittest.TestCase):
             env = dict(os.environ, TV_STUB="1", TV_HIST=val)
             out = subprocess.check_output([sys.executable, "-c", code], env=env, cwd=repo,
                                           stderr=subprocess.STDOUT, timeout=180)
-            rows = [l[2:] for l in out.decode("utf-8", "replace").splitlines()
-                    if l.startswith("R:")]
+            text = out.decode("utf-8", "replace").splitlines()
+            rows = [l[2:] for l in text if l.startswith("R:")]
+            blocked = [l[2:] for l in text if l.startswith("P:")]
+            self.assertEqual(["chronicle_routes=blocked", "g5_grok_eyes=blocked"], blocked,
+                             "PREMISE: `import tv_diablo` was not refused in the child (%r), so no import-failure "
+                             "arm ran and this case measures nothing - the 3.12 blind spot (REG-1672)" % (blocked,))
             self.assertEqual(2, len(rows),
                              "only %d import-failure arm(s) answered for TV_HIST=%r — UNMEASURED, "
                              "which is exactly how this arm went unpinned before" % (len(rows), val))

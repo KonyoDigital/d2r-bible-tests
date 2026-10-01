@@ -406,6 +406,42 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1674 - THE PROVER'S LOG SAT STILL FOR 70 MINUTES AND NOTHING COULD TELL WORKING FROM HUNG (his ask, 2026-10-01)
+
+**His words:** "make sure its all wired and connected to where its needed and a stale safegaurd for this so it doesnt
+happen future wise", then "connect it to the heart of the conosle". **Measured on his ALT:** the self-prove log did not
+move from 13:13 to 14:25 while the prover proved 15 gates - its output went to a FILE, so Python held heart2's verdicts
+in 8 KB blocks, and a working prover looked exactly like a hung one. **Now:** spawn runs heart2 unbuffered
+(`PYTHONUNBUFFERED`), so every verdict is a line the moment it is judged and the log's age is a heartbeat. The lane
+reports `logAgeS`, the bound and the last line while a proof runs. A log still past the slice's HONEST bound -
+`silent_bound_s`: three runs at their deadline (a gate's closing clean run, the next gate's clean and first tampered run)
+x the one deadline scale, +10 min - means heart2 itself is stuck, never a law: the prover is ended through the lane's
+one kill door, its gates stay owed and are proved after the others, and the lane's key says `silent`. That key is what
+the console doctor warns on (it is not on the healthy list), what the fleet beacon carries, and what the river's stuck
+line quotes - the heart sees it. An unreadable log is UNKNOWN, never silent. Law:
+`tv/test_a_silent_prover_is_ended_and_said.py` (9 cases, the real tick); 6 red-proofs.
+
+### REG-1673 - A RECORDED BLIND WAITED INSIDE A SLICE OF CHEAPER GATES WHILE THE RIVER STAYED SHUT (2026-10-01)
+
+**Measured on his ALT:** the river read 0% for hours for ONE reason - 6 gates recorded BLIND, and a BLIND record shuts
+every lock (`self_arming`: "BLIND IS NOT STALE AND NEVER SOFTENS"). Four of them re-proved PROVEN inside a 27-gate slice
+that ran 70+ minutes before any verdict could reach the census, because the planner took gates cheapest-first and a slice
+writes its census only when all its gates are done. **Now** `plan_slice` takes the census's BLIND list: an owed gate
+recorded BLIND is a slice of its own kind - only those gates, cheapest first - so the one proof that can change what the
+PC may do lands minutes after it starts. A BLIND gate that is not owed cannot be re-proved and never empties the slice.
+Law: `tv/test_a_pc_proves_itself_a_slice_at_a_time.py` (the plan and the real tick); 2 red-proofs.
+
+### REG-1672 - A LAW BLIND ON HIS ALT FOR TWO REASONS NEITHER OF WHICH WAS IN THE CODE IT GUARDS (2026-10-01)
+
+**Measured:** his ALT's census filed `test_the_harness_isolates_the_world` BLIND on proofs [2] and [5]; the Mac had it
+PROVEN. **[5]** blocked `import tv_diablo` with a legacy meta-path finder (`find_module`/`load_module`). Python 3.12
+removed that protocol - on the ALT (3.12.10) the import simply succeeded, the import-failure arm never ran, and its
+tamper stayed green; the Mac (3.9.6) honours it. Now `sys.modules['tv_diablo'] = None` (refused on both, measured), and
+each child reports whether the import was really refused - a PREMISE before any arm is graded. **[2]** drove the
+fallback from heart2's cwd, `tv/`, where `realpath("relative/path")` lands back inside `tv/`, so the unnarrowed fallback
+still answered HERE and agreed. On the Mac it went red only because the sandbox sits under `/var` -> `/private/var` (a
+symlink accident, not this law). The child now runs from the repo root, the cwd REG-875 was measured at.
+
 ### REG-1671 - AN ENDED SLICE CHAINED THE NEXT ONE WITHOUT THE CONSOLE'S "IS HE PLAYING" JUDGE (the v3542 eye, 2026-10-01)
 
 **Found by** the Grok seat's wider look at v3542 (37,470 chars). **Was:** when the 10-second guard saw a census slice
