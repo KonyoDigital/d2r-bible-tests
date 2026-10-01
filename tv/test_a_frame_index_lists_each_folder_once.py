@@ -16,6 +16,7 @@ neither getsize nor relpath nor a per-file os.stat. RED_PROOF below.
 """
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -103,10 +104,13 @@ class AFrameIndexListsEachFolderOnce(unittest.TestCase):
         if os.name != "nt":
             return None
         path = os.path.join(self.root, "a_junction_dir")
+        # Windows' own `mklink /J` - no privilege needed, and no Windows-only import (the CI runner is Linux)
         try:
-            import _winapi
-            _winapi.CreateJunction(os.path.join(self.root, "reel_s_1790000000000"), path)
+            r = subprocess.run(["cmd", "/c", "mklink", "/J", path, os.path.join(self.root, "reel_s_1790000000000")],
+                               capture_output=True, text=True, timeout=30)
         except Exception:
+            return None
+        if r.returncode != 0 or not os.path.isdir(path):
             return None
         self.addCleanup(os.rmdir, path)          # removes the junction itself, never what it points at
         return "a_junction_dir"
