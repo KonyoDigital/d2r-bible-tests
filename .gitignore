@@ -276,6 +276,8 @@ tv/.*.scratch-*
 # answer ("Keep it as it is") sat untracked in a public repo one `git add -A` away. Fourth time for this class, so
 # test_every_decision_file_is_ignored now reads every _decision_path name out of the code and asks git.
 tv/his_answers.json
+# REG-1660 - the record of the sign-in entry THIS PC's console made for itself, per machine like every decision
+tv/.sign_in_start.json
 
 
 # v2395 — the human-eyes harness ledger. A RUNTIME DECISION RECORD like .second_eye.jsonl and

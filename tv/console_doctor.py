@@ -4118,6 +4118,133 @@ def _ask_sign_in_start(row):
     }]
 
 
+#: REG-1660 — the Startup entry a console makes for itself, named like the task so the two read as one thing.
+SIGN_IN_LNK = SIGN_IN_TASK + ".lnk"
+
+
+def _psq(s):
+    """One PowerShell single-quoted literal: a quote inside is doubled, nothing else is special."""
+    return "'" + str(s).replace("'", "''") + "'"
+
+
+def _make_sign_in_shortcut(startup_dir, repo_dir, run=None):
+    """Write <Startup>\\TV DIABLO at sign-in.lnk, the installer's own shortcut shape, with -Background. -> (ok, why)
+
+    The same target the Desktop icon uses (install-tvd.ps1: hidden powershell running start_tvd_win.ps1), plus
+    -Background, so a sign-in start opens the console HIDDEN - the service runs and the Desktop icon brings the
+    window. A Startup-folder shortcut needs no administrator, which a sign-in scheduled task does."""
+    launcher = os.path.join(repo_dir, "tv", "start_tvd_win.ps1")
+    if not os.path.isfile(launcher):
+        return False, "the launcher is not at %s, so there is nothing to start at sign-in" % launcher
+    if not os.path.isdir(startup_dir):
+        return False, "the Startup folder %s does not exist" % startup_dir
+    args = '-NoLogo -WindowStyle Hidden -ExecutionPolicy Bypass -File "%s" -Background' % launcher
+    ico = os.path.join(repo_dir, "tv", "appicon.ico")
+    ps = ("$ws = New-Object -ComObject WScript.Shell; $l = $ws.CreateShortcut(%s); $l.TargetPath = 'powershell.exe'; "
+          "$l.Arguments = %s; $l.WorkingDirectory = %s; $l.WindowStyle = 7; %s$l.Description = %s; $l.Save()"
+          % (_psq(os.path.join(startup_dir, SIGN_IN_LNK)), _psq(args), _psq(repo_dir),
+             ("$l.IconLocation = %s; " % _psq(ico)) if os.path.isfile(ico) else "",
+             _psq("TV DIABLO - starts hidden in the background when you sign in (the Desktop icon brings the window)")))
+    try:
+        if run is None:
+            import git_quiet as _gq
+            run = _gq.run                           # no console window of its own on Windows
+        r = run(["powershell", "-NoProfile", "-NonInteractive", "-Command", ps],
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
+    except Exception as e:
+        return False, "PowerShell could not be started to write the shortcut (%s)" % type(e).__name__
+    if getattr(r, "returncode", 1) != 0:
+        return False, ("PowerShell refused to write the shortcut: %s"
+                       % ((str(getattr(r, "stderr", "") or "").strip()[-160:]) or "it gave no reason"))
+    return True, ""
+
+
+def _sign_in_marker_read(path):
+    """What this console recorded about the entry it made. -> dict ({} = never made one) | None (unreadable)"""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            d = json.load(fh)
+    except FileNotFoundError:
+        return {}
+    except Exception:
+        return None
+    return d if isinstance(d, dict) else None
+
+
+def _sign_in_ruled_no(answers_path, now_ms=None):
+    """Did this PC answer the sign-in question "No, I open it myself", standing now? -> True | False | None (unreadable)"""
+    if not answers_path:
+        return False
+    import his_answers as _ha
+    answers, _why = _ha.load(answers_path)
+    if answers is None:
+        return None
+    ask = _ask_sign_in_start({"state": MISSING, "why": ""})[0]
+    st = _ha.standing(ask, answers, now_ms)
+    return bool(st and st.get("key") == "no")
+
+
+def ensure_sign_in_start(marker, answers_path=None, run=None, startup_dir=None, is_win=None, make=None,
+                         repo_dir=None, now_ms=None):
+    """REG-1660 — THIS WINDOWS CONSOLE MAKES ITS OWN START AT SIGN-IN, ONCE, AND NEVER FIGHTS A REMOVAL. -> {"did", "why"}
+
+    His ruling, 2026-10-01, answering #229's question for every PC at once: "set it up there and for dean too..
+    like in general ... so it starts at startup". MEASURED the same morning on his Windows PC: no task, nothing in
+    the Startup folder - "after a reboot it stays off until someone opens it" - and Dean's laptop had last reported
+    on 09-29, on v3522, since nothing brings a console back after a reboot. A console that is not running has no
+    shadow reader, no beacon and no pull, so it can neither film, show its lights nor update itself.
+
+      did "created"  the entry is made (the launcher, -Background) and the check now SEES it; the marker records it
+      did "already"  something already starts this console at sign-in - left exactly as it is
+      did "left"     the entry this console made is gone (someone removed it), or this PC answered "No, I open it
+                     myself": never made again - a removal is a choice, and fighting it would be a bug with a timer
+      did "failed"   it could not be made, or was written and the check still cannot see it - said, never claimed
+      did None       not Windows, or whether it starts at sign-in is UNKNOWN - nothing is made on a guess
+    [[unknown-stays-unknown]] [[the-unjoined-end]]"""
+    is_win = sys.platform.startswith("win") if is_win is None else is_win
+    if not is_win:
+        return {"did": None, "why": "only a Windows console needs a sign-in start"}
+    if startup_dir is None:
+        startup_dir = os.path.join(os.environ.get("APPDATA") or "", "Microsoft", "Windows",
+                                   "Start Menu", "Programs", "Startup")
+    st = _sign_in_start(run=run, startup_dir=startup_dir, is_win=True)
+    if st["state"] == OK:
+        return {"did": "already", "why": st["why"]}
+    if st["state"] != MISSING:
+        return {"did": None, "why": "whether this console starts at sign-in is %s (%s) - nothing is made on a guess"
+                                    % (st["state"], st["why"])}
+    m = _sign_in_marker_read(marker)
+    if m is None:
+        return {"did": None, "why": "the record of an earlier sign-in entry cannot be read, so whether one was "
+                                    "removed on purpose is UNKNOWN - nothing is made"}
+    if m.get("madeMs"):
+        return {"did": "left", "why": "the sign-in entry this console made is gone - someone removed it, so it is not "
+                                      "made again"}
+    no = _sign_in_ruled_no(answers_path, now_ms)
+    if no is None:
+        return {"did": None, "why": "this PC's answers cannot be read, so whether it said no is UNKNOWN - nothing is made"}
+    if no:
+        return {"did": "left", "why": "this PC answered 'No, I open it myself' - that stands"}
+    repo_dir = repo_dir or os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    ok, why = (make or _make_sign_in_shortcut)(startup_dir, repo_dir)
+    if not ok:
+        return {"did": "failed", "why": why}
+    st2 = _sign_in_start(run=run, startup_dir=startup_dir, is_win=True)
+    if st2["state"] != OK:
+        return {"did": "failed", "why": "the entry was written but the check still cannot see it: %s" % st2["why"]}
+    rec = {"madeMs": int(now_ms if now_ms is not None else time.time() * 1000), "how": st2.get("how"),
+           "why": "made by this console on his 2026-10-01 ruling (REG-1660)"}
+    try:
+        tmp = marker + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(rec, fh)
+        os.replace(tmp, marker)
+    except Exception as e:
+        return {"did": "created", "why": "%s - but its record could not be kept (%s), so a later removal may be "
+                                         "re-made once" % (st2["why"], type(e).__name__)}
+    return {"did": "created", "why": st2["why"]}
+
+
 #: check name -> fn(row) -> [ask]. A check absent from here asks him nothing.
 ASKS = {
     "shadow gate": _ask_shadow_gate,

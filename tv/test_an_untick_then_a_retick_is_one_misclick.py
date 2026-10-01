@@ -20,6 +20,11 @@ Driven here, on the shipped page code (cut from bible.html by its markers, run i
      never written over.
   4. the join - toggleOwned's uniques branch keeps before it deletes, notes its own removal's stamp, takes the redo
      before it stamps, and restores after the found date is written (read from the function's code, in order).
+  5. v3541 REG-1656 (the #231 seat on 9aa61081) - the caller threw the redo's result away, so a partial redo was silent,
+     and a door missing from the page read like a refusal (no vault door said "another removal came after the
+     un-tick"). Now: a full redo says nothing; every part that did not come back is named with its OWN reason; a game
+     date a later read wrote is never written over; the note lands on the last-tick marker of THIS item only, and the
+     last-found bar renders it (the helper driven here, the bar's join read from its code, the pixels looked at).
 RED_PROOF below. No node = SKIP with a declared reason, never a pass.
 """
 import io
@@ -57,8 +62,8 @@ RED_PROOF = [
      "replace": "  if (false) return null;\n", "matches": 1},
     {"why": "REG-1638 - the redo undoes the NEWEST removal whatever it was, not the un-tick's own",
      "file": "bible.html",
-     "find": "      out.vault = (last && last.ts === r.vaultTs && typeof window.vaultRestoreLast === 'function')\n",
-     "replace": "      out.vault = (last && typeof window.vaultRestoreLast === 'function')\n", "matches": 1},
+     "find": "        out.vault = (last && last.ts === r.vaultTs)\n",
+     "replace": "        out.vault = (last)\n", "matches": 1},
     {"why": "REG-1638 - the evidence door writes over a row a later read wrote",
      "file": "bible.html",
      "find": "      if (Object.prototype.hasOwnProperty.call(map, name)) return false;\n      map[name] = row;\n",
@@ -67,6 +72,31 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "      else if ((_rdt = window._tickRedoTake ? window._tickRedoTake(name) : null) && _rdt.found) fl[name] = _rdt.found;   // REG-1638\n",
      "replace": "", "matches": 1},
+    {"why": "REG-1656 - the caller throws the redo's result away again: a partial redo is silent",
+     "file": "bible.html",
+     "find": "        try { window._tickRedoNote(name, _rdOut); } catch(e){} }   // REG-1656 - a partial redo is said on the bar, never silent\n",
+     "replace": "        }\n", "matches": 1},
+    {"why": "REG-1656 - a vault door missing from the page reads like a refusal again",
+     "file": "bible.html",
+     "find": "      if (typeof window.vaultRemovalLog !== 'function' || typeof window.vaultRestoreLast !== 'function'){\n"
+             "        out.vault = { restored: 0, why: 'the vault door is not on this page' };\n",
+     "replace": "      if (false){\n", "matches": 1},
+    {"why": "REG-1656 - the redo writes its old game date over one a later read wrote",
+     "file": "bible.html",
+     "find": "      else if (Object.prototype.hasOwnProperty.call(gm, name)) miss('the game date', 'a later read wrote one - kept');\n",
+     "replace": "", "matches": 1},
+    {"why": "REG-1656 - the note lands on no marker: the bar has nothing to say",
+     "file": "bible.html",
+     "find": "    if (say) lt.redo = say; else delete lt.redo;\n",
+     "replace": "    void say;\n", "matches": 1},
+    {"why": "REG-1656 - the bar says one item's partial redo under another item's name",
+     "file": "bible.html",
+     "find": "  if (!lt || lt.n !== last || lt.k !== kind || !lt.redo) return '';\n",
+     "replace": "  if (!lt || !lt.redo) return '';\n", "matches": 1},
+    {"why": "REG-1656 - the last-found bar never renders the note it was handed",
+     "file": "bible.html",
+     "find": "      +_rdHtml\n",
+     "replace": "\n", "matches": 1},
 ]
 
 
@@ -150,6 +180,41 @@ const after = JSON.parse(STORE.d2r_foundEvidence)[N];
 STORE.d2r_foundEvidence = "{not json";
 const junk = window._foundEvidencePut(N, { sightings: [] });
 out({ case: "put", kept: kept, after: after, junk: junk, raw: STORE.d2r_foundEvidence });
+// 5. REG-1656 - what did not come back is said, with its own reason
+function untick(){
+  g = JSON.parse(STORE.d2r_gameFound); delete g[N]; STORE.d2r_gameFound = JSON.stringify(g);
+  e = JSON.parse(STORE.d2r_foundEvidence); delete e[N]; STORE.d2r_foundEvidence = JSON.stringify(e);
+}
+seed();
+r = window._tickRedoKeep(N, "Sep 30, 2026 · 01:13", T0); r.vaultTs = 777; JOURNAL.push({ ts: 777, names: [N] }); untick();
+rest = window._tickRedoRestore(N, window._tickRedoTake(N, T0 + 3000));
+out({ case: "full-say", missed: rest.missed, say: window._tickRedoSay(rest) });
+seed();
+r = window._tickRedoKeep(N, "x", T0); r.vaultTs = 777;
+JOURNAL.push({ ts: 777, names: [N] }); JOURNAL.push({ ts: 900, names: ["Shako"] }); untick();
+rest = window._tickRedoRestore(N, window._tickRedoTake(N, T0 + 3000));
+out({ case: "other-say", missed: rest.missed, say: window._tickRedoSay(rest) });
+seed();
+r = window._tickRedoKeep(N, "x", T0); r.vaultTs = 777; JOURNAL.push({ ts: 777, names: [N] }); untick();
+const _vrl = window.vaultRestoreLast; delete window.vaultRestoreLast;
+rest = window._tickRedoRestore(N, window._tickRedoTake(N, T0 + 3000));
+window.vaultRestoreLast = _vrl;
+out({ case: "no-door", missed: rest.missed, restored: RESTORED });
+seed();
+r = window._tickRedoKeep(N, "x", T0); untick();
+STORE.d2r_gameFound = JSON.stringify({ [N]: { at: "Oct 1, 2026", by: "a later read", n: 1 } });
+rest = window._tickRedoRestore(N, window._tickRedoTake(N, T0 + 3000));
+out({ case: "later-game", missed: rest.missed, game: JSON.parse(STORE.d2r_gameFound)[N] });
+seed();
+STORE.d2r_lastTick = JSON.stringify({ n: N, k: "uni", ms: 1 });
+const other = { missed: [{ what: "the vault entry", why: "another removal came after the un-tick - put it back from the vault removal list" }] };
+const n1 = window._tickRedoNote(N, other), m1 = JSON.parse(STORE.d2r_lastTick);
+const n2 = window._tickRedoNote("Shako", other), m2 = JSON.parse(STORE.d2r_lastTick);
+const n3 = window._tickRedoNote(N, { missed: [] }), m3 = JSON.parse(STORE.d2r_lastTick);
+const esc = function(x){ return String(x).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); };
+out({ case: "note", n1: n1, m1: m1, n2: n2, m2: m2, n3: n3, m3: m3,
+      html: window._tickRedoMissHtml(m1, N, "uni", esc), htmlOther: window._tickRedoMissHtml(m1, "Shako", "uni", esc),
+      htmlSet: window._tickRedoMissHtml(m1, N, "set", esc), htmlClean: window._tickRedoMissHtml(m3, N, "uni", esc) });
 """
 
 
@@ -203,6 +268,46 @@ class AnUntickThenARetickIsOneMisclick(unittest.TestCase):
         self.assertEqual(o["raw"], "{not json", "a store that would not parse was written over")
 
 
+    # ── REG-1656 — a partial redo is said, with each part's own reason ─────────────────────────────────────────────
+
+    def test_a_full_redo_says_nothing(self):
+        o = self.rows["full-say"]
+        self.assertEqual(o["missed"], [], "a redo that put everything back still listed a miss")
+        self.assertEqual(o["say"], "")
+
+    def test_a_vault_part_that_could_not_come_back_is_said(self):
+        o = self.rows["other-say"]
+        self.assertEqual(o["missed"], [{"what": "the vault entry", "why": "another removal came after the un-tick",
+                                        "do": "put it back from the vault removal list"}], "the refusal was not carried out")
+        # the Grok eye on its pixels: the thing to DO is its own sentence, never buried in the reason's parenthesis
+        self.assertEqual(o["say"], "not put back: the vault entry (another removal came after the un-tick). "
+                                   "Put it back from the vault removal list.", o["say"])
+
+    def test_a_missing_door_is_said_as_a_missing_door(self):
+        o = self.rows["no-door"]
+        self.assertEqual(o["restored"], 0)
+        self.assertEqual([m["why"] for m in o["missed"]], ["the vault door is not on this page"],
+                         "a door missing from the page was said as something else: %r" % o["missed"])
+
+    def test_the_redo_never_writes_over_a_later_game_date(self):
+        o = self.rows["later-game"]
+        self.assertEqual((o["game"] or {}).get("at"), "Oct 1, 2026", "the redo wrote its old date over a later read's")
+        self.assertEqual(o["missed"], [{"what": "the game date", "why": "a later read wrote one - kept"}])
+
+    def test_the_note_lands_on_its_own_items_marker_and_the_bar_says_it(self):
+        o = self.rows["note"]
+        self.assertTrue(o["n1"])
+        self.assertTrue(str(o["m1"].get("redo", "")).startswith("not put back: the vault entry"), o["m1"])
+        self.assertFalse(o["n2"], "another item's tick took this item's note")
+        self.assertEqual(o["m2"], o["m1"], "a note for another item changed this item's marker")
+        self.assertFalse(o["n3"])
+        self.assertNotIn("redo", o["m3"], "a full redo left the old note standing")
+        self.assertIn("gf-redo-miss", o["html"])
+        self.assertIn("vault removal list", o["html"])
+        for k in ("htmlOther", "htmlSet", "htmlClean"):
+            self.assertEqual(o[k], "", "the bar would say a note it does not own: %s" % k)
+
+
 class TheTickHandlerIsJoinedToTheRedo(unittest.TestCase):
     """toggleOwned's uniques branch, read from its code in order (the 140-line handler cannot run outside the page)."""
 
@@ -218,14 +323,30 @@ class TheTickHandlerIsJoinedToTheRedo(unittest.TestCase):
                             ("take", "_rdt = window._tickRedoTake ? window._tickRedoTake(name) : null"),
                             ("stamp", "else fl[name] = window._grailStamp ? window._grailStamp() : new Date().toLocaleString();"),
                             ("write", "window.LSR.setItem('d2r_foundLog', JSON.stringify(fl));"),
-                            ("restore", "window._tickRedoRestore(name, _rdt)")):
+                            ("restore", "window._tickRedoRestore(name, _rdt)"),
+                            ("said", "window._tickRedoNote(name, _rdOut)")):
             self.assertEqual(body.count(needle), 1, "the uniques branch no longer does this once, in code: %s" % needle)
             at[key] = body.index(needle)
         self.assertLess(at["keep"], at["delete"], "the un-tick deletes before it keeps")
         self.assertLess(at["take"], at["stamp"], "the tick stamps a new date before it asks for the redo")
         self.assertLess(at["write"], at["restore"], "the redo restores before the found date is written")
+        self.assertIn("_rdOut = window._tickRedoRestore(name, _rdt)", body, "the redo's result is thrown away (REG-1656)")
+        self.assertLess(at["restore"], at["said"], "the note is written before the redo it reports")
         self.assertTrue(re.search(r"_vrUT = window\.vaultRemove\(\[name\][^\n]*\n[^\n]*\n\s*if \(_rdo && _vrUT && _vrUT\.ts\)", body),
                         "the un-tick does not note its OWN removal right after making it")
+
+
+class TheLastFoundBarSaysIt(unittest.TestCase):
+    """REG-1656 — the bar asks the helper for its note and renders it (the bar needs the whole page to run)."""
+
+    def test_the_bar_renders_the_helpers_note(self):
+        src = _src()
+        a = src.index("var _gfLine = window._chipFoundDate(last, fl[last], true);")
+        b = src.index("+'</div>';", a)
+        bar = src[a:b]
+        self.assertEqual(bar.count("window._tickRedoMissHtml(window._lastTick && window._lastTick(), last, kind, esc)"), 1,
+                         "the bar never asks for the redo's note")
+        self.assertEqual(bar.count("+_rdHtml"), 1, "the bar computes the note and never renders it")
 
 
 if __name__ == "__main__":

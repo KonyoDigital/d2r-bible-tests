@@ -8671,7 +8671,10 @@ GATES = [
              "the date, the game date, the sightings and the vault entry, and the re-tick stamped a new date with no "
              "evidence. A re-tick inside the misclick window of its own un-tick gets back exactly what it took, the vault "
              "removal only while it is still the newest; past the window a re-tick is a new find. Driven on the page code "
-             "in node; the tick handler's join is read from its code in order."),
+             "in node; the tick handler's join is read from its code in order. REG-1656 (the #231 seat): the caller "
+             "threw the redo's result away, so a partial redo was silent and a missing door read like a refusal - every "
+             "part that did not come back is now named with its own reason on the last-found bar, and a game date a "
+             "later read wrote is never written over."),
     Gate("test_the_doctor_never_swaps_the_consoles_threads",
          [sys.executable, os.path.join(HERE, "test_the_doctor_never_swaps_the_consoles_threads.py")], 120,
          needs_app=False,
@@ -8755,6 +8758,15 @@ GATES = [
              "'other-panel': said in its own words, never settled, and it never loosens a seal. REG-1659: the "
              "board named the bag's squares by the screen ('stash · <frame> - film that tab'); the row now names the "
              "panel that was counted, driven on the real page code in node and seen on pixels by Grok."),
+    Gate("test_every_windows_console_starts_itself_at_sign_in",
+         [sys.executable, os.path.join(HERE, "test_every_windows_console_starts_itself_at_sign_in.py")], 120,
+         needs_app=False,
+         why="REG-1660 (2026-10-01) - his ruling, for his Windows PC and Dean's: start at sign-in, in general. "
+             "Measured that morning: nothing started either console after a reboot, so a PC that restarted had no "
+             "shadow reader, no fleet lights and no auto-pull until someone opened it. Each Windows console now "
+             "makes its own Startup entry (the installer's shortcut shape, launcher -Background: hidden, never "
+             "brought forward, no dialog), records it, never makes it again after a removal, never overrules a "
+             "'No, I open it myself', and makes nothing on an UNKNOWN; only the primary console process does it."),
     Gate("test_a_proof_yields_the_moment_the_game_starts",
          [sys.executable, os.path.join(HERE, "test_a_proof_yields_the_moment_the_game_starts.py")], 60,
          needs_app=False,

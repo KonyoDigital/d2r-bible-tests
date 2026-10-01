@@ -9,6 +9,11 @@
 #   - auto-pull time-boxed; never blocks a warm relaunch
 #   - C# focus (no PS EnumWindows hang under D2R)
 #   - short ready wait; no error dialog while python still starting
+#
+# 2026-10-01 REG-1660 - his ruling: every Windows console starts at sign-in, in the BACKGROUND. -Background is the
+# sign-in start: it passes --background (the console opens HIDDEN - the service runs, the Desktop icon brings the
+# window), never brings a running console forward, skips the window wait, and never pops a dialog over a sign-in.
+param([switch]$Background)
 $ErrorActionPreference = 'Continue'
 if ($env:OS -ne 'Windows_NT') {
   Write-Host 'TV DIABLO start_tvd_win.ps1 is Windows only.' -ForegroundColor Red
@@ -132,6 +137,7 @@ public static class TvdFocusFast {
 }
 
 function Show-TvdError([string]$text) {
+  if ($Background) { Write-TvdLaunchLog ("sign-in start, no dialog: {0}" -f $text); return }
   try {
     Add-Type -AssemblyName PresentationFramework
     [System.Windows.MessageBox]::Show($text, 'TV DIABLO', 'OK', 'Error') | Out-Null
@@ -151,7 +157,7 @@ try {
     Write-TvdLaunchLog 'launcher mutex busy - focus existing / exit quiet'
     # v1463 - another launcher is mid-spawn, so the window may still be pre-first-paint.
     # Do NOT force SW_SHOW here: that paints a black frame (the reported symptom).
-    [void](Focus-TvdWindow $false)
+    if (-not $Background) { [void](Focus-TvdWindow $false) }
     try { $mutex.Dispose() } catch {}
     $mutex = $null
     return
@@ -163,6 +169,11 @@ try {
 
 # v1444/v1445 - ALREADY UP: focus and leave. Do not git-pull, pip, or spawn python.
 if (Test-TvdControlUp) {
+  if ($Background) {
+    Write-TvdLaunchLog 'sign-in start: control already up - left exactly as it is'
+    if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
+    return
+  }
   Write-TvdLaunchLog 'control already up - focusing; skip pull/spawn'
   # 2026-09-29 - X now HIDES the console (it keeps recording in the background). A cross-process ShowWindow does
   # not reliably un-hide a WinForms window (v1460), so the running console is asked to show ITSELF first; the
@@ -399,6 +410,7 @@ if ($py.Cmd -eq 'py') {
 } else {
   $argLine = '"' + $control + '" --open'
 }
+if ($Background) { $argLine += ' --background' }   # REG-1660 - hidden from its first second
 
 # v1460/v1463 - never spawn while OUR timed-out pull job may still be rewriting the tree.
 # v1463: only wait when that actually happened. Wait-TvdGitQuiet matches git.exe machine-wide
@@ -465,6 +477,11 @@ for ($i = 0; $i -lt 20; $i++) {
 # Release launcher mutex ASAP so a second click only FOCUSES (does not queue another full launch)
 if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose(); $mutex = $null }
 
+if ($ready -and $Background) {
+  Write-TvdLaunchLog ("sign-in start complete: control up, window hidden by design (pid {0})" -f $proc.Id)
+  return
+}
+
 if ($ready) {
   # v1460 Law 9 - a /api/status answer is NOT proof of a window. v1448 traded the slow
   # doctor probe for this fast one and started logging 'launch complete' for a process that
@@ -497,7 +514,7 @@ if ($ready) {
 if (-not $proc.HasExited) {
   Write-TvdLaunchLog 'status slow but process alive - exit quiet (window coming)'
   # v1463 - still booting; never force SW_SHOW over an unpainted WebView2 surface.
-  [void](Focus-TvdWindow $false $proc.Id)
+  if (-not $Background) { [void](Focus-TvdWindow $false $proc.Id) }
   Write-TvdStaleCodeWarning
   return
 }

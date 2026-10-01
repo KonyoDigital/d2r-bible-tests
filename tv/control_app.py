@@ -23031,6 +23031,40 @@ def nothing_in_flight(consequence=None, parts=None):
     return True, "nothing in flight"
 
 
+#: REG-1660 — what this process's one sign-in setup attempt did ({} = not attempted yet)
+_SIGN_IN_SETUP = {}
+
+
+def _sign_in_setup_once():
+    """REG-1660 — once per process, on the primary Windows console: make its own start at sign-in. -> dict
+
+    His ruling, 2026-10-01: every Windows console starts at sign-in, in the background - his PC and Dean's. The
+    work is console_doctor.ensure_sign_in_start (it never fights a removal and never acts on UNKNOWN); this only
+    decides WHICH process may do it: never a harness, never a scratch console on another port, never a process
+    that is not the console itself."""
+    if _SIGN_IN_SETUP.get("tried"):
+        return dict(_SIGN_IN_SETUP)
+    out = {"tried": True, "at": time.time(), "did": None, "why": ""}
+    try:
+        import frame_ref as _fr_si
+        if not sys.platform.startswith("win"):
+            out["why"] = "not Windows - this machine starts through its own launcher"
+        elif os.environ.get("TV_STUB"):
+            out["why"] = "a harness console never touches the PC's sign-in"
+        elif not (_is_primary_console() and _fr_si.on_console_path()):
+            out["why"] = "only the primary console makes this PC's sign-in start"
+        else:
+            import console_doctor as _cd_si
+            r = _cd_si.ensure_sign_in_start(_decision_path(".sign_in_start.json"), answers_path=_his_answers_path())
+            out.update(did=r.get("did"), why=r.get("why") or "")
+            if r.get("did") in ("created", "failed", "left"):
+                print("[sign-in] %s - %s" % (r.get("did"), str(r.get("why"))[:160]), flush=True)
+    except Exception as e:
+        out["why"] = "the sign-in setup raised %s" % type(e).__name__
+    globals()["_SIGN_IN_SETUP"] = out
+    return dict(out)
+
+
 def _drift_loop():
     """Announce drift. Restart only if he has explicitly asked for it AND nothing is in flight."""
     announced = None
@@ -23053,6 +23087,10 @@ def _drift_loop():
                 _pull_once()
             except Exception:
                 pass          # a pull that fails must never take the drift watcher down with it
+            # REG-1660 — once per process, beside the pull it belongs with: a console that comes back by itself
+            # after a reboot is the half of "updates itself" that a pull alone cannot give
+            if not _SIGN_IN_SETUP.get("tried"):
+                _sign_in_setup_once()   # never raises: every failure is kept as its reason
             d = _drift_once()
             # v3076 — LEAVE THE VERDICT WHERE ANOTHER PROCESS CAN DATE IT. The tick above is an
             # in-process dict; nothing outside this interpreter can see that this loop ran, so the

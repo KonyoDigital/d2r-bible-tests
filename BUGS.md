@@ -406,6 +406,46 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1660 - AFTER A REBOOT NO WINDOWS CONSOLE CAME BACK UNTIL SOMEONE OPENED IT (his ruling, 2026-10-01)
+
+**His words:** "set it up there and for dean too.. like in general you mean so it starts at startup great yea" -
+answering #229's per-PC question ("Start TV DIABLO on this PC when you sign in?") for every PC at once.
+
+**Was:** MEASURED that morning on his Windows PC: no "TV DIABLO at sign-in" task and nothing in the Startup folder -
+the doctor's own words, "after a reboot it stays off until someone opens it". Dean's laptop had last reported on
+09-29, still on v3522. A console that is not running has no shadow reader, no fleet beacon and no auto-pull, so after
+any reboot a PC could neither film, show its lights nor update itself until a person double-clicked the icon.
+
+**Now:** each Windows console makes its own Startup entry, once per process on the drift lane beside the pull: the
+installer's own shortcut shape (hidden PowerShell running `start_tvd_win.ps1`) plus `-Background`, so a sign-in
+starts the console HIDDEN - the service runs, the Desktop icon brings the window - never brings a running console
+forward, never waits on a window and never pops a dialog. A Startup shortcut needs no administrator. It records what
+it made, and an entry someone removed is never made again; a PC that answered "No, I open it myself" is never
+overruled; UNKNOWN (tasks unaskable, record unreadable) makes nothing; a write the check cannot then see is
+"failed", never "created". Only the primary console process does it - never a harness, never a scratch console.
+Dean's laptop sets itself up the first time its console runs this version. Law:
+`tv/test_every_windows_console_starts_itself_at_sign_in.py` - the setup driven with a temp Startup folder, record and
+answers store; the shortcut's PowerShell captured; the console gate driven; the launcher read (PowerShell cannot run
+on the Mac - CI's Windows boot runs it). 8 red-proofs RED.
+
+### REG-1656 - A RE-TICK'S REDO PUT BACK PART OF WHAT IT TOOK AND SAID NOTHING ABOUT THE REST (#125, the #231 seat, 2026-10-01)
+
+**Was:** REG-1638's redo (`_tickRedoRestore`) returned what it put back - and its one caller, `toggleOwned`, threw the
+result away. So when the vault part could not be undone ("another removal came after the un-tick - put it back from
+the vault removal list") nobody ever read the sentence: the date came back, the vault entry did not, and the board
+looked whole. A door missing from the page read exactly like a refusal - with no vault door the redo even said
+"another removal came after the un-tick", a reason nothing had measured. And the game-date door merges with the OLD
+value winning, so a redo would have written its date over one a later read stored inside the window (the evidence
+door already refused to; the two disagreed).
+
+**Now:** the redo lists every owed part that did not come back with its OWN reason - its door is not on this page /
+its store would not parse / a later read wrote one - kept / its store refused it / another removal came after the
+un-tick - and never writes over a game date a later read wrote. The caller keeps the result and notes it on the
+last-tick marker of THAT item only (a full redo clears it); the last-found bar - where he looks after a tick, since the
+toast is motion-gated - says "re-ticked inside the misclick window - not put back: ..." until the next tick replaces
+the marker. Law: `tv/test_an_untick_then_a_retick_is_one_misclick.py` - the redo, the note and the bar's helper driven
+in node on the page code; the handler's join (restore, then note) and the bar's join read from their code in order.
+
 ### REG-1659 - HIS BAG'S SQUARES WERE FILED AS A STASH TAB, WITH "FILM THAT TAB" (#126, 2026-10-01)
 
 **Was:** the glimpse row (v1989: squares visibly full on a frame whose read named nothing) is counted by

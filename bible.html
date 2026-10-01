@@ -4575,23 +4575,81 @@ window._tickRedoTake = function(name, now){
   if (((now == null ? Date.now() : now) - r.at) > window.TICK_REDO_MS) return null;   // past the window: a new find
   return r;
 };
+/* v3541 REG-1656 — THE REDO SAYS WHAT IT COULD NOT PUT BACK. Its caller threw this result away, so a partial redo was
+   silent: the vault part refused ("put it back from the vault removal list") and nobody read the sentence. And a door
+   missing from the page read exactly like a refusal - with no vault door the redo even said "another removal came
+   after the un-tick", a reason nothing had measured. Now every owed part that did not come back is in `missed` with
+   its OWN reason, and the game date is never written over one a later read wrote (the evidence door's rule, kept for
+   both). The caller notes it on the last-tick marker, where the last-found bar says it. */
 window._tickRedoRestore = function(name, r){
-  var out = { gameFound: false, evidence: false, vault: null };
+  var out = { gameFound: false, evidence: false, vault: null, missed: [] };
   if (!r) return out;
-  try { if (r.gameFound !== undefined && typeof window._gameFoundSet === 'function')
-          out.gameFound = !!window._gameFoundSet(name, r.gameFound); } catch(e){}
-  try { if (r.evidence !== undefined && typeof window._foundEvidencePut === 'function')
-          out.evidence = !!window._foundEvidencePut(name, r.evidence); } catch(e){}
-  try {
-    if (r.vaultTs){
-      var log = (typeof window.vaultRemovalLog === 'function') ? (window.vaultRemovalLog() || []) : [];
-      var last = log.length ? log[log.length - 1] : null;
-      out.vault = (last && last.ts === r.vaultTs && typeof window.vaultRestoreLast === 'function')
-        ? window.vaultRestoreLast()
-        : { restored: 0, why: 'another removal came after the un-tick - put it back from the vault removal list' };
-    }
-  } catch(e){}
+  var miss = function(what, why, todo){ var m = { what: what, why: why }; if (todo) m.do = todo; out.missed.push(m); };
+  var raised = function(e){ return 'putting it back raised ' + ((e && e.name) || 'an error') + ' - UNKNOWN whether it came back'; };
+  if (r.gameFound !== undefined){
+    try {
+      var gm = null;
+      try { gm = JSON.parse(window.LSR.getItem('d2r_gameFound') || '{}'); } catch(e){ gm = null; }
+      if (typeof window._gameFoundSet !== 'function') miss('the game date', 'its door is not on this page');
+      else if (!gm || typeof gm !== 'object' || Array.isArray(gm)) miss('the game date', 'its store would not parse - left as it is');
+      else if (Object.prototype.hasOwnProperty.call(gm, name)) miss('the game date', 'a later read wrote one - kept');
+      else if (!(out.gameFound = !!window._gameFoundSet(name, r.gameFound))) miss('the game date', 'its store refused it');
+    } catch(e){ miss('the game date', raised(e)); }
+  }
+  if (r.evidence !== undefined){
+    try {
+      if (typeof window._foundEvidencePut !== 'function') miss('the sightings', 'their door is not on this page');
+      else if (!(out.evidence = !!window._foundEvidencePut(name, r.evidence))){
+        var em = null;
+        try { em = JSON.parse(window.LSR.getItem('d2r_foundEvidence') || '{}'); } catch(e){ em = null; }
+        miss('the sightings', (em && typeof em === 'object' && Object.prototype.hasOwnProperty.call(em, name))
+                                ? 'a later read wrote them - kept'
+                                : (em ? 'their store refused them' : 'their store would not parse - left as it is'));
+      }
+    } catch(e){ miss('the sightings', raised(e)); }
+  }
+  if (r.vaultTs){
+    try {
+      if (typeof window.vaultRemovalLog !== 'function' || typeof window.vaultRestoreLast !== 'function'){
+        out.vault = { restored: 0, why: 'the vault door is not on this page' };
+      } else {
+        var log = window.vaultRemovalLog() || [];
+        var last = log.length ? log[log.length - 1] : null;
+        out.vault = (last && last.ts === r.vaultTs)
+          ? window.vaultRestoreLast()
+          : { restored: 0, why: 'another removal came after the un-tick - put it back from the vault removal list',
+              said: 'another removal came after the un-tick', todo: 'put it back from the vault removal list' };
+      }
+      /* the Grok eye on its pixels: the instruction was buried in the parenthesis - so the reason and the thing to
+         DO travel apart, and the bar says the do as its own sentence */
+      if (!(out.vault && (out.vault.restored || out.vault.kept)))
+        miss('the vault entry', (out.vault && (out.vault.said || out.vault.why)) || 'the vault restore put nothing back',
+             out.vault && out.vault.todo);
+    } catch(e){ miss('the vault entry', raised(e)); }
+  }
   return out;
+};
+window._tickRedoSay = function(out){
+  var m = (out && out.missed) || [];
+  if (!m.length) return '';
+  var dos = m.filter(function(x){ return x.do; })
+             .map(function(x){ return String(x.do).charAt(0).toUpperCase() + String(x.do).slice(1) + '.'; });
+  return 'not put back: ' + m.map(function(x){ return x.what + ' (' + x.why + ')'; }).join('; ') + '.'
+         + (dos.length ? ' ' + dos.join(' ') : '');
+};
+window._tickRedoNote = function(name, out){
+  try {
+    var lt = JSON.parse(window.LSR.getItem('d2r_lastTick') || 'null');
+    if (!lt || lt.n !== String(name)) return false;
+    var say = window._tickRedoSay(out);
+    if (say) lt.redo = say; else delete lt.redo;
+    window.LSR.setItem('d2r_lastTick', JSON.stringify(lt));
+    return !!say;
+  } catch(e){ return false; }
+};
+window._tickRedoMissHtml = function(lt, last, kind, esc){
+  if (!lt || lt.n !== last || lt.k !== kind || !lt.redo) return '';
+  return '<span class="gf-redo-miss">↩ re-ticked inside the misclick window — ' + esc(String(lt.redo)) + '</span>';
 };
 /* ⟦TICK REDO END⟧ */
 window._lastTick = function(){
@@ -25110,7 +25168,10 @@ function toggleOwned(name, prov) {
          before this write, so !wasOwned is a TICK. This bar serves BOTH forges. */
       try { window._markLastTick(name, 'uni', !wasOwned); } catch(e){}
       window.LSR.setItem('d2r_foundLog', JSON.stringify(fl));
-      if (_rdt){ try { window._tickRedoRestore(name, _rdt); } catch(e){} }   // REG-1638 - the misclick's game date, sightings, vault
+      if (_rdt){ var _rdOut = null;   // REG-1638 - the misclick's game date, sightings, vault
+        try { _rdOut = window._tickRedoRestore(name, _rdt); }
+        catch(e){ _rdOut = { missed: [{ what: 'what the un-tick took', why: 'the redo raised ' + ((e && e.name) || 'an error') + ' - UNKNOWN what came back' }] }; }
+        try { window._tickRedoNote(name, _rdOut); } catch(e){} }   // REG-1656 - a partial redo is said on the bar, never silent
       _gFoundDirty();
     } catch(e){}
   } else {
@@ -50132,11 +50193,17 @@ function renderJournal(){
        lists printed the ledger stamp alone, so one rule lived in one place and was missing from
        the two surfaces he actually reads. Same store, same words, one implementation. */
     var _gfLine = window._chipFoundDate(last, fl[last], true);
+    /* REG-1656 — what a re-tick's redo could NOT put back, said here: the toast is motion-gated and a status line
+       scrolls away, and this bar is where he looks after a tick. Only for the item the bar names, and only until the
+       next tick replaces the marker. */
+    var _rdHtml = '';
+    try { _rdHtml = window._tickRedoMissHtml(window._lastTick && window._lastTick(), last, kind, esc); } catch(e){}
     return '<div class="gf-undo-bar forge-restore-top" style="margin:6px 0"><span>✅ last found: '+_lArt+'<b class="gf-lastname" data-arttip="'+esc(last)+'"'+(_lCol?' style="color:'+_lCol+'"':'')+'>'+esc(_pieceLabel(last))+'</b> '+_gfLine+'</span>'
       +'<button class="f-btn f-btn-mini" onclick="window._forgeUndo(this,\''+jsq(last)+'\',\''+kind+'\')" title="mis-tick? un-mark it — the ledger entry is erased and it returns to the hunt">↩ undo</button>'
       +(_redo && _redo.kind===kind
         ? '<button class="f-btn f-btn-mini" onclick="window._forgeRedo()" title="put it back — undoing the undo">↪ redo <b>'+esc(_pieceLabel(_redo.name))+'</b></button>'
         : '')
+      +_rdHtml
       +'</div>';
   }
   function _tickBtn(name, fn){ return '<span class="gf-tick" role="button" tabindex="0" data-gf-tick="'+esc(name)+'" onclick="event.stopPropagation();window.'+fn+'(this,\''+jsq(name)+'\')" title="✓ mark '+esc(name)+' FOUND — tallies the Calculator + chronicle meters instantly">✓</span>'; }
@@ -55575,6 +55642,7 @@ html{overflow-x:clip}
 /* v1913 — the GAME's date reads as the storyline fact it is; the ledger stamp stays in the title. */
 .gp-date.gp-ingame{color:var(--gold-dim,#a07830)}
 .gf-undo-bar{display:flex;align-items:center;gap:10px;justify-content:flex-start}
+.gf-undo-bar .gf-redo-miss{flex-basis:100%;font-size:var(--fs-meta);line-height:var(--lh-snug);color:var(--gold-bright)}
 </style>
 <style id="v639-polish">
 /* ══════════════════════════════════════════════════════════════════════════════
