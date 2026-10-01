@@ -343,6 +343,15 @@ class AShadowSessionRollsOverEveryHour(_Base):
 class TheShadowHourIsTheClockHour(_Base):
     """REG-1675 - the real hour function, the real pause rule, the grace, the breaker, the journal, the doctor."""
 
+    def setUp(self):
+        super().setUp()
+        # the #231 seat on 0f03c683 - cases that step the clock by minutes read the CLOCK HOUR key, so a run in the last
+        # minutes of an hour crossed it and failed on the clock, not the code. Too near the end: start in the next hour
+        # (forward, never back - the doctor's freshness reading would call an older look a stopped watcher).
+        end = self._saved["_shadow_hour_end_ms"](self.now)
+        if end - self.now < 10 * MIN:
+            self.now = end + MIN
+
     def _at(self, hh, mm, ss=0):
         t = time.localtime()
         return int(time.mktime((t.tm_year, t.tm_mon, t.tm_mday, hh, mm, ss, 0, 0, -1)) * 1000)
