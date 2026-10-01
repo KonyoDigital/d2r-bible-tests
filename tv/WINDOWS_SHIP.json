@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3541",
+  "ver": "v3542",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3541: REG-1656 and 1660. A re-tick that could only partly undo an un-tick now says what did not come back and how to put it back, and every Windows console starts itself hidden at sign-in so the shadow reader, the fleet lights and the auto-update survive a reboot.",
+  "note": "v3542: a cloud client - Boosteroid or GeForce NOW - counts as playing only while the game is on his screen, D2R.exe always, Battle.net never; the launcher never resets a checkout and a sign-in start stays hidden; five checks his ALT filed BLIND repaired, two of them blind on the Mac too",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
