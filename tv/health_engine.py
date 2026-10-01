@@ -275,6 +275,13 @@ def check_shadow_watch():
                                                         _lane.get("lastTs"), _lane.get("owed"))]
     if _rv.get("state") in (WARN, UNKNOWN):
         return _row("shadowWatch", _rv["state"], _rv["line"], _ev)
+    # REG-1675 — the session that comes in parts: a clock hour that opened too many shadow reels
+    try:
+        _fr = _ca._shadow_fragment_reading(w)
+    except Exception as e:
+        return _row("shadowWatch", UNKNOWN, "could not judge whether this hour's sessions fragmented: %s" % str(e)[:60])
+    if _fr.get("state") == WARN:
+        return _row("shadowWatch", WARN, _fr["line"], _ev)
     return _row("shadowWatch", OK,
                 "watching for the game every 20 s (last look %.0f s ago) · %s reel(s) started · "
                 "%s rolled over on the hour · %s"

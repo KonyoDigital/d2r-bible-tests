@@ -30051,7 +30051,11 @@ def vault_autoreel_tick():
 # read it from other processes; in-memory state is invisible across the board-window boundary and
 # that has already cost a whole feature here. [[d2r-board-window-kill-loses-writes]]
 _SHADOW_WATCH_EVERY_S = 20
-_SHADOW_AWAY_GRACE_S = 60   # looked, and the game window stayed gone this long, before a shadow hour seals
+# REG-1675 — his number, 2026-10-01: "if the game isnt open for like 3 minutes". And only for a game that has truly GONE
+# (its process exited): a window that is minimized, covered or painting black while the game runs is a pause, and the
+# hour stays open (see _game_running). MEASURED on his ALT: 13 reels in 80 minutes, every one cut by the old 60 s seal
+# while the agent's own log said "D2R pin found but grab black and not focused" - the game was running.
+_SHADOW_AWAY_GRACE_S = 180   # looked, and the GAME (not just its window) stayed gone this long, before a shadow hour seals
 # ⚠⚠ REG-1666 — "IS THE GAME ON HIS SCREEN" HAS ONE JUDGE, AND IT IS THIS WATCH. It already looks every 20 s with the
 # window finder (every route: D2R.exe, a GeForce NOW stream titled with the game, a bare Boosteroid window) and, for a
 # bare Boosteroid window, the first reads - the launcher prints no D2R HUD word. So the lanes that must never run beside
@@ -30285,6 +30289,68 @@ _SHADOW_ROTATE_MARGIN_S = 5 * 60
 _SHADOW_ROTATE_RELOOK_S = 2
 
 
+def _shadow_hour_end_ms(since_ms):
+    """REG-1675 — the CLOCK hour a shadow reel belongs to ends at the next :00 after it began, local time. -> ms
+
+    His ruling, 2026-10-01: "should be an hourly session.. starting from 00:00 so its always round.. if i start the game
+    in 14:40 ... it should close as a session ... then 1 hour session start again from 15:00 to 16:00". So a reel begun
+    at 14:40 closes at 15:00 (a third of a session), and the next runs 15:00 -> 16:00."""
+    t = time.localtime(float(since_ms) / 1000.0)
+    top = time.mktime((t.tm_year, t.tm_mon, t.tm_mday, t.tm_hour, 0, 0, 0, 0, -1))
+    return int((top + 3600) * 1000)
+
+
+def _shadow_hour_key(ms):
+    """REG-1675 — the clock hour a moment falls in, as a stable key ("YYYY-MM-DD HH", local). -> str"""
+    return time.strftime("%Y-%m-%d %H", time.localtime(float(ms) / 1000.0))
+
+
+#: REG-1675 — the breaker: a clock hour that has already been cut this many times by an absence closes only on the clock
+#: for the rest of it, whatever the next absence looks like - a cause nobody foresaw cannot fragment it further
+_SHADOW_AWAY_CUTS_PER_HOUR = 2
+#: REG-1675 — a clock hour that opened this many shadow reels is FRAGMENTED, and the doctor says so
+_SHADOW_FRAGMENT_OPENS = 3
+#: REG-1675 — the seal journal's ceiling; one rollover to .1, so two files bound it
+_SHADOW_SEAL_LOG_MAX_BYTES = 2 * 1024 * 1024
+
+
+def _game_running():
+    """REG-1675 — is the game, or a cloud client that streams it, RUNNING on this PC at all? -> True | False | None
+
+    Not "is its window on screen" - that is the window finder's question. A minimized Boosteroid, an alt-tab, a black
+    grab, a reconnect: the game is running and the session is paused, not over. None = nobody could ask (never "gone")."""
+    try:
+        import self_prove as _sp
+        return _sp.playing_state(game_on_screen=lambda: True)
+    except Exception:
+        return None
+
+
+def _shadow_seal_log(event, **facts):
+    """REG-1675 — ONE ROW PER SHADOW OPEN AND CLOSE, WITH ITS REASON, in shadow_seals.jsonl beside the watcher's record.
+
+    His ask, 2026-10-01: "implement it ... so we know what happened if needed to surgically fix in retro spect". The
+    morning's 13 cuts had to be rebuilt from the agent's log because the console wrote no reason anywhere; this is that
+    record, kept at the point of knowledge. Bounded (one rollover to .1). Never raises."""
+    try:
+        path = os.path.join(_fixture_root_for_state(), "shadow_seals.jsonl")
+        try:
+            if os.path.getsize(path) > _SHADOW_SEAL_LOG_MAX_BYTES:
+                os.replace(path, path + ".1")
+        except OSError:
+            pass
+        try:
+            _jver = _app_ver()
+        except Exception:
+            _jver = None
+        row = {"ts": int(time.time() * 1000), "event": str(event), "ver": _jver}
+        row.update({k: v for k, v in facts.items() if v is not None})
+        with io.open(path, "a", encoding="utf-8") as fh:
+            fh.write(json.dumps(row, ensure_ascii=False) + "\n")
+    except Exception:
+        pass
+
+
 def _shadow_rotate_after_s():
     """The rollover limit in seconds, env first (TV_SHADOW_ROTATE_S > 0), else the constant."""
     raw = (os.environ.get("TV_SHADOW_ROTATE_S") or "").strip()
@@ -30457,10 +30523,12 @@ def _shadow_rollover(now):
     # The same stop and the same measured-gone check as the hourly rollover below; only the
     # moment changes. See the block above _an_update_waits_on_the_shadow_reel.
     _upd, _upd_why = _an_update_waits_on_the_shadow_reel()
-    if age_s < limit:
+    # REG-1675 — DUE AT THE CLOCK HOUR it began in (14:40 -> 15:00), or past the age limit a law can move
+    _hour_end = _shadow_hour_end_ms(int(since))
+    if now < _hour_end and age_s < limit:
         if not _upd:
-            why = ("a shadow reel is already rolling (%d of %d min) — shadow never starts a second; "
-                   "it rolls over at %d min" % (int(age_s // 60), int(limit // 60), int(limit // 60)))
+            why = ("a shadow reel is already rolling (%d min) — shadow never starts a second; it closes on the hour, "
+                   "at %s" % (int(age_s // 60), time.strftime("%H:%M", time.localtime(_hour_end / 1000.0))))
             _shadow_watch_note(why=why, **facts)
             return {"ok": True, "why": why, "rolling": door, "ageS": int(age_s)}
     if _stop_inflight:
@@ -30501,6 +30569,8 @@ def _shadow_rollover(now):
                                rotatedAgeS=int(age_s), updateClosedAt=now, updateClosedReel=reel,
                                updateCloses=int(_rec.get("updateCloses") or 0) + 1, why=why)
             fired, fsay = _fire_green_light_now()
+            _shadow_seal_log("close", reason="update", reel=reel, ageS=int(age_s), hour=_shadow_hour_key(since),
+                             why=why, update=str(_upd_why)[:160])
             return {"ok": True, "rotated": True, "closed": reel, "ageS": int(age_s), "why": why,
                     "reason": _upd_why, "fired": bool(fired), "fireSay": fsay}
         why = ("rolled over: closed %s after %d min so it can be processed — the next look, in about "
@@ -30509,6 +30579,8 @@ def _shadow_rollover(now):
         _shadow_watch_note(lookedAt=now, rollingAt=None, rollingDoor=None, rollingSince=None,
                            rotateAfterS=limit, rotations=n, rotatedAt=now, rotatedReel=reel,
                            rotatedAgeS=int(age_s), why=why)
+        _shadow_seal_log("close", reason=("clock-hour" if now >= _hour_end else "age-limit"), reel=reel,
+                         ageS=int(age_s), hour=_shadow_hour_key(since), why=why)
         return {"ok": True, "rotated": True, "closed": reel, "ageS": int(age_s), "why": why}
     why = ("tried to %s %s after %d min and it is %s (%s) — the next look tries again"
            % ("close for a waiting update" if _upd else "roll over", _named, int(age_s // 60),
@@ -30696,6 +30768,7 @@ def _seal_bare_launcher(now):
         return {"ok": False, "why": "the bare Boosteroid window would not seal: %s" % str(_e)[:80]}
     why = ("sealed the shadow hour — Boosteroid's first reads show no D2R HUD word, "
            "so this is the launcher, not the game")
+    _shadow_seal_log("close", reason="launcher", why=why)
     _shadow_watch_note(lookedAt=now, gameGoneSince=None, rollingAt=None,
                        rollingDoor=None, rollingSince=None,
                        launcherUntil=now + _BARE_HUD_RELOOK_S * 1000, why=why)
@@ -30727,9 +30800,27 @@ def shadow_watch_tick():
             _age_s = ((now - int(_since)) / 1000.0) if isinstance(_since, (int, float)) else None
             # an hour already owed still rolls over below. The grace is only for a reel that
             # has not run its hour, so one missed look does not cut it.
-            _hour_owed = _age_s is not None and _age_s >= _shadow_rotate_after_s()
+            _hour_owed = _age_s is not None and (_age_s >= _shadow_rotate_after_s()
+                                                 or now >= _shadow_hour_end_ms(int(_since)))   # REG-1675
             if pre.get("windowSeen") is False and not _hour_owed:
                 cur = _shadow_watch_stored() or {}
+                # REG-1675 — A WINDOW GONE WHILE THE GAME RUNS IS A PAUSE, NOT THE END OF A SESSION; and an hour already
+                # cut _SHADOW_AWAY_CUTS_PER_HOUR times closes only on the clock. Both keep the session round.
+                _run = _game_running()
+                _hk = _shadow_hour_key(now)
+                _cuts = int(cur.get("awayCuts") or 0) if cur.get("awayCutsHour") == _hk else 0
+                if _run is not False or _cuts >= _SHADOW_AWAY_CUTS_PER_HOUR:
+                    _ends = time.strftime("%H:%M", time.localtime(_shadow_hour_end_ms(int(_since)) / 1000.0))
+                    why = (("Diablo's window is not on screen but the game is still running (minimized, covered or a "
+                            "menu) - a pause, so this shadow hour stays open and closes at %s" % _ends)
+                           if _run is True else
+                           ("Diablo's window is not on screen and whether the game still runs cannot be read - "
+                            "never cut on a guess; this shadow hour closes at %s" % _ends) if _run is None else
+                           ("this clock hour was already cut %d times by an absence - the rest of it closes only on "
+                            "the clock, at %s" % (_cuts, _ends)))
+                    _shadow_watch_note(lookedAt=now, gameGoneSince=None, pausedSince=(cur.get("pausedSince") or now),
+                                       why=why)
+                    return {"ok": True, "away": True, "paused": True, "why": why}
                 gone = cur.get("gameGoneSince")
                 if not isinstance(gone, (int, float)):
                     why = ("Diablo is not on screen — this shadow hour seals if it is still gone "
@@ -30741,9 +30832,14 @@ def shadow_watch_tick():
                         stop_agent(farewell=False)
                     except Exception as _e:
                         return {"ok": False, "why": "the shadow hour would not seal: %s" % str(_e)[:80]}
-                    why = "sealed the shadow hour — Diablo was not on screen"
-                    _shadow_watch_note(lookedAt=now, gameGoneSince=None, rollingAt=None,
-                                       rollingDoor=None, rollingSince=None, why=why)
+                    why = ("sealed the shadow hour — the game itself was gone for %d s (not only its window)"
+                           % int((now - float(gone)) / 1000.0))
+                    _shadow_watch_note(lookedAt=now, gameGoneSince=None, pausedSince=None, rollingAt=None,
+                                       rollingDoor=None, rollingSince=None, awayCutsHour=_hk, awayCuts=_cuts + 1,
+                                       why=why)
+                    _shadow_seal_log("close", reason="game-gone", ageS=(int(_age_s) if _age_s is not None else None),
+                                     hour=_shadow_hour_key(_since), gameRunning=_run, windowSeen=False,
+                                     windowWhy=str(pre.get("windowWhy") or "")[:160], why=why)
                     return {"ok": True, "cut": True, "why": why}
                 return {"ok": True, "away": True, "why": "Diablo is still not on screen"}
             if pre.get("windowSeen") is True:
@@ -30751,8 +30847,8 @@ def shadow_watch_tick():
                 if hud is False:   # a rolling shadow reel on the launcher
                     return _seal_bare_launcher(now)
                 cur = _shadow_watch_stored() or {}
-                if cur.get("gameGoneSince") is not None:
-                    _shadow_watch_note(gameGoneSince=None)
+                if cur.get("gameGoneSince") is not None or cur.get("pausedSince") is not None:
+                    _shadow_watch_note(gameGoneSince=None, pausedSince=None)
                 if hud is True:
                     _shadow_watch_note(launcherUntil=None)
         return _shadow_rollover(now)
@@ -30837,12 +30933,38 @@ def shadow_watch_tick():
     else:
         _why_ok = ("saw Diablo but the reel would not start: %s"
                    % str(isinstance(r, dict) and r.get("msg") or r)[:90])
+    # REG-1675 — opens are COUNTED PER CLOCK HOUR, so the doctor can say an hour fragmented (the morning's 13 reels in
+    # 80 minutes reached nobody), and every open is journalled with why it opened
+    _hk = _shadow_hour_key(now)
+    _opens = (int(cur.get("opensThisHour") or 0) if cur.get("opensHour") == _hk else 0) + (1 if ok else 0)
     _shadow_watch_note(lookedAt=now, sawAt=now,
                        startedAt=(now if ok else cur.get("startedAt")),
                        starts=(int(cur.get("starts") or 0) + (1 if ok else 0)),
                        launcherUntil=(None if hud is True else cur.get("launcherUntil")),
+                       opensHour=_hk, opensThisHour=_opens,
                        why=_why_ok)
+    if ok:
+        _shadow_seal_log("open", hour=_hk, opensThisHour=_opens, hud=hud, windowWhy=str(pre.get("windowWhy") or "")[:160],
+                         why=_why_ok)
     return {"ok": ok, "seen": True, "started": ok, "why": _why_ok}
+
+
+def _shadow_fragment_reading(w=None, now_ms=None):
+    """REG-1675 — has THIS clock hour opened too many shadow reels? -> {state, line, opens}. state "warn" | None.
+
+    The heart's watchdog for the defect he caught by eye on 2026-10-01: sessions in parts instead of one per hour."""
+    if w is None:
+        w = shadow_watch_state()
+    if not isinstance(w, dict):
+        return {"state": None, "opens": None, "line": ""}
+    now = _shadow_now_ms() if now_ms is None else int(now_ms)
+    n = int(w.get("opensThisHour") or 0) if w.get("opensHour") == _shadow_hour_key(now) else 0
+    if n >= _SHADOW_FRAGMENT_OPENS:
+        return {"state": "warn", "opens": n,
+                "line": ("this clock hour has opened %d shadow reels - one session per hour is the rule, so something "
+                         "is closing and reopening them; every open and close is in shadow_seals.jsonl with its reason"
+                         % n)}
+    return {"state": None, "opens": n, "line": ""}
 
 
 def _shadow_watch_loop():

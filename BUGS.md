@@ -406,6 +406,24 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1675 - HIS ALT'S SHADOW SESSIONS CAME IN PARTS, NOT ONE PER CLOCK HOUR (his report, 2026-10-01)
+
+**His words:** "i see alot of sesssion all like parts instead of 1 hour long each ... should be an hourly session..
+starting from 00:00 so its always round ... something made it close and open", then "if the game isnt open for like 3
+minutes lets say.. and maybe some other safegaurd thats inteligent", and "implement it ... so we know what happened if
+needed to surgically fix in retro spect". **Measured on the ALT:** 17 shadow reels 18:00-19:47 (09-30) and 13 reels
+09:25-10:45 (10-01), each ending "closing session (off)" right after the agent logged "D2R pin found but grab black and
+not focused" - the console's 60 s away-seal cut the reel while the game RAN (minimized, covered, black), and the next
+look opened a new one. Hourly rollovers between bursts (19:47 -> 20:47 -> 21:47) were clean, but counted 60 min from a
+reel's start, not the clock. **Now:** a shadow reel closes at the next :00 after it began (14:40 -> 15:00, then
+15:00 -> 16:00); a window gone while the game or its cloud client still RUNS is a pause and the hour stays open; an
+unanswered probe never cuts; the game truly gone seals after 3 minutes (his number); a clock hour already cut twice
+closes only on the clock (the breaker); every open and close is journalled with its reason in `shadow_seals.jsonl`
+(bounded, named in BLUEPRINT); and the doctor's shadow row warns when a clock hour opens 3+ reels. Kept: the launcher
+seal (a reel that never filmed the game) and the update close (his call). Law:
+`tv/test_a_shadow_session_rolls_over_every_hour.py` (TheShadowHourIsTheClockHour, real hour function and probe; the
+older cases now pin the hour and the probe so they no longer depend on the wall clock or on this machine's processes).
+
 ### REG-1674 - THE PROVER'S LOG SAT STILL FOR 70 MINUTES AND NOTHING COULD TELL WORKING FROM HUNG (his ask, 2026-10-01)
 
 **His words:** "make sure its all wired and connected to where its needed and a stale safegaurd for this so it doesnt

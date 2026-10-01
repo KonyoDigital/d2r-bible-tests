@@ -29,7 +29,18 @@ stop_agent, _agent_alive, the clock, the window finder, the agent's session id),
 ⚠ NOTHING REAL IS TOUCHED. start_agent, stop_agent and _force_kill_all_agents would spawn or KILL his
 agent (ports are machine-wide, a sandbox does not isolate them), and _mini_sid would GET his live
 bridge - every one is stubbed in setUp before any tick runs, and the store path is asserted to sit in
-the fixture before anything is written. RED_PROOF below.
+the fixture before anything is written.
+
+REG-1675 (his ruling, 2026-10-01): "should be an hourly session.. starting from 00:00 so its always round", and "if the
+game isnt open for like 3 minutes ... and maybe some other safegaurd thats inteligent". MEASURED on his ALT: 13 shadow
+reels in 80 minutes, each cut by a 60 s away-seal while the agent's log said the game window was "grab black and not
+focused" - the game was running. Now (class TheShadowHourIsTheClockHour, the REAL hour function and probe):
+  · a reel begun at 14:40 closes at 15:00, the next runs 15:00 -> 16:00;
+  · a window gone while the game RUNS is a pause - the hour stays open; an unanswered probe never cuts;
+  · the game truly gone seals after 3 minutes, not before; an hour already cut twice closes only on the clock;
+  · every open and close is journalled with its reason (shadow_seals.jsonl), and the doctor warns when an hour fragments.
+The cases above keep their meaning with the hour boundary stubbed to "start + 60 min" and the game probe to "gone" -
+so none of them depends on the wall clock or on what is running on the machine that runs them. RED_PROOF below.
 """
 import ast
 import io
@@ -81,7 +92,8 @@ class _Base(unittest.TestCase):
 
     STUBS = ("_shadow_state", "_agent_alive", "mini_state", "start_agent", "stop_agent",
              "_force_kill_all_agents", "_mini_sid", "_shadow_now_ms", "_screen_recording_ok_quick",
-             "ON_AIR_FLOOR_GB", "_agent_proc", "_agent_origin", "_agent_since_ms", "_stop_inflight")
+             "ON_AIR_FLOOR_GB", "_agent_proc", "_agent_origin", "_agent_since_ms", "_stop_inflight",
+             "_shadow_hour_end_ms", "_game_running")
 
     def setUp(self):
         self.world = tempfile.mkdtemp(prefix="shadow_rollover_case_")
@@ -108,6 +120,11 @@ class _Base(unittest.TestCase):
         ca._mini_sid = lambda: SID
         ca._stop_inflight = False
         ca._agent_proc, ca._agent_origin, ca._agent_since_ms = None, "hand", None
+        # REG-1675 - the cases below this class's own keep the hour as "start + 60 min" and the game as GONE, so they
+        # never depend on the wall clock or on what runs on this machine; TheShadowHourIsTheClockHour uses the real ones
+        self.running = False
+        ca._shadow_hour_end_ms = lambda since: int(since) + 60 * MIN
+        ca._game_running = lambda: self.running
         ca.start_agent = self._start
         ca.stop_agent = self._stop
         ca._force_kill_all_agents = lambda *a, **k: (self.kills.append(a) or
@@ -323,6 +340,112 @@ class AShadowSessionRollsOverEveryHour(_Base):
                          "TV_SHADOW_ROTATE_S was not honoured at call time")
 
 
+class TheShadowHourIsTheClockHour(_Base):
+    """REG-1675 - the real hour function, the real pause rule, the grace, the breaker, the journal, the doctor."""
+
+    def _at(self, hh, mm, ss=0):
+        t = time.localtime()
+        return int(time.mktime((t.tm_year, t.tm_mon, t.tm_mday, hh, mm, ss, 0, 0, -1)) * 1000)
+
+    def _real_hour(self):
+        ca._shadow_hour_end_ms = self._saved["_shadow_hour_end_ms"]
+
+    def test_the_hour_ends_at_the_next_top_of_the_clock(self):
+        real = self._saved["_shadow_hour_end_ms"]
+        self.assertEqual(real(self._at(14, 40)), self._at(15, 0), "a 14:40 reel's hour does not end at 15:00")
+        self.assertEqual(real(self._at(15, 0)), self._at(16, 0))
+        self.assertEqual(real(self._at(15, 59, 59)), self._at(16, 0))
+
+    def test_a_reel_begun_at_40_past_closes_at_the_top_of_the_hour(self):
+        self._real_hour()
+        self.begin("shadow", self._at(14, 40))
+        self.now = self._at(14, 59, 30)
+        ca.shadow_watch_tick()
+        self.assertEqual(self.stops, [], "a reel was closed before its clock hour ended")
+        self.now = self._at(15, 0, 5)
+        r = ca.shadow_watch_tick()
+        self.assertTrue(r.get("rotated"), "a 14:40 reel was not closed at 15:00 - his round hour: %r" % (r,))
+        self.assertEqual(self.stops, [{"farewell": False}])
+
+    def test_a_window_gone_while_the_game_runs_is_a_pause_not_an_end(self):
+        self.running = True
+        self.begin("shadow", self.now - 10 * MIN)
+        self.window = None
+        for _ in range(4):
+            r = ca.shadow_watch_tick()
+            self.now += (ca._SHADOW_AWAY_GRACE_S + 5) * 1000
+        self.assertEqual(self.stops, [], "the hour was cut while the game still ran (minimized, covered, a menu): %r"
+                         % (r,))
+        self.assertTrue(r.get("paused"), r)
+        self.assertIn("still running", r.get("why") or "")
+
+    def test_an_unanswered_probe_never_cuts(self):
+        self.running = None
+        self.begin("shadow", self.now - 10 * MIN)
+        self.window = None
+        for _ in range(3):
+            r = ca.shadow_watch_tick()
+            self.now += (ca._SHADOW_AWAY_GRACE_S + 5) * 1000
+        self.assertEqual(self.stops, [], "a reel was cut on a probe nobody could read: %r" % (r,))
+        self.assertIn("cannot be read", r.get("why") or "")
+
+    def test_the_game_truly_gone_seals_after_three_minutes_and_not_before(self):
+        self.assertEqual(ca._SHADOW_AWAY_GRACE_S, 180, "his number is three minutes")
+        self.begin("shadow", self.now - 10 * MIN)
+        self.window = None
+        ca.shadow_watch_tick()
+        self.now += (ca._SHADOW_AWAY_GRACE_S - 30) * 1000
+        ca.shadow_watch_tick()
+        self.assertEqual(self.stops, [], "a shadow hour was sealed before the game had been gone three minutes")
+        self.now += 60 * 1000
+        r = ca.shadow_watch_tick()
+        self.assertEqual(len(self.stops), 1, "the game stayed gone past three minutes and the hour kept rolling: %r" % r)
+        rec = self.record()
+        self.assertEqual((rec.get("awayCutsHour"), rec.get("awayCuts")), (ca._shadow_hour_key(self.now), 1))
+
+    def test_the_breaker_holds_the_rest_of_the_hour(self):
+        self.begin("shadow", self.now - 10 * MIN)
+        self.window = None
+        ca.shadow_watch_tick()
+        ca._shadow_watch_note(awayCutsHour=ca._shadow_hour_key(self.now), awayCuts=ca._SHADOW_AWAY_CUTS_PER_HOUR)
+        self.now += (ca._SHADOW_AWAY_GRACE_S + 5) * 1000
+        r = ca.shadow_watch_tick()
+        self.assertEqual(self.stops, [], "an hour already cut %d times was cut again" % ca._SHADOW_AWAY_CUTS_PER_HOUR)
+        self.assertIn("only on the clock", r.get("why") or "")
+
+    def test_every_open_and_close_is_journalled_with_its_reason(self):
+        path = os.path.join(self.world, "shadow_seals.jsonl")
+        self.begin("shadow", self.now - 61 * MIN)
+        ca.shadow_watch_tick()                                   # closes on its hour
+        self.now += ca._SHADOW_ROTATE_RELOOK_S * 1000
+        ca.shadow_watch_tick()                                   # the next look opens a reel
+        self.window = None
+        ca.shadow_watch_tick()                                   # the game is gone: the clock arms
+        self.now += (ca._SHADOW_AWAY_GRACE_S + 5) * 1000
+        ca.shadow_watch_tick()                                   # ... and seals
+        with io.open(path, encoding="utf-8") as fh:
+            rows = [json.loads(l) for l in fh if l.strip()]
+        self.assertEqual([(r.get("event"), r.get("reason")) for r in rows],
+                         [("close", "clock-hour"), ("open", None), ("close", "game-gone")],
+                         "the seal journal does not say what opened and closed, and why: %r" % rows)
+        self.assertTrue(all(r.get("ts") and r.get("why") for r in rows), rows)
+        self.assertIs(rows[2].get("gameRunning"), False, rows[2])
+
+    def test_the_doctor_warns_when_an_hour_fragments(self):
+        for i in range(ca._SHADOW_FRAGMENT_OPENS):
+            self.alive = False
+            r = ca.shadow_watch_tick()
+            self.assertTrue(r.get("started"), r)
+            self.now += 5 * 1000
+            if i == ca._SHADOW_FRAGMENT_OPENS - 2:
+                self.assertNotIn("fragment", (self.doctor().get("line") or ""),
+                                 "PREMISE: %d opens already read as fragmented" % (i + 1))
+        row = self.doctor()
+        self.assertEqual(row.get("state"), "warn", "an hour that opened %d shadow reels read clean: %r"
+                         % (ca._SHADOW_FRAGMENT_OPENS, row))
+        self.assertIn("shadow_seals.jsonl", row.get("line") or "")
+
+
 class TheDoorStampsWhenAReelBegan(unittest.TestCase):
 
     def test_start_agent_stamps_WHEN_beside_WHO_under_one_lock(self):
@@ -408,6 +531,33 @@ class TheLaneSpeaksTheSharedVocabulary(_Base):
 
 
 RED_PROOF = [
+    {"why": "REG-1675 - the hour counts 60 min from the reel's start again, not the clock: 14:40 runs to 15:40",
+     "file": "control_app.py", "find": "    if now < _hour_end and age_s < limit:\n",
+     "replace": "    if age_s < limit:\n", "matches": 1},
+    {"why": "REG-1675 - the hour function returns start + 60 min instead of the next top of the clock",
+     "file": "control_app.py", "find": "    return int((top + 3600) * 1000)\n",
+     "replace": "    return int(float(since_ms) + 3600 * 1000)\n", "matches": 1},
+    {"why": "REG-1675 - a window gone while the game RUNS (minimized, covered) seals the hour - the morning's 13 cuts",
+     "file": "control_app.py",
+     "find": "                if _run is not False or _cuts >= _SHADOW_AWAY_CUTS_PER_HOUR:\n",
+     "replace": "                if _cuts >= _SHADOW_AWAY_CUTS_PER_HOUR:\n", "matches": 1},
+    {"why": "REG-1675 - no breaker: an hour cut twice is cut again and again",
+     "file": "control_app.py",
+     "find": "                if _run is not False or _cuts >= _SHADOW_AWAY_CUTS_PER_HOUR:\n",
+     "replace": "                if _run is not False:\n", "matches": 1},
+    {"why": "REG-1675 - the away grace is 60 s again, not his three minutes",
+     "file": "control_app.py", "find": "_SHADOW_AWAY_GRACE_S = 180   #",
+     "replace": "_SHADOW_AWAY_GRACE_S = 60   #", "matches": 1},
+    {"why": "REG-1675 - the game-gone seal writes no journal row: nobody can say afterwards why the reel closed",
+     "file": "control_app.py", "find": "                    _shadow_seal_log(\"close\", reason=\"game-gone\",",
+     "replace": "                    (lambda *a, **k: None)(\"close\", reason=\"game-gone\",", "matches": 1},
+    {"why": "REG-1675 - the doctor reads a fragmented hour as clean",
+     "file": "health_engine.py", "find": "    if _fr.get(\"state\") == WARN:\n",
+     "replace": "    if False:\n", "matches": 1},
+    {"why": "REG-1675 - opens are not counted per clock hour, so no hour can ever read as fragmented",
+     "file": "control_app.py",
+     "find": "    _opens = (int(cur.get(\"opensThisHour\") or 0) if cur.get(\"opensHour\") == _hk else 0) + (1 if ok else 0)\n",
+     "replace": "    _opens = 1\n", "matches": 1},
     {
         "why": "2026-09-27 - switching shadow off excuses a reel already rolling, so the evening stacks up",
         "file": "control_app.py",
@@ -425,7 +575,7 @@ RED_PROOF = [
     {
         "why": "2026-09-27 - the rollover never fires: an evening stacks up in one unprocessed shadow reel",
         "file": "control_app.py",
-        "find": "    if age_s < limit:\n",
+        "find": "    if now < _hour_end and age_s < limit:\n",     # REG-1675 re-anchor
         "replace": "    if True:\n",
         "matches": 1,
     },
