@@ -70,6 +70,31 @@ class TheCensusRowReaderAnswersEverySHAPE(unittest.TestCase):
                          "a well-formed supervised row no longer reads back intact")
 
 
+def _scored_names(organs):
+    """Every name an organ row carries a real score for: its own id AND each surface it names. -> set
+
+    ⚠ v3541 — THIS LAW HAD THE PRE-v3093 FORMULA. heart.vessels() keys `scored` by each organ's id and by every
+    surface it names (per-surface score, the row's score as the fallback) since v3093; these cases recomputed
+    "scorable" from the organ IDS alone. The two agreed only while no surface carried a score. MEASURED
+    2026-10-01: the census gained real lane proofs, laneAttacks named those lanes in its surfaces, every watched
+    vessel became scorable - correctly - and both cases went red on a true answer. The contract is the one
+    heart.py documents beside its loop; this mirrors it so the check stays derived, never typed."""
+    out = set()
+    for r in organs or []:
+        if not isinstance(r, dict):
+            continue
+        sc = r.get("score")
+        sc = sc if isinstance(sc, (int, float)) else None
+        if sc is not None:
+            out.add(str(r.get("id") or ""))
+        per = r.get("surfaceScores") if isinstance(r.get("surfaceScores"), dict) else {}
+        for surf in (r.get("surfaces") or []):
+            ss = per.get(str(surf or ""), sc)
+            if isinstance(ss, (int, float)):
+                out.add(str(surf or ""))
+    return out
+
+
 RED_PROOF = [
     {
         #: ⚠ THE v3014 DEFECT, RESTORED EXACTLY. Dropping the fourth value returns this branch to
@@ -786,9 +811,8 @@ class AVesselMayNotBeToldWorkIsOwedThatCannotLand(unittest.TestCase):
         H = self._heart()
         rep = H.vessels()
         organs, _why = H._health_rows()
-        ids = {str(r.get("id") or "") for r in organs if isinstance(r, dict)}
         watchers = {v.get("watcher") for v in (rep.get("vessels") or []) if v.get("watcher")}
-        scorable = bool(ids & watchers)
+        scorable = bool(_scored_names(organs) & watchers)
         for v in (rep.get("vessels") or []):
             if v.get("state") != "WATCHED":
                 continue
@@ -806,7 +830,7 @@ class AVesselMayNotBeToldWorkIsOwedThatCannotLand(unittest.TestCase):
                 self.assertNotIn(
                     "work owed, not a fault", why,
                     "%s is told sabotage is owed, but no organ publishes a score under a lane "
-                    "name — the intersection of organ ids and watcher names is EMPTY, so that "
+                    "name — no organ id or surface carries a score for any watcher, so that "
                     "work could not land however well it was done. Nobody-tested-it and "
                     "nothing-can-record-a-test are different facts." % v.get("name"))
                 self.assertIn("scorer", why,
@@ -827,10 +851,13 @@ class AVesselMayNotBeToldWorkIsOwedThatCannotLand(unittest.TestCase):
                           % v.get("name"))
         # and the flag must agree with the arithmetic, not be typed in
         organs, _ = H._health_rows()
-        ids = {str(r.get("id") or "") for r in organs if isinstance(r, dict)}
-        names = {v.get("watcher") for v in watched}
+        # ⚠ v3541 — EVERY vessel's watcher, as vessels() counts them, not only the WATCHED ones. `scorable` answers
+        # "could a score land here at all" - whether the organ vocabulary reaches the watcher vocabulary - and
+        # the moment one watcher is scored it is no longer WATCHED, so a WATCHED-only population drops exactly
+        # the evidence that makes the flag true (measured: tvd-version-drift scored 0.2065 and left the set).
+        names = {v.get("watcher") for v in (rep.get("vessels") or []) if v.get("watcher")}
         self.assertEqual(
-            watched[0].get("scorable"), bool(ids & names),
+            watched[0].get("scorable"), bool(_scored_names(organs) & names),
             "the scorable flag disagrees with whether any watcher name appears among the organ "
             "ids — it is being asserted rather than derived")
         if watched[0].get("scorable"):

@@ -406,6 +406,16 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1664 - TWO HEART LAWS JUDGED "SCORABLE" WITH A FORMULA THE HEART STOPPED USING (found by the v3541 pre-flight, 2026-10-01)
+
+**Was:** `test_heart_surface` recomputed whether a watcher could ever be scored from the organ rows' IDS alone, and
+over the WATCHED vessels only. heart.vessels() has keyed scores by every surface an organ names since v3093, and its
+flag answers for every watcher. The two agreed only while no surface carried a score. MEASURED: a proof run counted
+a refused attack on the drift lane, laneAttacks scored `tvd-version-drift` 0.2065, that vessel left WATCHED - and
+both cases went red on a TRUE answer, locally only (a fresh CI checkout has no census, so no lane is ever scored).
+**Now:** the law mirrors the contract heart.py documents beside its loop (id + named surfaces, per-surface score with
+the row's as fallback) over every vessel's watcher. Its 4 red-proofs still go RED.
+
 ### REG-1660 - AFTER A REBOOT NO WINDOWS CONSOLE CAME BACK UNTIL SOMEONE OPENED IT (his ruling, 2026-10-01)
 
 **His words:** "set it up there and for dean too.. like in general you mean so it starts at startup great yea" -
