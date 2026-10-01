@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3548",
+  "ver": "v3549",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3548: characters learned late get their logins and gear (each card is handed its ten doll slots); a session opens by its own id at every door; one route table on every PC - a bare GeForce NOW window counts like Boosteroid; the HEART refresh never wedges and shows one census; a push never banks an all-ELSEWHERE gate",
+  "note": "v3549: each in-game card shows what its character wears, slot by slot, on the Vault tiers, with no Plan a build; the characters a console learned stand even with no hand build; the four real v3548 eye findings fixed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
