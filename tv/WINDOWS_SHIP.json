@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3543",
+  "ver": "v3544",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3543: the red-proofs of one gate share one clean run with a closing check, so a census needs about a third fewer law runs; the prover runs as many lanes as the PC has clear room for, up to four - one on his ALT today, four on a 16 GB PC",
+  "note": "v3544: a shadow session is one clock hour and a proof slice keeps what it proved",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
