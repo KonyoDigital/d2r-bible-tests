@@ -2218,19 +2218,34 @@ def _closing_clean(name, verdicts, say):
     """REG-1669 — the gate's proofs shared one clean run; it must still be green after the last of them. -> verdicts
 
     A law whose state drifted across its proofs could otherwise go red for the drift and be credited with catching
-    the tamper. Only when a clean run WAS shared and something was PROVEN; a red or unknown closing run keeps no
-    PROVEN of this gate (UNPROVABLE, said), and every other verdict stands."""
+    the tamper. Only when a clean run WAS shared; a red or unknown closing run keeps no PROVEN of this gate
+    (UNPROVABLE, said).
+
+    REG-1677 (the v3543 cross-family eye) — AND A REUSED CLEAN RUN MAY NOT BANK A BLIND OR AN INVALID EITHER. A proof
+    judged on the cached green could miss its anchor (INVALID) or stay green tampered (BLIND) because an earlier proof's
+    run left the sandbox changed - where its own fresh clean run would have gone red first (UNPROVABLE). BLIND and
+    INVALID go on the census's blind list, and one BLIND shuts every lock on that PC. So the closing run is asked
+    whenever a reused verdict could be banked (PROVEN, BLIND or INVALID), and a red, unknown or RAISING closing run
+    makes PROVEN and every reused BLIND/INVALID UNPROVABLE; a first proof's BLIND, judged on its own fresh clean run,
+    stands."""
     runs = getattr(_CLEAN, "runs", None) or {}
     shared = [r for r in runs.values() if r.get("reused")]
-    if not shared or PROVEN not in verdicts:
+    if not shared or not any(v in (PROVEN, BLIND, INVALID) for v in verdicts):
         return verdicts
+    _reused = set()
     for r in shared:
-        ok, tail = r["again"]()
+        _reused.update(r.get("by") or ())
+    for r in shared:
+        try:
+            ok, tail = r["again"]()
+        except Exception as _ce:                         # REG-1677 — the closing run raising is UNKNOWN, never a BLIND gate
+            ok, tail = None, "the closing clean run raised %s" % type(_ce).__name__
         if not ok:
             say("     %-52s %s - the CLOSING clean run is %s (%s): its proofs shared one clean run and the sandbox did "
-                "not stay clean across them, so no PROVEN of this gate is kept"
+                "not stay clean across them, so no PROVEN of this gate is kept, and no BLIND judged on the shared run"
                 % (name, UNPROVABLE, "UNKNOWN" if ok is None else "RED", str(tail)[:60]))
-            return [UNPROVABLE if v == PROVEN else v for v in verdicts]
+            return [UNPROVABLE if (v == PROVEN or (j in _reused and v in (BLIND, INVALID))) else v
+                    for j, v in enumerate(verdicts)]
     return verdicts
 
 
@@ -2844,6 +2859,7 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None):
     if _hit is not None:
         ok_clean, tail = _hit["ok"], _hit["tail"]           # REG-1669 — this gate's one clean run
         _hit["reused"] += 1
+        _hit.setdefault("by", []).append(idx)                # REG-1677 — which proofs were judged on a reused clean run
     else:
         ok_clean, tail = _run_gate(sandbox, filename, timeout=_to, extra=_extra, script=_script, **_w)
         if isinstance(_runs, dict) and ok_clean is not None:

@@ -108,7 +108,99 @@ class OneCleanRunServesAGate(unittest.TestCase):
         self.assertEqual((runs.clean, runs.tampered), (1, 1), "a direct _prove_one call no longer runs its own clean run")
 
 
+class AReusedCleanRunNeverBanksAFalseBlind(unittest.TestCase):
+    """REG-1677 (the v3543 cross-family eye) - proof 0's runs leave the sandbox changed (other.py drifts), so proof 1,
+    judged on the CACHED green, misses its anchor: INVALID, which the census files as BLIND and which shuts every lock.
+    Its own fresh clean run would have gone red first (UNPROVABLE). The closing run must catch it."""
+
+    def setUp(self):
+        self.root = tempfile.mkdtemp(prefix="h2drift.")
+        self.addCleanup(shutil.rmtree, self.root, True)
+        self.tv = os.path.join(self.root, "repo", "tv")
+        os.makedirs(self.tv)
+        for fn, body in (("subject.py", 'A = "GOOD"\n'), ("other.py", 'B = "GOOD"\n'),
+                         ("fake_gate.py", "import sys\nsys.exit(0)\n")):
+            with io.open(os.path.join(self.tv, fn), "w", encoding="utf-8") as fh:
+                fh.write(body)
+        self.proofs = [{"file": "subject.py", "find": 'A = "GOOD"', "replace": 'A = "BAD"', "matches": 1, "why": "A"},
+                       {"file": "other.py", "find": 'B = "GOOD"', "replace": 'B = "BAD"', "matches": 1, "why": "B"}]
+        self._real = H._run_gate
+        self.addCleanup(lambda: setattr(H, "_run_gate", self._real))
+
+    def _read(self, fn):
+        with io.open(os.path.join(self.tv, fn), encoding="utf-8") as fh:
+            return fh.read()
+
+    def _drifting_run(self, sandbox_tv, filename, timeout=180, extra=(), script=None, widths=None):
+        """A law that is red on a tamper - and whose tampered run leaves other.py changed (state the law wrote)."""
+        a, b = self._read("subject.py"), self._read("other.py")
+        if "BAD" in a:
+            with io.open(os.path.join(self.tv, "other.py"), "w", encoding="utf-8") as fh:
+                fh.write('B = "DRIFTED"\n')
+            return False, "Ran 1 test | FAILED"
+        if "GOOD" not in b:
+            return False, "Ran 1 test | FAILED (the sandbox drifted)"
+        return True, "Ran 1 test | OK"
+
+    def test_a_drifted_sandbox_is_unprovable_never_blind(self):
+        H._run_gate = self._drifting_run
+        verdict, per = H._prove_gate(self.tv, GATE, "fake_gate.py", self.proofs, _quiet)
+        self.assertNotIn(H.INVALID, per, "a proof judged on a reused clean run in a drifted sandbox was banked INVALID "
+                                          "(the census files that BLIND, and one BLIND shuts every lock): %r" % per)
+        self.assertNotIn(verdict, (H.BLIND, H.INVALID), per)
+        self.assertEqual(verdict, H.UNPROVABLE, per)
+
+    def test_a_reused_invalid_is_caught_even_when_nothing_was_proven(self):
+        """The finding's own scenario: no proof PROVEN, so the old closing check never ran. Proof 0 is a genuine BLIND
+        (its tamper stays green on its OWN fresh clean run) whose run drifts other.py; proof 1, judged on the reused
+        green, misses its anchor. Proof 0's BLIND stands; proof 1 is UNPROVABLE, never INVALID."""
+        def run(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=None):
+            if "BAD" in self._read("subject.py"):
+                with io.open(os.path.join(self.tv, "other.py"), "w", encoding="utf-8") as fh:
+                    fh.write('B = "DRIFTED"\n')
+                return True, "Ran 1 test | OK"                    # the law misses this tamper: a real BLIND
+            if "GOOD" not in self._read("other.py"):
+                return False, "Ran 1 test | FAILED (the sandbox drifted)"
+            return True, "Ran 1 test | OK"
+        H._run_gate = run
+        verdict, per = H._prove_gate(self.tv, GATE, "fake_gate.py", self.proofs, _quiet)
+        self.assertEqual(per, [H.BLIND, H.UNPROVABLE],
+                         "a reused clean run banked an INVALID when nothing was PROVEN, or a genuine BLIND was hidden: %r"
+                         % per)
+
+    def test_a_closing_run_that_raises_keeps_the_gate_honest(self):
+        state = {"n": 0}
+
+        def run(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=None):
+            if "BAD" in self._read("subject.py") or "BAD" in self._read("other.py"):
+                return False, "Ran 1 test | FAILED"
+            state["n"] += 1
+            if state["n"] >= 2:
+                raise OSError("the sandbox file is locked")
+            return True, "Ran 1 test | OK"
+        H._run_gate = run
+        verdict, per = H._prove_gate(self.tv, GATE, "fake_gate.py", self.proofs, _quiet)
+        self.assertEqual(per, [H.UNPROVABLE, H.UNPROVABLE],
+                         "a closing run that raised turned the gate's judged proofs into something else: %r" % per)
+        self.assertEqual(verdict, H.UNPROVABLE)
+
+
 RED_PROOF = [
+    {"why": "REG-1677 - the closing run is skipped when nothing was PROVEN, so a reused clean run banks a false BLIND",
+     "file": "heart2.py",
+     "find": "    if not shared or not any(v in (PROVEN, BLIND, INVALID) for v in verdicts):\n",
+     "replace": "    if not shared or PROVEN not in verdicts:\n",
+     "matches": 1},
+    {"why": "REG-1677 - a red closing run downgrades only PROVEN: a reused INVALID / BLIND is banked as blind",
+     "file": "heart2.py",
+     "find": "            return [UNPROVABLE if (v == PROVEN or (j in _reused and v in (BLIND, INVALID))) else v\n",
+     "replace": "            return [UNPROVABLE if v == PROVEN else v\n",
+     "matches": 1},
+    {"why": "REG-1677 - a closing run that raises escapes and the whole gate is written BLIND and unmeasured",
+     "file": "heart2.py",
+     "find": "        except Exception as _ce:                         # REG-1677",
+     "replace": "        except ZeroDivisionError as _ce:                 # REG-1677",
+     "matches": 1},
     {"why": "REG-1669 - every proof pays its own clean run again (the 82-minute ALT slice)",
      "file": "heart2.py",
      "find": "    _hit = _runs.get(_ck) if isinstance(_runs, dict) else None\n",
@@ -116,7 +208,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-1669 - no closing clean run: a gate whose state drifted across its proofs is credited PROVEN",
      "file": "heart2.py",
-     "find": "    if not shared or PROVEN not in verdicts:\n        return verdicts\n",
+     "find": "    if not shared or not any(v in (PROVEN, BLIND, INVALID) for v in verdicts):\n        return verdicts\n",  # REG-1677 re-anchor
      "replace": "    return verdicts\n",
      "matches": 1},
     {"why": "REG-1669 - a gate's clean run outlives it into the next gate",

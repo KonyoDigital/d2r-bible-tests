@@ -406,6 +406,20 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1677 - A REUSED CLEAN RUN COULD BANK A FALSE BLIND (the v3543 cross-family eye, 2026-10-01)
+
+**Found by** the Grok seat on v3543 (third ask; two `cannot-tell` before it). **Was:** REG-1669 let a gate's later proofs
+reuse the first proof's green clean run. If an earlier proof's run left the sandbox changed, a later proof judged on the
+cached green could miss its anchor (INVALID) or stay green tampered (BLIND) where its own fresh clean run would have gone
+red first (UNPROVABLE). The closing clean run only downgraded PROVEN, and was skipped altogether when nothing was PROVEN
+- so a drifted sandbox could bank BLIND/INVALID, which the census files as blind, and one blind record shuts every lock
+on that PC (the river). And the closing run sat outside the per-proof handler: a raise there wrote the whole gate BLIND
+and unmeasured. **Now** the closing run is asked whenever a reused verdict could be banked (PROVEN, BLIND or INVALID); a
+red, unknown or raising closing run makes PROVEN and every REUSED BLIND/INVALID UNPROVABLE, while a first proof's BLIND
+- judged on its own fresh clean run - stands. Law: `tv/test_one_clean_run_serves_a_gates_proofs.py`
+(AReusedCleanRunNeverBanksAFalseBlind, the finding's scenarios driven through the real `_prove_gate`); 3 new red-proofs,
+one re-anchored; all 6 PROVEN.
+
 ### REG-1676 - A SLICE THAT STOOD ASIDE THREW AWAY EVERY VERDICT IT HAD PROVED (2026-10-01)
 
 **Measured on his ALT:** the census slice that began 13:13 proved the four once-BLIND REG-1668 gates PROVEN
