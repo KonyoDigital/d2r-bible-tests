@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3545",
+  "ver": "v3546",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3545: the HEART opens on one click and refreshes itself, the disk floor takes finished footage first, and a shadow hour holds across the fall-back night",
+  "note": "v3546: the ALT river reopens: a proof that needs what a PC lacks is judged elsewhere, never BLIND",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

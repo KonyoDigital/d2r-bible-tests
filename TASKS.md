@@ -1731,7 +1731,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3545** | `(this commit)` | v3545 — the HEART opens on one click and refreshes itself, the disk floor takes finished footage first, and a shadow hour holds across the fall-back night |
+| **v3546** | `(this commit)` | v3546 — the ALT river reopens: a proof that needs what a PC lacks is judged elsewhere, never BLIND |
+| **v3545** | `83766079` | v3545 — the HEART opens on one click and refreshes itself, the disk floor takes finished footage first, and a shadow hour holds across the fall-back night |
 | **v3544** | `302e0971` | v3544 — a shadow session is one clock hour and a proof slice keeps what it proved |
 | **v3543** | `96559a61` | v3543 — the red-proofs of one gate share one clean run with a closing check, so a census needs about a third fewer law runs; the prover runs as many lanes as the PC has clear room for, up to four - one on his ALT today, four on a 16 GB PC |
 | **v3542** | `0c1f45c5` | v3542 — a cloud client - Boosteroid or GeForce NOW - counts as playing only while the game is on his screen, D2R.exe always, Battle.net never; the launcher never resets a checkout and a sign-in start stays hidden; five checks his ALT filed BLIND repaired, two of them blind on the Mac too |
