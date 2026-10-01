@@ -1731,7 +1731,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3544** | `(this commit)` | v3544 — a shadow session is one clock hour and a proof slice keeps what it proved |
+| **v3545** | `(this commit)` | v3545 — the HEART opens on one click and refreshes itself, the disk floor takes finished footage first, and a shadow hour holds across the fall-back night |
+| **v3544** | `302e0971` | v3544 — a shadow session is one clock hour and a proof slice keeps what it proved |
 | **v3543** | `96559a61` | v3543 — the red-proofs of one gate share one clean run with a closing check, so a census needs about a third fewer law runs; the prover runs as many lanes as the PC has clear room for, up to four - one on his ALT today, four on a 16 GB PC |
 | **v3542** | `0c1f45c5` | v3542 — a cloud client - Boosteroid or GeForce NOW - counts as playing only while the game is on his screen, D2R.exe always, Battle.net never; the launcher never resets a checkout and a sign-in start stays hidden; five checks his ALT filed BLIND repaired, two of them blind on the Mac too |
 | **v3541** | `19633c27` | v3541 — REG-1656 and 1660. A re-tick that could only partly undo an un-tick now says what did not come back and how to put it back, and every Windows console starts itself hidden at sign-in so the shadow reader, the fleet lights and the auto-update survive a reboot. |

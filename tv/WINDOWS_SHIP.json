@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3544",
+  "ver": "v3545",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3544: a shadow session is one clock hour and a proof slice keeps what it proved",
+  "note": "v3545: the HEART opens on one click and refreshes itself, the disk floor takes finished footage first, and a shadow hour holds across the fall-back night",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
