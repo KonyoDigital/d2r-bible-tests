@@ -406,6 +406,23 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1686 - ONE MISFILED BLIND SHUT THE ALT'S WHOLE RIVER AGAIN (measured on his ALT, 2026-10-01)
+
+**SEEN ~16:45:** the ALT's census filed `test_the_character_builder_is_their_builder` BLIND, and `self_arming.may()`
+answered False for `reel.route`, `printer.stream`, `vault.sweep_start` and `frame.release` - "1 instrument(s) are BLIND" -
+an hour after the river had started moving. **Cause, from the ALT's own prover log:** 20 of 22 proofs PROVEN; [9] and
+[10] tamper the builder's generator, and the ONE case that drives the generator
+(`test_the_generator_still_writes_the_shipped_block_where_the_install_is`) skips on a PC with no local D2R install - the
+ALT plays through a cloud client - in the clean run AND the tampered one, so the tampered run stayed green about
+nothing. Node, PATH and the law itself were fine (checked: same 16 cases, 1 skipped there, 0 here). **Now** a red-proof
+may declare what a PC must have (`"needs": "d2r-install"`); heart2 asks `host_lacks()` first, and where the capability
+is absent the proof is `ELSEWHERE` - judged on a PC that has it, never BLIND here; where it is present the proof is
+judged exactly as before (a real BLIND stays BLIND); a capability name no probe knows is INVALID (a typo never excuses a
+proof); a gate whose every proof is ELSEWHERE is UNPROVABLE here, never PROVEN. The install probe is
+`affix_lexicon.install_present()`, the same precondition `_pull` checks first - one rule. **Replayed** on a scratch copy as
+the Mac (install present: [9]/[10] PROVEN) and as the ALT (install pointed nowhere: [9]/[10] ELSEWHERE, gate PROVEN, no
+BLIND). Law: `tv/test_a_proof_that_needs_what_this_pc_lacks_is_elsewhere.py` (9 cases, 4 red-proofs PROVEN).
+
 ### REG-1685 - THE HEART STUCK ON "A COUPLE OF SECONDS", AND A CLICK COULD VANISH (his report, 2026-10-01)
 
 **His words:** on the Windows ALT "it doesnt open", on his Mac "it opens after its double clicked like it says couple

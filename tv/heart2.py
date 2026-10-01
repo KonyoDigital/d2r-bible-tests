@@ -114,6 +114,32 @@ STATE = os.path.join(HERE, ".heart2.json")
 PROPOSALS = os.path.join(HERE, ".heart2_proposals.md")
 
 PROVEN, BLIND, UNPROVEN, UNPROVABLE, INVALID = "PROVEN", "BLIND", "UNPROVEN", "UNPROVABLE", "INVALID"
+#: REG-1686 — a red-proof whose tamper can only be judged on a PC that HAS something (`"needs": "<capability>"`) is
+#: ELSEWHERE on a PC without it: measured where the thing is, never BLIND here. MEASURED 2026-10-01: his ALT (no local
+#: D2R install - it plays through a cloud client) filed test_the_character_builder_is_their_builder BLIND on proofs [9]
+#: and [10]; the one case that drives the generator skips in BOTH runs there ("UNMEASURED here, not passed"), so the
+#: tampered run stayed green about nothing - and that one BLIND record shut every lock on the PC, the river with it.
+ELSEWHERE = "ELSEWHERE"
+#: capability -> (module, probe, his words for it). A name not listed here is INVALID: a typo must never excuse a proof.
+PROOF_NEEDS_HOST = {
+    "d2r-install": ("affix_lexicon", "install_present", "the D2R install (its CASC data and the extractor)"),
+}
+
+
+def host_lacks(need):
+    """REG-1686 — does THIS PC lack what a red-proof declared it needs? -> (True | False | None, words)
+
+    True: the proof is ELSEWHERE here. False: judge it as usual. None: the name is not a declared capability (the proof
+    is INVALID) or the probe itself failed - judged as usual then, so a broken probe can never soften a verdict."""
+    spec = PROOF_NEEDS_HOST.get(str(need or ""))
+    if spec is None:
+        return None, "an undeclared capability %r" % (need,)
+    mod, fn, words = spec
+    try:
+        import importlib
+        return (not bool(getattr(importlib.import_module(mod), fn)())), words
+    except Exception as e:
+        return False, "%s (its probe failed: %s - judged as usual)" % (words, type(e).__name__)
 
 
 # ── finding the gates ────────────────────────────────────────────────────────────────────────
@@ -2225,6 +2251,9 @@ def _prove_gate(sandbox, name, filename, proofs, say):
         verdicts = _closing_clean(name, verdicts, say)
     finally:
         _CLEAN.runs = None
+    # REG-1686 — every proof judged only elsewhere: nothing was proven HERE, so the gate is not PROVEN here
+    if verdicts and all(v == ELSEWHERE for v in verdicts):
+        return UNPROVABLE, verdicts
     return (BLIND if BLIND in verdicts
             else INVALID if INVALID in verdicts
             else UNPROVABLE if UNPROVABLE in verdicts
@@ -2773,6 +2802,17 @@ def _at_widths(widths):
 
 
 def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None):
+    # REG-1686 — a proof that declared what this PC must have is judged only where it is (see ELSEWHERE above)
+    _need = pr.get("needs") if isinstance(pr, dict) else None
+    if _need:
+        _lacks, _words = host_lacks(_need)
+        if _lacks is None and _words.startswith("an undeclared capability"):
+            say("     %-52s %s — it declares %s, which no probe knows" % ("%s[%d]" % (name, idx), INVALID, _words))
+            return INVALID
+        if _lacks:
+            say("     %-52s %s — it needs %s, which this PC does not have; it is proven on a PC that does"
+                % ("%s[%d]" % (name, idx), ELSEWHERE, _words))
+            return ELSEWHERE
     # #42 — `widths` (a push-time proof's own declaration, from _prove_push_one) reaches BOTH runs below, so the clean
     # run and the tampered run measure the same viewports; None = every width, all this function ever did. `why`, when
     # a caller hands one in, learns whether an UNPROVABLE was a law ALREADY RED untampered (the push-time run stops on

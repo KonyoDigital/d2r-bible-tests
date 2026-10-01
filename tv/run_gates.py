@@ -8780,6 +8780,13 @@ GATES = [
              "ten minutes and, while a proof runs, the cheap guard every ten seconds, which stands it aside through the "
              "tick's own kill-and-book door; the start bar fits an idle 8 GB PC with the game off, still never beside "
              "his game and never near the running floor."),
+    Gate("test_a_proof_that_needs_what_this_pc_lacks_is_elsewhere",
+         [sys.executable, os.path.join(HERE, "test_a_proof_that_needs_what_this_pc_lacks_is_elsewhere.py")], 60,
+         needs_app=False,
+         why="REG-1686 (2026-10-01) - his ALT has no local D2R install, so the builder generator's case skips there in "
+             "the clean run AND the tampered one; two proofs stayed green about nothing, were filed BLIND, and that one "
+             "record shut every lock on the PC - the river with it. A proof that declares what a PC must have is "
+             "ELSEWHERE where it is absent, judged as before where it is present, and a mistyped capability is INVALID."),
     Gate("test_the_heart_opens_on_one_click_and_never_sticks",
          [sys.executable, os.path.join(HERE, "test_the_heart_opens_on_one_click_and_never_sticks.py")], 90,
          needs_app=False,

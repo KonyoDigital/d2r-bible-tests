@@ -94,6 +94,14 @@ SOURCES = [
 ]
 
 
+def install_present():
+    """REG-1686 — can this PC read the D2R CASC at all: the extractor AND the install's Data folder. -> bool
+
+    The precondition _pull checks first, named once, so heart2 can ask it before a red-proof that can only be judged where
+    the install is (his ALT plays through a cloud client and has none)."""
+    return bool(os.path.exists(EXTRACT) and os.path.isdir(os.path.join(D2R, "Data")))
+
+
 def _pull(casc_path, timeout=150):
     """-> bytes, or None. Streams to STDOUT; nothing is written to disk.
 
@@ -105,7 +113,7 @@ def _pull(casc_path, timeout=150):
     how a working install gets declared dead. `subprocess` carries its own timeout, so the wrapper
     buys nothing here anyway.
     """
-    if not (os.path.exists(EXTRACT) and os.path.isdir(os.path.join(D2R, "Data"))):
+    if not install_present():
         return None
     try:
         r = subprocess.run([EXTRACT, os.path.join(D2R, "Data"), casc_path],

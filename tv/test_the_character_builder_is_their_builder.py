@@ -651,14 +651,14 @@ RED_PROOF = [
         "file": "char_builder_db.py",
         "find": "                elif str(lo or \"\").strip():\n",
         "replace": "                elif False:\n",
-        "matches": 1,
+        "matches": 1, "needs": "d2r-install",
     },
     {
         "why": "#174 v-B2 fix round - the generator prints res-all-max's first stat only again",
         "file": "char_builder_db.py",
         "find": "            if f1 == 1 and len(multi) > 1 and len(multi) == len([k for k in range(1, 8) if p.get(\"func%d\" % k)]):\n",
         "replace": "            if False:\n",
-        "matches": 1,
+        "matches": 1, "needs": "d2r-install",
     },
     {
         "why": "#174 v-B2 fix round - the picker's doctor row reads a stale block as OK",
