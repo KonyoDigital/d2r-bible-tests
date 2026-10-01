@@ -30827,6 +30827,42 @@ def bare_content_reads():
     return _first_content_reads(sid, tv_first_hud_reads())
 
 
+#: #148 — at most this many content reads of one reel are judged (a reel reads a few hundred an hour)
+_REEL_READS_MAX = 600
+
+
+def reel_content_reads():
+    """#148 — EVERY content read of the reel rolling now (bounded), or None when there is no reel. A test replaces this."""
+    if not _agent_alive():
+        return None
+    try:
+        sid = _mini_sid()
+    except Exception:
+        return None
+    if not sid:
+        return None
+    return _first_content_reads(sid, _REEL_READS_MAX)
+
+
+_GAME_ITEMS = {"set": None, "why": None}
+
+
+def _game_items():
+    """#148 — the item names (folded, lower-case) that prove the game: every unique, set piece and runeword the rosters
+    hold. A roster that will not load leaves the always-carried bases and runes (tv_diablo) and SAYS so in
+    _GAME_ITEMS["why"] - never an empty set passed off as a judgement."""
+    if _GAME_ITEMS["set"] is None:
+        names = set()
+        try:
+            import item_identity as _ii
+            names.update(str(k).lower() for k in (_ii._rosters() or {}))
+        except Exception as e:
+            _GAME_ITEMS["why"] = ("the item rosters would not load (%s) - only zones, panels, the always-carried bases "
+                                  "and runes prove the game" % type(e).__name__)
+        _GAME_ITEMS["set"] = frozenset(names)
+    return _GAME_ITEMS["set"]
+
+
 def tv_first_hud_reads():
     import tv_diablo as _tv
     return _tv._FIRST_HUD_READS
@@ -30872,7 +30908,18 @@ def _bare_hud_verdict(pre):
         reads = bare_content_reads()
     except Exception:
         return None
-    return _tv.first_reads_show_d2r_hud(reads, words=set(_AREA_ACT))
+    first = _tv.first_reads_show_d2r_hud(reads, words=set(_AREA_ACT), items=_game_items())
+    if first is not False:
+        return first
+    # #148 — the first reads showed nothing of the game. ANY later read of the same reel that does (a zone, a panel, an
+    # item) keeps it the game: he opened the stash, the inventory, a menu, and came back.
+    try:
+        allr = reel_content_reads()
+    except Exception:
+        allr = None
+    if _tv.reads_show_the_game(allr, words=set(_AREA_ACT), items=_game_items()) is True:
+        return True
+    return False
 
 
 def tv_label_is_bare(pre):
@@ -30888,17 +30935,32 @@ def _bare_relook_open(now):
     return now >= float(until)
 
 
-def _seal_bare_launcher(now):
-    """Close a shadow reel whose first reads are the launcher. -> the tick dict."""
+def _seal_bare_launcher(now, held_s=None):
+    """Close a shadow reel whose reads showed no game for the whole grace. -> the tick dict.
+
+    #148 — the seal row names its reel and quotes what the judge was fed (the first reads), so the river can show WHY
+    this reel ended and a wrong verdict can be fixed from the row alone."""
+    import tv_diablo as _tv
+    _sid = None
+    try:
+        _sid = _mini_sid()
+    except Exception:
+        pass
+    _fed = []
+    try:
+        _fed = _tv.read_evidence(bare_content_reads())
+    except Exception:
+        pass
     try:
         stop_agent(farewell=False)
     except Exception as _e:
         return {"ok": False, "why": "the bare Boosteroid window would not seal: %s" % str(_e)[:80]}
-    why = ("sealed the shadow hour — Boosteroid's first reads show no D2R HUD word, "
-           "so this is the launcher, not the game")
-    _shadow_seal_log("close", reason="launcher", why=why)
+    why = ("sealed the shadow hour — for %d s its reads showed no D2R zone, panel or item, "
+           "so this is the launcher, not the game" % int(held_s if held_s is not None else _SHADOW_AWAY_GRACE_S))
+    _shadow_seal_log("close", reason="launcher", reel=("reel_" + _sid) if _sid else None,
+                     heldS=(int(held_s) if held_s is not None else None), fed=_fed or None, why=why)
     _shadow_watch_note(lookedAt=now, gameGoneSince=None, rollingAt=None,
-                       rollingDoor=None, rollingSince=None,
+                       rollingDoor=None, rollingSince=None, launcherSince=None, launcherFor=None,
                        launcherUntil=now + _BARE_HUD_RELOOK_S * 1000, why=why)
     return {"ok": True, "cut": True, "why": why}
 
@@ -30961,6 +31023,11 @@ def shadow_watch_tick():
                     _shadow_watch_note(lookedAt=now, gameGoneSince=now, why=why)
                     return {"ok": True, "away": True, "why": why}
                 if (now - float(gone)) / 1000.0 >= _SHADOW_AWAY_GRACE_S:
+                    _gsid = None
+                    try:
+                        _gsid = _mini_sid()   # #148 - the seal row names its reel
+                    except Exception:
+                        pass
                     try:
                         stop_agent(farewell=False)
                     except Exception as _e:
@@ -30970,7 +31037,8 @@ def shadow_watch_tick():
                     _shadow_watch_note(lookedAt=now, gameGoneSince=None, pausedSince=None, rollingAt=None,
                                        rollingDoor=None, rollingSince=None, awayCutsHour=_hk, awayCuts=_cuts + 1,
                                        why=why)
-                    _shadow_seal_log("close", reason="game-gone", ageS=(int(_age_s) if _age_s is not None else None),
+                    _shadow_seal_log("close", reason="game-gone", reel=("reel_" + _gsid) if _gsid else None,
+                                     ageS=(int(_age_s) if _age_s is not None else None),
                                      hour=_shadow_hour_key(_since), gameRunning=_run, windowSeen=False,
                                      windowWhy=str(pre.get("windowWhy") or "")[:160], why=why)
                     return {"ok": True, "cut": True, "why": why}
@@ -30978,12 +31046,28 @@ def shadow_watch_tick():
             if pre.get("windowSeen") is True:
                 hud = _hud
                 if hud is False:   # a rolling shadow reel on the launcher
-                    return _seal_bare_launcher(now)
+                    # #148 HIS RULE: a session ends only after 3 minutes of no game, however that is seen - the launcher
+                    # verdict waits the same _SHADOW_AWAY_GRACE_S as a gone game. The clock is pinned to THIS reel
+                    # (launcherFor = its start), so a verdict left over from an earlier reel can never seal a new one.
+                    _lc = _shadow_watch_stored() or {}
+                    _ls = _lc.get("launcherSince")
+                    if not isinstance(_ls, (int, float)) or _lc.get("launcherFor") != _since:
+                        why = ("the reads show no D2R zone, panel or item - this shadow reel seals if that holds "
+                               "for %d s" % _SHADOW_AWAY_GRACE_S)
+                        _shadow_watch_note(lookedAt=now, launcherSince=now, launcherFor=_since, why=why)
+                        return {"ok": True, "away": True, "launcher": True, "why": why}
+                    _held = (now - float(_ls)) / 1000.0
+                    if _held < _SHADOW_AWAY_GRACE_S:
+                        why = ("the reads still show no D2R zone, panel or item (%d s of %d)"
+                               % (int(_held), _SHADOW_AWAY_GRACE_S))
+                        _shadow_watch_note(lookedAt=now, why=why)
+                        return {"ok": True, "away": True, "launcher": True, "why": why}
+                    return _seal_bare_launcher(now, held_s=_held)
                 cur = _shadow_watch_stored() or {}
                 if cur.get("gameGoneSince") is not None or cur.get("pausedSince") is not None:
                     _shadow_watch_note(gameGoneSince=None, pausedSince=None)
                 if hud is True:
-                    _shadow_watch_note(launcherUntil=None)
+                    _shadow_watch_note(launcherUntil=None, launcherSince=None, launcherFor=None)
         return _shadow_rollover(now)
     if not st.get("on"):
         return _shadow_watch_note(lookedAt=now, why="the shadow reader is switched off")             and {"ok": False, "why": "the shadow reader is switched off"}
@@ -31078,6 +31162,7 @@ def shadow_watch_tick():
                        why=_why_ok)
     if ok:
         _shadow_seal_log("open", hour=_hk, opensThisHour=_opens, hud=hud, windowWhy=str(pre.get("windowWhy") or "")[:160],
+                         agentPid=(r.get("pid") if isinstance(r, dict) else None),
                          why=_why_ok)
     return {"ok": ok, "seen": True, "started": ok, "why": _why_ok}
 
@@ -37757,7 +37842,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3549",
+        "ver": "v3550",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

@@ -8794,6 +8794,14 @@ GATES = [
              "alt and also on deans' - four routes (local, crossover, boosteroid, geforce-now). A bare GeForce NOW app "
              "window was a near-miss on every PC and the bare-window HUD check asked Boosteroid by name. One table "
              "now goes through BOTH finders and every row names the same route on the Mac and on Windows."),
+    Gate("test_a_session_is_one_session_whatever_he_does",
+         [sys.executable, os.path.join(HERE, "test_a_session_is_one_session_whatever_he_does.py")], 90,
+         needs_app=False,
+         why="#148 - his rule, 2026-10-01: 'even if i alt tabbed... thats still a session for until 3 minutes'. Four "
+             "Boosteroid reels on his Mac were sealed as the launcher 23 s-2 min in, on first reads the reader itself "
+             "filed as stash/inventory/loot naming Horadric Cube, Nokozan Relic, Storm Scarab, Thul Rune. A read filed "
+             "under a D2R panel, a zone or a D2R item is the game; the launcher seals only after 3 minutes with none; "
+             "every seal row names its reel and what the judge was fed, and the river's IN station quotes it."),
     Gate("test_a_session_opens_by_its_own_id",
          [sys.executable, os.path.join(HERE, "test_a_session_opens_by_its_own_id.py")], 90,
          needs_app=False,

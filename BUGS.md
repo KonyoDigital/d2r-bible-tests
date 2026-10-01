@@ -406,6 +406,41 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1697 - THREE FILES THE CONSOLE WRITES WERE ONE `git add -A` FROM A PUBLIC REPO (found building #148, 2026-10-01)
+
+**Found** while reading the shadow door's record: `tv/shadow_seals.jsonl` (REG-1675) sat UNTRACKED and NOT IGNORED on his
+Mac - his play hours, window titles and reel ages. Swept the class: every `os.path.join(_fixture_root_for_state(),
+"<name>")` in control_app.py, 24 names, asked of git's own matcher - `.view_request.json` and `runaway_dumps.txt` were not
+ignored either (`.status_worst.json` is tracked ON PURPOSE, a ruling `.gitignore` records). **Now** all four (with the
+seal log's `.1` rollover) are ignored, and `test_every_decision_file_is_ignored.py` reads every state-root name out of the
+code - the decision-path reader could not see these. 1 new red-proof, PROVEN.
+
+### REG-1696 - "EVEN IF I ALT TABBED... THATS STILL A SESSION FOR UNTIL 3 MINUTES": FOUR REELS SEALED AS THE LAUNCHER WHILE HE STOOD IN HIS STASH (#148, 2026-10-01)
+
+**His words:** "regardless it needs to know if im in a session even if i alt tabbed like thats still a session for until
+3 minutes goes by we said for it to disconnect right? so that should be logically coded here too", then "make sure ...
+they really are properly configured ... from every angle", "it should be filtered through the printer ... a unified route
+so its visually seen going through the river", "templates", "fixtures".
+**Measured on his Mac, 20:00-20:10:** `shadow_seals.jsonl` holds four `launcher` closes 23 s to 2 min after their opens.
+Their first content reads (the rotated journal) were filed by the reader itself as **stash / inventory / loot** and named
+Horadric Cube, Tome of Town Portal, Nokozan Relic, Storm Scarab, Thul Rune, Arachnid Mesh. The first-reads rule
+(REG-1666) knew only ZONE words, and his stash and inventory print no zone - so three panel reads were "three looks that
+saw no HUD", and the reel was cut on the spot, with no grace at all. The launcher closes carried no reel id, and nothing
+on the river read the seal log.
+**Now, one rule for every cloud route:** a read shows the game when it names a zone, when the reader filed it under one of
+D2R's own panels (`_GAME_PANEL_SCENES` - the stash, inventory, Chronicle, loot, town: the reader's templates, the same words
+`reel_segments._ACTIVITY_LANE` keys on, held equal by a law), or when it names a D2R item (the always-carried bases, a
+rune, any unique/set/runeword in the rosters). "gameplay" and "transition" - the reader's fallbacks - prove nothing alone.
+The first reads decide as before, and ANY later read of the same reel that shows the game keeps it the game. A launcher
+verdict now waits `_SHADOW_AWAY_GRACE_S` (180 s) - the same three minutes as a gone game - its clock pinned to THAT reel
+(`launcherFor`), reset by any read that shows the game; his own ON AIR reel is never sealed for it. Every seal row names
+its reel (`reel`), the launcher close quotes what the judge was FED (`fed`: scene · zone · names of the first reads) and
+how long it held (`heldS`), and an open carries the agent's pid - a reel id is `s_<ms>_<pid>` - so the printer's **IN**
+station now quotes, per reel, why the shadow door opened it and what closed it (`opened` / `closed`, None when no row
+names it). Law: `tv/test_a_session_is_one_session_whatever_he_does.py` (22 cases on his measured reads as fixtures, driven
+through the real watch tick, seal log and printer; 9 red-proofs PROVEN); `test_a_bare_boosteroid_window_must_show_the_hud`
+updated to the grace (proof [4] re-anchored; 9/9 PROVEN).
+
 ### REG-1695 - THE v3548 EYE: FOUR REAL, THREE REFUTED (the #231 range read, 2026-10-01)
 
 Each reproduced against the code before fixing. **Real:** (1) a reel whose login arrived was taken off the unattributed

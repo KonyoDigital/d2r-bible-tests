@@ -63,7 +63,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3549"   # characters show their gear
+VERSION = "v3550"   # one session whatever he does
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -1284,6 +1284,17 @@ _FIRST_HUD_READS = 3
 # session they are the FIRST rows. Counting them filled the window with empty area and called a
 # live game the launcher (measured on tv/sessions.jsonl: scenes kai and intake, area empty).
 _HUD_SCENES = ("town", "stash", "inventory", "loot", "gameplay", "transition", "chronicle")
+#: #148 — THE READER'S OWN TEMPLATES. A read the reader filed under one of D2R's own panels - the stash, the inventory,
+#: the Chronicle, loot on the ground, a town - IS the game, zone name or not: his stash and inventory print no zone.
+#: MEASURED on his Mac, 2026-10-01 20:00-20:10: four Boosteroid reels were sealed as "the launcher" within 23 s-2 min on
+#: first reads the reader itself had filed as stash / inventory / loot, naming Horadric Cube, Nokozan Relic, Storm
+#: Scarab and Thul Rune. "gameplay" and "transition" are the reader's fallbacks (a failed read is journalled as
+#: gameplay - REG-1603), so they prove nothing by themselves. ONE vocabulary: these are the words
+#: reel_segments._ACTIVITY_LANE keys on, and a law holds the two equal. [[copy-drift]]
+_GAME_PANEL_SCENES = tuple(s for s in _HUD_SCENES if s not in ("gameplay", "transition"))
+#: #148 — items every character carries. A read naming one is the game even though no roster lists a base item.
+_D2R_ALWAYS_ITEMS = frozenset(("horadric cube", "tome of town portal", "tome of identify", "scroll of town portal",
+                               "scroll of identify"))
 
 
 def label_is_bare_boosteroid(label):
@@ -1362,10 +1373,53 @@ def text_has_d2r_hud_word(text, words):
     return False
 
 
-def first_reads_show_d2r_hud(reads, words=None):
+def read_shows_the_game(row, words=None, items=None):
+    """#148 — WHAT, in one content read, shows the game. -> a short reason, or "" when nothing does.
+
+    A zone the HUD prints (`words`), a D2R panel the reader filed the read under (_GAME_PANEL_SCENES), or an item D2R
+    has: the always-carried bases, a rune, or any name in `items` (folded, lower-case). Not a content read -> "".
+    The reason is what the judge was FED, so a seal row can say why the session was the game - or why it was not."""
+    if not _is_content_read(row):
+        return ""
+    if isinstance(row, str):
+        return "a zone name" if (words and text_has_d2r_hud_word(row, words)) else ""
+    if words and text_has_d2r_hud_word(_read_blob(row), words):
+        return "the zone %s" % (str(row.get("area") or "").strip()[:40] or "named in the read")
+    sc = str(row.get("scene") or "")
+    if sc in _GAME_PANEL_SCENES:
+        return "a read filed as the %s" % sc
+    for n in row.get("names") or ():
+        k = " ".join(str(n or "").lower().split())
+        if not k:
+            continue
+        if k in _D2R_ALWAYS_ITEMS or (items and k in items) or (k.endswith(" rune") and len(k.split()) == 2):
+            return "the item %s" % str(n).strip()[:40]
+    return ""
+
+
+def reads_show_the_game(reads, words=None, items=None):
+    """#148 — HIS RULE, 2026-10-01: "regardless it needs to know if im in a session even if i alt tabbed... thats still a
+    session for until 3 minutes goes by". -> True | False | None over EVERY content read given.
+
+    True  — any read shows the game (read_shows_the_game).
+    False — at least _FIRST_HUD_READS content reads, and none shows it.
+    None  — fewer reads than that and none showing it, or nothing to judge with: UNKNOWN, never the launcher."""
+    if not isinstance(reads, (list, tuple)) or not words:
+        return None
+    n = 0
+    for row in reads:
+        if not _is_content_read(row):
+            continue
+        n += 1
+        if read_shows_the_game(row, words, items):
+            return True
+    return False if n >= _FIRST_HUD_READS else None
+
+
+def first_reads_show_d2r_hud(reads, words=None, items=None):
     """-> True | False | None for the first _FIRST_HUD_READS content rows.
 
-    True  — one of them shows a D2R HUD word.
+    True  — one of them shows the game: a zone word, a D2R panel the reader filed it under, or a D2R item (#148).
     False — that window is full and none do (the launcher).
     None  — no reads, not a list, no words to judge with, or the window is not full yet.
     """
@@ -1383,11 +1437,26 @@ def first_reads_show_d2r_hud(reads, words=None):
     if not taken:
         return None
     for row in taken:
-        if text_has_d2r_hud_word(_read_blob(row), words):
+        if read_shows_the_game(row, words, items):
             return True
     if len(taken) >= _FIRST_HUD_READS:
         return False
     return None
+
+
+def read_evidence(reads, limit=_FIRST_HUD_READS):
+    """#148 — what the judge was FED, one short line per content read (scene · zone · first names), for the seal row."""
+    out = []
+    for row in reads or ():
+        if not _is_content_read(row) or not isinstance(row, dict):
+            continue
+        names = [str(n).strip()[:28] for n in (row.get("names") or ()) if str(n or "").strip()][:3]
+        out.append("%s%s%s" % (str(row.get("scene") or "?"),
+                               (" · " + str(row.get("area")).strip()[:28]) if str(row.get("area") or "").strip() else "",
+                               (" · " + ", ".join(names)) if names else ""))
+        if len(out) >= limit:
+            break
+    return out
 
 
 def _match_tokens():

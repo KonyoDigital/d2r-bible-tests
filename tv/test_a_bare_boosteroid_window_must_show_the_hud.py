@@ -275,12 +275,21 @@ class TheDoorAsksTheFirstReads(unittest.TestCase):
         self.assertNotIn("launcher", (r.get("why") or "").lower())
 
     def test_a_rolling_shadow_reel_seals_when_the_first_reads_lack_the_hud(self):
+        # #148 HIS RULE: the launcher verdict waits the same 3 minutes as a gone game before it seals
         self.begin("shadow")
         self.reads = LAUNCH
         r = ca.shadow_watch_tick()
+        self.assertFalse(r.get("cut"), "sealed on the first launcher look - his rule gives it %d s" % ca._SHADOW_AWAY_GRACE_S)
+        self.assertTrue(r.get("launcher"), r)
+        self.now += (ca._SHADOW_AWAY_GRACE_S - 1) * 1000
+        r = ca.shadow_watch_tick()
+        self.assertFalse(r.get("cut"), r)
+        self.assertEqual(self.stops, [])
+        self.now += 2000
+        r = ca.shadow_watch_tick()
         self.assertTrue(r.get("cut"), r)
         self.assertEqual(self.stops, [{"farewell": False}])
-        self.assertIn("HUD", r.get("why") or "")
+        self.assertIn("no D2R zone, panel or item", r.get("why") or "")
         self.assertFalse(self.alive)
 
     def test_his_own_session_is_not_sealed_for_this(self):
@@ -351,8 +360,8 @@ RED_PROOF = [
     {
         "why": "the door judges the bare window with no zone names, so launcher reads read as unknown and it starts",
         "file": "control_app.py",
-        "find": "    return _tv.first_reads_show_d2r_hud(reads, words=set(_AREA_ACT))\n",
-        "replace": "    return _tv.first_reads_show_d2r_hud(reads, words=set())\n",
+        "find": "    first = _tv.first_reads_show_d2r_hud(reads, words=set(_AREA_ACT), items=_game_items())\n",
+        "replace": "    first = _tv.first_reads_show_d2r_hud(reads, words=set(), items=None)\n",
         "matches": 1,
     },
     {

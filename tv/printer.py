@@ -204,6 +204,11 @@ def _sources():
             whys.append(w)
     except Exception as e:
         whys.append("extract_gap would not import (%s)" % str(e)[:60])
+    # #148 — THE SHADOW DOOR'S OWN RECORD, read once like every other owner: why each shadow reel opened and what closed
+    # it. control_app writes it (REG-1675) and, until now, nothing on the river read it. [[the-unjoined-end]]
+    out["seals"], w = _safe(shadow_seals)
+    if w:
+        whys.append(w)
     try:
         import printer_reach as PR
         out["reach"], w = _safe(PR.report)
@@ -221,6 +226,64 @@ def _sources():
         out["reachWhy"] = _w
         whys.append(_w)
     return out, whys
+
+
+def _seal_path():
+    """shadow_seals.jsonl in the state root the console writes it to (TV_HIST honoured, like every other store)."""
+    try:
+        import tv_diablo as _tvd
+        root = _tvd._fixture_root(HERE)
+    except Exception:
+        root = HERE
+    return os.path.join(root, "shadow_seals.jsonl")
+
+
+def shadow_seals(path=None):
+    """#148 — the shadow door's open/close rows. -> {"ok", "rows", "why"}; an absent log is said, never read as empty."""
+    p = path or _seal_path()
+    rows = []
+    for fp in (p + ".1", p):
+        if not os.path.isfile(fp):
+            continue
+        with open(fp, encoding="utf-8", errors="replace") as fh:
+            for ln in fh:
+                try:
+                    r = json.loads(ln)
+                except ValueError:
+                    continue
+                if isinstance(r, dict):
+                    rows.append(r)
+    if not rows and not os.path.isfile(p):
+        return {"ok": False, "rows": [], "why": "no shadow_seals.jsonl here - the shadow door has written nothing yet"}
+    return {"ok": True, "rows": rows, "why": "%d shadow open/close row(s)" % len(rows)}
+
+
+#: an open row joins its reel when the reel's own start stamp is this close to it (the agent stamps its id at birth)
+_SEAL_OPEN_JOIN_MS = 120000
+
+
+def seal_for(seals, reel):
+    """#148 — what the shadow record says about ONE reel. -> {"opened": str|None, "closed": str|None}
+
+    A close row names its reel. An open row carries the agent's pid, and a reel id is reel_s_<ms>_<pid> - so an open
+    joins the reel whose pid matches and whose birth is within _SEAL_OPEN_JOIN_MS of it. Anything else is None."""
+    out = {"opened": None, "closed": None}
+    rows = (seals or {}).get("rows") if isinstance(seals, dict) else None
+    if not rows or not reel:
+        return out
+    parts = str(reel).split("_")
+    try:
+        born, pid = int(parts[-2]), int(parts[-1])
+    except (ValueError, IndexError):
+        born, pid = None, None
+    for r in rows:
+        ev = r.get("event")
+        if ev == "close" and r.get("reel") == reel:
+            out["closed"] = "%s — %s" % (r.get("reason") or "?", str(r.get("why") or "")[:200])
+        elif (ev == "open" and pid is not None and r.get("agentPid") == pid
+              and isinstance(r.get("ts"), (int, float)) and abs(int(r["ts"]) - born) <= _SEAL_OPEN_JOIN_MS):
+            out["opened"] = str(r.get("why") or "")[:200]
+    return out
 
 
 def _route_census(src):
@@ -538,6 +601,11 @@ def stream(reel=None):
             return d
 
         stations["in"] = _station(dr, "door", "one_start_point")
+        # #148 — the IN station quotes the shadow door's own words for THIS reel: why it opened, what closed it. None is
+        # "no row names this reel" (a reel he opened by hand, or one older than the record), never "nothing happened".
+        _sl = seal_for(src.get("seals"), name)
+        stations["in"]["opened"] = _sl.get("opened")
+        stations["in"]["closed"] = _sl.get("closed")
         stations["funnel"] = _station(rv, "stage", "reel_river",
                                       extra={"decider": "decider"},
                                       why=(rv or {}).get("question"))

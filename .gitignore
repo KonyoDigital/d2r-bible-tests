@@ -187,6 +187,13 @@ tv/shadow_watch.json
 # commit outright, and once as a phantom ` D ` in a tree that was supposed to be clean.
 # [[sweep-dont-ask]] [[the-unjoined-end]]
 tv/shadow_watch.json.tmp
+# #148 — THREE MORE FILES THE CONSOLE MINTS AT THE STATE ROOT, NONE OF THEM IGNORED. The shadow door's open/close record
+# (REG-1675, with its .1 rollover), the board's view request and the runaway dump were each one `git add -A` from a
+# PUBLIC repo; shadow_seals.jsonl sat untracked on his Mac. The law now reads every such name out of the code.
+tv/shadow_seals.jsonl
+tv/shadow_seals.jsonl.1
+tv/.view_request.json
+tv/runaway_dumps.txt
 tv/capture_doors.json
 tv/retro_gate.json
 tv/main_character.json

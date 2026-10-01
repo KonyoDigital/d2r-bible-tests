@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3549",
+  "ver": "v3550",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3549: each in-game card shows what its character wears, slot by slot, on the Vault tiers, with no Plan a build; the characters a console learned stand even with no hand build; the four real v3548 eye findings fixed",
+  "note": "v3550: a read filed under a D2R panel, a zone or a D2R item keeps a cloud reel the game; the launcher seals only after 3 minutes with none; every seal row names its reel and what the judge was fed, and the river IN station quotes it; three runtime files ignored",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
