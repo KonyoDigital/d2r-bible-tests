@@ -32206,8 +32206,8 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
                 _whynot = ("the lane could not be proven live, so 'no stash here' is UNKNOWN"
                            if (not _read_ok[0] and _not_stash[0] and not _canary)
                            else "nothing was read" if not _read_ok[0]
-                           else ("; ".join(why_not_definitive(_read_ok[0], _reconciled, _over_read, _pix_err))
-                                 or "the seal was refused and no condition says why - UNKNOWN"))
+                           else ("; ".join(_nd) if (not _definitive and _nd)       # the pure function's answer, asked ONCE
+                                 else "the seal was refused and no condition says why - UNKNOWN"))
                 print("   \u26a0 vault sweep produced no rows and the answer is INCOMPLETE (%s) "
                       "\u2014 sealing nothing, so the footage stays readable. The lines above say "
                       "which of the three it was: refused by the template, "

@@ -119,10 +119,16 @@ class TheIncompleteReasonIsThePureFunctions(unittest.TestCase):
         assigns = [n for n in ast.walk(fn) if isinstance(n, ast.Assign) and any(
             isinstance(t, ast.Name) and t.id == "_whynot" for t in n.targets)]
         self.assertEqual(len(assigns), 1, "PREMISE: the sweep builds its incomplete reason once")
-        calls = [c for c in ast.walk(assigns[0].value) if isinstance(c, ast.Call)
-                 and isinstance(c.func, ast.Name) and c.func.id == "why_not_definitive"]
-        self.assertEqual(len(calls), 1, "the incomplete reason re-derives the conditions instead of asking the pure "
-                                        "function - an other-panel read retires as '0 of 28 never cross-checked'")
+        # the reason quotes `_nd` - the ONE answer the sweep got from the pure function (test_a_read_reel_says_why_
+        # it_cannot_seal pins that it is asked once) - and never re-derives a condition by hand
+        uses = [n for n in ast.walk(assigns[0].value) if isinstance(n, ast.Name) and n.id == "_nd"]
+        self.assertTrue(uses, "the incomplete reason re-derives the conditions instead of quoting the pure "
+                              "function - an other-panel read retires as '0 of 28 never cross-checked'")
+        nd = [n for n in ast.walk(fn) if isinstance(n, ast.Assign) and any(
+            isinstance(t, ast.Name) and t.id == "_nd" for t in n.targets)]
+        self.assertEqual(len(nd), 1, "PREMISE: the sweep binds the pure function's answer once")
+        self.assertTrue(isinstance(nd[0].value, ast.Call) and isinstance(nd[0].value.func, ast.Name)
+                        and nd[0].value.func.id == "why_not_definitive", "`_nd` is not the pure function's answer")
         text = ast.get_source_segment(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read(),
                                       assigns[0]) or ""
         self.assertNotIn("were never cross-checked", text, "a hand-written copy of a condition is back")
@@ -232,8 +238,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-1661 - the incomplete reason re-derives the conditions again and drifts from the pure function",
      "file": "control_app.py",
-     "find": "                           else (\"; \".join(why_not_definitive(_read_ok[0], _reconciled, _over_read, _pix_err))\n",
-     "replace": "                           else (\"%d of %d read frame(s) were never cross-checked\" % (_read_ok[0] - len(_reconciled), _read_ok[0])\n",
+     "find": "                           else (\"; \".join(_nd) if (not _definitive and _nd)       # the pure function's answer, asked ONCE\n",
+     "replace": "                           else (\"%d of %d read frame(s) were never cross-checked\" % (_read_ok[0] - len(_reconciled), _read_ok[0]) if _read_ok[0]\n",
      "matches": 1},
 ]
 
