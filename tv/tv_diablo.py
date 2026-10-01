@@ -63,7 +63,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3551"   # his reader switch
+VERSION = "v3552"   # every witness says where
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -445,11 +445,17 @@ _FILM_TIMES = deque(maxlen=64)
 #    DETACHED top-left hover label (ground item hovered while a panel is open)
 # v730 — shorter prompt (run #4: inventory 25.8s was too hot; less prose → faster JSON)
 # v734 — stashTab when scene=stash (RotW left tabs: Personal·Shared·Gems·Materials·Runes)
-PROMPT_VER = "p1839"   # v1839 — the readers now separate "not a Chronicle page" from "cannot judge these rows"; bump whenever READ_PROMPT changes
+PROMPT_VER = "p3552"   # v3552 — #234: every named item's POINT and its doll SLOT are asked (names_xy / names_slot); bump whenever READ_PROMPT changes
+#: v3552 — HIS RULING, 2026-10-01 ("thats even better": the points are asked FROM NOW ON, no re-read of old footage). The
+#: reader versions whose answers still answer the question PROMPT_VER asks: p3552 only ADDED each item's point and slot;
+#: the scene, the Chronicle verdict and every name are asked exactly as p1839 asked them. So a p1839 seal still stands and
+#: its per-frame read count still counts - nothing he filmed is bought again. A prompt that changes the QUESTION is a new
+#: version with NOTHING listed here. control_app._chron_seal_stands and _chron_read_count read this. [[stale-reading]]
+PROMPT_ANSWERS_SAME_AS = ("p1839",)
 _LAST_RAW = ""        # v832 (SIMULATION_SPEC) — the model's literal words for the read in flight
 READ_PROMPT = (
     "Image {path} = Diablo II Resurrected (RoW). Reply with STRICT JSON only, no markdown, no prose:\n"
-    "{{\"area\":\"\",\"tz\":[],\"scene\":\"gameplay\",\"stashTab\":\"\",\"chronicleTab\":\"\",\"names\":[],\"names_loc\":{{}},\"sockets\":{{}},\"discovered\":[],\"conf\":0.0}}\n"
+    "{{\"area\":\"\",\"tz\":[],\"scene\":\"gameplay\",\"stashTab\":\"\",\"chronicleTab\":\"\",\"names\":[],\"names_loc\":{{}},\"names_slot\":{{}},\"names_xy\":{{}},\"sockets\":{{}},\"discovered\":[],\"conf\":0.0}}\n"
     "scene = one of: town | stash | inventory | loot | gameplay | transition | chronicle.\n"
     # v1509 — THE CHRONICLE SCENE. Konyo: "when chronicle/menu is clicked ingame it should
     # automatically know we are about to register and read and analyze the CHRONICLE lists."
@@ -518,6 +524,16 @@ READ_PROMPT = (
     "inventory grid = inventory (charms saying 'Keep in Inventory' are inventory). Tooltip over the "
     "LEFT stash panel grid = stash. Ground label / detached top-left label = floor. When stash+inventory "
     "are BOTH open, judge by WHICH panel the tooltip covers — never assume stash.\n"
+    # v3552 (#234) — WHERE EACH ITEM WAS SEEN. His words: "the items being witnessed also need coordinates based on
+    # where they were witnessed". The point is the ITEM, never its tooltip: the tooltip floats wherever the game puts it,
+    # the item sits in one cell or one doll slot, and that cell is what his character window draws.
+    "names_xy = for EVERY name you can point to: the [x, y] pixel position IN THIS IMAGE of the ITEM ITSELF - the icon "
+    "under the cursor whose tooltip you read, the item's cell in the stash or inventory grid, the item on the equipment "
+    "doll, or the centre of a ground label. NEVER the tooltip box. Whole pixels from the image's top-left corner. Omit a "
+    "name you cannot point to - a missing point costs nothing, a wrong one files the item in the wrong cell.\n"
+    "names_slot = ONLY for a name whose names_loc is equipped: the doll slot that holds it - one of helm | amulet | "
+    "weapon | torso | off-hand | gloves | ring1 | belt | ring2 | boots (ring1 = the ring LEFT of the belt on screen, "
+    "ring2 = the ring RIGHT of it). Omit when unsure.\n"
     "Never put merc/NPC/player names, HP bars, waypoint labels, or chat into names.\n"
     "discovered = ITEM names from chat DISCOVERY broadcasts only (lines like "
     "'<player> has found <item>' / 'has discovered'). Just the item names; [] if none. "
@@ -6768,6 +6784,22 @@ _GROK_ONLY_LAST = {"why": None}
 _G5_STAMP_KEYS = ("model", "mode", "escalated", "ms", "_raw_txt", "_g5", "_lane")
 
 
+def _with_xy_space(rd, ap):
+    """v3552 (#234) — a read that POINTED at items carries the size of the picture it pointed in (`xySpace` [w, h]).
+    The reader may see a downscaled copy (the 1568px read spec) while the reel keeps a larger frame, so a point is only
+    a place once its space is known; equipped_ledger scales it to the frame it files against. -> rd, unchanged otherwise.
+    A size that cannot be read is None (UNKNOWN), never the frame's size assumed."""
+    if not isinstance(rd, dict) or not rd.get("names_xy"):
+        return rd
+    try:
+        import equipped_ledger as _EL
+        _sz = _EL.jpeg_size(ap)
+    except Exception:
+        _sz = None
+    rd["xySpace"] = [int(_sz[0]), int(_sz[1])] if _sz else None
+    return rd
+
+
 def _grok_only_failed(why):
     why = str(why or "the Grok CLI gave no answer")[:200]
     _GROK_ONLY_LAST["why"] = why
@@ -7554,7 +7586,7 @@ def claude_read(path, worker=None, out_jpg=None):
         if _gp is None:
             return dict(EMPTY, model="grok-subscription-cli", readFailed=True,
                         readErr=str(_GROK_ONLY_LAST.get("why") or "the Grok read did not happen")[:200])
-        return _gp
+        return _with_xy_space(_gp, ap)
 
     t0 = time.time()
     # v1778 — THE CLAUDE CAP GATES THE CLAUDE PATH, AND ONLY IT. v1777 put this check at the top of
@@ -7621,7 +7653,7 @@ def claude_read(path, worker=None, out_jpg=None):
             except Exception:
                 pass
             # ══ END GROK EYES (G5) ══
-            return out
+            return _with_xy_space(out, ap)
         ev("cap", "worker returned non-JSON — falling back to one-shot")
     else:
         ev("skip", "vision worker died (timeout/stream end) — one-shot for this read, re-warming behind it")
@@ -7666,7 +7698,7 @@ def claude_read(path, worker=None, out_jpg=None):
         except Exception:
             pass
         # ══ END GROK EYES (G5) ══
-        return out
+        return _with_xy_space(out, ap)
     except subprocess.TimeoutExpired:
         ev("cap", f"vision timed out ({LIVE_READ_TIMEOUT_S:.0f}s) — if this repeats, run: python3 tv/tv_diablo.py --test <img>")
         print(f"  ⚠ vision timed out ({LIVE_READ_TIMEOUT_S:.0f}s)")
@@ -9063,6 +9095,7 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         # An `or {}` here would turn UNKNOWN back into a measured empty one frame up.
         "names_slot": rd.get("names_slot"),
         "names_xy": rd.get("names_xy"),
+        "xySpace": rd.get("xySpace"),     # v3552 — the [w, h] the points above were measured in (None: unknown)
         # v948 — session sticky split (full names kept for vision truth; new/echo for boards)
         "names_new": names_new,
         "names_echo": names_echo,

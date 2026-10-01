@@ -12800,7 +12800,11 @@ class TestBothLanesKnowWhatASetHeadingIs(unittest.TestCase):
         # a changed prompt on an old version replays cached reads that were answered under the old
         # wording — the same guard test_agent keeps, asserted here because THIS change is the reason
         import tv_diablo as _tv
-        self.assertEqual(_tv.PROMPT_VER, "p1839")
+        # v3552 moved it p1839 -> p3552 (each item's point and doll slot are asked); the set-heading wording above is
+        # asked word for word as p1839 asked it, which is why p1839 is declared the same question (forward only, his
+        # ruling 2026-10-01) - test_every_witness_says_where_it_was_seen drives that
+        self.assertEqual(_tv.PROMPT_VER, "p3552")
+        self.assertIn("p1839", _tv.PROMPT_ANSWERS_SAME_AS)
 
 
 class TestV1829CropRefusalRetriesFullFrame(unittest.TestCase):
@@ -26952,7 +26956,8 @@ class TestV2139TheSweeperAndThePanelShareOneDefinition(unittest.TestCase):
     def _mem(self):
         return {
             "read_ok":      {"pages": 3, "classified": 2, "promptVer": "p1839"},
-            "zero_current": {"pages": 0, "classified": 0, "promptVer": "p1839"},
+            "zero_current": {"pages": 0, "classified": 0, "promptVer": "p3552"},
+            "zero_same_q":  {"pages": 0, "classified": 0, "promptVer": "p1839"},
             "zero_stale":   {"pages": 0, "classified": 0, "promptVer": "p0001"},
         }
 
@@ -26968,6 +26973,13 @@ class TestV2139TheSweeperAndThePanelShareOneDefinition(unittest.TestCase):
         self.assertEqual(self._mem()["zero_current"]["promptVer"], _tvd.PROMPT_VER,
                          "this fixture must track the live PROMPT_VER or it stops testing the rule")
         self.assertFalse(ca._chron_reel_owes_a_read("zero_current", self._mem()))
+
+    def test_zero_pages_under_a_reader_that_asked_the_same_question_is_not_work(self):
+        """v3552 - his ruling, forward only: p1839 asked the same question, so its 'nothing here' stands."""
+        import tv_diablo as _tvd
+        self.assertIn(self._mem()["zero_same_q"]["promptVer"], _tvd.PROMPT_ANSWERS_SAME_AS)
+        self.assertFalse(ca._chron_reel_owes_a_read("zero_same_q", self._mem()),
+                         "a p1839 'nothing here' reopened - his old footage would be read and paid for again")
 
     def test_zero_pages_under_an_OLDER_reader_is_reopened(self):
         """retention's own words: the engine reopens these when the prompt improves."""

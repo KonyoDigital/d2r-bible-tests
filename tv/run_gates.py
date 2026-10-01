@@ -8794,6 +8794,14 @@ GATES = [
              "alt and also on deans' - four routes (local, crossover, boosteroid, geforce-now). A bare GeForce NOW app "
              "window was a near-miss on every PC and the bare-window HUD check asked Boosteroid by name. One table "
              "now goes through BOTH finders and every row names the same route on the Mac and on Windows."),
+    Gate("test_every_witness_says_where_it_was_seen",
+         [sys.executable, os.path.join(HERE, "test_every_witness_says_where_it_was_seen.py")], 60,
+         needs_app=False,
+         why="#234 (v3552) - his words: 'the items being witnessed also need coordinates based on where they were "
+             "witnessed'; measured: 158 vault looks and every deep read carried no point and no slot. The reader is "
+             "asked each item's point (the item, never its tooltip) and doll slot from now on; p1839's seals and read "
+             "counts still stand (forward only, his ruling); a point carries the size of the picture it was measured in "
+             "and the gear ledger scales it to the frame."),
     Gate("test_his_switch_picks_who_reads",
          [sys.executable, os.path.join(HERE, "test_his_switch_picks_who_reads.py")], 90,
          needs_app=False,

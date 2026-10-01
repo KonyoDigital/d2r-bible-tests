@@ -506,6 +506,15 @@ def worn_from_row(row, hist_dir):
                 pt = (float(xy[0]), float(xy[1]))
         except (TypeError, ValueError):
             pt = None
+        # v3552 — a point is measured in the picture the READER saw (row["xySpace"]); the reel may keep a larger frame.
+        # Scale it to the frame it is filed against. No space recorded (a row from before v3552) = the frame's own.
+        _sp = row.get("xySpace")
+        if pt is not None and size and isinstance(_sp, (list, tuple)) and len(_sp) == 2:
+            try:
+                if float(_sp[0]) > 0 and float(_sp[1]) > 0 and (int(_sp[0]), int(_sp[1])) != (int(size[0]), int(size[1])):
+                    pt = (pt[0] * float(size[0]) / float(_sp[0]), pt[1] * float(size[1]) / float(_sp[1]))
+            except (TypeError, ValueError):
+                pass
         geo, geo_why = None, None
         if pt is not None:
             if size is None:

@@ -406,6 +406,28 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1699 - "THE ITEMS BEING WITNESSED ALSO NEED COORDINATES BASED ON WHERE THEY WERE WITNESSED": THE READER WAS NEVER ASKED WHERE (#234 step 3, 2026-10-01)
+
+**His words:** "are you sure? i remember we said that the items being witnessed also need coordinates based on where they
+were witnessed..", then on the cost of asking: "thats even better" to asking FROM NOW ON without re-reading old footage.
+**He was right, and my own task note was wrong:** it said "vault looks carry cells {tab,x,y}" - that was the CODE
+(vault_evidence accepts a cell), not his DATA. **Measured on his Mac:** 16 vault items, 158 looks, **0** with a cell (the
+only writer of a look's cell is a test fixture); every deep read carries a lane word (names_loc: stash | inventory |
+equipped) and **0** points (names_xy) and **0** slot words (names_slot). The parser (REG-1522) and the gear ledger's
+corroborator pair - the reader's slot WORD against the point's GEOMETRY - were built for both; READ_PROMPT simply never
+asked, because a PROMPT_VER bump voided every old "nothing here" seal and so meant a paid re-sweep, which REG-1522 left to
+him. **Now:** READ_PROMPT asks every named item's point (the ITEM - its cell, its doll slot, the ground label - never the
+tooltip box) and an equipped item's doll slot in the doll's own ten words (ring1 left of the belt, ring2 right). PROMPT_VER
+moves p1839 -> p3552 and `PROMPT_ANSWERS_SAME_AS = ("p1839",)` says p1839's answers still answer the same question: its
+seals stand and its per-frame read counts still count, so nothing he filmed is bought again (his ruling). A read that
+pointed carries `xySpace` - the [w, h] of the picture the reader saw (the 1568px read spec can be smaller than the reel's
+frame; his Mac's Boosteroid frames are 1440x904) - the deep-read row keeps it, and equipped_ledger scales the point to
+the frame it files against. TASKS row 155 (a paid re-read waits on a better READER) kept its meaning: its fingerprint now
+points at `PROMPT_ANSWERS_SAME_AS`, and the task-freshness sabotage was re-anchored with it (PROVEN). **Still owed:** the
+VAULT reader (VAULT_READ_PROMPT) is not asked yet - it reads a CROP, so its point needs the crop box carried beside it;
+that is the next slice. Law: `tv/test_every_witness_says_where_it_was_seen.py` (11 cases, 5/5 PROVEN), incl. a point from
+a half-size picture landing in the torso box only because it was scaled. test_control's two cases that pinned p1839 moved to p3552, with a third: a p1839 'nothing here' reel does not owe a read (2258 run, the 2 reds were exactly those pins; 13/13 after).
+
 ### REG-1698 - "TOGGLE BETWEEN THE TWO... EITHER YOU CAN RUN IT WITHOUT THE OTHER": THE READER SWITCH GETS ITS THIRD POSITION BACK, AS GROK ONLY (#151, 2026-10-01)
 
 **His words:** "make the toggle optional to use GROK ONLY no claude as a secondary at all", then "still have the option

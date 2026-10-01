@@ -21011,7 +21011,24 @@ def _chron_seal_stands(rec, prompt_ver=None):
             want = _tvd.PROMPT_VER
         except Exception:
             return True   # cannot tell which reader is current → change nothing
-    return str(rec.get("promptVer") or "") == str(want)
+    have = str(rec.get("promptVer") or "")
+    if have == str(want):
+        return True
+    # v3552 — HIS RULING: a seal made by a reader whose answers still answer today's question stands (forward only)
+    return have in _prompt_vers_same_as(want)
+
+
+def _prompt_vers_same_as(prompt_ver):
+    """v3552 — the older reader versions that answer the same question as `prompt_ver` (tv_diablo.PROMPT_ANSWERS_SAME_AS),
+    only when `prompt_ver` IS the current reader. -> tuple. A version that cannot be read lists nothing - a stale seal
+    reopening costs a read; a wrong seal standing would hide footage."""
+    try:
+        import tv_diablo as _tvd
+        if str(prompt_ver) == str(_tvd.PROMPT_VER):
+            return tuple(str(v) for v in (getattr(_tvd, "PROMPT_ANSWERS_SAME_AS", ()) or ()))
+    except Exception:
+        pass
+    return ()
 
 
 def _chron_skip_set(swept, force=False, prompt_ver=None):
@@ -33316,7 +33333,10 @@ def _chron_reads_save(rec):
 
 
 def _chron_read_count(reads, prompt_ver, reel, frame):
-    return int(((reads or {}).get(str(prompt_ver)) or {}).get("%s|%s" % (reel, frame)) or 0)
+    # v3552 — reads made under a reader that asked the same question count against the cap too (forward only)
+    k = "%s|%s" % (reel, frame)
+    return sum(int(((reads or {}).get(v) or {}).get(k) or 0)
+               for v in (str(prompt_ver),) + _prompt_vers_same_as(prompt_ver))
 
 
 def _chron_read_bump(reads, prompt_ver, reel, frame):
@@ -33521,7 +33541,7 @@ def _gate_blind(r):
 _GATE_ROW_V = 3
 
 # ⚠⚠ THE FREE CLASSIFIER HAD NO VERSION, AND IT IS THE ONE THAT DECIDES WHETHER A REEL IS EVER
-# READ AT ALL. The two PAID readers are versioned and enforced — `tv_diablo.PROMPT_VER = "p1839"`
+# READ AT ALL. The two PAID readers are versioned and enforced — `tv_diablo.PROMPT_VER = "p3552"` (p1839 declared the same question, v3552)
 # and `VAULT_PROMPT_VER = "vp2017"`, each with "bump whenever the prompt changes" written beside
 # it. The FREE structural gate behind `stash_screen_open`, whose `bool(panels)` sets
 # `worth_reading`, had no such constant anywhere in the tree.
@@ -37842,7 +37862,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3551",
+        "ver": "v3552",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

@@ -3249,7 +3249,11 @@ class TestChronicleScene(unittest.TestCase):
         # stamp, Dropped By line and the panel's sort order. This assertion failing is the guard
         # WORKING: it means the prompt moved and somebody has to decide whether cached reads from
         # the old prompt are still answerable. They were not — the old reads carry no dates.
-        self.assertEqual(tv.PROMPT_VER, "p1839")
+        # v3552 moved it p1839 -> p3552: every named item's point and doll slot are asked. HIS RULING ("thats even
+        # better", 2026-10-01) is forward only - p1839's answers still answer the same question, so PROMPT_ANSWERS_SAME_AS
+        # lists it and no old reel is bought again (test_every_witness_says_where_it_was_seen drives that).
+        self.assertEqual(tv.PROMPT_VER, "p3552")
+        self.assertEqual(tv.PROMPT_ANSWERS_SAME_AS, ("p1839",))
 
     # ── v1818 — the chronicle's own dates ───────────────────────────────────────────────
     # Konyo: "there is an option for newest found ... so they know what they registered
