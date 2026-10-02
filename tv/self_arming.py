@@ -1343,6 +1343,19 @@ def may(lock):
     # v2861 — AND THE HEART, in the same chain and for the same reason. See _heart_says_watched().
     _hok, _hwhy = _heart_says_watched()
     if not _hok:
+        _hwhy = _hwhy or "UNKNOWN: the heart refused and gave no reason - which fails CLOSED"
+    return _verdict(lock, spec, rows, _hok, _hwhy)
+
+
+def _verdict(lock, spec, rows, _hok, _hwhy):
+    """may()'s chain, given the proof rows and the heart's answer. -> (bool, why)
+
+    ⚠ REG-1737 - ONE PATH FOR THE ACT AND FOR THE SURFACE THAT SHOWS IT. report() used to score the
+    ledger alone, so with no census a lock read OPEN / HARDENED on the heart and the vault chip
+    (open padlock) while may() refused it - "the heart has never run here" - and every reel stayed
+    put. report() now asks THIS function for each row, so the padlock and the act cannot disagree.
+    """
+    if not _hok:
         # ⚠⚠ v3042 — A STALE PROVER IS NOT A SAFETY VERDICT ABOUT AN ORDINARY ACT. The census
         # goes stale whenever a GATE FILE changes, which is whenever anyone writes a gate — it
         # happened four separate times in one session of doing exactly that, and each time every
@@ -1374,17 +1387,74 @@ def report():
     rows, why = _rows()
     if rows is None:
         return {"ok": False, "why": why,
-                "locks": [{"lock": k, "state": UNKNOWN, "why": why} for k in sorted(LOCKS)]}
+                "locks": [{"lock": k, "state": UNKNOWN, "why": why, "permitted": False,
+                           "permittedWhy": why} for k in sorted(LOCKS)]}
     # ⚠ ROUTES RIDE THE SAME REPORT, not a second one. The heart reads ONE self_arming.report(),
     # so a route appears beside the valves in the same four words and the corroborator sees them
     # as siblings — which is what he asked for: "all connected to the heart of the console
     # obviously.. so its all communicating and intertwined and integrated together properly".
-    out = [score(k, rows) for k in sorted(LOCKS)]
-    out += [dict(score(k, rows), kind="route") for k in sorted(ROUTES)]
+    # ⚠⚠ REG-1737 - AND WHETHER IT MAY ACT, FROM may()'s OWN CHAIN. `state` is the evidence tier
+    # (what the sabotage ledger earned); `permitted` is the answer the act gets (the heart and the
+    # upstream chain as well). They differ on a PC whose census is missing, and the padlock used to
+    # be drawn from `state` alone. Both are published; a surface draws open only when both agree.
+    heart = _heart_for_report()
+    out = [_with_permit(score(k, rows), k, LOCKS[k], rows, heart) for k in sorted(LOCKS)]
+    out += [dict(_with_permit(score(k, rows), k, ROUTES[k], rows, heart), kind="route")
+            for k in sorted(ROUTES)]
     return {"ok": True, "locks": out,
             "open": len([x for x in out if x.get("state") in (OPEN, HARDENED)]),
             "hardened": len([x for x in out if x.get("state") == HARDENED]),
+            "permitted": len([x for x in out if x.get("permitted")]),
+            "heartOk": bool(heart[0]), "heartWhy": heart[1] or "",
             "total": len(out)}
+
+
+#: REG-1737 - report() rides the status poll; asking the heart costs 0.2-0.6 s (the gate digest),
+#: so the SURFACE reuses one answer for this long. may() never does: an act always asks fresh.
+_HEART_SHOWN_TTL_S = 30.0
+_HEART_SHOWN = {"at": None, "v": None}
+
+
+def _heart_for_report(_now=None):
+    """The heart's answer for a surface, at most _HEART_SHOWN_TTL_S old. -> (bool, why)"""
+    now = time.monotonic() if _now is None else _now
+    at, v = _HEART_SHOWN["at"], _HEART_SHOWN["v"]
+    if v is not None and at is not None and 0 <= now - at < _HEART_SHOWN_TTL_S:
+        return v
+    try:
+        v = _heart_says_watched()
+    except Exception as e:
+        v = (False, "UNKNOWN: the heart could not be asked (%s: %s) - which fails CLOSED"
+                    % (type(e).__name__, str(e)[:80]))
+    if not v[0] and not v[1]:
+        v = (False, "UNKNOWN: the heart refused and gave no reason - which fails CLOSED")
+    _HEART_SHOWN["at"], _HEART_SHOWN["v"] = now, v
+    return v
+
+
+def _with_permit(row, lock, spec, rows, heart):
+    """A report row plus may()'s verdict on it. -> a new dict"""
+    row = dict(row)
+    try:
+        ok, why = _verdict(lock, spec, rows, heart[0], heart[1])
+    except Exception as e:
+        ok, why = False, "UNKNOWN: the verdict could not be taken (%s) - which fails CLOSED" % str(e)[:80]
+    row["permitted"] = bool(ok)
+    row["permittedWhy"] = why or ""
+    # a short word a centred label can afford: WHAT holds a lock its evidence already earned
+    row["heldBy"] = "" if ok else _held_by(why, heart)
+    return row
+
+
+def _held_by(why, heart):
+    """Which thing refused? -> 'upstream' | 'stale' | 'blind' | 'heart' | 'evidence'"""
+    w = why or ""
+    if w.startswith("blocked upstream"):
+        return "upstream"
+    if not heart[0] and w == (heart[1] or ""):
+        k = heart_block_kind(w)
+        return k if k in ("stale", "blind") else "heart"
+    return "evidence"
 
 
 def main(argv):

@@ -950,9 +950,13 @@ class TheConsoleCanSeeHARDENED(unittest.TestCase):
 
     def test_the_river_map_gives_hardened_an_open_padlock(self):
         ui = self._ui()
-        i = ui.index("var open = (lst ===")
-        self.assertIn("HARDENED", ui[i:i + 90],
-                      "the heart's river map tests only for 'OPEN', so a HARDENED lock draws a "
+        # REG-1737 - the map asks the ONE padlock helper now; the HARDENED rule lives in its verdict line
+        self.assertIn("      var open = window._lockOpen(L);\n", ui,
+                      "the heart's river map decides its padlock by itself again")
+        i = ui.index("window._lockOpen = function(l){")
+        ret = ui[i:ui.index("\n};", i)]
+        self.assertIn("s === 'HARDENED'", ret,
+                      "the padlock helper tests only for 'OPEN', so a HARDENED lock draws a "
                       "CLOSED padlock")
 
     def test_the_server_tally_counts_hardened_as_open_and_reports_it_separately(self):

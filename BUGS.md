@@ -406,6 +406,40 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1738 - A RIVER NOBODY EVER STAMPED READ AS DRAINING (2026-10-02, #86 gap audit item 8)
+
+`river_stamp.rows()` answers an absent stamp log as measured-and-empty (`everStamped: False`), which is true of the
+LOG - and `_river_stuck_for_wire` then found no station to age and returned [], which the fleet card draws as
+"none - every station is draining", whatever sat on the shelf. A PC whose stamper never ran (the 09-29 audit, driven)
+looked healthy on every other PC's fleet row. Now: no stamp ever written + reels on the shelf (fixtures aside) = None,
+the UNKNOWN the card already says; an empty shelf with no stamps stays a measured []. Case + red-proof in
+`test_the_fleet_says_where_a_river_is_stuck` (8/8 PROVEN).
+
+### REG-1737 - A PADLOCK DRAWN OPEN OVER A LOCK THE ACT WAS REFUSING (2026-10-02, #86 gap audit item 1)
+
+The 09-29 audit, re-driven on the signin tree: with the heart refusing ("the heart has never run here"),
+`self_arming.report()` said 16 of 18 locks OPEN/HARDENED and `may()` was True for 0. report() scored the proof ledger
+alone; may() also asks the heart and the upstream chain - and the heart's river map, its lock list and the vault/prune
+chips all drew the padlock from `state`. On the ALT that is `reel.route` drawn open while every EMPTY reel stayed put.
+Now: one `_verdict()` answers may() and every report row (`permitted`, `permittedWhy`, `heldBy`); the surface reuses
+one heart answer for 30 s (the gate digest costs 0.2-0.6 s on every status poll), an act always asks fresh;
+control_app's trim carries the three fields (the sixth time that trim was the missing joint); every padlock asks ONE
+helper, `window._lockOpen` (evidence OPEN/HARDENED AND permitted). Same class, swept: the chip tested
+`state === 'open'`, so a HARDENED lock was drawn SHUT and labelled LOCKED. And the fan's label no longer prints an
+earned lock's sentence beside a shut padlock: "held: the prover is behind · earned 85/85" (the reason leads - a cold
+Grok read of "earned ... · held" called it a contradiction). Law: `test_a_padlock_asks_what_the_act_asks` (5/5
+red-proofs PROVEN; its node case has a no-node twin so it cannot read BLIND on a PC without node - REG-1736's lesson).
+The Grok picture read also named the reel.route / prune.reports caption overlap - the [[heartov2]] collision, already
+baselined, not touched here.
+
+### REG-1736 - THE SAME BLIND, THE SAME DAY: A CHMOD CASE SKIPPED ON WINDOWS (2026-10-02)
+
+The ALT on v3558 read `test_the_gap_audit_findings_are_closed[2]` BLIND - "stayed GREEN through its own defeat"
+(REG-1732: an unreadable shelf reads as every reel indexed). The one case that catches it made the folder unreadable
+with chmod 000 and was skipped on Windows (and as root), where chmod does not refuse a listdir - REG-1724's shape,
+repeated hours after it was fixed. The case now makes `listdir` itself refuse (PermissionError), the same code path on
+every OS; 3/3 red-proofs PROVEN with no skip. Swept: the ALT's census names no other BLIND law.
+
 ### REG-1735 - THE v3558 SECOND EYE: 5 REAL OF 9 (2026-10-02)
 
 The look at v3558 (37,161 chars, af202672..305754c0). **Real, fixed:** (F1/F9) `dead_console_port` bound a port to find a

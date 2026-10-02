@@ -8877,6 +8877,12 @@ GATES = [
          needs_app=False,
          why="REG-1731 (#86 gap audit 3/7/17/32) - the doctor's self_prove row read OK with the lane off over a census "
              "nobody will prove, and the HEART said WATCHED over a stale census (measured on his Mac 10-02: 31 owed)."),
+    Gate("test_a_padlock_asks_what_the_act_asks",
+         [sys.executable, os.path.join(HERE, "test_a_padlock_asks_what_the_act_asks.py")], 90,
+         needs_app=False,
+         why="REG-1737 (#86 gap audit 1) - report() scored the proof ledger alone, so with no heart census 16 of 18 "
+             "locks read OPEN/HARDENED and drew open padlocks while may() refused every one. Each row now carries "
+             "may()'s own verdict, and every padlock asks one helper (evidence AND permission)."),
     Gate("test_the_v3557_eye_findings_are_closed",
          [sys.executable, os.path.join(HERE, "test_the_v3557_eye_findings_are_closed.py")], 90,
          needs_app=False,

@@ -97,13 +97,15 @@ class AnUnreadableShelfIsNotAnIndexedShelf(unittest.TestCase):
         got = ca._reels_missing_index(self.d)
         self.assertEqual([n for n, _c in (got or [])], ["reel_s_1_1"], got)
 
-    @unittest.skipIf(os.name == "nt" or (hasattr(os, "geteuid") and os.geteuid() == 0),
-                     "chmod 000 does not refuse a listdir on Windows or as root")
     def test_a_shelf_that_cannot_be_read_is_unknown(self):
-        os.chmod(self.d, 0)
-        self.addCleanup(os.chmod, self.d, 0o755)
-        self.assertIsNone(ca._reels_missing_index(self.d),
-                          "an unreadable shelf read as 'no reel lacks its index'")
+        # REG-1736 - ON EVERY OS. This case used chmod 000 and was skipped on Windows (chmod does not refuse a listdir
+        # there), so on the ALT its red-proof stayed green and the law read BLIND - REG-1724's mistake, repeated the
+        # same day. A listdir that raises is the same code path on every OS.
+        def _refuse(path):
+            raise PermissionError(13, "Permission denied", path)
+        with mock.patch.object(ca.os, "listdir", _refuse):
+            got = ca._reels_missing_index(self.d)
+        self.assertIsNone(got, "an unreadable shelf read as 'no reel lacks its index'")
 
 
 RED_PROOF = [

@@ -8935,6 +8935,17 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
    His design: keep the padlock, swing the shackle a full 180° about its hinge so an open lock
    cannot be mistaken for a shut one at any size. An emoji cannot rotate; two paths can.
    ONE source, because a second copy of this would drift. [[copy-drift]] */
+/* ⚠⚠ REG-1737 - IS THIS LOCK OPEN? ONE ANSWER FOR EVERY PADLOCK. Four sites decided it four ways
+   from `state` alone, so on a PC with no heart census the river map and the vault chip drew OPEN
+   padlocks over locks may() was refusing; and the chip's own test was `state === 'open'`, which
+   drew a HARDENED lock SHUT and labelled it LOCKED. Open = the evidence tier is OPEN/HARDENED AND
+   self_arming says it may act now (`permitted`). An older console with no `permitted` field keeps
+   the evidence answer, never a blank. [[the-unjoined-end]] [[copy-drift]] */
+window._lockOpen = function(l){
+  if (!l) return false;
+  var s = String(l.state || '').toUpperCase();
+  return (s === 'OPEN' || s === 'HARDENED') && l.permitted !== false;
+};
 window._lockMark = function(isOpen, px, label){
   var w = px || 13, col = isOpen ? '#8fe6a0' : 'currentColor';
   /* ⚠⚠ THE SHACKLE IS LIFTED CLEAR AS WELL AS ROTATED, AND A SECOND EYE IS WHY.
@@ -11061,10 +11072,11 @@ window._lockMark = function(isOpen, px, label){
            had earned none, on the console he reads to decide whether the deleter is armed.
            `?? -1` is kept: a state this file has never heard of SHOULD sort worst. */
         var rank = { locked: 0, unproven: 1, open: 2, hardened: 3 };
-        mine.sort(function(a, b){
-          return (rank[String(a.state || '').toLowerCase()] ?? -1)
-               - (rank[String(b.state || '').toLowerCase()] ?? -1);
-        });
+        /* REG-1737 - a member that may not act ranks as LOCKED, whatever its evidence earned */
+        var _rk = function(l){
+          return l.permitted === false ? 0 : (rank[String(l.state || '').toLowerCase()] ?? -1);
+        };
+        mine.sort(function(a, b){ return _rk(a) - _rk(b); });
         return mine[0];
       };
       var _paintChip = function(id, prefix, what){
@@ -11075,6 +11087,8 @@ window._lockMark = function(isOpen, px, label){
            characters later, which is the safe direction for an UNKNOWN state and the wrong one
            for the strongest state we can prove. */
         if (state !== 'open' && state !== 'unproven' && state !== 'hardened') state = 'locked';
+        /* REG-1737 - earned but not permitted (no heart census, a blind instrument) is LOCKED */
+        if (l && l.permitted === false) state = 'locked';
         /* v2440 — no `hidden = false` here any more. The chip ships LOCKED in the
            markup, because a chip that only appears after a poll is INVISIBLE until
            one lands, and an absent badge reads as NO LOCK. The render target that
@@ -11114,10 +11128,11 @@ window._lockMark = function(isOpen, px, label){
            how it knows a chip has content. So the chip gets its word back — off-screen, so it
            costs ZERO layout width. That matters: the verbose form was removed once because it
            rendered this chip 150.9px wide and broke the Shelf label. */
-        el.innerHTML = window._lockMark(state === 'open', 13,
-                                        state === 'open' ? 'OPEN' : 'LOCKED');
+        var _isOpen = !!l && window._lockOpen(l);
+        el.innerHTML = window._lockMark(_isOpen, 13, _isOpen ? 'OPEN' : 'LOCKED');
         el.title = what + ' — '
-          + (l ? (l.state + ': ' + (l.why || ''))
+          + (l ? (l.state + ': ' + (l.why || '')
+                  + (l.permitted === false ? ' — but it may NOT act now: ' + (l.permittedWhy || '') : ''))
                : ((_sa && _sa.why) || 'this console could not read the locks, so it stays locked'));
       };
       _paintChip('lock-vault', 'vault.', 'the vault acts on your ledger');
@@ -13805,8 +13820,8 @@ window._lockMark = function(isOpen, px, label){
        the surface and prints the arithmetic that would open it. An OPEN route is drawn solid and
        green with an open padlock; a shut one is dashed and carries what it is still waiting for. */
     var lk = (d.locks || []).slice().sort(function(a, b){
-      var ao = (String(a.state).toUpperCase() === 'OPEN') ? 1 : 0;
-      var bo = (String(b.state).toUpperCase() === 'OPEN') ? 1 : 0;
+      var ao = window._lockOpen(a) ? 1 : 0;
+      var bo = window._lockOpen(b) ? 1 : 0;
       if (ao !== bo) return ao - bo;                       // still-shut routes read first
       return String(a.surface || a.lock).localeCompare(String(b.surface || b.lock));
     });
@@ -13825,7 +13840,7 @@ window._lockMark = function(isOpen, px, label){
       /* v2569 — HARDENED is strictly stronger than OPEN (self_arming.may() already treats the
          two alike); testing only for 'OPEN' drew a CLOSED padlock on the river map for the one
          state that most deserves an open one. */
-      var open = (lst === 'OPEN' || lst === 'HARDENED');
+      var open = window._lockOpen(L);
       var lc = _HRT_LOCKCOL[lst] || '#9aa6b2';
       /* fan across the reserved wedge: 50°..130°, straight down being 90° */
       var la = (GN === 1 ? 90 : (48 + j * (84 / (GN - 1)))) * Math.PI / 180;
@@ -13935,6 +13950,19 @@ window._lockMark = function(isOpen, px, label){
         arith = L.k + '/' + n_ + ' on the claims that RAN · '
               + _blind.length + ' never ran (' + _bn + ')';
       }
+      /* ⚠⚠ REG-1737 - AN EARNED LOCK THAT MAY NOT ACT MUST NOT PRINT AN OPEN LOCK'S SENTENCE.
+         The padlock now asks permission too, so on a PC whose prover is behind the destructive
+         locks draw SHUT - and this line still read "85/85 refused · 0.957 ≥ 0.722", v2619's
+         defect in a new place. It names what holds the lock, in a word the label can afford;
+         the full reason is in the title. [[label-outlived-referent]] */
+      var _HELD = { stale: 'the prover is behind', blind: 'an instrument is blind',
+                    heart: 'no census here', upstream: 'blocked upstream' };
+      if (L.permitted === false && _HELD[L.heldBy]
+          && (lst === 'OPEN' || lst === 'HARDENED') && n_ && n_ > 0) {
+        /* the REASON leads: a cold cross-family read of 'earned 85/85 · held: ...' beside a shut
+           padlock called it a contradiction - the word a glance catches first must be the state */
+        arith = 'held: ' + _HELD[L.heldBy] + ' · earned ' + L.k + '/' + n_;
+      }
       /* ⚠⚠ v2650 — A RETIRED AXIS VANISHED FROM THIS ROW WITH NOTHING IN ITS PLACE, AND THAT WAS
          A REGRESSION I SHIPPED. Before v2647 `prune.reports` carried three axes that could not
          fail, and they rendered here as "3 never ran (noprune, shrank, unreadable)" — the wrong
@@ -14041,6 +14069,10 @@ window._lockMark = function(isOpen, px, label){
                   ? ('one kind of look only · ' + _conf.toFixed(2) + ' of ' + _kbar.toFixed(2))
                   : ''));
       var waiting = open ? 'OPEN — it proved itself'
+                    /* REG-1737 - earned, and held by something else: say what, never "its own score" */
+                    : ((L.permitted === false && (lst === 'OPEN' || lst === 'HARDENED'))
+                         ? ('HELD — it earned its score, but it may not act now: '
+                            + (L.permittedWhy || 'no reason was given'))
                     : (_blind
                          ? ('INCOMPLETE — ' + _blind.length + ' claim(s) this harness declared '
                             + 'were never exercised, so the score never saw that axis')
@@ -14049,7 +14081,7 @@ window._lockMark = function(isOpen, px, label){
                     : (!n_ ? 'LOCKED — waiting for a first sabotage'
                     : (_scoreClears && _kindsShort
                          ? 'LOCKED — the score clears; it is waiting for a DIFFERENT kind of look'
-                         : 'LOCKED — waiting on its own score'))));
+                         : 'LOCKED — waiting on its own score')))));
       gates += '<path d="' + gp + '" fill="none" stroke="' + lc + '" stroke-width="'
              + (open ? 2.4 : 1.8) + '" opacity="' + (open ? .95 : .8) + '"'
              + (open ? '' : ' stroke-dasharray="6 5" stroke-linecap="round"') + '/>';
@@ -14844,7 +14876,8 @@ window._lockMark = function(isOpen, px, label){
       var _lname = L.lock ? (L.lock + (L.surface ? ' · ' + L.surface : '')) : (L.surface || '?');
       lrows += '<div class="hrt-row"><span class="hrt-k">' + _hrtEsc(_lname) + '</span>'
         + '<span class="hrt-s" style="color:' + (_HRT_LOCKCOL[lst] || '#9aa6b2') + '">'
-        + window._lockMark(lst === 'OPEN' || lst === 'HARDENED', 11) + ' ' + _hrtEsc(lst) + '</span>'
+        + window._lockMark(window._lockOpen(L), 11) + ' ' + _hrtEsc(lst)
+        + (L.permitted === false && (lst === 'OPEN' || lst === 'HARDENED') ? ' · MAY NOT ACT' : '') + '</span>'
         + '<span class="hrt-w">' + _hrtEsc(ar) + ' — ' + _hrtEsc(L.why || '') + '</span></div>';
     }
     var age = (typeof d.ageMs === 'number' && d.ageMs > 1500)

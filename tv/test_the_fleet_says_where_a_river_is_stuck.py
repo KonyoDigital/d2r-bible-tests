@@ -123,6 +123,21 @@ class TheConsoleNamesItsStuckStations(unittest.TestCase):
         with mock.patch.object(rvs, "rows", lambda path=None: {"ok": False, "rows": [], "why": "law"}):
             self.assertIsNone(ca._river_stuck_for_wire(now_ms=NOW), "an unreadable log read as FLOWING")
 
+    def test_a_river_nobody_ever_stamped_is_unknown_while_reels_wait(self):
+        """REG-1738 (#86 gap item 8) - no stamp log at all answered [] ("draining") whatever sat on the shelf."""
+        import control_app as ca
+        from unittest import mock
+        import river_stamp as rvs
+        never = {"ok": True, "rows": [], "everStamped": False, "why": "no stamp has ever been recorded"}
+        with mock.patch.object(rvs, "rows", lambda path=None: never):
+            self.assertIsNone(ca._river_stuck_for_wire(now_ms=NOW, _shelf={"reel_s_1_a"}, _fixtures=()),
+                              "a shelf of reels with no stamp ever written read as FLOWING")
+            self.assertEqual(ca._river_stuck_for_wire(now_ms=NOW, _shelf=set(), _fixtures=()), [],
+                             "an empty shelf with no stamps is measured-and-empty")
+            self.assertEqual(ca._river_stuck_for_wire(now_ms=NOW, _shelf={"reel_s_9_pin"},
+                                                      _fixtures=("reel_s_9_pin",)), [],
+                             "a suite fixture alone made the river UNKNOWN")
+
 
 class TheWorkerCarriesIt(unittest.TestCase):
 
@@ -178,6 +193,11 @@ class TheCardSaysIt(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-1738 - a river nobody ever stamped reads as draining again",
+     "file": "control_app.py",
+     "find": "            _never = rep.get(\"everStamped\") is False\n",
+     "replace": "            _never = False\n",
+     "matches": 1},
     {
         "why": "2026-09-29 - the fleet row stops saying a PC's river is stuck (REG-1461)",
         "file": "tv/control_ui.html",

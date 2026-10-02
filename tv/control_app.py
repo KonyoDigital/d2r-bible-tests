@@ -15004,6 +15004,7 @@ def _river_stuck_for_wire(now_ms=None, _rows=None, _shelf=None, _fixtures=None):
     reel, still no router pass); the suite's cached fixture list answers the second and is never computed here.
     `_shelf` / `_fixtures` are a law's seams (reel ids); an unreadable shelf is None, never "flowing"."""
     now = int(time.time() * 1000) if now_ms is None else int(now_ms)
+    _never = False
     try:
         if _rows is None:
             import river_stamp as _rvs
@@ -15011,6 +15012,8 @@ def _river_stuck_for_wire(now_ms=None, _rows=None, _shelf=None, _fixtures=None):
             if not rep.get("ok"):
                 return None
             _rows = rep.get("rows") or []
+            # REG-1738 (#86 gap item 8) - "no stamp was ever written" is a fact about the STAMPER, not the river
+            _never = rep.get("everStamped") is False
     except Exception:
         return None
     if _shelf is None:
@@ -15027,6 +15030,19 @@ def _river_stuck_for_wire(now_ms=None, _rows=None, _shelf=None, _fixtures=None):
         except Exception:
             _fixtures = ()
     _pinned = set(str(x) for x in _fixtures)
+    if _never:
+        # ⚠ REG-1738 - A RIVER NOBODY EVER STAMPED IS NOT A FLOWING ONE. With no stamp log the loop below finds no
+        # station to age and answered [] - "every station is draining" - for a PC whose reels may have sat at EMPTY
+        # for days (the 09-29 audit, driven). An empty shelf is still measured-and-empty; reels on it with no stamp
+        # ever written are UNKNOWN.
+        try:
+            _shelved = (list(_ids) if _shelf is not None
+                        else [d for d in os.listdir(HIST_DIR) if d.startswith("reel_")])
+        except Exception:
+            return None
+        if any(r not in _pinned for r in _shelved):
+            return None
+        return []
     last = {}
     for r in _rows:
         last[str(r.get("reel"))] = r
@@ -23892,14 +23908,23 @@ def _self_arming_state():
         "routes": [{"lock": r.get("lock"), "surface": r.get("surface"), "acts": r.get("acts"),
                     "state": _WORD.get(r.get("state"), r.get("state")),
                     "why": r.get("why"), "score": r.get("wilson"), "bar": r.get("bar"),
+                    "permitted": r.get("permitted"), "permittedWhy": r.get("permittedWhy"),
                     "k": r.get("k"), "n": r.get("n")} for r in routes],
         "why": rep.get("why", ""),
+        # ⚠⚠ REG-1737 - THE SIXTH FIELD THIS TRIM WOULD HAVE SWALLOWED. report() now carries
+        # may()'s own verdict per row; `open` stays the evidence count, `permitted` is how many
+        # may act right now, and the heart's reason rides along so a refusal is never a blank.
+        "permitted": sum(1 for l in locks if l.get("permitted")),
+        "heartOk": rep.get("heartOk"), "heartWhy": rep.get("heartWhy", ""),
         # trimmed for a poll: the badge needs state + why + the arithmetic, not the whole row
         "locks": [{"lock": l.get("lock"), "surface": l.get("surface"), "acts": l.get("acts"),
                    "state": l.get("state"), "why": l.get("why"),
                    # score is None when UNPROVEN and 0.0 when INERT — the console must be able to
                    # tell "nobody tested it" from "it was tested and never refused"
                    "score": l.get("wilson"), "bar": l.get("bar"),
+                   # REG-1737 - may()'s verdict, the padlock's source (state is the evidence tier)
+                   "permitted": l.get("permitted"), "permittedWhy": l.get("permittedWhy"),
+                   "heldBy": l.get("heldBy"),
                    # ⚠ AND WHETHER n=0 IS EVEN ANSWERABLE. self_arming distinguishes a door
                    # nobody has sabotaged yet (provable, waiting on work) from one that has no
                    # refusal path at all and never will be (vault.forget — clearing a rebuildable
@@ -24329,6 +24354,8 @@ def heart_state(force=False):
         "locksOk": bool(locks.get("ok")),
         "locksWhy": locks.get("why", ""),
         "open": locks.get("open"), "total": locks.get("total"),
+        # REG-1737 - how many may act now; each lock row carries its own permittedWhy
+        "permitted": locks.get("permitted"), "heartWhy": locks.get("heartWhy", ""),
         # CF-13 — the scope auditor's rows, joined here as EVIDENCE. It was computed correctly and
         # read by nobody; its only callers repo-wide were its own tests. It fails nothing and is
         # rendered with every reach count visible so the noise reads as noise. [[the-unjoined-end]]
