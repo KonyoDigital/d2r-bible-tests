@@ -52,6 +52,13 @@ except Exception:
 import g5_grok_eyes as g5  # noqa: E402
 import control_app as ca  # noqa: E402
 
+# REG-1714 - THIS LAW READ HIS REAL READER SWITCH. The v3555 push proved it in a sandbox copied from his tree, where
+# his Mac's EYES switch says GROK ONLY (his choice, 10-02 07:17): there a missing Claude CLI is rightly a warning, not
+# a block, and test_a_missing_claude_cli_blocks_even_with_grok_on went red untampered (REG-1709's class, the one law
+# that sweep did not reach). Every switch-reading law was then run under a planted GROK ONLY and a planted BOTH: this
+# was the only one red. Its switch now lives in its own temp file, whatever position he picks.
+g5._STATE_FILE = os.path.join(tempfile.mkdtemp(prefix="claude_reads_switch_"), "g5_grok_eyes.state")
+
 RED_PROOF = [
     {
         "why": "the write guard goes: a request for Grok-first is saved as primary again",

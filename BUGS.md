@@ -406,6 +406,16 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1714 - A THIRD LAW READ HIS REAL READER SWITCH; THE v3555 PUSH WENT RED UNTAMPERED (2026-10-02)
+
+**Measured:** the v3555 push re-proved test_claude_reads_every_frame (its red-proof was re-anchored to the new BOTH
+label) in a sandbox copied from his tree, where his Mac's EYES switch says GROK ONLY. There a missing Claude CLI is
+rightly a WARNING, so test_a_missing_claude_cli_blocks_even_with_grok_on got 'warn' != 'block' with nothing tampered:
+UNPROVABLE, push refused at 4m18s. REG-1709's class - its sweep pinned test_control and test_agent and did not reach
+this law. **Now:** the law's switch lives in its own temp file. **Swept:** all 21 laws that touch the reader switch run
+under a planted GROK ONLY and a planted BOTH - this was the only one red under either. 8/8 red-proofs PROVEN with his
+GROK ONLY state planted, the push sandbox's condition.
+
 ### REG-1711 - HIS LIVE GAME ON THE ALT WAS SEALED AS "THE LAUNCHER" - A GAMEPLAY READ WITH NOTHING TO NAME DID NOT COUNT (2026-10-02)
 
 **His words:** "45 reels and each is 1 hour long? or stopped becuase the screen was idle more then 3 minutes ... check
