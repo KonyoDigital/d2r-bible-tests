@@ -80,9 +80,14 @@ def crops_for_aspect(layout: str, aspect: float):
         _LAST_CROP.update({"aspect": round(aspect, 4), "branch": "no-band-windowed",
                            "layout": layout, "band": None})
         return None                                   # windowed / letterboxed oddity: no honest band
-    k = _CROP_CAL_ASPECT / float(aspect)              # wider frame ⇒ the panel is a smaller fraction of it
-    x0, y0, x1, y1 = frac
-    band = (max(0.0, x0 * k), y0, min(1.0, x1 * k), y1)
+    # REG-1712 — OUTSIDE HIS FILM'S BAND THE ONE UI LAW DECIDES (slot_identity.frame_band): the panel scales with
+    # HEIGHT and stays CENTRED - measured 2026-10-02 on both panels of his 1440x904 frames. The left-anchor derivation
+    # this used put a 16:9 runes band's right edge at 0.348 of the width while the stash grid runs to 0.405: a third
+    # of Dean's stash outside the crop. INSIDE the band (his Mac) the measured crops above stay locked, untouched -
+    # they work, and their margins hold the panel at every aspect in it.
+    import slot_identity as _si
+    x0, y0, x1, y1 = _si.frame_band(frac, aspect)
+    band = (max(0.0, x0), y0, min(1.0, x1), y1)
     _LAST_CROP.update({"aspect": round(aspect, 4), "branch": "derived", "layout": layout,
                        "band": tuple(round(v, 4) for v in band)})
     return band

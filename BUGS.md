@@ -406,6 +406,62 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1716 - A GARBAGE READ THE PARSE CLEANED UP COUNTED AS HIS GAME (the v3555 eye, 2026-10-02)
+
+**The eye's claim, reproduced the same hour:** REG-1711 counts a bare, confident gameplay read as the game, and the parse
+manufactures exactly that shape. `_parse_read('{"names":"Play","scene":null,"conf":true}')` returned gameplay, no names,
+conf 1.0 (a non-list `names` is dropped, an unknown or null scene is clamped to gameplay, `float(True)` is 1.0) and the
+judge answered "a read filed as gameplay with nothing else to name (conf 1.00)" - a launcher word kept the reel open.
+**Swept, and the second door was worse:** on GROK ONLY (his ALT) Grok's own `_loose_parse` cleans the answer BEFORE
+`_parse_read` sees it and records nothing - names not a list -> [], an absent scene -> gameplay, true -> 1.0 - so the
+journal's audit would have read clean. The Claude parse also defaulted an absent scene silently. **Now:** a JSON true is
+not a confidence (None, said in the audit); an absent scene is recorded; Grok's parse records every rewrite
+(`_g5_fixed`) and the GROK ONLY path carries it into the same audit the journal row holds (`parse`); the judge counts a
+bare gameplay read only when that audit shows the reader said its scene, names and confidence itself
+(`_the_reader_said_it`). His five real bare-gameplay rows on the Mac carry `{"ok": true, "normalized": [], "dropped":
+[]}` and still count. **Also the eye's (2):** `printer._seal_path`'s fallback no longer raises when realpath fails -
+it answers HERE, as `_fixture_root` does. Law: `tv/test_a_game_with_nothing_to_name_is_still_the_game.py` (garbage
+through the real parse, and through `_grok_oneshot` with Grok's real `_loose_parse`); 4 more red-proofs.
+
+### REG-1715 - THE ALT'S PROVER STOOD ASIDE TEN TIMES WITH NOBODY PLAYING (#152 slice 6, 2026-10-02)
+
+**Measured on his ALT after he closed the game:** the prover started with 2 GB free, a proof took about 1 GB, free fell
+to ~990 MB, under `MIN_FREE_MB_WHILE_RUNNING` 1024 - "the running proof stood aside", ten times, 94 gates still owed, no
+progress, so the census never went current and the river's route lock stayed shut. That floor exists to protect HIS game.
+**Now:** while the game is KNOWN not to be running the running floor is `MIN_FREE_MB_WHILE_RUNNING_IDLE` 700; an
+UNKNOWN game keeps the strict floor, and the game guard is untouched. Law:
+`tv/test_a_proof_yields_the_moment_the_game_starts.py` (+2 cases, +2 red-proofs).
+
+### REG-1713 - THE v3554 LOOKS BY BOTH GROK SEATS, CLOSED (2026-10-02)
+
+Five findings, each reproduced from the code before it was fixed: (1) a picture over the 1568 px read spec was given a
+known space at full-frame scale - its points now stay unplaced; (2) the item-facts doctor pooled the old reader with the
+current one - it measures the current reader, the same-question readers stand in only while it has read nothing, and
+the sentence names which; (3) a re-read of the same look was dropped whole - it now fills point and cell (fill-only);
+(4) a two-element junk picture size counted as known - it is UNKNOWN unless two positive numbers (both seats found it);
+(5) the seal log decided "inside the tree" by string - on his case-insensitive Mac an uppercased spelling escaped; it
+asks the filesystem (samefile up the ancestors). Law: `tv/test_the_v3554_eye_findings_are_closed.py`, 5 red-proofs.
+
+### REG-1712 - ONE UI LAW: D2R SCALES PANELS WITH HEIGHT AND KEEPS THEM CENTRED; THE VAULT RETIRED FULL INVENTORIES (2026-10-02)
+
+**His ask:** "join them all to have a unified logic ... a hardcode database", "simulate on current sessions or reels so
+we dont fuck up anything working". **Measured on his reels (1440x904, aspect 1.593; every box was measured on the
+2940x1912 film, 1.538):** the inventory's cells run x 872..1282 at 41.06 px; width-scaling put them at 877..1303 and the
+stash at 138 where it starts at 158. The line fit on a FULL inventory (a cube and grand charms cover the seams it counts)
+found 9x4 and refused "the D2 inventory is ALWAYS 10x4", so the vault's pixel cross-check never passed and those reels
+were retired at PRINTER. **Now:** `slot_identity.frame_box` / `frame_band` place every panel height-scaled and centred
+(byte-identical on the film; his Mac's tally bands stay locked; Dean's 16:9 band now holds the whole stash), and
+`inventory_lattice` takes the calibrated grid when the fit miscounted - **only when the frame's own ridges put their
+seams on it.** ⚠ The first cut gated on the fit's pitch alone; the simulation's 170 newly accepted frames, OPENED, were
+largely not inventories (a webcam, an automap, fire, lightning, the Join Game screen, his console) because the pitch
+search is a narrow band around this very cell size. `_seams_on_the_grid` (fit lines on the calibrated rows/columns, the
+ridge low exactly on each calibrated seam): 54 of 55 real inventories, 0 of 103 others on the fitted sample; on a
+disjoint held-out sample (every 6th frame from offset 3) 41 accepted, every sampled one a real, uncovered inventory, and
+one real inventory refused (a refusal keeps today's behaviour). Frames the old fit accepted take the identical path (the
+fallback's condition is exactly the two refusals it precedes). UNMEASURED on real data: worn-slot placement - no
+pointed equipped name is in his Mac's journal yet (points are asked since v3552). Law:
+`tv/test_one_ui_law_places_every_panel.py` (synthetic inventory through the real gate); 5 red-proofs.
+
 ### REG-1714 - A THIRD LAW READ HIS REAL READER SWITCH; THE v3555 PUSH WENT RED UNTAMPERED (2026-10-02)
 
 **Measured:** the v3555 push re-proved test_claude_reads_every_frame (its red-proof was re-anchored to the new BOTH

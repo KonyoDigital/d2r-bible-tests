@@ -338,8 +338,9 @@ def inventory_lattice(frame_path):
     _k, _a, _b = max(4, int(round(12 * _s))), max(1, int(round(2 * _s))), max(1, int(round(3 * _s)))
     _ph = 1.0 if _s >= 0.75 else 0.5
     _cands = _np.arange(_lo, _hi, 0.25)
-    _cfit = _fit(_ridge(_np.median(g, axis=0), _k, _a, _b), _lo, _hi, _ph)
-    _rfit = _fit(_ridge(_np.median(g, axis=1), _k, _a, _b), _lo, _hi, _ph)
+    _rcol, _rrow = _ridge(_np.median(g, axis=0), _k, _a, _b), _ridge(_np.median(g, axis=1), _k, _a, _b)
+    _cfit = _fit(_rcol, _lo, _hi, _ph)
+    _rfit = _fit(_rrow, _lo, _hi, _ph)
     for _nm, _got in (("columns", _cfit), ("rows", _rfit)):
         if _got is None:
             return {"ok": False,
@@ -357,6 +358,11 @@ def inventory_lattice(frame_path):
             return {"ok": False, "why": "%s ridge score %.2f is at the noise floor — no lattice "
                                         "here" % (nm, score)}
     nc, nr = len(cols) - 1, len(rows) - 1
+    if (nc, nr) != (INV_COLS, INV_ROWS) or abs(cp - rp) > 4.0 * _s:
+        # REG-1712 — the fit SAW a grid and miscounted it; the calibrated box knows where the grid is
+        _cal = _calibrated_lattice(W, H, cp, rp, _s, nc, nr, fit=(cols, rows, _rcol, _rrow))
+        if _cal is not None:
+            return _cal
     if (nc, nr) != (INV_COLS, INV_ROWS):
         return {"ok": False, "why": "found %dx%d cells; the D2 inventory is ALWAYS %dx%d"
                                     % (nc, nr, INV_COLS, INV_ROWS)}
@@ -366,6 +372,89 @@ def inventory_lattice(frame_path):
     return {"ok": True, "colPitch": cp, "rowPitch": rp,
             "cols": [int(x) for x in cols], "rows": [int(y) for y in rows],
             "cells": nc * nr, "crop": INV_CROP, "scale": round(_s, 4)}
+
+
+#: REG-1712 — how much of the fit's own evidence must sit ON the calibrated seams before the calibrated grid is taken.
+#: MEASURED 2026-10-02 over 158 frames the loose first cut admitted, each looked at: his 55 real inventories have the
+#: fit's row lines on the calibrated rows (>=0.75 of them in 54) and its column lines on them (>=0.30), and the ridge
+#: at the calibrated seams stands BELOW the ridge half a cell over (columns <= -0.49 sd, rows <= -0.15 sd); the 103
+#: that were not an inventory (a webcam, fire, lightning, the Join Game screen, a tooltip, his own console) fail it -
+#: their best pitch matched only because the pitch search is a narrow band around this very cell size.
+_CAL_ROW_ALIGN, _CAL_COL_ALIGN, _CAL_COL_SEAM, _CAL_ROW_SEAM = 0.75, 0.25, -0.4, -0.1
+
+
+def _seams_on_the_grid(cols, rows, rcol, rrow, gc, gr, pc, pr):
+    """REG-1712 — do the PIXELS put seams where the calibrated grid says? -> (bool, why)
+
+    Two readings of this frame's own ridges, neither of them the pitch: where the fit's lines fall (phase - the share
+    within 0.15 of a cell of a calibrated line) and how the ridge stands at the calibrated seams against half a cell
+    over, in units of its own spread."""
+    import numpy as _np
+
+    def _align(found, cal, pitch):
+        found = [float(x) for x in found]
+        return (sum(1 for x in found if min(abs(x - c) for c in cal) <= 0.15 * pitch) / float(len(found))) if found else 0.0
+
+    def _seam(r, cal, pitch):
+        r = _np.asarray(r, dtype=float)
+        on = [r[int(round(c))] for c in cal if 0 <= int(round(c)) < len(r)]
+        off = [r[int(round(c + pitch / 2.0))] for c in cal[:-1] if 0 <= int(round(c + pitch / 2.0)) < len(r)]
+        if not on or not off:
+            return None
+        return (float(_np.mean(on)) - float(_np.mean(off))) / (float(_np.std(r)) + 1e-6)
+
+    ac, ar = _align(cols, gc, pc), _align(rows, gr, pr)
+    kc, kr = _seam(rcol, gc, pc), _seam(rrow, gr, pr)
+    ok = (ar >= _CAL_ROW_ALIGN and ac >= _CAL_COL_ALIGN and kc is not None and kr is not None
+          and kc <= _CAL_COL_SEAM and kr <= _CAL_ROW_SEAM)
+    return ok, ("lines on the calibrated grid: rows %.2f, columns %.2f; seam ridge %s / %s sd"
+                % (ar, ac, "?" if kc is None else "%.2f" % kc, "?" if kr is None else "%.2f" % kr))
+
+
+def _calibrated_lattice(W, H, cp, rp, s, nc, nr, fit=None):
+    """REG-1712 — THE LINE FIT SAW A GRID AND MISCOUNTED IT; THE CALIBRATED BOX KNOWS WHERE IT IS. -> lattice | None
+
+    MEASURED 2026-10-02 on his full inventory (reel_s_1790869575044_77535, 39 frames, 0 accepted): a 2x2 cube and
+    1x3 grand charms cover the seams the ridge fit counts, so it found 9x4 (25 frames) or 11x4 and refused "the D2
+    inventory is ALWAYS 10x4" - every cross-check of a FULL inventory refused, the vault seal was never definitive,
+    and the reel was retired at PRINTER for good. The grid is not unknown: slot_identity.panel_box_for measured it
+    and REG-1712 put it in this frame's pixels (height-scaled, centred - drawn over these frames, on every seam).
+
+    Taken ONLY when the fit itself measured THIS panel's cell size on at least one axis (within the fit's own 4 px
+    squareness bar) AND the frame's own ridges put their seams on the calibrated grid (_seams_on_the_grid). A fit that
+    found nothing, a noise-floor ridge, a frame of no measured aspect, a grid of some other size, or a frame whose
+    seams are not where the inventory's are still refuses."""
+    try:
+        import slot_identity as _si
+        box, _why = _si.panel_box_for(W, H, container="inventory")
+    except Exception:
+        return None
+    if not box:
+        return None
+    bx, by, bw, bh = box
+    pc, pr = bw / float(INV_COLS), bh / float(INV_ROWS)
+    tol = 4.0 * s
+    if not (abs(cp - pc) <= tol or abs(rp - pr) <= tol):
+        return None
+    x0, y0 = int(INV_CROP[0] * W), int(INV_CROP[1] * H)
+    cw, ch = int(INV_CROP[2] * W) - x0, int(INV_CROP[3] * H) - y0
+    cols = [int(round(bx - x0 + i * pc)) for i in range(INV_COLS + 1)]
+    rows = [int(round(by - y0 + j * pr)) for j in range(INV_ROWS + 1)]
+    if cols[0] < 0 or rows[0] < 0 or cols[-1] > cw or rows[-1] > ch:
+        return None
+    # ⚠ THE PITCH IS NO EVIDENCE BY ITSELF: the search band sits around this cell size, so ANY frame's best pitch lands
+    # near it (the first cut admitted a webcam, a fire and the Join Game screen as full inventories). The pixels must put
+    # their seams on this grid - a fit with no evidence to give is refused, never waved through.
+    if not fit:
+        return None
+    _ok, _seen = _seams_on_the_grid(fit[0], fit[1], fit[2], fit[3], cols, rows, pc, pr)
+    if not _ok:
+        return None
+    return {"ok": True, "colPitch": pc, "rowPitch": pr, "cols": cols, "rows": rows, "seams": _seen,
+            "cells": INV_COLS * INV_ROWS, "crop": INV_CROP, "scale": round(s, 4), "source": "calibrated",
+            "why": ("the line fit counted %dx%d (pitch %.1f x %.1f) - items cover the seams it counts; its pitch "
+                    "matches the calibrated inventory's %.1f px cells, so the grid is the calibrated one"
+                    % (nc, nr, cp, rp, pc))}
 
 
 def inventory_occupancy(frame_path, lat=None):

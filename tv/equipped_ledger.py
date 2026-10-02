@@ -514,7 +514,14 @@ def worn_from_row(row, hist_dir):
         # its other-grid pixels landed in whatever doll box they hit. A row with no xySpace key at all is a point
         # already given in frame pixels (no reader that asked for points ever omitted the key).
         _sp = row.get("xySpace")
-        _sp_ok = isinstance(_sp, (list, tuple)) and len(_sp) == 2
+        # REG-1713 (the v3554 eye, both Grok seats) - a two-element space that is not two POSITIVE NUMBERS ([0, 0],
+        # [null, null], a word pair) passed as known, the scale's try swallowed it, and the RAW point was placed.
+        # Known means measurable; everything else is the same UNKNOWN as a null space.
+        try:
+            _sp_ok = (isinstance(_sp, (list, tuple)) and len(_sp) == 2
+                      and not any(isinstance(v, bool) for v in _sp) and float(_sp[0]) > 0 and float(_sp[1]) > 0)
+        except (TypeError, ValueError):
+            _sp_ok = False
         _sp_unknown = ("xySpace" in row) and not _sp_ok
         if pt is not None and size and _sp_ok:
             try:

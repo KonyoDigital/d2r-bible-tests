@@ -1350,8 +1350,17 @@ def _loose_parse(txt):
         if not isinstance(j, dict):
             return None
         names = j.get("names")
+        # REG-1716 — every rewrite below is RECORDED (`_g5_fixed`), because the read it leaves behind looks like one the
+        # model really gave: names that were a string, a scene that was absent and a JSON true all became a bare,
+        # confident gameplay row, and the launcher judge counts that shape as the game. tv_diablo carries this list
+        # into the journal row's parse audit, beside _parse_read's own. [[unknown-stays-unknown]]
+        _fixed = []
         if not isinstance(names, list):
+            if names not in (None, "", []):
+                _fixed.append({"field": "names", "why": "not-a-list", "from": str(names)[:40]})
             names = []
+        if "scene" not in j:
+            _fixed.append({"field": "scene", "why": "absent-scene-default"})
         # ⚠⚠ v3453 — A null IS NOT THE NAME "None", AND str() MANUFACTURES ONE.
         # v3450 taught names_key to skip `x is None`. That guard sits DOWNSTREAM of this line, and
         # by the time the reducer sees a row the null has already become the four-character string
@@ -1372,10 +1381,15 @@ def _loose_parse(txt):
         j.setdefault("discovered", [])
         if not isinstance(j.get("tz"), list):
             j["tz"] = []
+        if isinstance(j.get("conf"), bool):
+            _fixed.append({"field": "conf", "why": "a-bool-is-not-a-confidence", "from": str(j.get("conf"))})
+            j["conf"] = None
         try:
             j["conf"] = float(j.get("conf") if j.get("conf") is not None else 0.0)
         except Exception:
             j["conf"] = 0.0
+        if _fixed:
+            j["_g5_fixed"] = _fixed
         return j
     except Exception:
         return None

@@ -1107,11 +1107,21 @@ def _absorb(have, row):
     cur["conf"] = round(max(_conf_of(cur.get("conf")), _conf_of(row.get("conf"))), 3)
     a, b = cur.get("lastSeenTs"), row.get("lastSeenTs")
     cur["lastSeenTs"] = a if b is None else (b if a is None else max(a, b))
-    seen = {(w.get("session"), w.get("frame"), w.get("lane")) for w in (cur.get("witnesses") or [])}
+    seen = {(w.get("session"), w.get("frame"), w.get("lane")): w for w in (cur.get("witnesses") or [])}
     for w in (row.get("witnesses") or []):
-        if (w.get("session"), w.get("frame"), w.get("lane")) not in seen:
+        k = (w.get("session"), w.get("frame"), w.get("lane"))
+        if k not in seen:
             cur.setdefault("witnesses", []).append(w)
-            seen.add((w.get("session"), w.get("frame"), w.get("lane")))
+            seen[k] = w
+            continue
+        # REG-1713 (the v3554 eye) - the SAME look read again (a reel an older reader sealed, re-bought by v3554) came
+        # back WITH its point and cell, and this dedupe dropped it whole: the stored look stayed cell-less for ever.
+        # Fill-only - a re-read adds where a look had none; it never moves a cell already filed.
+        old = seen[k]
+        if isinstance(old, dict) and isinstance(w, dict) and not old.get("cell") and w.get("cell"):
+            for _f in ("point", "cell", "cellWhy"):
+                if _f in w:
+                    old[_f] = w[_f]
     cur["witnesses"] = sorted(cur.get("witnesses") or [],
                               key=lambda r: (str(r.get("session")), str(r.get("frame")),
                                              str(r.get("lane"))))

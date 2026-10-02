@@ -1422,9 +1422,29 @@ def read_shows_the_game(row, words=None, items=None):
     # fallback row carries (they say conf None) - and named nothing that is not the game. [[unknown-stays-unknown]]
     _c = row.get("conf")
     if (sc == "gameplay" and not (row.get("names") or []) and not str(row.get("area") or "").strip()
-            and isinstance(_c, (int, float)) and not isinstance(_c, bool) and _c >= _GAMEPLAY_CONF_MIN):
+            and isinstance(_c, (int, float)) and not isinstance(_c, bool) and _c >= _GAMEPLAY_CONF_MIN
+            and _the_reader_said_it(row)):
         return "a read filed as gameplay with nothing else to name (conf %.2f)" % float(_c)
     return ""
+
+
+def _the_reader_said_it(row):
+    """REG-1716 — DID THE READER SAY THIS SCENE, THESE NAMES AND THIS CONFIDENCE, OR DID THE PARSE MAKE THEM? -> bool
+
+    The v3555 eye, reproduced the same hour: _parse_read clamps any scene it does not know (null, "menu", "transition "
+    with a space) to "gameplay", replaces names that are not a list (a launcher word sent as a string) with [], and so
+    builds exactly the bare, confident gameplay row REG-1711 counts as the game - {"names":"Play","scene":null,
+    "conf":true} came out as gameplay, no names, conf 1.0, and the judge said "the game". The parse already writes
+    every clamp and drop into its audit, and the journal row carries it as `parse`; this asks it. A row with no audit
+    cannot show the words were the reader's own, so it does not count (his five real rows on the Mac carry
+    {"ok": true, "normalized": [], "dropped": []}). [[unknown-stays-unknown]]"""
+    p = row.get("parse") if isinstance(row, dict) else None
+    if not isinstance(p, dict) or p.get("ok") is not True:
+        return False
+    for _fix in list(p.get("normalized") or ()) + list(p.get("dropped") or ()):
+        if isinstance(_fix, dict) and _fix.get("field") in ("scene", "names", "conf"):
+            return False
+    return True
 
 
 def reads_show_the_game(reads, words=None, items=None):
@@ -6039,6 +6059,8 @@ def _parse_read(out):
         _audit["dropped"].append({"field": "names", "why": "truncated-at-60", "count": len(_all_names) - 60})
     _scene_raw = str(j.get("scene", "gameplay")).lower()
     scene = _scene_raw
+    if "scene" not in j:   # REG-1716 — an absent scene is a default, not the reader's word: said in the audit
+        _audit["normalized"].append({"field": "scene", "from": "(absent)", "to": "gameplay", "why": "absent-scene-default"})
     if scene not in ("town", "loot", "inventory", "stash", "gameplay", "transition", "chronicle", "char-select"):
         _audit["normalized"].append({"field": "scene", "from": _scene_raw, "to": "gameplay", "why": "unknown-scene-clamp"})
         scene = "gameplay"   # v769 — transition is a REAL scene (the parse was silently killing v746)
@@ -6047,6 +6069,9 @@ def _parse_read(out):
         _tz_raw = []
     tz = [str(x).strip()[:40] for x in _tz_raw if str(x).strip()][:8]
     conf = j.get("conf", None)
+    if isinstance(conf, bool):   # REG-1716 — float(True) is 1.0: a JSON true is not a confidence
+        _audit["dropped"].append({"field": "conf", "from": str(conf), "why": "a-bool-is-not-a-confidence"})
+        conf = None
     try:
         _conf_raw = conf
         conf = float(conf) if conf is not None else None
@@ -6795,7 +6820,7 @@ _GROK_ONLY_GATE = threading.BoundedSemaphore(2)
 #: #151 — why the last Grok-only read did not happen, for the deep-read row that says so
 _GROK_ONLY_LAST = {"why": None}
 #: the keys g5_vision_read stamps on its answer - not the reader's words
-_G5_STAMP_KEYS = ("model", "mode", "escalated", "ms", "_raw_txt", "_g5", "_lane")
+_G5_STAMP_KEYS = ("model", "mode", "escalated", "ms", "_raw_txt", "_g5", "_lane", "_g5_fixed")
 
 
 def _with_xy_space(rd, ap):
@@ -6850,6 +6875,10 @@ def _grok_oneshot(ap, timeout=90, prompt=None, raw_json=False):
         return body
     pr = _parse_read(json.dumps(body, ensure_ascii=False))
     if pr is not None:
+        # REG-1716 — what Grok's own parse rewrote before this one saw it goes into the same audit the journal carries
+        _gfix = [x for x in (gr.get("_g5_fixed") or []) if isinstance(x, dict)]
+        if _gfix and isinstance(pr.get("_parse_audit"), dict):
+            pr["_parse_audit"]["dropped"] = list(pr["_parse_audit"].get("dropped") or []) + _gfix
         pr["_raw_txt"] = str(gr.get("_raw_txt") or "")[:2048]
         pr["model"] = "grok-subscription-cli"
         pr["mode"] = "g5-only"
@@ -7206,6 +7235,10 @@ def _crop_answer_refused(raw, ledger_lane=True):
     return _cc.crop_answer_refused(raw, ledger_lane=ledger_lane)
 
 
+#: REG-1713 - the locked intake spec (_readable_frame's _READ_MAX_PX): a reader shrinks anything larger by its own rule
+_VAULT_READ_SPEC_PX = 1568
+
+
 def _vault_xy_map(frame_path, read_path, crop_box=None):
     """v3554 (#146 3b) — WHERE a vault reader's points live. -> {"space", "origin", "extent", "frame"} or None
 
@@ -7220,6 +7253,13 @@ def _vault_xy_map(frame_path, read_path, crop_box=None):
     except Exception:
         return None
     if not _fs or not _ss:
+        return None
+    # REG-1713 (the v3554 eye) - A PICTURE OVER THE READ SPEC IS ONE THE READER SHRANK BY ITS OWN RULE. _readable_frame
+    # hands back the ORIGINAL when it cannot open the frame (no Pillow - the ALT is already treated that way in
+    # jpeg_size), so a 2560 px frame went out and `space` recorded 2560 while the reader measured its points in a
+    # shrunken copy: every point filed at the wrong scale, in a real cell, with why None. The space it saw is then
+    # UNKNOWN, and the points stay unplaced with that reason. [[unknown-stays-unknown]]
+    if max(int(_ss[0]), int(_ss[1])) > _VAULT_READ_SPEC_PX:
         return None
     if crop_box:
         _ox, _oy = int(crop_box[0]), int(crop_box[1])

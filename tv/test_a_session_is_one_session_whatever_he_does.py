@@ -436,8 +436,8 @@ RED_PROOF = [
     {
         "why": "REG-1708 - the seal path's fallback takes any absolute TV_HIST again, so his frames/hist reads a different log",
         "file": "printer.py",
-        "find": "            if not (_rh == _rt or _rh.startswith(_rt.rstrip(os.sep) + os.sep)):\n",
-        "replace": "            if True:\n",
+        "find": "        if _h and os.path.isabs(_h) and not _inside_tree(_h, HERE):\n",
+        "replace": "        if _h and os.path.isabs(_h):\n",
         "matches": 1,
     },
     {

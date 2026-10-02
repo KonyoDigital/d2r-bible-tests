@@ -228,6 +228,32 @@ def _sources():
     return out, whys
 
 
+def _inside_tree(path, root):
+    """REG-1713 (the v3554 code seat) - is `path` inside `root`, asked of the FILESYSTEM? -> bool
+
+    The fallback below compared normcase(realpath) strings, and normcase changes nothing on macOS: an uppercased
+    spelling of his own frames/hist (one directory on his case-insensitive APFS) read as OUTSIDE, so the seal log
+    went to realpath(TV_HIST) instead of HERE. tv_diablo._under already answers this with os.path.samefile up the
+    ancestors; this arm runs exactly when tv_diablo will not import, so the same rule is stated here, not imported."""
+    try:
+        a, b = os.path.realpath(path), os.path.realpath(root)
+        cur = a
+        while True:
+            if os.path.exists(cur) and os.path.exists(b) and os.path.samefile(cur, b):
+                return True
+            parent = os.path.dirname(cur)
+            if parent == cur:
+                break
+            cur = parent
+    except Exception:
+        pass
+    try:
+        _ra, _rb = os.path.normcase(os.path.realpath(path)), os.path.normcase(os.path.realpath(root))
+        return _ra == _rb or _ra.startswith(_rb.rstrip(os.sep) + os.sep)
+    except Exception:
+        return False
+
+
 def _seal_path():
     """shadow_seals.jsonl in the state root the console writes it to (TV_HIST honoured, like every other store)."""
     try:
@@ -240,10 +266,11 @@ def _seal_path():
         # one outside it is the fixture's, by its real path.
         _h = (os.environ.get("TV_HIST") or "").strip()
         root = HERE
-        if _h and os.path.isabs(_h):
-            _rh, _rt = os.path.normcase(os.path.realpath(_h)), os.path.normcase(os.path.realpath(HERE))
-            if not (_rh == _rt or _rh.startswith(_rt.rstrip(os.sep) + os.sep)):
+        if _h and os.path.isabs(_h) and not _inside_tree(_h, HERE):
+            try:
                 root = os.path.realpath(_h)
+            except Exception:   # the v3555 eye: _fixture_root answers HERE when realpath raises; so does this arm
+                root = HERE
     return os.path.join(root, "shadow_seals.jsonl")
 
 

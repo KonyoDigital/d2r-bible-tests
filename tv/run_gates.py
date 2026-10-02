@@ -8807,7 +8807,21 @@ GATES = [
          why="REG-1711 - his ALT sealed his LIVE game as the Boosteroid launcher twice in eight minutes: the reader filed "
              "every read as gameplay with nothing on screen to name, and the judge counted only a zone, a panel or an "
              "item. A real gameplay read (its own confidence, nothing foreign named) is the game; the launcher - read "
-             "as transition, or naming its own words - is still sealed."),
+             "as transition, or naming its own words - is still sealed. REG-1716 (the v3555 eye): an answer the PARSE made into that shape - names sent as a string, an "
+             "unknown or absent scene, a JSON true for conf - is not the game, through Claude's parse and Grok's."),
+    Gate("test_one_ui_law_places_every_panel",
+         [sys.executable, os.path.join(HERE, "test_one_ui_law_places_every_panel.py")], 90,
+         needs_app=False,
+         why="REG-1712 - D2R scales its panels with HEIGHT and keeps them centred; every box was width-scaled, half a "
+             "cell off on his reels, so the inventory's line fit miscounted a full inventory as 9x4 and the vault "
+             "retired those reels at PRINTER. One law now places every panel, his film comes back byte-identical, and "
+             "the calibrated grid is taken only where the frame's own seams sit on it (a webcam and a fire were not)."),
+    Gate("test_the_v3554_eye_findings_are_closed",
+         [sys.executable, os.path.join(HERE, "test_the_v3554_eye_findings_are_closed.py")], 90,
+         needs_app=False,
+         why="REG-1713 - the v3554 looks by both Grok seats: a picture over the read spec has no known space, the item "
+             "doctor measures the current reader, a re-read fills its cell, a junk picture size is unknown, and the "
+             "seal log asks the filesystem whether his frames are inside the tree."),
     Gate("test_a_proof_remembers_where_it_went_red",
          [sys.executable, os.path.join(HERE, "test_a_proof_remembers_where_it_went_red.py")], 90,
          needs_app=False,

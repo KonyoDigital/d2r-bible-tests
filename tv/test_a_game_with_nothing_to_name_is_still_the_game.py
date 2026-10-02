@@ -14,6 +14,9 @@ What this law drives - the REAL read_shows_the_game / first_reads_show_d2r_hud a
   * the launcher stays the launcher: read as transition, or as gameplay naming its own words (Play, Library, Boosteroid)
   * a read that did not happen never counts (conf None - every fallback row carries it), nor a doubtful one (conf 0.4),
     nor one whose area names something that is not a zone
+  * REG-1716 (the v3555 eye): nor an answer the PARSE made into that shape - a string of names, an unknown, spaced or
+    absent scene, a JSON true for conf - through the real _parse_read, and on GROK ONLY through Grok's own
+    _loose_parse first; the journal row's parse audit is what says the reader said it
 RED_PROOF below.
 """
 import os
@@ -41,7 +44,9 @@ import tv_diablo as tv  # noqa: E402
 
 #: his ALT's journal rows for reel_s_1790926370987_13672 (sealed 10:42:37 "judged 4 reads of this reel: gameplay 4")
 HIS_GAME = {"lane": "deep", "sessionId": "s_g", "scene": "gameplay", "mode": "warm", "model": "sonnet", "area": "",
-            "names": [], "tz": [], "conf": 0.85}
+            "names": [], "tz": [], "conf": 0.85,
+            # the parse audit every journalled read carries (REG-1716) - his Mac's five such rows, as written
+            "parse": {"ok": True, "strategy": "first-last", "rawLen": 136, "dropped": [], "normalized": []}}
 #: the launcher read as he saw it on 39 seals: Boosteroid's own idle-terminate screen
 LAUNCHER_TRANSITION = {"lane": "deep", "sessionId": "s_l", "scene": "transition", "mode": "warm", "model": "sonnet",
                        "area": "", "names": [], "tz": [], "conf": 0.9}
@@ -53,7 +58,9 @@ def _words():
 
 def _launch(word):
     return {"lane": "deep", "sessionId": "s_l", "scene": "gameplay", "mode": "warm", "model": "sonnet", "area": "",
-            "names": [word], "tz": [], "conf": 0.9}
+            "names": [word], "tz": [], "conf": 0.9,
+            # a clean audit, as a real journalled read carries: only the NAME may refuse it (REG-1716 must not mask it)
+            "parse": dict(HIS_GAME["parse"])}
 
 
 class AGameReadWithNothingToName(unittest.TestCase):
@@ -83,6 +90,67 @@ class AGameReadWithNothingToName(unittest.TestCase):
 
     def test_an_area_that_is_not_a_zone_never_counts(self):
         self.assertEqual(tv.read_shows_the_game(dict(HIS_GAME, area="Boosteroid"), _words(), frozenset()), "")
+
+
+#: answers a reader could give that the parse turns into a bare, confident gameplay row (the v3555 eye's list)
+GARBAGE = ('{"names": "Play", "scene": null, "conf": true}',          # a launcher word sent as a string
+           '{"names": [], "scene": "menu", "conf": 0.9}',              # a scene word D2R has no template for
+           '{"names": [], "scene": "transition ", "conf": 0.9}',       # the launcher's own scene, with a space
+           '{"names": [], "conf": 0.9}',                               # no scene at all
+           '{"names": [], "scene": "gameplay", "conf": true}')         # a JSON true is not a confidence
+
+
+def _row(parsed):
+    """the journal row emit_deep_read writes from a parse, in the fields the judge reads"""
+    return {"lane": "deep", "sessionId": "s_x", "mode": "warm", "model": "sonnet", "tz": [],
+            "scene": parsed["scene"], "names": parsed["names"], "area": parsed["area"], "conf": parsed.get("conf"),
+            "parse": parsed.get("_parse_audit") or {}}
+
+
+class AReadTheParseMadeIsNotTheGame(unittest.TestCase):
+    """REG-1716 - the v3555 eye: _parse_read clamps, so a garbage answer arrives as REG-1711's exact shape"""
+
+    def test_premise_his_real_read_through_the_real_parse_is_the_game(self):
+        got = tv._parse_read('{"area": "", "names": [], "scene": "gameplay", "conf": 0.85}')
+        self.assertIn("gameplay", tv.read_shows_the_game(_row(got), _words(), frozenset()))
+
+    def test_every_answer_the_parse_rewrote_is_not_the_game(self):
+        for raw in GARBAGE:
+            got = tv._parse_read(raw)
+            self.assertEqual(got["scene"], "gameplay", raw)          # the shape REG-1711 counts - it is the premise
+            self.assertEqual(tv.read_shows_the_game(_row(got), _words(), frozenset()), "",
+                             "an answer the parse rewrote into gameplay was called the game: %s" % raw)
+
+    def test_a_row_with_no_audit_cannot_show_the_words_were_the_readers(self):
+        bare = dict(HIS_GAME)
+        del bare["parse"]
+        self.assertEqual(tv.read_shows_the_game(bare, _words(), frozenset()), "")
+
+
+class GrokOnlyCarriesWhatItsOwnParseRewrote(unittest.TestCase):
+    """REG-1716 - on his GROK ONLY ALT the answer is cleaned by g5_grok_eyes._loose_parse BEFORE _parse_read sees it"""
+
+    def _read(self, raw):
+        import g5_grok_eyes as g5
+        saved = (g5.grok_only_blocked_why, g5.g5_vision_read)
+        self.addCleanup(lambda: (setattr(g5, "grok_only_blocked_why", saved[0]), setattr(g5, "g5_vision_read", saved[1])))
+        g5.grok_only_blocked_why = lambda: None
+        g5.g5_vision_read = lambda ap, prompt=None, **k: g5._loose_parse(raw)
+        got = tv._grok_oneshot("/nonexistent/f_1.jpg", timeout=5)
+        self.assertIsNotNone(got, raw)
+        return got
+
+    def test_premise_a_real_grok_read_is_the_game(self):
+        got = self._read('{"area": "", "names": [], "scene": "gameplay", "conf": 0.85}')
+        self.assertIn("gameplay", tv.read_shows_the_game(_row(got), _words(), frozenset()))
+
+    def test_a_grok_answer_its_own_parse_rewrote_is_not_the_game(self):
+        for raw in ('{"names": "Play", "scene": "gameplay", "conf": 0.9}', '{"names": [], "conf": 0.9}',
+                    '{"names": [], "scene": "gameplay", "conf": true}'):
+            got = self._read(raw)
+            self.assertEqual(got["scene"], "gameplay", raw)
+            self.assertEqual(tv.read_shows_the_game(_row(got), _words(), frozenset()), "",
+                             "Grok's own parse cleaned this into a bare gameplay row and it was called the game: %s" % raw)
 
 
 class TheDoorKeepsHisSessionOpen(unittest.TestCase):
@@ -126,8 +194,8 @@ RED_PROOF = [
     {
         "why": "REG-1711 - a read with no confidence of its own (every fallback row) is called the game",
         "file": "tv_diablo.py",
-        "find": "            and isinstance(_c, (int, float)) and not isinstance(_c, bool) and _c >= _GAMEPLAY_CONF_MIN):\n",
-        "replace": "            ):\n",
+        "find": "            and isinstance(_c, (int, float)) and not isinstance(_c, bool) and _c >= _GAMEPLAY_CONF_MIN\n",
+        "replace": "            and True\n",
         "matches": 1,
     },
     {
@@ -142,6 +210,34 @@ RED_PROOF = [
         "file": "tv_diablo.py",
         "find": "_GAMEPLAY_CONF_MIN = 0.7\n",
         "replace": "_GAMEPLAY_CONF_MIN = 0.0\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1716 - the judge stops asking whether the reader said it: a garbage answer the parse rewrote is the game",
+        "file": "tv_diablo.py",
+        "find": "            and _the_reader_said_it(row)):\n",
+        "replace": "            and True):\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1716 - an absent scene goes back to a silent default: a read with no scene is gameplay the reader said",
+        "file": "tv_diablo.py",
+        "find": "        _audit[\"normalized\"].append({\"field\": \"scene\", \"from\": \"(absent)\", \"to\": \"gameplay\", \"why\": \"absent-scene-default\"})\n",
+        "replace": "        pass\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1716 - Grok's own parse rewrites in silence again: on GROK ONLY a string of names becomes the game",
+        "file": "g5_grok_eyes.py",
+        "find": "        if _fixed:\n            j[\"_g5_fixed\"] = _fixed\n",
+        "replace": "        if False:\n            j[\"_g5_fixed\"] = _fixed\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1716 - the GROK ONLY path drops what Grok's parse rewrote before the journal's audit sees it",
+        "file": "tv_diablo.py",
+        "find": "        if _gfix and isinstance(pr.get(\"_parse_audit\"), dict):\n",
+        "replace": "        if False:\n",
         "matches": 1,
     },
 ]

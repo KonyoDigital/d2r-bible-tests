@@ -80,6 +80,38 @@ _PANEL_CAL_FRAME = (2940, 1912)
 _PANEL_CAL_ASPECT = _PANEL_CAL_FRAME[0] / float(_PANEL_CAL_FRAME[1])
 _PANEL_CAL_LO, _PANEL_CAL_HI = 1.45, 1.62      # the band stash_eye's own crops are locked at
 
+
+# ══ REG-1712 — THE ONE UI LAW: D2R SCALES ITS PANELS WITH HEIGHT AND KEEPS THEM CENTRED ════════════════════════════
+# Every box in PANELS / EQUIP_SLOTS was measured on the 2940x1912 calibration film, and the frames his reels hold are
+# 1440x904 (aspect 1.593, not 1.538). panel_box_for scaled x and width by the frame's WIDTH, which is right only at the
+# calibration aspect. MEASURED 2026-10-02 on reel_s_1790869575044_77535 (his full inventory beside his shared stash),
+# drawing three models over the pixels: the inventory's real cells run x 872..1282 and are SQUARE (41.06 px, the row
+# pitch); width-scaling put them at 877..1303 (42.5 px wide - half a cell off by the last column), a left anchor at
+# 847; the stash's real left edge is 158 - width-scaling said 138, a left anchor 133. Only HEIGHT-SCALED and CENTRED
+# lands both panels on their own seams: x' = W/2 + (x_cal - CW/2) * H/CH. That miscount is what kept the vault's
+# pixel cross-check refusing every full inventory ("found 9x4 cells"), so three reels sat at PRINTER for good.
+# At the calibration aspect this is the old arithmetic exactly (returned byte-identical). stash_eye's crop bands use
+# the same law through frame_band() - one law, one table, every PC. [[pixel-constants-at-one-capture-size]]
+def frame_box(frac_box, frame_w, frame_h):
+    """A box measured on the calibration film, in THIS frame's pixels. -> (x, y, w, h)"""
+    fx, fy, fwf, fhf = frac_box
+    fw, fh = float(frame_w), float(frame_h)
+    if abs(fw / fh - _PANEL_CAL_ASPECT) < 1e-9:
+        return (fx * fw, fy * fh, fwf * fw, fhf * fh)          # the calibration aspect: the measured numbers
+    cw, ch = float(_PANEL_CAL_FRAME[0]), float(_PANEL_CAL_FRAME[1])
+    s = fh / ch
+    return (fw / 2.0 + (fx * cw - cw / 2.0) * s, fy * fh, fwf * cw * s, fhf * fh)
+
+
+def frame_band(frac_band, aspect):
+    """A crop band (x0, y0, x1, y1 as fractions of the calibration film) at THIS aspect. -> same shape, fractions.
+    The fractional form of frame_box: heights do not move, x moves toward the centre by calibration/this aspect."""
+    x0, y0, x1, y1 = frac_band
+    if abs(float(aspect) - _PANEL_CAL_ASPECT) < 1e-9:
+        return (x0, y0, x1, y1)
+    k = _PANEL_CAL_ASPECT / float(aspect)
+    return (0.5 + (x0 - 0.5) * k, y0, 0.5 + (x1 - 0.5) * k, y1)
+
 # fractions of the calibration frame, so the numbers survive a resize
 PANELS = {
     "stash": (281 / 2940.0, 381 / 1912.0, 868 / 2940.0, 869 / 1912.0),
@@ -208,7 +240,7 @@ def worn_slot_of(point, frame_w, frame_h):
                       "been measured outside %.2f-%.2f"
                       % (aspect, _PANEL_CAL_ASPECT, _PANEL_CAL_LO, _PANEL_CAL_HI))
     for name, (fx, fy, fwf, fhf) in EQUIP_SLOTS.items():
-        bx, by, bw, bh = fx * fw, fy * fh, fwf * fw, fhf * fh
+        bx, by, bw, bh = frame_box((fx, fy, fwf, fhf), fw, fh)     # REG-1712 - the one UI law
         if bx <= x <= bx + bw and by <= y <= by + bh:
             return name, None
     return None, ("that point is in no MEASURED equipment slot. Four are measured (%s); %s are "
@@ -243,8 +275,7 @@ def panel_box_for(frame_w, frame_h, container="stash"):
         return None, ("this frame is %.3f aspect and the panel box was measured at %.3f; outside "
                       "%.2f-%.2f the horizontal fractions move and nothing here has been measured "
                       "there yet" % (aspect, _PANEL_CAL_ASPECT, _PANEL_CAL_LO, _PANEL_CAL_HI))
-    fx, fy, fwf, fhf = PANELS[container]
-    return (fx * fw, fy * fh, fwf * fw, fhf * fh), None
+    return frame_box(PANELS[container], fw, fh), None          # REG-1712 - the one UI law
 
 
 def cell_of(point, panel_box, container):

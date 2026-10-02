@@ -6083,24 +6083,35 @@ def _check_the_item_facts_are_reaching_the_row():
 
     # v3554 — the versions that ask the same question count as this prompt's (VAULT_PROMPT_ANSWERS_SAME_AS)
     _vers = (ver,) + tuple(str(v) for v in (getattr(_td, "VAULT_PROMPT_ANSWERS_SAME_AS", ()) or ()))
-    mine = [r for r in rows if isinstance(r, dict)
-            and any(str(w.get("promptVer") or "") in _vers for w in _wits(r))]
+    # REG-1713 (the v3554 eye) - THE CURRENT READER IS MEASURED ON ITS OWN WITNESSES. Pooling vp3368's (the same
+    # question) with vp3554's let one old witness with sockets keep this row OK after a vp3554 read had dropped all
+    # three facts, and the sentence called the pool "read by vp3554". The same-question readers stand in only while
+    # the current one has read nothing - and the sentence names which population it measured.
+    def _by(vs):
+        return [r for r in rows if isinstance(r, dict)
+                and any(str(w.get("promptVer") or "") in vs for w in _wits(r))]
+    mine, said = _by((ver,)), ver
+    if not mine and len(_vers) > 1:
+        mine = _by(_vers[1:])
+        said = "%s (asks the same question; %s has read nothing yet)" % ("/".join(_vers[1:]), ver)
     if not mine:
         return UNKNOWN, ("no sighting has been read by prompt %s yet, so whether the three facts "
                          "travel is UNMEASURED - not clean, and not a defect either" % ver)
+    _vs_said = (ver,) if said == ver else _vers[1:]
     # a row "has" the facts when a sighting carried one AND the row reflects it as a variant, which
     # is the whole six-link chain end to end rather than either half of it
     have = [r for r in mine
             if (r.get("variants") or [])
-            or any(w.get("sockets") is not None or w.get("eth") is not None
-                   or w.get("quality") is not None for w in _wits(r))]
+            or any(str(w.get("promptVer") or "") in _vs_said
+                   and (w.get("sockets") is not None or w.get("eth") is not None
+                        or w.get("quality") is not None) for w in _wits(r))]
     if not have:
         return MISSING, ("%d sighting(s) read by %s and NOT ONE carries sockets, eth or quality. "
                          "The template keys have stopped coming back, and a null from this prompt "
                          "looks exactly like a row from before the fields existed"
-                         % (len(mine), ver))
+                         % (len(mine), said))
     return OK, ("%d of %d sighting(s) read by %s carry at least one of sockets/eth/quality"
-                % (len(have), len(mine), ver))
+                % (len(have), len(mine), said))
 
 
 def _check_the_capture_root_is_still_being_written():
