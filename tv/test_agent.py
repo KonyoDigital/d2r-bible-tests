@@ -9,6 +9,10 @@ import fixture_tmp as _fx_tmp  # noqa: E402  #171 — this run's scratch dirs le
 _fx_tmp.contain()
 os.environ["TV_PORT"] = "17971"          # never collide with a live agent
 import tv_diablo as tv
+# REG-1709 - his reader switch is HIS, not this suite's: a GROK ONLY state (his choice, 2026-10-02 07:17) skips Claude's
+# throttle and cap by design, and 3 failures + 1 error here asserted Claude's. The suite runs on the default reader.
+import g5_grok_eyes as _g5_iso  # noqa: E402
+_g5_iso._STATE_FILE = os.path.join(_fx_tmp.contain(), "g5_grok_eyes.state")
 tv.JOURNAL = os.path.join(tempfile.gettempdir(), "tvd_test_journal.jsonl")   # v753 — tests NEVER write the real session journal
 
 

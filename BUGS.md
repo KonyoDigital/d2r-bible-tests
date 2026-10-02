@@ -406,6 +406,20 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1709 - HE CHOSE GROK ONLY, AND TWO SUITES THAT ASSUMED CLAUDE WENT RED ON HIS MAC (2026-10-02)
+
+**Found** when the v3554 re-push refused at minute 14: test_control was ALREADY RED untampered in the push sandbox -
+6 failures + 1 error, all throttle/cap cases ("a throttled chronicle read refuses instead of answering empty", "a capped
+vault read names the refusal", "the retry asks the subscription cap again", ...). Reproduced in a main-built sandbox;
+green in the signin worktree. **Cause:** at 07:17 he flipped his reader switch to GROK ONLY (`g5_grok_eyes.state`
+mode "only" - the v3551 switch working as he asked). GROK ONLY skips Claude's throttle and cap BY DESIGN, and the
+sandbox copies his per-machine state file, so every case asserting Claude's refusal read his switch instead of its own.
+A sweep of the 15 other laws that touch the readers under a planted GROK ONLY state found one more: test_agent (3
+failures + 1 error). **Fixed:** both suites pin `g5_grok_eyes._STATE_FILE` to a file nobody wrote (reads as the default
+reader) at import, beside their port isolation - the switch's own law already patches it per case. Verified both ways:
+test_agent 265 OK under GROK ONLY and default; test_control 2259 OK under GROK ONLY. [[push-runs-suites-on-his-stores]]
+[[regression-guard]] §3 - a suite that reads his machine's switch fails the day he uses the switch.
+
 ### REG-1708 - THE v3553 EYE: THE SEAL PATH'S TWO ARMS READ DIFFERENT FILES, AND A WAITER THAT ASKED ONCE PASSED (2026-10-02)
 
 The Grok CLI looked at v3553 (20,012 chars, 86678e11..43c87d6e) - 3 findings + a reach note, each reproduced first.

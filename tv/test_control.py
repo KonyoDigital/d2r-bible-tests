@@ -95,6 +95,13 @@ os.environ["TV_CONTROL_PORT"] = "17972"
 os.environ["TV_PORT"] = "17971"
 import control_app as ca  # noqa: E402
 import replay as rp  # noqa: E402
+# REG-1709 - HIS READER SWITCH IS HIS, NOT THIS SUITE'S. g5_grok_eyes reads the per-machine state file beside it, and
+# v3551 made a GROK ONLY switch skip Claude's throttle and cap on purpose. On 2026-10-02 he chose GROK ONLY at 07:17 and
+# seven cases here that assert "a throttled/capped Claude read refuses by name" went red in the push sandbox (which
+# copies his state) while green in a worktree without it. The suite runs on the DEFAULT reader: a state file nobody
+# wrote reads as "off" (Claude). A case about the switch itself patches _STATE_FILE on its own, as the switch's law does.
+import g5_grok_eyes as _g5_iso  # noqa: E402
+_g5_iso._STATE_FILE = os.path.join(_fx_tmp.contain(), "g5_grok_eyes.state")
 
 
 # v1925 — CLASS 2 (orphaned processes from tests). Tests that drive the REAL structural gate
