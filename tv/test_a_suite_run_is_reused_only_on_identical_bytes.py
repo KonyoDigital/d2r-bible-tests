@@ -243,9 +243,12 @@ class ThePushAsksBeforeEachHeavySuite(unittest.TestCase):
         self.code = "\n".join(re.sub(r"(^|\s)#.*$", "", l) for l in raw.split("\n"))
 
     def test_each_heavy_suite_is_asked_then_run_then_recorded(self):
+        # #42 lever 4 - test_control runs as parallel shards through tv/shard_suite.py; still asked, run, recorded
+        runs = {"test_agent": 'gate_run "test_agent" "python3 tv/test_agent.py"',
+                "test_control": 'gate_run "test_control" "python3 tv/shard_suite.py test_control"'}
         for name, wait in (("test_agent", 900), ("test_control", 1500)):
             ask = 'python3 "$REPO/tv/suite_verdict.py" --check %s --wait %d' % (name, wait)
-            run = 'gate_run "%s" "python3 tv/%s.py"' % (name, name)
+            run = runs[name]
             rec = 'python3 "$REPO/tv/suite_verdict.py" --record %s' % name
             for part in (ask, run, rec):
                 self.assertEqual(self.code.count(part), 1, "%s: %r" % (name, part))

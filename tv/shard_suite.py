@@ -67,12 +67,14 @@ def _load_plan(suite, here=HERE):
             "        n = unittest.defaultTestLoader.loadTestsFromTestCase(obj).countTestCases()\n"
             "        if n:\n            out[name] = n\n"
             "            if getattr(obj, 'SHARD_ALONE', False) is True:\n                alone.append(name)\n"
-            "print('SHARD_CLASSES ' + json.dumps({'counts': out, 'alone': alone}))\n") % (here, suite + ".py", suite)
-    p = subprocess.run([sys.executable, "-c", code], cwd=here, capture_output=True, text=True, timeout=300)
+            "full = unittest.defaultTestLoader.loadTestsFromModule(mod).countTestCases()\n"
+            "print('SHARD_CLASSES ' + json.dumps({'counts': out, 'alone': alone, 'full': full}))\n") % (here, suite + ".py", suite)
+    p = subprocess.run([sys.executable, "-c", code], cwd=here, capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", timeout=300)
     for ln in (p.stdout or "").splitlines():
         if ln.startswith("SHARD_CLASSES "):
             got = json.loads(ln[len("SHARD_CLASSES "):])
-            return got["counts"], sorted(got["alone"])
+            return got["counts"], sorted(got["alone"]), got.get("full")
     raise RuntimeError("the suite would not load to be counted: %s" % ((p.stderr or "")[-400:],))
 
 
@@ -100,11 +102,13 @@ def deal(classes, k, costs):
     """Largest-first onto the lightest shard. -> [[class, ...], ...] (k lists, none empty when classes >= k)"""
     known = [c for c in classes if c in costs]
     med = statistics.median([costs[c] for c in known]) if known else 1.0
-    w = {c: costs.get(c, med) for c in classes}
+    # a measured 0.00 (a class under 5 ms) never moved the lightest shard's load, so every such class piled onto one
+    # (183 of 483 in one shard, the v3562 eye). Ties go to the shard holding FEWER classes.
+    w = {c: float(costs.get(c, med) or 0.0) for c in classes}
     shards = [[] for _ in range(max(1, int(k)))]
     load = [0.0] * len(shards)
     for c in sorted(classes, key=lambda c: (-w[c], c)):
-        i = load.index(min(load))
+        i = min(range(len(shards)), key=lambda j: (load[j], len(shards[j])))
         shards[i].append(c)
         load[i] += w[c]
     return [s for s in shards if s]
@@ -114,9 +118,9 @@ def run(suite, k=4, here=HERE, cost_path=COST, _classes=None, _env=None):
     """Run `suite` as k shards. -> (ok, report dict)"""
     t0 = time.time()
     if _classes is not None:
-        found, alone = _classes, []
+        found, alone, full = _classes, [], None
     else:
-        found, alone = _load_plan(suite, here)
+        found, alone, full = _load_plan(suite, here)
     expected = sum(found.values())
     together = sorted(c for c in found if c not in alone)
     plan = deal(together, k, _costs(suite, cost_path) or {})
@@ -130,8 +134,10 @@ def run(suite, k=4, here=HERE, cost_path=COST, _classes=None, _env=None):
                     "TV_PORT": str(PORT_BASE + 2 * i), "TV_CONTROL_PORT": str(PORT_BASE + 2 * i + 1),
                     "SHARD_INDEX": str(i)})
         log = io.open(os.path.join(tmp, "shard%d.log" % i), "w", encoding="utf-8")
+        _grp = ({"creationflags": getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)} if os.name == "nt"
+                else {"start_new_session": True})
         procs.append((i, names, log, subprocess.Popen([sys.executable, "-c", _RUNNER], cwd=here, env=env,
-                                                      stdout=log, stderr=subprocess.STDOUT)))
+                                                      stdout=log, stderr=subprocess.STDOUT, **_grp)))
         _LIVE.append(procs[-1][3])
 
     for i, names in enumerate(plan):
@@ -149,7 +155,7 @@ def run(suite, k=4, here=HERE, cost_path=COST, _classes=None, _env=None):
         try:
             rc = p.wait(timeout=max(1, SHARD_TIMEOUT_S - (time.time() - t0)))
         except subprocess.TimeoutExpired:
-            p.kill()
+            _end_one(p)
             rc = "TIMEOUT"
         log.close()
         try:
@@ -168,8 +174,25 @@ def run(suite, k=4, here=HERE, cost_path=COST, _classes=None, _env=None):
     # two checks, two jobs: each shard ran what it was DEALT (above); every class the loader FOUND was dealt (here)
     if sum(s["want"] for s in shards) != expected:
         ok = False
+    # ⚠ AND THE CLASSES ARE THE WHOLE SUITE (the v3562 eye): `python3 suite.py` loads the MODULE - a load_tests hook or
+    # a TestCase imported from elsewhere adds cases no class walk sees. Shards that cover less than the loader would run
+    # are a different, smaller verdict. And a suite with nothing in it is never green.
+    why_not = ""
+    if expected == 0:
+        why_not = "the suite has no cases to run - an empty run is not a green one"
+    elif full is not None and full != expected:
+        why_not = ("the module loads %d case(s) and the classes hold %d - a load_tests hook or an imported TestCase "
+                   "is outside the shards" % (full, expected))
+    if why_not:
+        ok = False
     rep = {"suite": suite, "ok": ok, "expected": expected, "ran": ran, "shards": shards,
-           "seconds": round(time.time() - t0, 1), "dir": tmp}
+           "seconds": round(time.time() - t0, 1), "dir": tmp, "whyNot": why_not}
+    if ok:
+        # #171 - a green run's scratch (shard logs + answers) goes with it; a RED run's is kept, because its logs are
+        # the evidence main() prints and names
+        import shutil
+        shutil.rmtree(tmp, True)
+        rep["dir"] = None
     if ok:
         merged = _costs(suite, cost_path) or {}
         for s in shards:
@@ -180,7 +203,7 @@ def run(suite, k=4, here=HERE, cost_path=COST, _classes=None, _env=None):
                 with io.open(cost_path, encoding="utf-8") as fh:
                     d = json.load(fh)
             d[suite] = merged
-            tmpf = cost_path + ".tmp"
+            tmpf = "%s.%d.tmp" % (cost_path, os.getpid())
             with io.open(tmpf, "w", encoding="utf-8") as fh:
                 json.dump(d, fh, indent=0, sort_keys=True)
             os.replace(tmpf, cost_path)
@@ -189,14 +212,32 @@ def run(suite, k=4, here=HERE, cost_path=COST, _classes=None, _env=None):
     return ok, rep
 
 
-def _end_shards(signum=None, frame=None):
-    """The gate's timeout TERMs this process; its shards go with it. -> exits 128+signum"""
-    for p in list(_LIVE):
+def _end_one(p):
+    """End one shard AND whatever it started (its own process group), then reap it. Never raises."""
+    try:
+        if p.poll() is not None:
+            return
+        if os.name == "nt":
+            subprocess.run(["taskkill", "/PID", str(p.pid), "/T", "/F"], stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL, timeout=30)
+        else:
+            import signal as _sg
+            os.killpg(p.pid, _sg.SIGKILL)
+    except Exception:
         try:
-            if p.poll() is None:
-                p.kill()
+            p.kill()
         except Exception:
             pass
+    try:
+        p.wait(timeout=30)
+    except Exception:
+        pass
+
+
+def _end_shards(signum=None, frame=None):
+    """The gate's timeout TERMs this process; its shards - and what they started - go with it. -> exits 128+signum"""
+    for p in list(_LIVE):
+        _end_one(p)
     if signum is not None:
         sys.exit(128 + int(signum))
 
@@ -218,6 +259,8 @@ def main(argv):
                                                                  "" if s["ok"] else "  ❌ RED"))
     print("%s %s: %s of %s case(s) across %d shard(s) in %.1fs" % (
         "✅" if ok else "❌", rep["suite"], rep["ran"], rep["expected"], len(rep["shards"]), rep["seconds"]))
+    if rep.get("whyNot"):
+        print("   ❌ " + rep["whyNot"])
     if not ok:
         for s in rep["shards"]:
             if not s["ok"]:

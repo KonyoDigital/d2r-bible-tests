@@ -76,6 +76,12 @@ class TheDealerPlacesEveryClassOnce(unittest.TestCase):
         self.assertFalse(any("big" in s and "big2" in s for s in plan), "the two heaviest landed on one shard: %r" % plan)
 
 
+    def test_classes_measured_at_zero_are_spread_not_piled(self):
+        """The v3562 eye: a 0.00 cost never moved the lightest shard, so 183 of 483 classes landed on one."""
+        plan = SS.deal(["Z%02d" % i for i in range(12)], 4, {"Z%02d" % i: 0.0 for i in range(12)})
+        self.assertEqual(sorted(len(s) for s in plan), [3, 3, 3, 3], "zero-cost classes piled up: %r" % plan)
+
+
 class TheUnionIsTheVerdict(unittest.TestCase):
 
     def setUp(self):
@@ -122,6 +128,22 @@ class TheUnionIsTheVerdict(unittest.TestCase):
         self.assertEqual(z_shard["classes"], 1, "the budget class shared its process: %r" % z_shard)
         self.assertGreaterEqual(float(z_start), float(e_end), "the budget class ran while another shard was running")
 
+    def test_a_suite_with_cases_no_class_walk_sees_is_red(self):
+        """The v3562 eye: `python3 suite.py` loads the MODULE; a load_tests hook adds cases the class walk never deals."""
+        with io.open(os.path.join(self.d, "plant_more.py"), "w", encoding="utf-8") as fh:
+            fh.write("import unittest\nclass A(unittest.TestCase):\n    def test_a(self): pass\n"
+                     "def load_tests(loader, tests, pattern):\n"
+                     "    tests.addTest(unittest.FunctionTestCase(lambda: None))\n    return tests\n")
+        ok, rep = SS.run("plant_more", 2, here=self.d, cost_path=self.cost)
+        self.assertFalse(ok, "shards that covered less than the module loads read green: %r" % rep)
+        self.assertIn("load_tests", rep["whyNot"])
+
+    def test_an_empty_suite_is_never_green(self):
+        with io.open(os.path.join(self.d, "plant_empty.py"), "w", encoding="utf-8") as fh:
+            fh.write("import unittest\n")
+        ok, rep = SS.run("plant_empty", 2, here=self.d, cost_path=self.cost)
+        self.assertFalse(ok, "a suite with no cases read green")
+
     def test_no_two_shards_share_a_port(self):
         ok, rep = self._run(k=4)
         self.assertTrue(ok, rep)
@@ -132,6 +154,21 @@ class TheUnionIsTheVerdict(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "the v3562 eye - shards that cover fewer cases than the module loads read green again",
+     "file": "shard_suite.py",
+     "find": "    elif full is not None and full != expected:\n",
+     "replace": "    elif False:\n",
+     "matches": 1},
+    {"why": "the v3562 eye - an empty suite reads green again",
+     "file": "shard_suite.py",
+     "find": "    if expected == 0:\n",
+     "replace": "    if False:\n",
+     "matches": 1},
+    {"why": "the v3562 eye - classes measured at zero pile onto one shard again",
+     "file": "shard_suite.py",
+     "find": "        i = min(range(len(shards)), key=lambda j: (load[j], len(shards[j])))\n",
+     "replace": "        i = load.index(min(load))\n",
+     "matches": 1},
     {"why": "lever 4 - a class that holds a wall-clock budget is dealt beside the others again",
      "file": "shard_suite.py",
      "find": "    together = sorted(c for c in found if c not in alone)\n",

@@ -406,6 +406,21 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1742 - THE SHARD RUNNER, AS CI AND THE v3562 EYE READ IT (2026-10-02)
+
+CI on 22a2f0c3 (the push gate is a subset - the scar again): three gate-set laws refused tv/shard_suite.py - it read a
+child's output in the locale encoding (Windows is not UTF-8), it made a scratch dir with no cleanup in its function, and
+the heavy-suite law still expected `python3 tv/test_control.py` in the hook. Now: utf-8 read; a green run removes its
+scratch (a red run keeps it - the logs are the evidence it prints); the law expects the shard command. The 22
+module-scanning laws were run locally before this push. The v3562 eye, 4 real: (1) the class walk is not the loader -
+a load_tests hook or an imported TestCase would sit outside the shards, and an empty suite read 0 == 0 green; the
+module's own count must now equal the dealt count and an empty suite is red; (2) a 0.00 cost never moved the lightest
+shard, so zero-cost classes piled onto one (183 of 483) - ties now go to the shard with fewer classes; (3) a TERM or a
+timeout ended a shard but not what it started - each shard is its own process group, ended whole and reaped; (4) two
+writers shared one cost temp file - one per pid. Routine I's v602 Double Bow card went red once on 22a2f0c3 (7 green
+before, only the D2R_BUILD line changed in bible.html; fixed 1.8 s waits) - re-run on CI. Law:
+`test_a_sharded_suite_runs_every_case_once` (11 cases, 7/7 PROVEN).
+
 ### REG-1741 - A BUMP NOTE THAT OPENED WITH ITS VERSION PRINTED IT TWICE (2026-10-02, the #231 code seat on 065f5433)
 
 The code seat on the v3561 stamp: WINDOWS_SHIP read "v3561: v3561 — REG-1736 ..." and the TASKS row "v3561 — v3561 — ...",
