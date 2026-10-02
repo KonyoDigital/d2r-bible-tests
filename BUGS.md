@@ -406,6 +406,29 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1740 - THE PUSH GATE SPENT 10 MINUTES ON test_control, AND ONE CASE WAS 62% OF IT (2026-10-02, #42)
+
+His order 20:05: push speed first, for wall clock. MEASURED on the v3560 push: 17m15s gate, test_control ~10 min of it
+(test_agent 10 s, so running the two side by side saves nothing). Profiled per class (435.6 s, 2,259 cases):
+`TestNoSuiteImportsSomethingCIDoesNotHave` 271.6 s in ONE case - it re-parsed a repo module (control_app.py, ~46k
+lines) for every suite that imports it, and asked importlib the same names over and over; now one parse per module and
+one lookup per name per run: 4.3 s, same verdict (two planted bad imports still caught, the original catches the same
+plant). `TestV2078...test_a_check_moved_to_SLOW_is_still_RUN_somewhere` 23.1 s ran every real doctor check to ask which
+ones run() SELECTS; it drives the same loop over stand-in checks now (~2 s; red-proofed: a full run that skips SLOW is
+caught). Suite: 435.6 s -> 133.6 s. Then `tv/shard_suite.py` runs it as 4 shards by class (serial order inside each
+shard, own TV_PORT per shard, green only when every shard ran every case it was dealt and every class was dealt; a TERM
+ends the shards): 2,259/2,259 in 66-88 s, 3 green runs with his game beside them. One coupling surfaced and was fixed
+at the case: `_silent_for` (TestV2325) now sets the paint witness itself, after inheriting blankStrikes=3 in a shard.
+The hook runs the shards; CI still runs the whole file. Law: `test_a_sharded_suite_runs_every_case_once` (3/3 PROVEN).
+
+### REG-1739 - EVERY BATCH LOOK TOLD THE EYE ITS DIFF WAS TRUNCATED WHEN NOTHING WAS CUT (2026-10-02)
+
+The v3561 second eye answered cannot-tell: "the combined diff is truncated mid-file". It was not - 36,224 chars at every
+cap (72k, 110k, 160k). `payload_for` put the batch label ("covers A..B (N commits)") into the same `dropped` string that
+decides the "AND IT IS ALSO TRUNCATED" warning, so every --base look (and every default-range look) carried a false
+truncation warning, and this time the eye believed it. Whether the payload was CUT is now its own flag, asked before the
+label joins. Case + red-proof in `test_a_look_can_cover_a_batch` (5/5 PROVEN).
+
 ### REG-1738 - A RIVER NOBODY EVER STAMPED READ AS DRAINING (2026-10-02, #86 gap audit item 8)
 
 `river_stamp.rows()` answers an absent stamp log as measured-and-empty (`everStamped: False`), which is true of the

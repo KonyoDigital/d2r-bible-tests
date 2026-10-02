@@ -15193,6 +15193,21 @@ class TestNoSuiteImportsSomethingCIDoesNotHave(unittest.TestCase):
         here = os.path.dirname(os.path.abspath(__file__))
         repo_mods = {os.path.splitext(os.path.basename(p))[0]
                      for p in glob.glob(os.path.join(here, "*.py"))}
+        # ⚠ #42 (2026-10-02) - ONE PARSE PER MODULE, ONE LOOKUP PER NAME. This case was 271.6 s of test_control's 435.6 s
+        # (62%, measured per class): every suite that imports a repo module re-parsed that module - control_app.py, some
+        # 46k lines, once per suite that imports it - and asked importlib about the same names again and again. A run
+        # never changes a file under it, so each answer is computed once here. Same question, same verdict.
+        _deps, _third = {}, {}
+
+        def repo_deps(m):
+            if m not in _deps:
+                _deps[m] = self._repo_module_deps(here, m)
+            return _deps[m]
+
+        def third_party(m):
+            if m not in _third:
+                _third[m] = self._is_third_party(m)
+            return _third[m]
         bad = []
         for path in sorted(glob.glob(os.path.join(here, "test_*.py"))):
             with open(path, encoding="utf-8") as fh:
@@ -15217,8 +15232,8 @@ class TestNoSuiteImportsSomethingCIDoesNotHave(unittest.TestCase):
                         # for NINE consecutive runs while every local signal stayed green. The guard
                         # was right about its own question — "is this import third-party?" — and
                         # blind to the failure one level below it. [[the-unjoined-end]] §6
-                        for dep in self._repo_module_deps(here, m):
-                            if dep in repo_mods or not self._is_third_party(dep):
+                        for dep in repo_deps(m):
+                            if dep in repo_mods or not third_party(dep):
                                 continue
                             if dep not in self.ALLOWED_BARE:
                                 bad.append("%s:%d imports the repo module %r, which imports %r "
@@ -15226,7 +15241,7 @@ class TestNoSuiteImportsSomethingCIDoesNotHave(unittest.TestCase):
                                            % (os.path.basename(path),
                                               getattr(node, "lineno", 0), m, dep))
                         continue
-                    if not self._is_third_party(m):
+                    if not third_party(m):
                         continue
                     ok = (self.ALLOWED_GUARDED if id(node) in inside_try else self.ALLOWED_BARE)
                     if m not in ok:
@@ -22531,9 +22546,21 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
         names = [n for n, _ in cd.CHECKS]
         for s in cd.SLOW:
             self.assertIn(s, names, "%r is in SLOW and not on the roster at all" % s)
-        full = [r["check"] for r in cd.run(include_slow=True)]
+        # #42 (2026-10-02) - THE QUESTION IS WHICH CHECKS run() SELECTS, NOT WHAT THEY FIND. Running every real check
+        # cost 23.1 s of the push gate (measured per case); the same roster with stand-in checks drives the same
+        # selection loop, and nothing is written to the doctor's saved reading.
+        import unittest.mock as mock
+
+        def stand_in():
+            raise RuntimeError("stand-in")
+        with mock.patch.object(cd, "CHECKS", [(n, stand_in) for n in names]), \
+                mock.patch.object(cd, "_persist_slow", lambda rows: None):
+            full = [r["check"] for r in cd.run(include_slow=True)]
+            cheap = [r["check"] for r in cd.run(include_slow=False) if not r.get("notAsked")]
         for s in cd.SLOW:
             self.assertIn(s, full, "%r is skipped by BOTH the cheap and the full run" % s)
+        self.assertTrue(set(cd.SLOW) - set(cheap) or not cd.SLOW,
+                        "PREMISE: the cheap run skips none of SLOW, so this case cannot tell the two runs apart")
 
     def test_a_check_that_throws_becomes_UNKNOWN_not_a_crash(self):
         cd = self._cd()
@@ -37106,6 +37133,10 @@ class TestV2325SilenceFromAHiddenOrSleepingWindowProvesNothing(unittest.TestCase
         ca._UI_BEAT["t"] = time.time() - secs
         ca._UI_BEAT["mono"] = time.monotonic() - secs
         ca._UI_BEAT["hidden"] = hidden
+        # #42 - THIS CASE IS ABOUT SILENCE ALONE, SO IT SETS THE PAINT WITNESS TOO. Run as a shard after another class,
+        # it inherited blankStrikes=3 (a beat posted through a test server) and took the blank-page branch instead.
+        ca._UI_BEAT["blankStrikes"] = 0
+        ca._UI_BEAT["frozenBeats"] = 0
         ca._UI_RESCUE["last"] = 0.0
 
     def test_a_HIDDEN_window_is_never_rescued_however_long_it_is_quiet(self):
@@ -46073,6 +46104,14 @@ RED_PROOF = [
         "file": "BUGS.md",
         "find": "see REG-1507's ruling: keepFiling keeps it",
         "replace": "see REG-1462's ruling: keepFiling keeps it",
+        "matches": 1,
+    },
+    {
+        "why": "#42 - the doctor's full run skips the SLOW checks too, so a check moved to SLOW is run by nobody "
+               "(the watchdog case now drives the selection over stand-in checks instead of every real one)",
+        "file": "tv/console_doctor.py",
+        "find": "            if not include_slow and name in SLOW:\n",
+        "replace": "            if name in SLOW:\n",
         "matches": 1,
     },
 ]

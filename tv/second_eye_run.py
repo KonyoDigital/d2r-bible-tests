@@ -1133,6 +1133,10 @@ def payload_for(sha):
     # from any buffer here, it is missing from the QUESTION. Only git can see it. Deriving the list
     # from `body` would silently report 0 for exactly the v3333 case that prompted this.
     # [[unknown-stays-unknown]] [[the-unjoined-end]]
+    # ⚠ REG-1739 - WAS THE PAYLOAD CUT? Asked HERE, before the batch label below joins `dropped`: that label made
+    # every --base (and every default-range) look tell the eye "IT IS ALSO TRUNCATED" when nothing was cut, and the
+    # v3561 eye answered cannot-tell from that false warning ("the combined diff is truncated mid-file").
+    _cut = bool(dropped)
     absent, _nwhy = absent_from(sha, body)
     # v3363 - AND HOW MUCH OF EACH FILE THAT DID ARRIVE. Measured against the pre-truncation body,
     # so it isolates what the TRANSPORT lost; the comment strip and the ship-note strip are
@@ -1157,7 +1161,7 @@ def payload_for(sha):
                  % (_span, REVIEW_BASE[:8], sha[:8]))
         dropped = ((dropped + " - ") if dropped else "") + (
             "covers %s..%s (%s commits), not the bound commit alone" % (REVIEW_BASE[:8], sha[:8], _span))
-    if dropped:
+    if _cut:
         note += ("\nAND IT IS ALSO TRUNCATED — it stops part-way through, mid-file at a line "
                  "boundary. Do not report a function, statement or block as incomplete, "
                  "unterminated or missing a return merely because the excerpt stops before it "

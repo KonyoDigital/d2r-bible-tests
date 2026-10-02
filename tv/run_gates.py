@@ -8877,6 +8877,11 @@ GATES = [
          needs_app=False,
          why="REG-1731 (#86 gap audit 3/7/17/32) - the doctor's self_prove row read OK with the lane off over a census "
              "nobody will prove, and the HEART said WATCHED over a stale census (measured on his Mac 10-02: 31 owed)."),
+    Gate("test_a_sharded_suite_runs_every_case_once",
+         [sys.executable, os.path.join(HERE, "test_a_sharded_suite_runs_every_case_once.py")], 120,
+         needs_app=False,
+         why="#42 lever 4 - test_control runs as parallel shards at push time; a shard that ran fewer cases than it was "
+             "dealt, died before answering, or shared a fixed port must read RED, never 'fewer tests passed'."),
     Gate("test_a_padlock_asks_what_the_act_asks",
          [sys.executable, os.path.join(HERE, "test_a_padlock_asks_what_the_act_asks.py")], 90,
          needs_app=False,

@@ -207,6 +207,8 @@ tv/*.corrupt
 
 # runtime record of which shipped versions a DIFFERENT model family actually looked at
 tv/.second_eye.jsonl
+# #42 lever 4 - shard_suite's per-class cost: a per-machine scheduling hint, never a verdict
+tv/.suite_class_cost.json
 # ♥ HEART 2.0 runtime records. Same rule as .console_scars.json and .second_eye.jsonl above: these
 # are a record of what was MEASURED on one machine at one moment, not source. Committing them would
 # make one Mac's census read as the repo's truth, and a stale row would then be indistinguishable

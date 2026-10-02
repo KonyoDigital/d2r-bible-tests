@@ -89,6 +89,19 @@ class ALookCanCoverABatch(unittest.TestCase):
         self.assertIn("covers %s..%s (2 commits)" % (self.base[:8], self.bump[:8]), dropped,
                       "the row does not say what the look covered")
 
+    def test_a_batch_that_was_not_cut_is_never_called_truncated(self):
+        """REG-1739 - the batch label shared the truncation flag, so every --base look told the eye "IT IS ALSO
+        TRUNCATED" with nothing cut, and the v3561 eye answered cannot-tell from that false warning."""
+        from unittest import mock
+        SER.REVIEW_BASE = self.base
+        with mock.patch.dict(os.environ, {"SECOND_EYE_MAX_CHARS": "1000000"}):
+            prompt = SER.payload_for(self.bump)[0]
+        self.assertIn("SPANS", prompt, "PREMISE: this is not a batch look")
+        self.assertNotIn("ALSO TRUNCATED", prompt, "a payload that was not cut told the eye it was truncated")
+        with mock.patch.dict(os.environ, {"SECOND_EYE_MAX_CHARS": "120"}):
+            cut = SER.payload_for(self.bump)[0]
+        self.assertIn("ALSO TRUNCATED", cut, "PREMISE: a payload that WAS cut no longer says so")
+
     def test_every_changed_file_of_the_batch_is_on_the_roster(self):
         SER.REVIEW_BASE = self.base
         absent, why = SER.absent_from(self.bump, "")
@@ -158,6 +171,11 @@ class WithoutABaseTheLookIsTheVersionsRange(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-1739 - the batch label counts as a cut again: an uncut --base look tells the eye it is truncated",
+     "file": "second_eye_run.py",
+     "find": "    if _cut:\n        note += (\"\\nAND IT IS ALSO TRUNCATED",
+     "replace": "    if dropped:\n        note += (\"\\nAND IT IS ALSO TRUNCATED",
+     "matches": 1},
     {
         "why": "v3526 (#42) - the default look is the bump commit alone again",
         "file": "tv/second_eye_run.py",

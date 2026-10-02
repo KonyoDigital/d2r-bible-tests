@@ -881,7 +881,11 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
   if python3 "$REPO/tv/suite_verdict.py" --check test_control --wait 1500; then
     echo "pre-push: [$(_pp_el)] ✅ test_control: a green run of these exact bytes was reused (the line above names it)."
   else
-    if ! gate_run "test_control" "python3 tv/test_control.py" 1500 -- python3 "$REPO/tv/test_control.py"; then
+    # #42 lever 4 (2026-10-02) - AS PARALLEL SHARDS. Measured per class: one case was 271.6 s of 435.6 s (fixed in the
+    # suite: 133.6 s); then 4 shards by class ran all 2,259 cases in 66-88 s (3 green runs, his game running beside them).
+    # tv/shard_suite.py is green only when every shard ran every case it was dealt and every class was dealt - a shard
+    # that dies or runs less is RED. SUITE_SHARDS=1 runs it as one shard. CI still runs the whole file serially.
+    if ! gate_run "test_control" "python3 tv/shard_suite.py test_control" 1500 -- python3 "$REPO/tv/shard_suite.py" test_control; then
       exit 1
     fi
     python3 "$REPO/tv/suite_verdict.py" --record test_control || true
