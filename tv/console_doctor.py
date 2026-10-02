@@ -530,17 +530,25 @@ def _check_the_stash_bank():
     return UNKNOWN, line
 
 
-def _check_the_other_doctors():
-    """Call them, never re-implement them. [[copy-drift]]"""
+def _check_the_other_doctors(_run=None):
+    """Call them, never re-implement them. [[copy-drift]]
+
+    #86 gap audit 24 (REG-1726) — A DOCTOR THAT SAID NOTHING IS NOT A CLEAN REPORT. The count of its marks was the
+    whole verdict, so a sub-doctor that crashed (a traceback, no marks) read "0 green / 0 needs-you" and the row was
+    OK. Zero marks is now "it gave no verdict", with its exit code, and that is UNKNOWN. `_run` is a law's seam."""
+    _run = _run or subprocess.run
     out = []
     for mod, label in (("vault_doctor", "vault"), ("chronicle_doctor", "chronicle")):
         try:
-            r = subprocess.run([sys.executable, os.path.join(HERE, mod + ".py")],
-                               capture_output=True, text=True, encoding="utf-8", errors="replace", close_fds=False,
-                               timeout=600)
+            r = _run([sys.executable, os.path.join(HERE, mod + ".py")],
+                     capture_output=True, text=True, encoding="utf-8", errors="replace", close_fds=False,
+                     timeout=600)
             txt = (r.stdout or "") + (r.stderr or "")
             bad = txt.count("🟠") + txt.count("🔴")
             good = txt.count("🟢")
+            if not (good or bad):
+                out.append((label, None, "it exited %s and gave no verdict" % getattr(r, "returncode", "?")))
+                continue
             out.append((label, good, bad))
         except Exception as e:
             out.append((label, None, str(e)[:60]))

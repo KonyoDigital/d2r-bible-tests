@@ -199,6 +199,34 @@ class ARunThatMovedItsBytesStoresNothing(unittest.TestCase):
                           "a run that graded edited bytes was stored as the commit's verdict")
 
 
+class ARedRunSaysWhy(unittest.TestCase):
+    """2026-10-02 - a red run printed only `FAIL: <name>`, and a load-sensitive budget case had to be re-run by hand to
+    read its message. Now each assertion line is printed and the whole output is kept beside the store."""
+
+    def setUp(self):
+        self.d = _repo()
+        self.addCleanup(shutil.rmtree, self.d, True)
+        with io.open(os.path.join(self.d, "tv", "test_agent.py"), "w", encoding="utf-8") as fh:
+            fh.write("import sys\nprint('FAIL: test_x (__main__.T)')\n"
+                     "print('AssertionError: 4020 ms over the 3000 ms budget')\nprint('Ran 1 test in 0.0s')\n"
+                     "sys.exit(1)\n")
+        _git(self.d, "add", "-A")
+        _git(self.d, "commit", "-q", "-m", "red suite")
+
+    def test_the_assertion_is_printed_and_the_output_kept(self):
+        buf = io.StringIO()
+        with mock.patch("sys.stdout", buf):
+            ok, line = SV.run("test_agent", cwd=self.d)
+        said = buf.getvalue()
+        self.assertFalse(ok, "PREMISE: the planted suite did not fail")
+        self.assertIn("FAIL: test_x", said)
+        self.assertIn("AssertionError: 4020 ms over the 3000 ms budget", said, "a red run did not say WHY")
+        log = os.path.join(os.path.dirname(SV.store_path(self.d)), "suite_verdict_test_agent.red.log")
+        self.assertTrue(os.path.isfile(log), "the red output was not kept: %r" % said)
+        with io.open(log, encoding="utf-8") as fh:
+            self.assertIn("4020 ms over the 3000 ms budget", fh.read())
+
+
 class ThePushAsksBeforeEachHeavySuite(unittest.TestCase):
 
     def setUp(self):
@@ -267,6 +295,11 @@ RED_PROOF = [
         "replace": "    if False:\n",
         "matches": 1,
     },
+    {"why": "2026-10-02 - a red run names its cases and never says WHY: the assertion line goes unprinted again",
+     "file": "suite_verdict.py",
+     "find": "        for line in [l for l in out.splitlines() if l.startswith((\"AssertionError\", \"TimeoutError\"))][:12]:\n",
+     "replace": "        for line in []:\n",
+     "matches": 1},
 ]
 
 

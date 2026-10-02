@@ -406,6 +406,39 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1728 - test_heart ASKED HIS LIVE CONSOLE, 17 TIMES (2026-10-02)
+
+The CI preview of d281f592 was 782/783 green; the red was `test_heart` "timed out after 60s". Alone on his Mac it ran
+55 s, then 122 s; CI runs it in 10.5 s. **My first diagnosis was wrong and is withdrawn:** I read a parse warning in the
+output, blamed `lane_liveness` re-parsing control_app.py, built a memo - and test_heart got SLOWER. A profile of one
+case then said: 7.1 s of its 10.8 s waiting on a socket. `heart.vessels -> health_engine.report ->
+shelf_corroborate._live_sessions` asks `TV_CONTROL_PORT`, default **17772 - his console** - and the law never set it,
+so every case asked his live, busy console; on CI nothing listens and the ask fails at once. The memo was reverted
+unshipped. **Now:** the law takes a free port nobody listens on before anything imports (as CI sees it): 22 s on his Mac,
+and a case records every URL the heart asks and refuses the law if one names :17772 (stubbed, never sent).
+**The class, named and NOT yet swept:** 24 more laws import heart / health_engine / shelf_corroborate with no port
+isolation; which of them actually reach :17772 is UNMEASURED - one door (run_gates handing every gate a dead port
+unless it sets its own) is queued rather than 24 hand edits.
+[[test-venue]] [[feedback-suspect-the-instrument]]
+
+### REG-1727 - A RED SUITE RUN NAMED ITS CASE AND NEVER SAID WHY; THE REUSE HEADER PROMISED WHAT THE CODE NEVER DID (2026-10-02)
+
+(1) `suite_verdict.run` printed only `FAIL: <name>` for a red run - d281f592's test_control went red on
+`test_the_cheap_subset_is_actually_CHEAP` and the case had to be re-run by hand to learn it was the machine (alone:
+OK at load 7, dearest check 1,823 ms of a 3,000 ms budget). Each assertion line is now printed and the whole output kept
+beside the store (`suite_verdict_<name>.red.log`). (2) The #231 code seat on 86e2b3da: the module header said an in-flight
+run is "never started twice beside it", but `check` gives up at `--wait` and the hook then runs its own, and the hook's
+own run never marks itself in flight. The bounded wait is deliberate (a hung run must not hold a push hostage); the
+header now says exactly that and names the hook's unmarked run as its reach. (The same look's other two findings:
+the Windows probe was REG-1725, the corrupt store REG-1721.)
+
+### REG-1726 - A SUB-DOCTOR THAT CRASHED READ AS A CLEAN REPORT (2026-10-02, #86 gap audit 24)
+
+The console doctor's "the other doctors" row ran vault_doctor and chronicle_doctor and counted their marks; the count
+was the verdict, so a traceback with no marks read "vault 0 green / 0 needs-you" and the row was OK (driven on 09-29,
+still open on 10-02). No marks is now "it exited N and gave no verdict" - UNKNOWN. The run is a seam, nothing is
+started. Law: `test_a_doctor_that_said_nothing_is_not_clean` (3 cases; the sabotage turned 2 red).
+
 ### REG-1725 - MY NEW LIVENESS PROBE SENT A CTRL-C TO THE ALT'S PROVER; SEVEN MORE HAD THE SAME IDIOM (2026-10-02)
 
 `os.kill(pid, 0)` is the Unix "is it alive?". On Windows signal 0 IS CTRL_C_EVENT - GenerateConsoleCtrlEvent, and a

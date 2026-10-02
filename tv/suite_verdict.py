@@ -12,7 +12,11 @@ asks (`--check`) whether a GREEN run exists for these exact bytes. It reuses one
   * the same suite, the same python (major.minor) and the same platform
   * the run is younger than MAX_AGE_S - a suite has clocks in it, and a verdict nobody can age cannot keep its age
   * the run was GREEN - only a green run is ever stored, a red one is a finding, never a shortcut
-A run still in flight for the same key is WAITED for (`--check NAME --wait S`), never started twice beside it.
+A run still in flight for the same key is WAITED for (`--check NAME --wait S`) - up to S, and NO LONGER: past the
+deadline the push runs its own beside it, and the line says "a run of these bytes is still going". A hung run must not
+hold a push hostage. (The #231 eye on 86e2b3da: this header said "never started twice", which the code never did.)
+⚠ Only `--run` marks itself in flight. The hook's own suite run does not, so a second push of the same bytes on this
+machine does not wait for the first push's suite - the pushes are serial by habit (one push at a time), not by code.
 
 ⚠ ITS REACH, STATED (the same floor heart2's proof cache states): untracked files - his footage, the stores - are
 outside the key. The suites are built hermetic (fixture_tmp.contain, the isolation laws) and CI runs both suites in
@@ -248,9 +252,29 @@ def run(name, cwd=None):
     if not ok:                              # a red run names what failed, never only "RED"
         for line in [l for l in out.splitlines() if l.startswith(("FAIL:", "ERROR:"))][:12]:
             print("   " + line, flush=True)
+        # 2026-10-02 - AND SAYS WHY. A name alone sent a load-sensitive budget case to be re-run by hand just to read
+        # its message. Each failure's assertion line is printed, and the whole output is kept beside the store.
+        for line in [l for l in out.splitlines() if l.startswith(("AssertionError", "TimeoutError"))][:12]:
+            print("     " + line[:300], flush=True)
+        _log = _red_log(name, out, path)
+        if _log:
+            print("   the whole red output: %s" % _log, flush=True)
     return ok, "%s %s in %ss (%s cases)%s" % (name, "GREEN" if ok else "RED", secs, cases if cases is not None else "?",
                                                "" if stored else (" - not stored: %s" % why if (not key or moved) else
                                                                   (" - not stored" if ok else "")))
+
+
+def _red_log(name, out, path):
+    """Keep a red run's whole output beside the store. -> the log path, or None when it could not be written."""
+    if not path:
+        return None
+    try:
+        p = os.path.join(os.path.dirname(path), "suite_verdict_%s.red.log" % name)
+        with io.open(p, "w", encoding="utf-8") as fh:
+            fh.write(out)
+        return p
+    except Exception:
+        return None
 
 
 def check(name, wait_s=0, cwd=None, now=None):

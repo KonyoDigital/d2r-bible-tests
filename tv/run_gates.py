@@ -8815,6 +8815,12 @@ GATES = [
          why="REG-1720 (#42 lever 2) - the two python suites were most of every push, re-running a commit that had "
              "already passed them. A green run is reused only on the commit's exact tree, the same python, young, and "
              "never a red one; a run of the same bytes in flight is waited for; the hook asks before each heavy suite."),
+    Gate("test_a_doctor_that_said_nothing_is_not_clean",
+         [sys.executable, os.path.join(HERE, "test_a_doctor_that_said_nothing_is_not_clean.py")], 60,
+         needs_app=False,
+         why="REG-1726 (#86 gap audit 24) - the console doctor counted a sub-doctor's marks and called that the "
+             "verdict, so one that crashed (a traceback, no marks) read '0 green / 0 needs-you' and the row was OK. "
+             "No marks is now 'it gave no verdict', with its exit code - UNKNOWN."),
     Gate("test_a_liveness_probe_never_sends_ctrl_c_on_windows",
          [sys.executable, os.path.join(HERE, "test_a_liveness_probe_never_sends_ctrl_c_on_windows.py")], 90,
          needs_app=False,

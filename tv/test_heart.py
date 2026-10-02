@@ -8,6 +8,15 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
+# REG-1728 - THIS LAW ASKED HIS LIVE CONSOLE. heart.vessels -> health_engine.report -> shelf_corroborate._live_sessions
+# reads TV_CONTROL_PORT, default 17772 - his console: ~3.5 s a call on his Mac, 17 cases = 55-122 s against a 60 s
+# ceiling, while CI (no console there) ran the same law in 10.5 s. A free port nobody listens on answers at once, as on
+# CI, and the shelf witness reads UNKNOWN for the reason it really has. [[test-venue]]
+import socket as _socket  # noqa: E402
+_free = _socket.socket()
+_free.bind(("127.0.0.1", 0))
+os.environ["TV_CONTROL_PORT"] = str(_free.getsockname()[1])
+_free.close()
 import heart as H  # noqa: E402
 
 
@@ -19,6 +28,11 @@ RED_PROOF = [
         "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },
+    {"why": "REG-1728 - the law asks his LIVE console again: the shelf witness falls back to :17772",
+     "file": "test_heart.py",
+     "find": "os.environ[\"TV_CONTROL_PORT\"] = str(_free.getsockname()[1])\n",
+     "replace": "os.environ[\"TV_CONTROL_PORT\"] = \"17772\"\n",
+     "matches": 1},
 ]
 
 class _Fake(object):
@@ -299,6 +313,28 @@ class DarkTellsAWATCHMANFromAWORKER(_Swap):
                       "an unanswerable question was reported as a plain 'not a supervisor': %r"
                       % v["why"])
 
+
+
+class ItNeverAsksHisConsole(unittest.TestCase):
+    """REG-1728 - the shelf witness asks a console by TV_CONTROL_PORT; this law must never reach his (:17772)."""
+
+    def test_no_url_it_asks_names_his_port(self):
+        import urllib.request
+        from unittest import mock
+        asked = []
+        real = urllib.request.urlopen
+
+        def recording(url, *a, **k):
+            u = str(getattr(url, "full_url", url))
+            asked.append(u)
+            if ":17772/" in u:
+                raise OSError("refused by the law - never his console")   # recorded, never sent
+            return real(url, *a, **k)
+        with mock.patch.object(urllib.request, "urlopen", recording):
+            H.vessels()
+        self.assertTrue(asked, "PREMISE: the heart asked no console at all, so this case proves nothing")
+        self.assertEqual([u for u in asked if ":17772/" in u], [],
+                         "this law asked his LIVE console - a test that needs his machine runs nowhere else")
 
 if __name__ == "__main__":
     try:
