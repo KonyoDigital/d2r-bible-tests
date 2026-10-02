@@ -213,8 +213,9 @@ RED_PROOF = [
     {
         "why": "dropping the keys from the template means the model never returns them, however well the parser reads",
         "file": "tv/tv_diablo.py",
-        "find": '\'"quality":"white|blue|gold|unique|set|null",\'',
-        "replace": "''",
+        # v3554 (#146 3b) - the quality line now carries the point too ("xy"); the sabotage still drops the quality key
+        "find": '"quality":"white|blue|gold|unique|set|null","xy"',
+        "replace": '"xy"',
         "matches": 1,
     },
     {
