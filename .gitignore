@@ -224,6 +224,9 @@ tv/.self_prove.json.tmp
 # cache that travelled would let one Mac's proofs pass on a tree it never proved.
 tv/.heart2_cache.json
 tv/.heart2_cache.json.tmp
+# #42 lever 1 (REG-1710) - which cases caught each sabotage at push time, so the next push asks only those. Per machine.
+tv/.heart2_red.json
+tv/.heart2_red.json.tmp
 # v2861 — THE RENDER VERDICT IS A READING, NOT A CONTRACT. I shipped it TRACKED in v2859
 # and that is a stale-reading hazard with a passport: this Mac's "16/16 reported OK"
 # would travel to CI and to the Windows machine, where nothing rendered, and the heart

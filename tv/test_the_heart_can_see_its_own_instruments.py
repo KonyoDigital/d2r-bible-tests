@@ -376,7 +376,9 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
             # reached as the refusal MESSAGE's format argument, the guard being eight lines up (second eye).
             # test_a_proven_verdict_is_reused_only_on_identical_bytes drives that refusal.
             ok = (("STATE" in ctx) or ("PROPOSALS" in ctx) or ("tgt" in ctx) or ("_SANDBOX_OWNER" in ctx)
-                  or ("os.path.basename(self.path) != os.path.basename(CACHE)" in ctx))
+                  or ("os.path.basename(self.path) != os.path.basename(CACHE)" in ctx)
+                  # #42 lever 1 (REG-1710) — the red memory: heart2's own record beside CACHE, refused by name likewise
+                  or ('os.path.basename(RED_MEMORY) != ".heart2_red.json"' in ctx))
             self.assertTrue(ok,
                             "heart2.py writes at line %d to something that is neither its state "
                             "file, its proposals file, nor a sandbox target:\n%s" % (ln, ctx))

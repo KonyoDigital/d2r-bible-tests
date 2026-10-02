@@ -406,6 +406,23 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1710 - PUSHES WENT FROM 17 MINUTES TO 100+: EVERY test_control SABOTAGE RE-RAN ALL 2,259 CASES (#42, 2026-10-02)
+
+His question: "all these pushs are so long taking hours each ... we had pushes that were 17 minutes average. now they
+are each an hour plus the last couple days. is it because they are big?" **Measured from the push log:** not the size.
+The 17-20 minute pushes (04518e05, bcfc1328) proved in 5-9 minutes and never touched tv/test_control.py; every v3550+
+batch did, and a changed law must prove each sabotage - test_control's 6, plus a clean run, each a FULL run of 2,259
+cases (8-14 min), not cacheable (it lists a directory at run time). 99-101 minutes of proofs per push, then serial lanes
+(#144) and four refusals each re-paid it. **Built - the red memory:** at push time, a tampered run that goes red writes
+down which cases failed (tv/.heart2_red.json, per machine, gitignored); the next push asks only those cases - untampered
+first (must be green), tampered second (must be red). Only that pair is PROVEN; any other outcome (a renamed case, a
+subset that stays green, a run that cannot finish) falls back to the full proof unchanged, so the memory can only save
+time and can never grant a verdict the full run would refuse. **Measured:** one narrowed test_control run takes 0.3-0.5 s
+against 8-14 min. The first push that changes test_control after this still runs in full and teaches the memory.
+**Law:** test_a_proof_remembers_where_it_went_red - 7 cases through the real _prove_one and _run_gate (learn then
+narrow, stale memory relearns, a blind law is never PROVEN, a vanished case cannot fake a red, push-time only, closable),
+RED_PROOF 4/4 PROVEN. The instruments law's write guard names the memory's writer, which refuses any other file.
+
 ### REG-1709 - HE CHOSE GROK ONLY, AND TWO SUITES THAT ASSUMED CLAUDE WENT RED ON HIS MAC (2026-10-02)
 
 **Found** when the v3554 re-push refused at minute 14: test_control was ALREADY RED untampered in the push sandbox -

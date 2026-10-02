@@ -1285,6 +1285,7 @@ def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=N
     def _is_result(s):
         return s in ("OK", "FAILED") or s.startswith("OK (") or s.startswith("FAILED (")
     _lines = (r.stdout or b"").decode("utf-8", "replace").strip().splitlines()
+    _LAST_RED[threading.get_ident()] = _red_ids(_lines)     # #42 lever 1 — which cases went red, for the red memory
     _last = _lines[-1].strip() if _lines else ""
     _ran, _res, _ran_i = "", "", -1
     for _i in range(len(_lines) - 1, -1, -1):
@@ -1602,7 +1603,140 @@ _NAME_MAX = 240           # a string constant longer than this is prose, not a p
 #: (which names all of them) would miss on every push, and this cache would invalidate itself by being written. A record
 #: of a run cannot make a tamper stay green, so these are the one named exclusion; every other named file is keyed.
 _SELF_RECORDS = frozenset((".heart2.json", ".heart2_cache.json", ".heart2_cache.json.tmp", ".heart2_proposals.md",
-                           ".render_verdict.json"))
+                           ".render_verdict.json", ".heart2_red.json", ".heart2_red.json.tmp"))
+
+# ══ #42 lever 1 (REG-1710) — THE RED MEMORY: A PROOF REMEMBERS WHICH CASES CAUGHT IT ══════════════════════════════════
+# MEASURED 2026-10-02: pushes went from 17-20 minutes to 100+ because every batch touched tv/test_control.py, and each of
+# its 6 sabotages re-ran ALL 2,259 cases (8-14 min apiece) to learn what one or two cases already said. Now, at push time,
+# a tampered run that goes red writes down WHICH cases failed; the next push asks only those - untampered first (must be
+# green), then tampered (must be red). Both hold -> PROVEN in seconds. Anything else - a renamed case, a subset that
+# stays green, a run that cannot finish - falls back to today's FULL proof, so the memory can only ever save time, never
+# grant a verdict the full proof would refuse. Per machine, gitignored, beside .heart2_cache.json.
+#   HEART2_RED_MEMORY=0 closes it for one run (the cold half of a measurement).
+# The law: test_a_proof_remembers_where_it_went_red. [[regression-guard]] [[unknown-stays-unknown]]
+RED_MEMORY = os.path.join(HERE, ".heart2_red.json")
+RED_MEMORY_MAX = 2000      # entries kept; the oldest leave first
+RED_IDS_MAX = 60           # a sabotage that reddens more cases than this is asked in full anyway
+_RED_ID_RX = re.compile(r"^(?:FAIL|ERROR): (\w+) \(([\w.]+)\)")
+_RED_CASE_RX = re.compile(r"^[A-Za-z_]\w*\.test\w*$")
+_RED_LOCK = threading.Lock()
+_LAST_RED = {}             # thread id -> the red cases of that thread's last _run_gate (a side channel: stand-ins stay valid)
+
+
+def _red_ids(lines):
+    """The test cases a unittest run reported red. -> sorted ["Class.test_name", ...]
+
+    Reads both shapes unittest prints - `FAIL: test_x (__main__.Class)` (3.9) and `(__main__.Class.test_x)` (3.11+).
+    A class-level error (setUpClass, a module import) names no case a narrowed run could ask for, so it is dropped."""
+    out = set()
+    for ln in lines or ():
+        m = _RED_ID_RX.match(str(ln).strip())
+        if not m:
+            continue
+        test, where = m.group(1), m.group(2)
+        if where.startswith("__main__."):
+            where = where[len("__main__."):]
+        if not test.startswith("test"):
+            continue
+        cid = where if where.endswith("." + test) else "%s.%s" % (where, test)
+        if _RED_CASE_RX.match(cid):
+            out.add(cid)
+    return sorted(out)
+
+
+def _red_key(name, idx, pr):
+    """One sabotage's identity: the gate, the proof's place, and the exact bytes it tampers. -> hex | None"""
+    try:
+        blob = json.dumps([str(name), int(idx), str(pr.get("file") or ""), str(pr.get("find") or ""),
+                           str(pr.get("replace") or "")], ensure_ascii=False)
+    except Exception:
+        return None
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:24]
+
+
+def _red_load():
+    """-> the memory dict, {} when there is none yet, or None when it is closed (HEART2_RED_MEMORY=0)."""
+    if os.environ.get("HEART2_RED_MEMORY") == "0":
+        return None
+    if not os.path.exists(RED_MEMORY):
+        return {}                  # nothing learned on this machine yet: every proof runs in full
+    try:
+        with io.open(RED_MEMORY, encoding="utf-8") as fh:
+            d = json.load(fh)
+    except Exception as _re:
+        # said, never silent: an unreadable memory costs this push its narrowed proofs, and the reason is in the log
+        print("  ⚠ the red memory would not read (%s) - every proof runs in full this push" % type(_re).__name__)
+        return {}
+    return d if isinstance(d, dict) else {}
+
+
+def _red_recall(key):
+    d = _red_load()
+    e = (d or {}).get(key) if key else None
+    ids = e.get("ids") if isinstance(e, dict) else None
+    ids = [str(i) for i in ids if _RED_CASE_RX.match(str(i))] if isinstance(ids, list) else []
+    return ids[:RED_IDS_MAX] or None
+
+
+def _red_remember(key, name, idx, ids):
+    if not key or not ids or len(ids) > RED_IDS_MAX:
+        return
+    with _RED_LOCK:
+        d = _red_load()
+        if d is None:
+            return
+        d[key] = {"gate": str(name), "proof": int(idx), "ids": list(ids), "at": int(time.time() * 1000)}
+        if len(d) > RED_MEMORY_MAX:
+            for k in sorted(d, key=lambda k: (d[k] or {}).get("at") or 0)[:len(d) - RED_MEMORY_MAX]:
+                d.pop(k, None)
+        if os.path.basename(RED_MEMORY) != ".heart2_red.json":
+            return                 # the one file this writer may touch, by name - like CACHE's writer
+        tmp = RED_MEMORY + ".tmp"
+        try:
+            with io.open(tmp, "w", encoding="utf-8") as fh:
+                json.dump(d, fh, sort_keys=True)
+            os.replace(tmp, RED_MEMORY)
+        except Exception:
+            pass                   # a memory that cannot be written costs the next push time, never a verdict
+
+
+def _prove_narrow(sandbox, label, tgt, tgt_rel, find, repl, want, filename, timeout, w, ids, widths, say):
+    """#42 lever 1 — ONE proof, asked only of the cases that caught it before. -> PROVEN | None (decide in full)
+
+    Untampered, those cases must be GREEN (a renamed case, a red case or a run that cannot finish answers None); tampered,
+    they must be RED. Only that pair is a proof. Every other outcome returns None and the full proof decides - so a
+    BLIND law can never be called PROVEN here: its tampered subset stays green and the full run says BLIND."""
+    t0 = time.time()
+    args = list(ids)
+    ok_c, _tc = _run_gate(sandbox, filename, timeout=timeout, extra=args, script=None, **w)
+    if ok_c is not True:
+        return None
+    try:
+        with io.open(tgt, encoding="utf-8") as fh:
+            _orig = fh.read()
+    except Exception:
+        return None
+    got = _orig.count(find) if find else 0
+    if got < 1 or (want is not None and got != want):
+        return None
+    tampered = _orig.replace(find, repl) if want is None else _orig.replace(find, repl, want)
+    if tgt_rel.endswith(".py"):
+        try:
+            ast.parse(tampered)
+        except SyntaxError:
+            return None
+    with io.open(tgt, "w", encoding="utf-8") as fh:
+        fh.write(tampered)
+    try:
+        ok_t, _tt = _run_gate(sandbox, filename, timeout=timeout, extra=args, script=None, **w)
+    finally:
+        with io.open(tgt, "w", encoding="utf-8") as fh:
+            fh.write(_orig)
+    if ok_t is False:
+        say("     %-52s %s (%d match(es) tampered → red in the %d case(s) that caught it before, %.0f s)%s"
+            % (label, PROVEN, got, len(ids), time.time() - t0, _at_widths(widths)))
+        return PROVEN
+    return None
 
 
 def _sha_file(path, memo=None):
@@ -2933,6 +3067,13 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None):
     # single-lane path, so that path is unchanged; with lanes running it widens by a measured
     # factor so a verdict can never be decided by how many copies of the prover are busy.
     _to = int(_to * DEADLINE_SCALE) if _to else _to
+    # #42 lever 1 (REG-1710) — at push time, a plain unittest law whose sabotage was caught before is asked only of the
+    # cases that caught it. PROVEN there is a proof; anything else falls through to the full proof below, unchanged.
+    _rk = _red_key(name, idx, pr) if (_PUSH is not None and not _script and not _extra) else None
+    _rids = _red_recall(_rk) if _rk else None
+    if _rids and _prove_narrow(sandbox, label, tgt, tgt_rel, find, repl, want, filename, _to, _w, _rids, widths,
+                               say) == PROVEN:
+        return PROVEN
     _runs = getattr(_CLEAN, "runs", None)
     _ck = (filename, repr(_extra), repr(_script), _at_widths(widths), _to)
     _hit = _runs.get(_ck) if isinstance(_runs, dict) else None
@@ -3002,11 +3143,14 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None):
             return INVALID
     with io.open(tgt, "w", encoding="utf-8") as fh:
         fh.write(_tampered)
+    _LAST_RED.pop(threading.get_ident(), None)
     try:
         ok_tampered, tail2 = _run_gate(sandbox, filename, timeout=_to, extra=_extra, script=_script, **_w)
     finally:
         with io.open(tgt, "w", encoding="utf-8") as fh:
             fh.write(original)
+    if ok_tampered is False and _rk:
+        _red_remember(_rk, name, idx, _LAST_RED.pop(threading.get_ident(), None))   # #42 lever 1 — learn what caught it
 
     if ok_tampered is None:
         say("     %-52s %s — tampered run%s: %s" % (label, UNPROVABLE, _at_widths(widths), tail2))

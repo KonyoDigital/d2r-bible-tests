@@ -8801,6 +8801,14 @@ GATES = [
              "for the Chronicle sweep to stop before it ever asked the console, and quit at 20 minutes; his sweep read for "
              "3 h 45 min while the console had stopped counting it at 45. The bar now asks the console every tick, shows "
              "its reason, keeps watching past 20 minutes, and the console writes each change of its decision to the log."),
+    Gate("test_a_proof_remembers_where_it_went_red",
+         [sys.executable, os.path.join(HERE, "test_a_proof_remembers_where_it_went_red.py")], 90,
+         needs_app=False,
+         why="#42 lever 1 (REG-1710) - his question: 'all these pushs are so long taking hours each ... we had pushes "
+             "that were 17 minutes average'. Every batch touched test_control.py and each of its sabotages re-ran the "
+             "whole suite. At push time a red tampered run now records which cases caught it; the next push asks only "
+             "those (clean green, tampered red = PROVEN), and anything else falls back to the full proof - so the memory "
+             "can only save time, never grant a verdict."),
     Gate("test_every_vault_look_says_which_cell",
          [sys.executable, os.path.join(HERE, "test_every_vault_look_says_which_cell.py")], 90,
          needs_app=False,
