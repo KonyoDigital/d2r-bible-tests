@@ -426,9 +426,15 @@ fi
 # clip scan from 1613 to 1853 nodes and surfaced a second clipped label at 375 against a declared
 # floor of 1. heart-fan was RED in the working tree and the push went through clean.
 # The one change guaranteed to move the verdict was the one change that did not re-run it.
-if git diff --cached --name-only 2>/dev/null | grep -qE "^(bible\.html|tv/control_ui\.html|tv/render_check\.py|tv/render_coverage\.json)$"; then
+# ⚠ REG-1753 (#160) — A VERSION STAMP IS NOT A PAGE CHANGE. Every bump rewrites ONE line of bible.html
+# (window.D2R_BUILD), so keying this on the file NAME re-rendered the whole page for every console-only ship:
+# 46 of the last 80 bible.html commits changed nothing else, and render was 3-5 min of an 8-11 min gate.
+# tv/page_delta.py answers "changed beyond its stamp?" and FAILS CLOSED (anything it cannot read = changed).
+# The other three files still trigger on their name: any change to them can move the verdict.
+_px_watch='^(tv/control_ui\.html|tv/render_check\.py|tv/render_coverage\.json)$'
+if git diff --cached --name-only 2>/dev/null | grep -qE "$_px_watch" || python3 "$REPO/tv/page_delta.py" --cached; then
   _px_touched=1
-elif [ -n "$_px_range" ] && git diff --name-only "$_px_range" 2>/dev/null | grep -qE "^(bible\.html|tv/control_ui\.html|tv/render_check\.py|tv/render_coverage\.json)$"; then
+elif [ -n "$_px_range" ] && { git diff --name-only "$_px_range" 2>/dev/null | grep -qE "$_px_watch" || python3 "$REPO/tv/page_delta.py" --range "$_px_range"; }; then
   _px_touched=1
 fi
 if [ "$_px_touched" = "1" ]; then
@@ -968,7 +974,11 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   fi
 
   # smoke trigger: bible.html or any spec changed (or a brand-new branch)
-  if [ "$new_branch" = "1" ] || printf '%s\n' "$changed" | grep -Eq '^(bible\.html|tests/.*\.spec\.ts)$'; then
+  # REG-1753 (#160) — the smoke grades the PAGE; a bible.html whose only change is its build stamp gives it nothing
+  # new to grade (tv/page_delta.py, fail-closed). A spec change still runs it on the name alone.
+  if [ "$new_branch" = "1" ] || printf '%s\n' "$changed" | grep -Eq '^tests/.*\.spec\.ts$'; then
+    run=1
+  elif printf '%s\n' "$changed" | grep -Eq '^bible\.html$' && python3 "$REPO/tv/page_delta.py" --range "$remote_sha..$local_sha" </dev/null; then
     run=1
   fi
 
@@ -983,7 +993,7 @@ done <<< "$_PUSH_REFS"
 
 # ── 1. Smoke gate (blocks the push on failure) ───────────────────────────────
 if [ "$run" -eq 0 ]; then
-  echo "pre-push: [$(_pp_el)] no bible.html / spec changes in this push — skipping smoke."
+  echo "pre-push: [$(_pp_el)] no page change beyond its build stamp and no spec change in this push — skipping smoke."
 elif ! command -v npx >/dev/null 2>&1; then
   echo "pre-push: [$(_pp_el)] WARNING — npx not found on PATH; cannot run the smoke gate."
   echo "          Allowing the push, but please run 'npx playwright test' manually."

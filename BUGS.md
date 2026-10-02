@@ -406,6 +406,30 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1753 - A VERSION STAMP RE-RAN THE WHOLE PAGE GATE (2026-10-03, #160)
+
+His order: optimize push wall-clock before the handoff. Measured on the 10-02/10-03 pushes (all console-only):
+render 2m56s-5m04s and the Playwright smoke 2m06s-2m16s of an 8m16s-11m27s gate. Both were keyed on the file NAME
+`bible.html`, and every bump rewrites one line of it (`window.D2R_BUILD`, tv/bump_version.py) - 46 of the last 80
+commits that touched bible.html changed nothing else, so most pushes paid ~5-7 min to re-grade an unchanged page.
+`tv/page_delta.py` answers "changed beyond its stamp?" for the render trigger (index + range) and the smoke trigger
+(per ref); it FAILS CLOSED (a bad range, git failing, undecodable bytes = changed) and pins bump_version's WHOLE line,
+so code appended to the stamp is a page change. The badge that shows the stamp fits itself (v2466), so the stamp cannot
+clip anything a render catches. Deploy still keys on the name, so the new stamp still publishes. Guard:
+`tv/test_a_version_stamp_is_not_a_page_change.py` (13 cases, a real temp git repo both directions, the join to the
+stamp line in the tree, the hook wiring; 4 red-proofs).
+
+### REG-1752 - A RENDER FIXTURE WAS ERASED BY THE PAGE'S OWN LOAD-TIME ANSWER (2026-10-03, #160)
+
+Two pushes of v3567 refused on `pop-asks`: '#inbox-pop .ibx-ny-ask matched NOTHING' at 375, then at 375 and 901, while
+`python3 tv/render_check.py pop-asks` on the SAME tree rendered 1/1 at every width. The target adopts a fixture
+question (`_eagleNYAdopt`) and measures after a 4s warmup; the board's load-time `_eagleNYFetch` (/api/status) REPLACES
+the needs-you state wholesale when it lands, and under the full run's load it landed after the adopt and repainted the
+pop without the card. The activate now refuses until `#ibx-needsyou` (static markup) has left its pre-answer text
+'waiting-on-you: UNKNOWN' - any answer (clear/rows/unreachable/unmeasured) changes it - and the next fetch is 120s away;
+`activate_budget` 30s, `activateWhy` names the wait. Guard: `tv/test_a_render_fixture_waits_for_the_pages_own_answer.py`
+runs the REAL activate in node against a minimal page (5 cases, 2 red-proofs); skips as UNKNOWN where node is absent.
+
 ### REG-1751 - THE HEART COULD NOT SEE THE TRIAGE JOINS (2026-10-03, #152)
 
 His question: "this is all connected to the heart and blueprints ... wired and properly communicating?" The maps were

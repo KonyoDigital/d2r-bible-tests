@@ -341,6 +341,19 @@ GATES = [
              "walked all 423 frames and found no panel, and the river held it at TOMBSTONE: the owes-a-read rule "
              "behind the autoread, its offer list and the waiting count never asked the triage. It now calls "
              "retention's own reading (reel_retention._proven_empty); anything unproven still owes."),
+    Gate("test_a_version_stamp_is_not_a_page_change",
+         [sys.executable, os.path.join(HERE, "test_a_version_stamp_is_not_a_page_change.py")], 90,
+         needs_app=False,
+         why="REG-1753 (#160) - every bump rewrites ONE line of bible.html, and the pre-push hook keyed render (3-5 min) "
+             "and the Playwright smoke (~2 min) on the file NAME: 46 of the last 80 bible.html commits changed nothing "
+             "else. tv/page_delta.py answers 'changed beyond its stamp?' for both triggers and fails closed; a real "
+             "page change, or code on the stamp line, still runs both."),
+    Gate("test_a_render_fixture_waits_for_the_pages_own_answer",
+         [sys.executable, os.path.join(HERE, "test_a_render_fixture_waits_for_the_pages_own_answer.py")], 90,
+         needs_app=False,
+         why="REG-1752 (#160) - the pop-asks render target adopted its fixture before the board's own load-time "
+             "/api/status answer, which then repainted the pop without the card: two pushes refused on 10-03 while "
+             "the same tree rendered clean alone. The activate now waits for that first answer."),
     Gate("test_a_sandbox_is_removed_whatever_its_bits",
          [sys.executable, os.path.join(HERE, "test_a_sandbox_is_removed_whatever_its_bits.py")], 90,
          needs_app=False,

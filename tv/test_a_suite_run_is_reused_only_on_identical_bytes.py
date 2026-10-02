@@ -207,6 +207,38 @@ class ARunThatMovedItsBytesStoresNothing(unittest.TestCase):
         self.assertNotIn("unchanged", line)
 
 
+class ARunGoesThroughTheHooksDoor(unittest.TestCase):
+    """REG-1754 (#160) - --run test_control goes through tv/shard_suite.py, the door the push hook uses; a serial run
+    (~574 s) started ahead of a push finished after the push's own sharded run (~2 min), so pre-running bought nothing"""
+
+    def setUp(self):
+        self.d = _repo()
+        self.addCleanup(shutil.rmtree, self.d, True)
+        self.mark = tempfile.mkdtemp(prefix="sv_door_")
+        self.addCleanup(shutil.rmtree, self.mark, True)
+        plant = ("import io, os, sys\nio.open(os.path.join(os.environ['SV_DOOR_MARK'], '%s'), 'w').write(' '.join(sys.argv[1:]))\n"
+                 "print('Ran 1 test in 0.0s')\n")
+        for fn, tag in (("shard_suite.py", "shard"), ("test_control.py", "serial"), ("test_agent.py", "agent")):
+            with io.open(os.path.join(self.d, "tv", fn), "w", encoding="utf-8") as fh:
+                fh.write(plant % tag)
+        _git(self.d, "add", "-A")
+        _git(self.d, "commit", "-q", "-m", "door")
+        os.environ["SV_DOOR_MARK"] = self.mark
+        self.addCleanup(os.environ.pop, "SV_DOOR_MARK", None)
+
+    def test_test_control_runs_as_shards(self):
+        ok, line = SV.run("test_control", cwd=self.d)
+        self.assertTrue(ok, line)
+        ran = sorted(os.listdir(self.mark))
+        self.assertEqual(ran, ["shard"], "--run test_control did not go through shard_suite: ran %r" % ran)
+        self.assertEqual(io.open(os.path.join(self.mark, "shard"), encoding="utf-8").read(), "test_control")
+
+    def test_test_agent_still_runs_its_own_file(self):
+        ok, line = SV.run("test_agent", cwd=self.d)
+        self.assertTrue(ok, line)
+        self.assertEqual(sorted(os.listdir(self.mark)), ["agent"])
+
+
 class ARedRunSaysWhy(unittest.TestCase):
     """2026-10-02 - a red run printed only `FAIL: <name>`, and a load-sensitive budget case had to be re-run by hand to
     read its message. Now each assertion line is printed and the whole output is kept beside the store."""
@@ -315,6 +347,11 @@ RED_PROOF = [
      "file": "suite_verdict.py",
      "find": "    if moved:          # REG-1733 (the #231 eye on 100d1203) - a RED run whose tree moved said \"the commit's tree, unchanged\"\n",
      "replace": "    if ok and moved:\n",
+     "matches": 1},
+    {"why": "REG-1754 - --run back on the serial file: a pre-run of test_control outlasts the push it was meant to spare",
+     "file": "suite_verdict.py",
+     "find": "SHARDED = frozenset((\"test_control\",))\n",
+     "replace": "SHARDED = frozenset()\n",
      "matches": 1},
 ]
 

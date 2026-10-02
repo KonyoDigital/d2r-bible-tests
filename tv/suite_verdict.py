@@ -57,6 +57,8 @@ STORE_MAX = 200
 SELF_RECORDS = frozenset(("tv/.self_arming.jsonl", "tv/.heart2.json", "tv/.render_verdict.json"))
 #: per-suite bound for --run (the hook's own ceiling for test_control)
 RUN_TIMEOUT_S = {"test_agent": 600, "test_control": 1500}
+#: suites the push hook runs through tv/shard_suite.py - --run uses the same door (REG-1754)
+SHARDED = frozenset(("test_control",))
 
 
 def _git(args, cwd=None):
@@ -236,9 +238,14 @@ def run(name, cwd=None):
     src = os.path.join(cwd or REPO, "tv", name + ".py")
     if key and path:
         _inflight_set(name, key, os.getpid(), path)
+    # REG-1754 (#160) - THE SAME DOOR AS THE HOOK. The push runs test_control as parallel shards (tv/shard_suite.py,
+    # ~2 min); --run ran the file serially (~574 s), so a run started ahead of a push finished AFTER the push's own
+    # sharded run would have, and pre-running bought nothing. Same suite, same union verdict, its own ports.
+    argv = ([sys.executable, os.path.join(cwd or REPO, "tv", "shard_suite.py"), name] if name in SHARDED
+            else [sys.executable, src])
     t0 = time.time()
     try:
-        p = subprocess.run([sys.executable, src], cwd=cwd or REPO, capture_output=True, text=True, encoding="utf-8",
+        p = subprocess.run(argv, cwd=cwd or REPO, capture_output=True, text=True, encoding="utf-8",
                            errors="replace", timeout=RUN_TIMEOUT_S.get(name, 1500))
         out = (p.stdout or "") + (p.stderr or "")
         ok = p.returncode == 0

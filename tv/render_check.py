@@ -1379,6 +1379,16 @@ TARGETS = {
         "activate": """(function(){
             var A = {id:'fixture-ask', kind:'decide', fp:'fixture:1', q:'FIXTURE - should the console ask you before it ticks a grail item by itself?', answers:[{key:'keep',label:'Keep it as it is',effect:'ruled'},{key:'stricter',label:'Ask me more often',effect:'handoff'},{key:'week',label:'Remind me in a week',effect:'snooze'}]};
             if (typeof window._eagleNYAdopt !== 'function' || typeof window.inboxPopTog !== 'function') return false;
+            /* REG-1752 (#160) - WAIT FOR THE PAGE'S OWN FIRST ANSWER BEFORE ADOPTING THE FIXTURE. The board asks
+               /api/status once at load and every 120s, and that answer REPLACES the needs-you state wholesale. On
+               two pushes of 10-03 the load-time answer landed AFTER this adopt, inside the 4s warmup, and repainted
+               the pop without the fixture card: '#inbox-pop .ibx-ny-ask matched NOTHING' at 375 (then 375+901),
+               while the same tree rendered 1/1 at every width run alone. Until that first answer, #ibx-needsyou
+               (static markup) reads exactly 'waiting-on-you: UNKNOWN'; any answer - clear, rows, unreachable,
+               unmeasured - changes it. So refuse until it has changed; the next fetch is 120s away. */
+            var _ny = document.getElementById('ibx-needsyou');
+            var _nyT = String((_ny && _ny.textContent) || '').replace(/\\s+/g, ' ').trim();
+            if (!_nyT || /waiting-on-you: UNKNOWN$/.test(_nyT)) return false;
             window._eagleNYAdopt({needsYou:1, needsYouWhat:['shadow gate'], answeredWhat:[], mine:0, mineWhat:[], byDesign:0, byDesignWhat:[], noQuestionWhat:[], unknown:0, say:'1 need you', rows:[{check:'shadow gate', state:'missing', why:'On 57 of the 451 item names ever scored, the console ticked the item by itself where a stricter rule would have asked first.', asks:[A], openAsks:[A]}], slowRows:[]});
             /* ⚠ NOT renderInboxFab() BY NAME. The adopt must reach the pop on its own (the paint's
                question-signature hook); a harness that drew the pop itself would prove its own call. */
@@ -1395,6 +1405,10 @@ TARGETS = {
             });
             return !!(r.width > 2 && r.height > 2 && allHit); })()""",
         "activateWhy": """(function(){
+            var _ny = document.getElementById('ibx-needsyou');
+            var _nyT = String((_ny && _ny.textContent) || '').replace(/\\s+/g, ' ').trim();
+            if (!_nyT || /waiting-on-you: UNKNOWN$/.test(_nyT))
+                return 'the page never got its own first /api/status answer, so a fixture adopted now would be overwritten by it (REG-1752)';
             var pop = document.getElementById('inbox-pop');
             if (!pop) return 'no #inbox-pop (renderInboxFab never ran)';
             var q = pop.querySelector('.ibx-ny-ask');
@@ -1405,6 +1419,9 @@ TARGETS = {
         "sel": "#inbox-pop .ibx-ny-ask",
         "settles": False,
         "warmup": 4.0,
+        # REG-1752 - the activate now waits for the sandbox console's own first /api/status answer, which took
+        # longer than the 12s default under the full render run's load; the refusal still fires if it never comes.
+        "activate_budget": 30.0,
         "widths": ((1440, 1000), (901, 900), (375, 800)),
     },
     "state-asks": {
