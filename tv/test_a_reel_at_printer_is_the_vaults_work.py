@@ -239,6 +239,21 @@ class TheTriageHasRuled(unittest.TestCase):
             self.assertTrue(SD.vault_owes_read("no-witness-index", "PRINTER", "reel_s_1500000000006_99999"),
                             "PREMISE: a reel the triage did NOT rule on must still owe on a fresh PC")
 
+    def test_a_triage_that_cannot_answer_keeps_the_read_owed(self):
+        """REG-1749 (the v3566 second eye) - an error while asking the triage is NOT PROVEN, never "empty": the read
+        stays owed, the triage's own rule ("NOT SURVEYED IS NOT EMPTY - the unknown case must fall on the keep side").
+        The eye was right that no case exercised the except path; this one does."""
+        import frame_authority as FA
+        import reel_retention as rr
+
+        def boom(_r):
+            raise RuntimeError("law: the triage store will not read")
+        with mock.patch.object(rr, "_proven_empty", boom), \
+                mock.patch.object(FA, "witness_index", lambda root=None: {"ok": True, "haveIndex": False}):
+            self.assertTrue(SD.vault_owes_read("no-witness-index", "PRINTER", self.EMPTY),
+                            "a triage that raised was read as 'proven empty' and the reel was dropped - UNKNOWN "
+                            "must keep the read owed")
+
     def test_no_reel_named_decides_as_before(self):
         with self._proven(self.EMPTY):
             self.assertTrue(SD.vault_owes_read("vault-owes", "PRINTER"),
@@ -329,6 +344,11 @@ RED_PROOF = [
      "file": "tv/control_app.py",
      "find": "            _ruled += 1                  # REG-1751 - counted from the same triage reading the rule asks\n",
      "replace": "            pass\n",
+     "matches": 1},
+    {"why": "REG-1749 - a triage that cannot answer is taken as proven empty: the read is dropped on an error",
+     "file": "tv/shelf_driver.py",
+     "find": "        return bool(_rr._proven_empty(_os.path.basename(str(reel))))\n    except Exception:\n        return False\n",
+     "replace": "        return bool(_rr._proven_empty(_os.path.basename(str(reel))))\n    except Exception:\n        return True\n",
      "matches": 1}
 ]
 
