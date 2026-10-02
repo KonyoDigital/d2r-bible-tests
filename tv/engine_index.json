@@ -1323,6 +1323,16 @@
     "purpose": "Counts hit-tested text-on-text overlaps per page per viewport width and grades them as a ratchet against a recorded baseline — the class render_check cannot see.",
     "territory": "render-pixels"
   },
+  "page_delta.py": {
+    "entryPoints": [
+      "stamp_only",
+      "page_changed",
+      "main"
+    ],
+    "gotcha": "FAILS CLOSED: anything it cannot read (a bad range, git failing, undecodable bytes) answers CHANGED so the gates run. It pins bump_version's WHOLE stamp line, so code appended to the stamp is a page change; if bump_version's format moves, every bump reads as a page change (the law test_a_version_stamp_is_not_a_page_change goes red on the tree's own stamp). Only the render/smoke TRIGGERS ask it; deploy still keys on the file name.",
+    "purpose": "#160 (REG-1753) - the pre-push hook asks it whether bible.html changed beyond its build stamp (window.D2R_BUILD, rewritten by every bump) before running the render gate and the Playwright smoke; a stamp-only change re-grades nothing, so a console-only versioned push skips ~5-7 min.",
+    "territory": "heart-organs"
+  },
   "paint_witness.py": {
     "entryPoints": [
       "look",
