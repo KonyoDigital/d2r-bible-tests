@@ -21240,9 +21240,10 @@ window._lockMark = function(isOpen, px, label){
       var sub = (st.hasSubscription != null) ? st.hasSubscription : st.hasKey;
       var cli = st.cliInstalled;
       var authorized = st.authorized;
-      if (st.needsInstall || cli === false)
+      var _gNeed = g5GrokNeeds(st);        // the ONE readiness rule - the switch's popup asks it too
+      if (_gNeed === 'install')
         bits.push('install Grok CLI via TV installer (or: irm https://x.ai/cli/install.ps1 | iex)');
-      else if (st.needsLogin || (cli && !authorized && !sub))
+      else if (_gNeed === 'login')
         bits.push('click ⚡ Authorize — browser SuperGrok login once · NO API keys');
       else if (intent === 'only') bits.push('GROK ONLY · Grok reads every frame · Claude is not asked at all');
       else if (mode === 'off') bits.push('CLAUDE ONLY · Claude reads every frame · Grok off');
@@ -21399,6 +21400,34 @@ window._lockMark = function(isOpen, px, label){
         paintG5(null, String((e && e.message) || e).slice(0, 60));
       }
     }
+    /* 2026-10-02 his ask: "it doesnt mention CLAUDE IS ON like the others do for grok.. the popups need updating and
+       matching. meaning for both it should say both online". The popup a switch press opens said "Grok Eyes → off" -
+       the code's word for CLAUDE ONLY - so it named nobody who reads. It now names who reads in the position he
+       picked. Grok's readiness is ONE rule (g5GrokNeeds - the line under the switch asks it too); Claude's comes
+       from the reader lamps' last reading (window.__rl, painted in the other script block). A reader not linked on
+       this PC is SAID, never called online, and an unmeasured one says so. [[unknown-stays-unknown]] [[copy-drift]] */
+    function g5GrokNeeds(st){
+      if (!st || typeof st !== 'object') return 'unknown';
+      var sub = (st.hasSubscription != null) ? st.hasSubscription : st.hasKey;
+      var cli = st.cliInstalled;
+      if (st.needsInstall || cli === false) return 'install';
+      if (st.needsLogin || (cli && !st.authorized && !sub)) return 'login';
+      return null;
+    }
+    function g5SwitchSay(mode, st){
+      var rl = (window.__rl && window.__rl.last) || {};
+      var c = rl.claude && rl.claude.state;
+      var cOn = (c === 'on');
+      var gNeed = g5GrokNeeds(st);
+      var cW = cOn ? 'Claude online' : (c === 'off' ? 'Claude NOT connected on this PC' : 'Claude not measured yet');
+      var gW = !gNeed ? 'Grok online'
+             : (gNeed === 'install' ? 'Grok NOT installed on this PC'
+             : (gNeed === 'login' ? 'Grok NOT signed in on this PC' : 'Grok not measured yet'));
+      if (mode === 'off') return '👁 EYES → CLAUDE ONLY · ' + cW + ' · Grok off';
+      if (mode === 'only') return '👁 EYES → GROK ONLY · ' + gW + ' · Claude not asked';
+      if (mode === 'shadow') return '👁 EYES → ← BOTH → · ' + ((cOn && !gNeed) ? 'Claude + Grok both online' : (cW + ' · ' + gW));
+      return '👁 EYES → ' + mode;
+    }
     async function setG5(mode){
       for (var i = 0; i < btns.length; i++) btns[i].disabled = true;
       try {
@@ -21408,9 +21437,9 @@ window._lockMark = function(isOpen, px, label){
         });
         var st = await r.json();
         paintG5(st);
-        try { toast('Grok Eyes → ' + (st.switch || mode)); } catch (e2) {}
+        try { toast(g5SwitchSay((st && (st.switch || st.mode)) || mode, st)); } catch (e2) {}
       } catch (e){
-        try { toast('Grok Eyes toggle failed'); } catch (e3) {}
+        try { toast('👁 EYES switch did not answer - reload to see which position is set'); } catch (e3) {}
       }
       for (var j = 0; j < btns.length; j++) btns[j].disabled = false;
     }

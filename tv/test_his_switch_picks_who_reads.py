@@ -23,6 +23,7 @@ import io
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -284,6 +285,62 @@ class ThePageOffersThreePositions(unittest.TestCase):
         self.assertNotIn('data-g5="primary"', ui, "Grok-first came back to the page")
 
 
+class ThePopupNamesWhoReads(unittest.TestCase):
+    """His ask 2026-10-02: the popup a switch press opens "doesnt mention CLAUDE IS ON like the others do for grok ...
+    for both it should say both online". Drives the page's REAL setG5 - its fetch and toast stubbed - in node."""
+
+    NODE = shutil.which("node")
+
+    def _run(self, cases):
+        if not self.NODE:
+            self.skipTest("node is absent - the page's own switch cannot be driven here, UNMEASURED")
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            ui = fh.read()
+        a_mark, b_mark = "    function g5GrokNeeds(st){\n", "    async function authorizeG5(){\n"
+        self.assertEqual((ui.count(a_mark), ui.count(b_mark)), (1, 1), "the switch's code moved - re-anchor this law")
+        a = ui.index(a_mark)
+        b = ui.index(b_mark, a)
+        prog = (u"var window = {}, TOASTS = [], ST = null, API = '', btns = [];\n"
+                u"function paintG5(){}\nfunction toast(m){ TOASTS.push(m); }\n"
+                u"function fetch(){ return Promise.resolve({ json: function(){ return ST; } }); }\n"
+                + ui[a:b] +
+                u"\nvar CASES = " + json.dumps(cases) + u", OUT = [];\n"
+                u"CASES.reduce(function(p, c){ return p.then(function(){ window.__rl = c.rl; ST = c.st; TOASTS.length = 0;"
+                u" return setG5(c.mode).then(function(){ OUT.push(TOASTS.slice()); }); }); }, Promise.resolve())"
+                u".then(function(){ process.stdout.write(JSON.stringify(OUT)); });\n")
+        r = subprocess.run([self.NODE, "-"], input=prog, capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr[-800:])
+        return [t[0] if t else None for t in json.loads(r.stdout)]
+
+    LINKED = {"cliInstalled": True, "authorized": True, "hasSubscription": True}
+    SIGNED_OUT = {"cliInstalled": True, "authorized": False, "hasSubscription": False}
+    C_ON = {"last": {"claude": {"state": "on"}}}
+    C_OFF = {"last": {"claude": {"state": "off"}}}
+
+    def test_each_position_names_who_reads(self):
+        got = self._run([
+            {"mode": "off", "rl": self.C_ON, "st": dict(self.LINKED, switch="off")},
+            {"mode": "shadow", "rl": self.C_ON, "st": dict(self.LINKED, switch="shadow")},
+            {"mode": "only", "rl": self.C_ON, "st": dict(self.LINKED, switch="only")}])
+        self.assertEqual(got[0], u"\U0001f441 EYES → CLAUDE ONLY · Claude online · Grok off")
+        self.assertEqual(got[1], u"\U0001f441 EYES → ← BOTH → · Claude + Grok both online")
+        self.assertEqual(got[2], u"\U0001f441 EYES → GROK ONLY · Grok online · Claude not asked")
+
+    def test_both_never_claims_a_reader_that_is_not_linked(self):
+        got = self._run([
+            {"mode": "shadow", "rl": self.C_ON, "st": dict(self.SIGNED_OUT, switch="shadow")},
+            {"mode": "shadow", "rl": self.C_OFF, "st": dict(self.LINKED, switch="shadow")}])
+        self.assertNotIn("both online", got[0])
+        self.assertIn("Grok NOT signed in on this PC", got[0])
+        self.assertNotIn("both online", got[1])
+        self.assertIn("Claude NOT connected on this PC", got[1])
+
+    def test_an_unmeasured_reader_says_so(self):
+        got = self._run([{"mode": "off", "rl": None, "st": None}, {"mode": "only", "rl": self.C_ON, "st": None}])
+        self.assertIn("Claude not measured yet", got[0])
+        self.assertIn("Grok not measured yet", got[1])
+
+
 RED_PROOF = [
     {
         "why": "#151 - the heart stops saying that a GROK ONLY console cannot read",
@@ -353,6 +410,34 @@ RED_PROOF = [
         "file": "control_ui.html",
         "find": " data-g5=\"only\" id=\"btn-g5-only\"",
         "replace": " data-g5=\"shadow\" id=\"btn-g5-only\"",
+        "matches": 1,
+    },
+    {
+        "why": "2026-10-02 - the switch's popup names a mode word again (\"Grok Eyes -> off\"), not who reads",
+        "file": "control_ui.html",
+        "find": "        try { toast(g5SwitchSay((st && (st.switch || st.mode)) || mode, st)); } catch (e2) {}\n",
+        "replace": "        try { toast('Grok Eyes → ' + (st.switch || mode)); } catch (e2) {}\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-10-02 - BOTH says both online while Grok is signed out or Claude is disconnected",
+        "file": "control_ui.html",
+        "find": "((cOn && !gNeed) ? 'Claude + Grok both online' : (cW + ' · ' + gW))",
+        "replace": "'Claude + Grok both online'",
+        "matches": 1,
+    },
+    {
+        "why": "2026-10-02 - an unmeasured Claude is called online",
+        "file": "control_ui.html",
+        "find": "      var cOn = (c === 'on');\n",
+        "replace": "      var cOn = (c !== 'off');\n",
+        "matches": 1,
+    },
+    {
+        "why": "2026-10-02 - the one Grok readiness rule forgets a signed-out Grok",
+        "file": "control_ui.html",
+        "find": "      if (st.needsLogin || (cli && !st.authorized && !sub)) return 'login';\n",
+        "replace": "",
         "matches": 1,
     },
 ]
