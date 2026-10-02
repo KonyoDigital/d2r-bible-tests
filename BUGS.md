@@ -419,7 +419,7 @@ shard, so zero-cost classes piled onto one (183 of 483) - ties now go to the sha
 timeout ended a shard but not what it started - each shard is its own process group, ended whole and reaped; (4) two
 writers shared one cost temp file - one per pid. Routine I's v602 Double Bow card went red once on 22a2f0c3 (7 green
 before, only the D2R_BUILD line changed in bible.html; fixed 1.8 s waits) - re-run on CI. Law:
-`test_a_sharded_suite_runs_every_case_once` (11 cases, 7/7 PROVEN).
+`test_a_sharded_suite_runs_every_case_once` (11 cases, 7/7 PROVEN). And the #231 code seat on 37e9a984: the "every class was dealt" check compared SUMS - dropping one class and dealing a same-size class twice summed equal; it compares the NAMES now (12 cases, 8/8 PROVEN).
 
 ### REG-1741 - A BUMP NOTE THAT OPENED WITH ITS VERSION PRINTED IT TWICE (2026-10-02, the #231 code seat on 065f5433)
 

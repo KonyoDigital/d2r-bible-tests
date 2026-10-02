@@ -144,6 +144,15 @@ class TheUnionIsTheVerdict(unittest.TestCase):
         ok, rep = SS.run("plant_empty", 2, here=self.d, cost_path=self.cost)
         self.assertFalse(ok, "a suite with no cases read green")
 
+    def test_a_plan_that_swaps_a_class_for_a_same_size_twin_is_red(self):
+        """The #231 code seat on 37e9a984: the dealt check compared SUMS, so dropping Beta (1 case) and dealing Delta
+        (1 case) twice summed equal, every shard ran what it was dealt, and the run read green."""
+        from unittest import mock
+        bad = lambda classes, k, costs: [["Alpha", "Delta"], ["Gamma", "Eta", "Delta"]]
+        with mock.patch.object(SS, "deal", bad):
+            ok, rep = self._run(k=2)
+        self.assertFalse(ok, "a plan that lost Beta and ran Delta twice read green: %r" % rep)
+
     def test_no_two_shards_share_a_port(self):
         ok, rep = self._run(k=4)
         self.assertTrue(ok, rep)
@@ -154,6 +163,11 @@ class TheUnionIsTheVerdict(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "the #231 code seat - the dealt check compares sums again: a lost class with a same-size twin reads green",
+     "file": "shard_suite.py",
+     "find": "    if _dealt != sorted(found):\n",
+     "replace": "    if sum(s[\"want\"] for s in shards) != expected:\n",
+     "matches": 1},
     {"why": "the v3562 eye - shards that cover fewer cases than the module loads read green again",
      "file": "shard_suite.py",
      "find": "    elif full is not None and full != expected:\n",

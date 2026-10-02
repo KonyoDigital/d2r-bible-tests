@@ -172,7 +172,10 @@ def run(suite, k=4, here=HERE, cost_path=COST, _classes=None, _env=None):
                        "failures": res and res.get("failures"), "errors": res and res.get("errors"),
                        "log": os.path.join(tmp, "shard%d.log" % i), "cost": (res or {}).get("cost") or {}})
     # two checks, two jobs: each shard ran what it was DEALT (above); every class the loader FOUND was dealt (here)
-    if sum(s["want"] for s in shards) != expected:
+    # by NAME, never by sum (the #231 code seat on 37e9a984): a plan that dropped one class and dealt another of the
+    # same size twice summed equal and read green
+    _dealt = sorted(n for _i, names, _l, _p in procs for n in names)
+    if _dealt != sorted(found):
         ok = False
     # ⚠ AND THE CLASSES ARE THE WHOLE SUITE (the v3562 eye): `python3 suite.py` loads the MODULE - a load_tests hook or
     # a TestCase imported from elsewhere adds cases no class walk sees. Shards that cover less than the loader would run
