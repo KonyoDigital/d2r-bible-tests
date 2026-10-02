@@ -30271,7 +30271,7 @@ class TestV2184EveryLiveStateFileIsGitignored(unittest.TestCase):
         self.assertGreater(len(names), 5,
                            "run_gates._LIVE_STATE has only %d entries — this guard has lost its "
                            "subject and would pass on an empty list" % len(names))
-        leaked = []
+        leaked, unasked = [], []
         for n in names:
             rel = os.path.join("tv", n)
             if not os.path.exists(os.path.join(repo, rel)):
@@ -30280,8 +30280,17 @@ class TestV2184EveryLiveStateFileIsGitignored(unittest.TestCase):
                 pass
             r = subprocess.run(["git", "check-ignore", "-q", rel],
                                cwd=repo, capture_output=True)
-            if r.returncode != 0:
+            # 2026-10-02 - check-ignore answers 0 (ignored) or 1 (NOT ignored); anything else is git failing to answer at
+            # all. MEASURED: 128 "not a git repository" in a heart2 sandbox built from a linked worktree, whose .git is a
+            # pointer file the sandbox leaves out - and this read all 20 files as leaking. Nobody asked is not a leak.
+            if r.returncode == 1:
                 leaked.append(rel)
+            elif r.returncode != 0:
+                unasked.append((rel, r.returncode))
+        if unasked and len(unasked) == len(names):
+            self.skipTest("git could not answer here (exit %d: %s) - whether these files are ignored is "
+                          "UNMEASURED in this checkout, not clean" % (unasked[0][1], (r.stderr or b"")[:80]))
+        self.assertEqual(unasked, [], "git answered for some live-state files and failed on these: %s" % unasked)
         self.assertEqual(leaked, [], "these files the console WRITES AT RUNTIME are not "
                                      "gitignored, so `git add -A` will commit his live data to a "
                                      "PUBLIC repo: %s" % leaked)
@@ -30293,8 +30302,13 @@ class TestV2184EveryLiveStateFileIsGitignored(unittest.TestCase):
         sys.path.insert(0, HERE)
         import run_gates
         repo = os.path.dirname(HERE)
-        tracked = subprocess.run(["git", "ls-files", "tv/"], cwd=repo,
-                                 capture_output=True, text=True).stdout.split("\n")
+        _ls = subprocess.run(["git", "ls-files", "tv/"], cwd=repo, capture_output=True, text=True)
+        if _ls.returncode != 0:
+            # 2026-10-02 - an empty listing from a git that could not run is "nothing tracked" only by accident: with
+            # no repo this passed on ANY index. Said as UNMEASURED instead. [[unknown-stays-unknown]]
+            self.skipTest("git ls-files could not run here (exit %d) - what is tracked is UNMEASURED"
+                          % _ls.returncode)
+        tracked = _ls.stdout.split("\n")
         tracked = set(x.strip() for x in tracked if x.strip())
         bad = [os.path.join("tv", n) for n in (getattr(run_gates, "_LIVE_STATE", ()) or ())
                if os.path.join("tv", n) in tracked]
@@ -35744,14 +35758,22 @@ class TestV2248TheEagleCanSeeBehindTheFleet(unittest.TestCase):
             def __init__(s_, out): s_.returncode, s_.stdout, s_.stderr = 0, out, ""
 
         def fake_run(argv, **kw):
-            if argv[:2] == ("git", "rev-parse") or list(argv[:2]) == ["git", "rev-parse"]:
+            # 2026-10-02 - matched argv[:2] == ("git", "rev-parse"), but the check calls `git -C ROOT rev-parse`, so this
+            # branch never fired and the REAL git answered: green only where a real origin/main ref exists.
+            if "rev-parse" in argv:
                 return R("abc123")
             if "rev-list" in argv:
                 return R("7")
             return real_run(argv, **kw)
+        # 2026-10-02 - the check asks os.path.exists(ROOT/.git) before any git call, so on a copy with no .git (a heart2
+        # sandbox built from a linked worktree) it answered UNKNOWN and this case went red on the venue, not the code.
+        # The checkout is part of the scenario, so the scenario supplies it.
+        _real_exists = _os.path.exists
+        _git_dir = _os.path.join(cd.ROOT, ".git")
         _sp.run = fake_run
         try:
-            state, why = fn()
+            with mock.patch("os.path.exists", side_effect=lambda p: True if p == _git_dir else _real_exists(p)):
+                state, why = fn()
         finally:
             _sp.run = real_run
         self.assertEqual(state, cd.MISSING, "seven commits behind did not report as a fault")

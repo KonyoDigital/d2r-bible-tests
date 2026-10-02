@@ -36,12 +36,13 @@ and agree the slot is corroborated; when they disagree the slot is a CONFLICT an
 both answers written down; when only one answers, that one is the answer and the record says which.
 [[heart-first]] rule 1
 
-⚠ THE READER DOES NOT EMIT THESE FIELDS YET. `_parse_read` now ACCEPTS `scene: "char-select"`, `character`,
-`names_slot` and `names_xy` and writes them to the journal row, but READ_PROMPT does not ask for them,
-because changing READ_PROMPT means bumping PROMPT_VER, and control_app._chron_seal_current voids every
-zero-page chronicle seal on a PROMPT_VER change — a paid re-sweep of his reels. That is his decision, not
-this module's, and it is written in BUGS.md REG-1522. Until then every reel reads UNATTRIBUTED and this
-ledger's `characters` stays empty — an empty store with a reason, not a fabricated one.
+✅ v3552 (REG-1699) — THE READER NOW POINTS, FROM NOW ON. READ_PROMPT asks every named item's point (`names_xy`,
+measured in the picture the READER saw; the row's `xySpace` [w, h] names that picture and worn_from_row scales the
+point to the frame it files against) and an equipped item's doll slot (`names_slot`, in slot_identity.DOLL_SLOTS'
+own words). HIS RULING, 2026-10-01 ("thats even better"): forward only. tv_diablo.PROMPT_ANSWERS_SAME_AS keeps every
+p1839 seal and read count standing, so no old reel is read and paid for again - and every row from before v3552
+carries neither field, so its worn items stay UNPLACED with the reason. REG-1522's cost is why it is forward only.
+The reader is still never asked `character`; the name comes from the character-select learner below.
 
 ✅ #103 STEP B (REG-1601) — THE NAME NOW COMES FROM THE CHARACTER-SELECT LEARNER. tv/char_select.py reads the
 character-select screen on its own lane and, since v3530, which row is HIGHLIGHTED when he enters (a closing read of

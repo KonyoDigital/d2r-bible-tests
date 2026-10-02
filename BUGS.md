@@ -406,6 +406,23 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1702 - THREE test_control CASES ANSWERED FOR GIT WHERE NO GIT COULD ANSWER (2026-10-02)
+
+**Found** chasing why `heart2 --prove test_control --push` read test_control ALREADY RED untampered: a sandbox built from
+a linked worktree has no `.git` (a worktree's `.git` is a pointer file the copy leaves out, by design), and two cases
+failed there while the suite was 2259 OK on his Mac.
+
+| case | what it did with no git | fixed |
+|---|---|---|
+| `TestV2184...test_every_live_state_path_is_ignored_by_git` | read `git check-ignore` exit 128 ("not a git repository") as "not ignored" and accused all 20 live-state files of leaking | 1 = not ignored; any other non-zero is UNMEASURED and skips with the exit code |
+| `TestV2184...test_no_live_state_file_is_currently_TRACKED` | an empty `git ls-files` from a git that could not run read as "nothing tracked" - green on ANY index | skips when ls-files fails |
+| `TestV2248...test_it_goes_RED_when_behind_and_says_HOW_FAR` | its fake git matched `argv[:2] == ("git","rev-parse")`, but the check calls `git -C ROOT rev-parse`, so the fake never fired and the REAL git answered: green only where a real origin/main ref exists | matches `"rev-parse" in argv` and supplies the checkout it asks about |
+
+**Proven**, in a no-git sandbox: all three now OK/skip with the reason said; the fake's old matcher put back -> red. In a
+real checkout a planted non-ignored live-state name -> red ("tv/zz_not_ignored_probe.json"). [[unknown-stays-unknown]]
+[[regression-guard]] §3 - a case that needs his machine passes nowhere else, and here it passed ON his machine for the
+wrong reason.
+
 ### REG-1701 - EVERY CLEAN VERDICT THE #231 SEAT EVER POSTED COUNTED AS NOTHING, AND THE PUSH GATE STOOD ON IT (2026-10-02)
 
 **Found** when the v3550-v3553 push was refused: "v3552 may not ship while v3549 has never been looked at". The #231 code
