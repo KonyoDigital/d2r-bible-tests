@@ -402,6 +402,28 @@ class TheRiverQuotesTheDoor(unittest.TestCase):
         other_hour = {"event": "open", "ts": self.BORN + 3600 * 1000, "agentPid": 75286, "why": "y"}
         self.assertEqual(PR.seal_for(self.seals(other_pid, other_hour), self.REEL), {"opened": None, "closed": None})
 
+    def test_the_seal_path_follows_one_rule_when_tv_diablo_will_not_import(self):
+        """REG-1708 (the v3553 eye) - the fallback arm resolves TV_HIST exactly as _fixture_root does"""
+        saved_mod, saved_env = sys.modules.get("tv_diablo"), os.environ.get("TV_HIST")
+        out = tempfile.mkdtemp(prefix="seal_root_")
+        self.addCleanup(shutil.rmtree, out, True)
+        try:
+            sys.modules["tv_diablo"] = None
+            os.environ["TV_HIST"] = os.path.join(PR.HERE, "frames", "hist")
+            self.assertEqual(PR._seal_path(), os.path.join(PR.HERE, "shadow_seals.jsonl"),
+                             "a TV_HIST inside his tree read a different seal log than the console writes")
+            os.environ["TV_HIST"] = out
+            self.assertEqual(PR._seal_path(), os.path.join(os.path.realpath(out), "shadow_seals.jsonl"))
+        finally:
+            if saved_mod is None:
+                sys.modules.pop("tv_diablo", None)
+            else:
+                sys.modules["tv_diablo"] = saved_mod
+            if saved_env is None:
+                os.environ.pop("TV_HIST", None)
+            else:
+                os.environ["TV_HIST"] = saved_env
+
     def test_no_record_is_said_not_read_as_empty(self):
         d = tempfile.mkdtemp(prefix="seal_none_")
         self.addCleanup(shutil.rmtree, d, True)
@@ -411,6 +433,13 @@ class TheRiverQuotesTheDoor(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1708 - the seal path's fallback takes any absolute TV_HIST again, so his frames/hist reads a different log",
+        "file": "printer.py",
+        "find": "            if not (_rh == _rt or _rh.startswith(_rt.rstrip(os.sep) + os.sep)):\n",
+        "replace": "            if True:\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1704 - a wider scan nobody could read seals the reel as the launcher again",
         "file": "control_app.py",

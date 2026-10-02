@@ -406,6 +406,17 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1708 - THE v3553 EYE: THE SEAL PATH'S TWO ARMS READ DIFFERENT FILES, AND A WAITER THAT ASKED ONCE PASSED (2026-10-02)
+
+The Grok CLI looked at v3553 (20,012 chars, 86678e11..43c87d6e) - 3 findings + a reach note, each reproduced first.
+
+| finding | measured | outcome |
+|---|---|---|
+| `printer._seal_path`'s fallback (tv_diablo will not import) took ANY absolute TV_HIST, while `_fixture_root` sends one inside this tree (his frames/hist, a symlink, a case-different spelling) back to HERE - two arms, two files | real | FIXED - the fallback applies the same rule by real path; a case forces the import to fail and checks both directions; RED_PROOF PROVEN |
+| `test_past_twenty_minutes_it_keeps_watching...` accepted 481-491 asks, so a waiter that asked ONCE after try 480 and never again passed | real | FIXED - exactly 480 + the multiples of 12 in 481..600 (= 490); a new RED_PROOF (ask once, then stop) PROVEN |
+| the relaunch law skips its node cases where node is absent, and the gate trusts exit 0 | by design: the skip says UNMEASURED, run_gates prints "N CASE(S) DID NOT RUN" for every skipped case, and node is on his Mac and the CI image | REFUTED with the census line |
+| NOT SHOWN: control_ui.html, control_app.py, bible.html | the eye's own words | a reach limit, recorded |
+
 ### REG-1707 - THE v3552 EYE: A POINT WHOSE PICTURE COULD NOT BE MEASURED WAS FILED ON THE FRAME'S GRID (2026-10-02)
 
 The Grok CLI looked at v3552 and filed one finding + a reach note. **Reproduced in code:** `_with_xy_space` writes

@@ -235,8 +235,15 @@ def _seal_path():
         root = _tvd._fixture_root(HERE)
     except Exception:
         # a request for isolation that cannot be honoured must not degrade to HIS world (the equipped_ledger rule)
+        # REG-1708 (the v3553 eye) - and it applies _fixture_root's OWN rule, or the two arms read different files: a
+        # TV_HIST inside this tree (his frames/hist, a symlink or a case-different spelling of it) is his world -> HERE;
+        # one outside it is the fixture's, by its real path.
         _h = (os.environ.get("TV_HIST") or "").strip()
-        root = _h if (_h and os.path.isabs(_h)) else HERE
+        root = HERE
+        if _h and os.path.isabs(_h):
+            _rh, _rt = os.path.normcase(os.path.realpath(_h)), os.path.normcase(os.path.realpath(HERE))
+            if not (_rh == _rt or _rh.startswith(_rt.rstrip(os.sep) + os.sep)):
+                root = os.path.realpath(_h)
     return os.path.join(root, "shadow_seals.jsonl")
 
 

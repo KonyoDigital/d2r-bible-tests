@@ -113,8 +113,10 @@ class TheBarAsksTheConsole(unittest.TestCase):
         self.assertTrue(out["running"], "the bar stopped watching - he is left to relaunch by hand: %r" % out)
         self.assertEqual(out["cleared"], 0)
         self.assertIn("still watching", out["txt"])
-        self.assertLess(out["posts"], 480 + (600 - 480) // 12 + 2, "past the ceiling it still asks every 2.5 s")
-        self.assertGreater(out["posts"], 480, "past the ceiling it stopped asking altogether")
+        # REG-1708 (the v3553 eye) - "between 481 and 491" also passed a waiter that asked ONCE after try 480 and never
+        # again. Every 12th try past 480 asks, so 600 ticks ask exactly 480 + the multiples of 12 in 481..600.
+        want = 480 + len([t for t in range(481, 601) if t % 12 == 0])
+        self.assertEqual(out["posts"], want, "past 20 minutes it must ask once every 30 s (every 12th tick): %r" % out)
 
 
 class TheConsoleWritesDownWhy(unittest.TestCase):
@@ -138,6 +140,13 @@ class TheConsoleWritesDownWhy(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1708 - past 20 minutes the bar asks once and then never again",
+        "file": "control_ui.html",
+        "find": "          if (_slow && (_updWaitTries % 12)) return;   // past it: one ask every 30 s, never a stop\n",
+        "replace": "          if (_slow && _updWaitTries > 481) return;\n",
+        "matches": 1,
+    },
     {
         "why": "#150 - the bar stops for good at 20 minutes again",
         "file": "control_ui.html",
