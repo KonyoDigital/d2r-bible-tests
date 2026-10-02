@@ -269,8 +269,8 @@ def _seal_path():
         if _h and os.path.isabs(_h) and not _inside_tree(_h, HERE):
             try:
                 root = os.path.realpath(_h)
-            except Exception:   # the v3555 eye: _fixture_root answers HERE when realpath raises; so does this arm
-                root = HERE
+            except Exception:   # the v3555 eye: realpath may raise (a symlink loop) - the path he GAVE, never his live tree
+                root = _h
     return os.path.join(root, "shadow_seals.jsonl")
 
 

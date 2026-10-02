@@ -42,6 +42,8 @@ from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+import fixture_tmp as _fx_tmp  # noqa: E402
+_fx_tmp.contain()   # REG-1717 - the switch file below is a scratch dir; contained, it goes with the run (CI's scratch law)
 
 try:
     from console_safe import enable as _enable

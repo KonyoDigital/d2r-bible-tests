@@ -406,6 +406,15 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1717 - MY REG-1714 FIX LEFT A SCRATCH DIR BEHIND; CI'S SCRATCH LAW WENT RED ON v3555 (2026-10-02)
+
+**Measured:** v3555's agent-tests run on CI was red on one gate - `test_a_test_run_leaves_no_scratch_dirs`:
+"test_claude_reads_every_frame.py (1 site(s))". REG-1714 pinned that law's reader switch to
+`tempfile.mkdtemp(prefix="claude_reads_switch_")` at module level and never removed it, and the file did not call
+`fixture_tmp.contain()`. That law runs on CI and not in the pre-push subset, so the push went out green and CI caught
+it (the pre-push-gate-is-a-subset scar, again). **Now:** the file calls `fixture_tmp.contain()` right after its path
+setup, before its first scratch path, so the dir goes with the run.
+
 ### REG-1716 - A GARBAGE READ THE PARSE CLEANED UP COUNTED AS HIS GAME (the v3555 eye, 2026-10-02)
 
 **The eye's claim, reproduced the same hour:** REG-1711 counts a bare, confident gameplay read as the game, and the parse
@@ -420,7 +429,8 @@ not a confidence (None, said in the audit); an absent scene is recorded; Grok's 
 bare gameplay read only when that audit shows the reader said its scene, names and confidence itself
 (`_the_reader_said_it`). His five real bare-gameplay rows on the Mac carry `{"ok": true, "normalized": [], "dropped":
 []}` and still count. **Also the eye's (2):** `printer._seal_path`'s fallback no longer raises when realpath fails -
-it answers HERE, as `_fixture_root` does. Law: `tv/test_a_game_with_nothing_to_name_is_still_the_game.py` (garbage
+it uses the TV_HIST path as given (first cut answered HERE, and `test_no_resolver_falls_back_to_his_live_world`, a
+CI-only law, refused it: an error arm may never fall back to his live world). Law: `tv/test_a_game_with_nothing_to_name_is_still_the_game.py` (garbage
 through the real parse, and through `_grok_oneshot` with Grok's real `_loose_parse`); 4 more red-proofs.
 
 ### REG-1715 - THE ALT'S PROVER STOOD ASIDE TEN TIMES WITH NOBODY PLAYING (#152 slice 6, 2026-10-02)
@@ -460,7 +470,8 @@ disjoint held-out sample (every 6th frame from offset 3) 41 accepted, every samp
 one real inventory refused (a refusal keeps today's behaviour). Frames the old fit accepted take the identical path (the
 fallback's condition is exactly the two refusals it precedes). UNMEASURED on real data: worn-slot placement - no
 pointed equipped name is in his Mac's journal yet (points are asked since v3552). Law:
-`tv/test_one_ui_law_places_every_panel.py` (synthetic inventory through the real gate); 5 red-proofs.
+`tv/test_one_ui_law_places_every_panel.py` (synthetic inventory through the real gate, its ridges captured from the
+real lattice - CI installs no numpy, so there the seam cases skip as UNMEASURED); 5 red-proofs.
 
 ### REG-1714 - A THIRD LAW READ HIS REAL READER SWITCH; THE v3555 PUSH WENT RED UNTAMPERED (2026-10-02)
 

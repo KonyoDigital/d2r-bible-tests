@@ -121,18 +121,32 @@ def _inventory_picture(W=1440, H=904, shift=0.0):
     return im
 
 
+def _ridges(im):
+    """the ridges the REAL inventory_lattice computes on a picture, captured at the fit it hands them to -> (rcol, rrow)
+    | None. No numpy here (CI installs only Pillow): where the lattice cannot read a frame, nothing is captured."""
+    d = tempfile.mkdtemp(prefix="ui_law_r_")
+    p = os.path.join(d, "f_1.png")
+    im.save(p)
+    seen, saved = [], VC._fit
+    VC._fit = lambda v, *a, **k: seen.append(v)
+    try:
+        VC.inventory_lattice(p)
+    finally:
+        VC._fit = saved
+    return (seen[0], seen[1]) if len(seen) >= 2 else None
+
+
 def _evidence(im, W=1440, H=904, lines_shift=0.0):
     """the fit's own answer on a picture: its ridges, and the 9x4 lines his full inventory produced (one column lost)"""
-    import numpy as np
+    rid = _ridges(im)
+    if rid is None:
+        return None
     x0, y0 = int(VC.INV_CROP[0] * W), int(VC.INV_CROP[1] * H)
-    g = np.asarray(im.crop((x0, y0, int(VC.INV_CROP[2] * W), int(VC.INV_CROP[3] * H))), dtype=np.float32)
-    s = VC._ui_scale(H)
-    k, a, b = max(4, int(round(12 * s))), max(1, int(round(2 * s))), max(1, int(round(3 * s)))
     (bx, by, bw, bh), _ = SI.panel_box_for(W, H, "inventory")
     pc, pr = bw / 10.0, bh / 4.0
     cols = [bx - x0 + i * pc + lines_shift for i in range(10)]
     rows = [by - y0 + j * pr + lines_shift for j in range(5)]
-    return (cols, rows, VC._ridge(np.median(g, axis=0), k, a, b), VC._ridge(np.median(g, axis=1), k, a, b))
+    return (cols, rows, rid[0], rid[1])
 
 
 @unittest.skipIf(_Img is None, "Pillow is absent - no frame can be built, UNMEASURED")
@@ -140,6 +154,9 @@ class AMiscountedGridGetsTheCalibratedOne(unittest.TestCase):
 
     def setUp(self):
         self.s = VC._ui_scale(904)
+        if _ridges(_Img.new("L", (1440, 904), 60)) is None:
+            self.skipTest("the lattice cannot read a frame on this machine (numpy absent - CI installs only Pillow): "
+                          "the seam gate is UNMEASURED here, never passed")
 
     def test_a_fit_that_measured_the_inventory_cells_is_given_the_calibrated_grid(self):
         fit = _evidence(_inventory_picture())
