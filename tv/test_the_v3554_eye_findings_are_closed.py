@@ -92,6 +92,23 @@ class TwoTheDoctorMeasuresTheCurrentReader(unittest.TestCase):
         self.assertEqual(st, cd.MISSING, why)
         self.assertIn("read by %s" % self.cur, why)
 
+    def test_REG1718_a_fact_a_later_reader_filled_is_credited_to_that_reader(self):
+        st, why = self._store([{"name": "Shako", "lane": "stash", "witnesses": [
+            {"promptVer": self.old, "sockets": 2, "filledBy": {"sockets": self.cur}}]}])
+        self.assertEqual(st, cd.OK, why)
+        self.assertIn("read by %s" % self.cur, why)
+
+    def test_REG1718_the_first_readers_label_does_not_take_the_later_readers_fact(self):
+        st, why = self._store([
+            {"name": "Shako", "lane": "stash", "witnesses": [{"promptVer": self.old, "sockets": 2,
+                                                              "filledBy": {"sockets": self.cur}}]},
+            {"name": "Arachnid Mesh", "lane": "stash", "witnesses": [{"promptVer": self.cur}]}])
+        self.assertEqual(st, cd.OK, why)      # the current reader's own fact reaches the row
+        st2, why2 = self._store([
+            {"name": "Shako", "lane": "stash", "witnesses": [{"promptVer": self.cur, "sockets": 2,
+                                                              "filledBy": {"sockets": self.old}}]}])
+        self.assertEqual(st2, cd.MISSING, "a fact the OLD reader supplied was credited to the current one: %s" % why2)
+
     def test_only_the_old_reader_says_so(self):
         st, why = self._store([{"name": "Shako", "lane": "stash", "witnesses": [{"promptVer": self.old, "sockets": 2}]}])
         self.assertEqual(st, cd.OK, why)
@@ -113,6 +130,27 @@ class ThreeAReReadFillsItsCell(unittest.TestCase):
         self.assertEqual(len(w), 1)
         self.assertEqual(w[0].get("cell"), "stash:c3r4", w)
         self.assertEqual(w[0].get("point"), [530.5, 702.0])
+
+    def test_REG1718_a_re_read_fills_every_fact_the_first_lacked_and_names_its_reader(self):
+        """the v3556 eye: a re-read that brought sockets / eth lost them - only point, cell, cellWhy were filled"""
+        have = {}
+        vr._absorb(have, self._row({"session": "s1", "frame": "f1", "lane": "stash", "promptVer": "vp-old"}))
+        vr._absorb(have, self._row({"session": "s1", "frame": "f1", "lane": "stash", "promptVer": "vp-new",
+                                    "cell": "stash:c3r4", "sockets": 2, "eth": False}))
+        w = have[("Shako", "stash")]["witnesses"]
+        self.assertEqual(len(w), 1, "one look read twice is still one witness")
+        self.assertEqual((w[0].get("sockets"), w[0].get("eth"), w[0].get("cell")), (2, False, "stash:c3r4"), w)
+        self.assertEqual(w[0].get("promptVer"), "vp-old", "the look keeps the reader that first read it")
+        self.assertEqual(w[0].get("filledBy", {}).get("sockets"), "vp-new", "a filled fact must name its reader")
+        self.assertIs(w[0].get("eth"), False, "eth=False is an answer, and it was filled as one")
+
+    def test_REG1718_a_filed_fact_never_moves(self):
+        have = {}
+        vr._absorb(have, self._row({"session": "s1", "frame": "f1", "lane": "stash", "promptVer": "a", "sockets": 3}))
+        vr._absorb(have, self._row({"session": "s1", "frame": "f1", "lane": "stash", "promptVer": "b", "sockets": 1}))
+        w = have[("Shako", "stash")]["witnesses"][0]
+        self.assertEqual(w["sockets"], 3)
+        self.assertNotIn("filledBy", w)
 
     def test_a_filed_cell_is_never_moved(self):
         have = {}
@@ -170,6 +208,27 @@ class FiveTheSealLogAsksTheFilesystem(unittest.TestCase):
 
 RED_PROOF = [
     {
+        "why": "REG-1718 - a re-read of the same look drops every fact but its cell again (sockets, eth, quality lost)",
+        "file": "vault_retro.py",
+        "find": "            if old.get(_f) is None or old.get(_f) == \"\" or old.get(_f) == [] or old.get(_f) == {}:\n",
+        "replace": "            if _f not in (\"point\", \"cell\", \"cellWhy\"):\n                continue\n            if old.get(_f) is None or old.get(_f) == \"\" or old.get(_f) == [] or old.get(_f) == {}:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1718 - a filled fact stops naming its reader, so it is credited to the first reader's promptVer",
+        "file": "vault_retro.py",
+        "find": "                    old.setdefault(\"filledBy\", {})[_f] = _by_ver\n",
+        "replace": "                    pass\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1718 - the doctor credits every fact to the witness's first reader again, whoever supplied it",
+        "file": "console_doctor.py",
+        "find": "        return any(w.get(f) is not None and str(fb.get(f) or w.get(\"promptVer\") or \"\") in vs\n",
+        "replace": "        return any(w.get(f) is not None and str(w.get(\"promptVer\") or \"\") in vs\n",
+        "matches": 1,
+    },
+    {
         "why": "REG-1713 (1) - a picture over the read spec keeps its full-frame size as the reader's space again",
         "file": "tv_diablo.py",
         "find": "    if max(int(_ss[0]), int(_ss[1])) > _VAULT_READ_SPEC_PX:\n        return None\n",
@@ -186,8 +245,8 @@ RED_PROOF = [
     {
         "why": "REG-1713 (3) - a re-read of the same look is dropped whole again, cell and all",
         "file": "vault_retro.py",
-        "find": "        if isinstance(old, dict) and isinstance(w, dict) and not old.get(\"cell\") and w.get(\"cell\"):\n",
-        "replace": "        if False:\n",
+        "find": "        if not (isinstance(old, dict) and isinstance(w, dict)):\n            continue\n",
+        "replace": "        if True:\n            continue\n",
         "matches": 1,
     },
     {

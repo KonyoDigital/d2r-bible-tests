@@ -6087,9 +6087,18 @@ def _check_the_item_facts_are_reaching_the_row():
     # question) with vp3554's let one old witness with sockets keep this row OK after a vp3554 read had dropped all
     # three facts, and the sentence called the pool "read by vp3554". The same-question readers stand in only while
     # the current one has read nothing - and the sentence names which population it measured.
+    # REG-1718 - a fact a later reader filled into an earlier look is that later reader's (`filledBy`)
+    def _readers(w):
+        return {str(w.get("promptVer") or "")} | {str(v) for v in (w.get("filledBy") or {}).values()}
+
+    def _fact_by(w, vs):
+        fb = w.get("filledBy") or {}
+        return any(w.get(f) is not None and str(fb.get(f) or w.get("promptVer") or "") in vs
+                   for f in ("sockets", "eth", "quality"))
+
     def _by(vs):
         return [r for r in rows if isinstance(r, dict)
-                and any(str(w.get("promptVer") or "") in vs for w in _wits(r))]
+                and any(_readers(w) & set(vs) for w in _wits(r))]
     mine, said = _by((ver,)), ver
     if not mine and len(_vers) > 1:
         mine = _by(_vers[1:])
@@ -6102,9 +6111,7 @@ def _check_the_item_facts_are_reaching_the_row():
     # is the whole six-link chain end to end rather than either half of it
     have = [r for r in mine
             if (r.get("variants") or [])
-            or any(str(w.get("promptVer") or "") in _vs_said
-                   and (w.get("sockets") is not None or w.get("eth") is not None
-                        or w.get("quality") is not None) for w in _wits(r))]
+            or any(_fact_by(w, _vs_said) for w in _wits(r))]
     if not have:
         return MISSING, ("%d sighting(s) read by %s and NOT ONE carries sockets, eth or quality. "
                          "The template keys have stopped coming back, and a null from this prompt "

@@ -1096,6 +1096,10 @@ def merge_vault(existing, incoming):
     }
 
 
+#: REG-1718 - the fields that NAME a look (which frame, which reel, which reader, when) - a re-read never fills these
+_WITNESS_IDENTITY = frozenset(("session", "frame", "frameNote", "lane", "witness", "promptVer", "ts", "seenAt", "filledBy"))
+
+
 def _absorb(have, row):
     """Merge one row into the accumulator under MERGE-MAX. Idempotent: absorbing twice is a no-op."""
     key = (row["name"], row["lane"])
@@ -1118,10 +1122,20 @@ def _absorb(have, row):
         # back WITH its point and cell, and this dedupe dropped it whole: the stored look stayed cell-less for ever.
         # Fill-only - a re-read adds where a look had none; it never moves a cell already filed.
         old = seen[k]
-        if isinstance(old, dict) and isinstance(w, dict) and not old.get("cell") and w.get("cell"):
-            for _f in ("point", "cell", "cellWhy"):
-                if _f in w:
-                    old[_f] = w[_f]
+        if not (isinstance(old, dict) and isinstance(w, dict)):
+            continue
+        # REG-1718 (the v3556 eye) - and EVERY fact the first read lacked, not only the cell: a re-read that brought
+        # sockets / eth / quality lost them, so the item-facts doctor said MISSING for facts the reader did read. Still
+        # fill-only - a fact already filed never moves - and each filled fact names the reader that supplied it
+        # (`filledBy`), so a later reader's fact is never credited to the first reader's promptVer.
+        _by_ver = str(w.get("promptVer") or "")
+        for _f, _v in w.items():
+            if _f in _WITNESS_IDENTITY or _v is None or _v == "" or _v == [] or _v == {}:
+                continue
+            if old.get(_f) is None or old.get(_f) == "" or old.get(_f) == [] or old.get(_f) == {}:
+                old[_f] = _v
+                if _by_ver and _by_ver != str(old.get("promptVer") or ""):
+                    old.setdefault("filledBy", {})[_f] = _by_ver
     cur["witnesses"] = sorted(cur.get("witnesses") or [],
                               key=lambda r: (str(r.get("session")), str(r.get("frame")),
                                              str(r.get("lane"))))

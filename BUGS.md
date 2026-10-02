@@ -406,6 +406,26 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1718 - THE v3556 EYE: A RE-READ OF THE SAME LOOK STILL LOST ITS SOCKETS / ETH / QUALITY (2026-10-02)
+
+**Reproduced:** REG-1713 made a re-read of the same look (session, frame, lane) fill its point and cell, and only
+those - `{"promptVer":"vp3554","cell":"stash:c3r4","sockets":2,"eth":false}` absorbed onto a vp3368 look kept the cell
+and dropped `sockets` and `eth`, so the item-facts doctor could say MISSING for facts the reader did read. **Now:**
+a re-read fills EVERY fact the first read lacked (fill-only: a filed fact never moves; the fields that name a look -
+session, frame, lane, reader, time - are never filled), and each filled fact names the reader that supplied it
+(`filledBy`); the doctor credits a fact to that reader, never to the first reader's label. Law:
+`tv/test_the_v3554_eye_findings_are_closed.py` (+4 cases, +3 red-proofs; REG-1713's re-read proof re-aimed at the new
+merge, 8/8 PROVEN).
+
+**The v3556 eye's other findings, each checked against the code:**
+
+| finding | measured | verdict |
+|---|---|---|
+| the idle floor should apply when the game is UNKNOWN | the eye read the red-proof's SABOTAGE (`if not playing`) as the intent; the law `test_an_unknown_game_keeps_the_strict_floor` drives a judge that answers None and asserts the strict floor | REFUTED |
+| a JSON true for conf becomes 0.0, not unknown | 0.0 sits below `_GAMEPLAY_CONF_MIN` and the audit records the drop, so `_the_reader_said_it` refuses the row twice over; the "absent-scene-default" note IS applied (`j.setdefault("scene", ...)`, below the excerpt the eye saw) | judge-safe - recorded |
+| `_inside_tree`'s string fallback when the samefile walk throws | runs only when the filesystem walk itself raises; it then honours his TV_HIST rather than his live tree | rare, conservative - recorded |
+| NOT SHOWN | the eye's own reach limit | recorded |
+
 ### REG-1717 - MY REG-1714 FIX LEFT A SCRATCH DIR BEHIND; CI'S SCRATCH LAW WENT RED ON v3555 (2026-10-02)
 
 **Measured:** v3555's agent-tests run on CI was red on one gate - `test_a_test_run_leaves_no_scratch_dirs`:
