@@ -63,7 +63,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3554"   # every vault look says which cell
+VERSION = "v3555"   # EYES CLAUDE ONLY / BOTH / GROK ONLY
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

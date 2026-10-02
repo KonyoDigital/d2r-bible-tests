@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3554",
+  "ver": "v3555",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3554: v3554 — the vault reader is asked each item point from now on (vp3368 seals stand), sees a picture of known size (item lanes no longer send the raw 2560 px frame), and each sighting files its stash or inventory cell or doll slot, or why not. Also: an unreadable reel no longer seals as the launcher, the seal row says what the whole reel showed, a point whose picture could not be measured is never placed. HEART: the vault doctor row counts vp3368 rows as this prompt (VAULT_PROMPT_ANSWERS_SAME_AS); every sighting says its cell or why",
+  "note": "v3555: his EYES labels (CLAUDE ONLY, arrows on BOTH); his live game is no longer sealed as the launcher (REG-1711); proofs remember which cases caught them (REG-1710)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
