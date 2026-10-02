@@ -46,6 +46,18 @@ class Delta(unittest.TestCase):
     def setUpClass(cls):
         if os.environ.get("PLANT_DIE") == "1": os._exit(3)
     def test_d1(self): pass
+class Zeta(unittest.TestCase):
+    SHARD_ALONE = True
+    def test_z1(self):
+        import time
+        with open(os.path.join(os.environ["PLANT_PORTS"], "zeta"), "w") as fh:
+            fh.write("%s %f" % (os.environ["SHARD_INDEX"], time.time()))
+class Eta(unittest.TestCase):
+    def test_e1(self):
+        import time
+        time.sleep(0.5)
+        with open(os.path.join(os.environ["PLANT_PORTS"], "eta"), "w") as fh:
+            fh.write("%s %f" % (os.environ["SHARD_INDEX"], time.time()))
 '''
 
 
@@ -82,7 +94,7 @@ class TheUnionIsTheVerdict(unittest.TestCase):
     def test_all_green_is_green_and_counts_every_case(self):
         ok, rep = self._run()
         self.assertTrue(ok, rep)
-        self.assertEqual((rep["ran"], rep["expected"]), (6, 6), rep)
+        self.assertEqual((rep["ran"], rep["expected"]), (8, 8), rep)
 
     def test_one_red_class_is_red(self):
         ok, rep = self._run(PLANT_RED="1")
@@ -95,9 +107,20 @@ class TheUnionIsTheVerdict(unittest.TestCase):
 
     def test_a_shard_that_ran_less_than_it_was_dealt_is_red(self):
         found = SS.classes_of("plant_suite", self.d)
-        self.assertEqual(found, {"Alpha": 2, "Beta": 1, "Gamma": 2, "Delta": 1}, "PREMISE: the loader count moved")
+        self.assertEqual(found, {"Alpha": 2, "Beta": 1, "Gamma": 2, "Delta": 1, "Zeta": 1, "Eta": 1},
+                         "PREMISE: the loader count moved")
         ok, rep = self._run(classes=dict(found, Alpha=3))         # the loader said 3, the shard ran 2
         self.assertFalse(ok, "a shard that ran fewer cases than it was dealt read green: %r" % rep)
+
+    def test_a_class_that_holds_a_budget_runs_alone_after_the_others(self):
+        """v3562's push: a wall-clock budget measured beside three other shards measured the neighbours."""
+        ok, rep = self._run(k=3)
+        self.assertTrue(ok, rep)
+        z_idx, z_start = io.open(os.path.join(self.ports, "zeta")).read().split()
+        e_idx, e_end = io.open(os.path.join(self.ports, "eta")).read().split()
+        z_shard = [s for s in rep["shards"] if s["shard"] == int(z_idx)][0]
+        self.assertEqual(z_shard["classes"], 1, "the budget class shared its process: %r" % z_shard)
+        self.assertGreaterEqual(float(z_start), float(e_end), "the budget class ran while another shard was running")
 
     def test_no_two_shards_share_a_port(self):
         ok, rep = self._run(k=4)
@@ -109,6 +132,11 @@ class TheUnionIsTheVerdict(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "lever 4 - a class that holds a wall-clock budget is dealt beside the others again",
+     "file": "shard_suite.py",
+     "find": "    together = sorted(c for c in found if c not in alone)\n",
+     "replace": "    together, alone = sorted(found), []\n",
+     "matches": 1},
     {"why": "lever 4 - a shard's own exit code is the verdict again: one that ran fewer cases than dealt reads green",
      "file": "shard_suite.py",
      "find": "        sok = rc == 0 and bool(res) and res.get(\"ok\") is True and got == want\n",

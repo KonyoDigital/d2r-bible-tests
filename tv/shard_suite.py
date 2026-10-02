@@ -14,6 +14,8 @@ shard is just another process running a subset of its classes.
 · THE VERDICT IS THE UNION. Green only when every shard exited 0 AND the cases run across shards equal the cases the
   loader found - a shard that crashed at import, ran nothing, or lost a class is RED, never "fewer tests passed".
 · Each shard gets its own TV_PORT / TV_CONTROL_PORT so no two shards share a fixed port (#144).
+· A class that sets SHARD_ALONE = True (it holds a wall-clock budget) runs in ONE process AFTER the parallel shards
+  finish - the push of v3562 went red when four shards and his game slowed the doctor's cheap pass past its budget.
 · Exit 0 green, 1 red. The last lines of a red shard are printed, and the whole of it kept beside the cost file.
 [[regression-guard]] [[unknown-stays-unknown]] [[test-venue]]
 """
@@ -55,21 +57,28 @@ sys.exit(0 if res.wasSuccessful() else 1)
 '''
 
 
-def classes_of(suite, here=HERE):
-    """The suite's TestCase classes and their case counts, as the loader sees them. -> {name: n}"""
+def _load_plan(suite, here=HERE):
+    """The suite's TestCase classes, their case counts, and which must run ALONE. -> ({name: n}, [name, ...])"""
     code = ("import json, os, sys, unittest\nsys.path.insert(0, %r)\nsys.argv = [%r]\n"
-            "mod = __import__(%r)\nout = {}\n"
+            "mod = __import__(%r)\nout = {}\nalone = []\n"
             "for name in dir(mod):\n"
             "    obj = getattr(mod, name)\n"
             "    if isinstance(obj, type) and issubclass(obj, unittest.TestCase) and obj.__module__ == mod.__name__:\n"
             "        n = unittest.defaultTestLoader.loadTestsFromTestCase(obj).countTestCases()\n"
             "        if n:\n            out[name] = n\n"
-            "print('SHARD_CLASSES ' + json.dumps(out))\n") % (here, suite + ".py", suite)
+            "            if getattr(obj, 'SHARD_ALONE', False) is True:\n                alone.append(name)\n"
+            "print('SHARD_CLASSES ' + json.dumps({'counts': out, 'alone': alone}))\n") % (here, suite + ".py", suite)
     p = subprocess.run([sys.executable, "-c", code], cwd=here, capture_output=True, text=True, timeout=300)
     for ln in (p.stdout or "").splitlines():
         if ln.startswith("SHARD_CLASSES "):
-            return json.loads(ln[len("SHARD_CLASSES "):])
+            got = json.loads(ln[len("SHARD_CLASSES "):])
+            return got["counts"], sorted(got["alone"])
     raise RuntimeError("the suite would not load to be counted: %s" % ((p.stderr or "")[-400:],))
+
+
+def classes_of(suite, here=HERE):
+    """The suite's TestCase classes and their case counts, as the loader sees them. -> {name: n}"""
+    return _load_plan(suite, here)[0]
 
 
 def _costs(suite, path=COST):
@@ -104,12 +113,17 @@ def deal(classes, k, costs):
 def run(suite, k=4, here=HERE, cost_path=COST, _classes=None, _env=None):
     """Run `suite` as k shards. -> (ok, report dict)"""
     t0 = time.time()
-    found = _classes if _classes is not None else classes_of(suite, here)
+    if _classes is not None:
+        found, alone = _classes, []
+    else:
+        found, alone = _load_plan(suite, here)
     expected = sum(found.values())
-    plan = deal(sorted(found), k, _costs(suite, cost_path) or {})
+    together = sorted(c for c in found if c not in alone)
+    plan = deal(together, k, _costs(suite, cost_path) or {})
     tmp = tempfile.mkdtemp(prefix="shard_%s_" % suite)
     procs = []
-    for i, names in enumerate(plan):
+
+    def _start(i, names):
         env = dict(os.environ if _env is None else _env)
         env.update({"SHARD_HERE": here, "SHARD_SUITE": suite, "SHARD_CLASSES": json.dumps(names),
                     "SHARD_OUT": os.path.join(tmp, "shard%d.json" % i),
@@ -119,6 +133,17 @@ def run(suite, k=4, here=HERE, cost_path=COST, _classes=None, _env=None):
         procs.append((i, names, log, subprocess.Popen([sys.executable, "-c", _RUNNER], cwd=here, env=env,
                                                       stdout=log, stderr=subprocess.STDOUT)))
         _LIVE.append(procs[-1][3])
+
+    for i, names in enumerate(plan):
+        _start(i, names)
+    if alone:
+        # the classes that hold a wall-clock budget run AFTER the parallel shards, in one quiet process
+        for _i, _n, _log, _p in list(procs):
+            try:
+                _p.wait(timeout=max(1, SHARD_TIMEOUT_S - (time.time() - t0)))
+            except subprocess.TimeoutExpired:
+                pass
+        _start(len(plan), alone)
     shards, ok, ran = [], True, 0
     for i, names, log, p in procs:
         try:

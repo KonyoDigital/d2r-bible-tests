@@ -427,7 +427,7 @@ caught). Suite: 435.6 s -> 133.6 s. Then `tv/shard_suite.py` runs it as 4 shards
 shard, own TV_PORT per shard, green only when every shard ran every case it was dealt and every class was dealt; a TERM
 ends the shards): 2,259/2,259 in 66-88 s, 3 green runs with his game beside them. One coupling surfaced and was fixed
 at the case: `_silent_for` (TestV2325) now sets the paint witness itself, after inheriting blankStrikes=3 in a shard.
-The hook runs the shards; CI still runs the whole file. Law: `test_a_sharded_suite_runs_every_case_once` (3/3 PROVEN).
+The hook runs the shards; CI still runs the whole file. FIRST PUSH THROUGH IT (v3562) WENT RED: the cheap-doctor budget case took 10,810 ms against 9,000 beside three shards and his game - a wall-clock budget measured the neighbours. A class may now set SHARD_ALONE = True (TestV2078..., TestExitSafeguard) and runs in one process AFTER the parallel shards: 2,259/2,259 in 58.4 s. Law: `test_a_sharded_suite_runs_every_case_once` (4/4 PROVEN).
 
 ### REG-1739 - EVERY BATCH LOOK TOLD THE EYE ITS DIFF WAS TRUNCATED WHEN NOTHING WAS CUT (2026-10-02)
 

@@ -46045,6 +46045,14 @@ class EveryRegNumberIsUsedOnce(unittest.TestCase):
             # one planted entry per case, so three of the four declared route numbers head nothing
             self.assertEqual(len(unseen), 3, "%s: the per-note denominator miscounted: %r" % (tag, unseen))
 
+
+# #42 (2026-10-02) - THE CLASSES THAT HOLD A WALL-CLOCK BUDGET RUN ALONE. tv/shard_suite.py runs this file as parallel
+# shards at push time; a budget measured beside three other shards (and his game) measures the neighbours. The v3562
+# push went red exactly so: the cheap doctor pass took 10,810 ms against a 9,000 ms ceiling. These run in one process
+# AFTER the parallel shards finish - still in the same green-only-if-every-case-ran verdict.
+TestV2078TheWatchdogLooksByItself.SHARD_ALONE = True     # the cheap subset's wall-clock budget
+TestExitSafeguard.SHARD_ALONE = True                     # an exit must return in under 0.25 s
+
 RED_PROOF = [
     {
         "why": "REG-1602 - the sweep door refuses on its self-arming lock without saying it is a lock, so the "
