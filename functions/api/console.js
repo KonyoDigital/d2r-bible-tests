@@ -605,6 +605,17 @@ export async function onRequestPost(context) {
                         x.grok && x.grok.needsLogin])
       : null;
   };
+  // REG-1734 — WHETHER A PC'S RIVER IS STUCK IS PRINTED ON EVERY OTHER PC'S ROW ("river stuck"), so a flip is news.
+  // MEASURED 2026-10-02: his Mac's river was clear on its own console while his Windows ALT still drew the Mac "river
+  // stuck" - the stored record only refreshed every REFRESH_S (15 min), because `stuck` was not compared here. The
+  // stations and their counts are compared; the ages are not (they move every beacon). null (cannot read) vs []
+  // (measured clear) is a flip too.
+  const riverNews = (r) => {
+    const rv = r && r.system && r.system.river;
+    if (!rv || typeof rv !== 'object' || !('stuck' in rv)) return null;
+    const sk = rv.stuck;
+    return Array.isArray(sk) ? JSON.stringify(sk.map((e) => [e && e.station, e && e.n])) : JSON.stringify(sk);
+  };
   const pickerNews = (r) => {
     const p = r && r.picker;
     return (p && typeof p === 'object') ? JSON.stringify([p.ok, p.slot, p.offers, p.holds, p.broken]) : null;
@@ -616,6 +627,7 @@ export async function onRequestPost(context) {
     || JSON.stringify(prev.masks || null) !== JSON.stringify(rec.masks || null)
     || JSON.stringify(prev.pull || null) !== JSON.stringify(rec.pull || null)
     || capRoute(prev) !== capRoute(rec)
+    || riverNews(prev) !== riverNews(rec)
     || pickerNews(prev) !== pickerNews(rec)
     || shadowNews(prev) !== shadowNews(rec)
     || readersNews(prev) !== readersNews(rec)

@@ -256,7 +256,7 @@ def run(name, cwd=None):
     after, _awhy = tree_key(cwd)
     moved = bool(key) and after != key
     stored = ok and not moved and record(name, key, True, cases=cases, seconds=secs, venue=cwd or REPO, path=path)
-    if ok and moved:
+    if moved:          # REG-1733 (the #231 eye on 100d1203) - a RED run whose tree moved said "the commit's tree, unchanged"
         why = "the tree moved while it ran (%s) - nothing stored" % (_awhy if not after else "a different commit")
     if not ok:                              # a red run names what failed, never only "RED"
         for line in [l for l in out.splitlines() if l.startswith(("FAIL:", "ERROR:"))][:12]:

@@ -198,6 +198,14 @@ class ARunThatMovedItsBytesStoresNothing(unittest.TestCase):
         self.assertIsNone(SV.reusable("test_agent", before, path=SV.store_path(self.d))[0],
                           "a run that graded edited bytes was stored as the commit's verdict")
 
+    def test_REG1733_a_red_run_whose_tree_moved_says_so(self):
+        self._suite("import io, os, sys\nio.open(os.path.join(os.path.dirname(__file__), 'a.py'), 'a').write('z = 4\\n')\n"
+                    "print('Ran 1 test in 0.0s')\nsys.exit(1)\n")
+        ok, line = SV.run("test_agent", cwd=self.d)
+        self.assertFalse(ok, "PREMISE: the planted suite did not fail")
+        self.assertIn("moved while it ran", line, "a red run whose tree moved kept the before-run reason: %r" % line)
+        self.assertNotIn("unchanged", line)
+
 
 class ARedRunSaysWhy(unittest.TestCase):
     """2026-10-02 - a red run printed only `FAIL: <name>`, and a load-sensitive budget case had to be re-run by hand to
@@ -299,6 +307,11 @@ RED_PROOF = [
      "file": "suite_verdict.py",
      "find": "        for line in [l for l in out.splitlines() if l.startswith((\"AssertionError\", \"TimeoutError\"))][:12]:\n",
      "replace": "        for line in []:\n",
+     "matches": 1},
+    {"why": "REG-1733 - a red run whose tree moved says 'the commit's tree, unchanged' again",
+     "file": "suite_verdict.py",
+     "find": "    if moved:          # REG-1733 (the #231 eye on 100d1203) - a RED run whose tree moved said \"the commit's tree, unchanged\"\n",
+     "replace": "    if ok and moved:\n",
      "matches": 1},
 ]
 

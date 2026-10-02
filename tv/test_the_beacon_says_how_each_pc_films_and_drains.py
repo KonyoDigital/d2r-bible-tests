@@ -555,6 +555,24 @@ class TheRouteIsNewsAndTheAgesSayWhen(_World):
                       "the old route for up to 15 min: %r" % v["replies"][1])
         self.assertEqual(v["lastseen"]["system"]["capture"]["route"], "boosteroid")
 
+    def test_REG1734_a_river_that_clears_is_written_at_once(self):
+        stuck = self._body("native")
+        stuck["system"]["river"]["stuck"] = [{"station": "EMPTY", "n": 9, "oldestS": 90000, "why": "route shut"}]
+        clear = self._body("native", 95.0)
+        clear["system"]["river"]["stuck"] = []
+        v = self._run([stuck, clear])
+        self.assertIn("console", v["replies"][1]["stored"],
+                      "a PC's river cleared and every other PC kept drawing it 'river stuck' for up to 15 min: %r"
+                      % v["replies"][1])
+        self.assertEqual(v["lastseen"]["system"]["river"]["stuck"], [])
+
+    def test_REG1734_premise_the_same_stuck_with_moved_ages_is_not_news(self):
+        a, b = self._body("native", 12.0), self._body("native", 95.0)
+        for x, old in ((a, 90000), (b, 90083)):
+            x["system"]["river"]["stuck"] = [{"station": "EMPTY", "n": 9, "oldestS": old, "why": "route shut"}]
+        v = self._run([a, b])
+        self.assertNotIn("console", v["replies"][1]["stored"], "an unchanged stuck list with a moved age spent a write")
+
     def test_the_record_says_when_its_ages_were_stated(self):
         v = self._run([self._body("native")])
         ls = v["lastseen"]
@@ -754,6 +772,11 @@ RED_PROOF = [
         "replace": "      if (false) {\n",
         "matches": 1,
     },
+    {"why": "REG-1734 - a river that clears is not news again: other PCs draw it 'river stuck' for up to 15 min",
+     "file": "functions/api/console.js",
+     "find": "    || riverNews(prev) !== riverNews(rec)\n",
+     "replace": "",
+     "matches": 1},
 ]
 
 

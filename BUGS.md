@@ -406,6 +406,22 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1734 - HIS ALT DREW HIS MAC "RIVER STUCK" WHILE THE MAC SHOWED IT CLEAR (2026-10-02)
+
+His words: "the windows ALT PC is rendering my MACBOOKs user ... as if it IS STUCK so something is not properly synced
+and wired". MEASURED: each console publishes its river to the fleet worker, and the worker rewrites a PC's stored record
+only on a MATERIAL change or every REFRESH_S (15 min) - `river.stuck` was not in the material set. So a river that
+cleared on his Mac stayed "river stuck" on every other PC for up to 15 min (+60 s fleet cache); the Mac draws its own
+row fresh. (At 18:4x the ALT already held the Mac's 18:38:49 record with stuck [] - the old record had aged out.) Now
+`riverNews` - the stuck stations and their counts, never the ages - is material: a flip is written at once, an unchanged
+list with moved ages still costs no write. Two cases through the REAL onRequestPost in node.
+
+### REG-1733 - A RED SUITE RUN WHOSE TREE MOVED SAID "THE COMMIT'S TREE, UNCHANGED" (2026-10-02, the #231 eye on 100d1203)
+
+`suite_verdict.run` set the moved-tree reason only for a GREEN run, so a red run whose files changed mid-run printed the
+before-run reason. Any run whose tree moved now says so. The same look's other finding was refuted: the law's fixture
+commits tv/a.py, so its append changes a tracked file and the case passes for the reason it claims.
+
 ### REG-1732 - AN UNREADABLE SHELF READ AS "EVERY REEL HAS ITS INDEX" (2026-10-02, #86 item 23)
 
 `_reels_missing_index` returned [] when listdir failed, and the doctor's `reels_indexed` row then said "every reel in
