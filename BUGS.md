@@ -406,6 +406,18 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1735 - THE v3558 SECOND EYE: 5 REAL OF 9 (2026-10-02)
+
+The look at v3558 (37,161 chars, af202672..305754c0). **Real, fixed:** (F1/F9) `dead_console_port` bound a port to find a
+free one and then CLOSED it, so anything could bind it later and a law's ask would reach a stranger; two threads could
+choose two ports - it is now held bound (never listening) for the process's life, under one lock. (F5/F6)
+`suite_verdict.inflight` trusted a record with no numeric start, or one dated in the future, while its pid lived. (F7)
+`_absorb`'s JSON round-trip copy raised on a non-JSON value and aborted the absorb - `copy.deepcopy` now. (F4) a self-prove
+lane that is OFF never refreshes the census, so the heart may not say WATCHED over it even with no census word.
+**Not real here:** F2 (no gate is needs_app, so no filename collision can mis-route the door), F3 (the boot sweep claims
+nothing when it reads nothing; the doctor row says UNKNOWN), F8 (a port the caller chose is kept by design). Three
+red-proofs followed their moved anchors (same claims). Law: `test_the_v3558_eye_findings_are_closed`.
+
 ### REG-1734 - HIS ALT DREW HIS MAC "RIVER STUCK" WHILE THE MAC SHOWED IT CLEAR (2026-10-02)
 
 His words: "the windows ALT PC is rendering my MACBOOKs user ... as if it IS STUCK so something is not properly synced

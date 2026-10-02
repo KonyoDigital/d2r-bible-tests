@@ -217,8 +217,12 @@ def inflight(name, key, path=None):
     # than the run's own bound (the run would have been ended by then) names some other process now, never this run -
     # so it is not in flight, and the push does not wait out --wait for a stranger.
     _st = f.get("started")
-    if isinstance(_st, (int, float)) and not isinstance(_st, bool) \
-            and time.time() - float(_st) > RUN_TIMEOUT_S.get(name, 1500) + 120:
+    # REG-1735 (the v3558 eye) - and a record nobody can age (no numeric start), or one dated in the future (a clock that
+    # stepped), cannot keep a push waiting either: a verdict nobody can age cannot keep its age.
+    if not isinstance(_st, (int, float)) or isinstance(_st, bool):
+        return None
+    _age = time.time() - float(_st)
+    if _age > RUN_TIMEOUT_S.get(name, 1500) + 120 or _age < -60:
         return None
     if f.get("pid") and _pid_alive(f["pid"]):
         return f

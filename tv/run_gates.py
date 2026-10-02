@@ -100,18 +100,26 @@ class Gate:
 # 10.5 s on CI where nothing listens). So every gate runs on a free port nobody listens on - what CI sees - unless it
 # NEEDS his console (needs_app) or the caller already chose another port. A law that assigns its own port still wins:
 # its module-level assignment comes after the inherited env (the v1868 lesson - never out-rank working isolation).
-_DEAD_PORT = {"v": None}
+_DEAD_PORT = {"v": None, "sock": None}
+import threading as _threading  # noqa: E402
+_DEAD_PORT_LOCK = _threading.Lock()
 
 
 def dead_console_port():
-    """A free localhost port nobody listens on, chosen once per process. -> str"""
-    if _DEAD_PORT["v"] is None:
-        import socket as _sk
-        _s = _sk.socket()
-        _s.bind(("127.0.0.1", 0))
-        _DEAD_PORT["v"] = str(_s.getsockname()[1])
-        _s.close()
-    return _DEAD_PORT["v"]
+    """A localhost port nobody listens on, chosen once per process. -> str
+
+    REG-1735 (the v3558 eye) - THE PORT STAYS RESERVED. It was bound to find a free one and then CLOSED, so anything could
+    bind it later and a law's ask would reach a stranger. The socket is now held bound and never listening for the life
+    of the process - a connect to it is refused, and nothing else can take it - and one lock keeps two threads from
+    choosing two ports."""
+    with _DEAD_PORT_LOCK:
+        if _DEAD_PORT["v"] is None:
+            import socket as _sk
+            _s = _sk.socket()
+            _s.bind(("127.0.0.1", 0))
+            _DEAD_PORT["sock"] = _s
+            _DEAD_PORT["v"] = str(_s.getsockname()[1])
+        return _DEAD_PORT["v"]
 
 
 def law_env(needs_app, base=None):
@@ -8858,6 +8866,12 @@ GATES = [
          why="REG-1726 (#86 gap audit 24) - the console doctor counted a sub-doctor's marks and called that the "
              "verdict, so one that crashed (a traceback, no marks) read '0 green / 0 needs-you' and the row was OK. "
              "No marks is now 'it gave no verdict', with its exit code - UNKNOWN."),
+    Gate("test_the_v3558_eye_findings_are_closed",
+         [sys.executable, os.path.join(HERE, "test_the_v3558_eye_findings_are_closed.py")], 90,
+         needs_app=False,
+         why="REG-1735 - the v3558 cross-family look, 5 real of 9: the dead port was closed after it was chosen, an "
+             "in-flight record with no or a future start time kept a push waiting, _absorb's JSON copy raised on a "
+             "non-JSON value, and an OFF self-prove lane let the heart say WATCHED."),
     Gate("test_the_gap_audit_findings_are_closed",
          [sys.executable, os.path.join(HERE, "test_the_gap_audit_findings_are_closed.py")], 90,
          needs_app=False,

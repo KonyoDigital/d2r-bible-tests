@@ -24171,7 +24171,9 @@ def _heart2_census():
         _h2_state = "DARK" if _blind else ("WATCHED" if _proved else "UNKNOWN")
         _h2_lane = str((_SELF_PROVE or {}).get("census") or "")
         _h2_lane_why = None
-        if _h2_state == "WATCHED" and _h2_lane and _h2_lane != "current":
+        # REG-1735 (the v3558 eye) - and a lane that is OFF will never refresh it, census word or not.
+        _h2_off = (_SELF_PROVE or {}).get("key") == "off"
+        if _h2_state == "WATCHED" and ((_h2_lane and _h2_lane != "current") or (_h2_off and _h2_lane != "current")):
             _h2_state = "UNKNOWN"
             _h2_lane_why = ("the census is %s by the self-prove lane's last look - %s"
                             % (_h2_lane, str((_SELF_PROVE or {}).get("say") or "no reason recorded")[:160]))

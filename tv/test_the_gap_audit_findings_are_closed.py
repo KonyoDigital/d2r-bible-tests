@@ -114,7 +114,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-1731 - the heart says WATCHED again over a stale census",
      "file": "control_app.py",
-     "find": "        if _h2_state == \"WATCHED\" and _h2_lane and _h2_lane != \"current\":\n",
+     "find": "        if _h2_state == \"WATCHED\" and ((_h2_lane and _h2_lane != \"current\") or (_h2_off and _h2_lane != \"current\")):\n",
      "replace": "        if False:\n",
      "matches": 1},
     {"why": "REG-1732 - an unreadable shelf reads as every reel indexed again",

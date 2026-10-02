@@ -43,6 +43,7 @@ Pure by construction: the caller injects the signature fn, the classifier and th
 tests drive every law from fixtures with zero JPEGs and zero vision calls.
 """
 
+import copy
 import glob
 import os
 import re
@@ -1135,7 +1136,7 @@ def _absorb(have, row):
             if old.get(_f) is None or old.get(_f) == "" or old.get(_f) == [] or old.get(_f) == {}:
                 # REG-1730 (the v3557 eye) - a COPY: filing the incoming list/dict by reference let a later mutation of
                 # the row (or of a nested list another absorb thinks it owns) change a fact already filed.
-                old[_f] = json.loads(json.dumps(_v)) if isinstance(_v, (dict, list)) else _v
+                old[_f] = copy.deepcopy(_v)     # REG-1735 - any type (a JSON round trip raised on a non-JSON value)
                 if _by_ver and _by_ver != str(old.get("promptVer") or ""):
                     old.setdefault("filledBy", {})[_f] = _by_ver
     cur["witnesses"] = sorted(cur.get("witnesses") or [],
