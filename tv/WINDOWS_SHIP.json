@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3560",
+  "ver": "v3561",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3560: REG-1735: the port a law gets for the console stays reserved, a suite run nobody can age never holds a push, a vault fact is copied whatever its type, and an off prover lane never shows the heart as watched. HEART: test_the_v3558_eye_findings_are_closed",
+  "note": "v3561: v3561 — REG-1736 to REG-1738: every padlock is drawn from what the act is actually allowed to do, so a lock the heart is holding never shows open, a held lock says why, a PC that never stamped its river shows UNKNOWN instead of draining, and the last ALT BLIND law runs on Windows. HEART: test_a_padlock_asks_what_the_act_asks, test_the_fleet_says_where_a_river_is_stuck, test_the_gap_audit_findings_are_closed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
