@@ -7122,6 +7122,8 @@ def _window_present():
             pid = int(_wf.read().strip() or 0)
         if pid <= 0:
             return False
+        if IS_WIN:
+            return _pid_alive(pid)   # REG-1725 - os.kill(pid, 0) is a Ctrl-C there, not a probe
         try:
             os.kill(pid, 0)          # raises if the pid is dead
         except ProcessLookupError:
@@ -7683,10 +7685,14 @@ def _reclaim_headless_for_scan():
     if killed:
         time.sleep(0.7)
         for pid in sorted(victims):
-            try:
-                os.kill(pid, 0)  # still alive?
-            except Exception:
-                continue
+            if IS_WIN:
+                if not _pid_alive(pid):  # REG-1725 - os.kill(pid, 0) is a Ctrl-C there, not a probe
+                    continue
+            else:
+                try:
+                    os.kill(pid, 0)  # still alive?
+                except Exception:
+                    continue
             try:
                 os.kill(pid, signal.SIGKILL)
             except Exception:
@@ -8156,7 +8162,11 @@ def _orphan_exit_loop():
         import lane_trace as _lt
         _lt.note('_orphan_exit_loop', min_gap_s=30.0, watching=int(ppid))
         try:
-            os.kill(ppid, 0)        # signal 0 = existence check only, delivers nothing
+            if IS_WIN:              # REG-1725 - there signal 0 IS a delivery (CTRL_C_EVENT); ask the safe door
+                if not _pid_alive(ppid):
+                    raise ProcessLookupError(ppid)
+            else:
+                os.kill(ppid, 0)    # signal 0 = existence check only, delivers nothing
         except ProcessLookupError:
             print("\u267b scratch console on :%s exiting - the process that started it (pid %d) "
                   "is gone" % (CONTROL_PORT, ppid), flush=True)

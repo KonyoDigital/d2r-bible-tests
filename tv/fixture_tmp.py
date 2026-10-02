@@ -30,6 +30,12 @@ _HELD = {}
 
 
 def _alive(pid):
+    if os.name == "nt":                  # REG-1725 - os.kill(pid, 0) is a Ctrl-C there; ask the safe door
+        try:
+            import self_prove as _sp
+            return _sp.pid_alive(pid)
+        except Exception:
+            return True                  # cannot tell -> treat as alive, never sweep it
     try:
         os.kill(pid, 0)
         return True

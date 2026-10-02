@@ -406,6 +406,28 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1725 - MY NEW LIVENESS PROBE SENT A CTRL-C TO THE ALT'S PROVER; SEVEN MORE HAD THE SAME IDIOM (2026-10-02)
+
+`os.kill(pid, 0)` is the Unix "is it alive?". On Windows signal 0 IS CTRL_C_EVENT - GenerateConsoleCtrlEvent, and a
+Ctrl-C cannot be limited to one process group. REG-1447 learned it for heart2 and pinned ONE function; REG-1720's
+`suite_verdict._pid_alive` repeated it, and its law (in-flight run, `os.getpid()`) runs inside the ALT's prover.
+**MEASURED:** the ALT pulled 86e2b3da at 15:36; three slices then died of `KeyboardInterrupt` in heart2's own
+subprocess wait, each booked "ended without a census", and the lane backed off 3 h ("retrying after 3 h", 16:14).
+A syntax-tree sweep (a text grep missed `os.kill(int(pid), 0)` - nested parens) found seven more with no Windows
+branch: control_app `_window_present` (every launch), `_reclaim_headless_for_scan`, `_orphan_exit_loop`,
+fixture_tmp `_alive` (every law), render_check, second_eye_run. Each now asks the OpenProcess door on Windows; posix
+bytes unchanged. Two posix-only sites are named with their reason. Law:
+`test_a_liveness_probe_never_sends_ctrl_c_on_windows` - by STRUCTURE (the probe sits in the not-Windows branch or
+after a Windows branch that always leaves; a bare `if IS_WIN: x = 1` is refused), 5/5 red-proofs PROVEN.
+
+### REG-1724 - THE ALT READ A LAW BLIND BECAUSE ITS ONLY CATCHING CASE WAS SKIPPED ON WINDOWS (2026-10-02)
+
+`test_an_unreadable_prover_is_still_running[1]` (REG-1652: the wait after a kill must not end on a failed read) was
+BLIND on the ALT - "stayed GREEN through its own defeat". The case that catches it sat in a class skipped on Windows
+for the posix kill and ps shapes, yet `end_tree`'s wait is ONE loop on every OS; only the signal differs. The case
+now runs everywhere, recording taskkill there and killpg here; proven RED under the sabotage on both branches
+(Windows simulated on the Mac), 4/4 red-proofs PROVEN. Marking it ELSEWHERE would have left Windows unproven.
+
 ### REG-1723 - THREE CI-ONLY LAWS REFUSED TODAY'S NEW CODE, AND MY PRE-FLIGHT WAS BLIND TO ONE OF THEM (2026-10-02)
 
 CI on 86e2b3da/e378c955, three gates the pre-push subset does not run: (1) `test_every_doctor_check_is_explained` -

@@ -185,6 +185,15 @@ def _inflight_clear(name, key, path):
 
 
 def _pid_alive(pid):
+    # ⚠⚠ REG-1725 - os.kill(pid, 0) IS A CTRL-C ON WINDOWS (signal 0 == CTRL_C_EVENT), not a probe. This law runs
+    # inside the ALT's prover, so the probe interrupted the prover itself: three slices died of KeyboardInterrupt and
+    # each was booked "ended without a census", which backs the river off 3 h. Windows asks the one safe door.
+    if os.name == "nt":
+        try:
+            import self_prove as _sp
+            return _sp.pid_alive(pid)
+        except Exception:
+            return True                     # unknown: the wait is bounded, and a run is never started beside it
     try:
         os.kill(int(pid), 0)
         return True

@@ -15,7 +15,8 @@ Raised by the v3537 cross-family eye, on REG-1643 (mine), and both reproduced by
   · DRIVEN: identity() - gone False, ours True, a stranger False, and alive-but-unreadable None in BOTH shapes.
   · DRIVEN: the real guard and the real tick keep an alive-but-unreadable prover tracked - never booked ended, never
     forgotten, never killed, nothing started beside it - and say which unknown it is.
-  · DRIVEN: end_tree reports SURVIVED when the read fails after the signal (the signal itself is a recorder).
+  · DRIVEN: end_tree reports SURVIVED when the read fails after the signal (the signal itself is a recorder), on EVERY
+    OS - REG-1724: it ran only where killpg exists, so the ALT read this law BLIND.
   · DRIVEN: the ps read takes the posix_spawn shape - an absolute exe, close_fds=False, no cwd.
 Nothing here starts or signals a process. RED_PROOF below. [[unknown-stays-unknown]]
 """
@@ -110,8 +111,10 @@ class TheGuardAndTheTickKeepIt(_Store):
         self.assertIn("never recorded", str(r.get("say") or r.get("why") or r))
 
 
-@unittest.skipIf(SP.IS_WIN, "the posix kill and ps shapes - Windows reads the birth through OpenProcess, no process")
-class TheKillAndTheRead(_Store):
+class TheWaitAfterTheKill(_Store):
+    """REG-1724 - the wait after the signal is ONE loop on every OS, so the case that proves it runs on every OS. It
+    sat in the posix-only class below, so on Windows its red-proof stayed green through its own defeat and the ALT
+    read the law BLIND. Only the recorder standing in for the signal differs: taskkill there, killpg here."""
 
     def test_a_read_that_fails_after_the_signal_is_survived_not_gone(self):
         reads = iter([BIRTH])                           # ours before the signal, unreadable after it
@@ -119,11 +122,18 @@ class TheKillAndTheRead(_Store):
         def _birth(pid):
             return next(reads, None)
         signalled = []
-        with mock.patch.object(SP, "pid_alive", lambda pid: True), mock.patch.object(SP, "proc_birth", _birth), \
-                mock.patch.object(SP.os, "killpg", lambda pid, sig: signalled.append(pid)):
+        if SP.IS_WIN:
+            signal = mock.patch.object(SP.subprocess, "run", lambda argv, **kw: signalled.append(int(argv[2])))
+        else:
+            signal = mock.patch.object(SP.os, "killpg", lambda pid, sig: signalled.append(pid))
+        with mock.patch.object(SP, "pid_alive", lambda pid: True), mock.patch.object(SP, "proc_birth", _birth), signal:
             gone = SP.end_tree(PID, BIRTH, wait_s=0.5)
         self.assertEqual(signalled, [PID], "PREMISE: the prover was not signalled")
         self.assertFalse(gone, "a prover whose identity could not be read after the kill was reported gone")
+
+
+@unittest.skipIf(SP.IS_WIN, "the posix ps shape - Windows reads the birth through OpenProcess, no process")
+class TheKillAndTheRead(_Store):
 
     def test_the_ps_read_takes_posix_spawn(self):
         seen = []

@@ -273,6 +273,12 @@ EYE_CWD_STALE_S = 24 * 3600
 
 
 def _pid_alive(pid):
+    if os.name == "nt":                 # REG-1725 - os.kill(pid, 0) is a Ctrl-C there (CTRL_C_EVENT), not a probe
+        try:
+            import self_prove as _sp
+            return _sp.pid_alive(pid)
+        except Exception:
+            return True                 # cannot ask: a snapshot that may be live is never removed
     try:
         os.kill(int(pid), 0)
         return True

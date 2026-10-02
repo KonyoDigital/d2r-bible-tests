@@ -2916,6 +2916,12 @@ def _profile_locked_by_a_live_chrome(p):
         return False
     try:
         pid = int(str(target).rsplit("-", 1)[-1])
+        if os.name == "nt":                   # REG-1725 - os.kill(pid, 0) is a Ctrl-C there, not a probe
+            try:
+                import self_prove as _sp
+            except Exception:
+                return True                   # cannot ask: a profile that may be held is never reused
+            return _sp.pid_alive(pid)
         os.kill(pid, 0)
         return True
     except PermissionError:

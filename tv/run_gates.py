@@ -8815,6 +8815,12 @@ GATES = [
          why="REG-1720 (#42 lever 2) - the two python suites were most of every push, re-running a commit that had "
              "already passed them. A green run is reused only on the commit's exact tree, the same python, young, and "
              "never a red one; a run of the same bytes in flight is waited for; the hook asks before each heavy suite."),
+    Gate("test_a_liveness_probe_never_sends_ctrl_c_on_windows",
+         [sys.executable, os.path.join(HERE, "test_a_liveness_probe_never_sends_ctrl_c_on_windows.py")], 90,
+         needs_app=False,
+         why="REG-1725 - os.kill(pid, 0) is a Ctrl-C on Windows (signal 0 == CTRL_C_EVENT), not a probe. REG-1720's "
+             "new probe Ctrl-C'd the ALT's prover from inside its own law, three slices died and the river backed "
+             "off 3 h; a syntax-tree sweep found seven more. Every probe in tv/ asks Windows first, by structure."),
     Gate("test_one_ui_law_places_every_panel",
          [sys.executable, os.path.join(HERE, "test_one_ui_law_places_every_panel.py")], 90,
          needs_app=False,
