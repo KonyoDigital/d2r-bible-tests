@@ -334,6 +334,13 @@ GATES = [
              "hidden, below everything he runs, only when idle, one at a time, backing off after a failure; a dev "
              "tree never does. heart2 no longer sends signal 0 (a Ctrl-C) on Windows. Real temp git repo. A cold "
              "Grok review found 3 more (a lost save spawned a 2nd prover; tick could raise; NaN load read idle). "),
+    Gate("test_a_finished_sweep_frees_the_relaunch",
+         [sys.executable, os.path.join(HERE, "test_a_finished_sweep_frees_the_relaunch.py")], 90,
+         needs_app=False,
+         why="REG-1745 - the sweep lock only ever went cold, never free: a chronicle sweep that banked its result at "
+             "23:28 still blocked the ALT's relaunch onto v3563 as 'a sweep is reading footage', and the autoread "
+             "lane re-armed it every ~14 min, under the 900 s window. A finished sweep now writes 'released'; the "
+             "relaunch waits only while a sweep in this process is really reading."),
     Gate("test_a_reel_at_printer_is_the_vaults_work", [sys.executable,
          os.path.join(HERE, "test_a_reel_at_printer_is_the_vaults_work.py")], 120,
          why="REG-1446 - PRINTER means names read and no seal, and only the vault sweep writes that seal; but the "

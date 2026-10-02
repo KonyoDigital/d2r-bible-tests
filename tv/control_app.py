@@ -21023,6 +21023,44 @@ def _sweep_lock_touch(_last=[0.0]):
         pass
 
 
+_SWEEP_LOCK_RELEASED = "released"
+
+
+def _sweep_lock_release():
+    """REG-1745 — A SWEEP THAT HAS BANKED ITS READS SAYS SO ON THE LOCK. -> bool (released?)
+
+    MEASURED on the ALT, 2026-10-02 23:33: the console refused to relaunch onto v3563 with "a sweep
+    is reading footage (the lock was touched 456s ago)" while NO sweep was running — the chronicle
+    sweep that touched the lock at 23:26:06 had written its result at 23:28:27 and stopped. The lock
+    only ever went cold, never free, so every finished sweep blocked a relaunch for 15 more minutes.
+    Its autoread lane starts the next sweep about every 14 minutes, under that 900 s window, so a
+    relaunch checked every 5 minutes kept landing on a fresh lock: 23:40:02 re-armed it 64 s before it
+    would have gone cold. His console sat on v3562 under a sentence that was not true.
+
+    The lock still means what run_gates reads it for — the mtime moves here too, so a gate that
+    fingerprints the state files this sweep just wrote still sees a sweep and does not accuse the
+    suite. What changes is the CONTENT: "released" tells drift_may_relaunch the reads are banked. A
+    sweep that crashed never reaches here and its lock goes cold as before — unless a later sweep in
+    this process ends first and frees it, which is right: only the console starts sweeps, so no
+    reader is left to bank a crashed sweep's reads. Written only when no sweep in this process is
+    still running: two lanes share one lock, and the one that ends first must not free the other's.
+    [[the-unjoined-end]] [[stale-reading]]
+    """
+    try:
+        if (_CHRON_JOB or {}).get("running") or (_VAULT_JOB or {}).get("running"):
+            return False
+        p = _sweep_lock_path()
+        if not os.path.exists(p):
+            return False
+        with open(p, "w") as fh:
+            fh.write("%d %s" % (int(time.time()), _SWEEP_LOCK_RELEASED))
+        # the next sweep's first heartbeat must re-hold the lock at once, not up to 60 s later
+        _sweep_lock_touch.__defaults__[0][0] = 0.0
+        return True
+    except Exception:
+        return False
+
+
 def _chron_seal_stands(rec, prompt_ver=None):
     """v1830 — A SEAL THAT READ NOTHING IS ONLY AS GOOD AS THE READER THAT MADE IT.
 
@@ -22607,10 +22645,26 @@ def drift_may_relaunch(detail=None):
                     _lane = "vault"
             except Exception:
                 _lane = ""
-            _detail["blocker"] = "work"
-            return False, ("a %ssweep is reading footage (the lock was touched %ds ago) — "
-                           "relaunching now would throw away paid reads that have not been "
-                           "banked yet" % (_lane + " " if _lane else "", int(_age)))
+            # REG-1745 — a lock its sweep RELEASED holds nothing: those reads are banked. Only
+            # believed when no sweep in this process is running (the lane check above), so a lock
+            # mislabelled by a race between two lanes can never let a relaunch through mid-read.
+            _released = False
+            if not _lane:
+                try:
+                    with open(_lk) as _fh:
+                        _released = _SWEEP_LOCK_RELEASED in _fh.read(64)
+                except Exception:
+                    _released = False
+            if not _released:
+                _detail["blocker"] = "work"
+                if _lane:
+                    return False, ("a %s sweep is reading footage (the lock was touched %ds ago) — "
+                                   "relaunching now would throw away paid reads that have not been "
+                                   "banked yet" % (_lane, int(_age)))
+                return False, ("the sweep lock was touched %ds ago and its sweep never released it — "
+                               "no sweep is running in this console, so it is one that stopped "
+                               "without banking, or one in another process; waiting for the lock "
+                               "to go cold at 900s" % int(_age))
     except OSError:
         pass          # no lock file at all means no sweep has ever declared itself
     # ⚠ AND IT IS CHECKED BEFORE _tree_is_mid_edit(). Both refuse, so safety is the
@@ -32809,6 +32863,7 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
             _VAULT_JOB.update({"running": False, "phase": "error", "error": str(e)[:200]})
     finally:
         _vault_lane_note_outcome(reel_dir)     # REG-1649
+        _sweep_lock_release()                  # REG-1745
 
 
 def _vault_lane_note_outcome(reel_dir, swept=None):
@@ -36914,6 +36969,8 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
     except Exception as e:
         with _CHRON_LOCK:
             _CHRON_JOB.update({"running": False, "phase": "error", "error": str(e)[:300]})
+    finally:
+        _sweep_lock_release()                  # REG-1745
 
 
 def fleet_presence(force=False):

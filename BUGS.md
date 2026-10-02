@@ -406,6 +406,19 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1745 - A FINISHED SWEEP HELD THE RELAUNCH FOR 15 MINUTES, AND THE NEXT SWEEP CAME IN 14 (2026-10-02, #152)
+
+He saw "no sweep has run since this console started" on the ALT and a console that would not leave v3562 while v3563
+sat on disk. The relaunch refused at 23:33:42: "a sweep is reading footage (the lock was touched 456s ago)". No sweep
+was reading - both in-process jobs idle, and the refusal named no lane. The chronicle autoread sweep that touched
+`.sweep.lock` at 23:26:06 had written its result at 23:28:27. The lock only ever went COLD (900 s), never free, and
+the autoread lane started the next sweep at 23:40:02 - 64 s before the cold mark - with the relaunch checked every
+300 s. (The panel he read is the VAULT sweep meter, which was honest; the chronicle lane was the one sweeping.)
+A sweep that ends now writes "released" on the lock (mtime still moves, so run_gates' state-file grace is unchanged);
+the relaunch passes a released lock only when no sweep in this process is running, and an unreleased fresh lock with
+nothing running says so instead of claiming a read. Release refuses while either lane runs, and re-arms the heartbeat
+so the next sweep re-holds the lock at once. Law `test_a_finished_sweep_frees_the_relaunch`, 8 cases, 6/6 PROVEN.
+
 ### REG-1744 - THE CHEAP-SUBSET BUDGET MEASURED HIS MACHINE, AND REFUSED TWO PUSHES IN A ROW (2026-10-02, #42)
 
 `test_the_cheap_subset_is_actually_CHEAP` refused the v3562 retry and the v3563 push: the whole every-tick subset took
