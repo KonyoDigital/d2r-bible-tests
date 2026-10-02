@@ -104,12 +104,16 @@ def tree_key(cwd=None):
 
 
 def _load(path):
+    """-> the store dict; {} when there is no store yet (measured empty); None when it exists and cannot be read -
+    UNKNOWN, never an empty store (a corrupt store must not read as 'no runs', and reuse refuses on it)."""
+    if not os.path.exists(path):
+        return {}
     try:
         with io.open(path, encoding="utf-8") as fh:
             d = json.load(fh)
-        return d if isinstance(d, dict) else {}
     except Exception:
-        return {}
+        return None
+    return d if isinstance(d, dict) else None
 
 
 def _save(path, d):
@@ -124,7 +128,7 @@ def record(name, key, ok, cases=None, seconds=None, venue=None, path=None, now=N
     path = path or store_path()
     if not (path and key and ok is True and name in SUITES):
         return False
-    d = _load(path)
+    d = _load(path) or {}       # an unreadable store is replaced: a cache, so the loss costs a re-run, never a pass
     runs = [r for r in (d.get("runs") or []) if isinstance(r, dict)
             and not (r.get("suite") == name and r.get("key") == key)]
     runs.append({"suite": name, "key": key, "ok": True, "cases": cases, "seconds": seconds,
@@ -146,8 +150,11 @@ def reusable(name, key, path=None, now=None, max_age_s=None):
         return None, "no store (git could not name its common dir)"
     now = float(now if now is not None else time.time())
     limit = MAX_AGE_S if max_age_s is None else max_age_s
+    store = _load(path)
+    if store is None:
+        return None, "the verdict store exists and could not be read - UNKNOWN, so the suite runs"
     best = None
-    for r in (_load(path).get("runs") or []):
+    for r in (store.get("runs") or []):
         if not isinstance(r, dict) or r.get("suite") != name or r.get("key") != key or r.get("ok") is not True:
             continue
         at = r.get("at")
@@ -163,13 +170,15 @@ def reusable(name, key, path=None, now=None, max_age_s=None):
 
 
 def _inflight_set(name, key, pid, path):
-    d = _load(path)
+    d = _load(path) or {}       # as record(): an unreadable store is replaced
     d.setdefault("inflight", {})["%s|%s" % (name, key)] = {"pid": int(pid), "started": time.time()}
     _save(path, d)
 
 
 def _inflight_clear(name, key, path):
     d = _load(path)
+    if d is None:
+        return
     if d.get("inflight", {}).pop("%s|%s" % (name, key), None) is not None:
         _save(path, d)
 
@@ -187,7 +196,7 @@ def inflight(name, key, path=None):
     path = path or store_path()
     if not (path and key):
         return None
-    f = (_load(path).get("inflight") or {}).get("%s|%s" % (name, key))
+    f = ((_load(path) or {}).get("inflight") or {}).get("%s|%s" % (name, key))   # unreadable: nothing known in flight
     if isinstance(f, dict) and f.get("pid") and _pid_alive(f["pid"]):
         return f
     return None

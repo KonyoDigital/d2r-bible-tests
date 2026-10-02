@@ -140,6 +140,14 @@ class GrokOnlyCarriesWhatItsOwnParseRewrote(unittest.TestCase):
         self.assertIsNotNone(got, raw)
         return got
 
+    def test_REG1721_a_refused_true_stays_unknown_not_zero(self):
+        import g5_grok_eyes as g5
+        j = g5._loose_parse('{"names": [], "scene": "gameplay", "conf": true}')
+        self.assertIsNone(j["conf"], "a JSON true for conf became %r - a confidence the reader never gave" % j["conf"])
+        self.assertIn("a-bool-is-not-a-confidence", [f.get("why") for f in j.get("_g5_fixed") or []])
+        self.assertEqual(g5._loose_parse('{"names": [], "scene": "gameplay"}')["conf"], 0.0,
+                         "premise: an ABSENT conf keeps its old 0.0 default (only the refused bool changed)")
+
     def test_premise_a_real_grok_read_is_the_game(self):
         got = self._read('{"area": "", "names": [], "scene": "gameplay", "conf": 0.85}')
         self.assertIn("gameplay", tv.read_shows_the_game(_row(got), _words(), frozenset()))
@@ -224,6 +232,13 @@ RED_PROOF = [
         "file": "tv_diablo.py",
         "find": "        _audit[\"normalized\"].append({\"field\": \"scene\", \"from\": \"(absent)\", \"to\": \"gameplay\", \"why\": \"absent-scene-default\"})\n",
         "replace": "        pass\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1721 - a refused JSON true for conf becomes 0.0 again, a confidence the reader never gave",
+        "file": "g5_grok_eyes.py",
+        "find": "            j[\"conf\"] = None\n        else:\n",
+        "replace": "            j[\"conf\"] = None\n        if True:\n",
         "matches": 1,
     },
     {

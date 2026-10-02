@@ -118,6 +118,17 @@ class OnlyAGreenYoungRunOfTheseBytesIsReused(unittest.TestCase):
             json.dump({"runs": [{"suite": "test_control", "key": self.key, "ok": True, "at": "yesterday"}]}, fh)
         self.assertIsNone(SV.reusable("test_control", self.key, path=self.path)[0])
 
+    def test_an_unreadable_store_is_unknown_never_empty(self):
+        """CI's swallow ratchet on 86e2b3da: a store that failed to read answered {} - 'no runs' - like a real empty"""
+        SV.record("test_control", self.key, True, path=self.path)
+        with io.open(self.path, "w", encoding="utf-8") as fh:
+            fh.write("{ not json")
+        r, why = SV.reusable("test_control", self.key, path=self.path)
+        self.assertIsNone(r)
+        self.assertIn("could not be read", why)
+        self.assertTrue(SV.record("test_control", self.key, True, path=self.path), "a corrupt cache blocked a new run")
+        self.assertIsNotNone(SV.reusable("test_control", self.key, path=self.path)[0])
+
     def test_the_switch_closes_it(self):
         SV.record("test_control", self.key, True, path=self.path)
         with mock.patch.dict(os.environ, {"SUITE_VERDICT_REUSE": "0"}):
@@ -177,6 +188,13 @@ class ThePushAsksBeforeEachHeavySuite(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1720 - an unreadable verdict store reads as an empty one again (the swallow CI caught on 86e2b3da)",
+        "file": "suite_verdict.py",
+        "find": "    if store is None:\n        return None, \"the verdict store exists and could not be read - UNKNOWN, so the suite runs\"\n",
+        "replace": "    if store is None:\n        store = {}\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1720 - a working tree whose tracked files moved is graded by the commit's green run",
         "file": "suite_verdict.py",

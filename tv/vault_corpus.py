@@ -375,11 +375,13 @@ def inventory_lattice(frame_path):
 
 
 #: REG-1712 — how much of the fit's own evidence must sit ON the calibrated seams before the calibrated grid is taken.
-#: MEASURED 2026-10-02 over 158 frames the loose first cut admitted, each looked at: his 55 real inventories have the
-#: fit's row lines on the calibrated rows (>=0.75 of them in 54) and its column lines on them (>=0.30), and the ridge
-#: at the calibrated seams stands BELOW the ridge half a cell over (columns <= -0.49 sd, rows <= -0.15 sd); the 103
-#: that were not an inventory (a webcam, fire, lightning, the Join Game screen, a tooltip, his own console) fail it -
-#: their best pitch matched only because the pitch search is a narrow band around this very cell size.
+#: MEASURED 2026-10-02 over 158 frames the loose first cut admitted, each looked at. His 55 real inventories MEASURED:
+#: row lines on the calibrated rows >=0.75 (54 of 55), column lines >=0.30, the ridge at the calibrated seams below
+#: the ridge half a cell over by <= -0.49 sd (columns) and <= -0.15 sd (rows). The THRESHOLDS below sit inside that
+#: range with a margin (0.75 / 0.25 / -0.4 / -0.1), and the result was measured WITH THESE THRESHOLDS: 54 of 55 real
+#: accepted, 0 of the 103 others (a webcam, fire, lightning, the Join Game screen, a tooltip, his own console) - their
+#: best pitch matched only because the pitch search is a narrow band around this very cell size. (REG-1721: the first
+#: wording quoted the measured range as if it were the thresholds - the #231 code seat.)
 _CAL_ROW_ALIGN, _CAL_COL_ALIGN, _CAL_COL_SEAM, _CAL_ROW_SEAM = 0.75, 0.25, -0.4, -0.1
 
 

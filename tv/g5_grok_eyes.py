@@ -1382,12 +1382,15 @@ def _loose_parse(txt):
         if not isinstance(j.get("tz"), list):
             j["tz"] = []
         if isinstance(j.get("conf"), bool):
+            # REG-1721 (the #231 code seat + the v3556 eye) - refused, it stays UNKNOWN: the next lines used to turn it
+            # into 0.0, a confidence the reader never gave (every consumer goes through _parse_read, which takes None)
             _fixed.append({"field": "conf", "why": "a-bool-is-not-a-confidence", "from": str(j.get("conf"))})
             j["conf"] = None
-        try:
-            j["conf"] = float(j.get("conf") if j.get("conf") is not None else 0.0)
-        except Exception:
-            j["conf"] = 0.0
+        else:
+            try:
+                j["conf"] = float(j.get("conf") if j.get("conf") is not None else 0.0)
+            except Exception:
+                j["conf"] = 0.0
         if _fixed:
             j["_g5_fixed"] = _fixed
         return j

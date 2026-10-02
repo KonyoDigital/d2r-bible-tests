@@ -406,6 +406,20 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1721 - THREE SMALL TRUTHS: A REFUSED true STAYED 0.0, A CORRUPT CACHE READ AS EMPTY, A COMMENT OVERSTATED ITS SOURCE (2026-10-02)
+
+- **The #231 code seat (6207bc50) + the v3556 eye, two seats agreeing:** `g5_grok_eyes._loose_parse` refused a JSON
+  `true` for conf, then the next line turned it into 0.0 - a confidence the reader never gave. It now stays None
+  (UNKNOWN); an absent conf keeps its 0.0 default; every consumer goes through `_parse_read`, which takes None.
+- **CI's swallow ratchet on 86e2b3da (Routine M, 68 -> 69):** `suite_verdict._load` answered `{}` for a store it could
+  not read - "no runs", the same as a real empty. It now answers None, reuse refuses and says "could not be read", and
+  a writer replaces the corrupt cache (a cache: the loss costs a re-run, never a pass). The pre-flight's census ran
+  before the module existed - the pre-push gate is a subset, again.
+- **The #231 code seat:** the seam gate's comment quoted the real inventories' MEASURED range as if it were the
+  thresholds; it now states both, and that 0/103 was measured with the thresholds themselves.
+Laws: `test_a_game_with_nothing_to_name_is_still_the_game.py` (+1 case, +1 red-proof) and
+`test_a_suite_run_is_reused_only_on_identical_bytes.py` (+1 case, +1 red-proof).
+
 ### REG-1720 - #42 LEVER 2: THE PUSH RE-RAN SUITES THE COMMIT HAD ALREADY PASSED (2026-10-02)
 
 **Measured on v3556's landed push (17m16s):** the changed-law proofs took 2 s (lever 1, REG-1710) and the two python
