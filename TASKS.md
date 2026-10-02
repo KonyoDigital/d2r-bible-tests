@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3566** | `(this commit)` | v3566 — REG-1749: a reel the triage proved empty owes the vault no paid read either - the vault rule now asks the same question the chronicle rule does |
+| **v3567** | `(this commit)` | v3567 — REG-1750: the vault lane stops claiming no store once it has written one; REG-1751: each lane says how many reels the triage ruled empty |
+| **v3566** | `134b7c37` | v3566 — REG-1749: a reel the triage proved empty owes the vault no paid read either - the vault rule now asks the same question the chronicle rule does |
 | **v3565** | `19fe8ade` | v3565 — REG-1747: the chronicle autoread asks the triage before it pays for a read; REG-1748: the cheap-subset CPU clock starts after the priming |
 | **v3564** | `d4e5da5b` | v3564 — REG-1745: a banked sweep no longer holds a console update for 15 minutes; REG-1746: prover sandboxes are removed on Windows (20 GB on the ALT) |
 | **v3563** | `0f416126` | v3563 — REG-1743: on a PC that never wrote a witness store (the ALT, and Dean) the vault lane now reads the reels waiting at PRINTER, which writes the store the river was waiting on; an unreadable store still never spends. HEART: test_a_reel_at_printer_is_the_vaults_work |
