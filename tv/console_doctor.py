@@ -6081,8 +6081,10 @@ def _check_the_item_facts_are_reaching_the_row():
     def _wits(r):
         return [w for w in (r.get("witnesses") or []) if isinstance(w, dict)]
 
+    # v3554 — the versions that ask the same question count as this prompt's (VAULT_PROMPT_ANSWERS_SAME_AS)
+    _vers = (ver,) + tuple(str(v) for v in (getattr(_td, "VAULT_PROMPT_ANSWERS_SAME_AS", ()) or ()))
     mine = [r for r in rows if isinstance(r, dict)
-            and any(str(w.get("promptVer") or "") == ver for w in _wits(r))]
+            and any(str(w.get("promptVer") or "") in _vers for w in _wits(r))]
     if not mine:
         return UNKNOWN, ("no sighting has been read by prompt %s yet, so whether the three facts "
                          "travel is UNMEASURED - not clean, and not a defect either" % ver)

@@ -508,9 +508,15 @@ def worn_from_row(row, hist_dir):
         except (TypeError, ValueError):
             pt = None
         # v3552 — a point is measured in the picture the READER saw (row["xySpace"]); the reel may keep a larger frame.
-        # Scale it to the frame it is filed against. No space recorded (a row from before v3552) = the frame's own.
+        # Scale it to the frame it is filed against.
+        # REG-1707 (the v3552 eye) — a row that SAYS it has a space but whose space is null or malformed is UNKNOWN,
+        # never the frame's own: that is a picture nobody could measure (the Windows live.png fallback), and filed raw
+        # its other-grid pixels landed in whatever doll box they hit. A row with no xySpace key at all is a point
+        # already given in frame pixels (no reader that asked for points ever omitted the key).
         _sp = row.get("xySpace")
-        if pt is not None and size and isinstance(_sp, (list, tuple)) and len(_sp) == 2:
+        _sp_ok = isinstance(_sp, (list, tuple)) and len(_sp) == 2
+        _sp_unknown = ("xySpace" in row) and not _sp_ok
+        if pt is not None and size and _sp_ok:
             try:
                 if float(_sp[0]) > 0 and float(_sp[1]) > 0 and (int(_sp[0]), int(_sp[1])) != (int(size[0]), int(size[1])):
                     pt = (pt[0] * float(size[0]) / float(_sp[0]), pt[1] * float(size[1]) / float(_sp[1]))
@@ -518,7 +524,9 @@ def worn_from_row(row, hist_dir):
                 pass
         geo, geo_why = None, None
         if pt is not None:
-            if size is None:
+            if _sp_unknown:
+                geo_why = "the size of the picture the point was measured in is unknown, so it cannot be placed"
+            elif size is None:
                 geo_why = "the point cannot be placed: %s" % size_why
             else:
                 geo, geo_why = _SI.worn_slot_of(pt, size[0], size[1])
@@ -554,7 +562,7 @@ def worn_from_row(row, hist_dir):
                 box, box_why = slot_box(slot, size[0], size[1])
         out.append({"item": item, "slot": slot, "slotBy": by, "why": why, "box": (list(box) if box else None),
                     "boxWhy": box_why, "frame": fid, "frameSize": (list(size) if size else None),
-                    "ts": _ts(row), "xy": (list(pt) if pt else None)})
+                    "ts": _ts(row), "xy": (list(pt) if (pt and not _sp_unknown) else None)})
     return out
 
 

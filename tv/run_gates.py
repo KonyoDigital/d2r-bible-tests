@@ -8801,6 +8801,14 @@ GATES = [
              "for the Chronicle sweep to stop before it ever asked the console, and quit at 20 minutes; his sweep read for "
              "3 h 45 min while the console had stopped counting it at 45. The bar now asks the console every tick, shows "
              "its reason, keeps watching past 20 minutes, and the console writes each change of its decision to the log."),
+    Gate("test_every_vault_look_says_which_cell",
+         [sys.executable, os.path.join(HERE, "test_every_vault_look_says_which_cell.py")], 90,
+         needs_app=False,
+         why="#146 3b (v3554) - his words: 'the items being witnessed also need coordinates based on where they were "
+             "witnessed'. 158 vault looks carried 0 cells. The vault reader is now asked each item's point (forward "
+             "only: vp3368 seals stand), sees a picture of KNOWN size (the item lanes sent the raw frame up to 2560 px, "
+             "which the reader scales invisibly), and each sighting files its frame point and its stash/inventory cell "
+             "or doll slot, or why there is none."),
     Gate("test_a_dry_backlog_sends_nothing",
          [sys.executable, os.path.join(HERE, "test_a_dry_backlog_sends_nothing.py")], 60,
          needs_app=False,

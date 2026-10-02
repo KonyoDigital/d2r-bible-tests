@@ -63,7 +63,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3553"   # the relaunch bar keeps asking
+VERSION = "v3554"   # every vault look says which cell
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -6963,7 +6963,12 @@ def _oneshot_inner(ap, model, timeout=90, prompt=None, raw_json=False):
 # with nothing; the vault side recorded only a timestamp, which makes its seal permanent however much
 # the reader improves. That is the same "a stale verdict made permanent" defect v1830 fixed on the
 # other lane, still live on this one. BUMP THIS WHENEVER VAULT_READ_PROMPT CHANGES.
-VAULT_PROMPT_VER = "vp3368"   # v2017 — and never to complete a partial name
+VAULT_PROMPT_VER = "vp3554"   # v3554 — #146 3b: each item's point ("xy") is asked; bump whenever VAULT_READ_PROMPT changes
+#: v3554 — HIS RULING (2026-10-01, "thats even better"): points are asked FROM NOW ON, no re-read of old footage. vp3554
+#: only ADDED each item's point; the name, kind, count, sockets, eth, quality and throw-out are asked exactly as vp3368
+#: asked them. So a vp3368 seal still stands (control_app._vault_still_sealed) and its rows still count as this prompt's
+#: (the sockets/eth/quality doctor row). A prompt that changes the QUESTION lists nothing here. [[stale-reading]]
+VAULT_PROMPT_ANSWERS_SAME_AS = ("vp3368",)
 
 VAULT_READ_PROMPT = (
     # ── v2016 — THE VAULT READER WAS NEVER TOLD ABOUT THE HOVER TOOLTIP ──────────────────────
@@ -7020,13 +7025,19 @@ VAULT_READ_PROMPT = (
     # null means the reader could not tell. Collapsing them would invent a fact about his loot.
     'Each item = {{"name":"<exact text you can read>","kind":"rune|gem|material|item",'
     '"count":<int or null>,"sockets":<int or null>,"eth":<true|false|null>,'
-    '"quality":"white|blue|gold|unique|set|null",'
+    '"quality":"white|blue|gold|unique|set|null","xy":[<x>,<y>] or null,'
     '"throwOut":false,"throwWhy":""}}\n'
     'sockets = how many socket holes you can SEE, or null if you cannot tell. 0 means you can see '
     'it has none. eth = true only if the tooltip or label says Ethereal, false only if you can see '
     'it does not, else null. quality = the item colour: white normal, blue magic, gold rare, unique, '
     'set(green) - null if the colour is not legible. NEVER GUESS ANY OF THESE FROM THE ICON ALONE: '
     'null costs a second look, a wrong one is banked against his loot forever.\n'
+    # v3554 (#146 3b) — WHERE EACH ITEM WAS SEEN. The point is the ITEM, never its tooltip: the tooltip floats wherever
+    # the game puts it; the item sits in one cell of the grid or one slot of the doll, and that cell is what the
+    # character window and the organizer draw. Whole pixels of THIS image, from its top-left corner.
+    'xy = the [x, y] pixel position IN THIS IMAGE of the ITEM ITSELF: the centre of its icon in the grid, or on the '
+    'equipment doll - NEVER the tooltip box. null when you cannot point to it: a missing point costs nothing, a wrong '
+    'one files the item in the wrong cell.\n'
     # v2017 — NEVER COMPLETE A PARTIAL NAME. READ_PROMPT has said this since the chronicle lane
     # existed ("Never invent from icons alone. Never complete partial names."). The vault prompt
     # covered the first half in its own words — "an icon you recognise but whose label you cannot
@@ -7181,6 +7192,30 @@ def _crop_answer_refused(raw, ledger_lane=True):
     return _cc.crop_answer_refused(raw, ledger_lane=ledger_lane)
 
 
+def _vault_xy_map(frame_path, read_path, crop_box=None):
+    """v3554 (#146 3b) — WHERE a vault reader's points live. -> {"space", "origin", "extent", "frame"} or None
+
+    A point (px, py) in the picture the reader SAW is the frame point origin + p * extent / space: `space` is the
+    [w, h] of the file sent, `extent` the [w, h] of the frame region it shows (the whole frame, or a tally band's
+    crop box), `origin` that region's top-left in the frame. None when either size cannot be read - the points are
+    then UNPLACED with that reason, never placed on an assumed size. [[unknown-stays-unknown]]"""
+    try:
+        import equipped_ledger as _EL
+        _fs = _EL.jpeg_size(frame_path)
+        _ss = _EL.jpeg_size(read_path)
+    except Exception:
+        return None
+    if not _fs or not _ss:
+        return None
+    if crop_box:
+        _ox, _oy = int(crop_box[0]), int(crop_box[1])
+        _ew, _eh = int(crop_box[2]) - _ox, int(crop_box[3]) - _oy
+    else:
+        _ox, _oy, _ew, _eh = 0, 0, int(_fs[0]), int(_fs[1])
+    return {"space": [int(_ss[0]), int(_ss[1])], "origin": [_ox, _oy], "extent": [_ew, _eh],
+            "frame": [int(_fs[0]), int(_fs[1])]}
+
+
 def claude_vault_read(image_path, surface, timeout=None):
     """One ownership panel, read on Konyo's Claude subscription, in vault_retro's `items` shape.
 
@@ -7226,6 +7261,7 @@ def claude_vault_read(image_path, surface, timeout=None):
         raw = man.get(os.path.basename(image_path) + "#vault") or man.get("*#vault")
         if raw is None:
             return None
+        _xy_map = _vault_xy_map(image_path, image_path)    # a stub answers about the frame itself
     else:
         ap = os.path.abspath(str(image_path or ""))
         if not os.path.isfile(ap):
@@ -7235,6 +7271,7 @@ def claude_vault_read(image_path, surface, timeout=None):
         # time AND blinds the read. stash_eye already owns this geometry, calibrated and locked on
         # his Mac — borrowed rather than re-derived, and it returns None when no honest band exists.
         _read_path = ap
+        _crop_box = None
         try:
             import stash_eye as _se
             from PIL import Image as _Im
@@ -7277,14 +7314,25 @@ def claude_vault_read(image_path, surface, timeout=None):
             _band = (_se.crops_for_aspect(_layout, float(_W) / float(_H))
                      if surface in _TALLY else None)
             if _band:
-                _c = _im.crop((int(_W * _band[0]), int(_H * _band[1]),
-                               int(_W * _band[2]), int(_H * _band[3])))
+                _box = (int(_W * _band[0]), int(_H * _band[1]), int(_W * _band[2]), int(_H * _band[3]))
+                _c = _im.crop(_box)
                 if _c.width > 200 and _c.height > 200:
+                    # v3554 (#146 3b) — a crop over the reader's 1568 px would be scaled BY THE READER, invisibly; scale
+                    # it here, so the size of the file sent is the space its points live in
+                    if max(_c.size) > 1568:
+                        _c.thumbnail((1568, 1568))
                     _cp = os.path.join(tempfile.gettempdir(), "tvd_vault_crop_%d.jpg" % os.getpid())
                     _c.save(_cp, quality=94)
                     _read_path = _cp
+                    _crop_box = _box
         except Exception:
-            _read_path = ap
+            _read_path, _crop_box = ap, None
+        if _read_path == ap:
+            # v3554 (#146 3b) — THE ITEM LANES SENT THE RAW FRAME, up to HIST_MAX_PX (2560), and the reader scales
+            # anything over 1568 px down before it looks: a point it returned would live in a space nobody recorded.
+            # The frame now goes at the read spec - what the reader would have seen anyway - and its size is recorded.
+            _read_path = _readable_frame(ap, os.path.join(tempfile.gettempdir(), "tvd_vault_read_%d.jpg" % os.getpid()))
+        _xy_map = _vault_xy_map(ap, _read_path, _crop_box)
         raw = _oneshot(_read_path, GENIUS_MODEL,
                        timeout=float(timeout or 120),
                        prompt=VAULT_READ_PROMPT.format(path=_read_path, surface=surface),
@@ -7296,14 +7344,16 @@ def claude_vault_read(image_path, surface, timeout=None):
                 and not _sub_budget_check("oneshot")):
             # same cap re-check as the chronicle route above — one budget check may not license two
             # reads now that the retry fires on a refusal rather than only on a crash.
-            _full = _oneshot(ap, GENIUS_MODEL,
+            _fp = _readable_frame(ap, os.path.join(tempfile.gettempdir(), "tvd_vault_read_%d.jpg" % os.getpid()))
+            _full = _oneshot(_fp, GENIUS_MODEL,
                              timeout=float(timeout or 120),
-                             prompt=VAULT_READ_PROMPT.format(path=ap, surface=surface),
+                             prompt=VAULT_READ_PROMPT.format(path=_fp, surface=surface),
                              raw_json=True)
             # Only if it is actually BETTER. A full frame that also refuses must never overwrite
             # the crop's answer — a retry that can lose information is not a retry.
             if not _crop_answer_refused(_full, ledger_lane=False):
                 raw = _full
+                _xy_map = _vault_xy_map(ap, _fp)   # v3554 — the answer kept is the frame's, so are its points
 
     if raw is None:
         return None
@@ -7323,7 +7373,7 @@ def claude_vault_read(image_path, surface, timeout=None):
         conf = float(d.get("conf"))
     except Exception:
         conf = None
-    return {"items": out, "conf": conf, "surface": surface}
+    return {"items": out, "conf": conf, "surface": surface, "xy": _xy_map}
 
 
 def claude_chronicle_read(image_path, kind, timeout=None):

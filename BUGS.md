@@ -406,6 +406,42 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1707 - THE v3552 EYE: A POINT WHOSE PICTURE COULD NOT BE MEASURED WAS FILED ON THE FRAME'S GRID (2026-10-02)
+
+The Grok CLI looked at v3552 and filed one finding + a reach note. **Reproduced in code:** `_with_xy_space` writes
+`xySpace: null` when `jpeg_size` cannot read the picture the reader saw (the Windows path falls back to `live.png`,
+which it cannot measure), and `equipped_ledger.worn_from_row` scaled only a 2-list - so null fell through as "the frame's
+own" and the raw, other-grid point was filed in whatever doll box it hit (`slotBy: geometry`). **Fixed:** a row that
+carries an `xySpace` key whose value is null or malformed is UNKNOWN - the point is not placed, the reason is said, the
+reader's slot word still stands alone. A row with NO key is a point given in frame pixels (no reader that asked for
+points ever omitted it), so the #54 law's fixtures keep their meaning. **Law:** a frame-scale torso point with
+`xySpace: null` used to land in "torso" and now stays unplaced; RED_PROOF 6/6 PROVEN. The reach note (control_app,
+test_control, bible.html not shown) is recorded as a reach limit, not a clean verdict.
+
+### REG-1706 - #146 STEP 3b: EVERY VAULT LOOK SAYS WHICH CELL, FROM NOW ON (v3554, 2026-10-02)
+
+His words, 2026-10-01: "the items being witnessed also need coordinates based on where they were witnessed" - and
+"thats even better" to asking from now on without re-reading old footage. MEASURED before: 16 vault items, 158 looks,
+**0** with a cell; the vault reader was never asked where.
+
+- **The question:** VAULT_READ_PROMPT asks each item's `xy` - the ITEM's cell centre or doll slot, NEVER the tooltip.
+  `VAULT_PROMPT_VER` vp3368 -> vp3554 with `VAULT_PROMPT_ANSWERS_SAME_AS = ("vp3368",)`: vp3554 only ADDED the point,
+  so every vp3368 seal still stands (`_vault_still_sealed`) and the sockets/eth/quality doctor row counts both.
+- **The trap closed first:** the item lanes sent the RAW reel frame - up to HIST_MAX_PX, 2560 px - and the reader
+  scales anything over 1568 px down before it looks, so a point it returned would live in a space nobody recorded. The
+  frame now goes at the read spec (what the reader saw anyway); a tally band's crop over 1568 is scaled here; and every
+  read returns `xy` = {space, origin, extent, frame} so a point maps back to the frame exactly.
+- **The placing:** `vault_retro.place_on_grid` scales the point to the frame and names the cell through
+  slot_identity - `stash:c3r4`, `inventory:c..`, or `equipped:<slot>` - or says why not (no point, unknown size,
+  outside the picture, frame off the calibrated aspect, an unmeasured doll slot). A cell is never guessed.
+- **The record:** each sighting carries `point`, `cell`, `cellWhy` (in the `sight` literal, so the field census reads
+  them), and `_witness_rows` banks them.
+- **Not changed, on purpose:** how many witnesses ground a name. `same-slot` corroboration exists in slot_identity and
+  is consumed by the chronicle gate; joining it to the vault gate changes what grounds - his ruling, not a side effect.
+- **Law:** `test_every_vault_look_says_which_cell` - 13 cases (the real claude_vault_read with a 2560 px frame, the
+  half-size point landing in stash:c3r4 and its premise, the crop origin, every refusal, the parser, the witness, the
+  literal), RED_PROOF 5/5 PROVEN.
+
 ### REG-1705 - THE PUBLISH SUITES JOB WAS CANCELLED ON A GREEN BUILD, SO 44750b8c NEVER DEPLOYED (2026-10-02)
 
 **Found** reading CI after the v3550-v3553 push: "Publish - gates, review, then deploy" ended **cancelled**, Deploy

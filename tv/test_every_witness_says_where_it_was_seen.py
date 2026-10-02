@@ -146,6 +146,16 @@ class ThePointLandsInTheRightSlot(unittest.TestCase):
         got = EL.worn_from_row(self._row([720, 452], word="torso"), self.hist)
         self.assertEqual(got[0]["slotBy"], "reader+geometry", got[0])
 
+    def test_a_point_whose_picture_size_is_unknown_is_never_placed(self):
+        """REG-1707 (the v3552 eye) - xySpace null: even a point that WOULD land in a doll box stays unplaced"""
+        x, y, w, h = SI.EQUIP_SLOTS["torso"]
+        row = {"sessionId": "s_1", "frameId": "f_1", "names_loc": {"Shako": "equipped"},
+               "names_xy": {"Shako": [(x + w / 2) * 1440, (y + h / 2) * 904]}, "names_slot": {}, "xySpace": None}
+        got = EL.worn_from_row(row, self.hist)
+        self.assertIsNone(got[0]["slot"], got[0])
+        self.assertIn("unknown", got[0]["why"])
+        self.assertIsNone(got[0]["xy"])
+
     def test_without_its_space_the_same_point_is_not_placed(self):
         """premise: unscaled, the half-size point lies off the doll - so the case above can only pass by scaling"""
         got = EL.worn_from_row(self._row(None), self.hist)
@@ -153,6 +163,13 @@ class ThePointLandsInTheRightSlot(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1707 - a point whose picture size is unknown is filed on the frame's grid again",
+        "file": "equipped_ledger.py",
+        "find": "            if _sp_unknown:\n                geo_why = \"the size of the picture the point was measured in is unknown, so it cannot be placed\"\n            elif size is None:\n",
+        "replace": "            if size is None:\n",
+        "matches": 1,
+    },
     {
         "why": "v3552 - the reader stops being asked where each item is",
         "file": "tv_diablo.py",

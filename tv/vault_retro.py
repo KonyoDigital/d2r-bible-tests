@@ -385,6 +385,62 @@ def _max_count(a, b):
     return a if a >= b else b
 
 
+def _xy_of(v):
+    """v3554 (#146 3b) — the reader's point for one item: [x, y] of non-negative numbers, or None. A malformed point is
+    None (no point), never a guessed one."""
+    try:
+        if isinstance(v, (list, tuple)) and len(v) == 2:
+            x, y = float(v[0]), float(v[1])
+            if x >= 0 and y >= 0 and x == x and y == y:
+                return [x, y]
+    except (TypeError, ValueError):
+        pass
+    return None
+
+
+def place_on_grid(xy, xy_map, lane):
+    """v3554 (#146 3b) — WHERE a vault look saw the item. -> {"point": [x, y] | None, "cell": str | None, "why": str | None}
+
+    The reader points in the picture IT saw; `xy_map` (tv_diablo._vault_xy_map) says how that picture sits in the
+    frame. The point is scaled to the frame and placed by slot_identity - a stash/inventory grid's cell
+    ("stash:c3r4"), or the doll slot it lies in ("equipped:torso"). Every refusal is said; a cell is never guessed,
+    because a wrong cell files the item where he will not look. [[unknown-stays-unknown]]"""
+    if xy is None:
+        return {"point": None, "cell": None, "why": "the reader gave no point for it"}
+    if not isinstance(xy_map, dict):
+        return {"point": None, "cell": None, "why": "the size of the picture the reader pointed in is unknown"}
+    try:
+        sw, sh = [float(v) for v in xy_map["space"]]
+        ox, oy = [float(v) for v in xy_map["origin"]]
+        ew, eh = [float(v) for v in xy_map["extent"]]
+        fw, fh = [float(v) for v in xy_map["frame"]]
+    except (KeyError, TypeError, ValueError):
+        return {"point": None, "cell": None, "why": "the picture's measurements are unreadable"}
+    if sw <= 0 or sh <= 0 or ew <= 0 or eh <= 0:
+        return {"point": None, "cell": None, "why": "the picture's measurements are empty"}
+    if not (xy[0] <= sw and xy[1] <= sh):
+        return {"point": None, "cell": None,
+                "why": "the point (%g,%g) lies outside the %gx%g picture the reader was shown" % (xy[0], xy[1], sw, sh)}
+    pt = [round(ox + xy[0] * ew / sw, 1), round(oy + xy[1] * eh / sh, 1)]
+    try:
+        import slot_identity as _si
+    except Exception as e:
+        return {"point": pt, "cell": None, "why": "the grid geometry would not load (%s)" % type(e).__name__}
+    if lane == "equipment":
+        slot, why = _si.worn_slot_of(pt, fw, fh)
+        return {"point": pt, "cell": ("equipped:%s" % slot) if slot else None, "why": None if slot else why}
+    cont = {"stash": "stash", "inventory": "inventory"}.get(lane)
+    if cont is None:
+        return {"point": pt, "cell": None, "why": "no grid is measured for the %s lane" % lane}
+    box, why = _si.panel_box_for(fw, fh, container=cont)
+    if not box:
+        return {"point": pt, "cell": None, "why": why}
+    cell, why = _si.cell_of(pt, box, cont)
+    if not cell:
+        return {"point": pt, "cell": None, "why": why}
+    return {"point": pt, "cell": _si.slot_key(cont, cell[0], cell[1]), "why": None}
+
+
 def normalize_item(raw, surface, lane_default, page_conf):
     """One reader row → the canonical owned-row seed, or None if it is not an item at all.
 
@@ -418,6 +474,8 @@ def normalize_item(raw, surface, lane_default, page_conf):
         "eth": (True if raw.get("eth") is True
                 else (False if raw.get("eth") is False else None)),
         "quality": _quality_of(raw.get("quality")),
+        # v3554 (#146 3b) — where the reader saw it, in ITS picture; place_on_grid turns it into a frame point and a cell
+        "xy": _xy_of(raw.get("xy")),
         # ⚠⚠ v3368 — WHICH PROMPT PRODUCED THIS ROW. Without it a null socket count from the OLD
         # prompt (which never asked) is indistinguishable from a null the NEW one genuinely could
         # not read, and the heart row that watches this cannot name its own population.
@@ -873,7 +931,7 @@ def _witness_rows(evidence):
         #
         # `is not None`, never truthiness: eth=False and sockets=0 are ANSWERS, and `if e.get("eth")`
         # would throw both away as if the reader had said nothing. [[unknown-stays-unknown]]
-        for _vf in ("sockets", "eth", "quality", "promptVer"):
+        for _vf in ("sockets", "eth", "quality", "promptVer", "point", "cell", "cellWhy"):   # v3554 — and WHERE
             if e.get(_vf) is not None:
                 r[_vf] = e.get(_vf)
         w = e.get("witness")
@@ -1644,6 +1702,7 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
                                        "why": "the reader returned a row with no name on %s in %s — "
                                               "nothing was invented for it" % (name, sid)})
                         continue
+                    _pl = place_on_grid(item.get("xy"), resp.get("xy"), item["lane"])   # v3554 (#146 3b)
                     sight = {"session": sid, "witness": _wkey, "frame": name, "lane": item["lane"],
                              "conf": item["conf"], "count": item["count"], "kind": item["kind"],
                              "ts": ts,
@@ -1657,7 +1716,10 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
                              # v2239 — the picture, or WHY there is none. Never silently absent:
                              # "no tooltip on this frame" and "the crop store is full" are
                              # different answers and only one of them is about his footage.
-                             "crop": _crop_rel, "cropWhy": None if _crop_rel else _crop_why}
+                             "crop": _crop_rel, "cropWhy": None if _crop_rel else _crop_why,
+                             # v3554 (#146 3b) — WHERE THIS LOOK SAW IT: the frame point and its cell, or why
+                             # there is none. In the literal, so the field census reads them like every other key.
+                             "point": _pl["point"], "cell": _pl["cell"], "cellWhy": _pl["why"]}
                     key = (item["name"], item["lane"])
                     evidence.setdefault(key, []).append(sight)
                     if item["throwOut"]:

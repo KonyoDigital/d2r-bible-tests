@@ -26500,7 +26500,20 @@ def _vault_still_sealed(rec, prompt_ver=None):
             want = None
     if want is None:
         return True       # cannot tell which reader is current -> change nothing
-    return str(rec.get("promptVer") or "") == str(want)
+    # v3554 — HIS RULING: a seal by a reader whose answers still answer today's question stands (forward only)
+    return str(rec.get("promptVer") or "") in (str(want),) + _vault_prompt_vers_same_as(want)
+
+
+def _vault_prompt_vers_same_as(prompt_ver):
+    """v3554 (#146 3b) — the older vault-reader versions that ask the same question as `prompt_ver`
+    (tv_diablo.VAULT_PROMPT_ANSWERS_SAME_AS), only when `prompt_ver` IS the current reader. -> tuple"""
+    try:
+        import tv_diablo as _tvd
+        if str(prompt_ver) == str(_tvd.VAULT_PROMPT_VER):
+            return tuple(str(v) for v in (getattr(_tvd, "VAULT_PROMPT_ANSWERS_SAME_AS", ()) or ()))
+    except Exception:
+        pass
+    return ()
 
 
 def _vault_swept_load():
@@ -37917,7 +37930,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3553",
+        "ver": "v3554",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
