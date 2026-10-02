@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3562",
+  "ver": "v3563",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3562: REG-1739 to REG-1741: the push gate runs the big console suite in four parallel shards (one case alone was 62 percent of it and now takes 4 seconds), the second eye is no longer told an uncut diff is truncated, and a version note never prints its version twice. HEART: test_a_sharded_suite_runs_every_case_once, test_a_look_can_cover_a_batch, test_the_bump_refuses_a_tree_that_does_not_parse",
+  "note": "v3563: REG-1743: on a PC that never wrote a witness store (the ALT, and Dean) the vault lane now reads the reels waiting at PRINTER, which writes the store the river was waiting on; an unreadable store still never spends. HEART: test_a_reel_at_printer_is_the_vaults_work",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
