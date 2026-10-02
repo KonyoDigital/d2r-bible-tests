@@ -250,6 +250,13 @@ def bump(ver, name, note, repo=None):
     if not _nm or _nm.startswith(str(ver).strip().lower()):
         raise SystemExit("the short name must say what %s DOES (e.g. \"one clock hour\"), never repeat the version - "
                          "the badge printed it twice (tests/v1748_build_badge_says_it_once.spec.ts)" % ver)
+    # REG-1741 - AND THE NOTE NEVER OPENS WITH THE VERSION EITHER: this tool writes "vNNNN: <note>" into WINDOWS_SHIP and
+    # "vNNNN — <note>" into TASKS, so a note that starts "v3561 — ..." printed "v3561: v3561 — ..." (v3554 and v3561,
+    # caught by the #231 code seat on 065f5433).
+    _nt = str(note or "").strip().lower()
+    if _nt.startswith(str(ver).strip().lower()):
+        raise SystemExit("the note must not open with %s - the tool prefixes it, and it printed twice in "
+                         "WINDOWS_SHIP and TASKS (REG-1741)" % ver)
     _heart_gate(note, repo)
 
     # 2026-08-20 — AND A NOTE MAY NOT NAME A CSS TOKEN IN CALLABLE FORM.

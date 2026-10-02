@@ -406,6 +406,14 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1741 - A BUMP NOTE THAT OPENED WITH ITS VERSION PRINTED IT TWICE (2026-10-02, the #231 code seat on 065f5433)
+
+The code seat on the v3561 stamp: WINDOWS_SHIP read "v3561: v3561 — REG-1736 ..." and the TASKS row "v3561 — v3561 — ...",
+while bible.html's note began "v3561 —" - three surfaces, two sentences. bump_version.py prefixes the version itself and
+my note opened with it; TASKS showed the same on v3554. REG-1689 already refused a NAME that repeats the version; the
+note now gets the same refusal, and the four doubled entries (v3561 x3, v3554's row) are corrected. Case + red-proof in
+`test_the_bump_refuses_a_tree_that_does_not_parse` (7/7 PROVEN).
+
 ### REG-1740 - THE PUSH GATE SPENT 10 MINUTES ON test_control, AND ONE CASE WAS 62% OF IT (2026-10-02, #42)
 
 His order 20:05: push speed first, for wall clock. MEASURED on the v3560 push: 17m15s gate, test_control ~10 min of it

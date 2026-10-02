@@ -184,6 +184,22 @@ class TestTheBumpRefusesATreeThatDoesNotParse(unittest.TestCase):
             self.assertNotIn("never repeat the version", str(e), "a real name was refused as a repeat")
 
 
+    def test_the_bump_refuses_a_note_that_opens_with_the_version(self):
+        """REG-1741 - the tool prefixes the version itself, so a note opening "v99999 — ..." printed it twice."""
+        d = self._temp_repo()
+        before = io.open(os.path.join(d, "bible.html"), encoding="utf-8").read()
+        for bad in ("v99999 — the river reopens", "V99999: again", "  v99999 - x"):
+            with self.assertRaises(SystemExit) as cm:
+                B.bump("v99999", "the river reopens", bad, repo=d)
+            self.assertIn("must not open with", str(cm.exception), "note %r: %s" % (bad, cm.exception))
+        self.assertEqual(io.open(os.path.join(d, "bible.html"), encoding="utf-8").read(), before,
+                         "the bump REFUSED a note and still wrote")
+        try:
+            B.bump("v99999", "the river reopens", "REG-1 - the river reopens after v99998", repo=d)
+        except SystemExit as e:
+            self.assertNotIn("must not open with", str(e), "a note that only MENTIONS a version was refused")
+
+
 class TheHeartGateGradesTheTreeBeingBumped(unittest.TestCase):
     """#223 — `bump(repo=...)` stamps the tree it is handed, and its heart gate ran `git diff` beside
     the SCRIPT regardless: a bump aimed at a temp tree was refused for uncommitted edits in the LIVE
@@ -259,6 +275,13 @@ RED_PROOF = [
         "why": "REG-1689 - the bump stamps a name that repeats the version, and the badge prints it twice",
         "file": "bump_version.py",
         "find": "    if not _nm or _nm.startswith(str(ver).strip().lower()):\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1741 - the bump stamps a note that opens with the version, and it prints twice",
+        "file": "bump_version.py",
+        "find": "    if _nt.startswith(str(ver).strip().lower()):\n",
         "replace": "    if False:\n",
         "matches": 1,
     },
