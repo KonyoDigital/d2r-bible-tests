@@ -186,14 +186,14 @@ RED_PROOF = [
     {
         "why": "v3472 — the verdict job expects fewer shards than the matrix runs",
         "file": ".github/workflows/tv-tests.yml",   # a LITERAL: heart2 reads RED_PROOF by ast.literal_eval
-        "find": "      GATE_SHARDS: \"1 2\"\n",
-        "replace": "      GATE_SHARDS: \"1\"\n",
+        "find": "      GATE_SHARDS: \"1 2 3 4\"\n",
+        "replace": "      GATE_SHARDS: \"1 2 3\"\n",
         "matches": 1,
     },
     {
         "why": "v3472 — every shard runs the WHOLE set again, so the ceiling is crossed twice over",
         "file": ".github/workflows/tv-tests.yml",   # a LITERAL: heart2 reads RED_PROOF by ast.literal_eval
-        "find": "          python3 tv/run_gates.py --shard ${{ matrix.shard }}/2\n",
+        "find": "          python3 tv/run_gates.py --shard ${{ matrix.shard }}/4\n",
         "replace": "          python3 tv/run_gates.py\n",
         "matches": 1,
     },
