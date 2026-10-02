@@ -334,6 +334,13 @@ GATES = [
              "hidden, below everything he runs, only when idle, one at a time, backing off after a failure; a dev "
              "tree never does. heart2 no longer sends signal 0 (a Ctrl-C) on Windows. Real temp git repo. A cold "
              "Grok review found 3 more (a lost save spawned a 2nd prover; tick could raise; NaN load read idle). "),
+    Gate("test_a_sandbox_is_removed_whatever_its_bits",
+         [sys.executable, os.path.join(HERE, "test_a_sandbox_is_removed_whatever_its_bits.py")], 90,
+         needs_app=False,
+         why="REG-1746 - 72 prover sandboxes, 20,345 MB, in the ALT's TEMP since 09-29: git writes packs read-only, "
+             "Windows will not unlink a read-only file, and every removal was rmtree(ignore_errors=True) - the drop "
+             "and the stale sweep alike. One helper clears the bits on what a plain pass left and answers whether "
+             "the path is gone; a drop that still fails says so."),
     Gate("test_a_finished_sweep_frees_the_relaunch",
          [sys.executable, os.path.join(HERE, "test_a_finished_sweep_frees_the_relaunch.py")], 90,
          needs_app=False,

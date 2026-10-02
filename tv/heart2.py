@@ -953,12 +953,12 @@ def _bring_across(src, dst, need, say):
                             os.path.dirname(os.path.normpath(src)), tmp],
                            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300, env=env)
         if r.returncode != 0:
-            shutil.rmtree(tmp, ignore_errors=True)
+            _rmtree_hard(tmp)
             say("  could not share the git history into the sandbox (git clone --shared exit %s) — gates "
                 "that read it stay UNPROVABLE" % r.returncode)
             return
         os.replace(os.path.join(tmp, ".git"), dst)
-        shutil.rmtree(tmp, ignore_errors=True)
+        _rmtree_hard(tmp)
         subprocess.run(["git", "read-tree", "HEAD"], cwd=os.path.dirname(dst),
                        capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=120, env=env)
         return
@@ -993,9 +993,39 @@ def _track_sandbox(root):
     return root
 
 
+def _rmtree_hard(path):
+    """REG-1746 — remove a tree even where a permission bit stands in the way. -> True when it is GONE.
+
+    MEASURED on the ALT, 2026-10-02: 72 heart2 sandboxes in its TEMP since 09-29, 20,345 MB, with 25.8 GB free.
+    Each held three files - the git pack (.idx/.pack/.rev, ~280 MB) - because git writes packs READ-ONLY and
+    Windows refuses to unlink a read-only file ("[WinError 5] Access is denied"). rmtree(ignore_errors=True)
+    swallowed that, after deleting the owner file first, so the stale sweep then read every leftover as "no
+    owner" and failed on the same pack every time it tried. The Mac never saw it: POSIX unlinks a read-only file
+    in a writable directory. So: a plain pass, then clear the bits on whatever is left and pass again - and the
+    answer is whether the path still exists, never that the call returned. [[unknown-stays-unknown]]
+    """
+    shutil.rmtree(path, ignore_errors=True)
+    if not os.path.exists(path):
+        return True
+    for dp, dns, fns in os.walk(path):
+        for n in dns:
+            try:
+                os.chmod(os.path.join(dp, n), 0o700)
+            except OSError:
+                pass
+        for n in fns:
+            try:
+                os.chmod(os.path.join(dp, n), 0o600)
+            except OSError:
+                pass
+    shutil.rmtree(path, ignore_errors=True)
+    return not os.path.exists(path)
+
+
 def _drop_sandbox(root):
     _SANDBOXES.discard(root)
-    shutil.rmtree(root, ignore_errors=True)
+    if not _rmtree_hard(root):
+        sys.stderr.write("  a sandbox could not be removed (it stays on disk until the next sweep): %s\n" % root)
 
 
 def _remove_all_sandboxes():
@@ -1064,8 +1094,7 @@ def sweep_stale_sandboxes(tmp=None, now=None):
             why = "%.0f h old - no proof run lives that long%s" % (age / 3600.0, (" (owner pid %s)" % owner) if owner else "")
         else:
             continue
-        shutil.rmtree(root, ignore_errors=True)
-        if not os.path.exists(root):
+        if _rmtree_hard(root):                  # REG-1746 — a read-only git pack kept 71 of these on the ALT
             gone.append((root, why))
     return gone
 

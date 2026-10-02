@@ -406,6 +406,19 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1746 - 72 PROVER SANDBOXES, 20 GB, ON THE ALT: GIT'S READ-ONLY PACK OUTLIVED EVERY RMTREE (2026-10-02)
+
+Found while tracing REG-1745: the ALT's TEMP held 72 `heart2.*` sandboxes since 09-29 - 20,345 MB, with 25.8 GB free.
+The Mac had none. Each leftover was three files: a git pack (.idx/.pack/.rev, ~280 MB) under `repo/.git`, which off
+the Mac is a `git clone --shared`. Git writes packs read-only; Windows answers "[WinError 5] Access is denied" to
+unlinking one; every removal was `rmtree(ignore_errors=True)`. The drop deleted the owner file first, so the stale
+sweep read 70 leftovers as ownerless and young-or-old by mtime, and its own rmtree failed on the same pack: run by
+hand on the ALT it removed 1 of 29 sandboxes older than a day (the only one with no pack). One helper,
+`heart2._rmtree_hard`, now clears the bits on what a plain pass left and answers whether the path is GONE; the drop,
+the stale sweep and the clone scratch use it, and a drop that still fails says so on stderr. Law
+`test_a_sandbox_is_removed_whatever_its_bits` (read-only file for Windows, read-only directory for POSIX; baseline
+asserted first), 6 cases, 4/4 PROVEN.
+
 ### REG-1745 - A FINISHED SWEEP HELD THE RELAUNCH FOR 15 MINUTES, AND THE NEXT SWEEP CAME IN 14 (2026-10-02, #152)
 
 He saw "no sweep has run since this console started" on the ALT and a console that would not leave v3562 while v3563
