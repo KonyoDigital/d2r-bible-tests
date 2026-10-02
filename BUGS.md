@@ -406,6 +406,29 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1748 - THE CHEAP-SUBSET CPU CLOCK CHARGED THE PRIMING THE WALL CLOCK DID NOT (2026-10-03, v3563 second eye)
+
+The #231 eye on 14a1c41e: REG-1744 took `process_time()` BEFORE `with cd.tick_caches()`, so the CPU total that is now
+judged included the priming (board, health report, route census - judged on its own 5x ceiling), while the wall total
+printed beside it started inside the loop. Two figures on one line, two different spans. The retry pass had the same
+shape. Both clocks now start inside the priming block; measured after: 3,914 ms wall, 846 ms CPU, priming 5,274 ms
+reported on its own line. Unguarded by a new law on purpose: a structural pin on where a timer starts would grade the
+text, not the timing; the case's printed spans are the check.
+
+### REG-1747 - THE CHRONICLE PAID TO READ A REEL THE TRIAGE HAD ALREADY PROVEN EMPTY (2026-10-03, #152)
+
+He asked why the ALT's chronicle sweep was so slow, and said it: the frames are "filtered already by design", "80%+
+of the reels are garbage with no data", and "make sure not to double build here.. they should just be wired properly
+together". MEASURED on the ALT: reel_s_1790928016230_14824 - retro_triage walked all 423 frames (`full: true`) and
+found 0 panels, the river held it at TOMBSTONE - and the chronicle autoread had classified it twice (both retired as
+"the sweep started but never wrote a result") and was 18 minutes into a third, at ~80 s a Grok attempt with today's
+140 s timeouts. `_chron_reel_owes_a_read` - the one rule behind the autoread, its offer list and the "waiting on a
+sweep" count - never asked the triage. It now calls `reel_retention._proven_empty` (retention's own cached reading of
+`retro_triage.worth_reading() is False`), so the two cannot disagree about one reel; a sampled pass, an absent reel or
+no store still owes. NOT joined yet: the manual untargeted sweep's `_chron_skip_set` keeps its own older rule (sealed
+reels only) - a second definition, named for the next slice. Law `test_a_reel_triage_proved_empty_owes_no_read`,
+7 cases, 2/2 PROVEN.
+
 ### REG-1746 - 72 PROVER SANDBOXES, 20 GB, ON THE ALT: GIT'S READ-ONLY PACK OUTLIVED EVERY RMTREE (2026-10-02)
 
 Found while tracing REG-1745: the ALT's TEMP held 72 `heart2.*` sandboxes since 09-29 - 20,345 MB, with 25.8 GB free.

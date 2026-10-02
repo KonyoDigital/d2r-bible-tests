@@ -22392,9 +22392,12 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
         # A fix that moved a 3-second cost somewhere nobody looks would be worse than the wrong
         # name it replaced. [[zero-needs-a-denominator]] [[regression-guard]]
         _t_prime = _t.time()
-        _cpu0 = _t.process_time()
         with cd.tick_caches():
             _prime_ms = (_t.time() - _t_prime) * 1000
+            # REG-1748 — the CPU clock starts AFTER the priming, on the span the wall total covers. It started before
+            # `tick_caches()` and so charged the priming (board, health report, route census - judged on its own
+            # ceiling above) to the subset, while the wall figure printed beside it did not. (the v3563 second eye)
+            _cpu0 = _t.process_time()
             for name, fn in cd.CHECKS:
                 if name in _skip:
                     continue
@@ -22513,8 +22516,8 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
             # "what actually decides" was inert: it can never absolve anything.
             # [[feedback-suspect-the-instrument]] [[a-gate-can-perturb-what-it-measures]]
             _t2 = 0.0
-            _c2 = _t.process_time()
             with cd.tick_caches():
+                _c2 = _t.process_time()        # REG-1748 — after this pass's priming too
                 for _n, _f in cd.CHECKS:
                     if _n in _skip:
                         continue

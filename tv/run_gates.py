@@ -334,6 +334,13 @@ GATES = [
              "hidden, below everything he runs, only when idle, one at a time, backing off after a failure; a dev "
              "tree never does. heart2 no longer sends signal 0 (a Ctrl-C) on Windows. Real temp git repo. A cold "
              "Grok review found 3 more (a lost save spawned a 2nd prover; tick could raise; NaN load read idle). "),
+    Gate("test_a_reel_triage_proved_empty_owes_no_read",
+         [sys.executable, os.path.join(HERE, "test_a_reel_triage_proved_empty_owes_no_read.py")], 90,
+         needs_app=False,
+         why="REG-1747 - the chronicle autoread paid Grok to classify an ALT reel three times while retro_triage had "
+             "walked all 423 frames and found no panel, and the river held it at TOMBSTONE: the owes-a-read rule "
+             "behind the autoread, its offer list and the waiting count never asked the triage. It now calls "
+             "retention's own reading (reel_retention._proven_empty); anything unproven still owes."),
     Gate("test_a_sandbox_is_removed_whatever_its_bits",
          [sys.executable, os.path.join(HERE, "test_a_sandbox_is_removed_whatever_its_bits.py")], 90,
          needs_app=False,

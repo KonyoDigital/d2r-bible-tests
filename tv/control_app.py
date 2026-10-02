@@ -20212,6 +20212,21 @@ def _chron_reel_owes_a_read(rid, mem=None):
     reader found nothing', not 'done'". run_gates.py:255 guards the same rule from the other side.
     Same test here, so the sweeper, the panel and retention can no longer disagree.
     """
+    # REG-1747 — THE FILTER ALREADY RULED, SO ASK IT. MEASURED on the ALT, 2026-10-02: the autoread
+    # paid Grok to classify reel_s_1790928016230_14824 three times (two retired as "never wrote a
+    # result", a third running 18 min) while retro_triage had fully surveyed its 423 frames and
+    # found ZERO panels, and the river held it at TOMBSTONE. This rule never asked the triage, so a
+    # reel the filter had proven empty still "owed" a paid read. reel_retention._proven_empty is
+    # retention's own rule (a FULL pass, no panel of any kind - stash or chronicle), the cached
+    # reading of retro_triage.worth_reading() is False; it is called, not re-derived, so retention
+    # and this lane can never disagree about one reel, and anything it cannot prove (no store, a
+    # sampled pass, an absent reel) still owes. [[the-unjoined-end]] [[copy-drift]]
+    try:
+        import reel_retention as _rr
+        if _rr._proven_empty(str(rid)):
+            return False
+    except Exception:
+        pass
     e = (_chron_swept_mem() if mem is None else mem).get(str(rid))
     if not isinstance(e, dict):
         return True                       # never swept at all
