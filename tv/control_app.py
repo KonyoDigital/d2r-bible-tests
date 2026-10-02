@@ -25231,7 +25231,7 @@ def _retention_once():
             _w_vault = []
             for k in (p.get("kept") or []):
                 _rid = os.path.basename(str(k.get("reel")))
-                if not _sd_lane.vault_owes_read(k.get("tag"), _w_pos.get(_rid)):
+                if not _sd_lane.vault_owes_read(k.get("tag"), _w_pos.get(_rid), _rid):
                     continue
                 if k.get("tag") not in _vault_lane_tags and (
                         _w_seals is None or _rr_w is None
@@ -29125,7 +29125,7 @@ def _vault_owed_reels(hist=None):
     out = []
     for k in (p.get("kept") or []):
         rid = os.path.basename(str(k.get("reel")))
-        if not _sd.vault_owes_read(k.get("tag"), _pos.get(rid)):
+        if not _sd.vault_owes_read(k.get("tag"), _pos.get(rid), rid):
             continue
         if k.get("tag") not in _vault_tags:
             # the PRINTER half: only on a KNOWN seal store, and never for a reel it already holds -

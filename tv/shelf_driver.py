@@ -135,7 +135,20 @@ def _no_witness_store_was_ever_written(root=None):
     return wi.get("ok") is True and wi.get("haveIndex") is False
 
 
-def vault_owes_read(tag, station):
+def _proven_empty(reel):
+    """REG-1749 — did a FULL triage pass find no panel of any kind on this reel? -> bool. Never raises.
+
+    Retention's own reading (reel_retention._proven_empty), called rather than re-derived; anything it cannot prove is
+    False, which leaves the read owed."""
+    try:
+        import os as _os
+        import reel_retention as _rr
+        return bool(_rr._proven_empty(_os.path.basename(str(reel))))
+    except Exception:
+        return False
+
+
+def vault_owes_read(tag, station, reel=None):
     """Does the vault lane owe this reel a paid READ? -> bool. THE ONE DEFINITION.
 
     ⚠⚠ 2026-09-29 (#50, REG-1446) — TWO INDEPENDENT FACTS, AND ONLY ONE WAS EVER ASKED. Retention's
@@ -157,6 +170,16 @@ def vault_owes_read(tag, station):
     # vault_accum.json and vault_seen.json both ABSENT - the lane read 0 reels, ever, and never could. The veto's own
     # reason ("UNKNOWN never spends") is about a store that will not READ; a store measured ABSENT is "nothing read
     # yet", which is the one state a read is owed. So at PRINTER it owes - only when the stores are measured absent.
+    #
+    # ⚠⚠ REG-1749 (2026-10-03, the ALT) - AND THE FILTER HAD ALREADY RULED ON SOME OF THEM. REG-1743 opened the vault to
+    # every PRINTER reel and asked nothing of the triage: MEASURED, it paid to read reel_s_1790528959887_11808, which
+    # retro_triage had walked in full (1,212 frames) and found NO panel in; the pass found no stash, could not prove its
+    # gate live on footage with nothing to see, called the answer UNKNOWN and requeued it. A reel the triage proved
+    # empty has no stash for this lane to read. `reel` asks retention's own reading (reel_retention._proven_empty, the
+    # same call the chronicle rule makes since REG-1747), so the lanes cannot disagree about one reel; no reel given, or
+    # nothing proven (no store, a sampled pass, an absent reel), and the rest of this rule decides as before.
+    if reel and _proven_empty(reel):
+        return False
     if tag == "no-witness-index" and station == "PRINTER":
         return _no_witness_store_was_ever_written()
     if tag in VAULT_READ_VETO:

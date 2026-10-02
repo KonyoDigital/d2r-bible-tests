@@ -406,6 +406,18 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1749 - THE VAULT WAS SENT TO REELS THE TRIAGE HAD PROVEN EMPTY, AND CALLED THEIR SILENCE UNKNOWN (2026-10-03, #152)
+
+After REG-1743 opened the ALT's vault (owed 0 -> 62, reads 0 -> 43, vault_seen.json written 01:06), its last tick read
+"requeued: ... the lane could not be proven live, so 'no stash here' is UNKNOWN". MEASURED on the owed reels: reel
+_11808 - a FULL triage of 1,212 frames, 0 panels; _8096 - 623 frames, 0 panels; _20200 - 1 panel in 140 frames, which
+the gate still sees as 'shared'. So the vault paid to read footage the filter had already ruled empty, found no stash,
+could not prove its gate live on a reel with nothing to see, and requeued it - the same unjoined end REG-1747 closed on
+the chronicle side, reopened by REG-1743 itself. `shelf_driver.vault_owes_read` (the one rule behind the sweeper's
+list, the shelf count and river_walk's PRINTER probe) now takes the reel and asks `reel_retention._proven_empty` - the
+chronicle rule's call - and all three callers pass it; no reel named, or nothing proven, decides as before. Law
+`test_a_reel_at_printer_is_the_vaults_work` +3 cases, 10/10 PROVEN.
+
 ### REG-1748 - THE CHEAP-SUBSET CPU CLOCK CHARGED THE PRIMING THE WALL CLOCK DID NOT (2026-10-03, v3563 second eye)
 
 The #231 eye on 14a1c41e: REG-1744 took `process_time()` BEFORE `with cd.tick_caches()`, so the CPU total that is now

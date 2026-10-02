@@ -215,6 +215,43 @@ class TheRiverProbeAgreesWithTheSweeper(unittest.TestCase):
                       "PREMISE: a vetoed reel should still read as waiting on nobody: %r" % q.get("why"))
 
 
+class TheTriageHasRuled(unittest.TestCase):
+    """REG-1749 — a reel retro_triage walked in full and found no panel on owes the vault no paid read.
+
+    MEASURED on the ALT: REG-1743 sent the vault to reel_s_1790528959887_11808 (1,212 frames, 0 panels by a FULL triage);
+    the pass found no stash, could not prove its gate live, called it UNKNOWN and requeued it. The rule now asks
+    retention's own reading - the chronicle rule's call since REG-1747 - when its caller names the reel."""
+    EMPTY = "reel_s_1790528959887_11808"
+    KEPT = TheSweeperSelectsOnTheRule.KEPT
+    POS = TheSweeperSelectsOnTheRule.POS
+
+    def _proven(self, *empty):
+        import reel_retention as rr
+        return mock.patch.object(rr, "_proven_empty", lambda r: r in empty)
+
+    def test_a_proven_empty_reel_owes_nothing_whatever_its_tag(self):
+        import frame_authority as FA
+        with self._proven(self.EMPTY), \
+                mock.patch.object(FA, "witness_index", lambda root=None: {"ok": True, "haveIndex": False}):
+            self.assertFalse(SD.vault_owes_read("no-witness-index", "PRINTER", self.EMPTY),
+                             "a reel the triage proved empty was still sent to the vault - the ALT's 1,212-frame reel")
+            self.assertFalse(SD.vault_owes_read("vault-owes", "PRINTER", self.EMPTY))
+            self.assertTrue(SD.vault_owes_read("no-witness-index", "PRINTER", "reel_s_1790528959887_99999"),
+                            "PREMISE: a reel the triage did NOT rule on must still owe on a fresh PC")
+
+    def test_no_reel_named_decides_as_before(self):
+        with self._proven(self.EMPTY):
+            self.assertTrue(SD.vault_owes_read("vault-owes", "PRINTER"),
+                            "with no reel named, the triage must not be consulted at all")
+
+    def test_the_sweepers_list_drops_the_proven_empty_reel(self):
+        with self._proven("reel_s_15_f"):
+            got = TheSweeperSelectsOnTheRule._owed(self, self.POS, {"s_14_e": {"by": "vault"}})
+        self.assertNotIn("reel_s_15_f", got, "the sweeper's own list still holds a reel the triage proved empty: %r"
+                                             % (got,))
+        self.assertIn("reel_s_10_a", got, "PREMISE: the other PRINTER reels stay on the list")
+
+
 RED_PROOF = [
     {"why": "REG-1743 - a fresh PC's PRINTER reels are vetoed again: the vault never reads, so no store is ever written",
      "file": "shelf_driver.py",
@@ -268,6 +305,16 @@ RED_PROOF = [
         "replace": "",
         "matches": 1,
     },
+    {"why": "REG-1749 - the vault rule stops asking the triage: a reel proven empty is paid for again",
+     "file": "tv/shelf_driver.py",
+     "find": "    if reel and _proven_empty(reel):\n        return False\n",
+     "replace": "    if False:\n        return False\n",
+     "matches": 1},
+    {"why": "REG-1749 - the sweeper's list stops naming the reel, so the triage is never asked for it",
+     "file": "tv/control_app.py",
+     "find": "        if not _sd.vault_owes_read(k.get(\"tag\"), _pos.get(rid), rid):\n",
+     "replace": "        if not _sd.vault_owes_read(k.get(\"tag\"), _pos.get(rid)):\n",
+     "matches": 1},
 ]
 
 
