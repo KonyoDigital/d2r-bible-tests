@@ -2052,7 +2052,10 @@ def main(argv):
             return 0
         print("  %d version(s) owe a look: %s     [%d ledger row(s), %d shipped version(s) examined]"
               % (len(owed), ", ".join(owed), len(_rows), len(_shipped)))
-        ok = all(run_one(v) for v in owed)
+        # 2026-10-02 (REG-1703) - `--backlog --dry` SENT A REAL LOOK. This called run_one(v) and dropped --dry, so the
+        # flag documented as "build and measure, send nothing" asked Grok for real; a caller's time bound then killed
+        # this process and orphaned the grok child, whose answer nothing could record.
+        ok = all(run_one(v, dry=a.dry) for v in owed)
         return 0 if ok else 1
     if not a.version:
         ap.print_help()

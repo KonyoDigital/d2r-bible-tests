@@ -8801,6 +8801,12 @@ GATES = [
              "for the Chronicle sweep to stop before it ever asked the console, and quit at 20 minutes; his sweep read for "
              "3 h 45 min while the console had stopped counting it at 45. The bar now asks the console every tick, shows "
              "its reason, keeps watching past 20 minutes, and the console writes each change of its decision to the log."),
+    Gate("test_a_dry_backlog_sends_nothing",
+         [sys.executable, os.path.join(HERE, "test_a_dry_backlog_sends_nothing.py")], 60,
+         needs_app=False,
+         why="REG-1703 - `second_eye_run.py --backlog --dry` sent a REAL Grok look: the backlog loop called run_one(v) "
+             "and dropped --dry. A caller's time bound then killed the parent and orphaned the grok child, whose answer "
+             "nobody could record. Every owed version must reach run_one dry when --dry is given."),
     Gate("test_every_witness_says_where_it_was_seen",
          [sys.executable, os.path.join(HERE, "test_every_witness_says_where_it_was_seen.py")], 60,
          needs_app=False,
