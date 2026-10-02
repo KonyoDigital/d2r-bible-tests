@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3559",
+  "ver": "v3560",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3559: REG-1733 and REG-1734: when a PC river clears or sticks the fleet writes it at once so every other PC shows it right away, and a red suite run whose files moved says so. HEART: test_the_beacon_says_how_each_pc_films_and_drains, test_a_suite_run_is_reused_only_on_identical_bytes",
+  "note": "v3560: REG-1735: the port a law gets for the console stays reserved, a suite run nobody can age never holds a push, a vault fact is copied whatever its type, and an off prover lane never shows the heart as watched. HEART: test_the_v3558_eye_findings_are_closed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
