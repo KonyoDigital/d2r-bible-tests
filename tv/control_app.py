@@ -6486,10 +6486,15 @@ def _reels_missing_index(hist=None):
     cache1280 are thumbnail caches (24/32 jpgs), not reels, and must never be flagged."""
     hist = hist or HIST_DIR
     out = []
+    # REG-1732 (#86 gap audit 23) - AN UNREADABLE SHELF IS NOT "EVERY REEL HAS ITS INDEX". A listdir that failed returned
+    # [] and the doctor row read OK. A shelf that does not exist yet (nothing filmed here) is a measured empty - []; one
+    # that exists and cannot be read is UNKNOWN - None, and the row says so.
+    if not os.path.isdir(hist):
+        return out
     try:
         names = sorted(os.listdir(hist))
     except Exception:
-        return out
+        return None
     for d in names:
         rd = os.path.join(hist, d)
         if not (d.startswith("reel_") and os.path.isdir(rd)):
@@ -6507,7 +6512,7 @@ def _reel_sweep_indexes(hist=None, why="boot"):
     reel is the same class of bug as a silently lost one. Prints nothing when the count is 0.
     -> [(reel name, frames)] repaired."""
     fixed = []
-    for d, _n in _reels_missing_index(hist):
+    for d, _n in (_reels_missing_index(hist) or []):
         rd = os.path.join(hist or HIST_DIR, d)
         _ok, rebuilt = _reel_ensure_index(rd)
         if rebuilt:
@@ -39088,18 +39093,25 @@ def doctor_payload():
     # Severity 'warn', not block: the footage is recoverable (the index rebuilds from the frame
     # filenames), it just is not playable until it is rebuilt.
     _noidx = _reels_missing_index()
-    checks.append(_chk(
-        "reels_indexed", not _noidx, "warn",
-        ("every reel in frames/hist has an index.json — the theatre can play them all"
-         if not _noidx else
-         "%d reel%s hold frames on disk with NO index.json, so the theatre skips them and plays "
-         "BLACK: %s. The footage is NOT lost — an index rebuilds from the frame filenames."
-         % (len(_noidx), "" if len(_noidx) == 1 else "s",
-            ", ".join("%s (%d frames)" % (n, c) for n, c in _noidx[:6]))),
-        None if not _noidx else
-        "Restart TV DIABLO — this console rebuilds every missing reel index at boot. Standalone: "
-        "`python3 tv/reel_repair.py` to survey, `--apply` to rebuild (idempotent, never "
-        "overwrites a usable index)."))
+    if _noidx is None:
+        checks.append(_chk(
+            "reels_indexed", False, "warn",
+            "frames/hist exists but could not be read - whether any reel lacks its index.json is UNKNOWN, "
+            "never 'every reel is indexed'",
+            "Check that tv/frames/hist is readable by this console (permissions, a disk that went away)."))
+    else:
+        checks.append(_chk(
+            "reels_indexed", not _noidx, "warn",
+            ("every reel in frames/hist has an index.json — the theatre can play them all"
+             if not _noidx else
+             "%d reel%s hold frames on disk with NO index.json, so the theatre skips them and plays "
+             "BLACK: %s. The footage is NOT lost — an index rebuilds from the frame filenames."
+             % (len(_noidx), "" if len(_noidx) == 1 else "s",
+                ", ".join("%s (%d frames)" % (n, c) for n, c in _noidx[:6]))),
+            None if not _noidx else
+            "Restart TV DIABLO — this console rebuilds every missing reel index at boot. Standalone: "
+            "`python3 tv/reel_repair.py` to survey, `--apply` to rebuild (idempotent, never "
+            "overwrites a usable index)."))
 
     # ── WINDOW — 2026-09-29: the window is only a view of the service. A backgrounded console is HEALTHY,
     # and this row says so in words, with the way back - otherwise "where did my console go" has no answer.

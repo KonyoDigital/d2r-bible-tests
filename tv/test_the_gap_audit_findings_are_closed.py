@@ -79,6 +79,33 @@ class TheHeartSaysWatchedOnlyOverACurrentCensus(unittest.TestCase):
         self.assertEqual(self._with_lane(None)["state"], "WATCHED")
 
 
+
+class AnUnreadableShelfIsNotAnIndexedShelf(unittest.TestCase):
+    """REG-1732 (#86 item 23) - listdir failing returned [] and the doctor said "every reel has an index"."""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp(prefix="shelf_idx_")
+        self.addCleanup(shutil.rmtree, self.d, True)
+
+    def test_a_shelf_that_does_not_exist_yet_is_a_measured_empty(self):
+        self.assertEqual(ca._reels_missing_index(os.path.join(self.d, "never_filmed")), [])
+
+    def test_premise_a_reel_with_frames_and_no_index_is_listed(self):
+        r = os.path.join(self.d, "reel_s_1_1")
+        os.makedirs(r)
+        open(os.path.join(r, "f_0001.jpg"), "wb").close()
+        got = ca._reels_missing_index(self.d)
+        self.assertEqual([n for n, _c in (got or [])], ["reel_s_1_1"], got)
+
+    @unittest.skipIf(os.name == "nt" or (hasattr(os, "geteuid") and os.geteuid() == 0),
+                     "chmod 000 does not refuse a listdir on Windows or as root")
+    def test_a_shelf_that_cannot_be_read_is_unknown(self):
+        os.chmod(self.d, 0)
+        self.addCleanup(os.chmod, self.d, 0o755)
+        self.assertIsNone(ca._reels_missing_index(self.d),
+                          "an unreadable shelf read as 'no reel lacks its index'")
+
+
 RED_PROOF = [
     {"why": "REG-1731 - the self_prove row reads OK again with the lane off over a census nobody will prove",
      "file": "control_app.py",
@@ -89,6 +116,11 @@ RED_PROOF = [
      "file": "control_app.py",
      "find": "        if _h2_state == \"WATCHED\" and _h2_lane and _h2_lane != \"current\":\n",
      "replace": "        if False:\n",
+     "matches": 1},
+    {"why": "REG-1732 - an unreadable shelf reads as every reel indexed again",
+     "file": "control_app.py",
+     "find": "        names = sorted(os.listdir(hist))\n    except Exception:\n        return None\n",
+     "replace": "        names = sorted(os.listdir(hist))\n    except Exception:\n        return out\n",
      "matches": 1},
 ]
 

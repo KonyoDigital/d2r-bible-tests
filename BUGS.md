@@ -406,6 +406,13 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1732 - AN UNREADABLE SHELF READ AS "EVERY REEL HAS ITS INDEX" (2026-10-02, #86 item 23)
+
+`_reels_missing_index` returned [] when listdir failed, and the doctor's `reels_indexed` row then said "every reel in
+frames/hist has an index.json". A shelf that does not exist yet (nothing filmed on that PC) is still a measured empty
+([]); one that exists and cannot be read is now None, and the row WARNS that the answer is UNKNOWN. Cases in
+`test_the_gap_audit_findings_are_closed` (an unreadable folder made with chmod 000).
+
 ### REG-1731 - TWO GREENS THAT LIED ABOUT THE CENSUS, FROM THE 09-29 GAP AUDIT (2026-10-02, #86 items 3/7/17/32)
 
 (1) The doctor's `self_prove` row read OK whenever the lane's key was "off" (TV_SELF_PROVE=0) - even over a census that
