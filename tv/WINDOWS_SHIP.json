@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3561",
+  "ver": "v3562",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3561: REG-1736 to REG-1738: every padlock is drawn from what the act is actually allowed to do, so a lock the heart is holding never shows open, a held lock says why, a PC that never stamped its river shows UNKNOWN instead of draining, and the last ALT BLIND law runs on Windows. HEART: test_a_padlock_asks_what_the_act_asks, test_the_fleet_says_where_a_river_is_stuck, test_the_gap_audit_findings_are_closed",
+  "note": "v3562: REG-1739 to REG-1741: the push gate runs the big console suite in four parallel shards (one case alone was 62 percent of it and now takes 4 seconds), the second eye is no longer told an uncut diff is truncated, and a version note never prints its version twice. HEART: test_a_sharded_suite_runs_every_case_once, test_a_look_can_cover_a_batch, test_the_bump_refuses_a_tree_that_does_not_parse",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
