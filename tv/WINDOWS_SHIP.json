@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3563",
+  "ver": "v3564",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3563: REG-1743: on a PC that never wrote a witness store (the ALT, and Dean) the vault lane now reads the reels waiting at PRINTER, which writes the store the river was waiting on; an unreadable store still never spends. HEART: test_a_reel_at_printer_is_the_vaults_work",
+  "note": "v3564: REG-1745: a banked sweep no longer holds a console update for 15 minutes; REG-1746: prover sandboxes are removed on Windows (20 GB on the ALT)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
