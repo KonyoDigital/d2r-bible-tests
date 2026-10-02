@@ -5530,16 +5530,20 @@ def _ensure_pkg_at_boot(mod, pkg, rec_attr, _find=None, _run=None):
         rec.update(ok=False, why="pip exited %s: %s" % (rc, tail or "no output"))
         print("\u26a0 boot %s install: %s" % (pkg, rec["why"]), flush=True)
         return rec
-    try:
-        import site
-        site.addsitedir(site.getusersitepackages())
-        importlib.invalidate_caches()
-    except Exception:
-        pass
-    try:
-        now = find(mod) is not None
-    except Exception:
-        now = False
+    # REG-1730 (the v3557 eye) - AND THE CHECK AFTER IT. The lock covered only pip; site.addsitedir mutates sys.path
+    # and the import re-check followed, both unlocked, so the Pillow and numpy boot threads could interleave there and
+    # one could record "pip said it installed, but ... still does not import" on a machine that has it.
+    with _PIP_BOOT_LOCK:
+        try:
+            import site
+            site.addsitedir(site.getusersitepackages())
+            importlib.invalidate_caches()
+        except Exception:
+            pass
+        try:
+            now = find(mod) is not None
+        except Exception:
+            now = False
     rec.update(ok=bool(now), why=("installed at boot and importable" if now else
                                   "pip said it installed, but %s still does not import in this process" % mod))
     print("boot %s install: %s" % (pkg, rec["why"]), flush=True)

@@ -1251,6 +1251,10 @@ def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=N
     # none, triage — has TV_LAW_WIDTHS REMOVED, so a value left in a shell can never quietly turn a full sweep into a
     # sample that still prints OK. [[regression-guard]]
     env.pop("TV_LAW_WIDTHS", None)
+    # REG-1729 (#156) - a law never asks his live console: the same door run_gates uses (a dead free port unless the
+    # gate needs his console). A sandboxed proof is a law run like any other.
+    import run_gates as _rg_env
+    env = _rg_env.law_env(_rg_env.needs_app_of(filename), env)
     if widths:
         import law_widths as _LW
         env[_LW.ENV] = _LW.label(widths)

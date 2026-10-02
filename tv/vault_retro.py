@@ -1133,7 +1133,9 @@ def _absorb(have, row):
             if _f in _WITNESS_IDENTITY or _v is None or _v == "" or _v == [] or _v == {}:
                 continue
             if old.get(_f) is None or old.get(_f) == "" or old.get(_f) == [] or old.get(_f) == {}:
-                old[_f] = _v
+                # REG-1730 (the v3557 eye) - a COPY: filing the incoming list/dict by reference let a later mutation of
+                # the row (or of a nested list another absorb thinks it owns) change a fact already filed.
+                old[_f] = json.loads(json.dumps(_v)) if isinstance(_v, (dict, list)) else _v
                 if _by_ver and _by_ver != str(old.get("promptVer") or ""):
                     old.setdefault("filledBy", {})[_f] = _by_ver
     cur["witnesses"] = sorted(cur.get("witnesses") or [],

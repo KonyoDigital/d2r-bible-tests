@@ -211,7 +211,16 @@ def inflight(name, key, path=None):
     if not (path and key):
         return None
     f = ((_load(path) or {}).get("inflight") or {}).get("%s|%s" % (name, key))   # unreadable: nothing known in flight
-    if isinstance(f, dict) and f.get("pid") and _pid_alive(f["pid"]):
+    if not isinstance(f, dict):
+        return None
+    # REG-1730 (the v3557 eye) - A RUN THAT WAS KILLED NEVER CLEARS ITS RECORD, AND ITS PID GETS REUSED. A record older
+    # than the run's own bound (the run would have been ended by then) names some other process now, never this run -
+    # so it is not in flight, and the push does not wait out --wait for a stranger.
+    _st = f.get("started")
+    if isinstance(_st, (int, float)) and not isinstance(_st, bool) \
+            and time.time() - float(_st) > RUN_TIMEOUT_S.get(name, 1500) + 120:
+        return None
+    if f.get("pid") and _pid_alive(f["pid"]):
         return f
     return None
 

@@ -1,0 +1,111 @@
+# -*- coding: utf-8 -*-
+"""REG-1729 (#156) — A LAW NEVER ASKS HIS LIVE CONSOLE.
+
+The shelf witness, the doctor and the health engine read TV_CONTROL_PORT and default it to 17772, his console. REG-1728
+fixed test_heart alone; then every suspect law was run with each connect to :17772 refused and logged: 8 reached his
+console (test_health_engine 22 times, test_the_doctor_says_what_it_watches 11, test_one_name 8, test_heart_surface 4,
+test_the_shelf_is_watched_by_all_four_organs 3, test_a_proof_history_survives_its_verdict 2,
+test_a_rider_is_watched_without_claiming_a_thread 2, test_flowing_is_unmeasured_not_zero 1) and every one still PASSED.
+None needs it; they only read his live state, slowly. So the fix is ONE door every gate passes - `run_gates.law_env`:
+a free port nobody listens on (what CI sees), unless the gate NEEDS his console or the caller chose another port.
+
+  · DRIVEN: law_env's four answers (default, needs_app, a chosen port, an inherited 17772).
+  · DRIVEN: heart2's sandbox runner hands a law the dead port - a planted law that refuses 17772 passes.
+  · COMPILER: run_gates launches every gate with env=law_env(g.needs_app).
+RED_PROOF below. [[test-venue]] [[the-unjoined-end]]
+"""
+import ast
+import io
+import os
+import shutil
+import sys
+import tempfile
+import unittest
+from unittest import mock
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
+
+import run_gates as RG  # noqa: E402
+import heart2 as H2  # noqa: E402
+
+
+class TheDoorsFourAnswers(unittest.TestCase):
+
+    def test_a_law_gets_a_port_nobody_listens_on(self):
+        port = RG.law_env(False, {}).get("TV_CONTROL_PORT")
+        self.assertTrue(port and port.isdigit(), "a gate inherited no port at all: %r" % port)
+        self.assertNotEqual(port, "17772", "a gate was handed his live console")
+        import socket
+        s = socket.socket()
+        s.settimeout(1)
+        try:
+            refused = s.connect_ex(("127.0.0.1", int(port))) != 0
+        finally:
+            s.close()
+        self.assertTrue(refused, "something LISTENS on the 'dead' port %s" % port)
+
+    def test_an_inherited_17772_is_replaced(self):
+        self.assertNotEqual(RG.law_env(False, {"TV_CONTROL_PORT": "17772"})["TV_CONTROL_PORT"], "17772")
+
+    def test_a_port_the_caller_chose_is_kept(self):
+        self.assertEqual(RG.law_env(False, {"TV_CONTROL_PORT": "17972"})["TV_CONTROL_PORT"], "17972")
+
+    def test_a_gate_that_needs_his_console_keeps_what_it_inherits(self):
+        self.assertNotIn("TV_CONTROL_PORT", RG.law_env(True, {}))
+        self.assertEqual(RG.law_env(True, {"TV_CONTROL_PORT": "17772"})["TV_CONTROL_PORT"], "17772")
+
+
+class BothRunnersUseTheDoor(unittest.TestCase):
+
+    def test_heart2s_sandbox_hands_the_law_a_dead_port(self):
+        d = tempfile.mkdtemp(prefix="law_port_")
+        self.addCleanup(shutil.rmtree, d, True)
+        with io.open(os.path.join(d, "test_zz_port.py"), "w", encoding="utf-8") as fh:
+            fh.write("import os, sys\np = os.environ.get('TV_CONTROL_PORT', '')\n"
+                     "print('port=%s' % p)\nsys.exit(0 if (p and p != '17772') else 1)\n")
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("TV_CONTROL_PORT", None)
+            passed, tail = H2._run_gate(d, "test_zz_port.py", timeout=60)
+        self.assertIs(passed, True, "a law proved in heart2's sandbox would ask his live console: %r" % (tail,))
+
+    def test_run_gates_launches_every_gate_through_the_door(self):
+        with io.open(os.path.join(HERE, "run_gates.py"), encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+        launches = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "run" \
+                    and isinstance(node.func.value, ast.Name) and node.func.value.id == "subprocess" \
+                    and node.args and isinstance(node.args[0], ast.Name) and node.args[0].id == "_argv":
+                launches.append(node)
+        self.assertEqual(len(launches), 1, "PREMISE: run_gates' one gate launch (subprocess.run(_argv, ...)) moved")
+        env = [k.value for k in launches[0].keywords if k.arg == "env"]
+        self.assertTrue(env and isinstance(env[0], ast.Call) and getattr(env[0].func, "id", None) == "law_env",
+                        "run_gates launches a gate without law_env - it inherits his console's port")
+
+
+RED_PROOF = [
+    {"why": "REG-1729 - run_gates launches every gate on the inherited env again: a law reaches :17772",
+     "file": "run_gates.py",
+     "find": "                               env=law_env(g.needs_app))\n",
+     "replace": "                               env=None)\n",
+     "matches": 1},
+    {"why": "REG-1729 - heart2's sandbox runs a law on the inherited env again",
+     "file": "heart2.py",
+     "find": "    env = _rg_env.law_env(_rg_env.needs_app_of(filename), env)\n",
+     "replace": "    pass\n",
+     "matches": 1},
+    {"why": "REG-1729 - the door hands out nothing: an unset port defaults to his console",
+     "file": "run_gates.py",
+     "find": "    if not needs_app and env.get(\"TV_CONTROL_PORT\", \"\") in (\"\", \"17772\"):\n",
+     "replace": "    if False:\n",
+     "matches": 1},
+]
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

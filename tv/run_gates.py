@@ -93,6 +93,43 @@ class Gate:
         self.skip_ok = tuple(skip_ok)
 
 
+# REG-1729 (#156) — A LAW NEVER ASKS HIS LIVE CONSOLE. The shelf witness, the doctor and the health engine read
+# TV_CONTROL_PORT and default it to 17772 — his console. MEASURED 2026-10-02 with every connect to :17772 refused and
+# logged: 8 laws reached it (test_health_engine 22 times, test_the_doctor_says_what_it_watches 11, test_one_name 8, …)
+# and every one still PASSED - none needs it, they only read his live state, slowly (test_heart: 55-122 s on his Mac,
+# 10.5 s on CI where nothing listens). So every gate runs on a free port nobody listens on - what CI sees - unless it
+# NEEDS his console (needs_app) or the caller already chose another port. A law that assigns its own port still wins:
+# its module-level assignment comes after the inherited env (the v1868 lesson - never out-rank working isolation).
+_DEAD_PORT = {"v": None}
+
+
+def dead_console_port():
+    """A free localhost port nobody listens on, chosen once per process. -> str"""
+    if _DEAD_PORT["v"] is None:
+        import socket as _sk
+        _s = _sk.socket()
+        _s.bind(("127.0.0.1", 0))
+        _DEAD_PORT["v"] = str(_s.getsockname()[1])
+        _s.close()
+    return _DEAD_PORT["v"]
+
+
+def law_env(needs_app, base=None):
+    """The environment a gate runs in. -> dict (a copy; `base` defaults to os.environ)"""
+    env = dict(os.environ if base is None else base)
+    if not needs_app and env.get("TV_CONTROL_PORT", "") in ("", "17772"):
+        env["TV_CONTROL_PORT"] = dead_console_port()
+    return env
+
+
+def needs_app_of(filename):
+    """Does the registered gate that runs FILENAME need his console? -> bool (an unregistered file: False)"""
+    for g in GATES:
+        if len(g.argv) > 1 and os.path.basename(str(g.argv[1])) == filename:
+            return bool(g.needs_app)
+    return False
+
+
 # v2400 — HOVER WILSON JOINS THE GATE SET, AND IT MAY ONLY GO RED ON A LEAK.
 #
 # tv/hover_wilson.py is a REPORT, not a gate: it scores the autopilot's four claims (coordinate,
@@ -8821,6 +8858,18 @@ GATES = [
          why="REG-1726 (#86 gap audit 24) - the console doctor counted a sub-doctor's marks and called that the "
              "verdict, so one that crashed (a traceback, no marks) read '0 green / 0 needs-you' and the row was OK. "
              "No marks is now 'it gave no verdict', with its exit code - UNKNOWN."),
+    Gate("test_the_v3557_eye_findings_are_closed",
+         [sys.executable, os.path.join(HERE, "test_the_v3557_eye_findings_are_closed.py")], 90,
+         needs_app=False,
+         why="REG-1730 - the v3557 cross-family look, 3 real of 5: a killed suite run's in-flight record trusted after its "
+             "pid is reused, an absorbed list filed by reference, and the boot installer's sys.path change and import "
+             "re-check outside its lock."),
+    Gate("test_a_law_never_asks_his_live_console",
+         [sys.executable, os.path.join(HERE, "test_a_law_never_asks_his_live_console.py")], 120,
+         needs_app=False,
+         why="REG-1729 (#156) - 8 laws reached his live console through TV_CONTROL_PORT's default 17772 (measured "
+             "with every connect refused: all still passed - they only read his live state, slowly). One door, "
+             "run_gates.law_env, hands every gate a port nobody listens on unless it needs his console."),
     Gate("test_a_liveness_probe_never_sends_ctrl_c_on_windows",
          [sys.executable, os.path.join(HERE, "test_a_liveness_probe_never_sends_ctrl_c_on_windows.py")], 90,
          needs_app=False,
@@ -9225,7 +9274,8 @@ def run(only=None, live_watch=True, live_writer=None):
                and str(_argv[-1]).endswith(".py"):
                 _argv.append("-v")
             p = subprocess.run(_argv, cwd=g.cwd, capture_output=True, text=True,
-                               encoding="utf-8", errors="replace", timeout=g.timeout)
+                               encoding="utf-8", errors="replace", timeout=g.timeout,
+                               env=law_env(g.needs_app))
             dt = time.time() - t0
             # A GATE DECLARES ITS SKIP REASON ON STDOUT. Reading `stdout + stderr` let ANYTHING on
             # stderr — a SyntaxWarning, an atexit flush, a traceback tail — become the gate's

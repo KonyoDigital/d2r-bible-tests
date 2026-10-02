@@ -406,6 +406,28 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1730 - THE v3557 SECOND EYE: 3 REAL OF 5 (2026-10-02)
+
+The first look saw 18,758 of 69,264 diff chars and answered "could not judge"; re-asked with the whole diff
+(`SECOND_EYE_MAX_CHARS=72000`, 70,688 chars) it returned 5 findings. **Real, fixed:** (1) `suite_verdict.inflight`
+trusted any live pid on a record a KILLED run never cleared (I killed such a run this afternoon) - after pid reuse the
+push waits out --wait 900/1500 s for a stranger; a record older than its run's own bound is not in flight now.
+(2) `vault_retro._absorb` filed an incoming list/dict by reference, so mutating the row changed a filed fact; it files a
+copy. (3) the boot installer held `_PIP_BOOT_LOCK` only around pip - `site.addsitedir` and the import re-check ran
+unlocked, so the Pillow and numpy threads could interleave; the lock covers them now. **Refuted by the code:**
+`self_prove.pid_alive` / control_app `_pid_alive` never raise (so no raise can reach the new Windows branches), and
+`_absorb` never writes an empty `filledBy` (only a non-empty, different reader version). Law:
+`test_the_v3557_eye_findings_are_closed`.
+
+### REG-1729 - 8 LAWS READ HIS LIVE CONSOLE; ONE DOOR NOW HANDS EVERY GATE A DEAD PORT (2026-10-02, #156)
+
+Measured with a sitecustomize that logged and REFUSED every connect to :17772: test_health_engine 22, the doctor law 11,
+test_one_name 8, test_heart_surface 4, the shelf-organs law 3, the proof-history law 2, the rider law 2, the flowing law 1
+- and all 8 still PASSED, so none needs his console; they read his live state, slowly. `run_gates.law_env` gives every
+gate a free port nobody listens on (what CI sees) unless it is `needs_app` or the caller chose another port; run_gates'
+gate launch and heart2's sandbox runner both use it. Re-measured through run_gates: 0 connects from any law (the 22 left
+were run_gates' own deliberate probes - `_app_up` and the live-state watch). Law: `test_a_law_never_asks_his_live_console`.
+
 ### REG-1728 - test_heart ASKED HIS LIVE CONSOLE, 17 TIMES (2026-10-02)
 
 The CI preview of d281f592 was 782/783 green; the red was `test_heart` "timed out after 60s". Alone on his Mac it ran
