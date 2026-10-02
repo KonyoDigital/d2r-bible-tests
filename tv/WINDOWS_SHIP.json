@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3556",
+  "ver": "v3557",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3556: one UI law places every panel (height-scaled, centred) and a full inventory gets its calibrated grid only where the seams sit; the ALT prover runs on while nobody plays; a garbage read the parse cleaned up is not his game",
+  "note": "v3557: REG-1722 to REG-1728: every liveness probe asks Windows the safe way so the ALT prover is no longer interrupted by its own laws, the last ALT BLIND law runs on every OS, a crashed doctor and a red suite say why, and the heart law no longer asks the live console. HEART: test_a_liveness_probe_never_sends_ctrl_c_on_windows, test_an_unreadable_prover_is_still_running, test_a_doctor_that_said_nothing_is_not_clean, test_heart",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
