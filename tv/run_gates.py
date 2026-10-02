@@ -8809,6 +8809,12 @@ GATES = [
              "item. A real gameplay read (its own confidence, nothing foreign named) is the game; the launcher - read "
              "as transition, or naming its own words - is still sealed. REG-1716 (the v3555 eye): an answer the PARSE made into that shape - names sent as a string, an "
              "unknown or absent scene, a JSON true for conf - is not the game, through Claude's parse and Grok's."),
+    Gate("test_a_suite_run_is_reused_only_on_identical_bytes",
+         [sys.executable, os.path.join(HERE, "test_a_suite_run_is_reused_only_on_identical_bytes.py")], 90,
+         needs_app=False,
+         why="REG-1720 (#42 lever 2) - the two python suites were most of every push, re-running a commit that had "
+             "already passed them. A green run is reused only on the commit's exact tree, the same python, young, and "
+             "never a red one; a run of the same bytes in flight is waited for; the hook asks before each heavy suite."),
     Gate("test_one_ui_law_places_every_panel",
          [sys.executable, os.path.join(HERE, "test_one_ui_law_places_every_panel.py")], 90,
          needs_app=False,

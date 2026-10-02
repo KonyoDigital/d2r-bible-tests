@@ -2124,6 +2124,19 @@
     "purpose": "Declares ONE owner plus reasoned readers for each reel store and fails any undeclared module that touches one — coupling evidence, not a write proof.",
     "territory": "gates-proofs"
   },
+  "suite_verdict.py": {
+    "entryPoints": [
+      "tree_key",
+      "reusable",
+      "record",
+      "check",
+      "run",
+      "main"
+    ],
+    "gotcha": "A GREEN python-suite run is reused at push time ONLY on the commit's exact git tree (every tracked file unchanged, its own records aside), the same python and platform, and younger than 6 h; a red run is never stored, a run of the same bytes still in flight is waited for. The store lives in git's COMMON dir - one per machine, shared by main and every worktree. Untracked files are outside the key (stated, as heart2's proof cache states); CI still runs both suites in full. SUITE_VERDICT_REUSE=0 closes it.",
+    "purpose": "#42 lever 2 (REG-1720) - the push stops re-running test_agent / test_control over a commit that already passed them: `--run` stamps a green run to the commit's tree, the pre-push hook `--check`s before each heavy suite and `--record`s its own green run.",
+    "territory": "heart-organs"
+  },
   "surface_precision.py": {
     "entryPoints": [
       "precision",

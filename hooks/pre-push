@@ -858,8 +858,19 @@ echo "pre-push: [$(_pp_el)] ✅ boss portraits are the pictures a human opened, 
 # no Chromium, no Mac load). The physically unskippable gate KONYO_WORKFLOW step 12 asks for.
 if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
   echo "pre-push: [$(_pp_el)] tv/ python touched — running the agent+control suites…"
-  if ! gate_run "test_agent" "python3 tv/test_agent.py" 600 -- python3 "$REPO/tv/test_agent.py"; then
-    exit 1
+  # #42 lever 2 (REG-1720) — A GREEN SUITE RUN IS REUSED ONLY ON IDENTICAL BYTES. MEASURED on v3556's push: these two
+  # suites were 10m26s of 17m16s, re-running a commit that had already passed them. tv/suite_verdict.py reuses a green
+  # run keyed on the commit's git tree (every tracked file unchanged, same python/platform, younger than 6 h) - one made
+  # when the commit was (`suite_verdict.py --run`) or by an earlier push of the same bytes; a run of these bytes still in
+  # flight is waited for. Anything else runs the suite here, as before. CI still runs both suites in full after the push.
+  # SUITE_VERDICT_REUSE=0 git push closes it for one push.
+  if python3 "$REPO/tv/suite_verdict.py" --check test_agent --wait 900; then
+    echo "pre-push: [$(_pp_el)] ✅ test_agent: a green run of these exact bytes was reused (the line above names it)."
+  else
+    if ! gate_run "test_agent" "python3 tv/test_agent.py" 600 -- python3 "$REPO/tv/test_agent.py"; then
+      exit 1
+    fi
+    python3 "$REPO/tv/suite_verdict.py" --record test_agent || true
   fi
   # ⚠ v2361 — 600s ASSUMED AN IDLE MACHINE, AND HIS IS NOT. Measured 2026-08-31 on the same
   # tree: 385s with the Mac quiet, 719s with D2R running at 110% CPU. A ceiling set between
@@ -867,8 +878,13 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
   # is playing, which is most of them, and the message says HUNG when nothing hung.
   # 1500s still catches a genuine wedge (the suite has never exceeded 720s) while leaving
   # room for the machine he actually owns. [[feedback-threshold-above-the-ceiling]]
-  if ! gate_run "test_control" "python3 tv/test_control.py" 1500 -- python3 "$REPO/tv/test_control.py"; then
-    exit 1
+  if python3 "$REPO/tv/suite_verdict.py" --check test_control --wait 1500; then
+    echo "pre-push: [$(_pp_el)] ✅ test_control: a green run of these exact bytes was reused (the line above names it)."
+  else
+    if ! gate_run "test_control" "python3 tv/test_control.py" 1500 -- python3 "$REPO/tv/test_control.py"; then
+      exit 1
+    fi
+    python3 "$REPO/tv/suite_verdict.py" --record test_control || true
   fi
   # v1578 — the TZ panel's DATA (67 zones -> game-extracted art + the game's own density/level, and
   # the tiering that greys a zone out). Cheap, pure stdlib, and it guards a surface Konyo looks at

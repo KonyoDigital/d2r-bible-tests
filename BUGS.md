@@ -406,6 +406,19 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1720 - #42 LEVER 2: THE PUSH RE-RAN SUITES THE COMMIT HAD ALREADY PASSED (2026-10-02)
+
+**Measured on v3556's landed push (17m16s):** the changed-law proofs took 2 s (lever 1, REG-1710) and the two python
+suites 10m26s - most of every push that touches tv/*.py, re-running 2,259 cases the commit had already passed. His
+words: "that will make things go so much faster wow". **Now:** `tv/suite_verdict.py` stores a GREEN suite run keyed on
+the commit's git tree (every tracked file unchanged, the run's own records aside), the python and the platform, in
+git's common dir - one store per machine, shared by main and every worktree. The pre-push hook asks before test_agent
+and test_control and reuses a green run younger than 6 h, waits for a run of the same bytes still in flight, and
+records its own green run (a retried push reuses it). A red run is never stored. Reach, stated: untracked files are
+outside the key, as heart2's proof cache states; CI still runs both suites in full. `SUITE_VERDICT_REUSE=0 git push`
+closes it for one push. The render stage already ran only when a rendered file changed (lever 3 needed nothing).
+Law: `tv/test_a_suite_run_is_reused_only_on_identical_bytes.py` (a throwaway git repo, never his tree); 5 red-proofs.
+
 ### REG-1719 - ON v3556 THE ALT FILED FOUR GATES BLIND, AND HAS NO numpy - THE VAULT'S CROSS-CHECK NEVER RAN ON WINDOWS (2026-10-02)
 
 **Measured over SSH after the ALT pulled v3556 (36812d92):** the prover moved (94 gates owed -> 20, the idle floor
