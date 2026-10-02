@@ -1969,6 +1969,17 @@
     "purpose": "Sole writer of shadow_ledger.json — accumulates where the Wilson shadow rule and the live gate agree or differ on chronicle names, naming each disagreement.",
     "territory": "gates-proofs"
   },
+  "shard_suite.py": {
+    "entryPoints": [
+      "classes_of",
+      "deal",
+      "run",
+      "main"
+    ],
+    "purpose": "#42 lever 4 (REG-1740) - the push gate runs test_control as N parallel shards by class (default 4, SUITE_SHARDS), dealt largest-first by last measured cost; 435.6 s serial became 66-88 s.",
+    "gotcha": "Green ONLY when every shard exited 0, ran exactly the cases it was dealt, and every class the loader found was dealt - a shard that dies before answering or runs less is RED. Each shard runs its classes in the serial run's (alphabetical) order and gets its own TV_PORT/TV_CONTROL_PORT; a TERM ends the shards. The per-class cost file tv/.suite_class_cost.json is a gitignored per-machine hint, never a verdict. CI still runs test_control whole and serial.",
+    "territory": "heart-organs"
+  },
   "shelf_corroborate.py": {
     "entryPoints": [
       "corroborate",
