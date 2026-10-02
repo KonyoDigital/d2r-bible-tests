@@ -251,6 +251,16 @@ class TheTriageHasRuled(unittest.TestCase):
                                              % (got,))
         self.assertIn("reel_s_10_a", got, "PREMISE: the other PRINTER reels stay on the list")
 
+    def test_the_lane_counts_what_the_triage_ruled(self):
+        """REG-1751 — the heart can see the join: the vault lane's state says how many reels it skipped because the
+        triage proved them empty, so a join that silently stops being asked shows as a number that moved."""
+        import control_app as ca
+        with self._proven("reel_s_15_f", "reel_s_11_b"):
+            TheSweeperSelectsOnTheRule._owed(self, self.POS, {"s_14_e": {"by": "vault"}})
+        self.assertEqual(ca._TRIAGE_RULED_EMPTY.get("vault"), 2,
+                         "the vault lane skipped 2 triage-proven reels and its count says %r"
+                         % (ca._TRIAGE_RULED_EMPTY.get("vault"),))
+
 
 RED_PROOF = [
     {"why": "REG-1743 - a fresh PC's PRINTER reels are vetoed again: the vault never reads, so no store is ever written",
@@ -315,6 +325,11 @@ RED_PROOF = [
      "find": "        if not _sd.vault_owes_read(k.get(\"tag\"), _pos.get(rid), rid):\n",
      "replace": "        if not _sd.vault_owes_read(k.get(\"tag\"), _pos.get(rid)):\n",
      "matches": 1},
+    {"why": "REG-1751 - the vault lane stops counting the reels the triage ruled empty: the heart cannot see the join",
+     "file": "tv/control_app.py",
+     "find": "            _ruled += 1                  # REG-1751 - counted from the same triage reading the rule asks\n",
+     "replace": "            pass\n",
+     "matches": 1}
 ]
 
 

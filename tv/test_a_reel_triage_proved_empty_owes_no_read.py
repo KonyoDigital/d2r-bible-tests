@@ -95,6 +95,9 @@ class TheTriageDecides(_World):
             n = ca._chron_owed_count(self.hist)
         self.assertEqual(n, 2, "the 'waiting on a sweep' count is %r - it should hold the reel with panels and the "
                                "unsurveyed one, never the reel the triage proved empty" % (n,))
+        self.assertEqual(ca._TRIAGE_RULED_EMPTY.get("chronicle"), 1,
+                         "REG-1751: the chronicle lane skipped 1 triage-proven reel and its count says %r - the heart "
+                         "cannot see the join" % (ca._TRIAGE_RULED_EMPTY.get("chronicle"),))
 
 
 class ItIsWiredNotRebuilt(unittest.TestCase):
@@ -117,6 +120,11 @@ RED_PROOF = [
      "find": "        return bool(rec.get(\"full\")) and int(rec.get(\"panels\") or 0) == 0\n",
      "replace": "        return True\n",
      "matches": 1},
+    {"why": "REG-1751 - the chronicle lane stops counting the reels the triage ruled empty",
+     "file": "control_app.py",
+     "find": "        _TRIAGE_RULED_EMPTY[\"chronicle\"] = sum(1 for d in _dirs if _rr._proven_empty(os.path.basename(str(d))))\n",
+     "replace": "        _TRIAGE_RULED_EMPTY[\"chronicle\"] = 0\n",
+     "matches": 1}
 ]
 
 

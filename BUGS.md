@@ -406,6 +406,26 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1751 - THE HEART COULD NOT SEE THE TRIAGE JOINS (2026-10-03, #152)
+
+His question: "this is all connected to the heart and blueprints ... wired and properly communicating?" The maps were
+current (re-derived: only the timestamp moved), but REG-1747 and REG-1749 skip a triage-proven reel SILENTLY - if the
+join stopped being asked, no number anywhere would move. Both owes-a-read loops now count the reels they skip from the
+same triage reading the rule asks (`_vault_owed_reels`, `_chron_owed_count`) into `_TRIAGE_RULED_EMPTY`, None until a
+pass has counted (UNKNOWN, never a default 0); the vault and chronicle lane states carry it as `triageRuledEmpty`, and
+the vault lane's river line says "; N ruled empty by the triage". Laws: the vault rule's and the chronicle rule's, one
+case each, both red-proofs PROVEN.
+
+### REG-1750 - "NO STORE YET - NEVER RECORDED A READ" BESIDE 51 READS (2026-10-03, #152)
+
+MEASURED on the ALT after its vault opened: the lane state said "no store yet - this lane has genuinely never recorded a
+read" with reads 51 and its `.vault_autoread.json` written; after a console restart the same field read True.
+`_vault_autoread_load()` remembers its first answer for the life of the process, and on a fresh PC that answer is False
+- it was never revised after the lane wrote the store. A save now ends (in `finally`) by marking the store present when
+the file is really there. Done so `os.replace(tmp, dest)` stays directly before `return True`: the first cut put lines
+between them and orphaned an older law's red-proof (INVALID, matched 0) - caught by heart2, not by the run. Law
+`test_the_vault_lane_remembers_across_a_restart` +1 case, 10/10 PROVEN.
+
 ### REG-1749 - THE VAULT WAS SENT TO REELS THE TRIAGE HAD PROVEN EMPTY, AND CALLED THEIR SILENCE UNKNOWN (2026-10-03, #152)
 
 After REG-1743 opened the ALT's vault (owed 0 -> 62, reads 0 -> 43, vault_seen.json written 01:06), its last tick read

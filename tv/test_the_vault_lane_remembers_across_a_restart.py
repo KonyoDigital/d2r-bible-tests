@@ -79,6 +79,17 @@ class TheVaultLaneRemembersAcrossARestart(unittest.TestCase):
                          "the rotation position was lost across a restart - the head of the owed list gets "
                          "the first turn after every relaunch")
 
+    def test_a_fresh_store_says_it_exists_once_written(self):
+        """REG-1750 — the load remembered its FIRST answer for the life of the process: on a fresh PC that was False
+        ("no store yet - this lane has genuinely never recorded a read"), and it stayed False after the lane saved.
+        MEASURED on the ALT 2026-10-03: that sentence beside reads 51, until a restart re-read the file."""
+        self._restart()
+        self.assertIs(CA._vault_autoread_load(), False, "PREMISE: a fresh fixture has no store yet")
+        CA._VAULT_AUTOREAD["reads"] = 3
+        self.assertTrue(CA._vault_autoread_save(), "the store could not be written at all")
+        self.assertIs(CA._vault_autoread_load(), True,
+                      "the lane just wrote its store and still says 'no store yet - never recorded a read'")
+
     # ── the store must not be able to reach his live console ─────────────────────────────────
     def test_the_store_lives_under_the_fixture_root(self):
         p = CA._vault_autoread_path()
@@ -408,6 +419,13 @@ RED_PROOF = [
         'replace': '',
         'matches': 1,
     },
+    {
+        'why': 'REG-1750 - a written store is still reported as "no store yet": the load keeps its first answer',
+        'file': 'control_app.py',
+        'find': '            _VAULT_AUTOREAD_STORE["tried"], _VAULT_AUTOREAD_STORE["readable"] = True, True\n',
+        'replace': '            pass\n',
+        'matches': 1,
+    }
 ]
 
 if __name__ == "__main__":

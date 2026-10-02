@@ -7499,6 +7499,10 @@ _VAULT_AUTOREAD_TTL_S = 3.0
 #: [[unknown-stays-unknown]] [[poll-slower-than-its-interval]]
 _VAULT_AUTOREAD_REFRESH = {"running": False}
 _VAULT_AUTOREAD_LOCK = threading.Lock()
+# REG-1751 — how many reels each lane's owes-a-read rule skipped because a FULL triage proved them empty (REG-1747 /
+# REG-1749). None until a pass has counted: UNKNOWN, never a default 0. The heart reads it on the lane rows, so a join
+# that silently stops being asked shows as a number that moved. [[heart-first]] [[unknown-stays-unknown]]
+_TRIAGE_RULED_EMPTY = {"vault": None, "chronicle": None}
 
 
 #: one-shot guard for the re-entry sweep below — the backlog only needs clearing once
@@ -14972,8 +14976,10 @@ def _river_stuck_why(station):
         if lane == "vault":
             v = _vault_autoread_state_cached() or {}
             owed, reads = v.get("owed"), v.get("reads")
-            return ("vault lane: owes %s, %s read(s) on record%s"
+            _te = v.get("triageRuledEmpty")
+            return ("vault lane: owes %s, %s read(s) on record%s%s"
                     % ("UNKNOWN" if owed is None else owed, "UNKNOWN" if reads is None else reads,
+                       ("; %d ruled empty by the triage" % _te) if isinstance(_te, int) and _te else "",
                        (" - " + str(v.get("owedWhy"))) if v.get("owedWhy") else ""))
         if lane == "triage":
             t = _triage_for_wire() or {}
@@ -20350,6 +20356,11 @@ def _chron_owed_count(hist_dir=None):
     except Exception:
         return None                      # cannot tell -> say nothing, never guess
     _mem = _chron_swept_mem()
+    try:
+        import reel_retention as _rr
+        _TRIAGE_RULED_EMPTY["chronicle"] = sum(1 for d in _dirs if _rr._proven_empty(os.path.basename(str(d))))
+    except Exception:
+        _TRIAGE_RULED_EMPTY["chronicle"] = None
     return sum(1 for d in _dirs if _chron_reel_owes_a_read(os.path.basename(str(d)), _mem))
 
 
@@ -28705,6 +28716,23 @@ def _vault_autoread_load():
         return True
 
 
+def _vault_autoread_note_written():
+    """REG-1750 — THE STORE NOW EXISTS, SO SAY SO. Never raises.
+
+    _vault_autoread_load() remembers its first answer for the life of the process; on a fresh PC that answer is False
+    ("no store yet"), and it stayed False after the lane wrote the store. MEASURED on the ALT 2026-10-03: "no store yet —
+    this lane has genuinely never recorded a read" beside reads 51, until a restart re-read the file and said True.
+    Only a file that is really there flips it: a write that failed leaves the answer as it was."""
+    try:
+        dest = _vault_autoread_path()
+        if not (dest and os.path.isfile(dest)):
+            return
+        with _VAULT_AUTOREAD_LOCK:
+            _VAULT_AUTOREAD_STORE["tried"], _VAULT_AUTOREAD_STORE["readable"] = True, True
+    except Exception:
+        pass
+
+
 def _vault_autoread_save():
     """Persist the durable half. tmp + os.replace, so a reader never sees a torn file.
 
@@ -28747,6 +28775,8 @@ def _vault_autoread_save():
         return True
     except Exception:
         return False
+    finally:
+        _vault_autoread_note_written()              # REG-1750
 
 
 
@@ -29123,8 +29153,11 @@ def _vault_owed_reels(hist=None):
     if _pos is None:
         return None
     out = []
+    _ruled = 0
     for k in (p.get("kept") or []):
         rid = os.path.basename(str(k.get("reel")))
+        if _sd._proven_empty(rid):
+            _ruled += 1                  # REG-1751 - counted from the same triage reading the rule asks
         if not _sd.vault_owes_read(k.get("tag"), _pos.get(rid), rid):
             continue
         if k.get("tag") not in _vault_tags:
@@ -29133,6 +29166,7 @@ def _vault_owed_reels(hist=None):
             if _sealed is None or _rr.lookup_either_way(_sealed, rid) is not None:
                 continue
         out.append(os.path.join(h_abs, rid))
+    _TRIAGE_RULED_EMPTY["vault"] = _ruled
     return out
 
 
@@ -30086,6 +30120,7 @@ def _vault_autoread_state():
                                   if (owed and _lt and not _lt.get("started"))
                                   else _vault_no_tick_why() if (owed and not _lt) else None)),   # REG-1646
                 "lastTick": _lt,
+                "triageRuledEmpty": _TRIAGE_RULED_EMPTY.get("vault"),            # REG-1751
                 "retired": sorted(d.get("retired") or {}),
                 "skipped": {k: str(v)[:90] for k, v in list((d.get("skipped") or {}).items())[:6]},
                 "tries": {k: v for k, v in list((d.get("tries") or {}).items())[:6]}}
@@ -35744,6 +35779,7 @@ def chronicle_sweep_state():
     # board already read.
     try:
         st["autoreadSkipped"] = dict(_CHRON_AUTOREAD.get("skipped") or {})
+        st["triageRuledEmpty"] = _TRIAGE_RULED_EMPTY.get("chronicle")      # REG-1751
         # v1844 — which reels a prompt change reopened, so the surface that shows the bill can show
         # the reason for it. Defaults to [] rather than being absent: "none were reopened" and "this
         # build does not report it" must not read the same.
