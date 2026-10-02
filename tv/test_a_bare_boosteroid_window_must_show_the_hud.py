@@ -160,7 +160,7 @@ class TheDoorAsksTheFirstReads(unittest.TestCase):
     STUBS = ("_shadow_state", "_agent_alive", "mini_state", "start_agent", "stop_agent",
              "_force_kill_all_agents", "_mini_sid", "_shadow_now_ms", "_screen_recording_ok_quick",
              "ON_AIR_FLOOR_GB", "_agent_proc", "_agent_origin", "_agent_since_ms", "_stop_inflight",
-             "bare_content_reads")
+             "bare_content_reads", "reel_content_reads")
 
     def setUp(self):
         self.world = tempfile.mkdtemp(prefix="bare_hud_case_")
@@ -192,6 +192,10 @@ class TheDoorAsksTheFirstReads(unittest.TestCase):
         ca.stop_agent = self._stop
         ca._force_kill_all_agents = lambda *a, **k: {"ok": True}
         ca.bare_content_reads = lambda: self.reads
+        # REG-1704 - the whole reel's reads come from the same journal as its first reads, so they hold them. Left
+        # unstubbed, the real reader answered [] for this fixture's reel while its first reads said "launcher" - a pair
+        # the console can never see, which every launcher case here leaned on (the collapse the v3550 eye found).
+        ca.reel_content_reads = lambda: self.reads
         tv.find_d2r_window_mac = lambda *a, **k: self.window
         tv.find_d2r_window_win = lambda *a, **k: self.window
         self.path = ca._shadow_watch_path()

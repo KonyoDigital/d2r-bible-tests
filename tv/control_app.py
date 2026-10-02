@@ -30877,7 +30877,9 @@ def reel_content_reads():
     return _first_content_reads(sid, _REEL_READS_MAX)
 
 
-_GAME_ITEMS = {"set": None, "why": None}
+_GAME_ITEMS = {"set": None, "why": None, "failedAt": None}
+#: REG-1704 - a roster load that FAILED is asked again after this long, never cached for the life of the console
+_GAME_ITEMS_RETRY_S = 60
 
 
 def _game_items():
@@ -30885,14 +30887,24 @@ def _game_items():
     hold. A roster that will not load leaves the always-carried bases and runes (tv_diablo) and SAYS so in
     _GAME_ITEMS["why"] - never an empty set passed off as a judgement."""
     if _GAME_ITEMS["set"] is None:
+        # REG-1704 (the v3550 eye) - a failed load was cached as an empty set for the life of the process, so one
+        # transient import error at start-up dropped every unique, set piece and runeword from the judge until a
+        # relaunch. A failure now answers empty for this call, says why, and is asked again after the retry window.
+        _f = _GAME_ITEMS.get("failedAt")
+        if isinstance(_f, (int, float)) and (time.time() - _f) < _GAME_ITEMS_RETRY_S:
+            return frozenset()
         names = set()
         try:
             import item_identity as _ii
-            names.update(str(k).lower() for k in (_ii._rosters() or {}))
+            # the SAME fold read_shows_the_game applies to a read's names, so a key can never miss on spacing
+            names.update(" ".join(str(k).lower().split()) for k in (_ii._rosters() or {}))
         except Exception as e:
             _GAME_ITEMS["why"] = ("the item rosters would not load (%s) - only zones, panels, the always-carried bases "
-                                  "and runes prove the game" % type(e).__name__)
-        _GAME_ITEMS["set"] = frozenset(names)
+                                  "and runes prove the game; asked again in %d s" % (type(e).__name__,
+                                                                                    _GAME_ITEMS_RETRY_S))
+            _GAME_ITEMS["failedAt"] = time.time()
+            return frozenset()
+        _GAME_ITEMS.update(set=frozenset(names), why=None, failedAt=None)
     return _GAME_ITEMS["set"]
 
 
@@ -30950,8 +30962,14 @@ def _bare_hud_verdict(pre):
         allr = reel_content_reads()
     except Exception:
         allr = None
-    if _tv.reads_show_the_game(allr, words=set(_AREA_ACT), items=_game_items()) is True:
+    _wide = _tv.reads_show_the_game(allr, words=set(_AREA_ACT), items=_game_items())
+    if _wide is True:
         return True
+    # REG-1704 (the v3550 eye) - the wider scan that could not be READ is UNKNOWN, not "the launcher". It answered
+    # False here, so the one rescue #148 added for his stash/inventory reads could fail silently and the reel still
+    # sealed after the grace. The narrow read failing already withheld judgement; the wide one now does the same.
+    if _wide is None:
+        return None
     return False
 
 
@@ -30984,14 +31002,35 @@ def _seal_bare_launcher(now, held_s=None):
         _fed = _tv.read_evidence(bare_content_reads())
     except Exception:
         pass
+    # REG-1704 (the v3550 eye) - `fed` quotes the first three reads, but the verdict that sealed also judged EVERY read
+    # of the reel (reel_content_reads, up to _REEL_READS_MAX). The row now says how many it judged, which scenes they
+    # were, and whether the cap was reached - so a wrong seal can be traced to the read that should have saved it.
+    _judged, _scenes, _capped = None, None, None
+    try:
+        _all = [r for r in (reel_content_reads() or []) if _tv._is_content_read(r)]
+        _judged = len(_all)
+        _capped = _judged >= _REEL_READS_MAX
+        _tally = {}
+        for _r in _all:
+            _k = str((_r.get("scene") if isinstance(_r, dict) else "") or "?")
+            _tally[_k] = _tally.get(_k, 0) + 1
+        _scenes = dict(sorted(_tally.items(), key=lambda kv: -kv[1])[:6])
+    except Exception:
+        pass
     try:
         stop_agent(farewell=False)
     except Exception as _e:
         return {"ok": False, "why": "the bare Boosteroid window would not seal: %s" % str(_e)[:80]}
-    why = ("sealed the shadow hour — for %d s its reads showed no D2R zone, panel or item, "
-           "so this is the launcher, not the game" % int(held_s if held_s is not None else _SHADOW_AWAY_GRACE_S))
+    _seen = ("judged %d read%s of this reel%s%s" % (
+                 _judged, "" if _judged == 1 else "s",
+                 (": " + ", ".join("%s %d" % kv for kv in _scenes.items())) if _scenes else "",
+                 " (capped)" if _capped else "")) if isinstance(_judged, int) else "the whole reel could not be read"
+    why = ("sealed the shadow hour — for %d s its reads showed no D2R zone, panel or item (%s), "
+           "so this is the launcher, not the game" % (int(held_s if held_s is not None else _SHADOW_AWAY_GRACE_S),
+                                                       _seen))
     _shadow_seal_log("close", reason="launcher", reel=("reel_" + _sid) if _sid else None,
-                     heldS=(int(held_s) if held_s is not None else None), fed=_fed or None, why=why)
+                     heldS=(int(held_s) if held_s is not None else None), fed=_fed or None,
+                     judged=_judged, scenes=_scenes, capped=_capped, why=why)
     _shadow_watch_note(lookedAt=now, gameGoneSince=None, rollingAt=None,
                        rollingDoor=None, rollingSince=None, launcherSince=None, launcherFor=None,
                        launcherUntil=now + _BARE_HUD_RELOOK_S * 1000, why=why)

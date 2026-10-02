@@ -406,6 +406,24 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1704 - THE v3550 EYE: AN UNREADABLE REEL SEALED AS THE LAUNCHER, A SEAL ROW THAT HID WHAT IT JUDGED, A ROSTER FAILURE KEPT FOREVER (2026-10-02)
+
+The Grok CLI looked at v3550 (25,855 chars, `be0c8a2e`) and filed 3 findings + a reach note. Each was reproduced before
+it was believed.
+
+| finding | measured | outcome |
+|---|---|---|
+| `_bare_hud_verdict` collapses the wide scan's UNKNOWN into "launcher": first reads False + `reel_content_reads()` unreadable -> False -> sealed after the grace | real: `reads_show_the_game` -> None fell through to `return False`. The narrow read failing already returned None; the wide one did not. Both read ONE journal, so a False first read means a reel exists - the wide None is a failure, not "no reel" | FIXED - an unreadable wide scan is None (UNKNOWN); the launcher clock keeps its start and seals only on a readable False |
+| the seal row quotes only the first 3 reads while the verdict judged up to 600; the 600 cap can seal a real session | half real: `fed` = 3 reads. The cap half is unreachable today - MEASURED across 33 reels incl. July backups: max 206 content reads per reel, against 600 (the hourly rollover bounds it) | FIXED - the close row carries `judged`, a `scenes` tally and `capped`, and its `why` (what the river quotes) says "judged N reads of this reel: <scenes>" |
+| `_game_items` caches a failed roster load for the life of the process; the read fold and the cache fold differ | real: an exception left `frozenset()` cached. The fold half is latent - MEASURED 0 of 670 roster keys differ under the read fold | FIXED - a failure answers empty for that call, says "asked again in 60 s", and is retried; keys get the read's own fold |
+| NOT SHOWN: bible.html, most of control_app.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
+
+**And three laws had leaned on the collapse.** Their fixtures stubbed the first reads but let the wide scan answer None
+or [] - a pair the console can never see (one journal) - so every launcher case was green only because None became
+"launcher". `test_a_session_is_one_session_whatever_he_does`, `test_a_bare_boosteroid_window_must_show_the_hud` and
+`test_the_game_on_screen_decides_play_not_the_app` now stub the wide scan from the same reads. Proofs: 12/12, 9/9,
+12/12 PROVEN (3 new red-proofs on the fixes). [[unknown-stays-unknown]] [[a-law-about-a-row-must-drive-the-row]]
+
 ### REG-1703 - `second_eye_run.py --backlog --dry` SENT A REAL GROK LOOK AND ORPHANED IT (2026-10-02)
 
 **Found** measuring the v3550-v3553 eye payloads: `--backlog --dry` ran past a 120 s bound, and a minute later a

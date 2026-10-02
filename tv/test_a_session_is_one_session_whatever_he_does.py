@@ -125,6 +125,32 @@ class WhatTheJudgeIsFed(unittest.TestCase):
         self.assertEqual(tv.read_evidence([ALT_FAILED] + LAUNCH), ["gameplay · Play", "gameplay · Library",
                                                                    "gameplay · Boosteroid"])
 
+    def test_a_roster_that_failed_once_is_asked_again(self):
+        """REG-1704 - a failed load answers empty and says why, and the NEXT ask after the retry window loads"""
+        saved, saved_mod = dict(ca._GAME_ITEMS), sys.modules.get("item_identity")
+        try:
+            ca._GAME_ITEMS.clear()
+            ca._GAME_ITEMS.update(set=None, why=None, failedAt=None)
+            sys.modules["item_identity"] = None
+            self.assertEqual(ca._game_items(), frozenset())
+            self.assertIn("asked again", ca._GAME_ITEMS["why"] or "")
+            if saved_mod is None:
+                sys.modules.pop("item_identity", None)
+            else:
+                sys.modules["item_identity"] = saved_mod
+            self.assertEqual(ca._game_items(), frozenset(), "inside the retry window it must not hammer the import")
+            ca._GAME_ITEMS["failedAt"] = time.time() - ca._GAME_ITEMS_RETRY_S - 1
+            got = ca._game_items()
+            self.assertIn("arachnid mesh", got, "a roster that failed once stayed empty for the life of the console")
+            self.assertIsNone(ca._GAME_ITEMS["why"])
+        finally:
+            ca._GAME_ITEMS.clear()
+            ca._GAME_ITEMS.update(saved)
+            if saved_mod is None:
+                sys.modules.pop("item_identity", None)
+            else:
+                sys.modules["item_identity"] = saved_mod
+
     def test_a_roster_that_will_not_load_is_said_and_the_bases_still_judge(self):
         saved, saved_mod = dict(ca._GAME_ITEMS), sys.modules.get("item_identity")
         try:
@@ -197,7 +223,10 @@ class TheSessionLastsWhileTheGameIsShown(unittest.TestCase):
         ca.stop_agent = self._stop
         ca._force_kill_all_agents = lambda *a, **k: {"ok": True}
         ca.bare_content_reads = lambda: self.reads
-        ca.reel_content_reads = lambda: self.allreads
+        # REG-1704 - the wide scan reads the SAME journal as the first reads, so a reel's whole read list always holds
+        # them. A default of None here modelled "the reel cannot be read" while its first reads could - and every case
+        # leaned on that None becoming "the launcher", the very collapse the v3550 eye found.
+        ca.reel_content_reads = lambda: self.allreads if self.allreads is not None else self.reads
         ca._shadow_hour_end_ms = lambda since: int(since) + 10 ** 9   # no clock hour ends inside a case
         tv.find_d2r_window_mac = lambda *a, **k: BARE
         tv.find_d2r_window_win = lambda *a, **k: BARE
@@ -319,6 +348,29 @@ class TheSessionLastsWhileTheGameIsShown(unittest.TestCase):
         self.assertEqual(c.get("fed"), ["gameplay · Play", "gameplay · Library", "gameplay · Boosteroid"])
         self.assertGreaterEqual(c.get("heldS"), ca._SHADOW_AWAY_GRACE_S)
 
+    def test_a_wider_scan_nobody_could_read_never_seals(self):
+        """REG-1704 - the first reads show nothing, and the whole reel cannot be read: UNKNOWN, never the launcher"""
+        self.begin("shadow")
+        self.reads = LAUNCH
+        ca.reel_content_reads = lambda: (_ for _ in ()).throw(RuntimeError("journal unreadable"))
+        for _ in range(6):
+            r = self.tick(60)
+            self.assertFalse(r.get("cut"), "a reel whose reads could not be read was sealed as the launcher: %r" % r)
+        self.assertEqual(self.stops, [])
+
+    def test_the_seal_row_says_what_the_whole_reel_showed(self):
+        """REG-1704 - the close row carries how many reads were judged and which scenes they were"""
+        self.begin("shadow")
+        self.reads = LAUNCH
+        self.allreads = LAUNCH + LAUNCH
+        self.tick()
+        self.tick(ca._SHADOW_AWAY_GRACE_S + 1)
+        c = [r for r in self.rows() if r.get("event") == "close"][0]
+        self.assertEqual(c.get("judged"), 6, c)
+        self.assertEqual(c.get("scenes"), {"gameplay": 6}, c)
+        self.assertIs(c.get("capped"), False)
+        self.assertIn("judged 6 reads of this reel: gameplay 6", c.get("why") or "")
+
     def test_the_open_row_carries_the_agent_pid(self):
         self.reads = None
         r = self.tick()
@@ -360,6 +412,27 @@ class TheRiverQuotesTheDoor(unittest.TestCase):
 
 RED_PROOF = [
     {
+        "why": "REG-1704 - a wider scan nobody could read seals the reel as the launcher again",
+        "file": "control_app.py",
+        "find": "    if _wide is None:\n        return None\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1704 - a roster that failed to load once is cached empty for the life of the console again",
+        "file": "control_app.py",
+        "find": "            _GAME_ITEMS[\"failedAt\"] = time.time()\n            return frozenset()\n",
+        "replace": "            _GAME_ITEMS[\"set\"] = frozenset()\n            return frozenset()\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1704 - the seal row stops saying how many reads of the reel were judged",
+        "file": "control_app.py",
+        "find": "                     judged=_judged, scenes=_scenes, capped=_capped, why=why)\n",
+        "replace": "                     why=why)\n",
+        "matches": 1,
+    },
+    {
         "why": "#148 - a read the reader filed as the stash/inventory/loot is no longer the game: his four reels seal again",
         "file": "tv_diablo.py",
         "find": "    if sc in _GAME_PANEL_SCENES:\n",
@@ -397,7 +470,7 @@ RED_PROOF = [
     {
         "why": "#148 - a later read of the same reel no longer keeps it the game",
         "file": "control_app.py",
-        "find": "    if _tv.reads_show_the_game(allr, words=set(_AREA_ACT), items=_game_items()) is True:\n        return True\n",
+        "find": "    if _wide is True:\n        return True\n",
         "replace": "",
         "matches": 1,
     },
