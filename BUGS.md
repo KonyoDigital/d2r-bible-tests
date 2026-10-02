@@ -406,6 +406,22 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1711 - HIS LIVE GAME ON THE ALT WAS SEALED AS "THE LAUNCHER" - A GAMEPLAY READ WITH NOTHING TO NAME DID NOT COUNT (2026-10-02)
+
+**His words:** "45 reels and each is 1 hour long? or stopped becuase the screen was idle more then 3 minutes ... check
+the logs". **Measured on his ALT (shadow_seals.jsonl + the frames, opened):** two causes, not the clock hour. (1)
+06:00-09:49 Boosteroid had ended his session for inactivity ("WHERE HAVE YOU BEEN? Session has been terminated due to
+no activity") - the launcher verdict was RIGHT, and the 120 s relook opened 40 reels of that screen (river task #152).
+(2) 10:42 and 10:50 the judge sealed his LIVE game - the Rogue Encampment, Deckard Cain, both orbs - "judged 4 reads of
+this reel: gameplay 4": the reader filed every read gameplay (conf 0.85) and named nothing, and `read_shows_the_game`
+counted only a zone, a D2R panel or an item. "gameplay" was left out on purpose because a failed read is journalled as
+gameplay (REG-1603). Three days of his ALT's seals separate the two: 65 launcher seals, 39 fed "transition" x3 (the
+launcher screen), 24 recorded nothing, 2 fed "gameplay" x3 - these two. **Now:** a gameplay read counts as the game when
+the reader REALLY read it (its own confidence >= `_GAMEPLAY_CONF_MIN` 0.7 - every fallback row carries conf None) and
+named nothing that is not the game (no names, no area); the launcher read as transition, or as gameplay naming its own
+words (Play, Library, Boosteroid), is still sealed. Law: `tv/test_a_game_with_nothing_to_name_is_still_the_game.py`
+(his reads replayed through the real judge and the real door verdict); 5 red-proofs.
+
 ### REG-1710 - PUSHES WENT FROM 17 MINUTES TO 100+: EVERY test_control SABOTAGE RE-RAN ALL 2,259 CASES (#42, 2026-10-02)
 
 His question: "all these pushs are so long taking hours each ... we had pushes that were 17 minutes average. now they

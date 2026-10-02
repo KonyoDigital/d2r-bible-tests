@@ -1308,6 +1308,9 @@ _HUD_SCENES = ("town", "stash", "inventory", "loot", "gameplay", "transition", "
 #: gameplay - REG-1603), so they prove nothing by themselves. ONE vocabulary: these are the words
 #: reel_segments._ACTIVITY_LANE keys on, and a law holds the two equal. [[copy-drift]]
 _GAME_PANEL_SCENES = tuple(s for s in _HUD_SCENES if s not in ("gameplay", "transition"))
+#: REG-1711 — the confidence a "gameplay" read with nothing to name must carry to count as the game (his live session at
+#: 10:42 was read at 0.85; a fallback row carries None and never counts)
+_GAMEPLAY_CONF_MIN = 0.7
 #: #148 — items every character carries. A read naming one is the game even though no roster lists a base item.
 _D2R_ALWAYS_ITEMS = frozenset(("horadric cube", "tome of town portal", "tome of identify", "scroll of town portal",
                                "scroll of identify"))
@@ -1410,6 +1413,17 @@ def read_shows_the_game(row, words=None, items=None):
             continue
         if k in _D2R_ALWAYS_ITEMS or (items and k in items) or (k.endswith(" rune") and len(k.split()) == 2):
             return "the item %s" % str(n).strip()[:40]
+    # REG-1711 — A REAL READ OF A GAME SCENE WITH NOTHING ON IT TO NAME IS THE GAME. His ALT, 2026-10-02 10:42 and 10:50:
+    # the reader filed every read of two reels as "gameplay" (conf 0.85) - the frame was the Rogue Encampment, Deckard
+    # Cain, both orbs and the belt - with no zone on screen and nothing to name, and the judge sealed his live session as
+    # "the launcher" twice in eight minutes. Over three days of his ALT's seals the launcher itself was read as
+    # "transition" (39 of the 39 that recorded what they were fed), and the laws' launcher reads name its own words
+    # (Play, Library, Boosteroid). So "gameplay" counts only when the reader REALLY read it - its own confidence, which no
+    # fallback row carries (they say conf None) - and named nothing that is not the game. [[unknown-stays-unknown]]
+    _c = row.get("conf")
+    if (sc == "gameplay" and not (row.get("names") or []) and not str(row.get("area") or "").strip()
+            and isinstance(_c, (int, float)) and not isinstance(_c, bool) and _c >= _GAMEPLAY_CONF_MIN):
+        return "a read filed as gameplay with nothing else to name (conf %.2f)" % float(_c)
     return ""
 
 

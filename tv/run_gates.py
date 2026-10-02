@@ -8801,6 +8801,13 @@ GATES = [
              "for the Chronicle sweep to stop before it ever asked the console, and quit at 20 minutes; his sweep read for "
              "3 h 45 min while the console had stopped counting it at 45. The bar now asks the console every tick, shows "
              "its reason, keeps watching past 20 minutes, and the console writes each change of its decision to the log."),
+    Gate("test_a_game_with_nothing_to_name_is_still_the_game",
+         [sys.executable, os.path.join(HERE, "test_a_game_with_nothing_to_name_is_still_the_game.py")], 90,
+         needs_app=False,
+         why="REG-1711 - his ALT sealed his LIVE game as the Boosteroid launcher twice in eight minutes: the reader filed "
+             "every read as gameplay with nothing on screen to name, and the judge counted only a zone, a panel or an "
+             "item. A real gameplay read (its own confidence, nothing foreign named) is the game; the launcher - read "
+             "as transition, or naming its own words - is still sealed."),
     Gate("test_a_proof_remembers_where_it_went_red",
          [sys.executable, os.path.join(HERE, "test_a_proof_remembers_where_it_went_red.py")], 90,
          needs_app=False,
