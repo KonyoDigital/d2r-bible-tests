@@ -406,6 +406,16 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1705 - THE PUBLISH SUITES JOB WAS CANCELLED ON A GREEN BUILD, SO 44750b8c NEVER DEPLOYED (2026-10-02)
+
+**Found** reading CI after the v3550-v3553 push: "Publish - gates, review, then deploy" ended **cancelled**, Deploy
+skipped. Its "Python suites" job (test_control + test_tz_art) RAN 2304 tests in 891 s with 0 FAIL/ERROR lines and was
+cut at 15:08 by `timeout-minutes: 15`, before it could print OK. MEASURED over the last seven publishes: 8, 12, 13.9,
+13, 13.1, 12.75, 14.25 min - the suite grew into its ceiling. **Fixed:** 25, with the trend written beside it; the run
+was re-run (attempt 2) so the deploy the push passed its gates for can go out. **Not done, on purpose:** tv-tests.yml is
+at the same edge (shards 21:58 / 22:24 of 25, one cancelled at 25:18), but `test_a_cut_off_gate_set_is_not_a_verdict`
+refuses a bigger number there - board #184's ruling: the lever is SHARDING, not a ceiling. Sharding both is #42's.
+
 ### REG-1704 - THE v3550 EYE: AN UNREADABLE REEL SEALED AS THE LAUNCHER, A SEAL ROW THAT HID WHAT IT JUDGED, A ROSTER FAILURE KEPT FOREVER (2026-10-02)
 
 The Grok CLI looked at v3550 (25,855 chars, `be0c8a2e`) and filed 3 findings + a reach note. Each was reproduced before

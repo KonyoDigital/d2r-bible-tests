@@ -143,7 +143,11 @@ jobs:
   suites:
     name: Python suites
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # 2026-10-02 (REG-1705) - 15 minutes was a ceiling the suite grew into: this job took 8, 12, 13.9, 13, 13.1, 12.75
+    # and 14.25 min over the last seven publishes, and on 44750b8c it RAN 2304 tests green in 891 s and was cancelled at
+    # 15:08 before it could say OK - so the deploy was skipped for a passing build. A ceiling at 99% of the measured run
+    # refuses on growth, not on a fault. 25 leaves room and still ends a hung run.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
