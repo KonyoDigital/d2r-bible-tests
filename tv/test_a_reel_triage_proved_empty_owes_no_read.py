@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """REG-1747 — A REEL THE TRIAGE PROVED EMPTY OWES THE CHRONICLE NO PAID READ.
 
-MEASURED on the ALT, 2026-10-02: the chronicle autoread paid Grok to classify reel_s_1790928016230_14824 three times
+MEASURED on the ALT, 2026-10-02: the chronicle autoread paid Grok to classify its reel …14824 three times
 - two attempts retired as "the sweep started but never wrote a result", a third 18 minutes in - while retro_triage
 had walked all 423 of its frames ("full": true) and found ZERO panels, and the river held it at TOMBSTONE. His words:
 "these frames are the ones filtered already by design ... relevant frames stay and get read", and "make sure not to
@@ -31,10 +31,10 @@ if HERE not in sys.path:
 from console_safe import enable as _console_safe_enable  # noqa: E402
 _console_safe_enable()
 
-EMPTY = "reel_s_1790928016230_14824"      # the ALT's reel, by its real shape
-FULL_OF_PANELS = "reel_s_1790928016231_00001"
-SAMPLED = "reel_s_1790928016232_00002"
-UNSURVEYED = "reel_s_1790928016233_00003"
+EMPTY = "reel_s_1500000000001_14824"      # synthetic (2017 epoch) - the ALT's reel by its shape only
+FULL_OF_PANELS = "reel_s_1500000000002_00001"
+SAMPLED = "reel_s_1500000000003_00002"
+UNSURVEYED = "reel_s_1500000000004_00003"
 
 
 def _ca():
