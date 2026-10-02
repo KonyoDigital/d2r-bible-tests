@@ -406,6 +406,16 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1723 - THREE CI-ONLY LAWS REFUSED TODAY'S NEW CODE, AND MY PRE-FLIGHT WAS BLIND TO ONE OF THEM (2026-10-02)
+
+CI on 86e2b3da/e378c955, three gates the pre-push subset does not run: (1) `test_every_doctor_check_is_explained` -
+the new row "this machine can cross-check an inventory" was in neither registry; it is now in corroborate.NO_JOINT_YET
+with its reason. (2) `test_a_child_s_words_are_read_as_utf8_on_every_os` - suite_verdict read git's and the suite's
+output in the locale encoding (cp1255 on his Windows PCs); both now read UTF-8 with replacement. (3) the swallow ratchet
+- g5_grok_eyes turned a conf that is not a number into 0.0; it is UNKNOWN (None) now. **And the reason (3) reached CI:**
+my pre-flight ran `swallow_census --check | tail -2 || fail=1`, which tests tail's exit status - the census could never
+fail it (the exit-status-of-the-block scar, in my own tooling); it now honours the census's own exit.
+
 ### REG-1722 - A SUITE RUN WAS KEYED ONLY BEFORE IT RAN; A CELL-ONLY RE-READ WAS CALLED MISSING FACTS (2026-10-02)
 
 - **Found while waiting on lever 2's own run:** `suite_verdict.run` took the commit key BEFORE the suite ran and

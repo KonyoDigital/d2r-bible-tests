@@ -1390,7 +1390,7 @@ def _loose_parse(txt):
             try:
                 j["conf"] = float(j.get("conf") if j.get("conf") is not None else 0.0)
             except Exception:
-                j["conf"] = 0.0
+                j["conf"] = None        # REG-1723 - a conf that is not a number is UNKNOWN, never a measured 0.0
         if _fixed:
             j["_g5_fixed"] = _fixed
         return j

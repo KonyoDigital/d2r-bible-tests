@@ -2655,6 +2655,9 @@ NO_JOINT_YET = {
         "(the one a sign-in check would make); no joint spends that call yet.",
     'this machine can decode a frame':
         "the row round-trips a BMP through Pillow in memory; a second source would be a real frame this machine filmed decoding in the reader, which only happens when it films.",
+    # REG-1719
+    'this machine can cross-check an inventory':
+        "the row imports numpy and takes one median in memory; the independent side would be the vault's grid measure answering on a real frame this machine filmed, which only happens when an inventory is on screen.",
     # #228
     'a fresh remaining page':
         "the row reads the calibration the last chronicle sweep SAVED (his board's count against the game's Remaining page); the independent side would be a newly filmed Remaining page, which is exactly what the row asks him for - until one exists there is no second source to join.",

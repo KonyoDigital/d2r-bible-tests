@@ -58,7 +58,8 @@ RUN_TIMEOUT_S = {"test_agent": 600, "test_control": 1500}
 def _git(args, cwd=None):
     """-> stdout str, or None when git could not answer."""
     try:
-        p = subprocess.run(["git"] + list(args), cwd=cwd or REPO, capture_output=True, text=True, timeout=60)
+        p = subprocess.run(["git"] + list(args), cwd=cwd or REPO, capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=60)
     except Exception:
         return None
     if p.returncode != 0:
@@ -211,8 +212,8 @@ def run(name, cwd=None):
         _inflight_set(name, key, os.getpid(), path)
     t0 = time.time()
     try:
-        p = subprocess.run([sys.executable, src], cwd=cwd or REPO, capture_output=True, text=True,
-                           timeout=RUN_TIMEOUT_S.get(name, 1500))
+        p = subprocess.run([sys.executable, src], cwd=cwd or REPO, capture_output=True, text=True, encoding="utf-8",
+                           errors="replace", timeout=RUN_TIMEOUT_S.get(name, 1500))
         out = (p.stdout or "") + (p.stderr or "")
         ok = p.returncode == 0
     except subprocess.TimeoutExpired:
