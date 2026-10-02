@@ -6089,7 +6089,11 @@ def _check_the_item_facts_are_reaching_the_row():
     # the current one has read nothing - and the sentence names which population it measured.
     # REG-1718 - a fact a later reader filled into an earlier look is that later reader's (`filledBy`)
     def _readers(w):
-        return {str(w.get("promptVer") or "")} | {str(v) for v in (w.get("filledBy") or {}).values()}
+        # REG-1722 (the #231 code seat on 1bb86d6c) - a later reader joins a look's population only for a FACT it
+        # supplied: one that only filled the cell would put a look in its population whose sockets/eth/quality are the
+        # first reader's, and call it MISSING facts it never dropped
+        fb = w.get("filledBy") or {}
+        return {str(w.get("promptVer") or "")} | {str(fb[f]) for f in ("sockets", "eth", "quality") if fb.get(f)}
 
     def _fact_by(w, vs):
         fb = w.get("filledBy") or {}

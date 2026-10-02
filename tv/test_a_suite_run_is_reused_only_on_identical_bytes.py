@@ -169,6 +169,36 @@ class ARunInFlightIsWaitedFor(unittest.TestCase):
         self.assertIn("runs", line)
 
 
+class ARunThatMovedItsBytesStoresNothing(unittest.TestCase):
+    """REG-1722 - the key is taken before the run AND after: a run that graded moved bytes is not the commit's"""
+
+    def setUp(self):
+        self.d = _repo()
+        self.addCleanup(shutil.rmtree, self.d, True)
+
+    def _suite(self, body):
+        with io.open(os.path.join(self.d, "tv", "test_agent.py"), "w", encoding="utf-8") as fh:
+            fh.write(body)
+        _git(self.d, "add", "-A")
+        _git(self.d, "commit", "-q", "-m", "suite")
+
+    def test_premise_a_run_on_still_bytes_is_stored(self):
+        self._suite("print('Ran 1 test in 0.0s')\n")
+        ok, line = SV.run("test_agent", cwd=self.d)
+        self.assertTrue(ok, line)
+        self.assertIsNotNone(SV.reusable("test_agent", SV.tree_key(self.d)[0], path=SV.store_path(self.d))[0], line)
+
+    def test_a_run_during_which_a_tracked_file_changed_stores_nothing(self):
+        self._suite("import io, os\nio.open(os.path.join(os.path.dirname(__file__), 'a.py'), 'a').write('z = 3\\n')\n"
+                    "print('Ran 1 test in 0.0s')\n")
+        before = SV.tree_key(self.d)[0]
+        ok, line = SV.run("test_agent", cwd=self.d)
+        self.assertTrue(ok, line)
+        self.assertIn("moved while it ran", line)
+        self.assertIsNone(SV.reusable("test_agent", before, path=SV.store_path(self.d))[0],
+                          "a run that graded edited bytes was stored as the commit's verdict")
+
+
 class ThePushAsksBeforeEachHeavySuite(unittest.TestCase):
 
     def setUp(self):
@@ -188,6 +218,13 @@ class ThePushAsksBeforeEachHeavySuite(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1722 - a run during which the bytes moved is stored as the commit's green verdict",
+        "file": "suite_verdict.py",
+        "find": "    moved = bool(key) and after != key\n",
+        "replace": "    moved = False\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1720 - an unreadable verdict store reads as an empty one again (the swallow CI caught on 86e2b3da)",
         "file": "suite_verdict.py",

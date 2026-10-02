@@ -228,12 +228,18 @@ def run(name, cwd=None):
                 cases = int(line.split()[1])
             except Exception:
                 pass
-    stored = ok and record(name, key, True, cases=cases, seconds=secs, venue=cwd or REPO, path=path)
+    # REG-1722 - THE KEY IS TAKEN BEFORE THE RUN AND AGAIN AFTER (heart2's proof cache does the same): a file edited
+    # while the suite ran means the run graded bytes that are not the commit's, so nothing is stored for it.
+    after, _awhy = tree_key(cwd)
+    moved = bool(key) and after != key
+    stored = ok and not moved and record(name, key, True, cases=cases, seconds=secs, venue=cwd or REPO, path=path)
+    if ok and moved:
+        why = "the tree moved while it ran (%s) - nothing stored" % (_awhy if not after else "a different commit")
     if not ok:                              # a red run names what failed, never only "RED"
         for line in [l for l in out.splitlines() if l.startswith(("FAIL:", "ERROR:"))][:12]:
             print("   " + line, flush=True)
     return ok, "%s %s in %ss (%s cases)%s" % (name, "GREEN" if ok else "RED", secs, cases if cases is not None else "?",
-                                               "" if stored else (" - not stored: %s" % why if not key else
+                                               "" if stored else (" - not stored: %s" % why if (not key or moved) else
                                                                   (" - not stored" if ok else "")))
 
 

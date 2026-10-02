@@ -109,6 +109,12 @@ class TwoTheDoctorMeasuresTheCurrentReader(unittest.TestCase):
                                                               "filledBy": {"sockets": self.old}}]}])
         self.assertEqual(st2, cd.MISSING, "a fact the OLD reader supplied was credited to the current one: %s" % why2)
 
+    def test_REG1722_a_later_reader_that_only_filled_the_cell_is_not_called_missing(self):
+        """the #231 code seat on 1bb86d6c: a cell-only fill put the look in the later reader's population"""
+        st, why = self._store([{"name": "Shako", "lane": "stash", "witnesses": [
+            {"promptVer": self.old, "sockets": 2, "cell": "stash:c3r4", "filledBy": {"cell": self.cur}}]}])
+        self.assertNotEqual(st, cd.MISSING, why)
+
     def test_only_the_old_reader_says_so(self):
         st, why = self._store([{"name": "Shako", "lane": "stash", "witnesses": [{"promptVer": self.old, "sockets": 2}]}])
         self.assertEqual(st, cd.OK, why)
@@ -207,6 +213,13 @@ class FiveTheSealLogAsksTheFilesystem(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1722 - a reader that only filled a cell joins the look's population and is called MISSING facts",
+        "file": "console_doctor.py",
+        "find": "        return {str(w.get(\"promptVer\") or \"\")} | {str(fb[f]) for f in (\"sockets\", \"eth\", \"quality\") if fb.get(f)}\n",
+        "replace": "        return {str(w.get(\"promptVer\") or \"\")} | {str(v) for v in fb.values()}\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1718 - a re-read of the same look drops every fact but its cell again (sockets, eth, quality lost)",
         "file": "vault_retro.py",

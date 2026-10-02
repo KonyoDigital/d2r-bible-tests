@@ -406,6 +406,18 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1722 - A SUITE RUN WAS KEYED ONLY BEFORE IT RAN; A CELL-ONLY RE-READ WAS CALLED MISSING FACTS (2026-10-02)
+
+- **Found while waiting on lever 2's own run:** `suite_verdict.run` took the commit key BEFORE the suite ran and
+  stored the verdict under it whatever happened next - a file edited while the suite ran would have stamped the
+  commit with a verdict about bytes that were never the commit's. Now the key is taken again AFTER (heart2's proof
+  cache does the same) and a run whose bytes moved stores nothing and says so.
+- **The #231 code seat on 1bb86d6c (REG-1718):** the doctor put a look into a later reader's population for ANY field
+  it filled, so a reader that only filled the cell was measured on sockets/eth/quality the first reader supplied and
+  called MISSING. A reader now joins a look's population only for a fact it supplied.
+Laws: `test_a_suite_run_is_reused_only_on_identical_bytes.py` (+2 cases, +1 red-proof),
+`test_the_v3554_eye_findings_are_closed.py` (+1 case, +1 red-proof).
+
 ### REG-1721 - THREE SMALL TRUTHS: A REFUSED true STAYED 0.0, A CORRUPT CACHE READ AS EMPTY, A COMMENT OVERSTATED ITS SOURCE (2026-10-02)
 
 - **The #231 code seat (6207bc50) + the v3556 eye, two seats agreeing:** `g5_grok_eyes._loose_parse` refused a JSON
