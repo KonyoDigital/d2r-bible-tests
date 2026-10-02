@@ -619,8 +619,8 @@ RED_PROOF = [
     {
     "why": "a census that returns no `state` leaves the heart unable to say anything about its instruments",
     "file": "control_app.py",
-    "find": '            "state": ("DARK" if _blind else ("WATCHED" if _proved else "UNKNOWN")),',
-    "replace": '            "stateMISSING": ("DARK" if _blind else ("WATCHED" if _proved else "UNKNOWN")),',
+    "find": '            "state": _h2_state,',
+    "replace": '            "stateMISSING": _h2_state,',
     "matches": 1,
 }, {
     # ⚠⚠ THE THREE BELOW WERE ADDED AT v2896 BECAUSE THE CROSS-FAMILY EYE SHOWED THIS LAW COULD

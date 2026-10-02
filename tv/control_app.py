@@ -24158,8 +24158,21 @@ def _heart2_census():
         _unchecked = list(_d.get("blindUnchecked") or [])
         _proved = _d.get("proved")
         _unproven = _d.get("unproven")
+        # REG-1731 (#86 gap audit 3/7) - "WATCHED" ONLY OVER A CURRENT CENSUS. This read the file's proved count and
+        # called the instruments WATCHED whatever the gate set had become since: measured on his Mac 2026-10-02 the
+        # census was STALE ("the gates changed since this PC last proved them", 31 owed) and the heart said WATCHED.
+        # The self-prove lane already asks census_state() on its tick, so its last word is read here (free) rather
+        # than recomputed (1 s a call on the Mac). Not asked yet = unchanged; any word but "current" = UNKNOWN + why.
+        _h2_state = "DARK" if _blind else ("WATCHED" if _proved else "UNKNOWN")
+        _h2_lane = str((_SELF_PROVE or {}).get("census") or "")
+        _h2_lane_why = None
+        if _h2_state == "WATCHED" and _h2_lane and _h2_lane != "current":
+            _h2_state = "UNKNOWN"
+            _h2_lane_why = ("the census is %s by the self-prove lane's last look - %s"
+                            % (_h2_lane, str((_SELF_PROVE or {}).get("say") or "no reason recorded")[:160]))
         return {
-            "state": ("DARK" if _blind else ("WATCHED" if _proved else "UNKNOWN")),
+            "state": _h2_state,
+            "laneCensus": _h2_lane or None,
             "proved": _proved,
             "unproven": _unproven,
             "blind": _blind,
@@ -24206,7 +24219,7 @@ def _heart2_census():
             # he reads separates a live defect from an inherited claim.
             # [[stale-reading]] [[inherited-claim-is-not-evidence]]
             "blindUnchecked": list(_d.get("blindUnchecked") or []),
-            "why": (("%d gate(s) survived their own defeat%s"
+            "why": _h2_lane_why or (("%d gate(s) survived their own defeat%s"
                      % (len(_blind),
                         ("" if not _unchecked else
                          " — but %d of them %s NOT re-tested in the last run and may be stale, "
@@ -38824,6 +38837,31 @@ def _live_frames_check(live, frames_dir=None):
             ", ".join(ages) if ages else "no frames yet (agent off)"))
 
 
+def _self_prove_row(_spv):
+    """The doctor's "self_prove" row from the lane's last tick. Pure. -> (ok bool, line str)"""
+    _sp_key = _spv.get("key")
+    _sp_blind = list(_spv.get("blind") or [])
+    # REG-1511 — "aside-cooldown" is the wait after a stand-aside, so it is healthy too; "aside-survived" (a prover that
+    # outlived its kill beside his game) is deliberately NOT, so it warns.
+    # REG-1731 (#86 gap audit 17/32) - "OFF" IS HEALTHY ONLY OVER A CURRENT CENSUS. With the lane off (TV_SELF_PROVE=0)
+    # nothing will ever prove this PC, so a census that is not current means every lock it governs stays shut for good -
+    # the row read OK over exactly that. It warns now and says so; a lane that is off over a current census is still OK.
+    _sp_census = str(_spv.get("census") or "")
+    _sp_shut = _sp_key == "off" and _sp_census != "current"
+    _sp_ok = (_sp_key in (None, "current", "running", "start", "dev", "off", "busy",
+                        "playing", "stood-aside", "running-unverified", "low-memory", "aside-cooldown")
+              and not _sp_blind and not _sp_shut)   # REG-1502: deferring to his game is healthy
+    line = ("self-prove: census %s - %s%s%s" % (_spv.get("census") or "not asked yet", _spv.get("say") or "",
+                                                (" · %d instrument(s) BLIND here (%s) - every lock stays shut "
+                                                 "until each goes red again" % (len(_sp_blind),
+                                                                               ", ".join(_sp_blind[:3])))
+                                                if _sp_blind else "",
+                                                (" · the lane is OFF and the census is %s - nothing will prove this "
+                                                 "PC, so every lock it governs stays shut" % (_sp_census or "unknown"))
+                                                if _sp_shut else ""))
+    return bool(_sp_ok), line
+
+
 def doctor_payload():
     """GET /api/doctor contract: {ok, platform, checks:[{id,ok,severity,detail,fix?}],
     logTail, logPath, ver}. See the DOCTOR banner above for the invariants."""
@@ -39080,21 +39118,9 @@ def doctor_payload():
     # river's routing, the vault sweep, frame release) refuses until it has, and on the ALT that held 76
     # reels at EMPTY for two days with nothing on any screen. It reads the lane's LAST tick and never
     # starts a proof itself - a doctor that spawned a prover would be a second, unscheduled door.
-    _spv = dict(_SELF_PROVE)
-    _sp_key = _spv.get("key")
-    _sp_blind = list(_spv.get("blind") or [])
-    # REG-1511 — "aside-cooldown" is the wait after a stand-aside, so it is healthy too; "aside-survived" (a prover that
-    # outlived its kill beside his game) is deliberately NOT, so it warns.
-    _sp_ok = (_sp_key in (None, "current", "running", "start", "dev", "off", "busy",
-                        "playing", "stood-aside", "running-unverified", "low-memory", "aside-cooldown")
-              and not _sp_blind)   # REG-1502: deferring to his game is healthy
+    _sp_ok, _sp_line = _self_prove_row(dict(_SELF_PROVE))
     checks.append(_chk(
-        "self_prove", _sp_ok, "warn",
-        ("self-prove: census %s - %s%s" % (_spv.get("census") or "not asked yet", _spv.get("say") or "",
-                                           (" · %d instrument(s) BLIND here (%s) - every lock stays shut "
-                                            "until each goes red again" % (len(_sp_blind),
-                                                                          ", ".join(_sp_blind[:3])))
-                                           if _sp_blind else "")),
+        "self_prove", _sp_ok, "warn", _sp_line,
         "The lane retries by itself; the prover's log is tv/.self_prove.json.log. A BLIND instrument is a "
         "law that stayed green through its own sabotage on THIS machine - fix the law for this platform."))
 

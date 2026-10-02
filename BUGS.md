@@ -406,6 +406,18 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1731 - TWO GREENS THAT LIED ABOUT THE CENSUS, FROM THE 09-29 GAP AUDIT (2026-10-02, #86 items 3/7/17/32)
+
+(1) The doctor's `self_prove` row read OK whenever the lane's key was "off" (TV_SELF_PROVE=0) - even over a census that
+was missing or stale, when nothing will ever prove that PC and every lock it governs stays shut for good. It warns now
+and says so; off over a CURRENT census is still OK. The row's verdict is lifted into `_self_prove_row()` so a law drives
+it. (2) The HEART's instrument census said WATCHED from the file's proved count whatever the gate set had become -
+measured on his Mac: census STALE ("the gates changed since this PC last proved them", 31 owed) while the heart said
+WATCHED. It now reads the self-prove lane's last word (free; recomputing census_state costs ~1 s on the Mac) and says
+UNKNOWN with that reason unless the lane says "current"; a lane not asked yet changes nothing. One red-proof in
+test_the_heart_can_see_its_own_instruments followed its moved anchor (same claim). Law:
+`test_the_gap_audit_findings_are_closed`.
+
 ### REG-1730 - THE v3557 SECOND EYE: 3 REAL OF 5 (2026-10-02)
 
 The first look saw 18,758 of 69,264 diff chars and answered "could not judge"; re-asked with the whole diff

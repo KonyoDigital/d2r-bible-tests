@@ -8858,6 +8858,11 @@ GATES = [
          why="REG-1726 (#86 gap audit 24) - the console doctor counted a sub-doctor's marks and called that the "
              "verdict, so one that crashed (a traceback, no marks) read '0 green / 0 needs-you' and the row was OK. "
              "No marks is now 'it gave no verdict', with its exit code - UNKNOWN."),
+    Gate("test_the_gap_audit_findings_are_closed",
+         [sys.executable, os.path.join(HERE, "test_the_gap_audit_findings_are_closed.py")], 90,
+         needs_app=False,
+         why="REG-1731 (#86 gap audit 3/7/17/32) - the doctor's self_prove row read OK with the lane off over a census "
+             "nobody will prove, and the HEART said WATCHED over a stale census (measured on his Mac 10-02: 31 owed)."),
     Gate("test_the_v3557_eye_findings_are_closed",
          [sys.executable, os.path.join(HERE, "test_the_v3557_eye_findings_are_closed.py")], 90,
          needs_app=False,
