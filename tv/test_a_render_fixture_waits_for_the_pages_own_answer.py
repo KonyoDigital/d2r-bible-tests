@@ -33,7 +33,6 @@ NODE = shutil.which("node")
 # a page with just enough DOM for the activate: the needs-you host, the pop, a card that exists once adopted
 HARNESS = r"""
 const vm = require('vm');
-const inp = JSON.parse(require('fs').readFileSync(0, 'utf8'));
 let adopted = 0;
 const btn = { getBoundingClientRect: () => ({ width: 40, height: 12, right: 40, top: 0 }), contains: () => true };
 const card = { getBoundingClientRect: () => ({ width: 200, height: 40, right: 200, top: 0 }),
@@ -71,7 +70,10 @@ class TheFixtureWaitsForThePage(unittest.TestCase):
     def run_activate(self, ny_text, with_why=False):
         payload = {"src": self.spec["activate"], "ny": ny_text,
                    "why": self.spec.get("activateWhy") if with_why else ""}
-        r = subprocess.run([NODE, "-e", HARNESS], input=json.dumps(payload), capture_output=True,
+        # the PROGRAM travels on stdin (test_no_law_hands_node_its_program_on_argv - Linux caps one argv string at
+        # 128 KB), with the payload inlined as a JSON literal at its head
+        program = "const inp = %s;\n%s" % (json.dumps(payload), HARNESS)
+        r = subprocess.run([NODE, "-"], input=program, capture_output=True,
                            text=True, encoding="utf-8", timeout=60)
         self.assertEqual(r.returncode, 0, "the harness itself failed: %s" % r.stderr[-400:])
         return json.loads(r.stdout)
