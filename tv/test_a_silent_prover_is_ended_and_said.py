@@ -149,7 +149,11 @@ class TheLogIsAHeartbeat(unittest.TestCase):
             return _P()
         d = tempfile.mkdtemp(prefix="silent_spawn_")
         self.addCleanup(shutil.rmtree, d, True)
-        SP.spawn(os.path.join(d, "log"), popen=popen, workers=1, names=["g1"])
+        # REG-1719 - spawn() copies os.environ, and on his ALT the prover runs THIS law with both of these already set,
+        # so a spawn that stopped setting them stayed green there (BLIND). The host's values are taken away first.
+        _bare = {k: v for k, v in os.environ.items() if k not in ("PYTHONUNBUFFERED", "HEART2_DEADLINE_SCALE")}
+        with mock.patch.dict(os.environ, _bare, clear=True):
+            SP.spawn(os.path.join(d, "log"), popen=popen, workers=1, names=["g1"])
         self.assertEqual(seen["env"].get("PYTHONUNBUFFERED"), "1",
                          "the prover's log is block-buffered again: a working prover and a hung one look the same")
         self.assertEqual(seen["env"].get("HEART2_DEADLINE_SCALE"), str(SP.PROVER_DEADLINE_SCALE),

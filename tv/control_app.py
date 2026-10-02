@@ -5463,7 +5463,11 @@ def _establish_tree_at_boot():
     return rows
 
 
-def _ensure_pillow_at_boot(_find=None, _run=None):
+#: REG-1719 — two boot installs never run pip at the same moment
+_PIP_BOOT_LOCK = threading.Lock()
+
+
+def _ensure_pkg_at_boot(mod, pkg, rec_attr, _find=None, _run=None):
     """#227 — THE CONSOLE MAKES SURE IT CAN READ ITS OWN FRAMES, ON WINDOWS, AT BOOT.
     -> the attempt record, or None when it is not this console's job
 
@@ -5476,7 +5480,12 @@ def _ensure_pillow_at_boot(_find=None, _run=None):
     So the console does it itself: probe, and if PIL is missing, `python.exe -m pip install --user
     Pillow` in THIS thread (never the UI's), hidden (_WIN_CREATE), bounded. The user site is added to
     sys.path after, so this very process can decode without a restart. The attempt is recorded on
-    console_doctor.PILLOW_BOOT, which the row 'this machine can decode a frame' quotes."""
+    console_doctor.PILLOW_BOOT, which the row 'this machine can decode a frame' quotes.
+
+    REG-1719 — ONE DOOR FOR EVERY PACKAGE THE CONSOLE CANNOT RUN WITHOUT (`mod` is what imports, `pkg` what pip
+    installs, `rec_attr` the console_doctor record its row quotes). MEASURED 2026-10-02 over SSH: the ALT on v3556 has
+    no numpy - the installer never listed it - so vault_corpus.inventory_lattice answered "unreadable" for every frame
+    and the vault's pixel cross-check had never run on any Windows PC. _PIP_BOOT_LOCK keeps two pip runs apart."""
     if not IS_WIN:
         return None
     try:
@@ -5491,34 +5500,35 @@ def _ensure_pillow_at_boot(_find=None, _run=None):
     rec = {"ts": int(time.time() * 1000), "tried": False, "ok": None, "why": None}
     try:
         import console_doctor as _cd
-        _cd.PILLOW_BOOT = rec
+        setattr(_cd, rec_attr, rec)
     except Exception:
         pass
     try:
-        present = find("PIL") is not None
+        present = find(mod) is not None
     except Exception:
         present = False
     if present:
-        rec.update(ok=True, why="Pillow was already importable")
+        rec.update(ok=True, why="%s was already importable" % pkg)
         return rec
     exe = sys.executable or "python"
     if exe.lower().endswith("pythonw.exe"):
         exe = exe[:-len("pythonw.exe")] + "python.exe"     # pythonw has no stdout for pip to write to
-    argv = [exe, "-m", "pip", "install", "--user", "--quiet", "Pillow"]
+    argv = [exe, "-m", "pip", "install", "--user", "--quiet", pkg]
     rec["tried"] = True
     run = _run or subprocess.run
     try:
-        p = run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace",
-                timeout=600, creationflags=_WIN_CREATE if IS_WIN else 0)
+        with _PIP_BOOT_LOCK:
+            p = run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                    timeout=600, creationflags=_WIN_CREATE if IS_WIN else 0)
         rc = getattr(p, "returncode", None)
     except Exception as e:
         rec.update(ok=False, why="pip could not run (%s: %s)" % (type(e).__name__, str(e)[:120]))
-        print("\u26a0 boot Pillow install: %s" % rec["why"], flush=True)
+        print("\u26a0 boot %s install: %s" % (pkg, rec["why"]), flush=True)
         return rec
     if rc != 0:
         tail = ((getattr(p, "stderr", "") or "") + (getattr(p, "stdout", "") or "")).strip()[-160:]
         rec.update(ok=False, why="pip exited %s: %s" % (rc, tail or "no output"))
-        print("\u26a0 boot Pillow install: %s" % rec["why"], flush=True)
+        print("\u26a0 boot %s install: %s" % (pkg, rec["why"]), flush=True)
         return rec
     try:
         import site
@@ -5527,13 +5537,23 @@ def _ensure_pillow_at_boot(_find=None, _run=None):
     except Exception:
         pass
     try:
-        now = find("PIL") is not None
+        now = find(mod) is not None
     except Exception:
         now = False
     rec.update(ok=bool(now), why=("installed at boot and importable" if now else
-                                  "pip said it installed, but PIL still does not import in this process"))
-    print("boot Pillow install: %s" % rec["why"], flush=True)
+                                  "pip said it installed, but %s still does not import in this process" % mod))
+    print("boot %s install: %s" % (pkg, rec["why"]), flush=True)
     return rec
+
+
+def _ensure_pillow_at_boot(_find=None, _run=None):
+    """#227 — the frames this console films are decoded with Pillow (console_doctor.PILLOW_BOOT)."""
+    return _ensure_pkg_at_boot("PIL", "Pillow", "PILLOW_BOOT", _find=_find, _run=_run)
+
+
+def _ensure_numpy_at_boot(_find=None, _run=None):
+    """REG-1719 — the inventory lattice measures a frame with numpy (console_doctor.NUMPY_BOOT)."""
+    return _ensure_pkg_at_boot("numpy", "numpy", "NUMPY_BOOT", _find=_find, _run=_run)
 
 
 def _prewarm_seal_cache():
@@ -43505,6 +43525,7 @@ def main():
     threading.Thread(target=_establish_tree_at_boot, daemon=True, name="tvd-tree").start()
     # #227 — a self-updated console never re-runs the launcher: it makes sure it can read its frames
     threading.Thread(target=_ensure_pillow_at_boot, daemon=True, name="tvd-pillow").start()
+    threading.Thread(target=_ensure_numpy_at_boot, daemon=True, name="tvd-numpy").start()   # REG-1719
 
     threading.Thread(target=_bridge_prober, daemon=True, name="tvd-prober").start()   # v872
     threading.Thread(target=_console_beacon_loop, daemon=True, name="tvd-beacon").start()   # v875

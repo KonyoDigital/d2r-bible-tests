@@ -129,6 +129,11 @@ PROOF_NEEDS_HOST = {
     "macos": ("heart2", "_host_is_macos", "macOS (the code it guards runs only there)"),
     "posix-signals": ("heart2", "_host_has_posix_signals",
                       "a SIGTERM that reaches the process's handler (Windows ends the process instead)"),
+    # REG-1719 — the ALT on v3556 filed four gates BLIND; three judged code its Windows PC never runs. numpy: the ALT
+    # has none, so the inventory lattice cannot read a frame there and every lattice law skips (all 7 cases, both
+    # tamper and clean). posix: the prover's birth read runs `ps` through fork_exec only off Windows.
+    "numpy": ("heart2", "_host_has_numpy", "numpy (the inventory lattice reads a frame only with it)"),
+    "posix": ("heart2", "_host_is_posix", "a POSIX process table (ps through fork_exec; Windows reads births another way)"),
 }
 
 
@@ -140,6 +145,17 @@ def _host_is_macos():
 def _host_has_posix_signals():
     """REG-1688 — the PROOF_NEEDS_HOST probe for "posix-signals". -> bool"""
     return not sys.platform.startswith("win")
+
+
+def _host_has_numpy():
+    """REG-1719 — the PROOF_NEEDS_HOST probe for "numpy". -> bool (asks the import system; imports nothing)"""
+    import importlib.util as _ilu
+    return _ilu.find_spec("numpy") is not None
+
+
+def _host_is_posix():
+    """REG-1719 — the PROOF_NEEDS_HOST probe for "posix". -> bool"""
+    return os.name == "posix"
 
 
 def host_lacks(need):

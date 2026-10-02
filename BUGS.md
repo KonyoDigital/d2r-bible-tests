@@ -406,6 +406,28 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1719 - ON v3556 THE ALT FILED FOUR GATES BLIND, AND HAS NO numpy - THE VAULT'S CROSS-CHECK NEVER RAN ON WINDOWS (2026-10-02)
+
+**Measured over SSH after the ALT pulled v3556 (36812d92):** the prover moved (94 gates owed -> 20, the idle floor
+working), and the census listed four BLIND gates - each stayed green through its own sabotage there:
+- `test_the_lattice_reads_every_capture_height` - all 7 cases SKIPPED: **the ALT has no numpy** (Python 3.12.10). The
+  Windows installer never listed it (Pillow, pywebview, websocket-client only), so `inventory_lattice` answered
+  "unreadable" on every frame and the vault's pixel cross-check has never run on a Windows PC.
+- `test_a_stack_dump_never_kills_the_console` - SIGUSR1 does not exist on Windows (all cases skip).
+- `test_an_unreadable_prover_is_still_running` [2][3] - the `ps` / `close_fds` birth read runs only off Windows.
+- `test_a_silent_prover_is_ended_and_said` [1] - **a real blind law**: spawn() copies os.environ, and on the ALT the
+  prover runs the law with PYTHONUNBUFFERED (and HEART2_DEADLINE_SCALE) already set, so a spawn that stopped setting
+  them stayed green.
+**Now:** `numpy` and `posix` are declared capabilities (PROOF_NEEDS_HOST, probed per PC), and the proofs that judge
+code a PC never runs declare them (ELSEWHERE there, never BLIND); the silent-prover law strips both variables from the
+host before it asks; the console installs numpy at boot through the same door as Pillow (`_ensure_pkg_at_boot`, one
+pip at a time under `_PIP_BOOT_LOCK`) and a new doctor row "this machine can cross-check an inventory" says MISSING with
+what the boot attempt did; the installer lists numpy. Proven under the ALT's own condition (both variables set): 8/8.
+⚠ **NOT fixed by this, and named:** the Windows capture writes the reel's film at **800 px** (capture_win.ps1 v1434,
+for smoothness), and the ALT's game route is Boosteroid fullscreen **16:9** - the lattice refuses frames under
+1200x800, and 16:9 is outside the band the panel geometry was measured in. That is his call (TASKS: pinpoint the
+route), not a silent change.
+
 ### REG-1718 - THE v3556 EYE: A RE-READ OF THE SAME LOOK STILL LOST ITS SOCKETS / ETH / QUALITY (2026-10-02)
 
 **Reproduced:** REG-1713 made a re-read of the same look (session, frame, lane) fill its point and cell, and only

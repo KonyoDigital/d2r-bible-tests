@@ -8764,6 +8764,8 @@ def _check_this_machine_can_get_a_second_opinion():
 
 #: #227 — control_app._ensure_pillow_at_boot's attempt on THIS console ({ts, tried, ok, why}); None = never tried
 PILLOW_BOOT = None
+#: REG-1719 — control_app._ensure_numpy_at_boot's attempt on THIS console, the same shape; None = never tried
+NUMPY_BOOT = None
 
 
 #: #54 — a sealed reel the equipped ledger has not filed within this long of its seal means the nudge
@@ -8853,6 +8855,29 @@ def _check_this_machines_reader_can_read():
     if c.get("state") == "on":
         return OK, "%s%s" % (c.get("why"), tail)
     return UNKNOWN, "%s%s" % (c.get("why") or "no Claude read to judge on this PC", tail)
+
+
+def _check_this_machine_can_cross_check_an_inventory():
+    """REG-1719 — CAN THIS MACHINE MEASURE AN INVENTORY'S GRID? (vault_corpus.inventory_lattice needs numpy)
+
+    MEASURED 2026-10-02 over SSH: the ALT (Python 3.12.10) has no numpy - the Windows installer never listed it - so
+    every lattice answered "unreadable: No module named 'numpy'" and the vault's pixel cross-check had never run on a
+    Windows PC, silently. The console now installs it at boot like Pillow; this row says whether that worked, here."""
+    try:
+        import numpy as _np
+        _np.median(_np.asarray([[1.0, 2.0], [3.0, 4.0]]), axis=0)
+    except Exception as e:
+        b = NUMPY_BOOT
+        if isinstance(b, dict) and b.get("tried"):
+            did = "this console tried to install it at boot and %s" % (b.get("why") or "said nothing")
+        elif isinstance(b, dict):
+            did = "this console's boot check ran but did not try to install (%s)" % (b.get("why") or "no reason")
+        else:
+            did = "this console has not tried to install it (only Windows consoles do, at boot)"
+        return MISSING, ("numpy will not import on this machine (%s), so no inventory grid can be measured and the "
+                         "vault's pixel cross-check never runs - %s; by hand: %s -m pip install --user numpy"
+                         % (type(e).__name__, did, sys.executable))
+    return OK, "numpy imports and measures, so the vault can cross-check an inventory on this machine"
 
 
 def _check_this_machine_can_decode_a_frame():
@@ -10102,6 +10127,8 @@ CHECKS = [
     ("this machine can get a second opinion", _check_this_machine_can_get_a_second_opinion),
     # #227 — per MACHINE: the ALT had no Pillow, so every frame it filmed was unreadable, silently
     ("this machine can decode a frame", _check_this_machine_can_decode_a_frame),
+    # REG-1719 — per MACHINE: the ALT had no numpy, so no inventory grid could ever be measured there, silently
+    ("this machine can cross-check an inventory", _check_this_machine_can_cross_check_an_inventory),
     # #105 (REG-1604) — per MACHINE: the ALT's Claude was signed out and read nothing for hours, silently.
     ("this machine's reader can read", _check_this_machines_reader_can_read),
     # #54 — what he wears, per character, filed at every seal; owes the reels the seal nudge missed.
@@ -10816,6 +10843,8 @@ WATCHES = {
     "this machine can get a second opinion": (),
     # #227 — DECLARED, NOT OMITTED. It decodes a BMP in memory; no element of its own.
     "this machine can decode a frame": (),
+    # REG-1719 — DECLARED, NOT OMITTED. It imports numpy and takes one median; no element of its own.
+    "this machine can cross-check an inventory": (),
     # #105 — DECLARED, NOT OMITTED. It reads the journal tail through _reader_health; its element is the lamps under
     # the corner chip (#reader-lamps), which the same measure paints.
     "this machine's reader can read": (),

@@ -44,6 +44,7 @@ class ASelfUpdatedConsoleCanReadItsFrames(unittest.TestCase):
         self._win, self._exe = ca.IS_WIN, sys.executable
         self._scratch = wr.scratch_console
         self._boot = cd.PILLOW_BOOT
+        self._nboot = cd.NUMPY_BOOT
         ca.IS_WIN = True
         wr.scratch_console = lambda *a, **k: False
         sys.executable = r"C:\Py\pythonw.exe"
@@ -54,6 +55,7 @@ class ASelfUpdatedConsoleCanReadItsFrames(unittest.TestCase):
         ca.IS_WIN, sys.executable = self._win, self._exe
         wr.scratch_console = self._scratch
         cd.PILLOW_BOOT = self._boot
+        cd.NUMPY_BOOT = self._nboot
 
     def _find(self, name):
         return object() if self.present[0] else None
@@ -114,6 +116,41 @@ class ASelfUpdatedConsoleCanReadItsFrames(unittest.TestCase):
         self.assertIn("no network", why)
         self.assertNotIn("launcher installs it", why, "the row still promises a launcher run that a self-updated console never makes")
 
+    def test_REG1719_a_missing_numpy_is_installed_by_the_console_itself(self):
+        """the ALT on v3556 had no numpy: every inventory lattice there answered 'unreadable'"""
+        rec = ca._ensure_numpy_at_boot(_find=self._find, _run=self._run())
+        self.assertEqual(len(self.calls), 1, "the console never tried to install numpy")
+        argv, kw = self.calls[0]
+        self.assertEqual(argv[1:], ["-m", "pip", "install", "--user", "--quiet", "numpy"])
+        self.assertEqual(argv[0], r"C:\Py\python.exe")
+        self.assertIs(rec.get("ok"), True)
+        self.assertIs(cd.NUMPY_BOOT, rec, "the doctor cannot see the numpy attempt")
+        self.assertIsNot(cd.PILLOW_BOOT, rec, "numpy's attempt was filed as Pillow's")
+
+    def test_REG1719_the_inventory_row_quotes_its_boot_attempt(self):
+        cd.NUMPY_BOOT = {"tried": True, "ok": False, "why": "pip exited 1: no network"}
+        real_import = __builtins__["__import__"] if isinstance(__builtins__, dict) else __builtins__.__import__
+
+        def no_np(name, *a, **k):
+            if name == "numpy" or name.startswith("numpy."):
+                raise ImportError("No module named 'numpy'")
+            return real_import(name, *a, **k)
+        import builtins
+        builtins.__import__ = no_np
+        try:
+            state, why = cd._check_this_machine_can_cross_check_an_inventory()
+        finally:
+            builtins.__import__ = real_import
+        self.assertEqual(state, cd.MISSING)
+        self.assertIn("tried to install it at boot", why)
+        self.assertIn("no network", why)
+        self.assertIn("this machine can cross-check an inventory", [n for n, _ in cd.CHECKS],
+                      "the row is written but the doctor never runs it")
+
+    def test_REG1719_main_starts_the_numpy_step(self):
+        self.assertIn("_ensure_numpy_at_boot", ca.main.__code__.co_names,
+                      "main() never starts the boot numpy step - a self-updated Windows PC never gets it")
+
     def test_main_starts_the_step(self):
         self.assertIn("_ensure_pillow_at_boot", ca.main.__code__.co_names,
                       "main() never starts the boot Pillow step - only a double-click would ever install it")
@@ -124,6 +161,27 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1719 - main() stops starting the boot numpy step: a self-updated Windows PC never measures a grid",
+        "file": "control_app.py",
+        "find": "    threading.Thread(target=_ensure_numpy_at_boot, daemon=True, name=\"tvd-numpy\").start()   # REG-1719\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1719 - the boot install always asks pip for Pillow, whatever package is missing",
+        "file": "control_app.py",
+        "find": "    argv = [exe, \"-m\", \"pip\", \"install\", \"--user\", \"--quiet\", pkg]\n",
+        "replace": "    argv = [exe, \"-m\", \"pip\", \"install\", \"--user\", \"--quiet\", \"Pillow\"]\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1719 - the doctor never runs the inventory row: a PC with no numpy reads healthy",
+        "file": "console_doctor.py",
+        "find": "    (\"this machine can cross-check an inventory\", _check_this_machine_can_cross_check_an_inventory),\n",
+        "replace": "",
+        "matches": 1,
+    },
     {
         "why": "REG-1260 - main() stops starting the boot Pillow step: a self-updated console never gets Pillow again",
         "file": "control_app.py",

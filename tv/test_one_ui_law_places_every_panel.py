@@ -225,21 +225,21 @@ RED_PROOF = [
         "file": "vault_corpus.py",
         "find": "    if not (abs(cp - pc) <= tol or abs(rp - pr) <= tol):\n        return None\n",
         "replace": "    if False:\n        return None\n",
-        "matches": 1,
+        "matches": 1, "needs": "numpy",
     },
     {
         "why": "REG-1712 - the calibrated grid is taken on its pitch alone: a webcam or a fire becomes a full inventory",
         "file": "vault_corpus.py",
         "find": "    if not _ok:\n        return None\n",
         "replace": "    if False:\n        return None\n",
-        "matches": 1,
+        "matches": 1, "needs": "numpy",
     },
     {
         "why": "REG-1712 - the lattice refuses a miscounted full inventory again instead of taking the calibrated grid",
         "file": "vault_corpus.py",
         "find": "        _cal = _calibrated_lattice(W, H, cp, rp, _s, nc, nr, fit=(cols, rows, _rcol, _rrow))\n",
         "replace": "        _cal = None\n",
-        "matches": 1,
+        "matches": 1, "needs": "numpy",
     },
 ]
 

@@ -73,17 +73,17 @@ RED_PROOF = [
      "file": "control_app.py",
      "find": "        _fh.register(_sig.SIGUSR1, all_threads=True, chain=False)\n",
      "replace": "        _fh.register(_sig.SIGUSR1, all_threads=True, chain=True)\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-1641 - the dump names only the thread that took the signal, never the one holding the lock",
      "file": "control_app.py",
      "find": "        _fh.register(_sig.SIGUSR1, all_threads=True, chain=False)\n",
      "replace": "        _fh.register(_sig.SIGUSR1, all_threads=False, chain=False)\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
     {"why": "REG-1641 - nothing is registered: SIGUSR1 falls to its default and kills the console, stackless",
      "file": "control_app.py",
      "find": "        _fh.register(_sig.SIGUSR1, all_threads=True, chain=False)\n",
      "replace": "        pass\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix-signals"},
 ]
 
 

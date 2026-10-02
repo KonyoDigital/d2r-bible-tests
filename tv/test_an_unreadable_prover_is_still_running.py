@@ -159,12 +159,12 @@ RED_PROOF = [
      "file": "self_prove.py",
      "find": "        r = subprocess.run([_ps, \"-o\", \"stat=,lstart=\", \"-p\", str(pid)], capture_output=True, text=True,\n",
      "replace": "        r = subprocess.run([\"ps\", \"-o\", \"stat=,lstart=\", \"-p\", str(pid)], capture_output=True, text=True,\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix"},
     {"why": "REG-1653 - the birth read drops close_fds=False: the default True forks",
      "file": "self_prove.py",
      "find": "                           encoding=\"utf-8\", errors=\"replace\", close_fds=False,\n                           timeout=3, env=dict(os.environ, LC_ALL=\"C\", TZ=\"UTC\"))\n",
      "replace": "                           encoding=\"utf-8\", errors=\"replace\",\n                           timeout=3, env=dict(os.environ, LC_ALL=\"C\", TZ=\"UTC\"))\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix"},
 ]
 
 

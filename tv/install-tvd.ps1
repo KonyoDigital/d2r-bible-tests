@@ -125,6 +125,9 @@ try {
   & $py -m pip install --user --quiet 'pywebview>=5.0' | Out-Null
   # #227 - and Pillow: without it no frame this console films can be decoded (measured on the ALT)
   & $py -m pip install --user --quiet 'Pillow' | Out-Null
+  # REG-1719 - and numpy: the inventory lattice measures a frame with it; the ALT never had it, so the vault's pixel
+  # cross-check never ran on a Windows PC. (The console also installs it at boot, for PCs that only self-update.)
+  & $py -m pip install --user --quiet 'numpy' | Out-Null
   # #50 (REG-1457) - and websocket-client: every PC now proves its own gates, and the browser laws drive
   # Chrome/Edge over DevTools with it. The ALT had never had it; the self-prove lane also installs it.
   & $py -m pip install --user --quiet 'websocket-client' | Out-Null

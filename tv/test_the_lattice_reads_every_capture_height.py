@@ -187,12 +187,12 @@ RED_PROOF = [
      "file": "vault_corpus.py",
      "find": "    _s = _ui_scale(H)\n",
      "replace": "    _s = 1.0\n",
-     "matches": 1},
+     "matches": 1, "needs": "numpy"},
     {"why": "REG-1648 - the square tolerance stops scaling: a 3 px-off lattice at 1440 passes as square",
      "file": "vault_corpus.py",
      "find": "    if abs(cp - rp) > 4.0 * _s:\n",
      "replace": "    if abs(cp - rp) > 4.0:\n",
-     "matches": 1},
+     "matches": 1, "needs": "numpy"},
 ]
 
 
