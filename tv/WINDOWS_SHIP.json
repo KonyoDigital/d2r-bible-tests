@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3555",
+  "ver": "v3556",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3555: his EYES labels (CLAUDE ONLY, arrows on BOTH); his live game is no longer sealed as the launcher (REG-1711); proofs remember which cases caught them (REG-1710)",
+  "note": "v3556: one UI law places every panel (height-scaled, centred) and a full inventory gets its calibrated grid only where the seams sit; the ALT prover runs on while nobody plays; a garbage read the parse cleaned up is not his game",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
