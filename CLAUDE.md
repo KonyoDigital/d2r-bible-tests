@@ -35,6 +35,9 @@ Skill(grok-second-eye)  ·  Skill(process-port-discipline)  ·  Skill(copy-drift
 Skill(test-venue)  ·  Skill(regression-guard)  ·  Skill(the-unjoined-end)
 Skill(unknown-stays-unknown)  ·  Skill(stale-reading)  ·  Skill(heart-first)
 Skill(sweep-dont-ask)  ·  Skill(source-reading-guard)
+Skill(visual-regression-detector)  ·  Skill(chrome-cdp-mac)  ·  Skill(review-after-ship)
+Skill(borrowed-surface)  ·  Skill(ship-skill)  ·  Skill(workflow-topology)
+Skill(self-improvement)  ·  Skill(carving-skill)
 cat .claude/skills/d2r-bible/SKILL.md          # directory-scoped — Skill() answers "Unknown skill"
 cat .claude/skills/human-eyes-harness/SKILL.md #   and that is NOT absence
 ```
