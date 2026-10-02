@@ -122,6 +122,19 @@ HELD = ("recent", "test-fixture", "holds-proof", "target-met",
 VAULT_READ_VETO = ("test-fixture", "no-witness-index", "ledger-unreadable", "rows-not-banked")
 
 
+def _no_witness_store_was_ever_written(root=None):
+    """Were the durable witness stores MEASURED absent (not unreadable, not unknown)? -> bool. Never raises.
+
+    True only when frame_authority answered with a complete picture (`ok`) of no store at all (`haveIndex` False).
+    A store that will not parse, or a check that could not run, is UNKNOWN - and UNKNOWN never spends."""
+    try:
+        import frame_authority as _fa
+        wi = _fa.witness_index(root) or {}
+    except Exception:
+        return False
+    return wi.get("ok") is True and wi.get("haveIndex") is False
+
+
 def vault_owes_read(tag, station):
     """Does the vault lane owe this reel a paid READ? -> bool. THE ONE DEFINITION.
 
@@ -138,6 +151,14 @@ def vault_owes_read(tag, station):
     None means the position is unknown, and then only the tag decides - never a guess of PRINTER.
     [[the-unjoined-end]] [[copy-drift]] [[feedback-contradiction-is-the-finding]]
     """
+    # ⚠⚠ REG-1743 (2026-10-02, the ALT) - A STORE NOBODY EVER WROTE IS NOT AN UNREADABLE ONE. Retention tags EVERY reel
+    # `no-witness-index` while no durable witness store exists; the vault lane vetoed that tag; and only a vault read
+    # ever writes those stores. MEASURED on the ALT: 62 reels at PRINTER, every one `no-witness-index`, owes False,
+    # vault_accum.json and vault_seen.json both ABSENT - the lane read 0 reels, ever, and never could. The veto's own
+    # reason ("UNKNOWN never spends") is about a store that will not READ; a store measured ABSENT is "nothing read
+    # yet", which is the one state a read is owed. So at PRINTER it owes - only when the stores are measured absent.
+    if tag == "no-witness-index" and station == "PRINTER":
+        return _no_witness_store_was_ever_written()
     if tag in VAULT_READ_VETO:
         return False
     if tag in lane_read_tags("vault"):

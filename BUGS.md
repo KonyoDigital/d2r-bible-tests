@@ -406,6 +406,21 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1743 - A FRESH PC'S VAULT COULD NEVER READ: THE STORE ONLY A READ WRITES WAS THE REASON NOT TO READ (2026-10-02, #152)
+
+MEASURED on the ALT after its river opened (EMPTY 76 -> 0): 62 reels at PRINTER ("names read, the session carries no
+seal"), vault lane `on, reads 0, owed 0, lastTick null`, no store ever written. Each of the 62: retention tag
+`no-witness-index`, river position PRINTER, owes False, not sealed - and `vault_accum.json` / `vault_seen.json` both
+ABSENT. Retention tags every reel `no-witness-index` while no durable witness store exists (correct for DELETING:
+nothing can prove a frame is not the only record); REG-1446's vault veto included that tag ("UNKNOWN never spends");
+and only a vault read ever writes those stores. A deadlock on every fresh PC - the ALT, Dean's - invisible on his Mac,
+where the stores exist. The veto's reason is about a store that will not READ; a store measured ABSENT is "nothing read
+yet", the one state a read is owed. `vault_owes_read` now owes `no-witness-index` at PRINTER only when frame_authority
+answered with a complete picture of no store (`ok` True, `haveIndex` False); an unreadable store or a failed check
+still never spends. His 10-02 ruling covers the reads ("re-read OK via HIS EYES reader"). Cases + 2 red-proofs in
+`test_a_reel_at_printer_is_the_vaults_work` (8/8 PROVEN). The 304 ROUTED reels are held by the same tag for DELETION,
+which stays right until a store exists - the first reads write it.
+
 ### REG-1742 - THE SHARD RUNNER, AS CI AND THE v3562 EYE READ IT (2026-10-02)
 
 CI on 22a2f0c3 (the push gate is a subset - the scar again): three gate-set laws refused tv/shard_suite.py - it read a

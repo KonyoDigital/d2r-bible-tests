@@ -54,10 +54,37 @@ class TheRuleSaysPrinterIsTheVaultsWork(unittest.TestCase):
                             "seal nothing will write" % tag)
 
     def test_the_vetoes_hold_even_at_printer(self):
-        for tag in ("test-fixture", "no-witness-index", "ledger-unreadable", "rows-not-banked"):
-            self.assertFalse(SD.vault_owes_read(tag, "PRINTER"),
-                             "%r at PRINTER would be BOUGHT: a fixture, an UNKNOWN, or a reel owed a "
-                             "bank rather than a read" % tag)
+        from unittest import mock
+        import frame_authority as FA
+        # no-witness-index is held here while the store state is UNKNOWN or unreadable (REG-1743 below)
+        with mock.patch.object(FA, "witness_index", lambda root=None: {"ok": False, "haveIndex": False}):
+            for tag in ("test-fixture", "no-witness-index", "ledger-unreadable", "rows-not-banked"):
+                self.assertFalse(SD.vault_owes_read(tag, "PRINTER"),
+                                 "%r at PRINTER would be BOUGHT: a fixture, an UNKNOWN, or a reel owed a "
+                                 "bank rather than a read" % tag)
+
+    def test_a_pc_that_never_wrote_a_witness_store_owes_its_printer_reels_a_read(self):
+        """REG-1743 - the ALT: 62 reels at PRINTER, all `no-witness-index`, both stores ABSENT, read 0 ever. Only a
+        vault read writes those stores, so vetoing the tag there was a deadlock, not caution."""
+        from unittest import mock
+        import frame_authority as FA
+        with mock.patch.object(FA, "witness_index", lambda root=None: {"ok": True, "haveIndex": False}):
+            self.assertTrue(SD.vault_owes_read("no-witness-index", "PRINTER"),
+                            "a fresh PC's PRINTER reel waits for a store that only this read can write")
+            for st in (None, "EMPTY", "ROUTED", "CAPTURE"):
+                self.assertFalse(SD.vault_owes_read("no-witness-index", st), "bought away from PRINTER at %r" % st)
+
+    def test_an_unknown_witness_state_still_never_spends(self):
+        from unittest import mock
+        import frame_authority as FA
+
+        def boom(root=None):
+            raise OSError("store unreadable")
+        with mock.patch.object(FA, "witness_index", boom):
+            self.assertFalse(SD.vault_owes_read("no-witness-index", "PRINTER"))
+        with mock.patch.object(FA, "witness_index", lambda root=None: {"ok": False, "haveIndex": False}):
+            self.assertFalse(SD.vault_owes_read("no-witness-index", "PRINTER"),
+                             "a store that will not read was treated as one never written")
 
     def test_the_old_tags_still_owe_anywhere(self):
         for st in (None, "CAPTURE", "EMPTY", "PRINTER"):
@@ -189,6 +216,16 @@ class TheRiverProbeAgreesWithTheSweeper(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-1743 - a fresh PC's PRINTER reels are vetoed again: the vault never reads, so no store is ever written",
+     "file": "shelf_driver.py",
+     "find": "        return _no_witness_store_was_ever_written()\n",
+     "replace": "        return False\n",
+     "matches": 1},
+    {"why": "REG-1743 - an unreadable witness store is treated as one never written, and spends",
+     "file": "shelf_driver.py",
+     "find": "    return wi.get(\"ok\") is True and wi.get(\"haveIndex\") is False\n",
+     "replace": "    return wi.get(\"haveIndex\") is False\n",
+     "matches": 1},
     {
         "why": "2026-09-29 (second eye) - an unreadable stamp log yields a confident shorter list instead of UNKNOWN",
         "file": "tv/control_app.py",
