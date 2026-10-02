@@ -8858,7 +8858,7 @@ def _check_this_machines_reader_can_read():
 
 
 def _check_this_machine_can_cross_check_an_inventory():
-    """REG-1719 — CAN THIS MACHINE MEASURE AN INVENTORY'S GRID? (vault_corpus.inventory_lattice needs numpy)
+    """REG-1719 — CAN THIS MACHINE MEASURE AN INVENTORY'S GRID? (the vault's grid measure needs numpy)
 
     MEASURED 2026-10-02 over SSH: the ALT (Python 3.12.10) has no numpy - the Windows installer never listed it - so
     every lattice answered "unreadable: No module named 'numpy'" and the vault's pixel cross-check had never run on a
