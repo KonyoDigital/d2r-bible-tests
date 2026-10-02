@@ -419,9 +419,9 @@ class AProofNeverRunsBesideHisGame(unittest.TestCase):
     def test_a_running_proof_gives_memory_back(self):
         self._running()
         r = SP.tick(now_s=5000.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path, env={},
-                    spawn_fn=lambda lp: 1, playing=False, free=700, kill_fn=self._kill)
-        self.assertEqual([os.getpid()], self.killed)
-        self.assertIn("700 MB", r["say"])
+                    spawn_fn=lambda lp: 1, playing=False, free=SP.MIN_FREE_MB_WHILE_RUNNING_IDLE - 50, kill_fn=self._kill)
+        self.assertEqual([os.getpid()], self.killed)      # REG-1715: under the floor that applies with no game beside it
+        self.assertIn("%d MB" % (SP.MIN_FREE_MB_WHILE_RUNNING_IDLE - 50), r["say"])
 
     def test_an_unknown_answer_never_kills_a_running_proof(self):
         self._running()
@@ -602,11 +602,13 @@ class TheStandAsideIsSafe(unittest.TestCase):
 
     # (2) no flapping
     def test_a_stand_aside_holds_the_next_start(self):
-        # the review's simulation: 2500 MB free idle, 900 MB with the proof running, one reading per 600 s tick
+        # the review's simulation: 2500 MB free idle, and with the proof running a reading under the floor that applies
+        # (REG-1715: with no game beside it that is the idle floor - the law here is the cooldown, not the number)
+        low = SP.MIN_FREE_MB_WHILE_RUNNING_IDLE - 100
         keys = []
         for i in range(7):
             running = bool(self.spawned) and "pid" in (self._mem() if os.path.exists(self.path) else {})
-            keys.append(self._tick(1000.0 + 600 * i, free=900 if running else 2500)["key"])
+            keys.append(self._tick(1000.0 + 600 * i, free=low if running else 2500)["key"])
         self.assertEqual(["start", "stood-aside", "aside-cooldown", "aside-cooldown", "start", "stood-aside",
                           "aside-cooldown"], keys, "a proof its own memory pushes out flapped start/kill every tick")
         # after a PLAYING stand-aside too: he stops, and the cooldown still holds

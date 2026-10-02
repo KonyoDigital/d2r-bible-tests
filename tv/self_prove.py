@@ -61,6 +61,13 @@ PLAY_EXES = ("boosteroid.exe", "geforcenow.exe", "nvidia geforce now.exe")
 #: memory falling under the running floor. So the start bar only has to leave the proof room above that floor.
 MIN_FREE_MB_TO_START = 1536
 MIN_FREE_MB_WHILE_RUNNING = 1024
+#: REG-1715 (#152 slice 6) - the running floor while he is MEASURED not playing. MEASURED 2026-10-02 on his ALT
+#: (7.9 GB) after he closed the game: 2,070 MB free idle, and ONE proof took it to 990 MB - under the 1,024 floor
+#: above - so the running proof stood aside, ten times, and 94 owed gates made no progress while the river waited
+#: on them. The 1,024 floor exists for a proof BESIDE a stream (09-29: dwm died at 690 MB free with Boosteroid
+#: streaming on an Iris Xe that borrows RAM as video memory). With no game and no stream, a proof may run down to
+#: this; playing, it still stands aside at once, and an UNKNOWN 'is he playing' keeps the strict floor.
+MIN_FREE_MB_WHILE_RUNNING_IDLE = 700
 #: REG-1670 — a PC proves on as many lanes as it has clear room for (heart2's HEART2_PROVE_WORKERS). His words,
 #: 2026-10-01: "yea good idea" and "this is genius to scale even further maybe.. for DEANS pc he has like 16g ram or 32g
 #: ram". MEASURED on his ALT that morning: one lane, a 40-gate slice in 82 minutes. One lane per LANE_BUDGET_MB free
@@ -341,8 +348,9 @@ def stand_aside(playing, free):
     """Must a RUNNING proof stop now? -> (bool, why). Pure. UNKNOWN never stops it: it already runs below him."""
     if playing is True:
         return True, "he started playing - a proof never runs beside his game"
+    _floor = MIN_FREE_MB_WHILE_RUNNING_IDLE if playing is False else MIN_FREE_MB_WHILE_RUNNING   # REG-1715
     try:
-        if free is not None and float(free) < MIN_FREE_MB_WHILE_RUNNING:
+        if free is not None and float(free) < _floor:
             return True, "only %d MB of memory left - the proof gives it back" % int(float(free))
     except (TypeError, ValueError):
         pass

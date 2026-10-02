@@ -51,6 +51,16 @@ import self_prove as SP  # noqa: E402
 import control_app as ca  # noqa: E402
 
 RED_PROOF = [
+    {"why": "REG-1715 - the idle floor applies when the game is UNKNOWN too",
+     "file": "self_prove.py",
+     "find": "    _floor = MIN_FREE_MB_WHILE_RUNNING_IDLE if playing is False else MIN_FREE_MB_WHILE_RUNNING   # REG-1715\n",
+     "replace": "    _floor = MIN_FREE_MB_WHILE_RUNNING_IDLE if not playing else MIN_FREE_MB_WHILE_RUNNING   # REG-1715\n",
+     "matches": 1},
+    {"why": "REG-1715 - a proof with no game beside it is stood aside at the stream's floor again: the ALT never proves",
+     "file": "self_prove.py",
+     "find": "    _floor = MIN_FREE_MB_WHILE_RUNNING_IDLE if playing is False else MIN_FREE_MB_WHILE_RUNNING   # REG-1715\n",
+     "replace": "    _floor = MIN_FREE_MB_WHILE_RUNNING   # REG-1715\n",
+     "matches": 1},
     {"why": "REG-1643 - the fast path reads a stranger holding the ended prover's pid as the prover again",
      "file": "self_prove.py",
      "find": "        alive = identity(pid, birth) is not False\n",
@@ -170,8 +180,20 @@ class TheGuardStandsARunningProofAside(unittest.TestCase):
 
     def test_memory_under_the_running_floor_stands_it_aside(self):
         self._running()
-        SP.guard(path=self.store, playing=False, free=SP.MIN_FREE_MB_WHILE_RUNNING - 100, _tick=self._tick)
+        SP.guard(path=self.store, playing=False, free=SP.MIN_FREE_MB_WHILE_RUNNING_IDLE - 100, _tick=self._tick)
         self.assertEqual(len(self.ticks), 1)
+
+    def test_with_no_game_a_proof_runs_on_down_to_the_idle_floor(self):
+        """REG-1715 - his ALT, 10-02: one proof took 2,070 MB free to 990 and stood aside ten times, 94 gates owed"""
+        self._running()
+        self.assertIsNone(SP.guard(path=self.store, playing=False, free=990, _tick=self._tick))
+        self.assertEqual(self.ticks, [], "a proof with no game beside it was stood aside at 990 MB")
+
+    def test_an_unknown_game_keeps_the_strict_floor(self):
+        self._running()
+        # playing=None hands guard() no answer, so it asks the console's own probe; an UNKNOWN is a judge that ANSWERS None
+        SP.guard(path=self.store, playing=(lambda: None), free=990, _tick=self._tick)
+        self.assertEqual(len(self.ticks), 1, "an UNKNOWN 'is he playing' loosened the running floor")
 
     def test_a_slice_that_ended_is_booked_now_and_the_next_can_start(self):
         # REG-1625 - measured on the ALT: a 40-gate slice took about a minute, then the lane waited out its 10-minute
