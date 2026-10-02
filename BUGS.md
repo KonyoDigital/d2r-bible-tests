@@ -406,6 +406,15 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1744 - THE CHEAP-SUBSET BUDGET MEASURED HIS MACHINE, AND REFUSED TWO PUSHES IN A ROW (2026-10-02, #42)
+
+`test_the_cheap_subset_is_actually_CHEAP` refused the v3562 retry and the v3563 push: the whole every-tick subset took
+9,882 / 10,115 ms against 9,000 while he played, Time Machine backed up and GrokBot drove (load 5-6) - running ALONE,
+after the parallel shards. Minutes later, alone and quieter: 1,832 ms wall, 1,194 ms CPU. The case's own comment says
+it ("A WALL-CLOCK BUDGET CANNOT BE MEASURED ON A SATURATED MACHINE"); its retries absolved single checks but the TOTAL
+stayed wall clock. The total is judged on CPU time now (the checks' own work) and both figures print; the per-check
+limits stay wall clock, so one heavy check - the 16,585 ms sweep this gate was written for - is still caught there.
+
 ### REG-1743 - A FRESH PC'S VAULT COULD NEVER READ: THE STORE ONLY A READ WRITES WAS THE REASON NOT TO READ (2026-10-02, #152)
 
 MEASURED on the ALT after its river opened (EMPTY 76 -> 0): 62 reels at PRINTER ("names read, the session carries no
