@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3565",
+  "ver": "v3566",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3565: REG-1747: the chronicle autoread asks the triage before it pays for a read; REG-1748: the cheap-subset CPU clock starts after the priming",
+  "note": "v3566: REG-1749: a reel the triage proved empty owes the vault no paid read either - the vault rule now asks the same question the chronicle rule does",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
