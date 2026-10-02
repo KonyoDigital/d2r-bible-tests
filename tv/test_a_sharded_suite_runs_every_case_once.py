@@ -153,6 +153,33 @@ class TheUnionIsTheVerdict(unittest.TestCase):
             ok, rep = self._run(k=2)
         self.assertFalse(ok, "a plan that lost Beta and ran Delta twice read green: %r" % rep)
 
+    def test_a_shard_that_overruns_is_ended_before_the_quiet_pass_starts(self):
+        """The #231 code seat on 22a2f0c3: an overrunning shard was left alive while the budget classes ran beside it.
+        The overrunner beats a heartbeat file; the quiet class watches it - it must be still."""
+        from unittest import mock
+        with io.open(os.path.join(self.d, "plant_overrun.py"), "w", encoding="utf-8") as fh:
+            fh.write("import os, time, unittest\n"
+                     "def hb(): return os.path.join(os.environ['PLANT_PORTS'], 'heartbeat')\n"
+                     "class Slow(unittest.TestCase):\n"
+                     "    def test_s(self):\n"
+                     "        HB = hb()\n"
+                     "        for _ in range(150):\n"
+                     "            open(HB, 'w').write(repr(time.time())); time.sleep(0.2)\n"
+                     "class Budget(unittest.TestCase):\n"
+                     "    SHARD_ALONE = True\n"
+                     "    def test_b(self):\n"
+                     "        HB = hb()\n"
+                     "        a = open(HB).read() if os.path.exists(HB) else ''\n"
+                     "        time.sleep(0.8)\n"
+                     "        b = open(HB).read() if os.path.exists(HB) else ''\n"
+                     "        open(os.path.join(os.environ['PLANT_PORTS'], 'budget'), 'w').write('beat' if a != b else 'still')\n")
+        with mock.patch.object(SS, "SHARD_TIMEOUT_S", 3):
+            ok, rep = SS.run("plant_overrun", 2, here=self.d, cost_path=self.cost,
+                             _env=dict(os.environ, PLANT_PORTS=self.ports))
+        self.assertFalse(ok, "a shard that overran its budget read green")
+        said = io.open(os.path.join(self.ports, "budget")).read()
+        self.assertEqual(said, "still", "the quiet pass ran while the overrunning shard was still beating")
+
     def test_no_two_shards_share_a_port(self):
         ok, rep = self._run(k=4)
         self.assertTrue(ok, rep)
@@ -163,6 +190,11 @@ class TheUnionIsTheVerdict(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "the #231 code seat - an overrunning shard is left running beside the quiet pass again",
+     "file": "shard_suite.py",
+     "find": "                _end_one(_p)\n                _overran.add(_i)\n",
+     "replace": "                _overran.add(_i)\n",
+     "matches": 1},
     {"why": "the #231 code seat - the dealt check compares sums again: a lost class with a same-size twin reads green",
      "file": "shard_suite.py",
      "find": "    if _dealt != sorted(found):\n",

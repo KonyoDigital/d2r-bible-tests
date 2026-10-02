@@ -126,6 +126,7 @@ def run(suite, k=4, here=HERE, cost_path=COST, _classes=None, _env=None):
     plan = deal(together, k, _costs(suite, cost_path) or {})
     tmp = tempfile.mkdtemp(prefix="shard_%s_" % suite)
     procs = []
+    _started, _overran = {}, set()      # each shard's budget runs from ITS start; who was ended for overrunning it
 
     def _start(i, names):
         env = dict(os.environ if _env is None else _env)
@@ -139,6 +140,7 @@ def run(suite, k=4, here=HERE, cost_path=COST, _classes=None, _env=None):
         procs.append((i, names, log, subprocess.Popen([sys.executable, "-c", _RUNNER], cwd=here, env=env,
                                                       stdout=log, stderr=subprocess.STDOUT, **_grp)))
         _LIVE.append(procs[-1][3])
+        _started[i] = time.time()
 
     for i, names in enumerate(plan):
         _start(i, names)
@@ -146,16 +148,21 @@ def run(suite, k=4, here=HERE, cost_path=COST, _classes=None, _env=None):
         # the classes that hold a wall-clock budget run AFTER the parallel shards, in one quiet process
         for _i, _n, _log, _p in list(procs):
             try:
-                _p.wait(timeout=max(1, SHARD_TIMEOUT_S - (time.time() - t0)))
+                _p.wait(timeout=max(1, SHARD_TIMEOUT_S - (time.time() - _started[_i])))
             except subprocess.TimeoutExpired:
-                pass
+                # the #231 code seat on 22a2f0c3: an overrunning shard was left running and the quiet pass started
+                # beside it - the very neighbour it exists to avoid. It is ended (it has failed its budget) first.
+                _end_one(_p)
+                _overran.add(_i)
         _start(len(plan), alone)
     shards, ok, ran = [], True, 0
     for i, names, log, p in procs:
         try:
-            rc = p.wait(timeout=max(1, SHARD_TIMEOUT_S - (time.time() - t0)))
+            rc = p.wait(timeout=max(1, SHARD_TIMEOUT_S - (time.time() - _started[i])))
         except subprocess.TimeoutExpired:
             _end_one(p)
+            rc = "TIMEOUT"
+        if i in _overran:
             rc = "TIMEOUT"
         log.close()
         try:
