@@ -105,8 +105,8 @@ RED_PROOF = [
     {
         "why": "the page offers Grok-first again",
         "file": "control_ui.html",
-        "find": ">+ GROK</button>\n",
-        "replace": ">+ GROK</button><button type=\"button\" class=\"g5-seg-btn\" data-g5=\"primary\">PRIMARY</button>\n",
+        "find": ">\u2190 BOTH \u2192</button>\n",
+        "replace": ">\u2190 BOTH \u2192</button><button type=\"button\" class=\"g5-seg-btn\" data-g5=\"primary\">PRIMARY</button>\n",
         "matches": 1,
     },
 ]

@@ -275,7 +275,8 @@ class ThePageOffersThreePositions(unittest.TestCase):
         with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
             ui = fh.read()
         import re
-        for mode, bid, label in (("off", "btn-g5-off", "CLAUDE"), ("shadow", "btn-g5-shadow", "+ GROK"),
+        # his labels 2026-10-02: "the first CLAUDE to CLAUDE ONLY ... the middle ... BOTH with like arrow to each from each side"
+        for mode, bid, label in (("off", "btn-g5-off", "CLAUDE ONLY"), ("shadow", "btn-g5-shadow", "\u2190 BOTH \u2192"),
                                  ("only", "btn-g5-only", "GROK ONLY")):
             self.assertEqual(len(re.findall(r'<button[^>]*data-g5="%s"' % mode, ui)), 1, "the EYES card's %s position" % mode)
             m = re.findall(r'<button[^>]*data-g5="%s" id="%s"[^>]*>([^<]*)</button>' % (mode, bid), ui)

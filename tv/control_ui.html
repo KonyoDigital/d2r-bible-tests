@@ -6855,9 +6855,15 @@
   .g5-seg-btn.is-on { background: rgba(185,162,224,.28); color: #f2ebff; font-weight: var(--fw-semibold); }
   .g5-eyes-card[data-mode="shadow"] { border-color: rgba(185,162,224,.55); }
   .g5-eyes-card[data-mode="shadow"] .g5-seg-btn[data-g5="shadow"].is-on { background: rgba(150,120,220,.45); }
-  /* #151 - "+ GROK" broke as a lone "+" over "GROK" in the 1120 rail once a third position joined the row */
+  /* #151 - "+ GROK" broke as a lone "+" over "GROK" in the 1120 rail once a third position joined the row.
+     2026-10-02 his labels: CLAUDE ONLY · ← BOTH → · GROK ONLY. The three need ~290 px on one line and the 1120 rail's
+     card gives ~225, so all-nowrap cut GROK ONLY to "GRO" (render_check advanced, every width but 375). The switch now
+     spans the card in three equal buttons: CLAUDE / ONLY and GROK / ONLY break at their one space, and the arrows stay
+     on BOTH. */
+  .g5-seg { flex: 1 1 100%; }
+  .g5-seg-btn[data-g5] { flex: 1 1 0; min-width: 0; text-align: center; line-height: var(--lh-tight); }
   .g5-seg-btn[data-g5="shadow"] { white-space: nowrap; }
-  /* #151 his switch at GROK ONLY: the card says so in its frame, the way + GROK does */
+  /* #151 his switch at GROK ONLY: the card says so in its frame, the way BOTH does */
   .g5-eyes-card[data-mode="only"] { border-color: rgba(185,162,224,.7); }
   .g5-eyes-card[data-mode="only"] .g5-seg-btn[data-g5="only"].is-on { background: rgba(150,120,220,.6); }
   /* 2026-09-30 - the Grok-first ("primary") position is retired: Claude reads every frame, Grok is the + GROK layer */
@@ -8476,8 +8482,8 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
                    [[label-outlived-referent]] -->
               <span class="g5-eyes-lab">👁 EYES</span>
               <span class="g5-seg" role="group" aria-label="Grok Eyes mode">
-                <button type="button" class="g5-seg-btn" data-g5="off" id="btn-g5-off" title="Claude reads every frame; Grok is off (the default - a PC without Grok needs nothing else)">CLAUDE</button>
-                <button type="button" class="g5-seg-btn" data-g5="shadow" id="btn-g5-shadow" title="Claude still reads every frame; Grok also reads beside it as an extra layer and never replaces Claude (SuperGrok login · NO API keys)">+ GROK</button>
+                <button type="button" class="g5-seg-btn" data-g5="off" id="btn-g5-off" title="Claude reads every frame; Grok is off (the default - a PC without Grok needs nothing else)">CLAUDE ONLY</button>
+                <button type="button" class="g5-seg-btn" data-g5="shadow" id="btn-g5-shadow" title="Claude still reads every frame; Grok also reads beside it as an extra layer and never replaces Claude (SuperGrok login · NO API keys)">← BOTH →</button>
                 <!-- #151 his switch, 2026-10-01: "make the toggle optional to use GROK ONLY no claude as a secondary at all" -->
                 <button type="button" class="g5-seg-btn" data-g5="only" id="btn-g5-only" title="Grok reads every frame; Claude is not asked at all - not first, not as a backup. Saves the Claude subscription. A Grok read that fails waits unread and says why.">GROK ONLY</button>
               </span>
@@ -21239,8 +21245,8 @@ window._lockMark = function(isOpen, px, label){
       else if (st.needsLogin || (cli && !authorized && !sub))
         bits.push('click ⚡ Authorize — browser SuperGrok login once · NO API keys');
       else if (intent === 'only') bits.push('GROK ONLY · Grok reads every frame · Claude is not asked at all');
-      else if (mode === 'off') bits.push('Claude reads every frame · Grok off');
-      else if (mode === 'shadow') bits.push('Claude reads every frame · + Grok reads beside it (extra layer, never replaces Claude)');
+      else if (mode === 'off') bits.push('CLAUDE ONLY · Claude reads every frame · Grok off');
+      else if (mode === 'shadow') bits.push('BOTH · Claude reads every frame · Grok reads beside it (extra layer, never replaces Claude)');
       /* 2026-09-30 - his ruling: Claude is the reader, Grok only an extra layer. Grok-first ("primary") is retired;
          a PC whose saved choice still said it is told so here, never silently. */
       if (st.primaryRetired) bits.push(String(st.primaryRetired));
@@ -21366,7 +21372,7 @@ window._lockMark = function(isOpen, px, label){
         if (sub || authorized){
           authBtn.textContent = '⚡ Linked';
           authBtn.classList.add('is-ok');
-          authBtn.title = 'Grok authorized on this PC — no re-login. Click to re-check and turn + GROK on (Claude still reads every frame).';
+          authBtn.title = 'Grok authorized on this PC — no re-login. Click to re-check and set EYES to BOTH (Claude still reads every frame).';
           if (_authPoll){ clearInterval(_authPoll); _authPoll = null; }
         } else if (st.loginInflight){
           authBtn.textContent = '⚡ Waiting…';
@@ -21379,7 +21385,7 @@ window._lockMark = function(isOpen, px, label){
         } else {
           authBtn.textContent = '⚡ Authorize';
           authBtn.classList.add('is-need');
-          authBtn.title = 'Opens grok login (browser once). After SuperGrok approve → + GROK ready beside Claude. No spam when linked.';
+          authBtn.title = 'Opens grok login (browser once). After SuperGrok approve → BOTH is ready (Grok beside Claude). No spam when linked.';
         }
       }
     }
@@ -21422,7 +21428,7 @@ window._lockMark = function(isOpen, px, label){
         if (st && st.present !== false) paintG5(st);
         try {
           if (j && j.reason === 'already-authorized')
-            toast('⚡ Grok already linked — + GROK on beside Claude');
+            toast('⚡ Grok already linked — EYES on BOTH (Grok beside Claude)');
           else if (j && j.started)
             toast('⚡ browser login opened — authorize SuperGrok once');
           else if (j && j.reason === 'in-flight')
@@ -21448,7 +21454,7 @@ window._lockMark = function(isOpen, px, label){
                     method: 'POST', headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({mode: 'shadow'})
                   });
-                  toast('⚡ Grok linked · + GROK on (Claude still reads every frame)');
+                  toast('⚡ Grok linked · EYES on BOTH (Claude still reads every frame)');
                   refreshG5();
                 } catch (e4) {}
               }
@@ -25243,7 +25249,7 @@ function escC(s) {
            + '</span>';
     }
     if (g.state === 'off' && g.needsLogin === true) {
-      out += '<span class="fleet-readeroff" title="' + escC('the + GROK layer is on at this PC but cannot read: '
+      out += '<span class="fleet-readeroff" title="' + escC('EYES is on BOTH at this PC but Grok cannot read: '
            + String(g.why || 'no reason given')) + '">Grok signed out</span>';
     }
     return out;
@@ -28625,7 +28631,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
   function _rlHint(k, L, state) {
     var kind = (L && L.kind) || state;
     if (state === 'on') return 'linked - nothing to sign in';
-    if (k === 'grok' && kind === 'switched-off') return 'you switched + GROK off - switch it on under Advanced > EYES';
+    if (k === 'grok' && kind === 'switched-off') return 'you switched Grok off - pick BOTH or GROK ONLY under Advanced > EYES';
     if (k === 'grok' && kind === 'not-installed') return 'install the Grok CLI first - Advanced > EYES says how';
     return 'click to open ' + (k === 'claude' ? "Claude's" : "Grok's") + ' sign-in on this PC';
   }
