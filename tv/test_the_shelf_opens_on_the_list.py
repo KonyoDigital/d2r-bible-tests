@@ -63,6 +63,19 @@ class TheShelfOpensOnTheList(unittest.TestCase):
         self.assertGreater(load, door, "thLoadSession runs before the shelf return")
         self.assertIn("return;", body[door:load])
 
+    def test_the_sessions_routing_stays_inside_the_spec_read(self):
+        """v1612 reads the first 1600 characters of thOpen. The shelf flag stays below that."""
+        i = self.src.index("async function thOpen()")
+        sessions = self.src.index("data-view') === 'sessions'", i)
+        route = self.src.index("window._toTVD()", i)
+        clear = self.src.index("TH.shelfAsDoor = false", i)
+        self.assertLessEqual(sessions - i, 1550,
+                             "the Sessions check starts past the 1600 characters v1612 reads")
+        self.assertLessEqual(route + len("window._toTVD()") - i, 1600,
+                             "_toTVD is not inside the 1600 characters v1612 reads")
+        self.assertGreater(clear, route,
+                           "clearing the shelf flag above the Sessions routing pushes that routing out of the read")
+
     def test_the_door_asks_and_still_calls_thOpen(self):
         self.assertEqual(self.src.count("TH.shelfAsDoor = true; await thOpen();"), 1,
                          "the shelf door no longer both asks for the list and calls thOpen()")

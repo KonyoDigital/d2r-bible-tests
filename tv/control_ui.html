@@ -17037,11 +17037,6 @@ window._lockMark = function(isOpen, px, label){
     return pick;
   }
   async function thOpen(){
-    /* The shelf door sets TH.shelfAsDoor and then calls this with no argument. The call stays
-       `await thOpen()` — that exact text is what the door's refusal law reads. Cleared here,
-       before any await, so a later open cannot inherit it. */
-    var _shelfDoor = !!TH.shelfAsDoor;
-    TH.shelfAsDoor = false;
     /* v1612 — THE THEATRE BELONGS TO THE COCKPIT, SO GO THERE FIRST.
        Konyo: "i think i know what that blackscreen is.. its in sessions.. maybe when clicking on
        air or mini it routes me to the TV-D page? but regardless the Sessions tab is like falsely
@@ -17067,6 +17062,11 @@ window._lockMark = function(isOpen, px, label){
         window._toTVD();   // v1627 — clears data-view too; _shellHome alone left the stage hidden
       }
     } catch (e) { /* routing must never stop the reel from opening */ }
+    /* Shelf door: cleared here, after the Sessions routing above and before any await,
+       so the next open cannot inherit it. The lines stay below that routing because
+       v1612 reads the first 1600 characters of thOpen. */
+    var _shelfDoor = !!TH.shelfAsDoor;
+    TH.shelfAsDoor = false;
     /* ══ v3304 (#59) — THE OPEN CAN BE OVERTAKEN, AND THE LOSER MUST NOT TOUCH THE DOM ═══════
        HIS REPORT: the theatre fails to open — and it is ALWAYS the REOPEN AFTER A CLOSE, never
        the first open. Five instances, and that pattern is the whole diagnosis.

@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1759 - THE SHELF FLAG PUSHED THE SESSIONS ROUTING OUT OF ITS READ (2026-10-03)
+
+`thOpen` still leaves Sessions, through `_toTVD`, before the stage is shown. The shelf flag was cleared on the lines above that check. v1612 reads the first 1600 characters of `thOpen`, and the check then started at character 1802. Playwright shard 2 failed on v3570 and again on v3571 (`tests/v1612_sessions_no_black_stage.spec.ts`). Without those lines the check starts at 1483. The flag is now cleared after that routing and before any await. Law `test_the_shelf_opens_on_the_list`.
+
 ### REG-1758 - OPENING THE CONSOLE ON WINDOWS KEPT AN OLDER PROCESS (2026-10-03, #161)
 
 The Mac launcher asks `launcher_decide.py`: the running console is the code on disk, so bring it forward; it is older, headless, or will not come forward, so replace it. His click is that consent. The Windows launcher did not ask. If `:17772` answered with any version it focused that window and returned, before the pull and before any spawn. Reopening after a ship still showed the old version because the old process was still the one serving.
