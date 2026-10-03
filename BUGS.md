@@ -406,6 +406,25 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1755 - A FAILED VAULT WRITE, AND AN UNKNOWN PASS, KEPT A STALE YES (2026-10-03, v3567 second eye)
+
+The v3567 look named two reachable lies, both reproduced.
+
+`_vault_autoread_save`'s `finally` called `_vault_autoread_note_written()` after a failed write as well as a
+successful one. The note flips the cache to readable when the file is on disk. With an older file already
+there and the cache still False ("no store yet"), a replace that raises left the cache readable. The
+`if _mem is None: return False` before the try is untouched, so an unreadable store still returns before
+any write. The except now sets `_failed`, and the finally marks the store present only when that flag is
+absent. `os.replace` stays on the line before `return True`.
+
+`_vault_owed_reels` wrote `_TRIAGE_RULED_EMPTY["vault"]` only on the way out, so any of its early UNKNOWN
+returns kept the previous pass's count beside owed=UNKNOWN. The key is now None at entry and replaced only
+when this pass finishes the count. `_chron_owed_count`'s first except returned None without clearing
+"chronicle"; that except now sets the key to None.
+
+Laws: `test_the_vault_lane_remembers_across_a_restart` +1 case, `test_a_reel_at_printer_is_the_vaults_work`
++2 cases, one red-proof each.
+
 ### REG-1753 - A VERSION STAMP RE-RAN THE WHOLE PAGE GATE (2026-10-03, #160)
 
 His order: optimize push wall-clock before the handoff. Measured on the 10-02/10-03 pushes (all console-only):

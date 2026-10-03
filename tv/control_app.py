@@ -20354,6 +20354,7 @@ def _chron_owed_count(hist_dir=None):
         _h = hist_dir or os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
         _dirs = _cr.reel_dirs(_h, newest_first=True) or []
     except Exception:
+        _TRIAGE_RULED_EMPTY["chronicle"] = None   # REG-1755 - this pass did not count
         return None                      # cannot tell -> say nothing, never guess
     _mem = _chron_swept_mem()
     try:
@@ -28774,9 +28775,11 @@ def _vault_autoread_save():
         os.replace(tmp, dest)
         return True
     except Exception:
+        _failed = True                   # REG-1755 - the finally also runs after a failed write
         return False
     finally:
-        _vault_autoread_note_written()              # REG-1750
+        if not locals().get("_failed"):
+            _vault_autoread_note_written()          # REG-1750
 
 
 
@@ -29066,6 +29069,7 @@ def _vault_owed_reels(hist=None):
     retention stops calling it vault-blocked, and the panel and the sweeper cannot drift apart.
     [[the-unjoined-end]] [[copy-drift]] [[feedback-contradiction-is-the-finding]]
     """
+    _TRIAGE_RULED_EMPTY["vault"] = None   # REG-1755 - UNKNOWN until this pass counts
     try:
         import reel_retention as _rr
     except Exception:

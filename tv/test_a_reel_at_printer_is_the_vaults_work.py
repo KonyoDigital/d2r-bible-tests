@@ -276,6 +276,31 @@ class TheTriageHasRuled(unittest.TestCase):
                          "the vault lane skipped 2 triage-proven reels and its count says %r"
                          % (ca._TRIAGE_RULED_EMPTY.get("vault"),))
 
+    def test_an_early_unknown_does_not_keep_the_last_vault_count(self):
+        """REG-1755 — six early returns left the previous pass's count in place, so the heart showed
+        a number beside owed=UNKNOWN."""
+        import control_app as ca
+        import reel_retention as rr
+        ca._TRIAGE_RULED_EMPTY["vault"] = 7
+        with mock.patch.object(rr, "plan", lambda h, **k: {"ok": True, "kept": []}), \
+                mock.patch.object(ca, "_vault_positions_and_seals", lambda: (None, {})):
+            got = ca._vault_owed_reels(hist=tempfile.gettempdir())
+        self.assertIsNone(got, "PREMISE: an unreadable river is UNKNOWN")
+        self.assertIsNone(ca._TRIAGE_RULED_EMPTY.get("vault"),
+                          "the vault list returned UNKNOWN and the heart still shows the last count, 7")
+
+    def test_a_chronicle_pass_that_cannot_list_reels_clears_its_count(self):
+        """REG-1755 — the first except in _chron_owed_count returned None and left the chronicle count."""
+        import control_app as ca
+        import chronicle_retro
+        ca._TRIAGE_RULED_EMPTY["chronicle"] = 4
+        with mock.patch.object(chronicle_retro, "reel_dirs",
+                               side_effect=OSError("law: the reel list will not read")):
+            n = ca._chron_owed_count(tempfile.gettempdir())
+        self.assertIsNone(n, "PREMISE: an unreadable reel list is UNKNOWN, not a guessed 0")
+        self.assertIsNone(ca._TRIAGE_RULED_EMPTY.get("chronicle"),
+                          "the chronicle pass could not count and the heart still shows the last count, 4")
+
 
 RED_PROOF = [
     {"why": "REG-1743 - a fresh PC's PRINTER reels are vetoed again: the vault never reads, so no store is ever written",
@@ -349,6 +374,16 @@ RED_PROOF = [
      "file": "tv/shelf_driver.py",
      "find": "        return bool(_rr._proven_empty(_os.path.basename(str(reel))))\n    except Exception:\n        return False\n",
      "replace": "        return bool(_rr._proven_empty(_os.path.basename(str(reel))))\n    except Exception:\n        return True\n",
+     "matches": 1},
+    {"why": "REG-1755 - an early UNKNOWN from the vault list keeps the last triage count beside owed=UNKNOWN",
+     "file": "tv/control_app.py",
+     "find": "    _TRIAGE_RULED_EMPTY[\"vault\"] = None   # REG-1755 - UNKNOWN until this pass counts\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "REG-1755 - a chronicle pass that cannot list the reels keeps the last triage count",
+     "file": "tv/control_app.py",
+     "find": "        _TRIAGE_RULED_EMPTY[\"chronicle\"] = None   # REG-1755 - this pass did not count\n",
+     "replace": "",
      "matches": 1}
 ]
 

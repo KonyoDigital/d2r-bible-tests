@@ -29,6 +29,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
@@ -89,6 +90,24 @@ class TheVaultLaneRemembersAcrossARestart(unittest.TestCase):
         self.assertTrue(CA._vault_autoread_save(), "the store could not be written at all")
         self.assertIs(CA._vault_autoread_load(), True,
                       "the lane just wrote its store and still says 'no store yet - never recorded a read'")
+
+    def test_a_failed_write_leaves_an_old_file_unread(self):
+        """REG-1755 — the finally ran after a FAILED write too. With a file already on disk and the
+        cache still False ("no store yet"), it flipped the cache to readable. A write that did not
+        land must leave that answer where it was."""
+        path = CA._vault_autoread_path()
+        with io.open(path, "w", encoding="utf-8") as fh:
+            fh.write('{"reads": 1, "retired": {"reel_old": {}}}')
+        self._restart()
+        CA._VAULT_AUTOREAD_STORE.update({"tried": True, "readable": False})
+        CA._VAULT_AUTOREAD["reads"] = 9
+        with mock.patch("os.replace", side_effect=OSError("law: the replace will not land")):
+            self.assertIs(CA._vault_autoread_save(), False, "a replace that raises reported success")
+        self.assertIs(CA._VAULT_AUTOREAD_STORE.get("readable"), False,
+                      "a failed write flipped 'no store yet' to readable because an older file was already there")
+        with io.open(path, encoding="utf-8") as fh:
+            still = fh.read()
+        self.assertIn("reel_old", still, "the failed write replaced the older store")
 
     # ── the store must not be able to reach his live console ─────────────────────────────────
     def test_the_store_lives_under_the_fixture_root(self):
@@ -424,6 +443,13 @@ RED_PROOF = [
         'file': 'control_app.py',
         'find': '            _VAULT_AUTOREAD_STORE["tried"], _VAULT_AUTOREAD_STORE["readable"] = True, True\n',
         'replace': '            pass\n',
+        'matches': 1,
+    },
+    {
+        'why': 'REG-1755 - a failed write still marks an old file as a fresh store: the cache flips from no-store-yet to readable',
+        'file': 'control_app.py',
+        'find': '        if not locals().get("_failed"):\n            _vault_autoread_note_written()          # REG-1750\n',
+        'replace': '        _vault_autoread_note_written()          # REG-1750\n',
         'matches': 1,
     }
 ]
