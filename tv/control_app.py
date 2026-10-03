@@ -20197,7 +20197,7 @@ def _chron_swept_split(mem=None, ids=None):
                    "the frames are gone" % (len(retained), "y" if len(retained) == 1 else "ies")}
 
 
-def _chron_reel_owes_a_read(rid, mem=None):
+def _chron_reel_owes_a_read(rid, mem=None, prompt_ver=None):
     """v2139 — ONE definition of "this reel still owes a read", shared with retention.
 
     THE STALL THIS FIXES, measured on his tree 2026-08-26 while 11 reels sat waiting for days:
@@ -20337,7 +20337,7 @@ def _chron_reel_owes_a_read(rid, mem=None):
     # p1839. So reopen only when the reader has actually changed, which _chron_seal_stands already
     # answers for the retro sweep. With this in place the sweeper owes 12 and the panel says 11 —
     # the one apart is held by retention's own "recent" rule, so the two finally agree.
-    return not _chron_seal_stands(e)
+    return not _chron_seal_stands(e, prompt_ver)
 
 
 def _chron_owed_count(hist_dir=None):
@@ -21151,18 +21151,34 @@ def _prompt_vers_same_as(prompt_ver):
     return ()
 
 
-def _chron_skip_set(swept, force=False, prompt_ver=None):
-    """v1830 — which sealed reels this sweep may skip, and which it is REOPENING.
+def _chron_skip_set(swept, force=False, prompt_ver=None, reel_ids=None):
+    """v1830 — which reels this sweep may skip, and which sealed ones it is REOPENING.
 
     Split out of the sweep body so the decision is testable without a vision model: the inline
     version was `set(swept.keys())`, which is the line that made a stale verdict permanent.
     Returns (skip, reopened) — reopened is returned rather than logged in here so the caller owns
     the wording and the function stays pure.
+
+    REG-1756 — this set used to ask `_chron_seal_stands` on its own, a second definition beside
+    `_chron_reel_owes_a_read` (the rule the autoread, the offer list and the waiting count already
+    share). A stale zero-page seal then reopened a reel the triage had proved empty, and a
+    proven-empty reel that was never sealed was not in the set at all. Both are the owes rule.
+    `prompt_ver` is threaded into that rule so a prompt change still reopens a zero-page seal the
+    triage did not prove empty. `reel_ids` is the directory listing, so a reel the swept memory
+    does not hold can still be declined. An unreadable swept value is not a licence to re-spend.
+    Force still skips nothing: he asked to re-read.
     """
     swept = swept if isinstance(swept, dict) else {}
     if force:
         return set(), []
-    skip = {k for k, v in swept.items() if _chron_seal_stands(v, prompt_ver)}
+    skip = set()
+    for k, v in swept.items():
+        if not isinstance(v, dict) or not _chron_reel_owes_a_read(k, swept, prompt_ver):
+            skip.add(k)
+    for _rid in (reel_ids or ()):
+        _k = str(_rid)
+        if _k not in swept and not _chron_reel_owes_a_read(_k, swept, prompt_ver):
+            skip.add(_k)
     return skip, sorted(k for k in swept if k not in skip)
 
 
@@ -36565,7 +36581,11 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         # passes reel_id; without this the sweep just re-read reel_dirs[0] and the picked reel was
         # marked anyway. Narrowing skip_reels to "everything except this one" makes sweep_hist land
         # on it without teaching sweep_hist a new parameter.
-        _skip, _reopened = _chron_skip_set(swept, force=force)
+        try:
+            _reel_ids = [os.path.basename(str(_d)) for _d in _cr.reel_dirs(hist)]
+        except Exception:
+            _reel_ids = None
+        _skip, _reopened = _chron_skip_set(swept, force=force, reel_ids=_reel_ids)
         # v1844 — AND THE CONSOLE HAS TO BE ABLE TO SAY WHY THE BILL MOVED.
         #
         # v1830 voids a zero-page seal made by an older reader, and v1839 bumped PROMPT_VER — so

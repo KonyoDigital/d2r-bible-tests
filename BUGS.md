@@ -406,6 +406,23 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1756 - THE MANUAL SWEEP KEPT ITS OWN SKIP RULE BESIDE THE ONE OWES-A-READ RULE (2026-10-03, #152)
+
+REG-1747 taught `_chron_reel_owes_a_read` to ask `reel_retention._proven_empty`, and the autoread, the offer list
+and the waiting count all call that function. The untargeted sweep's `_chron_skip_set` did not. It skipped a reel
+only when `_chron_seal_stands` said the seal was current, so a prompt change reopened a zero-page seal on a reel
+the triage had walked in full and found empty, and a proven-empty reel that had never been sealed was not in the
+skip set at all. The sweep paid for both.
+
+`_chron_skip_set` now skips whatever that one rule declines. `prompt_ver` is passed through, so a zero-page seal
+the triage did not prove empty still reopens when the reader changes, and a seal that read pages still stands.
+`reel_ids` is the directory listing from `_chron_sweep_run`, so a reel the swept memory does not hold is asked
+too. An unreadable swept value stays skipped. Force still skips nothing. Law
+`test_a_reel_triage_proved_empty_owes_no_read`, +7 cases, one more red-proof.
+
+The cost quote (`_chronicle_scan_cost_inner`) is a documented upper bound and still prices every reel. It is not
+this skip rule. Left as it is.
+
 ### REG-1755 - A FAILED VAULT WRITE, AND AN UNKNOWN PASS, KEPT A STALE YES (2026-10-03, v3567 second eye)
 
 The v3567 look named two reachable lies, both reproduced.
@@ -500,8 +517,8 @@ found 0 panels, the river held it at TOMBSTONE - and the chronicle autoread had 
 140 s timeouts. `_chron_reel_owes_a_read` - the one rule behind the autoread, its offer list and the "waiting on a
 sweep" count - never asked the triage. It now calls `reel_retention._proven_empty` (retention's own cached reading of
 `retro_triage.worth_reading() is False`), so the two cannot disagree about one reel; a sampled pass, an absent reel or
-no store still owes. NOT joined yet: the manual untargeted sweep's `_chron_skip_set` keeps its own older rule (sealed
-reels only) - a second definition, named for the next slice. Law `test_a_reel_triage_proved_empty_owes_no_read`,
+no store still owes. Joined in REG-1756: the manual untargeted sweep's `_chron_skip_set` now asks this same rule.
+Law `test_a_reel_triage_proved_empty_owes_no_read`,
 7 cases, 2/2 PROVEN.
 
 ### REG-1746 - 72 PROVER SANDBOXES, 20 GB, ON THE ALT: GIT'S READ-ONLY PACK OUTLIVED EVERY RMTREE (2026-10-02)

@@ -109,6 +109,55 @@ class ItIsWiredNotRebuilt(unittest.TestCase):
                       "triage rule would drift from retention's")
 
 
+class TheManualSweepAsksTheSameRule(_World):
+    """REG-1756 — the untargeted sweep's skip set is the owes rule, not a second seal rule."""
+
+    def test_a_stale_seal_on_a_proven_empty_reel_is_not_reopened(self):
+        self.store({EMPTY: _row(0)})
+        swept = {EMPTY: {"pages": 0, "promptVer": "p1000"}}
+        skip, reopened = _ca()._chron_skip_set(swept, prompt_ver="p1828")
+        self.assertIn(EMPTY, skip, "a prompt change reopened a reel the triage had already proved empty")
+        self.assertEqual(reopened, [], "the bill would name a reel this sweep is not going to pay for: %r" % (reopened,))
+
+    def test_a_stale_seal_on_a_reel_with_panels_is_still_reopened(self):
+        self.store({FULL_OF_PANELS: _row(5)})
+        swept = {FULL_OF_PANELS: {"pages": 0, "promptVer": "p1000"}}
+        skip, reopened = _ca()._chron_skip_set(swept, prompt_ver="p1828")
+        self.assertEqual(reopened, [FULL_OF_PANELS])
+        self.assertNotIn(FULL_OF_PANELS, skip)
+
+    def test_a_current_seal_stands_when_the_triage_saw_panels(self):
+        self.store({FULL_OF_PANELS: _row(5)})
+        swept = {FULL_OF_PANELS: {"pages": 0, "promptVer": "p1828"}}
+        skip, reopened = _ca()._chron_skip_set(swept, prompt_ver="p1828")
+        self.assertEqual(skip, {FULL_OF_PANELS})
+        self.assertEqual(reopened, [])
+
+    def test_a_never_sealed_proven_empty_reel_is_skipped_when_named(self):
+        self.store({EMPTY: _row(0)})
+        skip, reopened = _ca()._chron_skip_set({}, prompt_ver="p1828",
+                                               reel_ids=[EMPTY, FULL_OF_PANELS])
+        self.assertIn(EMPTY, skip, "the listing named a proven-empty reel and the sweep would still pay for it")
+        self.assertNotIn(FULL_OF_PANELS, skip, "a reel nobody surveyed was skipped with the empty one")
+        self.assertEqual(reopened, [])
+
+    def test_force_still_reopens_a_proven_empty_reel(self):
+        self.store({EMPTY: _row(0)})
+        skip, reopened = _ca()._chron_skip_set(
+            {EMPTY: {"pages": 0, "promptVer": "p1000"}}, force=True, reel_ids=[EMPTY])
+        self.assertEqual((skip, reopened), (set(), []))
+
+    def test_an_unreadable_swept_value_is_not_reopened(self):
+        skip, reopened = _ca()._chron_skip_set({"junk": "not-a-seal"}, prompt_ver="p1828")
+        self.assertEqual(skip, {"junk"})
+        self.assertEqual(reopened, [])
+
+    def test_the_skip_set_calls_the_owes_rule(self):
+        fn = _ca()._chron_skip_set
+        self.assertIn("_chron_reel_owes_a_read", set(fn.__code__.co_names),
+                      "the manual sweep's skip set does not call _chron_reel_owes_a_read - it has its own rule again")
+
+
 RED_PROOF = [
     {"why": "REG-1747 - the owes-a-read rule stops asking the triage: a proven-empty reel is paid for again",
      "file": "control_app.py",
@@ -124,6 +173,11 @@ RED_PROOF = [
      "file": "control_app.py",
      "find": "        _TRIAGE_RULED_EMPTY[\"chronicle\"] = sum(1 for d in _dirs if _rr._proven_empty(os.path.basename(str(d))))\n",
      "replace": "        _TRIAGE_RULED_EMPTY[\"chronicle\"] = 0\n",
+     "matches": 1},
+    {"why": "REG-1756 - the manual sweep's skip set goes back to its own seal rule",
+     "file": "control_app.py",
+     "find": "        if not isinstance(v, dict) or not _chron_reel_owes_a_read(k, swept, prompt_ver):\n            skip.add(k)\n    for _rid in (reel_ids or ()):\n        _k = str(_rid)\n        if _k not in swept and not _chron_reel_owes_a_read(_k, swept, prompt_ver):\n            skip.add(_k)\n",
+     "replace": "        if _chron_seal_stands(v, prompt_ver):\n            skip.add(k)\n",
      "matches": 1}
 ]
 
