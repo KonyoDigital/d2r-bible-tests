@@ -152,7 +152,7 @@ class _Reel(unittest.TestCase):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _reel(self, frames):
-        rd = os.path.join(self.hist, "reel_s_1790978096994_57242")
+        rd = os.path.join(self.hist, "reel_s_1500000000001_12001")
         os.makedirs(rd, exist_ok=True)
         for ts in frames:
             with open(os.path.join(rd, "f_%d.jpg" % ts), "wb") as fh:
@@ -219,7 +219,7 @@ class _Reel(unittest.TestCase):
         d = C.load()
         self.assertEqual(d["stats"]["refused"], 0)
         self.assertEqual(d["stats"]["reads"], 0)
-        self.assertEqual(d["reels"]["reel_s_1790978096994_57242"]["lobby"]["reads"], 0)
+        self.assertEqual(d["reels"]["reel_s_1500000000001_12001"]["lobby"]["reads"], 0)
         self.assertGreater(C.owed(d, self.hist), 0)
         self.assertEqual(C.surface_witnesses(d), [])
         again = self._tick(lambda p: LOBBY, reader)
@@ -229,7 +229,7 @@ class _Reel(unittest.TestCase):
 
     def test_a_timeout_spends_the_hourly_cap_and_a_throttle_does_not(self):
         self._reel([1790978100063])
-        name = "reel_s_1790978096994_57242"
+        name = "reel_s_1500000000001_12001"
 
         def nothing(p):
             self.called.append(os.path.basename(p))
@@ -271,7 +271,7 @@ class _Reel(unittest.TestCase):
         r = self._tick(lambda p: LOBBY, reader)
         self.assertEqual(r["reads"], 0)
         self.assertEqual(C.load()["stats"]["refused"], 1)
-        self.assertEqual(C.load()["reels"]["reel_s_1790978096994_57242"]["lobby"]["reads"], 1)
+        self.assertEqual(C.load()["reels"]["reel_s_1500000000001_12001"]["lobby"]["reads"], 1)
         self._tick(lambda p: LOBBY, reader)
         self.assertEqual(self.called, [PROOF])
 
@@ -288,7 +288,7 @@ class _Reel(unittest.TestCase):
         self.assertEqual(r["reads"], C.READS_PER_HOUR)
         self.assertIn("hourly read cap", r["why"])
         d = C.load()
-        name = "reel_s_1790978096994_57242"
+        name = "reel_s_1500000000001_12001"
         self.assertLess(d["reels"][name]["pos"], C.READS_PER_HOUR + 1,
                         "the cap walked past the lobby frame it did not read")
         self.assertGreater(C.owed(d, self.hist), 0)
@@ -353,7 +353,7 @@ def _paint(fn, learned):
         "%s\n"
         "process.stdout.write(_surfaceWitnessHtml());\n"
     ) % (json.dumps(learned), fn)
-    r = subprocess.run([NODE, "-e", drv], capture_output=True, text=True, timeout=30)
+    r = subprocess.run([NODE, "-"], input=drv, capture_output=True, text=True, timeout=30)
     if r.returncode != 0:
         raise AssertionError(r.stderr[-500:] or r.stdout[-500:])
     return r.stdout
