@@ -375,7 +375,7 @@ RED_PROOF = [
         "file": "tv_diablo.py",
         "find": "    _blocked = None if _reader_choice() == \"grok\" else _sub_budget_check(\"oneshot\")\n    if _blocked:\n        return {\"note\": \"not read - %s\" % _blocked}\n",
         "replace": "    _blocked = _sub_budget_check(\"oneshot\")\n    if _blocked:\n        return {\"note\": \"not read - %s\" % _blocked}\n",
-        "matches": 1,
+        "matches": 2,
     },
     {
         "why": "#151 - the verify re-read asks a warm Claude reader at Grok only",

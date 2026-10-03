@@ -204,6 +204,43 @@ class _Reel(unittest.TestCase):
         self.assertEqual(C.surface_witnesses(C.load()), [])
         self.assertEqual(C.load()["stats"]["refused"], 0)
 
+    def test_a_read_that_did_not_happen_is_tried_on_the_next_pass(self):
+        self._reel([1790978100063])
+        answers = [{"note": "the reader returned nothing"}, dict(PLAQUE)]
+
+        def reader(p):
+            self.called.append(os.path.basename(p))
+            return answers.pop(0)
+
+        r = self._tick(lambda p: LOBBY, reader)
+        self.assertEqual(r["reads"], 0)
+        self.assertEqual(r["surfaces"], 0)
+        self.assertIn("surface not read", r["why"])
+        d = C.load()
+        self.assertEqual(d["stats"]["refused"], 0)
+        self.assertEqual(d["stats"]["reads"], 0)
+        self.assertEqual(d["reels"]["reel_s_1790978096994_57242"]["lobby"]["reads"], 0)
+        self.assertGreater(C.owed(d, self.hist), 0)
+        self.assertEqual(C.surface_witnesses(d), [])
+        again = self._tick(lambda p: LOBBY, reader)
+        self.assertEqual(again["surfaces"], 1)
+        self.assertEqual(self.called, [PROOF, PROOF])
+        self.assertEqual(C.surface_witnesses(C.load())[0]["name"], "Konyossin")
+
+    def test_an_answer_that_cannot_be_used_is_refused_and_not_retried(self):
+        self._reel([1790978100063])
+
+        def reader(p):
+            self.called.append(os.path.basename(p))
+            return [1, 2]
+
+        r = self._tick(lambda p: LOBBY, reader)
+        self.assertEqual(r["reads"], 0)
+        self.assertEqual(C.load()["stats"]["refused"], 1)
+        self.assertEqual(C.load()["reels"]["reel_s_1790978096994_57242"]["lobby"]["reads"], 1)
+        self._tick(lambda p: LOBBY, reader)
+        self.assertEqual(self.called, [PROOF])
+
     def test_the_hourly_cap_leaves_the_unread_lobby_frame_owed(self):
         base = 1790978100000
         # nine lobby visits, a hundred seconds apart: the ninth meets the cap
@@ -322,6 +359,19 @@ RED_PROOF = [
         "replace": "def _rewind_unread(rs, i):\n"
                    "    \"\"\"The frame was not read. The cursor waits on it.\"\"\"\n"
                    "    return\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1761 - a lobby read that did not happen is kept and never retried",
+        "file": "tv/char_select.py",
+        "find": "                            if _surface_unread(raw):\n"
+                "                                _rewind_unread(rs, i)\n"
+                "                                why = \"surface not read: \" + rwhy\n"
+                "                                break\n",
+        "replace": "                            if False and _surface_unread(raw):\n"
+                   "                                _rewind_unread(rs, i)\n"
+                   "                                why = \"surface not read: \" + rwhy\n"
+                   "                                break\n",
         "matches": 1,
     },
 ]

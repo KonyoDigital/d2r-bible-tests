@@ -572,6 +572,19 @@ def _default_lobby_reader(frame_path):
     return _td.surface_read(frame_path)
 
 
+def _surface_unread(raw):
+    """Silence, or a note that the reader did not look, is not a look. A JSON object with no note is an
+    answer, including one that names nothing."""
+    if raw is None:
+        return True
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except Exception:
+            return False
+    return isinstance(raw, dict) and bool(raw.get("note"))
+
+
 def _rewind_unread(rs, i):
     """The frame was not read. The cursor waits on it."""
     rs["pos"] = i - SAMPLE_EVERY
@@ -766,7 +779,9 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
     MAX_READS_PER_VISIT per visit and READS_PER_HOUR in all, fold the answers in, save. Returns a status dict.
 
     A frame that is not the character-select list is asked whether it is the create-game lobby. One read of
-    that whole frame per lobby visit, on the same hourly cap. The cap rewinds onto the frame it did not read."""
+    that whole frame per lobby visit, on the same hourly cap. The cap rewinds onto the frame it did not read.
+    A note, or no answer, is a read that did not happen: the cursor waits on that frame and the visit stays
+    unread. An answer that names nothing is a look, and it is not retried."""
     d = load()
     if d is None:
         return {"ok": False, "why": "the ledger could not be read — UNKNOWN, nothing written"}
@@ -830,9 +845,13 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
                                 why = "hourly read cap (%d) reached" % READS_PER_HOUR
                                 break
                             raw = surface_reader(p)
+                            row, rwhy = surface_of(raw)
+                            if _surface_unread(raw):
+                                _rewind_unread(rs, i)
+                                why = "surface not read: " + rwhy
+                                break
                             st["readTs"].append(now_s)
                             lop["reads"] = 1
-                            row, rwhy = surface_of(raw)
                             if row is None and rwhy not in ("other screen", "no name"):
                                 st["refused"] = int(st.get("refused") or 0) + 1
                                 st["lastWhy"] = "surface read refused: " + rwhy

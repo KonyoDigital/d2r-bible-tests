@@ -416,6 +416,12 @@ The character-select learner already refuses the create-game lobby (left val 0.1
 
 A list miss that matches those four bands gets one read of the whole frame, on the same hourly cap, and the cap rewinds onto the unread frame. The answer is one witness row per (kind, image), citing the frame. It does not teach the character (that still takes two character-select visits). `/api/chars_learned` returns the rows as `surfaceWitnesses`. The in-game section paints them. A reader that says `c-panel` banks that kind. Confluence is the existing weighted sum: lobby 1.0, character panel 1.0, an unknown kind 0. Law `test_the_lobby_names_the_character`.
 
+### REG-1761 - A LOBBY READ THAT DID NOT HAPPEN WAS COUNTED, SO THE VISIT WAS NEVER TRIED AGAIN (2026-10-03, #149)
+
+`lop["reads"] = 1` was set before the answer was judged. A throttle note, a spent cap, or "the reader returned nothing" (a Grok timeout) marked that lobby visit read. The next pass skipped it. The witness was gone, and the counter filed the miss under refused. #230 comment on the unpushed v3573.
+
+A note, or no answer at all, now rewinds onto that frame and leaves the visit unread, the same way the hourly cap leaves an unread frame. It does not take a slot in the hourly cap and it is not a refusal. An answer that arrived and could not be used (not an object, another screen, a name the game would refuse) still spends the visit. The character-panel bands were not retuned: no panel frame was filmed, and the lobby cutoffs were measured on one reel at one size. Law `test_the_lobby_names_the_character`.
+
 ### REG-1758 - OPENING THE CONSOLE ON WINDOWS KEPT AN OLDER PROCESS (2026-10-03, #161)
 
 The Mac launcher asks `launcher_decide.py`: the running console is the code on disk, so bring it forward; it is older, headless, or will not come forward, so replace it. His click is that consent. The Windows launcher did not ask. If `:17772` answered with any version it focused that window and returned, before the pull and before any spawn. Reopening after a ship still showed the old version because the old process was still the one serving.
