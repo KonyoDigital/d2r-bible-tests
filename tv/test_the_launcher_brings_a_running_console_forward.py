@@ -168,6 +168,27 @@ class TheShellBlockRunsUnderSetE(unittest.TestCase):
         self.assertNotIn("REACHED-THE-LAUNCH", r.stdout, "a console brought forward was replaced anyway")
 
 
+class TheWindowsClickUsesTheSameDecision(unittest.TestCase):
+    """REG-1758 — opening the console is one rule on both machines. The Mac launcher already asks
+    launcher_decide.py. The Windows launcher used to focus whatever was answering :17772, so an old
+    process stayed up after the disk had moved. A click now asks the same function: exit 0 brings
+    the window forward, anything else is his consent to replace it. A sign-in start still leaves
+    a running console alone."""
+
+    def test_the_click_asks_the_shared_decision_and_a_sign_in_does_not(self):
+        with io.open(os.path.join(HERE, "start_tvd_win.ps1"), encoding="utf-8-sig") as fh:
+            ps = fh.read()
+        call = ps.find("--port 17772 --from win-launcher")
+        self.assertEqual(ps.count("--from win-launcher"), 1, "the Windows launcher no longer names the one decision")
+        bg = ps.find("sign-in start: control already up - left exactly as it is")
+        self.assertGreater(call, bg, "a sign-in start reaches the decision and can replace a console that is filming")
+        flag = ps.find("$script:TvdReplaceRunning = $true", call)
+        self.assertGreater(flag, call, "a console older than the disk no longer falls through to an update")
+        self.assertIn("Stop-TvdListenerOnControlPort", ps[flag:],
+                      "the update was consented and the old process is still the one that would bind the port")
+        self.assertTrue(all(ord(c) < 128 for c in ps), "non-ASCII in a file Windows PowerShell 5 reads")
+
+
 RED_PROOF = [
     {
         "why": "2026-09-29 (REG-1514) - only a BACKGROUNDED console is asked forward; a window that is up is replaced",
@@ -195,6 +216,13 @@ RED_PROOF = [
         "file": "tv/start_tvd_mac.sh",
         "find": "  _tvd_why=$(python3 \"$HERE/launcher_decide.py\" --port 17772 --from mac-launcher 2>/dev/null) || _tvd_rc=$?\n",
         "replace": "  _tvd_why=$(python3 \"$HERE/launcher_decide.py\" --port 17772 --from mac-launcher 2>/dev/null)\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1758 - the Windows click stops asking the shared decision and keeps whatever is already serving",
+        "file": "tv/start_tvd_win.ps1",
+        "find": "      $decideOut = & $decideCmd @decidePrefix $decideScript --port 17772 --from win-launcher 2>&1\n",
+        "replace": "      $decideRc = 0\n",
         "matches": 1,
     },
 ]

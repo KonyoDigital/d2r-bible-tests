@@ -406,6 +406,12 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1758 - OPENING THE CONSOLE ON WINDOWS KEPT AN OLDER PROCESS (2026-10-03, #161)
+
+The Mac launcher asks `launcher_decide.py`: the running console is the code on disk, so bring it forward; it is older, headless, or will not come forward, so replace it. His click is that consent. The Windows launcher did not ask. If `:17772` answered with any version it focused that window and returned, before the pull and before any spawn. Reopening after a ship still showed the old version because the old process was still the one serving.
+
+A Desktop open on Windows now runs the same decision (`--from win-launcher`). Exit 0 brings the window forward and stops. Anything else falls through, pulls, stops the listener on `:17772`, and boots the disk. A sign-in start (`-Background`) still leaves a running console exactly as it is: sign-in is not the click. Law `test_the_launcher_brings_a_running_console_forward`, plus the Windows arm of `test_closing_the_window_keeps_the_console_running`.
+
 ### REG-1757 - THE SHELF OPENED A SESSION, AND AN EMPTY REEL PLAYED A DIFFERENT ONE (2026-10-03, #162 #163)
 
 GrokBot's ALT passes: the shelf's first paint was a theatre session (last time Session 7, before that Session 1 — the last-opened reel, not one id). An open reel with no frames toasted that it had opened another session and played that one. The dossier said "frames" for a count the theatre calls photos (Session 7: 678 photos / 156m14s against 623 frames / 156m09s; Session 44: 1086 against 1148). The dossier had no close, only the back label. Presses between the station tabs missed. The read panel plus the filmstrip covered about a third of the picture.

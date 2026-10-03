@@ -167,27 +167,8 @@ try {
   $mutex = $null
 }
 
-# v1444/v1445 - ALREADY UP: focus and leave. Do not git-pull, pip, or spawn python.
-if (Test-TvdControlUp) {
-  if ($Background) {
-    Write-TvdLaunchLog 'sign-in start: control already up - left exactly as it is'
-    if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
-    return
-  }
-  Write-TvdLaunchLog 'control already up - focusing; skip pull/spawn'
-  # 2026-09-29 - X now HIDES the console (it keeps recording in the background). A cross-process ShowWindow does
-  # not reliably un-hide a WinForms window (v1460), so the running console is asked to show ITSELF first; the
-  # focus below then raises it. Plain ASCII on purpose: this file is read by Windows PowerShell 5.
-  try {
-    $front = Invoke-RestMethod -Uri 'http://127.0.0.1:17772/api/window' -Method Post -ContentType 'application/json' -Body '{"do":"front","from":"win-launcher"}' -TimeoutSec 4
-    Write-TvdLaunchLog ("asked the running console forward: ok={0}" -f $front.ok)
-  } catch { Write-TvdLaunchLog ("front request: {0}" -f $_) }
-  [void](Focus-TvdWindow)
-  if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
-  return
-}
-
-# PATH seed
+# PATH seed - the already-up decision needs python so it can ask launcher_decide.py,
+# the same rule the Mac launcher runs. Seeding here does not pull and does not spawn.
 $env:Path = [Environment]::GetEnvironmentVariable('Path', 'Machine') + ';' +
             [Environment]::GetEnvironmentVariable('Path', 'User')
 foreach ($p in @(
@@ -231,6 +212,74 @@ function Real-Python {
     } catch { continue }
   }
   return $null
+}
+
+function Stop-TvdListenerOnControlPort {
+  # The process listening on 17772, so a consented update can bind. Never this launcher.
+  $ids = @()
+  try {
+    $rows = netstat -ano -p tcp
+  } catch {
+    Write-TvdLaunchLog ("could not list :17772 ({0})" -f $_)
+    return
+  }
+  foreach ($row in $rows) {
+    $t = ([string]$row) -replace '\s+', ' '
+    if ($t -notmatch ':17772 ') { continue }
+    if ($t -notmatch 'LISTENING') { continue }
+    $parts = $t.Trim().Split(' ')
+    $procId = $parts[-1]
+    if ($procId -match '^\d+$' -and [int]$procId -ne $PID) { $ids += [int]$procId }
+  }
+  $ids = @($ids | Select-Object -Unique)
+  foreach ($procId in $ids) {
+    try {
+      Stop-Process -Id $procId -Force -ErrorAction Stop
+      Write-TvdLaunchLog ("stopped the console serving :17772 pid={0}" -f $procId)
+    } catch {
+      Write-TvdLaunchLog ("could not stop pid {0}: {1}" -f $procId, $_)
+    }
+  }
+  if ($ids.Count -gt 0) { Start-Sleep -Milliseconds 400 }
+}
+
+# ALREADY UP. One rule with the Mac launcher (launcher_decide.py):
+# the running console is the code on disk -> bring it forward and stop;
+# it is older, headless, or will not come forward -> his click is the consent
+# to update, so this launch falls through, pulls, stops the old process, and boots the disk.
+# A sign-in start (-Background) does neither: it leaves a running console exactly as it is.
+$script:TvdReplaceRunning = $false
+if (Test-TvdControlUp) {
+  if ($Background) {
+    Write-TvdLaunchLog 'sign-in start: control already up - left exactly as it is'
+    if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
+    return
+  }
+  $decidePy = Real-Python
+  if (-not $decidePy) {
+    Write-TvdLaunchLog 'control is up but python was not found, so whether it matches the disk is UNKNOWN - this open cannot update it'
+  } else {
+    $decideCmd = $decidePy.Cmd
+    $decidePrefix = @()
+    if ($decidePy.Prefix) { $decidePrefix = @($decidePy.Prefix) }
+    if ($decideCmd -eq 'pythonw') { $decideCmd = 'python' }
+    $decideScript = Join-Path $here 'launcher_decide.py'
+    try {
+      $decideOut = & $decideCmd @decidePrefix $decideScript --port 17772 --from win-launcher 2>&1
+      $decideRc = $LASTEXITCODE
+    } catch {
+      $decideOut = "$_"
+      $decideRc = 1
+    }
+    if ($decideRc -eq 0) {
+      Write-TvdLaunchLog ("running console is the code on disk - brought forward {0}" -f ([string]$decideOut).Trim())
+      [void](Focus-TvdWindow)
+      if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
+      return
+    }
+    Write-TvdLaunchLog ("running console is older than the disk or has no window (decide exit {0}) - this open updates it" -f $decideRc)
+    $script:TvdReplaceRunning = $true
+  }
 }
 
 $py = Real-Python
@@ -377,12 +426,18 @@ if (Test-TvdControlUp) {
     # as it is, the same as one that was already up: only the first check honoured -Background, so a console slow
     # to answer at sign-in was unhidden and brought over his desktop by the shortcut that promised not to.
     Write-TvdLaunchLog 'sign-in start: control came up during pull - left exactly as it is'
+    if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
+    return
+  }
+  if ($script:TvdReplaceRunning) {
+    Write-TvdLaunchLog 'the older console is still serving after the pull - stopping it so this open boots the disk'
+    Stop-TvdListenerOnControlPort
   } else {
     Write-TvdLaunchLog 'control came up during pull - focus only'
     [void](Focus-TvdWindow)
+    if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
+    return
   }
-  if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
-  return
 }
 
 $control = Join-Path $here 'control_app.py'
@@ -433,6 +488,7 @@ if ($Background) { $argLine += ' --background' }   # REG-1660 - hidden from its 
 # to any unrelated git in another terminal or an editor - re-adding the very icon latency v1445
 # removed - and it ran even under TV_NO_AUTO_PULL where this launcher never touched git at all.
 if ($script:TvdPullJobStopped) { [void](Wait-TvdGitQuiet) }
+if ($script:TvdReplaceRunning) { Stop-TvdListenerOnControlPort }
 $controlStamp = $null
 try { $controlStamp = (Get-Item -LiteralPath $control).LastWriteTime } catch {}
 

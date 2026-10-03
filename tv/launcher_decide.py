@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
-"""THE MAC LAUNCHER'S ONE DECISION: bring the running console forward, or replace it (REG-1514).
+"""THE ONE LAUNCHER DECISION, Mac and Windows: bring the running console forward, or replace it (REG-1514, REG-1758).
 
 The second eye on v3523's bg-service merge (4e22a57a, #231): start_tvd_mac.sh asked a console forward only when
 its window was in the BACKGROUND, and anything else - including a window that was simply UP - fell through to the
 soft-kill of :17772. So a Desktop double-click on a console that was running fine, maybe filming his session, killed
-it and booted a fresh one; the Windows launcher only ever brings it forward. The kill exists for one reason (v1379.1):
+it and booted a fresh one. Until REG-1758 the Windows launcher only ever brought a running console forward, so an old process kept serving :17772 after the disk had moved. Both launchers now ask this function. The kill exists for one reason (v1379.1):
 a double-click must never window-only onto a STALE console still running older code. The console answers that
 itself (/api/status moduleFreshness, v3288), so the rule is now:
 

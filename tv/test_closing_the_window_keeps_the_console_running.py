@@ -425,12 +425,18 @@ class UpdatesAndLaunchesKeepItBackgrounded(_Base):
         up = ps.find("if (Test-TvdControlUp) {")
         focus = ps.find("[void](Focus-TvdWindow)", up)
         self.assertGreater(up, -1)
+        self.assertGreater(focus, up)
         branch = ps[up:focus]
-        self.assertIn("Invoke-RestMethod -Uri 'http://127.0.0.1:17772/api/window'", branch,
-                      "the Desktop icon on Windows only focuses from outside - a WinForms window hidden by the "
-                      "console does not reliably come back that way (v1460)")
-        self.assertIn("front", branch)
-        self.assertIn("win-launcher", branch, "the Windows launcher's front request does not name itself")
+        decide = branch.find("launcher_decide.py")
+        self.assertGreater(decide, -1,
+                           "the Desktop icon on Windows only focuses from outside - a WinForms window hidden by the "
+                           "console does not reliably come back that way (v1460). The shared decision asks the "
+                           "console to show itself before this focus.")
+        self.assertLess(branch.find("left exactly as it is"), decide,
+                        "a sign-in start would ask the decider and might replace a console that is filming")
+        self.assertIn("--from win-launcher", branch, "the Windows launcher's front request does not name itself")
+        self.assertIn("--port 17772", branch)
+        self.assertIn("$decideRc -eq 0", branch, "a current console is no longer the arm that brings the window forward")
         self.assertTrue(all(ord(c) < 128 for c in branch), "non-ASCII in a file Windows PowerShell 5 reads")
 
 
@@ -637,10 +643,10 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "2026-09-29 - the Windows Desktop icon only focuses from outside, which does not un-hide a WinForms window",
+        "why": "REG-1758 - the Windows click stops asking the shared decision and keeps whatever is already serving",
         "file": "tv/start_tvd_win.ps1",
-        "find": "    $front = Invoke-RestMethod -Uri 'http://127.0.0.1:17772/api/window'",
-        "replace": "    $front = $null # -Uri 'http://127.0.0.1:17772/api/none'",
+        "find": "      $decideOut = & $decideCmd @decidePrefix $decideScript --port 17772 --from win-launcher 2>&1\n",
+        "replace": "      $decideRc = 0\n",
         "matches": 1,
     },
 ]
