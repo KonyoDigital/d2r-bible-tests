@@ -938,6 +938,13 @@ GATES = [
              "OWED A LOOK that had just been looked at. Attribution now comes from WHICH BINARY "
              "RAN, which is evidence; the gate pins that it may never read EYE_MODEL, which is "
              "the v3214 defect of deriving a field correctly from a guess"),
+    Gate("test_author_from_stamp", [sys.executable,
+                                    os.path.join(HERE, "test_the_author_is_read_from_the_stamp.py")], 60,
+         why="The second-eye gate hardcoded the author as anthropic, so a grok-cli look on a "
+             "Grok-seat ship counted as the other family, and a Claude look recorded as model "
+             "claude (the parenthesis stripped) was refused as the author. The author is now the "
+             "stamp commit: Seat: Grok CLI (code) is xai, and a look counts only when its family "
+             "differs from that."),
     Gate("test_no_pinned_footage", [sys.executable,
                                     os.path.join(HERE, "test_a_gate_may_not_pin_his_footage.py")], 90,
          why="REG-1027 — a reel id in EXECUTABLE test code makes retention hold that footage "

@@ -88,7 +88,9 @@ _FAMILY = (
     ("claude", "anthropic"),
 )
 
-# Who AUTHORED the ships this ledger guards. A pass from this family is not a second eye.
+# Who authored a ship when its stamp commit does not say otherwise. A pass from the
+# family that stamped THAT version is not a second eye. Grok-seat stamps are xai;
+# this name is the fallback, not a claim that every ship was written by Claude.
 AUTHOR_FAMILY = "anthropic"
 
 #: ⚠ THERE IS DELIBERATELY NO MODULE GLOBAL FOR THE SHIP-TABLE VERDICT. v3162 kept
@@ -680,6 +682,61 @@ def _claude_looked_at_a_grok_seat(row, repo=None):
     return _commit_is_grok_seat((row or {}).get("sha"), (row or {}).get("version"), repo=repo)
 
 
+_AUTHOR_LOADED = {}
+
+
+def _stamp_authors(repo):
+    """ver -> author family, from the commits that set the stamp. -> dict
+
+    One git log, not a show per version. The line that ADDS `"ver"` is the stamp.
+    A later edit that leaves the version alone does not get to reassign the author.
+    """
+    out = {}
+    try:
+        log = subprocess.run(
+            ["git", "log", "-n", "120", "--format=COMMIT %H%n%B%nENDMSG", "-p", "--",
+             "tv/WINDOWS_SHIP.json"],
+            cwd=repo, capture_output=True, text=True,
+            encoding="utf-8", errors="replace", timeout=20)
+        if log.returncode != 0:
+            return out
+    except Exception:
+        return out
+    # A stamp file is sometimes one JSON line (`{"ver": "v0002"}`) and sometimes a
+    # pretty line (`  "ver": "v3577"`). Either way the added line is the ver this
+    # commit wrote. A context line is a version this commit left alone.
+    ver_rx = re.compile(r'^\+.*"ver"\s*:\s*"([^"]+)"', re.M)
+    for part in (log.stdout or "").split("COMMIT ")[1:]:
+        msg, _, diff = part.partition("\nENDMSG\n")
+        added = ver_rx.findall(diff)
+        if not added:
+            continue
+        ver = norm_version(added[-1])
+        if not ver or ver in out:
+            continue
+        out[ver] = "xai" if "Seat: Grok CLI (code)" in msg else AUTHOR_FAMILY
+    return out
+
+
+def author_family(version, repo=None):
+    """Who wrote this version, read from the commit that stamped it.
+
+    A stamp whose message carries `Seat: Grok CLI (code)` is the Grok code seat, so
+    its author family is xai. Every other stamp, and a version this cannot read,
+    stays anthropic. The model string is not evidence: the recording tool strips a
+    parenthesis, so a comment that merely says who wrote the ship decides nothing.
+    """
+    ver = norm_version(version)
+    root = os.path.abspath(repo or _REPO)
+    if not ver:
+        return AUTHOR_FAMILY
+    loaded = _AUTHOR_LOADED.get(root)
+    if loaded is None:
+        loaded = _stamp_authors(root)
+        _AUTHOR_LOADED[root] = loaded
+    return loaded.get(ver, AUTHOR_FAMILY)
+
+
 def looked_at(version, path=None):
     """The rows that COUNT as a second-eye look at `version`, newest first.
 
@@ -701,12 +758,13 @@ def looked_at(version, path=None):
         # ledger was introduced to make impossible, and I had told him it was. The stored field is
         # now evidence for a human reading the file; the DECISION is made from the model id alone.
         fam = family_of(r.get("model"))
-        author = AUTHOR_FAMILY
+        # The author is whoever stamped this version, not a module constant. A Claude
+        # look on a Grok seat is the other family. A Grok look on that same seat is not.
+        author = author_family(v)
         if fam is None and _claude_looked_at_a_grok_seat(r):
             # The line names both families, so family_of stays silent. The commit's seat
             # line says Grok wrote it, and Claude is then the other family.
             fam = "anthropic"
-            author = "xai"
         if not fam or fam == author:
             continue
         # ⚠ strict True, not truthiness: the STRING "false" is truthy, and an adversarial pass used
@@ -1577,9 +1635,12 @@ def audit(path=None, tasks_path=None, state=None):
                                  "looks": 0, "cannot": 0, "bound": 0, "unbound": 0})
         st["attempts"] += 1
         fam = family_of(r.get("model"))          # re-derived, exactly as the verdict does it
+        if fam is None and _claude_looked_at_a_grok_seat(r):
+            fam = "anthropic"
+        author = author_family(v)
         if r.get("reached") is not True:
             st["empty"] += 1
-        elif fam == AUTHOR_FAMILY:
+        elif fam and fam == author:
             st["author"] += 1
         elif fam and _has_evidence(r) and is_not_a_look(r.get("verdict")):
             # ⚠⚠ v3415 — A COULD-NOT-JUDGE IS NOT A LOOK, AND THIS SURFACE WAS THE LAST TO
@@ -1690,8 +1751,17 @@ def _cmd_check(argv):
             rows = [r for r in _rows() if r.get("version") == want]
             why = "nothing was ever recorded for it"
             if rows:
+                author = author_family(want)
                 empt = sum(1 for r in rows if not r.get("reached"))
-                auth = sum(1 for r in rows if r.get("reached") and r.get("family") == AUTHOR_FAMILY)
+                auth = 0
+                for r in rows:
+                    if not r.get("reached"):
+                        continue
+                    fam = family_of(r.get("model"))
+                    if fam is None and _claude_looked_at_a_grok_seat(r):
+                        fam = "anthropic"
+                    if fam and fam == author:
+                        auth += 1
                 bits = []
                 if empt:
                     bits.append("%d empty seat(s) — the eye was not reached" % empt)
