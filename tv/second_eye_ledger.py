@@ -1714,8 +1714,13 @@ def _cmd_check(argv):
         # (re-derived xai) and then announced itself as "looked at by grok-4 (anthropic)". A
         # success message that contradicts the rule that produced it is how a reader learns to
         # stop believing the messages. [[label-outlived-referent]]
+        # A Claude line that also names the Grok seat is ambiguous to family_of, and looked_at
+        # counts it from the commit. Say that family, not None.
+        _fam = family_of(r.get("model"))
+        if _fam is None and _claude_looked_at_a_grok_seat(r):
+            _fam = "anthropic"
         print("second eye: %s was looked at by %s (%s) — %s"
-              % (want, r.get("model"), family_of(r.get("model")),
+              % (want, r.get("model"), _fam,
                  r.get("verdict") or "no verdict recorded"))
         return 0
 
