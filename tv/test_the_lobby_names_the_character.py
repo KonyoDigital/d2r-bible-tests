@@ -227,6 +227,40 @@ class _Reel(unittest.TestCase):
         self.assertEqual(self.called, [PROOF, PROOF])
         self.assertEqual(C.surface_witnesses(C.load())[0]["name"], "Konyossin")
 
+    def test_a_timeout_spends_the_hourly_cap_and_a_throttle_does_not(self):
+        self._reel([1790978100063])
+        name = "reel_s_1790978096994_57242"
+
+        def nothing(p):
+            self.called.append(os.path.basename(p))
+            return {"note": "the reader returned nothing"}
+
+        for _ in range(C.READS_PER_HOUR):
+            self._tick(lambda p: LOBBY, nothing)
+        self.assertEqual(len(self.called), C.READS_PER_HOUR)
+        d = C.load()
+        self.assertEqual(len(d["stats"]["readTs"]), C.READS_PER_HOUR)
+        self.assertEqual(d["stats"]["reads"], 0)
+        self.assertEqual(d["reels"][name]["lobby"]["reads"], 0)
+        stopped = self._tick(lambda p: LOBBY, nothing)
+        self.assertIn("hourly read cap", stopped["why"])
+        self.assertEqual(len(self.called), C.READS_PER_HOUR, "the cap asked the reader again")
+        self.assertGreater(C.owed(C.load(), self.hist), 0)
+
+        self.called = []
+        os.environ["TV_CHARS_LEARNED"] = os.path.join(self.tmp, "throttle.json")
+
+        def throttled(p):
+            self.called.append(os.path.basename(p))
+            return {"note": "reader throttled - not read"}
+
+        for _ in range(3):
+            self._tick(lambda p: LOBBY, throttled)
+        t = C.load()
+        self.assertEqual(t["stats"]["readTs"], [])
+        self.assertEqual(t["reels"][name]["lobby"]["reads"], 0)
+        self.assertEqual(len(self.called), 3)
+
     def test_an_answer_that_cannot_be_used_is_refused_and_not_retried(self):
         self._reel([1790978100063])
 
@@ -365,13 +399,30 @@ RED_PROOF = [
         "why": "REG-1761 - a lobby read that did not happen is kept and never retried",
         "file": "tv/char_select.py",
         "find": "                            if _surface_unread(raw):\n"
+                "                                if _surface_call_was_spent(raw):\n"
+                "                                    st[\"readTs\"].append(now_s)\n"
                 "                                _rewind_unread(rs, i)\n"
                 "                                why = \"surface not read: \" + rwhy\n"
                 "                                break\n",
         "replace": "                            if False and _surface_unread(raw):\n"
+                   "                                if _surface_call_was_spent(raw):\n"
+                   "                                    st[\"readTs\"].append(now_s)\n"
                    "                                _rewind_unread(rs, i)\n"
                    "                                why = \"surface not read: \" + rwhy\n"
                    "                                break\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1762 - a lobby timeout retries forever and never spends the hourly cap",
+        "file": "tv/char_select.py",
+        "find": "                            if _surface_unread(raw):\n"
+                "                                if _surface_call_was_spent(raw):\n"
+                "                                    st[\"readTs\"].append(now_s)\n"
+                "                                _rewind_unread(rs, i)\n",
+        "replace": "                            if _surface_unread(raw):\n"
+                   "                                if False and _surface_call_was_spent(raw):\n"
+                   "                                    st[\"readTs\"].append(now_s)\n"
+                   "                                _rewind_unread(rs, i)\n",
         "matches": 1,
     },
 ]

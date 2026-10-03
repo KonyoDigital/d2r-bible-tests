@@ -585,6 +585,19 @@ def _surface_unread(raw):
     return isinstance(raw, dict) and bool(raw.get("note"))
 
 
+def _surface_call_was_spent(raw):
+    """The reader was asked and came back empty. That spends one hourly slot. A throttle, a budget
+    note, a missing frame, or a stub that was never asked does not."""
+    if raw is None:
+        return True
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except Exception:
+            return False
+    return isinstance(raw, dict) and raw.get("note") == "the reader returned nothing"
+
+
 def _rewind_unread(rs, i):
     """The frame was not read. The cursor waits on it."""
     rs["pos"] = i - SAMPLE_EVERY
@@ -781,7 +794,8 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
     A frame that is not the character-select list is asked whether it is the create-game lobby. One read of
     that whole frame per lobby visit, on the same hourly cap. The cap rewinds onto the frame it did not read.
     A note, or no answer, is a read that did not happen: the cursor waits on that frame and the visit stays
-    unread. An answer that names nothing is a look, and it is not retried."""
+    unread. A call that came back empty spends one hourly slot, so a timeout cannot retry without limit.
+    A throttle or a budget note does not. An answer that names nothing is a look, and it is not retried."""
     d = load()
     if d is None:
         return {"ok": False, "why": "the ledger could not be read — UNKNOWN, nothing written"}
@@ -847,6 +861,8 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
                             raw = surface_reader(p)
                             row, rwhy = surface_of(raw)
                             if _surface_unread(raw):
+                                if _surface_call_was_spent(raw):
+                                    st["readTs"].append(now_s)
                                 _rewind_unread(rs, i)
                                 why = "surface not read: " + rwhy
                                 break

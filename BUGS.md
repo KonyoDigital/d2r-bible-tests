@@ -420,7 +420,13 @@ A list miss that matches those four bands gets one read of the whole frame, on t
 
 `lop["reads"] = 1` was set before the answer was judged. A throttle note, a spent cap, or "the reader returned nothing" (a Grok timeout) marked that lobby visit read. The next pass skipped it. The witness was gone, and the counter filed the miss under refused. #230 comment on the unpushed v3573.
 
-A note, or no answer at all, now rewinds onto that frame and leaves the visit unread, the same way the hourly cap leaves an unread frame. It does not take a slot in the hourly cap and it is not a refusal. An answer that arrived and could not be used (not an object, another screen, a name the game would refuse) still spends the visit. The character-panel bands were not retuned: no panel frame was filmed, and the lobby cutoffs were measured on one reel at one size. Law `test_the_lobby_names_the_character`.
+A note, or no answer at all, now rewinds onto that frame and leaves the visit unread, the same way the hourly cap leaves an unread frame. It is not a refusal. An answer that arrived and could not be used (not an object, another screen, a name the game would refuse) still spends the visit. The character-panel bands were not retuned: no panel frame was filmed, and the lobby cutoffs were measured on one reel at one size. Law `test_the_lobby_names_the_character`.
+
+### REG-1762 - A LOBBY TIMEOUT RETRIED WITHOUT LIMIT AND THE REEL WAITED ON THAT FRAME (2026-10-03, #149)
+
+REG-1761 rewound a note without taking an hourly slot. That is right for a throttle or a budget note, because no call went out. It is wrong for "the reader returned nothing": that call went out, timed out, and the next pass asked again. Nothing counted it, so the cursor never moved on and the character list later in the same reel was not scanned. The cross-family look on v3574 said so.
+
+A call that came back empty now takes one slot in the same hourly cap. After that cap the frame still waits, unread, for the next hour. A throttle, a budget note, a missing frame, and a stub that was not asked still do not take a slot. Law `test_the_lobby_names_the_character`.
 
 ### REG-1758 - OPENING THE CONSOLE ON WINDOWS KEPT AN OLDER PROCESS (2026-10-03, #161)
 
