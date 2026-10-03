@@ -17,9 +17,14 @@ touch, so a press between them hits a tab.
 """
 import io
 import os
+import sys
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+from console_safe import enable
+enable()
+
 UI = os.path.join(HERE, "control_ui.html")
 
 
