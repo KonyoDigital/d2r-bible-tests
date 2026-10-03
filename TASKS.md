@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3567** | `(this commit)` | v3567 — REG-1750: the vault lane stops claiming no store once it has written one; REG-1751: each lane says how many reels the triage ruled empty |
+| **v3568** | `(this commit)` | v3568 — a failed vault write no longer marks an old file readable, and an unknown pass clears the triage count. HEART: test_the_vault_lane_remembers_across_a_restart test_a_reel_at_printer_is_the_vaults_work |
+| **v3567** | `2606f273` | v3567 — REG-1750: the vault lane stops claiming no store once it has written one; REG-1751: each lane says how many reels the triage ruled empty |
 | **v3566** | `134b7c37` | v3566 — REG-1749: a reel the triage proved empty owes the vault no paid read either - the vault rule now asks the same question the chronicle rule does |
 | **v3565** | `19fe8ade` | v3565 — REG-1747: the chronicle autoread asks the triage before it pays for a read; REG-1748: the cheap-subset CPU clock starts after the priming |
 | **v3564** | `d4e5da5b` | v3564 — REG-1745: a banked sweep no longer holds a console update for 15 minutes; REG-1746: prover sandboxes are removed on Windows (20 GB on the ALT) |

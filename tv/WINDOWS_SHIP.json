@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3567",
+  "ver": "v3568",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3567: REG-1750: the vault lane stops claiming no store once it has written one; REG-1751: each lane says how many reels the triage ruled empty",
+  "note": "v3568: a failed vault write no longer marks an old file readable, and an unknown pass clears the triage count. HEART: test_the_vault_lane_remembers_across_a_restart test_a_reel_at_printer_is_the_vaults_work",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
