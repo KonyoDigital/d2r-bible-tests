@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3569",
+  "ver": "v3570",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3569: the manual sweep asks the owes rule - REG-1756",
+  "note": "v3570: the shelf opens on the list and an empty reel stays itself - REG-1757",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
