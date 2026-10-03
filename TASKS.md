@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3570** | `(this commit)` | v3570 — the shelf opens on the list and an empty reel stays itself - REG-1757 |
+| **v3571** | `(this commit)` | v3571 — opening the console on Windows uses the same decision as the Mac - REG-1758 |
+| **v3570** | `a60cb061` | v3570 — the shelf opens on the list and an empty reel stays itself - REG-1757 |
 | **v3569** | `eef07441` | v3569 — the manual sweep asks the owes rule - REG-1756 |
 | **v3568** | `90dab619` | v3568 — a failed vault write no longer marks an old file readable, and an unknown pass clears the triage count. HEART: test_the_vault_lane_remembers_across_a_restart test_a_reel_at_printer_is_the_vaults_work |
 | **v3567** | `2606f273` | v3567 — REG-1750: the vault lane stops claiming no store once it has written one; REG-1751: each lane says how many reels the triage ruled empty |
