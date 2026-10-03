@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3576",
+  "ver": "v3577",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3576: BOTH means Claude reads every frame and Grok reads only a frame Claude could not",
+  "note": "v3577: BOTH is Claude first and the beside-every-frame read is retired. A frame keeps the reason it was handed when several fall to Grok together. A Claude look at a Grok seat counts when the commit says so.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -26,6 +26,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from unittest import mock
@@ -420,6 +421,50 @@ class BothAsksGrokOnlyWhenClaudeDidNotRead(_Switch):
         self.assertIn("claude", health)
         self.assertIn("grok", health)
 
+    def test_two_backups_at_once_each_keep_the_reason_they_were_handed(self):
+        """Eight frames can be in flight. Two of them, handed different reasons, each record their own."""
+        door = threading.Barrier(2)
+        boxes = {}
+        errs = []
+
+        def _vision(path, prompt=None, force=False):
+            door.wait(timeout=5)
+            return None
+
+        def _one(reason):
+            box = {"why": None, "fail": None}
+            try:
+                tv._oneshot(self.pic, tv.FAST_MODEL, timeout=30, claude_miss=reason, backed=box)
+                boxes[reason] = box
+            except Exception as exc:
+                errs.append((reason, repr(exc)))
+
+        reasons = ("claude throttled", "claude over budget")
+        with mock.patch.object(g5, "g5_vision_read", _vision):
+            threads = [threading.Thread(target=_one, args=(reason,)) for reason in reasons]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(timeout=8)
+                self.assertFalse(thread.is_alive(), "a backup never finished")
+        self.assertEqual(errs, [])
+        for reason in reasons:
+            box = boxes[reason]
+            label = "backup: " + reason
+            other = [item for item in reasons if item != reason][0]
+            self.assertEqual(box.get("why"), label, box)
+            self.assertTrue(str(box.get("fail") or "").startswith(label), box)
+            self.assertNotIn(other, box.get("why") or "")
+            self.assertNotIn(other, str(box.get("fail") or "").split("\u2014", 1)[0])
+            frame = tv._unread_frame({"mode": "empty"}, None, box)
+            self.assertIn(reason, frame.get("readErr") or "")
+            self.assertIn(reason, frame.get("backup") or "")
+            self.assertNotIn(other, frame.get("backup") or "")
+            self.assertNotIn(other, frame.get("readErr") or "")
+            self.assertTrue(frame.get("readErr"))
+        self.assertIsNone(tv._BACKUP_LAST.get("why"))
+        self.assertIsNone(tv._BACKUP_LAST.get("fail"))
+
 
 class ThePageOffersThreePositions(unittest.TestCase):
 
@@ -613,8 +658,19 @@ RED_PROOF = [
     {
         "why": "a failed backup is asked a second time, and one unread frame becomes a retry storm",
         "file": "tv_diablo.py",
-        "find": "    return _grok_backup(ap, why or \"claude no answer\", prompt=prompt, raw_json=raw_json, timeout=timeout)\n",
-        "replace": "    _grok_backup(ap, why or \"claude no answer\", prompt=prompt, raw_json=raw_json, timeout=timeout)\n    return _grok_backup(ap, why or \"claude no answer\", prompt=prompt, raw_json=raw_json, timeout=timeout)\n",
+        "find": "    return _grok_backup(ap, why or \"claude no answer\", prompt=prompt, raw_json=raw_json,\n"
+                "                        timeout=timeout, backed=backed)\n",
+        "replace": "    _grok_backup(ap, why or \"claude no answer\", prompt=prompt, raw_json=raw_json,\n"
+                   "                        timeout=timeout, backed=backed)\n"
+                   "    return _grok_backup(ap, why or \"claude no answer\", prompt=prompt, raw_json=raw_json,\n"
+                   "                        timeout=timeout, backed=backed)\n",
+        "matches": 1,
+    },
+    {
+        "why": "two backups at once share one reason cell, so a frame records the other frame's why",
+        "file": "tv_diablo.py",
+        "find": "    label = \"backup: %s\" % claude_why\n    backed[\"why\"] = label\n",
+        "replace": "    label = \"backup: %s\" % claude_why\n    _BACKUP_LAST[\"why\"] = label\n",
         "matches": 1,
     },
 ]

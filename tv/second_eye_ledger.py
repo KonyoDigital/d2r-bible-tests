@@ -641,6 +641,45 @@ def _has_evidence(row):
 _COMMENT_REF_RX = re.compile(r"^gh#\d+ comment \d+$")
 
 
+def _commit_is_grok_seat(sha, version, repo=None):
+    """The named commit carries the Grok code-seat line, and its stamp is this version.
+
+    A comment that merely SAYS the author was Grok is not evidence. The commit is.
+    """
+    sha = str(sha or "").strip()
+    ver = norm_version(version)
+    if not sha or not ver:
+        return False
+    try:
+        msg = subprocess.run(
+            ["git", "show", "-s", "--format=%B", sha],
+            cwd=(repo or _REPO), capture_output=True, text=True,
+            encoding="utf-8", errors="replace", timeout=15)
+        if msg.returncode != 0 or "Seat: Grok CLI (code)" not in (msg.stdout or ""):
+            return False
+        ship = subprocess.run(
+            ["git", "show", "%s:tv/WINDOWS_SHIP.json" % sha],
+            cwd=(repo or _REPO), capture_output=True, text=True,
+            encoding="utf-8", errors="replace", timeout=15)
+        if ship.returncode != 0:
+            return False
+        return norm_version(json.loads(ship.stdout or "").get("ver")) == ver
+    except Exception:
+        return False
+
+
+def _claude_looked_at_a_grok_seat(row, repo=None):
+    """family_of cannot name this model line: it says Claude and it says Grok.
+
+    The #231 seat writes that when it reviewed a Grok-authored ship. The looking
+    family is the leading word. Who wrote the ship is the commit, not the parenthesis.
+    """
+    model = str((row or {}).get("model") or "").strip().lower()
+    if not model.startswith("claude") or "author seat was grok" not in model:
+        return False
+    return _commit_is_grok_seat((row or {}).get("sha"), (row or {}).get("version"), repo=repo)
+
+
 def looked_at(version, path=None):
     """The rows that COUNT as a second-eye look at `version`, newest first.
 
@@ -662,7 +701,13 @@ def looked_at(version, path=None):
         # ledger was introduced to make impossible, and I had told him it was. The stored field is
         # now evidence for a human reading the file; the DECISION is made from the model id alone.
         fam = family_of(r.get("model"))
-        if not fam or fam == AUTHOR_FAMILY:
+        author = AUTHOR_FAMILY
+        if fam is None and _claude_looked_at_a_grok_seat(r):
+            # The line names both families, so family_of stays silent. The commit's seat
+            # line says Grok wrote it, and Claude is then the other family.
+            fam = "anthropic"
+            author = "xai"
+        if not fam or fam == author:
             continue
         # ⚠ strict True, not truthiness: the STRING "false" is truthy, and an adversarial pass used
         # exactly that to count an empty seat as a reached one.

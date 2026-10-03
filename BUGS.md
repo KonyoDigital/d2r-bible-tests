@@ -406,6 +406,12 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1763 - BOTH IS CLAUDE FIRST, AND A FRAME KEPT ANOTHER FRAME'S REASON (2026-10-03)
+
+BOTH means Claude reads every frame and Grok reads only a frame Claude could not. The beside-every-frame Grok read is retired. A frame Claude answered, even with nothing here, is not asked again. One backup attempt per unread frame, and the heart counts how often Grok stepped in. #230 comment 5972029942.
+
+The reason that backup was asked lived in one module cell. Up to eight frames are read at once, and only the Claude call itself runs one at a time. When Claude was throttled and many frames fell to Grok together, a frame could record another frame's reason, or a blank one. The item names were never mixed. The cross-family look on that ship said so (#231). The reason now travels with the read that was handed it. Law `test_two_backups_at_once_each_keep_the_reason_they_were_handed`, beside the door in `test_his_switch_picks_who_reads`.
+
 ### REG-1759 - THE SHELF FLAG PUSHED THE SESSIONS ROUTING OUT OF ITS READ (2026-10-03)
 
 `thOpen` still leaves Sessions, through `_toTVD`, before the stage is shown. The shelf flag was cleared on the lines above that check. v1612 reads the first 1600 characters of `thOpen`, and the check then started at character 1802. Playwright shard 2 failed on v3570 and again on v3571 (`tests/v1612_sessions_no_black_stage.spec.ts`). Without those lines the check starts at 1483. The flag is now cleared after that routing and before any await. Law `test_the_shelf_opens_on_the_list`.

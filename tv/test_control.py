@@ -27254,6 +27254,42 @@ class TestV2143TheSecondEyeCannotBeSkippedQuietly(unittest.TestCase):
         self.L.record("v9999", "claude-opus-5", "clean", reached=True, path=self.led)
         self.assertTrue(self.L.owes_a_look("v9999", self.led))
 
+    def test_a_claude_look_counts_when_the_commit_is_the_grok_seat(self):
+        """#231 names both families in one model line. family_of stays silent. The commit decides."""
+        model = "claude (cross-family: the author seat was Grok CLI)"
+        self.assertIsNone(self.L.family_of(model), "naming both families must stay ambiguous")
+        td = tempfile.mkdtemp(prefix="seatlook_")
+        self.addCleanup(shutil.rmtree, td, True)
+        os.makedirs(os.path.join(td, "tv"))
+        subprocess.check_call(["git", "init", "-q"], cwd=td)
+        ship = os.path.join(td, "tv", "WINDOWS_SHIP.json")
+
+        def _commit(ver, message):
+            with io.open(ship, "w", encoding="utf-8") as fh:
+                json.dump({"ver": ver}, fh)
+            subprocess.check_call(["git", "add", "tv/WINDOWS_SHIP.json"], cwd=td)
+            subprocess.check_call(
+                ["git", "-c", "user.email=seat@example.com", "-c", "user.name=Seat",
+                 "commit", "-q", "-m", message], cwd=td)
+            return subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=td, text=True).strip()
+
+        claude_sha = _commit("v0001", "v0001 claude seat")
+        grok_sha = _commit("v0002", "v0002 grok backs up claude\n\nSeat: Grok CLI (code)\n")
+        self.assertFalse(self.L._commit_is_grok_seat(claude_sha, "v0001", repo=td))
+        self.assertTrue(self.L._commit_is_grok_seat(grok_sha, "v0002", repo=td))
+        self.assertFalse(self.L._commit_is_grok_seat(grok_sha, "v0001", repo=td),
+                         "a Grok commit does not bless a different version")
+        with mock.patch.object(self.L, "_REPO", td):
+            self.L.record("v0002", model, "findings", answer_head="the reason was shared",
+                          reached=True, sha=grok_sha, path=self.led)
+            self.assertFalse(self.L.owes_a_look("v0002", self.led))
+            self.L.record("v0001", model, "findings", answer_head="claude reviewed claude",
+                          reached=True, sha=claude_sha, path=self.led)
+            self.assertTrue(self.L.owes_a_look("v0001", self.led))
+            self.L.record("v0003", model, "findings", answer_head="no commit",
+                          reached=True, path=self.led)
+            self.assertTrue(self.L.owes_a_look("v0003", self.led))
+
     def test_a_model_whose_family_cannot_be_identified_does_not_count(self):
         """Unknown provenance is UNKNOWN, not "probably someone else"."""
         self.L.record("v9999", "some-unlabelled-model", "clean", reached=True, path=self.led)
@@ -31451,7 +31487,7 @@ class TestV2175EveryPaidLaneRemembersWhatItAlreadyBOUGHT(unittest.TestCase):
             self.assertIn(marker, code, "the read lane no longer looks like itself: %r" % marker)
         # Vault and chronicle each retry a refused crop once. A backup already spent on that
         # frame is the one Grok attempt, so the retry must not ask again.
-        start = 'if (_miss is None and not _BACKUP_LAST.get("why")'
+        start = 'if (_miss is None and not backed.get("why")'
         end = "if not _crop_answer_refused("
         i = 0
         seen = 0
