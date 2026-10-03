@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3574** | `(this commit)` | v3574 — the lobby names the character it shows, and a read that did not happen is tried again. HEART: test_the_lobby_names_the_character |
+| **v3575** | `(this commit)` | v3575 — a lobby read that returned nothing spends one hourly slot. HEART: test_the_lobby_names_the_character |
+| **v3574** | `203b1952` | v3574 — the lobby names the character it shows, and a read that did not happen is tried again. HEART: test_the_lobby_names_the_character |
 | **v3573** | `714df3f7` | v3573 — the lobby names the character it shows. HEART: test_the_lobby_names_the_character |
 | **v3572** | `b9ae8f55` | v3572 — thOpen leaves Sessions before the stage and the spec can still see that routing - REG-1759 |
 | **v3571** | `c9b1599d` | v3571 — opening the console on Windows uses the same decision as the Mac - REG-1758 |
