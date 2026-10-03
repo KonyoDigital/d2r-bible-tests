@@ -14,6 +14,18 @@ name: Routine I — Playwright suite
 # shard exits gracefully and REPORTS instead of being SIGKILLed, and CI retries
 # drop to 1 so a red shard finishes inside the cap. merge-report now fails
 # loudly when any shard's blob is missing instead of quietly merging the rest.
+#
+# A version bump rewrites one line of bible.html, and that file name is what starts this
+# workflow. The first job asks tv/page_delta.py. The shards run unless the answer is that
+# the only change was the build stamp. A spec, the Playwright config, the console page, a
+# package file, this workflow, a new branch, a forced push, or anything the check cannot
+# read still runs the suite. The 09:00 schedule and a manual run always run it. A skip is
+# its own job: it says so, and merge-report does not run, so a skipped suite is not a
+# merged green report and not a missing-blob red.
+#
+# The fast shards take a measured file list (tv/routine_i_shards.py, tv/routine_i_costs.json)
+# instead of --shard, which splits by file count. The slow project stays on --shard; those
+# files are the long sims the fast list leaves out.
 on:
   schedule:
     - cron: '0 6 * * *'   # 09:00 IDT
@@ -47,8 +59,61 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  stamp-check:
+    name: stamp check
+    runs-on: ubuntu-latest
+    outputs:
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 1
+      - name: Decide whether the suite has something new to grade
+        id: decide
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+          FORCED: ${{ github.event.forced }}
+        run: |
+          run=true
+          why="the suite runs"
+          if [ "${EVENT_NAME}" != "push" ]; then
+            why="not a push - the daily and the manual run always grade the page"
+          elif [ "${FORCED}" = "true" ]; then
+            why="a forced push - the suite runs"
+          elif [ -z "${BEFORE}" ] || [ "${BEFORE}" = "0000000000000000000000000000000000000000" ]; then
+            why="before is missing or a new branch - the suite runs"
+          elif git fetch --depth=1 origin "${BEFORE}"; then
+            rc=0
+            why=$(python3 tv/page_delta.py --routine-i --before "${BEFORE}" --sha "${SHA}") || rc=$?
+            if [ "$rc" -eq 1 ] && printf '%s\n' "$why" | grep -F "bible.html changed only its build stamp" >/dev/null; then
+              run=false
+            else
+              run=true
+            fi
+          else
+            why="the base of this push could not be fetched - the suite runs"
+          fi
+          echo "run=${run}" >> "$GITHUB_OUTPUT"
+          printf '%s\n' "$why"
+          exit 0
+
+  stamp-skip:
+    name: "skipped: stamp-only"
+    needs: stamp-check
+    if: ${{ !cancelled() && needs.stamp-check.outputs.run == 'false' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: The suite has nothing new to grade
+        run: |
+          echo "bible.html changed only its build stamp — the suite has nothing new to grade; the daily 09:00 run covers these bytes"
+          echo "::notice title=skipped: stamp-only::bible.html changed only its build stamp — the suite has nothing new to grade; the daily 09:00 run covers these bytes"
+
   test:
     name: shard ${{ matrix.shard }}/6
+    needs: stamp-check
+    if: ${{ !cancelled() && needs.stamp-check.outputs.run != 'false' }}
     runs-on: ubuntu-latest
     # A healthy shard finishes in ~15m; the config's CI globalTimeout (45m) bounds
     # the run itself, so this cap only catches a wedged runner. Playwright's
@@ -119,7 +184,20 @@ jobs:
         continue-on-error: true
         run: npx playwright install-deps chromium
       - name: Run shard
-        run: npx playwright test --project=chromium --shard=${{ matrix.shard }}/6 --reporter=blob
+        env:
+          SHARD: ${{ matrix.shard }}
+        run: |
+          if ! python3 tv/routine_i_shards.py --shard "$SHARD" --of 6 > shard-files.txt; then
+            echo "::error::could not deal shard $SHARD"
+            exit 1
+          fi
+          mapfile -t files < shard-files.txt
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "::error::shard $SHARD dealt no spec files"
+            exit 1
+          fi
+          echo "shard $SHARD runs ${#files[@]} files, heaviest ${files[0]}"
+          npx playwright test --project=chromium --reporter=blob "${files[@]}"
       - name: Upload blob report
         if: always()
         uses: actions/upload-artifact@v5
@@ -130,6 +208,8 @@ jobs:
 
   slow:
     name: slow ${{ matrix.shard }}/2
+    needs: stamp-check
+    if: ${{ !cancelled() && needs.stamp-check.outputs.run != 'false' }}
     runs-on: ubuntu-latest
     # The peeled sims (v645 600s × 2, v333/v566, the 600s audits) used to live
     # inside shard 2 and ate its entire 45m globalTimeout. Two-way shard of
@@ -194,8 +274,8 @@ jobs:
 
   merge-report:
     name: merge reports
-    if: always()
-    needs: [test, slow]
+    needs: [stamp-check, test, slow]
+    if: ${{ !cancelled() && needs.stamp-check.outputs.run != 'false' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5

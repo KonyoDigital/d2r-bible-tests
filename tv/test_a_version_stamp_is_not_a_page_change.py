@@ -12,6 +12,9 @@ This law holds four things:
   * anything unreadable - a bad range - answers "changed", so the gates run;
   * the pattern matches the stamp line bump_version actually wrote into this tree (the join to the writer);
   * the hook asks page_delta for BOTH the render and the smoke trigger, and bible.html left the name-only lists.
+Routine I asks the same question and one more: a spec, the Playwright config, the console page, a package
+file or the workflow still runs the suite on its name. A schedule, a manual run, a new branch, a forced
+push, and anything unreadable run it too. The fast shards are dealt by measured duration.
 RED_PROOF below. [[the-unjoined-end]] [[unknown-stays-unknown]] [[source-reading-guard]]
 """
 import io
@@ -32,6 +35,7 @@ from console_safe import enable as _console_safe_enable  # noqa: E402
 _console_safe_enable()
 
 import page_delta as P  # noqa: E402
+import routine_i_shards as S  # noqa: E402
 
 STAMP = "  window.D2R_BUILD = { id:'%s', name:'%s - a ship', date:'2017-07-14', note:'%s' };\n"
 BODY = "<html>\n<script>\n(function(){\n%s  var x = 1;\n})();\n</script>\n</html>\n"
@@ -145,6 +149,142 @@ class TheHookAsksIt(unittest.TestCase):
         self.assertNotIn("'^(bible\\.html|tests/.*\\.spec\\.ts)$'", self.code)
 
 
+class RoutineIOnRealHistory(unittest.TestCase):
+    """The two commits the workflow has to get right, on this repo, not a hand-built diff."""
+
+    def test_a_stamp_only_push_skips(self):
+        # debc96a5..f5919534 is the v3575 stamp. bible.html moved one line; nothing under tests/ did.
+        run, why = P.routine_i_decision("push", "debc96a5", "f5919534", repo=REPO)
+        self.assertFalse(run)
+        self.assertEqual(why, P.ROUTINE_I_SKIP)
+
+    def test_a_real_page_change_runs(self):
+        # a8246cdf edits bible.html past the stamp line (+18/-1).
+        run, why = P.routine_i_decision("push", "a8246cdf^", "a8246cdf", repo=REPO)
+        self.assertTrue(run)
+        self.assertNotEqual(why, P.ROUTINE_I_SKIP)
+
+    def test_the_cli_exit_matches_both(self):
+        self.assertEqual(P.main(["--routine-i", "--before", "debc96a5", "--sha", "f5919534"]), 1)
+        self.assertEqual(P.main(["--routine-i", "--before", "a8246cdf^", "--sha", "a8246cdf"]), 0)
+        self.assertEqual(P.main(["--routine-i"]), 0)
+        self.assertEqual(P.main(["--routine-i", "--before", "debc96a5"]), 0)
+
+
+class RoutineIFailsClosed(_Repo):
+
+    def test_a_schedule_and_a_manual_run_grade_the_page(self):
+        for event in ("schedule", "workflow_dispatch"):
+            run, why = P.routine_i_decision(event, "debc96a5", "f5919534", repo=REPO)
+            self.assertTrue(run, event)
+            self.assertIn("not a push", why)
+
+    def test_a_blank_before_and_a_forced_push_run(self):
+        run, why = P.routine_i_decision("push", "0" * 40, "f5919534", repo=REPO)
+        self.assertTrue(run)
+        self.assertIn("new branch", why)
+        run, why = P.routine_i_decision("push", "", "f5919534", repo=REPO)
+        self.assertTrue(run)
+        head = self.commit(BODY % (STAMP % ("v101", "v101", "second")))
+        run, why = P.routine_i_decision("push", self.base, head, repo=self.repo, forced=True)
+        self.assertTrue(run)
+        self.assertIn("forced", why)
+
+    def test_a_range_git_cannot_read_runs_the_suite(self):
+        run, why = P.routine_i_decision("push", "no-such-before", "no-such-sha", repo=self.repo)
+        self.assertTrue(run)
+        self.assertIn("could not", why)
+
+    def test_a_spec_beside_a_stamp_still_runs(self):
+        os.makedirs(os.path.join(self.repo, "tests"))
+        page = BODY % (STAMP % ("v101", "v101", "second"))
+        io.open(os.path.join(self.repo, "bible.html"), "w", encoding="utf-8").write(page)
+        io.open(os.path.join(self.repo, "tests", "added.spec.ts"), "w", encoding="utf-8").write(
+            "test('added', () => {})\n")
+        _git(self.repo, "add", "-A")
+        _git(self.repo, "commit", "-q", "-m", "c")
+        head = _git(self.repo, "rev-parse", "HEAD")
+        run, why = P.routine_i_decision("push", self.base, head, repo=self.repo)
+        self.assertTrue(run)
+        self.assertIn("tests/added.spec.ts", why)
+
+    def test_the_console_page_and_the_workflow_run_on_their_names(self):
+        for rel in ("tv/control_ui.html", "playwright.config.ts",
+                    ".github/workflows/routine-i-playwright.yml", "package.json",
+                    "package-lock.json"):
+            parent = _git(self.repo, "rev-parse", "HEAD")
+            os.makedirs(os.path.dirname(os.path.join(self.repo, rel)), exist_ok=True)
+            io.open(os.path.join(self.repo, rel), "w", encoding="utf-8").write("x\n")
+            _git(self.repo, "add", "-A")
+            _git(self.repo, "commit", "-q", "-m", "c")
+            head = _git(self.repo, "rev-parse", "HEAD")
+            run, why = P.routine_i_decision("push", parent, head, repo=self.repo)
+            self.assertTrue(run, rel)
+            self.assertIn(rel, why)
+
+
+class RoutineISaysWhenItSkips(unittest.TestCase):
+
+    def setUp(self):
+        raw = io.open(os.path.join(REPO, ".github", "workflows", "routine-i-playwright.yml"),
+                      encoding="utf-8").read()
+        self.raw = raw
+        self.code = "\n".join(l for l in raw.split("\n") if not l.lstrip().startswith("#"))
+
+    def test_the_suite_runs_unless_the_check_says_skip(self):
+        self.assertEqual(self.code.count("needs.stamp-check.outputs.run != 'false'"), 3)
+        self.assertIn("git fetch --depth=1 origin", self.code)
+        self.assertIn("0000000000000000000000000000000000000000", self.code)
+        self.assertIn('python3 tv/page_delta.py --routine-i --before', self.code)
+        self.assertIn("cron: '0 6 * * *'", self.code)
+        self.assertIn("workflow_dispatch:", self.code)
+        self.assertEqual(self.raw.count(P.ROUTINE_I_SKIP), 2)
+        self.assertIn('name: "skipped: stamp-only"', self.code)
+        self.assertNotIn("--shard=${{ matrix.shard }}/6", self.code)
+        self.assertIn("--shard=${{ matrix.shard }}/2", self.code)
+        self.assertIn('python3 tv/routine_i_shards.py --shard "$SHARD" --of 6', self.code)
+
+
+class TheFastShardsFollowMeasuredDuration(unittest.TestCase):
+
+    def test_every_fast_spec_is_on_exactly_one_shard(self):
+        specs = S.fast_specs(REPO)
+        self.assertIsNotNone(specs)
+        self.assertGreater(len(specs), 400)
+        shards = S.deal(specs, 6, S.load_costs())
+        self.assertEqual(len(shards), 6)
+        flat = [p for shard in shards for p in shard]
+        self.assertEqual(sorted(flat), specs)
+        self.assertTrue(all(shards))
+        for slow in ("v645_every_item_sim.spec.ts", "golden_intake.spec.ts",
+                     "v42_full_ux_audit.spec.ts"):
+            self.assertFalse(any(p.endswith(slow) for p in flat), slow)
+
+    def test_the_six_heaviest_files_land_on_six_shards(self):
+        costs = S.load_costs()
+        self.assertGreater(max(costs.values()), 100)
+        self.assertIn("37139166700", io.open(S.TABLE, encoding="utf-8").read())
+        specs = S.fast_specs(REPO)
+        shards = S.deal(specs, 6, costs)
+        heavy = sorted((p for p in costs if p in specs), key=lambda p: (-costs[p], p))[:6]
+        owners = []
+        for path in heavy:
+            owners.append(next(i for i, shard in enumerate(shards) if path in shard))
+        self.assertEqual(len(set(owners)), 6, heavy)
+        loads = [sum(costs.get(p, 0.0) for p in shard) for shard in shards]
+        self.assertLess(max(loads) - min(loads), 30, loads)
+
+    def test_a_file_the_table_has_not_seen_weighs_the_median(self):
+        costs = {"tests/a.spec.ts": 10.0, "tests/b.spec.ts": 30.0}
+        names = ["tests/a.spec.ts", "tests/b.spec.ts", "tests/new.spec.ts"]
+        self.assertEqual(S.file_weight("tests/new.spec.ts", names, costs), 20.0)
+
+    def test_an_unreadable_table_still_names_every_file(self):
+        shards = S.deal(["tests/a.spec.ts", "tests/b.spec.ts"], 2, None)
+        self.assertEqual(sorted(p for shard in shards for p in shard),
+                         ["tests/a.spec.ts", "tests/b.spec.ts"])
+
+
 RED_PROOF = [
     {"why": "REG-1753 - every changed line counted as a stamp: a real page change skips render and smoke",
      "file": "page_delta.py",
@@ -165,6 +305,51 @@ RED_PROOF = [
      "file": "page_delta.py",
      "find": "    r\"date:'\\d{4}-\\d{2}-\\d{2}', note:'(?:[^'\\\\]|\\\\.)*' \\};\\s*$\")",
      "replace": "    r\"date:'\\d{4}-\\d{2}-\\d{2}', note:'(?:[^'\\\\]|\\\\.)*' \\};\")",
+     "matches": 1},
+    {"why": "REG-1753 - a stamp-only push ran Routine I: the skip never happens",
+     "file": "page_delta.py",
+     "find": "            return False, ROUTINE_I_SKIP\n",
+     "replace": "            return True, ROUTINE_I_SKIP\n",
+     "matches": 1},
+    {"why": "REG-1753 - a tests change beside a stamp skipped Routine I",
+     "file": "page_delta.py",
+     "find": "            if _routine_i_force(p):\n",
+     "replace": "            if False and _routine_i_force(p):\n",
+     "matches": 1},
+    {"why": "REG-1753 - a push git cannot read skipped Routine I",
+     "file": "page_delta.py",
+     "find": "        if names.returncode != 0:\n            return (True, \"git could not list the push",
+     "replace": "        if names.returncode != 0:\n            return (False, \"git could not list the push",
+     "matches": 1},
+    {"why": "REG-1753 - a shallow checkout could not see the base and the suite was skipped",
+     "file": ".github/workflows/routine-i-playwright.yml",
+     "find": "git fetch --depth=1 origin",
+     "replace": "git status",
+     "matches": 1},
+    {"why": "REG-1753 - a skipped suite was read as a merged verdict",
+     "file": ".github/workflows/routine-i-playwright.yml",
+     "find": "needs.stamp-check.outputs.run != 'false'",
+     "replace": "needs.stamp-check.outputs.run == 'skip'",
+     "matches": 3},
+    {"why": "REG-1753 - a stamp-only skip said nothing",
+     "file": ".github/workflows/routine-i-playwright.yml",
+     "find": "bible.html changed only its build stamp — the suite has nothing new to grade; the daily 09:00 run covers these bytes",
+     "replace": "stamp-only",
+     "matches": 2},
+    {"why": "REG-1753 - the fast shards went back to a file-count split",
+     "file": ".github/workflows/routine-i-playwright.yml",
+     "find": "npx playwright test --project=chromium --reporter=blob",
+     "replace": "npx playwright test --project=chromium --shard=${{ matrix.shard }}/6 --reporter=blob",
+     "matches": 1},
+    {"why": "REG-1753 - duration was ignored, so one heavy shard is the floor again",
+     "file": "routine_i_shards.py",
+     "find": "    order = sorted(names, key=lambda n: (-file_weight(n, names, costs), n))\n",
+     "replace": "    order = sorted(names, key=lambda n: (0, n))\n",
+     "matches": 1},
+    {"why": "REG-1753 - a spec the table has not seen weighed nothing and piled onto one shard",
+     "file": "routine_i_shards.py",
+     "find": "        return float(med)\n",
+     "replace": "        return 0.0\n",
      "matches": 1},
 ]
 

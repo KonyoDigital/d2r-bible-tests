@@ -487,9 +487,12 @@ commits that touched bible.html changed nothing else, so most pushes paid ~5-7 m
 `tv/page_delta.py` answers "changed beyond its stamp?" for the render trigger (index + range) and the smoke trigger
 (per ref); it FAILS CLOSED (a bad range, git failing, undecodable bytes = changed) and pins bump_version's WHOLE line,
 so code appended to the stamp is a page change. The badge that shows the stamp fits itself (v2466), so the stamp cannot
-clip anything a render catches. Deploy still keys on the name, so the new stamp still publishes. Guard:
-`tv/test_a_version_stamp_is_not_a_page_change.py` (13 cases, a real temp git repo both directions, the join to the
-stamp line in the tree, the hook wiring; 4 red-proofs).
+clip anything a render catches. Deploy still keys on the name, so the new stamp still publishes. The same answer now
+gates Routine I: a stamp-only push skips the suite and says so, and a spec, the Playwright config, the console page,
+a new branch, a forced push, or anything unreadable still runs it. The fast shards are dealt from the measured
+per-file durations of run 37139166700 instead of by file count. Guard:
+`tv/test_a_version_stamp_is_not_a_page_change.py` (real history both ways, a temp git repo, the hook and the
+workflow wiring, the shard deal; red-proofs).
 
 ### REG-1752 - A RENDER FIXTURE WAS ERASED BY THE PAGE'S OWN LOAD-TIME ANSWER (2026-10-03, #160)
 

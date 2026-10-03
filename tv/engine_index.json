@@ -1327,10 +1327,11 @@
     "entryPoints": [
       "stamp_only",
       "page_changed",
+      "routine_i_decision",
       "main"
     ],
-    "gotcha": "FAILS CLOSED: anything it cannot read (a bad range, git failing, undecodable bytes) answers CHANGED so the gates run. It pins bump_version's WHOLE stamp line, so code appended to the stamp is a page change; if bump_version's format moves, every bump reads as a page change (the law test_a_version_stamp_is_not_a_page_change goes red on the tree's own stamp). Only the render/smoke TRIGGERS ask it; deploy still keys on the file name.",
-    "purpose": "#160 (REG-1753) - the pre-push hook asks it whether bible.html changed beyond its build stamp (window.D2R_BUILD, rewritten by every bump) before running the render gate and the Playwright smoke; a stamp-only change re-grades nothing, so a console-only versioned push skips ~5-7 min.",
+    "gotcha": "FAILS CLOSED: anything it cannot read (a bad range, git failing, undecodable bytes, a new branch, a forced push) answers RUN so the gates run. It pins bump_version's WHOLE stamp line, so code appended to the stamp is a page change; if bump_version's format moves, every bump reads as a page change (the law test_a_version_stamp_is_not_a_page_change goes red on the tree's own stamp). The render and smoke triggers ask page_changed. Routine I asks routine_i_decision, which also runs the suite when a spec, the Playwright config, the console page, a package file, or the workflow changed. Deploy still keys on the file name.",
+    "purpose": "#160 (REG-1753) - the pre-push hook and Routine I ask whether bible.html changed beyond its build stamp (window.D2R_BUILD, rewritten by every bump) before re-grading the page; a stamp-only change skips render, the Playwright smoke, and the 21-minute suite.",
     "territory": "heart-organs"
   },
   "paint_witness.py": {
@@ -1845,6 +1846,18 @@
     "gotcha": "105 and 398 are ARTIFACT LENGTHS (roster row counts, incl. 4 bare runeword spellings), never totals — demoted but deliberately kept, so the artifacts become checked copies rather than denominators. Every failure returns None, never a fallback constant. Not the same file as tv/chronicle_total.py, which BANKS the dated CASC measurement this one merely quotes.",
     "purpose": "The one reader that says what a chronicle tab COUNTS — runeword 99, set 135, unique 403 — read out of bible.html, and None when unreadable.",
     "territory": "ledger-profile"
+  },
+  "routine_i_shards.py": {
+    "entryPoints": [
+      "fast_specs",
+      "deal",
+      "file_weight",
+      "load_costs",
+      "main"
+    ],
+    "gotcha": "The table tv/routine_i_costs.json is one run's measurement (per-file sum of every attempt). A file it has not seen weighs the median, never zero. An unreadable table still names every fast spec and says the balance is unmeasured. The slow sims stay out of this list; their names are the chromium project's testIgnore, read from playwright.config.ts. An empty shard exits 2, because Playwright with no paths runs the whole project.",
+    "purpose": "Deals Routine I's fast Playwright specs onto N shards by measured duration, largest first onto the lightest shard, so one heavy file is not the whole run's floor.",
+    "territory": "routines-infra"
   },
   "route_wilson.py": {
     "entryPoints": [

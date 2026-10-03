@@ -346,8 +346,9 @@ GATES = [
          needs_app=False,
          why="REG-1753 (#160) - every bump rewrites ONE line of bible.html, and the pre-push hook keyed render (3-5 min) "
              "and the Playwright smoke (~2 min) on the file NAME: 46 of the last 80 bible.html commits changed nothing "
-             "else. tv/page_delta.py answers 'changed beyond its stamp?' for both triggers and fails closed; a real "
-             "page change, or code on the stamp line, still runs both."),
+             "else. tv/page_delta.py answers 'changed beyond its stamp?' for both triggers and for Routine I, and fails "
+             "closed. A real page change, code on the stamp line, a spec, or the console page still runs. Routine I's "
+             "fast shards are dealt from tv/routine_i_costs.json, largest first, instead of by file count."),
     Gate("test_a_render_fixture_waits_for_the_pages_own_answer",
          [sys.executable, os.path.join(HERE, "test_a_render_fixture_waits_for_the_pages_own_answer.py")], 90,
          needs_app=False,
