@@ -406,6 +406,14 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1757 - THE SHELF OPENED A SESSION, AND AN EMPTY REEL PLAYED A DIFFERENT ONE (2026-10-03, #162 #163)
+
+GrokBot's ALT passes: the shelf's first paint was a theatre session (last time Session 7, before that Session 1 — the last-opened reel, not one id). An open reel with no frames toasted that it had opened another session and played that one. The dossier said "frames" for a count the theatre calls photos (Session 7: 678 photos / 156m14s against 623 frames / 156m09s; Session 44: 1086 against 1148). The dossier had no close, only the back label. Presses between the station tabs missed. The read panel plus the filmstrip covered about a third of the picture.
+
+The shelf button sets `TH.shelfAsDoor` and calls `thOpen()` with no argument, because the door's refusal law reads that exact call. `thOpen` returns after the session list, before `thLoadSession`. Last session is a button in the shelf and calls `thPickEntrySession`, the Theatre button's pick, not `DOSSIER.n`. An empty reel stays on the session that was asked for and says it has no film yet. The dossier tile says film frames or journal rows. A close on that same dismiss sits beside the back label. The read panel is `min(280px, 30%)` and the frame's inset is that same width. The panel opens only when he left it open. The station-tab row has no gap; the extra padding keeps the labels where they were.
+
+The shelf's scroll floor at the Oct 2 tombstones is the pipeline, not a scroll bug. The fleet rows that say river stuck while the hover says idle are the census lock from the river drain, not this door. Law `test_the_shelf_opens_on_the_list`, 9 cases, 11 red-proofs.
+
 ### REG-1756 - THE MANUAL SWEEP KEPT ITS OWN SKIP RULE BESIDE THE ONE OWES-A-READ RULE (2026-10-03, #152)
 
 REG-1747 taught `_chron_reel_owes_a_read` to ask `reel_retention._proven_empty`, and the autoread, the offer list

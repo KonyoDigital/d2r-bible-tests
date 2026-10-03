@@ -7327,6 +7327,14 @@ GATES = [
          "everything. Pins the LAW (any borrower must override) rather than the two panels that "
          "exist today. Also holds the render seam, without which the blood animation can never be "
          "seen run on a console with 0 flowing vessels, and the route's failure direction."),
+    Gate("test_the_shelf_opens_on_the_list",
+         [sys.executable, os.path.join(HERE, "test_the_shelf_opens_on_the_list.py")], 60,
+         why="REG-1757 — the shelf door was opening a session underneath the list, an empty reel "
+             "played a different session, and the dossier called journal rows frames. The door "
+             "returns before thLoadSession, Last session asks the Theatre pick, an empty reel "
+             "stays put, the dossier names the count and has a close, the read panel and the "
+             "frame inset are one narrower width and the panel does not open itself, and the "
+             "station tabs have no dead gap."),
     Gate("test_shell_tracks", [sys.executable, os.path.join(HERE, "test_shell_tracks.py")], 60,
          why="v2453 — THE TRACK COUNT MUST MATCH THE AREA ROW COUNT. Konyo photographed a black "
              "panel twice and found the cause himself: \"maybe it because i wasnt full screen\". "

@@ -1574,7 +1574,7 @@
   .theatre[hidden] { display: none !important; }
   .th-film { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
     background: #000; transition: right 200ms ease; }
-  #theatre.card-open .th-film { right: min(380px, 44%); width: auto; }   /* v824 — the drawer shares, never covers */
+  #theatre.card-open .th-film { right: min(280px, 30%); width: auto; }   /* the inset is the drawer's own width, so the frame is beside the panel, not under it */
 
   /* ══ v1380.3 — THEATRE CINEMA RESTORE (Konyo: film was "swallowed", small, stuck at top)
      Off-air Sessions layout gave the DASH the flex row and capped .stage at ~26vh/330px.
@@ -1693,7 +1693,7 @@
      ✕, and never outranks the controls. */
   /* v1379 — drawer MUST outrank the 📼 REPLAY ribbon (z-index 8). When drawer was z=5 the
      sticky ✕ sat UNDER the ribbon and Playwright (and humans) could not click "close". */
-  .th-drawer { position: absolute; top: 0; right: 0; bottom: clamp(54px, 9vh, 72px); width: min(380px, 44%);
+  .th-drawer { position: absolute; top: 0; right: 0; bottom: clamp(54px, 9vh, 72px); width: min(280px, 30%);
 
     z-index: 12; overflow-y: auto; background: rgba(8,10,9,.94); border-left: 1px solid var(--edge);
     padding: 38px 16px 16px;   /* v859 — ✕ clearance survives the shorthand */ font: var(--fw-normal) var(--fs-sm)/var(--lh-relaxed) var(--mono); color: #c2d1c6;   /* v945 — readable app scale (was 11px) */
@@ -3108,6 +3108,10 @@
   .dsr-back { font: var(--fw-semibold) var(--fs-sm)/1 var(--mono); color: var(--gold-dim); background: rgba(0,0,0,.3); border: 1px solid var(--edge);
     border-radius: 8px; padding: 8px 13px; cursor: pointer; letter-spacing: var(--ls-snug); }
   .dsr-back:hover { color: var(--gold); border-color: var(--gold-antique); }
+  .dsr-x { margin-left: auto; font: var(--fw-semibold) var(--fs-sm)/1 var(--mono); color: var(--gold-dim);
+    background: rgba(0,0,0,.3); border: 1px solid var(--edge); border-radius: 8px;
+    min-width: 36px; min-height: 36px; padding: 8px 12px; cursor: pointer; }
+  .dsr-x:hover { color: var(--gold); border-color: var(--gold-antique); }
   .dsr-hero { display: flex; gap: clamp(14px, 2vw, 24px); align-items: center; margin-bottom: 20px; }
   .dsr-cover { width: clamp(120px, 22vw, 200px); aspect-ratio: 16 / 10; object-fit: cover; border-radius: 12px;
     border: 1px solid var(--edge-hi); box-shadow: 0 8px 26px rgba(0,0,0,.5); flex: none; background: #0a0806; }
@@ -4513,8 +4517,12 @@
      flex layout in v3202, which made it a fourth filter row in the markup as well as on screen.
      It is the TAB row: it sits directly under the search, above everything, and it is the first
      thing read. */
-  .sh-stationbar { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin: 0 0 10px;
+  .sh-stationbar { display: flex; align-items: center; flex-wrap: wrap; gap: 0; margin: 0 0 10px;
     padding-bottom: 9px; border-bottom: 1px solid rgba(240,192,96,.16); }
+  /* The old 6px gap was a miss: a press between two tabs hit the bar, not a tab. The extra
+     padding keeps the labels the same distance apart, and the boxes themselves touch, so the
+     gap is part of a pill. */
+  .sh-stationbar > .sh-chip { padding: 8px 16px; }
 
   /* ══ THE FILTERS, DEMOTED ═════════════════════════════════════════════════════════════════
      Folded because they are FILTERS and the row above them is the TABS — and because the
@@ -12045,7 +12053,8 @@ window._lockMark = function(isOpen, px, label){
        Preferred here, with `frames` as the fallback for rows that carry no reel count at all,
        and an honest — when neither exists. */
     var _frames = (sm.footageN != null) ? sm.footageN : (sm.frames != null ? sm.frames : '—');
-    var stats = tile('reads', (sm.reads != null ? sm.reads : '—')) + tile('frames', _frames)
+    var _frameNoun = (sm.footageN != null) ? 'film frames' : ((sm.frames != null) ? 'journal rows' : 'frames');
+    var stats = tile('reads', (sm.reads != null ? sm.reads : '—')) + tile(_frameNoun, _frames)
               + tile('named', (sm.named != null ? sm.named : '—')) + tile('found', found);
     var findsBody = _findsStrip(sm, 16, true);
     var findsSec = '<div class="dsr-sec"><div class="dsr-h">🏆 What I found</div>'
@@ -12092,7 +12101,9 @@ window._lockMark = function(isOpen, px, label){
           var _onShelf = !!(_sov && !_sov.hidden);
           return '<div class="dsr-top"><button type="button" class="dsr-back" '
                + 'onclick="window._dossierClose()">\u2039 '
-               + (_onShelf ? 'back to the shelf' : 'back') + '</button></div>';
+               + (_onShelf ? 'back to the shelf' : 'back') + '</button>'
+               + '<button type="button" class="dsr-x" id="dsr-x" title="close this dossier" '
+               + 'onclick="window._dossierClose()">\u2715</button></div>';
         })()
       + '<div class="dsr-hero">' + cover
       + '<div class="dsr-htext">' + (function(){
@@ -12305,6 +12316,18 @@ window._lockMark = function(isOpen, px, label){
     var sov = document.getElementById('th-shelfov'); if (sov) sov.hidden = true;   // leave the shelf; we're going into the film
     try { if (typeof thOpen === 'function' && !(typeof TH !== 'undefined' && TH.open)) await thOpen(); } catch (e) {}   // v1275 (D3) — dossier can launch from the home (theatre closed): open it first
     if (typeof thLoadSession === 'function') thLoadSession(Number(n) || 1);
+  };
+  window._shelfLastSession = async function(){
+    /* Last session lives IN the shelf. Same exit as the dossier (hide the shelf, then a reel),
+       aimed at the Theatre button's pick rather than whichever dossier happens to be open. */
+    var sov = document.getElementById('th-shelfov'); if (sov) sov.hidden = true;
+    var have = (typeof TH !== 'undefined' && TH.sessions && TH.sessions.length);
+    try {
+      if (!have && typeof thOpen === 'function') { await thOpen(); return; }
+    } catch (e) {}
+    var pick = (typeof thPickEntrySession === 'function') ? thPickEntrySession() : 0;
+    if (pick && typeof thLoadSession === 'function') thLoadSession(pick, true);
+    else { try { toast('no session has film yet'); } catch (e2) {} }
   };
   // ══ D14 · SESSION COMPARISON — diff two runs side by side. PURE UI off the /api/sessions card data already
   // in hand (TH.sessions || HD_ALL). Two pickers default to the last two real runs; deltas on B relative to A
@@ -16872,13 +16895,6 @@ window._lockMark = function(isOpen, px, label){
        the two wrong versions of this fix. */
     try { TH.shelfIsDoor = false; } catch (e) {}
     var gen = (TH.loadGen = (TH.loadGen || 0) + 1);   // v859 — stale responses never paint
-    // v1380.2 — refuse ghost/empty n when we already know the shelf metadata
-    var meta0 = (TH.sessions || []).filter(function(s){ return (s.n || 0) === n; })[0]
-             || (TH.sessions || [])[n - 1];
-    if (meta0 && !thSessionPlayable(meta0) && (TH.sessions || []).some(thSessionPlayable)){
-      var alt = thNearestPlayable(n, 1);
-      if (alt && alt !== n){ return thLoadSession(alt, isEntry); }
-    }
     /* ⚠⚠ v2790 — THE v2228 FIX, SWEPT TO ITS SIBLING ELEVEN LINES AWAY. This line read
        `await fetch('/api/session?n=' + n)` with NO AbortController, NO timeout and NO catch, while
        `/api/sessions` right above it has carried all three since v2228. That fix's own comment
@@ -16919,15 +16935,10 @@ window._lockMark = function(isOpen, px, label){
     if (gen !== TH.loadGen) return;
     if (j.error){ $('th-caption').textContent = '🎞 ' + j.error; TH.beats = []; return; }
     var raw = j.beats || [];
-    // v1380.2 — empty reel (ghost ON/OFF): jump to nearest playable session instead of a black stage
+    // An empty reel stays THIS session. Opening another one is how the theatre played the wrong film.
     var framed = raw.filter(function(b){ return b && b.frame; }).length;
-    if (!framed && (TH.sessions || []).some(thSessionPlayable)){
-      var alt2 = thNearestPlayable(n + 1, 1);
-      if (alt2 && alt2 !== n){
-        try { toast('🎞 session ' + n + ' has no film — opened session ' + alt2); } catch(e){}
-        return thLoadSession(alt2, isEntry);
-      }
-      $('th-caption').textContent = '🎞 this session has no screenshots — pick another run from 📚 the shelf';
+    if (!framed){
+      $('th-caption').textContent = '🎞 session ' + n + ' has no film yet — nothing else was opened';
       TH.sn = n; TH.beats = []; TH.allBeats = []; TH.sessionId = j.sessionId || '';
       try { thTimeline(); } catch(e){}
       return;
@@ -17004,7 +17015,33 @@ window._lockMark = function(isOpen, px, label){
       }
     }
   }
+  function thPickEntrySession(){
+    /* The Theatre button's pick: newest reel with real film, then anything with frames.
+       The shelf's Last session button asks the same function. One pick. */
+    var pick = 1, tiers = [
+      function(s){ return !s.stub && (s.footageN||0) > 10 && (s.named||0) > 0; },
+      function(s){ return !s.stub && (s.footageN||0) > 10; },
+      function(s){ return !s.stub && (s.reads||0) >= 3 && (s.named||0) > 0 && (s.frames||0) > 0; },
+      function(s){ return !s.stub && (s.reads||0) >= 3 && (s.frames||0) > 0; },
+      function(s){ return !s.stub && ((s.frames||0) > 0 || (s.footageN||0) > 0); },
+      function(s){ return (s.frames||0) > 0 || (s.footageN||0) > 0; }
+    ];
+    var list = TH.sessions || [];
+    if (!list.length) return 0;
+    outer:
+    for (var t = 0; t < tiers.length; t++){
+      for (var i = 0; i < list.length; i++){
+        if (tiers[t](list[i])){ pick = list[i].n || (i+1); break outer; }
+      }
+    }
+    return pick;
+  }
   async function thOpen(){
+    /* The shelf door sets TH.shelfAsDoor and then calls this with no argument. The call stays
+       `await thOpen()` — that exact text is what the door's refusal law reads. Cleared here,
+       before any await, so a later open cannot inherit it. */
+    var _shelfDoor = !!TH.shelfAsDoor;
+    TH.shelfAsDoor = false;
     /* v1612 — THE THEATRE BELONGS TO THE COCKPIT, SO GO THERE FIRST.
        Konyo: "i think i know what that blackscreen is.. its in sessions.. maybe when clicking on
        air or mini it routes me to the TV-D page? but regardless the Sessions tab is like falsely
@@ -17057,7 +17094,7 @@ window._lockMark = function(isOpen, px, label){
     try { thArtInit(); } catch (e) {}   // v945 — warm the HD-art map so item icons are ready
     $('theatre').hidden = false;
     document.body.classList.add('theatre-open');
-    try { $('th-caption').textContent = '🎞 loading the reel…'; } catch (e) {}
+    try { $('th-caption').textContent = _shelfDoor ? 'opening the shelf…' : '🎞 loading the reel…'; } catch (e) {}
     try { thRibbon(); thCoachOnce(); } catch (e) {}   // v940.5 — banner + one-time keyboard hint
     thLit();
     /* ══ v2228 — A STAGE THAT CANNOT LOAD ITS REEL MUST NOT SIT BLACK FOREVER ═══════════════
@@ -17129,28 +17166,20 @@ window._lockMark = function(isOpen, px, label){
     // then anything with frames.
     // v885 (Grok third-eye #1) — the pick is FOOTAGE-AWARE and STUB-BLIND: a sealed reel with
     // real video beats everything; a 1-read ghost (stub flag) can never win the default slot.
-    var pick = 1, tiers = [
-      function(s){ return !s.stub && (s.footageN||0) > 10 && (s.named||0) > 0; },
-      function(s){ return !s.stub && (s.footageN||0) > 10; },
-      function(s){ return !s.stub && (s.reads||0) >= 3 && (s.named||0) > 0 && (s.frames||0) > 0; },
-      function(s){ return !s.stub && (s.reads||0) >= 3 && (s.frames||0) > 0; },
-      function(s){ return !s.stub && ((s.frames||0) > 0 || (s.footageN||0) > 0); },
-      function(s){ return (s.frames||0) > 0 || (s.footageN||0) > 0; }
-    ];
-    outer:
-    for (var t = 0; t < tiers.length; t++){
-      for (var i = 0; i < TH.sessions.length; i++){
-        if (tiers[t](TH.sessions[i])){ pick = TH.sessions[i].n || (i+1); break outer; }
-      }
+    if (_shelfDoor) {
+      try { $('th-caption').textContent = 'the shelf'; } catch (e) {}
+      thLit();
+      return;
     }
+    var pick = thPickEntrySession();
     await thLoadSession(pick, true);   // v943 §C1 — entry pins REAL
-    // v824 (Grok R9a) — film-first: drawer opens on the FIRST content beat (or remembered pref),
-    // not on every quiet floor frame. `I` preference persists.
+    // The read panel stays shut unless he left it open. The frame is the picture.
+    // A saved open still opens it here; no preference does not arm it for the first named beat.
     try {
       var pref = localStorage.getItem('tvd_card_pref');
       if (pref === 'open' && !CARD.open) thCardToggle();
-      else CARD.autoArmed = (pref !== 'closed');
-    } catch (e) { CARD.autoArmed = true; }
+      else CARD.autoArmed = false;
+    } catch (e) { CARD.autoArmed = false; }
     thLit();
   }
   function thClose(){
@@ -18036,6 +18065,7 @@ window._lockMark = function(isOpen, px, label){
          gap is the thing that made him ask. [[label-outlived-referent]]
          [[zero-needs-a-denominator]] */
       + '<div class="sh-head">🎞 THE SHELF — your reels'
+        + '<button type="button" class="dsr-open" id="sh-last-session" onclick="window._shelfLastSession()">▶ Last session</button>'
         + (_shRunsN ? '<span class="sh-head-pop">' + esc(
               _shShownN + ' of ' + _shRunsN + ' runs kept film'
             + (function () {
@@ -21587,17 +21617,18 @@ window._lockMark = function(isOpen, px, label){
       thClose();
       return;
     }
-    var openErr = null;
+    var openErr = null, _openedAsDoor = false;
     try { TH.shelfOpening = true; } catch (e) {}
     try {
     if (!TH.open) {
-      try { await thOpen(); }
-      catch (e) { openErr = e; }
+      _openedAsDoor = true;
+      try { TH.shelfAsDoor = true; await thOpen(); }
+      catch (e) { openErr = e; _openedAsDoor = false; }
     }
     /* If he cancelled while we waited, do not paint the overlay into a shut theatre.
        A failed open (openErr) still tries the shelf — that path is _shelfRefused. */
     if (!TH.open && !openErr) return;
-    try { TH.shelfIsDoor = true; } catch (e) {}   // he came in HERE; every exit returns him here
+    if (_openedAsDoor && TH.open) TH.shelfIsDoor = true;
     try {
       thShelf(true);
       var _ov = $('th-shelfov');
@@ -21620,14 +21651,12 @@ window._lockMark = function(isOpen, px, label){
          with NEITHER cards NOR that hero — content that never arrived at all. */
       var _r = _ov.getBoundingClientRect();
       if (!_r || _r.height < 2 || _r.width < 2) {
-        throw new Error('the shelf opened into a ' + Math.round(_r ? _r.width : 0) + 'x'
-          + Math.round(_r ? _r.height : 0) + ' box — nothing is visible');
+        throw new Error(Math.round(_r ? _r.width : 0) + 'x' + Math.round(_r ? _r.height : 0) + ' — nothing is visible');
       }
       var _cards = _ov.querySelectorAll('.sh-card').length;
       var _empty = !!_ov.querySelector('.sh-empty-hero');
       if (!_cards && !_empty) {
-        throw new Error('the shelf opened with no reels and no empty-state — ' + _ov.innerHTML.length
-          + ' chars of html, so the fill never ran');
+        throw new Error('no reels and no empty-state — ' + _ov.innerHTML.length + ' chars');
       }
     } catch (e) {
       _shelfRefused(e, openErr);
