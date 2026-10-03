@@ -63,7 +63,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3575"   # a lobby timeout counts
+VERSION = "v3576"   # grok backs up claude
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
@@ -6819,6 +6819,8 @@ def _reader_choice():
 _GROK_ONLY_GATE = threading.BoundedSemaphore(2)
 #: #151 — why the last Grok-only read did not happen, for the deep-read row that says so
 _GROK_ONLY_LAST = {"why": None}
+#: BOTH — the last backup: why Claude did not read, and the sentence when Grok also did not
+_BACKUP_LAST = {"why": None, "fail": None}
 #: the keys g5_vision_read stamps on its answer - not the reader's words
 _G5_STAMP_KEYS = ("model", "mode", "escalated", "ms", "_raw_txt", "_g5", "_lane", "_g5_fixed")
 
@@ -6885,7 +6887,126 @@ def _grok_oneshot(ap, timeout=90, prompt=None, raw_json=False):
     return pr
 
 
-def _oneshot(ap, model, timeout=90, prompt=None, raw_json=False):
+def _claude_miss_why():
+    """Why the Claude read that just returned nothing did not happen. A label, not a guess of the picture."""
+    try:
+        blocked = _sub_budget_check("oneshot")
+    except Exception:
+        blocked = None
+    if blocked:
+        return "claude over budget"
+    raw = str(globals().get("_LAST_RAW") or "").lower()
+    if any(w in raw for w in ("authenticate", "oauth", "not logged", "signed out", "unauthorized")):
+        return "claude signed out"
+    if "command not found" in raw or "no such file or directory" in raw:
+        return "claude cli missing"
+    return "claude no answer"
+
+
+def _note_claude_miss(why):
+    """Say the Claude miss on the reel. The backup has not been asked yet, and this does not ask it."""
+    why = str(why or "claude no answer")
+    try:
+        if why == "claude throttled":
+            journal_skip("throttled", why)
+        elif why == "claude over budget":
+            blocked = _sub_budget_check("oneshot") or why
+            ev("cap", blocked)
+            journal_skip("sub-budget", blocked)
+        elif why == "claude timed out":
+            ev("cap", "vision timed out - Claude did not answer")
+            journal_skip("timeout", why)
+        else:
+            journal_skip("parse-null", why)
+    except Exception:
+        pass
+    return why
+
+
+def _not_read_note(fallback):
+    """The panel-lane refusal. A backup that also failed replaces the generic sentence with its why."""
+    fail = _BACKUP_LAST.get("fail")
+    return str(fail)[:200] if fail else fallback
+
+
+def _unread_frame(empty, why):
+    """BOTH, and neither reader answered. UNKNOWN: mode empty, the reason said, never a gameplay verdict."""
+    label = _BACKUP_LAST.get("why") or ("backup: %s" % (why or "claude no answer"))
+    fail = _BACKUP_LAST.get("fail") or label
+    globals()["_LAST_RAW"] = str(fail)[:400]
+    return dict(empty, mode="empty", readFailed=True, readErr=str(fail)[:200],
+                eye="unread", backup=str(label)[:160])
+
+
+def _grok_backup(ap, claude_why, prompt=None, raw_json=False, timeout=90):
+    """ONE Grok read of a frame Claude did not read. Never called when Claude answered.
+
+    The Claude gate is already released, so the next frame's Claude read does not wait on this one.
+    One attempt: no second call when this one fails or hangs. The hourly cap is the one inside
+    g5_vision_read, shared with every other Grok read."""
+    claude_why = str(claude_why or "claude no answer")
+    label = "backup: %s" % claude_why
+    _BACKUP_LAST["why"] = label
+    _BACKUP_LAST["fail"] = None
+    try:
+        import g5_grok_eyes as _G5b
+        _G5b.note_backup(label)
+    except Exception as e:
+        _BACKUP_LAST["fail"] = "%s — the Grok module would not load (%s)" % (label, type(e).__name__)
+        journal_skip("backup", _BACKUP_LAST["fail"])
+        return None
+    if not _G5b._grok_bin():
+        _BACKUP_LAST["fail"] = "%s — Grok is not installed on this PC" % label
+        journal_skip("backup", _BACKUP_LAST["fail"])
+        return None
+    if not _G5b.has_subscription():
+        _BACKUP_LAST["fail"] = "%s — Grok is not signed in on this PC" % label
+        journal_skip("backup", _BACKUP_LAST["fail"])
+        return None
+    if not _GROK_ONLY_GATE.acquire(timeout=max(1.0, float(timeout or 90))):
+        _BACKUP_LAST["fail"] = "%s — a Grok read was already running for the whole wait" % label
+        journal_skip("backup", _BACKUP_LAST["fail"])
+        return None
+    try:
+        gr = _G5b.g5_vision_read(ap, prompt=(prompt if prompt else READ_PROMPT.format(path=ap)))
+    except Exception as e:
+        gr = None
+        _G5b._STATS["last_error"] = "%s: %s" % (type(e).__name__, str(e)[:120])
+    finally:
+        _GROK_ONLY_GATE.release()
+    if not isinstance(gr, dict):
+        err = _G5b._STATS.get("last_error") or "Grok gave no answer"
+        _BACKUP_LAST["fail"] = "%s — %s" % (label, err)
+        journal_skip("backup", _BACKUP_LAST["fail"])
+        return None
+    kept = {}
+    for k, v in gr.items():
+        if k not in _G5_STAMP_KEYS:
+            kept[k] = v
+    body = kept
+    globals()["_LAST_RAW"] = str(gr.get("_raw_txt") or "")[:2048]
+    if raw_json:
+        if isinstance(body, dict):
+            body["eye"] = "grok"
+            body["backup"] = label
+        return body
+    pr = _parse_read(json.dumps(body, ensure_ascii=False))
+    if pr is None:
+        _BACKUP_LAST["fail"] = "%s — Grok gave no readable answer" % label
+        journal_skip("backup", _BACKUP_LAST["fail"])
+        return None
+    _gfix = [x for x in (gr.get("_g5_fixed") or []) if isinstance(x, dict)]
+    if _gfix and isinstance(pr.get("_parse_audit"), dict):
+        pr["_parse_audit"]["dropped"] = list(pr["_parse_audit"].get("dropped") or []) + _gfix
+    pr["_raw_txt"] = str(gr.get("_raw_txt") or "")[:2048]
+    pr["model"] = "grok-subscription-cli"
+    pr["mode"] = "g5-backup"
+    pr["eye"] = "grok"
+    pr["backup"] = label
+    return pr
+
+
+def _oneshot(ap, model, timeout=90, prompt=None, raw_json=False, allow_backup=True, claude_miss=None):
     """v864 — serialized: under subscription throttle all 8 workers can time out together;
     eight parallel one-shot bridges would herd the same throttle. One at a time.
 
@@ -6905,14 +7026,38 @@ def _oneshot(ap, model, timeout=90, prompt=None, raw_json=False):
     too little)."""
     if _reader_choice() == "grok":   # #151 his switch at GROK ONLY: this frame goes to the Grok CLI and nowhere else
         return _grok_oneshot(ap, timeout=timeout, prompt=prompt, raw_json=raw_json)
-    t0 = time.monotonic()
-    if not _ONESHOT_GATE.acquire(timeout=timeout):
+    # The Claude call finishes, and the gate is released, before any backup. A frame Claude
+    # answered — names or "nothing here" — returns here and Grok is not asked. A timeout is a
+    # non-read, caught here so it can be that one backup instead of escaping the caller.
+    _BACKUP_LAST["why"] = None
+    _BACKUP_LAST["fail"] = None
+    why = str(claude_miss) if claude_miss else None
+    result = None
+    if why:
+        _note_claude_miss(why)
+    else:
+        t0 = time.monotonic()
+        if not _ONESHOT_GATE.acquire(timeout=timeout):
+            why = "claude no answer"
+        else:
+            try:
+                remaining = max(1.0, float(timeout) - (time.monotonic() - t0))
+                try:
+                    result = _oneshot_inner(ap, model, remaining, prompt=prompt, raw_json=raw_json)
+                except subprocess.TimeoutExpired:
+                    result = None
+                    why = "claude timed out"
+            finally:
+                _ONESHOT_GATE.release()
+            if result is None and not why:
+                why = _claude_miss_why()
+    if result is not None:   # Claude answered, even with nothing here: Grok is not asked
+        if isinstance(result, dict):
+            result.setdefault("eye", "claude")
+        return result
+    if not allow_backup or _reader_choice() != "both":
         return None
-    try:
-        remaining = max(1.0, float(timeout) - (time.monotonic() - t0))
-        return _oneshot_inner(ap, model, remaining, prompt=prompt, raw_json=raw_json)
-    finally:
-        _ONESHOT_GATE.release()
+    return _grok_backup(ap, why or "claude no answer", prompt=prompt, raw_json=raw_json, timeout=timeout)
 
 
 def _oneshot_inner(ap, model, timeout=90, prompt=None, raw_json=False):
@@ -7281,10 +7426,17 @@ def claude_vault_read(image_path, surface, timeout=None):
     vault_retro already understands as NOT read, so a blocked lane can never be mistaken for an
     empty shelf. That is REG-180/181's rule, applied at birth rather than retrofitted.
     """
-    if _reader_choice() != "grok" and _is_throttled():   # #151 Claude's throttle gates Claude's reads only
+    _BACKUP_LAST["why"] = None
+    _BACKUP_LAST["fail"] = None
+    _miss = None
+    if _reader_choice() == "both" and _is_throttled():
+        _miss = "claude throttled"
+    elif _reader_choice() == "both" and _sub_budget_check("oneshot"):
+        _miss = "claude over budget"
+    if _miss is None and _reader_choice() != "grok" and _is_throttled():   # #151 Claude's throttle gates Claude's reads only
         return {"note": "reader throttled — not read"}
     _blocked = None if _reader_choice() == "grok" else _sub_budget_check("oneshot")   # #151 Claude's cap, Claude's reads
-    if _blocked:
+    if _miss is None and _blocked:
         return {"note": "not read — %s" % _blocked}
 
     surface = str(surface or "stash").strip().lower()
@@ -7304,7 +7456,7 @@ def claude_vault_read(image_path, surface, timeout=None):
     # nothing and removes a silent wrong answer from a plausible caller mistake. [[the-unjoined-end]]
     if surface in ("personal", "shared"):
         surface = "stash"
-    if os.environ.get("TV_STUB"):
+    if os.environ.get("TV_STUB") and not _miss:
         # the same TDD seam the other readers have: drivable end to end at zero vision cost
         try:
             man_path = os.environ.get("TV_STUB_MANIFEST") or os.path.join(HERE, "stub_manifest.json")
@@ -7390,11 +7542,14 @@ def claude_vault_read(image_path, surface, timeout=None):
         raw = _oneshot(_read_path, GENIUS_MODEL,
                        timeout=float(timeout or 120),
                        prompt=VAULT_READ_PROMPT.format(path=_read_path, surface=surface),
-                       raw_json=True)
+                       raw_json=True, **({"claude_miss": _miss} if _miss else {}))
         # the dual route v1780 proved out: a refused CROP gets one full-frame retry, so cropping
         # can only ever add reads. v1829 — "refused" now covers a crop that ANSWERS and refuses,
         # not only one that returns nothing (see _crop_answer_refused).
-        if (_read_path != ap and _crop_answer_refused(raw, ledger_lane=False)
+        # A frame Claude could not read already spent its one backup inside the call above.
+        # The full-frame retry is a second Claude attempt, and it does not ask Grok again.
+        if (_miss is None and not _BACKUP_LAST.get("why")
+                and _read_path != ap and _crop_answer_refused(raw, ledger_lane=False)
                 and not _sub_budget_check("oneshot")):
             # same cap re-check as the chronicle route above — one budget check may not license two
             # reads now that the retry fires on a refusal rather than only on a crash.
@@ -7402,7 +7557,7 @@ def claude_vault_read(image_path, surface, timeout=None):
             _full = _oneshot(_fp, GENIUS_MODEL,
                              timeout=float(timeout or 120),
                              prompt=VAULT_READ_PROMPT.format(path=_fp, surface=surface),
-                             raw_json=True)
+                             raw_json=True, allow_backup=False)
             # Only if it is actually BETTER. A full frame that also refuses must never overwrite
             # the crop's answer — a retry that can lose information is not a retry.
             if not _crop_answer_refused(_full, ledger_lane=False):
@@ -7410,6 +7565,8 @@ def claude_vault_read(image_path, surface, timeout=None):
                 _xy_map = _vault_xy_map(ap, _fp)   # v3554 — the answer kept is the frame's, so are its points
 
     if raw is None:
+        if _BACKUP_LAST.get("fail"):
+            return {"note": _not_read_note("the reader returned nothing")}
         return None
     try:
         d = raw if isinstance(raw, dict) else json.loads(str(raw))
@@ -7427,7 +7584,12 @@ def claude_vault_read(image_path, surface, timeout=None):
         conf = float(d.get("conf"))
     except Exception:
         conf = None
-    return {"items": out, "conf": conf, "surface": surface, "xy": _xy_map}
+    answered = {"items": out, "conf": conf, "surface": surface, "xy": _xy_map}
+    if d.get("eye"):
+        answered["eye"] = d.get("eye")
+    if d.get("backup"):
+        answered["backup"] = str(d.get("backup"))[:160]
+    return answered
 
 
 def claude_chronicle_read(image_path, kind, timeout=None):
@@ -7447,15 +7609,22 @@ def claude_chronicle_read(image_path, kind, timeout=None):
     # with 6 names came back gameplay/0 minutes later.
     # A `note` is the shape chronicle_retro already understands as "not read" — it counts as refused
     # rather than as an empty page, so nothing downstream mistakes a silence for an answer.
-    if _reader_choice() != "grok" and _is_throttled():   # #151 Claude's throttle gates Claude's reads only
+    _BACKUP_LAST["why"] = None
+    _BACKUP_LAST["fail"] = None
+    _miss = None
+    if _reader_choice() == "both" and _is_throttled():
+        _miss = "claude throttled"
+    elif _reader_choice() == "both" and _sub_budget_check("oneshot"):
+        _miss = "claude over budget"
+    if _miss is None and _reader_choice() != "grok" and _is_throttled():   # #151 Claude's throttle gates Claude's reads only
         return {"note": "reader throttled — not read"}
     # v1777 — a page the SUBSCRIPTION CAP refused is not a page that held nothing. This one already
     # returned None (its own contract), but saying WHICH refusal it was is the difference between
     # "your footage is empty" and "you are out of reads until the window rolls".
     _blocked = None if _reader_choice() == "grok" else _sub_budget_check("oneshot")   # #151 Claude's cap, Claude's reads
-    if _blocked:
+    if _miss is None and _blocked:
         return {"note": "not read — %s" % _blocked}
-    if os.environ.get("TV_STUB"):
+    if os.environ.get("TV_STUB") and not _miss:
         # the TDD seam: the sweep must be drivable end-to-end with zero vision cost, exactly like
         # the live loop is (TV_STUB, v711)
         try:
@@ -7498,13 +7667,15 @@ def claude_chronicle_read(image_path, kind, timeout=None):
         raw = _oneshot(_read_path, GENIUS_MODEL,
                        timeout=float(timeout or 120),
                        prompt=CHRONICLE_READ_PROMPT.format(path=_read_path, ledger=ledger),
-                       raw_json=True)
+                       raw_json=True, **({"claude_miss": _miss} if _miss else {}))
         # the dual route: a refused CROP gets one full-frame retry, so cropping can only add reads.
         # v1829 — "refused" now covers a crop that ANSWERS and refuses, which is what was denying
         # legible sets pages their second attempt. NOTE the correction in _crop_answer_refused: the
         # crop framing is NOT the cause — measured, the crop reads the canonical failing frame fine.
         # This buys a retry against a TRANSIENT refusal, and the source of that transience is open.
-        if _read_path != ap and _crop_answer_refused(raw) and not _sub_budget_check("oneshot"):
+        # A backup already asked is this frame's one Grok attempt; the retry does not ask again.
+        if (_miss is None and not _BACKUP_LAST.get("why")
+                and _read_path != ap and _crop_answer_refused(raw) and not _sub_budget_check("oneshot")):
             # v1845 — THE RETRY MUST ASK THE CAP AGAIN. The budget is checked once, at the top of
             # this read, and before v1829 the full-frame retry fired only on a hard crash, so one
             # check covered one read in practice. v1829 made the retry fire on a REFUSAL, which is
@@ -7516,15 +7687,24 @@ def claude_chronicle_read(image_path, kind, timeout=None):
             _full = _oneshot(ap, GENIUS_MODEL,
                              timeout=float(timeout or 120),
                              prompt=CHRONICLE_READ_PROMPT.format(path=ap, ledger=ledger),
-                             raw_json=True)
+                             raw_json=True, allow_backup=False)
             if not _crop_answer_refused(_full):
                 raw = _full
                 _framing = _cc.FULL   # v1901 — the page records the pixels that ANSWERED it
+    if raw is None and _BACKUP_LAST.get("fail"):
+        return {"note": _not_read_note("the reader returned nothing")}
     try:
         import chronicle_retro as _cr
     except Exception:
         return None
-    return _cr.normalize_page(raw, kind, "claude", framing=_framing)
+    _lane = "grok" if isinstance(raw, dict) and raw.get("eye") == "grok" else "claude"
+    page = _cr.normalize_page(raw, kind, _lane, framing=_framing)
+    if isinstance(page, dict) and isinstance(raw, dict):
+        if raw.get("eye"):
+            page["eye"] = raw.get("eye")
+        if raw.get("backup"):
+            page["backup"] = str(raw.get("backup"))[:160]
+    return page
 
 
 # ── #91 — THE CHARACTER-SELECT LIST, READ ON HIS SUBSCRIPTION (tv/char_select.py decides WHICH frames) ────────
@@ -7552,12 +7732,17 @@ CHARSEL_READ_PROMPT = (
 def charselect_read(image_path, timeout=None):
     """One character-select panel crop -> the reader's JSON (char_select.normalize() judges it), or a {"note"} that
     says why it was NOT read. Never an empty list for a read that did not happen."""
-    if _reader_choice() != "grok" and _is_throttled():   # #151 Claude's throttle gates Claude's reads only
+    _BACKUP_LAST["why"] = None
+    _BACKUP_LAST["fail"] = None
+    _miss = "claude throttled" if (_reader_choice() == "both" and _is_throttled()) else None
+    if _miss is None and _reader_choice() != "grok" and _is_throttled():   # #151 Claude's throttle gates Claude's reads only
         return {"note": "reader throttled - not read"}
     _blocked = None if _reader_choice() == "grok" else _sub_budget_check("oneshot")
-    if _blocked:
+    if _blocked and _reader_choice() != "both":
         return {"note": "not read - %s" % _blocked}
-    if os.environ.get("TV_STUB"):
+    if _blocked and _miss is None and _reader_choice() == "both":
+        _miss = "claude over budget"
+    if os.environ.get("TV_STUB") and not _miss:
         try:
             man_path = os.environ.get("TV_STUB_MANIFEST") or os.path.join(HERE, "stub_manifest.json")
             with open(man_path, encoding="utf-8") as f:
@@ -7571,8 +7756,9 @@ def charselect_read(image_path, timeout=None):
     if not os.path.isfile(ap):
         return {"note": "no such frame"}
     raw = _oneshot(ap, GENIUS_MODEL, timeout=float(timeout or 120),
-                   prompt=CHARSEL_READ_PROMPT.format(path=ap), raw_json=True)
-    return raw if raw is not None else {"note": "the reader returned nothing"}
+                   prompt=CHARSEL_READ_PROMPT.format(path=ap), raw_json=True,
+                   **({"claude_miss": _miss} if _miss else {}))
+    return raw if raw is not None else {"note": _not_read_note("the reader returned nothing")}
 
 
 # #149 — the lobby plaque and the in-game character panel. char_select.py decides WHICH frames.
@@ -7595,12 +7781,17 @@ SURFACE_READ_PROMPT = (
 def surface_read(image_path, timeout=None):
     """One whole frame of the lobby or the character panel -> the reader's JSON, or a {"note"} that says why
     it was not read. char_select.surface_of judges the answer. Never a name for a read that did not happen."""
-    if _reader_choice() != "grok" and _is_throttled():
+    _BACKUP_LAST["why"] = None
+    _BACKUP_LAST["fail"] = None
+    _miss = "claude throttled" if (_reader_choice() == "both" and _is_throttled()) else None
+    if _miss is None and _reader_choice() != "grok" and _is_throttled():
         return {"note": "reader throttled - not read"}
     _blocked = None if _reader_choice() == "grok" else _sub_budget_check("oneshot")
-    if _blocked:
+    if _blocked and _reader_choice() != "both":
         return {"note": "not read - %s" % _blocked}
-    if os.environ.get("TV_STUB"):
+    if _blocked and _miss is None and _reader_choice() == "both":
+        _miss = "claude over budget"
+    if os.environ.get("TV_STUB") and not _miss:
         try:
             man_path = os.environ.get("TV_STUB_MANIFEST") or os.path.join(HERE, "stub_manifest.json")
             with open(man_path, encoding="utf-8") as f:
@@ -7613,8 +7804,9 @@ def surface_read(image_path, timeout=None):
     if not os.path.isfile(ap):
         return {"note": "no such frame"}
     raw = _oneshot(ap, GENIUS_MODEL, timeout=float(timeout or 120),
-                   prompt=SURFACE_READ_PROMPT.format(path=ap), raw_json=True)
-    return raw if raw is not None else {"note": "the reader returned nothing"}
+                   prompt=SURFACE_READ_PROMPT.format(path=ap), raw_json=True,
+                   **({"claude_miss": _miss} if _miss else {}))
+    return raw if raw is not None else {"note": _not_read_note("the reader returned nothing")}
 
 
 def _maybe_genius(ap, parsed, t0, mode):
@@ -7647,7 +7839,7 @@ def _maybe_genius(ap, parsed, t0, mode):
         # the haiku→sonnet ladder these globals exist for) a single live claude_read() could
         # again hold the lane hostage for up to LIVE_READ_TIMEOUT_S + 90s ≈ 125s — WORSE than the
         # 66s stall that law was written to eliminate. Bound it by the same live-lane budget.
-        better = _oneshot(ap, GENIUS_MODEL, timeout=LIVE_READ_TIMEOUT_S)
+        better = _oneshot(ap, GENIUS_MODEL, timeout=LIVE_READ_TIMEOUT_S, allow_backup=False)
     except subprocess.TimeoutExpired:
         better = None
         ev("cap", f"genius {GENIUS_MODEL} timed out — keeping {FAST_MODEL} result")
@@ -7674,7 +7866,12 @@ def claude_read(path, worker=None, out_jpg=None):
     # v1774 — see claude_chronicle_read: a throttled classify that answers "gameplay" is how a
     # whole reel gets skipped and then marked swept. None here means "no answer", which the sweep's
     # classifier() already treats as unknown rather than as a verdict.
-    if _reader_choice() != "grok" and _is_throttled():   # #151 Claude's throttle gates Claude's reads only
+    _BACKUP_LAST["why"] = None
+    _BACKUP_LAST["fail"] = None
+    _miss = "claude throttled" if (_reader_choice() == "both" and _is_throttled()) else None
+    if _miss is None and _reader_choice() != "grok" and _is_throttled():   # #151 Claude's throttle gates Claude's reads only
+        return None
+    if _miss and os.environ.get("TV_STUB"):
         return None
     # v1777 — AND THE SAME DEFECT THROUGH THE OTHER DOOR: THE SUBSCRIPTION CAP.
     # _sub_budget_check is a circuit breaker protecting his account, and it works. What did not work
@@ -7710,15 +7907,12 @@ def claude_read(path, worker=None, out_jpg=None):
              "model": FAST_MODEL, "mode": "empty", "escalated": False, "ms": 0}
     if not os.path.isfile(ap):
         print(f"  ⚠ image missing: {ap}")
-        return EMPTY
+        return None if _miss else EMPTY
 
     # ══ GROK EYES (G5) — REMOVABLE ════════════════════════════════════════════
-    # 2026-09-30 — CLAUDE READS EVERY FRAME. The Grok-first branch that stood here is RETIRED by his ruling:
-    # "make sure the subscription CLI is using claude and not grok.. grok is just an extra layer if toggled on..
-    # dean does not use grok.. so it shouldnt need both to work". Measured that morning: his Mac and ALT were both on
-    # primary, so Grok read first and a failed Grok read (3,150 of 6,132 on the Mac, mostly 140 s timeouts) cost that
-    # long before Claude read the frame. Grok now only reads BESIDE Claude (the shadow jobs below, on their own
-    # thread, never replacing and never delaying the Claude answer). OFF/missing module → zero behaviour change.
+    # 2026-10-03 — CLAUDE READS EVERY FRAME. Grok is not started beside it. On BOTH, Grok reads only
+    # a frame Claude could not, and that one call happens inside _oneshot after Claude has returned.
+    # Nothing here waits on a Grok process. OFF or a missing module changes nothing on this path.
     try:
         import g5_grok_eyes as _G5
     except Exception:
@@ -7746,13 +7940,20 @@ def claude_read(path, worker=None, out_jpg=None):
     # ANNOUNCED here, because returning early used to skip _oneshot_inner's ev()/journal_skip and
     # made the classify door quieter after the fix than before it.
     _blocked = _sub_budget_check("oneshot")
-    if _blocked:
+    if _blocked and _reader_choice() == "both":
+        _miss = _miss or "claude over budget"
+    elif _blocked:
         try:
             ev("cap", _blocked)
             journal_skip("sub-budget", _blocked)
         except Exception:
             pass
         return None
+    if _miss:
+        got = _oneshot(ap, FAST_MODEL, timeout=LIVE_READ_TIMEOUT_S, claude_miss=_miss)
+        if isinstance(got, dict):
+            return _with_xy_space(got, ap)
+        return _unread_frame(EMPTY, _miss)
     w = worker or _WORKER
     out_w = w.ask(READ_PROMPT.format(path=ap), timeout=LIVE_READ_TIMEOUT_S)
     if out_w is not None:
@@ -7763,42 +7964,8 @@ def claude_read(path, worker=None, out_jpg=None):
             parsed["_raw_txt"] = _raw_local   # v864 — raw travels WITH the result, no global race
         if parsed is not None:
             out = _maybe_genius(ap, parsed, t0, "warm") or EMPTY
-            # ══ GROK EYES (G5) — shadow (never replaces Claude) ══
-            try:
-                if _G5 is not None and _G5.is_shadow():
-                    # #197/v3483 — SNAPSHOT the picture Claude just read, NOW: `ap` may be a scratch
-                    # file the next read overwrites while the shadow read is still running, and the
-                    # Grok CLI opens whatever path it is given whenever it likes. Both eyes must be
-                    # shown the same bytes, so the shadow read gets a private copy.
-                    _snap, _pic = _G5.snapshot_picture(ap)
-                    if _snap is None:
-                        _pic = _G5.picture_id(ap)
-                    def _g5_shadow_job(_orig=ap, _c=out, _pic=_pic, _snap=_snap):
-                        _p = _snap or _orig
-                        try:
-                            _gr = _G5.g5_vision_read(_p, prompt=READ_PROMPT.format(path=_p))
-                            _G5.g5_shadow_log(_c, _gr, _orig, picture=_pic, shown=_snap)
-                        except Exception:
-                            pass
-                        finally:
-                            if _snap:
-                                try:
-                                    os.remove(_snap)
-                                except Exception:
-                                    pass
-                    # v3486 — a thread that never starts never runs its `finally`, so the snapshot would sit in
-                    # the temp dir for ever (the eye on the shipped v3483). Removed here instead.
-                    try:
-                        threading.Thread(target=_g5_shadow_job, daemon=True).start()
-                    except Exception:
-                        if _snap:
-                            try:
-                                os.remove(_snap)
-                            except Exception:
-                                pass
-            except Exception:
-                pass
-            # ══ END GROK EYES (G5) ══
+            if out.get("mode") != "empty":
+                out["eye"] = "claude"
             return _with_xy_space(out, ap)
         ev("cap", "worker returned non-JSON — falling back to one-shot")
     else:
@@ -7810,48 +7977,24 @@ def claude_read(path, worker=None, out_jpg=None):
         # worker must not be followed by ANOTHER unbounded (90s) attempt on the live lane.
         parsed = _oneshot(ap, FAST_MODEL, timeout=LIVE_READ_TIMEOUT_S)
         if parsed is None:
+            if _reader_choice() == "both":
+                return _unread_frame(EMPTY, "claude no answer")
             return EMPTY
         out = _maybe_genius(ap, parsed, t0, "oneshot") or EMPTY
-        # ══ GROK EYES (G5) — shadow oneshot path ══
-        try:
-            if _G5 is not None and _G5.is_shadow():
-                _snap, _pic = _G5.snapshot_picture(ap)   # #197/v3483 — same snapshot as the warm path
-                if _snap is None:
-                    _pic = _G5.picture_id(ap)
-                def _g5_shadow_job2(_orig=ap, _c=out, _pic=_pic, _snap=_snap):
-                    _p = _snap or _orig
-                    try:
-                        _gr = _G5.g5_vision_read(_p, prompt=READ_PROMPT.format(path=_p))
-                        _G5.g5_shadow_log(_c, _gr, _orig, picture=_pic, shown=_snap)
-                    except Exception:
-                        pass
-                    finally:
-                        if _snap:
-                            try:
-                                os.remove(_snap)
-                            except Exception:
-                                pass
-                # v3486 — a thread that never starts never runs its `finally`, so the snapshot would sit in
-                # the temp dir for ever (the eye on the shipped v3483). Removed here instead.
-                try:
-                    threading.Thread(target=_g5_shadow_job2, daemon=True).start()
-                except Exception:
-                    if _snap:
-                        try:
-                            os.remove(_snap)
-                        except Exception:
-                            pass
-        except Exception:
-            pass
-        # ══ END GROK EYES (G5) ══
+        if isinstance(out, dict) and out.get("mode") != "empty":
+            out.setdefault("eye", "claude")
         return _with_xy_space(out, ap)
     except subprocess.TimeoutExpired:
         ev("cap", f"vision timed out ({LIVE_READ_TIMEOUT_S:.0f}s) — if this repeats, run: python3 tv/tv_diablo.py --test <img>")
         print(f"  ⚠ vision timed out ({LIVE_READ_TIMEOUT_S:.0f}s)")
+        if _reader_choice() == "both":
+            return _unread_frame(EMPTY, "claude timed out")
         return EMPTY
     except Exception as e:
         ev("cap", f"read failed: {e}")
         print(f"  ⚠ read failed: {e}")
+        if _reader_choice() == "both":
+            return _unread_frame(EMPTY, "claude no answer")
         return EMPTY
 
 
@@ -9228,8 +9371,11 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "mode": rd.get("mode", ""), "lane": "deep", "model": model_tag, "conf": rd.get("conf"),
         # REG-1603 - a read that did not happen says so, with the reader's own first line, instead of passing
         # for an empty "gameplay" look (the ALT: "Failed to authenticate: OAuth session expired ...")
-        **({"readFailed": True, "readErr": _first_line(raw if raw is not None else globals().get("_LAST_RAW", ""))
+        **({"readFailed": True, "readErr": _first_line(rd.get("readErr"))
+            or _first_line(raw if raw is not None else globals().get("_LAST_RAW", ""))
             or "the reader returned nothing"} if rd.get("mode") == "empty" and not farewell else {}),
+        **({"eye": rd.get("eye")} if rd.get("eye") else {}),
+        **({"backup": str(rd.get("backup"))[:160]} if rd.get("backup") else {}),
         "intent": intent, "stashTab": stash_tab, "frameId": frame_id, "sessionId": SESSION_ID,
         "escalated": bool(rd.get("escalated")), "interest": interest, "priority": used_priority,
         "provisional": False, "farewell": bool(farewell),

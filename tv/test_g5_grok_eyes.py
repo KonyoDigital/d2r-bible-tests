@@ -516,7 +516,7 @@ class TestBothLanesSeeTheSamePixels(unittest.TestCase):
         frame = self._frame(root)
         seen = []
 
-        def fake_oneshot(ap, model, timeout=90, prompt=None, raw_json=False):
+        def fake_oneshot(ap, model, timeout=90, prompt=None, raw_json=False, **_extra):
             seen.append(ap)
             return {"stateVisible": True, "found": ["Razorswitch"], "conf": 0.85,
                     "printedFound": 1, "printedTotal": 1}

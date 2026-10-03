@@ -8491,7 +8491,7 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
               <span class="g5-eyes-lab">👁 EYES</span>
               <span class="g5-seg" role="group" aria-label="Grok Eyes mode">
                 <button type="button" class="g5-seg-btn" data-g5="off" id="btn-g5-off" title="Claude reads every frame; Grok is off (the default - a PC without Grok needs nothing else)">CLAUDE ONLY</button>
-                <button type="button" class="g5-seg-btn" data-g5="shadow" id="btn-g5-shadow" title="Claude still reads every frame; Grok also reads beside it as an extra layer and never replaces Claude (SuperGrok login · NO API keys)">← BOTH →</button>
+                <button type="button" class="g5-seg-btn" data-g5="shadow" id="btn-g5-shadow" title="Claude reads every frame; Grok reads only a frame Claude could not, and never slows Claude (SuperGrok login · NO API keys)">← BOTH →</button>
                 <!-- #151 his switch, 2026-10-01: "make the toggle optional to use GROK ONLY no claude as a secondary at all" -->
                 <button type="button" class="g5-seg-btn" data-g5="only" id="btn-g5-only" title="Grok reads every frame; Claude is not asked at all - not first, not as a backup. Saves the Claude subscription. A Grok read that fails waits unread and says why.">GROK ONLY</button>
               </span>
@@ -21310,7 +21310,9 @@ window._lockMark = function(isOpen, px, label){
         bits.push('click ⚡ Authorize — browser SuperGrok login once · NO API keys');
       else if (intent === 'only') bits.push('GROK ONLY · Grok reads every frame · Claude is not asked at all');
       else if (mode === 'off') bits.push('CLAUDE ONLY · Claude reads every frame · Grok off');
-      else if (mode === 'shadow') bits.push('BOTH · Claude reads every frame · Grok reads beside it (extra layer, never replaces Claude)');
+      else if (mode === 'shadow') bits.push('BOTH · Claude reads every frame; Grok reads only a frame Claude could not, and never slows Claude');
+      if (typeof st.backupReads === 'number' && st.backupReads > 0)
+        bits.push('Grok stepped in ' + st.backupReads + (st.backupWhy ? ' — ' + esc(String(st.backupWhy)) : ''));
       /* 2026-09-30 - his ruling: Claude is the reader, Grok only an extra layer. Grok-first ("primary") is retired;
          a PC whose saved choice still said it is told so here, never silently. */
       if (st.primaryRetired) bits.push(String(st.primaryRetired));
@@ -23677,6 +23679,9 @@ window._lockMark = function(isOpen, px, label){
     var rdSub = hasCp
       ? ((cpReads || 0) + ' live + ' + (retro || 0) + ' retro-caught 🧠 (film has them)')
       : ('queue ' + qDepth + (st.aiPaused ? ' · paused' : '') + (kaiMiss ? ' · KAI caught ' + kaiMiss : ''));
+    var _bkN = st.readers && st.readers.backupReads;
+    if (typeof _bkN === 'number' && _bkN > 0)
+      rdSub += ' · Grok stepped in ' + _bkN + (st.readers.backupWhy ? ' (' + esc(String(st.readers.backupWhy)) + ')' : '');
     // 3) ROUTER — the brain (dispatch)
     var seen = dr.seen || 0, fired = dr.fired || 0, refire = dr.refire || 0, err = dr.err;
     var rtPulse = dead || err ? 'bad' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok'));

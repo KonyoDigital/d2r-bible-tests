@@ -242,106 +242,47 @@ class TheWriterStoresThePicture(unittest.TestCase):
             self.assertIn(k, keys, "the reducer keys on %r and the writer does not write it" % k)
 
 
-class BothCallersNameThePictureBeforeTheThread(unittest.TestCase):
-    """⚠ The hash has to be taken BEFORE the shadow thread starts. Taken inside the thread it races
-    the next write to the scratch file — the very race it exists to record."""
+class NoShadowReadBesideTheFrame(unittest.TestCase):
+    """The beside-every-frame Grok read is retired. A shadow thread held a Grok process until it
+    timed out, on about half the frames. Grok now reads only inside the two named seats."""
 
-    def _jobs(self):
+    def _tree(self):
         with io.open(TV_DIABLO, encoding="utf-8") as fh:
-            tree = ast.parse(fh.read())
-        def _logs(n):
-            return [c for c in ast.walk(n) if isinstance(c, ast.Call)
-                    and getattr(c.func, "attr", "") == "g5_shadow_log"]
+            return ast.parse(fh.read())
 
-        # the INNERMOST defs that call the writer — the thread bodies, not the read functions
-        # that enclose them
-        jobs = []
-        for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef) and _logs(node):
-                inner = [n for n in ast.walk(node) if isinstance(n, ast.FunctionDef) and n is not node]
-                if not any(_logs(i) for i in inner):
-                    jobs.append((node, _logs(node)))
-        return jobs
-
-    def test_every_caller_hands_over_a_picture_taken_outside_the_thread(self):
-        jobs = self._jobs()
-        self.assertEqual(len(jobs), 2,
-                         "expected the two shadow jobs (warm + one-shot); found %d — the callers "
-                         "moved and this law is judging nothing" % len(jobs))
-        for fn, calls in jobs:
-            for c in calls:
-                kw = {k.arg: k.value for k in c.keywords}
-                self.assertIn("picture", kw, "%s calls g5_shadow_log without a picture" % fn.name)
-                self.assertTrue(isinstance(kw["picture"], ast.Name),
-                                "%s passes a computed picture — it must be the one taken before "
-                                "the thread" % fn.name)
-                bound = [a.arg for a in fn.args.args]
-                self.assertIn(kw["picture"].id, bound,
-                              "%s's picture is not bound as a default argument, so it is read "
-                              "when the thread RUNS rather than when it was started" % fn.name)
-            hashed_inside = [c for c in ast.walk(fn) if isinstance(c, ast.Call)
-                             and getattr(c.func, "attr", "") in ("picture_id", "snapshot_picture")]
-            self.assertEqual(hashed_inside, [],
-                             "%s hashes or snapshots the picture INSIDE the thread — after the race"
-                             % fn.name)
-
-    def test_every_caller_shows_grok_the_SNAPSHOT(self):
-        """⚠⚠ v3483 — the eye on v3479, finding [0]: Grok was handed the LIVE path and opened it
-        whenever it liked. The shadow read must be handed the snapshot, and the log must be told
-        which file Grok was shown."""
-        jobs = self._jobs()
-        self.assertEqual(len(jobs), 2, "the two shadow jobs moved — this law is judging nothing")
-        for fn, calls in jobs:
-            bound = [a.arg for a in fn.args.args]
-            for c in calls:
-                kw = {k.arg: k.value for k in c.keywords}
-                self.assertIn("shown", kw, "%s never tells the log which file Grok was shown" % fn.name)
-                self.assertTrue(isinstance(kw["shown"], ast.Name) and kw["shown"].id in bound,
-                                "%s: `shown` is not the snapshot bound when the thread started"
-                                % fn.name)
-                shown = kw["shown"].id
-            reads = [c for c in ast.walk(fn) if isinstance(c, ast.Call)
-                     and getattr(c.func, "attr", "") == "g5_vision_read"]
-            self.assertEqual(len(reads), 1, "%s: expected one shadow read" % fn.name)
-            arg = reads[0].args[0] if reads[0].args else None
-            self.assertIsInstance(arg, ast.Name, "%s reads a computed path" % fn.name)
-            src_of = [n.value for n in ast.walk(fn) if isinstance(n, ast.Assign)
-                      and any(isinstance(t, ast.Name) and t.id == arg.id for t in n.targets)]
-            self.assertTrue(src_of and isinstance(src_of[0], ast.BoolOp)
-                            and isinstance(src_of[0].values[0], ast.Name)
-                            and src_of[0].values[0].id == shown,
-                            "%s hands Grok %r, which is not the snapshot first — the live path "
-                            "again" % (fn.name, arg.id))
-
-
-    def test_a_thread_that_never_starts_still_removes_its_snapshot(self):
-        """v3486 — the eye on the shipped v3483: the snapshot is made BEFORE the thread, the only unlink
-        is the thread's own `finally`, and a failed start() was swallowed by the outer except — one
-        full frame left in the temp dir per failed start. Every start must sit in a try whose handler
-        removes the snapshot."""
-        with io.open(TV_DIABLO, encoding="utf-8") as fh:
-            tree = ast.parse(fh.read())
-        starts = []
-        for node in ast.walk(tree):
-            if not isinstance(node, ast.Try):
+    def test_no_shadow_job_and_no_shadow_thread(self):
+        tree = self._tree()
+        names = [n.name for n in ast.walk(tree)
+                 if isinstance(n, ast.FunctionDef) and n.name.startswith("_g5_shadow_job")]
+        self.assertEqual(names, [], "a shadow job is back in the live read: %s" % names)
+        threads = []
+        for n in ast.walk(tree):
+            if not (isinstance(n, ast.Call) and getattr(n.func, "attr", "") == "Thread"):
                 continue
-            for st in node.body:
-                for c in ast.walk(st):
-                    if (isinstance(c, ast.Call) and getattr(c.func, "attr", "") == "start"
-                            and isinstance(c.func.value, ast.Call)
-                            and any(k.arg == "target" and isinstance(k.value, ast.Name)
-                                    and k.value.id.startswith("_g5_shadow_job")
-                                    for k in c.func.value.keywords)):
-                        removes = any(getattr(x.func, "attr", "") == "remove"
-                                      for h in node.handlers for x in ast.walk(h)
-                                      if isinstance(x, ast.Call))
-                        starts.append((c.func.value.keywords[0].value.id, removes))
-        names = sorted(set(n for n, _r in starts))
-        self.assertEqual(names, ["_g5_shadow_job", "_g5_shadow_job2"],
-                         "expected both shadow-thread starts inside a try; found %r" % (starts,))
-        for n in names:
-            self.assertTrue(any(r for m, r in starts if m == n),
-                            "%s's start() is caught by a handler that never removes the snapshot" % n)
+            for k in n.keywords:
+                if k.arg == "target" and isinstance(k.value, ast.Name) and k.value.id.startswith("_g5_shadow_job"):
+                    threads.append(k.value.id)
+        self.assertEqual(threads, [], "a shadow thread is started again: %s" % threads)
+
+    def test_g5_vision_read_lives_only_in_the_two_seats(self):
+        tree = self._tree()
+        homes = []
+
+        def walk(node, fn):
+            for ch in ast.iter_child_nodes(node):
+                nfn = ch.name if isinstance(ch, (ast.FunctionDef, ast.AsyncFunctionDef)) else fn
+                if (isinstance(ch, ast.Call) and isinstance(ch.func, ast.Attribute)
+                        and ch.func.attr == "g5_vision_read"):
+                    homes.append(nfn)
+                walk(ch, nfn)
+        walk(tree, None)
+        self.assertEqual(sorted(homes), ["_grok_backup", "_grok_oneshot"], homes)
+
+    def test_the_live_read_does_not_write_a_shadow_row(self):
+        tree = self._tree()
+        logs = [n.lineno for n in ast.walk(tree)
+                if isinstance(n, ast.Call) and getattr(n.func, "attr", "") == "g5_shadow_log"]
+        self.assertEqual(logs, [], "the live read writes a shadow row again, at %s" % logs)
 
 class TheDoctorSaysWhatNoFrameHolds(unittest.TestCase):
 
@@ -409,10 +350,10 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "a caller that stops handing over the picture leaves every new row UNKNOWN again",
+        "why": "a Grok read beside Claude's answer comes back, and Claude waits on it again",
         "file": "tv_diablo.py",
-        "find": "                            _G5.g5_shadow_log(_c, _gr, _orig, picture=_pic, shown=_snap)",
-        "replace": "                            _G5.g5_shadow_log(_c, _gr, _orig)",
+        "find": "            if out.get(\"mode\") != \"empty\":\n                out[\"eye\"] = \"claude\"\n            return _with_xy_space(out, ap)\n",
+        "replace": "            if out.get(\"mode\") != \"empty\":\n                out[\"eye\"] = \"claude\"\n            _G5.g5_vision_read(ap)\n            return _with_xy_space(out, ap)\n",
         "matches": 1,
     },
     {
@@ -431,18 +372,18 @@ RED_PROOF = [
         "matches": 1
     },
     {
-        "why": "v3483 - grok handed the LIVE path again instead of the snapshot, so the two eyes can be shown different bytes (the eye on v3479, finding [0])",
+        "why": "the shadow thread beside every frame comes back, and holds a Grok process until it times out",
         "file": "tv_diablo.py",
-        "find": "                        _p = _snap or _orig",
-        "replace": "                        _p = _orig",
-        "matches": 1
+        "find": "        if isinstance(out, dict) and out.get(\"mode\") != \"empty\":\n            out.setdefault(\"eye\", \"claude\")\n        return _with_xy_space(out, ap)\n",
+        "replace": "        if isinstance(out, dict) and out.get(\"mode\") != \"empty\":\n            out.setdefault(\"eye\", \"claude\")\n        threading.Thread(target=_g5_shadow_job, daemon=True).start()\n        return _with_xy_space(out, ap)\n",
+        "matches": 1,
     },
     {
-        "why": "v3486 - a failed thread start leaves the snapshot in the temp dir again: the handler no longer removes it (the eye on the shipped v3483)",
+        "why": "the live read writes a shadow comparison row again",
         "file": "tv_diablo.py",
-        "find": "                    try:\n                        threading.Thread(target=_g5_shadow_job, daemon=True).start()\n                    except Exception:\n                        if _snap:\n                            try:\n                                os.remove(_snap)",
-        "replace": "                    try:\n                        threading.Thread(target=_g5_shadow_job, daemon=True).start()\n                    except Exception:\n                        if _snap:\n                            try:\n                                pass",
-        "matches": 1
+        "find": "            if out.get(\"mode\") != \"empty\":\n                out[\"eye\"] = \"claude\"\n            return _with_xy_space(out, ap)\n",
+        "replace": "            if out.get(\"mode\") != \"empty\":\n                out[\"eye\"] = \"claude\"\n            _G5.g5_shadow_log(out, None, ap)\n            return _with_xy_space(out, ap)\n",
+        "matches": 1,
     },
 ]
 

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3575",
+  "ver": "v3576",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3575: a lobby read that returned nothing spends one hourly slot. HEART: test_the_lobby_names_the_character",
+  "note": "v3576: BOTH means Claude reads every frame and Grok reads only a frame Claude could not",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

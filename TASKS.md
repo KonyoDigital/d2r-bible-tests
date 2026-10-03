@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3575** | `(this commit)` | v3575 — a lobby read that returned nothing spends one hourly slot. HEART: test_the_lobby_names_the_character |
+| **v3576** | `(this commit)` | v3576 — BOTH means Claude reads every frame and Grok reads only a frame Claude could not |
+| **v3575** | `f5919534` | v3575 — a lobby read that returned nothing spends one hourly slot. HEART: test_the_lobby_names_the_character |
 | **v3574** | `203b1952` | v3574 — the lobby names the character it shows, and a read that did not happen is tried again. HEART: test_the_lobby_names_the_character |
 | **v3573** | `714df3f7` | v3573 — the lobby names the character it shows. HEART: test_the_lobby_names_the_character |
 | **v3572** | `b9ae8f55` | v3572 — thOpen leaves Sessions before the stage and the spec can still see that routing - REG-1759 |

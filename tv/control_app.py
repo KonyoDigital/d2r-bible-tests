@@ -499,6 +499,14 @@ def _reader_health(now_ms=None, rows=None, g5=None, use_cache=True, auth=None):
             g.get("mode") or "?", _n_ok if _n_ok is not None else "?", _n_err if _n_err is not None else "?",
             (" - last error: %s" % st.get("last_error")) if st.get("last_error") else ""))
     out["grok"] = glamp
+    # BOTH: how often Grok had to read a frame Claude did not. None when the lane did not answer —
+    # a missing count is not zero. The card and the engine organ paint this; the fleet wire does not.
+    if isinstance(g, dict):
+        out["backupReads"] = g.get("backupReads")
+        out["backupWhy"] = g.get("backupWhy")
+    else:
+        out["backupReads"] = None
+        out["backupWhy"] = None
     if use_cache and g5 is None:
         _READER_CACHE.update(at=time.time(), val=out)
     return out
@@ -38143,7 +38151,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3575",
+        "ver": "v3576",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

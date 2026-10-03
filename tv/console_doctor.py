@@ -9896,15 +9896,12 @@ def _check_the_two_eyes_are_compared():
             or "reason not recorded")
     if mode == "primary":
         if age > _EYES_STALE_DAYS:
-            # ⚠ AND IT CANNOT REFRESH ITSELF. g5_shadow_log() has exactly two callers
-            # (tv_diablo.py, the warm and one-shot read paths) and BOTH sit behind
-            # `_G5.is_shadow()`, which is False in PRIMARY. So promoting the eye switches off the
-            # comparison that justified promoting it, and this row stays red until someone
-            # compares the eyes again. Saying so is what keeps it from being furniture.
+            # ⚠ AND IT CANNOT REFRESH ITSELF. The beside-every-frame shadow read is retired:
+            # the live read no longer calls g5_shadow_log, so a PRIMARY comparison cannot grow
+            # a new row from the frames going by. Saying so is what keeps this row from being furniture.
             return MISSING, ("the G5 eye is PRIMARY on a two-family comparison last taken %.1f day(s) "
-                             "ago - and while PRIMARY nothing writes that comparison (both "
-                             "g5_shadow_log callers run only in SHADOW mode), so the promotion rests "
-                             "on evidence that cannot refresh itself · %s" % (age, say))
+                             "ago - and the beside-every-frame shadow read is retired, so nothing "
+                             "writes that comparison from the live read anymore · %s" % (age, say))
         if _maj(reads) and _maj(frames):
             return MISSING, ("the G5 eye is PRIMARY and the two eyes disagree on more than half of "
                              "what both answered, by reads AND by frames · %s" % say)

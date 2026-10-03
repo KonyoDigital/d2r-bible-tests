@@ -86,6 +86,7 @@ _API_STRIP = (
 _CALL_LOG: list[float] = []
 _STATS = {
     "calls": 0, "ok": 0, "errors": 0, "skipped_budget": 0, "skipped_blocked": 0, "shadow": 0, "primary": 0, "only": 0,
+    "backup_reads": 0, "backup_why": None,
     "last": None, "last_error": None, "last_error_ts": None, "lane": "subscription-cli",
 }
 _LOCK = threading.Lock()
@@ -487,7 +488,7 @@ def is_on():
 #: #151 — what each position of his switch means, in his words, for the status line and the card
 READER_RULES = {
     "claude": "Claude reads every frame; Grok is not asked",
-    "both": "Claude reads every frame; Grok reads beside it and never replaces it",
+    "both": "Claude reads every frame; Grok reads only a frame Claude could not, and never slows Claude",
     "grok": "Grok reads every frame; Claude is not asked at all - not first, not as a backup",
 }
 
@@ -515,7 +516,8 @@ def grok_only_blocked_why():
 
 
 def is_primary():
-    """RETIRED 2026-09-30 - always False. Claude is the reader on every PC; Grok, when on, reads beside it (shadow).
+    """RETIRED 2026-09-30 - always False. Claude is the reader on every PC. BOTH asks Grok only for a frame
+    Claude did not read, and never beside a frame Claude already answered.
     Kept as a function so every caller that asked still gets an answer, and the answer is the ruling."""
     return False
 
@@ -544,7 +546,7 @@ def primary_retired_note():
     try:
         if _load_state().get("retired"):
             return ("this PC was set to Grok-first; that mode is retired (2026-09-30) - Claude reads every frame "
-                    "and Grok reads beside it as the extra layer")
+                    "and Grok reads only a frame Claude could not")
     except Exception:
         pass
     return ""
@@ -645,8 +647,22 @@ def login_inflight():
     return False
 
 
+def note_backup(why):
+    """One frame asked Grok because Claude did not read. The heart shows the count and the last why.
+
+    Counted even when the backup itself fails: "how often Grok had to step in" includes the frames
+    where it was asked and could not answer. A flush failure leaves the count in this process."""
+    try:
+        _STATS["backup_reads"] = int(_STATS.get("backup_reads") or 0) + 1
+        _STATS["backup_why"] = str(why or "")[:160]
+        _stats_flush()
+    except Exception:
+        pass
+
+
 def status():
     hourly, daily = _budget_counts()
+    _sv = stats_view() or {}
     cli = bool(_grok_bin())
     authorized = _subscription_logged_in()
     rejected = bool(cli and authorized and credentials_rejected())   # REG-1618: on disk, refused by the far end
@@ -664,6 +680,9 @@ def status():
         "reader": reader(),
         "readerRule": READER_RULES.get(reader(), READER_RULES["claude"]),
         "readerBlocked": (grok_only_blocked_why() if reader() == "grok" else None),
+        # BOTH: how often Grok had to read a frame Claude did not, and the last reason Claude did not.
+        "backupReads": int(_sv.get("backup_reads") or 0),
+        "backupWhy": _sv.get("backup_why") or None,
         "primaryRetired": primary_retired_note(),
         # v1501 — SAY IT WHEN INTENT AND REALITY DISAGREE. Konyo had this switched to PRIMARY while
         # the effective mode sat at off, and nothing said so: a lane that never attempts never
@@ -690,7 +709,7 @@ def status():
         # feature that was never built, and this one is the difference between 1 failed call and
         # the 1963 his console had banked. Named separately from skipped_budget because they are
         # different refusals: one is our own rationing, the other is the far end saying no.
-        "skippedBlocked": int((stats_view() or {}).get("skipped_blocked") or 0),
+        "skippedBlocked": int(_sv.get("skipped_blocked") or 0),
         "on": is_on(),
         "hasKey": can_run,       # UI compat: means "can run", not API key
         "hasSubscription": can_run,
@@ -706,7 +725,7 @@ def status():
             "hourlyUsed": hourly, "hourlyMax": _HOURLY_MAX,
             "dailyUsed": daily, "dailyMax": _DAILY_MAX,
         },
-        "stats": stats_view(),
+        "stats": _sv,
         "sidecar": {
             "hint": "python3 tv/g5_sidecar/server.py  (uses same subscription CLI)",
         },
@@ -824,7 +843,7 @@ def _g5_stats_root():
 
 
 _STATS_PATH = os.path.join(_g5_stats_root(), "g5_stats.json")
-_COUNTERS = ("calls", "ok", "errors", "skipped_budget", "skipped_blocked", "shadow", "primary")
+_COUNTERS = ("calls", "ok", "errors", "skipped_budget", "skipped_blocked", "shadow", "primary", "backup_reads")
 
 
 def _stats_path():
@@ -864,7 +883,7 @@ def _stats_flush():
             merged = dict(base)
             for k in _COUNTERS:
                 merged[k] = int(base.get(k) or 0) + int(_STATS.get(k) or 0)
-            for k in ("last", "last_error", "last_error_ts", "lane", "stripped_api_env"):
+            for k in ("last", "last_error", "last_error_ts", "lane", "stripped_api_env", "backup_why"):
                 if _STATS.get(k) is not None:
                     merged[k] = _STATS[k]
             merged["ts"] = time.time()
@@ -961,7 +980,7 @@ def stats_view():
     # printed "age unknown" — the exact phrase that card was built to remove. MEASURED on his live
     # console at v2119: the card still said "age unknown" beside a remembered 208/200 quota error.
     # [[stale-reading]] [[the-unjoined-end]]
-    for k in ("last", "last_error", "last_error_ts"):
+    for k in ("last", "last_error", "last_error_ts", "backup_why"):
         if out.get(k) is None and base.get(k) is not None:
             out[k] = base[k]
     return out

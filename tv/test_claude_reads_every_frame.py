@@ -182,12 +182,14 @@ class TheSwitchNeverPutsGrokFirst(_State):
 # ══ 2 — THE READ PATH ════════════════════════════════════════════════════════════════════════════════════════════
 class TheFrameReaderHasNoGrokFirstBranch(unittest.TestCase):
 
-    def test_every_grok_read_in_the_reader_is_a_shadow_job(self):
-        """Walked by the parser: every g5_vision_read call in tv_diablo sits inside a function named like a shadow job
-        (a thread beside the Claude read), and nothing asks is_primary. [[source-reading-guard]]"""
+    def test_every_grok_read_sits_in_a_named_seat(self):
+        """Walked by the parser: every g5_vision_read call in tv_diablo sits inside _grok_oneshot
+        (GROK ONLY) or _grok_backup (a frame Claude did not read). A function with "shadow" in its
+        name is not a home, and nothing asks is_primary. [[source-reading-guard]]"""
         with io.open(os.path.join(HERE, "tv_diablo.py"), encoding="utf-8") as fh:
             tree = ast.parse(fh.read())
-        bad, reads = [], 0
+        bad = []
+        homes = []
 
         def walk(node, fn):
             for ch in ast.iter_child_nodes(node):
@@ -196,16 +198,14 @@ class TheFrameReaderHasNoGrokFirstBranch(unittest.TestCase):
                     if ch.func.attr == "is_primary":
                         bad.append("is_primary asked in %s (line %d)" % (fn, ch.lineno))
                     if ch.func.attr == "g5_vision_read":
-                        nonlocal_reads[0] += 1
-                        # #151 - the GROK ONLY seat is the one other home, and it is Grok ALONE (checked below)
-                        if "shadow" not in (fn or "") and fn != "_grok_oneshot":
-                            bad.append("a Grok read outside a shadow job, in %s (line %d)" % (fn, ch.lineno))
+                        homes.append(nfn)
+                        if nfn not in ("_grok_oneshot", "_grok_backup"):
+                            bad.append("a Grok read outside the two seats, in %s (line %d)" % (nfn, ch.lineno))
                 walk(ch, nfn)
-        nonlocal_reads = [0]
         walk(tree, None)
-        reads = nonlocal_reads[0]
-        self.assertGreaterEqual(reads, 2, "premise: the scanner saw the shadow jobs' Grok reads (%d)" % reads)
-        self.assertEqual(bad, [], "the frame reader can still put Grok first: %s" % bad)
+        self.assertEqual(sorted(homes), ["_grok_backup", "_grok_oneshot"],
+                         "premise: the scanner saw the two seats (%s)" % homes)
+        self.assertEqual(bad, [], "the frame reader can still put Grok first or beside Claude: %s" % bad)
 
     def test_the_grok_only_seat_has_no_claude_behind_it(self):
         """#151 - _grok_oneshot is Grok ALONE: no warm Claude reader, no Claude one-shot, no budget-gated Claude path

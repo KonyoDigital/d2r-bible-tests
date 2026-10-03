@@ -12846,7 +12846,7 @@ class TestV1829CropRefusalRetriesFullFrame(unittest.TestCase):
         import tv_diablo as _tv
         seen = []
 
-        def fake_oneshot(ap, model, timeout=90, prompt=None, raw_json=False):
+        def fake_oneshot(ap, model, timeout=90, prompt=None, raw_json=False, **_extra):
             seen.append(ap)
             # the crop is written to a temp file; the full frame is the path we passed in
             return crop_answer if "tvd_chron_crop" in os.path.basename(ap) else full_answer
@@ -12892,7 +12892,7 @@ class TestV1829CropRefusalRetriesFullFrame(unittest.TestCase):
         import tv_diablo as _tv
         seen = []
 
-        def fake_oneshot(ap, model, timeout=90, prompt=None, raw_json=False):
+        def fake_oneshot(ap, model, timeout=90, prompt=None, raw_json=False, **_extra):
             seen.append(ap)
             return self.REFUSED if "tvd_chron_crop" in os.path.basename(ap) else self.GOOD
 
@@ -31449,13 +31449,31 @@ class TestV2175EveryPaidLaneRemembersWhatItAlreadyBOUGHT(unittest.TestCase):
         # the retry is a straight-line `if refused: read the full frame once` — never in a loop
         for marker in ("_crop_answer_refused(", "_oneshot("):
             self.assertIn(marker, code, "the read lane no longer looks like itself: %r" % marker)
-        blk = _between(self, code, "if (_read_path != ap and _crop_answer_refused(",
-                       "if not _crop_answer_refused(", what="the crop-refused retry")
-        self.assertEqual(blk.count("_oneshot("), 1,
-                         "the crop-refused retry buys more than one extra page — that is a lane "
-                         "deciding its own spend, and it needs a memory like the others")
-        for kw in ("while ", "for "):
-            self.assertNotIn(kw, blk, "the crop retry sits inside a loop: %r" % kw)
+        # Vault and chronicle each retry a refused crop once. A backup already spent on that
+        # frame is the one Grok attempt, so the retry must not ask again.
+        start = 'if (_miss is None and not _BACKUP_LAST.get("why")'
+        end = "if not _crop_answer_refused("
+        i = 0
+        seen = 0
+        while True:
+            i = code.find(start, i)
+            if i < 0:
+                break
+            j = code.find(end, i + len(start))
+            self.assertGreater(j, i, "the crop-refused retry: the end anchor never appears after the start")
+            blk = code[i:j]
+            self.assertGreaterEqual(len(blk), 40,
+                                    "the crop-refused retry: the slice came back %d chars" % len(blk))
+            self.assertEqual(blk.count("_oneshot("), 1,
+                             "the crop-refused retry buys more than one extra page — that is a lane "
+                             "deciding its own spend, and it needs a memory like the others")
+            self.assertIn("allow_backup=False", blk,
+                          "the crop retry asks Grok again after the frame already had its one backup")
+            for kw in ("while ", "for "):
+                self.assertNotIn(kw, blk, "the crop retry sits inside a loop: %r" % kw)
+            seen += 1
+            i = j
+        self.assertEqual(seen, 2, "vault and chronicle each owe one bounded crop retry, found %d" % seen)
 
     def test_the_COST_is_watched_not_just_the_code(self):
         """The hunt's first memory failed silently and the loop would have continued. An eye on

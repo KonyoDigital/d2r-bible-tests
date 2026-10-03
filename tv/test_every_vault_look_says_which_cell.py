@@ -86,7 +86,7 @@ class TheReaderSeesAPictureOfKnownSize(unittest.TestCase):
         tv._is_throttled = lambda *a, **k: False
         tv._sub_budget_check = lambda *a, **k: None
 
-        def fake(path, model, timeout=90, prompt=None, raw_json=False):
+        def fake(path, model, timeout=90, prompt=None, raw_json=False, **_extra):
             self.sent.append(path)
             return {"items": [{"name": "Shako", "kind": "item", "xy": [10, 20]}], "conf": 0.9}
         tv._oneshot = fake

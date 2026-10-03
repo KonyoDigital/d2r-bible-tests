@@ -26,6 +26,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from unittest import mock
 
@@ -86,6 +87,17 @@ class _Switch(unittest.TestCase):
         self.grok_calls = []
         self.grok_answer = dict(GROK_ANSWER)
         self.skips = []
+        self.stats_path = os.path.join(self.td, "g5_stats.json")
+        prev_stats = os.environ.get("G5_STATS_PATH")
+        os.environ["G5_STATS_PATH"] = self.stats_path
+        if prev_stats is None:
+            self.addCleanup(os.environ.pop, "G5_STATS_PATH", None)
+        else:
+            self.addCleanup(os.environ.__setitem__, "G5_STATS_PATH", prev_stats)
+        g5._STATS["backup_reads"] = 0
+        g5._STATS["backup_why"] = None
+        tv._BACKUP_LAST["why"] = None
+        tv._BACKUP_LAST["fail"] = None
         for obj, name, val in (
                 (g5, "_STATE_FILE", self.state),
                 (g5, "has_subscription", lambda: True),
@@ -270,6 +282,145 @@ class TheHeartCarriesTheSwitch(_Switch):
         self.assertIn("not signed in", line)
 
 
+class BothAsksGrokOnlyWhenClaudeDidNotRead(_Switch):
+    """BOTH is Claude first. Grok is one backup for a frame Claude did not read, never a second
+    opinion and never a thread beside the answer."""
+
+    def setUp(self):
+        super(BothAsksGrokOnlyWhenClaudeDidNotRead, self).setUp()
+        self.switch("shadow")
+
+    def test_the_switch_says_grok_never_slows_claude(self):
+        self.assertEqual(
+            g5.status().get("readerRule"),
+            "Claude reads every frame; Grok reads only a frame Claude could not, and never slows Claude")
+
+    def test_a_claude_answer_never_asks_grok_even_when_grok_would_hang(self):
+        def _hang(*a, **k):
+            self.grok_calls.append("hung")
+            time.sleep(2)
+            return dict(self.grok_answer)
+
+        with mock.patch.object(g5, "g5_vision_read", _hang), \
+                mock.patch.object(tv._WORKER, "ask", lambda *a, **k: '{"area":"","scene":"town","names":[]}'):
+            t0 = time.monotonic()
+            got = tv.claude_read(self.pic)
+            elapsed = time.monotonic() - t0
+        self.assertLess(elapsed, 0.5, "Claude's answer waited on Grok")
+        self.assertEqual(self.grok_calls, [], "Grok was asked after Claude answered, even with nothing here")
+        self.assertEqual(got.get("names"), [])
+        self.assertEqual(got.get("scene"), "town")
+        self.assertEqual(got.get("eye"), "claude")
+
+    def test_a_throttled_claude_asks_grok_once(self):
+        with mock.patch.object(tv, "_is_throttled", lambda: True):
+            got = tv.claude_read(self.pic)
+        self.assertEqual(self.claude.asked, [])
+        self.assertEqual(len(self.grok_calls), 1)
+        self.assertEqual(got.get("eye"), "grok")
+        self.assertTrue(str(got.get("backup") or "").startswith("backup: claude throttled"), got)
+
+    def test_an_over_budget_claude_asks_grok_once(self):
+        with mock.patch.object(tv, "_sub_budget_check", lambda kind: "250/250 this hour"):
+            got = tv.claude_read(self.pic)
+        self.assertEqual(self.claude.asked, [])
+        self.assertEqual(len(self.grok_calls), 1)
+        self.assertIn("over budget", got.get("backup") or "")
+        self.assertEqual(got.get("eye"), "grok")
+
+    def test_a_claude_that_does_not_answer_asks_grok_once(self):
+        with mock.patch.object(tv._WORKER, "ask", lambda *a, **k: None), \
+                mock.patch.object(tv, "_oneshot_inner", lambda *a, **k: None):
+            got = tv.claude_read(self.pic)
+        self.assertEqual(len(self.grok_calls), 1, self.grok_calls)
+        self.assertEqual(got.get("eye"), "grok")
+
+    def test_a_signed_out_claude_asks_grok_once(self):
+        def _inner(*a, **k):
+            tv._LAST_RAW = "Failed to authenticate: not logged in"
+            return None
+
+        with mock.patch.object(tv._WORKER, "ask", lambda *a, **k: None), \
+                mock.patch.object(tv, "_oneshot_inner", _inner):
+            got = tv.claude_read(self.pic)
+        self.assertEqual(len(self.grok_calls), 1)
+        self.assertIn("signed out", got.get("backup") or "", got)
+
+    def test_a_backup_that_fails_waits_unread_and_is_one_attempt(self):
+        self.grok_answer = None
+        with mock.patch.object(tv, "_is_throttled", lambda: True):
+            got = tv.claude_read(self.pic)
+        self.assertEqual(len(self.grok_calls), 1)
+        self.assertEqual(got.get("mode"), "empty")
+        self.assertTrue(got.get("readFailed"))
+        self.assertEqual(got.get("eye"), "unread")
+        self.assertIn("backup:", got.get("readErr") or "")
+        self.assertNotEqual(got.get("model"), "grok-subscription-cli")
+
+    def test_a_backup_that_hangs_is_one_attempt(self):
+        def _hang(*a, **k):
+            self.grok_calls.append("hang")
+            raise subprocess.TimeoutExpired(cmd="grok", timeout=90)
+
+        with mock.patch.object(g5, "g5_vision_read", _hang), \
+                mock.patch.object(tv, "_is_throttled", lambda: True):
+            got = tv.claude_read(self.pic)
+        self.assertEqual(self.grok_calls, ["hang"])
+        self.assertEqual(got.get("eye"), "unread")
+        self.assertTrue(got.get("readFailed"))
+
+    def test_a_backup_with_grok_signed_out_does_not_call_and_says_why(self):
+        with mock.patch.object(tv, "_is_throttled", lambda: True), \
+                mock.patch.object(g5, "has_subscription", lambda: False):
+            got = tv.claude_read(self.pic)
+        self.assertEqual(self.grok_calls, [])
+        self.assertEqual(got.get("eye"), "unread")
+        self.assertIn("not signed in", got.get("readErr") or "")
+
+    def test_claude_only_throttle_does_not_ask_grok(self):
+        self.switch("off")
+        with mock.patch.object(tv, "_is_throttled", lambda: True):
+            got = tv.claude_read(self.pic)
+        self.assertIsNone(got)
+        self.assertEqual(self.grok_calls, [])
+
+    def test_claude_only_silence_is_empty_and_grok_is_not_asked(self):
+        self.switch("off")
+        with mock.patch.object(tv._WORKER, "ask", lambda *a, **k: None), \
+                mock.patch.object(tv, "_oneshot_inner", lambda *a, **k: None):
+            got = tv.claude_read(self.pic)
+        self.assertEqual(self.grok_calls, [])
+        self.assertEqual((got or {}).get("mode"), "empty")
+        self.assertFalse((got or {}).get("readFailed"))
+
+    def test_a_panel_claude_could_not_read_asks_grok_once(self):
+        with mock.patch.object(tv, "_is_throttled", lambda: True):
+            got = tv.charselect_read(self.pic)
+        self.assertEqual(self.claude.asked, [])
+        self.assertEqual(len(self.grok_calls), 1)
+        self.assertEqual(got.get("eye"), "grok")
+        self.assertTrue(str(got.get("backup") or "").startswith("backup: claude throttled"), got)
+
+    def test_a_panel_on_claude_only_does_not_ask_grok_when_throttled(self):
+        self.switch("off")
+        with mock.patch.object(tv, "_is_throttled", lambda: True):
+            got = tv.charselect_read(self.pic)
+        self.assertEqual(self.grok_calls, [])
+        self.assertIn("throttl", (got or {}).get("note") or "")
+
+    def test_the_heart_counts_a_backup(self):
+        with mock.patch.object(tv, "_is_throttled", lambda: True):
+            tv.claude_read(self.pic)
+        st = g5.status()
+        self.assertGreaterEqual(st.get("backupReads") or 0, 1, st)
+        self.assertIn("throttled", st.get("backupWhy") or "")
+        health = ca._reader_health(g5=st, rows=[], use_cache=False, auth={"loggedIn": True})
+        self.assertGreaterEqual(health.get("backupReads") or 0, 1, health)
+        self.assertIn("throttled", health.get("backupWhy") or "")
+        self.assertIn("claude", health)
+        self.assertIn("grok", health)
+
+
 class ThePageOffersThreePositions(unittest.TestCase):
 
     def test_the_eyes_card_has_claude_both_and_grok_only(self):
@@ -283,6 +434,11 @@ class ThePageOffersThreePositions(unittest.TestCase):
             m = re.findall(r'<button[^>]*data-g5="%s" id="%s"[^>]*>([^<]*)</button>' % (mode, bid), ui)
             self.assertEqual(m, [label], "the %s button says %r" % (bid, m))
         self.assertNotIn('data-g5="primary"', ui, "Grok-first came back to the page")
+        self.assertIn(
+            "Claude reads every frame; Grok reads only a frame Claude could not, and never slows Claude", ui)
+        self.assertIn("st.readers.backupReads", ui)
+        self.assertIn("Grok stepped in ", ui)
+        self.assertNotIn("Grok reads beside it", ui)
 
 
 class ThePopupNamesWhoReads(unittest.TestCase):
@@ -373,8 +529,8 @@ RED_PROOF = [
     {
         "why": "#151 - his maxed-out Claude cap stops a Grok-only read again",
         "file": "tv_diablo.py",
-        "find": "    _blocked = None if _reader_choice() == \"grok\" else _sub_budget_check(\"oneshot\")\n    if _blocked:\n        return {\"note\": \"not read - %s\" % _blocked}\n",
-        "replace": "    _blocked = _sub_budget_check(\"oneshot\")\n    if _blocked:\n        return {\"note\": \"not read - %s\" % _blocked}\n",
+        "find": "    _blocked = None if _reader_choice() == \"grok\" else _sub_budget_check(\"oneshot\")\n    if _blocked and _reader_choice() != \"both\":\n        return {\"note\": \"not read - %s\" % _blocked}\n",
+        "replace": "    _blocked = _sub_budget_check(\"oneshot\")\n    if _blocked and _reader_choice() != \"both\":\n        return {\"note\": \"not read - %s\" % _blocked}\n",
         "matches": 2,
     },
     {
@@ -438,6 +594,27 @@ RED_PROOF = [
         "file": "control_ui.html",
         "find": "      if (st.needsLogin || (cli && !st.authorized && !sub)) return 'login';\n",
         "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "BOTH asks Grok even after Claude answered, so Claude's frame waits on Grok again",
+        "file": "tv_diablo.py",
+        "find": "            if out.get(\"mode\") != \"empty\":\n                out[\"eye\"] = \"claude\"\n            return _with_xy_space(out, ap)\n",
+        "replace": "            if out.get(\"mode\") != \"empty\":\n                out[\"eye\"] = \"claude\"\n            _G5.g5_vision_read(ap)\n            return _with_xy_space(out, ap)\n",
+        "matches": 1,
+    },
+    {
+        "why": "CLAUDE ONLY asks Grok when Claude returns nothing",
+        "file": "tv_diablo.py",
+        "find": "    if not allow_backup or _reader_choice() != \"both\":\n        return None\n",
+        "replace": "    if not allow_backup:\n        return None\n",
+        "matches": 1,
+    },
+    {
+        "why": "a failed backup is asked a second time, and one unread frame becomes a retry storm",
+        "file": "tv_diablo.py",
+        "find": "    return _grok_backup(ap, why or \"claude no answer\", prompt=prompt, raw_json=raw_json, timeout=timeout)\n",
+        "replace": "    _grok_backup(ap, why or \"claude no answer\", prompt=prompt, raw_json=raw_json, timeout=timeout)\n    return _grok_backup(ap, why or \"claude no answer\", prompt=prompt, raw_json=raw_json, timeout=timeout)\n",
         "matches": 1,
     },
 ]
