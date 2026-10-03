@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3568",
+  "ver": "v3569",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3568: a failed vault write no longer marks an old file readable, and an unknown pass clears the triage count. HEART: test_the_vault_lane_remembers_across_a_restart test_a_reel_at_printer_is_the_vaults_work",
+  "note": "v3569: the manual sweep asks the owes rule - REG-1756",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
