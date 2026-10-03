@@ -7575,6 +7575,48 @@ def charselect_read(image_path, timeout=None):
     return raw if raw is not None else {"note": "the reader returned nothing"}
 
 
+# #149 — the lobby plaque and the in-game character panel. char_select.py decides WHICH frames.
+# This prompt is not the character-select prompt: a lobby sent to that one must still answer screen other.
+SURFACE_READ_PROMPT = (
+    "Image {path} is a Diablo II: Resurrected screenshot.\n"
+    "If it shows the LOBBY / CREATE GAME screen between games (a character plaque with the character NAME, "
+    "LEVEL and CLASS, beside a CREATE GAME panel), reply with STRICT JSON only:\n"
+    '{{"screen":"lobby","name":"","cls":"","level":0}}\n'
+    "If it shows the in-game CHARACTER panel (the C panel: the character NAME, LEVEL and CLASS on that sheet), "
+    "reply:\n"
+    '{{"screen":"c-panel","name":"","cls":"","level":0}}\n'
+    "Rules: the game font draws the letter O as a circle with a cross in it - write it as the letter O. Copy the "
+    "NAME letter for letter as shown. Never correct or complete a name. cls is one of Amazon, Assassin, Barbarian, "
+    "Druid, Necromancer, Paladin, Sorceress, Warlock. A field you cannot read: null. Never guess.\n"
+    'If the image is neither of those screens, reply {{"screen":"other"}}. JSON only, no prose.'
+)
+
+
+def surface_read(image_path, timeout=None):
+    """One whole frame of the lobby or the character panel -> the reader's JSON, or a {"note"} that says why
+    it was not read. char_select.surface_of judges the answer. Never a name for a read that did not happen."""
+    if _reader_choice() != "grok" and _is_throttled():
+        return {"note": "reader throttled - not read"}
+    _blocked = None if _reader_choice() == "grok" else _sub_budget_check("oneshot")
+    if _blocked:
+        return {"note": "not read - %s" % _blocked}
+    if os.environ.get("TV_STUB"):
+        try:
+            man_path = os.environ.get("TV_STUB_MANIFEST") or os.path.join(HERE, "stub_manifest.json")
+            with open(man_path, encoding="utf-8") as f:
+                man = json.load(f)
+        except Exception as e:
+            return {"note": "stub manifest unreadable (%s) - not read" % type(e).__name__}
+        raw = man.get(os.path.basename(str(image_path or "")) + "#surface") or man.get("*#surface")
+        return raw if raw is not None else {"note": "stub has no #surface answer"}
+    ap = os.path.abspath(str(image_path or ""))
+    if not os.path.isfile(ap):
+        return {"note": "no such frame"}
+    raw = _oneshot(ap, GENIUS_MODEL, timeout=float(timeout or 120),
+                   prompt=SURFACE_READ_PROMPT.format(path=ap), raw_json=True)
+    return raw if raw is not None else {"note": "the reader returned nothing"}
+
+
 def _maybe_genius(ap, parsed, t0, mode):
     """v723 — automatic Sonnet escalate when Haiku looks weak (session-capped)."""
     if not _needs_escalate(parsed):

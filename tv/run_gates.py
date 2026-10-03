@@ -8642,6 +8642,13 @@ GATES = [
              "crop on the console's vision reader (<= 2 a visit, <= 8 an hour), and learns a character only on 2 "
              "visits, its level only when 2 visits saw it (a misread waits as pendingLevel). Per PC, a rider lane in "
              "the 45 s loop, /api/chars_learned, merged into the builder list (level-1 mules in their own group)."),
+    Gate("test_the_lobby_names_the_character", [sys.executable,
+         os.path.join(HERE, "test_the_lobby_names_the_character.py")], 60,
+         why="#149 - the create-game lobby and the in-game character panel each name the character. One witness "
+             "row per surface, citing the frame, served on /api/chars_learned and painted in the in-game section. "
+             "The lobby bands were measured on the 3 Oct 00:55 reel. No character-panel frame was in that window, "
+             "so no pixel band was invented for it. A reader that says c-panel still banks. One lobby read per "
+             "visit, on the character-select hourly cap, and the cap rewinds onto the frame it did not read."),
     Gate("test_the_builder_keeps_in_game_apart_from_simulation", [sys.executable,
          os.path.join(HERE, "test_the_builder_keeps_in_game_apart_from_simulation.py")], 90,
          needs_app=False,

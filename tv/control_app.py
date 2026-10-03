@@ -41554,6 +41554,7 @@ class Handler(BaseHTTPRequestHandler):
                     _gear, _gwhy = None, "the gear ledger raised %s" % type(_ge).__name__
                 self._json(200, {"ok": _d is not None, "chars": _cs.learned(_d), "status": _cs.status(),
                                  "minVisits": _cs.MIN_VISITS, "tierBars": _cs.tier_bars(),
+                                 "surfaceWitnesses": _cs.surface_witnesses(_d),
                                  "gear": _gear, "gearWhy": _gwhy})
             except Exception as e:
                 self._json(200, {"ok": False, "chars": None, "why": "the learner raised %s" % type(e).__name__})

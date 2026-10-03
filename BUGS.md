@@ -410,6 +410,12 @@ not shown). Every finding was put to the code before anything changed:
 
 `thOpen` still leaves Sessions, through `_toTVD`, before the stage is shown. The shelf flag was cleared on the lines above that check. v1612 reads the first 1600 characters of `thOpen`, and the check then started at character 1802. Playwright shard 2 failed on v3570 and again on v3571 (`tests/v1612_sessions_no_black_stage.spec.ts`). Without those lines the check starts at 1483. The flag is now cleared after that routing and before any await. Law `test_the_shelf_opens_on_the_list`.
 
+### REG-1760 - THE LOBBY NAMES THE CHARACTER, AND THE CHARACTER PANEL ONLY WHEN A READER SAW IT (2026-10-03, #149)
+
+The character-select learner already refuses the create-game lobby (left val 0.153 on the old one-panel false alarm). Session 3 on 3 Oct 00:55-01:00 opens on that lobby (`f_1790978100063`). Draft pixels, 1/4 size: full sat 0.158 val 0.192, bottom val 0.183, right sat 0.083. The other dark frames in that reel are loading cards (full val 0.085, bottom val 0). The skill tree is full sat 0.177 and right sat 0.116. Play is full sat 0.596. No character-panel frame was in the window, so no pixel band was written for it.
+
+A list miss that matches those four bands gets one read of the whole frame, on the same hourly cap, and the cap rewinds onto the unread frame. The answer is one witness row per (kind, image), citing the frame. It does not teach the character (that still takes two character-select visits). `/api/chars_learned` returns the rows as `surfaceWitnesses`. The in-game section paints them. A reader that says `c-panel` banks that kind. Confluence is the existing weighted sum: lobby 1.0, character panel 1.0, an unknown kind 0. Law `test_the_lobby_names_the_character`.
+
 ### REG-1758 - OPENING THE CONSOLE ON WINDOWS KEPT AN OLDER PROCESS (2026-10-03, #161)
 
 The Mac launcher asks `launcher_decide.py`: the running console is the code on disk, so bring it forward; it is older, headless, or will not come forward, so replace it. His click is that consent. The Windows launcher did not ask. If `:17772` answered with any version it focused that window and returned, before the pull and before any spawn. Reopening after a ship still showed the old version because the old process was still the one serving.

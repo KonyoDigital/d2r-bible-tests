@@ -30,6 +30,11 @@ THE RULE HE ASKED FOR — "after being witnessed a few times over":
     agree on.
 PER PC by construction: each console scans its OWN reels into its OWN ledger (tv/.char_roster.json, gitignored), and
 the page asks its own console. Nothing here writes a build: the 👤 Characters / builder stores stay manual (#245).
+
+#149 — THE LOBBY NAMES HIM TOO. The create-game screen between games is not the character-select list (the bands
+above already refuse it: left val 0.153). A frame that misses the list and matches the lobby bands gets one read of
+the whole frame. The answer is a witness row on that character, citing the frame, not a second way to become learned.
+The in-game character panel is the same row when a reader says that is the screen. No pixel band was measured for it.
 """
 import difflib
 import glob
@@ -57,6 +62,18 @@ RIGHT_SAT_MAX = 0.07
 RIGHT_VAL = (0.30, 0.45)
 LEFT_SAT = (0.05, 0.16)
 LEFT_VAL = (0.17, 0.27)
+# Create-game lobby, draft decode at 1/4 (the same decode panel_stats uses), measured 2026-10-03 on
+# reel_s_1790978096994 frame f_1790978100063 and the screens beside it in that reel:
+#   lobby  full sat 0.158 val 0.192, bot val 0.183, right sat 0.083
+#   loading full sat 0.094 val 0.085, bot val 0.000, right sat 0.014
+#   skill   full sat 0.177 val 0.255, bot val 0.229, right sat 0.116
+#   play    full sat 0.596 val 0.156, bot val 0.170, right sat 0.556
+# Bot is y 0.78-0.98. Right is x 0.72-0.98, y 0.15-0.75 (the create-game pane).
+LOBBY_FULL_SAT_MAX = 0.17
+LOBBY_FULL_VAL = (0.16, 0.22)
+LOBBY_BOT_VAL_MIN = 0.10
+LOBBY_RIGHT_SAT_MAX = 0.10
+SURFACE_TIERS = {"lobby": 1.0, "c-panel": 1.0}
 VISIT_GAP_S = 90         # candidate frames further apart than this are separate visits
 MIN_VISITS = 2           # "witnessed a few times over"
 MAX_READS_PER_VISIT = 2
@@ -130,6 +147,43 @@ def looks_like_char_select(stats):
     if right and left:
         return True, "both stone panels (%s)" % say
     return False, ("no list panel" if not right else "no menu column") + " (%s)" % say
+
+
+def lobby_stats(path):
+    """(full_sat, full_val, bot_val, right_sat), or None when the frame cannot be opened.
+
+    Draft decode at 1/4, then the whole frame, the bottom strip, and the create-game pane. A frame that
+    is not an image is None, the same as an unreadable character-select frame, never a lobby."""
+    try:
+        from PIL import Image, ImageStat
+        with Image.open(path) as im:
+            im.draft("RGB", (max(1, im.size[0] // 4), max(1, im.size[1] // 4)))
+            im = im.convert("RGB").convert("HSV")
+            w, h = im.size
+
+            def sv(box):
+                st = ImageStat.Stat(im.crop(tuple(int(v) for v in box)).resize((20, 40)))
+                return st.mean[1] / 255.0, st.mean[2] / 255.0
+
+            fs, fv = sv((0, 0, w, h))
+            _bs, bv = sv((0, 0.78 * h, w, 0.98 * h))
+            rs, _rv = sv((0.72 * w, 0.15 * h, 0.98 * w, 0.75 * h))
+            return fs, fv, bv, rs
+    except Exception:
+        return None
+
+
+def looks_like_lobby(stats):
+    """(bool, why) from lobby_stats(). The create-game lobby, and not the loading card, the skill tree, or play."""
+    if not stats or len(stats) != 4:
+        return False, "frame unreadable"
+    fs, fv, bv, rs = stats
+    ok = (fs < LOBBY_FULL_SAT_MAX and LOBBY_FULL_VAL[0] < fv < LOBBY_FULL_VAL[1]
+          and bv > LOBBY_BOT_VAL_MIN and rs < LOBBY_RIGHT_SAT_MAX)
+    say = "full sat %.3f val %.3f, bot val %.3f, right sat %.3f" % (fs, fv, bv, rs)
+    if ok:
+        return True, "create-game lobby (%s)" % say
+    return False, "not the lobby (%s)" % say
 
 
 def panel_crop(path, out_dir):
@@ -418,10 +472,109 @@ def learned(d, min_visits=MIN_VISITS):
     return out
 
 
+def surface_of(raw):
+    """One lobby or character-panel read -> (row, why).
+
+    row is {name, key, cls, level, kind} or None. screen other and a name the game would refuse bank
+    nothing. A note, or an answer that is not JSON, is not an answer: (None, why) with why other than
+    "other screen" or "no name". The character panel is accepted only because the reader said so."""
+    if raw is None:
+        return None, "no answer"
+    if isinstance(raw, str):
+        try:
+            raw = json.loads(raw)
+        except Exception:
+            return None, "not JSON"
+    if not isinstance(raw, dict):
+        return None, "not an object"
+    if raw.get("note"):
+        return None, str(raw.get("note"))[:120]
+    kind = {"lobby": "lobby", "c-panel": "c-panel", "cpanel": "c-panel"}.get(
+        str(raw.get("screen") or "").lower().strip())
+    if not kind:
+        return None, "other screen"
+    name = _clean_name(raw.get("name"))
+    if not name:
+        return None, "no name"
+    return {"name": name, "key": _fold(name), "cls": _clean_class(raw.get("cls")),
+            "level": _clean_level(raw.get("level")), "kind": kind}, "one witness"
+
+
+def surface_confluence(rows):
+    """The kinds of surface that named this character, weighted by SURFACE_TIERS. An unknown kind adds 0."""
+    import confidence as _cf
+    tags = []
+    for r in rows or []:
+        k = r.get("kind") if isinstance(r, dict) else None
+        if k and k not in tags:
+            tags.append(k)
+    return _cf.confluence(tags, SURFACE_TIERS)
+
+
+def bank_surface(d, row, image, ts=None):
+    """Store one witness per (kind, image) on chars[key]["witnesses"]. The same image twice stays one row.
+
+    This does not open a character-select visit and does not set a level, so one lobby frame does not
+    teach a character. None when there is nothing to bank."""
+    if not isinstance(d, dict) or not isinstance(row, dict):
+        return None
+    kind = row.get("kind")
+    key = row.get("key")
+    image = os.path.basename(str(image or ""))
+    if kind not in SURFACE_TIERS or not key or not image:
+        return None
+    c = d["chars"].setdefault(key, {"name": row.get("name"), "cls": {}, "visitLevel": {}, "titles": {},
+                                    "firstTs": None, "lastTs": None})
+    if not c.get("name"):
+        c["name"] = row.get("name")
+    witnesses = c.setdefault("witnesses", [])
+    for w in witnesses:
+        if isinstance(w, dict) and w.get("kind") == kind and w.get("image") == image:
+            return w
+    stored = {"kind": kind, "image": image, "name": row.get("name"), "cls": row.get("cls"),
+              "level": row.get("level"), "ts": ts}
+    witnesses.append(stored)
+    return stored
+
+
+def surface_witnesses(d):
+    """Every banked surface row, each carrying the confluence of the kinds that named that character.
+
+    None when the ledger is UNKNOWN, never an empty list standing in for a ledger that could not be read."""
+    if d is None:
+        return None
+    out = []
+    for key, c in (d.get("chars") or {}).items():
+        if not isinstance(c, dict):
+            continue
+        ws = [w for w in (c.get("witnesses") or []) if isinstance(w, dict)]
+        if not ws:
+            continue
+        conf = surface_confluence(ws)
+        for w in ws:
+            out.append({"key": key, "name": w.get("name") or c.get("name"), "kind": w.get("kind"),
+                        "image": w.get("image"), "cls": w.get("cls"), "level": w.get("level"),
+                        "ts": w.get("ts"), "confluence": conf})
+    out.sort(key=lambda r: (str(r.get("name")).lower(), str(r.get("kind")), str(r.get("image"))))
+    return out
+
+
 # ── the scan (one bounded tick) ─────────────────────────────────────────────────────────────────────────────
 def _default_reader(crop_path):
     import tv_diablo as _td
     return _td.charselect_read(crop_path)
+
+
+def _default_lobby_reader(frame_path):
+    """The whole frame, not the character-select crop. A separate function so a tick test that injects the
+    list reader is not retargeted onto the lobby."""
+    import tv_diablo as _td
+    return _td.surface_read(frame_path)
+
+
+def _rewind_unread(rs, i):
+    """The frame was not read. The cursor waits on it."""
+    rs["pos"] = i - SAMPLE_EVERY
 
 
 def _frame_ts(p):
@@ -607,15 +760,21 @@ def scanned_reel(d, reel):
     return True
 
 
-def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, clock=time.time):
+def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, clock=time.time,
+         surface_stats=None, surface_reader=None):
     """One bounded pass: continue scanning the reels (newest first) for candidate frames, read at most
-    MAX_READS_PER_VISIT per visit and READS_PER_HOUR in all, fold the answers in, save. Returns a status dict."""
+    MAX_READS_PER_VISIT per visit and READS_PER_HOUR in all, fold the answers in, save. Returns a status dict.
+
+    A frame that is not the character-select list is asked whether it is the create-game lobby. One read of
+    that whole frame per lobby visit, on the same hourly cap. The cap rewinds onto the frame it did not read."""
     d = load()
     if d is None:
         return {"ok": False, "why": "the ledger could not be read — UNKNOWN, nothing written"}
     root = root or hist_root()
     stats = stats or panel_stats
     reader = reader or _default_reader
+    surface_stats = surface_stats or lobby_stats
+    surface_reader = surface_reader or _default_lobby_reader
     now_s = float(now if now is not None else clock())
     t0 = clock()
     st = d["stats"]
@@ -626,7 +785,7 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
     for gone in [k for k in d["reels"] if k not in alive]:
         d["reels"].pop(gone, None)            # the FIFO deleted it; its visits stay in the ledger
     work = tempfile.mkdtemp(prefix="tvd-cs-")
-    scanned = candidates = reads = closed = 0
+    scanned = candidates = reads = closed = surfaces = 0
     finished = []
     why = ""
     try:
@@ -656,6 +815,33 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
                 rs["scannedTs"] = max(int(rs.get("scannedTs") or 0), _frame_ts(p) or 0)
                 hit, _w = looks_like_char_select(stats(p))
                 if not hit:
+                    lhit, _lw = looks_like_lobby(surface_stats(p))
+                    if lhit:
+                        ts = _frame_ts(p) or 0
+                        lop = rs.get("lobby")
+                        if (not isinstance(lop, dict)
+                                or ts - int(lop.get("lastTs") or 0) > VISIT_GAP_S * 1000):
+                            lop = {"firstTs": ts, "lastTs": ts, "reads": 0}
+                        lop["lastTs"] = ts
+                        rs["lobby"] = lop
+                        if int(lop.get("reads") or 0) < 1:
+                            if len(st["readTs"]) >= READS_PER_HOUR:
+                                _rewind_unread(rs, i)
+                                why = "hourly read cap (%d) reached" % READS_PER_HOUR
+                                break
+                            raw = surface_reader(p)
+                            st["readTs"].append(now_s)
+                            lop["reads"] = 1
+                            row, rwhy = surface_of(raw)
+                            if row is None and rwhy not in ("other screen", "no name"):
+                                st["refused"] = int(st.get("refused") or 0) + 1
+                                st["lastWhy"] = "surface read refused: " + rwhy
+                            else:
+                                st["reads"] = int(st.get("reads") or 0) + 1
+                                reads += 1
+                                if row:
+                                    bank_surface(d, row, os.path.basename(p), ts)
+                                    surfaces += 1
                     continue
                 candidates += 1
                 ts = _frame_ts(p) or 0
@@ -720,7 +906,7 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
         st["lastWhy"] = why
     save(d)
     return {"ok": True, "scanned": scanned, "candidates": candidates, "reads": reads, "closed": closed,
-            "finished": finished, "why": why or "scanned"}
+            "surfaces": surfaces, "finished": finished, "why": why or "scanned"}
 
 
 def owed(d, root=None):

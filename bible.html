@@ -10614,6 +10614,23 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       + _gearHtml(t)
       + '</article>';
   }
+  /* #149 — a lobby plaque or a character panel names him before two character-select visits have taught the
+     character. The row cites the frame. An absent list is not nobody: this paints only rows the console sent. */
+  function _surfaceWitnessHtml(){
+    var L = (typeof window._cbLearnedNow === 'function') ? window._cbLearnedNow() : null;
+    if (!L || !L.ok || !Array.isArray(L.surfaceWitnesses)) return '';
+    var bits = '';
+    L.surfaceWitnesses.forEach(function(w){
+      if (!w || !w.name || !w.kind || !w.image) return;
+      var conf = (typeof w.confluence === 'number') ? (' · confluence ' + w.confluence) : '';
+      var who = esc(w.name) + (w.cls ? ' · ' + esc(w.cls) : '') + ((typeof w.level === 'number') ? ' · level ' + (w.level | 0) : '');
+      bits += '<li data-kind="' + esc(w.kind) + '" data-image="' + esc(w.image) + '">' + who
+        + ' · ' + esc(w.kind) + ' · ' + esc(w.image) + conf + '</li>';
+    });
+    if (!bits) return '';
+    return '<div class="chx-sec-sub" data-sub="surface-witnesses">Named on the lobby or the character panel, citing the frame:<ul class="chx-slots">' + bits + '</ul></div>';
+  }
+  window._surfaceWitnessHtml = _surfaceWitnessHtml;
   function _sections(all, order, mainId){
     var S = (typeof window._cbSections === 'function') ? window._cbSections(all, order) : null;
     if (!S) S = { state: 'unknown', why: 'the Character Builder is not on this page', ingame: [], mules: [], sim: order };
@@ -10635,7 +10652,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     if (!S.sim.length) sim = '<div class="chx-sec-empty" data-state="empty">No simulation builds. + New character makes one to try things out.</div>';
     return '<section class="chx-sec" data-sec="ingame" aria-label="In-game characters">'
       +   '<div class="chx-sec-h"><span class="chx-sec-t">⚔️ In-game characters</span><span class="chx-sec-s">seen on this console\'s reels · each proves itself the way the Vault\'s filings do: ' + ladder + '</span></div>'
-      +   '<div class="chx-sec-list">' + cards + '</div></section>'
+      +   '<div class="chx-sec-list">' + cards + _surfaceWitnessHtml() + '</div></section>'
       + '<section class="chx-sec" data-sec="sim" aria-label="Simulation builds">'
       +   '<div class="chx-sec-h"><span class="chx-sec-t">🧪 Simulation builds</span><span class="chx-sec-s">builds you make by hand to try things out · + New character adds one</span></div>'
       +   '<div class="chx-sec-list">' + sim + '</div></section>';
