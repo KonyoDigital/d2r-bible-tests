@@ -71,9 +71,10 @@ class TheShelfOpensOnTheList(unittest.TestCase):
     def test_last_session_uses_the_theatre_pick(self):
         self.assertEqual(self.src.count('id="sh-last-session"'), 1)
         i = self.src.index('id="sh-last-session"')
-        window = self.src[i:i + 90]
-        self.assertIn('onclick="window._shelfLastSession()"', window)
-        self.assertNotIn("_dossierToTheatre", window)
+        end = self.src.index(">", i)
+        tag = self.src[i:end]
+        self.assertIn('onclick="window._shelfLastSession()"', tag)
+        self.assertNotIn("_dossierToTheatre", tag)
         body = _body(self.src, "window._shelfLastSession = async function(){")
         self.assertIn("thPickEntrySession", body,
                       "Last session does not ask the Theatre button's pick")
@@ -96,7 +97,8 @@ class TheShelfOpensOnTheList(unittest.TestCase):
     def test_the_dossier_has_a_close(self):
         self.assertEqual(self.src.count('id="dsr-x"'), 1)
         i = self.src.index('id="dsr-x"')
-        self.assertIn('onclick="window._dossierClose()"', self.src[i:i + 140])
+        end = self.src.index(">", i)
+        self.assertIn('onclick="window._dossierClose()"', self.src[i:end])
 
     def test_the_read_panel_and_the_frame_are_one_width(self):
         self.assertEqual(self.src.count("min(280px, 30%)"), 2,
