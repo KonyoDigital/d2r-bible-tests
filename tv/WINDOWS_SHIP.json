@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3577",
+  "ver": "v3578",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3577: BOTH is Claude first and the beside-every-frame read is retired. A frame keeps the reason it was handed when several fall to Grok together. A Claude look at a Grok seat counts when the commit says so.",
+  "note": "v3578: A look counts only when its family differs from the family that stamped the version. A Grok seat stamp is xai. A Claude look on it counts and a Grok look on it does not. Law test_a_claude_look_counts_and_a_grok_look_does_not_on_a_grok_stamp.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3577** | `(this commit)` | v3577 — BOTH is Claude first and the beside-every-frame read is retired. A frame keeps the reason it was handed when several fall to Grok together. A Claude look at a Grok seat counts when the commit says so. |
+| **v3578** | `(this commit)` | v3578 — A look counts only when its family differs from the family that stamped the version. A Grok seat stamp is xai. A Claude look on it counts and a Grok look on it does not. Law test_a_claude_look_counts_and_a_grok_look_does_not_on_a_grok_stamp. |
+| **v3577** | `9b7c0705` | v3577 — BOTH is Claude first and the beside-every-frame read is retired. A frame keeps the reason it was handed when several fall to Grok together. A Claude look at a Grok seat counts when the commit says so. |
 | **v3576** | `c6b8f272` | v3576 — BOTH means Claude reads every frame and Grok reads only a frame Claude could not |
 | **v3575** | `f5919534` | v3575 — a lobby read that returned nothing spends one hourly slot. HEART: test_the_lobby_names_the_character |
 | **v3574** | `203b1952` | v3574 — the lobby names the character it shows, and a read that did not happen is tried again. HEART: test_the_lobby_names_the_character |
