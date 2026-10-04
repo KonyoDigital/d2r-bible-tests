@@ -145,6 +145,7 @@ console.log(JSON.stringify({
 HARNESS = """
 function Card(o){
   this.a = {'data-t0': String(o.t0), 'data-pin': o.pin ? '1' : '0', 'data-sid': o.sid || ''};
+  if (o.t1) this.a['data-t1'] = String(o.t1);
   this.style = {display: ''};
 }
 Card.prototype.getAttribute = function(k){ return (k in this.a) ? this.a[k] : null; };
@@ -266,6 +267,17 @@ class TheRiverIsOneFlowOfEight(unittest.TestCase):
         o = self.drive(self._runs(5))
         self.assertEqual(o["order"], ["r05", "r04", "r03", "r02", "r01"],
                          "top-to-bottom must be downstream — newest enters at the top")
+
+    def test_a_fresh_end_flows_ahead_of_a_later_start(self):
+        """A run that started earlier and ended later is the fresh one. Start time alone
+        put the older activity on top."""
+        o = self.drive([
+            {"sid": "late-start", "t0": 5000, "t1": 6000},
+            {"sid": "fresh-end", "t0": 1000, "t1": 9000},
+        ])
+        self.assertEqual(o["order"][0], "fresh-end",
+                         "the river ordered by start, so a later start with an older end sat on top")
+        self.assertEqual(o["order"][1], "late-start")
 
     def test_exactly_the_window_flows_and_the_next_is_pushed_out(self):
         """Was "exactly eight ... and the ninth" under his 2026-09-15 ruling; the number is now

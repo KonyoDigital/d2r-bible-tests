@@ -40510,7 +40510,12 @@ class Handler(BaseHTTPRequestHandler):
                 _ck = _theatre_row_fingerprint(sess, HIST_DIR)
                 _cached = _theatre_row_cache_get(_ck)
                 if _cached is not None:
-                    out.append(_cached)
+                    # n is this list's index. The memo row was stored under an older one, so a
+                    # hit used to keep showing that old number. Copy: the memo object stays the
+                    # row it was given.
+                    _hit = dict(_cached)
+                    _hit["n"] = i
+                    out.append(_hit)
                     continue
                 frames = [r for r in sess if r.get("frameId")
                           and os.path.isfile(os.path.join(HIST_DIR, r["frameId"] + ".jpg"))]

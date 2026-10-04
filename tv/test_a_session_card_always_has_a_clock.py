@@ -114,14 +114,20 @@ class TestASessionCardAlwaysHasAClock(unittest.TestCase):
             % HELPER)
 
     def test_t0_still_wins_when_it_exists(self):
-        """⚠ THE BASELINE. A fallback that overrides a real reading is worse than none."""
+        """Last activity wins when the run has an end. The start wins over the id. The id
+        never replaces a real reading."""
         body, _raw = _ui()
         i = body.find("function %s(" % HELPER)
         j = body.find("\n  }", i)
         fn = body[i:j]
+        k_t1 = fn.find("t1")
         k_t0 = fn.find("t0")
         k_sid = fn.find("sessionId")
+        self.assertGreater(k_t1, -1, "%s never reads t1, so a fresh end cannot outrank an older start" % HELPER)
         self.assertGreater(k_t0, -1, "%s never reads t0 at all" % HELPER)
+        self.assertLess(
+            k_t1, k_t0,
+            "%s consults t0 BEFORE t1, so the start time would hide a later end." % HELPER)
         self.assertGreater(
             k_sid, k_t0,
             "%s consults sessionId BEFORE t0, so the id would override a real measured start "

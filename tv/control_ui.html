@@ -12069,6 +12069,10 @@ window._lockMark = function(isOpen, px, label){
      builder, 22420 today-filter): those feed COUNTS, and widening a clock that feeds a count
      changes the count. Named here rather than silently skipped. */
   function _shSessionMs(sm){
+    /* Last activity when the run has an end, else the start, else the id. A long run that
+       started earlier and is still going is the fresh one. mtime stays banned. */
+    var t1 = (sm && sm.t1) ? +sm.t1 : 0;
+    if (t1) return t1;
     var t = (sm && sm.t0) ? +sm.t0 : 0;
     if (t) return t;
     var m = String((sm && sm.sessionId) || '').match(/^s_(\d{10,})_/);
@@ -19017,6 +19021,7 @@ window._lockMark = function(isOpen, px, label){
     var grid = ov.querySelector('.sh-grid'); if (!grid) return;
     var cards = [].slice.call(grid.querySelectorAll('.sh-card'));
     var gn = function(c, a){ return +c.getAttribute(a) || 0; };
+    var act = function(c){ var t1 = gn(c, 'data-t1'); return t1 > 0 ? t1 : gn(c, 'data-t0'); };
     var pn = function(c){ return c.getAttribute('data-pin') === '1' ? 1 : 0; };   // D26 — pinned float to the top
     var key = SHELF_S || 'newest';
     cards.sort(function(a, b){
@@ -19028,7 +19033,7 @@ window._lockMark = function(isOpen, px, label){
         var ord = SHELF_RIVER_ORDER || [];
         var ix = function(c){ var st = _shStationOf(c); var i = ord.indexOf(st); return i < 0 ? 9999 : i; };
         var d = ix(a) - ix(b); if (d) return d;
-        return gn(b, 'data-t0') - gn(a, 'data-t0');
+        return act(b) - act(a);
       }
       if (key === 'longest') return (gn(b, 'data-t1') - gn(b, 'data-t0')) - (gn(a, 'data-t1') - gn(a, 'data-t0'));
       if (key === 'found') return gn(b, 'data-found') - gn(a, 'data-found') || gn(b, 'data-t0') - gn(a, 'data-t0');
@@ -19233,7 +19238,11 @@ window._lockMark = function(isOpen, px, label){
          before the river answers: this block runs only once SHELF_RIVER is set, and the reader that
          sets it sets SHELF_RIVER_KEEP in the same call. The river law pins it to that same constant. */
       var RIVER_KEEP = (typeof SHELF_RIVER_KEEP === 'number' && SHELF_RIVER_KEEP >= 1) ? SHELF_RIVER_KEEP : 16;
-      var _t0 = function(c){ return parseInt(c.getAttribute('data-t0') || '0', 10) || 0; };
+      var _act = function(c){
+        var t1 = parseInt(c.getAttribute('data-t1') || '0', 10) || 0;
+        if (t1 > 0) return t1;
+        return parseInt(c.getAttribute('data-t0') || '0', 10) || 0;
+      };
       var _isPin = function(c){ return c.getAttribute('data-pin') === '1'; };
       /* pinned first (they already sort to the top, and the 📌 header above is anchored to
          pinned[0] — reordering past it would orphan that header), then newest first, so DOM
@@ -19241,7 +19250,7 @@ window._lockMark = function(isOpen, px, label){
       var flow = vis.slice().sort(function(a, b){
         var pa = _isPin(a) ? 1 : 0, pb = _isPin(b) ? 1 : 0;
         if (pa !== pb) return pb - pa;
-        return _t0(b) - _t0(a);
+        return _act(b) - _act(a);
       });
       flow.forEach(function(c){ grid.appendChild(c); });
       var keptN = 0, pushedN = 0;

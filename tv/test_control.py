@@ -36984,6 +36984,13 @@ class TestV2322TheShelfStoppedRewalkingTheWholeArchive(unittest.TestCase):
         i_walk = src.index("os.path.isfile(os.path.join(HIST_DIR")
         self.assertLess(i_get, i_walk,
                         "the memo is consulted AFTER the filesystem walk it exists to avoid")
+        i_copy = src.find("_hit = dict(_cached)")
+        self.assertGreater(i_copy, i_get,
+                           "a cache hit does not copy the memo row before wearing this list's index")
+        self.assertIn('_hit["n"] = i', src,
+                      "a cache hit keeps the index it was stored with, so two runs show the same n")
+        self.assertNotIn('_cached["n"]', src,
+                         "the hit path writes n onto the memo object itself")
 
 
 class TestV2322TheBackupGeneratorForABlackConsole(unittest.TestCase):
