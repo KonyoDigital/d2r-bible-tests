@@ -6268,6 +6268,51 @@ def _quit_window_keeps_service(reason="quit-button"):
             "why": "the window closed and the shadow reader keeps running"}
 
 
+def _quit_left_the_service_up():
+    """⏻ Quit closed the view, and nobody has asked this process to exit."""
+    return bool(globals().get("_QUIT_KEEPS_SERVICE")) and not globals().get("_EXIT_REQUESTED")
+
+
+def _after_the_window_returns(reason):
+    """webview.start() returned because the window is gone.
+
+    Quit destroys the view, and that return used to fall into the same exit as ✕ used to:
+    _request_console_exit, then os._exit, which stops the shadow reader with the window.
+    A quit that left the service up does not. A real exit still does.
+    Returns True when an exit was requested.
+    """
+    if _quit_left_the_service_up():
+        return False
+    try:
+        _request_console_exit(reason)
+    except Exception:
+        try:
+            _mark_window_gone(reason)
+            _schedule_exit_stop("webview-returned" if reason == "webview-finally" else reason)
+        except Exception:
+            pass
+    return True
+
+
+def _park_until_a_real_exit(sleep=time.sleep):
+    """Stay in this process after Quit, until something actually asks it to exit.
+
+    The server and the shadow reader are daemon threads. Returning from main would stop
+    them. The Desktop icon brings a window back by asking this process forward, and
+    replaces it only when that ask fails.
+    """
+    if not _quit_left_the_service_up():
+        return False
+    try:
+        print("⏻ the window closed and the shadow reader keeps running. "
+              "The Desktop icon opens it again.", flush=True)
+    except Exception:
+        pass
+    while _quit_left_the_service_up():
+        sleep(0.5)
+    return True
+
+
 def _arm_force_exit(reason="quit", delay=None):
     """v1420 — hard process death after ✕/Esc, even when Cocoa never returns from
     webview.start(). Idempotent. Never blocks the caller (UI/close thread safe).
@@ -8812,16 +8857,10 @@ def open_control_window():
             _open_browser_app_fallback(url)
     finally:
         _window_lock_clear()
-        # v1420 — if Cocoa returned cleanly, still unify on the force-exit path (idempotent).
+        # v1420 — a real close still unifies on the force-exit path. ⏻ Quit destroyed the
+        # view on purpose and left the service up: this return must not stop the process.
         # If Cocoa hung, the close-handler already armed the deadline and we never get here.
-        try:
-            _request_console_exit("webview-finally")
-        except Exception:
-            try:
-                _mark_window_gone("webview-finally")
-                _schedule_exit_stop("webview-returned")
-            except Exception:
-                pass
+        _after_the_window_returns("webview-finally")
 
 
 def _ejs(w, code, timeout=4.0):
@@ -22975,11 +23014,22 @@ def _drift_publish_relaunch(may, why, blocker):
 
 
 def _public_git_text(text, limit=160):
-    """A git sentence safe on a public beacon. Home directories and drive paths are removed."""
-    t = str(text or "")
-    t = re.sub(r"/Users/\S+", "", t)
-    t = re.sub(r"[A-Za-z]:\\[^\s]+", "", t)
+    """A git sentence safe on a public beacon. Home directories and drive paths are removed.
+
+    Git for Windows prints C:/Users/... with forward slashes, and a user folder routinely
+    holds a space. The same user-folder pattern as the fleet wire runs first; a drive path
+    with either slash follows. A sentence that is only the path does not leave a slash behind.
+    """
+    t = " ".join(str(text or "").split())
+    t = _WIRE_USER_RX.sub("", t)
+    t = re.sub(r"[A-Za-z]:[\\/][^\s'\"]*", "", t)
+    t = re.sub(r"\\\\[^\s'\"]+", "", t)
+    t = re.sub(r"~[\\/][^\s'\"]*", "", t)
     t = " ".join(t.split())
+    if not t or not re.search(r"[A-Za-z]", t):
+        return ""
+    if re.search(r"/Users/|/home/|[A-Za-z]:[\\/]", t):
+        return ""
     return t[:limit]
 
 
@@ -23072,7 +23122,8 @@ def _tree_diag(paths=("tv/control_app.py", "tv/control_ui.html", "tv/tv_diablo.p
                 raw = raw.decode("utf-8", "replace")
             lines = []
             for ln in str(raw).splitlines():
-                if "/Users/" in ln or ":\\" in ln:
+                if ("/Users/" in ln or "/home/" in ln or ":\\" in ln
+                        or re.search(r"[A-Za-z]:/", ln)):
                     continue
                 s = ln.strip()
                 if s:
@@ -38453,7 +38504,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3579",
+        "ver": "v3580",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
@@ -44060,10 +44111,11 @@ def main():
     time.sleep(0.2)
 
     if open_ui and not no_open:
-        # Blocks until the native window is closed; close handlers already armed force-exit.
+        # Blocks until the native window is closed. ⏻ Quit parks below so the shadow reader
+        # stays up. A real close still finishes here. If Cocoa hung, the force-exit deadline
+        # from the close handler already killed us.
         open_control_window()
-        # v1410/v1420 UX — ✕ means QUIT. If Cocoa returned from webview.start(), finish cleanly
-        # here. If Cocoa hung, the force-exit deadline from the close handler already killed us.
+        _park_until_a_real_exit()
         try:
             _request_console_exit("main-after-window", hard_delay=0.4)
         except Exception:

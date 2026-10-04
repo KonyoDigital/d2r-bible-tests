@@ -154,11 +154,14 @@ export async function onRequestPost(context) {
       if (!r || typeof r !== 'object') return null;
       const tri = (v) => (v === true ? true : v === false ? false : null);
       const clip = (v, n) => {
-        var s = String(v == null ? '' : v)
-          .replace(/\/Users\/\S+/g, '')
-          .replace(/[A-Za-z]:\\[^\s]+/g, '')
+        var s = String(v == null ? '' : v).replace(/\s+/g, ' ').trim()
+          .replace(/\b(?:Users|home)[\\/]+(?:[^'"]|'(?=\w))*/gi, '')
+          .replace(/[A-Za-z]:[\\/][^\s'"]*/g, '')
+          .replace(/\\\\[^\s'"]+/g, '')
+          .replace(/~[\\/][^\s'"]*/g, '')
+          .replace(/\S*\\\S*/g, '')
           .replace(/\s+/g, ' ').trim();
-        if (!s || /\/Users\/|[A-Za-z]:\\/.test(s)) return null;
+        if (!s || !/[A-Za-z]/.test(s) || /\/Users\/|\/home\/|[A-Za-z]:[\\/]/.test(s)) return null;
         return s.slice(0, n);
       };
       const head = (v) => (/^[0-9a-f]{4,16}$/.test(String(v == null ? '' : v)) ? String(v) : null);
@@ -174,11 +177,14 @@ export async function onRequestPost(context) {
       if (!p || typeof p !== 'object') return null;
       const behind = Number(p.behind);
       const clip = (v, n) => {
-        var s = String(v == null ? '' : v)
-          .replace(/\/Users\/\S+/g, '')
-          .replace(/[A-Za-z]:\\[^\s]+/g, '')
+        var s = String(v == null ? '' : v).replace(/\s+/g, ' ').trim()
+          .replace(/\b(?:Users|home)[\\/]+(?:[^'"]|'(?=\w))*/gi, '')
+          .replace(/[A-Za-z]:[\\/][^\s'"]*/g, '')
+          .replace(/\\\\[^\s'"]+/g, '')
+          .replace(/~[\\/][^\s'"]*/g, '')
+          .replace(/\S*\\\S*/g, '')
           .replace(/\s+/g, ' ').trim();
-        if (!s || /\/Users\/|[A-Za-z]:\\/.test(s)) return null;
+        if (!s || !/[A-Za-z]/.test(s) || /\/Users\/|\/home\/|[A-Za-z]:[\\/]/.test(s)) return null;
         return s.slice(0, n);
       };
       const head = (v) => (/^[0-9a-f]{4,16}$/.test(String(v == null ? '' : v)) ? String(v) : null);

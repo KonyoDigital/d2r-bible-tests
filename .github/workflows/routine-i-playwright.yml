@@ -111,7 +111,7 @@ jobs:
           echo "::notice title=skipped: stamp-only::bible.html changed only its build stamp — the suite has nothing new to grade; the daily 09:00 run covers these bytes"
 
   test:
-    name: shard ${{ matrix.shard }}/6
+    name: shard ${{ matrix.shard }}/10
     needs: stamp-check
     if: ${{ !cancelled() && needs.stamp-check.outputs.run != 'false' }}
     runs-on: ubuntu-latest
@@ -139,7 +139,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3, 4, 5, 6]
+        shard: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -187,7 +187,7 @@ jobs:
         env:
           SHARD: ${{ matrix.shard }}
         run: |
-          if ! python3 tv/routine_i_shards.py --shard "$SHARD" --of 6 > shard-files.txt; then
+          if ! python3 tv/routine_i_shards.py --shard "$SHARD" --of 10 > shard-files.txt; then
             echo "::error::could not deal shard $SHARD"
             exit 1
           fi
@@ -295,9 +295,9 @@ jobs:
         # while hiding exactly the shard that failed. Missing blob = red merge, loudly.
         run: |
           n=$(ls all-blobs/*.zip 2>/dev/null | wc -l)
-          echo "shard blobs present: $n / 8 (6 fast + 2 slow)"
-          if [ "$n" -lt 8 ]; then
-            echo "::error::only $n of 8 shard blob reports present — a shard died without reporting (check its job log)"
+          echo "shard blobs present: $n / 12 (10 fast + 2 slow)"
+          if [ "$n" -lt 12 ]; then
+            echo "::error::only $n of 12 shard blob reports present — a shard died without reporting (check its job log)"
             exit 1
           fi
       - name: Merge into HTML report

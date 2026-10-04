@@ -140,6 +140,39 @@ class QuitLeavesTheShadowReaderRunning(unittest.TestCase):
         self.assertEqual(self.exits, ["window-closing"],
                          "an exit already requested was turned into a hide")
 
+    def test_the_window_returning_does_not_stop_the_service_after_quit(self):
+        """destroy() makes webview.start() return. That return used to call the process exit."""
+        def destroy():
+            self.win.calls.append("destroy")
+            ca._on_console_window_closing()
+            ca._on_console_window_closed()
+        self.win.destroy = destroy
+        r = ca._quit_window_keeps_service("api-quit:quit-button")
+        self.assertTrue(r["ok"], r)
+        self.assertFalse(ca._after_the_window_returns("webview-finally"),
+                         "the window returning asked the process to exit")
+        self.assertFalse(ca._after_the_window_returns("main-after-window"))
+        self.assertEqual(self.exits, [])
+        self.assertEqual(self.stops, [])
+        self.assertEqual(self.arms, [])
+        self.assertIsNone(ca._EXIT_REQUESTED)
+        n = {"n": 0}
+
+        def sleep(_s):
+            n["n"] += 1
+            if n["n"] >= 2:
+                ca._EXIT_REQUESTED = "signal-SIGTERM"
+
+        self.assertTrue(ca._park_until_a_real_exit(sleep=sleep))
+        self.assertEqual(self.exits, [], "parking after quit stopped the process")
+        self.assertGreaterEqual(n["n"], 2)
+        self._shadow_untouched()
+
+    def test_a_real_close_still_exits_when_the_window_returns(self):
+        self.assertTrue(ca._after_the_window_returns("webview-finally"))
+        self.assertEqual(self.exits, ["webview-finally"])
+        self.assertFalse(ca._park_until_a_real_exit(sleep=lambda _s: self.fail("parked a real close")))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
@@ -160,6 +193,13 @@ RED_PROOF = [
         "file": "tv/control_app.py",
         "find": "    globals()[\"_QUIT_KEEPS_SERVICE\"] = who\n",
         "replace": "    globals()[\"_EXIT_REQUESTED\"] = who\n",
+        "matches": 1,
+    },
+    {
+        "why": "the window returning after quit asks the process to exit, so the shadow reader stops",
+        "file": "tv/control_app.py",
+        "find": "    if _quit_left_the_service_up():\n        return False\n",
+        "replace": "    if False:\n        return False\n",
         "matches": 1,
     },
 ]

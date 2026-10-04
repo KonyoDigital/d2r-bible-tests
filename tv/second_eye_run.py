@@ -1219,6 +1219,48 @@ def payload_for(sha):
             dropped, absent, reach, dict(_stripped))
 
 
+def _unwrap_eye_envelope(raw):
+    """-> (answer text, structured dict or None).
+
+    Grok's envelope uses structuredOutput and text. Claude's uses structured_output
+    and result. A body that is not that JSON stays prose, and structured stays None.
+    """
+    ans, structured = raw, None
+    try:
+        _env = json.loads(raw)
+    except Exception:
+        _env = None
+    if isinstance(_env, dict):
+        _so = _env.get("structuredOutput")
+        if not isinstance(_so, dict):
+            _so = _env.get("structured_output")
+        if isinstance(_so, dict) and str(_so.get("verdict") or "").strip():
+            structured = _so
+        _txt = _env.get("text")
+        if not (isinstance(_txt, str) and _txt.strip()):
+            _txt = _env.get("result")
+        if isinstance(_txt, str) and _txt.strip():
+            ans = _txt.strip()
+    return ans, structured
+
+
+def _eye_argv(prompt):
+    """Argv for the binary that will actually run.
+
+    Grok's CLI takes a repeated --deny. Claude's CLI has no --deny flag; the same
+    refusal is --restricted (no Bash and no other code-running tool) plus dontAsk.
+    Claude's schema result arrives as structured_output under --output-format json.
+    """
+    low = (EYE_CLI or "").lower()
+    if "claude" in low and "grok" not in low:
+        return [EYE_CLI, "-p", prompt, "--json-schema", EYE_VERDICT_SCHEMA,
+                "--output-format", "json", "--restricted",
+                "--permission-mode", "dontAsk", "--disable-slash-commands"]
+    return [EYE_CLI, "-p", prompt, "--json-schema", EYE_VERDICT_SCHEMA,
+            "--deny", "Edit", "--deny", "Write", "--deny", "MultiEdit",
+            "--disable-web-search"]
+
+
 def _model_from_transport():
     """Which family answered, read from WHICH BINARY WAS EXECUTED. -> model id or ""
 
@@ -1246,6 +1288,10 @@ def _model_from_transport():
         return "grok-cli"          # family_of() -> xai
     if "codex" in low or "chatgpt" in low:
         return "codex-cli"         # family_of() -> openai
+    # The binary is the evidence, same as the two above. A path that also says grok was
+    # already returned as grok-cli, so this arm cannot launder a Grok binary as Claude.
+    if "claude" in low:
+        return "claude-cli"        # family_of() -> anthropic
     return ""                      # UNKNOWN transport -> stays unattributable, fails closed
 
 
@@ -1338,9 +1384,7 @@ def ask(prompt, sha=None):
         # are what makes it safe to hand the eye real code in a later version. [[grok-second-eye]]
         if sha:
             prompt = prompt + snapshot_note(eye_snapshot(sha))
-        _argv = [EYE_CLI, "-p", prompt, "--json-schema", EYE_VERDICT_SCHEMA,
-                 "--deny", "Edit", "--deny", "Write", "--deny", "MultiEdit",
-                 "--disable-web-search"]
+        _argv = _eye_argv(prompt)
         _eye_cwd_ready()          # v3422 — made HERE, at use, never at import
         p = subprocess.Popen(_argv,
                              stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=EYE_CWD)
@@ -1377,18 +1421,7 @@ def ask(prompt, sha=None):
     # parse, that is not an error — it is an older transport, and `structured` stays None so the
     # row records `prose` rather than claiming a constraint nobody applied. A fallback that
     # silently pretends to be the real thing is the defect this whole file is a monument to.
-    ans, structured = raw, None
-    try:
-        _env = json.loads(raw)
-    except Exception:
-        _env = None
-    if isinstance(_env, dict):
-        _so = _env.get("structuredOutput")
-        if isinstance(_so, dict) and str(_so.get("verdict") or "").strip():
-            structured = _so
-        _txt = _env.get("text")
-        if isinstance(_txt, str) and _txt.strip():
-            ans = _txt.strip()
+    ans, structured = _unwrap_eye_envelope(raw)
     # ⚠ EXIT 0 IS NOT AN ANSWER. This CLI has been measured exiting 0 on "Not signed in"; an empty
     # or near-empty body is an empty seat however clean the status code looked.
     # ⚠ AND THE LENGTH IS MEASURED ON THE UNWRAPPED REPLY, never on the envelope: a 2 KB envelope

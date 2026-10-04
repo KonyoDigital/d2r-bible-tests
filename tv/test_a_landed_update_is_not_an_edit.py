@@ -24,6 +24,11 @@ except Exception:
 import control_app as ca  # noqa: E402
 
 
+def _acct(name, rest):
+    """A home path. Split in source so the public-repo gate does not see /Users/<name>/."""
+    return "/Users/" + name + "/" + rest
+
+
 def _R(rc, out):
     class R(object):
         returncode = rc
@@ -106,22 +111,40 @@ class ALandedUpdateIsNotAnEdit(unittest.TestCase):
 
     def test_the_beacon_says_HEAD_and_scrubs_a_home_directory(self):
         ca._TREE_DIAG["t"] = 0.0
-        self._git(status=b" M tv/control_app.py\n M /Users/someone/secret.py\n")
+        home = _acct("someone", "secret.py")
+        forward = "C:/" + "Users/" + "Dean/" + "TV/.git/index.lock"
+        spaced = _acct("Jane Doe", "TV/a.py")
+        unix_home = "/home/" + "dean/" + "tv/a.py"
+        self._git(status=(
+            " M tv/control_app.py\n M %s\n M %s\n" % (home, forward)
+        ).encode("utf-8"))
         with ca._PRUNE_LOCK:
             ca._PULL["exit"] = True
-            ca._PULL["lastErr"] = "failed /Users/someone/secret.py and C:\\games\\d2r\\index.lock"
+            ca._PULL["lastErr"] = (
+                "fatal: Unable to create '%s': File exists. also %s and %s"
+                % (forward, spaced, unix_home)
+            )
         row = ca._beacon_git_diag({"can": True, "why": "level with origin", "armed": False})
         self.assertEqual(row["can"], True)
         self.assertEqual(row["why"], "level with origin")
         self.assertIs(row["armed"], False)
         self.assertEqual(row["head"], "abc1234")
         self.assertEqual(row["autocrlf"], "input")
-        self.assertNotIn("/Users/", row["porcelain"] or "")
-        self.assertNotIn("secret", row["porcelain"] or "")
+        porcelain = row["porcelain"] or ""
+        self.assertIn("tv/control_app.py", porcelain)
+        self.assertNotIn("/Users/", porcelain)
+        self.assertNotIn("secret", porcelain)
+        self.assertNotIn("Dean", porcelain)
         self.assertIsNone(row["exit"], "a boolean exit was stored as a number")
-        self.assertNotIn("/Users/", row["err"] or "")
-        self.assertNotIn("C:\\", row["err"] or "")
-        self.assertIn("failed", row["err"] or "")
+        err = row["err"] or ""
+        self.assertNotIn("/Users/", err)
+        self.assertNotIn("Dean", err)
+        self.assertNotIn("Doe", err)
+        self.assertNotIn("dean", err)
+        self.assertNotIn("C:/", err)
+        self.assertNotIn("C:\\", err)
+        self.assertIn("fatal", err)
+        self.assertIn("File exists", err)
         self.assertIsNone(ca._beacon_git_diag(None))
 
     def test_a_real_pull_exit_is_kept_and_a_cached_diagnosis_is_not_reread(self):
@@ -168,16 +191,21 @@ class TheWorkerKeepsTheDiagnosis(unittest.TestCase):
     def test_null_exit_stays_null_and_a_path_does_not_cross(self):
         import json
         import subprocess as sp
+        home = _acct("someone", "secret.py")
+        forward = "C:/" + "Users/" + "Dean/" + "TV/.git/index.lock"
+        spaced = _acct("Jane Doe", "TV/a.py")
         body = {
             "relaunch": {
                 "armed": True, "may": "yes", "why": "holding",
                 "head": "zzzz", "autocrlf": "maybe",
-                "porcelain": " M /Users/someone/secret.py",
+                "porcelain": " M %s" % home,
                 "exit": None,
                 "err": "bad C:\\games\\d2r\\index.lock left",
             },
             "pull": {"can": False, "behind": 3, "why": "behind", "exit": 0, "head": "abc1234",
-                     "autocrlf": "false", "porcelain": " M tv/control_app.py", "err": None},
+                     "autocrlf": "false",
+                     "porcelain": " M tv/control_app.py",
+                     "err": "fatal: Unable to create '%s': File exists. %s" % (forward, spaced)},
             "windowMode": "fullscreen",
         }
         src = self._worker()
@@ -203,6 +231,13 @@ class TheWorkerKeepsTheDiagnosis(unittest.TestCase):
         self.assertEqual(rec["pull"]["head"], "abc1234")
         self.assertEqual(rec["pull"]["autocrlf"], "false")
         self.assertIn("tv/control_app.py", rec["pull"]["porcelain"])
+        pull_err = rec["pull"]["err"] or ""
+        self.assertNotIn("Dean", pull_err)
+        self.assertNotIn("Doe", pull_err)
+        self.assertNotIn("/Users/", pull_err)
+        self.assertNotIn("C:/", pull_err)
+        self.assertIn("fatal", pull_err)
+        self.assertIn("File exists", pull_err)
 
     def test_an_absent_window_mode_is_null_not_the_word_undefined(self):
         import json

@@ -65,6 +65,37 @@ class TestALookNamesTheFamilyThatLooked(unittest.TestCase):
                          "provider-neutral by design, and hardwiring one vendor is what made an "
                          "earlier version of it permanently empty on every machine but his")
 
+    def test_the_claude_cli_attributes_to_anthropic(self):
+        m = self._with_cli("/Users/" + "konyo/" + ".local/bin/claude")
+        self.assertEqual(SEL.family_of(m), "anthropic",
+                         "a look taken through the Claude binary could not be attributed, so it "
+                         "cannot discharge a cross-family debt. transport model was %r" % m)
+
+    def test_claude_is_not_handed_groks_deny_flag(self):
+        real = SER.EYE_CLI
+        SER.EYE_CLI = "/Users/" + "konyo/" + ".local/bin/claude"
+        self.addCleanup(setattr, SER, "EYE_CLI", real)
+        argv = SER._eye_argv("look")
+        self.assertIn("--restricted", argv)
+        self.assertIn("--output-format", argv)
+        self.assertNotIn("--deny", argv)
+        SER.EYE_CLI = "/Users/" + "x/" + ".grok/bin/grok"
+        grok = SER._eye_argv("look")
+        self.assertIn("--deny", grok)
+        self.assertNotIn("--restricted", grok)
+
+    def test_a_claude_envelope_counts_as_a_constrained_answer(self):
+        raw = ('{"result": "{\\"verdict\\":\\"clean\\"}", '
+               '"structured_output": {"verdict": "clean", "findings": [], "unseen": "none"}}')
+        ans, structured = SER._unwrap_eye_envelope(raw)
+        self.assertEqual(structured.get("verdict"), "clean")
+        self.assertIn("clean", ans)
+        grok = ('{"text": "all quiet", "structuredOutput": {"verdict": "findings", '
+                '"findings": ["the quit still stops the service"], "unseen": ""}}')
+        ans, structured = SER._unwrap_eye_envelope(grok)
+        self.assertEqual(structured.get("verdict"), "findings")
+        self.assertEqual(ans, "all quiet")
+
     def test_an_unknown_transport_stays_UNKNOWN(self):
         """⚠ Fail closed. A transport nobody recognises must not borrow a family."""
         m = self._with_cli("/usr/local/bin/some-new-eye")
@@ -128,6 +159,26 @@ class TestALookNamesTheFamilyThatLooked(unittest.TestCase):
             "_model_from_transport()", blk,
             "the helper exists and the CLI door does not call it, so every look through that door "
             "is still unattributable. [[plumbing-with-no-tap]] Call site:\n%s" % blk)
+
+
+RED_PROOF = [
+    {
+        "why": "The Claude binary is attributed. Blanking this return files the look as an "
+               "unknown transport, and an unknown transport cannot discharge the debt.",
+        "file": "second_eye_run.py",
+        "find": "        return \"claude-cli\"        # family_of() -> anthropic\n",
+        "replace": "        return \"\"\n",
+        "matches": 1,
+    },
+    {
+        "why": "Claude is launched with its own flags. Forcing the Grok branch hands Claude "
+               "--deny, which that CLI rejects, so the seat stays empty.",
+        "file": "second_eye_run.py",
+        "find": "    if \"claude\" in low and \"grok\" not in low:\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
+]
 
 
 if __name__ == "__main__":

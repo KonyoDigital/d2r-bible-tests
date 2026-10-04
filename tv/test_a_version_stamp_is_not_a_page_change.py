@@ -242,7 +242,23 @@ class RoutineISaysWhenItSkips(unittest.TestCase):
         self.assertIn('name: "skipped: stamp-only"', self.code)
         self.assertNotIn("--shard=${{ matrix.shard }}/6", self.code)
         self.assertIn("--shard=${{ matrix.shard }}/2", self.code)
-        self.assertIn('python3 tv/routine_i_shards.py --shard "$SHARD" --of 6', self.code)
+        self.assertIn('python3 tv/routine_i_shards.py --shard "$SHARD" --of ', self.code)
+
+    def test_the_fast_matrix_the_dealer_and_the_blob_floor_are_one_count(self):
+        """The dealer, the matrix and the merge floor are one number.
+
+        A matrix of 10 with a merge floor still set for 8 lets a dead shard
+        through: 9 fast blobs plus 2 slow is 11, and 11 is not less than 8.
+        """
+        import re
+        m = re.search(r'routine_i_shards.py --shard "\$SHARD" --of (\d+)', self.code)
+        self.assertIsNotNone(m, "the fast job no longer asks the dealer")
+        n = int(m.group(1))
+        self.assertGreaterEqual(n, 10)
+        self.assertIn("shard: [%s]" % ", ".join(str(i) for i in range(1, n + 1)), self.code)
+        slow = 2
+        self.assertIn('[ "$n" -lt %d ]' % (n + slow), self.code)
+        self.assertIn("%d fast + %d slow" % (n, slow), self.code)
 
 
 class TheFastShardsFollowMeasuredDuration(unittest.TestCase):
