@@ -30,6 +30,12 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+# The docstring carries non-ASCII, and a unittest failure prints it. On a
+# cp1255 console that crash happens while reporting, so a clean tree exits
+# non-zero for a reason that has nothing to do with the law.
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
+
 import lane_ports as LP  # noqa: E402
 import heart2 as H  # noqa: E402
 

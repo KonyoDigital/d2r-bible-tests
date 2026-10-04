@@ -1059,6 +1059,19 @@
     "purpose": "One key from one frame: at most ONE write lane is ever unlocked — the vault surface OR exactly one chronicle ledger — and ambiguity locks both.",
     "territory": "vault"
   },
+  "lane_ports.py": {
+    "entryPoints": [
+      "base_for_lane",
+      "current_base",
+      "adopt",
+      "adopt_agent",
+      "adopt_control",
+      "stamp"
+    ],
+    "gotcha": "It never binds a socket and never deletes a file. A forbidden or out-of-range base is refused and current_base returns None, so adopt keeps the suite historical port. keep=True preserves a port the caller already set only when no lane base is present; a set TV_LANE_PORT_BASE overwrites it. stamp also sets TV_LAW_PORT to base plus 2 so two lanes do not share a Chrome port. His console port is in the forbidden set and is never derived.",
+    "purpose": "Gives each heart2 prove lane its own port base so two sandboxes do not share 17971 or 17972, which is how one sandbox request deletes a tracked file in the other.",
+    "territory": "heart-organs"
+  },
   "lane_trace.py": {
     "entryPoints": [
       "note",
