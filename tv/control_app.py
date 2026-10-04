@@ -8639,12 +8639,15 @@ def _control_window_kwargs(url):
     return kwargs
 
 
-def _start_daemon_once(name, target):
-    """Start a daemon thread unless one with this name is already alive. -> bool started."""
-    if any(getattr(t, "name", None) == name and t.is_alive() for t in threading.enumerate()):
-        return False
-    threading.Thread(target=target, daemon=True, name=name).start()
-    return True
+def _start_daemon_once(name):
+    """True when no live thread has this name, so the caller may start one.
+
+    The Thread() call stays at the caller, with the real function as target.
+    A helper that did Thread(target=target) was a thread the lane census
+    could not classify.
+    """
+    return not any(getattr(t, "name", None) == name and t.is_alive()
+                   for t in threading.enumerate())
 
 
 def _drop_closed_webview_windows():
@@ -8904,8 +8907,10 @@ def open_control_window():
         try:
             # These two genuinely need the window — they drive the board tab.
             # A second open, after Quit, must not start a second copy of either.
-            _start_daemon_once("tvd-engine-driver", _engine_driver)
-            _start_daemon_once("tvd-kai-closer", _kai_closer_loop)
+            if _start_daemon_once("tvd-engine-driver"):
+                threading.Thread(target=_engine_driver, daemon=True, name="tvd-engine-driver").start()
+            if _start_daemon_once("tvd-kai-closer"):
+                threading.Thread(target=_kai_closer_loop, daemon=True, name="tvd-kai-closer").start()
         except Exception as _ee:
             print(f"\u26a0 engine driver failed to start ({_ee}) \u2014 tallies need a board tab open", flush=True)
         start_background_watchers("window")

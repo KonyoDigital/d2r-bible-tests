@@ -282,8 +282,9 @@ class QuitLeavesTheShadowReaderRunning(unittest.TestCase):
             hold.wait(2)
 
         try:
-            self.assertTrue(ca._start_daemon_once("tvd-test-once", target))
-            self.assertFalse(ca._start_daemon_once("tvd-test-once", target),
+            self.assertTrue(ca._start_daemon_once("tvd-test-once"))
+            threading.Thread(target=target, daemon=True, name="tvd-test-once").start()
+            self.assertFalse(ca._start_daemon_once("tvd-test-once"),
                              "a second open started a second copy of a named thread")
         finally:
             hold.set()

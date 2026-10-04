@@ -1080,6 +1080,16 @@
     "purpose": "REG-1514 - the Mac launcher's one decision: bring the running console forward, or let the launcher replace it (v1379.1's stale-code case only).",
     "territory": "console"
   },
+  "launcher_pull.py": {
+    "entryPoints": [
+      "classify",
+      "apply",
+      "main"
+    ],
+    "gotcha": "Classifies against the origin/main already fetched, then resets only when every tracked change is a plain modification whose bytes match that blob (CR ignored) and HEAD is an ancestor of it. A real edit, a history that is not a fast-forward, or a git that cannot be read resets nothing. It does not fetch. Fetching first would make the on-disk update no longer match origin, and the pull would stay blocked.",
+    "purpose": "The launcher pull decision: a file that matches the fetched update is that update, not a local edit.",
+    "territory": "console"
+  },
   "law_widths.py": {
     "entryPoints": [
       "parse",
