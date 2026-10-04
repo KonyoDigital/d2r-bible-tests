@@ -716,8 +716,8 @@ RED_PROOF = [
     {
         "why": "#174 v-B2 - the stash tabs are dim labels again that switch nothing (the Grok seat: barely clickable)",
         "file": "bible.html",
-        "find": "+ ' onclick=\"window._mpSet(\\'stab\\',\\'' + t + '\\')\" title=\"' + MULE_AREAS[t][2] + ' tab of Mule '",
-        "replace": "+ ' title=\"' + MULE_AREAS[t][2] + ' tab of Mule '",
+        "find": "        onclick: \"window._mpSet('stab','\" + t + \"')\",",
+        "replace": "        onclick: \"\",",
         "matches": 1,
     },
     {

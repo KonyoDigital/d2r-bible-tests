@@ -496,7 +496,7 @@ class TheBuilderIsTheirBuilder(unittest.TestCase):
           OUT.invAll = window._cbPickRows().map(function(x){ return x[1]; });
           window._cbQt('m'); OUT.invMisc = window._cbPickRows().map(function(x){ return x[1]; }); window._cbClosePick();
           OUT.tree = window._cbStashTree();
-          window._cbOpenStash(); OUT.folds = (MODAL._html.match(/class="cb-fold"/g) || []).length;
+          window._cbOpenStash(); window._cbStashTab('create'); OUT.folds = (MODAL._html.match(/class="cb-fold"/g) || []).length;
           var mi = -1; OUT.tree.forEach(function(n, i){ if (n[0] === 'Melee Weapons') mi = i; });
           window._cbStashFold(mi); OUT.foldedHides = !/>Axes<\/button>/.test(MODAL._html) && />Melee Weapons<\/button>/.test(MODAL._html);
           window._cbCloseStash();

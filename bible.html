@@ -43095,6 +43095,16 @@ window.vaultAutoAssign = function(){
       + (_add ? (_add.on ? ' data-add="on"' : ' data-add="off" title="the item database (the Character Builder’s block) is not on this page, so an inventory cell cannot take an item — UNKNOWN, not an empty inventory"') : '')
       + '>'+cells+blocks+'</div>';
   }
+  /* ⟦STASH TABS⟧ */
+  function _stabHtml(rows){
+    return (rows || []).map(function(r){
+      var on = !!r.on, n = r.n | 0;
+      return '<button type="button" class="vd-tab' + (on ? ' vt-on' : '') + '" role="tab" aria-selected="' + on + '" data-tab="' + r.id + '" data-fk="stab-' + r.id + '"'
+        + ' onclick="' + r.onclick + '" title="' + r.title + '">' + r.label + (r.badge ? ' <b>' + n + '</b>' : '') + '</button>';
+    }).join('');
+  }
+  try { window._stabHtml = _stabHtml; } catch (e) {}
+  /* ⟦/STASH TABS⟧ */
   // v364/v367 — SHARED STASH = D2R's 5 shared-stash tabs = GENERAL cross-account storage for high-value
   // "worth keeping close" keepers (Konyo's corrected scheme): Pg1 💎 Trade = the auto-sorted keepers,
   // value-sorted; Pg2-5 📦 Spare = empty looting room. Runes/gems/materials are NOT here — they live in
@@ -45026,14 +45036,15 @@ window.vaultAutoAssign = function(){
        seat: "barely clickable" — they were not clickable at all). Personal is what the packer fills; the other four
        hold only what he places there by hand, and each tab is also a drop target. */
     var _stabPlaced = (_mpStab === 'personal') ? stash.placed : (_curTabs[_mpStab] || []);
-    var _stabHtml = MULE_STASH_TABS.map(function(t){
+    var _stabRow = _stabHtml(MULE_STASH_TABS.map(function(t){
       var n = (t === 'personal') ? stash.placed.length : (_curTabs[t] || []).length, on = (t === _mpStab);
-      return '<button type="button" class="vd-tab' + (on ? ' vt-on' : '') + '" role="tab" aria-selected="' + on + '" data-tab="' + t + '" data-fk="stab-' + t + '"'
-        + ' onclick="window._mpSet(\'stab\',\'' + t + '\')" title="' + MULE_AREAS[t][2] + ' tab of Mule ' + (_mulePage + 1) + ' — '
-        + (n ? n + ' item' + (n === 1 ? '' : 's') : 'empty')
-        + (t === 'personal' ? ' (the packer fills this one)' : ' (only what you place here by hand — what the game lets this tab hold is not on record here)')
-        + '. Drop an item on the tab to move it here">' + MULE_AREAS[t][2] + (n && t !== 'personal' ? ' <b>' + n + '</b>' : '') + '</button>';
-    }).join('');
+      return { id: t, on: on, n: n, label: MULE_AREAS[t][2], badge: !!(n && t !== 'personal'),
+        onclick: "window._mpSet('stab','" + t + "')",
+        title: MULE_AREAS[t][2] + ' tab of Mule ' + (_mulePage + 1) + ' — '
+          + (n ? n + ' item' + (n === 1 ? '' : 's') : 'empty')
+          + (t === 'personal' ? ' (the packer fills this one)' : ' (only what you place here by hand — what the game lets this tab hold is not on record here)')
+          + '. Drop an item on the tab to move it here' };
+    }));
     /* #174 R1 — THE SIDE STASH: with the character in front, the stash is the left column's first card at their 322 —
        the same five tabs (each still a drop target), the same grid on a smaller cell, the same mule arrows, every item
        still draggable to the inventory beside it and back. It is drawn only while EQUIPMENT is in front, so the stash
@@ -45044,7 +45055,7 @@ window.vaultAutoAssign = function(){
     var sideStash = '<section class="mp-p mp-sstash mp-side" aria-label="the stash of Mule ' + (_mulePage + 1) + ' — Enlarge brings it to the centre">'
       + H('Stash', '<button type="button" class="mp-btn mp-enl" data-fk="enl-stash" onclick="window._mpSet(\'view\',\'stash\')" title="bring the stash to the centre — the doll and its inventory move here">⤢ Enlarge</button>')
       + '<div class="mp-v-stash mp-sstash-b">'
-      +   '<div class="vd-tabs" role="tablist" aria-label="stash tabs of Mule ' + (_mulePage + 1) + '">' + _stabHtml + '</div>'
+      +   '<div class="vd-tabs" role="tablist" aria-label="stash tabs of Mule ' + (_mulePage + 1) + '">' + _stabRow + '</div>'
       +   gridHtml(_stabPlaced, MULE_STASH_W, MULE_STASH_H, _cellSide, _gOpt(_mpStab)).replace(/class="vd-cell"/g, 'class="vd-cell vd-red"')
       +   '<div class="vd-pagebar">' + _muleArrows + '</div>'
       + '</div></section>';
@@ -45055,7 +45066,7 @@ window.vaultAutoAssign = function(){
       +   '<div class="mp-view mp-v-stash"'+(_mpView==='stash'?'':' hidden')+'>'
       /* the tab row is the grid's own width (their in-game tabs span the stash), each tab at least its word */
       +   (_mpView === 'stash'
-      ?     '<div class="vd-tabs" role="tablist" aria-label="stash tabs of Mule ' + (_mulePage + 1) + '" style="width:' + (MULE_STASH_W * cell + (MULE_STASH_W - 1) * 2 + 10) + 'px">' + _stabHtml + '</div>'
+      ?     '<div class="vd-tabs" role="tablist" aria-label="stash tabs of Mule ' + (_mulePage + 1) + '" style="width:' + (MULE_STASH_W * cell + (MULE_STASH_W - 1) * 2 + 10) + 'px">' + _stabRow + '</div>'
       +     gridHtml(_stabPlaced,MULE_STASH_W,MULE_STASH_H,cell,_gOpt(_mpStab)).replace(/class="vd-cell"/g,'class="vd-cell vd-red"')
       +     '<div class="vd-pagebar">' + _muleArrows + '</div>'
       +     _goldbox
@@ -56178,6 +56189,12 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
    list (8715px of weapons) and the list's own overflow:auto never engaged, so only ~35 rows could ever be reached */
 .cb-sheet .cb-pane{min-height:0}
 .cb-sheet .cb-rail{width:auto;max-height:24vh}
+/* #153 — the build stash view uses the mule tab row, then a grid that stays inside the modal */
+.cb-pane .vd-tabs{display:flex;flex-wrap:wrap;gap:2px;margin:0}
+.cb-pane .vd-tab{flex:1 1 auto;min-width:max-content;cursor:pointer}
+.cb-bag{display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:1px;width:100%;background:rgb(74,66,60)}
+.cb-bag-cell{aspect-ratio:1;min-width:0;padding:0;margin:0;border:0;background:rgb(3,3,3);cursor:pointer}
+.cb-bag-it{min-width:0;min-height:0;z-index:1;overflow:hidden;background:#2a241c;color:var(--text);font-size:var(--fs-cb-meta);line-height:var(--lh-tight);padding:1px;cursor:pointer}
 /* ⟦/CHARACTER BUILDER CSS⟧ */
 </style>
 <!-- ⟦CB_DB⟧ GENERATED by tv/char_builder_db.py --write from the D2R CASC (excel + strings) — do not hand-edit, re-run the generator -->
@@ -56201,7 +56218,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
      · the in-game tooltip is ONE component, window.d2Tip
    STORE: d2r_charBuilds {buildId: {name, cls, level, sets: [{name, slots: {slot: {name, base, sockets, eth, rolls,
    socketed, id, q, ilvl, and on a base (#174 v-B3) rn, lq, def, affixes: [{id, rolls}]}}, inv: [...], swap: {}, ws}],
-   active, notes, stash: [...], from, at}} through window.LSR,
+   active, notes, stash: [...], shared: [...], from, at}} through window.LSR,
    forked per account (_LP_FORKED), carried by Backup & Share. [[unknown-stays-unknown]] [[the-unjoined-end]] */
 (function(){
   'use strict';
@@ -56711,7 +56728,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   function _cbNewSet(n){ return { name: 'Set ' + n, slots: {}, inv: [], swap: {}, ws: 1 }; }
   function _cbNewBuild(name, cls, level, from){
     return { name: name, cls: cls || null, level: clamp(level | 0 || 1, 1, 99), sets: [_cbNewSet(1)], active: 0,
-             notes: '', stash: [], from: from || null, at: Date.now() };
+             notes: '', stash: [], shared: [], from: from || null, at: Date.now() };
   }
   window._cbNewBuild = _cbNewBuild;
   /* the board's CHARS as templates: class + level only, read from the roster's own words */
@@ -57976,7 +57993,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     return '<div class="cb-left">'
       /* #174 R1 — the inventory went to the centre, under the doll; the left keeps their Stash button on its own card */
       + '<div class="cb-p cb-stashp"><div class="cb-h"><span class="cb-h-t">Stash</span><span class="cb-h-r"><button type="button" class="cb-btn" id="cb-stash-btn" onclick="window._cbOpenStash()">▤ Stash</button></span></div>'
-      +   '<div class="cb-empty">Items this build keeps but does not wear — open the list, or <b>Create</b> one there.</div></div>'
+      +   '<div class="cb-empty">Inventory, Personal and Shared. Grids that belong to this build, never the vault.</div></div>'
       + '<div class="cb-p cb-lp cb-prim"><div class="cb-h"><span class="cb-h-t">Primary Skills</span></div><div class="cb-empty"><b>Nothing fills this yet.</b> The skill trees arrive with v-D (the game\'s own skill tables).</div></div>'
       + '<div class="cb-p cb-lp cb-merc"><div class="cb-h"><span class="cb-h-t">Mercenary</span></div><div class="cb-empty"><b>No mercenary.</b> Hiring and his gear arrive later.</div></div>'
       + '<div class="cb-p cb-lp cb-loot"><div class="cb-h"><span class="cb-h-t">Loot Filter</span></div><div class="cb-empty"><b>No loot filter</b> is linked to this build (not scheduled).</div></div>'
@@ -58626,11 +58643,81 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     return rows;
   }
   window._cbStashTree = function(){ return _cbStashTree().map(function(n){ return [n[0], n[2]]; }); };
+  /* #153 — Inventory 10x4, Personal and Shared 10x10. The items are this build's. Positions already
+     stored (the inventory) are kept; a list with no cell is packed for the view and not written back. */
+  var CB_BAG = { inv: [10, 4, 'Inventory'], personal: [10, 10, 'Personal'], shared: [10, 10, 'Shared'] };
+  function _cbBagOf(b, s, area){
+    if (area === 'inv') return (s && s.inv) || [];
+    if (area === 'shared') return (b && b.shared) || [];
+    return (b && b.stash) || [];
+  }
+  function _cbBagPlace(list, cols, rows){
+    var occ = {}, placed = [], left = [], unk = [];
+    function free(x, y, w, h){
+      if (x < 0 || y < 0 || x + w > cols || y + h > rows) return false;
+      for (var dy = 0; dy < h; dy++) for (var dx = 0; dx < w; dx++) if (occ[(x + dx) + ',' + (y + dy)]) return false;
+      return true;
+    }
+    function take(x, y, w, h){ for (var dy = 0; dy < h; dy++) for (var dx = 0; dx < w; dx++) occ[(x + dx) + ',' + (y + dy)] = 1; }
+    (list || []).forEach(function(e, i){
+      var known = e && e.x != null && e.y != null && e.w && e.h;
+      var ft = known ? [e.w | 0, e.h | 0] : _cbFoot(e);
+      if (!ft){ unk.push(e); return; }
+      var w = ft[0], h = ft[1], x = null, y = null;
+      if (known){ x = e.x | 0; y = e.y | 0; if (!free(x, y, w, h)){ left.push(e); return; } }
+      else {
+        for (var yy = 0; yy < rows && x == null; yy++) for (var xx = 0; xx < cols && x == null; xx++) if (free(xx, yy, w, h)){ x = xx; y = yy; }
+        if (x == null){ left.push(e); return; }
+      }
+      take(x, y, w, h);
+      placed.push({ e: e, i: i, x: x, y: y, w: w, h: h });
+    });
+    return { placed: placed, left: left, unk: unk };
+  }
+  function _cbStashTabs(b, s){
+    var area = (st.stash && CB_BAG[st.stash.area]) ? st.stash.area : 'personal';
+    return window._stabHtml(['inv', 'personal', 'shared'].map(function(id){
+      var n = _cbBagOf(b, s, id).length, label = CB_BAG[id][2];
+      return { id: id, on: area === id, n: n, label: label, badge: n > 0,
+        onclick: "window._cbStashArea('" + id + "')",
+        title: label + ' of this build. ' + (id === 'inv' ? 'The same items as the grid under the doll.' : 'Items this build keeps.') };
+    }));
+  }
+  function _cbBagHtml(b, s, area){
+    var spec = CB_BAG[area] || CB_BAG.personal, cols = spec[0], rowsN = spec[1];
+    var bag = _cbBagPlace(_cbBagOf(b, s, area), cols, rowsN), cells = '', tiles = '';
+    for (var y = 0; y < rowsN; y++) for (var x = 0; x < cols; x++){
+      var click = area === 'inv' ? ('window._cbCell(' + x + ',' + y + ')') : 'window._cbStashAreaAdd()';
+      cells += '<button type="button" class="cb-bag-cell" style="grid-column:' + (x + 1) + ';grid-row:' + (y + 1) + '" aria-label="' + esc(spec[2]) + ' ' + (x + 1) + ',' + (y + 1) + '" onclick="' + click + '"></button>';
+    }
+    bag.placed.forEach(function(p){
+      var style = 'grid-column:' + (p.x + 1) + ' / span ' + p.w + ';grid-row:' + (p.y + 1) + ' / span ' + p.h;
+      var name = esc(p.e.name || '');
+      tiles += area === 'inv'
+        ? '<button type="button" class="cb-bag-it" style="' + style + '" onclick="window._cbStashInv(' + p.i + ')">' + name + '</button>'
+        : '<button type="button" class="cb-bag-it" style="' + style + '" onclick="window._cbStashDropAt(\'' + area + '\',' + p.i + ')">' + name + ' <small>remove</small></button>';
+    });
+    var say = bag.unk.map(function(e){ return (e.name || 'an item') + ' has no size on record, so it is not drawn'; })
+      .concat(bag.left.map(function(e){ return (e.name || 'an item') + ' does not fit this grid'; }));
+    return '<div class="cb-bag" data-bag="' + area + '" data-cols="' + cols + '" data-rows="' + rowsN + '">' + cells + tiles + '</div>'
+      + (say.length ? '<div class="cb-note">' + esc(say.join(' · ')) + '</div>' : '');
+  }
+  function _cbStashViewHtml(){
+    var b = _cbBuild(), s = _cbSet(), S = st.stash;
+    var area = (S && CB_BAG[S.area]) ? S.area : 'personal';
+    var note = area === 'inv' ? 'the inventory under the doll — the same items'
+      : (area === 'shared' ? 'this build shared stash — never the vault' : 'this build stash — items set aside, never the vault');
+    return '<div class="cb-mb"><div class="cb-pane"><div class="cb-note">' + note + '</div>'
+      + '<div class="vd-tabs" role="tablist" aria-label="stash tabs of this build">' + _cbStashTabs(b, s) + '</div>'
+      + '<div class="cb-list" id="cb-stash-grid">' + _cbBagHtml(b, s, area) + '</div>'
+      + '<div class="cb-note" id="cb-stash-say" role="status">' + esc((S && S.say) || '') + '</div></div></div>';
+  }
   function _cbStashHtml(){
     var S = st.stash, tree = _cbStashTree();
     var head = '<div class="cb-mh" role="tablist"><button type="button" role="tab" class="cb-tab' + (S.tab === 'stash' ? ' cb-on' : '') + '" onclick="window._cbStashTab(\'stash\')">Stash</button>'
       + '<button type="button" role="tab" class="cb-tab' + (S.tab === 'create' ? ' cb-on' : '') + '" onclick="window._cbStashTab(\'create\')">Create</button>'
       + '<button type="button" class="cb-x" onclick="window._cbCloseStash()" aria-label="close (Esc)">✕</button></div>';
+    if (S.tab !== 'create') return head + _cbStashViewHtml();
     /* a parent with children carries their fold chevron (▴ open, ▾ folded); a folded parent hides its children */
     var fold = S.fold || {}, under = -1;
     var rail = '<div class="cb-rail" aria-label="categories">' + tree.map(function(n, i){
@@ -59156,15 +59243,49 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     return false;
   };
   /* stash */
-  window._cbOpenStash = function(){ st.pick = st.newb = null; st.stash = { tab: 'stash', cat: 0, q: '', filt: '', say: '' }; _cbRender(); };
+  window._cbOpenStash = function(){ st.pick = st.newb = null; st.stash = { tab: 'stash', area: 'personal', cat: 0, q: '', filt: '', say: '' }; _cbRender(); };
   window._cbCloseStash = function(){ st.stash = null; window.d2Tip.hide(); _cbRender(); try { var b = document.getElementById('cb-stash-btn'); if (b) b.focus(); } catch (e) {} };
   window._cbStashTab = function(t){ st.stash.tab = t; if (t === 'create' && !(st.stash.cat | 0)) st.stash.cat = 1; _cbModal(); };
+  window._cbStashArea = function(a){ if (!st.stash || !CB_BAG[a]) return; st.stash.area = a; st.stash.tab = 'stash'; _cbModal(); };
+  window._cbStashAreaAdd = function(){ if (!st.stash) return; st.stash.tab = 'create'; if (!(st.stash.cat | 0)) st.stash.cat = 1; _cbModal(); };
+  window._cbStashInv = function(i){
+    var s = _cbSet(), e = s && s.inv[i]; if (!e) return;
+    window._cbOpenPick('inv', null, [e.x, e.y]);
+    if (st.pick){ st.pick.i = i; st.pick.tab = 'edit'; }
+    _cbRender();
+  };
   window._cbStashCat = function(i){ st.stash.cat = i; _cbModal(); };
   window._cbStashFold = function(i){ st.stash.fold = st.stash.fold || {}; st.stash.fold[i] = !st.stash.fold[i]; _cbModal(); };
   window._cbStashSearch = function(q){ st.stash.q = q; var l = document.getElementById('cb-list'); if (l){ var m = document.createElement('div'); m.innerHTML = _cbStashHtml(); var nl = m.querySelector('#cb-list'); l.innerHTML = nl ? nl.innerHTML : ''; } };
   window._cbStashFilt = function(v){ st.stash.filt = v; _cbModal(); };
-  window._cbStashAdd = function(id){ var it = _cbItem(id); if (!it) return; _cbCommit(function(b){ b.stash = b.stash || []; b.stash.push(_cbEntryFor(it)); }); st.stash.say = it[1] + ' added to this build\'s stash'; _cbModal(); };
-  window._cbStashDrop = function(id){ _cbCommit(function(b){ var i = -1; (b.stash || []).forEach(function(e, k){ if (i < 0 && e.id === id) i = k; }); if (i >= 0) b.stash.splice(i, 1); }); _cbModal(); };
+  window._cbStashAdd = function(id){
+    var it = _cbItem(id); if (!it || !st.stash) return;
+    var area = CB_BAG[st.stash.area] ? st.stash.area : 'personal';
+    if (area === 'inv'){
+      var e = _cbEntryFor(it), ft = _cbFoot(e);
+      if (!ft){ st.stash.say = it[1] + ' has no size on record, so it is not placed'; _cbModal(); return; }
+      var at = _cbFreeAt((_cbSet() || {}).inv || [], ft[0], ft[1], [0, 0], -1);
+      if (!at){ st.stash.say = it[1] + ' does not fit in the inventory'; _cbModal(); return; }
+      e.x = at[0]; e.y = at[1]; e.w = ft[0]; e.h = ft[1];
+      _cbCommit(function(b){ b.sets[b.active | 0].inv.push(e); });
+      st.stash.say = it[1] + ' placed in the inventory'; st.stash.tab = 'stash'; _cbModal(); return;
+    }
+    var key = area === 'shared' ? 'shared' : 'stash';
+    _cbCommit(function(b){ b[key] = b[key] || []; b[key].push(_cbEntryFor(it)); });
+    st.stash.say = it[1] + (key === 'shared' ? ' added to this build shared stash' : ' added to this build stash');
+    _cbModal();
+  };
+  window._cbStashDrop = function(id){
+    var key = (st.stash && st.stash.area === 'shared') ? 'shared' : 'stash';
+    _cbCommit(function(b){ var i = -1; (b[key] || []).forEach(function(e, k){ if (i < 0 && e.id === id) i = k; }); if (i >= 0) b[key].splice(i, 1); });
+    _cbModal();
+  };
+  window._cbStashDropAt = function(area, i){
+    if (!st.stash || (area !== 'personal' && area !== 'shared')) return;
+    var key = area === 'shared' ? 'shared' : 'stash';
+    _cbCommit(function(b){ var list = b[key] || []; if (i >= 0 && i < list.length) list.splice(i, 1); });
+    _cbModal();
+  };
   /* + new build */
   window._cbOpenNew = function(){ st.pick = st.stash = null; st.newb = { cls: null, level: 1 }; _cbRender(); };
   window._cbCloseNew = function(){ st.newb = null; _cbRender(); };
@@ -61388,7 +61509,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3594', name:'v3594 - a window change reports', date:'2026-10-04', note:'A window or shadow change reaches the fleet within a minute. A freshness check that times out asks the console forward. HEART: test_a_window_change_reaches_the_fleet, test_the_launcher_brings_a_running_console_forward' };
+  window.D2R_BUILD = { id:'v3595', name:'v3595 - build stash view', date:'2026-10-04', note:'the build stash opens Inventory, Personal and Shared. HEART: test_the_build_stash_is_the_mule_stash_view' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

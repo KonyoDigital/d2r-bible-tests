@@ -83,6 +83,13 @@ def _builder_js(s):
     return _between(s, '<script id="cb-builder-js">', "\n</script>")
 
 
+def _stash_tab_js(s):
+    """The one tab-row function. It lives in the vault span, which this harness does not load.
+    The page assigns window._stabHtml after window exists; the same order is required here,
+    because a var window later in the harness would hide an earlier assignment."""
+    return _between(s, "/* ⟦STASH TABS⟧ */", "/* ⟦/STASH TABS⟧ */")
+
+
 def _builder_css(s):
     return _between(s, '<style id="cb-builder-css">', "\n</style>")
 
@@ -161,6 +168,7 @@ def _run(body, db=None):
     s = _src()
     lp, wp, lsr, chars, backup = _stage(s)
     prog = (HARNESS.replace("__DB__", json.dumps(db if db is not None else _db_json(s)))
+            + _stash_tab_js(s)
             + lp + wp + lsr + chars + backup + _builder_js(s) + "\n;(function(){ var OUT = {};\n" + body
             + "\nprocess.stdout.write(JSON.stringify(OUT)); })();\n")
     r = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, encoding="utf-8",

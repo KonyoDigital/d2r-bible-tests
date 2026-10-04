@@ -8253,6 +8253,16 @@ GATES = [
              "Jewels and Melee / Ranged Weapons fold; the shipped block's per-level [L, lo, key, hi, shift] and random "
              "class [C, ...]; the generator's --check where the install is; the doctor row 'builder item data'. ",
          skip_ok=()),
+    Gate("test_the_build_stash_is_the_mule_stash_view",
+         [sys.executable, os.path.join(HERE, "test_the_build_stash_is_the_mule_stash_view.py")], 60,
+         needs_app=False,
+         why="#153 - the character build STASH opens Inventory, Personal and Shared through the mule "
+             "window's one tab function. Inventory is the active set's 10x4 and keeps stored cells; "
+             "Personal is this build's stash and Shared is this build's shared list, each a 10x10 "
+             "packed for the view. Create still adds to the area that is open. The vault's five tabs "
+             "and Vault 2.0 stay on the mule window. A whole session reads no vault store and calls "
+             "no mule.",
+         skip_ok=()),
     Gate("test_the_character_builder_fits_at_every_width",
          [sys.executable, os.path.join(HERE, "test_the_character_builder_fits_at_every_width.py")], 300,
          needs_app=False,

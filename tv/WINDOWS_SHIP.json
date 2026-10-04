@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3594",
+  "ver": "v3595",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3594: A window or shadow change reaches the fleet within a minute. A freshness check that times out asks the console forward. HEART: test_a_window_change_reaches_the_fleet, test_the_launcher_brings_a_running_console_forward",
+  "note": "v3595: the build stash opens Inventory, Personal and Shared. HEART: test_the_build_stash_is_the_mule_stash_view",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
