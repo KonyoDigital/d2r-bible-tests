@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3589",
+  "ver": "v3590",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3589: A name with a bracket is a path, so an untracked file of that name stays. A tracked directory that holds an untracked file stays too, because the reset would delete it. HEART: test_a_landed_update_is_not_an_edit",
+  "note": "v3590: An ignored file inside a directory the update replaces stays, because the reset would delete it with the directory. HEART: test_a_landed_update_is_not_an_edit",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

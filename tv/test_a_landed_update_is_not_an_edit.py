@@ -650,6 +650,40 @@ class TheLauncherUsesTheSameRule(unittest.TestCase):
         with open(kept, "rb") as fh:
             self.assertEqual(fh.read(), b"keep-me\n")
 
+    def test_an_ignored_file_inside_a_replaced_directory_stays(self):
+        import subprocess
+        import launcher_pull as lp
+        d = self._fresh()
+        with open(os.path.join(d, "a.txt"), "wb") as fh:
+            fh.write(b"one\n")
+        with open(os.path.join(d, ".gitignore"), "wb") as fh:
+            fh.write(b"settings.local.json\n")
+        nest = os.path.join(d, "nest")
+        os.mkdir(nest)
+        with open(os.path.join(nest, "old.txt"), "wb") as fh:
+            fh.write(b"old\n")
+        self._commit_all(d, "one")
+        base = self._head(d)
+        with open(os.path.join(d, "a.txt"), "wb") as fh:
+            fh.write(b"two\n")
+        os.remove(os.path.join(nest, "old.txt"))
+        os.rmdir(nest)
+        with open(nest, "wb") as fh:
+            fh.write(b"now-a-file\n")
+        self._commit_all(d, "two")
+        subprocess.check_call(["git", "-C", d, "update-ref", "refs/remotes/origin/main", "HEAD"])
+        subprocess.check_call(["git", "-C", d, "reset", "-q", "--hard", base])
+        with open(os.path.join(d, "a.txt"), "wb") as fh:
+            fh.write(b"two\n")
+        kept = os.path.join(nest, "settings.local.json")
+        with open(kept, "wb") as fh:
+            fh.write(b"secret-local\n")
+        self.assertEqual(lp.apply(d), 2)
+        self.assertEqual(self._head(d), base)
+        self.assertTrue(os.path.isdir(nest))
+        with open(kept, "rb") as fh:
+            self.assertEqual(fh.read(), b"secret-local\n")
+
     def test_an_untracked_symlink_where_the_update_adds_a_directory_stays(self):
         import subprocess
         import launcher_pull as lp
@@ -774,6 +808,15 @@ RED_PROOF = [
         "file": "tv/launcher_pull.py",
         "find": "    return bool(inside)\n",
         "replace": "    return False\n",
+        "matches": 1,
+    },
+    {
+        "why": "an ignored file inside a directory the update replaces is deleted",
+        "file": "tv/launcher_pull.py",
+        "find": "    rc, out, _err = _run(repo, [\"--literal-pathspecs\", \"ls-files\", \"-z\", \"-o\",\n"
+                "                                \"--\", rel])\n",
+        "replace": "    rc, out, _err = _run(repo, [\"--literal-pathspecs\", \"ls-files\", \"-z\", \"-o\",\n"
+                   "                                \"--exclude-standard\", \"--\", rel])\n",
         "matches": 1,
     },
     {

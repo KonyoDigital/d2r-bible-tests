@@ -118,9 +118,13 @@ def _index_has(repo, rel):
 
 
 def _untracked_inside(repo, rel):
-    """True when an untracked file sits at rel or under it. None when git could not be asked."""
+    """True when an untracked file sits at rel or under it. None when git could not be asked.
+
+    No --exclude-standard: an ignored file is still local. reset deletes it
+    with the directory, so it is in the way.
+    """
     rc, out, _err = _run(repo, ["--literal-pathspecs", "ls-files", "-z", "-o",
-                                "--exclude-standard", "--", rel])
+                                "--", rel])
     if rc != 0:
         return None
     return bool(out)
