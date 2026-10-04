@@ -99,6 +99,9 @@ class _Switch(unittest.TestCase):
         g5._STATS["backup_why"] = None
         tv._BACKUP_LAST["why"] = None
         tv._BACKUP_LAST["fail"] = None
+        tv._CLAUDE_LANE["streak"] = 0
+        tv._CLAUDE_LANE["until"] = 0.0
+        tv._CLAUDE_LANE["why"] = None
         for obj, name, val in (
                 (g5, "_STATE_FILE", self.state),
                 (g5, "has_subscription", lambda: True),
@@ -285,7 +288,11 @@ class TheHeartCarriesTheSwitch(_Switch):
 
 class BothAsksGrokOnlyWhenClaudeDidNotRead(_Switch):
     """BOTH is Claude first. Grok is one backup for a frame Claude did not read, never a second
-    opinion and never a thread beside the answer."""
+    opinion and never a thread beside the answer.
+
+    After three Claude misses in a row the next frames go to Grok without another Claude call.
+    One later frame asks Claude again. A parsed answer, including an empty town, puts Claude
+    back first. This is not Grok-first: the switch stays BOTH."""
 
     def setUp(self):
         super(BothAsksGrokOnlyWhenClaudeDidNotRead, self).setUp()
@@ -464,6 +471,116 @@ class BothAsksGrokOnlyWhenClaudeDidNotRead(_Switch):
             self.assertTrue(frame.get("readErr"))
         self.assertIsNone(tv._BACKUP_LAST.get("why"))
         self.assertIsNone(tv._BACKUP_LAST.get("fail"))
+
+    def _silence(self):
+        asked = []
+
+        def _ask(*a, **k):
+            asked.append("worker")
+            return None
+
+        def _inner(*a, **k):
+            asked.append("oneshot")
+            return None
+
+        return asked, _ask, _inner
+
+    def test_one_silence_still_asks_claude_on_the_next_frame(self):
+        asked, _ask, _inner = self._silence()
+        with mock.patch.object(tv._WORKER, "ask", _ask), \
+                mock.patch.object(tv, "_oneshot_inner", _inner):
+            tv.claude_read(self.pic)
+            asked[:] = []
+            tv.claude_read(self.pic)
+        self.assertIn("oneshot", asked)
+
+    def test_three_misses_put_the_next_both_frame_on_grok(self):
+        asked, _ask, _inner = self._silence()
+        with mock.patch.object(tv._WORKER, "ask", _ask), \
+                mock.patch.object(tv, "_oneshot_inner", _inner):
+            for _ in range(tv.CLAUDE_LANE_DOWN_AFTER):
+                tv.claude_read(self.pic)
+            self.assertEqual(asked.count("oneshot"), tv.CLAUDE_LANE_DOWN_AFTER)
+            asked[:] = []
+            self.grok_calls[:] = []
+            got = tv.claude_read(self.pic)
+        self.assertEqual(asked, [], "Claude was asked after the lane was down")
+        self.assertEqual(len(self.grok_calls), 1, self.grok_calls)
+        self.assertEqual(got.get("eye"), "grok")
+        self.assertIn("not reading", got.get("backup") or "", got)
+
+    def test_a_claude_answer_puts_claude_back_first(self):
+        asked, _ask, _inner = self._silence()
+        town = '{"area":"","scene":"town","names":[]}'
+
+        def _answer(*a, **k):
+            asked.append("worker")
+            return town
+
+        with mock.patch.object(tv._WORKER, "ask", _ask), \
+                mock.patch.object(tv, "_oneshot_inner", _inner):
+            for _ in range(tv.CLAUDE_LANE_DOWN_AFTER):
+                tv.claude_read(self.pic)
+            tv._CLAUDE_LANE["until"] = 0.0
+            asked[:] = []
+            self.grok_calls[:] = []
+            with mock.patch.object(tv._WORKER, "ask", _answer):
+                got = tv.claude_read(self.pic)
+                self.assertEqual(got.get("eye"), "claude")
+                self.assertEqual(got.get("scene"), "town")
+                self.assertEqual(got.get("names"), [])
+                self.assertEqual(self.grok_calls, [])
+                self.assertEqual(tv._CLAUDE_LANE["streak"], 0)
+                asked[:] = []
+                self.grok_calls[:] = []
+                again = tv.claude_read(self.pic)
+        self.assertEqual(again.get("eye"), "claude")
+        self.assertEqual(self.grok_calls, [])
+        self.assertIn("worker", asked)
+
+    def test_a_failed_probe_keeps_the_next_frame_on_grok(self):
+        asked, _ask, _inner = self._silence()
+        with mock.patch.object(tv._WORKER, "ask", _ask), \
+                mock.patch.object(tv, "_oneshot_inner", _inner):
+            for _ in range(tv.CLAUDE_LANE_DOWN_AFTER):
+                tv.claude_read(self.pic)
+            tv._CLAUDE_LANE["until"] = 0.0
+            asked[:] = []
+            self.grok_calls[:] = []
+            first = tv.claude_read(self.pic)
+            self.assertIn("oneshot", asked, "the probe never asked Claude")
+            self.assertEqual(first.get("eye"), "grok")
+            asked[:] = []
+            self.grok_calls[:] = []
+            second = tv.claude_read(self.pic)
+        self.assertEqual(asked, [], "a failed probe let the next frame ask Claude")
+        self.assertEqual(len(self.grok_calls), 1)
+        self.assertIn("not reading", second.get("backup") or "", second)
+
+    def test_a_panel_goes_to_grok_while_claude_is_not_reading(self):
+        asked, _ask, _inner = self._silence()
+        with mock.patch.object(tv._WORKER, "ask", _ask), \
+                mock.patch.object(tv, "_oneshot_inner", _inner):
+            for _ in range(tv.CLAUDE_LANE_DOWN_AFTER):
+                tv.claude_read(self.pic)
+        got = tv.charselect_read(self.pic)
+        self.assertEqual(self.claude.asked, [])
+        self.assertEqual(got.get("eye"), "grok")
+        self.assertIn("not reading", got.get("backup") or "", got)
+
+    def test_claude_only_still_asks_claude_when_the_both_lane_was_down(self):
+        asked, _ask, _inner = self._silence()
+        with mock.patch.object(tv._WORKER, "ask", _ask), \
+                mock.patch.object(tv, "_oneshot_inner", _inner):
+            for _ in range(tv.CLAUDE_LANE_DOWN_AFTER):
+                tv.claude_read(self.pic)
+            self.switch("off")
+            asked[:] = []
+            self.grok_calls[:] = []
+            got = tv.claude_read(self.pic)
+        self.assertIn("oneshot", asked)
+        self.assertEqual(self.grok_calls, [])
+        self.assertFalse((got or {}).get("readFailed"))
 
 
 class ThePageOffersThreePositions(unittest.TestCase):
@@ -671,6 +788,13 @@ RED_PROOF = [
         "file": "tv_diablo.py",
         "find": "    label = \"backup: %s\" % claude_why\n    backed[\"why\"] = label\n",
         "replace": "    label = \"backup: %s\" % claude_why\n    _BACKUP_LAST[\"why\"] = label\n",
+        "matches": 1,
+    },
+    {
+        "why": "BOTH keeps calling Claude after Claude has stopped reading",
+        "file": "tv_diablo.py",
+        "find": "        return _CLAUDE_LANE[\"why\"] or \"claude not reading\"\n",
+        "replace": "        return None\n",
         "matches": 1,
     },
 ]

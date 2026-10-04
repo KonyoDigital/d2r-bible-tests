@@ -6803,6 +6803,46 @@ def _is_throttled():
     return time.time() < _THROTTLED_UNTIL[0]
 
 
+#: BOTH — after this many Claude misses in a row, the lane is down. One miss is one backup.
+CLAUDE_LANE_DOWN_AFTER = 3
+#: One frame asks Claude again after this long. An answer puts Claude back first.
+CLAUDE_LANE_PROBE_S = 180.0
+_CLAUDE_LANE = {"streak": 0, "until": 0.0, "why": None}
+_CLAUDE_LANE_LOCK = threading.Lock()
+_CLAUDE_PROBE = object()
+
+
+def _claude_lane_skip_why():
+    """BOTH only. None: ask Claude. _CLAUDE_PROBE: this one frame asks Claude again.
+    A string: do not call Claude; hand that why to the backup."""
+    if _reader_choice() != "both":
+        return None
+    with _CLAUDE_LANE_LOCK:
+        if int(_CLAUDE_LANE["streak"] or 0) < CLAUDE_LANE_DOWN_AFTER:
+            return None
+        now = time.monotonic()
+        if now >= float(_CLAUDE_LANE["until"] or 0.0):
+            _CLAUDE_LANE["until"] = now + CLAUDE_LANE_PROBE_S
+            return _CLAUDE_PROBE
+        return _CLAUDE_LANE["why"] or "claude not reading"
+
+
+def _claude_lane_observe(answered, why=None):
+    """A parsed Claude answer clears the down lane. A miss counts toward it."""
+    with _CLAUDE_LANE_LOCK:
+        if answered:
+            _CLAUDE_LANE["streak"] = 0
+            _CLAUDE_LANE["until"] = 0.0
+            _CLAUDE_LANE["why"] = None
+            return
+        _CLAUDE_LANE["streak"] = int(_CLAUDE_LANE["streak"] or 0) + 1
+        if _CLAUDE_LANE["streak"] >= CLAUDE_LANE_DOWN_AFTER:
+            _CLAUDE_LANE["why"] = "claude not reading"
+            _CLAUDE_LANE["until"] = time.monotonic() + CLAUDE_LANE_PROBE_S
+        else:
+            _CLAUDE_LANE["why"] = str(why or "claude no answer")
+
+
 _ONESHOT_GATE = threading.Semaphore(1)   # v864 — a throttled pool must not herd 8 oneshots
 _ASK_NONE_STREAK = 0
 def _reader_choice():
@@ -6917,6 +6957,9 @@ def _note_claude_miss(why):
         elif why == "claude timed out":
             ev("cap", "vision timed out - Claude did not answer")
             journal_skip("timeout", why)
+        elif why == "claude not reading":
+            ev("cap", "BOTH - Claude is not reading, so this frame goes to Grok")
+            journal_skip("claude-down", why)
         else:
             journal_skip("parse-null", why)
     except Exception:
@@ -7011,7 +7054,7 @@ def _grok_backup(ap, claude_why, prompt=None, raw_json=False, timeout=90, backed
     return pr
 
 
-def _oneshot(ap, model, timeout=90, prompt=None, raw_json=False, allow_backup=True, claude_miss=None, backed=None):
+def _oneshot(ap, model, timeout=90, prompt=None, raw_json=False, allow_backup=True, claude_miss=None, backed=None, lane_probe=False):
     """v864 — serialized: under subscription throttle all 8 workers can time out together;
     eight parallel one-shot bridges would herd the same throttle. One at a time.
 
@@ -7041,6 +7084,12 @@ def _oneshot(ap, model, timeout=90, prompt=None, raw_json=False, allow_backup=Tr
     backed["why"] = None
     backed["fail"] = None
     why = str(claude_miss) if claude_miss else None
+    if not why and not lane_probe and allow_backup:
+        _lane = _claude_lane_skip_why()
+        if _lane is _CLAUDE_PROBE:
+            lane_probe = True
+        elif _lane:
+            why = _lane
     result = None
     if why:
         _note_claude_miss(why)
@@ -7060,6 +7109,8 @@ def _oneshot(ap, model, timeout=90, prompt=None, raw_json=False, allow_backup=Tr
                 _ONESHOT_GATE.release()
             if result is None and not why:
                 why = _claude_miss_why()
+        if _reader_choice() == "both" and allow_backup:
+            _claude_lane_observe(result is not None, why)
     if result is not None:   # Claude answered, even with nothing here: Grok is not asked
         if isinstance(result, dict):
             result.setdefault("eye", "claude")
@@ -7956,6 +8007,13 @@ def claude_read(path, worker=None, out_jpg=None):
         except Exception:
             pass
         return None
+    _lane_probe = False
+    if not _miss and _reader_choice() == "both":
+        _lane = _claude_lane_skip_why()
+        if _lane is _CLAUDE_PROBE:
+            _lane_probe = True
+        elif _lane:
+            _miss = _lane
     if _miss:
         got = _oneshot(ap, FAST_MODEL, timeout=LIVE_READ_TIMEOUT_S, claude_miss=_miss, backed=backed)
         if isinstance(got, dict):
@@ -7970,6 +8028,8 @@ def claude_read(path, worker=None, out_jpg=None):
         if parsed is not None:
             parsed["_raw_txt"] = _raw_local   # v864 — raw travels WITH the result, no global race
         if parsed is not None:
+            if _reader_choice() == "both":
+                _claude_lane_observe(True)
             out = _maybe_genius(ap, parsed, t0, "warm") or EMPTY
             if out.get("mode") != "empty":
                 out["eye"] = "claude"
@@ -7982,7 +8042,7 @@ def claude_read(path, worker=None, out_jpg=None):
     try:
         # v948.17 — same lane-block cap applies to the one-shot fallback: a wedged warm
         # worker must not be followed by ANOTHER unbounded (90s) attempt on the live lane.
-        parsed = _oneshot(ap, FAST_MODEL, timeout=LIVE_READ_TIMEOUT_S, backed=backed)
+        parsed = _oneshot(ap, FAST_MODEL, timeout=LIVE_READ_TIMEOUT_S, backed=backed, lane_probe=_lane_probe)
         if parsed is None:
             if _reader_choice() == "both":
                 return _unread_frame(EMPTY, "claude no answer", backed)
