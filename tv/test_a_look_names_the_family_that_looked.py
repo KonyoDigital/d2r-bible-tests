@@ -192,9 +192,9 @@ RED_PROOF = [
     {
         "why": "Claude is not told to refuse file edits, so a settings change that allows tools lets the review write.",
         "file": "second_eye_run.py",
-        "find": "                \"--disable-slash-commands\",\n"
+        "find": "                \"--permission-mode\", \"dontAsk\", \"--disable-slash-commands\",\n"
                 "                \"--disallowedTools\", \"Edit,Write,MultiEdit,NotebookEdit\"]\n",
-        "replace": "                \"--disable-slash-commands\"]\n",
+        "replace": "                \"--permission-mode\", \"dontAsk\", \"--disable-slash-commands\"]\n",
         "matches": 1,
     },
 ]
