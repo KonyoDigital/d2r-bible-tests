@@ -90,7 +90,8 @@ class AWindowThatFailsSaysWhy(unittest.TestCase):
                       "the banner function exists and refresh never asks it")
         self.assertIn("page-newer", refresh, "refresh computes the sentence and never paints it")
         self.assertIn('id="page-newer" hidden', src, "the banner is visible when there is nothing to say")
-        self.assertIn(".page-newer[hidden] { display: none; }", src)
+        self.assertIn(".page-newer[hidden] { display: none !important; }", src,
+                      "the banner's hide rule loses to a later author display without !important")
         k = src.find("k.toLowerCase() !== 'w'")
         self.assertGreater(k, -1)
         block = src[src.rfind("addEventListener('keydown'", 0, k):src.find("}, true);", k)]

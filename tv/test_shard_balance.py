@@ -91,11 +91,21 @@ class TestSlowProjectExists(unittest.TestCase):
         missing = sorted(KNOWN_SLOW - present)
         self.assertEqual(missing, [], "slow list names files that are gone: %s" % missing)
 
-    def test_workflow_runs_slow_off_the_six_way_shard(self):
+    def test_workflow_runs_slow_off_the_fast_shard(self):
+        """The slow project keeps its own 2-way shard. The fast job's count is the dealer's."""
+        import re
         wf = open(WF, encoding="utf-8").read()
         self.assertIn("--project=chromium", wf)
         self.assertIn("--project=slow", wf)
-        self.assertIn("shard ${{ matrix.shard }}/6", wf)
+        m = re.search(r'routine_i_shards.py --shard "\$SHARD" --of (\d+)', wf)
+        self.assertIsNotNone(m, "the fast job no longer asks the dealer")
+        n = int(m.group(1))
+        self.assertGreaterEqual(n, 10)
+        self.assertIn("shard ${{ matrix.shard }}/%d" % n, wf)
+        self.assertIn("slow ${{ matrix.shard }}/2", wf)
+        self.assertIn("--shard=${{ matrix.shard }}/2", wf)
+        self.assertNotIn("slow ${{ matrix.shard }}/%d" % n, wf,
+                         "the slow project was moved onto the fast shard count")
         # merge must wait for the slow job too, or a green merge hides it
         self.assertRegex(wf, r"needs:\s*\[[^\]]*(test|slow)")
 
