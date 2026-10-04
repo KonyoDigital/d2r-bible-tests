@@ -97,9 +97,13 @@ class ThePolledEndpointNeverWaitsOnASurvey(unittest.TestCase):
                          "%d surveys were started in 1.5s of polling — the refresh is not held to "
                          "one at a time, so a slow survey multiplies instead of being absorbed"
                          % len(self.calls))
-        alive = [t for t in threading.enumerate() if t.name == "tvd-vault-autoread"]
+        alive = [t for t in threading.enumerate() if t.name == "tvd-vault-lamp"]
         self.assertLessEqual(len(alive), 1,
                              "%d refresh threads alive at once" % len(alive))
+        stolen = [t for t in threading.enumerate() if t.name == "tvd-vault-autoread"]
+        self.assertEqual(stolen, [],
+                         "the lamp refresh wore the vault loop's name, so the roster "
+                         "will skip the loop for the life of this process")
 
     def test_before_the_first_survey_the_lamp_is_UNKNOWN_not_off(self):
         """`{}` or on:False would say the lane is idle when nobody has looked yet."""
@@ -126,6 +130,16 @@ class ThePolledEndpointNeverWaitsOnASurvey(unittest.TestCase):
                                   "one are indistinguishable")
         self.assertIsInstance(r.get("ageMs"), int, "ageMs is %r, not a number" % (r.get("ageMs"),))
 
+    def test_the_lamp_refresh_does_not_wear_the_loops_name(self):
+        """The server accepts status before the roster starts. A refresh thread
+        named tvd-vault-autoread makes that roster skip the real loop."""
+        import inspect
+        kick = inspect.getsource(CA._vault_autoread_kick)
+        self.assertIn('name="tvd-vault-lamp"', kick)
+        self.assertNotIn('name="tvd-vault-autoread"', kick)
+        roster = inspect.getsource(CA.start_background_watchers)
+        self.assertIn('("tvd-vault-autoread", _vault_autoread_loop)', roster)
+
 
 RED_PROOF = [
     {
@@ -151,6 +165,14 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": '        return {"on": None, "ageMs": None, "stale": True,',
         "replace": '        return {"on": False, "ageMs": None, "stale": True,',
+        "matches": 1,
+    },
+    {
+        "why": "the lamp refresh takes the vault loop's name, so a status poll before the "
+               "roster starts leaves the loop unstarted for the life of the process",
+        "file": "control_app.py",
+        "find": '    threading.Thread(target=_run, daemon=True, name="tvd-vault-lamp").start()\n',
+        "replace": '    threading.Thread(target=_run, daemon=True, name="tvd-vault-autoread").start()\n',
         "matches": 1,
     },
 ]

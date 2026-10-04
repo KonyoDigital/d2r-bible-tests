@@ -7772,7 +7772,13 @@ def _vault_autoread_kick():
             with _VAULT_AUTOREAD_LOCK:
                 _VAULT_AUTOREAD_REFRESH["running"] = False
 
-    threading.Thread(target=_run, daemon=True, name="tvd-vault-autoread").start()
+    # The roster in start_background_watchers skips a name that is already alive.
+    # This refresh is not the vault loop. Wearing the loop's name made the first
+    # status poll, which this server accepts before the roster starts, occupy
+    # tvd-vault-autoread for as long as the survey takes. On the ALT that survey
+    # outlived the roster, the real loop was never started, and the lane then
+    # had no tick for the life of the process.
+    threading.Thread(target=_run, daemon=True, name="tvd-vault-lamp").start()
     return True
 
 
@@ -38515,7 +38521,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3582",
+        "ver": "v3583",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
