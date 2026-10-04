@@ -13,7 +13,8 @@ reset. Unknown stays unknown: the caller skips the pull.
 
 Exit codes of --apply: 0 the tree is clean, or the changed files were the
 update and now sit on that commit; 2 local work, or not a fast-forward, nothing
-was reset; 1 the tree could not be read.
+was reset; 1 the tree could not be read, or the update matched and the reset
+itself failed. A failed reset says so. It is not an unread tree.
 """
 import os
 import stat
@@ -223,6 +224,23 @@ def classify(repo):
     return {"ok": True, "block": block, "update": update, "ancestor": ancestor, "way": bool(way)}
 
 
+def _reset_failed(err, out):
+    """The update matched. The reset did not. Quote the head of git's own error."""
+    raw = err or out or b""
+    text = raw.decode("utf-8", "replace").replace("\r", "\n")
+    line = ""
+    for part in text.split("\n"):
+        part = part.strip()
+        if part:
+            line = part
+            break
+    if not line:
+        line = "git gave no reason"
+    if len(line) > 180:
+        line = line[:180]
+    return "the update matched but the reset failed: %s" % line
+
+
 def _decision(found):
     """(code, message) or (None, None) when a reset is still the narrow case."""
     if not found["ok"]:
@@ -242,9 +260,10 @@ def apply(repo, speak=False):
     """Put a tree that IS the fetched update onto that commit. Never fetches.
 
     0 clean, or reset onto the update. 2 local work, an untracked file in the
-    way, or not a fast-forward. 1 could not tell. A reset happens only when a
-    second read, immediately before it, still says every tracked change matches
-    origin/main, HEAD is an ancestor, and no untracked path would be replaced.
+    way, or not a fast-forward. 1 could not tell, or the update matched and the
+    reset itself failed. A reset happens only when a second read, immediately
+    before it, still says every tracked change matches origin/main, HEAD is an
+    ancestor, and no untracked path would be replaced.
     """
     code, msg = _decision(classify(repo))
     if code is None:
@@ -252,9 +271,9 @@ def apply(repo, speak=False):
         # the reset is allowed to trust.
         code, msg = _decision(classify(repo))
     if code is None:
-        rc, _out, _err = _run(repo, ["reset", "--hard", "origin/main"])
+        rc, out, err = _run(repo, ["reset", "--hard", "origin/main"])
         if rc != 0:
-            msg = "could not tell whether the changed files are the update"
+            msg = _reset_failed(err, out)
             code = 1
         else:
             msg = "the changed files matched the update"

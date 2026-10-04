@@ -730,6 +730,80 @@ class TheLauncherUsesTheSameRule(unittest.TestCase):
         self.addCleanup(self._rm, d)
         self.assertEqual(lp.apply(d), 1)
 
+    def test_a_failed_reset_says_the_reset_failed_not_that_the_tree_was_unread(self):
+        import io
+        import launcher_pull as lp
+        from contextlib import redirect_stdout
+        d, path = self._repo()
+        head = self._head(d)
+        with open(path, "wb") as fh:
+            fh.write(b"two\n")
+        real = lp._run
+
+        def _say(run):
+            lp._run = run
+            buf = io.StringIO()
+            with redirect_stdout(buf):
+                code = lp.apply(d, speak=True)
+            return code, buf.getvalue()
+
+        def run_err(repo, args):
+            if list(args)[:2] == ["reset", "--hard"]:
+                return 1, b"", b"fatal: unable to write new index file\nsecond line should not lead\n"
+            return real(repo, args)
+
+        self.addCleanup(setattr, lp, "_run", real)
+        code, said = _say(run_err)
+        self.assertEqual(code, 1)
+        self.assertIn(
+            "the update matched but the reset failed: fatal: unable to write new index file", said)
+        self.assertNotIn("could not tell whether the changed files are the update", said)
+        self.assertNotIn("second line", said)
+        self.assertEqual(self._head(d), head)
+
+        def run_empty(repo, args):
+            if list(args)[:2] == ["reset", "--hard"]:
+                return 1, b"", b""
+            return real(repo, args)
+
+        code, said = _say(run_empty)
+        self.assertEqual(code, 1)
+        self.assertIn("the update matched but the reset failed: git gave no reason", said)
+        self.assertNotIn("could not tell whether the changed files are the update", said)
+        self.assertEqual(self._head(d), head)
+
+    def test_the_update_rule_never_fetches(self):
+        with open(os.path.join(HERE, "launcher_pull.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertNotIn('"fetch"', src)
+        self.assertNotIn("'fetch'", src)
+
+    def test_the_windows_installer_runs_the_incoming_rule_and_says_why(self):
+        path = os.path.join(HERE, "install-tvd.ps1")
+        with open(path, "rb") as fh:
+            raw = fh.read()
+        self.assertTrue(raw.startswith(b"\xef\xbb\xbf"), "install-tvd.ps1 lost its UTF-8 BOM")
+        body = raw[3:]
+        bad = [i for i, b in enumerate(body) if b > 127]
+        self.assertEqual(bad, [], "non-ASCII in the Windows installer at %s" % (bad[:3],))
+        code = "\n".join(
+            ln for ln in body.decode("ascii").splitlines() if not ln.lstrip().startswith("#"))
+        update = code[code.find("updating the bible repo"):code.find("cloning the bible repo")]
+        self.assertIn("updating the bible repo", update)
+        self.assertNotIn("pull --ff-only", update)
+        self.assertNotIn("git pull", update, "the installer still falls back to a pull")
+        self.assertNotIn("git -C $repoDir pull", update)
+        fetch_at = update.find("fetch origin")
+        show_at = update.find("origin/main:tv/launcher_pull.py")
+        apply_at = update.find("--apply")
+        self.assertGreater(fetch_at, 0, "the installer does not fetch before the rule")
+        self.assertGreater(show_at, fetch_at, "the incoming rule is not read from origin/main")
+        self.assertGreater(apply_at, show_at, "the incoming rule is not applied")
+        self.assertIn("--repo", update)
+        self.assertIn("Warn $applyWhy", update)
+        self.assertIn("could not fetch the update", update)
+        self.assertIn("the incoming update rule could not be read", update)
+
     def test_both_launchers_and_both_pull_doors_call_it(self):
         with open(os.path.join(HERE, "start_tvd_mac.sh"), encoding="utf-8") as fh:
             mac = fh.read()
@@ -838,6 +912,21 @@ RED_PROOF = [
         "file": "tv/launcher_pull.py",
         "find": "        return stat.S_ISDIR(os.lstat(path).st_mode)\n",
         "replace": "        return os.path.isdir(path)\n",
+        "matches": 1,
+    },
+    {
+        "why": "a failed reset is reported as an unread tree, so the reader looks in the wrong place",
+        "file": "tv/launcher_pull.py",
+        "find": "            msg = _reset_failed(err, out)\n",
+        "replace": "            msg = \"could not tell whether the changed files are the update\"\n",
+        "matches": 1,
+    },
+    {
+        "why": "the installer fast-forwards and hides the refusal, so a machine on the old tree cannot take the update",
+        "file": "tv/install-tvd.ps1",
+        "find": "  Say \"updating the bible repo...\"\n",
+        "replace": "  Say \"updating the bible repo...\"\n"
+                   "  git -C $repoDir pull --ff-only 2>&1 | Out-Null\n",
         "matches": 1,
     },
 ]

@@ -147,10 +147,75 @@ try {
 # -- bible repo FIRST (so Desktop shortcut always lands even if Claude install flakes) --
 if (Test-Path (Join-Path $repoDir '.git')) {
   Say "updating the bible repo..."
-  try {
-    git -C $repoDir pull --ff-only 2>&1 | Out-Null
-  } catch {
-    Warn "git pull failed - using whatever is already at $repoDir"
+  # This script is fetched fresh. The tree on disk may be an older build, so
+  # its own launcher_pull.py may not exist yet. Fetch, then run the incoming
+  # rule from a temp file. Never a fast-forward pull: a refusal is printed,
+  # and a reset happens only inside that rule (plain modifications that match
+  # origin/main, HEAD an ancestor, nothing untracked or ignored in the way).
+  $env:GIT_TERMINAL_PROMPT = '0'
+  $oldEap = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  $fetchErr = Join-Path $env:TEMP ("tvd-fetch-" + [guid]::NewGuid().ToString("n") + ".txt")
+  & git --no-pager -C $repoDir fetch origin --quiet 2>$fetchErr
+  $fetchRc = $LASTEXITCODE
+  $ErrorActionPreference = $oldEap
+  if ($fetchRc -ne 0) {
+    $why = ""
+    if (Test-Path -LiteralPath $fetchErr) {
+      $why = (Get-Content -LiteralPath $fetchErr -Raw -ErrorAction SilentlyContinue)
+    }
+    Remove-Item -LiteralPath $fetchErr -Force -ErrorAction SilentlyContinue
+    if (-not $why) { $why = "git fetch exited $fetchRc" }
+    $why = (($why -replace '\s+', ' ').Trim())
+    if ($why.Length -gt 400) { $why = $why.Substring(0, 400) }
+    Warn ("could not fetch the update: {0}" -f $why)
+  } else {
+    Remove-Item -LiteralPath $fetchErr -Force -ErrorAction SilentlyContinue
+    $tmp = Join-Path $env:TEMP ("tvd-launcher-pull-" + [guid]::NewGuid().ToString("n") + ".py")
+    $showErr = Join-Path $env:TEMP ("tvd-show-" + [guid]::NewGuid().ToString("n") + ".txt")
+    $ErrorActionPreference = 'Continue'
+    $shown = & git --no-pager -C $repoDir show "origin/main:tv/launcher_pull.py" 2>$showErr
+    $showRc = $LASTEXITCODE
+    $ErrorActionPreference = $oldEap
+    if ($showRc -ne 0) {
+      $why = ""
+      if (Test-Path -LiteralPath $showErr) {
+        $why = (Get-Content -LiteralPath $showErr -Raw -ErrorAction SilentlyContinue)
+      }
+      Remove-Item -LiteralPath $showErr -Force -ErrorAction SilentlyContinue
+      if (-not $why) { $why = "git show exited $showRc" }
+      $why = (($why -replace '\s+', ' ').Trim())
+      if ($why.Length -gt 400) { $why = $why.Substring(0, 400) }
+      Warn ("the incoming update rule could not be read: {0}" -f $why)
+    } else {
+      Remove-Item -LiteralPath $showErr -Force -ErrorAction SilentlyContinue
+      try {
+        $enc = New-Object System.Text.UTF8Encoding $false
+        [System.IO.File]::WriteAllLines($tmp, @($shown), $enc)
+        $ErrorActionPreference = 'Continue'
+        if ($py -eq 'py') {
+          $applyOut = & py -3 $tmp --repo $repoDir --apply 2>&1
+        } else {
+          $applyOut = & $py $tmp --repo $repoDir --apply 2>&1
+        }
+        $applyRc = $LASTEXITCODE
+        $ErrorActionPreference = $oldEap
+        $applyWhy = (($applyOut | Out-String) -replace '\s+', ' ').Trim()
+        if (-not $applyWhy) { $applyWhy = "" }
+        if ($applyWhy.Length -gt 400) { $applyWhy = $applyWhy.Substring(0, 400) }
+        if ($applyRc -eq 0) {
+          if ($applyWhy -and ($applyWhy -ne 'clean')) { Ok $applyWhy } else { Ok "bible repo is current" }
+        } else {
+          if (-not $applyWhy) { $applyWhy = "the update was refused and gave no reason (exit $applyRc)" }
+          Warn $applyWhy
+        }
+      } catch {
+        Warn ("the update could not be applied: {0}" -f $_.Exception.Message)
+      } finally {
+        Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
+        $ErrorActionPreference = $oldEap
+      }
+    }
   }
 } else {
   Say "cloning the bible repo..."

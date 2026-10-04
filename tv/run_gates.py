@@ -427,7 +427,10 @@ GATES = [
              "update that landed, not a person mid-edit. The same bytes with CR at end of line count as "
              "that update. A file that matches neither still blocks, and a blob that cannot be read still "
              "blocks. The beacon carries HEAD, autocrlf, the porcelain lines and the last pull exit, with "
-             "home directories and drive paths removed. Unknown is not an update and unknown is not a success."),
+             "home directories and drive paths removed. Unknown is not an update and unknown is not a success. "
+             "The Windows installer fetches, then runs that same rule from the incoming file, and "
+             "prints a refusal instead of fast-forwarding over it. A reset that fails says the "
+             "update matched and quotes the git error."),
     Gate("test_quit_leaves_the_shadow_reader_running", [sys.executable,
          os.path.join(HERE, "test_quit_leaves_the_shadow_reader_running.py")], 60,
          why="Quit closes the console window and frees its view. The shadow reader, the agent and the "
