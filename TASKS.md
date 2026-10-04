@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3583** | `(this commit)` | v3583 — The vault lamp refresh no longer wears the loop thread name, so a status poll during boot cannot leave the vault lane unstarted. HEART: test_the_polled_endpoint_never_waits_on_a_survey |
+| **v3584** | `(this commit)` | v3584 — A chatty lobby still matches, and each file size says how many frames were checked. HEART: test_the_lobby_names_the_character |
+| **v3583** | `569a47ab` | v3583 — The vault lamp refresh no longer wears the loop thread name, so a status poll during boot cannot leave the vault lane unstarted. HEART: test_the_polled_endpoint_never_waits_on_a_survey |
 | **v3582** | `8e9902fc` | v3582 — A forward-slash drive path with a space no longer leaves the rest of the name. The same scrub runs on the wire and the worker. A drive glued to a letter is dropped, and a web address is still kept. HEART: test_a_landed_update_is_not_an_edit, test_the_beacon_says_how_each_pc_films_and_drains |
 | **v3581** | `9b185ec8` | v3581 — A drive path with a space no longer leaves the rest of the name on the beacon. A web address is not read as a drive. The eye classifies codex before claude when both words are in the path. HEART: test_a_landed_update_is_not_an_edit, test_a_look_names_the_family_that_looked |
 | **v3580** | `e117d476` | v3580 — Quit closes the window and the process stays up, so the shadow reader keeps running. A forward-slash Windows path and a spaced user folder no longer leave a name on the beacon. The page-newer banner hides with importance. Routine I fast shards go from 6 to 10 on the same cost table. HEART: the page-newer line is the same banner, and test_a_hidden_element_is_actually_hidden already counts every hidden guard. |

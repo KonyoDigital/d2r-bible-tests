@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3583",
+  "ver": "v3584",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3583: The vault lamp refresh no longer wears the loop thread name, so a status poll during boot cannot leave the vault lane unstarted. HEART: test_the_polled_endpoint_never_waits_on_a_survey",
+  "note": "v3584: A chatty lobby still matches, and each file size says how many frames were checked. HEART: test_the_lobby_names_the_character",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
