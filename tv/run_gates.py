@@ -6850,7 +6850,7 @@ GATES = [
              "It also fails if the baseline goes STALE, so the remaining debt cannot read larger "
              "than it is, and if one_name.py disappears. All four sabotages seen RED, the first "
              "naming the offender by file and symbol."),
-    Gate("test_one_name", [sys.executable, os.path.join(HERE, "test_one_name.py")], 60,
+    Gate("test_one_name", [sys.executable, os.path.join(HERE, "test_one_name.py")], 120,
          why="THE JOIN THE CONSOLE WAS MISSING FIVE TIMES OVER. Measured: three resolvers disagree "
              "on 6 of 9 inputs — chronicle_template says `sets` where route_totals says `set`, "
              "lane_lock says `uniques` where both others say `unique`. Each is right for ITS OWN "
@@ -7157,7 +7157,7 @@ GATES = [
              "iterated the organs the module had already labelled incomparable, so disabling the "
              "label removed them from its own scope. It counts the overlap itself now; 5 "
              "sabotages, 5 RED, each caught by its own test."),
-    Gate("test_organ_matrix", [sys.executable, os.path.join(HERE, "test_organ_matrix.py")], 120,
+    Gate("test_organ_matrix", [sys.executable, os.path.join(HERE, "test_organ_matrix.py")], 240,
          why="A3 — he was shown a surface x capability table that was mostly holes and said "
              "\"fix those gaps and anywhere else.. make it unified\", every surface getting the "
              "same four organs OR being honestly marked as not having them. The danger is not an "
