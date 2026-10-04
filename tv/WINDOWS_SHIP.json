@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3584",
+  "ver": "v3585",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3584: A chatty lobby still matches, and each file size says how many frames were checked. HEART: test_the_lobby_names_the_character",
+  "note": "v3585: After Quit, a front request opens a new window in the same process, so the launcher does not replace it. The launcher treats files that match the fetched update as that update. The Claude review denies file edits. A lobby backfill stops at half the tick. HEART: test_quit_leaves_the_shadow_reader_running test_a_landed_update_is_not_an_edit test_eye_attribution test_the_lobby_names_the_character",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

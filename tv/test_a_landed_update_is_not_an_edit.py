@@ -291,6 +291,157 @@ class TheWorkerKeepsTheDiagnosis(unittest.TestCase):
                           "a missing window mode was stored as the word undefined")
 
 
+class TheLauncherUsesTheSameRule(unittest.TestCase):
+    """The launcher runs before the process that already knows this rule.
+
+    A file whose bytes match the fetched origin/main, CR ignored, is the update.
+    A real edit still blocks. A history that cannot fast-forward is not reset.
+    """
+
+    def test_the_byte_rule_matches_the_console(self):
+        import launcher_pull as lp
+        pairs = [(b"a\n", b"a\r\n"), (b"a\nb", b"a\r\nb"), (b"a\n", b"b\n"), (b"", b"")]
+        for left, right in pairs:
+            self.assertEqual(lp.bytes_match_ignoring_cr(left, right),
+                             ca._bytes_match_ignoring_cr(left, right),
+                             "the launcher and the console disagree on %r %r" % (left, right))
+
+    def _repo(self):
+        import subprocess
+        import tempfile
+        d = tempfile.mkdtemp(prefix="launcher_pull_")
+        self.addCleanup(self._rm, d)
+        subprocess.check_call(["git", "init", "-q"], cwd=d)
+        subprocess.check_call(["git", "-C", d, "config", "user.email", "t@example.com"])
+        subprocess.check_call(["git", "-C", d, "config", "user.name", "t"])
+        path = os.path.join(d, "a.txt")
+        with open(path, "wb") as fh:
+            fh.write(b"one\n")
+        subprocess.check_call(["git", "-C", d, "add", "a.txt"])
+        subprocess.check_call(["git", "-C", d, "commit", "-q", "-m", "one"])
+        with open(path, "wb") as fh:
+            fh.write(b"two\n")
+        subprocess.check_call(["git", "-C", d, "add", "a.txt"])
+        subprocess.check_call(["git", "-C", d, "commit", "-q", "-m", "two"])
+        subprocess.check_call(["git", "-C", d, "update-ref", "refs/remotes/origin/main", "HEAD"])
+        subprocess.check_call(["git", "-C", d, "reset", "-q", "--hard", "HEAD~1"])
+        return d, path
+
+    def _rm(self, d):
+        import shutil
+        shutil.rmtree(d, ignore_errors=True)
+
+    def _head(self, d):
+        import subprocess
+        return subprocess.check_output(["git", "-C", d, "rev-parse", "HEAD"], text=True).strip()
+
+    def _origin(self, d):
+        import subprocess
+        return subprocess.check_output(
+            ["git", "-C", d, "rev-parse", "refs/remotes/origin/main"], text=True).strip()
+
+    def test_bytes_that_match_origin_are_reset_onto_that_update(self):
+        import launcher_pull as lp
+        d, path = self._repo()
+        origin = self._origin(d)
+        with open(path, "wb") as fh:
+            fh.write(b"two\n")
+        self.assertNotEqual(self._head(d), origin)
+        self.assertEqual(lp.apply(d), 0)
+        self.assertEqual(self._head(d), origin)
+        with open(path, "rb") as fh:
+            self.assertEqual(fh.read(), b"two\n")
+
+    def test_the_same_bytes_with_CR_are_still_that_update(self):
+        import launcher_pull as lp
+        d, path = self._repo()
+        with open(path, "wb") as fh:
+            fh.write(b"two\r\n")
+        self.assertEqual(lp.apply(d), 0)
+        self.assertEqual(self._head(d), self._origin(d))
+
+    def test_a_real_edit_is_not_reset(self):
+        import launcher_pull as lp
+        d, path = self._repo()
+        head = self._head(d)
+        with open(path, "wb") as fh:
+            fh.write(b"two\nlocal\n")
+        self.assertEqual(lp.apply(d), 2)
+        self.assertEqual(self._head(d), head)
+        with open(path, "rb") as fh:
+            self.assertEqual(fh.read(), b"two\nlocal\n")
+
+    def test_one_real_edit_beside_a_match_is_not_reset(self):
+        import subprocess
+        import launcher_pull as lp
+        d, path = self._repo()
+        head = self._head(d)
+        with open(path, "wb") as fh:
+            fh.write(b"two\n")
+        other = os.path.join(d, "b.txt")
+        with open(other, "wb") as fh:
+            fh.write(b"local\n")
+        subprocess.check_call(["git", "-C", d, "add", "b.txt"])
+        # staged add of a file origin does not have: a real edit beside the update
+        self.assertEqual(lp.apply(d), 2)
+        self.assertEqual(self._head(d), head)
+
+    def test_a_history_that_cannot_fast_forward_is_not_reset(self):
+        import subprocess
+        import launcher_pull as lp
+        d, path = self._repo()
+        # origin is the first commit. Move HEAD one commit ahead of it, then make
+        # the worktree match origin. That is local history, not the update.
+        subprocess.check_call(["git", "-C", d, "update-ref", "refs/remotes/origin/main", "HEAD"])
+        with open(path, "wb") as fh:
+            fh.write(b"three\n")
+        subprocess.check_call(["git", "-C", d, "add", "a.txt"])
+        subprocess.check_call(["git", "-C", d, "commit", "-q", "-m", "three"])
+        head = self._head(d)
+        with open(path, "wb") as fh:
+            fh.write(b"one\n")
+        self.assertEqual(lp.apply(d), 2)
+        self.assertEqual(self._head(d), head)
+        with open(path, "rb") as fh:
+            self.assertEqual(fh.read(), b"one\n")
+
+    def test_a_missing_origin_is_not_an_update(self):
+        import subprocess
+        import launcher_pull as lp
+        d, path = self._repo()
+        head = self._head(d)
+        subprocess.check_call(["git", "-C", d, "update-ref", "-d", "refs/remotes/origin/main"])
+        with open(path, "wb") as fh:
+            fh.write(b"two\n")
+        self.assertEqual(lp.apply(d), 2)
+        self.assertEqual(self._head(d), head)
+
+    def test_an_unreadable_tree_is_not_called_clean(self):
+        import launcher_pull as lp
+        import tempfile
+        d = tempfile.mkdtemp(prefix="launcher_pull_notgit_")
+        self.addCleanup(self._rm, d)
+        self.assertEqual(lp.apply(d), 1)
+
+    def test_both_launchers_and_both_pull_doors_call_it(self):
+        with open(os.path.join(HERE, "start_tvd_mac.sh"), encoding="utf-8") as fh:
+            mac = fh.read()
+        with open(os.path.join(HERE, "start_tvd_win.ps1"), encoding="utf-8-sig") as fh:
+            win = fh.read()
+        with open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            app = fh.read()
+        self.assertEqual(mac.count("_tvd_may_pull"), 3,
+                         "the Mac launcher grew or lost a pull door")
+        self.assertIn(
+            'why=$(python3 "$HERE/launcher_pull.py" --repo "$REPO" --apply 2>/dev/null) || rc=$?',
+            mac)
+        self.assertIn("launcher_pull.py", win)
+        self.assertIn("--apply", win)
+        self.assertTrue(all(ord(c) < 128 for c in win), "non-ASCII in the Windows launcher")
+        self.assertEqual(app.count("import launcher_pull as _lp"), 2,
+                         "one of the in-process pull doors does not use the launcher rule")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 
@@ -312,6 +463,13 @@ RED_PROOF = [
         "file": "tv/control_app.py",
         "find": "        if getattr(shown, \"returncode\", 1) != 0:\n            return False\n",
         "replace": "        if getattr(shown, \"returncode\", 1) != 0:\n            return True\n",
+        "matches": 1,
+    },
+    {
+        "why": "a file that matches the fetched update is a local edit again, so the launcher skips the pull",
+        "file": "tv/launcher_pull.py",
+        "find": "        if _matches(repo, safe):\n            update.append(safe)\n",
+        "replace": "        if False:\n            update.append(safe)\n",
         "matches": 1,
     },
 ]

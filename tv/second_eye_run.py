@@ -1247,9 +1247,11 @@ def _unwrap_eye_envelope(raw):
 def _eye_argv(prompt):
     """Argv for the binary that will actually run.
 
-    Grok's CLI takes a repeated --deny. Claude's CLI has no --deny flag; the same
-    refusal is --restricted (no Bash and no other code-running tool) plus dontAsk.
-    Claude's schema result arrives as structured_output under --output-format json.
+    Grok's CLI takes a repeated --deny. Claude's CLI has no --deny flag; passing
+    one makes the seat exit before it looks. --restricted drops the command
+    tools. --disallowedTools is the file-edit block, so a later settings change
+    that allows tools still cannot Edit or Write. Claude's schema result arrives
+    as structured_output under --output-format json.
     """
     low = (EYE_CLI or "").lower()
     # Grok and codex win before claude. A home folder that contains the word
@@ -1257,7 +1259,8 @@ def _eye_argv(prompt):
     if "claude" in low and "grok" not in low and "codex" not in low and "chatgpt" not in low:
         return [EYE_CLI, "-p", prompt, "--json-schema", EYE_VERDICT_SCHEMA,
                 "--output-format", "json", "--restricted",
-                "--permission-mode", "dontAsk", "--disable-slash-commands"]
+                "--permission-mode", "dontAsk", "--disable-slash-commands",
+                "--disallowedTools", "Edit,Write,MultiEdit,NotebookEdit"]
     return [EYE_CLI, "-p", prompt, "--json-schema", EYE_VERDICT_SCHEMA,
             "--deny", "Edit", "--deny", "Write", "--deny", "MultiEdit",
             "--disable-web-search"]

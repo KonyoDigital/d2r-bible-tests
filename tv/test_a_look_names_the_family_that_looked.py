@@ -78,6 +78,8 @@ class TestALookNamesTheFamilyThatLooked(unittest.TestCase):
         argv = SER._eye_argv("look")
         self.assertIn("--restricted", argv)
         self.assertIn("--output-format", argv)
+        self.assertIn("--disallowedTools", argv)
+        self.assertIn("Edit,Write,MultiEdit,NotebookEdit", argv)
         self.assertNotIn("--deny", argv)
         SER.EYE_CLI = "/Users/" + "x/" + ".grok/bin/grok"
         grok = SER._eye_argv("look")
@@ -185,6 +187,14 @@ RED_PROOF = [
         "file": "second_eye_run.py",
         "find": "    if \"claude\" in low and \"grok\" not in low and \"codex\" not in low and \"chatgpt\" not in low:\n",
         "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "Claude is not told to refuse file edits, so a settings change that allows tools lets the review write.",
+        "file": "second_eye_run.py",
+        "find": "                \"--disable-slash-commands\",\n"
+                "                \"--disallowedTools\", \"Edit,Write,MultiEdit,NotebookEdit\"]\n",
+        "replace": "                \"--disable-slash-commands\"]\n",
         "matches": 1,
     },
 ]

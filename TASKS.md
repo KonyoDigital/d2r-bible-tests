@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3584** | `(this commit)` | v3584 — A chatty lobby still matches, and each file size says how many frames were checked. HEART: test_the_lobby_names_the_character |
+| **v3585** | `(this commit)` | v3585 — After Quit, a front request opens a new window in the same process, so the launcher does not replace it. The launcher treats files that match the fetched update as that update. The Claude review denies file edits. A lobby backfill stops at half the tick. HEART: test_quit_leaves_the_shadow_reader_running test_a_landed_update_is_not_an_edit test_eye_attribution test_the_lobby_names_the_character |
+| **v3584** | `7f61e09b` | v3584 — A chatty lobby still matches, and each file size says how many frames were checked. HEART: test_the_lobby_names_the_character |
 | **v3583** | `569a47ab` | v3583 — The vault lamp refresh no longer wears the loop thread name, so a status poll during boot cannot leave the vault lane unstarted. HEART: test_the_polled_endpoint_never_waits_on_a_survey |
 | **v3582** | `8e9902fc` | v3582 — A forward-slash drive path with a space no longer leaves the rest of the name. The same scrub runs on the wire and the worker. A drive glued to a letter is dropped, and a web address is still kept. HEART: test_a_landed_update_is_not_an_edit, test_the_beacon_says_how_each_pc_films_and_drains |
 | **v3581** | `9b185ec8` | v3581 — A drive path with a space no longer leaves the rest of the name on the beacon. A web address is not read as a drive. The eye classifies codex before claude when both words are in the path. HEART: test_a_landed_update_is_not_an_edit, test_a_look_names_the_family_that_looked |

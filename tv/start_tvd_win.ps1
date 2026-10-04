@@ -351,9 +351,36 @@ if (-not $env:TV_NO_AUTO_PULL) {
       if ($line -and ($line -notmatch '^\?\?')) { $trackedDirty = $true; break }
     }
   } catch {}
-  if ($trackedDirty) {
+  # A file that matches the fetched origin, CR ignored, is the update, not an edit.
+  # The same rule as the running console. This script runs before that process.
+  $pullRc = 1
+  $pullWhy = 'could not tell whether the changed files are the update'
+  try {
+    $pullCmd = $py.Cmd
+    $pullPrefix = @()
+    if ($py.Prefix) { $pullPrefix = @($py.Prefix) }
+    if ($pullCmd -eq 'pythonw') { $pullCmd = 'python' }
+    $pullScript = Join-Path $here 'launcher_pull.py'
+    $pullWhy = & $pullCmd @pullPrefix $pullScript --repo $repo --apply 2>&1
+    $pullRc = $LASTEXITCODE
+    $pullWhy = ($pullWhy | Out-String).Trim()
+  } catch {
+    $pullRc = 1
+  }
+  $pullProceed = $false
+  if ($pullRc -eq 0) {
+    $pullProceed = $true
+    if ($pullWhy -and ($pullWhy -ne 'clean')) {
+      Write-TvdLaunchLog ("auto-pull: {0}" -f $pullWhy)
+    }
+  } elseif ($pullRc -eq 2) {
+    Write-TvdLaunchLog ("skip auto-pull: {0}" -f $pullWhy)
+  } elseif ($trackedDirty) {
     Write-TvdLaunchLog 'skip auto-pull: tracked files modified'
   } else {
+    $pullProceed = $true
+  }
+  if ($pullProceed) {
     try {
       $env:GIT_TERMINAL_PROMPT = '0'
       # shallow-ish: fetch with 10s kill via job

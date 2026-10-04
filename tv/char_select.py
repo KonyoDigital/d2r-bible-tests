@@ -967,9 +967,12 @@ def _lobby_backfill(d, reels, stats, surface_stats, surface_reader, size_of, st,
 
     Stopping here for the half budget is not a reason to stop the live scan. A cap or a read that
     did not happen is, and acc says so."""
+    # deadline is an absolute clock reading. Elapsed seconds are never larger
+    # than it, so the half budget never returned and the full budget then
+    # skipped the live scan.
     deadline = t0 + (float(budget_s) * 0.5)
     for rd in reels:
-        if clock() - t0 > deadline:
+        if clock() > deadline:
             return
         name = os.path.basename(rd)
         frames = sorted(glob.glob(os.path.join(rd, "f_*.jpg")))
@@ -983,7 +986,7 @@ def _lobby_backfill(d, reels, stats, surface_stats, surface_reader, size_of, st,
             ranges.append("done")
         for which in ranges:
             while True:
-                if clock() - t0 > deadline:
+                if clock() > deadline:
                     return
                 if which == "prefix":
                     fi = int(rs.get("lobbyPrefixPos") or 0)

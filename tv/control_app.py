@@ -1367,9 +1367,16 @@ def fleet_pull():
                 out["outcome"] = "interrupted"
                 out["msg"] = _door_cut["say"]
                 return out
-            out["msg"] = ("local TRACKED edits are present, so a fast-forward would not be safe. "
-                          "Commit or stash them, then update.")
-            return out
+            _landed = None
+            try:
+                import launcher_pull as _lp
+                _landed = _lp.apply(REPO)
+            except Exception:
+                _landed = None
+            if _landed != 0:
+                out["msg"] = ("local TRACKED edits are present, so a fast-forward would not be safe. "
+                              "Commit or stash them, then update.")
+                return out
         before = _git_run(
             ["git", "rev-parse", "--short", "HEAD"],
             cwd=REPO, capture_output=True, text=True, timeout=15,
@@ -6040,12 +6047,44 @@ def console_to_background(by="window-close", sleep=time.sleep):
     return {"ok": True, "did": did, "why": ""}
 
 
+def _wait_for_a_window_after_quit(sleep, tries=80):
+    """The request thread cannot open a window. Ask the parked main thread, then wait.
+
+    80 tries at the caller's 0.05s is 4s, inside the launcher's 5s ask. The new
+    window is created shown, so this returns as soon as it exists and does not
+    call show() itself: pywebview's show() waits until the window has been
+    shown, and this request is what the launcher is waiting on.
+    """
+    globals()["_REOPEN_WHY"] = None
+    globals()["_REOPEN_WINDOW"] = True
+    for _ in range(int(tries)):
+        win = globals().get("_MAIN_WIN")
+        if win is not None:
+            return win
+        if globals().get("_REOPEN_WHY"):
+            return None
+        sleep(0.05)
+    return globals().get("_MAIN_WIN")
+
+
 def console_to_front(by="launcher", sleep=time.sleep):
     """Bring a backgrounded window back, fullscreen again if that is how it left. -> receipt, never raises."""
     win = globals().get("_MAIN_WIN")
     if win is None:
-        return {"ok": False, "did": [], "why": "there is no native window on this console (headless or "
-                                               "--no-open), so there is nothing to bring forward"}
+        if not _quit_left_the_service_up():
+            return {"ok": False, "did": [], "why": "there is no native window on this console (headless or "
+                                                   "--no-open), so there is nothing to bring forward"}
+        win = _wait_for_a_window_after_quit(sleep)
+        if win is None:
+            why = globals().get("_REOPEN_WHY") or (
+                "the service is up after Quit but a new window did not open, "
+                "so there is nothing to bring forward")
+            return {"ok": False, "did": [], "why": why}
+        try:
+            _BACKGROUND.update(on=False, since=None, by=None)
+        except Exception:
+            pass
+        return {"ok": True, "did": ["opened"], "why": "", "by": str(by)[:60]}
     did = []
     was_fs = _BACKGROUND.get("wasFullscreen")
     try:
@@ -6294,13 +6333,16 @@ def _after_the_window_returns(reason):
     return True
 
 
-def _park_until_a_real_exit(sleep=time.sleep):
+def _park_until_a_real_exit(sleep=time.sleep, open_window=None):
     """Stay in this process after Quit, until something actually asks it to exit.
 
     The server and the shadow reader are daemon threads. Returning from main would stop
-    them. The Desktop icon brings a window back by asking this process forward, and
-    replaces it only when that ask fails.
+    them. A front request sets _REOPEN_WINDOW. This thread, the one pywebview will
+    run on, opens a new window in this same process. The launcher replaces the
+    process only when that window does not open. The quit flag stays set, so a
+    later Quit parks again instead of ending the process.
     """
+    opener = open_window or open_control_window
     if not _quit_left_the_service_up():
         return False
     try:
@@ -6309,6 +6351,20 @@ def _park_until_a_real_exit(sleep=time.sleep):
     except Exception:
         pass
     while _quit_left_the_service_up():
+        if globals().get("_REOPEN_WINDOW"):
+            globals()["_REOPEN_WINDOW"] = False
+            globals()["_REOPEN_WHY"] = None
+            globals()["_REOPEN_SHOW"] = True
+            try:
+                opener()
+            except Exception as e:
+                globals()["_REOPEN_WHY"] = "a new window did not open (%s)" % type(e).__name__
+            else:
+                if globals().get("_MAIN_WIN") is None and not globals().get("_REOPEN_WHY"):
+                    globals()["_REOPEN_WHY"] = "a new window did not open"
+            finally:
+                globals()["_REOPEN_SHOW"] = False
+            continue
         sleep(0.5)
     return True
 
@@ -8549,6 +8605,10 @@ def _control_window_kwargs(url):
     # Hidden wins over minimized, and no fullscreen at creation - pywebview would enter fullscreen, which shows it.
     _hidden = os.environ.pop("TV_START_HIDDEN", None) or ("a --background launch" if "--background" in sys.argv
                                                           else None)
+    if globals().get("_REOPEN_SHOW"):
+        # The flag is still on argv from the first start. This call is the
+        # front request, so the new window is shown.
+        _hidden = None
     globals()["_HIDDEN_BOOT"] = _hidden
     if _hidden:
         kwargs.pop("minimized", None)
@@ -8565,7 +8625,43 @@ def _control_window_kwargs(url):
         # The strip is NOT the pywebview frame; it survives framelessness, so it is something
         # else and will be found by looking rather than by guessing at window flags again.
         # [[design-is-fine-until-he-says]]
+    if globals().get("_REOPEN_SHOW"):
+        # A front request after Quit asked for a window. --background is still
+        # on argv from the first start; it must not hide the window this request
+        # asked to see.
+        kwargs.pop("hidden", None)
+        kwargs.pop("minimized", None)
+        kwargs["focus"] = True
+        if _windowed:
+            kwargs.pop("fullscreen", None)
+        else:
+            kwargs["fullscreen"] = True
     return kwargs
+
+
+def _start_daemon_once(name, target):
+    """Start a daemon thread unless one with this name is already alive. -> bool started."""
+    if any(getattr(t, "name", None) == name and t.is_alive() for t in threading.enumerate()):
+        return False
+    threading.Thread(target=target, daemon=True, name=name).start()
+    return True
+
+
+def _drop_closed_webview_windows():
+    """A destroyed window left in pywebview's list makes the next one a child.
+
+    A child window is scheduled onto a loop that is no longer running, so the
+    Desktop icon would ask, get no window, and replace the process. Only when
+    this process has no window of its own.
+    """
+    if globals().get("_MAIN_WIN") is not None:
+        return False
+    try:
+        import webview
+        webview.windows[:] = []
+        return True
+    except Exception:
+        return False
 
 
 def open_control_window():
@@ -8706,6 +8802,8 @@ def open_control_window():
             print(f"⚠ pywebview build ignores {', '.join(sorted(dropped))} — continuing without",
                   flush=True)
             kwargs = {k: v for k, v in kwargs.items() if k in _cw_ok}
+    if globals().get("_REOPEN_SHOW"):
+        _drop_closed_webview_windows()
     try:
         globals()["_MAIN_WIN"] = webview.create_window(**kwargs)
     except TypeError as e:
@@ -8805,8 +8903,9 @@ def open_control_window():
     if not globals().get("_WINDOW_ONLY"):
         try:
             # These two genuinely need the window — they drive the board tab.
-            threading.Thread(target=_engine_driver, daemon=True, name="tvd-engine-driver").start()
-            threading.Thread(target=_kai_closer_loop, daemon=True, name="tvd-kai-closer").start()
+            # A second open, after Quit, must not start a second copy of either.
+            _start_daemon_once("tvd-engine-driver", _engine_driver)
+            _start_daemon_once("tvd-kai-closer", _kai_closer_loop)
         except Exception as _ee:
             print(f"\u26a0 engine driver failed to start ({_ee}) \u2014 tallies need a board tab open", flush=True)
         start_background_watchers("window")
@@ -8825,8 +8924,10 @@ def open_control_window():
         pass
     # v2322 — arm the backup generator before the window blocks this thread in start().
     try:
-        _t_rescue = threading.Thread(target=_console_rescue_loop, name="console-rescue", daemon=True)
-        _t_rescue.start()
+        if not any(getattr(t, "name", None) == "console-rescue" and t.is_alive()
+                   for t in threading.enumerate()):
+            _t_rescue = threading.Thread(target=_console_rescue_loop, name="console-rescue", daemon=True)
+            _t_rescue.start()
     except Exception as _e:
         print("\u26a0 console rescue watchdog did not arm: %s" % str(_e)[:120], flush=True)
 
@@ -22670,10 +22771,20 @@ def _pull_once():
         if _cut:
             _pull_note_interrupted(_cut)
             return None
-        _set(on=True, outcome="dirty", exit=None,
-             say=("local tracked edits are present, so this machine is NOT auto-pulling - "
-                  "commit or stash them to rejoin the fleet"))
-        return False
+        # A file that matches the fetched origin is the update, not an edit. The
+        # launcher applies the same rule before this process exists. Unknown
+        # stays a refusal: apply() returns 1 when it cannot read the tree.
+        _landed = None
+        try:
+            import launcher_pull as _lp
+            _landed = _lp.apply(REPO)
+        except Exception:
+            _landed = None
+        if _landed != 0:
+            _set(on=True, outcome="dirty", exit=None,
+                 say=("local tracked edits are present, so this machine is NOT auto-pulling - "
+                      "commit or stash them to rejoin the fleet"))
+            return False
     # #64 — BEFORE THE FETCH: a lock an earlier git abandoned is judged here, once per attempt.
     _lock = _clear_stale_git_lock(REPO)
     _pull_note_lock(_lock)
@@ -38521,7 +38632,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3584",
+        "ver": "v3585",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

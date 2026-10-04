@@ -104,6 +104,33 @@ fi
 
 cd "$REPO"
 
+# A tracked file that matches the fetched origin/main, CR ignored, is the update
+# that already landed, not a person mid-edit. The running console knows this only
+# once it is a build that has the rule. This launcher runs first. 0: pull.
+# 2: local work, do not pull. Anything else: could not tell, and a dirty tree
+# still does not pull.
+_tvd_may_pull() {
+  local rc why
+  rc=0
+  why=$(python3 "$HERE/launcher_pull.py" --repo "$REPO" --apply 2>/dev/null) || rc=$?
+  if [ "$rc" -eq 0 ]; then
+    case "$why" in
+      ""|clean) ;;
+      *) echo "$(date '+%Y-%m-%d %H:%M:%S') auto-pull: $why" >>"$HERE/control_app.log" 2>/dev/null || true ;;
+    esac
+    return 0
+  fi
+  if [ "$rc" -ne 2 ]; then
+    if [ -z "$(git -C "$REPO" status --porcelain --untracked-files=no 2>/dev/null)" ]; then
+      return 0
+    fi
+    why=${why:-could not tell whether the changed files are the update}
+  fi
+  why=${why:-tracked files modified (local work protected)}
+  echo "$(date '+%Y-%m-%d %H:%M:%S') skip auto-pull: $why" >>"$HERE/control_app.log" 2>/dev/null || true
+  return 1
+}
+
 # ── v2102 — RELAUNCHING ACTUALLY PULLS NOW ─────────────────────────────────
 # Konyo, opening a second machine: "it's reading v945. why is it not auto
 # updating itself." It never could. NO launcher pulled — only the one-time
@@ -119,7 +146,7 @@ cd "$REPO"
 # v1418 block 35 lines below tests TV_NO_AUTO_PULL and this one did not, so it ran FIRST and
 # pulled on a machine deliberately held back. The Windows launcher has always honoured it.
 if command -v git >/dev/null 2>&1 && [ -d "$REPO/.git" ] && [ -z "${TV_NO_AUTO_PULL:-}" ]; then
-  if [ -n "$(git -C "$REPO" status --porcelain --untracked-files=no 2>/dev/null)" ]; then
+  if ! _tvd_may_pull; then
     echo "📺 local tracked edits — NOT auto-pulling. Commit or stash them to rejoin the fleet."
   else
     _tvd_before="$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo '?')"
@@ -154,17 +181,8 @@ python3 -c "import webview" 2>/dev/null || \
 #   • Modified TRACKED files still block (protect real local work)
 #   • fetch + ff-only; if diverged with no tracked edits, reset --hard origin/main
 if [[ -d "$REPO/.git" && -z "${TV_NO_AUTO_PULL:-}" ]]; then
-  _tracked_dirty=0
-  while IFS= read -r _line; do
-    [[ -z "$_line" ]] && continue
-    case "$_line" in
-      \?\?*) ;;  # untracked — ignore
-      *) _tracked_dirty=1; break ;;
-    esac
-  done < <(git -C "$REPO" status --porcelain 2>/dev/null || true)
-  if [[ "$_tracked_dirty" -eq 1 ]]; then
-    echo "$(date '+%Y-%m-%d %H:%M:%S') skip auto-pull: tracked files modified (local work protected)" \
-      >>"$HERE/control_app.log" 2>/dev/null || true
+  if ! _tvd_may_pull; then
+    :
   else
     if git -C "$REPO" fetch origin >/dev/null 2>&1; then
       if git -C "$REPO" merge --ff-only origin/main >/dev/null 2>&1; then

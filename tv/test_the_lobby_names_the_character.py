@@ -351,6 +351,28 @@ class _Reel(unittest.TestCase):
         self.assertEqual(self.called, ["f_%d.jpg" % base])
         self.assertEqual(C.lobby_by_size(C.load()), [{"size": "800x450", "checked": 2, "matched": 2}])
 
+    def test_the_half_budget_stops_the_backfill_before_it_spends_the_tick(self):
+        base_ts = 1790634727494
+        rd = self._reel([base_ts])
+        name = os.path.basename(rd)
+        d = C._empty()
+        d["reels"][name] = {"pos": 1, "frames": 1, "open": None}
+        st = d["stats"]
+        acc = {"reads": 0, "surfaces": 0, "why": "", "stop": False}
+        t0 = 5000.0
+
+        def reader(p):
+            self.called.append(os.path.basename(p))
+            return dict(PLAQUE)
+
+        C._lobby_backfill(
+            d, [rd], lambda p: (0.9, 0.1, 0.9, 0.1), lambda p: LOBBY, reader,
+            lambda p: (800, 450), st, 1000000.0, t0, 2.0, lambda: t0 + 1.2, acc)
+        self.assertEqual(self.called, [])
+        self.assertFalse(acc["stop"])
+        self.assertEqual(acc["why"], "")
+        self.assertEqual(int(d["reels"][name].get("lobbyPos") or 0), 0)
+
     def test_a_frame_that_is_not_the_lobby_is_checked_and_not_matched(self):
         self._reel([1790978250101])
 
@@ -482,6 +504,13 @@ def _paint(fn, learned):
 
 
 RED_PROOF = [
+    {
+        "why": "the half budget compares elapsed seconds to an absolute deadline, so the backfill never stops",
+        "file": "tv/char_select.py",
+        "find": "if clock() > deadline:\n",
+        "replace": "if clock() - t0 > deadline:\n",
+        "matches": 2,
+    },
     {
         "why": "REG-1764 - a count that has not started is reported as matched nothing",
         "file": "tv/char_select.py",
