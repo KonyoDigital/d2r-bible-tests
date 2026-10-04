@@ -163,11 +163,14 @@ withCharm.sets[0].inv = [{ name: 'Annihilus', rolls: { 'res-all': 20 } }];
 var opt = { difficulty: 'Hell', quests: true, bp: who };
 var bare = sheet(gear, opt), held = sheet(withCharm, opt);
 var noBp = sheet(gear, { difficulty: 'Hell', quests: true });
-var charm = sheet({ cls: 'Sorceress', level: 88, sets: [{ slots: {
+var charmBuild = { cls: 'Sorceress', level: 88, sets: [{ slots: {
   head: { name: 'Crown of Ages' }, tors: { name: 'Skin of the Vipermagi' },
   neck: { name: "Mara's Kaleidoscope" }, rarm: { name: 'The Oculus' } },
-  inv: [{ name: 'Small Charm', quality: 'magic', base: 'cm1' }] }] },
-  { difficulty: 'Hell', quests: true, bp: who });
+  inv: [{ name: 'Small Charm', quality: 'magic', base: 'cm1' }] }] };
+var crownBuild = JSON.parse(JSON.stringify(charmBuild));
+crownBuild.sets[0].inv = [];
+var charm = sheet(charmBuild, { difficulty: 'Hell', quests: true, bp: who });
+var crown = sheet(crownBuild, { difficulty: 'Hell', quests: true, bp: who });
 process.stdout.write(JSON.stringify({
   bad: bad,
   api: Object.keys(E).sort(),
@@ -216,6 +219,9 @@ process.stdout.write(JSON.stringify({
   noBp: Object.prototype.hasOwnProperty.call(row(noBp, 'fcr'), 'bp'),
   charmFcr: row(charm, 'fcr').value,
   charmFhr: { source: row(charm, 'fhr').source, frames: row(charm, 'fhr').bp && row(charm, 'fhr').bp.frames },
+  crownFhr: { source: row(crown, 'fhr').source, value: row(crown, 'fhr').value,
+    frames: row(crown, 'fhr').bp && row(crown, 'fhr').bp.frames,
+    need: row(crown, 'fhr').bp && row(crown, 'fhr').bp.need },
   charmFire: row(charm, 'res-fire').source
 }));
 """
@@ -303,10 +309,14 @@ class TheFormulaMatchesThePublishedTables(unittest.TestCase):
         self.assertFalse(self.out["noBp"], "a sheet call without a breakpoint request grew a guessed weapon gap")
         self.assertEqual(self.out["charmFcr"], {"min": 60, "max": 60})
         self.assertEqual(self.out["charmFire"], "UNKNOWN")
-        if self.out["charmFhr"]["source"] == "UNKNOWN":
-            self.assertIsNone(self.out["charmFhr"]["frames"], "an untyped charm hid its Faster Hit Recovery and the step still quoted a frame count")
-        else:
-            self.assertEqual(self.out["charmFhr"]["frames"], 15)
+        self.assertEqual(self.out["charmFhr"]["source"], "UNKNOWN")
+        self.assertIsNone(self.out["charmFhr"]["frames"],
+                          "an untyped charm hid its Faster Hit Recovery and the step still quoted a frame count")
+        self.assertEqual(self.out["crownFhr"]["source"], "EXACT")
+        self.assertEqual(self.out["crownFhr"]["value"], {"min": 30, "max": 30})
+        self.assertEqual(self.out["crownFhr"]["frames"], 10,
+                         "Crown of Ages is 30% Faster Hit Recovery, 10 frames on this Sorceress, not the 0% count of 15")
+        self.assertEqual(self.out["crownFhr"]["need"], 12)
 
 
 @unittest.skipIf(NODE is None, "node is absent - this law is UNMEASURED, not passing")
