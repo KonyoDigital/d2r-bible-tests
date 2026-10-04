@@ -13,7 +13,9 @@ printed 16 and the Necromancer is printed 15. A planted wrong base goes red.
 
 The builder paints that gap under the existing speed rows. An inventory charm moves the same
 total: Annihilus changes fire resistance and leaves the Faster Cast Rate step where it was, and
-of Balance on a small charm moves Faster Hit Recovery. Increased Attack Speed uses the page's own
+of Balance on a small charm moves Faster Hit Recovery. A Shimmering Small Charm of Balance
+on a level 1 Paladin stays out of those rows until the build reaches its required level, and a
+worn magic item follows the same line. Increased Attack Speed uses the page's own
 _cbFpa, not a second formula. Warlock frames stay unpublished, with the 125% Faster Cast Rate
 target. Holy Shield is not on this build.
 
@@ -449,6 +451,118 @@ class TheBuilderPaintsTheSameStep(unittest.TestCase):
         self.assertIn("frames.", out["amaTwo"] or "", "a two-handed weapon on an Amazon stayed unknown: %s" % out["amaTwo"])
         self.assertNotIn("one hand or two", out["amaTwo"] or "")
         self.assertFalse(out["owed"])
+
+    def test_a_shimmering_charm_and_a_worn_item_count_once_the_level_can_use_them(self):
+        """A level 1 Paladin in Hell keeps the penalty. The charm's tooltip still shows its mods.
+        At the charm's required level the typed all-resist and of Balance move the same rows.
+        A worn magic shield and a worn magic armor follow that same level line."""
+        out = JOIN._run(r"""
+          function bpOf(label){
+            var h = statsHtml(), i = h.indexOf('<span class="cb-sl">' + label + '</span>');
+            if (i < 0) return null;
+            var row = h.slice(i, h.indexOf('</div>', i)), j = row.indexOf('class="cb-bp"');
+            if (j < 0) return '';
+            return row.slice(row.indexOf('>', j) + 1, row.indexOf('</span>', j));
+          }
+          function valOf(key){
+            var eb = window._cbEngineBuild(cur()), st = window._cbState();
+            var sh = window.D2R_CHAR_ENGINE.sheet(eb.build, { difficulty: st.diff, quests: !!st.quests });
+            var r = sh.rows.filter(function(x){ return x.key === key; })[0];
+            return r ? { value: r.value, source: r.source } : null;
+          }
+          function notes(){
+            var h = statsHtml(), out = [], from = 0;
+            while (true){
+              var i = h.indexOf('cb-st-note', from); if (i < 0) break;
+              var a = h.indexOf('>', i), z = h.indexOf('</div>', a);
+              out.push(strip(h.slice(a + 1, z))); from = z;
+            }
+            return out;
+          }
+          function typeAx(ax, key, lo, hi, v){
+            window._cbRollInput({ target: {
+              value: String(v),
+              classList: { contains: function(c){ return c === 'cb-roll'; }, add: function(){}, remove: function(){}, toggle: function(){} },
+              getAttribute: function(a){
+                var at = { 'data-key': key, 'data-lo': String(lo), 'data-hi': String(hi), 'data-ax': String(ax) };
+                return at[a] == null ? null : at[a];
+              }
+            }});
+            return window._cbState().modSay || '';
+          }
+          mk('Paladin', 1);
+          window._cbOpenPick('inv', null, [0, 0]); window._cbChoose('b:cm1');
+          OUT.addShim = window._cbAddMod('p322');
+          OUT.typed = typeAx(0, 'm1', 3, 5, 5);
+          OUT.addBal = window._cbAddMod('s267');
+          var e = cur().sets[0].inv[0], it = window._cbItem(e.id);
+          var tip = window._cbTipEntry(e, it, 1, 'inv', 'Paladin');
+          OUT.tip = (tip.lines || []).map(function(l){ return strip(l.html != null ? l.html : l.t); });
+          OUT.req = tip.reqs && tip.reqs.lvl;
+          window._cbClosePick();
+          OUT.fire1 = valOf('res-fire'); OUT.cold1 = valOf('res-cold');
+          OUT.light1 = valOf('res-ltng'); OUT.pois1 = valOf('res-pois');
+          OUT.fhr1 = valOf('fhr'); OUT.step1 = bpOf('Faster Hit Recovery'); OUT.notes1 = notes();
+          window._cbSetField('level', 28);
+          OUT.fire28 = valOf('res-fire'); OUT.fhr28 = valOf('fhr'); OUT.notes28 = notes();
+          window._cbSetField('level', 29);
+          OUT.fire29 = valOf('res-fire'); OUT.cold29 = valOf('res-cold');
+          OUT.light29 = valOf('res-ltng'); OUT.pois29 = valOf('res-pois');
+          OUT.fhr29 = valOf('fhr'); OUT.step29 = bpOf('Faster Hit Recovery'); OUT.notes29 = notes();
+          mk('Paladin', 1);
+          window._cbOpenPick('slot', 'larm');
+          OUT.buck = window._cbChoose('b:buc') && window._cbQuality('m') && window._cbAddMod('p323');
+          OUT.buckTyped = typeAx(0, 'm1', 3, 7, 5);
+          window._cbClosePick();
+          OUT.buckFire1 = valOf('res-fire'); OUT.buckNotes1 = notes();
+          window._cbSetField('level', 4);
+          OUT.buckFire4 = valOf('res-fire'); OUT.buckFhr4 = valOf('fhr'); OUT.buckNotes4 = notes();
+          mk('Paladin', 1);
+          window._cbOpenPick('slot', 'tors');
+          OUT.arm = window._cbChoose('b:qui') && window._cbQuality('m') && window._cbAddMod('s262');
+          window._cbClosePick();
+          OUT.armFhr1 = valOf('fhr'); OUT.armFire1 = valOf('res-fire'); OUT.armNotes1 = notes();
+          window._cbSetField('level', 3);
+          OUT.armFhr3 = valOf('fhr'); OUT.armStep3 = bpOf('Faster Hit Recovery'); OUT.armNotes3 = notes();
+        """)
+        self.assertTrue(out["addShim"] and out["addBal"], "the charm did not take Shimmering and of Balance")
+        self.assertEqual(out["typed"], "saved: 5 (EXACT)")
+        self.assertEqual(out["req"], 29)
+        self.assertEqual(out["tip"], ["+5% Faster Hit Recovery", "All Resistances +5"])
+        bare = {"value": {"min": -70, "max": -70}, "source": "EXACT"}
+        zero = {"value": {"min": 0, "max": 0}, "source": "EXACT"}
+        self.assertEqual(out["fire1"], bare)
+        self.assertEqual(out["cold1"], bare)
+        self.assertEqual(out["light1"], bare)
+        self.assertEqual(out["pois1"], bare)
+        self.assertEqual(out["fhr1"], zero)
+        self.assertEqual(out["step1"], "9 frames. +7% more reaches the next step.")
+        self.assertIn("needs level 29 - a level 1 character gets nothing from it", " ".join(out["notes1"]))
+        self.assertEqual(out["fire28"], bare, "one level under the requirement still counted the charm")
+        self.assertEqual(out["fhr28"], zero)
+        self.assertIn("needs level 29 - a level 28 character gets nothing from it", " ".join(out["notes28"]))
+        moved = {"value": {"min": -65, "max": -65}, "source": "EXACT"}
+        self.assertEqual(out["fire29"], moved)
+        self.assertEqual(out["cold29"], moved)
+        self.assertEqual(out["light29"], moved)
+        self.assertEqual(out["pois29"], moved)
+        self.assertEqual(out["fhr29"], {"value": {"min": 5, "max": 5}, "source": "EXACT"})
+        self.assertEqual(out["step29"], "9 frames. +2% more reaches the next step.")
+        self.assertEqual(out["notes29"], [])
+        self.assertTrue(out["buck"], "the buckler did not take Shimmering: %s" % out.get("buckTyped"))
+        self.assertEqual(out["buckTyped"], "saved: 5 (EXACT)")
+        self.assertEqual(out["buckFire1"], bare)
+        self.assertIn("needs level 4 - a level 1 character gets nothing from it", " ".join(out["buckNotes1"]))
+        self.assertEqual(out["buckFire4"], moved, "a worn Shimmering shield did not move fire resistance: %s" % out["buckFire4"])
+        self.assertEqual(out["buckFhr4"], zero, "the shield has no faster hit recovery and the row moved")
+        self.assertEqual(out["buckNotes4"], [])
+        self.assertTrue(out["arm"], "Quilted Armor did not take of Balance")
+        self.assertEqual(out["armFire1"], bare)
+        self.assertEqual(out["armFhr1"], zero)
+        self.assertIn("needs level 3 - a level 1 character gets nothing from it", " ".join(out["armNotes1"]))
+        self.assertEqual(out["armFhr3"], {"value": {"min": 10, "max": 10}, "source": "EXACT"})
+        self.assertEqual(out["armStep3"], "8 frames. +5% more reaches the next step.")
+        self.assertEqual(out["armNotes3"], [])
 
 
 RED_PROOF = [
