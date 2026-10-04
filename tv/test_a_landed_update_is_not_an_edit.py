@@ -148,7 +148,7 @@ class ALandedUpdateIsNotAnEdit(unittest.TestCase):
         self.assertIsNone(ca._beacon_git_diag(None))
 
     def test_a_spaced_drive_path_keeps_the_sentence_and_drops_the_name(self):
-        """The drive pattern stops at a space. The rest of the path must not ship."""
+        """A drive path with a space, either slash, must not ship the name."""
         spaced = "D:\\" + "Jane Doe\\" + "TV\\.git\\index.lock"
         err = ca._public_git_text(
             "fatal: Unable to create '%s': File exists." % spaced)
@@ -161,6 +161,15 @@ class ALandedUpdateIsNotAnEdit(unittest.TestCase):
             "fatal: https://example.com/repo.git update failed")
         self.assertIn("https://example.com/repo.git", url)
         self.assertIn("update failed", url)
+        forward = "D:/" + "Jane Doe/" + "TV/.git/index.lock"
+        fwd = ca._public_git_text(
+            "fatal: Unable to create '%s': File exists." % forward)
+        self.assertNotIn("Jane", fwd)
+        self.assertNotIn("Doe", fwd)
+        self.assertIn("fatal", fwd)
+        self.assertIn("File exists", fwd)
+        glued = ca._public_git_text("note at" + "D:/" + "Jane" + "/x left behind")
+        self.assertNotIn("Jane", glued)
 
     def test_a_real_pull_exit_is_kept_and_a_cached_diagnosis_is_not_reread(self):
         self._git()
@@ -209,6 +218,7 @@ class TheWorkerKeepsTheDiagnosis(unittest.TestCase):
         home = _acct("someone", "secret.py")
         forward = "C:/" + "Users/" + "Dean/" + "TV/.git/index.lock"
         spaced = _acct("Jane Doe", "TV/a.py")
+        drive = "D:/" + "Jane Doe/" + "TV/.git/index.lock"
         body = {
             "relaunch": {
                 "armed": True, "may": "yes", "why": "holding",
@@ -220,17 +230,26 @@ class TheWorkerKeepsTheDiagnosis(unittest.TestCase):
             "pull": {"can": False, "behind": 3, "why": "behind", "exit": 0, "head": "abc1234",
                      "autocrlf": "false",
                      "porcelain": " M tv/control_app.py",
-                     "err": "fatal: Unable to create '%s': File exists. %s" % (forward, spaced)},
+                     "err": "fatal: https://example.com/repo.git update failed. "
+                            "Unable to create '%s': File exists. %s %s" % (forward, spaced, drive)},
             "windowMode": "fullscreen",
         }
         src = self._worker()
         chunk = src[src.index("windowMode: (function (w)"):src.index("})(body.pull),") + len("})(body.pull)")]
-        prog = ("var body = %s;\nvar rec = {\n%s\n};\nprocess.stdout.write(JSON.stringify(rec));\n"
-                % (json.dumps(body), chunk))
+        glued_body = {"windowMode": "front",
+                      "pull": {"can": True, "behind": 0, "why": "level", "exit": 0,
+                               "head": "abc1234", "autocrlf": "input",
+                               "porcelain": " M tv/control_app.py",
+                               "err": "note at" + "D:/" + "Jane" + "/x left behind"}}
+        prog = ("var body = %s;\nvar rec = {\n%s\n};\nbody = %s;\nvar glued = {\n%s\n};\n"
+                "process.stdout.write(JSON.stringify({rec: rec, glued: glued}));\n"
+                % (json.dumps(body), chunk, json.dumps(glued_body), chunk))
         r = sp.run(["node", "-"], input=prog.encode("utf-8"), stdout=sp.PIPE, stderr=sp.STDOUT,
                    timeout=20)
         self.assertEqual(r.returncode, 0, r.stdout.decode("utf-8", "replace")[-800:])
-        rec = json.loads(r.stdout.decode("utf-8"))
+        wrapped = json.loads(r.stdout.decode("utf-8"))
+        rec = wrapped["rec"]
+        self.assertNotIn("Jane", (wrapped["glued"]["pull"] or {}).get("err") or "")
         self.assertEqual(rec["windowMode"], "fullscreen")
         self.assertIs(rec["relaunch"]["armed"], True)
         self.assertIsNone(rec["relaunch"]["may"], "an unrecognised may was stored as a verdict")
@@ -248,11 +267,14 @@ class TheWorkerKeepsTheDiagnosis(unittest.TestCase):
         self.assertIn("tv/control_app.py", rec["pull"]["porcelain"])
         pull_err = rec["pull"]["err"] or ""
         self.assertNotIn("Dean", pull_err)
+        self.assertNotIn("Jane", pull_err)
         self.assertNotIn("Doe", pull_err)
         self.assertNotIn("/Users/", pull_err)
         self.assertNotIn("C:/", pull_err)
         self.assertIn("fatal", pull_err)
         self.assertIn("File exists", pull_err)
+        self.assertIn("https://example.com/repo.git", pull_err)
+        self.assertIn("update failed", pull_err)
 
     def test_an_absent_window_mode_is_null_not_the_word_undefined(self):
         import json

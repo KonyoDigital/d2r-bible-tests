@@ -422,8 +422,11 @@ REAL_SHAPES = {
     # path-scrub red-proof BLIND: every shape above was also caught by the user or backslash scrub)
     "posix": "the tick raised %s: %s" % ("FileNotFoundError", FileNotFoundError(
         2, "No such file or directory", "/var/folders/zq/Acme_T/tvd/x.json")),
+    # no Users folder and no backslash: the drive pattern used to stop at the space
+    "forward_drive": "fatal: Unable to create '%s': File exists." % (
+        "D:/" + "Jane Doe/" + "TV/.git/index.lock"),
 }
-REAL_LEAKS = ("Dean", "Smith", "Brien", "Acme", "Corp", "Desktop")
+REAL_LEAKS = ("Dean", "Smith", "Brien", "Acme", "Corp", "Desktop", "Jane", "Doe")
 
 
 class TheRealShapesNeverCross(_World):

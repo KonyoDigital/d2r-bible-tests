@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3581",
+  "ver": "v3582",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3581: A drive path with a space no longer leaves the rest of the name on the beacon. A web address is not read as a drive. The eye classifies codex before claude when both words are in the path. HEART: test_a_landed_update_is_not_an_edit, test_a_look_names_the_family_that_looked",
+  "note": "v3582: A forward-slash drive path with a space no longer leaves the rest of the name. The same scrub runs on the wire and the worker. A drive glued to a letter is dropped, and a web address is still kept. HEART: test_a_landed_update_is_not_an_edit, test_the_beacon_says_how_each_pc_films_and_drains",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

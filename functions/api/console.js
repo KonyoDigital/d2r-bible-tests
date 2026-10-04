@@ -156,12 +156,12 @@ export async function onRequestPost(context) {
       const clip = (v, n) => {
         var s = String(v == null ? '' : v).replace(/\s+/g, ' ').trim()
           .replace(/\b(?:Users|home)[\\/]+(?:[^'"]|'(?=\w))*/gi, '')
-          .replace(/(?<![A-Za-z])[A-Za-z]:[\\/][^\s'"]*/g, '')
+          .replace(/(?<![A-Za-z])[A-Za-z]:[\\/](?:[^'"]|'(?=\w))*/g, '')
           .replace(/\\\\[^\s'"]+/g, '')
           .replace(/~[\\/][^\s'"]*/g, '')
           .replace(/\S*\\\S*/g, '')
           .replace(/\s+/g, ' ').trim();
-        if (!s || !/[A-Za-z]/.test(s) || /\/Users\/|\/home\/|(?<![A-Za-z])[A-Za-z]:[\\/]|\\/.test(s)) return null;
+        if (!s || !/[A-Za-z]/.test(s) || /\/Users\/|\/home\/|[A-Za-z]:[\\/](?!\/)|\\/.test(s)) return null;
         return s.slice(0, n);
       };
       const head = (v) => (/^[0-9a-f]{4,16}$/.test(String(v == null ? '' : v)) ? String(v) : null);
@@ -179,12 +179,12 @@ export async function onRequestPost(context) {
       const clip = (v, n) => {
         var s = String(v == null ? '' : v).replace(/\s+/g, ' ').trim()
           .replace(/\b(?:Users|home)[\\/]+(?:[^'"]|'(?=\w))*/gi, '')
-          .replace(/(?<![A-Za-z])[A-Za-z]:[\\/][^\s'"]*/g, '')
+          .replace(/(?<![A-Za-z])[A-Za-z]:[\\/](?:[^'"]|'(?=\w))*/g, '')
           .replace(/\\\\[^\s'"]+/g, '')
           .replace(/~[\\/][^\s'"]*/g, '')
           .replace(/\S*\\\S*/g, '')
           .replace(/\s+/g, ' ').trim();
-        if (!s || !/[A-Za-z]/.test(s) || /\/Users\/|\/home\/|(?<![A-Za-z])[A-Za-z]:[\\/]|\\/.test(s)) return null;
+        if (!s || !/[A-Za-z]/.test(s) || /\/Users\/|\/home\/|[A-Za-z]:[\\/](?!\/)|\\/.test(s)) return null;
         return s.slice(0, n);
       };
       const head = (v) => (/^[0-9a-f]{4,16}$/.test(String(v == null ? '' : v)) ? String(v) : null);
@@ -344,7 +344,7 @@ export async function onRequestPost(context) {
         const x = v.replace(/\s+/g, ' ').trim()
           .replace(/\b(?:Users|home)[\\/]+(?:[^'"]|'(?=\w))*/gi, '<user>')
           .replace(/\b[a-z][a-z0-9+.-]*:\/\/\S+/gi, '<url>')
-          .replace(/[A-Za-z]:[\\/][^\s'"]*/g, '<path>')
+          .replace(/[A-Za-z]:[\\/](?:[^'"]|'(?=\w))*/g, '<path>')
           .replace(/\\\\[^\s'"]+/g, '<path>')
           .replace(/~[\\/][^\s'"]*/g, '<path>')
           .replace(/(^|[^\w.])\/(?:[^\s\/'"]+\/)+[^\s'"]*/g, '$1<path>')

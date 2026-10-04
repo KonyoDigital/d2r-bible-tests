@@ -14926,7 +14926,9 @@ _WIRE_USER_PAT = r"\b(?:Users|home)[\\/]+(?:[^'\"]|'(?=\w))*"
 _WIRE_USER_RX = re.compile(_WIRE_USER_PAT, re.I)
 _WIRE_HOME_FOLD_RX = re.compile(r"(?:\b[A-Za-z]:)?[\\/]+" + _WIRE_USER_PAT, re.I)
 _WIRE_BACKSLASH_TOKEN_RX = re.compile(r"\S*\\\S*")
-_WIRE_PATH_RX = re.compile(r"[A-Za-z]:[\\/][^\s'\"]*|\\\\[^\s'\"]+|~[\\/][^\s'\"]*"
+# A drive path continues through spaces until a quote. Stopping at the first
+# space published the rest of "D:/Jane Doe/TV" after "<path>".
+_WIRE_PATH_RX = re.compile(r"[A-Za-z]:[\\/](?:[^'\"]|'(?=\w))*|\\\\[^\s'\"]+|~[\\/][^\s'\"]*"
                            r"|(?<![\w.])/(?:[^\s/'\"]+/)+[^\s'\"]*")
 _WIRE_IP_RX = re.compile(r"\b\d{1,3}(?:\.\d{1,3}){3}\b")
 _WIRE_HOST_RX = re.compile(r"\b(?:[a-z0-9-]+\.)+(?:com|net|org|io|dev|app|local|lan|home|internal)\b",
@@ -23023,16 +23025,21 @@ def _public_git_text(text, limit=160):
     t = " ".join(str(text or "").split())
     t = _WIRE_USER_RX.sub("", t)
     # A letter before the colon is a web address (https://), not a drive.
-    t = re.sub(r"(?<![A-Za-z])[A-Za-z]:[\\/][^\s'\"]*", "", t)
+    # The path continues through spaces until a quote: D:/Jane Doe/TV must not
+    # leave "Doe" after the drive pattern stops at the first space.
+    t = re.sub(r"(?<![A-Za-z])[A-Za-z]:[\\/](?:[^'\"]|'(?=\w))*", "", t)
     t = re.sub(r"\\\\[^\s'\"]+", "", t)
     t = re.sub(r"~[\\/][^\s'\"]*", "", t)
-    # The drive pattern stops at a space, so "D:\Jane Doe\TV\..." would
-    # publish the surname. A leftover backslash token is still a path.
+    # A drive path now runs through spaces until a quote. A leftover
+    # backslash token (a UNC share, or a fragment the drive pattern missed)
+    # is still a path.
     t = re.sub(r"\S*\\\S*", "", t)
     t = " ".join(t.split())
     if not t or not re.search(r"[A-Za-z]", t):
         return ""
-    if re.search(r"/Users/|/home/|(?<![A-Za-z])[A-Za-z]:[\\/]|\\", t):
+    # A drive glued to a letter (atD:/Jane) is not a web address. https://
+    # stays: the slash after that colon is itself followed by a slash.
+    if re.search(r"/Users/|/home/|[A-Za-z]:[\\/](?!/)|\\", t):
         return ""
     return t[:limit]
 
@@ -23127,7 +23134,7 @@ def _tree_diag(paths=("tv/control_app.py", "tv/control_ui.html", "tv/tv_diablo.p
             lines = []
             for ln in str(raw).splitlines():
                 if ("/Users/" in ln or "/home/" in ln or ":\\" in ln
-                        or re.search(r"(?<![A-Za-z])[A-Za-z]:/", ln)):
+                        or re.search(r"[A-Za-z]:/(?!/)", ln)):
                     continue
                 s = ln.strip()
                 if s:
@@ -38508,7 +38515,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3581",
+        "ver": "v3582",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
