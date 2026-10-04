@@ -537,6 +537,86 @@ class TheLauncherUsesTheSameRule(unittest.TestCase):
         with open(other, "rb") as fh:
             self.assertEqual(fh.read(), b"local-untracked\n")
 
+    def test_a_tracked_file_the_update_turns_into_a_directory_still_lands(self):
+        import subprocess
+        import launcher_pull as lp
+        d = self._fresh()
+        with open(os.path.join(d, "a.txt"), "wb") as fh:
+            fh.write(b"one\n")
+        with open(os.path.join(d, "foo"), "wb") as fh:
+            fh.write(b"tracked-file\n")
+        self._commit_all(d, "one")
+        base = self._head(d)
+        with open(os.path.join(d, "a.txt"), "wb") as fh:
+            fh.write(b"two\n")
+        os.remove(os.path.join(d, "foo"))
+        os.mkdir(os.path.join(d, "foo"))
+        with open(os.path.join(d, "foo", "bar.py"), "wb") as fh:
+            fh.write(b"from-origin\n")
+        self._commit_all(d, "two")
+        subprocess.check_call(["git", "-C", d, "update-ref", "refs/remotes/origin/main", "HEAD"])
+        subprocess.check_call(["git", "-C", d, "reset", "-q", "--hard", base])
+        with open(os.path.join(d, "a.txt"), "wb") as fh:
+            fh.write(b"two\n")
+        self.assertEqual(lp.apply(d), 0)
+        self.assertNotEqual(self._head(d), base)
+        self.assertTrue(os.path.isfile(os.path.join(d, "foo", "bar.py")))
+
+    def test_a_tracked_directory_the_update_turns_into_a_file_still_lands(self):
+        import subprocess
+        import launcher_pull as lp
+        d = self._fresh()
+        with open(os.path.join(d, "a.txt"), "wb") as fh:
+            fh.write(b"one\n")
+        nest = os.path.join(d, "nest")
+        os.mkdir(nest)
+        with open(os.path.join(nest, "old.txt"), "wb") as fh:
+            fh.write(b"old\n")
+        self._commit_all(d, "one")
+        base = self._head(d)
+        with open(os.path.join(d, "a.txt"), "wb") as fh:
+            fh.write(b"two\n")
+        os.remove(os.path.join(nest, "old.txt"))
+        os.rmdir(nest)
+        with open(nest, "wb") as fh:
+            fh.write(b"now-a-file\n")
+        self._commit_all(d, "two")
+        subprocess.check_call(["git", "-C", d, "update-ref", "refs/remotes/origin/main", "HEAD"])
+        subprocess.check_call(["git", "-C", d, "reset", "-q", "--hard", base])
+        with open(os.path.join(d, "a.txt"), "wb") as fh:
+            fh.write(b"two\n")
+        self.assertEqual(lp.apply(d), 0)
+        self.assertNotEqual(self._head(d), base)
+        self.assertTrue(os.path.isfile(nest))
+        with open(nest, "rb") as fh:
+            self.assertEqual(fh.read(), b"now-a-file\n")
+
+    def test_an_untracked_symlink_where_the_update_adds_a_directory_stays(self):
+        import subprocess
+        import launcher_pull as lp
+        d = self._fresh()
+        with open(os.path.join(d, "a.txt"), "wb") as fh:
+            fh.write(b"one\n")
+        self._commit_all(d, "one")
+        base = self._head(d)
+        with open(os.path.join(d, "a.txt"), "wb") as fh:
+            fh.write(b"two\n")
+        slot = os.path.join(d, "slot")
+        os.mkdir(slot)
+        with open(os.path.join(slot, "inner.txt"), "wb") as fh:
+            fh.write(b"from-origin\n")
+        self._commit_all(d, "two")
+        subprocess.check_call(["git", "-C", d, "update-ref", "refs/remotes/origin/main", "HEAD"])
+        subprocess.check_call(["git", "-C", d, "reset", "-q", "--hard", base])
+        with open(os.path.join(d, "a.txt"), "wb") as fh:
+            fh.write(b"two\n")
+        target = os.path.join(d, "elsewhere")
+        os.mkdir(target)
+        os.symlink(target, slot)
+        self.assertEqual(lp.apply(d), 2)
+        self.assertEqual(self._head(d), base)
+        self.assertTrue(os.path.islink(slot))
+
     def test_an_untracked_file_origin_does_not_ship_still_lets_the_update_land(self):
         import launcher_pull as lp
         d, path = self._repo()
@@ -619,10 +699,8 @@ RED_PROOF = [
     {
         "why": "an untracked file that the update also adds is replaced by the reset",
         "file": "tv/launcher_pull.py",
-        "find": "        if os.path.lexists(os.path.join(repo, rel)):\n"
-                "            return True\n",
-        "replace": "        if os.path.lexists(os.path.join(repo, rel)):\n"
-                   "            return False\n",
+        "find": "    return not tracked\n",
+        "replace": "    return False\n",
         "matches": 1,
     },
     {
@@ -640,12 +718,10 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "a file where the update adds a directory is replaced, and the local bytes are gone",
+        "why": "a symlink where the update adds a directory is replaced, and the local link is gone",
         "file": "tv/launcher_pull.py",
-        "find": "            if os.path.lexists(parent) and not os.path.isdir(parent):\n"
-                "                return True\n",
-        "replace": "            if os.path.lexists(parent) and not os.path.isdir(parent):\n"
-                   "                return False\n",
+        "find": "        return stat.S_ISDIR(os.lstat(path).st_mode)\n",
+        "replace": "        return os.path.isdir(path)\n",
         "matches": 1,
     },
 ]

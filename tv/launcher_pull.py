@@ -16,6 +16,7 @@ update and now sit on that commit; 2 local work, or not a fast-forward, nothing
 was reset; 1 the tree could not be read.
 """
 import os
+import stat
 import subprocess
 import sys
 
@@ -96,11 +97,38 @@ def _is_ancestor(repo):
     return None
 
 
+def _real_dir(path):
+    """A directory, not a symlink to one. isdir() follows the link."""
+    try:
+        return stat.S_ISDIR(os.lstat(path).st_mode)
+    except OSError:
+        return False
+
+
+def _index_has(repo, rel):
+    """True when the index tracks rel or a path under it. None when git could not be asked."""
+    rc, out, _err = _run(repo, ["ls-files", "-z", "--", rel])
+    if rc != 0:
+        return None
+    return bool(out)
+
+
+def _untracked_occupies(repo, rel):
+    """True when rel exists and the index does not track it. None when that cannot be read."""
+    if not os.path.lexists(os.path.join(repo, rel)):
+        return False
+    tracked = _index_has(repo, rel)
+    if tracked is None:
+        return None
+    return not tracked
+
+
 def _untracked_in_the_way(repo):
     """True when origin adds a path that already exists and is not tracked.
 
     `git reset --hard` replaces that file and exits 0. A fast-forward used to
-    refuse. None means git could not be asked, which is not a clear way.
+    refuse. A tracked path is the update itself, so it is not in the way.
+    None means git could not be asked, which is not a clear way.
     """
     # --no-renames: a rename is an add of the new path. Without it, diff.renames
     # hides that path and reset --hard replaces an untracked file there.
@@ -111,7 +139,13 @@ def _untracked_in_the_way(repo):
     if rc != 0:
         return None
     for raw in out.split(b"\0"):
-        rel = raw.decode("utf-8", "replace")
+        # replace would turn a name git stored as raw bytes into a different
+        # path, lexists would miss the file, and the reset would replace it.
+        # A name that cannot be read stops the reset.
+        try:
+            rel = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            return None
         if not rel:
             continue
         if _safe_rel(rel) is None:
@@ -121,9 +155,17 @@ def _untracked_in_the_way(repo):
         for part in parts[:-1]:
             acc = part if not acc else acc + "/" + part
             parent = os.path.join(repo, acc)
-            if os.path.lexists(parent) and not os.path.isdir(parent):
+            if not (os.path.lexists(parent) and not _real_dir(parent)):
+                continue
+            occupied = _untracked_occupies(repo, acc)
+            if occupied is None:
+                return None
+            if occupied:
                 return True
-        if os.path.lexists(os.path.join(repo, rel)):
+        occupied = _untracked_occupies(repo, rel)
+        if occupied is None:
+            return None
+        if occupied:
             return True
     return False
 
