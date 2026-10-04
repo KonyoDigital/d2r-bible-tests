@@ -259,7 +259,7 @@ class TheSheetSumsTheGameData(unittest.TestCase):
         self.assertEqual([s[6] for s in d["sets"] if s[0] == "Trang-Oul's Claws"], [0])
 
     def test_the_engine_is_exposed_whole(self):
-        self.assertEqual(_run()["__api"], ["classes", "dataHash", "difficulties", "lines", "resolve", "sheet"])
+        self.assertEqual(_run()["__api"], ["bp", "classes", "dataHash", "difficulties", "lines", "resolve", "sheet"])
 
     def test_A_hell_with_quests_is_the_brief_sum_with_the_crown_typed(self):
         for k in ("res-fire", "res-cold", "res-ltng", "res-pois"):

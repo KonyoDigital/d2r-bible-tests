@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3591** | `(this commit)` | v3591 — A drift loop proof must not fast-forward this checkout. HEART: test_control |
+| **v3592** | `(this commit)` | v3592 — The Stats column says how much more Faster Cast Rate, Hit Recovery, Attack Speed and Block Rate reaches the next step for the class wearing the gear. Equipment and inventory charms are one total. HEART: test_the_breakpoint_row_is_the_next_step |
+| **v3591** | `f0e7079f` | v3591 — A drift loop proof must not fast-forward this checkout. HEART: test_control |
 | **v3590** | `cea76ac9` | v3590 — An ignored file inside a directory the update replaces stays, because the reset would delete it with the directory. HEART: test_a_landed_update_is_not_an_edit |
 | **v3589** | `379b17c3` | v3589 — A name with a bracket is a path, so an untracked file of that name stays. A tracked directory that holds an untracked file stays too, because the reset would delete it. HEART: test_a_landed_update_is_not_an_edit |
 | **v3588** | `7e7a9306` | v3588 — A tracked file the update turns into a directory still lands. An untracked symlink there stays. A name that is not UTF-8 stops the reset. HEART: test_a_landed_update_is_not_an_edit |

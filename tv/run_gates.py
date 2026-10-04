@@ -8350,6 +8350,18 @@ GATES = [
              "another class counts nothing (Herald of Zakarum on a Sorceress); a set bonus with no switch blanks only what "
              "it feeds; elemental absorb caps at 40; a magic charm blanks only its affix pool's stats (FCR stays 60). ",
          skip_ok=()),
+    Gate("test_the_breakpoint_row_is_the_next_step",
+         [sys.executable, os.path.join(HERE, "test_the_breakpoint_row_is_the_next_step.py")], 180,
+         needs_app=False,
+         why="#153 - the Stats column already sums worn gear and inventory into one percent. Under each speed row "
+             "(Faster Cast Rate, Faster Hit Recovery, Increased Attack Speed, Faster Block Rate) the page says the "
+             "frames that percent gives and how much more reaches the next step, for the class that is wearing it. "
+             "The class frame table is not drawn. A range that straddles a step says both frame counts. Drives the "
+             "shipped engine in node against the published Patch 2.4 frame cells, and the builder paint against the "
+             "same sheet: Annihilus moves fire resistance and leaves the cast step, of Balance on a small charm moves "
+             "hit recovery, attack frames come from the page's own _cbFpa, Warlock frames stay unpublished with the "
+             "125 percent cast target, and Holy Shield is not assumed. A sheet() call without opts.bp attaches nothing.",
+         skip_ok=()),
     Gate("test_the_mule_picker_offers_the_whole_database",
          [sys.executable, os.path.join(HERE, "test_the_mule_picker_offers_the_whole_database.py")], 90,
          needs_app=False,

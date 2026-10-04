@@ -441,8 +441,8 @@ RED_PROOF = [
     {
         "why": "#29(b) 2026-09-28 - the cap chip reads as a comparison again ('≤75%'), not the cap he asked for ('cap 75%')",
         "file": "bible.html",
-        "find": "'\">cap ' + esc(span(cp.min, cp.max)) + '</em>' : '') + '</span></div>';",
-        "replace": "'\">≤' + esc(span(cp.min, cp.max)) + '</em>' : '') + '</span></div>';",
+        "find": "'\">cap ' + esc(span(cp.min, cp.max)) + '</em>' : '') + '</span>' + _cbBpHtml(eng, r.bp) + '</div>';",
+        "replace": "'\">≤' + esc(span(cp.min, cp.max)) + '</em>' : '') + '</span>' + _cbBpHtml(eng, r.bp) + '</div>';",
         "matches": 1,
     },
     {

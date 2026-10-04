@@ -55997,6 +55997,9 @@ html.cb-lock,html.cb-lock body{overflow:hidden}
 .cb-sv:has(> em.cb-cap) > i{display:inline-block;white-space:nowrap;margin-left:4px}
 .cb-sv:has(> em.cb-cap) > em.cb-cap{display:block;margin-left:0;line-height:var(--lh-tight)}
 .cb-st-note{margin:2px 0;color:var(--text-dim)}
+/* #153 — the next step under the speed row it belongs to. The row stays two columns; the sentence spans both. */
+.cb-bp{grid-column:1 / -1;margin:0 0 2px calc(6*var(--u));font-family:var(--sans);font-size:var(--fs-cb-micro);line-height:var(--lh-tight);color:var(--text-dim)}
+.cb-calc td.cb-bp-calc{text-align:left;font-family:var(--sans);white-space:normal;font-size:var(--fs-cb-micro);line-height:var(--lh-tight);color:var(--text-dim)}
 /* THE MODAL — their Select | Edit + ✕, ~800x750, placed so the slot it serves stays in view (it glows green) */
 .cb-modal{position:fixed;z-index:99998;display:flex;flex-direction:column;background:#141210;border:1px solid var(--border-light);border-radius:8px;box-shadow:0 24px 70px rgba(0,0,0,.8),0 0 0 1px rgba(0,0,0,.6);color:var(--text);font-family:var(--sans);overflow:hidden}
 .cb-modal[hidden]{display:none}
@@ -57772,11 +57775,92 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   }
   window._cbEngineBuild = function(b){ var lost = [], eng = window.D2R_CHAR_ENGINE || {}; return { build: _cbEngineBuild(b, eng, lost), lost: lost }; };
 
+  /* #153 — which weapon the breakpoint tables split on. Empty hands are the other table, a known state.
+     _cbIsWeapon(code) above is the socket column's test and takes a base code. This walk takes an entry.
+     A Barbarian weapon that can be one hand or two stays unknown. Any other class holds that weapon in two hands.
+     A weapon slot whose base is not in the database stays unknown: it is not the same as empty hands. */
+  function _cbWornWeapon(b){
+    var s = b && b.sets && (b.sets[b.active | 0] || b.sets[0]);
+    var slots = (s && s.slots) || {}, unresolved = false;
+    var order = ['rarm', 'weapon', 'larm'];
+    for (var i = 0; i < order.length; i++){
+      var e = slots[order[i]];
+      if (!e || !e.base) continue;
+      var base = _cbBase(e.base);
+      if (!base){ if (order[i] !== 'larm') unresolved = true; continue; }
+      if (base[21] !== 'w') continue;
+      if (base[14] === 12 && String((b && b.cls) || '').toLowerCase() === 'barbarian'){
+        return { family: 'unknown', why: 'This weapon can be held in one hand or two, and this build does not say which.', name: base[0], base: base, entry: e };
+      }
+      var anc = ((_cbDb() || {}).anc || {})[base[1]] || {};
+      var family = 'other';
+      if (anc.spea || anc.staf) family = 'spear';
+      else if (base[14] === 1 && (anc.axe || anc.swor || anc.club || anc.mace || anc.hamm || anc.scep || anc.wand || anc.taxe)) family = '1h-swing';
+      return { family: family, why: base[0], name: base[0], base: base, entry: e };
+    }
+    if (unresolved) return { family: 'unknown', why: 'The worn weapon has no base on record.' };
+    return { family: 'other', why: 'No weapon is worn.' };
+  }
+  function _cbBpWho(b){
+    var w = _cbWornWeapon(b);
+    return { cls: (b && b.cls) || '', form: (b && b.form) || '', weapon: w.family, holyShield: !!(b && b.holyShield), weaponWhy: w.why || '' };
+  }
+  /* Increased Attack Speed uses the page's own attack formula (_cbFpa) and this weapon's animation.
+     Skill speed is not on this build. Gear and charms are already in the sheet total. */
+  function _cbIasStep(frames, rate, wsm, ias){
+    var f0 = _cbFpa(frames, rate, ias, wsm);
+    if (f0 == null) return null;
+    var start = Math.floor(ias) + 1;
+    for (var p = start; p <= 1000; p++){
+      var f = _cbFpa(frames, rate, p, wsm);
+      if (f != null && f < f0) return { frames: f0, nextPct: p, need: p - ias, atCap: false };
+    }
+    return { frames: f0, nextPct: null, need: 0, atCap: true };
+  }
+  function _cbIasGap(b, row){
+    var known = row && row.source !== 'UNKNOWN' && row.value && row.value.min != null && row.value.max != null;
+    var now = known ? { min: row.value.min, max: row.value.max } : null;
+    var whyGear = 'Gear and charms only. Primary attack. Skill speed is not on this build.';
+    if (!now) return { stat: 'ias', now: null, frames: null, framesHi: null, nextPct: null, need: null, needHi: null, atCap: false, atCapHi: false, source: 'UNKNOWN', why: 'The Increased Attack Speed total is not known, so the next step is not known.' };
+    var w = _cbWornWeapon(b);
+    if (w.family === 'unknown' || !w.base){
+      var whyU = w.family === 'unknown' ? (w.why || 'The attack frames are not known.') : 'No weapon is worn, so the attack frames are not known.';
+      return { stat: 'ias', now: now, frames: null, framesHi: null, nextPct: null, need: null, needHi: null, atCap: false, atCapHi: false, source: 'UNKNOWN', why: whyU };
+    }
+    var d = _cbDb(), ci = _cbClsIx(b && b.cls), c = ci >= 0 ? d.cls[ci] : null;
+    if (!c || !c.tok) return { stat: 'ias', now: now, frames: null, framesHi: null, nextPct: null, need: null, needHi: null, atCap: false, atCapHi: false, source: 'UNKNOWN', why: 'This class has no attack animation on record.' };
+    var hands = w.base[14], wc = String((hands === 2 || hands === 12) ? w.base[27] : w.base[26]).toUpperCase();
+    var an = d.tip && d.tip.an && d.tip.an[c.tok] && d.tip.an[c.tok][wc];
+    if (!an) return { stat: 'ias', now: now, frames: null, framesHi: null, nextPct: null, need: null, needHi: null, atCap: false, atCapHi: false, source: 'UNKNOWN', why: 'The tables hold no attack animation for this weapon. ' + whyGear };
+    var wsm = w.base[24] | 0, lo = _cbIasStep(an[0], an[1], wsm, now.min), hi = now.min === now.max ? lo : _cbIasStep(an[0], an[1], wsm, now.max);
+    if (!lo || !hi) return { stat: 'ias', now: now, frames: null, framesHi: null, nextPct: null, need: null, needHi: null, atCap: false, atCapHi: false, source: 'UNKNOWN', why: 'The attack speed formula has no frame count at this total. ' + whyGear };
+    return { stat: 'ias', now: now, frames: lo.frames, framesHi: now.min === now.max ? null : hi.frames, nextPct: lo.nextPct, need: lo.need, needHi: now.min === now.max ? null : hi.need, atCap: lo.atCap, atCapHi: hi.atCap, source: now.min === now.max ? 'EXACT' : 'RANGE', why: whyGear + ' ' + (w.name || '') };
+  }
+  function _cbIasOnto(sh, b, eng){
+    if (!sh || !eng || !eng.bp || !sh.rows) return;
+    sh.rows.forEach(function(r){ if (r.key === 'ias') r.bp = _cbIasGap(b, r); });
+  }
+  function _cbBpHtml(eng, g){
+    if (!g || !eng || !eng.bp || typeof eng.bp.say !== 'function') return '';
+    return '<span class="cb-bp"' + (g.why ? ' title="' + esc(g.why) + '"' : '') + '>' + esc(eng.bp.say(g)) + '</span>';
+  }
+  function _cbBpRead(b){
+    var eng = window.D2R_CHAR_ENGINE;
+    if (!eng || typeof eng.sheet !== 'function' || !eng.bp || typeof eng.bp.say !== 'function') return null;
+    var lost = [], sh;
+    try { sh = eng.sheet(_cbEngineBuild(b, eng, lost), { difficulty: st.diff, quests: !!st.quests, bp: _cbBpWho(b) }); }
+    catch (e) { return null; }
+    if (!sh || !sh.rows) return null;
+    _cbIasOnto(sh, b, eng);
+    return { eng: eng, sh: sh };
+  }
+
   function _cbStatsHtml(b, s){
     var eng = window.D2R_CHAR_ENGINE, rows = null, why = '', sh = null, lost = [];
     if (eng && typeof eng.sheet === 'function'){
       try {
-        sh = eng.sheet(_cbEngineBuild(b, eng, lost), { difficulty: st.diff, quests: !!st.quests });
+        sh = eng.sheet(_cbEngineBuild(b, eng, lost), { difficulty: st.diff, quests: !!st.quests, bp: _cbBpWho(b) });
+        if (sh) _cbIasOnto(sh, b, eng);
         rows = (sh && sh.rows) || null;
         if (!rows) why = 'the stats engine returned no rows';
       } catch (e) { why = 'the stats engine failed (' + (e && e.message || e) + ')'; rows = null; }
@@ -57828,7 +57912,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
            "capped at 75 (75 + max ..., never above 95)" in full */
         h += '<div class="cb-st-r" data-k="' + esc(String(r.label || r.key || '').toLowerCase()) + '"><span class="cb-sl">' + esc(r.label || r.key) + '</span>'
           + '<span class="cb-sv cb-sv-' + esc(src) + '" title="' + esc(r.why || src) + '">' + (v ? '<b>' + esc(v) + '</b>' : '') + '<i>' + esc(src) + '</i>'
-          + (cp && r.value ? '<em class="cb-cap" aria-label="capped at ' + esc(span(cp.min, cp.max)) + '">cap ' + esc(span(cp.min, cp.max)) + '</em>' : '') + '</span></div>';
+          + (cp && r.value ? '<em class="cb-cap" aria-label="capped at ' + esc(span(cp.min, cp.max)) + '">cap ' + esc(span(cp.min, cp.max)) + '</em>' : '') + '</span>' + _cbBpHtml(eng, r.bp) + '</div>';
       });
     }
     return h + '</div></div>';
@@ -57859,9 +57943,26 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       + '<tr><th colspan="2">Every roll in this build</th></tr>'
       + '<tr><td>Typed (EXACT)</td><td>' + typed + '</td></tr>'
       + '<tr><td>Untouched (a RANGE, never averaged)</td><td>' + ranged + '</td></tr>'
-      + '<tr><th colspan="2">Diagnostics</th></tr>'
-      + '<tr><td>Breakpoints (FCR / FHR / IAS)</td><td class="cb-sv-UNKNOWN">still owed - the totals are in STATS; the frame tables per class are not built yet</td></tr>'
-      + '<tr><td>Strength / dexterity requirements</td><td class="cb-sv-UNKNOWN">UNKNOWN — no attributes until a save is imported (v-C)</td></tr>';
+      + '<tr><th colspan="2">Diagnostics</th></tr>';
+    var bp = _cbBpRead(b);
+    if (!bp){
+      rows += '<tr><td colspan="2" class="cb-bp-calc">Breakpoints (FCR / FHR / IAS / FBR). UNKNOWN. The stats engine did not return a breakpoint for this build.</td></tr>';
+    } else {
+      var byKey = {};
+      bp.sh.rows.forEach(function(r){ byKey[r.key] = r; });
+      [['fcr', 'Faster Cast Rate'], ['fhr', 'Faster Hit Recovery'], ['ias', 'Increased Attack Speed'], ['fbr', 'Faster Block Rate']].forEach(function(pair){
+        var g = byKey[pair[0]] && byKey[pair[0]].bp;
+        rows += '<tr><td colspan="2" class="cb-bp-calc">' + esc(pair[1] + '. ' + (g ? bp.eng.bp.say(g) : 'UNKNOWN. The total is not known.')) + '</td></tr>';
+      });
+      var fr = byKey.frw, frSay;
+      if (!fr || fr.source === 'UNKNOWN' || !fr.value) frSay = 'Faster Run/Walk. UNKNOWN. The total is not known.';
+      else {
+        var a = fr.value.min, z = fr.value.max;
+        frSay = 'Faster Run/Walk ' + (a === z ? String(a) : (a + ' to ' + z)) + '%. From the gear and the charms together. Run and walk has no frame step.';
+      }
+      rows += '<tr><td colspan="2" class="cb-bp-calc">' + esc(frSay) + '</td></tr>';
+    }
+    rows += '<tr><td>Strength / dexterity requirements</td><td class="cb-sv-UNKNOWN">UNKNOWN — no attributes until a save is imported (v-C)</td></tr>';
     return '<table class="cb-calc">' + rows + '</table>';
   }
 
@@ -61287,7 +61388,7 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3591', name:'v3591 - a proof must not pull', date:'2026-10-04', note:'A drift loop proof must not fast-forward this checkout. HEART: test_control' };
+  window.D2R_BUILD = { id:'v3592', name:'v3592 - the next breakpoint', date:'2026-10-04', note:'The Stats column says how much more Faster Cast Rate, Hit Recovery, Attack Speed and Block Rate reaches the next step for the class wearing the gear. Equipment and inventory charms are one total. HEART: test_the_breakpoint_row_is_the_next_step' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -70114,8 +70215,211 @@ window.tvStashAutoIntake = async function(tab, opts){
       res.rows.push({ key: u.key, label: u.label, group: 'unmapped', unit: '', value: null, cap: null, raw: null,
                       source: 'UNKNOWN', why: u.why, parts: [] });
     });
+    _ceBpAttach(res, opts);
     return res;
   }
+
+  /* #153 — the next frame step. Computed from the published formulas. The bases below are the ones that
+     reproduce the published frame tables. Four printed casting bases do not: Druid human, Werewolf and
+     Werebear are 15 here (printed 16) and the Necromancer is 16 here (printed 15). framesWith keeps that
+     disagreement checkable. A sheet call with no opts.bp attaches nothing, so an older caller is not
+     handed a guessed weapon. */
+  var _CE_BP_FCR = {
+    Amazon: [20, 256], Assassin: [17, 256], Barbarian: [14, 256], Druid: [15, 208], Werewolf: [15, 229],
+    Werebear: [15, 228], Necromancer: [16, 256], Vampire: [15, 160], Paladin: [16, 256], Sorceress: [14, 256],
+    Lightning: [19, 256, 1]
+  };
+  var _CE_BP_FHR = {
+    Amazon: [6, 256], Assassin: [5, 256], Barbarian: [5, 256], 'Druid:1h-swing': [7, 248], 'Druid:other': [7, 256],
+    Werewolf: [4, 256], Werebear: [5, 184], Necromancer: [7, 256], Vampire: [4, 136], 'Paladin:spear': [5, 192],
+    'Paladin:other': [5, 256], Sorceress: [8, 256]
+  };
+  var _CE_BP_FBR = {
+    'Amazon:1h-swing': [3, 88], 'Amazon:other': [3, 256], Assassin: [3, 256], Barbarian: [4, 256], Druid: [6, 256],
+    Werewolf: [5, 256], Werebear: [5, 200], Necromancer: [6, 256], Paladin: [3, 256], Sorceress: [5, 256]
+  };
+  function _ceBpCls(name){
+    var n = String(name || ''), known = ['Amazon', 'Assassin', 'Barbarian', 'Druid', 'Necromancer', 'Paladin', 'Sorceress', 'Warlock'];
+    for (var i = 0; i < known.length; i++) if (known[i].toLowerCase() === n.toLowerCase()) return known[i];
+    return n;
+  }
+  function _ceBpForm(who){
+    var f = String((who && who.form) || '').toLowerCase();
+    if (f === 'wolf' || f === 'werewolf') return 'wolf';
+    if (f === 'bear' || f === 'werebear') return 'bear';
+    if (f === 'vampire') return 'vampire';
+    return 'human';
+  }
+  function _ceBpEff(pct){
+    pct = Math.floor(Number(pct));
+    if (!isFinite(pct) || pct <= 0) return 0;
+    return Math.floor(pct * 120 / (pct + 120));
+  }
+  function _ceBpFramesWith(kind, base, anim, pct, flags){
+    flags = flags || {};
+    var p = Math.floor(Number(pct));
+    if (!isFinite(p) || !(base > 0) || !(anim > 0)) return null;
+    var e = _ceBpEff(p);
+    if (kind === 'fcr') e = Math.min(75, e);
+    if (flags.holyShield) e += 50;
+    var sp = Math.floor(anim * ((kind === 'fcr' ? 100 : 50) + e) / 100);
+    if (!(sp > 0)) return null;
+    if (kind === 'fcr' && flags.light) return Math.ceil(256 * base / sp);
+    var num = 256 * base - sp;
+    if (num <= 0) return 1;
+    return Math.ceil(num / sp);
+  }
+  function _ceBpSpec(kind, who){
+    who = who || {};
+    var cls = _ceBpCls(who.cls), form = _ceBpForm(who), weapon = who.weapon || 'unknown';
+    var why = [];
+    if (cls === 'Warlock'){
+      return { unknown: true, warlock: kind === 'fcr', why: kind === 'fcr'
+        ? 'Warlock frames are not published. The only published Faster Cast Rate target is 125%.'
+        : 'Warlock frames are not published.' };
+    }
+    if (cls === 'Druid' && form === 'human') why.push('Human form.');
+    if (cls === 'Druid' && form === 'wolf') why.push('Werewolf form.');
+    if (cls === 'Druid' && form === 'bear') why.push('Werebear form.');
+    if (cls === 'Necromancer' && form === 'human') why.push('Normal form.');
+    if (cls === 'Necromancer' && form === 'vampire') why.push('Vampire form.');
+    if (kind === 'fbr' && cls === 'Paladin') why.push(who.holyShield ? 'Holy Shield is on this build.' : 'Holy Shield is not on this build.');
+    var row = null, light = false, holy = false;
+    if (kind === 'fcr'){
+      if (who.lightning){ row = _CE_BP_FCR.Lightning; light = true; }
+      else if (cls === 'Druid' && form === 'wolf') row = _CE_BP_FCR.Werewolf;
+      else if (cls === 'Druid' && form === 'bear') row = _CE_BP_FCR.Werebear;
+      else if (cls === 'Necromancer' && form === 'vampire') row = _CE_BP_FCR.Vampire;
+      else row = _CE_BP_FCR[cls] || null;
+      if (row && row[2]) light = true;
+    } else if (kind === 'fhr'){
+      if (cls === 'Druid' && form === 'wolf') row = _CE_BP_FHR.Werewolf;
+      else if (cls === 'Druid' && form === 'bear') row = _CE_BP_FHR.Werebear;
+      else if (cls === 'Druid'){
+        if (weapon === 'unknown') return { unknown: true, why: 'A 1-hand swinging weapon and any other weapon are different steps, and this build does not say which.' };
+        row = weapon === '1h-swing' ? _CE_BP_FHR['Druid:1h-swing'] : _CE_BP_FHR['Druid:other'];
+        if (who.weaponWhy) why.push(who.weaponWhy);
+      } else if (cls === 'Necromancer' && form === 'vampire') row = _CE_BP_FHR.Vampire;
+      else if (cls === 'Paladin'){
+        if (weapon === 'unknown') return { unknown: true, why: 'A spear or a staff is a different step from any other weapon, and this build does not say which.' };
+        row = weapon === 'spear' ? _CE_BP_FHR['Paladin:spear'] : _CE_BP_FHR['Paladin:other'];
+        if (who.weaponWhy) why.push(who.weaponWhy);
+      } else row = _CE_BP_FHR[cls] || null;
+    } else if (kind === 'fbr'){
+      if (cls === 'Druid' && form === 'wolf') row = _CE_BP_FBR.Werewolf;
+      else if (cls === 'Druid' && form === 'bear') row = _CE_BP_FBR.Werebear;
+      else if (cls === 'Amazon'){
+        if (weapon === 'unknown') return { unknown: true, why: 'A 1-hand swinging weapon is a different step from any other weapon, and this build does not say which.' };
+        row = weapon === '1h-swing' ? _CE_BP_FBR['Amazon:1h-swing'] : _CE_BP_FBR['Amazon:other'];
+        if (who.weaponWhy) why.push(who.weaponWhy);
+      } else if (cls === 'Paladin'){ row = _CE_BP_FBR.Paladin; holy = !!who.holyShield; }
+      else row = _CE_BP_FBR[cls] || null;
+    }
+    if (!row) return { unknown: true, why: 'This class has no published ' + kind.toUpperCase() + ' table.' };
+    return { base: row[0], anim: row[1], light: light, holyShield: holy, why: why.join(' ') };
+  }
+  function _ceBpFrames(kind, who, pct){
+    var spec = _ceBpSpec(kind, who);
+    if (!spec || spec.unknown) return null;
+    return _ceBpFramesWith(kind, spec.base, spec.anim, pct, { light: spec.light, holyShield: spec.holyShield });
+  }
+  function _ceBpStep(kind, who, pct){
+    var f0 = _ceBpFrames(kind, who, pct);
+    if (f0 == null) return null;
+    var cap = kind === 'fcr' ? 500 : 900, start = Math.floor(pct) + 1;
+    for (var p = start; p <= cap; p++){
+      var f = _ceBpFrames(kind, who, p);
+      if (f != null && f < f0) return { frames: f0, nextPct: p, need: p - pct, atCap: false };
+    }
+    return { frames: f0, nextPct: null, need: 0, atCap: true };
+  }
+  function _ceBpNum(n){
+    if (n == null || !isFinite(n)) return '';
+    var r = Math.round(n);
+    return String(Math.abs(n - r) < 1e-6 ? r : Math.round(n * 1000) / 1000);
+  }
+  function _ceBpSayOne(g){
+    if (!g) return '';
+    if (g.frames == null && g.nextPct === 125){
+      if (!g.now) return 'UNKNOWN. Warlock frames are not published. The only published Faster Cast Rate target is 125%.';
+      if (g.atCap && (g.needHi == null || g.atCapHi)) return 'The published target of 125% is already reached. The frames are not published.';
+      if (g.now.min !== g.now.max){
+        var lo = g.atCap ? 'The low end has reached 125%.' : ('The low end needs +' + _ceBpNum(g.need) + '% more.');
+        var hi = g.atCapHi ? 'The high end has reached 125%.' : ('The high end needs +' + _ceBpNum(g.needHi) + '% more.');
+        return 'Frames are not published. ' + lo + ' ' + hi;
+      }
+      return 'Frames are not published. +' + _ceBpNum(g.need) + '% more reaches the published 125% target.';
+    }
+    if (g.frames == null) return 'UNKNOWN. ' + (g.why || 'The next step is not known.');
+    var isRange = g.now && g.now.min !== g.now.max;
+    if (!isRange){
+      if (g.atCap) return _ceBpNum(g.frames) + ' frames. This is the last step.';
+      return _ceBpNum(g.frames) + ' frames. +' + _ceBpNum(g.need) + '% more reaches the next step.';
+    }
+    var a = g.frames, b = g.framesHi == null ? g.frames : g.framesHi;
+    var head = a === b ? (_ceBpNum(a) + ' frames.') : (_ceBpNum(a) + ' or ' + _ceBpNum(b) + ' frames.');
+    var end = function(at, need, which){ return at ? ('The ' + which + ' end is at the last step.') : ('The ' + which + ' end needs +' + _ceBpNum(need) + '% more.'); };
+    return head + ' ' + end(g.atCap, g.need, 'low') + ' ' + end(!!g.atCapHi, g.needHi, 'high');
+  }
+  function _ceBpSay(g){
+    if (!g) return '';
+    var s = _ceBpSayOne(g);
+    if (g.also) s += ' Lightning and Chain Lightning: ' + _ceBpSayOne(g.also);
+    return s;
+  }
+  function _ceBpNow(value){
+    if (value == null) return null;
+    if (typeof value === 'number' && isFinite(value)) return { min: value, max: value };
+    if (typeof value === 'object' && value.min != null && value.max != null && isFinite(value.min) && isFinite(value.max)) return { min: value.min, max: value.max };
+    return null;
+  }
+  function _ceBpGap(kind, who, value){
+    who = who || {};
+    var spec = _ceBpSpec(kind, who), now = _ceBpNow(value);
+    if (spec.warlock){
+      var need = now ? Math.max(0, 125 - now.min) : null;
+      var needHi = now && now.min !== now.max ? Math.max(0, 125 - now.max) : null;
+      return { stat: 'fcr', now: now, frames: null, framesHi: null, nextPct: 125, need: need, needHi: needHi,
+        atCap: !!(now && now.min >= 125), atCapHi: !!(now && now.max >= 125), source: now ? 'target' : 'UNKNOWN', why: spec.why };
+    }
+    if (!now) return { stat: kind, now: null, frames: null, framesHi: null, nextPct: null, need: null, needHi: null, atCap: false, atCapHi: false, source: 'UNKNOWN', why: 'The total is not known, so the next step is not known.' + (spec.unknown && spec.why ? ' ' + spec.why : '') };
+    if (spec.unknown) return { stat: kind, now: now, frames: null, framesHi: null, nextPct: null, need: null, needHi: null, atCap: false, atCapHi: false, source: 'UNKNOWN', why: spec.why };
+    var lo = _ceBpStep(kind, who, now.min), hi = now.min === now.max ? lo : _ceBpStep(kind, who, now.max);
+    if (!lo || !hi) return { stat: kind, now: now, frames: null, framesHi: null, nextPct: null, need: null, needHi: null, atCap: false, atCapHi: false, source: 'UNKNOWN', why: spec.why || 'The next step is not known.' };
+    var g = { stat: kind, now: now, frames: lo.frames, framesHi: now.min === now.max ? null : hi.frames, nextPct: lo.nextPct, need: lo.need, needHi: now.min === now.max ? null : hi.need, atCap: lo.atCap, atCapHi: hi.atCap, source: now.min === now.max ? 'EXACT' : 'RANGE', why: spec.why || '' };
+    // Lightning and Chain Lightning are a second cast, not a second table on the row. The sentence names it only when its step differs.
+    if (kind === 'fcr' && !who.lightning && _ceBpCls(who.cls) === 'Sorceress'){
+      var also = _ceBpGap(kind, _ceBpCopy(who, { lightning: true }), value);
+      if (also && (also.frames !== g.frames || also.need !== g.need || also.framesHi !== g.framesHi || also.atCap !== g.atCap)) g.also = also;
+    }
+    return g;
+  }
+  function _ceBpCopy(who, extra){
+    var o = {};
+    if (who) Object.keys(who).forEach(function(k){ o[k] = who[k]; });
+    if (extra) Object.keys(extra).forEach(function(k){ o[k] = extra[k]; });
+    return o;
+  }
+  function _ceBpAttach(res, opts){
+    if (!opts || !opts.bp || !res || !res.rows) return;
+    var who = opts.bp === true ? {} : opts.bp;
+    if (!who.cls) who = _ceBpCopy(who, { cls: res.cls });
+    res.rows.forEach(function(row){
+      if (row.key !== 'fcr' && row.key !== 'fhr' && row.key !== 'fbr' && row.key !== 'ias') return;
+      var val = (row.source === 'UNKNOWN' || !row.value) ? null : row.value;
+      if (row.key === 'ias'){
+        row.bp = { stat: 'ias', now: val, frames: null, framesHi: null, nextPct: null, need: null, needHi: null, atCap: false, atCapHi: false, source: 'UNKNOWN', why: 'Attack frames come from the weapon animation. This sheet does not hold that table.' };
+        return;
+      }
+      row.bp = _ceBpGap(row.key, who, val);
+    });
+  }
+  var _ceBpApi = {
+    frames: _ceBpFrames,
+    framesWith: _ceBpFramesWith,
+    gap: _ceBpGap,
+    say: _ceBpSay
+  };
 
   window.D2R_CHAR_ENGINE = {
     sheet: _ceSheet,
@@ -70123,6 +70427,7 @@ window.tvStashAutoIntake = async function(tab, opts){
     resolve: function(e){ var r = _ceResolve(e || {}); return { kind: r.kind, name: r.name, why: r.why || r.baseWhy || null, baseCode: r.code || null }; },
     difficulties: function(){ return _CE_DATA.diff.map(function(d){ return { name: d[0], penalty: d[1] }; }); },
     classes: function(){ return _CE_DATA.classes.map(function(c, i){ return { id: i, code: c[0], name: c[1] }; }); },
+    bp: _ceBpApi,
     dataHash: _CE_DATA.sourceHash
   };
 })();

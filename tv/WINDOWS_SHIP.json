@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3591",
+  "ver": "v3592",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3591: A drift loop proof must not fast-forward this checkout. HEART: test_control",
+  "note": "v3592: The Stats column says how much more Faster Cast Rate, Hit Recovery, Attack Speed and Block Rate reaches the next step for the class wearing the gear. Equipment and inventory charms are one total. HEART: test_the_breakpoint_row_is_the_next_step",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

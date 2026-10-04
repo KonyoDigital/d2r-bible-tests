@@ -396,7 +396,9 @@ class TheBuilderIsTheirBuilder(unittest.TestCase):
         self.assertEqual(out["noneNumbers"], [], "with no engine STATS drew a number: %s" % out["noneNumbers"])
         self.assertGreaterEqual(out["noneUnknown"], 20)
         self.assertEqual(out["seen"], {"cls": "Warlock", "level": 88, "head": "Crown of Ages",
-                                       "o": {"difficulty": "nightmare", "quests": True}},
+                                       "o": {"difficulty": "nightmare", "quests": True,
+                                             "bp": {"cls": "Warlock", "form": "", "weapon": "other",
+                                                    "holyShield": False, "weaponWhy": "No weapon is worn."}}},
                          "the engine was not handed the build, its worn slots and the sheet's options: %s" % out["seen"])
         self.assertTrue(out["range"], "a RANGE row is not drawn as its range with its source")
         self.assertTrue(out["exact"], "an EXACT row is not drawn as its number with its source")
@@ -500,8 +502,10 @@ class TheBuilderIsTheirBuilder(unittest.TestCase):
           window._cbCloseStash();
           window.D2R_CHAR_ENGINE = { sheet: function(){ return { rows: [] }; } }; window._cbRender();
           var h = ELS['cb-win']._html; OUT.legend = /EXACT = fixed by the table, or typed/.test(h);
-          window._cbView('calc'); OUT.bp = /Breakpoints \(FCR \/ FHR \/ IAS\)<\/td><td class="cb-sv-UNKNOWN">still owed/.test(ELS['cb-win']._html)
-            && !/arrive with the stats engine/.test(ELS['cb-win']._html);
+          window._cbView('calc');
+          var calc = ELS['cb-win']._html;
+          OUT.bp = /Breakpoints \(FCR \/ FHR \/ IAS \/ FBR\)\. UNKNOWN\. The stats engine did not return a breakpoint/.test(calc)
+            && !/still owed/.test(calc) && !/arrive with the stats engine/.test(calc);
         """)
         self.assertIn('min="1" max="2"', out["crownIn"] or "", "Crown of Ages' stepper is not its own Socketed 1-2: %s" % out["crownIn"])
         self.assertTrue(out["crownSays"], "an untouched Socketed roll does not say how its sockets appear")
@@ -526,7 +530,7 @@ class TheBuilderIsTheirBuilder(unittest.TestCase):
         self.assertGreaterEqual(out["folds"], 6, "the tree's parents carry no fold chevron")
         self.assertTrue(out["foldedHides"], "folding Melee Weapons does not hide its children")
         self.assertTrue(out["legend"], "STATS still says EXACT means only a typed roll")
-        self.assertTrue(out["bp"], "Calculations still says breakpoints arrive with the stats engine")
+        self.assertTrue(out["bp"], "a stubbed engine must say the breakpoint is UNKNOWN, and the owed placeholder must stay gone")
 
     def test_an_active_button_keeps_its_label_under_the_pointer(self):
         css = _builder_css(_src())
