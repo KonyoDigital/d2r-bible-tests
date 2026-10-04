@@ -283,7 +283,14 @@ GATES = [
              "through to the kill of :17772 and replaced a healthy console (and its session). tv/launcher_decide.py "
              "asks it forward unless it is stale, windowless or silent; driven against a fake console on an "
              "ephemeral port. v3525 - and the SHELL block that calls it, run for real under "
-             "set -euo pipefail: a 'replace it' answer ended the script and the icon launched nothing."),
+             "set -euo pipefail: a 'replace it' answer ended the script and the icon launched nothing. "
+             "A freshness check that times out is not an answer: the window was already read, so the icon asks "
+             "it forward. The small route is /api/freshness; a timeout does not also open /api/status."),
+    Gate("test_a_window_change_reaches_the_fleet", [sys.executable,
+         os.path.join(HERE, "test_a_window_change_reaches_the_fleet.py")], 90,
+         why="The ALT's fleet row lagged about 9 minutes because the beacon sleeps 240s and then builds the whole "
+             "status. A window or shadow change is sent at once, held to one extra report a minute, and the report "
+             "is a presence patch that does not build status. The 240s beacon stays the floor."),
     Gate("test_one_hunt_clock", [sys.executable,
          os.path.join(HERE, "test_one_hunt_clock.py")], 60,
          why="v3526 - 2026-09-30 his Cow King's Hooves read '~1 every 20030h' on its Sets run row, '~40h' on its "

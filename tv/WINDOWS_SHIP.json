@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3593",
+  "ver": "v3594",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3593: The Windows installer fetches and then runs the incoming update rule from a temp file. A refusal is printed and nothing is fast-forwarded over it. A reset that fails says the update matched and quotes the git error. HEART: test_a_landed_update_is_not_an_edit",
+  "note": "v3594: A window or shadow change reaches the fleet within a minute. A freshness check that times out asks the console forward. HEART: test_a_window_change_reaches_the_fleet, test_the_launcher_brings_a_running_console_forward",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

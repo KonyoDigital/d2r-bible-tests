@@ -10,16 +10,21 @@ itself (/api/status moduleFreshness, v3288), so the rule is now:
 
   · it answers, its window is up or backgrounded, and it says it IS the code on disk -> ask it forward; if it comes,
     this launch ends there (exit 0);
-  · it is stale, headless, a window-only view, cannot say whether it is current, or does not come forward ->
-    replace it, exactly as before (exit 1) - v1460's trap is a Desktop icon that does nothing.
+  · it is stale, headless, a window-only view, answers that it cannot say whether it is current, or does not
+    come forward -> replace it, exactly as before (exit 1) - v1460's trap is a Desktop icon that does nothing.
   · a console whose window is BACKGROUNDED and cannot say whether it is current is still asked forward - that is
     what bg-service shipped, and replacing it would stop the reel it is filming.
+  · a freshness check that TIMES OUT is not an answer. The window was already read. Ask that console forward.
+    Measured on the ALT: /api/status took 10.5s under the game, the icon waits 5s, and the timeout was read as
+    "cannot say", which replaced a healthy console. The small route is /api/freshness. An old console without
+    it (HTTP 404) is asked /api/status once. A timeout is not asked twice.
 
 Driven by tv/test_the_launcher_brings_a_running_console_forward.py against a fake console on an ephemeral port.
 """
 import json
 import os
 import sys
+import urllib.error
 import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -44,6 +49,32 @@ def _post(url, body, timeout):
         return json.loads(r.read().decode("utf-8") or "{}")
 
 
+def _freshness(base, timeout):
+    """-> (fresh, answered).
+
+    fresh is True (this process is the file on disk), False (it is older), or None (it cannot say).
+    answered is False only when the check timed out or the socket never answered. A 404 means this
+    console has no /api/freshness yet, so the slow /api/status is asked once. Any other failure is
+    not asked twice: a second wait is how a 5s icon becomes a 10s kill.
+    """
+    body = None
+    try:
+        body = _get(base + "/api/freshness", timeout) or {}
+    except urllib.error.HTTPError as e:
+        if getattr(e, "code", None) != 404:
+            return None, False
+    except Exception:
+        return None, False
+    if not isinstance(body, dict) or "known" not in body:
+        try:
+            body = (_get(base + "/api/status", timeout) or {}).get("moduleFreshness") or {}
+        except Exception:
+            return None, False
+    if isinstance(body, dict) and body.get("known"):
+        return (not bool(body.get("stale"))), True
+    return None, True
+
+
 def decide(port, who=FROM, timeout=5.0):
     """-> (bring_forward_done: bool, why: str)"""
     base = "http://127.0.0.1:%d" % int(port)
@@ -53,16 +84,10 @@ def decide(port, who=FROM, timeout=5.0):
         return False, "the console did not answer /api/window (%s) - replacing it" % type(e).__name__
     if mode not in ("front", "background"):
         return False, "its window is %r - a double-click needs a window, so it is replaced" % (mode or "unknown")
-    fresh = None
-    try:
-        f = (_get(base + "/api/status", timeout) or {}).get("moduleFreshness") or {}
-        if f.get("known"):
-            fresh = not f.get("stale")
-    except Exception:
-        fresh = None
+    fresh, answered = _freshness(base, timeout)
     if fresh is False:
         return False, "it runs code OLDER than the file on disk - replaced so this checkout boots (v1379.1)"
-    if fresh is None and mode == "front":
+    if fresh is None and mode == "front" and answered:
         return False, "its window is up but it cannot say whether it runs the current code - replaced (v1379.1)"
     try:
         ok = bool((_post(base + "/api/window", {"do": "front", "from": who}, timeout) or {}).get("ok"))
@@ -70,7 +95,13 @@ def decide(port, who=FROM, timeout=5.0):
         return False, "it would not come forward (%s) - replaced so the icon never does nothing (v1460)" % type(e).__name__
     if not ok:
         return False, "it answered but did not come forward - replaced so the icon never does nothing (v1460)"
-    return True, "the running console (window %s, current code) was brought to the front instead of replaced" % mode
+    if fresh is True:
+        return True, "the running console (window %s, current code) was brought to the front instead of replaced" % mode
+    if not answered:
+        return True, ("the running console (window %s) did not answer the freshness check in time - "
+                      "asked forward instead of replaced" % mode)
+    return True, ("the running console (window %s) could not say whether it is current - "
+                  "asked forward instead of replaced" % mode)
 
 
 def main(argv):

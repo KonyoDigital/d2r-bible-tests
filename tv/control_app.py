@@ -4008,7 +4008,7 @@ def _console_beacon(event="hb"):
     try:
         import base64 as _b64, socket as _sock
         st = status_payload()
-        body = json.dumps({
+        payload = {
             "machine": _sock.gethostname().split(".")[0],
             "platform": st.get("platform"), "ver": st.get("ver"),
             # v2254 — WHAT IS ON THIS MACHINE'S DISK, beside what it is RUNNING.
@@ -4091,7 +4091,8 @@ def _console_beacon(event="hb"):
             # /console renders a failed one red, so a transient failure is visible from the site
             # too, not only on the machine that suffered it.
             "lastBeacon": prior,
-        }).encode("utf-8")
+        }
+        body = json.dumps(payload).encode("utf-8")
         req = urllib.request.Request(
             "https://bull-4-u.com/api/console", data=body,
             headers={"Content-Type": "application/json", "User-Agent": "TVD-Console/1.0",
@@ -4109,6 +4110,7 @@ def _console_beacon(event="hb"):
                 fleet = int(_b["fleet"])
         except Exception:
             fleet = None
+        _FLEET_LAST_BODY["body"] = payload
         with _BEACON_LOCK:
             _BEACON_LAST["ok"] = True
             _BEACON_LAST["code"] = code
@@ -4172,6 +4174,162 @@ def _console_beacon_loop():
             _last_mode[0] = m
         except Exception:
             pass
+
+
+# One extra fleet report per minute when the window or the shadow reader changes. The 240s
+# loop above stays the floor. A flap inside the minute is remembered and sent once, with the
+# state at send time, so a close during the quiet minute is not held for the floor.
+_FLEET_CHANGE_MIN_S = 60.0
+_FLEET_CHANGE_BUSY = {"on": False}
+# The last full beacon that landed. A presence report resends it with a new window and
+# shadow, so a worker that does not know presenceOnly yet stores a whole row rather than
+# wiping the card down to the two new fields.
+_FLEET_LAST_BODY = {"body": None}
+
+
+def _fleet_change_sig(window_mode, shadow):
+    """What a fleet card should hear about at once. -> tuple | None.
+
+    Window mode, and whether the shadow reader is on, available, and recording.
+    The watcher's own beat moves every tick and is not a change. None when the
+    window mode could not be read: unknown is not a change.
+    """
+    if not window_mode:
+        return None
+    sh = shadow if isinstance(shadow, dict) else {}
+    return (str(window_mode), sh.get("on") is True, sh.get("available"), sh.get("recording") is True)
+
+
+def _fleet_change_due(prev, cur, now, sent_at, pending, min_s=_FLEET_CHANGE_MIN_S):
+    """-> (send, pending, prev).
+
+    The first sample is remembered and not sent (the boot beacon already went).
+    A change becomes pending. Pending sends once min_s has passed since the last
+    extra report. A flap inside the minute stays pending; the send carries the
+    state at send time, not the state that opened the minute.
+    """
+    if cur is None:
+        return False, pending, prev
+    if prev is None:
+        return False, False, cur
+    if cur != prev:
+        pending = True
+        prev = cur
+    if pending and (now - sent_at) >= min_s:
+        return True, False, prev
+    return False, pending, prev
+
+
+def _console_beacon_presence():
+    """Report a window or shadow change without building /api/status.
+
+    The full beacon walks the board and under a game that walk has taken seconds
+    to minutes, which is why a close showed up on the fleet six minutes late.
+    This resends the last full beacon that landed, with the live window and
+    shadow and presenceOnly set. The worker that knows the flag overlays those
+    onto the stored row. A worker that does not still stores a whole row, because
+    the resent body is the last full one. No landed beacon yet, or no stored row,
+    sends the full beacon instead. Never raises into the caller.
+    """
+    supp = ("CI" if os.environ.get("CI") else
+            "GITHUB_ACTIONS" if os.environ.get("GITHUB_ACTIONS") else
+            "TVD_NO_BEACON" if os.environ.get("TVD_NO_BEACON") else "")
+    if supp:
+        _console_beacon("hb")
+        return
+    _ts_iso, _ts_epoch = _beacon_now(), time.time()
+    try:
+        cached = _FLEET_LAST_BODY.get("body")
+        if not isinstance(cached, dict):
+            _console_beacon("hb")
+            return
+        import base64 as _b64
+        payload = dict(cached)
+        payload.pop("lastBeacon", None)
+        payload["event"] = "hb"
+        payload["presenceOnly"] = True
+        payload["windowMode"] = (window_mode_payload() or {}).get("mode")
+        payload["shadow"] = _shadow_for_wire()
+        body = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            "https://bull-4-u.com/api/console", data=body,
+            headers={"Content-Type": "application/json", "User-Agent": "TVD-Console/1.0",
+                     "Authorization": "Basic " + _b64.b64encode(b"app:DeanDiablo").decode()},
+            method="POST")
+        with urllib.request.urlopen(req, timeout=8) as r:
+            raw = r.read()
+            code = getattr(r, "status", None) or r.getcode()
+        parsed = {}
+        try:
+            parsed = json.loads(raw.decode("utf-8", "replace"))
+        except Exception:
+            parsed = {}
+        if not isinstance(parsed, dict):
+            parsed = {}
+        skipped = parsed.get("skipped") or []
+        if "presence patch with no row yet" in skipped:
+            _console_beacon("hb")
+            return
+        with _BEACON_LOCK:
+            _BEACON_LAST["ok"] = True
+            _BEACON_LAST["code"] = code
+            _BEACON_LAST["err"] = ""
+            _BEACON_LAST["t"] = _ts_iso
+            _BEACON_LAST["ts"] = _ts_epoch
+            _BEACON_LAST["event"] = "hb"
+            _BEACON_LAST["okAt"] = _ts_iso
+            _BEACON_LAST["suppressed_by"] = ""
+    except Exception as e:
+        _c = getattr(e, "code", None)
+        with _BEACON_LOCK:
+            _BEACON_LAST["ok"] = False
+            _BEACON_LAST["t"] = _ts_iso
+            _BEACON_LAST["ts"] = _ts_epoch
+            _BEACON_LAST["event"] = "hb"
+            _BEACON_LAST["code"] = _c if isinstance(_c, int) else None
+            _BEACON_LAST["err"] = type(e).__name__ + ": " + str(e)[:200]
+            _BEACON_LAST["failures"] = int(_BEACON_LAST.get("failures") or 0) + 1
+            _BEACON_LAST["suppressed_by"] = ""
+    _beacon_state_save()
+
+
+def _fleet_change_send():
+    """One presence report. Clears the busy flag even when the post fails."""
+    try:
+        _console_beacon_presence()
+    finally:
+        _FLEET_CHANGE_BUSY["on"] = False
+
+
+def _fleet_change_kick():
+    """Start one presence report if one is not already running. -> bool (started)."""
+    if _FLEET_CHANGE_BUSY["on"]:
+        return False
+    _FLEET_CHANGE_BUSY["on"] = True
+    threading.Thread(target=_fleet_change_send, daemon=True).start()
+    return True
+
+
+def _fleet_change_loop():
+    """Watch the window and the shadow reader. The 240s beacon stays the floor."""
+    prev, pending, sent_at = None, False, 0.0
+    while True:
+        time.sleep(2.0)
+        _lane_tick("_fleet_change_loop", 2)
+        try:
+            sig = _fleet_change_sig(
+                (window_mode_payload() or {}).get("mode"),
+                _shadow_state())
+        except Exception:
+            continue
+        send, pending, prev = _fleet_change_due(
+            prev, sig, time.time(), sent_at, pending)
+        if not send:
+            continue
+        if _fleet_change_kick():
+            sent_at = time.time()
+        else:
+            pending = True
 
 
 def _bridge_prober():
@@ -38649,7 +38807,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3593",
+        "ver": "v3594",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
@@ -41203,6 +41361,12 @@ class Handler(BaseHTTPRequestHandler):
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
             self.wfile.write(body)
+            return
+        if path == "/api/freshness":
+            # The Desktop icon asks this, not /api/status. status builds the whole board and under
+            # a game it has taken 10s; the icon waits 5s and a timeout used to replace a healthy
+            # console. This is the cached file check only (module_freshness).
+            self._json(200, module_freshness())
             return
         if path == "/api/status":
             self._json(200, status_payload())
@@ -44246,6 +44410,7 @@ def main():
 
     threading.Thread(target=_bridge_prober, daemon=True, name="tvd-prober").start()   # v872
     threading.Thread(target=_console_beacon_loop, daemon=True, name="tvd-beacon").start()   # v875
+    threading.Thread(target=_fleet_change_loop, daemon=True, name="tvd-fleet-change").start()
     t = threading.Thread(target=srv.serve_forever, daemon=True)
     t.start()
     # ⚠ v2408 — RECORD THAT *THIS* PROCESS IS THE ONE SERVING. Set at the only place a server is

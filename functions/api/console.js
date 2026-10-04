@@ -619,6 +619,29 @@ export async function onRequestPost(context) {
   let prev = null;
   try { prev = prevRaw ? JSON.parse(prevRaw) : null; } catch (e) { prev = null; }
 
+  // A presence patch is a window or shadow change. Building the whole status under a game
+  // took long enough that a close showed up on the fleet minutes late. The console resends
+  // the last full beacon with the live window and shadow and presenceOnly set, so a worker
+  // that does not know this flag still stores a whole row. This worker keeps the stored row
+  // and overlays the window, the shadow, the time, and event hb. The measurement clock
+  // (system.asOf) stays the time those ages were taken. No stored row means there is nothing
+  // to overlay, and the console then sends a full beacon. event is hb so a change does not
+  // also write a consolelog row.
+  const presenceOnly = body.presenceOnly === true;
+  if (presenceOnly) {
+    if (!prev || typeof prev !== 'object') {
+      return json({ ok: true, machine, stored: [], skipped: ['presence patch with no row yet'] }, 200);
+    }
+    const merged = Object.assign({}, prev, {
+      t: rec.t,
+      windowMode: rec.windowMode,
+      shadow: rec.shadow,
+      event: 'hb',
+    });
+    for (const k of Object.keys(rec)) delete rec[k];
+    Object.assign(rec, merged);
+  }
+
   const ageS = (prev && prev.t) ? ((Date.now() - Date.parse(prev.t)) / 1000) : 1e9;
   // ⚠ MATERIAL means "a thing he reads on the panel". Two heartbeats that differ only in their
   // timestamp are the same news, and news is what a write is for.

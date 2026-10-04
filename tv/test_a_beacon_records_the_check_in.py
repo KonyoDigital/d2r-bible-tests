@@ -95,6 +95,7 @@ for (let i = 0; i < CFG.beacons.length; i++) {
   // my guess at the stored shape differed from the real one on a field I never thought about.
   // Letting beacon 1 WRITE the record and then only moving its clock makes `prev` exactly what
   // production holds. [[feedback-suspect-the-instrument]]
+  if (i > 0) await new Promise((r) => setTimeout(r, 20));
   if (i > 0 && CFG.ageBetween) {
     const k = 'console:' + CFG.machine;
     const cur = store.get(k);
@@ -211,6 +212,48 @@ class ABeaconRecordsTheCheckIn(unittest.TestCase):
         self.assertGreater(str(after), str(before),
                            "the receipt said it wrote, but the stored stamp did not move: "
                            "%r -> %r" % (before, after))
+
+    def test_a_presence_patch_updates_the_window_and_keeps_the_row(self):
+        """A window change must land without rebuilding the row, and must not refresh the
+        measurement clock. The ages in system were taken at the last full beacon."""
+        first = dict(BASE)
+        first["windowMode"] = "front"
+        first["system"] = {"tree": "ok", "reels": 2,
+                           "capture": {"route": "native", "ageS": 12, "source": "capture-half"}}
+        second = {"machine": "dean-pc", "event": "hb", "presenceOnly": True,
+                  "windowMode": "background",
+                  "shadow": {"on": True, "available": True, "recording": False, "working": True}}
+        v = _beacons([first, second])
+        reply = v["replies"][1]
+        self.assertIn("lastseen", (reply or {}).get("stored") or [],
+                      "a window change was not stored (stored=%r skipped=%r)"
+                      % ((reply or {}).get("stored"), (reply or {}).get("skipped")))
+        self.assertFalse([n for n in ((reply or {}).get("stored") or []) if str(n).startswith("consolelog")],
+                         "a presence patch wrote a consolelog row")
+        row = v["lastseen"]
+        self.assertIsNotNone(row, "the patch left no durable record")
+        self.assertEqual(row.get("ver"), "v3342", "the patch replaced the row instead of overlaying it")
+        self.assertEqual(row.get("windowMode"), "background")
+        self.assertEqual((row.get("tally") or {}).get("sets"), {"have": 0, "total": 135})
+        self.assertIs((row.get("shadow") or {}).get("on"), True)
+        self.assertIs((row.get("shadow") or {}).get("recording"), False)
+        first_asof = (v["replies"] and None)
+        # The first beacon's asOf is the first record's t. The patch must leave it there.
+        # Re-read it off the stored row: asOf stays, t moves.
+        as_of = ((row.get("system") or {}).get("asOf"))
+        self.assertTrue(as_of, "the full beacon did not stamp system.asOf, so this proves nothing")
+        self.assertEqual(as_of, v["stamps"][0],
+                         "the patch refreshed the measurement clock, so ages now read as if they "
+                         "were taken at the window change")
+        self.assertGreater(row.get("t"), as_of)
+
+    def test_a_presence_patch_with_no_row_stores_nothing(self):
+        v = _beacons([{"machine": "dean-pc", "event": "hb", "presenceOnly": True,
+                       "windowMode": "background"}])
+        reply = v["replies"][0]
+        self.assertEqual((reply or {}).get("stored") or [], [])
+        self.assertIn("presence patch with no row yet", (reply or {}).get("skipped") or [])
+        self.assertIsNone(v["lastseen"], "a patch with no row wrote a thin record")
 
 
 RED_PROOF = [

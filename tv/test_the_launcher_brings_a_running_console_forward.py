@@ -15,7 +15,7 @@ import os
 import sys
 import threading
 import unittest
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
@@ -33,6 +33,11 @@ class _Console(BaseHTTPRequestHandler):
     fresh = {"known": True, "stale": False}
     front_ok = True
     posts = []
+    fresh_hits = 0
+    status_hits = 0
+    fresh_delay = 0
+    fresh_code = 200
+    status_delay = 0
 
     def _send(self, obj):
         body = json.dumps(obj).encode("utf-8")
@@ -43,10 +48,25 @@ class _Console(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def do_GET(self):
-        if self.path.startswith("/api/window"):
+        import time as _time
+        path = self.path.split("?", 1)[0]
+        if path == "/api/window":
             self._send({"ok": True, "mode": _Console.mode})
-        elif self.path.startswith("/api/status"):
-            self._send({"moduleFreshness": _Console.fresh})
+        elif path == "/api/freshness":
+            _Console.fresh_hits += 1
+            if _Console.fresh_delay:
+                _time.sleep(_Console.fresh_delay)
+            if _Console.fresh_code != 200:
+                self.send_response(_Console.fresh_code)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+                return
+            self._send(_Console.fresh if isinstance(_Console.fresh, dict) else {})
+        elif path == "/api/status":
+            _Console.status_hits += 1
+            if _Console.status_delay:
+                _time.sleep(_Console.status_delay)
+            self._send({"moduleFreshness": _Console.fresh if isinstance(_Console.fresh, dict) else {}})
         else:
             self._send({})
 
@@ -63,7 +83,7 @@ class TheDecision(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.srv = HTTPServer(("127.0.0.1", 0), _Console)
+        cls.srv = ThreadingHTTPServer(("127.0.0.1", 0), _Console)
         cls.port = cls.srv.server_address[1]
         assert cls.port != 17772
         cls.t = threading.Thread(target=cls.srv.serve_forever, daemon=True)
@@ -74,9 +94,13 @@ class TheDecision(unittest.TestCase):
         cls.srv.shutdown()
         cls.srv.server_close()
 
-    def _decide(self, mode, fresh, front_ok=True):
+    def _decide(self, mode, fresh, front_ok=True, fresh_delay=0, fresh_code=200,
+                status_delay=0, timeout=5.0):
         _Console.mode, _Console.fresh, _Console.front_ok, _Console.posts = mode, fresh, front_ok, []
-        done, why = LD.decide(self.port, "law", timeout=5.0)
+        _Console.fresh_hits = _Console.status_hits = 0
+        _Console.fresh_delay, _Console.fresh_code = fresh_delay, fresh_code
+        _Console.status_delay = status_delay
+        done, why = LD.decide(self.port, "law", timeout=timeout)
         return done, why, list(_Console.posts)
 
     CURRENT = {"known": True, "stale": False}
@@ -87,6 +111,8 @@ class TheDecision(unittest.TestCase):
         done, why, posts = self._decide("front", self.CURRENT)
         self.assertTrue(done, "a healthy console with its window up was replaced by a double-click: %s" % why)
         self.assertEqual([{"do": "front", "from": "law"}], posts)
+        self.assertEqual(1, _Console.fresh_hits, "the icon did not ask the small freshness route")
+        self.assertEqual(0, _Console.status_hits, "a current console was judged from the slow status route")
 
     def test_a_backgrounded_console_is_brought_forward_even_when_it_cannot_say_it_is_current(self):
         done, why, posts = self._decide("background", self.UNKNOWN)
@@ -99,6 +125,7 @@ class TheDecision(unittest.TestCase):
             self.assertFalse(done, "a console running OLDER code was kept (v1379.1): %s" % why)
             self.assertEqual([], posts, "a stale console was asked forward")
             self.assertIn("OLDER", why)
+            self.assertEqual(0, _Console.status_hits, "a stale answer on the small route still opened status")
 
     def test_a_window_up_that_cannot_say_it_is_current_is_replaced(self):
         done, why, posts = self._decide("front", self.UNKNOWN)
@@ -115,6 +142,26 @@ class TheDecision(unittest.TestCase):
         done, why, posts = self._decide("front", self.CURRENT, front_ok=False)
         self.assertFalse(done, "the icon would do nothing (v1460): %s" % why)
         self.assertIn("v1460", why)
+
+    def test_a_slow_freshness_check_asks_a_window_that_is_up_forward(self):
+        """The ALT's status took 10.5s. The icon waits 5s. A timeout while the window is up
+        used to replace a healthy console. It now asks the window forward and does not also
+        open the slow route."""
+        done, why, posts = self._decide("front", self.CURRENT, fresh_delay=0.6, timeout=0.2)
+        self.assertTrue(done, why)
+        self.assertEqual([{"do": "front", "from": "law"}], posts)
+        self.assertEqual(0, _Console.status_hits, "a timeout fell through onto /api/status")
+        self.assertIn("did not answer the freshness check", why)
+
+    def test_an_old_console_whose_status_times_out_is_asked_forward(self):
+        """A console that has no /api/freshness yet (404) is asked /api/status once.
+        If THAT times out, the window was already read, so the icon asks it forward."""
+        done, why, posts = self._decide(
+            "front", self.STALE, fresh_code=404, status_delay=0.6, timeout=0.2)
+        self.assertTrue(done, why)
+        self.assertEqual([{"do": "front", "from": "law"}], posts)
+        self.assertGreaterEqual(_Console.status_hits, 1)
+        self.assertIn("did not answer the freshness check", why)
 
     def test_no_console_means_replace(self):
         import socket

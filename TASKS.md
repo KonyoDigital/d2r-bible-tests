@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3593** | `(this commit)` | v3593 — The Windows installer fetches and then runs the incoming update rule from a temp file. A refusal is printed and nothing is fast-forwarded over it. A reset that fails says the update matched and quotes the git error. HEART: test_a_landed_update_is_not_an_edit |
+| **v3594** | `(this commit)` | v3594 — A window or shadow change reaches the fleet within a minute. A freshness check that times out asks the console forward. HEART: test_a_window_change_reaches_the_fleet, test_the_launcher_brings_a_running_console_forward |
+| **v3593** | `4606a280` | v3593 — The Windows installer fetches and then runs the incoming update rule from a temp file. A refusal is printed and nothing is fast-forwarded over it. A reset that fails says the update matched and quotes the git error. HEART: test_a_landed_update_is_not_an_edit |
 | **v3592** | `8ff7607d` | v3592 — The Stats column says how much more Faster Cast Rate, Hit Recovery, Attack Speed and Block Rate reaches the next step for the class wearing the gear. Equipment and inventory charms are one total. HEART: test_the_breakpoint_row_is_the_next_step |
 | **v3591** | `f0e7079f` | v3591 — A drift loop proof must not fast-forward this checkout. HEART: test_control |
 | **v3590** | `cea76ac9` | v3590 — An ignored file inside a directory the update replaces stays, because the reset would delete it with the directory. HEART: test_a_landed_update_is_not_an_edit |
