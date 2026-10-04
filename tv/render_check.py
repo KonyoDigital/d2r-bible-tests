@@ -1248,28 +1248,40 @@ TARGETS = {
     # ⚠ #230 — THE CHRONICLE INBOX WINDOW HAD NO PHOTOGRAPH. Grok's mailbox study was ported onto it
     # (the tome, the item art on a plate, in-page confirmations), and nothing had ever rendered the
     # window he accepts and dismisses from. FIXTURE items are fed through the board frame's OWN
-    # functions (the path chRefreshData reads), re-fed on every poll so the board finishing its load
-    # cannot swap in the sandbox's empty inbox.
+    # functions (the path chRefreshData reads). The board script assigns those functions when it
+    # finishes parsing, and the status paint reloads the frame once when the version first arrives.
+    # Either one puts the sandbox's empty inbox back, the header stays painted, and a selector that
+    # includes the header never asks for a re-prepare. The feeder below re-plants on a short timer,
+    # and again in the same breath as each width's count (`refeed`).
     "ch-inbox": {
         "serve": True,
         "why": "THE CHRONICLE INBOX WINDOW — the item cards he accepts or dismisses, each with its own "
                "game art on a plate, the chronicle tome on the header (Grok's mailbox study, #230)",
         "seed": """(function(){ return 1; })()""",
+        "refeed": True,
         "activate": """(function(){
-            var f = document.getElementById('tvd-eng'); var W = f && f.contentWindow;
-            if (!W || typeof window._chInboxRepaint !== 'function') return false;
+            if (typeof window._chInboxRepaint !== 'function') return false;
             var now = Date.now();
             var items = [
               {name: 'Harlequin Crest', tier: 'grail', status: 'pending', rarity: 'unique', why: 'unique helm \u00b7 Hell Mephisto', firstSeenTs: now - 600000, seenCount: 2, sessionId: 'fixture-mephisto'},
               {name: 'The Stone of Jordan', tier: 'grail', status: 'pending', rarity: 'unique', why: 'unique ring \u00b7 Hell Mephisto', firstSeenTs: now - 900000, seenCount: 3, sessionId: 'fixture-mephisto'},
               {name: 'Goldwrap', tier: 'keep', status: 'pending', rarity: 'unique', why: 'unique belt \u00b7 Hell Baal', firstSeenTs: now - 3600000, seenCount: 1, sessionId: 'fixture-baal'}];
-            try {
-              W.kaiChronicleInbox = function(){ return items; };
-              W.kaiChronicleLedger = function(){ return []; };
-              W.kaiChronicleSync = function(){};
-              W.kaiChronicleLedgerSeedFromInbox = function(){};
-            } catch (e) { return false; }
-            window._chInboxRepaint();
+            function feed(){
+              var f = document.getElementById('tvd-eng'); var W = f && f.contentWindow;
+              if (!W) return false;
+              try {
+                W.kaiChronicleInbox = function(){ return items; };
+                W.kaiChronicleLedger = function(){ return []; };
+                W.kaiChronicleSync = function(){};
+                W.kaiChronicleLedgerSeedFromInbox = function(){};
+              } catch (e) { return false; }
+              var m = document.getElementById('ch-modal');
+              var cards = m ? m.querySelectorAll('.ch-card-item').length : 0;
+              if (cards !== items.length) window._chInboxRepaint();
+              return true;
+            }
+            if (!feed()) return false;
+            if (!window.__chInboxFeed) window.__chInboxFeed = setInterval(feed, 200);
             var m = document.getElementById('ch-modal');
             if (!m || m.hidden) {
                 var b = document.getElementById('btn-chronicle-inbox');
@@ -4861,6 +4873,15 @@ def check(name, spec, shots=True):
              tab.ev("(function(){var e=document.querySelector(%s); if(e) "
                     "e.scrollIntoView({block:'center'}); return 1;})()" % json.dumps(spec["sel"]))
              time.sleep(0.35)
+             # ⚠ THE COUNT AND THE PLANT HAVE TO BE THE SAME MOMENT.
+             # A target whose header stays on screen still matches after its fixture data is
+             # replaced, so the selector wait above returns immediately and never re-prepares.
+             # ch-inbox lost its three cards that way at 375x800 (1 node, floor 4): the status
+             # paint reloads the board frame when the version arrives, the board's own script
+             # assigns the empty inbox, and the phone width is measured last. `refeed` plants
+             # again here, after the settle sleep, so the probe cannot count the emptied window.
+             if spec.get("refeed") and spec.get("activate"):
+                 tab.ev(spec["activate"])
              raw = tab.ev(_PROBE % (json.dumps(spec["sel"]),
                                     json.dumps(sorted(spec.get("truncation_ok") or {}))))
              m = json.loads(raw) if raw else {"found": 0}
