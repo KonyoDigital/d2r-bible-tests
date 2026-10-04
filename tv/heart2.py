@@ -1265,6 +1265,15 @@ def blind_reason(why, matches, tail, widths=None):
             % (n_skipped, n_ran, n_ran - n_skipped))
 
 
+_LANE_LOCAL = threading.local()
+
+
+def _stamp_lane_ports(env, lane):
+    """#144 — write this prove lane's port base into the gate's environment."""
+    import lane_ports as _lp
+    return _lp.stamp(env, lane)
+
+
 def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=None):
     # v2882 — `extra` carries the registered gate's argv tail (e.g. `--selftest`). Without
     # it a gate runs a command the suite never issues, and its verdict is about something
@@ -1284,6 +1293,12 @@ def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=N
     # gate needs his console). A sandboxed proof is a law run like any other.
     import run_gates as _rg_env
     env = _rg_env.law_env(_rg_env.needs_app_of(filename), env)
+    # #144 — this lane's own ports. Suites that pin 17971/17972 derive from TV_LANE_PORT_BASE.
+    # needs_app keeps whatever law_env left, so a gate that must ask his console still can.
+    # No lane (a direct _run_gate, triage) stamps nothing.
+    _ln = getattr(_LANE_LOCAL, "n", None)
+    if _ln and not _rg_env.needs_app_of(filename):
+        env = _stamp_lane_ports(env, _ln)
     if widths:
         import law_widths as _LW
         env[_LW.ENV] = _LW.label(widths)
@@ -2537,6 +2552,7 @@ def _prove_lane(lane, work, out, lock, sink, built, buffered=True, blank=None):
     say = _LaneSay(sink, lock, buffered=buffered)
     holding = []
     root = None
+    _LANE_LOCAL.n = lane          # #144 — _run_gate stamps this lane's ports into each gate
     try:
         sandbox, root = make_sandbox(say)
         built.append(bool(sandbox))
@@ -2594,6 +2610,7 @@ def _prove_lane(lane, work, out, lock, sink, built, buffered=True, blank=None):
                     if blank is not None:
                         blank.add(_n)          # the lane died holding it: BLIND, and still owed
     finally:
+        _LANE_LOCAL.n = None
         say.flush()
         if root:
             _drop_sandbox(root)

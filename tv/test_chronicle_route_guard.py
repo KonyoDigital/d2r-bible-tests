@@ -38,8 +38,8 @@ import source_window as _sw  # noqa: E402
 sys.path.insert(0, HERE)
 # Never point the module globals at the LIVE console (test_control.py's v1462 courtesy —
 # control_app reads these at import time and 17772 is Konyo's running app).
-os.environ["TV_CONTROL_PORT"] = "17972"
-os.environ["TV_PORT"] = "17971"
+import lane_ports as _lane_ports  # noqa: E402  #144 — a lone run keeps 17971 / 17972
+_lane_ports.adopt(17971, 17972)
 import control_app as ca  # noqa: E402
 
 SID = "s_1786385768689_67392"

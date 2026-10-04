@@ -7,7 +7,8 @@ from unittest import mock
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import fixture_tmp as _fx_tmp  # noqa: E402  #171 — this run's scratch dirs leave with it
 _fx_tmp.contain()
-os.environ["TV_PORT"] = "17971"          # never collide with a live agent
+import lane_ports as _lane_ports  # noqa: E402  #144 — 17971 when no lane, the lane's own base otherwise
+_lane_ports.adopt_agent(17971)            # never collide with a live agent
 import tv_diablo as tv
 # REG-1709 - his reader switch is HIS, not this suite's: a GROK ONLY state (his choice, 2026-10-02 07:17) skips Claude's
 # throttle and cap by design, and 3 failures + 1 error here asserted Claude's. The suite runs on the default reader.

@@ -660,7 +660,9 @@ class TheRealProverAgreesAcrossLanes(unittest.TestCase):
 
     ⚠ WHAT THIS DOES NOT COVER, measured 2026-09-24 over the 507 proved gates rather than
     assumed: interference OUTSIDE the sandbox — ports, $TMPDIR names, his console — is not
-    isolated by heart2 at all. Today none is shared: every server binds port 0, the fixture
+    isolated by heart2 at all. The port half is #144 (test_a_prove_lane_keeps_its_own_port):
+    several suites pin 17971, 17972, 17973 and 17994, and a shared port is how one sandbox's
+    request deletes a tracked file in the other. The bind itself deletes nothing. The fixture
     ledgers are per-pid, each fixed temp name belongs to one gate, the one gate file registered
     twice (lane_census.py) writes nothing, and exactly one gate reaches :17772 (a GET of
     /api/status). A future gate that breaks one of those is invisible here.

@@ -73,7 +73,8 @@ class TestTheWholeChain(unittest.TestCase):
     def setUp(self):
         if not _pillow():
             self.skipTest("Pillow absent — the frame grouping needs to decode JPEGs")
-        os.environ["TV_PORT"] = "17994"          # never collide with a live agent
+        import lane_ports as _lane_ports  # #144 — 17994 with no lane; a lane takes its own base
+        _lane_ports.adopt_agent(17994)            # never collide with a live agent
         import tv_diablo as tv
         self.tv = tv
         self.d = tempfile.mkdtemp()

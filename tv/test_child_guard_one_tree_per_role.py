@@ -51,7 +51,8 @@ _fx_tmp.contain()
 import child_guard as cg  # noqa: E402
 import control_app as ca  # noqa: E402
 
-os.environ["TV_PORT"] = "17973"          # never a live agent's port (test_agent holds 17971)
+import lane_ports as _lane_ports  # noqa: E402  #144 — 17973 with no lane; a lane takes its own base
+_lane_ports.adopt_agent(17973)            # never a live agent's port (test_agent holds 17971)
 import tv_diablo as tv  # noqa: E402
 tv.JOURNAL = os.path.join(tempfile.gettempdir(), "tvd_child_guard_law_journal.jsonl")   # never the real journal
 

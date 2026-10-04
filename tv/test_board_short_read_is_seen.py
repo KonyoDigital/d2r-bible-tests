@@ -135,7 +135,8 @@ class BoardShortReadIsSeen(unittest.TestCase):
         """
         import importlib
         old_port = os.environ.get("TV_CONTROL_PORT")
-        os.environ["TV_CONTROL_PORT"] = "17994"
+        import lane_ports as _lane_ports  # #144 — 17994 with no lane; a lane takes its own control port
+        _lane_ports.adopt_control(17994)
         try:
             importlib.reload(ca)
             p = ca._ui_faults_path()

@@ -8094,6 +8094,16 @@ GATES = [
              "measured - test_control is 19.5s idle and 565.9s under concurrent load, and parallel "
              "proving deliberately manufactures that load.",
          skip_ok=()),
+    Gate("test_a_prove_lane_keeps_its_own_port",
+         [sys.executable, os.path.join(HERE, "test_a_prove_lane_keeps_its_own_port.py")], 60,
+         needs_app=False,
+         why="#144 - prove lanes shared 17971/17972/17973/17994, so one sandbox's request ran in "
+             "another and a tracked file there vanished. The bind deletes nothing: a file-watcher "
+             "records the unlink only when the wipe arrives through the shared port, and records "
+             "nothing when each lane has its own base. heart2 stamps TV_LANE_PORT_BASE; the suites "
+             "that pinned those ports derive from it and keep their old port when no lane handed one. "
+             "His console port is never derived.",
+         skip_ok=()),
     Gate("test_a_push_proof_runs_only_where_its_defect_shows",
          [sys.executable, os.path.join(HERE, "test_a_push_proof_runs_only_where_its_defect_shows.py")], 180,
          needs_app=False,

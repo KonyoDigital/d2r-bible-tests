@@ -91,8 +91,9 @@ sys.path.insert(0, HERE)
 # reach straight into Konyo's running app if a future test ever called one. test_agent.py has
 # guarded its agent port this way since v711 ("never collide with a live agent") — same
 # courtesy here. Must precede the import: both are captured at module load.
-os.environ["TV_CONTROL_PORT"] = "17972"
-os.environ["TV_PORT"] = "17971"
+# #144 — a prove lane's TV_LANE_PORT_BASE replaces both. A lone run keeps 17971 / 17972.
+import lane_ports as _lane_ports  # noqa: E402
+_lane_ports.adopt(17971, 17972)
 import control_app as ca  # noqa: E402
 import replay as rp  # noqa: E402
 # REG-1709 - HIS READER SWITCH IS HIS, NOT THIS SUITE'S. g5_grok_eyes reads the per-machine state file beside it, and

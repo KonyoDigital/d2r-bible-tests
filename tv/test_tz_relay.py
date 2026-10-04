@@ -28,8 +28,8 @@ try:
 except Exception:
     pass
 
-os.environ.setdefault("TV_CONTROL_PORT", "17972")
-os.environ.setdefault("TV_PORT", "17971")
+import lane_ports as _lane_ports  # noqa: E402  #144 — a lane base wins; otherwise the old setdefault
+_lane_ports.adopt(17971, 17972, keep=True)
 import control_app as ca  # noqa: E402
 
 

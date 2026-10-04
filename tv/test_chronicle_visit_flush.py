@@ -16,7 +16,8 @@
 import json, os, sys, tempfile, unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-os.environ["TV_PORT"] = "17972"          # never collide with a live agent (17772 is HIS console)
+import lane_ports as _lane_ports  # noqa: E402  #144 — lone run stays on 17972, off his 17772
+_lane_ports.adopt_agent(17972)
 import tv_diablo as tv
 tv.JOURNAL = os.path.join(tempfile.gettempdir(), "tvd_visit_flush_journal.jsonl")  # never the real one
 
