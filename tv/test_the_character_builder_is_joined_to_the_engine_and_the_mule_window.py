@@ -560,8 +560,8 @@ RED_PROOF = [
     {
         "why": "#174 v-B2 integration - STATS drops the cap the game holds a stat to",
         "file": "bible.html",
-        "find": "          + (cp && r.value ? '<em class=\"cb-cap\" aria-label=\"capped at ' + esc(span(cp.min, cp.max)) + '\">cap ' + esc(span(cp.min, cp.max)) + '</em>' : '') + '</span></div>';",
-        "replace": "          + '</span></div>';",
+        "find": "          + (cp && r.value ? '<em class=\"cb-cap\" aria-label=\"capped at ' + esc(span(cp.min, cp.max)) + '\">cap ' + esc(span(cp.min, cp.max)) + '</em>' : '') + '</span>' + _cbBpHtml(eng, r.bp) + '</div>';",
+        "replace": "          + '</span>' + _cbBpHtml(eng, r.bp) + '</div>';",
         "matches": 1,
     },
     {
