@@ -406,6 +406,12 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1764 - AN ALT LOBBY WITH CHAT WAS NOT A LOBBY, AND A FINISHED REEL WAS NEVER CHECKED (2026-10-04, #149)
+
+The lobby bands were one Mac reel at draft 1/4 (full sat under 0.17). On the ALT, at 800x450, a quiet lobby measured 0.158 / 0.189 / 0.182 / 0.089 and passed. The same screen with chat on the left measured 0.196 / 0.182 / 0.153 / 0.098 and was refused. That cluster reached 0.199. A skill tree at the same size measured 0.323 / 0.208 / 0.155 / 0.085: val, the bottom strip and the right pane all pass, so full sat is what keeps it out. 0.22 sits between the chat and that skill tree. An 800x400 frame in the same sample was the launcher, not the game, so that size gets no band of its own.
+
+The char roster on that PC had 72007 frames scanned, 0 lobby cursors and 0 witnesses. The quiet lobby reel was already at the end of its char cursor, so the match on disk was never asked. A reel the char cursor has finished is now lobby-checked from the start, and a reel it is in the middle of keeps that prefix. Each check is counted by the file's pixel size. The chars lane says checked and matched per size. A size nobody opened is UNKNOWN, not matched 0. The character panel still has no pixel band, and the lane says so. Law `test_the_lobby_names_the_character`.
+
 ### REG-1763 - BOTH IS CLAUDE FIRST, AND A FRAME KEPT ANOTHER FRAME'S REASON (2026-10-03)
 
 BOTH means Claude reads every frame and Grok reads only a frame Claude could not. The beside-every-frame Grok read is retired. A frame Claude answered, even with nothing here, is not asked again. One backup attempt per unread frame, and the heart counts how often Grok stepped in. #230 comment 5972029942.

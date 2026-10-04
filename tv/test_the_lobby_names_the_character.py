@@ -10,6 +10,12 @@ The other dark runs in that reel are loading cards. No character-panel frame was
 pins no pixel band for it. A reader that says c-panel still banks. The jpegs are not on CI; the tuples
 are. Accuracy is the joiner against a reader answer, not a name written into the detector.
 
+ALT, 800x450, 2026-10-04, same draft and crops. A quiet lobby matches the Mac tuple. A lobby whose
+chat is on screen is full sat 0.196 and was refused by 0.17. A skill tree at that size passes val,
+bot and right sat, so full sat 0.22 is what keeps it out. Reels the char cursor had already finished
+had no lobby cursor, so a match on disk still read as no lobby. The lane says checked and matched
+per file size, and UNKNOWN until a size has been opened.
+
 One lobby read per visit, on the same hourly cap as the character-select list, and the cap rewinds
 onto the frame it did not read. The row is served on /api/chars_learned and painted in the in-game
 section. One lobby frame does not teach the character.
@@ -37,6 +43,9 @@ LOBBY = (0.158, 0.192, 0.183, 0.083)
 LOADING = (0.094, 0.085, 0.0, 0.014)
 SKILL = (0.177, 0.255, 0.229, 0.116)
 PLAY = (0.596, 0.156, 0.170, 0.556)
+ALT_QUIET = (0.158, 0.189, 0.182, 0.089)
+ALT_CHAT = (0.196, 0.182, 0.153, 0.098)
+ALT_SKILL = (0.323, 0.208, 0.155, 0.085)
 PROOF = "f_1790978100063.jpg"
 # A reader of that plaque. The detector never sees this. _clean_name titles an all-caps name.
 PLAQUE = {"screen": "lobby", "name": "KONYOSSIN", "cls": "Assassin", "level": 90}
@@ -71,6 +80,28 @@ class TheLobbyBands(unittest.TestCase):
             ok, why = C.looks_like_lobby(st)
             self.assertFalse(ok, "%s passed: %s" % (tag, why))
         self.assertEqual(C.looks_like_lobby(None), (False, "frame unreadable"))
+
+    def test_the_alt_chatty_lobby_passes_and_the_alt_skill_tree_does_not(self):
+        ok, why = C.looks_like_lobby(ALT_QUIET)
+        self.assertTrue(ok, why)
+        ok, why = C.looks_like_lobby(ALT_CHAT)
+        self.assertTrue(ok, why)
+        ok, why = C.looks_like_lobby(ALT_SKILL)
+        self.assertFalse(ok, "the ALT skill tree passed: %s" % why)
+        self.assertLess(ALT_CHAT[0], 0.22)
+        self.assertGreater(ALT_SKILL[0], 0.22)
+
+    def test_a_count_that_has_not_started_is_not_a_zero(self):
+        self.assertIsNone(C.lobby_by_size(None))
+        self.assertIsNone(C.lobby_by_size(C._empty()))
+        d = C._empty()
+        d["stats"]["lobbyBySize"] = {"800x450": {"checked": 4, "matched": 1},
+                                     "800x400": {"checked": 2, "matched": 0}}
+        self.assertEqual(C.lobby_by_size(d), [
+            {"size": "800x400", "checked": 2, "matched": 0},
+            {"size": "800x450", "checked": 4, "matched": 1}])
+        d["stats"]["lobbyBySize"] = {"bad": {"checked": 1, "matched": 2}}
+        self.assertEqual(C.lobby_by_size(d), [])
 
     def test_there_is_no_character_panel_pixel_band(self):
         self.assertFalse(hasattr(C, "looks_like_c_panel"),
@@ -297,21 +328,74 @@ class _Reel(unittest.TestCase):
         self.assertGreater(later["reads"], 0, "the next hour did not read the lobby frame the cap held")
         self.assertEqual(len(C.surface_witnesses(C.load())), C.READS_PER_HOUR + 1)
 
+    def test_a_finished_reel_is_lobby_checked_and_counted_by_its_file_size(self):
+        base = 1790634727494
+        self._reel([base, base + 1000])
+        name = "reel_s_1500000000001_12001"
+        d = C._empty()
+        d["reels"][name] = {"pos": 2, "frames": 2, "open": None}
+        C.save(d)
+
+        def reader(p):
+            self.called.append(os.path.basename(p))
+            return dict(PLAQUE)
+
+        r = self._tick(lambda p: LOBBY, reader, size_of=lambda p: (800, 450))
+        self.assertTrue(r["ok"], r)
+        self.assertEqual(self.called, ["f_%d.jpg" % base])
+        got = C.lobby_by_size(C.load())
+        self.assertEqual(got, [{"size": "800x450", "checked": 2, "matched": 2}])
+        self.assertEqual(C.load()["reels"][name]["pos"], 2, "the char cursor was reopened")
+        again = self._tick(lambda p: LOBBY, reader, size_of=lambda p: (800, 450))
+        self.assertEqual(again["reads"], 0)
+        self.assertEqual(self.called, ["f_%d.jpg" % base])
+        self.assertEqual(C.lobby_by_size(C.load()), [{"size": "800x450", "checked": 2, "matched": 2}])
+
+    def test_a_frame_that_is_not_the_lobby_is_checked_and_not_matched(self):
+        self._reel([1790978250101])
+
+        def reader(p):
+            self.called.append(p)
+            return dict(PLAQUE)
+
+        self._tick(lambda p: PLAY, reader, size_of=lambda p: (800, 450))
+        self.assertEqual(self.called, [])
+        self.assertEqual(C.lobby_by_size(C.load()), [{"size": "800x450", "checked": 1, "matched": 0}])
+
+    def test_an_unreadable_size_is_not_a_zero_row(self):
+        self._reel([1790978100063])
+        self._tick(lambda p: LOBBY, lambda p: dict(PLAQUE), size_of=lambda p: None)
+        self.assertIsNone(C.lobby_by_size(C.load()))
+
+    def test_a_list_frame_is_not_counted_as_a_lobby_check(self):
+        self._reel([1790675069096])
+        r = C.tick(root=self.hist, stats=lambda p: (0.03, 0.36, 0.10, 0.20),
+                   reader=lambda crop: {"screen": "other"},
+                   surface_stats=lambda p: LOBBY, surface_reader=lambda p: dict(PLAQUE),
+                   size_of=lambda p: (800, 450), now=1000000.0)
+        self.assertTrue(r["ok"], r)
+        self.assertIsNone(C.lobby_by_size(C.load()))
+
 
 class TheRoutePaintsTheRow(unittest.TestCase):
     def test_the_chars_route_returns_the_rows_and_the_in_game_section_paints_them(self):
         with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
             app = fh.read()
         self.assertEqual(app.count('"surfaceWitnesses": _cs.surface_witnesses(_d)'), 1)
+        self.assertEqual(app.count('"lobbyBySize": _cs.lobby_by_size(_d)'), 1)
+        self.assertEqual(app.count('"cPanel": _cs.CPANEL_SAY'), 1)
         self.assertEqual(app.count('"gear": _gear, "gearWhy": _gwhy})'), 1,
                          "the gear line the card test reads was moved")
         with io.open(os.path.join(ROOT, "bible.html"), encoding="utf-8") as fh:
             page = fh.read()
         self.assertEqual(page.count("function _surfaceWitnessHtml()"), 1)
+        self.assertEqual(page.count("function _lobbySizeHtml()"), 1)
         ing = page.index('data-sec="ingame"')
         sim = page.index('data-sec="sim"', ing)
         call = page.index("_surfaceWitnessHtml()", ing)
         self.assertLess(call, sim, "the in-game section does not paint the witness rows")
+        size_call = page.index("_lobbySizeHtml()", ing)
+        self.assertLess(size_call, sim, "the in-game section does not paint the lobby counts")
         fn = _js_fn(page, "function _surfaceWitnessHtml()")
         self.assertIn("surfaceWitnesses", fn)
         if not NODE:
@@ -330,6 +414,30 @@ class TheRoutePaintsTheRow(unittest.TestCase):
         self.assertEqual(_paint(fn, {"ok": True, "surfaceWitnesses": [
             {"name": "Konyossin", "kind": "lobby"}]}), "")
 
+    def test_the_lane_says_checked_against_matched_per_size_and_the_panel_is_reader_only(self):
+        with io.open(os.path.join(ROOT, "bible.html"), encoding="utf-8") as fh:
+            page = fh.read()
+        if not NODE:
+            self.skipTest("node is required to run the page function")
+        fn = _js_fn(page, "function _lobbySizeHtml()")
+        self.assertIn("data-cpanel", fn)
+        unknown = _paint_size(fn, {"ok": True, "lobbyBySize": None, "cPanel": C.CPANEL_SAY})
+        self.assertIn('data-lobby-sizes="unknown"', unknown)
+        self.assertIn("UNKNOWN", unknown)
+        self.assertNotIn("matched 0", unknown)
+        self.assertIn('data-cpanel="reader-only"', unknown)
+        self.assertIn("no pixel band", unknown)
+        none = _paint_size(fn, {"ok": True, "lobbyBySize": [], "cPanel": C.CPANEL_SAY})
+        self.assertIn('data-lobby-sizes="none"', none)
+        self.assertNotIn("matched 0", none)
+        counted = _paint_size(fn, {"ok": True, "lobbyBySize": [
+            {"size": "800x450", "checked": 4, "matched": 1}], "cPanel": C.CPANEL_SAY})
+        self.assertIn('data-size="800x450"', counted)
+        self.assertIn("checked 4", counted)
+        self.assertIn("matched 1", counted)
+        self.assertNotIn("800x400", counted)
+        self.assertEqual(_paint_size(fn, {"ok": False, "lobbyBySize": None}), "")
+
     def test_the_list_prompt_still_refuses_a_frame_that_is_not_the_list(self):
         with io.open(os.path.join(HERE, "tv_diablo.py"), encoding="utf-8") as fh:
             src = fh.read()
@@ -343,6 +451,20 @@ class TheRoutePaintsTheRow(unittest.TestCase):
         self.assertIn('{"screen":"lobby"', surface)
         self.assertIn('{"screen":"c-panel"', surface)
         self.assertIn('{"screen":"other"}', surface)
+
+
+def _paint_size(fn, learned):
+    drv = (
+        "function esc(s){ return String(s == null ? '' : s); }\n"
+        "var window = { _cbLearnedNow: function(){ return LEARNED; } };\n"
+        "var LEARNED = %s;\n"
+        "%s\n"
+        "process.stdout.write(_lobbySizeHtml());\n"
+    ) % (json.dumps(learned), fn)
+    r = subprocess.run([NODE, "-"], input=drv, capture_output=True, text=True, timeout=30)
+    if r.returncode != 0:
+        raise AssertionError(r.stderr[-500:] or r.stdout[-500:])
+    return r.stdout
 
 
 def _paint(fn, learned):
@@ -360,6 +482,27 @@ def _paint(fn, learned):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1764 - a count that has not started is reported as matched nothing",
+        "file": "tv/char_select.py",
+        "find": "    if not isinstance(stt, dict) or \"lobbyBySize\" not in stt:\n        return None\n",
+        "replace": "    if not isinstance(stt, dict) or \"lobbyBySize\" not in stt:\n        return []\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1764 - the chatty ALT lobby is refused again by the Mac saturation cap",
+        "file": "tv/char_select.py",
+        "find": "LOBBY_FULL_SAT_MAX = 0.22\n",
+        "replace": "LOBBY_FULL_SAT_MAX = 0.17\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1764 - an uncounted size is painted as matched 0",
+        "file": "bible.html",
+        "find": "      bits = '<p data-lobby-sizes=\"unknown\">Lobby checked against matched, per frame size, is UNKNOWN. This console has not counted yet.</p>';\n",
+        "replace": "      bits = '<p data-lobby-sizes=\"unknown\">Lobby at 800x450: checked 0, matched 0.</p>';\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1760 - the loading card passes the lobby bands once val and the bottom strip are not required",
         "file": "tv/char_select.py",
@@ -398,31 +541,33 @@ RED_PROOF = [
     {
         "why": "REG-1761 - a lobby read that did not happen is kept and never retried",
         "file": "tv/char_select.py",
-        "find": "                            if _surface_unread(raw):\n"
-                "                                if _surface_call_was_spent(raw):\n"
-                "                                    st[\"readTs\"].append(now_s)\n"
-                "                                _rewind_unread(rs, i)\n"
-                "                                why = \"surface not read: \" + rwhy\n"
-                "                                break\n",
-        "replace": "                            if False and _surface_unread(raw):\n"
-                   "                                if _surface_call_was_spent(raw):\n"
-                   "                                    st[\"readTs\"].append(now_s)\n"
-                   "                                _rewind_unread(rs, i)\n"
-                   "                                why = \"surface not read: \" + rwhy\n"
-                   "                                break\n",
+        "find": "            if _surface_unread(raw):\n"
+                "                if _surface_call_was_spent(raw):\n"
+                "                    st[\"readTs\"].append(now_s)\n"
+                "                if rewind_i is not None:\n"
+                "                    _rewind_unread(rs, rewind_i)\n"
+                "                acc[\"why\"] = \"surface not read: \" + rwhy\n"
+                "                acc[\"stop\"] = True\n"
+                "                return\n",
+        "replace": "            if False and _surface_unread(raw):\n"
+                   "                if _surface_call_was_spent(raw):\n"
+                   "                    st[\"readTs\"].append(now_s)\n"
+                   "                if rewind_i is not None:\n"
+                   "                    _rewind_unread(rs, rewind_i)\n"
+                   "                acc[\"why\"] = \"surface not read: \" + rwhy\n"
+                   "                acc[\"stop\"] = True\n"
+                   "                return\n",
         "matches": 1,
     },
     {
         "why": "REG-1762 - a lobby timeout retries forever and never spends the hourly cap",
         "file": "tv/char_select.py",
-        "find": "                            if _surface_unread(raw):\n"
-                "                                if _surface_call_was_spent(raw):\n"
-                "                                    st[\"readTs\"].append(now_s)\n"
-                "                                _rewind_unread(rs, i)\n",
-        "replace": "                            if _surface_unread(raw):\n"
-                   "                                if False and _surface_call_was_spent(raw):\n"
-                   "                                    st[\"readTs\"].append(now_s)\n"
-                   "                                _rewind_unread(rs, i)\n",
+        "find": "            if _surface_unread(raw):\n"
+                "                if _surface_call_was_spent(raw):\n"
+                "                    st[\"readTs\"].append(now_s)\n",
+        "replace": "            if _surface_unread(raw):\n"
+                   "                if False and _surface_call_was_spent(raw):\n"
+                   "                    st[\"readTs\"].append(now_s)\n",
         "matches": 1,
     },
 ]

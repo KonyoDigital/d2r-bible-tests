@@ -68,11 +68,20 @@ LEFT_VAL = (0.17, 0.27)
 #   loading full sat 0.094 val 0.085, bot val 0.000, right sat 0.014
 #   skill   full sat 0.177 val 0.255, bot val 0.229, right sat 0.116
 #   play    full sat 0.596 val 0.156, bot val 0.170, right sat 0.556
+# ALT, 800x450, 2026-10-04, the same draft and the same crops (REG-1764):
+#   quiet lobby  f_1790634727494  0.158 / 0.189 / 0.182 / 0.089  (passes 0.17)
+#   chatty lobby f_1790597040521  0.196 / 0.182 / 0.153 / 0.098  (the chat lifts full sat)
+#   skill tree   f_1790666327755  0.323 / 0.208 / 0.155 / 0.085  (val, bot and right pass)
+# The chatty cluster reached 0.199. 0.22 sits above that and below the skill tree, which
+# is the screen the other three bands do not refuse at this size. An 800x400 frame in the
+# same pass was the launcher, not the game. No character-panel frame was filmed.
 # Bot is y 0.78-0.98. Right is x 0.72-0.98, y 0.15-0.75 (the create-game pane).
-LOBBY_FULL_SAT_MAX = 0.17
+LOBBY_FULL_SAT_MAX = 0.22
 LOBBY_FULL_VAL = (0.16, 0.22)
 LOBBY_BOT_VAL_MIN = 0.10
 LOBBY_RIGHT_SAT_MAX = 0.10
+# The character panel stays a reader answer. This sentence is the lane, not a pixel band.
+CPANEL_SAY = "The character panel has no pixel band. It is kept only when a reader says that is the screen."
 SURFACE_TIERS = {"lobby": 1.0, "c-panel": 1.0}
 VISIT_GAP_S = 90         # candidate frames further apart than this are separate visits
 MIN_VISITS = 2           # "witnessed a few times over"
@@ -171,6 +180,74 @@ def lobby_stats(path):
             return fs, fv, bv, rs
     except Exception:
         return None
+
+
+def file_wh(path):
+    """The file's own pixel size, before the draft decode. None when it is not an image.
+
+    A size that cannot be read is not a size, so it is not recorded as 0."""
+    try:
+        from PIL import Image
+        with Image.open(path) as im:
+            w, h = im.size
+            w, h = int(w), int(h)
+            if w > 0 and h > 0:
+                return w, h
+    except Exception:
+        return None
+    return None
+
+
+def note_lobby_size(st, wh, matched):
+    """One lobby check at this file size. An unreadable size is not counted."""
+    if not isinstance(st, dict) or not wh or len(wh) != 2:
+        return
+    try:
+        key = "%dx%d" % (int(wh[0]), int(wh[1]))
+    except (TypeError, ValueError):
+        return
+    if int(wh[0]) <= 0 or int(wh[1]) <= 0:
+        return
+    book = st.setdefault("lobbyBySize", {})
+    if not isinstance(book, dict):
+        return
+    row = book.get(key)
+    if not isinstance(row, dict):
+        row = {"checked": 0, "matched": 0}
+        book[key] = row
+    row["checked"] = int(row.get("checked") or 0) + 1
+    if matched:
+        row["matched"] = int(row.get("matched") or 0) + 1
+
+
+def lobby_by_size(d):
+    """Checked and matched per file size.
+
+    None when the ledger was not read, or when this console has not counted yet.
+    A size is absent until a frame of that size was opened. Never a matched 0 for
+    a size nobody checked."""
+    if not isinstance(d, dict):
+        return None
+    stt = d.get("stats")
+    if not isinstance(stt, dict) or "lobbyBySize" not in stt:
+        return None
+    raw = stt.get("lobbyBySize")
+    if not isinstance(raw, dict):
+        return None
+    out = []
+    for key, row in raw.items():
+        if not isinstance(row, dict):
+            continue
+        try:
+            checked = int(row["checked"])
+            matched = int(row["matched"])
+        except (KeyError, TypeError, ValueError):
+            continue
+        if checked < 0 or matched < 0 or matched > checked:
+            continue
+        out.append({"size": str(key), "checked": checked, "matched": matched})
+    out.sort(key=lambda r: r["size"])
+    return out
 
 
 def looks_like_lobby(stats):
@@ -786,8 +863,162 @@ def scanned_reel(d, reel):
     return True
 
 
+def _safe_wh(size_of, path):
+    if not size_of:
+        return None
+    try:
+        return size_of(path)
+    except Exception:
+        return None
+
+
+def _open_lobby_cursors(rs, nframes):
+    """First time this code sees the reel, split what the char cursor already passed from what it has not.
+
+    A finished reel is lobby-checked from the start: its char cursor is done, and a lobby it filmed
+    before this check existed would otherwise stay a zero. A reel in the middle keeps that prefix
+    and continues the live edge at pos. A reel at 0 starts at 0."""
+    if rs.get("lobbyOpened"):
+        return
+    rs["lobbyOpened"] = True
+    pos = int(rs.get("pos") or 0)
+    if pos < 0:
+        pos = 0
+    if pos > nframes:
+        pos = nframes
+    if pos <= 0 or pos >= nframes:
+        rs["lobbyPos"] = 0
+        return
+    rs["lobbyPrefix"] = pos
+    rs["lobbyPrefixPos"] = 0
+    rs["lobbyPos"] = pos
+
+
+def _lobby_mark(rs, fi, matched, size_of, path, st):
+    """Count this frame once, on the cursor that is sitting on it, then move that cursor past it."""
+    step = fi + SAMPLE_EVERY
+    if int(rs.get("lobbyPrefixPos") or 0) == fi and int(rs.get("lobbyPrefix") or 0) > fi:
+        note_lobby_size(st, _safe_wh(size_of, path), matched)
+        rs["lobbyPrefixPos"] = step
+        return
+    if int(rs.get("lobbyPos") or 0) == fi:
+        note_lobby_size(st, _safe_wh(size_of, path), matched)
+        rs["lobbyPos"] = step
+
+
+def _lobby_skip(rs, fi):
+    """A character-list frame is not a lobby check. Move the cursor past it without a count."""
+    step = fi + SAMPLE_EVERY
+    if int(rs.get("lobbyPrefixPos") or 0) == fi and int(rs.get("lobbyPrefix") or 0) > fi:
+        rs["lobbyPrefixPos"] = step
+        return
+    if int(rs.get("lobbyPos") or 0) == fi:
+        rs["lobbyPos"] = step
+
+
+def _lobby_handle(rs, p, fi, st, d, surface_stats, surface_reader, size_of, now_s, acc, rewind_i=None):
+    """One frame that is not the character list. The read rules are the live scan's rules.
+
+    acc keys: reads, surfaces, why, stop. A read that did not happen does not move the lobby
+    cursor. On the live scan, rewind_i is the char cursor after it stepped, and that cursor
+    waits on the frame. A backfill leaves the char cursor where it is."""
+    lhit, _lw = looks_like_lobby(surface_stats(p))
+    ts = _frame_ts(p) or 0
+    if lhit:
+        lop = rs.get("lobby")
+        if (not isinstance(lop, dict)
+                or ts - int(lop.get("lastTs") or 0) > VISIT_GAP_S * 1000):
+            lop = {"firstTs": ts, "lastTs": ts, "reads": 0}
+        lop["lastTs"] = ts
+        rs["lobby"] = lop
+        if int(lop.get("reads") or 0) < 1:
+            if len(st["readTs"]) >= READS_PER_HOUR:
+                if rewind_i is not None:
+                    _rewind_unread(rs, rewind_i)
+                acc["why"] = "hourly read cap (%d) reached" % READS_PER_HOUR
+                acc["stop"] = True
+                return
+            raw = surface_reader(p)
+            row, rwhy = surface_of(raw)
+            if _surface_unread(raw):
+                if _surface_call_was_spent(raw):
+                    st["readTs"].append(now_s)
+                if rewind_i is not None:
+                    _rewind_unread(rs, rewind_i)
+                acc["why"] = "surface not read: " + rwhy
+                acc["stop"] = True
+                return
+            st["readTs"].append(now_s)
+            lop["reads"] = 1
+            if row is None and rwhy not in ("other screen", "no name"):
+                st["refused"] = int(st.get("refused") or 0) + 1
+                st["lastWhy"] = "surface read refused: " + rwhy
+            else:
+                st["reads"] = int(st.get("reads") or 0) + 1
+                acc["reads"] = int(acc.get("reads") or 0) + 1
+                if row:
+                    bank_surface(d, row, os.path.basename(p), ts)
+                    acc["surfaces"] = int(acc.get("surfaces") or 0) + 1
+    _lobby_mark(rs, fi, lhit, size_of, p, st)
+
+
+def _lobby_backfill(d, reels, stats, surface_stats, surface_reader, size_of, st, now_s, t0, budget_s, clock, acc):
+    """Lobby-check frames the char cursor already passed. Half the tick, then the live scan keeps the rest.
+
+    Stopping here for the half budget is not a reason to stop the live scan. A cap or a read that
+    did not happen is, and acc says so."""
+    deadline = t0 + (float(budget_s) * 0.5)
+    for rd in reels:
+        if clock() - t0 > deadline:
+            return
+        name = os.path.basename(rd)
+        frames = sorted(glob.glob(os.path.join(rd, "f_*.jpg")))
+        rs = d["reels"].setdefault(name, {"pos": 0, "frames": 0, "open": None})
+        rs["frames"] = len(frames)
+        _open_lobby_cursors(rs, len(frames))
+        ranges = []
+        if int(rs.get("lobbyPrefix") or 0) > int(rs.get("lobbyPrefixPos") or 0):
+            ranges.append("prefix")
+        if int(rs.get("pos") or 0) >= len(frames) and int(rs.get("lobbyPos") or 0) < len(frames):
+            ranges.append("done")
+        for which in ranges:
+            while True:
+                if clock() - t0 > deadline:
+                    return
+                if which == "prefix":
+                    fi = int(rs.get("lobbyPrefixPos") or 0)
+                    end = int(rs.get("lobbyPrefix") or 0)
+                else:
+                    fi = int(rs.get("lobbyPos") or 0)
+                    end = len(frames)
+                if fi >= end or fi >= len(frames):
+                    break
+                if clock() - t0 > budget_s:
+                    acc["why"] = "tick budget spent"
+                    acc["stop"] = True
+                    return
+                p = frames[fi]
+                hit, _w = looks_like_char_select(stats(p))
+                if hit:
+                    _lobby_skip(rs, fi)
+                    if (which == "prefix" and int(rs.get("lobbyPrefixPos") or 0) == fi) or (
+                            which == "done" and int(rs.get("lobbyPos") or 0) == fi):
+                        if which == "prefix":
+                            rs["lobbyPrefixPos"] = fi + SAMPLE_EVERY
+                        else:
+                            rs["lobbyPos"] = fi + SAMPLE_EVERY
+                    continue
+                _lobby_handle(rs, p, fi, st, d, surface_stats, surface_reader, size_of, now_s, acc)
+                if acc.get("stop"):
+                    return
+                if which == "prefix" and int(rs.get("lobbyPrefixPos") or 0) == fi:
+                    rs["lobbyPrefixPos"] = fi + SAMPLE_EVERY
+                elif which == "done" and int(rs.get("lobbyPos") or 0) == fi:
+                    rs["lobbyPos"] = fi + SAMPLE_EVERY
+
+
 def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, clock=time.time,
-         surface_stats=None, surface_reader=None):
+         surface_stats=None, surface_reader=None, size_of=None):
     """One bounded pass: continue scanning the reels (newest first) for candidate frames, read at most
     MAX_READS_PER_VISIT per visit and READS_PER_HOUR in all, fold the answers in, save. Returns a status dict.
 
@@ -795,7 +1026,9 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
     that whole frame per lobby visit, on the same hourly cap. The cap rewinds onto the frame it did not read.
     A note, or no answer, is a read that did not happen: the cursor waits on that frame and the visit stays
     unread. A call that came back empty spends one hourly slot, so a timeout cannot retry without limit.
-    A throttle or a budget note does not. An answer that names nothing is a look, and it is not retried."""
+    A throttle or a budget note does not. An answer that names nothing is a look, and it is not retried.
+    Each lobby check is counted by the file's pixel size. Frames the char cursor already finished are
+    checked on a backfill, so a reel scanned before the lobby rule is not a zero."""
     d = load()
     if d is None:
         return {"ok": False, "why": "the ledger could not be read — UNKNOWN, nothing written"}
@@ -804,6 +1037,7 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
     reader = reader or _default_reader
     surface_stats = surface_stats or lobby_stats
     surface_reader = surface_reader or _default_lobby_reader
+    size_of = size_of or file_wh
     now_s = float(now if now is not None else clock())
     t0 = clock()
     st = d["stats"]
@@ -825,11 +1059,20 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
         # #103 step B - a visit that ended in an earlier tick and still owes its closing read goes first
         if not why:
             closed, why = _closing_reads(d, root, reader, st, now_s, work, t0, budget_s, clock)
+        if not why:
+            acc = {"reads": 0, "surfaces": 0, "why": "", "stop": False}
+            _lobby_backfill(d, reels, stats, surface_stats, surface_reader, size_of, st, now_s,
+                            t0, budget_s, clock, acc)
+            reads += int(acc.get("reads") or 0)
+            surfaces += int(acc.get("surfaces") or 0)
+            if acc.get("stop"):
+                why = acc.get("why") or why
         for rd in ([] if why else reels):
             name = os.path.basename(rd)
             frames = sorted(glob.glob(os.path.join(rd, "f_*.jpg")))
             rs = d["reels"].setdefault(name, {"pos": 0, "frames": 0, "open": None})
             rs["frames"] = len(frames)
+            _open_lobby_cursors(rs, len(frames))
             i = int(rs.get("pos") or 0)
             pos0 = i
             while i < len(frames):
@@ -837,6 +1080,7 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
                     why = "tick budget spent"
                     break
                 p = frames[i]
+                fi = i
                 i += SAMPLE_EVERY
                 rs["pos"] = i
                 scanned += 1
@@ -844,40 +1088,16 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
                 rs["scannedTs"] = max(int(rs.get("scannedTs") or 0), _frame_ts(p) or 0)
                 hit, _w = looks_like_char_select(stats(p))
                 if not hit:
-                    lhit, _lw = looks_like_lobby(surface_stats(p))
-                    if lhit:
-                        ts = _frame_ts(p) or 0
-                        lop = rs.get("lobby")
-                        if (not isinstance(lop, dict)
-                                or ts - int(lop.get("lastTs") or 0) > VISIT_GAP_S * 1000):
-                            lop = {"firstTs": ts, "lastTs": ts, "reads": 0}
-                        lop["lastTs"] = ts
-                        rs["lobby"] = lop
-                        if int(lop.get("reads") or 0) < 1:
-                            if len(st["readTs"]) >= READS_PER_HOUR:
-                                _rewind_unread(rs, i)
-                                why = "hourly read cap (%d) reached" % READS_PER_HOUR
-                                break
-                            raw = surface_reader(p)
-                            row, rwhy = surface_of(raw)
-                            if _surface_unread(raw):
-                                if _surface_call_was_spent(raw):
-                                    st["readTs"].append(now_s)
-                                _rewind_unread(rs, i)
-                                why = "surface not read: " + rwhy
-                                break
-                            st["readTs"].append(now_s)
-                            lop["reads"] = 1
-                            if row is None and rwhy not in ("other screen", "no name"):
-                                st["refused"] = int(st.get("refused") or 0) + 1
-                                st["lastWhy"] = "surface read refused: " + rwhy
-                            else:
-                                st["reads"] = int(st.get("reads") or 0) + 1
-                                reads += 1
-                                if row:
-                                    bank_surface(d, row, os.path.basename(p), ts)
-                                    surfaces += 1
+                    acc = {"reads": 0, "surfaces": 0, "why": "", "stop": False}
+                    _lobby_handle(rs, p, fi, st, d, surface_stats, surface_reader, size_of, now_s,
+                                  acc, rewind_i=i)
+                    reads += int(acc.get("reads") or 0)
+                    surfaces += int(acc.get("surfaces") or 0)
+                    if acc.get("stop"):
+                        why = acc.get("why") or why
+                        break
                     continue
+                _lobby_skip(rs, fi)
                 candidates += 1
                 ts = _frame_ts(p) or 0
                 op = rs.get("open")
@@ -970,4 +1190,5 @@ def status(root=None):
     return {"on": True, "worked": int(st.get("reads") or 0), "lastTs": st.get("lastTs"), "owed": owed(d, root),
             "learned": len(got), "seen": len(d.get("chars") or {}), "visits": len(d.get("visits") or {}),
             "ticks": int(st.get("ticks") or 0), "refused": int(st.get("refused") or 0),
+            "lobbyBySize": lobby_by_size(d),
             "say": st.get("lastWhy") or ""}

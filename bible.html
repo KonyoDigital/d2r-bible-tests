@@ -10631,6 +10631,32 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     return '<div class="chx-sec-sub" data-sub="surface-witnesses">Named on the lobby or the character panel, citing the frame:<ul class="chx-slots">' + bits + '</ul></div>';
   }
   window._surfaceWitnessHtml = _surfaceWitnessHtml;
+  /* #149 — checked against matched, per file size. A size that was not opened is not a zero.
+     The character panel has no pixel band until a frame of it is filmed. */
+  function _lobbySizeHtml(){
+    var L = (typeof window._cbLearnedNow === 'function') ? window._cbLearnedNow() : null;
+    if (!L || !L.ok) return '';
+    var rows = L.lobbyBySize;
+    var bits = '';
+    if (rows === null || typeof rows === 'undefined') {
+      bits = '<p data-lobby-sizes="unknown">Lobby checked against matched, per frame size, is UNKNOWN. This console has not counted yet.</p>';
+    } else if (!Array.isArray(rows) || !rows.length) {
+      bits = '<p data-lobby-sizes="none">No frame has been checked for the lobby yet.</p>';
+    } else {
+      bits = '<ul data-lobby-sizes="counted">';
+      rows.forEach(function(r){
+        if (!r || !r.size || typeof r.checked !== 'number' || typeof r.matched !== 'number') return;
+        bits += '<li data-size="' + esc(r.size) + '">Lobby at ' + esc(r.size)
+          + ': checked ' + (r.checked | 0) + ', matched ' + (r.matched | 0) + '.</li>';
+      });
+      bits += '</ul>';
+    }
+    var panel = (typeof L.cPanel === 'string' && L.cPanel)
+      ? '<p data-cpanel="reader-only">' + esc(L.cPanel) + '</p>'
+      : '<p data-cpanel="reader-only">The character panel has no pixel band. It is kept only when a reader says that is the screen.</p>';
+    return '<div class="chx-sec-sub" data-sub="lobby-sizes">' + bits + panel + '</div>';
+  }
+  window._lobbySizeHtml = _lobbySizeHtml;
   function _sections(all, order, mainId){
     var S = (typeof window._cbSections === 'function') ? window._cbSections(all, order) : null;
     if (!S) S = { state: 'unknown', why: 'the Character Builder is not on this page', ingame: [], mules: [], sim: order };
@@ -10652,7 +10678,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     if (!S.sim.length) sim = '<div class="chx-sec-empty" data-state="empty">No simulation builds. + New character makes one to try things out.</div>';
     return '<section class="chx-sec" data-sec="ingame" aria-label="In-game characters">'
       +   '<div class="chx-sec-h"><span class="chx-sec-t">⚔️ In-game characters</span><span class="chx-sec-s">seen on this console\'s reels · each proves itself the way the Vault\'s filings do: ' + ladder + '</span></div>'
-      +   '<div class="chx-sec-list">' + cards + _surfaceWitnessHtml() + '</div></section>'
+      +   '<div class="chx-sec-list">' + cards + _surfaceWitnessHtml() + _lobbySizeHtml() + '</div></section>'
       + '<section class="chx-sec" data-sec="sim" aria-label="Simulation builds">'
       +   '<div class="chx-sec-h"><span class="chx-sec-t">🧪 Simulation builds</span><span class="chx-sec-s">builds you make by hand to try things out · + New character adds one</span></div>'
       +   '<div class="chx-sec-list">' + sim + '</div></section>';

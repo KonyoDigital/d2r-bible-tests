@@ -8674,9 +8674,11 @@ GATES = [
          os.path.join(HERE, "test_the_lobby_names_the_character.py")], 60,
          why="#149 - the create-game lobby and the in-game character panel each name the character. One witness "
              "row per surface, citing the frame, served on /api/chars_learned and painted in the in-game section. "
-             "The lobby bands were measured on the 3 Oct 00:55 reel. No character-panel frame was in that window, "
-             "so no pixel band was invented for it. A reader that says c-panel still banks. One lobby read per "
-             "visit, on the character-select hourly cap, and the cap rewinds onto the frame it did not read."),
+             "The lobby bands were measured on the 3 Oct 00:55 reel and again on an 800x450 ALT lobby whose chat "
+             "lifted full sat to 0.196. Checked against matched is published per file size. A size not opened is "
+             "UNKNOWN, not a zero. No character-panel frame was filmed, so no pixel band was invented for it. "
+             "A reader that says c-panel still banks. One lobby read per visit, on the character-select hourly "
+             "cap, and the cap rewinds onto the frame it did not read."),
     Gate("test_the_builder_keeps_in_game_apart_from_simulation", [sys.executable,
          os.path.join(HERE, "test_the_builder_keeps_in_game_apart_from_simulation.py")], 90,
          needs_app=False,
