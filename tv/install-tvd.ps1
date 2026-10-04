@@ -149,9 +149,11 @@ if (Test-Path (Join-Path $repoDir '.git')) {
   Say "updating the bible repo..."
   # This script is fetched fresh. The tree on disk may be an older build, so
   # its own launcher_pull.py may not exist yet. Fetch, then run the incoming
-  # rule from a temp file. Never a fast-forward pull: a refusal is printed,
-  # and a reset happens only inside that rule (plain modifications that match
-  # origin/main, HEAD an ancestor, nothing untracked or ignored in the way).
+  # rule from a temp file copied as bytes. The rule does not move a clean tree.
+  # Only after it allows the update does a fast-forward merge move HEAD.
+  # A refusal is printed and is not fast-forwarded over. A reset happens only
+  # inside that rule (plain modifications that match origin/main, HEAD an
+  # ancestor, nothing untracked or ignored in the way).
   $env:GIT_TERMINAL_PROMPT = '0'
   $oldEap = $ErrorActionPreference
   $ErrorActionPreference = 'Continue'
@@ -172,26 +174,29 @@ if (Test-Path (Join-Path $repoDir '.git')) {
   } else {
     Remove-Item -LiteralPath $fetchErr -Force -ErrorAction SilentlyContinue
     $tmp = Join-Path $env:TEMP ("tvd-launcher-pull-" + [guid]::NewGuid().ToString("n") + ".py")
-    $showErr = Join-Path $env:TEMP ("tvd-show-" + [guid]::NewGuid().ToString("n") + ".txt")
-    $ErrorActionPreference = 'Continue'
-    $shown = & git --no-pager -C $repoDir show "origin/main:tv/launcher_pull.py" 2>$showErr
-    $showRc = $LASTEXITCODE
-    $ErrorActionPreference = $oldEap
+    $utf8 = New-Object System.Text.UTF8Encoding $false
+    $p = New-Object System.Diagnostics.Process
+    $p.StartInfo.FileName = "git"
+    $p.StartInfo.Arguments = "--no-pager -C `"$repoDir`" show `"origin/main:tv/launcher_pull.py`""
+    $p.StartInfo.UseShellExecute = $false
+    $p.StartInfo.RedirectStandardOutput = $true
+    $p.StartInfo.RedirectStandardError = $true
+    $p.StartInfo.CreateNoWindow = $true
+    $p.StartInfo.StandardErrorEncoding = $utf8
+    [void]$p.Start()
+    $raw = New-Object System.IO.MemoryStream
+    $p.StandardOutput.BaseStream.CopyTo($raw)
+    $showErrText = $p.StandardError.ReadToEnd()
+    $p.WaitForExit()
+    $showRc = $p.ExitCode
     if ($showRc -ne 0) {
-      $why = ""
-      if (Test-Path -LiteralPath $showErr) {
-        $why = (Get-Content -LiteralPath $showErr -Raw -ErrorAction SilentlyContinue)
-      }
-      Remove-Item -LiteralPath $showErr -Force -ErrorAction SilentlyContinue
+      $why = (($showErrText -replace '\s+', ' ').Trim())
       if (-not $why) { $why = "git show exited $showRc" }
-      $why = (($why -replace '\s+', ' ').Trim())
       if ($why.Length -gt 400) { $why = $why.Substring(0, 400) }
       Warn ("the incoming update rule could not be read: {0}" -f $why)
     } else {
-      Remove-Item -LiteralPath $showErr -Force -ErrorAction SilentlyContinue
       try {
-        $enc = New-Object System.Text.UTF8Encoding $false
-        [System.IO.File]::WriteAllLines($tmp, @($shown), $enc)
+        [System.IO.File]::WriteAllBytes($tmp, $raw.ToArray())
         $ErrorActionPreference = 'Continue'
         if ($py -eq 'py') {
           $applyOut = & py -3 $tmp --repo $repoDir --apply 2>&1
@@ -204,7 +209,26 @@ if (Test-Path (Join-Path $repoDir '.git')) {
         if (-not $applyWhy) { $applyWhy = "" }
         if ($applyWhy.Length -gt 400) { $applyWhy = $applyWhy.Substring(0, 400) }
         if ($applyRc -eq 0) {
-          if ($applyWhy -and ($applyWhy -ne 'clean')) { Ok $applyWhy } else { Ok "bible repo is current" }
+          if ($applyWhy -and ($applyWhy -ne 'clean')) { Ok $applyWhy }
+          $ffErr = Join-Path $env:TEMP ("tvd-ff-" + [guid]::NewGuid().ToString("n") + ".txt")
+          $ErrorActionPreference = 'Continue'
+          & git --no-pager -C $repoDir merge --ff-only origin/main --quiet 2>$ffErr
+          $ffRc = $LASTEXITCODE
+          $ErrorActionPreference = $oldEap
+          if ($ffRc -ne 0) {
+            $why = ""
+            if (Test-Path -LiteralPath $ffErr) {
+              $why = (Get-Content -LiteralPath $ffErr -Raw -ErrorAction SilentlyContinue)
+            }
+            Remove-Item -LiteralPath $ffErr -Force -ErrorAction SilentlyContinue
+            if (-not $why) { $why = "git merge --ff-only exited $ffRc" }
+            $why = (($why -replace '\s+', ' ').Trim())
+            if ($why.Length -gt 400) { $why = $why.Substring(0, 400) }
+            Warn ("could not fast-forward onto the update: {0}" -f $why)
+          } else {
+            Remove-Item -LiteralPath $ffErr -Force -ErrorAction SilentlyContinue
+            Ok "bible repo is on the update"
+          }
         } else {
           if (-not $applyWhy) { $applyWhy = "the update was refused and gave no reason (exit $applyRc)" }
           Warn $applyWhy
