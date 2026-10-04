@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3590** | `(this commit)` | v3590 — An ignored file inside a directory the update replaces stays, because the reset would delete it with the directory. HEART: test_a_landed_update_is_not_an_edit |
+| **v3591** | `(this commit)` | v3591 — A drift loop proof must not fast-forward this checkout. HEART: test_control |
+| **v3590** | `cea76ac9` | v3590 — An ignored file inside a directory the update replaces stays, because the reset would delete it with the directory. HEART: test_a_landed_update_is_not_an_edit |
 | **v3589** | `379b17c3` | v3589 — A name with a bracket is a path, so an untracked file of that name stays. A tracked directory that holds an untracked file stays too, because the reset would delete it. HEART: test_a_landed_update_is_not_an_edit |
 | **v3588** | `7e7a9306` | v3588 — A tracked file the update turns into a directory still lands. An untracked symlink there stays. A name that is not UTF-8 stops the reset. HEART: test_a_landed_update_is_not_an_edit |
 | **v3587** | `9aa48939` | v3587 — The launcher update tests call contain, so their temporary directories leave with the run. A renamed path stays, an added path is read on its own, and a file where the update adds a directory stays. A timed-out front request clears only its own reopen flag. HEART: test_a_test_run_leaves_no_scratch_dirs test_a_landed_update_is_not_an_edit test_quit_leaves_the_shadow_reader_running |

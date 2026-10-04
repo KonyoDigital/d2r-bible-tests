@@ -27858,10 +27858,19 @@ class TestV2153TheRELAUNCHACTUALLYHAPPENSWhenArmed(unittest.TestCase):
 
     def test_the_LOOP_reaches_execv_once_it_is_allowed(self):
         """Drive the real _drift_loop body once with execv stubbed. The decision going True is not
-        the same fact as the loop ACTING on it — that is the joint this whole class is about."""
+        the same fact as the loop ACTING on it — that is the joint this whole class is about.
+
+        The loop pulls before it measures. That pull is the real git fetch and fast-forward of
+        THIS checkout. A rerun of an older sha, after origin has moved, lands the newer tree
+        under the still-running process, and every later stamp check reads the skew. The proof
+        is that the loop reaches execv. It must not move HEAD."""
         import contextlib, unittest.mock as mock
         ca = self._ca()
         calls = []
+        pulled = []
+        repo = os.path.dirname(HERE)
+        head_before = subprocess.check_output(
+            ["git", "-C", repo, "rev-parse", "HEAD"], text=True).strip()
         with contextlib.ExitStack() as st:
             for p_ in self._clear(ca):
                 st.enter_context(p_)
@@ -27872,6 +27881,10 @@ class TestV2153TheRELAUNCHACTUALLYHAPPENSWhenArmed(unittest.TestCase):
             st.enter_context(mock.patch.object(ca, "stop_agent", lambda **k: None))
             st.enter_context(mock.patch.object(
                 ca, "os", _ExecSpy(ca.os, calls)))
+            # The stub is the proof. Removing it puts the real pull back, and a quiet
+            # fast-forward of this checkout is the failure the assertion below names.
+            st.enter_context(mock.patch.object(
+                ca, "_pull_once", lambda: pulled.append(True) or None))
             st.enter_context(mock.patch.object(ca, "_DRIFT_EVERY_S", 0.01))
             t = threading.Thread(target=ca._drift_loop, daemon=True)
             t.start()
@@ -27879,8 +27892,14 @@ class TestV2153TheRELAUNCHACTUALLYHAPPENSWhenArmed(unittest.TestCase):
                 if calls:
                     break
                 time.sleep(0.01)
+            t.join(2.0)
         self.assertTrue(calls, "the loop decided it MAY relaunch and then never called execv — "
                                "the switch is armed and the path behind it does nothing")
+        self.assertTrue(pulled, "the loop never asked to pull, so this is not the shipped drift path")
+        head_after = subprocess.check_output(
+            ["git", "-C", repo, "rev-parse", "HEAD"], text=True).strip()
+        self.assertEqual(head_before, head_after,
+                         "the drift-loop proof fast-forwarded this checkout")
 
 
 class _ExecSpy(object):
