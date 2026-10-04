@@ -96,11 +96,31 @@ def _is_ancestor(repo):
     return None
 
 
+def _untracked_in_the_way(repo):
+    """True when origin adds a path that already exists and is not tracked.
+
+    `git reset --hard` replaces that file and exits 0. A fast-forward used to
+    refuse. None means git could not be asked, which is not a clear way.
+    """
+    rc, out, _err = _run(repo, ["diff", "--name-only", "--diff-filter=A", "HEAD", "origin/main"])
+    if rc != 0:
+        return None
+    for raw in out.splitlines():
+        rel = raw.decode("utf-8", "replace").strip()
+        if not rel:
+            continue
+        if _safe_rel(rel) is None:
+            return None
+        if os.path.lexists(os.path.join(repo, rel)):
+            return True
+    return False
+
+
 def classify(repo):
-    """-> {ok, block, update, ancestor}. Does not fetch and does not write."""
+    """-> {ok, block, update, ancestor, way}. Does not fetch and does not write."""
     rows = _porcelain(repo)
     if rows is None:
-        return {"ok": False, "block": [], "update": [], "ancestor": None}
+        return {"ok": False, "block": [], "update": [], "ancestor": None, "way": None}
     block, update = [], []
     for status, path in rows:
         safe = _safe_rel(path)
@@ -112,30 +132,43 @@ def classify(repo):
         else:
             block.append(safe)
     ancestor = _is_ancestor(repo) if update and not block else None
-    return {"ok": True, "block": block, "update": update, "ancestor": ancestor}
+    way = False
+    if update and not block and ancestor is True:
+        way = _untracked_in_the_way(repo)
+        if way is None:
+            return {"ok": False, "block": [], "update": [], "ancestor": None, "way": None}
+    return {"ok": True, "block": block, "update": update, "ancestor": ancestor, "way": bool(way)}
+
+
+def _decision(found):
+    """(code, message) or (None, None) when a reset is still the narrow case."""
+    if not found["ok"]:
+        return 1, "could not tell whether the changed files are the update"
+    if found.get("way"):
+        return 2, "an untracked file is in the way of the update, so nothing was reset"
+    if found["block"]:
+        return 2, "tracked files modified (local work protected)"
+    if not found["update"]:
+        return 0, "clean"
+    if found["ancestor"] is not True:
+        return 2, "the fast-forward was refused; nothing was reset"
+    return None, None
 
 
 def apply(repo, speak=False):
     """Put a tree that IS the fetched update onto that commit. Never fetches.
 
-    0 clean, or reset onto the update. 2 local work or not a fast-forward.
-    1 could not tell. A reset happens only when every tracked change matches
-    origin/main and HEAD is an ancestor of that commit.
+    0 clean, or reset onto the update. 2 local work, an untracked file in the
+    way, or not a fast-forward. 1 could not tell. A reset happens only when a
+    second read, immediately before it, still says every tracked change matches
+    origin/main, HEAD is an ancestor, and no untracked path would be replaced.
     """
-    found = classify(repo)
-    if not found["ok"]:
-        msg = "could not tell whether the changed files are the update"
-        code = 1
-    elif found["block"]:
-        msg = "tracked files modified (local work protected)"
-        code = 2
-    elif not found["update"]:
-        msg = "clean"
-        code = 0
-    elif found["ancestor"] is not True:
-        msg = "the fast-forward was refused; nothing was reset"
-        code = 2
-    else:
+    code, msg = _decision(classify(repo))
+    if code is None:
+        # The tree can change between the two reads. The second one is the one
+        # the reset is allowed to trust.
+        code, msg = _decision(classify(repo))
+    if code is None:
         rc, _out, _err = _run(repo, ["reset", "--hard", "origin/main"])
         if rc != 0:
             msg = "could not tell whether the changed files are the update"

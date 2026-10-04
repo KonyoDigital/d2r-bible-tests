@@ -146,10 +146,10 @@ _tvd_may_pull() {
 # v1418 block 35 lines below tests TV_NO_AUTO_PULL and this one did not, so it ran FIRST and
 # pulled on a machine deliberately held back. The Windows launcher has always honoured it.
 if command -v git >/dev/null 2>&1 && [ -d "$REPO/.git" ] && [ -z "${TV_NO_AUTO_PULL:-}" ]; then
+  _tvd_before="$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo '?')"
   if ! _tvd_may_pull; then
     echo "📺 local tracked edits — NOT auto-pulling. Commit or stash them to rejoin the fleet."
   else
-    _tvd_before="$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo '?')"
     if git -C "$REPO" pull --ff-only --quiet 2>/dev/null; then
       _tvd_after="$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || echo '?')"
       if [ "$_tvd_before" != "$_tvd_after" ]; then

@@ -1086,7 +1086,7 @@
       "apply",
       "main"
     ],
-    "gotcha": "Classifies against the origin/main already fetched, then resets only when every tracked change is a plain modification whose bytes match that blob (CR ignored) and HEAD is an ancestor of it. A real edit, a history that is not a fast-forward, or a git that cannot be read resets nothing. It does not fetch. Fetching first would make the on-disk update no longer match origin, and the pull would stay blocked.",
+    "gotcha": "Classifies against the origin/main already fetched, then resets only when a second read still says every tracked change is a plain modification whose bytes match that blob (CR ignored), HEAD is an ancestor of it, and no untracked path would be replaced. git reset --hard replaces such a file and exits 0. A real edit, a file in the way, a history that is not a fast-forward, or a git that cannot be read resets nothing. It does not fetch. Fetching first would make the on-disk update no longer match origin, and the pull would stay blocked.",
     "purpose": "The launcher pull decision: a file that matches the fetched update is that update, not a local edit.",
     "territory": "console"
   },

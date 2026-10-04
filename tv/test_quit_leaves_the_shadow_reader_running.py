@@ -254,6 +254,19 @@ class QuitLeavesTheShadowReaderRunning(unittest.TestCase):
         got = ca.console_to_front("win-launcher", sleep=lambda _s: None)
         self.assertFalse(got["ok"], got)
         self.assertIn("did not open", got["why"])
+        self.assertFalse(ca._REOPEN_WINDOW,
+                         "the front request gave up and left the reopen flag set")
+        opened = []
+
+        def opener():
+            opened.append(1)
+            ca._MAIN_WIN = _FakeWin()
+
+        def sleep(_s):
+            ca._EXIT_REQUESTED = "signal-SIGTERM"
+
+        self.assertTrue(ca._park_until_a_real_exit(sleep=sleep, open_window=opener))
+        self.assertEqual(opened, [], "a window opened after the front request had already given up")
         self.assertEqual(self.exits, [])
         self.assertEqual(self.arms, [])
         self.assertEqual(ca._QUIT_KEEPS_SERVICE, "api-quit:quit-button")

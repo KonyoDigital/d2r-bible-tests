@@ -1358,6 +1358,12 @@ def fleet_pull():
             cwd=REPO, capture_output=True, text=True, timeout=15,
             creationflags=_WIN_CREATE if IS_WIN else 0,
         )
+        before = _git_run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=REPO, capture_output=True, text=True, timeout=15,
+            creationflags=_WIN_CREATE if IS_WIN else 0,
+        )
+        out["before"] = (before.stdout or "").strip()
         if (dirty.stdout or "").strip():
             # #64 follow-up — the same question the lane asks: is this "dirty" tree an update that
             # was CUT OFF mid-checkout (a 0-byte stale lock beside it)? Report only, never cleared.
@@ -1377,12 +1383,6 @@ def fleet_pull():
                 out["msg"] = ("local TRACKED edits are present, so a fast-forward would not be safe. "
                               "Commit or stash them, then update.")
                 return out
-        before = _git_run(
-            ["git", "rev-parse", "--short", "HEAD"],
-            cwd=REPO, capture_output=True, text=True, timeout=15,
-            creationflags=_WIN_CREATE if IS_WIN else 0,
-        )
-        out["before"] = (before.stdout or "").strip()
         # #64 — THE IN-APP DOOR MEETS THE SAME ABANDONED LOCK THE LANE DOES, so it asks the SAME
         # function, before the pull and again when git's error names index.lock (one retry, only
         # after a clearing). The decision is recorded on the lane's record, not a second store.
@@ -6064,7 +6064,12 @@ def _wait_for_a_window_after_quit(sleep, tries=80):
         if globals().get("_REOPEN_WHY"):
             return None
         sleep(0.05)
-    return globals().get("_MAIN_WIN")
+    win = globals().get("_MAIN_WIN")
+    if win is None:
+        # The launcher was told there is no window. Leaving the flag set would
+        # open one later, in the process the launcher is about to replace.
+        globals()["_REOPEN_WINDOW"] = False
+    return win
 
 
 def console_to_front(by="launcher", sleep=time.sleep):
@@ -22767,6 +22772,11 @@ def _pull_once():
              say="could not read the working tree (%s), so this is UNMEASURED - not clean"
                  % type(e).__name__)
         return None
+    try:
+        before = (_git_run(["git", "rev-parse", "--short", "HEAD"],
+                           cwd=REPO, capture_output=True, text=True, timeout=20).stdout or "").strip()
+    except Exception:
+        before = ""
     if _dirty:
         # ⚠⚠ #64 follow-up — "DIRTY" CAN BE AN UPDATE THAT WAS CUT OFF, NOT HIS EDITS. A fast-forward
         # SIGKILLed mid-checkout leaves a 0-byte index.lock and a half-written tree, and this branch
@@ -22794,8 +22804,6 @@ def _pull_once():
     _lock = _clear_stale_git_lock(REPO)
     _pull_note_lock(_lock)
     try:
-        before = (_git_run(["git", "rev-parse", "--short", "HEAD"],
-                           cwd=REPO, capture_output=True, text=True, timeout=20).stdout or "").strip()
         # ⚠⚠ v3409 — A FAILED FETCH USED TO READ AS "ALREADY LEVEL", WHICH IS THE ONE SENTENCE
         # THIS LANE MUST NEVER SAY FALSELY. Neither call was checked, so an offline fetch, a
         # credential refusal, a FETCH_HEAD.lock held by fleet_origin_status on the SAME 300s
@@ -38637,7 +38645,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3585",
+        "ver": "v3586",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

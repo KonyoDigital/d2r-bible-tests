@@ -416,6 +416,41 @@ class TheLauncherUsesTheSameRule(unittest.TestCase):
         self.assertEqual(lp.apply(d), 2)
         self.assertEqual(self._head(d), head)
 
+    def test_an_untracked_file_the_update_adds_is_not_replaced(self):
+        import subprocess
+        import launcher_pull as lp
+        d, path = self._repo()
+        head = self._head(d)
+        subprocess.check_call(["git", "-C", d, "checkout", "-q", self._origin(d)])
+        foo = os.path.join(d, "foo.txt")
+        with open(foo, "wb") as fh:
+            fh.write(b"from-origin\n")
+        subprocess.check_call(["git", "-C", d, "add", "foo.txt"])
+        subprocess.check_call(["git", "-C", d, "commit", "-q", "-m", "add foo"])
+        subprocess.check_call(["git", "-C", d, "update-ref", "refs/remotes/origin/main", "HEAD"])
+        subprocess.check_call(["git", "-C", d, "checkout", "-q", "HEAD~2"])
+        with open(path, "wb") as fh:
+            fh.write(b"two\n")
+        with open(foo, "wb") as fh:
+            fh.write(b"local-untracked\n")
+        self.assertEqual(lp.apply(d), 2)
+        self.assertEqual(self._head(d), head)
+        with open(foo, "rb") as fh:
+            self.assertEqual(fh.read(), b"local-untracked\n")
+
+    def test_an_untracked_file_origin_does_not_ship_still_lets_the_update_land(self):
+        import launcher_pull as lp
+        d, path = self._repo()
+        with open(path, "wb") as fh:
+            fh.write(b"two\n")
+        extra = os.path.join(d, "notes.txt")
+        with open(extra, "wb") as fh:
+            fh.write(b"keep\n")
+        self.assertEqual(lp.apply(d), 0)
+        self.assertEqual(self._head(d), self._origin(d))
+        with open(extra, "rb") as fh:
+            self.assertEqual(fh.read(), b"keep\n")
+
     def test_an_unreadable_tree_is_not_called_clean(self):
         import launcher_pull as lp
         import tempfile
@@ -440,6 +475,16 @@ class TheLauncherUsesTheSameRule(unittest.TestCase):
         self.assertTrue(all(ord(c) < 128 for c in win), "non-ASCII in the Windows launcher")
         self.assertEqual(app.count("import launcher_pull as _lp"), 2,
                          "one of the in-process pull doors does not use the launcher rule")
+        call = mac.find("if ! _tvd_may_pull; then")
+        recorded = mac.find('_tvd_before="$(git -C "$REPO" rev-parse --short HEAD')
+        self.assertGreater(call, recorded,
+                           "the Mac launcher records HEAD after the reset, so the move looks like no change")
+        for name in ("def fleet_pull(", "def _pull_once("):
+            start = app.find(name)
+            body = app[start:app.find("\ndef ", start + 1)]
+            self.assertLess(body.find('rev-parse", "--short", "HEAD"'),
+                            body.find("import launcher_pull as _lp"),
+                            "%s records HEAD after the reset" % name.split("(")[0])
 
 
 if __name__ == "__main__":
@@ -470,6 +515,13 @@ RED_PROOF = [
         "file": "tv/launcher_pull.py",
         "find": "        if _matches(repo, safe):\n            update.append(safe)\n",
         "replace": "        if False:\n            update.append(safe)\n",
+        "matches": 1,
+    },
+    {
+        "why": "an untracked file that the update also adds is replaced by the reset",
+        "file": "tv/launcher_pull.py",
+        "find": "        if os.path.lexists(os.path.join(repo, rel)):\n            return True\n",
+        "replace": "        if os.path.lexists(os.path.join(repo, rel)):\n            return False\n",
         "matches": 1,
     },
 ]
