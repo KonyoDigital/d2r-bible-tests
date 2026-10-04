@@ -241,6 +241,17 @@ test.describe('v1550 — the gate tuner and the sweep memory get a button', () =
            + '1px twitch it undoes, because CGEventPost fails SILENTLY without Accessibility. '
            + 'test_control asserts this handler appears exactly once.',
       },
+      /* 2026-10-05 — red on v3595 CI (83413262), shard 5, both attempts. The route has been in
+       * control_app since v3594, and the suites since then were stamp-only skips, so this is the
+       * first run that looked. The Desktop icon calls it. This scan reads the page, the console
+       * UI and tvd, not the launcher. */
+      '/api/freshness': {
+        owner: 'tv/launcher_decide.py',
+        why: 'The Desktop icon asks this small route instead of /api/status. Under the game '
+           + '/api/status took long enough that the icon read a healthy console as dead. '
+           + 'launcher_decide.py is the caller. Its law is '
+           + 'test_the_launcher_brings_a_running_console_forward.py.',
+      },
     };
     for (const [route, rec] of Object.entries(OWNED)) {
       expect(app, `${route} is allowlisted but no longer exists in control_app.py — a stale owner `
