@@ -15412,11 +15412,24 @@ def _river_for_wire(now_ms=None):
         out["triage"] = _triage_for_wire()
     except Exception as e:
         out["triage"] = {"ok": False, "why": "the triage lane could not be read (%s)" % type(e).__name__}
-    # #74 (REG-1461) — which stations are not draining, and whether this PC has proved its own instruments
-    try:
-        out["stuck"] = _river_stuck_for_wire(now)
-    except Exception:
+    # #74 (REG-1461) — which stations are not draining, and whether this PC has proved its own instruments.
+    # A stuck list is a reading of a river this console has already computed. Walking the stamp log
+    # while lanes is None painted a PC stuck while its own river said nothing had asked for it yet.
+    # A last-good river (lanes present after a newer read failed) still gets the windowed reading.
+    # An unreadable stamp log stays None, never an empty flowing list.
+    if out["lanes"] is None:
         out["stuck"] = None
+    else:
+        try:
+            out["stuck"] = _river_stuck_for_wire(now)
+        except Exception:
+            out["stuck"] = None
+        if isinstance(out.get("stuck"), list):
+            try:
+                import reel_retention as _rr_keep
+                out["stuckKeep"] = int(_rr_keep.KEEP_RECENT)
+            except Exception:
+                pass
     _sp = dict(_SELF_PROVE)
     out["heart"] = {"census": _sp.get("census"), "key": _sp.get("key"),
                     "blind": (len(_sp.get("blind") or []) if _sp.get("blind") is not None else None)}
@@ -15440,7 +15453,17 @@ def _river_stuck_why(station):
     the same minute over SSH: Boosteroid open 28 h straight, 423 MB free, and its self-prove lane answering every
     tick "he is playing on this PC ... a proof never starts beside it". The lock is right to hold (self_prove's own
     note: the river-outlet law measured BLIND on the ALT while red on the Mac); the sentence was wrong about what
-    opens it. So when the route lane is locked and this PC's census is not current, the reason is its prover's."""
+    opens it. So when the route lane is locked and this PC's census is not current, the reason is its prover's.
+    JOIN is not that lane's input (reel_route_lane moves EMPTY only) and STATION is not the sweep's
+    input. Their sentence is the river walk's own note. The route lane's last word stays on EMPTY."""
+    if station in ("JOIN", "STATION"):
+        try:
+            import river_walk as _rw
+            note = str(((_rw.LANE_OF_STATION or {}).get(station) or {}).get("note") or "")
+        except Exception:
+            note = ""
+        if note:
+            return note
     lane = _RIVER_OWNER.get(station)
     try:
         if lane == "route":
@@ -15473,7 +15496,9 @@ def _river_stuck_for_wire(now_ms=None, _rows=None, _shelf=None, _fixtures=None):
     NOTHING on any screen said so: see every console's river from his own, "so for deans pc it will do the
     same". Read from the river's own stamp log (the time each reel ARRIVED at its current station) - one
     file read, never a router pass - so a beacon costs what it cost before. [{station, n, oldestS, why}],
-    oldest first; [] is measured-and-flowing; None is an unreadable log (UNKNOWN, never "flowing").
+    oldest first; [] is measured-and-flowing inside the newest KEEP_RECENT reels; None is an unreadable
+    log, or a window that could not be built (UNKNOWN, never "flowing"). A reel older than that window
+    is not this alarm. The window is reel_retention.recent_shield, the same set the shelf keeps.
 
     ⚠⚠ 2026-09-30 (REG-1614) — ONLY A REEL STILL ON THE SHELF CAN BE STUCK, AND A TEST FIXTURE NEVER IS. His
     screenshot at 19:55: "river stuck" on all three online PCs. MEASURED on his Mac the same minute: the stamp log
@@ -15513,17 +15538,24 @@ def _river_stuck_for_wire(now_ms=None, _rows=None, _shelf=None, _fixtures=None):
         except Exception:
             _fixtures = ()
     _pinned = set(str(x) for x in _fixtures)
+    # The working set is the newest KEEP_RECENT parseable reels on the shelf. The same shield the
+    # deleter uses. It could not be built: None, never "nothing is stuck".
+    try:
+        import reel_retention as _rr_win
+        if _shelf is not None:
+            _names = list(_ids)
+        else:
+            _names = [d for d in os.listdir(HIST_DIR)
+                      if str(d).startswith("reel_") and os.path.isdir(os.path.join(HIST_DIR, d))]
+        _window = _rr_win.recent_shield(_names, _rr_win.KEEP_RECENT)
+    except Exception:
+        return None
     if _never:
         # ⚠ REG-1738 - A RIVER NOBODY EVER STAMPED IS NOT A FLOWING ONE. With no stamp log the loop below finds no
         # station to age and answered [] - "every station is draining" - for a PC whose reels may have sat at EMPTY
-        # for days (the 09-29 audit, driven). An empty shelf is still measured-and-empty; reels on it with no stamp
-        # ever written are UNKNOWN.
-        try:
-            _shelved = (list(_ids) if _shelf is not None
-                        else [d for d in os.listdir(HIST_DIR) if d.startswith("reel_")])
-        except Exception:
-            return None
-        if any(r not in _pinned for r in _shelved):
+        # for days (the 09-29 audit, driven). An empty shelf is still measured-and-empty; a reel inside the window
+        # with no stamp ever written is UNKNOWN. A reel older than the window is not this reading.
+        if any(r not in _pinned for r in _window):
             return None
         return []
     last = {}
@@ -15535,6 +15567,8 @@ def _river_stuck_for_wire(now_ms=None, _rows=None, _shelf=None, _fixtures=None):
         if st not in _RIVER_OWNER:
             continue
         if reel in _pinned or not _on(reel):
+            continue
+        if reel not in _window:
             continue
         try:
             age = max(0.0, (now - int(r.get("at"))) / 1000.0)

@@ -426,6 +426,9 @@ export async function onRequestPost(context) {
             if (!/^[A-Z][A-Z_]{0,23}$/.test(st)) return null;
             return { station: st, n: whole(e.n, 100000), oldestS: num(e.oldestS, DAY400), why: txt(e.why, 200) };
           }).filter(Boolean);
+          // The window this console tallied. Absent on an older build, which measured the whole shelf.
+          const keep = whole(rv.stuckKeep, 10000);
+          if (keep !== null && keep >= 1) out.river.stuckKeep = keep;
         } else if (rv.stuck === null) {
           out.river.stuck = null;
         }
@@ -678,7 +681,8 @@ export async function onRequestPost(context) {
     const rv = r && r.system && r.system.river;
     if (!rv || typeof rv !== 'object' || !('stuck' in rv)) return null;
     const sk = rv.stuck;
-    return Array.isArray(sk) ? JSON.stringify(sk.map((e) => [e && e.station, e && e.n])) : JSON.stringify(sk);
+    const keep = (typeof rv.stuckKeep === 'number') ? rv.stuckKeep : null;
+    return Array.isArray(sk) ? JSON.stringify([keep, sk.map((e) => [e && e.station, e && e.n])]) : JSON.stringify(sk);
   };
   const pickerNews = (r) => {
     const p = r && r.picker;

@@ -25307,17 +25307,29 @@ function escC(s) {
       out.push(_fleetPart('stuck', ['UNKNOWN', 'an older build'], { unk: true,
                  why: 'this console does not report which stations are not draining (a build older than the field)' }));
     } else if (sk === null || !Array.isArray(sk)) {
-      out.push(_fleetPart('stuck', ['UNKNOWN'], { unk: true, why: 'that console could not read its own river stamp log' }));
+      var noRiver = !rv.lanes || typeof rv.lanes !== 'object';
+      out.push(_fleetPart('stuck', ['UNKNOWN'], { unk: true,
+                 why: noRiver
+                   ? String(rv.why || 'that console has not computed its river, so whether a station is stuck is unknown')
+                   : 'that console could not read its own river stamp log' }));
     } else if (!sk.length) {
-      out.push(_fleetPart('stuck', ['none — every station is draining'], {
-                 why: 'no station on that PC has held a reel for more than 6 hours' }));
+      var keep = (typeof rv.stuckKeep === 'number' && isFinite(rv.stuckKeep) && rv.stuckKeep >= 1)
+        ? Math.floor(rv.stuckKeep) : 0;
+      out.push(_fleetPart('stuck', [keep ? ('none — the newest ' + keep + ' are draining')
+                                          : 'none — every station is draining'], {
+                 why: keep
+                   ? ('no reel among the newest ' + keep + ' on that PC has sat at a station for more than 6 hours')
+                   : 'no station on that PC has held a reel for more than 6 hours' }));
     } else {
+      var keepN = (typeof rv.stuckKeep === 'number' && isFinite(rv.stuckKeep) && rv.stuckKeep >= 1)
+        ? Math.floor(rv.stuckKeep) : 0;
       out.push(_fleetPart('stuck', sk.map(function (e) {
                    var a = _fleetAgeNow(e.oldestS, m, nowMs);
                    return e.station + ' ' + (typeof e.n === 'number' ? e.n : '?') + ' for '
                         + _fleetAgeTxt(a).replace(/[\s ]ago$/, '');
                  }), { warn: true,
-                 why: sk.map(function (e) { return e.station + ': ' + (e.why || 'no reason given'); }).join('  |  ') }));
+                 why: (keepN ? ('among the newest ' + keepN + ' — ') : '')
+                    + sk.map(function (e) { return e.station + ': ' + (e.why || 'no reason given'); }).join('  |  ') }));
     }
     /* 5. #74 (REG-1461) — HAS THAT PC PROVED ITS OWN INSTRUMENTS? Every lock that moves its river (routing, the
        vault sweep, frame release) refuses until it has; REG-1447 makes every PC prove itself in the background. */

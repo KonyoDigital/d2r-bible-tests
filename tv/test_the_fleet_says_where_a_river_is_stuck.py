@@ -6,9 +6,10 @@ on any screen said so: *"we need to be able to see that deans console is also ar
 see whats getting updated/fetched and logged and registered live while hes on playing"* - step 1, the alarm.
 
 Three joints, each driven, never grepped:
-  · the console: `_river_stuck_for_wire` over stamp rows - a station whose oldest reel waited > 6 h is named
-    with the owning lane's reason; CAPTURE never alarms (it waits on a capture change by design); an
-    unreadable log is None, never "flowing".
+  · the console: `_river_stuck_for_wire` over stamp rows - a station whose oldest reel inside the newest
+    KEEP_RECENT waited > 6 h is named with that station's own reason; a reel older than the window is not
+    an alarm; CAPTURE never alarms (it waits on a capture change by design); an unreadable log is None,
+    never "flowing"; a console that has not computed its river does not walk the log.
   · the worker (functions/api/console.js, the REAL shaper in node): stuck/heart cross shaped - bad keys
     dropped, text scrubbed of paths; null stays null; absent stays absent.
   · the card (control_ui.html, the REAL _fleetSysParts / _fleetStuckChip in node): a red "river stuck" on the
@@ -138,6 +139,129 @@ class TheConsoleNamesItsStuckStations(unittest.TestCase):
                                                       _fixtures=("reel_s_9_pin",)), [],
                              "a suite fixture alone made the river UNKNOWN")
 
+    def test_only_the_newest_window_can_be_stuck(self):
+        """The alarm is reel_retention.recent_shield. An older reel past 6 h is not in it. One inside
+        it that has waited, still is. A fresh reel, a fixture and CAPTURE inside it are not. JOIN does
+        not borrow the route lane's CAPTURE sentence."""
+        import reel_retention as rr
+        keep = int(rr.KEEP_RECENT)
+        self.assertGreaterEqual(keep, 5, "KEEP_RECENT is too small for this fixture to discriminate")
+        extra = 4
+
+        def nm(i):
+            return "reel_s_%d_%d" % (1700000000000 + i, i)
+
+        n = keep + extra
+        rows, shelf = [], set()
+        for i in range(n):
+            name = nm(i)
+            shelf.add(name)
+            if i < extra:
+                rows.append(_stamp(name, "PRINTER", 80 * H, i))
+            elif i == extra:
+                rows.append(_stamp(name, "CAPTURE", 90 * H, i))
+            elif i == extra + 1:
+                rows.append(_stamp(name, "PRINTER", 50 * H, i))
+            elif i == n - 1:
+                rows.append(_stamp(name, "PRINTER", 60, i))
+            elif i == n - 2:
+                rows.append(_stamp(name, "JOIN", 40 * H, i))
+            else:
+                rows.append(_stamp(name, "PRINTER", 30 * H, i))
+        got = {e["station"]: e for e in self._stuck(rows, shelf=shelf, fixtures=(nm(extra + 1),))}
+        self.assertEqual(sorted(got), ["JOIN", "PRINTER"], got)
+        self.assertEqual(got["PRINTER"]["n"], keep - 4, got)
+        self.assertEqual(got["PRINTER"]["oldestS"], 30 * H,
+                         "a reel outside the window, or the fixture, set the age")
+        self.assertEqual(got["JOIN"]["n"], 1)
+        self.assertNotIn("capture", got["JOIN"]["why"].lower())
+        self.assertIn("No lane can fix that", got["JOIN"]["why"])
+
+    def test_the_shelf_on_disk_uses_the_same_window(self):
+        import shutil
+        import tempfile
+        from unittest import mock
+        import control_app as ca
+        import reel_retention as rr
+        keep = int(rr.KEEP_RECENT)
+        d = tempfile.mkdtemp(prefix="stuck_win_")
+        self.addCleanup(shutil.rmtree, d, True)
+
+        def nm(i):
+            return "reel_s_%d_%d" % (1700000000000 + i, i)
+
+        extra = 3
+        rows = []
+        for i in range(keep + extra):
+            name = nm(i)
+            os.makedirs(os.path.join(d, name))
+            rows.append(_stamp(name, "EMPTY", (80 * H if i < extra else 40 * H), i))
+        with mock.patch.object(ca, "HIST_DIR", d):
+            got = ca._river_stuck_for_wire(now_ms=NOW, _rows=rows, _fixtures=())
+        self.assertEqual([(e["station"], e["n"], e["oldestS"]) for e in got],
+                         [("EMPTY", keep, 40 * H)], got)
+
+    def test_join_does_not_borrow_the_route_lane_and_empty_still_does(self):
+        from unittest import mock
+        import control_app as ca
+        capture = "a capture change - the item name is printed on the character panel"
+        with mock.patch.object(ca, "_ROUTE_LANE", {"why": capture}):
+            join = ca._river_stuck_why("JOIN")
+            station = ca._river_stuck_why("STATION")
+            empty = ca._river_stuck_why("EMPTY")
+        self.assertNotIn("capture", join.lower())
+        self.assertIn("No lane can fix that", join)
+        self.assertIn("NOT ITS INPUT", station)
+        self.assertNotIn("capture", station.lower())
+        self.assertIn("capture", empty.lower(), "EMPTY stopped quoting the route lane")
+
+    def test_an_uncomputed_river_does_not_invent_a_stuck_list(self):
+        from unittest import mock
+        import control_app as ca
+        called = []
+
+        def _walk(*a, **k):
+            called.append(1)
+            return [{"station": "EMPTY", "n": 9, "oldestS": 1, "why": "route lane: capture"}]
+
+        with mock.patch.object(ca, "_RIVER_LAST", {"good": None, "fail": None}), \
+                mock.patch.object(ca, "_river_stuck_for_wire", _walk):
+            out = ca._river_for_wire(now_ms=NOW)
+        self.assertIsNone(out["lanes"])
+        self.assertIsNone(out["stuck"])
+        self.assertNotIn("stuckKeep", out)
+        self.assertEqual(called, [], "the stamp walker ran for a river that was never computed")
+
+    def test_a_computed_river_still_carries_the_window(self):
+        from unittest import mock
+        import control_app as ca
+        import reel_retention as rr
+        called = []
+
+        def _walk(*a, **k):
+            called.append(1)
+            return []
+
+        good = {"stations": {"PRINTER": 2}, "ts": NOW - 1000, "n": 1}
+        fail = {"ts": NOW, "n": 2, "why": "the last river read failed"}
+        with mock.patch.object(ca, "_RIVER_LAST", {"good": good, "fail": fail}), \
+                mock.patch.object(ca, "_river_stuck_for_wire", _walk):
+            out = ca._river_for_wire(now_ms=NOW)
+        self.assertEqual(out["lanes"]["PRINTER"], 2)
+        self.assertIn("newer river read failed", out["why"])
+        self.assertEqual(out["stuck"], [])
+        self.assertEqual(out["stuckKeep"], int(rr.KEEP_RECENT))
+        self.assertEqual(called, [1], "a computed river dropped its stuck reading")
+
+        def _unread(*a, **k):
+            return None
+
+        with mock.patch.object(ca, "_RIVER_LAST", {"good": good, "fail": None}), \
+                mock.patch.object(ca, "_river_stuck_for_wire", _unread):
+            bad = ca._river_for_wire(now_ms=NOW)
+        self.assertIsNone(bad["stuck"], "an unreadable log on a computed river read as flowing")
+        self.assertNotIn("stuckKeep", bad)
+
 
 class TheWorkerCarriesIt(unittest.TestCase):
 
@@ -157,6 +281,16 @@ class TheWorkerCarriesIt(unittest.TestCase):
     def test_null_stays_null_and_absent_stays_absent(self):
         self.assertIsNone(self._shape({"lanes": {}, "stuck": None})["river"]["stuck"])
         self.assertNotIn("stuck", self._shape({"lanes": {}})["river"], "an older console gained a field")
+
+    def test_the_window_crosses_only_with_a_measured_list(self):
+        got = self._shape({"lanes": {"PRINTER": 1}, "stuck": [], "stuckKeep": 16})["river"]
+        self.assertEqual(got["stuck"], [])
+        self.assertEqual(got["stuckKeep"], 16)
+        dropped = self._shape({"lanes": {}, "stuck": [], "stuckKeep": "16"})["river"]
+        self.assertNotIn("stuckKeep", dropped, "a window that is not a count crossed")
+        unknown = self._shape({"lanes": {}, "stuck": None, "stuckKeep": 16})["river"]
+        self.assertIsNone(unknown["stuck"])
+        self.assertNotIn("stuckKeep", unknown, "an unknown river grew a window")
 
 
 class TheCardSaysIt(unittest.TestCase):
@@ -189,7 +323,34 @@ class TheCardSaysIt(unittest.TestCase):
         self.assertFalse(out["p"]["proved"]["warn"])
         out = self._run({"stuck": None})
         self.assertTrue(out["p"]["stuck"]["unk"], "an unreadable log read as draining")
+        self.assertIn("stamp log", out["p"]["stuck"]["why"])
         self.assertEqual(out["chip"], "")
+
+    def test_an_uncomputed_river_says_unknown_for_that_reason(self):
+        why = "this console has not computed its river since it started"
+        out = self._run({"stuck": None, "lanes": None, "why": why})
+        self.assertTrue(out["p"]["stuck"]["unk"])
+        self.assertIn(why, out["p"]["stuck"]["why"])
+        self.assertNotIn("stamp log", out["p"]["stuck"]["why"])
+        self.assertEqual(out["chip"], "", "an unknown river grew an alarm")
+
+    def test_a_clear_window_names_how_many_reels_it_tallied(self):
+        out = self._run({"stuck": [], "stuckKeep": 16, "heart": {"census": "current", "blind": 0}})
+        self.assertIn("newest 16", out["p"]["stuck"]["t"])
+        self.assertIn("none", out["p"]["stuck"]["t"])
+        self.assertFalse(out["p"]["stuck"]["warn"])
+        self.assertEqual(out["chip"], "", "a clear window grew an alarm")
+        old = self._run({"stuck": [], "heart": {"census": "current", "blind": 0}})
+        self.assertIn("every station is draining", old["p"]["stuck"]["t"])
+        self.assertNotIn("newest", old["p"]["stuck"]["t"])
+
+    def test_a_stuck_window_stays_on_the_row(self):
+        out = self._run({"stuck": [{"station": "PRINTER", "n": 7, "oldestS": 40 * H,
+                                    "why": "vault lane: owes 1"}], "stuckKeep": 16})
+        self.assertIn("river stuck", out["chip"], "a reel stuck inside the window lost its chip")
+        self.assertIn("PRINTER 7 for", out["p"]["stuck"]["t"])
+        self.assertIn("among the newest 16", out["p"]["stuck"]["why"])
+        self.assertTrue(out["p"]["stuck"]["warn"])
 
 
 RED_PROOF = [
@@ -238,6 +399,27 @@ RED_PROOF = [
         "file": "tv/control_app.py",
         "find": "        if not os.path.isdir(HIST_DIR):\n            return None\n",
         "replace": "        pass\n",
+        "matches": 1,
+    },
+    {
+        "why": "a reel older than the newest window is an alarm again, so the whole shelf reads as stuck",
+        "file": "tv/control_app.py",
+        "find": "        if reel not in _window:\n            continue\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "a console that has not computed its river walks the stamp log and paints stuck",
+        "file": "tv/control_app.py",
+        "find": "    if out[\"lanes\"] is None:\n        out[\"stuck\"] = None\n",
+        "replace": "    if False:\n        out[\"stuck\"] = None\n",
+        "matches": 1,
+    },
+    {
+        "why": "JOIN borrows the route lane sentence again, including a CAPTURE decline",
+        "file": "tv/control_app.py",
+        "find": "    if station in (\"JOIN\", \"STATION\"):\n",
+        "replace": "    if False:\n",
         "matches": 1,
     },
     {
