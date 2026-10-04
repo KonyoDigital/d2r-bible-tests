@@ -53,9 +53,12 @@ def _freshness(base, timeout):
     """-> (fresh, answered).
 
     fresh is True (this process is the file on disk), False (it is older), or None (it cannot say).
-    answered is False only when the check timed out or the socket never answered. A 404 means this
-    console has no /api/freshness yet, so the slow /api/status is asked once. Any other failure is
-    not asked twice: a second wait is how a 5s icon becomes a 10s kill.
+    answered is False when no freshness body came back: the wait ran out, the socket never
+    answered, the route returned an HTTP error other than 404, or the body could not be read.
+    A window that is already up is then asked forward. A 404 means this console has no
+    /api/freshness yet, so /api/status is asked once. Any other failure is not asked twice.
+    A body that says the code is stale still replaces. An answer that cannot say, while the
+    window is in front, still replaces.
     """
     body = None
     try:

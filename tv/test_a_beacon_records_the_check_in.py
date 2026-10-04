@@ -237,7 +237,6 @@ class ABeaconRecordsTheCheckIn(unittest.TestCase):
         self.assertEqual((row.get("tally") or {}).get("sets"), {"have": 0, "total": 135})
         self.assertIs((row.get("shadow") or {}).get("on"), True)
         self.assertIs((row.get("shadow") or {}).get("recording"), False)
-        first_asof = (v["replies"] and None)
         # The first beacon's asOf is the first record's t. The patch must leave it there.
         # Re-read it off the stored row: asOf stays, t moves.
         as_of = ((row.get("system") or {}).get("asOf"))
