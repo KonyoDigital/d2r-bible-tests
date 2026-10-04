@@ -106,21 +106,46 @@ def _real_dir(path):
 
 
 def _index_has(repo, rel):
-    """True when the index tracks rel or a path under it. None when git could not be asked."""
-    rc, out, _err = _run(repo, ["ls-files", "-z", "--", rel])
+    """True when the index tracks rel or a path under it. None when git could not be asked.
+
+    --literal-pathspecs: notes[1].txt is a path, not a wildcard. Without it,
+    ls-files matches notes1.txt and an untracked notes[1].txt looks tracked.
+    """
+    rc, out, _err = _run(repo, ["--literal-pathspecs", "ls-files", "-z", "--", rel])
+    if rc != 0:
+        return None
+    return bool(out)
+
+
+def _untracked_inside(repo, rel):
+    """True when an untracked file sits at rel or under it. None when git could not be asked."""
+    rc, out, _err = _run(repo, ["--literal-pathspecs", "ls-files", "-z", "-o",
+                                "--exclude-standard", "--", rel])
     if rc != 0:
         return None
     return bool(out)
 
 
 def _untracked_occupies(repo, rel):
-    """True when rel exists and the index does not track it. None when that cannot be read."""
-    if not os.path.lexists(os.path.join(repo, rel)):
+    """True when an untracked file would be replaced here. None when that cannot be read.
+
+    A tracked file is the update. A tracked directory is the update only when
+    nothing untracked sits inside it, because reset deletes that directory.
+    """
+    full = os.path.join(repo, rel)
+    if not os.path.lexists(full):
         return False
     tracked = _index_has(repo, rel)
     if tracked is None:
         return None
-    return not tracked
+    if not tracked:
+        return True
+    if not _real_dir(full):
+        return False
+    inside = _untracked_inside(repo, rel)
+    if inside is None:
+        return None
+    return bool(inside)
 
 
 def _untracked_in_the_way(repo):
