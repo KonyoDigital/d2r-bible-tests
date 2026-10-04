@@ -1252,7 +1252,9 @@ def _eye_argv(prompt):
     Claude's schema result arrives as structured_output under --output-format json.
     """
     low = (EYE_CLI or "").lower()
-    if "claude" in low and "grok" not in low:
+    # Grok and codex win before claude. A home folder that contains the word
+    # claude must not hand a codex binary Claude-only flags.
+    if "claude" in low and "grok" not in low and "codex" not in low and "chatgpt" not in low:
         return [EYE_CLI, "-p", prompt, "--json-schema", EYE_VERDICT_SCHEMA,
                 "--output-format", "json", "--restricted",
                 "--permission-mode", "dontAsk", "--disable-slash-commands"]

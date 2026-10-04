@@ -84,6 +84,15 @@ class TestALookNamesTheFamilyThatLooked(unittest.TestCase):
         self.assertIn("--deny", grok)
         self.assertNotIn("--restricted", grok)
 
+    def test_a_codex_binary_under_a_claude_folder_keeps_codex_flags(self):
+        real = SER.EYE_CLI
+        SER.EYE_CLI = "/Users/" + "claudette/" + "bin/codex"
+        self.addCleanup(setattr, SER, "EYE_CLI", real)
+        argv = SER._eye_argv("look")
+        self.assertEqual(SER._model_from_transport(), "codex-cli")
+        self.assertIn("--deny", argv)
+        self.assertNotIn("--restricted", argv)
+
     def test_a_claude_envelope_counts_as_a_constrained_answer(self):
         raw = ('{"result": "{\\"verdict\\":\\"clean\\"}", '
                '"structured_output": {"verdict": "clean", "findings": [], "unseen": "none"}}')
@@ -174,7 +183,7 @@ RED_PROOF = [
         "why": "Claude is launched with its own flags. Forcing the Grok branch hands Claude "
                "--deny, which that CLI rejects, so the seat stays empty.",
         "file": "second_eye_run.py",
-        "find": "    if \"claude\" in low and \"grok\" not in low:\n",
+        "find": "    if \"claude\" in low and \"grok\" not in low and \"codex\" not in low and \"chatgpt\" not in low:\n",
         "replace": "    if False:\n",
         "matches": 1,
     },

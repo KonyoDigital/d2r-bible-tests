@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3580",
+  "ver": "v3581",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3580: Quit closes the window and the process stays up, so the shadow reader keeps running. A forward-slash Windows path and a spaced user folder no longer leave a name on the beacon. The page-newer banner hides with importance. Routine I fast shards go from 6 to 10 on the same cost table. HEART: the page-newer line is the same banner, and test_a_hidden_element_is_actually_hidden already counts every hidden guard.",
+  "note": "v3581: A drive path with a space no longer leaves the rest of the name on the beacon. A web address is not read as a drive. The eye classifies codex before claude when both words are in the path. HEART: test_a_landed_update_is_not_an_edit, test_a_look_names_the_family_that_looked",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

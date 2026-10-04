@@ -147,6 +147,21 @@ class ALandedUpdateIsNotAnEdit(unittest.TestCase):
         self.assertIn("File exists", err)
         self.assertIsNone(ca._beacon_git_diag(None))
 
+    def test_a_spaced_drive_path_keeps_the_sentence_and_drops_the_name(self):
+        """The drive pattern stops at a space. The rest of the path must not ship."""
+        spaced = "D:\\" + "Jane Doe\\" + "TV\\.git\\index.lock"
+        err = ca._public_git_text(
+            "fatal: Unable to create '%s': File exists." % spaced)
+        self.assertNotIn("Jane", err)
+        self.assertNotIn("Doe", err)
+        self.assertNotIn("\\", err)
+        self.assertIn("fatal", err)
+        self.assertIn("File exists", err)
+        url = ca._public_git_text(
+            "fatal: https://example.com/repo.git update failed")
+        self.assertIn("https://example.com/repo.git", url)
+        self.assertIn("update failed", url)
+
     def test_a_real_pull_exit_is_kept_and_a_cached_diagnosis_is_not_reread(self):
         self._git()
         ca._TREE_DIAG["t"] = 0.0
