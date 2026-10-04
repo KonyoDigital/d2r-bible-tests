@@ -143,18 +143,53 @@ export async function onRequestPost(context) {
     // booleans are booleans, and anything unrecognised becomes null so "we could not tell" can
     // never read as an answer.
     diskVer: String(body.diskVer || '').slice(0, 12) || null,
+    // Dean's window, so a PC we cannot sit at still says front, background or fullscreen.
+    // A word outside that list is not stored: unknown is not a mode.
+    windowMode: (function (w) {
+      var s = (w == null) ? '' : String(w);
+      return (s === 'front' || s === 'background' || s === 'fullscreen'
+              || s === 'headless' || s === 'window-only') ? s : null;
+    })(body.windowMode),
     relaunch: (function (r) {
       if (!r || typeof r !== 'object') return null;
       const tri = (v) => (v === true ? true : v === false ? false : null);
+      const clip = (v, n) => {
+        var s = String(v == null ? '' : v)
+          .replace(/\/Users\/\S+/g, '')
+          .replace(/[A-Za-z]:\\[^\s]+/g, '')
+          .replace(/\s+/g, ' ').trim();
+        if (!s || /\/Users\/|[A-Za-z]:\\/.test(s)) return null;
+        return s.slice(0, n);
+      };
+      const head = (v) => (/^[0-9a-f]{4,16}$/.test(String(v == null ? '' : v)) ? String(v) : null);
+      const crlf = (v) => (v === 'true' || v === 'false' || v === 'input' || v === 'unset') ? v : null;
+      const exit = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
       return { armed: tri(r.armed), may: tri(r.may),
-               why: String(r.why == null ? '' : r.why).slice(0, 160) };
+               why: String(r.why == null ? '' : r.why).slice(0, 160),
+               head: head(r.head), autocrlf: crlf(r.autocrlf),
+               porcelain: clip(r.porcelain, 240),
+               exit: exit(r.exit), err: clip(r.err, 160) };
     })(body.relaunch),
     pull: (function (p) {
       if (!p || typeof p !== 'object') return null;
       const behind = Number(p.behind);
+      const clip = (v, n) => {
+        var s = String(v == null ? '' : v)
+          .replace(/\/Users\/\S+/g, '')
+          .replace(/[A-Za-z]:\\[^\s]+/g, '')
+          .replace(/\s+/g, ' ').trim();
+        if (!s || /\/Users\/|[A-Za-z]:\\/.test(s)) return null;
+        return s.slice(0, n);
+      };
+      const head = (v) => (/^[0-9a-f]{4,16}$/.test(String(v == null ? '' : v)) ? String(v) : null);
+      const crlf = (v) => (v === 'true' || v === 'false' || v === 'input' || v === 'unset') ? v : null;
+      const exit = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
       return { can: (p.can === true ? true : p.can === false ? false : null),
                behind: Number.isFinite(behind) && behind >= 0 ? Math.min(behind, 100000) : null,
-               why: String(p.why == null ? '' : p.why).slice(0, 160) };
+               why: String(p.why == null ? '' : p.why).slice(0, 160),
+               head: head(p.head), autocrlf: crlf(p.autocrlf),
+               porcelain: clip(p.porcelain, 240),
+               exit: exit(p.exit), err: clip(p.err, 160) };
     })(body.pull),
     // v2163 — WHAT THIS MACHINE HAS, so the fleet roster can show each person's progress on
     // hover of their name. Konyo asked for his cousin's and his wife's live chronicle numbers.
@@ -623,8 +658,10 @@ export async function onRequestPost(context) {
   const material = !prev
     || prev.ver !== rec.ver || prev.mode !== rec.mode || prev.event !== rec.event
     || prev.diskVer !== rec.diskVer
+    || prev.windowMode !== rec.windowMode
     || JSON.stringify(prev.tally || null) !== JSON.stringify(rec.tally || null)
     || JSON.stringify(prev.masks || null) !== JSON.stringify(rec.masks || null)
+    || JSON.stringify(prev.relaunch || null) !== JSON.stringify(rec.relaunch || null)
     || JSON.stringify(prev.pull || null) !== JSON.stringify(rec.pull || null)
     || capRoute(prev) !== capRoute(rec)
     || riverNews(prev) !== riverNews(rec)

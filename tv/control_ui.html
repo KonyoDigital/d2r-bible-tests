@@ -7685,6 +7685,17 @@
   .fleet-bar .fb-go:hover, .fleet-bar .fb-x:hover { border-color: var(--gold-hi); color: var(--gold-hi); }
   .fleet-bar .fb-go[disabled] { opacity: .5; cursor: default; }
   .fleet-bar .fb-x { padding: 5px 9px; opacity: .7; }
+  /* A page served from a newer disk than the process behind it. Hidden until that is true.
+     Its own class, so the fleet bar's :has rules do not wake it. */
+  .page-newer {
+    display: flex; align-items: center; gap: 10px;
+    margin: 0 0 10px; padding: 8px clamp(10px, 1vw, 16px);
+    border: 1px solid rgba(224,112,112,.55); border-radius: 10px;
+    background: rgba(224,112,112,.08);
+    color: #e9b96e; font-family: var(--mono); font-size: var(--fs-xs);
+    letter-spacing: var(--ls-label);
+  }
+  .page-newer[hidden] { display: none; }
 </style>
 </head>
 <style>
@@ -7859,6 +7870,9 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
       </span>
       <button class="fb-go" id="fleet-go" type="button">UPDATE NOW</button>
       <button class="fb-x" id="fleet-x" type="button" aria-label="dismiss until next launch">✕</button>
+    </div>
+    <div class="page-newer" id="page-newer" hidden>
+      <span id="page-newer-txt"></span>
     </div>
 
     <section class="stage" id="stage">
@@ -8581,7 +8595,7 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
             <div class="shadow-adv-fixed" id="sadv-bg-fixed">
               <span class="shadow-adv-ic">⤓</span>
               <span class="shadow-adv-t"><b>Keeps running in the background</b>
-                <small id="sadv-bg-say">✕ or Esc hides the console completely · the shadow reader, triage and drain keep going · the Desktop icon brings it back · ⏻ quit stops everything</small></span>
+                <small id="sadv-bg-say">✕ or Esc hides the console completely · the shadow reader, triage and drain keep going · the Desktop icon brings it back · ⏻ quit closes this window and the shadow reader keeps running</small></span>
             </div>
           </div>
           <div class="adv-sec-h adv-sec-h-rest">⚙ RARE PATHS</div>
@@ -8601,7 +8615,7 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
             <button class="util-btn" id="btn-stop" type="button" hidden style="display:none" title="force full seal now (rare)">■ seal</button>
             <button class="util-btn" id="btn-restart" type="button" hidden style="display:none" title="cycle the bridge (hiccups)">↻ bridge</button>
             <button class="util-btn" id="btn-relaunch" type="button" title="RELAUNCH THE CONSOLE ITSELF onto the version on disk. ↻ bridge only cycles the agent INSIDE this process, which is why the footer can read one version while the board reads another.">⟲ relaunch</button>
-            <button class="util-btn" id="btn-quit" type="button" title="QUIT COMPLETELY - stops the shadow reader and seals any rolling reel. ✕ and Esc only hide the console, which keeps recording in the background.">⏻ quit</button>
+            <button class="util-btn" id="btn-quit" type="button" title="Closes this window only. The shadow reader stays on in the background and a rolling reel keeps rolling. It stops only from its own switch. The X and Esc hide the window the same way.">⏻ quit</button>
             <button class="util-btn" id="btn-eagle" type="button" title="EAGLE EYE — the whole console from above: version drift, lane intent, disk, subscription burn, an unattended reel, whether a sweep would find anything">🦅 eagle</button>
             <!-- v2350c — the lamp above was labelled "mini" and this one "MINI": two controls
                  differing only in CASE, side by side in the same strip, one of which drives his
@@ -11370,6 +11384,41 @@ window._lockMark = function(isOpen, px, label){
     }
   }
 
+  /* DEAN-WINDOW-SAY */
+  window._winTold = function (d, failed) {
+    if (failed) return 'the window did not answer';
+    if (d && d.ok === true) return '';
+    var why = d && d.why;
+    if (why) return String(why);
+    return 'the window did not answer';
+  };
+  window._wWithoutAWindow = function (hidden) {
+    return hidden ? 'this console has no window to resize' : '';
+  };
+  window._pageNewerSay = function (st) {
+    var d = st && st.drift;
+    if (!d || d.running == null || d.disk == null) return '';
+    var run = String(d.running), disk = String(d.disk);
+    if (!run || !disk || run === disk) return '';
+    return 'this window is newer than the console behind it \u2014 reopen TV DIABLO from the Desktop icon';
+  };
+  window._fleetWin = function (m) {
+    var wm = m && m.windowMode;
+    var known = { front: 1, background: 1, fullscreen: 1, headless: 1, 'window-only': 1 };
+    if (!known[wm]) return null;
+    var rel = (m && m.relaunch) || {};
+    var pull = (m && m.pull) || {};
+    return {
+      mode: wm,
+      head: rel.head || '',
+      autocrlf: rel.autocrlf || '',
+      porcelain: rel.porcelain || '',
+      exit: (pull.exit == null ? null : pull.exit),
+      err: pull.err || ''
+    };
+  };
+  /* /DEAN-WINDOW-SAY */
+
   var _fetchFails = 0;   // v872 — consecutive status failures
   async function refresh(){
     try {
@@ -11377,6 +11426,13 @@ window._lockMark = function(isOpen, px, label){
       var st = await r.json();
       _fetchFails = 0;
       paint(st);
+      var _newer = window._pageNewerSay ? window._pageNewerSay(st) : '';
+      var _newerBar = document.getElementById('page-newer');
+      if (_newerBar) {
+        _newerBar.hidden = !_newer;
+        var _newerTxt = document.getElementById('page-newer-txt');
+        if (_newerTxt) _newerTxt.textContent = _newer || '';
+      }
       /* v2399 — THE NEXT LOOK. Called AFTER paint so a request can never delay the frame
          he is looking at, and outside paint's own try/catch so a fault here is visible
          rather than folded into an unrelated handler. */
@@ -20710,9 +20766,9 @@ window._lockMark = function(isOpen, px, label){
     };
   })();
 
-  /* 2026-09-29 — ⏻ QUIT, THE ONE CONTROL THAT STOPS THE SERVICE. ✕ and Esc now send the console to the
-     background, so quitting became a thing he has to be able to do on purpose - and it confirms in place,
-     like relaunch, because it stops the recording too. It names itself to /api/quit (v3262). */
+  /* 2026-09-29 — ⏻ QUIT CLOSES THIS WINDOW. ✕ and Esc hide it. Quit frees the view and the
+     shadow reader keeps running; a rolling reel keeps rolling because the service stays up.
+     It confirms in place, like relaunch, and it names itself to /api/quit (v3262). */
   (function(){
     var _armed = false, _t = null;
     var b = $('btn-quit');
@@ -20720,7 +20776,7 @@ window._lockMark = function(isOpen, px, label){
     b.onclick = function(){
       if (!_armed){
         _armed = true;
-        b.textContent = '\u23fb sure? recording stops too';
+        b.textContent = '\u23fb sure? the window closes, the shadow reader keeps going';
         _t = setTimeout(function(){ _armed = false; b.textContent = '\u23fb quit'; }, 4000);
         return;
       }
@@ -20913,8 +20969,18 @@ window._lockMark = function(isOpen, px, label){
     _win('restore').then(function(d){
       if (d && d.ok) box.hidden = false;
     }).catch(function(){});
-    var _m = $('win-min'); if (_m) _m.onclick = function(){ _win('minimize'); };
-    var _f = $('win-full'); if (_f) _f.onclick = function(){ _win('fullscreen'); };
+    var _say = function (p) {
+      if (!p || !p.then) return;
+      p.then(function (d) {
+        var msg = window._winTold ? window._winTold(d, false) : '';
+        if (msg && window.toast) window.toast(msg);
+      }).catch(function () {
+        var msg = window._winTold ? window._winTold(null, true) : 'the window did not answer';
+        if (msg && window.toast) window.toast(msg);
+      });
+    };
+    var _m = $('win-min'); if (_m) _m.onclick = function(){ _say(_win('minimize')); };
+    var _f = $('win-full'); if (_f) _f.onclick = function(){ _say(_win('fullscreen')); };
 
     /* ⚠⚠ v3402 — PRESS W TO WINDOW IT. His words, 2026-09-20: *"on my windows pc i literally open
        it and i cant toggle out of the full screen... can we do shortcut for it? clicking W makes
@@ -20946,7 +21012,11 @@ window._lockMark = function(isOpen, px, label){
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       if (t.isContentEditable) return;
       ev.preventDefault();
-      _win('fullscreen');
+      if (box.hidden) {
+        if (window.toast) window.toast(window._wWithoutAWindow ? window._wWithoutAWindow(true) : 'this console has no window to resize');
+        return;
+      }
+      _say(_win('fullscreen'));
     }, true);
   })();
 
@@ -26021,6 +26091,19 @@ function escC(s) {
         var stuck = (m.pull && m.pull.can === false && m.pull.behind !== 0);
         var meta = online
           ? (escC(m.mode === 'live' ? '🔴 ON AIR' : 'idle') + ' · ' + escC(m.ver || '')
+             + (function () {
+                 var w = window._fleetWin ? window._fleetWin(m) : null;
+                 if (!w) return '';
+                 var tip = 'window: ' + w.mode;
+                 var bits = [];
+                 if (w.head) bits.push('HEAD ' + w.head);
+                 if (w.autocrlf) bits.push('autocrlf ' + w.autocrlf);
+                 if (w.porcelain) bits.push(w.porcelain);
+                 if (w.exit != null) bits.push('pull exit ' + w.exit);
+                 if (w.err) bits.push(w.err);
+                 if (bits.length) tip += ' \u00b7 ' + bits.join(' \u00b7 ');
+                 return '<span class="fleet-win" title="' + escC(tip) + '"> \u00b7 ' + escC(w.mode) + '</span>';
+               })()
              + (pending ? '<span class="fleet-pending" title="this console FETCHED ' + escC(m.diskVer)
                       + ' and is still RUNNING ' + escC(m.ver) + ' — the update landed, only the '
                       + 'restart is outstanding.'

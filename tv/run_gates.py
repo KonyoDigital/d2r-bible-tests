@@ -408,7 +408,8 @@ GATES = [
              "sessions are always working and running ... regardless if the console is on or not. a one time "
              "update to the newer version should keep it backgrounded'. ✕ used to END everything (v935.8), so "
              "a session played with the window shut was never filmed. ✕ / Esc now HIDE it completely ('make sure "
-             "this thing and window is completely hidden') and every lane keeps running; ⏻ quit still quits. "
+             "this thing and window is completely hidden') and every lane keeps running; ⏻ quit closes "
+             "the window and the shadow reader keeps running. "
              "v1460's dead-icon scar is answered by a built way back: both launchers ask it forward and replace "
              "it only when it does not answer. Driven with a fake window; the macOS fullscreen bit is read from "
              "the window (frame and flag both lied, measured); the first beacon waits for the window (REG-1434)."),
@@ -420,6 +421,25 @@ GATES = [
              "made DIAGNOSABLE instead: every quit names who asked, an unnamed one records as "
              "UNATTRIBUTED, and since the Escape handler is the only legitimate caller an "
              "UNATTRIBUTED line IS the finding."),
+    Gate("test_a_landed_update_is_not_an_edit", [sys.executable,
+         os.path.join(HERE, "test_a_landed_update_is_not_an_edit.py")], 60,
+         why="A file that differs from HEAD but matches the blob already fetched at origin/main is an "
+             "update that landed, not a person mid-edit. The same bytes with CR at end of line count as "
+             "that update. A file that matches neither still blocks, and a blob that cannot be read still "
+             "blocks. The beacon carries HEAD, autocrlf, the porcelain lines and the last pull exit, with "
+             "home directories and drive paths removed. Unknown is not an update and unknown is not a success."),
+    Gate("test_quit_leaves_the_shadow_reader_running", [sys.executable,
+         os.path.join(HERE, "test_quit_leaves_the_shadow_reader_running.py")], 60,
+         why="Quit closes the console window and frees its view. The shadow reader, the agent and the "
+             "sweeps keep running, and a rolling reel keeps rolling because the service stays up. The "
+             "reader stops only from its own switch. The X and Esc still hide the window. An exit already "
+             "requested, a window-only view and TV_CLOSE_EXITS still stop the process."),
+    Gate("test_a_window_that_fails_says_why", [sys.executable,
+         os.path.join(HERE, "test_a_window_that_fails_says_why.py")], 60,
+         why="The window toggle says why when it fails and when the fetch fails. W says this console has "
+             "no window to resize when the console has none. A page newer than the process behind it says "
+             "to reopen TV DIABLO from the Desktop icon. Each fleet row shows that PC window mode, and the "
+             "worker stores the mode plus the git diagnosis instead of dropping them."),
     Gate("test_freshness_probe_window", [sys.executable,
                                         os.path.join(HERE, "test_a_freshness_probe_has_no_window.py")], 60,
          why="v3294 - crest_loudness refuses to score until it can prove the document is NEW, which is right. Its proof was a CLOCK: sample performance.now() before the reload and wait for a reading below it. That is only observable for _before milliseconds after the navigation, so the probe reliability depended on how long the page happened to be open. MEASURED back to back with nothing else changing: run 1 exit 0 in 6s, run 2 exit 2 in 21s. It blocked two pushes on a tree that was fine, and a gate that intermittently cannot measure spends its credibility on noise - after which a real UNKNOWN is waved through as that flake again. A marker has no window: a new document does not carry it, for as long as it takes to look. Five consecutive runs green after. Pins the marker, that the OLD document is marked before the reload, and that a page which did NOT navigate is STILL refused - this fixed when it can see, not whether it insists."),

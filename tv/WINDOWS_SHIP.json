@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3578",
+  "ver": "v3579",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3578: A look counts only when its family differs from the family that stamped the version. A Grok seat stamp is xai. A Claude look on it counts and a Grok look on it does not. Law test_a_claude_look_counts_and_a_grok_look_does_not_on_a_grok_stamp.",
+  "note": "v3579: A file that already matches the fetched update no longer blocks a relaunch, and the beacon names the dirty lines, the short HEAD, the last pull result and autocrlf. Quit closes the window and the shadow reader keeps running. A failed window toggle says why, W with no window says this console has no window to resize, a newer page says reopen from the Desktop icon, and each PC reports its window mode. HEART: three new laws watch the landed update, the quit that keeps the service, and the window sentence.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

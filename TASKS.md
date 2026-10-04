@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3578** | `(this commit)` | v3578 — A look counts only when its family differs from the family that stamped the version. A Grok seat stamp is xai. A Claude look on it counts and a Grok look on it does not. Law test_a_claude_look_counts_and_a_grok_look_does_not_on_a_grok_stamp. |
+| **v3579** | `(this commit)` | v3579 — A file that already matches the fetched update no longer blocks a relaunch, and the beacon names the dirty lines, the short HEAD, the last pull result and autocrlf. Quit closes the window and the shadow reader keeps running. A failed window toggle says why, W with no window says this console has no window to resize, a newer page says reopen from the Desktop icon, and each PC reports its window mode. HEART: three new laws watch the landed update, the quit that keeps the service, and the window sentence. |
+| **v3578** | `d2e1132b` | v3578 — A look counts only when its family differs from the family that stamped the version. A Grok seat stamp is xai. A Claude look on it counts and a Grok look on it does not. Law test_a_claude_look_counts_and_a_grok_look_does_not_on_a_grok_stamp. |
 | **v3577** | `9b7c0705` | v3577 — BOTH is Claude first and the beside-every-frame read is retired. A frame keeps the reason it was handed when several fall to Grok together. A Claude look at a Grok seat counts when the commit says so. |
 | **v3576** | `c6b8f272` | v3576 — BOTH means Claude reads every frame and Grok reads only a frame Claude could not |
 | **v3575** | `f5919534` | v3575 — a lobby read that returned nothing spends one hourly slot. HEART: test_the_lobby_names_the_character |

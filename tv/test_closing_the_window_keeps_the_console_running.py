@@ -10,8 +10,8 @@ on or not. a one time update to the newer version should keep it backgrounded"*.
 window shut was never filmed. Now ✕ and Esc HIDE the console completely - his second word, 02:55: "make sure
 this thing and window is completely hidden" - no window, no taskbar button, no Dock icon, and every lane keeps
 running. v1460's scar (a hidden window no focus path could find) is answered by a BUILT way back: the Desktop
-icon and a second launch ask the running console to show itself. ⏻ quit, /api/quit with a `from`, a
-window-only view and TV_CLOSE_EXITS=1 still exit.
+icon and a second launch ask the running console to show itself. ⏻ quit closes this window and the
+shadow reader keeps running. A window-only view and TV_CLOSE_EXITS=1 still exit.
 
 DRIVEN on the shipped functions with a fake pywebview window (no real window is ever opened, no quit is ever
 armed - `_request_console_exit` is replaced by a recorder in every case that could reach it):
@@ -87,9 +87,9 @@ def _no_sleep(_s):
 
 
 class _Base(unittest.TestCase):
-    KEEP = ("_MAIN_WIN", "_EXIT_REQUESTED", "_WINDOW_ONLY", "_BG_SPAWN", "_request_console_exit",
-            "_win_is_fullscreen", "_win_focus_existing_console", "_RE_FULLSCREEN_BUSY", "_mac_set_dock_icon",
-            "_mac_fullscreen_bit")
+    KEEP = ("_MAIN_WIN", "_EXIT_REQUESTED", "_QUIT_KEEPS_SERVICE", "_WINDOW_ONLY", "_BG_SPAWN",
+            "_request_console_exit", "_win_is_fullscreen", "_win_focus_existing_console",
+            "_RE_FULLSCREEN_BUSY", "_mac_set_dock_icon", "_mac_fullscreen_bit")
 
     def setUp(self):
         self._saved = {k: getattr(ca, k, None) for k in self.KEEP}
@@ -100,6 +100,9 @@ class _Base(unittest.TestCase):
         ca._request_console_exit = lambda reason="quit", hard_delay=None: self.exits.append(reason) or {"ok": True}
         ca._BG_SPAWN = lambda fn: fn()
         ca._EXIT_REQUESTED = None
+        ca._QUIT_KEEPS_SERVICE = None
+        ca._WIN_FS_CACHE["t"] = 0.0
+        ca._WIN_FS_CACHE["v"] = None
         ca._WINDOW_ONLY = False
         ca._RE_FULLSCREEN_BUSY = False
         ca._BACKGROUND.update(on=False, since=None, by=None, wasFullscreen=None)
@@ -151,6 +154,16 @@ class WhatTheCloseButtonDoes(_Base):
         self.assertEqual(self.win.calls, [], "a real quit minimized the window: %r" % self.win.calls)
         self.assertEqual(self.exits, ["window-closing"], self.exits)
         self.assertFalse(ca._BACKGROUND["on"])
+
+    def test_a_quit_that_keeps_the_service_lets_the_window_close(self):
+        """⏻ Quit sets the flag and does not ask for a process exit. The close is allowed."""
+        ca._QUIT_KEEPS_SERVICE = "api-quit:quit-button"
+        allowed = ca._on_console_window_closing()
+        self.assertIs(allowed, True, "quit closed nothing — the window stayed")
+        self.assertEqual(self.exits, [], "quit asked the console to exit: %r" % self.exits)
+        self.assertIsNone(ca._EXIT_REQUESTED)
+        ca._on_console_window_closed()
+        self.assertEqual(self.exits, [], "the closed event stopped the service")
 
     def test_a_real_exit_records_itself_before_anything_else(self):
         """The window's destroy() fires the same `closing` event, so the exit must be on record first."""

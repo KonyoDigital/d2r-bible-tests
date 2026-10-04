@@ -37093,9 +37093,13 @@ class TestV2323NoRelaunchIntoATreeSomebodyIsStillEditing(unittest.TestCase):
     def setUp(self):
         self.ca = ca
         self._run = ca.subprocess.run
+        self._git = ca._git_run
+        ca._TREE_DIAG["t"] = 0.0
 
     def tearDown(self):
         ca.subprocess.run = self._run
+        ca._git_run = self._git
+        ca._TREE_DIAG["t"] = 0.0
 
     def _git_says(self, stdout, rc=0):
         class R(object):
@@ -37103,7 +37107,8 @@ class TestV2323NoRelaunchIntoATreeSomebodyIsStillEditing(unittest.TestCase):
             stdout = b""
         R.stdout = stdout.encode("utf-8")
         R.returncode = rc
-        ca.subprocess.run = lambda *a, **k: R
+        # _git_run is the door. Patching subprocess.run never reaches it: git_quiet owns that call.
+        ca._git_run = lambda *a, **k: R
 
     def test_a_dirty_tree_BLOCKS_the_relaunch(self):
         self._git_says(" M tv/control_app.py\n M tv/control_ui.html\n")
@@ -37130,7 +37135,7 @@ class TestV2323NoRelaunchIntoATreeSomebodyIsStillEditing(unittest.TestCase):
     def test_git_RAISING_is_not_read_as_clean_either(self):
         def boom(*a, **k):
             raise OSError("git: not found")
-        ca.subprocess.run = boom
+        ca._git_run = boom
         dirty, why = ca._tree_is_mid_edit()
         self.assertFalse(dirty)
         self.assertTrue(why, "it reported a clean tree off a command that never ran")

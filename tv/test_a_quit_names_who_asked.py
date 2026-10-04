@@ -125,8 +125,8 @@ class AQuitNamesWhoAsked(unittest.TestCase):
         """★ THE JOINT. Reading `from` and then discarding it would be a fix that ships and
         attributes nothing — the shape this session has hit four times."""
         blk = self._route()
-        self.assertIn("_request_console_exit(_qwho", blk,
-                      "the attribution is read and then NOT passed to the exit path, so the line "
+        self.assertIn("_quit_window_keeps_service(_qwho", blk,
+                      "the attribution is read and then NOT passed to the quit path, so the line "
                       "in his log still says nothing about who asked")
         self.assertNotIn('_request_console_exit("api-quit"', blk,
                          "the exit is still requested with the old fixed string, so the "
@@ -174,8 +174,8 @@ class AQuitNamesWhoAsked(unittest.TestCase):
                       "exactly like one that ignored the request")
         self.assertIn("return", branch, "the refusal falls through and quits anyway")
         # and it must refuse BEFORE the thing that actually exits
-        self.assertLess(i, r.find("_request_console_exit"),
-                        "the refusal is checked AFTER the exit has already been requested")
+        self.assertLess(i, r.find("_quit_window_keeps_service"),
+                        "the refusal is checked AFTER the quit has already been performed")
 
     def test_a_WHITESPACE_name_does_not_defeat_the_refusal(self):
         """★ v3281 — found by the cross-family eye on v3280, and real.

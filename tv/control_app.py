@@ -3884,37 +3884,37 @@ def _pull_report():
     """
     try:
         if os.environ.get("TV_NO_AUTO_PULL"):
-            return {"can": False, "why": "pinned: TV_NO_AUTO_PULL is set on this machine"}
+            return _beacon_git_diag({"can": False, "why": "pinned: TV_NO_AUTO_PULL is set on this machine"})
         fl = fleet_origin_status()          # the CACHED view; a heartbeat must never hit the network
     except Exception:
         return None
     if not isinstance(fl, dict):
         return None
     if fl.get("ok") is False:
-        return {"can": None, "why": (str(fl.get("howTo") or "git could not answer")[:120])}
+        return _beacon_git_diag({"can": None, "why": (str(fl.get("howTo") or "git could not answer")[:120])})
     if fl.get("dirty"):
         # #64 follow-up — a "dirty" tree the lane found beside a stale 0-byte lock is an update CUT OFF
         # mid-checkout, not his edits; the fleet is told which (the worker keeps 160 chars of why)
         with _PRUNE_LOCK:
             _cut = _PULL.get("outcome") == "interrupted"
         if _cut:
-            return {"can": False, "behind": fl.get("behind"),
+            return _beacon_git_diag({"can": False, "behind": fl.get("behind"),
                     "why": ("update CUT OFF mid-checkout: a stale 0-byte index.lock beside a half-written "
-                            "tree - a person has to look")[:160]}
-        return {"can": False, "behind": fl.get("behind"),
-                "why": "local tracked edits — a fast-forward would not be safe here"}
+                            "tree - a person has to look")[:160]})
+        return _beacon_git_diag({"can": False, "behind": fl.get("behind"),
+                "why": "local tracked edits — a fast-forward would not be safe here"})
     # ⚠ #64 — THE LANE'S OWN FAILURES OUTRANK THE CACHED ORIGIN VIEW. For eleven hours his ALT's
     # beacon said "N commits behind and clear to pull" while every pull there failed on an abandoned
     # index.lock: this read only fleet_origin_status(), which can see how far behind a machine is and
     # never whether its pulls WORK. Past the lane's bar it is refused, with the reason.
     _failing = _pull_failing_words()
     if _failing:
-        return {"can": False, "behind": fl.get("behind"), "why": _failing}
+        return _beacon_git_diag({"can": False, "behind": fl.get("behind"), "why": _failing})
     n = fl.get("behind")
     if not n:
-        return {"can": True, "behind": 0, "why": "level with origin"}
-    return {"can": True, "behind": n,
-            "why": "%d commit%s behind and clear to pull" % (n, "s" if n != 1 else "")}
+        return _beacon_git_diag({"can": True, "behind": 0, "why": "level with origin"})
+    return _beacon_git_diag({"can": True, "behind": n,
+            "why": "%d commit%s behind and clear to pull" % (n, "s" if n != 1 else "")})
 
 
 def _relaunch_report():
@@ -3940,17 +3940,17 @@ def _relaunch_report():
     try:
         may, why = drift_may_relaunch()
     except Exception:
-        return {"armed": armed, "may": None, "waiting": None,
-                "why": "could not ask whether a restart is safe right now"}
+        return _beacon_git_diag({"armed": armed, "may": None, "waiting": None,
+                "why": "could not ask whether a restart is safe right now"})
     # 2026-09-28 — `waiting` names the class ("waiting for the shadow reel to close" / "blocked by
     # his session"). drift_may_relaunch LEADS its sentence with exactly those constants, and the
     # worker keeps only armed/may/why (160 chars) — so the sentence is what reaches the fleet, and
     # this field only saves a raw-payload reader from parsing it.
     _w = str(why or "")
     _waiting = next((c for c in (_WAITING_FOR_SHADOW, _BLOCKED_BY_HIM) if _w.startswith(c)), None)
-    return {"armed": armed, "may": bool(may), "waiting": _waiting,
+    return _beacon_git_diag({"armed": armed, "may": bool(may), "waiting": _waiting,
             "held": bool(_RELAUNCH_HOLD.get("held")),
-            "why": (_w or str(st.get("why") or ""))[:160]}
+            "why": (_w or str(st.get("why") or ""))[:160]})
 
 
 def _console_beacon(event="hb"):
@@ -4031,7 +4031,10 @@ def _console_beacon(event="hb"):
             # Without this the chain has a hole exactly where Dean sits: his console is alive,
             # beaconing, six versions back, and the fleet can say nothing about the pull at all.
             "pull": _pull_report(),
-            "mode": st.get("mode"), "event": event,
+            "mode": st.get("mode"),
+            # Dean's window mode, so a PC we cannot sit at still says front, background or fullscreen.
+            "windowMode": (window_mode_payload() or {}).get("mode"),
+            "event": event,
             "user": os.environ.get("TVD_USER", ""),
             "reads": st.get("readCount") or 0,
             # v1496 — the name Konyo gave this machine, so the fleet reads "Konyo's MacBook"
@@ -5780,8 +5783,9 @@ def window_action(what, by="api-window"):
 # ✕ used to END everything: v935.8 made closing the window stop ON AIR ("exiting the console must stop ON
 # AIR"), so a closed window meant no shadow reel, no triage, no drain - the sessions he plays with the
 # console shut were never filmed. His new ruling supersedes that one: ✕ and Esc now send the console to
-# the BACKGROUND and every lane keeps running. A REAL quit is still one click away (⏻ quit in the console,
-# /api/quit with a `from`), and TV_CLOSE_EXITS=1 restores the old ✕.
+# the BACKGROUND and every lane keeps running. ⏻ Quit closes this window and frees its view; the shadow
+# reader, the agent and the sweeps keep running, and the reader stops only from its own switch.
+# TV_CLOSE_EXITS=1 and a window-only view still stop the process.
 #
 # ⚠ COMPLETELY HIDDEN - his second word on it, 2026-09-29 02:55, with a screenshot of a window left on his
 # screen: "make sure this thing and window is completely hidden". No window, no taskbar button, and on the Mac
@@ -5798,6 +5802,9 @@ def window_action(what, by="api-window"):
 # pywebview's `is_fullscreen` flag goes stale the moment the green traffic light is used. The truth is the
 # window's own style mask (NSWindowStyleMaskFullScreen), read on the main thread. [[verify-not-proxy]]
 _BACKGROUND = {"on": False, "since": None, "by": None, "wasFullscreen": None}
+# Set for the moment ⏻ Quit is closing the view. The closing handler lets that close through and does
+# not stop the service. None means no such quit is in progress. Cleared if the window does not go.
+_QUIT_KEEPS_SERVICE = None
 
 
 def close_means_background(exit_requested=None, window_only=False, env=None):
@@ -5813,7 +5820,7 @@ def close_means_background(exit_requested=None, window_only=False, env=None):
         return False, ("TV_CLOSE_EXITS is set in this console's environment, so ✕ quits everything as it "
                        "did before 2026-09-29")
     return True, ("✕ sends the console to the background - the shadow reader, triage and drain keep "
-                  "running; ⏻ quit is what stops them")
+                  "running; ⏻ quit closes this window and the shadow reader keeps running")
 
 
 def _mac_fullscreen_bit(win, timeout=1.0):
@@ -5904,16 +5911,74 @@ def _win_sync_fullscreen_flag(win, actual):
     return False
 
 
+_WIN_FS_CACHE = {"t": 0.0, "v": None}
+
+
+def _status_fullscreen(win):
+    """Fullscreen for a status or beacon read. The style bit gets 50 ms, never the 1 s hide-path wait.
+
+    A None from that read is unknown. The frame-fills-screen guess is left to the hide path: it has
+    lied on a notched screen, and a status poll must not turn a normal window into fullscreen.
+    """
+    bit = None
+    try:
+        bit = _mac_fullscreen_bit(win, timeout=0.05)
+    except TypeError:
+        try:
+            bit = _mac_fullscreen_bit(win)
+        except Exception:
+            bit = None
+    except Exception:
+        bit = None
+    if bit is not None:
+        return bool(bit)
+    try:
+        inst = win.gui.BrowserView.instances.get(win.uid)
+        flag = getattr(inst, "is_fullscreen", None)
+        if flag is not None:
+            return bool(flag)
+    except Exception:
+        return None
+    return None
+
+
+def _cached_fullscreen(win):
+    """The last definite fullscreen answer, refreshed about every 30 s. Unknown does not erase it."""
+    now = time.monotonic()
+    if _WIN_FS_CACHE.get("t") and (now - float(_WIN_FS_CACHE.get("t") or 0)) < 30.0:
+        return _WIN_FS_CACHE.get("v")
+    try:
+        v = _status_fullscreen(win)
+    except Exception:
+        v = None
+    if v is None:
+        return _WIN_FS_CACHE.get("v")
+    _WIN_FS_CACHE["t"] = now
+    _WIN_FS_CACHE["v"] = bool(v)
+    return _WIN_FS_CACHE["v"]
+
+
 def window_mode_payload():
-    """How the console's window stands, for the status route, the launchers and the doctor. -> dict"""
+    """How the console's window stands, for the status route, the launchers, the doctor and the fleet.
+
+    front, background, fullscreen, headless, window-only. A quit that closed the view and left the
+    service up says background, so a PC we cannot sit at still shows the service is running. A
+    leftover quit flag does not say that while a window is still up and the console is not hidden.
+    """
     if globals().get("_WINDOW_ONLY"):
         mode = "window-only"
+    elif _BACKGROUND.get("on") or (
+            globals().get("_MAIN_WIN") is None and globals().get("_QUIT_KEEPS_SERVICE")):
+        mode = "background"
     elif globals().get("_MAIN_WIN") is None:
         mode = "headless"
-    elif _BACKGROUND.get("on"):
-        mode = "background"
     else:
         mode = "front"
+        try:
+            if _cached_fullscreen(globals().get("_MAIN_WIN")) is True:
+                mode = "fullscreen"
+        except Exception:
+            pass
     say = {
         "background": ("minimized since %s (%s) - the service is running; the Dock / taskbar brings it back"
                        if _BACKGROUND.get("by") == "minimized" else
@@ -5921,6 +5986,7 @@ def window_mode_payload():
                           time.strftime("%H:%M", time.localtime((_BACKGROUND.get("since") or 0) / 1000.0))
                           if _BACKGROUND.get("since") else "?", _BACKGROUND.get("by") or "?"),
         "front": "the window is up",
+        "fullscreen": "the window is fullscreen",
         "headless": "no native window on this console (headless or --no-open)",
         "window-only": "a second view attached to another console",
     }[mode]
@@ -5967,7 +6033,8 @@ def console_to_background(by="window-close", sleep=time.sleep):
         return {"ok": False, "did": did, "why": "hiding the window raised %s" % type(e).__name__}
     try:
         print("📺 the console is HIDDEN (%s) - it keeps running: shadow reader, triage and drain carry on. "
-              "The Desktop icon brings it back; ⏻ quit stops everything." % by, flush=True)
+              "The Desktop icon brings it back; ⏻ quit closes this window and the shadow reader keeps running."
+              % by, flush=True)
     except Exception:
         pass
     return {"ok": True, "did": did, "why": ""}
@@ -6017,9 +6084,23 @@ def _refullscreen_after_restore(win, was_fs, sleep=time.sleep, did=None):
         globals()["_RE_FULLSCREEN_BUSY"] = False
 
 
+def _on_console_window_closed():
+    """The window is already gone. A quit that keeps the service must not turn that into a full stop."""
+    if globals().get("_QUIT_KEEPS_SERVICE") and not globals().get("_EXIT_REQUESTED"):
+        return None
+    return _request_console_exit("window-closed")
+
+
 def _on_console_window_closing():
     """pywebview's `closing` handler. Returning False CANCELS the close (pywebview 6: `events.closing.set()`
-    answers True when any handler returned False). -> bool: may the window close?"""
+    answers True when any handler returned False). -> bool: may the window close?
+
+    ⏻ Quit sets _QUIT_KEEPS_SERVICE before destroy(). That close is allowed, and it does not ask the
+    console to exit. A real exit already on record still stops the process, as do TV_CLOSE_EXITS and
+    a window-only view.
+    """
+    if globals().get("_QUIT_KEEPS_SERVICE") and not globals().get("_EXIT_REQUESTED"):
+        return True
     bg, why = close_means_background(globals().get("_EXIT_REQUESTED"), bool(globals().get("_WINDOW_ONLY")))
     if not bg:
         _request_console_exit("window-closing")
@@ -6117,6 +6198,74 @@ def _mark_window_gone(reason=""):
     globals()["_ENGINE_READY"] = False
     if reason:
         print(f"📺 window gone ({reason}) — engine probes disabled", flush=True)
+
+
+def _quit_window_keeps_service(reason="quit-button"):
+    """⏻ Quit closes the console window and frees its WebView. The service stays up.
+
+    The shadow reader, the agent and the sweeps keep going exactly as they do behind ✕. This does
+    not set _EXIT_REQUESTED, does not stop ON AIR, and does not arm os._exit. The shadow reader
+    stops only from its own switch. A rolling reel keeps rolling because the service stays up.
+
+    The flag is set BEFORE destroy(), so the closing and closed handlers let the view go. The
+    window is marked gone before destroy so a probe cannot evaluate_js a dying view (v1460).
+    A destroy that fails puts the window and the probes back and clears the flag: never hide on
+    a failed destroy, and never claim the window is gone while it is still there.
+    """
+    who = str(reason or "quit-button")[:60]
+    globals()["_QUIT_KEEPS_SERVICE"] = who
+    win = globals().get("_MAIN_WIN")
+    saved_live = globals().get("_WINDOW_LIVE")
+    saved_alive = globals().get("_ENGINE_ALIVE")
+    saved_ready = globals().get("_ENGINE_READY")
+    errs = []
+    if win is None:
+        try:
+            _mark_background(who)
+        except Exception as e:
+            errs.append("mark_background: %s" % str(e)[:80])
+        return {"ok": True, "armed": False, "windowDestroyed": False, "service": "running",
+                "reason": who, "errors": errs,
+                "why": "there is no window to close; the shadow reader keeps running"}
+    try:
+        _mark_window_gone(who)
+    except Exception as e:
+        globals()["_QUIT_KEEPS_SERVICE"] = None
+        errs.append("mark_window_gone: %s" % str(e)[:80])
+        return {"ok": False, "armed": False, "windowDestroyed": False, "service": "running",
+                "reason": who, "errors": errs,
+                "why": "the window did not close; the shadow reader keeps running"}
+    destroyed = False
+    try:
+        fn = getattr(win, "destroy", None)
+        if callable(fn):
+            fn()
+            destroyed = True
+        else:
+            errs.append("window_destroy: no destroy")
+    except Exception as e:
+        errs.append("window_destroy: %s" % type(e).__name__)
+        destroyed = False
+    if not destroyed:
+        globals()["_QUIT_KEEPS_SERVICE"] = None
+        globals()["_MAIN_WIN"] = win
+        globals()["_WINDOW_LIVE"] = saved_live
+        globals()["_ENGINE_ALIVE"] = saved_alive
+        globals()["_ENGINE_READY"] = saved_ready
+        return {"ok": False, "armed": False, "windowDestroyed": False, "service": "running",
+                "reason": who, "errors": errs,
+                "why": "the window did not close; the shadow reader keeps running"}
+    try:
+        _mark_background(who)
+    except Exception as e:
+        errs.append("mark_background: %s" % str(e)[:80])
+    try:
+        print("⏻ quit closes this window and the shadow reader keeps running (%s)" % who, flush=True)
+    except Exception:
+        pass
+    return {"ok": True, "armed": False, "windowDestroyed": True, "service": "running",
+            "reason": who, "errors": errs,
+            "why": "the window closed and the shadow reader keeps running"}
 
 
 def _arm_force_exit(reason="quit", delay=None):
@@ -8533,11 +8682,11 @@ def open_control_window():
         win = globals().get("_MAIN_WIN")
         if win is not None and hasattr(win, "events"):
             # 2026-09-29 — ✕ SENDS THE CONSOLE TO THE BACKGROUND (see close_means_background). The
-            # handler answers False to CANCEL the close and minimizes instead; a real quit (⏻ quit,
-            # /api/quit, TV_CLOSE_EXITS=1, a window-only view) still closes and exits exactly as before.
+            # handler answers False to CANCEL the close and hides instead. ⏻ Quit closes this view
+            # and leaves the service running. TV_CLOSE_EXITS=1 and a window-only view still exit.
             _on_win_closing = _on_console_window_closing
             def _on_win_closed():
-                _request_console_exit("window-closed")
+                _on_console_window_closed()
             try:
                 win.events.closing += _on_win_closing
             except Exception:
@@ -22439,10 +22588,10 @@ def _pull_once():
             _PULL.pop("err", None)
 
     if os.environ.get("TV_NO_AUTO_PULL"):
-        _set(on=False, outcome="off", say="auto-pull is switched off here by TV_NO_AUTO_PULL")
+        _set(on=False, outcome="off", exit=None, say="auto-pull is switched off here by TV_NO_AUTO_PULL")
         return None
     if not os.path.isdir(os.path.join(REPO, ".git")):
-        _set(on=None, outcome="unknown",
+        _set(on=None, outcome="unknown", exit=None,
              say="this tree is not a git checkout, so whether it is current is UNKNOWN")
         return None
     try:
@@ -22453,7 +22602,7 @@ def _pull_once():
         _st = _git_run(["git", "status", "--porcelain", "--untracked-files=no"],
                        cwd=REPO, capture_output=True, text=True, timeout=20)
         if _st.returncode != 0:
-            _set(on=True, outcome="failed", err=_git_err_line(_st),
+            _set(on=True, outcome="failed", err=_git_err_line(_st), exit=_st.returncode,
                  say=("git could not read the working tree (exit %d: %s) — UNKNOWN, and "
                       "this lane does not pull over a tree it cannot see"
                       % (_st.returncode, _git_err_line(_st))))
@@ -22461,6 +22610,7 @@ def _pull_once():
         _dirty = (_st.stdout or "").strip()
     except Exception as e:
         _set(on=True, outcome="failed", err="could not read the working tree (%s)" % type(e).__name__,
+             exit=None,
              say="could not read the working tree (%s), so this is UNMEASURED - not clean"
                  % type(e).__name__)
         return None
@@ -22473,7 +22623,7 @@ def _pull_once():
         if _cut:
             _pull_note_interrupted(_cut)
             return None
-        _set(on=True, outcome="dirty",
+        _set(on=True, outcome="dirty", exit=None,
              say=("local tracked edits are present, so this machine is NOT auto-pulling - "
                   "commit or stash them to rejoin the fleet"))
         return False
@@ -22505,7 +22655,7 @@ def _pull_once():
                     _r = _git_run(_a, cwd=REPO, capture_output=True, text=True, timeout=_t)
             if _r.returncode != 0:
                 _set(on=True, before=before, after=None, pulled=None,
-                     outcome="failed", err=_git_err_line(_r),
+                     outcome="failed", err=_git_err_line(_r), exit=_r.returncode,
                      say=("%s did not succeed (exit %d: %s) — UNKNOWN, NOT up to date%s"
                           % (_what, _r.returncode, _git_err_line(_r), _lock_left_words(_lock))))
                 return None
@@ -22514,13 +22664,14 @@ def _pull_once():
     except Exception as e:
         _set(on=True, before=None, after=None, pulled=None,
              outcome="failed", err="the pull did not complete (%s)" % type(e).__name__,
+             exit=None,
              say="the pull did not complete (%s) - UNKNOWN, not up to date" % type(e).__name__)
         return None
     moved = bool(before and after and before != after)
     _cleared = (" (after %s)" % _lock.get("say")) if _lock.get("cleared") else ""
     with _PRUNE_LOCK:
         _PULL.update({"checked": now, "on": True, "before": before, "after": after,
-                      "pulled": moved, "lastTs": now,
+                      "pulled": moved, "lastTs": now, "exit": 0,
                       "worked": int(_PULL.get("worked") or 0) + (1 if moved else 0),
                       "say": ((("fleet update: %s -> %s" % (before, after)) if moved
                                else "already level with origin/main at %s" % (after or "?"))
@@ -22823,6 +22974,140 @@ def _drift_publish_relaunch(may, why, blocker):
                               "at": int(time.time() * 1000)}
 
 
+def _public_git_text(text, limit=160):
+    """A git sentence safe on a public beacon. Home directories and drive paths are removed."""
+    t = str(text or "")
+    t = re.sub(r"/Users/\S+", "", t)
+    t = re.sub(r"[A-Za-z]:\\[^\s]+", "", t)
+    t = " ".join(t.split())
+    return t[:limit]
+
+
+def _safe_repo_rel(name):
+    """A porcelain path that may be compared with origin/main. Absolute paths and '..' are refused."""
+    name = str(name or "").replace("\\", "/").strip()
+    if not name or name.startswith("/") or name.startswith("~"):
+        return None
+    if ".." in name.split("/") or ":" in name:
+        return None
+    return name
+
+
+def _bytes_match_ignoring_cr(left, right):
+    if left == right:
+        return True
+
+    def _norm(raw):
+        return raw.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+
+    return _norm(left) == _norm(right)
+
+
+def _matches_fetched_origin(root, rel):
+    """True only when the working file matches origin/main's blob, byte for byte or ignoring CR.
+
+    False when that blob cannot be read. Unknown is not 'an update has landed'. This does not fetch.
+    """
+    rel = _safe_repo_rel(rel)
+    if rel is None:
+        return False
+    try:
+        shown = _git_run(["git", "-C", root, "show", "origin/main:" + rel],
+                         capture_output=True, timeout=8)
+        if getattr(shown, "returncode", 1) != 0:
+            return False
+        blob = getattr(shown, "stdout", b"") or b""
+        if isinstance(blob, str):
+            blob = blob.encode("utf-8", "replace")
+        with open(os.path.join(root, rel), "rb") as fh:
+            disk = fh.read()
+    except Exception:
+        return False
+    return _bytes_match_ignoring_cr(disk, blob)
+
+
+_TREE_DIAG = {"t": 0.0, "head": "", "autocrlf": "", "porcelain": ""}
+
+
+def _tree_diag(paths=("tv/control_app.py", "tv/control_ui.html", "tv/tv_diablo.py")):
+    """HEAD, core.autocrlf, and the first porcelain lines for those paths. Local git only. Never fetches.
+
+    Cached for a few seconds so one heartbeat does not spawn the same three commands twice.
+    """
+    now = time.monotonic()
+    if _TREE_DIAG.get("t") and now - float(_TREE_DIAG.get("t") or 0) < 20:
+        return {"head": _TREE_DIAG.get("head") or "",
+                "autocrlf": _TREE_DIAG.get("autocrlf") or "unset",
+                "porcelain": _TREE_DIAG.get("porcelain") or ""}
+    root = os.path.dirname(HERE) or "."
+    head, crlf, porcelain = "", "unset", ""
+    try:
+        rh = _git_run(["git", "-C", root, "rev-parse", "--short", "HEAD"],
+                      capture_output=True, timeout=8)
+        if getattr(rh, "returncode", 1) == 0:
+            raw = getattr(rh, "stdout", b"") or b""
+            if isinstance(raw, bytes):
+                raw = raw.decode("utf-8", "replace")
+            cand = (str(raw).strip().split() or [""])[0]
+            if re.fullmatch(r"[0-9a-f]{4,16}", cand):
+                head = cand
+    except Exception:
+        head = ""
+    try:
+        rc = _git_run(["git", "-C", root, "config", "--get", "core.autocrlf"],
+                      capture_output=True, timeout=8)
+        raw = getattr(rc, "stdout", b"") or b""
+        if isinstance(raw, bytes):
+            raw = raw.decode("utf-8", "replace")
+        cand = (str(raw).strip().split() or [""])[0]
+        crlf = cand if cand in ("true", "false", "input") else "unset"
+    except Exception:
+        crlf = "unset"
+    try:
+        st = _git_run(["git", "-C", root, "status", "--porcelain", "--"] + list(paths),
+                      capture_output=True, timeout=8)
+        if getattr(st, "returncode", 1) == 0:
+            raw = getattr(st, "stdout", b"") or b""
+            if isinstance(raw, bytes):
+                raw = raw.decode("utf-8", "replace")
+            lines = []
+            for ln in str(raw).splitlines():
+                if "/Users/" in ln or ":\\" in ln:
+                    continue
+                s = ln.strip()
+                if s:
+                    lines.append(s)
+                if len(lines) >= 4:
+                    break
+            porcelain = _public_git_text(" | ".join(lines), 240)
+    except Exception:
+        porcelain = ""
+    _TREE_DIAG.update(t=now, head=head, autocrlf=crlf, porcelain=porcelain)
+    return {"head": head, "autocrlf": crlf, "porcelain": porcelain}
+
+
+def _beacon_git_diag(row):
+    """Attach the local git diagnosis to a pull or relaunch beacon object. None stays None."""
+    if not isinstance(row, dict):
+        return row
+    out = dict(row)
+    try:
+        diag = _tree_diag()
+    except Exception:
+        diag = {}
+    for key in ("head", "autocrlf", "porcelain"):
+        out[key] = diag.get(key) or None
+    try:
+        with _PRUNE_LOCK:
+            ex = _PULL.get("exit")
+            err = _PULL.get("lastErr")
+    except Exception:
+        ex, err = None, None
+    out["exit"] = ex if type(ex) is int else None
+    out["err"] = _public_git_text(err, 160) or None
+    return out
+
+
 def _tree_is_mid_edit(paths=("tv/control_app.py", "tv/control_ui.html", "tv/tv_diablo.py")):
     """Is the code this process would exec into uncommitted? -> (True|False, why)
 
@@ -22830,6 +23115,11 @@ def _tree_is_mid_edit(paths=("tv/control_app.py", "tv/control_ui.html", "tv/tv_d
     refuses to answer, this returns False and says so, because bricking auto-relaunch everywhere
     to fix one machine's hazard trades a small harm for a bigger one. What it will never do is
     report CLEAN on the strength of a command that failed. [[unknown-stays-unknown]]
+
+    A file that differs from HEAD but matches the blob already fetched at origin/main — the same
+    bytes, or the same bytes once CR at end of line is ignored — is an update that has landed,
+    not a person mid-edit. A file that matches neither still blocks. A blob that cannot be read
+    still blocks: unknown is not an update.
     """
     try:
         root = os.path.dirname(HERE) or "."
@@ -22843,7 +23133,19 @@ def _tree_is_mid_edit(paths=("tv/control_app.py", "tv/control_ui.html", "tv/tv_d
         # split on whitespace rather than counting bytes: porcelain's status field is two
         # columns but a rename prints "R  old -> new", and a byte slice got this off by one
         # on the first try ("v/control_app.py"). The path is the LAST field, always.
-        names = [ln.split()[-1] for ln in txt.split("\n") if ln.strip()][:4]
+        names = []
+        for ln in txt.split("\n"):
+            if not ln.strip():
+                continue
+            rel = ln.split()[-1]
+            safe = _safe_repo_rel(rel)
+            if safe is not None and _matches_fetched_origin(root, safe):
+                continue
+            names.append(safe or rel)
+            if len(names) >= 4:
+                break
+        if not names:
+            return False, ""
         return True, ("the working tree is mid-edit (%s) - a relaunch would put a half-written "
                       "build on screen, so it waits for the edit to be committed"
                       % ", ".join(names))
@@ -38151,7 +38453,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3578",
+        "ver": "v3579",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
@@ -43287,27 +43589,22 @@ class Handler(BaseHTTPRequestHandler):
                 return
             r = None
             try:
-                r = _request_console_exit(_qwho, hard_delay=0.55)
+                r = _quit_window_keeps_service(_qwho)
             except Exception as _e:
-                try:
-                    _mark_window_gone(_qwho)
-                    _schedule_exit_stop(_qwho)
-                    _arm_force_exit(_qwho + "-fallback", delay=0.55)
-                except Exception as _e2:
-                    _e = _e2
-                r = {"ok": bool(globals().get("_FORCE_EXIT_ARMED")),
-                     "armed": bool(globals().get("_FORCE_EXIT_ARMED")),
-                     "windowDestroyed": False,
-                     "errors": ["request_console_exit: %s" % str(_e)[:120]]}
+                # A raise must not stop the service. The window stays, and so does the shadow reader.
+                globals()["_QUIT_KEEPS_SERVICE"] = None
+                r = {"ok": False, "armed": False, "windowDestroyed": False, "service": "running",
+                     "errors": ["quit_window: %s" % str(_e)[:120]],
+                     "why": "the window did not close; the shadow reader keeps running"}
             if not isinstance(r, dict):
-                r = {"ok": bool(globals().get("_FORCE_EXIT_ARMED")),
-                     "armed": bool(globals().get("_FORCE_EXIT_ARMED")),
-                     "windowDestroyed": False, "errors": []}
+                r = {"ok": False, "armed": False, "windowDestroyed": False, "service": "running",
+                     "errors": []}
             if r.get("ok"):
-                self._json(200, dict(r, msg="control quitting"))
+                self._json(200, dict(r, msg="the window closed and the shadow reader keeps running"))
             else:
                 self._json(500, dict(r, ok=False,
-                                     msg="quit FAILED — nothing armed, console still up: "
+                                     msg="quit FAILED — the window is still up and the shadow reader "
+                                         "keeps running: "
                                          + ("; ".join(r.get("errors") or []) or "unknown")))
             return
         self._json(404, {"ok": False, "msg": "not found"})
