@@ -21,6 +21,8 @@ try:
     _enable()
 except Exception:
     pass
+import fixture_tmp as _fx_tmp  # noqa: E402  #171 — this run's scratch dirs leave with it
+_fx_tmp.contain()
 import control_app as ca  # noqa: E402
 
 
@@ -438,6 +440,103 @@ class TheLauncherUsesTheSameRule(unittest.TestCase):
         with open(foo, "rb") as fh:
             self.assertEqual(fh.read(), b"local-untracked\n")
 
+    def _fresh(self):
+        import subprocess
+        import tempfile
+        d = tempfile.mkdtemp(prefix="launcher_pull_")
+        self.addCleanup(self._rm, d)
+        subprocess.check_call(["git", "init", "-q"], cwd=d)
+        subprocess.check_call(["git", "-C", d, "config", "user.email", "t@example.com"])
+        subprocess.check_call(["git", "-C", d, "config", "user.name", "t"])
+        return d
+
+    def _commit_all(self, d, msg):
+        import subprocess
+        subprocess.check_call(["git", "-C", d, "add", "-A"])
+        subprocess.check_call(["git", "-C", d, "commit", "-q", "-m", msg])
+
+    def test_a_similar_rename_does_not_hide_the_untracked_file_it_lands_on(self):
+        import subprocess
+        import launcher_pull as lp
+        d = self._fresh()
+        with open(os.path.join(d, "a.txt"), "wb") as fh:
+            fh.write(b"one\n")
+        with open(os.path.join(d, "old.txt"), "wb") as fh:
+            fh.write(b"keep\n")
+        self._commit_all(d, "one")
+        base = self._head(d)
+        with open(os.path.join(d, "a.txt"), "wb") as fh:
+            fh.write(b"two\n")
+        subprocess.check_call(["git", "-C", d, "mv", "old.txt", "new.txt"])
+        self._commit_all(d, "two")
+        subprocess.check_call(["git", "-C", d, "config", "diff.renames", "true"])
+        subprocess.check_call(["git", "-C", d, "update-ref", "refs/remotes/origin/main", "HEAD"])
+        subprocess.check_call(["git", "-C", d, "reset", "-q", "--hard", base])
+        with open(os.path.join(d, "a.txt"), "wb") as fh:
+            fh.write(b"two\n")
+        new = os.path.join(d, "new.txt")
+        with open(new, "wb") as fh:
+            fh.write(b"local-untracked\n")
+        self.assertEqual(lp.apply(d), 2)
+        self.assertEqual(self._head(d), base)
+        with open(new, "rb") as fh:
+            self.assertEqual(fh.read(), b"local-untracked\n")
+
+    def test_a_file_where_the_update_adds_a_directory_is_not_replaced(self):
+        import os as _os
+        import subprocess
+        import launcher_pull as lp
+        d = self._fresh()
+        with open(os.path.join(d, "a.txt"), "wb") as fh:
+            fh.write(b"one\n")
+        self._commit_all(d, "one")
+        base = self._head(d)
+        with open(os.path.join(d, "a.txt"), "wb") as fh:
+            fh.write(b"two\n")
+        slot = os.path.join(d, "slot")
+        _os.mkdir(slot)
+        with open(os.path.join(slot, "inner.txt"), "wb") as fh:
+            fh.write(b"from-origin\n")
+        self._commit_all(d, "two")
+        subprocess.check_call(["git", "-C", d, "update-ref", "refs/remotes/origin/main", "HEAD"])
+        subprocess.check_call(["git", "-C", d, "reset", "-q", "--hard", base])
+        with open(os.path.join(d, "a.txt"), "wb") as fh:
+            fh.write(b"two\n")
+        with open(slot, "wb") as fh:
+            fh.write(b"local-file\n")
+        self.assertEqual(lp.apply(d), 2)
+        self.assertEqual(self._head(d), base)
+        self.assertTrue(os.path.isfile(slot))
+        with open(slot, "rb") as fh:
+            self.assertEqual(fh.read(), b"local-file\n")
+
+    def test_two_added_paths_are_read_separately(self):
+        import subprocess
+        import launcher_pull as lp
+        d = self._fresh()
+        with open(os.path.join(d, "a.txt"), "wb") as fh:
+            fh.write(b"one\n")
+        self._commit_all(d, "one")
+        base = self._head(d)
+        with open(os.path.join(d, "a.txt"), "wb") as fh:
+            fh.write(b"two\n")
+        with open(os.path.join(d, "other.txt"), "wb") as fh:
+            fh.write(b"from-origin\n")
+        with open(os.path.join(d, "plain.txt"), "wb") as fh:
+            fh.write(b"from-origin\n")
+        self._commit_all(d, "two")
+        subprocess.check_call(["git", "-C", d, "update-ref", "refs/remotes/origin/main", "HEAD"])
+        subprocess.check_call(["git", "-C", d, "reset", "-q", "--hard", base])
+        with open(os.path.join(d, "a.txt"), "wb") as fh:
+            fh.write(b"two\n")
+        other = os.path.join(d, "other.txt")
+        with open(other, "wb") as fh:
+            fh.write(b"local-untracked\n")
+        self.assertEqual(lp.apply(d), 2)
+        self.assertEqual(self._head(d), base)
+        with open(other, "rb") as fh:
+            self.assertEqual(fh.read(), b"local-untracked\n")
+
     def test_an_untracked_file_origin_does_not_ship_still_lets_the_update_land(self):
         import launcher_pull as lp
         d, path = self._repo()
@@ -520,8 +619,33 @@ RED_PROOF = [
     {
         "why": "an untracked file that the update also adds is replaced by the reset",
         "file": "tv/launcher_pull.py",
-        "find": "        if os.path.lexists(os.path.join(repo, rel)):\n            return True\n",
-        "replace": "        if os.path.lexists(os.path.join(repo, rel)):\n            return False\n",
+        "find": "        if os.path.lexists(os.path.join(repo, rel)):\n"
+                "            return True\n",
+        "replace": "        if os.path.lexists(os.path.join(repo, rel)):\n"
+                   "            return False\n",
+        "matches": 1,
+    },
+    {
+        "why": "a similar rename hides the new path, so the reset replaces the untracked file there",
+        "file": "tv/launcher_pull.py",
+        "find": "                                \"--no-renames\", \"HEAD\", \"origin/main\"])\n",
+        "replace": "                                \"HEAD\", \"origin/main\"])\n",
+        "matches": 1,
+    },
+    {
+        "why": "two added paths are one string, so the reset replaces the untracked file",
+        "file": "tv/launcher_pull.py",
+        "find": "    rc, out, _err = _run(repo, [\"diff\", \"-z\", \"--name-only\", \"--diff-filter=A\",\n",
+        "replace": "    rc, out, _err = _run(repo, [\"diff\", \"--name-only\", \"--diff-filter=A\",\n",
+        "matches": 1,
+    },
+    {
+        "why": "a file where the update adds a directory is replaced, and the local bytes are gone",
+        "file": "tv/launcher_pull.py",
+        "find": "            if os.path.lexists(parent) and not os.path.isdir(parent):\n"
+                "                return True\n",
+        "replace": "            if os.path.lexists(parent) and not os.path.isdir(parent):\n"
+                   "                return False\n",
         "matches": 1,
     },
 ]

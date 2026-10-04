@@ -6054,9 +6054,13 @@ def _wait_for_a_window_after_quit(sleep, tries=80):
     window is created shown, so this returns as soon as it exists and does not
     call show() itself: pywebview's show() waits until the window has been
     shown, and this request is what the launcher is waiting on.
+
+    The flag is a token this request owns. A later request replaces it. A
+    timeout clears the flag only while this request still owns it.
     """
+    token = object()
     globals()["_REOPEN_WHY"] = None
-    globals()["_REOPEN_WINDOW"] = True
+    globals()["_REOPEN_WINDOW"] = token
     for _ in range(int(tries)):
         win = globals().get("_MAIN_WIN")
         if win is not None:
@@ -6065,9 +6069,9 @@ def _wait_for_a_window_after_quit(sleep, tries=80):
             return None
         sleep(0.05)
     win = globals().get("_MAIN_WIN")
-    if win is None:
-        # The launcher was told there is no window. Leaving the flag set would
-        # open one later, in the process the launcher is about to replace.
+    if win is None and globals().get("_REOPEN_WINDOW") is token:
+        # The launcher was told there is no window. Leaving this request's flag
+        # set would open one later, in the process the launcher is about to replace.
         globals()["_REOPEN_WINDOW"] = False
     return win
 
@@ -38645,7 +38649,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3586",
+        "ver": "v3587",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

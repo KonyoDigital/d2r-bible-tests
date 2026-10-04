@@ -272,6 +272,22 @@ class QuitLeavesTheShadowReaderRunning(unittest.TestCase):
         self.assertEqual(ca._QUIT_KEEPS_SERVICE, "api-quit:quit-button")
         self._shadow_untouched()
 
+    def test_a_timed_out_front_request_does_not_clear_a_newer_one(self):
+        ca._QUIT_KEEPS_SERVICE = "api-quit:quit-button"
+        ca._MAIN_WIN = None
+        newer = object()
+        n = {"n": 0}
+
+        def sleep(_s):
+            n["n"] += 1
+            if n["n"] == 1:
+                ca._REOPEN_WINDOW = newer
+
+        win = ca._wait_for_a_window_after_quit(sleep, tries=2)
+        self.assertIsNone(win)
+        self.assertIs(ca._REOPEN_WINDOW, newer,
+                      "a timed-out front request cleared a newer reopen flag")
+
     def test_a_reopened_window_is_shown_even_when_the_process_started_hidden(self):
         saved = list(sys.argv)
         try:
@@ -347,6 +363,13 @@ RED_PROOF = [
         "file": "tv/control_app.py",
         "find": "        win = _wait_for_a_window_after_quit(sleep)\n",
         "replace": "        win = None\n",
+        "matches": 1,
+    },
+    {
+        "why": "a timed-out front request clears a newer one, so that window never opens",
+        "file": "tv/control_app.py",
+        "find": "    if win is None and globals().get(\"_REOPEN_WINDOW\") is token:\n",
+        "replace": "    if win is None:\n",
         "matches": 1,
     },
 ]

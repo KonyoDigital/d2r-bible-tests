@@ -102,15 +102,27 @@ def _untracked_in_the_way(repo):
     `git reset --hard` replaces that file and exits 0. A fast-forward used to
     refuse. None means git could not be asked, which is not a clear way.
     """
-    rc, out, _err = _run(repo, ["diff", "--name-only", "--diff-filter=A", "HEAD", "origin/main"])
+    # --no-renames: a rename is an add of the new path. Without it, diff.renames
+    # hides that path and reset --hard replaces an untracked file there.
+    # -z: without it several names arrive as one string, so a file among them
+    # is missed and reset --hard replaces it.
+    rc, out, _err = _run(repo, ["diff", "-z", "--name-only", "--diff-filter=A",
+                                "--no-renames", "HEAD", "origin/main"])
     if rc != 0:
         return None
-    for raw in out.splitlines():
-        rel = raw.decode("utf-8", "replace").strip()
+    for raw in out.split(b"\0"):
+        rel = raw.decode("utf-8", "replace")
         if not rel:
             continue
         if _safe_rel(rel) is None:
             return None
+        parts = rel.split("/")
+        acc = ""
+        for part in parts[:-1]:
+            acc = part if not acc else acc + "/" + part
+            parent = os.path.join(repo, acc)
+            if os.path.lexists(parent) and not os.path.isdir(parent):
+                return True
         if os.path.lexists(os.path.join(repo, rel)):
             return True
     return False
