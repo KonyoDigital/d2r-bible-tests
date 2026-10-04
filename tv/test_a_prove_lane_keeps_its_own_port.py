@@ -11,7 +11,8 @@ The bind is not the deleter. This law watches the file:
     and the watcher records no delete;
   · the second process, having lost the bind, sends a wipe to that port — the wipe runs in
     the FIRST sandbox, the watcher records the delete, and the deleter's pid is the listener;
-  · the same wipe with each process on its own port — the neighbour's tracked file stays.
+  · the same wipe is delivered to the other process on its own port — that process
+    deletes its own tracked file, and the first sandbox's file stays.
 
 heart2 stamps TV_LANE_PORT_BASE per lane. A suite derives from it and, with no base, keeps
 the port it has always used. His console port is never derived.
@@ -181,25 +182,28 @@ class AProveLaneKeepsItsOwnPort(unittest.TestCase):
         for p in (shared, other):
             self.assertNotIn(p, LP.FORBIDDEN)
 
-        stayed, _ev, deleter = self._collide(shared, shared, "hold")
+        stayed, _ev, deleter, _neighbour = self._collide(shared, shared, "hold")
         self.assertTrue(stayed, "binding the same port deleted the tracked file, and a bind cannot")
         self.assertEqual(_ev, [], "the watcher saw a delete when nobody asked for one: %r" % _ev)
         self.assertIsNone(deleter)
 
-        stayed, ev, deleter = self._collide(shared, shared, "wipe")
+        stayed, ev, deleter, _neighbour = self._collide(shared, shared, "wipe")
         self.assertFalse(stayed, "a wipe through the shared port left the tracked file in place")
         self.assertEqual(ev, ["delete"], "the watcher did not record the unlink: %r" % ev)
         self.assertEqual(deleter, "listener",
                          "the deleter was not the listener that holds the shared port: %r" % deleter)
 
-        stayed, ev, deleter = self._collide(shared, other, "wipe")
+        stayed, ev, deleter, neighbour = self._collide(shared, other, "wipe")
         self.assertTrue(stayed, "a wipe on the other port deleted this sandbox's tracked file")
         self.assertEqual(ev, [], "the watcher saw a delete across separate ports: %r" % ev)
+        self.assertIsNone(deleter, "the other port's wipe was carried out by this sandbox: %r" % deleter)
+        self.assertFalse(neighbour, "the wipe never arrived on the other port, so this case could not fail")
 
     def _collide(self, port_a, port_b, role_b):
         """Sandbox A listens on port_a. B uses port_b with `role_b`. Watch A's tracked.py.
 
-        -> (file_still_there, watcher events, 'listener' | 'other' | None)
+        -> (file_still_there, watcher events, 'listener' | 'other' | None,
+            other sandbox's file still there)
         """
         root = tempfile.mkdtemp(prefix="lanevanish.")
         self.addCleanup(__import__("shutil").rmtree, root, True)
@@ -225,6 +229,17 @@ class AProveLaneKeepsItsOwnPort(unittest.TestCase):
         env_b = dict(os.environ, BOX=box_b, PORT=str(port_b), ROLE=role_b)
         proc_b = subprocess.Popen([sys.executable, script], env=env_b)
         self.addCleanup(self._reap, proc_b)
+        # Separate ports: deliver the wipe to B's own listener. B only sends
+        # one itself when its bind fails, so without this the third case
+        # never asks anyone to delete and the neighbour's file cannot go.
+        if port_a != port_b and role_b == "wipe":
+            time.sleep(0.15)
+            c = socket.create_connection(("127.0.0.1", int(port_b)), 2)
+            try:
+                c.sendall(b"WIPE\n")
+                c.recv(8)
+            finally:
+                c.close()
         try:
             proc_b.wait(timeout=5)
             proc_a.wait(timeout=5)
@@ -237,7 +252,8 @@ class AProveLaneKeepsItsOwnPort(unittest.TestCase):
             with open(pid_path) as fh:
                 got = fh.read().strip()
             who = "listener" if got == str(proc_a.pid) else "other"
-        return os.path.isfile(tracked), list(events), who
+        neighbour = os.path.join(box_b, "tracked.py")
+        return os.path.isfile(tracked), list(events), who, os.path.isfile(neighbour)
 
     @staticmethod
     def _reap(proc):
