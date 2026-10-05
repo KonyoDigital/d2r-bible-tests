@@ -10303,6 +10303,28 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #tab-chars .chx-slots li[data-tier="HARDENED"] .chx-item{color:var(--chx-gold)}
 #tab-chars .chx-slots li[data-tier="PROVEN"] .chx-item{color:var(--norm)}
 #tab-chars .chx-slots li[data-tier="WATCHED"] .chx-item{color:var(--acc-intel)}
+/* #146 step 3c — the in-game character opens as a window of the cells a look already named.
+   The doll is those equipped cells. An inventory or stash cell is not drawn until one is joined
+   to this character, so an empty grid is not standing in for a look that never happened. */
+#chx-win{position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(4,3,2,.62);box-sizing:border-box}
+#chx-win[hidden]{display:none}
+#chx-win .chx-win-box{width:min(440px,100%);max-height:min(640px,100%);overflow:auto;background:var(--surface);border:1px solid var(--border-light);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
+#chx-win .chx-win-h{display:flex;align-items:center;gap:8px}
+#chx-win .chx-win-name{font-family:var(--serif-display);font-size:var(--fs-chx-name);color:var(--text);min-width:0;flex:1}
+#chx-win .chx-doll{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+#chx-win .chx-cell{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0;text-align:left;font-size:var(--fs-meta);color:var(--text);background:var(--surface);border:1px solid var(--border-light);border-radius:8px;padding:6px 8px}
+#chx-win .chx-cell[data-slot="helm"]{grid-column:2;grid-row:1}
+#chx-win .chx-cell[data-slot="amulet"]{grid-column:2;grid-row:2}
+#chx-win .chx-cell[data-slot="weapon"]{grid-column:1;grid-row:3}
+#chx-win .chx-cell[data-slot="torso"]{grid-column:2;grid-row:3}
+#chx-win .chx-cell[data-slot="off-hand"]{grid-column:3;grid-row:3}
+#chx-win .chx-cell[data-slot="gloves"]{grid-column:1;grid-row:4}
+#chx-win .chx-cell[data-slot="belt"]{grid-column:2;grid-row:4}
+#chx-win .chx-cell[data-slot="boots"]{grid-column:3;grid-row:4}
+#chx-win .chx-cell[data-slot="ring1"]{grid-column:1;grid-row:5}
+#chx-win .chx-cell[data-slot="ring2"]{grid-column:3;grid-row:5}
+#chx-win .chx-win-say{margin:0;font-size:var(--fs-body);color:var(--text)}
+#chx-win .chx-win-grid{margin:0;font-size:var(--fs-meta);color:var(--text-dim)}
 #tab-chars .chx-how{margin:0;padding-left:18px;font-size:var(--fs-body);color:var(--text-muted);line-height:var(--lh-normal)}
 #tab-chars .chx-how li{margin:2px 0}
 #tab-chars .chx-empty-t{font-family:var(--serif-display);font-size:var(--fs-chx-name);color:var(--text)}
@@ -10604,6 +10626,91 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       + (G.g.slots || []).length + ' slots so far</div><ul class="chx-slots">' + rows + '</ul>' + unTxt + '</div>';
   }
   window._chxGearHtml = _gearHtml;
+  /* #146 step 3c — clicking the character opens this window. The cells are the ones a look already
+     named (equipped:helm, and the same shape for the other nine). It does not open the planner and
+     it does not write a build. A character the ledger has not spoken about stays UNKNOWN, with no
+     cells drawn as if each slot had been looked at. */
+  var _chxKey = null, _chxCell = '';
+  function _chxJs(s){ return String(s == null ? '' : s).replace(/\\/g, '\\\\').replace(/'/g, '\\\''); }
+  function _charOfKey(key){
+    var r = _read();
+    var S = (r.ok && typeof window._cbSections === 'function') ? window._cbSections(r.all) : null;
+    var groups = S ? (S.ingame || []).concat(S.mules || []) : [];
+    for (var i = 0; i < groups.length; i++){ if (groups[i].t && groups[i].t.key === key) return groups[i].t; }
+    return { key: key, name: key.indexOf('seen:') === 0 ? key.slice(5) : (key || 'this character') };
+  }
+  function _chxSay(t, cell){
+    var G = _gearOf(t);
+    if (G.state === 'unknown') return 'What ' + esc(t.name || 'this character') + ' wears is UNKNOWN here — ' + esc(G.why) + '.';
+    if (G.state === 'none') return 'Nothing seen on ' + esc(t.name || 'this character') + ' yet — items appear here as your reels see them worn.';
+    if (!cell) return 'Choose a cell.';
+    var slot = cell.indexOf('equipped:') === 0 ? cell.slice('equipped:'.length) : '';
+    var row = null;
+    (G.g.slots || []).forEach(function(s){ if (s.slot === slot) row = s; });
+    if (!row) return esc(cell) + ' is not a cell on this character.';
+    var word = esc(_SLOT_WORD[row.slot] || row.slot);
+    if (!row.item) return word + ' · not seen yet';
+    return word + ' · ' + esc(row.item) + ' · ' + esc(_TIER_FACE[row.tier] || 'tier UNKNOWN') + ' · ' + _looks(row.sightings);
+  }
+  function _chxCellBtn(s){
+    var cell = 'equipped:' + s.slot;
+    var word = esc(_SLOT_WORD[s.slot] || s.slot);
+    var attrs = ' data-cell="' + esc(cell) + '" data-slot="' + esc(s.slot) + '"';
+    var on = ' onclick="window._chxPick(\'' + _chxJs(cell) + '\')"';
+    if (!s.item) return '<button type="button" class="chx-cell"' + attrs + ' data-state="unseen"' + on + '>'
+      + word + '<span class="chx-item chx-unk">not seen yet</span></button>';
+    return '<button type="button" class="chx-cell"' + attrs + ' data-tier="' + esc(s.tier || 'UNKNOWN') + '"' + on + '>'
+      + word + '<span class="chx-item">' + esc(s.item) + '</span></button>';
+  }
+  function _chxWinHtml(t){
+    var G = _gearOf(t), nm = esc(t.name || 'this character');
+    var head = '<div class="chx-win-h"><span class="chx-win-name">' + nm + '</span>'
+      + '<button type="button" data-act="close" onclick="window._chxClose()">Close</button></div>';
+    if (G.state !== 'seen') return head + '<div class="chx-doll" data-state="' + G.state + '"><p class="chx-win-say">' + _chxSay(t, '') + '</p></div>';
+    var buttons = (G.g.slots || []).map(_chxCellBtn).join('');
+    var un = G.g.unplaced || [];
+    var unTxt = un.length ? '<p class="chx-win-grid">Worn, slot not told yet: ' + un.map(function(u){
+      return esc(u.item) + ' (' + _looks(u.sightings) + ')'; }).join(' · ') + '</p>' : '';
+    return head + '<div class="chx-doll" data-state="seen">' + buttons + '</div>'
+      + '<p class="chx-win-say" data-picked="' + esc(_chxCell) + '">' + _chxSay(t, _chxCell) + '</p>'
+      + unTxt
+      + '<p class="chx-win-grid" data-grid="inventory" data-state="unjoined">No inventory or stash cell is joined to '
+      + nm + ', so none is drawn.</p>';
+  }
+  function _chxHost(){
+    var host = document.getElementById('chx-win');
+    if (!host){
+      host = document.createElement('div');
+      host.id = 'chx-win';
+      host.setAttribute('role', 'dialog');
+      document.body.appendChild(host);
+    }
+    return host;
+  }
+  window._chxOpen = function(key){
+    _chxKey = String(key || ''); _chxCell = '';
+    var host = _chxHost();
+    host.hidden = false;
+    host.setAttribute('data-learned', _chxKey);
+    host.setAttribute('data-picked', '');
+    host.innerHTML = '<div class="chx-win-box">' + _chxWinHtml(_charOfKey(_chxKey)) + '</div>';
+    return true;
+  };
+  window._chxPick = function(cell){
+    if (!_chxKey) return false;
+    _chxCell = String(cell || '');
+    var host = _chxHost();
+    host.hidden = false;
+    host.setAttribute('data-picked', _chxCell);
+    host.innerHTML = '<div class="chx-win-box">' + _chxWinHtml(_charOfKey(_chxKey)) + '</div>';
+    return true;
+  };
+  window._chxClose = function(){
+    _chxKey = null; _chxCell = '';
+    var host = document.getElementById('chx-win');
+    if (host){ host.hidden = true; host.setAttribute('data-picked', ''); }
+    return true;
+  };
   function _ghost(t){
     return '<article class="chx-card chx-ghost" data-learned="' + esc(t.key) + '">'
       + '<div class="chx-top"><span class="chx-crest" aria-hidden="true">' + esc(String(t.cls || '?').charAt(0)) + '</span>'
@@ -10612,6 +10719,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       +     (t.level ? 'level ' + (t.level | 0) : '<span class="chx-unk">level UNKNOWN</span>') + (t.title ? ' · ' + esc(t.title) : '') + '</div></div></div>'
       + _proof(t)
       + _gearHtml(t)
+      + '<button type="button" class="chx-btn" data-act="window" onclick="window._chxOpen(\'' + _chxJs(t.key) + '\')">Open</button>'
       + '</article>';
   }
   /* #149 — a lobby plaque or a character panel names him before two character-select visits have taught the

@@ -8749,6 +8749,15 @@ GATES = [
              "stops showing falls back; a visit with no time is UNKNOWN); one rule (_cbSections) sorts a build for both "
              "the 👤 Characters room and the planner's list; no console answer is UNKNOWN, never none. Drives the "
              "shipped room + planner in node through the page's own /api/chars_learned fetch; a miss needs a WHOLE list (his shows 9 rows of 13 - a scrolled-out character is not a deleted one); on the Grok eye's read of the pixels an in-game card leads with the level the reels confirmed and the mules are said as such."),
+    Gate("test_a_character_window_opens_from_its_cells", [sys.executable,
+         os.path.join(HERE, "test_a_character_window_opens_from_its_cells.py")], 90,
+         needs_app=False,
+         why="#146 step 3c — the clickable character window from the cells a look already named. "
+             "Open on an in-game card shows equipped:helm and the other nine, and does not open the "
+             "planner or write a build. A cell says the item seen there, or not seen yet. A character "
+             "the ledger has not spoken about stays UNKNOWN and draws no cell. An inventory or stash "
+             "cell that is not joined to the character is not drawn empty. Two sabotages: the door "
+             "sent to the planner, and data-cell dropped off the slot."),
     Gate("test_a_session_is_bound_to_the_character_he_entered_with", [sys.executable,
          os.path.join(HERE, "test_a_session_is_bound_to_the_character_he_entered_with.py")], 120,
          needs_app=False,
