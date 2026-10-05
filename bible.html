@@ -10335,6 +10335,11 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #vault-hand .vault-hand-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px}
 #vault-hand li{font-size:var(--fs-meta);color:var(--text)}
 #vault-hand .vault-hand-src,#vault-hand .vault-hand-seen{color:var(--text-dim)}
+.vault-propose{display:block;margin-top:2px;font-size:var(--fs-meta);color:var(--text-dim)}
+.vault-propose[data-state="unknown"]{color:var(--text)}
+.vault-organize{max-height:min(28vh,220px);overflow:auto;margin:0 0 8px;padding:8px 10px;border:1px solid var(--border-light);border-radius:10px;background:var(--surface)}
+.vault-organize[hidden]{display:none}
+.vault-organize .vault-org-row{margin:0 0 4px;font-size:var(--fs-meta);color:var(--text)}
 #vault-hand-win{position:fixed;inset:0;z-index:130;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(4,3,2,.62);box-sizing:border-box}
 #vault-hand-win[hidden]{display:none}
 #vault-hand-win .vault-hand-box{width:min(440px,100%);max-height:min(640px,100%);overflow:auto;background:var(--surface);border:1px solid var(--border-light);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
@@ -11035,6 +11040,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
            unsorted dock's bar, so that bar heads only the items it sorts. -->
       <div id="vault-carried" class="vault-carried" hidden></div>
       <div id="vault-dock-bar" class="vault-dock-bar" hidden></div>
+      <div id="vault-organize" class="vault-organize" hidden></div>
       <!-- v1282 — VAULT INTEGRITY CHECKER: a retro pass that re-verifies routing / dedup / grail-safety across every muled item. Hidden when the vault is clean. -->
       <div id="vault-audit" class="vault-audit" hidden></div>
       <div class="vault-dock" id="vault-dock"></div>
@@ -39811,6 +39817,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         }
       }
     } catch(e){}
+    try { if (typeof window.vaultOrganizePaint === 'function') window.vaultOrganizePaint(unsorted); } catch (eO) {}
     dock.innerHTML = unsorted.map(function(n){
       var _vr = (typeof _artRarity==='function') ? _artRarity(n) : '';
       return '<span class="vault-chip'+(_vr?' vc-r-'+_vr:'')+(selectedChip===n?' vc-selected':'')+'" draggable="true" data-vault-item="'+esc(n)+'" title="drag onto a locker — or click, then click a locker">'+art(n)+'<span class="vault-chip-name"'+(typeof _qStyle==='function'?_qStyle(n,'unique'):'')+'>'+esc(n)+'</span>'
@@ -40458,6 +40465,69 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { if (typeof window.vaultHandPaint === 'function') window.vaultHandPaint(); } catch (eP) {}
     return { ok: true, noted: true, row: hit };
   };
+  /* ⟦VAULT PROPOSE BEGIN⟧ */
+  /* #234 step 5 — a destination is the router's own sentence, asked when the row is painted.
+     A locked name stays, with the lock's own reason. Null is the shared stash.
+     A missing reason names no mule. Nothing here is stored and nothing is assigned. */
+  function _vaultRouter(){
+    try { if (typeof suggestMule === 'function') return suggestMule; } catch (eR) {}
+    try { if (typeof window.suggestMule === 'function') return window.suggestMule; } catch (eW) {}
+    return null;
+  }
+  window.vaultPropose = function(name){
+    var nm = String(name == null ? '' : name).trim();
+    if (!nm) return { ok: false, moved: false, home: null, id: null, stays: false, why: 'no name' };
+    var held = null;
+    try { held = (typeof window._laneLockWhy === 'function') ? window._laneLockWhy(nm) : null; }
+    catch (eL) { return { ok: false, moved: false, home: null, id: null, stays: false, why: 'the lock could not be read' }; }
+    if (held && held.why) return { ok: true, moved: false, id: null, home: null, stays: true, why: String(held.why) };
+    var router = _vaultRouter();
+    if (!router) return { ok: false, moved: false, home: null, id: null, stays: false, why: 'the router is not on this page' };
+    var sg;
+    try { sg = router(nm); }
+    catch (e) { return { ok: false, moved: false, home: null, id: null, stays: false, why: 'the router could not be asked' }; }
+    if (sg === null) return { ok: true, moved: false, id: null, home: 'shared stash', stays: false, why: 'the router gave no reason' };
+    if (!sg || typeof sg !== 'object' || !sg.id) return { ok: false, moved: false, home: null, id: null, stays: false, why: 'the router gave no destination' };
+    var why = (typeof sg.why === 'string') ? sg.why.trim() : '';
+    if (!why) return { ok: false, moved: false, home: null, id: null, stays: false, why: 'the router gave no reason' };
+    return { ok: true, moved: false, id: String(sg.id), home: String(sg.id), stays: false, why: why };
+  };
+  window.vaultProposeLine = function(name){
+    var pg = null;
+    try { pg = window.vaultPropose(name); }
+    catch (e) { pg = null; }
+    if (!pg) return '<span class="vault-propose" data-state="unknown" data-moved="false">the router is not on this page</span>';
+    if (pg.moved !== false) return '<span class="vault-propose" data-state="unknown" data-moved="false">a proposal must not move an item</span>';
+    if (pg.ok === true && pg.stays === true && pg.why && pg.id == null){
+      return '<span class="vault-propose" data-state="stays" data-moved="false">' + _vhEsc(String(pg.why)) + '</span>';
+    }
+    if (pg.ok === true && pg.why && (pg.id != null || pg.home === 'shared stash')){
+      var token = (pg.id == null) ? 'shared stash' : String(pg.id);
+      var text = (pg.id == null) ? ('shared stash — ' + pg.why) : String(pg.why);
+      return '<span class="vault-propose" data-state="proposed" data-moved="false" data-home="' + _vhEsc(token) + '">' + _vhEsc(text) + '</span>';
+    }
+    var whyU = pg.why ? String(pg.why) : 'the router could not be asked';
+    return '<span class="vault-propose" data-state="unknown" data-moved="false">' + _vhEsc(whyU) + '</span>';
+  };
+  window.vaultOrganizePaint = function(names){
+    var el = document.getElementById('vault-organize');
+    if (!el) return { ok: false, why: 'the organizer is not on this page' };
+    if (!Array.isArray(names)){
+      el.hidden = false;
+      el.innerHTML = '<p class="vault-propose" data-state="unknown" data-moved="false">the organizer was not given a list</p>';
+      return { ok: false, why: 'the organizer was not given a list' };
+    }
+    if (!names.length){ el.hidden = true; el.innerHTML = ''; return { ok: true, n: 0 }; }
+    var h = '';
+    names.forEach(function(nm){
+      if (!nm) return;
+      h += '<p class="vault-org-row" data-name="' + _vhEsc(nm) + '">' + _vhEsc(nm) + ' ' + window.vaultProposeLine(nm) + '</p>';
+    });
+    el.hidden = false;
+    el.innerHTML = h;
+    return { ok: true, n: names.length };
+  };
+  /* ⟦VAULT PROPOSE END⟧ */
   window.vaultHandPaint = function(){
     var el = document.getElementById('vault-hand');
     if (!el) return { ok: false, why: 'the hand section is not on this page' };
@@ -40480,7 +40550,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           : '';
         var word = (src === 'manual') ? 'by hand' : (src || 'source unknown');
         h += '<li data-name="' + _vhEsc(r.name) + '" data-source="' + _vhEsc(src || 'unknown') + '">'
-          + _vhEsc(r.name) + ' <span class="vault-hand-src">' + _vhEsc(word) + '</span>' + seen + '</li>';
+          + _vhEsc(r.name) + ' <span class="vault-hand-src">' + _vhEsc(word) + '</span>' + seen
+          + window.vaultProposeLine(r.name) + '</li>';
       });
       h += '</ul>';
     }

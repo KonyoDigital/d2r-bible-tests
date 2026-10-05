@@ -8767,6 +8767,14 @@ GATES = [
              "list is not filed, and nothing is assigned to a mule. An unreadable ledger stays "
              "unknown. Three sabotages: the already-return deleted, the landed-witness note "
              "dropped, and the planner list put back behind the open build's class."),
+    Gate("test_the_vault_proposes_a_home_and_does_not_move", [sys.executable,
+         os.path.join(HERE, "test_the_vault_proposes_a_home_and_does_not_move.py")], 90,
+         needs_app=False,
+         why="#234 step 5 — the Vault proposes a destination for a hand-added row and for a "
+             "witnessed item still unsorted, using the router's own sentence. A locked name "
+             "stays. Null is the shared stash. A missing reason names no mule. Nothing is "
+             "stored and nothing is assigned. Four sabotages: the hand paint dropped, the "
+             "dock call dropped, a throw painted as a weapon home, and the lock return deleted."),
     Gate("test_a_session_is_bound_to_the_character_he_entered_with", [sys.executable,
          os.path.join(HERE, "test_a_session_is_bound_to_the_character_he_entered_with.py")], 120,
          needs_app=False,
