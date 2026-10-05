@@ -56958,6 +56958,13 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
      saved before this carries none of them and loads exactly as it did. A crafted quality is offered only on a wearable
      amulet: choosing it fills the rare name (Grim and Noose when those words are legal, else the first of each list)
      and a picked affix stores the top of each numeric range. Magic and rare stay blank = the range.
+     ODDS under the picked mods, from the tables' frequency, or UNKNOWN when the draw is not pinned. A magic item
+     carries a prefix on half of its rolls, a suffix on three quarters, and both on a quarter (suffix only 50%, prefix
+     only 25%, both 25% — both is that quarter, not half times three quarters). The weight is this row's frequency
+     over every eligible row of that kind at the item's affix level, groups already on the item included: the
+     generation pool, which ADD MOD then narrows. A blank roll leaves the value line as it is. A typed number keeps
+     the share of its range at or above it. Rare, crafted, an automod, a superior row and a chosen class print
+     UNKNOWN.
      [[unknown-stays-unknown]] [[the-unjoined-end]] */
   var CB_QUALS = [['rare', 'Rare', 'rare'], ['m', 'Magic', 'm'], ['sup', 'Superior', 'b'], ['b', 'Normal', 'b'], ['low', 'Low', 'b'], ['c', 'Crafted', 'c']];
   var CB_Q_OF = { rare: 'Rare', m: 'Magic', sup: 'Superior', b: 'Normal', low: 'Low', c: 'Crafted' };
@@ -57040,6 +57047,126 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     return out;
   }
   window._cbAffixPool = _cbAffixPool;
+  /* the pool a drop draws from: the same eligibility as ADD MOD (type, etype, affix level, rare flag, class lock,
+     automod group, frequency > 0), without the two cuts that only describe an item already built — a kind whose
+     slots are full, and a group already on the item. On an item with no affixes the two lists are the same rows. */
+  function _cbSpawnPool(e){
+    var d = _cbDb(), out = { p: [], s: [], a: [], q: [] };
+    var b = d && e && d.b[e.base], it = e && _cbItem(e.id);
+    if (!b || !d.af || !_cbIsBase(it)) return out;
+    var q = _cbQ(e, it), anc = d.anc[b[1]] || {}, alvl = _cbAlvl(b, e.ilvl || 99);
+    var tcls = (d.ty[b[1]] || [])[2], cat = d.qm && d.qm.cat ? d.qm.cat[b[1]] : null, auto = b[22] | 0;
+    (d.af || []).forEach(function(a){
+      var k = a[1];
+      if (k !== 'p' && k !== 's' && k !== 'a') return;
+      if (!a[9].some(function(t){ return anc[t]; })) return;
+      if (a[10].some(function(t){ return anc[t]; })) return;
+      if (a[3] > alvl || (a[4] != null && alvl > a[4])) return;
+      if ((q === 'rare' || q === 'c') && !a[6]) return;
+      if (a[8] >= 0 && tcls != null && tcls >= 0 && a[8] !== tcls) return;
+      if (k === 'a' && a[7] !== auto) return;
+      if (!a[12]) return;
+      out[k].push(a);
+    });
+    if (cat) ((d.qm && d.qm.sup) || []).forEach(function(r){ if (r[2].indexOf(cat) >= 0) out.q.push(_cbAf(r[0])); });
+    return out;
+  }
+  window._cbSpawnPool = _cbSpawnPool;
+  function _cbGcd(a, b){
+    a = Math.abs(a); b = Math.abs(b);
+    while (b){ var t = a % b; a = b; b = t; }
+    return a || 1;
+  }
+  function _cbRatMul(r, n, d){
+    var nn = r[0] * n, dd = r[1] * d, g = _cbGcd(nn, dd);
+    return [nn / g, dd / g];
+  }
+  /* one decimal, the measured shape "1/490 (0.2%)". The fraction is the figure; the percent is that fraction rounded. */
+  function _cbOddsBit(n, d){
+    var tenths = Math.round(n * 1000 / d), sign = tenths < 0 ? '-' : '';
+    tenths = Math.abs(tenths);
+    return n + '/' + d + ' (' + sign + Math.floor(tenths / 10) + '.' + (tenths % 10) + '%)';
+  }
+  /* SPEC_174 §10. null: no mods picked, so the line is not painted. known false: a draw this page has not pinned,
+     and the screen says UNKNOWN rather than a fraction. A magic prefix, suffix, or both is the mix above times the
+     weight. The value line multiplies that by each typed floor's share of its own range; a blank range contributes 1. */
+  function _cbAffixOdds(e){
+    var ax = (e && e.affixes) || [];
+    if (!ax.length) return null;
+    var it = e && _cbItem(e.id), d = _cbDb(), b = d && e && d.b[e.base];
+    if (!it || !_cbIsBase(it) || !b) return { known: false, why: 'this item is not a base the tables roll' };
+    var q = _cbQ(e, it);
+    if (q === 'rare') return { known: false, why: 'a rare item draws 3 to 6 affixes and that draw is not pinned' };
+    if (q === 'c') return { known: false, why: 'a crafted item draws like a rare, and its fixed craft affixes are not in this frequency pool' };
+    if (q === 'sup') return { known: false, why: 'a superior row is stored with no table frequency' };
+    if (q !== 'm') return { known: false, why: 'this quality does not roll affixes from the frequency tables' };
+    var kinds = { p: [], s: [], a: [], q: [] }, missing = false, other = false;
+    ax.forEach(function(x){
+      var a = _cbAf(x && x.id);
+      if (!a){ missing = true; return; }
+      if (!kinds[a[1]]){ other = true; return; }
+      kinds[a[1]].push({ row: a, rolls: (x && x.rolls) || {} });
+    });
+    if (missing) return { known: false, why: 'an affix on this item is not in the tables' };
+    if (other) return { known: false, why: 'a mod on this item is not a prefix or a suffix the magic draw uses' };
+    if (kinds.a.length) return { known: false, why: 'an automod is not pinned as a draw this page can divide' };
+    if (kinds.q.length) return { known: false, why: 'a superior row is stored with no table frequency' };
+    if (kinds.p.length > 1 || kinds.s.length > 1) return { known: false, why: 'a magic item rolls one prefix and one suffix' };
+    if (!kinds.p.length && !kinds.s.length) return { known: false, why: 'no prefix or suffix is selected' };
+    var pool = _cbSpawnPool(e);
+    function take(list, row){
+      var hit = null, sum = 0;
+      list.forEach(function(a){ sum += a[12] | 0; if (a[0] === row[0]) hit = a[12] | 0; });
+      return { hit: hit, sum: sum };
+    }
+    var pp = kinds.p.length ? take(pool.p, kinds.p[0].row) : null;
+    var ss = kinds.s.length ? take(pool.s, kinds.s[0].row) : null;
+    if (pp && !(pp.hit && pp.sum)) return { known: false, why: 'the selected prefix is not in the pool this item rolls' };
+    if (ss && !(ss.hit && ss.sum)) return { known: false, why: 'the selected suffix is not in the pool this item rolls' };
+    var rat = [1, 1];
+    if (pp && ss) rat = _cbRatMul(_cbRatMul(_cbRatMul(rat, 1, 4), pp.hit, pp.sum), ss.hit, ss.sum);
+    else if (pp) rat = _cbRatMul(_cbRatMul(rat, 1, 2), pp.hit, pp.sum);
+    else rat = _cbRatMul(_cbRatMul(rat, 3, 4), ss.hit, ss.sum);
+    var values = rat.slice(), valuesWhy = null;
+    function fold(picked){
+      if (valuesWhy) return;
+      var rolls = picked.rolls;
+      (picked.row[11] || []).forEach(function(ln){
+        (ln[1] || []).forEach(function(r){
+          if (valuesWhy || !r) return;
+          var kind = null, lo, hi, key = r[2];
+          if (r[0] === 'C'){ kind = 'C'; lo = r[1]; hi = r[3]; }
+          else if (r[0] === 'L'){ var L = _cbLvl(r); kind = 'L'; lo = Math.min(L.lo, L.hi); hi = Math.max(L.lo, L.hi); }
+          else if (typeof r[0] === 'number' && typeof r[1] === 'number'){ kind = 'n'; lo = Math.min(r[0], r[1]); hi = Math.max(r[0], r[1]); }
+          else return;
+          var typed = (key != null && rolls && Object.prototype.hasOwnProperty.call(rolls, key)) ? rolls[key] : null;
+          if (typed == null || typed === '') return;
+          if (kind === 'C'){ valuesWhy = 'a chosen class has no pinned order to be at or above'; return; }
+          if (typeof typed !== 'number' || typed < lo || typed > hi){ valuesWhy = 'a typed roll is outside the table range'; return; }
+          if (lo === hi) return;
+          values = _cbRatMul(values, hi - typed + 1, hi - lo + 1);
+        });
+      });
+    }
+    kinds.p.forEach(fold); kinds.s.forEach(fold);
+    if (valuesWhy) return { known: true, mods: rat, values: null, valuesWhy: valuesWhy };
+    return { known: true, mods: rat, values: values, valuesWhy: null };
+  }
+  window._cbAffixOdds = _cbAffixOdds;
+  function _cbOddsHtml(e){
+    var o = _cbAffixOdds(e);
+    if (!o) return '';
+    var disc = 'These odds do not factor in getting the desired base or quality to drop.';
+    var h = 'Odds of rolling selected mods: ';
+    if (!o.known) h += 'UNKNOWN — ' + o.why;
+    else {
+      h += _cbOddsBit(o.mods[0], o.mods[1]);
+      h += ' · Odds of rolling selected values or higher: ';
+      h += o.values ? _cbOddsBit(o.values[0], o.values[1]) : ('UNKNOWN — ' + (o.valuesWhy || 'not pinned'));
+    }
+    h += ' · ' + disc;
+    return '<div class="cb-note" id="cb-odds">' + esc(h) + '</div>';
+  }
   /* an affix's own words with its ranges ("+36-40 to Life"), every line of it joined */
   function _cbAfText(a, rolls, clvl, mode){
     return (a[11] || []).map(function(l){ return _cbLineHtml(l, rolls || {}, clvl, mode || 'text'); }).join(', ');
@@ -58964,6 +59091,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
         + '<span class="cb-mod-t">' + (cn ? '<b class="cb-add-star" title="tied to one class: ' + esc(cn) + '">*</b>' : '') + body + '</span>'
         + '<small class="cb-mod-n">' + esc(a[2]) + '</small></div>';
     }).join('');
+    var oddsHtml = _cbOddsHtml(e);
     var add = '';
     if (canMod){
       add = '<div class="cb-add' + (st.modOpen ? ' cb-open' : '') + '"><button type="button" class="cb-add-h" id="cb-add-h" aria-expanded="' + (st.modOpen ? 'true' : 'false') + '" onclick="window._cbModOpen(' + (st.modOpen ? 'false' : 'true') + ')"><span>Add Mod</span><span aria-hidden="true">' + (st.modOpen ? '▴' : '▾') + '</span></button>';
@@ -58984,7 +59112,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       +   _cbEdBaseHtml(tr, e, it)
       + '</div></div>'
       + '<div class="cb-mods-h">Regular Mods</div>'
-      + '<div class="cb-mods" id="cb-mods" onchange="window._cbRollInput(event)" onkeydown="if(event.key===\'Enter\'){window._cbRollInput(event)}">' + mods + add + '</div>'
+      + '<div class="cb-mods" id="cb-mods" onchange="window._cbRollInput(event)" onkeydown="if(event.key===\'Enter\'){window._cbRollInput(event)}">' + mods + oddsHtml + add + '</div>'
       + '<div class="cb-roll-say' + (st.modBad ? ' cb-bad' : '') + '" id="cb-roll-say" role="status">' + esc(st.modSay || (canMod ? 'Type your real roll into a box; a blank box is the range. A roll outside its range is refused.' : '')) + '</div>'
       + _cbSockFillHtml(e) + '</div>';
   }

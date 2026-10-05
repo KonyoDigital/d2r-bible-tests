@@ -6220,6 +6220,13 @@ GATES = [
              "183, its Defense box 61, fixed); a class's own level requirement; a negative charged skill is UNKNOWN; two "
              "affixes of one stat print one line (135 mana, not 67 twice); ADD MOD is a combobox (the active option "
              "painted, ArrowDown moves it, Enter adds it) with no AUTOMOD header over nothing; the six rare words offered. "),
+    Gate("test_the_edit_tab_states_the_odds_of_the_mods_he_picked",
+         [sys.executable, os.path.join(HERE, "test_the_edit_tab_states_the_odds_of_the_mods_he_picked.py")], 90,
+         why="SPEC_174 section 10 — under the picked mods, the odds of those mods and of the typed floors or higher. "
+             "A magic prefix is half its frequency over the whole eligible pool, a suffix is three quarters, and both "
+             "together are a quarter of the product. A blank range does not divide the value line; the top of a range "
+             "keeps one share of it. Rare, crafted, an automod, a superior row and a chosen class stay UNKNOWN, and "
+             "no fraction is painted for them. No mods picked paints nothing. The ratios are this install's tables."),
     Gate("test_the_crafted_variant_fills_its_name_and_the_top_of_each_range",
          [sys.executable, os.path.join(HERE, "test_the_crafted_variant_fills_its_name_and_the_top_of_each_range.py")], 90,
          why="#95 - a crafted amulet fills its name and stores the top of each range. Offered only on a wearable amulet. "
