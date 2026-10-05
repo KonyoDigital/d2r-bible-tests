@@ -22085,10 +22085,27 @@ window._lockMark = function(isOpen, px, label){
   window.addEventListener('resize', function(){
     if (document.body.classList.contains('shell-open')) _shellSizePane();
   });
-  if (_ht) _ht.addEventListener('click', function(e){
-    var b = e.target.closest('.ht'); if (!b) return;
+  /* #142 — LEAVE ON THE PRESS, AND DO NOT TAKE THE PRESS TWICE.
+     The board iframe holds focus while Vault is up. In the console's WebKit the first
+     click outside a focused iframe is spent blurring it, so Sessions did nothing until
+     the second click. pointerdown is the press itself. The click that follows the same
+     press must not open a second room. A click with no pointerdown ahead of it — the
+     keyboard, and the render gate's .click() — still leaves. */
+  var _headTabPtr = null, _headTabPtrTs = 0;
+  function _headTabGo(e){
+    var b = e.target && e.target.closest && e.target.closest('.ht'); if (!b) return;
+    if (e.type === 'click' && b === _headTabPtr && ((e.timeStamp || 0) - _headTabPtrTs) < 700) {
+      e.preventDefault();
+      e.stopPropagation();
+      return;
+    }
+    if (e.type === 'pointerdown') { _headTabPtr = b; _headTabPtrTs = e.timeStamp || 0; }
     e.preventDefault();
     e.stopPropagation();
+    try {
+      var eng = document.getElementById('tvd-eng');
+      if (eng && eng.blur) eng.blur();
+    } catch (_bf) {}
     /* #172 — HIS RULING 2026-09-25: SWITCHING VIEWS CLOSES THE THEATRE. The theatre deliberately covers
        every non-Sessions view while it is open, so leaving it open and going to the Vault showed its dark
        film stage over the vault (the seat's "dark glass", confirmed on #230: what covered the vault was
@@ -22100,7 +22117,11 @@ window._lockMark = function(isOpen, px, label){
     if (b.dataset.tab === 'tvd'){ document.body.removeAttribute('data-view'); shellHome(); return; }   // TV·D = the cockpit home
     if (b.dataset.tab === 'session'){ showSessions(); return; }   // v1376 — Sessions = console-native flagship hunt hub
     document.body.removeAttribute('data-view'); shellOpen(b.dataset.tab);
-  });
+  }
+  if (_ht) {
+    _ht.addEventListener('pointerdown', _headTabGo);
+    _ht.addEventListener('click', _headTabGo);
+  }
   /* v1596 — SESSIONS IS THE HOMEPAGE. Konyo: "sessions should be the MAIN tab when opening the
      console the homepage instead of the TV-D tab (AS IT IS NOW)".
 
@@ -24736,6 +24757,16 @@ window._lockMark = function(isOpen, px, label){
 <!-- v935.10 — no ⌂ CONSOLE · esc chrome. ONE SHELL: top tabs are the only nav.
      TV·D tab (and Esc) return to the live console; no floating escape pill. -->
 <style>
+/* #142 — THE HEADER'S 960 NEVER MEETS THE IFRAME'S 940.
+   .shell is position:relative with z-index 1, so it is a stacking context.
+   #tvd-eng is a later sibling outside that context and is promoted to 940.
+   A fixed header at 960 only competes inside the shell, so the iframe paints
+   over the tab row. The first press on Sessions lands on the board, and the
+   second press is the one that finally hits the button.
+   While a board room is up, the shell stops being its own context. The header
+   and the iframe then share one context, and 960 is above 940. The rest of
+   the shell stays under the iframe, which is what covers the console. */
+body.shell-open .shell { z-index: auto; }
 /* v935.6/9 THE SHELL — board pane under a FIXED header (tabs always above the iframe).
    v935.9: DO NOT visibility:hidden the console homepage — that + fixed topbar swallowed
    stage/home-dash/rail after toggles (WebKit left them unrecoverable). The promoted

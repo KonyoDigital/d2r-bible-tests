@@ -5161,6 +5161,19 @@ GATES = [
              "from visibilitychange (_shellRestoreConsole drops shell-open and would kick him out "
              "of the board tab he was reading). 6 laws, 5 sabotages RED."),
 
+    Gate("test_sessions_leaves_the_vault_on_the_first_press",
+         [sys.executable, os.path.join(HERE, "test_sessions_leaves_the_vault_on_the_first_press.py")],
+         120,
+         why="#142 — SESSIONS NEEDS TWO CLICKS TO LEAVE VAULT. The shell is position:relative "
+             "with z-index 1, so it is its own stacking context, and the board iframe is a later "
+             "sibling promoted to 940. A fixed header at 960 only competes inside the shell, so "
+             "the iframe paints over the tab row and the first press lands on the board. While a "
+             "room is open the shell stops being that context and 960 sits above 940. The same "
+             "press is taken on pointerdown, and the click that follows the same button within "
+             "700ms does not open a second room. A click with no pointerdown still leaves, which "
+             "is how the keyboard and the render gate move. Two sabotages go red: the layer rule "
+             "put back to z-index 1, and the 700ms return deleted so one press leaves twice."),
+
     Gate("test_a_sidecar_does_not_reowe_a_read",
          [sys.executable, os.path.join(HERE, "test_a_sidecar_does_not_reowe_a_read.py")], 120,
          why="#25 (v3298) — A MOVED DIRECTORY IS NOT MOVED FILM. kai_report.json bumps the reel "
