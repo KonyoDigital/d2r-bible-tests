@@ -6774,6 +6774,12 @@ GATES = [
              "classify lane and structurally could not count a page read (v1596)"),
     Gate("test_chronicle_retro", [sys.executable, os.path.join(HERE, "test_chronicle_retro.py")], 300,
          why="the retro sweep's three laws: read-only until Apply, merge-max, pay-for-runs"),
+    Gate("test_a_measured_find_date_stays_on_the_live_sighting",
+         [sys.executable, os.path.join(HERE, "test_a_measured_find_date_stays_on_the_live_sighting.py")], 90,
+         why="#118 — a First Found stamp the parser kept is journaled on that chronicle row and "
+             "hung on that same name by the live page. A monster name in the date field is not "
+             "stored, another name's date is not worn here, and a row that never parsed the field "
+             "stays unknown rather than an empty map"),
     # v2387 — the swallowed-exception RATCHET, in the same gate set as everything else so it has
     # one verdict rather than being a thing someone remembers to run. It grades RANK 1 only —
     # a failed read handed back as DATA — and only fails when that count GROWS.

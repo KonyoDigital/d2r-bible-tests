@@ -9546,6 +9546,13 @@ def emit_deep_read(rd, n, frame_id, interest=0.0, used_priority=False, ocr_rd=No
         "ocr_ms": ocr_ms, "ocr_names": (ocr_rd or {}).get("names") or [],
         "confirmed_names": confirmed,
         "discovered_names": rd.get("discovered") or [],   # v763 — chat discovery broadcasts: chronicle-only, never vault
+        # #118 — the row's own First Found stamp, dropper and sort word. _parse_read has
+        # kept them since v1818 and the journal row is what the live lane reads. A date
+        # that never lands here cannot reach a sighting. None: this read did not parse
+        # the field. {} or "": parsed, and nothing that dated survived.
+        "chronicleSort": rd.get("chronicleSort"),
+        "foundAt": rd.get("foundAt"),
+        "droppedBy": rd.get("droppedBy"),
         "vault_names": vault_names, "farmed_names": vault_names,
         "pending_names": pending_names, "thrown_names": thrown_names,
         "unvault_names": unvault_names,

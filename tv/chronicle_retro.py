@@ -1532,6 +1532,16 @@ def live_pages(rows, ledger_of=None, lane="live"):
                # onto every sighting. Two halves each built right, never joined: the field was
                # empty on every page ever produced. [[plumbing-with-no-tap]]
                "sort": row.get("chronicleSort") or row.get("chronicle_sort") or "",
+               # #118 — the same join for the date. normalize_page already keeps a stamp
+               # and drops a monster name; this page never handed it either map, so a
+               # date on the journal row died here. None stays none: a missing map is
+               # not "no dates were printed".
+               "foundAt": (row.get("foundAt") if isinstance(row.get("foundAt"), dict)
+                           else row.get("found_at") if isinstance(row.get("found_at"), dict)
+                           else None),
+               "droppedBy": (row.get("droppedBy") if isinstance(row.get("droppedBy"), dict)
+                             else row.get("dropped_by") if isinstance(row.get("dropped_by"), dict)
+                             else None),
                "stateVisible": True, "wrongTab": False, "conf": conf}
         resp = normalize_page(raw, kind, lane)
         if not resp:
