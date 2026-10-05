@@ -8,7 +8,7 @@ see whats getting updated/fetched and logged and registered live while hes on pl
 Three joints, each driven, never grepped:
   · the console: `_river_stuck_for_wire` over stamp rows - a station whose oldest reel inside the newest
     KEEP_RECENT waited > 6 h is named with that station's own reason; a reel older than the window is not
-    an alarm; CAPTURE never alarms (it waits on a capture change by design); an unreadable log is None,
+    an alarm unless it is still at ROUTED, which the drain owes; CAPTURE never alarms (it waits on a capture change by design); an unreadable log is None,
     never "flowing"; a console that has not computed its river does not walk the log.
   · the worker (functions/api/console.js, the REAL shaper in node): stuck/heart cross shaped - bad keys
     dropped, text scrubbed of paths; null stays null; absent stays absent.
@@ -177,6 +177,43 @@ class TheConsoleNamesItsStuckStations(unittest.TestCase):
         self.assertNotIn("capture", got["JOIN"]["why"].lower())
         self.assertIn("No lane can fix that", got["JOIN"]["why"])
 
+    def test_a_routed_reel_older_than_the_window_is_owed_to_the_drain(self):
+        """#86 gap 10. The newest KEEP_RECENT stay, including one already at ROUTED. An older reel
+        still at ROUTED past six hours has left that shield, so the drain owes it a tombstone. A
+        fixture, a reel off the shelf, and a young one outside the window do not."""
+        import reel_retention as rr
+        keep = int(rr.KEEP_RECENT)
+        extra = 4
+
+        def nm(i):
+            return "reel_s_%d_%d" % (1700000000000 + i, i)
+
+        rows, shelf = [], set()
+        for i in range(keep + extra):
+            name = nm(i)
+            if i == 2:
+                rows.append(_stamp(name, "ROUTED", 90 * H, i))
+                continue
+            shelf.add(name)
+            if i == 0:
+                rows.append(_stamp(name, "ROUTED", 90 * H, i))
+            elif i == 1:
+                rows.append(_stamp(name, "ROUTED", 90 * H, i))
+            elif i == 3:
+                rows.append(_stamp(name, "ROUTED", 60, i))
+            elif i == 4:
+                rows.append(_stamp(name, "ROUTED", 90 * H, i))
+            else:
+                rows.append(_stamp(name, "EMPTY", H, i))
+        got = self._stuck(rows, shelf=shelf, fixtures=(nm(1),))
+        self.assertEqual(len(got), 1, got)
+        self.assertEqual(got[0]["station"], "ROUTED")
+        self.assertEqual(got[0]["n"], 1, got)
+        self.assertEqual(got[0]["oldestS"], 90 * H)
+        self.assertIs(got[0]["window"], False)
+        self.assertIn("drain owes", got[0]["why"])
+        self.assertIn(str(keep), got[0]["why"])
+
     def test_the_shelf_on_disk_uses_the_same_window(self):
         import shutil
         import tempfile
@@ -292,6 +329,16 @@ class TheWorkerCarriesIt(unittest.TestCase):
         self.assertIsNone(unknown["stuck"])
         self.assertNotIn("stuckKeep", unknown, "an unknown river grew a window")
 
+    def test_a_reel_outside_the_window_keeps_that_mark(self):
+        got = self._shape({"lanes": {"ROUTED": 1}, "stuck": [
+            {"station": "ROUTED", "n": 4, "oldestS": 90 * H,
+             "why": "older than the newest 16, still at ROUTED, so the drain owes them a tombstone",
+             "window": False},
+            {"station": "PRINTER", "n": 1, "oldestS": 40 * H, "why": "vault lane: owes 1",
+             "window": "false"}]})["river"]
+        self.assertIs(got["stuck"][0]["window"], False)
+        self.assertNotIn("window", got["stuck"][1], "a mark that is not false crossed")
+
 
 class TheCardSaysIt(unittest.TestCase):
 
@@ -352,6 +399,17 @@ class TheCardSaysIt(unittest.TestCase):
         self.assertIn("among the newest 16", out["p"]["stuck"]["why"])
         self.assertTrue(out["p"]["stuck"]["warn"])
 
+    def test_an_older_routed_reel_is_not_called_one_of_the_newest(self):
+        why = "older than the newest 16, still at ROUTED, so the drain owes them a tombstone"
+        out = self._run({"stuck": [{"station": "ROUTED", "n": 4, "oldestS": 90 * H,
+                                    "why": why, "window": False}], "stuckKeep": 16})
+        self.assertIn("ROUTED 4 for", out["p"]["stuck"]["t"])
+        self.assertIn(why, out["p"]["stuck"]["why"])
+        self.assertNotIn("among the newest", out["p"]["stuck"]["why"])
+        self.assertTrue(out["p"]["stuck"]["warn"])
+        self.assertIn("river stuck", out["chip"])
+        self.assertIn("drain owes", out["chipHtml"])
+
 
 RED_PROOF = [
     {"why": "REG-1738 - a river nobody ever stamped reads as draining again",
@@ -383,7 +441,7 @@ RED_PROOF = [
     {
         "why": "REG-1614 - reels that left the shelf are counted again: his Mac's 17 deleted reels read as stuck",
         "file": "tv/control_app.py",
-        "find": "        if reel in _pinned or not _on(reel):\n            continue\n",
+        "find": "        if reel in _pinned or not _on(reel):\n            continue\n        if reel not in _window:\n            continue\n",
         "replace": "        if reel in _pinned:\n            continue\n",
         "matches": 1,
     },
@@ -398,7 +456,7 @@ RED_PROOF = [
         "why": "REG-1614 - a shelf that is not there reads as a river draining (an empty list, not UNKNOWN)",
         "file": "tv/control_app.py",
         "find": "        if not os.path.isdir(HIST_DIR):\n            return None\n",
-        "replace": "        pass\n",
+        "replace": "        if not os.path.isdir(HIST_DIR):\n            return []\n",
         "matches": 1,
     },
     {
@@ -406,6 +464,13 @@ RED_PROOF = [
         "file": "tv/control_app.py",
         "find": "        if reel not in _window:\n            continue\n",
         "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "a ROUTED reel older than the newest window is dropped, so the drain's debt reads as a clear river",
+        "file": "tv/control_app.py",
+        "find": "        if reel in _pinned or not _on(reel) or reel in _window:\n            continue\n",
+        "replace": "        if True:\n            continue\n",
         "matches": 1,
     },
     {

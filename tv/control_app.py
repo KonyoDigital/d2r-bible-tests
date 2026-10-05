@@ -15525,7 +15525,8 @@ def _river_stuck_for_wire(now_ms=None, _rows=None, _shelf=None, _fixtures=None):
     file read, never a router pass - so a beacon costs what it cost before. [{station, n, oldestS, why}],
     oldest first; [] is measured-and-flowing inside the newest KEEP_RECENT reels; None is an unreadable
     log, or a window that could not be built (UNKNOWN, never "flowing"). A reel older than that window
-    is not this alarm. The window is reel_retention.recent_shield, the same set the shelf keeps.
+    is not this alarm, except one still at ROUTED past the same six hours: it has left the shield and
+    the drain owes it a tombstone. The window is reel_retention.recent_shield, the same set the shelf keeps.
 
     ⚠⚠ 2026-09-30 (REG-1614) — ONLY A REEL STILL ON THE SHELF CAN BE STUCK, AND A TEST FIXTURE NEVER IS. His
     screenshot at 19:55: "river stuck" on all three online PCs. MEASURED on his Mac the same minute: the stamp log
@@ -15609,6 +15610,37 @@ def _river_stuck_for_wire(now_ms=None, _rows=None, _shelf=None, _fixtures=None):
     out = sorted(by.values(), key=lambda e: -e["oldestS"])[:6]
     for e in out:
         e["why"] = _river_stuck_why(e["station"])[:200]
+    # #86 gap 10 — a ROUTED reel INSIDE the newest window is kept on purpose and is not this
+    # alarm. One OUTSIDE it, still on the shelf past the same six hours, has left the shield
+    # and the drain owes it a tombstone. The 2026-10-02 keep-sixteen ruling is what makes
+    # that debt real; leaving ROUTED out of _RIVER_OWNER hid it. `window` false so the card
+    # does not describe it as one of the newest.
+    _owed_n = 0
+    _owed_age = 0
+    for reel, r in last.items():
+        if str(r.get("station")) != "ROUTED":
+            continue
+        if reel in _pinned or not _on(reel) or reel in _window:
+            continue
+        try:
+            age = max(0.0, (now - int(r.get("at"))) / 1000.0)
+        except (TypeError, ValueError):
+            continue
+        if not (age >= RIVER_STUCK_AFTER_S):
+            continue
+        _owed_n += 1
+        _owed_age = max(_owed_age, int(age))
+    if _owed_n:
+        try:
+            import reel_retention as _rr_owed
+            _keep_n = int(_rr_owed.KEEP_RECENT)
+        except Exception:
+            _keep_n = None
+        _why = ("older than the newest %s, still at ROUTED, so the drain owes them a tombstone"
+                % (_keep_n if isinstance(_keep_n, int) else "kept"))
+        out.insert(0, {"station": "ROUTED", "n": _owed_n, "oldestS": _owed_age,
+                       "why": _why[:200], "window": False})
+        out = out[:6]
     return out
 
 

@@ -424,7 +424,10 @@ export async function onRequestPost(context) {
             if (!e || typeof e !== 'object') return null;
             const st = String(e.station || '');
             if (!/^[A-Z][A-Z_]{0,23}$/.test(st)) return null;
-            return { station: st, n: whole(e.n, 100000), oldestS: num(e.oldestS, DAY400), why: txt(e.why, 200) };
+            const row = { station: st, n: whole(e.n, 100000), oldestS: num(e.oldestS, DAY400), why: txt(e.why, 200) };
+            // A reel outside the newest window. Absent means inside, which is what an older build sent.
+            if (e.window === false) row.window = false;
+            return row;
           }).filter(Boolean);
           // The window this console tallied. Absent on an older build, which measured the whole shelf.
           const keep = whole(rv.stuckKeep, 10000);

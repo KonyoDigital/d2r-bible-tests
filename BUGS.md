@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1766 - A ROUTED REEL PAST THE NEWEST SIXTEEN READ AS A CLEAR RIVER (2026-10-06, #86 gap audit 10)
+
+The stuck alarm is the newest sixteen. A reel inside that window that has already reached ROUTED is kept, and it is not an alarm. A reel older than the window that is still at ROUTED past six hours has left the shield, and the drain owes it a tombstone. That reel was skipped with every other old station, so the fleet said the newest sixteen were draining over a debt the deleter still holds. The card names it on its own, and does not call it one of the newest. Law `test_the_fleet_says_where_a_river_is_stuck`.
+
 ### REG-1765 - A LANE THAT CANNOT START SAID NOTHING WAS OWED (2026-10-05, #86 gap audit 29 and 30)
 
 The chronicle tick skipped a retired reel before it counted. After a machine-wide lock had retired the shelf, the tick returned owed 0 and "no unswept reel" while `_chron_owed_count` still counted every reel that had no durable read. REG-1602 already stopped the lock from retiring a reel. The number now includes a retired reel that still owes, and the sentence names the retirement.
