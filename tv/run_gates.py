@@ -138,6 +138,26 @@ def needs_app_of(filename):
     return False
 
 
+def gate_argv(gate, env=None):
+    """The command this gate is run as. -> list
+
+    Gate.argv is the law the heart maps, by the first .py in that list. This function
+    does not rewrite it. On GitHub Actions the control suite is still one process inside
+    one gate-set shard, and that process is the long one. A push already runs it through
+    shard_suite. CI does the same, and only for that gate. His machine stays one process.
+    """
+    argv = list(gate.argv)
+    if (len(argv) > 1 and os.path.basename(str(argv[-1])).startswith("test_")
+            and str(argv[-1]).endswith(".py")):
+        argv.append("-v")
+    # #160 — the control suite, and only on the Actions runner. The registered argv stays
+    # test_control.py so the heart still proves that file.
+    if (getattr(gate, "name", None) == "test_control"
+            and str((env if env is not None else os.environ).get("GITHUB_ACTIONS") or "") == "true"):
+        return [sys.executable, os.path.join(HERE, "shard_suite.py"), "test_control"]
+    return argv
+
+
 # v2400 — HOVER WILSON JOINS THE GATE SET, AND IT MAY ONLY GO RED ON A LEAK.
 #
 # tv/hover_wilson.py is a REPORT, not a gate: it scores the autopilot's four claims (coordinate,
@@ -9084,6 +9104,13 @@ GATES = [
          needs_app=False,
          why="#42 lever 4 - test_control runs as parallel shards at push time; a shard that ran fewer cases than it was "
              "dealt, died before answering, or shared a fixed port must read RED, never 'fewer tests passed'."),
+    Gate("test_ci_runs_the_control_suite_in_shards",
+         [sys.executable, os.path.join(HERE, "test_ci_runs_the_control_suite_in_shards.py")], 60,
+         needs_app=False,
+         why="#160 - the control suite is one process inside one gate-set shard, and that process is the long one. "
+             "A push already starts it through shard_suite. CI now does the same, and only for that gate. The "
+             "registered argv stays test_control.py, which is the file the heart maps. His machine stays one process. "
+             "The cost table is not rewritten here: the next Actions run is the measurement."),
     Gate("test_a_padlock_asks_what_the_act_asks",
          [sys.executable, os.path.join(HERE, "test_a_padlock_asks_what_the_act_asks.py")], 90,
          needs_app=False,
@@ -9501,10 +9528,7 @@ def run(only=None, live_watch=True, live_writer=None):
             #
             # Only unittest suites get -v. A non-suite gate (js_syntax_gate, render_check)
             # would either ignore it or, worse, read it as its own flag.
-            _argv = list(g.argv)
-            if len(_argv) > 1 and os.path.basename(str(_argv[-1])).startswith("test_") \
-               and str(_argv[-1]).endswith(".py"):
-                _argv.append("-v")
+            _argv = gate_argv(g)
             p = subprocess.run(_argv, cwd=g.cwd, capture_output=True, text=True,
                                encoding="utf-8", errors="replace", timeout=g.timeout,
                                env=law_env(g.needs_app))
