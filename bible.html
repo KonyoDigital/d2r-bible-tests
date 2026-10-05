@@ -4285,6 +4285,9 @@ window._LP_FORKED = new Set([
      and Ladder hold different mules and different characters, so both fork like d2r_muleAssign and ride Backup
      and Share with every other key. */
   "d2r_vaultProv", "d2r_mainCharacter",
+  /* #234 step 4 — items he typed into the Vault. Account testimony, same fork as the witness rows:
+     Main and Ladder do not share what he added by hand. A reader never writes this key. */
+  "d2r_vaultHand",
   /* M3 (review of 77d8d8b5) - the provenance backfill stamp records WHETHER A WRITE HAPPENED to d2r_owned and
      d2r_vaultProv, both in this set, so it forks exactly as they do (the v2224 rule below). Bare, the stamp one
      world wrote silenced the backfill in every other world on the machine. */
@@ -10325,6 +10328,20 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #chx-win .chx-cell[data-slot="ring2"]{grid-column:3;grid-row:5}
 #chx-win .chx-win-say{margin:0;font-size:var(--fs-body);color:var(--text)}
 #chx-win .chx-win-grid{margin:0;font-size:var(--fs-meta);color:var(--text-dim)}
+#vault-hand{margin:0 0 12px;padding:10px 12px;border:1px solid var(--border-light);border-radius:10px;background:var(--surface)}
+#vault-hand[hidden]{display:none}
+#vault-hand .vault-hand-h{font-family:var(--serif-display);font-size:var(--fs-chx-name);color:var(--text);margin:0 0 6px}
+#vault-hand .vault-hand-say{margin:0;font-size:var(--fs-body);color:var(--text)}
+#vault-hand .vault-hand-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px}
+#vault-hand li{font-size:var(--fs-meta);color:var(--text)}
+#vault-hand .vault-hand-src,#vault-hand .vault-hand-seen{color:var(--text-dim)}
+#vault-hand-win{position:fixed;inset:0;z-index:130;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(4,3,2,.62);box-sizing:border-box}
+#vault-hand-win[hidden]{display:none}
+#vault-hand-win .vault-hand-box{width:min(440px,100%);max-height:min(640px,100%);overflow:auto;background:var(--surface);border:1px solid var(--border-light);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
+#vault-hand-win .vault-hand-top{display:flex;align-items:center;gap:8px}
+#vault-hand-win .vault-hand-top p{margin:0;flex:1;font-size:var(--fs-body);color:var(--text)}
+#vault-hand-win .vault-hand-q{font-size:var(--fs-body);color:var(--text);background:var(--surface);border:1px solid var(--border-light);border-radius:8px;padding:6px 8px}
+#vault-hand-win .vault-hand-opt{display:block;width:100%;text-align:left;font-size:var(--fs-meta);color:var(--text);background:var(--surface);border:1px solid var(--border-light);border-radius:8px;padding:6px 8px}
 #tab-chars .chx-how{margin:0;padding-left:18px;font-size:var(--fs-body);color:var(--text-muted);line-height:var(--lh-normal)}
 #tab-chars .chx-how li{margin:2px 0}
 #tab-chars .chx-empty-t{font-family:var(--serif-display);font-size:var(--fs-chx-name);color:var(--text)}
@@ -10977,6 +10994,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 <div class="vault-toolbar">
         <button class="vault-btn vault-btn-primary" onclick="window.vaultAutoAssign()">⚖️ Auto-assign unsorted</button>
         <button class="vault-btn" onclick="window.vaultAddMule()">➕ Add mule</button>
+        <button class="vault-btn" type="button" onclick="window.vaultHandOpen()">+ Add an item</button>
         <button class="vault-btn" onclick="window.vaultExport()">📋 Copy manifests</button>
         <button class="vault-btn vault-btn-danger" onclick="window.vaultReset()" title="Clears ONLY the mule assignments and their witness rows. Your ✓ owned uniques, set pieces, runewords, chronicle, Magic &amp; Rare and runes / gems / materials stay untouched.">↺ Reset assignments</button>
         <button class="vault-btn vault-btn-danger" onclick="window.vaultClearHistory()" title="Clears the mules, the intake's own records AND your ✓ owned list (his 2026-09-27 ruling 'clear owned'): mule assignments, their witness rows, the Recently-registered log, the scan ledger, the linked folder and the owned ticks. Set pieces, runewords, the chronicle, Magic &amp; Rare, runes / gems / materials and the witness evidence stay untouched, and proven items are rebuilt from the evidence.">🧹 Reset vault (mules + intake)</button>
@@ -11005,6 +11023,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
            could point at the same number. Filled by renderVault from the SAME pools it draws from,
            so the parts cannot drift from the whole. -->
       <div id="vault-pop" class="vault-pop"></div>
+      <div id="vault-hand" class="vault-hand" hidden></div>
       <div class="vault-find">
         <span class="vault-find-ic">🔎</span>
         <input id="vault-find-input" class="vault-find-input" aria-label="find an item across your mules" type="text" autocomplete="off" spellcheck="false" placeholder="Find an item across your mules — which alt is it on?" oninput="window.vaultFind&&window.vaultFind(this.value)" onkeydown="if(event.key==='Escape'){this.value='';window.vaultFind('')}">
@@ -39616,6 +39635,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var pool=poolAll.filter(function(n){ return !isSharedStash(n); });
     renderMultiKeep();
     renderVaultRegistered();
+    try { if (typeof window.vaultHandPaint === 'function') window.vaultHandPaint(); } catch (eH) {}
     renderThrowoutReview();
     renderSocketedReview();   // v455 — runeword tool for the muled socketed/Larzuk bases (same _baseRWLine engine)
     // prune assignments of items no longer owned or mules deleted (v409 — but KEEP the '__keep' sentinel:
@@ -40369,6 +40389,172 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { var mc = window.mainCharacter ? window.mainCharacter() : null; return (mc && mc.name) ? String(mc.name) : null; }
     catch (e) { return null; }
   }
+  /* ⟦VAULT HAND BEGIN⟧ */
+  /* #234 step 4 — his typed item is a ledger row, source manual.
+     A reader does not create, replace, or remove one. An agreeing read is written beside it. */
+  var VAULT_HAND_KEY = 'd2r_vaultHand';
+  function _vhEsc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function _handLoad(){
+    try {
+      if (!(window.LSR && window.LSR.getItem)) return { ok: false, why: 'the hand ledger could not be read', rows: null };
+      var raw = window.LSR.getItem(VAULT_HAND_KEY);
+      if (raw == null || raw === '') return { ok: true, rows: [] };
+      var v = JSON.parse(raw);
+      if (!Array.isArray(v)) return { ok: false, why: 'the hand ledger is not a list', rows: null };
+      return { ok: true, rows: v };
+    } catch (e) {
+      return { ok: false, why: 'the hand ledger would not parse', rows: null };
+    }
+  }
+  function _handSave(rows){
+    try {
+      if (!(window.LSR && window.LSR.setItem)) return { ok: false, why: 'the hand ledger could not be written' };
+      window.LSR.setItem(VAULT_HAND_KEY, JSON.stringify(rows));
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, why: 'the hand ledger could not be written' };
+    }
+  }
+  function _handKey(name){ return String(name || '').trim().toLowerCase(); }
+  function _handFind(rows, name){
+    var k = _handKey(name), hit = null;
+    (rows || []).forEach(function(r){ if (!hit && r && _handKey(r.name) === k) hit = r; });
+    return hit;
+  }
+  window.vaultHandRows = function(){ return _handLoad(); };
+  window.vaultHandAdd = function(name, at){
+    var nm = String(name == null ? '' : name).trim();
+    if (!nm) return { ok: false, refused: 'no-name', why: 'no name' };
+    var cur = _handLoad();
+    if (!cur.ok) return { ok: false, refused: 'unreadable', why: cur.why };
+    var hit = _handFind(cur.rows, nm);
+    if (hit) return { ok: true, mode: 'already', row: hit };
+    var when = (typeof at === 'string' && at) ? at : new Date().toISOString();
+    var row = { name: nm, source: 'manual', at: when, seen: null };
+    cur.rows.push(row);
+    var w = _handSave(cur.rows);
+    if (!w.ok) return { ok: false, refused: 'unwritable', why: w.why };
+    try { if (typeof window.vaultHandPaint === 'function') window.vaultHandPaint(); } catch (eP) {}
+    return { ok: true, mode: 'added', row: row };
+  };
+  window.vaultHandAgree = function(name, witness){
+    var nm = String(name == null ? '' : name).trim();
+    if (!nm) return { ok: false, refused: 'no-name', why: 'no name' };
+    var src = (witness && typeof witness === 'object') ? String(witness.source || '').trim() : '';
+    if (!src || src === 'manual' || src === 'hand') return { ok: true, noted: false, why: 'not a reader' };
+    var cur = _handLoad();
+    if (!cur.ok) return { ok: false, refused: 'unreadable', why: cur.why };
+    var hit = _handFind(cur.rows, nm);
+    if (!hit) return { ok: true, noted: false };
+    if (hit.seen && hit.seen.source) return { ok: true, noted: false, mode: 'stood', row: hit };
+    var at = (witness && typeof witness.at === 'string' && witness.at) ? witness.at : null;
+    hit.seen = { source: src, at: at };
+    var w = _handSave(cur.rows);
+    if (!w.ok) return { ok: false, refused: 'unwritable', why: w.why };
+    try { if (typeof window.vaultHandPaint === 'function') window.vaultHandPaint(); } catch (eP) {}
+    return { ok: true, noted: true, row: hit };
+  };
+  window.vaultHandPaint = function(){
+    var el = document.getElementById('vault-hand');
+    if (!el) return { ok: false, why: 'the hand section is not on this page' };
+    var cur = window.vaultHandRows();
+    el.hidden = false;
+    if (!cur || cur.ok !== true){
+      el.innerHTML = '<p class="vault-hand-say" data-state="unknown">' + _vhEsc(cur && cur.why || 'the hand ledger could not be read') + '</p>';
+      return cur || { ok: false, why: 'the hand ledger could not be read' };
+    }
+    var h = '<p class="vault-hand-h">Added by hand</p>';
+    if (!cur.rows.length){
+      h += '<p class="vault-hand-say" data-state="empty">Nothing added by hand.</p>';
+    } else {
+      h += '<ul class="vault-hand-list">';
+      cur.rows.forEach(function(r){
+        if (!r) return;
+        var src = r.source ? String(r.source) : '';
+        var seen = (r.seen && r.seen.source)
+          ? (' <span class="vault-hand-seen" data-seen="' + _vhEsc(r.seen.source) + '">also seen in ' + _vhEsc(r.seen.source) + '</span>')
+          : '';
+        var word = (src === 'manual') ? 'by hand' : (src || 'source unknown');
+        h += '<li data-name="' + _vhEsc(r.name) + '" data-source="' + _vhEsc(src || 'unknown') + '">'
+          + _vhEsc(r.name) + ' <span class="vault-hand-src">' + _vhEsc(word) + '</span>' + seen + '</li>';
+      });
+      h += '</ul>';
+    }
+    el.innerHTML = h;
+    return { ok: true, n: cur.rows.length };
+  };
+  window.vaultHandOpen = function(){
+    if (document.documentElement && document.documentElement.classList
+        && document.documentElement.classList.contains('cb-lock')){
+      return { ok: false, refused: 'builder-open', why: 'the Character Builder is open — close it before adding an item' };
+    }
+    var host = document.getElementById('vault-hand-win');
+    if (!host){
+      host = document.createElement('div');
+      host.id = 'vault-hand-win';
+      host.setAttribute('role', 'dialog');
+      if (document.body && document.body.appendChild) document.body.appendChild(host);
+    }
+    host.hidden = false;
+    host.innerHTML = '<div class="vault-hand-box"><div class="vault-hand-top"><p>Add an item from the planner list. A pick is filed as your testimony and a reader does not replace it.</p>'
+      + '<button type="button" onclick="window.vaultHandClose()">Close</button></div>'
+      + '<input type="search" id="vault-hand-q" class="vault-hand-q" aria-label="search the planner list" oninput="window.vaultHandSearch(this.value)">'
+      + '<div id="vault-hand-list"></div></div>';
+    return window.vaultHandSearch('');
+  };
+  window.vaultHandSearch = function(q){
+    var list = document.getElementById('vault-hand-list');
+    if (!list) return { ok: false, why: 'the add door is not open' };
+    var cat = (typeof window._cbHandCatalog === 'function')
+      ? window._cbHandCatalog(q)
+      : { ok: false, why: 'the planner list is not on this page', rows: null };
+    window._vhCat = cat;
+    if (!cat || cat.ok !== true || !Array.isArray(cat.rows)){
+      list.innerHTML = '<p class="vault-hand-say" data-state="unknown">' + _vhEsc(cat && cat.why || 'the planner list could not be read') + '</p>';
+      return cat || { ok: false, why: 'the planner list could not be read' };
+    }
+    if (!cat.rows.length){
+      list.innerHTML = '<p class="vault-hand-say" data-state="empty">No item in the planner list matches.</p>';
+      return { ok: true, n: 0 };
+    }
+    var h = '';
+    cat.rows.forEach(function(r){
+      if (!r || !r.id || !r.name) return;
+      h += '<button type="button" class="vault-hand-opt" data-id="' + _vhEsc(r.id) + '" onclick="window.vaultHandTake(this.getAttribute(\'data-id\'))">'
+        + _vhEsc(r.name) + '</button>';
+    });
+    list.innerHTML = h;
+    return { ok: true, n: cat.rows.length };
+  };
+  window.vaultHandTake = function(id){
+    var cat = window._vhCat;
+    if (!cat || cat.ok !== true || !Array.isArray(cat.rows))
+      return { ok: false, refused: 'no-list', why: 'the planner list was not read' };
+    var row = null;
+    cat.rows.forEach(function(r){ if (!row && r && r.id === id) row = r; });
+    if (!row || !row.name) return { ok: false, refused: 'not-listed', why: 'that item is not in the planner list' };
+    var filed = window.vaultHandAdd(row.name);
+    try { if (typeof window.vaultHandPaint === 'function') window.vaultHandPaint(); } catch (eP) {}
+    return filed;
+  };
+  window.vaultHandClose = function(){
+    var host = document.getElementById('vault-hand-win');
+    if (host){ host.hidden = true; host.innerHTML = ''; }
+    window._vhCat = null;
+    return true;
+  };
+  /* ⟦VAULT HAND END⟧ */
+  /* A reader that landed, or that agreed with a filing already standing, notes the hand row.
+     A hand witness is not a reader. A missing hand row is not created here. */
+  function _noteHand(nm, src, at){
+    if (!src || src === 'hand' || src === 'manual') return;
+    try { if (typeof window.vaultHandAgree === 'function') window.vaultHandAgree(nm, { source: src, at: at || null }); }
+    catch (eN) {}
+  }
   /* THE DOOR. -> {ok, mode:'filed'|'confirmed'|'already'|'moved', mule, prov} or {ok:false, refused, why}
      opts.mule   a home he (or the caller) names; else suggestMule decides, as it always did
      opts.move   an EXISTING filing changing homes — not a new claim, so it carries the row it already has */
@@ -40535,8 +40721,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
     }
     /* NEVER OVERRIDE A HOME HE CHOSE — only his own hand, naming the home, may re-file a filed name */
-    if (assign[nm] != null && assign[nm] !== home && !(hand && opts.mule))
+    if (assign[nm] != null && assign[nm] !== home && !(hand && opts.mule)){
+      if (!hand) _noteHand(nm, (wc.kind === 'lane') ? wc.lane : wc.kind, null);
       return { ok: true, mode: 'already', mule: assign[nm], why: nm + ' is already filed to ' + _vHomeName(assign[nm]) };
+    }
     var wasHere = (assign[nm] === home);
     /* A MANUAL PLACEMENT ALWAYS WINS (MP_SRC_RANK's rule, and his): a reader's witness never replaces the row his
        hand left at the same home — it would turn "you put it here" into "the film saw it".
@@ -40544,8 +40732,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        twenty-one would have let the lock evaporate on a re-read. */
     if (wasHere && !hand){
       var _pw = _provAll()[nm];
-      if (_pw && _pw.kind !== 'owned' && _pw.source === 'hand') return { ok: true, mode: 'already', mule: home, why: nm + ' is already filed by your hand' };
-      if (_pw && _pw.kind !== 'owned' && _pw.locked === true) return { ok: true, mode: 'already', mule: home, locked: true, why: nm + ' is ' + String(_pw.tier || 'HARDENED') + ' and locked here — a read agrees, and the evidence row stands' };
+      if (_pw && _pw.kind !== 'owned' && _pw.source === 'hand'){
+        _noteHand(nm, (wc.kind === 'lane') ? wc.lane : wc.kind, null);
+        return { ok: true, mode: 'already', mule: home, why: nm + ' is already filed by your hand' };
+      }
+      if (_pw && _pw.kind !== 'owned' && _pw.locked === true){
+        _noteHand(nm, (wc.kind === 'lane') ? wc.lane : wc.kind, null);
+        return { ok: true, mode: 'already', mule: home, locked: true, why: nm + ' is ' + String(_pw.tier || 'HARDENED') + ' and locked here — a read agrees, and the evidence row stands' };
+      }
     }
     var now = new Date().toISOString();
     var g = (witness && typeof witness.gate === 'object' && witness.gate) ? witness.gate : null;
@@ -40571,6 +40765,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var pa = _provAll(); pa[nm] = row; _provWrite(pa);
     try { if (!owned.has(nm)){ owned.add(nm); persistOwned(); } } catch (e) {}
     assign[nm] = home; saveA();
+    _noteHand(nm, row.source, row.at);
     return { ok: true, mode: wasHere ? 'confirmed' : 'filed', mule: home, holder: row.holder, prov: row,
              why: (sg && sg.why) || '' };
   };
@@ -58258,7 +58453,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var rows;
     if (p.qt === 'ex') rows = _cbExisting(slot, p.node ? -1 : p.rail);
     else if (p.node && CB_HANDS[slot]) rows = _cbNodeSrc(slot, p.node);
-    else rows = _cbForSlot(slot, p.rail);
+    else rows = _cbForSlot(slot, p.rail, p.host === 'hand');
     if (p.node && CB_HANDS[slot]){ var nc = _cbSlotCats(slot); rows = rows.filter(function(x){ return _cbNodeHas(x, nc, p.node); }); }   // #174 v-B4: the tree node
     if (p.qt !== 'ex') rows = rows.filter(function(x){ return _cbInTab(x, p.qt, slot); });
     var q = String(p.q || '').toLowerCase().trim();
@@ -58268,6 +58463,19 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     return rows;
   }
   window._cbPickRows = function(){ return st.pick ? _cbPickRows().map(function(x){ return [x[0], x[1], x[2]]; }) : []; };
+  /* ⟦VAULT HAND CATALOG BEGIN⟧ */
+  /* #234 step 4 — the Vault add door asks the picker list, not a second catalogue.
+     host hand turns the class filter off, so a Sorceress build left open does not hide a Barbarian helm. */
+  window._cbHandCatalog = function(q){
+    try {
+      var rows = _cbRowsFor({ host: 'hand', kind: 'inv', slot: CB_MINV, rail: -1, qt: 'all', q: String(q || ''), filt: '', node: null });
+      if (!Array.isArray(rows)) return { ok: false, why: 'the planner list is not a list', rows: null };
+      return { ok: true, rows: rows.map(function(x){ return { id: x[0], name: x[1], q: x[2] }; }) };
+    } catch (e) {
+      return { ok: false, why: 'the planner list could not be read', rows: null };
+    }
+  };
+  /* ⟦VAULT HAND CATALOG END⟧ */
   /* #41 rank 22 (REG-1564) — A READ-ONLY CENSUS OF WHAT THE PICKER OFFERS FOR ONE SLOT, BESIDE THE DATABASE'S OWN COUNT.
      Nothing on any PC could say what its character picker lists: his ALT showed empty pickers for days (#174 v-B4) and no
      row anywhere carried the number. Two sides, two routes through the block: `offers` is what the picker's Base Items

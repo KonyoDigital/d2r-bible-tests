@@ -8758,6 +8758,15 @@ GATES = [
              "the ledger has not spoken about stays UNKNOWN and draws no cell. An inventory or stash "
              "cell that is not joined to the character is not drawn empty. Two sabotages: the door "
              "sent to the planner, and data-cell dropped off the slot."),
+    Gate("test_a_hand_added_item_stays_his", [sys.executable,
+         os.path.join(HERE, "test_a_hand_added_item_stays_his.py")], 90,
+         needs_app=False,
+         why="#234 step 4 — + Add an item in the Vault opens the planner list and files the pick "
+             "as one ledger row, source manual. A second add leaves that row. A reader that later "
+             "agrees is written beside it, and the manual fact stays. A name that is not in the "
+             "list is not filed, and nothing is assigned to a mule. An unreadable ledger stays "
+             "unknown. Three sabotages: the already-return deleted, the landed-witness note "
+             "dropped, and the planner list put back behind the open build's class."),
     Gate("test_a_session_is_bound_to_the_character_he_entered_with", [sys.executable,
          os.path.join(HERE, "test_a_session_is_bound_to_the_character_he_entered_with.py")], 120,
          needs_app=False,
