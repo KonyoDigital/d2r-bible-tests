@@ -224,8 +224,9 @@ public static class TvdCap {
         if (tl.Contains("resurrected") || tl.Contains("diablo ii")) score += 1500;
         // Prefer the largest window (true fullscreen game over tiny helper hwnds).
         score += Math.Min((w * hh) / 80000, 200);
-        int dpi = 96;
-        try { dpi = (int)GetDpiForWindow(h); if (dpi < 72) dpi = 96; } catch {}
+        int dpi = 0;
+        try { dpi = (int)GetDpiForWindow(h); } catch { dpi = 0; }
+        if (dpi < 72) dpi = 0;
         hits.Add(new Hit {
           Hwnd = h, Left = left, Top = top, W = w, H = hh,
           Title = title, Proc = proc, Route = route, Score = score, IsFg = isFg, Dpi = dpi
@@ -443,7 +444,7 @@ function Write-Stage([string]$s) {
   try { Set-Content -LiteralPath (Join-Path $frames 'capture_stage.txt') -Value $s -Encoding UTF8 } catch {}
 }
 
-function Write-CapTarget([string]$mode, [string]$label) {
+function Write-CapTarget([string]$mode, [string]$label, $hit) {
   $p = Join-Path $frames 'cap_target.json'
   $alive = $false
   try { $alive = [TvdCap]::D2RProcessAlive() } catch {}
@@ -452,6 +453,24 @@ function Write-CapTarget([string]$mode, [string]$label) {
     label = $label
     ts = [DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds()
     d2rProcess = $alive
+  }
+  # The pin already measured the route, the window title, the client size and the DPI.
+  # Those fields are what a sealed reel copies. The label string stays as it was: the
+  # console still reads the route out of it. A DPI the API did not return stays absent.
+  if ($null -ne $hit) {
+    $route = [string]$hit.Route
+    if ($route -eq 'local' -or $route -eq 'crossover') { $route = 'native' }
+    if ($route -eq 'native' -or $route -eq 'geforce-now' -or $route -eq 'boosteroid' -or $route -eq 'unknown') {
+      $obj.route = $route
+    }
+    $title = ([string]$hit.Title).Trim()
+    if ($title.Length -gt 0) { $obj.windowLabel = $title }
+    $ww = 0; $hh = 0
+    try { $ww = [int]$hit.W; $hh = [int]$hit.H } catch { $ww = 0; $hh = 0 }
+    if ($ww -gt 0 -and $hh -gt 0) { $obj.w = $ww; $obj.h = $hh }
+    $dpi = 0
+    try { $dpi = [int]$hit.Dpi } catch { $dpi = 0 }
+    if ($dpi -ge 72) { $obj.dpi = $dpi; $obj.dpiMeasured = $true }
   }
   # v1419: UTF-8 WITHOUT BOM — agent json.load('utf-8') used to miss pin when BOM present
   $json = ($obj | ConvertTo-Json -Compress)
@@ -585,7 +604,7 @@ while ($true) {
       } catch {}
       if ($how) {
         Write-Stage ("ok:" + $how)
-        Write-CapTarget 'window' ("{0} [{1}] - {2} via {3}" -f $best.Proc, $best.Route, $best.Title, $how)
+        Write-CapTarget 'window' ("{0} [{1}] - {2} via {3}" -f $best.Proc, $best.Route, $best.Title, $how) $best
         Start-Sleep -Milliseconds $pollMs
         continue
       }

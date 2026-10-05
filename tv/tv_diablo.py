@@ -1668,17 +1668,74 @@ def _note_pick_route(rows, best):
     geforce-now / boosteroid for every row, and the pick kept only a display label, so no reader could
     ask "how does this machine film D2R" without re-parsing a label (a second decoder that would drift).
     local and crossover are both NATIVE play (D2R.exe on this machine); a row game_route() cannot
-    place is "unknown", never a guess. [[heart-first]] §6 [[copy-drift]] [[unknown-stays-unknown]]"""
+    place is "unknown", never a guess. [[heart-first]] §6 [[copy-drift]] [[unknown-stays-unknown]]
+
+    The same row already measured the window label and the client size. Those ride with the route
+    so the seal can copy them. A size of 0 is not a size."""
     global _PICK_ROUTE
+    label = ""
+    ww = hh = None
     try:
         wid = best[2]
+        if len(best) > 3 and isinstance(best[3], str):
+            label = best[3].strip()
         row = next((r for r in rows or [] if r.get("wid") is not None and int(r.get("wid")) == int(wid)), None)
         rt = game_route(row.get("owner"), row.get("title")) if row else None
+        if row:
+            ww = int(row.get("w") or 0)
+            hh = int(row.get("h") or 0)
     except Exception:
         rt = None
-    _PICK_ROUTE = {"route": {"local": "native", "crossover": "native", "geforce-now": "geforce-now",
-                             "boosteroid": "boosteroid"}.get(rt, "unknown"),
-                   "ts": int(time.time() * 1000)}
+        ww = hh = None
+    rec = {"route": {"local": "native", "crossover": "native", "geforce-now": "geforce-now",
+                     "boosteroid": "boosteroid"}.get(rt, "unknown"),
+           "ts": int(time.time() * 1000)}
+    if label:
+        rec["windowLabel"] = label[:120]
+    if ww and hh and ww > 0 and hh > 0:
+        rec["w"] = ww
+        rec["h"] = hh
+    _PICK_ROUTE = rec
+
+
+def _capture_for_seal():
+    """The capture facts this process can honestly put on a reel it is sealing. -> dict | None
+
+    The finder's last pin, then the Windows capture half's own file when that file names a
+    window (it is the process that filmed). A waiting or missing file does not erase the pin.
+    os is this process. dpi only when the file says the API returned it.
+    """
+    import capture_stamp as _cs
+    measured = {}
+    pr = _PICK_ROUTE if isinstance(_PICK_ROUTE, dict) else {}
+    for k in ("route", "windowLabel", "w", "h"):
+        if pr.get(k) not in (None, ""):
+            measured[k] = pr.get(k)
+    try:
+        with open(os.path.join(FRAMES, "cap_target.json"), encoding="utf-8-sig") as fh:
+            j = json.load(fh)
+    except Exception:
+        j = None
+    if isinstance(j, dict) and str(j.get("mode") or "").lower() == "window":
+        route = j.get("route")
+        if route == "local":
+            route = "native"
+        if route in ("native", "geforce-now", "boosteroid", "unknown"):
+            measured["route"] = route
+        label = j.get("windowLabel")
+        if isinstance(label, str) and label.strip():
+            measured["windowLabel"] = label.strip()
+        jw, jh = j.get("w"), j.get("h")
+        if (isinstance(jw, int) and not isinstance(jw, bool) and isinstance(jh, int)
+                and not isinstance(jh, bool) and jw > 0 and jh > 0):
+            measured["w"] = jw
+            measured["h"] = jh
+        if j.get("dpiMeasured") is True and isinstance(j.get("dpi"), int) and not isinstance(j.get("dpi"), bool):
+            measured["dpi"] = j["dpi"]
+            measured["dpiMeasured"] = True
+    measured["os"] = _cs.os_of_this_process()
+    cap = _cs.from_measured(measured)
+    return cap or None
 
 
 def find_d2r_window_mac():
@@ -7649,6 +7706,15 @@ def claude_vault_read(image_path, surface, timeout=None):
         answered["eye"] = d.get("eye")
     if d.get("backup"):
         answered["backup"] = str(d.get("backup"))[:160]
+    # The reel's own stamp, when this frame lives in a sealed reel. A loose frame has no
+    # reel yet. A reel that recorded nothing does not inherit the pin this process holds now.
+    try:
+        import capture_stamp as _cs
+        _cap = _cs.beside_frame(image_path)
+        if _cap:
+            answered["capture"] = _cap
+    except Exception:
+        pass
     return answered
 
 
@@ -9812,6 +9878,9 @@ def close_session(reason="stop", farewell=True):
                         continue      # unparseable stamp is not a frame — same as v894
                 _ixdoc = {"sessionId": SESSION_ID, "n": len(_meta),
                           "blank": 0, "frames": _meta, "blankPass": False}
+                _cap = _capture_for_seal()
+                if _cap:
+                    _ixdoc["capture"] = _cap
                 # v1595 — STAMP THE MINI. Without this the flag changes nothing that
                 # outlives the process: vault_retro reads the sealed reel, not the argv of
                 # a run that has already exited.

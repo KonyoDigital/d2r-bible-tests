@@ -171,8 +171,15 @@ def prepare(frame_path, surface, work_dir=None):
                             "carry, which is the drift this registry exists to surface" % fn)
     wd = work_dir or os.path.dirname(os.path.abspath(frame_path)) or "."
     dest = os.path.join(wd, ".surface_%s.jpg" % surface.replace("-", "_"))
+    kwargs = dict(t.get("enlargeParams") or {})
+    if fn == "prep_stash_grid":
+        try:
+            import capture_stamp as _cs
+            kwargs["stamp"] = _cs.beside_frame(frame_path)
+        except Exception:
+            kwargs["stamp"] = None
     try:
-        ok = op(frame_path, dest)
+        ok = op(frame_path, dest, **kwargs) if kwargs else op(frame_path, dest)
     except TypeError:
         try:
             ok = op(frame_path, dest, **(t.get("enlargeParams") or {}))

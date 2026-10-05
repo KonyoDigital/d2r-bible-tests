@@ -6774,6 +6774,11 @@ GATES = [
          why="a sealed reel must always carry a parseable index.json — even when the seal is "
              "interrupted mid-way — because theatre, read_reel and the retro sweep all enter "
              "through the index, and a reel of real frames without one plays BLACK"),
+    Gate("test_a_new_reel_carries_the_capture_it_measured",
+         [sys.executable, os.path.join(HERE, "test_a_new_reel_carries_the_capture_it_measured.py")], 120,
+         why="a new reel records the route, window, client size, os and dpi that were measured, "
+             "and a narrow film is cropped only when that record says it is the same window. "
+             "An old index is not given a route, and an unmeasured DPI is not 96"),
     Gate("test_g5_budget_units", [sys.executable, os.path.join(HERE, "test_g5_budget_units.py")], 120,
          why="g5_subscription_budget.json had TWO writers on TWO clocks — Python seconds, Node "
              "milliseconds — so Python could never prune a Node row (it reads as 1.78 million "

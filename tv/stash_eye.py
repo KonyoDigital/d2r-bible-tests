@@ -272,11 +272,38 @@ def prep_tab_chrome(src_path: str, dest_path: str, scale: int = 3) -> Optional[s
         return None
 
 
+def _frame_has_a_band(w, h, stamp):
+    """Whether the one UI law may crop this frame. -> bool
+
+    A frame at least 1200 wide is the case the law was already applied to.
+    A narrower frame is that law only when a capture stamp names a measured window
+    of the same aspect (the film is that window, or a downscale of it). A narrow
+    frame with no such stamp is unknown: the old left-46% slab was a guess.
+    """
+    try:
+        w = int(w)
+        h = int(h)
+    except (TypeError, ValueError):
+        return False
+    if w >= 1200 and h > 0:
+        return True
+    if w <= 0 or h <= 0 or not isinstance(stamp, dict):
+        return False
+    cw, ch = stamp.get("w"), stamp.get("h")
+    if isinstance(cw, bool) or isinstance(ch, bool):
+        return False
+    if not (isinstance(cw, int) and isinstance(ch, int) and cw > 0 and ch > 0):
+        return False
+    client = cw / float(ch)
+    return abs((w / float(h)) - client) / client <= 0.02
+
+
 def prep_stash_grid(src_path: str, dest_path: str, layout: str = "runes",
-                    max_edge: int = 1200, cap: float = 3.2) -> Optional[str]:
+                    max_edge: int = 1200, cap: float = 3.2, stamp=None) -> Optional[str]:
     """Mimic _tallyPrepImage crop+enlarge for a layout (runes|gems|materials|shared).
 
     Pure image prep — does NOT call intake or the model.
+    `stamp` is the reel's capture record (route, client w, h). It does not invent a band.
     """
     try:
         from PIL import Image  # type: ignore
@@ -288,7 +315,11 @@ def prep_stash_grid(src_path: str, dest_path: str, layout: str = "runes",
         # 1.45-1.62 (Konyo's Mac) and dropped everything else — every 16:9 Windows frame — to a
         # 46%-of-screen slab. A derived band is strictly better than a slab, and the Mac branch is
         # unchanged.
-        derived = crops_for_aspect(layout, aspect) if w >= 1200 else None
+        # A film under 1200 wide (the ALT caps the jpeg at 800) is the same law when the reel
+        # recorded a window of that aspect. Without that record the slab is a guess, so no crop.
+        if not _frame_has_a_band(w, h, stamp):
+            return None
+        derived = crops_for_aspect(layout, aspect)
         if derived:
             crop = _crop_frac(im, derived)
         elif aspect >= 1.3:
