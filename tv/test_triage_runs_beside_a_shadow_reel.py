@@ -97,7 +97,7 @@ class _Base(unittest.TestCase):
 
     STUBS = ("_capture_is_live", "_agent_origin", "_agent_proc", "_agent_alive", "_cpu_busy_pct",
              "vault_sweep_state", "_CHRON_JOB", "HIST_DIR", "_TRIAGE_ON", "_TRIAGE_LANE",
-             "_TRIAGE_STORE_SEED", "IS_WIN", "stash_screen_open_cached")
+             "_TRIAGE_STORE_SEED", "_TRIAGE_BACKLOG_SEED", "IS_WIN", "stash_screen_open_cached")
     ENV = ("TV_HIST", "TV_TRIAGE_SHADOW_MAX_CPU", "TV_TRIAGE_WIN_MAX_CPU")
 
     def setUp(self):
@@ -125,6 +125,7 @@ class _Base(unittest.TestCase):
         ca._TRIAGE_ON = True
         ca._TRIAGE_LANE = _fresh_lane()
         ca._TRIAGE_STORE_SEED = {"read": False, "ts": None, "why": ""}
+        ca._TRIAGE_BACKLOG_SEED = {"read": False, "why": ""}
         # Mac-shaped by default (CI is Linux, his Mac is darwin): the Windows cases say so themselves
         ca.IS_WIN = False
         ca._capture_is_live = lambda: False
@@ -173,8 +174,10 @@ class _Base(unittest.TestCase):
         """A folded reel on the fixture shelf, last modified `age_s` ago."""
         d = os.path.join(self.world, name)
         os.makedirs(d, exist_ok=True)
+        # the capture clock is the frame name, not the directory mtime and not a fixed id
+        base = int((time.time() - age_s) * 1000)
         for i in range(frames):
-            with io.open(os.path.join(d, "f_%d.jpg" % (1510000000000 + i)), "wb") as fh:
+            with io.open(os.path.join(d, "f_%d.jpg" % (base + i)), "wb") as fh:
                 fh.write(b"\xff\xd8\xff")
         t = time.time() - age_s
         os.utime(d, (t, t))
@@ -889,6 +892,79 @@ class TheWaitIsHowLongAReelWaited(_Base):
         self.assertIn("[playing]", why, "the row does not say the lane is standing aside for his game")
 
 
+class ARelaunchDoesNotResetTheWait(_Base):
+    """Gap 20 — the wait was the newest of the last walk, an empty tick, the first backlog and
+    this process starting. A relaunch made the process start the newest mark, so a backlog that
+    had stood for hours read as inside the bar for as long as the console kept relaunching.
+
+    The first-backlog mark is kept across the restart. The oldest waiting reel is judged by its
+    own capture clock, and that age wins when it is the longer one. Process start is not a mark.
+    """
+
+    def _mark(self, owed_since, relaunches=1, oldest=None):
+        path = ca._triage_backlog_path()
+        self.assertTrue(os.path.realpath(path).startswith(os.path.realpath(self.world)),
+                        "the backlog mark is not inside the fixture (%s)" % path)
+        with io.open(path, "w", encoding="utf-8") as fh:
+            json.dump({"owedSince": owed_since, "oldestReelMs": oldest,
+                       "relaunches": relaunches}, fh)
+        return path
+
+    def test_a_relaunch_keeps_the_first_backlog_mark(self):
+        owed = int(time.time() * 1000) - int(6 * HOUR * 1000)
+        self._mark(owed)
+        self.reel("reel_plain", frames=0, age_s=6 * HOUR)
+        r = self.tick()
+        self.assertEqual(r.get("key"), "unworkable", r)
+        self.assertGreaterEqual(r.get("backlog") or 0, 1)
+        self.assertEqual(ca._TRIAGE_LANE["owedSince"], owed,
+                         "the first tick after a relaunch moved the backlog mark to now")
+        self.assertEqual(ca._TRIAGE_LANE.get("relaunches"), 2)
+        s = ca.triage_lane_state()
+        self.assertEqual(s["waitFrom"], "the first tick that found this backlog")
+        self.assertNotEqual(s["waitFrom"], "this process starting")
+        self.assertIsNone(s.get("reelWaitS"), "a reel with no capture clock invented an age")
+        self.assertGreater(s["waitS"], CD.TRIAGE_STARVED_AFTER_S)
+        st, why = self.doctor_over(1)
+        self.assertEqual(st, CD.MISSING, why)
+        self.assertIn("6.0 h", why)
+        self.assertIn("the first tick that found this backlog", why)
+        self.assertIn("across 2 relaunches", why)
+        self.assertNotIn("this process starting", why)
+
+    def test_an_old_reel_is_judged_by_its_own_age(self):
+        """The backlog mark was written by this tick, so waitS is a few seconds. The reel was
+        filmed six hours ago. The row follows the reel."""
+        self.reel("reel_old", frames=2, age_s=6 * HOUR)
+        self.walks = 0
+        r = self.tick()
+        self.assertEqual(r.get("key"), "walked-nothing", r)
+        self.assertEqual(r.get("backlog"), 1, r)
+        s = ca.triage_lane_state()
+        self.assertLess(s["waitS"], CD.TRIAGE_STARVED_AFTER_S,
+                        "premise: the first-backlog mark is this tick, not the reel")
+        self.assertGreater(s["reelWaitS"], CD.TRIAGE_STARVED_AFTER_S, s)
+        st, why = self.doctor_over(1)
+        self.assertEqual(st, CD.MISSING, why)
+        self.assertIn("oldest waiting reel", why)
+        self.assertIn("6.0 h", why)
+        self.assertNotIn("this process starting", why)
+
+    def test_a_reel_folded_moments_ago_stays_inside_the_bar_after_a_relaunch(self):
+        owed = int(time.time() * 1000) - int(30 * 1000)
+        filmed = int(time.time() * 1000) - int(30 * 1000)
+        self._mark(owed, oldest=filmed)
+        ca._TRIAGE_LANE = _fresh_lane()
+        ca._TRIAGE_LANE["ticks"] = 2
+        ca._TRIAGE_BACKLOG_SEED = {"read": False}
+        s = ca.triage_lane_state()
+        self.assertLess(s["waitS"], CD.TRIAGE_STARVED_AFTER_S)
+        self.assertLess(s["reelWaitS"], CD.TRIAGE_STARVED_AFTER_S)
+        st, why = self.doctor_over(1)
+        self.assertEqual(st, CD.OK, "a reel filmed 30 s ago read as starved after a relaunch: %s" % why)
+        self.assertNotIn("this process starting", why)
+
+
 class ABootIsNotAStarvedLane(_Base):
     """L1 — at boot the first periodic look lands before the loop's first tick, and the row read
     'NONE RECORDED ... the loop may not be running' after every relaunch."""
@@ -1049,6 +1125,8 @@ class ALongNativeSessionIsNotAStarvedLane(_Base):
                          "ever be measured past one tick")
         L["playingSince"] = first - int((hours - 1.0) * HOUR * 1000)
         L["upSince"] -= int((hours + 1.0) * HOUR * 1000)    # the console was up before he sat down
+        # the reels were already owed when he sat down. Process start is not the wait clock.
+        L["owedSince"] = int(time.time() * 1000) - int((hours + 0.5) * HOUR * 1000)
         s = ca.triage_lane_state()
         self.assertGreater(s["waitS"], CD.TRIAGE_STARVED_AFTER_S,
                            "premise: the reels have waited past the 3 h starve bar")
@@ -1775,6 +1853,22 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": "    _running, _how = _d2r_running_here()\n",
         "replace": "    import tv_diablo as _tvd9\n    _running, _how = _tvd9._pgrep_d2r_state(), \"pgrep\"\n",
+        "matches": 1,
+    },
+    {
+        "why": "gap 20 - process start is the wait clock again, so a relaunch hides a standing backlog",
+        "file": "control_app.py",
+        "find": "                  (\"the first tick that found this backlog\", d.get(\"owedSince\")),\n"
+                "                  ]\n",
+        "replace": "                  (\"the first tick that found this backlog\", d.get(\"owedSince\")),\n"
+                   "                  (\"this process starting\", d.get(\"upSince\"))]\n",
+        "matches": 1,
+    },
+    {
+        "why": "gap 20 - the row ignores the reel's own age, so a fresh backlog mark hides an old reel",
+        "file": "console_doctor.py",
+        "find": "        reel_wait = tri.get(\"reelWaitS\")\n",
+        "replace": "        reel_wait = None\n",
         "matches": 1,
     },
 ]

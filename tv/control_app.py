@@ -30315,8 +30315,11 @@ _TRIAGE_LANE = {"surveyed": 0, "panels": 0, "lastTs": None, "lastReel": None, "s
                 # evening he plays. owedSince: the first tick that counted a backlog > 0 after a
                 # walk or a done (cleared when it counts 0). caughtUpTs: the last tick that counted
                 # 0 — any reel waiting now became owed after it, even when every tick since has
-                # refused before it could count. [[stale-reading]]
+                # refused before it could count. owedSince is also kept in triage_backlog.json:
+                # a relaunch must not forget the first tick that saw this backlog. [[stale-reading]]
                 "owedSince": None, "caughtUpTs": None,
+                # the earliest capture clock among the reels still owed, when a tick could read one
+                "oldestReelMs": None, "relaunches": 0,
                 # ⚠ 2026-09-28 — HOW LONG IT HAS STOOD ASIDE FOR HIS GAME, WITHOUT A BREAK. The first
                 # tick of an unbroken run of 'playing' refusals; ANY other outcome clears it. Dean plays
                 # natively for hours, and standing aside is by design — the doctor judges a 'playing'
@@ -30327,6 +30330,130 @@ _TRIAGE_ON = (os.environ.get("TV_TRIAGE") or "1") != "0"
 #: the survey store's newest FULL row, read once per process — so a relaunch (every ship re-execs
 #: this console) does not reset "when did the lane last walk a reel" to never. None = not read yet.
 _TRIAGE_STORE_SEED = {"read": False, "ts": None, "why": ""}
+#: the durable first-backlog mark, read once per process. A second read would count another relaunch.
+_TRIAGE_BACKLOG_SEED = {"read": False, "why": ""}
+
+
+def _triage_backlog_path():
+    """Where the first-backlog mark sits. Same fence as the survey store. -> path"""
+    import retro_triage as _rt
+    return os.path.join(os.path.dirname(_rt._store_path()), "triage_backlog.json")
+
+
+def _triage_ms(v):
+    """An epoch-ms mark, or None. A bool is not a time."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return None
+    return int(v)
+
+
+def _triage_backlog_write(blob):
+    path = _triage_backlog_path()
+    folder = os.path.dirname(path)
+    if not folder or not os.path.isdir(folder):
+        raise OSError("the backlog mark has nowhere to sit")
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as fh:
+        json.dump(blob, fh)
+    os.replace(tmp, path)
+
+
+def _triage_backlog_load():
+    """Restore the standing first-backlog mark into this process, once. -> None
+
+    A console relaunched on every pull used to be born with owedSince empty, so the wait
+    collapsed to how long THIS process had run. The mark on disk is the first tick that saw
+    the backlog, and a process that finds it still standing counts as another relaunch.
+    An unreadable file leaves the memory mark alone and says why — it is not "nothing owed".
+    """
+    seed = _TRIAGE_BACKLOG_SEED
+    if seed.get("read"):
+        return
+    seed["read"] = True
+    try:
+        with open(_triage_backlog_path(), encoding="utf-8") as fh:
+            blob = json.load(fh)
+    except FileNotFoundError:
+        return
+    except Exception as e:
+        seed["why"] = "the backlog mark could not be read (%s)" % type(e).__name__
+        return
+    if not isinstance(blob, dict):
+        seed["why"] = "the backlog mark was not a record"
+        return
+    L = _TRIAGE_LANE
+    stood = False
+    owed = _triage_ms(blob.get("owedSince"))
+    if L.get("owedSince") is None and owed is not None:
+        L["owedSince"] = owed
+        stood = True
+    old = _triage_ms(blob.get("oldestReelMs"))
+    if L.get("oldestReelMs") is None and old is not None:
+        L["oldestReelMs"] = old
+        stood = True
+    n = blob.get("relaunches")
+    n = n if isinstance(n, int) and not isinstance(n, bool) and n > 0 else 0
+    if not stood:
+        if not L.get("relaunches"):
+            L["relaunches"] = n
+        return
+    n += 1
+    L["relaunches"] = n
+    blob["relaunches"] = n
+    blob["owedSince"] = _triage_ms(L.get("owedSince"))
+    blob["oldestReelMs"] = _triage_ms(L.get("oldestReelMs"))
+    try:
+        _triage_backlog_write(blob)
+    except Exception as e:
+        seed["why"] = "the backlog mark could not be kept (%s)" % type(e).__name__
+
+
+def _triage_backlog_save():
+    """Write the in-memory mark. A refused write is said and does not fail the tick. -> None"""
+    L = _TRIAGE_LANE
+    owed, old = _triage_ms(L.get("owedSince")), _triage_ms(L.get("oldestReelMs"))
+    n = L.get("relaunches")
+    n = n if isinstance(n, int) and not isinstance(n, bool) and n > 0 else 0
+    if (owed is not None or old is not None) and n < 1:
+        n = 1
+        L["relaunches"] = n
+    blob = {"owedSince": owed, "oldestReelMs": old,
+            "relaunches": n if (owed is not None or old is not None) else 0}
+    try:
+        _triage_backlog_write(blob)
+    except Exception as e:
+        _TRIAGE_BACKLOG_SEED["why"] = "the backlog mark could not be kept (%s)" % type(e).__name__
+
+
+def _triage_oldest_captured_ms(paths):
+    """The earliest capture clock among these reel directories. -> epoch ms | None
+
+    None means no reel had a readable clock. It is not a date in 1970.
+    """
+    best = None
+    try:
+        import reel_router as _rr
+    except Exception:
+        return None
+    for p in paths or []:
+        try:
+            ms, _src = _rr._captured_ms(os.path.basename(p), os.path.dirname(p))
+        except Exception:
+            ms = None
+        ms = _triage_ms(ms)
+        if ms is None:
+            continue
+        if best is None or ms < best:
+            best = ms
+    return best
+
+
+def _triage_note_oldest(out, paths):
+    """Stamp the oldest still-owed reel's capture onto a tick outcome. -> out"""
+    ms = _triage_oldest_captured_ms(paths)
+    if ms is not None and isinstance(out, dict):
+        out["oldestReelMs"] = ms
+    return out
 
 
 def _triage_record(r):
@@ -30338,6 +30465,7 @@ def _triage_record(r):
     if not isinstance(r, dict):
         r = {"ok": False, "key": "unreadable",
              "why": "the tick answered %s, not a dict" % type(r).__name__}
+    _triage_backlog_load()
     key = str(r.get("key") or "unnamed")
     why = str(r.get("why") or "")[:240]
     L = _TRIAGE_LANE
@@ -30358,9 +30486,15 @@ def _triage_record(r):
         L["backlog"], L["backlogAt"] = _b, now
         if _b <= 0:
             L["owedSince"], L["caughtUpTs"] = None, now
+            L["oldestReelMs"] = None
         elif key == "surveyed" or L.get("owedSince") is None:
-            # a walk restarts the wait: whatever is still owed has waited only since it
+            # a walk restarts the wait: whatever is still owed has waited only since it.
+            # a tick that found the backlog already marked (including one restored from
+            # the last process) does not move that mark forward to now.
             L["owedSince"] = now
+        if "oldestReelMs" in r:
+            L["oldestReelMs"] = _triage_ms(r.get("oldestReelMs"))
+        _triage_backlog_save()
     if not r.get("ok"):
         sk = dict(L.get("skips") or {})
         sk[key] = int(sk.get(key) or 0) + 1
@@ -30400,22 +30534,25 @@ def triage_lane_state():
     lastSurveyTs  newest of this process's last walk and the store's newest full row; None = no
                   reel has ever been walked, which is NOT "recently".
     sinceSurveyS  seconds since then, computed HERE so no reader needs this machine's clock.
-    upS           seconds this process has been up — the clock a never-walked lane is judged by.
+    upS           seconds this process has been up. It is NOT the wait: a relaunch must not
+                  restart the clock under a backlog that was already standing.
     worked/owed   the shared lane vocabulary; owed None = UNKNOWN (no tick has counted it yet).
     waitS         ⚠ 2026-09-28 — how long the reels waiting NOW can have waited with no walk: seconds
                   since the LATEST of the last walk, the last tick that found nothing owed
-                  (caughtUpTs), the first tick that found this backlog (owedSince) and this process
-                  starting. The doctor judges starvation by this, not by sinceSurveyS — after an
-                  idle day the last walk is a day old while the reel waiting was folded a minute
-                  ago. The process start is in it on purpose: a lane is starved over the time it
-                  RAN, and a console closed overnight did not starve anything. `waitFrom` names
-                  which stamp won, so a reader can see what the number is the age of.
+                  (caughtUpTs) and the first tick that found this backlog (owedSince). Not this
+                  process starting — a relaunch made that the newest mark and the wait collapsed
+                  to uptime while the reels stood. owedSince is restored from triage_backlog.json
+                  before this is asked. `waitFrom` names which stamp won.
+    reelWaitS     seconds since the oldest still-owed reel was filmed (its own capture clock),
+                  when a tick could read one. The doctor judges by this when it is the longer
+                  wait. None means the clock was not read, which is not zero.
     playingForS   ⚠ 2026-09-28 — seconds since the first tick of the CURRENT unbroken run of 'playing'
                   refusals (playingSince); None when the last outcome was anything else. Computed
                   HERE, like sinceSurveyS. The doctor reads a 'playing' lane by this, up to its own
                   12 h bar — standing aside for his game is by design, a D2R.exe open for days is not.
     """
     try:
+        _triage_backlog_load()
         d = dict(_TRIAGE_LANE)
         d["skips"] = dict(d.get("skips") or {})
         now = int(time.time() * 1000)
@@ -30433,10 +30570,13 @@ def triage_lane_state():
             "upS": round(max(0.0, (now - int(d.get("upSince") or now)) / 1000.0), 1),
             "worked": d.get("surveyed"), "owed": d.get("backlog"),
         })
+        # ⚠ process start is not a mark. It is the newest stamp after every relaunch, so a
+        # backlog that had already stood for hours read as a few minutes old. The first-backlog
+        # mark is restored above; the reel's own age is reelWaitS, judged beside this.
         _marks = [("the last walk", last),
                   ("the last tick that found nothing owed", d.get("caughtUpTs")),
                   ("the first tick that found this backlog", d.get("owedSince")),
-                  ("this process starting", d.get("upSince"))]
+                  ]
         _marks = [(n, int(t)) for n, t in _marks
                   if isinstance(t, (int, float)) and not isinstance(t, bool)]
         if _marks:
@@ -30445,6 +30585,11 @@ def triage_lane_state():
                       "waitSinceTs": _wt})
         else:
             d.update({"waitS": None, "waitFrom": None, "waitSinceTs": None})
+        _om = _triage_ms(d.get("oldestReelMs"))
+        d["reelWaitS"] = (None if _om is None else round(max(0.0, (now - _om) / 1000.0), 1))
+        d["reelWaitFrom"] = (None if _om is None else "the oldest waiting reel's own capture")
+        _rn = d.get("relaunches")
+        d["relaunches"] = _rn if isinstance(_rn, int) and not isinstance(_rn, bool) and _rn > 0 else 0
         d["owedForS"] = (None if not isinstance(d.get("owedSince"), (int, float))
                          else round(max(0.0, (now - int(d["owedSince"])) / 1000.0), 1))
         d["everyS"] = _TRIAGE_EVERY_S          # the cadence the doctor judges a stale tick against
@@ -30620,11 +30765,13 @@ def _retro_triage_tick_once():
     frameless = [d for d in owed if d not in settling and _n_frames(d) == 0]
     todo = [d for d in owed if d not in settling and d not in frameless]
     if not todo:
-        return {"ok": False, "key": "unworkable", "backlog": len(owed),
-                "settling": len(settling), "frameless": len(frameless),
-                "why": "%d reel(s) owe a survey and none can be walked now: %d folded under %ds "
-                       "ago (still settling), %d hold no frame at all"
-                       % (len(owed), len(settling), _TRIAGE_SETTLE_S, len(frameless))}
+        return _triage_note_oldest(
+            {"ok": False, "key": "unworkable", "backlog": len(owed),
+             "settling": len(settling), "frameless": len(frameless),
+             "why": "%d reel(s) owe a survey and none can be walked now: %d folded under %ds "
+                    "ago (still settling), %d hold no frame at all"
+                    % (len(owed), len(settling), _TRIAGE_SETTLE_S, len(frameless))},
+            owed)
     todo.sort(key=_n_frames)
     d = todo[0]
     # ⚠ 2026-09-28 — THE PLAY PROBE RIDES THE WALK. It ran only at this tick's start, and one walk may
@@ -30639,11 +30786,13 @@ def _retro_triage_tick_once():
         _sk = _stop.get("key") if isinstance(_stop, dict) else None
         # a stop the hook did not name (survey's own "the check raised") is UNKNOWN, never "not playing"
         _sk = _sk if _sk in ("playing", "playing-unknown") else "playing-unknown"
-        return {"ok": False, "key": _sk, "midWalk": True, "reel": os.path.basename(d),
-                "frames": out.get("frames"), "backlog": len(owed), "settling": len(settling),
-                "frameless": len(frameless), "shadow": shadow, "cpu": cpu,
-                "why": str((_stop.get("why") if isinstance(_stop, dict) else _stop)
-                           or "the walk was stopped")[:240]}
+        return _triage_note_oldest(
+            {"ok": False, "key": _sk, "midWalk": True, "reel": os.path.basename(d),
+             "frames": out.get("frames"), "backlog": len(owed), "settling": len(settling),
+             "frameless": len(frameless), "shadow": shadow, "cpu": cpu,
+             "why": str((_stop.get("why") if isinstance(_stop, dict) else _stop)
+                        or "the walk was stopped")[:240]},
+            owed)
     looked = int(out.get("reels") or 0)
     # ⚠⚠ 2026-09-28 — A WALK COUNTS ONLY WHEN THE REEL LEFT THE OWED SET. survey() counts a reel it
     # looked at whether or not remember() kept the verdict, and remember() returns False WITHOUT
@@ -30665,19 +30814,25 @@ def _retro_triage_tick_once():
             _store_ok = bool(_rt.load()[1])
         except Exception:
             _store_ok = False
-        return {"ok": False, "key": "not-remembered", "reel": os.path.basename(d),
-                "frames": out.get("frames"), "backlog": len(owed), "settling": len(settling),
-                "frameless": len(frameless), "shadow": shadow, "cpu": cpu,
-                "why": ("a reel was looked at and the survey store did not keep the verdict (%s), "
-                        "so it is still owed and the next tick will pay for it again"
-                        % ("the store would not take the write" if _store_ok
-                           else "the store does not read back cleanly - corrupt or unreadable"))}
-    return {"ok": bool(walked), "key": ("surveyed" if walked else "walked-nothing"),
-            "reel": os.path.basename(d), "frames": out.get("frames"),
-            "panels": out.get("panels"), "remaining": len(todo) - 1,
-            "backlog": len(owed) - walked, "settling": len(settling),
-            "frameless": len(frameless), "shadow": shadow, "cpu": cpu,
-            "partial": bool(out.get("stoppedEarly")), "why": out.get("say")}
+        return _triage_note_oldest(
+            {"ok": False, "key": "not-remembered", "reel": os.path.basename(d),
+             "frames": out.get("frames"), "backlog": len(owed), "settling": len(settling),
+             "frameless": len(frameless), "shadow": shadow, "cpu": cpu,
+             "why": ("a reel was looked at and the survey store did not keep the verdict (%s), "
+                     "so it is still owed and the next tick will pay for it again"
+                     % ("the store would not take the write" if _store_ok
+                        else "the store does not read back cleanly - corrupt or unreadable"))},
+            owed)
+    # a reel that was walked has left the owed set; the age is the ones still waiting
+    _still = [p for p in owed if not (walked and os.path.abspath(p) == os.path.abspath(d))]
+    return _triage_note_oldest(
+        {"ok": bool(walked), "key": ("surveyed" if walked else "walked-nothing"),
+         "reel": os.path.basename(d), "frames": out.get("frames"),
+         "panels": out.get("panels"), "remaining": len(todo) - 1,
+         "backlog": len(owed) - walked, "settling": len(settling),
+         "frameless": len(frameless), "shadow": shadow, "cpu": cpu,
+         "partial": bool(out.get("stoppedEarly")), "why": out.get("say")},
+        _still)
 
 
 #: ══ THE RIVER WALK'S HEARTBEAT ═══════════════════════════════════════════════════════════════

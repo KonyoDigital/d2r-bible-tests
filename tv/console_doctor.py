@@ -4966,10 +4966,13 @@ def _check_triage_is_not_starved(*_a, **_k):
     MISSING when the river holds reels at TRIAGE and they have waited more than
     TRIAGE_STARVED_AFTER_S with no reel walked — naming the lane's last refusal, how often each
     reason fired, and the backlog it counted. ⚠ 2026-09-28: the wait is the console's `waitS`,
-    counted from the LATEST of the last walk, the last tick that found nothing owed, the first tick
-    that found this backlog and the process starting — not from the last walk alone, which after an
-    idle day read a reel folded a minute ago as starved for a day. A console that predates waitS is
-    judged the old way (last walk, else process uptime).
+    counted from the LATEST of the last walk, the last tick that found nothing owed and the first
+    tick that found this backlog — not from the last walk alone, which after an idle day read a
+    reel folded a minute ago as starved for a day. ⚠ 2026-10-06: that first-backlog mark survives
+    a relaunch, and when the oldest waiting reel's own capture (`reelWaitS`) is the longer age the
+    row judges by the reel, not by a process that just started. Process start is not the wait
+    clock. A console that predates waitS and publishes no reel age is judged the old way (last
+    walk, else process uptime).
     UNKNOWN when the lane's state cannot be read (no answer, a console that predates the field, an
     unreadable state), the river cannot say how many reels sit at TRIAGE, or the lane has not had
     two intervals to tick since its process started (the first periodic look at boot).
@@ -5080,14 +5083,34 @@ def _check_triage_is_not_starved(*_a, **_k):
         # ⚠ 2026-09-28 (M2) — HOW LONG THE REELS HAVE WAITED, NOT HOW LONG SINCE THE LAST WALK. After an
         # idle day the last walk is a day old, so a reel folded 30 s ago (still settling) or held ten
         # minutes behind 'playing' read MISSING "24.0 h" — every evening he plays. waitS counts from
-        # the LATEST of the last walk, the last tick that found nothing owed, the first tick that
-        # found this backlog and the process starting (see triage_lane_state). [[stale-reading]]
+        # the LATEST of the last walk, the last tick that found nothing owed and the first tick
+        # that found this backlog (see triage_lane_state). Not this process starting: a relaunch
+        # made that the newest mark and a standing backlog never reached the bar.
+        # The reel's own capture is the longer age when the mark was only just written and the
+        # reel has been waiting. A young reel stays inside the bar. [[stale-reading]]
         age_s = float(wait)
         _from = str(tri.get("waitFrom") or "an unnamed mark")
-        if tri.get("lastSurveyTs") is None:
-            span = "has NEVER walked a reel, and %.1f h have passed since %s" % (age_s / 3600.0, _from)
+        reel_wait = tri.get("reelWaitS")
+        if isinstance(reel_wait, (int, float)) and not isinstance(reel_wait, bool):
+            if float(reel_wait) > age_s:
+                age_s = float(reel_wait)
+                _from = "the oldest waiting reel's own capture"
+        _re = tri.get("relaunches")
+        _across = (" across %d relaunches" % _re
+                   if isinstance(_re, int) and not isinstance(_re, bool) and _re >= 2 else "")
+        if _from == "the oldest waiting reel's own capture":
+            if tri.get("lastSurveyTs") is None:
+                span = ("has NEVER walked a reel, and the oldest waiting reel was filmed %.1f h "
+                        "ago%s" % (age_s / 3600.0, _across))
+            else:
+                span = ("has left the oldest waiting reel unwalked for the %.1f h since it was "
+                        "filmed%s" % (age_s / 3600.0, _across))
+        elif tri.get("lastSurveyTs") is None:
+            span = ("has NEVER walked a reel, and %.1f h have passed since %s%s"
+                    % (age_s / 3600.0, _from, _across))
         else:
-            span = "has walked no reel in the %.1f h since %s" % (age_s / 3600.0, _from)
+            span = ("has walked no reel in the %.1f h since %s%s"
+                    % (age_s / 3600.0, _from, _across))
     elif since is not None:
         age_s = float(since)
         span = "has not walked a reel for %.1f h" % (age_s / 3600.0)
