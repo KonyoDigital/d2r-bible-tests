@@ -56953,19 +56953,24 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
      magic 1 prefix + 1 suffix, rare 3 + 3 (a rare jewel 4 in all), one automod, one superior row. A row of weight 0
      (frequency 0 - the classic duplicates the expansion never draws) is never offered, and the list says how many.
      A picked affix's value is a box inside its range: typed = EXACT, blank = RANGE, outside = refused with the range
-     shown - the unique rolls' contract. STORE on the slot entry: q ('rare' | 'm' | 'sup' | 'b' | 'low'), ilvl, rn
+     shown - the unique rolls' contract. STORE on the slot entry: q ('rare' | 'm' | 'sup' | 'b' | 'low' | 'c'), ilvl, rn
      [prefix word, suffix word], lq (a low word), def (a typed base defense), affixes [{id, rolls: {m1..m3}}]. A build
-     saved before this carries none of them and loads exactly as it did. [[unknown-stays-unknown]] [[the-unjoined-end]] */
-  var CB_QUALS = [['rare', 'Rare', 'rare'], ['m', 'Magic', 'm'], ['sup', 'Superior', 'b'], ['b', 'Normal', 'b'], ['low', 'Low', 'b']];
-  var CB_Q_OF = { rare: 'Rare', m: 'Magic', sup: 'Superior', b: 'Normal', low: 'Low' };
+     saved before this carries none of them and loads exactly as it did. A crafted quality is offered only on a wearable
+     amulet: choosing it fills the rare name (Grim and Noose when those words are legal, else the first of each list)
+     and a picked affix stores the top of each numeric range. Magic and rare stay blank = the range.
+     [[unknown-stays-unknown]] [[the-unjoined-end]] */
+  var CB_QUALS = [['rare', 'Rare', 'rare'], ['m', 'Magic', 'm'], ['sup', 'Superior', 'b'], ['b', 'Normal', 'b'], ['low', 'Low', 'b'], ['c', 'Crafted', 'c']];
+  var CB_Q_OF = { rare: 'Rare', m: 'Magic', sup: 'Superior', b: 'Normal', low: 'Low', c: 'Crafted' };
   var CB_AX_GROUPS = [['p', 'Prefixes'], ['s', 'Suffixes'], ['a', 'Automod'], ['q', 'Superior']];
   function _cbIsBase(it){ return !!(it && (it[2] === 'b' || it[2] === 'm')); }
   /* the qualities a base may drop in, in their order (Rare, Magic, Superior, Normal, Low) */
   function _cbCanQ(code){
     var d = _cbDb(), b = d && d.b[code]; if (!b) return [];
     var c = d.qm && d.qm.can && d.qm.can[b[1]];
-    if (!c) return [b[21] === 'm' ? 'm' : 'b'];
-    return CB_QUALS.map(function(x){ return x[0]; }).filter(function(q){ return c.indexOf(q) >= 0; });
+    var out = !c ? [b[21] === 'm' ? 'm' : 'b']
+      : CB_QUALS.map(function(x){ return x[0]; }).filter(function(q){ return q !== 'c' && c.indexOf(q) >= 0; });
+    if (b[1] === 'amul' && b[20]) out.push('c');
+    return out;
   }
   window._cbCanQ = _cbCanQ;
   /* the quality an entry IS: a base's own choice (e.q), else the item's kind (u / s / r / c) */
@@ -56990,7 +56995,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   function _cbLimits(q, b){
     var jewel = !!(b && (b[1] === 'jewl' || b[1] === 'cjwl'));
     if (q === 'm') return { p: 1, s: 1, a: 1, q: 0, total: null };
-    if (q === 'rare') return { p: 3, s: 3, a: 1, q: 0, total: jewel ? 4 : null };
+    if (q === 'rare' || q === 'c') return { p: 3, s: 3, a: 1, q: 0, total: jewel ? 4 : null };
     if (q === 'sup') return { p: 0, s: 0, a: 0, q: 1, total: null };
     return { p: 0, s: 0, a: 0, q: 0, total: null };
   }
@@ -57025,7 +57030,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       if (a[10].some(function(t){ return anc[t]; })) return;
       if (a[3] > alvl || (a[4] != null && alvl > a[4])) return;
       if (used[a[7]]) return;
-      if (q === 'rare' && !a[6]) return;
+      if ((q === 'rare' || q === 'c') && !a[6]) return;
       if (a[8] >= 0 && tcls != null && tcls >= 0 && a[8] !== tcls) return;
       if (k === 'a' && a[7] !== (b[22] | 0)) return;
       if (!a[12]){ out.zero++; return; }
@@ -57056,6 +57061,12 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     if (!p.length || !s.length) return null;
     return [p[Math.floor(Math.random() * p.length)], s[Math.floor(Math.random() * s.length)]];
   }
+  /* #95 — a crafted amulet's name is deterministic: Grim + Noose when the tables offer them, else the first legal word */
+  function _cbCraftWords(code){
+    var p = _cbRareWords(code, 0), s = _cbRareWords(code, 1);
+    if (!p.length || !s.length) return [];
+    return [p.indexOf('Grim') >= 0 ? 'Grim' : p[0], s.indexOf('Noose') >= 0 ? 'Noose' : s[0]];
+  }
   /* what an entry is CALLED, and in which colour: a magic item composes prefix + base + suffix ("Chaotic Grand Charm
      of Vita"), a rare is its two words over its base, a superior / low item says so before its base */
   function _cbShown(e, it){
@@ -57064,6 +57075,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var q = _cbQ(e, it), pre = [], suf = [];
     (e.affixes || []).forEach(function(x){ var a = _cbAf(x && x.id); if (a && a[1] === 'p') pre.push(a[2]); if (a && a[1] === 's') suf.push(a[2]); });
     if (q === 'm') return { name: pre.concat([bn], suf).join(' '), base: '', q: 'm' };
+    if (q === 'c'){ var cw = (e.rn || []).filter(Boolean); var head = cw.length ? cw.join(' ') : 'Crafted'; return { name: head + ' ' + bn, base: '', q: 'c' }; }
     if (q === 'rare'){ var rn = (e.rn || []).filter(Boolean); return { name: rn.length ? rn.join(' ') : 'Rare ' + bn, base: rn.length ? bn : '', q: 'rare' }; }
     if (q === 'sup') return { name: 'Superior ' + bn, base: '', q: 'b' };
     if (q === 'low') return { name: (e.lq || ((d.qm && d.qm.low) || ['Low Quality'])[0]) + ' ' + bn, base: '', q: 'b' };
@@ -58904,13 +58916,13 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   function _cbBaseEditHtml(e, slot){
     var it = _cbItem(e.id), d = _cbDb(), b = _cbBuild(), clvl = _cbClvl(b), base = _cbBase(e.base);
     var q = _cbQ(e, it), sh = _cbShown(e, it), qs = _cbCanQ(e.base);
-    var qcls = 'cb-c-' + (sh.q === 'rare' ? 'rare' : (sh.q === 'm' ? 'm' : 'b'));
+    var qcls = 'cb-c-' + (sh.q === 'rare' ? 'rare' : (sh.q === 'm' ? 'm' : (sh.q === 'c' ? 'c' : 'b')));
     var opt = function(list, cur){ var o = '<option value=""' + (cur ? '' : ' selected') + '>—</option>'; list.forEach(function(w){ o += '<option value="' + esc(w) + '"' + (w === cur ? ' selected' : '') + '>' + esc(w) + '</option>'; }); return o; };
     var ctl = ['<label class="cb-ctl"><span>Item level</span><input type="number" id="cb-ilvl" aria-label="item level, 1 to 99" min="1" max="99" value="' + (e.ilvl || 99) + '" onchange="window._cbEdit(\'ilvl\', this.value)"></label>'];
     if (qs.length > 1)
       ctl.push('<label class="cb-ctl"><span>Quality</span><select id="cb-qual" class="' + qcls + '" aria-label="quality" onchange="window._cbQuality(this.value)">'
         + CB_QUALS.filter(function(x){ return qs.indexOf(x[0]) >= 0; }).map(function(x){ return '<option value="' + x[0] + '" class="cb-c-' + x[2] + '"' + (x[0] === q ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select></label>');
-    if (q === 'rare'){
+    if (q === 'rare' || q === 'c'){
       var rn = e.rn || [];
       ctl.push('<span class="cb-ctl cb-ctl-name"><span>Name</span>'
         + '<select id="cb-rn0" aria-label="rare name, first word (rareprefix.txt)" onchange="window._cbRareName(0, this.value)">' + opt(_cbRareWords(e.base, 0), rn[0]) + '</select>'
@@ -59266,6 +59278,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       var it = _cbItem(p.pending); if (!it || _cbCanQ(it[3]).indexOf(q) < 0) return false;
       var e0 = _cbEntryFor(it); e0.q = q;
       if (q === 'rare') e0.rn = _cbDice(it[3]) || [];
+      if (q === 'c') e0.rn = _cbCraftWords(it[3]) || [];
       if (q === 'low') e0.lq = ((d.qm && d.qm.low) || [])[0] || '';
       p.pending = null;
       return _cbEquip(it, e0);
@@ -59276,6 +59289,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       if (!e || !_cbIsBase(it1) || _cbCanQ(e.base).indexOf(q) < 0) return;
       e.q = q; ok = true;
       if (q === 'rare' && !(e.rn && e.rn.length)) e.rn = _cbDice(e.base) || [];
+      if (q === 'c') e.rn = _cbCraftWords(e.base) || [];
       if (q === 'low' && !e.lq) e.lq = ((d.qm && d.qm.low) || [])[0] || '';
       dropped = _cbTrimAffixes(e);
     });
@@ -59295,7 +59309,25 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     return n0 - n;
   }
   function _cbCurEntry(){ var p = st.pick, s = _cbSet(); if (!p || !s) return null; return p.kind === 'slot' ? s.slots[p.slot] : (p.i != null ? s.inv[p.i] : null); }
-  /* ADD MOD: only an affix the pool offers is added - the list and this check are one rule */
+  /* #95 — the top of each numeric range. A class choice stays blank. A fixed roll (lo === hi) stays unset. */
+  function _cbTopRolls(a){
+    var rolls = {};
+    (a[11] || []).forEach(function(ln){
+      (ln[1] || []).forEach(function(r){
+        if (!r || r[2] == null) return;
+        if (r[0] === 'L'){
+          var LL = _cbLvl(r);
+          if (LL && LL.lo !== LL.hi) rolls[r[2]] = LL.hi;
+          return;
+        }
+        if (r[0] === 'C') return;
+        if (typeof r[0] === 'number' && typeof r[1] === 'number' && r[0] !== r[1]) rolls[r[2]] = Math.max(r[0], r[1]);
+      });
+    });
+    return rolls;
+  }
+  /* ADD MOD: only an affix the pool offers is added - the list and this check are one rule.
+     Magic and rare store a blank roll (typed = exact, blank = the range). A crafted item stores the top. */
   window._cbAddMod = function(id){
     var cur = _cbCurEntry(); if (!cur) return false;
     var a = _cbAf(id), P = _cbAffixPool(cur);
@@ -59303,7 +59335,8 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       st.modSay = (a ? a[2] : id) + ' cannot go on this item (its type, its item level, a group it already has, the rare flag or the quality\'s limit) — not added';
       st.modBad = true; _cbModal(); return false;
     }
-    _cbCommit(function(b){ var e = _cbCur(b); if (e) e.affixes = (e.affixes || []).concat([{ id: id, rolls: {} }]); });
+    var _rolls = (cur.q === 'c') ? _cbTopRolls(a) : {};
+    _cbCommit(function(b){ var e = _cbCur(b); if (e) e.affixes = (e.affixes || []).concat([{ id: id, rolls: _rolls }]); });
     st.modOpen = false; st.modQ = ''; st.modBad = false;
     /* #174 round 2 (the Grok seat on v3509): "added of the Jackal - type its roll" did not say WHAT was added, and asked
        for a roll on affixes that have none (+10% Faster Cast Rate is fixed) */
@@ -59329,6 +59362,8 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
         return false;
       }); });
     } catch (x) {}
+    if (cur.q === 'c' && _rolls && Object.keys(_rolls).length)
+      _ask = 'landed at the top of its range (' + Object.keys(_rolls).map(function(k){ return k + ' ' + _rolls[k]; }).join(', ') + ')';
     st.modSay = 'Added the ' + _kind + ' "' + _what + '" - ' + (_ask || 'its value is fixed by the game');
     _cbRender();
     return true;

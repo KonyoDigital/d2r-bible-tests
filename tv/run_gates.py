@@ -6220,6 +6220,14 @@ GATES = [
              "183, its Defense box 61, fixed); a class's own level requirement; a negative charged skill is UNKNOWN; two "
              "affixes of one stat print one line (135 mana, not 67 twice); ADD MOD is a combobox (the active option "
              "painted, ArrowDown moves it, Enter adds it) with no AUTOMOD header over nothing; the six rare words offered. "),
+    Gate("test_the_crafted_variant_fills_its_name_and_the_top_of_each_range",
+         [sys.executable, os.path.join(HERE, "test_the_crafted_variant_fills_its_name_and_the_top_of_each_range.py")], 90,
+         why="#95 - a crafted amulet fills its name and stores the top of each range. Offered only on a wearable amulet. "
+             "Grim and Noose when those words are legal, else the first legal word of each list, then the base name in "
+             "the same string. Add Mod stores the high end of a ranged affix under its own key. A class choice stays "
+             "blank. Magic and rare still store an empty rolls object. A ring stays Rare and Magic. A diadem stays "
+             "Rare, Magic, Superior, Normal and Low. A rare-flag affix is not offered. Setting crafted replaces a rare "
+             "name already stored. The vault stores are not written. Node missing raises; it does not skip."),
     Gate("test_the_character_sheet_sums_picked_affixes",
          [sys.executable, os.path.join(HERE, "test_the_character_sheet_sums_picked_affixes.py")], 90,
          why="#174 v-B3 - D2R_CHAR_ENGINE sums the affixes he picked exactly like a unique's props (typed EXACT, "
