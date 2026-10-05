@@ -8757,6 +8757,14 @@ GATES = [
              "stops showing falls back; a visit with no time is UNKNOWN); one rule (_cbSections) sorts a build for both "
              "the 👤 Characters room and the planner's list; no console answer is UNKNOWN, never none. Drives the "
              "shipped room + planner in node through the page's own /api/chars_learned fetch; a miss needs a WHOLE list (his shows 9 rows of 13 - a scrolled-out character is not a deleted one); on the Grok eye's read of the pixels an in-game card leads with the level the reels confirmed and the mules are said as such."),
+    Gate("test_an_in_game_draft_wears_the_gear_the_reels_showed", [sys.executable,
+         os.path.join(HERE, "test_an_in_game_draft_wears_the_gear_the_reels_showed.py")], 90,
+         needs_app=False,
+         why="#103 step C - opening a learned character that is not saved yet puts each witnessed item on its slot when "
+             "the name is exactly one item in the tables. Zero matches and more than one stay off the doll and are said. "
+             "An item whose slot was not told is not given a slot. A character with no gear on file says so. A console "
+             "that has not sent the gear ledger is UNKNOWN. A saved simulation build is not filled. Nothing is written "
+             "until he changes the draft. Node missing raises; it does not skip."),
     Gate("test_a_character_window_opens_from_its_cells", [sys.executable,
          os.path.join(HERE, "test_a_character_window_opens_from_its_cells.py")], 90,
          needs_app=False,

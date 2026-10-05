@@ -58405,7 +58405,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var views = [['equip', 'Equipment'], ['skills', 'Skill Tree'], ['calc', 'Calculations']];
     var main = '<div class="cb-p cb-main"><div class="cb-ctabs" role="tablist">' + views.map(function(v){ return '<button type="button" role="tab" class="cb-ctab' + (st.view === v[0] ? ' cb-on' : '') + '" aria-selected="' + (st.view === v[0]) + '" onclick="window._cbView(\'' + v[0] + '\')">' + v[1] + '</button>'; }).join('') + '</div>'
       + '<div class="cb-view"' + (st.view === 'equip' ? '' : ' hidden') + '>' + _cbEqpHtml(b, s, L, d)
-      +   '<div class="cb-doll-say">' + (Object.keys(s.slots).length ? 'Hover an item for its tooltip · click a slot to change it' : 'Click a slot to choose from the entire item database') + '</div>'
+      +   '<div class="cb-doll-say" id="cb-doll-say">' + (Object.keys(s.slots).length ? 'Hover an item for its tooltip · click a slot to change it' : 'Click a slot to choose from the entire item database') + esc(_cbWitnessSay(b)) + '</div>'
       +   _cbInvSayHtml() + '</div>'
       + '<div class="cb-view"' + (st.view === 'skills' ? '' : ' hidden') + '><div class="cb-empty"><b>The skill trees arrive with v-D</b> — from the game\'s own skill tables and icons, points from an imported save.</div></div>'
       + '<div class="cb-view"' + (st.view === 'calc' ? '' : ' hidden') + '>' + _cbCalcHtml(b) + '</div></div>';
@@ -59145,13 +59145,70 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       + '<div><button type="button" class="cb-btn cb-on" id="cb-new-go"' + (n.cls ? '' : ' disabled') + ' onclick="window._cbNewGo()">Create build</button></div></div>';
   }
 
+  /* #103 step C — a not-yet-saved in-game character opens wearing what the reels showed.
+     A name that is exactly one database item lands on that slot. Zero matches, or more than one, stay off the doll
+     and are said. An item whose slot was not told is not given a slot. Nothing is written. */
+  var CB_GEAR_SLOT = { helm: 'head', amulet: 'neck', weapon: 'rarm', torso: 'tors', 'off-hand': 'larm',
+                       gloves: 'glov', ring1: 'rrin', belt: 'belt', ring2: 'lrin', boots: 'feet' };
+  function _cbItemsNamed(name){
+    var d = _cbDb(), hits = [];
+    if (!d || !name) return hits;
+    (d.it || []).forEach(function(it){ if (it && it[1] === name) hits.push(it); });
+    return hits;
+  }
+  function _cbWitnessSay(b){
+    var w = b && b.witness; if (!w) return '';
+    if (w.state === 'unknown') return ' What the reels saw on this character is UNKNOWN — ' + (w.why || 'the gear ledger was not read') + '.';
+    if (w.state === 'none') return ' No reel has shown what this character wears yet.';
+    var bits = [];
+    (w.unresolved || []).forEach(function(u){
+      if (!u || !u.item) return;
+      if (u.slot == null) bits.push(u.item + ' — ' + (u.why || 'slot not told'));
+      else if ((u.n | 0) > 1) bits.push(u.item + ' — the name matches ' + u.n + ' items');
+      else bits.push(u.item + ' — not in the item tables');
+    });
+    return bits.length ? ' Not placed: ' + bits.join('; ') + '.' : '';
+  }
+  function _cbFillFromGear(build, key){
+    var L = (typeof window._cbLearnedNow === 'function') ? window._cbLearnedNow() : null;
+    var w = { state: 'unknown', why: 'this console has not said what its characters wear', placed: [], unresolved: [] };
+    if (L && Object.prototype.hasOwnProperty.call(L, 'gear')){
+      if (L.gear === null){ w.why = L.gearWhy || 'its gear ledger could not be read'; }
+      else {
+        var k = String(key || ''); if (k.indexOf('seen:') === 0) k = k.slice(5);
+        var g = (L.gear || {})[k];
+        if (!g){ w.state = 'none'; w.why = ''; }
+        else {
+          w.state = 'seen'; w.why = '';
+          var slots = build.sets[0].slots;
+          (g.slots || []).forEach(function(s){
+            var dest = CB_GEAR_SLOT[s.slot];
+            if (!dest || !s.item || slots[dest]) return;
+            var hits = _cbItemsNamed(s.item);
+            if (hits.length !== 1){ w.unresolved.push({ slot: dest, item: s.item, n: hits.length }); return; }
+            slots[dest] = _cbEntryFor(hits[0]);
+            w.placed.push({ slot: dest, item: s.item, id: hits[0][0] });
+          });
+          (g.unplaced || []).forEach(function(u){
+            if (u && u.item) w.unresolved.push({ slot: null, item: u.item, n: null, why: u.why || 'slot not told' });
+          });
+        }
+      }
+    }
+    build.witness = w;
+    return build;
+  }
   /* ── ACTIONS ─────────────────────────────────────────────────────────────────────────────────────────────── */
   window._cbPickBuild = function(v){
     if (v === '__new'){ window._cbOpenNew(); return; }
     if (v === '__draft' || v === '__none') return;
     if (v.indexOf('tpl:') === 0){
       var t = null; _cbTemplates().forEach(function(x){ if (x.key === v.slice(4)) t = x; });
-      if (t){ st.draft = _cbNewBuild(t.name, t.cls, t.level || 1, t.key); st.bid = null; }
+      if (t){
+        st.draft = _cbNewBuild(t.name, t.cls, t.level || 1, t.key);
+        if (String(t.key || '').indexOf('seen:') === 0) _cbFillFromGear(st.draft, t.key);
+        st.bid = null;
+      }
     } else { st.draft = null; st.bid = v; try { window.LSR.setItem(CB_SEL_KEY, v); } catch (e) {} }
     st.pick = st.stash = st.newb = null; st.say = '';
     _cbRender();
