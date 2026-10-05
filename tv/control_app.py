@@ -7983,6 +7983,9 @@ def _vault_autoread_kick():
             if _r.get("rejudged"):   # REG-1658
                 print("[vault] re-judging %d retirement(s) made without a reason - one attempt each: %s"
                       % (len(_r["rejudged"]), ", ".join(_r["rejudged"][:3])), flush=True)
+            if _r.get("lattice"):
+                print("[vault] one more attempt on %d retirement(s) the lattice rule no longer judges: %s"
+                      % (len(_r["lattice"]), ", ".join(_r["lattice"][:3])), flush=True)
         except Exception as _e:
             print("[vault] re-entry sweep raised %s — retirements left as they were"
                   % type(_e).__name__, flush=True)
@@ -29293,12 +29296,42 @@ def _vault_autoread_path():
 
 #: REG-1658 — at most this many blind retirements are re-judged per console boot
 _VAULT_REJUDGE_PER_BOOT = 3
+#: #152 slice 2 — the lattice that replaced the width-scaled cross-check. A retirement stamped
+#: with this id was judged by the current instrument. A cross-check retirement without it, or
+#: stamped with an older id, gets one attempt when this id changes. Changing the string IS the
+#: rule change. Any other reason stays retired.
+_VAULT_LATTICE_RULE = "height-centred"
 
 
 def _vault_retired_blind(rec):
     """Was this retirement made with no reason recorded (the REG-1649 gap)? -> bool"""
     return (isinstance(rec, dict) and rec.get("lastWhy") is None
             and "no attempt left a reason" in str(rec.get("why") or ""))
+
+
+def _vault_rejudge_room(out):
+    """Is there still room in this boot's re-judge cap? Blind and lattice share it. -> bool"""
+    return (len((out or {}).get("rejudged") or []) + len((out or {}).get("lattice") or [])
+            < _VAULT_REJUDGE_PER_BOOT)
+
+
+def _vault_retired_under_old_lattice(rec, tried):
+    """Was this retirement judged by a lattice rule that is no longer current? -> bool
+
+    Only a cross-check failure. A write failure, an explosion, or any other reason stays
+    retired. A record already stamped with the current rule, or already given this rule's
+    one attempt, stays retired."""
+    if not isinstance(rec, dict):
+        return False
+    last = rec.get("lastWhy")
+    text = last if isinstance(last, str) and last else str(rec.get("why") or "")
+    if "cross-checked" not in text:
+        return False
+    if rec.get("latticeRule") == _VAULT_LATTICE_RULE:
+        return False
+    if tried == _VAULT_LATTICE_RULE:
+        return False
+    return True
 
 
 def vault_reentry_sweep(dry=True):
@@ -29325,7 +29358,8 @@ def vault_reentry_sweep(dry=True):
     ⚠ `dry=True` by default so a caller must ASK to change anything — the same shape as every
     other door in this file that spends. [[the-unjoined-end]] [[unknown-stays-unknown]]
     """
-    out = {"ok": True, "checked": 0, "readmitted": [], "kept": [], "rejudged": [], "why": "", "dry": bool(dry)}
+    out = {"ok": True, "checked": 0, "readmitted": [], "kept": [], "rejudged": [],
+           "lattice": [], "why": "", "dry": bool(dry)}
     st = _vault_autoread_load()
     if st is None:
         out["ok"] = False
@@ -29342,6 +29376,7 @@ def vault_reentry_sweep(dry=True):
     with _VAULT_AUTOREAD_LOCK:
         retired = dict(_VAULT_AUTOREAD.get("retired") or {})
         done = dict(_VAULT_AUTOREAD.get("rejudged") or {})      # REG-1663 — re-judged already, ever
+        lattice_done = dict(_VAULT_AUTOREAD.get("latticeTried") or {})
     for rid in sorted(retired):
         out["checked"] += 1
         try:
@@ -29359,14 +29394,24 @@ def vault_reentry_sweep(dry=True):
             # reason (a console killed mid-sweep - a poison reel) retires the reel blind AGAIN, and without a mark
             # every boot re-bought it, and three such reels would take the cap for ever. The mark is persisted with
             # the store, so a reel's one re-judge survives every restart.
+            _room = _vault_rejudge_room(out)
+            _kind = None
             if (_vault_retired_blind(retired.get(rid)) and rid not in done
-                    and len(out["rejudged"]) < _VAULT_REJUDGE_PER_BOOT):
-                out["rejudged"].append(rid)
+                    and _room):
+                _kind = "rejudged"
+            elif (_vault_retired_under_old_lattice(retired.get(rid), lattice_done.get(rid))
+                    and _room):
+                _kind = "lattice"
+            if _kind:
+                out[_kind].append(rid)
                 if not dry:
                     with _VAULT_AUTOREAD_LOCK:
                         _VAULT_AUTOREAD["retired"].pop(rid, None)
                         _VAULT_AUTOREAD["tries"][rid] = max(0, _VAULT_AUTOREAD_MAX_TRIES - 1)   # ONE attempt left
-                        _VAULT_AUTOREAD.setdefault("rejudged", {})[rid] = int(time.time() * 1000)
+                        if _kind == "rejudged":
+                            _VAULT_AUTOREAD.setdefault("rejudged", {})[rid] = int(time.time() * 1000)
+                        else:
+                            _VAULT_AUTOREAD.setdefault("latticeTried", {})[rid] = _VAULT_LATTICE_RULE
                     _vault_autoread_save()
                 continue
             out["kept"].append(rid)
@@ -29384,6 +29429,10 @@ def vault_reentry_sweep(dry=True):
     if out["rejudged"]:
         out["why"] += (" %d retirement(s) made without a reason %s given one more attempt each."
                        % (len(out["rejudged"]), "WOULD BE" if dry else "were"))
+    if out["lattice"]:
+        out["why"] += (" %d cross-check retirement(s) judged by an older lattice %s given one "
+                       "more attempt each."
+                       % (len(out["lattice"]), "WOULD BE" if dry else "were"))
     return out
 
 
@@ -29429,6 +29478,8 @@ def _vault_autoread_load():
         for k in ("retired", "tries", "lastWhy", "reextract", "rejudged"):
             if isinstance(d.get(k), dict):
                 _VAULT_AUTOREAD[k] = dict(d[k])
+        if isinstance(d.get("latticeTried"), dict):
+            _VAULT_AUTOREAD["latticeTried"] = dict(d["latticeTried"])
         # REG-1651 — the rotation's place in the owed list, so a relaunch resumes where it was
         if isinstance(d.get("cursor"), str) and d.get("cursor"):
             _VAULT_AUTOREAD["cursor"] = d["cursor"]
@@ -29486,6 +29537,7 @@ def _vault_autoread_save():
                "lastWhy": _VAULT_AUTOREAD.get("lastWhy") or {},
                "reextract": _VAULT_AUTOREAD.get("reextract") or {},
                "rejudged": _VAULT_AUTOREAD.get("rejudged") or {},      # REG-1663
+               "latticeTried": _VAULT_AUTOREAD.get("latticeTried") or {},
                # ⚠ REG-1651 — v3283 saved "on every cursor change" and this payload never carried
                # the cursor, so every save it added wrote everything EXCEPT the thing it was for, and
                # each relaunch restarted the rotation at the head of the owed list.
@@ -31022,7 +31074,8 @@ def vault_autoreel_tick():
                                 "lane instead." % _said)}
             _VAULT_AUTOREAD["retired"][rid] = {
                 "why": _said, "lastWhy": _last,
-                "tries": tries - 1, "at": int(time.time() * 1000)}
+                "tries": tries - 1, "at": int(time.time() * 1000),
+                "latticeRule": _VAULT_LATTICE_RULE}
             _vault_autoread_save()        # ⚠ a retirement not persisted is a reel re-bought
             return {"ok": False, "retired": rid, "owed": owed, "why": _said}
         # ⚠ v2225 — AIM IT. `vault_sweep_start(limit=1)` was UNTARGETED: the work list decided only

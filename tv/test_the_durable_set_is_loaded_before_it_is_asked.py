@@ -16,8 +16,9 @@ plan() - retired them again: 9 relaunches since 2026-09-30 10:18, about 1,000 re
   · DRIVEN in a fixture world: the vault re-entry keeps a banked retired reel retired on its very first ask, and
     leaves a reel alone ("cannot ask -> never guess") when the index is unreadable.
   · v3540 REG-1658, DRIVEN: a retirement made BLIND (no reason recorded - the REG-1649 gap, judged by the REG-1648
-    blind lattice) is re-judged ONCE, by ONE attempt, at most _VAULT_REJUDGE_PER_BOOT per boot; one that carries its
-    reason stays retired.
+    blind lattice) is re-judged ONCE, by ONE attempt, at most _VAULT_REJUDGE_PER_BOOT per boot. A cross-check
+    retirement judged before the current lattice rule gets the same one attempt; one already stamped with that
+    rule, and any reason that is not a cross-check, stays retired.
 RED_PROOF below. [[unknown-stays-unknown]] [[copy-drift]]
 """
 import io
@@ -137,15 +138,18 @@ class TheVaultReentryAsksTheSameQuestion(_World):
         self.assertTrue(os.path.realpath(ca._vault_autoread_path()).startswith(os.path.realpath(_WORLD)),
                         "PREMISE: the lane's store is not in this law's world")
         saved = {"ret": dict(ca._VAULT_AUTOREAD.get("retired") or {}), "tries": dict(ca._VAULT_AUTOREAD.get("tries") or {}),
-                 "rej": dict(ca._VAULT_AUTOREAD.get("rejudged") or {}), "load": ca._vault_autoread_load}
+                 "rej": dict(ca._VAULT_AUTOREAD.get("rejudged") or {}),
+                 "lat": dict(ca._VAULT_AUTOREAD.get("latticeTried") or {}), "load": ca._vault_autoread_load}
         ca._vault_autoread_load = lambda: True
         ca._VAULT_AUTOREAD["retired"] = {r: {"why": "x", "tries": 2, "at": 1} for r in (BANKED, UNBANKED)}
         ca._VAULT_AUTOREAD["rejudged"] = {}
+        ca._VAULT_AUTOREAD["latticeTried"] = {}
 
         def _restore():
             ca._VAULT_AUTOREAD["retired"] = saved["ret"]
             ca._VAULT_AUTOREAD["tries"] = saved["tries"]
             ca._VAULT_AUTOREAD["rejudged"] = saved["rej"]
+            ca._VAULT_AUTOREAD["latticeTried"] = saved["lat"]
             ca._vault_autoread_load = saved["load"]
         self.addCleanup(_restore)
 
@@ -190,14 +194,64 @@ class TheVaultReentryAsksTheSameQuestion(_World):
             src = fh.read()
         save = src[src.index("def _vault_autoread_save():"):src.index("def ", src.index("def _vault_autoread_save():") + 10)]
         self.assertIn('"rejudged": _VAULT_AUTOREAD.get("rejudged")', save, "the re-judge mark is not saved")
+        self.assertIn('"latticeTried": _VAULT_AUTOREAD.get("latticeTried")', save,
+                      "the lattice-rule mark is not saved")
         load = src[src.index("def _vault_autoread_load():"):src.index("def ", src.index("def _vault_autoread_load():") + 10)]
         self.assertIn('"rejudged"', load, "the re-judge mark is not loaded")
+        self.assertIn('"latticeTried"', load, "the lattice-rule mark is not loaded")
 
-    def test_a_reasoned_retirement_stays_retired(self):
-        self.ca._VAULT_AUTOREAD["retired"] = {BANKED: dict(self.REASONED)}
+    def test_a_reasoned_retirement_under_the_current_lattice_stays_retired(self):
+        rec = dict(self.REASONED)
+        rec["latticeRule"] = self.ca._VAULT_LATTICE_RULE
+        self.ca._VAULT_AUTOREAD["retired"] = {BANKED: rec}
         out = self.ca.vault_reentry_sweep(dry=True)
-        self.assertEqual(out["rejudged"], [], "a retirement that carries its reason was re-bought: %r" % out)
+        self.assertEqual(out["rejudged"], [], out)
+        self.assertEqual(out["lattice"], [], "a retirement the current lattice already judged was re-bought: %r" % out)
         self.assertIn(BANKED, out["kept"])
+
+    def test_a_cross_check_under_the_old_lattice_gets_one_attempt(self):
+        self.ca._VAULT_AUTOREAD["retired"] = {BANKED: dict(self.REASONED)}
+        out = self.ca.vault_reentry_sweep(dry=False)
+        self.assertEqual(out["lattice"], [BANKED], "an old-lattice cross-check was left standing: %r" % out)
+        self.assertEqual(out["rejudged"], [])
+        self.assertNotIn(BANKED, self.ca._VAULT_AUTOREAD["retired"])
+        self.assertEqual(self.ca._VAULT_AUTOREAD["tries"].get(BANKED), self.ca._VAULT_AUTOREAD_MAX_TRIES - 1,
+                         "the lattice re-judge bought more than ONE attempt")
+        self.assertEqual(self.ca._VAULT_AUTOREAD.get("latticeTried", {}).get(BANKED), self.ca._VAULT_LATTICE_RULE)
+
+    def test_that_lattice_attempt_is_not_repeated_under_the_same_rule(self):
+        self.ca._VAULT_AUTOREAD["retired"] = {BANKED: dict(self.REASONED)}
+        self.ca.vault_reentry_sweep(dry=False)
+        self.ca._VAULT_AUTOREAD["retired"] = {BANKED: dict(self.REASONED)}
+        out = self.ca.vault_reentry_sweep(dry=False)
+        self.assertEqual(out["lattice"], [], "the same lattice rule bought the reel again: %r" % out)
+        self.assertIn(BANKED, self.ca._VAULT_AUTOREAD["retired"])
+
+    def test_a_reason_that_is_not_the_lattice_stays_retired(self):
+        self.ca._VAULT_AUTOREAD["retired"] = {BANKED: {
+            "why": "2 attempt(s) ran and this reel is STILL owed afterwards — the last one said: vault_retro exploded",
+            "lastWhy": "vault_retro exploded", "tries": 2, "at": 1}}
+        out = self.ca.vault_reentry_sweep(dry=True)
+        self.assertEqual(out["lattice"], [], out)
+        self.assertIn(BANKED, out["kept"])
+
+    def test_a_boot_rejudges_only_a_few_old_lattice_retirements(self):
+        names = ["reel_s_15000000002%02d_166%02d" % (i, i) for i in range(5)]
+        real = RR._durable_sessions
+        RR._durable_sessions = lambda here=None: ({RR._reel_ts_key(n) for n in names}, True, None)
+        RR._DURABLE = None
+        try:
+            self.ca._VAULT_AUTOREAD["retired"] = {n: dict(self.REASONED) for n in names}
+            SURVEY.update({n: {"full": True, "panels": 4, "frames": 40} for n in names})
+            RR._TRIAGE_CACHE["store"] = dict(SURVEY)
+            out = self.ca.vault_reentry_sweep(dry=True)
+        finally:
+            RR._durable_sessions = real
+            for n in names:
+                SURVEY.pop(n, None)
+        self.assertEqual(len(out["lattice"]), self.ca._VAULT_REJUDGE_PER_BOOT,
+                         "a boot re-bought %d old-lattice retirements at once" % len(out["lattice"]))
+        self.assertEqual(len(out["kept"]), 5 - self.ca._VAULT_REJUDGE_PER_BOOT)
 
     def test_a_boot_rejudges_only_a_few(self):
         names = ["reel_s_15000000001%02d_165%02d" % (i, i) for i in range(5)]
@@ -240,8 +294,13 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-1658 - the re-judge is unbounded: one relaunch re-buys a whole backlog of blind retirements",
      "file": "control_app.py",
-     "find": " and len(out[\"rejudged\"]) < _VAULT_REJUDGE_PER_BOOT):\n",                          # REG-1663 re-anchor
-     "replace": "):\n",
+     "find": "            _room = _vault_rejudge_room(out)\n",
+     "replace": "            _room = True\n",
+     "matches": 1},
+    {"why": "a cross-check retirement judged by the old lattice is never retried",
+     "file": "control_app.py",
+     "find": "            elif (_vault_retired_under_old_lattice(retired.get(rid), lattice_done.get(rid))\n",
+     "replace": "            elif (False and _vault_retired_under_old_lattice(retired.get(rid), lattice_done.get(rid))\n",
      "matches": 1},
     {"why": "REG-1658 - the re-judge buys the full try budget instead of one attempt",
      "file": "control_app.py",

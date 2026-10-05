@@ -8973,7 +8973,9 @@ GATES = [
              "retired again, 9 relaunches, about 1,000 reads. The set now loads on first use; an unreadable index "
              "raises DurableUnknown to callers that each price UNKNOWN, and plan() publishes only what it read. "
              "REG-1658: a retirement made BLIND - no attempt left a reason, judged while the lattice could not see "
-             "- is re-judged once, by one attempt, a few per boot; one that carries its reason stays retired. "
+             "- is re-judged once, by one attempt, a few per boot. A cross-check retirement judged before the "
+             "current lattice rule gets that same one attempt; one the current rule already stamped, and any "
+             "reason that is not a cross-check, stays retired. "
              "REG-1663: at most once per reel, ever - the mark is persisted with the lane store."),
     Gate("test_a_retirement_quotes_the_sweeps_own_reason",
          [sys.executable, os.path.join(HERE, "test_a_retirement_quotes_the_sweeps_own_reason.py")], 120,
