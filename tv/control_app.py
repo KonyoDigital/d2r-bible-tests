@@ -7938,6 +7938,8 @@ _TRIAGE_RULED_EMPTY = {"vault": None, "chronicle": None}
 
 #: one-shot guard for the re-entry sweep below — the backlog only needs clearing once
 _VAULT_REENTRY_DONE = False
+#: #152 slice 4 — the recoverable-join measurement runs once per process, off the status poll
+_VAULT_JOIN_ONCE_DONE = False
 
 
 def _vault_autoread_kick():
@@ -7995,6 +7997,22 @@ def _vault_autoread_kick():
         _VAULT_AUTOREAD_REFRESH["running"] = True
 
     def _run():
+        global _VAULT_JOIN_ONCE_DONE
+        if _bay_ours and not _VAULT_JOIN_ONCE_DONE:
+            # Once, on the lamp thread, so the first status poll does not walk the river.
+            # A store that could not be read stays retryable. Any other answer, including
+            # "extract_gap did not answer", is final for this process: retrying it on every
+            # refresh would walk the shelf for as long as the console is up.
+            try:
+                _j = vault_join_once(dry=False)
+            except Exception as _je:
+                _j = {"ok": False, "retry": True, "queued": [],
+                      "why": "vault_join_once raised %s" % type(_je).__name__}
+            if not _j.get("retry"):
+                _VAULT_JOIN_ONCE_DONE = True
+            if _j.get("queued"):
+                print("[vault] queued %d recoverable join(s) for one re-read: %s"
+                      % (len(_j["queued"]), ", ".join(_j["queued"][:3])), flush=True)
         try:
             d = _vault_autoread_state()
             _VAULT_AUTOREAD_CACHE["t"], _VAULT_AUTOREAD_CACHE["d"] = time.time(), d
@@ -29334,6 +29352,82 @@ def _vault_retired_under_old_lattice(rec, tried):
     return True
 
 
+def _join_once_pick(rows, tried, queued, cap):
+    """Which RECOVERABLE joins still owe their one re-read. -> list of reel ids
+
+    Only the explicit word RECOVERABLE. NOT_A_HOLDING is a checklist, not a holding.
+    UNKNOWN, a missing state, and a name that is not a reel stay off the list.
+    """
+    if not isinstance(rows, list) or isinstance(cap, bool) or not isinstance(cap, int) or cap <= 0:
+        return []
+    tried = tried if isinstance(tried, dict) else {}
+    queued = queued if isinstance(queued, dict) else {}
+    out = []
+    for row in rows:
+        if not isinstance(row, dict) or row.get("state") != "RECOVERABLE":
+            continue
+        rid = os.path.basename(str(row.get("reel") or ""))
+        if not rid.startswith("reel_"):
+            continue
+        if rid in tried or rid in queued:
+            continue
+        out.append(rid)
+    out.sort()
+    return out[:cap]
+
+
+def vault_join_once(dry=True, rows=None):
+    """Queue one re-read for RECOVERABLE joins. -> dict
+
+    dry=True writes nothing. rows injects extract_gap's rows so a law never walks his shelf.
+    A store that could not be read sets retry and queues nothing. extract_gap failing queues
+    nothing and does not ask the caller to try again on the next refresh.
+    """
+    out = {"ok": True, "queued": [], "why": "", "dry": bool(dry), "retry": False}
+    st = _vault_autoread_load()
+    if st is None:
+        out["ok"] = False
+        out["retry"] = True
+        out["why"] = ("the lane store could not be read, so whether a join is owed is UNKNOWN "
+                      "and nothing was queued")
+        return out
+    if rows is None:
+        try:
+            import extract_gap as _eg
+            rep = _eg.gap()
+        except Exception as e:
+            out["ok"] = False
+            out["why"] = ("extract_gap could not be asked (%s), so no join was queued"
+                          % type(e).__name__)
+            return out
+        if not isinstance(rep, dict) or rep.get("ok") is not True:
+            out["ok"] = False
+            out["why"] = "extract_gap did not answer, so whether a join is owed is UNKNOWN"
+            return out
+        rows = rep.get("rows") if isinstance(rep.get("rows"), list) else []
+    with _VAULT_AUTOREAD_LOCK:
+        tried = dict(_VAULT_AUTOREAD.get("joinTried") or {})
+        queued = dict(_VAULT_AUTOREAD.get("joinQueued") or {})
+    pick = _join_once_pick(rows, tried, queued, _VAULT_REJUDGE_PER_BOOT)
+    out["queued"] = pick
+    if not pick:
+        out["why"] = "no RECOVERABLE join is waiting for its one re-read"
+        return out
+    if dry:
+        out["why"] = "%d RECOVERABLE join(s) would be queued for one re-read" % len(pick)
+        return out
+    now = int(time.time() * 1000)
+    with _VAULT_AUTOREAD_LOCK:
+        q = _VAULT_AUTOREAD.setdefault("joinQueued", {})
+        t = _VAULT_AUTOREAD.setdefault("joinTried", {})
+        for rid in pick:
+            q[rid] = now
+            t[rid] = now
+    _vault_autoread_save()
+    out["why"] = "%d RECOVERABLE join(s) queued for one re-read" % len(pick)
+    return out
+
+
 def vault_reentry_sweep(dry=True):
     """Send retired reels that still hold UNEXTRACTED panels back to the top of the river. -> dict
 
@@ -29480,6 +29574,10 @@ def _vault_autoread_load():
                 _VAULT_AUTOREAD[k] = dict(d[k])
         if isinstance(d.get("latticeTried"), dict):
             _VAULT_AUTOREAD["latticeTried"] = dict(d["latticeTried"])
+        if isinstance(d.get("joinQueued"), dict):
+            _VAULT_AUTOREAD["joinQueued"] = dict(d["joinQueued"])
+        if isinstance(d.get("joinTried"), dict):
+            _VAULT_AUTOREAD["joinTried"] = dict(d["joinTried"])
         # REG-1651 — the rotation's place in the owed list, so a relaunch resumes where it was
         if isinstance(d.get("cursor"), str) and d.get("cursor"):
             _VAULT_AUTOREAD["cursor"] = d["cursor"]
@@ -29538,6 +29636,8 @@ def _vault_autoread_save():
                "reextract": _VAULT_AUTOREAD.get("reextract") or {},
                "rejudged": _VAULT_AUTOREAD.get("rejudged") or {},      # REG-1663
                "latticeTried": _VAULT_AUTOREAD.get("latticeTried") or {},
+               "joinQueued": _VAULT_AUTOREAD.get("joinQueued") or {},
+               "joinTried": _VAULT_AUTOREAD.get("joinTried") or {},
                # ⚠ REG-1651 — v3283 saved "on every cursor change" and this payload never carried
                # the cursor, so every save it added wrote everything EXCEPT the thing it was for, and
                # each relaunch restarted the rotation at the head of the owed list.
@@ -29942,6 +30042,15 @@ def _vault_owed_reels(hist=None):
             if _sealed is None or _rr.lookup_either_way(_sealed, rid) is not None:
                 continue
         out.append(os.path.join(h_abs, rid))
+    # #152 slice 4 — a RECOVERABLE join is sealed, so the PRINTER half above skips it. The queue
+    # is the one re-read, written once per process, and it is a set membership: no river walk here.
+    _have = set(os.path.basename(x) for x in out)
+    for rid in sorted(_VAULT_AUTOREAD.get("joinQueued") or {}):
+        if rid in _have or _sd._proven_empty(rid):
+            continue
+        reel_path = os.path.join(h_abs, rid)
+        if os.path.isdir(reel_path):
+            out.append(reel_path)
     _TRIAGE_RULED_EMPTY["vault"] = _ruled
     return out
 
@@ -30904,6 +31013,40 @@ def _vault_autoread_state():
         return {"on": None, "why": "could not be read: %s" % str(e)[:90]}
 
 
+def _join_queue_read(rid, refusal, reel_dir, owed):
+    """The one re-read a queued RECOVERABLE join is owed. -> tick dict | None
+
+    None: this reader already had its pass, so the tick moves on and spends nothing.
+    The queue entry is spent except when a sweep is already running — then it is put
+    back and the tick says deferred. joinTried was written when the reel was queued,
+    so a later boot cannot put it back on the list.
+    """
+    q = _VAULT_AUTOREAD.get("joinQueued")
+    if isinstance(q, dict):
+        q.pop(rid, None)
+    prior = str((_VAULT_AUTOREAD.get("reextract") or {}).get(rid) or "")
+    prompt = str((refusal or {}).get("sealedBy") or "")
+    if prior and prompt and prior == prompt:
+        _vault_autoread_save()
+        return None
+    r2 = vault_sweep_start(limit=1, reel_dir=str(reel_dir), force=True)
+    why2 = str((isinstance(r2, dict) and r2.get("why")) or r2)
+    if isinstance(r2, dict) and (r2.get("state") is not None or "already running" in why2):
+        _VAULT_AUTOREAD.setdefault("joinQueued", {})[rid] = int(time.time() * 1000)
+        _vault_autoread_save()
+        return {"ok": False, "deferred": rid, "owed": owed, "why": why2}
+    if isinstance(r2, dict) and r2.get("ok"):
+        _VAULT_AUTOREAD.setdefault("reextract", {})[rid] = prompt
+        _VAULT_AUTOREAD["reads"] = int(_VAULT_AUTOREAD.get("reads") or 0) + 1
+        _VAULT_AUTOREAD["lastTs"] = int(time.time() * 1000)
+        _vault_autoread_save()
+        return {"ok": True, "started": rid, "owed": owed, "join": True,
+                "why": "one re-read of a recoverable join — the seal did not carry the names"}
+    _VAULT_AUTOREAD.setdefault("lastWhy", {})[rid] = why2[:200]
+    _vault_autoread_save()
+    return {"ok": False, "reel": rid, "owed": owed, "why": why2[:200]}
+
+
 def _unextracted_seal_needs_one_pass(refusal, already):
     """A current seal with no rows and no examinedEmpty is not an extraction. -> bool
 
@@ -31119,6 +31262,11 @@ def vault_autoreel_tick():
             # [[the-unjoined-end]] [[review-after-ship]]
             if r.get("alreadySealed"):
                 _VAULT_AUTOREAD["skipped"][rid] = why[:120]
+                if rid in (_VAULT_AUTOREAD.get("joinQueued") or {}):
+                    _jq = _join_queue_read(rid, r, d, owed)
+                    if _jq is not None:
+                        return _jq
+                    continue
                 # A seal that took no rows did not extract. One solo pass, then the
                 # reader is recorded so the same prompt cannot buy the reel again.
                 _prior = (_VAULT_AUTOREAD.get("reextract") or {}).get(rid)
