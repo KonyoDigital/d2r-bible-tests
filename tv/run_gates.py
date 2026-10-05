@@ -5730,6 +5730,14 @@ GATES = [
              "when the seal says examinedEmpty, and a chronicle checklist (NOT_A_HOLDING) is "
              "never on it. A lane store that could not be read queues nothing and stays "
              "retryable; extract_gap failing queues nothing and is not asked again this process."),
+    Gate("test_an_owed_reel_is_not_called_idle",
+         [sys.executable, os.path.join(HERE, "test_an_owed_reel_is_not_called_idle.py")], 120,
+         why="the chronicle tick counted owed only after skipping retired reels, so a shelf "
+             "retired behind a lock read owed 0 and 'no unswept reel' while the durable rule "
+             "still counted them. The vault tick treated a missing reader as the reel's own "
+             "failure and retired it. A retired reel that still owes stays in the number. A "
+             "missing lane or a machine lock does not burn a try. A retirement that names that "
+             "refusal and has no seal is given back. A real reel failure still retires."),
     Gate("test_a_missing_tombstone_is_none_yet",
          [sys.executable, os.path.join(HERE, "test_a_missing_tombstone_is_none_yet.py")], 180,
          why="a console that has never retired a reel has no reel_tombstones.json. That is none "

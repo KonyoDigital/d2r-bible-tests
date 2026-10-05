@@ -406,6 +406,14 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1765 - A LANE THAT CANNOT START SAID NOTHING WAS OWED (2026-10-05, #86 gap audit 29 and 30)
+
+The chronicle tick skipped a retired reel before it counted. After a machine-wide lock had retired the shelf, the tick returned owed 0 and "no unswept reel" while `_chron_owed_count` still counted every reel that had no durable read. REG-1602 already stopped the lock from retiring a reel. The number now includes a retired reel that still owes, and the sentence names the retirement.
+
+The vault tick had no such flag. `vault_retro` missing, a build that cannot sweep, and a missing Claude lane all came back as an ordinary refusal. Two of those retired the reel. There is no vault un-retire, so the reel stayed off the only lane that could seal it, and the state still said the lane was on. Those refusals now carry `laneMissing`. The tick does not count them and does not retire for them. A retirement whose stored reason is one of those sentences, and which has no vault seal, is given back. A sealed reel stays retired. A refusal that is about the reel still uses its try and still retires. The reported `on` is whether a start can get through that door. The switch itself is `switchOn`.
+
+Law `test_an_owed_reel_is_not_called_idle`.
+
 ### REG-1764 - AN ALT LOBBY WITH CHAT WAS NOT A LOBBY, AND A FINISHED REEL WAS NEVER CHECKED (2026-10-04, #149)
 
 The lobby bands were one Mac reel at draft 1/4 (full sat under 0.17). On the ALT, at 800x450, a quiet lobby measured 0.158 / 0.189 / 0.182 / 0.089 and passed. The same screen with chat on the left measured 0.196 / 0.182 / 0.153 / 0.098 and was refused. That cluster reached 0.199. A skill tree at the same size measured 0.323 / 0.208 / 0.155 / 0.085: val, the bottom strip and the right pane all pass, so full sat is what keeps it out. 0.22 sits between the chat and that skill tree. An 800x400 frame in the same sample was the launcher, not the game, so that size gets no band of its own.

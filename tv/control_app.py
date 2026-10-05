@@ -21178,14 +21178,21 @@ def chronicle_autoreel_tick():
     _mem = _chron_swept_mem()
     _retired = _chron_reels_retired()
     _owed = 0
+    _retired_owing = 0
     for d in dirs:
         rid = os.path.basename(str(d))
-        if rid in _retired:
-            continue
         # v2139 — the DURABLE memory decides, not this loop's private list. See
         # _chron_reel_owes_a_read: the private list claimed all 30 reels done while the panel
         # said 11 were waiting, so this loop answered "no unswept reel" for days.
         if not _chron_reel_owes_a_read(rid, _mem):
+            continue
+        # REG-1765 — retirement decides whether this tick STARTS the reel, not whether
+        # it is owed. Skipping the retired ones before the count printed owed 0 and
+        # "no unswept reel" over reels the panel still counted. A retired reel that
+        # still owes stays in the number, named beside it.
+        if rid in _retired:
+            _owed += 1
+            _retired_owing += 1
             continue
         _owed += 1
         # the ONE reel a live session actually protects: the one still receiving frames
@@ -21275,9 +21282,18 @@ def chronicle_autoreel_tick():
         # the sweep marks it once its result is on disk — see _chron_sweep_run. Marking here
         # would burn the reel at START, which is what this comment used to describe and not do.
         return {"ok": True, "swept": rid, "start": r}
+    if not _owed:
+        _why = "no unswept reel"
+    elif _retired_owing >= _owed:
+        _why = ("%d reel(s) still owe a read and are retired behind a refusal, "
+                "so this tick starts none" % _owed)
+    elif _retired_owing:
+        _why = ("%d reel(s) owe a read (%d retired behind a refusal) but none "
+                "could be started" % (_owed, _retired_owing))
+    else:
+        _why = "%d reel(s) owe a read but none could be started" % _owed
     return {"ok": True, "idle": True, "owed": _owed, "retired": len(_retired),
-            "why": "no unswept reel" if not _owed else
-                   "%d reel(s) owe a read but none could be started" % _owed}
+            "retiredBehindRefusal": _retired_owing, "why": _why}
 
 
 _CHRON_AUTOREAD_SAY = {"last": None}
@@ -30974,6 +30990,107 @@ def _retro_triage_loop():
                 pass
 
 
+_VAULT_LANE_REFUSAL = (
+    "the primary (Claude) lane is unavailable",
+    "vault_retro unavailable",
+    "this build cannot sweep safely",
+    "vault.sweep_start is LOCKED",
+)
+
+
+def _vault_refusal_is_the_lane(text):
+    """A refusal about the machine, not about one reel. The live door sets a flag.
+    Old retirements only stored the sentence, so cleaning those still reads it."""
+    blob = str(text or "")
+    return any(piece in blob for piece in _VAULT_LANE_REFUSAL)
+
+
+def _vault_seal_record(seals, rid):
+    if not isinstance(seals, dict):
+        return None
+    name = str(rid)
+    rec = seals.get(name)
+    if rec is None:
+        rec = seals.get(name.replace("reel_", "", 1))
+    return rec if isinstance(rec, dict) else None
+
+
+def _vault_unretire_lane_refusals():
+    """REG-1765 — a retirement that names a lane or a lock, with no vault seal, was not a read.
+
+    The give-up is given back so the reel can start once the lane can. A reel that has a
+    seal stays retired. An unreadable seal store frees nothing: absence and unreadability
+    are different facts.
+    """
+    freed = []
+    try:
+        if _vault_autoread_load() is None:
+            return freed
+        seals = _vault_swept_load()
+        if _VAULT_SWEPT_PATH in _UNREADABLE:
+            return freed
+        rt = _VAULT_AUTOREAD.get("retired") or {}
+        if not isinstance(rt, dict):
+            return freed
+        for rid, rec in list(rt.items()):
+            if not isinstance(rec, dict):
+                continue
+            blob = "%s %s" % (rec.get("why") or "", rec.get("lastWhy") or "")
+            if not _vault_refusal_is_the_lane(blob):
+                continue
+            if _vault_seal_record(seals, rid) is not None:
+                continue
+            rt.pop(rid, None)
+            for bucket in ("tries", "skipped", "lastWhy"):
+                got = _VAULT_AUTOREAD.get(bucket)
+                if isinstance(got, dict):
+                    got.pop(rid, None)
+            freed.append(str(rid))
+        if freed:
+            _vault_autoread_save()
+    except Exception:
+        return freed
+    return freed
+
+
+def _vault_start_block():
+    """Why this machine cannot start a vault sweep, or None when the door would.
+
+    The switch, the reader module, and the primary lane. Not the self-arming lock:
+    vault_sweep_start does not ask it yet, and reporting the lane off while the door
+    still spends would be the lie the other way.
+    """
+    if not _VAULT_AUTOREEL_ON:
+        return "the vault auto-sweep is off (TV_VAULT_AUTOREEL=0)"
+    try:
+        vr = _vault_retro()
+    except Exception as e:
+        return "vault_retro unavailable: %s" % str(e)[:120]
+    for fn in ("sweep", "merge_vault", "apply_payload"):
+        if not hasattr(vr, fn):
+            return "vault_retro has no %s() — this build cannot sweep safely" % fn
+    try:
+        import tv_diablo as _tv
+        present = hasattr(_tv, "claude_chronicle_read")
+    except Exception as e:
+        return "the primary lane could not be read (%s)" % type(e).__name__
+    if not present:
+        return "the primary (Claude) lane is unavailable — nothing to sweep with"
+    return None
+
+
+def _vault_retired_behind_refusal():
+    rt = _VAULT_AUTOREAD.get("retired") or {}
+    if not isinstance(rt, dict):
+        return None
+    n = 0
+    for rec in rt.values():
+        if isinstance(rec, dict) and _vault_refusal_is_the_lane(
+                "%s %s" % (rec.get("why") or "", rec.get("lastWhy") or "")):
+            n += 1
+    return n
+
+
 def _vault_autoread_state():
     """What the vault watchdog has actually done. Reports UNKNOWN rather than a confident zero."""
     try:
@@ -30983,7 +31100,11 @@ def _vault_autoread_state():
         d = _VAULT_AUTOREAD
         owed = _vault_owed_reels()
         _lt = d.get("lastTick") if isinstance(d.get("lastTick"), dict) else None
-        return {"on": bool(_VAULT_AUTOREEL_ON),
+        _block = _vault_start_block()
+        return {"on": _block is None,
+                "switchOn": bool(_VAULT_AUTOREEL_ON),
+                "startWhy": _block,
+                "retiredBehindRefusal": _vault_retired_behind_refusal(),
                 # ⚠⚠ THE STORE'S OWN STATE TRAVELS WITH THE ANSWER. True = restored · False = no
                 # store yet, a genuine fresh start · None = a store exists and could NOT be read,
                 # so an empty `retired` here is a CLAIM nobody measured, and acting on it re-buys
@@ -31104,6 +31225,12 @@ def vault_autoreel_tick():
                 "why": "the vault lane's own memory could not be read, so which reels it has "
                        "already RETIRED is UNKNOWN. Refusing to sweep: spending here would re-buy "
                        "every reel this lane had already ruled out."}
+    # REG-1765 — give back retirements that were a missing lane or a lock, not a read.
+    # Idempotent: a reel with a seal, or a retirement that names the reel, stays retired.
+    try:
+        _vault_unretire_lane_refusals()
+    except Exception:
+        pass
     try:
         if (vault_sweep_state() or {}).get("running"):
             return {"ok": False, "busy": True, "why": "a vault sweep is already running"}
@@ -31181,6 +31308,20 @@ def vault_autoreel_tick():
             # A message that asserts an unmeasured cause is worse than one that admits it does not
             # know, because it is followed. [[label-outlived-referent]] [[unknown-stays-unknown]]
             _last = _VAULT_AUTOREAD.get("lastWhy", {}).get(rid)
+            # REG-1765 — tries burned by a lane refusal are not this reel's budget.
+            # They were stored before the door grew a flag. Give them back instead of retiring.
+            if _vault_refusal_is_the_lane(str(_last or "")):
+                got = _VAULT_AUTOREAD.get("tries")
+                if isinstance(got, dict):
+                    got.pop(rid, None)
+                try:
+                    _vault_autoread_save()
+                except Exception:
+                    pass
+                return {"ok": False, "triesUnchanged": True, "laneMissing": True,
+                        "reel": rid, "owed": owed,
+                        "why": "the earlier tries were a lane refusal, not this reel, so they "
+                               "were given back: %s" % str(_last or "")[:160]}
             _said = ("%d attempt(s) ran and this reel is STILL owed afterwards" % (tries - 1))
             _said += ((" — the last one said: %s" % str(_last)[:160]) if _last
                       else " — and no attempt left a reason, so WHY is UNKNOWN, not diagnosed")
@@ -31292,6 +31433,15 @@ def vault_autoreel_tick():
                         return {"ok": False, "reel": rid, "tries": tries, "owed": owed,
                                 "why": why2}
                 continue
+            # REG-1765 — a missing lane or a machine lock is not this reel. The flag is
+            # the door's. A phrase in the sentence is not, because that once deferred a
+            # permanent failure forever and also retired a reel the machine could not start.
+            if isinstance(r, dict) and (r.get("laneMissing") or r.get("locked")):
+                return {"ok": False, "triesUnchanged": True, "reel": rid, "owed": owed,
+                        "laneMissing": bool(r.get("laneMissing")),
+                        "locked": bool(r.get("locked")),
+                        "why": "the vault lane cannot start on this machine, so the try was "
+                               "NOT counted: %s" % why[:160]}
             _VAULT_AUTOREAD["tries"][rid] = tries
             _VAULT_AUTOREAD["skipped"][rid] = why[:120]
             return {"ok": False, "reel": rid, "tries": tries, "owed": owed, "why": why}
@@ -32780,10 +32930,12 @@ def vault_sweep_start(hist_dir=None, limit=None, force=False, reel_dir=None):
     try:
         _vr = _vault_retro()
     except Exception as e:
-        return {"ok": False, "why": "vault_retro unavailable: %s" % str(e)[:160]}
+        return {"ok": False, "laneMissing": True,
+                "why": "vault_retro unavailable: %s" % str(e)[:160]}
     for fn in ("sweep", "merge_vault", "apply_payload"):
         if not hasattr(_vr, fn):
-            return {"ok": False, "why": "vault_retro has no %s() — this build cannot sweep safely" % fn}
+            return {"ok": False, "laneMissing": True,
+                    "why": "vault_retro has no %s() — this build cannot sweep safely" % fn}
     # ⚠⚠ v3228 — THE REFUSAL HAS TO HAPPEN *HERE*, NOT ON THE THREAD, AND A CROSS-FAMILY REVIEW
     # OF v3225 IS WHAT CAUGHT IT. v3225 taught `_vault_sweep_run` to decline a reel whose seal is
     # still good — correctly — but this function had ALREADY returned {"ok": True, "started":
@@ -32839,7 +32991,9 @@ def vault_sweep_start(hist_dir=None, limit=None, force=False, reel_dir=None):
             # sentence that sends someone reinstalling a CLI they had deliberately turned off —
             # or, worse, shrugging at a genuinely missing one. [[unknown-stays-unknown]]
             # [[plumbing-with-no-tap]] [[the-unjoined-end]]
-            return {"ok": False,
+            # REG-1765 — laneMissing so the tick does not retire the reel for a machine that
+            # has no reader. The sentence stays; the flag is what the tick branches on.
+            return {"ok": False, "laneMissing": True,
                     "why": "the primary (Claude) lane is unavailable — nothing to sweep with",
                     "lanes": lanes, "laneDetail": _chron_lane_detail()}
         _VAULT_JOB.update({"running": True, "startedTs": int(time.time() * 1000), "phase": "grouping",
