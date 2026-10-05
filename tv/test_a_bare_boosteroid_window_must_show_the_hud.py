@@ -53,6 +53,24 @@ def _words():
     return set(ca._AREA_ACT)
 
 
+class TheRelookComparesPictures(unittest.TestCase):
+
+    def test_a_quiet_difference_is_the_same_picture(self):
+        n = ca._RELOOK_EDGE * ca._RELOOK_EDGE * 3
+        a = bytes([80] * n)
+        b = bytes([80 + ca._RELOOK_SAME_TOL] * n)
+        self.assertIs(ca._pictures_same(a.hex(), b.hex()), True)
+
+    def test_a_different_screen_is_not_the_same_picture(self):
+        n = ca._RELOOK_EDGE * ca._RELOOK_EDGE * 3
+        self.assertIs(ca._pictures_same(bytes([0] * n).hex(), bytes([200] * n).hex()), False)
+
+    def test_a_missing_side_is_unknown(self):
+        n = ca._RELOOK_EDGE * ca._RELOOK_EDGE * 3
+        self.assertIsNone(ca._pictures_same(None, bytes([1] * n).hex()))
+        self.assertIsNone(ca._pictures_same("zz", bytes([1] * n).hex()))
+
+
 class TheFirstReadsCarryTheHud(unittest.TestCase):
 
     def test_a_zone_name_in_the_first_read_is_the_game(self):
@@ -160,7 +178,7 @@ class TheDoorAsksTheFirstReads(unittest.TestCase):
     STUBS = ("_shadow_state", "_agent_alive", "mini_state", "start_agent", "stop_agent",
              "_force_kill_all_agents", "_mini_sid", "_shadow_now_ms", "_screen_recording_ok_quick",
              "ON_AIR_FLOOR_GB", "_agent_proc", "_agent_origin", "_agent_since_ms", "_stop_inflight",
-             "bare_content_reads", "reel_content_reads")
+             "bare_content_reads", "reel_content_reads", "_launcher_picture")
 
     def setUp(self):
         self.world = tempfile.mkdtemp(prefix="bare_hud_case_")
@@ -192,6 +210,8 @@ class TheDoorAsksTheFirstReads(unittest.TestCase):
         ca.stop_agent = self._stop
         ca._force_kill_all_agents = lambda *a, **k: {"ok": True}
         ca.bare_content_reads = lambda: self.reads
+        self.picture = None
+        ca._launcher_picture = lambda pre: self.picture
         # REG-1704 - the whole reel's reads come from the same journal as its first reads, so they hold them. Left
         # unstubbed, the real reader answered [] for this fixture's reel while its first reads said "launcher" - a pair
         # the console can never see, which every launcher case here leaned on (the collapse the v3550 eye found).
@@ -267,16 +287,48 @@ class TheDoorAsksTheFirstReads(unittest.TestCase):
         self.assertTrue(r.get("started"), r)
         self.assertIn("D2R HUD word", r.get("why") or "")
 
-    def test_the_wait_ends_and_a_fresh_look_may_start(self):
+    def _sample(self, n):
+        return bytes([n] * (ca._RELOOK_EDGE * ca._RELOOK_EDGE * 3)).hex()
+
+    def test_the_wait_ends_without_a_frame_and_no_reel_opens(self):
+        self.reads = LAUNCH
+        ca.shadow_watch_tick()
+        self.reads = None
+        self.picture = None
+        self.starts = []
+        self.now += ca._BARE_HUD_RELOOK_S * 1000
+        r = ca.shadow_watch_tick()
+        self.assertFalse(r.get("started"), r)
+        self.assertEqual(self.starts, [])
+        self.assertIn("UNKNOWN", r.get("why") or "")
+
+    def test_a_matching_relook_does_not_open_a_reel(self):
+        self.picture = self._sample(40)
         self.reads = LAUNCH
         ca.shadow_watch_tick()
         self.reads = None
         self.starts = []
         self.now += ca._BARE_HUD_RELOOK_S * 1000
         r = ca.shadow_watch_tick()
+        self.assertFalse(r.get("started"), r)
+        self.assertEqual(self.starts, [])
+        self.assertIn("matches the sealed launcher", r.get("why") or "")
+        self.assertIn(str(ca._BARE_HUD_RELOOK_S), r.get("why") or "")
+        stored = ca._shadow_watch_stored()
+        self.assertGreaterEqual(stored.get("launcherUntil"), self.now + ca._BARE_HUD_RELOOK_S * 1000 - 1)
+
+    def test_a_changed_picture_opens_one_reel(self):
+        self.picture = self._sample(40)
+        self.reads = LAUNCH
+        ca.shadow_watch_tick()
+        self.picture = self._sample(220)
+        self.reads = None
+        self.starts = []
+        self.now += ca._BARE_HUD_RELOOK_S * 1000
+        r = ca.shadow_watch_tick()
         self.assertTrue(r.get("started"), r)
-        self.assertIn("not in yet", r.get("why") or "")
-        self.assertNotIn("launcher", (r.get("why") or "").lower())
+        self.assertEqual(len(self.starts), 1)
+        self.assertIn("differs from the sealed launcher", r.get("why") or "")
 
     def test_a_rolling_shadow_reel_seals_when_the_first_reads_lack_the_hud(self):
         # #148 HIS RULE: the launcher verdict waits the same 3 minutes as a gone game before it seals
@@ -380,6 +432,13 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": "    if not _tv.label_is_bare_cloud(pre.get(\"windowLabel\") or \"\"):\n",
         "replace": "    if False and _tv.label_is_bare_cloud(pre.get(\"windowLabel\") or \"\"):\n",
+        "matches": 1,
+    },
+    {
+        "why": "a changed picture after the launcher wait opens no reel",
+        "file": "control_app.py",
+        "find": "    if same is False:\n",
+        "replace": "    if False and same is False:\n",
         "matches": 1,
     },
     {

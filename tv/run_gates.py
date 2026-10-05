@@ -6455,7 +6455,9 @@ GATES = [
              "a zone name. Three reads with none is the launcher and does not start, and a reel "
              "already rolling seals. No reads yet is UNKNOWN, not the launcher. A window that names "
              "the game is not put through the check, and a reel he opened is not sealed for it. "
-             "Kai and intake rows are not reads."),
+             "Kai and intake rows are not reads. After that launcher verdict the next look is one "
+             "frame: the same picture waits out the same cap and opens no reel, a different picture "
+             "opens one reel, and a frame that was not taken stays UNKNOWN."),
     Gate("test_a_windows_door_sees_the_game",
          [sys.executable, os.path.join(HERE, "test_a_windows_door_sees_the_game.py")], 60,
          why="2026-09-27 - measured on his ALT: shadow on, the game streaming through Boosteroid, and the "

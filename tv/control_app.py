@@ -7678,6 +7678,12 @@ def capture_preflight(door, look_for_window=True):
             win = _tv.find_d2r_window_win() if IS_WIN else _tv.find_d2r_window_mac()
             facts["windowSeen"] = bool(win)
             facts["windowLabel"] = (str(win[1]) if win and len(win) > 1 and win[1] else "")
+            facts["windowId"] = None
+            if win:
+                try:
+                    facts["windowId"] = int(win[0])
+                except (TypeError, ValueError, IndexError):
+                    facts["windowId"] = None
             if not win and getattr(_tv, "_PICK_UNKNOWN", False):   # either OS (the second eye on v3520)
                 facts["windowLabel"] = ""
                 # the finder could not LOOK (no desktop, no process snapshot): UNKNOWN, never "no game"
@@ -31902,6 +31908,102 @@ def _bare_relook_open(now):
     return now >= float(until)
 
 
+# #152 slice 5 — the relook after a launcher verdict is ONE FRAME. The cap stays
+# _BARE_HUD_RELOOK_S and does not grow. A reel opens only when this frame differs from the
+# picture kept when the window was judged the launcher. A frame that was not taken stays UNKNOWN.
+_RELOOK_EDGE = 8
+_RELOOK_SAME_TOL = 18
+
+
+def _picture_token(raw):
+    """8x8 RGB bytes -> hex. A wrong length is None, never a token invented from a partial sample."""
+    need = _RELOOK_EDGE * _RELOOK_EDGE * 3
+    if not isinstance(raw, (bytes, bytearray)) or len(raw) != need:
+        return None
+    return bytes(raw).hex()
+
+
+def _pictures_same(held, token, tol=_RELOOK_SAME_TOL):
+    """Do these two tokens show the same picture? -> True | False | None.
+
+    None: one side is missing or not a token, so sameness was not measured."""
+    if not isinstance(held, str) or not isinstance(token, str) or len(held) != len(token) or not held:
+        return None
+    try:
+        a, b = bytes.fromhex(held), bytes.fromhex(token)
+    except ValueError:
+        return None
+    if len(a) != len(b) or not a:
+        return None
+    return (sum(abs(x - y) for x, y in zip(a, b)) / float(len(a))) <= tol
+
+
+def _token_of_image(path):
+    """A coarse token of one image file. -> hex | None. A file that will not open is None."""
+    try:
+        from PIL import Image
+        _box = getattr(getattr(Image, "Resampling", Image), "BOX")
+        im = Image.open(path).convert("RGB").resize((_RELOOK_EDGE, _RELOOK_EDGE), _box)
+        return _picture_token(im.tobytes())
+    except Exception:
+        return None
+
+
+def _launcher_picture(pre):
+    """One frame of the window this look already found. -> token | None.
+
+    None: the frame was not taken. That is not a picture of the launcher."""
+    wid = pre.get("windowId") if isinstance(pre, dict) else None
+    if isinstance(wid, bool) or not isinstance(wid, int):
+        return None
+    fd, path = tempfile.mkstemp(prefix="tvd-relook-", suffix=".jpg")
+    os.close(fd)
+    try:
+        import tv_diablo as _tv
+        if not _tv._capture_window_to_file(int(wid), path, timeout=3):
+            return None
+        return _token_of_image(path)
+    except Exception:
+        return None
+    finally:
+        try:
+            os.remove(path)
+        except Exception:
+            pass
+
+
+def _bare_relook_one_frame(now, pre, cur):
+    """The wait after a launcher verdict is over. -> a tick dict, or None when a reel should open.
+
+    None means the picture differs, so the caller opens the reel. Every other answer opens nothing
+    and does not call the picture the launcher when the frame was not taken."""
+    token = _launcher_picture(pre)
+    held = cur.get("launcherFrame")
+    held = held if isinstance(held, str) and held else None
+    if token is None:
+        why = "the one-frame relook could not be taken, so whether he left the launcher is UNKNOWN"
+        _shadow_watch_note(lookedAt=now, why=why)
+        return {"ok": True, "seen": False, "started": False, "why": why, "pre": pre}
+    if held is None:
+        why = ("the one-frame relook is the first picture kept of this launcher, so no reel opens; "
+               "the next look is in %d s" % _BARE_HUD_RELOOK_S)
+        _shadow_watch_note(lookedAt=now, why=why, launcherFrame=token,
+                           launcherUntil=now + _BARE_HUD_RELOOK_S * 1000)
+        return {"ok": True, "seen": False, "started": False, "why": why, "pre": pre}
+    same = _pictures_same(held, token)
+    if same is True:
+        why = ("the one-frame relook matches the sealed launcher, so no reel opens; "
+               "the next look is in %d s" % _BARE_HUD_RELOOK_S)
+        _shadow_watch_note(lookedAt=now, why=why, launcherFrame=held,
+                           launcherUntil=now + _BARE_HUD_RELOOK_S * 1000)
+        return {"ok": True, "seen": False, "started": False, "why": why, "pre": pre}
+    if same is False:
+        return None
+    why = "the one-frame relook could not be compared with the sealed launcher, so whether he left it is UNKNOWN"
+    _shadow_watch_note(lookedAt=now, why=why)
+    return {"ok": True, "seen": False, "started": False, "why": why, "pre": pre}
+
+
 def _seal_bare_launcher(now, held_s=None):
     """Close a shadow reel whose reads showed no game for the whole grace. -> the tick dict.
 
@@ -32110,13 +32212,25 @@ def shadow_watch_tick():
     if hud is False:   # bare Boosteroid, first reads have no D2R HUD word
         why = ("Boosteroid is open, and the first reads show no D2R HUD word — "
                "the launcher, not the game")
-        _shadow_watch_note(lookedAt=now, why=why, launcherUntil=now + _BARE_HUD_RELOOK_S * 1000)
+        _frame = _launcher_picture(pre)
+        _hold = {"lookedAt": now, "why": why, "launcherUntil": now + _BARE_HUD_RELOOK_S * 1000}
+        if isinstance(_frame, str):
+            _hold["launcherFrame"] = _frame
+        _shadow_watch_note(**_hold)
         return {"ok": True, "seen": False, "started": False, "why": why, "pre": pre}
     if hud is None and tv_label_is_bare(pre) and not _bare_relook_open(now):
         why = ("Boosteroid is open and the last reads showed no D2R HUD word — "
                "looking again after the wait")
         _shadow_watch_note(lookedAt=now, why=why)
         return {"ok": True, "seen": False, "started": False, "why": why, "pre": pre}
+    _relook_differ = False
+    if hud is None and tv_label_is_bare(pre) and _bare_relook_open(now):
+        _cur_rl = _shadow_watch_stored() or {}
+        if isinstance(_cur_rl.get("launcherUntil"), (int, float)):
+            _held_back = _bare_relook_one_frame(now, pre, _cur_rl)
+            if _held_back is not None:
+                return _held_back
+            _relook_differ = True
     r = start_agent(sim=False, origin="shadow")   # v2362 — say who asked
     ok = bool(isinstance(r, dict) and r.get("ok"))
     # v2687 — shadow no longer credits its own open: start_agent() now does it for every door, and
@@ -32131,6 +32245,8 @@ def shadow_watch_tick():
     cur = shadow_watch_state()
     if ok and hud is True:
         _why_ok = "started a reel — the first reads show a D2R HUD word"
+    elif ok and _relook_differ:
+        _why_ok = "started a reel — the one-frame relook differs from the sealed launcher"
     elif ok and tv_label_is_bare(pre):
         _why_ok = "started a reel — Boosteroid is open and the first reads are not in yet"
     elif ok:
@@ -32145,7 +32261,8 @@ def shadow_watch_tick():
     _shadow_watch_note(lookedAt=now, sawAt=now,
                        startedAt=(now if ok else cur.get("startedAt")),
                        starts=(int(cur.get("starts") or 0) + (1 if ok else 0)),
-                       launcherUntil=(None if hud is True else cur.get("launcherUntil")),
+                       launcherUntil=(None if hud is True or (_relook_differ and ok) else cur.get("launcherUntil")),
+                       **({"launcherFrame": None} if hud is True or (_relook_differ and ok) else {}),
                        opensHour=_hk, opensThisHour=_opens,
                        why=_why_ok)
     if ok:
