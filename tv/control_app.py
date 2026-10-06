@@ -14241,7 +14241,9 @@ def _kai_journal_rows(want_why=False):
 
     ⚠ A MISSING JOURNAL IS NOT AN UNREADABLE ONE. A console that has never recorded has no file,
     and empty is the HONEST answer there — reporting UNKNOWN would make every fresh install look
-    broken. Any other failure (permission, decode, IO) is UNKNOWN and must reach the guard.
+    broken. A blank file is that same empty. A file that opened and held only lines that are not
+    beats is not a night that never started (REG-1791). Any other failure (permission, decode,
+    IO) is UNKNOWN and must reach the guard.
     [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
 
     ⚠ THE DEFAULT SHAPE IS UNCHANGED so the other five call sites keep working untouched; only the
@@ -14249,19 +14251,28 @@ def _kai_journal_rows(want_why=False):
     """
     rows = []
     why = None
+    seen = 0
     try:
         with open(_journal_path(), encoding="utf-8") as f:
             for ln in f:
                 ln = ln.strip()
-                if ln:
-                    try:
-                        rows.append(json.loads(ln))
-                    except Exception:
-                        pass          # one bad line is not an unreadable journal
+                if not ln:
+                    continue
+                seen += 1
+                try:
+                    parsed = json.loads(ln)
+                except Exception:
+                    continue          # one bad line is not an unreadable journal
+                if isinstance(parsed, dict):
+                    rows.append(parsed)
     except FileNotFoundError:
         why = None                    # never recorded: empty is the measured truth
     except Exception as exc:
         why = "%s: %s" % (type(exc).__name__, str(exc)[:80])
+    else:
+        # REG-1791 — opened, and not one line was a beat. That is not a missing file.
+        if seen and not rows and why is None:
+            why = "the journal opened and none of its %d line(s) parsed" % seen
     return (rows, why) if want_why else rows
 
 

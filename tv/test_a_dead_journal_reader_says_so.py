@@ -24,7 +24,9 @@ honest; anything else -> UNKNOWN. [[unknown-stays-unknown]]
 """
 import io
 import os
+import shutil
 import sys
+import tempfile
 import unittest
 from unittest import mock
 
@@ -67,6 +69,32 @@ class ADeadJournalReaderSaysSo(unittest.TestCase):
         self.assertIsNone(why, "a single unparseable line was reported as an unreadable journal")
         self.assertEqual(2, len(rows), "the good rows either side of a bad line were dropped")
 
+    def test_a_blank_journal_is_still_a_quiet_read(self):
+        d = tempfile.mkdtemp(prefix="journal_blank_")
+        self.addCleanup(shutil.rmtree, d, True)
+        path = os.path.join(d, "sessions.jsonl")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write("\n\n   \n")
+        with mock.patch.object(ca, "_journal_path", lambda: path):
+            rows, why = ca._kai_journal_rows(want_why=True)
+        self.assertEqual([], rows)
+        self.assertIsNone(why, "a blank journal is being reported as unreadable: %r" % why)
+
+    def test_a_journal_of_only_bad_lines_is_not_a_quiet_night(self):
+        d = tempfile.mkdtemp(prefix="journal_torn_")
+        self.addCleanup(shutil.rmtree, d, True)
+        path = os.path.join(d, "sessions.jsonl")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write("not json\n{also not\n42\n")
+        with mock.patch.object(ca, "_journal_path", lambda: path):
+            rows, why = ca._kai_journal_rows(want_why=True)
+            bare = ca._kai_journal_rows()
+        self.assertEqual([], rows)
+        self.assertIsInstance(bare, list)
+        self.assertEqual([], bare)
+        self.assertTrue(why, "a journal of only bad lines returned no reason, so it reads as a quiet night")
+        self.assertIn("none of its 3 line(s) parsed", why)
+
     def test_the_default_shape_is_unchanged(self):
         """five other call sites read this as a bare list and must stay untouched."""
         with mock.patch("builtins.open", mock.mock_open(read_data='{"a":1}\n')):
@@ -108,6 +136,25 @@ class ADeadJournalReaderSaysSo(unittest.TestCase):
         finally:
             ca._STATUS_JOURNAL_CACHE = saved
 
+    def test_a_torn_journal_reaches_the_UNKNOWN_guard(self):
+        """The reason has to arrive at the verdict. A stubbed why already does. This is the file."""
+        d = tempfile.mkdtemp(prefix="journal_torn_status_")
+        self.addCleanup(shutil.rmtree, d, True)
+        path = os.path.join(d, "sessions.jsonl")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write("not json\n{also not\n")
+        saved = ca.__dict__.get("_STATUS_JOURNAL_CACHE")
+        try:
+            ca._STATUS_JOURNAL_CACHE = None
+            with mock.patch.object(ca, "_journal_path", lambda: path):
+                st = ca.status_payload()
+            sh = st.get("sessionHealth") or {}
+            self.assertEqual("unknown", sh.get("verdict"),
+                             "a journal of only bad lines still publishes %r" % sh.get("verdict"))
+            self.assertNotEqual("idle", sh.get("verdict"))
+        finally:
+            ca._STATUS_JOURNAL_CACHE = saved
+
 
 RED_PROOF = [
     ("control_app.py", "    except Exception as exc:\n        why = \"%s: %s\"",
@@ -119,6 +166,13 @@ RED_PROOF = [
     ("control_app.py", "    except FileNotFoundError:\n        why = None",
      "    except FileNotFoundError:\n        why = 'FileNotFoundError'",
      "test_a_MISSING_journal_is_empty_and_honest"),
+    {"why": "REG-1791 - a journal of only bad lines reads as a quiet night",
+     "file": "control_app.py",
+     "find": "        if seen and not rows and why is None:\n"
+             "            why = \"the journal opened and none of its %d line(s) parsed\" % seen\n",
+     "replace": "        if False and seen and not rows and why is None:\n"
+               "            why = \"the journal opened and none of its %d line(s) parsed\" % seen\n",
+     "matches": 1},
 ]
 
 if __name__ == "__main__":

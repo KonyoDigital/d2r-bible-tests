@@ -1638,7 +1638,8 @@ GATES = [
              "can never take. Green forever over a live defect. This guards the path real disks "
              "take, and keeps the opposite error out: a journal that was never written is empty "
              "and honest, because reporting UNKNOWN there would make every fresh install look "
-             "broken."),
+             "broken. REG-1791: a file that opened and held only lines that are not beats is "
+             "not that empty night. A blank file still is. One bad line beside a real beat still is."),
     Gate("test_the_eye_is_shown_valid_code",
          [sys.executable, os.path.join(HERE, "test_the_eye_is_shown_valid_code.py")], 120,
          why="the ship gate will not push until a DIFFERENT model family has looked, so the "
