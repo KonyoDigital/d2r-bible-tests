@@ -9364,6 +9364,13 @@ GATES = [
              "as an unknown age, which the eagle does not count. Reels that owe a read and no memory at all "
              "are now MISSING: no read has ever been banked. A file that is there and will not stat stays "
              "UNKNOWN. A bank that exists is still judged by its age."),
+    Gate("test_a_boot_sweep_that_never_ran_is_not_a_clean_capture",
+         [sys.executable, os.path.join(HERE, "test_a_boot_sweep_that_never_ran_is_not_a_clean_capture.py")], 90,
+         needs_app=False,
+         why="REG-1779 (#86 gap audit 28) - the one-capture row said the boot sweep was fine for the whole "
+             "life of a console that had never run it. On Windows that sweep is due about 20 s after boot. "
+             "Past a minute, never-ran is UNKNOWN: the rescue loop may be dead, and an older capture may "
+             "still be filming. A Mac never runs it. The first minute of a Windows boot is still not a fault."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

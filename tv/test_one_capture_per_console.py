@@ -217,7 +217,7 @@ class TheStopChecksItsKill(_World):
 class TheDoctorRowSaysWhatIsTrueNow(_World):
     """REG-1509 — the one_capture row: UNKNOWN is not OK, and a survivor warns only while it lives."""
 
-    def _row(self, sweep=None, stop=None, alive=lambda p: False):
+    def _row(self, sweep=None, stop=None, alive=lambda p: False, uptime_s=0):
         ca._CAP_SWEEP.clear()
         ca._CAP_SWEEP.update({"ran": None, "found": None, "killed": [], "kept": [], "failed": [],
                               "say": "not asked yet"})
@@ -225,7 +225,9 @@ class TheDoctorRowSaysWhatIsTrueNow(_World):
         ca._CAP_STOP.clear()
         ca._CAP_STOP.update({"survived": 0, "last": None})
         ca._CAP_STOP.update(stop or {})
-        return ca._one_capture_check(alive=alive)
+        # uptime 0 is still inside the boot minute. A Windows process older than that minute,
+        # whose sweep never ran, is the other law's case, not these.
+        return ca._one_capture_check(alive=alive, uptime_s=uptime_s)
 
     def test_the_doctor_carries_this_row(self):
         self.assertIn("_one_capture_check", ca.doctor_payload.__code__.co_names,
@@ -239,11 +241,15 @@ class TheDoctorRowSaysWhatIsTrueNow(_World):
         self.assertIn("Restart TV DIABLO to ask again", row.get("fix") or "")
 
     def test_a_sweep_that_never_ran_is_fine_and_a_mac_never_runs_one(self):
-        self.assertTrue(self._row()["ok"], "a sweep that has not run yet is not a fault")
+        young = self._row(uptime_s=0)
+        self.assertTrue(young["ok"], "a sweep that has not run yet, inside the boot minute, is not a fault")
+        self.assertNotIn("boot sweep never ran", young["detail"])
         with mock.patch.object(ca, "IS_WIN", False):
             ca._sweep_orphan_captures()         # the Mac's own path: says why, runs nothing
-        self.assertIsNone(ca._CAP_SWEEP.get("ran"))
-        self.assertTrue(ca._one_capture_check(alive=lambda p: False)["ok"], "a Mac's one_capture row warned")
+            self.assertIsNone(ca._CAP_SWEEP.get("ran"))
+            mac = ca._one_capture_check(alive=lambda p: False, uptime_s=4000)
+        self.assertTrue(mac["ok"], "a Mac's one_capture row warned: %r" % mac)
+        self.assertNotIn("boot sweep never ran", mac["detail"])
 
     def test_a_survivor_warns_only_while_it_is_alive(self):
         stop = {"survived": 1, "last": {"pid": 8100, "ts": 1, "say": "capture pid 8100 outlived its kill"}}

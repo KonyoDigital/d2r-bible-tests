@@ -5157,6 +5157,7 @@ def _stop_capture():
 # console is gone. It never touches one whose parent lives (another console's), and never its own.
 _CAP_SWEEP = {"ran": None, "found": None, "killed": [], "kept": [], "failed": [], "say": "not asked yet"}
 CAPTURE_SWEEP_TICK = 2          # the rescue loop's 2nd tick: ~20 s after boot, off the boot path
+CAPTURE_SWEEP_LATE_S = 60.0     # past this, a Windows sweep that never ran is not "not asked yet"
 
 
 def orphan_captures(rows, mine, alive):
@@ -40084,16 +40085,19 @@ def _chk(cid, ok, severity, detail, fix=None):
     return d
 
 
-def _one_capture_check(alive=None):
+def _one_capture_check(alive=None, uptime_s=None):
     """The doctor's one_capture row — REG-1502. -> _chk dict. It reads the boot sweep and the stop's receipt; it starts
-    nothing and ends nothing. alive(pid) -> bool (default _pid_alive).
+    nothing and ends nothing. alive(pid) -> bool (default _pid_alive). uptime_s is this process's age (default the
+    monotonic clock since import).
 
     WARN while an orphan that would not end, or the last capture whose kill did not land, is STILL ALIVE; WARN UNKNOWN
     when the sweep ran and could not ask the process table. REG-1509, the review of v3524: (a) an UNKNOWN sweep read OK,
     so under the incident's own conditions (memory pressure, a busy WMI) the orphans survived the console's life behind
     a green row; (b) a survivor warned FOREVER - the count was never cleared, so the row kept sending him to Task
-    Manager for a pid that had left 2 s later, exactly as its own message promised. A sweep that never ran (a Mac, or
-    the first ~20 s of a Windows boot) is not a fault and stays OK."""
+    Manager for a pid that had left 2 s later, exactly as its own message promised. A sweep that never ran is not a
+    fault on a Mac, which does not run it, nor in the first minute of a Windows boot. Past that minute on Windows,
+    never-ran is UNKNOWN: the rescue loop may be dead, and an older capture may still be filming. An age that will
+    not parse is that same unknown, not a young console."""
     alive = alive or _pid_alive
     _cs, _cst = dict(_CAP_SWEEP), dict(_CAP_STOP)
 
@@ -40107,9 +40111,31 @@ def _one_capture_check(alive=None):
     _last = _cst.get("last") or {}
     _surv_live = bool(_surv) and _alive(_last.get("pid"))
     _unknown = _cs.get("ran") is not None and _cs.get("found") is None
-    _c_bad = bool(_failed_live) or _surv_live or _unknown
+    _never = _cs.get("ran") is None
+    _asked = None
+    if _never and IS_WIN:
+        if uptime_s is None:
+            try:
+                _asked = time.monotonic() - _BOOT_MONO
+            except Exception:
+                _asked = None
+        else:
+            try:
+                _asked = float(uptime_s)
+            except (TypeError, ValueError):
+                _asked = None
+        if isinstance(_asked, float) and (_asked != _asked or _asked < 0):
+            _asked = None
+    # The sweep is the rescue loop's 2nd tick (~20 s). The first minute covers that tick and one
+    # missed cycle. Past it, never-ran is the loop dead, not a sweep still owed.
+    _late = bool(IS_WIN and _never and (_asked is None or _asked > CAPTURE_SWEEP_LATE_S))
+    _c_bad = bool(_failed_live) or _surv_live or _unknown or _late
     _say = _cs.get("say") or "not asked yet"
-    if _unknown and "UNKNOWN" not in _say:
+    if _late:
+        _say = ("UNKNOWN - the boot sweep never ran, so whether an older console left a "
+                "capture filming is not known. It is due about 20 s after boot; this "
+                "console is past that")
+    elif _unknown and "UNKNOWN" not in _say:
         _say = "UNKNOWN - " + _say
     if _cs.get("failed") and not _failed_live:
         _say += " (each has since left)"
@@ -40118,7 +40144,11 @@ def _one_capture_check(alive=None):
                  if _surv_live else
                  " · %d stop(s) whose kill did not land at once - the last (pid %s) has since left"
                  % (_surv, _last.get("pid")))
-    if _unknown and not (_failed_live or _surv_live):
+    if _late and not (_failed_live or _surv_live):
+        fix = ("The boot sweep never ran. Restart TV DIABLO so it asks which capture scripts "
+               "are still filming. If this row stays, the rescue loop is not ticking: Task "
+               "Manager -> Details, more than one powershell.exe running tv\\capture_win.ps1.")
+    elif _unknown and not (_failed_live or _surv_live):
         fix = ("The boot sweep could not ask Windows which capture scripts are running (WMI busy or slow), so an "
                "orphan from an older console may still be filming. Restart TV DIABLO to ask again, or look in Task "
                "Manager -> Details for more than one powershell.exe running tv\\capture_win.ps1.")
