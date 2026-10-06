@@ -864,8 +864,11 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-1771 - the census, the lane counts and the triage word are not news again: other PCs keep the old row for up to 15 min",
      "file": "functions/api/console.js",
-     "find": "    return JSON.stringify([stuckWord === undefined ? 'absent' : stuckWord, heartWord, laneWord, triageWord]);\n",
-     "replace": "    return JSON.stringify([stuckWord === undefined ? 'absent' : stuckWord]);\n",
+     # c35a3036 added placeWord (REG-1775) and wrapped the line; the tamper drops only the three REG-1771 words
+     "find": "    return JSON.stringify([stuckWord === undefined ? 'absent' : stuckWord, heartWord, laneWord,\n"
+             "                           triageWord, placeWord]);\n",
+     "replace": "    return JSON.stringify([stuckWord === undefined ? 'absent' : stuckWord,\n"
+                "                           placeWord]);\n",
      "matches": 1},
     {"why": "REG-1771 - a tree or a shelf count that changes is not news again: the hover keeps the old words for up to 15 min",
      "file": "functions/api/console.js",

@@ -166,8 +166,9 @@ RED_PROOF = [
     {
         "why": "REG-1804 - the screen calls an unread journal a night with no stash tabs",
         "file": "control_ui.html",
-        "find": "      ? 'the journal was not read'\n",
-        "replace": "      ? 'no stash tabs yet'\n",
+        # the funnel's own fnSub line - four other organs now say the same words (REG-1805..1810)
+        "find": "    var fnSub = tabsUnread\n      ? 'the journal was not read'\n",
+        "replace": "    var fnSub = tabsUnread\n      ? 'no stash tabs yet'\n",
         "matches": 1,
     },
     {

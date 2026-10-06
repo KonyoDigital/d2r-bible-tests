@@ -110,7 +110,8 @@ RED_PROOF = [
     {
         "why": "#93 - the row stops drawing the eye beside the name (the helper stays, the join is gone)",
         "file": "control_ui.html",
-        "find": "          + '<b>' + _fleetShadowEye(m, online) + escC(nameFor) + '</b>'\n",
+        # 475f672e - the row passes `heard` (a presence key with a live pulse), not `online`
+        "find": "          + '<b>' + _fleetShadowEye(m, heard) + escC(nameFor) + '</b>'\n",
         "replace": "          + '<b>' + escC(nameFor) + '</b>'\n",
         "matches": 1,
     },
@@ -290,7 +291,8 @@ class TheEyeOnEveryRow(unittest.TestCase):
         the next line (seen on the 1440 render, 2026-09-30). The render gate measures `.fleet-shadow` painted."""
         with io.open(UI, encoding="utf-8") as f:
             src = f.read()
-        self.assertEqual(src.count("+ '<b>' + _fleetShadowEye(m, online) + escC(nameFor) + '</b>'"), 1,
+        # 475f672e - the row passes `heard` (a presence key with a live pulse), not `online`
+        self.assertEqual(src.count("+ '<b>' + _fleetShadowEye(m, heard) + escC(nameFor) + '</b>'"), 1,
                          "the fleet row does not draw the shadow eye beside the name")
 
 

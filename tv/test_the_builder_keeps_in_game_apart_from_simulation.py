@@ -482,8 +482,9 @@ RED_PROOF = [
     },
     {"why": "#234 - the in-game card stops showing what its character wears",
      "file": "../bible.html",
-     "find": "      + _gearHtml(t)\n      + '</article>';",
-     "replace": "      + '</article>';",
+     # c637711e put the Open button between the gear and </article>; the gear line alone is the join
+     "find": "      + _gearHtml(t)\n",
+     "replace": "",
      "matches": 1},
     {"why": "#234 - the card looks its gear up by the planner's 'seen:' key, so every card reads nothing seen",
      "file": "../bible.html",
