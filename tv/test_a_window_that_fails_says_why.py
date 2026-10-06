@@ -38,6 +38,9 @@ def _say():
             "  hidden: window._wWithoutAWindow(true),\n"
             "  shown: window._wWithoutAWindow(false),\n"
             "  banner: window._pageNewerSay({drift:{running:'v1', disk:'v2', drift:true}}),\n"
+            "  ahead: window._pageNewerSay({drift:{running:'v10', disk:'v9', drift:true}}),\n"
+            "  numeric: window._pageNewerSay({drift:{running:'v9', disk:'v10', drift:true}}),\n"
+            "  odd: window._pageNewerSay({drift:{running:'abc', disk:'v9', drift:true}}),\n"
             "  same: window._pageNewerSay({drift:{running:'v2', disk:'v2', drift:false}}),\n"
             "  missing: window._pageNewerSay({drift:{running:'v2'}}),\n"
             "  none: window._pageNewerSay({}),\n"
@@ -68,6 +71,11 @@ class AWindowThatFailsSaysWhy(unittest.TestCase):
         got = _say()
         self.assertEqual(got["banner"], BANNER)
         self.assertEqual(got["same"], "")
+        self.assertEqual(got["numeric"], BANNER, "v9 behind v10 is a string compare")
+        self.assertNotEqual(got["ahead"], BANNER, "a process ahead of the page got the behind sentence")
+        self.assertIn("ahead", got["ahead"])
+        self.assertIn("UNKNOWN", got["odd"])
+        self.assertNotEqual(got["odd"], BANNER)
         self.assertEqual(got["missing"], "", "a missing version was called a mismatch")
         self.assertEqual(got["none"], "")
 
@@ -107,6 +115,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1831 - the page-newer sentence ignores order, so a process ahead gets it",
+        "file": "tv/control_ui.html",
+        "find": "    if (c > 0) return ",
+        "replace": "    if (false) return ",
+        "matches": 1,
+    },
     {
         "why": "a failed window fetch is silent again",
         "file": "tv/control_ui.html",

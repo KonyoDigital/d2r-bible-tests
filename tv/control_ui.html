@@ -11436,6 +11436,21 @@ window._lockMark = function(isOpen, px, label){
     if (!d || d.running == null || d.disk == null) return '';
     var run = String(d.running), disk = String(d.disk);
     if (!run || !disk || run === disk) return '';
+    /* REG-1831 - the sentence names a DIRECTION, so it needs an order. Stamps are v<digits>
+       (dots allowed); anything else cannot be ordered, and then it says UNKNOWN. */
+    var pv = function (v) {
+      var m = /^v?(\d+(?:\.\d+)*)$/.exec(v);
+      return m ? m[1].split('.').map(Number) : null;
+    };
+    var a = pv(run), b = pv(disk), c = 0;
+    if (a && b) {
+      for (var i = 0; i < Math.max(a.length, b.length) && !c; i++) {
+        c = Math.sign((a[i] || 0) - (b[i] || 0));
+      }
+    }
+    if (!a || !b) return 'the console and the files on disk differ (' + run + ' vs ' + disk + ') and which is newer is UNKNOWN';
+    if (c > 0) return 'the console behind this window is running ' + run + ', ahead of ' + disk + ' on disk \u2014 this window is not the newer one';
+    if (c === 0) return '';
     return 'this window is newer than the console behind it \u2014 reopen TV DIABLO from the Desktop icon';
   };
   window._fleetWin = function (m) {
