@@ -406,9 +406,129 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1837 - THE CONSOLE'S OWN TRACKED RECORD MADE EVERY PC A DEV TREE, SO THE ALT NEVER PROVED AND NEVER DRAINED (2026-10-06, #168)
+
+The ALT's only local edit was ` M tv/.status_worst.json` - a file tracked on purpose that the running console rewrites itself. self_prove's tree_state counted it as a local edit, so every tick said "not proving here: the tree has local edits"; the heart census stayed stale, frame.release stayed LOCKED and the retention deleter could never release a reel. Measured live: the ALT had no tombstone ledger at all and 416 of its 435 reels were releasable. tree_state now ignores exactly that one console-owned record; any other edit, or a rename onto it, still makes a dev tree. Law `test_every_pc_proves_itself`.
+
+### REG-1836 - THE COST TABLE COVERED 94% OF THE GATE SET (2026-10-06)
+
+~50 gates were added since CI run 37139166735 and the table (`tv/gate_costs.json`) covered 94% (< 95%). A CI log refresh was not
+at hand, so `gate_costs.py --fill-missing` added ONLY the never-timed gates from a local niced fast run on the Mac (50 gates, max 4.1 s) and
+recorded them under `localEstimates` (names, source, date). CI-measured costs are never overwritten; the next CI refresh replaces the
+estimates. Law: `test_the_gate_set_shards_cleanly`.
+
+### REG-1835 - THE PRESENCE LAW PINNED "THREE SITES" AND A FOURTH ARRIVED (2026-10-06)
+
+475f672e added an online-but-not-heard row that renders `escC(_fleetSeen(m))` - correctly - making four sites; the law's
+`count == 3` read red. The law is "no rail site prints the console-only age", not a number: now >=3 joined-phrase sites, both
+'last seen'/'last recorded' labels carry it, and `escC(_fleetSince(m.t))` stays at 0 (reverting the new site to the console age
+was seen RED by that last assertion). Law: `test_a_presence_reading_names_its_door`.
+
+### REG-1834 - NINE TESTS PRINTED NON-ASCII WITHOUT THE ONE ENCODING DOOR (2026-10-06)
+
+test_encoding_rule_one_def (tv/console_safe.py's audit) named test_sessions_leaves_the_vault_on_the_first_press and eight siblings
+(5 test_an_unread_journal_*, test_ci_runs_the_control_suite_in_shards, test_the_vault_proposes_a_home_and_does_not_move,
+test_a_hand_added_item_stays_his): entry points that print non-ASCII and never call console_safe.enable() - on a cp1255 console
+they crash while reporting. Each now enables it after its HERE line; the rule is untouched. The node subprocess in the sessions
+law also names encoding="utf-8".
+
 ### REG-1833 - A PRESENCE KEY THAT OUTLIVED ITS PULSE TOLD THE SHADOW EYE THE PC WAS OFFLINE (2026-10-06)
 
 REG-1772 had the fleet row hand the shadow eye `heard` (a key with a live pulse) instead of `online` (the key the roster stores). The eye's one answer for not-online was the offline branch. So a row the roster still holds, with an amber dot and a hover that says presence UNKNOWN, not online, drew an eye whose tooltip said "this PC is offline". The row now hands the eye its `_fleetPresence` answer too. A silent key says no beacon heard for that long, past the 34 min bound, so presence is UNKNOWN, and that the roster still holds the PC. A row with no beacon time the card can read says so. Only a row the roster no longer holds says offline. The eye stays UNKNOWN in all three. Seen RED on the unfixed eye: the 40-minute row said "this PC is offline". The same law's own pin had been red untampered since 475f672e, because it still counted `(m, online)`. That was fixed in 34a39493. Laws `test_the_fleet_shows_the_shadow_eye`, `test_the_fleet_says_where_a_river_is_stuck` (the row's pin).
+
+### REG-1832 - THE TWO PUBLIC PATH SCRUBS ARE NOW HELD TO ONE ANSWER (2026-10-06, #231 look at v3579)
+
+The look said `_public_git_text` (Python) and the beacon worker's `clip` (functions/api/console.js) kept a forward-slash drive path such as `C:/Users/NAME/...`. On this tree both already scrub it (12 cases incl. `C:/Users/x`, `c:\Users\x`, `/Users/x`, `~/x`, `D:/Jane Doe/TV`, UNC, URL) and agree on every case — the gap the look saw is not here. What was missing is anything holding the two languages to the same rule. Law `TheTwoPublicScrubsAgree` (test_a_landed_update_is_not_an_edit) feeds both the same cases and requires equal output with no name left; seen RED by narrowing the Python drive regex to backslash only.
+
+### REG-1831 - THE PAGE-NEWER BANNER NAMED A DIRECTION IT NEVER ORDERED (2026-10-06, #231 look at v3579)
+
+`_pageNewerSay` said "this window is newer than the console behind it" for ANY difference between the running stamp and the stamp on disk, so a console process AHEAD of its page got the same sentence as a page ahead of its process. It now orders the two versions numerically (v9 below v10): console behind disk keeps the banner, console ahead says it is ahead, an unparseable stamp says UNKNOWN, equal says nothing. Law `test_a_window_that_fails_says_why`.
+
+### REG-1830 - A QUIT'S KEEP-SERVICE FLAG LET A LATER WINDOW'S X DESTROY THE VIEW (2026-10-06, #231 look at v3579)
+
+`_quit_window_keeps_service` sets `_QUIT_KEEPS_SERVICE` and rightly leaves it set after a successful destroy, because the park loop and the background mode read it. `_on_console_window_closing` answered True whenever that flag was set and no exit was asked, before `close_means_background`. So a window the park loop reopened in the same process had its X destroy the view instead of hiding it. The quit now records the window it destroyed (`_QUIT_KEEPS_WINDOW`). The close is let through on the flag only while no other window is up. A window that is not the quit's goes the normal ✕ route. Law `test_a_later_close_of_a_new_window_still_hides`.
+
+### REG-1829 - THE BUILD BADGE CLIPPED ITS NAME MID-WORD WHEN IT WAS SHOWN LATE (2026-10-06)
+
+The build badge drops the ship name when it would not fit, so the id and the date always survive. That check ran once, right after the badge was appended. A badge that is not laid out then (below 720px, or a board frame still hidden) reads 0 against 0, kept the full stamp, and showed "v3595 · 2026-10-04 · buil…" once it appeared. The badge is measured again when its box changes, one frame later, never inside the observer's delivery. A hidden badge is still left alone, and a name that fits is still shown. Law `test_build_stamp`.
+
+### REG-1828 - A FLEET ROW OPENED THREE BOXES ON ONE WORD (2026-10-06)
+
+A fleet row carried a native title and its own hover card. The hint lane takes a hovered word's title away so no native box opens for it, and that left the row's title as the nearest one. On the river-stuck word the native strip "click: how this PC films and drains…" opened over the hint and the card, and covered their last lines. The click sentence now lives in the card, on both of its paths, and the row has no title. While a word on the row with its own title is under the pointer, the card steps aside, so the hint is the only box. The stuck word keeps its reason. Law `test_the_fleet_says_where_a_river_is_stuck`.
+
+### REG-1827 - TWO LAUNCHER ORDER LAWS PASSED WHEN THE STRING THEY ORDERED WAS GONE (2026-10-06)
+
+A #231 cross-family look: `assertLess(branch.find("left exactly as it is"), decide)` (test_closing_the_window_keeps_the_console_running)
+and `assertGreater(call, bg)` (test_the_launcher_brings_a_running_console_forward) compare str.find results; find returns -1
+when the text is absent, so an absent smaller side passes the order for free. Each smaller side is now asserted present
+first. Seen RED by deleting the sign-in log line from start_tvd_win.ps1 (anchor count 1). A static census of the class
+(order comparison on find results, smaller side unguarded) names 141 candidate sites in tv/test_*.py - an upper bound, many
+guarded by helpers - the rest untouched here.
+
+### REG-1826 - A WINDOWS CLICK WITH NO PYTHON FELL THROUGH TO THE BOOT OVER A RUNNING CONSOLE (2026-10-06, the #231 eye on v3570)
+
+start_tvd_win.ps1's ALREADY UP block, with the console answering :17772 and Real-Python finding nothing, logged that this open could not update the console and then fell through to the boot. No window came forward, no update was flagged, nothing returned. The boot's own lookup found no python either and showed "No real Python found. Re-run the installer." over a console that was up. That arm now asks the console to show itself (POST /api/window front, as the shared decision does, v1460), focuses it, releases the mutex and stops. A console nobody could judge is never replaced. Law `test_the_launcher_brings_a_running_console_forward` (TheWindowsClickWithNoPythonBringsTheConsoleForward); `test_closing_the_window_keeps_the_console_running` now anchors on the decision's own arm and reads code only.
+
+### REG-1825 - THE PROVER READ FREE MEMORY, NOT AVAILABLE MEMORY, ON LINUX (2026-10-06, #168, GrokBot's hunch)
+
+self_prove.free_mb was a second copy of the memory probe; on Linux without psutil it read SC_AVPHYS_PAGES, which is MemFree - pages nothing holds - so GrokBot's PC with 4918 MB available read as 643 MB free, refused every proof ("a proof starts at 1536 MB"), kept its route lane shut and held 8 reels at ROUTE for two days. It now delegates to the one reader, child_guard._free_ram_mb_read (MemAvailable, ullAvailPhys, vm_stat); a Linux with no MemAvailable line reads UNKNOWN, never a number. Windows was not affected (both readers measured 412 == 412 MB on the ALT, whose low memory is real). Law `test_every_pc_proves_itself`.
+
+### REG-1823 - A CRAFTED AMULET HAD NO REGULAR MODS AND REFUSED 20 FCR (2026-10-06)
+
+The Caster Amulet editor showed only its recipe lines, printed "Caster Amulet Amulet", and refused 20 FCR. A side variant put 'Crafted' on a plain Amulet base with none of the recipe's lines; it is reverted. A crafted item is named once and takes regular mods under the rare flag, 4 at most. A total above a recipe line is split with the mod beside it, or refused naming that mod. Law `test_the_crafted_variant_fills_its_name_and_the_top_of_each_range`.
+
+### REG-1822 - THE ORGANIZER NEVER NAMED THE MULE (2026-10-06)
+
+The proposal printed only the router's reason, and the mule sat in an attribute. Throw-out advice and keep-on-MAIN were painted as proposed homes. A proposal now names its mule. Throw-out, keep, the shared stash and a lock are their own rows and name no home. An id with no mule is UNKNOWN in the door's own sentence. Nothing moves. Law `test_the_vault_proposes_a_home_and_does_not_move`.
+
+### REG-1821 - A HAND-ADDED VAULT ITEM NEVER REACHED OWNED (2026-10-06)
+
++ Add an item wrote each pick to a second key, d2r_vaultHand, beside the hand ledger the board already keeps. A pick never reached owned, the dock, a mule or the grail count, and every visitor's Vault said "Nothing added by hand." A pick now goes through the owned door with his hand as the receipt, under the register's name, and waits in Unsorted. A name the vault does not draw is not offered, and the list says how many it left out. The second key's rows come home once at the time he typed them, and the key goes only when every row landed. Law `test_a_hand_added_item_stays_his`.
+
+### REG-1820 - THE LANE STAMP OVERWROTE THE RESERVED DEAD CONSOLE PORT (2026-10-06, #172)
+
+A cross-family eye on v3595: heart2's sandbox runs `law_env` (REG-1729; the port held bound by REG-1735 so nothing can take
+it) and then `lane_ports.stamp`, which wrote TV_CONTROL_PORT = lane base+1 over it - the lane's own port, which a suite may
+be listening on, so a law's ask could reach a stranger again. `stamp` now keeps a TV_CONTROL_PORT already set (anything but
+unset/17772). The lane-stamp law's expectation moved with it:
+it is computed from the SAME env it hands stamp (`law_env(False, dict(os.environ))`), because under run_gates the gate child already
+carries run_gates' own reserved port while a bare run reserves a fresh one - an expectation from a second reservation read RED in CI
+('21005 21005 57986 21007' != '... 57999 ...') and green standalone. Law: `test_a_law_never_asks_his_live_console`,
+`test_a_prove_lane_keeps_its_own_port`.
+
+### REG-1819 - THE SHARDED SUMMARY HID ITS SKIPS FROM THE CASE CENSUS (2026-10-06, #171)
+
+ce34e3f1 (#160) runs test_control through shard_suite on CI. shard_suite recorded each shard's `skipped` and never printed
+it, and run_gates' case census ("N CASE(S) DID NOT RUN") reads only the gate's LAST line for `skipped=N [of M]` - so on CI
+every skip inside test_control was invisible. Now the summary line ends ` skipped=N of M` (nothing when none), and the census
+parses through one function, `run_gates.case_skips`, which the law feeds the real main's output. Law: a skip inside a shard
+reaches the census (`test_a_sharded_suite_runs_every_case_once`).
+
+### REG-1818 - THE DOCTOR PAYLOAD TESTS READ HIS REAL JOURNAL, LOG AND FRAMES (2026-10-06, #176)
+`test_the_doctor_payload_asks_may_and_carries_the_row` and `test_the_doctor_payload_carries_the_row` called `doctor_payload()` with no isolation. A traced run opened `control_agent.log` and statted `sessions*.jsonl`, `frames/eye.jpg`, `frames/live.*` and `frames/hist`, so a push on his Mac graded his live tail, not a fixture. Both now run inside a context manager that points `TV_SESSIONS`, `TV_HIST`, `TV_FRAMES_DIR`, `HERE`, `LOG_PATH` and `_journal_path` at a nonexistent temp directory, and the shut-river-lock test carries a tripwire that fails if any open or stat lands under the real journal, log or frames (seen RED with the isolation removed). Ledger and pid files bound at import are not covered; their harm is UNKNOWN and they are unchanged.
+
+### REG-1817 - A QUEUED JOIN RE-READ WAS SPENT ON A LANE THAT COULD NOT START (2026-10-06, #170, REG-1765's sibling)
+REG-1765 made the owed-reel tick honour the door's `laneMissing` and `locked` flags. The queued join re-read (`_join_queue_read`, #152 slice 4) was missed. It popped the queue entry before asking the door. A sealed reel passes the already-sealed check ahead of the Claude-lane check, so on a PC with Claude signed out (the ALT, expired OAuth) the door answered `laneMissing`, the entry stayed popped, and `joinTried` was already written. The one re-read was gone and nothing could queue it again. The entry now goes back on `laneMissing` or `locked`, `reextract` is not written, and the tick says `triesUnchanged`. The next tick with a working lane reads it once. Laws `test_a_queued_join_survives_a_lane_that_cannot_start` and `test_a_queued_join_survives_a_machine_lock`.
+
+### REG-1816 - A SESSION CARD PRINTED WHEN THE RUN ENDED AS WHEN IT STARTED (2026-10-06)
+
+The session clock helper returns the end before the start. Every shelf card, dossier, recap and history tile prints that clock beside "ran Xm", so each one showed the end time as the run's time. The helper returns the start again, then the id's start. A run with only an end has no start, so its clock reads as unknown. The shelf order by last activity reads data-t1 in its own sort and never called this helper, so that order is unchanged. Law `test_a_session_card_always_has_a_clock`.
+
+### REG-1815 - AN UNREAD JOURNAL READ AS A STRAINED ROUTER WHILE THE ENGINE WAS DOWN (2026-10-06)
+
+The router organ asks whether the journal walk was read before it asks whether the engine is dead or the driver has an error. A dead engine with an unread walk paints STRAINED, not DOWN. The organ subtitle and the dispatch strip also say only "the journal was not read" over a driver error that was read: the error is published beside the counts, not copied by the walk. A dead engine is now down, read or not. A driver error is still that error on the organ and on the strip. A live engine with an unread walk still strains. The readers organ already put dead first. Law `test_an_unread_journal_is_not_a_quiet_router`.
+
+### REG-1814 - A LAUNCHER RELOOK WITH NO CAMERA HELD THE DOOR FOR EVER, AND ITS NAMEERROR WAS SWALLOWED (2026-10-06, #167)
+
+The one-frame relook after a launcher verdict (#152 slice 5) asked tv_diablo._capture_window_to_file, which is Quartz, sips and screencapture. Windows films only inside a reel (capture_win.ps1 starts and stops with the agent), so on the ALT and Dean's PC the frame could never be taken. launcherUntil never moved, and after the first launcher seal no reel opened again. On every PC, _launcher_picture also called tempfile.mkstemp, and control_app.py does not import tempfile. The NameError left the tick and the watch loop swallowed it. The law faked _launcher_picture, so it stayed green. Now off a Mac the relook asks nothing, the reel opens, and its reads judge. tempfile is imported where it is used. On a Mac an UNKNOWN frame holds the door one more wait and then opens. A look that raises writes raisedAt and its why. Law `test_a_bare_boosteroid_window_must_show_the_hud`.
+
+### REG-1813 - THE SHELF AND THE DELETER KEPT DIFFERENT SIXTEEN (2026-10-06, #168/#173, 0dcf3131)
+
+The console shelf sorted its keep-16 by session end while reel_retention.recent_shield sorts by the reel's own epoch. Driven with the ALT's 435 real session cards, the page shared only 13 of 16 with the deleter: three runs the deleter had already let go were on screen and three it keeps were hidden. reel_retention.recent_order() is now the one order (recent_shield is its last 16), /api/river publishes `riverKept` (the kept session ids, newest first) and the page keeps exactly that set in that order, falling back to its own count only when the console sends none. Same 435 cards: 16 of 16. Laws `test_reel_retention`, `test_the_river_is_one_flow_of_eight`.
+
+### REG-1812 - THE RIVER-STUCK ALARM COUNTED ONLY THE NEWEST SIXTEEN (2026-10-06, #168, 8c710efe)
+
+`_river_stuck_for_wire` skipped every reel outside the newest 16 (`if reel not in _window: continue`), so the fleet card could never say what his 10-02 ruling forbids - a station holding a reel for ever. Replayed over the real stamp logs: the ALT's PRINTER 84 (up to 214.9 h) and STATION 1 (184 h), and the Mac's JOIN 14 / STATION 7 / PRINTER 3 / CAPTURE 3, were all invisible. Now one loop, one rule per reel: inside the window only the stations in `_RIVER_OWNER` count; past it every station counts, the row carries `window: False` and names why (the owning lane's word, or the retention pass's last sentence). The 6 h clock runs from the later of arriving at the station or leaving the window (reel_retention.shield_exits), so a reel the newest arrival just pushed out is not flagged at once - the false alarm REG-1766's second loop raised. A second counting loop fails an AST law. Law `test_the_fleet_says_where_a_river_is_stuck`.
 
 ### REG-1811 - AN UNREAD SHELF READ AS NOTHING TO EXTRACT (2026-10-06)
 

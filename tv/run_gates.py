@@ -6275,12 +6275,10 @@ GATES = [
              "no fraction is painted for them. No mods picked paints nothing. The ratios are this install's tables."),
     Gate("test_the_crafted_variant_fills_its_name_and_the_top_of_each_range",
          [sys.executable, os.path.join(HERE, "test_the_crafted_variant_fills_its_name_and_the_top_of_each_range.py")], 90,
-         why="#95 - a crafted amulet fills its name and stores the top of each range. Offered only on a wearable amulet. "
-             "Grim and Noose when those words are legal, else the first legal word of each list, then the base name in "
-             "the same string. Add Mod stores the high end of a ranged affix under its own key. A class choice stays "
-             "blank. Magic and rare still store an empty rolls object. A ring stays Rare and Magic. A diadem stays "
-             "Rare, Magic, Superior, Normal and Low. A rare-flag affix is not offered. Setting crafted replaces a rare "
-             "name already stored. The vault stores are not written. Node missing raises; it does not skip."),
+         why=("#95 / REG-1823 - a crafted item is named once (\"Caster Amulet\", never \"Amulet Amulet\"), takes regular mods under the "
+             "rare flag (4 at most, rings included), and a total above its recipe line is split with the mod beside it or refused "
+             "naming that mod. The plain-Amulet 'Crafted' side variant is reverted.")
+         ),
     Gate("test_the_character_sheet_sums_picked_affixes",
          [sys.executable, os.path.join(HERE, "test_the_character_sheet_sums_picked_affixes.py")], 90,
          why="#174 v-B3 - D2R_CHAR_ENGINE sums the affixes he picked exactly like a unique's props (typed EXACT, "
@@ -8838,20 +8836,16 @@ GATES = [
     Gate("test_a_hand_added_item_stays_his", [sys.executable,
          os.path.join(HERE, "test_a_hand_added_item_stays_his.py")], 90,
          needs_app=False,
-         why="#234 step 4 — + Add an item in the Vault opens the planner list and files the pick "
-             "as one ledger row, source manual. A second add leaves that row. A reader that later "
-             "agrees is written beside it, and the manual fact stays. A name that is not in the "
-             "list is not filed, and nothing is assigned to a mule. An unreadable ledger stays "
-             "unknown. Three sabotages: the already-return deleted, the landed-witness note "
-             "dropped, and the planner list put back behind the open build's class."),
+         why=("#234 step 4 / REG-1821 - + Add an item files the pick through the owned door (source hand, receipt in "
+             "d2r_vaultProv) so it reaches owned, the dock, a mule and the grail; names the vault does not draw are not offered; "
+             "the old d2r_vaultHand rows come home once and the key goes only when every row landed.")
+         ),
     Gate("test_the_vault_proposes_a_home_and_does_not_move", [sys.executable,
          os.path.join(HERE, "test_the_vault_proposes_a_home_and_does_not_move.py")], 90,
          needs_app=False,
-         why="#234 step 5 — the Vault proposes a destination for a hand-added row and for a "
-             "witnessed item still unsorted, using the router's own sentence. A locked name "
-             "stays. Null is the shared stash. A missing reason names no mule. Nothing is "
-             "stored and nothing is assigned. Four sabotages: the hand paint dropped, the "
-             "dock call dropped, a throw painted as a weapon home, and the lock return deleted."),
+         why=("#234 step 5 / REG-1822 - a proposal NAMES its mule; throw-out, keep, the shared stash and a lock are their "
+             "own rows and name no home; an id with no mule is UNKNOWN in the door's own sentence. Nothing moves.")
+         ),
     Gate("test_a_session_is_bound_to_the_character_he_entered_with", [sys.executable,
          os.path.join(HERE, "test_a_session_is_bound_to_the_character_he_entered_with.py")], 120,
          needs_app=False,

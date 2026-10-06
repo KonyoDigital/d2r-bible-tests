@@ -40,10 +40,11 @@ all, so its surfaces could be neither watched nor unwatched — only unsaid.
 
 | | |
 |---|---|
-| surfaces the board paints | **516** |
-| of those, watched | **1** |
-| coverage | **0.2%** |
+| surfaces the board paints | **523** |
+| of those, watched | **2** |
+| coverage | **0.4%** |
 
 ### Watched on the board
 
+- `inventory`
 - `vault-moved-note`
