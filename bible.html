@@ -30985,6 +30985,14 @@ window._jewelTipHtml = _jewelTipHtml;
       /* #174 v-B2 integration — an item in the mule window is window.d2Tip's (the builder's in-game box): this card
          defers to it by the published selector, so one hover opens ONE box. [[copy-drift]] */
       try { if (window.D2TIP_OWNS && window.D2TIP_OWNS(e.target)) return; } catch (_e) {}
+      /* REG-1871 — A CONTROL INSIDE THE ANCHOR SPEAKS FOR ITSELF. The vault row's ◉ ("why is this here?") carries its
+         own title inside an item-card anchor; this card opened and the grey native box opened over it, because the
+         prose lane deferred to this one. A titled element strictly inside the anchor is the prose lane's, and this
+         card steps aside, so ONE box carries the words the pointer is on. */
+      try {
+        var _own = e.target.closest('[title],[data-tip-held]');
+        if (_own && _own !== el && el.contains(_own)){ if (cur){ _artFree(); cur = null; tip.classList.remove('on'); } return; }
+      } catch (_e2) {}
       // v654 — COMPACT ANCHORS ONLY (Konyo: "i dont want it opening when i hit the SECTION itself —
       // only over the specific item keyword; it feels random"): a whole card/row/section can never
       // open the floating card. Only chip/title/thumbnail-sized anchors qualify.
@@ -31282,8 +31290,9 @@ window._jewelTipHtml = _jewelTipHtml;
       function candidate(e){
         var n = e.target && e.target.closest && e.target.closest('[title],[data-tip-held]');
         if (!n || n.matches('iframe,html,body')) return null;
-        // the ITEM card owns this anchor — ask the selector, never the current state
-        try { if (window.ARTTIP_SEL && n.closest(window.ARTTIP_SEL)) return null; } catch(e){}
+        // the ITEM card owns this anchor — ask the selector, never the current state. REG-1871 — the anchor ITSELF:
+        // a titled control strictly inside it is this lane's, and the item card steps aside for it
+        try { var _a = window.ARTTIP_SEL && n.closest(window.ARTTIP_SEL); if (_a && _a === n) return null; } catch(e){}
         // #174 v-B2 integration — and so does the mule window's in-game box (window.d2Tip): it prints the tile's title
         try { if (window.D2TIP_OWNS && window.D2TIP_OWNS(e.target)) return null; } catch(e){}
         return n;
@@ -60619,7 +60628,12 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     if (!target || !target.closest || target.closest('.vd-unlock')) return null;
     if (target.closest('#cb-modal') && !target.closest('#cb-modal .mp-pick')) return null;   // #174 v-B4 — the host modal's own rows have the builder's hover
     var el = target.closest(SEL); if (!el) return null;
-    return el.closest('#vault-detail .mp .vd-item[data-key], #vault-detail .mp .vd-item[data-dbkey], #vault-detail .mp .mp-slot.mp-has') || el;
+    var a = el.closest('#vault-detail .mp .vd-item[data-key], #vault-detail .mp .vd-item[data-dbkey], #vault-detail .mp .mp-slot.mp-has') || el;
+    /* REG-1871 — and every other control inside the tile with its own title: the evidence badge ("no provenance
+       recorded") opened its grey native box over this one. Like the unlock badge it is the prose lane's. */
+    var own = target.closest('[title],[data-tip-held]');
+    if (own && own !== a && a.contains(own)) return null;
+    return a;
   }
   /* capture phase: this lane decides before the board's bubble-phase lanes look */
   document.addEventListener('mouseover', function(e){

@@ -26320,6 +26320,224 @@ process.stdout.write(JSON.stringify(OUT)); })();
                          "%d of %d of the board's nested pairs still hand the browser a title" % (len(o["left"]), o["n"]))
 
 
+
+class TestReg1871ATitledControlInsideAnItemCardSpeaksForItself(unittest.TestCase):
+    """REG-1871 (#189), the three sites GrokBot photographed on v3600, each a native strip over a styled box:
+
+      1. the fleet box's river line (console): `.fs-l` reasons sit inside the titled `.fx-sys`. The nested-title
+         rule (TestReg1871ATitleAboveTheHostIsBorrowedToo) covers it; driven here on the SHIPPED markup.
+      2. the vault REGISTERED row's ◉ (board): a titled button inside an item-card anchor (`.vrg-row[data-arttip]`).
+         The prose lane deferred to the item card for anything inside an anchor, and the card held only the
+         anchor's own title, so nobody took the button's.
+      3. the mule tile's "?" evidence badge (board): a titled button inside a tile window.d2Tip owns. The mule box
+         already let the UNLOCK badge be the prose lane's; the evidence badge never joined it.
+
+    One rule now for both board item lanes: a titled element strictly inside the anchor is the prose lane's, the
+    card steps aside, and ONE box carries the words the pointer is on. Driven in node over a fake DOM whose closest()
+    answers only the selectors the shipped code is known to pass — any other throws, so a new selector cannot slip
+    through as a quiet pass. [[the-unjoined-end]]"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.node = shutil.which("node")
+        with io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as fh:
+            cls.board = fh.read()
+        b = cls.board
+
+        def once(start, end, inclusive=True):
+            assert b.count(start) == 1, "anchor moved: %r" % start[:60]
+            i = b.index(start)
+            j = b.index(end, i)
+            return b[i:j + (len(end) if inclusive else 0)]
+        cls.art_init = once("  function arttipInit(){\n", "\n  }\n  if (document.readyState==='loading') document.addEventListener('DOMContentLoaded', arttipInit);", False) + "\n  }\n"
+        import re as _re
+        cls.ART = _re.search(r"\n    var ARTTIP_SEL = '([^']+)';", b).group(1)
+        assert b.count("e.target.closest('%s')" % cls.ART) == 1, "the art lane's own selector is not the published one"
+        sel = _re.search(r"\n  var SEL = ('#vault-detail[^\n]+');\n", b)
+        assert sel, "the mule window's anchor selector moved"
+        cls.D2SEL = sel.group(1)[1:-1]
+        cls.d2 = ("  var SEL = %s;\n" % sel.group(1)
+                  + once("  window.D2TIP_OWNS = function(t){", "};\n")
+                  + once("  function anchorOf(target){\n", "\n  }\n"))
+
+    HARNESS = TestReg1871ATitleAboveTheHostIsBorrowedToo.HARNESS + r"""
+var TILE = '#vault-detail .mp .vd-item[data-key], #vault-detail .mp .vd-item[data-dbkey], #vault-detail .mp .mp-slot.mp-has';
+var PRED = { '[title],[data-tip-held]': function(e){ return e.hasAttribute('title') || e.hasAttribute('data-tip-held'); },
+             '.vd-unlock': function(e){ return /(^| )vd-unlock( |$)/.test(e.attrs['class'] || ''); },
+             '#cb-modal': function(){ return false; }, '#cb-modal .mp-pick': function(){ return false; } };
+PRED[__ART__] = function(e){ return !!e.art; };
+PRED[__D2SEL__] = function(e){ return !!e.mule; };
+PRED[TILE] = function(e){ return !!e.tile; };
+El.prototype.closest = function(sel){ var f = PRED[sel]; if (!f) throw new Error('unmapped selector: ' + sel);
+  for (var e = this; e && e !== HTML; e = e.parentElement) if (f(e)) return e; return null; };
+El.prototype.contains = function(o){ for (var e = o; e; e = e.parentElement) if (e === this) return true; return false; };
+El.prototype.matches = function(sel){ return /^(iframe|html|body)$/.test(this.tagName); };
+El.prototype.getBoundingClientRect = function(){ return { left: 0, top: 0, right: 100, bottom: 20, width: 100, height: 20 }; };
+El.prototype.addEventListener = function(){};
+var STUB = {};
+El.prototype.querySelector = function(q){ return STUB[q] || (STUB[q] = new El('div')); };
+Object.defineProperty(El.prototype, 'innerHTML', { set: function(){}, get: function(){ return ''; } });
+El.prototype.offsetParent = BODY;
+var LIS = {};
+document.addEventListener = function(k, f){ (LIS[k] = LIS[k] || []).push(f); };
+document.readyState = 'complete';
+var MADE = [];
+document.createElement = function(t){ var e = new El(t); MADE.push(e); return e; };
+window.addEventListener = function(){};
+function over(t){ (LIS.mouseover || []).forEach(function(f){ try { f({ target: t, buttons: 0 }); } catch (e) { OUT_ERR.push(String(e && e.message)); } }); }
+function esc_(){ (LIS.keydown || []).forEach(function(f){ try { f({ key: 'Escape' }); } catch (e) {} }); }
+var OUT_ERR = [];
+"""
+
+    def _run(self, body):
+        if not self.node:
+            self.skipTest("node is not installed — the shipped lanes cannot be driven here (UNKNOWN, not a pass)")
+        prog = (self.HARNESS.replace("__ART__", json.dumps(self.ART)).replace("__D2SEL__", json.dumps(self.D2SEL))
+                + self.d2 + self.art_init + "\narttipInit();\nvar TIP = MADE[0];   // the item card arttipInit made first\n"
+                + ";(function(){ var OUT = {};\n" + body + "\nOUT.err = OUT_ERR; process.stdout.write(JSON.stringify(OUT)); })();\n")
+        r = subprocess.run([self.node, "-"], input=prog, capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, "the shipped board lanes would not run: %s" % r.stderr[-900:])
+        o = json.loads(r.stdout)
+        self.assertEqual(o["err"], [], "a lane threw inside its listener (an unmapped selector reads as a pass "
+                                       "otherwise): %r" % o["err"][:4])
+        return o
+
+    def test_the_vault_rows_button_speaks_and_the_item_card_steps_aside(self):
+        o = self._run(r"""
+var row = new El('div', {'data-arttip': 'Shako', 'class': 'vrg-row'}); row.art = true; row.parentElement = BODY;
+var btn = new El('button', {'class': 'vrg-rcpt', title: 'why is this here? — show the frame that witnessed it'}); btn.parentElement = row;
+over(btn);
+OUT.during = titles([row, btn]); OUT.held = btn.getAttribute('data-tip-held');
+esc_();
+OUT.after = titles([row, btn]); OUT.heldAfter = held([row, btn]);""")
+        self.assertEqual(o["during"], [None, None], "the ◉'s title stayed, so the grey box opens over the item card")
+        self.assertEqual(o["held"], "why is this here? — show the frame that witnessed it",
+                         "the prose lane did not take the ◉'s sentence")
+        self.assertEqual(o["after"], [None, "why is this here? — show the frame that witnessed it"])
+        self.assertEqual(o["heldAfter"], [None, None])
+
+    def test_the_item_card_does_not_open_for_a_control_inside_its_anchor(self):
+        """The card's first act on a hover is to clear tip-grey; a card that stepped aside never gets that far."""
+        o = self._run(r"""
+var row = new El('div', {'data-arttip': 'Shako'}); row.art = true; row.parentElement = BODY;
+var btn = new El('button', {title: 'why is this here?'}); btn.parentElement = row;
+var name = new El('span', {}); name.parentElement = row;
+TIP.classList.add('tip-grey'); over(btn); OUT.onButton = TIP.classList.contains('tip-grey');
+esc_();
+TIP.classList.add('tip-grey'); over(name); OUT.onName = TIP.classList.contains('tip-grey');""")
+        self.assertTrue(o["onButton"], "the item card started opening over the ◉ — two boxes")
+        self.assertFalse(o["onName"], "the item card no longer opens on the anchor itself — the sabotage-proof baseline")
+
+    def test_the_mule_tiles_evidence_badge_speaks_and_the_tile_box_steps_aside(self):
+        o = self._run(r"""
+var tile = new El('div', {'class': 'vd-item', 'data-key': 'k1', title: 'inventory 2,3 — drag to move'}); tile.mule = true; tile.tile = true; tile.parentElement = BODY;
+var art = new El('span', {'aria-label': 'Shako', 'class': 'd2art-wrap'}); art.mule = true; art.art = true; art.parentElement = tile;
+var ev = new El('button', {'class': 'vd-ev ev-none', title: 'no provenance recorded — nothing says who or what filed this'}); ev.parentElement = tile;
+OUT.ownsBadge = window.D2TIP_OWNS(ev);
+OUT.ownsArt = window.D2TIP_OWNS(art);
+over(ev);
+OUT.during = titles([tile, ev]); OUT.held = ev.getAttribute('data-tip-held');
+esc_();
+OUT.after = titles([tile, ev]);""")
+        self.assertFalse(o["ownsBadge"], "the mule box still claims the evidence badge, so its title opens natively")
+        self.assertTrue(o["ownsArt"], "the mule box no longer owns its own tile's art — the baseline that makes the badge case mean something")
+        self.assertEqual(o["during"], [None, None], "a title stayed on the badge's chain: %r" % o["during"])
+        self.assertEqual(o["held"], "no provenance recorded — nothing says who or what filed this")
+        self.assertEqual(o["after"], ["inventory 2,3 — drag to move",
+                                      "no provenance recorded — nothing says who or what filed this"])
+
+    def test_every_static_titled_control_inside_an_item_card_anchor_is_covered(self):
+        """The count, before and after: each titled element in the board's static markup that sits strictly inside an
+        item-card anchor (the ARTTIP_SEL classes and attributes), hovered through the shipped lanes."""
+        from html.parser import HTMLParser
+        CLS = ("colossal-tile", "vm-item-name", "vault-chip", "top-drop-row", "road-node", "road-branch")
+        ATT = ("data-arttip", "data-art-logo", "data-boss-tip", "data-aura-logo")
+
+        def is_anchor(a):
+            c = (a.get("class") or "").split()
+            return (any(k in a for k in ATT) or any(k in c for k in CLS)
+                    or ("d2art-wrap" in c and "aria-label" in a) or ("cw-name-ex" in c and "data-craftex" in a))
+
+        class _P(HTMLParser):
+            VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "wbr"}
+
+            def __init__(self):
+                super().__init__()
+                self.stack, self.found, self.skip = [], [], 0
+
+            def handle_starttag(self, tag, attrs):
+                if tag in ("script", "style"):
+                    self.skip += 1
+                    return
+                if self.skip:
+                    return
+                a = dict(attrs)
+                if "title" in a and not is_anchor(a) and any(x[1] for x in self.stack):
+                    anc = [x for x in self.stack if x[1]][-1]
+                    self.found.append([anc[2], anc[3], tag, a["title"]])
+                if tag not in self.VOID:
+                    self.stack.append((tag, is_anchor(a), tag, a.get("title")))
+
+            def handle_endtag(self, tag):
+                if tag in ("script", "style"):
+                    self.skip = max(0, self.skip - 1)
+                    return
+                if self.skip:
+                    return
+                for k in range(len(self.stack) - 1, -1, -1):
+                    if self.stack[k][0] == tag:
+                        del self.stack[k:]
+                        break
+
+        p = _P()
+        p.feed(self.board)
+        self.assertGreater(len(p.found), 0, "no static titled control inside an item-card anchor was found — this grades nothing")
+        o = self._run(r"""
+var sites = %s; OUT.left = [];
+sites.forEach(function(st){
+  var a = new El(st[0], st[1] === null ? {} : {title: st[1]}); a.art = true; a.parentElement = BODY;
+  var c = new El(st[2], {title: st[3]}); c.parentElement = a;
+  over(c);
+  var t = titles([a, c]).filter(function(v){ return v !== null; });
+  if (t.length) OUT.left.push(t);
+  esc_();
+});
+OUT.n = sites.length;""" % json.dumps(p.found))
+        self.assertEqual(o["n"], len(p.found))
+        self.assertEqual(o["left"], [], "%d of %d titled controls inside an item card still hand the browser a title"
+                         % (len(o["left"]), o["n"]))
+
+    def test_the_fleet_boxs_river_line_is_covered_on_its_shipped_markup(self):
+        """Site 1, console: the SHIPPED _fleetSysHtml inside the SHIPPED .fx-sys wrapper, every nested pair hovered."""
+        import test_the_fleet_card_says_how_each_pc_films_and_drains as F
+        if F.NODE is None:
+            self.skipTest("node is not installed (UNKNOWN, not a pass)")
+        ui = TestReg1871ATitleAboveTheHostIsBorrowedToo.ui if hasattr(TestReg1871ATitleAboveTheHostIsBorrowedToo, "ui") else \
+            io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8").read()
+        wrap = "_sys = '<div class=\"fx-sys\" title=\"how this PC films D2R, where its reels are in the river, and its triage lane\">'"
+        self.assertEqual(ui.count(wrap), 1, "the fleet box's river wrapper moved")
+        fx = F._fixture()["online"][1]                       # the ALT: a stuck river, so every line carries a reason
+        inner = F._run("OUT.h = _fleetSysHtml(%s, Date.now());" % json.dumps(fx))["h"]
+        html = '<div class="fx-sys" title="how this PC films D2R, where its reels are in the river, and its triage lane">' + inner + "</div>"
+        pairs = TestReg1871ATitleAboveTheHostIsBorrowedToo._nested_pairs(html)
+        self.assertGreater(len(pairs), 0, "the shipped river line carries no nested title — this grades nothing")
+        lane = TestReg1871ATitleAboveTheHostIsBorrowedToo
+        case = lane("test_focus_borrows_nothing")
+        lane.setUpClass()
+        o = case._run("""
+var pairs = %s; OUT.left = [];
+pairs.forEach(function(pr){
+  var c = chain(pr.map(function(x){ return [x[0], {title: x[1]}]; }));
+  _itemTip.say(c[c.length - 1], false);
+  var t = titles(c).filter(function(v){ return v !== null; });
+  if (t.length) OUT.left.push(t);
+  _itemTip.hide();
+});
+OUT.n = pairs.length;""" % json.dumps(pairs))
+        self.assertEqual((o["n"], o["left"]), (len(pairs), []),
+                         "the river line still hands the browser the box's title while a reason is hovered")
+
+
 class TestV2122TheBorrowSurvivesAMoveInsideTheAnchor(unittest.TestCase):
     """v2121 (#130) — LEAVING A CHILD IS NOT LEAVING THE WRAP.
 
@@ -46587,6 +46805,28 @@ RED_PROOF = [
                 "          holdAbove(node);\n          /* v2114 — AND KEEP IT STOLEN. A surface",
         "replace": "          try { node.setAttribute('data-tip-held', txt); node.removeAttribute('title'); } catch(e){}\n"
                    "          /* v2114 — AND KEEP IT STOLEN. A surface",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1871 - the item card opens over a titled control inside its anchor, so two boxes open on the ◉",
+        "file": "bible.html",
+        "find": "        if (_own && _own !== el && el.contains(_own)){ if (cur){ _artFree(); cur = null; tip.classList.remove('on'); } return; }\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1871 - the board's prose lane defers for anything inside an item-card anchor again, so the ◉'s title "
+               "opens the grey box",
+        "file": "bible.html",
+        "find": "try { var _a = window.ARTTIP_SEL && n.closest(window.ARTTIP_SEL); if (_a && _a === n) return null; } catch(e){}",
+        "replace": "try { if (window.ARTTIP_SEL && n.closest(window.ARTTIP_SEL)) return null; } catch(e){}",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1871 - the mule box claims the evidence badge again, so its title opens the grey box over the tile",
+        "file": "bible.html",
+        "find": "    if (own && own !== a && a.contains(own)) return null;\n    return a;\n",
+        "replace": "    return a;\n",
         "matches": 1,
     },
 ]
