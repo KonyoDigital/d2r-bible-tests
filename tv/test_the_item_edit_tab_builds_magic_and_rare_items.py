@@ -417,8 +417,8 @@ RED_PROOF = [
     {
         "why": "#174 round 5 - a fixed per-level roll is offered as a range to type again (the eye: Faithful read 'keep the range (L-24)')",
         "file": "bible.html",
-        "find": "          if (LL.lo !== LL.hi){ _ask = 'type your per-level roll",
-        "replace": "          if (true){ _ask = 'type your per-level roll",
+        "find": "          if (LL.lo !== LL.hi){ _ask = atTop ? 'it lands at the top of its range (",
+        "replace": "          if (true){ _ask = atTop ? 'it lands at the top of its range (",
         "matches": 1,
     },
     {
