@@ -6915,6 +6915,10 @@ def _reels_missing_index(hist=None):
     # REG-1732 (#86 gap audit 23) - AN UNREADABLE SHELF IS NOT "EVERY REEL HAS ITS INDEX". A listdir that failed returned
     # [] and the doctor row read OK. A shelf that does not exist yet (nothing filmed here) is a measured empty - []; one
     # that exists and cannot be read is UNKNOWN - None, and the row says so.
+    # REG-1796 — THE SAME LIE, ONE DIRECTORY DOWN. _reel_jpg_count returns 0 when THAT reel will not
+    # list, and 0 is also a reel that holds no footage. The shelf then omitted it and the row said
+    # every reel had an index. A reel whose index is present is still indexed. A reel that listed
+    # and held no frames is still not this warn. One reel that will not list makes the shelf unknown.
     if not os.path.isdir(hist):
         return out
     try:
@@ -6927,7 +6931,12 @@ def _reels_missing_index(hist=None):
             continue
         if os.path.isfile(os.path.join(rd, "index.json")):
             continue
-        n = _reel_jpg_count(rd)
+        try:
+            frame_names = os.listdir(rd)
+        except Exception:
+            return None
+        n = sum(1 for f in frame_names
+                if f.startswith("f_") and f.lower().endswith(".jpg"))
         if n > 0:
             out.append((d, n))
     return out

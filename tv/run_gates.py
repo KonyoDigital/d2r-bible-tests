@@ -9470,6 +9470,15 @@ GATES = [
              "refuse a reel. The fact is None. A held grant is still true. An absent grant still "
              "refuses. A replaced action bool still decides the door. An unread look clears a "
              "previous held bit instead of leaving it."),
+    Gate("test_an_unreadable_reel_is_not_an_indexed_shelf",
+         [sys.executable, os.path.join(HERE, "test_an_unreadable_reel_is_not_an_indexed_shelf.py")], 90,
+         needs_app=False,
+         why="REG-1796 (REG-1732 one directory down) - a reel whose frames could not be counted "
+             "came back as zero frames. Zero is also a reel that holds no footage, so the shelf "
+             "omitted it and the doctor could say every reel had an index. A reel whose index is "
+             "present is still indexed. A reel that listed and held no frames is still not this "
+             "warn. One reel that will not list makes the shelf unknown. The doctor still refuses "
+             "that unknown."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

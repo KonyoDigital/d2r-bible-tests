@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1796 - AN UNREADABLE REEL READ AS A SHELF WHERE EVERY REEL HAS AN INDEX (2026-10-06, REG-1732 one directory down)
+
+REG-1732 made a shelf that will not list come back unknown. One reel directory under a shelf that did list still went through the frame count, and that count returns 0 when the directory will not list. Zero is also a reel that holds no frames, so the shelf omitted it and the row could say every reel had an index. A reel whose index is present is still indexed. A reel that listed and held no frames is still not this warn. A shelf that is not there yet is still empty. One reel that will not list makes the shelf unknown, and the doctor still refuses that. Law `test_an_unreadable_reel_is_not_an_indexed_shelf`.
+
 ### REG-1795 - AN UNREAD SCREEN GRANT FILED AS HELD ON THE PREFLIGHT (2026-10-06)
 
 The doctor and the poll already say the probe was not measured. The preflight still filed the action bool, and that bool is true when the probe cannot answer, so the door's fact said the grant was held. The door memory then kept that true under the new look. The action stays that way: an unreadable grant does not refuse a reel. The fact is now None. A held grant is still true. An absent grant still refuses. A replaced action bool still decides the door. An unread look clears a previous held bit. Law `test_an_unread_screen_grant_is_not_a_preflight_pass`.
