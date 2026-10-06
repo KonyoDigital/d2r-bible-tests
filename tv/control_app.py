@@ -17920,7 +17920,7 @@ def bank_hand_ticks(names):
     for n in want:
         rows = rows_u.setdefault(n, [])
         if not any(_is_hand_row(r) for r in rows):
-            rows.append({"lane": MANUAL_LANE, "witness": "hand", "at": now,
+            rows.append({"witness": "hand", "lane": MANUAL_LANE, "at": now,
                          "why": "he ticked it by hand on the board (d2r_foundBy says so)"})
             added += 1
     if added:

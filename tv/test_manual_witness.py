@@ -50,8 +50,8 @@ RED_PROOF = [
     {
         "why": "REG-1910 - the console banks a hand row for every name every minute: his one tick becomes many witnesses",
         "file": "control_app.py",
-        "find": "        if not any(_is_hand_row(r) for r in rows):\n            rows.append({\"lane\": MANUAL_LANE, \"witness\": \"hand\", \"at\": now,",
-        "replace": "        if True:\n            rows.append({\"lane\": MANUAL_LANE, \"witness\": \"hand\", \"at\": now,",
+        "find": "        if not any(_is_hand_row(r) for r in rows):\n            rows.append({\"witness\": \"hand\", \"lane\": MANUAL_LANE, \"at\": now,",
+        "replace": "        if True:\n            rows.append({\"witness\": \"hand\", \"lane\": MANUAL_LANE, \"at\": now,",
         "matches": 1,
     },
     {
