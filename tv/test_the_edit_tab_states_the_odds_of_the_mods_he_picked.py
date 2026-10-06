@@ -260,7 +260,7 @@ class TheEditTabStatesTheOddsOfTheModsHePicked(unittest.TestCase):
           }
           OUT.auto = auto;
           OUT.supOnMagic = supOnMagic;
-          OUT.craft = window._cbAffixOdds({ id: 'b:amu', base: 'amu', q: 'c', ilvl: 99, affixes: [{ id: 'p700', rolls: {} }] });
+          OUT.craft = window._cbAffixOdds({ id: 'c88', base: 'amu', q: 'c', ilvl: 99, affixes: [{ id: 's174', rolls: {} }] });
           OUT.low = window._cbAffixOdds({ id: 'b:ci3', base: 'ci3', q: 'low', ilvl: 99, affixes: [{ id: 'p700', rolls: {} }] });
           OUT.gone = window._cbAffixOdds({ id: 'b:cm3', base: 'cm3', q: 'm', ilvl: 99, affixes: [{ id: 'no-such-affix', rolls: {} }] });
         """)

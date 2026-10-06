@@ -1,16 +1,30 @@
 # -*- coding: utf-8 -*-
-"""#95 — A CRAFTED AMULET FILLS ITS NAME AND THE TOP OF EACH RANGE.
+"""#95 (REG-1823) — A CRAFTED ITEM IS ITS RECIPE PLUS REGULAR MODS, NAMED ONCE, AND A TOTAL SPLITS BETWEEN THEM.
 
-Add Mod stays the planner's list for that item. Magic and rare still store a blank roll
-(typed = exact, blank = the range). A crafted variant is offered only on a wearable amulet.
-Choosing it fills the rare name — Grim and Noose when the tables offer them, otherwise the
-first legal word of each list — and the shown name is those words plus the base name in one
-string (Grim Noose Amulet). A pick on that quality stores the high end of each numeric range
-under the affix's own key. A class choice stays blank. A ring and a diadem keep the quality
-lists they already had. Nothing is written to the vault stores.
+His demo (2026-09-30, #230): a Ghoul Scarab Amulet, crafted — +20% FCR, +2 Assassin skills, +12 mana, 6% mana regen, a
+chance-to-cast and +3 max damage. Our 'Caster Amulet Amulet' editor showed only the recipe's 3 lines, had no way to add
+the regular mods, and refused 20 FCR ("5–10 on this item"). The first cut (fb33b9b2) did not touch that editor: it put a
+'Crafted' QUALITY on a plain Amulet base — a crafted amulet carrying none of its recipe's fixed lines, named "Grim Noose
+Amulet", whose picked mods stored the top of their range — and said a ring offers no crafted, beside the four crafted Ring
+recipes the database carries. That variant is REVERTED here and the real editor is fixed, from the tables in the block:
 
-Drives the shipped builder through tv/test_the_character_builder_is_their_builder.py's harness.
-A missing node raises. This law does not skip.
+  · ONE NAME: the recipe's name already ends in its base, so the Edit tab says "Caster Amulet" (and "Caster Ring"), never
+    "Caster Amulet Amulet"; a base the name does not end in is still said (Hit Power Helm · Full Helm, Harlequin Crest ·
+    Shako).
+  · NO CRAFTED QUALITY ON A BASE: an Amulet and a Ring offer the qualities itemtypes.txt gives them (Rare, Magic) — a
+    crafted item is one of the cube's recipes, picked as itself.
+  · REGULAR MODS: a crafted item's Edit tab carries the Regular Mods block (the base tab's own renderer) — the affixes its
+    base may roll at its item level under the RARE flag (a crafted item's random affixes are drawn like a rare's), class
+    lines included; at most 3 prefixes and 3 suffixes, 4 in all ("3 fixed + 1–4 random", this page's own crafting card).
+    Every crafted Ring recipe offers them too. A picked mod stores a BLANK roll (the range), as every other item does.
+  · A TOTAL SPLITS: 20 typed into the Caster recipe's FCR box (5–10) is refused NAMING the mod that supplies the rest
+    (of the Apprentice) and nothing is saved; with of the Apprentice on the item, 20 is stored as the recipe's 10 and the
+    say line prints "20 = 10 (this recipe, 5–10) + 10 (of the Apprentice)"; 25 is refused with the reachable total; and
+    the tooltip prints ONE "+20% Faster Cast Rate" line, as the game does.
+  · Nothing is written to the vault stores.
+
+Drives the shipped builder through tv/test_the_character_builder_is_their_builder.py's harness. A missing node raises.
+This law does not skip. RED_PROOF below.
 """
 import os
 import sys
@@ -30,9 +44,17 @@ import test_the_character_builder_is_their_builder as CB  # noqa: E402
 HELP = r"""
 function mk(cls, lvl){ window.openCharBuilder(); window._cbOpenNew(); window._cbNewCls(cls); window._cbNewLvl(lvl); window._cbNewGo(); }
 function cur(){ return window._cbAll()[window._cbState().bid]; }
+function title(){ return (MODAL._html.match(/<div class="cb-ed-n [^"]*">([\s\S]*?)<\/div>/) || [])[1] || null; }
 function opts(){ return (MODAL._html.match(/data-q="[a-z]+"/g) || []).map(function(x){ return x.slice(8, -1); }); }
 function vaultSnap(){ var o = {}; ['d2r_muleAssign','d2r_owned','d2r_muleEquip','d2r_muleRoster','d2r_foundLog'].forEach(function(k){ o[k] = RAW[k]; }); return o; }
 function vaultSame(b){ return ['d2r_muleAssign','d2r_owned','d2r_muleEquip','d2r_muleRoster','d2r_foundLog'].every(function(k){ return RAW[k] === b[k]; }); }
+function box(key, lo, hi, val){ var c = {}, a = { 'data-key': key, 'data-lo': String(lo), 'data-hi': String(hi) };
+  return { value: String(val), getAttribute: function(n){ return a[n] === undefined ? null : a[n]; }, _c: c,
+           classList: { contains: function(x){ return x === 'cb-roll'; }, add: function(x){ c[x] = 1; }, remove: function(x){ delete c[x]; },
+                        toggle: function(x, on){ if (on) c[x] = 1; else delete c[x]; } } }; }
+function type(key, lo, hi, val){ ELS['cb-roll-say'] = new El('cb-roll-say'); var t = box(key, lo, hi, val); window._cbRollInput({ target: t });
+  return { say: ELS['cb-roll-say'].textContent, bad: !!t._c['cb-bad'], box: t.value }; }
+function pick(slot, id){ window._cbClosePick(); window._cbOpenPick('slot', slot); window._cbChoose(id); return cur().sets[0].slots[slot]; }
 """
 
 
@@ -42,112 +64,177 @@ def _run(body):
     return CB._run(HELP + body)
 
 
-class TheCraftedVariantFillsItsNameAndTheTopOfEachRange(unittest.TestCase):
+class ACraftedItemIsItsRecipePlusRegularMods(unittest.TestCase):
 
-    def test_an_amulet_fills_its_crafted_name(self):
+    def test_a_crafted_item_is_named_once(self):
         out = _run(r"""
           mk('Warlock', 90);
-          var before = vaultSnap();
+          pick('neck', 'c88'); OUT.amulet = title();
+          pick('rrin', 'c89'); OUT.ring = title();
+          pick('head', 'c64'); OUT.helm = title();
+          pick('head', 'u248'); OUT.unique = title();
+        """)
+        self.assertEqual(out["amulet"], "Caster Amulet", "the crafted amulet still doubles its base")
+        self.assertEqual(out["ring"], "Caster Ring")
+        self.assertEqual(out["helm"], 'Hit Power Helm <span class="cb-c-c">Full Helm</span>',
+                         "a base the recipe name does not end in was dropped")
+        self.assertEqual(out["unique"], 'Harlequin Crest <span class="cb-c-u">Shako</span>', "a unique lost its base")
+
+    def test_no_crafted_quality_sits_on_a_base(self):
+        out = _run(r"""
+          mk('Warlock', 90);
+          OUT.amu = window._cbCanQ('amu'); OUT.rin = window._cbCanQ('rin'); OUT.ci3 = window._cbCanQ('ci3');
           window._cbOpenPick('slot', 'neck'); window._cbChoose('b:amu');
           OUT.opts = opts();
-          OUT.craftBtn = /class="cb-opt cb-c-c" role="option" data-q="c"[^>]*>Crafted</.test(MODAL._html);
-          OUT.words0 = window._cbRareWords('amu', 0);
-          OUT.words1 = window._cbRareWords('amu', 1);
           window._cbQuality('rare');
-          window._cbRareName(0, 'Beast');
-          window._cbRareName(1, 'Wing');
-          OUT.wasRare = cur().sets[0].slots.neck.rn.slice();
-          OUT.chose = window._cbQuality('c');
-          var e = cur().sets[0].slots.neck, it = window._cbItem(e.id), sh = window._cbShown(e, it);
-          OUT.entry = { q: e.q, rn: e.rn, name: sh.name, base: sh.base, qShown: sh.q };
-          OUT.nameSpan = /id="cb-ed-name"[^>]*>[^<]*<span/.test(MODAL._html);
-          OUT.vip = window._cbCanQ('vip');
-          OUT.vaultSame = vaultSame(before);
-        """)
-        words0, words1 = out["words0"], out["words1"]
-        self.assertIn("Grim", words0)
-        self.assertIn("Noose", words1)
-        w0 = "Grim" if "Grim" in words0 else words0[0]
-        w1 = "Noose" if "Noose" in words1 else words1[0]
-        self.assertEqual(out["opts"], ["rare", "m", "c"], "a wearable amulet offers crafted after the qualities it can drop")
-        self.assertTrue(out["craftBtn"], "the crafted button is not the crafted colour")
-        self.assertEqual(out["wasRare"], ["Beast", "Wing"])
-        self.assertTrue(out["chose"], "choosing crafted on an amulet did not take")
-        self.assertEqual(out["entry"]["q"], "c")
-        self.assertEqual(out["entry"]["rn"], [w0, w1], "a crafted amulet did not replace the rare name it already had")
-        self.assertEqual(out["entry"]["name"], w0 + " " + w1 + " Amulet")
-        self.assertEqual(out["entry"]["base"], "")
-        self.assertEqual(out["entry"]["qShown"], "c")
-        self.assertFalse(out["nameSpan"], "the base name is a second span instead of part of the crafted name")
-        self.assertNotIn("c", out["vip"], "the Horadric staff top is not a wearable amulet")
-        self.assertTrue(out["vaultSame"], "the crafted edit wrote a vault store")
-
-    def test_a_ring_and_a_diadem_keep_their_own_qualities(self):
-        out = _run(r"""
-          mk('Warlock', 90);
-          window._cbOpenPick('slot', 'head'); window._cbChoose('b:ci3');
-          OUT.diadem = opts();
-          window._cbClosePick();
-          window._cbOpenPick('slot', 'rrin'); window._cbChoose('b:rin');
-          OUT.ring = opts();
-          window._cbQuality('m');
           OUT.stuck = window._cbQuality('c');
-          OUT.ringQ = cur().sets[0].slots.rrin.q;
+          OUT.q = cur().sets[0].slots.neck.q;
         """)
-        self.assertEqual(out["diadem"], ["rare", "m", "sup", "b", "low"])
-        self.assertEqual(out["ring"], ["rare", "m"])
-        self.assertFalse(out["stuck"], "crafted stuck on a ring")
-        self.assertEqual(out["ringQ"], "m")
+        self.assertEqual(out["amu"], ["rare", "m"])
+        self.assertEqual(out["rin"], ["rare", "m"])
+        self.assertEqual(out["ci3"], ["rare", "m", "sup", "b", "low"])
+        self.assertEqual(out["opts"], ["rare", "m"], "an Amulet base offers a quality itemtypes.txt does not give it")
+        self.assertFalse(out["stuck"], "'Crafted' stuck on a plain Amulet base")
+        self.assertEqual(out["q"], "rare")
 
-    def test_a_crafted_pick_stores_the_top_and_a_magic_pick_stays_blank(self):
+    def test_a_crafted_item_takes_regular_mods_from_the_tables(self):
         out = _run(r"""
           mk('Warlock', 90);
           var before = vaultSnap();
-          window._cbOpenPick('slot', 'neck'); window._cbChoose('b:amu'); window._cbQuality('c');
-          var e = cur().sets[0].slots.neck, P = window._cbAffixPool(e);
-          var pick = null, key = null, hi = null;
-          P.rows.p.some(function(a){
-            var hit = null;
-            (a[11] || []).forEach(function(ln){
-              (ln[1] || []).forEach(function(r){
-                if (r && typeof r[0] === 'number' && typeof r[1] === 'number' && r[0] !== r[1])
-                  hit = { key: r[2], hi: Math.max(r[0], r[1]) };
-              });
-            });
-            if (!hit) return false;
-            pick = a[0]; key = hit.key; hi = hit.hi; return true;
-          });
-          OUT.pick = { id: pick, key: key, hi: hi };
-          OUT.added = pick ? window._cbAddMod(pick) : false;
+          var e = pick('neck', 'c88'), P = window._cbAffixPool(e);
+          OUT.block = /<div class="cb-mods-h">Regular Mods<\/div>/.test(MODAL._html) && /id="cb-add-h"/.test(MODAL._html);
+          OUT.recipe = /data-key="p3" data-lo="5" data-hi="10"/.test(MODAL._html);
+          OUT.lim = P.lim;
+          OUT.n = [P.rows.p.length, P.rows.s.length];
+          OUT.allRare = P.rows.p.concat(P.rows.s).every(function(a){ return !!a[6]; });
+          OUT.apprentice = P.rows.s.some(function(a){ return a[0] === 's174'; });
+          OUT.classLine = P.rows.p.some(function(a){ return a[8] >= 0; });
+          OUT.add = window._cbAddMod('s174');
           OUT.stored = cur().sets[0].slots.neck.affixes;
-          OUT.say = window._cbState().modSay;
-          OUT.fortuitous = ['p', 's', 'a'].some(function(k){ return P.rows[k].some(function(a){ return a[0] === 'p282'; }); });
-          OUT.refused = window._cbAddMod('p282');
-          OUT.after = cur().sets[0].slots.neck.affixes;
-          window._cbClosePick();
-          window._cbOpenPick('inv', null, [0, 0]); window._cbChoose('b:cm3');
-          OUT.magicFixed = window._cbAddMod('p700');
-          OUT.magicAdded = window._cbAddMod('s338');
-          var inv = cur().sets[0].inv; OUT.magicStored = inv[inv.length - 1].affixes;
-          OUT.magicSay = window._cbState().modSay;
+          OUT.listed = /data-ax="0"[\s\S]*of the Apprentice/.test(MODAL._html);
+          for (var i = 0; i < 3; i++){ var Pi = window._cbAffixPool(cur().sets[0].slots.neck); if (Pi.rows.p[0]) window._cbAddMod(Pi.rows.p[0][0]); }
+          var P4 = window._cbAffixPool(cur().sets[0].slots.neck);
+          OUT.n4 = cur().sets[0].slots.neck.affixes.length;
+          OUT.full = [P4.full.p, P4.full.s];
+          var more = P.rows.s.filter(function(a){ return a[0] !== 's174' && a[7] !== 9; })[0];
+          OUT.fifth = more ? window._cbAddMod(more[0]) : 'no suffix in the pool';
+          OUT.n5 = cur().sets[0].slots.neck.affixes.length;
+          OUT.rings = ['c71', 'c80', 'c89', 'c98'].map(function(id){ var r = pick('rrin', id); var Q = window._cbAffixPool(r);
+            return [id, r.q, Q.rows.p.length + Q.rows.s.length > 0, /Regular Mods/.test(MODAL._html)]; });
           OUT.vaultSame = vaultSame(before);
         """)
-        pick = out["pick"]
-        self.assertTrue(pick["id"] and pick["key"] and pick["hi"] is not None, "no ranged prefix on a crafted amulet: %s" % pick)
-        self.assertTrue(out["added"])
-        stored = out["stored"]
-        self.assertEqual(len(stored), 1)
-        self.assertEqual(stored[0]["id"], pick["id"])
-        self.assertEqual(stored[0]["rolls"].get(pick["key"]), pick["hi"])
-        self.assertIn("top of its range", out["say"])
-        self.assertIn(str(pick["hi"]), out["say"])
-        self.assertFalse(out["fortuitous"], "Fortuitous (rare flag 0) is offered on a crafted amulet")
-        self.assertFalse(out["refused"], "a mod the pool does not offer was added")
-        self.assertEqual(out["after"], stored)
-        self.assertTrue(out["magicFixed"] and out["magicAdded"])
-        self.assertEqual(out["magicStored"], [{"id": "p700", "rolls": {}}, {"id": "s338", "rolls": {}}])
-        self.assertIn("leave it blank", out["magicSay"])
+        self.assertTrue(out["block"], "the crafted Edit tab has no Regular Mods / Add Mod")
+        self.assertTrue(out["recipe"], "the recipe's own FCR line left the Edit tab")
+        self.assertEqual(out["lim"], {"p": 3, "s": 3, "a": 1, "q": 0, "total": 4})
+        self.assertGreater(out["n"][0], 0)
+        self.assertGreater(out["n"][1], 0)
+        self.assertTrue(out["allRare"], "a crafted item offers an affix the rare flag keeps off it")
+        self.assertTrue(out["apprentice"], "an amulet's +10% FCR suffix is not offered")
+        self.assertTrue(out["classLine"], "no class line (his +2 Assassin skills) is offered")
+        self.assertTrue(out["add"])
+        self.assertEqual(out["stored"], [{"id": "s174", "rolls": {}}], "a picked mod did not store a blank roll (the range)")
+        self.assertTrue(out["listed"])
+        self.assertEqual(out["n4"], 4)
+        self.assertEqual(out["full"], [True, True], "four random affixes did not fill a crafted item")
+        self.assertFalse(out["fifth"], "a fifth random affix went onto a crafted item")
+        self.assertEqual(out["n5"], 4)
+        for rid, q, offers, block in out["rings"]:
+            self.assertEqual(q, "c", rid)
+            self.assertTrue(offers and block, "the crafted ring %s offers no regular mods" % rid)
         self.assertTrue(out["vaultSame"], "the crafted edit wrote a vault store")
+
+    def test_a_total_above_the_recipe_splits_with_the_mod_beside_it(self):
+        out = _run(r"""
+          mk('Warlock', 90);
+          pick('neck', 'c88');
+          OUT.alone = type('p3', 5, 10, '20');
+          OUT.rollsAlone = cur().sets[0].slots.neck.rolls;
+          window._cbAddMod('s174');
+          OUT.split = type('p3', 5, 10, '20');
+          OUT.rolls = cur().sets[0].slots.neck.rolls;
+          var e = cur().sets[0].slots.neck, tip = window._cbTipEntry(e, window._cbItem(e.id), 90, 'neck', 'Warlock');
+          OUT.fcr = tip.lines.filter(function(l){ return /Faster Cast Rate/.test(l.html || l.t || ''); }).map(function(l){ return l.html || l.t; });
+          OUT.over = type('p3', 5, 10, '25');
+          OUT.under = type('p3', 5, 10, '3');
+          OUT.inside = type('p3', 5, 10, '7');
+          OUT.rolls7 = cur().sets[0].slots.neck.rolls;
+        """)
+        self.assertTrue(out["alone"]["bad"])
+        self.assertIn("this recipe line is 5–10; 20 is above it", out["alone"]["say"])
+        self.assertIn("Add Mod → of the Apprentice", out["alone"]["say"], "the refusal does not name the mod that supplies the rest")
+        self.assertIn("not saved", out["alone"]["say"])
+        self.assertEqual(out["rollsAlone"], {})
+        self.assertFalse(out["split"]["bad"])
+        self.assertEqual(out["split"]["say"], "saved: 20 = 10 (this recipe, 5–10) + 10 (of the Apprentice)")
+        self.assertEqual(out["split"]["box"], "10", "the recipe's box does not show its own share")
+        self.assertEqual(out["rolls"], {"p3": 10})
+        self.assertEqual(out["fcr"], ["+20% Faster Cast Rate"], "the tooltip does not print one FCR line of 20")
+        self.assertTrue(out["over"]["bad"])
+        self.assertIn("so the total is 15–20; 25 is outside it", out["over"]["say"])
+        self.assertTrue(out["under"]["bad"])
+        self.assertIn("3 is below it", out["under"]["say"])
+        self.assertEqual(out["inside"]["say"], "saved: 7 (EXACT)")
+        self.assertEqual(out["rolls7"], {"p3": 7})
+
+
+RED_PROOF = [
+    {
+        "why": "the recipe name already ends in its base; without the check the title reads 'Caster Amulet Amulet' again",
+        "file": "bible.html",
+        "find": "    var baseSpan = base && base[0] !== it[1] && !(craft && (' ' + it[1].toLowerCase()).slice(-(base[0].length + 1)) === ' ' + base[0].toLowerCase());\n",
+        "replace": "    var baseSpan = base && base[0] !== it[1];\n",
+        "matches": 1,
+    },
+    {
+        "why": "a crafted item rolls from the affix tables; without it in the pool there is nothing to add",
+        "file": "bible.html",
+        "find": "    if (!b || !d.af || !(_cbIsBase(it) || _cbIsCraft(it))) return out;\n    var q = _cbQ(e, it), lim = _cbLimits(q, b),",
+        "replace": "    if (!b || !d.af || !_cbIsBase(it)) return out;\n    var q = _cbQ(e, it), lim = _cbLimits(q, b),",
+        "matches": 1,
+    },
+    {
+        "why": "a crafted item takes at most 4 random affixes; dropping its limit row lets it take none (or the rare's 6)",
+        "file": "bible.html",
+        "find": "    if (q === 'c') return { p: 3, s: 3, a: 1, q: 0, total: 4 };\n",
+        "replace": "    if (q === 'c') return { p: 3, s: 3, a: 1, q: 0, total: null };\n",
+        "matches": 1,
+    },
+    {
+        "why": "a crafted item's random affixes are drawn like a rare's; without the flag magic-only rows are offered",
+        "file": "bible.html",
+        "find": "      if (q === 'c' && !a[6]) return;",
+        "replace": "      if (false && !a[6]) return;",
+        "matches": 1,
+    },
+    {
+        "why": "a total above the recipe line is split with the mod beside it; without the split 20 is refused again",
+        "file": "bible.html",
+        "find": "    if (split && split.ok){ r = { ok: true, v: split.v }; t.value = String(split.v); }\n",
+        "replace": "    if (false){}\n",
+        "matches": 1,
+    },
+    {
+        "why": "the refusal names the mod that supplies the rest; without the search it only says the range",
+        "file": "bible.html",
+        "find": "    if (can.length) return { ok: false, why: head + '; ' + v + ' is above it — the rest is a regular mod: Add Mod → ' + can.slice(0, 3).join(' / ') + ', then type ' + v + ' again' };\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "the tooltip prints one line per stat; without the crafted fold it prints the recipe's 10 and the mod's 10 apart",
+        "file": "bible.html",
+        "find": "    if (it && e.affixes && e.affixes.length && _cbIsCraft(it)){ it = it.slice(); it[6] = _cbMergeLines(it[6], rolls); }\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "the crafted Edit tab draws the Regular Mods block; without it the Add Mod door is gone again",
+        "file": "bible.html",
+        "find": "    var craft = _cbIsCraft(it), M = craft ? _cbModsHtml(e, slot, 'c', base, clvl) : null;\n",
+        "replace": "    var craft = false, M = null;\n",
+        "matches": 1,
+    },
+]
 
 
 if __name__ == "__main__":

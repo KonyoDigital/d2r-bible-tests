@@ -56977,11 +56977,9 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
      magic 1 prefix + 1 suffix, rare 3 + 3 (a rare jewel 4 in all), one automod, one superior row. A row of weight 0
      (frequency 0 - the classic duplicates the expansion never draws) is never offered, and the list says how many.
      A picked affix's value is a box inside its range: typed = EXACT, blank = RANGE, outside = refused with the range
-     shown - the unique rolls' contract. STORE on the slot entry: q ('rare' | 'm' | 'sup' | 'b' | 'low' | 'c'), ilvl, rn
+     shown - the unique rolls' contract. STORE on the slot entry: q ('rare' | 'm' | 'sup' | 'b' | 'low'), ilvl, rn
      [prefix word, suffix word], lq (a low word), def (a typed base defense), affixes [{id, rolls: {m1..m3}}]. A build
-     saved before this carries none of them and loads exactly as it did. A crafted quality is offered only on a wearable
-     amulet: choosing it fills the rare name (Grim and Noose when those words are legal, else the first of each list)
-     and a picked affix stores the top of each numeric range. Magic and rare stay blank = the range.
+     saved before this carries none of them and loads exactly as it did.
      ODDS under the picked mods, from the tables' frequency, or UNKNOWN when the draw is not pinned. A magic item
      carries a prefix on half of its rolls, a suffix on three quarters, and both on a quarter (suffix only 50%, prefix
      only 25%, both 25% — both is that quarter, not half times three quarters). The weight is this row's frequency
@@ -56990,18 +56988,18 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
      the share of its range at or above it. Rare, crafted, an automod, a superior row and a chosen class print
      UNKNOWN.
      [[unknown-stays-unknown]] [[the-unjoined-end]] */
-  var CB_QUALS = [['rare', 'Rare', 'rare'], ['m', 'Magic', 'm'], ['sup', 'Superior', 'b'], ['b', 'Normal', 'b'], ['low', 'Low', 'b'], ['c', 'Crafted', 'c']];
-  var CB_Q_OF = { rare: 'Rare', m: 'Magic', sup: 'Superior', b: 'Normal', low: 'Low', c: 'Crafted' };
+  var CB_QUALS = [['rare', 'Rare', 'rare'], ['m', 'Magic', 'm'], ['sup', 'Superior', 'b'], ['b', 'Normal', 'b'], ['low', 'Low', 'b']];
+  var CB_Q_OF = { rare: 'Rare', m: 'Magic', sup: 'Superior', b: 'Normal', low: 'Low' };
   var CB_AX_GROUPS = [['p', 'Prefixes'], ['s', 'Suffixes'], ['a', 'Automod'], ['q', 'Superior']];
   function _cbIsBase(it){ return !!(it && (it[2] === 'b' || it[2] === 'm')); }
+  /* #95 (REG-1823) — a CRAFTED item, one of the cube's recipes (cubemain: Caster / Blood / Hit Power / Safety x its slots) */
+  function _cbIsCraft(it){ return !!(it && it[2] === 'c'); }
   /* the qualities a base may drop in, in their order (Rare, Magic, Superior, Normal, Low) */
   function _cbCanQ(code){
     var d = _cbDb(), b = d && d.b[code]; if (!b) return [];
     var c = d.qm && d.qm.can && d.qm.can[b[1]];
-    var out = !c ? [b[21] === 'm' ? 'm' : 'b']
-      : CB_QUALS.map(function(x){ return x[0]; }).filter(function(q){ return q !== 'c' && c.indexOf(q) >= 0; });
-    if (b[1] === 'amul' && b[20]) out.push('c');
-    return out;
+    if (!c) return [b[21] === 'm' ? 'm' : 'b'];
+    return CB_QUALS.map(function(x){ return x[0]; }).filter(function(q){ return c.indexOf(q) >= 0; });
   }
   window._cbCanQ = _cbCanQ;
   /* the quality an entry IS: a base's own choice (e.q), else the item's kind (u / s / r / c) */
@@ -57026,7 +57024,11 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   function _cbLimits(q, b){
     var jewel = !!(b && (b[1] === 'jewl' || b[1] === 'cjwl'));
     if (q === 'm') return { p: 1, s: 1, a: 1, q: 0, total: null };
-    if (q === 'rare' || q === 'c') return { p: 3, s: 3, a: 1, q: 0, total: jewel ? 4 : null };
+    if (q === 'rare') return { p: 3, s: 3, a: 1, q: 0, total: jewel ? 4 : null };
+    /* #95 (REG-1823) — a crafted item is its recipe's fixed lines PLUS random affixes drawn like a rare's: "3 fixed + 1–4
+       random", as this page's own Crafted card and crafting guide say (an ilvl-71+ craft rolls all four). So at most 3
+       prefixes and 3 suffixes, 4 in all. The recipe's lines are the item's own (it[6]) and are never counted here. */
+    if (q === 'c') return { p: 3, s: 3, a: 1, q: 0, total: 4 };
     if (q === 'sup') return { p: 0, s: 0, a: 0, q: 1, total: null };
     return { p: 0, s: 0, a: 0, q: 0, total: null };
   }
@@ -57047,7 +57049,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   function _cbAffixPool(e){
     var d = _cbDb(), out = { rows: { p: [], s: [], a: [], q: [] }, full: {}, lim: null, n: { p: 0, s: 0, a: 0, q: 0 }, zero: 0 };
     var b = d && e && d.b[e.base], it = e && _cbItem(e.id);
-    if (!b || !d.af || !_cbIsBase(it)) return out;
+    if (!b || !d.af || !(_cbIsBase(it) || _cbIsCraft(it))) return out;
     var q = _cbQ(e, it), lim = _cbLimits(q, b), anc = d.anc[b[1]] || {}, ilvl = e.ilvl || 99, alvl = _cbAlvl(b, ilvl);
     var tcls = (d.ty[b[1]] || [])[2], used = {}, cat = d.qm && d.qm.cat ? d.qm.cat[b[1]] : null;
     out.lim = lim; out.alvl = alvl;
@@ -57061,7 +57063,8 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       if (a[10].some(function(t){ return anc[t]; })) return;
       if (a[3] > alvl || (a[4] != null && alvl > a[4])) return;
       if (used[a[7]]) return;
-      if ((q === 'rare' || q === 'c') && !a[6]) return;
+      if (q === 'rare' && !a[6]) return;
+      if (q === 'c' && !a[6]) return;   /* #95 (REG-1823) — a crafted item's random affixes are drawn like a rare's */
       if (a[8] >= 0 && tcls != null && tcls >= 0 && a[8] !== tcls) return;
       if (k === 'a' && a[7] !== (b[22] | 0)) return;
       if (!a[12]){ out.zero++; return; }
@@ -57077,7 +57080,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   function _cbSpawnPool(e){
     var d = _cbDb(), out = { p: [], s: [], a: [], q: [] };
     var b = d && e && d.b[e.base], it = e && _cbItem(e.id);
-    if (!b || !d.af || !_cbIsBase(it)) return out;
+    if (!b || !d.af || !(_cbIsBase(it) || _cbIsCraft(it))) return out;
     var q = _cbQ(e, it), anc = d.anc[b[1]] || {}, alvl = _cbAlvl(b, e.ilvl || 99);
     var tcls = (d.ty[b[1]] || [])[2], cat = d.qm && d.qm.cat ? d.qm.cat[b[1]] : null, auto = b[22] | 0;
     (d.af || []).forEach(function(a){
@@ -57118,7 +57121,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var ax = (e && e.affixes) || [];
     if (!ax.length) return null;
     var it = e && _cbItem(e.id), d = _cbDb(), b = d && e && d.b[e.base];
-    if (!it || !_cbIsBase(it) || !b) return { known: false, why: 'this item is not a base the tables roll' };
+    if (!it || !(_cbIsBase(it) || _cbIsCraft(it)) || !b) return { known: false, why: 'this item is not a base the tables roll' };
     var q = _cbQ(e, it);
     if (q === 'rare') return { known: false, why: 'a rare item draws 3 to 6 affixes and that draw is not pinned' };
     if (q === 'c') return { known: false, why: 'a crafted item draws like a rare, and its fixed craft affixes are not in this frequency pool' };
@@ -57212,12 +57215,6 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     if (!p.length || !s.length) return null;
     return [p[Math.floor(Math.random() * p.length)], s[Math.floor(Math.random() * s.length)]];
   }
-  /* #95 — a crafted amulet's name is deterministic: Grim + Noose when the tables offer them, else the first legal word */
-  function _cbCraftWords(code){
-    var p = _cbRareWords(code, 0), s = _cbRareWords(code, 1);
-    if (!p.length || !s.length) return [];
-    return [p.indexOf('Grim') >= 0 ? 'Grim' : p[0], s.indexOf('Noose') >= 0 ? 'Noose' : s[0]];
-  }
   /* what an entry is CALLED, and in which colour: a magic item composes prefix + base + suffix ("Chaotic Grand Charm
      of Vita"), a rare is its two words over its base, a superior / low item says so before its base */
   function _cbShown(e, it){
@@ -57226,7 +57223,6 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var q = _cbQ(e, it), pre = [], suf = [];
     (e.affixes || []).forEach(function(x){ var a = _cbAf(x && x.id); if (a && a[1] === 'p') pre.push(a[2]); if (a && a[1] === 's') suf.push(a[2]); });
     if (q === 'm') return { name: pre.concat([bn], suf).join(' '), base: '', q: 'm' };
-    if (q === 'c'){ var cw = (e.rn || []).filter(Boolean); var head = cw.length ? cw.join(' ') : 'Crafted'; return { name: head + ' ' + bn, base: '', q: 'c' }; }
     if (q === 'rare'){ var rn = (e.rn || []).filter(Boolean); return { name: rn.length ? rn.join(' ') : 'Rare ' + bn, base: rn.length ? bn : '', q: 'rare' }; }
     if (q === 'sup') return { name: 'Superior ' + bn, base: '', q: 'b' };
     if (q === 'low') return { name: (e.lq || ((d.qm && d.qm.low) || ['Low Quality'])[0]) + ' ' + bn, base: '', q: 'b' };
@@ -57459,6 +57455,54 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     return { ok: true, v: v };
   }
   window._cbRoll = _cbRoll;
+  /* #95 (REG-1823) — A TOTAL ABOVE A RECIPE LINE IS A REGULAR MOD BESIDE IT. His Caster amulet reads "+20% Faster Cast
+     Rate" and the recipe's own line is 5–10 (cubemain): the game prints ONE line per stat, so the other 10 is a regular
+     mod — of the Apprentice, +10% FCR on an amulet (magicsuffix). Typing 20 into the recipe's box used to be refused with
+     "5–10 on this item", which is true of the line and false of the item. A total typed into a CRAFTED item's recipe line
+     above its range is now:
+       · SPLIT when the item already carries mods of the same line (the same words) with known values (fixed, or typed):
+         the recipe line stores its share, and the say line prints the sum ("20 = 10 (this recipe, 5–10) + 10 (of the
+         Apprentice)");
+       · REFUSED NAMING THE MOD when it carries none: the regular mods this item can still add whose range reaches the
+         rest (Add Mod → of the Apprentice), and nothing is saved;
+       · REFUSED, in words, when no mod it can carry reaches it, or when a mod of that line is on it with its roll not
+         typed (which share is which is then UNKNOWN). Never silently, and never a number the tables cannot make.
+     -> null (not a crafted recipe line, or inside its range: the plain rule decides) | {ok:true, v, say} | {ok:false, why} */
+  function _cbCraftSplit(e, key, typed){
+    var it = e && _cbItem(e.id), sv = String(typed == null ? '' : typed).trim();
+    if (!_cbIsCraft(it) || !key || !/^-?\d+$/.test(sv)) return null;
+    var v = +sv, line = null, rr = null;
+    (it[6] || []).forEach(function(l){ if (line || !l[1] || l[1].length !== 1) return; var r = l[1][0];
+      if (r && r[2] === key && typeof r[0] === 'number' && typeof r[1] === 'number'){ line = l; rr = r; } });
+    if (!line) return null;
+    var lo = Math.min(rr[0], rr[1]), hi = Math.max(rr[0], rr[1]);
+    if (v >= lo && v <= hi) return null;
+    var head = 'this recipe line is ' + lo + '–' + hi;
+    if (v < lo) return { ok: false, why: head + '; ' + v + ' is below it' };
+    var one = function(l){ var r = (l[0] === line[0] && l[1] && l[1].length === 1) ? l[1][0] : null; return (r && typeof r[0] === 'number' && typeof r[1] === 'number') ? r : null; };
+    var have = [], open = null;
+    (e.affixes || []).forEach(function(x){
+      var a = _cbAf(x && x.id); if (!a) return;
+      (a[11] || []).forEach(function(l){
+        var r = one(l); if (!r) return;
+        var t = (x.rolls && x.rolls[r[2]] != null) ? +x.rolls[r[2]] : (r[0] === r[1] ? r[0] : null);
+        if (t == null){ if (!open) open = a; } else have.push({ n: a[2], v: t });
+      });
+    });
+    if (open) return { ok: false, why: head + '; ' + v + ' is above it, and ' + open[2] + ' on this item adds to the same line with its roll not typed — type that roll first, then the total' };
+    var extra = have.reduce(function(n, h){ return n + h.v; }, 0), mine = v - extra;
+    var said = have.map(function(h){ return h.v + ' (' + h.n + ')'; }).join(' + ');
+    if (have.length && mine >= lo && mine <= hi) return { ok: true, v: mine, say: 'saved: ' + v + ' = ' + mine + ' (this recipe, ' + lo + '–' + hi + ') + ' + said };
+    if (have.length) return { ok: false, why: head + ' and ' + said + ' is already on this item, so the total is ' + (lo + extra) + '–' + (hi + extra) + '; ' + v + ' is outside it' };
+    var P = _cbAffixPool(e), can = [];
+    ['p', 's'].forEach(function(k){ (P.rows[k] || []).forEach(function(a){
+      if (can.indexOf(a[2]) >= 0) return;
+      if ((a[11] || []).some(function(l){ var r = one(l); return !!r && Math.max(r[0], r[1]) >= v - hi && Math.min(r[0], r[1]) <= v - lo; })) can.push(a[2]);
+    }); });
+    if (can.length) return { ok: false, why: head + '; ' + v + ' is above it — the rest is a regular mod: Add Mod → ' + can.slice(0, 3).join(' / ') + ', then type ' + v + ' again' };
+    return { ok: false, why: head + '; ' + v + ' is outside it, and no regular mod this item can still roll carries the rest' };
+  }
+  window._cbCraftSplit = _cbCraftSplit;
   /* a line's value at its key: [lo, hi, exact?] — per-level lines at the build's level.
      #174 v-B2 fix round - A PER-LEVEL LINE IS ["L", lo, key, hi, shift]: the table's value per level (its par, or its
      min..max roll when the par is blank - Fortitude hp/lvl 8..12 read "+0" as ["L", 0]), and itemstatcost's op param
@@ -57790,6 +57834,9 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
        affixes he picked are its lines - folded in, so the defense, damage and requirement sums below read them */
     var shown = it ? _cbShown(e, it) : null, q3 = _cbQ(e, it), isBase = _cbIsBase(it);
     if (it && e.affixes && e.affixes.length){ var W = _cbWithAffixes(it, e); it = W[0]; rolls = W[1]; if (isBase){ it = it.slice(); it[6] = _cbMergeLines(it[6], rolls); } }
+    /* #95 (REG-1823) — a crafted item's regular mods fold into its recipe lines the same way: one stat, one line, as the game
+       prints it (the Caster recipe's 5–10 and of the Apprentice's 10 read "+15-20% Faster Cast Rate") */
+    if (it && e.affixes && e.affixes.length && _cbIsCraft(it)){ it = it.slice(); it[6] = _cbMergeLines(it[6], rolls); }
     var out = { name: shown ? shown.name : e.name, base: shown ? shown.base : (b ? b[0] : ''), q: shown ? shown.q : (e.q || 'b'), eth: !!e.eth,
                 sockets: e.sockets | 0, clvl: clvl, lines: [], set: [], reqs: {}, defense: null, dmg1: null, dmg2: null, only: null };
     if (!it){ out.lines.push({ t: 'this item is not in the database this page carries', cls: 'd2t-unk' }); return out; }
@@ -58989,9 +59036,17 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       socks = '<div class="cb-socks"><div class="cb-ed-q">Sockets</div><div class="cb-note">Socketed ' + sr.lo + '-' + sr.hi + ' - type its roll (in Sockets or in its own Socketed box) and the sockets appear here to fill</div></div>';
     } else socks = _cbSockFillHtml(e);
     var tr = _cbTipEntry(e, it, clvl, slot, b.cls), rq = _cbEdCannot(tr, clvl);
+    /* #95 (REG-1823) — A CRAFTED ITEM: the recipe's lines, then the Regular Mods block the base tab draws (their "Crafted Mod"
+       + "Regular Mods · Add Mod"), from the same renderer. Its title is the recipe's name, which already ends in its base
+       ("Caster Amulet" printed "Caster Amulet Amulet"): the base is said once. */
+    var craft = _cbIsCraft(it), M = craft ? _cbModsHtml(e, slot, 'c', base, clvl) : null;
+    var baseSpan = base && base[0] !== it[1] && !(craft && (' ' + it[1].toLowerCase()).slice(-(base[0].length + 1)) === ' ' + base[0].toLowerCase());
+    var rollSay = craft
+      ? '<div class="cb-roll-say' + (st.modBad ? ' cb-bad' : '') + '" id="cb-roll-say" role="status">' + esc(st.modSay || 'Type your real roll into a box; a blank box is the range. A recipe line rolls only its own range — type a higher total there and it is split with the regular mod beside it.') + '</div>'
+      : '<div class="cb-roll-say" id="cb-roll-say" role="status">Type your real roll into a box; a blank box is the range. A roll outside the item\'s range is refused.</div>';
     return '<div class="cb-ed" id="cb-ed">'
       + '<div class="cb-ed-top"><div class="cb-ed-art">' + _cbArtFor(e) + '</div><div>'
-      +   '<div class="cb-ed-n ' + qc + '">' + esc(it[1]) + (base && base[0] !== it[1] ? ' <span class="' + qc + '">' + esc(base[0]) + '</span>' : '') + '</div>'
+      +   '<div class="cb-ed-n ' + qc + '">' + esc(it[1]) + (baseSpan ? ' <span class="' + qc + '">' + esc(base[0]) + '</span>' : '') + '</div>'
       +   '<div class="cb-ed-acts"><button type="button" class="cb-btn" onclick="window._cbPickTab(\'select\')">⟳ Change Item</button><button type="button" class="cb-btn" onclick="window._cbUnequip()">✕ ' + (st.pick.kind === 'inv' ? 'Remove' : 'Unequip') + '</button></div>'
       +   '<div class="cb-ed-grid"><label class="cb-ed-f">Item level <input type="number" id="cb-ilvl" aria-label="item level, 1 to 99" min="1" max="99" value="' + (e.ilvl || 99) + '" onchange="window._cbEdit(\'ilvl\', this.value)"></label>'
       +     '<label class="cb-ed-f">Base ' + baseSel + '</label><label class="cb-ed-f">Sockets ' + sock + '</label>' + eth + '</div>'
@@ -59000,7 +59055,9 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       + '</div></div>'
       + '<div class="cb-ed-q">' + esc((CB_Q_SAY[it[2]] || '').toUpperCase()) + '</div>'
       + '<ul class="cb-lines" id="cb-lines" onchange="window._cbRollInput(event)" onkeydown="if(event.key===\'Enter\'){window._cbRollInput(event)}">' + (lines || '<li class="cb-l-unk">a base item: no properties of its own</li>') + '</ul>'
-      + '<div class="cb-roll-say" id="cb-roll-say" role="status">Type your real roll into a box; a blank box is the range. A roll outside the item\'s range is refused.</div>'
+      + (craft ? '<div class="cb-mods-h">Regular Mods</div>'
+               + '<div class="cb-mods" id="cb-mods" onchange="window._cbRollInput(event)" onkeydown="if(event.key===\'Enter\'){window._cbRollInput(event)}">' + M.mods + M.odds + M.add + '</div>' : '')
+      + rollSay
       + socks + '</div>';
   }
   /* ── #174 v-B3: THE QUALITY TAB (their 32_diadem_edit) — the slot's rail beside the qualities this base can be ── */
@@ -59063,17 +59120,45 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     if (P.zero) h += '<div class="cb-add-none">' + P.zero + ' row' + (P.zero === 1 ? '' : 's') + ' of weight 0 left out: frequency 0, the game never draws ' + (P.zero === 1 ? 'it' : 'them') + '</div>';
     return h || '<div class="cb-add-none">this quality carries no mods</div>';
   }
+  /* #95 (REG-1823) — THE REGULAR MODS BLOCK (their "Regular Mods · Add Mod"): the picked affixes with their roll boxes,
+     the odds line and the ADD MOD combobox. ONE renderer for a base's Edit tab and a crafted item's, moved here verbatim
+     from the base tab so the two cannot drift. -> {canMod, mods, odds, add} ('' add when this quality carries no mods) */
+  function _cbModsHtml(e, slot, q, base, clvl){
+    var d = _cbDb();
+    var lim = _cbLimits(q, base), canMod = !!(lim.p || lim.s || lim.a || lim.q);
+    var mods = (e.affixes || []).map(function(x, i){
+      var a = _cbAf(x && x.id);
+      if (!a) return '<div class="cb-mod cb-mod-unk"><button type="button" class="cb-mod-x" aria-label="remove" onclick="window._cbDelMod(' + i + ')">✕</button><span class="cb-mod-t">UNKNOWN — the affix "' + esc(x && x.id) + '" is not in the tables this page carries</span></div>';
+      var body = (a[11] || []).map(function(l){ return _cbLineHtml(l, x.rolls || {}, clvl, 'edit', slot).replace(/<(input|select) class="cb-roll/g, '<$1 data-ax="' + i + '" class="cb-roll'); }).join(', ');
+      var cn = a[8] >= 0 && d.cls[a[8]] ? d.cls[a[8]].n : '';
+      return '<div class="cb-mod" data-ax="' + i + '"><button type="button" class="cb-mod-x" aria-label="remove ' + esc(a[2]) + '" onclick="window._cbDelMod(' + i + ')">✕</button>'
+        + '<span class="cb-mod-t">' + (cn ? '<b class="cb-add-star" title="tied to one class: ' + esc(cn) + '">*</b>' : '') + body + '</span>'
+        + '<small class="cb-mod-n">' + esc(a[2]) + '</small></div>';
+    }).join('');
+    var oddsHtml = _cbOddsHtml(e);
+    var add = '';
+    if (canMod){
+      add = '<div class="cb-add' + (st.modOpen ? ' cb-open' : '') + '"><button type="button" class="cb-add-h" id="cb-add-h" aria-expanded="' + (st.modOpen ? 'true' : 'false') + '" onclick="window._cbModOpen(' + (st.modOpen ? 'false' : 'true') + ')"><span>Add Mod</span><span aria-hidden="true">' + (st.modOpen ? '▴' : '▾') + '</span></button>';
+      if (st.modOpen)
+        add += '<div class="cb-add-srch"><input type="search" id="cb-add-q" role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="cb-add-list"'
+          + (_cbAddRows(e).length ? ' aria-activedescendant="cb-add-o-' + clamp(st.modAct | 0, 0, _cbAddRows(e).length - 1) + '"' : '')
+          + ' placeholder="Search..." value="' + esc(st.modQ || '') + '" aria-label="search the mods this item can roll - arrow keys choose one, Enter adds it" oninput="window._cbModSearch(this.value)" onkeydown="window._cbModKey(event)"><span aria-hidden="true">⌕</span></div>'
+          + '<div class="cb-add-list" id="cb-add-list" role="listbox" aria-label="mods this item can roll" onmousemove="window._cbModHover(event)">' + _cbAddListHtml(e) + '</div>';
+      add += '</div>';
+    }
+    return { canMod: canMod, mods: mods, odds: oddsHtml, add: add };
+  }
   /* ── #174 v-B3: THE EDIT TAB OF A BASE (their 50_diadem_rare_edit / 40_gc_edit) ─────────────────────────────── */
   function _cbBaseEditHtml(e, slot){
     var it = _cbItem(e.id), d = _cbDb(), b = _cbBuild(), clvl = _cbClvl(b), base = _cbBase(e.base);
     var q = _cbQ(e, it), sh = _cbShown(e, it), qs = _cbCanQ(e.base);
-    var qcls = 'cb-c-' + (sh.q === 'rare' ? 'rare' : (sh.q === 'm' ? 'm' : (sh.q === 'c' ? 'c' : 'b')));
+    var qcls = 'cb-c-' + (sh.q === 'rare' ? 'rare' : (sh.q === 'm' ? 'm' : 'b'));
     var opt = function(list, cur){ var o = '<option value=""' + (cur ? '' : ' selected') + '>—</option>'; list.forEach(function(w){ o += '<option value="' + esc(w) + '"' + (w === cur ? ' selected' : '') + '>' + esc(w) + '</option>'; }); return o; };
     var ctl = ['<label class="cb-ctl"><span>Item level</span><input type="number" id="cb-ilvl" aria-label="item level, 1 to 99" min="1" max="99" value="' + (e.ilvl || 99) + '" onchange="window._cbEdit(\'ilvl\', this.value)"></label>'];
     if (qs.length > 1)
       ctl.push('<label class="cb-ctl"><span>Quality</span><select id="cb-qual" class="' + qcls + '" aria-label="quality" onchange="window._cbQuality(this.value)">'
         + CB_QUALS.filter(function(x){ return qs.indexOf(x[0]) >= 0; }).map(function(x){ return '<option value="' + x[0] + '" class="cb-c-' + x[2] + '"' + (x[0] === q ? ' selected' : '') + '>' + x[1] + '</option>'; }).join('') + '</select></label>');
-    if (q === 'rare' || q === 'c'){
+    if (q === 'rare'){
       var rn = e.rn || [];
       ctl.push('<span class="cb-ctl cb-ctl-name"><span>Name</span>'
         + '<select id="cb-rn0" aria-label="rare name, first word (rareprefix.txt)" onchange="window._cbRareName(0, this.value)">' + opt(_cbRareWords(e.base, 0), rn[0]) + '</select>'
@@ -59105,27 +59190,8 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
         + ' aria-label="sockets (' + sr.lo + ' to ' + sr.hi + ')" onchange="window._cbEdit(\'sockets\', this.value)"></label>');
     if (base && base[17])
       ctl.push('<label class="cb-ctl"><span>Ethereal</span><input type="checkbox" id="cb-eth"' + (e.eth ? ' checked' : '') + ' onchange="window._cbEdit(\'eth\', this.checked)"></label>');
-    var lim = _cbLimits(q, base), canMod = !!(lim.p || lim.s || lim.a || lim.q);
-    var mods = (e.affixes || []).map(function(x, i){
-      var a = _cbAf(x && x.id);
-      if (!a) return '<div class="cb-mod cb-mod-unk"><button type="button" class="cb-mod-x" aria-label="remove" onclick="window._cbDelMod(' + i + ')">✕</button><span class="cb-mod-t">UNKNOWN — the affix "' + esc(x && x.id) + '" is not in the tables this page carries</span></div>';
-      var body = (a[11] || []).map(function(l){ return _cbLineHtml(l, x.rolls || {}, clvl, 'edit', slot).replace(/<(input|select) class="cb-roll/g, '<$1 data-ax="' + i + '" class="cb-roll'); }).join(', ');
-      var cn = a[8] >= 0 && d.cls[a[8]] ? d.cls[a[8]].n : '';
-      return '<div class="cb-mod" data-ax="' + i + '"><button type="button" class="cb-mod-x" aria-label="remove ' + esc(a[2]) + '" onclick="window._cbDelMod(' + i + ')">✕</button>'
-        + '<span class="cb-mod-t">' + (cn ? '<b class="cb-add-star" title="tied to one class: ' + esc(cn) + '">*</b>' : '') + body + '</span>'
-        + '<small class="cb-mod-n">' + esc(a[2]) + '</small></div>';
-    }).join('');
-    var oddsHtml = _cbOddsHtml(e);
-    var add = '';
-    if (canMod){
-      add = '<div class="cb-add' + (st.modOpen ? ' cb-open' : '') + '"><button type="button" class="cb-add-h" id="cb-add-h" aria-expanded="' + (st.modOpen ? 'true' : 'false') + '" onclick="window._cbModOpen(' + (st.modOpen ? 'false' : 'true') + ')"><span>Add Mod</span><span aria-hidden="true">' + (st.modOpen ? '▴' : '▾') + '</span></button>';
-      if (st.modOpen)
-        add += '<div class="cb-add-srch"><input type="search" id="cb-add-q" role="combobox" aria-autocomplete="list" aria-expanded="true" aria-controls="cb-add-list"'
-          + (_cbAddRows(e).length ? ' aria-activedescendant="cb-add-o-' + clamp(st.modAct | 0, 0, _cbAddRows(e).length - 1) + '"' : '')
-          + ' placeholder="Search..." value="' + esc(st.modQ || '') + '" aria-label="search the mods this item can roll - arrow keys choose one, Enter adds it" oninput="window._cbModSearch(this.value)" onkeydown="window._cbModKey(event)"><span aria-hidden="true">⌕</span></div>'
-          + '<div class="cb-add-list" id="cb-add-list" role="listbox" aria-label="mods this item can roll" onmousemove="window._cbModHover(event)">' + _cbAddListHtml(e) + '</div>';
-      add += '</div>';
-    } else add = '<div class="cb-note">' + (q === 'low' ? 'A low-quality item carries no mods; its penalty is the game\'s own code, not a table value.' : 'A normal item carries no mods — choose Magic or Rare' + (qs.indexOf('sup') >= 0 ? ' (or Superior)' : '') + ' to add them.') + '</div>';
+    var M = _cbModsHtml(e, slot, q, base, clvl), canMod = M.canMod, mods = M.mods, oddsHtml = M.odds, add = M.add;
+    if (!canMod) add = '<div class="cb-note">' + (q === 'low' ? 'A low-quality item carries no mods; its penalty is the game\'s own code, not a table value.' : 'A normal item carries no mods — choose Magic or Rare' + (qs.indexOf('sup') >= 0 ? ' (or Superior)' : '') + ' to add them.') + '</div>';
     var tr = _cbTipEntry(e, it, clvl, slot, b.cls), rq = _cbEdCannot(tr, clvl);
     return '<div class="cb-ed cb-ed-b" id="cb-ed">'
       + '<div class="cb-ed-top"><div class="cb-ed-art">' + _cbArtFor(e) + '</div><div class="cb-ed-main">'
@@ -59487,7 +59553,6 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       var it = _cbItem(p.pending); if (!it || _cbCanQ(it[3]).indexOf(q) < 0) return false;
       var e0 = _cbEntryFor(it); e0.q = q;
       if (q === 'rare') e0.rn = _cbDice(it[3]) || [];
-      if (q === 'c') e0.rn = _cbCraftWords(it[3]) || [];
       if (q === 'low') e0.lq = ((d.qm && d.qm.low) || [])[0] || '';
       p.pending = null;
       return _cbEquip(it, e0);
@@ -59498,7 +59563,6 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       if (!e || !_cbIsBase(it1) || _cbCanQ(e.base).indexOf(q) < 0) return;
       e.q = q; ok = true;
       if (q === 'rare' && !(e.rn && e.rn.length)) e.rn = _cbDice(e.base) || [];
-      if (q === 'c') e.rn = _cbCraftWords(e.base) || [];
       if (q === 'low' && !e.lq) e.lq = ((d.qm && d.qm.low) || [])[0] || '';
       dropped = _cbTrimAffixes(e);
     });
@@ -59518,25 +59582,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     return n0 - n;
   }
   function _cbCurEntry(){ var p = st.pick, s = _cbSet(); if (!p || !s) return null; return p.kind === 'slot' ? s.slots[p.slot] : (p.i != null ? s.inv[p.i] : null); }
-  /* #95 — the top of each numeric range. A class choice stays blank. A fixed roll (lo === hi) stays unset. */
-  function _cbTopRolls(a){
-    var rolls = {};
-    (a[11] || []).forEach(function(ln){
-      (ln[1] || []).forEach(function(r){
-        if (!r || r[2] == null) return;
-        if (r[0] === 'L'){
-          var LL = _cbLvl(r);
-          if (LL && LL.lo !== LL.hi) rolls[r[2]] = LL.hi;
-          return;
-        }
-        if (r[0] === 'C') return;
-        if (typeof r[0] === 'number' && typeof r[1] === 'number' && r[0] !== r[1]) rolls[r[2]] = Math.max(r[0], r[1]);
-      });
-    });
-    return rolls;
-  }
-  /* ADD MOD: only an affix the pool offers is added - the list and this check are one rule.
-     Magic and rare store a blank roll (typed = exact, blank = the range). A crafted item stores the top. */
+  /* ADD MOD: only an affix the pool offers is added - the list and this check are one rule */
   window._cbAddMod = function(id){
     var cur = _cbCurEntry(); if (!cur) return false;
     var a = _cbAf(id), P = _cbAffixPool(cur);
@@ -59544,8 +59590,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       st.modSay = (a ? a[2] : id) + ' cannot go on this item (its type, its item level, a group it already has, the rare flag or the quality\'s limit) — not added';
       st.modBad = true; _cbModal(); return false;
     }
-    var _rolls = (cur.q === 'c') ? _cbTopRolls(a) : {};
-    _cbCommit(function(b){ var e = _cbCur(b); if (e) e.affixes = (e.affixes || []).concat([{ id: id, rolls: _rolls }]); });
+    _cbCommit(function(b){ var e = _cbCur(b); if (e) e.affixes = (e.affixes || []).concat([{ id: id, rolls: {} }]); });
     st.modOpen = false; st.modQ = ''; st.modBad = false;
     /* #174 round 2 (the Grok seat on v3509): "added of the Jackal - type its roll" did not say WHAT was added, and asked
        for a roll on affixes that have none (+10% Faster Cast Rate is fixed) */
@@ -59571,8 +59616,6 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
         return false;
       }); });
     } catch (x) {}
-    if (cur.q === 'c' && _rolls && Object.keys(_rolls).length)
-      _ask = 'landed at the top of its range (' + Object.keys(_rolls).map(function(k){ return k + ' ' + _rolls[k]; }).join(', ') + ')';
     st.modSay = 'Added the ' + _kind + ' "' + _what + '" - ' + (_ask || 'its value is fixed by the game');
     _cbRender();
     return true;
@@ -59759,6 +59802,10 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     /* #174 v-B3: a box of a PICKED MOD carries its mod's index (data-ax): its roll is that affix's, under its own key,
        and what it says survives the Edit tab being redrawn */
     var ax = t.getAttribute('data-ax'); ax = (ax == null || ax === '') ? null : +ax;
+    /* #95 (REG-1823) — a crafted item's recipe line: a total above its range is split with the mod beside it, or refused naming that mod */
+    var split = (!r.ok && ax == null) ? _cbCraftSplit(_cbCurEntry(), key, t.value) : null;
+    if (split && split.ok){ r = { ok: true, v: split.v }; t.value = String(split.v); }
+    else if (split) r = { ok: false, why: split.why };
     if (!r.ok){ t.classList.add('cb-bad'); if (ax != null){ st.modSay = r.why + ' — not saved'; st.modBad = true; } if (say){ say.textContent = r.why + ' — not saved'; say.className = 'cb-roll-say cb-bad'; } return; }
     t.classList.remove('cb-bad');
     var sockKey = false;
@@ -59777,7 +59824,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       var sr = _cbSockRange(e, _cbItem(e.id));
       if (sr.key && sr.key === key){ sockKey = true; e.sockets = r.v == null ? 0 : r.v; e.socketed = (e.socketed || []).slice(0, e.sockets); } });
     t.classList.toggle('cb-typed', r.v != null);
-    if (say){ say.textContent = r.v == null ? 'cleared — this roll is its range again' : ('saved: ' + r.v + ' (EXACT)'); say.className = 'cb-roll-say'; }
+    if (say){ say.textContent = split ? split.say : (r.v == null ? 'cleared — this roll is its range again' : ('saved: ' + r.v + ' (EXACT)')); say.className = 'cb-roll-say'; }
     if (sockKey){ _cbModal(); var s2 = document.getElementById('cb-roll-say'); if (s2){ s2.textContent = r.v == null ? 'cleared — Socketed is its range again' : ('saved: ' + r.v + ' sockets (EXACT)'); } }
     _cbRefreshQuiet();
   };

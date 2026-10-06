@@ -445,16 +445,14 @@ RED_PROOF = [
     {
         "why": "#174 v-B3 - ADD MOD stops filtering by item type: a charm lists armour affixes",
         "file": "bible.html",
-        # anchored on ADD MOD's own `out.full[k]` line - _cbSpawnPool (the odds) carries the same two type lines
-        "find": "      if (out.full[k]) return;\n"
-                "      if (!a[9].some(function(t){ return anc[t]; })) return;\n      if (a[10].some(function(t){ return anc[t]; })) return;\n",
+        # the cut opens on ADD MOD's own first line: _cbSpawnPool (0a7ab41c) repeats the two type lines below it
+        "find": "      if (out.full[k]) return;\n      if (!a[9].some(function(t){ return anc[t]; })) return;\n      if (a[10].some(function(t){ return anc[t]; })) return;\n",
         "replace": "      if (out.full[k]) return;\n",
         "matches": 1,
     },
     {
         "why": "#174 v-B3 - ADD MOD ignores the affix level and maxlevel",
         "file": "bible.html",
-        # ADD MOD's copy is the one followed by the group cut; _cbSpawnPool has the same level line
         "find": "      if (a[3] > alvl || (a[4] != null && alvl > a[4])) return;\n      if (used[a[7]]) return;\n",
         "replace": "      if (used[a[7]]) return;\n",
         "matches": 1,
@@ -469,17 +467,14 @@ RED_PROOF = [
     {
         "why": "#174 v-B3 - a rare lists affixes that never spawn on a rare (the rare flag)",
         "file": "bible.html",
-        # the line now holds crafted too (fb33b9b2); ADD MOD's copy is the one after the group cut
-        "find": "      if (used[a[7]]) return;\n      if ((q === 'rare' || q === 'c') && !a[6]) return;\n",
-        "replace": "      if (used[a[7]]) return;\n",
+        "find": "      if (q === 'rare' && !a[6]) return;\n",
+        "replace": "",
         "matches": 1,
     },
     {
         "why": "#174 v-B3 - a class item lists another class's tied affixes",
         "file": "bible.html",
-        # ADD MOD's copy is the one before its `(b[22] | 0)` automod line; _cbSpawnPool's is before `auto`
-        "find": "      if (a[8] >= 0 && tcls != null && tcls >= 0 && a[8] !== tcls) return;\n"
-                "      if (k === 'a' && a[7] !== (b[22] | 0)) return;\n",
+        "find": "      if (a[8] >= 0 && tcls != null && tcls >= 0 && a[8] !== tcls) return;\n      if (k === 'a' && a[7] !== (b[22] | 0)) return;\n",
         "replace": "      if (k === 'a' && a[7] !== (b[22] | 0)) return;\n",
         "matches": 1,
     },
