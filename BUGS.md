@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1784 - A SHUT RIVER LOCK READ AS A DOCTOR THAT PASSED (2026-10-06, #86 gap audit 18)
+
+/api/doctor never asked may() for the river doors. The self-prove row reads the lane's last tick, so it can stay green while reel.route, frame.release, vault.sweep_start and vault.apply are shut. The river_locks row now asks may() and names each shut lock with its why. An ask that does not come back is UNMEASURED, not a pass. The row does not open a lock and does not start a proof. may() is unchanged, so a partial census still keeps frame.release and vault.sweep_start shut. The tombstone outlet and the extract-moving rows from the same finding are not this one. Law `test_a_shut_river_lock_is_not_a_doctor_pass`.
+
 ### REG-1783 - A SHELF BEAT THAT COUNTED NO LANES READ AS A PASS (2026-10-06, #86 gap audit 25)
 
 The shelf row returned ok when the beat carried no per-lane counts, and its sentence said that was unknown. An absent ok was treated as true. The eagle colours the state word, so both were green. A beat that did not say the plan was readable is now unknown. A beat that counted no lanes is now unknown. The sentence stays. A plan that said not-ok is still missing. A counted dark lane is still missing. A beat older than the bar is still missing. A counted reading lane is still a pass. Law `test_a_lane_count_that_was_not_taken_is_not_a_pass`.

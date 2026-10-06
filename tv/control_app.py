@@ -40630,6 +40630,70 @@ def _journal_doctor_rows():
     return checks
 
 
+# The four doors gap audit 18 named. reel.route decides a reel's fate; the other three spend
+# money, rewrite the ledger, or release frames. may() already refuses the destructive three on a
+# partial census. This tuple only says which answers the doctor must show.
+_RIVER_LOCKS_ASKED = ("reel.route", "frame.release", "vault.sweep_start", "vault.apply")
+
+
+def _river_locks_unmeasured(why):
+    """An ask that did not come back. Not a pass. -> check"""
+    return _chk(
+        "river_locks", False, "warn",
+        "UNMEASURED: %s - not a river that may act" % why)
+
+
+def _river_lock_why(why):
+    text = " ".join(str(why or "").split())
+    if not text:
+        return "shut, and no reason was given"
+    if len(text) > 320:
+        return text[:317] + "..."
+    return text
+
+
+def _river_locks_doctor_row(ask=None):
+    """The doctor's river_locks row. Asks may() for the four river doors. -> check
+
+    #86 gap audit 18 (REG-1784). /api/doctor never asked the gate the acts ask, so the
+    self-prove row could stay green while these four were shut. This asks may() and
+    reports that answer. It does not open a lock and it does not start a proof. An ask
+    that does not come back is UNMEASURED, never a pass.
+    """
+    if ask is None:
+        try:
+            import self_arming as _sa
+            ask = _sa.may
+        except Exception as _e:
+            return _river_locks_unmeasured(
+                "the lock could not be imported (%s)" % type(_e).__name__)
+    shut = []
+    try:
+        for lock in _RIVER_LOCKS_ASKED:
+            got = ask(lock)
+            if not (isinstance(got, tuple) and len(got) == 2 and isinstance(got[0], bool)):
+                return _river_locks_unmeasured("may(%s) did not answer" % lock)
+            one_ok, why = got
+            if not one_ok:
+                shut.append((lock, _river_lock_why(why)))
+    except Exception as _e:
+        return _river_locks_unmeasured(
+            "the lock could not be asked (%s)" % type(_e).__name__)
+    if shut:
+        said = "; ".join("%s (%s)" % (lock, why) for lock, why in shut)
+        return _chk(
+            "river_locks", False, "warn",
+            "%d of %d river locks are shut here: %s" % (
+                len(shut), len(_RIVER_LOCKS_ASKED), said),
+            "A shut lock stays shut until this PC's own heart and that lock's merit agree. "
+            "The doctor does not start a proof and does not open the lock.")
+    return _chk(
+        "river_locks", True, "warn",
+        "%d of %d river locks may act here (%s)" % (
+            len(_RIVER_LOCKS_ASKED), len(_RIVER_LOCKS_ASKED),
+            ", ".join(_RIVER_LOCKS_ASKED)))
+
+
 def doctor_payload():
     """GET /api/doctor contract: {ok, platform, checks:[{id,ok,severity,detail,fix?}],
     logTail, logPath, ver}. See the DOCTOR banner above for the invariants."""
@@ -40854,6 +40918,10 @@ def doctor_payload():
         "self_prove", _sp_ok, "warn", _sp_line,
         "The lane retries by itself; the prover's log is tv/.self_prove.json.log. A BLIND instrument is a "
         "law that stayed green through its own sabotage on THIS machine - fix the law for this platform."))
+
+    # ── RIVER LOCKS — #86 gap audit 18 (REG-1784). The self-prove row reads the lane's last tick.
+    # It does not ask may(). A lock can be shut while that row stays green. See _river_locks_doctor_row.
+    checks.append(_river_locks_doctor_row())
 
     _bs = _beacon_status()
     _bt = _beacon_snapshot().get("ts")

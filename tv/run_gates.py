@@ -9399,6 +9399,14 @@ GATES = [
              "and when it did not say whether the plan was readable. The sentence already said unknown. "
              "The state word now does too. A counted reading lane is still a pass. A dark count, a "
              "plan that said not-ok, and a beat older than the bar are still missing."),
+    Gate("test_a_shut_river_lock_is_not_a_doctor_pass",
+         [sys.executable, os.path.join(HERE, "test_a_shut_river_lock_is_not_a_doctor_pass.py")], 90,
+         needs_app=False,
+         why="REG-1784 (#86 gap audit 18) - /api/doctor never asked may() for the river doors. The "
+             "self-prove row can stay green while reel.route, frame.release, vault.sweep_start and "
+             "vault.apply are shut. The river_locks row asks may() and names each shut lock. An ask "
+             "that does not come back is UNMEASURED, not a pass. The row does not open a lock. may() "
+             "is unchanged, so a partial census still keeps frame.release and vault.sweep_start shut."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
