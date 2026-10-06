@@ -25311,11 +25311,33 @@ function escC(s) {
     } else if (!rv.lanes || typeof rv.lanes !== 'object') {
       out.push(_fleetPart('river', ['UNKNOWN'], { unk: true, why: String(rv.why || 'no lane answered') }));
     } else {
-      var ks = Object.keys(rv.lanes), bits = [];
-      ks.forEach(function (s) { var n = rv.lanes[s]; if (typeof n === 'number' && n > 0) bits.push(s + ' ' + n); });
-      out.push(_fleetPart('river', (bits.length ? bits : ['empty — 0 reels at every station'])
-                 .concat([_fleetAgeTxt(_fleetAgeNow(rv.ageS, m, nowMs))]), {
-                 why: 'reels per station, from the last river that console computed' + (rv.why ? ' — ' + rv.why : '') }));
+      /* #86 gap 14 (REG-1775) — THE PLACED STATIONS ARE NOT THE SHELF. byStation is the reels a
+         lane placed. A reel the router left at UNKNOWN is `unknown`. A shelf the two do not add
+         up to is a gap: unaccounted when the shelf is larger, counted twice when the lanes
+         overshoot. A missing count is an older console, and it is not zero. A zero map over a
+         shelf that holds reels is not "empty". [[unknown-stays-unknown]] [[zero-needs-a-denominator]] */
+      var nbsp = '\u00a0';
+      var ks = Object.keys(rv.lanes), placed = [], sum = 0, sumOk = true;
+      ks.forEach(function (s) {
+        var n = rv.lanes[s];
+        if (typeof n !== 'number' || !isFinite(n) || n < 0) { sumOk = false; return; }
+        sum += n;
+        if (n > 0) placed.push(s + nbsp + n);
+      });
+      var hasUnk = typeof rv.unknown === 'number' && isFinite(rv.unknown) && rv.unknown >= 0;
+      var hasShelf = typeof rv.shelf === 'number' && isFinite(rv.shelf) && rv.shelf >= 0;
+      var gap = (hasUnk && hasShelf && sumOk) ? (rv.shelf - (sum + rv.unknown)) : null;
+      var bits = placed.slice();
+      if (!bits.length && !(hasUnk && rv.unknown > 0) && !(typeof gap === 'number' && gap !== 0)) {
+        bits.push('empty — 0 reels at every station');
+      }
+      if (hasUnk && rv.unknown > 0) bits.push(rv.unknown + nbsp + 'unplaced');
+      if (gap > 0) bits.push(gap + nbsp + 'unaccounted');
+      else if (gap < 0) bits.push((-gap) + nbsp + 'counted twice');
+      out.push(_fleetPart('river', bits.concat([_fleetAgeTxt(_fleetAgeNow(rv.ageS, m, nowMs))]), {
+                 why: 'reels per station, from the last river that console computed'
+                   + (hasShelf ? ('; its shelf held ' + rv.shelf) : '')
+                   + (rv.why ? ' — ' + rv.why : '') }));
     }
     /* 3. ITS TRIAGE LANE — what it is doing, in words, as of that beacon */
     var x = rv && typeof rv === 'object' ? rv.triage : null;

@@ -383,6 +383,11 @@ export async function onRequestPost(context) {
           }
           lanes = Object.keys(o).length ? o : null;
         }
+        /* REG-1775 (#86 gap 14) — unknown (the router could not place them) and shelf (the
+           denominator) ride beside the station map. Absent stays absent: an older console, and a
+           count that is not a whole number, are not zero. The cap is the same one reels uses. */
+        const unk = whole(rv.unknown, 100000);
+        const shelfN = whole(rv.shelf, 100000);
         let tri = null;
         const x = rv.triage;
         if (x && typeof x === 'object') {
@@ -414,6 +419,8 @@ export async function onRequestPost(context) {
           }
         }
         out.river = { lanes: lanes, ageS: num(rv.ageS, DAY400), why: txt(rv.why, 200), triage: tri };
+        if (unk !== null) out.river.unknown = unk;
+        if (shelfN !== null) out.river.shelf = shelfN;
         /* #74 (REG-1461) — WHICH STATIONS ARE NOT DRAINING ON THAT PC, AND WHY; AND WHETHER IT HAS PROVED ITSELF.
            His ask 2026-09-29: see Dean's river from his own console. Shaped like everything above: station keys
            from the router's vocabulary, counts and ages clamped, the lane's sentence capped and scrubbed. `stuck`
@@ -706,8 +713,17 @@ export async function onRequestPost(context) {
     const triageWord = t
       ? [t.ok === false, t.lastKey || null, (typeof t.backlog === 'number') ? t.backlog : null]
       : null;
-    if (stuckWord === undefined && heartWord === null && laneWord === null && triageWord === null) return null;
-    return JSON.stringify([stuckWord === undefined ? 'absent' : stuckWord, heartWord, laneWord, triageWord]);
+    // REG-1775 (#86 gap 14) — the river line names unplaced and the gap against the shelf, so a
+    // change in either count is news. An age is not. Absent is not a measured zero.
+    const placeWord = [
+      (typeof rv.unknown === 'number') ? rv.unknown : null,
+      (typeof rv.shelf === 'number') ? rv.shelf : null,
+    ];
+    const placeSaid = placeWord[0] !== null || placeWord[1] !== null;
+    if (stuckWord === undefined && heartWord === null && laneWord === null && triageWord === null
+        && !placeSaid) return null;
+    return JSON.stringify([stuckWord === undefined ? 'absent' : stuckWord, heartWord, laneWord,
+                           triageWord, placeWord]);
   };
   // REG-1771 — the hover says whether that PC's own tree is established, and how many reels sit on its shelf.
   // Both flip rarely (a reel is added, a tree goes missing). They are not ages.

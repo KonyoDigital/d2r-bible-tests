@@ -22,6 +22,9 @@ Three joints, each driven, never grepped:
     the why, and that sentence is the pending span's text because the hover strips titles.
     A pull git could not answer is not a pull that is fine: can null says pull UNKNOWN and keeps the why
     in the span's text. can false stays not pulling. can true stays quiet. No pull object stays quiet.
+    A reel the router could not place is not the whole river: unknown and shelf ride with the stations,
+    the line names unplaced and a gap against that shelf, a zero map over a shelf that holds reels is
+    not called empty, and a change in either count is news. A missing count stays off the wire.
 RED_PROOF below.
 """
 import io
@@ -336,6 +339,25 @@ class TheWorkerCarriesIt(unittest.TestCase):
         unknown = self._shape({"lanes": {}, "stuck": None, "stuckKeep": 16})["river"]
         self.assertIsNone(unknown["stuck"])
         self.assertNotIn("stuckKeep", unknown, "an unknown river grew a window")
+
+    def test_unplaced_and_the_shelf_cross_and_a_bad_count_does_not(self):
+        """#86 gap 14. The station map is not the shelf. A whole count crosses. Absent stays
+        absent. A string, a negative and a count past the cap do not become zero."""
+        got = self._shape({"lanes": {"EMPTY": 76, "PRINTER": 25}, "unknown": 25, "shelf": 126})["river"]
+        self.assertEqual(got["unknown"], 25)
+        self.assertEqual(got["shelf"], 126)
+        zero = self._shape({"lanes": {"EMPTY": 4}, "unknown": 0, "shelf": 4})["river"]
+        self.assertEqual(zero["unknown"], 0)
+        self.assertEqual(zero["shelf"], 4)
+        old = self._shape({"lanes": {"EMPTY": 76}})["river"]
+        self.assertNotIn("unknown", old, "an older console gained a count")
+        self.assertNotIn("shelf", old)
+        bad = self._shape({"lanes": {"EMPTY": 1}, "unknown": "25", "shelf": -3})["river"]
+        self.assertNotIn("unknown", bad, "a count that is not a count crossed as zero")
+        self.assertNotIn("shelf", bad)
+        over = self._shape({"lanes": {"EMPTY": 1}, "unknown": 100001, "shelf": 100001})["river"]
+        self.assertNotIn("unknown", over, "a count past the cap crossed")
+        self.assertNotIn("shelf", over)
 
     def test_a_reel_outside_the_window_keeps_that_mark(self):
         got = self._shape({"lanes": {"ROUTED": 1}, "stuck": [
@@ -658,6 +680,120 @@ class AnUnreadablePullIsNotAPullThatIsFine(unittest.TestCase):
         self.assertNotEqual(col("fleet-pullunk"), col("fleet-lag"))
 
 
+class AnUnplacedReelIsNotTheWholeRiver(unittest.TestCase):
+    """#86 gap 14. The beacon used to keep only byStation, so the card drew the placed stations
+    as every reel. unknown and shelf come from the same river block. A missing count is an
+    older console and is not zero."""
+
+    def _drive(self, lanes):
+        from unittest import mock
+        import control_app as ca
+        fresh = {"good": None, "fail": None}
+        with mock.patch.object(ca, "_RIVER_LAST", fresh), \
+                mock.patch.object(ca, "_river_stuck_for_wire", lambda *a, **k: []):
+            ca._river_remember(lanes)
+            return ca._river_for_wire(now_ms=NOW)
+
+    def test_unknown_and_the_shelf_ride_with_the_stations(self):
+        out = self._drive({"ok": True, "unknown": 25, "shelf": 126,
+                           "lanes": [{"byStation": {"EMPTY": 76, "PRINTER": 25}}]})
+        self.assertEqual(out["lanes"], {"EMPTY": 76, "PRINTER": 25})
+        self.assertEqual(out["unknown"], 25)
+        self.assertEqual(out["shelf"], 126)
+
+    def test_a_measured_zero_is_kept_and_a_missing_count_is_not_sent_as_zero(self):
+        zero = self._drive({"ok": True, "unknown": 0, "shelf": 4,
+                            "lanes": [{"byStation": {"EMPTY": 4}}]})
+        self.assertEqual((zero["unknown"], zero["shelf"]), (0, 4))
+        bare = self._drive({"ok": True, "lanes": [{"byStation": {"EMPTY": 1}}]})
+        self.assertEqual(bare["lanes"], {"EMPTY": 1})
+        self.assertNotIn("unknown", bare)
+        self.assertNotIn("shelf", bare)
+        bad = self._drive({"ok": True, "unknown": "25", "shelf": True,
+                           "lanes": [{"byStation": {"EMPTY": 1}}]})
+        self.assertEqual(bad["lanes"], {"EMPTY": 1})
+        self.assertNotIn("unknown", bad, "a string crossed as zero unplaced")
+        self.assertNotIn("shelf", bad, "a bool crossed as a shelf of 1")
+
+    def _line(self, **river):
+        base = {"lanes": {"EMPTY": 0, "PRINTER": 0}, "ageS": 30.0, "why": "", "triage": F.TRI_OK}
+        base.update(river)
+        return F._parts(F._row(60, river=base))["river"]["t"]
+
+    def test_a_full_shelf_the_router_could_not_place_is_not_called_empty(self):
+        t = self._line(lanes={"EMPTY": 0, "PRINTER": 0}, unknown=126, shelf=126)
+        self.assertIn("126 unplaced", t)
+        self.assertNotIn("empty", t)
+        self.assertNotIn("unaccounted", t)
+        self.assertNotIn("counted twice", t)
+
+    def test_a_gap_beside_the_placed_stations_is_named(self):
+        t = self._line(lanes={"EMPTY": 76, "PRINTER": 25}, unknown=0, shelf=126)
+        self.assertIn("EMPTY 76", t)
+        self.assertIn("PRINTER 25", t)
+        self.assertIn("25 unaccounted", t)
+        self.assertNotIn("unplaced", t)
+        self.assertNotIn("empty", t)
+
+    def test_a_zero_map_over_a_shelf_is_not_called_empty(self):
+        t = self._line(lanes={"EMPTY": 0, "PRINTER": 0}, unknown=0, shelf=126)
+        self.assertIn("126 unaccounted", t)
+        self.assertNotIn("empty", t)
+        self.assertNotIn("unplaced", t)
+
+    def test_a_river_that_adds_up_names_only_its_stations(self):
+        t = self._line(lanes={"EMPTY": 76, "PRINTER": 25}, unknown=0, shelf=101)
+        self.assertIn("EMPTY 76", t)
+        self.assertIn("PRINTER 25", t)
+        self.assertNotIn("unplaced", t)
+        self.assertNotIn("unaccounted", t)
+        self.assertNotIn("counted twice", t)
+        self.assertNotIn("empty", t)
+
+    def test_a_count_past_the_shelf_is_not_hidden(self):
+        t = self._line(lanes={"EMPTY": 76}, unknown=0, shelf=50)
+        self.assertIn("EMPTY 76", t)
+        self.assertIn("26 counted twice", t)
+        self.assertNotIn("unaccounted", t)
+
+    def test_an_older_console_that_sent_no_place_count_is_unchanged(self):
+        t = self._line(lanes={"TRIAGE": 0, "PRINTER": 0})
+        self.assertTrue(t.startswith("empty — 0 reels at every station"), t)
+        self.assertNotIn("unplaced", t)
+        self.assertNotIn("unaccounted", t)
+        named = self._line(lanes={"INTAKE": 0, "TRIAGE": 7, "PRINTER": 1, "JOIN": 0, "TOMBSTONE": 2},
+                           ageS=300.0)
+        self.assertEqual(named, "TRIAGE 7 · PRINTER 1 · TOMBSTONE 2 · 6m ago")
+
+    def test_a_change_in_the_place_count_is_news_and_an_age_is_not(self):
+        """The line sits for fifteen minutes unless the worker compares these two counts.
+        An age moves every beacon and is not news."""
+        path = os.path.join(os.path.dirname(HERE), "functions", "api", "console.js")
+        with io.open(path, encoding="utf-8") as f:
+            src = f.read()
+        start = "  const riverNews = (r) => {"
+        end = "  const shelfNews = (r) => {"
+        self.assertEqual(src.count(start), 1)
+        i = src.index(start)
+        fn = src[i:src.index(end, i)]
+        placed = {"system": {"river": {"lanes": {"EMPTY": 76, "PRINTER": 25}, "unknown": 0,
+                                        "shelf": 101, "ageS": 12}}}
+        moved = {"system": {"river": {"lanes": {"EMPTY": 76, "PRINTER": 25}, "unknown": 25,
+                                       "shelf": 126, "ageS": 90}}}
+        aged = {"system": {"river": {"lanes": {"EMPTY": 76, "PRINTER": 25}, "unknown": 0,
+                                      "shelf": 101, "ageS": 90}}}
+        prog = fn + "\nvar rows = %s;\nprocess.stdout.write(JSON.stringify(rows.map(riverNews)));\n" % json.dumps(
+            [placed, moved, aged])
+        r = __import__("subprocess").run([F.NODE, "-"], input=prog, capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr[-400:])
+        a, b, c = json.loads(r.stdout)
+        self.assertNotEqual(a, b, "unplaced changed and the stored river line would sit for 15 min")
+        self.assertEqual(a, c, "an age that moved was treated as news")
+        self.assertIn("[0,101]", a)
+        self.assertIn("[25,126]", b)
+        self.assertNotIn("[25,126]", a)
+
+
 RED_PROOF = [
     {"why": "REG-1738 - a river nobody ever stamped reads as draining again",
      "file": "control_app.py",
@@ -795,6 +931,41 @@ RED_PROOF = [
         "file": "tv/control_ui.html",
         "find": "    if (pull.can === true || pull.can === false) return '';\n",
         "replace": "    if (true) return '';\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1775 - unknown and the shelf are dropped before the beacon, so the placed stations read as the whole river",
+        "file": "tv/control_app.py",
+        "find": "            if _unk is not None:\n                good[\"unknown\"] = _unk\n            if _shelf_n is not None:\n                good[\"shelf\"] = _shelf_n\n",
+        "replace": "            if False:\n                good[\"unknown\"] = _unk\n            if False:\n                good[\"shelf\"] = _shelf_n\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1775 - the beacon stores the counts and then leaves them off the wire",
+        "file": "tv/control_app.py",
+        "find": "        if isinstance(g.get(\"unknown\"), int) and not isinstance(g.get(\"unknown\"), bool):\n            out[\"unknown\"] = int(g[\"unknown\"])\n        if isinstance(g.get(\"shelf\"), int) and not isinstance(g.get(\"shelf\"), bool):\n            out[\"shelf\"] = int(g[\"shelf\"])\n",
+        "replace": "        if False:\n            out[\"unknown\"] = int(g[\"unknown\"])\n        if False:\n            out[\"shelf\"] = int(g[\"shelf\"])\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1775 - the worker drops unknown and the shelf, so no other PC ever sees them",
+        "file": "functions/api/console.js",
+        "find": "        if (unk !== null) out.river.unknown = unk;\n        if (shelfN !== null) out.river.shelf = shelfN;\n",
+        "replace": "        if (false) out.river.unknown = unk;\n        if (false) out.river.shelf = shelfN;\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1775 - a change in unplaced is not news, so the river line sits for 15 min",
+        "file": "functions/api/console.js",
+        "find": "    return JSON.stringify([stuckWord === undefined ? 'absent' : stuckWord, heartWord, laneWord,\n                           triageWord, placeWord]);\n",
+        "replace": "    return JSON.stringify([stuckWord === undefined ? 'absent' : stuckWord, heartWord, laneWord, triageWord]);\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1775 - the card draws the placed stations as the whole river again",
+        "file": "tv/control_ui.html",
+        "find": "      if (hasUnk && rv.unknown > 0) bits.push(rv.unknown + nbsp + 'unplaced');\n      if (gap > 0) bits.push(gap + nbsp + 'unaccounted');\n      else if (gap < 0) bits.push((-gap) + nbsp + 'counted twice');\n",
+        "replace": "      if (false) bits.push('');\n",
         "matches": 1,
     },
 ]

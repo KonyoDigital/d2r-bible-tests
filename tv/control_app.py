@@ -15361,6 +15361,15 @@ def _river_station_counts(lanes):
     return out or None
 
 
+def _river_nonneg(v):
+    """A count from the river block. None when it is not one.
+
+    A bool is an int in Python, and it is not a count. A missing read stays None, never 0."""
+    if isinstance(v, bool) or not isinstance(v, int) or v < 0:
+        return None
+    return v
+
+
 def _river_remember(lanes=None, error=None):
     """Keep what /api/river just computed, for the beacon. Called WHERE the river is computed. -> None
 
@@ -15386,7 +15395,19 @@ def _river_remember_once(lanes, error):
         _RIVER_LAST["fail"] = {"ts": now, "n": n, "why": "the river's lanes did not answer: " + _wire_text(
             (lanes or {}).get("why") if isinstance(lanes, dict) else "no lanes", 140)}
     else:
-        _RIVER_LAST["good"] = {"ts": now, "n": n, "stations": st}
+        # REG-1775 (#86 gap 14) — THE STATION MAP IS NOT THE SHELF. byStation is the reels a lane
+        # placed. A reel at UNKNOWN, and a reel at a station no lane covers, are not in it. The
+        # same block already counted both. A missing key stays off this record, so a later wire
+        # does not invent a zero. [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
+        good = {"ts": now, "n": n, "stations": st}
+        if isinstance(lanes, dict):
+            _unk = _river_nonneg(lanes.get("unknown")) if "unknown" in lanes else None
+            _shelf_n = _river_nonneg(lanes.get("shelf")) if "shelf" in lanes else None
+            if _unk is not None:
+                good["unknown"] = _unk
+            if _shelf_n is not None:
+                good["shelf"] = _shelf_n
+        _RIVER_LAST["good"] = good
 
 
 def _triage_for_wire():
@@ -15425,6 +15446,12 @@ def _river_for_wire(now_ms=None):
     out = {"lanes": None, "ageS": None, "why": "", "triage": None}
     if isinstance(g, dict) and isinstance(g.get("stations"), dict):
         out["lanes"] = dict(g["stations"])
+        # REG-1775 (#86 gap 14) — unknown and shelf ride with the stations they were counted beside.
+        # Absent on a cache from before the field, which is not a measured zero.
+        if isinstance(g.get("unknown"), int) and not isinstance(g.get("unknown"), bool):
+            out["unknown"] = int(g["unknown"])
+        if isinstance(g.get("shelf"), int) and not isinstance(g.get("shelf"), bool):
+            out["shelf"] = int(g["shelf"])
         out["ageS"] = round(max(0.0, (now - int(g["ts"])) / 1000.0), 1)
         if isinstance(f, dict) and int(f.get("n") or 0) > int(g.get("n") or 0):
             out["why"] = ("a newer river read failed %.0f s ago - these lanes are the last good read"
