@@ -40377,6 +40377,30 @@ def _fleet_origin_farmgate_row(report, error=None):
         how)
 
 
+def _disk_farmgate_rows(free_gb):
+    """The farm gate's disk rows. -> list of checks
+
+    A read that did not come back is not a disk that has room. The eagle already
+    says UNKNOWN for that. This gate said ok. Below 2 GB still blocks. Between
+    2 and 8 still adds the night warning. At 8 and above the disk row passes
+    and the night warning is absent.
+    """
+    if isinstance(free_gb, bool) or not isinstance(free_gb, (int, float)):
+        return [_chk(
+            "disk", False, "warn",
+            "UNMEASURED: disk usage could not be read - not a disk that has room")]
+    ok_d = free_gb >= 2
+    rows = [_chk(
+        "disk", ok_d, "block" if free_gb < 2 else "warn",
+        ("%.1f GB free" % free_gb) if ok_d else ("only %.1f GB free" % free_gb),
+        "clear space — the film + hist need room for a night")]
+    if ok_d and free_gb < 8:
+        rows.append(_chk(
+            "disk_low", False, "warn",
+            "%.1f GB free — fine for one night, watch it" % free_gb))
+    return rows
+
+
 def farmgate_payload():
     """GET /api/farmgate (v924, Grok FARM GATE): the ONE-BUTTON acceptance-day preflight.
     Read-only except ONE cheap subscription-lane CLI ping (the only check the default doctor
@@ -40486,17 +40510,12 @@ def farmgate_payload():
     else:
         checks.append(_chk("claude_auth", False, "block", "skipped — no CLI", "install the CLI first"))
 
-    # 4) disk — hist flood protection
+    # 4) disk — hist flood protection. A read that raises is not room (REG-1787).
     try:
         free_gb = shutil.disk_usage(here).free / (1024 ** 3)
-        ok_d = free_gb >= 2
-        checks.append(_chk("disk", ok_d, "block" if free_gb < 2 else "warn",
-                           ("%.1f GB free" % free_gb) if ok_d else ("only %.1f GB free" % free_gb),
-                           "clear space — the film + hist need room for a night"))
-        if ok_d and free_gb < 8:
-            checks.append(_chk("disk_low", False, "warn", "%.1f GB free — fine for one night, watch it" % free_gb))
     except Exception:
-        checks.append(_chk("disk", True, "warn", "disk usage unreadable"))
+        free_gb = None
+    checks.extend(_disk_farmgate_rows(free_gb))
 
     # 5) D2R process — warn only (he may press the gate before launching the game)
     # ⚠ 2026-09-28 — ONE PROBE FOR "IS D2R.exe RUNNING HERE", ON EVERY OS. This ran its own `pgrep`,

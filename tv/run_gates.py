@@ -9422,6 +9422,13 @@ GATES = [
              "including the 0 a failed rev-list leaves behind. The doctor has refused that since "
              "REG-141. A raise was a skip that passed. The gate now says the count was not taken "
              "and does not publish that 0. A counted zero is still unified. A counted gap is still behind."),
+    Gate("test_an_unreadable_disk_is_not_a_farmgate_pass",
+         [sys.executable, os.path.join(HERE, "test_an_unreadable_disk_is_not_a_farmgate_pass.py")], 90,
+         needs_app=False,
+         why="REG-1787 (the eagle's other copy) - the one-button gate filed a disk read that raised "
+             "as a warning that passed. The eagle already calls that UNKNOWN. The gate now says the "
+             "read was not taken. Below 2 GB still blocks. Between 2 and 8 GB the night warning still "
+             "appears. At 8 GB and above the disk row still passes."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

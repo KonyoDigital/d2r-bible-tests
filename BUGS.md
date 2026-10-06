@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1787 - AN UNREADABLE DISK READ AS A FARMGATE PASS (2026-10-06, the eagle's other copy)
+
+The one-button gate caught a disk read that raised and filed it ok: "disk usage unreadable". The eagle already calls that UNKNOWN. The gate now says the read was not taken. A bool is not a free count. Below 2 GB still blocks. Between 2 and 8 GB the night warning still appears. At 8 GB and above the disk row still passes and that warning is absent. Law `test_an_unreadable_disk_is_not_a_farmgate_pass`.
+
 ### REG-1786 - A FAILED FLEET COUNT READ AS A FARMGATE PASS (2026-10-06, REG-141's other copy)
 
 The one-button gate painted behind 0 as unified with origin, including the 0 a failed rev-list leaves behind. /api/doctor has refused that since REG-141. A raise in the same check was filed as a skip that passed. The gate now says the count was not taken. It does not publish that 0. A counted zero is still unified. A counted gap is still behind. A behind that is not an int is not zero. Law `test_a_failed_fleet_count_is_not_a_farmgate_pass`.
