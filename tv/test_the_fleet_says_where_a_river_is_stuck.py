@@ -364,6 +364,26 @@ class TheConsoleNamesItsStuckStations(unittest.TestCase):
         self.assertNotIn("capture", station.lower())
         self.assertIn("capture", empty.lower(), "EMPTY stopped quoting the route lane")
 
+    def test_station_says_the_sweeps_own_word_while_the_sweep_owes_reads(self):
+        """REG-1844 - his Mac 2026-10-06: 7 reels past the window at STATION, all never chronicle-swept and owed by the
+        sweep's own rule, and the drain printed "A LANE EXISTS AND THIS QUEUE IS NOT ITS INPUT" over a sweep whose door
+        was locked. While the sweep owes reads, STATION quotes the sweep; when it owes none, the note is the truth."""
+        from unittest import mock
+        import control_app as ca
+        locked = ("the sweep door is LOCKED on this machine, so the try was NOT counted: vault.sweep_start is LOCKED - "
+                  "the heart census is STALE")
+        with mock.patch.object(ca, "_chron_owed_count", lambda *a, **k: 7), \
+                mock.patch.object(ca, "_CHRON_AUTOREAD_SAY", {"last": locked}):
+            w = ca._river_stuck_why("STATION")
+        self.assertIn("owes 7 read(s)", w)
+        self.assertIn("vault.sweep_start is LOCKED", w)
+        self.assertNotIn("NOT ITS INPUT", w, "the note blamed a predicate split over a locked sweep door")
+        for owed in (0, None):
+            with mock.patch.object(ca, "_chron_owed_count", lambda *a, **k: owed), \
+                    mock.patch.object(ca, "_CHRON_AUTOREAD_SAY", {"last": locked}):
+                self.assertIn("NOT ITS INPUT", ca._river_stuck_why("STATION"),
+                              "a sweep owing %r reads lost the river walk's note" % (owed,))
+
     def test_an_uncomputed_river_does_not_invent_a_stuck_list(self):
         from unittest import mock
         import control_app as ca
@@ -984,6 +1004,13 @@ class OneBoxAtATimeOnTheRow(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1844 - STATION blames a predicate split again while the sweep owes reads behind a locked door",
+        "file": "tv/control_app.py",
+        "find": "        if isinstance(_owed_r, int) and not isinstance(_owed_r, bool) and _owed_r > 0 and _last_r:\n",
+        "replace": "        if False:\n",
+        "matches": 1,
+    },
     {"why": "REG-1738 - a river nobody ever stamped reads as draining again",
      "file": "control_app.py",
      "find": "            _never = rep.get(\"everStamped\") is False\n",

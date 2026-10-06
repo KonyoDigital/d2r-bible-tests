@@ -15711,7 +15711,21 @@ def _river_stuck_why(station):
     note: the river-outlet law measured BLIND on the ALT while red on the Mac); the sentence was wrong about what
     opens it. So when the route lane is locked and this PC's census is not current, the reason is its prover's.
     JOIN is not that lane's input (reel_route_lane moves EMPTY only) and STATION is not the sweep's
-    input. Their sentence is the river walk's own note. The route lane's last word stays on EMPTY."""
+    input. Their sentence is the river walk's own note. The route lane's last word stays on EMPTY.
+    ⚠ REG-1844 — STATION SAYS THE REEL SWEEP'S OWN WORD WHILE THE SWEEP OWES READS. The note says the sweep's
+    predicate never meets this queue, and since v2139 it is the one `_chron_reel_owes_a_read` rule retention shares.
+    MEASURED on his Mac 2026-10-06: all 7 reels past the window at STATION were "never chronicle-swept", owed by
+    both, and the sweep's log said why it read none: "the sweep door is LOCKED on this machine ... vault.sweep_start
+    is LOCKED - the heart census is STALE". The drain printed the note instead. The note stays for a sweep that
+    owes nothing, which is the only case it describes."""
+    if station == "STATION":
+        try:
+            _owed_r = _chron_owed_count()
+        except Exception:
+            _owed_r = None
+        _last_r = str(_CHRON_AUTOREAD_SAY.get("last") or "")
+        if isinstance(_owed_r, int) and not isinstance(_owed_r, bool) and _owed_r > 0 and _last_r:
+            return "the reel sweep owes %d read(s) - its last word: %s" % (_owed_r, _last_r)
     if station in ("JOIN", "STATION"):
         try:
             import river_walk as _rw
