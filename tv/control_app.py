@@ -22613,7 +22613,42 @@ def _newest_frame_path():
 #   2. never touch anything recent - _PRUNE_GRACE_S keeps the newest frames whole, so the stash
 #      watcher and the live eye always read a complete picture.
 #   3. never touch a `.part.` file. A half-written frame is not a frame (v2036).
-_PRUNE_MAX_DIFF = 0.02     # measured: worst loss to a kept representative was 0.0117
+_PRUNE_MAX_DIFF = 0.02     # GROUPING only since REG-1904 - see _prune_same_picture: this bar may group, never free
+# ⚠⚠ REG-1904 (2026-10-07) - THE PARAGRAPH ABOVE IS REFUTED BY HIS OWN FRAMES. "A tooltip appearing moves the signature
+# far more than 0.02, so a frame carrying a NAME always opens its own group" - measured on 305 vault witness frames (each
+# one carries a name the vault read), 273 sit at sig_diff 0.0 from the frame before them on this 16x16 thumbnail, and 290
+# are inside 0.02. And the "0.0117 worst loss" this bar was set on was itself a text frame: a re-run of the shipped
+# _prune_once on a copy of reel_s_1791129432613_17451 freed the four frames carrying the floor labels "Storm Slippers /
+# Wyrmhide Boots" and "Colossus Blade" (0.0039-0.0117 from a label-less anchor) and called them "blank". "Blank" meant
+# only that the TAB-STRIP crop the panel gate OCRs held no text - a floor label lives outside it.
+# So the thumbnail GROUPS and a second, finer look FREES: a silent frame goes only when it is the same picture as the
+# frame kept beside it at 96x60 within 12 grey levels, everywhere. On that reel the four label frames sit 0.08-0.11 from
+# the anchor at that scale (true duplicates sit at 0), so the margin is wide; a frame that cannot be decoded is KEPT.
+_PRUNE_FINE_SIZE = (96, 60)
+_PRUNE_FINE_TOL = 12
+
+
+def _prune_fine_sig(path):
+    """A 96x60 greyscale fingerprint (5,760 cells of ~15x15 px at 1440 wide), or None if it cannot be decoded."""
+    try:
+        from PIL import Image  # type: ignore
+        with Image.open(path) as im:
+            return im.convert("L").resize(_PRUNE_FINE_SIZE).tobytes()
+    except Exception:
+        return None
+
+
+def _prune_same_picture(anchor_path, path):
+    """Is `path` the SAME picture as the kept `anchor_path` at a scale where a word changes it? -> True | False | None.
+
+    None = one of the two could not be decoded, and an unmeasured frame is not a spare one (v2037)."""
+    if not anchor_path or not path:
+        return None
+    a, b = _prune_fine_sig(anchor_path), _prune_fine_sig(path)
+    if a is None or b is None or len(a) != len(b):
+        return None
+    import chronicle_retro as _cr
+    return _cr.sig_diff(a, b, tol=_PRUNE_FINE_TOL) == 0.0
 _PRUNE_GRACE_S = 180.0     # never touch a frame younger than this
 _PRUNE_POLL_S = 60.0
 _PRUNE_BATCH = 120         # frames fingerprinted per pass, so it never hogs a core while he plays
@@ -22774,9 +22809,10 @@ def _prune_note(path, why):
 # to decide whether his disk is safe. [[label-outlived-referent]]
 _PRUNE_STATS = {"passes": 0, "framesDropped": 0, "bytesFreed": 0,
                 "lastSay": "ARMED (v2986) — no pass has run yet on this process. The deleter keeps "
-                           "every text-bearing frame, keeps any frame the gate could not read, and "
-                           "frees only blank frames where the OCR lane was proven live around "
-                           "them. It never touches a reel directory.",
+                           "any frame the gate could not read, and frees a frame only when the OCR lane "
+                           "was proven live around it AND it is the same picture as the frame kept "
+                           "beside it at 96x60 (REG-1904: the tab-strip crop cannot see a floor label). "
+                           "It never touches a reel directory.",
                 "enabled": True}
 
 
@@ -26999,8 +27035,9 @@ def _prune_once(max_diff=None, grace_s=None, batch=None, floor=None, dry_run=Fal
     old = old[:batch]
     dropped = freed = 0
     kept_sig = None
+    kept_path = None             # REG-1904 - the frame the group's anchor signature came from
     _canary = LaneCanary()
-    _silent = []                 # (path, size-at-gate, t) — decided after the loop
+    _silent = []                 # (path, size-at-gate, t, anchor) — decided after the loop
     _known_good = None           # a frame that PROVED the lane speaks, used as the probe
     _canary.probe()              # prove the lane BEFORE reading anything: a reel that OPENS in
                                  # gameplay (the ordinary case, measured) has nothing bracketing
@@ -27011,7 +27048,7 @@ def _prune_once(max_diff=None, grace_s=None, batch=None, floor=None, dry_run=Fal
         except Exception:
             sg = None
         if sg is None:
-            kept_sig = None          # unreadable breaks the group; it is never absorbed
+            kept_sig = kept_path = None  # unreadable breaks the group; it is never absorbed
             continue
         if kept_sig is not None and _cr.sig_diff(kept_sig, sg) <= max_diff:
             # ── v2154 — PROVE, PER FRAME, THAT THIS IS NOT A PANEL. ──────────────────────────
@@ -27073,7 +27110,7 @@ def _prune_once(max_diff=None, grace_s=None, batch=None, floor=None, dry_run=Fal
                 _prune_note(q, "the panel gate calls it a panel")
                 if _known_good is None:
                     _known_good = q          # this frame MADE the lane speak; it is the probe
-                kept_sig = sg
+                kept_sig, kept_path = sg, q
                 continue
             if _v == "no":
                 # ⚠ v2197 — A MEASURED "no" IS THE RISKIEST FRAME THERE IS, AND IT WAS THE ONLY
@@ -27087,28 +27124,28 @@ def _prune_once(max_diff=None, grace_s=None, batch=None, floor=None, dry_run=Fal
                 _prune_note(q, "the gate read TEXT here and found no panel — that is also what a "
                                "tooltip covering the tab strip looks like, and the tooltip is the "
                                "only place an item name lives")
-                kept_sig = sg
+                kept_sig, kept_path = sg, q
                 continue
             if _why == "broke":
                 # ⚠ WE NEVER LOOKED AT THIS FRAME. No proof about the lane makes an unread frame
                 # safe to delete — v2037: "an unmeasured frame is not a spare one."
                 _prune_note(q, "the panel gate BROKE on this frame — it was never read")
-                kept_sig = sg
+                kept_sig, kept_path = sg, q
                 continue
             # SILENT: the crop was made and OCR returned nothing at all. Deletable ONLY if the
             # lane can be proven alive around it — otherwise "no text on this frame" and "the
             # reader could not see" are the same observation. Decided after the loop.
-            _silent.append((q, int(sg_size), _t))
+            _silent.append((q, int(sg_size), _t, kept_path))
             if _known_good is not None and len(_silent) % _CANARY_EVERY == 0:
                 _canary.probe(_known_good)
             continue                 # kept_sig stays the ANCHOR, so the group cannot drift
-        kept_sig = sg
+        kept_sig, kept_path = sg, q
 
     # ── v2197 — SECOND PHASE: the frames the gate was SILENT on. ────────────────────────────
-    _up = _still = 0
+    _up = _still = _wordy = 0
     if _silent:
         _canary.probe(_known_good)               # close the bracket on the right
-    for q, _sz0, _t in _silent:
+    for q, _sz0, _t, _anc in _silent:
         if not _canary.live_at(_t):
             _still += 1
             _prune_note(q, "blank frame, but the OCR lane was not proven live around it")
@@ -27122,6 +27159,15 @@ def _prune_once(max_diff=None, grace_s=None, batch=None, floor=None, dry_run=Fal
                 _still += 1
                 _prune_note(q, "the file changed between the read and the decision")
                 continue
+            # REG-1904 - the tab-strip crop said nothing; that is not the frame saying nothing. Free it only if the
+            # frame kept beside it shows the same picture at a scale where a floor label or a tooltip changes it.
+            _same = _prune_same_picture(_anc, q)
+            if _same is not True:
+                _wordy += 1
+                _prune_note(q, ("a finer look than the group thumbnail found it is NOT the picture kept beside it - "
+                                "a floor label or a tooltip can live outside the tab-strip crop")
+                            if _same is False else "the finer look could not decode it or its anchor - kept")
+                continue
             sz = st_now.st_size
             if not dry_run:
                 os.remove(q)
@@ -27132,8 +27178,9 @@ def _prune_once(max_diff=None, grace_s=None, batch=None, floor=None, dry_run=Fal
             pass
     _say = "kept every frame more than %.3f from the one before it" % max_diff
     if _silent:
-        _say += ("; %d blank frame(s) freed (%s), %d kept for want of that proof"
-                 % (_up, _canary.say(), _still))
+        _say += ("; %d duplicate frame(s) freed, each the same picture as the frame kept beside it at %dx%d (%s), "
+                 "%d kept for want of that proof, %d kept because the finer look found a change the thumbnail could "
+                 "not see" % (_up, _PRUNE_FINE_SIZE[0], _PRUNE_FINE_SIZE[1], _canary.say(), _still, _wordy))
     return (dropped, freed, _say)
 
 

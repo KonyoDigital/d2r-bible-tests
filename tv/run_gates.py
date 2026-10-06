@@ -8851,6 +8851,14 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_the_prune_never_frees_a_word", [sys.executable,
+         os.path.join(HERE, "test_the_prune_never_frees_a_word.py")], 90,
+         needs_app=False,
+         why=("REG-1904 - the armed rolling prune freed the frames carrying floor labels (Storm Slippers / Colossus Blade, "
+              "measured on a copy of his reel) as 'blank': its 16x16 thumbnail cannot see a word and 'silent' meant only "
+              "the tab-strip crop. A silent frame goes now only when it is the same picture as the frame kept beside it "
+              "at 96x60; an undecodable one is kept.")
+         ),
     Gate("test_a_hand_added_item_stays_his", [sys.executable,
          os.path.join(HERE, "test_a_hand_added_item_stays_his.py")], 90,
          needs_app=False,

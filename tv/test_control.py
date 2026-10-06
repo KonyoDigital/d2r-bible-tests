@@ -19576,7 +19576,11 @@ class TestV2037TheRollingPruneNeverEatsEvidence(unittest.TestCase):
         with mock.patch.object(vault_retro, "DEFAULT_SIG",
                                lambda q: sigs.get(os.path.basename(q))), \
              mock.patch.object(control_app, "stash_panel_verdict", lambda _q: "unknown"), \
-             mock.patch.object(control_app.LaneCanary, "probe", _probe):
+             mock.patch.object(control_app.LaneCanary, "probe", _probe), \
+             mock.patch.object(control_app, "_prune_same_picture", lambda _a, _q: True):
+            # REG-1904 - the finer look (_prune_same_picture) is pinned to 'same picture' for the same reason: these
+            # fake jpegs cannot be decoded, and this class measures the GROUPING policy on synthetic signatures. The
+            # finer look has its own law on real decoded pictures: test_the_prune_never_frees_a_word.
             kw.setdefault("floor", 0)
             kw.setdefault("grace_s", 0.0)
             kw.setdefault("batch", 500)
@@ -28070,7 +28074,11 @@ class TestV2154ThePanelFrameSURVIVESTheSignature(unittest.TestCase):
             return True
 
         with mock.patch.object(self.ca, "stash_panel_verdict", _verdict), \
-             mock.patch.object(self.ca.LaneCanary, "probe", _probe):
+             mock.patch.object(self.ca.LaneCanary, "probe", _probe), \
+             mock.patch.object(self.ca, "_prune_same_picture", lambda _a, _q: True):
+            # REG-1904 - the finer look (_prune_same_picture) is pinned to 'same picture' for the same reason: these
+            # fake jpegs cannot be decoded, and this class measures the GROUPING policy on synthetic signatures. The
+            # finer look has its own law on real decoded pictures: test_the_prune_never_frees_a_word.
             return self.ca._prune_once(hist_dir=self.tmp, grace_s=1, floor=1, batch=99)
 
     def test_a_frame_the_gate_calls_a_PANEL_is_never_deleted(self):
@@ -29899,7 +29907,7 @@ class TestV2197ThePruneDeletesOnlyWhatIsPROVENBlank(unittest.TestCase):
         rewrite a jpg or reuse a name in between. `except: pass` only helps if the path is GONE,
         not if it is now a different picture."""
         src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
-        body = _between(self, src, "for q, _sz0, _t in _silent:", "_say =")
+        body = _between(self, src, "for q, _sz0, _t, _anc in _silent:", "_say =")
         self.assertIn("_sz0", body,
                       "the second phase deletes whatever now sits at the path, without checking "
                       "it is the same file that was gated")
