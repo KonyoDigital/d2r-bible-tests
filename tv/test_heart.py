@@ -33,6 +33,21 @@ RED_PROOF = [
      "find": "os.environ[\"TV_CONTROL_PORT\"] = str(_free.getsockname()[1])\n",
      "replace": "os.environ[\"TV_CONTROL_PORT\"] = \"17772\"\n",
      "matches": 1},
+    {"why": "an unreadable organ is reported as read, so the panel stays all clear",
+     "file": "heart.py",
+     "find": "    organs_ok = not organ_why\n",
+     "replace": "    organs_ok = True\n",
+     "matches": 1},
+    {"why": "the route drops the organ flag, so the panel never hears which read failed",
+     "file": "control_app.py",
+     "find": "        \"organsOk\": rep.get(\"organsOk\"),\n",
+     "replace": "        \"organsOk\": True,\n",
+     "matches": 1},
+    {"why": "the panel builds the unread note and then does not show it",
+     "file": "control_ui.html",
+     "find": "    return head + _unread + legend + '<div class=\"hrt-svgwrap\">' + _hrtSvg(d) + '</div>'\n",
+     "replace": "    return head + legend + '<div class=\"hrt-svgwrap\">' + _hrtSvg(d) + '</div>'\n",
+     "matches": 1},
 ]
 
 class _Fake(object):
@@ -313,6 +328,88 @@ class DarkTellsAWATCHMANFromAWORKER(_Swap):
                       "an unanswerable question was reported as a plain 'not a supervisor': %r"
                       % v["why"])
 
+
+
+class AnUnreadOrganIsNotATakenCensus(_Swap):
+    """Gap audit #4. Once the census loaded, vessels() said ok and buried a failed organ
+    or lock read in why. The panel paints why only when ok is false, and it uses that
+    to mean the census itself was not taken. The two reads are their own flags. ok
+    stays the census, so the vessels that were taken stay on the panel."""
+
+    def _lane(self):
+        self.use([{"fn": "_lane", "kind": "LOOP", "lane": "tvd-lane", "supervised": True}])
+
+    def _stub(self, health, locks):
+        real_h, real_l = H._health_rows, H._locks
+        H._health_rows = lambda *a, **k: health
+        H._locks = lambda *a, **k: locks
+        self.addCleanup(setattr, H, "_health_rows", real_h)
+        self.addCleanup(setattr, H, "_locks", real_l)
+
+    def test_an_unreadable_organ_is_named_and_the_census_stays(self):
+        self._lane()
+        self._stub(([], "health_engine will not import — boom"), ([{"lock": "x"}], ""))
+        rep = H.vessels()
+        self.assertTrue(rep["ok"],
+                        "ok false would tell the panel the census was not taken, and hide the "
+                        "vessels that were: %r" % rep.get("why"))
+        self.assertIs(rep["organsOk"], False)
+        self.assertIs(rep["locksOk"], True)
+        self.assertIn("health_engine will not import", rep["why"])
+        self.assertIn("_lane", self.states(rep))
+
+    def test_an_unreadable_lock_ledger_is_named_and_the_census_stays(self):
+        self._lane()
+        self._stub(([{"id": "tvd-lane", "score": 0.0}], ""),
+                   ([], "the locks could not be read — boom"))
+        rep = H.vessels()
+        self.assertTrue(rep["ok"])
+        self.assertIs(rep["organsOk"], True)
+        self.assertIs(rep["locksOk"], False)
+        self.assertIn("the locks could not be read", rep["why"])
+        self.assertIn("_lane", self.states(rep))
+
+    def test_both_reads_landing_keeps_both_flags(self):
+        self._lane()
+        self._stub(([{"id": "tvd-lane", "score": 0.0}], ""), ([{"lock": "x"}], ""))
+        rep = H.vessels()
+        self.assertTrue(rep["ok"])
+        self.assertIs(rep["organsOk"], True)
+        self.assertIs(rep["locksOk"], True)
+        self.assertEqual(rep["why"], "")
+
+    def test_a_census_that_was_not_taken_did_not_ask_the_organs(self):
+        class _Broken(object):
+            @staticmethod
+            def census(src=None):
+                raise RuntimeError("boom")
+        sys.modules["lane_census"] = _Broken
+        self.addCleanup(sys.modules.pop, "lane_census", None)
+        rep = H.vessels()
+        self.assertFalse(rep["ok"])
+        self.assertIsNone(rep["organsOk"],
+                          "a census that was not taken reported the organs as failed. "
+                          "They were not asked.")
+        self.assertIsNone(rep["locksOk"])
+
+    def test_the_route_forwards_which_read_failed(self):
+        """heart_state hand-picks its keys. A flag that stops here never reaches the panel."""
+        import io as _io
+        import re as _re
+        with _io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            raw = fh.read()
+        code = "\n".join(_re.sub(r"#.*$", "", line) for line in raw.split("\n"))
+        self.assertEqual(code.count('"organsOk": rep.get("organsOk")'), 1)
+        self.assertEqual(code.count('"locksOk": rep.get("locksOk")'), 1)
+
+    def test_the_panel_says_the_unread_part_without_hiding_the_census(self):
+        import io as _io
+        with _io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            raw = fh.read()
+        self.assertEqual(raw.count("d.organsOk === false || d.locksOk === false"), 1)
+        self.assertEqual(raw.count("return head + _unread + legend"), 1)
+        self.assertIn("PART OF THE HEART WAS NOT READ", raw)
+        self.assertIn("THE CENSUS COULD NOT BE TAKEN", raw)
 
 
 class ItNeverAsksHisConsole(unittest.TestCase):

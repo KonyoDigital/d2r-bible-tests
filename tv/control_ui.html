@@ -14963,9 +14963,16 @@ window._lockMark = function(isOpen, px, label){
         + (L.permitted === false && (lst === 'OPEN' || lst === 'HARDENED') ? ' · MAY NOT ACT' : '') + '</span>'
         + '<span class="hrt-w">' + _hrtEsc(ar) + ' — ' + _hrtEsc(L.why || '') + '</span></div>';
     }
+    var _unread = '';
+    if (d.organsOk === false || d.locksOk === false) {
+      _unread = '<div class="hrt-note"><b class="st-UNKNOWN">PART OF THE HEART WAS NOT READ.</b> '
+        + _hrtEsc(d.why || 'no reason given')
+        + '<br>The census above was still taken. An unread organ or lock ledger is not '
+        + 'the census failing, and it is not all clear.</div>';
+    }
     var age = (typeof d.ageMs === 'number' && d.ageMs > 1500)
       ? ' · derived ' + Math.round(d.ageMs / 1000) + 's ago' : ' · derived just now';
-    return head + legend + '<div class="hrt-svgwrap">' + _hrtSvg(d) + '</div>'
+    return head + _unread + legend + '<div class="hrt-svgwrap">' + _hrtSvg(d) + '</div>'
       + '<div class="hrt-note">Every vein is a thread this console actually starts. Warm and moving '
       + 'means something watches it and has proven it; <b class="st-DARK">blue and still means '
       + 'nothing watches it at all</b>. The heart beats because the console is RUNNING — that is '

@@ -260,7 +260,9 @@ def vessels():
     """
     rows, why = _census()
     if rows is None:
+        # The organs and the locks were not asked. None is "not asked", not "they failed".
         return {"ok": False, "why": why, "vessels": [],
+                "organsOk": None, "locksOk": None,
                 "counts": {FLOWING: None, WATCHED: None, DARK: None, UNKNOWN: None},
                 "notVessels": None}
 
@@ -458,8 +460,15 @@ def vessels():
     counts[FLOWING], _flow_why = flow_or_unmeasured(
         counts[FLOWING], _watchers, scored, watched_count(out))
 
+    # ok stays "the census was taken". The panel treats ok false as "nobody could look"
+    # and hides every vessel. An organ or a lock that did not answer is a different fact,
+    # and folding it into ok would hide the census that did load. [[unknown-stays-unknown]]
+    organs_ok = not organ_why
+    locks_ok = not lock_why
     return {
         "ok": True,
+        "organsOk": organs_ok,
+        "locksOk": locks_ok,
         "vessels": sorted(out, key=lambda v: (v["state"] != DARK, v["name"])),
         "counts": counts,
         "flowingWhy": _flow_why,

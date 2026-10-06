@@ -25201,6 +25201,11 @@ def heart_state(force=False):
         _joins = engine_joins_state(_praw)
     out = {
         "ok": bool(rep.get("ok")),
+        # Gap audit #4. ok is the census. These two say whether the organ rows and the
+        # lock ledger were actually read. Dropping them here leaves the flags computed
+        # and never shown. [[the-unjoined-end]]
+        "organsOk": rep.get("organsOk"),
+        "locksOk": rep.get("locksOk"),
         "why": rep.get("why", ""),
         "counts": rep.get("counts"),
         # ⚠ v3044 — AND THE REASON THE COUNT IS NULL. counts[FLOWING] is None when no organ row
