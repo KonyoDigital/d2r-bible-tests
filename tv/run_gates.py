@@ -145,6 +145,12 @@ def case_skip_tag(name, n, ran):
     return "%s=%d%s" % (name, n, ("/%d" % ran) if ran is not None else "")
 
 
+def case_is_dark(n, ran):
+    """A gate that passed while skipping EVERY case it ran. -> bool  (REG-1897: 0 is a real denominator - n>0 skips of a run of
+    0 IS dark; only None, an unknown denominator, is never judged)"""
+    return ran is not None and int(n) > 0 and int(n) >= int(ran)
+
+
 def needs_app_of(filename):
     """Does the registered gate that runs FILENAME need his console? -> bool (an unregistered file: False)"""
     for g in GATES:
@@ -10596,7 +10602,7 @@ def main(argv):
             if _n:
                 _cases += _n
                 _where.append(case_skip_tag(_g.name, _n, _ran))
-                if _ran and _n >= _ran:
+                if case_is_dark(_n, _ran):
                     _dark.append((_g.name, _n, _ran))
     print("\u2705 %d gate(s) passed%s."
           % (len(results) - len(skipped),

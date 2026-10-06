@@ -177,6 +177,41 @@ class TheFillMissingKeepsItsHonesty(unittest.TestCase):
         self.assertEqual([(f["source"], f["date"], f["count"]) for f in r["localEstimates"]["fills"]],
                          [("run one", "d1", 1), ("run two", "d2", 1)], "an earlier fill reads as from the latest log")
 
+    def test_a_lock_that_cannot_be_taken_refuses_the_write(self):
+        """REG-1894 - the lock used to fail OPEN: every exception swallowed, the edit went ahead unlocked, nothing said."""
+        from unittest import mock
+        import gate_costs as GC
+        log = self._log("l1", [("c", 4.0)])
+        real_open = GC.io.open
+
+        def deny(path, *a, **k):
+            if str(path).endswith(".lock"):
+                raise PermissionError("no lock for you")
+            return real_open(path, *a, **k)
+
+        with mock.patch.object(GC.io, "open", deny):
+            with self.assertRaises(GC.LockError):
+                GC.fill_missing([log], "x", "d", table=self.table)
+        self.assertNotIn("c", self._rec()["costs"], "the table was edited without its lock")
+
+    def test_a_platform_without_fcntl_edits_unlocked_and_says_so(self):
+        import contextlib
+        import io
+        import sys
+        from unittest import mock
+        import gate_costs as GC
+        log = self._log("l1", [("c", 4.0)])
+        err = io.StringIO()
+        with mock.patch.dict(sys.modules, {"fcntl": None}), contextlib.redirect_stderr(err):
+            self.assertEqual(GC.fill_missing([log], "x", "d", table=self.table), 1)
+        self.assertIn("UNLOCKED", err.getvalue())
+        self.assertIs(self._rec()["localEstimates"]["fills"][-1]["locked"], False, "an unlocked fill did not record it")
+
+    def test_a_locked_fill_records_locked_true(self):
+        import gate_costs as GC
+        GC.fill_missing([self._log("l1", [("c", 4.0)])], "x", "d", table=self.table)
+        self.assertIs(self._rec()["localEstimates"]["fills"][-1]["locked"], True)
+
     def test_two_fills_that_overlap_both_survive(self):
         """REG-1859 - load -> edit -> replace: the first fill is held at its replace while a second fill runs; without
         the lock the second's cost is overwritten by the first's stale snapshot."""
@@ -217,10 +252,17 @@ if __name__ == "__main__":
 
 RED_PROOF = [
     {
+        "why": "REG-1894 - the table lock fails OPEN again: a lock that cannot be taken is swallowed and the edit goes ahead",
+        "file": "gate_costs.py",
+        "find": "            raise LockError(\"could not take the table lock",
+        "replace": "            return self; raise LockError(\"could not take the table lock",
+        "matches": 1,
+    },
+    {
         "why": "REG-1859 - fill_missing edits without the lock: a writer that commits during the fill is lost again",
         "file": "gate_costs.py",
-        "find": "    with _table_lock(table):\n        with io.open(table, encoding=\"utf-8\") as fh:\n",
-        "replace": "    if True:\n        with io.open(table, encoding=\"utf-8\") as fh:\n",
+        "find": "    with _table_lock(table) as _lk:\n        with io.open(table, encoding=\"utf-8\") as fh:\n",
+        "replace": "    import contextlib\n    with contextlib.nullcontext(type(\"L\", (), {\"locked\": False})()) as _lk:\n        with io.open(table, encoding=\"utf-8\") as fh:\n",
         "matches": 1,
     },
     {

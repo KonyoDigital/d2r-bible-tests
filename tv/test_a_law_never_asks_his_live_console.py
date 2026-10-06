@@ -110,6 +110,14 @@ class TheLaneStampKeepsTheReservedPort(unittest.TestCase):
         self.assertEqual(env["TV_CONTROL_PORT"], str(LP.base_for_lane(2) + 1))
         self.assertEqual(env["TV_PORT"], str(LP.base_for_lane(2)))
 
+    def test_a_port_the_caller_reserved_that_equals_the_previous_lanes_is_never_moved(self):
+        """REG-1895 - only a port THIS module stamped may be moved; a numeric coincidence with prev+1 is the caller's."""
+        import lane_ports as LP
+        env = {"TV_LANE_PORT_BASE": str(LP.base_for_lane(1)), "TV_CONTROL_PORT": str(LP.base_for_lane(1) + 1)}
+        LP.stamp(env, 2)
+        self.assertEqual(env["TV_CONTROL_PORT"], str(LP.base_for_lane(1) + 1),
+                         "a caller's own port, equal to the previous lane's base+1, was moved")
+
     def test_restamping_never_moves_a_reserved_dead_port(self):
         import lane_ports as LP
         env = RG.law_env(False, {})
@@ -140,14 +148,14 @@ RED_PROOF = [
      "find": "    if not needs_app and env.get(\"TV_CONTROL_PORT\", \"\") in (\"\", \"17772\"):\n",
      "replace": "    if False:\n",
      "matches": 1},
-    {"why": "REG-1857 - a second stamp leaves the first lane's control port",
+    {"why": "REG-1857/1895 - a second stamp leaves the first lane's control port, OR moves a port it never stamped",
      "file": "lane_ports.py",
-     "find": " or (prev is not None and env.get(\"TV_CONTROL_PORT\") == str(prev + 1)):",
-     "replace": ":",
+     "find": " or (env.get(STAMPED) and env.get(\"TV_CONTROL_PORT\") == env.get(STAMPED)):",
+     "replace": " or (env.get(ENV) and env.get(\"TV_CONTROL_PORT\") == str(int(env[ENV]) + 1)):",
      "matches": 1},
     {"why": "REG-1820 - stamp overwrites the reserved dead port with the lane's base+1 again",
      "file": "lane_ports.py",
-     "find": "    if env.get(\"TV_CONTROL_PORT\", \"\") in (\"\", \"17772\") or (prev is not None and env.get(\"TV_CONTROL_PORT\") == str(prev + 1)):\n        env[\"TV_CONTROL_PORT\"] = str(b + 1)\n",
+     "find": "    if env.get(\"TV_CONTROL_PORT\", \"\") in (\"\", \"17772\") or (env.get(STAMPED) and env.get(\"TV_CONTROL_PORT\") == env.get(STAMPED)):\n        env[\"TV_CONTROL_PORT\"] = str(b + 1)\n        env[STAMPED] = str(b + 1)\n",
      "replace": "    env[\"TV_CONTROL_PORT\"] = str(b + 1)\n",
      "matches": 1},
 ]

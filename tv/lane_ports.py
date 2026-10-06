@@ -12,6 +12,7 @@ unlink, and records that the same request on a lane's own port leaves the neighb
 import os
 
 ENV = "TV_LANE_PORT_BASE"
+STAMPED = "TV_LANE_CONTROL_STAMPED"      # the control port stamp() itself wrote - the only one a re-stamp may move
 # His console, the agent default, Kai, the predicter, Chrome, and the ports a lone suite pins.
 FORBIDDEN = frozenset({17771, 17772, 17781, 8848, 9222, 9223, 17971, 17972, 17973, 17994})
 # shard_suite owns 17981 upward. Lanes start clear of that and of the pinned suite ports.
@@ -85,12 +86,14 @@ def stamp(env, lane):
     it was overwritten with base+1, a live port of this lane, and the law's ask reached a stranger again. Only an unset or
     his-console (17772) value takes the lane's own control port."""
     b = base_for_lane(lane)
-    prev = _parse(env.get(ENV, ""))
     env[ENV] = str(b)
     env["TV_PORT"] = str(b)
     # REG-1857 - re-stamping one env for another lane moves the control port the PREVIOUS stamp gave it (that lane's
     # base+1), or it would sit beside this lane's other ports; a reserved dead port or a caller's choice is never moved.
-    if env.get("TV_CONTROL_PORT", "") in ("", "17772") or (prev is not None and env.get("TV_CONTROL_PORT") == str(prev + 1)):
+    # REG-1895 - ...but ONLY a port THIS module stamped (recorded in STAMPED): a caller who reserved prev+1 on purpose, or a dead
+    # port that numerically equals it, is the caller's and is never moved.
+    if env.get("TV_CONTROL_PORT", "") in ("", "17772") or (env.get(STAMPED) and env.get("TV_CONTROL_PORT") == env.get(STAMPED)):
         env["TV_CONTROL_PORT"] = str(b + 1)
+        env[STAMPED] = str(b + 1)
     env["TV_LAW_PORT"] = str(b + 2)
     return env

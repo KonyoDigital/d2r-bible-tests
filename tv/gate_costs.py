@@ -74,20 +74,36 @@ def _lock_path(table):
 
 
 class _table_lock(object):
-    """REG-1859 - an exclusive lock around load -> edit -> replace, so a writer that commits between our load and our
-    replace is not lost. fcntl where it exists; where it does not (Windows) the table is edited unlocked, as before."""
+    """REG-1859/1894 - an exclusive lock around load -> edit -> replace, so a writer that commits between our load and our
+    replace is not lost. It never fails OPEN silently:
+      · fcntl missing (Windows)  -> locked False, `why` says so: the edit proceeds UNLOCKED and the fill's record says "unlocked"
+      · the lock file cannot be opened or flocked (a real failure) -> LockError: the write is REFUSED, because proceeding
+        would be the lost update this lock exists to stop."""
 
     def __init__(self, table):
         self.p = _lock_path(table)
         self.fh = None
+        self.locked = False
+        self.why = ""
 
     def __enter__(self):
         try:
             import fcntl
+        except ImportError:
+            self.why = "no fcntl on this platform - the table is edited UNLOCKED"
+            sys.stderr.write("gate_costs: %s\n" % self.why)
+            return self
+        try:
             self.fh = io.open(self.p, "a")
             fcntl.flock(self.fh, fcntl.LOCK_EX)
-        except Exception:
-            pass
+        except Exception as e:
+            try:
+                if self.fh:
+                    self.fh.close()
+            except Exception:
+                pass
+            raise LockError("could not take the table lock %s (%s) - refusing to edit unlocked" % (self.p, type(e).__name__))
+        self.locked = True
         return self
 
     def __exit__(self, *a):
@@ -96,6 +112,10 @@ class _table_lock(object):
                 self.fh.close()          # closing releases the flock
         except Exception:
             pass
+
+
+class LockError(RuntimeError):
+    pass
 
 
 def _normalise(rec):
@@ -126,7 +146,7 @@ def fill_missing(paths, label, date, table=None):
     gates/totalSeconds stay MEASURED-only (REG-1858). Refresh from CI logs replaces them."""
     table = table or TABLE
     found = from_logs(paths)                     # the slow read, outside the lock
-    with _table_lock(table):
+    with _table_lock(table) as _lk:
         with io.open(table, encoding="utf-8") as fh:
             rec = json.load(fh)
         have = rec.get("costs") or {}
@@ -137,7 +157,8 @@ def fill_missing(paths, label, date, table=None):
         rec["costs"] = dict(sorted(have.items()))
         est = rec.get("localEstimates") or {"gates": [], "fills": []}
         est["gates"] = sorted(set(est.get("gates", [])) | set(new))
-        est.setdefault("fills", []).append({"source": label, "date": date, "count": len(new)})
+        est.setdefault("fills", []).append({"source": label, "date": date, "count": len(new),
+                                            "locked": bool(_lk.locked)})   # REG-1894 - an unlocked fill says so
         rec["localEstimates"] = est
         _normalise(rec)
         with io.open(table + ".tmp", "w", encoding="utf-8") as fh:

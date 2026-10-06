@@ -231,6 +231,45 @@ class TheSummaryNamesItsSkips(unittest.TestCase):
         self.assertNotIn(" of 0", line)
         self.assertEqual(RG.case_skips(line), (3, None))
 
+    def test_summary_and_total_agree_on_every_path(self):
+        """REG-1896 - no path reads a missing skip count as 0: all reported -> the sum; any omitted, a crashed shard, or a
+        rep that never had the key -> UNKNOWN."""
+        shard = lambda sk: {"skipped": sk}
+        for shards, want_total, unknown in (([shard(1), shard(2)], 3, False), ([shard(0), shard(0)], 0, False),
+                                            ([shard(1), shard(None)], None, True), ([shard(None)], None, True)):
+            total = None if any(x["skipped"] is None for x in shards) else sum(x["skipped"] for x in shards)
+            self.assertEqual(total, want_total)
+            line = SS.summary_skips({"skipped": total, "ran": 8})
+            self.assertEqual("UNKNOWN" in line, unknown, line)
+            if want_total:
+                self.assertIn("skipped=%d of 8" % want_total, line)
+        self.assertIn("UNKNOWN", SS.summary_skips({"ran": 8}), "a rep with no skipped key was read as zero")
+
+    def test_a_crashed_shard_makes_the_run_report_unknown_skips(self):
+        """The REAL run: a shard that dies before answering never reported `skipped`."""
+        import contextlib
+        from unittest import mock
+        d = tempfile.mkdtemp(prefix="shard_crash_")
+        self.addCleanup(shutil.rmtree, d, True)
+        with io.open(os.path.join(d, "plant_suite.py"), "w", encoding="utf-8") as fh:
+            fh.write(PLANT)
+        ports = os.path.join(d, "ports")
+        os.makedirs(ports)
+        e = dict(os.environ, PLANT_PORTS=ports, PLANT_DIE="1")
+        ok, rep = SS.run("plant_suite", 3, here=d, cost_path=os.path.join(d, "cost.json"), _env=e)
+        self.assertFalse(ok)
+        self.assertIsNone(rep["skipped"], "a crashed shard's skips were summed as zero")
+        self.assertIn("UNKNOWN", SS.summary_skips(rep))
+
+    def test_a_gate_that_skipped_every_case_is_dark_including_a_run_of_zero(self):
+        """REG-1897 - 0 is a real denominator in the census AND in the dark check."""
+        import run_gates as RG
+        self.assertTrue(RG.case_is_dark(3, 0), "skipped=3 of 0 is a gate covering nothing")
+        self.assertTrue(RG.case_is_dark(8, 8))
+        self.assertFalse(RG.case_is_dark(3, 8))
+        self.assertFalse(RG.case_is_dark(3, None), "an unknown denominator is never judged dark")
+        self.assertFalse(RG.case_is_dark(0, 0), "no skips is never dark")
+
     def test_the_census_keeps_a_parsed_zero_denominator(self):
         import run_gates as RG
         self.assertEqual(RG.case_skip_tag("g", 3, 0), "g=3/0")
@@ -293,6 +332,11 @@ RED_PROOF = [
      "file": "shard_suite.py",
      "find": "    if n is None:\n        return \" (skip count UNKNOWN: a shard never reported it)\"\n",
      "replace": "    if n is None:\n        return \"\"\n",
+     "matches": 1},
+    {"why": "REG-1897 - a gate skipping every case of a run of 0 is not dark again (0 read as no denominator)",
+     "file": "run_gates.py",
+     "find": "    return ran is not None and int(n) > 0 and int(n) >= int(ran)\n",
+     "replace": "    return bool(ran) and int(n) > 0 and int(n) >= int(ran)\n",
      "matches": 1},
     {"why": "REG-1856 - the census drops a parsed ran of 0 again",
      "file": "run_gates.py",
