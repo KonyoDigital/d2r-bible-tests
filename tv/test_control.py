@@ -9195,7 +9195,11 @@ class TestChronicleVisitsOffer(unittest.TestCase):
         ]
 
     def _visits(self, **kw):
-        with mock.patch.object(ca, "_kai_journal_rows", return_value=self.rows):
+        # REG-1824 — the reader's own signature: chronicle_visits asks for the reason, and a stand-in
+        # that answers a bare list to want_why=True is a reader that does not exist any more.
+        rows = self.rows
+        with mock.patch.object(ca, "_kai_journal_rows",
+                               lambda want_why=False: (rows, None) if want_why else rows):
             return ca.chronicle_visits(**kw)
 
     def test_newest_visit_first(self):
@@ -34210,7 +34214,10 @@ class TestSeenIsNotRegistered(unittest.TestCase):
         # code. "Perfect Ruby" is deliberate: a gem, the exact shape he saw on the floor.
         row = {"lane": "deep", "scene": scene, "ts": 1, "completedTs": 1,
                "sessionId": "s1", "frameId": "f1", "area": "", "names": ["Perfect Ruby"]}
-        with m.patch.object(self.ca, "_kai_journal_rows", lambda: [row]), \
+        # REG-1824 — the reader's own signature (the stream asks why; a no-argument stand-in was
+        # what kept a TypeError fallback alive in production).
+        with m.patch.object(self.ca, "_kai_journal_rows",
+                            lambda want_why=False: ([row], None) if want_why else [row]), \
              m.patch.dict(self.ca.__dict__, {"_RECEIPTS_CACHE": None}, clear=False):
             self.ca._RECEIPTS_CACHE = None
             out = self.ca._receipts_stream()

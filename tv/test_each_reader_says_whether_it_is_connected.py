@@ -100,6 +100,35 @@ class ClaudeSaysWhatItJustDid(unittest.TestCase):
         self.assertEqual(h["state"], "unknown")
         self.assertIn("could not be read", h["why"], "an unreadable journal read as 'no reads'")
 
+    def _from_file(self, text):
+        """REG-1824 — drive the lamp over a real journal through the one reader's tail."""
+        d = tempfile.mkdtemp(prefix="reader1824_")
+        self.addCleanup(shutil.rmtree, d, True)
+        path = os.path.join(d, "sessions.jsonl")
+        if text is not None:
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(text)
+        orig = ca._journal_path
+        ca._journal_path = lambda: path
+        try:
+            return ca._reader_health(now_ms=NOW, g5=G5_ON, use_cache=False, auth={})["claude"]
+        finally:
+            ca._journal_path = orig
+
+    def test_a_fresh_install_with_no_journal_is_not_an_unreadable_one(self):
+        """REG-1824 — the tail reader said UNKNOWN for a missing file, so every fresh install's lamp
+        said its journal could not be read. A missing file is a PC that has not read yet."""
+        h = self._from_file(None)
+        self.assertEqual(h["state"], "unknown")
+        self.assertNotIn("could not be read", h["why"])
+        self.assertIn("no Claude read", h["why"])
+
+    def test_a_tail_of_only_bad_lines_is_not_a_pc_with_no_reads(self):
+        """REG-1824 — the tail reader skipped every bad line and handed back [] - a quiet PC."""
+        h = self._from_file("not json\n{also not\n")
+        self.assertEqual(h["state"], "unknown")
+        self.assertIn("could not be read", h["why"])
+
     def test_a_grok_row_is_not_claudes(self):
         g = dict(GOOD, model="grok-subscription-cli")
         self.assertEqual(_health([_at(g, 1)])["claude"]["state"], "unknown")
@@ -188,6 +217,11 @@ process.stdout.write(JSON.stringify(out));
 
 
 RED_PROOF = [
+    {"why": "REG-1824 - the tail reader calls a missing journal unreadable again, so a fresh install's lamp says broken",
+     "file": "control_app.py",
+     "find": "        if st is None:\n            return out\n",
+     "replace": "        if st is None:\n            out[\"why\"] = \"missing\"\n            return out\n",
+     "matches": 1},
     {"why": "#105 - a failed newest read lights Claude ON (the ALT's signed-out day, green)",
      "file": "tv/control_app.py",
      "find": "        if last.get(\"readFailed\") or last.get(\"mode\") == \"empty\":\n            _why = str(last.get(\"readErr\") or \"\").strip()\n",

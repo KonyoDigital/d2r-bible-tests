@@ -33,3 +33,21 @@ def says_unknown(why):
     """-> the reason, led by 'UNKNOWN — ' only when it does not already say UNKNOWN (the blueprint's shape)."""
     w = str(why or "").strip()
     return w if w.startswith("UNKNOWN") else "UNKNOWN — " + w
+
+
+UNMEASURED = "UNMEASURED: "
+
+
+def unmeasured(what, why=None, not_that=None):
+    """-> 'UNMEASURED: <what> (<why>) — not <not_that>'. The one spelling of a check that could not read.
+
+    REG-1824 — the journal readers wrote this sentence by hand five times, with two different dashes, so one failure
+    read two ways. A `what` that already says UNMEASURED is not led twice; an empty `why` leaves no '()'."""
+    w = str(what or "").strip() or "this was not read"
+    if not w.startswith(UNMEASURED):
+        w = UNMEASURED + w
+    r = str(why or "").strip()
+    if r:
+        w += " (%s)" % r
+    n = str(not_that or "").strip()
+    return w + (" — not " + n if n else "")

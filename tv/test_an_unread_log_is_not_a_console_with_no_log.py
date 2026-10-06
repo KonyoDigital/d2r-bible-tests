@@ -4,8 +4,11 @@
 /api/log and the doctor log tail caught every exception and answered
 "(no log yet)" with ok true. A missing file is that empty. A blank file is
 empty. A real tail is the tail. A file that will not read, a directory, and
-an IO error are not that empty. The doctor adds a block so its ok cannot
-stay true. The screen says the log was not read.
+an IO error are not that empty. The doctor adds a row that is not ok. It
+warns (REG-1824): a log the doctor cannot read stops no session, and the
+rows beside it that cannot read the journal warn too, so a block here was
+an over-grade the boot-failure toast would print as a blocker. The screen
+says the log was not read.
 
 Nothing here reads his live log, and nothing starts a sweep.
 RED_PROOF below. [[unknown-stays-unknown]]
@@ -99,7 +102,7 @@ class AnUnreadLogIsNotAConsoleWithNoLog(unittest.TestCase):
         row = extra[0]
         self.assertEqual(row["id"], "console_log")
         self.assertIs(row["ok"], False)
-        self.assertEqual(row["severity"], "block")
+        self.assertEqual(row["severity"], "warn")
         self.assertIn("UNMEASURED", row["detail"])
         self.assertIn("not a console with no log yet", row["detail"])
         self.assertNotIn("(no log yet)", row["detail"])
@@ -123,7 +126,7 @@ class AnUnreadLogIsNotAConsoleWithNoLog(unittest.TestCase):
         self.assertIsNone(tail)
         self.assertIn("did not answer", why)
         self.assertIs(extra[0]["ok"], False)
-        self.assertEqual(extra[0]["severity"], "block")
+        self.assertEqual(extra[0]["severity"], "warn")
 
     def test_the_doctor_applies_the_log_before_ok(self):
         src = inspect.getsource(ca.doctor_payload)
@@ -160,6 +163,13 @@ class AnUnreadLogIsNotAConsoleWithNoLog(unittest.TestCase):
 
 RED_PROOF = [
     {
+        "why": "REG-1824 - an unread log is graded a block again, so the boot-failure toast names it a blocker",
+        "file": "control_app.py",
+        "find": "        \"console_log\", False, \"warn\",\n",
+        "replace": "        \"console_log\", False, \"block\",\n",
+        "matches": 1,
+    },
+    {
         "why": "REG-1800 - a missing file is filed as a failed read",
         "file": "control_app.py",
         "find": "    except FileNotFoundError:\n"
@@ -172,18 +182,17 @@ RED_PROOF = [
         "why": "REG-1800 - a failed read is painted as no log yet",
         "file": "control_app.py",
         "find": "        # REG-1800 — a failed read is not a console with no log yet.\n"
-                "        return {\"ok\": False, \"log\": None,\n"
-                "                \"why\": \"%s: %s\" % (type(exc).__name__, exc)}\n",
+                "        return {\"ok\": False, \"log\": None, \"why\": _why_of(exc)}\n",
         "replace": "        # REG-1800 — a failed read is not a console with no log yet.\n"
                    "        return {\"ok\": True, \"log\": \"(no log yet)\", \"why\": None}\n",
         "matches": 1,
     },
     {
-        "why": "REG-1800 - the doctor paints an unread log as no log yet and adds no block",
+        "why": "REG-1800 - the doctor paints an unread log as no log yet and adds no row",
         "file": "control_app.py",
         "find": "    return None, why, [_chk(\n"
-                "        \"console_log\", False, \"block\",\n"
-                "        \"UNMEASURED: the log was not read (%s) — not a console with no log yet\" % why,\n"
+                "        \"console_log\", False, \"warn\",\n"
+                "        _us.unmeasured(\"the log was not read\", why, \"a console with no log yet\"),\n"
                 "        \"Read the console log at the path this doctor names.\")]\n",
         "replace": "    return \"(no log yet)\", None, []\n",
         "matches": 1,

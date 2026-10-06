@@ -235,6 +235,110 @@ def _journal_path():
     return os.environ.get("TV_SESSIONS") or os.path.join(HERE, "sessions.jsonl")
 
 
+def _why_of(exc):
+    """The one spelling of a failed read's reason: the exception's class and its first 80 characters.
+
+    REG-1824 — this format was hand-written six times across the journal readers, two of them
+    untruncated, so the same failure read differently on two surfaces."""
+    return "%s: %s" % (type(exc).__name__, str(exc)[:80])
+
+
+def _file_look(path, what="regular file"):
+    """Stat one path. -> (stat_result | None, why | None)
+
+    (None, None) is a path that is not there: a measurement, the honest empty of a console that
+    has not written it yet. (st, None) is a regular file. (None, why) is anything else - a stat
+    that raised, or a path that is not a regular file. isfile answers False for all three, and
+    only the first one is empty. REG-1824: the one home for the journal's file checks.
+    """
+    import stat
+    try:
+        st = os.stat(path)
+    except FileNotFoundError:
+        return None, None
+    except OSError as exc:
+        return None, _why_of(exc)
+    if not stat.S_ISREG(st.st_mode):
+        return None, "not a %s" % what
+    return st, None
+
+
+#: REG-1824 — one whole-journal read per /api/status poll. status_payload opens it and closes it.
+_JOURNAL_POLL = threading.local()
+
+
+def _journal_read(tail_lines=None, tail_bytes=None):
+    """THE ONE JOURNAL READ. -> {"rows": [dict], "why": None | str, "lines": n, "torn": n}
+
+    REG-1824 — every journal reader asks this, so a missing file and a file of only bad lines
+    mean the same thing on every surface. The policy:
+      · a missing file is a console that has never recorded: rows [], why None. A fresh install
+        is not broken, and UNKNOWN there would make every new PC look dead;
+      · a blank file is that same empty;
+      · one bad line beside a real beat is still that beat (`torn` counts it);
+      · a file that opened and held lines, none of them a beat, is UNKNOWN (REG-1791);
+      · anything else that stops the read - a stat or open that raised, a path that is not a
+        file, a decode error - is UNKNOWN, and `why` says which.
+    `tail_lines` keeps the last N lines, `tail_bytes` the last N bytes (the cut first line is
+    dropped, not counted). A whole read is shared by every reader inside one status poll.
+    [[unknown-stays-unknown]] [[copy-drift]]
+    """
+    out = {"rows": [], "why": None, "lines": 0, "torn": 0}
+    try:
+        path = _journal_path()
+        st, why = _file_look(path, "journal file")
+        if why:
+            out["why"] = why
+            return out
+        if st is None:
+            return out
+        whole = tail_lines is None and tail_bytes is None
+        memo = getattr(_JOURNAL_POLL, "memo", None) if whole else None
+        key = (path, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns)
+        if memo is not None and key in memo:
+            return dict(memo[key], rows=list(memo[key]["rows"]))
+        if tail_bytes:
+            with open(path, "rb") as fh:
+                fh.seek(0, 2)
+                start = max(0, fh.tell() - int(tail_bytes))
+                fh.seek(max(0, start - 1))
+                data = fh.read()
+            if start:
+                # the byte before the cut says whether the first line is whole; a cut line is not a beat
+                data = data.split(b"\n", 1)[1] if b"\n" in data else b""
+            text = data.decode("utf-8")
+        else:
+            with open(path, encoding="utf-8") as fh:
+                text = fh.read()
+        lines = text.splitlines()
+        if tail_lines:
+            lines = lines[-int(tail_lines):]
+        for ln in lines:
+            ln = ln.strip()
+            if not ln:
+                continue
+            out["lines"] += 1
+            try:
+                parsed = json.loads(ln)
+            except Exception:
+                out["torn"] += 1      # one bad line is not an unreadable journal
+                continue
+            if isinstance(parsed, dict):
+                out["rows"].append(parsed)
+            else:
+                out["torn"] += 1      # a number or a list is not a beat
+    except FileNotFoundError:
+        return {"rows": [], "why": None, "lines": 0, "torn": 0}   # gone between stat and open
+    except Exception as exc:
+        return {"rows": [], "why": _why_of(exc), "lines": 0, "torn": 0}
+    if out["lines"] and not out["rows"]:
+        # REG-1791 — opened, and not one line was a beat. That is not a missing file.
+        out["why"] = "the journal opened and none of its %d line(s) parsed" % out["lines"]
+    elif memo is not None:
+        memo[key] = dict(out, rows=list(out["rows"]))   # a read that failed is never shared
+    return out
+
+
 def _journal_megabytes():
     """The live journal's size in MB, one decimal. None when that size was not read.
 
@@ -243,17 +347,10 @@ def _journal_megabytes():
     when the directory will not stat and when the path is not a file. 0.0 is what
     the organ paints as an empty journal it calls clean. Those two are not 0.0.
     """
-    import stat
-    path = _journal_path()
-    try:
-        st = os.stat(path)
-    except FileNotFoundError:
-        return 0.0
-    except OSError:
+    st, why = _file_look(_journal_path(), "journal file")
+    if why:
         return None
-    if not stat.S_ISREG(st.st_mode):
-        return None
-    return round(st.st_size / 1e6, 1)
+    return 0.0 if st is None else round(st.st_size / 1e6, 1)
 
 
 def _journal_ring():
@@ -286,24 +383,13 @@ def _reader_family(row):
 
 
 def _journal_tail_rows(max_bytes=600000):
-    """The newest rows of the live journal (the one resolver), parsed. None when it cannot be read - UNKNOWN, never
-    an empty journal (a caller would read "no reads" off an unreadable file)."""
-    rows = []
-    try:
-        p = _journal_path()
-        size = os.path.getsize(p)
-        with open(p, "rb") as fh:
-            fh.seek(max(0, size - max_bytes))
-            for ln in fh.read().splitlines():
-                try:
-                    r = json.loads(ln)
-                except Exception:
-                    continue
-                if isinstance(r, dict):
-                    rows.append(r)
-    except Exception:
-        return None
-    return rows
+    """The newest rows of the live journal, parsed. None when it cannot be read - UNKNOWN, never an empty journal
+    (a caller would read "no reads" off an unreadable file).
+
+    REG-1824 — the policy is _journal_read's. A missing file is [] (this said UNKNOWN on every fresh install), and a
+    tail of only bad lines is None (this said [] - a quiet night)."""
+    got = _journal_read(tail_bytes=max_bytes)
+    return None if got["why"] else got["rows"]
 
 
 #: REG-1617 — the CLI's own word on its sign-in: asked on a daemon thread, at most every 5 min, never on a request path
@@ -6859,16 +6945,9 @@ def _seal_sid_hint():
     except Exception:
         pass
     try:
-        with open(_journal_path(), "rb") as fh:
-            fh.seek(0, os.SEEK_END)
-            back = min(fh.tell(), 8192)
-            fh.seek(-back, os.SEEK_END)
-            tail = fh.read().decode("utf-8", "replace").splitlines()
-        for ln in reversed(tail):
-            try:
-                sid = (json.loads(ln) or {}).get("sessionId")
-            except Exception:
-                continue
+        # REG-1824 — the journal's own tail through the one reader; an unread tail falls through.
+        for r in reversed(_journal_read(tail_bytes=8192)["rows"]):
+            sid = r.get("sessionId")
             if sid:
                 return str(sid)
     except Exception:
@@ -14373,33 +14452,13 @@ def _kai_journal_rows(want_why=False):
     [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
 
     ⚠ THE DEFAULT SHAPE IS UNCHANGED so the other five call sites keep working untouched; only the
-    one that publishes a VERDICT opts in to the reason.
+    one that publishes a VERDICT opts in to the reason. With want_why it is ALWAYS a (rows, why)
+    pair, so a caller unpacks it and needs no shim (REG-1824).
+
+    REG-1824 — the read itself is _journal_read's, the one policy every journal reader shares.
     """
-    rows = []
-    why = None
-    seen = 0
-    try:
-        with open(_journal_path(), encoding="utf-8") as f:
-            for ln in f:
-                ln = ln.strip()
-                if not ln:
-                    continue
-                seen += 1
-                try:
-                    parsed = json.loads(ln)
-                except Exception:
-                    continue          # one bad line is not an unreadable journal
-                if isinstance(parsed, dict):
-                    rows.append(parsed)
-    except FileNotFoundError:
-        why = None                    # never recorded: empty is the measured truth
-    except Exception as exc:
-        why = "%s: %s" % (type(exc).__name__, str(exc)[:80])
-    else:
-        # REG-1791 — opened, and not one line was a beat. That is not a missing file.
-        if seen and not rows and why is None:
-            why = "the journal opened and none of its %d line(s) parsed" % seen
-    return (rows, why) if want_why else rows
+    got = _journal_read()
+    return (got["rows"], got["why"]) if want_why else got["rows"]
 
 
 # ── v1689 🛑 CHRONICLE ROUTE GUARD — the two classifiers finally reconciled ──────────
@@ -15984,11 +16043,7 @@ def _eyes_pulse():
     # and only after the journal was actually read. A missing file is that zero.
     out = {"liveTs": 0, "verifyTs": 0, "kaiTs": 0, "kaiMissed": None}
     try:
-        got = _kai_journal_rows(want_why=True)
-        if isinstance(got, tuple) and len(got) == 2:
-            rows, why = got
-        else:
-            rows, why = (got or []), None
+        rows, why = _kai_journal_rows(want_why=True)
         # REG-1798 — an unreadable journal is not a night where no eye has acted.
         if why:
             out["why"] = why
@@ -16005,7 +16060,7 @@ def _eyes_pulse():
                     out["kaiMissed"] = r["kai"].get("missedFrames")
     except Exception as exc:
         # REG-1798 — a raise is not a night where no eye has acted. Do not cache it.
-        out["why"] = "%s: %s" % (type(exc).__name__, str(exc)[:80])
+        out["why"] = _why_of(exc)
         return out
     if key is not None:
         globals()["_EYES_CACHE"] = (key, out)
@@ -16092,7 +16147,8 @@ def _engines_status():
     # REG-1798 — the lamps must not say the night had no eye. The closer's plug is a
     # different measurement (the thread), so a note that is not about the beat stays.
     if unread:
-        _un = ("UNMEASURED: the journal was not read (%s) — not a night with no eye" % unread)
+        import unknown_shelf as _us   # REG-1824 — the one spelling of a check that could not read
+        _un = _us.unmeasured("the journal was not read", unread, "a night with no eye")
         liveEye["lastBeatMs"] = None
         liveEye["state"] = "idle"
         liveEye["note"] = _un
@@ -16184,20 +16240,7 @@ def _receipts_stream():
         return c[1]
     out = []
     try:
-        try:
-            got = _kai_journal_rows(want_why=True)
-        except TypeError:
-            # An older stand-in takes no argument. The real reader accepts want_why.
-            got = _kai_journal_rows()
-        if isinstance(got, tuple) and len(got) == 2 and (
-                got[1] is None or isinstance(got[1], str)):
-            _rj_rows = got[0] if isinstance(got[0], list) else []
-            _rj_why = got[1]
-        elif isinstance(got, list):
-            _rj_rows, _rj_why = got, None
-        else:
-            _rj_rows = []
-            _rj_why = "the journal reader returned %s" % type(got).__name__
+        _rj_rows, _rj_why = _kai_journal_rows(want_why=True)
         # REG-1799 — an unreadable journal is not a night where no read landed.
         if _rj_why:
             return {"ok": False, "rows": [], "why": _rj_why}
@@ -16347,8 +16390,7 @@ def _receipts_stream():
                             "route": {"type": "item", "target": nm}})   # client grounds name→dossier|checker
     except Exception as exc:
         # REG-1799 — a raise is not a night with no reads. Do not cache it.
-        return {"ok": False, "rows": [],
-                "why": "%s: %s" % (type(exc).__name__, str(exc)[:80])}
+        return {"ok": False, "rows": [], "why": _why_of(exc)}
     out.sort(key=lambda x: x.get("ts") or 0, reverse=True)
     out = out[:_RECEIPTS_CAP]
     if key is not None:
@@ -20646,18 +20688,13 @@ def chronicle_visits(limit=8):
     # REG-1797 — A JOURNAL THAT WAS NOT READ IS NOT A NIGHT WITH NO VISITS. The reader
     # returns a reason now. Dropping that reason and handing back [] made the visit tick
     # say there was nothing unread, and the chronicle doctor say he should open the panel.
-    # A missing file still has no reason, and empty stays empty. A bare list from an older
-    # stand-in is still the rows. A raise is still a list, so a caller that only checks
-    # the list does not crash, and ok is false so the list is not a measurement.
+    # A missing file still has no reason, and empty stays empty. A raise is still a list,
+    # so a caller that only checks the list does not crash, and ok is false so the list is
+    # not a measurement.
     try:
-        got = _kai_journal_rows(want_why=True)
+        rows, why = _kai_journal_rows(want_why=True)
     except Exception as exc:
-        return {"ok": False, "visits": [], "spent": 0,
-                "why": "%s: %s" % (type(exc).__name__, str(exc)[:80])}
-    if isinstance(got, tuple) and len(got) == 2:
-        rows, why = got
-    else:
-        rows, why = (got or []), None
+        return {"ok": False, "visits": [], "spent": 0, "why": _why_of(exc)}
     if why:
         return {"ok": False, "visits": [], "spent": 0, "why": why}
     for r in reversed(rows or []):
@@ -37887,7 +37924,12 @@ def _chron_visit_run(visit_ts):
         except Exception:
             _g5 = None
         vis = None
-        for v in (chronicle_visits(limit=40).get("visits") or []):
+        _vl = chronicle_visits(limit=40)
+        # REG-1824 — an unread journal is not a visit that left it (REG-1797's sibling, unswept).
+        if _vl.get("ok") is False:
+            raise RuntimeError("the journal was not read (%s), so that visit could not be looked up"
+                               % (_vl.get("why") or "no reason"))
+        for v in (_vl.get("visits") or []):
             if int(v.get("ts") or 0) == int(visit_ts):
                 vis = v
                 break
@@ -39882,6 +39924,7 @@ def status_payload():
     # Found by a cross-family review of the shipped v2810 diff, which flagged the thread-local
     # handling; the ordering defect underneath it was larger than the one reported.
     # [[the-unjoined-end]] [[feedback-suspect-the-instrument]]
+    _JOURNAL_POLL.memo = {}   # REG-1824 — the journal walk, the eye pulse and the receipts share one read
     _STATUS_TL.sect = {}
     _t0 = time.time()
     _b0 = int((_LOCK_WAIT or {}).get("blocked") or 0)
@@ -39940,6 +39983,8 @@ def status_payload():
     # v946 — session health + mind story (journal tail + leases + driver pulse)
     # v1436 — LIVE smoothness: under ON AIR, skip heavy journal re-parse every status poll
     # (was 200-row walk × UI polls → UI hitch under D2R). Recompute at most every 3s live.
+    _jwhy = None
+    _journal = {"read": True, "why": None}
     try:
         _live_mode = mode in ("live", "stopping") and bridge
         _now_j = time.time()
@@ -40001,12 +40046,15 @@ def status_payload():
                 _sess_h["completeness"] = _cn
             globals()["_STATUS_JOURNAL_CACHE"] = {"t": _now_j, "h": _sess_h, "d": _drv,
                                                   "k": _jkey}
-    except Exception:
+    except Exception as _je:
         # v1709 — a thrown journal walk is NOT an idle night. idle + zeros is
         # indistinguishable from "nothing happened" and that is how a dead
         # reader looks healthy. Unknown stays unknown.
+        # REG-1824 — and the reason travels. This said a hard-coded "journal unread" and
+        # threw the reader's why away, so no surface could ever say WHY it was not read.
+        _journal = {"read": False, "why": _jwhy or _why_of(_je)}
         _sess_h = {"tabs": {}, "leases": {}, "verdict": "unknown", "story": [],
-                   "tabSummary": {}, "error": "journal unread"}
+                   "tabSummary": {}, "error": "journal unread", "why": _journal["why"]}
         _drv = {"seen": None, "queued": None, "fired": None, "refire": None,
                 "err": "journal unread"}
     # 🔌 ENGINE-EXPOSURE — the eyes object gets a FRESH liveAgeMs (the primary eye's "now" age,
@@ -40127,6 +40175,9 @@ def status_payload():
         "beacon": _t("beacon", _beacon_status),
 
         "sessionHealth": _sess_h,   # v946 — one-glance tabs/lease/verdict/story
+        # REG-1824 — ONE key for ONE event: was the journal walk read this poll, and if not, why.
+        # The page asks this through _journalUnread(st) instead of three keys in eight places.
+        "journal": _journal,
         "mindStory": (_sess_h.get("story") or [])[-6:],
         # REG-1803 — isfile is False when this path will not stat, which is also
         # how a missing journal looks. 0.0 would say the ledger is an empty journal.
@@ -40391,6 +40442,7 @@ def status_payload():
         _STATUS_TL.sect = None
     except Exception:
         pass
+    _JOURNAL_POLL.memo = None
     return _out
 
 
@@ -40980,8 +41032,7 @@ def _live_frame_look(frames_dir, now=None):
             continue
         except Exception as exc:
             # REG-1801 — a failed stat is not a console with no frames yet.
-            return {"ok": False, "ages": [], "newest": None,
-                    "why": "%s: %s" % (type(exc).__name__, exc)}
+            return {"ok": False, "ages": [], "newest": None, "why": _why_of(exc)}
         ages.append("%s=%.1fs" % (label, age))
         newest = age if newest is None else min(newest, age)
     return {"ok": True, "ages": ages, "newest": newest, "why": None}
@@ -40991,15 +41042,18 @@ def _live_frames_check(live, frames_dir=None):
     """doctor check 8 - freshness only MATTERS (blocks) when we claim to be LIVE. -> one _chk row
 
     A missing frame is still no frames yet. A directory that will not stat is
-    not that empty, and it is not a frozen capture either.
+    not that empty, and it is not a frozen capture either. REG-1824 — it is not
+    a pass either way, and it blocks only when LIVE, the same as a stale frame:
+    off air it warns, because no frame is owed then.
     """
+    import unknown_shelf as _us
     frames_dir = frames_dir or os.path.join(HERE, "frames")
     look = _live_frame_look(frames_dir)
     if look["ok"] is False:
         return _chk(
-            "live_frames", False, "block",
-            "UNMEASURED: the live frames were not read (%s) — not a console with no frames yet"
-            % look["why"],
+            "live_frames", False, ("block" if live else "warn"),
+            _us.unmeasured("the live frames were not read", look["why"],
+                           "a console with no frames yet"),
             "Check that tv/frames is readable by this console.")
     ages = look["ages"]
     newest = look["newest"]
@@ -41055,15 +41109,13 @@ def _journal_file_there(path):
     isfile returns False for both of those, and also when the directory will
     not stat and when the path is not a file. Those raise. A failed stat is
     not a night with no rows, and it is not a journal with no generations.
+    REG-1824 — the look is _file_look's; this is its raising spelling, for the
+    generation count.
     """
-    import stat
-    try:
-        st = os.stat(path)
-    except FileNotFoundError:
-        return False
-    if not stat.S_ISREG(st.st_mode):
-        raise OSError("not a journal file")
-    return True
+    st, why = _file_look(path, "journal file")
+    if why:
+        raise OSError(why)
+    return st is not None
 
 
 def _journal_doctor_rows():
@@ -41073,41 +41125,25 @@ def _journal_doctor_rows():
     all green, and a journal that could not be read looked like a night that passed. A check that
     did not run is a row that says so. An empty journal is still a measurement. A tail whose
     lines will not parse is not that empty journal (REG-1790). A path isfile cannot stat is not
-    that empty journal either (REG-1802).
+    that empty journal either (REG-1802). REG-1824 — the tail is _journal_read's, the one policy.
     """
+    import unknown_shelf as _us
     checks = []
     # v815 (Grok R8 #8) — can this night be REPLAYED? Frame coverage + id sanity on the
     # journal tail (last ~200 rows): % beats whose hist frame exists, sessionId coverage.
     try:
-        _jl = _journal_path()   # v877 · v1493 — one resolver for every site
         _hist = os.path.join(HERE, "frames", "hist")
-        rows = []
-        torn = 0
-        # REG-1802 — isfile is False when this path will not stat, which is also
-        # how a missing journal looks. A failure here is the row below.
-        if _journal_file_there(_jl):
-            with open(_jl, encoding="utf-8") as f:
-                for line in f.readlines()[-200:]:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        parsed = json.loads(line)
-                    except Exception:
-                        torn += 1
-                        continue
-                    # A number or a list is not a beat. One bad line beside real beats is
-                    # still a measurement of those beats. A tail of only bad lines is not
-                    # a night that has not started.
-                    if isinstance(parsed, dict):
-                        rows.append(parsed)
-                    else:
-                        torn += 1
-        if not rows and torn:
+        _tail = _journal_read(tail_lines=200)
+        rows = _tail["rows"]
+        if _tail["why"] and _tail["torn"] and not rows:
             checks.append(_chk(
                 "session_integrity", False, "warn",
-                "UNMEASURED: %d journal line(s) in the tail would not parse - not an empty journal"
-                % torn))
+                _us.unmeasured("%d journal line(s) in the tail would not parse" % _tail["torn"],
+                               None, "an empty journal")))
+        elif _tail["why"]:
+            checks.append(_chk(
+                "session_integrity", False, "warn",
+                "could not be measured: %s - UNKNOWN, not a night that replayed" % _tail["why"]))
         elif rows:
             with_fid = [r for r in rows if r.get("frameId")]
             have = sum(1 for r in with_fid
@@ -41528,24 +41564,25 @@ def _console_log_read(limit, path=None):
         return {"ok": True, "log": "(no log yet)", "why": None}
     except Exception as exc:
         # REG-1800 — a failed read is not a console with no log yet.
-        return {"ok": False, "log": None,
-                "why": "%s: %s" % (type(exc).__name__, exc)}
+        return {"ok": False, "log": None, "why": _why_of(exc)}
 
 
 def _doctor_log_fields(read):
     """The log half of the doctor. -> (log_tail, log_why, extra checks)
 
     A measured read, including a missing file, adds no check. An unread log
-    is a block, so the doctor's ok cannot stay true, and the tail is not the
-    absent string.
+    is a row that is not ok, and the tail is not the absent string. REG-1824 —
+    it warns: a log the doctor cannot read stops no session, so it is not a
+    block (the row beside it that cannot read the journal warns too).
     """
+    import unknown_shelf as _us
     if isinstance(read, dict) and read.get("ok") is True:
         return read.get("log"), None, []
     why = read.get("why") if isinstance(read, dict) else None
     why = str(why) if why else "the log read did not answer"
     return None, why, [_chk(
-        "console_log", False, "block",
-        "UNMEASURED: the log was not read (%s) — not a console with no log yet" % why,
+        "console_log", False, "warn",
+        _us.unmeasured("the log was not read", why, "a console with no log yet"),
         "Read the console log at the path this doctor names.")]
 
 
@@ -41838,8 +41875,8 @@ def doctor_payload():
             "the Basic credential, and whether CI / GITHUB_ACTIONS / TVD_NO_BEACON is set in "
             "your environment"))
 
-    # REG-1800 — a missing file is "(no log yet)". Any other failure is a block,
-    # and the tail is not that empty string, so ok cannot stay true over it.
+    # REG-1800 — a missing file is "(no log yet)". Any other failure is a row that
+    # is not ok (REG-1824: a warn, not a block), and the tail is not that empty string.
     log_tail, log_why, _log_checks = _doctor_log_fields(_console_log_read(2048))
     checks.extend(_log_checks)
 

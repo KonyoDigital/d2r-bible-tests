@@ -179,19 +179,25 @@ class AnUnreadJournalIsNotANightWithNoRows(unittest.TestCase):
         self.assertNotIn("no journal rows yet", got["detail"])
         self.assertEqual(rows["journal_gens"]["detail"], "live=yes gens=none")
 
-    def test_the_doctor_asks_this_look(self):
-        src = inspect.getsource(ca._journal_doctor_rows)
-        self.assertIn("if _journal_file_there(_jl):", src)
-        self.assertIn('if _journal_file_there(_stem + ".%d.jsonl" % g)', src)
-        self.assertIn("_live = _journal_file_there(_live_p)", src)
-        self.assertNotIn("os.path.isfile(_jl)", src)
-        self.assertNotIn("os.path.isfile(_live_p)", src)
-        self.assertNotIn("os.path.isfile(_stem", src)
-        look = inspect.getsource(ca._journal_file_there)
-        self.assertIn("except FileNotFoundError:", look)
-        self.assertIn("return False", look)
-        self.assertIn("stat.S_ISREG", look)
-        self.assertNotIn("os.path.isfile", look)
+    def test_the_doctor_asks_the_one_reader(self):
+        """REG-1824 — this pinned TEXT: `assertIn("return False", look)` passed on any such line, and
+        `assertNotIn("os.path.isfile(_jl)")` would trip on a comment quoting the old code. The claim
+        is behaviour: the doctor's replay row is whatever the one journal reader says, and the
+        doctor applies both rows before it decides ok."""
+        said = {"rows": [], "why": "PermissionError: from the one reader", "lines": 0, "torn": 0}
+        with mock.patch.object(ca, "_journal_read", lambda **_k: said), \
+                mock.patch.object(ca, "_journal_path", lambda: self._at("never_written.jsonl")):
+            rows = _rows(ca._journal_doctor_rows())
+        got = rows["session_integrity"]
+        self.assertIs(got["ok"], False, got)
+        self.assertIn("from the one reader", got["detail"])
+        self.assertNotIn("no journal rows yet", got["detail"])
+        torn = {"rows": [], "why": "the journal opened and none of its 2 line(s) parsed",
+                "lines": 2, "torn": 2}
+        with mock.patch.object(ca, "_journal_read", lambda **_k: torn), \
+                mock.patch.object(ca, "_journal_path", lambda: self._at("never_written.jsonl")):
+            rows = _rows(ca._journal_doctor_rows())
+        self.assertIn("2 journal line(s) in the tail would not parse", rows["session_integrity"]["detail"])
         pay = inspect.getsource(ca.doctor_payload)
         call = pay.find("checks.extend(_journal_doctor_rows())")
         ok_at = pay.find("ok = not any")
@@ -217,34 +223,39 @@ RED_PROOF = [
     {
         "why": "REG-1802 - a failed stat is filed as a journal that is not there",
         "file": "control_app.py",
-        "find": "    try:\n"
-                "        st = os.stat(path)\n"
-                "    except FileNotFoundError:\n"
-                "        return False\n",
-        "replace": "    try:\n"
-                   "        st = os.stat(path)\n"
-                   "    except FileNotFoundError:\n"
-                   "        return False\n"
-                   "    except Exception:\n"
-                   "        return False\n",
+        "find": "    except OSError as exc:\n"
+                "        return None, _why_of(exc)\n"
+                "    if not stat.S_ISREG(st.st_mode):\n",
+        "replace": "    except OSError as exc:\n"
+                   "        return None, None\n"
+                   "    if not stat.S_ISREG(st.st_mode):\n",
         "matches": 1,
     },
     {
         "why": "REG-1802 - a missing journal is filed as a failed read",
         "file": "control_app.py",
         "find": "    except FileNotFoundError:\n"
-                "        return False\n",
+                "        return None, None\n"
+                "    except OSError as exc:\n",
         "replace": "    except FileNotFoundError:\n"
-                   "        raise OSError(\"missing\")\n",
+                   "        return None, \"missing\"\n"
+                   "    except OSError as exc:\n",
         "matches": 1,
     },
     {
         "why": "REG-1802 - a path that is not a file counts as a live journal",
         "file": "control_app.py",
         "find": "    if not stat.S_ISREG(st.st_mode):\n"
-                "        raise OSError(\"not a journal file\")\n"
-                "    return True\n",
-        "replace": "    return True\n",
+                "        return None, \"not a %s\" % what\n"
+                "    return st, None\n",
+        "replace": "    return st, None\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1824 - the doctor reads its own tail again instead of the one reader's answer",
+        "file": "control_app.py",
+        "find": "        _tail = _journal_read(tail_lines=200)\n",
+        "replace": "        _tail = {\"rows\": [], \"why\": None, \"lines\": 0, \"torn\": 0}\n",
         "matches": 1,
     },
 ]

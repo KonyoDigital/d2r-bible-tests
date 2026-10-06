@@ -4,15 +4,21 @@
 The journal reader returns a reason when the file will not read. The visit
 list dropped that reason and handed back []. The tick then said there was no
 unread visit. The chronicle doctor said to open the Chronicle. The offer said
-ok. A missing file is still an empty list. A real visit is still listed. A
-bare list from an older stand-in is still the rows. A raise is still a list,
-so a caller that only checks the list does not crash, and ok is false.
+ok. A missing file is still an empty list. A real visit is still listed,
+read from the file through the one journal reader (REG-1824 - this was a
+bare list from an older stand-in, a shim in production for a stub). A raise
+is still a list, so a caller that only checks the list does not crash, and
+ok is false. Reading one visit says the journal was not read, not that the
+visit left it, and the screen says why when the offer is the reels alone.
 
 Nothing here reads his live journal, and nothing starts a sweep.
 RED_PROOF below. [[unknown-stays-unknown]]
 """
+import json
 import os
+import shutil
 import sys
+import tempfile
 import unittest
 from unittest import mock
 
@@ -53,11 +59,41 @@ class AnUnreadJournalIsNotAQuietVisitNight(unittest.TestCase):
         self.assertIs(got.get("ok"), True, got)
         self.assertEqual([v["ts"] for v in got["visits"]], [5])
 
-    def test_a_bare_list_from_an_older_stand_in_is_still_the_rows(self):
-        with mock.patch.object(ca, "_kai_journal_rows", return_value=[_VISIT]):
+    def _journal(self, text):
+        d = tempfile.mkdtemp(prefix="visit1824_")
+        self.addCleanup(shutil.rmtree, d, True)
+        path = os.path.join(d, "sessions.jsonl")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        return mock.patch.object(ca, "_journal_path", lambda: path)
+
+    def test_a_real_visit_in_the_file_is_still_listed(self):
+        with self._journal(json.dumps({"lane": "deep"}) + "\n" + json.dumps(_VISIT) + "\n"):
             got = ca.chronicle_visits()
         self.assertIs(got.get("ok"), True, got)
-        self.assertEqual(len(got["visits"]), 1)
+        self.assertEqual([v["ts"] for v in got["visits"]], [5])
+
+    def test_a_file_of_only_bad_lines_is_not_an_empty_visit_list(self):
+        with self._journal("not json\n[1, 2]\n"):
+            got = ca.chronicle_visits()
+        self.assertIs(got.get("ok"), False, got)
+        self.assertIn("parsed", got.get("why") or "")
+
+    def test_reading_one_visit_does_not_say_it_left_the_journal(self):
+        """REG-1824 — the sweep's own lookup said 'that visit is no longer in the journal' when the
+        journal had not been read at all: REG-1797's sibling, left unswept."""
+        saved = dict(ca._CHRON_JOB)
+        try:
+            with mock.patch.object(ca, "chronicle_visits",
+                                   return_value={"ok": False, "visits": [], "why": _WHY, "spent": 0}):
+                ca._chron_visit_run(5)
+            err = ca._CHRON_JOB.get("error") or ""
+        finally:
+            ca._CHRON_JOB.clear()
+            ca._CHRON_JOB.update(saved)
+        self.assertIn("was not read", err)
+        self.assertIn("PermissionError", err)
+        self.assertNotIn("no longer in the journal", err)
 
     def test_a_raise_is_still_a_list_and_it_is_not_a_measurement(self):
         with mock.patch.object(ca, "_kai_journal_rows", side_effect=RuntimeError("boom")):
@@ -159,8 +195,8 @@ RED_PROOF = [
     {
         "why": "REG-1797 - the chronicle doctor tells him to open the Chronicle again",
         "file": "chronicle_doctor.py",
-        "find": "    if got.get(\"ok\") is False:\n        return UNKNOWN, (\"UNMEASURED: the journal was not read (%s) — not a night with no \"\n",
-        "replace": "    if False:\n        return UNKNOWN, (\"UNMEASURED: the journal was not read (%s) — not a night with no \"\n",
+        "find": "    if got.get(\"ok\") is False:\n        import unknown_shelf as _us",
+        "replace": "    if False:\n        import unknown_shelf as _us",
         "matches": 1,
     },
     {
@@ -168,6 +204,13 @@ RED_PROOF = [
         "file": "control_ui.html",
         "find": "      if (j && j.ok === false) {\n",
         "replace": "      if (false) {\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1824 - reading one visit says it left the journal when the journal was not read",
+        "file": "control_app.py",
+        "find": "        if _vl.get(\"ok\") is False:\n",
+        "replace": "        if False:\n",
         "matches": 1,
     },
 ]

@@ -10,8 +10,11 @@ being unplugged is still that fact.
 Nothing here reads his live journal, and nothing starts a sweep.
 RED_PROOF below. [[unknown-stays-unknown]]
 """
+import json
 import os
+import shutil
 import sys
+import tempfile
 import unittest
 from unittest import mock
 
@@ -75,10 +78,37 @@ class AnUnreadJournalIsNotANightWithNoEye(unittest.TestCase):
         self.assertEqual(got.get("kaiTs"), 30)
         self.assertEqual(got.get("kaiMissed"), 2)
 
-    def test_a_bare_list_from_an_older_stand_in_is_still_the_rows(self):
-        got, _cached = self._pulse(_ROWS)
+    def _from_file(self, text):
+        """Drive the pulse over a real journal file, through the one reader. Nothing is stubbed."""
+        d = tempfile.mkdtemp(prefix="eye1824_")
+        self.addCleanup(shutil.rmtree, d, True)
+        path = os.path.join(d, "sessions.jsonl")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text)
+        saved = ca.__dict__.get("_EYES_CACHE", _MISSING)
+        ca.__dict__.pop("_EYES_CACHE", None)
+        try:
+            with mock.patch.object(ca, "_journal_path", lambda: path):
+                return ca._eyes_pulse()
+        finally:
+            if saved is _MISSING:
+                ca.__dict__.pop("_EYES_CACHE", None)
+            else:
+                ca._EYES_CACHE = saved
+
+    def test_a_real_journal_is_still_its_timestamps(self):
+        """REG-1824 — this was 'a bare list from an older stand-in': a shim in the pulse that took a
+        stub of the wrong shape. The reader always answers (rows, why), so the law drives the file."""
+        got = self._from_file("".join(json.dumps(r) + "\n" for r in _ROWS))
         self.assertFalse(got.get("why"))
         self.assertEqual(got.get("liveTs"), 50)
+        self.assertEqual(got.get("verifyTs"), 40)
+        self.assertEqual(got.get("kaiMissed"), 2)
+
+    def test_a_journal_of_only_bad_lines_is_not_a_night_with_no_eye(self):
+        got = self._from_file("not json\n{also not\n")
+        self.assertIn("parsed", got.get("why") or "")
+        self.assertEqual(got.get("liveTs"), 0)
 
     def test_a_raise_is_not_a_night_with_no_eye(self):
         got, cached = self._pulse(exc=RuntimeError("boom"))
@@ -160,7 +190,7 @@ RED_PROOF = [
     {
         "why": "REG-1798 - a raise is cached as a night where no eye has acted",
         "file": "control_app.py",
-        "find": "        out[\"why\"] = \"%s: %s\" % (type(exc).__name__, str(exc)[:80])\n"
+        "find": "        out[\"why\"] = _why_of(exc)\n"
                 "        return out\n",
         "replace": "        out[\"why\"] = None\n"
                    "        return out\n",
@@ -177,9 +207,9 @@ RED_PROOF = [
         "why": "REG-1798 - the lamps call an unread journal a quiet night again",
         "file": "control_app.py",
         "find": "    if unread:\n"
-                "        _un = (\"UNMEASURED: the journal was not read (%s) — not a night with no eye\" % unread)\n",
+                "        import unknown_shelf as _us",
         "replace": "    if False:\n"
-                   "        _un = (\"UNMEASURED: the journal was not read (%s) — not a night with no eye\" % unread)\n",
+                   "        import unknown_shelf as _us",
         "matches": 1,
     },
 ]

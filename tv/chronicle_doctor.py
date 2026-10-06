@@ -182,8 +182,9 @@ def _visits():
     got = ca.chronicle_visits(limit=40) or {}
     # REG-1797 — an unreadable journal is not "he has not opened the Chronicle".
     if got.get("ok") is False:
-        return UNKNOWN, ("UNMEASURED: the journal was not read (%s) — not a night with no "
-                         "Chronicle visit" % (got.get("why") or "no reason"))
+        import unknown_shelf as _us   # REG-1824 — the one spelling of a check that could not read
+        return UNKNOWN, _us.unmeasured("the journal was not read", got.get("why") or "no reason",
+                                       "a night with no Chronicle visit")
     v = got.get("visits") or []
     if not v:
         return MISSING, ("no in-game Chronicle visits recorded — open the Chronicle while the "

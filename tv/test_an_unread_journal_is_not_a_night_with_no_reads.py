@@ -117,8 +117,18 @@ class AnUnreadJournalIsNotANightWithNoReads(unittest.TestCase):
         self.assertIn("parsed", got.get("why") or "")
         self.assertNotIn("_RECEIPTS_CACHE", ca.__dict__)
 
-    def test_a_bare_list_from_an_older_stand_in_is_still_the_rows(self):
-        got, _cached = self._call(journal=lambda: [_ROW])
+    def test_the_stream_asks_the_reader_for_its_reason(self):
+        """REG-1824 — this was 'a bare list from an older stand-in', and production carried a
+        TypeError fallback and a shape shim for it: test-only code on the receipts path. The
+        reader always answers (rows, why) when asked, so the law is that the stream ASKS."""
+        asked = []
+
+        def reader(want_why=False):
+            asked.append(want_why)
+            return ([_ROW], None) if want_why else [_ROW]
+
+        got, _cached = self._call(journal=reader)
+        self.assertEqual(asked, [True], "the stream read the journal without asking why")
         self.assertIsInstance(got, list, got)
         self.assertIn("Harlequin Crest", _names(got))
 
@@ -204,8 +214,7 @@ RED_PROOF = [
         "why": "REG-1799 - a raise is handed back as a night with no reads",
         "file": "control_app.py",
         "find": "        # REG-1799 — a raise is not a night with no reads. Do not cache it.\n"
-                "        return {\"ok\": False, \"rows\": [],\n"
-                "                \"why\": \"%s: %s\" % (type(exc).__name__, str(exc)[:80])}\n",
+                "        return {\"ok\": False, \"rows\": [], \"why\": _why_of(exc)}\n",
         "replace": "        # REG-1799 — a raise is not a night with no reads. Do not cache it.\n"
                    "        return []\n",
         "matches": 1,

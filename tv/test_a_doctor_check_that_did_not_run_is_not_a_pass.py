@@ -152,11 +152,13 @@ class ADoctorCheckThatDidNotRun(unittest.TestCase):
 RED_PROOF = [
     {"why": "REG-1777 - a journal that will not read drops the replay row, and a missing row reads as a pass",
      "file": "control_app.py",
-     "find": "    except Exception as e:\n"
-             "        checks.append(_chk(\n"
-             "            \"session_integrity\", False, \"warn\",\n"
-             "            \"could not be measured: %s - UNKNOWN, not a night that replayed\" % e))\n",
-     "replace": "    except Exception:\n        pass\n",
+     # REG-1824 — the reader answers a failed read with a reason now instead of raising, so the
+     # row it must keep is the reason's branch, not the except under it.
+     "find": "        elif _tail[\"why\"]:\n"
+             "            checks.append(_chk(\n"
+             "                \"session_integrity\", False, \"warn\",\n"
+             "                \"could not be measured: %s - UNKNOWN, not a night that replayed\" % _tail[\"why\"]))\n",
+     "replace": "        elif False:\n            pass\n",
      "matches": 1},
     {"why": "REG-1777 - a journal that will not read drops the generation row, and a missing row reads as a pass",
      "file": "control_app.py",
@@ -168,16 +170,10 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-1790 - a journal tail that will not parse reads as a night that has not started",
      "file": "control_app.py",
-     "find": "        if not rows and torn:\n"
-             "            checks.append(_chk(\n"
-             "                \"session_integrity\", False, \"warn\",\n"
-             "                \"UNMEASURED: %d journal line(s) in the tail would not parse - not an empty journal\"\n"
-             "                % torn))\n",
-     "replace": "        if not rows and torn:\n"
-               "            checks.append(_chk(\n"
-               "                \"session_integrity\", True, \"warn\",\n"
-               "                \"UNMEASURED: %d journal line(s) in the tail would not parse - not an empty journal\"\n"
-               "                % torn))\n",
+     "find": "                \"session_integrity\", False, \"warn\",\n"
+             "                _us.unmeasured(\"%d journal line(s) in the tail would not parse\"",
+     "replace": "                \"session_integrity\", True, \"warn\",\n"
+                "                _us.unmeasured(\"%d journal line(s) in the tail would not parse\"",
      "matches": 1},
 ]
 

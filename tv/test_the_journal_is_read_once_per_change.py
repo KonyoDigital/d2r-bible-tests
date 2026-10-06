@@ -158,8 +158,92 @@ class TheJournalIsReadOncePerChange(unittest.TestCase):
             "3 payloads. ⚠ This counts ALL 20 call sites, so `first` is the baseline and the only "
             "claim here is that the STATUS site adds nothing after the first." % calls["n"])
 
+    def test_one_poll_walks_the_journal_once_for_all_three_readers(self):
+        """REG-1824 — status_payload, _eyes_pulse and _receipts_stream each walked the WHOLE journal
+        on the same poll whenever it had changed. MEASURED on a 50-row fixture: 3 whole-file opens
+        per changed poll before (plus the reader lamp's 600 KB tail), 1 after. They share one read
+        through _journal_read's per-poll memo, keyed on the file itself (ino, size, mtime_ns,
+        ctime_ns), so an append or a chmod between polls is a new read, and a read that FAILED is
+        never shared. A fixture journal; his is never opened."""
+        import builtins
+        import json
+        import shutil
+        import tempfile
+        import control_app as CA
+        d = tempfile.mkdtemp(prefix="poll1824_")
+        self.addCleanup(shutil.rmtree, d, True)
+        path = os.path.join(d, "sessions.jsonl")
+        with open(path, "w", encoding="utf-8") as fh:
+            for i in range(50):
+                fh.write(json.dumps({"lane": "deep", "ts": i, "completedTs": i, "sessionId": "s1",
+                                     "names": ["Canary %d" % i]}) + "\n")
+        real = builtins.open
+        opens = {"n": 0}
+
+        def counting(f, *a, **k):
+            mode = a[0] if a else k.get("mode", "r")
+            if str(f) == path and "b" not in mode and "a" not in mode and "w" not in mode:
+                opens["n"] += 1
+            return real(f, *a, **k)
+
+        saved = {k: CA.__dict__.get(k) for k in ("_STATUS_JOURNAL_CACHE", "_EYES_CACHE", "_RECEIPTS_CACHE")}
+        old_env = os.environ.get("TV_SESSIONS")
+        os.environ["TV_SESSIONS"] = path
+        try:
+            for k in saved:
+                CA.__dict__.pop(k, None)
+            builtins.open = counting
+            try:
+                st = CA.status_payload()
+                first = opens["n"]
+                opens["n"] = 0
+                CA.status_payload()          # the file has not changed
+                again = opens["n"]
+            finally:
+                builtins.open = real
+        finally:
+            if old_env is None:
+                os.environ.pop("TV_SESSIONS", None)
+            else:
+                os.environ["TV_SESSIONS"] = old_env
+            for k, v in saved.items():
+                if v is None:
+                    CA.__dict__.pop(k, None)
+                else:
+                    CA.__dict__[k] = v
+        # all three readers did read it, or "once" is about nothing
+        self.assertEqual((st.get("eyes") or {}).get("liveTs"), 49, st.get("eyes"))
+        self.assertTrue(st.get("receipts"), "the receipts never read the fixture")
+        self.assertEqual(st.get("journal"), {"read": True, "why": None})
+        self.assertEqual(first, 1,
+                         "one poll walked the whole journal %d times — the three readers stopped "
+                         "sharing one read" % first)
+        # ⚠ and the v2989 claim on a venue WITH a journal (this fixture), so it is measured on every
+        # machine: test_two_payloads_walk_the_journal_once skips where there is no journal of his,
+        # which left its own red-proof BLIND in every sandbox.
+        self.assertEqual(again, 0,
+                         "a poll over an UNCHANGED journal walked it %d time(s) — the status cache is "
+                         "no longer keyed on the file" % again)
+        self.assertIsNone(getattr(CA._JOURNAL_POLL, "memo", None),
+                          "the poll's memo outlived the poll, so the next caller on this thread "
+                          "would be served from it")
+
 
 RED_PROOF = [
+    {
+        "why": "REG-1824 - the three status readers each walk the whole journal again on one poll",
+        "file": "control_app.py",
+        "find": "    _JOURNAL_POLL.memo = {}   # REG-1824",
+        "replace": "    _JOURNAL_POLL.memo = None   # REG-1824",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1824 - the poll's memo outlives the poll",
+        "file": "control_app.py",
+        "find": "    _JOURNAL_POLL.memo = None\n    return _out\n",
+        "replace": "    return _out\n",
+        "matches": 1,
+    },
     {
         "why": "going back to a _live_mode-only guard is the original defect: off air the cache "
                "never applies and every poll walks 4,033 rows to use 200",

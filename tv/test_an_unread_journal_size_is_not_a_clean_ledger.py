@@ -122,13 +122,12 @@ class AnUnreadJournalSizeIsNotACleanLedger(unittest.TestCase):
         src = inspect.getsource(ca.status_payload)
         self.assertIn('"journalMB": _t("journalMB", _journal_megabytes),', src)
         self.assertNotIn("os.path.isfile(_journal_path())", src)
-        look = inspect.getsource(ca._journal_megabytes)
-        self.assertIn("except FileNotFoundError:", look)
-        self.assertIn("return 0.0", look)
-        self.assertIn("except OSError:", look)
-        self.assertIn("return None", look)
-        self.assertIn("stat.S_ISREG", look)
-        self.assertNotIn("os.path.isfile", look)
+        # REG-1824 — the size's look is _file_look's, the one stat-or-why the journal readers
+        # share. This pinned the TEXT of a hand-rolled copy; the claim is what the look answers.
+        with mock.patch.object(ca, "_file_look", lambda *_a, **_k: (None, "OSError: from the look")):
+            self.assertIsNone(self._ask(self._at("sessions.jsonl")))
+        with mock.patch.object(ca, "_file_look", lambda *_a, **_k: (None, None)):
+            self.assertEqual(self._ask(self._at("sessions.jsonl")), 0.0)
 
     def test_an_empty_journal_still_reads_clean(self):
         led = _ledger(0.0)
@@ -165,36 +164,28 @@ RED_PROOF = [
     {
         "why": "REG-1803 - a failed stat is filed as an empty journal",
         "file": "control_app.py",
-        "find": "    except FileNotFoundError:\n"
-                "        return 0.0\n"
-                "    except OSError:\n"
-                "        return None\n",
-        "replace": "    except FileNotFoundError:\n"
+        "find": "    if why:\n"
+                "        return None\n"
+                "    return 0.0 if st is None else round(st.st_size / 1e6, 1)\n",
+        "replace": "    if why:\n"
                    "        return 0.0\n"
-                   "    except OSError:\n"
-                   "        return 0.0\n",
+                   "    return 0.0 if st is None else round(st.st_size / 1e6, 1)\n",
         "matches": 1,
     },
     {
         "why": "REG-1803 - a missing journal is filed as a failed read",
         "file": "control_app.py",
-        "find": "    except FileNotFoundError:\n"
-                "        return 0.0\n"
-                "    except OSError:\n"
-                "        return None\n",
-        "replace": "    except FileNotFoundError:\n"
-                   "        return None\n"
-                   "    except OSError:\n"
-                   "        return None\n",
+        "find": "    return 0.0 if st is None else round(st.st_size / 1e6, 1)\n",
+        "replace": "    return None if st is None else round(st.st_size / 1e6, 1)\n",
         "matches": 1,
     },
     {
         "why": "REG-1803 - a path that is not a file counts as a measured size",
         "file": "control_app.py",
         "find": "    if not stat.S_ISREG(st.st_mode):\n"
-                "        return None\n"
-                "    return round(st.st_size / 1e6, 1)\n",
-        "replace": "    return round(st.st_size / 1e6, 1)\n",
+                "        return None, \"not a %s\" % what\n"
+                "    return st, None\n",
+        "replace": "    return st, None\n",
         "matches": 1,
     },
     {

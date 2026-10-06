@@ -44,6 +44,19 @@ import control_app as ca
 
 class ADeadJournalReaderSaysSo(unittest.TestCase):
 
+    def setUp(self):
+        # REG-1824 — the one reader stats the file before it opens it, so a test that mocks open()
+        # must hand it a file that is THERE. These used to ride whatever journal the host had (his,
+        # on his Mac), and on a host with none the stat answered first and open() was never asked.
+        d = tempfile.mkdtemp(prefix="journal_present_")
+        self.addCleanup(shutil.rmtree, d, True)
+        self.present = os.path.join(d, "sessions.jsonl")
+        with open(self.present, "w", encoding="utf-8") as fh:
+            fh.write("{}\n")
+        p = mock.patch.object(ca, "_journal_path", lambda: self.present)
+        p.start()
+        self.addCleanup(p.stop)
+
     # ── the reader itself ────────────────────────────────────────────────────────────────
     def test_an_unreadable_journal_returns_a_REASON(self):
         with mock.patch("builtins.open", side_effect=PermissionError("denied")):
@@ -157,21 +170,29 @@ class ADeadJournalReaderSaysSo(unittest.TestCase):
 
 
 RED_PROOF = [
-    ("control_app.py", "    except Exception as exc:\n        why = \"%s: %s\"",
-     "    except Exception as exc:\n        why = None or \"\"  #",
-     "test_an_unreadable_journal_returns_a_REASON"),
+    {"why": "test_an_unreadable_journal_returns_a_REASON - a failed read hands back no reason (REG-1824: "
+            "re-anchored onto _journal_read, the one reader)",
+     "file": "control_app.py",
+     "find": "    except Exception as exc:\n"
+             "        return {\"rows\": [], \"why\": _why_of(exc), \"lines\": 0, \"torn\": 0}\n",
+     "replace": "    except Exception as exc:\n"
+                "        return {\"rows\": [], \"why\": None, \"lines\": 0, \"torn\": 0}\n",
+     "matches": 1},
     ("control_app.py", 'raise RuntimeError("journal unread: %s" % _jwhy)',
      'pass  # was: raise',
      "test_an_unreadable_journal_reaches_the_UNKNOWN_guard"),
-    ("control_app.py", "    except FileNotFoundError:\n        why = None",
-     "    except FileNotFoundError:\n        why = 'FileNotFoundError'",
-     "test_a_MISSING_journal_is_empty_and_honest"),
+    {"why": "test_a_MISSING_journal_is_empty_and_honest - a journal that was never written reads as unreadable "
+            "(REG-1824: re-anchored onto _journal_read, the one reader)",
+     "file": "control_app.py",
+     "find": "    except FileNotFoundError:\n"
+             "        return {\"rows\": [], \"why\": None, \"lines\": 0, \"torn\": 0}   # gone between stat and open\n",
+     "replace": "    except FileNotFoundError:\n"
+                "        return {\"rows\": [], \"why\": \"FileNotFoundError\", \"lines\": 0, \"torn\": 0}\n",
+     "matches": 1},
     {"why": "REG-1791 - a journal of only bad lines reads as a quiet night",
      "file": "control_app.py",
-     "find": "        if seen and not rows and why is None:\n"
-             "            why = \"the journal opened and none of its %d line(s) parsed\" % seen\n",
-     "replace": "        if False and seen and not rows and why is None:\n"
-               "            why = \"the journal opened and none of its %d line(s) parsed\" % seen\n",
+     "find": "    if out[\"lines\"] and not out[\"rows\"]:\n",
+     "replace": "    if False and out[\"lines\"] and not out[\"rows\"]:\n",
      "matches": 1},
 ]
 

@@ -8,10 +8,12 @@ off, it said no frame was expected.
 
 A missing directory is that empty. An empty directory is that empty. A frame
 that stats is its age. A directory that will not stat, a path that is not a
-directory, and an IO error are not that empty. The row is a block, so the
-doctor's ok cannot stay true. It does not say the capture is frozen. The
-toast prints a block's detail, which is where the screen says the frames
-were not read.
+directory, and an IO error are not that empty. The row is never ok. While
+LIVE it is a block, so the doctor's ok cannot stay true, and the toast prints
+its detail, which is where the screen says the frames were not read. Off air
+it warns (REG-1824): the check's own contract is that frames block only when
+LIVE, and an unread directory off air owes no frame. It does not say the
+capture is frozen.
 
 Nothing here reads his live frames, and nothing starts a capture.
 RED_PROOF below. [[unknown-stays-unknown]]
@@ -132,9 +134,9 @@ class AnUnreadFrameDirectoryIsNotAConsoleWithNoFrames(unittest.TestCase):
             quiet = ca._live_frames_check(False, self.tmp)
         finally:
             os.chmod(self.tmp, 0o755)
-        for got in (row, quiet):
+        for got, severity in ((row, "block"), (quiet, "warn")):
             self.assertIs(got["ok"], False, got)
-            self.assertEqual(got["severity"], "block")
+            self.assertEqual(got["severity"], severity, got)
             self.assertEqual(got["id"], "live_frames")
             self.assertIn("UNMEASURED", got["detail"])
             self.assertIn("PermissionError", got["detail"])
@@ -145,6 +147,9 @@ class AnUnreadFrameDirectoryIsNotAConsoleWithNoFrames(unittest.TestCase):
             self.assertNotIn("no eye.jpg", got["detail"])
         doctor_ok = not any((not c["ok"]) and c["severity"] == "block" for c in [row])
         self.assertIs(doctor_ok, False)
+        # REG-1824 — off air the unread row is not a pass, and it is not a NO-GO either.
+        off_air_ok = not any((not c["ok"]) and c["severity"] == "block" for c in [quiet])
+        self.assertIs(off_air_ok, True)
 
     def test_a_path_that_is_not_a_directory_is_not_no_frames(self):
         path = os.path.join(self.tmp, "not_a_dir")
@@ -189,12 +194,18 @@ class AnUnreadFrameDirectoryIsNotAConsoleWithNoFrames(unittest.TestCase):
 
 RED_PROOF = [
     {
+        "why": "REG-1824 - an unread frame directory blocks off air, against the check's blocks-only-when-LIVE contract",
+        "file": "control_app.py",
+        "find": "            \"live_frames\", False, (\"block\" if live else \"warn\"),\n",
+        "replace": "            \"live_frames\", False, \"block\",\n",
+        "matches": 1,
+    },
+    {
         "why": "REG-1801 - a failed stat is skipped, so an unreadable directory looks like no frames",
         "file": "control_app.py",
         "find": "        except Exception as exc:\n"
                 "            # REG-1801 — a failed stat is not a console with no frames yet.\n"
-                "            return {\"ok\": False, \"ages\": [], \"newest\": None,\n"
-                "                    \"why\": \"%s: %s\" % (type(exc).__name__, exc)}\n",
+                "            return {\"ok\": False, \"ages\": [], \"newest\": None, \"why\": _why_of(exc)}\n",
         "replace": "        except Exception:\n"
                    "            continue\n",
         "matches": 1,

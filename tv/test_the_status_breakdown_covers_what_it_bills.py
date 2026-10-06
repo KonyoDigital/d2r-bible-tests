@@ -59,6 +59,8 @@ EXEMPT = {
     # _kai_journal_rows is no longer exempt: its only call is now wrapped in _t("journal", ...).
     "stat":                     "a single os.stat() on the journal file to key the cache — microseconds",
     "_intake_lease_status":     "in-memory lease dict",
+    # REG-1824 — the one spelling of a failed read's reason, called only on the unread path.
+    "_why_of":                  "formats an exception already in hand into a string; no I/O",
     # REG-1803 — the journal size left this function as a bare isfile/getsize.
     # It is the timed journalMB section now. Those two names are not called here.
     # ⚠ v2956 — MEASURED BEFORE EXEMPTING, NOT ASSUMED. Walked its AST: the only calls it makes
