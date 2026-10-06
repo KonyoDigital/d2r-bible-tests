@@ -9519,6 +9519,15 @@ GATES = [
              "filmed yet, and that row stayed ok. A missing frame is still that empty. A "
              "frame that stats is still its age. A directory that will not stat is a block, "
              "so the doctor cannot stay ok. The screen says the frames were not read."),
+    Gate("test_an_unread_journal_is_not_a_night_with_no_rows",
+         [sys.executable, os.path.join(HERE, "test_an_unread_journal_is_not_a_night_with_no_rows.py")], 90,
+         needs_app=False,
+         why="REG-1802 - the replay row and the generation row asked isfile, and isfile "
+             "turns a directory that will not stat into no journal. No journal is also a "
+             "night that has not started, and both rows stayed ok. A missing file is still "
+             "that empty. A blank file is still empty. A real beat is still its coverage. "
+             "A directory that will not stat is not that empty, and a path that is not a "
+             "file is not a live journal."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

@@ -40878,13 +40878,32 @@ def _self_prove_row(_spv):
     return bool(_sp_ok), line
 
 
+def _journal_file_there(path):
+    """Whether path is a journal file. -> True | False
+
+    False means the path is not there. True means it is a regular file.
+    isfile returns False for both of those, and also when the directory will
+    not stat and when the path is not a file. Those raise. A failed stat is
+    not a night with no rows, and it is not a journal with no generations.
+    """
+    import stat
+    try:
+        st = os.stat(path)
+    except FileNotFoundError:
+        return False
+    if not stat.S_ISREG(st.st_mode):
+        raise OSError("not a journal file")
+    return True
+
+
 def _journal_doctor_rows():
     """The doctor's replay row and its journal-generation row. -> [check, check]
 
     #86 gap audit 22 (REG-1777). A raise here used to append nothing, so the tally saw fewer rows,
     all green, and a journal that could not be read looked like a night that passed. A check that
     did not run is a row that says so. An empty journal is still a measurement. A tail whose
-    lines will not parse is not that empty journal (REG-1790).
+    lines will not parse is not that empty journal (REG-1790). A path isfile cannot stat is not
+    that empty journal either (REG-1802).
     """
     checks = []
     # v815 (Grok R8 #8) — can this night be REPLAYED? Frame coverage + id sanity on the
@@ -40894,7 +40913,9 @@ def _journal_doctor_rows():
         _hist = os.path.join(HERE, "frames", "hist")
         rows = []
         torn = 0
-        if os.path.isfile(_jl):
+        # REG-1802 — isfile is False when this path will not stat, which is also
+        # how a missing journal looks. A failure here is the row below.
+        if _journal_file_there(_jl):
             with open(_jl, encoding="utf-8") as f:
                 for line in f.readlines()[-200:]:
                     line = line.strip()
@@ -40941,8 +40962,10 @@ def _journal_doctor_rows():
     try:
         _live_p = _journal_path()
         _stem = _live_p[:-6] if _live_p.endswith(".jsonl") else _live_p
-        _gens = [g for g in range(1, 6) if os.path.isfile(_stem + ".%d.jsonl" % g)]
-        _live = os.path.isfile(_live_p)
+        # REG-1802 — a rotated path that will not stat is not a generation that
+        # was never written. isfile would say it was not there.
+        _gens = [g for g in range(1, 6) if _journal_file_there(_stem + ".%d.jsonl" % g)]
+        _live = _journal_file_there(_live_p)
         checks.append(_chk("journal_gens", True, "warn",
                            "live=%s gens=%s" % ("yes" if _live else "no",
                                                 (",".join(str(g) for g in _gens) or "none"))))
