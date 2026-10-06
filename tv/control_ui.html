@@ -28449,6 +28449,11 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       var r = await fetch('/api/chronicle_visits', { cache: 'no-store' });
       var j = await r.json();
       var v = (j && j.visits) || [];
+      if (j && j.ok === false) {
+        box.hidden = false;
+        box.textContent = (j.why || 'the journal was not read') + ' - not an empty visit list';
+        return;
+      }
       if (!v.length) { box.hidden = true; return; }
       box.hidden = false;
       box.innerHTML = v.map(function (x) {

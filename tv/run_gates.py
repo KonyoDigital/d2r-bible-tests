@@ -9479,6 +9479,14 @@ GATES = [
              "present is still indexed. A reel that listed and held no frames is still not this "
              "warn. One reel that will not list makes the shelf unknown. The doctor still refuses "
              "that unknown."),
+    Gate("test_an_unread_journal_is_not_a_quiet_visit_night",
+         [sys.executable, os.path.join(HERE, "test_an_unread_journal_is_not_a_quiet_visit_night.py")], 90,
+         needs_app=False,
+         why="REG-1797 - the visit list dropped the journal reader's reason and handed back []. "
+             "The tick said there was no unread visit. The chronicle doctor said to open the "
+             "Chronicle. An empty offer said ok. A missing file is still an empty list. A real "
+             "visit is still listed. A focused reel is still offered when the journal was not "
+             "read. A raise is still a list, and ok is false."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

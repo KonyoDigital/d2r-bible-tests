@@ -20544,10 +20544,23 @@ def chronicle_visits(limit=8):
     the console can price and read on demand. Nothing here reads a page or spends anything.
     """
     out = []
+    # REG-1797 — A JOURNAL THAT WAS NOT READ IS NOT A NIGHT WITH NO VISITS. The reader
+    # returns a reason now. Dropping that reason and handing back [] made the visit tick
+    # say there was nothing unread, and the chronicle doctor say he should open the panel.
+    # A missing file still has no reason, and empty stays empty. A bare list from an older
+    # stand-in is still the rows. A raise is still a list, so a caller that only checks
+    # the list does not crash, and ok is false so the list is not a measurement.
     try:
-        rows = _kai_journal_rows()
-    except Exception:
-        rows = []
+        got = _kai_journal_rows(want_why=True)
+    except Exception as exc:
+        return {"ok": False, "visits": [], "spent": 0,
+                "why": "%s: %s" % (type(exc).__name__, str(exc)[:80])}
+    if isinstance(got, tuple) and len(got) == 2:
+        rows, why = got
+    else:
+        rows, why = (got or []), None
+    if why:
+        return {"ok": False, "visits": [], "spent": 0, "why": why}
     for r in reversed(rows or []):
         if r.get("lane") != "chronicle" or r.get("kind") != "visit":
             continue
@@ -20586,8 +20599,11 @@ def chronicle_offer(limit=8):
     unrelated journal-failure test depend on whatever footage was lying in his frames directory.
     Visits come first — v1762 gives them the cheaper, more targeted job.
     """
-    base = chronicle_visits(limit=limit)
-    out = list(base.get("visits") or [])
+    base = chronicle_visits(limit=limit) or {}
+    # REG-1797 — the journal half can fail while the reel half is still a measurement.
+    # An empty offer is not that failure. Reels he focused still belong on the list.
+    journal_failed = base.get("ok") is False
+    out = [] if journal_failed else list(base.get("visits") or [])
     try:
         seen_ts = {v.get("ts") for v in out}
         for r in _unswept_chron_reels(limit=max(0, limit - len(out))):
@@ -20596,7 +20612,13 @@ def chronicle_offer(limit=8):
             out.append(r)
     except Exception:
         pass
-    return {"ok": True, "visits": out, "spent": 0}
+    if journal_failed and not out:
+        return {"ok": False, "visits": [], "spent": 0,
+                "why": base.get("why") or "the journal was not read"}
+    result = {"ok": True, "visits": out, "spent": 0}
+    if journal_failed:
+        result["visitWhy"] = base.get("why") or "the journal was not read"
+    return result
 
 
 def _unswept_chron_reels(limit=8):
@@ -20768,9 +20790,13 @@ def chronicle_autoread_tick():
     except Exception:
         pass
     try:
-        visits = (chronicle_visits(limit=12) or {}).get("visits") or []
+        got = chronicle_visits(limit=12) or {}
     except Exception as e:
         return {"ok": False, "why": "could not read visits: %s" % e}
+    # REG-1797 — [] with ok false is "the journal was not read", not "nothing is unread".
+    if got.get("ok") is False:
+        return {"ok": False, "why": got.get("why") or "the journal was not read"}
+    visits = got.get("visits") or []
     done = _chron_autoread_done()
     for v in visits:                      # newest first
         # v1820 — belt and braces. chronicle_visits() is journal-only by design, so a reel cannot
