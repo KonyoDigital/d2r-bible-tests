@@ -5740,7 +5740,9 @@ GATES = [
              "missing lane or a machine lock does not burn a try. A retirement that names that "
              "refusal and has no seal is given back. A real reel failure still retires. "
              "REG-1789: a tick that still owes a read and started none is not idle. Zero owed "
-             "is still a clean tick. The tick does not start an extra sweep."),
+             "is still a clean tick. The flag change does not start an extra sweep. "
+             "REG-1793: a quiet reel that owes a read is handed to the sweep. The sweep "
+             "function is replaced, so the fixture does not open his film and does not ask may()."),
     Gate("test_a_missing_tombstone_is_none_yet",
          [sys.executable, os.path.join(HERE, "test_a_missing_tombstone_is_none_yet.py")], 180,
          why="a console that has never retired a reel has no reel_tombstones.json. That is none "

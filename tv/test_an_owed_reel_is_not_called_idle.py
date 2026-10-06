@@ -9,6 +9,10 @@ retired it. The lane then stayed on, with nothing it could start.
 
 The chronicle lock exemption (REG-1602) was already in. This is the report, and the
 vault door's flag.
+
+REG-1793 — the thrower cases stay. A quiet reel that owes a read is handed to the
+sweep, on a temp shelf. The sweep function is replaced, so his film is not opened
+and may() is not asked.
 """
 import os
 import shutil
@@ -106,6 +110,22 @@ class TestARetiredOwingReelIsNotCalledIdle(unittest.TestCase):
         self.assertIs(out.get("idle"), True, out)
         self.assertIs(out.get("ok"), True, out)
         self.assertEqual(out.get("why"), "no unswept reel", out)
+
+    def test_a_quiet_owed_reel_is_handed_to_the_sweep(self):
+        """The thrower cases never reach the door. This one does, and the door is a recorder."""
+        self.owing.add(self.rid)
+        calls = []
+
+        def start(**k):
+            calls.append(dict(k))
+            return {"ok": True}
+
+        CA.chronicle_sweep_start = start
+        out = CA.chronicle_autoreel_tick()
+        self.assertEqual(calls, [{"limit": 1, "reel_id": self.rid}], calls)
+        self.assertEqual(out.get("swept"), self.rid, out)
+        self.assertIs(out.get("ok"), True, out)
+        self.assertTrue(os.path.isdir(os.path.join(self.tmp, self.rid)))
 
 
 class TestALaneRefusalDoesNotRetireTheVaultReel(unittest.TestCase):
@@ -248,6 +268,30 @@ class TestALaneRefusalDoesNotRetireTheVaultReel(unittest.TestCase):
         self.assertIs(out.get("ok"), True, out)
         self.assertEqual(out.get("why"), "no reel owes the vault lane a read")
 
+    def test_a_quiet_owed_reel_is_handed_to_the_vault_sweep(self):
+        """Same witness on the vault lane. The recorder stands in for the sweep."""
+        import unittest.mock as mock
+        on = CA._VAULT_AUTOREEL_ON
+        CA._VAULT_AUTOREEL_ON = True
+        try:
+            def start(*a, **k):
+                self.calls.append(dict(k))
+                return {"ok": True}
+
+            with mock.patch.object(CA, "_vault_owed_reels", lambda hist=None: [self.reel]), \
+                    mock.patch.object(CA, "_reel_is_growing", lambda d, quiet_s=90: False), \
+                    mock.patch.object(CA, "vault_sweep_state", lambda *a, **k: {"running": False}), \
+                    mock.patch.object(CA, "vault_sweep_start", start):
+                out = CA.vault_autoreel_tick()
+        finally:
+            CA._VAULT_AUTOREEL_ON = on
+        self.assertEqual(len(self.calls), 1, self.calls)
+        self.assertEqual(self.calls[0].get("limit"), 1, self.calls)
+        self.assertEqual(self.calls[0].get("reel_dir"), self.reel, self.calls)
+        self.assertTrue(str(self.calls[0].get("reel_dir") or "").startswith(self.tmp), self.calls)
+        self.assertEqual(out.get("started"), "reel_s_1_12001", out)
+        self.assertIs(out.get("ok"), True, out)
+
     def test_the_reported_switch_stays_on_when_the_reader_is_missing(self):
         import unittest.mock as mock
 
@@ -308,6 +352,20 @@ RED_PROOF = [
                 "            \"why\": \"%d owed, none startable this tick\" % owed}\n",
         "replace": "    return {\"ok\": True, \"read\": None, \"owed\": owed,\n"
                    "            \"why\": \"%d owed, none startable this tick\" % owed}\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1793 - a quiet chronicle reel that owes a read is no longer handed to the sweep",
+        "file": "control_app.py",
+        "find": "        r = chronicle_sweep_start(limit=1, reel_id=rid)\n",
+        "replace": "        r = {\"ok\": False, \"why\": \"the handoff was cut\"}\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1793 - a quiet vault reel that owes a read is no longer handed to the sweep",
+        "file": "control_app.py",
+        "find": "        r = vault_sweep_start(limit=1, reel_dir=str(d))\n",
+        "replace": "        r = {\"ok\": False, \"why\": \"the handoff was cut\"}\n",
         "matches": 1,
     },
 ]

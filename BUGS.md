@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1793 - A QUIET OWED REEL HAD NO WITNESS THAT THE TICK HANDS IT TO THE SWEEP (2026-10-06)
+
+The idle tests replace the sweep with a thrower. They prove a retired reel and an empty shelf do not start, and they stay green if the tick stops handing a quiet owed reel to the sweep. A planted reel on a temp shelf, not retired and not still growing, is passed to the sweep. The sweep function is replaced, so his film is not opened and may() is not asked. Law `test_an_owed_reel_is_not_called_idle`.
+
 ### REG-1792 - AN UNREADABLE SCREEN-RECORDING PROBE READ AS A GRANT THE DOCTOR CALLS HELD (2026-10-06)
 
 The doctor asked the action bool. That bool returns true when the probe cannot answer, so the row said the grant was held. The action stays that way: an unreadable grant does not refuse a reel. The report now says UNMEASURED. A held grant still says granted. An absent grant still blocks. The relaunch lamp does not publish that unread as a denial. Law `test_an_unreadable_screen_recording_probe_is_not_a_doctor_pass`.
