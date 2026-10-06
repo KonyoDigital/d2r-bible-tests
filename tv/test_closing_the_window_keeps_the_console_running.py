@@ -426,6 +426,7 @@ class UpdatesAndLaunchesKeepItBackgrounded(_Base):
         ask = sh.find('"$HERE/launcher_decide.py" --port 17772')
         kill = sh.find("# soft-kill anything still listening on the control port")
         self.assertGreater(ask, -1, "the launcher no longer asks launcher_decide whether to replace the console")
+        self.assertGreater(kill, -1, "REG-1827 - the soft-kill marker is gone: the order below is vacuous")
         self.assertLess(ask, kill, "the launcher kills :17772 BEFORE asking - a running console would be replaced")
         block = sh[ask:kill]
         yes = block.find('if [ "$_tvd_rc" -eq 0 ]; then')
@@ -445,7 +446,9 @@ class UpdatesAndLaunchesKeepItBackgrounded(_Base):
                            "the Desktop icon on Windows only focuses from outside - a WinForms window hidden by the "
                            "console does not reliably come back that way (v1460). The shared decision asks the "
                            "console to show itself before this focus.")
-        self.assertLess(branch.find("left exactly as it is"), decide,
+        _left = branch.find("left exactly as it is")
+        self.assertGreater(_left, -1, "REG-1827 - the sign-in arm's 'left exactly as it is' note is gone: the order below is vacuous")
+        self.assertLess(_left, decide,
                         "a sign-in start would ask the decider and might replace a console that is filming")
         self.assertIn("--from win-launcher", branch, "the Windows launcher's front request does not name itself")
         self.assertIn("--port 17772", branch)

@@ -228,6 +228,7 @@ class TheWindowsClickUsesTheSameDecision(unittest.TestCase):
         call = ps.find("--port 17772 --from win-launcher")
         self.assertEqual(ps.count("--from win-launcher"), 1, "the Windows launcher no longer names the one decision")
         bg = ps.find("sign-in start: control already up - left exactly as it is")
+        self.assertGreater(bg, -1, "REG-1827 - the sign-in arm's 'left exactly as it is' note is gone: the order below is vacuous")
         self.assertGreater(call, bg, "a sign-in start reaches the decision and can replace a console that is filming")
         flag = ps.find("$script:TvdReplaceRunning = $true", call)
         self.assertGreater(flag, call, "a console older than the disk no longer falls through to an update")
