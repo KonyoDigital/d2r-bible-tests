@@ -9504,6 +9504,13 @@ GATES = [
              "says the reads stream here when live. A missing file is still an empty list. A "
              "real read is still a receipt. A raise is not cached as no reads. The screen says "
              "the journal was not read."),
+    Gate("test_an_unread_log_is_not_a_console_with_no_log",
+         [sys.executable, os.path.join(HERE, "test_an_unread_log_is_not_a_console_with_no_log.py")], 90,
+         needs_app=False,
+         why="REG-1800 - /api/log and the doctor log tail caught every exception and said "
+             "there was no log yet, with ok true. A missing file is still that empty. A file "
+             "that will not read is a block on the doctor and not ok on the log route. The "
+             "screen says the log was not read."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

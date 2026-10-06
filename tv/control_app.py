@@ -41288,9 +41288,47 @@ def _extract_moving_facts():
     }
 
 
+def _console_log_read(limit, path=None):
+    """The tail of the console log. -> {ok, log, why}
+
+    A missing file is the honest empty: ok true, log "(no log yet)", why None.
+    A file that reads, even blank, is that text. Any other failure is not that
+    empty: ok false, log None, why names the error.
+    """
+    path = LOG_PATH if path is None else path
+    try:
+        with open(path, "rb") as f:
+            data = f.read()[-int(limit):]
+        return {"ok": True, "log": data.decode("utf-8", "replace"), "why": None}
+    except FileNotFoundError:
+        return {"ok": True, "log": "(no log yet)", "why": None}
+    except Exception as exc:
+        # REG-1800 — a failed read is not a console with no log yet.
+        return {"ok": False, "log": None,
+                "why": "%s: %s" % (type(exc).__name__, exc)}
+
+
+def _doctor_log_fields(read):
+    """The log half of the doctor. -> (log_tail, log_why, extra checks)
+
+    A measured read, including a missing file, adds no check. An unread log
+    is a block, so the doctor's ok cannot stay true, and the tail is not the
+    absent string.
+    """
+    if isinstance(read, dict) and read.get("ok") is True:
+        return read.get("log"), None, []
+    why = read.get("why") if isinstance(read, dict) else None
+    why = str(why) if why else "the log read did not answer"
+    return None, why, [_chk(
+        "console_log", False, "block",
+        "UNMEASURED: the log was not read (%s) — not a console with no log yet" % why,
+        "Read the console log at the path this doctor names.")]
+
+
 def doctor_payload():
     """GET /api/doctor contract: {ok, platform, checks:[{id,ok,severity,detail,fix?}],
-    logTail, logPath, ver}. See the DOCTOR banner above for the invariants."""
+    logTail, logWhy, logPath, ver}. See the DOCTOR banner above for the invariants.
+    logWhy is None when the tail was read, including when the file is not there yet."""
     checks = []
 
     # 1) claude CLI on the SAME cleaned PATH the agent boots with (v1380.4 deep hunt)
@@ -41576,13 +41614,12 @@ def doctor_payload():
             "the Basic credential, and whether CI / GITHUB_ACTIONS / TVD_NO_BEACON is set in "
             "your environment"))
 
-    ok = not any((not c["ok"]) and c["severity"] == "block" for c in checks)
+    # REG-1800 — a missing file is "(no log yet)". Any other failure is a block,
+    # and the tail is not that empty string, so ok cannot stay true over it.
+    log_tail, log_why, _log_checks = _doctor_log_fields(_console_log_read(2048))
+    checks.extend(_log_checks)
 
-    try:
-        with open(LOG_PATH, "rb") as f:
-            log_tail = f.read()[-2048:].decode("utf-8", "replace")
-    except Exception:
-        log_tail = "(no log yet)"
+    ok = not any((not c["ok"]) and c["severity"] == "block" for c in checks)
 
     ship = _windows_ship() if IS_WIN else None
     return {
@@ -41593,6 +41630,7 @@ def doctor_payload():
         "shipName": (ship or {}).get("name") if ship else None,
         "checks": checks,
         "logTail": log_tail,
+        "logWhy": log_why,
         "logPath": LOG_PATH,
         "ver": _app_ver(),
     }
@@ -44208,13 +44246,8 @@ class Handler(BaseHTTPRequestHandler):
             self._serve_hist(path[len("/hist/"):])
             return
         if path == "/api/log":
-            try:
-                with open(LOG_PATH, "rb") as f:
-                    data = f.read()[-12000:]
-                text = data.decode("utf-8", "replace")
-            except Exception:
-                text = "(no log yet)"
-            self._json(200, {"ok": True, "log": text})
+            # REG-1800 — the read's own ok. A missing file stays the reader's empty.
+            self._json(200, _console_log_read(12000))
             return
         if path == "/api/update":
             # v817 / v1418 — fleet unity: force-fetch then report behind-count + howTo.
@@ -45290,7 +45323,7 @@ class Handler(BaseHTTPRequestHandler):
                 # v2070 — THIS LAMP HAS READ `false` ON EVERY RELAUNCH SINCE v2027.
                 # It was `bool((doctor_payload() or {}).get("screen_recording"))`, and
                 # doctor_payload() has NO top-level key of that name — its top level is
-                # checks/logPath/logTail/ok/platform/shipName/shipPlatform/shipVer/ver. The grant
+                # checks/logPath/logTail/logWhy/ok/platform/shipName/shipPlatform/shipVer/ver. The grant
                 # lives in checks[] as {"id": "screen_recording", "ok": True, ...}. So the field the
                 # comment above calls the way to notice a DROP could never move, and a lamp that
                 # cannot move cannot notice anything — the same defect as a gate that is always

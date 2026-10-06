@@ -11472,6 +11472,12 @@ window._lockMark = function(isOpen, px, label){
       var r = await fetch(API + '/api/log');
       var j = await r.json();
       var brain = $('brain');
+      // REG-1800 - a missing file is still no log yet. A failed read is not an empty log.
+      if (!j || j.ok === false) {
+        brain.innerHTML = '<div class="empty">UNMEASURED: the log was not read ('
+          + esc((j && j.why) || 'no reason') + ') — not a console with no log yet</div>';
+        return;
+      }
       var lines = (j.log || '').trim().split('\n').slice(-4);
       brain.innerHTML = lines.map(function(l){
         return '<div class="line">'+esc(l)+'</div>';
