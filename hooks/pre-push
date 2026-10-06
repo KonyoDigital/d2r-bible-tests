@@ -257,6 +257,18 @@ fi
 # this file documents at the top: with the lines in a variable, nothing a gate child does to stdin
 # can leave the loop at EOF.
 _PUSH_REFS="$(cat)"
+# >>> ci-only lane (#182, his go 2026-10-06) — A PUSH WHOSE EVERY REF IS refs/heads/ci/* IS GRADED ON GITHUB.
+# tv/push_lane.py reads the refs being PUSHED (never the current branch) and fails toward the FULL gate: one
+# ref that is not ci/* - main above all, even a deletion of main - runs everything below exactly as before.
+# A ci/* branch never deploys (publish.yml runs on main only), and nothing below this line runs for it.
+# Never --no-verify, on any branch. Law: test_a_ci_push_skips_the_mac_and_never_main.
+_lane="$(printf '%s\n' "$_PUSH_REFS" | python3 "$REPO/tv/push_lane.py" 2>/dev/null)" || _lane="full"
+if [ "$_lane" = "ci-only" ]; then
+  echo "pre-push: [$(_pp_el)] CI-ONLY PUSH - every ref is refs/heads/ci/*: this Mac graded nothing; read GitHub"
+  echo "          (gh run list --branch <the ci branch>). Nothing deploys. Shipping to main still pays the full gate."
+  exit 0
+fi
+# <<< ci-only lane
 # Derive the refs being PUSHED, not the branch I happen to be standing on.
 _se_local=""; _se_remote=""
 while read -r _lr _ls _rr _rs; do

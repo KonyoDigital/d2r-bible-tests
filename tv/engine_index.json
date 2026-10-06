@@ -2591,5 +2591,14 @@
     "gotcha": "A field that was not measured is ABSENT, never a default: dpi is copied only when dpiMeasured is True, w and h travel together, and reading an OLD index back never fills a route. Only stash_eye (surfaces.py prep_stash_grid) reads the stamp today; slot_identity's grid geometry does not, and the ALT panel band was never measured (AUDIT_B 67ec5b26).",
     "purpose": "What a NEW reel may record about the window it was filmed from (route, windowLabel, w, h, os, dpi), from the finder's pin and the Windows capture half's cap_target.json; tv_diablo._capture_for_seal stamps it on the reel it seals.",
     "territory": "capture-vision"
+  },
+  "push_lane.py": {
+    "entryPoints": [
+      "lane",
+      "main"
+    ],
+    "gotcha": "It fails toward the FULL gate: one ref that is not refs/heads/ci/<name>, any ref naming refs/heads/main (even a deletion), no ref that ships, a malformed line, or the script failing all mean full. It reads the refs git hands the hook, never the branch the shell stands on.",
+    "purpose": "Decides which lane a push takes for hooks/pre-push: ci-only (every ref is refs/heads/ci/*, graded on GitHub, nothing deploys) or full (the whole Mac gate).",
+    "territory": "push"
   }
 }

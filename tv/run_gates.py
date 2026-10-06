@@ -8833,6 +8833,12 @@ GATES = [
              "the ledger has not spoken about stays UNKNOWN and draws no cell. An inventory or stash "
              "cell that is not joined to the character is not drawn empty. Two sabotages: the door "
              "sent to the planner, and data-cell dropped off the slot."),
+    Gate("test_a_ci_push_skips_the_mac_and_never_main", [sys.executable,
+         os.path.join(HERE, "test_a_ci_push_skips_the_mac_and_never_main.py")], 90,
+         needs_app=False,
+         why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
+             "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
+             "main) runs the full gate exactly as before; publish.yml deploys from main only."),
     Gate("test_a_hand_added_item_stays_his", [sys.executable,
          os.path.join(HERE, "test_a_hand_added_item_stays_his.py")], 90,
          needs_app=False,
