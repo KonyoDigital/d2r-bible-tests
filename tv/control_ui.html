@@ -23820,10 +23820,17 @@ window._lockMark = function(isOpen, px, label){
     if (typeof _bkN === 'number' && _bkN > 0)
       rdSub += ' · Grok stepped in ' + _bkN + (st.readers.backupWhy ? ' (' + esc(String(st.readers.backupWhy)) + ')' : '');
     // 3) ROUTER — the brain (dispatch)
+    // REG-1806 — null is a count the journal walk did not copy. 0 is a quiet router.
+    var routeUnread = (dr.seen === null);
     var seen = dr.seen || 0, fired = dr.fired || 0, refire = dr.refire || 0, err = dr.err;
-    var rtPulse = dead || err ? 'bad' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok'));
-    var rtStat = seen + ' seen <span class="eh-arrow">→</span> ' + fired + ' routed';
-    var rtSub = (err ? '⚠ ' + esc(String(err).slice(0, 24)) : (refire ? refire + ' re-fired' : 'quorum gate'));
+    var rtPulse = routeUnread ? 'warn'
+      : (dead || err ? 'bad' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok')));
+    var rtStat = routeUnread
+      ? 'the journal was not read'
+      : (seen + ' seen <span class="eh-arrow">→</span> ' + fired + ' routed');
+    var rtSub = routeUnread
+      ? 'the journal was not read'
+      : (err ? '⚠ ' + esc(String(err).slice(0, 24)) : (refire ? refire + ' re-fired' : 'quorum gate'));
     // 4) FUNNELS — the hands (receipts). A real GAP = a tab the engine flagged status:'miss'
     // (a visited tab that didn't land); a 0-total tab that was never visited is not a gap.
     var tabs = sh.tabs || {}, tk = Object.keys(tabs);
@@ -23879,35 +23886,44 @@ window._lockMark = function(isOpen, px, label){
       var box = document.getElementById('eh-dispatch');
       if (box){
         var dr = (st && st.driver) || {};
+        // REG-1806 — null is a count the journal walk did not copy. 0 is still 0.
+        var routeUnread = (dr.seen === null);
         var seen = dr.seen || 0, queued = dr.queued || 0, fired = dr.fired || 0;
         var jq = dr.judgeQ || 0, jf = dr.judgeFire || 0, refire = dr.refire || 0;
         var on = (st && st.mode) === 'live';
-        var has = on || seen || queued || fired || jq || jf;
+        var has = routeUnread || on || seen || queued || fired || jq || jf;
         box.hidden = !has;
         if (has){
           var sb = document.getElementById('eh-d-seen');
           var qb = document.getElementById('eh-d-queued');
           var fb = document.getElementById('eh-d-fired');
-          if (sb) sb.textContent = String(seen);
-          if (qb) qb.textContent = String(queued + jq);
-          if (fb) fb.textContent = String(fired + jf);
-          box.querySelectorAll('.eh-d-step').forEach(function(n){ n.classList.remove('hot','warn'); });
-          var qEl = box.querySelector('.eh-d-step[data-k="queued"]');
-          var fEl = box.querySelector('.eh-d-step[data-k="fired"]');
-          var sEl = box.querySelector('.eh-d-step[data-k="seen"]');
-          var backlog = (queued + jq) - (fired + jf);
-          if (on && backlog > 2 && qEl) qEl.classList.add('warn');
-          else if (on && (queued + jq) > (fired + jf) && qEl) qEl.classList.add('hot');
-          else if (on && fired > 0 && fEl) fEl.classList.add('hot');
-          else if (on && sEl) sEl.classList.add('hot');
           var meta = document.getElementById('eh-d-meta');
-          if (meta){
-            var bits = [];
-            if (refire) bits.push(refire + ' re-fire');
-            if (jq || jf) bits.push('judge ' + jf + '/' + (jq || jf));
-            if (dr.err) bits.push('⚠ ' + String(dr.err).slice(0, 28));
-            else if (!on) bits.push('off air');
-            meta.textContent = bits.join(' · ');
+          box.querySelectorAll('.eh-d-step').forEach(function(n){ n.classList.remove('hot','warn'); });
+          if (routeUnread){
+            if (sb) sb.textContent = 'the journal was not read';
+            if (qb) qb.textContent = 'the journal was not read';
+            if (fb) fb.textContent = 'the journal was not read';
+            if (meta) meta.textContent = 'the journal was not read';
+          } else {
+            if (sb) sb.textContent = String(seen);
+            if (qb) qb.textContent = String(queued + jq);
+            if (fb) fb.textContent = String(fired + jf);
+            var qEl = box.querySelector('.eh-d-step[data-k="queued"]');
+            var fEl = box.querySelector('.eh-d-step[data-k="fired"]');
+            var sEl = box.querySelector('.eh-d-step[data-k="seen"]');
+            var backlog = (queued + jq) - (fired + jf);
+            if (on && backlog > 2 && qEl) qEl.classList.add('warn');
+            else if (on && (queued + jq) > (fired + jf) && qEl) qEl.classList.add('hot');
+            else if (on && fired > 0 && fEl) fEl.classList.add('hot');
+            else if (on && sEl) sEl.classList.add('hot');
+            if (meta){
+              var bits = [];
+              if (refire) bits.push(refire + ' re-fire');
+              if (jq || jf) bits.push('judge ' + jf + '/' + (jq || jf));
+              if (dr.err) bits.push('⚠ ' + String(dr.err).slice(0, 28));
+              else if (!on) bits.push('off air');
+              meta.textContent = bits.join(' · ');
+            }
           }
         }
       }

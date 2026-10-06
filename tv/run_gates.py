@@ -9556,6 +9556,17 @@ GATES = [
              "still a tally. A held lease is still held. A counted re-fire is "
              "still that count. The verdict word already falls through to "
              "unknown. The strip says the journal was not read."),
+    Gate("test_an_unread_journal_is_not_a_quiet_router",
+         [sys.executable, os.path.join(HERE, "test_an_unread_journal_is_not_a_quiet_router.py")], 90,
+         needs_app=False,
+         why="REG-1806 - the router organ treats a missing seen count as zero "
+             "seen and zero routed, and while live that pulse stays ok and the "
+             "subtitle says quorum gate. The dispatch strip paints the same "
+             "zero. An unread journal walk publishes those counts as null. A "
+             "measured zero still says 0. A routed count is still that count. "
+             "A re-fire is still a re-fire. A driver error is still that error. "
+             "A deep queue still warns. The organ and the strip say the journal "
+             "was not read, and the pulse does not stay ok."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
