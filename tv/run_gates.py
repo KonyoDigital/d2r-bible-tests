@@ -9567,6 +9567,19 @@ GATES = [
              "A re-fire is still a re-fire. A driver error is still that error. "
              "A deep queue still warns. The organ and the strip say the journal "
              "was not read, and the pulse does not stay ok."),
+    Gate("test_an_unread_journal_is_not_a_quiet_readers_organ",
+         [sys.executable, os.path.join(HERE, "test_an_unread_journal_is_not_a_quiet_readers_organ.py")], 90,
+         needs_app=False,
+         why="REG-1807 - the readers organ treats a missing queue count as zero, "
+             "and while live that pulse stays ok and the subtitle says queue 0. "
+             "Off air it rests on that same zero. An unread journal walk publishes "
+             "the queue as null. A measured zero still says queue 0. A deep queue "
+             "still warns. A dead engine is still down. A paused reader still says "
+             "paused. A KAI catch is still that catch. A complete film is still "
+             "that film. Grok stepping in is still said. A judge count is still "
+             "added when the queue was read, and it is not added onto a null. "
+             "The organ says the journal was not read, and the pulse does not "
+             "stay ok."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

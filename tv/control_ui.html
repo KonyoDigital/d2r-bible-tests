@@ -23809,15 +23809,19 @@ window._lockMark = function(isOpen, px, label){
       : ('🎞 film complete <span class="eh-x">·</span> ' + cpFilm + ' frames <span class="eh-x">·</span> 0 drops');
     else capSub = (ageS != null) ? ('last frame ' + ageS + 's') : (on ? 'no frame yet' : 'off air');
     // 2) READERS — 🔴🔵🧠 layered eyes (the retro-catch is a STRENGTH: the film had what live missed)
+    // REG-1807 — null queued is a count the journal walk did not copy. 0 is a quiet queue.
     var reads = st.readCount || 0, kaiMiss = ey.kaiMissed || 0, qDepth = (dr.queued || 0) + (dr.judgeQ || 0);
+    var queueUnread = (dr.queued === null);
     var retro = (cpUnread != null) ? cpUnread : kaiMiss;
-    var rdPulse = dead ? 'bad' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok'));
+    var rdPulse = dead ? 'bad' : (queueUnread ? 'warn' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok')));
     var rdStat = '🔴 ' + (hasCp ? cpReads : reads) + ' <span class="eh-x">·</span> 🔵 ' + (ey.verifyTs ? '✓' : '—') + ' <span class="eh-x">·</span> 🧠 ' + (retro ? retro : '✓');
-    var rdSub = hasCp
+    var rdSub = queueUnread
+      ? 'the journal was not read'
+      : (hasCp
       ? ((cpReads || 0) + ' live + ' + (retro || 0) + ' retro-caught 🧠 (film has them)')
-      : ('queue ' + qDepth + (st.aiPaused ? ' · paused' : '') + (kaiMiss ? ' · KAI caught ' + kaiMiss : ''));
+      : ('queue ' + qDepth + (st.aiPaused ? ' · paused' : '') + (kaiMiss ? ' · KAI caught ' + kaiMiss : '')));
     var _bkN = st.readers && st.readers.backupReads;
-    if (typeof _bkN === 'number' && _bkN > 0)
+    if (!queueUnread && typeof _bkN === 'number' && _bkN > 0)
       rdSub += ' · Grok stepped in ' + _bkN + (st.readers.backupWhy ? ' (' + esc(String(st.readers.backupWhy)) + ')' : '');
     // 3) ROUTER — the brain (dispatch)
     // REG-1806 — null is a count the journal walk did not copy. 0 is a quiet router.
