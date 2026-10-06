@@ -229,6 +229,36 @@ class TheTreeIsToldApart(unittest.TestCase):
         run("commit", "-qam", "two", cwd=wk)
         self.assertEqual(SP.tree_state(git)[0], "dev", "a tree with an unpushed commit read as installed")
 
+    def test_the_consoles_own_record_is_not_a_local_edit(self):
+        """REG-1814 - his ALT 2026-10-06: the one local edit was ` M tv/.status_worst.json`, the tracked record the
+        console rewrites on its slowest request, so this lane said "the tree has local edits" every tick and the
+        heart never proved there again. Real git, a real temp repo: that record alone is installed; a second
+        edit beside it is still dev."""
+        wk, git, run = self._repo()
+        os.makedirs(os.path.join(wk, "tv"))
+        rec = os.path.join(wk, *SP.CONSOLE_OWN_RECORDS[0].split("/"))
+        io.open(rec, "w").write('{"totalMs": 1773092.2}\n')
+        run("add", "-A", cwd=wk)
+        run("commit", "-qm", "the kept record", cwd=wk)
+        run("push", "-q", "origin", "HEAD", cwd=wk)
+        self.assertEqual(SP.tree_state(git)[0], "installed", SP.tree_state(git))
+        io.open(rec, "w").write('{"totalMs": 25414039.5}\n')
+        self.assertEqual(git("status", "--porcelain", "--untracked-files=no")[1], "M tv/.status_worst.json",
+                         "PREMISE: the record is not the only local edit")
+        self.assertEqual(SP.tree_state(git)[0], "installed",
+                         "the console's own record made an installed console a development tree")
+        io.open(os.path.join(wk, "f.txt"), "w").write("c\n")
+        self.assertEqual(SP.tree_state(git)[0], "dev", "an edit beside the record was hidden by it")
+
+    def test_only_the_named_record_is_forgiven(self):
+        f = SP._edits_beyond_own_records
+        self.assertEqual(f("M tv/.status_worst.json"), [])
+        self.assertEqual(f(" M tv/.status_worst.json\n M tv/control_app.py"), [" M tv/control_app.py"])
+        self.assertEqual(f("M  tv/.status_worst.json.bak"), ["M  tv/.status_worst.json.bak"])
+        self.assertEqual(f("R  tv/x.py -> tv/.status_worst.json"), ["R  tv/x.py -> tv/.status_worst.json"],
+                         "a file renamed onto the record was forgiven, and the file it was is gone")
+        self.assertEqual(f(""), [])
+
 
 class TheProcessProbeIsSafe(unittest.TestCase):
 
@@ -775,6 +805,13 @@ class TwoLanesOnlyWithRoom(unittest.TestCase):
         self.assertEqual(seen, ["4", "1", "1"], "the prover's lane count did not follow the memory free at spawn")
 
 RED_PROOF = [
+    {
+        "why": "REG-1814 - the console's own tracked record makes it a dev tree again, so the ALT never proves and its deleter stays locked",
+        "file": "tv/self_prove.py",
+        "find": "        if _edits_beyond_own_records(dirty):\n",
+        "replace": "        if dirty:\n",
+        "matches": 1,
+    },
     {
         "why": "2026-09-29 (skeptic on fix24-selfprove) - a corrupt stand-aside time re-arms the cooldown every tick, for ever",
         "file": "tv/self_prove.py",

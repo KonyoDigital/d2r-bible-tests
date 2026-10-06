@@ -562,17 +562,40 @@ def _git(*args, timeout=15):
     return r.returncode, (r.stdout or "").strip()
 
 
+#: REG-1814 — TRACKED FILES THE RUNNING CONSOLE REWRITES ITSELF. `.status_worst.json` is tracked on purpose (a
+#: kept evidence record, the .gitignore ruling) and control_app._status_worst_save rewrites it on every new
+#: slowest request. MEASURED on his ALT 2026-10-06: its one local edit was ` M tv/.status_worst.json`, so this
+#: lane said "the tree has local edits" on every tick, the census stayed STALE, frame.release stayed LOCKED and
+#: the deleter refused all 416 releasable reels. The console's own record is not a development edit.
+CONSOLE_OWN_RECORDS = ("tv/.status_worst.json",)
+
+
+def _edits_beyond_own_records(porcelain):
+    """The `git status --porcelain` lines that are not one of CONSOLE_OWN_RECORDS. -> list. Pure."""
+    out = []
+    for ln in str(porcelain or "").splitlines():
+        bits = ln.strip().split(None, 1)
+        if not bits:
+            continue
+        path = bits[-1].strip().strip('"')
+        # a rename is never forgiven: its other end is a file of the tree that moved
+        if len(bits) < 2 or path not in CONSOLE_OWN_RECORDS:
+            out.append(ln)
+    return out
+
+
 def tree_state(git=None):
     """Is this an INSTALLED console (clean, at its upstream) or a development tree? -> (kind, why)
 
-    kind: installed | dev | unknown. Only `installed` may prove in the background.
+    kind: installed | dev | unknown. Only `installed` may prove in the background. A tracked record the
+    console writes itself (CONSOLE_OWN_RECORDS) is not a local edit.
     """
     g = git or _git
     try:
         rc, dirty = g("status", "--porcelain", "--untracked-files=no")
         if rc != 0:
             return "unknown", "git status failed here, so this tree cannot be told apart from a dev tree"
-        if dirty:
+        if _edits_beyond_own_records(dirty):
             return "dev", "the tree has local edits - the pre-push gate proves a development tree"
         rc, counts = g("rev-list", "--left-right", "--count", "@{upstream}...HEAD")
         against = ""
