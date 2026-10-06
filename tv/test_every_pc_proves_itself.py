@@ -1079,9 +1079,9 @@ RED_PROOF = [
     },
     {
         "why": "2026-09-29 (REG-1511) - a Mac without psutil never measures free memory ('mem-unknown' forever)",
-        "file": "tv/self_prove.py",
-        "find": "        if sys.platform == \"darwin\":\n            r = subprocess.run([\"vm_stat\"]",
-        "replace": "        if False:\n            r = subprocess.run([\"vm_stat\"]",
+        "file": "tv/child_guard.py",
+        "find": "        out = subprocess.run([\"vm_stat\"], capture_output=True, text=True, encoding=\"utf-8\", errors=\"replace\",\n                             timeout=5).stdout\n        return parse_vm_stat(out)\n",
+        "replace": "        return None\n",
         "matches": 1,
     },
     {

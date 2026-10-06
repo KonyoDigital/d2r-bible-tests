@@ -679,7 +679,7 @@ RED_PROOF = [
         "why": "v3176 — the cap stops capping: every run flows, nothing is pushed, and his shelf grows "
                "without bound",
         "file": "control_ui.html",
-        "find": "        if (keptN < RIVER_KEEP) { c.removeAttribute('data-river-out'); keptN++; return; }\n",
+        "find": "        if (_keptAt ? _rank(c) >= 0 : keptN < RIVER_KEEP) { c.removeAttribute('data-river-out'); keptN++; return; }\n",
         "replace": "        if (true) { c.removeAttribute('data-river-out'); keptN++; return; }\n",
         "matches": 1,
     },

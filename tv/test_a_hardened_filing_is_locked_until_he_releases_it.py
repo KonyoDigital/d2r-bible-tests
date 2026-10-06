@@ -654,8 +654,8 @@ RED_PROOF = [
         "why": "#41 rank 17 - a reader's two looks overwrite a locked evidence row at the same locker again",
         "file": "bible.html",
         # 150af30a gave the same-locker refusal a body ({ ... _noteHand ... }), so the anchor ends at its brace
-        "find": "if (_pw && _pw.kind !== 'owned' && _pw.locked === true){",
-        "replace": "if (false && _pw && _pw.kind !== 'owned' && _pw.locked === true){",
+        "find": "if (_pw && _pw.kind !== 'owned' && _pw.locked === true) return",
+        "replace": "if (false && _pw && _pw.kind !== 'owned' && _pw.locked === true) return",
         "matches": 1,
     },
     {
