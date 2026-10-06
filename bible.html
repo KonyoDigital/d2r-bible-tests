@@ -10375,18 +10375,10 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #chx-win .chx-win-box{width:min(440px,100%);max-height:min(640px,100%);overflow:auto;background:var(--surface);border:1px solid var(--border-light);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
 #chx-win .chx-win-h{display:flex;align-items:center;gap:8px}
 #chx-win .chx-win-name{font-family:var(--serif-display);font-size:var(--fs-chx-name);color:var(--text);min-width:0;flex:1}
-#chx-win .chx-doll{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
-#chx-win .chx-cell{display:flex;flex-direction:column;align-items:flex-start;gap:2px;min-width:0;text-align:left;font-size:var(--fs-meta);color:var(--text);background:var(--surface);border:1px solid var(--border-light);border-radius:8px;padding:6px 8px}
-#chx-win .chx-cell[data-slot="helm"]{grid-column:2;grid-row:1}
-#chx-win .chx-cell[data-slot="amulet"]{grid-column:2;grid-row:2}
-#chx-win .chx-cell[data-slot="weapon"]{grid-column:1;grid-row:3}
-#chx-win .chx-cell[data-slot="torso"]{grid-column:2;grid-row:3}
-#chx-win .chx-cell[data-slot="off-hand"]{grid-column:3;grid-row:3}
-#chx-win .chx-cell[data-slot="gloves"]{grid-column:1;grid-row:4}
-#chx-win .chx-cell[data-slot="belt"]{grid-column:2;grid-row:4}
-#chx-win .chx-cell[data-slot="boots"]{grid-column:3;grid-row:4}
-#chx-win .chx-cell[data-slot="ring1"]{grid-column:1;grid-row:5}
-#chx-win .chx-cell[data-slot="ring2"]{grid-column:3;grid-row:5}
+/* REG-1887 — the doll in this window is the Vault's (.mp-* on MULE_DOLL_SLOTS, drawn by window._mpDollHtml): the 3x5
+   grid that stood here was a third doll. It only needs room and a centre. */
+#chx-win .chx-doll{display:flex;justify-content:center;max-width:100%;overflow:hidden}
+#chx-win .chx-doll .mp-p{flex:none;max-width:100%}
 #chx-win .chx-win-say{margin:0;font-size:var(--fs-body);color:var(--text)}
 #chx-win .chx-win-grid{margin:0;font-size:var(--fs-meta);color:var(--text-dim)}
 .vault-propose{display:block;margin-top:2px;font-size:var(--fs-meta);color:var(--text-dim)}
@@ -10732,26 +10724,37 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     if (!row.item) return word + ' · not seen yet';
     return word + ' · ' + esc(row.item) + ' · ' + esc(_TIER_FACE[row.tier] || 'tier UNKNOWN') + ' · ' + _looks(row.sightings);
   }
-  function _chxCellBtn(s){
-    var cell = 'equipped:' + s.slot;
-    var word = esc(_SLOT_WORD[s.slot] || s.slot);
-    var attrs = ' data-cell="' + esc(cell) + '" data-slot="' + esc(s.slot) + '"';
-    var on = ' onclick="window._chxPick(\'' + _chxJs(cell) + '\')"';
-    if (!s.item) return '<button type="button" class="chx-cell"' + attrs + ' data-state="unseen"' + on + '>'
-      + word + '<span class="chx-item chx-unk">not seen yet</span></button>';
-    return '<button type="button" class="chx-cell"' + attrs + ' data-tier="' + esc(s.tier || 'UNKNOWN') + '"' + on + '>'
-      + word + '<span class="chx-item">' + esc(s.item) + '</span></button>';
+  /* REG-1887 — ONE DOLL. The ten cells are drawn by the Vault's doll (window._mpDollHtml, MULE_DOLL_SLOTS - the one
+     geometry), asked by the cell a look records (equipped:helm ...). This side says only what each cell holds and opens
+     its sentence; it never draws a slot itself. No Vault doll on the page is UNKNOWN, never a grid of its own. */
+  function _chxDollHtml(G, nm){
+    if (typeof window._mpDollHtml !== 'function') return null;
+    var bySlot = {};
+    (G.g.slots || []).forEach(function(s){ if (s && s.slot) bySlot[s.slot] = s; });
+    return window._mpDollHtml(function(worn){
+      var s = bySlot[worn], cell = 'equipped:' + worn, word = _SLOT_WORD[worn] || worn;
+      var attrs = ' data-cell="' + esc(cell) + '"' + ((s && s.item) ? ' data-tier="' + esc(s.tier || 'UNKNOWN') + '"' : ' data-state="unseen"')
+        + ' onclick="window._chxPick(\'' + _chxJs(cell) + '\')"';
+      if (!s) return { say: word + ' · not a cell the ledger lists', attrs: attrs, picked: _chxCell === cell };
+      if (!s.item) return { say: word + ' · not seen yet', attrs: attrs, picked: _chxCell === cell };
+      return { e: { name: s.item }, attrs: attrs, picked: _chxCell === cell,
+               say: word + ' · ' + s.item + ' · ' + (_TIER_FACE[s.tier] || 'tier UNKNOWN') + ' · ' + _looks(s.sightings) };
+    }, { label: 'what the game showed ' + nm + ' wearing',
+         /* the doll's 322-unit width fits the window at a phone's width too: a smaller unit, never a cut-off hand */
+         du: Math.max(0.6, Math.min(1, ((window.innerWidth || 1440) - 72) / 322)) });
   }
   function _chxWinHtml(t){
     var G = _gearOf(t), nm = esc(t.name || 'this character');
     var head = '<div class="chx-win-h"><span class="chx-win-name">' + nm + '</span>'
       + '<button type="button" data-act="close" onclick="window._chxClose()">Close</button></div>';
     if (G.state !== 'seen') return head + '<div class="chx-doll" data-state="' + G.state + '"><p class="chx-win-say">' + _chxSay(t, '') + '</p></div>';
-    var buttons = (G.g.slots || []).map(_chxCellBtn).join('');
+    var doll = _chxDollHtml(G, t.name || 'this character');
+    if (doll === null) return head + '<div class="chx-doll" data-state="unknown"><p class="chx-win-say">The Vault\'s doll is not on '
+      + 'this page, so the cells cannot be drawn - UNKNOWN.</p></div>';
     var un = G.g.unplaced || [];
     var unTxt = un.length ? '<p class="chx-win-grid">Worn, slot not told yet: ' + un.map(function(u){
       return esc(u.item) + ' (' + _looks(u.sightings) + ')'; }).join(' · ') + '</p>' : '';
-    return head + '<div class="chx-doll" data-state="seen">' + buttons + '</div>'
+    return head + '<div class="chx-doll" data-state="seen">' + doll + '</div>'
       + '<p class="chx-win-say" data-picked="' + esc(_chxCell) + '">' + _chxSay(t, _chxCell) + '</p>'
       + unTxt
       + '<p class="chx-win-grid" data-grid="inventory" data-state="unjoined">No inventory or stash cell is joined to '
@@ -44802,6 +44805,42 @@ window.vaultAutoAssign = function(){
     var n = (e.id && typeof window._cbArtName === 'function') ? window._cbArtName(e) : e.name;
     return n === null ? window._cbArtUnknown('lg') : art(n, glyph, 'lg');
   }
+  /* ⟦MP DOLL BEGIN⟧ REG-1887 (#146 step 3c) — THE VAULT'S DOLL IS THE ONE DOLL. The mule window drew its ten slots inline,
+     and c637711e gave the in-game character window a third doll of its own (a 3x5 CSS grid of buttons beside this one
+     and the planner's). The slot markup is drawn here, once, on MULE_DOLL_SLOTS - the one geometry table: openMuleCard
+     hands it each slot's state and its doors, and window._mpDollHtml hands it what the game showed an in-game character
+     wearing, read-only. `at(s)` answers one row: {e, say, gone, picked, attrs, after, titled}. */
+  function _mpDollSlotsHtml(at){
+    var D = function(n){ return 'calc(' + n + '*var(--du))'; };
+    return MULE_DOLL_SLOTS.map(function(s){
+      var x = at(s) || {}, e = x.e || null, say = String(x.say == null ? '' : x.say);
+      return '<button type="button" class="mp-slot'+(s[5] >= 60 ? ' mp-slot-lg' : '')+(e ? ' mp-has' : '')+(x.gone ? ' mp-gone' : '')+(x.picked ? ' mp-picked' : '')+'" data-slot="'+s[0]+'" style="left:'+D(s[3])+';top:'+D(s[4])+';width:'+D(s[5])+';height:'+D(s[6])+'"'
+        + (x.attrs || '')
+        + ((e && !x.titled) ? '' : ' title="'+esc(say)+'"') + ' aria-label="'+esc(say)+'">'
+        + (e ? _mpSlotArt(e, s[1]) : '<span class="mp-gl">'+s[1]+'</span>') + '</button>'   /* #248: a database pick draws its base · #41 rank 24: UNKNOWN when the database cannot be read */
+        + (x.after || '');
+    }).join('');
+  }
+  /* a worn identity (the reader's and the gear ledger's: equipped:helm ...) -> this doll's slot key */
+  var MP_WORN_SLOT = { helm: 'head', amulet: 'neck', weapon: 'rarm', torso: 'tors', 'off-hand': 'larm',
+                       gloves: 'glov', ring1: 'rrin', belt: 'belt', ring2: 'lrin', boots: 'feet' };
+  var MP_SLOT_WORN = {};
+  Object.keys(MP_WORN_SLOT).forEach(function(k){ MP_SLOT_WORN[MP_WORN_SLOT[k]] = k; });
+  /* The doll, read-only, for a window that is not the mule window: `at(worn, row)` is asked by WORN identity. Its slots
+     keep a native title (the d2Tip hover is bound inside the mule window only). */
+  window._mpDollHtml = function(at, opt){
+    var o = opt || {};
+    var slots = _mpDollSlotsHtml(function(s){
+      var x = at(MP_SLOT_WORN[s[0]] || s[0], s) || { say: s[2] }, y = {};
+      for (var k in x) if (Object.prototype.hasOwnProperty.call(x, k)) y[k] = x[k];
+      y.titled = true;
+      return y;
+    });
+    return '<section class="mp-p mp-eq mp-eq-big" data-doll="vault" style="--u:1px;--du:' + (+o.du > 0 ? +o.du : 1)
+      + 'px;width:calc(322*var(--du));height:calc(236*var(--du))"' + (o.label ? ' aria-label="' + esc(o.label) + '"' : '') + '>'
+      + '<div class="mp-doll"></div><div class="mp-dollbox">' + slots + '</div></section>';
+  };
+  /* ⟦MP DOLL END⟧ */
   function _mpHostSync(){
     if (typeof window._cbHostOpen !== 'function') return;          // the builder's block is not on this page: the locker list alone
     if (_mpInvAt && openMuleId){ _mpInvHostOpen(); return; }      // #174 v-B5 — an inventory cell holds the picker
@@ -45402,7 +45441,7 @@ window.vaultAutoAssign = function(){
        equipped slot carries no native title, which would draw an OS box on top of that box (v2119). An empty
        slot keeps its title. */
     var D = function(n){ return 'calc(' + n + '*var(--du))'; };
-    var doll = MULE_DOLL_SLOTS.map(function(s){
+    var doll = _mpDollSlotsHtml(function(s){   /* REG-1887 — the one doll's markup; this window hands it the state and its doors */
       var e = _eqAt(s[0]);
       var _dw = e ? _deadAt(s[0]) : null, gone = !!_dw;
       /* #246 W5 (integration) - the slot says where the ITEM came from AND what the Vault holds as its witness */
@@ -45410,14 +45449,12 @@ window.vaultAutoAssign = function(){
       var say = e ? (s[2] + ' — ' + e.name + ', ' + (MP_SRC_SAY[e.source] || e.source) + (e.id ? ' from the item database' : '') + (_pvs ? ' · in the vault: ' + _pvs : '') + (gone ? ' — NOT WORN, NOT COUNTED: ' + _dw : '')
                      + '. Enter to change it, Delete to unequip')
                   : (s[2] + ' — empty. Click (or Enter) to choose one: this locker’s items, or any item in the database');
-      return '<button type="button" class="mp-slot'+(s[5] >= 60 ? ' mp-slot-lg' : '')+(e ? ' mp-has' : '')+(gone ? ' mp-gone' : '')+(_mpPickAt && _mpPickAt.slot === s[0] ? ' mp-picked' : '')+'" data-slot="'+s[0]+'" style="left:'+D(s[3])+';top:'+D(s[4])+';width:'+D(s[5])+';height:'+D(s[6])+'"'
-        + ' data-fk="slot-'+s[0]+'" onclick="window._mpPick(\''+s[0]+'\')" oncontextmenu="return window._mpCtx(event,\''+s[0]+'\')" onkeydown="window._mpSlotKey(event,\''+s[0]+'\')"'
-        + (e ? '' : ' title="'+esc(say)+'"') + ' aria-label="'+esc(say)+'">'
-        + (e ? _mpSlotArt(e, s[1]) : '<span class="mp-gl">'+s[1]+'</span>') + '</button>'   /* #248: a database pick draws its base · #41 rank 24: UNKNOWN when the database cannot be read */
-        + (e ? '<button type="button" class="mp-unq" data-fk="unq-'+s[0]+'" style="left:'+D(s[3] + s[5] - 11)+';top:'+D(s[4])+'"'
-             + ' onclick="window._mpUnequip(\''+s[0]+'\')" title="unequip '+esc(e.name)+' (right-click the slot does the same)"'
-             + ' aria-label="unequip the '+s[2]+'">✕</button>' : '');
-    }).join('');
+      return { e: e, gone: gone, say: say, picked: !!(_mpPickAt && _mpPickAt.slot === s[0]),
+               attrs: ' data-fk="slot-'+s[0]+'" onclick="window._mpPick(\''+s[0]+'\')" oncontextmenu="return window._mpCtx(event,\''+s[0]+'\')" onkeydown="window._mpSlotKey(event,\''+s[0]+'\')"',
+               after: e ? '<button type="button" class="mp-unq" data-fk="unq-'+s[0]+'" style="left:'+D(s[3] + s[5] - 11)+';top:'+D(s[4])+'"'
+                    + ' onclick="window._mpUnequip(\''+s[0]+'\')" title="unequip '+esc(e.name)+' (right-click the slot does the same)"'
+                    + ' aria-label="unequip the '+s[2]+'">✕</button>' : '' };
+    });
     var swap = [[16,1],[47,2],[247,1],[278,2]].map(function(t){
       return '<button class="mp-swap'+(_mpSwap===t[1]?' on':'')+'" style="left:'+D(t[0])+';top:'+D(48)+'" onclick="window._mpSet(\'swap\','+t[1]+')"'
         + ' title="weapon set '+(t[1]===1?'I':'II')+' — the hands show, and the stats count, the set that is on">'+(t[1]===1?'I':'II')+'</button>';

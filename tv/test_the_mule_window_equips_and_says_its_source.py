@@ -988,7 +988,7 @@ RED_PROOF = [
     {
         "why": "#174 v-B - an equipped slot keeps a native title, drawing an OS box over the board's hover card",
         "file": "bible.html",
-        "find": "        + (e ? '' : ' title=\"'+esc(say)+'\"') + ' aria-label=\"'+esc(say)+'\">'\n",
+        "find": "        + ((e && !x.titled) ? '' : ' title=\"'+esc(say)+'\"') + ' aria-label=\"'+esc(say)+'\">'\n",
         "replace": "        + ' title=\"'+esc(say)+'\"' + ' aria-label=\"'+esc(say)+'\">'\n",
         "matches": 1,
     },
