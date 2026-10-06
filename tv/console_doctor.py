@@ -67,6 +67,25 @@ def _get(path, timeout=4):
         return None
 
 
+def _serving_console(imported):
+    """The control_app that is SERVING in this process, else the module handed in. -> module
+
+    REG-1881 (#86 gap audit 21, the rows REG-1776 did not reach). The console runs control_app.py as
+    __main__, so `import control_app` here builds a SECOND module whose state is its literals (v3012).
+    Eight presence reads took `_FLEET_PRESENCE_CACHE` through that import, and the eagle runs inside the
+    console. MEASURED 2026-10-07: with the serving module holding a roster, the fleet-lane row said "this
+    console has not asked the site for the roster yet". The roster the card paints from is the one in
+    __main__. Outside the console (a test, a harness, a launcher that imported control_app itself) the
+    imported module is the one that serves, so it is handed back unchanged. A doctor run as its own
+    process holds no roster the card painted either way. [[the-unjoined-end]] [[copy-drift]]"""
+    m = sys.modules.get("__main__")
+    if (m is not None and m is not imported
+            and os.path.basename(str(getattr(m, "__file__", "") or "")) == "control_app.py"
+            and hasattr(m, "_FLEET_PRESENCE_CACHE")):
+        return m
+    return imported
+
+
 def _post(path, body=None, timeout=20):
     """POST a console route. Absent console is UNKNOWN, never a failure."""
     import urllib.request
@@ -4025,7 +4044,7 @@ def _mid_restart_peers(roster=None, now=None):
     if roster is None:
         try:
             import control_app as _ca
-            roster = (_ca._FLEET_PRESENCE_CACHE or {}).get("d")
+            roster = (_serving_console(_ca)._FLEET_PRESENCE_CACHE or {}).get("d")
         except Exception as e:
             return {"state": UNKNOWN, "quiet": [], "off": 0,
                     "why": "the roster could not be read (%s)" % type(e).__name__}
@@ -5352,7 +5371,7 @@ def _check_the_picker_census_agrees_on_every_pc():
     except Exception as e:
         return UNKNOWN, "control_app will not import (%s), so no PC's picker census is measured" % str(e)[:60]
     try:
-        cache = _ca._FLEET_PRESENCE_CACHE
+        cache = _serving_console(_ca)._FLEET_PRESENCE_CACHE
     except Exception as e:
         return UNKNOWN, ("control_app no longer exposes _FLEET_PRESENCE_CACHE (%s), so no PC's picker census can "
                          "be read" % type(e).__name__)
@@ -5411,7 +5430,7 @@ def _check_the_fleet_lane_is_reachable():
     except Exception as e:
         return UNKNOWN, "control_app will not import (%s), so the fleet lane is unmeasured" % str(e)[:60]
     try:
-        cache = _ca._FLEET_PRESENCE_CACHE
+        cache = _serving_console(_ca)._FLEET_PRESENCE_CACHE
     except Exception as e:
         return UNKNOWN, ("control_app no longer exposes _FLEET_PRESENCE_CACHE (%s) — a cache that "
                          "vanished is not a fleet that is well" % type(e).__name__)
@@ -7117,7 +7136,7 @@ def _check_a_present_machine_has_a_fresh_last_seen():
         return UNKNOWN, ("control_app will not import (%s), so presence cannot be read"
                          % str(e)[:60])
     try:
-        cache = _ca._FLEET_PRESENCE_CACHE
+        cache = _serving_console(_ca)._FLEET_PRESENCE_CACHE
     except Exception as e:
         return UNKNOWN, ("control_app no longer exposes _FLEET_PRESENCE_CACHE (%s)"
                          % type(e).__name__)
@@ -7217,7 +7236,7 @@ def _check_a_tally_agrees_with_its_own_ledger_verdict():
         return UNKNOWN, ("control_app will not import (%s), so no tally can be compared"
                          % str(e)[:60])
     try:
-        cache = _ca._FLEET_PRESENCE_CACHE
+        cache = _serving_console(_ca)._FLEET_PRESENCE_CACHE
     except Exception as e:
         return UNKNOWN, ("control_app no longer exposes _FLEET_PRESENCE_CACHE (%s)"
                          % type(e).__name__)
@@ -7402,7 +7421,7 @@ def _check_a_presence_reading_names_its_door():
         return UNKNOWN, ("control_app will not import (%s), so presence cannot be read at all"
                          % str(e)[:60])
     try:
-        cache = _ca._FLEET_PRESENCE_CACHE
+        cache = _serving_console(_ca)._FLEET_PRESENCE_CACHE
     except Exception as e:
         return UNKNOWN, ("control_app no longer exposes _FLEET_PRESENCE_CACHE (%s), so neither "
                          "door is readable from here" % type(e).__name__)
@@ -7500,7 +7519,7 @@ def _check_a_fleet_row_identifies_its_machine():
     except Exception as e:
         return UNKNOWN, "control_app will not import (%s), so fleet labels are unmeasured" % str(e)[:60]
     try:
-        cache = _ca._FLEET_PRESENCE_CACHE
+        cache = _serving_console(_ca)._FLEET_PRESENCE_CACHE
     except Exception as e:
         return UNKNOWN, ("control_app no longer exposes _FLEET_PRESENCE_CACHE (%s), so this "
                          "cannot see a single row" % type(e).__name__)
@@ -7571,7 +7590,7 @@ def _check_a_fleet_refusal_names_an_action():
     except Exception as e:
         return UNKNOWN, "control_app will not import (%s), so peer refusals are unmeasured" % str(e)[:60]
     try:
-        cache = _ca._FLEET_PRESENCE_CACHE
+        cache = _serving_console(_ca)._FLEET_PRESENCE_CACHE
     except Exception as e:
         return UNKNOWN, ("control_app no longer exposes _FLEET_PRESENCE_CACHE (%s), so this "
                          "cannot see a single peer" % type(e).__name__)

@@ -341,7 +341,9 @@ LANES = {
         # form an opinion about it. Without this read, a disarmed prune with releasable reels
         # waiting would be reported DARK — an alarm about a deliberate decision, which is how a
         # supervision layer teaches him to ignore it.
-        "armedFrom": ("control_app", "_PRUNE_SAFE_TO_RUN"),
+        # REG-1879 — and his TV_AUTO_PRUNE switch is the other half of arming. The constant alone is True on every
+        # machine, so this lane could never be DORMANT. deleter_armed() is the one answer the drain gives too.
+        "armedFrom": ("control_app", "deleter_armed"),
         "dormantWhy": ("the prune is armed by Konyo and is not armed. Reels may sit releasable "
                        "indefinitely and that is a decision, not a stall"),
     },
@@ -614,7 +616,18 @@ def _armed(decl, allow_import=False):
     if not hasattr(mod, src[1]):
         return None, ("%s.%s is gone, so whether this lane is allowed to act is UNKNOWN"
                       % (src[0], src[1]))
-    return bool(getattr(mod, src[1])), ""
+    _v = getattr(mod, src[1])
+    if callable(_v):
+        # REG-1879 — an arming that is a DECISION (a constant and his switch) is asked, and it answers (armed, why)
+        try:
+            _r = _v()
+        except Exception as e:
+            return None, ("%s.%s() raised %s, so whether this lane is allowed to act is UNKNOWN"
+                          % (src[0], src[1], type(e).__name__))
+        if isinstance(_r, tuple):
+            return (None if _r[0] is None else bool(_r[0])), str(_r[1] if len(_r) > 1 and _r[1] else "")
+        return (None if _r is None else bool(_r)), ""
+    return bool(_v), ""
 
 
 def _lane_state(row):
@@ -638,7 +651,7 @@ def _lane_state(row):
     #    work-list still says WHY it is not acting rather than looking finished.
     if row.get("armed") is False:
         return DORMANT, ("%d owed of %s on the shelf, and this lane is not acting BY DESIGN: %s"
-                         % (owed, on_disk, row.get("dormantWhy") or "no reason declared"))
+                         % (owed, on_disk, row.get("armedWhy") or row.get("dormantWhy") or "no reason declared"))
     # 4. NOTHING OWED, AND THE DENOMINATOR IS RIGHT THERE.
     if owed == 0:
         return IDLE, "nothing owed of %s reel(s) on the shelf" % on_disk

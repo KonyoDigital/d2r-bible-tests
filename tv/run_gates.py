@@ -9531,6 +9531,20 @@ GATES = [
              "as a warning that passed. The eagle already calls that UNKNOWN. The gate now says the "
              "read was not taken. Below 2 GB still blocks. Between 2 and 8 GB the night warning still "
              "appears. At 8 GB and above the disk row still passes."),
+    Gate("test_a_switched_off_deleter_is_dormant_not_stopped",
+         [sys.executable, os.path.join(HERE, "test_a_switched_off_deleter_is_dormant_not_stopped.py")], 90,
+         needs_app=False,
+         why="REG-1879 (#86 gap audit 33) - the drain took `on` from _PRUNE_SAFE_TO_RUN alone, which is "
+             "True everywhere, so a deleter he switched off with TV_AUTO_PRUNE=off read STOPPED with "
+             "on:true. deleter_armed() is the constant and his switch; the drain and the deleter lane "
+             "both ask it, and retention_may_act reads the same parse. Off and misspelt are DORMANT with "
+             "the switch's words. Unset and on stay armed. Nothing is deleted."),
+    Gate("test_a_doctor_row_that_measured_nothing_is_not_a_pass",
+         [sys.executable, os.path.join(HERE, "test_a_doctor_row_that_measured_nothing_is_not_a_pass.py")], 90,
+         needs_app=False,
+         why="REG-1880 (#86 gap audit 27) - /api/doctor carried claude_probe, a stub passing ok over "
+             "'not probed', so every N-of-N OK counted a check nobody made. The row is gone; claude_cli "
+             "still measures the CLI and the doctor still never spawns it."),
     Gate("test_an_owed_reel_with_no_extract_memory_is_not_moving",
          [sys.executable, os.path.join(HERE, "test_an_owed_reel_with_no_extract_memory_is_not_moving.py")], 90,
          needs_app=False,

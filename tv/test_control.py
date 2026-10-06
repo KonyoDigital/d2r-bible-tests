@@ -1145,7 +1145,8 @@ class TestDoctor(unittest.TestCase):
     NEVER spawns the CLI; agent OFF / no D2R must never fail it (pin issues = warn)."""
 
     _CONTRACT = ("ok", "platform", "checks", "logTail", "logPath", "ver")
-    _IDS = ("claude_cli", "claude_probe", "port_agent", "port_control", "python",
+    # REG-1880 — no claude_probe: it was a row passing ok over "not probed"
+    _IDS = ("claude_cli", "port_agent", "port_control", "python",
             "webview2", "capture_proc", "live_frames", "bridge", "pid_files")
 
     def setUp(self):
@@ -1239,10 +1240,9 @@ class TestDoctor(unittest.TestCase):
     def test_doctor_never_spawns_cli(self):
         import inspect
         src = inspect.getsource(ca.doctor_payload)
-        self.assertIn("never spawns the CLI", src)
-        self.assertIn("not probed", src)
-        probe = next(c for c in ca.doctor_payload()["checks"] if c["id"] == "claude_probe")
-        self.assertTrue(probe["ok"])
+        self.assertIn("never spawn the CLI", src)
+        # REG-1880 — the stub row that passed ok over "not probed" is gone; no row stands in for a probe never run
+        self.assertNotIn("claude_probe", {c["id"] for c in ca.doctor_payload()["checks"]})
 
     def test_doctor_ver_mirrors_status(self):
         """Doctor's ver is derived from status_payload's stamp — it can never drift."""
@@ -24297,10 +24297,13 @@ class TestV2082TheReviewOfV2080(unittest.TestCase):
         not differ, or the odd one out is the one that fails open."""
         import inspect
         ca = self._ca()
-        src = inspect.getsource(ca.retention_may_act)
+        # REG-1879 — the parse lives in _auto_prune_switch (the drain and the lane census read it too); the act asks it
+        src = inspect.getsource(ca._auto_prune_switch)
         self.assertIn(".strip().lower()", src,
                       "the kill switch compares a raw env string again — whitespace and case decide "
                       "whether his footage is deleted")
+        self.assertIn("_auto_prune_switch()", inspect.getsource(ca.retention_may_act),
+                      "retention_may_act no longer asks the switch's one parse")
 
     # ── 2 ────────────────────────────────────────────────────────────────────────────────────
     def test_2_an_UNKNOWN_reading_never_clears_a_scar(self):

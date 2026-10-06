@@ -198,6 +198,61 @@ class TheOutletReadsTheWireNotATwin(unittest.TestCase):
                              "route-lane counters stay at zero")
 
 
+
+class ThePresenceRowsReadTheServingRoster(unittest.TestCase):
+    """REG-1881 (#86 gap audit 21, the rows REG-1776 did not reach). Eight doctor reads take
+    `_FLEET_PRESENCE_CACHE` through `import control_app`. The eagle runs inside the console, and the
+    console is control_app.py run as __main__, so that import is a second module whose cache is its
+    literal: d None. MEASURED 2026-10-07 with the serving module holding a roster: the fleet-lane row
+    said "this console has not asked the site for the roster yet". The roster the card paints from is
+    the one in __main__. Each read now asks _serving_console() for it."""
+
+    def _with_serving(self, cache):
+        import types
+        fake = types.ModuleType("__main__")
+        fake.__file__ = os.path.join(HERE, "control_app.py")
+        fake._FLEET_PRESENCE_CACHE = cache
+        import unittest.mock as _m
+        return _m.patch.dict(sys.modules, {"__main__": fake})
+
+    def test_the_fleet_lane_row_reads_the_roster_the_card_paints_from(self):
+        now = time.time()
+        roster = {"ok": True, "online": [{"machine": "box-1"}], "offline": [{"machine": "box-2"}]}
+        with self._with_serving({"t": now - 5, "d": roster, "goodT": now - 5, "goodD": roster}):
+            st, why = CD._check_the_fleet_lane_is_reachable()
+        self.assertEqual(st, CD.OK, "the serving console holds a roster from 5 s ago and the row said %r: %s"
+                         % (st, why))
+        self.assertIn("1 online, 1 offline", why)
+
+    def test_a_serving_console_that_never_asked_is_still_unmeasured(self):
+        with self._with_serving({"t": 0.0, "d": None, "goodT": 0.0, "goodD": None}):
+            st, _why = CD._check_the_fleet_lane_is_reachable()
+        self.assertEqual(st, CD.UNMEASURED)
+
+    def test_outside_the_console_the_imported_module_still_serves(self):
+        """A test, a harness or a launcher that imported control_app itself: that module is the one."""
+        import control_app as ca
+        import unittest.mock as _m
+        now = time.time()
+        roster = {"ok": True, "online": [], "offline": [{"machine": "box-9"}]}
+        with _m.patch.object(ca, "_FLEET_PRESENCE_CACHE", {"t": now, "d": roster, "goodT": now, "goodD": roster}):
+            self.assertIs(CD._serving_console(ca), ca)
+            st, why = CD._check_the_fleet_lane_is_reachable()
+        self.assertEqual(st, CD.OK, why)
+
+    def test_no_presence_read_goes_around_the_serving_console(self):
+        """PINNED BY AST: every `<x>._FLEET_PRESENCE_CACHE` in console_doctor is
+        `_serving_console(<x>)._FLEET_PRESENCE_CACHE`. A bare `_ca._FLEET_PRESENCE_CACHE` is the twin again."""
+        src = io.open(os.path.join(HERE, "console_doctor.py"), encoding="utf-8").read()
+        reads = [n for n in ast.walk(ast.parse(src))
+                 if isinstance(n, ast.Attribute) and n.attr == "_FLEET_PRESENCE_CACHE"]
+        self.assertGreaterEqual(len(reads), 8, "the presence reads moved; re-count them (%d found)" % len(reads))
+        bare = [n.lineno for n in reads
+                if not (isinstance(n.value, ast.Call) and isinstance(n.value.func, ast.Name)
+                        and n.value.func.id == "_serving_console")]
+        self.assertEqual(bare, [], "console_doctor reads the twin's presence cache at line(s) %r" % bare)
+
+
 RED_PROOF = [
     {
         "why": "reading the twin's exact face instead of the wire restores four days of UNKNOWN "
@@ -223,6 +278,14 @@ RED_PROOF = [
         "replace": "        got = {\"ok\": True, \"runs\": 0, \"attempts\": 0, \"stoodDown\": False, "
                    "\"raised\": None, \"everyS\": 90, \"at\": None, \"why\": \"\"} "
                    "if isinstance(riv, dict) else None",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1881 - the presence rows read the module they imported again: inside the console that is a "
+               "second copy whose roster is None, so the fleet-lane row says the site was never asked",
+        "file": "console_doctor.py",
+        "find": "    m = sys.modules.get(\"__main__\")\n    if (m is not None and m is not imported\n",
+        "replace": "    m = None\n    if (m is not None and m is not imported\n",
         "matches": 1,
     },
 ]

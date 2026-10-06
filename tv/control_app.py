@@ -26130,6 +26130,42 @@ def retention_state():
     return st
 
 
+def _auto_prune_switch():
+    """His TV_AUTO_PRUNE switch, alone. -> (True, "") | (False, why). The history of every rule here is in
+    retention_may_act below, which asks this first."""
+    _raw = str(os.environ.get("TV_AUTO_PRUNE", ""))
+    # strip invisibles BEFORE whitespace: str.strip() removes \xa0 but NOT \u200b/\u200c/\ufeff,
+    # which is precisely how a copied-and-pasted "0" came through as armed.
+    _sw = "".join(c for c in _raw if c not in "\u200b\u200c\u200d\ufeff").strip().lower()
+    if _sw in ("0", "off", "false", "no", "none", "never", "disabled", "disable", "stop"):
+        return False, "auto-prune is switched off (TV_AUTO_PRUNE=%s) — reporting only" % _sw
+    if _sw and _sw not in ("1", "on", "true", "yes", "always", "auto"):
+        # ⚠ THE ONE DOOR WITH NO UNDO DOES NOT GUESS. He never typed this, or he typed it wrong;
+        # either way it is not the "defaulted in" case he asked for, and it is not consent.
+        return False, ("TV_AUTO_PRUNE=%r is not a value this switch understands, and the deleter "
+                       "does not guess. Unset it to get the automatic behaviour, or set it to one "
+                       "of on/off." % _raw[:40])
+    return True, ""
+
+
+def deleter_armed():
+    """Is the reel deleter ARMED on this console? -> (True, "") | (False, why). Decides nothing; never acts.
+
+    REG-1879 (#86 gap audit 33). The drain published `on` from _PRUNE_SAFE_TO_RUN alone, which is True on every
+    machine, so a deleter he switched off with TV_AUTO_PRUNE=off and reels carried through three passes read "the
+    drain has STOPPED" with on:true. The truth was disarmed by his switch, drain_state's DORMANT, which nothing could
+    reach. Arming is the code's kill switch AND his switch. The world guard and the frame.release lock are refusals
+    of a pass, not arming, and they stay the drain's stop reason. shelf_driver's deleter lane names this function in
+    `armedFrom`, so the lane census and the drain cannot disagree. It reads the environment and one constant, so a
+    second copy of this module answers the same. [[unknown-stays-unknown]] [[copy-drift]]"""
+    if not _PRUNE_SAFE_TO_RUN:
+        return False, "the reel deleter is disarmed in code (_PRUNE_SAFE_TO_RUN is off)"
+    _sw_ok, _sw_why = _auto_prune_switch()
+    if not _sw_ok:
+        return False, _sw_why
+    return True, ""
+
+
 def retention_may_act():
     """MAY this process delete a reel right now? -> (bool, why). Decides; never acts.
 
@@ -26189,18 +26225,10 @@ def retention_may_act():
     # (his explicit ruling — "automatically prune its not a question.. needs to be defaulted in"),
     # and a value that is SET but UNRECOGNISED now HOLDS. An unset switch is his decision; a
     # misspelt one is nobody's. [[unknown-stays-unknown]]
-    _raw = str(os.environ.get("TV_AUTO_PRUNE", ""))
-    # strip invisibles BEFORE whitespace: str.strip() removes \xa0 but NOT \u200b/\u200c/\ufeff,
-    # which is precisely how a copied-and-pasted "0" came through as armed.
-    _sw = "".join(c for c in _raw if c not in "\u200b\u200c\u200d\ufeff").strip().lower()
-    if _sw in ("0", "off", "false", "no", "none", "never", "disabled", "disable", "stop"):
-        return False, "auto-prune is switched off (TV_AUTO_PRUNE=%s) — reporting only" % _sw
-    if _sw and _sw not in ("1", "on", "true", "yes", "always", "auto"):
-        # ⚠ THE ONE DOOR WITH NO UNDO DOES NOT GUESS. He never typed this, or he typed it wrong;
-        # either way it is not the "defaulted in" case he asked for, and it is not consent.
-        return False, ("TV_AUTO_PRUNE=%r is not a value this switch understands, and the deleter "
-                       "does not guess. Unset it to get the automatic behaviour, or set it to one "
-                       "of on/off." % _raw[:40])
+    # REG-1879 — the parse lives in _auto_prune_switch, so the drain and the lane census read the same switch.
+    _sw_ok, _sw_why = _auto_prune_switch()
+    if not _sw_ok:
+        return False, _sw_why
     # ── v2164 — THE DELETER ASKS THE WORLD GUARD TOO. ────────────────────────────────────────
     # Konyo: "make sure the other profile locking of the chronicles and everything is connected to
     # the profile and pc related to it, so nothing ever gets deleted or regressed."
@@ -26425,7 +26453,8 @@ def _retention_drain(stop_why=None, unknown_why=None, plan=None, keep_recent=Non
 
         owed / passes   this console's own per-pass series (disk_history), which survives a relaunch
         worked / lastTs shelf_driver.lane_beat("deleter") — the ONE reading of the tombstone ledger
-        on              _PRUNE_SAFE_TO_RUN, the arming flag the deleter lane already declares
+        on              deleter_armed(): _PRUNE_SAFE_TO_RUN and his TV_AUTO_PRUNE switch (REG-1879), the
+                        same callable the deleter lane declares
         upstream        #84 (REG-1517) — river_stamp.last_stamps() (the river's OWN positions, never
                         a router pass and never re-derived) against THIS pass's plan, so a reel older
                         than the newest keep_recent that never reached the mouth is counted BLOCKED
@@ -26471,8 +26500,14 @@ def _retention_drain(stop_why=None, unknown_why=None, plan=None, keep_recent=Non
     except Exception as e:
         _up = {"n": None, "why": ("the upstream reading raised %s, so what waits above the mouth "
                                   "is UNKNOWN" % type(e).__name__)}
+    # REG-1879 — armed is the constant AND his switch, never the constant alone. An arming that will not read is
+    # None, which drain_state calls UNKNOWN, never a stall.
     try:
-        return _rr_dr.drain_state(_rows, beat=_beat, on=bool(_PRUNE_SAFE_TO_RUN),
+        _drain_on = bool(deleter_armed()[0])
+    except Exception:
+        _drain_on = None
+    try:
+        return _rr_dr.drain_state(_rows, beat=_beat, on=_drain_on,
                                   stop_why=stop_why, unknown_why=unknown_why,
                                   every_s=_RETENTION_EVERY_S, upstream=_up)
     except Exception as e:
@@ -40804,7 +40839,7 @@ def _windows_ship():
 
 # ── DOCTOR (v801, Grok R7) ─────────────────────────────────────────────────────
 # Windows self-diagnosis. Read-mostly, cross-platform, MUST return <2s, and NEVER
-# spawns the Claude CLI (claude_probe is a stub). ok == no severity-'block' failure.
+# spawns the Claude CLI (REG-1880: no stub row stands in for that probe). ok == no severity-'block' failure.
 # D2R / the agent never have to be running for ok — pin & frame issues are 'warn'.
 
 _BIBLE_VER_CACHE = {"t": 0.0, "v": ""}
@@ -41871,9 +41906,9 @@ def doctor_payload():
          if IS_WIN else
          "Install Claude Code CLI and put it on PATH")))
 
-    # 2) claude probe — deliberately NOT run: the doctor must never spawn the CLI
-    checks.append(_chk("claude_probe", True, "warn",
-                       "not probed (doctor never spawns the CLI)"))
+    # 2) claude probe — deliberately NOT run: the doctor must never spawn the CLI. REG-1880 (#86 gap audit 27): it
+    #    was a row passing a literal True over "not probed", so every N-of-N OK counted a check nobody made. There is
+    #    no probe row; claude_cli above is what the doctor measures about the CLI.
 
     # 3) agent bridge port — OFF is normal, so warn only
     ap = _sock_open(AGENT_PORT)
