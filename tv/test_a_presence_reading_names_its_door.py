@@ -273,8 +273,13 @@ class APresenceReadingNamesItsDoor(unittest.TestCase):
         _fleetSince(m.t) in prose; only the live sites carry it wrapped in escC(). Asserting on
         the bare name would be satisfied by the comment explaining the fix. [[source-reading-guard]] 4b"""
         ui = io.open(UI, encoding="utf-8").read()
-        self.assertEqual(ui.count("escC(_fleetSeen(m))"), 3,
-                         "the three last-seen sites do not all render the joined phrase")
+        # REG-1835 - the law is "no rail site prints the console-only age", not "there are exactly three sites": a fourth
+        # (475f672e, an online row whose pulse went quiet) legitimately renders the joined phrase too. So: at least the
+        # three original sites must render it, with both rail labels carrying it (a bare console age stays banned below).
+        self.assertGreaterEqual(ui.count("escC(_fleetSeen(m))"), 3,
+                                "fewer than the three original last-seen sites render the joined phrase")
+        for lab in ("last seen ' + escC(_fleetSeen(m))", "last recorded ' + escC(_fleetSeen(m))"):
+            self.assertIn(lab, ui, "a rail 'last ...' label no longer carries the joined phrase: %s" % lab)
         self.assertEqual(ui.count("escC(_fleetSince(m.t))"), 0,
                          "a row still prints the console beacon's age under the words 'last "
                          "seen', which is the misreading this version exists to end")

@@ -20,6 +20,11 @@ import subprocess
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+import sys as _sys  # noqa: E402
+if HERE not in _sys.path:
+    _sys.path.insert(0, HERE)
+from console_safe import enable as _console_safe_enable  # noqa: E402  - REG-1834: these print non-ASCII
+_console_safe_enable()
 
 _NOT_READ = "the journal was not read"
 _ZERO_REFIRES = "0 re-fires \u00b7 fired 0"

@@ -17,6 +17,11 @@ import subprocess
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+import sys as _sys  # noqa: E402
+if HERE not in _sys.path:
+    _sys.path.insert(0, HERE)
+from console_safe import enable as _console_safe_enable  # noqa: E402  - REG-1834: these print non-ASCII
+_console_safe_enable()
 UI = os.path.join(HERE, "control_ui.html")
 
 # The live declaration. A comment that quotes this sentence must not satisfy the law.
@@ -112,7 +117,7 @@ def _ask(src):
         "console.log(JSON.stringify(out));\n"
     )
     try:
-        r = subprocess.run(["node", "-"], input=js, capture_output=True, text=True, timeout=60)
+        r = subprocess.run(["node", "-"], input=js, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
     except Exception as e:
         return None, "node did not run: %s" % e
     if r.returncode != 0:

@@ -168,12 +168,17 @@ class AProveLaneKeepsItsOwnPort(unittest.TestCase):
             "os.environ.get('TV_PORT',''), os.environ.get('TV_CONTROL_PORT',''),"
             "os.environ.get('TV_LAW_PORT','')))\n"
         )
+        # REG-1820 - the reserved dead port the stamp must KEEP is whatever law_env hands THIS env: under run_gates the
+        # process already carries its own preset, standalone it is a fresh reservation - never a second guess.
+        import run_gates as _rg
+        want_ctl = _rg.law_env(False, dict(os.environ))["TV_CONTROL_PORT"]
+        self.assertNotIn(want_ctl, ("", "17772", str(LP.base_for_lane(2) + 1)), "PREMISE: a dead port is reserved")
         H._LANE_LOCAL.n = 2
         ok, tail = H._run_gate(tv, "lane_port_probe.py", timeout=30, script=script)
         self.assertTrue(ok, "the probe did not run: %r" % tail)
         b = str(LP.base_for_lane(2))
         self.assertEqual(tail.strip().split("|")[-1].strip(),
-                         "%s %s %s %s" % (b, b, __import__("run_gates").dead_console_port(), str(int(b) + 2)),  # REG-1820
+                         "%s %s %s %s" % (b, b, want_ctl, str(int(b) + 2)),  # REG-1820
                          "lane 2's gate was not stamped with its own ports: %r" % tail)
 
     def test_a_shared_port_is_how_a_tracked_file_vanishes(self):

@@ -11,6 +11,9 @@ same slices. A gate the table has never seen gets the MEDIAN measured cost — n
 small, and a guess that large would re-lopside the split. Refresh from CI job logs:
 
     python3 tv/gate_costs.py <job-log> [<job-log> ...]
+
+A gate no CI log has timed yet can be filled from a LOCAL run's log, as a labelled estimate that never overwrites a
+measured cost (REG-1836):  python3 tv/gate_costs.py --fill-missing "<label>" <date> <log>
 """
 import io
 import json
@@ -66,10 +69,45 @@ def from_logs(paths):
     return out
 
 
+def fill_missing(paths, label, date):
+    """REG-1836 - add ONLY the gates the table has never timed, from a non-CI log, and say so in the header. -> n added
+
+    A CI-measured cost is never overwritten: a local, niced run is an ESTIMATE, recorded under `localEstimates` (names +
+    source + date) so the table never passes a guess off as the runner's measurement. Refresh from CI logs replaces them."""
+    with io.open(TABLE, encoding="utf-8") as fh:
+        rec = json.load(fh)
+    have = rec.get("costs") or {}
+    new = dict((k, v) for k, v in from_logs(paths).items() if k not in have)
+    if not new:
+        return 0
+    have.update(new)
+    rec["costs"] = dict(sorted(have.items()))
+    est = rec.get("localEstimates") or {"gates": []}
+    est["gates"] = sorted(set(est.get("gates", [])) | set(new))
+    est["count"] = len(est["gates"])
+    est["source"] = label
+    est["date"] = date
+    rec["localEstimates"] = est
+    rec["gates"] = len(have)
+    rec["totalSeconds"] = round(sum(have.values()), 1)
+    with io.open(TABLE + ".tmp", "w", encoding="utf-8") as fh:
+        json.dump(rec, fh, ensure_ascii=False, indent=1)
+    os.replace(TABLE + ".tmp", TABLE)
+    return len(new)
+
+
 def main(argv):
     if len(argv) < 2:
         print("usage: python3 tv/gate_costs.py <ci-job-log> [<ci-job-log> ...]")
         return 2
+    if argv[1] == "--fill-missing":
+        # python3 tv/gate_costs.py --fill-missing "<label>" <YYYY-MM-DD> <log> [<log> ...]
+        if len(argv) < 5:
+            print("usage: python3 tv/gate_costs.py --fill-missing <label> <date> <log> [<log> ...]")
+            return 2
+        n = fill_missing(argv[4:], argv[2], argv[3])
+        print("added %d local estimate(s); CI-measured costs untouched" % n)
+        return 0
     costs = from_logs(argv[1:])
     if not costs:
         print("no per-gate rows found in %s — nothing written (a table of nothing is not a table)" % argv[1:])
