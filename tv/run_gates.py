@@ -9357,6 +9357,13 @@ GATES = [
              "any raise and appended nothing, so the tally saw fewer rows, all green. A journal that could not "
              "be read is now those two rows, not ok, saying they could not be measured. An empty journal is "
              "still a measurement."),
+    Gate("test_a_sweep_that_never_banked_is_not_an_unknown_age",
+         [sys.executable, os.path.join(HERE, "test_a_sweep_that_never_banked_is_not_an_unknown_age.py")], 90,
+         needs_app=False,
+         why="REG-1778 (#86 gap audit 26) - the reel-extract row filed a sweep memory that was never written "
+             "as an unknown age, which the eagle does not count. Reels that owe a read and no memory at all "
+             "are now MISSING: no read has ever been banked. A file that is there and will not stat stays "
+             "UNKNOWN. A bank that exists is still judged by its age."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

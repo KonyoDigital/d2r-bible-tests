@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1778 - A SWEEP THAT NEVER BANKED A READ READ AS AN UNKNOWN AGE (2026-10-06, #86 gap audit 26)
+
+The reel-extract row asked the sweep memory's clock whenever reels still owed a read. A memory that was never written has no clock. That came back UNKNOWN, and an unknown is not counted, so a console that has never banked a read looked like one whose age could not be read. A missing memory is now MISSING: those reels owe a read and no read has ever been banked here. A file that is there and will not stat stays UNKNOWN. A bank that exists is still judged by its age, and the retained-read explanation still rides on that line. Law `test_a_sweep_that_never_banked_is_not_an_unknown_age`.
+
 ### REG-1777 - A DOCTOR CHECK THAT DID NOT RUN READ AS A CHECK THAT PASSED (2026-10-06, #86 gap audit 22)
 
 The replay row and the journal-generation row each sat in `except Exception: pass`. A raise appended no row. The tally then saw fewer rows, all green, and a journal that could not be read looked like a night that passed. A raise now leaves the row, not ok, saying it could not be measured. An empty journal is still a measurement. A bad line inside a journal that did open is still skipped. Law `test_a_doctor_check_that_did_not_run_is_not_a_pass`.

@@ -2243,11 +2243,18 @@ def _check_the_reel_extract_is_moving():
 
     # OWED BUT NOT MOVING. The AGE is the finding — "the loop is alive" is not evidence that it is
     # doing anything, which is exactly how this went unnoticed for two days.
+    # A memory that was never written has no age. Filing that as UNKNOWN (the eagle does not count
+    # an unknown) let a console that has never banked a read look like one whose clock could not
+    # be read. Absent is MISSING. A file that is there and will not stat stays UNKNOWN.
+    path = ca._chron_swept_path()
     try:
-        last = os.path.getmtime(ca._chron_swept_path())
+        last = os.path.getmtime(path)
+    except FileNotFoundError:
+        return MISSING, ("%d reel(s) owe a read and no read has ever been banked on this console%s"
+                         % (len(owed), tail + _ret))
     except Exception:
         return UNKNOWN, ("%d reel(s) owe a read and the sweep memory cannot be read, so its age "
-                         "is unknown" % len(owed))
+                         "is unknown%s" % (len(owed), tail + _ret))
     hours = (time.time() - last) / 3600.0
     if hours > 2.0:
         return MISSING, ("%d of %d reel(s) owe a read and nothing has been banked for %.1f hours%s"
