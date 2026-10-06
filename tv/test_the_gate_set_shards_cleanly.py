@@ -58,8 +58,22 @@ class TheGateSetShardsCleanly(unittest.TestCase):
         # sabotage it guards (weigh by declared timeout) splits 572 / 794 s - 222 s apart - so heart2 read this
         # proof BLIND. The measured split is 683 / 683. 5% of the total (min 60 s) sees the defect and leaves
         # the greedy split room. [[feedback-threshold-above-the-ceiling]]
-        self.assertLess(abs(a - b), max(60.0, 0.05 * (a + b)),
-                        "slices differ by more than 5%% of the MEASURED total: %.0f vs %.0f" % (a, b))
+        # ⚠ 2026-10-07 (REG-1861) - THE BOUND WENT ABOVE THE CEILING AGAIN: with the table grown to 849 gates the
+        # declared-timeout deal splits 998 / 1061 s - 63 s apart - under the 5% (103 s) bound, so v3599's proof read this
+        # BLIND. The measured deal is 0.1 s apart. 2% of the total (min 20 s) sits between the two, AND the deal must
+        # beat what the declared timeouts would have dealt, judged by the same weights - that comparison cannot drift
+        # above the defect however the registry grows.
+        self.assertLess(abs(a - b), max(20.0, 0.02 * (a + b)),
+                        "slices differ by more than 2%% of the MEASURED total: %.0f vs %.0f" % (a, b))
+        bins = [[0.0, i, []] for i in range(2)]
+        for g in sorted(RG.GATES, key=lambda g: (-float(g.timeout or 0), g.name)):
+            bn = min(bins, key=lambda x: (x[0], x[1]))
+            bn[0] += float(g.timeout or 0)
+            bn[2].append(g.name)
+        da, db = [sum(w[x] for x in bn[2]) for bn in bins]
+        self.assertLess(abs(a - b), abs(da - db),
+                        "dealing by MEASURED cost balances no better than dealing by declared timeout "
+                        "(%.1f s apart vs %.1f s apart, judged on measured seconds)" % (abs(a - b), abs(da - db)))
 
     def test_the_cost_table_is_a_measurement_that_covers_the_registry(self):
         import gate_costs as GC
