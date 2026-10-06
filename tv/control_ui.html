@@ -23826,11 +23826,17 @@ window._lockMark = function(isOpen, px, label){
     // sh.gate={proven,held}). A held-heavy funnel = amber — the gate IS catching misreads (good),
     // but worth seeing. Renders only when the engine exposes the counts (invisible until then).
     var gt = sh.gate || {}, proven = gt.proven, held = gt.held, hasGate = (proven != null || held != null);
-    var fnPulse = (!on && !tk.length && !hasGate) ? 'idle' : ((missTabs > 0 || (hasGate && (held || 0) > (proven || 0))) ? 'warn' : 'ok');
+    // REG-1804 — unknown is a journal that was not read. Empty tabs are also a
+    // night that has not visited a stash, and this organ called that a pass.
+    var tabsUnread = (sh.verdict === 'unknown');
+    var fnPulse = tabsUnread ? 'warn'
+      : ((!on && !tk.length && !hasGate) ? 'idle' : ((missTabs > 0 || (hasGate && (held || 0) > (proven || 0))) ? 'warn' : 'ok'));
     var fnStat = recv + ' receipt' + (recv === 1 ? '' : 's') + (tk.length ? ' <span class="eh-x">·</span> ' + okTabs + '/' + tk.length + ' tabs' : '');
-    var fnSub = hasGate
+    var fnSub = tabsUnread
+      ? 'the journal was not read'
+      : (hasGate
       ? ('🛡 ' + (proven || 0) + ' proven <span class="eh-x">·</span> ' + (held || 0) + ' held' + (missTabs ? ' <span class="eh-x">·</span> ' + missTabs + ' gap' : ''))
-      : (tk.length ? (okTabs + ' landed' + (missTabs ? ' <span class="eh-x">·</span> ' + missTabs + ' gap' : '')) : 'no stash tabs yet');
+      : (tk.length ? (okTabs + ' landed' + (missTabs ? ' <span class="eh-x">·</span> ' + missTabs + ' gap' : '')) : 'no stash tabs yet'));
     // 5) LEDGER — the memory
     var viol = wd.violations || 0;
     // REG-1803 — null is a size that was not read. 0 is an empty journal, and that one stays clean.

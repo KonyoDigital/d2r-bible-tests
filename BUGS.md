@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1804 - AN UNREAD JOURNAL READ AS A NIGHT WITH NO STASH TABS (2026-10-06)
+
+The funnels organ treats an empty tab list as a night that has not visited a stash, and while live that pulse stays ok. An unread journal walk is that same empty list: the poll already says verdict unknown, and the organ said "no stash tabs yet". A measured empty night still says that. A landed tab is still landed. A miss is still a gap. A gate that holds more than it proves still warns. An unread walk stays verdict unknown, the organ says the journal was not read, and it does not stay ok. Law `test_an_unread_journal_is_not_a_night_with_no_stash_tabs`.
+
 ### REG-1803 - AN UNREAD JOURNAL SIZE READ AS A CLEAN LEDGER (2026-10-06)
 
 The ledger organ asked `os.path.isfile`. isfile returns False when the directory will not stat, and False is also a journal that was never written, so the poll said 0.0 MB and the organ said the journal was clean, with ok. A missing file is still 0.0. A blank file is still 0.0. A real file is still its size. A directory that will not stat, a path that is not a file, and an IO error are not that empty: the poll says null, and the organ says the size was not read. It does not stay ok. Law `test_an_unread_journal_size_is_not_a_clean_ledger`.

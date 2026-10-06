@@ -9537,6 +9537,15 @@ GATES = [
              "A real file is still its size. A directory that will not stat is not that "
              "empty, and a path that is not a file is not a measured size. The organ says "
              "the size was not read, and it does not stay ok."),
+    Gate("test_an_unread_journal_is_not_a_night_with_no_stash_tabs",
+         [sys.executable, os.path.join(HERE, "test_an_unread_journal_is_not_a_night_with_no_stash_tabs.py")], 90,
+         needs_app=False,
+         why="REG-1804 - the funnels organ treats an empty tab list as a night that "
+             "has not visited a stash, and that pulse stays ok. An unread journal "
+             "walk is that same empty list. A measured empty night still says no "
+             "stash tabs yet. A landed tab is still landed. A miss is still a gap. "
+             "A gate that holds more than it proves still warns. The organ says "
+             "the journal was not read, and it does not stay ok."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
