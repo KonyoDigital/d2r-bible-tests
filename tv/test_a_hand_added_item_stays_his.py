@@ -220,11 +220,12 @@ class AHandAddedItemStaysHis(unittest.TestCase):
                                     { name: 'Caster Amulet', source: 'manual', at: '2026-10-05T12:01:00.000Z' }]);
           STORE['d2r_vaultHand'] = raw;
           OUT.m = window._vaultHandMigrate();
-          OUT.same = STORE['d2r_vaultHand'] === raw;
+          OUT.key = STORE['d2r_vaultHand'];
           OUT.owned = Array.from(owned);
         """)
         self.assertEqual((kept["m"]["n"], kept["m"]["left"]), (1, 1))
-        self.assertTrue(kept["same"], "a row the vault could not take was dropped or rewritten")
+        self.assertEqual(kept["key"], '[{"name":"Caster Amulet","source":"manual","at":"2026-10-05T12:01:00.000Z"}]',
+                         "the key does not hold exactly the row left, verbatim")
         self.assertEqual(kept["owned"], ["Stone of Jordan"])
 
         bad = _node(r"""
@@ -252,11 +253,12 @@ class AHandAddedItemStaysHis(unittest.TestCase):
           OUT.m = window._vaultHandMigrate();
           OUT.paint = window._vaultHandLeftPaint();
           OUT.left = ELS['vault-hand-left']._html; OUT.hidden = ELS['vault-hand-left'].hidden;
-          OUT.same = STORE['d2r_vaultHand'] === raw;
+          OUT.key = JSON.parse(STORE['d2r_vaultHand'] || 'null');
           OUT.prov = prov();
         """)
         self.assertEqual((out["m"]["n"], out["m"]["left"]), (2, 1))
-        self.assertTrue(out["same"], "the key went while a row he typed had not joined the ledger")
+        self.assertEqual(out["key"], [{"name": "Stone of Jordan", "source": "manual", "at": "2026-10-05T12:00:00.000Z"}],
+                         "the key went while a row he typed had not joined the ledger, or kept rows that landed")
         sj = out["prov"]["Stone of Jordan"]
         self.assertEqual(sj["source"], "kai-register", "another door's receipt was overwritten")
         self.assertNotIn("where", sj, "his hand was smeared into another door's receipt")
@@ -278,6 +280,52 @@ class AHandAddedItemStaysHis(unittest.TestCase):
         """)
         self.assertTrue(quiet["hidden"], "a board with no old key shows the left-behind line")
         self.assertEqual(quiet["html"], "")
+
+    def test_the_next_page_load_counts_the_same(self):
+        """REG-1866 — two passes over two page loads: a row that joined stays landed, the banner count is stable, and a
+        landed row leaves the key."""
+        first = _node(r"""
+          ELS['vault-hand-left'] = new El('vault-hand-left');
+          ['Stone of Jordan', 'Enigma'].forEach(function(n){ owned.add(n); }); persistOwned();
+          STORE['d2r_vaultProv'] = JSON.stringify({
+            'Stone of Jordan': { kind: 'owned', source: 'kai-register', by: 'x', ts: 5, at: '2026-09-01T00:00:00.000Z' },
+            'Enigma': { mule: 'runewords', source: 'stash', at: '2026-09-02T00:00:00.000Z' } });
+          STORE['d2r_vaultHand'] = JSON.stringify([{ name: 'Stone of Jordan', source: 'manual', at: '2026-10-05T12:00:00.000Z' },
+                                                   { name: 'Enigma', source: 'manual', at: '2026-10-05T12:02:00.000Z' }]);
+          OUT.m = window._vaultHandMigrate(); window._vaultHandLeftPaint();
+          OUT.banner = (ELS['vault-hand-left']._html.match(/<p class="vault-org-h">([^<]*)/) || [])[1] || null;
+          OUT.STORE = STORE;
+        """)
+        second = _node(r"""
+          ELS['vault-hand-left'] = new El('vault-hand-left');
+          var S = %s; Object.keys(S).forEach(function(k){ STORE[k] = S[k]; });
+          JSON.parse(STORE['d2r_owned']).forEach(function(n){ owned.add(n); });
+          var keyBefore = STORE['d2r_vaultHand'], provBefore = STORE['d2r_vaultProv'];
+          OUT.m = window._vaultHandMigrate(); window._vaultHandLeftPaint();
+          OUT.banner = (ELS['vault-hand-left']._html.match(/<p class="vault-org-h">([^<]*)/) || [])[1] || null;
+          OUT.keySame = STORE['d2r_vaultHand'] === keyBefore; OUT.provSame = STORE['d2r_vaultProv'] === provBefore;
+          OUT.key = JSON.parse(STORE['d2r_vaultHand'] || 'null');
+        """ % json.dumps(first["STORE"]))
+        self.assertEqual((first["m"]["n"], first["m"]["left"]), (1, 1))
+        self.assertEqual([r["name"] for r in json.loads(first["STORE"]["d2r_vaultHand"])], ["Stone of Jordan"],
+                         "a row that landed stayed in the key")
+        self.assertEqual(second["m"]["left"], 1, "the next page counted a landed row as left")
+        self.assertEqual(second["banner"], first["banner"], "the left-behind banner grew on the next page load")
+        self.assertIn("1 item you added by hand", second["banner"])
+        self.assertTrue(second["keySame"] and second["provSame"], "a pass that landed nothing wrote a store")
+        self.assertEqual([r["name"] for r in second["key"]], ["Stone of Jordan"])
+
+        # and a row the pass joined, still in the key (a page that stopped between the join and the key write), is landed
+        joined = _node(r"""
+          ['Enigma'].forEach(function(n){ owned.add(n); });
+          STORE['d2r_vaultProv'] = JSON.stringify({ 'Enigma': { mule: 'runewords', source: 'stash', at: '2026-09-02T00:00:00.000Z',
+            ownedBy: { kind: 'owned', source: 'hand', at: '2026-10-05T12:02:00.000Z' } } });
+          STORE['d2r_vaultHand'] = JSON.stringify([{ name: 'Enigma', source: 'manual', at: '2026-10-05T12:02:00.000Z' }]);
+          OUT.m = window._vaultHandMigrate();
+          OUT.gone = !Object.prototype.hasOwnProperty.call(STORE, 'd2r_vaultHand');
+        """)
+        self.assertEqual((joined["m"]["n"], joined["m"]["left"]), (1, 0), "a filing that carries his hand was counted left")
+        self.assertTrue(joined["gone"])
 
     def test_a_pass_that_did_not_finish_is_asked_again(self):
         """REG-1849 — the latch closes on a finished pass, not on an attempt."""
@@ -348,8 +396,11 @@ class AHandAddedItemStaysHis(unittest.TestCase):
         self.assertIn("return Array.from(owned).filter(_vaultKeeps).sort();", _cut(code, KEEPS_B, "  function art(n, glyph, size){"))
         hand = code_only(_cut(s, HAND_A, HAND_B))
         self.assertEqual(hand.count("try { add = window._ownedAdd(nm, { source: 'hand',"), 1, "the door does not use the owned door")
-        for banned in ("setItem(", "vaultFile(", "assign[", "suggestMule("):
+        for banned in ("vaultFile(", "assign[", "suggestMule("):
             self.assertNotIn(banned, hand, "the hand door reaches %s" % banned)
+        self.assertEqual(hand.count("setItem("), 1, "the hand door writes a store of its own")
+        self.assertEqual(hand.count("window.LSR.setItem(VAULT_HAND_LEGACY, JSON.stringify(kept.map(function(k){ return k.row; })));"), 1,
+                         "the hand door's one write is not the legacy key keeping only what is left")
         self.assertEqual(code.count("window.LSR.removeItem(VAULT_HAND_LEGACY)"), 1)
         self.assertNotIn('id="vault-hand"', s, "the side list's section is still on the page")
         self.assertNotIn("vaultHandPaint", code)
@@ -377,6 +428,20 @@ class AHandAddedItemStaysHis(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1866 - a filing that carries his hand as ownedBy is landed on every pass; without it the next load counts it left",
+        "file": "bible.html",
+        "find": "    if (cur && (cur.source === 'hand' || (cur.ownedBy && cur.ownedBy.source === 'hand'))) return { ok: true, mode: 'already', name: pre.name };\n",
+        "replace": "    if (cur && cur.source === 'hand') return { ok: true, mode: 'already', name: pre.name };\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1866 - a row that landed leaves the key; without the rewrite it stays there for ever beside the row left",
+        "file": "bible.html",
+        "find": "    else if (n) window.LSR.setItem(VAULT_HAND_LEGACY, JSON.stringify(kept.map(function(k){ return k.row; })));\n",
+        "replace": "",
+        "matches": 1,
+    },
     {
         "why": "REG-1848 - an owned name is not landed by being owned; counting it landed deletes the hand row he typed",
         "file": "bible.html",

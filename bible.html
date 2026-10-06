@@ -40516,7 +40516,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var p = _vhProvRow(pre.name);
     if (!p) return { ok: false, why: pre.name + ' is already yours and d2r_vaultProv would not parse — kept as you typed it' };
     var cur = p.row;
-    if (cur && cur.source === 'hand') return { ok: true, mode: 'already', name: pre.name };
+    /* ⚠ REG-1866 — HIS HAND ALREADY ON THE RECORD IS LANDED, ON EVERY PASS. A filing this migration joined keeps its own
+       source and carries his hand as ownedBy; the next page's pass read that as "owned through another door" and counted
+       a row that had landed as left, so the banner grew by one per load and the key could never clear. */
+    if (cur && (cur.source === 'hand' || (cur.ownedBy && cur.ownedBy.source === 'hand'))) return { ok: true, mode: 'already', name: pre.name };
     if (!cur || (cur.kind !== 'owned' && !cur.ownedBy)){
       var add = _vhCommit(pre, VH_MIGRATE), m = add.prov && add.prov.mode;
       return (add.ok && add.receipt && (m === 'written' || m === 'kept-filing')) ? add
@@ -40546,15 +40549,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       rows.forEach(function(row){
         var r = _vhMigrateRow(row);
         if (r && r.ok) n++;
-        else kept.push({ name: (row && row.name != null) ? String(row.name) : '(no name)', why: (r && r.why) || 'UNKNOWN' });
+        else kept.push({ name: (row && row.name != null) ? String(row.name) : '(no name)', why: (r && r.why) || 'UNKNOWN', row: row });
       });
     } catch (e) {
       _vhLast = { ok: false, why: 'your earlier hand list stopped part-way — left as it is, and asked again on the next paint' };
       return _vhLast;
     }
+    /* REG-1866 — the key holds only what is still left: a row that landed leaves it, a row left behind stays VERBATIM, and a
+       pass that landed nothing writes nothing (the bytes he left stay byte for byte) */
     if (!kept.length) window.LSR.removeItem(VAULT_HAND_LEGACY);
+    else if (n) window.LSR.setItem(VAULT_HAND_LEGACY, JSON.stringify(kept.map(function(k){ return k.row; })));
     _vhMigrated = true;
-    _vhLast = { ok: true, n: n, left: kept.length, rows: kept };
+    _vhLast = { ok: true, n: n, left: kept.length, rows: kept.map(function(k){ return { name: k.name, why: k.why }; }) };
     return _vhLast;
   }
   window._vaultHandMigrate = _vaultHandMigrate;
