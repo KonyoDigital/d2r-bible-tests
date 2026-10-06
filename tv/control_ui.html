@@ -25274,6 +25274,24 @@ function escC(s) {
     if (h < 24) return h + 'h ago';
     return Math.round(h / 24) + 'd ago';
   };
+  /* REG-1914 — AN AGE THAT DOES NOT AGE. GrokBot read "also on the site … no login name 6m ago" unchanged from 01:35 to
+     01:57, then "14m ago"; again 02:14 -> 02:18 -> "20m ago". The age is computed at paint, and the card repaints on
+     EVENTS only (his ruling: not a shorter poll), so a card he keeps open says one age for as long as nobody presses
+     anything. The fix asks the server for nothing: every age is painted with its own stamp (data-fl-t) and a
+     60-second tick re-reads only those labels from that stamp. [[stale-reading]] */
+  var _flAge = function (iso) {
+    return '<span class="fl-age" data-fl-t="' + escC(String(iso || '')) + '">' + escC(_fleetSince(iso)) + '</span>';
+  };
+  window._flAgeTick = function (root) {
+    var els = (root || document).querySelectorAll('[data-fl-t]'), n = 0;
+    for (var i = 0; i < els.length; i++) {
+      var t = els[i].getAttribute('data-fl-t');
+      var say = _fleetSince(t || null);
+      if (els[i].textContent !== say) { els[i].textContent = say; n++; }
+    }
+    return n;
+  };
+  try { setInterval(function () { try { window._flAgeTick(); } catch (e) {} }, 60000); } catch (e) {}
   /* ── v3387 — ONE PRESENCE PHRASE, AND IT NAMES THE DOOR IT CAME THROUGH ─────────────────
      Konyo, 2026-09-20: "make sure to join them so there is not mismatch and unsycn between them
      so they match and work as a one visual read."
@@ -26302,7 +26320,7 @@ function escC(s) {
           + ' <span class="ftt-w ' + _mw.c + '" title="' + escC(_mw.t) + '">' + escC(_mw.w)
           + '</span></div>' + seeded + (bars || '<div class="ftt-none">reported no counts</div>')
           + _mwLine
-          + '<div class="ftt-age">as of ' + escC(_fleetSince(t.at ? new Date(t.at).toISOString() : m.t))
+          + '<div class="ftt-age">as of ' + _flAge(t.at ? new Date(t.at).toISOString() : m.t)
           + '</div>' + _fttClick + '</div>';
       };
       /* v2249 — SAY WHEN HIS OWN BUILD HAS NOT SHIPPED YET. Konyo: "how come im 2248 and dean is
@@ -26587,7 +26605,7 @@ function escC(s) {
       var _wo = (j.webOnly || []);
       var _woTxt = !_wo.length ? '' : ('<div class="fleet-none fleet-was">also on the site, no console here: '
         + _wo.slice(0, 6).map(function (w) {
-            return escC((String(w.user || '').trim() || 'no login name') + ' ' + _fleetSince(w.t));
+            return escC(String(w.user || '').trim() || 'no login name') + ' ' + _flAge(w.t);
           }).join(' \u00b7 ')
         + (_wo.length > 6 ? (' \u00b7 +' + (_wo.length - 6) + ' more') : '') + '</div>');
       box.innerHTML = (rows.length ? rows.join('')

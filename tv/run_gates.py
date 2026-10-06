@@ -8851,6 +8851,13 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_an_age_on_the_fleet_card_keeps_aging", [sys.executable,
+         os.path.join(HERE, "test_an_age_on_the_fleet_card_keeps_aging.py")], 60,
+         needs_app=False,
+         why=("REG-1914 - the fleet card paints ages once and repaints on events only, so 'also on the site ... 6m ago' "
+              "held for 22 minutes; every age now carries its stamp and a 60 s tick re-reads only the labels, asking "
+              "the server nothing (his ruling: not a shorter poll).")
+         ),
     Gate("test_the_planners_own_name_is_not_a_misread", [sys.executable,
          os.path.join(HERE, "test_the_planners_own_name_is_not_a_misread.py")], 120,
          needs_app=False,
