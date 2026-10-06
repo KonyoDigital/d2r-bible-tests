@@ -177,7 +177,7 @@ def run(suite, k=4, here=HERE, cost_path=COST, _classes=None, _env=None):
         ran += got or 0
         shards.append({"shard": i, "classes": len(names), "want": want, "ran": got, "rc": rc, "ok": sok,
                        "failures": res and res.get("failures"), "errors": res and res.get("errors"),
-                       "skipped": (res or {}).get("skipped") or 0,
+                       "skipped": (res or {}).get("skipped"),       # REG-1855: None = this shard never reported it
                        "log": os.path.join(tmp, "shard%d.log" % i), "cost": (res or {}).get("cost") or {}})
     # two checks, two jobs: each shard ran what it was DEALT (above); every class the loader FOUND was dealt (here)
     # by NAME, never by sum (the #231 code seat on 37e9a984): a plan that dropped one class and dealt another of the
@@ -197,7 +197,8 @@ def run(suite, k=4, here=HERE, cost_path=COST, _classes=None, _env=None):
     if why_not:
         ok = False
     rep = {"suite": suite, "ok": ok, "expected": expected, "ran": ran, "shards": shards,
-           "skipped": sum(int(x.get("skipped") or 0) for x in shards),
+           "skipped": (None if any(x.get("skipped") is None for x in shards)
+                       else sum(int(x["skipped"]) for x in shards)),
            "seconds": round(time.time() - t0, 1), "dir": tmp, "whyNot": why_not}
     if ok:
         # #171 - a green run's scratch (shard logs + answers) goes with it; a RED run's is kept, because its logs are
@@ -259,9 +260,17 @@ def summary_skips(rep):
 
     shard_suite recorded each shard's skips and never PRINTED them, so under CI the census read the last line of
     test_control's output, found no `skipped=`, and was blind to every case that skipped there. The census reads the
-    gate's LAST line, so this rides on the summary line."""
-    n = int(rep.get("skipped") or 0)
-    return (" skipped=%d of %d" % (n, int(rep.get("ran") or 0))) if n else ""
+    gate's LAST line, so this rides on the summary line.
+    REG-1855/1856 - UNKNOWN is not zero: a shard that never reported its skips makes the total None and the line says so
+    ("skip count UNKNOWN"); a missing `ran` prints `skipped=N` with NO denominator rather than `of 0`."""
+    n = rep.get("skipped")
+    if n is None:
+        return " (skip count UNKNOWN: a shard never reported it)"
+    n = int(n)
+    if not n:
+        return ""
+    ran = rep.get("ran")
+    return (" skipped=%d of %d" % (n, int(ran))) if ran else (" skipped=%d" % n)
 
 
 def main(argv):

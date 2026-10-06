@@ -102,6 +102,22 @@ class TheLaneStampKeepsTheReservedPort(unittest.TestCase):
         self.assertNotEqual(env["TV_CONTROL_PORT"], str(LP.base_for_lane(2) + 1))
         self.assertEqual(env["TV_PORT"], str(LP.base_for_lane(2)), "the lane still gets its own agent port")
 
+    def test_restamping_one_env_for_another_lane_moves_the_control_port(self):
+        """REG-1857 - lane A's base+1 must not sit beside lane B's other ports."""
+        import lane_ports as LP
+        env = LP.stamp({}, 1)
+        LP.stamp(env, 2)
+        self.assertEqual(env["TV_CONTROL_PORT"], str(LP.base_for_lane(2) + 1))
+        self.assertEqual(env["TV_PORT"], str(LP.base_for_lane(2)))
+
+    def test_restamping_never_moves_a_reserved_dead_port(self):
+        import lane_ports as LP
+        env = RG.law_env(False, {})
+        dead = env["TV_CONTROL_PORT"]
+        LP.stamp(env, 1)
+        LP.stamp(env, 2)
+        self.assertEqual(env["TV_CONTROL_PORT"], dead)
+
     def test_an_unset_port_still_takes_the_lanes_own(self):
         import lane_ports as LP
         env = LP.stamp({}, 1)
@@ -124,9 +140,14 @@ RED_PROOF = [
      "find": "    if not needs_app and env.get(\"TV_CONTROL_PORT\", \"\") in (\"\", \"17772\"):\n",
      "replace": "    if False:\n",
      "matches": 1},
+    {"why": "REG-1857 - a second stamp leaves the first lane's control port",
+     "file": "lane_ports.py",
+     "find": " or (prev is not None and env.get(\"TV_CONTROL_PORT\") == str(prev + 1)):",
+     "replace": ":",
+     "matches": 1},
     {"why": "REG-1820 - stamp overwrites the reserved dead port with the lane's base+1 again",
      "file": "lane_ports.py",
-     "find": "    if env.get(\"TV_CONTROL_PORT\", \"\") in (\"\", \"17772\"):\n        env[\"TV_CONTROL_PORT\"] = str(b + 1)\n",
+     "find": "    if env.get(\"TV_CONTROL_PORT\", \"\") in (\"\", \"17772\") or (prev is not None and env.get(\"TV_CONTROL_PORT\") == str(prev + 1)):\n        env[\"TV_CONTROL_PORT\"] = str(b + 1)\n",
      "replace": "    env[\"TV_CONTROL_PORT\"] = str(b + 1)\n",
      "matches": 1},
 ]

@@ -139,6 +139,12 @@ def case_skips(detail):
     return int(m.group(1)), (int(m.group(2)) if m.group(2) else None)
 
 
+def case_skip_tag(name, n, ran):
+    """One census entry: `name=N` or `name=N/M`. -> str  (REG-1856: a parsed ran of 0 is printed, never dropped as 'no
+    denominator' - only None is no denominator)"""
+    return "%s=%d%s" % (name, n, ("/%d" % ran) if ran is not None else "")
+
+
 def needs_app_of(filename):
     """Does the registered gate that runs FILENAME need his console? -> bool (an unregistered file: False)"""
     for g in GATES:
@@ -10589,7 +10595,7 @@ def main(argv):
             _n, _ran = _m
             if _n:
                 _cases += _n
-                _where.append("%s=%d%s" % (_g.name, _n, ("/%d" % _ran) if _ran else ""))
+                _where.append(case_skip_tag(_g.name, _n, _ran))
                 if _ran and _n >= _ran:
                     _dark.append((_g.name, _n, _ran))
     print("\u2705 %d gate(s) passed%s."

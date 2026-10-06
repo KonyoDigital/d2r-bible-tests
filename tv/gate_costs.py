@@ -69,30 +69,80 @@ def from_logs(paths):
     return out
 
 
-def fill_missing(paths, label, date):
+def _lock_path(table):
+    return table + ".lock"
+
+
+class _table_lock(object):
+    """REG-1859 - an exclusive lock around load -> edit -> replace, so a writer that commits between our load and our
+    replace is not lost. fcntl where it exists; where it does not (Windows) the table is edited unlocked, as before."""
+
+    def __init__(self, table):
+        self.p = _lock_path(table)
+        self.fh = None
+
+    def __enter__(self):
+        try:
+            import fcntl
+            self.fh = io.open(self.p, "a")
+            fcntl.flock(self.fh, fcntl.LOCK_EX)
+        except Exception:
+            pass
+        return self
+
+    def __exit__(self, *a):
+        try:
+            if self.fh:
+                self.fh.close()          # closing releases the flock
+        except Exception:
+            pass
+
+
+def _normalise(rec):
+    """REG-1858/1860 - the header counts MEASURED gates only; estimates are counted beside them, and each fill keeps its own
+    source and date (an earlier fill never reads as from the latest log). -> rec"""
+    est = rec.get("localEstimates")
+    if est:
+        if "fills" not in est:
+            est["fills"] = [{"source": est.pop("source", "unknown"), "date": est.pop("date", "unknown"),
+                             "count": len(est.get("gates", []))}]
+        est["count"] = len(est.get("gates", []))
+    names = set((est or {}).get("gates", []))
+    costs = rec.get("costs") or {}
+    meas = dict((k, v) for k, v in costs.items() if k not in names)
+    rec["gates"] = len(meas)
+    rec["totalSeconds"] = round(sum(meas.values()), 1)
+    if est:
+        rec["estimatedGates"] = len(names & set(costs))
+        rec["estimatedSeconds"] = round(sum(costs[k] for k in names if k in costs), 1)
+    return rec
+
+
+def fill_missing(paths, label, date, table=None):
     """REG-1836 - add ONLY the gates the table has never timed, from a non-CI log, and say so in the header. -> n added
 
     A CI-measured cost is never overwritten: a local, niced run is an ESTIMATE, recorded under `localEstimates` (names +
-    source + date) so the table never passes a guess off as the runner's measurement. Refresh from CI logs replaces them."""
-    with io.open(TABLE, encoding="utf-8") as fh:
-        rec = json.load(fh)
-    have = rec.get("costs") or {}
-    new = dict((k, v) for k, v in from_logs(paths).items() if k not in have)
-    if not new:
-        return 0
-    have.update(new)
-    rec["costs"] = dict(sorted(have.items()))
-    est = rec.get("localEstimates") or {"gates": []}
-    est["gates"] = sorted(set(est.get("gates", [])) | set(new))
-    est["count"] = len(est["gates"])
-    est["source"] = label
-    est["date"] = date
-    rec["localEstimates"] = est
-    rec["gates"] = len(have)
-    rec["totalSeconds"] = round(sum(have.values()), 1)
-    with io.open(TABLE + ".tmp", "w", encoding="utf-8") as fh:
-        json.dump(rec, fh, ensure_ascii=False, indent=1)
-    os.replace(TABLE + ".tmp", TABLE)
+    one {source, date, count} per fill) so the table never passes a guess off as the runner's measurement; the headline
+    gates/totalSeconds stay MEASURED-only (REG-1858). Refresh from CI logs replaces them."""
+    table = table or TABLE
+    found = from_logs(paths)                     # the slow read, outside the lock
+    with _table_lock(table):
+        with io.open(table, encoding="utf-8") as fh:
+            rec = json.load(fh)
+        have = rec.get("costs") or {}
+        new = dict((k, v) for k, v in found.items() if k not in have)
+        if not new:
+            return 0
+        have.update(new)
+        rec["costs"] = dict(sorted(have.items()))
+        est = rec.get("localEstimates") or {"gates": [], "fills": []}
+        est["gates"] = sorted(set(est.get("gates", [])) | set(new))
+        est.setdefault("fills", []).append({"source": label, "date": date, "count": len(new)})
+        rec["localEstimates"] = est
+        _normalise(rec)
+        with io.open(table + ".tmp", "w", encoding="utf-8") as fh:
+            json.dump(rec, fh, ensure_ascii=False, indent=1)
+        os.replace(table + ".tmp", table)
     return len(new)
 
 

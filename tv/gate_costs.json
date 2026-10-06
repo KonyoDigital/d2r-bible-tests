@@ -2,8 +2,8 @@
  "source": "run_gates per-gate rows from CI run 37139166735 (sha 57100324f8a74721cdcf94807ccbf4f9e3733a36), 4 agent-suite logs",
  "run": "37139166735",
  "sha": "57100324f8a74721cdcf94807ccbf4f9e3733a36",
- "gates": 849,
- "totalSeconds": 2058.5,
+ "gates": 799,
+ "totalSeconds": 2042.3,
  "costs": {
   "blueprint-agrees": 3.1,
   "chronicle-doctor": 0.1,
@@ -909,7 +909,14 @@
    "test_the_vault_proposes_a_home_and_does_not_move"
   ],
   "count": 50,
-  "source": "local niced run_gates fast set on the Mac (not CI)",
-  "date": "2026-10-06"
- }
+  "fills": [
+   {
+    "source": "local niced run_gates fast set on the Mac (not CI)",
+    "date": "2026-10-06",
+    "count": 50
+   }
+  ]
+ },
+ "estimatedGates": 50,
+ "estimatedSeconds": 16.2
 }

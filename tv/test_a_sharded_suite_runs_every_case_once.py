@@ -218,6 +218,25 @@ class TheSummaryNamesItsSkips(unittest.TestCase):
         self.assertEqual(rep["skipped"], 1, rep)
         self.assertEqual(RG.case_skips(last), (1, 8), "the census cannot see the skip on the summary line: %r" % last)
 
+    def test_a_shard_that_never_reported_its_skips_is_unknown_not_zero(self):
+        """REG-1855 - UNKNOWN collapsed into a measured 0 and the line printed nothing."""
+        line = SS.summary_skips({"skipped": None, "ran": 8})
+        self.assertIn("UNKNOWN", line)
+        self.assertEqual(SS.summary_skips({"skipped": 0, "ran": 8}), "", "a measured zero prints nothing")
+
+    def test_a_missing_denominator_is_not_of_zero(self):
+        """REG-1856 - `skipped=N of 0` says zero cases ran."""
+        import run_gates as RG
+        line = SS.summary_skips({"skipped": 3})
+        self.assertNotIn(" of 0", line)
+        self.assertEqual(RG.case_skips(line), (3, None))
+
+    def test_the_census_keeps_a_parsed_zero_denominator(self):
+        import run_gates as RG
+        self.assertEqual(RG.case_skip_tag("g", 3, 0), "g=3/0")
+        self.assertEqual(RG.case_skip_tag("g", 3, None), "g=3")
+        self.assertEqual(RG.case_skip_tag("g", 3, 8), "g=3/8")
+
     def test_no_skip_prints_none(self):
         import run_gates as RG
         _rep, last = self._last_line()
@@ -269,6 +288,16 @@ RED_PROOF = [
      "file": "shard_suite.py",
      "find": "    for c in sorted(classes, key=lambda c: (-w[c], c)):\n",
      "replace": "    for c in sorted(classes, key=lambda c: (-w[c], c))[:-1]:\n",
+     "matches": 1},
+    {"why": "REG-1855 - an unreported shard skip count is a measured zero again",
+     "file": "shard_suite.py",
+     "find": "    if n is None:\n        return \" (skip count UNKNOWN: a shard never reported it)\"\n",
+     "replace": "    if n is None:\n        return \"\"\n",
+     "matches": 1},
+    {"why": "REG-1856 - the census drops a parsed ran of 0 again",
+     "file": "run_gates.py",
+     "find": "(\"/%d\" % ran) if ran is not None else \"\")",
+     "replace": "(\"/%d\" % ran) if ran else \"\")",
      "matches": 1},
     {"why": "REG-1819 - the sharded summary stops printing its skips: the CI census is blind to test_control's skips again",
      "file": "shard_suite.py",

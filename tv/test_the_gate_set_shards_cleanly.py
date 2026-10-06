@@ -127,11 +127,102 @@ class TheGateSetShardsCleanly(unittest.TestCase):
                          "one unknown name among real ones was dropped silently")
 
 
+class TheFillMissingKeepsItsHonesty(unittest.TestCase):
+    """REG-1858/1859/1860 (the Grok look on gate_costs.fill_missing) - driven on a scratch table."""
+
+    def setUp(self):
+        import json
+        import shutil
+        import tempfile
+        self.d = tempfile.mkdtemp(prefix="gc_fill_")
+        self.addCleanup(shutil.rmtree, self.d, True)
+        self.table = os.path.join(self.d, "gate_costs.json")
+        with open(self.table, "w", encoding="utf-8") as fh:
+            json.dump({"source": "CI", "gates": 2, "totalSeconds": 3.0, "costs": {"a": 1.0, "b": 2.0}}, fh)
+        self.json = json
+
+    def _log(self, name, rows):
+        p = os.path.join(self.d, name)
+        with open(p, "w", encoding="utf-8") as fh:
+            for g, sec in rows:
+                fh.write("\u2705 %s    %.1fs  OK\n" % (g, sec))
+        return p
+
+    def _rec(self):
+        with open(self.table, encoding="utf-8") as fh:
+            return self.json.load(fh)
+
+    def test_headline_counts_stay_measured_and_each_fill_keeps_its_own_source(self):
+        import gate_costs as GC
+        self.assertEqual(GC.fill_missing([self._log("l1", [("a", 9.0), ("c", 4.0)])], "run one", "d1", table=self.table), 1)
+        self.assertEqual(GC.fill_missing([self._log("l2", [("d", 5.0)])], "run two", "d2", table=self.table), 1)
+        r = self._rec()
+        self.assertEqual(r["costs"]["a"], 1.0, "a measured cost was overwritten")
+        self.assertEqual((r["gates"], r["totalSeconds"]), (2, 3.0), "estimates leaked into the measured headline")
+        self.assertEqual((r["estimatedGates"], r["estimatedSeconds"]), (2, 9.0))
+        self.assertEqual([(f["source"], f["date"], f["count"]) for f in r["localEstimates"]["fills"]],
+                         [("run one", "d1", 1), ("run two", "d2", 1)], "an earlier fill reads as from the latest log")
+
+    def test_two_fills_that_overlap_both_survive(self):
+        """REG-1859 - load -> edit -> replace: the first fill is held at its replace while a second fill runs; without
+        the lock the second's cost is overwritten by the first's stale snapshot."""
+        import threading
+        import time
+        from unittest import mock
+        import gate_costs as GC
+        l1 = self._log("l1", [("c", 4.0)])
+        l2 = self._log("l2", [("d", 5.0)])
+        go = threading.Event()
+        real = os.replace
+        first = []
+
+        def slow_replace(a, b):
+            if not first:
+                first.append(1)
+                go.wait(5)
+            return real(a, b)
+
+        out = []
+        with mock.patch.object(GC.os, "replace", slow_replace):
+            ta = threading.Thread(target=lambda: out.append(GC.fill_missing([l1], "A", "d", table=self.table)))
+            ta.start()
+            time.sleep(0.3)
+            tb = threading.Thread(target=lambda: out.append(GC.fill_missing([l2], "B", "d", table=self.table)))
+            tb.start()
+            time.sleep(0.5)
+            go.set()
+            ta.join(20)
+            tb.join(20)
+        got = self._rec()["costs"]
+        self.assertEqual((got.get("c"), got.get("d")), (4.0, 5.0), "an overlapping fill was lost: %r" % got)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1859 - fill_missing edits without the lock: a writer that commits during the fill is lost again",
+        "file": "gate_costs.py",
+        "find": "    with _table_lock(table):\n        with io.open(table, encoding=\"utf-8\") as fh:\n",
+        "replace": "    if True:\n        with io.open(table, encoding=\"utf-8\") as fh:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1858 - the measured headline counts estimates again",
+        "file": "gate_costs.py",
+        "find": "    meas = dict((k, v) for k, v in costs.items() if k not in names)\n",
+        "replace": "    meas = dict(costs)\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1860 - a later fill overwrites an earlier fill's source",
+        "file": "gate_costs.py",
+        "find": "        est.setdefault(\"fills\", []).append(",
+        "replace": "        est.__setitem__(\"fills\", []) or est[\"fills\"].append(",
+        "matches": 1,
+    },
     {
         "why": "2026-09-29 - an --only name the registry does not have runs nothing and answers '0 gate(s) passed', exit 0",
         "file": "tv/run_gates.py",
