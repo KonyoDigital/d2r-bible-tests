@@ -177,6 +177,42 @@ class TheWitnessKeepsWhere(unittest.TestCase):
             self.assertIn(k, keys)
 
 
+class WhereItWasOutranksWhatItWasCalled(unittest.TestCase):
+    """REG-1911 - a 'stash' sighting whose point is on the INVENTORY grid is filed as inventory (held, never a
+    locker); an 'inventory' sighting whose point is on the stash grid is NOT promoted to stash."""
+
+    def setUp(self):
+        self.map = {"space": [1440, 904], "origin": [0, 0], "extent": [1440, 904], "frame": [1440, 904]}
+        ibox, why = SI.panel_box_for(1440, 904, container="inventory")
+        self.assertIsNotNone(ibox, why)
+        (self.ix, self.iy), _ = SI.point_of_cell(2, 1, ibox, "inventory")
+        sbox, why = SI.panel_box_for(1440, 904, container="stash")
+        (self.sx, self.sy), _ = SI.point_of_cell(3, 4, sbox, "stash")
+
+    def test_the_premise_the_inventory_point_is_on_no_stash_cell(self):
+        self.assertIsNone(vr.place_on_grid([self.ix, self.iy], self.map, "stash")["cell"])
+
+    def test_a_stash_label_on_an_inventory_point_is_filed_as_inventory(self):
+        lane, pl = vr.lane_by_point("stash", [self.ix, self.iy], self.map)
+        self.assertEqual(lane, "inventory", "an inventory tooltip was banked as a stash witness (REG-1911)")
+        self.assertTrue(str(pl["cell"]).startswith("inventory:"), pl)
+        self.assertIn("reader said stash", pl["why"])
+
+    def test_a_stash_point_stays_stash(self):
+        lane, pl = vr.lane_by_point("stash", [self.sx, self.sy], self.map)
+        self.assertEqual((lane, pl["cell"]), ("stash", "stash:c3r4"))
+
+    def test_an_inventory_label_is_never_promoted_to_stash(self):
+        lane, _ = vr.lane_by_point("inventory", [self.sx, self.sy], self.map)
+        self.assertEqual(lane, "inventory", "a pointing error promoted an inventory read to a vault witness")
+
+    def test_the_sweep_files_by_the_point(self):
+        with io.open(os.path.join(HERE, "vault_retro.py"), encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertEqual(src.count('item["lane"], _pl = lane_by_point(item["lane"], item.get("xy"), resp.get("xy"))'), 1,
+                         "the sweep no longer files a sighting by where it was seen")
+
+
 RED_PROOF = [
     {
         "why": "v3554 - the vault reader stops being asked where each item is",
@@ -211,6 +247,12 @@ RED_PROOF = [
         "file": "vault_retro.py",
         "find": "        for _vf in (\"sockets\", \"eth\", \"quality\", \"promptVer\", \"point\", \"cell\", \"cellWhy\"):",
         "replace": "        for _vf in (\"sockets\", \"eth\", \"quality\", \"promptVer\"):",
+        "matches": 1,
+    },    {
+        "why": "REG-1911 - the point is ignored again: an inventory tooltip labelled stash is banked as a vault witness",
+        "file": "vault_retro.py",
+        "find": "    if lane == \"stash\" and pl.get(\"cell\") is None and pl.get(\"point\") is not None:\n",
+        "replace": "    if False:\n",
         "matches": 1,
     },
 ]

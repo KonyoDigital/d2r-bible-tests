@@ -442,6 +442,23 @@ def place_on_grid(xy, xy_map, lane):
     return {"point": pt, "cell": _si.slot_key(cont, cell[0], cell[1]), "why": None}
 
 
+def lane_by_point(lane, xy, xy_map):
+    """REG-1911 - where the item WAS, over what the reader CALLED it, in the safe direction only. -> (lane, placement)
+
+    A Death Mask tooltip sat over his INVENTORY with the stash tab empty, and the reader called it lane 'stash' - so a
+    second look would have grounded an inventory item as vault-owned (the testing-phase pre-run, F7). When the reader
+    says stash and its point is on no stash cell but IS on a measured inventory cell, the sighting is filed where it
+    was seen: inventory, which is held and never registered to a locker. The reverse - a point on the stash grid under
+    an 'inventory' label - is NOT flipped, because that direction would ground a vault item on a pointing error."""
+    pl = place_on_grid(xy, xy_map, lane)
+    if lane == "stash" and pl.get("cell") is None and pl.get("point") is not None:
+        alt = place_on_grid(xy, xy_map, "inventory")
+        if alt.get("cell"):
+            return "inventory", dict(alt, why="the reader said stash; its point is on the inventory grid (%s), so it "
+                                              "is filed as an inventory sighting" % alt["cell"])
+    return lane, pl
+
+
 def normalize_item(raw, surface, lane_default, page_conf):
     """One reader row → the canonical owned-row seed, or None if it is not an item at all.
 
@@ -935,6 +952,8 @@ def _witness_rows(evidence):
         for _vf in ("sockets", "eth", "quality", "promptVer", "point", "cell", "cellWhy"):   # v3554 — and WHERE
             if e.get(_vf) is not None:
                 r[_vf] = e.get(_vf)
+        if e.get("laneSaid") is not None:   # REG-1911 - what the reader called it, when it was filed by its point
+            r["laneSaid"] = e.get("laneSaid")
         w = e.get("witness")
         if w:                      # falsy ("" / None) is NOT a look id; it stays absent
             r["witness"] = w
@@ -1729,7 +1748,8 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
                                        "why": "the reader returned a row with no name on %s in %s — "
                                               "nothing was invented for it" % (name, sid)})
                         continue
-                    _pl = place_on_grid(item.get("xy"), resp.get("xy"), item["lane"])   # v3554 (#146 3b)
+                    _lane_said = item["lane"]
+                    item["lane"], _pl = lane_by_point(item["lane"], item.get("xy"), resp.get("xy"))   # v3554 · REG-1911
                     sight = {"session": sid, "witness": _wkey, "frame": name, "lane": item["lane"],
                              "conf": item["conf"], "count": item["count"], "kind": item["kind"],
                              "ts": ts,
@@ -1746,7 +1766,9 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
                              "crop": _crop_rel, "cropWhy": None if _crop_rel else _crop_why,
                              # v3554 (#146 3b) — WHERE THIS LOOK SAW IT: the frame point and its cell, or why
                              # there is none. In the literal, so the field census reads them like every other key.
-                             "point": _pl["point"], "cell": _pl["cell"], "cellWhy": _pl["why"]}
+                             "point": _pl["point"], "cell": _pl["cell"], "cellWhy": _pl["why"],
+                             # REG-1911 - what the reader SAID, kept beside where it was filed, when the two differ
+                             "laneSaid": _lane_said if _lane_said != item["lane"] else None}
                     key = (item["name"], item["lane"])
                     evidence.setdefault(key, []).append(sight)
                     if item["throwOut"]:
