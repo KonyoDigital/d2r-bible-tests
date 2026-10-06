@@ -680,12 +680,52 @@ export async function onRequestPost(context) {
   // stuck" - the stored record only refreshed every REFRESH_S (15 min), because `stuck` was not compared here. The
   // stations and their counts are compared; the ages are not (they move every beacon). null (cannot read) vs []
   // (measured clear) is a flip too.
+  // REG-1771 (#86 gap 11, the half that comparison left) — the row's "locks shut" is river.heart.census, and the
+  // click box names the lane counts and the triage word (last outcome, owed). None of those were compared, so a
+  // census that went missing, or a river that filled, kept the previous sentence for up to REFRESH_S. Ages, skip
+  // counts and the lane key are still not news. A stuck key that was never sent is not a stuck list that arrived
+  // null: the card reads one as an older build and the other as unreadable.
   const riverNews = (r) => {
     const rv = r && r.system && r.system.river;
-    if (!rv || typeof rv !== 'object' || !('stuck' in rv)) return null;
-    const sk = rv.stuck;
-    const keep = (typeof rv.stuckKeep === 'number') ? rv.stuckKeep : null;
-    return Array.isArray(sk) ? JSON.stringify([keep, sk.map((e) => [e && e.station, e && e.n])]) : JSON.stringify(sk);
+    if (!rv || typeof rv !== 'object') return null;
+    let stuckWord;
+    if ('stuck' in rv) {
+      const sk = rv.stuck;
+      const keep = (typeof rv.stuckKeep === 'number') ? rv.stuckKeep : null;
+      stuckWord = Array.isArray(sk)
+        ? [keep, sk.map((e) => [e && e.station, e && e.n, e && e.window === false])]
+        : sk;
+    }
+    const h = (rv.heart && typeof rv.heart === 'object') ? rv.heart : null;
+    const heartWord = h ? [h.census, (typeof h.blind === 'number') ? h.blind : null] : null;
+    let laneWord = null;
+    if (rv.lanes && typeof rv.lanes === 'object' && !Array.isArray(rv.lanes)) {
+      laneWord = Object.keys(rv.lanes).sort().map((k) => [k, rv.lanes[k]]);
+    } else if (rv.lanes === null) laneWord = 'none';
+    const t = (rv.triage && typeof rv.triage === 'object') ? rv.triage : null;
+    const triageWord = t
+      ? [t.ok === false, t.lastKey || null, (typeof t.backlog === 'number') ? t.backlog : null]
+      : null;
+    if (stuckWord === undefined && heartWord === null && laneWord === null && triageWord === null) return null;
+    return JSON.stringify([stuckWord === undefined ? 'absent' : stuckWord, heartWord, laneWord, triageWord]);
+  };
+  // REG-1771 — the hover says whether that PC's own tree is established, and how many reels sit on its shelf.
+  // Both flip rarely (a reel is added, a tree goes missing). They are not ages.
+  const shelfNews = (r) => {
+    const s = r && r.system;
+    if (!s || typeof s !== 'object') return null;
+    if (!('tree' in s) && !('reels' in s)) return null;
+    return JSON.stringify([
+      ('tree' in s) ? s.tree : 'absent',
+      (typeof s.reels === 'number') ? s.reels : null,
+    ]);
+  };
+  // REG-1771 — an offline row says "roster refused its beacon" from lastBeacon.ok, with the code. The attempt
+  // clock (`t`) moves on every post, so it is not news.
+  const beaconNews = (r) => {
+    const b = r && r.lastBeacon;
+    if (!b || typeof b !== 'object' || !('ok' in b)) return null;
+    return b.ok === false ? ('refused:' + (b.code == null ? '' : b.code)) : 'ok';
   };
   const pickerNews = (r) => {
     const p = r && r.picker;
@@ -701,6 +741,8 @@ export async function onRequestPost(context) {
     || JSON.stringify(prev.pull || null) !== JSON.stringify(rec.pull || null)
     || capRoute(prev) !== capRoute(rec)
     || riverNews(prev) !== riverNews(rec)
+    || shelfNews(prev) !== shelfNews(rec)
+    || beaconNews(prev) !== beaconNews(rec)
     || pickerNews(prev) !== pickerNews(rec)
     || shadowNews(prev) !== shadowNews(rec)
     || readersNews(prev) !== readersNews(rec)

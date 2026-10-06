@@ -527,7 +527,11 @@ class TheRouteIsNewsAndTheAgesSayWhen(_World):
     caches 60 s. Driven through the REAL onRequestPost (node, an in-memory KV; the harness of
     test_a_beacon_records_the_check_in, which ages the STORED record between beacons): a capture
     route change is material, an age that merely moved is not, and the record carries `system.asOf`
-    (its own time) so a reader can add (now - asOf)."""
+    (its own time) so a reader can add (now - asOf).
+
+    REG-1771 (#86 gap 11, the half REG-1734 left open): the census, the lane counts, the triage
+    word, the shelf (own tree, reel count) and a refused beacon are news too. An age, a beacon
+    clock and an unchanged census are not."""
 
     @staticmethod
     def _body(route, age=12.0):
@@ -575,6 +579,84 @@ class TheRouteIsNewsAndTheAgesSayWhen(_World):
             x["system"]["river"]["stuck"] = [{"station": "EMPTY", "n": 9, "oldestS": old, "why": "route shut"}]
         v = self._run([a, b])
         self.assertNotIn("console", v["replies"][1]["stored"], "an unchanged stuck list with a moved age spent a write")
+
+    def test_REG1771_a_census_that_goes_missing_is_written_at_once(self):
+        """The row says 'locks shut' from the census. A flip that waits for REFRESH_S draws the old calm row."""
+        a, b = self._body("native", 12.0), self._body("native", 95.0)
+        a["system"]["river"]["heart"] = {"census": "current", "key": "current", "blind": 0}
+        b["system"]["river"]["heart"] = {"census": "missing", "key": "dev", "blind": 0}
+        v = self._run([a, b])
+        self.assertIn("console", v["replies"][1]["stored"],
+                      "a PC's proof went missing and every other PC kept the calm row for up to 15 min: %r"
+                      % v["replies"][1])
+        self.assertEqual(v["lastseen"]["system"]["river"]["heart"]["census"], "missing")
+
+    def test_REG1771_premise_the_same_census_with_a_moved_age_is_not_news(self):
+        a, b = self._body("native", 12.0), self._body("native", 95.0)
+        for x in (a, b):
+            x["system"]["river"]["heart"] = {"census": "current", "key": "current", "blind": 0}
+        v = self._run([a, b])
+        self.assertNotIn("console", v["replies"][1]["stored"],
+                         "an unchanged census with a moved age spent a KV write")
+
+    def test_REG1771_a_lane_count_that_moves_is_written_at_once(self):
+        a, b = self._body("native", 12.0), self._body("native", 95.0)
+        b["system"]["river"]["lanes"] = {"TRIAGE": 40, "PRINTER": 2}
+        v = self._run([a, b])
+        self.assertIn("console", v["replies"][1]["stored"],
+                      "a PC's river filled and the click box kept the old lane counts for up to 15 min: %r"
+                      % v["replies"][1])
+        self.assertEqual(v["lastseen"]["system"]["river"]["lanes"], {"TRIAGE": 40, "PRINTER": 2})
+
+    def test_REG1771_a_triage_word_that_changes_is_written_at_once(self):
+        a, b = self._body("native", 12.0), self._body("native", 95.0)
+        b["system"]["river"]["triage"]["lastKey"] = "done"
+        b["system"]["river"]["triage"]["backlog"] = 12
+        v = self._run([a, b])
+        self.assertIn("console", v["replies"][1]["stored"],
+                      "a PC's triage word changed and the click box kept the old one for up to 15 min: %r"
+                      % v["replies"][1])
+        self.assertEqual(v["lastseen"]["system"]["river"]["triage"]["lastKey"], "done")
+        self.assertEqual(v["lastseen"]["system"]["river"]["triage"]["backlog"], 12)
+
+    def test_REG1771_a_missing_tree_is_written_at_once(self):
+        a, b = self._body("native", 12.0), self._body("native", 95.0)
+        b["system"]["tree"] = "missing"
+        v = self._run([a, b])
+        self.assertIn("console", v["replies"][1]["stored"],
+                      "a PC's own tree went missing and the hover kept 'established' for up to 15 min: %r"
+                      % v["replies"][1])
+        self.assertEqual(v["lastseen"]["system"]["tree"], "missing")
+        self.assertEqual(v["lastseen"]["system"]["reels"], 3)
+
+    def test_REG1771_a_shelf_count_that_moves_is_written_at_once(self):
+        a, b = self._body("native", 12.0), self._body("native", 95.0)
+        b["system"]["reels"] = 40
+        v = self._run([a, b])
+        self.assertIn("console", v["replies"][1]["stored"],
+                      "a PC's shelf gained reels and the hover kept the old count for up to 15 min: %r"
+                      % v["replies"][1])
+        self.assertEqual(v["lastseen"]["system"]["reels"], 40)
+        self.assertEqual(v["lastseen"]["system"]["tree"], "ok")
+
+    def test_REG1771_a_refused_beacon_is_written_at_once(self):
+        a, b = self._body("native", 12.0), self._body("native", 95.0)
+        a["lastBeacon"] = {"ok": True, "code": 200, "t": "2026-10-06T00:00:00Z"}
+        b["lastBeacon"] = {"ok": False, "code": 500, "t": "2026-10-06T00:04:00Z", "err": "HTTP Error 500"}
+        v = self._run([a, b])
+        self.assertIn("console", v["replies"][1]["stored"],
+                      "the roster started refusing this PC and the row kept the old presence for up to 15 min: %r"
+                      % v["replies"][1])
+        self.assertIs(v["lastseen"]["lastBeacon"]["ok"], False)
+        self.assertEqual(v["lastseen"]["lastBeacon"]["code"], 500)
+
+    def test_REG1771_premise_a_beacon_clock_that_moved_is_not_news(self):
+        a, b = self._body("native", 12.0), self._body("native", 95.0)
+        a["lastBeacon"] = {"ok": True, "code": 200, "t": "2026-10-06T00:00:00Z"}
+        b["lastBeacon"] = {"ok": True, "code": 200, "t": "2026-10-06T00:04:00Z"}
+        v = self._run([a, b])
+        self.assertNotIn("console", v["replies"][1]["stored"],
+                         "a beacon clock that moved, with the same answer, spent a KV write")
 
     def test_the_record_says_when_its_ages_were_stated(self):
         v = self._run([self._body("native")])
@@ -637,10 +719,10 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "2026-09-28 round 2 - the worker's user scrub takes one separator only again: the PUBLIC boundary leaks the name",
+        "why": "2026-09-28 round 2 - the worker's user scrub stops at a space again: the PUBLIC boundary leaks the name",
         "file": "functions/api/console.js",
         "find": "          .replace(/\\b(?:Users|home)[\\\\/]+(?:[^'\"]|'(?=\\w))*/gi, '<user>')\n",
-        "replace": "          .replace(/\\b(?:Users|home)[\\\\/][^\\\\/'\"]+/gi, '<user>')\n",
+        "replace": "          .replace(/\\b(?:Users|home)[\\\\/][^\\\\/\\s'\"]+/gi, '<user>')\n",
         "matches": 1,
     },
     {
@@ -778,6 +860,21 @@ RED_PROOF = [
     {"why": "REG-1734 - a river that clears is not news again: other PCs draw it 'river stuck' for up to 15 min",
      "file": "functions/api/console.js",
      "find": "    || riverNews(prev) !== riverNews(rec)\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "REG-1771 - the census, the lane counts and the triage word are not news again: other PCs keep the old row for up to 15 min",
+     "file": "functions/api/console.js",
+     "find": "    return JSON.stringify([stuckWord === undefined ? 'absent' : stuckWord, heartWord, laneWord, triageWord]);\n",
+     "replace": "    return JSON.stringify([stuckWord === undefined ? 'absent' : stuckWord]);\n",
+     "matches": 1},
+    {"why": "REG-1771 - a tree or a shelf count that changes is not news again: the hover keeps the old words for up to 15 min",
+     "file": "functions/api/console.js",
+     "find": "    || shelfNews(prev) !== shelfNews(rec)\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "REG-1771 - a refused beacon is not news again: the row keeps the old presence for up to 15 min",
+     "file": "functions/api/console.js",
+     "find": "    || beaconNews(prev) !== beaconNews(rec)\n",
      "replace": "",
      "matches": 1},
 ]
