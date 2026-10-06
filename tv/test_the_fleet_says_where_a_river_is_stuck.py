@@ -14,6 +14,8 @@ Three joints, each driven, never grepped:
     dropped, text scrubbed of paths; null stays null; absent stays absent.
   · the card (control_ui.html, the REAL _fleetSysParts / _fleetStuckChip in node): a red "river stuck" on the
     row, the stations with their age in the detail, "none" when it drains, UNKNOWN when it cannot say.
+    A proof that is missing, stale or unreadable is "locks shut" on that same row, and a null stuck list or a
+    null census is "river UNKNOWN" — not the empty chip a draining river uses. The verdict hover keeps both sentences.
 RED_PROOF below.
 """
 import io
@@ -358,6 +360,7 @@ class TheCardSaysIt(unittest.TestCase):
         self.assertIn("PRINTER 25 for", st["t"])
         self.assertIn("vault lane: owes 0", st["why"])
         self.assertIn("river stuck", out["chip"], "the row does not say the river is stuck")
+        self.assertIn("locks shut", out["chip"], "a missing proof beside a stuck river left the locks off the row")
         self.assertIn("vault lane: owes 0", out["chipHtml"], "the row's hover does not carry the reason")
         self.assertIn("never proved on this PC", out["p"]["proved"]["t"])
         self.assertTrue(out["p"]["proved"]["warn"])
@@ -371,7 +374,9 @@ class TheCardSaysIt(unittest.TestCase):
         out = self._run({"stuck": None})
         self.assertTrue(out["p"]["stuck"]["unk"], "an unreadable log read as draining")
         self.assertIn("stamp log", out["p"]["stuck"]["why"])
-        self.assertEqual(out["chip"], "")
+        self.assertIn("river UNKNOWN", out["chip"], "a null stuck list drew the same empty chip as a draining river")
+        self.assertNotIn("river stuck", out["chip"])
+        self.assertNotIn("locks shut", out["chip"])
 
     def test_an_uncomputed_river_says_unknown_for_that_reason(self):
         why = "this console has not computed its river since it started"
@@ -379,7 +384,8 @@ class TheCardSaysIt(unittest.TestCase):
         self.assertTrue(out["p"]["stuck"]["unk"])
         self.assertIn(why, out["p"]["stuck"]["why"])
         self.assertNotIn("stamp log", out["p"]["stuck"]["why"])
-        self.assertEqual(out["chip"], "", "an unknown river grew an alarm")
+        self.assertIn("river UNKNOWN", out["chip"], "an uncomputed river drew the same empty chip as a draining one")
+        self.assertNotIn("river stuck", out["chip"], "an unknown river grew an alarm")
 
     def test_a_clear_window_names_how_many_reels_it_tallied(self):
         out = self._run({"stuck": [], "stuckKeep": 16, "heart": {"census": "current", "blind": 0}})
@@ -410,6 +416,41 @@ class TheCardSaysIt(unittest.TestCase):
         self.assertIn("river stuck", out["chip"])
         self.assertIn("drain owes", out["chipHtml"])
 
+    def _chip(self, river):
+        row = F._row(t_ago_s=60, river=dict({"lanes": {"EMPTY": 76}, "ageS": 30.0, "why": "", "triage": F.TRI_OK},
+                                             **river))
+        return F._run("OUT.chip = strip(_fleetStuckChip(%s)); OUT.html = _fleetStuckChip(%s);"
+                      "OUT.hover = plain(_fleetHoverPlain(%s, 'idle · v1', NOW));"
+                      % (json.dumps(row), json.dumps(row), json.dumps(row)))
+
+    def test_a_shut_proof_is_on_the_row_and_a_null_reading_is_not_draining(self):
+        """#86 gap 9. The row's only dam word was river stuck, and only when the list had stations.
+        A missing, stale or unreadable proof is locks shut. A null census, or a null stuck list, is
+        river UNKNOWN. The verdict hover keeps the stuck sentence and the proved sentence."""
+        for word in ("missing", "stale", "unreadable"):
+            out = self._chip({"stuck": [], "heart": {"census": word, "blind": None}})
+            self.assertIn("locks shut", out["chip"], word)
+            self.assertIn("fleet-riverstuck", out["html"], word)
+            self.assertNotIn("river stuck", out["chip"], word)
+            self.assertNotIn("river UNKNOWN", out["chip"], word)
+            self.assertIn("proved:", out["hover"], word)
+            self.assertIn("stuck:", out["hover"], word)
+        shut = self._chip({"stuck": [], "heart": {"census": "missing", "blind": None}})
+        self.assertIn("never proved on this PC", shut["hover"])
+        calm = self._chip({"stuck": [], "heart": {"census": "current", "blind": 0}})
+        self.assertEqual(calm["chip"], "", "a current proof with nothing stuck grew a word")
+        self.assertIn("proved:", calm["hover"], "a calm river dropped its proved sentence from the hover")
+        self.assertIn("stuck:", calm["hover"])
+        null_census = self._chip({"stuck": [], "heart": {"census": None}})
+        self.assertEqual(null_census["chip"], "river UNKNOWN")
+        self.assertIn("fleet-riverunk", null_census["html"])
+        self.assertNotIn("locks shut", null_census["chip"])
+        both = self._chip({"stuck": None, "heart": {"census": "missing"}})
+        self.assertIn("locks shut", both["chip"])
+        self.assertIn("river UNKNOWN", both["chip"])
+        self.assertEqual(F.UI.count("var plain = _fleetHoverPlain(m, meta);"), 1,
+                         "the verdict hover no longer asks for the stuck and proved sentences")
+
 
 RED_PROOF = [
     {"why": "REG-1738 - a river nobody ever stamped reads as draining again",
@@ -420,8 +461,8 @@ RED_PROOF = [
     {
         "why": "2026-09-29 - the fleet row stops saying a PC's river is stuck (REG-1461)",
         "file": "tv/control_ui.html",
-        "find": "    if (!sk || !sk.length) return '';\n",
-        "replace": "    return '';\n",
+        "find": "    if (Array.isArray(sk) && sk.length) {\n",
+        "replace": "    if (false) {\n",
         "matches": 1,
     },
     {
@@ -492,6 +533,34 @@ RED_PROOF = [
         "file": "tv/control_app.py",
         "find": "            if w.startswith(\"reel.route is LOCKED\") and _sp.get(\"census\") not in (None, \"current\"):\n",
         "replace": "            if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1770 - a missing proof draws the same empty chip as a river that is draining",
+        "file": "tv/control_ui.html",
+        "find": "    if (census === 'missing' || census === 'stale' || census === 'unreadable') {\n",
+        "replace": "    if (false) {\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1770 - a null stuck list draws the same empty chip as a river that is draining",
+        "file": "tv/control_ui.html",
+        "find": "    if (sk === null || census === null) {\n",
+        "replace": "    if (false) {\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1770 - the hover drops the stuck and proved sentences, so they live only behind a click",
+        "file": "tv/control_ui.html",
+        "find": "        if (p && (p.k === 'stuck' || p.k === 'proved') && p.t) sig.push(p.k + ': ' + p.t);\n",
+        "replace": "        if (false) sig.push('');\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1770 - the verdict hover stops asking for those sentences",
+        "file": "tv/control_ui.html",
+        "find": "              var plain = _fleetHoverPlain(m, meta);\n",
+        "replace": "              var plain = String(meta || '').replace(/<[^>]*>/g, '').replace(/\\s+/g, ' ').trim();\n",
         "matches": 1,
     },
 ]

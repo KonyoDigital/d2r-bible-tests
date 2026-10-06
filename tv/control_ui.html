@@ -6646,6 +6646,8 @@
                               gap: 0 1.6ch; min-width: 0; }
   .fleet-chips > span { min-width: 0; overflow-wrap: anywhere; }
   .fleet-riverstuck { color: #e0795f; font-weight: var(--fw-medium); }
+  /* #86 gap 9 — UNKNOWN is not the red alarm and not the quiet row. Same muted word as an unmeasured fact. */
+  .fleet-riverunk { color: var(--muted, #8b8071); font-style: italic; font-weight: var(--fw-medium); }
   /* #41 rank 22 (REG-1564) — the picker-disagrees chip, set exactly like the river-stuck one beside it */
   .fleet-pickerodd  { color: #e0795f; font-weight: var(--fw-medium); }
   /* #108 — a PC whose reader cannot read: the same exception word as river stuck / picker short, and only then */
@@ -25439,17 +25441,34 @@ function escC(s) {
     out.push(_fleetReadersPart(m));
     return out;
   };
-  /* #74 (REG-1461) — THE ONE WORD ON THE ROW: a red "river stuck" beside the name when any station on that PC has
-     held a reel for over 6 h, the reasons in its hover; nothing when it drains or cannot say (the detail box says
-     UNKNOWN in words). Exported so a gate can put every state to it. */
+  /* #74 (REG-1461) — a red "river stuck" when a station has held a reel. #86 gap 9 (REG-1770) — that
+     empty return was also what a shut lock drew, and what a null stuck list drew. A proof that is missing, stale
+     or unreadable is "locks shut": every river lock fails closed. A stuck list that is null, or a census that
+     arrived null, is "river UNKNOWN". A measured empty list on a current proof stays quiet. [[unknown-stays-unknown]] */
   var _fleetStuckChip = function (m) {
     var rv = (m && m.system && typeof m.system === 'object') ? m.system.river : null;
-    var sk = (rv && typeof rv === 'object' && Array.isArray(rv.stuck)) ? rv.stuck : null;
-    if (!sk || !sk.length) return '';
-    var tip = sk.map(function (e) {
-      return e.station + ' ' + (typeof e.n === 'number' ? e.n : '?') + ': ' + (e.why || 'no reason given');
-    }).join(' | ');
-    return '<span class="fleet-riverstuck" title="river stuck on this PC - ' + escC(tip) + '">river stuck</span>';
+    var sk = (rv && typeof rv === 'object') ? rv.stuck : undefined;
+    var hs = (rv && typeof rv === 'object') ? rv.heart : undefined;
+    var census = (hs && typeof hs === 'object') ? hs.census : undefined;
+    var bits = [];
+    if (Array.isArray(sk) && sk.length) {
+      var tip = sk.map(function (e) {
+        return e.station + ' ' + (typeof e.n === 'number' ? e.n : '?') + ': ' + (e.why || 'no reason given');
+      }).join(' | ');
+      bits.push('<span class="fleet-riverstuck" title="river stuck on this PC - ' + escC(tip) + '">river stuck</span>');
+    }
+    if (census === 'missing' || census === 'stale' || census === 'unreadable') {
+      bits.push('<span class="fleet-riverstuck" title="' + escC('the locks that move this PC\u2019s river are shut \u2014 its proof is '
+        + census + ', so nothing that spends a reel may act here') + '">locks shut</span>');
+    }
+    if (sk === null || census === null) {
+      var unk = [];
+      if (sk === null) unk.push('whether a station is stuck did not come back as a list');
+      if (census === null) unk.push('whether this PC has proved its own instruments arrived null');
+      bits.push('<span class="fleet-riverunk" title="' + escC(unk.join('; ')
+        + ' \u2014 UNKNOWN, not a river that was measured draining') + '">river UNKNOWN</span>');
+    }
+    return bits.join('');
   };
   /* #41 rank 22 (REG-1564) — THE ONE WORD ON THE ROW for the picker: a red "picker short" (or "picker over") beside the
      name ONLY when that PC's picker and its own database disagree, both numbers in its hover; nothing when they agree
@@ -25570,6 +25589,21 @@ function escC(s) {
     return h;
   };
   window._fleetSysHtml = _fleetSysHtml;   /* exported so a gate can put every state to it */
+  /* #86 gap 9 (REG-1770) — v2875 kept "unpublished" and "not pulling" in this hover when it took them off the row.
+     The stuck and proved sentences moved into the click box and left the hover, so the row could read healthy with
+     the dam only behind a click. Those two sentences ride here. The short word stays on the row. */
+  var _fleetHoverPlain = function (m, meta, nowMs) {
+    var plain = String(meta || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+    var sig = [];
+    try {
+      _fleetSysParts(m, nowMs).forEach(function (p) {
+        if (p && (p.k === 'stuck' || p.k === 'proved') && p.t) sig.push(p.k + ': ' + p.t);
+      });
+    } catch (e) {}
+    if (sig.length) plain = plain ? (plain + '  —  ' + sig.join(' · ')) : sig.join(' · ');
+    return plain;
+  };
+  window._fleetHoverPlain = _fleetHoverPlain;
   /* ── v2851 — A TRANSIENT FAILURE MUST NOT BECOME A PERMANENT CARD ────────────────────────
      MEASURED on his console 2026-09-09 15:14, screenshot in hand: the card read "fleet
      unreachable — TLS handshake timed out" and "no roster was ever received here", while at the
@@ -26252,7 +26286,7 @@ function escC(s) {
              than out of the console. [[unknown-stays-unknown]] [[label-outlived-referent]] */
           + (function () {
               var w = _machineWord(m.tally, !!(m && m.machine && j && j.me && m.machine === j.me));
-              var plain = String(meta || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+              var plain = _fleetHoverPlain(m, meta);
               /* ══ v3174 — THE REASON ON THE ROW, NOT ONLY IN THE HOVER ════════════════
                  v3170 put maskWhy in the CARD tooltip. His answer, looking at the strip:
                  "where is the visual pass on the fleet we mentioned? icant see lol" — and he
