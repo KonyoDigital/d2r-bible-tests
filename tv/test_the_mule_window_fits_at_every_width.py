@@ -866,6 +866,9 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
         """PRINT THE DENOMINATOR: a window that rendered no text passes every check below."""
         r = _measure()
         self.assertEqual(r.get("seeded"), len(ITEMS), "the fixture did not put its items in the locker")
+        # REG-1893 - a TV_LAW_WIDTHS restriction outside WIDTHS empties _states(); the denominator case then
+        # measured no width and passed. Same door as every sibling: go on, or a DECLARED skip.
+        _need(self, WIDTHS)
         for label, m in _states():
             self.assertNotIn("err", m, "%s: %s" % (label, m.get("err")))
             self.assertGreaterEqual(m["nText"], 120, "%s: only %d text nodes measured" % (label, m["nText"]))
@@ -876,6 +879,7 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
         stat values drawn, the picker open with choices in it — at every width."""
         r = _measure()
         self.assertEqual(r.get("equipped"), [p[1] for p in WEAR], "the picker did not equip the fixture's items")
+        _need(self, WIDTHS)   # REG-1893 - "at every width" over no width is a pass that measured nothing
         for w, h in _W(WIDTHS):
             m = r["eq %dx%d" % (w, h)]
             self.assertEqual((m["worn"], m["pick"]), (len(WEAR), 1), "%dx%d: worn %s, picker %s" % (w, h, m["worn"], m["pick"]))

@@ -57,7 +57,13 @@ class TheCensusCountsEveryGate(unittest.TestCase):
     def test_a_gate_outside_tv_is_addressed_so_every_consumer_resolves_it(self):
         """⚠ THE FIX MUST NOT BE COSMETIC. Counting a root-file gate while handing consumers a
         name they cannot open would trade a silent omission for a silent UNPROVABLE."""
-        for name, fn in H.gate_files():
+        files = H.gate_files()
+        # REG-1893 - gate_files() returns [] when run_gates will not import, and an empty census "resolves";
+        # the case this law is about is a gate addressed from OUTSIDE tv/, so one must be in it
+        self.assertTrue([fn for _n, fn in files if fn.startswith("..")],
+                        "the census (%d gate(s)) holds no gate addressed outside tv/, so nothing here "
+                        "tests the addressing" % len(files))
+        for name, fn in files:
             p = os.path.join(HERE, fn)
             self.assertTrue(os.path.isfile(p),
                             "gate %r is in the census as %r, which does not resolve to a file "
@@ -68,6 +74,8 @@ class TheCensusCountsEveryGate(unittest.TestCase):
         """A gate whose file never reaches the sandbox can only ever report UNPROVABLE."""
         src = H._read_text(os.path.join(HERE, "heart2.py")) or ""
         roots = [fn for _n, fn in H.gate_files() if fn.startswith("..")]
+        # REG-1893 - if root-file gates stop being addressed as "../", none is checked and every one "is placed"
+        self.assertTrue(roots, "the census holds no root-file gate, so no placement in the sandbox was checked")
         for fn in roots:
             base = os.path.basename(fn)
             self.assertIn(base, src,

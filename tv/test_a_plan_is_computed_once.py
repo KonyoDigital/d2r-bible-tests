@@ -691,7 +691,23 @@ class TheRouterReadsTheSameListing(_World):
     def test_filmed_at_is_read_once_from_a_still_folder(self):
         import reel_router as RT
         FR.mark_console_path(False)
-        want = [RT._captured_ms(r, self.hist) for r in self.reels]
+        # REG-1893 - `calls == []` below is only evidence if this spy can hear a listing at all. The fresh arm
+        # lists every reel through os.scandir; if the router stopped listing through it, an empty spy would read
+        # as "never listed again" while the still folder was listed by some other door.
+        real, fresh = os.scandir, []
+
+        def counting_fresh(*a, **k):
+            fresh.append(a[:1])
+            return real(*a, **k)
+        os.scandir = counting_fresh
+        try:
+            want = [RT._captured_ms(r, self.hist) for r in self.reels]
+        finally:
+            os.scandir = real
+        self.assertGreaterEqual(len(fresh), len(self.reels),
+                                "the os.scandir spy heard %d listing(s) for %d reels on the FRESH path, so it "
+                                "cannot hear a re-listing either and the absence below would be vacuous"
+                                % (len(fresh), len(self.reels)))
         FR.mark_console_path(True)
         got = [RT._captured_ms(r, self.hist) for r in self.reels]
         # count the OS's own listings, not the memory's counter - a fresh scan that bypasses listing() never

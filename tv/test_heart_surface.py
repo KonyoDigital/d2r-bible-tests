@@ -705,6 +705,9 @@ class TestAMeasurementNobodyReadsIsNoMeasurement(unittest.TestCase):
             "%s assert an exact value of the LIVE scope-reach reading, so a push would start "
             "failing the day `control_app.py` grows past the last narrow row (headroom: 3). The "
             "author's ruling is that this aid may inform and never refuse." % (offenders,))
+        # REG-1893 - `.get("rows") or []` reads a renamed or missing key as no rows, and no rows lack a reach
+        self.assertTrue(rep.get("rows"), "scope_reach_state() carried no rows, so 'every row carries its reach' "
+                                         "is vacuous: %r" % sorted(rep))
         for row in (rep.get("rows") or []):
             self.assertIn("reach", row,
                           "a row without its reach count hides the noise that makes it unreadable "
@@ -813,6 +816,10 @@ class AVesselMayNotBeToldWorkIsOwedThatCannotLand(unittest.TestCase):
         organs, _why = H._health_rows()
         watchers = {v.get("watcher") for v in (rep.get("vessels") or []) if v.get("watcher")}
         scorable = bool(_scored_names(organs) & watchers)
+        # REG-1893 - a census that refused (or a renamed key) leaves no WATCHED vessel, and the law asks nothing
+        self.assertTrue([v for v in (rep.get("vessels") or []) if v.get("state") == "WATCHED"],
+                        "the census returned no WATCHED vessel, so no row's 'work owed' was judged: %r"
+                        % (rep.get("counts"),))
         for v in (rep.get("vessels") or []):
             if v.get("state") != "WATCHED":
                 continue

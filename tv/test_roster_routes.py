@@ -79,6 +79,9 @@ class AnUnknownTotalIsNotAMissingOne(unittest.TestCase):
 
     def test_with_no_live_tally_the_total_link_is_UNKNOWN(self):
         d = RR.routes(None)
+        # REG-1893 - routes() answers [] (ok False) when a source will not read; "every total is
+        # UNKNOWN" would then be true of no route.
+        self.assertTrue(d["routes"], "no route was derived (%s), so this law would judge none" % d.get("why"))
         for r in d["routes"]:
             self.assertIsNone(r["lanes"]["total"]["ok"],
                               "%s claimed to know about the wire with no live read" % r["key"])
@@ -127,6 +130,8 @@ class TheRefutableClaimIsMeasured(unittest.TestCase):
         d = RR.routes({"sets": {"have": 1, "total": 135},
                        "uniques": {"have": 1, "total": 398},
                        "runewords": {"have": 1, "total": 99}})
+        # REG-1893 - an empty route list passes "counted not hidden" without counting anything.
+        self.assertTrue(d["routes"], "no route was derived (%s), so this law would judge none" % d.get("why"))
         missing_getter = [r["key"] for r in d["routes"]
                           if r["lanes"]["declared"]["ok"] and not r["lanes"]["getter"]["ok"]]
         missing_unit = [r["key"] for r in d["routes"]

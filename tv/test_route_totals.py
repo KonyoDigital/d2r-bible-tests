@@ -86,7 +86,11 @@ class L1_OneProducer(unittest.TestCase):
             want = RT.total(key)
             self.assertIsNotNone(want, "the producer cannot read %r at all" % key)
         for mod, name in ((CR, "chronicle_routes"), (FR, "fleet_routes"), (RR, "roster_routes")):
-            for r in _rows(mod):
+            rows = _rows(mod)
+            # REG-1893 - a surface whose row for a key vanished is skipped by the `continue` below, not caught
+            self.assertTrue(set(KEYS) <= {RT.canonical(r.get("key")) for r in rows},
+                            "%s carries no row for some of %s, so its number is never compared" % (name, KEYS))
+            for r in rows:
                 k = RT.canonical(r.get("key"))
                 if not k:
                     continue
@@ -109,6 +113,9 @@ class L1_OneProducer(unittest.TestCase):
                 self.assertTrue(
                     noun, "%s sends no unit for %r, so the surface must invent one" % (name, k))
                 seen.setdefault(k, {})[name] = noun
+        # REG-1893 - a key seen on one surface (or none) has nothing to disagree with
+        self.assertEqual({k: len(by) for k, by in seen.items()}, {k: 3 for k in KEYS},
+                         "not every key reached all three surfaces, so their nouns were not compared")
         for k, by in seen.items():
             self.assertEqual(
                 len(set(by.values())), 1,
@@ -176,7 +183,11 @@ class L2_TheProducerMovesAllThree(unittest.TestCase):
         after = RT.total("runeword")
         self.assertEqual(after, before + 7, "the producer did not follow its own declaration")
         for mod, name in ((CR, "chronicle_routes"), (FR, "fleet_routes"), (RR, "roster_routes")):
-            for r in _rows(mod):
+            rows = _rows(mod)
+            # REG-1893 - a surface that lost its runeword row would pass the filter below by never entering it
+            self.assertIn("runeword", [RT.canonical(r.get("key")) for r in rows],
+                          "%s carries no runeword row, so whether it followed the producer is unasked" % name)
+            for r in rows:
                 if RT.canonical(r.get("key")) == "runeword":
                     self.assertEqual(
                         r.get("count"), after,

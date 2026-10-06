@@ -574,13 +574,20 @@ class TestFootageArchivePromote(unittest.TestCase):
         exist with those short bytes — a truncated frame is worse than a missing one."""
         import shutil, unittest.mock as mock
 
+        torn = []
+
         def short_copy(src, dst):
+            torn.append(dst)
             with open(dst, "wb") as f:
                 f.write(b"X" * 10)   # far under the 4000-byte floor — a torn write
 
         with mock.patch.object(shutil, "copyfile", side_effect=short_copy):
             ok = tv._archive_footage_copy(self.src, time.time(), why="grab")
         self.assertFalse(ok)
+        # REG-1893 - a writer that refused before copying leaves an EMPTY folder too, and both
+        # absence claims below would pass without a torn fragment ever having existed.
+        self.assertEqual(len(torn), 1, "the torn copy never ran (%d copyfile calls), so 'no "
+                                       "fragment left behind' would be judged on nothing" % len(torn))
         files = self._footage_files()
         real = [f for f in files if f.startswith("f_") and f.endswith(".jpg")]
         self.assertEqual(real, [], "a truncated copy must not be promoted under the final name")
@@ -2355,6 +2362,9 @@ class TestSettleQueue(unittest.TestCase):
         for v in (0, 80, 160):
             tv._settle_enqueue(self.src, self._sig(v))
         older = [e["path"] for e in tv._SETTLE_QUEUE[:-1]]
+        # REG-1893 - a queue that kept only its newest entry would leave `older` empty, and the
+        # "cleans the rest" loop below would pass over files it never saw.
+        self.assertEqual(len(older), 2, "the queue did not hold the two older frames: %r" % older)
         entry = tv._settle_drain_pop()
         self.assertIsNotNone(entry)
         self.assertEqual(entry["sig"], self._sig(160))
@@ -2380,6 +2390,8 @@ class TestSettleQueue(unittest.TestCase):
         for v in (0, 80):
             tv._settle_enqueue(self.src, self._sig(v))
         paths = [e["path"] for e in tv._SETTLE_QUEUE]
+        # REG-1893 - nothing queued is nothing to wipe: the loop below would pass on an empty queue.
+        self.assertEqual(len(paths), 2, "the queue did not hold both frames: %r" % paths)
         tv._settle_queue_clear()
         self.assertEqual(len(tv._SETTLE_QUEUE), 0)
         for p in paths:
@@ -2431,6 +2443,9 @@ class TestSettleQueue(unittest.TestCase):
                                priority=True, origin="text-eye")
         tv._settle_enqueue(self.src, self._dsig(50), priority=False, origin="settle")
         te_paths = [e["path"] for e in tv._SETTLE_QUEUE if e["origin"] == "text-eye"]
+        # REG-1893 - a renamed origin word empties this filter, and all() of nothing says "kept".
+        self.assertEqual(len(te_paths), 3, "the queue did not hold the three text-eye frames: %r"
+                                           % te_paths)
         entry = tv._settle_drain_pop()
         self.assertEqual(entry["sig"], self._dsig(50))             # newest fired live
         self.assertEqual(len(tv._TEXT_EYE_BACKLOG), 3)             # older text-eye backlogged

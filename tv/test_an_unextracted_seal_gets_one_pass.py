@@ -136,6 +136,10 @@ class TestTheTickRunsThatPassOnce(unittest.TestCase):
         row = _barren()
         row["rows"] = 4
         got = self._run([row])
+        # REG-1893 - if the tick stops calling the patched vault_sweep_start (a local binding, a
+        # rename), the spy hears nothing and "no call forced" is true of an empty log.
+        self.assertGreaterEqual(len(self.calls), 1, "the spied vault_sweep_start heard no call, so "
+                                                    "'the seal was not forced' would be vacuous: %r" % (got,))
         self.assertFalse(any(c.get("force") for c in self.calls), got)
         self.assertEqual(CA._VAULT_AUTOREAD.get("reextract"), {})
 

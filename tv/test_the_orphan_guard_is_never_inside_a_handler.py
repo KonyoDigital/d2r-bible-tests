@@ -69,7 +69,11 @@ class TestTheOrphanGuardIsNeverInsideAHandler(unittest.TestCase):
                          "a guard that was moved are both failures here" % len(calls))
 
     def test_the_self_close_is_not_buried_in_an_except_branch(self):
-        for lineno, path in _ancestry(self.fn):
+        calls = _ancestry(self.fn)
+        # REG-1893 - a self-close that stopped being an `os._exit` call (a helper, a rename) leaves no
+        # ancestry, and "not inside a handler" would be true of nothing.
+        self.assertTrue(calls, "no os._exit call found in _orphan_watch, so this law would judge none")
+        for lineno, path in calls:
             print("  os._exit line %d ancestry: %s" % (lineno, " > ".join(path)))
             self.assertNotIn(
                 "ExceptHandler", path,
@@ -80,7 +84,10 @@ class TestTheOrphanGuardIsNeverInsideAHandler(unittest.TestCase):
 
     def test_it_is_reached_on_an_ordinary_iteration(self):
         """Not merely outside a handler — actually on the loop's own path."""
-        for lineno, path in _ancestry(self.fn):
+        calls = _ancestry(self.fn)
+        # REG-1893 - with no os._exit found, "it is inside the poll loop" would be true of nothing.
+        self.assertTrue(calls, "no os._exit call found in _orphan_watch, so this law would judge none")
+        for lineno, path in calls:
             self.assertIn("While", path,
                           "the self-close at line %d is not inside the poll loop at all" % lineno)
             # ⚠ NAME WHAT IS FORBIDDEN, NOT WHAT IS ALLOWED. The first cut demanded the list

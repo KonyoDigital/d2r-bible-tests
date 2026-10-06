@@ -81,6 +81,8 @@ class TestADeclaredTraceMustBeOneTheLoopWrites(unittest.TestCase):
                           % (vessel, lane))
 
     def test_the_declared_path_is_the_one_lane_trace_writes(self):
+        # REG-1893 - with no loop declaring a .lane_trace path the loop below compares nothing
+        self.assertTrue(self.declared, "no loop declares a .lane_trace artefact, so every path 'matches'")
         for vessel, (lane, pat, _every) in sorted(self.declared.items()):
             self.assertEqual(os.path.abspath(pat), os.path.abspath(self.LT.path_of(lane)),
                              "%s declares a trace path that lane_trace would never write. One "
@@ -125,6 +127,11 @@ class TestADeclaredTraceMustBeOneTheLoopWrites(unittest.TestCase):
                     ticks[n.args[0].value] = consts[a.id]
         print("tick periods parsed: %s" % {k: v for k, v in sorted(ticks.items())})
         self.assertTrue(ticks, "no _lane_tick period could be resolved — measuring nothing")
+        # REG-1893 - ticks and declarations can both be non-empty and still never meet; then every vessel
+        # `continue`s below and the law compares nothing
+        self.assertTrue(set(ticks) & {lane for lane, _p, _e in self.declared.values()},
+                        "no declared lane has a resolved tick period (ticks %s), so no period is compared"
+                        % sorted(ticks))
         for vessel, (lane, _pat, every) in sorted(self.declared.items()):
             t = ticks.get(lane)
             if t is None:
@@ -142,6 +149,10 @@ class TestADeclaredTraceMustBeOneTheLoopWrites(unittest.TestCase):
             if isinstance(v, ast.Constant) and isinstance(v.value, (int, float)):
                 throttle[lane] = max(throttle.get(lane, 0.0), float(v.value))
         print("throttles found: %s" % throttle)
+        # REG-1893 - a renamed `min_gap_s` empties `throttle`, and every vessel then skips the comparison
+        self.assertTrue(set(throttle) & {lane for lane, _p, _e in self.declared.values()},
+                        "no declared lane has a parsed min_gap_s throttle (%s), so no period is compared"
+                        % throttle)
         for vessel, (lane, _pat, every) in sorted(self.declared.items()):
             g = throttle.get(lane)
             if g:

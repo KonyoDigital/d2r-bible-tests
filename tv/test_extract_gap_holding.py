@@ -172,6 +172,8 @@ class TheStateMachineAsksIt(unittest.TestCase):
 
     def test_every_row_carries_the_reason(self):
         rep = _gap({"s_A": _counts(chronicle=45)}, seals={"s_A": dict(SEAL_EMPTY)})
+        # REG-1893 - a report with no rows carries no reasonless row either; reel s_A must be in it
+        self.assertTrue(rep["rows"], "the gap report for s_A has no rows, so 'every row carries the reason' is vacuous")
         for r in rep["rows"]:
             self.assertIn("holdingPossible", r)
             self.assertGreater(len(str(r.get("holdingWhy") or "")), 20,

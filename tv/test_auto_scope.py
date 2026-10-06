@@ -325,8 +325,17 @@ class TestV2410RotatesIsACheckablePermissionNotAnExemption(unittest.TestCase):
         import control_app
         return control_app
 
+    def _rotating(self, AS):
+        """REG-1893 - every law below skips a lane with no `rotates` clause, so a renamed key would
+        let all three pass over clauses they never read. At least one lane must still carry one."""
+        lanes = [lane for lane, spec in AS.LANES.items() if spec.get("rotates")]
+        self.assertTrue(lanes, "no lane in auto_scope.LANES carries a `rotates` clause, so the "
+                               "rotates laws would be checked against nothing")
+        return lanes
+
     def test_every_rotates_clause_names_a_dir_a_glob_and_a_keep(self):
         import auto_scope as AS
+        self._rotating(AS)
         for lane, spec in sorted(AS.LANES.items()):
             rot = spec.get("rotates")
             if not rot:
@@ -343,6 +352,7 @@ class TestV2410RotatesIsACheckablePermissionNotAnExemption(unittest.TestCase):
         anything."""
         import auto_scope as AS
         ca = self._ca()
+        self._rotating(AS)
         for lane, spec in sorted(AS.LANES.items()):
             rot = spec.get("rotates") or {}
             for field in ("dir", "keep"):
@@ -357,6 +367,7 @@ class TestV2410RotatesIsACheckablePermissionNotAnExemption(unittest.TestCase):
         """⚠ keep=0 would rotate away every backup, which is deletion wearing the word 'rotate'."""
         import auto_scope as AS
         ca = self._ca()
+        self._rotating(AS)
         for lane, spec in sorted(AS.LANES.items()):
             keep = (spec.get("rotates") or {}).get("keep")
             if not keep:
@@ -387,6 +398,9 @@ class TestV2410RotatesIsACheckablePermissionNotAnExemption(unittest.TestCase):
         import auto_scope as AS
         rows = AS.undeclared_reach_abilities(self._ca())
         unexplained = [r for r in rows if not r["permitted"]]
+        # REG-1893 - a reporter that rounded every row to "permitted" (the defect this docstring
+        # names) would leave this list empty, and all() of nothing says each row carries its size.
+        self.assertTrue(unexplained, "the reporter says every reach row is permitted: %r" % rows)
         self.assertTrue(all(isinstance(r.get("functions"), int) for r in unexplained),
                         "an unexplained row does not carry its reach size, so a reader cannot tell "
                         "a one-frame contradiction from 71 functions of noise")

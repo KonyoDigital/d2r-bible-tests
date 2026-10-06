@@ -114,6 +114,9 @@ class AFixturePackIsNotHisFootage(unittest.TestCase):
     def test_every_fixture_session_says_it_is_one(self):
         p = self._build()
         rows = json.load(io.open(os.path.join(p, "sessions.json"), encoding="utf-8"))["sessions"]
+        # REG-1893 - a pack that wrote no session would pass every claim below about none.
+        self.assertGreaterEqual(len(rows), 1, "the pack's sessions.json holds no session, so 'every "
+                                              "fixture session says it is one' would be vacuous")
         for r in rows:
             print("   %s fixture=%r pack=%r" % (r.get("sessionId"), r.get("fixture"), r.get("fixturePack")))
             self.assertIs(r.get("fixture"), True,

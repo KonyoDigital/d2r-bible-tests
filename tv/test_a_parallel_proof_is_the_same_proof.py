@@ -271,6 +271,13 @@ class LanesAgreeWithTheSerialLoop(unittest.TestCase):
                 continue
             self.assertEqual(det.get(name), [_verdict_for(name, i) for i in range(len(proofs))],
                              "%s's verdicts changed because a DIFFERENT gate raised" % name)
+        # REG-1893 - an empty sandbox log holds no leftover sandbox either. If the dispatcher stops
+        # building through the patched make_sandbox (a local binding, a rename), the loop below
+        # would say every sandbox was cleaned up while real ones sat on disk.
+        self.assertGreaterEqual(len(sbs.made), 2,
+                                "the spied make_sandbox built %d sandbox(es) for a 4-lane run, so "
+                                "'no lane left its sandbox behind' would be judged on nothing"
+                                % len(sbs.made))
         for _tv, root in sbs.made:
             self.assertFalse(os.path.exists(root),
                              "a lane left its sandbox %r behind after a proof raised — each one "

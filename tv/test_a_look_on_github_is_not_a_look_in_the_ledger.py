@@ -288,6 +288,9 @@ class ADrainedLookKeepsItsReach(unittest.TestCase):
             D.drain(say=said.append)
         finally:
             D._handoff._gh, D.already_recorded = real_gh, real_seen
+        # REG-1893 - a drain that never reached the stubbed comment (a local binding of _gh, a renamed `say`)
+        # says nothing at all, and nothing holds no "measured zero" either
+        self.assertTrue(said, "drain() said nothing about the refused look, so the claim below would be vacuous")
         self.assertFalse(any("measured zero —" in s for s in said),
                          "a REFUSED look was reported as 'already filed, a measured zero': %r"
                          % (said,))

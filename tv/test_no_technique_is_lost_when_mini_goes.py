@@ -68,6 +68,9 @@ class TheCensusIsDerivedNotRemembered(unittest.TestCase):
         src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
         names = {n.name for n in ast.walk(ast.parse(src))
                  if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))}
+        # REG-1893 - an emptied seed list is the same walk over nothing, and this loop would pass on it.
+        self.assertTrue(UC.MINI_ENTRIES and UC.ONAIR_ENTRIES,
+                        "a census seed list is empty, so the walk is seeded on nothing")
         for e in UC.MINI_ENTRIES + UC.ONAIR_ENTRIES:
             self.assertIn(e, names,
                           "%r is a census entry point and no longer exists in control_app.py — "

@@ -610,8 +610,11 @@ class TestTheReaderKeepsTheLoginAndTheSlot(unittest.TestCase):
         self.assertEqual(r["names_xy"], {"Shako": [12.0, 34.5]})
         whys = sorted(d["why"] for d in r["_parse_audit"]["dropped"])
         self.assertEqual(whys, ["invalid-slot", "not-a-point"])
-        for s in TV._parse_read('{"scene":"inventory","names":[],"names_slot":{%s}}'
-                                % ",".join('"i%d":"%s"' % (i, s) for i, s in enumerate(E.DOLL_SLOTS)))["names_slot"].values():
+        kept = list(TV._parse_read('{"scene":"inventory","names":[],"names_slot":{%s}}'
+                                   % ",".join('"i%d":"%s"' % (i, s) for i, s in enumerate(E.DOLL_SLOTS)))["names_slot"].values())
+        # REG-1893 - a validator that dropped EVERY word would leave nothing for the loop below to check
+        self.assertEqual(len(kept), len(E.DOLL_SLOTS), "valid doll words were dropped: kept %r" % kept)
+        for s in kept:
             self.assertIn(s, E.DOLL_SLOTS)
 
     def test_the_journal_row_carries_the_fields(self):

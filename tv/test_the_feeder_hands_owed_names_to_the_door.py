@@ -74,6 +74,9 @@ class TestTheFeeder(unittest.TestCase):
         row = self.calls[0]["owned"][0]
         self.assertEqual(row["name"], "Shako")
         self.assertEqual(row["lane"], "inventory")
+        # REG-1893 - the pile holds two sightings; a row with NO evidence also makes the door read
+        # bestConf 0.0, and all() of nothing would call it conf-bearing.
+        self.assertTrue(row["evidence"], "the owed row reached the door with no evidence: %r" % (row,))
         self.assertTrue(all("conf" in e for e in row["evidence"]),
                         "a witness row without conf makes the door read bestConf 0.0 and refuse")
 

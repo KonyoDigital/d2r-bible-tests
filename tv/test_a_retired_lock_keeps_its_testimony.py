@@ -110,6 +110,10 @@ class TheTestimonyStillReads(unittest.TestCase):
             "Measured: 0 of 9 locks could open.")
 
     def test_a_retirement_gives_its_reason(self):
+        # REG-1893 - getattr's {} default makes a renamed RETIRED_LOCKS an empty one, and every
+        # retirement would then "give its reason" unread. The one retirement this file is about first.
+        self.assertIn(LOCK, getattr(SA, "RETIRED_LOCKS", {}),
+                      "%s is not among the retired locks, so this law would read an empty list" % LOCK)
         for lk, why in getattr(SA, "RETIRED_LOCKS", {}).items():
             self.assertTrue(
                 str(why or "").strip(),
@@ -157,6 +161,9 @@ class RetiredEvidenceReachesNothing(unittest.TestCase):
 
     def test_every_retired_lock_is_declared_by_something(self):
         """A retirement whose source was ALSO dropped is the defect wearing a tidier hat."""
+        # REG-1893 - as above: an empty default would declare every retirement "declared".
+        self.assertIn(LOCK, getattr(SA, "RETIRED_LOCKS", {}),
+                      "%s is not among the retired locks, so this law would read an empty list" % LOCK)
         for lk in getattr(SA, "RETIRED_LOCKS", {}):
             declared = [s for s, locks in SA.PROVES.items() if lk in (locks or ())]
             self.assertTrue(

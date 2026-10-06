@@ -862,6 +862,9 @@ class TheBuilderFitsAtEveryWidth(unittest.TestCase):
         st = json.loads(r["store"] or "null")
         self.assertEqual(st, {"head": ["Crown of Ages", {"p2": 28}], "inv": [["Annihilus", 5, 2]]},
                          "the real-input flow did not leave Crown of Ages (roll 28) worn and Annihilus dragged to 6,3")
+        # REG-1893 - a TV_LAW_WIDTHS restriction outside WIDTHS empties both loops below; the denominator case
+        # then measured no width and passed. Same door as every sibling: go on, or a DECLARED skip.
+        _need(self, WIDTHS)
         for label, m in _states():
             self.assertNotIn("err", m, "%s: %s" % (label, m.get("err")))
             self.assertGreaterEqual(m["nText"], 60, "%s: only %d text nodes measured" % (label, m["nText"]))

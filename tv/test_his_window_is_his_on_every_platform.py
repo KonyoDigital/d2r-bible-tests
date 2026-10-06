@@ -549,10 +549,14 @@ class HisWindowIsHisOnEveryPlatform(unittest.TestCase):
         w = self._Shrinks()
         w._size = (1120, 660)                           # windowed -> fullscreen grows it
         r = self._toggle_on(w, True)
+        # REG-1893 - an empty spy log holds no move either: prove the action reached THIS window first.
+        self.assertIn("toggle_fullscreen", w.calls, "the spy window heard no toggle, so 'nothing moved' "
+                                                    "would be read off an empty log: %r" % (w.calls,))
         self.assertFalse(any(isinstance(c, tuple) for c in w.calls), "entering fullscreen moved the window")
         self.assertIsNone(r["moved"])
         m = self._Shrinks()
         r = self._toggle_on(m, False)
+        self.assertIn("toggle_fullscreen", m.calls, "the Mac spy window heard no toggle: %r" % (m.calls,))
         self.assertFalse(any(isinstance(c, tuple) for c in m.calls), "a Mac window was moved")
 
     def test_a_MOVE_that_raises_is_said_and_the_toggle_still_counts(self):

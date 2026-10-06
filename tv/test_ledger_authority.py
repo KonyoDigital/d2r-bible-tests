@@ -226,6 +226,9 @@ class ClassificationRefusesToGuess(unittest.TestCase):
         ledger has no seeded rows" — that is a clean-looking green over a question nobody asked.
         SABOTAGE: fullStores = {}. Every ledger must be UNKNOWN with rows=None."""
         r = LA.classify_local(own=_board(stores={}))
+        # REG-1893 - "every ledger is UNKNOWN" over an empty list says nothing; every ledger must be in it
+        self.assertEqual(sorted(x["ledger"] for x in r["ledgers"]), sorted(LA.LEDGER_NAMES),
+                         "classify_local did not report every ledger, so the claim below skips some")
         for x in r["ledgers"]:
             self.assertEqual(LA.UNKNOWN, x["provenance"], x["ledger"])
             self.assertIsNone(x["rows"], "%s reported a row COUNT from a store it never "
@@ -250,6 +253,9 @@ class ClassificationRefusesToGuess(unittest.TestCase):
         destroyed it. [[label-outlived-referent]]"""
         r = LA.classify_local(own=_board(stores={"d2r_foundLog": {}, "d2r_setPieces": [],
                                                  "d2r_rwMade": {}}))
+        # REG-1893 - "every ledger is measured at zero" over an empty list says nothing
+        self.assertEqual(sorted(x["ledger"] for x in r["ledgers"]), sorted(LA.LEDGER_NAMES),
+                         "classify_local did not report every ledger, so the claim below skips some")
         for x in r["ledgers"]:
             self.assertEqual(0, x["rows"], x["ledger"])
             self.assertEqual(0, x["seedRows"])
@@ -426,6 +432,11 @@ class TheManualToggleChangesALabelAndNothingElse(unittest.TestCase):
         after = LA.classify_local(own=own, path=self.p)
 
         LABELS = {"provenance", "why", "manual"}
+        # REG-1893 - zip() over an empty (or a shorter) side compares nothing for the ledgers it drops
+        for side, rep in (("before", before), ("after", after)):
+            self.assertEqual(sorted(x["ledger"] for x in rep["ledgers"]), sorted(LA.LEDGER_NAMES),
+                             "the %s report does not carry every ledger, so a moved count could go "
+                             "unseen" % side)
         for b, a in zip(before["ledgers"], after["ledgers"]):
             self.assertEqual(LA.MANUAL, a["provenance"], b["ledger"])
             moved = sorted(k for k in set(b) | set(a) if b.get(k) != a.get(k))
@@ -841,6 +852,9 @@ class AFrozenConstantIsNeverFresh(unittest.TestCase):
                       "would mean this case cannot tell level from ungraded")
         # nothing live to compare against -> drift None -> stale None, NEVER False
         st2 = LA.staleness(own={"ok": False}, fleet={}, table=t)
+        # REG-1893 - with no FROZEN row in st2 the filter below admits nothing and the half asks nothing
+        self.assertIn(LA.FROZEN, [r["kind"] for r in st2["rows"]],
+                      "staleness() with nothing live published no FROZEN seed row to judge")
         for r in st2["rows"]:
             if r["kind"] == LA.FROZEN:
                 self.assertIsNone(r["stale"],
@@ -1026,6 +1040,8 @@ class TheHeartStatesTheDisagreement(unittest.TestCase):
                                                    "masks": {"sets": {"v": "zz", "n": "1",
                                                                       "b": "!!", "have": "5"}}}],
                                        "offline": []})
+        # REG-1893 - machine A's undecodable sets mask must produce a row, or the claim below judges nothing
+        self.assertTrue(d["rows"], "mask_cross_check returned no row for machine A's mask: %r" % (d,))
         for r in d["rows"]:
             self.assertIsNone(r["popcount"])
             self.assertFalse(r["agree"])
@@ -1348,6 +1364,9 @@ class AMachineThatIsOffIsNotAFigureGoingStale(unittest.TestCase):
         # a stale=True backup from his live machine. Asserting the NAME was absent was the wrong
         # law and it went red immediately, which is the test doing its job.
         _bk = [r for r in st["rows"] if r["name"] == "newest restore point"]
+        # REG-1893 - the row still EXISTS (above); if it is renamed, the influence check below sees nothing
+        self.assertTrue(_bk, "no 'newest restore point' row, so whether his live backup decides this "
+                             "fixture is no longer checked")
         for r in _bk:
             self.assertIsNone(r.get("stale"),
                               "his live backup directory is still deciding this fixture's verdict")

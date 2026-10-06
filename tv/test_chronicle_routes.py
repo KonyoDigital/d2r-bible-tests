@@ -66,7 +66,11 @@ class TheCorroboratorNamesTheOddOneOut(unittest.TestCase):
         """Standing rule in this console: a lock is a stamp, never a gate. Nothing this returns may
         be shaped like something a caller could enforce."""
         rows = [_route("a"), _route("b"), _route("c", resolver={"ok": False})]
-        for f in CR.corroborate(rows):
+        flags = CR.corroborate(rows)
+        # REG-1893 - "c" lacks a lane both siblings carry, so it IS flagged; no flag at all would
+        # pass the shape check below without one flag having been looked at.
+        self.assertTrue(flags, "the divergent route was not flagged, so the flag shape is unread")
+        for f in flags:
             self.assertEqual(sorted(f), ["lane", "route", "say", "siblings"],
                              "a flag carries an explanation and nothing that reads as a verdict")
 

@@ -95,6 +95,8 @@ class TestAJournalRowLeavesOnlyOnProof(unittest.TestCase):
         keep_n = p["keepRecent"]
         newest = {"s_%d" % i for i in range(20 - keep_n, 20)}
         print("keepRecent=%d · newest held: %d" % (keep_n, len(newest & {k['sessionId'] for k in p['keep']})))
+        # REG-1893 - keepRecent 0 makes `newest` empty, and "none of the newest was released" then holds of nothing
+        self.assertGreaterEqual(keep_n, 1, "the plan keeps no recent rows at all, so this law protects nothing")
         for sid in newest:
             self.assertNotIn(sid, got, "%s is inside the newest %d and must never be released" % (sid, keep_n))
 

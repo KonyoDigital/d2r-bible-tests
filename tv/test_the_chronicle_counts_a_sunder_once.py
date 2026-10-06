@@ -157,6 +157,10 @@ class TheChronicleCountsASunderOnce(unittest.TestCase):
         o = self.drive()
         print("   latent=%r renewed=%r bare=%r"
               % (o["predicate"]["latent"], o["predicate"]["renewed"], o["predicate"]["bare"]))
+        # REG-1893 - the three lists map _CHRON_SUNDER_BASES; an emptied list passes all() and any() alike.
+        self.assertTrue(o["bases"] and o["predicate"]["latent"],
+                        "no sunder base was driven, so 'every spelling is recognised' would judge none: %r"
+                        % (o["bases"],))
         self.assertTrue(all(o["predicate"]["latent"]), "a Latent spelling was not recognised")
         self.assertTrue(all(o["predicate"]["renewed"]), "a Renewed spelling was not recognised")
         self.assertFalse(any(o["predicate"]["bare"]),

@@ -233,8 +233,15 @@ class ANegativeGapIsNotCoversAll(unittest.TestCase):
     def test_every_arm_glues_its_separator_to_the_clause_it_introduces(self):
         """A `·` must never end a line pointing at a clause that wrapped away from it — the v2905
         finding, which this new arm must not reintroduce. [[visual-regression-detector]]"""
+        said = _run([HIS_LIVE, TODAY, NEAR, ALL_BLIND, UNDECLARED, PADDED, FLOOR, EXACT, NO_COUNT])
+        # REG-1893 - an arm that says nothing is skipped below, so nine silent arms would pass this
+        # law over nine sentences it never saw. Each of these nine cases speaks (the cases above
+        # assert their words); demand that before judging any separator.
+        self.assertEqual(len([g for g in said if g]), 9,
+                         "only %d of the 9 arms produced a sentence, so the separator law would be "
+                         "judged on the rest alone: %r" % (len([g for g in said if g]), said))
         for name, got in zip(("gap-4", "today", "gap-1", "all-blind", "undeclared", "padded", "floor", "exact", "unknown"),
-                             _run([HIS_LIVE, TODAY, NEAR, ALL_BLIND, UNDECLARED, PADDED, FLOOR, EXACT, NO_COUNT])):
+                             said):
             if not got:
                 continue
             self.assertNotIn("· ", got,

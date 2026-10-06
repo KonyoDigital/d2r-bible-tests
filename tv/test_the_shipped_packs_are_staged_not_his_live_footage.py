@@ -73,7 +73,10 @@ class TheShippedPacksAreStagedNotHisLiveFootage(unittest.TestCase):
                            "while proving nothing -- and Grok Bot's shelf renders empty")
 
     def test_every_session_says_it_is_a_fixture(self):
-        for p in _packs():
+        packs = _packs()
+        # REG-1893 - a moved fixtures/ lists no pack and this law would pass over nothing.
+        self.assertTrue(packs, "no pack was found under fixtures/, so no session was judged")
+        for p in packs:
             sj = os.path.join(FIXTURES, p, "sessions.json")
             self.assertTrue(os.path.isfile(sj), "%s carries no sessions.json" % p)
             sess = json.load(io.open(sj, encoding="utf-8")).get("sessions") or []
@@ -112,7 +115,9 @@ class TheShippedPacksAreStagedNotHisLiveFootage(unittest.TestCase):
         """one reel is ~196 MB; a pack is a SUBSET and the whole reason packs exist. A pack that
         grew back toward its source would put gigabytes of footage in a public git history, and
         git history does not forget."""
-        for p in _packs():
+        packs = _packs()
+        self.assertTrue(packs, "no pack was found under fixtures/, so no size was judged")  # REG-1893
+        for p in packs:
             mb = sum(os.path.getsize(os.path.join(dp, fn))
                      for dp, _dn, fns in os.walk(os.path.join(FIXTURES, p)) for fn in fns) / 1e6
             print("   %-16s %5.1f MB" % (p, mb))
@@ -124,7 +129,9 @@ class TheShippedPacksAreStagedNotHisLiveFootage(unittest.TestCase):
     def test_the_pack_names_the_reel_it_came_from_and_is_NOT_that_reel(self):
         """a fixture session id must be namespaced, or a staged session collides with the real
         one it was cut from and the shelf shows one where the other belongs."""
-        for p in _packs():
+        packs = _packs()
+        self.assertTrue(packs, "no pack was found under fixtures/, so no pack id was judged")  # REG-1893
+        for p in packs:
             pj = json.load(io.open(os.path.join(FIXTURES, p, "pack.json"), encoding="utf-8"))
             src = (pj.get("source") or {}).get("sessionId")
             fix = pj.get("fixtureSessionId")

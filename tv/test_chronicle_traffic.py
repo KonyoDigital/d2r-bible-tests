@@ -72,7 +72,13 @@ class _Base(unittest.TestCase):
     def universe():
         roster = res.load_roster()
         sets = res.load_set_roster()
-        return sorted(set(roster.values())), sorted(set(sets.values())) if sets else []
+        uni = sorted(set(roster.values()))
+        # REG-1893 - every law on this base walks `uni`: an unloaded roster makes "none held", "0 == 0 names"
+        # and "every held verdict says why" all true of nothing. One guard here covers every caller.
+        if len(uni) < 300:
+            raise AssertionError("the unique roster loaded %d name(s), so every law over it would grade "
+                                 "nothing" % len(uni))
+        return uni, sorted(set(sets.values())) if sets else []
 
 
 class TestTheWholeGrailGrounds(_Base):
@@ -191,6 +197,8 @@ class TestTheFoldOnRealMisreads(_Base):
         import difflib
         roster = res.load_roster()
         keys = list(roster)
+        # REG-1893 - an unloaded roster has no probes, and "no probe folded wrong" would be about nothing
+        self.assertGreaterEqual(len(keys), 300, "the roster loaded %d key(s)" % len(keys))
         wrong = []
         for k in keys:
             for i in range(len(k)):

@@ -100,6 +100,9 @@ class TheHeartMapCoversTheBoard(unittest.TestCase):
         self.assertIn("| of those, watched | **%d** |" % len(b["seen"]), text[i:])
         self.assertIn("### Watched on the board", text[i:])
         self.assertLess(text.index("| surfaces the console paints |"), i, "the board's table precedes the console's")
+        # REG-1893 - an unreadable watcher leaves `seen` empty and this loop would pass having listed nothing.
+        self.assertTrue(b["seen"], "no board surface was measured as watched, so the list check below "
+                                   "would judge nothing")
         for name in b["seen"]:
             self.assertIn("- `%s`" % name, text[i:])
 

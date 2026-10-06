@@ -75,6 +75,10 @@ class EveryLockWithEvidenceDeclaresItsAttacks(unittest.TestCase):
         no refusal path, so no attack can ever be made. Demanding an attack count there would be
         demanding a number about an event that cannot happen."""
         zero = [r for r in _locks() if int(r.get("n") or 0) == 0]
+        # REG-1893 - vault.forget has no refusal path, so it is n=0 on every machine; an empty
+        # `zero` (a lost table, a renamed `n`) would pass the carve-out over nothing.
+        self.assertIn("vault.forget", [r.get("lock") for r in zero],
+                      "vault.forget is not among the zero-evidence locks: %r" % [r.get("lock") for r in zero])
         for r in zero:
             self.assertIn(r.get("state"), ("UNPROVEN", "UNKNOWN", "INCOMPLETE"),
                           "%s has no evidence but does not say so" % r.get("lock"))
@@ -83,7 +87,11 @@ class EveryLockWithEvidenceDeclaresItsAttacks(unittest.TestCase):
         """⚠ The count alone is not the point — the SCORE over distinct attacks is. A lock that
         states `attacks` and hides the recomputed figure has published the input and withheld the
         answer. [[the-unjoined-end]]"""
-        for r in _locks():
+        locks = _locks()
+        # REG-1893 - `rep.get("locks") or []` turns a renamed report key into an empty table, and
+        # the loop below would then pass over locks it never saw.
+        self.assertGreaterEqual(len(locks), 8, "the lock table is too small to be the real one")
+        for r in locks:
             if r.get("attacks"):
                 self.assertIsNotNone(r.get("wilsonByAttack"),
                                      "%s declares %s attacks and publishes no wilsonByAttack"
@@ -93,7 +101,11 @@ class EveryLockWithEvidenceDeclaresItsAttacks(unittest.TestCase):
         """⚠⚠ AN ARITHMETIC SANITY CHECK, because a byAttack figure ABOVE the raw one would mean
         the correction is inflating rather than deflating — and a correction that can only help is
         not a correction. Wilson rises with n, and attacks <= n, so it can only fall or tie."""
-        for r in _locks():
+        locks = _locks()
+        # REG-1893 - `rep.get("locks") or []` turns a renamed report key into an empty table, and
+        # the loop below would then pass over locks it never saw.
+        self.assertGreaterEqual(len(locks), 8, "the lock table is too small to be the real one")
+        for r in locks:
             w, wba = r.get("wilson"), r.get("wilsonByAttack")
             if w is None or wba is None:
                 continue
@@ -292,8 +304,12 @@ class ItDoesNotDecideHisRuling(unittest.TestCase):
 
     def test_the_locks_that_would_CHANGE_under_the_other_reading_are_visible(self):
         """★ The evidence his decision needs, published rather than argued."""
+        locks = _locks()
+        # REG-1893 - `rep.get("locks") or []` turns a renamed report key into an empty table, and
+        # the loop below would then pass over locks it never saw.
+        self.assertGreaterEqual(len(locks), 8, "the lock table is too small to be the real one")
         flip = [(r["lock"], r.get("wilson"), r.get("wilsonByAttack"), r.get("bar"))
-                for r in _locks()
+                for r in locks
                 if r.get("wilson") is not None and r.get("wilsonByAttack") is not None
                 and r.get("bar") is not None
                 and r["wilson"] >= r["bar"] > r["wilsonByAttack"]]

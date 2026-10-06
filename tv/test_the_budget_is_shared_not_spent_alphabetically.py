@@ -101,6 +101,10 @@ class TestTheBudgetIsSharedNotSpentAlphabetically(unittest.TestCase):
     def test_every_emitted_slice_ends_on_a_line_boundary(self):
         """A mid-statement cut manufactures findings — v2803 returned two from one."""
         out, _n, _a = self._share()
+        # REG-1893 - a section reader that stopped matching would return [] and this loop would pass.
+        self.assertGreaterEqual(len(SER._file_sections(out)), 3,
+                                "fewer than the fixture's three files were re-parsed from the output, so "
+                                "'every slice ends on a line boundary' would judge less than it claims")
         for p, a, b in SER._file_sections(out):
             seg = out[a:b]
             self.assertTrue(seg.endswith("\n"), "%s does not end on a line boundary" % p)
@@ -109,6 +113,8 @@ class TestTheBudgetIsSharedNotSpentAlphabetically(unittest.TestCase):
         """THE DEFECT THIS FIX HAD: the note said 45% for a file the output had swallowed."""
         out, note, _a = self._share()
         seen = set(p for p, _a2, _b2 in SER._file_sections(out))
+        # REG-1893 - this fixture cuts two files; with no note the loop below would check nothing.
+        self.assertTrue(note, "the fixture cuts two files and the note named none")
         for chunk in (note or "").replace("shown in part: ", "").split(", "):
             name = chunk.strip().rsplit(" ", 1)[0].strip()
             if not name:
@@ -134,6 +140,9 @@ class TestTheBudgetIsSharedNotSpentAlphabetically(unittest.TestCase):
                 cut_names.add(nm)
         self.assertTrue(cut_names, "this fixture must produce at least one cut file or it is "
                                    "measuring nothing")
+        # REG-1893 - and at least one cut file must be re-parsed from the output, or the floor judged none.
+        self.assertTrue(cut_names & set(q for q, _a2, _b2 in SER._file_sections(out)),
+                        "no file the note calls cut was found in the output: %r" % sorted(cut_names))
         for p, a, b in SER._file_sections(out):
             if p not in cut_names:
                 continue
@@ -146,6 +155,9 @@ class TestTheBudgetIsSharedNotSpentAlphabetically(unittest.TestCase):
         tight = SER._share_the_budget(self.body, SER.MIN_USEFUL_SLICE + 200)
         out, _note, absent = tight
         seen = set(p for p, _a, _b in SER._file_sections(out))
+        # REG-1893 - this budget drops files; if nothing were dropped the claim below would judge nothing.
+        self.assertTrue([p for p, _a, _b in SER._file_sections(self.body) if p not in seen],
+                        "the tight budget dropped no file, so 'a dropped file is named' examined none")
         for p, _a, _b in SER._file_sections(self.body):
             if p not in seen:
                 self.assertIn(p, absent,
