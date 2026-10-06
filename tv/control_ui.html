@@ -12111,10 +12111,9 @@ window._lockMark = function(isOpen, px, label){
      builder, 22420 today-filter): those feed COUNTS, and widening a clock that feeds a count
      changes the count. Named here rather than silently skipped. */
   function _shSessionMs(sm){
-    /* Last activity when the run has an end, else the start, else the id. A long run that
-       started earlier and is still going is the fresh one. mtime stays banned. */
-    var t1 = (sm && sm.t1) ? +sm.t1 : 0;
-    if (t1) return t1;
+    /* REG-1816 — the START, else the id's start. Every caller prints this beside "ran Xm", so
+       an end here reads as the start. The shelf ORDER by last activity reads data-t1 in its own
+       sort and never calls this. mtime stays banned. */
     var t = (sm && sm.t0) ? +sm.t0 : 0;
     if (t) return t;
     var m = String((sm && sm.sessionId) || '').match(/^s_(\d{10,})_/);
@@ -23839,14 +23838,15 @@ window._lockMark = function(isOpen, px, label){
     // REG-1806 — null is a count the journal walk did not copy. 0 is a quiet router.
     var routeUnread = (dr.seen === null);
     var seen = dr.seen || 0, fired = dr.fired || 0, refire = dr.refire || 0, err = dr.err;
-    var rtPulse = routeUnread ? 'warn'
-      : (dead || err ? 'bad' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok')));
+    // REG-1815 — a dead engine and a driver error are readings; the walk did not copy them, so
+    // an unread walk must not soften them to strained. Same order as the readers organ.
+    var rtPulse = (dead || err) ? 'bad'
+      : (routeUnread ? 'warn' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok')));
     var rtStat = routeUnread
       ? 'the journal was not read'
       : (seen + ' seen <span class="eh-arrow">→</span> ' + fired + ' routed');
-    var rtSub = routeUnread
-      ? 'the journal was not read'
-      : (err ? '⚠ ' + esc(String(err).slice(0, 24)) : (refire ? refire + ' re-fired' : 'quorum gate'));
+    var rtSub = err ? '⚠ ' + esc(String(err).slice(0, 24))
+      : (routeUnread ? 'the journal was not read' : (refire ? refire + ' re-fired' : 'quorum gate'));
     // 4) FUNNELS — the hands (receipts). A real GAP = a tab the engine flagged status:'miss'
     // (a visited tab that didn't land); a 0-total tab that was never visited is not a gap.
     var tabs = sh.tabs || {}, tk = Object.keys(tabs);
@@ -23922,7 +23922,8 @@ window._lockMark = function(isOpen, px, label){
             if (sb) sb.textContent = 'the journal was not read';
             if (qb) qb.textContent = 'the journal was not read';
             if (fb) fb.textContent = 'the journal was not read';
-            if (meta) meta.textContent = 'the journal was not read';
+            if (meta) meta.textContent = 'the journal was not read'
+              + (dr.err ? ' · ⚠ ' + String(dr.err).slice(0, 28) : '');   // REG-1815 — the error was read
           } else {
             if (sb) sb.textContent = String(seen);
             if (qb) qb.textContent = String(queued + jq);

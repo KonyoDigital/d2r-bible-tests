@@ -28,8 +28,10 @@ helper's comment block quotes the very expression this law bans, so a law readin
 be satisfied by — or fail on — its own documentation. That is REG-1070.
 """
 import io
+import json
 import os
 import re
+import subprocess
 import sys
 import unittest
 
@@ -48,6 +50,24 @@ HELPER = "_shSessionMs"
 
 #: The shape this fix removed. A re-inlined copy is the defect coming back.
 RAW_CLOCK = re.compile(r"d0\s*=\s*sm\.t0\s*\?\s*new Date\(sm\.t0\)")
+
+
+def _clock(cases):
+    """Drive the helper itself with node. -> [ms per case]. The function text is cut from the
+    comment-stripped source, bounded at both ends, so it is the code the cards call."""
+    body, _raw = _ui()
+    i = body.find("function %s(" % HELPER)
+    j = body.find("\n  }", i)
+    if i < 0 or j < i:
+        raise AssertionError("could not bound %s — refusing to drive a guess" % HELPER)
+    js = (body[i:j] + "\n  }\n"
+          + "process.stdout.write(JSON.stringify(" + json.dumps(cases)
+          + ".map(function(sm){ return %s(sm); })));\n" % HELPER)
+    got = subprocess.run(["node", "-"], input=js.encode("utf-8"),
+                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=30)
+    if got.returncode != 0:
+        raise AssertionError(got.stderr.decode("utf-8", "replace")[:800])
+    return json.loads(got.stdout.decode("utf-8"))
 
 
 def _ui():
@@ -113,27 +133,28 @@ class TestASessionCardAlwaysHasAClock(unittest.TestCase):
             "simultaneous. A clock that cannot order anything is not a fallback. [[stale-reading]]"
             % HELPER)
 
-    def test_t0_still_wins_when_it_exists(self):
-        """Last activity wins when the run has an end. The start wins over the id. The id
-        never replaces a real reading."""
-        body, _raw = _ui()
-        i = body.find("function %s(" % HELPER)
-        j = body.find("\n  }", i)
-        fn = body[i:j]
-        k_t1 = fn.find("t1")
-        k_t0 = fn.find("t0")
-        k_sid = fn.find("sessionId")
-        self.assertGreater(k_t1, -1, "%s never reads t1, so a fresh end cannot outrank an older start" % HELPER)
-        self.assertGreater(k_t0, -1, "%s never reads t0 at all" % HELPER)
-        self.assertLess(
-            k_t1, k_t0,
-            "%s consults t0 BEFORE t1, so the start time would hide a later end." % HELPER)
-        self.assertGreater(
-            k_sid, k_t0,
-            "%s consults sessionId BEFORE t0, so the id would override a real measured start "
-            "time. The id is a FALLBACK for when t0 is absent, never a replacement for it."
-            % HELPER)
-
+    def test_the_card_clock_is_the_start_not_the_end(self):
+        """REG-1816 — every card prints this clock beside "ran Xm", so it is the START. 0dcf3131
+        returned t1 first and every card, dossier, recap and history tile printed the END. The
+        shelf ORDER by last activity reads data-t1 in its own sort, never this helper."""
+        T0, T1, SID = 1789000000000, 1789000600000, 1788000000000
+        got = _clock([
+            {"t0": T0, "t1": T1, "sessionId": "s_%d_1" % SID},
+            {"t0": T0, "t1": T1},
+            {"t0": T0, "sessionId": "s_%d_1" % SID},
+            {"t1": T1, "sessionId": "s_%d_1" % SID},
+            {"sessionId": "s_%d_1" % SID},
+            {"t1": T1},
+            {},
+        ])
+        self.assertEqual(got[0], T0, "a run with a start and an end printed %r, not its start" % got[0])
+        self.assertNotEqual(got[0], T1, "the card prints the END time beside 'ran Xm'")
+        self.assertEqual(got[1], T0)
+        self.assertEqual(got[2], T0, "the id overrode a real measured start")
+        self.assertEqual(got[3], SID, "a run with no t0 must fall back to the id's start, not its end")
+        self.assertEqual(got[4], SID)
+        self.assertEqual(got[5], 0, "an end alone is not a start; with no t0 and no id the clock is unknown")
+        self.assertEqual(got[6], 0)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
@@ -152,6 +173,14 @@ RED_PROOF = [
         "file": "tv/control_ui.html",
         "find": "    var m = String((sm && sm.sessionId) || '').match(/^s_(\\d{10,})_/);\n    return m ? +m[1] : 0;",
         "replace": "    return 0;",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1816 - the card clock returns the END, so every card prints it beside 'ran Xm'",
+        "file": "tv/control_ui.html",
+        "find": "    var t = (sm && sm.t0) ? +sm.t0 : 0;\n    if (t) return t;\n",
+        "replace": "    var t1 = (sm && sm.t1) ? +sm.t1 : 0;\n    if (t1) return t1;\n"
+                   "    var t = (sm && sm.t0) ? +sm.t0 : 0;\n    if (t) return t;\n",
         "matches": 1,
     },
 ]

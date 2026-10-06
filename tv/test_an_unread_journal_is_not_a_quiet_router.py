@@ -13,6 +13,10 @@ error is still that error. A deep queue still warns. An unread walk says
 the journal was not read, on the organ and on the strip, and the pulse is
 not ok. A judge count is not added onto a zero that was not measured.
 
+REG-1815 — a dead engine is still down, and a driver error is still that
+error, when the walk was not read. They are readings the walk never copied,
+so an unread walk must not soften them to strained.
+
 Nothing here reads his journal. RED_PROOF below. [[unknown-stays-unknown]]
 """
 import json
@@ -36,7 +40,7 @@ import control_app as ca  # noqa: E402
 _NOT_READ = "the journal was not read"
 
 
-def _paint(mode="off", driver=None, judge_q=0, judge_fire=0, err=None):
+def _paint(mode="off", driver=None, judge_q=0, judge_fire=0, err=None, engine_alive=None):
     with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
         ui = fh.read()
     start = ui.find("var _EH_STATE = { ok: 'HEALTHY'")
@@ -59,6 +63,8 @@ def _paint(mode="off", driver=None, judge_q=0, judge_fire=0, err=None):
         "watchdog": {},
         "journalMB": 0,
     }
+    if engine_alive is not None:
+        st["engineAlive"] = engine_alive
     js = (
         "function esc(s){return String(s==null?'':s);}\n"
         "function makeStep(){\n"
@@ -193,6 +199,50 @@ class AnUnreadJournalIsNotAQuietRouter(unittest.TestCase):
         self.assertNotIn("was not read", row["sub"])
         self.assertIn("no route", row["meta"])
 
+    def test_a_dead_engine_with_an_unread_journal_is_still_down(self):
+        """REG-1815 — a dead engine is a reading. The walk not being read must not paint it as
+        strained. Both ways the poll says dead, on air and off."""
+        unread = {"seen": None, "queued": None, "fired": None, "refire": None}
+        for label, mode, kw, extra in (
+                ("engineAlive false, live", "live", {"engine_alive": False}, {}),
+                ("engineAlive false, off air", "off", {"engine_alive": False}, {}),
+                ("engineDeadHard, live", "live", {}, {"engineDeadHard": True})):
+            with self.subTest(label):
+                dr = dict(unread, **extra)
+                row = _paint(mode=mode, driver=dr, **kw)
+                self.assertEqual(row["pulse"], "bad")
+                self.assertEqual(row["state"], "DOWN")
+                self.assertNotEqual(row["state"], "STRAINED")
+                self.assertEqual(row["stat"], _NOT_READ)
+                self.assertEqual(row["sub"], _NOT_READ)
+                self.assertNotIn("0 seen", row["stat"])
+                self.assertEqual(row["seen"], _NOT_READ)
+                self.assertEqual(row["meta"], _NOT_READ)
+
+    def test_a_live_engine_with_an_unread_journal_still_strains(self):
+        """The order only moves dead and err ahead. A live engine with an unread walk is not down."""
+        row = _paint(mode="live", engine_alive=True, driver={
+            "seen": None, "queued": None, "fired": None, "refire": None})
+        self.assertEqual(row["pulse"], "warn")
+        self.assertEqual(row["state"], "STRAINED")
+        self.assertEqual(row["sub"], _NOT_READ)
+
+    def test_a_driver_error_with_an_unread_journal_is_still_that_error(self):
+        """REG-1815 — the driver error is published beside the counts, not copied by the walk.
+        It was read, so it stays on the organ and on the strip."""
+        row = _paint(
+            mode="live",
+            driver={"seen": None, "queued": None, "fired": None, "refire": None},
+            err="no route")
+        self.assertEqual(row["pulse"], "bad")
+        self.assertEqual(row["state"], "DOWN")
+        self.assertEqual(row["stat"], _NOT_READ)
+        self.assertIn("no route", row["sub"])
+        self.assertNotEqual(row["sub"], _NOT_READ)
+        self.assertEqual(row["seen"], _NOT_READ)
+        self.assertIn(_NOT_READ, row["meta"])
+        self.assertIn("no route", row["meta"])
+
     def test_a_deep_queue_still_warns(self):
         row = _paint(mode="live", driver={"seen": 9, "queued": 12, "fired": 1, "refire": 0})
         self.assertEqual(row["pulse"], "warn")
@@ -283,12 +333,8 @@ class AnUnreadJournalIsNotAQuietRouter(unittest.TestCase):
         self.assertEqual(ui.count("\x00"), 1)
         self.assertIn("    var routeUnread = (dr.seen === null);\n", ui)
         self.assertIn("        var routeUnread = (dr.seen === null);\n", ui)
-        self.assertIn("var rtPulse = routeUnread ? 'warn'\n", ui)
         self.assertIn("? 'the journal was not read'\n", ui)
         self.assertIn("var has = routeUnread || on || seen || queued || fired || jq || jf;\n", ui)
-        self.assertNotIn(
-            "var rtPulse = dead || err ? 'bad' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok'));",
-            ui)
         with open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
             src = fh.read()
         self.assertIn(
@@ -328,9 +374,34 @@ RED_PROOF = [
     {
         "why": "REG-1806 - an unread journal stays an ok router",
         "file": "control_ui.html",
-        "find": "    var rtPulse = routeUnread ? 'warn'\n"
-                "      : (dead || err ? 'bad' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok')));\n",
+        "find": "    var rtPulse = (dead || err) ? 'bad'\n"
+                "      : (routeUnread ? 'warn' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok')));\n",
         "replace": "    var rtPulse = dead || err ? 'bad' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok'));\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1815 - an unread journal masks a dead engine as a strained router",
+        "file": "control_ui.html",
+        "find": "    var rtPulse = (dead || err) ? 'bad'\n"
+                "      : (routeUnread ? 'warn' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok')));\n",
+        "replace": "    var rtPulse = routeUnread ? 'warn'\n"
+                   "      : (dead || err ? 'bad' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok')));\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1815 - an unread journal hides the driver error on the organ",
+        "file": "control_ui.html",
+        "find": "    var rtSub = err ? '⚠ ' + esc(String(err).slice(0, 24))\n"
+                "      : (routeUnread ? 'the journal was not read' : (refire ? refire + ' re-fired' : 'quorum gate'));\n",
+        "replace": "    var rtSub = routeUnread ? 'the journal was not read'\n"
+                   "      : (err ? '⚠ ' + esc(String(err).slice(0, 24)) : (refire ? refire + ' re-fired' : 'quorum gate'));\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1815 - an unread journal hides the driver error on the strip",
+        "file": "control_ui.html",
+        "find": "              + (dr.err ? ' · ⚠ ' + String(dr.err).slice(0, 28) : '');",
+        "replace": "              + '';",
         "matches": 1,
     },
     {
