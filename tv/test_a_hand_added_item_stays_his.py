@@ -207,7 +207,7 @@ class AHandAddedItemStaysHis(unittest.TestCase):
           OUT.at = [prov()['Stone of Jordan'].at, prov()['Harlequin Crest (Shako)'].at];
           OUT.src = prov()['Stone of Jordan'].source;
         """)
-        self.assertEqual(out["m"], {"ok": True, "n": 2, "left": 0})
+        self.assertEqual(out["m"], {"ok": True, "n": 2, "left": 0, "rows": []})
         self.assertIsNone(out["again"], "the migration ran twice in one page")
         self.assertTrue(out["gone"], "every row landed and the second key stayed")
         self.assertEqual(out["owned"], ["Harlequin Crest (Shako)", "Stone of Jordan"])
@@ -223,7 +223,7 @@ class AHandAddedItemStaysHis(unittest.TestCase):
           OUT.same = STORE['d2r_vaultHand'] === raw;
           OUT.owned = Array.from(owned);
         """)
-        self.assertEqual(kept["m"], {"ok": True, "n": 1, "left": 1})
+        self.assertEqual((kept["m"]["n"], kept["m"]["left"]), (1, 1))
         self.assertTrue(kept["same"], "a row the vault could not take was dropped or rewritten")
         self.assertEqual(kept["owned"], ["Stone of Jordan"])
 
@@ -237,16 +237,117 @@ class AHandAddedItemStaysHis(unittest.TestCase):
         self.assertEqual(bad["raw"], "{", "an unreadable list was written over")
         self.assertEqual(bad["writes"], [])
 
+    def test_a_row_already_owned_keeps_his_hand_and_one_owned_elsewhere_stays_said(self):
+        """REG-1848 — a legacy row whose name is already owned is not landed by being owned."""
+        out = _node(r"""
+          ELS['vault-hand-left'] = new El('vault-hand-left');
+          ['Stone of Jordan', 'Arachnid Mesh', 'Enigma'].forEach(function(n){ owned.add(n); });
+          STORE['d2r_vaultProv'] = JSON.stringify({
+            'Stone of Jordan': { kind: 'owned', source: 'kai-register', by: 'x', ts: 5, at: '2026-09-01T00:00:00.000Z' },
+            'Enigma': { mule: 'runewords', source: 'stash', at: '2026-09-02T00:00:00.000Z' } });
+          var raw = JSON.stringify([{ name: 'Stone of Jordan', source: 'manual', at: '2026-10-05T12:00:00.000Z' },
+                                    { name: 'Arachnid Mesh', source: 'manual', at: '2026-10-05T12:01:00.000Z' },
+                                    { name: 'Enigma', source: 'manual', at: '2026-10-05T12:02:00.000Z' }]);
+          STORE['d2r_vaultHand'] = raw;
+          OUT.m = window._vaultHandMigrate();
+          OUT.paint = window._vaultHandLeftPaint();
+          OUT.left = ELS['vault-hand-left']._html; OUT.hidden = ELS['vault-hand-left'].hidden;
+          OUT.same = STORE['d2r_vaultHand'] === raw;
+          OUT.prov = prov();
+        """)
+        self.assertEqual((out["m"]["n"], out["m"]["left"]), (2, 1))
+        self.assertTrue(out["same"], "the key went while a row he typed had not joined the ledger")
+        sj = out["prov"]["Stone of Jordan"]
+        self.assertEqual(sj["source"], "kai-register", "another door's receipt was overwritten")
+        self.assertNotIn("where", sj, "his hand was smeared into another door's receipt")
+        mesh = out["prov"]["Arachnid Mesh"]
+        self.assertEqual((mesh["kind"], mesh["source"], mesh["at"]), ("owned", "hand", "2026-10-05T12:01:00.000Z"),
+                         "an owned name with no receipt did not take his hand as its receipt")
+        en = out["prov"]["Enigma"]
+        self.assertEqual(en["source"], "stash")
+        self.assertEqual((en["ownedBy"]["source"], en["ownedBy"]["at"]), ("hand", "2026-10-05T12:02:00.000Z"),
+                         "a filing with no ownedBy did not take his hand")
+        self.assertFalse(out["hidden"], "a row left behind is not said on the Vault")
+        self.assertIn("1 item you added by hand before this version could not join the vault", out["left"])
+        self.assertIn('data-name="Stone of Jordan"', out["left"])
+        self.assertIn("already yours through the live reader (KAI register)", out["left"])
+        quiet = _node(r"""
+          ELS['vault-hand-left'] = new El('vault-hand-left'); ELS['vault-hand-left'].hidden = false;
+          window._vaultHandMigrate(); window._vaultHandLeftPaint();
+          OUT.hidden = ELS['vault-hand-left'].hidden; OUT.html = ELS['vault-hand-left']._html;
+        """)
+        self.assertTrue(quiet["hidden"], "a board with no old key shows the left-behind line")
+        self.assertEqual(quiet["html"], "")
+
+    def test_a_pass_that_did_not_finish_is_asked_again(self):
+        """REG-1849 — the latch closes on a finished pass, not on an attempt."""
+        out = _node(r"""
+          var real = window.LSR.getItem, n = 0;
+          window.LSR.getItem = function(k){ if (k === 'd2r_vaultHand' && n++ === 0) throw new Error('transient'); return real(k); };
+          STORE['d2r_vaultHand'] = JSON.stringify([{ name: 'Stone of Jordan', source: 'manual', at: '2026-10-05T12:00:00.000Z' }]);
+          OUT.first = window._vaultHandMigrate();
+          OUT.second = window._vaultHandMigrate();
+          OUT.third = window._vaultHandMigrate();
+          OUT.owned = Array.from(owned);
+        """)
+        self.assertFalse(out["first"]["ok"])
+        self.assertIn("asked again on the next paint", out["first"]["why"])
+        self.assertEqual((out["second"]["n"], out["second"]["left"]), (1, 0), "a failed read stopped the next paint from trying")
+        self.assertIsNone(out["third"], "a finished pass ran again")
+        self.assertEqual(out["owned"], ["Stone of Jordan"])
+
+    def test_the_door_says_what_its_door_said(self):
+        """REG-1847 — the owned door's answer, and a check that could not be asked, decide what is said."""
+        out = _node(r"""
+          STORE['d2r_vaultProv'] = '{';
+          OUT.noReceipt = window.vaultHandAdd('Stone of Jordan', '2026-10-05T12:00:00.000Z');
+          OUT.provRaw = STORE['d2r_vaultProv'];
+        """)
+        r = out["noReceipt"]
+        self.assertEqual((r["mode"], r["receipt"]), ("added", False))
+        self.assertIn("its receipt was not written: d2r_vaultProv would not parse", r["why"])
+        self.assertEqual(out["provRaw"], "{")
+        gone = _node(r"""
+          window._ownedAdd = undefined;
+          OUT.r = window.vaultHandAdd('Stone of Jordan', '2026-10-05T12:00:00.000Z');
+          OUT.owned = Array.from(owned); OUT.keys = Object.keys(STORE);
+        """)
+        self.assertEqual(gone["r"]["refused"], "no-door")
+        self.assertEqual((gone["owned"], gone["keys"]), ([], []))
+        amb = _node(r"""
+          window._vaultNameAmbiguity = function(){ throw new Error('the known list would not read'); };
+          OUT.r = window.vaultHandAdd('Stone of Jordan', '2026-10-05T12:00:00.000Z');
+          OUT.owned = Array.from(owned);
+        """)
+        self.assertEqual(amb["r"]["refused"], "unknown", "a check that raised was read as a yes")
+        self.assertIn("could not be asked", amb["r"]["why"])
+        self.assertEqual(amb["owned"], [])
+
+    def test_an_unsettled_name_is_its_own_count(self):
+        """REG-1850 — a planner row whose item could not be settled is not "a name the vault does not draw"."""
+        out = _node(r"""
+          window._vaultNameAmbiguity = function(x){ return x === 'Crescent Moon'
+            ? { name: x, among: ['Crescent Moon', 'Crescent Moon (amulet)'], why: '"Crescent Moon" names 2 known items' } : null; };
+          CAT.push({ id: 'u:cm', name: 'Crescent Moon', q: '' });
+          OUT.open = window.vaultHandOpen();
+          OUT.list = ELS['vault-hand-list']._html;
+        """)
+        self.assertEqual((out["open"]["left"], out["open"]["unsettled"]), (2, 1))
+        self.assertIn("2 matching planner items are not listed — the vault does not draw them", out["list"])
+        self.assertIn("1 matching planner item is not listed — which vault item it names could not be settled", out["list"])
+
     def test_the_joins(self):
         s = _src()
         code = code_only(s)
         rv = _cut(code, "  function renderVault(){\n", "    renderMultiKeep();\n")
         self.assertEqual(rv.count("window._vaultHandMigrate();"), 1, "renderVault does not bring the second key home")
+        self.assertEqual(rv.count("window._vaultHandLeftPaint();"), 1, "renderVault never says what the pass left")
+        self.assertEqual(s.count('id="vault-hand-left"'), 1)
         self.assertLess(rv.index("window._vaultHandMigrate();"), rv.index("var poolAll=ownedPool();"),
                         "the migration runs after the pool was read")
         self.assertIn("return Array.from(owned).filter(_vaultKeeps).sort();", _cut(code, KEEPS_B, "  function art(n, glyph, size){"))
         hand = code_only(_cut(s, HAND_A, HAND_B))
-        self.assertEqual(hand.count("var add = window._ownedAdd(nm, { source: 'hand',"), 1, "the door does not use the owned door")
+        self.assertEqual(hand.count("try { add = window._ownedAdd(nm, { source: 'hand',"), 1, "the door does not use the owned door")
         for banned in ("setItem(", "vaultFile(", "assign[", "suggestMule("):
             self.assertNotIn(banned, hand, "the hand door reaches %s" % banned)
         self.assertEqual(code.count("window.LSR.removeItem(VAULT_HAND_LEGACY)"), 1)
@@ -277,30 +378,72 @@ class AHandAddedItemStaysHis(unittest.TestCase):
 
 RED_PROOF = [
     {
+        "why": "REG-1848 - an owned name is not landed by being owned; counting it landed deletes the hand row he typed",
+        "file": "bible.html",
+        "find": "    if (!owned.has(pre.name)){\n      var res = _vhCommit(pre, VH_MIGRATE);\n",
+        "replace": "    if (owned.has(pre.name)) return { ok: true, mode: 'already', name: pre.name };\n    if (!owned.has(pre.name)){\n      var res = _vhCommit(pre, VH_MIGRATE);\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1849 - the latch set before the read stops every later paint from trying again",
+        "file": "bible.html",
+        "find": "    if (_vhMigrated) return null;\n    var raw = null, rows = null;\n",
+        "replace": "    if (_vhMigrated) return null;\n    _vhMigrated = true;\n    var raw = null, rows = null;\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1847 - a receipt the door could not write must be said, not folded into a plain 'added'",
+        "file": "bible.html",
+        "find": "    var prov = (add && add.prov) || null, receipt = !!(prov && prov.ok === true);\n",
+        "replace": "    var prov = (add && add.prov) || null, receipt = true;\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1847 - an ambiguity check that raised is UNKNOWN; reading it as 'not ambiguous' adds the raw name",
+        "file": "bible.html",
+        "find": "    catch (e) { return { ok: false, refused: 'unknown', why: 'whether \"' + raw + '\" names one item could not be asked — nothing was added' }; }\n",
+        "replace": "    catch (e) { amb = null; }\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1850 - an unsettled name counted as 'the vault does not draw it' is a wrong reason",
+        "file": "bible.html",
+        "find": "      if (!c.name){ unsettled++; return; }\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1848 - a row left behind must be said on the Vault; without the paint it is invisible",
+        "file": "bible.html",
+        "find": "    try { if (typeof window._vaultHandLeftPaint === 'function') window._vaultHandLeftPaint(); } catch (eL) {}\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
         "why": "only a name the vault draws is added; dropping the keep check files a crafted recipe that renders nowhere",
         "file": "bible.html",
-        "find": "    if (!_vaultKeeps(nm))\n      return { ok: false, refused: 'not-drawn', name: nm,\n",
-        "replace": "    if (false)\n      return { ok: false, refused: 'not-drawn', name: nm,\n",
+        "find": "    if (!_vaultKeeps(r.name))\n      return { ok: false, refused: 'not-drawn', name: r.name,\n",
+        "replace": "    if (false)\n      return { ok: false, refused: 'not-drawn', name: r.name,\n",
         "matches": 1,
     },
     {
         "why": "the add must reach d2r_owned; without the persist it lives until the next reload",
         "file": "bible.html",
-        "find": "    persistOwned();\n    return { ok: true, mode: 'added', name: nm,",
-        "replace": "    return { ok: true, mode: 'added', name: nm,",
+        "find": "    persistOwned();\n    var prov = (add && add.prov) || null, receipt = !!(prov && prov.ok === true);\n",
+        "replace": "    var prov = (add && add.prov) || null, receipt = !!(prov && prov.ok === true);\n",
         "matches": 1,
     },
     {
         "why": "the pick is filed under the register's name; skipping the resolution makes a second tile for one item",
         "file": "bible.html",
-        "find": "    try { if (typeof window._vaultResolveName === 'function') nm = String(window._vaultResolveName(nm) || nm); } catch (e) {}\n",
-        "replace": "",
+        "find": "nm = String(window._vaultResolveName(nm) || nm); }\n",
+        "replace": "nm = nm; }\n",
         "matches": 1,
     },
     {
         "why": "the second key is removed only when every row landed; removing it always loses what he typed",
         "file": "bible.html",
-        "find": "    if (!left) window.LSR.removeItem(VAULT_HAND_LEGACY);\n",
+        "find": "    if (!kept.length) window.LSR.removeItem(VAULT_HAND_LEGACY);\n",
         "replace": "    window.LSR.removeItem(VAULT_HAND_LEGACY);\n",
         "matches": 1,
     },

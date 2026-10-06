@@ -11038,6 +11038,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
            unsorted dock's bar, so that bar heads only the items it sorts. -->
       <div id="vault-carried" class="vault-carried" hidden></div>
       <div id="vault-dock-bar" class="vault-dock-bar" hidden></div>
+      <div id="vault-hand-left" class="vault-organize vault-hand-left" hidden></div>
       <div id="vault-organize" class="vault-organize" hidden></div>
       <!-- v1282 — VAULT INTEGRITY CHECKER: a retro pass that re-verifies routing / dedup / grail-safety across every muled item. Hidden when the vault is clean. -->
       <div id="vault-audit" class="vault-audit" hidden></div>
@@ -39641,6 +39642,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { renderVaultAudit(); } catch(e){}   // v1282 — 🔍 integrity checker banner (hidden when clean)
     /* #146 (REG-1821) — the second hand list's rows come home through the owned door, once, before the pool is read */
     try { if (typeof window._vaultHandMigrate === 'function') window._vaultHandMigrate(); } catch (eH) {}
+    try { if (typeof window._vaultHandLeftPaint === 'function') window._vaultHandLeftPaint(); } catch (eL) {}
     var poolAll=ownedPool();
     // account-shared-stash items (runes/essences/shards/statues) are recorded but NEVER muled —
     // keep them OUT of the dock/mules (they live in the Registered panel's "not muled" group).
@@ -40431,22 +40433,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
-  /* the name the vault holds `raw` as -> {ok, name} | {ok:false, refused, why} */
+  /* the name the vault holds `raw` as -> {ok, name} | {ok:false, refused, why}
+     ⚠ REG-1847 — a check that could not be ASKED is not a check that said yes: the ambiguity question or the register's
+     resolution throwing is UNKNOWN, and UNKNOWN adds nothing. */
   function _vhResolve(raw, kind){
     var amb = null;
     try { amb = (typeof window._vaultNameAmbiguity === 'function') ? window._vaultNameAmbiguity(raw, kind ? { kind: kind } : null) : null; }
-    catch (e) { amb = null; }
+    catch (e) { return { ok: false, refused: 'unknown', why: 'whether "' + raw + '" names one item could not be asked — nothing was added' }; }
     if (amb && !amb.settled)
       return { ok: false, refused: 'ambiguous', among: amb.among || [], why: String(amb.why || ('"' + raw + '" names more than one item')) + ' — nothing was added' };
     var nm = (amb && amb.settled) ? String(amb.settled) : raw;
-    try { if (typeof window._vaultResolveName === 'function') nm = String(window._vaultResolveName(nm) || nm); } catch (e) {}
+    try { if (typeof window._vaultResolveName === 'function') nm = String(window._vaultResolveName(nm) || nm); }
+    catch (e) { return { ok: false, refused: 'unknown', why: 'the name the vault files "' + raw + '" under could not be asked — nothing was added' }; }
     return { ok: true, name: nm };
   }
-  /* THE DOOR. -> {ok, mode:'added'|'already', name, prov} or {ok:false, refused, why}
-     at    when he said it (an ISO time); null = not said, and the receipt then says its time is UNKNOWN
-     opts  kind (the planner row's 'unique' | 'set' | 'runeword'), by / where (who is speaking for his hand) */
-  window.vaultHandAdd = function(name, at, opts){
-    opts = opts || {};
+  /* -> {ok, name, ts} | {ok:false, refused, why}: every question asked before anything is written */
+  function _vhPrepare(name, at, opts){
     var raw = String(name == null ? '' : name).trim();
     if (!raw) return { ok: false, refused: 'no-name', why: 'no name — nothing was added' };
     var ts = null;
@@ -40455,40 +40457,124 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (!isFinite(atMs)) return { ok: false, refused: 'no-time', why: '"' + String(at).slice(0, 40) + '" is not a date — nothing was added' };
       ts = new Date(atMs).toISOString();
     }
-    var r = _vhResolve(raw, opts.kind || null);
+    var r = _vhResolve(raw, (opts && opts.kind) || null);
     if (!r.ok) return r;
-    var nm = r.name;
-    if (!_vaultKeeps(nm))
-      return { ok: false, refused: 'not-drawn', name: nm,
-               why: nm + ' is not an item the vault draws (a unique, a set piece, a runeword or a socketed base it carries) — nothing was added' };
-    if (owned.has(nm)) return { ok: true, mode: 'already', name: nm, why: nm + ' is already yours — nothing changed' };
-    var add = window._ownedAdd(nm, { source: 'hand', by: String(opts.by || '+ Add an item'),
-                                     where: String(opts.where || 'the Vault (+ Add an item)'), ts: ts });
+    if (!_vaultKeeps(r.name))
+      return { ok: false, refused: 'not-drawn', name: r.name,
+               why: r.name + ' is not an item the vault draws (a unique, a set piece, a runeword or a socketed base it carries) — nothing was added' };
+    return { ok: true, name: r.name, ts: ts };
+  }
+  /* THE ADD, through the owned door. ⚠ REG-1847 — the door's own answer decides what is said: no door adds nothing; a
+     name that did not reach `owned` is not "added"; a receipt the door could not write is SAID, never folded into success. */
+  function _vhCommit(pre, opts){
+    var nm = pre.name;
+    if (typeof window._ownedAdd !== 'function') return { ok: false, refused: 'no-door', name: nm, why: 'the owned door is not on this page — nothing was added' };
+    var add = null, threw = null;
+    try { add = window._ownedAdd(nm, { source: 'hand', by: String((opts && opts.by) || '+ Add an item'),
+                                       where: String((opts && opts.where) || 'the Vault (+ Add an item)'), ts: pre.ts }); }
+    catch (e) { threw = e; }
+    if (!owned.has(nm)) return { ok: false, refused: 'not-added', name: nm, why: nm + ' did not reach your owned list' + (threw ? ' (the owned door raised)' : '') + ' — nothing was saved' };
     persistOwned();
-    return { ok: true, mode: 'added', name: nm, prov: (add && add.prov) || null,
-             why: nm + ' is yours — it waits in Unsorted until you file it' };
+    var prov = (add && add.prov) || null, receipt = !!(prov && prov.ok === true);
+    return { ok: true, mode: 'added', name: nm, prov: prov, receipt: receipt,
+             why: nm + ' is yours — it waits in Unsorted until you file it'
+                  + (receipt ? '' : ' (its receipt was not written: ' + ((prov && prov.why) || (threw ? 'the owned door raised' : 'the door gave no answer')) + ')') };
+  }
+  /* THE DOOR. -> {ok, mode:'added'|'already', name, prov, receipt} or {ok:false, refused, why}
+     at    when he said it (an ISO time); null = not said, and the receipt then says its time is UNKNOWN
+     opts  kind (the planner row's 'unique' | 'set' | 'runeword'), by / where (who is speaking for his hand) */
+  window.vaultHandAdd = function(name, at, opts){
+    var pre = _vhPrepare(name, at, opts || {});
+    if (!pre.ok) return pre;
+    if (owned.has(pre.name)) return { ok: true, mode: 'already', name: pre.name, why: pre.name + ' is already yours — nothing changed' };
+    return _vhCommit(pre, opts || {});
   };
-  var _vhMigrated = false;
+  /* the provenance row a name holds, read strictly: null = d2r_vaultProv would not parse (UNKNOWN), {row: null} = none */
+  function _vhProvRow(nm){
+    var raw = null;
+    try { raw = window.LSR.getItem('d2r_vaultProv'); } catch (e) { return null; }
+    if (raw == null || raw === '') return { row: null };
+    try { var v = JSON.parse(raw); return (v && typeof v === 'object' && !Array.isArray(v)) ? { row: v[nm] || null } : null; }
+    catch (e) { return null; }
+  }
+  /* ONE ROW OF THE SECOND KEY -> {ok} when his hand is on record in the owned ledger, else {ok:false, why} and the row stays.
+     ⚠ REG-1848 — A ROW WHOSE NAME IS ALREADY OWNED IS NOT LANDED BY BEING OWNED. Its hand time was dropped with the key:
+     now his hand joins as the receipt when the name has none, as the filing's ownedBy when the filing carries none, and
+     stands when a hand row is already there. A name owned through ANOTHER door keeps that door's receipt (the owned door
+     never clobbers), and the row he typed stays in d2r_vaultHand, said on the Vault, instead of vanishing. */
+  var VH_MIGRATE = { by: 'the d2r_vaultHand migration', where: 'the Vault (+ Add an item), before a pick reached the owned ledger' };
+  function _vhMigrateRow(row){
+    var nm0 = (row && typeof row === 'object') ? String(row.name == null ? '' : row.name).trim() : '';
+    if (!nm0) return { ok: false, why: 'the row carries no name' };
+    var at = (typeof row.at === 'string' && isFinite(Date.parse(row.at))) ? row.at : null;
+    var pre = _vhPrepare(nm0, at, VH_MIGRATE);
+    if (!pre.ok) return pre;
+    if (!owned.has(pre.name)){
+      var res = _vhCommit(pre, VH_MIGRATE);
+      return (res.ok && res.receipt) ? res : { ok: false, why: res.why };
+    }
+    var p = _vhProvRow(pre.name);
+    if (!p) return { ok: false, why: pre.name + ' is already yours and d2r_vaultProv would not parse — kept as you typed it' };
+    var cur = p.row;
+    if (cur && cur.source === 'hand') return { ok: true, mode: 'already', name: pre.name };
+    if (!cur || (cur.kind !== 'owned' && !cur.ownedBy)){
+      var add = _vhCommit(pre, VH_MIGRATE), m = add.prov && add.prov.mode;
+      return (add.ok && add.receipt && (m === 'written' || m === 'kept-filing')) ? add
+           : { ok: false, why: pre.name + ' is already yours and your hand could not join its record — kept as you typed it' };
+    }
+    var say = (typeof window._ownedProvSourceSay === 'function') ? window._ownedProvSourceSay(cur.kind === 'owned' ? cur.source : cur.ownedBy.source) : 'another door';
+    return { ok: false, why: 'already yours through ' + say + ' — your earlier hand add is kept as you typed it' };
+  }
+  /* ⚠ REG-1849 — THE LATCH CLOSES ON A FINISHED PASS, NOT ON AN ATTEMPT. It was set before the read, so one failed read or
+     one throw part-way stopped every later paint of the page from trying again (the page is one world: a profile switch is
+     a full reload, bible.html's D2R_PROFILE note). Whatever a pass leaves, _vaultHandLeftPaint SAYS on the Vault. */
+  var _vhMigrated = false, _vhLast = null;
   function _vaultHandMigrate(){
     if (_vhMigrated) return null;
-    _vhMigrated = true;
     var raw = null, rows = null;
-    try { raw = window.LSR.getItem(VAULT_HAND_LEGACY); } catch (e) { return { ok: false, why: 'the old hand list could not be read — left as it is' }; }
-    if (raw == null || raw === '') return { ok: true, n: 0, left: 0 };
-    try { rows = JSON.parse(raw); } catch (e) { return { ok: false, why: 'the old hand list would not parse — left as it is' }; }
-    if (!Array.isArray(rows)) return { ok: false, why: 'the old hand list is not a list — left as it is' };
-    var n = 0, left = 0;
-    rows.forEach(function(row){
-      var nm = (row && typeof row === 'object') ? String(row.name == null ? '' : row.name).trim() : '';
-      var at = (row && typeof row.at === 'string' && isFinite(Date.parse(row.at))) ? row.at : null;
-      var res = nm ? window.vaultHandAdd(nm, at, { by: 'the d2r_vaultHand migration',
-                                                    where: 'the Vault (+ Add an item), before a pick reached the owned ledger' }) : null;
-      if (res && res.ok) n++; else left++;
-    });
-    if (!left) window.LSR.removeItem(VAULT_HAND_LEGACY);
-    return { ok: true, n: n, left: left };
+    try { raw = window.LSR.getItem(VAULT_HAND_LEGACY); }
+    catch (e) { _vhLast = { ok: false, why: 'your earlier hand list could not be read — left as it is, and asked again on the next paint' }; return _vhLast; }
+    if (raw == null || raw === ''){ _vhMigrated = true; _vhLast = { ok: true, n: 0, left: 0, rows: [] }; return _vhLast; }
+    try { rows = JSON.parse(raw); } catch (e) { rows = undefined; }
+    if (!Array.isArray(rows)){
+      _vhMigrated = true;
+      _vhLast = { ok: false, why: 'your earlier hand list ' + (rows === undefined ? 'would not parse' : 'is not a list') + ' — left as it is' };
+      return _vhLast;
+    }
+    var n = 0, kept = [];
+    try {
+      rows.forEach(function(row){
+        var r = _vhMigrateRow(row);
+        if (r && r.ok) n++;
+        else kept.push({ name: (row && row.name != null) ? String(row.name) : '(no name)', why: (r && r.why) || 'UNKNOWN' });
+      });
+    } catch (e) {
+      _vhLast = { ok: false, why: 'your earlier hand list stopped part-way — left as it is, and asked again on the next paint' };
+      return _vhLast;
+    }
+    if (!kept.length) window.LSR.removeItem(VAULT_HAND_LEGACY);
+    _vhMigrated = true;
+    _vhLast = { ok: true, n: n, left: kept.length, rows: kept };
+    return _vhLast;
   }
   window._vaultHandMigrate = _vaultHandMigrate;
+  /* what the last pass left, on the Vault — hidden when nothing is left (every visitor without the old key sees nothing) */
+  window._vaultHandLeftPaint = function(){
+    var el = document.getElementById('vault-hand-left');
+    if (!el) return null;
+    var L = _vhLast;
+    if (!L || (L.ok && !L.left)){ el.hidden = true; el.innerHTML = ''; return L; }
+    var h = !L.ok ? '<p class="vault-propose" data-state="unknown" data-moved="false">' + _vhEsc(L.why) + '</p>'
+      : '<p class="vault-org-h">' + L.left + ' item' + (L.left === 1 ? '' : 's') + ' you added by hand before this version could not join the vault — kept as you typed '
+        + (L.left === 1 ? 'it' : 'them') + '</p>'
+        + L.rows.slice(0, 20).map(function(r){
+            return '<p class="vault-org-row" data-name="' + _vhEsc(r.name) + '">' + _vhEsc(r.name)
+              + ' <span class="vault-propose" data-state="kept" data-moved="false">' + _vhEsc(r.why) + '</span></p>'; }).join('')
+        + (L.rows.length > 20 ? '<p class="vault-org-row" data-state="more">20 of ' + L.rows.length + ' shown</p>' : '');
+    el.hidden = false;
+    el.innerHTML = h;
+    return L;
+  };
   window.vaultHandOpen = function(){
     if (document.documentElement && document.documentElement.classList
         && document.documentElement.classList.contains('cb-lock')){
@@ -40523,15 +40609,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return cat || { ok: false, why: 'the planner list could not be read' };
     }
     var cache = _vhSeen;
-    var keep = [], seen = {}, out = 0;
+    var keep = [], seen = {}, out = 0, unsettled = 0;
     cat.rows.forEach(function(r){
       if (!r || !r.id || !r.name) return;
       var ck = String(r.q || '') + '|' + r.name;
       if (!cache[ck]){
         var res = _vhResolve(String(r.name), _VH_KIND[r.q] || null);
-        cache[ck] = res.ok ? { name: res.name, draws: _vaultKeeps(res.name) } : { name: null, draws: false };
+        cache[ck] = res.ok ? { name: res.name, draws: _vaultKeeps(res.name) } : { name: null, draws: false, why: res.why };
       }
       var c = cache[ck];
+      /* ⚠ REG-1850 — a name that could not be settled is its own count with its own words, never "the vault does not draw it" */
+      if (!c.name){ unsettled++; return; }
       if (!c.draws){ out++; return; }
       if (seen[c.name]) return;
       seen[c.name] = 1;
@@ -40550,8 +40638,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (out)
       h += '<p class="vault-hand-say" data-state="left-out">' + out + ' matching planner item' + (out === 1 ? ' is' : 's are')
         + ' not listed — the vault does not draw ' + (out === 1 ? 'it' : 'them') + ' (a white base, a crafted recipe, or a name it does not carry), so an add would show nowhere</p>';
+    if (unsettled)
+      h += '<p class="vault-hand-say" data-state="unsettled">' + unsettled + ' matching planner item' + (unsettled === 1 ? ' is' : 's are')
+        + ' not listed — which vault item ' + (unsettled === 1 ? 'it names' : 'each names') + ' could not be settled (a name several items share, or a check that could not be asked)</p>';
     list.innerHTML = h;
-    return { ok: true, n: keep.length, shown: Math.min(keep.length, VAULT_HAND_SHOWN), left: out };
+    return { ok: true, n: keep.length, shown: Math.min(keep.length, VAULT_HAND_SHOWN), left: out, unsettled: unsettled };
   };
   window.vaultHandTake = function(id){
     var cat = window._vhCat;
@@ -40621,13 +40712,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     return { ok: true, moved: false, kind: 'mule', id: id, home: String(mule.name || id), why: why };
   };
   window.vaultProposeLine = function(name){
-    var pg = null;
+    var pg = null, threw = false;
     try { pg = window.vaultPropose(name); }
-    catch (e) { pg = null; }
+    catch (e) { pg = null; threw = true; }   /* ⚠ REG-1851 — a throw is its own UNKNOWN, never "the router is not on this page" */
     var span = function(state, text, home){
       return '<span class="vault-propose" data-state="' + state + '" data-moved="false"' + (home ? ' data-home="' + _vhEsc(home) + '"' : '') + '>' + _vhEsc(text) + '</span>';
     };
-    if (!pg) return span('unknown', 'the router is not on this page');
+    if (!pg) return span('unknown', threw ? 'the proposal could not be worked out — this page raised while asking' : 'the proposal gave no answer');
     if (pg.moved !== false) return span('unknown', 'a proposal must not move an item');
     if (pg.ok !== true) return span('unknown', pg.why || 'the router could not be asked');
     if (pg.kind === 'mule') return span('proposed', '→ ' + pg.home + ' — ' + pg.why, pg.id);
@@ -57485,7 +57576,10 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       var a = _cbAf(x && x.id); if (!a) return;
       (a[11] || []).forEach(function(l){
         var r = one(l); if (!r) return;
-        var t = (x.rolls && x.rolls[r[2]] != null) ? +x.rolls[r[2]] : (r[0] === r[1] ? r[0] : null);
+        /* ⚠ REG-1852 — only a whole number is a typed roll: '' read as 0 and 'abc' as NaN, each "already on this item" */
+        var sv0 = x.rolls ? x.rolls[r[2]] : null;
+        var typedN = (typeof sv0 === 'number' && isFinite(sv0)) ? sv0 : ((typeof sv0 === 'string' && /^-?\d+$/.test(sv0.trim())) ? +sv0 : null);
+        var t = typedN != null ? typedN : (r[0] === r[1] ? r[0] : null);
         if (t == null){ if (!open) open = a; } else have.push({ n: a[2], v: t });
       });
     });

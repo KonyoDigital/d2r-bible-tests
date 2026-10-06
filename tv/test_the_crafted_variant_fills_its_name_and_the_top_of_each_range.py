@@ -69,12 +69,17 @@ class ACraftedItemIsItsRecipePlusRegularMods(unittest.TestCase):
     def test_a_crafted_item_is_named_once(self):
         out = _run(r"""
           mk('Warlock', 90);
-          pick('neck', 'c88'); OUT.amulet = title();
+          var e88 = pick('neck', 'c88'); OUT.amulet = title();
+          var t88 = window._cbTipEntry(e88, window._cbItem(e88.id), 90, 'neck', 'Warlock');
+          OUT.card = { shown: window._cbShown(e88, window._cbItem(e88.id)).name, tip: t88.name, tipBase: t88.base, q: t88.q };
           pick('rrin', 'c89'); OUT.ring = title();
           pick('head', 'c64'); OUT.helm = title();
           pick('head', 'u248'); OUT.unique = title();
         """)
         self.assertEqual(out["amulet"], "Caster Amulet", "the crafted amulet still doubles its base")
+        # the card (the tooltip, _cbShown) says the same name; its base is the tooltip's own second line, as in the game
+        self.assertEqual(out["card"], {"shown": "Caster Amulet", "tip": "Caster Amulet", "tipBase": "Amulet", "q": "c"},
+                         "the card and the editor name a crafted item differently")
         self.assertEqual(out["ring"], "Caster Ring")
         self.assertEqual(out["helm"], 'Hit Power Helm <span class="cb-c-c">Full Helm</span>',
                          "a base the recipe name does not end in was dropped")
@@ -158,6 +163,11 @@ class ACraftedItemIsItsRecipePlusRegularMods(unittest.TestCase):
           OUT.under = type('p3', 5, 10, '3');
           OUT.inside = type('p3', 5, 10, '7');
           OUT.rolls7 = cur().sets[0].slots.neck.rolls;
+          /* REG-1852 — a stored roll that is not a whole number is not a known share */
+          var e = cur().sets[0].slots.neck, junk = function(v){ var x = JSON.parse(JSON.stringify(e)); x.affixes = [{ id: 'p304', rolls: { m1: v } }]; return x; };
+          OUT.blank = window._cbCraftSplit(junk(''), 'p2', '30');
+          OUT.nan = window._cbCraftSplit(junk('abc'), 'p2', '30');
+          OUT.typed = window._cbCraftSplit(junk('5'), 'p2', '25');
         """)
         self.assertTrue(out["alone"]["bad"])
         self.assertIn("this recipe line is 5–10; 20 is above it", out["alone"]["say"])
@@ -175,9 +185,21 @@ class ACraftedItemIsItsRecipePlusRegularMods(unittest.TestCase):
         self.assertIn("3 is below it", out["under"]["say"])
         self.assertEqual(out["inside"]["say"], "saved: 7 (EXACT)")
         self.assertEqual(out["rolls7"], {"p3": 7})
+        for k in ("blank", "nan"):
+            self.assertFalse(out[k]["ok"])
+            self.assertIn("with its roll not typed", out[k]["why"], "a stored %s roll was read as a known share" % k)
+            self.assertNotRegex(out[k]["why"], r"\b0 \(|NaN", "an untyped roll was printed as a number")
+        self.assertEqual(out["typed"]["say"], "saved: 25 = 20 (this recipe, 10–20) + 5 (Lizard's)")
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1852 - only a whole number is a typed roll; coercing '' to 0 prints a share nobody typed",
+        "file": "bible.html",
+        "find": "        var t = typedN != null ? typedN : (r[0] === r[1] ? r[0] : null);\n",
+        "replace": "        var t = (sv0 != null) ? +sv0 : (r[0] === r[1] ? r[0] : null);\n",
+        "matches": 1,
+    },
     {
         "why": "the recipe name already ends in its base; without the check the title reads 'Caster Amulet Amulet' again",
         "file": "bible.html",

@@ -162,6 +162,17 @@ class TheVaultProposesAHomeAndDoesNotMove(unittest.TestCase):
             self.assertNotIn("UNI-WEAPONS", out[k])
         self.assertFalse(out["blank"]["ok"])
 
+    def test_a_throw_is_not_an_absent_router(self):
+        """REG-1851 — a proposal that raised says so; "the router is not on this page" is a different, wrong reason."""
+        out = _node(ROUTER + r"""
+          muleById = function(){ throw new Error('roster unreadable'); };
+          OUT.line = window.vaultProposeLine('Battlecage');
+        """)
+        self.assertIn('data-state="unknown"', out["line"])
+        self.assertIn("the proposal could not be worked out", out["line"])
+        self.assertNotIn("the router is not on this page", out["line"])
+        self.assertNotIn("data-home", out["line"])
+
     def test_a_locked_name_stays_and_the_router_is_not_asked(self):
         out = _node(ROUTER + r"""
           window._laneLockWhy = function(nm){ return nm === 'Harlequin Crest' ? { lane: 'equipment', why: %s } : null; };
@@ -219,6 +230,13 @@ class TheVaultProposesAHomeAndDoesNotMove(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1851 - a proposal that raised must say so; printing 'the router is not on this page' is a wrong reason",
+        "file": "bible.html",
+        "find": "    if (!pg) return span('unknown', threw ? 'the proposal could not be worked out — this page raised while asking' : 'the proposal gave no answer');\n",
+        "replace": "    if (!pg) return span('unknown', 'the router is not on this page');\n",
+        "matches": 1,
+    },
     {
         "why": "a proposal names its mule; printing the reason alone is the defect this law was written for",
         "file": "bible.html",
