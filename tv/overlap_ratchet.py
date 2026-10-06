@@ -138,7 +138,30 @@ _JS = """(() => {
   // reporting damage nobody can see. elementFromPoint at the centre answers what is ACTUALLY on
   // top there; if neither the element nor a descendant of it is, it is not drawn and cannot
   // collide with anything. [[feedback-verify-not-proxy]]
-  const painted = (e, r) => {
+  // ⚠⚠ REG-1872 — CLIPPED AWAY IS NOT DRAWN, AND THE HIT-TEST BELOW COULD NOT TELL. It accepts an
+  // ANCESTOR at the centre (`hit.contains(e)`), and text an overflow box has clipped away has an
+  // ancestor under its centre: MEASURED at 1440x1000, `.tzz-terr` "-> 96 terrorized" at y 971-999
+  // sits wholly below #home-dash's bottom edge (929, overflow:auto), the point lands on .shell, and
+  // the gate reported it 4px over the footer's "not taken" (957-976) — a collision with nothing on
+  // the pixels. GrokBot read the same phantom as "PRIME · Bloodraven country" over the footer.
+  // So every box is first cut to what its clipping ancestors leave visible: a box cut to nothing is
+  // not painted, and a box cut short collides only with what is left of it.
+  const clipOf = e => {
+    let l = -Infinity, t = -Infinity, r = Infinity, b = Infinity;
+    for (let p = e.parentElement; p; p = p.parentElement) {
+      const cs = getComputedStyle(p);
+      if (cs.overflowX === 'visible' && cs.overflowY === 'visible') continue;
+      const q = p.getBoundingClientRect();
+      l = Math.max(l, q.left); t = Math.max(t, q.top); r = Math.min(r, q.right); b = Math.min(b, q.bottom);
+    }
+    return [l, t, r, b];
+  };
+  const cutTo = (r, c) => ({left: Math.max(r.left, c[0]), top: Math.max(r.top, c[1]),
+                           right: Math.min(r.right, c[2]), bottom: Math.min(r.bottom, c[3])});
+  const some = r => r.right - r.left > 0 && r.bottom - r.top > 0;
+  const painted = (e, r0) => {
+    const r = cutTo(r0, clipOf(e));
+    if (!some(r)) return false;
     const x = (r.left + r.right) / 2, y = (r.top + r.bottom) / 2;
     if (x < 0 || y < 0 || x > innerWidth || y > innerHeight) return false;
     const hit = document.elementFromPoint(x, y);
@@ -164,7 +187,7 @@ _JS = """(() => {
   // stop phantoms. getClientRects() is the only honest answer for inline content.
   // ⚠ VERIFIED BASELINE-NEUTRAL BEFORE SHIPPING: per-line and bounding-rect both give 0 overlaps
   // at 375/901/1120/1440 on the page this already grades. It removes phantoms and nothing else.
-  const boxes = leaves.map(e => [...e.getClientRects()]);
+  const boxes = leaves.map(e => { const c = clipOf(e); return [...e.getClientRects()].map(b => cutTo(b, c)).filter(some); });
   const pairs = [];
   for (let i = 0; i < leaves.length; i++) {
     for (let j = i + 1; j < leaves.length; j++) {

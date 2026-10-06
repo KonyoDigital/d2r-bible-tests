@@ -14,7 +14,10 @@ against real pixels every run, which is the stronger check and a different one.
 [[feedback-fixtures-never-touch-live-data]]
 """
 import io
+import json
 import os
+import shutil
+import subprocess
 import sys
 import unittest
 
@@ -33,7 +36,87 @@ RED_PROOF = [
         "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },
+    {
+        "why": "REG-1872 - text an overflow box has clipped away counts as painted again, so a TZ line hidden below "
+               "the dash reads as 4px over the footer",
+        "file": "overlap_ratchet.py",
+        "find": "    const r = cutTo(r0, clipOf(e));\n    if (!some(r)) return false;\n",
+        "replace": "    const r = r0;\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1872 - a box cut short by its clipping ancestor collides with its hidden part again",
+        "file": "overlap_ratchet.py",
+        "find": "return [...e.getClientRects()].map(b => cutTo(b, c)).filter(some); });",
+        "replace": "return [...e.getClientRects()]; });",
+        "matches": 1,
+    },
 ]
+
+
+class ClippedAwayIsNotDrawn(unittest.TestCase):
+    """REG-1872 — THE 4px OVER THE FOOTER WAS TEXT NOBODY COULD SEE. MEASURED at 1440x1000 on a served console:
+    #home-dash is overflow:auto with its bottom at y=929 (815 of 1573 px shown); the terror zone's
+    "-> 96 terrorized" sat at y 971-999, wholly clipped; the footer's "not taken" at 957-976. The gate counted
+    them as a 4px overlap because its hit-test accepts an ANCESTOR at the centre, and .shell is under the centre
+    of clipped text. GrokBot read the same shape as "PRIME · Bloodraven country" over the footer. Reserving the
+    footer's room would have fixed nothing on the pixels.
+
+    Drives the SHIPPED _JS in node over a fake page built from those measured boxes."""
+
+    PAGE = r"""
+function El(tag, r, o){ o = o || {}; this.tagName = tag; this.r = r; this.kids = []; this.parentElement = null;
+  this.own = o.text || ''; this.ov = o.ov || 'visible'; }
+El.prototype.add = function(k){ k.parentElement = this; this.kids.push(k); return k; };
+Object.defineProperty(El.prototype, 'children', { get: function(){ return this.kids; } });
+Object.defineProperty(El.prototype, 'textContent', { get: function(){
+  return this.own + this.kids.map(function(k){ return k.textContent; }).join(''); } });
+El.prototype.getBoundingClientRect = function(){ var r = this.r;
+  return { left: r[0], top: r[1], right: r[2], bottom: r[3], width: r[2] - r[0], height: r[3] - r[1] }; };
+El.prototype.getClientRects = function(){ return [this.getBoundingClientRect()]; };
+El.prototype.contains = function(o){ for (var e = o; e; e = e.parentElement) if (e === this) return true; return false; };
+var ALL = [];
+function walk(e){ ALL.push(e); e.kids.forEach(walk); }
+var HTML = new El('html', [0, 0, 1440, 1000]);
+var SHELL = HTML.add(new El('div', [0, 0, 1440, 1000]));
+var DASH = SHELL.add(new El('div', [24, 114, 1070, 929], { ov: 'auto' }));
+var TILE = DASH.add(new El('div', [24, 572, 1055, 1107]));
+TILE.add(new El('b', [644, 971, 910, 999], { text: '→ 96 terrorized' }));
+DASH.add(new El('span', [100, 200, 300, 220], { text: 'act 5' }));
+DASH.add(new El('span', [280, 205, 480, 225], { text: 'live guess' }));   // overlaps at the edge, neither centre covered
+DASH.add(new El('span', [100, 900, 300, 960], { text: 'partly hidden' }));
+SHELL.add(new El('span', [100, 940, 300, 970], { text: 'below the dash' }));
+var FOOT = SHELL.add(new El('footer', [24, 957, 1416, 976]));
+FOOT.add(new El('span', [737, 957, 871, 976], { text: 'not taken' }));
+walk(HTML);
+var innerWidth = 1440, innerHeight = 1000;
+function getComputedStyle(e){ return { visibility: 'visible', display: 'block', opacity: '1', overflowX: e.ov, overflowY: e.ov }; }
+function seen(e, x, y){ var r = e.r; if (x < r[0] || x > r[2] || y < r[1] || y > r[3]) return false;
+  for (var p = e.parentElement; p; p = p.parentElement)
+    if (p.ov !== 'visible' && (x < p.r[0] || x > p.r[2] || y < p.r[1] || y > p.r[3])) return false;
+  return true; }
+var document = { querySelectorAll: function(){ return ALL; },
+  elementFromPoint: function(x, y){ var hit = null; ALL.forEach(function(e){ if (seen(e, x, y)) hit = e; }); return hit; } };
+"""
+
+    def test_text_clipped_below_the_dash_does_not_collide_with_the_footer(self):
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node is not installed - the shipped measurement cannot be driven here (UNKNOWN, not a pass)")
+        prog = self.PAGE + "process.stdout.write(JSON.stringify(" + OR._JS.replace("__MIN__", str(OR.MIN_OVERLAP_PX)) + "));"
+        r = subprocess.run([node, "-"], input=prog, capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, "the shipped measurement would not run: %s" % r.stderr[-800:])
+        v = json.loads(r.stdout)
+        names = sorted(tuple(sorted((p["a"], p["b"]))) for p in v["sample"])
+        self.assertNotIn(("not taken", "→ 96 terrorized"), names,
+                         "text #home-dash has clipped away was counted over the footer: %r" % names)
+        self.assertNotIn(("below the dash", "partly hidden"), names,
+                         "the clipped half of a box still collided: %r" % names)
+        self.assertEqual(names, [("act 5", "live guess")], "a real overlap on the pixels must still count: %r" % names)
+        self.assertEqual(v["count"], 1)
+        self.assertEqual(v["leaves"], 5, "the clipped TZ line was counted as painted text: %d leaves, 5 are drawn"
+                         % v["leaves"])
+
 
 def _counts(**kw):
     """A measurement in the shape `measure()` returns."""
