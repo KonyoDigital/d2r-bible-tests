@@ -77,9 +77,14 @@ def crossref(proposed, ledger):
     for k in ("foundLog", "owned", "setPieces"):
         for n in _names(ledger.get(k)):
             have.add(canon(n))
+    # REG-1906 - HIS UN-TICK IS NOT "NEW". d2r_grailUnfound is user truth; a name he un-ticked that the reader saw is
+    # its own answer, and counting it as new is the number that invites the press the board now refuses.
+    # A ledger that carries no grailUnfound key was never asked about it - `untickedMeasured` says so.
+    unticked = set(canon(n) for n in _names(ledger.get("grailUnfound")))
 
     out_new = {"uniques": [], "sets": []}
     out_old = {"uniques": [], "sets": []}
+    out_un = {"uniques": [], "sets": []}
     seen = set()
     dupes = 0
     for key, rows in (("uniques", prop_u), ("sets", prop_s)):
@@ -91,15 +96,18 @@ def crossref(proposed, ledger):
                 dupes += 1
                 continue
             seen.add(c)
-            (out_old if c in have else out_new)[key].append(n)
+            (out_old if c in have else (out_un if c in unticked else out_new))[key].append(n)
 
     n_new = len(out_new["uniques"]) + len(out_new["sets"])
     n_old = len(out_old["uniques"]) + len(out_old["sets"])
+    n_un = len(out_un["uniques"]) + len(out_un["sets"])
     return {"measured": True, "newCount": n_new, "alreadyCount": n_old,
+            "untickedCount": n_un, "unticked": out_un, "untickedMeasured": "grailUnfound" in ledger,
             "proposedCount": total, "new": out_new, "already": out_old,
             "dupesInProposal": dupes,
-            "why": ("%d of the %d read are already in your chronicle; %d %s new"
-                    % (n_old, total, n_new, "is" if n_new == 1 else "are"))}
+            "why": ("%d of the %d read are already in your chronicle; %d %s new%s"
+                    % (n_old, total, n_new, "is" if n_new == 1 else "are",
+                       ("; %d you un-ticked - left as you marked them" % n_un) if n_un else ""))}
 
 
 def say(x):
@@ -107,6 +115,8 @@ def say(x):
     if not x.get("measured"):
         return "read from your reels — not yet checked against your chronicle"
     n = x["newCount"]
+    u = x.get("untickedCount") or 0
+    tail = (" · %d you un-ticked, left as you marked them" % u) if u else ""
     if not n:
-        return "read from your reels — you already have every one"
-    return "read from your reels — %d not in your chronicle yet" % n
+        return ("read from your reels — nothing new" + tail) if u else "read from your reels — you already have every one"
+    return "read from your reels — %d not in your chronicle yet" % n + tail

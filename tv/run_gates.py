@@ -8851,6 +8851,14 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_a_sweep_never_reticks_what_he_unticked", [sys.executable,
+         os.path.join(HERE, "test_a_sweep_never_reticks_what_he_unticked.py")], 180,
+         needs_app=False,
+         why=("REG-1906 - chronicleApply sent every swept unique through toggleOwned, which DELETES the name from "
+              "d2r_grailUnfound, so registering a sweep re-ticked what he had un-ticked and erased the un-tick. A name he "
+              "un-ticked is held (uniques, sets, complete-set pieces; curly or straight apostrophe) and reported; a name "
+              "he did not un-tick still lands - the positive control.")
+         ),
     Gate("test_a_prover_never_waits_forever_for_idle", [sys.executable,
          os.path.join(HERE, "test_a_prover_never_waits_forever_for_idle.py")], 60,
          needs_app=False,

@@ -53446,14 +53446,37 @@ function renderJournal(){
     return false;
   }
 
+  /* REG-1906 — HIS UN-TICK STANDS AGAINST A SWEEP. d2r_grailUnfound is USER TRUTH: only he may overrule his own
+     un-tick, and he does it by tapping the name in "marked NOT found, by you". This apply never asked, and its write
+     path (toggleOwned) DELETES the name from d2r_grailUnfound in the same call — so registering a sweep that read an
+     item he had un-ticked re-ticked it AND erased the un-tick, with nothing on screen saying so (the testing-phase
+     pre-run, UNTICK-01). A name he un-ticked is now held: not ticked, not vaulted, carried out as res.untickedHeld,
+     and left in the banner where his tap decides. Read ONCE per apply; an unreadable store holds nothing and says so. */
+  window._chronUntickedFold = function(n){
+    return String(n || '').replace(/[\u2019\u02bc\u2018]/g, "'").replace(/\s+/g, ' ').trim().toLowerCase();
+  };
+  window._chronUntickedSet = function(){
+    var out = new Set();
+    var un = JSON.parse(window.LSR.getItem('d2r_grailUnfound') || '{}') || {};
+    Object.keys(un).forEach(function(k){ if (un[k]) out.add(window._chronUntickedFold(k)); });
+    return out;
+  };
+  window._chronHeldByUntick = function(res, n){
+    var u = window._chUntickedNow;
+    if (!u || !u.has(window._chronUntickedFold(n))) return false;
+    (res.untickedHeld = res.untickedHeld || []).push(n);
+    return true;
+  };
   window.chronicleApply = function(proposal){
     var add = (proposal && proposal.wouldAdd) || {};
     var res = { uniques: [], sets: [], skipped: [], unknown: [], ts: Date.now() };
     // every row this apply writes shares one moment — see the writer's note on _chBatchTs
     window._chBatchTs = res.ts;
+    try { window._chUntickedNow = window._chronUntickedSet(); }
+    catch(e){ window._chUntickedNow = null; res.untickUnread = String(e && e.message || e).slice(0, 80); }
     try {
     return window._chronicleApplyInner(proposal, add, res);
-    } finally { window._chBatchTs = 0; }
+    } finally { window._chBatchTs = 0; window._chUntickedNow = null; }
   };
   window._chronicleApplyInner = function(proposal, add, res){
   /* ══ v2265 — `res.vaulted` WAS WRONG IN BOTH DIRECTIONS, AND FOR ONE REASON ═══════════════
@@ -53572,6 +53595,7 @@ function renderJournal(){
        statement that decides lives inside the two loops a law slices out of this function. */
     (add.uniques || []).forEach(function(row){
       var n = row && (row.name || row); if (!n) return;
+      if (window._chronHeldByUntick(res, n)) return;   // REG-1906 — his un-tick stands
       try {
         var _pcs0 = window._chronSetPieceSet && window._chronSetPieceSet();
         var _spn = (_pcs0 && _pcs0.has(n)) ? n : null;
@@ -53843,6 +53867,7 @@ function renderJournal(){
     delete res._setsFromUniques;
     (add.sets || []).forEach(function(row){
       var n = row && (row.name || row); if (!n) return;
+      if (window._chronHeldByUntick(res, n)) return;   // REG-1906 — his un-tick stands
       /* #246 W2 — a set piece SEEN IN A CONTAINER is a vault witness like any unique: same gate, same door */
       try {
         if (row && typeof row === 'object' && window._vaultHoldingRoute
@@ -53916,6 +53941,7 @@ function renderJournal(){
          it out loud. */
       if (!def) { (res.unknown = res.unknown || []).push(setName); return; }   // never invent pieces
       (def.pieces || []).forEach(function(pc){
+        if (window._chronHeldByUntick(res, pc)) return;   // REG-1906 — his un-tick stands
         if (_chronAlreadySet(pc)) { res.skipped.push(pc); return; }
         try { if (typeof window.toggleSetPiece === 'function') window.toggleSetPiece(pc); res.sets.push(pc); } catch(e){}
       });
@@ -53939,7 +53965,12 @@ function renderJournal(){
         _grailToast('📜', '<b>' + (res.uniques.length + res.sets.length) + '</b> registered from the Chronicle',
           (res.unknown && res.unknown.length)
             ? (res.unknown.length + ' set name(s) NOT RECOGNISED — nothing was written for those')
-            : (res.skipped.length ? (res.skipped.length + ' you already had') : 'swept from your own footage'));
+            : (res.skipped.length ? (res.skipped.length + ' you already had') : 'swept from your own footage')
+          + ((res.untickedHeld && res.untickedHeld.length)
+             ? ' · ' + res.untickedHeld.length + ' you un-ticked — left un-ticked (tap one in "marked NOT found, by you" to overrule)' : ''));
+      } else if (res.untickedHeld && res.untickedHeld.length) {
+        _grailToast('📜', '<b>' + res.untickedHeld.length + '</b> held — you un-ticked them',
+          'the sweep read them, your un-tick stands — tap one in "marked NOT found, by you" to overrule');
       }
     } catch(e){}
     /* ══ v2118 — THE DOOR THE COMMENT ALREADY PROMISED ═══════════════════════════════════════

@@ -17082,7 +17082,7 @@ def board_ownership(sample=0, dump_stores=False):
           "var flRaw=raw('d2r_foundLog');"
           "var fl=Array.isArray(flRaw)?flRaw.slice():(flRaw&&typeof flRaw==='object'?Object.keys(flRaw):[]);"
           "var dates=(flRaw&&typeof flRaw==='object'&&!Array.isArray(flRaw))?flRaw:null;"
-          "var ow=g('d2r_owned'),sp=g('d2r_setPieces');"
+          "var ow=g('d2r_owned'),sp=g('d2r_setPieces'),gu=g('d2r_grailUnfound');"
           "var n=%d;"
           # v2044 — REPORT WHICH WORLD THESE COUNTS CAME FROM. An unclaimed load lives in a
           # per-install GUEST world (_D2R_PFX = 'I·<installId>·'), and anything applied there is
@@ -17232,7 +17232,8 @@ def board_ownership(sample=0, dump_stores=False):
           "counts:{foundLog:fl.length,owned:ow.length,setPieces:sp.length,"
           "uniquesTotal:uniT,setsTotal:setT,runewordsTotal:rwT,runewordsMade:rwMade,"
           "chronFound:chF,chronTotal:chT},"
-          "sample:{foundLog:fl.slice(0,n),owned:ow.slice(0,n),setPieces:sp.slice(0,n)},"
+          # REG-1906 - his un-ticks ride the sample, so the cross-reference can say "you un-ticked it" instead of "new"
+          "sample:{foundLog:fl.slice(0,n),owned:ow.slice(0,n),setPieces:sp.slice(0,n),grailUnfound:gu.slice(0,n)},"
           "stores:stores,dates:dates,gameFound:gameFound,storeEmptied:storeEmptied,"
           # ⚠⚠ v2735 — THIS LINE KILLED THE BACKUP FOR A WHOLE DAY, AND EVERY GATE STAYED GREEN.
           # v2731 shipped it as `(dump?rwFull:null)`. There is NO JS variable named `dump` — the

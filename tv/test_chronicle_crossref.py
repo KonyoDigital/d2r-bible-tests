@@ -20,7 +20,43 @@ RED_PROOF = [
         "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },
+    {
+        "why": "REG-1906 - a name he un-ticked is counted as NEW again: the strip invites the press the board refuses",
+        "file": "chronicle_crossref.py",
+        "find": "(out_old if c in have else (out_un if c in unticked else out_new))[key].append(n)",
+        "replace": "(out_old if c in have else out_new)[key].append(n)",
+        "matches": 1,
+    },
 ]
+
+
+class TestHisUntickIsNotNew(unittest.TestCase):
+    """REG-1906 - d2r_grailUnfound is user truth. Run on his real ledger with The Cat's Eye un-ticked, the shipped
+    cross-reference returned newCount 1 and listed it as new - the number that invites a register press."""
+
+    LEDGER = {"foundLog": ["Nagelring"], "owned": [], "setPieces": [], "grailUnfound": ["The Cat's Eye"]}
+
+    def test_an_unticked_name_is_its_own_answer_not_new(self):
+        r = X.crossref({"uniques": ["The Cat\u2019s Eye", "Nagelring", "Windforce"], "sets": []}, self.LEDGER)
+        self.assertEqual(r["newCount"], 1, r)
+        self.assertEqual(r["new"]["uniques"], ["Windforce"])
+        self.assertEqual(r["untickedCount"], 1)
+        self.assertEqual(r["unticked"]["uniques"], ["The Cat\u2019s Eye"])
+        self.assertTrue(r["untickedMeasured"])
+        self.assertIn("you un-ticked", X.say(r))
+
+    def test_a_ledger_that_never_carried_unticks_says_so(self):
+        r = X.crossref({"uniques": ["Windforce"], "sets": []}, {"foundLog": []})
+        self.assertFalse(r["untickedMeasured"], "a ledger read without grailUnfound claimed it asked about un-ticks")
+        self.assertEqual(r["newCount"], 1)
+
+    def test_only_unticked_reads_nothing_new_never_already_have(self):
+        r = X.crossref({"uniques": ["The Cat's Eye"], "sets": []}, self.LEDGER)
+        self.assertEqual(r["newCount"], 0)
+        said = X.say(r)
+        self.assertNotIn("already have every one", said, "an un-ticked item was told to him as one he already has")
+        self.assertIn("1 you un-ticked", said)
+
 
 class TestUnreadableIsNotZeroAndNotEverything(unittest.TestCase):
     """⚠ THE LAW. "I could not ask" must never render as a number. 347 printed after no ledger read
