@@ -233,8 +233,6 @@ class TestAVersionIsNeverBankedIntoAGradedTree(unittest.TestCase):
             "the busy branch does not raise - it may warn, and a warning is not a refusal.")
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
 
 
 class AContinuationLineIsNotAProcess(unittest.TestCase):
@@ -321,3 +319,7 @@ RED_PROOF = [
         "matches": 1,
     },
 ]
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)
