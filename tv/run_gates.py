@@ -8851,6 +8851,13 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_a_disk_tally_carries_its_verdict", [sys.executable,
+         os.path.join(HERE, "test_a_disk_tally_carries_its_verdict.py")], 60,
+         needs_app=False,
+         why=("REG-1907 - a tally read off disk (the board window shut, the ALT on air) was sealed without a world and the "
+              "persisted tally carried no onOwnerSeed, so no ledger verdict travelled and a never-synced RUNEWORDS 0 printed "
+              "as a count. The board writes the flag, the route banks it, the disk tally is classified per ledger.")
+         ),
     Gate("test_a_sweep_never_reticks_what_he_unticked", [sys.executable,
          os.path.join(HERE, "test_a_sweep_never_reticks_what_he_unticked.py")], 180,
          needs_app=False,

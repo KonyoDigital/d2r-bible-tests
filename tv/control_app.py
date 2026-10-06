@@ -3184,8 +3184,16 @@ def _tally_from_board_store():
         out = {"ok": False, "why": None, "sets": _pair(t.get("sets")),
                "uniques": _pair(t.get("uniques")), "runewords": _pair(t.get("runewords")),
                "at": at, "source": "board-store", "profile": route.get("p")}
+        # REG-1907 - A TALLY READ OFF DISK IS STILL ASKED OF THE AUTHORITY. This sealed without a world, so it never
+        # carried a ledgerVerdict: the ALT on air (its board window shut) sent RUNEWORDS 0 with nothing to say it was
+        # never synced, and every fleet card printed 0 / 99 as a count (the testing-phase pre-run, FLEET-01). The store
+        # identified itself above ({id, p, pfx} agreeing with its stamp), so that route IS its world; onOwnerSeed rides
+        # the persisted tally since this fix, and a store written before it carries none - classify_row then says
+        # UNKNOWN per ledger, which is the truth about an old record, never a guess.
+        _oos = t.get("onOwnerSeed")
+        out["onOwnerSeed"] = _oos if isinstance(_oos, bool) else None
         return _seal_tally_verdict(
-            out, "the board has written a tally but it carries no counts")
+            out, "the board has written a tally but it carries no counts", world=route)
     return None
 
 
@@ -44874,6 +44882,8 @@ class Handler(BaseHTTPRequestHandler):
             _t = {"v": 1, "who": _who, "route": _who,
                   "sets": _pair(body.get("sets")), "uniques": _pair(body.get("uniques")),
                   "runewords": _pair(body.get("runewords")),
+                  # REG-1907 - the seed flag the ledger authority classifies by; a bool or nothing
+                  "onOwnerSeed": body.get("onOwnerSeed") if isinstance(body.get("onOwnerSeed"), bool) else None,
                   "at": int(time.time() * 1000)}
             if not (_t["sets"] or _t["uniques"] or _t["runewords"]):
                 # nothing to say is not zero, and must not land on a good tally

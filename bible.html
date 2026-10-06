@@ -52931,6 +52931,11 @@ function renderJournal(){
       var out = {
         v: 1,
         who: who,
+        /* REG-1907 — the one flag the ledger authority needs to tell SYNCED from UNSYNCED. The live read sends it
+           (board_ownership: window._seedsBelongHere) and this persisted copy did not, so a console reading its board
+           off disk - the window shut, the ALT on air - published counts no verdict could classify, and a never-synced
+           0 rendered as a count on every fleet card. Same expression as the live read; null when the board cannot say. */
+        onOwnerSeed: (typeof window._seedsBelongHere === 'boolean' ? window._seedsBelongHere : null),
         sets: fs ? pair(fs.havePieces, fs.totalPieces) : null,
         uniques: fu ? pair(fu.found, window.d2rChronTotal(fu)) : null,
         /* ⚠ v2192 — HIS RULING, PINNED, BECAUSE THREE LISTS DISAGREE AND NONE OF THEM IS RIGHT.
