@@ -32416,11 +32416,12 @@ def _shadow_game_note(now, game, why):
     _SHADOW_GAME["v"] = (int(now), game, str(why or "")[:200])
 
 
-def _game_verdict(pre, hud, relook_open=True):
+def _game_verdict(pre, hud, relook_open=True, lobby=None):
     """REG-1666 — one look's answer to "is the GAME on his screen". Pure. -> (True | False | None, why)
 
     `pre` is capture_preflight's facts, `hud` the first-reads verdict on a bare Boosteroid window (True / False / None),
-    `relook_open` whether the wait after a launcher verdict is over. Nobody looked = None, never False."""
+    `relook_open` whether the wait after a launcher verdict is over, `lobby` whether the reel's film shows D2R's own
+    lobby (REG-1873, reel_film_shows_the_lobby). Nobody looked = None, never False."""
     pre = pre if isinstance(pre, dict) else {}
     if pre.get("windowLooked") is False:
         return None, "this console does not look for the game window (capture is off)"
@@ -32431,6 +32432,8 @@ def _game_verdict(pre, hud, relook_open=True):
         return False, "no game window on his screen (the game is shut, or its app is in the tray or on its library)"
     if hud is True:
         return True, "the first reads show a D2R HUD word"
+    if hud is False and lobby is True:
+        return True, "the reads name nothing, but the film shows D2R's own lobby - the game between games"
     if hud is False:
         return False, "Boosteroid is open on its launcher - the first reads show no D2R HUD word"
     if tv_label_is_bare(pre):
@@ -33164,6 +33167,56 @@ def _bare_hud_verdict(pre):
     return False
 
 
+#: REG-1873 — the lobby witness looks at this many of the newest film frames of the reel rolling now, filmed in the last
+#: _LOBBY_FILM_FRESH_S; a majority of the readable ones must be the lobby
+_LOBBY_FILM_FRAMES = 3
+_LOBBY_FILM_FRESH_S = 60
+
+
+def _film_ts(name):
+    try:
+        return int(str(name)[2:].split(".", 1)[0]) if str(name).startswith("f_") else None
+    except ValueError:
+        return None
+
+
+def reel_film_shows_the_lobby(now_ms=None):
+    """REG-1873 — does the film of the reel rolling now show D2R's own lobby? -> True | False | None. A test replaces it.
+
+    MEASURED on his ALT, 2026-10-06 22:00-22:40, reel_s_1791313228675_15264: forty minutes of the create-game lobby
+    (character up, lobby chat, Join Game) gave four reads - two "transition" at conf 0.4, one learned frame, one
+    near-black - and the seal row said "this is the launcher, not the game". The lobby is the game client, logged in,
+    between games; at 22:46 he was in a game. The reads have no word for it and the pixels do: char_select's lobby
+    bands, which matched the lobby on the ALT's 800x450 film (10,101 frames) and on his Mac's game sizes, and matched
+    none of the 35,678 service-launcher frames those PCs counted (REG-1874). None - no reel, no frame from the last
+    _LOBBY_FILM_FRESH_S, nothing readable - is UNKNOWN."""
+    try:
+        sid = _mini_sid()
+    except Exception:
+        return None
+    if not sid:
+        return None
+    d = os.path.join(os.environ.get("TV_HIST") or HIST_DIR, "reel_" + str(sid))
+    try:
+        names = [n for n in os.listdir(d) if _film_ts(n) is not None and n.lower().endswith(".jpg")]
+    except OSError:
+        return None
+    now = _shadow_now_ms() if now_ms is None else int(now_ms)
+    picks = [n for n in sorted(names, key=_film_ts, reverse=True)[:_LOBBY_FILM_FRAMES]
+             if 0 <= now - _film_ts(n) <= _LOBBY_FILM_FRESH_S * 1000]
+    if not picks:
+        return None
+    try:
+        import char_select as _cs
+        said = [_cs.looks_like_lobby(_cs.lobby_stats(os.path.join(d, n))) for n in picks]
+    except Exception:
+        return None
+    seen = [bool(ok) for ok, why in said if why != "frame unreadable"]
+    if not seen:
+        return None
+    return sum(seen) * 2 > len(seen)
+
+
 def tv_label_is_bare(pre):
     import tv_diablo as _tv
     return bool(isinstance(pre, dict) and _tv.label_is_bare_cloud(pre.get("windowLabel") or ""))
@@ -33383,7 +33436,8 @@ def shadow_watch_tick():
             pre = capture_preflight("shadow", look_for_window=True)
             # REG-1666 — the first-reads verdict ONCE per look, and what this look says about the game on his screen
             _hud = _bare_hud_verdict(pre) if pre.get("windowSeen") is True else None
-            _shadow_game_note(now, *_game_verdict(pre, _hud))
+            _lobby = reel_film_shows_the_lobby(now) if _hud is False else None     # REG-1873
+            _shadow_game_note(now, *_game_verdict(pre, _hud, lobby=_lobby))
             _since = roll.get("since")
             _age_s = ((now - int(_since)) / 1000.0) if isinstance(_since, (int, float)) else None
             # an hour already owed still rolls over below. The grace is only for a reel that
@@ -33443,6 +33497,12 @@ def shadow_watch_tick():
                 return {"ok": True, "away": True, "why": "Diablo is still not on screen"}
             if pre.get("windowSeen") is True:
                 hud = _hud
+                if hud is False and _lobby is True:
+                    # REG-1873 — D2R's own lobby names no zone, panel or item, and it is not the launcher
+                    _shadow_watch_note(lookedAt=now, launcherSince=None, launcherFor=None,
+                                       why=("the reads name no D2R zone, panel or item, but the film shows D2R's own "
+                                            "lobby - the game between games, so this shadow reel is not the launcher"))
+                    hud = None
                 if hud is False:   # a rolling shadow reel on the launcher
                     # #148 HIS RULE: a session ends only after 3 minutes of no game, however that is seen - the launcher
                     # verdict waits the same _SHADOW_AWAY_GRACE_S as a gone game. The clock is pinned to THIS reel

@@ -11,6 +11,11 @@ they opened. Their first reads, as the reader journalled them, were filed as sta
 Horadric Cube, Nokozan Relic, Storm Scarab, Thul Rune - the game, every one. The first-reads rule knew only zone
 names, and his stash and inventory print none. Those reads are the fixtures below, verbatim except the session ids.
 
+REG-1873, MEASURED on his ALT 2026-10-07: 0 of the 68 launcher seals that recorded what they were fed had a stash,
+inventory, loot, town or chronicle read, and his real reads of 22:00-01:24 replayed through the judge never said
+"launcher" in a session that held one. The hole was D2R's own LOBBY: forty minutes of it read as "transition" and were
+sealed as the launcher. The film says lobby where the reads cannot, so a lobby on the film is the game.
+
 What this law drives (the real functions, never a re-implementation):
   * tv_diablo.read_shows_the_game / first_reads_show_d2r_hud / reads_show_the_game - the verdict on what was FED
   * control_app.shadow_watch_tick - the 3-minute launcher grace, its reset, its pin to ONE reel, the seal
@@ -80,6 +85,13 @@ LAUNCH = [{"lane": "deep", "area": "", "scene": "gameplay", "names": ["Play"]},
 ALT_FAILED = {"lane": "deep", "scene": "gameplay", "mode": "empty", "names": [], "area": ""}
 ALT_BLACK = {"lane": "known", "scene": "transition", "mode": "near-black", "names": [], "area": ""}
 STASH_LATER = {"lane": "deep", "scene": "stash", "area": "", "names": ["Arachnid Mesh"]}
+#: REG-1873 - D2R's own lobby, as his ALT journalled it on 2026-10-06 22:00-22:40 (values kept, ids and times dropped):
+#: two deep reads filed "transition" at conf 0.4 and one learned frame. No zone, panel or item - and not the launcher.
+ALT_LOBBY_READS = [{"lane": "deep", "scene": "transition", "mode": "warm", "names": [], "area": "", "conf": 0.4},
+                   {"lane": "known", "scene": "transition", "mode": "known", "names": [], "area": ""},
+                   {"lane": "deep", "scene": "transition", "mode": "warm", "names": [], "area": "", "conf": 0.4}]
+#: a 2017-epoch reel id: synthetic, so no case can ever be taken for one of his reels
+SYNTH_SID = "s_1500000000001_4242"
 
 
 class WhatTheJudgeIsFed(unittest.TestCase):
@@ -293,6 +305,65 @@ class TheSessionLastsWhileTheGameIsShown(unittest.TestCase):
         self.assertTrue(r.get("cut"), r)
         self.assertEqual(self.stops, [{"farewell": False}])
 
+    def film(self, kind, ages_s=(0, 1, 2)):
+        """Write this reel's newest film frames: flat pictures char_select's lobby bands pass (the lobby) or refuse."""
+        from PIL import Image
+        d = os.path.join(self.world, "reel_" + self.sid)
+        os.makedirs(d, exist_ok=True)
+        s, v = {"lobby": (0.05, 0.19), "launcher": (0.80, 0.50)}[kind]
+        for a in ages_s:
+            im = Image.new("HSV", (320, 180), (170, int(s * 255), int(v * 255)))
+            im.convert("RGB").save(os.path.join(d, "f_%d.jpg" % (self.now - int(a * 1000))), quality=95)
+
+    def test_the_games_own_lobby_is_never_sealed_as_the_launcher(self):
+        # REG-1873 - his ALT, 22:00-22:40: the lobby on screen for forty minutes, sealed as "the launcher"
+        self.sid = SYNTH_SID
+        self.begin("shadow")
+        self.reads = ALT_LOBBY_READS
+        for _ in range(6):
+            self.film("lobby")
+            r = self.tick(60)
+            self.assertFalse(r.get("cut"), r)
+            self.assertFalse(r.get("launcher"), "the D2R lobby was put on the launcher clock: %r" % r)
+        self.assertEqual(self.stops, [])
+        g = ca.shadow_game_detail(self.now)
+        self.assertIs(g["game"], True, "the lobby read as no game on his screen: %r" % g)
+        self.assertIn("D2R's own lobby", g["why"])
+
+    def test_premise_the_same_reads_over_a_launchers_film_still_seal(self):
+        self.sid = SYNTH_SID
+        self.begin("shadow")
+        self.reads = ALT_LOBBY_READS
+        self.film("launcher")
+        r = self.tick()
+        self.assertTrue(r.get("launcher"), r)
+        self.film("launcher")
+        r = self.tick(ca._SHADOW_AWAY_GRACE_S + 1)
+        self.assertTrue(r.get("cut"), "these reads over a launcher's film did not seal, so the lobby case shows nothing")
+        self.assertEqual(self.stops, [{"farewell": False}])
+
+    def test_a_film_with_no_fresh_frame_says_nothing(self):
+        self.sid = SYNTH_SID
+        self.begin("shadow")
+        self.assertIsNone(ca.reel_film_shows_the_lobby(self.now), "a reel with no film was called a lobby or not")
+        self.film("lobby", ages_s=(ca._LOBBY_FILM_FRESH_S + 5,))
+        self.assertIsNone(ca.reel_film_shows_the_lobby(self.now), "a frame older than the window was taken as now")
+        d = os.path.join(self.world, "reel_" + self.sid)
+        with open(os.path.join(d, "f_%d.jpg" % self.now), "wb") as fh:
+            fh.write(b"not a picture")
+        self.assertIsNone(ca.reel_film_shows_the_lobby(self.now), "an unreadable frame was a verdict")
+        self.film("lobby")
+        self.assertIs(ca.reel_film_shows_the_lobby(self.now), True)
+        self.film("launcher")
+        self.assertIs(ca.reel_film_shows_the_lobby(self.now), False)
+        # the stale lobby frame alone does not hold a launcher reel open
+        self.reads = ALT_LOBBY_READS
+        shutil.rmtree(d)
+        self.film("lobby", ages_s=(ca._LOBBY_FILM_FRESH_S + 5,))
+        self.tick()
+        r = self.tick(ca._SHADOW_AWAY_GRACE_S + 1)
+        self.assertTrue(r.get("cut"), "a lobby frame from minutes ago kept a launcher reel open: %r" % r)
+
     def test_a_read_that_shows_the_game_restarts_the_three_minutes(self):
         self.begin("shadow")
         self.reads = LAUNCH
@@ -433,6 +504,27 @@ class TheRiverQuotesTheDoor(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1873 - the rolling path no longer asks the film, so the D2R lobby is sealed as the launcher again",
+        "file": "control_app.py",
+        "find": "                if hud is False and _lobby is True:\n",
+        "replace": "                if False and _lobby is True:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1873 - the lobby witness never says lobby",
+        "file": "control_app.py",
+        "find": "    return sum(seen) * 2 > len(seen)\n",
+        "replace": "    return False\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1873 - a lobby frame from minutes ago counts as the screen now",
+        "file": "control_app.py",
+        "find": "             if 0 <= now - _film_ts(n) <= _LOBBY_FILM_FRESH_S * 1000]\n",
+        "replace": "             ]\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1708 - the seal path's fallback takes any absolute TV_HIST again, so his frames/hist reads a different log",
         "file": "printer.py",
