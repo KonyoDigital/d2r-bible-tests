@@ -406,6 +406,14 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1843 - A HELPER THAT HANDS OUT A SCRATCH DIR MUST REMOVE IT (2026-10-06, CI on v3596)
+
+test_a_test_run_leaves_no_scratch_dirs: `_jpeg` in test_a_new_reel_carries_the_capture_it_measured (Grok, #155) made a mkdtemp dir and returned it with no cleanup in its own function, so every run left one behind. It now registers an atexit rmtree beside the mkdtemp.
+
+### REG-1842 - FOUR FIXED-WIDTH SOURCE WINDOWS TOOK THE TOTAL TO 47, CEILING 44 (2026-10-06, CI on v3596)
+
+test_a_source_window_must_reach_its_subject: compared with 1cc17dbc (44), four laws from the 10-05/10-06 batch read `ui[start:start + N]` / `src[i:i + N]` - the doctor-detail, receipts-why, loadLog and `_noidx is None` checks. Each now ends at its subject's real close (renderDoctor and loadLog's own close, the receipts block's `brain.classList.remove`, the doctor arm's `else:`) and asserts the end was found, so a moved end fails loudly. The ceiling is unchanged. My pre-flight ran the gates under 5 s and skipped this 21 s corpus law - the class pre_push_gate_is_a_subset names.
+
 ### REG-1841 - EVERY PUSH PAID THE FULL MAC GATE, SO A CODER SEAT'S WORK NEVER REACHED CI UNTIL IT SHIPPED (2026-10-06, #182, his go)
 
 63 Grok commits sat unpushed for two days (10-04..10-06): any push - a side branch included - paid the whole Mac gate (render, console demos, every changed law's proofs), so nothing ever reached GitHub CI and four HIGH defects stacked on each other. hooks/pre-push now asks tv/push_lane.py which lane the push takes. When EVERY ref that ships is refs/heads/ci/<name> it prints "CI-ONLY PUSH - this Mac graded nothing; read GitHub" and stops before any Mac stage; the tv/ and browser workflows run on any branch, and publish.yml deploys from main only, so nothing goes live. It reads the refs being pushed, never the current branch, and fails toward the full gate: one ref that is not ci/*, any ref naming main (even a deletion), no ref that ships, a malformed line or the decider failing all run everything exactly as before. Never --no-verify, on any branch. Law `test_a_ci_push_skips_the_mac_and_never_main` (the real hook, cut at its lane block).
