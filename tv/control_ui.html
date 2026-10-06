@@ -23905,12 +23905,13 @@ window._lockMark = function(isOpen, px, label){
       rdSub += ' · Grok stepped in ' + _bkN + (st.readers.backupWhy ? ' (' + esc(String(st.readers.backupWhy)) + ')' : '');
     // 3) ROUTER — the brain (dispatch)
     // REG-1806 — null is a count the journal walk did not copy. 0 is a quiet router.
-    var routeUnread = (dr.seen === null);
+    // REG-1824 — asked through the one predicate, and an unread walk is UNKNOWN, not strained.
+    var routeUnread = _journalUnread(st);
     var seen = dr.seen || 0, fired = dr.fired || 0, refire = dr.refire || 0, err = dr.err;
     // REG-1815 — a dead engine and a driver error are readings; the walk did not copy them, so
     // an unread walk must not soften them to strained. Same order as the readers organ.
     var rtPulse = (dead || err) ? 'bad'
-      : (routeUnread ? 'warn' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok')));
+      : (routeUnread ? 'unknown' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok')));
     var rtStat = routeUnread
       ? 'the journal was not read'
       : (seen + ' seen <span class="eh-arrow">→</span> ' + fired + ' routed');
@@ -23975,7 +23976,7 @@ window._lockMark = function(isOpen, px, label){
       if (box){
         var dr = (st && st.driver) || {};
         // REG-1806 — null is a count the journal walk did not copy. 0 is still 0.
-        var routeUnread = (dr.seen === null);
+        var routeUnread = _journalUnread(st);   // REG-1824 — the one predicate
         var seen = dr.seen || 0, queued = dr.queued || 0, fired = dr.fired || 0;
         var jq = dr.judgeQ || 0, jf = dr.judgeFire || 0, refire = dr.refire || 0;
         var on = (st && st.mode) === 'live';

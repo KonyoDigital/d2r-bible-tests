@@ -40,7 +40,7 @@ import control_app as ca  # noqa: E402
 _NOT_READ = "the journal was not read"
 
 
-def _paint(mode="off", driver=None, judge_q=0, judge_fire=0, err=None, engine_alive=None):
+def _paint(mode="off", driver=None, judge_q=0, judge_fire=0, err=None, engine_alive=None, journal=None):
     with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
         ui = fh.read()
     start = ui.find("var _EH_STATE = { ok: 'HEALTHY'")
@@ -65,6 +65,8 @@ def _paint(mode="off", driver=None, judge_q=0, judge_fire=0, err=None, engine_al
     }
     if engine_alive is not None:
         st["engineAlive"] = engine_alive
+    if journal is not None:
+        st["journal"] = journal
     js = (
         "function esc(s){return String(s==null?'':s);}\n"
         "function makeStep(){\n"
@@ -140,8 +142,8 @@ class AnUnreadJournalIsNotAQuietRouter(unittest.TestCase):
     def test_an_unread_journal_is_not_a_quiet_router(self):
         row = _paint(mode="live", driver={
             "seen": None, "queued": None, "fired": None, "refire": None})
-        self.assertEqual(row["pulse"], "warn")
-        self.assertEqual(row["state"], "STRAINED")
+        self.assertEqual(row["pulse"], "unknown")  # REG-1824: not read is UNKNOWN, not strained
+        self.assertEqual(row["state"], "UNKNOWN")
         self.assertEqual(row["stat"], _NOT_READ)
         self.assertEqual(row["sub"], _NOT_READ)
         self.assertNotIn("0 seen", row["stat"])
@@ -160,7 +162,7 @@ class AnUnreadJournalIsNotAQuietRouter(unittest.TestCase):
     def test_an_off_air_unread_journal_is_not_a_hidden_zero(self):
         row = _paint(mode="off", driver={
             "seen": None, "queued": None, "fired": None, "refire": None})
-        self.assertEqual(row["pulse"], "warn")
+        self.assertEqual(row["pulse"], "unknown")  # REG-1824: not read is UNKNOWN, not strained
         self.assertNotEqual(row["pulse"], "idle")
         self.assertEqual(row["stat"], _NOT_READ)
         self.assertEqual(row["sub"], _NOT_READ)
@@ -219,12 +221,13 @@ class AnUnreadJournalIsNotAQuietRouter(unittest.TestCase):
                 self.assertEqual(row["seen"], _NOT_READ)
                 self.assertEqual(row["meta"], _NOT_READ)
 
-    def test_a_live_engine_with_an_unread_journal_still_strains(self):
-        """The order only moves dead and err ahead. A live engine with an unread walk is not down."""
+    def test_a_live_engine_with_an_unread_journal_is_unknown_not_down(self):
+        """The order only moves dead and err ahead. A live engine with an unread walk is not down,
+        and (REG-1824) it is not strained either: nothing was measured, so it is UNKNOWN."""
         row = _paint(mode="live", engine_alive=True, driver={
             "seen": None, "queued": None, "fired": None, "refire": None})
-        self.assertEqual(row["pulse"], "warn")
-        self.assertEqual(row["state"], "STRAINED")
+        self.assertEqual(row["pulse"], "unknown")  # REG-1824: not read is UNKNOWN, not strained
+        self.assertEqual(row["state"], "UNKNOWN")
         self.assertEqual(row["sub"], _NOT_READ)
 
     def test_a_driver_error_with_an_unread_journal_is_still_that_error(self):
@@ -271,7 +274,7 @@ class AnUnreadJournalIsNotAQuietRouter(unittest.TestCase):
             mode="live",
             driver={"seen": None, "queued": None, "fired": None, "refire": None},
             judge_q=2, judge_fire=1)
-        self.assertEqual(row["pulse"], "warn")
+        self.assertEqual(row["pulse"], "unknown")  # REG-1824: not read is UNKNOWN, not strained
         self.assertEqual(row["stat"], _NOT_READ)
         self.assertEqual(row["seen"], _NOT_READ)
         self.assertEqual(row["queued"], _NOT_READ)
@@ -327,13 +330,28 @@ class AnUnreadJournalIsNotAQuietRouter(unittest.TestCase):
         finally:
             ca._STATUS_JOURNAL_CACHE = saved
 
-    def test_the_organ_asks_this_look(self):
+    def test_the_organ_follows_the_polls_one_journal_key(self):
+        """REG-1824 — this pinned the organ's and the strip's own `dr.seen === null` copies. The
+        poll's one journal key decides both now, through the one predicate."""
+        unread = _paint(mode="live", driver={"seen": 0, "queued": 0, "fired": 0, "refire": 0},
+                        journal={"read": False, "why": "PermissionError: denied"})
+        self.assertEqual(unread["pulse"], "unknown")
+        self.assertEqual(unread["state"], "UNKNOWN")
+        self.assertEqual(unread["stat"], _NOT_READ)
+        self.assertEqual(unread["seen"], _NOT_READ)
+        self.assertEqual(unread["meta"], _NOT_READ)
+        read = _paint(mode="live", driver={"seen": 0, "queued": 0, "fired": 0, "refire": 0},
+                      journal={"read": True, "why": None})
+        self.assertEqual(read["pulse"], "ok")
+        self.assertIn("0 seen", read["stat"])
+        self.assertEqual(read["seen"], "0")
+        dead = _paint(mode="live", engine_alive=False,
+                      driver={"seen": 0, "queued": 0, "fired": 0, "refire": 0},
+                      journal={"read": False, "why": "PermissionError: denied"})
+        self.assertEqual(dead["pulse"], "bad", "a dead engine is DOWN whatever the journal said")
         with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
             ui = fh.read()
         self.assertEqual(ui.count("\x00"), 1)
-        self.assertIn("    var routeUnread = (dr.seen === null);\n", ui)
-        self.assertIn("        var routeUnread = (dr.seen === null);\n", ui)
-        self.assertIn("? 'the journal was not read'\n", ui)
         self.assertIn("var has = routeUnread || on || seen || queued || fired || jq || jf;\n", ui)
         with open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
             src = fh.read()
@@ -345,9 +363,16 @@ class AnUnreadJournalIsNotAQuietRouter(unittest.TestCase):
 
 RED_PROOF = [
     {
+        "why": "REG-1824 - a live router over an unread walk is painted STRAINED again, as if it was measured",
+        "file": "control_ui.html",
+        "find": "      : (routeUnread ? 'unknown' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok')));\n",
+        "replace": "      : (routeUnread ? 'warn' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok')));\n",
+        "matches": 1,
+    },
+    {
         "why": "REG-1806 - an unread journal is painted as a quiet router",
         "file": "control_ui.html",
-        "find": "    var routeUnread = (dr.seen === null);\n"
+        "find": "    var routeUnread = _journalUnread(st);\n"
                 "    var seen = dr.seen || 0, fired = dr.fired || 0, refire = dr.refire || 0, err = dr.err;\n",
         "replace": "    var routeUnread = false;\n"
                    "    var seen = dr.seen || 0, fired = dr.fired || 0, refire = dr.refire || 0, err = dr.err;\n",
@@ -356,7 +381,7 @@ RED_PROOF = [
     {
         "why": "REG-1806 - a measured zero is painted as a journal that was not read",
         "file": "control_ui.html",
-        "find": "    var routeUnread = (dr.seen === null);\n"
+        "find": "    var routeUnread = _journalUnread(st);\n"
                 "    var seen = dr.seen || 0, fired = dr.fired || 0, refire = dr.refire || 0, err = dr.err;\n",
         "replace": "    var routeUnread = (dr.seen === 0);\n"
                    "    var seen = dr.seen || 0, fired = dr.fired || 0, refire = dr.refire || 0, err = dr.err;\n",
@@ -375,16 +400,16 @@ RED_PROOF = [
         "why": "REG-1806 - an unread journal stays an ok router",
         "file": "control_ui.html",
         "find": "    var rtPulse = (dead || err) ? 'bad'\n"
-                "      : (routeUnread ? 'warn' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok')));\n",
+                "      : (routeUnread ? 'unknown' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok')));\n",
         "replace": "    var rtPulse = dead || err ? 'bad' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok'));\n",
         "matches": 1,
     },
     {
-        "why": "REG-1815 - an unread journal masks a dead engine as a strained router",
+        "why": "REG-1815 - an unread journal masks a dead engine as an unknown router",
         "file": "control_ui.html",
         "find": "    var rtPulse = (dead || err) ? 'bad'\n"
-                "      : (routeUnread ? 'warn' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok')));\n",
-        "replace": "    var rtPulse = routeUnread ? 'warn'\n"
+                "      : (routeUnread ? 'unknown' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok')));\n",
+        "replace": "    var rtPulse = routeUnread ? 'unknown'\n"
                    "      : (dead || err ? 'bad' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok')));\n",
         "matches": 1,
     },
@@ -407,8 +432,8 @@ RED_PROOF = [
     {
         "why": "REG-1806 - the dispatch strip paints an unread journal as zero",
         "file": "control_ui.html",
-        "find": "        var routeUnread = (dr.seen === null);\n",
-        "replace": "        var routeUnread = false;\n",
+        "find": "        var routeUnread = _journalUnread(st);   // REG-1824 — the one predicate\n",
+        "replace": "        var routeUnread = false;   // REG-1824 — the one predicate\n",
         "matches": 1,
     },
     {
