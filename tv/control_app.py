@@ -15905,6 +15905,10 @@ def _eye_for_wire():
         return None
     if not isinstance(eyes, dict):
         return None
+    # REG-1798 — the journal was not read. None omits the field (UNKNOWN).
+    # live false + ageMs None would say "no frame yet this run".
+    if eyes.get("why"):
+        return None
     # ⚠ THE READER'S OWN IDENTITY, carried so a consumer never has to assume it. chronicle_hunt
     # defaults to Claude (`lane = (page or {}).get("lane") or "claude"`), which is the behaviour
     # his ruling asks for and is already true — this only puts it ON THE WIRE.
@@ -15942,15 +15946,26 @@ def _eyes_pulse():
     except Exception:
         key = None
     c = globals().get("_EYES_CACHE")
-    if c and c[0] == key:
+    # A failed stat is not "unchanged". None must not hit a cached measurement.
+    if key is not None and c and c[0] == key:
         return c[1]
     # 🔌 ENGINE-EXPOSURE — the LIVE EYE (primary reader) joins verify+kai so all three eyes share
     # ONE shape {liveTs, verifyTs, kaiTs}. liveTs = newest deep read's completed ts (journal-derived,
     # same source + cache as the other two). status_payload adds a FRESH liveAgeMs on top (the "now"
-    # eye's age matters live, so it's computed per-poll, not frozen in this mtime cache). 0 = no read yet.
+    # eye's age matters live, so it's computed per-poll, not frozen in this mtime cache). 0 = no read yet,
+    # and only after the journal was actually read. A missing file is that zero.
     out = {"liveTs": 0, "verifyTs": 0, "kaiTs": 0, "kaiMissed": None}
     try:
-        for r in _kai_journal_rows()[-400:]:
+        got = _kai_journal_rows(want_why=True)
+        if isinstance(got, tuple) and len(got) == 2:
+            rows, why = got
+        else:
+            rows, why = (got or []), None
+        # REG-1798 — an unreadable journal is not a night where no eye has acted.
+        if why:
+            out["why"] = why
+            return out
+        for r in (rows or [])[-400:]:
             ln = r.get("lane")
             if ln == "deep":
                 out["liveTs"] = max(out["liveTs"], int(r.get("completedTs") or r.get("ts") or 0))
@@ -15960,9 +15975,12 @@ def _eyes_pulse():
                 out["kaiTs"] = max(out["kaiTs"], int(r.get("completedTs") or r.get("ts") or 0))
                 if isinstance(r.get("kai"), dict) and "missedFrames" in r["kai"]:
                     out["kaiMissed"] = r["kai"].get("missedFrames")
-    except Exception:
-        pass
-    globals()["_EYES_CACHE"] = (key, out)
+    except Exception as exc:
+        # REG-1798 — a raise is not a night where no eye has acted. Do not cache it.
+        out["why"] = "%s: %s" % (type(exc).__name__, str(exc)[:80])
+        return out
+    if key is not None:
+        globals()["_EYES_CACHE"] = (key, out)
     return out
 
 
@@ -15991,6 +16009,8 @@ _ENG_FRESH_SLOW = 300000    # kai / watchdog: act in post-seal bursts → "recen
 def _engines_status():
     now = int(time.time() * 1000)
     eyes = _eyes_pulse()
+    # REG-1798 — the three eye beats are journal timestamps. A reason means they were not measured.
+    unread = eyes.get("why") if isinstance(eyes, dict) else None
     alive = _agent_alive()
     onair = (_agent_mode != "off")
 
@@ -16040,6 +16060,23 @@ def _engines_status():
         kai_state, kai_note = "idle", "armed between sessions"
     kai = {"label": "🧠 KAI", "wired": kai_wired, "state": kai_state,
            "lastBeatMs": kai_ts or None, "note": kai_note}
+
+    # REG-1798 — the lamps must not say the night had no eye. The closer's plug is a
+    # different measurement (the thread), so a note that is not about the beat stays.
+    if unread:
+        _un = ("UNMEASURED: the journal was not read (%s) — not a night with no eye" % unread)
+        liveEye["lastBeatMs"] = None
+        liveEye["state"] = "idle"
+        liveEye["note"] = _un
+        secondEye["lastBeatMs"] = None
+        secondEye["wired"] = False
+        secondEye["state"] = "idle"
+        secondEye["note"] = _un
+        if kai.get("note") in ("closing / judging", "armed between sessions"):
+            kai["lastBeatMs"] = None
+            if kai.get("state") == "live":
+                kai["state"] = "idle"
+            kai["note"] = _un
 
     # 🚦 ROUTER / DRIVER — the scanning brain (control daemon). wired = driver thread alive;
     # down = engine declared dead-hard after failed revives. beat = last real route (_DRV_BEAT).

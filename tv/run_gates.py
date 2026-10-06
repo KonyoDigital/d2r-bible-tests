@@ -9487,6 +9487,15 @@ GATES = [
              "Chronicle. An empty offer said ok. A missing file is still an empty list. A real "
              "visit is still listed. A focused reel is still offered when the journal was not "
              "read. A raise is still a list, and ok is false."),
+    Gate("test_an_unread_journal_is_not_a_night_with_no_eye",
+         [sys.executable, os.path.join(HERE, "test_an_unread_journal_is_not_a_night_with_no_eye.py")], 90,
+         needs_app=False,
+         why="REG-1798 - the eye pulse dropped the journal reader reason and handed back zero "
+             "timestamps. Zero is also a console that has never seen an eye. The fleet said no "
+             "frame yet. The lamps said off-air, no verify beat, and armed between sessions. A "
+             "missing file is still no eye yet. A real beat is still a timestamp. The closer "
+             "being unplugged is still that. The fleet omits the eye when the journal was not "
+             "read. The lamps say it was not measured."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
