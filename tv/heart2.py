@@ -1278,7 +1278,51 @@ def _stamp_lane_ports(env, lane):
     return _lp.stamp(env, lane)
 
 
+_VANISHED = []     # REG-1876 - (gate, file, lane) for every sandbox file seen gone after a run; read by vanished()
+
+
+def vanished():
+    """Every tracked sandbox file that was found MISSING after a gate ran, and restored. -> [(gate, file, lane)]"""
+    return list(_VANISHED)
+
+
+def _tv_files(sandbox_tv):
+    try:
+        return set(n for n in os.listdir(sandbox_tv) if n.endswith(".py"))
+    except OSError:
+        return set()
+
+
 def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=None):
+    """REG-1876 (#144) - a tracked file once vanished from a lane's sandbox mid-run ("No module named ..." read as a law
+    failure) and no writer was ever caught. Until one is, every run is bracketed by a census of the sandbox's tv/*.py: a
+    file present before and gone after is NAMED (gate, file, lane - see vanished()), restored from the real tree, and a
+    run that FAILED over it is run once more, so a missing module is never graded as the law's defect. -> (passed, tail)"""
+    before = _tv_files(sandbox_tv)
+    res = _run_gate_once(sandbox_tv, filename, timeout, extra, script, widths)
+    gone = sorted(before - _tv_files(sandbox_tv))
+    if not gone:
+        return res
+    restored = []
+    for n in gone:
+        src = os.path.join(REPO, "tv", n)
+        try:
+            shutil.copyfile(src, os.path.join(sandbox_tv, n))
+            restored.append(n)
+        except OSError:
+            pass
+        _VANISHED.append((filename, n, getattr(_LANE_LOCAL, "n", None)))
+    note = " [#144: %s vanished from this sandbox during the run - %s]" % (
+        ", ".join(gone), "restored from the real tree" if len(restored) == len(gone) else "NOT all restorable")
+    sys.stderr.write("  #144 a tracked file vanished from a lane sandbox: %s (running %s, lane %s)\n"
+                     % (", ".join(gone), filename, getattr(_LANE_LOCAL, "n", None)))
+    if res[0] is True or len(restored) != len(gone):
+        return res[0], str(res[1]) + note
+    again = _run_gate_once(sandbox_tv, filename, timeout, extra, script, widths)
+    return again[0], str(again[1]) + note + " (re-run once)"
+
+
+def _run_gate_once(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=None):
     # v2882 — `extra` carries the registered gate's argv tail (e.g. `--selftest`). Without
     # it a gate runs a command the suite never issues, and its verdict is about something
     # else. Default empty keeps every existing caller identical.

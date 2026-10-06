@@ -707,7 +707,85 @@ class TheRealProverAgreesAcrossLanes(unittest.TestCase):
             self.assertEqual(left, [], "a lane left its tree behind: %r" % left)
 
 
+class ASandboxFileThatVanishesIsNamedAndNeverGradedAsTheLaw(unittest.TestCase):
+    """REG-1876 (#144) - a tracked file vanished from a lane's sandbox mid-run and "No module named" read as a law failure.
+    The writer was never caught, so every run is bracketed by a census: the file is named, restored, and a FAILED run is
+    repeated once. Driven with a gate that deletes its sibling on its first run."""
+
+    GATE = (
+        "import os, sys\n"
+        "here = os.path.dirname(os.path.abspath(__file__))\n"
+        "n = os.path.join(here, 'runs.txt')\n"
+        "runs = int(open(n).read()) if os.path.exists(n) else 0\n"
+        "open(n, 'w').write(str(runs + 1))\n"
+        "v = os.path.join(here, 'victim.py')\n"
+        "if runs == 0 or os.environ.get('ALWAYS_VANISH') == '1':\n"
+        "    os.remove(v)\n"
+        "    print('ModuleNotFoundError: No module named victim')\n"
+        "    sys.exit(1 if os.environ.get('VANISH_FAILS', '1') == '1' else 0)\n"
+        "print('OK')\n"
+    )
+
+    def setUp(self):
+        from unittest import mock
+        self.root = tempfile.mkdtemp(prefix="vanish_")
+        self.addCleanup(shutil.rmtree, self.root, True)
+        self.real = os.path.join(self.root, "real")
+        self.sb = os.path.join(self.root, "sandbox", "tv")
+        for d in (os.path.join(self.real, "tv"), self.sb):
+            os.makedirs(d)
+            with io.open(os.path.join(d, "victim.py"), "w") as fh:
+                fh.write("X = 1\n")
+        with io.open(os.path.join(self.sb, "test_zz_vanish.py"), "w") as fh:
+            fh.write(self.GATE)
+        p = mock.patch.object(H, "REPO", self.real)
+        p.start()
+        self.addCleanup(p.stop)
+        del H._VANISHED[:]
+        self.addCleanup(lambda: H._VANISHED.__delitem__(slice(None)))
+
+    def test_a_failed_run_over_a_vanished_file_is_restored_named_and_rerun(self):
+        ok, tail = H._run_gate(self.sb, "test_zz_vanish.py", timeout=60)
+        self.assertIs(ok, True, "a missing module was graded as the law's failure: %r" % (tail,))
+        self.assertIn("vanished", tail)
+        self.assertIn("re-run once", tail)
+        self.assertTrue(os.path.isfile(os.path.join(self.sb, "victim.py")), "the file was not restored")
+        self.assertEqual([(g, f) for g, f, _l in H.vanished()], [("test_zz_vanish.py", "victim.py")])
+
+    def test_a_run_that_passed_is_not_repeated_but_the_vanish_is_still_named(self):
+        os.environ["VANISH_FAILS"] = "0"
+        self.addCleanup(os.environ.pop, "VANISH_FAILS", None)
+        ok, tail = H._run_gate(self.sb, "test_zz_vanish.py", timeout=60)
+        self.assertIs(ok, True)
+        self.assertNotIn("re-run", tail)
+        with io.open(os.path.join(self.sb, "runs.txt")) as fh:
+            self.assertEqual(fh.read(), "1", "a passing run was repeated")
+        self.assertEqual(len(H.vanished()), 1)
+
+    def test_a_file_that_vanishes_every_time_stays_a_failure_and_is_run_only_twice(self):
+        os.environ["ALWAYS_VANISH"] = "1"
+        self.addCleanup(os.environ.pop, "ALWAYS_VANISH", None)
+        ok, tail = H._run_gate(self.sb, "test_zz_vanish.py", timeout=60)
+        self.assertIs(ok, False, "a gate that always loses its module passed: %r" % (tail,))
+        with io.open(os.path.join(self.sb, "runs.txt")) as fh:
+            self.assertEqual(fh.read(), "2")
+
+    def test_nothing_vanishing_costs_nothing(self):
+        os.remove(os.path.join(self.sb, "test_zz_vanish.py"))
+        with io.open(os.path.join(self.sb, "test_zz_ok.py"), "w") as fh:
+            fh.write("print('OK')\n")
+        ok, tail = H._run_gate(self.sb, "test_zz_ok.py", timeout=60)
+        self.assertIs(ok, True)
+        self.assertNotIn("vanished", tail)
+        self.assertEqual(H.vanished(), [])
+
+
 RED_PROOF = [
+    {"why": "REG-1876 - a vanished sandbox file is no longer seen after a run: a missing module is graded as the law's defect again",
+     "file": "heart2.py",
+     "find": "    gone = sorted(before - _tv_files(sandbox_tv))\n",
+     "replace": "    gone = []\n",
+     "matches": 1},
     {
         "why": "ONE sandbox built up front and handed to every lane is the unsafe shared split "
                "the docstring measured: a neighbour's tamper reddens an innocent gate and the "
