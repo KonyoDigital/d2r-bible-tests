@@ -1125,15 +1125,19 @@ def make_sandbox(say=print):
         say("  safe_copy will not import (%s) — refusing to tamper anywhere else" % e)
         _drop_sandbox(root)
         return None, None
+    _said = []
     try:
-        rc = safe_copy.copy(REPO, dest, False, lambda *a, **k: None)
+        rc = safe_copy.copy(REPO, dest, False, lambda *a, **k: _said.append(str(a[0]) if a else ""))
     except Exception as e:
         say("  the sandbox could not be built: %s" % type(e).__name__)
         _drop_sandbox(root)
         return None, None
     if rc not in (0, None):
-        say("  safe_copy REFUSED the sandbox (exit %s) — nothing was copied, so nothing can be "
-            "proven. That is UNKNOWN, not clean." % rc)
+        # REG-1839 — AND SAY WHY. The refusal's own sentence was handed to a no-op, so his log said "exit 1"
+        # 125 times while the reason (420.4 MB over the 400 MB ceiling) was never written anywhere.
+        _why = next((t for t in reversed(_said) if t.startswith("REFUSED")), "") or "no reason was given"
+        say("  safe_copy REFUSED the sandbox (exit %s): %s — nothing was copied, so nothing can be "
+            "proven. That is UNKNOWN, not clean." % (rc, _why[:240]))
         _drop_sandbox(root)
         return None, None
     # ⚠⚠ v2821 — SAFE_COPY COPIES `tv/` ONLY, AND 59 OF 259 GATES READ `bible.html`.

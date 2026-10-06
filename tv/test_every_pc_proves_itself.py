@@ -137,6 +137,54 @@ class TheTickEndToEnd(unittest.TestCase):
         self.assertEqual(len(self.spawned), 1, "a prover that failed was restarted ten minutes later")
         self.assertEqual(r["key"], "backoff")
 
+    def _log(self, *lines):
+        with io.open(self.path + ".log", "a", encoding="utf-8") as fh:
+            fh.write("\n".join(lines) + "\n")
+
+    def test_a_proof_no_lane_could_copy_is_not_a_3h_failure(self):
+        """REG-1839 - his Mac 2026-10-06: every lane said "safe_copy REFUSED the sandbox (exit 1)", the proof exited
+        with the census stale, and the lane waited 3 h to try the same refused copy. A proof whose log ends in no
+        sandbox is booked as that, the copier is asked every tick, and the tick it can copy, a proof starts."""
+        SP.tick(now_s=1000.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path,
+                spawn_fn=self._spawn, env={}, sandbox=(True, ""))
+        self._log("  40 gate(s) in scope · 40 declare a red-proof · 0 do not",
+                  "  safe_copy REFUSED the sandbox (exit 1): REFUSED — 420.4 MB is over the 400 MB ceiling.",
+                  "  no lane could build a sandbox — nothing was proven, and that is UNKNOWN, not clean.")
+        refused = "REFUSED — 420.4 MB is over the 400 MB ceiling."
+        r = SP.tick(now_s=1600.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path,
+                    spawn_fn=self._spawn, env={}, sandbox=(False, refused))
+        self.assertEqual(len(self.spawned), 1, "a proof was started into a copy the copier refuses")
+        self.assertEqual(r["key"], "no-sandbox", r)
+        self.assertIn("420.4 MB", r["say"], "the refusal was not said in the copier's own words")
+        mem = json.load(io.open(self.path, encoding="utf-8"))
+        self.assertEqual(mem.get("lastFailKind"), "sandbox", mem)
+        r = SP.tick(now_s=2200.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path,
+                    spawn_fn=self._spawn, env={}, sandbox=(True, ""))
+        self.assertEqual(len(self.spawned), 2, "the copy was fixed and the lane still waited out the 3 h backoff")
+        self.assertEqual(r["key"], "start", r)
+
+    def test_a_record_from_before_the_kind_is_read_from_its_log(self):
+        """His Mac's own store: lastFailWhy "census still stale after the proof exited", no kind, and a log whose
+        last proof built no sandbox. Once the copy is possible it starts, not after 3 h."""
+        mem = {"lastFailAt": 1000.0, "lastFailFingerprint": STALE.get("fingerprint"),
+               "lastFailWhy": "census still stale after the proof exited"}
+        with io.open(self.path, "w", encoding="utf-8") as fh:
+            json.dump(mem, fh)
+        self._log("  40 gate(s) in scope", "  no lane could build a sandbox — nothing was proven")
+        r = SP.tick(now_s=1600.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path,
+                    spawn_fn=self._spawn, env={}, sandbox=(True, ""))
+        self.assertEqual(r["key"], "start", r)
+        self.assertEqual(len(self.spawned), 1)
+
+    def test_a_proof_that_really_failed_still_backs_off(self):
+        SP.tick(now_s=1000.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path,
+                spawn_fn=self._spawn, env={}, sandbox=(True, ""))
+        self._log("  40 gate(s) in scope", "  test_x  BLIND")
+        r = SP.tick(now_s=1600.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path,
+                    spawn_fn=self._spawn, env={}, sandbox=(True, ""))
+        self.assertEqual(r["key"], "backoff", r)
+        self.assertEqual(json.load(io.open(self.path, encoding="utf-8")).get("lastFailKind"), "proof")
+
     def test_an_update_during_the_proof_is_not_a_failure(self):
         SP.tick(now_s=1000.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path,
                 spawn_fn=self._spawn, env={})
@@ -258,6 +306,37 @@ class TheTreeIsToldApart(unittest.TestCase):
         self.assertEqual(f("R  tv/x.py -> tv/.status_worst.json"), ["R  tv/x.py -> tv/.status_worst.json"],
                          "a file renamed onto the record was forgiven, and the file it was is gone")
         self.assertEqual(f(""), [])
+
+
+class TheSandboxRefusalIsSaid(unittest.TestCase):
+    """REG-1839 - heart2 handed safe_copy's refusal to a no-op and logged only "exit 1", 125 times on his Mac."""
+
+    def test_heart2_writes_the_copiers_own_sentence(self):
+        from unittest import mock
+        import heart2
+        import safe_copy
+
+        def _refuse(src, dst, force=False, say=print):
+            say("plan: 3392 file(s), 420.4 MB, skipping 12 heavy directories")
+            say("REFUSED — 420.4 MB is over the 400 MB ceiling. This copier is for source, not data.")
+            return 1
+        said = []
+        with mock.patch.object(safe_copy, "copy", _refuse):
+            got = heart2.make_sandbox(say=said.append)
+        self.assertEqual(got, (None, None))
+        line = [x for x in said if "REFUSED the sandbox" in x]
+        self.assertEqual(len(line), 1, said)
+        self.assertIn("420.4 MB is over the 400 MB ceiling", line[0], "the refusal's reason never reached the log")
+
+    def test_the_preflight_asks_the_copiers_own_rule(self):
+        from unittest import mock
+        import safe_copy
+        with mock.patch.object(safe_copy, "check", lambda *a, **k: (1, "REFUSED — 420.4 MB is over the 400 MB ceiling")):
+            self.assertEqual(SP.sandbox_ready(), (False, "REFUSED — 420.4 MB is over the 400 MB ceiling"))
+        with mock.patch.object(safe_copy, "check", lambda *a, **k: (0, "")):
+            self.assertEqual(SP.sandbox_ready(), (True, ""))
+        with mock.patch.object(safe_copy, "check", side_effect=OSError("x")):
+            self.assertIsNone(SP.sandbox_ready(), "a preflight that could not ask read as an answer")
 
 
 class TheProcessProbeIsSafe(unittest.TestCase):
@@ -825,6 +904,27 @@ class TwoLanesOnlyWithRoom(unittest.TestCase):
 
 RED_PROOF = [
     {
+        "why": "REG-1839 - a refused copy is booked as a failed proof again, so the lane waits 3 h after the cause is gone",
+        "file": "tv/self_prove.py",
+        "find": "            and mem.get(\"lastFailKind\") != \"sandbox\" and now_s - last_fail < RETRY_AFTER_FAIL_S:\n",
+        "replace": "            and now_s - last_fail < RETRY_AFTER_FAIL_S:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1839 - a proof is started into a copy the copier refuses, and exits with the census unwritten",
+        "file": "tv/self_prove.py",
+        "find": "    if isinstance(sandbox, tuple) and sandbox and sandbox[0] is False:\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1839 - heart2 drops safe_copy's refusal sentence again and logs only the exit code",
+        "file": "tv/heart2.py",
+        "find": "        rc = safe_copy.copy(REPO, dest, False, lambda *a, **k: _said.append(str(a[0]) if a else \"\"))\n",
+        "replace": "        rc = safe_copy.copy(REPO, dest, False, lambda *a, **k: None)\n",
+        "matches": 1,
+    },
+    {
         "why": "REG-1825 - the prover reads memory its own way again, MemFree on Linux, so GrokBot's 4918 MB available reads as 643 free and the heart never proves",
         "file": "tv/self_prove.py",
         "find": "        import child_guard as _cg\n        return _cg._free_ram_mb_read()\n",
@@ -918,8 +1018,8 @@ RED_PROOF = [
     {
         "why": "2026-09-29 (second eye) - a corrupt lane memory makes every tick raise into the rescue loop",
         "file": "tv/self_prove.py",
-        "find": "        return _tick(now_s, busy, tree, census, path, spawn_fn, env, playing, free, kill_fn)\n    except Exception as e:\n",
-        "replace": "        return _tick(now_s, busy, tree, census, path, spawn_fn, env, playing, free, kill_fn)\n    except ZeroDivisionError as e:\n",
+        "find": "        return _tick(now_s, busy, tree, census, path, spawn_fn, env, playing, free, kill_fn, sandbox)\n    except Exception as e:\n",
+        "replace": "        return _tick(now_s, busy, tree, census, path, spawn_fn, env, playing, free, kill_fn, sandbox)\n    except ZeroDivisionError as e:\n",
         "matches": 1,
     },
     {
@@ -946,8 +1046,8 @@ RED_PROOF = [
     {
         "why": "2026-09-29 - a prover that failed is restarted every ten minutes, all day",
         "file": "tv/self_prove.py",
-        "find": "            and now_s - last_fail < RETRY_AFTER_FAIL_S:\n",
-        "replace": "            and now_s - last_fail < 0:\n",
+        "find": "            and mem.get(\"lastFailKind\") != \"sandbox\" and now_s - last_fail < RETRY_AFTER_FAIL_S:\n",
+        "replace": "            and mem.get(\"lastFailKind\") != \"sandbox\" and now_s - last_fail < 0:\n",
         "matches": 1,
     },
     {

@@ -54,6 +54,19 @@ HEAVY = (
     "worktrees",
 )
 
+#: FILE names never copied, at any depth, and file SUFFIXES never copied. REG-1839 — MEASURED on his Mac 2026-10-06:
+#: the plan of the repo was 420.4 MB against the 400 MB ceiling, so every lane of every heart2 proof answered
+#: "safe_copy REFUSED the sandbox (exit 1)", the census stayed STALE, and frame.release and vault.sweep_start stayed
+#: locked behind it. The two largest files were runtime data, both gitignored and neither read by a law: heart2's own
+#: per-machine proof cache (105.9 MB) and a reel-seed archive of his sessions (97.8 MB). Without them: 216.7 MB.
+HEAVY_FILES = (".heart2_cache.json",)
+HEAVY_SUFFIXES = (".tgz",)
+
+
+def _heavy_file(name):
+    return name in HEAVY_FILES or name.endswith(HEAVY_SUFFIXES)
+
+
 #: Refuse outright above this. A sabotage copy that needs a gigabyte is not a sabotage copy, it is
 #: the accident this file exists to prevent. Deliberately well under any plausible free-space
 #: margin: the point is to fail while the machine is still usable, not at the last byte.
@@ -101,6 +114,9 @@ def plan(src):
             skipped.append(os.path.relpath(os.path.join(root, d), src))
         dirs[:] = [d for d in dirs if d not in HEAVY]
         for n in names:
+            if _heavy_file(n):
+                skipped.append(os.path.relpath(os.path.join(root, n), src))
+                continue
             p = os.path.join(root, n)
             try:
                 if os.path.islink(p):
@@ -112,17 +128,24 @@ def plan(src):
     return files, total, sorted(skipped)
 
 
-def copy(src, dst, force=False, say=print):
-    """-> exit code. Refuses before writing anything if the plan is too big."""
+def check(src, dst, force=False, say=None):
+    """The refusals copy() applies BEFORE it writes. -> (rc, why). rc 0 = it would copy; why is the refusal.
+
+    REG-1839 — one rule for the copy and for anyone who must know first whether a copy can be made (the self-prove
+    lane asks this before it starts a proof whose every lane would be refused). `say` hears the plan lines."""
+    return _check(src, dst, force, say)[:2]
+
+
+def _check(src, dst, force=False, say=None):
+    """check(), with the plan's file count and MB copy() reports. -> (rc, why, files, mb)"""
+    say = say or (lambda *a, **k: None)
     src = os.path.abspath(src)
     dst = os.path.abspath(dst)
     if not os.path.isdir(src):
-        say("no such source: %s" % src)
-        return 2
+        return 2, "no such source: %s" % src, 0, 0.0
     if dst.startswith(REPO + os.sep) or dst == REPO:
-        say("REFUSED — the destination is inside the repo (%s). A scratch copy belongs outside it, "
-            "or the next walk copies the copy." % dst)
-        return 2
+        return 2, ("REFUSED — the destination is inside the repo (%s). A scratch copy belongs outside it, "
+                   "or the next walk copies the copy." % dst), 0, 0.0
 
     files, total, skipped = plan(src)
     mb = total / (1024.0 * 1024.0)
@@ -135,26 +158,34 @@ def copy(src, dst, force=False, say=print):
         say("   ... and %d more" % (len(skipped) - 8))
 
     if mb > MAX_MB and not force:
-        say("REFUSED — %.1f MB is over the %d MB ceiling. This copier is for source, not data. "
-            "If you really mean it, pass --force, and check `df` first." % (mb, MAX_MB))
-        return 1
+        return 1, ("REFUSED — %.1f MB is over the %d MB ceiling. This copier is for source, not data. "
+                   "If you really mean it, pass --force, and check `df` first." % (mb, MAX_MB)), files, mb
     # ⚠ AND UNKNOWN IS NOT PERMISSION. If the free space could not be established at all,
     # refuse — a floor that abstains whenever it cannot measure is not a floor. Reaching
     # here means statvfs failed on every ancestor up to the root, which is not a normal
     # state and is not a reason to write gigabytes. [[unknown-stays-unknown]]
     if free is None:
-        say("REFUSED — could not establish free space for %s (statvfs failed on every "
-            "ancestor up to the root). That is UNKNOWN, not enough room." % dst)
-        return 1
+        return 1, ("REFUSED — could not establish free space for %s (statvfs failed on every "
+                   "ancestor up to the root). That is UNKNOWN, not enough room." % dst), files, mb
     if (free - mb) < KEEP_FREE_MB:
-        say("REFUSED — the volume has %d MB free and this would leave %d MB, under the %d MB "
-            "floor. At zero bytes nothing can run at all, not even the command that would clean "
-            "up: on 2026-09-03 every shell in the session died at spawn."
-            % (free, int(free - mb), KEEP_FREE_MB))
-        return 1
+        return 1, ("REFUSED — the volume has %d MB free and this would leave %d MB, under the %d MB "
+                   "floor. At zero bytes nothing can run at all, not even the command that would clean "
+                   "up: on 2026-09-03 every shell in the session died at spawn."
+                   % (free, int(free - mb), KEEP_FREE_MB)), files, mb
+    return 0, "", files, mb
+
+
+def copy(src, dst, force=False, say=print):
+    """-> exit code. Refuses before writing anything if the plan is too big."""
+    src = os.path.abspath(src)
+    dst = os.path.abspath(dst)
+    rc, why, files, mb = _check(src, dst, force, say)
+    if rc:
+        say(why)
+        return rc
 
     def _ignore(_d, names):
-        return {n for n in names if n in HEAVY}
+        return {n for n in names if n in HEAVY or _heavy_file(n)}
 
     if os.path.exists(dst):
         say("REFUSED — %s already exists. Remove it yourself, deliberately." % dst)

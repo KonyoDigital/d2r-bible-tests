@@ -39,6 +39,13 @@ import safe_copy as SC  # noqa: E402
 
 RED_PROOF = [
     {
+        "why": "REG-1839 - heart2's own cache and his reel-seed archive are copied again, and his Mac's every sandbox is refused at 420 MB",
+        "file": "safe_copy.py",
+        "find": "    return name in HEAVY_FILES or name.endswith(HEAVY_SUFFIXES)\n",
+        "replace": "    return False\n",
+        "matches": 1,
+    },
+    {
         "why": "2026-09-25 - agent worktrees are copied again and every heart2 sandbox is refused while agents run",
         "file": "safe_copy.py",
         "find": '    "worktrees",\n',
@@ -138,6 +145,37 @@ class TheHeavyDirectoriesAreNeverCopied(unittest.TestCase):
         self.assertIn(os.path.join(".claude", "worktrees"), skipped, "an agent's whole checkout would be copied")
         self.assertEqual(SC.copy(self.src, self.dst, say=lambda m: None), 0)
         self.assertFalse(os.path.exists(os.path.join(self.dst, ".claude", "worktrees")))
+
+    def test_runtime_caches_and_archives_are_excluded(self):
+        """REG-1839 - his Mac 2026-10-06: the plan was 420.4 MB over the 400 MB ceiling and every heart2 sandbox was
+        refused. heart2's own per-machine cache (105.9 MB) and a reel-seed archive (97.8 MB) were most of it."""
+        io.open(os.path.join(self.src, "tv", ".heart2_cache.json"), "w").write("H" * 200000)
+        io.open(os.path.join(self.src, "tv", "tvd-reel-seed-small.tgz"), "w").write("T" * 200000)
+        io.open(os.path.join(self.src, "tv", "kept.json"), "w").write("{}")
+        _files, total, skipped = SC.plan(self.src)
+        self.assertLess(total, 100000, "the plan still counts the cache or the archive: %d bytes" % total)
+        self.assertIn(os.path.join("tv", ".heart2_cache.json"), skipped)
+        self.assertIn(os.path.join("tv", "tvd-reel-seed-small.tgz"), skipped)
+        self.assertEqual(SC.copy(self.src, self.dst, say=lambda m: None), 0)
+        self.assertFalse(os.path.exists(os.path.join(self.dst, "tv", ".heart2_cache.json")))
+        self.assertFalse(os.path.exists(os.path.join(self.dst, "tv", "tvd-reel-seed-small.tgz")))
+        self.assertTrue(os.path.exists(os.path.join(self.dst, "tv", "kept.json")), "an ordinary json was dropped")
+
+    def test_check_is_the_rule_copy_applies(self):
+        """REG-1839 - one refusal rule: what check() answers is what copy() says and returns."""
+        real = SC.MAX_MB
+        said = []
+        try:
+            SC.MAX_MB = 0
+            rc, why = SC.check(self.src, self.dst)
+            rc2 = SC.copy(self.src, self.dst, say=said.append)
+        finally:
+            SC.MAX_MB = real
+        self.assertEqual((rc, rc2), (1, 1))
+        self.assertIn("over the 0 MB ceiling", why)
+        self.assertIn(why, said, "copy() said a different refusal than check() answered")
+        self.assertEqual(SC.check(self.src, self.dst), (0, ""))
+        self.assertFalse(os.path.exists(self.dst), "check() wrote something")
 
     def test_the_render_profile_is_excluded(self):
         SC.copy(self.src, self.dst, say=lambda m: None)

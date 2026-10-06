@@ -313,6 +313,39 @@ def free_mb():
         return None
 
 
+#: REG-1839 — what heart2 prints when no lane could copy the repo: the proof then exits with the census unwritten.
+NO_SANDBOX_MARK = "no lane could build a sandbox"
+
+
+def sandbox_ready():
+    """Can a proof copy this repo into a sandbox right now? -> (True, "") | (False, why) | None (UNKNOWN)
+
+    REG-1839 — asked of safe_copy's own refusal rule (check(), the one copy() applies before it writes), toward the
+    temp volume heart2 builds its sandboxes on. MEASURED on his Mac 2026-10-06: every lane of every proof was refused
+    at 420.4 MB over the 400 MB ceiling, each proof exited with the census unwritten, and the lane booked that as a
+    failed proof and waited 3 h before trying the same refused copy again."""
+    try:
+        import tempfile
+        import safe_copy as _sc
+        rc, why = _sc.check(REPO, os.path.join(tempfile.gettempdir(), "heart2.preflight", "repo"))
+    except Exception:
+        return None
+    return (True, "") if rc == 0 else (False, str(why or "safe_copy refused with no reason"))
+
+
+def _log_says_no_sandbox(log_path):
+    """Did the LAST proof in this log end because no lane could build a sandbox? -> bool. Never raises."""
+    try:
+        with io.open(log_path, "rb") as fh:
+            fh.seek(0, 2)
+            fh.seek(max(0, fh.tell() - 8192))
+            tail = fh.read().decode("utf-8", "replace")
+    except Exception:
+        return False
+    last = tail.rfind("gate(s) in scope")
+    return NO_SANDBOX_MARK in (tail[last:] if last >= 0 else tail)
+
+
 def stand_aside(playing, free):
     """Must a RUNNING proof stop now? -> (bool, why). Pure. UNKNOWN never stops it: it already runs below him."""
     if playing is True:
@@ -586,7 +619,7 @@ def tree_state(git=None):
         return "unknown", "git could not be asked (%s)" % type(e).__name__
 
 
-def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=None, free=None):
+def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=None, free=None, sandbox=None):
     """THE ONE DECISION. Pure. -> {"start": bool, "key": str, "why": str}
     `playing` / `free` (REG-1502): None is UNKNOWN, and a proof is never started on a guess."""
     if not on:
@@ -607,8 +640,15 @@ def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=Non
         last_fail = float(mem.get("lastFailAt")) if mem.get("lastFailAt") is not None else None
     except (TypeError, ValueError):
         last_fail = now_s                                  # an unreadable failure time backs off, never races
+    # REG-1839 — a proof that cannot copy the repo is not started, and the reason is the copier's own sentence. It is
+    # asked again every tick, so the tick the cause is gone a proof starts: a refused copy is never the 3 h backoff.
+    # `sandbox` None = not asked (a law's decide), which keeps the old behaviour.
+    if isinstance(sandbox, tuple) and sandbox and sandbox[0] is False:
+        return {"start": False, "key": "no-sandbox",
+                "why": "a proof cannot build its sandbox here - %s. Asked again every tick; a proof starts the tick "
+                       "it can" % str(sandbox[1] if len(sandbox) > 1 else "")[:220]}
     if last_fail is not None and mem.get("lastFailFingerprint") == (census or {}).get("fingerprint") \
-            and now_s - last_fail < RETRY_AFTER_FAIL_S:
+            and mem.get("lastFailKind") != "sandbox" and now_s - last_fail < RETRY_AFTER_FAIL_S:
         return {"start": False, "key": "backoff",
                 "why": "the last proof for these gates ended without a census (%s); retrying after %d h"
                        % (mem.get("lastFailWhy") or "?", RETRY_AFTER_FAIL_S // 3600)}
@@ -829,12 +869,12 @@ _STARTED = {"pid": None, "birth": None}
 
 
 def tick(now_s=None, busy=None, tree=None, census=None, path=None, spawn_fn=None, env=None,
-         playing=None, free=None, kill_fn=None):
+         playing=None, free=None, kill_fn=None, sandbox=None):
     """One pass of the lane. NEVER raises - it runs inside the rescue loop that also watches whether the
     console can still answer its own port. -> the lane's status in the shared vocabulary.
     `playing` / `free` are callables or values (REG-1502); None asks this machine."""
     try:
-        return _tick(now_s, busy, tree, census, path, spawn_fn, env, playing, free, kill_fn)
+        return _tick(now_s, busy, tree, census, path, spawn_fn, env, playing, free, kill_fn, sandbox)
     except Exception as e:
         return {"on": enabled(env), "worked": None, "lastTs": None, "owed": None, "key": "raised",
                 "say": "the self-prove tick raised %s - nothing was started" % type(e).__name__}
@@ -947,7 +987,7 @@ def _forget(mem):
     _STARTED.update(pid=None, birth=None)
 
 
-def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=None, kill_fn=None):
+def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=None, kill_fn=None, sandbox=None):
     now_s = time.time() if now_s is None else now_s
     now_ms = int(now_s * 1000)
     play_now = _ask(playing, playing_state)
@@ -1043,13 +1083,25 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
             # the new gates are simply unproved, and are proved next, without the backoff.
             mem["lastMoved"] = "the gates changed during the proof (%s -> %s)" % (
                 str(mem.get("startedFor"))[:8], str(census.get("fingerprint"))[:8])
+        elif _log_says_no_sandbox(_store_path(path) + ".log"):
+            # REG-1839 — not a failed proof: no lane could copy the repo. Booked with its kind, so decide() asks the
+            # copier again every tick instead of waiting 3 h for a copy that would be refused the same way.
+            mem.update(lastFailAt=now_s, lastFailFingerprint=census.get("fingerprint"), lastFailKind="sandbox",
+                       lastFailWhy="the proof exited because no lane could build a sandbox")
         else:
-            mem.update(lastFailAt=now_s, lastFailFingerprint=census.get("fingerprint"),
+            mem.update(lastFailAt=now_s, lastFailFingerprint=census.get("fingerprint"), lastFailKind="proof",
                        lastFailWhy="census still %s after the proof exited" % census.get("state"))
         _forget(mem)
+    if mem.get("lastFailAt") is not None and not mem.get("lastFailKind"):
+        # REG-1839 - a record booked before the kind existed is classified once, from the proof's own log
+        mem["lastFailKind"] = "sandbox" if _log_says_no_sandbox(_store_path(path) + ".log") else "proof"
     on = enabled(env)
+    # REG-1839 — the copier's answer for a REAL start (a law's recording spawn hands its own, or none)
+    _sb = sandbox if sandbox is not None else (
+        sandbox_ready() if spawn_fn is None and not running and census.get("state") != "current" else None)
     d = decide(census, tree if tree is not None else tree_state(), running,
-               busy() if callable(busy) else busy, mem, now_s, on=on, playing=play_now, free=free_now)
+               busy() if callable(busy) else busy, mem, now_s, on=on, playing=play_now, free=free_now,
+               sandbox=(_sb() if callable(_sb) else _sb))
     if stall_gone is True:
         d = {"start": False, "key": "silent", "why": stall_why}
     elif stall_gone is False:
