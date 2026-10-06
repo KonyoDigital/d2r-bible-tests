@@ -21,13 +21,29 @@ fit saw no grid at all — never reached him. **An exception is not a reason.** 
 [[unknown-stays-unknown]] [[zero-needs-a-denominator]]
 
 ⚠ EXERCISED, NOT READ. This law FEEDS the function a frame that takes the None path, because a law
-that greps for `if _got is None` proves only that a line exists. The synthetic frame is flat — no
-ridges anywhere — which is exactly the shape `_fit` cannot fit.
+that greps for `if _got is None` proves only that a line exists.
+
+⚠⚠ REG-1848 — AND "THE FRAME TAKES THE NONE PATH" IS A MEASUREMENT, NOT A PROPERTY OF A FLAT FRAME.
+This file used to say a flat frame "is exactly the shape `_fit` cannot fit". That held while the pitch
+search was a fixed 70-100 px: the 1400x900 fixture's rows crop is 184 px, and three pitches of 70 do
+not fit in it, so `_fit` saw fewer than four samples and returned None. 71cc613a (REG-1648,
+2026-10-01) scaled the search to the frame height, and at 900 px it starts at 33 px. MEASURED
+2026-10-06: every flat frame at 1400x900, 1440x936 and 2940x1912 is fitted on both axes and refused
+LATER, "pitch pinned to the search bound". The law accepts that wording too, so it stayed green and
+never read the None path's sentence again. heart2 filed it BLIND, the last instrument holding his
+Mac's frame.release shut. `_fit` returns None only when the crop holds fewer than four samples at
+every pitch in the scaled search. Its only exit is `return best`, and a flat crop still sets `best`.
+At 1200x3600 the columns crop is 384 px and the search starts at 131.8 px, so it holds three. That is
+the fixture now, and `test_the_fixture_reaches_the_none_path` WATCHES `_fit` return None on it. A
+pitch constant that moves again turns that case red instead of letting this law go blind a second
+time. No footage is needed: every case that can catch the sabotage runs on a generated frame.
+[[a-law-goes-blind-without-being-edited]] [[pixel-constants-at-one-capture-size]]
 """
 import os
 import sys
 import tempfile
 import unittest
+from unittest import mock
 import fixture_tmp as _fx_tmp  # noqa: E402  #171 — this run's scratch dirs leave with it
 _fx_tmp.contain()
 
@@ -42,17 +58,41 @@ except Exception:
     pass
 
 
-def _flat_frame(w=1400, h=900, shade=90):
-    """A frame with NO lattice in it at all — uniform grey. -> path
+def _flat_frame(w=1440, h=936, shade=90):
+    """A frame with NO lattice in it at all — uniform grey, at his capture size by default. -> path
 
     ⚠ Big enough to pass the `W < 1200 or H < 800` guard, so the function reaches the ridge fit
     rather than refusing earlier for a different reason. A fixture that trips an EARLIER refusal
-    would make this law green without ever touching the path it exists for.
+    would make this law green without ever touching the path it exists for. REG-1848 — and one that
+    trips a LATER refusal does the same, so a flat frame alone is not the None-path fixture.
     """
     from PIL import Image
-    p = os.path.join(tempfile.mkdtemp(), "flat.jpg")
+    p = os.path.join(tempfile.mkdtemp(), "flat_%dx%d.jpg" % (w, h))
     Image.new("RGB", (w, h), (shade, shade, shade)).save(p, quality=85)
     return p
+
+
+#: REG-1848 — a flat frame whose columns crop holds fewer than four samples at every pitch the scaled search
+#: tries (384 px wide, search from 131.8 px), so `_fit` returns None on that axis. Generated, never footage.
+NONE_W, NONE_H = 1200, 3600
+
+
+def _none_path_frame():
+    """The frame `_fit` cannot fit. -> path"""
+    return _flat_frame(NONE_W, NONE_H)
+
+
+def _fits_while(path):
+    """Run inventory_lattice on `path` and record what `_fit` returned on each axis. -> (verdict, [returned None?])"""
+    import vault_corpus as VC
+    real, seen = VC._fit, []
+
+    def spy(*a, **k):
+        r = real(*a, **k)
+        seen.append(r is None)
+        return r
+    with mock.patch.object(VC, "_fit", side_effect=spy):
+        return VC.inventory_lattice(path), seen
 
 
 class ALatticeRefusalIsAReasonNotACrash(unittest.TestCase):
@@ -68,17 +108,26 @@ class ALatticeRefusalIsAReasonNotACrash(unittest.TestCase):
         """⚠ If the frame were small, the function would refuse on SIZE and this law would be
         green having never exercised the None path. [[feedback-blind-fixture-green-gate]]"""
         from PIL import Image
-        p = _flat_frame()
-        w, h = Image.open(p).size
+        with Image.open(_none_path_frame()) as im:
+            w, h = im.size
         self.assertGreaterEqual(w, 1200, "fixture too narrow — it would trip the size refusal")
         self.assertGreaterEqual(h, 800, "fixture too short — it would trip the size refusal")
+
+    def test_the_fixture_reaches_the_none_path(self):
+        """REG-1848 — WATCHED, not assumed. The flat 1400x900 frame stopped reaching it on 71cc613a and
+        nothing said so for five days. If `_fit` fits this frame on both axes, the cases below are grading
+        some other refusal."""
+        _r, seen = _fits_while(_none_path_frame())
+        self.assertIn(True, seen, "_fit returned a fit on every axis of the %dx%d fixture (%r) — the "
+                                  "None path is not reached, so this law would grade a different refusal"
+                      % (NONE_W, NONE_H, seen))
 
     # ── ⚠⚠ THE LAW ──────────────────────────────────────────────────────────────────────────
     def test_a_frame_with_no_grid_gets_a_REASON_not_an_exception(self):
         """★★★ THE DEFECT. `_fit` returns None on an unfittable frame and both call sites unpacked
         it into four names."""
         import vault_corpus as VC
-        p = _flat_frame()
+        p = _none_path_frame()
         try:
             r = VC.inventory_lattice(p)
         except Exception as e:
@@ -95,7 +144,7 @@ class ALatticeRefusalIsAReasonNotACrash(unittest.TestCase):
         """⛔ 'no grid is visible here' and 'the panel is empty' are opposite facts, and the second
         one would send him hunting for items that were never on screen."""
         import vault_corpus as VC
-        r = VC.inventory_lattice(_flat_frame())
+        r = VC.inventory_lattice(_none_path_frame())
         why = str((r or {}).get("why") or "").lower()
         # ⚠⚠ v2881 — A MISSING DEPENDENCY IS A THIRD STATE, AND IT MUST SAY SO IN ITS OWN WORDS.
         # `inventory_lattice` opens with `import numpy; from PIL import Image` and returns
@@ -117,6 +166,16 @@ class ALatticeRefusalIsAReasonNotACrash(unittest.TestCase):
                                    "no grid", "pinned to the search bound")),
             "the refusal does not say the FIT failed; a reader cannot tell 'no grid on screen' "
             "from 'grid found, nothing in it': %r" % why)
+
+    def test_a_flat_frame_at_his_capture_size_is_refused_with_a_reason(self):
+        """REG-1848 — the shape the old fixture now takes. At 1440x936 a flat frame is FITTED, and the fit sits on
+        the search's lower bound. That is refused as "the fit found nothing", never as a located grid."""
+        r, seen = _fits_while(_flat_frame())
+        self.assertNotIn(True, seen, "at 1440x936 _fit returned None — the search changed again; re-measure "
+                                     "which frame reaches which refusal")
+        self.assertFalse((r or {}).get("ok"), "a flat grey frame at his capture size was reported as a located grid")
+        self.assertIn("pinned to the search bound", str((r or {}).get("why") or ""),
+                      "a flat frame at his capture size was refused for some other reason: %r" % (r,))
 
     def test_it_still_says_YES_when_a_grid_IS_there(self):
         """⚠ THE OTHER DIRECTION. A function that refused everything would pass the laws above and
@@ -145,6 +204,13 @@ RED_PROOF = [
         'file': 'vault_corpus.py',
         'find': 'the %s ridge fit found no candidate pitch at all on this frame — that "\n                           "is \'no grid is visible here\'',
         'replace': 'the %s ridge fit found _HEART2_TAMPERED_ at all on this frame — that "\n                           "is \'_HEART2_TAMPERED_\'',
+        'matches': 1,
+    },
+    {
+        'why': "REG-1848 / v2799 - both call sites unpack `_fit`'s None blind again, and an unfittable frame raises TypeError instead of returning a reason",
+        'file': 'vault_corpus.py',
+        'find': '        if _got is None:\n            return {"ok": False,\n',
+        'replace': '        if False:\n            return {"ok": False,\n',
         'matches': 1,
     },
 ]
