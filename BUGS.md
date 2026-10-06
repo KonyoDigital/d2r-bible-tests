@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1864 - THE BALANCE LAW'S BOUND WAS ABOVE ITS OWN DEFECT AGAIN (2026-10-07, the v3599 push)
+
+v3599 refused: test_the_gate_set_shards_cleanly[5] BLIND. With the cost table at 849 gates (50 local estimates, REG-1836), dealing by declared timeout split 998 / 1061 s - 63 s apart, under the law's 5%-of-total (103 s) bound, so the sabotage read green; the measured deal is 0.1 s apart. The law now requires <= 2% of the total (min 20 s) AND that the measured deal beat the declared-timeout deal judged on the same measured weights - a comparison that cannot drift above the defect as the registry grows. All proofs PROVEN.
+
 ### REG-1863 - A QUIET REEL SWEEP THAT OWED READS WAS GIVEN THE RIVER WALK'S NOTE (2026-10-06, the v3598 cross-family look)
 
 REG-1844 quoted the reel sweep's last word for STATION while the sweep owed reads. A fresh console's sweep has not spoken yet, so STATION fell back to "this queue is not its input", which is the one case it was not. With reads owed and no last word, it now says the sweep owes them and has not spoken since this console started. Law `test_the_fleet_says_where_a_river_is_stuck`.

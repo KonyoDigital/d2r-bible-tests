@@ -58,7 +58,7 @@ class TheGateSetShardsCleanly(unittest.TestCase):
         # sabotage it guards (weigh by declared timeout) splits 572 / 794 s - 222 s apart - so heart2 read this
         # proof BLIND. The measured split is 683 / 683. 5% of the total (min 60 s) sees the defect and leaves
         # the greedy split room. [[feedback-threshold-above-the-ceiling]]
-        # ⚠ 2026-10-07 (REG-1861) - THE BOUND WENT ABOVE THE CEILING AGAIN: with the table grown to 849 gates the
+        # ⚠ 2026-10-07 (REG-1864) - THE BOUND WENT ABOVE THE CEILING AGAIN: with the table grown to 849 gates the
         # declared-timeout deal splits 998 / 1061 s - 63 s apart - under the 5% (103 s) bound, so v3599's proof read this
         # BLIND. The measured deal is 0.1 s apart. 2% of the total (min 20 s) sits between the two, AND the deal must
         # beat what the declared timeouts would have dealt, judged by the same weights - that comparison cannot drift
