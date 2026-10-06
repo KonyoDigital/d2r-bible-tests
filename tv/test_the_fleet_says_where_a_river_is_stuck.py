@@ -20,6 +20,8 @@ Three joints, each driven, never grepped:
     say presence UNKNOWN, never ON AIR.
     A restart the console could not ask about is not "clear to restart": may null says UNKNOWN and keeps
     the why, and that sentence is the pending span's text because the hover strips titles.
+    A pull git could not answer is not a pull that is fine: can null says pull UNKNOWN and keeps the why
+    in the span's text. can false stays not pulling. can true stays quiet. No pull object stays quiet.
 RED_PROOF below.
 """
 import io
@@ -576,6 +578,86 @@ class AnUnaskedRestartIsNotClearToGo(unittest.TestCase):
         self.assertEqual(ui.count("var _fleetRelaunchSay = function"), 1)
 
 
+class AnUnreadablePullIsNotAPullThatIsFine(unittest.TestCase):
+    """#86 gap 16. can null used to draw nothing, so the server's "N behind" read as a
+    machine that would catch up. can false stays not pulling. can true stays quiet.
+    No pull object is an older console. The why is the span's text: the hover strips titles."""
+
+    def _say(self, pull):
+        return F._run("OUT.s = _fleetPullSay(%s);" % json.dumps(pull))["s"]
+
+    def test_a_clear_pull_is_quiet_and_a_refused_one_is_not_called_unknown(self):
+        clear = self._say({"can": True, "behind": 6, "why": "6 commits behind and clear to pull"})
+        self.assertEqual(clear, "")
+        refused = self._say({"can": False, "behind": 4,
+                             "why": "local tracked edits — a fast-forward would not be safe here"})
+        self.assertEqual(refused, "")
+        level = self._say({"can": False, "behind": 0, "why": "pinned: TV_NO_AUTO_PULL is set on this machine"})
+        self.assertEqual(level, "")
+
+    def test_an_unreadable_pull_is_unknown_and_keeps_the_why(self):
+        why = "git could not answer"
+        got = self._say({"can": None, "behind": None, "why": why})
+        self.assertIn("pull UNKNOWN", got)
+        self.assertIn(why, got)
+        self.assertNotIn("not pulling", got)
+        zero = self._say({"can": None, "behind": 0, "why": why})
+        self.assertIn("pull UNKNOWN", zero)
+        self.assertIn(why, zero)
+        bare = self._say({"can": None, "why": ""})
+        self.assertIn("pull UNKNOWN", bare)
+        self.assertNotIn("\u2014", bare)
+        self.assertNotIn("not pulling", bare)
+
+    def test_an_older_console_that_sent_no_pull_says_nothing(self):
+        self.assertEqual(self._say(None), "")
+
+    def test_the_hover_keeps_unknown_beside_the_behind_count(self):
+        """The hover strips tags. A why only in the title is silence, and silence beside
+        "N behind" is a pull that looks as if it will catch up."""
+        why = "git could not answer"
+        out = F._run(
+            "var say = _fleetPullSay(%s);\n"
+            "var meta = '<span class=\"fleet-lag\">· 6 behind</span>' +\n"
+            "  '<span class=\"fleet-pullunk\" title=\"title only ' + say + '\">' + say + '</span>';\n"
+            "OUT.hover = plain(_fleetHoverPlain({nickname:'ALT'}, meta, NOW));\n"
+            "OUT.say = say;\n"
+            "var clear = _fleetPullSay(%s);\n"
+            "var calm = '<span class=\"fleet-lag\">· 6 behind</span>';\n"
+            "OUT.clear = clear;\n"
+            "OUT.calm = plain(_fleetHoverPlain({nickname:'ALT'}, calm, NOW));"
+            % (json.dumps({"can": None, "behind": None, "why": why}),
+               json.dumps({"can": True, "behind": 6, "why": "6 commits behind and clear to pull"})))
+        self.assertIn("pull UNKNOWN", out["say"])
+        self.assertIn(why, out["hover"])
+        self.assertIn("6 behind", out["hover"])
+        self.assertIn("pull UNKNOWN", out["hover"])
+        self.assertNotIn("not pulling", out["hover"])
+        self.assertEqual(out["clear"], "")
+        self.assertIn("6 behind", out["calm"])
+        self.assertNotIn("pull UNKNOWN", out["calm"])
+        self.assertNotIn("not pulling", out["calm"])
+
+    def test_the_row_keeps_refused_and_unknown_apart(self):
+        ui = F.UI
+        self.assertEqual(ui.count("var _fleetPullSay = function"), 1)
+        self.assertEqual(ui.count("var pullSay = _fleetPullSay(m.pull);"), 1)
+        i = ui.index('class="fleet-pullunk"')
+        text = ui[i:ui.index("</span>", i)].split(">", 1)[1]
+        self.assertIn("pullSay", text)
+        self.assertNotIn("not pulling", text)
+        j = ui.index('class="fleet-stuck"')
+        stuck = ui[j:ui.index("</span>", j)]
+        self.assertIn("not pulling", stuck.split(">", 1)[1])
+        self.assertNotIn("pullSay", stuck)
+        import re
+        def col(cls):
+            k = ui.index("." + cls + "{")
+            return re.search(r"color:(#[0-9a-fA-F]+)", ui[k:ui.index("}", k)]).group(1).lower()
+        self.assertNotEqual(col("fleet-pullunk"), col("fleet-stuck"))
+        self.assertNotEqual(col("fleet-pullunk"), col("fleet-lag"))
+
+
 RED_PROOF = [
     {"why": "REG-1738 - a river nobody ever stamped reads as draining again",
      "file": "control_app.py",
@@ -706,6 +788,13 @@ RED_PROOF = [
         "file": "tv/control_ui.html",
         "find": "    if (relaunch.may === true) {\n",
         "replace": "    if (true) {\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1774 - an unreadable pull draws nothing again, so a behind count reads as a pull that will catch up",
+        "file": "tv/control_ui.html",
+        "find": "    if (pull.can === true || pull.can === false) return '';\n",
+        "replace": "    if (true) return '';\n",
         "matches": 1,
     },
 ]

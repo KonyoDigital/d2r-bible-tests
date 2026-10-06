@@ -6514,6 +6514,10 @@
   /* a THIRD state needs a THIRD colour: unpublished-amber is mine, pending-green is theirs
      and merely waiting, and this one is the only one that will not fix itself. */
   .fleet-stuck{color:#e08a6a;font-style:italic;cursor:help}
+  /* #86 gap 16 (REG-1774) — git that could not answer is not the red "not pulling"
+     and not the warm "N behind". Grey, so an unreadable pull cannot pass for one
+     that will catch up on its own. */
+  .fleet-pullunk{color:#8b8071;font-style:italic;cursor:help}
   /* v2296 — behind-ness reads like its siblings: same italic help-cursor treatment, and a
      colour that separates 'this machine is falling behind' (warm) from 'nobody could tell'
      (muted). An unknown must never be able to pass for level. */
@@ -25495,6 +25499,20 @@ function escC(s) {
     return ' whether it may restart is UNKNOWN' + (why ? (' \u2014 ' + why) : '') + '.';
   };
   window._fleetRelaunchSay = _fleetRelaunchSay;
+  /* #86 gap 16 (REG-1774) — AN UNREADABLE PULL IS NOT A PULL THAT IS FINE.
+     can false and behind is the red "not pulling": it will not catch up. can true is
+     quiet: behind-and-clear resolves itself. can null is git that did not answer.
+     That used to draw nothing, and the server's "N behind" beside the silence read
+     as a machine that would catch up on its own. The why is in the span's text.
+     The hover strips titles, so a why that lives only in the title never reaches him.
+     No pull object is an older console: say nothing. [[unknown-stays-unknown]] */
+  var _fleetPullSay = function (pull) {
+    if (!pull || typeof pull !== 'object') return '';
+    if (pull.can === true || pull.can === false) return '';
+    var why = String(pull.why || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
+    return ' · pull UNKNOWN' + (why ? (' \u2014 ' + why) : '');
+  };
+  window._fleetPullSay = _fleetPullSay;
   /* #74 (REG-1461) — a red "river stuck" when a station has held a reel. #86 gap 9 (REG-1770) — that
      empty return was also what a shut lock drew, and what a null stuck list drew. A proof that is missing, stale
      or unreadable is "locks shut": every river lock fails closed. A stuck list that is null, or a census that
@@ -26246,6 +26264,9 @@ function escC(s) {
            them. A machine that is BEHIND and cannot pull is the only case worth a badge: behind-
            and-clear resolves itself within the quarter hour. [[unknown-stays-unknown]] */
         var stuck = (m.pull && m.pull.can === false && m.pull.behind !== 0);
+        /* #86 gap 16 — can null is not the refused badge. The sentence is the
+           span's text, because the hover strips the title. */
+        var pullSay = _fleetPullSay(m.pull);
         /* #86 gap 12 — ON AIR and the green dot only while the pulse was measured. */
         var pres = _fleetPresence(m, online);
         var heard = !!(pres && pres.state === 'here');
@@ -26283,6 +26304,10 @@ function escC(s) {
                       + escC(String(m.pull.why || 'no reason given'))
                       + '. Until that clears, every version shipped passes it by.">'
                       + ' · not pulling</span>' : '')
+             + (pullSay ? '<span class="fleet-pullunk" title="' + escC(
+                      'git on this console could not say whether it can pull, so a behind count '
+                      + 'here is not a machine that will catch up' + pullSay) + '">'
+                      + pullSay + '</span>' : '')
              + (unpub ? '<span class="fleet-unpub" title="this build is only on this machine — '
                       + 'origin publishes ' + escC(_pub) + ', which is what everyone else can '
                       + 'receive. It ships when the gates pass and it is pushed.">'
