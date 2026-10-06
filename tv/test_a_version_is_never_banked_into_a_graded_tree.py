@@ -237,7 +237,41 @@ if __name__ == "__main__":
     unittest.main(verbosity=2)
 
 
+class AContinuationLineIsNotAProcess(unittest.TestCase):
+    """REG-1846 - pgrep prints a multi-line argv as several lines; only a line that starts with a pid is a process."""
+
+    def _run(self, stdout):
+        real = TB.subprocess.run
+        class _R(object):
+            returncode = 0
+        _R.stdout = stdout
+        TB.subprocess.run = lambda *a, **k: _R()
+        try:
+            return TB._prepush_running()
+        finally:
+            TB.subprocess.run = real
+
+    def test_a_prompt_that_names_the_hook_is_not_a_running_hook(self):
+        out = ("25680 /Users/x/.grok/bin/grok -p Code review. The following is a diff\n"
+               "READ-ONLY bash hooks/pre-push origin url\n"
+               "hooks/pre-push\n")
+        running, why = self._run(out)
+        self.assertIs(False, running, "a line inside another program's argv read as a running hook: %r" % why)
+
+    def test_a_real_hook_is_still_seen(self):
+        running, why = self._run("4242 bash hooks/pre-push origin https://example.invalid/repo.git\n")
+        self.assertIs(True, running)
+        self.assertIn("4242", why)
+
+
 RED_PROOF = [
+    {
+        "why": "REG-1846 - a continuation line of another program's argv is read as a process again",
+        "file": "tv/tree_busy.py",
+        "find": "        if not pid.isdigit():\n            continue\n",
+        "replace": "",
+        "matches": 1,
+    },
     {
         # Stops value-flags consuming their value, so `-C log push` reads the DIRECTORY as the
         # subcommand, matches the list and returns False on a real push.

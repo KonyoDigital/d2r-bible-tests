@@ -219,6 +219,12 @@ def _prepush_running(repo=None):
         if not line:
             continue
         pid, _, cmd = line.partition(" ")
+        # REG-1846 - A LINE IS A PROCESS ONLY WHEN IT STARTS WITH A PID. pgrep -fl prints a process whose argv holds
+        # newlines (a `grok -p <whole diff>` second eye) as several lines; each continuation line was parsed as its own
+        # "pid cmd" record, so prose inside another program's prompt read as a running hook ("pid READ-ONLY") and
+        # refused bump_version on 2026-10-06 while an eye looked at a diff that mentioned hooks/pre-push.
+        if not pid.isdigit():
+            continue
         if _is_hook_invocation(cmd):
             hits.append(pid)
     if not hits:
