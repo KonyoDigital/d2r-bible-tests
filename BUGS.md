@@ -406,6 +406,30 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1860 - EACH COST-TABLE FILL OVERWROTE THE PREVIOUS FILL'S SOURCE (2026-10-06, a Grok look at the gate-infra code)
+
+gate_costs.fill_missing kept localEstimates.gates as the union of every fill while replacing source and date with the latest call's, so gates filled from an earlier log read as coming from the latest one. localEstimates is now a list of fills, each with its own source, date and count; the table was migrated. Law `test_the_gate_set_shards_cleanly`.
+
+### REG-1859 - A CONCURRENT COST-TABLE WRITE WAS LOST (2026-10-06, a Grok look at the gate-infra code)
+
+fill_missing loaded the table, edited the snapshot and os.replace'd the file, so a cost another writer committed after the load was deleted - including a CI measurement the function promises never to overwrite. The read-edit-replace now runs under an exclusive fcntl lock (unlocked where fcntl does not exist); the slow log read stays outside it. Law `test_the_gate_set_shards_cleanly` (one fill held at its replace while a second runs).
+
+### REG-1858 - LOCAL ESTIMATES WERE COUNTED AS MEASURED SECONDS IN THE TABLE'S HEADLINE (2026-10-06, a Grok look at the gate-infra code)
+
+After fill_missing the header's gates and totalSeconds counted the local estimates as measurements (849 gates). They now count measured gates only (799), with estimatedGates (50) and estimatedSeconds (16.2 s) beside them. Law `test_the_gate_set_shards_cleanly`.
+
+### REG-1857 - RE-STAMPING ONE ENV FOR ANOTHER LANE KEPT THE FIRST LANE'S CONTROL PORT (2026-10-06, a Grok look at the gate-infra code)
+
+lane_ports.stamp moved TV_PORT and TV_LAW_PORT every call but TV_CONTROL_PORT only when it was unset or 17772, so stamp(env, lane_a) then stamp(env, lane_b) left lane A's live base+1 beside lane B's ports. No caller does that today (heart2 and run_gates build a fresh env per gate) - it was a contract gap. stamp now also moves a control port equal to the previous lane's base+1, and still never moves a reserved dead port or a caller's own choice. Law `test_a_prove_lane_keeps_its_own_port`.
+
+### REG-1856 - `skipped=N of 0` (2026-10-06, a Grok look at the gate-infra code)
+
+summary_skips printed a missing `ran` as "of 0" - a sentence that says no case ran - and the census dropped a parsed ran of 0 (`if _ran`). Now no denominator is printed when ran is unknown, and `run_gates.case_skip_tag` keeps `name=N/0`; only None means no denominator. Law `test_a_sharded_suite_runs_every_case_once`.
+
+### REG-1855 - AN UNREPORTED SHARD SKIP COUNT WAS A MEASURED ZERO (2026-10-06, a Grok look at the gate-infra code)
+
+shard_suite stored `(res or {}).get("skipped") or 0` and summed it, so a shard that never reported skips printed nothing and the census read full coverage. It is now None, the total is None if any shard is, and the summary line says "skip count UNKNOWN: a shard never reported it". Law `test_a_sharded_suite_runs_every_case_once`. (Finding 1 of that look was NOT REAL: whyNot forces the shard run to exit 1, run_gates marks the gate FAIL, and the census runs only on an all-passing set.)
+
 ### REG-1853 - THE LATTICE-REFUSAL LAW'S FLAT FRAME STOPPED REACHING THE PATH IT GUARDS, SO ITS SABOTAGE STAYED GREEN AND HELD THE RIVER SHUT (2026-10-06)
 
 After v3598 his census went CURRENT, but frame.release stayed LOCKED on one BLIND instrument, test_a_lattice_refusal_is_a_reason_not_a_crash. Its RED_PROOF [0] stayed green through its own defeat. The law feeds `inventory_lattice` a flat frame so that `_fit` returns None. That held while the pitch search was a fixed 70-100 px: the 1400x900 frame's rows crop is 184 px and holds fewer than four samples. 71cc613a (REG-1648, 2026-10-01) scaled the search to the frame height. Since then every flat frame at 1400x900, 1440x936 and 2940x1912 is fitted on both axes and refused later, "pitch pinned to the search bound". The law accepts that wording too, so it never read the None path's sentence again. Nobody edited the law. The skipped real-reel case was not the cause: it only asserts the call completes, and it skips for want of footage in every sandbox. The fixture is now a generated flat 1200x3600 frame. Its columns crop is 384 px and the search starts at 131.8 px, so `_fit` returns None there. A new case watches `_fit` return None on it, so the next pitch change turns the law red instead of blind. A flat 1440x936 frame is kept as its own case: refused as pinned to the bound, never a located grid. A second proof now covers the v2799 defect itself: both call sites unpacking None blind raise TypeError. Both proofs PROVEN in a sandbox with no footage. Law `test_a_lattice_refusal_is_a_reason_not_a_crash`.
