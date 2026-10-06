@@ -293,6 +293,33 @@ class TheWorkerKeepsTheDiagnosis(unittest.TestCase):
                           "a missing window mode was stored as the word undefined")
 
 
+class TheTwoPublicScrubsAgree(unittest.TestCase):
+    """REG-1832 - the beacon scrub exists in Python and in the worker. The same cases go to
+    both; a user folder must not survive in either, and the two must answer alike."""
+
+    CASES = ("C:/Users/x", "c:\\Users\\x", "/Users/x", "~/x",
+             "error: C:/Users/NAME/proj/a.py failed", "fatal: C:/Projects/foo bar/baz",
+             "D:/Jane Doe/TV", "M tv/a.py | ?? C:/Users/NAME/x", "see https://github.com/x")
+
+    def test_both_scrubs_drop_the_same_paths(self):
+        import json
+        import subprocess as sp
+        with open(os.path.join(os.path.dirname(HERE), "functions", "api", "console.js"),
+                  encoding="utf-8") as fh:
+            src = fh.read()
+        i = src.index("const clip = (v, n) => {")
+        j = src.index("};\n", i) + 3
+        prog = src[i:j] + "\nprocess.stdout.write(JSON.stringify(%s.map(c => clip(c, 240))));" % json.dumps(list(self.CASES))
+        r = sp.run(["node", "-"], input=prog.encode("utf-8"), stdout=sp.PIPE, stderr=sp.STDOUT, timeout=20)
+        self.assertEqual(r.returncode, 0, r.stdout.decode("utf-8", "replace")[-500:])
+        js = json.loads(r.stdout.decode("utf-8"))
+        for case, got_js in zip(self.CASES, js):
+            got_py = ca._public_git_text(case, 240) or None
+            self.assertEqual(got_py, got_js, case)
+            for leak in ("NAME", "Jane", "Doe", "Users", "~/", ":/U", ":\\\\"):
+                self.assertNotIn(leak, got_py or "", case)
+
+
 class TheLauncherUsesTheSameRule(unittest.TestCase):
     """The launcher runs before the process that already knows this rule.
 
@@ -845,6 +872,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1832 - the Python scrub stops dropping a forward-slash drive path",
+        "file": "tv/control_app.py",
+        "find": "    t = re.sub(r\"(?<![A-Za-z])[A-Za-z]:[\\\\/](?:[^'\\\"]|'(?=\\w))*\", \"\", t)\n",
+        "replace": "    t = re.sub(r\"(?<![A-Za-z])[A-Za-z]:[\\\\](?:[^'\\\"]|'(?=\\w))*\", \"\", t)\n",
+        "matches": 1,
+    },
     {
         "why": "a landed update is refused as a mid-edit again, so a machine that already fetched "
                "the bytes will not relaunch onto them",
