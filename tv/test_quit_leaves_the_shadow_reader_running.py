@@ -39,7 +39,7 @@ class QuitLeavesTheShadowReaderRunning(unittest.TestCase):
         keys = ("_MAIN_WIN", "_QUIT_KEEPS_SERVICE", "_EXIT_REQUESTED", "_WINDOW_LIVE",
                 "_ENGINE_ALIVE", "_ENGINE_READY", "_FORCE_EXIT_ARMED", "_WINDOW_ONLY",
                 "_request_console_exit", "_schedule_exit_stop", "_arm_force_exit",
-                "_REOPEN_WINDOW", "_REOPEN_WHY", "_REOPEN_SHOW")
+                "_REOPEN_WINDOW", "_REOPEN_WHY", "_REOPEN_SHOW", "_BG_SPAWN", "_QUIT_KEEPS_WINDOW")
         self._had = {k: hasattr(ca, k) for k in keys}
         self._saved = {k: getattr(ca, k, None) for k in keys}
         self._bg = dict(ca._BACKGROUND)
@@ -116,6 +116,17 @@ class QuitLeavesTheShadowReaderRunning(unittest.TestCase):
         self.assertEqual(ca.window_mode_payload()["mode"], "background",
                          "the fleet cannot see that the service is still up")
         self._shadow_untouched()
+
+    def test_a_later_close_of_a_new_window_still_hides(self):
+        """REG-1830 - the quit flag outlived the quit, so the next window's X destroyed the view."""
+        self.win.destroy = lambda: None
+        self.assertTrue(ca._quit_window_keeps_service("api-quit:quit-button")["ok"])
+        ca._MAIN_WIN = _FakeWin()          # the park loop opened a new window in this process
+        spawned = []
+        ca._BG_SPAWN = lambda fn: spawned.append(fn)
+        allowed = ca._on_console_window_closing()
+        self.assertIs(allowed, False, "X on a reopened window let the view be destroyed")
+        self.assertEqual(len(spawned), 1)
 
     def test_a_destroy_that_fails_puts_the_window_back(self):
         def destroy():

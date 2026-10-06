@@ -5992,6 +5992,9 @@ _BACKGROUND = {"on": False, "since": None, "by": None, "wasFullscreen": None}
 # Set for the moment ⏻ Quit is closing the view. The closing handler lets that close through and does
 # not stop the service. None means no such quit is in progress. Cleared if the window does not go.
 _QUIT_KEEPS_SERVICE = None
+# REG-1830 — the window that quit destroyed. The flag outlives that window (the park loop reads it),
+# so the closing handler lets a close through on the flag only while no OTHER window is up.
+_QUIT_KEEPS_WINDOW = None
 
 
 def close_means_background(exit_requested=None, window_only=False, env=None):
@@ -6327,7 +6330,9 @@ def _on_console_window_closing():
     console to exit. A real exit already on record still stops the process, as do TV_CLOSE_EXITS and
     a window-only view.
     """
-    if globals().get("_QUIT_KEEPS_SERVICE") and not globals().get("_EXIT_REQUESTED"):
+    _cur = globals().get("_MAIN_WIN")
+    if (globals().get("_QUIT_KEEPS_SERVICE") and not globals().get("_EXIT_REQUESTED")
+            and (_cur is None or _cur is globals().get("_QUIT_KEEPS_WINDOW"))):
         return True
     bg, why = close_means_background(globals().get("_EXIT_REQUESTED"), bool(globals().get("_WINDOW_ONLY")))
     if not bg:
@@ -6443,6 +6448,7 @@ def _quit_window_keeps_service(reason="quit-button"):
     who = str(reason or "quit-button")[:60]
     globals()["_QUIT_KEEPS_SERVICE"] = who
     win = globals().get("_MAIN_WIN")
+    globals()["_QUIT_KEEPS_WINDOW"] = win
     saved_live = globals().get("_WINDOW_LIVE")
     saved_alive = globals().get("_ENGINE_ALIVE")
     saved_ready = globals().get("_ENGINE_READY")
