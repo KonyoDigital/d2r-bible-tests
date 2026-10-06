@@ -27717,9 +27717,31 @@ def reconcile_verdict(named, occupied):
 
 #: the one panel the free pixel layer counts - vault_corpus.inventory_lattice crops the player's INVENTORY (10x4)
 _LATTICE_PANEL = "inventory"
+#: REG-1889 — the stash tabs whose OWN 10x10 grid vault_corpus.stash_occupancy counts. The fixed-slot tabs (materials,
+#: runes, gems) have no such grid and are not listed: their cells are still the bag's, and said to be.
+_STASH_GRID_SURFACES = ("stash", "shared", "personal")
 
 
-def cross_panel_verdict(verdict, surface):
+def _own_panel_cells(vc, frame_path, surface):
+    """REG-1889 — the cells of the panel the read LOOKED AT, when that panel can be counted. -> (occupancy | None, counted)
+
+    A stash, shared or personal read is counted on the stash tab's own grid (vault_corpus.stash_occupancy). Anything
+    else, and a stash tab whose grid the pixels do not show (a fixed-slot tab mislabelled, a tooltip over the whole
+    panel), is counted on the bag, as before - and `counted` says which panel the cells came from, so the verdict is
+    never about a panel nobody counted. (None, None) when neither could be read."""
+    if str(surface or "").strip().lower() in _STASH_GRID_SURFACES:
+        so = vc.stash_occupancy(frame_path)
+        if so.get("ok"):
+            return so, "stash"
+    lat = vc.inventory_lattice(frame_path)
+    if lat and lat.get("ok"):
+        oc = vc.inventory_occupancy(frame_path, lat)
+        if oc.get("ok"):
+            return oc, _LATTICE_PANEL
+    return None, None
+
+
+def cross_panel_verdict(verdict, surface, counted=_LATTICE_PANEL):
     """v3540 REG-1657 — an over-read is a fabrication signal only about the panel the cells were counted on. -> str
 
     reconcile_verdict compares the names a read returned with the OCCUPIED CELLS the lattice counted - and the lattice
@@ -27732,10 +27754,17 @@ def cross_panel_verdict(verdict, surface):
     A read of another panel naming more than the bag holds is "other-panel": NOT an over-read (no false accusation)
     and NOT settled either - vault_seal_is_definitive admits only under-read and agree, so no seal loosens and the
     footage stays readable. A read whose panel cannot be told is treated the same way: UNKNOWN never accuses.
+    REG-1889 — `counted` is the panel the cells came from. A stash-tab read counted on the stash tab's OWN grid is
+    the same panel, so an over-read there is an over-read: the one fabrication signal, now about the panel it read.
     Pure, so it is argued with directly. [[unknown-stays-unknown]] [[feedback-contradiction-is-the-finding]]"""
-    if verdict == "over-read" and str(surface or "").strip().lower() != _LATTICE_PANEL:
-        return "other-panel"
-    return verdict
+    if verdict != "over-read":
+        return verdict
+    s = str(surface or "").strip().lower()
+    if counted == "stash" and s in _STASH_GRID_SURFACES:
+        return verdict
+    if counted == _LATTICE_PANEL and s == _LATTICE_PANEL:
+        return verdict
+    return "other-panel"
 
 
 def _shadow_path():
@@ -34151,26 +34180,29 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
                     try:
                         _named = len(_r.get("items") or [])
                         _vc2 = _vault_corpus()
-                        _lat2 = _vc2.inventory_lattice(p) if _vc2 else None
-                        if _lat2 and _lat2.get("ok"):
-                            _oc2 = _vc2.inventory_occupancy(p, _lat2)
-                            if _oc2.get("ok"):
-                                _occN = int(_oc2.get("occupied") or 0)
-                                _verdict = reconcile_verdict(_named, _occN)
-                                _verdict = cross_panel_verdict(_verdict, surface)   # REG-1657
-                                _reconciled.append({"frame": os.path.basename(p), "surface": surface,
-                                                    "named": _named, "occupied": _occN,
-                                                    "free": _oc2.get("free"), "verdict": _verdict})
-                                _panels.append(p)   # v2004 — this one measured; the room needs 3+
-                                if _verdict == "over-read":
-                                    _over_read.append({"frame": os.path.basename(p),
-                                                       "surface": surface, "named": _named,
-                                                       "occupied": _occN,
-                                                       "names": [str((it or {}).get("name") or it)[:40]
-                                                                 for it in (_r.get("items") or [])][:12]})
-                                    # the read still travels; it is MARKED, never discarded
-                                    _r["reconcile"] = {"verdict": "over-read", "named": _named,
-                                                       "occupied": _occN}
+                        # REG-1889 — the cells of the panel this read LOOKED AT: a stash tab's own grid,
+                        # or the bag (as before) when that grid is not on the frame. `counted` travels.
+                        _oc2, _counted = _own_panel_cells(_vc2, p, surface) if _vc2 else (None, None)
+                        if _oc2 is not None:
+                            _occN = int(_oc2.get("occupied") or 0)
+                            _verdict = reconcile_verdict(_named, _occN)
+                            _verdict = cross_panel_verdict(_verdict, surface, _counted)   # REG-1657 · REG-1889
+                            _reconciled.append({"frame": os.path.basename(p), "surface": surface,
+                                                "named": _named, "occupied": _occN,
+                                                "free": _oc2.get("free"), "verdict": _verdict,
+                                                "counted": _counted})
+                            # v2004 — this one measured; the room needs 3+. space_map reads the BAG of each
+                            # and refuses, with its reason, a frame whose bag does not read.
+                            _panels.append(p)
+                            if _verdict == "over-read":
+                                _over_read.append({"frame": os.path.basename(p),
+                                                   "surface": surface, "named": _named,
+                                                   "occupied": _occN, "counted": _counted,
+                                                   "names": [str((it or {}).get("name") or it)[:40]
+                                                             for it in (_r.get("items") or [])][:12]})
+                                # the read still travels; it is MARKED, never discarded
+                                _r["reconcile"] = {"verdict": "over-read", "named": _named,
+                                                   "occupied": _occN, "counted": _counted}
                     except Exception as _pe:
                         # v1998 — A SILENT PIXEL LANE READS EXACTLY LIKE A CLEAN PANEL.
                         # `except: pass` here means a missing vault_corpus, a broken lattice or a
@@ -34438,10 +34470,15 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
                      sum(1 for r in _reconciled if r.get("verdict") == "under-read"),
                      len(_over_read)))
             for _o in _over_read[:6]:
-                print("      \u26a0 %s %s \u2014 the read named %d item(s) but only %d cell(s) are "
-                      "filled: %s" % (_o.get("surface") or "?", _o.get("frame") or "?",
-                                      _o.get("named"), _o.get("occupied"),
-                                      ", ".join(_o.get("names") or [])[:120]))
+                print("      \u26a0 %s %s \u2014 the read named %d item(s) but only %d cell(s) of the %s "
+                      "are filled: %s" % (_o.get("surface") or "?", _o.get("frame") or "?",
+                                          _o.get("named"), _o.get("occupied"), _o.get("counted") or "panel",
+                                          ", ".join(_o.get("names") or [])[:120]))
+            # REG-1889 — which panel each cross-check counted, so a check against the bag is never read as one
+            # against the stash tab it read
+            print("        counted on the stash tab's own grid: %d · on the bag beside it: %d"
+                  % (sum(1 for r in _reconciled if r.get("counted") == "stash"),
+                     sum(1 for r in _reconciled if r.get("counted") == _LATTICE_PANEL)))
             if _over_read:
                 print("        an over-read is the ONLY fabrication signal this lane has. Nothing was "
                       "discarded \u2014 those rows are marked so you can judge them.")

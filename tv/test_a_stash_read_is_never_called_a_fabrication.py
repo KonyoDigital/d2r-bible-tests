@@ -24,6 +24,19 @@ stash tab for squares that are his inventory.
     "your inventory · <frame>", never by the screen; an older payload with no panel is the inventory too (every row
     ever came from that one crop); it never says "the read named none of them" or "Film that tab".
 No node on this PC = the page half SKIPS with its reason; a skip is not a pass.
+
+REG-1889 — THE STASH TAB'S OWN GRID (the v3540 cross-family look, finding 1). REG-1657 stopped the bag ACCUSING a
+stash read, and said what it left: an agree or an under-read on a stash read still settled on a coincidence with the
+bag. vault_corpus.stash_lattice / stash_occupancy now count the stash tab's own 10x10 cells - the measured box, and the
+frame's own seams as lines along it, no fitted pitch - and refuse a fixed-slot tab rather than call it 100 full cells.
+  · DRIVEN on drawn stash panels at all three of his capture sizes: every cell counted exactly, a dark navy cell is
+    still a taken one, a stone panel with no seams and a frame with no panel are refused.
+  · DRIVEN on his own frames where they are on this PC (each one counted by eye on 2026-10-07): his personal tab 54,
+    his empty shared page 0, his materials tab refused. Absent = SKIP with the reason, never a pass.
+  · DRIVEN: _own_panel_cells counts a stash, shared or personal read on the stash grid and falls back to the bag -
+    saying so in `counted` - when that grid is not on the frame; cross_panel_verdict keeps an over-read counted on
+    the panel the read looked at.
+  · The sweep asks _own_panel_cells and hands `counted` to cross_panel_verdict.
 RED_PROOF below. [[unknown-stays-unknown]] [[feedback-contradiction-is-the-finding]] [[label-outlived-referent]]
 """
 import ast
@@ -33,6 +46,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -63,6 +77,196 @@ class TheVerdictKnowsWhichPanelWasCounted(unittest.TestCase):
         for v in ("agree", "under-read"):
             for surface in ("stash", "inventory", None):
                 self.assertEqual(ca.cross_panel_verdict(v, surface), v)
+
+
+class TheVerdictKnowsWhetherTheStashWasCounted(unittest.TestCase):
+    """REG-1889 — counted on the stash tab's own grid, an over-read is about the panel the read looked at."""
+
+    def test_a_stash_tab_over_read_counted_on_its_own_grid_stays_an_over_read(self):
+        for surface in ("stash", "shared", "Personal "):
+            self.assertEqual(ca.cross_panel_verdict("over-read", surface, "stash"), "over-read",
+                             "a %r read counted on its own grid lost the one fabrication signal" % surface)
+
+    def test_a_fixed_slot_tab_is_never_judged_by_the_stash_grid(self):
+        for surface in ("materials", "runes", "gems", "inventory", None):
+            self.assertEqual(ca.cross_panel_verdict("over-read", surface, "stash"), "other-panel")
+
+    def test_a_stash_read_counted_on_the_bag_is_still_other_panel(self):
+        self.assertEqual(ca.cross_panel_verdict("over-read", "stash", "inventory"), "other-panel")
+        self.assertEqual(ca.cross_panel_verdict("over-read", "stash"), "other-panel")
+
+
+class _FakeCorpus(object):
+    def __init__(self, stash=None, lattice=None, inventory=None):
+        self.asked = []
+        self._stash, self._lattice, self._inv = stash, lattice, inventory
+
+    def stash_occupancy(self, p):
+        self.asked.append("stash")
+        return self._stash or {"ok": False, "why": "no stash grid"}
+
+    def inventory_lattice(self, p):
+        self.asked.append("lattice")
+        return self._lattice or {"ok": False, "why": "no bag"}
+
+    def inventory_occupancy(self, p, lat):
+        self.asked.append("inventory")
+        return self._inv or {"ok": False, "why": "no bag"}
+
+
+class TheReadIsCountedOnThePanelItLookedAt(unittest.TestCase):
+    """REG-1889 — _own_panel_cells: the stash grid for a stash-tab read, the bag (said so) otherwise."""
+    STASH = {"ok": True, "occupied": 0, "free": 100}
+    BAG = {"ok": True, "occupied": 14, "free": 26}
+
+    def test_a_stash_tab_read_is_counted_on_the_stash_grid(self):
+        for surface in ("stash", "shared", "personal"):
+            vc = _FakeCorpus(stash=self.STASH, lattice={"ok": True}, inventory=self.BAG)
+            got, counted = ca._own_panel_cells(vc, "f.jpg", surface)
+            self.assertEqual(counted, "stash", surface)
+            self.assertEqual(got["occupied"], 0, "an empty stash page was counted as the bag's 14")
+            self.assertEqual(vc.asked, ["stash"], "the bag was counted beside a stash grid that read")
+
+    def test_a_stash_tab_whose_grid_is_not_on_the_frame_falls_back_to_the_bag_and_says_so(self):
+        vc = _FakeCorpus(stash=None, lattice={"ok": True}, inventory=self.BAG)
+        got, counted = ca._own_panel_cells(vc, "f.jpg", "stash")
+        self.assertEqual(counted, "inventory")
+        self.assertEqual(got["occupied"], 14)
+
+    def test_a_fixed_slot_tab_never_asks_the_stash_grid(self):
+        for surface in ("materials", "runes", "gems", "inventory", None):
+            vc = _FakeCorpus(stash=self.STASH, lattice={"ok": True}, inventory=self.BAG)
+            got, counted = ca._own_panel_cells(vc, "f.jpg", surface)
+            self.assertEqual(counted, "inventory", surface)
+            self.assertNotIn("stash", vc.asked, "a %r read was counted on the stash grid" % (surface,))
+
+    def test_nothing_that_reads_is_nothing_counted(self):
+        self.assertEqual(ca._own_panel_cells(_FakeCorpus(), "f.jpg", "stash"), (None, None))
+
+
+def _numpy_or_skip(case):
+    try:
+        import numpy  # noqa: F401
+        from PIL import Image  # noqa: F401
+    except Exception as e:
+        case.skipTest("UNMEASURED here, not passing: the pixel lane needs numpy and PIL (%s)" % e)
+
+
+def _draw(path, W, H, filled, dark=(), stone=False, panel=True):
+    """A frame with a stash panel drawn where slot_identity measured it. `filled` cells carry an item (navy backing
+    and a bright blob of art), `dark` cells a navy backing darker than any empty cell's grey, the rest are empty."""
+    import numpy as np
+    from PIL import Image
+    import slot_identity as si
+    A = np.full((H, W, 3), 35, dtype=np.uint8)
+    if panel:
+        x, y, w, h = si.panel_box_for(W, H, container="stash")[0]
+        pc, pr = w / 10.0, h / 10.0
+        if stone:
+            rng = np.random.RandomState(5)
+            A[int(y):int(y + h), int(x):int(x + w)] = rng.randint(40, 90, (int(y + h) - int(y), int(x + w) - int(x), 1))
+        else:
+            for j in range(10):
+                for i in range(10):
+                    c0, c1, r0, r1 = int(x + i * pc), int(x + (i + 1) * pc), int(y + j * pr), int(y + (j + 1) * pr)
+                    if (i, j) in filled:
+                        A[r0:r1, c0:c1] = (20, 22, 60)
+                        m = int(pc * 0.3)
+                        A[r0 + m:r1 - m, c0 + m:c1 - m] = (190, 150, 90)
+                    elif (i, j) in dark:
+                        A[r0:r1, c0:c1] = (10, 12, 42)
+                    else:
+                        A[r0:r1, c0:c1] = (18, 19, 19)
+            t = max(1, int(round(2 * H / 1912.0)))
+            for i in range(11):
+                X = int(round(x + i * pc))
+                A[int(y):int(y + h), max(0, X - t // 2):X + t - t // 2] = (75, 72, 66)
+            for j in range(11):
+                Y = int(round(y + j * pr))
+                A[max(0, Y - t // 2):Y + t - t // 2, int(x):int(x + w)] = (75, 72, 66)
+    Image.fromarray(A).save(path, quality=95)
+
+
+class TheStashTabIsCountedOnItsOwnGrid(unittest.TestCase):
+    """REG-1889 — the stash tab's own 10x10 cells, at every size his Mac has captured."""
+    SIZES = ((2940, 1912), (1440, 936), (1440, 904))
+    FILLED = {(0, 0), (1, 0), (0, 1), (1, 1), (5, 3), (9, 9), (4, 6), (4, 7), (4, 8)}
+
+    def setUp(self):
+        _numpy_or_skip(self)
+        self.tmp = tempfile.mkdtemp(prefix="stash1889_")
+        self.addCleanup(shutil.rmtree, self.tmp, True)
+        import vault_corpus as vc
+        self.vc = vc
+
+    def _frame(self, name, W, H, **kw):
+        p = os.path.join(self.tmp, "%s_%dx%d.jpg" % (name, W, H))
+        _draw(p, W, H, **kw)
+        return p
+
+    def test_every_cell_is_counted_at_every_capture_size(self):
+        for W, H in self.SIZES:
+            with self.subTest(size="%dx%d" % (W, H)):
+                got = self.vc.stash_occupancy(self._frame("grid", W, H, filled=self.FILLED))
+                self.assertTrue(got.get("ok"), got)
+                self.assertEqual(got["panel"], "stash")
+                self.assertEqual((got["occupied"], got["free"]), (len(self.FILLED), 100 - len(self.FILLED)))
+                taken = {(i, j) for j, line in enumerate(got["grid"]) for i, t in enumerate(line) if t}
+                self.assertEqual(taken, self.FILLED, "the right count from the wrong cells is not a count")
+
+    def test_an_empty_stash_page_is_zero_not_refused(self):
+        for W, H in self.SIZES:
+            with self.subTest(size="%dx%d" % (W, H)):
+                got = self.vc.stash_occupancy(self._frame("empty", W, H, filled=set()))
+                self.assertTrue(got.get("ok"), got)
+                self.assertEqual(got["occupied"], 0)
+
+    def test_a_dark_navy_cell_is_still_a_taken_one(self):
+        """An item's navy backing can read darker than an empty cell's grey; its COLOUR is what separates them."""
+        got = self.vc.stash_occupancy(self._frame("dark", 1440, 936, filled=set(), dark={(3, 3), (6, 2)}))
+        self.assertTrue(got.get("ok"), got)
+        self.assertEqual(got["occupied"], 2, "a navy cell with no art was counted as an empty one")
+
+    def test_a_panel_with_no_seams_is_refused_not_counted_full(self):
+        for W, H in self.SIZES:
+            with self.subTest(size="%dx%d" % (W, H)):
+                got = self.vc.stash_occupancy(self._frame("stone", W, H, filled=set(), stone=True))
+                self.assertFalse(got.get("ok"), "a fixed-slot tab was counted as %r full cells" % got.get("occupied"))
+                self.assertIn("10x10 grid is not on this frame", got.get("why") or "")
+
+    def test_a_frame_with_no_panel_is_refused(self):
+        got = self.vc.stash_occupancy(self._frame("none", 1440, 936, filled=set(), panel=False))
+        self.assertFalse(got.get("ok"), got)
+
+
+class HisOwnFramesAreCountedAsHeCountsThem(unittest.TestCase):
+    """REG-1889 — his frames, each counted by eye on 2026-10-07. Not on this PC = SKIP with the reason."""
+    HIST = os.path.join(HERE, "frames", "hist")
+    CASES = (
+        ("reel_s_1784984019250_95276/f_1784984235886.jpg", 54, "his personal tab, 2940x1912"),
+        ("reel_s_1789330829280_66296/f_1789330901797.jpg", 0, "his empty shared page 5/5, a full bag beside it"),
+        ("reel_s_1791212415538_63809/f_1791244319475.jpg", 18, "his shared tab, 1440x936"),
+        ("reel_s_1788190210097_78660/f_1788190274830.jpg", None, "his MATERIALS tab - fixed slots, refused"),
+    )
+
+    def test_his_frames(self):
+        _numpy_or_skip(self)
+        import vault_corpus as vc
+        seen = 0
+        for rel, want, what in self.CASES:
+            p = os.path.join(self.HIST, rel)
+            if not os.path.isfile(p):
+                continue
+            seen += 1
+            with self.subTest(what):
+                got = vc.stash_occupancy(p)
+                if want is None:
+                    self.assertFalse(got.get("ok"), "%s was counted: %r" % (what, got.get("occupied")))
+                else:
+                    self.assertTrue(got.get("ok"), "%s: %r" % (what, got.get("why")))
+                    self.assertEqual(got["occupied"], want, what)
+        if not seen:
+            self.skipTest("UNMEASURED here, not passing: none of his counted frames is on this PC")
 
 
 class OtherPanelIsSaidButNotSettled(unittest.TestCase):
@@ -106,6 +310,24 @@ class TheSweepAsksIt(unittest.TestCase):
         self.assertLess(min(calls["reconcile_verdict"]), calls["cross_panel_verdict"][0])
         self.assertLess(calls["cross_panel_verdict"][0], min(calls["over-read-check"]),
                         "the over-read list is filled before the panel is asked about")
+
+    def test_it_counts_the_panel_the_read_looked_at_and_says_which(self):
+        """REG-1889 — the cells come from _own_panel_cells, and the panel they came from reaches the verdict."""
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+        fn = next((n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "_vault_sweep_run"), None)
+        self.assertIsNotNone(fn, "_vault_sweep_run is gone - re-point this law")
+        own = [n for n in ast.walk(fn) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+               and n.func.id == "_own_panel_cells"]
+        self.assertEqual(len(own), 1, "the sweep does not ask which panel's cells to count")
+        cpv = [n for n in ast.walk(fn) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+               and n.func.id == "cross_panel_verdict"]
+        self.assertEqual(len(cpv), 1)
+        self.assertEqual(len(cpv[0].args), 3, "the verdict is not told which panel was counted")
+        self.assertTrue(isinstance(cpv[0].args[2], ast.Name) and cpv[0].args[2].id == "_counted")
+        rv = [n for n in ast.walk(fn) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+              and n.func.id == "reconcile_verdict"]
+        self.assertLess(own[0].lineno, min(r.lineno for r in rv), "the count is taken after the verdict")
 
 
 class TheIncompleteReasonIsThePureFunctions(unittest.TestCase):
@@ -201,14 +423,43 @@ class TheGlimpseNamesThePanelItCounted(unittest.TestCase):
 RED_PROOF = [
     {"why": "REG-1657 - a stash read is called a fabrication again for what the bag beside it holds",
      "file": "control_app.py",
-     "find": "    if verdict == \"over-read\" and str(surface or \"\").strip().lower() != _LATTICE_PANEL:\n"
-             "        return \"other-panel\"\n",
-     "replace": "",
+     # REG-1889 — re-anchored: the function now asks which panel was counted, and this is its last word
+     "find": "    if counted == _LATTICE_PANEL and s == _LATTICE_PANEL:\n"
+             "        return verdict\n"
+             "    return \"other-panel\"\n",
+     "replace": "    return verdict\n",
      "matches": 1},
     {"why": "REG-1657 - the sweep stops asking which panel was counted",
      "file": "control_app.py",
-     "find": "                                _verdict = cross_panel_verdict(_verdict, surface)   # REG-1657\n",
+     "find": "                            _verdict = cross_panel_verdict(_verdict, surface, _counted)   # REG-1657 · REG-1889\n",
      "replace": "",
+     "matches": 1},
+    {"why": "REG-1889 - a stash-tab read counted on its own grid loses the one fabrication signal again",
+     "file": "control_app.py",
+     "find": "    if counted == \"stash\" and s in _STASH_GRID_SURFACES:\n        return verdict\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "REG-1889 - a stash-tab read is counted on the bag again, never on the panel it read",
+     "file": "control_app.py",
+     "find": "    if str(surface or \"\").strip().lower() in _STASH_GRID_SURFACES:\n"
+             "        so = vc.stash_occupancy(frame_path)\n",
+     "replace": "    if False:\n"
+                "        so = vc.stash_occupancy(frame_path)\n",
+     "matches": 1},
+    {"why": "REG-1889 - the sweep stops asking which panel's cells to count",
+     "file": "control_app.py",
+     "find": "                        _oc2, _counted = _own_panel_cells(_vc2, p, surface) if _vc2 else (None, None)\n",
+     "replace": "                        _oc2, _counted = (None, None)\n",
+     "matches": 1},
+    {"why": "REG-1889 - a fixed-slot tab with no seams is counted as 100 full cells",
+     "file": "vault_corpus.py",
+     "find": "    if seam < _STASH_SEAM_MIN or cover < _STASH_SEAM_COVER or seam < _STASH_SEAM_RATIO * mid:\n",
+     "replace": "    if False:\n",
+     "matches": 1},
+    {"why": "REG-1889 - a dark navy cell an item covers is counted as an empty one",
+     "file": "vault_corpus.py",
+     "find": "                     and abs(tint) < _STASH_EMPTY_TINT)\n",
+     "replace": "                     )\n",
      "matches": 1},
     {"why": "REG-1657 - a cross-panel read is taken as settled: a seal loosens on a comparison of two panels",
      "file": "control_app.py",

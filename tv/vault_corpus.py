@@ -268,6 +268,8 @@ def _ui_scale(h):
 # `if (nc, nr) != (INV_COLS, INV_ROWS)` — is doing the real work; the fit only has to agree. That is
 # also what turns the LOBBY MENU away, and the comment above says so.
 #
+# ⚠ REG-1889 — ANSWERED BELOW, by stash_lattice: the measured box plus the frame's own seams, no
+# fitted pitch. What follows is the reasoning that ruled out the fit, kept because it still does.
 # SO A STASH LATTICE NEEDS GROUND TRUTH THIS REPO DOES NOT HAVE. RotW is a mod and nothing here
 # records its stash dimensions. Until the panel's own BORDER is detected (a real edge, not a fitted
 # pitch), or he states the grid size, any stash occupancy would be a guess dressed as a measurement —
@@ -537,6 +539,144 @@ def inventory_reading(frame_paths):
                      "" if len(c) == 1 else "; %d frame(s) disagreed and are listed rather than "
                                             "averaged away" % sum(k for _, k in c[1:])))
     return out
+
+# ══ REG-1889 — THE STASH TAB'S OWN GRID ═══════════════════════════════════════════════════════
+# The vault reads STASH panels and its free cross-check counted the BAG beside them (REG-1657):
+# an agree or an under-read on a stash read settled on a coincidence with a different panel (the
+# v3540 cross-family look, finding 1). This counts the stash tab's own 10x10 cells, so a stash read
+# is checked against the panel it read.
+#
+# THE v2016 OBJECTION, ANSWERED THE WAY IT ASKED. "A stash lattice needs ground truth this repo does
+# not have ... until the panel's own BORDER is detected (a real edge, not a fitted pitch), or he
+# states the grid size, any stash occupancy would be a guess." Both now exist: slot_identity measured
+# the stash box by pixel ruler on two sessions (281, 381, 868 x 869 @ 2940x1912; 10x10 cells of
+# 86.8 x 86.9), REG-1712 put it in every frame's pixels, and this module does NOT fit a pitch at
+# all. It asks whether the frame's own SEAMS are LINES where that box says - a real edge, measured.
+#
+# THE SEAM TEST. Along each of the 18 interior seams the box predicts, the second difference across
+# the seam (|2L(s) - L(s-d) - L(s+d)|, d = 4 px at 1912) is a line on a real grid at every point:
+# dark between two navy items, light between two empty black cells, a line either way. Measured on
+# his Mac, 2026-10-07, every present frame the stash gate had judged open (38) plus 298 others:
+#     real 10x10 tabs, 1440x936 and 2940x1912   32 of 32   seam median 33-78, line cover 0.91-0.98
+#     the MATERIALS tab (fixed slots on stone)   3 of 3    seam 10-11.5, cover 0.60-0.62 - refused
+#     non-stash frames, 1440x936/904 + 2940     ~280      seam <= 22, cover <= 0.83 - refused
+#     a VENDOR (Malah)                           1        a 10x10 grid too - accepted, and right to be:
+#                                                         the stash gate never sends one here
+# So the bars below sit between those: a stash that is not a 10x10 grid (materials, runes, gems -
+# fixed slots) is REFUSED, never counted as 100 full cells.
+#
+# THE CELL TEST IS NOT THE INVENTORY'S, AND THE REASON IS MEASURED. The inventory's rule (mean > 20 or
+# std > 15) has 1 grey level of margin here: an EMPTY stash cell reads 18-19 / std 3-4, a navy cell an
+# item covers reads 27 / std 2. What separates them is the item BACKGROUND's colour: empty is neutral
+# (blue - red ~ +1), navy is +36, the red unusable background -45. So a cell is EMPTY only when it is
+# dark, flat AND neutral. Counted by hand against his frames: his personal tab 54 of 54, his empty
+# shared page 5/5 0 of 0.
+# ⚠ A TOOLTIP OVER THE PANEL COUNTS AS FULL CELLS (its dark blue backing is not neutral). That errs
+# toward MORE occupied, which can hide an over-read but never invents one; per frame, as the
+# inventory's cross-check already is. [[unknown-stays-unknown]] [[feedback-suspect-the-instrument]]
+STASH_COLS, STASH_ROWS = 10, 10
+_STASH_SEAM_MIN = 25.0      # median line strength along the seams (grids 33-78, everything else <= 22)
+_STASH_SEAM_COVER = 0.85    # share of seam pixels that are line-like (grids >= 0.91, others <= 0.83)
+_STASH_SEAM_RATIO = 1.5     # seams against the same measure half a cell over (grids >= 2.0)
+_STASH_EMPTY_MEAN, _STASH_EMPTY_STD, _STASH_EMPTY_TINT = 24.0, 8.0, 8.0
+
+
+def stash_lattice(frame_path):
+    """Is the stash tab's own 10x10 grid where the calibrated box says? -> {ok, box, ...} | {ok: False, why}
+
+    It fits nothing: the box is slot_identity's measured stash panel in this frame's pixels, and the
+    frame's own seams must be LINES along it. A fixed-slot tab (materials, runes, gems) is refused."""
+    try:
+        import numpy as _np
+        from PIL import Image
+        im = Image.open(frame_path).convert("L")
+    except Exception as e:
+        return {"ok": False, "why": "unreadable: %s" % str(e)[:80]}
+    W, H = im.size
+    try:
+        import slot_identity as _si
+        box, why = _si.panel_box_for(W, H, container="stash")
+    except Exception as e:
+        return {"ok": False, "why": "the stash box could not be placed (%s)" % type(e).__name__}
+    if not box:
+        return {"ok": False, "why": "no measured stash box for a %dx%d frame: %s" % (W, H, why)}
+    x, y, w, h = box
+    pc, pr = w / float(STASH_COLS), h / float(STASH_ROWS)
+    d = max(2, int(round(4 * _ui_scale(H))))
+    x0, x1, y0, y1 = int(x), int(x + w), int(y), int(y + h)
+    if x0 - d - 1 < 0 or y0 - d - 1 < 0 or x1 + d + 1 >= W or y1 + d + 1 >= H:
+        return {"ok": False, "why": "the stash box runs off this %dx%d frame" % (W, H)}
+    L = _np.asarray(im, dtype=_np.float32)
+
+    def _v(X):
+        X = int(round(X))
+        return _np.abs(2 * L[y0:y1, X] - L[y0:y1, X - d] - L[y0:y1, X + d])
+
+    def _h(Y):
+        Y = int(round(Y))
+        return _np.abs(2 * L[Y, x0:x1] - L[Y - d, x0:x1] - L[Y + d, x0:x1])
+
+    def _best(fn, at):
+        # one pixel either way: the box is fractional and a seam is a pixel or two wide
+        return max((fn(at + o) for o in (-1, 0, 1)), key=lambda v: float(_np.median(v)))
+
+    seams = ([_best(_v, x + i * pc) for i in range(1, STASH_COLS)]
+             + [_best(_h, y + j * pr) for j in range(1, STASH_ROWS)])
+    mids = ([_v(x + (i + 0.5) * pc) for i in range(STASH_COLS)]
+            + [_h(y + (j + 0.5) * pr) for j in range(STASH_ROWS)])
+    seam = float(_np.median([_np.median(v) for v in seams]))
+    mid = float(_np.median([_np.median(v) for v in mids]))
+    cover = float(_np.mean([_np.mean(v > 6) for v in seams]))
+    said = "seam line %.1f (half a cell over %.1f), cover %.2f" % (seam, mid, cover)
+    if seam < _STASH_SEAM_MIN or cover < _STASH_SEAM_COVER or seam < _STASH_SEAM_RATIO * mid:
+        return {"ok": False, "seams": said,
+                "why": "the stash tab's own 10x10 grid is not on this frame (%s) - a fixed-slot tab "
+                       "(materials, runes, gems), a tooltip over the whole panel, or no panel at all"
+                       % said}
+    return {"ok": True, "box": [round(v, 1) for v in box], "colPitch": pc, "rowPitch": pr,
+            "cells": STASH_COLS * STASH_ROWS, "seams": said, "scale": round(_ui_scale(H), 4)}
+
+
+def stash_occupancy(frame_path, lat=None):
+    """{ok, occupied, free, cells, grid, panel: "stash"} — the stash tab's own cells. -> dict | {ok: False, why}
+
+    A cell is EMPTY only when it is dark, flat and NEUTRAL (the block above says why the inventory's
+    rule is not used). `grid` is row-major, True for a taken cell."""
+    r = lat or stash_lattice(frame_path)
+    if not r.get("ok"):
+        return {"ok": False, "why": r.get("why")}
+    try:
+        import numpy as _np
+        from PIL import Image
+        im = Image.open(frame_path).convert("RGB")
+    except Exception as e:
+        return {"ok": False, "why": "unreadable: %s" % str(e)[:80]}
+    A = _np.asarray(im, dtype=_np.float32)
+    x, y = float(r["box"][0]), float(r["box"][1])
+    pc, pr = float(r["colPitch"]), float(r["rowPitch"])
+    _in = max(3, int(round(12 * _ui_scale(im.size[1]))))
+    grid, occ, free = [], 0, 0
+    for j in range(STASH_ROWS):
+        line = []
+        for i in range(STASH_COLS):
+            c = A[int(y + j * pr) + _in:int(y + (j + 1) * pr) - _in,
+                  int(x + i * pc) + _in:int(x + (i + 1) * pc) - _in]
+            if c.size == 0:
+                line.append(None)
+                continue
+            g = c.mean(axis=2)
+            tint = float(c[..., 2].mean() - c[..., 0].mean())
+            empty = (float(g.mean()) < _STASH_EMPTY_MEAN and float(g.std()) < _STASH_EMPTY_STD
+                     and abs(tint) < _STASH_EMPTY_TINT)
+            line.append(not empty)
+            if empty:
+                free += 1
+            else:
+                occ += 1
+        grid.append(line)
+    return {"ok": True, "occupied": occ, "free": free, "cells": occ + free, "grid": grid,
+            "panel": "stash", "seams": r.get("seams")}
+
 
 # ══════════════════════════════════════════════════════════════════════════════════════════════
 # v1995 — THE MAP BEFORE THE NAMES.  Konyo: "like a IROBOT cleaning my house it maps out my house
