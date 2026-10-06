@@ -639,7 +639,7 @@ class AStalePresenceIsNotOnline(unittest.TestCase):
         self.assertEqual(ui.count("var heard = !!(pres && pres.state === 'here');"), 1)
         self.assertIn("fleet-dot' + (heard ? '' : (online ? ' silent' : ' off'))", ui)
         self.assertIn("fleet-row' + (heard ? ' on' : '')", ui)
-        self.assertIn("_fleetShadowEye(m, heard)", ui)
+        self.assertIn("_fleetShadowEye(m, heard, undefined, pres)", ui)   # REG-1833 - the eye gets the presence answer too
         self.assertIn("_fleetRowChips(m, heard)", ui)
         self.assertIn("escC(pres.word)", ui)
 

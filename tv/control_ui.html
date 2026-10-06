@@ -25736,11 +25736,21 @@ function escC(s) {
       + '<path class="sh-shut" d="M2 6 Q13 14 24 6"/><path class="sh-shut" d="M7 9.4 L5.6 12 M13 10.6 L13 13.4 M19 9.4 L20.4 12"/></svg>';
   var _SH_EYE_UNK = '<svg viewBox="0 0 26 14" aria-hidden="true" focusable="false">'
       + '<path class="sh-lid" d="M1.5 7 Q13 -3.5 24.5 7 Q13 17.5 1.5 7 Z"/></svg>';
-  var _fleetShadowEye = function (m, online, nowMs) {
+  var _fleetShadowEye = function (m, online, nowMs, pres) {
     var sh = (m && m.shadow && typeof m.shadow === 'object') ? m.shadow : null;
     var st, tip;
     if (!online) {
-      st = 'unk'; tip = 'shadow reader UNKNOWN - this PC is offline, so nobody can say whether it runs until it reports again';
+      st = 'unk';
+      /* REG-1833 — `pres` is the row's _fleetPresence answer. A key that outlived its pulse (REG-1772) is not heard,
+         and it is not a PC that left: the roster still holds it. Only a row the roster no longer holds is offline. */
+      tip = (pres && pres.state !== 'here')
+        ? 'shadow reader UNKNOWN - '
+          + (pres.state === 'silent'
+             ? 'no beacon heard for ' + _fleetAgo(pres.ageS).replace(/ ago$/, '') + ', past the '
+               + Math.round(_FLEET_SILENT_AFTER_S / 60) + ' min bound'
+             : 'this row has no beacon time the card can read')
+          + ', so presence is UNKNOWN and nobody can say whether it runs; the roster still holds this PC'
+        : 'shadow reader UNKNOWN - this PC is offline, so nobody can say whether it runs until it reports again';
     } else if (!sh) {
       st = 'unk'; tip = 'shadow reader UNKNOWN - this console does not report it (a build older than the eye)';
     } else if (sh.on !== true) {
@@ -26489,7 +26499,7 @@ function escC(s) {
           + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
           + 'window._fleetCompare(this.getAttribute(\'data-fleet-machine\'))}">'
           + '<span class="fleet-dot' + (heard ? '' : (online ? ' silent' : ' off')) + '"></span>'
-          + '<b>' + _fleetShadowEye(m, heard) + escC(nameFor) + '</b>'
+          + '<b>' + _fleetShadowEye(m, heard, undefined, pres) + escC(nameFor) + '</b>'
           + _fleetEye(m.eye)
           /* ⚠⚠ v2875 — ONE WORD BESIDE THE NAME. Konyo, 2026-09-10: *"all the jibberish
              next to our names ... should just say synced/unsynced without the rest of the

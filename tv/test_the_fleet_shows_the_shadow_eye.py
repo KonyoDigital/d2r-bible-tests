@@ -82,8 +82,9 @@ RED_PROOF = [
     {
         "why": "#93 - an OFFLINE PC keeps its last eye instead of UNKNOWN",
         "file": "control_ui.html",
-        "find": "    if (!online) {\n      st = 'unk'; tip = 'shadow reader UNKNOWN - this PC is offline",
-        "replace": "    if (false) {\n      st = 'unk'; tip = 'shadow reader UNKNOWN - this PC is offline",
+        # REG-1833 - the branch's tip became offline-or-stale, so the anchor ends at `st = 'unk';`
+        "find": "    if (!online) {\n      st = 'unk';\n",
+        "replace": "    if (false) {\n      st = 'unk';\n",
         "matches": 1,
     },
     {
@@ -110,9 +111,23 @@ RED_PROOF = [
     {
         "why": "#93 - the row stops drawing the eye beside the name (the helper stays, the join is gone)",
         "file": "control_ui.html",
-        # 475f672e - the row passes `heard` (a presence key with a live pulse), not `online`
-        "find": "          + '<b>' + _fleetShadowEye(m, heard) + escC(nameFor) + '</b>'\n",
+        # 475f672e - the row passes `heard` (a presence key with a live pulse), not `online`; REG-1833 adds `pres`
+        "find": "          + '<b>' + _fleetShadowEye(m, heard, undefined, pres) + escC(nameFor) + '</b>'\n",
         "replace": "          + '<b>' + escC(nameFor) + '</b>'\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1833 - a key that outlived its pulse is called offline again (the helper ignores the presence answer)",
+        "file": "control_ui.html",
+        "find": "      tip = (pres && pres.state !== 'here')\n",
+        "replace": "      tip = (false)\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1833 - the row stops handing its presence answer to the eye, so a silent key reads offline again",
+        "file": "control_ui.html",
+        "find": "_fleetShadowEye(m, heard, undefined, pres) + escC(nameFor)",
+        "replace": "_fleetShadowEye(m, heard) + escC(nameFor)",
         "matches": 1,
     },
 ]
@@ -285,14 +300,39 @@ class TheEyeOnEveryRow(unittest.TestCase):
             self.assertIn("UNKNOWN", e["title"])
             self.assertNotIn("sh-iris", e["h"], "%s drew an open, coloured eye" % label)
 
+    def test_a_key_that_outlived_its_pulse_is_unknown_not_offline(self):
+        """REG-1833 — REG-1772 made a presence key older than its pulse bar `heard = false`, and the eye read that as
+        the offline branch: "this PC is offline" on a row the roster still holds, whose hover says presence UNKNOWN,
+        not online. Driven the way the row drives it: _fleetPresence first, then the eye with what it answered."""
+        def stale(t_ago_ms):
+            row = {"nickname": "Box", "machine": "box-1", "ver": "v3527", "shadow": LIVE}
+            if t_ago_ms is not None:
+                row["t"] = _iso(UI_NOW - t_ago_ms)
+            return _ui_run("var p = _fleetPresence(%s, true, NOW);"
+                           "var h = _fleetShadowEye(%s, !!(p && p.state === 'here'), NOW, p);"
+                           "var m = /fleet-shadow st-([a-z]+)/.exec(h); OUT.st = m ? m[1] : null;"
+                           "var t = /title=\"([^\"]*)\"/.exec(h); OUT.title = t ? t[1] : null;"
+                           % (json.dumps(row), json.dumps(row)))
+        for label, ago, says in (("silent 40 min", 40 * 60000, "no beacon heard for 40m"),
+                                 ("no readable beacon time", None, "no beacon time the card can read")):
+            e = stale(ago)
+            self.assertEqual(e["st"], "unk", "%s drew %r: %r" % (label, e["st"], e["title"]))
+            self.assertIn("UNKNOWN", e["title"], label)
+            self.assertIn(says, e["title"], "%s: the eye does not say why presence is unknown" % label)
+            self.assertNotIn("offline", e["title"], "%s: a key the roster still holds was called offline" % label)
+        self.assertEqual(stale(40000)["st"], "lit", "a row heard 40 s ago lost its lit eye")
+        gone = _eye(LIVE, online=False)
+        self.assertIn("this PC is offline", gone["title"], "a PC the roster no longer holds stopped saying offline")
+
     def test_the_row_draws_the_eye_inside_the_name_cell(self):
         """The join. The helper is driven above; this pins that the ROW calls it, inside <b> so no grid child is added
         (the row laws measure the grid), and BEFORE the name - after it, a long name wrapped and left the eye alone on
         the next line (seen on the 1440 render, 2026-09-30). The render gate measures `.fleet-shadow` painted."""
         with io.open(UI, encoding="utf-8") as f:
             src = f.read()
-        # 475f672e - the row passes `heard` (a presence key with a live pulse), not `online`
-        self.assertEqual(src.count("+ '<b>' + _fleetShadowEye(m, heard) + escC(nameFor) + '</b>'"), 1,
+        # 475f672e - the row passes `heard` (a presence key with a live pulse), not `online`; REG-1833 - and `pres`,
+        # so a key that outlived its pulse is said UNKNOWN, not offline
+        self.assertEqual(src.count("+ '<b>' + _fleetShadowEye(m, heard, undefined, pres) + escC(nameFor) + '</b>'"), 1,
                          "the fleet row does not draw the shadow eye beside the name")
 
 
