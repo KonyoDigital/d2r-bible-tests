@@ -268,8 +268,28 @@ def load(path=None):
     return d
 
 
+def _key(x):
+    """REG-1908 - ONE comparison key, the cross-reference's own (chronicle_crossref.canon): NFKC, curly apostrophes to
+    straight, whitespace collapsed, lowercased. A bare .lower() made the vault fold's "Atma\u2019s Scarab" miss the
+    roster's "atma's scarab" - three of his uniques read UNKNOWN (the testing-phase pre-run, F9)."""
+    try:
+        from chronicle_crossref import canon
+        return canon(x)
+    except Exception:
+        return str(x or "").replace("\u2019", "'").replace("\u2018", "'").strip().lower()
+
+
+def _in_roster(n, roster):
+    """`n` (already a key) is on the roster, with or without the leading article the game prints ("The Cat's Eye")."""
+    if n in roster:
+        return True
+    if n.startswith("the ") and n[4:] in roster:
+        return True
+    return ("the " + n) in roster
+
+
 def _folded(lex):
-    f = lambda xs: {str(x).strip().lower() for x in (xs or ())}
+    f = lambda xs: {_key(x) for x in (xs or ())}
     return (f(lex.get("magicPrefix")), f(lex.get("magicSuffix")),
             f(lex.get("rarePrefix")), f(lex.get("rareSuffix")), f(lex.get("baseType")))
 
@@ -283,12 +303,14 @@ def classify(name, lex=None, roster=None):
     lex = lex if lex is not None else load()
     if lex is None:
         return "UNKNOWN", "the lexicon has never been generated on this machine"
-    n = str(name or "").strip().lower()
+    n = _key(name)
     if not n:
         return "UNKNOWN", "no name"
     if roster is None:
         roster = _roster_folded()
-    if roster and n in roster:
+    elif roster:
+        roster = {_key(x) for x in roster}
+    if roster and _in_roster(n, roster):
         return "GRAIL", "on his roster"
     mp, ms, rp, rs, bt = _folded(lex)
     if n in bt:
@@ -323,7 +345,7 @@ def _roster_folded():
                     ("item_identity", "_roster")):
         try:
             m = __import__(mod)
-            names |= {str(x).strip().lower() for x in (getattr(m, fn)() or ())}
+            names |= {_key(x) for x in (getattr(m, fn)() or ())}
         except Exception:
             pass
     _RCACHE[0] = names

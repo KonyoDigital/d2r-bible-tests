@@ -290,6 +290,32 @@ class TheTailStripStaysRefused(unittest.TestCase):
             "in vault_key AND chronicle_key, and merge-max never subtracts." % len(tails))
 
 
+
+class ACurlyApostropheIsTheSameName(unittest.TestCase):
+    """REG-1908 - the vault fold returns "Atma\u2019s Scarab" (curly) and the roster holds "atma's scarab"; a bare
+    .lower() missed it, and "Cat's Eye" missed the roster's "The Cat's Eye" - three of his uniques read UNKNOWN.
+    Game names only, a fixture roster and lexicon."""
+
+    LEX = {"magicPrefix": [], "magicSuffix": [], "rarePrefix": [], "rareSuffix": [], "baseType": ["Grand Charm"]}
+    ROSTER = {"Atma's Scarab", "The Cat's Eye", "Saracen's Chance"}
+
+    def k(self, n):
+        import affix_lexicon as AL
+        return AL.classify(n, lex=self.LEX, roster=self.ROSTER)[0]
+
+    def test_a_curly_apostrophe_is_on_the_roster(self):
+        self.assertEqual(self.k("Atma\u2019s Scarab"), "GRAIL")
+        self.assertEqual(self.k("Saracen\u2019s Chance"), "GRAIL")
+
+    def test_the_article_is_not_part_of_the_question(self):
+        self.assertEqual(self.k("Cat's Eye"), "GRAIL")
+        self.assertEqual(self.k("The Cat\u2019s Eye"), "GRAIL")
+
+    def test_a_name_that_is_not_there_is_still_refused(self):
+        self.assertEqual(self.k("Atma's Scarabs"), "UNKNOWN")
+        self.assertEqual(self.k("Grand Charm"), "BASE")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 
@@ -328,6 +354,20 @@ RED_PROOF = [
         "file": "tv/affix_lexicon.py",
         "find": '    for t in ("armor", "weapons", "misc"):\n        base |= set(_named(blobs.get(t)) or ())',
         "replace": "    base |= set(nms.values())",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1908 - the fold goes back to a bare lower(): a curly apostrophe misses the roster",
+        "file": "tv/affix_lexicon.py",
+        "find": "        from chronicle_crossref import canon\n        return canon(x)\n",
+        "replace": "        return str(x or '').strip().lower()\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1908 - the roster lookup asks only the exact name: 'Cat's Eye' misses 'The Cat's Eye'",
+        "file": "tv/affix_lexicon.py",
+        "find": "    if roster and _in_roster(n, roster):\n",
+        "replace": "    if roster and n in roster:\n",
         "matches": 1,
     },
 ]
