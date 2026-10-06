@@ -54,7 +54,16 @@ MAX_AGE_S = 6 * 3600
 #: entries kept per store; the oldest leave first - a cache, not a ledger
 STORE_MAX = 200
 #: tracked files a run writes itself - a record of a run cannot change what the suite asserts
-SELF_RECORDS = frozenset(("tv/.self_arming.jsonl", "tv/.heart2.json", "tv/.render_verdict.json"))
+#: REG-1899 — the records a GATE RUN writes into the tree it grades. The console's own tracked records are NOT
+#: re-listed here: they are self_prove.CONSOLE_OWN_RECORDS, and SELF_RECORDS is derived from both, so the two lists
+#: cannot drift. tree_key forgives exactly SELF_RECORDS, through self_prove.tracked_edits (the one rule).
+RUN_RECORDS = frozenset(("tv/.self_arming.jsonl", "tv/.heart2.json", "tv/.render_verdict.json"))
+try:
+    import self_prove as _SP
+    SELF_RECORDS = frozenset(_SP.CONSOLE_OWN_RECORDS) | RUN_RECORDS
+except Exception:
+    _SP = None
+    SELF_RECORDS = None                     # UNKNOWN: tree_key then gives no key
 #: per-suite bound for --run (the hook's own ceiling for test_control)
 RUN_TIMEOUT_S = {"test_agent": 600, "test_control": 1500}
 #: suites the push hook runs through tv/shard_suite.py - --run uses the same door (REG-1754)
@@ -120,20 +129,16 @@ def tree_key(cwd=None):
     st = _git(["status", "--porcelain", "--untracked-files=no"], cwd=cwd)
     if st is None:
         return None, "git could not say whether the working tree is the commit"
+    if _SP is None:
+        return None, "self_prove would not import, so whether the working tree is the commit is UNKNOWN - no key"
+    lines, uwhy = _SP.tracked_edits(st, also=RUN_RECORDS)   # REG-1898/1899 - the one rule, its one failure answer
+    if lines is None:
+        return None, "%s, so whether the working tree is the commit is UNKNOWN - no key" % uwhy
     moved = []
-    try:
-        import self_prove as _sp                # REG-1865 - the console's own tracked records are not his edits
-        _theirs = _sp._edits_beyond_own_records
-    except Exception:
-        _theirs = None
-    for line in st.splitlines():
-        path = line[3:].strip()
-        if " -> " in path:
-            path = path.split(" -> ", 1)[1]
-        if _theirs is not None and not _theirs(line):
-            continue
-        if path and path not in SELF_RECORDS:
-            moved.append(path)
+    for line in lines:
+        bits = line.strip().split(None, 1)
+        if bits:
+            moved.append(bits[-1])
     if moved:
         return None, ("%d tracked file(s) differ from the commit (%s) - the bytes a run would grade are not the "
                       "commit's, so there is no key" % (len(moved), ", ".join(moved[:3])))

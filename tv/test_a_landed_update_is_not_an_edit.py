@@ -937,8 +937,8 @@ RED_PROOF = [
     {
         "why": "REG-1865 - the launcher reads the console's own record as local work again and skips every pull",
         "file": "launcher_pull.py",
-        "find": "        return not _sp._edits_beyond_own_records(\"%s %s\" % (status, path))\n",
-        "replace": "        return False\n",
+        "find": "    return None if lines is None else (lines == [])\n",
+        "replace": "    return False\n",
         "matches": 1,
     },
     {

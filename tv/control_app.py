@@ -1420,7 +1420,7 @@ _FLEET_LAST_FETCH = 0.0
 
 
 def _his_tracked_edits(porcelain):
-    """REG-1865 — the tracked `git status --porcelain` lines that are local edits. -> str ("" = none)
+    """REG-1865 — the tracked `git status --porcelain` lines that are local edits. -> str ("" = none) | None UNKNOWN
 
     The console's own tracked records are not (self_prove's ONE rule, CONSOLE_OWN_RECORDS). His ALT sat 123 behind
     over a lone ` M tv/.status_worst.json`: the pull doors ask launcher_pull.apply, which now asks the same rule, and
@@ -1428,23 +1428,28 @@ def _his_tracked_edits(porcelain):
     lines = [ln for ln in str(porcelain or "").splitlines() if ln.strip() and not ln.startswith("??")]
     try:
         import self_prove as _sp
-        lines = _sp._edits_beyond_own_records("\n".join(lines))
+        lines, _why = _sp.tracked_edits("\n".join(lines))
     except Exception:
-        pass
-    return "\n".join(lines)
+        lines = None
+    return None if lines is None else "\n".join(lines)   # REG-1898 - UNKNOWN stays None, never the raw rows
 
 
 def _git_tracked_dirty():
-    """True only when TRACKED files are modified (?? untracked does not count, nor the console's own records)."""
+    """True only when TRACKED files are modified (?? untracked does not count, nor the console's own records).
+    REG-1898 — None when that cannot be told (git did not answer, or the own-records rule could not be asked): the
+    fleet's dirty flag is UNKNOWN then, never clean."""
     try:
         r = _git_run(
             ["git", "status", "--porcelain"],
             cwd=REPO, capture_output=True, text=True, timeout=8,
             creationflags=_WIN_CREATE if IS_WIN else 0,
         )
-        return bool(_his_tracked_edits(r.stdout))
+        if getattr(r, "returncode", 0) != 0:
+            return None
+        t = _his_tracked_edits(r.stdout)
+        return None if t is None else bool(t)
     except Exception:
-        return False
+        return None
 
 
 @_one_pull_at_a_time
@@ -1809,7 +1814,12 @@ def fleet_origin_status(force_fetch=False):
                 creationflags=_WIN_CREATE if IS_WIN else 0,
             )
             out["latest"] = (r2.stdout or "").strip()[:120]
-            if out["dirty"]:
+            if out["dirty"] is None:
+                out["howTo"] = (
+                    "You are %d commit(s) behind GitHub. Whether local tracked edits block the pull is UNKNOWN "
+                    "here - the pull itself refuses rather than guess." % out["behind"]
+                )
+            elif out["dirty"]:
                 out["howTo"] = (
                     "You are %d commit(s) behind GitHub. Local TRACKED edits block auto-pull — "
                     "commit/stash them, then relaunch TV DIABLO (or: git pull)."
@@ -4023,6 +4033,9 @@ def _pull_report():
         return None
     if fl.get("ok") is False:
         return _beacon_git_diag({"can": None, "why": (str(fl.get("howTo") or "git could not answer")[:120])})
+    if "dirty" in fl and fl.get("dirty") is None:   # REG-1898 - UNKNOWN is said as UNKNOWN, never "clear to pull"
+        return _beacon_git_diag({"can": None, "behind": fl.get("behind"),
+                "why": "whether local tracked edits block a pull here is UNKNOWN"})
     if fl.get("dirty"):
         # #64 follow-up — a "dirty" tree the lane found beside a stale 0-byte lock is an update CUT OFF
         # mid-checkout, not his edits; the fleet is told which (the worker keeps 160 chars of why)
@@ -44700,7 +44713,7 @@ class Handler(BaseHTTPRequestHandler):
                     "latest": fl.get("latest") or "",
                     "head": fl.get("head") or "",
                     "origin": fl.get("origin") or "",
-                    "dirty": bool(fl.get("dirty")),
+                    "dirty": (None if fl.get("dirty") is None else bool(fl.get("dirty"))),   # REG-1898 - UNKNOWN is null
                     "ver": fl.get("ver") or status_payload().get("ver"),
                     "howTo": fl.get("howTo") or "",
                 })

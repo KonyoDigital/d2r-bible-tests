@@ -19863,7 +19863,7 @@ window._lockMark = function(isOpen, px, label){
           } catch (e){}
           bar.hidden = true; return;
         }
-        if (!j.dirty && (Date.now() - lastPullMs) > PULL_COOLDOWN_MS){
+        if (!j.dirty && j.dirty !== null && (Date.now() - lastPullMs) > PULL_COOLDOWN_MS){   /* REG-1898 - an UNKNOWN tree (null) never auto-pulls */
           lastPullMs = Date.now();              // cooldown, not once-per-launch — see above
           txt.textContent = 'a newer console is on GitHub — fetching it…';
           go.hidden = true; bar.hidden = false;
@@ -19878,8 +19878,9 @@ window._lockMark = function(isOpen, px, label){
         txt.textContent = 'this console is ' + j.behind + ' commit' + (j.behind > 1 ? 's' : '')
           + ' behind the fleet' + (j.ver ? ' (running ' + j.ver + ')' : '')
           + (j.latest ? ' — latest: "' + j.latest + '"' : '')
-          + (j.dirty ? ' · local edits block the update' : '');
-        go.hidden = !!j.dirty;     // nothing to offer when a pull cannot be safe
+          + (j.dirty ? ' · local edits block the update' : '')
+          + (j.dirty === null ? ' · whether local edits block the update is UNKNOWN' : '');
+        go.hidden = !!j.dirty || j.dirty === null;     // nothing to offer when a pull cannot be safe - or cannot be told safe (REG-1898)
         go.textContent = 'UPDATE NOW';
         go.disabled = false;
         // ✕ suppresses THIS version's banner only; a newer build is news again

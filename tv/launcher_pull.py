@@ -201,16 +201,18 @@ def _untracked_in_the_way(repo):
 
 
 def _own_record(status, path):
-    """REG-1865 - is this porcelain row one of the console's own tracked records? -> bool
+    """REG-1865 - is this porcelain row one of the console's own tracked records? -> True | False | None (UNKNOWN)
 
     ONE rule, self_prove's (CONSOLE_OWN_RECORDS through _edits_beyond_own_records). His ALT sat on v3595, 123
     behind, because its only edit was ` M tv/.status_worst.json` - the record the console rewrites itself - and
     this read it as local work. A rule that cannot be asked forgives nothing."""
     try:
         import self_prove as _sp
-        return not _sp._edits_beyond_own_records("%s %s" % (status, path))
+        lines, _why = _sp.tracked_edits("%s %s" % (status, path))
     except Exception:
-        return False
+        lines = None
+    # REG-1898 - UNKNOWN IS NOT AN ANSWER THE PULL ACTS ON: classify() says it could not tell, and the pull is blocked
+    return None if lines is None else (lines == [])
 
 
 def classify(repo):
@@ -220,7 +222,10 @@ def classify(repo):
         return {"ok": False, "block": [], "update": [], "own": [], "ancestor": None, "way": None}
     block, update, own = [], [], []
     for status, path in rows:
-        if _own_record(status, path):
+        _own = _own_record(status, path)
+        if _own is None:
+            return {"ok": False, "block": [], "update": [], "own": [], "ancestor": None, "way": None}
+        if _own:
             own.append(path)
             continue
         safe = _safe_rel(path)

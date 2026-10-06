@@ -593,8 +593,10 @@ def _git(*args, timeout=15):
 CONSOLE_OWN_RECORDS = ("tv/.status_worst.json",)
 
 
-def _edits_beyond_own_records(porcelain):
-    """The `git status --porcelain` lines that are not one of CONSOLE_OWN_RECORDS. -> list. Pure."""
+def _edits_beyond_own_records(porcelain, also=()):
+    """The `git status --porcelain` lines that are not one of CONSOLE_OWN_RECORDS (or `also`). -> list. Pure.
+    Callers outside this file ask tracked_edits(), which gives the rule ONE answer when it cannot be asked."""
+    forgiven = set(CONSOLE_OWN_RECORDS) | set(also or ())
     out = []
     for ln in str(porcelain or "").splitlines():
         bits = ln.strip().split(None, 1)
@@ -602,9 +604,24 @@ def _edits_beyond_own_records(porcelain):
             continue
         path = bits[-1].strip().strip('"')
         # a rename is never forgiven: its other end is a file of the tree that moved
-        if len(bits) < 2 or path not in CONSOLE_OWN_RECORDS:
+        if len(bits) < 2 or path not in forgiven:
             out.append(ln)
     return out
+
+
+def tracked_edits(porcelain, also=()):
+    """REG-1898 — THE ONE DOOR EVERY READER OF A DIRTY TREE ASKS. -> (lines, None) | (None, why)
+
+    `lines` are the porcelain rows that are local edits: the console's own records (CONSOLE_OWN_RECORDS, plus a
+    caller's documented `also`) are forgiven. The v3600 cross-family look: the four readers each wrapped the rule
+    themselves and gave its failure two different answers - launcher_pull blocked the pull, the fleet row, the ship
+    audit and the verdict key kept the raw rows (and the key raised). ONE failure answer now: (None, why), UNKNOWN.
+    What each caller DOES with UNKNOWN is its own safe direction, written at the call: the pull is blocked, the
+    fleet's dirty flag is None (never clean), the ship audit claims nothing, the verdict key is None."""
+    try:
+        return _edits_beyond_own_records(porcelain, also), None
+    except Exception as e:
+        return None, "the console's own-records rule could not be asked (%s)" % type(e).__name__
 
 
 def tree_state(git=None):
@@ -618,7 +635,10 @@ def tree_state(git=None):
         rc, dirty = g("status", "--porcelain", "--untracked-files=no")
         if rc != 0:
             return "unknown", "git status failed here, so this tree cannot be told apart from a dev tree"
-        if _edits_beyond_own_records(dirty):
+        _ed, _ewhy = tracked_edits(dirty)
+        if _ed is None:
+            return "unknown", "%s, so this tree cannot be told apart from a dev tree" % _ewhy
+        if _ed:
             return "dev", "the tree has local edits - the pre-push gate proves a development tree"
         rc, counts = g("rev-list", "--left-right", "--count", "@{upstream}...HEAD")
         against = ""

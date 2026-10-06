@@ -94,10 +94,10 @@ def _dirty():
     lines = [l for l in out.split("\n") if l.strip()]
     try:
         import self_prove as _sp            # REG-1865 - the console's own tracked records are not uncommitted work
-        lines = _sp._edits_beyond_own_records("\n".join(lines))
+        lines, _why = _sp.tracked_edits("\n".join(lines))
     except Exception:
-        pass
-    return lines
+        lines = None
+    return lines                            # REG-1898 - None: UNKNOWN, so the audit claims nothing about the tree
 
 
 def record_gates():

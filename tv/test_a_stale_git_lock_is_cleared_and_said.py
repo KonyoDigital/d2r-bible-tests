@@ -558,6 +558,28 @@ class TestTheConsolesOwnRecordIsNotAnEdit(_Base):
         self.assertEqual(self.head(), before)
         self.assertEqual(self._record(), self.mine, "his record was overwritten")
 
+    def test_an_unaskable_rule_is_an_unknown_fleet_flag_and_a_blocked_pull(self):
+        """REG-1898 - the rule raising: the fleet's dirty flag is None (UNKNOWN, never clean), the beacon says so, the
+        lane and the in-app door do not pull, and his record is untouched."""
+        import self_prove as SP
+
+        def _boom(*a, **k):
+            raise RuntimeError("the rule broke")
+        before = self.head()
+        with mock.patch.object(SP, "_edits_beyond_own_records", _boom):
+            self.assertIsNone(ca._git_tracked_dirty(), "the fleet row read an unaskable rule as clean or dirty")
+            with mock.patch.object(ca, "fleet_origin_status", lambda *a, **k: {"ok": True, "behind": 1, "dirty": None}):
+                rep = ca._pull_report() or {}
+            self.assertIsNone(rep.get("can"), "the beacon called an UNKNOWN tree clear to pull: %r" % (rep,))
+            self.assertIn("UNKNOWN", rep.get("why") or "")
+            with self.probe(False, "stub: no git running"):
+                out = ca._pull_once()
+            self.assertIs(out, False, "the lane pulled over a rule it could not ask: %r" % ca._PULL.get("say"))
+            r = ca.fleet_pull()
+            self.assertFalse(r.get("pulled"), "the in-app door pulled over a rule it could not ask")
+        self.assertEqual(self.head(), before)
+        self.assertEqual(self._record(), self.mine)
+
     def test_the_in_app_door_and_the_fleet_row_use_the_same_rule(self):
         self.assertFalse(ca._git_tracked_dirty(), "the fleet row calls the console's own record a dirty tree")
         r = ca.fleet_pull()
@@ -708,17 +730,31 @@ class TestTheLaneIsPublishedWhereTheRowReads(unittest.TestCase):
 
 RED_PROOF = [
     {
+        "why": "REG-1898 - the fleet row reads an unaskable rule as a clean tree",
+        "file": "control_app.py",
+        "find": "    return None if lines is None else \"\\n\".join(lines)   # REG-1898 - UNKNOWN stays None, never the raw rows\n",
+        "replace": "    return \"\\n\".join(lines or [])\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1898 - the beacon calls an UNKNOWN tree clear to pull",
+        "file": "control_app.py",
+        "find": "    if \"dirty\" in fl and fl.get(\"dirty\") is None:   # REG-1898 - UNKNOWN is said as UNKNOWN, never \"clear to pull\"\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
         "why": "REG-1865 - the console's own record makes the pull lane and the in-app door dirty again, and the ALT never auto-updates",
         "file": "launcher_pull.py",
-        "find": "        return not _sp._edits_beyond_own_records(\"%s %s\" % (status, path))\n",
-        "replace": "        return False\n",
+        "find": "    return None if lines is None else (lines == [])\n",
+        "replace": "    return False\n",
         "matches": 1,
     },
     {
         "why": "REG-1865 - the fleet row calls the console's own record a dirty tree again",
         "file": "control_app.py",
-        "find": "        lines = _sp._edits_beyond_own_records(\"\\n\".join(lines))\n",
-        "replace": "        pass\n",
+        "find": "        lines, _why = _sp.tracked_edits(\"\\n\".join(lines))\n",
+        "replace": "        lines = list(lines)\n",
         "matches": 1,
     },
     {

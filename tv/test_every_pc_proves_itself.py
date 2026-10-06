@@ -422,6 +422,67 @@ class TheTreeIsToldApart(unittest.TestCase):
         with mock.patch.object(SA, "_sh", lambda *a: (0, "M tv/.status_worst.json")):
             self.assertEqual(SA._dirty(), [], "the ship audit calls the console's own record uncommitted work")
 
+    def test_one_failure_answer_at_every_door(self):
+        """REG-1898 (the v3600 cross-family look) - the rule raising gave two answers: launcher_pull blocked, the fleet
+        row / ship audit kept raw rows, the verdict key raised. Now self_prove.tracked_edits is the one door and its
+        failure is (None, why); each reader's safe answer to that is documented and driven here: the pull says it
+        cannot tell (exit 1, nothing reset), the ship audit claims nothing (None), the verdict key is None, the prover's
+        tree is unknown. The fleet row's None is driven in test_a_stale_git_lock_is_cleared_and_said."""
+        import suite_verdict as SV
+        import ship_audit as SA
+        import launcher_pull as LP
+        from unittest import mock
+        wk, git, run = self._repo()
+        os.makedirs(os.path.join(wk, "tv"))
+        rec = os.path.join(wk, *SP.CONSOLE_OWN_RECORDS[0].split("/"))
+        io.open(rec, "w").write('{"totalMs": 1}\n')
+        run("add", "-A", cwd=wk)
+        run("commit", "-qm", "the kept record", cwd=wk)
+        io.open(rec, "w").write('{"totalMs": 2}\n')
+
+        def _boom(*a, **k):
+            raise RuntimeError("the rule broke")
+        with mock.patch.object(SP, "_edits_beyond_own_records", _boom):
+            lines, why = SP.tracked_edits("M tv/.status_worst.json")
+            self.assertIsNone(lines)
+            self.assertIn("could not be asked (RuntimeError)", why)
+            self.assertEqual(SP.tree_state(git)[0], "unknown", "the prover read an unaskable rule as a verdict")
+            with mock.patch.object(LP, "_porcelain", lambda repo: [(" M", "tv/.status_worst.json")]):
+                self.assertFalse(LP.classify(wk)["ok"], "the launcher acted on a rule it could not ask")
+                self.assertEqual(LP.apply(wk), 1, "the pull did not say it could not tell")
+            with mock.patch.object(SA, "_sh", lambda *a: (0, "M tv/.status_worst.json")):
+                self.assertIsNone(SA._dirty(), "the ship audit forgave or counted a record the rule could not judge")
+            key, kwhy = SV.tree_key(wk)
+            self.assertIsNone(key, "the verdict key was given over a rule that could not be asked")
+            self.assertIn("UNKNOWN", kwhy)
+        with mock.patch.dict(sys.modules, {"self_prove": None}):          # the rule cannot even be imported
+            self.assertIsNone(LP._own_record(" M", "tv/.status_worst.json"))
+            with mock.patch.object(SA, "_sh", lambda *a: (0, "M tv/.status_worst.json")):
+                self.assertIsNone(SA._dirty())
+        with mock.patch.object(SV, "_SP", None):
+            self.assertIsNone(SV.tree_key(wk)[0])
+
+    def test_the_verdict_key_forgives_exactly_one_list(self):
+        """REG-1899 - suite_verdict kept its own SELF_RECORDS beside the console's list, and skipped it AFTER the rule.
+        SELF_RECORDS is derived now: the console's records (self_prove) plus the records a gate run writes, listed once
+        each, and tree_key forgives exactly that set through the one rule."""
+        import suite_verdict as SV
+        self.assertEqual(SV.SELF_RECORDS, frozenset(SP.CONSOLE_OWN_RECORDS) | SV.RUN_RECORDS, "the two lists drifted")
+        self.assertFalse(SV.RUN_RECORDS & frozenset(SP.CONSOLE_OWN_RECORDS), "a console record is listed twice")
+        wk, git, run = self._repo()
+        os.makedirs(os.path.join(wk, "tv"))
+        for r in sorted(SV.SELF_RECORDS):
+            io.open(os.path.join(wk, *r.split("/")), "w").write("one\n")
+        run("add", "-A", cwd=wk)
+        run("commit", "-qm", "every record", cwd=wk)
+        clean, _ = SV.tree_key(wk)
+        self.assertIsNotNone(clean)
+        for r in sorted(SV.SELF_RECORDS):
+            io.open(os.path.join(wk, *r.split("/")), "w").write("two\n")
+            self.assertEqual(SV.tree_key(wk)[0], clean, "the key moved on %s, a record it should forgive" % r)
+        io.open(os.path.join(wk, "f.txt"), "w").write("edit\n")
+        self.assertIsNone(SV.tree_key(wk)[0], "a real edit beside the records kept the key")
+
     def test_only_the_named_record_is_forgiven(self):
         f = SP._edits_beyond_own_records
         self.assertEqual(f("M tv/.status_worst.json"), [])
@@ -1030,17 +1091,59 @@ class TwoLanesOnlyWithRoom(unittest.TestCase):
 
 RED_PROOF = [
     {
+        "why": "REG-1898 - the launcher acts on a rule it could not ask (a failure reads as a verdict)",
+        "file": "tv/launcher_pull.py",
+        "find": "    return None if lines is None else (lines == [])\n",
+        "replace": "    return lines == []\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1898 - the ship audit keeps the raw rows when the rule could not be asked",
+        "file": "tv/ship_audit.py",
+        "find": "        lines, _why = _sp.tracked_edits(\"\\n\".join(lines))\n",
+        "replace": "        lines = _sp.tracked_edits(\"\\n\".join(lines))[0] or lines\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1898 - the verdict key is given over a rule that could not be asked",
+        "file": "tv/suite_verdict.py",
+        "find": "    if lines is None:\n        return None, \"%s, so whether the working tree is the commit is UNKNOWN - no key\" % uwhy\n",
+        "replace": "    if lines is None:\n        lines = []\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1898 - the prover reads an unaskable rule as an installed tree",
+        "file": "tv/self_prove.py",
+        "find": "        if _ed is None:\n            return \"unknown\", \"%s, so this tree cannot be told apart from a dev tree\" % _ewhy\n",
+        "replace": "        if _ed is None:\n            _ed = []\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1899 - suite_verdict lists its own records again instead of deriving them from the console's",
+        "file": "tv/suite_verdict.py",
+        "find": "    SELF_RECORDS = frozenset(_SP.CONSOLE_OWN_RECORDS) | RUN_RECORDS\n",
+        "replace": "    SELF_RECORDS = RUN_RECORDS\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1899 - tree_key forgives only the console's records, so a gate run's own record moves its key",
+        "file": "tv/suite_verdict.py",
+        "find": "    lines, uwhy = _SP.tracked_edits(st, also=RUN_RECORDS)   # REG-1898/1899 - the one rule, its one failure answer\n",
+        "replace": "    lines, uwhy = _SP.tracked_edits(st)\n",
+        "matches": 1,
+    },
+    {
         "why": "REG-1865 - the gate verdict key moves on the console's own record again, so every push re-runs its suites",
         "file": "tv/suite_verdict.py",
-        "find": "        if _theirs is not None and not _theirs(line):\n            continue\n",
-        "replace": "",
+        "find": "    lines, uwhy = _SP.tracked_edits(st, also=RUN_RECORDS)   # REG-1898/1899 - the one rule, its one failure answer\n",
+        "replace": "    lines, uwhy = st.splitlines(), None\n",
         "matches": 1,
     },
     {
         "why": "REG-1865 - the ship audit calls the console's own record uncommitted work again",
         "file": "tv/ship_audit.py",
-        "find": "        lines = _sp._edits_beyond_own_records(\"\\n\".join(lines))\n",
-        "replace": "        pass\n",
+        "find": "        lines, _why = _sp.tracked_edits(\"\\n\".join(lines))\n",
+        "replace": "        lines = list(lines)\n",
         "matches": 1,
     },
     {
@@ -1109,8 +1212,8 @@ RED_PROOF = [
     {
         "why": "REG-1837 - the console's own tracked record makes it a dev tree again, so the ALT never proves and its deleter stays locked",
         "file": "tv/self_prove.py",
-        "find": "        if _edits_beyond_own_records(dirty):\n",
-        "replace": "        if dirty:\n",
+        "find": "        _ed, _ewhy = tracked_edits(dirty)\n",
+        "replace": "        _ed, _ewhy = (dirty.splitlines() if dirty else []), None\n",
         "matches": 1,
     },
     {
