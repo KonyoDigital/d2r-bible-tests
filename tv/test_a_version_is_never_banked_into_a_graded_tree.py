@@ -250,7 +250,7 @@ class AContinuationLineIsNotAProcess(unittest.TestCase):
             TB.subprocess.run = real
 
     def test_a_prompt_that_names_the_hook_is_not_a_running_hook(self):
-        out = ("25680 /Users/x/.grok/bin/grok -p Code review. The following is a diff\n"
+        out = ("25680 /opt/x/.grok/bin/grok -p Code review. The following is a diff\n"
                "READ-ONLY bash hooks/pre-push origin url\n"
                "hooks/pre-push\n")
         running, why = self._run(out)
