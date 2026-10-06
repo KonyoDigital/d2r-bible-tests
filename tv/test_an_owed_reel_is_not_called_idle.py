@@ -91,6 +91,8 @@ class TestARetiredOwingReelIsNotCalledIdle(unittest.TestCase):
         out = CA.chronicle_autoreel_tick()
         self.assertEqual(out.get("owed"), 1, out)
         self.assertEqual(out.get("retiredBehindRefusal"), 1, out)
+        self.assertIs(out.get("idle"), False, out)
+        self.assertIs(out.get("ok"), False, out)
         self.assertNotIn("no unswept reel", str(out.get("why") or ""), out)
         self.assertEqual(CA._chron_owed_count(), 1,
                          "the tick and the durable count disagree about one reel")
@@ -101,6 +103,8 @@ class TestARetiredOwingReelIsNotCalledIdle(unittest.TestCase):
         out = CA.chronicle_autoreel_tick()
         self.assertEqual(out.get("owed"), 0, out)
         self.assertEqual(out.get("retiredBehindRefusal"), 0, out)
+        self.assertIs(out.get("idle"), True, out)
+        self.assertIs(out.get("ok"), True, out)
         self.assertEqual(out.get("why"), "no unswept reel", out)
 
 
@@ -220,6 +224,30 @@ class TestALaneRefusalDoesNotRetireTheVaultReel(unittest.TestCase):
         self.assertTrue(out.get("laneMissing"), out)
         self.assertIn("vault_retro unavailable", out.get("why") or "")
 
+    def test_owed_reels_that_cannot_start_are_not_a_clean_tick(self):
+        import unittest.mock as mock
+        with mock.patch.object(CA, "_vault_owed_reels", lambda hist=None: [self.reel]), \
+                mock.patch.object(CA, "_reel_is_growing", lambda d, quiet_s=90: True), \
+                mock.patch.object(CA, "vault_sweep_state", lambda *a, **k: {"running": False}), \
+                mock.patch.object(CA, "vault_sweep_start",
+                                  lambda **k: (_ for _ in ()).throw(AssertionError("started %r" % k))):
+            out = CA.vault_autoreel_tick()
+        self.assertEqual(out.get("owed"), 1, out)
+        self.assertIs(out.get("ok"), False, out)
+        self.assertIn("1 owed, none startable this tick", out.get("why") or "")
+        self.assertIsNone(out.get("started"), out)
+
+    def test_nothing_owed_on_the_vault_is_still_a_clean_tick(self):
+        import unittest.mock as mock
+        with mock.patch.object(CA, "_vault_owed_reels", lambda hist=None: []), \
+                mock.patch.object(CA, "vault_sweep_state", lambda *a, **k: {"running": False}), \
+                mock.patch.object(CA, "vault_sweep_start",
+                                  lambda **k: (_ for _ in ()).throw(AssertionError("started"))):
+            out = CA.vault_autoreel_tick()
+        self.assertEqual(out.get("owed"), 0, out)
+        self.assertIs(out.get("ok"), True, out)
+        self.assertEqual(out.get("why"), "no reel owes the vault lane a read")
+
     def test_the_reported_switch_stays_on_when_the_reader_is_missing(self):
         import unittest.mock as mock
 
@@ -262,6 +290,24 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": "            if not _vault_refusal_is_the_lane(blob):\n                continue\n",
         "replace": "            if True:\n                continue\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1789 - a chronicle tick that still owes a read is called idle again",
+        "file": "control_app.py",
+        "find": "    return {\"ok\": False, \"idle\": False, \"owed\": _owed, \"retired\": len(_retired),\n"
+                "            \"retiredBehindRefusal\": _retired_owing, \"why\": _why}\n",
+        "replace": "    return {\"ok\": True, \"idle\": True, \"owed\": _owed, \"retired\": len(_retired),\n"
+                   "            \"retiredBehindRefusal\": _retired_owing, \"why\": _why}\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1789 - a vault tick with reels owed and none started is a clean tick again",
+        "file": "control_app.py",
+        "find": "    return {\"ok\": False, \"read\": None, \"owed\": owed,\n"
+                "            \"why\": \"%d owed, none startable this tick\" % owed}\n",
+        "replace": "    return {\"ok\": True, \"read\": None, \"owed\": owed,\n"
+                   "            \"why\": \"%d owed, none startable this tick\" % owed}\n",
         "matches": 1,
     },
 ]

@@ -5737,7 +5737,9 @@ GATES = [
              "still counted them. The vault tick treated a missing reader as the reel's own "
              "failure and retired it. A retired reel that still owes stays in the number. A "
              "missing lane or a machine lock does not burn a try. A retirement that names that "
-             "refusal and has no seal is given back. A real reel failure still retires."),
+             "refusal and has no seal is given back. A real reel failure still retires. "
+             "REG-1789: a tick that still owes a read and started none is not idle. Zero owed "
+             "is still a clean tick. The tick does not start an extra sweep."),
     Gate("test_a_missing_tombstone_is_none_yet",
          [sys.executable, os.path.join(HERE, "test_a_missing_tombstone_is_none_yet.py")], 180,
          why="a console that has never retired a reel has no reel_tombstones.json. That is none "

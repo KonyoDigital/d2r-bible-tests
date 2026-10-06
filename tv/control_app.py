@@ -21435,8 +21435,10 @@ def chronicle_autoreel_tick():
         # would burn the reel at START, which is what this comment used to describe and not do.
         return {"ok": True, "swept": rid, "start": r}
     if not _owed:
-        _why = "no unswept reel"
-    elif _retired_owing >= _owed:
+        # REG-1789 — zero owed is the idle tick. A reel that still owes is not one.
+        return {"ok": True, "idle": True, "owed": 0, "retired": len(_retired),
+                "retiredBehindRefusal": _retired_owing, "why": "no unswept reel"}
+    if _retired_owing >= _owed:
         _why = ("%d reel(s) still owe a read and are retired behind a refusal, "
                 "so this tick starts none" % _owed)
     elif _retired_owing:
@@ -21444,7 +21446,7 @@ def chronicle_autoreel_tick():
                 "could be started" % (_owed, _retired_owing))
     else:
         _why = "%d reel(s) owe a read but none could be started" % _owed
-    return {"ok": True, "idle": True, "owed": _owed, "retired": len(_retired),
+    return {"ok": False, "idle": False, "owed": _owed, "retired": len(_retired),
             "retiredBehindRefusal": _retired_owing, "why": _why}
 
 
@@ -31796,9 +31798,13 @@ def vault_autoreel_tick():
         _VAULT_AUTOREAD["lastTs"] = int(time.time() * 1000)
         _vault_autoread_save()            # ⚠ lastTs is what "has this lane ever worked" reads
         return {"ok": True, "started": rid, "owed": owed}
-    return {"ok": True, "read": None, "owed": owed,
-            "why": "no reel owes the vault lane a read" if not owed else
-                   "%d owed, none startable this tick" % owed}
+    if not owed:
+        return {"ok": True, "read": None, "owed": 0,
+                "why": "no reel owes the vault lane a read"}
+    # REG-1789 — the sentence already said they are owed. ok stayed true, so a tick
+    # that started none still read as a tick that closed clean.
+    return {"ok": False, "read": None, "owed": owed,
+            "why": "%d owed, none startable this tick" % owed}
 
 
 
