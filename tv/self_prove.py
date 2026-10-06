@@ -562,7 +562,7 @@ def _git(*args, timeout=15):
     return r.returncode, (r.stdout or "").strip()
 
 
-#: REG-1814 — TRACKED FILES THE RUNNING CONSOLE REWRITES ITSELF. `.status_worst.json` is tracked on purpose (a
+#: REG-1837 — TRACKED FILES THE RUNNING CONSOLE REWRITES ITSELF. `.status_worst.json` is tracked on purpose (a
 #: kept evidence record, the .gitignore ruling) and control_app._status_worst_save rewrites it on every new
 #: slowest request. MEASURED on his ALT 2026-10-06: its one local edit was ` M tv/.status_worst.json`, so this
 #: lane said "the tree has local edits" on every tick, the census stayed STALE, frame.release stayed LOCKED and

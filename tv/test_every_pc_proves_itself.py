@@ -230,7 +230,7 @@ class TheTreeIsToldApart(unittest.TestCase):
         self.assertEqual(SP.tree_state(git)[0], "dev", "a tree with an unpushed commit read as installed")
 
     def test_the_consoles_own_record_is_not_a_local_edit(self):
-        """REG-1814 - his ALT 2026-10-06: the one local edit was ` M tv/.status_worst.json`, the tracked record the
+        """REG-1837 - his ALT 2026-10-06: the one local edit was ` M tv/.status_worst.json`, the tracked record the
         console rewrites on its slowest request, so this lane said "the tree has local edits" every tick and the
         heart never proved there again. Real git, a real temp repo: that record alone is installed; a second
         edit beside it is still dev."""
@@ -806,7 +806,7 @@ class TwoLanesOnlyWithRoom(unittest.TestCase):
 
 RED_PROOF = [
     {
-        "why": "REG-1814 - the console's own tracked record makes it a dev tree again, so the ALT never proves and its deleter stays locked",
+        "why": "REG-1837 - the console's own tracked record makes it a dev tree again, so the ALT never proves and its deleter stays locked",
         "file": "tv/self_prove.py",
         "find": "        if _edits_beyond_own_records(dirty):\n",
         "replace": "        if dirty:\n",
