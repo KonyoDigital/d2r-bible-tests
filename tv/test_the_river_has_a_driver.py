@@ -257,6 +257,24 @@ class TheRiverHasADriver(unittest.TestCase):
             % (v,))
 
     # ── ⚠⚠ THE HEART ────────────────────────────────────────────────────────────────────────
+    def test_the_pulse_is_this_process(self):
+        """The published pulse is the serving module's counters, not a second import's zeros."""
+        import control_app as CA
+        saved_lane, saved_tick = CA._ROUTE_LANE, CA._TRIAGE_TICK
+        try:
+            CA._ROUTE_LANE = dict(saved_lane, runs=7, at=50.0, why="moved one")
+            CA._TRIAGE_TICK = dict(saved_tick, attempts=7, raised=None)
+            p = CA.route_lane_pulse()
+        finally:
+            CA._ROUTE_LANE, CA._TRIAGE_TICK = saved_lane, saved_tick
+        self.assertTrue(p.get("ok"), p)
+        self.assertEqual(p.get("runs"), 7, "a second module's zero would read as a lane that never ran")
+        self.assertEqual(p.get("attempts"), 7)
+        self.assertEqual(p.get("at"), 50.0)
+        self.assertEqual(p.get("why"), "moved one")
+        self.assertIsInstance(p.get("stoodDown"), bool)
+        self.assertIsInstance(p.get("everyS"), int)
+
     def test_the_doctor_separates_A_DEAD_DRIVER_from_A_BUSY_ONE(self):
         """★ Until v2770 the row could say "they have not been closed out" but never WHY, and the
         answer was "because no code anywhere runs the lane". A waiting queue means two different
@@ -265,7 +283,7 @@ class TheRiverHasADriver(unittest.TestCase):
         src = io.open(os.path.join(HERE, "console_doctor.py"), encoding="utf-8").read()
         i = src.find("def _check_the_river_has_an_outlet")
         blk = src[i:src.find("\ndef ", i + 1)]
-        self.assertIn("_ROUTE_LANE", blk, "the outlet row does not ask the driver anything")
+        self.assertIn("routeLane", blk, "the outlet row does not ask the driver anything")
         self.assertIn("HAS NEVER RUN", blk,
                       "a driver that has never run is reported with the same sentence as one that "
                       "ran a second ago — a dead loop reading as a busy one")

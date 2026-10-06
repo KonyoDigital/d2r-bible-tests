@@ -78,6 +78,126 @@ class TheDoctorReadsTheConsoleNotATwin(unittest.TestCase):
                                  "whose globals are the empty literals, the four-day twin")
 
 
+_NO_WIRE = object()
+_NO_FIELD = object()
+
+
+class TheOutletReadsTheWireNotATwin(unittest.TestCase):
+    """The outlet row imported the console and read its route-lane counters. The console is
+    __main__, so that import is a second module whose runs and attempts stay 0. A reel waiting
+    to be closed out then read as a process too young to have ticked, and the failing-tick and
+    never-ran sentences could not be reached."""
+
+    def _outlet(self, pulse, waiting=True, routed=2, shelf=10):
+        import reel_route_lane as lane
+        import reel_router as rr
+        saved = (rr.route, lane.plan, CD._get)
+        asked = []
+
+        def _route():
+            return {"ok": True, "outletReadable": True,
+                    "counts": {"ROUTED": routed}, "shelf": shelf}
+
+        def _plan(_rep):
+            return {"ok": True, "route": (["reel_a"] if waiting else []), "declined": []}
+
+        def _get(path, *a, **k):
+            asked.append(path)
+            if path != "/api/river":
+                return None
+            if pulse is _NO_WIRE:
+                return None
+            if pulse is _NO_FIELD:
+                return {"ok": True}
+            return {"routeLane": pulse}
+
+        rr.route, lane.plan, CD._get = _route, _plan, _get
+        try:
+            st, why = CD._check_the_river_has_an_outlet()
+        finally:
+            rr.route, lane.plan, CD._get = saved
+        return st, why, asked
+
+    def test_a_running_lane_on_the_wire_is_not_called_young(self):
+        st, why, _asked = self._outlet({
+            "ok": True, "runs": 4, "at": time.time() - 30, "attempts": 4,
+            "raised": None, "stoodDown": False, "everyS": 90, "why": "routed 1"})
+        self.assertEqual(st, "missing")
+        self.assertIn("last ran", why)
+        self.assertIn("routed 1", why)
+        self.assertNotIn("process is young", why)
+        self.assertNotIn("HAS NEVER RUN", why)
+
+    def test_no_wire_is_unknown_not_the_young_process(self):
+        st, why, _asked = self._outlet(_NO_WIRE)
+        self.assertEqual(st, "unknown")
+        self.assertIn("not on the wire", why)
+        self.assertIn("not a young process", why)
+        self.assertNotIn("process is young", why)
+        self.assertNotIn("HAS NEVER RUN", why)
+
+    def test_a_console_that_predates_the_pulse_is_unknown(self):
+        st, why, _asked = self._outlet(_NO_FIELD)
+        self.assertEqual(st, "unknown", why)
+        self.assertIn("not on the wire", why)
+
+    def test_the_twins_zero_counters_are_the_young_process_only_when_measured(self):
+        st, why, _asked = self._outlet({
+            "ok": True, "runs": 0, "attempts": 0, "at": None, "raised": None,
+            "stoodDown": False, "everyS": 90, "why": ""})
+        self.assertEqual(st, "missing")
+        self.assertIn("process is young", why)
+        self.assertIn("90s", why)
+
+    def test_a_failing_tick_is_not_a_lane_that_never_ran(self):
+        st, why, _asked = self._outlet({
+            "ok": True, "runs": 0, "attempts": 3, "at": None, "raised": "Boom: upstream",
+            "stoodDown": False, "everyS": 90, "why": ""})
+        self.assertEqual(st, "missing")
+        self.assertIn("RAISED", why)
+        self.assertIn("FAILING", why)
+        self.assertNotIn("HAS NEVER RUN", why)
+        self.assertNotIn("process is young", why)
+
+    def test_attempts_with_no_raise_and_no_run_is_a_lane_that_never_ran(self):
+        st, why, _asked = self._outlet({
+            "ok": True, "runs": 0, "attempts": 3, "at": None, "raised": None,
+            "stoodDown": False, "everyS": 90, "why": ""})
+        self.assertEqual(st, "missing")
+        self.assertIn("HAS NEVER RUN", why)
+
+    def test_a_stood_down_lane_is_not_a_dead_one(self):
+        st, why, _asked = self._outlet({
+            "ok": True, "runs": 0, "attempts": 0, "at": None, "raised": None,
+            "stoodDown": True, "everyS": 90, "why": ""})
+        self.assertEqual(st, "missing")
+        self.assertIn("STOOD DOWN", why)
+        self.assertNotIn("process is young", why)
+        self.assertNotIn("HAS NEVER RUN", why)
+
+    def test_a_quiet_shelf_does_not_ask_the_wire(self):
+        st, why, asked = self._outlet(_NO_WIRE, waiting=False, routed=3)
+        self.assertEqual(st, "ok", why)
+        self.assertEqual(asked, [], "nothing is waiting, so a dead wire must not become the verdict")
+        self.assertIn("closed out", why)
+
+    def test_the_outlet_row_never_imports_the_twin(self):
+        src = io.open(os.path.join(HERE, "console_doctor.py"), encoding="utf-8").read()
+        tree = ast.parse(src)
+        fn = next(f for f in ast.walk(tree)
+                  if isinstance(f, ast.FunctionDef)
+                  and f.name == "_check_the_river_has_an_outlet")
+        for n in ast.walk(fn):
+            names = []
+            if isinstance(n, ast.Import):
+                names = [a.name for a in n.names]
+            elif isinstance(n, ast.ImportFrom):
+                names = [n.module or ""]
+            self.assertFalse(any(a == "control_app" or a.endswith(".control_app") for a in names),
+                             "the outlet row imports control_app again — a second module whose "
+                             "route-lane counters stay at zero")
+
+
 RED_PROOF = [
     {
         "why": "reading the twin's exact face instead of the wire restores four days of UNKNOWN "
@@ -93,6 +213,16 @@ RED_PROOF = [
         "file": "console_doctor.py",
         "find": "    if isinstance(age, (int, float)) and age > 900:",
         "replace": "    if False:",
+        "matches": 1,
+    },
+    {
+        "why": "reading the twin's empty counters instead of the wire makes a lane that has run "
+               "look like a process too young to have ticked",
+        "file": "console_doctor.py",
+        "find": "        got = riv.get(\"routeLane\") if isinstance(riv, dict) else None",
+        "replace": "        got = {\"ok\": True, \"runs\": 0, \"attempts\": 0, \"stoodDown\": False, "
+                   "\"raised\": None, \"everyS\": 90, \"at\": None, \"why\": \"\"} "
+                   "if isinstance(riv, dict) else None",
         "matches": 1,
     },
 ]

@@ -3068,53 +3068,78 @@ def _check_the_river_has_an_outlet():
     #   driver never ran   -> the loop is dead or the wiring broke. That is the finding.
     #   driver ran recently-> the reels arrived since, and the next tick will take them.
     # Collapsing those two into one sentence is how a dead loop reads as a busy one.
-    drv = None
-    try:
-        import control_app as _ca2
-        drv = getattr(_ca2, "_ROUTE_LANE", None)
-    except Exception:
-        drv = None
-    drv_at = (drv or {}).get("at")
-    drv_runs = int((drv or {}).get("runs") or 0)
+    # ⚠ THE WIRE, NEVER a second import of the console. The console runs as __main__, so importing
+    # it here builds another module whose route-lane counters stay at zero. A reel waiting to be
+    # closed out then read as a process too young to have ticked, for the whole life of a lane
+    # that was running, and the RAISED and HAS NEVER RUN sentences could not be reached. The
+    # serving process publishes routeLane on /api/river. No pulse is UNKNOWN: the young-process
+    # sentence is a measurement, not the shape of a miss.
+    # [[the-unjoined-end]] [[feedback-suspect-the-instrument]]
+    pulse = None
+    if waiting:
+        riv = _get("/api/river", timeout=8)
+        got = riv.get("routeLane") if isinstance(riv, dict) else None
+        if isinstance(got, dict) and got.get("ok") is not False and "runs" in got:
+            pulse = got
+    if waiting and pulse is None:
+        return UNKNOWN, ("%d of %d reel(s) can be closed out RIGHT NOW, and the route lane's "
+                         "pulse is not on the wire, so whether anything is driving them is "
+                         "UNKNOWN — not a young process, and not a lane that has never run. "
+                         "ROUTED holds %d%s" % (waiting, shelf, routed, tail))
+
+    # ⚠ v3297 — runs==0 used to CONFLATE THREE OPPOSITE FACTS: a lane the roster stood down
+    # by design (TV_STUB), a process younger than the sleep-first 90s tick, and a tick that
+    # raises upstream of the runs counter every round for ever. A dead loop, a deliberate
+    # absence and a failing loop are different findings and must not share a sentence — the
+    # guest board read a stood-down driver as "nothing is driving the river" 2026-09-18.
+    # A bool is an int in Python, and True must not read as one run.
+    _runs = pulse.get("runs") if waiting else 0
+    drv_runs = _runs if isinstance(_runs, int) and not isinstance(_runs, bool) else None
+    if waiting and drv_runs is None:
+        return UNKNOWN, ("%d of %d reel(s) can be closed out RIGHT NOW, and the route lane's "
+                         "run count could not be read, so whether anything is driving them is "
+                         "UNKNOWN. ROUTED holds %d%s" % (waiting, shelf, routed, tail))
     if waiting and not drv_runs:
-        # ⚠ v3297 — runs==0 used to CONFLATE THREE OPPOSITE FACTS: a lane the roster stood down
-        # by design (TV_STUB), a process younger than the sleep-first 90s tick, and a tick that
-        # raises upstream of the runs counter every round for ever. A dead loop, a deliberate
-        # absence and a failing loop are different findings and must not share a sentence — the
-        # guest board read a stood-down driver as "nothing is driving the river" 2026-09-18.
         head = ("%d of %d reel(s) can be closed out RIGHT NOW and have not been"
                 % (waiting, shelf))
-        try:
-            import control_app as _ca3
-        except Exception:
-            _ca3 = None
-        stood = getattr(_ca3, "_LANES_STOOD_DOWN", None) or ()
-        tick = getattr(_ca3, "_TRIAGE_TICK", None) or {}
-        att = int(tick.get("attempts") or 0)
-        if "tvd-retro-triage" in stood:
+        _att = pulse.get("attempts")
+        att = _att if isinstance(_att, int) and not isinstance(_att, bool) else None
+        if pulse.get("stoodDown") is True:
             return MISSING, ("%s — the route lane's driver is STOOD DOWN in this world (TV_STUB "
                              "harness): it will never run here BY DESIGN, which is not a dead "
                              "loop. ROUTED holds %d%s" % (head, routed, tail))
-        if att and tick.get("raised"):
+        if att is None:
+            return UNKNOWN, ("%s — the triage tick's attempt count is not on the pulse, so a "
+                             "young process, a failing tick and a lane that has never run cannot "
+                             "be told apart. UNKNOWN. ROUTED holds %d%s" % (head, routed, tail))
+        if att and pulse.get("raised"):
             return MISSING, ("%s — the triage tick has ATTEMPTED %d time(s) in this process and "
                              "RAISED before reaching the route lane (last: %s): a FAILING driver, "
                              "not a dead one. ROUTED holds %d%s"
-                             % (head, att, str(tick.get("raised"))[:90], routed, tail))
+                             % (head, att, str(pulse.get("raised"))[:90], routed, tail))
         if not att:
+            _every = pulse.get("everyS")
+            every = _every if isinstance(_every, int) and not isinstance(_every, bool) else None
+            if every is None:
+                return MISSING, ("%s — no triage tick has been ATTEMPTED yet in this process "
+                                 "(the first-tick sleep was not published), so 'never ran' may "
+                                 "only mean the process is young. ROUTED holds %d%s"
+                                 % (head, routed, tail))
             return MISSING, ("%s — no triage tick has been ATTEMPTED yet in this process (the "
                              "loop sleeps %ss before its first tick), so 'never ran' may only "
                              "mean the process is young. ROUTED holds %d%s"
-                             % (head, getattr(_ca3, "_TRIAGE_EVERY_S", 90), routed, tail))
+                             % (head, every, routed, tail))
         return MISSING, ("%s, and the route lane HAS NEVER RUN in this process — nothing is "
                          "driving the river. ROUTED holds %d%s" % (head, routed, tail))
     if waiting:
-        import time as _t
-        age = int(_t.time() - float(drv_at)) if drv_at else None
+        at = pulse.get("at")
+        age = (int(time.time() - float(at))
+               if isinstance(at, (int, float)) and not isinstance(at, bool) else None)
         return MISSING, ("%d of %d reel(s) are waiting to be closed out; the route lane last ran "
                          "%s and reported: %s. ROUTED holds %d%s"
                          % (waiting, shelf,
                             ("%ds ago" % age) if age is not None else "at an unrecorded time",
-                            str((drv or {}).get("why") or "nothing"), routed, tail))
+                            str(pulse.get("why") or "nothing"), routed, tail))
     if routed:
         return OK, ("%d of %d reel(s) closed out and none waiting — the river has an outlet and "
                     "it is being used%s" % (routed, shelf, tail))

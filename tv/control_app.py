@@ -30900,6 +30900,37 @@ _ROUTE_LANE = {"at": None, "runs": 0, "ok": None, "routed": None, "already": Non
 #: failure. runs==0 with attempts>0 can now be told from a young process and a stood-down lane.
 _TRIAGE_TICK = {"attempts": 0, "at": None, "raised": None}
 
+
+def route_lane_pulse():
+    """The route lane and the triage tick, for a reader in another process. -> dict
+
+    The river-outlet row used to import this module and read _ROUTE_LANE and _TRIAGE_TICK.
+    The console runs this file as __main__, so that import is a second module whose literals
+    stay at runs 0 and attempts 0. A reel waiting to be closed out then read as a process too
+    young to have ticked, for the whole life of a lane that was running, and the failing-tick
+    and never-ran sentences could not be reached. The serving process publishes this pulse on
+    /api/river, beside triage_lane_state. runs 0 and attempts 0 are measurements of THIS
+    process. A pulse that cannot be taken is ok False, never those zeros.
+    """
+    try:
+        lane = dict(_ROUTE_LANE)
+        tick = dict(_TRIAGE_TICK)
+        runs, attempts = lane.get("runs"), tick.get("attempts")
+        at = lane.get("at")
+        return {
+            "ok": True,
+            "at": at if isinstance(at, (int, float)) and not isinstance(at, bool) else None,
+            "runs": runs if isinstance(runs, int) and not isinstance(runs, bool) else None,
+            "why": lane.get("why") if isinstance(lane.get("why"), str) else "",
+            "attempts": attempts if isinstance(attempts, int) and not isinstance(attempts, bool) else None,
+            "raised": tick.get("raised") if isinstance(tick.get("raised"), str) else None,
+            "stoodDown": "tvd-retro-triage" in _LANES_STOOD_DOWN,
+            "everyS": _TRIAGE_EVERY_S if isinstance(_TRIAGE_EVERY_S, int)
+            and not isinstance(_TRIAGE_EVERY_S, bool) else None,
+        }
+    except Exception as e:
+        return {"ok": False, "why": "the route lane pulse could not be read: %s" % str(e)[:120]}
+
 _RIVER_WALK = {"at": None, "ok": None, "reels": None, "moved": None, "why": "",
                "walks": 0, "lastMovedAt": None, "unchanged": None, "refused": None}
 
@@ -42579,6 +42610,9 @@ class Handler(BaseHTTPRequestHandler):
                     # 'triage starved' row reads it from here because it runs in another process.
                     "triage": triage_lane_state(),
                     "walked": _walked, "rowMeta": _rowmeta,
+                    # the outlet row reads this. It runs in another process, and importing this
+                    # module there is a second copy whose route-lane counters stay at zero.
+                    "routeLane": route_lane_pulse(),
                     "why": _cen.get("why") or "",
                     "detail": _reels,
                 })
@@ -42587,8 +42621,10 @@ class Handler(BaseHTTPRequestHandler):
                 # with nothing in it.
                 _river_remember(error=e)
                 self._json(200, {"ok": False, "stations": None, "counts": None, "reels": None,
-                                 # the lane's own record does not depend on the census that failed
+                                 # the lane's own record does not depend on the census that failed,
+                                 # and neither does the route lane's pulse
                                  "triage": triage_lane_state(),
+                                 "routeLane": route_lane_pulse(),
                                  "why": "the river could not be read: %s" % str(e)[:180]})
             return
         if path == "/api/reel_story":

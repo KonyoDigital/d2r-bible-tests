@@ -441,7 +441,7 @@ class TheLaneIsPublished(_Base):
                 keys = {k.value for k in n.keys if isinstance(k, ast.Constant)}
                 if {"mouth", "population", "detail"} <= keys:
                     out.append(("ok", n))
-                elif {"stations", "counts", "reels", "why"} <= keys and len(keys) <= 6:
+                elif {"stations", "counts", "reels", "why"} <= keys and len(keys) <= 7:
                     out.append(("failed", n))
         return out
 
@@ -457,6 +457,11 @@ class TheLaneIsPublished(_Base):
                             and v.func.id == "triage_lane_state",
                             "the %s /api/river payload does not publish triage_lane_state() - the "
                             "doctor runs in another process and cannot see the lane" % kind)
+            lane = vals.get("routeLane")
+            self.assertTrue(isinstance(lane, ast.Call) and isinstance(lane.func, ast.Name)
+                            and lane.func.id == "route_lane_pulse",
+                            "the %s /api/river payload does not publish route_lane_pulse() - the "
+                            "outlet row runs in another process and cannot see the driver" % kind)
 
     def test_the_published_state_says_never_and_up_not_zero(self):
         s = ca.triage_lane_state()
