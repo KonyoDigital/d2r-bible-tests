@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3596",
+  "ver": "v3597",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3596: Grok 63 commits audited and fixed - Windows films after a launcher seal, the river alarm counts every reel, the drain runs beside the shadow reader at 20 per pass, one journal reader, the vault hand-add files into owned, the crafted editor is fixed",
+  "note": "v3597: CI-red fixes for v3596 (pinned reel id, four source windows, a scratch dir) and a ci/* push is graded on GitHub, not on his Mac",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

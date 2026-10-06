@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3596** | `(this commit)` | v3596 — Grok 63 commits audited and fixed - Windows films after a launcher seal, the river alarm counts every reel, the drain runs beside the shadow reader at 20 per pass, one journal reader, the vault hand-add files into owned, the crafted editor is fixed |
+| **v3597** | `(this commit)` | v3597 — CI-red fixes for v3596 (pinned reel id, four source windows, a scratch dir) and a ci/* push is graded on GitHub, not on his Mac |
+| **v3596** | `a075e589` | v3596 — Grok 63 commits audited and fixed - Windows films after a launcher seal, the river alarm counts every reel, the drain runs beside the shadow reader at 20 per pass, one journal reader, the vault hand-add files into owned, the crafted editor is fixed |
 | **v3595** | `83413262` | v3595 — the build stash opens Inventory, Personal and Shared. HEART: test_the_build_stash_is_the_mule_stash_view |
 | **v3594** | `88bcf192` | v3594 — A window or shadow change reaches the fleet within a minute. A freshness check that times out asks the console forward. HEART: test_a_window_change_reaches_the_fleet, test_the_launcher_brings_a_running_console_forward |
 | **v3593** | `4606a280` | v3593 — The Windows installer fetches and then runs the incoming update rule from a temp file. A refusal is printed and nothing is fast-forwarded over it. A reset that fails says the update matched and quotes the git error. HEART: test_a_landed_update_is_not_an_edit |
