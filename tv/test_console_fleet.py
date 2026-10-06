@@ -40,6 +40,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 # v1883 — THIS FILE IMPORTS control_app IN-PROCESS, so it also imports g5_grok_eyes, and something
 # in that path writes his live tv/g5_stats.json. It was the last of six harnesses still doing so
@@ -520,6 +521,12 @@ class TestBeaconHonesty(unittest.TestCase):
         self._last = dict(getattr(ca, "_BEACON_LAST", {}) or {})
         if hasattr(ca, "_BEACON_LAST"):
             ca._BEACON_LAST.clear()
+        # REG-1788 — doctor_payload now asks the extract. This class is about the beacon,
+        # and the ask must not walk his shelf or his sweep memory.
+        self._extract = mock.patch.object(
+            ca, "_extract_moving_facts",
+            lambda: {"owed": 0, "memory": "absent", "ageKnown": True})
+        self._extract.start()
 
     def tearDown(self):
         ca = self.ca
@@ -533,6 +540,7 @@ class TestBeaconHonesty(unittest.TestCase):
         if hasattr(ca, "_BEACON_LAST"):
             ca._BEACON_LAST.clear()
             ca._BEACON_LAST.update(self._last)
+        self._extract.stop()
         self._tmp.cleanup()
 
     def _check(self):

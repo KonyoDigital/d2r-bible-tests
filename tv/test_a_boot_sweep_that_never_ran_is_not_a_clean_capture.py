@@ -109,7 +109,9 @@ class ABootSweepThatNeverRan(unittest.TestCase):
                 mock.patch.object(ca, "_screen_recording_ok_quick", lambda: True), \
                 mock.patch.object(ca, "_journal_path", lambda: missing), \
                 mock.patch.object(ca, "_one_of_each_check",
-                                  lambda alive=None: ca._chk("one_of_each", True, "warn", "stub")):
+                                  lambda alive=None: ca._chk("one_of_each", True, "warn", "stub")), \
+                mock.patch.object(ca, "_extract_moving_facts",
+                                  lambda: {"owed": 0, "memory": "absent", "ageKnown": True}):
             got = ca.doctor_payload()
         row = next(c for c in got["checks"] if c["id"] == "one_capture")
         self.assertIs(row["ok"], False, row)

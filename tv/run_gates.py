@@ -9429,6 +9429,14 @@ GATES = [
              "as a warning that passed. The eagle already calls that UNKNOWN. The gate now says the "
              "read was not taken. Below 2 GB still blocks. Between 2 and 8 GB the night warning still "
              "appears. At 8 GB and above the disk row still passes."),
+    Gate("test_an_owed_reel_with_no_extract_memory_is_not_moving",
+         [sys.executable, os.path.join(HERE, "test_an_owed_reel_with_no_extract_memory_is_not_moving.py")], 90,
+         needs_app=False,
+         why="REG-1788 (#86 gap audit 18) - /api/doctor never asked whether a reel that still owes a "
+             "chronicle read had an extract memory. Owed reels and a file that was never written are "
+             "not a pass. A file older than the oldest owed reel is not a pass. A file that will not "
+             "read is UNMEASURED. Zero owed is still a pass. The row does not start a sweep and does "
+             "not write the memory."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

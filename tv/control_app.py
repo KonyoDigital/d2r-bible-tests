@@ -40930,6 +40930,132 @@ def _river_outlet_doctor_row(census, stones, rows, now_ms=None):
         "and does not delete a reel.")
 
 
+def _extract_moving_unmeasured(why):
+    """An extract ask that did not come back. Not a pass. -> check"""
+    return _chk(
+        "extract_moving", False, "warn",
+        "UNMEASURED: %s - not an extract that is moving" % why)
+
+
+def _extract_moving_doctor_row(facts):
+    """The doctor's extract_moving row. Owed reels and a memory that is not moving. -> check
+
+    #86 gap audit 18 (REG-1788). /api/doctor never asked whether a reel that still owes
+    a chronicle read had a sweep memory at all. Zero owed is a pass, including when the
+    file has never been written. Owed reels and a file that is not there is a warn: no
+    read has been banked. A file whose clock is strictly before the oldest owed reel is
+    the same warn. An equal clock is not older. A reel whose name will not say when it
+    was filmed makes the age unknown, and the ones that will parse are not used in its
+    place. Anything that will not read is UNMEASURED, never a pass. This writes nothing
+    and does not start a sweep.
+    """
+    if not isinstance(facts, dict):
+        return _extract_moving_unmeasured("the extract facts did not come back")
+    # An unreadable file is not a count. Checking the count first would hide the file.
+    if facts.get("memory") == "unreadable":
+        return _extract_moving_unmeasured(
+            "the extract memory could not be read, so a missing file is not what was measured")
+    owed = facts.get("owed")
+    if isinstance(owed, bool) or not isinstance(owed, int) or owed < 0:
+        return _extract_moving_unmeasured("how many reels owe a read was not counted")
+    if owed == 0:
+        return _chk(
+            "extract_moving", True, "warn",
+            "0 reels owe a read — nothing is waiting on the extract")
+    memory = facts.get("memory")
+    if memory == "absent":
+        return _chk(
+            "extract_moving", False, "warn",
+            "%d reel(s) owe a read and no extract memory has ever been written" % owed,
+            "This row does not start a sweep and does not write chronicle_swept.json.")
+    if memory != "present":
+        return _extract_moving_unmeasured(
+            "the extract memory could not be read, so a missing file is not what was measured")
+    if facts.get("ageKnown") is not True:
+        return _extract_moving_unmeasured(
+            "an owed reel carried no capture clock, so whether the extract memory is older "
+            "than it is not known")
+    oldest = facts.get("oldestMs")
+    if isinstance(oldest, bool) or not isinstance(oldest, int) or oldest < 10 ** 12:
+        return _extract_moving_unmeasured(
+            "the oldest owed reel's clock did not come back as a filmed time")
+    mtime = facts.get("memoryMtimeMs")
+    if isinstance(mtime, bool) or not isinstance(mtime, int):
+        return _extract_moving_unmeasured(
+            "the extract memory's clock did not come back as a time")
+    if mtime < oldest:
+        return _chk(
+            "extract_moving", False, "warn",
+            "extract memory is older than the oldest owed reel (%d reel(s) owe a read)" % owed,
+            "This row does not start a sweep and does not write chronicle_swept.json.")
+    return _chk(
+        "extract_moving", True, "warn",
+        "%d reel(s) owe a read and the extract memory is not older than the oldest of them"
+        % owed)
+
+
+def _extract_moving_facts():
+    """Read-only facts for the extract row. -> dict
+
+    Does not call _chron_owed_count (that stamps the triage tally) and does not call
+    _json_store_load (that marks the store unreadable and can block a later save).
+    A file that is not there is absent, and the owed count is taken against an empty
+    memory. A file that will not parse is unreadable, and that is not zero owed.
+    """
+    path = _chron_swept_path()
+    try:
+        st = os.stat(path)
+    except FileNotFoundError:
+        memory = "absent"
+        mtime_ms = None
+        mem = {}
+    except Exception:
+        return {"owed": None, "memory": "unreadable", "ageKnown": False}
+    else:
+        memory = "present"
+        try:
+            mtime_ms = int(st.st_mtime * 1000)
+        except Exception:
+            return {"owed": None, "memory": "unreadable", "ageKnown": False}
+        try:
+            with open(path, encoding="utf-8") as fh:
+                mem = json.load(fh)
+        except Exception:
+            return {"owed": None, "memory": "unreadable", "ageKnown": False}
+        if not isinstance(mem, dict):
+            return {"owed": None, "memory": "unreadable", "ageKnown": False}
+    try:
+        import chronicle_retro as _cr
+        hist = os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
+        dirs = [os.path.basename(str(d)) for d in (_cr.reel_dirs(hist, newest_first=True) or [])]
+    except Exception:
+        return {"owed": None, "memory": memory, "ageKnown": False}
+    owed_names = []
+    try:
+        for rid in dirs:
+            if _chron_reel_owes_a_read(str(rid), mem):
+                owed_names.append(str(rid))
+    except Exception:
+        return {"owed": None, "memory": memory, "ageKnown": False}
+    oldest = None
+    age_known = True
+    for name in owed_names:
+        ms = _river_outlet_filmed_ms(name)
+        if ms is None:
+            age_known = False
+            oldest = None
+            break
+        if oldest is None or ms < oldest:
+            oldest = ms
+    return {
+        "owed": len(owed_names),
+        "memory": memory,
+        "memoryMtimeMs": mtime_ms,
+        "oldestMs": oldest,
+        "ageKnown": True if not owed_names else age_known,
+    }
+
+
 def doctor_payload():
     """GET /api/doctor contract: {ok, platform, checks:[{id,ok,severity,detail,fix?}],
     logTail, logPath, ver}. See the DOCTOR banner above for the invariants."""
@@ -41166,6 +41292,15 @@ def doctor_payload():
     except Exception as _oe:
         checks.append(_river_outlet_unmeasured(
             "the outlet could not be asked (%s)" % type(_oe).__name__))
+
+    # ── EXTRACT MOVING — #86 gap audit 18 (REG-1788). A reel that still owes a
+    # chronicle read, with a sweep memory that was never written or is older than
+    # that reel, never reached this payload. See _extract_moving_doctor_row.
+    try:
+        checks.append(_extract_moving_doctor_row(_extract_moving_facts()))
+    except Exception as _ee:
+        checks.append(_extract_moving_unmeasured(
+            "the extract could not be asked (%s)" % type(_ee).__name__))
 
     _bs = _beacon_status()
     _bt = _beacon_snapshot().get("ts")

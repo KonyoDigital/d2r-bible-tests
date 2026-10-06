@@ -127,7 +127,9 @@ class AShutRiverLockIsNotADoctorPass(unittest.TestCase):
                                   lambda alive=None: ca._chk("one_capture", True, "warn", "stub")), \
                 mock.patch.object(ca, "_one_of_each_check",
                                   lambda: ca._chk("one_of_each", True, "warn", "stub")), \
-                mock.patch("self_arming.may", fake):
+                mock.patch("self_arming.may", fake), \
+                mock.patch.object(ca, "_extract_moving_facts",
+                                  lambda: {"owed": 0, "memory": "absent", "ageKnown": True}):
             got = ca.doctor_payload()
         rows = _rows(got["checks"])
         self.assertIn("river_locks", rows)

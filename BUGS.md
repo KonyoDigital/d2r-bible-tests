@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1788 - OWED REELS AND A SWEEP MEMORY THAT NEVER MOVED READ AS A DOCTOR THAT PASSED (2026-10-06, #86 gap audit 18)
+
+/api/doctor never asked whether a reel that still owes a chronicle read had an extract memory. Zero owed is still a pass, including when chronicle_swept.json has never been written. Owed reels and a file that is not there now warn: no read has been banked. A file whose clock is strictly before the oldest owed reel warns the same way. An equal clock is not older. One owed reel whose name will not say when it was filmed makes the age unknown, and the reels that will parse are not used in its place. A count that was not taken, a file that will not parse, and a clock that is not a time are UNMEASURED. The row does not start a sweep and does not write the memory. Law `test_an_owed_reel_with_no_extract_memory_is_not_moving`.
+
 ### REG-1787 - AN UNREADABLE DISK READ AS A FARMGATE PASS (2026-10-06, the eagle's other copy)
 
 The one-button gate caught a disk read that raised and filed it ok: "disk usage unreadable". The eagle already calls that UNKNOWN. The gate now says the read was not taken. A bool is not a free count. Below 2 GB still blocks. Between 2 and 8 GB the night warning still appears. At 8 GB and above the disk row still passes and that warning is absent. Law `test_an_unreadable_disk_is_not_a_farmgate_pass`.

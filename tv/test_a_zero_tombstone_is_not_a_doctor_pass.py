@@ -239,7 +239,9 @@ class AZeroTombstoneIsNotADoctorPass(unittest.TestCase):
                                   lambda alive=None: ca._chk("one_capture", True, "warn", "stub")), \
                 mock.patch.object(ca, "_one_of_each_check",
                                   lambda: ca._chk("one_of_each", True, "warn", "stub")), \
-                mock.patch.object(ca, "_river_outlet_ask", ask):
+                mock.patch.object(ca, "_river_outlet_ask", ask), \
+                mock.patch.object(ca, "_extract_moving_facts",
+                                  lambda: {"owed": 0, "memory": "absent", "ageKnown": True}):
             got = ca.doctor_payload()
         self.assertEqual(asked, [1])
         got_rows = _rows(got["checks"])

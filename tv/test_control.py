@@ -1148,6 +1148,15 @@ class TestDoctor(unittest.TestCase):
     _IDS = ("claude_cli", "claude_probe", "port_agent", "port_control", "python",
             "webview2", "capture_proc", "live_frames", "bridge", "pid_files")
 
+    def setUp(self):
+        # REG-1788 — the extract row reads the sweep memory and the reel list. This
+        # class asserts the doctor contract, not that row, and must not walk his shelf.
+        self._extract = mock.patch.object(
+            ca, "_extract_moving_facts",
+            lambda: {"owed": 0, "memory": "absent", "ageKnown": True})
+        self._extract.start()
+        self.addCleanup(self._extract.stop)
+
     def test_doctor_route_registered(self):
         import inspect
         src = inspect.getsource(ca.Handler.do_GET)
@@ -21649,7 +21658,18 @@ class TestV2070TheGrantLampCanActuallyMove(unittest.TestCase):
     said "granted to this process".
 
     And bool(None) == bool(False), so MISSING and DENIED read identically. They are different facts.
-    [[unknown-stays-unknown]]"""
+    [[unknown-stays-unknown]]
+
+    REG-1788 — the two tests that call doctor_payload() are about the grant key. The
+    extract row must not walk his shelf while they look.
+    """
+
+    def setUp(self):
+        self._extract = mock.patch.object(
+            ca, "_extract_moving_facts",
+            lambda: {"owed": 0, "memory": "absent", "ageKnown": True})
+        self._extract.start()
+        self.addCleanup(self._extract.stop)
 
     def _block(self):
         _p = os.path.join(os.path.dirname(os.path.abspath(__file__)), "control_app.py")

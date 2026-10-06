@@ -90,7 +90,9 @@ class ADoctorCheckThatDidNotRun(unittest.TestCase):
                 mock.patch.object(ca, "_one_capture_check",
                                   lambda alive=None: ca._chk("one_capture", True, "warn", "stub")), \
                 mock.patch.object(ca, "_one_of_each_check",
-                                  lambda: ca._chk("one_of_each", True, "warn", "stub")):
+                                  lambda: ca._chk("one_of_each", True, "warn", "stub")), \
+                mock.patch.object(ca, "_extract_moving_facts",
+                                  lambda: {"owed": 0, "memory": "absent", "ageKnown": True}):
             got = ca.doctor_payload()
         rows = _rows(got["checks"])
         for cid in ("session_integrity", "journal_gens"):
