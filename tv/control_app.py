@@ -28963,13 +28963,17 @@ def vault_seen_load(strict=False):
     return (out, True) if strict else out
 
 
-def vault_seen_save(unsure_rows):
+def vault_seen_save(unsure_rows, grounded=None):
     """Remember this sweep's ungrounded sightings so a LATER session can corroborate them.
 
     Keeps the union: a name that this sweep did not see again is NOT forgotten, because absence of
-    evidence is not evidence (law 4). Rows that have since GROUNDED are dropped by the caller.
+    evidence is not evidence (law 4). `grounded` is the {(name, lane)} that have since GROUNDED; they
+    are dropped from the PRIOR rows as well as from this sweep's - REG-1909: this docstring used to
+    say "dropped by the caller", and the caller filtered only its own incoming list, so a row that
+    grounded stayed in the seen bank for ever (Storm Scarab, in owned AND seen on his store).
     Returns how many rows are remembered, or None if nothing could be written.
     """
+    _grounded = {(str(n or "").strip(), str(l or "").strip().lower()) for n, l in (grounded or ())}
     # v2082 — NEVER MERGE ONTO A PRIOR NOBODY COULD READ. Writing the union of "what I just saw"
     # and "nothing, because the file would not open" destroys every sighting banked before now, and
     # there is no way to re-derive them: the reels they came from may already be pruned. The corrupt
@@ -28998,6 +29002,8 @@ def vault_seen_save(unsure_rows):
         name, lane = str(row.get("name") or "").strip(), str(row.get("lane") or "").strip().lower()
         if not name or not lane:
             continue        # a row with no lane cannot be folded back in; drop it rather than guess
+        if (name, lane) in _grounded:
+            continue        # REG-1909 - it grounded: it no longer needs corroborating, prior or new
         k = "%s|%s" % (lane, name)
         cur = keep.setdefault(k, {"name": name, "lane": lane, "kind": row.get("kind") or "item",
                                   "witnesses": [], "conf": 0.0, "lastSeenTs": None})
@@ -34453,7 +34459,7 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
             _keep = [r for r in (prop.get("unsure") or [])
                      if isinstance(r, dict) and r.get("name") and r.get("lane")
                      and (str(r.get("name")), str(r.get("lane")).lower()) not in _now_owned]
-            _n = vault_seen_save(_keep)
+            _n = vault_seen_save(_keep, grounded=_now_owned)
             if _n is not None:
                 print("   \U0001f9e0 remembering %d ungrounded sighting(s) for a later session "
                       "to corroborate" % _n, flush=True)

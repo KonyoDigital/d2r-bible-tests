@@ -8851,6 +8851,13 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_a_grounded_sighting_leaves_the_seen_bank", [sys.executable,
+         os.path.join(HERE, "test_a_grounded_sighting_leaves_the_seen_bank.py")], 60,
+         needs_app=False,
+         why=("REG-1909 - vault_seen_save unioned the prior bank with new rows and only the new ones were filtered for "
+              "grounding, so a sighting that grounded stayed in the seen bank for ever (Storm Scarab in owned AND seen). "
+              "The grounded set drops prior rows too; the lane is part of the identity.")
+         ),
     Gate("test_a_disk_tally_carries_its_verdict", [sys.executable,
          os.path.join(HERE, "test_a_disk_tally_carries_its_verdict.py")], 60,
          needs_app=False,
