@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1810 - AN UNREAD JOURNAL WALK READ AS A CLEAN LEDGER (2026-10-06)
+
+The ledger organ treats a measured size and no watchdog breach as "journal clean", and the pulse stays ok. An unread journal walk is that same size: the file stat succeeded, and the poll already says verdict unknown. A measured empty night is idle, and that one stays clean. A real size is still that size. A miss is still a gap. A partial night still says clean. A breach is still that breach. An unread size still says the size was not read. An unread walk says the journal was not read, and the pulse does not stay ok. Law `test_an_unread_journal_walk_is_not_a_clean_ledger`.
+
 ### REG-1809 - AN UNREAD JOURNAL READ AS A QUIET STORY (2026-10-06)
 
 The story feed treats an empty story as "session story builds as reads & intakes land". An unread journal walk is that same empty list: the poll already says verdict unknown, and the story is empty because the walk did not copy it. A measured empty night still says the story builds. A landed line is still a line. An idle night with a line still shows that line. A miss with no line still says the story builds. An unread walk says the journal was not read, a leftover list does not paint, and a second poll still repaints when the walk goes unread. Law `test_an_unread_journal_is_not_a_quiet_story`.

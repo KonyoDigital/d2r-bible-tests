@@ -23872,11 +23872,14 @@ window._lockMark = function(isOpen, px, label){
     var viol = wd.violations || 0;
     // REG-1803 — null is a size that was not read. 0 is an empty journal, and that one stays clean.
     var journalUnread = (st.journalMB == null);
-    var ldPulse = (viol > 0 || journalUnread) ? 'warn' : 'ok';
+    // REG-1810 — unknown is a walk that was not read. Idle is a measured
+    // empty night, and that one stays clean. A breach is still a breach.
+    var walkUnread = (sh.verdict === 'unknown');
+    var ldPulse = (viol > 0 || journalUnread || walkUnread) ? 'warn' : 'ok';
     var ldStat = (journalUnread ? '—' : (st.journalMB + ' MB')) + (viol ? ' <span class="eh-x">·</span> <span style="color:#ff9a7a">' + viol + ' miss</span>' : '');
     var ldSub = journalUnread
       ? 'the journal size was not read'
-      : (sh.verdict === 'miss' ? '⚠ last session had gaps' : (viol ? viol + ' watchdog breach' : 'journal clean'));
+      : (sh.verdict === 'miss' ? '⚠ last session had gaps' : (viol ? viol + ' watchdog breach' : (walkUnread ? 'the journal was not read' : 'journal clean')));
     return [
       { key: 'capture', icon: '📷', title: 'CAPTURE', stat: capStat, pulse: capPulse, sub: capSub, state: _EH_STATE[capPulse] },
       { key: 'readers', icon: '👁', title: 'READERS', stat: rdStat, pulse: rdPulse, sub: rdSub, state: _EH_STATE[rdPulse] },

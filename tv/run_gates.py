@@ -9600,6 +9600,18 @@ GATES = [
              "line still says the story builds. The feed says the journal was "
              "not read, a leftover list does not paint, and a second poll "
              "still repaints when the walk goes unread."),
+    Gate("test_an_unread_journal_walk_is_not_a_clean_ledger",
+         [sys.executable, os.path.join(HERE, "test_an_unread_journal_walk_is_not_a_clean_ledger.py")], 90,
+         needs_app=False,
+         why="REG-1810 - the ledger organ treats a measured size and no "
+             "watchdog breach as journal clean, and the pulse stays ok. An "
+             "unread journal walk is that same size: the file stat succeeded "
+             "and the poll already says verdict unknown. A measured empty "
+             "night is idle and stays clean. A real size is still that size. "
+             "A miss is still a gap. A partial night still says clean. A "
+             "breach is still that breach. An unread size still says the size "
+             "was not read. The organ says the journal was not read, and the "
+             "pulse does not stay ok."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
