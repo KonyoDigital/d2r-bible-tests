@@ -8851,6 +8851,12 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_a_tip_never_quotes_a_retired_total", [sys.executable,
+         os.path.join(HERE, "test_a_tip_never_quotes_a_retired_total.py")], 30,
+         needs_app=False,
+         why=("REG-1912 - the high-value-find tip said 'Outside the 312 grail' (v304's curated total) beside every fleet tip's "
+              "403; it now says what is true of every EXTRA_ITEMS row, with no number.")
+         ),
     Gate("test_a_grounded_sighting_leaves_the_seen_bank", [sys.executable,
          os.path.join(HERE, "test_a_grounded_sighting_leaves_the_seen_bank.py")], 60,
          needs_app=False,

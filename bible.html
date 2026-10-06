@@ -30782,7 +30782,10 @@ function _extraTipHtml(nm){
     + (e.desc && !statLines ? '<div class="att-aff">' + e.desc + '</div>' : '')
     + _craftBuffsHtml(nm, e)
     + '<div class="att-tag">rolls: ' + roll + '</div>'
-    + '<div class="att-info">Best-of-the-best — rivals runewords / uniques. Outside the 312 grail.</div>';
+    /* REG-1912 — no retired total on his screen. "312" was the curated grail at v304; the chronicle counts 403 now and
+       every fleet tip says so, so this line put a third universe beside the other two (GrokBot tick 371, Storm Scarab).
+       What is true of every EXTRA_ITEMS row is that the grail does not count it - so that is what it says. */
+    + '<div class="att-info">Best-of-the-best — rivals runewords / uniques. Not a grail item: the chronicle does not count it.</div>';
 }
 // v340 — crafted-item BUFF RANGES for the floating tooltip + card: the craft's guaranteed mods
 // shown floor→godly (the top % highlighted green) + the affixes to chase. Konyo: "the buffs, like
