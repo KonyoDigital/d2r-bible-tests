@@ -383,6 +383,12 @@ class TheConsoleNamesItsStuckStations(unittest.TestCase):
                     mock.patch.object(ca, "_CHRON_AUTOREAD_SAY", {"last": locked}):
                 self.assertIn("NOT ITS INPUT", ca._river_stuck_why("STATION"),
                               "a sweep owing %r reads lost the river walk's note" % (owed,))
+        # REG-1863 - a fresh console: the sweep owes reads and has said nothing yet. That is not the note's case either.
+        for quiet in ({"last": ""}, {"last": None}):
+            with mock.patch.object(ca, "_chron_owed_count", lambda *a, **k: 7), \
+                    mock.patch.object(ca, "_CHRON_AUTOREAD_SAY", quiet):
+                w = ca._river_stuck_why("STATION")
+            self.assertEqual(w, "the reel sweep owes 7 read(s) - it has not spoken since this console started", w)
 
     def test_an_uncomputed_river_does_not_invent_a_stuck_list(self):
         from unittest import mock
@@ -1004,6 +1010,13 @@ class OneBoxAtATimeOnTheRow(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1863 - a fresh console's sweep owes reads and says nothing, so STATION falls back to the note again",
+        "file": "tv/control_app.py",
+        "find": "            return \"the reel sweep owes %d read(s) - it has not spoken since this console started\" % _owed_r\n",
+        "replace": "            pass\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1844 - STATION blames a predicate split again while the sweep owes reads behind a locked door",
         "file": "tv/control_app.py",

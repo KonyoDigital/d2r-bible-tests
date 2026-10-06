@@ -15726,6 +15726,9 @@ def _river_stuck_why(station):
         _last_r = str(_CHRON_AUTOREAD_SAY.get("last") or "")
         if isinstance(_owed_r, int) and not isinstance(_owed_r, bool) and _owed_r > 0 and _last_r:
             return "the reel sweep owes %d read(s) - its last word: %s" % (_owed_r, _last_r)
+        if isinstance(_owed_r, int) and not isinstance(_owed_r, bool) and _owed_r > 0:
+            # REG-1863 - a fresh console's sweep owes reads and has said nothing yet: not the note's case either
+            return "the reel sweep owes %d read(s) - it has not spoken since this console started" % _owed_r
     if station in ("JOIN", "STATION"):
         try:
             import river_walk as _rw
