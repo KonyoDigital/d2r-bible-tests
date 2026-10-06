@@ -134,6 +134,11 @@ SOURCES = [
     # plrtype.txt Token, the Attack1 mode's plrmode.txt Token and the weapon's weapons.txt wclass) against the base's
     # speed and the item's own Increased Attack Speed - measured against every row of THEIR tooltip (the law)
     ("plrtype", _X + "plrtype.txt"), ("plrmode", _X + "plrmode.txt"), ("animdata", "data:data\\global\\animdata.d2"),
+    # #166 (REG-1868) — APPENDED: RotW's property GROUPS. uniqueitems.txt names codes properties.txt does not have
+    # ("Breaching-Affix1" on Renewed Bone Break): each is a row HERE - its properties, each with its own range and Chance,
+    # and a PickMode. The block printed them "an effect the game's tables name ... but do not describe" while this table,
+    # which the generator never pulled, described every one but Gelid-Affix5.
+    ("propertygroups", _X + "propertygroups.txt"),
 ]
 #: #174 v-B3 — the affix tables, their one-letter kind (the id's first letter) and the ADD MOD group they list under
 AFFIX_TABLES = (("magicprefix", "p"), ("magicsuffix", "s"), ("automagic", "a"))
@@ -319,6 +324,9 @@ class DB(object):
         # rare words "no string names it" claimed were named all along - by monsters.json and ui.json)
         self.OS = _strings(blobs.get("monsters"), blobs.get("ui"))
         self.P = dict((r["code"], r) for r in _rows(blobs["properties"]) if r.get("code"))
+        # #166 (REG-1868) — a group code -> its propertygroups.txt row; self.PG fills as lines() meets each one
+        self.G = dict((r["code"], r) for r in _rows(blobs.get("propertygroups")) if r.get("code"))
+        self.PG = {}
         self.I = dict((r["Stat"], r) for r in _rows(blobs["itemstatcost"]) if r.get("Stat"))
         self.types = dict((r["Code"], r) for r in _rows(blobs["itemtypes"]) if r.get("Code"))
         self.skills_by_id, self.skills_by_name = {}, {}
@@ -484,6 +492,12 @@ class DB(object):
             if code.startswith("*"):
                 continue                                  # a row the game itself comments out
             p = self.P.get(code)
+            if not p and code in self.G:
+                # #166 (REG-1868) — A PROPERTY GROUP: one line that stands for the group, flag 4, carrying its roll
+                # column; its options (their own lines, in the game's own words, roll key "@") are in the block's `pg`
+                prio = self.group(code)
+                out.append([self.T.id("the game's property group %s" % code), [], prio, 4, code, None, 0, key])
+                continue
             if not p:
                 out.append([self.T.id("an effect the game's tables name %s but do not describe" % code), [], 0, 2, code])
                 continue
@@ -689,8 +703,38 @@ class DB(object):
         # the game orders lines by descpriority, highest first; ties keep the table's order
         idx = list(range(len(out)))
         idx.sort(key=lambda i: (-out[i][2], i))
-        # a line as the block stores it: [template index, ranges, flag, property code] (+ the set-bonus count)
-        return [[out[i][0], out[i][1], out[i][3], out[i][4]] for i in idx]
+        # a line as the block stores it: [template index, ranges, flag, property code] (+ the set-bonus count; a property
+        # group's line, flag 4, + its roll column)
+        return [[out[i][0], out[i][1], out[i][3], out[i][4]] + ([out[i][7]] if out[i][3] == 4 else []) for i in idx]
+
+    def group(self, code):
+        """#166 (REG-1868) — propertygroups.txt row `code` -> self.PG[code] = [PickMode, [[Chance, lines], ...]], each
+        option's lines rendered by lines() itself, roll key "@" (the page puts the item's own column there). Returns the
+        highest descpriority among the options' stats, which orders the group's line. A row whose parameter is itself a
+        RANGE (ParMin != ParMax: skilltab-war 21..23) is a choice the table does not spell out - that option is one
+        UNKNOWN line, never a guessed parameter. What PickMode means is the game's code, not a table value: the block
+        carries the number, and the page says what it knows."""
+        if code in self.PG:
+            return self.PG[code][2]
+        r = self.G[code]
+        opts, prio = [], 0
+        self.PG[code] = [_int(r.get("PickMode")), opts, 0]           # placed first: a group that names itself ends here
+        for i in range(1, 9):
+            pc = (r.get("Prop%d" % i) or "").strip()
+            if not pc:
+                continue
+            pmin, pmax = (r.get("ParMin%d" % i) or "").strip(), (r.get("ParMax%d" % i) or "").strip()
+            lo, hi = r.get("ModMin%d" % i) or "", r.get("ModMax%d" % i) or ""
+            if pmin != pmax:
+                sub = [[self.T.id("%s with a parameter the game picks from %s to %s - which one is not in the tables"
+                                  % (pc, pmin, pmax)), [], 2, pc]]
+            else:
+                sub = self.lines([("@", pc, pmin, lo, hi)])
+            st = (self.P.get(pc) or {}).get("stat1") or ""
+            prio = max(prio, _int((self.I.get(st) or {}).get("descpriority"), 0))
+            opts.append([_int(r.get("Chance%d" % i)), sub])
+        self.PG[code][2] = prio
+        return prio
 
     # ---- the tables -------------------------------------------------------------------------------------------
     def build(self):
@@ -915,6 +959,8 @@ class DB(object):
         return {
             "v": 1, "gen": "tv/char_builder_db.py", "cls": self.classes, "ty": TY, "rail": rail, "b": B,
             "T": self.T.list, "it": items, "sk": SK, "af": AF, "rn": RN, "qm": QM, "tip": TIP,
+            # #166 (REG-1868): {group code: [PickMode, [[Chance, option lines], ...]]} - the lines flag 4 stands for
+            "pg": dict((k, v[:2]) for k, v in sorted(self.PG.items())),
             # #174 v-B4: aligned with T - each template's [descpriority, descfunc, stat id, group] (lines() fills it),
             # so the page can merge a runeword's lines with its runes' and order them as the game does
             "TK": [self.TK.get(i, [0, 0, -1, 0]) for i in range(len(self.T.list))],

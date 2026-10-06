@@ -228,8 +228,8 @@ RED_PROOF = [
     {
         "why": "#174 v-B3 fix round - a hand edit puts of Magic Arrow's charges back as the table's negative numbers",
         "file": "bible.html",
-        "find": "[\"s458\",\"s\",\"of Magic Arrow\",12,null,11,1,44,-1,[\"miss\",\"abow\"],[],[[510,[],2,\"charged\"]],1,[0,1]]",
-        "replace": "[\"s458\",\"s\",\"of Magic Arrow\",12,null,11,1,44,-1,[\"miss\",\"abow\"],[],[[510,[[-10,-10,\"m1\"],[-30,-30,\"m1\"]],0,\"charged\"]],1,[0,1]]",
+        "find": "[\"s458\",\"s\",\"of Magic Arrow\",12,null,11,1,44,-1,[\"miss\",\"abow\"],[],[[513,[],2,\"charged\"]],1,[0,1]]",
+        "replace": "[\"s458\",\"s\",\"of Magic Arrow\",12,null,11,1,44,-1,[\"miss\",\"abow\"],[],[[513,[[-10,-10,\"m1\"],[-30,-30,\"m1\"]],0,\"charged\"]],1,[0,1]]",
         "matches": 1,
     },
     {

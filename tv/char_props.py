@@ -101,6 +101,9 @@ SOURCES = [
     # #174 v-B3 fix round - APPENDED: what the game PRINTS for an affix (magicprefix "Vodoun" is "Mojo"), so a sheet
     # row names the affix the item shows - the same string the builder names it by (tv/char_builder_db.py)
     ("nameaffixes",      r"data:data\local\lng\strings\item-nameaffixes.json"),
+    # #166 (REG-1868) - APPENDED: RotW's property GROUPS. A code a unique carries that properties.txt does not have
+    # ("Breaching-Affix1") is a row here: its properties, each with its range and Chance, and a PickMode
+    ("propertygroups",   r"data:data\global\excel\propertygroups.txt"),
 ]
 STRINGS = ("itemnames", "itemrunes", "itemmodifiers", "skillstrings", "nameaffixes")
 
@@ -428,9 +431,30 @@ def assemble(blobs):
                 nk = (r.get("Name") or "").strip()
                 rows_of[kind + str(i)] = [(naff.get(nk) or names.get(nk) or nk) if nk else ("superior" if kind == "q" else ""), ls]
 
+    # #166 (REG-1868) - propertygroups.txt: code -> [PickMode, [[prop, par, min, max, Chance], ...]]. A row whose
+    # parameter is a RANGE (ParMin != ParMax) keeps par None: which parameter rolls is not in the tables
+    pgroups = {}
+    for r in T["propertygroups"]:
+        code = (r.get("code") or "").strip()
+        if not code:
+            continue
+        opts = []
+        for i in range(1, 9):
+            pc = (r.get("Prop%d" % i) or "").strip()
+            if not pc:
+                continue
+            pmin, pmax = (r.get("ParMin%d" % i) or "").strip(), (r.get("ParMax%d" % i) or "").strip()
+            ln = _line(pc, pmin if pmin == pmax else "", r.get("ModMin%d" % i), r.get("ModMax%d" % i))
+            if pmin != pmax:
+                ln[1] = None
+            note_skill(ln[0], ln[1])
+            opts.append(ln + [_num(r.get("Chance%d" % i))] + ([[pmin, pmax]] if pmin != pmax else []))
+        pgroups[code] = [_num(r.get("PickMode")), opts]
+
     return {
         "sourceHash": source_hash(blobs),
         "affix": pool,
+        "pgroups": pgroups,
         "affixRows": rows_of,
         "diff": diff,
         "classes": classes,
@@ -462,7 +486,7 @@ def _js(v):
 
 #: the keys whose value is a long list or map: one entry per line, so a patch reads as a diff of the rows it moved
 _LONG = ("uniques", "sets", "runewords", "bases", "gems", "props", "setBonus", "perlvl", "fmt", "fmtGroup", "skills", "affix",
-         "affixRows")
+         "affixRows", "pgroups")
 
 
 def render(data):

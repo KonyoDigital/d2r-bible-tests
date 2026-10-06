@@ -437,7 +437,218 @@ class TheTooltipAndTheSheetAgree(unittest.TestCase):
         self.assertIn("<b>10–45% + ?</b><i>UNKNOWN</i>", out["fire"] or "", "an UNKNOWN row hides what is known: %s" % out["fire"])
 
 
+GROUP = r"""
+function rowT(label){ window._cbRender(); var r = row(statsHtml(), label); return r ? strip(r) : null; }
+function box(key, lo, hi, v){ var at = { 'data-key': key, 'data-lo': String(lo), 'data-hi': String(hi) };
+  return { value: String(v), classList: { contains: function(c){ return c === 'cb-roll'; }, add: function(){}, remove: function(){}, toggle: function(){} },
+           getAttribute: function(a){ return at[a] === undefined ? null : at[a]; } }; }
+function invTip(i){ var e = cur().sets[0].inv[i]; return window._cbTipEntry(e, window._cbItem(e.id), cur().level, 'inv', cur().cls).lines.map(function(l){ return [l.cls, strip(l.html)]; }); }
+function hell(){ window._cbState().diff = 'hell'; window._cbState().quests = true; }
+"""
+
+
+@unittest.skipIf(NODE is None, "node is not on this machine")
+class ARenewedSunderIsItsBuiltInLinesAndOneRowOfEachGroup(unittest.TestCase):
+    """#166 (REG-1868) — Renewed Bone Break (u436) printed 'Breaching-AffixN ... the tables do not describe' five times. Each is a
+    row of propertygroups.txt (the generator never pulled it): Breaching-Affix1 = dmg% 75..100 OR pierce-dmg 5..10, Affix2
+    mag% 14..25 OR gold% 20..55, Affix3 hp 10..65 OR mana 10..75, Affix4 move1 5..10 OR balance1 12..24 OR all-stats 3..8,
+    Affix6 red-mag 5..10 OR red-dmg 5..10 - the same OR rows the page's own SUNDER_TIP card prints. The built-in lines (the
+    immunity break, Physical Damage Received 10%) stay fixed. Renewed Cold Rupture's Gelid-Affix5 is in NO table: it stays
+    UNKNOWN, said."""
+
+    def test_the_edit_tab_offers_each_groups_rows_and_keeps_the_built_ins_fixed(self):
+        out = _run(GROUP + r"""
+          mk('Warlock', 88); hell();
+          window._cbOpenPick('inv', null, [0, 0]); window._cbChoose('u436');
+          var h = MODAL._html, ul = (h.match(/<ul class="cb-lines"[\s\S]*?<\/ul>/) || [''])[0];
+          OUT.unk = (ul.match(/do not describe/g) || []).length;
+          OUT.asks = (ul.match(/which rolled\?/g) || []).length;
+          OUT.btn = (ul.match(/<button type="button" class="cb-grp-b"[^>]*>[^<]*(<[^b][^>]*>[^<]*)*<\/button>/g) || []).map(strip);
+          OUT.items = (ul.match(/<li[^>]*>[\s\S]*?<\/li>/g) || []).map(strip);
+          OUT.boxes = (ul.match(/class="cb-roll/g) || []).length;
+          window._cbClosePick();
+          window._cbOpenPick('inv', null, [2, 0]); window._cbChoose(byName('Renewed Cold Rupture')[0]);
+          OUT.cold = (MODAL._html.match(/<ul class="cb-lines"[\s\S]*?<\/ul>/) || [''])[0].match(/an effect the game&#39;s tables name [A-Za-z0-9-]+ but do not describe|an effect the game's tables name [A-Za-z0-9-]+ but do not describe/g);
+        """)
+        self.assertEqual(out["unk"], 0, "a Breaching group still prints the do-not-describe line")
+        self.assertEqual(out["asks"], 5)
+        self.assertIn("+75-100% Enhanced Damage", out["btn"])
+        self.assertIn("-5-10% to Enemy Physical Damage Resistance", out["btn"])
+        self.assertIn("+12-24% Faster Hit Recovery", out["btn"])
+        self.assertIn("+3-8 to all Attributes", out["btn"])
+        self.assertIn("20-55% Extra Gold from Monsters", out["btn"])
+        self.assertEqual(len(out["btn"]), 11, out["btn"])
+        self.assertIn("Monster Physical Immunity is Sundered", out["items"])
+        self.assertIn("Physical Damage Received Increased by 10%", out["items"])
+        self.assertEqual(out["boxes"], 0, "a built-in sunder line or an unpicked group offered a roll box")
+        self.assertEqual(out["cold"], ["an effect the game&#39;s tables name Gelid-Affix5 but do not describe"],
+                         "Gelid-Affix5, which no table carries, was given words")
+
+    def test_an_unpicked_group_makes_its_stats_unknown_and_a_picked_row_sums(self):
+        out = _run(GROUP + r"""
+          mk('Warlock', 88); hell();
+          window._cbOpenPick('inv', null, [0, 0]); window._cbChoose('u436'); window._cbClosePick();
+          OUT.tip0 = invTip(0);
+          var sh0 = eng(); OUT.u0 = ['fhr', 'frw', 'ed', 'life', 'mana', 'mf', 'gf', 'str', 'mdr', 'dr'].map(function(k){ var r = rowOf(sh0, k); return [k, r && r[1], r && r[2]]; });
+          OUT.unmapped0 = sh0.rows.filter(function(r){ return r.group === 'unmapped'; }).length;
+          window._cbStashInv(0);
+          OUT.p4 = window._cbPickOpt('p6', 1); OUT.p1 = window._cbPickOpt('p3', 0);
+          window._cbRollInput({ target: box('p6', 12, 24, 18) });
+          OUT.rolls = JSON.parse(JSON.stringify(cur().sets[0].inv[0].rolls));
+          window._cbClosePick();
+          OUT.tip1 = invTip(0);
+          var sh1 = eng(); OUT.fhr = rowOf(sh1, 'fhr'); OUT.frw = rowOf(sh1, 'frw'); OUT.ed = rowOf(sh1, 'ed'); OUT.life = rowOf(sh1, 'life');
+          OUT.fhrRow = rowT('Faster Hit Recovery');
+          OUT.picks = window._cbEngineBuild(cur()).build.inv[0].picks; OUT.lost = window._cbEngineBuild(cur()).lost;
+          /* a new row for the group: the old row's value goes with it */
+          window._cbStashInv(0); window._cbPickOpt('p6', 0); window._cbClosePick();
+          OUT.rolls2 = JSON.parse(JSON.stringify(cur().sets[0].inv[0].rolls));
+          var sh2 = eng(); OUT.fhr2 = rowOf(sh2, 'fhr'); OUT.frw2 = rowOf(sh2, 'frw');
+          /* a value outside the picked row's range is refused, never summed */
+          window._cbStashInv(0); window._cbRollInput({ target: box('p6', 5, 10, 30) }); window._cbClosePick();
+          OUT.rolls3 = JSON.parse(JSON.stringify(cur().sets[0].inv[0].rolls));
+        """)
+        self.assertIn(["d2t-unk", "one of: +75-100% Enhanced Damage or -5-10% to Enemy Physical Damage Resistance"], out["tip0"])
+        self.assertIn(["d2t-p", "Physical Damage Received Increased by 10%"], out["tip0"])
+        for k, src, why in out["u0"]:
+            self.assertEqual(src, "UNKNOWN", "%s stayed %s beside an unpicked Renewed Bone Break group" % (k, src))
+            self.assertIn("Renewed Bone Break", why)
+            self.assertIn("Breaching-Affix", why)
+            self.assertIn("which one is not picked", why)
+        self.assertEqual(out["unmapped0"], 0)
+        self.assertTrue(out["p4"] and out["p1"])
+        self.assertEqual(out["rolls"], {"p6o": 1, "p3o": 0, "p6": 18})
+        self.assertIn(["d2t-p", "+18% Faster Hit Recovery"], out["tip1"])
+        self.assertIn(["d2t-p", "+75-100% Enhanced Damage"], out["tip1"])
+        self.assertEqual(out["fhr"][0], {"min": 18, "max": 18})
+        self.assertEqual(out["fhr"][1], "EXACT")
+        self.assertIn("Renewed Bone Break +18 typed", out["fhr"][2])
+        self.assertEqual(out["frw"][:2], [{"min": 0, "max": 0}, "EXACT"], "the group picked FHR and still blanked run/walk")
+        self.assertEqual(out["ed"][:2], [{"min": 75, "max": 100}, "RANGE"])
+        self.assertEqual(out["life"][1], "UNKNOWN", "an unpicked group's life row read known")
+        self.assertIn("18%", out["fhrRow"])
+        self.assertEqual(out["picks"], {"Breaching-Affix4": {"o": 1, "v": 18}, "Breaching-Affix1": {"o": 0, "v": None}})
+        self.assertEqual(out["lost"], [], "a group's own key was reported as a roll the engine was not handed")
+        self.assertEqual(out["rolls2"], {"p6o": 0, "p3o": 0}, "the old row's value stayed under the new row")
+        self.assertEqual(out["fhr2"][:2], [{"min": 0, "max": 0}, "EXACT"])
+        self.assertEqual(out["frw2"][:2], [{"min": 5, "max": 10}, "RANGE"])
+        self.assertEqual(out["rolls3"], {"p6o": 0, "p3o": 0}, "a value outside the picked row's range was saved")
+
+    def test_a_latent_sunders_negative_resist_is_in_the_sum(self):
+        """the latent sunder's player resist (Cold Rupture -90..-70, the same shape on the other five) is summed, and the
+        immunity break is its own line, never a resist"""
+        out = _run(GROUP + r"""
+          mk('Warlock', 88); hell();
+          window._cbOpenPick('inv', null, [0, 0]); window._cbChoose(byName('Latent Cold Rupture')[0]); window._cbClosePick();
+          var sh = eng(); OUT.cold = rowOf(sh, 'res-cold'); OUT.fire = rowOf(sh, 'res-fire');
+        """)
+        self.assertEqual(out["cold"][:2], [{"min": -160, "max": -140}, "RANGE"])
+        self.assertIn("Latent Cold Rupture -90..-70", out["cold"][2])
+        self.assertEqual(out["fire"][:2], [{"min": -70, "max": -70}, "EXACT"])
+
+
+@unittest.skipIf(NODE is None, "node is not on this machine")
+class TheClaimsOnHisScreenDrivenThroughTheEngine(unittest.TestCase):
+    """#166 — the two claims the eyes could not settle (GrokBot #230 5981255360 / 5981232888), driven through the shipped
+    builder and engine. Sentence by sentence, what the sheet actually says."""
+
+    def test_the_paladin_claim(self):
+        out = _run(GROUP + r"""
+          mk('Paladin', 1); hell();
+          window._cbOpenPick('inv', null, [0, 0]); window._cbChoose('b:cm1'); window._cbQuality('m');
+          window._cbAddMod('p322'); window._cbAddMod('s267');
+          window._cbCommit(function(b){ b.sets[0].inv[0].affixes[0].rolls = { m1: 5 }; }); window._cbClosePick();
+          OUT.tip = invTip(0);
+          var at = function(L){ window._cbCommit(function(b){ b.level = L; }); var sh = eng();
+            return { fire: rowOf(sh, 'res-fire'), cold: rowOf(sh, 'res-cold'), fhr: rowT('Faster Hit Recovery'),
+                     note: (sh.notApplied || []).map(function(n){ return n.why; }) }; };
+          OUT.l1 = at(1); OUT.l28 = at(28); OUT.l29 = at(29);
+          window._cbCommit(function(b){ b.sets[0].inv = []; b.level = 1; });
+          window._cbOpenPick('slot', 'larm'); window._cbChoose('b:buc'); window._cbQuality('m'); window._cbAddMod('p323');
+          window._cbCommit(function(b){ b.sets[0].slots.larm.affixes[0].rolls = { m1: 5 }; }); window._cbClosePick();
+          OUT.b1 = [rowT('Fire Resistance'), rowT('Faster Hit Recovery')];
+          window._cbCommit(function(b){ b.level = 4; }); OUT.b4 = [rowT('Fire Resistance'), rowT('Faster Hit Recovery')];
+          window._cbCommit(function(b){ delete b.sets[0].slots.larm; b.level = 1; });
+          window._cbOpenPick('slot', 'tors'); window._cbChoose('b:qui'); window._cbQuality('m'); window._cbEdit('ilvl', 10);
+          var bal = window._cbAffixPool(cur().sets[0].slots.tors).rows.s.filter(function(a){ return a[2] === 'of Balance'; })[0];
+          OUT.qa = bal ? window._cbAddMod(bal[0]) : false; window._cbClosePick();
+          OUT.q1 = [rowT('Faster Hit Recovery'), rowT('Fire Resistance')];
+          window._cbCommit(function(b){ b.level = 3; }); OUT.q3 = [rowT('Faster Hit Recovery'), rowT('Fire Resistance')];
+        """)
+        self.assertEqual(out["tip"], [["d2t-p", "+5% Faster Hit Recovery"], ["d2t-p", "All Resistances +5"]])
+        for L in ("l1", "l28"):
+            self.assertEqual(out[L]["fire"][:2], [{"min": -70, "max": -70}, "EXACT"])
+            self.assertIn("Faster Hit Recovery0%EXACT9 frames. +7% more reaches the next step.", out[L]["fhr"])
+            self.assertTrue(any("needs level 29" in n for n in out[L]["note"]), out[L]["note"])
+        self.assertEqual(out["l29"]["fire"][:2], [{"min": -65, "max": -65}, "EXACT"])
+        self.assertEqual(out["l29"]["cold"][:2], [{"min": -65, "max": -65}, "EXACT"])
+        self.assertIn("Faster Hit Recovery5%EXACT9 frames. +2% more reaches the next step.", out["l29"]["fhr"])
+        self.assertEqual(out["l29"]["note"], [])
+        self.assertEqual(out["b1"][0], "Fire Resistance−70%EXACTcap 75%")
+        self.assertEqual(out["b4"][0], "Fire Resistance−65%EXACTcap 75%")
+        self.assertIn("Faster Hit Recovery0%EXACT", out["b4"][1])
+        self.assertTrue(out["qa"])
+        self.assertIn("Faster Hit Recovery0%EXACT", out["q1"][0])
+        self.assertIn("Faster Hit Recovery10%EXACT8 frames. +5% more reaches the next step.", out["q3"][0])
+        self.assertEqual(out["q3"][1], "Fire Resistance−70%EXACTcap 75%")
+
+    def test_the_warlocks_charms_both_reach_the_item_list(self):
+        out = _run(GROUP + r"""
+          mk('Warlock', 88); hell();
+          window._cbOpenPick('inv', null, [0, 0]); window._cbChoose('u436'); window._cbClosePick();
+          window._cbOpenPick('inv', null, [2, 0]); window._cbChoose('b:cm1'); window._cbQuality('m'); window._cbAddMod('p234'); window._cbClosePick();
+          var eb = window._cbEngineBuild(cur()); OUT.inv = eb.build.inv.map(function(x){ return x.name; });
+          var sh = eng(); OUT.ar = rowOf(sh, 'ar'); OUT.fire = rowOf(sh, 'res-fire');
+        """)
+        self.assertEqual(out["inv"], ["Renewed Bone Break", "Bronze Small Charm"], "a charm in the inventory never reached the engine")
+        self.assertIn("Bronze Small Charm (Bronze) +2..4 untouched roll", out["ar"][2])
+        self.assertEqual(out["fire"][:2], [{"min": -70, "max": -70}, "EXACT"],
+                         "a Bronze charm (attack rating only) cannot move fire resistance - -70 EXACT is the right answer")
+
+
 RED_PROOF = [
+    {
+        "why": "#166 - a property group line is rendered as its rows; without the dispatch it prints its own placeholder",
+        "file": "bible.html",
+        "find": "    if (line && line[2] === 4) return _cbGroupHtml(line, rolls, clvl, mode, slot);   /* #166 (REG-1868) a property group */\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#166 - the engine sums a group's picked row; without the dispatch the group is an unmapped line and FHR reads 0 EXACT",
+        "file": "bible.html",
+        "find": "      if (!fs && D.pgroups && Object.prototype.hasOwnProperty.call(D.pgroups, code)){ group(l, ctx); return; }\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#166 - the row he picked is summed; ignoring the pick leaves every group UNKNOWN",
+        "file": "bible.html",
+        "find": "      var o = (mode === 2 && pk && typeof pk.o === 'number') ? opts[pk.o] : null;\n",
+        "replace": "      var o = null;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#166 - the builder hands the engine which row rolled; without it the picked FHR never reaches the sheet",
+        "file": "bible.html",
+        "find": "      (out.picks = out.picks || {})[l[3]] = { o: pk, v: v };\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#166 - the tooltip prints the picked row; without the expansion it still says 'one of'",
+        "file": "bible.html",
+        "find": "    it = _cbExpandPicks(it, e && e.rolls);   /* #166 (REG-1868) — a picked property group is its row's own lines */\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#166 - a new row for a group drops the old row's value; keeping it sums 18 under a row that rolls 5-10",
+        "file": "bible.html",
+        "find": "    _cbCommit(function(b){ var e = _cbCur(b); if (!e) return; e.rolls = e.rolls || {}; delete e.rolls[key];\n",
+        "replace": "    _cbCommit(function(b){ var e = _cbCur(b); if (!e) return; e.rolls = e.rolls || {};\n",
+        "matches": 1,
+    },
     {
         "why": "#29(b) 2026-09-28 - the cap chip reads as a comparison again ('≤75%'), not the cap he asked for ('cap 75%')",
         "file": "bible.html",

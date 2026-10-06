@@ -310,12 +310,20 @@ class TheSheetSumsTheGameData(unittest.TestCase):
         self.assertEqual((r["raw"]["min"], r["raw"]["max"]), (110, 110))
 
     def test_I_an_unmapped_prop_is_UNKNOWN_naming_the_item_and_the_rest_still_sums(self):
-        un = [r for r in _run()["I-unmapped"]["rows"] if r["group"] == "unmapped"]
-        self.assertEqual(len(un), 1, [r["key"] for r in un])
-        self.assertIsNone(un[0]["value"])
-        self.assertEqual(un[0]["source"], "UNKNOWN")
-        self.assertIn("Wraithstep", un[0]["why"])
-        self.assertIn("skilltab-war", un[0]["why"])
+        # #166 (REG-1868) - Wraithstep's skilltab-war is no longer a code nobody describes: it is a row of
+        # propertygroups.txt (skilltab, its parameter one of 21..23, PickMode 1). So it is not an unmapped row - the three
+        # Warlock skill-tab rows it can feed are UNKNOWN, naming the item, the group and its parameter range; and the rest
+        # of the item still sums
+        rows = _run()["I-unmapped"]["rows"]
+        self.assertEqual([r["key"] for r in rows if r["group"] == "unmapped"], [])
+        tabs = [r for r in rows if r["key"] in ("tab:21", "tab:22", "tab:23")]
+        self.assertEqual(len(tabs), 3, [r["key"] for r in rows if r["key"].startswith("tab:")])
+        for r in tabs:
+            self.assertIsNone(r["value"])
+            self.assertEqual(r["source"], "UNKNOWN")
+            self.assertIn("Wraithstep", r["why"])
+            self.assertIn("skilltab-war", r["why"])
+            self.assertIn("21..23", r["why"])
         self.assertEqual(_val("I-unmapped", "frw"), (30, 30))
 
     def test_I_an_item_the_data_does_not_name_makes_rows_UNKNOWN_never_zero(self):
@@ -465,6 +473,10 @@ def _fake(**over):
         "qualityitems": _tsv(["mod1code", "mod1param", "mod1min", "mod1max", "armor", "weapon"], ["ac%", "", 5, 15, 1, 0]),
         # #174 v-B3 fix round - what the game prints for an affix (an affix row is named by it, never by its table key)
         "nameaffixes": _strs([("Sturdy", "Sturdy"), ("of Fire", "of Fire")]),
+        # #166 (REG-1868) - RotW's property groups: one row, a pick-one group of two rows
+        "propertygroups": _tsv(["code", "*Id", "PickMode", "Prop1", "ParMin1", "ParMax1", "ModMin1", "ModMax1", "Chance1",
+                                "Prop2", "ParMin2", "ParMax2", "ModMin2", "ModMax2", "Chance2"],
+                               ["Breaching-Affix3", 18, 2, "res-fire", "", "", 10, 65, 1, "res-all", "", "", 10, 75, 1]),
     }
     t.update(over)
     by_path = dict((path, t[label]) for label, path in CP.SOURCES)
