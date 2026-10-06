@@ -16,6 +16,8 @@ Three joints, each driven, never grepped:
     row, the stations with their age in the detail, "none" when it drains, UNKNOWN when it cannot say.
     A proof that is missing, stale or unreadable is "locks shut" on that same row, and a null stuck list or a
     null census is "river UNKNOWN" — not the empty chip a draining river uses. The verdict hover keeps both sentences.
+    A presence key older than two refreshes plus one beacon is not "here": the dot is silent and the words
+    say presence UNKNOWN, never ON AIR.
 RED_PROOF below.
 """
 import io
@@ -452,6 +454,70 @@ class TheCardSaysIt(unittest.TestCase):
                          "the verdict hover no longer asks for the stuck and proved sentences")
 
 
+class AStalePresenceIsNotOnline(unittest.TestCase):
+    """#86 gap 12. The presence key lives 40 minutes so a quiet console is not evicted.
+    The card was painting that key as here: green dot, and ON AIR in the hover for the whole
+    wait, including a console that died while it was recording."""
+
+    def _pres(self, ago_s, online=True, t=True):
+        row = {"nickname": "ALT", "machine": "box-b", "ver": "v3595", "mode": "live"}
+        if t is True and ago_s is not None:
+            row["t"] = F._iso(NOW - int(ago_s * 1000))
+        elif isinstance(t, str):
+            row["t"] = t
+        return F._run("OUT.p = _fleetPresence(%s, %s, NOW);"
+                      % (json.dumps(row), "true" if online else "false"))["p"]
+
+    def test_a_fresh_beacon_is_still_here(self):
+        p = self._pres(40)
+        self.assertEqual(p["state"], "here", p)
+        self.assertEqual(p["dot"], "")
+        self.assertEqual(p["word"], "")
+        self.assertNotIn("UNKNOWN", p["why"])
+
+    def test_a_beacon_older_than_two_refreshes_is_not_on_air(self):
+        """Two missed 15-minute rewrites plus one 240s beacon is 2040s. That age is still
+        inside the bar. One second past it is silent, and the words are not ON AIR and not offline."""
+        still = self._pres(2 * 900 + 240)
+        self.assertEqual(still["state"], "here", still)
+        gone = self._pres(2 * 900 + 240 + 1)
+        self.assertEqual(gone["state"], "silent", gone)
+        self.assertEqual(gone["dot"], "silent")
+        self.assertIn("no beacon for 34m", gone["word"])
+        self.assertIn("presence UNKNOWN", gone["word"])
+        self.assertNotIn("ON AIR", gone["word"])
+        self.assertNotIn("offline", gone["word"].lower())
+        died = self._pres(38 * 60)
+        self.assertEqual(died["state"], "silent")
+        self.assertIn("no beacon for 38m", died["word"])
+        self.assertIn("presence UNKNOWN", died["word"])
+        self.assertNotIn("ON AIR", died["word"])
+
+    def test_a_beacon_time_the_card_cannot_read_is_unknown_not_here(self):
+        missing = self._pres(None, t=False)
+        self.assertEqual(missing["state"], "unknown", missing)
+        self.assertEqual(missing["dot"], "silent")
+        self.assertIn("presence UNKNOWN", missing["word"])
+        self.assertNotIn("ON AIR", missing["word"])
+        self.assertNotIn("offline", missing["word"].lower())
+        future = self._pres(0, t=F._iso(NOW + 60000))
+        self.assertEqual(future["state"], "unknown", future)
+        self.assertNotIn("ON AIR", future["word"])
+
+    def test_an_offline_row_keeps_its_own_sentence(self):
+        self.assertIsNone(self._pres(10, online=False))
+
+    def test_the_row_asks_that_verdict_before_it_draws_the_dot(self):
+        ui = F.UI
+        self.assertEqual(ui.count("var pres = _fleetPresence(m, online);"), 1)
+        self.assertEqual(ui.count("var heard = !!(pres && pres.state === 'here');"), 1)
+        self.assertIn("fleet-dot' + (heard ? '' : (online ? ' silent' : ' off'))", ui)
+        self.assertIn("fleet-row' + (heard ? ' on' : '')", ui)
+        self.assertIn("_fleetShadowEye(m, heard)", ui)
+        self.assertIn("_fleetRowChips(m, heard)", ui)
+        self.assertIn("escC(pres.word)", ui)
+
+
 RED_PROOF = [
     {"why": "REG-1738 - a river nobody ever stamped reads as draining again",
      "file": "control_app.py",
@@ -561,6 +627,20 @@ RED_PROOF = [
         "file": "tv/control_ui.html",
         "find": "              var plain = _fleetHoverPlain(m, meta);\n",
         "replace": "              var plain = String(meta || '').replace(/<[^>]*>/g, '').replace(/\\s+/g, ' ').trim();\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1772 - a beacon older than two refreshes draws as here again, green dot and ON AIR",
+        "file": "tv/control_ui.html",
+        "find": "    if (ageS > _FLEET_SILENT_AFTER_S) {\n",
+        "replace": "    if (false) {\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1772 - the row stops asking the pulse and paints every stored key as here",
+        "file": "tv/control_ui.html",
+        "find": "        var heard = !!(pres && pres.state === 'here');\n",
+        "replace": "        var heard = !!online;\n",
         "matches": 1,
     },
 ]

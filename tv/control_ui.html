@@ -6658,6 +6658,9 @@
   .fleet-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--st-good); flex: none;
     box-shadow: 0 0 7px var(--mint); }
   .fleet-dot.off { background: var(--st-idle); box-shadow: none; }
+  /* #86 gap 12 — the key outlived its pulse. Amber, not the green of a machine just heard,
+     and not the grey of one the roster has already dropped. */
+  .fleet-dot.silent { background: var(--st-needs); box-shadow: none; }
   /* 167 — the capture eye, only when it is live. Absent/dark is no chip, never a lying 👁. */
   /* v2454 — 11px was below the declared type floor and the ratchet caught it
      (TestV1504TypeFloor: `[11.0] != []`). The scale's smallest token is --fs-2xs at
@@ -25441,6 +25444,35 @@ function escC(s) {
     out.push(_fleetReadersPart(m));
     return out;
   };
+  /* #86 gap 12 (REG-1772) — ONLINE IS A PULSE. THE KEY IS ONLY STORAGE.
+     The roster keeps a presence key for 40 minutes so two missed 15-minute rewrites do not
+     evict a live console. The card was reading that key as "here": green dot, mint name, and
+     a hover that still said ON AIR when the console had died while recording. A live console
+     rewrites at most every 900s and beacons every 240s, so two missed rewrites plus one beacon
+     (2040s) is the first age at which that pulse was not measured. Older than that is silent.
+     Not offline: the key is still stored, and a stalled post is not a machine that left. A
+     time this card cannot read is the same unknown, never a fresh green.
+     [[unknown-stays-unknown]] [[stale-reading]] */
+  var _FLEET_SILENT_AFTER_S = 2 * 900 + 240;
+  var _fleetPresence = function (m, online, nowMs) {
+    if (!online) return null;
+    var now = (typeof nowMs === 'number') ? nowMs : Date.now();
+    var seen = Date.parse(String((m && m.t) || ''));
+    if (!isFinite(seen) || seen > now) {
+      return { state: 'unknown', dot: 'silent', ageS: null,
+               word: 'presence UNKNOWN',
+               why: 'this row has no beacon time the card can read — presence UNKNOWN, not online' };
+    }
+    var ageS = (now - seen) / 1000;
+    if (ageS > _FLEET_SILENT_AFTER_S) {
+      var ago = _fleetAgo(ageS);
+      return { state: 'silent', dot: 'silent', ageS: ageS,
+               word: 'no beacon for ' + ago.replace(/ ago$/, '') + ' \u2014 presence UNKNOWN',
+               why: 'no beacon for ' + ago + ' \u2014 presence UNKNOWN, not online' };
+    }
+    return { state: 'here', dot: '', ageS: ageS, word: '', why: '' };
+  };
+  window._fleetPresence = _fleetPresence;
   /* #74 (REG-1461) — a red "river stuck" when a station has held a reel. #86 gap 9 (REG-1770) — that
      empty return was also what a shut lock drew, and what a null stuck list drew. A proof that is missing, stale
      or unreadable is "locks shut": every river lock fails closed. A stuck list that is null, or a census that
@@ -26192,7 +26224,12 @@ function escC(s) {
            them. A machine that is BEHIND and cannot pull is the only case worth a badge: behind-
            and-clear resolves itself within the quarter hour. [[unknown-stays-unknown]] */
         var stuck = (m.pull && m.pull.can === false && m.pull.behind !== 0);
-        var meta = online
+        /* #86 gap 12 — ON AIR and the green dot only while the pulse was measured. */
+        var pres = _fleetPresence(m, online);
+        var heard = !!(pres && pres.state === 'here');
+        var meta = (online && !heard)
+          ? (escC(pres.word) + _lagTxt(m) + ' · ' + escC(_fleetSeen(m)))
+          : online
           ? (escC(m.mode === 'live' ? '🔴 ON AIR' : 'idle') + ' · ' + escC(m.ver || '')
              + (function () {
                  var w = window._fleetWin ? window._fleetWin(m) : null;
@@ -26264,14 +26301,14 @@ function escC(s) {
            me visually and show me which items it has cross referenced to mine that i dont have
            already only. so its not messy." The hover tooltip stays exactly as it was — it answers
            "how far along is he", and this answers "what should I chase". */
-        return '<div class="fleet-row' + (online ? ' on' : '') + ' has-ftt fleet-clickable"'
+        return '<div class="fleet-row' + (heard ? ' on' : '') + ' has-ftt fleet-clickable"'
           + ' tabindex="0" role="button" data-fleet-machine="' + escC(m.machine || '') + '"'
           + ' title="click: how this PC films and drains, and their set pieces against yours"'
           + ' onclick="window._fleetCompare(this.getAttribute(\'data-fleet-machine\'))"'
           + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
           + 'window._fleetCompare(this.getAttribute(\'data-fleet-machine\'))}">'
-          + '<span class="fleet-dot' + (online ? '' : ' off') + '"></span>'
-          + '<b>' + _fleetShadowEye(m, online) + escC(nameFor) + '</b>'
+          + '<span class="fleet-dot' + (heard ? '' : (online ? ' silent' : ' off')) + '"></span>'
+          + '<b>' + _fleetShadowEye(m, heard) + escC(nameFor) + '</b>'
           + _fleetEye(m.eye)
           /* ⚠⚠ v2875 — ONE WORD BESIDE THE NAME. Konyo, 2026-09-10: *"all the jibberish
              next to our names ... should just say synced/unsynced without the rest of the
@@ -26312,7 +26349,7 @@ function escC(s) {
                 + escC(w.t + (plain ? ('  \u2014  ' + plain) : '')) + '">'
                 + escC(w.w) + '</span>'
                 /* REG-1613 — AFTER the verdict, so the verdict keeps row one and the words take row two */
-                + _fleetRowChips(m, online) + _rw;
+                + _fleetRowChips(m, heard) + _rw;
             })()
           /* 2026-09-29 — HIS WORDS, looking at the card: "i dont want it rendering to me all this here upfront. only if
              clicked on or something like a backdoor to the informational background". The films / river / triage lines
