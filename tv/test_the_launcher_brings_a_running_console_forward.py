@@ -237,6 +237,92 @@ class TheWindowsClickUsesTheSameDecision(unittest.TestCase):
         self.assertTrue(all(ord(c) < 128 for c in ps), "non-ASCII in a file Windows PowerShell 5 reads")
 
 
+def _ps_text():
+    with io.open(os.path.join(HERE, "start_tvd_win.ps1"), encoding="utf-8-sig") as fh:
+        return fh.read()
+
+
+def _already_up_block(ps):
+    """The real ALREADY UP block, cut by its own first and next lines. -> str"""
+    head, tail = "$script:TvdReplaceRunning = $false\n", "\n$py = Real-Python\n"
+    assert ps.count(head) == 1 and ps.count(tail) == 1, "the ALREADY UP block's edges moved"
+    i = ps.index(head)
+    return ps[i:ps.index(tail, i)]
+
+
+def _powershell():
+    import shutil
+    for exe in ("powershell.exe", "pwsh", "powershell"):
+        p = shutil.which(exe)
+        if p:
+            return p
+    return None
+
+
+class TheWindowsClickWithNoPythonBringsTheConsoleForward(unittest.TestCase):
+    """REG-1826 - the #231 eye on v3570. With the console up and no real python, the click logged that it could not
+    update and then FELL THROUGH to the boot: no window brought forward, no update flagged, and the boot found no
+    python either and showed 'No real Python found' over a console that was up. It now brings the console forward
+    and stops, like the branch where the decision says the console is current."""
+
+    def test_the_no_python_branch_brings_the_window_forward_and_stops(self):
+        blk = _already_up_block(_ps_text())
+        a, b = "  if (-not $decidePy) {\n", "  } else {\n"
+        self.assertEqual(blk.count(a), 1, "the no-python branch is not one branch any more")
+        i = blk.index(a)
+        arm = "\n".join(l.split("#", 1)[0] for l in blk[i:blk.index(b, i)].split("\n"))
+        self.assertIn("    [void](Focus-TvdWindow)\n", arm, "a click with no python leaves the running console behind")
+        self.assertIn("      $front = Invoke-WebRequest @frontArgs\n", arm,
+                      "a hidden console is only focused from outside, which does not bring it back (v1460)")
+        self.assertIn("Uri = 'http://127.0.0.1:17772/api/window'; Method = 'Post'", arm)
+        self.assertLess(arm.index("Invoke-WebRequest @frontArgs"), arm.index("[void](Focus-TvdWindow)"))
+        self.assertIn("\n    return\n", arm, "a click with no python falls through to the boot")
+        self.assertNotIn("TvdReplaceRunning = $true", arm, "a console nobody could judge was flagged for replacing")
+
+    def _run(self, control_up):
+        ps = _powershell()
+        if not ps:
+            self.skipTest("no PowerShell on this machine - the block runs where it is proven (Windows, CI's pwsh)")
+        import subprocess, tempfile, shutil
+        stub = "\n".join([
+            "$Background = $false",
+            "$mutex = $null",
+            "$here = '%s'" % tempfile.gettempdir().replace("'", "''"),
+            # [Console]::Out, not Write-Output: the block calls [void](Focus-TvdWindow), which drops pipeline output
+            "function Write-TvdLaunchLog([string]$msg) { [Console]::Out.WriteLine('LOG ' + $msg) }",
+            "function Test-TvdControlUp { return $%s }" % ("true" if control_up else "false"),
+            "function Real-Python { return $null }",
+            # a function shadows the cmdlet, so nothing reaches a real port
+            "function Invoke-WebRequest([string]$Uri, [string]$Method, [switch]$UseBasicParsing, $TimeoutSec, "
+            "[string]$ContentType, [string]$Body) { [Console]::Out.WriteLine('ASKED ' + $Method + ' ' + $Uri + ' ' + "
+            "$Body); return [pscustomobject]@{ Content = '{\"ok\": true}' } }",
+            "function Focus-TvdWindow([bool]$unhide = $true, [uint32]$wantPid = 0) "
+            "{ [Console]::Out.WriteLine('FOCUSED'); return $true }",
+        ])
+        d = tempfile.mkdtemp(prefix="launcher_nopy_")
+        try:
+            path = os.path.join(d, "b.ps1")
+            io.open(path, "w", encoding="utf-8").write(
+                stub + "\n" + _already_up_block(_ps_text()) + "\n[Console]::Out.WriteLine('FELL-THROUGH')\n")
+            return subprocess.run([ps, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", path],
+                                  capture_output=True, text=True, timeout=120)
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_in_real_powershell_a_click_with_no_python_stops_at_the_running_console(self):
+        r = self._run(control_up=True)
+        self.assertIn("FOCUSED", r.stdout, "stdout %r stderr %r" % (r.stdout[-300:], r.stderr[-300:]))
+        self.assertNotIn("FELL-THROUGH", r.stdout, "the click went on to the boot with the console up")
+        ask = r.stdout.find('ASKED Post http://127.0.0.1:17772/api/window {"do": "front"')
+        self.assertGreater(ask, -1, "the hidden console was never asked to show itself (v1460): %r" % r.stdout[-300:])
+        self.assertLess(ask, r.stdout.find("FOCUSED"), "the console was focused before it was asked to show itself")
+
+    def test_premise_in_real_powershell_with_no_console_the_click_goes_on_to_the_boot(self):
+        r = self._run(control_up=False)
+        self.assertIn("FELL-THROUGH", r.stdout, "stdout %r stderr %r" % (r.stdout[-300:], r.stderr[-300:]))
+        self.assertNotIn("FOCUSED", r.stdout)
+
+
 RED_PROOF = [
     {
         "why": "2026-09-29 (REG-1514) - only a BACKGROUNDED console is asked forward; a window that is up is replaced",
@@ -271,6 +357,20 @@ RED_PROOF = [
         "file": "tv/start_tvd_win.ps1",
         "find": "      $decideOut = & $decideCmd @decidePrefix $decideScript --port 17772 --from win-launcher 2>&1\n",
         "replace": "      $decideRc = 0\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1826 - with the console up and no python, the click falls through to the boot again",
+        "file": "tv/start_tvd_win.ps1",
+        "find": "    [void](Focus-TvdWindow)\n    if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }\n    return\n  } else {\n",
+        "replace": "  } else {\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1826 / v1460 - with no python the hidden console is only focused from outside and never asked to show itself",
+        "file": "tv/start_tvd_win.ps1",
+        "find": "      $front = Invoke-WebRequest @frontArgs\n",
+        "replace": "      $front = $null\n",
         "matches": 1,
     },
 ]

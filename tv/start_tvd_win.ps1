@@ -257,7 +257,22 @@ if (Test-TvdControlUp) {
   }
   $decidePy = Real-Python
   if (-not $decidePy) {
-    Write-TvdLaunchLog 'control is up but python was not found, so whether it matches the disk is UNKNOWN - this open cannot update it'
+    # REG-1826 - no python means no decision and no update: this open can only bring forward what is running. It fell
+    # through to the boot, which found no python either and showed 'No real Python found' over a console that was up.
+    Write-TvdLaunchLog 'control is up but python was not found, so whether it matches the disk is UNKNOWN - this open cannot update it and brings the running console forward'
+    # v1460 - a hidden window does not reliably come back from a focus from outside, so the console is asked to show
+    # itself first - the same front request the shared decision makes for a console that is current.
+    $frontArgs = @{ Uri = 'http://127.0.0.1:17772/api/window'; Method = 'Post'; UseBasicParsing = $true; TimeoutSec = 4;
+                    ContentType = 'application/json'; Body = '{"do": "front", "from": "win-launcher-no-python"}' }
+    try {
+      $front = Invoke-WebRequest @frontArgs
+      Write-TvdLaunchLog ("asked the running console forward: {0}" -f ([string]$front.Content).Trim())
+    } catch {
+      Write-TvdLaunchLog ("the running console could not be asked forward ({0}) - focusing it from outside" -f $_)
+    }
+    [void](Focus-TvdWindow)
+    if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
+    return
   } else {
     $decideCmd = $decidePy.Cmd
     $decidePrefix = @()

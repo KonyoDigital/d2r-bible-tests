@@ -437,10 +437,13 @@ class UpdatesAndLaunchesKeepItBackgrounded(_Base):
         with io.open(WIN_LAUNCHER, encoding="utf-8-sig") as fh:
             ps = fh.read()
         up = ps.find("if (Test-TvdControlUp) {")
-        focus = ps.find("[void](Focus-TvdWindow)", up)
+        # REG-1826 - the no-python arm now focuses too, ahead of the decision; the focus this law is about is the
+        # decision's own arm, where the console was found current and asked to show itself
+        focus = ps.find("[void](Focus-TvdWindow)", ps.find("if ($decideRc -eq 0) {", up))
         self.assertGreater(up, -1)
         self.assertGreater(focus, up)
-        branch = ps[up:focus]
+        # code only: a comment that names launcher_decide.py inside this span satisfied the find with the call gone
+        branch = "\n".join(l.split("#", 1)[0] for l in ps[up:focus].split("\n"))
         decide = branch.find("launcher_decide.py")
         self.assertGreater(decide, -1,
                            "the Desktop icon on Windows only focuses from outside - a WinForms window hidden by the "
