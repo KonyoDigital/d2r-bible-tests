@@ -20057,9 +20057,16 @@ class TestV2049TheVerdictNamesWhatDidNotRun(unittest.TestCase):
     def test_the_verdict_counts_cases_that_skipped_inside_passing_gates(self):
         blk = _between(self, self._src(), "COUNT THE CASES THAT DID NOT RUN", "return 0",
                        what="the case-skip accounting")
-        self.assertTrue('skipped=(\\d+)' in blk or 'skipped=(\d+)' in blk,
-                        "the verdict no longer parses the per-suite skip count, so a gate that "
-                        "passes while its cases skip reads as full coverage again")
+        # REG-1819 - BEHAVIOUR, not the regex text: the census parses through run_gates.case_skips (one parser, shared with
+        # what shard_suite prints). Drive it with the two forms a gate prints, and require the census to CALL it.
+        import run_gates as _rg
+        self.assertEqual(_rg.case_skips("OK (skipped=8 of 20)"), (8, 20),
+                         "the verdict no longer parses the per-suite skip count, so a gate that "
+                         "passes while its cases skip reads as full coverage again")
+        self.assertEqual(_rg.case_skips("OK (skipped=3)"), (3, None))
+        self.assertEqual(_rg.case_skips("\u2705 test_control: 9 of 9 case(s) across 4 shard(s) in 1.0s skipped=2 of 9"), (2, 9))
+        self.assertIsNone(_rg.case_skips("OK"))
+        self.assertIn("case_skips(", blk, "the census no longer reads a gate's last line through case_skips")
         # THE PRINTED STRING, not the phrase. A first cut asserted "DID NOT RUN" and passed
         # against a sabotage that rewrote the print, because the comment heading above it says
         # "COUNT THE CASES THAT DID NOT RUN". That is the third time tonight my own prose has
