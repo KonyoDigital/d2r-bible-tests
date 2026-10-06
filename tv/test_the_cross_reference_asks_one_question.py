@@ -378,6 +378,12 @@ class TheCrossReferenceAsksOneQuestion(unittest.TestCase):
         What must hold at both levels: excluded AND NAMED, never silently skipped."""
         pairs = {str(p["ledger"]): p for p in (LA.surface_pairs() or [])}
         d = LA.mask_cross_check() or {}
+        # REG-1893 - both `or` defaults read a lost answer as "nothing to exclude": no pairs makes
+        # store_bad empty, and a renamed `excluded` key makes excl empty, so every check below
+        # would pass over ledgers it never saw.
+        self.assertTrue(pairs, "surface_pairs() answered nothing, so no ledger's store was judged")
+        self.assertIn("excluded", d, "mask_cross_check() carries no `excluded` list: %r"
+                                     % sorted(d))
         excl = d.get("excluded") or []
         named = {str(e.get("ledger")) for e in excl}
         store_bad = {k for k, v in pairs.items() if v.get("comparable") is not True}

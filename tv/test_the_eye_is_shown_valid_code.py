@@ -140,6 +140,9 @@ class TheEyeIsShownValidCode(unittest.TestCase):
         """the end-to-end property, asserted on the shape that actually shipped: after stripping,
         no added line may be a bare sentence — the signature of an orphaned comment body."""
         got = _added(R._strip_comments(_REPO_STYLE))
+        # REG-1893 - a strip that ate the whole payload leaves no line to be prose; the code must survive.
+        self.assertIn("var b = 2;", got, "the added code line did not survive the strip, so 'no orphan "
+                                         "prose' would be read off an empty payload: %r" % got)
         for ln in got.splitlines():
             t = ln.strip()
             if not t:

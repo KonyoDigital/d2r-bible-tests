@@ -96,6 +96,8 @@ class TestTZArtCoverage(unittest.TestCase):
         size check is cheap and catches a whole extraction going wrong at once."""
         info, _ = _tz_info()
         keys = sorted({row[2] for row in info.values()})
+        # REG-1893 - an emptied TZ_INFO parses fine and leaves no art key, so no image would be weighed
+        self.assertTrue(keys, "TZ_INFO names no art key, so 'the art is real images' is about nothing")
         sizes = {}
         for k in keys:
             p = os.path.join(REPO, "art", "tz_%s.jpg" % k)

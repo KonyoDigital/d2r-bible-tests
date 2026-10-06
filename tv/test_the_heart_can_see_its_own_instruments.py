@@ -443,8 +443,13 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
         natural copy-paste out of an error message — resolved to his REAL tree, where _prove_one
         truncates and rewrites. The restore is a `finally`; a SIGKILL or the push ceiling would
         leave the defect live, and his console execs the working tree."""
-        for name, fn in heart2.gate_files():
-            for i, pr in enumerate(heart2.red_proofs_in(fn) or []):
+        gates = [(name, fn, heart2.red_proofs_in(fn) or []) for name, fn in heart2.gate_files()]
+        # REG-1893 - an empty census, or a red_proofs_in() that reads every file as proof-less, leaves no
+        # `file` to judge, and "no proof escapes the sandbox" would be true of nothing
+        self.assertTrue(sum(len(prs) for _n, _f, prs in gates),
+                        "%d gate(s) and not one RED_PROOF read, so no proof's target was checked" % len(gates))
+        for name, fn, prs in gates:
+            for i, pr in enumerate(prs):
                 rel = str(pr.get("file") or "")
                 self.assertFalse(os.path.isabs(rel),
                                  "%s[%d] declares an ABSOLUTE file %r — os.path.join would drop "

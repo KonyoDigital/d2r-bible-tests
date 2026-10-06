@@ -972,6 +972,8 @@ class OneBoxAtATimeOnTheRow(unittest.TestCase):
         self.assertEqual(len(self.rows), 3, "the fixture roster has 3 PCs and the rail drew %d" % len(self.rows))
 
     def test_no_row_carries_a_title_of_its_own(self):
+        # REG-1893 - a rail the parse could not find gives no rows, and "no row has a title" holds of none.
+        self.assertTrue(self.rows, "the rail drew no fleet row, so this law would judge none")
         for tag, _ in self.rows:
             with self.subTest(tag[:60]):
                 self.assertNotIn(" title=", tag,
@@ -979,6 +981,8 @@ class OneBoxAtATimeOnTheRow(unittest.TestCase):
                 self.assertIn("onclick=\"window._fleetCompare(", tag, "the row stopped opening its box")
 
     def test_the_card_carries_the_click_sentence(self):
+        # REG-1893 - a rail the parse could not find gives no rows, and "every card says it" holds of none.
+        self.assertTrue(self.rows, "the rail drew no fleet row, so this law would judge none")
         for tag, row in self.rows:
             with self.subTest(tag[:60]):
                 card = row[row.find('<div class="ftt">'):]

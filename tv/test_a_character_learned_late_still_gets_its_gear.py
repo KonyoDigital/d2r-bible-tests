@@ -166,6 +166,10 @@ class AReelFiledWithNoCharacterIsFiledAgain(_World):
         self.assertEqual(r3.get("refiled"), [], "a reel already filed under its character was filed again")
         slot_sightings = [s.get("sightings") for s in (d3["characters"]["Hammerdin"].get("slots") or {}).values()]
         unplaced = [s.get("sightings") for s in (d3["characters"]["Hammerdin"].get("unplaced") or {}).values()]
+        # REG-1893 - an empty pair of lists holds no double count either: the reel's Shako and Enigma must be there
+        self.assertGreaterEqual(len(slot_sightings + unplaced), 2, "Hammerdin carries %d sighting(s), so 'none counted "
+                                "twice' would be about nothing: %r" % (len(slot_sightings + unplaced),
+                                                                       d3["characters"]["Hammerdin"]))
         self.assertTrue(all(n == 1 for n in slot_sightings + unplaced), "a sighting was counted twice: %r"
                         % d3["characters"]["Hammerdin"])
 

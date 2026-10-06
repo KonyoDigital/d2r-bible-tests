@@ -37,6 +37,18 @@ class AMachineEstablishesItsOwnTree(unittest.TestCase):
     def test_a_refused_anchor_yields_no_path_at_all(self):
         """The worst outcome is a tree built in the WRONG place, not no tree."""
         rows = MT.resolve()
+        # REG-1893 - a healthy checkout refuses no anchor, so this loop judged nothing on every machine
+        # that ran it. Drive the refusal resolve() really takes (a frozen build has no repo anchor) and
+        # require at least one REFUSED row before the claim.
+        real_frozen = MT._frozen
+        MT._frozen = lambda: True
+        try:
+            rows = rows + MT.resolve()
+        finally:
+            MT._frozen = real_frozen
+        self.assertTrue([r for r in rows if r["state"] == MT.REFUSED],
+                        "no root was REFUSED, even in a frozen build - 'a refused anchor yields no path' "
+                        "would be judged over nothing")
         for r in rows:
             if r["state"] == MT.REFUSED:
                 self.assertIsNone(

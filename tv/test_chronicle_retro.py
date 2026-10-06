@@ -2307,6 +2307,10 @@ class TestV2210AMachineWithoutGrokStillReadsAndRegisters(unittest.TestCase):
         less = cr.two_lane_read("p.png", "uniques", claude, grok_sees_less)
         other = cr.two_lane_read("p.png", "uniques", claude, grok_sees_other)
 
+        # REG-1893 - an empty Claude-alone read would make "Grok never removes a Claude name" vacuous.
+        self.assertTrue({"Shako", "Occulus", "Skin of the Vipermagi"} <= set(alone.get("found") or []),
+                        "the Claude-alone read did not carry Claude's three names, so the union check "
+                        "below would judge nothing: %r" % (alone.get("found"),))
         for name in (alone.get("found") or []):
             self.assertIn(name, less.get("found") or [],
                           "%r was found by Claude and DISAPPEARED once Grok was switched on. The "

@@ -97,6 +97,9 @@ class DeepOwedIsStamped(unittest.TestCase):
         block = "\n".join(lines[target - 3:target + 8])
         used = set(re.findall(r"\b([A-Za-z_][A-Za-z0-9_]*)\s*(?![\w\s]*=[^=])", block))
         used &= {"snap_path", "SESSION_ID", "_journal", "os", "fid_this", "frame_id", "job", "rid"}
+        # REG-1893 - if the stamp block moved out of this window, `used` is empty and every name is "in scope"
+        self.assertTrue(used, "the window around the deep-owed stamp loads none of the names this law "
+                              "checks, so it would pass on a block it never read:\n%s" % block)
         tree = ast.parse(src)
         module_level = {t.id for n in tree.body if isinstance(n, ast.Assign)
                         for t in n.targets if isinstance(t, ast.Name)}

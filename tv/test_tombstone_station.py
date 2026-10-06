@@ -88,6 +88,10 @@ class EveryRowCarriesIt(unittest.TestCase):
         self.assertTrue(got <= allowed, "unexpected tombstone verdict(s): %s" % (got - allowed))
 
     def test_a_verdict_always_carries_its_reason(self):
+        # REG-1893 - a host with no reels has no verdict to judge; say so as the declared skip
+        # (like the snapshot case above) instead of passing over rows that are not there.
+        if not self.rows:
+            raise unittest.SkipTest(NO_REELS)   # declared in run_gates via skip_ok=
         for r in self.rows:
             why = (r["stations"]["tombstone"] or {}).get("why") or ""
             self.assertTrue(len(why) > 10,
@@ -116,6 +120,9 @@ class SealedIsNotCertified(unittest.TestCase):
     def test_an_uncertified_seal_says_why(self):
         import extract_gap as EG
         rows = (EG.gap() or {}).get("rows") or []
+        # REG-1893 - as above: no rows is no seal judged, which is the declared skip, not a pass.
+        if not rows:
+            raise unittest.SkipTest(NO_REELS)   # declared in run_gates via skip_ok=
         for r in rows:
             if r.get("sealed") and not r.get("certified"):
                 self.assertTrue(len(str(r.get("certifiedWhy") or "")) > 10,

@@ -174,6 +174,10 @@ class TestAFactTheReaderSawMustReachTheRow(unittest.TestCase):
         """
         keys = _sight_keys()
         self.assertIsNotNone(keys, "cannot reach the `sight` literal")
+        # REG-1893 - a `sight = {}` filled by item assignment parses as NO keys, and the loop below
+        # would then pass over every field it never saw.
+        self.assertTrue(keys, "the `sight` literal carries no string keys, so 'every field travels "
+                              "or is declared' would be checked against nothing")
         declared = set(getattr(vr, "WITNESS_NOT_CARRIED", {}))
         ident = ("session", "frame", "lane")
         # ⚠ PROBE ONE FIELD AT A TIME. Setting every key at once forces MUTUALLY EXCLUSIVE arms
@@ -196,6 +200,11 @@ class TestAFactTheReaderSawMustReachTheRow(unittest.TestCase):
     def test_the_declared_omissions_are_real_sighting_fields(self):
         """A stale entry in the declared list would excuse a field that no longer exists."""
         keys = set(_sight_keys() or [])
+        # REG-1893 - getattr's {} default turns a RENAMED declaration into an empty one, and this
+        # loop would then pass over every stale entry the renamed list still holds.
+        self.assertTrue(hasattr(vr, "WITNESS_NOT_CARRIED"),
+                        "vault_retro no longer defines WITNESS_NOT_CARRIED, so 'every declared "
+                        "omission is a real field' would be checked against an empty default")
         for k in getattr(vr, "WITNESS_NOT_CARRIED", {}):
             self.assertIn(k, keys,
                           "WITNESS_NOT_CARRIED names %r, which the sighting does not carry — a "

@@ -162,7 +162,12 @@ class EveryStationQuotesItsOwner(unittest.TestCase):
 
     def test_the_OUT_station_reports_BOTH_doors_and_chooses_NEITHER(self):
         """⚠⚠ Choosing is a decision about what *finished* means. It is his, and it gates the prune."""
-        r = P.stream()
+        # REG-1893 - on a runner with no footage the real shelf is EMPTY and this loop asked nothing. The
+        # planted shelf (a union: his reels still join on his Mac) guarantees rows, and they must arrive.
+        with _planted_shelf():
+            r = P.stream()
+        self.assertTrue(set(FIXTURE_REELS) <= set(row["reel"] for row in r["rows"]),
+                        "the planted shelf never reached the printer, so no OUT station was judged")
         for row in r["rows"]:
             out = row["stations"]["out"]
             self.assertEqual(
@@ -367,7 +372,12 @@ class EveryStationQuotesItsOwner(unittest.TestCase):
         SEALS rather than reels, and must be in a DIFFERENT field from the per-reel answer — which
         is the whole point, since one field holding both is how they got confused before.
         """
-        for row in P.stream()["rows"][:3]:
+        # REG-1893 - the real shelf is empty on a runner with no footage, and [:3] of nothing judges nothing
+        with _planted_shelf():
+            rows = P.stream()["rows"]
+        self.assertTrue(set(FIXTURE_REELS) <= set(row["reel"] for row in rows),
+                        "the planted shelf never reached the printer, so no EXTRACT station was judged")
+        for row in rows[:3]:
             ex = row["stations"]["extract"]
             self.assertIn("shelfReach", ex, "the shelf-wide answer is not carried at all")
             self.assertIn("SEALS", ex.get("shelfWhy") or "",

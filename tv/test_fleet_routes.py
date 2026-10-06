@@ -41,6 +41,9 @@ class AnUnknownTotalIsNotAMissingOne(unittest.TestCase):
         """Without a live read nobody can say whether a total reaches the wire. Reporting that as
         a break would cry wolf; reporting it as fine would be the false green."""
         d = FR.routes(None)
+        # REG-1893 - routes() answers [] (ok False) when a source will not read; "every total is
+        # UNKNOWN" would then be true of no route.
+        self.assertTrue(d["routes"], "no route was derived (%s), so this law would judge none" % d.get("why"))
         for r in d["routes"]:
             self.assertIsNone(r["lanes"]["total"]["ok"],
                               "%s claimed to know about the wire with no live read" % r["key"])
@@ -51,6 +54,8 @@ class AnUnknownTotalIsNotAMissingOne(unittest.TestCase):
         d = FR.routes({"sets": {"have": 1, "total": 135},
                        "uniques": {"have": 1, "total": 398},
                        "runewords": {"have": 1, "total": 99}})
+        # REG-1893 - an empty route list (a source that will not read) passes every check below.
+        self.assertTrue(d["routes"], "no route was derived (%s), so this law would judge none" % d.get("why"))
         for r in d["routes"]:
             self.assertIn(r["state"], ("FLOWING", "WATCHED"), r["why"])
             if not r["lanes"]["unit"]["ok"]:

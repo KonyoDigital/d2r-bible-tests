@@ -50,6 +50,8 @@ class TheEyeIsAskedForTheVerdictItIsReadFor(unittest.TestCase):
         An instruction written "VERDICT: clean / findings" would be ignored when echoed - the guard
         would eat the very field we just asked for.
         """
+        # REG-1893 - with no VERDICT: line every line `continue`s and no instruction is graded as a menu
+        self.assertIn("VERDICT:", SE.COLD_FRAMING, "the prompt carries no VERDICT: line, so this law reads nothing")
         for line in SE.COLD_FRAMING.splitlines():
             if "VERDICT:" not in line:
                 continue

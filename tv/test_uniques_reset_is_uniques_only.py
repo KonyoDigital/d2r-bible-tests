@@ -184,6 +184,9 @@ class TheResetTouchesUniquesOnly(unittest.TestCase):
         got, why = _run()
         self.assertIsNotNone(got, why)
         gun = json.loads(got["store"]["d2r_grailUnfound"])
+        # REG-1893 - an empty plan list passes this loop; Occy (cleared, NOT a seed name) is the case it exists for.
+        self.assertIn("Occy", got["plan"]["names"], "the plan does not name Occy, so this law would judge "
+                                                    "nothing: %r" % (got["plan"].get("names"),))
         for n in got["plan"]["names"]:
             self.assertIn(n, gun,
                           "%r was cleared and never un-ticked. Only _GRAIL_SEED names are covered "

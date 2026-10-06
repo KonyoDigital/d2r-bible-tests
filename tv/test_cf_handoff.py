@@ -254,6 +254,9 @@ class TestCF12SlowChecksReachASidecar(unittest.TestCase):
         with open(self.path, "w", encoding="utf-8") as fh:
             fh.write("{not json")
         rows = self.cd.slow_surface()
+        # REG-1893 - a surface that answered [] on a bad sidecar would pass "all NEVER" about no row.
+        self.assertEqual(len(rows), len(self.cd.SLOW), "an unreadable sidecar dropped the SLOW rows "
+                                                       "instead of painting them NEVER: %r" % rows)
         self.assertTrue(all(r["state"] == self.cd.UNMEASURED for r in rows))
 
     def test_a_stored_full_pass_surfaces_with_age(self):

@@ -201,9 +201,12 @@ class TestALockThatGatesNothingIsNotALock(unittest.TestCase):
         RETRY, so a locked door in that shape is retried forever."""
         node = _fn_node("control_app.py", "chronicle_sweep_start")
         self.assertIsNotNone(node, "chronicle_sweep_start is gone")
-        for n in ast.walk(node):
-            if not isinstance(n, ast.If) or "vault.sweep_start" not in ast.dump(n):
-                continue
+        # REG-1893 - if the seat check stops being an `if` that names the seat (a constant, a helper),
+        # no node passes the filter and the busy ban is certified over no refusal at all.
+        guards = [n for n in ast.walk(node) if isinstance(n, ast.If) and "vault.sweep_start" in ast.dump(n)]
+        self.assertTrue(guards, "no `if` in chronicle_sweep_start names vault.sweep_start, so this law "
+                                "would judge a refusal it never found")
+        for n in guards:
             self.assertNotIn(
                 '"busy"', ast.dump(n),
                 "the vault.sweep_start refusal carries a `busy` key. Callers retry on busy, so a "

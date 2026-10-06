@@ -182,6 +182,10 @@ class TheEyeSeesEveryCodeExtension(unittest.TestCase):
     def test_an_archived_build_chunk_is_not_sent(self):
         """67 tracked .js, the bulk archived chunks. One archived rebuild must not flood the
         payload and starve the files the version is actually about."""
+        # REG-1893 - the spy swallows payload_for's exceptions, so a renamed or crashing fetch
+        # leaves argvs EMPTY, and "no archive chunk was sent" would pass over calls never made.
+        self.assertTrue(self.argvs, "the shipped code issued no `git show` at all, so nothing "
+                                    "was sent and nothing was judged")
         outs = [self._replay(a) for a in self.argvs]
         self.assertFalse(any("_archive/assets/chunk.js" in o for o in outs),
                          "an _archive/ file reached the payload - one rebuild there would spend "

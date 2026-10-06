@@ -6254,6 +6254,8 @@ class TestV2316OnePreflightForEveryCaptureDoor(unittest.TestCase):
             rep = ca.capture_door_report()
         finally:
             ca._capture_door_load = real
+        # REG-1893 - a report that answered {} would pass "None, not zero" about no door at all.
+        self.assertTrue(rep, "the capture-door report carries no door, so this law would judge none")
         for door, row in rep.items():
             self.assertIsNone(row["wilson"],
                               "%s scored %r with zero sealed reels" % (door, row["wilson"]))
@@ -9114,6 +9116,10 @@ class TestChronicleSweepJob(unittest.TestCase):
         man = dict(self.BOTH)
         man.pop("*#chronicle-grok")
         res = self._sweep(man)
+        # REG-1893 - the Claude lane still grounds names here; a sweep that grounded none would pass
+        # "nothing claims cross-lane" about no row.
+        self.assertTrue(res["wouldAdd"]["uniques"], "with the Grok lane silent the sweep grounded nothing, "
+                                                    "so 'never reads as agreement' would judge no row")
         for row in res["wouldAdd"]["uniques"]:
             self.assertNotIn("cross-lane", row["witnesses"])
 
@@ -10883,6 +10889,8 @@ class TestV1789TheRosterIsTheAuthorityOnWhatIsOneItem(unittest.TestCase):
                             ["Battlecage", "Naglring", "Heart Garver", "Twitchthrow",
                              "Gravepalms", "The Dragon Chang(?)", "Bloodfist Shard"]}}
         folded, _ = r.fold_proposal(prop, roster)
+        # REG-1893 - a fold that dropped every name would pass "never invents one" about none.
+        self.assertTrue(folded["uniques"], "the fold kept no name of the seven, so this law would judge none")
         for n in folded["uniques"]:
             self.assertIn(n, names, "%r reached the gate and is not a roster item" % n)
 
@@ -21395,6 +21403,10 @@ class TestV2068ARuleThatNeverRunsMustSaySo(unittest.TestCase):
         with mock.patch.object(rr, "HERE", root):
             p = rr.plan(hist)
         say = p["coverageSay"]
+        # REG-1893 - this fixture leaves rules unreached; if neverFired came back empty the `if` below
+        # would skip every claim and the law would pass having said nothing about UNMEASURED.
+        self.assertTrue(p["neverFired"], "no rule reads never-fired on the fixture, so this law would "
+                                         "check nothing: %r" % (p.get("coverage"),))
         if p["neverFired"]:
             self.assertIn("UNMEASURED", say)
             self.assertNotIn("broken", say.replace("not broken", ""))
@@ -21658,6 +21670,8 @@ class TestV2069TheRecordOutLIVESTheFrames(unittest.TestCase):
         would make the fixture count look healthy while protecting no footage."""
         fa = self._fa()
         got = fa.test_referenced_reels()
+        # REG-1893 - the suite names real reels; a scan that found none would pass "only real ids" about none.
+        self.assertTrue(got, "the fixture scan found no reel the suite names, so this law would judge none")
         for name in got:
             stamp = name.split("_")[2]
             self.assertGreaterEqual(len(stamp), 10,
@@ -22928,6 +22942,9 @@ class TestV2079EveryWatcherStartsInBothModes(unittest.TestCase):
             # one never got the same treatment. [[feedback-suspect-the-instrument]]
             live = set(t.name for t in threading.enumerate())
         self.assertEqual(r["failed"], [], "a watcher failed to start: %r" % r["failed"])
+        # REG-1893 - an empty roster passes "every roster name is running" while starting nothing.
+        self.assertTrue(r["roster"], "start() returned an empty roster, so 'it actually starts them' "
+                                     "would be vacuous")
         for name in r["roster"]:
             self.assertIn(name, live, "%s is in the roster and not running" % name)
 
@@ -36992,6 +37009,8 @@ class TestV2251RunewordValuesCrossCheckedAgainstSources(unittest.TestCase):
         import re as _re
         lines = self._tip("Treachery")
         self.assertIsNotNone(lines, "Treachery left the tip table")
+        # REG-1893 - an entry whose l:[] came back empty would pass "no Enhanced Defense" about no line.
+        self.assertTrue(lines, "Treachery's tip carries no line, so this law would judge none")
         self.assertFalse(any(_re.search(r"Enhanced Defense", l, _re.I) for l in lines),
                          "Treachery grew an Enhanced Defense line that the game does not give it")
 
@@ -39509,6 +39528,9 @@ class TestV2344TheRegisterAsksTheTimelineWhereAnItemWas(unittest.TestCase):
         import control_app as ca
         j = [r for r in self._journal() if r.get("lane") == "kai"]
         reg = {e["name"]: e for e in ca._kai_compile_register(j)}
+        # REG-1893 - the journal carries two kai verdicts; a register that compiled none would pass
+        # "no item was given a location" about no item.
+        self.assertTrue(reg, "the register compiled no item from two kai verdicts, so this law would judge none")
         for nm in reg:
             self.assertIsNone(reg[nm].get("loc"),
                               "with no scene reads at all, %r was still given a location" % nm)
@@ -40542,6 +40564,8 @@ class TestV2357TheSurfaceRuleMayOnlyTighten(unittest.TestCase):
         ss = cr.surface_shadow(self._sg("deep", 3), surface_of=None, live_verdict={"pass": True})
         self.assertEqual(ss["requires"], 2,
                          "an unresolved surface must ask for the cautious default, not a veto")
+        # REG-1893 - three sightings went in; an empty perSighting would pass "every surface is None" about none.
+        self.assertEqual(len(ss["perSighting"]), 3, "perSighting lost the three sightings: %r" % ss["perSighting"])
         for row in ss["perSighting"]:
             self.assertIsNone(row["surface"])
 

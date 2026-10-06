@@ -208,6 +208,10 @@ class NoControlIsBuriedInAnotherControl(unittest.TestCase):
         While a nesting is allowed to exist at all, this is the thing that must not regress.
         """
         p = _parse()
+        # REG-1893 - no buried host is the goal state, so the denominator is the parse: one that fell over
+        # early also finds no host, and every host it never reached "says its name"
+        self.assertGreater(p.opened, 500, "only %d elements were parsed, so an empty `buried` here means "
+                                          "nothing" % p.opened)
         for _child, host in p.buried:
             a = p.attrs_of.get(host)
             self.assertIsNotNone(a, "the host %r has no id, so nothing can pin its name" % host)

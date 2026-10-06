@@ -140,7 +140,13 @@ class ANoteMayNotQuoteANumberThatIsNotTrue(unittest.TestCase):
 
     def test_the_farm_roster_count_as_quoted_matches(self):
         real = _runewords_rows(self.s)
-        for m in re.finditer(r"window\.RUNEWORDS\s{2,}(\d+)", self.s):
+        quoted = list(re.finditer(r"window\.RUNEWORDS\s{2,}(\d+)", self.s))
+        # REG-1893 - a note re-spaced or reworded stops matching, and a stale count then passes
+        # this law unread. The RUNEWORD_TIP case above asks the same question of its own pattern.
+        self.assertTrue(quoted, "no comment quotes a window.RUNEWORDS count any more - this guard "
+                                "has lost its subject and should be retired deliberately, not left "
+                                "passing")
+        for m in quoted:
             n = int(m.group(1))
             line = self.s.count("\n", 0, m.start()) + 1
             self.assertEqual(

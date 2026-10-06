@@ -565,6 +565,10 @@ class TheHeartSeesTheDrainStop(_Base):
             self.w.add(sealed=True)                  # a new reel finishes; the 9th-newest is owed
             self.w.write_ledgers()
         owed = [x.get("owed") for x in self.w.series() if "owed" in x]
+        # REG-1893 - an empty disk series makes the premise below vacuous: one owed row per pass first.
+        self.assertGreaterEqual(len(owed), bar + 2, "the disk series recorded %d owed row(s) for %d passes, so "
+                                                    "'every pass started with reels owed' is unsupported: %r"
+                                % (len(owed), bar + 2, owed))
         self.assertTrue(all(o and o > 0 for o in owed),
                         "premise: every pass started with reels owed: %r" % owed)
         self.assertNotIn("STOPPED", seen, "a drain releasing every pass was called STOPPED: %r" % seen)

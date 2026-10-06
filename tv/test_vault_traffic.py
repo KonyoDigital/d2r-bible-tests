@@ -176,6 +176,10 @@ class TestTheThrowBarSeenFromBothSides(_Base):
 
     def test_a_suggestion_is_never_automatic(self):
         res, _ = self.sweep([self.ITEM], sessions=3)
+        # REG-1893 - if the throw bar rises above 3 recordings (it was 4 once), nothing is suggested and
+        # "no suggestion marks itself automatic" holds of nothing
+        self.assertTrue(res["throwOut"], "3 recordings suggested no throw-out (bar %d), so no suggestion was judged"
+                        % vr.THROWOUT_MIN_WITNESSES)
         for row in res["throwOut"]:
             self.assertIs(row.get("suggestion"), True)
             self.assertFalse(row.get("automatic"), "a throw-out marked itself automatic")

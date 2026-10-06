@@ -704,15 +704,22 @@ class OnHisRealShelf(unittest.TestCase):
 
     def test_a_reel_is_never_both_QUALIFIED_and_dead_ended(self):
         """The contradiction check that costs nothing and needs no shelf."""
-        src = ER.sources()
-        for r in sorted((src.get("structural") or {}))[:60]:
-            v = ER.verdict(r, src=src)
-            self.assertFalse(v["say"] == "QUALIFIED" and v["missing"],
-                             "%s is QUALIFIED and still lists something missing: %r"
-                             % (r, v["missing"]))
-            self.assertFalse(v["say"] == "HELD" and not v["missing"],
-                             "%s is HELD and names nothing missing — 'not eligible' with no "
-                             "reason is what this module exists to replace" % r)
+        # REG-1893 - with no shelf on the machine (CI, a fresh checkout) ER.sources() reads no structural
+        # rows and this loop judged nothing. The fixture shelf always carries rows; a real shelf is read too.
+        d = _fixture_dir()
+        self.addCleanup(shutil.rmtree, d, True)
+        fix = ER.sources(hist_dir=d)
+        self.assertTrue(fix.get("structural"), "the fixture shelf has no structural rows, so this "
+                                               "contradiction check would examine nothing")
+        for src in (fix, ER.sources()):
+            for r in sorted((src.get("structural") or {}))[:60]:
+                v = ER.verdict(r, src=src)
+                self.assertFalse(v["say"] == "QUALIFIED" and v["missing"],
+                                 "%s is QUALIFIED and still lists something missing: %r"
+                                 % (r, v["missing"]))
+                self.assertFalse(v["say"] == "HELD" and not v["missing"],
+                                 "%s is HELD and names nothing missing — 'not eligible' with no "
+                                 "reason is what this module exists to replace" % r)
 
 
 if __name__ == "__main__":

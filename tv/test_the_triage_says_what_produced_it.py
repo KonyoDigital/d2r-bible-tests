@@ -125,6 +125,8 @@ class TheStampIsNeverAFakeReel(unittest.TestCase):
                          % (len(self.blob), sorted(self.blob)))
 
     def test_each_row_carries_it_instead(self):
+        # REG-1893 - a load that came back {} would pass "each row names its producer" about no row.
+        self.assertTrue(self.blob, "the store loaded no row, so this law would judge none")
         for k, row in self.blob.items():
             self.assertEqual("retro_triage", getattr(PV.read(row), "by", None),
                              "row %r does not name its producer" % k)
@@ -182,6 +184,8 @@ class ADoorKeyedStoreStampsItsDoors(unittest.TestCase):
                          % (len(self.blob), sorted(self.blob)))
 
     def test_every_door_names_its_producer(self):
+        # REG-1893 - a save that wrote {} would pass "every door names its producer" about no door.
+        self.assertTrue(self.blob, "the door store holds no door, so this law would judge none")
         for k, row in self.blob.items():
             self.assertEqual("control_app", getattr(PV.read(row), "by", None),
                              "door %r does not name its producer" % k)
@@ -237,6 +241,8 @@ class TheHuntMemoryDoesNotFoolItsOwnCorroborator(unittest.TestCase):
 
     def test_every_remembered_name_carries_its_producer(self):
         blob = self._save({"sets|A": {"empty": True, "ts": 1}})
+        # REG-1893 - a save that wrote {} would pass "every name carries its producer" about none.
+        self.assertTrue(blob, "the hunt memory saved no name, so this law would judge none")
         for k, row in blob.items():
             self.assertEqual("control_app", getattr(PV.read(row), "by", None),
                              "remembered name %r does not name its producer" % k)
@@ -285,6 +291,8 @@ class TheCharacterLedgerKeepsItsTrackedCount(unittest.TestCase):
     def test_every_item_names_its_producer(self):
         MC._save({"dwarf star": {"slot": "ring"}})
         blob = json.load(io.open(MC.LEDGER, encoding="utf-8"))
+        # REG-1893 - a save that wrote {} would pass "every item names its producer" about none.
+        self.assertTrue(blob, "the character ledger holds no item, so this law would judge none")
         for k, row in blob.items():
             self.assertEqual("main_character", getattr(PV.read(row), "by", None),
                              "item %r does not name its producer" % k)

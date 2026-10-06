@@ -60,14 +60,20 @@ class TheDeclarationMustDescribeTheCode(unittest.TestCase):
             "should have to be argued in, not appear." % (len(bad), bad))
 
     def test_a_declared_reader_that_no_longer_touches_it_is_reported(self):
-        stale = [(x["store"], x["stale"]) for x in SO.audit()["rows"] if x["stale"]]
+        rows = SO.audit()["rows"]
+        # REG-1893 - audit() answers rows [] when no module reads; "nothing is stale" would then be vacuous.
+        self.assertTrue(rows, "BASELINE: no store audited, so 'no stale allowance' would be vacuous")
+        stale = [(x["store"], x["stale"]) for x in rows if x["stale"]]
         self.assertFalse(
             stale,
             "%d stale allowance(s): %s. A list that has stopped describing the code is how the "
             "next undeclared module slips in under a name nobody re-checked." % (len(stale), stale))
 
     def test_the_declared_owner_actually_mentions_its_store(self):
-        for row in SO.audit()["rows"]:
+        rows = SO.audit()["rows"]
+        # REG-1893 - audit() answers rows [] when no module reads; every owner would then "mention" nothing.
+        self.assertTrue(rows, "BASELINE: no store audited, so 'every owner mentions its store' would be vacuous")
+        for row in rows:
             self.assertTrue(
                 row["ownerMentionsIt"],
                 "%r is declared owner of %s and never mentions it. A declaration naming a module "

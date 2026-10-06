@@ -267,6 +267,10 @@ class TheTabOrderIsNeverGuessed(unittest.TestCase):
     def test_no_layout_leaves_every_tab_unknown(self):
         t, why = ST.assemble(_blobs(treelayout=None))
         self.assertIsNotNone(t, why)
+        # REG-1893 - a no-layout build that dropped its classes would pass every "never guessed"
+        # check below over tabs it never built. The fixture's two classes first.
+        self.assertEqual(sorted(t["classes"]), ["dru", "war"],
+                         "the no-layout build did not carry the fixture's classes: %r" % sorted(t["classes"]))
         for code, c in t["classes"].items():
             self.assertEqual(len(c["tabs"]), 3)
             for x in c["tabs"]:
@@ -341,10 +345,17 @@ class TheCommittedTables(unittest.TestCase):
               % (len(self.t["classOrder"]), " ".join(self.t["classOrder"]), " ".join(extra) or "none"))
 
     def test_every_skill_is_named_placed_and_has_an_icon(self):
+        # REG-1893 - each level of this walk is a universal claim; an empty level (no classes, a
+        # class with no tabs, a tab with no skills - a failed skilldesc join) would pass unread.
+        self.assertGreaterEqual(len(self.t["classes"]), len(CLASSIC),
+                                "the committed tree carries %d classes" % len(self.t["classes"]))
         for code, c in self.t["classes"].items():
             self.assertTrue(c["name"] and c["iconFile"], "%s: class name / icon sheet UNKNOWN" % code)
+            self.assertTrue(c["tabs"], "%s carries no skill tabs, so none of its skills were checked" % code)
             for x in c["tabs"]:
                 self.assertTrue(x["name"], "%s page %s has no tab name: %s" % (code, x["page"], x["tabWhy"]))
+                self.assertTrue(x["skills"], "%s page %s carries no skills, so none were checked"
+                                             % (code, x["page"]))
                 for s in x["skills"]:
                     for f in ("name", "iconIndex", "maxlvl"):
                         self.assertIsNotNone(s[f], "%s %s: %s is UNKNOWN" % (code, s["key"], f))

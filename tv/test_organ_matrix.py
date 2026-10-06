@@ -36,6 +36,9 @@ class ItNeverInventsCoverage(unittest.TestCase):
         """The one claim that must never be free. Re-derive each COVERED cell from the organ."""
         cov = OM.organ_coverage()
         rows, _why = OM.matrix()
+        # REG-1893 - surfaces() swallows a failed import, so a matrix with no rows is a quiet
+        # possibility, and every per-cell claim below would then pass over cells it never saw.
+        self.assertTrue(rows, "OM.matrix() returned no rows, so there is no cell to check")
         for r in rows:
             for organ, cell in r["cells"].items():
                 if cell != OM.COVERED:
@@ -53,6 +56,8 @@ class ItNeverInventsCoverage(unittest.TestCase):
     def test_an_unaskable_organ_is_UNKNOWN_everywhere_and_never_ABSENT(self):
         cov = OM.organ_coverage()
         rows, _why = OM.matrix()
+        # REG-1893 - as above: no rows means no cell was read as UNKNOWN or otherwise.
+        self.assertTrue(rows, "OM.matrix() returned no rows, so there is no cell to check")
         for organ, (names, _w) in cov.items():
             if names is not None:
                 continue
@@ -67,6 +72,8 @@ class ItNeverInventsCoverage(unittest.TestCase):
     def test_MISNAMED_is_kept_apart_from_ABSENT(self):
         """⚠ WITHOUT THIS THE MATRIX LIES BY OMISSION. 9 cells are a join nobody made."""
         rows, _why = OM.matrix()
+        # REG-1893 - as above: an empty matrix makes `should`, `wrong` and every MISNAMED check empty.
+        self.assertTrue(rows, "OM.matrix() returned no rows, so there is no cell to check")
         states = {c for r in rows for c in r["cells"].values()}
         self.assertTrue(
             states <= {OM.COVERED, OM.ABSENT, OM.UNKNOWN, OM.MISNAMED},
@@ -141,6 +148,9 @@ class ItNeverInventsCoverage(unittest.TestCase):
         it could not.** Widening the set of reasons must not widen the set of silences.
         """
         rows, why = OM.matrix()
+        # REG-1893 - with no rows every organ reads "dark" by all() of nothing, and the speaking
+        # check below would pass over columns that were never filled in.
+        self.assertTrue(rows, "OM.matrix() returned no rows, so no column was read")
         dark, speaking = [], []
         for o in OM.ORGANS:
             if all(r["cells"][o] == OM.UNKNOWN for r in rows):

@@ -120,6 +120,10 @@ class EyebrowNeverStrandsASeparator(unittest.TestCase):
         of the two layers it is looking at. [[source-reading-guard]] [[feedback-suspect-the-instrument]]
         """
         ESCAPES = ("\\u00a0", "\\u00A0", "\\xa0", "\\xA0", "&nbsp;")
+        # REG-1893 - no eyebrow, or no separator in any of them, and the loop below grades nothing
+        self.assertTrue(any(u"·" in b for b in self.blocks),
+                        "%d eyebrow(s) read and not one '·' among them, so no separator was graded"
+                        % len(self.blocks))
         for block in self.blocks:
             for m in re.finditer(u"·", block):
                 i = m.start()

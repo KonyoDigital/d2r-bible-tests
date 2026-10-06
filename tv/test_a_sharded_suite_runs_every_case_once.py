@@ -74,6 +74,10 @@ class TheDealerPlacesEveryClassOnce(unittest.TestCase):
     def test_the_heaviest_class_does_not_share_with_the_next_heaviest(self):
         plan = SS.deal(["big", "big2", "s1", "s2", "s3", "s4"], 2,
                        {"big": 100, "big2": 90, "s1": 1, "s2": 1, "s3": 1, "s4": 1})
+        # REG-1893 - a plan that dealt neither heavy class (or nothing) would pass "they never share".
+        self.assertTrue(any("big" in s for s in plan) and any("big2" in s for s in plan),
+                        "the plan does not carry both heavy classes, so 'they do not share' would be "
+                        "judged on shards that never held them: %r" % plan)
         self.assertFalse(any("big" in s and "big2" in s for s in plan), "the two heaviest landed on one shard: %r" % plan)
 
 

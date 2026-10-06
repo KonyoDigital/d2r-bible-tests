@@ -165,6 +165,10 @@ class OwnerResolution(unittest.TestCase):
 
     def test_a_real_person_is_never_the_owner_by_accident(self):
         """The half that protects Dean. No key a user can set may make them the owner."""
+        # REG-1893 - with no real-person row graded (an empty harness, a renamed label) this law is vacuous.
+        self.assertGreaterEqual(len([r for r in self.rows if "real person" in r["label"]]), 3,
+                                "the harness graded fewer than the three real-person cases: %r"
+                                % [r["label"] for r in self.rows])
         for r in self.rows:
             if "real person" in r["label"]:
                 self.assertIs(r["got"], False,

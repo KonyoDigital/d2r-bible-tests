@@ -223,6 +223,9 @@ class TestTheWholeChain(unittest.TestCase):
         self.assertEqual(resp["lanesRan"], ["claude"])
         self.assertEqual(resp["laneNote"], "grok-silent")
         prop = cr.proposal_from_pages([{"reel": "s1", "frame": "f0.jpg", "resp": resp}])
+        # REG-1893 - an empty proposal carries no cross-lane witness either; the Claude lane saw this name
+        self.assertIn("Harlequin Crest", prop["uniques"],
+                      "the one-lane read reached no proposal, so 'no cross-lane witness' judges nothing")
         for nm, sightings in prop["uniques"].items():
             self.assertNotIn("cross-lane", cr.witnesses(sightings))
 
@@ -246,7 +249,17 @@ class TestTheDoctorTellsTheTruth(unittest.TestCase):
     def test_UNKNOWN_is_never_counted_as_broken(self):
         # ★ "I could not check" and "it is broken" are different sentences. Collapsing them is how a
         # health check starts lying — and it lies in the direction that wastes his time.
-        d = self.cd.diagnose()
+        # REG-1893 - on a host where every check answers, d["unknown"] is empty and this loop asks nothing;
+        # a collapse of UNKNOWN into MISSING would also EMPTY it. So one BLOCKING check is made unable to
+        # answer, and it must arrive in "unknown" before the claim is asked.
+        real = self.cd.CHECKS
+        self.cd.CHECKS = [(n, (lambda: 1 / 0) if n == "claude lane" else f) for n, f in real]
+        try:
+            d = self.cd.diagnose()
+        finally:
+            self.cd.CHECKS = real
+        self.assertIn("claude lane", d["unknown"],
+                      "a blocking check that could not answer did not read UNKNOWN: %r" % (d["unknown"],))
         for name in d["unknown"]:
             self.assertNotIn(name, d["blocking"])
 
