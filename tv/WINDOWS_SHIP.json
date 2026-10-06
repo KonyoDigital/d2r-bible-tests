@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3597",
+  "ver": "v3598",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3597: CI-red fixes for v3596 (pinned reel id, four source windows, a scratch dir) and a ci/* push is graded on GitHub, not on his Mac",
+  "note": "v3598: the sandbox copy no longer carries heart2 own cache or the reel-seed archive, so a proof can run on his Mac and the river unlocks - a refused copy says why instead of waiting 3 h - STATION names the locked sweep",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
