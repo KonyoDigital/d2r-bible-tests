@@ -350,7 +350,7 @@ RED_PROOF = [
         "why": "quit cancels the close again, so the window stays and the button does nothing",
         "file": "tv/control_app.py",
         "find": "    if (globals().get(\"_QUIT_KEEPS_SERVICE\") and not globals().get(\"_EXIT_REQUESTED\")\n"
-                "            and (_cur is None or _cur is globals().get(\"_QUIT_KEEPS_WINDOW\"))):\n"
+                "            and (_qwin is None or _cur is None or _cur is _qwin)):\n"
                 "        return True\n",
         "replace": "    if False:\n"
                    "        return True\n",
