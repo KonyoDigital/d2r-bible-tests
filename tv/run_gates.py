@@ -9612,6 +9612,16 @@ GATES = [
              "breach is still that breach. An unread size still says the size "
              "was not read. The organ says the journal was not read, and the "
              "pulse does not stay ok."),
+    Gate("test_an_unread_shelf_is_not_an_empty_extract",
+         [sys.executable, os.path.join(HERE, "test_an_unread_shelf_is_not_an_empty_extract.py")], 90,
+         needs_app=False,
+         why="REG-1811 - the reel-extract row treats a shelf that will not list "
+             "as no reels on disk, and the row stays ok. reel_dirs returns [] "
+             "when the listing raises, and [] is also a shelf that holds no "
+             "reels. A shelf that lists and holds nothing still says nothing "
+             "to extract. A reel that is there still owes a read. A missing "
+             "shelf is still no frames/hist. An unread shelf says the list "
+             "was not read, and the row does not stay ok."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

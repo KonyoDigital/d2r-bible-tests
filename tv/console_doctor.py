@@ -2203,6 +2203,13 @@ def _check_the_reel_extract_is_moving():
     except Exception as e:
         return UNKNOWN, "could not list reels: %s" % str(e)[:90]
     if not dirs:
+        # REG-1811 — reel_dirs returns [] when the shelf will not list. [] is
+        # also a shelf that holds no reels, and this row called that a pass.
+        try:
+            os.listdir(hist)
+        except OSError as e:
+            return UNKNOWN, ("could not list reels (%s: %s) — an unread shelf is not "
+                             "an empty one" % (type(e).__name__, str(e)[:60]))
         return OK, "no reels on disk — nothing to extract"
     try:
         mem = ca._chron_swept_mem()
