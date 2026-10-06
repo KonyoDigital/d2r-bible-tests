@@ -9511,6 +9511,14 @@ GATES = [
              "there was no log yet, with ok true. A missing file is still that empty. A file "
              "that will not read is a block on the doctor and not ok on the log route. The "
              "screen says the log was not read."),
+    Gate("test_an_unread_frame_directory_is_not_a_console_with_no_frames",
+         [sys.executable, os.path.join(HERE, "test_an_unread_frame_directory_is_not_a_console_with_no_frames.py")], 90,
+         needs_app=False,
+         why="REG-1801 - the live-frame check asked isfile, and isfile turns a directory "
+             "that will not stat into no frame. No frame is also a console that has not "
+             "filmed yet, and that row stayed ok. A missing frame is still that empty. A "
+             "frame that stats is still its age. A directory that will not stat is a block, "
+             "so the doctor cannot stay ok. The screen says the frames were not read."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

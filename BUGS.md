@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1801 - AN UNREAD FRAME DIRECTORY READ AS A CONSOLE WITH NO FRAMES YET (2026-10-06)
+
+The live-frame check asked `os.path.isfile`, which returns False when the directory will not stat. False is also a frame that was never written, so the row said "no frames yet (agent off)" with ok true, or, while live with capture off, that no frame was expected. A missing directory is still that empty. An empty directory is still that empty. A frame that stats is still its age. A directory that will not stat, a path that is not a directory, and an IO error are not that empty: the row is a block, so the doctor's ok cannot stay true, and it does not say the capture is frozen. The screen prints that block. Law `test_an_unread_frame_directory_is_not_a_console_with_no_frames`.
+
 ### REG-1800 - AN UNREAD LOG READ AS A CONSOLE WITH NO LOG YET (2026-10-06)
 
 /api/log and the doctor log tail caught every exception and answered "(no log yet)" with ok true. A missing file is still that empty. A blank file is still empty. A real tail is still the tail. A file that will not read, a directory, and an IO error are not that empty: the log route says ok false, and the doctor adds a block so its ok cannot stay true. The screen says the log was not read. Law `test_an_unread_log_is_not_a_console_with_no_log`.

@@ -40786,11 +40786,17 @@ def farmgate_payload():
     return {"ok": True, "verdict": verdict, "vers": vers, "checks": checks}
 
 
-def _live_frames_check(live, frames_dir=None):
-    """doctor check 8 - freshness only MATTERS (blocks) when we claim to be LIVE. -> one _chk row"""
-    frames_dir = frames_dir or os.path.join(HERE, "frames")
-    now = time.time()
-    newest, ages = None, []
+def _live_frame_look(frames_dir, now=None):
+    """The live-frame files in this directory. -> {ok, ages, newest, why}
+
+    A missing directory, and a directory with none of the frame names, is no
+    frames yet: ok true, ages empty, why None. A frame that stats is an age.
+    Any other failure is not that empty: ok false, ages empty, why names the
+    error. isfile swallows that failure and returns False, which is also how a
+    missing frame looks.
+    """
+    now = time.time() if now is None else now
+    ages, newest = [], None
     # v2324 — the live frame is written as JPEG now (the BMP conversion cost 46ms and 12MB per
     # frame and recovered nothing). This list must carry EVERY name the writer may use, or the
     # doctor reports "no frame while LIVE" against a capture that is working perfectly — a false
@@ -40798,10 +40804,35 @@ def _live_frames_check(live, frames_dir=None):
     # The .bmp stays in the list on purpose: an older build in the same directory still writes it.
     for label in ("eye.jpg", "live.jpg", "live.png", "live.bmp"):
         fp = os.path.join(frames_dir, label)
-        if os.path.isfile(fp):
+        try:
             age = now - os.path.getmtime(fp)
-            ages.append("%s=%.1fs" % (label, age))
-            newest = age if newest is None else min(newest, age)
+        except FileNotFoundError:
+            continue
+        except Exception as exc:
+            # REG-1801 — a failed stat is not a console with no frames yet.
+            return {"ok": False, "ages": [], "newest": None,
+                    "why": "%s: %s" % (type(exc).__name__, exc)}
+        ages.append("%s=%.1fs" % (label, age))
+        newest = age if newest is None else min(newest, age)
+    return {"ok": True, "ages": ages, "newest": newest, "why": None}
+
+
+def _live_frames_check(live, frames_dir=None):
+    """doctor check 8 - freshness only MATTERS (blocks) when we claim to be LIVE. -> one _chk row
+
+    A missing frame is still no frames yet. A directory that will not stat is
+    not that empty, and it is not a frozen capture either.
+    """
+    frames_dir = frames_dir or os.path.join(HERE, "frames")
+    look = _live_frame_look(frames_dir)
+    if look["ok"] is False:
+        return _chk(
+            "live_frames", False, "block",
+            "UNMEASURED: the live frames were not read (%s) — not a console with no frames yet"
+            % look["why"],
+            "Check that tv/frames is readable by this console.")
+    ages = look["ages"]
+    newest = look["newest"]
     fresh = newest is not None and newest <= 10
     # REG-1285 — CAPTURE OFF BY SETTING IS NOT A FROZEN CAPTURE. With TV_CAPTURE=off the agent still goes live
     # and the capture lamp reads OFF (REG-1272), but this check never asked the setting: no eye.jpg blocked
