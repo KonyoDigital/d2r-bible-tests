@@ -186,7 +186,10 @@ class TheGateNeverAdoptsABrowserItDidNotStart(unittest.TestCase):
         self.assertIn('--remote-debugging-port="$TV_RENDER_PORT"', code)
         self.assertEqual(re.findall(r"127\.0\.0\.1:9224|remote-debugging-port=9224", code), [],
                          "a literal :9224 is back in the hook - it would adopt whatever answers there")
-        self.assertLess(code.find("export TV_RENDER_PORT="), i, "the port is exported after the render block needs it")
+        exp_at = code.find("export TV_RENDER_PORT=")
+        self.assertNotEqual(-1, exp_at,
+                            "REG-1892 - the hook never exports TV_RENDER_PORT: the order below would be vacuous")
+        self.assertLess(exp_at, i, "the port is exported after the render block needs it")
 
     def test_render_check_reads_the_same_variable(self):
         import render_check as rc

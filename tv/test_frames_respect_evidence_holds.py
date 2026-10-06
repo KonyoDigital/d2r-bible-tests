@@ -130,6 +130,8 @@ class FramesRespectEvidenceHolds(unittest.TestCase):
         # against correct code. A window that spans a third function measures the wrong region.
         # [[source-reading-guard]]
         i = SRC.find("def frame_verdict(")
+        self.assertNotEqual(-1, i, "REG-1892 - frame_verdict is gone: the slice below would be empty "
+                                   "and the assertNotIn would pass having read nothing")
         j = SRC.find("\ndef ", i + 1)
         self.assertGreater(j, i, "frame_verdict moved; re-anchor this law before trusting it")
         self.assertNotIn("evidence_held_reels", SRC[i:j],

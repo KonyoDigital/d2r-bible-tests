@@ -205,6 +205,8 @@ class EngineRoomLaws(unittest.TestCase):
         i_rs = CODE.find('class="rail-secondary"')
         i_ho = CODE.find('id="heart-ov"')
         i_adv = CODE.find('id="sig-adv"')
+        self.assertNotEqual(-1, i_rs, "REG-1892 - .rail-secondary is gone from the markup: the two "
+                                      "orders below would be vacuous")
         self.assertGreater(i_ho, i_rs,
                            "#heart-ov no longer sits after .rail-secondary opens — the markup "
                            "moved and this law's premise with it; re-measure before trusting it")
