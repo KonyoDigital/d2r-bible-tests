@@ -406,6 +406,18 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1863 - A QUIET REEL SWEEP THAT OWED READS WAS GIVEN THE RIVER WALK'S NOTE (2026-10-06, the v3598 cross-family look)
+
+REG-1844 quoted the reel sweep's last word for STATION while the sweep owed reads. A fresh console's sweep has not spoken yet, so STATION fell back to "this queue is not its input", which is the one case it was not. With reads owed and no last word, it now says the sweep owes them and has not spoken since this console started. Law `test_the_fleet_says_where_a_river_is_stuck`.
+
+### REG-1862 - AN OLDER RUN'S MARK CLASSIFIED THIS RUN'S CRASH (2026-10-06, the v3598 cross-family look)
+
+The lane read the last 8 KB of the prover's log and took "no lane could build a sandbox" anywhere after the last banner. A prover that died before its banner, after an older run's mark, was booked as a sandbox refusal and lost its backoff. The lane keeps the log's size at spawn and reads only what this run wrote; the mark must be its last non-empty line. A run that wrote nothing, or anything after the mark, is a failed proof. Law `test_every_pc_proves_itself`.
+
+### REG-1861 - A SANDBOX-CLASS EXIT SKIPPED EVERY BACKOFF (2026-10-06, the v3598 cross-family look)
+
+REG-1845 booked a proof that built no sandbox as its own kind and exempted that kind from the 3 h backoff, and nothing replaced it: a preflight that could not ask the copier read as not-a-refusal, check() can pass while copytree still fails, and a raising spawn kept the older kind - so the 10 s rescue guard could start a ~220 MB sandbox again and again on a PC with no RAM to spare (reproduced: a second spawn 10 s after a booked sandbox exit). A preflight that cannot answer is UNKNOWN and nothing starts; a sandbox-class exit waits RETRY_AFTER_SANDBOX_S (15 min) and every other kind waits 3 h; a raising spawn is kind spawn. Law `test_every_pc_proves_itself` (the 10 s guard driven for 3 minutes, no respawn).
+
 ### REG-1860 - EACH COST-TABLE FILL OVERWROTE THE PREVIOUS FILL'S SOURCE (2026-10-06, a Grok look at the gate-infra code)
 
 gate_costs.fill_missing kept localEstimates.gates as the union of every fill while replacing source and date with the latest call's, so gates filled from an earlier log read as coming from the latest one. localEstimates is now a list of fills, each with its own source, date and count; the table was migrated. Law `test_the_gate_set_shards_cleanly`.
