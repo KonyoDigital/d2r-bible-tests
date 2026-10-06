@@ -4337,7 +4337,7 @@ window._LP_FORKED = new Set([
 // and LADDER on this Mac write ONE bench book (the key resolves bare on both), while the Windows
 // cousin keeps its own. The COUNT of crafted items on hand stays in d2r_craftStash, which is in
 // _LP_FORKED, because that is INVENTORY. Inventory forks; the book does not.
-window._WP_FORKED = new Set(Array.from(window._LP_FORKED).concat(['d2r_rwMade','d2r_rwUnmade','d2r_rwProfile','d2r_grailUnfound','d2r_ladderMode','d2r_unknownReads','d2r_foundLog','d2r_setPieces','d2r_grailImportReport','d2r_chronApplied','d2r_craftMade','d2r_chronicleHandoff']));   /* v1521 — the sweep's apply batches follow the chronicle they belong to: shared MAC main↔ladder, forked on the Windows cousin. An undo that reached across machines would reverse a find its own chronicle never had. */
+window._WP_FORKED = new Set(Array.from(window._LP_FORKED).concat(['d2r_rwMade','d2r_rwUnmade','d2r_rwProfile','d2r_grailUnfound','d2r_ladderMode','d2r_unknownReads','d2r_foundLog','d2r_setPieces','d2r_grailImportReport','d2r_chronApplied','d2r_craftMade','d2r_chronicleHandoff','d2r_foundBy']));   /* REG-1886 — d2r_foundBy says who made each d2r_foundLog row, so it forks exactly as that ledger does (a new key: nothing to orphan). v1521 — the sweep's apply batches follow the chronicle they belong to: shared MAC main↔ladder, forked on the Windows cousin. An undo that reached across machines would reverse a find its own chronicle never had. */
 try { window.localStorage.setItem('d2r_profile', window.D2R_PROFILE === 'ladder' ? 'ladder' : 'main'); } catch(e){}   // v911.1 — the console reads the ACTIVE profile
 window.LSR = (function(){
   var RAW = window.localStorage;
@@ -4552,6 +4552,57 @@ window._markLastTick = function(name, kind, on){
     }
   } catch(e){}
 };
+/* ⟦FOUND BY BEGIN⟧ REG-1886 — A UNIQUE'S TICK SAYS WHO MADE IT. #118, measured on his board 2026-09-30: The Cat's Eye
+   was read from his shared stash by the live reader at 01:13 (its frame, the vault's receipt, the Chronicle inbox), and
+   nothing on the found ledger could say so - `d2r_foundLog` holds a date and only a date, so a reader's find, his own
+   click, a ledger restore and the Forge all read the same. Every caller of toggleOwned already says who it is (`prov`,
+   the vault door's vocabulary); the grail branch threw it away. `d2r_foundBy` keeps it beside the date - one row per
+   name, shared like the ledger it describes. An un-tick takes the row and the misclick redo puts it back (REG-1638);
+   a row is never invented for a caller that named nobody, and a store that will not parse is never written over. */
+window._foundByRead = function(){
+  try {
+    var m = JSON.parse(window.LSR.getItem('d2r_foundBy') || '{}');
+    return (m && typeof m === 'object' && !Array.isArray(m)) ? m : null;
+  } catch(e){ return null; }
+};
+window._foundByOf = function(name){
+  var m = window._foundByRead(), k = String(name == null ? '' : name);
+  return (m && k && Object.prototype.hasOwnProperty.call(m, k)) ? m[k] : null;
+};
+window._foundByMark = function(name, prov, now){
+  var k = String(name == null ? '' : name), p = (prov && typeof prov === 'object' && !Array.isArray(prov)) ? prov : {};
+  var src = String(p.source == null ? '' : p.source).trim();
+  if (!k || !src) return null;
+  var m = window._foundByRead();
+  if (!m) return null;
+  var row = { source: src, at: (now == null ? Date.now() : now) };
+  if (p.by) row.by = String(p.by).slice(0, 80);
+  if (p.where) row.where = String(p.where).slice(0, 120);
+  m[k] = row;
+  window.LSR.setItem('d2r_foundBy', JSON.stringify(m));
+  return row;
+};
+window._foundByDrop = function(name){
+  var m = window._foundByRead(), k = String(name == null ? '' : name);
+  if (!m || !Object.prototype.hasOwnProperty.call(m, k)) return false;
+  delete m[k];
+  window.LSR.setItem('d2r_foundBy', JSON.stringify(m));
+  return true;
+};
+window._foundByPut = function(name, row){   // the redo: exactly the row the un-tick took, never over one written since
+  var m = window._foundByRead(), k = String(name == null ? '' : name);
+  if (!m || !k || !row || typeof row !== 'object' || Object.prototype.hasOwnProperty.call(m, k)) return false;
+  m[k] = row;
+  window.LSR.setItem('d2r_foundBy', JSON.stringify(m));
+  return true;
+};
+window._foundBySay = function(row){
+  if (!row || typeof row !== 'object' || !row.source) return '';
+  var who = (typeof window._ownedProvSourceSay === 'function') ? window._ownedProvSourceSay(row.source) : String(row.source);
+  var how = (row.by && row.by !== 'toggleOwned') ? row.by : (row.where || '');
+  return who + (how ? ' (' + how + ')' : '');
+};
+/* ⟦FOUND BY END⟧ */
 /* ⟦TICK REDO BEGIN⟧ REG-1638 — AN UN-TICK THEN A RE-TICK IS ONE MISCLICK, NOT A NEW FIND.
    MEASURED on his board, 2026-09-30: The Cat's Eye, read from his shared stash at 01:13 (the reader's own frame, the
    vault's receipt), was un-ticked on its item card at 23:14:57 and ticked again at 23:15:00. The un-tick did what
@@ -4570,6 +4621,8 @@ window._tickRedoKeep = function(name, found, now){
         if (Object.prototype.hasOwnProperty.call(g, name)) r.gameFound = g[name]; } catch(e){}
   try { var ev = JSON.parse(window.LSR.getItem('d2r_foundEvidence') || '{}') || {};
         if (Object.prototype.hasOwnProperty.call(ev, name)) r.evidence = ev[name]; } catch(e){}
+  try { var fb = (typeof window._foundByOf === 'function') ? window._foundByOf(name) : null;   // REG-1886 - and who
+        if (fb) r.foundBy = fb; } catch(e){}
   window._TICK_REDO[String(name)] = r;
   return r;
 };
@@ -4587,7 +4640,7 @@ window._tickRedoTake = function(name, now){
    its OWN reason, and the game date is never written over one a later read wrote (the evidence door's rule, kept for
    both). The caller notes it on the last-tick marker, where the last-found bar says it. */
 window._tickRedoRestore = function(name, r){
-  var out = { gameFound: false, evidence: false, vault: null, missed: [] };
+  var out = { gameFound: false, evidence: false, foundBy: false, vault: null, missed: [] };
   if (!r) return out;
   var miss = function(what, why, todo){ var m = { what: what, why: why }; if (todo) m.do = todo; out.missed.push(m); };
   var raised = function(e){ return 'putting it back raised ' + ((e && e.name) || 'an error') + ' - UNKNOWN whether it came back'; };
@@ -4612,6 +4665,12 @@ window._tickRedoRestore = function(name, r){
                                 : (em ? 'their store refused them' : 'their store would not parse - left as it is'));
       }
     } catch(e){ miss('the sightings', raised(e)); }
+  }
+  if (r.foundBy !== undefined){   // REG-1886 - who made the first tick comes back with its date
+    try {
+      if (typeof window._foundByPut !== 'function') miss('who found it', 'its door is not on this page');
+      else if (!(out.foundBy = !!window._foundByPut(name, r.foundBy))) miss('who found it', 'a later tick wrote it - kept');
+    } catch(e){ miss('who found it', raised(e)); }
   }
   if (r.vaultTs){
     try {
@@ -19785,7 +19844,7 @@ try {
                    'intake-read': 'a photo read', 'tv-photo': 'a TV photo', 'folder-photo': 'a folder photo',
                    'vault-restore': 'an undo of a removal', 'magic-and-rare': 'the Magic & Rare track',
                    'vault-filing': 'the vault door', 'evidence': 'the reset rebuild (evidence)', 'kept': 'the reset rebuild (kept kind)',
-                   'd2s': 'a .d2s read', 'stash': 'witness looks in your stash' };
+                   'd2s': 'a .d2s read', 'stash': 'witness looks in your stash', 'tv-chat': 'the in-game chat (TV)' };
   window._ownedProvSourceSay = function(src){ var s = String(src == null ? '' : src); return _SRC_SAY[s] || s || 'UNKNOWN'; };
   /* the short words a tile / slot says about a receipt */
   window._ownedProvWords = function(r, name){
@@ -25352,6 +25411,7 @@ function toggleOwned(name, prov) {
       const fl = JSON.parse(window.LSR.getItem('d2r_foundLog')||'{}');
       var _rdt = null;
       if (wasOwned){ var _rdo = window._tickRedoKeep ? window._tickRedoKeep(name, fl[name]) : null; delete fl[name];
+        try { if (typeof window._foundByDrop === 'function') window._foundByDrop(name); } catch(e){}   // REG-1886 - kept by the redo
         /* M-3 (review of 7cded0c1, reproduced) — THE UN-TICK IS HIS WORD ABOUT THE ITEM. It deleted the name from `owned`
            with no journal row and no receipt drop, so the next reclose replayed the older read that produced the wrong tick
            and owned it again, and the receipt it left behind blocked a later real pick-up from being carried (M-1). Through
@@ -25391,7 +25451,11 @@ function toggleOwned(name, prov) {
                 window._foundEvidenceDrop(name); } catch(e){}
       }   // un-tick also clears any legacy vault entry
       else if ((_rdt = window._tickRedoTake ? window._tickRedoTake(name) : null) && _rdt.found) fl[name] = _rdt.found;   // REG-1638
-      else fl[name] = window._grailStamp ? window._grailStamp() : new Date().toLocaleString();
+      else { fl[name] = window._grailStamp ? window._grailStamp() : new Date().toLocaleString();
+        /* REG-1886 — THE TICK SAYS WHO. One argument is his click on a card, exactly as the non-grail branch below reads
+           it; every programmatic caller names itself in `prov` (a Chronicle apply, a ledger restore, the Forge, the TV). */
+        try { if (typeof window._foundByMark === 'function')
+                window._foundByMark(name, (prov && prov.source) ? prov : { source: 'hand', by: 'toggleOwned', where: 'the item card tick' }); } catch(e){} }
       /* v2814 — the same marker on the uniques door. `wasOwned` is _gFound(name) read
          before this write, so !wasOwned is a TICK. This bar serves BOTH forges. */
       try { window._markLastTick(name, 'uni', !wasOwned); } catch(e){}
@@ -41693,7 +41757,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (canonical){
         if (window._gFound && window._gFound(canonical)) return { ok:true, kind:'uni', already:true };
         if (typeof toggleOwned !== 'function') return { ok:false, why:'no-engine' };
-        toggleOwned(canonical);
+        toggleOwned(canonical, { source: (src === 'chat') ? 'tv-chat' : 'tv-register', by: 'tvChronicleRoute',
+                                 where: (src === 'chat') ? 'the in-game chat line TV DIABLO read' : 'a TV DIABLO read' });   // REG-1886
         try { window._grailToast && window._grailToast('🏆', '<b>'+canonical+'</b> '+(src==='chat'?'DISCOVERED in game':'found!'), 'the unique chronicle grows'); } catch(e){}
         return { ok:true, kind:'uni', name: canonical };
       }
@@ -50624,14 +50689,21 @@ function renderJournal(){
     try { gf = window.gameFoundFor ? window.gameFoundFor(name) : null; } catch(e){}
     var d = '';
     try { d = (gf && gf.at) ? (window._gameStampToLedger(gf.at) || '') : ''; } catch(e){}
-    if (!d) return ledgerStamp ? '<span class="gp-date">' + esc(ledgerStamp) + '</span>' : '';
+    /* REG-1886 — and WHO ticked it, from the one row the tick wrote. On a chip it rides in the hover (a wall of 267 has
+       a few characters); the bar has a row and says it. No row is no claim: an older tick says nothing about who. */
+    var who = '';
+    try { who = (typeof window._foundBySay === 'function') ? window._foundBySay(window._foundByOf(name)) : ''; } catch(e){}
+    if (!d) return ledgerStamp ? '<span class="gp-date"' + (who ? ' title="ticked by ' + esc(who) + '"' : '') + '>'
+                                 + esc(ledgerStamp) + (long && who ? ' \u00b7 by ' + esc(who) : '') + '</span>' : '';
     /* `long` is the undo bar, which has a whole row; a chip in a wall of 267 has a few
        characters. Same rule, same store, two widths — never two implementations. */
     return '<span class="gp-date gp-ingame" title="the date printed in your in-game Chronicle'
       + (gf.by ? ' \u00b7 dropped by ' + esc(gf.by) : '')
       + ' \u2014 this board ticked it ' + esc(ledgerStamp || 'at an unrecorded time')
+      + (who ? ' \u00b7 ticked by ' + esc(who) : '')
       + '">\u2694 ' + (long ? 'found in game ' : '') + esc(d)
-      + (long && gf.by ? ' \u00b7 ' + esc(gf.by) : '') + '</span>';
+      + (long && gf.by ? ' \u00b7 ' + esc(gf.by) : '')
+      + (long && who ? ' \u00b7 ticked by ' + esc(who) : '') + '</span>';
   };
 
   window._forgeUndo = function(el, name, kind){
@@ -51576,7 +51648,7 @@ function renderJournal(){
 
   window.grailFoundUni=function(el,name){
     var wasOwned=_ownedNames().has(name);   // v559.1 — un-marking must not celebrate
-    var act=function(){ try { if(typeof window.toggleOwned==='function') window.toggleOwned(name); } catch(e){} window.renderForgeUni(); if(!wasOwned) _grailToast('🏆','<b>'+esc(name)+'</b> found!','the unique chronicle grows'); };
+    var act=function(){ try { if(typeof window.toggleOwned==='function') window.toggleOwned(name, { source: 'hand', by: 'the Forge', where: 'his tick in the Forge' }); } catch(e){} window.renderForgeUni(); if(!wasOwned) _grailToast('🏆','<b>'+esc(name)+'</b> found!','the unique chronicle grows'); };   // REG-1886 - the tick says who
     _cardAnim(el, wasOwned?'':'f-anim-forged', wasOwned?0:430, act);
   };
   function _cardAnim(el,cls,ms,fn){

@@ -52,6 +52,22 @@ NODE = shutil.which("node")
 BIBLE = os.path.join(ROOT, "bible.html")
 
 RED_PROOF = [
+    {"why": "REG-1886 - the un-tick keeps no row, so a misclick re-tick turns the reader's find into a hand tick (The Cat's Eye)",
+     "file": "bible.html",
+     "find": "        if (fb) r.foundBy = fb; } catch(e){}\n",
+     "replace": "        void fb; } catch(e){}\n", "matches": 1},
+    {"why": "REG-1886 - the redo writes its old row over a tick made since",
+     "file": "bible.html",
+     "find": "  if (!m || !k || !row || typeof row !== 'object' || Object.prototype.hasOwnProperty.call(m, k)) return false;\n",
+     "replace": "  if (!m || !k || !row || typeof row !== 'object') return false;\n", "matches": 1},
+    {"why": "REG-1886 - a row is invented for a caller that named nobody",
+     "file": "bible.html",
+     "find": "  if (!k || !src) return null;\n",
+     "replace": "  if (!k) return null; src = src || 'hand';\n", "matches": 1},
+    {"why": "REG-1886 - the found-date sentence never says who ticked it",
+     "file": "bible.html",
+     "find": "    try { who = (typeof window._foundBySay === 'function') ? window._foundBySay(window._foundByOf(name)) : ''; } catch(e){}\n",
+     "replace": "", "matches": 1},
     {"why": "REG-1638 - the un-tick keeps nothing: a re-tick three seconds later stamps a new date (The Cat's Eye)",
      "file": "bible.html",
      "find": "  window._TICK_REDO[String(name)] = r;\n",
@@ -138,6 +154,11 @@ window.LSR = {
 let JOURNAL = [], RESTORED = 0;
 window.vaultRemovalLog = function(){ return JOURNAL.slice(); };
 window.vaultRestoreLast = function(){ const b = JOURNAL.pop(); RESTORED += 1; return { restored: b ? b.names.length : 0, ts: b && b.ts }; };
+window._ownedProvSourceSay = function(s){   // the vault door's own words, two of them (its map is the page's, not this law's)
+  return ({ hand: "your hand", "inbox-auto": "the live reader (auto-accepted)" })[s] || s; };
+window.gameFoundFor = function(n){ try { return (JSON.parse(STORE.d2r_gameFound || "{}") || {})[n] || null; } catch(e){ return null; } };
+window._gameStampToLedger = function(at){ return at ? String(at) : ""; };
+const esc = function(x){ return String(x).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); };
 __CODE__
 function out(x){ process.stdout.write(JSON.stringify(x) + "\n"); }
 const N = "The Cat's Eye";
@@ -211,10 +232,38 @@ const other = { missed: [{ what: "the vault entry", why: "another removal came a
 const n1 = window._tickRedoNote(N, other), m1 = JSON.parse(STORE.d2r_lastTick);
 const n2 = window._tickRedoNote("Shako", other), m2 = JSON.parse(STORE.d2r_lastTick);
 const n3 = window._tickRedoNote(N, { missed: [] }), m3 = JSON.parse(STORE.d2r_lastTick);
-const esc = function(x){ return String(x).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); };
 out({ case: "note", n1: n1, m1: m1, n2: n2, m2: m2, n3: n3, m3: m3,
       html: window._tickRedoMissHtml(m1, N, "uni", esc), htmlOther: window._tickRedoMissHtml(m1, "Shako", "uni", esc),
       htmlSet: window._tickRedoMissHtml(m1, N, "set", esc), htmlClean: window._tickRedoMissHtml(m3, N, "uni", esc) });
+// 6. REG-1886 (#118) - who made the tick: kept by the un-tick, put back by the redo, never over a later tick's row
+const READER = { source: "inbox-auto", by: "tvVaultRegister", at: 1 };
+seed();
+STORE.d2r_foundBy = JSON.stringify({ [N]: READER });
+r = window._tickRedoKeep(N, "Sep 30, 2026 · 01:13", T0); window._foundByDrop(N); untick();
+rest = window._tickRedoRestore(N, window._tickRedoTake(N, T0 + 3000));
+out({ case: "who-redo", rest: rest, row: window._foundByOf(N) });
+seed();
+STORE.d2r_foundBy = JSON.stringify({ [N]: READER });
+r = window._tickRedoKeep(N, "x", T0); window._foundByDrop(N); untick();
+window._foundByMark(N, { source: "hand", by: "toggleOwned", where: "the item card tick" }, T0 + 2000);
+rest = window._tickRedoRestore(N, window._tickRedoTake(N, T0 + 3000));
+out({ case: "who-later", missed: rest.missed, row: window._foundByOf(N) });
+seed();
+const noOne = window._foundByMark(N, {}, T0), noRow = STORE.d2r_foundBy === undefined;
+STORE.d2r_foundBy = "{not json";
+const badStore = window._foundByMark(N, { source: "hand" }, T0);
+out({ case: "who-mark", noOne: noOne, noRow: noRow, badStore: badStore, raw: STORE.d2r_foundBy });
+seed();
+STORE.d2r_foundBy = JSON.stringify({ [N]: { source: "hand", by: "the Forge", where: "his tick in the Forge", at: 5 } });
+const longSay = window._chipFoundDate(N, "Sep 30, 2026 · 23:15", true);
+const chipSay = window._chipFoundDate(N, "Sep 30, 2026 · 23:15", false);
+STORE.d2r_gameFound = JSON.stringify({});
+const longNoGame = window._chipFoundDate(N, "Sep 30, 2026 · 23:15", true);
+const chipNoGame = window._chipFoundDate(N, "Sep 30, 2026 · 23:15", false);
+STORE.d2r_foundBy = JSON.stringify({});
+const nobody = window._chipFoundDate(N, "Sep 30, 2026 · 23:15", true);
+out({ case: "who-say", longSay: longSay, chipSay: chipSay, longNoGame: longNoGame, chipNoGame: chipNoGame, nobody: nobody,
+      say: window._foundBySay({ source: "inbox-auto", by: "tvVaultRegister" }) });
 """
 
 
@@ -223,7 +272,9 @@ class AnUntickThenARetickIsOneMisclick(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         src = _src()
-        code = "\n".join([_between(src, "/* ⟦TICK REDO BEGIN⟧", "/* ⟦TICK REDO END⟧ */"),
+        code = "\n".join([_between(src, "/* ⟦FOUND BY BEGIN⟧", "/* ⟦FOUND BY END⟧ */"),
+                          _between(src, "/* ⟦TICK REDO BEGIN⟧", "/* ⟦TICK REDO END⟧ */"),
+                          _cut_fn(src, "  window._chipFoundDate = function(name, ledgerStamp, long){"),
                           _cut_fn(src, "  window._gameFoundSet = function(name, g){"),
                           _between(src, "  /* ⟦FOUND EVIDENCE PUT BEGIN⟧", "  /* ⟦FOUND EVIDENCE PUT END⟧ */")])
         d = tempfile.mkdtemp(prefix="tick_redo_")
@@ -308,6 +359,40 @@ class AnUntickThenARetickIsOneMisclick(unittest.TestCase):
             self.assertEqual(o[k], "", "the bar would say a note it does not own: %s" % k)
 
 
+    # ── REG-1886 (#118) — the tick records who made it ─────────────────────────────────────────────────────────────
+
+    def test_the_redo_puts_back_who_found_it(self):
+        """The Cat's Eye: read by the live reader at 01:13; un-ticked and re-ticked inside the window. The reader's row
+        comes back with the date - the misclick does not become a hand tick."""
+        o = self.rows["who-redo"]
+        self.assertEqual(o["row"], {"source": "inbox-auto", "by": "tvVaultRegister", "at": 1})
+        self.assertTrue(o["rest"]["foundBy"])
+        self.assertEqual(o["rest"]["missed"], [])
+
+    def test_a_later_ticks_row_is_kept_and_the_miss_is_said(self):
+        o = self.rows["who-later"]
+        self.assertEqual(o["row"]["source"], "hand", "the redo wrote its old row over a tick made since")
+        self.assertEqual(o["missed"], [{"what": "who found it", "why": "a later tick wrote it - kept"}])
+
+    def test_no_row_is_invented_and_a_broken_store_is_not_written_over(self):
+        o = self.rows["who-mark"]
+        self.assertIsNone(o["noOne"], "a caller that named nobody got a row anyway")
+        self.assertTrue(o["noRow"], "a row was written for a caller that named nobody")
+        self.assertIsNone(o["badStore"])
+        self.assertEqual(o["raw"], "{not json", "a store that would not parse was written over")
+
+    def test_the_found_date_sentence_says_who(self):
+        o = self.rows["who-say"]
+        self.assertIn("ticked by your hand (the Forge)", o["longSay"], "the bar does not say who ticked it")
+        self.assertIn("ticked by your hand (the Forge)", o["chipSay"], "the chip's hover does not say who")
+        self.assertNotIn("ticked by", re.sub(r'title="[^"]*"', "", o["chipSay"]),
+                         "the chip printed who in its few characters, not its hover")
+        self.assertIn("by your hand (the Forge)", o["longNoGame"])
+        self.assertIn('title="ticked by your hand (the Forge)"', o["chipNoGame"])
+        self.assertNotIn("ticked by", o["nobody"], "an older tick with no row was given a who")
+        self.assertEqual(o["say"], "the live reader (auto-accepted) (tvVaultRegister)")
+
+
 class TheTickHandlerIsJoinedToTheRedo(unittest.TestCase):
     """toggleOwned's uniques branch, read from its code in order (the 140-line handler cannot run outside the page)."""
 
@@ -321,7 +406,7 @@ class TheTickHandlerIsJoinedToTheRedo(unittest.TestCase):
                             ("delete", "delete fl[name];"),
                             ("note", "_rdo.vaultTs = _vrUT.ts"),
                             ("take", "_rdt = window._tickRedoTake ? window._tickRedoTake(name) : null"),
-                            ("stamp", "else fl[name] = window._grailStamp ? window._grailStamp() : new Date().toLocaleString();"),
+                            ("stamp", "else { fl[name] = window._grailStamp ? window._grailStamp() : new Date().toLocaleString();"),
                             ("write", "window.LSR.setItem('d2r_foundLog', JSON.stringify(fl));"),
                             ("restore", "window._tickRedoRestore(name, _rdt)"),
                             ("said", "window._tickRedoNote(name, _rdOut)")):
@@ -334,6 +419,15 @@ class TheTickHandlerIsJoinedToTheRedo(unittest.TestCase):
         self.assertLess(at["restore"], at["said"], "the note is written before the redo it reports")
         self.assertTrue(re.search(r"_vrUT = window\.vaultRemove\(\[name\][^\n]*\n[^\n]*\n\s*if \(_rdo && _vrUT && _vrUT\.ts\)", body),
                         "the un-tick does not note its OWN removal right after making it")
+        # REG-1886 - the un-tick takes the row after keeping it; only a FRESH stamp writes one, never the redo branch
+        self.assertEqual(body.count("window._foundByDrop(name)"), 1, "the un-tick never takes who found it (REG-1886)")
+        self.assertEqual(body.count("window._foundByMark(name, (prov && prov.source) ? prov :"), 1,
+                         "a fresh tick never says who made it (REG-1886)")
+        drop = body.index("window._foundByDrop(name)")
+        mark = body.index("window._foundByMark(name, (prov && prov.source) ? prov :")
+        self.assertLess(at["keep"], drop, "the un-tick drops who found it before the redo keeps it")
+        self.assertLess(at["stamp"], mark, "who is written outside the fresh-stamp branch (the redo would be overwritten)")
+        self.assertLess(mark, at["write"])
 
 
 class TheLastFoundBarSaysIt(unittest.TestCase):
