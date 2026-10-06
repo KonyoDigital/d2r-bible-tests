@@ -187,7 +187,9 @@ class AnUnreadFrameDirectoryIsNotAConsoleWithNoFrames(unittest.TestCase):
             ui = fh.read()
         start = ui.find("function renderDoctor")
         self.assertGreater(start, 0)
-        window = ui[start:start + 900]
+        end = ui.find("\n  }\n", start)           # REG-1842: the function's own close, not a guessed width
+        self.assertGreater(end, start, "renderDoctor's end moved")
+        window = ui[start:end]
         self.assertIn("c.severity === 'block' && c.ok === false", window)
         self.assertIn("c.detail", window)
 

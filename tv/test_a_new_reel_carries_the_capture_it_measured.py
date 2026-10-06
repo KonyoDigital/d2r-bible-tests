@@ -11,6 +11,7 @@ import json
 import os
 import shutil
 import sys
+import atexit
 import tempfile
 import unittest
 
@@ -36,6 +37,7 @@ RED_PROOF = [
 def _jpeg(w, h):
     from PIL import Image
     d = tempfile.mkdtemp(prefix="capstamp_")
+    atexit.register(shutil.rmtree, d, True)      # REG-1842: the helper hands the dir out, so the run removes it
     p = os.path.join(d, "f.jpg")
     Image.new("RGB", (w, h), (30, 24, 18)).save(p, "JPEG", quality=90)
     return d, p

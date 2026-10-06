@@ -98,7 +98,9 @@ class AnUnreadableReelIsNotAnIndexedShelf(unittest.TestCase):
             src = f.read()
         self.assertEqual(src.count(_DOCTOR_NONE), 1)
         i = src.find(_DOCTOR_NONE)
-        self.assertIn(_DOCTOR_SAY, src[i:i + 400])
+        end = src.find("\n    else:\n", i)        # REG-1842: the unknown arm's own end, not a guessed width
+        self.assertGreater(end, i, "the doctor's unknown arm moved")
+        self.assertIn(_DOCTOR_SAY, src[i:end])
 
 
 RED_PROOF = [

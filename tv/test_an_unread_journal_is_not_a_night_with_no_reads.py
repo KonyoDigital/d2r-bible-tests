@@ -189,7 +189,9 @@ class AnUnreadJournalIsNotANightWithNoReads(unittest.TestCase):
             ui = fh.read()
         start = ui.find("if (window.__mindMode === 'receipts')")
         self.assertGreater(start, 0)
-        window = ui[start:start + 1400]
+        end = ui.find("\n    }\n    brain.classList.remove('brain-receipts')", start)   # REG-1842: the block's own end
+        self.assertGreater(end, start, "the receipts block's end moved")
+        window = ui[start:end]
         self.assertIn("var rcWhy = st.receiptsWhy;", window)
         why_at = window.find("not a night with no reads")
         rest_at = window.find("reads stream here when live")

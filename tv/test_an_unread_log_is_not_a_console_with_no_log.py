@@ -153,7 +153,9 @@ class AnUnreadLogIsNotAConsoleWithNoLog(unittest.TestCase):
             ui = fh.read()
         start = ui.find("async function loadLog()")
         self.assertGreater(start, 0)
-        window = ui[start:start + 1200]
+        end = ui.find("\n  }\n", start)           # REG-1842: loadLog's own close, not a guessed width
+        self.assertGreater(end, start, "loadLog's end moved")
+        window = ui[start:end]
         self.assertIn("j.ok === false", window)
         why_at = window.find("not a console with no log yet")
         empty_at = window.find("— empty log —")
