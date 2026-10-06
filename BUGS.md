@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1783 - A SHELF BEAT THAT COUNTED NO LANES READ AS A PASS (2026-10-06, #86 gap audit 25)
+
+The shelf row returned ok when the beat carried no per-lane counts, and its sentence said that was unknown. An absent ok was treated as true. The eagle colours the state word, so both were green. A beat that did not say the plan was readable is now unknown. A beat that counted no lanes is now unknown. The sentence stays. A plan that said not-ok is still missing. A counted dark lane is still missing. A beat older than the bar is still missing. A counted reading lane is still a pass. Law `test_a_lane_count_that_was_not_taken_is_not_a_pass`.
+
 ### REG-1782 - A JOIN THAT OWES NOTHING WAS NEVER OFFERED A ROUTE (2026-10-06, #152 slice 1)
 
 The route lane moved a reel only from EMPTY. A reel at JOIN whose engine had already ruled NOT_A_HOLDING owes no join and no footage. It sat there. The same lane now routes that reel, and the stamp cites the engine's own token. A recoverable join stays. A missing verdict stays. Any other word stays. CAPTURE stays declined: it still owes hover before a route. A token that could not be read routes no join. Nothing here stamps his shelf. Law `test_a_join_that_owes_nothing_is_routed`.

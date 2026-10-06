@@ -9392,6 +9392,13 @@ GATES = [
              "route lane only moved EMPTY, so that reel never reached ROUTED. It is routed, and the stamp "
              "cites the engine's token. A recoverable join, a missing verdict, and any other word stay. "
              "CAPTURE stays declined. A token that could not be read routes no join."),
+    Gate("test_a_lane_count_that_was_not_taken_is_not_a_pass",
+         [sys.executable, os.path.join(HERE, "test_a_lane_count_that_was_not_taken_is_not_a_pass.py")], 90,
+         needs_app=False,
+         why="REG-1783 (#86 gap audit 25) - the shelf row returned ok when the beat counted no lanes, "
+             "and when it did not say whether the plan was readable. The sentence already said unknown. "
+             "The state word now does too. A counted reading lane is still a pass. A dark count, a "
+             "plan that said not-ok, and a beat older than the bar are still missing."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

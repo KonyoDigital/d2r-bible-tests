@@ -133,9 +133,11 @@ class TheLaneCensusCanReportTheDark(unittest.TestCase):
             self.assertEqual(CD.MISSING, st,
                              "a driver silent for 40 hours graded %r: %s" % (st, why))
             self.assertIn("HOURS ago", why, "the row does not say how stale it is: %r" % why)
-            SD.last_beat = lambda: {"at": (time.time() - 60) * 1000.0, "ok": True, "owed": 0}
+            SD.last_beat = lambda: {"at": (time.time() - 60) * 1000.0, "ok": True, "owed": 0,
+                                    "laneCounts": {"reading": 1}}
             st2, _ = CD._check_the_shelf_lanes_are_still_reading()
-            self.assertEqual(CD.OK, st2, "a beat one minute old did not read OK: %r" % st2)
+            self.assertEqual(CD.OK, st2,
+                             "a beat one minute old that counted a reading lane did not read OK: %r" % st2)
         finally:
             SD.last_beat = was
 
