@@ -1414,6 +1414,12 @@ def _run_gate_once(sandbox_tv, filename, timeout=180, extra=(), script=None, wid
     _parts = [_p for _p in (_ran, _res) if _p]
     if _last and _last not in _parts:
         _parts.append(_last)
+    # REG-1877 (#112) - THE ALT'S LOG KEPT "FAILED (failures=6)" AND NEVER WHICH SIX. A run that went red now carries the NAMES
+    # of its red cases after a " | red: " marker, so an UNPROVABLE-untampered row can be read without re-running the suite.
+    if r.returncode != 0:
+        _ids = _LAST_RED.get(threading.get_ident()) or []
+        if _ids:
+            _parts.append("red: " + ", ".join(_ids[:12]) + ((" (+%d more)" % (len(_ids) - 12)) if len(_ids) > 12 else ""))
     return r.returncode == 0, (" | ".join(_parts) if _parts else _last)
 
 
@@ -3205,8 +3211,11 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None):
         say("     %-52s %s — clean run%s: %s" % (label, UNPROVABLE, _at_widths(widths), tail))
         return UNPROVABLE
     if not ok_clean:
+        _head, _sep, _red = str(tail).partition(" | red: ")
         say("     %-52s %s — it is ALREADY RED untampered in the sandbox%s (%s)"
-            % (label, UNPROVABLE, _at_widths(widths), tail[:60]))
+            % (label, UNPROVABLE, _at_widths(widths), _head[:60]))
+        if _sep:
+            say("       ↳ its red case(s), named (REG-1877): %s" % _red[:700])
         if why is not None:
             why["red"] = True
         return UNPROVABLE

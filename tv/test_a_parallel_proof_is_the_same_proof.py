@@ -780,7 +780,44 @@ class ASandboxFileThatVanishesIsNamedAndNeverGradedAsTheLaw(unittest.TestCase):
         self.assertEqual(H.vanished(), [])
 
 
+class AnUntamperedRedRunNamesItsRedCases(unittest.TestCase):
+    """REG-1877 (#112) - the ALT's prover log kept `FAILED (failures=6)` and never which six, so a Windows-only red could not be
+    read without re-running 440 s of suite. A red run's tail now names its cases."""
+
+    def test_the_tail_of_a_failed_run_names_the_failed_cases(self):
+        root = tempfile.mkdtemp(prefix="redname_")
+        self.addCleanup(shutil.rmtree, root, True)
+        with io.open(os.path.join(root, "test_zz_red.py"), "w") as fh:
+            fh.write("import unittest\n"
+                     "class Boxy(unittest.TestCase):\n"
+                     "    def test_one_is_fine(self): pass\n"
+                     "    def test_two_breaks(self): self.assertEqual(1, 2)\n"
+                     "    def test_three_errors(self): raise RuntimeError('x')\n"
+                     "if __name__ == '__main__': unittest.main()\n")
+        ok, tail = H._run_gate(root, "test_zz_red.py", timeout=60)
+        self.assertIs(ok, False)
+        self.assertIn("red: ", tail)
+        self.assertIn("Boxy.test_two_breaks", tail)
+        self.assertIn("Boxy.test_three_errors", tail)
+        self.assertNotIn("test_one_is_fine", tail)
+
+    def test_a_green_run_carries_no_red_marker(self):
+        root = tempfile.mkdtemp(prefix="redname_")
+        self.addCleanup(shutil.rmtree, root, True)
+        with io.open(os.path.join(root, "test_zz_ok.py"), "w") as fh:
+            fh.write("import unittest\nclass A(unittest.TestCase):\n    def test_a(self): pass\n"
+                     "if __name__ == '__main__': unittest.main()\n")
+        ok, tail = H._run_gate(root, "test_zz_ok.py", timeout=60)
+        self.assertIs(ok, True)
+        self.assertNotIn("red: ", tail)
+
+
 RED_PROOF = [
+    {"why": "REG-1877 - a red run's tail stops naming its red cases: the ALT's log reads 'failures=6' and nothing else again",
+     "file": "heart2.py",
+     "find": "    if r.returncode != 0:\n        _ids = _LAST_RED.get(threading.get_ident()) or []\n",
+     "replace": "    if False:\n        _ids = _LAST_RED.get(threading.get_ident()) or []\n",
+     "matches": 1},
     {"why": "REG-1876 - a vanished sandbox file is no longer seen after a run: a missing module is graded as the law's defect again",
      "file": "heart2.py",
      "find": "    gone = sorted(before - _tv_files(sandbox_tv))\n",
