@@ -406,9 +406,33 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
-### REG-1848 - THE LATTICE-REFUSAL LAW'S FLAT FRAME STOPPED REACHING THE PATH IT GUARDS, SO ITS SABOTAGE STAYED GREEN AND HELD THE RIVER SHUT (2026-10-06)
+### REG-1853 - THE LATTICE-REFUSAL LAW'S FLAT FRAME STOPPED REACHING THE PATH IT GUARDS, SO ITS SABOTAGE STAYED GREEN AND HELD THE RIVER SHUT (2026-10-06)
 
 After v3598 his census went CURRENT, but frame.release stayed LOCKED on one BLIND instrument, test_a_lattice_refusal_is_a_reason_not_a_crash. Its RED_PROOF [0] stayed green through its own defeat. The law feeds `inventory_lattice` a flat frame so that `_fit` returns None. That held while the pitch search was a fixed 70-100 px: the 1400x900 frame's rows crop is 184 px and holds fewer than four samples. 71cc613a (REG-1648, 2026-10-01) scaled the search to the frame height. Since then every flat frame at 1400x900, 1440x936 and 2940x1912 is fitted on both axes and refused later, "pitch pinned to the search bound". The law accepts that wording too, so it never read the None path's sentence again. Nobody edited the law. The skipped real-reel case was not the cause: it only asserts the call completes, and it skips for want of footage in every sandbox. The fixture is now a generated flat 1200x3600 frame. Its columns crop is 384 px and the search starts at 131.8 px, so `_fit` returns None there. A new case watches `_fit` return None on it, so the next pitch change turns the law red instead of blind. A flat 1440x936 frame is kept as its own case: refused as pinned to the bound, never a located grid. A second proof now covers the v2799 defect itself: both call sites unpacking None blind raise TypeError. Both proofs PROVEN in a sandbox with no footage. Law `test_a_lattice_refusal_is_a_reason_not_a_crash`.
+
+### REG-1852 - AN UNTYPED ROLL WAS A SHARE OF 0 (2026-10-06, a Grok cross-family look at v3596)
+
+The crafted split coerced a stored roll with +, so '' read as a 0 share and 'abc' as NaN, each "already on this item". Only a whole number is a typed roll now; anything else on a ranged mod asks for that roll first. Law `test_the_crafted_variant_fills_its_name_and_the_top_of_each_range`.
+
+### REG-1851 - A PROPOSAL THAT RAISED BLAMED AN ABSENT ROUTER (2026-10-06, a Grok cross-family look at v3596)
+
+Any throw inside a proposal printed "the router is not on this page". It now says the proposal could not be worked out, and still names no home. Law `test_the_vault_proposes_a_home_and_does_not_move`.
+
+### REG-1850 - AN UNSETTLED NAME WAS GIVEN A WRONG REASON (2026-10-06, a Grok cross-family look at v3596)
+
+A planner row whose item could not be settled was counted as "a white base, a crafted recipe, or a name it does not carry". It is now its own count with its own words. Law `test_a_hand_added_item_stays_his`.
+
+### REG-1849 - ONE FAILED READ STOPPED THE MIGRATION FOR THE PAGE (2026-10-06, a Grok cross-family look at v3596)
+
+The latch was set before the read, so a read that raised stopped every later paint of the page from trying again. The latch now closes on a finished pass, and a failed read is asked again on the next paint; anything a pass leaves behind is said on the Vault (#vault-hand-left). Law `test_a_hand_added_item_stays_his`.
+
+### REG-1848 - AN OWNED NAME DROPPED THE HAND ROW HE TYPED (2026-10-06, a Grok cross-family look at v3596)
+
+The d2r_vaultHand migration counted a row as landed because its name was already owned, then deleted the key, so the time he typed it was recorded nowhere. His hand now becomes the receipt when there is none, and the filing's ownedBy when the filing has none. A name owned through another door keeps that door's receipt; the row stays in the key and is said on the Vault. Law `test_a_hand_added_item_stays_his`.
+
+### REG-1847 - THE HAND DOOR SAID ADDED WHATEVER ITS DOOR SAID (2026-10-06, a Grok cross-family look at v3596)
+
++ Add an item reported "added" after the owned door whatever that door answered. A receipt the door could not write was folded into success, a missing door threw, and an ambiguity check that raised was read as a yes. Now no door adds nothing, a name that did not reach owned is not added, an unwritten receipt is said, and a check that could not be asked is UNKNOWN and adds nothing. Law `test_a_hand_added_item_stays_his`.
 
 ### REG-1846 - A SECOND EYE'S PROMPT READ AS A RUNNING PRE-PUSH HOOK (2026-10-06)
 

@@ -23,7 +23,7 @@ fit saw no grid at all — never reached him. **An exception is not a reason.** 
 ⚠ EXERCISED, NOT READ. This law FEEDS the function a frame that takes the None path, because a law
 that greps for `if _got is None` proves only that a line exists.
 
-⚠⚠ REG-1848 — AND "THE FRAME TAKES THE NONE PATH" IS A MEASUREMENT, NOT A PROPERTY OF A FLAT FRAME.
+⚠⚠ REG-1853 — AND "THE FRAME TAKES THE NONE PATH" IS A MEASUREMENT, NOT A PROPERTY OF A FLAT FRAME.
 This file used to say a flat frame "is exactly the shape `_fit` cannot fit". That held while the pitch
 search was a fixed 70-100 px: the 1400x900 fixture's rows crop is 184 px, and three pitches of 70 do
 not fit in it, so `_fit` saw fewer than four samples and returned None. 71cc613a (REG-1648,
@@ -63,7 +63,7 @@ def _flat_frame(w=1440, h=936, shade=90):
 
     ⚠ Big enough to pass the `W < 1200 or H < 800` guard, so the function reaches the ridge fit
     rather than refusing earlier for a different reason. A fixture that trips an EARLIER refusal
-    would make this law green without ever touching the path it exists for. REG-1848 — and one that
+    would make this law green without ever touching the path it exists for. REG-1853 — and one that
     trips a LATER refusal does the same, so a flat frame alone is not the None-path fixture.
     """
     from PIL import Image
@@ -72,7 +72,7 @@ def _flat_frame(w=1440, h=936, shade=90):
     return p
 
 
-#: REG-1848 — a flat frame whose columns crop holds fewer than four samples at every pitch the scaled search
+#: REG-1853 — a flat frame whose columns crop holds fewer than four samples at every pitch the scaled search
 #: tries (384 px wide, search from 131.8 px), so `_fit` returns None on that axis. Generated, never footage.
 NONE_W, NONE_H = 1200, 3600
 
@@ -114,7 +114,7 @@ class ALatticeRefusalIsAReasonNotACrash(unittest.TestCase):
         self.assertGreaterEqual(h, 800, "fixture too short — it would trip the size refusal")
 
     def test_the_fixture_reaches_the_none_path(self):
-        """REG-1848 — WATCHED, not assumed. The flat 1400x900 frame stopped reaching it on 71cc613a and
+        """REG-1853 — WATCHED, not assumed. The flat 1400x900 frame stopped reaching it on 71cc613a and
         nothing said so for five days. If `_fit` fits this frame on both axes, the cases below are grading
         some other refusal."""
         _r, seen = _fits_while(_none_path_frame())
@@ -168,7 +168,7 @@ class ALatticeRefusalIsAReasonNotACrash(unittest.TestCase):
             "from 'grid found, nothing in it': %r" % why)
 
     def test_a_flat_frame_at_his_capture_size_is_refused_with_a_reason(self):
-        """REG-1848 — the shape the old fixture now takes. At 1440x936 a flat frame is FITTED, and the fit sits on
+        """REG-1853 — the shape the old fixture now takes. At 1440x936 a flat frame is FITTED, and the fit sits on
         the search's lower bound. That is refused as "the fit found nothing", never as a located grid."""
         r, seen = _fits_while(_flat_frame())
         self.assertNotIn(True, seen, "at 1440x936 _fit returned None — the search changed again; re-measure "
@@ -207,7 +207,7 @@ RED_PROOF = [
         'matches': 1,
     },
     {
-        'why': "REG-1848 / v2799 - both call sites unpack `_fit`'s None blind again, and an unfittable frame raises TypeError instead of returning a reason",
+        'why': "REG-1853 / v2799 - both call sites unpack `_fit`'s None blind again, and an unfittable frame raises TypeError instead of returning a reason",
         'file': 'vault_corpus.py',
         'find': '        if _got is None:\n            return {"ok": False,\n',
         'replace': '        if False:\n            return {"ok": False,\n',
