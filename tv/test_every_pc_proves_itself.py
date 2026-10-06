@@ -397,6 +397,31 @@ class TheTreeIsToldApart(unittest.TestCase):
         io.open(os.path.join(wk, "f.txt"), "w").write("c\n")
         self.assertEqual(SP.tree_state(git)[0], "dev", "an edit beside the record was hidden by it")
 
+    def test_the_verdict_key_and_the_ship_audit_ask_the_same_rule(self):
+        """REG-1865 - the sweep for every other reader of a dirty tree: suite_verdict's key (a cached gate verdict is
+        reused only for the commit's bytes) and ship_audit's "uncommitted" list. The console rewriting its own record
+        is not a change to what a gate grades or to what was committed; a real edit beside it still is."""
+        import suite_verdict as SV
+        import ship_audit as SA
+        from unittest import mock
+        wk, git, run = self._repo()
+        os.makedirs(os.path.join(wk, "tv"))
+        rec = os.path.join(wk, *SP.CONSOLE_OWN_RECORDS[0].split("/"))
+        io.open(rec, "w").write('{"totalMs": 1}\n')
+        run("add", "-A", cwd=wk)
+        run("commit", "-qm", "the kept record", cwd=wk)
+        before, _ = SV.tree_key(wk)
+        self.assertIsNotNone(before, "PREMISE: a clean tree has no key")
+        io.open(rec, "w").write('{"totalMs": 25414039.5}\n')
+        after, why = SV.tree_key(wk)
+        self.assertEqual(before, after, "the console's own record moved the verdict key: %s" % why)
+        io.open(os.path.join(wk, "f.txt"), "w").write("edit\n")
+        self.assertIsNone(SV.tree_key(wk)[0], "a real edit beside the record kept the commit's key")
+        with mock.patch.object(SA, "_sh", lambda *a: (0, "M tv/.status_worst.json\n M tv/control_app.py")):
+            self.assertEqual(SA._dirty(), [" M tv/control_app.py"])
+        with mock.patch.object(SA, "_sh", lambda *a: (0, "M tv/.status_worst.json")):
+            self.assertEqual(SA._dirty(), [], "the ship audit calls the console's own record uncommitted work")
+
     def test_only_the_named_record_is_forgiven(self):
         f = SP._edits_beyond_own_records
         self.assertEqual(f("M tv/.status_worst.json"), [])
@@ -1004,6 +1029,20 @@ class TwoLanesOnlyWithRoom(unittest.TestCase):
         self.assertEqual(seen, ["4", "1", "1"], "the prover's lane count did not follow the memory free at spawn")
 
 RED_PROOF = [
+    {
+        "why": "REG-1865 - the gate verdict key moves on the console's own record again, so every push re-runs its suites",
+        "file": "tv/suite_verdict.py",
+        "find": "        if _theirs is not None and not _theirs(line):\n            continue\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1865 - the ship audit calls the console's own record uncommitted work again",
+        "file": "tv/ship_audit.py",
+        "find": "        lines = _sp._edits_beyond_own_records(\"\\n\".join(lines))\n",
+        "replace": "        pass\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1861 - an unknown preflight reads as a yes, so a sandbox-class exit respawns on every rescue tick",
         "file": "tv/self_prove.py",

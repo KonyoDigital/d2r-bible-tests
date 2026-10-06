@@ -417,6 +417,61 @@ class TheLauncherUsesTheSameRule(unittest.TestCase):
         self.assertEqual(lp.apply(d), 2)
         self.assertEqual(self._head(d), head)
 
+    def _with_record(self):
+        """The fixture with tv/.status_worst.json tracked in both commits, and rewritten here."""
+        import subprocess
+        d, path = self._repo()
+        subprocess.check_call(["git", "-C", d, "checkout", "-q", "refs/remotes/origin/main", "--", "."])
+        rec = os.path.join(d, "tv", ".status_worst.json")
+        os.makedirs(os.path.dirname(rec), exist_ok=True)
+        with open(rec, "wb") as fh:
+            fh.write(b'{"totalMs": 1773092.2}\n')
+        subprocess.check_call(["git", "-C", d, "reset", "-q", "--hard"])
+        subprocess.check_call(["git", "-C", d, "add", "tv/.status_worst.json"])
+        subprocess.check_call(["git", "-C", d, "-c", "user.email=t@example.com", "-c", "user.name=t",
+                               "commit", "-q", "-m", "the kept record"])
+        with open(path, "wb") as fh:
+            fh.write(b"two\n")
+        subprocess.check_call(["git", "-C", d, "-c", "user.email=t@example.com", "-c", "user.name=t",
+                               "commit", "-q", "-am", "two"])
+        subprocess.check_call(["git", "-C", d, "update-ref", "refs/remotes/origin/main", "HEAD"])
+        subprocess.check_call(["git", "-C", d, "reset", "-q", "--hard", "HEAD~1"])
+        with open(rec, "wb") as fh:
+            fh.write(b'{"totalMs": 25414039.5}\n')
+        return d, path, rec
+
+    def test_the_consoles_own_record_alone_is_not_local_work(self):
+        """REG-1865 - his ALT: ` M tv/.status_worst.json` and nothing else read as "tracked files modified (local work
+        protected)", so the Windows launcher skipped every pull. It is 0 now and the record is never reset."""
+        import launcher_pull as lp
+        d, path, rec = self._with_record()
+        head = self._head(d)
+        self.assertEqual(lp.apply(d), 0, "the console's own record still blocks the launcher's pull")
+        self.assertEqual(self._head(d), head, "the launcher reset a tree whose only change is the record")
+        with open(rec, "rb") as fh:
+            self.assertEqual(fh.read(), b'{"totalMs": 25414039.5}\n', "the record was overwritten")
+        self.assertEqual(lp.classify(d)["own"], ["tv/.status_worst.json"])
+
+    def test_the_record_beside_a_real_edit_is_still_local_work(self):
+        import launcher_pull as lp
+        d, path, rec = self._with_record()
+        with open(path, "wb") as fh:
+            fh.write(b"one\nlocal\n")
+        self.assertEqual(lp.apply(d), 2)
+
+    def test_the_record_beside_a_landed_update_is_never_reset_over(self):
+        """The update has landed (a.txt matches origin) and the record differs: a reset --hard would overwrite the
+        record, so the launcher refuses the reset and leaves both."""
+        import launcher_pull as lp
+        d, path, rec = self._with_record()
+        head = self._head(d)
+        with open(path, "wb") as fh:
+            fh.write(b"two\n")
+        self.assertEqual(lp.apply(d), 2)
+        self.assertEqual(self._head(d), head)
+        with open(rec, "rb") as fh:
+            self.assertEqual(fh.read(), b'{"totalMs": 25414039.5}\n')
+
     def test_a_history_that_cannot_fast_forward_is_not_reset(self):
         import subprocess
         import launcher_pull as lp
@@ -874,6 +929,20 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1865 - the launcher reads the console's own record as local work again and skips every pull",
+        "file": "launcher_pull.py",
+        "find": "        return not _sp._edits_beyond_own_records(\"%s %s\" % (status, path))\n",
+        "replace": "        return False\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1865 - the launcher resets over the console's own record when an update has landed beside it",
+        "file": "launcher_pull.py",
+        "find": "    if found.get(\"own\"):\n        # a reset --hard would overwrite the record, which is never this file's to do\n",
+        "replace": "    if False:\n        # a reset --hard would overwrite the record, which is never this file's to do\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1832 - the Python scrub stops dropping a forward-slash drive path",
         "file": "tv/control_app.py",

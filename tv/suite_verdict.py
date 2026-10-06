@@ -98,10 +98,17 @@ def tree_key(cwd=None):
     if st is None:
         return None, "git could not say whether the working tree is the commit"
     moved = []
+    try:
+        import self_prove as _sp                # REG-1865 - the console's own tracked records are not his edits
+        _theirs = _sp._edits_beyond_own_records
+    except Exception:
+        _theirs = None
     for line in st.splitlines():
         path = line[3:].strip()
         if " -> " in path:
             path = path.split(" -> ", 1)[1]
+        if _theirs is not None and not _theirs(line):
+            continue
         if path and path not in SELF_RECORDS:
             moved.append(path)
     if moved:

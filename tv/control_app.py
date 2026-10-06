@@ -1419,21 +1419,30 @@ _FLEET_FETCH_TTL_S = 300.0  # network fetch at most every 5 min
 _FLEET_LAST_FETCH = 0.0
 
 
+def _his_tracked_edits(porcelain):
+    """REG-1865 — the tracked `git status --porcelain` lines that are local edits. -> str ("" = none)
+
+    The console's own tracked records are not (self_prove's ONE rule, CONSOLE_OWN_RECORDS). His ALT sat 123 behind
+    over a lone ` M tv/.status_worst.json`: the pull doors ask launcher_pull.apply, which now asks the same rule, and
+    the fleet row asks it here. Untracked rows are dropped as before. A rule that cannot be asked forgives nothing."""
+    lines = [ln for ln in str(porcelain or "").splitlines() if ln.strip() and not ln.startswith("??")]
+    try:
+        import self_prove as _sp
+        lines = _sp._edits_beyond_own_records("\n".join(lines))
+    except Exception:
+        pass
+    return "\n".join(lines)
+
+
 def _git_tracked_dirty():
-    """True only when TRACKED files are modified (?? untracked does not count)."""
+    """True only when TRACKED files are modified (?? untracked does not count, nor the console's own records)."""
     try:
         r = _git_run(
             ["git", "status", "--porcelain"],
             cwd=REPO, capture_output=True, text=True, timeout=8,
             creationflags=_WIN_CREATE if IS_WIN else 0,
         )
-        for line in (r.stdout or "").splitlines():
-            if not line.strip():
-                continue
-            if line.startswith("??"):
-                continue
-            return True
-        return False
+        return bool(_his_tracked_edits(r.stdout))
     except Exception:
         return False
 
@@ -23475,6 +23484,8 @@ def _pull_once():
         # A file that matches the fetched origin is the update, not an edit. The
         # launcher applies the same rule before this process exists. Unknown
         # stays a refusal: apply() returns 1 when it cannot read the tree.
+        # REG-1865 - and the console's own tracked record is not an edit either: apply() answers 0 for it and
+        # the fast-forward below decides (git refuses by itself if origin changed that record).
         _landed = None
         try:
             import launcher_pull as _lp

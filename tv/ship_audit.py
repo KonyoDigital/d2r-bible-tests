@@ -89,7 +89,15 @@ def _head():
 
 def _dirty():
     rc, out = _sh("git", "status", "--porcelain")
-    return None if rc else [l for l in out.split("\n") if l.strip()]
+    if rc:
+        return None
+    lines = [l for l in out.split("\n") if l.strip()]
+    try:
+        import self_prove as _sp            # REG-1865 - the console's own tracked records are not uncommitted work
+        lines = _sp._edits_beyond_own_records("\n".join(lines))
+    except Exception:
+        pass
+    return lines
 
 
 def record_gates():

@@ -493,6 +493,78 @@ class TestOnePullAtATime(_Base):
                 self.assertTrue(after, "%s never ran git after the lock was released" % name)
 
 
+class TestTheConsolesOwnRecordIsNotAnEdit(_Base):
+    """★ REG-1865 — his ALT sat on v3595, 123 behind, with pull outcome "dirty": "local tracked edits are present, so
+    this machine is NOT auto-pulling". Its one edit was ` M tv/.status_worst.json`, the tracked record the console
+    rewrites on its slowest request. Real git: origin (bare) is one commit ahead on f.txt, the clone tracks the
+    record and has rewritten it. The record is never reset or checked out - git's own fast-forward decides."""
+
+    REC = os.path.join("tv", ".status_worst.json")
+
+    def setUp(self):
+        _Base.setUp(self)
+        seed = os.path.join(self.root, "seed")
+        os.makedirs(os.path.join(seed, "tv"), exist_ok=True)
+        with open(os.path.join(seed, self.REC), "w") as fh:
+            fh.write('{"totalMs": 1773092.2}\n')
+        _git(seed, "add", self.REC)
+        _git(seed, "commit", "-q", "-m", "the kept record")
+        _git(seed, "push", "-q", os.path.join(self.root, "origin.git"), "HEAD:refs/heads/main")
+        # the clone takes everything up to the record, then origin moves one commit on f.txt only
+        _git(self.clone, "pull", "-q", "--ff-only", "origin", "main")
+        with open(os.path.join(seed, "f.txt"), "w") as fh:
+            fh.write("three\n")
+        _git(seed, "commit", "-q", "-am", "three")
+        _git(seed, "push", "-q", os.path.join(self.root, "origin.git"), "HEAD:refs/heads/main")
+        self.origin_head = _git(seed, "rev-parse", "--short", "HEAD")
+        self.seed = seed
+        self.mine = '{"totalMs": 25414039.5}\n'
+        with open(os.path.join(self.clone, self.REC), "w") as fh:
+            fh.write(self.mine)
+
+    def _record(self):
+        with open(os.path.join(self.clone, self.REC)) as fh:
+            return fh.read()
+
+    def test_the_record_alone_pulls_and_stays_his(self):
+        self.assertEqual(_git(self.clone, "status", "--porcelain", "--untracked-files=no"),
+                         "M tv/.status_worst.json", "PREMISE: the record is not the only edit")
+        with self.probe(False, "stub: no git running"):
+            out = ca._pull_once()
+        self.assertIs(out, True, "the console's own record held the pull: %r" % ca._PULL.get("say"))
+        self.assertEqual(ca._PULL.get("outcome"), "pulled")
+        self.assertEqual(self.head(), self.origin_head, "HEAD did not reach origin/main")
+        self.assertEqual(self._record(), self.mine, "the pull reset or checked out his record")
+
+    def test_the_record_and_a_real_edit_is_still_dirty(self):
+        with open(os.path.join(self.clone, "f.txt"), "w") as fh:
+            fh.write("his edit\n")
+        with self.probe(False, "stub: no git running"):
+            out = ca._pull_once()
+        self.assertIs(out, False, "a real edit beside the record was pulled over: %r" % ca._PULL.get("say"))
+        self.assertEqual(ca._PULL.get("outcome"), "dirty")
+        self.assertEqual(self._record(), self.mine)
+
+    def test_origin_changing_the_record_is_refused_by_git_and_the_record_stays(self):
+        with open(os.path.join(self.seed, self.REC), "w") as fh:
+            fh.write('{"totalMs": 1.0}\n')
+        _git(self.seed, "commit", "-q", "-am", "origin moves the record")
+        _git(self.seed, "push", "-q", os.path.join(self.root, "origin.git"), "HEAD:refs/heads/main")
+        before = self.head()
+        with self.probe(False, "stub: no git running"):
+            out = ca._pull_once()
+        self.assertIsNone(out, "git's own refusal was not reported as a failed fast-forward")
+        self.assertEqual(ca._PULL.get("outcome"), "failed")
+        self.assertEqual(self.head(), before)
+        self.assertEqual(self._record(), self.mine, "his record was overwritten")
+
+    def test_the_in_app_door_and_the_fleet_row_use_the_same_rule(self):
+        self.assertFalse(ca._git_tracked_dirty(), "the fleet row calls the console's own record a dirty tree")
+        r = ca.fleet_pull()
+        self.assertTrue(r.get("ok") and r.get("pulled"), "the in-app update door refused over the record: %r" % (r,))
+        self.assertEqual(self._record(), self.mine)
+
+
 class TestTheRunningProbeAnswersThreeWays(unittest.TestCase):
 
     def test_pgrep_exit_codes_map_to_three_answers(self):
@@ -635,6 +707,20 @@ class TestTheLaneIsPublishedWhereTheRowReads(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1865 - the console's own record makes the pull lane and the in-app door dirty again, and the ALT never auto-updates",
+        "file": "launcher_pull.py",
+        "find": "        return not _sp._edits_beyond_own_records(\"%s %s\" % (status, path))\n",
+        "replace": "        return False\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1865 - the fleet row calls the console's own record a dirty tree again",
+        "file": "control_app.py",
+        "find": "        lines = _sp._edits_beyond_own_records(\"\\n\".join(lines))\n",
+        "replace": "        pass\n",
+        "matches": 1,
+    },
     {
         "why": "#64 - without the size refusal a lock a LIVE git is filling (its new index) would be removed from under it",
         "file": "control_app.py",

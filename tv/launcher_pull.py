@@ -200,13 +200,29 @@ def _untracked_in_the_way(repo):
     return False
 
 
+def _own_record(status, path):
+    """REG-1865 — is this porcelain row one of the console's own tracked records? -> bool
+
+    ONE rule, self_prove's (CONSOLE_OWN_RECORDS through _edits_beyond_own_records). His ALT sat on v3595, 123
+    behind, because its only edit was ` M tv/.status_worst.json` - the record the console rewrites itself - and
+    this read it as local work. A rule that cannot be asked forgives nothing."""
+    try:
+        import self_prove as _sp
+        return not _sp._edits_beyond_own_records("%s %s" % (status, path))
+    except Exception:
+        return False
+
+
 def classify(repo):
-    """-> {ok, block, update, ancestor, way}. Does not fetch and does not write."""
+    """-> {ok, block, update, own, ancestor, way}. Does not fetch and does not write."""
     rows = _porcelain(repo)
     if rows is None:
-        return {"ok": False, "block": [], "update": [], "ancestor": None, "way": None}
-    block, update = [], []
+        return {"ok": False, "block": [], "update": [], "own": [], "ancestor": None, "way": None}
+    block, update, own = [], [], []
     for status, path in rows:
+        if _own_record(status, path):
+            own.append(path)
+            continue
         safe = _safe_rel(path)
         if safe is None or not _plain_modification(status) or " -> " in path:
             block.append(path or "?")
@@ -220,8 +236,8 @@ def classify(repo):
     if update and not block and ancestor is True:
         way = _untracked_in_the_way(repo)
         if way is None:
-            return {"ok": False, "block": [], "update": [], "ancestor": None, "way": None}
-    return {"ok": True, "block": block, "update": update, "ancestor": ancestor, "way": bool(way)}
+            return {"ok": False, "block": [], "update": [], "own": [], "ancestor": None, "way": None}
+    return {"ok": True, "block": block, "update": update, "own": own, "ancestor": ancestor, "way": bool(way)}
 
 
 def _reset_failed(err, out):
@@ -250,7 +266,15 @@ def _decision(found):
     if found["block"]:
         return 2, "tracked files modified (local work protected)"
     if not found["update"]:
+        if found.get("own"):
+            # REG-1865 — not local work: the caller's fast-forward decides, and git refuses it by itself if origin
+            # changed that record. Nothing here resets or checks out his record.
+            return 0, "only the console's own record differs (%s) - the fast-forward decides" % ", ".join(found["own"][:3])
         return 0, "clean"
+    if found.get("own"):
+        # a reset --hard would overwrite the record, which is never this file's to do
+        return 2, ("the console's own record differs (%s) and the reset onto the update would overwrite it, so "
+                   "nothing was reset" % ", ".join(found["own"][:3]))
     if found["ancestor"] is not True:
         return 2, "the fast-forward was refused; nothing was reset"
     return None, None
