@@ -8851,6 +8851,12 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_a_sharded_verdict_counts_the_union", [sys.executable,
+         os.path.join(HERE, "test_a_sharded_verdict_counts_the_union.py")], 30,
+         needs_app=False,
+         why=("REG-1915 - suite_verdict counted cases only from 'Ran N tests', so a green sharded test_control read "
+              "'? cases' and a red one reported one shard's tail as the suite; the shard union line wins now.")
+         ),
     Gate("test_an_age_on_the_fleet_card_keeps_aging", [sys.executable,
          os.path.join(HERE, "test_an_age_on_the_fleet_card_keeps_aging.py")], 60,
          needs_app=False,

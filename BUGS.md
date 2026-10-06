@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1915 - A SHARDED SUITE'S VERDICT COUNTED ONE SHARD, OR NOTHING (2026-10-07, v3601's pre-run)
+
+`suite_verdict` read its case count from unittest's "Ran N tests" only. test_control runs as shards, whose union reads "<ran> of <want> case(s) across <k> shard(s)": the green pre-run said "test_control GREEN in 238.6s (? cases)", and the red run before it said "(1333 cases)" - one shard's tail - for a 2,260-case suite. `ran_cases` reads the union line first, a plain run's single "Ran N" next, and refuses (None) when several plain tails are all there is. Law `test_a_sharded_verdict_counts_the_union` (1 RED_PROOF).
+
 ### REG-1914 - AN AGE ON THE FLEET CARD DID NOT AGE (2026-10-07, GrokBot #230 v3600 brief + tick 371)
 
 "also on the site ... no login name 6m ago" read the same from 01:35 to 01:57, then "14m ago"; again 02:14 -> 02:18 -> "20m ago". `_fleetSince` computes the age at paint, and the card repaints on events only - his ruling, not a shorter poll - so an open card told one age for as long as nobody pressed anything. Every age the card paints in its 'as of' line and the also-on-the-site line now carries its stamp (`_flAge`, data-fl-t) and a 60 s tick (`_flAgeTick`) re-reads only those labels from the stamp, asking the server nothing. Law `test_an_age_on_the_fleet_card_keeps_aging` (the shipped functions run in node against a moving clock, 2 RED_PROOFs).

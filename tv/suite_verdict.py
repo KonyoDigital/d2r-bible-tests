@@ -89,6 +89,29 @@ def env_key():
     return "py%d.%d-%s" % (sys.version_info[0], sys.version_info[1], sys.platform)
 
 
+def ran_cases(out):
+    """How many cases a run executed, from its own output. -> int | None
+
+    REG-1915 - a SHARDED run (shard_suite.py) summarises the union as "<ran> of <want> case(s) across <k> shard(s)", and
+    this read only unittest's "Ran N tests": a green sharded run printed "(? cases)", and a red one printed ONE shard's
+    "Ran 1333 tests" (its tail) as if it were the suite's 2,260. The union line wins whenever it is there; a plain run
+    keeps reading "Ran N"; and several plain "Ran" lines (several shards' tails) are never passed off as the whole."""
+    import re
+    m = None
+    for m in re.finditer(r"(\d+) of (\d+) case\(s\) across \d+ shard", out or ""):
+        pass
+    if m:
+        return int(m.group(1))
+    rans = []
+    for line in (out or "").splitlines():
+        if line.startswith("Ran ") and " test" in line:
+            try:
+                rans.append(int(line.split()[1]))
+            except Exception:
+                pass
+    return rans[0] if len(rans) == 1 else None
+
+
 def tree_key(cwd=None):
     """-> (key | None, why). The commit's tree hash, ONLY when the working tree's tracked files are that commit's."""
     tree = _git(["rev-parse", "HEAD^{tree}"], cwd=cwd)
@@ -262,13 +285,7 @@ def run(name, cwd=None):
         if key and path:
             _inflight_clear(name, key, path)
     secs = round(time.time() - t0, 1)
-    cases = None
-    for line in out.splitlines():
-        if line.startswith("Ran ") and " test" in line:
-            try:
-                cases = int(line.split()[1])
-            except Exception:
-                pass
+    cases = ran_cases(out)
     # REG-1722 - THE KEY IS TAKEN BEFORE THE RUN AND AGAIN AFTER (heart2's proof cache does the same): a file edited
     # while the suite ran means the run graded bytes that are not the commit's, so nothing is stored for it.
     after, _awhy = tree_key(cwd)
