@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1782 - A JOIN THAT OWES NOTHING WAS NEVER OFFERED A ROUTE (2026-10-06, #152 slice 1)
+
+The route lane moved a reel only from EMPTY. A reel at JOIN whose engine had already ruled NOT_A_HOLDING owes no join and no footage. It sat there. The same lane now routes that reel, and the stamp cites the engine's own token. A recoverable join stays. A missing verdict stays. Any other word stays. CAPTURE stays declined: it still owes hover before a route. A token that could not be read routes no join. Nothing here stamps his shelf. Law `test_a_join_that_owes_nothing_is_routed`.
+
 ### REG-1781 - A REEL AT PRINTER READ AS HELD, SO THE VAULT LANE LOOKED IDLE (2026-10-06, #86 gap audit 34)
 
 The shelf counted a lane's work from retention's tag. That tag says why a reel is still on disk. A reel at PRINTER that the tag calls recent was held. One it calls zero-pages was the chronicle's. The vault's own rule already said both owe a read, and the sweeper was already using it. The census said the vault lane had nothing owed. The tag's lane stays. The read is counted beside it, from that same rule. A stamp log that will not read makes the vault's number UNKNOWN, not the tags alone. A seal store that will not read adds nothing through PRINTER. A fixture at PRINTER stays held. Law `test_a_reel_the_vault_owes_is_not_held`.

@@ -9385,6 +9385,13 @@ GATES = [
              "at PRINTER filed as recent was held and one filed as zero-pages was only the chronicle's. "
              "The vault's own rule already said both owe a read. That read is now on the vault lane. The "
              "tag's lane stays. A stamp log that will not read makes the vault count UNKNOWN, not idle."),
+    Gate("test_a_join_that_owes_nothing_is_routed",
+         [sys.executable, os.path.join(HERE, "test_a_join_that_owes_nothing_is_routed.py")], 90,
+         needs_app=False,
+         why="REG-1782 (#152 slice 1) - a JOIN reel whose engine ruled NOT_A_HOLDING owes nothing, and the "
+             "route lane only moved EMPTY, so that reel never reached ROUTED. It is routed, and the stamp "
+             "cites the engine's token. A recoverable join, a missing verdict, and any other word stay. "
+             "CAPTURE stays declined. A token that could not be read routes no join."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

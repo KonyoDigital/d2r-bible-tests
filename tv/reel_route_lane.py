@@ -33,16 +33,22 @@ The station table is the authority; this lane invents nothing. `reel_router.OWES
 
 Measured on his shelf: EMPTY 6, CAPTURE 12.
 
-  ROUTES  **EMPTY only.** retro_triage walked the reel IN FULL and found ZERO panel frames. There
-          is no name, no location and no provenance to extract, so the extraction contract is
-          satisfied VACUOUSLY — and that is a real way to satisfy it, not a dodge.
+  ROUTES  **EMPTY**, and a reel at **JOIN** whose own engine said NOT_A_HOLDING.
+          EMPTY: retro_triage walked the reel IN FULL and found ZERO panel frames. There is no
+          name, no location and no provenance to extract, so the extraction contract is satisfied
+          VACUOUSLY — and that is a real way to satisfy it, not a dodge.
+          JOIN + NOT_A_HOLDING: the names were read, and extract_gap ruled that none of them can
+          become a holding. No join is owed and no footage is owed. That is the same shape as
+          EMPTY — the contract is satisfied, and the reel owes a tombstone. A JOIN reel whose
+          verdict is missing, or is anything else (RECOVERABLE included), is not this lane's.
+          Unknown is not nothing, and a recoverable join is still owed.
 
-  REFUSES **CAPTURE**, all 12, and says why. Its own OWES puts a step in front of the route
-          ("CAPTURE, then ROUTE"), and no stamp can supply a capture. Routing them would claim an
-          extraction contract that was never satisfied for a name the reel demonstrably holds
-          (REG-340: D2R prints it on the character panel, which the reel does not film). ⚠ THE
-          REFUSAL IS PUBLISHED, NOT SILENT — 12 reels that owe a route and cannot take one are a
-          finding, and a lane that quietly skipped them would report "6 routed" and read as done.
+  REFUSES **CAPTURE**, and says why. Its OWES puts hover coverage in front of the route. An
+          item's name is in the tooltip; the character panel answers a different question and
+          carries no items. Routing a CAPTURE reel would claim a contract the reel did not
+          satisfy. ⚠ THE REFUSAL IS PUBLISHED, NOT SILENT — reels that owe a route and cannot
+          take one are a finding, and a lane that quietly skipped them would report a count and
+          read as done.
 
 === ⚠⚠ WHY THIS CANNOT FLAP ===
 `reel_router._station_of` derives a station from EVIDENCE, and routing does not change any
@@ -88,12 +94,32 @@ BLOCKED_BY = {
 }
 
 
-def _why_for(station, reel_why):
+def _nothing_owed_say():
+    """extract_gap's own token for a join that is not a join. -> str | None
+
+    None means the engine could not be asked. That is not a verdict, and it must not route.
+    """
+    try:
+        import extract_gap as _eg
+        tok = getattr(_eg, "NOT_A_HOLDING", None)
+    except Exception:
+        return None
+    if isinstance(tok, str) and tok:
+        return tok
+    return None
+
+
+def _why_for(station, reel_why, ruled=None):
     """The sentence that goes in the stamp. -> str
 
     ⚠ IT CARRIES THE REEL'S OWN REASON, not a lane slogan. Six identical rows saying "routed" would
     make the store unreadable a month from now; the row has to say what was true about THIS reel.
+    `ruled` is the engine's own token, when this reel was routed because that token said nothing
+    is owed. The sentence cites that token. It does not invent a second one.
     """
+    if ruled:
+        return ("nothing left to join — the engine ruled %s, so the names were read and none of "
+                "them can become a holding. It owes only a tombstone. [%s]" % (ruled, reel_why))
     if station == "EMPTY":
         return ("nothing to extract and the survey proved it — retro_triage walked this reel IN "
                 "FULL and found zero panel frames, so the extraction contract (name, location, "
@@ -128,12 +154,18 @@ def plan(rep=None, path=None):
     # ⚠ FIFO, and it is INHERITED rather than re-sorted. `reel_router.route()` already orders
     # oldest-capture-first and puts reels with NO readable clock last — re-sorting here would be a
     # second copy of that rule, free to drift from it. [[copy-drift]]
+    # A JOIN reel is this lane's only when the engine ruled NOT_A_HOLDING. The token is
+    # extract_gap's, read once. A missing token routes none of them: unknown is not nothing.
+    # RECOVERABLE and any other word stay where they are. They still owe a join.
+    _hold = _nothing_owed_say()
     for r in (rep.get("reels") or []):
         st = r.get("station")
-        if st in ROUTES_FROM:
+        _ruled = _hold if (st == "JOIN" and _hold is not None
+                           and r.get("extractSay") == _hold) else None
+        if st in ROUTES_FROM or _ruled:
             out["route"].append({"reel": r.get("reel"), "from": st,
                                  "capturedMs": r.get("capturedMs"),
-                                 "why": _why_for(st, r.get("why") or "")})
+                                 "why": _why_for(st, r.get("why") or "", ruled=_ruled)})
         elif st in BLOCKED_BY:
             out["declined"].append({"reel": r.get("reel"), "from": st,
                                     "owesFirst": BLOCKED_BY[st]})
