@@ -32,7 +32,8 @@ PLANT = '''
 import os, unittest
 class Alpha(unittest.TestCase):
     def test_a1(self): pass
-    def test_a2(self): pass
+    def test_a2(self):
+        if os.environ.get("PLANT_SKIP") == "1": self.skipTest("planted skip")
 class Beta(unittest.TestCase):
     def test_b1(self):
         with open(os.path.join(os.environ["PLANT_PORTS"], "beta"), "w") as fh: fh.write(os.environ["TV_PORT"])
@@ -189,6 +190,40 @@ class TheUnionIsTheVerdict(unittest.TestCase):
         self.assertNotIn(b, ("17772", "17971", "17972"))
 
 
+class TheSummaryNamesItsSkips(unittest.TestCase):
+    """REG-1819 (#171) - shard_suite recorded `skipped` and never printed it, so under CI run_gates' case census (which
+    reads the gate's LAST line) was blind to every skip inside test_control. Drives the real run + the real main + the
+    census's own parser."""
+
+    def _last_line(self, **env):
+        import contextlib
+        from unittest import mock
+        d = tempfile.mkdtemp(prefix="shard_skip_")
+        self.addCleanup(shutil.rmtree, d, True)
+        with io.open(os.path.join(d, "plant_suite.py"), "w", encoding="utf-8") as fh:
+            fh.write(PLANT)
+        ports = os.path.join(d, "ports")
+        os.makedirs(ports)
+        e = dict(os.environ, PLANT_PORTS=ports, **env)
+        res = SS.run("plant_suite", 3, here=d, cost_path=os.path.join(d, "cost.json"), _env=e)
+        buf = io.StringIO()
+        with mock.patch.object(SS, "run", return_value=res), contextlib.redirect_stdout(buf):
+            rc = SS.main(["plant_suite"])
+        self.assertEqual(rc, 0, buf.getvalue())
+        return res[1], buf.getvalue().strip().splitlines()[-1]
+
+    def test_a_skip_inside_a_shard_reaches_the_census(self):
+        import run_gates as RG
+        rep, last = self._last_line(PLANT_SKIP="1")
+        self.assertEqual(rep["skipped"], 1, rep)
+        self.assertEqual(RG.case_skips(last), (1, 8), "the census cannot see the skip on the summary line: %r" % last)
+
+    def test_no_skip_prints_none(self):
+        import run_gates as RG
+        _rep, last = self._last_line()
+        self.assertIsNone(RG.case_skips(last), last)
+
+
 RED_PROOF = [
     {"why": "the #231 code seat - an overrunning shard is left running beside the quiet pass again",
      "file": "shard_suite.py",
@@ -234,6 +269,11 @@ RED_PROOF = [
      "file": "shard_suite.py",
      "find": "    for c in sorted(classes, key=lambda c: (-w[c], c)):\n",
      "replace": "    for c in sorted(classes, key=lambda c: (-w[c], c))[:-1]:\n",
+     "matches": 1},
+    {"why": "REG-1819 - the sharded summary stops printing its skips: the CI census is blind to test_control's skips again",
+     "file": "shard_suite.py",
+     "find": "        + summary_skips(rep))\n",
+     "replace": "        )\n",
      "matches": 1},
 ]
 

@@ -130,6 +130,15 @@ def law_env(needs_app, base=None):
     return env
 
 
+def case_skips(detail):
+    """The census's reading of a gate's last line. -> (skipped, of_ran_or_None) | None  (REG-1819: one parser, so a test
+    can feed it what shard_suite prints and the census cannot drift from it)"""
+    m = re.search(r"skipped=(\d+)(?: of (\d+))?", str(detail or ""))
+    if not m:
+        return None
+    return int(m.group(1)), (int(m.group(2)) if m.group(2) else None)
+
+
 def needs_app_of(filename):
     """Does the registered gate that runs FILENAME need his console? -> bool (an unregistered file: False)"""
     for g in GATES:
@@ -10575,10 +10584,9 @@ def main(argv):
     _where = []
     _dark = []
     for _g, _st, _dt, _d, _ in results:
-        _m = re.search(r"skipped=(\d+)(?: of (\d+))?", str(_d or ""))
+        _m = case_skips(_d)
         if _m and _st != "SKIP":
-            _n = int(_m.group(1))
-            _ran = int(_m.group(2)) if _m.group(2) else None
+            _n, _ran = _m
             if _n:
                 _cases += _n
                 _where.append("%s=%d%s" % (_g.name, _n, ("/%d" % _ran) if _ran else ""))

@@ -173,7 +173,7 @@ class AProveLaneKeepsItsOwnPort(unittest.TestCase):
         self.assertTrue(ok, "the probe did not run: %r" % tail)
         b = str(LP.base_for_lane(2))
         self.assertEqual(tail.strip().split("|")[-1].strip(),
-                         "%s %s %s %s" % (b, b, str(int(b) + 1), str(int(b) + 2)),
+                         "%s %s %s %s" % (b, b, __import__("run_gates").dead_console_port(), str(int(b) + 2)),  # REG-1820
                          "lane 2's gate was not stamped with its own ports: %r" % tail)
 
     def test_a_shared_port_is_how_a_tracked_file_vanishes(self):

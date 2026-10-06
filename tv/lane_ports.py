@@ -79,10 +79,15 @@ def adopt_control(default):
 
 
 def stamp(env, lane):
-    """The ports one prove lane's gate runs with. Mutates `env` and returns it."""
+    """The ports one prove lane's gate runs with. Mutates `env` and returns it.
+
+    REG-1820 - a TV_CONTROL_PORT already in `env` (run_gates.law_env's reserved dead port, or one the caller chose) SURVIVES:
+    it was overwritten with base+1, a live port of this lane, and the law's ask reached a stranger again. Only an unset or
+    his-console (17772) value takes the lane's own control port."""
     b = base_for_lane(lane)
     env[ENV] = str(b)
     env["TV_PORT"] = str(b)
-    env["TV_CONTROL_PORT"] = str(b + 1)
+    if env.get("TV_CONTROL_PORT", "") in ("", "17772"):
+        env["TV_CONTROL_PORT"] = str(b + 1)
     env["TV_LAW_PORT"] = str(b + 2)
     return env

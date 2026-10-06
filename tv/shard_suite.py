@@ -177,6 +177,7 @@ def run(suite, k=4, here=HERE, cost_path=COST, _classes=None, _env=None):
         ran += got or 0
         shards.append({"shard": i, "classes": len(names), "want": want, "ran": got, "rc": rc, "ok": sok,
                        "failures": res and res.get("failures"), "errors": res and res.get("errors"),
+                       "skipped": (res or {}).get("skipped") or 0,
                        "log": os.path.join(tmp, "shard%d.log" % i), "cost": (res or {}).get("cost") or {}})
     # two checks, two jobs: each shard ran what it was DEALT (above); every class the loader FOUND was dealt (here)
     # by NAME, never by sum (the #231 code seat on 37e9a984): a plan that dropped one class and dealt another of the
@@ -196,6 +197,7 @@ def run(suite, k=4, here=HERE, cost_path=COST, _classes=None, _env=None):
     if why_not:
         ok = False
     rep = {"suite": suite, "ok": ok, "expected": expected, "ran": ran, "shards": shards,
+           "skipped": sum(int(x.get("skipped") or 0) for x in shards),
            "seconds": round(time.time() - t0, 1), "dir": tmp, "whyNot": why_not}
     if ok:
         # #171 - a green run's scratch (shard logs + answers) goes with it; a RED run's is kept, because its logs are
@@ -252,6 +254,16 @@ def _end_shards(signum=None, frame=None):
         sys.exit(128 + int(signum))
 
 
+def summary_skips(rep):
+    """REG-1819 - the skip count, in the one form run_gates' case census parses (`skipped=N of M`). -> str ('' when none)
+
+    shard_suite recorded each shard's skips and never PRINTED them, so under CI the census read the last line of
+    test_control's output, found no `skipped=`, and was blind to every case that skipped there. The census reads the
+    gate's LAST line, so this rides on the summary line."""
+    n = int(rep.get("skipped") or 0)
+    return (" skipped=%d of %d" % (n, int(rep.get("ran") or 0))) if n else ""
+
+
 def main(argv):
     import argparse
     import signal
@@ -268,7 +280,8 @@ def main(argv):
         print("  shard %d: %d class(es), ran %s of %s, rc=%s%s" % (s["shard"], s["classes"], s["ran"], s["want"], s["rc"],
                                                                  "" if s["ok"] else "  ❌ RED"))
     print("%s %s: %s of %s case(s) across %d shard(s) in %.1fs" % (
-        "✅" if ok else "❌", rep["suite"], rep["ran"], rep["expected"], len(rep["shards"]), rep["seconds"]))
+        "✅" if ok else "❌", rep["suite"], rep["ran"], rep["expected"], len(rep["shards"]), rep["seconds"])
+        + summary_skips(rep))
     if rep.get("whyNot"):
         print("   ❌ " + rep["whyNot"])
     if not ok:

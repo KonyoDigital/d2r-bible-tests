@@ -88,6 +88,26 @@ class BothRunnersUseTheDoor(unittest.TestCase):
                         "run_gates launches a gate without law_env - it inherits his console's port")
 
 
+class TheLaneStampKeepsTheReservedPort(unittest.TestCase):
+    """REG-1820 (#172) - lane_ports.stamp overwrote the TV_CONTROL_PORT law_env had reserved (REG-1735) with base+1, a port
+    that is the lane's own and may be listening. Drives the real functions in heart2's order: law_env, then stamp."""
+
+    def test_the_reserved_dead_port_survives_the_lane_stamp(self):
+        import lane_ports as LP
+        env = RG.law_env(False, {"TV_CONTROL_PORT": "17772"})
+        dead = RG.dead_console_port()
+        self.assertEqual(env["TV_CONTROL_PORT"], dead, "PREMISE: law_env reserved the dead port")
+        LP.stamp(env, 2)
+        self.assertEqual(env["TV_CONTROL_PORT"], dead, "stamp overwrote the reserved dead port with the lane's own")
+        self.assertNotEqual(env["TV_CONTROL_PORT"], str(LP.base_for_lane(2) + 1))
+        self.assertEqual(env["TV_PORT"], str(LP.base_for_lane(2)), "the lane still gets its own agent port")
+
+    def test_an_unset_port_still_takes_the_lanes_own(self):
+        import lane_ports as LP
+        env = LP.stamp({}, 1)
+        self.assertEqual(env["TV_CONTROL_PORT"], str(LP.base_for_lane(1) + 1))
+
+
 RED_PROOF = [
     {"why": "REG-1729 - run_gates launches every gate on the inherited env again: a law reaches :17772",
      "file": "run_gates.py",
@@ -103,6 +123,11 @@ RED_PROOF = [
      "file": "run_gates.py",
      "find": "    if not needs_app and env.get(\"TV_CONTROL_PORT\", \"\") in (\"\", \"17772\"):\n",
      "replace": "    if False:\n",
+     "matches": 1},
+    {"why": "REG-1820 - stamp overwrites the reserved dead port with the lane's base+1 again",
+     "file": "lane_ports.py",
+     "find": "    if env.get(\"TV_CONTROL_PORT\", \"\") in (\"\", \"17772\"):\n        env[\"TV_CONTROL_PORT\"] = str(b + 1)\n",
+     "replace": "    env[\"TV_CONTROL_PORT\"] = str(b + 1)\n",
      "matches": 1},
 ]
 
