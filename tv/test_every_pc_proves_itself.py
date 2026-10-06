@@ -744,16 +744,35 @@ class TheStandAsideIsSafe(unittest.TestCase):
 
     # (7) a Mac without psutil can still measure memory
     def test_free_memory_is_measured_on_a_mac_without_psutil(self):
-        self.assertEqual((4003 + 236127) * 16384 // (1024 * 1024), SP.vm_stat_free_mb(VM_STAT_SAMPLE))
-        self.assertIsNone(SP.vm_stat_free_mb("garbage"))
+        import child_guard as cg
 
         class _R(object):
             returncode, stdout = 0, VM_STAT_SAMPLE
-        with self.mock.patch.object(SP, "IS_WIN", False), self.mock.patch.object(SP.sys, "platform", "darwin"), \
+        with self.mock.patch.object(cg, "IS_WIN", False), self.mock.patch.object(cg.os.path, "isfile", lambda p: False), \
                 self.mock.patch.dict(sys.modules, {"psutil": None}), \
-                self.mock.patch.object(SP.subprocess, "run", lambda *a, **k: _R()):
+                self.mock.patch.object(cg.subprocess, "run", lambda *a, **k: _R()):
             got = _REAL_PROBES[1]()
-        self.assertEqual(3752, got, "free memory on a Mac without psutil read %r - 'mem-unknown' forever" % (got,))
+        self.assertEqual((4003 + 236127 + 1985) * 16384 // (1024 * 1024), got,
+                         "free memory on a Mac without psutil read %r - 'mem-unknown' forever" % (got,))
+
+    # (7b) REG-1825 - Linux is asked for what it would hand out, not for the pages nothing holds
+    def test_linux_memory_is_memavailable_not_memfree(self):
+        """GrokBot's box 2026-10-06: `free -m` 657 MB free, 4918 MB available, and the prover said "only 643 MB of
+        memory free" every tick. Driven through the prover's own probe with that /proc/meminfo."""
+        import child_guard as cg
+        meminfo = ("MemTotal:        8131592 kB\nMemFree:          672768 kB\n"
+                   "MemAvailable:    5036032 kB\nBuffers:          120000 kB\nCached:          4100000 kB\n")
+        no_avail = "MemTotal:        8131592 kB\nMemFree:          672768 kB\n"
+        for text, want in ((meminfo, 4918), (no_avail, None)):
+            with self.mock.patch.object(cg, "IS_WIN", False), \
+                    self.mock.patch.object(cg.os.path, "isfile", lambda p: p == "/proc/meminfo"), \
+                    self.mock.patch("builtins.open", self.mock.mock_open(read_data=text)), \
+                    self.mock.patch.object(SP.sys, "platform", "linux"), \
+                    self.mock.patch.dict(sys.modules, {"psutil": None}):
+                got = _REAL_PROBES[1]()
+            self.assertEqual(want, got, "a Linux meminfo read as %r MB (MemFree is 657, MemAvailable 4918)" % (got,))
+        self.assertEqual(SP.decide(STALE, ("installed", ""), None, 5.0, {}, 1e9, playing=False, free=4918)["key"]
+                         != "low-memory", True, "4918 MB available still refused as low memory")
 
     # the doctor reads the new keys the way they are meant
     def test_the_doctor_calls_the_cooldown_healthy_and_a_survivor_a_warning(self):
@@ -805,6 +824,20 @@ class TwoLanesOnlyWithRoom(unittest.TestCase):
         self.assertEqual(seen, ["4", "1", "1"], "the prover's lane count did not follow the memory free at spawn")
 
 RED_PROOF = [
+    {
+        "why": "REG-1825 - the prover reads memory its own way again, MemFree on Linux, so GrokBot's 4918 MB available reads as 643 free and the heart never proves",
+        "file": "tv/self_prove.py",
+        "find": "        import child_guard as _cg\n        return _cg._free_ram_mb_read()\n",
+        "replace": "        if hasattr(os, \"sysconf\") and \"SC_AVPHYS_PAGES\" in os.sysconf_names:\n            return int(os.sysconf(\"SC_AVPHYS_PAGES\") * os.sysconf(\"SC_PAGE_SIZE\") // (1024 * 1024))\n        return None\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1825 - the one memory reader asks Linux for MemFree, the pages nothing holds, instead of what it would hand out",
+        "file": "tv/child_guard.py",
+        "find": "                    if line.startswith(\"MemAvailable:\"):\n",
+        "replace": "                    if line.startswith(\"MemFree:\"):\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1837 - the console's own tracked record makes it a dev tree again, so the ALT never proves and its deleter stays locked",
         "file": "tv/self_prove.py",

@@ -295,53 +295,22 @@ def proc_birth(pid):
         return None
 
 
-def vm_stat_free_mb(text):
-    """macOS `vm_stat` output -> available MB (free + inactive pages, the sum psutil calls available), or None. Pure."""
-    t = text or ""
-    ps = re.search(r"page size of (\d+) bytes", t)
-    got = {}
-    for label in ("Pages free", "Pages inactive"):
-        m = re.search(r"^%s:\s+(\d+)\." % re.escape(label), t, re.M)
-        got[label] = int(m.group(1)) if m else None
-    if not ps or None in got.values():
-        return None
-    return int((got["Pages free"] + got["Pages inactive"]) * int(ps.group(1)) // (1024 * 1024))
-
-
 def free_mb():
-    """Available physical memory in MB, or None when it cannot be measured (UNKNOWN, never 'plenty')."""
-    try:
-        if IS_WIN:
-            import ctypes
+    """Available physical memory in MB, or None when it cannot be measured (UNKNOWN, never 'plenty').
 
-            class _MS(ctypes.Structure):
-                _fields_ = [("dwLength", ctypes.c_ulong), ("dwMemoryLoad", ctypes.c_ulong),
-                            ("ullTotalPhys", ctypes.c_ulonglong), ("ullAvailPhys", ctypes.c_ulonglong),
-                            ("ullTotalPageFile", ctypes.c_ulonglong), ("ullAvailPageFile", ctypes.c_ulonglong),
-                            ("ullTotalVirtual", ctypes.c_ulonglong), ("ullAvailVirtual", ctypes.c_ulonglong),
-                            ("ullAvailExtendedVirtual", ctypes.c_ulonglong)]
-            m = _MS()
-            m.dwLength = ctypes.sizeof(_MS)
-            if not ctypes.windll.kernel32.GlobalMemoryStatusEx(ctypes.byref(m)):
-                return None
-            return int(m.ullAvailPhys // (1024 * 1024))
-        try:
-            import psutil
-            return int(psutil.virtual_memory().available // (1024 * 1024))
-        except Exception:
-            pass
-        # REG-1511 — MEASURED on his Mac: no psutil, and Darwin has no SC_AVPHYS_PAGES, so this answered None on
-        # every tick and an installed Mac could never start a proof ('mem-unknown' forever). vm_stat is always there.
-        if sys.platform == "darwin":
-            r = subprocess.run(["vm_stat"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=3)
-            v = vm_stat_free_mb(r.stdout) if r.returncode == 0 else None
-            if v is not None:
-                return v
-        if hasattr(os, "sysconf") and "SC_AVPHYS_PAGES" in os.sysconf_names:
-            return int(os.sysconf("SC_AVPHYS_PAGES") * os.sysconf("SC_PAGE_SIZE") // (1024 * 1024))
+    ⚠⚠ REG-1825 — ONE READER, AND IT IS child_guard's. This was a second copy, and its Linux arm read
+    SC_AVPHYS_PAGES, which is MemFree: the pages nothing holds, page cache left out. MEASURED on GrokBot's box
+    2026-10-06: `free -m` said 657 MB free and 4918 MB AVAILABLE, and this lane answered "only 643 MB of memory
+    free - a proof starts at 1536 MB" on every tick, so the heart never proved there, reel.route stayed shut and
+    its 8 reels sat at ROUTE for two days. child_guard._free_ram_mb_read already asks each OS for what it would
+    hand out: Windows ullAvailPhys, Linux MemAvailable, macOS free + inactive + speculative. A Linux with no
+    MemAvailable line is None (UNKNOWN), never MemFree dressed as available. [[copy-drift]]
+    """
+    try:
+        import child_guard as _cg
+        return _cg._free_ram_mb_read()
     except Exception:
         return None
-    return None
 
 
 def stand_aside(playing, free):
