@@ -406,6 +406,14 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1877 - A RED RUN ON ANOTHER PC SAID HOW MANY FAILED, NEVER WHICH (2026-10-07, #112)
+
+The ALT's self-prove records held only verdicts - "test_control[0] UNPROVABLE - ALREADY RED untampered (Ran 2259 tests in 440 s | FAILED (failures=6, skipped=23))" - so the six failing cases could not be named from the Mac. A red run's tail now ends with "red: Class.test_name, ..." (12 at most, from the red memory heart2 already keeps), and the UNPROVABLE-untampered line prints the named red cases under it. Naming today's six still needs one test_control run on the ALT in an idle window (alt_job.sh). Law `test_a_parallel_proof_is_the_same_proof`.
+
+### REG-1876 - A TRACKED FILE VANISHED FROM A LANE'S SANDBOX AND NOTHING SAID WHO TOOK IT (2026-10-07, #144)
+
+Twice a push's parallel prove lanes lost a tracked file mid-run (tv/control_app.py, tv/fixture_ledgers.py: "No module named"), only with lanes in parallel. No writer was found by reading: lane ports no longer collide, the temp sweeps remove only dead-owner prefixed dirs, and nothing in heart2 or safe_copy moves across sandboxes. heart2._run_gate now takes a census of the sandbox's tv/*.py around every gate run; a file present before and gone after is NAMED (gate, file, lane) on stderr and in vanished(), restored from the real tree, and a run that failed over it is repeated once with a note in its tail. The next occurrence names its culprit. Law `test_a_parallel_proof_is_the_same_proof`.
+
 ### REG-1866 - A HAND ROW THAT JOINED COUNTED AS LEFT ON THE NEXT PAGE (2026-10-07, the v3599 cross-family look)
 
 The d2r_vaultHand migration joined a row to a filing by adding his hand as its ownedBy, and the filing kept its own source. The key stayed while another row could not land, so the next page load read the joined row as "owned through another door". A row that had landed then counted as left, the banner grew by one per load, and the key could never clear. A receipt or filing that already carries his hand is now landed on every pass. The key holds only the rows still left, verbatim, and a pass that lands nothing writes nothing. Law `test_a_hand_added_item_stays_his`.
