@@ -9442,6 +9442,14 @@ GATES = [
              "not a pass. A file older than the oldest owed reel is not a pass. A file that will not "
              "read is UNMEASURED. Zero owed is still a pass. The row does not start a sweep and does "
              "not write the memory."),
+    Gate("test_an_unreadable_screen_recording_probe_is_not_a_doctor_pass",
+         [sys.executable, os.path.join(HERE, "test_an_unreadable_screen_recording_probe_is_not_a_doctor_pass.py")], 90,
+         needs_app=False,
+         why="REG-1792 - the doctor asked the action bool. That bool returns true when the probe "
+             "cannot answer, so the row said the grant was held. The action stays: an unreadable "
+             "grant does not refuse a reel. The report says UNMEASURED. A held grant still says "
+             "granted. An absent grant still blocks. The relaunch lamp does not publish that "
+             "unread as a denial."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

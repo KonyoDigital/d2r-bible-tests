@@ -1216,9 +1216,14 @@ class TestDoctor(unittest.TestCase):
         self._shim_claude_on_path()
         old = ca._agent_mode
         old_sr = getattr(ca, "_screen_recording_ok_quick", None)
+        old_probe = getattr(ca, "_screen_recording_probe", None)
         ca._agent_mode = "off"
         if old_sr is not None:
             ca._screen_recording_ok_quick = lambda: True
+        # REG-1792 — the doctor asks the probe. Hold that at measured-true too, or a
+        # headless deny (a block) fails this test for a reason that is not the agent.
+        if old_probe is not None:
+            ca._screen_recording_probe = lambda: True
         try:
             d = ca.doctor_payload()
             self.assertTrue(d["ok"], "doctor blocked with the agent merely OFF: "
@@ -1228,6 +1233,8 @@ class TestDoctor(unittest.TestCase):
             ca._agent_mode = old
             if old_sr is not None:
                 ca._screen_recording_ok_quick = old_sr
+            if old_probe is not None:
+                ca._screen_recording_probe = old_probe
 
     def test_doctor_never_spawns_cli(self):
         import inspect

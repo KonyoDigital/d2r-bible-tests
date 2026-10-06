@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1792 - AN UNREADABLE SCREEN-RECORDING PROBE READ AS A GRANT THE DOCTOR CALLS HELD (2026-10-06)
+
+The doctor asked the action bool. That bool returns true when the probe cannot answer, so the row said the grant was held. The action stays that way: an unreadable grant does not refuse a reel. The report now says UNMEASURED. A held grant still says granted. An absent grant still blocks. The relaunch lamp does not publish that unread as a denial. Law `test_an_unreadable_screen_recording_probe_is_not_a_doctor_pass`.
+
 ### REG-1791 - A JOURNAL OF ONLY BAD LINES READ AS A QUIET NIGHT (2026-10-06, REG-1790's other reader)
 
 The doctor row now says a tail that will not parse was not measured. The status reader still returned no reason for that file, and an empty tail with no reason is a quiet night. A missing file is still empty. A blank file is still empty. One bad line beside a real beat is still a measurement of that beat. A file that opened and held no beat names that, and the status verdict is unknown. Law `test_a_dead_journal_reader_says_so`.

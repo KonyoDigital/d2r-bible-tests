@@ -107,6 +107,7 @@ class ABootSweepThatNeverRan(unittest.TestCase):
                                   lambda force_fetch=False: {"ok": True, "behind": 0, "head": "x", "howTo": ""}), \
                 mock.patch.object(ca, "_reels_missing_index", lambda hist=None: []), \
                 mock.patch.object(ca, "_screen_recording_ok_quick", lambda: True), \
+                mock.patch.object(ca, "_screen_recording_probe", lambda: True), \
                 mock.patch.object(ca, "_journal_path", lambda: missing), \
                 mock.patch.object(ca, "_one_of_each_check",
                                   lambda alive=None: ca._chk("one_of_each", True, "warn", "stub")), \

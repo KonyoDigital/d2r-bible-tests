@@ -7570,17 +7570,74 @@ def _window_present():
         return False
 
 
-def _screen_recording_ok_quick():
-    """v1251 — True when THIS process holds macOS Screen Recording TCC.
-    Headless supervisor launches do NOT — children inherit the deny, so window pin
-    fails and the old full-screen fallback captured the DESKTOP wallpaper."""
-    if sys.platform != "darwin":
+def _screen_recording_ask():
+    """The Quartz preflight. True held, False absent. Raises when it cannot be asked.
+    CGPreflightScreenCaptureAccess does not pop a dialog."""
+    from Quartz import CGPreflightScreenCaptureAccess
+    return bool(CGPreflightScreenCaptureAccess())
+
+
+def _screen_recording_probe(platform=None, ask=None):
+    """True held, False absent, None not measured.
+
+    Non-darwin True means this OS does not ask. An exception is None, not a grant.
+    """
+    plat = sys.platform if platform is None else platform
+    if plat != "darwin":
         return True
+    ask = _screen_recording_ask if ask is None else ask
     try:
-        from Quartz import CGPreflightScreenCaptureAccess
-        return bool(CGPreflightScreenCaptureAccess())
+        return bool(ask())
     except Exception:
-        return True  # no Quartz → don't block; capture path will self-diagnose
+        return None
+
+
+def _screen_recording_ok_quick():
+    """Action question: may a reel start?
+
+    v1251 — True when THIS process holds macOS Screen Recording TCC.
+    Headless supervisor launches do NOT — children inherit the deny, so window pin
+    fails and the old full-screen fallback captured the DESKTOP wallpaper.
+
+    An unreadable probe does not refuse. The report question is the doctor row.
+    """
+    v = _screen_recording_probe()
+    return True if v is None else bool(v)
+
+
+def _screen_recording_doctor_row(measured):
+    """Report question: is the grant held?
+
+    None was not measured. That is not a pass and it is not a grant that is held.
+    Severity stays warn so an unreadable Quartz does not turn the whole doctor NO-GO.
+    False is still a block: ON AIR will refuse.
+    """
+    if measured is None:
+        return _chk(
+            "screen_recording", False, "warn",
+            "UNMEASURED: Screen Recording could not be asked - not a grant that is held",
+            "The capture path does not refuse on an unreadable probe. This row is not a grant.")
+    held = bool(measured)
+    return _chk(
+        "screen_recording", held, "block",
+        ("granted to this process — ON AIR can pin the D2R window"
+         if held else
+         "NOT granted to this Python — ON AIR will refuse and NOTHING will record. This "
+         "console is running headless; a headless launch does not inherit the grant."),
+        None if held else
+        ("Quit this console, then: bash tv/tvd-scan.sh (or open TV DIABLO.app via Terminal), "
+         "and tick Python in System Settings -> Privacy & Security -> Screen Recording"))
+
+
+def _screen_recording_grant_lamp(held, severity):
+    """Relaunch's before-bit. True held, False denied, None not a denial.
+
+    A warn whose ok bit is false is an unread probe. Publishing that as denied
+    is the same lamp bug as treating a missing check as a denial.
+    """
+    if severity == "block":
+        return bool(held)
+    return True if held else None
 
 
 def capture_preflight(door, look_for_window=True):
@@ -41254,17 +41311,11 @@ def doctor_payload():
     #
     # A check that can BLOCK the primary action must be visible BEFORE he presses it, not only as
     # the refusal afterwards. Severity 'block' because that is exactly what it does.
+    # REG-1792 — the action bool returns True when the probe cannot answer, so a doctor that
+    # asked that bool said the grant was held. The row asks the probe. None is UNMEASURED, a
+    # warn, not a grant. False still blocks.
     if sys.platform == "darwin":
-        _sr = _screen_recording_ok_quick()
-        checks.append(_chk(
-            "screen_recording", bool(_sr), "block",
-            ("granted to this process — ON AIR can pin the D2R window"
-             if _sr else
-             "NOT granted to this Python — ON AIR will refuse and NOTHING will record. This "
-             "console is running headless; a headless launch does not inherit the grant."),
-            None if _sr else
-            ("Quit this console, then: bash tv/tvd-scan.sh (or open TV DIABLO.app via Terminal), "
-             "and tick Python in System Settings -> Privacy & Security -> Screen Recording")))
+        checks.append(_screen_recording_doctor_row(_screen_recording_probe()))
 
     # ── SEAL — reels whose index was lost play as a BLACK theatre, and nothing ever said so ──
     # Severity 'warn', not block: the footage is recoverable (the index rebuilds from the frame
@@ -45110,7 +45161,9 @@ class Handler(BaseHTTPRequestHandler):
                 try:
                     for _c in (doctor_payload() or {}).get("checks") or []:
                         if isinstance(_c, dict) and _c.get("id") == "screen_recording":
-                            _grant = bool(_c.get("ok"))
+                            # REG-1792 — bool(ok) on a warn is a denial. An unread probe is not one.
+                            _grant = _screen_recording_grant_lamp(
+                                bool(_c.get("ok")), _c.get("severity"))
                             break
                 except Exception:
                     _grant = None
