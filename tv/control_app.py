@@ -6417,8 +6417,12 @@ def _on_console_window_closing():
     a window-only view.
     """
     _cur = globals().get("_MAIN_WIN")
+    _qwin = globals().get("_QUIT_KEEPS_WINDOW")
+    # REG-1830 — a quit that recorded its window lets only THAT window go. A window that is not
+    # it (one the park loop reopened) takes the normal ✕ route. No recorded window means which
+    # one is UNKNOWN, so the old answer stands: the quit's close is allowed.
     if (globals().get("_QUIT_KEEPS_SERVICE") and not globals().get("_EXIT_REQUESTED")
-            and (_cur is None or _cur is globals().get("_QUIT_KEEPS_WINDOW"))):
+            and (_qwin is None or _cur is None or _cur is _qwin)):
         return True
     bg, why = close_means_background(globals().get("_EXIT_REQUESTED"), bool(globals().get("_WINDOW_ONLY")))
     if not bg:

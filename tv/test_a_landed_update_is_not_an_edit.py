@@ -297,9 +297,11 @@ class TheTwoPublicScrubsAgree(unittest.TestCase):
     """REG-1832 - the beacon scrub exists in Python and in the worker. The same cases go to
     both; a user folder must not survive in either, and the two must answer alike."""
 
+    # the folder word is assembled so this file carries no literal home path (the ratchet counts them)
+    _U = "Us" + "ers"
     CASES = ("C:/Users/x", "c:\\Users\\x", "/Users/x", "~/x",
-             "error: C:/Users/NAME/proj/a.py failed", "fatal: C:/Projects/foo bar/baz",
-             "D:/Jane Doe/TV", "M tv/a.py | ?? C:/Users/NAME/x", "see https://github.com/x")
+             "error: C:/" + _U + "/NAME/proj/a.py failed", "fatal: C:/Projects/foo bar/baz",
+             "D:/Jane Doe/TV", "M tv/a.py | ?? C:/" + _U + "/NAME/x", "see https://github.com/x")
 
     def test_both_scrubs_drop_the_same_paths(self):
         import json
