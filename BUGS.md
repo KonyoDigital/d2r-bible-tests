@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1808 - AN UNREAD JOURNAL READ AS A QUIET MIND (2026-10-06)
+
+The mind lamp treats an empty thought list as "quiet · no thoughts yet". An unread journal walk is that same empty list: the poll already says verdict unknown, and the story is empty because the walk did not copy it. A measured empty night still says quiet. A thought on air is still a thought, and two still say thoughts. Off air, a measured night still says quiet. An unread walk says the journal was not read, on air and off, and a leftover thought list does not light the lamp. Law `test_an_unread_journal_is_not_a_quiet_mind`.
+
 ### REG-1807 - AN UNREAD JOURNAL READ AS A QUIET READERS ORGAN (2026-10-06)
 
 The readers organ treats a missing queue count as zero. While live that pulse stays ok and the subtitle says "queue 0". Off air it rests, idle, on that same zero. An unread journal walk does not copy the queue: the poll already publishes null. A measured zero still says queue 0. A deep queue still warns. A dead engine is still down. A paused reader still says paused. A KAI catch is still that catch. A complete film is still that film. Grok stepping in is still said. A judge count is still added when the queue was read, and it is not added onto a null. An unread walk says the journal was not read, and the pulse does not stay ok. Law `test_an_unread_journal_is_not_a_quiet_readers_organ`.

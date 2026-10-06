@@ -10786,9 +10786,15 @@ window._lockMark = function(isOpen, px, label){
       if (sEl) sEl.textContent = txt;
       if (row){ row.classList.toggle('off', !lit); row.title = txt; }
     }
-    var _story = st.mindStory || ((st.sessionHealth || {}).story) || [];   // 💭 Agent Mind — its live thoughts
-    _engRow('mind', on && _story.length > 0,
-      (on && _story.length) ? ('thinking · ' + _story.length + ' thought' + (_story.length > 1 ? 's' : '')) : 'quiet · no thoughts yet');
+    // REG-1808 — unknown is a journal that was not read. An empty thought
+    // list is also a quiet mind, and this lamp called that quiet a pass.
+    var _shMind = st.sessionHealth || {};
+    var _mindUnread = (_shMind.verdict === 'unknown');
+    var _story = st.mindStory || (_shMind.story) || [];
+    _engRow('mind', !_mindUnread && on && _story.length > 0,
+      _mindUnread
+        ? 'the journal was not read'
+        : ((on && _story.length) ? ('thinking · ' + _story.length + ' thought' + (_story.length > 1 ? 's' : '')) : 'quiet · no thoughts yet'));
     var _ring = st.liveRing || [];   // 🥷 Master Brain — the frame it's tracking this instant
     _engRow('master', on && _ring.length > 0,
       (on && _ring.length) ? ('tracking · ' + _ring.length + ' live frame' + (_ring.length > 1 ? 's' : '')) : 'cold · no live cursor');

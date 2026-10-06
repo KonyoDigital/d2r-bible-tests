@@ -9580,6 +9580,15 @@ GATES = [
              "added when the queue was read, and it is not added onto a null. "
              "The organ says the journal was not read, and the pulse does not "
              "stay ok."),
+    Gate("test_an_unread_journal_is_not_a_quiet_mind",
+         [sys.executable, os.path.join(HERE, "test_an_unread_journal_is_not_a_quiet_mind.py")], 90,
+         needs_app=False,
+         why="REG-1808 - the mind lamp treats an empty thought list as quiet, "
+             "no thoughts yet. An unread journal walk is that same empty list: "
+             "the poll already says verdict unknown. A measured empty night "
+             "still says quiet. A thought on air is still a thought. Off air, "
+             "a measured night still says quiet. The lamp says the journal was "
+             "not read, and a leftover thought list does not light it."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
