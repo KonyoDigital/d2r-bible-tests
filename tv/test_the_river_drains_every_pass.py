@@ -747,10 +747,14 @@ class TheDrainRunsBesideTheShadowReader(_Base):
     def setUp(self):
         _Base.setUp(self)
         self.setUpClock()
-        self.w = _World(self, n_finished=RR.KEEP_RECENT + 2)
+        self._make(2)
+
+    def _make(self, n_old):
+        """KEEP_RECENT + n_old finished reels, all filmed long ago, and a shadow reel rolling beside them."""
+        self.w = _World(self, n_finished=RR.KEEP_RECENT + n_old)
         self._bind(self.w)
-        self.old = self.w.names[:2]
-        self.newest = self.w.names[2:]
+        self.old = self.w.names[:n_old]
+        self.newest = self.w.names[n_old:]
         old_s = BASE_MS / 1000.0
         for nm in self.w.names:                    # every sealed reel finished filming long ago
             d = os.path.join(self.w.hist, nm)
@@ -815,6 +819,34 @@ class TheDrainRunsBesideTheShadowReader(_Base):
         self.assertIn("still receiving frames", st.get("say") or "")
         self._live_intact()
 
+    def test_beside_the_shadow_at_most_the_cap_go_per_pass_oldest_first(self):
+        """The ALT's first drain ever would release 416 reels in one pass while he plays. Beside the shadow a pass
+        releases RETENTION_BESIDE_SHADOW_MAX, oldest first in the plan's order, and names the rest for the next."""
+        cap = CA.RETENTION_BESIDE_SHADOW_MAX
+        self.assertGreaterEqual(cap, 1)
+        self._make(cap + 5)
+        r, st = self._beside("shadow")
+        r = r if isinstance(r, dict) else {}
+        self.assertEqual(r.get("removed"), self.old[:cap],
+                         "beside the shadow a pass released %d reel(s), not the oldest %d"
+                         % (len(r.get("removed") or []), cap))
+        self.assertEqual(r.get("heldNextPass"), self.old[cap:], r.get("heldNextPass"))
+        self.assertIn("5 more next pass", st.get("say") or "", st.get("say"))
+        left = self.w.on_disk()
+        for nm in self.old[cap:] + self.newest:
+            self.assertIn(nm, left)
+        self._live_intact()
+        r2, _ = self._beside("shadow")
+        self.assertEqual((r2 or {}).get("removed"), self.old[cap:], "the next pass did not take the rest")
+
+    def test_off_air_the_pass_is_not_capped(self):
+        cap = CA.RETENTION_BESIDE_SHADOW_MAX
+        self._make(cap + 5)
+        r, st = self._pass(free_gb=500.0)
+        self.assertEqual(sorted((r or {}).get("removed") or []), sorted(self.old),
+                         "with nothing in flight the pass was capped")
+        self.assertNotIn("heldNextPass", r or {})
+
     def test_his_session_an_unknown_door_and_a_sweep_still_hold_it(self):
         before = self.w.on_disk()
         for door, vault in (("onair", False), ("mini", False), (None, False), ("shadow", True)):
@@ -844,9 +876,16 @@ RED_PROOF = [
         "matches": 1,
     },
     {
+        "why": "REG-1838 - beside the shadow every eligible reel goes in one pass - the ALT's 416 at once while he plays",
+        "file": "control_app.py",
+        "find": "        _go, _later = _cap_beside_shadow(_go)\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
         "why": "REG-1838 - beside the shadow a reel still receiving frames is released",
         "file": "control_app.py",
-        "find": "    if why == _RETENTION_BESIDE_SHADOW:\n        _go, _filming = _drop_reels_still_filming(p)\n",
+        "find": "        _go, _filming = _drop_reels_still_filming(p)\n",
         "replace": "",
         "matches": 1,
     },

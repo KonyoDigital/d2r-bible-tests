@@ -26091,6 +26091,20 @@ _RETENTION_BESIDE_SHADOW = ("only the SHADOW reader is rolling - its frames are 
                             "newest reels and the fixtures are shielded")
 
 
+#: REG-1838 — at most this many reels leave in ONE pass beside a rolling shadow reel. The ALT's first drain ever
+#: would otherwise release 416 reels / 5.3 GB in one pass while he plays, on a machine where the deleter has never
+#: run; capped, the first runs are gradual and each one can be looked at. Off air the pass is not capped.
+RETENTION_BESIDE_SHADOW_MAX = 20
+
+
+def _cap_beside_shadow(p, cap=None):
+    """REG-1838 — `p` with only the first `cap` candidates, in the plan's own order (oldest first). -> (plan copy,
+    [reel left for the next pass]). The shared plan is never edited."""
+    cap = RETENTION_BESIDE_SHADOW_MAX if cap is None else int(cap)
+    cands = list(p.get("candidates") or [])
+    return dict(p, candidates=cands[:cap]), [str((c or {}).get("reel")) for c in cands[cap:]]
+
+
 def _drop_reels_still_filming(p):
     """REG-1838 — `p` without any candidate whose folder is still receiving frames. -> (plan copy, [held reel])
 
@@ -26667,12 +26681,15 @@ def _retention_once():
                                              % (free_gb, len(cands), why),
                                    drain=_dr))
         return None
-    _go, _filming = p, []
+    _go, _filming, _later = p, [], []
     if why == _RETENTION_BESIDE_SHADOW:
         _go, _filming = _drop_reels_still_filming(p)
+        _go, _later = _cap_beside_shadow(_go)
     r = _rr.apply_plan(_go, yes=True)
     if _filming and isinstance(r, dict):
         r = dict(r, heldFilming=_filming)
+    if _later and isinstance(r, dict):
+        r = dict(r, heldNextPass=_later)
     # ⚠⚠ v2743 — THE JOIN t154 HAS BEEN WAITING FOR, AND ITS STATED BLOCKER WAS FALSE.
     # MEASURED on his live tv/disk_history.jsonl: 8,790 rows — 8,270 carry exactly 0, 520 carry
     # null, and **NOT ONE has ever carried a nonzero value**. The row blamed "nothing can pass
@@ -26743,7 +26760,10 @@ def _retention_once():
                                         % (len(waiting), waiting_mb, _lane_say)))
                                     + ("" if not _filming else
                                        " %d reel(s) still receiving frames wait for the next pass."
-                                       % len(_filming)))))
+                                       % len(_filming))
+                                    + ("" if not _later else
+                                       " %d more next pass - at most %d leave per pass beside the shadow reader."
+                                       % (len(_later), RETENTION_BESIDE_SHADOW_MAX)))))
     return r
 
 
