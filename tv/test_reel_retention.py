@@ -968,5 +968,26 @@ class TheShieldAndThePageCountHoldUnderHostileLedgers(unittest.TestCase):
                         "a clean ledger released nothing at all: %s" % cov)
 
 
+
+class TheShieldHasOneOrderAndAnExitClock(unittest.TestCase):
+    """REG-1812 / REG-1813 — recent_order is the ONE order (the shield is its tail, the shelf shows it), and
+    shield_exits dates when each older reel left the shield: the name epoch of the reel `keep` places newer."""
+
+    def test_the_shield_is_the_tail_of_the_order_whatever_order_the_reels_arrive_in(self):
+        names = ["reel_s_%d_%d" % (1000 + i * 10, i) for i in range(7)] + ["reel_backup_x", "reel_s_1030_tie"]
+        fwd, back = rr.recent_order(names), rr.recent_order(list(reversed(names)))
+        self.assertEqual(fwd, back, "two callers handed the same reels in another order got another order")
+        self.assertNotIn("reel_backup_x", fwd, "REG-571: an unparseable name stood in the order")
+        self.assertEqual(rr.recent_shield(names, 3), set(fwd[-3:]))
+
+    def test_an_older_reel_left_when_the_keep_th_newer_one_arrived(self):
+        names = ["reel_s_%d_%d" % (1000 + i * 10, i) for i in range(6)]
+        got = rr.shield_exits(names, 4)
+        self.assertEqual(got, {names[0]: 1040, names[1]: 1050}, got)
+        self.assertFalse(set(got) & rr.recent_shield(names, 4), "a reel inside the shield was given an exit")
+        self.assertEqual(rr.shield_exits(names, 6), {})
+        self.assertEqual(rr.shield_exits(names[:1], 0), {names[0]: 1000}, "no shield: out from its own arrival")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

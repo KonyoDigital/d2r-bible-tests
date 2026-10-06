@@ -18625,6 +18625,12 @@ window._lockMark = function(isOpen, px, label){
      pinned to reel_retention.KEEP_RECENT by test_the_river_is_one_flow_of_eight so it cannot become
      a fifth. [[copy-drift]] [[unknown-stays-unknown]] */
   var SHELF_RIVER_KEEP = null;
+  /* REG-1813 — WHICH sixteen, as the console keeps them: /api/river's `riverKept`, the session ids of
+     reel_retention.recent_shield, newest first (recent_order, the deleter's own FIFO). The block below
+     sorted the window itself by a run's END time, and on his ALT 2026-10-06 that kept 3 long runs the
+     deleter had already let go and hid 3 it keeps. null = the console did not say, and only then does the
+     block fall back to counting RIVER_KEEP over its own order. [[copy-drift]] */
+  var SHELF_RIVER_KEPT = null;
   /* ⚠ v3270 — WHICH station is the terminus is the RIVER'S to say (`vocab.mouth`), never a
      literal in this file. `river.py` names it, `_river_vocab_facts()` publishes it, and a second
      copy here is how the two drift apart the day a station is renamed. null = the river did not
@@ -19027,6 +19033,7 @@ window._lockMark = function(isOpen, px, label){
         /* REG-1480 — the river's window, as the console publishes it (reel_retention.KEEP_RECENT).
            A number >= 1 is the console's ruling; anything else leaves the page on its fallback. */
         SHELF_RIVER_KEEP = (typeof d.riverKeep === 'number' && isFinite(d.riverKeep) && d.riverKeep >= 1) ? Math.floor(d.riverKeep) : null;
+        SHELF_RIVER_KEPT = Array.isArray(d.riverKept) ? d.riverKept.map(String) : null;
         /* v3279 — the population reconciliation, carried so the header can answer "why does the
            disk hold more than I can see" at the moment he asks it. null = the console did not
            report one, which stays UNKNOWN rather than becoming a silent zero. */
@@ -19314,19 +19321,37 @@ window._lockMark = function(isOpen, px, label){
         return parseInt(c.getAttribute('data-t0') || '0', 10) || 0;
       };
       var _isPin = function(c){ return c.getAttribute('data-pin') === '1'; };
+      /* REG-1813 — THE CONSOLE'S SIXTEEN, NOT THIS PAGE'S. A card is in the flow when its run is in
+         SHELF_RIVER_KEPT (reel_retention.recent_shield over this PC's shelf), and the flow is in that
+         list's order, so the card at the bottom is the next one the deleter lets go. `_act` orders only
+         what the console did not name, and the whole window when it named nothing. */
+      var _keptAt = null;
+      if (Array.isArray(SHELF_RIVER_KEPT)) {
+        _keptAt = {};
+        SHELF_RIVER_KEPT.forEach(function(sid, i){ _keptAt[String(sid)] = i; });
+      }
+      var _rank = function(c){
+        var sid = c.getAttribute('data-sid') || '';
+        return (_keptAt && Object.prototype.hasOwnProperty.call(_keptAt, sid)) ? _keptAt[sid] : -1;
+      };
       /* pinned first (they already sort to the top, and the 📌 header above is anchored to
          pinned[0] — reordering past it would orphan that header), then newest first, so DOM
          order IS downstream order. */
       var flow = vis.slice().sort(function(a, b){
         var pa = _isPin(a) ? 1 : 0, pb = _isPin(b) ? 1 : 0;
         if (pa !== pb) return pb - pa;
+        if (_keptAt) {
+          var ra = _rank(a), rb = _rank(b);
+          if ((ra < 0) !== (rb < 0)) return ra < 0 ? 1 : -1;
+          if (ra >= 0) return ra - rb;
+        }
         return _act(b) - _act(a);
       });
       flow.forEach(function(c){ grid.appendChild(c); });
       var keptN = 0, pushedN = 0;
       flow.forEach(function(c){
         if (_isPin(c)) { c.removeAttribute('data-river-out'); return; }
-        if (keptN < RIVER_KEEP) { c.removeAttribute('data-river-out'); keptN++; return; }
+        if (_keptAt ? _rank(c) >= 0 : keptN < RIVER_KEEP) { c.removeAttribute('data-river-out'); keptN++; return; }
         /* FIFO: the (RIVER_KEEP + 1)th and older leave the river. MARKED, not destroyed — the attribute is
            inspectable so a gate can read what the screen actually did, and `230 retired to
            history` is still where they are reachable. */

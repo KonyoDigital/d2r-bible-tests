@@ -15632,6 +15632,7 @@ def _river_for_wire(now_ms=None):
 RIVER_STUCK_AFTER_S = 6 * 3600
 #: The stations a reel is meant to LEAVE, and the lane that moves it on. CAPTURE is not here: it waits on a
 #: capture change by design (REG-340), so it is never an alarm; ROUTED and TOMBSTONE are the far end.
+#: REG-1812: that holds inside the newest window only. Past it, every station owes the drain (_river_owed_why).
 _RIVER_OWNER = {"TRIAGE": "triage", "EMPTY": "route", "JOIN": "route", "STATION": "reader",
                 "PRINTER": "vault", "INTAKE": "survey"}
 
@@ -15688,10 +15689,20 @@ def _river_stuck_for_wire(now_ms=None, _rows=None, _shelf=None, _fixtures=None):
     NOTHING on any screen said so: see every console's river from his own, "so for deans pc it will do the
     same". Read from the river's own stamp log (the time each reel ARRIVED at its current station) - one
     file read, never a router pass - so a beacon costs what it cost before. [{station, n, oldestS, why}],
-    oldest first; [] is measured-and-flowing inside the newest KEEP_RECENT reels; None is an unreadable
-    log, or a window that could not be built (UNKNOWN, never "flowing"). A reel older than that window
-    is not this alarm, except one still at ROUTED past the same six hours: it has left the shield and
-    the drain owes it a tombstone. The window is reel_retention.recent_shield, the same set the shelf keeps.
+    oldest first; [] is measured-and-flowing; None is an unreadable log, or a window that could not be
+    built (UNKNOWN, never "flowing"). The window is reel_retention.recent_shield, the same set the deleter
+    and the shelf keep.
+
+    ⚠⚠ 2026-10-06 (REG-1812) — ONE RULE FOR EVERY STATION, AND EVERY REEL ON THE SHELF IS IN IT. His ruling
+    2026-10-02: the shelf keeps the newest 16 and every other reel is extracted, tallied and tombstoned FIFO -
+    "no station may hold a reel for ever". 8c710efe counted only the newest 16, so a reel past the window was
+    never an alarm, and 23e37f91 (REG-1766) put ROUTED back with a second loop of its own. MEASURED on his ALT
+    the same day: 84 reels older than the window at PRINTER for up to 9 days and 1 at STATION for 7.7, and the
+    card would have named none of them. The rule is now one test per reel: inside the window it owes a move
+    only from a station a lane owns (_RIVER_OWNER; CAPTURE waits by design, ROUTED is kept); outside it, it owes
+    the drain a tombstone from ANY station, and those rows carry `window: False`. The patience is the same six
+    hours for every station, counted from the later of its arrival there and the moment it left the window
+    (reel_retention.shield_exits), so a reel the newest arrival just pushed out is not owed yet.
 
     ⚠⚠ 2026-09-30 (REG-1614) — ONLY A REEL STILL ON THE SHELF CAN BE STUCK, AND A TEST FIXTURE NEVER IS. His
     screenshot at 19:55: "river stuck" on all three online PCs. MEASURED on his Mac the same minute: the stamp log
@@ -15731,24 +15742,21 @@ def _river_stuck_for_wire(now_ms=None, _rows=None, _shelf=None, _fixtures=None):
         except Exception:
             _fixtures = ()
     _pinned = set(str(x) for x in _fixtures)
-    # The working set is the newest KEEP_RECENT parseable reels on the shelf. The same shield the
-    # deleter uses. It could not be built: None, never "nothing is stuck".
+    # The window is the newest KEEP_RECENT parseable reels on the shelf - the same shield the deleter
+    # uses - and the moment each older reel left it. It could not be built: None, never "nothing is stuck".
     try:
         import reel_retention as _rr_win
-        if _shelf is not None:
-            _names = list(_ids)
-        else:
-            _names = [d for d in os.listdir(HIST_DIR)
-                      if str(d).startswith("reel_") and os.path.isdir(os.path.join(HIST_DIR, d))]
-        _window = _rr_win.recent_shield(_names, _rr_win.KEEP_RECENT)
+        _names = list(_ids) if _shelf is not None else _shelf_reel_names()
+        _keep = int(_rr_win.KEEP_RECENT)
+        _left = _rr_win.shield_exits(_names, _keep)
     except Exception:
         return None
     if _never:
         # ⚠ REG-1738 - A RIVER NOBODY EVER STAMPED IS NOT A FLOWING ONE. With no stamp log the loop below finds no
         # station to age and answered [] - "every station is draining" - for a PC whose reels may have sat at EMPTY
-        # for days (the 09-29 audit, driven). An empty shelf is still measured-and-empty; a reel inside the window
-        # with no stamp ever written is UNKNOWN. A reel older than the window is not this reading.
-        if any(r not in _pinned for r in _window):
+        # for days (the 09-29 audit, driven). An empty shelf is still measured-and-empty; a reel on it with no stamp
+        # ever written is UNKNOWN, inside the window or past it (REG-1812: both are this reading).
+        if any(r not in _pinned for r in _names):
             return None
         return []
     last = {}
@@ -15757,56 +15765,49 @@ def _river_stuck_for_wire(now_ms=None, _rows=None, _shelf=None, _fixtures=None):
     by = {}
     for reel, r in last.items():
         st = str(r.get("station"))
-        if st not in _RIVER_OWNER:
-            continue
         if reel in _pinned or not _on(reel):
             continue
-        if reel not in _window:
+        # REG-1812 - THE ONE RULE. Inside the window a reel owes a move only from a station a lane owns.
+        # Past it, every station owes the drain a tombstone. A name that will not parse has no exit
+        # time and is judged as inside, which is what the deleter does with it (last to go).
+        inside = reel not in _left
+        if inside and st not in _RIVER_OWNER:
             continue
         try:
-            age = max(0.0, (now - int(r.get("at"))) / 1000.0)
+            since = int(r.get("at"))
         except (TypeError, ValueError):
             continue
+        if not inside:
+            since = max(since, int(_left[reel]))
+        age = max(0.0, (now - since) / 1000.0)
         if age < RIVER_STUCK_AFTER_S:
             continue
-        e = by.setdefault(st, {"station": st, "n": 0, "oldestS": 0})
+        e = by.setdefault((st, inside), dict({"station": st, "n": 0, "oldestS": 0},
+                                             **({} if inside else {"window": False})))
         e["n"] += 1
         e["oldestS"] = max(e["oldestS"], int(age))
     out = sorted(by.values(), key=lambda e: -e["oldestS"])[:6]
     for e in out:
-        e["why"] = _river_stuck_why(e["station"])[:200]
-    # #86 gap 10 — a ROUTED reel INSIDE the newest window is kept on purpose and is not this
-    # alarm. One OUTSIDE it, still on the shelf past the same six hours, has left the shield
-    # and the drain owes it a tombstone. The 2026-10-02 keep-sixteen ruling is what makes
-    # that debt real; leaving ROUTED out of _RIVER_OWNER hid it. `window` false so the card
-    # does not describe it as one of the newest.
-    _owed_n = 0
-    _owed_age = 0
-    for reel, r in last.items():
-        if str(r.get("station")) != "ROUTED":
-            continue
-        if reel in _pinned or not _on(reel) or reel in _window:
-            continue
-        try:
-            age = max(0.0, (now - int(r.get("at"))) / 1000.0)
-        except (TypeError, ValueError):
-            continue
-        if not (age >= RIVER_STUCK_AFTER_S):
-            continue
-        _owed_n += 1
-        _owed_age = max(_owed_age, int(age))
-    if _owed_n:
-        try:
-            import reel_retention as _rr_owed
-            _keep_n = int(_rr_owed.KEEP_RECENT)
-        except Exception:
-            _keep_n = None
-        _why = ("older than the newest %s, still at ROUTED, so the drain owes them a tombstone"
-                % (_keep_n if isinstance(_keep_n, int) else "kept"))
-        out.insert(0, {"station": "ROUTED", "n": _owed_n, "oldestS": _owed_age,
-                       "why": _why[:200], "window": False})
-        out = out[:6]
+        e["why"] = (_river_stuck_why(e["station"]) if e.get("window") is not False
+                    else _river_owed_why(e["station"], _keep))[:200]
     return out
+
+
+def _river_owed_why(station, keep):
+    """REG-1812 - why a reel OLDER than the newest window still sits at `station`. -> str (never raises)
+
+    A lane's station keeps the owning lane's own word (the drain's blocked-upstream reading says the same:
+    it waits behind that lane). Any other station - ROUTED, CAPTURE, TOMBSTONE - is the deleter's to clear,
+    so the sentence is the debt and the retention pass's own last word on why it did not pay it."""
+    if station in _RIVER_OWNER:
+        return "older than the newest %s - %s" % (keep, _river_stuck_why(station))
+    why = "older than the newest %s, still at %s, so the drain owes them a tombstone" % (keep, station)
+    try:
+        r = dict(_RETENTION)
+        say = str(r.get("say") or "") if r.get("checked") is not None else ""
+    except Exception:
+        say = ""
+    return why + (" - the drain: " + say if say else "")
 
 
 def _system_for_wire():
@@ -31377,6 +31378,35 @@ def _river_keep():
         return None
 
 
+def _shelf_reel_names():
+    """The reel folders on this console's shelf. -> list. Raises when the shelf cannot be listed.
+    One listing for the two readers of the window (the stuck alarm and riverKept)."""
+    return [d for d in os.listdir(HIST_DIR)
+            if str(d).startswith("reel_") and os.path.isdir(os.path.join(HIST_DIR, d))]
+
+
+def _river_kept():
+    """WHICH reels the shelf's window holds — the session ids of reel_retention.recent_shield, newest first. -> list | None
+
+    REG-1813. `riverKeep` told the page HOW MANY; the page then chose WHICH by sorting its cards on a run's
+    END time while the deleter keeps by the epoch in the reel's name. MEASURED on his ALT 2026-10-06: the two
+    sixteens shared 13 - the screen showed 3 runs that are past the deleter's window and hid 3 inside it. So
+    the set and its order are the deleter's one function (recent_order), asked here over this PC's shelf.
+    The CONSTANT, like _river_keep: the shelf is a view cap, and keep_recent_for's narrowing is retention's.
+
+    ⚠ NEVER RAISES. None = the shelf or the module could not be asked, and the page keeps its fallback.
+    """
+    try:
+        import reel_retention as _rr
+        k = int(_rr.KEEP_RECENT)
+        if k < 1:
+            return None
+        order = _rr.recent_order(_shelf_reel_names())
+        return [str(r)[len("reel_"):] for r in reversed(order[-k:])]
+    except Exception:
+        return None
+
+
 def _river_vocab_facts():
     """The river's own honesty, for any surface that draws it. -> dict
 
@@ -43577,6 +43607,9 @@ class Handler(BaseHTTPRequestHandler):
                     # REG-1480 — the river's window (reel_retention.KEEP_RECENT), so THE SHELF's FIFO
                     # cap is the console's number and never a literal in the page. [[copy-drift]]
                     "riverKeep": _river_keep(),
+                    # REG-1813 - and WHICH reels it holds, newest first: recent_shield's own set, so the page
+                    # never sorts the window itself. None = the shelf could not be asked.
+                    "riverKept": _river_kept(),
                     # ⚠ v3279 — THE RECONCILIATION TRAVELS WITH THE NUMBERS IT RECONCILES.
                     # v3278 built `reel_census` and joined it to the DOCTOR, which supervises it —
                     # but the confusion he reported ("Shelf shows 13, disk holds 20") happens ON

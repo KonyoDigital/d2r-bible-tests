@@ -6,10 +6,11 @@ on any screen said so: *"we need to be able to see that deans console is also ar
 see whats getting updated/fetched and logged and registered live while hes on playing"* - step 1, the alarm.
 
 Three joints, each driven, never grepped:
-  · the console: `_river_stuck_for_wire` over stamp rows - a station whose oldest reel inside the newest
-    KEEP_RECENT waited > 6 h is named with that station's own reason; a reel older than the window is not
-    an alarm unless it is still at ROUTED, which the drain owes; CAPTURE never alarms (it waits on a capture change by design); an unreadable log is None,
-    never "flowing"; a console that has not computed its river does not walk the log.
+  · the console: `_river_stuck_for_wire` over stamp rows - ONE rule for every reel on the shelf (REG-1812):
+    inside the newest KEEP_RECENT a reel at a station a lane owns that waited > 6 h is named with that
+    station's own reason (CAPTURE waits by design, ROUTED is kept); PAST the window every station owes the
+    drain, counted from the later of its arrival and its exit from the window, marked window False; an
+    unreadable log is None, never "flowing"; a console that has not computed its river does not walk the log.
   · the worker (functions/api/console.js, the REAL shaper in node): stuck/heart cross shaped - bad keys
     dropped, text scrubbed of paths; null stays null; absent stays absent.
   · the card (control_ui.html, the REAL _fleetSysParts / _fleetStuckChip in node): a red "river stuck" on the
@@ -149,10 +150,20 @@ class TheConsoleNamesItsStuckStations(unittest.TestCase):
             self.assertEqual(ca._river_stuck_for_wire(now_ms=NOW, _shelf={"reel_s_9_pin"},
                                                       _fixtures=("reel_s_9_pin",)), [],
                              "a suite fixture alone made the river UNKNOWN")
+            # REG-1812 - a reel past the window is in this reading too: the newest sixteen are fixtures here
+            import reel_retention as rr
+            pins = ["reel_s_%d_%d" % (1700000000100 + i, i) for i in range(int(rr.KEEP_RECENT))]
+            self.assertIsNone(ca._river_stuck_for_wire(now_ms=NOW, _shelf=set(pins) | {"reel_s_1700000000000_99"},
+                                                       _fixtures=tuple(pins)),
+                              "an unstamped reel older than the window read as FLOWING")
 
-    def test_only_the_newest_window_can_be_stuck(self):
-        """The alarm is reel_retention.recent_shield. An older reel past 6 h is not in it. One inside
-        it that has waited, still is. A fresh reel, a fixture and CAPTURE inside it are not. JOIN does
+    def _rows_of(self, got):
+        return [(e["station"], e["n"], e["oldestS"], e.get("window")) for e in got]
+
+    def test_every_reel_on_the_shelf_is_in_the_one_rule(self):
+        """REG-1812. Inside reel_retention.recent_shield a reel at a lane's station that waited is stuck; a
+        fresh one, a fixture and CAPTURE are not. PAST the window the four older PRINTER reels are not dropped
+        (8c710efe dropped them): they are their own row, window False, with the vault lane's word. JOIN does
         not borrow the route lane's CAPTURE sentence."""
         import reel_retention as rr
         keep = int(rr.KEEP_RECENT)
@@ -179,14 +190,103 @@ class TheConsoleNamesItsStuckStations(unittest.TestCase):
                 rows.append(_stamp(name, "JOIN", 40 * H, i))
             else:
                 rows.append(_stamp(name, "PRINTER", 30 * H, i))
-        got = {e["station"]: e for e in self._stuck(rows, shelf=shelf, fixtures=(nm(extra + 1),))}
-        self.assertEqual(sorted(got), ["JOIN", "PRINTER"], got)
-        self.assertEqual(got["PRINTER"]["n"], keep - 4, got)
-        self.assertEqual(got["PRINTER"]["oldestS"], 30 * H,
-                         "a reel outside the window, or the fixture, set the age")
-        self.assertEqual(got["JOIN"]["n"], 1)
-        self.assertNotIn("capture", got["JOIN"]["why"].lower())
-        self.assertIn("No lane can fix that", got["JOIN"]["why"])
+        got = self._stuck(rows, shelf=shelf, fixtures=(nm(extra + 1),))
+        self.assertEqual(self._rows_of(got), [("PRINTER", extra, 80 * H, False), ("JOIN", 1, 40 * H, None),
+                                              ("PRINTER", keep - 4, 30 * H, None)], got)
+        why = {(e["station"], e.get("window")): e["why"] for e in got}
+        self.assertIn("older than the newest %d" % keep, why[("PRINTER", False)])
+        self.assertIn("vault lane", why[("PRINTER", False)], "a reel past the window lost its lane's word")
+        self.assertNotIn("older than", why[("PRINTER", None)], "a reel inside the window was called older")
+        self.assertNotIn("capture", why[("JOIN", None)].lower())
+        self.assertIn("No lane can fix that", why[("JOIN", None)])
+
+    def test_the_alts_dam_past_the_window_is_named(self):
+        """#168 - his ALT 2026-10-06: the newest 16 draining, and 84 older reels at PRINTER for up to 9 days. The
+        windowed alarm read "none - the newest 16 are draining" over all of them."""
+        import reel_retention as rr
+        keep = int(rr.KEEP_RECENT)
+        dam = 62
+
+        def nm(i):
+            return "reel_s_%d_%d" % (1789000000000 + i * 60000, i)
+
+        rows, shelf = [], set()
+        for i in range(dam + keep):
+            shelf.add(nm(i))
+            if i < dam:
+                rows.append(_stamp(nm(i), "PRINTER", (9 * 24 - i) * H, i))
+            else:
+                rows.append(_stamp(nm(i), "ROUTED" if i % 2 else "PRINTER", 30 * 60, i))
+        got = self._stuck(rows, shelf=shelf)
+        self.assertEqual(self._rows_of(got), [("PRINTER", dam, 9 * 24 * H, False)], got)
+        self.assertIn("vault lane", got[0]["why"])
+
+    def test_a_reel_just_pushed_out_is_not_owed_yet(self):
+        """REG-1812. A reel that sat at ROUTED for days inside the window is kept. The newest arrival pushes it
+        out, and the drain gets the same six hours from THAT moment (reel_retention.shield_exits), not from
+        when it reached ROUTED - else every new reel would paint the river stuck until the next pass."""
+        import reel_retention as rr
+        keep = int(rr.KEEP_RECENT)
+
+        def world(pushed_ago_s):
+            t_new = NOW - int(pushed_ago_s * 1000)
+            names = ["reel_s_%d_%d" % (t_new - (keep - i) * 6 * H * 1000, i) for i in range(keep)]
+            names.append("reel_s_%d_%d" % (t_new, keep))
+            rows = [_stamp(names[0], "ROUTED", 90 * H, 0)]
+            rows += [_stamp(r, "ROUTED", 60, k + 1) for k, r in enumerate(names[1:])]
+            return rows, set(names)
+
+        rows, shelf = world(1 * H)
+        self.assertEqual(self._stuck(rows, shelf=shelf), [], "a reel pushed out an hour ago is already owed")
+        rows, shelf = world(7 * H)
+        self.assertEqual(self._rows_of(self._stuck(rows, shelf=shelf)), [("ROUTED", 1, 7 * H, False)],
+                         "the patience did not start at the exit")
+
+    def test_capture_past_the_window_is_owed_and_inside_it_is_not(self):
+        """His ruling names CAPTURE: no station may hold a reel for ever. Inside the window it waits on a
+        capture change by design; past it, only the drain moves it."""
+        import reel_retention as rr
+        keep = int(rr.KEEP_RECENT)
+
+        def nm(i):
+            return "reel_s_%d_%d" % (1700000000000 + i, i)
+
+        rows, shelf = [], set()
+        for i in range(keep + 2):
+            shelf.add(nm(i))
+            rows.append(_stamp(nm(i), "CAPTURE", 90 * H, i))
+        got = self._stuck(rows, shelf=shelf)
+        self.assertEqual(self._rows_of(got), [("CAPTURE", 2, 90 * H, False)], got)
+        self.assertIn("still at CAPTURE, so the drain owes them a tombstone", got[0]["why"])
+
+    def test_the_owed_sentence_carries_the_drains_last_word(self):
+        """A row past the window at the deleter's own stage names why the last pass did not pay it - the lock on
+        his Mac, the ON AIR hold on his ALT. A process whose pass never ran says only the debt."""
+        from unittest import mock
+        import control_app as ca
+        said = {"checked": NOW, "say": "11.1GB free and 37 reel(s) could go, but the deleter refused: "
+                                         "frame.release is LOCKED"}
+        with mock.patch.object(ca, "_RETENTION", said):
+            w = ca._river_owed_why("ROUTED", 16)
+        self.assertIn("so the drain owes them a tombstone - the drain: 11.1GB free", w)
+        self.assertIn("frame.release is LOCKED", w)
+        with mock.patch.object(ca, "_RETENTION", {"checked": None, "say": "not measured yet"}):
+            self.assertNotIn("the drain:", ca._river_owed_why("ROUTED", 16))
+
+    def test_the_alarm_has_one_counting_loop(self):
+        """REG-1812 - one rule, not a copy per station: 23e37f91 added a second loop for ROUTED alone. AST of the
+        shipped function: exactly one `for` walks the river's last stamps."""
+        import ast
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+        fns = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "_river_stuck_for_wire"]
+        self.assertEqual(len(fns), 1)
+        walks = [n for n in ast.walk(fns[0]) if isinstance(n, ast.For)
+                 and isinstance(n.iter, ast.Call) and isinstance(n.iter.func, ast.Attribute)
+                 and n.iter.func.attr == "items" and isinstance(n.iter.func.value, ast.Name)
+                 and n.iter.func.value.id == "last"]
+        self.assertEqual(len(walks), 1, "%d loops walk the last stamps - a station has its own rule again"
+                         % len(walks))
 
     def test_a_routed_reel_older_than_the_window_is_owed_to_the_drain(self):
         """#86 gap 10. The newest KEEP_RECENT stay, including one already at ROUTED. An older reel
@@ -246,8 +346,8 @@ class TheConsoleNamesItsStuckStations(unittest.TestCase):
             rows.append(_stamp(name, "EMPTY", (80 * H if i < extra else 40 * H), i))
         with mock.patch.object(ca, "HIST_DIR", d):
             got = ca._river_stuck_for_wire(now_ms=NOW, _rows=rows, _fixtures=())
-        self.assertEqual([(e["station"], e["n"], e["oldestS"]) for e in got],
-                         [("EMPTY", keep, 40 * H)], got)
+        self.assertEqual(self._rows_of(got), [("EMPTY", extra, 80 * H, False), ("EMPTY", keep, 40 * H, None)],
+                         got)
 
     def test_join_does_not_borrow_the_route_lane_and_empty_still_does(self):
         from unittest import mock
@@ -912,7 +1012,7 @@ RED_PROOF = [
     {
         "why": "REG-1614 - reels that left the shelf are counted again: his Mac's 17 deleted reels read as stuck",
         "file": "tv/control_app.py",
-        "find": "        if reel in _pinned or not _on(reel):\n            continue\n        if reel not in _window:\n            continue\n",
+        "find": "        if reel in _pinned or not _on(reel):\n            continue\n",
         "replace": "        if reel in _pinned:\n            continue\n",
         "matches": 1,
     },
@@ -931,17 +1031,31 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "a reel older than the newest window is an alarm again, so the whole shelf reads as stuck",
+        "why": "REG-1812 - a reel older than the newest window is dropped again, so the ALT's 84 at PRINTER read as none",
         "file": "tv/control_app.py",
-        "find": "        if reel not in _window:\n            continue\n",
+        "find": "        inside = reel not in _left\n",
+        "replace": "        if reel in _left:\n            continue\n        inside = True\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1812 - past the window only a lane's station is counted, so ROUTED and CAPTURE debts read as a clear river",
+        "file": "tv/control_app.py",
+        "find": "        if inside and st not in _RIVER_OWNER:\n",
+        "replace": "        if st not in _RIVER_OWNER:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1812 - the drain's patience starts at the station, so every new reel paints the river stuck",
+        "file": "tv/control_app.py",
+        "find": "        if not inside:\n            since = max(since, int(_left[reel]))\n",
         "replace": "",
         "matches": 1,
     },
     {
-        "why": "a ROUTED reel older than the newest window is dropped, so the drain's debt reads as a clear river",
+        "why": "REG-1812 - a reel past the window loses the drain's word on why it was not paid",
         "file": "tv/control_app.py",
-        "find": "        if reel in _pinned or not _on(reel) or reel in _window:\n            continue\n",
-        "replace": "        if True:\n            continue\n",
+        "find": "    return why + (\" - the drain: \" + say if say else \"\")\n",
+        "replace": "    return why\n",
         "matches": 1,
     },
     {

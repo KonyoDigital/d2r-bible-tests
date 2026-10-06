@@ -40,6 +40,8 @@ renamed law is a law whose history nobody can grep. [[copy-drift]] [[the-unjoine
      "nothing ever finished";
   6. the window is the CONSOLE'S when published, his ruling's number when not, and the two ends
      of that join — the route's dict literal and the page's reader — are both present.
+  7. REG-1813 — and WHICH runs fill it is the console's too: `riverKept` (reel_retention.recent_shield,
+     in recent_order) decides the set and the order, so the shelf's sixteen are the deleter's sixteen.
 """
 import ast
 import io
@@ -169,6 +171,8 @@ var SHELF_POP = %(pop)s;
 /* REG-1480 — the console's window, as /api/river publishes it and the page's reader stores it.
    null = the river has not answered (the block falls back to his ruling); a number = the console's. */
 var SHELF_RIVER_KEEP = %(keep)s;
+/* REG-1813 — which reels the console keeps, newest first (its `riverKept`); null = it did not say. */
+var SHELF_RIVER_KEPT = %(kept)s;
 
 %(block)s
 
@@ -199,10 +203,12 @@ def _node(js, prefix):
 
 class TheRiverIsOneFlowOfEight(unittest.TestCase):
 
-    def drive(self, cards, mouth="null", pop="null", keep=None):
-        """`keep` None = the console's published window (KEEP); "null" = the river has not answered."""
+    def drive(self, cards, mouth="null", pop="null", keep=None, kept=None):
+        """`keep` None = the console's published window (KEEP); "null" = the river has not answered.
+        `kept` None = the console named no set (riverKept absent); a list = its riverKept."""
         js = HARNESS % {"cards": json.dumps(cards), "block": _block(), "mouth": mouth,
-                        "pop": pop, "keep": (str(KEEP) if keep is None else str(keep))}
+                        "pop": pop, "keep": (str(KEEP) if keep is None else str(keep)),
+                        "kept": ("null" if kept is None else json.dumps(kept))}
         try:
             r = _node(js, ".river_drive_")
         except (OSError, subprocess.TimeoutExpired):
@@ -440,6 +446,102 @@ class TheWindowIsTheConsoles(unittest.TestCase):
                       "a published window that is not a number >= 1 must leave the page on UNKNOWN")
 
 
+class TheShelfKeepsTheDeletersSixteen(unittest.TestCase):
+    """★★ REG-1813 — ONE RULE FOR WHICH SIXTEEN: reel_retention.recent_shield, asked by the console and
+    handed to the page as `riverKept`. The page used to sort its cards by a run's END time and keep the
+    top sixteen, while the deleter keeps by the epoch in the reel's name. MEASURED on his ALT 2026-10-06:
+    13 of 16 in common - 3 runs that started 2026-10-04 and kept writing rows until 10-05 23:00 were on
+    screen as kept, and 3 the deleter keeps were hidden as pushed out. Driven end to end: the REAL
+    `_river_kept()` over a temp shelf, its list into the SHIPPED block in node. [[the-unjoined-end]]"""
+
+    def _world(self, n_new):
+        """KEEP + n_new reels; the n_new OLDEST by name ran long and ended last, and inside the window a
+        later start ends EARLIER - so an end-time order differs from the deleter's in the set AND the order."""
+        import shutil
+        import control_app as ca
+        from unittest import mock
+        d = tempfile.mkdtemp(prefix="river_kept_")
+        self.addCleanup(shutil.rmtree, d, True)
+        t = 1791000000000
+        cards, names = [], []
+        for i in range(KEEP + n_new):
+            sid = "s_%d_%d" % (t + i * 3600000, i)
+            names.append("reel_" + sid)
+            os.makedirs(os.path.join(d, "reel_" + sid))
+            t0 = t + i * 3600000 + 5000
+            t1 = (t + 900 * 3600000 + i) if i < n_new else (t0 + (KEEP + n_new - i) * 7200000)
+            cards.append({"sid": sid, "t0": t0, "t1": t1})
+        with mock.patch.object(ca, "HIST_DIR", d):
+            kept = ca._river_kept()
+        return cards, names, kept
+
+    def test_the_flow_is_the_deleters_sixteen_in_its_order(self):
+        cards, names, kept = self._world(3)
+        shield = set(r[len("reel_"):] for r in _RR.recent_shield(names, KEEP))
+        self.assertEqual(set(kept), shield, "riverKept is not recent_shield's set")
+        self.assertEqual(len(kept), KEEP)
+        o = self.drive_kept(cards, kept)
+        flowing = [x for x in o["order"] if x not in o["out"]]
+        self.assertEqual(set(flowing), shield,
+                         "the shelf kept a different sixteen than the deleter - the long runs it "
+                         "sorted by their end are past the window")
+        self.assertEqual(flowing, kept, "the flow is not in the deleter's order, newest first")
+        self.assertEqual(sorted(o["out"]), sorted(c["sid"] for c in cards[:3]))
+
+    def test_premise_the_page_order_alone_keeps_the_wrong_runs(self):
+        """PREMISE: without the console's list the same cards keep the long runs - the defect this fixes."""
+        cards, names, kept = self._world(3)
+        o = TheRiverIsOneFlowOfEight.drive(self, cards)
+        flowing = set(x for x in o["order"] if x not in o["out"])
+        self.assertNotEqual(flowing, set(kept), "the fixture cannot tell the two orders apart")
+
+    def test_a_pin_outside_the_set_is_kept_and_eats_no_slot(self):
+        cards, names, kept = self._world(3)
+        cards[0]["pin"] = True
+        o = self.drive_kept(cards, kept)
+        self.assertEqual(o["order"][0], cards[0]["sid"])
+        self.assertNotIn(cards[0]["sid"], o["out"])
+        self.assertEqual(len([x for x in o["order"] if x not in o["out"]]), KEEP + 1)
+
+    def test_an_unreadable_shelf_names_no_set(self):
+        import control_app as ca
+        from unittest import mock
+        with mock.patch.object(ca, "HIST_DIR", os.path.join(tempfile.gettempdir(), "no_such_shelf_1813")):
+            self.assertIsNone(ca._river_kept(), "a shelf that could not be listed named a set")
+
+    def test_the_console_publishes_the_set_from_the_one_order(self):
+        """AST: the /api/river literal carries `riverKept` as a call to `_river_kept`, which asks
+        reel_retention.recent_order - the order recent_shield is the tail of."""
+        with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+            tree = ast.parse(fh.read())
+        carriers = [n for n in ast.walk(tree) if isinstance(n, ast.Dict)
+                    and {"mouth", "population"} <= set(k.value for k in n.keys if isinstance(k, ast.Constant))]
+        self.assertEqual(len(carriers), 1)
+        val = [v for k, v in zip(carriers[0].keys, carriers[0].values)
+               if isinstance(k, ast.Constant) and k.value == "riverKept"]
+        self.assertEqual(len(val), 1, "/api/river does not publish riverKept")
+        self.assertTrue(isinstance(val[0], ast.Call) and getattr(val[0].func, "id", None) == "_river_kept")
+        fn = [n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "_river_kept"]
+        self.assertEqual(len(fn), 1)
+        asks = [n for n in ast.walk(fn[0]) if isinstance(n, ast.Attribute) and n.attr == "recent_order"]
+        self.assertTrue(asks, "_river_kept sorts the shelf itself instead of asking reel_retention")
+
+    def drive_kept(self, cards, kept):
+        return TheRiverIsOneFlowOfEight.drive(self, cards, kept=kept)
+
+    def test_the_page_reads_the_set_the_console_publishes(self):
+        """Against CODE, comments blanked: the reader that stores riverKeep stores riverKept beside it, and
+        only a list is a set - anything else leaves the page on UNKNOWN. [[source-reading-guard]]"""
+        src = _src()
+        _blank = lambda m: "".join(ch if ch == "\n" else " " for ch in m.group(0))
+        code = re.sub(r"/\*.{0,4000}?\*/", _blank, src, flags=re.S)
+        code = re.sub(r"(?m)^[ \t]*//[^\n]*", _blank, code)
+        self.assertEqual(code.count("var SHELF_RIVER_KEPT = null;"), 1)
+        self.assertEqual(code.count(
+            "SHELF_RIVER_KEPT = Array.isArray(d.riverKept) ? d.riverKept.map(String) : null;"), 1,
+            "the page never stores riverKept, so the block sorts the window itself forever")
+
+
 class TheHeaderCountsWhatIsONSCREEN(unittest.TestCase):
     """★ HIS HEADER SAID 13 OF 13 OVER EIGHT CARDS.
 
@@ -511,6 +613,34 @@ class TheHeaderCountsWhatIsONSCREEN(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1813 - the block ignores the console's set and keeps the sixteen its own end-time sort picks",
+        "file": "control_ui.html",
+        "find": "      if (Array.isArray(SHELF_RIVER_KEPT)) {\n",
+        "replace": "      if (false) {\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1813 - the flow keeps the console's set but not its order, so the bottom card is not the next to go",
+        "file": "control_ui.html",
+        "find": "          if (ra >= 0) return ra - rb;\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1813 - the reader drops riverKept, so the console's set never reaches the block",
+        "file": "control_ui.html",
+        "find": "        SHELF_RIVER_KEPT = Array.isArray(d.riverKept) ? d.riverKept.map(String) : null;\n",
+        "replace": "        SHELF_RIVER_KEPT = null;\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1813 - the console publishes the OLDEST sixteen, a set the deleter does not keep",
+        "file": "control_app.py",
+        "find": "        order = _rr.recent_order(_shelf_reel_names())\n",
+        "replace": "        order = list(reversed(_rr.recent_order(_shelf_reel_names())))\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1480 — the page's fallback drifts from his ruling (a fifth copy of the window): "
                "with the river unanswered the shelf shows eight over a floor that keeps sixteen",

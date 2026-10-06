@@ -671,18 +671,46 @@ def proof_reels(hist_dir):
                   "nothing on disk (already lost); %s" % (len(held), unresolved, why))
 
 
+def recent_order(reels):
+    """The PARSEABLE reels in FIFO order, oldest first. -> list. Pure.
+
+    REG-1813 — THE ONE ORDER THE SHELF IS KEPT BY. recent_shield is its tail, the stuck alarm dates a
+    reel's exit from it, and /api/river hands it to THE SHELF (`riverKept`) so the page never sorts
+    the window itself. The page did: by a run's END time, so on the ALT 2026-10-06 its sixteen held
+    3 long runs the deleter had already let go and hid 3 the deleter keeps. The key is the epoch in
+    the name, the same key plan() orders by; the name breaks a tie, so two callers handed the same
+    reels in a different order get the same list. REG-571: an unparseable name is not in it.
+    """
+    return sorted((r for r in reels if _reel_ts(r) != float("inf")), key=lambda r: (_reel_ts(r), r))
+
+
 def recent_shield(reels, keep_recent=KEEP_RECENT):
     """The newest `keep_recent` PARSEABLE reels — the ones kept whatever the ledgers say. -> set
 
     #84 (REG-1517) — pulled out of plan() so the drain's blocked-upstream reading shields exactly the
     reels the plan shields. REG-571's rule travels with it: an unparseable name keeps its inf sort
     key (last to be deleted) and cannot stand in the shield for a real reel. `reels` may arrive in
-    any order; the sort is by the epoch in the name, the same key plan() orders by.
+    any order; the order is recent_order's.
     """
     if not keep_recent:
         return set()
-    parseable = sorted((r for r in reels if _reel_ts(r) != float("inf")), key=_reel_ts)
-    return set(parseable[-int(keep_recent):])
+    return set(recent_order(reels)[-int(keep_recent):])
+
+
+def shield_exits(reels, keep_recent=KEEP_RECENT):
+    """When each reel OLDER than the newest `keep_recent` left that shield. -> {reel: epoch ms}. Pure.
+
+    REG-1812 — a reel leaves when the `keep_recent`-th reel newer than it arrives, so its exit is
+    that reel's name epoch. The stuck alarm starts the drain's patience there: a reel pushed out a
+    minute ago is not yet owed, however long it sat at its station inside the window. Read off the
+    shelf as it stands, so a newer reel already gone cannot be seen and the time is a LATEST bound -
+    an age built on it is a floor, never an overstatement. A reel inside the shield, or one whose
+    name does not parse, has no entry. No shield (0, like recent_shield) puts every reel outside it
+    from the moment it arrived.
+    """
+    order = recent_order(reels)
+    k = int(keep_recent or 0)
+    return dict((order[i], int(_reel_ts(order[i + k]))) for i in range(max(0, len(order) - k)))
 
 
 def keep_recent_for(free_gb, floor_gb):
