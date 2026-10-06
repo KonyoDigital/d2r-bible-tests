@@ -171,6 +171,12 @@ class ALatticeRefusalIsAReasonNotACrash(unittest.TestCase):
         """REG-1853 — the shape the old fixture now takes. At 1440x936 a flat frame is FITTED, and the fit sits on
         the search's lower bound. That is refused as "the fit found nothing", never as a located grid."""
         r, seen = _fits_while(_flat_frame())
+        # REG-1867 — an EMPTY log holds no None either. If inventory_lattice stops calling the spied _fit (a local
+        # binding, a rename, a refusal before the fit), `assertNotIn(True, [])` passes and says every axis was
+        # fitted. Count the calls first: one per axis, columns and rows.
+        self.assertGreaterEqual(len(seen), 2, "the spy heard %d _fit call(s) at 1440x936, and inventory_lattice "
+                                              "fits two axes - this case would read an empty log as 'fitted'"
+                                % len(seen))
         self.assertNotIn(True, seen, "at 1440x936 _fit returned None — the search changed again; re-measure "
                                      "which frame reaches which refusal")
         self.assertFalse((r or {}).get("ok"), "a flat grey frame at his capture size was reported as a located grid")
@@ -211,6 +217,13 @@ RED_PROOF = [
         'file': 'vault_corpus.py',
         'find': '        if _got is None:\n            return {"ok": False,\n',
         'replace': '        if False:\n            return {"ok": False,\n',
+        'matches': 1,
+    },
+    {
+        'why': "REG-1867 - inventory_lattice stops calling the module's _fit (a local binding here), so the spy hears nothing and an empty log reads as 'every axis was fitted'",
+        'file': 'vault_corpus.py',
+        'find': 'def inventory_lattice(frame_path):\n',
+        'replace': 'def inventory_lattice(frame_path, _fit=_fit):\n',
         'matches': 1,
     },
 ]
