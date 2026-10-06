@@ -152,8 +152,9 @@ class TheConsoleNamesItsStuckStations(unittest.TestCase):
                              "a suite fixture alone made the river UNKNOWN")
             # REG-1812 - a reel past the window is in this reading too: the newest sixteen are fixtures here
             import reel_retention as rr
-            pins = ["reel_s_%d_%d" % (1700000000100 + i, i) for i in range(int(rr.KEEP_RECENT))]
-            self.assertIsNone(ca._river_stuck_for_wire(now_ms=NOW, _shelf=set(pins) | {"reel_s_1700000000000_99"},
+            # 2017-epoch names (test_a_gate_may_not_pin_his_footage): no recording carries them
+            pins = ["reel_s_%d_%d" % (1500000000100 + i, i) for i in range(int(rr.KEEP_RECENT))]
+            self.assertIsNone(ca._river_stuck_for_wire(now_ms=NOW, _shelf=set(pins) | {"reel_s_1500000000000_99"},
                                                        _fixtures=tuple(pins)),
                               "an unstamped reel older than the window read as FLOWING")
 
