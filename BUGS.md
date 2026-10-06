@@ -442,7 +442,7 @@ REG-1772 had the fleet row hand the shadow eye `heard` (a key with a live pulse)
 
 ### REG-1832 - THE TWO PUBLIC PATH SCRUBS ARE NOW HELD TO ONE ANSWER (2026-10-06, #231 look at v3579)
 
-The look said `_public_git_text` (Python) and the beacon worker's `clip` (functions/api/console.js) kept a forward-slash drive path such as `C:/Users/NAME/...`. On this tree both already scrub it (12 cases incl. `C:/Users/x`, `c:\Users\x`, `/Users/x`, `~/x`, `D:/Jane Doe/TV`, UNC, URL) and agree on every case — the gap the look saw is not here. What was missing is anything holding the two languages to the same rule. Law `TheTwoPublicScrubsAgree` (test_a_landed_update_is_not_an_edit) feeds both the same cases and requires equal output with no name left; seen RED by narrowing the Python drive regex to backslash only.
+The look said `_public_git_text` (Python) and the beacon worker's `clip` (functions/api/console.js) kept a forward-slash drive path such as `C:/Users/<name>/...`. On this tree both already scrub it (12 cases incl. `C:/Users/x`, `c:\Users\x`, `/Users/x`, `~/x`, `D:/Jane Doe/TV`, UNC, URL) and agree on every case — the gap the look saw is not here. What was missing is anything holding the two languages to the same rule. Law `TheTwoPublicScrubsAgree` (test_a_landed_update_is_not_an_edit) feeds both the same cases and requires equal output with no name left; seen RED by narrowing the Python drive regex to backslash only.
 
 ### REG-1831 - THE PAGE-NEWER BANNER NAMED A DIRECTION IT NEVER ORDERED (2026-10-06, #231 look at v3579)
 
