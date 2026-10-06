@@ -38,6 +38,13 @@ STORE = ".self_prove.json"
 #: Busier than this (percent of the machine) and a proof does not START - he is playing, or the console is
 #: working. A running proof is never killed for it: it already runs below everything he does.
 MAX_BUSY_TO_START = 45.0
+#: REG-1905 - A WAIT FOR IDLE NEEDS A CEILING. GrokBot's PC read "the machine is 77% busy - a proof starts only when it is
+#: idle" for 20 DAYS (#230, v3600 brief C2): its own driver keeps it above the bar around the clock, so no proof ever
+#: started, its census never went current, and its river stayed shut the whole time while the doctor counted "busy" as a
+#: healthy key. A proof already runs at nice 15 / BELOW_NORMAL with 4x deadlines (spawn), so past this many seconds of
+#: UNBROKEN busy refusals - he is not playing, memory is fine - it starts anyway and says why. Proving under load can only
+#: leave a gate unproved or red; it cannot open a lock a quiet proof would keep shut.
+BUSY_STARVE_S = 6 * 3600
 #: A proof that ended without making the census current is not retried for this long - a failing prover
 #: must not become a machine that proves in a loop all day.
 RETRY_AFTER_FAIL_S = 3 * 3600
@@ -715,10 +722,32 @@ def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=Non
         return {"start": False, "key": "load-unknown",
                 "why": "how busy this machine is could not be measured - a proof is not started on a guess"}
     if busy_pct >= MAX_BUSY_TO_START:
+        try:
+            _since = float(mem.get("busySince")) / 1000.0 if mem.get("busySince") is not None else None
+        except (TypeError, ValueError):
+            _since = None                          # unreadable: no starve claim on a guess - the run starts over
+        _for = (now_s - _since) if _since is not None else None
+        if _for is not None and _for >= BUSY_STARVE_S:
+            return {"start": True, "key": "start",
+                    "why": "the machine has been %.0f%% busy or more for %s without a break - a proof that waits for "
+                           "idle here would never start, so it proves now at the lowest priority (REG-1905)"
+                           % (MAX_BUSY_TO_START, _span(_for))}
         return {"start": False, "key": "busy",
-                "why": "the machine is %.0f%% busy - a proof starts only when it is idle" % busy_pct}
+                "why": "the machine is %.0f%% busy - a proof starts only when it is idle%s" % (
+                    busy_pct, (" (busy for %s; past %s it proves anyway, at the lowest priority)"
+                               % (_span(_for), _span(BUSY_STARVE_S))) if _for is not None else "")}
     return {"start": True, "key": "start",
             "why": "census %s (%s) on an idle installed console - proving" % (st, census.get("why"))}
+
+
+def _span(sec):
+    """A duration in his words: 40 min / 7 h / 20 d."""
+    sec = max(0.0, float(sec))
+    if sec < 3600:
+        return "%d min" % (sec // 60)
+    if sec < 2 * 86400:
+        return "%d h" % (sec // 3600)
+    return "%d d" % (sec // 86400)
 
 
 def _gate_costs(path=None):
@@ -1184,6 +1213,12 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
             mem.update(lastFailAt=now_s, lastFailFingerprint=census.get("fingerprint"), lastFailWhy=d["why"],
                        lastFailKind="spawn")                # REG-1861 - never left as an older run's kind
             mem.pop("logFrom", None)
+    # REG-1905 - the first tick of an UNBROKEN run of busy refusals; any other outcome (a start included) ends the run
+    if d["key"] == "busy":
+        if mem.get("busySince") is None:
+            mem["busySince"] = now_ms
+    else:
+        mem.pop("busySince", None)
     mem.update(lastKey=d["key"], lastWhy=d["why"], lastTick=now_ms)
     try:
         save(mem, path)

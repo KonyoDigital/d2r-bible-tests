@@ -8851,6 +8851,13 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_a_prover_never_waits_forever_for_idle", [sys.executable,
+         os.path.join(HERE, "test_a_prover_never_waits_forever_for_idle.py")], 60,
+         needs_app=False,
+         why=("REG-1905 - GrokBot's PC refused to prove for 20 days on 'the machine is 77% busy', so its census never went "
+              "current and its river stayed shut. An unbroken busy run is remembered; past BUSY_STARVE_S the proof starts "
+              "at its existing low priority and says why; his game still beats it at any age.")
+         ),
     Gate("test_the_prune_never_frees_a_word", [sys.executable,
          os.path.join(HERE, "test_the_prune_never_frees_a_word.py")], 90,
          needs_app=False,
