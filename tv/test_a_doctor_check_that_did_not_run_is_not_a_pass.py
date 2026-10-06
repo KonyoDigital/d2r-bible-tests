@@ -8,6 +8,9 @@ green. A night that could not be read looked like one that passed.
   · DRIVEN: the journal will not read -> both rows are present, not ok, and say they could not
     be measured. The doctor's own payload carries them.
   · DRIVEN: an empty journal is still a measurement ("no journal rows yet", live=no).
+  · DRIVEN: a blank file is that same empty measurement.
+  · DRIVEN: a tail whose lines will not parse is not an empty journal.
+  · DRIVEN: one bad line beside a real beat still names that beat's coverage.
   · DRIVEN: a readable journal names its coverage. 0% is a measured miss, not the unmeasured sentence.
 Nothing here reads his journal or his shelf. RED_PROOF below. [[unknown-stays-unknown]]
 """
@@ -63,6 +66,50 @@ class ADoctorCheckThatDidNotRun(unittest.TestCase):
         self.assertIs(rows["journal_gens"]["ok"], True, rows["journal_gens"])
         self.assertIn("live=no", rows["journal_gens"]["detail"])
 
+    def test_a_blank_journal_file_is_still_empty(self):
+        d = tempfile.mkdtemp(prefix="journal_blank_")
+        self.addCleanup(shutil.rmtree, d, True)
+        path = os.path.join(d, "sessions.jsonl")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write("\n\n   \n")
+        with mock.patch.object(ca, "_journal_path", lambda: path):
+            rows = _rows(ca._journal_doctor_rows())
+        self.assertIs(rows["session_integrity"]["ok"], True, rows["session_integrity"])
+        self.assertIn("no journal rows yet", rows["session_integrity"]["detail"])
+        self.assertNotIn("would not parse", rows["session_integrity"]["detail"])
+
+    def test_a_journal_tail_that_will_not_parse_is_not_empty(self):
+        d = tempfile.mkdtemp(prefix="journal_torn_")
+        self.addCleanup(shutil.rmtree, d, True)
+        path = os.path.join(d, "sessions.jsonl")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write("not json\n{also not\n42\n")
+        with mock.patch.object(ca, "_journal_path", lambda: path):
+            rows = _rows(ca._journal_doctor_rows())
+        row = rows["session_integrity"]
+        self.assertIs(row["ok"], False, row)
+        self.assertEqual(row["severity"], "warn")
+        self.assertIn("UNMEASURED", row["detail"])
+        self.assertIn("would not parse", row["detail"])
+        self.assertIn("3 journal line(s)", row["detail"])
+        self.assertNotIn("no journal rows yet", row["detail"])
+        self.assertNotIn("could not be measured", row["detail"])
+
+    def test_one_bad_line_does_not_hide_a_real_beat(self):
+        d = tempfile.mkdtemp(prefix="journal_mixed_")
+        self.addCleanup(shutil.rmtree, d, True)
+        path = os.path.join(d, "sessions.jsonl")
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write("not json\n")
+            fh.write(json.dumps({"frameId": "no_such_frame", "sessionId": "s1"}) + "\n")
+        with mock.patch.object(ca, "_journal_path", lambda: path):
+            rows = _rows(ca._journal_doctor_rows())
+        row = rows["session_integrity"]
+        self.assertIs(row["ok"], False, row)
+        self.assertIn("frames 0%", row["detail"])
+        self.assertNotIn("would not parse", row["detail"])
+        self.assertNotIn("no journal rows yet", row["detail"])
+
     def test_a_readable_journal_names_its_coverage(self):
         d = tempfile.mkdtemp(prefix="journal_row_")
         self.addCleanup(shutil.rmtree, d, True)
@@ -117,6 +164,19 @@ RED_PROOF = [
              "            \"journal_gens\", False, \"warn\",\n"
              "            \"could not be measured: %s - UNKNOWN, not a journal that was read\" % e))\n",
      "replace": "    except Exception:\n        pass\n",
+     "matches": 1},
+    {"why": "REG-1790 - a journal tail that will not parse reads as a night that has not started",
+     "file": "control_app.py",
+     "find": "        if not rows and torn:\n"
+             "            checks.append(_chk(\n"
+             "                \"session_integrity\", False, \"warn\",\n"
+             "                \"UNMEASURED: %d journal line(s) in the tail would not parse - not an empty journal\"\n"
+             "                % torn))\n",
+     "replace": "        if not rows and torn:\n"
+               "            checks.append(_chk(\n"
+               "                \"session_integrity\", True, \"warn\",\n"
+               "                \"UNMEASURED: %d journal line(s) in the tail would not parse - not an empty journal\"\n"
+               "                % torn))\n",
      "matches": 1},
 ]
 

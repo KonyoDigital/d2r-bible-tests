@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1790 - A JOURNAL TAIL THAT WILL NOT PARSE READ AS AN EMPTY NIGHT (2026-10-06, REG-1777's other line)
+
+REG-1777 made a raise append a row. A file that was there, whose last lines were not beats, still fell through the per-line swallow into "no journal rows yet" with ok. A blank file is still that empty measurement. One bad line beside a real beat still names that beat. A tail of only bad lines is UNMEASURED. Law `test_a_doctor_check_that_did_not_run_is_not_a_pass`.
+
 ### REG-1789 - A TICK THAT STILL OWES A READ WAS CALLED IDLE (2026-10-06, REG-1765's flag)
 
 REG-1765 put the owed reels back in the count and named them in the sentence. The chronicle tick still returned ok and idle, and the vault tick still returned ok, when that count was above zero and the tick had started nothing. A caller that reads the flag and not the sentence calls that a clean idle. Zero owed is still idle. A reel the tick actually starts is still ok. The tick does not start an extra sweep. Law `test_an_owed_reel_is_not_called_idle`.

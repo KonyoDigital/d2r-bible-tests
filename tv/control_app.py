@@ -40641,7 +40641,8 @@ def _journal_doctor_rows():
 
     #86 gap audit 22 (REG-1777). A raise here used to append nothing, so the tally saw fewer rows,
     all green, and a journal that could not be read looked like a night that passed. A check that
-    did not run is a row that says so. An empty journal is still a measurement.
+    did not run is a row that says so. An empty journal is still a measurement. A tail whose
+    lines will not parse is not that empty journal (REG-1790).
     """
     checks = []
     # v815 (Grok R8 #8) — can this night be REPLAYED? Frame coverage + id sanity on the
@@ -40650,6 +40651,7 @@ def _journal_doctor_rows():
         _jl = _journal_path()   # v877 · v1493 — one resolver for every site
         _hist = os.path.join(HERE, "frames", "hist")
         rows = []
+        torn = 0
         if os.path.isfile(_jl):
             with open(_jl, encoding="utf-8") as f:
                 for line in f.readlines()[-200:]:
@@ -40657,10 +40659,23 @@ def _journal_doctor_rows():
                     if not line:
                         continue
                     try:
-                        rows.append(json.loads(line))
+                        parsed = json.loads(line)
                     except Exception:
-                        pass
-        if rows:
+                        torn += 1
+                        continue
+                    # A number or a list is not a beat. One bad line beside real beats is
+                    # still a measurement of those beats. A tail of only bad lines is not
+                    # a night that has not started.
+                    if isinstance(parsed, dict):
+                        rows.append(parsed)
+                    else:
+                        torn += 1
+        if not rows and torn:
+            checks.append(_chk(
+                "session_integrity", False, "warn",
+                "UNMEASURED: %d journal line(s) in the tail would not parse - not an empty journal"
+                % torn))
+        elif rows:
             with_fid = [r for r in rows if r.get("frameId")]
             have = sum(1 for r in with_fid
                        if os.path.isfile(os.path.join(_hist, str(r["frameId"]) + ".jpg")))

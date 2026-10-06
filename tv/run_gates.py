@@ -9358,7 +9358,9 @@ GATES = [
          why="REG-1777 (#86 gap audit 22) - the doctor's replay row and its journal-generation row swallowed "
              "any raise and appended nothing, so the tally saw fewer rows, all green. A journal that could not "
              "be read is now those two rows, not ok, saying they could not be measured. An empty journal is "
-             "still a measurement."),
+             "still a measurement. REG-1790: a tail whose lines will not parse is not that empty "
+             "journal. A blank file is still empty. One bad line beside a real beat still names "
+             "that beat."),
     Gate("test_a_sweep_that_never_banked_is_not_an_unknown_age",
          [sys.executable, os.path.join(HERE, "test_a_sweep_that_never_banked_is_not_an_unknown_age.py")], 90,
          needs_app=False,
