@@ -4032,7 +4032,7 @@ def _pull_report():
     if not isinstance(fl, dict):
         return None
     if fl.get("ok") is False:
-        return _beacon_git_diag({"can": None, "why": (str(fl.get("howTo") or "git could not answer")[:120])})
+        return _beacon_git_diag({"can": None, "why": _word_cut(str(fl.get("howTo") or "git could not answer"), 120)})
     if "dirty" in fl and fl.get("dirty") is None:   # REG-1898 - UNKNOWN is said as UNKNOWN, never "clear to pull"
         return _beacon_git_diag({"can": None, "behind": fl.get("behind"),
                 "why": "whether local tracked edits block a pull here is UNKNOWN"})
@@ -4094,7 +4094,7 @@ def _relaunch_report():
     _waiting = next((c for c in (_WAITING_FOR_SHADOW, _BLOCKED_BY_HIM) if _w.startswith(c)), None)
     return _beacon_git_diag({"armed": armed, "may": bool(may), "waiting": _waiting,
             "held": bool(_RELAUNCH_HOLD.get("held")),
-            "why": (_w or str(st.get("why") or ""))[:160]})
+            "why": _word_cut(_w or str(st.get("why") or ""), 160)})
 
 
 def _console_beacon(event="hb"):
@@ -15990,7 +15990,7 @@ def _readers_for_wire():
         why = lamp.get("why")
         out[k] = {"state": st if st in ("on", "off") else "unknown",
                   "needsLogin": lamp.get("needsLogin") is True,
-                  "why": " ".join(str(why).split())[:160] if why else None}
+                  "why": _word_cut(" ".join(str(why).split()), 160) if why else None}
     return out
 
 
@@ -16027,7 +16027,7 @@ def _shadow_for_wire():
     except Exception:
         working, beat = None, None
     return {"on": st.get("on") is True, "available": st.get("available"), "recording": st.get("recording") is True,
-            "working": working, "beatAgeS": beat, "why": str(st.get("say") or "")[:160]}
+            "working": working, "beatAgeS": beat, "why": _word_cut(str(st.get("say") or ""), 160)}
 
 
 def _eye_for_wire():
@@ -23937,6 +23937,25 @@ def _drift_publish_relaunch(may, why, blocker):
                               "at": int(time.time() * 1000)}
 
 
+def _word_cut(text, limit):
+    """REG-1839 — a sentence cut at `limit`, at the last word that fits, with an ellipsis. -> str
+
+    A bare slice reads as a whole sentence: the fleet row showed "...relaunch it WITH a window; and the board has
+    not" and stopped. Text that fits comes back as it came. One token longer than half the room keeps a hard cut.
+    The worker's twin is cutAtWord in functions/api/console.js; a law drives both over the same sentences.
+    """
+    s = str(text if text is not None else "")
+    if len(s) <= limit:
+        return s
+    head = s[:max(1, limit - 1)]
+    if re.match(r"\S", s[len(head)]):
+        word = re.sub(r"\s+\S*$", "", head)
+        if len(word) >= limit / 2:
+            head = word
+    t = re.sub("[\\s,;:.\u2013\u2014-]+$", "", head)
+    return (t or head) + "\u2026"
+
+
 def _public_git_text(text, limit=160):
     """A git sentence safe on a public beacon. Home directories and drive paths are removed.
 
@@ -23963,7 +23982,7 @@ def _public_git_text(text, limit=160):
     # stays: the slash after that colon is itself followed by a slash.
     if re.search(r"/Users/|/home/|[A-Za-z]:[\\/](?!/)|\\", t):
         return ""
-    return t[:limit]
+    return _word_cut(t, limit)
 
 
 def _safe_repo_rel(name):

@@ -28877,7 +28877,8 @@ class TestV2157TheFleetRosterNeverInventsACount(unittest.TestCase):
             src = fh.read()
         expr = _between(self, src, "tally: (function (t) {", "})(body.tally),",
                         what="the worker's tally coercion")
-        js = ("const f = (function (t) {" + expr.split("(function (t) {", 1)[1] + "});"
+        import worker_source as _ws  # REG-1839 - the worker's top-level helpers, lifted with the shaper
+        js = (_ws.prelude(src) + "const f = (function (t) {" + expr.split("(function (t) {", 1)[1] + "});"
               "const got = f({ok:true, at:1787760000000,"
               " sets:{have:120,total:135}, uniques:{have:278,total:403},"
               " runewords:{have:99,total:99}});"

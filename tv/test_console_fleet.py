@@ -702,6 +702,117 @@ class TestVisitsPageCarriesConsoleMachines(unittest.TestCase):
                          "unexpected KV prefixes read by /visits: %r" % (prefixes,))
 
 
+
+#: REG-1839 — the sentence a cross-family look found cut on the fleet row (maskWhy, built by control_app at up to 400)
+_LONG_WHY = ("this console has no native window (headless or --no-open), so it can COUNT its pieces but can never NAME "
+             "them - relaunch it WITH a window; and the board has not handed its stores over either (no board window yet)")
+#: the cut's cases, each with its room: a long sentence, one that lands on punctuation, a fit, an exact fit, one over,
+#: a single giant token, and an empty one
+_CUT_CASES = [(_LONG_WHY, 160), (_LONG_WHY, 140), ("short and whole", 160), ("x" * 160, 160), ("ab " * 54, 160),
+              ("y" * 400, 160), ("", 160), ("relaunch it WITH a window; and the board", 27)]
+
+
+def _js_cut(cases):
+    """The SHIPPED cutAtWord, lifted from the worker, over every (text, room). -> [str]"""
+    import worker_source as _ws
+    prog = (_ws.prelude() + "process.stdout.write(JSON.stringify(%s.map(function (c) { return cutAtWord(c[0], c[1]); })));"
+            % json.dumps([list(c) for c in cases]))
+    r = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=60)
+    if r.returncode != 0:
+        raise AssertionError("the worker's cut would not run: %s" % r.stderr[-800:])
+    return json.loads(r.stdout)
+
+
+def _ends_at_a_word(original, got):
+    """True when `got` is a prefix of `original` that ends where a word ends, plus one ellipsis."""
+    if not got.endswith("…"):
+        return False
+    kept = got[:-1]
+    return original.startswith(kept) and (len(kept) == len(original) or not original[len(kept)].isalnum())
+
+
+@unittest.skipIf(NODE is None, "node is not on PATH — this law RUNS the shipped worker")
+class TheCutEndsAtAWordAndSaysSo(unittest.TestCase):
+    """REG-1839 — A SENTENCE CUT WITH NO MARK READS AS A WHOLE ONE. The beacon worker cut a console's own words with a
+    bare slice at 160 (eight sites) and 120-200 (five more), so the fleet row read "...relaunch it WITH a window; and
+    the board has not" and stopped, as if that were the reason. Its twin on the console, control_app, cut the git
+    sentences and three beacon reasons the same way at 160, and a text at or under the worker's room was never cut
+    again there. One rule on both sides: the last word that fits, and an ellipsis."""
+
+    def test_the_cut_ends_at_a_word_with_an_ellipsis(self):
+        got = _js_cut(_CUT_CASES)
+        for (text, n), g in zip(_CUT_CASES, got):
+            with self.subTest(text=text[:40], n=n):
+                self.assertLessEqual(len(g), n, "the cut is longer than its room: %r" % g)
+                if len(text) <= n:
+                    self.assertEqual(g, text, "text that fits came back changed")
+                elif len(set(text)) == 1:
+                    self.assertEqual(g, text[:n - 1] + "…", "one giant token must keep its hard cut and say so")
+                else:
+                    self.assertTrue(_ends_at_a_word(text, g), "the cut landed mid-word or said nothing: %r" % g)
+        self.assertEqual(got[-1], "relaunch it WITH a window…",
+                         "a cut that lands after punctuation keeps the punctuation: %r" % got[-1])
+
+    def test_the_console_cuts_the_same_way(self):
+        import control_app as ca
+        for (text, n), g in zip(_CUT_CASES, _js_cut(_CUT_CASES)):
+            with self.subTest(text=text[:40], n=n):
+                self.assertEqual(ca._word_cut(text, n), g, "control_app._word_cut and the worker's cut disagree")
+
+    def test_every_reason_the_worker_keeps_ends_at_a_word(self):
+        """Through the REAL handler: a beacon whose every reason is the long sentence."""
+        body = {"machine": "cut-pc", "event": "hb", "platform": "win", "ver": "v1", "mode": "idle",
+                "maskWhy": {"sets": _LONG_WHY, "uniques": _LONG_WHY},
+                "tally": {"ok": False, "why": _LONG_WHY},
+                "shadow": {"on": True, "why": _LONG_WHY},
+                "readers": {"claude": {"state": "off", "why": _LONG_WHY}, "grok": {"state": "off", "why": _LONG_WHY}},
+                "relaunch": {"armed": True, "may": False, "why": _LONG_WHY, "err": "fatal: " + _LONG_WHY},
+                "pull": {"can": False, "behind": 2, "why": _LONG_WHY, "err": "fatal: " + _LONG_WHY},
+                "system": {"tree": "ok", "reels": 1,
+                           "river": {"lanes": {"PRINTER": 1}, "ageS": 1.0, "why": _LONG_WHY + " " + _LONG_WHY}}}
+        v = run_handler(API_CONSOLE, method="POST", body=body)
+        self.assertEqual(v["status"], 200)
+        rec = json.loads(next(p for p in v["puts"] if p["name"] == "console:cut-pc")["value"])
+        kept = {"maskWhy.sets": (rec["maskWhy"]["sets"], 160), "maskWhy.uniques": (rec["maskWhy"]["uniques"], 160),
+                "tally.why": (rec["tally"]["why"], 160), "shadow.why": (rec["shadow"]["why"], 160),
+                "readers.claude.why": (rec["readers"]["claude"]["why"], 160),
+                "readers.grok.why": (rec["readers"]["grok"]["why"], 160),
+                "relaunch.why": (rec["relaunch"]["why"], 160), "pull.why": (rec["pull"]["why"], 160),
+                "relaunch.err": (rec["relaunch"]["err"], 160), "pull.err": (rec["pull"]["err"], 160),
+                "system.river.why": (rec["system"]["river"]["why"], 200)}
+        for name, (g, n) in kept.items():
+            with self.subTest(name):
+                self.assertIsInstance(g, str, "%s did not cross" % name)
+                self.assertLessEqual(len(g), n)
+                src = ("fatal: " + _LONG_WHY) if name.endswith(".err") else (
+                    (_LONG_WHY + " " + _LONG_WHY) if name.startswith("system") else _LONG_WHY)
+                self.assertTrue(_ends_at_a_word(src, g), "%s was cut mid-word or without a mark: %r" % (name, g))
+
+    def test_the_console_ends_its_own_reasons_at_a_word(self):
+        """The three beacon reasons and the git sentence the console cuts itself, at or under the worker's room."""
+        from unittest import mock as _m
+        import control_app as ca
+        with _m.patch.object(ca, "_reader_health", return_value={"claude": {"state": "off", "why": _LONG_WHY}}):
+            rd = ca._readers_for_wire()["claude"]["why"]
+        with _m.patch.object(ca, "_shadow_state", return_value={"on": True, "say": _LONG_WHY}):
+            sh = ca._shadow_for_wire()["why"]
+        with _m.patch.object(ca, "_auto_relaunch_state", return_value={"effective": True}), \
+                _m.patch.object(ca, "drift_may_relaunch", return_value=(False, _LONG_WHY)), \
+                _m.patch.object(ca, "_beacon_git_diag", side_effect=lambda d: d):
+            rl = ca._relaunch_report()["why"]
+        with _m.patch.dict(os.environ, {"TV_NO_AUTO_PULL": ""}), \
+                _m.patch.object(ca, "fleet_origin_status", return_value={"ok": False, "howTo": _LONG_WHY}), \
+                _m.patch.object(ca, "_beacon_git_diag", side_effect=lambda d: d):
+            pl = ca._pull_report()["why"]
+        git = ca._public_git_text("fatal: " + _LONG_WHY, 160)
+        for name, g, n, src in (("readers", rd, 160, _LONG_WHY), ("shadow", sh, 160, _LONG_WHY),
+                                ("relaunch", rl, 160, _LONG_WHY), ("pull", pl, 120, _LONG_WHY),
+                                ("git text", git, 160, "fatal: " + _LONG_WHY)):
+            with self.subTest(name):
+                self.assertLessEqual(len(g), n)
+                self.assertTrue(_ends_at_a_word(src, g), "the console cut its %s reason mid-word: %r" % (name, g))
+
+
 RED_PROOF = [
     {
         'why': 'The fleet roster only sees every machine because listAll() FOLLOWS THE KV CURSOR — a single kv.list() page returns the OLDEST rows and made Konyo\'s cousin invisible. This line is the loop\'s continue/stop decision; replacing it with a bare `break` collapses listAll to page one, which is the pre-fix oldest-window bug restored. It is executable code, not a comment, not a message string, and not a constant read by both sides of an agreement law (PAGE_CAP/PAGE_SIZE are untouched, and the byte-identical twin in functions/console.js is a different file so no parity law masks it).  MEASURED: untampered python3 tv/test_console_fleet.py -> OK, "Ran 26 tests in 2.750s", 0 skipped (nod; tampered (all 1) python3 tv/test_console_fleet.py -> FAILED (failures=3): TestConsoleFleetWindow.; reddened law test_console_fleet.TestConsolePagination.test_cursor_is_followed_past_; ALONE python3 -m unittest test_console_fleet.TestConsolePagination.test_cursor_is_followed_past_page_one (.',
@@ -709,6 +820,41 @@ RED_PROOF = [
         'find': 'if (page.list_complete || !page.cursor) break;',
         'replace': 'break;',
         'matches': 1,
+    },
+    {
+        "why": "REG-1839 - the worker's cut is a bare slice again, so a reason stops mid-word with no mark",
+        "file": "functions/api/console.js",
+        "find": "  if (s.length <= n) return s;\n  let head = s.slice(0, Math.max(1, n - 1));\n",
+        "replace": "  if (s.length <= n) return s;\n  return s.slice(0, n);\n  let head = s.slice(0, Math.max(1, n - 1));\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1839 - the console's cut is a bare slice again, so its own reasons stop mid-word",
+        "file": "control_app.py",
+        "find": "    head = s[:max(1, limit - 1)]\n",
+        "replace": "    return s[:limit]\n    head = s[:max(1, limit - 1)]\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1839 - the maskWhy shaper slices bare again: the exact sentence the fleet row showed cut",
+        "file": "functions/api/console.js",
+        "find": "        if (typeof v === 'string' && v) out[k] = cutAtWord(v, 160);",
+        "replace": "        if (typeof v === 'string' && v) out[k] = v.slice(0, 160);",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1839 - the system shaper's text cut is bare again, so a river reason stops mid-word",
+        "file": "functions/api/console.js",
+        "find": "        return x ? cutAtWord(x, cap) : null;\n",
+        "replace": "        return x ? x.slice(0, cap) : null;\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1839 - the console cuts a reader's reason bare at the worker's own room, so the worker never re-cuts it",
+        "file": "control_app.py",
+        "find": "                  \"why\": _word_cut(\" \".join(str(why).split()), 160) if why else None}",
+        "replace": "                  \"why\": \" \".join(str(why).split())[:160] if why else None}",
+        "matches": 1,
     },
 ]
 

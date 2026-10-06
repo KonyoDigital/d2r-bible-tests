@@ -60,6 +60,7 @@ import control_app as ca  # noqa: E402
 import river_lanes as RL  # noqa: E402
 import river_stamp as RVS  # noqa: E402
 import tv_diablo as TVD  # noqa: E402
+import worker_source as _ws  # noqa: E402  REG-1839 - the worker's top-level helpers, lifted with the shaper
 
 NODE = shutil.which("node")
 NOW = lambda: int(time.time() * 1000)  # noqa: E731
@@ -84,7 +85,7 @@ def _shape(system):
         src = f.read()
     fn = _between(src, "    system: (function (s) {", "    })(body.system),")
     fn = "(" + fn[len("    system: "):-len("(body.system),")] + ")"
-    return _node("var shape = %s; console.log(JSON.stringify(shape(%s)));" % (fn, json.dumps(system)))
+    return _node(_ws.prelude(src) + "var shape = %s; console.log(JSON.stringify(shape(%s)));" % (fn, json.dumps(system)))
 
 
 class _World(unittest.TestCase):

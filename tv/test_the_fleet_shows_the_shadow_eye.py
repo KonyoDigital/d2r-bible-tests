@@ -43,6 +43,7 @@ import lane_liveness as LL  # noqa: E402
 import test_console_fleet as CF  # noqa: E402  the real worker handler over an in-memory KV
 import test_the_picker_census_reaches_the_fleet as PK  # noqa: E402  its node runner and cutter, one copy
 from test_the_fleet_card_says_how_each_pc_films_and_drains import _run as _ui_run, NOW as UI_NOW, _iso  # noqa: E402
+import worker_source as _ws  # noqa: E402  REG-1839 - the worker's top-level helpers, lifted with the shaper
 
 NODE = PK.NODE
 API = os.path.join(ROOT, "functions", "api", "console.js")
@@ -218,7 +219,8 @@ def _shape(shadow):
         src = f.read()
     fn = PK._between_once(src, "    shadow: (function (s) {", "    })(body.shadow),") + "    })"
     fn = "(" + fn[len("    shadow: "):] + ")"
-    return PK._node_json("var shape = %s; console.log(JSON.stringify({ v: shape(%s) }));" % (fn, json.dumps(shadow)))["v"]
+    return PK._node_json(_ws.prelude(src) + "var shape = %s; console.log(JSON.stringify({ v: shape(%s) }));"
+                         % (fn, json.dumps(shadow)))["v"]
 
 
 @unittest.skipIf(NODE is None, "node is absent - this law RUNS the real worker and will not re-implement it")

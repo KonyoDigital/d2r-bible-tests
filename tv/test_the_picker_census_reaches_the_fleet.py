@@ -66,6 +66,7 @@ _WORLD = tempfile.mkdtemp(prefix="picker_world_")
 os.environ["TV_HIST"] = _WORLD
 
 import control_app as ca  # noqa: E402
+import worker_source as _ws  # noqa: E402  REG-1839 - the worker's top-level helpers, lifted with the shaper
 import console_doctor as CD  # noqa: E402
 import test_the_character_builder_is_their_builder as CB  # noqa: E402  the builder block's cutters and node stage
 import test_console_fleet as CF  # noqa: E402  the real worker handler over an in-memory KV
@@ -528,7 +529,8 @@ def _shape(picker):
         src = f.read()
     fn = _between_once(src, "    picker: (function (p) {", "    })(body.picker),") + "    })"
     fn = "(" + fn[len("    picker: "):] + ")"
-    return _node_json("var shape = %s; console.log(JSON.stringify({ v: shape(%s) }));" % (fn, json.dumps(picker)))["v"]
+    return _node_json(_ws.prelude(src) + "var shape = %s; console.log(JSON.stringify({ v: shape(%s) }));"
+                      % (fn, json.dumps(picker)))["v"]
 
 
 @unittest.skipIf(NODE is None, "node is absent - this law RUNS the real worker and will not re-implement it")

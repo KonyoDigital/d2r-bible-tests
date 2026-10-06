@@ -102,6 +102,25 @@ function machinesFromLogKeys(keys) {
   return [...newest.values()];
 }
 
+/* REG-1839 — A SENTENCE CUT WITH NO MARK READS AS A WHOLE ONE. Eight places here cut a console's own words at 160
+   with a bare slice, so the fleet row read "...relaunch it WITH a window; and the board has not" and stopped, as if that
+   were the reason; five more did the same at 120-200. ONE cut for all of them: at the last word that fits, and an
+   ellipsis says something was left out. Text that fits comes back as it came. A single token longer than half the room
+   keeps a hard cut rather than nothing. The console's twin is control_app._word_cut, and a law drives both over the
+   same sentences. Top level, so every shaper below shares it; a law that lifts one shaper into node lifts this with it
+   (tv/worker_source.py). */
+function cutAtWord(v, n) {
+  const s = String(v == null ? '' : v);
+  if (s.length <= n) return s;
+  let head = s.slice(0, Math.max(1, n - 1));
+  if (/\S/.test(s.charAt(head.length))) {
+    const word = head.replace(/\s+\S*$/, '');
+    if (word.length >= n / 2) head = word;
+  }
+  const t = head.replace(/[\s,;:.\u2013\u2014-]+$/, '');
+  return (t || head) + '\u2026';
+}
+
 export async function onRequestPost(context) {
   const { request, env } = context;
   const kv = env && env.TZ_HISTORY;
@@ -162,13 +181,13 @@ export async function onRequestPost(context) {
           .replace(/\S*\\\S*/g, '')
           .replace(/\s+/g, ' ').trim();
         if (!s || !/[A-Za-z]/.test(s) || /\/Users\/|\/home\/|[A-Za-z]:[\\/](?!\/)|\\/.test(s)) return null;
-        return s.slice(0, n);
+        return cutAtWord(s, n);
       };
       const head = (v) => (/^[0-9a-f]{4,16}$/.test(String(v == null ? '' : v)) ? String(v) : null);
       const crlf = (v) => (v === 'true' || v === 'false' || v === 'input' || v === 'unset') ? v : null;
       const exit = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
       return { armed: tri(r.armed), may: tri(r.may),
-               why: String(r.why == null ? '' : r.why).slice(0, 160),
+               why: cutAtWord(String(r.why == null ? '' : r.why), 160),
                head: head(r.head), autocrlf: crlf(r.autocrlf),
                porcelain: clip(r.porcelain, 240),
                exit: exit(r.exit), err: clip(r.err, 160) };
@@ -185,14 +204,14 @@ export async function onRequestPost(context) {
           .replace(/\S*\\\S*/g, '')
           .replace(/\s+/g, ' ').trim();
         if (!s || !/[A-Za-z]/.test(s) || /\/Users\/|\/home\/|[A-Za-z]:[\\/](?!\/)|\\/.test(s)) return null;
-        return s.slice(0, n);
+        return cutAtWord(s, n);
       };
       const head = (v) => (/^[0-9a-f]{4,16}$/.test(String(v == null ? '' : v)) ? String(v) : null);
       const crlf = (v) => (v === 'true' || v === 'false' || v === 'input' || v === 'unset') ? v : null;
       const exit = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
       return { can: (p.can === true ? true : p.can === false ? false : null),
                behind: Number.isFinite(behind) && behind >= 0 ? Math.min(behind, 100000) : null,
-               why: String(p.why == null ? '' : p.why).slice(0, 160),
+               why: cutAtWord(String(p.why == null ? '' : p.why), 160),
                head: head(p.head), autocrlf: crlf(p.autocrlf),
                porcelain: clip(p.porcelain, 240),
                exit: exit(p.exit), err: clip(p.err, 160) };
@@ -259,7 +278,7 @@ export async function onRequestPost(context) {
                     // a real boolean crosses, anything else is null = UNKNOWN. [[the-unjoined-end]]
                     measured: (typeof t.measured === 'boolean') ? t.measured : null,
                     measuredWhy: (typeof t.measuredWhy === 'string')
-                      ? t.measuredWhy.replace(/\s+/g, ' ').trim().slice(0, 200) : null,
+                      ? cutAtWord(t.measuredWhy.replace(/\s+/g, ' ').trim(), 200) : null,
                     // ⚠ #240 — THE SEVENTH JOINT, carried in the same commit that mints it. `measured` is one
                     // bit for a whole row, and one ledger never synced blanked its neighbours; the seal now
                     // answers PER LEDGER. Only the three ledger names cross, each a real boolean or null.
@@ -274,7 +293,7 @@ export async function onRequestPost(context) {
                     at: Number.isFinite(at) ? at : null };
       if (!out.ok) {
         const why = (typeof t.why === 'string') ? t.why.replace(/\s+/g, ' ').trim() : '';
-        return why ? { ok: false, why: why.slice(0, 160), at: out.at } : null;
+        return why ? { ok: false, why: cutAtWord(why, 160), at: out.at } : null;
       }
       return (out.sets || out.uniques || out.runewords) ? out : null;
     })(body.tally),
@@ -350,7 +369,7 @@ export async function onRequestPost(context) {
           .replace(/(^|[^\w.])\/(?:[^\s\/'"]+\/)+[^\s'"]*/g, '$1<path>')
           .replace(/\S*\\\S*/g, '<path>')
           .replace(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g, '<ip>');
-        return x ? x.slice(0, cap) : null;
+        return x ? cutAtWord(x, cap) : null;
       };
       const num = function (v, max) {
         return (typeof v === 'number' && Number.isFinite(v) && v >= 0) ? Math.min(v, max) : null;
@@ -498,7 +517,7 @@ export async function onRequestPost(context) {
       const out = {};
       for (const k of ['sets', 'uniques']) {
         const v = w[k];
-        if (typeof v === 'string' && v) out[k] = v.slice(0, 160);
+        if (typeof v === 'string' && v) out[k] = cutAtWord(v, 160);
       }
       return Object.keys(out).length ? out : null;
     })(body.maskWhy),
@@ -516,7 +535,7 @@ export async function onRequestPost(context) {
       const whole = (v, max) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= max) ? v : null;
       const num = (v, max) => (typeof v === 'number' && Number.isFinite(v) && v >= 0) ? Math.min(v, max) : null;
       const word = (v) => (typeof v === 'string' && /^[a-z][a-z0-9]{1,11}$/.test(v)) ? v : null;
-      const txt = (v, cap) => (typeof v === 'string' && v.trim()) ? v.replace(/\s+/g, ' ').trim().slice(0, cap) : null;
+      const txt = (v, cap) => (typeof v === 'string' && v.trim()) ? cutAtWord(v.replace(/\s+/g, ' ').trim(), cap) : null;
       const out = {
         ok: p.ok === true,
         slot: word(p.slot), type: word(p.type), label: txt(p.label, 40),
@@ -545,7 +564,7 @@ export async function onRequestPost(context) {
         on: s.on === true, available: tri(s.available), recording: s.recording === true, working: tri(s.working),
         beatAgeS: (typeof s.beatAgeS === 'number' && Number.isFinite(s.beatAgeS) && s.beatAgeS >= 0)
           ? Math.min(s.beatAgeS, 400 * 86400) : null,
-        why: (typeof s.why === 'string' && s.why.trim()) ? s.why.replace(/\s+/g, ' ').trim().slice(0, 160) : null,
+        why: (typeof s.why === 'string' && s.why.trim()) ? cutAtWord(s.why.replace(/\s+/g, ' ').trim(), 160) : null,
       };
     })(body.shadow),
     /* #108 — THAT PC's TWO READERS (CLAUDE primary, GROK shadow): can each read there? His question, 2026-09-30, after
@@ -559,7 +578,7 @@ export async function onRequestPost(context) {
         return {
           state: (x.state === 'on' || x.state === 'off') ? x.state : 'unknown',
           needsLogin: x.needsLogin === true,
-          why: (typeof x.why === 'string' && x.why.trim()) ? x.why.replace(/\s+/g, ' ').trim().slice(0, 160) : null,
+          why: (typeof x.why === 'string' && x.why.trim()) ? cutAtWord(x.why.replace(/\s+/g, ' ').trim(), 160) : null,
         };
       };
       return { claude: lamp(r.claude), grok: lamp(r.grok) };
@@ -796,7 +815,7 @@ export async function onRequestPost(context) {
        made three live machines read as offline for two hours. */
     return json({
       ok: false, machine,
-      why: 'the roster could not store this beacon — ' + String((e && e.message) || e).slice(0, 140),
+      why: 'the roster could not store this beacon — ' + cutAtWord(String((e && e.message) || e), 140),
       hint: 'this is the storage refusing a write, NOT the machine being absent',
       stored, skipped,
     }, 200);
@@ -986,7 +1005,7 @@ function coerceLastBeacon(v) {
     const out = {};
     if (v.ok !== undefined && v.ok !== null) out.ok = !!v.ok;
     if (v.code !== undefined && v.code !== null && Number.isFinite(Number(v.code))) out.code = Number(v.code);
-    if (v.err !== undefined && v.err !== null) out.err = String(v.err).slice(0, 120);
+    if (v.err !== undefined && v.err !== null) out.err = cutAtWord(String(v.err), 120);
     if (v.t !== undefined && v.t !== null) out.t = String(v.t).slice(0, 40);
     return Object.keys(out).length ? out : null;
   } catch (e) { return null; }

@@ -49,6 +49,7 @@ _fx_tmp.contain()
 
 import control_app as CA  # noqa: E402
 import console_doctor as CD  # noqa: E402
+import worker_source as _ws  # noqa: E402  REG-1839 - the worker's top-level helpers, lifted with the shaper
 
 NODE = shutil.which("node")
 LEDGERS = ("sets", "uniques", "runewords")
@@ -114,7 +115,7 @@ class TheRelayAndTheCardCarryIt(unittest.TestCase):
         i = src.index("    tally: (function (t) {")
         j = src.index("    })(body.tally),", i)
         fn = "(" + src[i + len("    tally: "):j + len("    })")] + ")"
-        return _node("var shape = %s;\nconsole.log(JSON.stringify(shape(%s)));" % (fn, json.dumps(tally)))
+        return _node(_ws.prelude(src) + "var shape = %s;\nconsole.log(JSON.stringify(shape(%s)));" % (fn, json.dumps(tally)))
 
     def test_measuredBy_crosses_the_relay(self):
         t = {"ok": True, "at": 1, "sets": {"have": 2, "total": 135}, "uniques": {"have": 4, "total": 403},

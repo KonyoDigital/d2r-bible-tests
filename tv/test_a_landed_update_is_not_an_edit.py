@@ -24,6 +24,7 @@ except Exception:
 import fixture_tmp as _fx_tmp  # noqa: E402  #171 — this run's scratch dirs leave with it
 _fx_tmp.contain()
 import control_app as ca  # noqa: E402
+import worker_source as _ws  # noqa: E402  REG-1839 - the worker's top-level helpers, lifted with the shaper
 
 
 def _acct(name, rest):
@@ -207,7 +208,8 @@ class TheWorkerKeepsTheDiagnosis(unittest.TestCase):
         i = src.index(prelude)
         j = src.index("})(body.%s)," % expr, i)
         fn = src[i + len(prelude):j + len("})(body.%s)" % expr)]
-        prog = "var body = global.body;\nvar out = %s;\nprocess.stdout.write(JSON.stringify(out));\n" % fn
+        prog = (_ws.prelude(src)
+                + "var body = global.body;\nvar out = %s;\nprocess.stdout.write(JSON.stringify(out));\n" % fn)
         r = sp.run(["node", "-"], input=prog.encode("utf-8"), stdout=sp.PIPE, stderr=sp.STDOUT,
                    timeout=20)
         self.assertEqual(r.returncode, 0, r.stdout.decode("utf-8", "replace")[-500:])
@@ -243,7 +245,7 @@ class TheWorkerKeepsTheDiagnosis(unittest.TestCase):
                                "head": "abc1234", "autocrlf": "input",
                                "porcelain": " M tv/control_app.py",
                                "err": "note at" + "D:/" + "Jane" + "/x left behind"}}
-        prog = ("var body = %s;\nvar rec = {\n%s\n};\nbody = %s;\nvar glued = {\n%s\n};\n"
+        prog = (_ws.prelude(src) + "var body = %s;\nvar rec = {\n%s\n};\nbody = %s;\nvar glued = {\n%s\n};\n"
                 "process.stdout.write(JSON.stringify({rec: rec, glued: glued}));\n"
                 % (json.dumps(body), chunk, json.dumps(glued_body), chunk))
         r = sp.run(["node", "-"], input=prog.encode("utf-8"), stdout=sp.PIPE, stderr=sp.STDOUT,
@@ -311,7 +313,8 @@ class TheTwoPublicScrubsAgree(unittest.TestCase):
             src = fh.read()
         i = src.index("const clip = (v, n) => {")
         j = src.index("};\n", i) + 3
-        prog = src[i:j] + "\nprocess.stdout.write(JSON.stringify(%s.map(c => clip(c, 240))));" % json.dumps(list(self.CASES))
+        prog = (_ws.prelude(src) + src[i:j]
+                + "\nprocess.stdout.write(JSON.stringify(%s.map(c => clip(c, 240))));" % json.dumps(list(self.CASES)))
         r = sp.run(["node", "-"], input=prog.encode("utf-8"), stdout=sp.PIPE, stderr=sp.STDOUT, timeout=20)
         self.assertEqual(r.returncode, 0, r.stdout.decode("utf-8", "replace")[-500:])
         js = json.loads(r.stdout.decode("utf-8"))

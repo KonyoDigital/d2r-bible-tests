@@ -24,6 +24,7 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
 sys.path.insert(0, HERE)
+import worker_source as _ws  # noqa: E402  REG-1839 - the worker's top-level helpers, lifted with the shaper
 
 try:
     from console_safe import enable as _enable
@@ -43,7 +44,7 @@ def _shaper():
 
 
 def _shape(tally):
-    js = "var shape = %s;\nconsole.log(JSON.stringify(shape(%s)));" % (_shaper(), json.dumps(tally))
+    js = _ws.prelude() + "var shape = %s;\nconsole.log(JSON.stringify(shape(%s)));" % (_shaper(), json.dumps(tally))
     r = subprocess.run([shutil.which("node"), "-"], input=js, capture_output=True, text=True, timeout=60)
     if r.returncode != 0:
         raise AssertionError("node could not run the relay's shaper - UNKNOWN, not passing: %s" % r.stderr[:500])
