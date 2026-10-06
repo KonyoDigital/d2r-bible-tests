@@ -240,12 +240,12 @@ class TheStashTabIsCountedOnItsOwnGrid(unittest.TestCase):
 
 
 class HisOwnFramesAreCountedAsHeCountsThem(unittest.TestCase):
-    """REG-1889 — his frames, each counted by eye on 2026-10-07. Not on this PC = SKIP with the reason."""
+    """REG-1889 — his frames, each counted by eye on 2026-10-07. Not on this PC = SKIP with the reason.
+    Only BLESSED fixture reels may be named here (REG-1027: a reel id in test code makes retention hold that footage);
+    the 1440x936 size is covered by the drawn panels above, not by naming another of his reels."""
     HIST = os.path.join(HERE, "frames", "hist")
     CASES = (
         ("reel_s_1784984019250_95276/f_1784984235886.jpg", 54, "his personal tab, 2940x1912"),
-        ("reel_s_1789330829280_66296/f_1789330901797.jpg", 0, "his empty shared page 5/5, a full bag beside it"),
-        ("reel_s_1791212415538_63809/f_1791244319475.jpg", 18, "his shared tab, 1440x936"),
         ("reel_s_1788190210097_78660/f_1788190274830.jpg", None, "his MATERIALS tab - fixed slots, refused"),
     )
 
