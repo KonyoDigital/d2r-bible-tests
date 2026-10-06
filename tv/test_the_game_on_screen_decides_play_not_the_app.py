@@ -417,7 +417,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-1666 - a rolling shadow reel leaves no verdict on what it films",
      "file": "control_app.py",
-     "find": "            _shadow_game_note(now, *_game_verdict(pre, _hud))\n",
+     "find": "            _shadow_game_note(now, *_game_verdict(pre, _hud, lobby=_lobby))\n",
      "replace": "",
      "matches": 1},
     {"why": "REG-1666 - the Windows walk asks a cloud client's name alone again, never the screen",
