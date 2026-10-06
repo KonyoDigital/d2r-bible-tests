@@ -26105,6 +26105,221 @@ class TestV2114ABorrowedTitleStaysBorrowed(unittest.TestCase):
 
 
 
+
+class TestReg1871ATitleAboveTheHostIsBorrowedToo(unittest.TestCase):
+    """REG-1871 — A TITLE ABOVE THE HOVERED WORD OPENED THE NATIVE BOX ANYWAY. The prose lane takes the hovered
+    word's title so the browser has nothing to show; its nearest titled ANCESTOR was then the title the browser
+    asked, and the grey box opened over the skinned bubble (the fleet row's REG-1828 was one of these). Counted in
+    the static markup alone: 7 titled elements sit inside another titled element. The lane now borrows every title
+    above the host for the same hover and gives each back on release.
+
+    Drives the SHIPPED _itemTip in node over a fake DOM (no browser), including one chain per static nested pair
+    read from the real markup. [[the-unjoined-end]] [[source-reading-guard]]"""
+
+    HARNESS = r"""
+function El(tag, attrs){ this.tagName = tag; this.attrs = {}; for (var k in (attrs || {})) this.attrs[k] = String(attrs[k]);
+  this.parentElement = null; this.isConnected = true; this.style = {}; var self = this, cls = {};
+  this.classList = { add: function(){ for (var i = 0; i < arguments.length; i++) cls[arguments[i]] = 1; },
+                     remove: function(){ for (var i = 0; i < arguments.length; i++) delete cls[arguments[i]]; },
+                     contains: function(c){ return !!cls[c]; } }; }
+El.prototype.getAttribute = function(k){ return (k in this.attrs) ? this.attrs[k] : null; };
+El.prototype.setAttribute = function(k, v){ this.attrs[k] = String(v); };
+El.prototype.removeAttribute = function(k){ delete this.attrs[k]; };
+El.prototype.hasAttribute = function(k){ return k in this.attrs; };
+El.prototype.appendChild = function(c){ c.parentElement = this; return c; };
+El.prototype.querySelector = function(){ return null; };
+var HTML = new El('html'), BODY = new El('body'); BODY.parentElement = HTML;
+var document = { body: BODY, documentElement: HTML, createElement: function(t){ return new El(t); },
+                 getElementById: function(){ return null; } };
+var window = { innerWidth: 1440, innerHeight: 900 };
+var OBS = [];
+function MutationObserver(cb){ this.cb = cb; this.targets = []; this.live = true; OBS.push(this); }
+MutationObserver.prototype.observe = function(t){ this.targets.push(t); };
+MutationObserver.prototype.disconnect = function(){ this.live = false; };
+function setTimeout(){ return 0; } function clearTimeout(){}
+function esc(s){ return String(s); }
+function chain(specs){ var parent = BODY, out = [];
+  specs.forEach(function(sp){ var e = new El(sp[0], sp[1]); e.parentElement = parent; parent = e; out.push(e); });
+  return out; }
+function titles(list){ return list.map(function(e){ return e.getAttribute('title'); }); }
+function held(list){ return list.map(function(e){ return e.getAttribute('data-tip-held'); }); }
+function repaint(e, t){ e.setAttribute('title', t); OBS.forEach(function(o){ if (o.live && o.targets.indexOf(e) >= 0) o.cb([]); }); }
+"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.node = shutil.which("node")
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            cls.ui = fh.read()
+        start, end = "  var _itemTip = (function(){\n", "  window._itemTip = _itemTip;"
+        assert cls.ui.count(start) == 1 and cls.ui.count(end) == 1, "the hint lane's anchors moved"
+        i = cls.ui.index(start)
+        cls.lane = cls.ui[i:cls.ui.index(end, i)]
+
+    @staticmethod
+    def _nested_pairs(src):
+        """Each static titled element inside another titled one, as its chain of titled ancestors. -> [[[tag, title]]]
+        Scripts and styles are skipped, so JS-built markup is not seen: a count of the STATIC markup only."""
+        from html.parser import HTMLParser
+
+        class _P(HTMLParser):
+            VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "source", "wbr"}
+
+            def __init__(self):
+                super().__init__()
+                self.stack, self.pairs, self.skip = [], [], 0
+
+            def handle_starttag(self, tag, attrs):
+                if tag in ("script", "style"):
+                    self.skip += 1
+                    return
+                if self.skip:
+                    return
+                a = dict(attrs)
+                if "title" in a and any(t for _, t in self.stack):
+                    self.pairs.append([[x, t] for x, t in self.stack if t] + [[tag, a["title"]]])
+                if tag not in self.VOID:
+                    self.stack.append((tag, a.get("title")))
+
+            def handle_endtag(self, tag):
+                if tag in ("script", "style"):
+                    self.skip = max(0, self.skip - 1)
+                    return
+                if self.skip:
+                    return
+                for k in range(len(self.stack) - 1, -1, -1):
+                    if self.stack[k][0] == tag:
+                        del self.stack[k:]
+                        break
+        p = _P()
+        p.feed(src)
+        return p.pairs
+
+    def _run(self, body):
+        if not self.node:
+            self.skipTest("node is not installed — the shipped lane cannot be driven here (UNKNOWN, not a pass)")
+        prog = self.HARNESS + self.lane + ";(function(){ var OUT = {};\n" + body + \
+            "\nprocess.stdout.write(JSON.stringify(OUT)); })();\n"
+        r = subprocess.run([self.node, "-"], input=prog, capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, "the shipped hint lane would not run: %s" % r.stderr[-900:])
+        return json.loads(r.stdout)
+
+    def test_every_title_above_the_host_is_borrowed_and_given_back(self):
+        o = self._run("""
+var c = chain([['div', {title: 'the row'}], ['span', {}], ['div', {title: 'the card'}], ['b', {title: 'the word'}]]);
+_itemTip.say(c[3], false);
+OUT.during = titles(c); OUT.heldDuring = held(c);
+_itemTip.hide();
+OUT.after = titles(c); OUT.heldAfter = held(c);""")
+        self.assertEqual(o["during"], [None, None, None, None],
+                         "a title stayed on the hovered word's chain, so the native box opens over the bubble: %r"
+                         % o["during"])
+        self.assertEqual(o["heldDuring"], ["the row", None, "the card", "the word"])
+        self.assertEqual(o["after"], ["the row", None, "the card", "the word"], "a borrowed title was not given back")
+        self.assertEqual(o["heldAfter"], [None, None, None, None], "a stray data-tip-held is left at rest")
+
+    def test_an_ancestor_that_repaints_mid_hover_is_retaken_with_its_newest_words(self):
+        o = self._run("""
+var c = chain([['div', {title: 'v1 of the row'}], ['b', {title: 'the word'}]]);
+_itemTip.say(c[1], false);
+repaint(c[0], 'v2 of the row');
+OUT.during = titles(c);
+_itemTip.hide();
+OUT.after = titles(c);""")
+        self.assertEqual(o["during"], [None, None], "a repainted ancestor title opened the native box mid-hover")
+        self.assertEqual(o["after"], ["v2 of the row", "the word"], "release gave back a stale ancestor sentence")
+
+    def test_moving_onto_the_ancestor_says_the_ancestor(self):
+        o = self._run("""
+var c = chain([['div', {title: 'the row'}], ['b', {title: 'the word'}]]);
+_itemTip.say(c[1], false);
+_itemTip.say(c[0], false);
+OUT.during = titles(c); OUT.heldDuring = held(c);
+_itemTip.hide();
+OUT.after = titles(c);""")
+        self.assertEqual(o["during"], [None, "the word"], "the word was not given back when the pointer moved up")
+        self.assertEqual(o["heldDuring"], ["the row", None])
+        self.assertEqual(o["after"], ["the row", "the word"])
+
+    def test_focus_borrows_nothing(self):
+        o = self._run("""
+var c = chain([['div', {title: 'the row'}], ['b', {title: 'the word'}]]);
+_itemTip.say(c[1], true);
+OUT.during = titles(c);""")
+        self.assertEqual(o["during"], ["the row", "the word"], "focus opens no native box, so nothing may be taken")
+
+    def test_every_nested_pair_in_the_static_markup_is_covered(self):
+        """The count, before and after: each static titled element inside another titled one, rebuilt as its real
+        chain of titled ancestors and hovered."""
+        pairs = self._nested_pairs(self.ui)
+        self.assertGreaterEqual(len(pairs), 7, "the static nested pairs were not found — this grades nothing")
+        o = self._run("""
+var pairs = %s; OUT.left = [];
+pairs.forEach(function(pr){
+  var c = chain(pr.map(function(x){ return [x[0], {title: x[1]}]; }));
+  _itemTip.say(c[c.length - 1], false);
+  var t = titles(c).filter(function(v){ return v !== null; });
+  if (t.length) OUT.left.push(t);
+  _itemTip.hide();
+});
+OUT.n = pairs.length;""" % json.dumps(pairs))
+        self.assertEqual(o["n"], len(pairs))
+        self.assertEqual(o["left"], [], "%d of %d nested pairs still hand the browser a title while hovered"
+                         % (len(o["left"]), o["n"]))
+
+    def test_the_board_lane_borrows_the_titles_above_too(self):
+        """The board carries its own prose lane (bible.html _proseLane), the same rule, driven through its own
+        mouseover listener. 16 nested pairs sit in the board's static markup."""
+        if not self.node:
+            self.skipTest("node is not installed — the shipped lane cannot be driven here (UNKNOWN, not a pass)")
+        with io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as fh:
+            board = fh.read()
+        start = "    (function _proseLane(){\n"
+        self.assertEqual(board.count(start), 1, "the board's prose lane moved")
+        i = board.index(start)
+        lane = board[i:board.index("\n    })();", i) + len("\n    })();")]
+        prog = self.HARNESS + r"""
+El.prototype.closest = function(sel){
+  for (var e = this; e && e !== BODY && e !== HTML; e = e.parentElement)
+    if (e.hasAttribute('title') || e.hasAttribute('data-tip-held')) return e;
+  return null; };
+El.prototype.matches = function(sel){ return /^(iframe|html|body)$/.test(this.tagName); };
+var LIS = {};
+document.addEventListener = function(k, f){ (LIS[k] = LIS[k] || []).push(f); };
+window.addEventListener = function(){};
+var tip = new El('div');
+""" + lane + """
+;(function(){ var OUT = {};
+var c = chain([['div', {title: 'the routine bar'}], ['span', {title: 'the letter'}]]);
+LIS.mouseover.forEach(function(f){ f({ target: c[1] }); });
+OUT.during = titles(c);
+LIS.keydown.forEach(function(f){ f({ key: 'Escape' }); });
+OUT.after = titles(c); OUT.heldAfter = held(c);
+var pairs = __PAIRS__; OUT.left = [];
+pairs.forEach(function(pr){
+  var k = chain(pr.map(function(x){ return [x[0], {title: x[1]}]; }));
+  LIS.mouseover.forEach(function(f){ f({ target: k[k.length - 1] }); });
+  var t = titles(k).filter(function(v){ return v !== null; });
+  if (t.length) OUT.left.push(t);
+  LIS.keydown.forEach(function(f){ f({ key: 'Escape' }); });
+});
+OUT.n = pairs.length;
+process.stdout.write(JSON.stringify(OUT)); })();
+"""
+        pairs = self._nested_pairs(board)
+        self.assertGreaterEqual(len(pairs), 16, "the board's static nested pairs were not found — this grades nothing")
+        prog = prog.replace("__PAIRS__", json.dumps(pairs))
+        r = subprocess.run([self.node, "-"], input=prog, capture_output=True, text=True, timeout=60)
+        self.assertEqual(r.returncode, 0, "the board's shipped lane would not run: %s" % r.stderr[-900:])
+        o = json.loads(r.stdout)
+        self.assertEqual(o["during"], [None, None],
+                         "the board's titled ancestor stayed, so its native box opens over the bubble: %r" % o["during"])
+        self.assertEqual(o["after"], ["the routine bar", "the letter"], "the board did not give a title back")
+        self.assertEqual(o["heldAfter"], [None, None])
+        self.assertEqual((o["n"], o["left"]), (len(pairs), []),
+                         "%d of %d of the board's nested pairs still hand the browser a title" % (len(o["left"]), o["n"]))
+
+
 class TestV2122TheBorrowSurvivesAMoveInsideTheAnchor(unittest.TestCase):
     """v2121 (#130) — LEAVING A CHILD IS NOT LEAVING THE WRAP.
 
@@ -46340,6 +46555,39 @@ RED_PROOF = [
         "find": 'ALLOWED_BARE = {"PIL", "numpy"}',
         "replace": 'ALLOWED_BARE = {"PIL"}',
         "matches": 2,
+    },
+    {
+        "why": "REG-1871 - the prose lane takes only the hovered word's title, so its titled ancestor opens the "
+               "native box over the bubble",
+        "file": "tv/control_ui.html",
+        "find": "          try { node.setAttribute('data-tip-held', txt); node.removeAttribute('title'); } catch(e){}\n"
+                "          holdAbove(node);\n",
+        "replace": "          try { node.setAttribute('data-tip-held', txt); node.removeAttribute('title'); } catch(e){}\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1871 - release keeps the ancestors' titles, so a hovered row loses its title for good",
+        "file": "tv/control_ui.html",
+        "find": "        } catch(e){} }\n        freeAbove();\n        sayHost = null; sayHeld = null;\n",
+        "replace": "        } catch(e){} }\n        sayHost = null; sayHeld = null;\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1871 - an ancestor that repaints its title mid-hover is not re-taken, so the native box opens",
+        "file": "tv/control_ui.html",
+        "find": "            sayAbove.forEach(function(h){ sayWatch.observe(h[0], { attributes: true, attributeFilter: ['title'] }); });\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1871 - the board's prose lane takes only the hovered word's title, so its titled ancestor opens "
+               "the native box",
+        "file": "bible.html",
+        "find": "          try { node.setAttribute('data-tip-held', txt); node.removeAttribute('title'); } catch(e){}\n"
+                "          holdAbove(node);\n          /* v2114 — AND KEEP IT STOLEN. A surface",
+        "replace": "          try { node.setAttribute('data-tip-held', txt); node.removeAttribute('title'); } catch(e){}\n"
+                   "          /* v2114 — AND KEEP IT STOLEN. A surface",
+        "matches": 1,
     },
 ]
 

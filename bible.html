@@ -31164,6 +31164,27 @@ window._jewelTipHtml = _jewelTipHtml;
        only the absent attribute can. [[the-unjoined-end]] */
     (function _proseLane(){
       var host = null, held = null, timer = null, warm = 0, touched = 0, watch = null;
+      /* REG-1871 — AND EVERY TITLE ABOVE IT, the console lane's rule. Taking the hovered word's title left its
+         nearest titled ancestor as the one the browser asks, so the grey box opened anyway (16 nested pairs in this
+         page's static markup alone). Borrowed for the same hover, parked in data-tip-held, given back by release. */
+      var above = [];
+      function holdAbove(node){
+        for (var p = node && node.parentElement; p && p !== document.body && p !== document.documentElement; p = p.parentElement){
+          var t = p.getAttribute('title');
+          if (t === null) continue;
+          above.push([p, t]);
+          try { p.setAttribute('data-tip-held', t); p.removeAttribute('title'); } catch(e){}
+        }
+      }
+      function freeAbove(){
+        above.forEach(function(h){
+          try {
+            if (!h[0].hasAttribute('title')) h[0].setAttribute('title', h[1]);
+            h[0].removeAttribute('data-tip-held');
+          } catch(e){}
+        });
+        above = [];
+      }
       function owns(){ return tip.classList.contains('tip-say'); }
       function release(){
         if (watch){ try { watch.disconnect(); } catch(e){} watch = null; }
@@ -31172,6 +31193,7 @@ window._jewelTipHtml = _jewelTipHtml;
           host.removeAttribute('data-tip-held');
           host.removeAttribute('aria-describedby');
         } catch(e){} }
+        freeAbove();
         host = null; held = null;
       }
       function hide(){
@@ -31217,6 +31239,7 @@ window._jewelTipHtml = _jewelTipHtml;
           /* stolen NOW, not when the timer fires: the native box's own ~1s clock started at the
              first mouse event, and an attribute that is absent cannot open one */
           try { node.setAttribute('data-tip-held', txt); node.removeAttribute('title'); } catch(e){}
+          holdAbove(node);
           /* v2114 — AND KEEP IT STOLEN. A surface that repaints itself hands the attribute back
              mid-hover, and the native grey box becomes eligible again — Konyo saw both at once on
              the console footer, whose title is rewritten on a poll. Borrowing from a live surface
@@ -31226,6 +31249,12 @@ window._jewelTipHtml = _jewelTipHtml;
             if (watch){ watch.disconnect(); watch = null; }
             watch = new MutationObserver(function(){
               if (host !== node) return;
+              above.forEach(function(h){   // an ancestor that repaints its title is re-taken too
+                var up = h[0].getAttribute('title');
+                if (up == null) return;
+                h[1] = up;
+                try { h[0].setAttribute('data-tip-held', up); h[0].removeAttribute('title'); } catch(e){}
+              });
               var back = node.getAttribute('title');
               if (back == null) return;
               held = back;
@@ -31234,6 +31263,7 @@ window._jewelTipHtml = _jewelTipHtml;
               if (box && tip.classList.contains('tip-say')) box.textContent = back;
             });
             watch.observe(node, { attributes: true, attributeFilter: ['title'] });
+            above.forEach(function(h){ watch.observe(h[0], { attributes: true, attributeFilter: ['title'] }); });
           } catch(e){}
         }
         var wait = viaFocus ? 0 : ((Date.now() - warm < 600) ? 40 : 380);
