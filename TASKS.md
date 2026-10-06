@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3595** | `(this commit)` | v3595 — the build stash opens Inventory, Personal and Shared. HEART: test_the_build_stash_is_the_mule_stash_view |
+| **v3596** | `(this commit)` | v3596 — Grok 63 commits audited and fixed - Windows films after a launcher seal, the river alarm counts every reel, the drain runs beside the shadow reader at 20 per pass, one journal reader, the vault hand-add files into owned, the crafted editor is fixed |
+| **v3595** | `83413262` | v3595 — the build stash opens Inventory, Personal and Shared. HEART: test_the_build_stash_is_the_mule_stash_view |
 | **v3594** | `88bcf192` | v3594 — A window or shadow change reaches the fleet within a minute. A freshness check that times out asks the console forward. HEART: test_a_window_change_reaches_the_fleet, test_the_launcher_brings_a_running_console_forward |
 | **v3593** | `4606a280` | v3593 — The Windows installer fetches and then runs the incoming update rule from a temp file. A refusal is printed and nothing is fast-forwarded over it. A reset that fails says the update matched and quotes the git error. HEART: test_a_landed_update_is_not_an_edit |
 | **v3592** | `8ff7607d` | v3592 — The Stats column says how much more Faster Cast Rate, Hit Recovery, Attack Speed and Block Rate reaches the next step for the class wearing the gear. Equipment and inventory charms are one total. HEART: test_the_breakpoint_row_is_the_next_step |

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3595",
+  "ver": "v3596",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3595: the build stash opens Inventory, Personal and Shared. HEART: test_the_build_stash_is_the_mule_stash_view",
+  "note": "v3596: Grok 63 commits audited and fixed - Windows films after a launcher seal, the river alarm counts every reel, the drain runs beside the shadow reader at 20 per pass, one journal reader, the vault hand-add files into owned, the crafted editor is fixed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
