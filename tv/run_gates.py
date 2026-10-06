@@ -9415,6 +9415,13 @@ GATES = [
              "lifetime tombstone count of zero, are not a pass. A missing ledger is that zero. A "
              "ledger that will not read is UNMEASURED. The newest KEEP_RECENT are kept by law. The "
              "row does not open a lock and does not delete a reel."),
+    Gate("test_a_failed_fleet_count_is_not_a_farmgate_pass",
+         [sys.executable, os.path.join(HERE, "test_a_failed_fleet_count_is_not_a_farmgate_pass.py")], 90,
+         needs_app=False,
+         why="REG-1786 (REG-141's other copy) - the one-button gate painted behind 0 as unified, "
+             "including the 0 a failed rev-list leaves behind. The doctor has refused that since "
+             "REG-141. A raise was a skip that passed. The gate now says the count was not taken "
+             "and does not publish that 0. A counted zero is still unified. A counted gap is still behind."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

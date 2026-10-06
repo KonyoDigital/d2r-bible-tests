@@ -40338,6 +40338,45 @@ def _child_guard_status():
         return {"door": None, "watchdog": None, "ram": None, "say": "raised %s" % type(e).__name__}
 
 
+def _fleet_origin_farmgate_row(report, error=None):
+    """The farm gate's fleet row. -> check
+
+    REG-141 closed this lie on /api/doctor: a failed rev-list leaves behind at 0 and
+    ok False, and `behind == 0` was painted unified. This gate still did that, and a
+    raise here was a skip that passed. A counted zero is still unified. A counted gap
+    is still behind. A behind that is not an int is not zero.
+    """
+    fix = "git fetch origin && git rev-list HEAD..origin/main --count"
+    if error is not None or not isinstance(report, dict):
+        return _chk(
+            "fleet_origin", False, "warn",
+            "UNMEASURED: the fleet check did not run (%s) - not a PC unified with origin"
+            % (type(error).__name__ if error is not None else "no report"),
+            fix)
+    how = report.get("howTo")
+    if not isinstance(how, str) or not how:
+        how = "relaunch TV DIABLO to auto-pull (or git pull)"
+    if report.get("ok") is False:
+        return _chk(
+            "fleet_origin", False, "warn",
+            "UNMEASURED: could not ask origin - not a PC unified with origin",
+            how)
+    behind = report.get("behind")
+    if isinstance(behind, bool) or not isinstance(behind, int):
+        return _chk(
+            "fleet_origin", False, "warn",
+            "UNMEASURED: the fleet check did not say how far behind - not a PC unified with origin",
+            how)
+    head = report.get("head") or report.get("ver") or "?"
+    if behind == 0:
+        return _chk("fleet_origin", True, "warn",
+                    "unified with origin/main (%s)" % head, how)
+    return _chk(
+        "fleet_origin", False, "warn",
+        "%d commit(s) BEHIND origin — latest: %s" % (behind, str(report.get("latest") or "?")[:60]),
+        how)
+
+
 def farmgate_payload():
     """GET /api/farmgate (v924, Grok FARM GATE): the ONE-BUTTON acceptance-day preflight.
     Read-only except ONE cheap subscription-lane CLI ping (the only check the default doctor
@@ -40372,21 +40411,20 @@ def farmgate_payload():
         ("one truth: %s" % vr) if same else "SKEW running=%s disk=%s agent=%s board=%s" % (vr, vc, va, vb),
         fix1))
 
-    # 1b) v1418 fleet_origin — this PC vs GitHub main (Mac + Windows product channel)
+    # 1b) v1418 fleet_origin — this PC vs GitHub main (Mac + Windows product channel).
+    # REG-1786 — the doctor already refuses a failed count (REG-141). This copy still
+    # painted behind 0 as unified, and a raise as a skip that passed.
     try:
         fl = fleet_origin_status(force_fetch=False)
-        behind_n = int(fl.get("behind") or 0)
-        checks.append(_chk(
-            "fleet_origin", behind_n == 0, "warn",
-            ("unified with origin/main (%s)" % (fl.get("head") or fl.get("ver") or "?"))
-            if behind_n == 0 else
-            ("%d commit(s) BEHIND origin — latest: %s" % (behind_n, (fl.get("latest") or "?")[:60])),
-            fl.get("howTo") or "relaunch TV DIABLO to auto-pull (or git pull)"))
-        vers["fleetBehind"] = behind_n
-        vers["fleetHead"] = fl.get("head")
-        vers["fleetOrigin"] = fl.get("origin")
+        checks.append(_fleet_origin_farmgate_row(fl))
+        if isinstance(fl, dict) and fl.get("ok") is not False:
+            _bn = fl.get("behind")
+            if isinstance(_bn, int) and not isinstance(_bn, bool):
+                vers["fleetBehind"] = _bn
+            vers["fleetHead"] = fl.get("head")
+            vers["fleetOrigin"] = fl.get("origin")
     except Exception as _fe:
-        checks.append(_chk("fleet_origin", True, "warn", "fleet check skipped: %s" % str(_fe)[:60]))
+        checks.append(_fleet_origin_farmgate_row(None, _fe))
 
     # 2) claude CLI present (v1380.4 deep hunt — same as start_agent)
     env = _env_clean()
