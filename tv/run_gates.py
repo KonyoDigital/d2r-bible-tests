@@ -9496,6 +9496,14 @@ GATES = [
              "missing file is still no eye yet. A real beat is still a timestamp. The closer "
              "being unplugged is still that. The fleet omits the eye when the journal was not "
              "read. The lamps say it was not measured."),
+    Gate("test_an_unread_journal_is_not_a_night_with_no_reads",
+         [sys.executable, os.path.join(HERE, "test_an_unread_journal_is_not_a_night_with_no_reads.py")], 120,
+         needs_app=False,
+         why="REG-1799 - the receipt stream dropped the journal reader reason and handed back "
+             "an empty list. Empty is also a console that has never recorded a read. The screen "
+             "says the reads stream here when live. A missing file is still an empty list. A "
+             "real read is still a receipt. A raise is not cached as no reads. The screen says "
+             "the journal was not read."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

@@ -16133,7 +16133,8 @@ def _engines_status():
 #              grounded, else →🔬 Checker (server stays DB-agnostic — no fake dossier links).
 #   route    = click target: 'item'→dossier/checker · 'session'→shelf · 'flag'→watchdog panel.
 #   diablo.label = game-true WHERE via _diablo_scene_label; null when there's no real scene.
-# Read-only DISPLAY projection — NO grail writes. mtime-cached like eyes/gate; empty off-air.
+# Read-only DISPLAY projection — NO grail writes. mtime-cached like eyes/gate when the journal
+# was read. Empty is a quiet night. An unread journal is not that empty (REG-1799).
 _RECEIPTS_CAP = 30
 _RECEIPT_LANE_ENGINE = {
     "deep": ("liveEye", "read"),
@@ -16150,11 +16151,29 @@ def _receipts_stream():
     except Exception:
         key = None
     c = globals().get("_RECEIPTS_CACHE")
-    if c and c[0] == key:
+    # REG-1799 — a failed stat is not a cached empty night. None must not hit it.
+    if key is not None and c and c[0] == key:
         return c[1]
     out = []
     try:
-        for r in _kai_journal_rows()[-160:]:   # tail is plenty for ~30 newest receipts
+        try:
+            got = _kai_journal_rows(want_why=True)
+        except TypeError:
+            # An older stand-in takes no argument. The real reader accepts want_why.
+            got = _kai_journal_rows()
+        if isinstance(got, tuple) and len(got) == 2 and (
+                got[1] is None or isinstance(got[1], str)):
+            _rj_rows = got[0] if isinstance(got[0], list) else []
+            _rj_why = got[1]
+        elif isinstance(got, list):
+            _rj_rows, _rj_why = got, None
+        else:
+            _rj_rows = []
+            _rj_why = "the journal reader returned %s" % type(got).__name__
+        # REG-1799 — an unreadable journal is not a night where no read landed.
+        if _rj_why:
+            return {"ok": False, "rows": [], "why": _rj_why}
+        for r in (_rj_rows or [])[-160:]:   # tail is plenty for ~30 newest receipts
             lane = str(r.get("lane") or "")
             em = _RECEIPT_LANE_ENGINE.get(lane)
             if not em:
@@ -16298,12 +16317,27 @@ def _receipts_stream():
                             "ts": ts, "refs": _refs(itemName=nm), "gate": gate, "held": held, "own": _own,
                             "diablo": diablo,
                             "route": {"type": "item", "target": nm}})   # client grounds name→dossier|checker
-    except Exception:
-        out = []
+    except Exception as exc:
+        # REG-1799 — a raise is not a night with no reads. Do not cache it.
+        return {"ok": False, "rows": [],
+                "why": "%s: %s" % (type(exc).__name__, str(exc)[:80])}
     out.sort(key=lambda x: x.get("ts") or 0, reverse=True)
     out = out[:_RECEIPTS_CAP]
-    globals()["_RECEIPTS_CACHE"] = (key, out)
+    if key is not None:
+        globals()["_RECEIPTS_CACHE"] = (key, out)
     return out
+
+
+def _receipts_for_wire(raw):
+    """A measured night is a list, including an empty one. A reason is not that list.
+
+    None on the wire is UNKNOWN. A quiet night stays [].
+    """
+    if isinstance(raw, dict) and raw.get("why"):
+        return None, str(raw.get("why"))[:200]
+    if isinstance(raw, list):
+        return raw, None
+    return None, "the receipt stream was not measured"
 
 
 # ── v948.26 🥷🧠 PHASE D — SURFACE THE LIVE RING (ARCH_PINGPONG §6-Q4 SETTLED) ────────
@@ -39829,6 +39863,9 @@ def status_payload():
     # by a refactor that never touched their subject. A name is an interface here.
     # [[regression-guard]] [[source-reading-guard]]
     _pubver = _t("publishedVer", _published_ver) or (None, None)
+    # REG-1799 — an unread journal is not an empty receipt night. None omits the list.
+    _rc_raw = _t("receipts", _receipts_stream)
+    _rc_rows, _rc_why = _receipts_for_wire(_rc_raw)
     _out = {
         "ok": True,
         "identity": _ident,          # v1465 — per-install; the console renders its sigil
@@ -39912,7 +39949,8 @@ def status_payload():
         "liveRing": _t("liveRing", _project_live_ring),   # v948.26 🥷🧠 Phase D — Master-Brain NOW-CURSOR (provisional; sealed reel engineFrames win in retro)
         "eyes": _eyes,
         "engines": _t("engines", _engines_status),   # 🔌 per-engine wired/running/last-beat — nothing hidden; a dead wire renders ⚫
-        "receipts": _t("receipts", _receipts_stream),   # 🧾 bounded newest-first read-receipt stream (routable ids); empty off-air
+        "receipts": _rc_rows,   # REG-1799 — a list when measured, None when the journal was not read
+        "receiptsWhy": _rc_why,   # the reason when receipts is None; null on a measured night
         "forensicsSummary": _t("forensicsSummary", _newest_forensics_summary),   # 🔬 lean {clean,corrected,recovered,blocked,unresolved} badge; full detail at /api/forensics
         "fleet": _fleet,   # v1418 — {behind, latest, dirty, howTo} so Mac/Win never silently drift
         # v1597 — ADDITIVE. Whether THIS machine is actually reaching the presence tracker, or

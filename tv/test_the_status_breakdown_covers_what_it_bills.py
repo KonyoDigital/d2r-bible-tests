@@ -80,6 +80,8 @@ EXEMPT = {
     # defined at import). The census that DOES touch disk (lists LEDGER_DIR, asks every pid) is deliberately
     # NOT called from here — its docstring says so — and runs in the doctor's one_of_each row instead.
     "_child_guard_status":      "copies three in-memory child_guard dicts; the disk census is not called here",
+    # REG-1799 — the stream itself is the timed producer. This only splits list-or-reason.
+    "_receipts_for_wire":       "reshapes the timed receipt stream into a list or None; no I/O of its own",
 }
 
 

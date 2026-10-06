@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1799 - AN UNREAD JOURNAL READ AS A NIGHT WITH NO READS (2026-10-06)
+
+The receipt stream dropped the journal reader reason and handed back an empty list. Empty is also a console that has never recorded a read. The screen said the reads stream here when live. A missing file is still an empty list. A blank file is still an empty list. A real read is still a receipt. One bad line beside a read is still that read. A file of only bad lines is not an empty night. A raise is not cached as no reads. A failed stat does not reuse a cached empty night. The wire omits the list. The screen says the journal was not read. Law `test_an_unread_journal_is_not_a_night_with_no_reads`.
+
 ### REG-1798 - AN UNREAD JOURNAL READ AS A NIGHT WITH NO EYE (2026-10-06)
 
 The eye pulse dropped the journal reader reason and handed back zero timestamps. Zero is also a console that has never seen an eye. The fleet said no frame yet. The lamps said off-air, no verify beat, and armed between sessions. A missing file is still no eye yet. A real beat is still a timestamp. The closer being unplugged is still that. The fleet omits the eye when the journal was not read. The lamps say it was not measured. Law `test_an_unread_journal_is_not_a_night_with_no_eye`.

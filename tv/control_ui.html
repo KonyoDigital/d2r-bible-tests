@@ -11352,14 +11352,18 @@ window._lockMark = function(isOpen, px, label){
     // and shows its captured FRAME on hover. Honest: empty off-air (resting), streams live. Keyed on receipt.id.
     if (window.__mindMode === 'receipts') {
       _rcptBind(brain);
-      var rc = (st.receipts || []).slice(0, 14);   // newest-first, bounded; the brain scrolls the rest
-      var rsig = 'rcpt|' + rc.map(function(r){ return r.id; }).join('¦');
+      // REG-1799 — an empty list is a quiet night. A reason is not that night.
+      var rcWhy = st.receiptsWhy;
+      var rc = (Array.isArray(st.receipts) ? st.receipts : []).slice(0, 14);
+      var rsig = 'rcpt|' + (rcWhy ? ('why|' + rcWhy) : rc.map(function(r){ return r.id; }).join('¦'));
       if (rsig === brainSig) return;
       brain.classList.add('brain-receipts');
       brainSig = rsig;
       brain.innerHTML = rc.length
         ? rc.map(_receiptRow).join('')
-        : '<div class="empty">— the AI\'s reads stream here when live · click one to jump to it · hover for its frame —</div>';
+        : (rcWhy
+          ? '<div class="empty">UNMEASURED: the journal was not read (' + esc(rcWhy) + ') — not a night with no reads</div>'
+          : '<div class="empty">— the AI\'s reads stream here when live · click one to jump to it · hover for its frame —</div>');
       return;
     }
     brain.classList.remove('brain-receipts');
