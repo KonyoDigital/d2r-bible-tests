@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1913 - HIS OWN PICK FROM THE PLANNER LIST WAS CALLED A MISREAD (2026-10-07, GrokBot #230 v3600 brief C11)
+
+"+ Add an item" -> Harlequin Crest filed "Harlequin Crest (Shako)", the planner's display name (item, then base in brackets), and the vault's routing row said "read as 'Harlequin Crest (Shako)', filed as a misread of Harlequin Crest". `suggestMule`'s fold hop now recognises a name that is exactly <fold target> (<base>) and says "the planner names it ...; filed as ..."; anything else the fold repaired is still called a misread. Law `test_the_planners_own_name_is_not_a_misread` (driven on the shipped page, positive control included, 1 RED_PROOF).
+
 ### REG-1912 - A TIP QUOTED A RETIRED GRAIL TOTAL (2026-10-07, GrokBot #230 tick 371, FYI 1)
 
 The Vault tip for Storm Scarab read "Outside the 312 grail" while every fleet tip counts UNIQUES out of 403. `_extraTipHtml` (the High-Value Finds reference tip) carried v304's curated total as a literal. It now says what is true of every EXTRA_ITEMS row - "Not a grail item: the chronicle does not count it." - with no number to go stale. Law `test_a_tip_never_quotes_a_retired_total` (1 RED_PROOF, PROVEN).

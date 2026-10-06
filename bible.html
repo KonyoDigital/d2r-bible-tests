@@ -38477,9 +38477,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             _sugFolding = true;                       // one hop only; the fold target is on the roster
             try {
               var _fs = suggestMule(String(_fc));
+              /* REG-1913 — THE PLANNER'S OWN NAME IS NOT A MISREAD. "+ Add an item" files a pick under the planner's
+                 display name, "Harlequin Crest (Shako)": the item, then its base in brackets. The fold lands it on
+                 "Harlequin Crest" correctly, and this said "filed as a misread of" - telling him his own pick was a bad
+                 read (GrokBot #230, the v3600 brief, C11). A name that is exactly <fold target> (<base>) is the planner
+                 naming it; anything else the fold repaired is still called what it is. */
+              var _pm = /^(.+?) \(([^()]+)\)$/.exec(String(name));
+              var _plannerName = !!(_pm && String(_pm[1]).trim() === String(_fc));
               if (_fs && _fs.id)
-                return { id: _fs.id, why: (_fs.why || '') + ' \u2014 read as \u201c' + name
-                         + '\u201d, filed as a misread of ' + _fc };
+                return { id: _fs.id, why: (_fs.why || '') + (_plannerName
+                         ? ' \u2014 the planner names it \u201c' + name + '\u201d; filed as ' + _fc
+                         : ' \u2014 read as \u201c' + name + '\u201d, filed as a misread of ' + _fc) };
             } finally { _sugFolding = false; }
           }
         }
