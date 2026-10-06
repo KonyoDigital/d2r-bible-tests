@@ -1154,8 +1154,10 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
             log_path = _store_path(path) + ".log"
             try:
                 mem["logFrom"] = os.path.getsize(log_path)    # REG-1862 - this run's output starts here
+            except FileNotFoundError:
+                mem["logFrom"] = 0                            # no log yet: this run's output starts at byte 0
             except OSError:
-                mem["logFrom"] = 0
+                mem["logFrom"] = None                         # start unknown: the last-line rule decides alone
             _owed_g = census.get("owedGates")
             _costs = _gate_costs() if isinstance(_owed_g, list) and _owed_g else None
             # REG-1674 - a slice whose prover went silent is proved AFTER every other owed gate (for these gates)
