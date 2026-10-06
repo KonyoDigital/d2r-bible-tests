@@ -31728,6 +31728,17 @@ def _join_queue_read(rid, refusal, reel_dir, owed):
         return None
     r2 = vault_sweep_start(limit=1, reel_dir=str(reel_dir), force=True)
     why2 = str((isinstance(r2, dict) and r2.get("why")) or r2)
+    # REG-1817 — the door's flag, same rule as REG-1765: a lane that cannot start (Claude
+    # signed out) or a machine lock is not this reel's read. The entry goes back and the
+    # reextract record is not written, so the one re-read is still owed when the lane returns.
+    if isinstance(r2, dict) and (r2.get("laneMissing") or r2.get("locked")):
+        _VAULT_AUTOREAD.setdefault("joinQueued", {})[rid] = int(time.time() * 1000)
+        _vault_autoread_save()
+        return {"ok": False, "triesUnchanged": True, "reel": rid, "owed": owed,
+                "laneMissing": bool(r2.get("laneMissing")),
+                "locked": bool(r2.get("locked")),
+                "why": "the vault lane cannot start on this machine, so the queued join "
+                       "re-read stays queued: %s" % why2[:160]}
     if isinstance(r2, dict) and (r2.get("state") is not None or "already running" in why2):
         _VAULT_AUTOREAD.setdefault("joinQueued", {})[rid] = int(time.time() * 1000)
         _vault_autoread_save()

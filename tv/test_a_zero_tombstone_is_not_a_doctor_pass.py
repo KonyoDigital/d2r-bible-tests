@@ -17,7 +17,9 @@ read as a pass.
 Nothing here deletes a reel. RED_PROOF below. [[unknown-stays-unknown]]
 """
 import inspect
+import contextlib
 import os
+import shutil
 import sys
 import tempfile
 import time
@@ -243,7 +245,8 @@ class AZeroTombstoneIsNotADoctorPass(unittest.TestCase):
                 mock.patch.object(ca, "_river_outlet_ask", ask), \
                 mock.patch.object(ca, "_extract_moving_facts",
                                   lambda: {"owed": 0, "memory": "absent", "ageKnown": True}):
-            got = ca.doctor_payload()
+            with _unreachable_world():
+                got = ca.doctor_payload()
         self.assertEqual(asked, [1])
         got_rows = _rows(got["checks"])
         self.assertIn("river_outlet", got_rows)
@@ -255,6 +258,31 @@ class AZeroTombstoneIsNotADoctorPass(unittest.TestCase):
         self.assertNotIn("UNMEASURED", row["detail"])
         self.assertIn("fix", row)
         self.assertNotEqual(row["severity"], "block")
+
+
+@contextlib.contextmanager
+def _unreachable_world():
+    """#176 - doctor_payload() reads his journal tail, console log, frames and ledgers.
+    Point every one at a directory that does not exist, so a run on his Mac cannot read
+    them. Nothing of his is moved or edited; only this process's names are rebound."""
+    gone = os.path.join(tempfile.mkdtemp(prefix="doctor-world-"), "does-not-exist")
+    keep = {k: os.environ.get(k) for k in ("TV_SESSIONS", "TV_HIST", "TV_FRAMES_DIR")}
+    os.environ["TV_SESSIONS"] = os.path.join(gone, "sessions.jsonl")
+    os.environ["TV_HIST"] = os.path.join(gone, "frames", "hist")
+    os.environ["TV_FRAMES_DIR"] = os.path.join(gone, "frames")
+    try:
+        with mock.patch.object(ca, "HERE", gone), \
+                mock.patch.object(ca, "LOG_PATH", os.path.join(gone, "control_agent.log")), \
+                mock.patch.object(ca, "_journal_path",
+                                  lambda: os.path.join(gone, "sessions.jsonl")):
+            yield gone
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        shutil.rmtree(os.path.dirname(gone), ignore_errors=True)
 
 
 RED_PROOF = [

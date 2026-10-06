@@ -14,8 +14,11 @@ vault.apply are shut.
 
 Nothing here reads his census. RED_PROOF below. [[unknown-stays-unknown]]
 """
+import contextlib
 import os
+import shutil
 import sys
+import tempfile
 import unittest
 from unittest import mock
 
@@ -131,7 +134,27 @@ class AShutRiverLockIsNotADoctorPass(unittest.TestCase):
                 mock.patch("self_arming.may", fake), \
                 mock.patch.object(ca, "_extract_moving_facts",
                                   lambda: {"owed": 0, "memory": "absent", "ageKnown": True}):
-            got = ca.doctor_payload()
+            real = (os.path.join(ca.HERE, "sessions"), os.path.join(ca.HERE, "frames"),
+                    ca.LOG_PATH)
+            touched = []
+            _open, _stat = open, os.stat
+
+            def _watch(p):
+                if isinstance(p, (str, os.PathLike)) and os.fspath(p).startswith(real):
+                    touched.append(os.fspath(p))
+
+            def _open_w(p, *a, **k):
+                _watch(p)
+                return _open(p, *a, **k)
+
+            def _stat_w(p, *a, **k):
+                _watch(p)
+                return _stat(p, *a, **k)
+
+            with _unreachable_world(), mock.patch("builtins.open", _open_w), \
+                    mock.patch("os.stat", _stat_w):
+                got = ca.doctor_payload()
+            self.assertEqual(touched, [], "the doctor read his real journal/log/frames")
         rows = _rows(got["checks"])
         self.assertIn("river_locks", rows)
         self.assertIs(rows["river_locks"]["ok"], False, rows["river_locks"])
@@ -141,6 +164,31 @@ class AShutRiverLockIsNotADoctorPass(unittest.TestCase):
             self.assertIn(lock, rows["river_locks"]["detail"])
         self.assertIn("4 of 4 river locks are shut here", rows["river_locks"]["detail"])
         self.assertNotEqual(rows["river_locks"]["severity"], "block")
+
+
+@contextlib.contextmanager
+def _unreachable_world():
+    """#176 - doctor_payload() reads his journal tail, console log, frames and ledgers.
+    Point every one at a directory that does not exist, so a run on his Mac cannot read
+    them. Nothing of his is moved or edited; only this process's names are rebound."""
+    gone = os.path.join(tempfile.mkdtemp(prefix="doctor-world-"), "does-not-exist")
+    keep = {k: os.environ.get(k) for k in ("TV_SESSIONS", "TV_HIST", "TV_FRAMES_DIR")}
+    os.environ["TV_SESSIONS"] = os.path.join(gone, "sessions.jsonl")
+    os.environ["TV_HIST"] = os.path.join(gone, "frames", "hist")
+    os.environ["TV_FRAMES_DIR"] = os.path.join(gone, "frames")
+    try:
+        with mock.patch.object(ca, "HERE", gone), \
+                mock.patch.object(ca, "LOG_PATH", os.path.join(gone, "control_agent.log")), \
+                mock.patch.object(ca, "_journal_path",
+                                  lambda: os.path.join(gone, "sessions.jsonl")):
+            yield gone
+    finally:
+        for k, v in keep.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+        shutil.rmtree(os.path.dirname(gone), ignore_errors=True)
 
 
 RED_PROOF = [

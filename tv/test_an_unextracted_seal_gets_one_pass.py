@@ -109,6 +109,29 @@ class TestTheTickRunsThatPassOnce(unittest.TestCase):
         self.assertFalse(any(c.get("force") for c in self.calls),
                          "the same reader bought the reel again: %r" % self.calls)
 
+    def test_a_queued_join_survives_a_lane_that_cannot_start(self):
+        """REG-1817 - the join re-read popped the entry before the lane answered."""
+        rid = "reel_s_1_12001"
+        CA._VAULT_AUTOREAD["joinQueued"][rid] = 1
+        missing = {"ok": False, "laneMissing": True,
+                   "why": "the primary (Claude) lane is unavailable - nothing to sweep with"}
+        got = self._run([_barren(), missing])
+        self.assertIn(rid, CA._VAULT_AUTOREAD["joinQueued"], got)
+        self.assertTrue(got.get("laneMissing"), got)
+        self.assertTrue(got.get("triesUnchanged"), got)
+        self.assertNotIn(rid, CA._VAULT_AUTOREAD["reextract"])
+        # the lane returns: the same entry is read once and then spent
+        back = self._run([_barren(), {"ok": True, "started": True}])
+        self.assertTrue(back.get("join"), back)
+        self.assertNotIn(rid, CA._VAULT_AUTOREAD["joinQueued"])
+
+    def test_a_queued_join_survives_a_machine_lock(self):
+        rid = "reel_s_1_12001"
+        CA._VAULT_AUTOREAD["joinQueued"][rid] = 1
+        got = self._run([_barren(), {"ok": False, "locked": True, "why": "locked"}])
+        self.assertIn(rid, CA._VAULT_AUTOREAD["joinQueued"], got)
+        self.assertTrue(got.get("locked"), got)
+
     def test_a_seal_that_already_has_rows_is_not_forced(self):
         row = _barren()
         row["rows"] = 4
@@ -411,6 +434,13 @@ class TestTheConsoleAsksOnce(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1817 - a queued join read is spent on a lane that cannot start",
+        "file": "control_app.py",
+        "find": "    if isinstance(r2, dict) and (r2.get(\"laneMissing\") or r2.get(\"locked\")):\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
     {
         "why": "a barren seal is treated as finished, so the solo extraction pass never starts",
         "file": "control_app.py",
