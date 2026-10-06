@@ -8,6 +8,11 @@ first reads show a zone name the HUD prints. Three reads with none is the launch
 Fewer than that, or no reads at all, is UNKNOWN: a loading frame has no zone yet, and
 an unread window is not called the launcher. A reel he opened is never sealed for this.
 
+#167 - the one-frame relook after a launcher verdict has a camera only on the Mac. A Windows
+console films only inside a reel, so there the wait ends and the reel's reads judge. On a Mac a
+frame that will not come holds the door one more wait, never for ever. These cases run the real
+_launcher_picture on the platform they name, so a Mac-only grabber on Windows turns them red.
+
 RED_PROOF below.
 """
 import ast
@@ -190,6 +195,7 @@ class TheDoorAsksTheFirstReads(unittest.TestCase):
         os.environ["TV_CAPTURE"] = "auto"
         self._saved = {k: getattr(ca, k) for k in self.STUBS}
         self._finders = (tv.find_d2r_window_mac, tv.find_d2r_window_win)
+        self._grab = tv._capture_window_to_file
         self._real_reads = ca.bare_content_reads
         self.addCleanup(self._restore)
         self.now = int(time.time() * 1000)
@@ -227,6 +233,7 @@ class TheDoorAsksTheFirstReads(unittest.TestCase):
         for k, v in self._saved.items():
             setattr(ca, k, v)
         tv.find_d2r_window_mac, tv.find_d2r_window_win = self._finders
+        tv._capture_window_to_file = self._grab
         for k, v in self._env.items():
             if v is None:
                 os.environ.pop(k, None)
@@ -290,7 +297,41 @@ class TheDoorAsksTheFirstReads(unittest.TestCase):
     def _sample(self, n):
         return bytes([n] * (ca._RELOOK_EDGE * ca._RELOOK_EDGE * 3)).hex()
 
+    def on(self, plat):
+        """#167 - this case is a console on `plat`: the real platform branch, never a faked picture."""
+        saved = (sys.platform, ca.IS_WIN)
+
+        def _back():
+            sys.platform, ca.IS_WIN = saved
+        self.addCleanup(_back)
+        sys.platform, ca.IS_WIN = plat, plat.startswith("win")
+
+    def _no_frame(self):
+        """The real _launcher_picture over the grabber's answer on Windows (no Quartz, no sips, no screencapture)."""
+        asked = []
+
+        def _grab(wid, path, timeout=12):
+            asked.append(wid)
+            return False
+        tv._capture_window_to_file = _grab
+        ca._launcher_picture = self._saved["_launcher_picture"]
+        return asked
+
+    def _mac_camera(self):
+        """The real _launcher_picture over a grabber that writes the grey this case shows."""
+        from PIL import Image
+        shots = []
+
+        def _grab(wid, path, timeout=12):
+            shots.append(wid)
+            Image.new("RGB", (64, 40), (self.grey,) * 3).save(path, "JPEG")
+            return True
+        tv._capture_window_to_file = _grab
+        ca._launcher_picture = self._saved["_launcher_picture"]
+        return shots
+
     def test_the_wait_ends_without_a_frame_and_no_reel_opens(self):
+        self.on("darwin")
         self.reads = LAUNCH
         ca.shadow_watch_tick()
         self.reads = None
@@ -303,6 +344,7 @@ class TheDoorAsksTheFirstReads(unittest.TestCase):
         self.assertIn("UNKNOWN", r.get("why") or "")
 
     def test_a_matching_relook_does_not_open_a_reel(self):
+        self.on("darwin")
         self.picture = self._sample(40)
         self.reads = LAUNCH
         ca.shadow_watch_tick()
@@ -318,6 +360,7 @@ class TheDoorAsksTheFirstReads(unittest.TestCase):
         self.assertGreaterEqual(stored.get("launcherUntil"), self.now + ca._BARE_HUD_RELOOK_S * 1000 - 1)
 
     def test_a_changed_picture_opens_one_reel(self):
+        self.on("darwin")
         self.picture = self._sample(40)
         self.reads = LAUNCH
         ca.shadow_watch_tick()
@@ -329,6 +372,115 @@ class TheDoorAsksTheFirstReads(unittest.TestCase):
         self.assertTrue(r.get("started"), r)
         self.assertEqual(len(self.starts), 1)
         self.assertIn("differs from the sealed launcher", r.get("why") or "")
+
+    def test_a_windows_pc_is_filmed_again_after_a_launcher_seal(self):
+        # #167 - the ALT (Boosteroid) and Dean's PC (GeForce NOW). The relook waited for a frame only the Mac can take,
+        # so after the first launcher seal no reel ever opened on either PC.
+        self.on("win32")
+        asked = self._no_frame()
+        self.begin("shadow")
+        self.reads = LAUNCH
+        ca.shadow_watch_tick()
+        self.now += (ca._SHADOW_AWAY_GRACE_S + 1) * 1000
+        r = ca.shadow_watch_tick()
+        self.assertTrue(r.get("cut"), r)
+        self.reads = None            # no reel rolls now, so there are no reads
+        self.now += 20 * 1000
+        r = ca.shadow_watch_tick()
+        self.assertFalse(r.get("started"), "the launcher wait opened a reel early: %r" % r)
+        self.now += ca._BARE_HUD_RELOOK_S * 1000
+        r = ca.shadow_watch_tick()
+        self.assertTrue(r.get("started"), "after the launcher wait this Windows PC opened no reel: %r" % r)
+        self.assertEqual(self.starts, [{"sim": False, "origin": "shadow"}])
+        self.assertIn("films only inside a reel", r.get("why") or "")
+        self.assertEqual(asked, [], "the Mac-only grabber was asked for a frame on Windows")
+        self.assertIsNone(ca._shadow_watch_stored().get("launcherUntil"))
+
+    def test_a_windows_launcher_verdict_keeps_no_picture_and_the_wait_still_ends(self):
+        self.on("win32")
+        asked = self._no_frame()
+        self.reads = LAUNCH
+        r = ca.shadow_watch_tick()
+        self.assertFalse(r.get("started"), r)
+        self.assertNotIn("launcherFrame", ca._shadow_watch_stored())
+        self.reads = None
+        self.now += ca._BARE_HUD_RELOOK_S * 1000
+        r = ca.shadow_watch_tick()
+        self.assertTrue(r.get("started"), r)
+        self.assertEqual(asked, [], "the Mac-only grabber was asked for a frame on Windows")
+
+    def test_a_mac_relook_takes_its_frame_through_the_real_picture(self):
+        # the real _launcher_picture, so a name it cannot reach (the tempfile NameError) is a red here
+        self.on("darwin")
+        shots = self._mac_camera()
+        self.grey = 40
+        self.reads = LAUNCH
+        ca.shadow_watch_tick()
+        self.assertIsInstance(ca._shadow_watch_stored().get("launcherFrame"), str, "the launcher verdict kept no picture")
+        self.reads = None
+        self.now += ca._BARE_HUD_RELOOK_S * 1000
+        r = ca.shadow_watch_tick()
+        self.assertFalse(r.get("started"), r)
+        self.assertIn("matches the sealed launcher", r.get("why") or "")
+        self.grey = 220
+        self.now += ca._BARE_HUD_RELOOK_S * 1000
+        r = ca.shadow_watch_tick()
+        self.assertTrue(r.get("started"), r)
+        self.assertIn("differs from the sealed launcher", r.get("why") or "")
+        self.assertEqual(shots, [BARE[0]] * 3)
+
+    def test_a_frame_that_will_not_come_holds_the_door_one_wait_not_for_ever(self):
+        self.on("darwin")
+        asked = self._no_frame()
+        self.reads = LAUNCH
+        ca.shadow_watch_tick()
+        self.reads = None
+        self.now += ca._BARE_HUD_RELOOK_S * 1000
+        r = ca.shadow_watch_tick()
+        self.assertFalse(r.get("started"), r)
+        self.assertIn("UNKNOWN", r.get("why") or "")
+        self.now += (ca._BARE_HUD_RELOOK_S - 1) * 1000
+        r = ca.shadow_watch_tick()
+        self.assertFalse(r.get("started"), r)
+        self.now += 1000
+        r = ca.shadow_watch_tick()
+        self.assertTrue(r.get("started"), "a frame that never comes held the door for ever: %r" % r)
+        self.assertIn("could not be taken for another %d s" % ca._BARE_HUD_RELOOK_S, r.get("why") or "")
+        self.assertEqual(len(self.starts), 1)
+        self.assertEqual(len(asked), 4, "the Mac grabber was not asked on every look: %r" % asked)
+        self.assertIsNone(ca._shadow_watch_stored().get("launcherUntil"))
+
+    def test_a_look_that_raises_says_so_and_dates_no_look(self):
+        # #167 - the relook's NameError was swallowed by the watch loop every 20 s, so the record said nothing
+        class _Stop(BaseException):
+            pass
+
+        slept = []
+
+        class _Clock(object):
+            def __getattr__(self, n):
+                return getattr(time, n)
+
+            def sleep(self, s):
+                slept.append(s)
+                if len(slept) > 1:
+                    raise _Stop()
+
+        def _boom():
+            raise NameError("name 'tempfile' is not defined")
+        ca._shadow_watch_note(lookedAt=self.now - 5000, why="an earlier look")
+        saved = (ca.time, ca.shadow_watch_tick, ca._lane_tick)
+        ca.time, ca.shadow_watch_tick, ca._lane_tick = _Clock(), _boom, (lambda *a, **k: None)
+        try:
+            with self.assertRaises(_Stop):
+                ca._shadow_watch_loop()
+        finally:
+            ca.time, ca.shadow_watch_tick, ca._lane_tick = saved
+        st = ca._shadow_watch_stored()
+        self.assertIn("raised NameError", st.get("why") or "", st)
+        self.assertIn("UNKNOWN", st.get("why") or "")
+        self.assertEqual(st.get("raisedAt"), self.now)
+        self.assertEqual(st.get("lookedAt"), self.now - 5000, "a look that raised was dated as a look")
 
     def test_a_rolling_shadow_reel_seals_when_the_first_reads_lack_the_hud(self):
         # #148 HIS RULE: the launcher verdict waits the same 3 minutes as a gone game before it seals
@@ -453,6 +605,41 @@ RED_PROOF = [
         "file": "tv_diablo.py",
         "find": "    return str(row.get(\"scene\") or \"\") in _HUD_SCENES\n",
         "replace": "    return bool(row.get(\"scene\"))\n",
+        "matches": 1,
+    },
+    {
+        "why": "#167 - every PC is said to have the Mac's camera, so a Windows relook asks the Mac-only grabber and waits",
+        "file": "control_app.py",
+        "find": "    return sys.platform == \"darwin\"\n",
+        "replace": "    return True\n",
+        "matches": 1,
+    },
+    {
+        "why": "#167 - a Windows relook waits for a frame it can never take, so after a launcher seal no reel opens",
+        "file": "control_app.py",
+        "find": "    if not _launcher_camera_here():\n        # #167 \u2014 on Windows there is no camera outside a reel",
+        "replace": "    if False:\n        # #167 \u2014 on Windows there is no camera outside a reel",
+        "matches": 1,
+    },
+    {
+        "why": "#167 - tempfile is a bare name again, so the Mac relook never takes its frame",
+        "file": "control_app.py",
+        "find": "        import tempfile as _tf\n        fd, path = _tf.mkstemp(",
+        "replace": "        fd, path = tempfile.mkstemp(",
+        "matches": 1,
+    },
+    {
+        "why": "#167 - a frame that will not come holds the door for ever",
+        "file": "control_app.py",
+        "find": "    if isinstance(until, (int, float)) and now >= float(until) + _BARE_HUD_RELOOK_S * 1000:\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "#167 - the watch loop swallows a look that raised, so the record keeps its last why",
+        "file": "control_app.py",
+        "find": "                _shadow_watch_note(raisedAt=_shadow_now_ms(),",
+        "replace": "                (lambda **k: None)(raisedAt=_shadow_now_ms(),",
         "matches": 1,
     },
 ]

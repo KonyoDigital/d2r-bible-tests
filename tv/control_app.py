@@ -32891,16 +32891,31 @@ def _token_of_image(path):
         return None
 
 
+def _launcher_camera_here():
+    """Can this PC take one frame of a window while no reel rolls? -> bool
+
+    #167 — only the Mac can. tv_diablo._capture_window_to_file is Quartz, then sips, then screencapture. Windows films
+    only inside a reel (capture_win.ps1 starts and stops with the agent) and Linux not at all, so there the one-frame
+    relook can never be taken. That is not a frame that failed this once."""
+    return sys.platform == "darwin"
+
+
 def _launcher_picture(pre):
     """One frame of the window this look already found. -> token | None.
 
-    None: the frame was not taken. That is not a picture of the launcher."""
+    None: the frame was not taken. That is not a picture of the launcher. Off a Mac nothing is asked (#167)."""
+    if not _launcher_camera_here():
+        return None
     wid = pre.get("windowId") if isinstance(pre, dict) else None
     if isinstance(wid, bool) or not isinstance(wid, int):
         return None
-    fd, path = tempfile.mkstemp(prefix="tvd-relook-", suffix=".jpg")
-    os.close(fd)
+    path = None
     try:
+        # #167 — tempfile is NOT module-level in this file. The bare name raised NameError out of the tick on every PC,
+        # and the watch loop swallowed it, so after a launcher seal no reel ever opened.
+        import tempfile as _tf
+        fd, path = _tf.mkstemp(prefix="tvd-relook-", suffix=".jpg")
+        os.close(fd)
         import tv_diablo as _tv
         if not _tv._capture_window_to_file(int(wid), path, timeout=3):
             return None
@@ -32908,24 +32923,42 @@ def _launcher_picture(pre):
     except Exception:
         return None
     finally:
-        try:
-            os.remove(path)
-        except Exception:
-            pass
+        if path:
+            try:
+                os.remove(path)
+            except Exception:
+                pass
+
+
+def _relook_unknown(now, pre, cur, what):
+    """A relook that settled nothing. -> a tick dict that holds the door, or a str: why the reel opens.
+
+    #167 — UNKNOWN holds the door for one more wait, never for ever. After that the reel opens and its reads judge."""
+    until = cur.get("launcherUntil")
+    if isinstance(until, (int, float)) and now >= float(until) + _BARE_HUD_RELOOK_S * 1000:
+        return ("%s for another %d s, so this reel's reads judge whether he left the launcher"
+                % (what, _BARE_HUD_RELOOK_S))
+    why = "%s, so whether he left the launcher is UNKNOWN" % what
+    _shadow_watch_note(lookedAt=now, why=why)
+    return {"ok": True, "seen": False, "started": False, "why": why, "pre": pre}
 
 
 def _bare_relook_one_frame(now, pre, cur):
-    """The wait after a launcher verdict is over. -> a tick dict, or None when a reel should open.
+    """The wait after a launcher verdict is over. -> a tick dict that holds the door, or a str: why a reel opens.
 
-    None means the picture differs, so the caller opens the reel. Every other answer opens nothing
+    A str means the caller opens the reel: the picture differs, or no frame can settle it. Every dict opens nothing
     and does not call the picture the launcher when the frame was not taken."""
+    if not _launcher_camera_here():
+        # #167 — on Windows there is no camera outside a reel, so this frame can never be taken. Waiting for it held
+        # the door for ever: after the first launcher seal the ALT and Dean's PC were never filmed. There the reel is
+        # the camera, and its reads judge, as they did before the relook was one frame.
+        return ("this PC films only inside a reel, so the relook cannot be one frame; "
+                "this reel's reads judge whether he left the launcher")
     token = _launcher_picture(pre)
     held = cur.get("launcherFrame")
     held = held if isinstance(held, str) and held else None
     if token is None:
-        why = "the one-frame relook could not be taken, so whether he left the launcher is UNKNOWN"
-        _shadow_watch_note(lookedAt=now, why=why)
-        return {"ok": True, "seen": False, "started": False, "why": why, "pre": pre}
+        return _relook_unknown(now, pre, cur, "the one-frame relook could not be taken")
     if held is None:
         why = ("the one-frame relook is the first picture kept of this launcher, so no reel opens; "
                "the next look is in %d s" % _BARE_HUD_RELOOK_S)
@@ -32940,10 +32973,8 @@ def _bare_relook_one_frame(now, pre, cur):
                            launcherUntil=now + _BARE_HUD_RELOOK_S * 1000)
         return {"ok": True, "seen": False, "started": False, "why": why, "pre": pre}
     if same is False:
-        return None
-    why = "the one-frame relook could not be compared with the sealed launcher, so whether he left it is UNKNOWN"
-    _shadow_watch_note(lookedAt=now, why=why)
-    return {"ok": True, "seen": False, "started": False, "why": why, "pre": pre}
+        return "the one-frame relook differs from the sealed launcher"
+    return _relook_unknown(now, pre, cur, "the one-frame relook could not be compared with the sealed launcher")
 
 
 def _seal_bare_launcher(now, held_s=None):
@@ -33165,14 +33196,14 @@ def shadow_watch_tick():
                "looking again after the wait")
         _shadow_watch_note(lookedAt=now, why=why)
         return {"ok": True, "seen": False, "started": False, "why": why, "pre": pre}
-    _relook_differ = False
+    _relook_opens = None   # why the relook opens this reel, when it does (#167: or why no frame can settle it)
     if hud is None and tv_label_is_bare(pre) and _bare_relook_open(now):
         _cur_rl = _shadow_watch_stored() or {}
         if isinstance(_cur_rl.get("launcherUntil"), (int, float)):
             _held_back = _bare_relook_one_frame(now, pre, _cur_rl)
-            if _held_back is not None:
+            if isinstance(_held_back, dict):
                 return _held_back
-            _relook_differ = True
+            _relook_opens = str(_held_back)
     r = start_agent(sim=False, origin="shadow")   # v2362 — say who asked
     ok = bool(isinstance(r, dict) and r.get("ok"))
     # v2687 — shadow no longer credits its own open: start_agent() now does it for every door, and
@@ -33187,8 +33218,8 @@ def shadow_watch_tick():
     cur = shadow_watch_state()
     if ok and hud is True:
         _why_ok = "started a reel — the first reads show a D2R HUD word"
-    elif ok and _relook_differ:
-        _why_ok = "started a reel — the one-frame relook differs from the sealed launcher"
+    elif ok and _relook_opens:
+        _why_ok = "started a reel — " + _relook_opens
     elif ok and tv_label_is_bare(pre):
         _why_ok = "started a reel — Boosteroid is open and the first reads are not in yet"
     elif ok:
@@ -33203,8 +33234,8 @@ def shadow_watch_tick():
     _shadow_watch_note(lookedAt=now, sawAt=now,
                        startedAt=(now if ok else cur.get("startedAt")),
                        starts=(int(cur.get("starts") or 0) + (1 if ok else 0)),
-                       launcherUntil=(None if hud is True or (_relook_differ and ok) else cur.get("launcherUntil")),
-                       **({"launcherFrame": None} if hud is True or (_relook_differ and ok) else {}),
+                       launcherUntil=(None if hud is True or (_relook_opens and ok) else cur.get("launcherUntil")),
+                       **({"launcherFrame": None} if hud is True or (_relook_opens and ok) else {}),
                        opensHour=_hk, opensThisHour=_opens,
                        why=_why_ok)
     if ok:
@@ -33257,8 +33288,15 @@ def _shadow_watch_loop():
                 if not (isinstance(r, dict) and r.get("rotated")):
                     break
                 time.sleep(_SHADOW_ROTATE_RELOOK_S)   # the sealed reel's successor, seconds later
-        except Exception:
-            pass
+        except Exception as e:
+            # #167 — a look that RAISED is not a quiet look. A NameError in the launcher relook was swallowed here every
+            # 20 s, so the record kept its last why and no reel ever opened. lookedAt is not moved: nothing was looked at.
+            try:
+                _shadow_watch_note(raisedAt=_shadow_now_ms(),
+                                   why=("the watcher's look raised %s: %s - nothing was looked at, so whether a reel "
+                                        "is owed is UNKNOWN" % (type(e).__name__, str(e)[:120])))
+            except Exception:
+                pass
 
 
 #: v3323 (#28) — the feeder's lane state, in the SHARED vocabulary (on / worked / lastTs / owed).
