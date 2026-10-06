@@ -30870,6 +30870,30 @@ window._jewelTipHtml = _jewelTipHtml;
     var tip = document.getElementById('arttip');
     if (!tip){ tip = document.createElement('div'); tip.id='arttip'; tip.innerHTML='<img alt=""><div class="att-name"></div><div class="att-desc"></div>'; document.body.appendChild(tip); }
     if (!tip.querySelector('.att-desc')){ var dd=document.createElement('div'); dd.className='att-desc'; tip.appendChild(dd); }
+    /* REG-1871 — EVERY TITLE ABOVE A HOVERED HOST IS BORROWED FOR THE SAME HOVER, by every lane on this board. Taking
+       only the host's own title left its nearest titled ancestor as the one the browser asks, and the grey box opened
+       over the skinned one: the vault cell's "Laying of Hands — 2×2 = 4 cells" over the glove's card, because the card
+       opens for the art INSIDE the cell. One pair of helpers for this card and the prose lane (published, for a lane in
+       another script), never a copy each. Parked in data-tip-held like a host's own title; given back on release. */
+    function _tipBorrowAbove(node, into){
+      for (var p = node && node.parentElement; p && p !== document.body && p !== document.documentElement; p = p.parentElement){
+        var t = p.getAttribute('title');
+        if (t === null) continue;
+        into.push([p, t]);
+        try { p.setAttribute('data-tip-held', t); p.removeAttribute('title'); } catch(e){}
+      }
+      return into;
+    }
+    function _tipGiveBack(list){
+      (list || []).forEach(function(h){
+        try {
+          if (!h[0].hasAttribute('title')) h[0].setAttribute('title', h[1]);
+          h[0].removeAttribute('data-tip-held');
+        } catch(e){}
+      });
+      if (list) list.length = 0;
+    }
+    try { window._tipBorrowAbove = _tipBorrowAbove; window._tipGiveBack = _tipGiveBack; } catch(e){}
     var img = tip.querySelector('img'), lab = tip.querySelector('.att-name'), desc = tip.querySelector('.att-desc'), cur = null;
       /* ══ v2119 — AN ANCHOR CAN CARRY BOTH, AND HE GETS BOTH ═══════════════════════════════════
          Konyo, on the console: "i want hdart only not double one is rendering a regular OS message
@@ -30880,7 +30904,7 @@ window._jewelTipHtml = _jewelTipHtml;
          Borrowed, never destroyed: parked in data-tip-held and given back on every exit — the four
          clear paths below (left the anchor, mouseout, left the document, click) all route through
          _artFree, so there is no path that hides the card and keeps the title. */
-      var _artHeld = null;
+      var _artHeld = null, _artAbove = [];
       /* v2132 — and the borrowed sentence becomes the card's FOOTER. Written on EVERY hold, and
          CLEARED when there is nothing to say — the art lane never wipes children it did not create,
          so a footer left from the previous card would otherwise ride along onto an item that has no
@@ -30900,20 +30924,26 @@ window._jewelTipHtml = _jewelTipHtml;
       function _artHold(el){
         try {
           if (!el){ _artFoot(''); return; }
+          if (_artHeld && _artHeld !== el) _artFree();
+          if (_artHeld !== el){ _artHeld = el; _tipBorrowAbove(el, _artAbove); }   // REG-1871 — and every title above it
           var t = el.getAttribute('title');
           if (t === null) t = el.getAttribute('data-tip-held');
-          if (!t || !t.trim()){ _artFoot(''); return; }
-          if (_artHeld && _artHeld !== el) _artFree();
+          if (!t || !t.trim()){
+            /* the anchor says nothing itself: an item-card anchor ABOVE it speaks for the same item (the vault cell's
+               size line), so its borrowed sentence is the footer rather than lost for the hover */
+            var _up = _artAbove.filter(function(h){ try { return h[0].matches(ARTTIP_SEL); } catch(e){ return false; } })[0];
+            _artFoot(_up ? _up[1] : ''); return;
+          }
           if (el.hasAttribute('title')){
             el.setAttribute('data-tip-held', t);
             el.removeAttribute('title');
           }
-          _artHeld = el;
           _artFoot(t);
         } catch(e){}
       }
       function _artFree(){
         try { _artFoot(''); } catch(e){}
+        try { _tipGiveBack(_artAbove); } catch(e){}
         try {
           var el = _artHeld; _artHeld = null;
           if (!el) return;
@@ -31176,23 +31206,8 @@ window._jewelTipHtml = _jewelTipHtml;
          nearest titled ancestor as the one the browser asks, so the grey box opened anyway (16 nested pairs in this
          page's static markup alone). Borrowed for the same hover, parked in data-tip-held, given back by release. */
       var above = [];
-      function holdAbove(node){
-        for (var p = node && node.parentElement; p && p !== document.body && p !== document.documentElement; p = p.parentElement){
-          var t = p.getAttribute('title');
-          if (t === null) continue;
-          above.push([p, t]);
-          try { p.setAttribute('data-tip-held', t); p.removeAttribute('title'); } catch(e){}
-        }
-      }
-      function freeAbove(){
-        above.forEach(function(h){
-          try {
-            if (!h[0].hasAttribute('title')) h[0].setAttribute('title', h[1]);
-            h[0].removeAttribute('data-tip-held');
-          } catch(e){}
-        });
-        above = [];
-      }
+      function holdAbove(node){ _tipBorrowAbove(node, above); }
+      function freeAbove(){ _tipGiveBack(above); }
       function owns(){ return tip.classList.contains('tip-say'); }
       function release(){
         if (watch){ try { watch.disconnect(); } catch(e){} watch = null; }

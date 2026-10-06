@@ -26118,10 +26118,12 @@ class TestReg1871ATitleAboveTheHostIsBorrowedToo(unittest.TestCase):
 
     HARNESS = r"""
 function El(tag, attrs){ this.tagName = tag; this.attrs = {}; for (var k in (attrs || {})) this.attrs[k] = String(attrs[k]);
-  this.parentElement = null; this.isConnected = true; this.style = {}; var self = this, cls = {};
+  this.parentElement = null; this.isConnected = true; this.style = { removeProperty: function(){} }; var self = this, cls = {};
   this.classList = { add: function(){ for (var i = 0; i < arguments.length; i++) cls[arguments[i]] = 1; },
                      remove: function(){ for (var i = 0; i < arguments.length; i++) delete cls[arguments[i]]; },
-                     contains: function(c){ return !!cls[c]; } }; }
+                     toggle: function(c, on){ if (on === undefined ? !cls[c] : on) cls[c] = 1; else delete cls[c]; },
+                     contains: function(c){ return !!cls[c]; } };
+  String(this.attrs['class'] || '').split(/\s+/).forEach(function(c){ if (c) cls[c] = 1; }); }
 El.prototype.getAttribute = function(k){ return (k in this.attrs) ? this.attrs[k] : null; };
 El.prototype.setAttribute = function(k, v){ this.attrs[k] = String(v); };
 El.prototype.removeAttribute = function(k){ delete this.attrs[k]; };
@@ -26252,6 +26254,10 @@ OUT.during = titles(c);""")
         """The count, before and after: each static titled element inside another titled one, rebuilt as its real
         chain of titled ancestors and hovered."""
         pairs = self._nested_pairs(self.ui)
+        # GrokBot tick 371 named this one: "GROK ONLY" (#btn-g5-only) inside the titled #g5-eyes-card
+        self.assertTrue(any(pr[-1][1].startswith("Grok reads every frame")
+                            and any(t.startswith("Optional Grok vision lane") for _, t in pr[:-1]) for pr in pairs),
+                        "the GROK ONLY button inside the eyes card is not among the pairs this drives")
         self.assertGreaterEqual(len(pairs), 7, "the static nested pairs were not found — this grades nothing")
         o = self._run("""
 var pairs = %s; OUT.left = [];
@@ -26278,6 +26284,10 @@ OUT.n = pairs.length;""" % json.dumps(pairs))
         self.assertEqual(board.count(start), 1, "the board's prose lane moved")
         i = board.index(start)
         lane = board[i:board.index("\n    })();", i) + len("\n    })();")]
+        # the lane borrows through arttipInit's shared pair (REG-1871): lift the SHIPPED helpers, never a copy
+        h0 = board.index("    function _tipBorrowAbove(node, into){\n")
+        h1 = board.index("\n    }\n", board.index("    function _tipGiveBack(list){\n", h0)) + len("\n    }\n")
+        lane = board[h0:h1] + lane
         prog = self.HARNESS + r"""
 El.prototype.closest = function(sel){
   for (var e = this; e && e !== BODY && e !== HTML; e = e.parentElement)
@@ -26371,7 +26381,9 @@ PRED[TILE] = function(e){ return !!e.tile; };
 El.prototype.closest = function(sel){ var f = PRED[sel]; if (!f) throw new Error('unmapped selector: ' + sel);
   for (var e = this; e && e !== HTML; e = e.parentElement) if (f(e)) return e; return null; };
 El.prototype.contains = function(o){ for (var e = o; e; e = e.parentElement) if (e === this) return true; return false; };
-El.prototype.matches = function(sel){ return /^(iframe|html|body)$/.test(this.tagName); };
+El.prototype.matches = function(sel){
+  if (sel === 'iframe,html,body') return /^(iframe|html|body)$/.test(this.tagName);
+  var f = PRED[sel]; if (!f) throw new Error('unmapped selector: ' + sel); return f(this); };
 El.prototype.getBoundingClientRect = function(){ return { left: 0, top: 0, right: 100, bottom: 20, width: 100, height: 20 }; };
 El.prototype.addEventListener = function(){};
 var STUB = {};
@@ -26386,6 +26398,7 @@ document.createElement = function(t){ var e = new El(t); MADE.push(e); return e;
 window.addEventListener = function(){};
 function over(t){ (LIS.mouseover || []).forEach(function(f){ try { f({ target: t, buttons: 0 }); } catch (e) { OUT_ERR.push(String(e && e.message)); } }); }
 function esc_(){ (LIS.keydown || []).forEach(function(f){ try { f({ key: 'Escape' }); } catch (e) {} }); }
+function leave(){ (LIS.mouseleave || []).forEach(function(f){ try { f({}); } catch (e) { OUT_ERR.push(String(e && e.message)); } }); }
 var OUT_ERR = [];
 """
 
@@ -26445,6 +26458,34 @@ OUT.after = titles([tile, ev]);""")
         self.assertEqual(o["held"], "no provenance recorded — nothing says who or what filed this")
         self.assertEqual(o["after"], ["inventory 2,3 — drag to move",
                                       "no provenance recorded — nothing says who or what filed this"])
+
+    def test_the_vault_cells_size_line_is_held_over_the_glove_card(self):
+        """GrokBot tick 371: the native "— 2×2 = 4 cells" strip over the Laying of Hands card. The vault cell is an
+        item-card anchor with that title, and the card opens for the glove's ART inside it — a nearer anchor — so the
+        card held only the art's title and the cell's opened natively. The card now borrows every title above its
+        anchor, and the cell's size line, an anchor above it, becomes the card's footer instead of a second box."""
+        o = self._run(r"""
+artUrl = function(){ return 'art/laying_of_hands.png'; };
+_arttipResolve = function(n){ return { artName: n, rich: true, desc: '<b>' + n + '</b> · Bramble Mitts' }; };
+var cell = new El('div', {'class': 'vm-cell', 'data-vault-item': 'Laying of Hands', 'data-arttip': 'Laying of Hands',
+                          title: 'Laying of Hands — 2×2 = 4 cells'}); cell.art = true; cell.parentElement = BODY;
+var box = new El('span', {'class': 'vm-cell-art'}); box.parentElement = cell;
+var wrap = new El('span', {'class': 'd2art-wrap lg', role: 'img', 'aria-label': 'Laying of Hands'}); wrap.art = true; wrap.parentElement = box;
+var img = new El('img', {}); img.parentElement = wrap;
+over(img);
+OUT.on = TIP.classList.contains('on');
+OUT.during = titles([cell, box, wrap, img]); OUT.held = cell.getAttribute('data-tip-held');
+OUT.foot = (STUB['.att-go'] || {}).textContent || '';
+leave();
+OUT.after = cell.getAttribute('title'); OUT.heldAfter = cell.getAttribute('data-tip-held');""")
+        self.assertTrue(o["on"], "the glove card did not open — the case this grades never happened")
+        self.assertEqual(o["during"], [None, None, None, None],
+                         "the cell's size line stayed a title, so the grey strip opens over the glove card: %r" % o["during"])
+        self.assertEqual(o["held"], "Laying of Hands — 2×2 = 4 cells")
+        self.assertEqual(o["foot"], "Laying of Hands — 2×2 = 4 cells",
+                         "the cell's size line was hidden for the hover instead of carried by the card")
+        self.assertEqual((o["after"], o["heldAfter"]), ("Laying of Hands — 2×2 = 4 cells", None),
+                         "the cell did not get its title back when the pointer left")
 
     def test_every_static_titled_control_inside_an_item_card_anchor_is_covered(self):
         """The count, before and after: each titled element in the board's static markup that sits strictly inside an
@@ -46827,6 +46868,28 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "    if (own && own !== a && a.contains(own)) return null;\n    return a;\n",
         "replace": "    return a;\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1871 - the item card holds only its anchor's title, so the vault cell's size line opens the grey "
+               "strip over the glove card",
+        "file": "bible.html",
+        "find": "          if (_artHeld !== el){ _artHeld = el; _tipBorrowAbove(el, _artAbove); }",
+        "replace": "          if (_artHeld !== el){ _artHeld = el; }",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1871 - the cell's size line is borrowed and shown nowhere, so the hover hides it",
+        "file": "bible.html",
+        "find": "            _artFoot(_up ? _up[1] : ''); return;",
+        "replace": "            _artFoot(''); return;",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1871 - the item card keeps the titles it borrowed above its anchor after the pointer leaves",
+        "file": "bible.html",
+        "find": "        try { _tipGiveBack(_artAbove); } catch(e){}\n",
+        "replace": "",
         "matches": 1,
     },
 ]
