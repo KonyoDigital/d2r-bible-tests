@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3598** | `(this commit)` | v3598 — the sandbox copy no longer carries heart2 own cache or the reel-seed archive, so a proof can run on his Mac and the river unlocks - a refused copy says why instead of waiting 3 h - STATION names the locked sweep |
+| **v3599** | `(this commit)` | v3599 — the lattice-refusal law reaches the path it guards again on a generated frame, so no instrument is blind and the deleter may release on his Mac - and seven vault and crafted fixes from a cross-family look |
+| **v3598** | `6907c2ef` | v3598 — the sandbox copy no longer carries heart2 own cache or the reel-seed archive, so a proof can run on his Mac and the river unlocks - a refused copy says why instead of waiting 3 h - STATION names the locked sweep |
 | **v3597** | `e8a5d8fe` | v3597 — CI-red fixes for v3596 (pinned reel id, four source windows, a scratch dir) and a ci/* push is graded on GitHub, not on his Mac |
 | **v3596** | `a075e589` | v3596 — Grok 63 commits audited and fixed - Windows films after a launcher seal, the river alarm counts every reel, the drain runs beside the shadow reader at 20 per pass, one journal reader, the vault hand-add files into owned, the crafted editor is fixed |
 | **v3595** | `83413262` | v3595 — the build stash opens Inventory, Personal and Shared. HEART: test_the_build_stash_is_the_mule_stash_view |
