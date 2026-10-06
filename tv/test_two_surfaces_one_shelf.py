@@ -445,14 +445,43 @@ class EveryReelOnDiskIsAccountedFor(unittest.TestCase):
     def test_the_census_TRAVELS_on_the_river_payload(self):
         """⚠ v3279 — the doctor supervises the census, but the confusion he reported happens on the
         SHELF, where a count is on screen and its context is not. A census only the doctor can read
-        cannot answer the question at the moment it is asked. [[the-unjoined-end]]"""
-        src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
-        i = src.find('"mouth": river_mouth(),')
-        self.assertGreater(i, -1, "the river payload's mouth field is gone — anchor lost")
-        blk = src[i:i + 900]
-        self.assertIn('"population": reel_census()', blk,
-                      "the river payload does not carry the population, so the shelf cannot say "
-                      "why the disk holds more than he can see")
+        cannot answer the question at the moment it is asked. [[the-unjoined-end]]
+
+        ⚠ 2026-10-06 — DRIVEN, NOT PINNED. This read a 900-character window after the `mouth` line, and
+        REG-1813's `riverKept` field pushed `"population"` out of it while the census still travelled.
+        The route is driven now: /api/river through the real Handler over a scratch shelf, and
+        `population` must be reel_census()'s own answer. [[source-reading-guard]]"""
+        import shutil
+        import tempfile
+        from unittest import mock
+        import control_app as ca
+        import river_stamp as RVS
+        d = tempfile.mkdtemp(prefix="census_travels_")
+        self.addCleanup(shutil.rmtree, d, True)
+        said = {"ok": True, "onDisk": 20, "his": 8, "fixtures": 8, "owed": 3, "releasable": 1, "sums": True,
+                "why": "20 reel(s) on disk = 8 he sees + 8 hidden fixture(s) + 3 still owed + 1 the prune may release"}
+        h = ca.Handler.__new__(ca.Handler)
+        h.path = "/api/river"
+        out = []
+        h._json = lambda code, obj: out.append((code, obj))
+        with mock.patch.object(ca, "HIST_DIR", d), \
+                mock.patch.object(ca, "_RIVER_LAST", {"good": None, "fail": None}), \
+                mock.patch.object(RVS, "census", lambda *a, **k: {"ok": True, "counts": {}, "visits": {}, "reels": 0}), \
+                mock.patch.object(RVS, "stations", lambda: (("INTAKE", "ROUTED"), "")), \
+                mock.patch.object(RVS, "rows", lambda *a, **k: {"ok": True, "rows": [], "n": 0}), \
+                mock.patch.object(RL, "lanes", lambda *a, **k: {"ok": True, "lanes": []}), \
+                mock.patch.object(ca, "shelf_hidden_reels", lambda *a, **k: ([], "")), \
+                mock.patch.object(ca, "river_mouth", lambda *a, **k: {}), \
+                mock.patch.object(ca, "reel_census", lambda *a, **k: dict(said)), \
+                mock.patch.object(ca, "_river_labels", lambda: {}), \
+                mock.patch.object(ca, "_river_vocab_facts", lambda: {}):
+            h.do_GET()
+        self.assertEqual(len(out), 1, "premise: the river route answered once")
+        code, body = out[0]
+        self.assertTrue(body.get("ok"), "premise: the stubbed river computed: %r" % body.get("why"))
+        self.assertEqual(body.get("population"), said,
+                         "the river payload does not carry the population, so the shelf cannot say "
+                         "why the disk holds more than he can see")
 
     def test_the_doctor_row_is_REGISTERED_and_reds_on_a_broken_sum(self):
         """⚠ a census nobody reads is [[the-unjoined-end]]. And it must go red on the one thing
@@ -474,6 +503,13 @@ class EveryReelOnDiskIsAccountedFor(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "v3279 - the river payload stops carrying the census, so the shelf cannot say why the disk holds more than he sees",
+        "file": "control_app.py",
+        "find": "                    \"population\": reel_census(),\n",
+        "replace": "                    \"population\": None,\n",
+        "matches": 1,
+    },
     {
         "why": "removing the report-level filter restores the strip that printed 24 over a shelf "
                "drawing 16",
