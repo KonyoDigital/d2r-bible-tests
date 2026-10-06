@@ -41,6 +41,11 @@ MAX_BUSY_TO_START = 45.0
 #: A proof that ended without making the census current is not retried for this long - a failing prover
 #: must not become a machine that proves in a loop all day.
 RETRY_AFTER_FAIL_S = 3 * 3600
+#: REG-1861 — a proof that ended because no lane could build a sandbox waits this long, not RETRY_AFTER_FAIL_S: the
+#: cause is usually the copier's ceiling or the disk, both fixable within minutes. Bounded, never the 10 s rescue
+#: cadence: check() can say yes while copytree still fails (an unreadable file), and that must not respawn a
+#: ~220 MB sandbox every ten seconds on a PC with no RAM to spare.
+RETRY_AFTER_SANDBOX_S = 15 * 60
 #: Windows priority class for the prover: BELOW_NORMAL, so his game and the console always come first.
 _BELOW_NORMAL = 0x00004000
 _CREATE_NO_WINDOW = 0x08000000
@@ -318,7 +323,7 @@ NO_SANDBOX_MARK = "no lane could build a sandbox"
 
 
 def sandbox_ready():
-    """Can a proof copy this repo into a sandbox right now? -> (True, "") | (False, why) | None (UNKNOWN)
+    """Can a proof copy this repo into a sandbox right now? -> (True, "") | (False, why) | (None, why) UNKNOWN
 
     REG-1845 — asked of safe_copy's own refusal rule (check(), the one copy() applies before it writes), toward the
     temp volume heart2 builds its sandboxes on. MEASURED on his Mac 2026-10-06: every lane of every proof was refused
@@ -328,22 +333,31 @@ def sandbox_ready():
         import tempfile
         import safe_copy as _sc
         rc, why = _sc.check(REPO, os.path.join(tempfile.gettempdir(), "heart2.preflight", "repo"))
-    except Exception:
-        return None
+    except Exception as e:
+        # REG-1861 - UNKNOWN, and a proof never starts on it: heart2 would fail to build its sandbox the same way
+        return None, "the copier could not be asked (%s)" % type(e).__name__
     return (True, "") if rc == 0 else (False, str(why or "safe_copy refused with no reason"))
 
 
-def _log_says_no_sandbox(log_path):
-    """Did the LAST proof in this log end because no lane could build a sandbox? -> bool. Never raises."""
+def _log_says_no_sandbox(log_path, start=None):
+    """Did THIS run of the prover end because no lane could build a sandbox? -> bool. Never raises.
+
+    REG-1862 (the v3598 cross-family eye) - it read the last 8 KB and took the mark anywhere after the last banner, so
+    a prover that died before its banner (an import error's traceback) after an older run's mark was booked as a
+    sandbox refusal. `start` is the log's size when this run was spawned: only the bytes this run wrote are read, and
+    the mark must be their last non-empty line. A run that wrote nothing, or anything after the mark, is not this.
+    `start` None (a record from before it was kept) reads the tail with the same last-line rule."""
     try:
         with io.open(log_path, "rb") as fh:
             fh.seek(0, 2)
-            fh.seek(max(0, fh.tell() - 8192))
-            tail = fh.read().decode("utf-8", "replace")
+            end = fh.tell()
+            begin = start if isinstance(start, int) and not isinstance(start, bool) and 0 <= start <= end else None
+            fh.seek(max(0 if begin is None else begin, end - 65536))
+            text = fh.read().decode("utf-8", "replace")
     except Exception:
         return False
-    last = tail.rfind("gate(s) in scope")
-    return NO_SANDBOX_MARK in (tail[last:] if last >= 0 else tail)
+    lines = [ln for ln in text.splitlines() if ln.strip()]
+    return bool(lines) and NO_SANDBOX_MARK in lines[-1]
 
 
 def stand_aside(playing, free):
@@ -647,11 +661,19 @@ def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=Non
         return {"start": False, "key": "no-sandbox",
                 "why": "a proof cannot build its sandbox here - %s. Asked again every tick; a proof starts the tick "
                        "it can" % str(sandbox[1] if len(sandbox) > 1 else "")[:220]}
+    # REG-1861 - and a preflight that could not answer is UNKNOWN, never a yes
+    if isinstance(sandbox, tuple) and sandbox and sandbox[0] is None:
+        return {"start": False, "key": "sandbox-unknown",
+                "why": "whether a proof can build its sandbox here is UNKNOWN - %s - so none is started on a guess"
+                       % str(sandbox[1] if len(sandbox) > 1 else "")[:220]}
+    # REG-1861 - ONE backoff, two lengths: a sandbox-class exit waits RETRY_AFTER_SANDBOX_S, every other kind 3 h
+    _wait = RETRY_AFTER_SANDBOX_S if mem.get("lastFailKind") == "sandbox" else RETRY_AFTER_FAIL_S
     if last_fail is not None and mem.get("lastFailFingerprint") == (census or {}).get("fingerprint") \
-            and mem.get("lastFailKind") != "sandbox" and now_s - last_fail < RETRY_AFTER_FAIL_S:
+            and now_s - last_fail < _wait:
         return {"start": False, "key": "backoff",
-                "why": "the last proof for these gates ended without a census (%s); retrying after %d h"
-                       % (mem.get("lastFailWhy") or "?", RETRY_AFTER_FAIL_S // 3600)}
+                "why": "the last proof for these gates ended without a census (%s); retrying after %s"
+                       % (mem.get("lastFailWhy") or "?",
+                          ("%d min" % (_wait // 60)) if _wait < 3600 else ("%d h" % (_wait // 3600)))}
     if playing is None:
         return {"start": False, "key": "play-unknown",
                 "why": "whether he is playing here could not be asked - a proof is not started on a guess"}
@@ -982,7 +1004,7 @@ def _ask(v, probe):
 
 def _forget(mem):
     """The proof this lane was tracking is over (ended, or stood aside and gone): drop every trace of it."""
-    for k in ("pid", "pidBirth", "startedFor", "finishingSince", "standingAside", "sliceGates"):
+    for k in ("pid", "pidBirth", "startedFor", "finishingSince", "standingAside", "sliceGates", "logFrom"):
         mem.pop(k, None)
     _STARTED.update(pid=None, birth=None)
 
@@ -1083,7 +1105,7 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
             # the new gates are simply unproved, and are proved next, without the backoff.
             mem["lastMoved"] = "the gates changed during the proof (%s -> %s)" % (
                 str(mem.get("startedFor"))[:8], str(census.get("fingerprint"))[:8])
-        elif _log_says_no_sandbox(_store_path(path) + ".log"):
+        elif _log_says_no_sandbox(_store_path(path) + ".log", mem.get("logFrom")):
             # REG-1845 — not a failed proof: no lane could copy the repo. Booked with its kind, so decide() asks the
             # copier again every tick instead of waiting 3 h for a copy that would be refused the same way.
             mem.update(lastFailAt=now_s, lastFailFingerprint=census.get("fingerprint"), lastFailKind="sandbox",
@@ -1130,6 +1152,10 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
             if spawn_fn is None:                           # a real start, not a law's recording spawn
                 mem["deps"] = ensure_prover_deps()
             log_path = _store_path(path) + ".log"
+            try:
+                mem["logFrom"] = os.path.getsize(log_path)    # REG-1862 - this run's output starts here
+            except OSError:
+                mem["logFrom"] = 0
             _owed_g = census.get("owedGates")
             _costs = _gate_costs() if isinstance(_owed_g, list) and _owed_g else None
             # REG-1674 - a slice whose prover went silent is proved AFTER every other owed gate (for these gates)
@@ -1153,7 +1179,9 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
             mem["runs"] = _int(mem.get("runs")) + 1
         except Exception as e:
             d = {"start": False, "key": "spawn-failed", "why": "the prover would not start (%s)" % type(e).__name__}
-            mem.update(lastFailAt=now_s, lastFailFingerprint=census.get("fingerprint"), lastFailWhy=d["why"])
+            mem.update(lastFailAt=now_s, lastFailFingerprint=census.get("fingerprint"), lastFailWhy=d["why"],
+                       lastFailKind="spawn")                # REG-1861 - never left as an older run's kind
+            mem.pop("logFrom", None)
     mem.update(lastKey=d["key"], lastWhy=d["why"], lastTick=now_ms)
     try:
         save(mem, path)

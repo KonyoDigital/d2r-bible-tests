@@ -158,21 +158,22 @@ class TheTickEndToEnd(unittest.TestCase):
         self.assertIn("420.4 MB", r["say"], "the refusal was not said in the copier's own words")
         mem = json.load(io.open(self.path, encoding="utf-8"))
         self.assertEqual(mem.get("lastFailKind"), "sandbox", mem)
-        r = SP.tick(now_s=2200.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path,
-                    spawn_fn=self._spawn, env={}, sandbox=(True, ""))
+        # REG-1861 - fixed copy: the bounded sandbox backoff, then a start - never the 3 h one
+        r = SP.tick(now_s=1600.0 + SP.RETRY_AFTER_SANDBOX_S + 5, busy=3.0, tree=INSTALLED, census=STALE,
+                    path=self.path, spawn_fn=self._spawn, env={}, sandbox=(True, ""))
         self.assertEqual(len(self.spawned), 2, "the copy was fixed and the lane still waited out the 3 h backoff")
         self.assertEqual(r["key"], "start", r)
 
     def test_a_record_from_before_the_kind_is_read_from_its_log(self):
         """His Mac's own store: lastFailWhy "census still stale after the proof exited", no kind, and a log whose
-        last proof built no sandbox. Once the copy is possible it starts, not after 3 h."""
+        last proof built no sandbox. Once the copy is possible it starts after the bounded sandbox backoff, not 3 h."""
         mem = {"lastFailAt": 1000.0, "lastFailFingerprint": STALE.get("fingerprint"),
                "lastFailWhy": "census still stale after the proof exited"}
         with io.open(self.path, "w", encoding="utf-8") as fh:
             json.dump(mem, fh)
         self._log("  40 gate(s) in scope", "  no lane could build a sandbox — nothing was proven")
-        r = SP.tick(now_s=1600.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path,
-                    spawn_fn=self._spawn, env={}, sandbox=(True, ""))
+        r = SP.tick(now_s=1000.0 + SP.RETRY_AFTER_SANDBOX_S + 5, busy=3.0, tree=INSTALLED, census=STALE,
+                    path=self.path, spawn_fn=self._spawn, env={}, sandbox=(True, ""))
         self.assertEqual(r["key"], "start", r)
         self.assertEqual(len(self.spawned), 1)
 
@@ -183,6 +184,104 @@ class TheTickEndToEnd(unittest.TestCase):
         r = SP.tick(now_s=1600.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path,
                     spawn_fn=self._spawn, env={}, sandbox=(True, ""))
         self.assertEqual(r["key"], "backoff", r)
+        self.assertEqual(json.load(io.open(self.path, encoding="utf-8")).get("lastFailKind"), "proof")
+
+    def _sandbox_failure(self, now_s=1600.0):
+        """One proof started and ended with no lane able to build a sandbox; the lane books it at `now_s`."""
+        SP.tick(now_s=now_s - 600.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path,
+                spawn_fn=self._spawn, env={}, sandbox=(True, ""))
+        self._log("  40 gate(s) in scope", "  no lane could build a sandbox — nothing was proven")
+        r = SP.tick(now_s=now_s, busy=3.0, tree=INSTALLED, census=STALE, path=self.path,
+                    spawn_fn=self._spawn, env={}, sandbox=(False, "REFUSED — fixture"))
+        self.assertEqual(json.load(io.open(self.path, encoding="utf-8")).get("lastFailKind"), "sandbox", r)
+        return len(self.spawned)
+
+    def test_an_unknown_preflight_never_starts_a_proof(self):
+        """REG-1861 (H1.1, the v3598 cross-family eye) - check() or the safe_copy import raising made the preflight
+        None, the sandbox-class booking skipped every backoff, and the 10 s rescue guard respawned a proof that failed
+        the same way. A preflight that could not answer is UNKNOWN: nothing starts, and the lane says so."""
+        n = self._sandbox_failure()
+        r = SP.tick(now_s=1610.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path,
+                    spawn_fn=self._spawn, env={}, sandbox=(None, "safe_copy would not import (ImportError)"))
+        self.assertEqual(len(self.spawned), n, "a proof started on a preflight nobody could answer")
+        self.assertEqual(r["key"], "sandbox-unknown", r)
+        self.assertIn("ImportError", r["say"])
+
+    def test_a_sandbox_failure_backs_off_for_a_bounded_while_even_when_the_copy_looks_fine(self):
+        """REG-1861 (H1.2) - plan() can count a tree copytree then fails on (an unreadable file, a fifo), so check()
+        says yes while every lane fails. A sandbox-class exit still backs off - RETRY_AFTER_SANDBOX_S, never the 10 s
+        rescue cadence and never 3 h - and starts again once that has passed."""
+        n = self._sandbox_failure(now_s=1600.0)
+        for t in (1610.0, 1600.0 + SP.RETRY_AFTER_SANDBOX_S - 5):
+            r = SP.tick(now_s=t, busy=3.0, tree=INSTALLED, census=STALE, path=self.path,
+                        spawn_fn=self._spawn, env={}, sandbox=(True, ""))
+            self.assertEqual(len(self.spawned), n, "a sandbox-class failure was respawned %d s later" % (t - 1600))
+            self.assertEqual(r["key"], "backoff", r)
+        self.assertLess(SP.RETRY_AFTER_SANDBOX_S, SP.RETRY_AFTER_FAIL_S)
+        self.assertGreaterEqual(SP.RETRY_AFTER_SANDBOX_S, 600, "the bounded backoff is no longer than a tick")
+        r = SP.tick(now_s=1600.0 + SP.RETRY_AFTER_SANDBOX_S + 5, busy=3.0, tree=INSTALLED, census=STALE,
+                    path=self.path, spawn_fn=self._spawn, env={}, sandbox=(True, ""))
+        self.assertEqual((r["key"], len(self.spawned)), ("start", n + 1), r)
+
+    def test_a_spawn_that_raises_is_its_own_kind_and_backs_off(self):
+        """REG-1861 (H1.3) - the spawn-failed handler set lastFailAt and left the kind, so after any sandbox booking
+        a raising spawn() was retried every tick."""
+        self._sandbox_failure(now_s=1600.0)
+
+        def _boom(log_path, names=None):
+            raise OSError("no python")
+        later = 1600.0 + SP.RETRY_AFTER_SANDBOX_S + 5
+        r = SP.tick(now_s=later, busy=3.0, tree=INSTALLED, census=STALE, path=self.path,
+                    spawn_fn=_boom, env={}, sandbox=(True, ""))
+        self.assertEqual(r["key"], "spawn-failed", r)
+        mem = json.load(io.open(self.path, encoding="utf-8"))
+        self.assertEqual(mem.get("lastFailKind"), "spawn", mem)
+        r = SP.tick(now_s=later + 600.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path,
+                    spawn_fn=_boom, env={}, sandbox=(True, ""))
+        self.assertEqual(r["key"], "backoff", "a spawn that raised was retried on the next tick: %r" % (r,))
+
+    def test_the_10s_rescue_guard_never_respawns_a_sandbox_failure(self):
+        """REG-1861 - the trigger the eye named: guard() runs every 10 s and ticks the lane the moment the prover has
+        ended. Driven for three minutes of rescue ticks after a sandbox-class exit, with a copy check() calls fine and
+        a preflight that cannot answer: no second proof."""
+        def _ticker(sandbox):
+            def _t(**kw):
+                kw.pop("busy", None)
+                return SP.tick(busy=3.0, tree=INSTALLED, census=STALE, spawn_fn=self._spawn, env={},
+                               sandbox=sandbox, **kw)
+            return _t
+        for sb in ((True, ""), (None, "safe_copy would not import")):
+            self.setUp()
+            n = self._sandbox_failure(now_s=1600.0)
+            mem = json.load(io.open(self.path, encoding="utf-8"))
+            mem["pid"] = 999_999_1                 # an ended prover the guard would book and replace
+            with io.open(self.path, "w", encoding="utf-8") as fh:
+                json.dump(mem, fh)
+            for k in range(18):
+                SP.guard(now_s=1600.0 + 10 * (k + 1), path=self.path, playing=False, free=8000,
+                         kill_fn=lambda *a: True, _tick=_ticker(sb))
+            self.assertEqual(len(self.spawned), n, "the rescue guard respawned a sandbox failure (%r)" % (sb,))
+
+    def test_only_this_runs_own_last_word_is_read(self):
+        """REG-1862 (H2) - the classifier read the last 8 KB and took a mark anywhere after the last banner, so a
+        prover that died before its banner (a traceback) after an older run's mark was booked as sandbox - and
+        looped. Only the bytes THIS run wrote count, and the mark must be their final word."""
+        self._log("  40 gate(s) in scope", "  no lane could build a sandbox — nothing was proven")
+        SP.tick(now_s=1000.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path,
+                spawn_fn=self._spawn, env={}, sandbox=(True, ""))
+        self._log("Traceback (most recent call last):", "ImportError: cannot import name 'x'")
+        r = SP.tick(now_s=1600.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path,
+                    spawn_fn=self._spawn, env={}, sandbox=(True, ""))
+        self.assertEqual(json.load(io.open(self.path, encoding="utf-8")).get("lastFailKind"), "proof",
+                         "a crash after an older run's mark was booked as a sandbox refusal")
+        self.assertEqual(r["key"], "backoff", r)
+
+    def test_a_run_that_wrote_nothing_is_a_proof_failure(self):
+        self._log("  40 gate(s) in scope", "  no lane could build a sandbox — nothing was proven")
+        SP.tick(now_s=1000.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path,
+                spawn_fn=self._spawn, env={}, sandbox=(True, ""))
+        SP.tick(now_s=1600.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path,
+                spawn_fn=self._spawn, env={}, sandbox=(True, ""))
         self.assertEqual(json.load(io.open(self.path, encoding="utf-8")).get("lastFailKind"), "proof")
 
     def test_an_update_during_the_proof_is_not_a_failure(self):
@@ -336,7 +435,9 @@ class TheSandboxRefusalIsSaid(unittest.TestCase):
         with mock.patch.object(safe_copy, "check", lambda *a, **k: (0, "")):
             self.assertEqual(SP.sandbox_ready(), (True, ""))
         with mock.patch.object(safe_copy, "check", side_effect=OSError("x")):
-            self.assertIsNone(SP.sandbox_ready(), "a preflight that could not ask read as an answer")
+            got = SP.sandbox_ready()
+        self.assertIs(got[0], None, "a preflight that could not ask read as an answer: %r" % (got,))
+        self.assertIn("could not be asked (OSError)", got[1])
 
 
 class TheProcessProbeIsSafe(unittest.TestCase):
@@ -904,10 +1005,38 @@ class TwoLanesOnlyWithRoom(unittest.TestCase):
 
 RED_PROOF = [
     {
+        "why": "REG-1861 - an unknown preflight reads as a yes, so a sandbox-class exit respawns on every rescue tick",
+        "file": "tv/self_prove.py",
+        "find": "    if isinstance(sandbox, tuple) and sandbox and sandbox[0] is None:\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1861 - a sandbox-class exit skips every backoff again, and a copy check() passes is respawned every 10 s",
+        "file": "tv/self_prove.py",
+        "find": "    _wait = RETRY_AFTER_SANDBOX_S if mem.get(\"lastFailKind\") == \"sandbox\" else RETRY_AFTER_FAIL_S\n",
+        "replace": "    _wait = 0 if mem.get(\"lastFailKind\") == \"sandbox\" else RETRY_AFTER_FAIL_S\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1861 - a raising spawn keeps an older run's kind and is retried every tick",
+        "file": "tv/self_prove.py",
+        "find": "                       lastFailKind=\"spawn\")                # REG-1861 - never left as an older run's kind\n",
+        "replace": "                       )\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1862 - an older run's mark is read again, so a crash after it is booked as a sandbox refusal",
+        "file": "tv/self_prove.py",
+        "find": "    return bool(lines) and NO_SANDBOX_MARK in lines[-1]\n",
+        "replace": "    return NO_SANDBOX_MARK in text or NO_SANDBOX_MARK in io.open(log_path, encoding=\"utf-8\", errors=\"replace\").read()\n",
+        "matches": 1,
+    },
+    {
         "why": "REG-1845 - a refused copy is booked as a failed proof again, so the lane waits 3 h after the cause is gone",
         "file": "tv/self_prove.py",
-        "find": "            and mem.get(\"lastFailKind\") != \"sandbox\" and now_s - last_fail < RETRY_AFTER_FAIL_S:\n",
-        "replace": "            and now_s - last_fail < RETRY_AFTER_FAIL_S:\n",
+        "find": "    _wait = RETRY_AFTER_SANDBOX_S if mem.get(\"lastFailKind\") == \"sandbox\" else RETRY_AFTER_FAIL_S\n",
+        "replace": "    _wait = RETRY_AFTER_FAIL_S\n",
         "matches": 1,
     },
     {
@@ -1046,8 +1175,8 @@ RED_PROOF = [
     {
         "why": "2026-09-29 - a prover that failed is restarted every ten minutes, all day",
         "file": "tv/self_prove.py",
-        "find": "            and mem.get(\"lastFailKind\") != \"sandbox\" and now_s - last_fail < RETRY_AFTER_FAIL_S:\n",
-        "replace": "            and mem.get(\"lastFailKind\") != \"sandbox\" and now_s - last_fail < 0:\n",
+        "find": "            and now_s - last_fail < _wait:\n",
+        "replace": "            and now_s - last_fail < 0:\n",
         "matches": 1,
     },
     {
