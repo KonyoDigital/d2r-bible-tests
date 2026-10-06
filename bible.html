@@ -4285,8 +4285,10 @@ window._LP_FORKED = new Set([
      and Ladder hold different mules and different characters, so both fork like d2r_muleAssign and ride Backup
      and Share with every other key. */
   "d2r_vaultProv", "d2r_mainCharacter",
-  /* #234 step 4 — items he typed into the Vault. Account testimony, same fork as the witness rows:
-     Main and Ladder do not share what he added by hand. A reader never writes this key. */
+  /* #146 (REG-1821) — LEGACY, READ ONCE AND REMOVED: the second hand list an unpushed build wrote beside the owned door.
+     Nothing writes it any more; _vaultHandMigrate reads it, adds each row through window._ownedAdd and removes it. It
+     stays in this set so that read is the rows of THIS world — bare, a ladder board would import the picks made on Main
+     into L·d2r_owned. (No apostrophe in this note: test_store_isolation pairs the quotes of this Set to read its names.) */
   "d2r_vaultHand",
   /* M3 (review of 77d8d8b5) - the provenance backfill stamp records WHETHER A WRITE HAPPENED to d2r_owned and
      d2r_vaultProv, both in this set, so it forks exactly as they do (the v2224 rule below). Bare, the stamp one
@@ -10328,18 +10330,12 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #chx-win .chx-cell[data-slot="ring2"]{grid-column:3;grid-row:5}
 #chx-win .chx-win-say{margin:0;font-size:var(--fs-body);color:var(--text)}
 #chx-win .chx-win-grid{margin:0;font-size:var(--fs-meta);color:var(--text-dim)}
-#vault-hand{margin:0 0 12px;padding:10px 12px;border:1px solid var(--border-light);border-radius:10px;background:var(--surface)}
-#vault-hand[hidden]{display:none}
-#vault-hand .vault-hand-h{font-family:var(--serif-display);font-size:var(--fs-chx-name);color:var(--text);margin:0 0 6px}
-#vault-hand .vault-hand-say{margin:0;font-size:var(--fs-body);color:var(--text)}
-#vault-hand .vault-hand-list{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px}
-#vault-hand li{font-size:var(--fs-meta);color:var(--text)}
-#vault-hand .vault-hand-src,#vault-hand .vault-hand-seen{color:var(--text-dim)}
 .vault-propose{display:block;margin-top:2px;font-size:var(--fs-meta);color:var(--text-dim)}
 .vault-propose[data-state="unknown"]{color:var(--text)}
 .vault-organize{max-height:min(28vh,220px);overflow:auto;margin:0 0 8px;padding:8px 10px;border:1px solid var(--border-light);border-radius:10px;background:var(--surface)}
 .vault-organize[hidden]{display:none}
 .vault-organize .vault-org-row{margin:0 0 4px;font-size:var(--fs-meta);color:var(--text)}
+.vault-organize .vault-org-h{margin:0 0 6px;font-size:var(--fs-meta);color:var(--text-dim)}
 #vault-hand-win{position:fixed;inset:0;z-index:130;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(4,3,2,.62);box-sizing:border-box}
 #vault-hand-win[hidden]{display:none}
 #vault-hand-win .vault-hand-box{width:min(440px,100%);max-height:min(640px,100%);overflow:auto;background:var(--surface);border:1px solid var(--border-light);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
@@ -10347,6 +10343,9 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #vault-hand-win .vault-hand-top p{margin:0;flex:1;font-size:var(--fs-body);color:var(--text)}
 #vault-hand-win .vault-hand-q{font-size:var(--fs-body);color:var(--text);background:var(--surface);border:1px solid var(--border-light);border-radius:8px;padding:6px 8px}
 #vault-hand-win .vault-hand-opt{display:block;width:100%;text-align:left;font-size:var(--fs-meta);color:var(--text);background:var(--surface);border:1px solid var(--border-light);border-radius:8px;padding:6px 8px}
+#vault-hand-win .vault-hand-opt small{color:var(--text-dim)}
+#vault-hand-win .vault-hand-say{margin:0;font-size:var(--fs-meta);color:var(--text-dim)}
+#vault-hand-win .vault-hand-say:empty{display:none}
 #tab-chars .chx-how{margin:0;padding-left:18px;font-size:var(--fs-body);color:var(--text-muted);line-height:var(--lh-normal)}
 #tab-chars .chx-how li{margin:2px 0}
 #tab-chars .chx-empty-t{font-family:var(--serif-display);font-size:var(--fs-chx-name);color:var(--text)}
@@ -11028,7 +11027,6 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
            could point at the same number. Filled by renderVault from the SAME pools it draws from,
            so the parts cannot drift from the whole. -->
       <div id="vault-pop" class="vault-pop"></div>
-      <div id="vault-hand" class="vault-hand" hidden></div>
       <div class="vault-find">
         <span class="vault-find-ic">🔎</span>
         <input id="vault-find-input" class="vault-find-input" aria-label="find an item across your mules" type="text" autocomplete="off" spellcheck="false" placeholder="Find an item across your mules — which alt is it on?" oninput="window.vaultFind&&window.vaultFind(this.value)" onkeydown="if(event.key==='Escape'){this.value='';window.vaultFind('')}">
@@ -38757,21 +38755,27 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      leaves the same silence as a run that dropped everything. [[unknown-stays-unknown]] */
   try { window.ownedPool = ownedPool; } catch(e){}
   try { window.suggestMule = suggestMule; } catch(e){}
+  /* #146 (REG-1821) — ownedPool's rule, named, so the Vault's + Add an item asks the question the render asks: a name
+     outside it sits in d2r_owned and is drawn nowhere. */
+  function _vaultKeeps(n){
+    try{
+      if (typeof ITEMS==='undefined' || typeof n !== 'string' || !n) return false;
+      if (isAggregate(n)) return false;
+      // v324: EXTRA_ITEMS (socketed bases + reference finds) are real owned items too — they MUST
+      // survive ownedPool or renderVault prunes their mule assignment every render (the bug behind
+      // "socketed items don't stick to a mule"). Shared-stash items (runes/essences/statues) stay out.
+      if (typeof EXTRA_ITEMS!=='undefined' && EXTRA_ITEMS[n] && !isSharedStash(n)) return true;
+      // v404 — a FORGED RUNEWORD (Enigma, Spirit, CtA…) is real owned gear but is NOT a grail ITEM,
+      // EXTRA_ITEM or set piece, so it was falling out of the pool → its mule assignment got pruned every
+      // render → it vanished from all lockers (Konyo: "where did the Enigma go?"). Keep runewords in.
+      if (window.findRuneword && window.findRuneword(n)) return true;
+      return ITEMS.some(function(i){return i.n===n;}) || !!(window.findSetPiece && window.findSetPiece(n));
+    }catch(e){ return false; }
+  }
   function ownedPool(){
     try{
       if (typeof owned==='undefined' || typeof ITEMS==='undefined') return [];
-      return Array.from(owned).filter(function(n){
-        if (isAggregate(n)) return false;
-        // v324: EXTRA_ITEMS (socketed bases + reference finds) are real owned items too — they MUST
-        // survive ownedPool or renderVault prunes their mule assignment every render (the bug behind
-        // "socketed items don't stick to a mule"). Shared-stash items (runes/essences/statues) stay out.
-        if (typeof EXTRA_ITEMS!=='undefined' && EXTRA_ITEMS[n] && !isSharedStash(n)) return true;
-        // v404 — a FORGED RUNEWORD (Enigma, Spirit, CtA…) is real owned gear but is NOT a grail ITEM,
-        // EXTRA_ITEM or set piece, so it was falling out of the pool → its mule assignment got pruned every
-        // render → it vanished from all lockers (Konyo: "where did the Enigma go?"). Keep runewords in.
-        if (window.findRuneword && window.findRuneword(n)) return true;
-        return ITEMS.some(function(i){return i.n===n;}) || !!(window.findSetPiece && window.findSetPiece(n));
-      }).sort();
+      return Array.from(owned).filter(_vaultKeeps).sort();
     }catch(e){ return []; }
   }
   function art(n, glyph, size){ try{ return (typeof artOr==='function') ? artOr(n, glyph||'◆', size||'sm') : ''; }catch(e){ return ''; } }
@@ -39635,13 +39639,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
     } catch(e){}
     try { renderVaultAudit(); } catch(e){}   // v1282 — 🔍 integrity checker banner (hidden when clean)
+    /* #146 (REG-1821) — the second hand list's rows come home through the owned door, once, before the pool is read */
+    try { if (typeof window._vaultHandMigrate === 'function') window._vaultHandMigrate(); } catch (eH) {}
     var poolAll=ownedPool();
     // account-shared-stash items (runes/essences/shards/statues) are recorded but NEVER muled —
     // keep them OUT of the dock/mules (they live in the Registered panel's "not muled" group).
     var pool=poolAll.filter(function(n){ return !isSharedStash(n); });
     renderMultiKeep();
     renderVaultRegistered();
-    try { if (typeof window.vaultHandPaint === 'function') window.vaultHandPaint(); } catch (eH) {}
     renderThrowoutReview();
     renderSocketedReview();   // v455 — runeword tool for the muled socketed/Larzuk bases (same _baseRWLine engine)
     // prune assignments of items no longer owned or mules deleted (v409 — but KEEP the '__keep' sentinel:
@@ -40397,167 +40402,93 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     catch (e) { return null; }
   }
   /* ⟦VAULT HAND BEGIN⟧ */
-  /* #234 step 4 — his typed item is a ledger row, source manual.
-     A reader does not create, replace, or remove one. An agreeing read is written beside it. */
-  var VAULT_HAND_KEY = 'd2r_vaultHand';
+  /* #146 step 4 (REG-1821) — + ADD AN ITEM IS HIS HAND ON THE ONE `owned` DOOR, NOT A SECOND LEDGER.
+     His ask (2026-10-01): a Vault '+ Add an item' that uses the planner's item list, source manual, his testimony.
+     The first cut wrote each pick to a NEW key, d2r_vaultHand, beside the hand ledger the board already keeps — so a
+     pick never reached `owned`: not the dock, not a mule, not the grail count, not Backup's owned list. A reader
+     agreeing was noted on that side list only, and every visitor's Vault said "Nothing added by hand." under a list
+     nothing else read. [[the-unjoined-end]]
+     Now a pick goes through window._ownedAdd with source 'hand' — the door every hand tick uses: it writes the receipt
+     into d2r_vaultProv (kind 'owned', "owned via your hand") and adds the name to `owned`.
+       · it lands in the unsorted dock and is FILED ONLY BY HIM: a drag or a click onto a locker goes through vaultFile
+         with his hand as the witness, as every manual filing does. Nothing here names a mule — step 5's organizer
+         proposes a home and never moves one;
+       · the name is the register's own (_vaultResolveName), so a pick lands on the tile the readers file; a bare name
+         several known items share is settled by the planner row's kind or refused with its candidates;
+       · only a name the vault draws is offered or added (_vaultKeeps, ownedPool's own rule): a crafted recipe or a
+         white base would sit in d2r_owned and render nowhere, so the list leaves them out and SAYS how many;
+       · an owned name is not added twice, and a reader that later files it keeps this receipt as the filing's
+         ownedBy (vaultFile's own rule): the hand fact rides along and is never replaced.
+     ⚠ THE SECOND KEY COMES HOME ONCE (_vaultHandMigrate, asked by renderVault): each d2r_vaultHand row is added through
+       this door at the time he typed it, and the key is removed only when every row landed. A row the vault cannot
+       take stays where he left it, and an unreadable list is never written over — nothing he typed is lost. */
+  var VAULT_HAND_LEGACY = 'd2r_vaultHand';
+  var _VH_KIND = { u: 'unique', s: 'set', r: 'runeword' };
+  var VAULT_HAND_SHOWN = 100;
+  var _vhSeen = {};   /* a planner row's resolution, for the life of one open door */
   function _vhEsc(s){
     return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
       return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
     });
   }
-  function _handLoad(){
-    try {
-      if (!(window.LSR && window.LSR.getItem)) return { ok: false, why: 'the hand ledger could not be read', rows: null };
-      var raw = window.LSR.getItem(VAULT_HAND_KEY);
-      if (raw == null || raw === '') return { ok: true, rows: [] };
-      var v = JSON.parse(raw);
-      if (!Array.isArray(v)) return { ok: false, why: 'the hand ledger is not a list', rows: null };
-      return { ok: true, rows: v };
-    } catch (e) {
-      return { ok: false, why: 'the hand ledger would not parse', rows: null };
-    }
+  /* the name the vault holds `raw` as -> {ok, name} | {ok:false, refused, why} */
+  function _vhResolve(raw, kind){
+    var amb = null;
+    try { amb = (typeof window._vaultNameAmbiguity === 'function') ? window._vaultNameAmbiguity(raw, kind ? { kind: kind } : null) : null; }
+    catch (e) { amb = null; }
+    if (amb && !amb.settled)
+      return { ok: false, refused: 'ambiguous', among: amb.among || [], why: String(amb.why || ('"' + raw + '" names more than one item')) + ' — nothing was added' };
+    var nm = (amb && amb.settled) ? String(amb.settled) : raw;
+    try { if (typeof window._vaultResolveName === 'function') nm = String(window._vaultResolveName(nm) || nm); } catch (e) {}
+    return { ok: true, name: nm };
   }
-  function _handSave(rows){
-    try {
-      if (!(window.LSR && window.LSR.setItem)) return { ok: false, why: 'the hand ledger could not be written' };
-      window.LSR.setItem(VAULT_HAND_KEY, JSON.stringify(rows));
-      return { ok: true };
-    } catch (e) {
-      return { ok: false, why: 'the hand ledger could not be written' };
+  /* THE DOOR. -> {ok, mode:'added'|'already', name, prov} or {ok:false, refused, why}
+     at    when he said it (an ISO time); null = not said, and the receipt then says its time is UNKNOWN
+     opts  kind (the planner row's 'unique' | 'set' | 'runeword'), by / where (who is speaking for his hand) */
+  window.vaultHandAdd = function(name, at, opts){
+    opts = opts || {};
+    var raw = String(name == null ? '' : name).trim();
+    if (!raw) return { ok: false, refused: 'no-name', why: 'no name — nothing was added' };
+    var ts = null;
+    if (at != null && at !== ''){
+      var atMs = Date.parse(String(at));
+      if (!isFinite(atMs)) return { ok: false, refused: 'no-time', why: '"' + String(at).slice(0, 40) + '" is not a date — nothing was added' };
+      ts = new Date(atMs).toISOString();
     }
-  }
-  function _handKey(name){ return String(name || '').trim().toLowerCase(); }
-  function _handFind(rows, name){
-    var k = _handKey(name), hit = null;
-    (rows || []).forEach(function(r){ if (!hit && r && _handKey(r.name) === k) hit = r; });
-    return hit;
-  }
-  window.vaultHandRows = function(){ return _handLoad(); };
-  window.vaultHandAdd = function(name, at){
-    var nm = String(name == null ? '' : name).trim();
-    if (!nm) return { ok: false, refused: 'no-name', why: 'no name' };
-    var cur = _handLoad();
-    if (!cur.ok) return { ok: false, refused: 'unreadable', why: cur.why };
-    var hit = _handFind(cur.rows, nm);
-    if (hit) return { ok: true, mode: 'already', row: hit };
-    var when = (typeof at === 'string' && at) ? at : new Date().toISOString();
-    var row = { name: nm, source: 'manual', at: when, seen: null };
-    cur.rows.push(row);
-    var w = _handSave(cur.rows);
-    if (!w.ok) return { ok: false, refused: 'unwritable', why: w.why };
-    try { if (typeof window.vaultHandPaint === 'function') window.vaultHandPaint(); } catch (eP) {}
-    return { ok: true, mode: 'added', row: row };
+    var r = _vhResolve(raw, opts.kind || null);
+    if (!r.ok) return r;
+    var nm = r.name;
+    if (!_vaultKeeps(nm))
+      return { ok: false, refused: 'not-drawn', name: nm,
+               why: nm + ' is not an item the vault draws (a unique, a set piece, a runeword or a socketed base it carries) — nothing was added' };
+    if (owned.has(nm)) return { ok: true, mode: 'already', name: nm, why: nm + ' is already yours — nothing changed' };
+    var add = window._ownedAdd(nm, { source: 'hand', by: String(opts.by || '+ Add an item'),
+                                     where: String(opts.where || 'the Vault (+ Add an item)'), ts: ts });
+    persistOwned();
+    return { ok: true, mode: 'added', name: nm, prov: (add && add.prov) || null,
+             why: nm + ' is yours — it waits in Unsorted until you file it' };
   };
-  window.vaultHandAgree = function(name, witness){
-    var nm = String(name == null ? '' : name).trim();
-    if (!nm) return { ok: false, refused: 'no-name', why: 'no name' };
-    var src = (witness && typeof witness === 'object') ? String(witness.source || '').trim() : '';
-    if (!src || src === 'manual' || src === 'hand') return { ok: true, noted: false, why: 'not a reader' };
-    var cur = _handLoad();
-    if (!cur.ok) return { ok: false, refused: 'unreadable', why: cur.why };
-    var hit = _handFind(cur.rows, nm);
-    if (!hit) return { ok: true, noted: false };
-    if (hit.seen && hit.seen.source) return { ok: true, noted: false, mode: 'stood', row: hit };
-    var at = (witness && typeof witness.at === 'string' && witness.at) ? witness.at : null;
-    hit.seen = { source: src, at: at };
-    var w = _handSave(cur.rows);
-    if (!w.ok) return { ok: false, refused: 'unwritable', why: w.why };
-    try { if (typeof window.vaultHandPaint === 'function') window.vaultHandPaint(); } catch (eP) {}
-    return { ok: true, noted: true, row: hit };
-  };
-  /* ⟦VAULT PROPOSE BEGIN⟧ */
-  /* #234 step 5 — a destination is the router's own sentence, asked when the row is painted.
-     A locked name stays, with the lock's own reason. Null is the shared stash.
-     A missing reason names no mule. Nothing here is stored and nothing is assigned. */
-  function _vaultRouter(){
-    try { if (typeof suggestMule === 'function') return suggestMule; } catch (eR) {}
-    try { if (typeof window.suggestMule === 'function') return window.suggestMule; } catch (eW) {}
-    return null;
-  }
-  window.vaultPropose = function(name){
-    var nm = String(name == null ? '' : name).trim();
-    if (!nm) return { ok: false, moved: false, home: null, id: null, stays: false, why: 'no name' };
-    var held = null;
-    try { held = (typeof window._laneLockWhy === 'function') ? window._laneLockWhy(nm) : null; }
-    catch (eL) { return { ok: false, moved: false, home: null, id: null, stays: false, why: 'the lock could not be read' }; }
-    if (held && held.why) return { ok: true, moved: false, id: null, home: null, stays: true, why: String(held.why) };
-    var router = _vaultRouter();
-    if (!router) return { ok: false, moved: false, home: null, id: null, stays: false, why: 'the router is not on this page' };
-    var sg;
-    try { sg = router(nm); }
-    catch (e) { return { ok: false, moved: false, home: null, id: null, stays: false, why: 'the router could not be asked' }; }
-    if (sg === null) return { ok: true, moved: false, id: null, home: 'shared stash', stays: false, why: 'the router gave no reason' };
-    if (!sg || typeof sg !== 'object' || !sg.id) return { ok: false, moved: false, home: null, id: null, stays: false, why: 'the router gave no destination' };
-    var why = (typeof sg.why === 'string') ? sg.why.trim() : '';
-    if (!why) return { ok: false, moved: false, home: null, id: null, stays: false, why: 'the router gave no reason' };
-    return { ok: true, moved: false, id: String(sg.id), home: String(sg.id), stays: false, why: why };
-  };
-  window.vaultProposeLine = function(name){
-    var pg = null;
-    try { pg = window.vaultPropose(name); }
-    catch (e) { pg = null; }
-    if (!pg) return '<span class="vault-propose" data-state="unknown" data-moved="false">the router is not on this page</span>';
-    if (pg.moved !== false) return '<span class="vault-propose" data-state="unknown" data-moved="false">a proposal must not move an item</span>';
-    if (pg.ok === true && pg.stays === true && pg.why && pg.id == null){
-      return '<span class="vault-propose" data-state="stays" data-moved="false">' + _vhEsc(String(pg.why)) + '</span>';
-    }
-    if (pg.ok === true && pg.why && (pg.id != null || pg.home === 'shared stash')){
-      var token = (pg.id == null) ? 'shared stash' : String(pg.id);
-      var text = (pg.id == null) ? ('shared stash — ' + pg.why) : String(pg.why);
-      return '<span class="vault-propose" data-state="proposed" data-moved="false" data-home="' + _vhEsc(token) + '">' + _vhEsc(text) + '</span>';
-    }
-    var whyU = pg.why ? String(pg.why) : 'the router could not be asked';
-    return '<span class="vault-propose" data-state="unknown" data-moved="false">' + _vhEsc(whyU) + '</span>';
-  };
-  window.vaultOrganizePaint = function(names){
-    var el = document.getElementById('vault-organize');
-    if (!el) return { ok: false, why: 'the organizer is not on this page' };
-    if (!Array.isArray(names)){
-      el.hidden = false;
-      el.innerHTML = '<p class="vault-propose" data-state="unknown" data-moved="false">the organizer was not given a list</p>';
-      return { ok: false, why: 'the organizer was not given a list' };
-    }
-    if (!names.length){ el.hidden = true; el.innerHTML = ''; return { ok: true, n: 0 }; }
-    var h = '';
-    names.forEach(function(nm){
-      if (!nm) return;
-      h += '<p class="vault-org-row" data-name="' + _vhEsc(nm) + '">' + _vhEsc(nm) + ' ' + window.vaultProposeLine(nm) + '</p>';
+  var _vhMigrated = false;
+  function _vaultHandMigrate(){
+    if (_vhMigrated) return null;
+    _vhMigrated = true;
+    var raw = null, rows = null;
+    try { raw = window.LSR.getItem(VAULT_HAND_LEGACY); } catch (e) { return { ok: false, why: 'the old hand list could not be read — left as it is' }; }
+    if (raw == null || raw === '') return { ok: true, n: 0, left: 0 };
+    try { rows = JSON.parse(raw); } catch (e) { return { ok: false, why: 'the old hand list would not parse — left as it is' }; }
+    if (!Array.isArray(rows)) return { ok: false, why: 'the old hand list is not a list — left as it is' };
+    var n = 0, left = 0;
+    rows.forEach(function(row){
+      var nm = (row && typeof row === 'object') ? String(row.name == null ? '' : row.name).trim() : '';
+      var at = (row && typeof row.at === 'string' && isFinite(Date.parse(row.at))) ? row.at : null;
+      var res = nm ? window.vaultHandAdd(nm, at, { by: 'the d2r_vaultHand migration',
+                                                    where: 'the Vault (+ Add an item), before a pick reached the owned ledger' }) : null;
+      if (res && res.ok) n++; else left++;
     });
-    el.hidden = false;
-    el.innerHTML = h;
-    return { ok: true, n: names.length };
-  };
-  /* ⟦VAULT PROPOSE END⟧ */
-  window.vaultHandPaint = function(){
-    var el = document.getElementById('vault-hand');
-    if (!el) return { ok: false, why: 'the hand section is not on this page' };
-    var cur = window.vaultHandRows();
-    el.hidden = false;
-    if (!cur || cur.ok !== true){
-      el.innerHTML = '<p class="vault-hand-say" data-state="unknown">' + _vhEsc(cur && cur.why || 'the hand ledger could not be read') + '</p>';
-      return cur || { ok: false, why: 'the hand ledger could not be read' };
-    }
-    var h = '<p class="vault-hand-h">Added by hand</p>';
-    if (!cur.rows.length){
-      h += '<p class="vault-hand-say" data-state="empty">Nothing added by hand.</p>';
-    } else {
-      h += '<ul class="vault-hand-list">';
-      cur.rows.forEach(function(r){
-        if (!r) return;
-        var src = r.source ? String(r.source) : '';
-        var seen = (r.seen && r.seen.source)
-          ? (' <span class="vault-hand-seen" data-seen="' + _vhEsc(r.seen.source) + '">also seen in ' + _vhEsc(r.seen.source) + '</span>')
-          : '';
-        var word = (src === 'manual') ? 'by hand' : (src || 'source unknown');
-        h += '<li data-name="' + _vhEsc(r.name) + '" data-source="' + _vhEsc(src || 'unknown') + '">'
-          + _vhEsc(r.name) + ' <span class="vault-hand-src">' + _vhEsc(word) + '</span>' + seen
-          + window.vaultProposeLine(r.name) + '</li>';
-      });
-      h += '</ul>';
-    }
-    el.innerHTML = h;
-    return { ok: true, n: cur.rows.length };
-  };
+    if (!left) window.LSR.removeItem(VAULT_HAND_LEGACY);
+    return { ok: true, n: n, left: left };
+  }
+  window._vaultHandMigrate = _vaultHandMigrate;
   window.vaultHandOpen = function(){
     if (document.documentElement && document.documentElement.classList
         && document.documentElement.classList.contains('cb-lock')){
@@ -40568,12 +40499,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       host = document.createElement('div');
       host.id = 'vault-hand-win';
       host.setAttribute('role', 'dialog');
+      host.setAttribute('aria-label', 'add an item to your vault');
       if (document.body && document.body.appendChild) document.body.appendChild(host);
     }
     host.hidden = false;
-    host.innerHTML = '<div class="vault-hand-box"><div class="vault-hand-top"><p>Add an item from the planner list. A pick is filed as your testimony and a reader does not replace it.</p>'
+    _vhSeen = {};
+    host.innerHTML = '<div class="vault-hand-box"><div class="vault-hand-top"><p>Add an item you have, from the planner list. It is yours at once and waits in Unsorted — you choose its mule.</p>'
       + '<button type="button" onclick="window.vaultHandClose()">Close</button></div>'
       + '<input type="search" id="vault-hand-q" class="vault-hand-q" aria-label="search the planner list" oninput="window.vaultHandSearch(this.value)">'
+      + '<p id="vault-hand-say" class="vault-hand-say" role="status"></p>'
       + '<div id="vault-hand-list"></div></div>';
     return window.vaultHandSearch('');
   };
@@ -40588,18 +40522,36 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       list.innerHTML = '<p class="vault-hand-say" data-state="unknown">' + _vhEsc(cat && cat.why || 'the planner list could not be read') + '</p>';
       return cat || { ok: false, why: 'the planner list could not be read' };
     }
-    if (!cat.rows.length){
-      list.innerHTML = '<p class="vault-hand-say" data-state="empty">No item in the planner list matches.</p>';
-      return { ok: true, n: 0 };
-    }
-    var h = '';
+    var cache = _vhSeen;
+    var keep = [], seen = {}, out = 0;
     cat.rows.forEach(function(r){
       if (!r || !r.id || !r.name) return;
-      h += '<button type="button" class="vault-hand-opt" data-id="' + _vhEsc(r.id) + '" onclick="window.vaultHandTake(this.getAttribute(\'data-id\'))">'
-        + _vhEsc(r.name) + '</button>';
+      var ck = String(r.q || '') + '|' + r.name;
+      if (!cache[ck]){
+        var res = _vhResolve(String(r.name), _VH_KIND[r.q] || null);
+        cache[ck] = res.ok ? { name: res.name, draws: _vaultKeeps(res.name) } : { name: null, draws: false };
+      }
+      var c = cache[ck];
+      if (!c.draws){ out++; return; }
+      if (seen[c.name]) return;
+      seen[c.name] = 1;
+      keep.push({ id: r.id, name: r.name, as: c.name });
     });
+    var h = '';
+    if (!keep.length) h = '<p class="vault-hand-say" data-state="empty">No item the vault draws matches.</p>';
+    keep.slice(0, VAULT_HAND_SHOWN).forEach(function(r){
+      var mine = owned.has(r.as);
+      h += '<button type="button" class="vault-hand-opt" data-id="' + _vhEsc(r.id) + '"' + (mine ? ' data-owned="1"' : '')
+        + ' onclick="window.vaultHandTake(this.getAttribute(\'data-id\'))">' + _vhEsc(r.as)
+        + (mine ? ' <small>✓ already yours</small>' : '') + '</button>';
+    });
+    if (keep.length > VAULT_HAND_SHOWN)
+      h += '<p class="vault-hand-say" data-state="more">' + VAULT_HAND_SHOWN + ' of ' + keep.length + ' shown — type to narrow the list</p>';
+    if (out)
+      h += '<p class="vault-hand-say" data-state="left-out">' + out + ' matching planner item' + (out === 1 ? ' is' : 's are')
+        + ' not listed — the vault does not draw ' + (out === 1 ? 'it' : 'them') + ' (a white base, a crafted recipe, or a name it does not carry), so an add would show nowhere</p>';
     list.innerHTML = h;
-    return { ok: true, n: cat.rows.length };
+    return { ok: true, n: keep.length, shown: Math.min(keep.length, VAULT_HAND_SHOWN), left: out };
   };
   window.vaultHandTake = function(id){
     var cat = window._vhCat;
@@ -40607,25 +40559,106 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return { ok: false, refused: 'no-list', why: 'the planner list was not read' };
     var row = null;
     cat.rows.forEach(function(r){ if (!row && r && r.id === id) row = r; });
-    if (!row || !row.name) return { ok: false, refused: 'not-listed', why: 'that item is not in the planner list' };
-    var filed = window.vaultHandAdd(row.name);
-    try { if (typeof window.vaultHandPaint === 'function') window.vaultHandPaint(); } catch (eP) {}
-    return filed;
+    var res = (!row || !row.name) ? { ok: false, refused: 'not-listed', why: 'that item is not in the planner list — nothing was added' }
+            : window.vaultHandAdd(row.name, new Date().toISOString(), { kind: _VH_KIND[row.q] || null });
+    var say = document.getElementById('vault-hand-say');
+    if (say){ say.textContent = res.why || ''; say.setAttribute('data-state', res.ok ? res.mode : 'refused'); }
+    if (res.ok && res.mode === 'added'){
+      try { renderVault(); } catch (eR) {}
+      var qi = document.getElementById('vault-hand-q');
+      window.vaultHandSearch(qi ? qi.value : '');
+    }
+    return res;
   };
   window.vaultHandClose = function(){
     var host = document.getElementById('vault-hand-win');
     if (host){ host.hidden = true; host.innerHTML = ''; }
     window._vhCat = null;
+    _vhSeen = {};
     return true;
   };
   /* ⟦VAULT HAND END⟧ */
-  /* A reader that landed, or that agreed with a filing already standing, notes the hand row.
-     A hand witness is not a reader. A missing hand row is not created here. */
-  function _noteHand(nm, src, at){
-    if (!src || src === 'hand' || src === 'manual') return;
-    try { if (typeof window.vaultHandAgree === 'function') window.vaultHandAgree(nm, { source: src, at: at || null }); }
-    catch (eN) {}
+  /* ⟦VAULT PROPOSE BEGIN⟧ */
+  /* #146 step 5 (REG-1822) — WHERE EACH UNSORTED ITEM WOULD GO, SAID IN WORDS, AND NOTHING MOVES. His ask: "proposed
+     destination per item ... never moved by itself". The router (suggestMule) is asked when the row is painted; nothing
+     is stored and nothing is assigned. The first cut printed only the router's reason and kept the mule in an attribute,
+     so a row read "armor slot — Shako" and never said WHICH mule; and the throw-out review and "keep it on your MAIN"
+     were painted as proposed homes. Now each answer is its own kind of row:
+       · a mule on this board   -> "→ <the mule's name> — <the router's reason>"   (proposed, data-home = its id)
+       · __throwout             -> "throw-out advice — <reason>"                    (advice: the planner would vendor it)
+       · __keep                 -> "stays with your MAIN, not a mule — <reason>"    (kept on the character)
+       · null                   -> the shared-stash sentence the door itself says    (no mule exists for it)
+       · a lock on his MAIN     -> "stays where it is — <the lock's own reason>"   (the router is not asked)
+       · an id with no mule, a missing reason, a router that throws -> UNKNOWN, in words, and no home is named. */
+  function _vaultRouter(){
+    try { if (typeof suggestMule === 'function') return suggestMule; } catch (eR) {}
+    try { if (typeof window.suggestMule === 'function') return window.suggestMule; } catch (eW) {}
+    return null;
   }
+  /* -> {ok, kind:'mule'|'throwout'|'keep'|'shared'|'stays', id, home, why, moved:false} | {ok:false, moved:false, why} */
+  window.vaultPropose = function(name){
+    var nm = String(name == null ? '' : name).trim();
+    var no = function(why){ return { ok: false, moved: false, kind: null, id: null, home: null, why: why }; };
+    if (!nm) return no('no name');
+    var held = null;
+    try { held = (typeof window._laneLockWhy === 'function') ? window._laneLockWhy(nm) : null; }
+    catch (eL) { return no('the lock could not be read'); }
+    if (held && held.why) return { ok: true, moved: false, kind: 'stays', id: null, home: null, why: String(held.why) };
+    var router = _vaultRouter();
+    if (!router) return no('the router is not on this page');
+    var sg;
+    try { sg = router(nm); }
+    catch (e) { return no('the router could not be asked'); }
+    if (sg === null) return { ok: true, moved: false, kind: 'shared', id: null, home: null, why: _vNoHomeWhy(nm, null) };
+    if (!sg || typeof sg !== 'object' || !sg.id) return no('the router gave no destination');
+    var why = (typeof sg.why === 'string') ? sg.why.trim() : '';
+    if (!why) return no('the router gave no reason');
+    var id = String(sg.id);
+    if (id === '__throwout') return { ok: true, moved: false, kind: 'throwout', id: id, home: null, why: why };
+    if (id === '__keep') return { ok: true, moved: false, kind: 'keep', id: id, home: null, why: why };
+    var mule = muleById(id);
+    if (!mule) return no(_vNoHomeWhy(nm, id));
+    return { ok: true, moved: false, kind: 'mule', id: id, home: String(mule.name || id), why: why };
+  };
+  window.vaultProposeLine = function(name){
+    var pg = null;
+    try { pg = window.vaultPropose(name); }
+    catch (e) { pg = null; }
+    var span = function(state, text, home){
+      return '<span class="vault-propose" data-state="' + state + '" data-moved="false"' + (home ? ' data-home="' + _vhEsc(home) + '"' : '') + '>' + _vhEsc(text) + '</span>';
+    };
+    if (!pg) return span('unknown', 'the router is not on this page');
+    if (pg.moved !== false) return span('unknown', 'a proposal must not move an item');
+    if (pg.ok !== true) return span('unknown', pg.why || 'the router could not be asked');
+    if (pg.kind === 'mule') return span('proposed', '→ ' + pg.home + ' — ' + pg.why, pg.id);
+    if (pg.kind === 'throwout') return span('throwout', 'throw-out advice — ' + pg.why);
+    if (pg.kind === 'keep') return span('keep', 'stays with your MAIN, not a mule — ' + pg.why);
+    if (pg.kind === 'shared') return span('shared', pg.why);
+    if (pg.kind === 'stays') return span('stays', 'stays where it is — ' + pg.why);
+    return span('unknown', 'the router gave an answer this page does not know');
+  };
+  var VAULT_ORG_SHOWN = 60;
+  window.vaultOrganizePaint = function(names){
+    var el = document.getElementById('vault-organize');
+    if (!el) return { ok: false, why: 'the organizer is not on this page' };
+    if (!Array.isArray(names)){
+      el.hidden = false;
+      el.innerHTML = '<p class="vault-propose" data-state="unknown" data-moved="false">the organizer was not given a list</p>';
+      return { ok: false, why: 'the organizer was not given a list' };
+    }
+    var list = names.filter(Boolean);
+    if (!list.length){ el.hidden = true; el.innerHTML = ''; return { ok: true, n: 0 }; }
+    var h = '<p class="vault-org-h">Where each unsorted item would go — nothing moves until you file it</p>';
+    list.slice(0, VAULT_ORG_SHOWN).forEach(function(nm){
+      h += '<p class="vault-org-row" data-name="' + _vhEsc(nm) + '">' + _vhEsc(nm) + ' ' + window.vaultProposeLine(nm) + '</p>';
+    });
+    if (list.length > VAULT_ORG_SHOWN)
+      h += '<p class="vault-org-row" data-state="more">' + VAULT_ORG_SHOWN + ' of ' + list.length + ' shown — file some to see the rest</p>';
+    el.hidden = false;
+    el.innerHTML = h;
+    return { ok: true, n: list.length, shown: Math.min(list.length, VAULT_ORG_SHOWN) };
+  };
+  /* ⟦VAULT PROPOSE END⟧ */
   /* THE DOOR. -> {ok, mode:'filed'|'confirmed'|'already'|'moved', mule, prov} or {ok:false, refused, why}
      opts.mule   a home he (or the caller) names; else suggestMule decides, as it always did
      opts.move   an EXISTING filing changing homes — not a new claim, so it carries the row it already has */
@@ -40792,10 +40825,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
     }
     /* NEVER OVERRIDE A HOME HE CHOSE — only his own hand, naming the home, may re-file a filed name */
-    if (assign[nm] != null && assign[nm] !== home && !(hand && opts.mule)){
-      if (!hand) _noteHand(nm, (wc.kind === 'lane') ? wc.lane : wc.kind, null);
+    if (assign[nm] != null && assign[nm] !== home && !(hand && opts.mule))
       return { ok: true, mode: 'already', mule: assign[nm], why: nm + ' is already filed to ' + _vHomeName(assign[nm]) };
-    }
     var wasHere = (assign[nm] === home);
     /* A MANUAL PLACEMENT ALWAYS WINS (MP_SRC_RANK's rule, and his): a reader's witness never replaces the row his
        hand left at the same home — it would turn "you put it here" into "the film saw it".
@@ -40803,14 +40834,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        twenty-one would have let the lock evaporate on a re-read. */
     if (wasHere && !hand){
       var _pw = _provAll()[nm];
-      if (_pw && _pw.kind !== 'owned' && _pw.source === 'hand'){
-        _noteHand(nm, (wc.kind === 'lane') ? wc.lane : wc.kind, null);
-        return { ok: true, mode: 'already', mule: home, why: nm + ' is already filed by your hand' };
-      }
-      if (_pw && _pw.kind !== 'owned' && _pw.locked === true){
-        _noteHand(nm, (wc.kind === 'lane') ? wc.lane : wc.kind, null);
-        return { ok: true, mode: 'already', mule: home, locked: true, why: nm + ' is ' + String(_pw.tier || 'HARDENED') + ' and locked here — a read agrees, and the evidence row stands' };
-      }
+      if (_pw && _pw.kind !== 'owned' && _pw.source === 'hand') return { ok: true, mode: 'already', mule: home, why: nm + ' is already filed by your hand' };
+      if (_pw && _pw.kind !== 'owned' && _pw.locked === true) return { ok: true, mode: 'already', mule: home, locked: true, why: nm + ' is ' + String(_pw.tier || 'HARDENED') + ' and locked here — a read agrees, and the evidence row stands' };
     }
     var now = new Date().toISOString();
     var g = (witness && typeof witness.gate === 'object' && witness.gate) ? witness.gate : null;
@@ -40836,7 +40861,6 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var pa = _provAll(); pa[nm] = row; _provWrite(pa);
     try { if (!owned.has(nm)){ owned.add(nm); persistOwned(); } } catch (e) {}
     assign[nm] = home; saveA();
-    _noteHand(nm, row.source, row.at);
     return { ok: true, mode: wasHere ? 'confirmed' : 'filed', mule: home, holder: row.holder, prov: row,
              why: (sg && sg.why) || '' };
   };

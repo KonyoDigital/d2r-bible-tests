@@ -1,15 +1,29 @@
 # -*- coding: utf-8 -*-
-"""#234 step 5 — the Vault says where an item belongs, and does not move it.
+"""#146 step 5 (REG-1822) — THE VAULT SAYS WHERE EACH UNSORTED ITEM WOULD GO, BY NAME, AND MOVES NOTHING.
 
-The router's own sentence is painted on a hand-added row and on each witnessed
-item still in the unsorted dock. A locked name stays, with the lock's reason.
-Null is the shared stash. A missing reason names no mule. Nothing is stored
-and nothing is assigned.
+His ask (2026-10-01): "Vault organizer: proposed destination per item ... never moved by itself". The first cut printed
+only the router's reason ("armor slot — Shako") and kept the mule in an attribute, so no row ever said WHICH mule; and
+the throw-out review and "keep it on your MAIN" were painted as proposed homes. Driven over the SHIPPED ⟦VAULT PROPOSE⟧
+block and the board's own no-home sentence (_vNoHomeWhy):
+
+  · A MULE ON THIS BOARD IS NAMED: "→ UNI-WEAPONS — <the router's reason>", data-state proposed, data-home its id.
+  · THE THROW-OUT REVIEW IS ADVICE, NOT A HOME: data-state throwout, "throw-out advice — <reason>", no data-home.
+  · __keep IS NOT A MULE: data-state keep, no data-home.
+  · null IS THE SHARED STASH, said in the door's own sentence; a lock on his MAIN stays (the router is not asked).
+  · UNKNOWN STAYS UNKNOWN: an id with no mule on this board (the door's own "routed to ... but no mule" sentence), a
+    reason the router did not give, a router that throws or is absent — each says so and names no home.
+  · THE ORGANIZER moves nothing: a head line says so, at most 60 rows (and how many more), no control, no store write,
+    hidden when nothing is unsorted; renderVault paints it from the dock's own unsorted list.
+
+A missing node raises — this law does not skip. RED_PROOF below.
 """
+import io
 import json
 import os
+import re
 import shutil
 import subprocess
+import sys
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -18,244 +32,225 @@ if HERE not in _sys.path:
     _sys.path.insert(0, HERE)
 from console_safe import enable as _console_safe_enable  # noqa: E402  - REG-1834: these print non-ASCII
 _console_safe_enable()
+
 BIBLE = os.path.join(HERE, "..", "bible.html")
-NODE = shutil.which("node")
+NODE = os.environ.get("NODE") or shutil.which("node")
 
 PARK = "nothing on the board recognises this name — parked in weapons, worth your eye"
 LOCK = "seen in your equipment in 4 separate sessions"
+TRASH = "trade value TRASH — advice only"
+PROPOSE_A, PROPOSE_B = "  /* ⟦VAULT PROPOSE BEGIN⟧ */\n", "  /* ⟦VAULT PROPOSE END⟧ */\n"
+NOHOME_A, NOHOME_B = "  function _vNoHomeWhy(nm, home){\n", "  window._vaultNoHomeWhy = _vNoHomeWhy;\n"
+SHARED_A, SHARED_B = "  var SHARED_STASH_RE = ", "  try { window.isSharedStash = isSharedStash; }"
 
 HARNESS = r"""
+var window = globalThis, WRITES = 0, ELS = {}, CALLS = [];
+window.LSR = { getItem: function(){ return null; }, setItem: function(){ WRITES++; }, removeItem: function(){ WRITES++; } };
+function El(id){ this.id = id || ''; this.hidden = true; this._html = ''; }
+Object.defineProperty(El.prototype, 'innerHTML', { set: function(h){ this._html = String(h); }, get: function(){ return this._html; } });
+var document = { getElementById: function(id){ return ELS[id] || null; } };
+ELS['vault-organize'] = new El('vault-organize');
+var ROSTER = [{ id: 'uni-weap', name: 'UNI-WEAPONS' }, { id: 'uni-armor', name: 'UNI-ARMOR' }];
+function muleById(id){ return ROSTER.find(function(m){ return m.id === id; }); }
+function _vhEsc(s){ return String(s == null ? '' : s).replace(/[&<>"']/g, function(c){
+  return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+%(shared)s
+%(nohome)s
+%(propose)s
 var OUT = {};
-var RAW = {};
-var WRITES = 0;
-var ELS = {};
-var CALLS = [];
-function El(){ this.id = ''; this.hidden = true; this._html = ''; this._attrs = {}; }
-El.prototype.getAttribute = function(n){ return Object.prototype.hasOwnProperty.call(this._attrs, n) ? this._attrs[n] : null; };
-El.prototype.setAttribute = function(n, v){ this._attrs[n] = String(v); };
-Object.defineProperty(El.prototype, 'innerHTML', {
-  set: function(h){
-    this._html = String(h);
-    var re = /id="([^"]+)"/g, m;
-    while ((m = re.exec(this._html))){
-      if (!ELS[m[1]]){ var c = new El(); c.id = m[1]; c.hidden = false; ELS[m[1]] = c; }
-    }
-  },
-  get: function(){ return this._html; }
-});
-var document = {
-  getElementById: function(id){ return ELS[id] || null; },
-  createElement: function(){ return new El(); },
-  body: { appendChild: function(c){ if (c.id) ELS[c.id] = c; } },
-  documentElement: { classList: { contains: function(){ return false; } } }
-};
-var window = global;
-window.LSR = {
-  getItem: function(k){ return Object.prototype.hasOwnProperty.call(RAW, k) ? RAW[k] : null; },
-  setItem: function(k, v){ WRITES++; RAW[k] = String(v); }
-};
-ELS['vault-hand'] = new El();
-ELS['vault-hand'].id = 'vault-hand';
-ELS['vault-organize'] = new El();
-ELS['vault-organize'].id = 'vault-organize';
+%(body)s
+process.stdout.write(JSON.stringify(OUT));
 """
 
 
-def _bible():
-    with open(BIBLE, encoding="utf-8") as fh:
+def _src():
+    with io.open(BIBLE, encoding="utf-8") as fh:
         return fh.read()
 
 
-def _between(src, a, b):
-    i = src.find(a)
-    if i < 0 or src.find(a, i + len(a)) >= 0:
-        raise AssertionError("marker missing or not unique: %r" % a)
-    start = src.find("\n", i)
-    j = src.find(b, start + 1) if start >= 0 else -1
-    if start < 0 or j < 0:
-        raise AssertionError("markers missing: %r .. %r" % (a, b))
-    return src[start + 1:j]
+def _cut(s, a, b):
+    if s.count(a) != 1:
+        raise AssertionError("anchor %r matched %d times" % (a[:60], s.count(a)))
+    i = s.index(a)
+    return s[i:s.index(b, i + len(a))]
+
+
+def code_only(text):
+    """`text` with its /* */ and // comments blanked — a guard grades CODE, never the prose that explains it."""
+    text = re.sub(r"/\*.{0,6000}?\*/", " ", text, flags=re.S)
+    return "\n".join(re.sub(r"(^|\s)//.*$", r"\1", ln) for ln in text.split("\n"))
 
 
 def _node(body):
     if not NODE:
-        raise AssertionError("node is not on this machine — this gate does not skip")
-    src = _bible()
-    hand = _between(src, "/* ⟦VAULT HAND BEGIN⟧", "/* ⟦VAULT HAND END⟧")
-    script = HARNESS + hand + "\n" + body + "\nconsole.log(JSON.stringify(OUT));\n"
-    p = subprocess.run([NODE, "-e", script], capture_output=True, text=True, timeout=30)
+        raise AssertionError("node is not on this machine — this law does not skip")
+    s = _src()
+    prog = HARNESS % {"shared": _cut(s, SHARED_A, SHARED_B), "nohome": _cut(s, NOHOME_A, NOHOME_B),
+                      "propose": _cut(s, PROPOSE_A, PROPOSE_B), "body": body}
+    p = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=60)
     if p.returncode != 0:
-        raise AssertionError((p.stderr or p.stdout)[-2000:])
+        raise AssertionError("the propose harness would not run — UNKNOWN, not passing: " + (p.stderr or p.stdout)[-2000:])
     return json.loads(p.stdout)
+
+
+ROUTER = r"""
+window.suggestMule = function(nm){
+  CALLS.push(nm);
+  if (nm === 'Battlecage') return { id: 'uni-weap', why: %(park)s };
+  if (nm === 'Harlequin Crest') return { id: 'uni-armor', why: 'armor slot — Shako' };
+  if (nm === 'Short Sword') return { id: '__throwout', why: %(trash)s };
+  if (nm === 'Annihilus') return { id: '__keep', why: 'keep in your inventory — only works on the character you are actively playing' };
+  if (nm === 'Ghost') return { id: 'uni-ghost', why: 'a home this board never had' };
+  if (nm === 'Ort Rune') return null;
+  if (nm === 'Nope') return { id: 'uni-weap' };
+  if (nm === 'Boom') throw new Error('router down');
+  return { id: 'uni-weap', why: 'weapon — base: ' + nm };
+};
+""" % {"park": json.dumps(PARK), "trash": json.dumps(TRASH)}
 
 
 class TheVaultProposesAHomeAndDoesNotMove(unittest.TestCase):
 
-    def test_a_hand_row_shows_the_routers_own_reason(self):
-        out = _node(r"""
-          window.suggestMule = function(nm){
-            CALLS.push(nm);
-            if (nm === 'Battlecage') return { id: 'uni-weap', why: %s };
-            if (nm === 'Harlequin Crest') return { id: 'uni-armor', why: 'armor slot — Shako' };
-            return { id: 'uni-weap' };
-          };
-          var added = window.vaultHandAdd('Battlecage', '2026-10-05T12:00:00.000Z');
-          window.vaultHandAdd('Harlequin Crest', '2026-10-05T12:00:01.000Z');
-          var writes = WRITES;
-          var raw = RAW['d2r_vaultHand'];
-          OUT.propose = window.vaultPropose('Battlecage');
-          OUT.paint = window.vaultHandPaint();
-          OUT.section = ELS['vault-hand']._html;
-          OUT.rows = JSON.parse(RAW['d2r_vaultHand']);
-          OUT.same = RAW['d2r_vaultHand'] === raw;
-          OUT.writes = WRITES - writes;
-          OUT.assign = RAW['d2r_muleAssign'] || null;
-          OUT.added = added.mode;
-        """ % json.dumps(PARK))
-        self.assertEqual(out["added"], "added")
-        self.assertTrue(out["propose"]["ok"])
-        self.assertFalse(out["propose"]["moved"])
-        self.assertFalse(out["propose"]["stays"])
-        self.assertEqual(out["propose"]["id"], "uni-weap")
-        self.assertEqual(out["propose"]["why"], PARK)
-        self.assertIn('data-home="uni-weap"', out["section"])
-        self.assertIn('data-state="proposed"', out["section"])
-        self.assertIn('data-moved="false"', out["section"])
-        self.assertIn(PARK, out["section"])
-        self.assertIn("armor slot — Shako", out["section"])
-        self.assertIn('data-home="uni-armor"', out["section"])
-        self.assertNotIn("weapon theme", out["section"])
-        self.assertEqual(out["writes"], 0)
-        self.assertTrue(out["same"])
-        self.assertIsNone(out["assign"])
-        for row in out["rows"]:
-            self.assertEqual(sorted(row.keys()), ["at", "name", "seen", "source"])
-
-    def test_a_missing_reason_names_no_mule(self):
-        out = _node(r"""
-          window.suggestMule = function(nm){
-            if (nm === 'Nope') return { id: 'uni-weap' };
-            if (nm === 'Ort') return null;
-            if (nm === 'Boom') throw new Error('router down');
-            return { id: 'uni-small', why: 'charm/skiller' };
-          };
-          OUT.nowhy = window.vaultProposeLine('Nope');
-          OUT.shared = window.vaultProposeLine('Ort');
-          OUT.boom = window.vaultProposeLine('Boom');
-          delete window.suggestMule;
-          OUT.gone = window.vaultProposeLine('Harlequin Crest');
+    def test_a_mule_proposal_names_the_mule(self):
+        out = _node(ROUTER + r"""
+          OUT.p = window.vaultPropose('Battlecage');
+          OUT.line = window.vaultProposeLine('Battlecage');
+          OUT.armor = window.vaultProposeLine('Harlequin Crest');
           OUT.writes = WRITES;
         """)
-        self.assertIn('data-state="unknown"', out["nowhy"])
-        self.assertIn("the router gave no reason", out["nowhy"])
-        self.assertNotIn("data-home", out["nowhy"])
-        self.assertNotIn("uni-weap", out["nowhy"])
-        self.assertIn('data-home="shared stash"', out["shared"])
-        self.assertIn("shared stash — the router gave no reason", out["shared"])
-        self.assertNotIn("high trade", out["shared"])
-        self.assertNotIn("rare", out["shared"])
-        self.assertIn('data-state="unknown"', out["boom"])
-        self.assertIn("the router could not be asked", out["boom"])
-        self.assertNotIn("data-home", out["boom"])
-        self.assertNotIn("uni-weap", out["boom"])
-        self.assertIn("the router is not on this page", out["gone"])
-        self.assertNotIn("data-home", out["gone"])
+        self.assertEqual(out["p"]["kind"], "mule")
+        self.assertEqual(out["p"]["home"], "UNI-WEAPONS")
+        self.assertFalse(out["p"]["moved"])
+        self.assertIn('data-state="proposed"', out["line"])
+        self.assertIn('data-home="uni-weap"', out["line"])
+        self.assertIn("→ UNI-WEAPONS — " + PARK, out["line"], "the proposal does not name its mule")
+        self.assertIn("→ UNI-ARMOR — armor slot — Shako", out["armor"])
         self.assertEqual(out["writes"], 0)
 
-    def test_a_locked_name_is_not_offered_a_mule(self):
-        out = _node(r"""
-          window._laneLockWhy = function(nm){
-            if (nm === 'Harlequin Crest') return { lane: 'equipment', why: %s };
-            return null;
-          };
-          window.suggestMule = function(nm){
-            CALLS.push(nm);
-            return { id: 'uni-weap', why: 'weapon — base: Shako' };
-          };
+    def test_throw_out_and_keep_are_not_homes(self):
+        out = _node(ROUTER + r"""
+          OUT.trash = window.vaultProposeLine('Short Sword');
+          OUT.keep = window.vaultProposeLine('Annihilus');
+          OUT.shared = window.vaultProposeLine('Ort Rune');
+        """)
+        self.assertIn('data-state="throwout"', out["trash"])
+        self.assertIn("throw-out advice — " + TRASH, out["trash"])
+        self.assertIn('data-state="keep"', out["keep"])
+        self.assertIn("stays with your MAIN, not a mule", out["keep"])
+        self.assertIn('data-state="shared"', out["shared"])
+        self.assertIn("belongs in the shared stash — there is no mule for it", out["shared"])
+        for k in ("trash", "keep", "shared"):
+            self.assertNotIn("data-home", out[k], "%s was painted as a proposed home" % k)
+            self.assertNotIn('data-state="proposed"', out[k], "%s was painted as a proposed home" % k)
+
+    def test_unknown_names_no_home(self):
+        out = _node(ROUTER + r"""
+          OUT.ghost = window.vaultProposeLine('Ghost');
+          OUT.nowhy = window.vaultProposeLine('Nope');
+          OUT.boom = window.vaultProposeLine('Boom');
+          delete window.suggestMule;
+          OUT.gone = window.vaultProposeLine('Battlecage');
+          OUT.blank = window.vaultPropose('  ');
+        """)
+        self.assertIn('routed to &quot;uni-ghost&quot; but no mule with that id exists on this board', out["ghost"])
+        self.assertIn("the router gave no reason", out["nowhy"])
+        self.assertIn("the router could not be asked", out["boom"])
+        self.assertIn("the router is not on this page", out["gone"])
+        for k in ("ghost", "nowhy", "boom", "gone"):
+            self.assertIn('data-state="unknown"', out[k])
+            self.assertNotIn("data-home", out[k], "an unknown answer named a home (%s)" % k)
+            self.assertNotIn("UNI-WEAPONS", out[k])
+        self.assertFalse(out["blank"]["ok"])
+
+    def test_a_locked_name_stays_and_the_router_is_not_asked(self):
+        out = _node(ROUTER + r"""
+          window._laneLockWhy = function(nm){ return nm === 'Harlequin Crest' ? { lane: 'equipment', why: %s } : null; };
           OUT.line = window.vaultProposeLine('Harlequin Crest');
           OUT.calls = CALLS.slice();
           OUT.open = window.vaultProposeLine('Stone of Jordan');
           OUT.openCalls = CALLS.slice();
         """ % json.dumps(LOCK))
         self.assertIn('data-state="stays"', out["line"])
-        self.assertIn(LOCK, out["line"])
+        self.assertIn("stays where it is — " + LOCK, out["line"])
         self.assertNotIn("data-home", out["line"])
-        self.assertNotIn("uni-weap", out["line"])
         self.assertEqual(out["calls"], [])
         self.assertIn('data-home="uni-weap"', out["open"])
         self.assertEqual(out["openCalls"], ["Stone of Jordan"])
 
-    def test_a_witnessed_item_gets_the_same_sentence_and_nothing_moves(self):
-        src = _bible()
-        propose = _between(src, "/* ⟦VAULT PROPOSE BEGIN⟧", "/* ⟦VAULT PROPOSE END⟧")
-        self.assertNotIn("vaultAutoAssign", propose)
-        self.assertNotIn("setItem", propose)
-        self.assertNotIn("assign[", propose)
-        self.assertNotIn("onclick", propose)
-        self.assertEqual(src.count("window.vaultProposeLine(r.name)"), 1)
-        self.assertEqual(src.count("window.vaultOrganizePaint(unsorted)"), 1)
-        dock_at = src.find("dock.innerHTML = unsorted.map(function(n){")
-        dock_end = src.find(".join('');", dock_at)
-        self.assertGreater(dock_at, 0)
-        self.assertNotIn("vaultPropose", src[dock_at:dock_end])
-        self.assertEqual(src.count('id="vault-organize"'), 1)
-        out = _node(r"""
-          window.suggestMule = function(nm){
-            if (nm === 'Battlecage') return { id: 'uni-weap', why: %s };
-            if (nm === 'a < b') return { id: '__throwout', why: 'trade value TRASH — advice only' };
-            return { id: 'uni-weap' };
-          };
+    def test_the_organizer_moves_nothing_and_says_how_many(self):
+        out = _node(ROUTER + r"""
           OUT.empty = window.vaultOrganizePaint([]);
           OUT.hidden = ELS['vault-organize'].hidden;
-          OUT.bad = window.vaultOrganizeLine ? null : window.vaultOrganizePaint(null);
-          OUT.paint = window.vaultOrganizePaint(['Battlecage', 'a < b']);
+          OUT.bad = window.vaultOrganizePaint(null);
+          OUT.paint = window.vaultOrganizePaint(['Battlecage', 'a < b', 'Short Sword']);
           OUT.html = ELS['vault-organize']._html;
+          var many = []; for (var i = 0; i < 61; i++) many.push('Item ' + i);
+          OUT.many = window.vaultOrganizePaint(many);
+          OUT.manyHtml = ELS['vault-organize']._html;
           OUT.writes = WRITES;
-          OUT.hand = RAW['d2r_vaultHand'] || null;
-          OUT.assign = RAW['d2r_muleAssign'] || null;
-        """ % json.dumps(PARK))
+        """)
         self.assertEqual(out["empty"]["n"], 0)
         self.assertTrue(out["hidden"])
         self.assertFalse(out["bad"]["ok"])
-        self.assertIn("the organizer was not given a list", out["bad"]["why"])
-        self.assertEqual(out["paint"]["n"], 2)
+        self.assertEqual(out["paint"]["n"], 3)
+        self.assertIn("nothing moves until you file it", out["html"])
         self.assertIn('data-name="Battlecage"', out["html"])
-        self.assertIn(PARK, out["html"])
-        self.assertIn('data-home="__throwout"', out["html"])
-        self.assertIn("trade value TRASH — advice only", out["html"])
+        self.assertIn("→ UNI-WEAPONS — " + PARK, out["html"])
         self.assertIn('data-name="a &lt; b"', out["html"])
+        self.assertIn('data-state="throwout"', out["html"])
         self.assertNotIn("onclick", out["html"])
+        self.assertNotIn("<button", out["html"])
+        self.assertEqual(out["many"]["shown"], 60)
+        self.assertEqual(out["manyHtml"].count('class="vault-org-row" data-name='), 60)
+        self.assertIn("60 of 61 shown", out["manyHtml"])
         self.assertEqual(out["writes"], 0)
-        self.assertIsNone(out["hand"])
-        self.assertIsNone(out["assign"])
+
+    def test_the_joins(self):
+        s = _src()
+        code = code_only(s)
+        self.assertEqual(code.count("    try { if (typeof window.vaultOrganizePaint === 'function') window.vaultOrganizePaint(unsorted); } catch (eO) {}"), 1)
+        dock_at = code.find("dock.innerHTML = unsorted.map(function(n){")
+        self.assertGreater(dock_at, 0)
+        self.assertNotIn("vaultPropose", code[dock_at:code.find(".join('');", dock_at)])
+        self.assertEqual(s.count('id="vault-organize"'), 1)
+        propose = code_only(_cut(s, PROPOSE_A, PROPOSE_B))
+        for banned in ("setItem(", "removeItem(", "assign[", "vaultFile(", "vaultAutoAssign", "onclick"):
+            self.assertNotIn(banned, propose, "the organizer reaches %s" % banned)
 
 
 RED_PROOF = [
     {
-        "why": "a hand-added row must show the router's sentence; dropping the paint leaves the testimony with no destination",
+        "why": "a proposal names its mule; printing the reason alone is the defect this law was written for",
         "file": "bible.html",
-        "find": "          + window.vaultProposeLine(r.name) + '</li>';\n",
-        "replace": "          + '</li>';\n",
+        "find": "    if (pg.kind === 'mule') return span('proposed', '→ ' + pg.home + ' — ' + pg.why, pg.id);\n",
+        "replace": "    if (pg.kind === 'mule') return span('proposed', pg.why, pg.id);\n",
         "matches": 1,
     },
     {
-        "why": "a witnessed item in the dock must be asked too; dropping the call leaves that half unjoined",
+        "why": "the throw-out review is advice; without its own branch it is painted as a proposed home",
         "file": "bible.html",
-        "find": "    try { if (typeof window.vaultOrganizePaint === 'function') window.vaultOrganizePaint(unsorted); } catch (eO) {}\n",
-        "replace": "",
+        "find": "    if (id === '__throwout') return { ok: true, moved: false, kind: 'throwout', id: id, home: null, why: why };\n",
+        "replace": "    if (id === '__throwout') return { ok: true, moved: false, kind: 'mule', id: id, home: 'the throw-out review', why: why };\n",
         "matches": 1,
     },
     {
-        "why": "a router that throws must stay unknown; a weapon home in the catch fabricates a destination",
+        "why": "an id with no mule on this board is UNKNOWN; without the check a ghost home is named",
         "file": "bible.html",
-        "find": "    catch (e) { return { ok: false, moved: false, home: null, id: null, stays: false, why: 'the router could not be asked' }; }\n",
-        "replace": "    catch (e) { return { ok: true, moved: false, id: 'uni-weap', home: 'uni-weap', stays: false, why: 'weapon — base: Battlecage' }; }\n",
+        "find": "    if (!mule) return no(_vNoHomeWhy(nm, id));\n",
+        "replace": "    if (!mule) mule = { name: id };\n",
         "matches": 1,
     },
     {
         "why": "a locked name stays; deleting the lock return offers it a mule",
         "file": "bible.html",
-        "find": "    if (held && held.why) return { ok: true, moved: false, id: null, home: null, stays: true, why: String(held.why) };\n",
+        "find": "    if (held && held.why) return { ok: true, moved: false, kind: 'stays', id: null, home: null, why: String(held.why) };\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "the dock's unsorted items must be asked; dropping the paint leaves the organizer unjoined",
+        "file": "bible.html",
+        "find": "    try { if (typeof window.vaultOrganizePaint === 'function') window.vaultOrganizePaint(unsorted); } catch (eO) {}\n",
         "replace": "",
         "matches": 1,
     },
