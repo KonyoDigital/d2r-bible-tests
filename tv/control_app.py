@@ -40448,6 +40448,66 @@ def _self_prove_row(_spv):
     return bool(_sp_ok), line
 
 
+def _journal_doctor_rows():
+    """The doctor's replay row and its journal-generation row. -> [check, check]
+
+    #86 gap audit 22 (REG-1777). A raise here used to append nothing, so the tally saw fewer rows,
+    all green, and a journal that could not be read looked like a night that passed. A check that
+    did not run is a row that says so. An empty journal is still a measurement.
+    """
+    checks = []
+    # v815 (Grok R8 #8) — can this night be REPLAYED? Frame coverage + id sanity on the
+    # journal tail (last ~200 rows): % beats whose hist frame exists, sessionId coverage.
+    try:
+        _jl = _journal_path()   # v877 · v1493 — one resolver for every site
+        _hist = os.path.join(HERE, "frames", "hist")
+        rows = []
+        if os.path.isfile(_jl):
+            with open(_jl, encoding="utf-8") as f:
+                for line in f.readlines()[-200:]:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        rows.append(json.loads(line))
+                    except Exception:
+                        pass
+        if rows:
+            with_fid = [r for r in rows if r.get("frameId")]
+            have = sum(1 for r in with_fid
+                       if os.path.isfile(os.path.join(_hist, str(r["frameId"]) + ".jpg")))
+            sid_cov = sum(1 for r in rows if r.get("sessionId"))
+            pct = int(100 * have / max(1, len(with_fid)))
+            # v840 — always warn-severity so agent OFF nights don't fail the doctor (TestDoctor);
+            # detail still shouts missing count. Live ON nights: user sees amber lamp on the UI.
+            checks.append(_chk(
+                "session_integrity", pct >= 40, "warn",
+                "frames %d%% of %d reads · sessionId %d/%d · missing %d" % (
+                    pct, len(with_fid), sid_cov, len(rows), max(0, len(with_fid) - have)),
+                "v840 journal-shield protects NEW frames; prior nights may stay hollow after the footage flood"))
+        else:
+            checks.append(_chk("session_integrity", True, "warn", "no journal rows yet"))
+    except Exception as e:
+        checks.append(_chk(
+            "session_integrity", False, "warn",
+            "could not be measured: %s - UNKNOWN, not a night that replayed" % e))
+
+    # v811 (Grok R8 #6) — journal generation truth: how many rotated nights exist
+    try:
+        _live_p = _journal_path()
+        _stem = _live_p[:-6] if _live_p.endswith(".jsonl") else _live_p
+        _gens = [g for g in range(1, 6) if os.path.isfile(_stem + ".%d.jsonl" % g)]
+        _live = os.path.isfile(_live_p)
+        checks.append(_chk("journal_gens", True, "warn",
+                           "live=%s gens=%s" % ("yes" if _live else "no",
+                                                (",".join(str(g) for g in _gens) or "none"))))
+    except Exception as e:
+        checks.append(_chk(
+            "journal_gens", False, "warn",
+            "could not be measured: %s - UNKNOWN, not a journal that was read" % e))
+    return checks
+
+
 def doctor_payload():
     """GET /api/doctor contract: {ok, platform, checks:[{id,ok,severity,detail,fix?}],
     logTail, logPath, ver}. See the DOCTOR banner above for the invariants."""
@@ -40556,51 +40616,7 @@ def doctor_payload():
         "; ".join(stale) if stale else "no stale pid files",
         "Harmless — STOP then ON rewrites them"))
 
-    # v815 (Grok R8 #8) — can this night be REPLAYED? Frame coverage + id sanity on the
-    # journal tail (last ~200 rows): % beats whose hist frame exists, sessionId coverage.
-    try:
-        _jl = _journal_path()   # v877 · v1493 — one resolver for every site
-        _hist = os.path.join(HERE, "frames", "hist")
-        rows = []
-        if os.path.isfile(_jl):
-            with open(_jl, encoding="utf-8") as f:
-                for line in f.readlines()[-200:]:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        rows.append(json.loads(line))
-                    except Exception:
-                        pass
-        if rows:
-            with_fid = [r for r in rows if r.get("frameId")]
-            have = sum(1 for r in with_fid
-                       if os.path.isfile(os.path.join(_hist, str(r["frameId"]) + ".jpg")))
-            sid_cov = sum(1 for r in rows if r.get("sessionId"))
-            pct = int(100 * have / max(1, len(with_fid)))
-            # v840 — always warn-severity so agent OFF nights don't fail the doctor (TestDoctor);
-            # detail still shouts missing count. Live ON nights: user sees amber lamp on the UI.
-            checks.append(_chk(
-                "session_integrity", pct >= 40, "warn",
-                "frames %d%% of %d reads · sessionId %d/%d · missing %d" % (
-                    pct, len(with_fid), sid_cov, len(rows), max(0, len(with_fid) - have)),
-                "v840 journal-shield protects NEW frames; prior nights may stay hollow after the footage flood"))
-        else:
-            checks.append(_chk("session_integrity", True, "warn", "no journal rows yet"))
-    except Exception:
-        pass
-
-    # v811 (Grok R8 #6) — journal generation truth: how many rotated nights exist
-    try:
-        _live_p = _journal_path()
-        _stem = _live_p[:-6] if _live_p.endswith(".jsonl") else _live_p
-        _gens = [g for g in range(1, 6) if os.path.isfile(_stem + ".%d.jsonl" % g)]
-        _live = os.path.isfile(_live_p)
-        checks.append(_chk("journal_gens", True, "warn",
-                           "live=%s gens=%s" % ("yes" if _live else "no",
-                                                (",".join(str(g) for g in _gens) or "none"))))
-    except Exception:
-        pass
+    checks.extend(_journal_doctor_rows())
 
     # v1404 — Windows ship identity check (install must pin platform=windows + matching ver)
     if IS_WIN:

@@ -9350,6 +9350,13 @@ GATES = [
              "red 'picker short' word on the row only on a disagreement, and the doctor row 'picker census' goes "
              "MISSING naming the PC, UNKNOWN when unread, OK when every PC agrees.",
          skip_ok=()),
+    Gate("test_a_doctor_check_that_did_not_run_is_not_a_pass",
+         [sys.executable, os.path.join(HERE, "test_a_doctor_check_that_did_not_run_is_not_a_pass.py")], 90,
+         needs_app=False,
+         why="REG-1777 (#86 gap audit 22) - the doctor's replay row and its journal-generation row swallowed "
+             "any raise and appended nothing, so the tally saw fewer rows, all green. A journal that could not "
+             "be read is now those two rows, not ok, saying they could not be measured. An empty journal is "
+             "still a measurement."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
