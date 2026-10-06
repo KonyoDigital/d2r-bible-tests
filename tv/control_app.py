@@ -28754,6 +28754,9 @@ def tombstone_view(limit=300):
         return out
     if not os.path.exists(_p):
         out["why"] = "no tombstone ledger exists yet at %s — measured absent, not empty" % os.path.basename(_p)
+        # A flag, not a sentence. The doctor must not grep this why to tell "never
+        # written" from "would not parse", and both of those leave reels as None.
+        out["ledgerAbsent"] = True
         return out
     try:
         doc = json.load(io.open(_p, encoding="utf-8"))
@@ -40694,6 +40697,182 @@ def _river_locks_doctor_row(ask=None):
             ", ".join(_RIVER_LOCKS_ASKED)))
 
 
+# Two days. lane_health calls 48 hours "longer than this and a person would want to know"
+# for a lane that has produced nothing. The same length here: a reel younger than that has
+# not sat long enough to say this console's outlet never fired.
+RIVER_OUTLET_OLD_DAYS = 2
+
+
+def _river_outlet_unmeasured(why):
+    """An outlet ask that did not come back. Not a pass. -> check"""
+    return _chk(
+        "river_outlet", False, "warn",
+        "UNMEASURED: %s - not a river that has closed a reel out" % why)
+
+
+def _river_outlet_filmed_ms(name):
+    """Epoch ms from a reel_s_<ms>_<n> name. None when the name will not say. -> int|None"""
+    try:
+        import reel_retention as _rr
+        ts = _rr._reel_ts(os.path.basename(str(name)))
+    except Exception:
+        return None
+    if ts == float("inf") or isinstance(ts, bool) or not isinstance(ts, (int, float)):
+        return None
+    ms = int(ts)
+    # A name that parses as a small integer is not a filmed clock. Year 1970 would
+    # otherwise look ancient and the row would warn on junk.
+    if ms < 10 ** 12:
+        return None
+    return ms
+
+
+def _river_outlet_lifetime(stones):
+    """(count, absent) when the ledger was measured. None when it was not. -> tuple|None
+
+    A missing file is zero tombstones, measured absent. A file that will not parse is
+    not zero. reels None is both of those until ledgerAbsent says which.
+    """
+    if not isinstance(stones, dict):
+        return None
+    reels = stones.get("reels")
+    if (stones.get("ok") is True and isinstance(reels, int) and not isinstance(reels, bool)
+            and reels >= 0):
+        return reels, False
+    if stones.get("ledgerAbsent") is True and reels is None and stones.get("ok") is False:
+        return 0, True
+    return None
+
+
+def _river_outlet_ask():
+    """The census, the tombstone ledger, and the reel names. -> (census, stones, rows|None)
+
+    A raise is the caller's UNMEASURED. A plan that did not answer comes back as no
+    name list, which is not an empty shelf.
+    """
+    census = reel_census()
+    stones = tombstone_view(limit=1)
+    import reel_retention as _rr
+    planned = _rr.plan()
+    if not isinstance(planned, dict) or not planned.get("ok"):
+        return census, stones, None
+    cands, kept = planned.get("candidates"), planned.get("kept")
+    if not isinstance(cands, list) or not isinstance(kept, list):
+        return census, stones, None
+    rows = []
+    for rec in cands + kept:
+        if not isinstance(rec, dict):
+            return census, stones, None
+        rows.append({"reel": rec.get("reel"), "tag": rec.get("tag")})
+    return census, stones, rows
+
+
+def _river_outlet_doctor_row(census, stones, rows, now_ms=None):
+    """The doctor's river_outlet row. Old reels and a lifetime of zero tombstones. -> check
+
+    #86 gap audit 18 (REG-1785). /api/doctor never asked whether a reel had reached
+    TOMBSTONE on this console. Reels older than RIVER_OUTLET_OLD_DAYS that sit outside
+    the newest KEEP_RECENT, and a lifetime count of zero, are a shut outlet. The newest
+    KEEP_RECENT are kept by law, and a fixture is not his footage, so neither is this
+    count. A missing ledger is that zero, measured absent. Anything that will not read
+    is UNMEASURED, never a pass. This asks nothing of may() and deletes nothing.
+    """
+    if not isinstance(census, dict) or census.get("ok") is not True:
+        why = ""
+        if isinstance(census, dict):
+            why = str(census.get("why") or "")
+        return _river_outlet_unmeasured(
+            why or "the reel census did not come back, so what is on disk is not known")
+    on_disk = census.get("onDisk")
+    if isinstance(on_disk, bool) or not isinstance(on_disk, int) or on_disk < 0:
+        return _river_outlet_unmeasured("the census did not count the reels on disk")
+    life = _river_outlet_lifetime(stones)
+    if life is None:
+        why = ""
+        if isinstance(stones, dict):
+            why = str(stones.get("why") or "")
+        return _river_outlet_unmeasured(
+            why or "the tombstone ledger did not come back, so a lifetime of zero is not known")
+    count, absent = life
+    absent_bit = (" (no tombstone ledger yet — measured absent, not an empty history)"
+                  if absent else "")
+    if rows is not None and not isinstance(rows, list):
+        return _river_outlet_unmeasured(
+            "the reel list came back as %s, not a list" % type(rows).__name__)
+    if isinstance(rows, list) and len(rows) != on_disk:
+        return _river_outlet_unmeasured(
+            "the census counted %d reel(s) and the name list has %d — a torn read is not a count"
+            % (on_disk, len(rows)))
+    if on_disk == 0:
+        if count == 0:
+            detail = ("0 reels on disk and 0 lifetime tombstones%s — nothing has piled up here"
+                      % absent_bit)
+        else:
+            detail = "0 reels on disk, and this console has closed out %d reel(s)" % count
+        return _chk("river_outlet", True, "warn", detail)
+    if count > 0:
+        return _chk(
+            "river_outlet", True, "warn",
+            "this console has closed out %d reel(s) — a lifetime of zero tombstones is not "
+            "what was read" % count)
+    if rows is None:
+        return _river_outlet_unmeasured(
+            "the reel names could not be read, so whether any is older than %d days is not known"
+            % RIVER_OUTLET_OLD_DAYS)
+    if now_ms is None:
+        now_ms = int(time.time() * 1000)
+    if isinstance(now_ms, bool) or not isinstance(now_ms, (int, float)):
+        return _river_outlet_unmeasured("the clock did not come back as a time")
+    now_ms = int(now_ms)
+    names = []
+    for rec in rows:
+        if not isinstance(rec, dict) or not rec.get("reel"):
+            return _river_outlet_unmeasured(
+                "a reel row carried no name, so its age was not measured")
+        names.append(str(rec.get("reel")))
+    try:
+        import reel_retention as _rr
+        keep = _rr.KEEP_RECENT
+        shield = _rr.recent_shield(names, keep)
+    except Exception as _e:
+        return _river_outlet_unmeasured(
+            "the recent shield could not be asked (%s)" % type(_e).__name__)
+    if isinstance(keep, bool) or not isinstance(keep, int) or keep < 0:
+        return _river_outlet_unmeasured("the recent shield's width did not come back as a count")
+    old = 0
+    unknown = 0
+    bar = RIVER_OUTLET_OLD_DAYS * 86400000
+    for rec, name in zip(rows, names):
+        if rec.get("tag") in SHELF_HIDDEN_TAGS:
+            continue
+        if name in shield:
+            continue
+        ms = _river_outlet_filmed_ms(name)
+        if ms is None:
+            unknown += 1
+            continue
+        if now_ms - ms >= bar:
+            old += 1
+    if old == 0 and unknown:
+        return _river_outlet_unmeasured(
+            "%d reel(s) outside the newest %d carry no age, so a lifetime of zero tombstones "
+            "is not a pass" % (unknown, keep))
+    if old == 0:
+        return _chk(
+            "river_outlet", True, "warn",
+            "%d reel(s) on disk, none outside the newest %d and older than %d days, and 0 "
+            "lifetime tombstones%s — not a shut outlet"
+            % (on_disk, keep, RIVER_OUTLET_OLD_DAYS, absent_bit))
+    extra = ("; %d more carry no age" % unknown) if unknown else ""
+    return _chk(
+        "river_outlet", False, "warn",
+        "%d reel(s) on disk are older than %d days and outside the newest %d, "
+        "and this console has 0 lifetime tombstones%s%s" % (
+            old, RIVER_OUTLET_OLD_DAYS, keep, absent_bit, extra),
+        "The outlet has never closed a reel out here. This row does not open a lock "
+        "and does not delete a reel.")
+
+
 def doctor_payload():
     """GET /api/doctor contract: {ok, platform, checks:[{id,ok,severity,detail,fix?}],
     logTail, logPath, ver}. See the DOCTOR banner above for the invariants."""
@@ -40922,6 +41101,14 @@ def doctor_payload():
     # ── RIVER LOCKS — #86 gap audit 18 (REG-1784). The self-prove row reads the lane's last tick.
     # It does not ask may(). A lock can be shut while that row stays green. See _river_locks_doctor_row.
     checks.append(_river_locks_doctor_row())
+
+    # ── RIVER OUTLET — #86 gap audit 18 (REG-1785). A lifetime of zero tombstones, with reels
+    # old enough to have been closed out, never reached this payload. See _river_outlet_doctor_row.
+    try:
+        checks.append(_river_outlet_doctor_row(*_river_outlet_ask()))
+    except Exception as _oe:
+        checks.append(_river_outlet_unmeasured(
+            "the outlet could not be asked (%s)" % type(_oe).__name__))
 
     _bs = _beacon_status()
     _bt = _beacon_snapshot().get("ts")

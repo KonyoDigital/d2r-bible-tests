@@ -9407,6 +9407,14 @@ GATES = [
              "vault.apply are shut. The river_locks row asks may() and names each shut lock. An ask "
              "that does not come back is UNMEASURED, not a pass. The row does not open a lock. may() "
              "is unchanged, so a partial census still keeps frame.release and vault.sweep_start shut."),
+    Gate("test_a_zero_tombstone_is_not_a_doctor_pass",
+         [sys.executable, os.path.join(HERE, "test_a_zero_tombstone_is_not_a_doctor_pass.py")], 90,
+         needs_app=False,
+         why="REG-1785 (#86 gap audit 18) - /api/doctor never asked whether this console had closed a "
+             "reel out. Reels older than two days that sit outside the newest KEEP_RECENT, with a "
+             "lifetime tombstone count of zero, are not a pass. A missing ledger is that zero. A "
+             "ledger that will not read is UNMEASURED. The newest KEEP_RECENT are kept by law. The "
+             "row does not open a lock and does not delete a reel."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
