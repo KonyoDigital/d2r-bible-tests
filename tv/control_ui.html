@@ -10794,6 +10794,11 @@ window._lockMark = function(isOpen, px, label){
       (on && _ring.length) ? ('tracking · ' + _ring.length + ' live frame' + (_ring.length > 1 ? 's' : '')) : 'cold · no live cursor');
 
     // v946 — SESSION HEALTH strip
+    // REG-1805 — unknown is a journal that was not read. An empty tally
+    // list is also "no tallies yet", an empty lease map is also "free",
+    // and a missing re-fire count is also zero. This strip called that a
+    // pass. A measured empty night still says those three. The verdict
+    // word already falls through to unknown.
     try {
       var sh = st.sessionHealth || {};
       var shEl = $('sess-health');
@@ -10803,18 +10808,21 @@ window._lockMark = function(isOpen, px, label){
       }
       var ts = sh.tabSummary || {};
       var tabKeys = Object.keys(ts);
+      var shUnread = (sh.verdict === 'unknown');
       var tabEl = $('sh-tabs');
       if (tabEl) tabEl.textContent = tabKeys.length
         ? tabKeys.map(function(k){ return k + ' ' + ts[k]; }).join(' · ')
-        : (on ? 'no tallies yet' : '—');
+        : (shUnread ? 'the journal was not read' : (on ? 'no tallies yet' : '—'));
       var leases = sh.leases || {};
       var lKeys = Object.keys(leases);
       var le = $('sh-lease');
       if (le) le.textContent = lKeys.length
         ? lKeys.map(function(k){ return k + '→' + ((leases[k] || {}).owner || '?'); }).join(' · ')
-        : 'free';
+        : (shUnread ? 'the journal was not read' : 'free');
       var rf = $('sh-refire');
-      if (rf) rf.textContent = (sh.refires || 0) + ' re-fires · fired ' + (sh.driverFired || 0);
+      if (rf) rf.textContent = shUnread
+        ? 'the journal was not read'
+        : ((sh.refires || 0) + ' re-fires · fired ' + (sh.driverFired || 0));
       var ve = $('sh-verdict');
       if (ve) ve.textContent = ({ ok:'session ok', partial:'partial · some MISS', miss:'miss · needs re-read', idle:'idle' })[sh.verdict || 'idle'] || (sh.verdict || 'idle');
       window.__mindStory = sh.story || st.mindStory || [];

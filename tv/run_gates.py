@@ -9546,6 +9546,16 @@ GATES = [
              "stash tabs yet. A landed tab is still landed. A miss is still a gap. "
              "A gate that holds more than it proves still warns. The organ says "
              "the journal was not read, and it does not stay ok."),
+    Gate("test_an_unread_journal_is_not_a_quiet_session_strip",
+         [sys.executable, os.path.join(HERE, "test_an_unread_journal_is_not_a_quiet_session_strip.py")], 90,
+         needs_app=False,
+         why="REG-1805 - the session-health strip treats an empty tally list as "
+             "no tallies yet, an empty lease map as free, and a missing re-fire "
+             "count as zero, including when the journal verdict is unknown. A "
+             "measured empty night still says those three. A landed tally is "
+             "still a tally. A held lease is still held. A counted re-fire is "
+             "still that count. The verdict word already falls through to "
+             "unknown. The strip says the journal was not read."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
