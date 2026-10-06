@@ -313,14 +313,14 @@ def free_mb():
         return None
 
 
-#: REG-1839 — what heart2 prints when no lane could copy the repo: the proof then exits with the census unwritten.
+#: REG-1845 — what heart2 prints when no lane could copy the repo: the proof then exits with the census unwritten.
 NO_SANDBOX_MARK = "no lane could build a sandbox"
 
 
 def sandbox_ready():
     """Can a proof copy this repo into a sandbox right now? -> (True, "") | (False, why) | None (UNKNOWN)
 
-    REG-1839 — asked of safe_copy's own refusal rule (check(), the one copy() applies before it writes), toward the
+    REG-1845 — asked of safe_copy's own refusal rule (check(), the one copy() applies before it writes), toward the
     temp volume heart2 builds its sandboxes on. MEASURED on his Mac 2026-10-06: every lane of every proof was refused
     at 420.4 MB over the 400 MB ceiling, each proof exited with the census unwritten, and the lane booked that as a
     failed proof and waited 3 h before trying the same refused copy again."""
@@ -640,7 +640,7 @@ def decide(census, tree, running_pid, busy_pct, mem, now_s, on=True, playing=Non
         last_fail = float(mem.get("lastFailAt")) if mem.get("lastFailAt") is not None else None
     except (TypeError, ValueError):
         last_fail = now_s                                  # an unreadable failure time backs off, never races
-    # REG-1839 — a proof that cannot copy the repo is not started, and the reason is the copier's own sentence. It is
+    # REG-1845 — a proof that cannot copy the repo is not started, and the reason is the copier's own sentence. It is
     # asked again every tick, so the tick the cause is gone a proof starts: a refused copy is never the 3 h backoff.
     # `sandbox` None = not asked (a law's decide), which keeps the old behaviour.
     if isinstance(sandbox, tuple) and sandbox and sandbox[0] is False:
@@ -1084,7 +1084,7 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
             mem["lastMoved"] = "the gates changed during the proof (%s -> %s)" % (
                 str(mem.get("startedFor"))[:8], str(census.get("fingerprint"))[:8])
         elif _log_says_no_sandbox(_store_path(path) + ".log"):
-            # REG-1839 — not a failed proof: no lane could copy the repo. Booked with its kind, so decide() asks the
+            # REG-1845 — not a failed proof: no lane could copy the repo. Booked with its kind, so decide() asks the
             # copier again every tick instead of waiting 3 h for a copy that would be refused the same way.
             mem.update(lastFailAt=now_s, lastFailFingerprint=census.get("fingerprint"), lastFailKind="sandbox",
                        lastFailWhy="the proof exited because no lane could build a sandbox")
@@ -1093,10 +1093,10 @@ def _tick(now_s, busy, tree, census, path, spawn_fn, env, playing=None, free=Non
                        lastFailWhy="census still %s after the proof exited" % census.get("state"))
         _forget(mem)
     if mem.get("lastFailAt") is not None and not mem.get("lastFailKind"):
-        # REG-1839 - a record booked before the kind existed is classified once, from the proof's own log
+        # REG-1845 - a record booked before the kind existed is classified once, from the proof's own log
         mem["lastFailKind"] = "sandbox" if _log_says_no_sandbox(_store_path(path) + ".log") else "proof"
     on = enabled(env)
-    # REG-1839 — the copier's answer for a REAL start (a law's recording spawn hands its own, or none)
+    # REG-1845 — the copier's answer for a REAL start (a law's recording spawn hands its own, or none)
     _sb = sandbox if sandbox is not None else (
         sandbox_ready() if spawn_fn is None and not running and census.get("state") != "current" else None)
     d = decide(census, tree if tree is not None else tree_state(), running,

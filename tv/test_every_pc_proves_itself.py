@@ -142,7 +142,7 @@ class TheTickEndToEnd(unittest.TestCase):
             fh.write("\n".join(lines) + "\n")
 
     def test_a_proof_no_lane_could_copy_is_not_a_3h_failure(self):
-        """REG-1839 - his Mac 2026-10-06: every lane said "safe_copy REFUSED the sandbox (exit 1)", the proof exited
+        """REG-1845 - his Mac 2026-10-06: every lane said "safe_copy REFUSED the sandbox (exit 1)", the proof exited
         with the census stale, and the lane waited 3 h to try the same refused copy. A proof whose log ends in no
         sandbox is booked as that, the copier is asked every tick, and the tick it can copy, a proof starts."""
         SP.tick(now_s=1000.0, busy=3.0, tree=INSTALLED, census=STALE, path=self.path,
@@ -309,7 +309,7 @@ class TheTreeIsToldApart(unittest.TestCase):
 
 
 class TheSandboxRefusalIsSaid(unittest.TestCase):
-    """REG-1839 - heart2 handed safe_copy's refusal to a no-op and logged only "exit 1", 125 times on his Mac."""
+    """REG-1845 - heart2 handed safe_copy's refusal to a no-op and logged only "exit 1", 125 times on his Mac."""
 
     def test_heart2_writes_the_copiers_own_sentence(self):
         from unittest import mock
@@ -904,21 +904,21 @@ class TwoLanesOnlyWithRoom(unittest.TestCase):
 
 RED_PROOF = [
     {
-        "why": "REG-1839 - a refused copy is booked as a failed proof again, so the lane waits 3 h after the cause is gone",
+        "why": "REG-1845 - a refused copy is booked as a failed proof again, so the lane waits 3 h after the cause is gone",
         "file": "tv/self_prove.py",
         "find": "            and mem.get(\"lastFailKind\") != \"sandbox\" and now_s - last_fail < RETRY_AFTER_FAIL_S:\n",
         "replace": "            and now_s - last_fail < RETRY_AFTER_FAIL_S:\n",
         "matches": 1,
     },
     {
-        "why": "REG-1839 - a proof is started into a copy the copier refuses, and exits with the census unwritten",
+        "why": "REG-1845 - a proof is started into a copy the copier refuses, and exits with the census unwritten",
         "file": "tv/self_prove.py",
         "find": "    if isinstance(sandbox, tuple) and sandbox and sandbox[0] is False:\n",
         "replace": "    if False:\n",
         "matches": 1,
     },
     {
-        "why": "REG-1839 - heart2 drops safe_copy's refusal sentence again and logs only the exit code",
+        "why": "REG-1845 - heart2 drops safe_copy's refusal sentence again and logs only the exit code",
         "file": "tv/heart2.py",
         "find": "        rc = safe_copy.copy(REPO, dest, False, lambda *a, **k: _said.append(str(a[0]) if a else \"\"))\n",
         "replace": "        rc = safe_copy.copy(REPO, dest, False, lambda *a, **k: None)\n",

@@ -1133,7 +1133,7 @@ def make_sandbox(say=print):
         _drop_sandbox(root)
         return None, None
     if rc not in (0, None):
-        # REG-1839 — AND SAY WHY. The refusal's own sentence was handed to a no-op, so his log said "exit 1"
+        # REG-1845 — AND SAY WHY. The refusal's own sentence was handed to a no-op, so his log said "exit 1"
         # 125 times while the reason (420.4 MB over the 400 MB ceiling) was never written anywhere.
         _why = next((t for t in reversed(_said) if t.startswith("REFUSED")), "") or "no reason was given"
         say("  safe_copy REFUSED the sandbox (exit %s): %s — nothing was copied, so nothing can be "

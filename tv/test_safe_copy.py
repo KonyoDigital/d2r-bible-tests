@@ -39,7 +39,7 @@ import safe_copy as SC  # noqa: E402
 
 RED_PROOF = [
     {
-        "why": "REG-1839 - heart2's own cache and his reel-seed archive are copied again, and his Mac's every sandbox is refused at 420 MB",
+        "why": "REG-1845 - heart2's own cache and his reel-seed archive are copied again, and his Mac's every sandbox is refused at 420 MB",
         "file": "safe_copy.py",
         "find": "    return name in HEAVY_FILES or name.endswith(HEAVY_SUFFIXES)\n",
         "replace": "    return False\n",
@@ -147,7 +147,7 @@ class TheHeavyDirectoriesAreNeverCopied(unittest.TestCase):
         self.assertFalse(os.path.exists(os.path.join(self.dst, ".claude", "worktrees")))
 
     def test_runtime_caches_and_archives_are_excluded(self):
-        """REG-1839 - his Mac 2026-10-06: the plan was 420.4 MB over the 400 MB ceiling and every heart2 sandbox was
+        """REG-1845 - his Mac 2026-10-06: the plan was 420.4 MB over the 400 MB ceiling and every heart2 sandbox was
         refused. heart2's own per-machine cache (105.9 MB) and a reel-seed archive (97.8 MB) were most of it."""
         io.open(os.path.join(self.src, "tv", ".heart2_cache.json"), "w").write("H" * 200000)
         io.open(os.path.join(self.src, "tv", "tvd-reel-seed-small.tgz"), "w").write("T" * 200000)
@@ -162,7 +162,7 @@ class TheHeavyDirectoriesAreNeverCopied(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.dst, "tv", "kept.json")), "an ordinary json was dropped")
 
     def test_check_is_the_rule_copy_applies(self):
-        """REG-1839 - one refusal rule: what check() answers is what copy() says and returns."""
+        """REG-1845 - one refusal rule: what check() answers is what copy() says and returns."""
         real = SC.MAX_MB
         said = []
         try:

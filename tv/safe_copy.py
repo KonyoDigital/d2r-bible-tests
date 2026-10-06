@@ -54,7 +54,7 @@ HEAVY = (
     "worktrees",
 )
 
-#: FILE names never copied, at any depth, and file SUFFIXES never copied. REG-1839 — MEASURED on his Mac 2026-10-06:
+#: FILE names never copied, at any depth, and file SUFFIXES never copied. REG-1845 — MEASURED on his Mac 2026-10-06:
 #: the plan of the repo was 420.4 MB against the 400 MB ceiling, so every lane of every heart2 proof answered
 #: "safe_copy REFUSED the sandbox (exit 1)", the census stayed STALE, and frame.release and vault.sweep_start stayed
 #: locked behind it. The two largest files were runtime data, both gitignored and neither read by a law: heart2's own
@@ -131,7 +131,7 @@ def plan(src):
 def check(src, dst, force=False, say=None):
     """The refusals copy() applies BEFORE it writes. -> (rc, why). rc 0 = it would copy; why is the refusal.
 
-    REG-1839 — one rule for the copy and for anyone who must know first whether a copy can be made (the self-prove
+    REG-1845 — one rule for the copy and for anyone who must know first whether a copy can be made (the self-prove
     lane asks this before it starts a proof whose every lane would be refused). `say` hears the plan lines."""
     return _check(src, dst, force, say)[:2]
 
