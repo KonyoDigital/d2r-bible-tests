@@ -185,3 +185,8 @@ class ThePresenceReportDoesNotBuildStatus(unittest.TestCase):
             self.ca._console_beacon_presence()
         self.assertEqual(["hb"], full)
         self.assertEqual([], posted, "a change with no landed beacon posted a partial row")
+
+
+if __name__ == "__main__":
+    # REG-1875 sweep - the gate runs this file as a script, and without this line it ran no case at all
+    unittest.main(verbosity=2)

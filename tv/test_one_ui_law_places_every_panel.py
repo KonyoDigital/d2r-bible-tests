@@ -14,13 +14,18 @@ What this law drives - slot_identity.frame_box / panel_box_for / worn_slot_of, s
 vault_corpus._calibrated_lattice + inventory_lattice:
   * his film comes back byte-identical (every panel, every doll slot, every locked tally band)
   * at his reel size the boxes sit where the pixels are, and the cells are square at every calibrated aspect
-  * his Mac's tally bands stay locked; at 16:9 (Dean) the band holds the whole stash, which the left anchor did not
+  * his Mac's tally bands stay locked; at 16:9 with no measured route the centred band holds the whole stash (derived,
+    not measured: no 16:9 GeForce NOW frame has been looked at)
+  * REG-1875 - the ALT's Boosteroid film (800x450, measured 2026-10-07) holds each panel to its own edge: a frame of
+    that route gets that law, the box lands on its seams where the centred one misses by two and a half cells, and
+    every route nobody measured keeps refusing outside the calibrated band
   * a line fit that SAW the inventory's cell size and miscounted gets the calibrated grid - ONLY when the frame's own
     ridges put their seams on it (_seams_on_the_grid, measured on 158 frames + 150 held out, each looked at); one that
     saw some other grid, none, or seams somewhere else still refuses
 RED_PROOF below.
 """
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -205,7 +210,167 @@ class AMiscountedGridGetsTheCalibratedOne(unittest.TestCase):
         self.assertFalse(got.get("ok"), got)
 
 
+#: REG-1875 - his ALT's Boosteroid film, 800x450 (a 1920x1080 window), measured 2026-10-07 by a lattice fit on three
+#: shared/personal stash frames from two sessions and five inventory frames (seams dark against cell interiors). The
+#: jpegs are not on CI; the numbers are, and the frames below are drawn from them.
+ALT_W, ALT_H = 800, 450
+ALT_STASH_X0, ALT_STASH_Y0, ALT_PITCH = 68.5, 90.0, 20.43
+ALT_INV_X0 = 529.25
+
+
+def _lattice(W, H, x0, y0, pitch, cols, rows, base=None):
+    """dark seams on a measured lattice, bright cell interiors - the picture a contrast fit reads a grid from"""
+    from PIL import ImageDraw
+    im = base or _Img.new("L", (W, H), 60)
+    d = ImageDraw.Draw(im)
+    d.rectangle([x0, y0, x0 + cols * pitch, y0 + rows * pitch], fill=120)
+    for i in range(cols + 1):
+        d.line([(x0 + i * pitch, y0), (x0 + i * pitch, y0 + rows * pitch)], fill=15, width=2)
+    for j in range(rows + 1):
+        d.line([(x0, y0 + j * pitch), (x0 + cols * pitch, y0 + j * pitch)], fill=15, width=2)
+    return im
+
+
+def _contrast(im, box, cols, rows):
+    """interior minus seam luminance at a box's predicted lattice: high on the grid, near 0 off it"""
+    bx, by, bw, bh = box
+    pc, pr = bw / float(cols), bh / float(rows)
+    px = im.load()
+    W, H = im.size
+    def at(x, y):
+        return px[min(W - 1, max(0, int(round(x)))), min(H - 1, max(0, int(round(y))))]
+    seam = [at(bx + i * pc, by + (j + 0.5) * pr) for i in range(cols + 1) for j in range(rows)]
+    mid = [at(bx + (i + 0.5) * pc, by + (j + 0.5) * pr) for i in range(cols) for j in range(rows)]
+    return sum(mid) / float(len(mid)) - sum(seam) / float(len(seam))
+
+
+@unittest.skipIf(_Img is None, "Pillow is absent - no frame can be built, UNMEASURED")
+class TheALTsFilmHoldsEachPanelToItsEdge(unittest.TestCase):
+
+    def test_the_boosteroid_route_lands_on_the_alts_measured_seams(self):
+        (sx, sy, sw, sh), why = SI.panel_box_for(ALT_W, ALT_H, "stash", route="boosteroid")
+        self.assertIsNone(why)
+        self.assertAlmostEqual(sx, ALT_STASH_X0, delta=0.5)     # the grid's measured gap, not the edge law's 66.1
+        self.assertAlmostEqual(sy, ALT_STASH_Y0, delta=1.0)
+        self.assertAlmostEqual(sw / 10.0, ALT_PITCH, delta=0.1)
+        (ix, _iy, iw, _ih), why = SI.panel_box_for(ALT_W, ALT_H, "inventory", route="boosteroid")
+        self.assertIsNone(why)
+        self.assertAlmostEqual(ix, ALT_INV_X0, delta=1.0)
+        self.assertAlmostEqual(iw / 10.0, ALT_PITCH, delta=0.1)
+        # the edge law alone (what the doll and the crop bands ride) lands both grids within a ruler's width of the fit
+        self.assertAlmostEqual(SI.frame_box(SI.PANELS["inventory"], ALT_W, ALT_H, route="boosteroid")[0],
+                               ALT_INV_X0, delta=1.0)
+        self.assertAlmostEqual(SI.frame_box(SI.PANELS["stash"], ALT_W, ALT_H, route="boosteroid")[0],
+                               ALT_STASH_X0, delta=3.0)
+
+    def test_premise_the_centred_law_misses_the_alts_film_by_two_cells(self):
+        sx = SI.frame_box(SI.PANELS["stash"], ALT_W, ALT_H)[0]
+        ix = SI.frame_box(SI.PANELS["inventory"], ALT_W, ALT_H)[0]
+        self.assertGreater(sx - ALT_STASH_X0, 2 * ALT_PITCH)
+        self.assertGreater(ALT_INV_X0 - ix, 2 * ALT_PITCH)
+
+    def test_the_box_it_returns_sits_on_a_lattice_drawn_where_the_alt_measured_it(self):
+        im = _lattice(ALT_W, ALT_H, ALT_STASH_X0, ALT_STASH_Y0, ALT_PITCH, 10, 10)
+        edge = _contrast(im, SI.panel_box_for(ALT_W, ALT_H, "stash", route="boosteroid")[0], 10, 10)
+        centred = _contrast(im, SI.frame_box(SI.PANELS["stash"], ALT_W, ALT_H), 10, 10)
+        self.assertGreater(edge, 60, "the boosteroid box is not on the ALT's seams (contrast %.1f)" % edge)
+        self.assertLess(centred, edge / 3.0, "the centred box reads the lattice as well (%.1f vs %.1f)" % (centred, edge))
+
+    def test_a_route_nobody_measured_still_refuses_outside_the_band(self):
+        for route in (None, "geforce-now", "native", "unknown", "BOOSTEROID"):
+            box, why = SI.panel_box_for(ALT_W, ALT_H, "stash", route=route)
+            self.assertIsNone(box, route)
+            self.assertIn("nothing here has been measured", why)
+        self.assertIsNone(SI.panel_box_for(800, 400, "stash", route="boosteroid")[0],
+                          "the ALT's law was carried to an aspect it was not measured at (2:1, its own app)")
+        self.assertEqual(SI.panel_box_for(1440, 904, "stash", route="boosteroid"), SI.panel_box_for(1440, 904, "stash"),
+                         "a measured route moved his Mac's calibrated band")
+
+    def test_the_alts_stamped_film_is_cropped_around_the_whole_stash(self):
+        a = ALT_W / float(ALT_H)
+        x0, _y0, x1, _y1 = SE.crops_for_aspect("runes", a, route="boosteroid")
+        self.assertEqual(SE.last_crop_decision()["branch"], "derived-edge")
+        self.assertLessEqual(x0 * ALT_W, ALT_STASH_X0)
+        self.assertGreaterEqual(x1 * ALT_W, ALT_STASH_X0 + 10 * ALT_PITCH,
+                                "the band cuts the right of the ALT's stash off")
+        c0, _, _, _ = SE.crops_for_aspect("runes", a)
+        self.assertGreater(c0 * ALT_W, ALT_STASH_X0 + ALT_PITCH, "premise: the centred band starts inside the stash")
+        d = tempfile.mkdtemp(prefix="ui_law_alt_")
+        self.addCleanup(shutil.rmtree, d, True)
+        src, dst = os.path.join(d, "f_1500000000001.jpg"), os.path.join(d, "crop.jpg")
+        _lattice(ALT_W, ALT_H, ALT_STASH_X0, ALT_STASH_Y0, ALT_PITCH, 10, 10).convert("RGB").save(src)
+        got = SE.prep_stash_grid(src, dst, "runes", stamp={"route": "boosteroid", "w": 1920, "h": 1080})
+        self.assertEqual(got, dst)
+        self.assertEqual(SE.last_crop_decision()["branch"], "derived-edge",
+                         "the reel's stamped route did not reach the crop")
+
+    def test_a_stamp_of_some_other_window_does_not_move_the_band(self):
+        self.assertEqual(SE._stamp_route(ALT_W, ALT_H, {"route": "boosteroid", "w": 1920, "h": 1080}), "boosteroid")
+        self.assertIsNone(SE._stamp_route(1600, 900, {"route": "boosteroid", "w": 2940, "h": 1912}),
+                          "a stamp naming a 1.538 window moved the band of a 16:9 frame")
+        for bad in (None, {"route": "boosteroid"}, {"route": "boosteroid", "w": True, "h": 1080},
+                    {"route": "", "w": 1920, "h": 1080}):
+            self.assertIsNone(SE._stamp_route(ALT_W, ALT_H, bad), bad)
+
+    def test_the_live_vault_read_crops_by_the_route_it_filmed_through(self):
+        """the agent's live tally read has no seam to drive from here, so its one call is pinned, code only"""
+        with open(os.path.join(HERE, "tv_diablo.py"), encoding="utf-8") as fh:
+            code = "\n".join(l.split("#", 1)[0] for l in fh.read().split("\n"))
+        call = "_se.crops_for_aspect(_layout, float(_W) / float(_H), route=_route)"
+        self.assertEqual(code.count(call), 1, "the live vault crop does not pass the route it filmed through")
+        self.assertEqual(code.count("_route = (_capture_for_seal() or {}).get(\"route\")"), 1)
+
+
 RED_PROOF = [
+    {
+        "why": "REG-1875 - the ALT's route stops counting as measured: its 16:9 boxes go back to the centred law",
+        "file": "slot_identity.py",
+        "find": "    return anchor == \"edge\" and a > 0 and abs(a - a0) / a0 <= _ANCHOR_ASPECT_TOL\n",
+        "replace": "    return False\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1875 - a right panel is held to the LEFT edge on the ALT's film",
+        "file": "slot_identity.py",
+        "find": "            x = fw - (cw - x_cal) * s                           # a right panel keeps its gap to the right edge\n",
+        "replace": "            x = x_cal * s\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1875 - the reel's stamped route never reaches the stash crop",
+        "file": "stash_eye.py",
+        "find": "        derived = crops_for_aspect(layout, aspect, route=_stamp_route(w, h, stamp))   # REG-1875\n",
+        "replace": "        derived = crops_for_aspect(layout, aspect, route=None)\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1875 - the stash's measured gap is dropped for the edge law's, 2.4 px off the ALT's seams",
+        "file": "slot_identity.py",
+        "find": "        box = ((gap * fh) if left else (fw - gap * fh - bw), by, bw, bh)   # the grid's own measured gap\n",
+        "replace": "        pass\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1875 - a stamp naming some other window moves this frame's band",
+        "file": "stash_eye.py",
+        "find": "    if abs((w / float(h)) - client) / client > 0.02:\n        return None\n    r = stamp.get(\"route\")\n",
+        "replace": "    r = stamp.get(\"route\")\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1875 - the live vault read crops every route by the centred law again",
+        "file": "tv_diablo.py",
+        "find": "            _band = (_se.crops_for_aspect(_layout, float(_W) / float(_H), route=_route)\n",
+        "replace": "            _band = (_se.crops_for_aspect(_layout, float(_W) / float(_H))\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1875 - the ALT's law is carried to every aspect, its own 2:1 app window included",
+        "file": "slot_identity.py",
+        "find": "    return anchor == \"edge\" and a > 0 and abs(a - a0) / a0 <= _ANCHOR_ASPECT_TOL\n",
+        "replace": "    return anchor == \"edge\" and a > 0\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1712 - the panel box scales x and width by the frame's WIDTH again: half a cell off on his reels",
         "file": "slot_identity.py",
@@ -216,7 +381,7 @@ RED_PROOF = [
     {
         "why": "REG-1712 - Dean's 16:9 band goes back to the left anchor and cuts a third of his stash off",
         "file": "stash_eye.py",
-        "find": "    x0, y0, x1, y1 = _si.frame_band(frac, aspect)\n",
+        "find": "    x0, y0, x1, y1 = _si.frame_band(frac, aspect, route=route)\n",
         "replace": "    x0, y0, x1, y1 = frac[0] * _CROP_CAL_ASPECT / aspect, frac[1], frac[2] * _CROP_CAL_ASPECT / aspect, frac[3]\n",
         "matches": 1,
     },

@@ -92,24 +92,75 @@ _PANEL_CAL_LO, _PANEL_CAL_HI = 1.45, 1.62      # the band stash_eye's own crops 
 # pixel cross-check refusing every full inventory ("found 9x4 cells"), so three reels sat at PRINTER for good.
 # At the calibration aspect this is the old arithmetic exactly (returned byte-identical). stash_eye's crop bands use
 # the same law through frame_band() - one law, one table, every PC. [[pixel-constants-at-one-capture-size]]
-def frame_box(frac_box, frame_w, frame_h):
-    """A box measured on the calibration film, in THIS frame's pixels. -> (x, y, w, h)"""
+# ══ REG-1875 — PER ROUTE: THE ALT'S 16:9 FILM HOLDS EACH PANEL TO ITS OWN EDGE ══════════════════════════════════════
+# MEASURED 2026-10-07, read-only, on his ALT's Boosteroid film (800x450 jpegs of a 1920x1080 window, the reel stamped
+# route "boosteroid"). A lattice fit (seams dark against cell interiors) on three shared/personal stash frames from two
+# sessions (reel_s_1791320409363_17964 f_1791323036030, reel_s_1791324020868_13544 f_1791324632468,
+# reel_s_1791316819931_9976 f_1791319796486) and five inventory frames from three sessions:
+#     stash      x0 68.5   y0 90.0   pitch 20.40 x 20.46 when left free - square, the film's 86.8 px scaled by height
+#     inventory  x0 529.0-529.5      pitch 20.50 free; its 4 rows did not discriminate a y, so none was taken
+# The centred law above puts them at 120.2 and 475.6 - two and a half cells inward on each side. Holding each panel to
+# its own edge, scaled by height, puts them at 66.1 and 529.6. The vertical fractions hold (90.0 against 89.7).
+# The fit's own peak for the stash is 68.5, and 66.1 scores half its contrast there, so the two grids keep their
+# MEASURED gaps (in frame heights) and everything else on the route - doll, crop bands - rides the edge law.
+# His Mac's 1440x904 film measured the centred law (REG-1712), so neither law replaces the other: each is used where
+# it was measured. Every other route outside the calibrated band keeps what it did, which nobody has measured.
+PANEL_ANCHOR_MEASURED = {
+    # route: the aspect it was measured at, how its panels are placed, each grid's measured gap to its own edge
+    "boosteroid": {"aspect": 16 / 9.0, "anchor": "edge",
+                   "gap": {"stash": 68.5 / 450.0,                                  # the film's law: 281/1912 = 0.1470
+                           "inventory": (800 - 529.25 - 868.5 * 450 / 1912.0) / 450.0}},   # law: 0.1467
+}
+_ANCHOR_ASPECT_TOL = 0.02
+
+
+def edge_anchored(route, aspect):
+    """REG-1875 — was THIS route measured holding its panels to the frame's edges at THIS aspect? -> bool"""
+    m = PANEL_ANCHOR_MEASURED.get(str(route or ""))
+    if not isinstance(m, dict):
+        return False
+    a0, anchor = m.get("aspect"), m.get("anchor")
+    if isinstance(a0, bool) or not isinstance(a0, (int, float)) or a0 <= 0:
+        return False
+    try:
+        a = float(aspect)
+    except (TypeError, ValueError):
+        return False
+    return anchor == "edge" and a > 0 and abs(a - a0) / a0 <= _ANCHOR_ASPECT_TOL
+
+
+def frame_box(frac_box, frame_w, frame_h, route=None):
+    """A box measured on the calibration film, in THIS frame's pixels. -> (x, y, w, h)
+
+    `route` is the capture route the frame came from (capture_stamp); only a measured one changes the law (REG-1875)."""
     fx, fy, fwf, fhf = frac_box
     fw, fh = float(frame_w), float(frame_h)
     if abs(fw / fh - _PANEL_CAL_ASPECT) < 1e-9:
         return (fx * fw, fy * fh, fwf * fw, fhf * fh)          # the calibration aspect: the measured numbers
     cw, ch = float(_PANEL_CAL_FRAME[0]), float(_PANEL_CAL_FRAME[1])
     s = fh / ch
+    if edge_anchored(route, fw / fh):
+        x_cal = fx * cw
+        if x_cal + fwf * cw / 2.0 < cw / 2.0:
+            x = x_cal * s                                       # a left panel keeps its gap to the left edge
+        else:
+            x = fw - (cw - x_cal) * s                           # a right panel keeps its gap to the right edge
+        return (x, fy * fh, fwf * cw * s, fhf * fh)
     return (fw / 2.0 + (fx * cw - cw / 2.0) * s, fy * fh, fwf * cw * s, fhf * fh)
 
 
-def frame_band(frac_band, aspect):
+def frame_band(frac_band, aspect, route=None):
     """A crop band (x0, y0, x1, y1 as fractions of the calibration film) at THIS aspect. -> same shape, fractions.
-    The fractional form of frame_box: heights do not move, x moves toward the centre by calibration/this aspect."""
+    The fractional form of frame_box: heights do not move, x moves toward the centre by calibration/this aspect - or,
+    for a route measured holding its panels to the edges (REG-1875), toward the panel's own edge."""
     x0, y0, x1, y1 = frac_band
     if abs(float(aspect) - _PANEL_CAL_ASPECT) < 1e-9:
         return (x0, y0, x1, y1)
     k = _PANEL_CAL_ASPECT / float(aspect)
+    if edge_anchored(route, aspect):
+        if (x0 + x1) / 2.0 < 0.5:
+            return (x0 * k, y0, x1 * k, y1)
+        return (1.0 - (1.0 - x0) * k, y0, 1.0 - (1.0 - x1) * k, y1)
     return (0.5 + (x0 - 0.5) * k, y0, 0.5 + (x1 - 0.5) * k, y1)
 
 # fractions of the calibration frame, so the numbers survive a resize
@@ -249,7 +300,7 @@ def worn_slot_of(point, frame_w, frame_h):
                   % (", ".join(sorted(EQUIP_SLOTS)), ", ".join(UNMEASURED_SLOTS)))
 
 
-def panel_box_for(frame_w, frame_h, container="stash"):
+def panel_box_for(frame_w, frame_h, container="stash", route=None):
     """The CONTAINER GRID's box in this frame's pixels. -> ((x, y, w, h), None) or (None, why)
 
     Refuses rather than guessing on three counts, because each one would place items in real
@@ -271,11 +322,18 @@ def panel_box_for(frame_w, frame_h, container="stash"):
     if fw <= 0 or fh <= 0:
         return None, "frame measures %gx%g — nothing can be inside it" % (fw, fh)
     aspect = fw / fh
-    if not (_PANEL_CAL_LO <= aspect <= _PANEL_CAL_HI):
+    if not (_PANEL_CAL_LO <= aspect <= _PANEL_CAL_HI) and not edge_anchored(route, aspect):
         return None, ("this frame is %.3f aspect and the panel box was measured at %.3f; outside "
                       "%.2f-%.2f the horizontal fractions move and nothing here has been measured "
-                      "there yet" % (aspect, _PANEL_CAL_ASPECT, _PANEL_CAL_LO, _PANEL_CAL_HI))
-    return frame_box(PANELS[container], fw, fh), None          # REG-1712 - the one UI law
+                      "there yet for route %r" % (aspect, _PANEL_CAL_ASPECT, _PANEL_CAL_LO, _PANEL_CAL_HI, route))
+    box = frame_box(PANELS[container], fw, fh, route=route)    # REG-1712 / REG-1875 - the measured law
+    gap = (PANEL_ANCHOR_MEASURED.get(str(route or "")) or {}).get("gap", {}).get(container) \
+        if edge_anchored(route, aspect) else None
+    if gap is not None:
+        bx, by, bw, bh = box
+        left = (PANELS[container][0] + PANELS[container][2] / 2.0) < 0.5
+        box = ((gap * fh) if left else (fw - gap * fh - bw), by, bw, bh)   # the grid's own measured gap
+    return box, None
 
 
 def cell_of(point, panel_box, container):

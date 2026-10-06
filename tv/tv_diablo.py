@@ -7634,7 +7634,14 @@ def claude_vault_read(image_path, surface, timeout=None):
             # are for. [[unknown-stays-unknown]]
             _TALLY = ("runes", "gems", "materials")
             _layout = surface if surface in _TALLY else "runes"
-            _band = (_se.crops_for_aspect(_layout, float(_W) / float(_H))
+            # REG-1875 - the band follows the route this agent filmed through (its own pin, or the Windows capture
+            # half's cap_target.json): the ALT's Boosteroid film holds its panels to the edges, measured
+            _route = None
+            try:
+                _route = (_capture_for_seal() or {}).get("route")
+            except Exception:
+                _route = None
+            _band = (_se.crops_for_aspect(_layout, float(_W) / float(_H), route=_route)
                      if surface in _TALLY else None)
             if _band:
                 _box = (int(_W * _band[0]), int(_H * _band[1]), int(_W * _band[2]), int(_H * _band[3]))

@@ -176,7 +176,8 @@ class ANarrowFilmIsCroppedOnlyFromItsStamp(unittest.TestCase):
         self.assertIsNone(self._grid(800, 450, None))
         self.assertIsNone(self._grid(800, 450, {"route": "boosteroid", "w": 2940, "h": 1912}))
         self.assertTrue(self._grid(800, 450, {"route": "boosteroid", "w": 1920, "h": 1080}))
-        self.assertEqual(SE._LAST_CROP["branch"], "derived")
+        # REG-1875 - that window's route was measured on the ALT's film holding its panels to the edges
+        self.assertEqual(SE._LAST_CROP["branch"], "derived-edge")
 
 
 class TheCaptureHalfDoesNotInventADpi(unittest.TestCase):
@@ -190,3 +191,8 @@ class TheCaptureHalfDoesNotInventADpi(unittest.TestCase):
                 "$best.Proc, $best.Route, $best.Title, $how) $best")
         self.assertEqual(src.count(call), 1)
         self.assertNotIn("dpi = 96", src)
+
+
+if __name__ == "__main__":
+    # REG-1875 sweep - the gate runs this file as a script, and without this line it ran no case at all
+    unittest.main(verbosity=2)

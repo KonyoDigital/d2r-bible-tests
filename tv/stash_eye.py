@@ -67,8 +67,10 @@ def last_crop_decision():
     return dict(_LAST_CROP)
 
 
-def crops_for_aspect(layout: str, aspect: float):
-    """The crop band for THIS frame's aspect. Returns None when no honest band can be derived."""
+def crops_for_aspect(layout: str, aspect: float, route=None):
+    """The crop band for THIS frame's aspect. Returns None when no honest band can be derived.
+
+    `route` is the capture route of the frame (capture_stamp); a route whose geometry was measured uses it (REG-1875)."""
     frac = _TALLY_CROPS.get(layout) or _TALLY_CROPS["runes"]
     if not aspect or aspect <= 0:
         return None
@@ -86,9 +88,10 @@ def crops_for_aspect(layout: str, aspect: float):
     # of Dean's stash outside the crop. INSIDE the band (his Mac) the measured crops above stay locked, untouched -
     # they work, and their margins hold the panel at every aspect in it.
     import slot_identity as _si
-    x0, y0, x1, y1 = _si.frame_band(frac, aspect)
+    x0, y0, x1, y1 = _si.frame_band(frac, aspect, route=route)
     band = (max(0.0, x0), y0, min(1.0, x1), y1)
-    _LAST_CROP.update({"aspect": round(aspect, 4), "branch": "derived", "layout": layout,
+    _LAST_CROP.update({"aspect": round(aspect, 4),
+                       "branch": "derived-edge" if _si.edge_anchored(route, aspect) else "derived", "layout": layout,
                        "band": tuple(round(v, 4) for v in band)})
     return band
 
@@ -298,6 +301,29 @@ def _frame_has_a_band(w, h, stamp):
     return abs((w / float(h)) - client) / client <= 0.02
 
 
+def _stamp_route(w, h, stamp):
+    """REG-1875 — the capture route this frame was filmed through, or None. -> str | None
+
+    Only when the stamp's own window has this frame's aspect (the film is that window, or a downscale of it): a stamp
+    naming some other window says nothing about this frame, so its route does not move the band."""
+    if not isinstance(stamp, dict):
+        return None
+    cw, ch = stamp.get("w"), stamp.get("h")
+    if isinstance(cw, bool) or isinstance(ch, bool) or not (isinstance(cw, int) and isinstance(ch, int)):
+        return None
+    try:
+        w, h = int(w), int(h)
+    except (TypeError, ValueError):
+        return None
+    if w <= 0 or h <= 0 or cw <= 0 or ch <= 0:
+        return None
+    client = cw / float(ch)
+    if abs((w / float(h)) - client) / client > 0.02:
+        return None
+    r = stamp.get("route")
+    return r if isinstance(r, str) and r else None
+
+
 def prep_stash_grid(src_path: str, dest_path: str, layout: str = "runes",
                     max_edge: int = 1200, cap: float = 3.2, stamp=None) -> Optional[str]:
     """Mimic _tallyPrepImage crop+enlarge for a layout (runes|gems|materials|shared).
@@ -319,7 +345,7 @@ def prep_stash_grid(src_path: str, dest_path: str, layout: str = "runes",
         # recorded a window of that aspect. Without that record the slab is a guess, so no crop.
         if not _frame_has_a_band(w, h, stamp):
             return None
-        derived = crops_for_aspect(layout, aspect)
+        derived = crops_for_aspect(layout, aspect, route=_stamp_route(w, h, stamp))   # REG-1875
         if derived:
             crop = _crop_frac(im, derived)
         elif aspect >= 1.3:
