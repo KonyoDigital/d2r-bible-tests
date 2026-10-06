@@ -406,6 +406,26 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1903 - THE CI-IMPORT ALLOWLIST LAGGED THE RUNNERS IT DESCRIBES (2026-10-07, v3601's first push)
+
+v2881 put numpy on BOTH runners' install line ("pip install --quiet pillow numpy ..." in publish.yml and tv-tests.yml); `TestNoSuiteImportsSomethingCIDoesNotHave` still allowed only PIL, so the first suite to import numpy (the stash-grid law, REG-1889) turned test_control red and the push was not made. numpy is allowed bare and guarded now, and a second case reads both workflows' pip lines and requires the bare allowlist to equal what BOTH install, in both directions: a name allowed here that a runner dropped is the v1911 outage, a name both install that is not allowed is this refusal. Sabotage: dropping numpy from the list fails both cases; allowing yaml fails the new one. Law `test_control` (TestNoSuiteImportsSomethingCIDoesNotHave), 2 RED_PROOFs.
+
+### REG-1897 - A GATE THAT SKIPPED EVERY CASE OF A RUN OF 0 WAS NEVER CALLED DARK (2026-10-07, a Grok look at v3600)
+
+The census tag printed `N/0`, but the dark test was `if _ran and ...`, so a run of zero cases could never be judged dark. `run_gates.case_is_dark(n, ran)` decides it now: skips over a run of 0, or skips equal to the run, is dark; an unknown run is never judged dark; no skips is never dark. Sabotage: restoring `bool(ran)` fails the law. Law `test_the_gate_set_shards_cleanly`.
+
+### REG-1896 - SKIP COUNT: NO PATH READS A MISSING VALUE AS ZERO (2026-10-07) - NOT A DEFECT, NOW PINNED
+
+The look suspected summary_skips and the shard total could disagree. Measured: all shards reported -> the sum; any shard omitted, a crashed shard, or a rep without the key -> UNKNOWN in both. Laws added for each path, including a real run with a dying shard. Law `test_a_sharded_suite_runs_every_case_once`.
+
+### REG-1895 - A RE-STAMP MOVED A PORT IT NEVER STAMPED (2026-10-07, a Grok look at v3600)
+
+REG-1857 moved any TV_CONTROL_PORT equal to the previous lane's base+1, so a caller who reserved that exact port, or a dead port that happened to equal it, lost it. `lane_ports.stamp` records what it wrote in TV_LANE_CONTROL_STAMPED and moves only that. Law `test_a_law_never_asks_his_live_console`.
+
+### REG-1894 - THE COST-TABLE LOCK FAILED OPEN IN SILENCE (2026-10-07, a Grok look at v3600)
+
+`_table_lock` swallowed every exception: a missing fcntl, a lock file that would not open and a failed flock all continued as an unlocked edit with nothing recorded. No fcntl (Windows) now edits UNLOCKED, says so on stderr and records `locked: false` in the fill's entry; a lock that cannot be taken raises LockError and the write is REFUSED, because proceeding is the lost update the lock exists to stop. Law `test_the_gate_set_shards_cleanly`.
+
 ### REG-1887 - THE CHARACTER WINDOW WAS A THIRD PAPER DOLL (2026-10-07, #146 step 3c)
 
 c637711e drew the in-game character window's ten cells as a 3x5 grid of its own, beside the mule window's doll and the planner's. The mule window's slot markup is now one function on MULE_DOLL_SLOTS, byte-identical to the map it replaced. The character window asks it for the cells the gear ledger names, keyed by the worn identity a look records. No Vault doll on the page is UNKNOWN. Stash and inventory cells stay undrawn: none of the 205 recorded on his Mac names a character or a tab. Laws `test_a_character_window_opens_from_its_cells`, `test_the_mule_window_equips_and_says_its_source`.
