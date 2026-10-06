@@ -9461,6 +9461,15 @@ GATES = [
              "The stall copy says granted only when the bit is true, and absent only when it is "
              "false. An unread answer is remembered for the poll interval, so Quartz is not asked "
              "again on the next poll."),
+    Gate("test_an_unread_screen_grant_is_not_a_preflight_pass",
+         [sys.executable, os.path.join(HERE, "test_an_unread_screen_grant_is_not_a_preflight_pass.py")], 90,
+         needs_app=False,
+         why="REG-1795 - the preflight filed the action bool. That bool is true when the probe "
+             "cannot answer, so the door's fact said the grant was held, and the door memory "
+             "kept that true under the new look. The action stays: an unreadable grant does not "
+             "refuse a reel. The fact is None. A held grant is still true. An absent grant still "
+             "refuses. A replaced action bool still decides the door. An unread look clears a "
+             "previous held bit instead of leaving it."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

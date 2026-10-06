@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1795 - AN UNREAD SCREEN GRANT FILED AS HELD ON THE PREFLIGHT (2026-10-06)
+
+The doctor and the poll already say the probe was not measured. The preflight still filed the action bool, and that bool is true when the probe cannot answer, so the door's fact said the grant was held. The door memory then kept that true under the new look. The action stays that way: an unreadable grant does not refuse a reel. The fact is now None. A held grant is still true. An absent grant still refuses. A replaced action bool still decides the door. An unread look clears a previous held bit. Law `test_an_unread_screen_grant_is_not_a_preflight_pass`.
+
 ### REG-1794 - AN UNREAD SCREEN GRANT PUBLISHED AS HELD ON THE STATUS POLL (2026-10-06)
 
 The doctor already says the probe was not measured. The poll still published the action bool, and that bool is true when the probe cannot answer, so a stalled capture said the grant was held. The action stays that way: an unreadable grant does not refuse a reel. The poll now says the grant was not measured, and it remembers that answer for the poll interval. The stall copy says granted only when the bit is true. Law `test_an_unread_screen_grant_is_not_a_status_pass`.

@@ -7605,6 +7605,22 @@ def _screen_recording_ok_quick():
     return True if v is None else bool(v)
 
 
+_SCREEN_RECORDING_ACTION = _screen_recording_ok_quick
+
+
+def _screen_recording_preflight_fact():
+    """True held, False absent, None not measured.
+
+    The real action bool is true when the probe cannot answer, so a reel is
+    not refused. Publishing that true says the grant was held. A replaced
+    action bool is the door's own question, and it is honoured.
+    """
+    action = _screen_recording_ok_quick
+    if action is not _SCREEN_RECORDING_ACTION:
+        return bool(action())
+    return _screen_recording_probe()
+
+
 def _screen_recording_doctor_row(measured):
     """Report question: is the grant held?
 
@@ -7690,7 +7706,9 @@ def capture_preflight(door, look_for_window=True):
         # door, and start_agent refused instead — with ON AIR's wording, which is the exact
         # drift v2319 closed. A cache that outlives the decision it feeds is a stale reading.
         # [[stale-reading]]
-        facts["screenRecOk"] = bool(_screen_recording_ok_quick())
+        # REG-1795 — the action bool is true when the probe cannot answer. Filing that
+        # true says the grant was held. None does not refuse a reel.
+        facts["screenRecOk"] = _screen_recording_preflight_fact()
     except Exception:
         pass
 
@@ -7885,8 +7903,14 @@ def _capture_door_note(door, pre, opened=False):
         row["lastAt"] = int(time.time() * 1000)
         row["lastWhy"] = str(pre.get("why") or "")
     for k in ("screenRecOk", "diskOk", "windowSeen", "freeGb"):
-        if (pre or {}).get(k) is not None:
-            row["last_" + k] = (pre or {})[k]
+        if not isinstance(pre, dict) or k not in pre:
+            continue
+        val = pre.get(k)
+        # An unread grant was measured as nothing. Leaving the previous True
+        # under this look's lastAt would say the grant was held just now.
+        if val is None and k != "screenRecOk":
+            continue
+        row["last_" + k] = val
     if opened:
         row["opened"] = int(row.get("opened") or 0) + 1
         row["openedAt"] = int(time.time() * 1000)
