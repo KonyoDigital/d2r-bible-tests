@@ -80,6 +80,27 @@ LOBBY_FULL_SAT_MAX = 0.22
 LOBBY_FULL_VAL = (0.16, 0.22)
 LOBBY_BOT_VAL_MIN = 0.10
 LOBBY_RIGHT_SAT_MAX = 0.10
+# REG-1874 — WHAT EACH FILM SIZE IS, LOOKED AT (2026-10-07). The bands are fractions of the frame, so one set can
+# serve every size the game is filmed at, and where it has been seen the counts say it does: the ALT matched 10,101 of 118,097 at 800x450, his Mac
+# matched at 1440x904, 1440x936, 1440x841, 1440x857, 2940x1912 and three more. Seven ALT lobby frames of 2026-10-06
+# (three reels, 800x450) pass today - full sat 0.145-0.155, val 0.169-0.185 - and the loading card filmed between
+# them (f_1791319507226, full sat 0.108 val 0.073) does not. A size with checked > 0 and matched 0 is either a
+# screen with no game on it or a band that is blind there, and the count alone cannot say which. These were opened:
+#   ALT 800x400 and 800x420 (10,698 checked, 0 matched): Boosteroid's own window - "WHERE HAVE YOU BEEN? Session has
+#     been terminated due to no activity" - on all five frames opened across three reels and both sizes
+#   Mac 1440x1327 (17,711, 0): GeForce NOW's own app, its library page, on 20 frames across 14 reels
+#   Mac 1440x813 (5,619, 0): GeForce NOW in Chrome - its spinner and "return to fullscreen" - 20 frames, 4 reels
+#   Mac 1440x861 (1,650, 0): Boosteroid's own app, sign-in and library, 20 frames across 2 reels
+# No game is drawn at those sizes, so per-size bands are not owed. A zero-match size not listed here has not been
+# looked at, and the lane says that it is UNKNOWN rather than letting "matched 0" read as "no lobby".
+LOBBY_SIZES_SEEN = {
+    "800x400": "Boosteroid's own window (its no-activity screen) - no game is drawn at this size",
+    "800x420": "Boosteroid's own window (its no-activity screen) - no game is drawn at this size",
+    "1440x1327": "GeForce NOW's own app (its library page) - no game is drawn at this size",
+    "1440x813": "GeForce NOW in Chrome (its spinner, return to fullscreen) - no game is drawn at this size",
+    "1440x861": "Boosteroid's own app (sign-in and library) - no game is drawn at this size",
+}
+LOBBY_SIZE_UNSEEN = ("nobody has looked at this size, so whether the bands see the lobby here is UNKNOWN")
 # The character panel stays a reader answer. This sentence is the lane, not a pixel band.
 CPANEL_SAY = "The character panel has no pixel band. It is kept only when a reader says that is the screen."
 SURFACE_TIERS = {"lobby": 1.0, "c-panel": 1.0}
@@ -245,7 +266,11 @@ def lobby_by_size(d):
             continue
         if checked < 0 or matched < 0 or matched > checked:
             continue
-        out.append({"size": str(key), "checked": checked, "matched": matched})
+        row = {"size": str(key), "checked": checked, "matched": matched}
+        if matched == 0 and checked > 0:
+            # REG-1874 - a zero says what the size is, looked at, or that nobody looked
+            row["seen"] = LOBBY_SIZES_SEEN.get(str(key)) or LOBBY_SIZE_UNSEEN
+        out.append(row)
     out.sort(key=lambda r: r["size"])
     return out
 

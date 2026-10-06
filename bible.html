@@ -10837,8 +10837,10 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       bits = '<ul data-lobby-sizes="counted">';
       rows.forEach(function(r){
         if (!r || !r.size || typeof r.checked !== 'number' || typeof r.matched !== 'number') return;
+        /* REG-1874 - a size that never matched says what it is, looked at, or that nobody looked */
         bits += '<li data-size="' + esc(r.size) + '">Lobby at ' + esc(r.size)
-          + ': checked ' + (r.checked | 0) + ', matched ' + (r.matched | 0) + '.</li>';
+          + ': checked ' + (r.checked | 0) + ', matched ' + (r.matched | 0) + '.'
+          + ((typeof r.seen === 'string' && r.seen) ? ' <span data-seen>' + esc(r.seen) + '.</span>' : '') + '</li>';
       });
       bits += '</ul>';
     }

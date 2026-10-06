@@ -98,10 +98,30 @@ class TheLobbyBands(unittest.TestCase):
         d["stats"]["lobbyBySize"] = {"800x450": {"checked": 4, "matched": 1},
                                      "800x400": {"checked": 2, "matched": 0}}
         self.assertEqual(C.lobby_by_size(d), [
-            {"size": "800x400", "checked": 2, "matched": 0},
+            {"size": "800x400", "checked": 2, "matched": 0, "seen": C.LOBBY_SIZES_SEEN["800x400"]},
             {"size": "800x450", "checked": 4, "matched": 1}])
         d["stats"]["lobbyBySize"] = {"bad": {"checked": 1, "matched": 2}}
         self.assertEqual(C.lobby_by_size(d), [])
+
+    def test_a_size_that_never_matched_says_what_it_is_or_that_nobody_looked(self):
+        # REG-1874 - "matched 0" at a size reads the same whether no game is drawn there or the bands are blind there
+        d = C._empty()
+        d["stats"]["lobbyBySize"] = {"800x420": {"checked": 965, "matched": 0},
+                                     "1440x1327": {"checked": 17711, "matched": 0},
+                                     "1024x600": {"checked": 7, "matched": 0},
+                                     "800x450": {"checked": 118097, "matched": 10101},
+                                     "640x480": {"checked": 0, "matched": 0}}
+        rows = {r["size"]: r for r in C.lobby_by_size(d)}
+        self.assertIn("Boosteroid's own window", rows["800x420"]["seen"])
+        self.assertIn("GeForce NOW's own app", rows["1440x1327"]["seen"])
+        self.assertEqual(rows["1024x600"]["seen"], C.LOBBY_SIZE_UNSEEN)
+        self.assertIn("UNKNOWN", rows["1024x600"]["seen"])
+        self.assertNotIn("seen", rows["800x450"], "a size where the lobby matched was given a verdict it did not need")
+        self.assertNotIn("seen", rows["640x480"], "a size nobody checked was given a verdict")
+        for size, said in C.LOBBY_SIZES_SEEN.items():
+            w, h = size.split("x")
+            self.assertTrue(int(w) > 0 and int(h) > 0, size)
+            self.assertIn("no game is drawn at this size", said, "a looked-at size says something nobody measured")
 
     def test_there_is_no_character_panel_pixel_band(self):
         self.assertFalse(hasattr(C, "looks_like_c_panel"),
@@ -382,7 +402,8 @@ class _Reel(unittest.TestCase):
 
         self._tick(lambda p: PLAY, reader, size_of=lambda p: (800, 450))
         self.assertEqual(self.called, [])
-        self.assertEqual(C.lobby_by_size(C.load()), [{"size": "800x450", "checked": 1, "matched": 0}])
+        self.assertEqual(C.lobby_by_size(C.load()), [{"size": "800x450", "checked": 1, "matched": 0,
+                                                       "seen": C.LOBBY_SIZE_UNSEEN}])
 
     def test_an_unreadable_size_is_not_a_zero_row(self):
         self._reel([1790978100063])
@@ -458,6 +479,13 @@ class TheRoutePaintsTheRow(unittest.TestCase):
         self.assertIn("checked 4", counted)
         self.assertIn("matched 1", counted)
         self.assertNotIn("800x400", counted)
+        self.assertNotIn("data-seen", counted, "a size where the lobby matched printed a verdict")
+        zero = _paint_size(fn, {"ok": True, "lobbyBySize": [
+            {"size": "800x400", "checked": 9733, "matched": 0, "seen": C.LOBBY_SIZES_SEEN["800x400"]},
+            {"size": "1024x600", "checked": 7, "matched": 0, "seen": C.LOBBY_SIZE_UNSEEN}], "cPanel": C.CPANEL_SAY})
+        self.assertEqual(zero.count("data-seen"), 2, zero)
+        self.assertIn("no game is drawn at this size", zero)
+        self.assertIn("whether the bands see the lobby here is UNKNOWN", zero)
         self.assertEqual(_paint_size(fn, {"ok": False, "lobbyBySize": None}), "")
 
     def test_the_list_prompt_still_refuses_a_frame_that_is_not_the_list(self):
@@ -504,6 +532,27 @@ def _paint(fn, learned):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1874 - a size that never matched says nothing again, so matched 0 reads as no lobby",
+        "file": "char_select.py",
+        "find": "            row[\"seen\"] = LOBBY_SIZES_SEEN.get(str(key)) or LOBBY_SIZE_UNSEEN\n",
+        "replace": "            pass\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1874 - a size nobody looked at loses its UNKNOWN",
+        "file": "char_select.py",
+        "find": "LOBBY_SIZES_SEEN.get(str(key)) or LOBBY_SIZE_UNSEEN",
+        "replace": "LOBBY_SIZES_SEEN.get(str(key))",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1874 - the page drops what a zero-match size is",
+        "file": "bible.html",
+        "find": "((typeof r.seen === 'string' && r.seen) ? ' <span data-seen>' + esc(r.seen) + '.</span>' : '')",
+        "replace": "''",
+        "matches": 1,
+    },
     {
         "why": "the half budget compares elapsed seconds to an absolute deadline, so the backfill never stops",
         "file": "tv/char_select.py",
