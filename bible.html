@@ -57492,6 +57492,8 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
      of Vita"), a rare is its two words over its base, a superior / low item says so before its base */
   function _cbShown(e, it){
     var d = _cbDb(), b = e && d && d.b[e.base], bn = b ? b[0] : ((it && it[1]) || (e && e.name) || '');
+    /* #95 (REG-1901) — a crafted item carries its two rare words over its base (one stored before them keeps its recipe) */
+    if (_cbIsCraft(it) && e && (e.rn || []).filter(Boolean).length) return { name: e.rn.filter(Boolean).join(' '), base: bn, q: 'c' };
     if (!_cbIsBase(it)) return { name: it ? it[1] : (e && e.name) || '', base: bn, q: it ? it[2] : 'b' };
     var q = _cbQ(e, it), pre = [], suf = [];
     (e.affixes || []).forEach(function(x){ var a = _cbAf(x && x.id); if (a && a[1] === 'p') pre.push(a[2]); if (a && a[1] === 's') suf.push(a[2]); });
@@ -57713,8 +57715,24 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var e = { id: it[0], name: it[1], q: it[2], base: base, sockets: 0, eth: false, rolls: {}, socketed: [], ilvl: 99 };
     if (it[2] === 'r'){ e.sockets = it[7].runes.length; e.socketed = it[7].runes.slice(); }
     (it[6] || []).forEach(function(l){ if (l[3] === 'sock' && l[1][0] && l[1][0][0] === l[1][0][1]) e.sockets = l[1][0][0]; });
+    /* #95 (REG-1901) — HIS DEMO (the planner, 2026-09-30): the crafted variant FILLS ITS NAME - two rare words over its
+       base, as the game names his Ghoul Scarab Amulet and the planner its Grim Noose Amulet - and each recipe line lands
+       at the TOP of its range (10% FCR, 20 to Mana, Regenerate Mana 10%). A box he types into still overrides it. */
+    if (_cbIsCraft(it)){ e.rn = _cbDice(base) || []; e.rolls = _cbTopRolls(it[6]); }
     return e;
   }
+  /* #95 (REG-1901) — every RANGED roll in these lines at the top of its range, keyed as a typed roll is. -> {key: top}
+     A fixed value and a class to choose are left as they are (the game rolls neither). */
+  function _cbTopRolls(lines){
+    var out = {};
+    (lines || []).forEach(function(ln){ (ln[1] || []).forEach(function(r){
+      if (!r || r[2] == null || r[0] === 'C') return;
+      if (r[0] === 'L'){ var LL = _cbLvl(r); if (LL.lo !== LL.hi) out[r[2]] = Math.max(LL.lo, LL.hi); return; }
+      if (typeof r[0] === 'number' && typeof r[1] === 'number' && r[0] !== r[1]) out[r[2]] = Math.max(r[0], r[1]);
+    }); });
+    return out;
+  }
+  window._cbTopRolls = _cbTopRolls;
   window._cbEntryFor = _cbEntryFor;
 
   /* ── ROLLS: typed = EXACT (only inside the range), untouched = the range ─────────────────────────────────── */
@@ -59317,19 +59335,31 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
        ("Caster Amulet" printed "Caster Amulet Amulet"): the base is said once. */
     var craft = _cbIsCraft(it), M = craft ? _cbModsHtml(e, slot, 'c', base, clvl) : null;
     var baseSpan = base && base[0] !== it[1] && !(craft && (' ' + it[1].toLowerCase()).slice(-(base[0].length + 1)) === ' ' + base[0].toLowerCase());
+    /* #95 (REG-1901) — a crafted item is named by its two rare words over its base, which he can choose or re-roll as a
+       rare's; its recipe ("Caster Amulet") is the CRAFTED line below, not its name. One stored before keeps the recipe. */
+    var crn = craft ? (e.rn || []).filter(Boolean) : [], title = crn.length ? crn.join(' ') : it[1];
+    if (crn.length) baseSpan = !!base;
+    var nameCtl = '';
+    if (craft && base){
+      var rn2 = e.rn || [], opt2 = function(list, cur){ var o = '<option value=""' + (cur ? '' : ' selected') + '>—</option>'; list.forEach(function(w){ o += '<option value="' + esc(w) + '"' + (w === cur ? ' selected' : '') + '>' + esc(w) + '</option>'; }); return o; };
+      nameCtl = '<span class="cb-ed-f cb-ctl-name">Name '
+        + '<select id="cb-rn0" aria-label="crafted name, first word (rareprefix.txt)" onchange="window._cbRareName(0, this.value)">' + opt2(_cbRareWords(e.base, 0), rn2[0]) + '</select>'
+        + '<select id="cb-rn1" aria-label="crafted name, second word (raresuffix.txt)" onchange="window._cbRareName(1, this.value)">' + opt2(_cbRareWords(e.base, 1), rn2[1]) + '</select>'
+        + '<button type="button" class="cb-dice" id="cb-dice" aria-label="a random crafted name" title="a random pair of words this base can carry" onclick="window._cbRareDice()">⚄</button></span>';
+    }
     var rollSay = craft
       ? '<div class="cb-roll-say' + (st.modBad ? ' cb-bad' : '') + '" id="cb-roll-say" role="status">' + esc(st.modSay || 'Type your real roll into a box; a blank box is the range. A recipe line rolls only its own range — type a higher total there and it is split with the regular mod beside it.') + '</div>'
       : '<div class="cb-roll-say" id="cb-roll-say" role="status">Type your real roll into a box; a blank box is the range. A roll outside the item\'s range is refused.</div>';
     return '<div class="cb-ed" id="cb-ed">'
       + '<div class="cb-ed-top"><div class="cb-ed-art">' + _cbArtFor(e) + '</div><div>'
-      +   '<div class="cb-ed-n ' + qc + '">' + esc(it[1]) + (baseSpan ? ' <span class="' + qc + '">' + esc(base[0]) + '</span>' : '') + '</div>'
+      +   '<div class="cb-ed-n ' + qc + '">' + esc(title) + (baseSpan ? ' <span class="' + qc + '">' + esc(base[0]) + '</span>' : '') + '</div>'
       +   '<div class="cb-ed-acts"><button type="button" class="cb-btn" onclick="window._cbPickTab(\'select\')">⟳ Change Item</button><button type="button" class="cb-btn" onclick="window._cbUnequip()">✕ ' + (st.pick.kind === 'inv' ? 'Remove' : 'Unequip') + '</button></div>'
       +   '<div class="cb-ed-grid"><label class="cb-ed-f">Item level <input type="number" id="cb-ilvl" aria-label="item level, 1 to 99" min="1" max="99" value="' + (e.ilvl || 99) + '" onchange="window._cbEdit(\'ilvl\', this.value)"></label>'
-      +     '<label class="cb-ed-f">Base ' + baseSel + '</label><label class="cb-ed-f">Sockets ' + sock + '</label>' + eth + '</div>'
+      +     '<label class="cb-ed-f">Base ' + baseSel + '</label><label class="cb-ed-f">Sockets ' + sock + '</label>' + eth + nameCtl + '</div>'
       +   '<div class="cb-note">' + esc(CB_Q_SAY[it[2]] || '') + (it[2] === 'r' ? ' · ' + it[7].runes.map(function(r){ var k = d.rwRunes[r]; return k ? k[1].replace(/ Rune$/, '') : r; }).join(' + ') : '') + (it[2] === 's' && it[7] ? ' · ' + esc(it[7].set) : '') + rq + '</div>'
       +   _cbEdBaseHtml(tr, e, it)
       + '</div></div>'
-      + '<div class="cb-ed-q">' + esc((CB_Q_SAY[it[2]] || '').toUpperCase()) + '</div>'
+      + '<div class="cb-ed-q">' + esc((CB_Q_SAY[it[2]] || '').toUpperCase()) + (crn.length ? ' · ' + esc(it[1]) : '') + '</div>'
       + '<ul class="cb-lines" id="cb-lines" onchange="window._cbRollInput(event)" onkeydown="if(event.key===\'Enter\'){window._cbRollInput(event)}">' + (lines || '<li class="cb-l-unk">a base item: no properties of its own</li>') + '</ul>'
       + (craft ? '<div class="cb-mods-h">Regular Mods</div>'
                + '<div class="cb-mods" id="cb-mods" onchange="window._cbRollInput(event)" onkeydown="if(event.key===\'Enter\'){window._cbRollInput(event)}">' + M.mods + M.odds + M.add + '</div>' : '')
@@ -59866,7 +59896,10 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       st.modSay = (a ? a[2] : id) + ' cannot go on this item (its type, its item level, a group it already has, the rare flag or the quality\'s limit) — not added';
       st.modBad = true; _cbModal(); return false;
     }
-    _cbCommit(function(b){ var e = _cbCur(b); if (e) e.affixes = (e.affixes || []).concat([{ id: id, rolls: {} }]); });
+    /* #95 (REG-1901) — his demo on the CRAFTED dialog: a pick lands at the TOP of its range, as the planner's Add Mod
+       does. Scoped to that dialog: a magic or rare item's pick is still its range (#174's rule) until he says otherwise. */
+    var atTop = _cbIsCraft(_cbItem(cur.id)), top = atTop ? _cbTopRolls(a[11]) : {};
+    _cbCommit(function(b){ var e = _cbCur(b); if (e) e.affixes = (e.affixes || []).concat([{ id: id, rolls: top }]); });
     st.modOpen = false; st.modQ = ''; st.modBad = false;
     /* #174 round 2 (the Grok seat on v3509): "added of the Jackal - type its roll" did not say WHAT was added, and asked
        for a roll on affixes that have none (+10% Faster Cast Rate is fixed) */
@@ -59883,11 +59916,13 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
         if (r[0] === 'C'){ _ask = 'choose which class it rolled, or leave it blank for one random class'; return true; }
         if (r[0] === 'L'){
           var LL = _cbLvl(r);
-          if (LL.lo !== LL.hi){ _ask = 'type your per-level roll into its box, or leave it blank to keep the range (' + LL.lo + '-' + LL.hi + ', per level)'; return true; }
+          if (LL.lo !== LL.hi){ _ask = atTop ? 'it lands at the top of its range (' + Math.max(LL.lo, LL.hi) + ' of ' + LL.lo + '-' + LL.hi + ', per level) - type yours into its box, or clear it for the range'
+                                             : 'type your per-level roll into its box, or leave it blank to keep the range (' + LL.lo + '-' + LL.hi + ', per level)'; return true; }
           return false;
         }
         if (typeof r[0] === 'number' && typeof r[1] === 'number' && r[0] !== r[1]){
-          _ask = 'type your roll into its box, or leave it blank to keep the range (' + Math.min(r[0], r[1]) + '-' + Math.max(r[0], r[1]) + ')'; return true;
+          _ask = atTop ? 'it lands at the top of its range (' + Math.max(r[0], r[1]) + ' of ' + Math.min(r[0], r[1]) + '-' + Math.max(r[0], r[1]) + ') - type yours into its box, or clear it for the range'
+                       : 'type your roll into its box, or leave it blank to keep the range (' + Math.min(r[0], r[1]) + '-' + Math.max(r[0], r[1]) + ')'; return true;
         }
         return false;
       }); });

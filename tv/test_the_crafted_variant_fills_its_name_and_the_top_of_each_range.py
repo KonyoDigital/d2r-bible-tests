@@ -23,6 +23,17 @@ recipes the database carries. That variant is REVERTED here and the real editor 
     the tooltip prints ONE "+20% Faster Cast Rate" line, as the game does.
   · Nothing is written to the vault stores.
 
+REG-1901 — HIS DEMO, POINT BY POINT (the planner beside the console, 2026-09-30, #230 5910409367/…19973/…33089):
+  · THE VARIANT FILLS ITS NAME: a crafted item is named like a rare - two words from rareprefix/raresuffix over its
+    base ("Skull Emblem" / "Amulet"; the planner's Grim Noose Amulet, his own Ghoul Scarab Amulet) - and the recipe is
+    its CRAFTED line ("CRAFTED · Caster Amulet"), said once. The words are his to choose or re-roll, as a rare's are.
+    One stored before REG-1901 (no words) is still its recipe's name, said once.
+  · THE TOP OF EACH RANGE: a crafted pick's recipe lines land at the top (10% FCR, 20 to Mana, Regenerate Mana 10%),
+    and a mod picked from Add Mod lands at the top of its range (Sapphire's Cold Resist 40%). A typed box still wins
+    and a cleared one is the range again.
+  · Add Mod is the searchable list of what the item can roll (the REG-1823 block). Reset and Escape were GrokBot's
+    test steps ("Do not Reset. No Escape on an empty stack."), not features: there is no Reset here.
+
 Drives the shipped builder through tv/test_the_character_builder_is_their_builder.py's harness. A missing node raises.
 This law does not skip. RED_PROOF below.
 """
@@ -70,20 +81,67 @@ class ACraftedItemIsItsRecipePlusRegularMods(unittest.TestCase):
         out = _run(r"""
           mk('Warlock', 90);
           var e88 = pick('neck', 'c88'); OUT.amulet = title();
+          OUT.words = [window._cbRareWords('amu', 0), window._cbRareWords('amu', 1)];
+          OUT.rn = e88.rn;
+          OUT.craftedLine = (MODAL._html.match(/<div class="cb-ed-q">([^<]*)<\/div>/) || [])[1] || null;
+          OUT.nameCtl = /id="cb-rn0"/.test(MODAL._html) && /id="cb-rn1"/.test(MODAL._html) && /id="cb-dice"/.test(MODAL._html);
           var t88 = window._cbTipEntry(e88, window._cbItem(e88.id), 90, 'neck', 'Warlock');
           OUT.card = { shown: window._cbShown(e88, window._cbItem(e88.id)).name, tip: t88.name, tipBase: t88.base, q: t88.q };
-          pick('rrin', 'c89'); OUT.ring = title();
-          pick('head', 'c64'); OUT.helm = title();
+          window._cbRareName(0, OUT.words[0][0]); window._cbRareName(1, OUT.words[1][0]); OUT.chosen = title();
+          var rin = pick('rrin', 'c89'); OUT.ring = [title(), rin.rn];
+          var hlm = pick('head', 'c64'); OUT.helm = [title(), hlm.rn];
           pick('head', 'u248'); OUT.unique = title();
+          /* one stored before REG-1901 carries no words: its recipe, said once */
+          var old = JSON.parse(JSON.stringify(e88)); delete old.rn;
+          OUT.old = window._cbShown(old, window._cbItem(old.id)).name;
+          /* and the Edit tab of a crafted item with no words: its recipe, its base said once */
+          pick('neck', 'c88'); window._cbRareName(0, ''); window._cbRareName(1, ''); OUT.oldTitle = title();
         """)
-        self.assertEqual(out["amulet"], "Caster Amulet", "the crafted amulet still doubles its base")
+        w0, w1 = out["words"]
+        self.assertEqual(len(out["rn"]), 2, "the crafted variant did not fill its name")
+        self.assertIn(out["rn"][0], w0, "a first word this base cannot carry: %r" % out["rn"])
+        self.assertIn(out["rn"][1], w1, "a second word this base cannot carry: %r" % out["rn"])
+        self.assertEqual(out["amulet"], '%s %s <span class="cb-c-c">Amulet</span>' % tuple(out["rn"]),
+                         "the crafted amulet is not its two words over its base")
+        self.assertNotIn("Amulet Amulet", out["amulet"])
+        self.assertEqual(out["craftedLine"], "CRAFTED · Caster Amulet", "the recipe is not said as the crafted line")
+        self.assertTrue(out["nameCtl"], "the crafted name cannot be chosen or re-rolled")
         # the card (the tooltip, _cbShown) says the same name; its base is the tooltip's own second line, as in the game
-        self.assertEqual(out["card"], {"shown": "Caster Amulet", "tip": "Caster Amulet", "tipBase": "Amulet", "q": "c"},
+        self.assertEqual(out["card"], {"shown": " ".join(out["rn"]), "tip": " ".join(out["rn"]), "tipBase": "Amulet", "q": "c"},
                          "the card and the editor name a crafted item differently")
-        self.assertEqual(out["ring"], "Caster Ring")
-        self.assertEqual(out["helm"], 'Hit Power Helm <span class="cb-c-c">Full Helm</span>',
-                         "a base the recipe name does not end in was dropped")
+        self.assertEqual(out["chosen"], '%s %s <span class="cb-c-c">Amulet</span>' % (w0[0], w1[0]))
+        self.assertEqual(out["ring"][0], '%s %s <span class="cb-c-c">Ring</span>' % tuple(out["ring"][1]))
+        self.assertEqual(out["helm"][0], '%s %s <span class="cb-c-c">Full Helm</span>' % tuple(out["helm"][1]),
+                         "a crafted helm lost its base")
         self.assertEqual(out["unique"], 'Harlequin Crest <span class="cb-c-u">Shako</span>', "a unique lost its base")
+        self.assertEqual(out["old"], "Caster Amulet", "a crafted item stored before its words lost its recipe's name")
+        self.assertEqual(out["oldTitle"], "Caster Amulet", "a crafted item with no words doubles its base again")
+
+    def test_a_pick_lands_at_the_top_of_its_range(self):
+        out = _run(r"""
+          mk('Warlock', 90);
+          var e = pick('neck', 'c88');
+          OUT.rolls = e.rolls;
+          OUT.boxes = (MODAL._html.match(/<input[^>]*data-key="p[123]"[^>]*>/g) || []).map(function(x){ return (x.match(/ value="([^"]*)"/) || [])[1]; });
+          var t = window._cbTipEntry(e, window._cbItem(e.id), 90, 'neck', 'Warlock');
+          OUT.tip = t.lines.map(function(l){ return (l.html || l.t || '').replace(/<[^>]+>/g, ''); });
+          var P = window._cbAffixPool(cur().sets[0].slots.neck), sap = P.rows.p.concat(P.rows.s).filter(function(a){ return a[2] === 'Sapphire'; })[0];
+          OUT.sap = !!sap;
+          if (sap){ window._cbAddMod(sap[0]); OUT.say = window._cbState().modSay; OUT.added = cur().sets[0].slots.neck.affixes; }
+          OUT.cleared = type('p3', 5, 10, '');
+          OUT.after = cur().sets[0].slots.neck.rolls;
+          OUT.reset = /Reset/.test(MODAL._html);
+        """)
+        self.assertEqual(out["rolls"], {"p3": 10, "p2": 20, "p1": 10}, "the recipe lines did not land at the top")
+        self.assertEqual(out["boxes"], ["10", "20", "10"], "the boxes do not show the top of each range")
+        self.assertEqual(out["tip"], ["+10% Faster Cast Rate", "+20 to Mana", "Regenerate Mana 10%"])
+        self.assertTrue(out["sap"], "PREMISE: no Sapphire cold resist in the amulet's pool")
+        self.assertEqual(out["added"], [{"id": out["added"][0]["id"], "rolls": {"m1": 40}}],
+                         "a picked mod did not land at the top of its range")
+        self.assertIn("lands at the top of its range (40 of 31-40)", out["say"])
+        self.assertEqual(out["cleared"]["say"], "cleared — this roll is its range again")
+        self.assertNotIn("p3", out["after"], "a cleared box did not return to the range")
+        self.assertFalse(out["reset"], "a Reset sits on the crafted dialog")
 
     def test_no_crafted_quality_sits_on_a_base(self):
         out = _run(r"""
@@ -173,18 +231,18 @@ class ACraftedItemIsItsRecipePlusRegularMods(unittest.TestCase):
         self.assertIn("this recipe line is 5–10; 20 is above it", out["alone"]["say"])
         self.assertIn("Add Mod → of the Apprentice", out["alone"]["say"], "the refusal does not name the mod that supplies the rest")
         self.assertIn("not saved", out["alone"]["say"])
-        self.assertEqual(out["rollsAlone"], {})
+        self.assertEqual(out["rollsAlone"], {"p3": 10, "p2": 20, "p1": 10}, "a refused total moved a stored roll")
         self.assertFalse(out["split"]["bad"])
         self.assertEqual(out["split"]["say"], "saved: 20 = 10 (this recipe, 5–10) + 10 (of the Apprentice)")
         self.assertEqual(out["split"]["box"], "10", "the recipe's box does not show its own share")
-        self.assertEqual(out["rolls"], {"p3": 10})
+        self.assertEqual(out["rolls"], {"p3": 10, "p2": 20, "p1": 10})
         self.assertEqual(out["fcr"], ["+20% Faster Cast Rate"], "the tooltip does not print one FCR line of 20")
         self.assertTrue(out["over"]["bad"])
         self.assertIn("so the total is 15–20; 25 is outside it", out["over"]["say"])
         self.assertTrue(out["under"]["bad"])
         self.assertIn("3 is below it", out["under"]["say"])
         self.assertEqual(out["inside"]["say"], "saved: 7 (EXACT)")
-        self.assertEqual(out["rolls7"], {"p3": 7})
+        self.assertEqual(out["rolls7"], {"p3": 7, "p2": 20, "p1": 10})
         for k in ("blank", "nan"):
             self.assertFalse(out[k]["ok"])
             self.assertIn("with its roll not typed", out[k]["why"], "a stored %s roll was read as a known share" % k)
@@ -193,6 +251,41 @@ class ACraftedItemIsItsRecipePlusRegularMods(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1901 - the crafted variant no longer fills its name: it is its recipe again, not the planner's two words",
+        "file": "bible.html",
+        "find": "    if (_cbIsCraft(it)){ e.rn = _cbDice(base) || []; e.rolls = _cbTopRolls(it[6]); }\n",
+        "replace": "    if (_cbIsCraft(it)){ e.rolls = _cbTopRolls(it[6]); }\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1901 - the crafted recipe lines are ranges again, not the top of each range",
+        "file": "bible.html",
+        "find": "    if (_cbIsCraft(it)){ e.rn = _cbDice(base) || []; e.rolls = _cbTopRolls(it[6]); }\n",
+        "replace": "    if (_cbIsCraft(it)){ e.rn = _cbDice(base) || []; }\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1901 - a mod picked on the crafted dialog is its range again, not the top",
+        "file": "bible.html",
+        "find": "    var atTop = _cbIsCraft(_cbItem(cur.id)), top = atTop ? _cbTopRolls(a[11]) : {};\n",
+        "replace": "    var atTop = _cbIsCraft(_cbItem(cur.id)), top = {};\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1901 - the card and the tooltip name a crafted item by its recipe while the Edit tab names it by its words",
+        "file": "bible.html",
+        "find": "    if (_cbIsCraft(it) && e && (e.rn || []).filter(Boolean).length) return { name: e.rn.filter(Boolean).join(' '), base: bn, q: 'c' };\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1901 - the recipe is no longer said once named, as the crafted line",
+        "file": "bible.html",
+        "find": "(crn.length ? ' \u00b7 ' + esc(it[1]) : '')",
+        "replace": "''",
+        "matches": 1,
+    },
     {
         "why": "REG-1852 - only a whole number is a typed roll; coercing '' to 0 prints a share nobody typed",
         "file": "bible.html",
