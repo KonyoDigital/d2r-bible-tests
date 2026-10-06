@@ -201,7 +201,7 @@ def _untracked_in_the_way(repo):
 
 
 def _own_record(status, path):
-    """REG-1865 — is this porcelain row one of the console's own tracked records? -> bool
+    """REG-1865 - is this porcelain row one of the console's own tracked records? -> bool
 
     ONE rule, self_prove's (CONSOLE_OWN_RECORDS through _edits_beyond_own_records). His ALT sat on v3595, 123
     behind, because its only edit was ` M tv/.status_worst.json` - the record the console rewrites itself - and
@@ -267,7 +267,7 @@ def _decision(found):
         return 2, "tracked files modified (local work protected)"
     if not found["update"]:
         if found.get("own"):
-            # REG-1865 — not local work: the caller's fast-forward decides, and git refuses it by itself if origin
+            # REG-1865 - not local work: the caller's fast-forward decides, and git refuses it by itself if origin
             # changed that record. Nothing here resets or checks out his record.
             return 0, "only the console's own record differs (%s) - the fast-forward decides" % ", ".join(found["own"][:3])
         return 0, "clean"
