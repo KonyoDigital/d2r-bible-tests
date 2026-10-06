@@ -235,6 +235,27 @@ def _journal_path():
     return os.environ.get("TV_SESSIONS") or os.path.join(HERE, "sessions.jsonl")
 
 
+def _journal_megabytes():
+    """The live journal's size in MB, one decimal. None when that size was not read.
+
+    A missing file is 0.0. That is a console that has not recorded, and the ledger
+    organ may call it clean. isfile returns False for that missing file, and also
+    when the directory will not stat and when the path is not a file. 0.0 is what
+    the organ paints as an empty journal it calls clean. Those two are not 0.0.
+    """
+    import stat
+    path = _journal_path()
+    try:
+        st = os.stat(path)
+    except FileNotFoundError:
+        return 0.0
+    except OSError:
+        return None
+    if not stat.S_ISREG(st.st_mode):
+        return None
+    return round(st.st_size / 1e6, 1)
+
+
 def _journal_ring():
     """v1709 — live file + rotated generations, ALL honouring TV_SESSIONS.
 
@@ -39960,7 +39981,9 @@ def status_payload():
 
         "sessionHealth": _sess_h,   # v946 — one-glance tabs/lease/verdict/story
         "mindStory": (_sess_h.get("story") or [])[-6:],
-        "journalMB": (lambda: round(os.path.getsize(_journal_path()) / 1e6, 1) if os.path.isfile(_journal_path()) else 0.0)(),
+        # REG-1803 — isfile is False when this path will not stat, which is also
+        # how a missing journal looks. 0.0 would say the ledger is an empty journal.
+        "journalMB": _t("journalMB", _journal_megabytes),
         "platform": "windows" if IS_WIN else ("mac" if sys.platform == "darwin" else sys.platform),
         "shipPlatform": (_windows_ship() or {}).get("platform") if IS_WIN else ("mac" if sys.platform == "darwin" else None),
         "shipVer": (_windows_ship() or {}).get("ver") if IS_WIN else None,

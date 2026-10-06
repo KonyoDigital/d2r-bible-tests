@@ -9528,6 +9528,15 @@ GATES = [
              "that empty. A blank file is still empty. A real beat is still its coverage. "
              "A directory that will not stat is not that empty, and a path that is not a "
              "file is not a live journal."),
+    Gate("test_an_unread_journal_size_is_not_a_clean_ledger",
+         [sys.executable, os.path.join(HERE, "test_an_unread_journal_size_is_not_a_clean_ledger.py")], 90,
+         needs_app=False,
+         why="REG-1803 - the ledger organ asked isfile, and isfile turns a directory that "
+             "will not stat into no journal. No journal is also 0.0 MB, and the organ said "
+             "the journal was clean. A missing file is still 0.0. A blank file is still 0.0. "
+             "A real file is still its size. A directory that will not stat is not that "
+             "empty, and a path that is not a file is not a measured size. The organ says "
+             "the size was not read, and it does not stay ok."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

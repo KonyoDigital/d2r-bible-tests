@@ -23833,9 +23833,13 @@ window._lockMark = function(isOpen, px, label){
       : (tk.length ? (okTabs + ' landed' + (missTabs ? ' <span class="eh-x">·</span> ' + missTabs + ' gap' : '')) : 'no stash tabs yet');
     // 5) LEDGER — the memory
     var viol = wd.violations || 0;
-    var ldPulse = viol > 0 ? 'warn' : 'ok';
-    var ldStat = (st.journalMB != null ? st.journalMB + ' MB' : '—') + (viol ? ' <span class="eh-x">·</span> <span style="color:#ff9a7a">' + viol + ' miss</span>' : '');
-    var ldSub = (sh.verdict === 'miss' ? '⚠ last session had gaps' : (viol ? viol + ' watchdog breach' : 'journal clean'));
+    // REG-1803 — null is a size that was not read. 0 is an empty journal, and that one stays clean.
+    var journalUnread = (st.journalMB == null);
+    var ldPulse = (viol > 0 || journalUnread) ? 'warn' : 'ok';
+    var ldStat = (journalUnread ? '—' : (st.journalMB + ' MB')) + (viol ? ' <span class="eh-x">·</span> <span style="color:#ff9a7a">' + viol + ' miss</span>' : '');
+    var ldSub = journalUnread
+      ? 'the journal size was not read'
+      : (sh.verdict === 'miss' ? '⚠ last session had gaps' : (viol ? viol + ' watchdog breach' : 'journal clean'));
     return [
       { key: 'capture', icon: '📷', title: 'CAPTURE', stat: capStat, pulse: capPulse, sub: capSub, state: _EH_STATE[capPulse] },
       { key: 'readers', icon: '👁', title: 'READERS', stat: rdStat, pulse: rdPulse, sub: rdSub, state: _EH_STATE[rdPulse] },
