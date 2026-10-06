@@ -2580,5 +2580,16 @@
     "gotcha": "It ONLY observes — it records and calls straight through to the originals, never redirecting, blocking or fabricating a write. ⚠ And it PROVES NOTHING UNTIL SOMETHING RUNS under `with watching()`: enabling it does not gather evidence, so the per-store answer is a measurement nobody has taken yet — which is not the same fact as 'one writer'. It exists because two static detectors (filename-adjacency grep, AST constant-resolution) both returned ZERO writers for all four stores, measuring the instruments rather than the code. Related trap recorded in write_census.py: patching only `open` also yields 0 — this codebase writes via io.open.",
     "purpose": "Runtime witness that patches open/io.open/os.replace to RECORD which module actually writes each watched reel store (vault_swept, vault_accum, reel_tombstones, retro_triage, chron_evidence).",
     "territory": "vault"
+  },
+  "capture_stamp.py": {
+    "entryPoints": [
+      "from_measured",
+      "from_index",
+      "beside_frame",
+      "os_of_this_process"
+    ],
+    "gotcha": "A field that was not measured is ABSENT, never a default: dpi is copied only when dpiMeasured is True, w and h travel together, and reading an OLD index back never fills a route. Only stash_eye (surfaces.py prep_stash_grid) reads the stamp today; slot_identity's grid geometry does not, and the ALT panel band was never measured (AUDIT_B 67ec5b26).",
+    "purpose": "What a NEW reel may record about the window it was filmed from (route, windowLabel, w, h, os, dpi), from the finder's pin and the Windows capture half's cap_target.json; tv_diablo._capture_for_seal stamps it on the reel it seals.",
+    "territory": "capture-vision"
   }
 }
