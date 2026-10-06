@@ -17892,6 +17892,43 @@ def board_tick(name, kind, want):
     return out
 
 
+#: REG-1910 - names whose hand row this process has already confirmed in the evidence ledger, so the board's tally
+#: POST (every minute) does not reload and rewrite the ledger to say what it already says.
+_HAND_BANKED = set()
+
+
+def bank_hand_ticks(names):
+    """His HAND ticks, as the board's own d2r_foundBy names them, banked as 'hand' witnesses. -> int added | None
+
+    REG-1910 - _bank_manual_sighting ran only when the CONSOLE pressed the tick; his "✓ found it" on the board never
+    reached it, so a hand-ticked unique read ok:false on /api/evidence for ever. One load, one save, only for names
+    with no hand row yet; None when the ledger cannot be read (UNKNOWN, never "nothing to bank")."""
+    if not isinstance(names, list):
+        return 0
+    want = []
+    for n in names[:2000]:
+        if isinstance(n, str) and n.strip() and n not in _HAND_BANKED:
+            want.append(n)
+    if not want:
+        return 0
+    ev = _chron_evidence_load()
+    if not isinstance(ev, dict):
+        return None
+    rows_u = ev.setdefault("uniques", {})
+    added = 0
+    now = int(time.time() * 1000)
+    for n in want:
+        rows = rows_u.setdefault(n, [])
+        if not any(_is_hand_row(r) for r in rows):
+            rows.append({"lane": MANUAL_LANE, "witness": "hand", "at": now,
+                         "why": "he ticked it by hand on the board (d2r_foundBy says so)"})
+            added += 1
+    if added:
+        _chron_evidence_save(ev)
+    _HAND_BANKED.update(want)
+    return added
+
+
 #: The lane his own hand tick is banked under — the one spelling the writer below and every reader
 #: of the evidence ledger share (chronicle_retro.witnesses tags it `hand`; evidence_for counts it as
 #: its own kind of row, never as an unplaced one).
@@ -44883,6 +44920,11 @@ class Handler(BaseHTTPRequestHandler):
             # fleet_mask.LEDGERS and is applied at read time by _mask_from_board_store.
             # [[copy-drift]] [[the-unjoined-end]]
             _st_saved, _st_why = accept_handed_stores(body, _who)
+            # REG-1910 - his hand ticks, sent only by his own world, banked as hand witnesses; never breaks the tally
+            try:
+                bank_hand_ticks(body.get("hand"))
+            except Exception:
+                pass
             # #41 rank 22 (REG-1564) — AND THE PICKER CENSUS, banked before and independently of the counts
             _pk_saved, _pk_why = accept_handed_picker(body, _who)
             _t = {"v": 1, "who": _who, "route": _who,

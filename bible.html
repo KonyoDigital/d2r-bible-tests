@@ -53004,6 +53004,26 @@ function renderJournal(){
            [[unknown-stays-unknown]] */
         stores: _sd.stores,
         storeWhy: _sd.why,
+        /* REG-1910 — HIS HAND TICKS, SO THE CONSOLE CAN BANK THEM AS WITNESSES. His ruling: a manual tally is witness
+           enough. The console banks a 'hand' row only when IT pressed the tick (/api/board_tick), and his own
+           "✓ found it" on the board never called the console - so a unique he ticked by hand read ok:false on
+           /api/evidence for ever (The Cat's Eye, hand-ticked 09-30). d2r_foundBy (REG-1886) already says which rows
+           his hand made; the names of those still in d2r_foundLog ride this same loopback POST, and only from HIS
+           world (_D2R_OWNER) - a guest world's ticks are not his testimony. null = could not look, never []. */
+        hand: (function(){
+          if (window._D2R_OWNER !== true) return null;
+          try {
+            var fb = (typeof window._foundByRead === 'function') ? window._foundByRead() : null;
+            var fl = JSON.parse(window.LSR.getItem('d2r_foundLog') || '{}') || {};
+            if (!fb || typeof fl !== 'object') return null;
+            var o = [];
+            Object.keys(fb).forEach(function(k){
+              var r = fb[k];
+              if (r && r.source === 'hand' && Object.prototype.hasOwnProperty.call(fl, k)) o.push(k);
+            });
+            return o.slice(0, 2000);
+          } catch(e){ return null; }
+        })(),
         at: Date.now()
       };
       /* Nothing to say is not the same as zero: if no scan answered, do not write a row of nulls

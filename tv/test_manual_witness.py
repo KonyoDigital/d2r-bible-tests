@@ -17,6 +17,7 @@ hand-ticking open a lock no sabotage ever tested. [[wilson-self-arming-lock]]
 ⚠ FIXTURES NEVER TOUCH LIVE DATA. Every test here swaps the evidence load/save for an in-memory
 pair; none of them opens chron_evidence.json. [[feedback-fixtures-never-touch-live-data]]
 """
+import io
 import os
 import sys
 import unittest
@@ -44,6 +45,20 @@ RED_PROOF = [
         "file": "chronicle_retro.py",
         "find": '        tags.add("hand")',
         "replace": '        tags.add("cross-reel")',
+        "matches": 1,
+    },
+    {
+        "why": "REG-1910 - the console banks a hand row for every name every minute: his one tick becomes many witnesses",
+        "file": "control_app.py",
+        "find": "        if not any(_is_hand_row(r) for r in rows):\n            rows.append({\"lane\": MANUAL_LANE, \"witness\": \"hand\", \"at\": now,",
+        "replace": "        if True:\n            rows.append({\"lane\": MANUAL_LANE, \"witness\": \"hand\", \"at\": now,",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1910 - an unreadable evidence ledger reads as 'nothing to bank' instead of UNKNOWN",
+        "file": "control_app.py",
+        "find": "    ev = _chron_evidence_load()\n    if not isinstance(ev, dict):\n        return None\n    rows_u = ev.setdefault",
+        "replace": "    ev = _chron_evidence_load()\n    if not isinstance(ev, dict):\n        return 0\n    rows_u = ev.setdefault",
         "matches": 1,
     },
 ]
@@ -116,6 +131,62 @@ class TheTickBanksOnlyWhatHappened(unittest.TestCase):
         UNKNOWN; ownership alone must never mint a witness."""
         self.assertEqual(self.store, {})
         self.assertEqual(CR.witnesses([]), [])
+
+
+
+class HisBoardHandTickReachesTheLedger(unittest.TestCase):
+    """REG-1910 - his "✓ found it" on the board never called the console, so a hand-ticked unique read ok:false on
+    /api/evidence for ever (The Cat's Eye, 09-30). The board's tally POST now carries the names d2r_foundBy says his
+    hand made (still in d2r_foundLog, his own world only) and the console banks them through ONE load and ONE save."""
+
+    def setUp(self):
+        self.store = {}
+        self.saves = []
+        self._load, self._save = CA._chron_evidence_load, CA._chron_evidence_save
+        CA._chron_evidence_load = lambda: self.store
+        CA._chron_evidence_save = lambda d: self.saves.append(1)
+        CA._HAND_BANKED.clear()
+
+    def tearDown(self):
+        CA._chron_evidence_load, CA._chron_evidence_save = self._load, self._save
+        CA._HAND_BANKED.clear()
+
+    def test_a_board_hand_tick_is_a_hand_witness(self):
+        self.assertEqual(CA.bank_hand_ticks(["The Cat's Eye", "Nagelring"]), 2)
+        self.assertIn("hand", CR.witnesses(self.store["uniques"]["The Cat's Eye"]))
+        self.assertEqual(len(self.saves), 1, "two names cost more than one save")
+
+    def test_the_same_names_next_minute_write_nothing(self):
+        CA.bank_hand_ticks(["The Cat's Eye"])
+        self.assertEqual(CA.bank_hand_ticks(["The Cat's Eye"]), 0)
+        self.assertEqual(len(self.store["uniques"]["The Cat's Eye"]), 1, "saying it twice became two witnesses")
+        self.assertEqual(len(self.saves), 1)
+
+    def test_a_console_tick_already_banked_is_not_doubled(self):
+        CA._bank_manual_sighting("Shako", "unique")
+        CA._HAND_BANKED.clear()
+        self.assertEqual(CA.bank_hand_ticks(["Shako"]), 0)
+        self.assertEqual(len(self.store["uniques"]["Shako"]), 1)
+
+    def test_nothing_sent_or_junk_banks_nothing(self):
+        self.assertEqual(CA.bank_hand_ticks(None), 0)
+        self.assertEqual(CA.bank_hand_ticks([None, 3, " "]), 0)
+        self.assertEqual(self.store, {})
+
+    def test_an_unreadable_ledger_is_unknown_not_nothing(self):
+        CA._chron_evidence_load = lambda: None
+        self.assertIsNone(CA.bank_hand_ticks(["The Cat's Eye"]))
+
+    def test_the_route_and_the_board_are_joined(self):
+        here = os.path.dirname(os.path.abspath(__file__))
+        src = io.open(os.path.join(here, "control_app.py"), encoding="utf-8").read()
+        self.assertEqual(src.count('                bank_hand_ticks(body.get("hand"))\n'), 1,
+                         "the tally route no longer banks his hand ticks")
+        page = io.open(os.path.join(os.path.dirname(here), "bible.html"), encoding="utf-8").read()
+        self.assertEqual(page.count("if (r && r.source === 'hand' && Object.prototype.hasOwnProperty.call(fl, k)) o.push(k);"), 1,
+                         "the board no longer sends the names his hand ticked")
+        self.assertEqual(page.count("          if (window._D2R_OWNER !== true) return null;\n"), 1,
+                         "the board would send a guest world's ticks as his")
 
 
 if __name__ == "__main__":
