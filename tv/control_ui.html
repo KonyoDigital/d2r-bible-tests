@@ -6084,6 +6084,11 @@
   .fleet-row.has-ftt:hover .ftt, .fleet-row.has-ftt:focus-visible .ftt {
     opacity: 1; visibility: visible; transform: translateY(0);
   }
+  /* REG-1828 — ONE BOX AT A TIME. A word on the row with its own title (river stuck, the verdict, picker short)
+     opens the hint bubble beside it, centred on the word, and this card sits just above the row; a tall hint
+     covered the card's last lines. While such a word is under the pointer the card steps aside. The card's own
+     words cannot be hovered (pointer-events: none), so only the row's words match. */
+  .fleet-row.has-ftt:has(:is([title], [data-tip-held]):hover) .ftt { opacity: 0; visibility: hidden; }
   .ftt .ftt-h {
     font: var(--fw-semibold) var(--fs-xs)/1.2 var(--mono);
     letter-spacing: var(--ls-wide); text-transform: uppercase; color: var(--gold-bright);
@@ -6143,6 +6148,8 @@
   .ftt .ftt-none { font: var(--fw-regular) var(--fs-2xs)/1.45 var(--mono); color: var(--gold-dim); }
   .ftt .ftt-age { margin-top: 6px; font: var(--fw-regular) var(--fs-2xs)/1 var(--mono);
                   color: var(--gold-dim); opacity: .7; }
+  .ftt .ftt-click { margin-top: 5px; font: var(--fw-regular) var(--fs-2xs)/1.45 var(--mono);
+                    color: var(--gold-dim); opacity: .7; }
   /* ══ v2213 — THE CROSS-REFERENCE BOX ═══════════════════════════════════════════════════
      Two columns, nothing they both own, and every figure it shows is one it actually measured.
      It borrows the rail's existing tokens rather than inventing a scale — a panel with its own
@@ -26098,6 +26105,9 @@ function escC(s) {
                 t: (seen - same) + ' of ' + seen + ' ledger(s) disagree with this console \u2014 '
                  + 'the figures beside the name say which'};
       };
+      /* REG-1828 — what a click opens, said by the card. It was the row's title, and that opened a native box
+         beside this card, and over the hint of any word on the row whose title the hint lane had taken. */
+      var _fttClick = '<div class="ftt-click">click: how this PC films and drains, and their set pieces against yours</div>';
       var _tip = function (m) {
         var t = m.tally;
         if (!t || !t.ok) {
@@ -26109,7 +26119,7 @@ function escC(s) {
             + 'there is nothing to compare \u2014 UNMEASURED, not disagreement">no report</span>'
             + '</div><div class="ftt-none">nothing recorded'
             + (t && t.why ? (' — ' + escC(String(t.why).slice(0, 90))) : '')
-            + '</div></div>';
+            + '</div>' + _fttClick + '</div>';
         }
         var _isMe = !!(m && m.machine && j && j.me && m.machine === j.me);
         /* ⚠⚠ #240 — EACH LEDGER ITS OWN ANSWER. Konyo, from his ALT: *"when i look at grokbot or
@@ -26235,7 +26245,7 @@ function escC(s) {
           + '</span></div>' + seeded + (bars || '<div class="ftt-none">reported no counts</div>')
           + _mwLine
           + '<div class="ftt-age">as of ' + escC(_fleetSince(t.at ? new Date(t.at).toISOString() : m.t))
-          + '</div></div>';
+          + '</div>' + _fttClick + '</div>';
       };
       /* v2249 — SAY WHEN HIS OWN BUILD HAS NOT SHIPPED YET. Konyo: "how come im 2248 and dean is
          2247... why is he one update behind all the time?" He is not, and the panel was what made
@@ -26450,7 +26460,6 @@ function escC(s) {
            "how far along is he", and this answers "what should I chase". */
         return '<div class="fleet-row' + (heard ? ' on' : '') + ' has-ftt fleet-clickable"'
           + ' tabindex="0" role="button" data-fleet-machine="' + escC(m.machine || '') + '"'
-          + ' title="click: how this PC films and drains, and their set pieces against yours"'
           + ' onclick="window._fleetCompare(this.getAttribute(\'data-fleet-machine\'))"'
           + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();'
           + 'window._fleetCompare(this.getAttribute(\'data-fleet-machine\'))}">'

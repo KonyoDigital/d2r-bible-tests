@@ -62210,11 +62210,20 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
        already hidden — the difference is that a truncated word no longer looks like a failure.
        Measured after render, because whether it fits depends on the font the browser actually
        used, not on a character count. [[visual-regression-detector]] */
-    try {
-      if (el.scrollWidth > el.clientWidth + 1) {
-        el.textContent = window.D2R_BUILD.id + ' · ' + window.D2R_BUILD.date;
-      }
-    } catch (e) {}
+    /* REG-1829 — AND MEASURED AGAIN WHEN THE BOX CHANGES. This ran once, right after the append. A
+       badge that is not laid out then (display:none below 720px, a board frame still hidden) reads 0
+       against 0, kept the full stamp, and showed "v3595 · 2026-10-04 · buil…" once it appeared.
+       0 against 0 is no measurement, and the comparison leaves a hidden badge alone. The observer's
+       work waits a frame through _roDefer (the #223 rule): it changes the very box it watches. */
+    var _fit = function(){
+      try {
+        if (el.scrollWidth > el.clientWidth + 1) {
+          el.textContent = window.D2R_BUILD.id + ' · ' + window.D2R_BUILD.date;
+        }
+      } catch (e) {}
+    };
+    _fit();
+    try { if (typeof ResizeObserver !== 'undefined' && typeof _roDefer === 'function') new ResizeObserver(_roDefer(_fit)).observe(el); } catch (e) {}
     // v708.1 (Grok: 'identity hygiene') — ONE identity source: title + meta follow D2R_BUILD at
     // runtime, so the static tags can lag a ship without the DOM ever split-braining again.
     try {

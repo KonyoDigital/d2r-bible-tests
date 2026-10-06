@@ -794,6 +794,94 @@ class AnUnplacedReelIsNotTheWholeRiver(unittest.TestCase):
         self.assertNotIn("[25,126]", a)
 
 
+
+#: REG-1828 — the comment that opens the block after _fleetRefresh; F._cut counts it once
+_REFRESH_END = "  /* ⚠⚠ v3086 — NOBODY EVER ASKED."
+_CLICK = "click: how this PC films and drains, and their set pieces against yours"
+_SHOW = ".fleet-row.has-ftt:hover .ftt, .fleet-row.has-ftt:focus-visible .ftt {"
+_STEP_ASIDE = (".fleet-row.has-ftt:has(:is([title], [data-tip-held]):hover) .ftt "
+               "{ opacity: 0; visibility: hidden; }")
+
+
+def _rail():
+    """The SHIPPED _fleetRefresh in node over the fixture roster. -> [(row tag, row html)]
+
+    One row carries counts so both of the card's paths draw (counted, and no report)."""
+    fx = F._fixture()
+    fx["online"][0]["tally"] = {"ok": True, "at": F._iso(F.NOW)}
+    prog = (F.HARNESS + F._cut(F.FLEET_START, _REFRESH_END) + "\n"
+            + "ELS['fleet-list'] = { innerHTML: '' };\n"
+            + "var fetch = function(){ return Promise.resolve({ json: function(){ return Promise.resolve(%s); } }); };\n"
+            % json.dumps(fx)
+            + "window._fleetRefresh().then(function(){ process.stdout.write(ELS['fleet-list'].innerHTML); },"
+            + " function(e){ process.stdout.write('ERR ' + e); });\n")
+    r = F.subprocess.run([F.NODE, "-"], input=prog, capture_output=True, text=True, timeout=60)
+    if r.returncode != 0 or r.stdout.startswith("ERR"):
+        raise AssertionError("the shipped rail would not paint: %s" % (r.stderr or r.stdout)[-1200:])
+    html = r.stdout
+    chunks = html.split('<div class="fleet-row')[1:]
+    out = []
+    for c in chunks:
+        c = '<div class="fleet-row' + c
+        out.append((c[:c.index(">") + 1], c))
+    return out
+
+
+@unittest.skipIf(F.NODE is None, "node is not on this machine - this law RUNS the shipped rail")
+class OneBoxAtATimeOnTheRow(unittest.TestCase):
+    """REG-1828 — THE ROW CARRIED ITS WORDS TWICE. GrokBot, on his live screen at v3595: on the
+    river-stuck word three boxes stacked, and the native strip "click: how this PC films and
+    drains..." covered the last two lines. The row had a title AND its own card. The console's hint
+    lane takes the hovered word's title away so no native box opens for it, and that left the row's
+    title as the nearest one, so the native strip opened anyway. The click sentence now lives in the
+    card, the row has no title, and the card steps aside while a word with its own words is under
+    the pointer."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.rows = _rail()
+
+    def test_the_rail_painted_every_row(self):
+        self.assertEqual(len(self.rows), 3, "the fixture roster has 3 PCs and the rail drew %d" % len(self.rows))
+
+    def test_no_row_carries_a_title_of_its_own(self):
+        for tag, _ in self.rows:
+            with self.subTest(tag[:60]):
+                self.assertNotIn(" title=", tag,
+                                 "the row carries a native title beside its card, so two boxes open: " + tag)
+                self.assertIn("onclick=\"window._fleetCompare(", tag, "the row stopped opening its box")
+
+    def test_the_card_carries_the_click_sentence(self):
+        for tag, row in self.rows:
+            with self.subTest(tag[:60]):
+                card = row[row.find('<div class="ftt">'):]
+                self.assertTrue(card.startswith('<div class="ftt">'), "this row has no card: " + tag)
+                self.assertEqual(card.count('<div class="ftt-click">' + _CLICK + '</div>'), 1,
+                                 "the card does not say what a click opens, so the sentence left the row "
+                                 "for nowhere")
+        paths = [("ftt-age" in r) for _, r in self.rows]
+        self.assertIn(True, paths, "no row drew the counted card, so its path was never graded")
+        self.assertIn(False, paths, "no row drew the no-report card, so its path was never graded")
+
+    def test_a_stuck_word_still_carries_its_own_reason(self):
+        alt = [r for t, r in self.rows if 'data-fleet-machine="box-b"' in t]
+        self.assertEqual(len(alt), 1)
+        self.assertIn('class="fleet-riverstuck" title="river stuck on this PC - EMPTY 76:', alt[0],
+                      "the stuck word lost the reason it shows on hover")
+
+    def test_the_card_steps_aside_for_a_word_with_its_own_words(self):
+        """CSS cannot be driven without a browser. This pins the rule; the merger's render is the look."""
+        import re as _re
+        css = _re.sub(r"/\*.{0,4000}?\*/", "", F.UI, flags=_re.S)
+        self.assertGreater(len(css), 0.5 * len(F.UI), "the comment strip ate the file")
+        self.assertEqual(css.count(_STEP_ASIDE), 1,
+                         "the card no longer steps aside while a titled word is hovered, so it and the hint "
+                         "bubble open together")
+        self.assertEqual(css.count(_SHOW), 1)
+        self.assertGreater(css.find(_STEP_ASIDE), css.find(_SHOW),
+                           "the step-aside comes before the rule that shows the card")
+
+
 RED_PROOF = [
     {"why": "REG-1738 - a river nobody ever stamped reads as draining again",
      "file": "control_app.py",
@@ -966,6 +1054,37 @@ RED_PROOF = [
         "file": "tv/control_ui.html",
         "find": "      if (hasUnk && rv.unknown > 0) bits.push(rv.unknown + nbsp + 'unplaced');\n      if (gap > 0) bits.push(gap + nbsp + 'unaccounted');\n      else if (gap < 0) bits.push((-gap) + nbsp + 'counted twice');\n",
         "replace": "      if (false) bits.push('');\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1828 - the row carries a native title beside its own card, so two boxes open on it",
+        "file": "tv/control_ui.html",
+        "find": "          + ' tabindex=\"0\" role=\"button\" data-fleet-machine=\"' + escC(m.machine || '') + '\"'\n"
+                "          + ' onclick=",
+        "replace": "          + ' tabindex=\"0\" role=\"button\" data-fleet-machine=\"' + escC(m.machine || '') + '\"'\n"
+                   "          + ' title=\"click: how this PC films and drains, and their set pieces against yours\"'\n"
+                   "          + ' onclick=",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1828 - the counted card drops the click sentence, so what a click opens is said nowhere",
+        "file": "tv/control_ui.html",
+        "find": "toISOString() : m.t))\n          + '</div>' + _fttClick + '</div>';",
+        "replace": "toISOString() : m.t))\n          + '</div></div>';",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1828 - the no-report card drops the click sentence",
+        "file": "tv/control_ui.html",
+        "find": "            + '</div>' + _fttClick + '</div>';",
+        "replace": "            + '</div></div>';",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1828 - the card stays up over the hint of a word with its own words",
+        "file": "tv/control_ui.html",
+        "find": "  .fleet-row.has-ftt:has(:is([title], [data-tip-held]):hover) .ftt { opacity: 0; visibility: hidden; }\n",
+        "replace": "",
         "matches": 1,
     },
 ]
