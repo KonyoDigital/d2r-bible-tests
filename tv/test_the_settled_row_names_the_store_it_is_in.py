@@ -79,14 +79,15 @@ def _branch():
 
 def _run_node(js):
     if not js:
-        return None
+        raise AssertionError("REG-1900 - the subject this harness drives is gone (the settled-row branch): a "
+                             "renamed subject is a FAILURE, never a skip")
     d = tempfile.mkdtemp(prefix="settled_")
     f = os.path.join(d, "t.js")
     io.open(f, "w", encoding="utf-8").write(js)
     try:
         r = subprocess.run(["node", f], capture_output=True, text=True, timeout=60)
-    except Exception:
-        return None
+    except FileNotFoundError:
+        return None          # REG-1900 - the ONE skip: there is no node on this venue
     if r.returncode != 0:
         return {"__err": (r.stderr or "")[:400]}
     try:

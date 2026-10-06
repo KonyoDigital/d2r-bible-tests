@@ -58,7 +58,7 @@ CURLY = ["Atma’s Scarab", "Saracen’s Chance", "Seraph’s Hymn", "The Cat’
 
 
 def _resolve(names):
-    """Run the SHIPPED resolver in node and return {name: url|None}. -> dict|None (None = no node)
+    """Run the SHIPPED resolver in node and return {name: url|None}. -> dict|None (None = no node, and ONLY that)
 
     ⚠ THE REAL FUNCTIONS, NOT A PYTHON RE-IMPLEMENTATION. A second copy of the matching rule would
     pass while the page still failed — the defect this file exists for was a MISMATCH between two
@@ -67,7 +67,7 @@ def _resolve(names):
     i = BIBLE.find("const D2IO_ART = {")
     j = BIBLE.find("window.artUrl = artUrl;")
     if i < 0 or j < 0 or j < i:
-        return None
+        raise AssertionError("REG-1900 - the subject this harness drives is gone (const D2IO_ART / window.artUrl): a renamed subject is a FAILURE, never a skip")
     # ⚠ THE REGION ENDS WITH `window.D2IO_ART = D2IO_ART;` AND NODE HAS NO `window`. Without this
     # stub the probe exits 1 with "ReferenceError: window is not defined", `_resolve` returns None,
     # and THREE laws below skip — reporting nothing while looking like they ran. Measured: 3 of 7
@@ -80,14 +80,11 @@ def _resolve(names):
     io.open(p, "w", encoding="utf-8").write(js)
     try:
         r = subprocess.run(["node", p], capture_output=True, text=True, timeout=90)
-    except Exception:
-        return None
-    if r.returncode != 0:
-        return None
-    try:
-        return json.loads((r.stdout or "").strip().split("\n")[-1])
-    except Exception:
-        return None
+    except FileNotFoundError:
+        return None          # REG-1900 - the ONE skip: there is no node on this venue
+    if r.returncode != 0:    # the subject would not run: that is the subject's failure, not the venue's
+        raise AssertionError("REG-1900 - the shipped code would not run in node: %s" % (r.stderr or "")[-400:])
+    return json.loads((r.stdout or "").strip().split("\n")[-1])
 
 
 class TheArtResolverFoldsTheApostrophe(unittest.TestCase):

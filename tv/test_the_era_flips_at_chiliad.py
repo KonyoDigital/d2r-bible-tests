@@ -47,20 +47,18 @@ def _ask(versions):
     """Run the SHIPPED function in node against these versions. -> {v: label} | None"""
     fn = _era_fn()
     if fn is None:
-        return None
+        raise AssertionError("REG-1900 - the subject this harness drives is gone (window._eraName): a renamed "
+                             "subject is a FAILURE, never a skip")
     js = ("var window={};" + fn + "\nvar out={};" +
           "%s.forEach(function(v){out[v]=window._eraName(v);});" % json.dumps(versions) +
           "console.log(JSON.stringify(out));")
     try:
         r = subprocess.run(["node", "-"], input=js, capture_output=True, text=True, timeout=60)
-    except Exception:
-        return None
+    except FileNotFoundError:
+        return None          # REG-1900 - the ONE skip: there is no node on this venue
     if r.returncode != 0:
-        return None
-    try:
-        return json.loads(r.stdout.strip().splitlines()[-1])
-    except Exception:
-        return None
+        raise AssertionError("REG-1900 - the shipped _eraName would not run in node: %s" % (r.stderr or "")[-400:])
+    return json.loads(r.stdout.strip().splitlines()[-1])
 
 
 class TheEraFlipsAtTheRightShip(unittest.TestCase):
@@ -68,7 +66,7 @@ class TheEraFlipsAtTheRightShip(unittest.TestCase):
     def setUp(self):
         self.out = _ask([2887, 2999, 3000, 3001, 3002, 3999])
         if self.out is None:
-            self.skipTest("node or _eraName could not be reached here — UNMEASURED, not clean")
+            self.skipTest("no node on this venue — UNMEASURED, not clean (a missing _eraName fails instead)")
 
     def test_the_function_is_actually_on_the_surface(self):
         """A law that cannot find its subject must say so, not pass quietly."""

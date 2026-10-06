@@ -79,7 +79,7 @@ def _render(payload):
         i = UI.find("  function _shLanesRender(d){")
     j = UI.find("  window._shLanesRender = _shLanesRender;", i)
     if i < 0 or j < 0:
-        return None
+        raise AssertionError("REG-1900 - the subject this harness drives is gone (_shLanesRender): a renamed subject is a FAILURE, never a skip")
     js = ("var out = '';\n"
           "var _fold = { open: false, addEventListener: function(){} };\n"
           "var localStorage = { setItem: function(){}, getItem: function(){ return null; } };\n"
@@ -96,14 +96,11 @@ def _render(payload):
     io.open(p, "w", encoding="utf-8").write(js)
     try:
         r = subprocess.run(["node", p], capture_output=True, text=True, timeout=90)
-    except Exception:
-        return None
-    if r.returncode != 0:
-        return None
-    try:
-        return json.loads((r.stdout or "").strip().split("\n")[-1])
-    except Exception:
-        return None
+    except FileNotFoundError:
+        return None          # REG-1900 - the ONE skip: there is no node on this venue
+    if r.returncode != 0:    # the subject would not run: that is the subject's failure, not the venue's
+        raise AssertionError("REG-1900 - the shipped code would not run in node: %s" % (r.stderr or "")[-400:])
+    return json.loads((r.stdout or "").strip().split("\n")[-1])
 
 
 class TheShelfShowsTheFourLanes(unittest.TestCase):

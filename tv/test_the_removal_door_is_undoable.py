@@ -144,7 +144,7 @@ class TheRemovalDoorIsUndoable(unittest.TestCase):
             with io.open(fd, "w", encoding="utf-8") as fh:
                 fh.write(js)
             r = subprocess.run(["node", path], capture_output=True, text=True, timeout=60)
-        except (OSError, subprocess.TimeoutExpired):
+        except FileNotFoundError:   # REG-1900 - the ONE skip: no node here. A timeout is the subject's failure
             self.skipTest("node unavailable — a skip is NOT a pass")
         finally:
             try:

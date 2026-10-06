@@ -86,7 +86,7 @@ class TheLedgerSaysWhereTheItemActuallyLanded(unittest.TestCase):
         """Execute the SHIPPED reader in node. -> the store value the row would carry."""
         src = _reader()
         if src is None:
-            self.skipTest("the _ownedNow reader moved — a skip is NOT a pass")
+            self.fail("REG-1900 - the subject this harness drives is gone (_ownedNow): a renamed subject is a FAILURE, never a skip")
         expr = _store_expr()
         if expr is None:
             # ⚠⚠ heart2 CALLED THIS GATE BLIND FOR EXACTLY THIS LINE. It used to skipTest, so the
@@ -185,7 +185,7 @@ console.log(JSON.stringify(storeFor(%s, %s)));
         """Call the SHIPPED _ownedNow directly, so true/false/null are distinguishable."""
         src = _reader()
         if src is None:
-            self.skipTest("the reader moved — a skip is NOT a pass")
+            self.fail("REG-1900 - the subject this harness drives is gone (_ownedNow): a renamed subject is a FAILURE, never a skip")
         js = ("var window = {};\n" + src + """
 var RAW = %s;
 window.LSR = { getItem: function(){ if (RAW === '__THROW__') throw new Error('boom'); return RAW; } };
@@ -259,7 +259,7 @@ console.log(JSON.stringify(_ownedNow(%s)));
         file has shipped that defect four times."""
         src = _reader()
         if src is None:
-            self.skipTest("the reader moved — a skip is NOT a pass")
+            self.fail("REG-1900 - the subject this harness drives is gone (_ownedNow): a renamed subject is a FAILURE, never a skip")
         # ⚠ COMMENTS STRIPPED FIRST. The first cut asserted the NAME was absent and went red on the
         # reader's own comment, which names the helper precisely to say it is NOT being called. A
         # law about a CALL must not be satisfiable by prose — mine has tripped on mine before.

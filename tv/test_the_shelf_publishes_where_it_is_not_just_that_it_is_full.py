@@ -123,7 +123,7 @@ class TheShelfPublishesWhereItIsNotJustThatItIsFull(unittest.TestCase):
     def _run(self, **case):
         blk = _block()
         if blk is None:
-            self.skipTest("the shelf geometry block moved — a skip is NOT a pass")
+            self.fail("REG-1900 - the subject this harness drives is gone (the shelf geometry IIFE): a renamed subject is a FAILURE, never a skip")
         d = tempfile.mkdtemp(prefix="shelfrect_")
         self.addCleanup(shutil.rmtree, d, True)
         f = os.path.join(d, "t.js")
@@ -474,7 +474,7 @@ class TheShelfPublishesWhereItIsNotJustThatItIsFull(unittest.TestCase):
         """
         blk = _block()
         if blk is None:
-            self.skipTest("the shelf geometry block moved — a skip is NOT a pass")
+            self.fail("REG-1900 - the subject this harness drives is gone (the shelf geometry IIFE): a renamed subject is a FAILURE, never a skip")
         key = "var _all = [].slice.call(ov.querySelectorAll("
         a = blk.find(key)
         self.assertGreater(a, -1, "the grid card list is no longer built from a querySelectorAll")

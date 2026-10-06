@@ -83,7 +83,7 @@ def _run_real_reader(names):
     a = BIBLE.find("  var _etaIdxCache = null;")
     b = BIBLE.find("  window._qlvlOf = _qlvlOf;")
     if a < 0 or b < 0 or b < a:
-        return None
+        raise AssertionError("REG-1900 - the subject this harness drives is gone (_etaIdxCache / window._qlvlOf): a renamed subject is a FAILURE, never a skip")
     slice_ = BIBLE[a:b + len("  window._qlvlOf = _qlvlOf;")]
     items = [{"n": n, "qlvl": int(q), "tier": t} for n, _tc, q, t in ROWS]
     js = ("var window = {};\n"
@@ -96,14 +96,11 @@ def _run_real_reader(names):
     io.open(p, "w", encoding="utf-8").write(js)
     try:
         r = subprocess.run(["node", p], capture_output=True, text=True, timeout=90)
-    except Exception:
-        return None
-    if r.returncode != 0:
-        return None
-    try:
-        return json.loads((r.stdout or "").strip().split("\n")[-1])
-    except Exception:
-        return None
+    except FileNotFoundError:
+        return None          # REG-1900 - the ONE skip: there is no node on this venue
+    if r.returncode != 0:    # the subject would not run: that is the subject's failure, not the venue's
+        raise AssertionError("REG-1900 - the shipped code would not run in node: %s" % (r.stderr or "")[-400:])
+    return json.loads((r.stdout or "").strip().split("\n")[-1])
 
 
 #: ⚠ THE ELEVEN WITH NO GAME-TABLE ROW UNDER ANY SPELLING. SET_QLVL_PROVENANCE.md records why each

@@ -211,7 +211,7 @@ class TheRiverIsOneFlowOfEight(unittest.TestCase):
                         "kept": ("null" if kept is None else json.dumps(kept))}
         try:
             r = _node(js, ".river_drive_")
-        except (OSError, subprocess.TimeoutExpired):
+        except FileNotFoundError:   # REG-1900 - the ONE skip: no node here. A timeout is the subject's failure
             self.skipTest("node unavailable - a skip is NOT a pass")
         self.assertEqual(r.returncode, 0, "the shipped river block threw:\\n%s" % (r.stderr or "")[-900:])
         return json.loads(r.stdout.strip().splitlines()[-1])
@@ -224,7 +224,7 @@ class TheRiverIsOneFlowOfEight(unittest.TestCase):
         js = VIS_HARNESS % {"cards": json.dumps(cards), "block": _vis_block()}
         try:
             r = _node(js, ".river_vis_")
-        except (OSError, subprocess.TimeoutExpired):
+        except FileNotFoundError:   # REG-1900 - the ONE skip: no node here. A timeout is the subject's failure
             self.skipTest("node unavailable - a skip is NOT a pass")
         self.assertEqual(r.returncode, 0,
                          "the shipped membership filter threw:\\n%s" % (r.stderr or "")[-900:])

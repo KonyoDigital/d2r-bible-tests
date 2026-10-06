@@ -170,7 +170,8 @@ class TheRiverReadsAsFourLanes(unittest.TestCase):
         a = UI.find("      var ordG = null;")
         b = UI.find("if (!ordG || !ordG.length) ordG = SHELF_RIVER_ORDER || [];")
         if a < 0 or b < a:
-            return None
+            raise AssertionError("REG-1900 - the subject this harness drives is gone (the shelf's lane order): a "
+                                 "renamed subject is a FAILURE, never a skip")
         block = UI[a:b + len("if (!ordG || !ordG.length) ordG = SHELF_RIVER_ORDER || [];")]
         js = ("var SHELF_RIVER_LANES = %s, SHELF_RIVER_ORDER = %s;\n%s\nconsole.log(JSON.stringify(ordG));"
               % (json.dumps(lanes), json.dumps(flat), block))
@@ -180,10 +181,10 @@ class TheRiverReadsAsFourLanes(unittest.TestCase):
         io.open(f, "w", encoding="utf-8").write(js)
         try:
             r = subprocess.run(["node", f], capture_output=True, text=True, timeout=60)
-        except Exception:
-            return None
+        except FileNotFoundError:
+            return None          # REG-1900 - the ONE skip: there is no node on this venue
         if r.returncode != 0:
-            return {"__err": (r.stderr or "")[:300]}
+            raise AssertionError("REG-1900 - the shipped order block would not run in node: %s" % (r.stderr or "")[-300:])
         return json.loads(r.stdout.strip().splitlines()[-1])
 
     # ⚠⚠ v3191 — TWO TESTS RETIRED DELIBERATELY, AND WHAT REPLACED THEM PINS THE RULING.

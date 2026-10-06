@@ -97,7 +97,7 @@ class ALostStoreIsNeverSeededOver(unittest.TestCase):
         io.open(f, "w", encoding="utf-8").write(js)
         try:
             r = subprocess.run(["node", f], capture_output=True, text=True, timeout=60)
-        except Exception:
+        except FileNotFoundError:   # REG-1900 - the ONE skip: no node here. A timeout is the subject's failure
             self.skipTest("node unavailable — a skip is NOT a pass")
         self.assertEqual(r.returncode, 0, "the shipped block would not execute: %s" % r.stderr[:220])
         got = json.loads(r.stdout.strip().splitlines()[-1])["first"]
@@ -218,7 +218,8 @@ class ALostStoreIsNeverSeededOver(unittest.TestCase):
         """Execute the SHIPPED condition in node. -> bool | None"""
         m = _COND.search(BIBLE)
         if not m:
-            return None
+            raise AssertionError("REG-1900 - the subject this harness drives is gone (the seed-floor condition): a "
+                                 "renamed subject is a FAILURE, never a skip")
         cond = m.group(0)[len("if ("):]
         js = """
         var _rwFreshFlag = false;
@@ -235,10 +236,12 @@ class ALostStoreIsNeverSeededOver(unittest.TestCase):
         io.open(f, "w", encoding="utf-8").write(js)
         try:
             r = subprocess.run(["node", f], capture_output=True, text=True, timeout=60)
-        except Exception:
-            return None
+        except FileNotFoundError:
+            return None          # REG-1900 - the ONE skip: there is no node on this venue
         if r.returncode != 0:
-            return {"__err": (r.stderr or "")[:300]}
+            # REG-1900 - this returned {"__err": ...}, which is TRUTHY: the fresh-install law asserted
+            # assertTrue(got) and read a crashed condition as "the seeds still run"
+            raise AssertionError("REG-1900 - the shipped condition would not run in node: %s" % (r.stderr or "")[-300:])
         return json.loads(r.stdout.strip().splitlines()[-1]).get("ran")
 
     def test_a_FRESH_INSTALL_still_gets_its_seeds(self):

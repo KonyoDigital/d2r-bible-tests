@@ -178,7 +178,8 @@ class BothLanguagesShareTheContract(_TempBudget):
     def test_node_asMs_matches_python_as_ms(self):
         node = os.path.join(HERE, "intake_grok_sub.mjs")
         if not os.path.isfile(node):
-            self.skipTest("intake_grok_sub.mjs absent")
+            self.fail("REG-1900 - the subject this law reads is gone (tv/intake_grok_sub.mjs is tracked): a "
+                      "renamed subject is a FAILURE, never a skip")
         src = open(node, encoding="utf-8").read()
         self.assertIn("const MS_FLOOR = 1e11", src, "the Node side lost its unit floor")
         self.assertIn("Number(t) < MS_FLOOR ? Number(t) * 1000 : Number(t)", src,
