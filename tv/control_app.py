@@ -26070,7 +26070,41 @@ def retention_may_act():
     # drift_may_relaunch and here, differing only in the consequence it names; splitting the fold
     # off the prune switch was pointless if it left three copies of the same four checks. The
     # caller supplies its own tail, so the wording each door needs is preserved. [[copy-drift]]
-    return nothing_in_flight("footage is being written or read right now")
+    _kinds = []
+    ok, why = nothing_in_flight("footage is being written or read right now", parts=_kinds)
+    if ok or not _kinds or any(k.get("kind") != "shadow" for k in _kinds):
+        return ok, why
+    # ⚠⚠ REG-1838 — A SHADOW REEL ALONE IS NOT A REASON TO HOLD THE DRAIN. His 2026-10-04 ruling keeps the shadow
+    # reader on, so on a PC where the game stays open it is ON AIR every pass. MEASURED on his ALT: 87 of 96
+    # passes on 10-05 deferred "through the SHADOW reader", 416 reels releasable and none ever released. What the
+    # hold protects is footage being written, and the deleter cannot reach it: a rolling reel's frames land LOOSE
+    # in the hist root (tv_diablo `f_<ms>.jpg`) and become reel_<sid>/ only at its seal, plan() lists reel_*
+    # folders only, and a sealed reel is the newest, inside recent_shield with the fixtures. A reel still
+    # receiving frames is taken out of the pass as well (_drop_reels_still_filming). His own session, a mini, a
+    # sweep reading and a door nobody recorded still hold it exactly as before.
+    return True, _RETENTION_BESIDE_SHADOW
+
+
+#: REG-1838 — retention_may_act's yes when the only thing in flight is a shadow reel. _retention_once reads it to
+#: take any reel still receiving frames out of that pass.
+_RETENTION_BESIDE_SHADOW = ("only the SHADOW reader is rolling - its frames are loose until its seal, and the "
+                            "newest reels and the fixtures are shielded")
+
+
+def _drop_reels_still_filming(p):
+    """REG-1838 — `p` without any candidate whose folder is still receiving frames. -> (plan copy, [held reel])
+
+    _reel_is_growing is the measurement the sweepers already skip a reel on (v1823): a frame newer than its quiet
+    window, or a folder that will not read. A candidate whose folder is gone is not held here; apply_plan reports it.
+    The shared plan is never edited."""
+    keep, held = [], []
+    for c in (p.get("candidates") or []):
+        d = os.path.join(p.get("hist") or HIST_DIR, str((c or {}).get("reel") or ""))
+        if os.path.isdir(d) and _reel_is_growing(d):
+            held.append(str(c.get("reel")))
+        else:
+            keep.append(c)
+    return dict(p, candidates=keep), held
 
 
 def _split_read_from_waiting(w_vault, seals, still_sealed=None):
@@ -26633,7 +26667,12 @@ def _retention_once():
                                              % (free_gb, len(cands), why),
                                    drain=_dr))
         return None
-    r = _rr.apply_plan(p, yes=True)
+    _go, _filming = p, []
+    if why == _RETENTION_BESIDE_SHADOW:
+        _go, _filming = _drop_reels_still_filming(p)
+    r = _rr.apply_plan(_go, yes=True)
+    if _filming and isinstance(r, dict):
+        r = dict(r, heldFilming=_filming)
     # ⚠⚠ v2743 — THE JOIN t154 HAS BEEN WAITING FOR, AND ITS STATED BLOCKER WAS FALSE.
     # MEASURED on his live tv/disk_history.jsonl: 8,790 rows — 8,270 carry exactly 0, 520 carry
     # null, and **NOT ONE has ever carried a nonzero value**. The row blamed "nothing can pass
@@ -26701,7 +26740,10 @@ def _retention_once():
                                        # exactly what it was written for. [[the-unjoined-end]]
                                        ("" if not waiting else
                                         " %d reel(s) (%.0f MB) are still waiting on a sweep%s."
-                                        % (len(waiting), waiting_mb, _lane_say))))))
+                                        % (len(waiting), waiting_mb, _lane_say)))
+                                    + ("" if not _filming else
+                                       " %d reel(s) still receiving frames wait for the next pass."
+                                       % len(_filming)))))
     return r
 
 

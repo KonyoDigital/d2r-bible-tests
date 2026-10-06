@@ -736,6 +736,96 @@ class TheDrainArithmetic(unittest.TestCase):
         self.assertIsNone(RR.drain_owed(dict(p, ok=False)))
 
 
+class TheDrainRunsBesideTheShadowReader(_Base):
+    """★★ REG-1838 — A SHADOW REEL ALONE DOES NOT HOLD THE DRAIN, AND IT NEVER TOUCHES WHAT IS BEING FILMED.
+
+    His 2026-10-04 ruling keeps the shadow reader on, so a PC with the game open is ON AIR every pass. MEASURED on
+    his ALT: 87 of 96 passes on 10-05 deferred "through the SHADOW reader", 416 releasable, none ever released.
+    The REAL retention_may_act -> nothing_in_flight decides here (only its inputs are stated), and the SHIPPED
+    _retention_once deletes. The rolling reel is what the agent writes: loose f_<ms>.jpg in the hist root."""
+
+    def setUp(self):
+        _Base.setUp(self)
+        self.setUpClock()
+        self.w = _World(self, n_finished=RR.KEEP_RECENT + 2)
+        self._bind(self.w)
+        self.old = self.w.names[:2]
+        self.newest = self.w.names[2:]
+        old_s = BASE_MS / 1000.0
+        for nm in self.w.names:                    # every sealed reel finished filming long ago
+            d = os.path.join(self.w.hist, nm)
+            for f in os.listdir(d):
+                os.utime(os.path.join(d, f), (old_s, old_s))
+            os.utime(d, (old_s, old_s))
+        self.live = []
+        for k in range(3):                         # the shadow reel, rolling: loose frames, no folder yet
+            fp = os.path.join(self.w.hist, "f_%d.jpg" % int(self.clock.t * 1000 + k))
+            with open(fp, "wb") as fh:
+                fh.write(b"live frame %d" % k)
+            self.live.append(fp)
+
+    def _beside(self, door, vault_running=False):
+        def _may(lock):
+            if lock == "frame.release":
+                return True, "fixture: the frame.release lock is open"
+            return _REAL_MAY(lock)
+        with mock.patch("time.time", self.clock), \
+                mock.patch("shutil.disk_usage", return_value=_usage(500.0)), \
+                mock.patch.object(CA, "board_identity_drift", lambda: {"state": "ok", "why": "fixture"}), \
+                mock.patch.object(CA, "_agent_mode", "live"), \
+                mock.patch.object(CA, "_agent_alive", lambda: True), \
+                mock.patch.object(CA, "_rolling_reel", lambda: {"door": door, "since": None, "why": ""}), \
+                mock.patch.object(CA, "_CHRON_JOB", {"running": False}), \
+                mock.patch.object(CA, "_VAULT_JOB", {"running": vault_running}), \
+                mock.patch.object(CA, "mini_state", lambda: {"running": False}), \
+                mock.patch.object(SA, "may", _may):
+            r = CA._retention_once()
+            st = CA.retention_state()
+        return r, st
+
+    def _live_intact(self):
+        for k, fp in enumerate(self.live):
+            self.assertTrue(os.path.isfile(fp), "the rolling reel lost a frame: %s" % fp)
+            with open(fp, "rb") as fh:
+                self.assertEqual(fh.read(), b"live frame %d" % k, "a rolling frame was rewritten")
+
+    def test_a_shadow_reel_does_not_hold_the_drain(self):
+        r, st = self._beside("shadow")
+        r = r if isinstance(r, dict) else {}
+        self.assertEqual(sorted(r.get("removed") or []), sorted(self.old),
+                         "beside a rolling shadow reel the drain released %r, not the two reels older than the "
+                         "newest %d" % (r.get("removed"), RR.KEEP_RECENT))
+        left = self.w.on_disk()
+        for nm in self.newest:
+            self.assertIn(nm, left, "one of the newest %d was deleted beside the shadow" % RR.KEEP_RECENT)
+        self._live_intact()
+        self.assertEqual([t.get("reel") for t in self.w.tombstones()], self.old)
+        self.assertNotEqual(st["drain"]["state"], "DEFERRED", st["drain"])
+
+    def test_a_reel_still_receiving_frames_is_never_released_beside_the_shadow(self):
+        d = os.path.join(self.w.hist, self.old[0])
+        now_s = self.clock.t
+        for f in os.listdir(d):
+            os.utime(os.path.join(d, f), (now_s, now_s))
+        r, st = self._beside("shadow")
+        r = r if isinstance(r, dict) else {}
+        self.assertEqual(r.get("removed"), [self.old[1]], "beside the shadow the drain released %r" % (r,))
+        self.assertIn(self.old[0], self.w.on_disk(), "a reel still receiving frames was deleted")
+        self.assertEqual(r.get("heldFilming"), [self.old[0]], r)
+        self.assertIn("still receiving frames", st.get("say") or "")
+        self._live_intact()
+
+    def test_his_session_an_unknown_door_and_a_sweep_still_hold_it(self):
+        before = self.w.on_disk()
+        for door, vault in (("onair", False), ("mini", False), (None, False), ("shadow", True)):
+            r, st = self._beside(door, vault_running=vault)
+            self.assertFalse((r or {}).get("removed") if isinstance(r, dict) else r,
+                             "door %r (vault sweep %s) let the drain delete" % (door, vault))
+            self.assertEqual(self.w.on_disk(), before)
+            self.assertEqual(st["drain"]["state"], "DEFERRED", (door, vault, st["drain"]))
+        self._live_intact()
+
+
 def tearDownModule():
     for k, v in _SAVED_ENV.items():
         if v is None:
@@ -746,6 +836,27 @@ def tearDownModule():
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1838 - a rolling shadow reel holds the drain again, so the ALT's 416 releasable reels wait for ever",
+        "file": "control_app.py",
+        "find": "    if ok or not _kinds or any(k.get(\"kind\") != \"shadow\" for k in _kinds):\n        return ok, why\n",
+        "replace": "    if True:\n        return ok, why\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1838 - beside the shadow a reel still receiving frames is released",
+        "file": "control_app.py",
+        "find": "    if why == _RETENTION_BESIDE_SHADOW:\n        _go, _filming = _drop_reels_still_filming(p)\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1838 - every door reads as the shadow, so his own session and an unknown door let the deleter act",
+        "file": "control_app.py",
+        "find": "    if ok or not _kinds or any(k.get(\"kind\") != \"shadow\" for k in _kinds):\n        return ok, why\n",
+        "replace": "    if ok or not _kinds:\n        return ok, why\n",
+        "matches": 1,
+    },
     {
         "why": "the second eye on v3521 - apply_plan deletes on a PARTIAL witness index (a store would not parse)",
         "file": "reel_retention.py",
