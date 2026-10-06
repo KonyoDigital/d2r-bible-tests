@@ -21,6 +21,20 @@ RED_PROOF = [
         "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },
+    {
+        "why": "a HARDENED lock is counted shut again, so a shelf that earned the stronger tier reads as none open",
+        "file": "health_engine.py",
+        "find": "    opened = [l for l in valves if l.get(\"state\") in (SA.OPEN, SA.HARDENED)]\n",
+        "replace": "    opened = [l for l in valves if l.get(\"state\") == SA.OPEN]\n",
+        "matches": 1,
+    },
+    {
+        "why": "a heart that has never run here leaves the row OK, so the locks read open while may() is refusing",
+        "file": "health_engine.py",
+        "find": "    heart_shut = (not rep.get(\"heartOk\") and SA.heart_block_kind(heart_why) != \"stale\")\n",
+        "replace": "    heart_shut = False\n",
+        "matches": 1,
+    },
 ]
 
 class TestItReportsAndNeverRepairs(unittest.TestCase):
@@ -438,6 +452,78 @@ class TestTheDecidingSentenceIsTHEONEPRINTED(unittest.TestCase):
         finally:
             sys.modules.pop("lane_health", None)
         self.assertEqual(sorted(r["evidence"]), ["A", "B", "C"])
+
+
+class AHardenedLockIsOpenAndARouteIsNotALock(unittest.TestCase):
+    """Gap audit #5. This row counted OPEN only, and it counted routes as locks. A shelf
+    of HARDENED valves read as none open, under OK, including on a PC whose heart had
+    never run and where may() was refusing every one of them."""
+
+    def _ask(self, locks, heart_ok=True, heart_why=""):
+        import self_arming as SA
+        real = SA.report
+        SA.report = lambda: {"ok": True, "locks": locks,
+                             "heartOk": heart_ok, "heartWhy": heart_why}
+        self.addCleanup(setattr, SA, "report", real)
+        return HE.check_self_arming()
+
+    def _one(self, name, state, kind=None, k=2, n=2):
+        row = {"lock": name, "state": state, "why": "fixture", "k": k, "n": n}
+        if kind:
+            row["kind"] = kind
+        return row
+
+    def test_a_HARDENED_valve_counts_as_open(self):
+        import self_arming as SA
+        r = self._ask([self._one("frame.release", SA.HARDENED)])
+        self.assertEqual(r["state"], HE.OK)
+        self.assertIn("1 of 1 locks open", r["line"])
+        self.assertNotIn("0 of 1", r["line"])
+
+    def test_a_route_is_not_one_of_the_locks(self):
+        import self_arming as SA
+        r = self._ask([
+            self._one("frame.release", SA.UNPROVEN),
+            self._one("chronicle", SA.HARDENED, kind="route"),
+        ])
+        self.assertIn("0 of 1 locks open", r["line"])
+        self.assertIn("1 of 1 routes proven", r["line"])
+        self.assertNotIn("1 of 2 locks", r["line"])
+        self.assertNotIn("2 of 2", r["line"])
+
+    def test_an_INCOMPLETE_axis_is_named(self):
+        import self_arming as SA
+        r = self._ask([self._one("miniauto.run", SA.INCOMPLETE, k=0, n=0)])
+        self.assertEqual(r["state"], HE.OK)
+        self.assertIn("1 incomplete", r["line"])
+        self.assertIn("0 of 1 locks open", r["line"])
+
+    def test_a_missing_heart_is_not_an_open_row(self):
+        import self_arming as SA
+        r = self._ask([self._one("frame.release", SA.HARDENED)],
+                      heart_ok=False, heart_why="the heart has never run here")
+        self.assertEqual(r["state"], HE.UNKNOWN)
+        self.assertIn("1 of 1 locks open", r["line"])
+        self.assertIn("none of that may act here", r["line"])
+        self.assertIn("the heart has never run here", r["line"])
+        self.assertEqual(r.get("proofN"), 2)
+
+    def test_a_stale_census_is_named_and_is_not_a_fault(self):
+        import self_arming as SA
+        r = self._ask([self._one("frame.release", SA.HARDENED)],
+                      heart_ok=False,
+                      heart_why="the heart census is STALE: the gate files have changed")
+        self.assertEqual(r["state"], HE.OK)
+        self.assertIn("census is STALE", r["line"])
+        self.assertNotIn("none of that may act here", r["line"])
+
+    def test_a_lock_that_did_not_refuse_is_still_the_warning(self):
+        import self_arming as SA
+        r = self._ask([self._one("frame.release", SA.LOCKED, k=0, n=3)],
+                      heart_ok=False, heart_why="the heart has never run here")
+        self.assertEqual(r["state"], HE.WARN)
+        self.assertIn("did not refuse", r["line"])
+        self.assertEqual(r.get("proofN"), 3)
 
 
 if __name__ == "__main__":

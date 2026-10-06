@@ -631,9 +631,15 @@ def check_self_arming():
                     % rep.get("why", ""))
     locks = rep.get("locks") or []
     ev = ["%s: %s — %s" % (l.get("lock"), l.get("state"), l.get("why", "")) for l in locks]
+    # A route earns trust in a number. It is not a valve, and the old tally counted it as a
+    # lock. HARDENED is earned open, the same pair the heart badge already uses. This row
+    # was the second copy, and it counted OPEN only, so a hardened shelf read as none open.
+    valves = [l for l in locks if l.get("kind") != "route"]
+    routes = [l for l in locks if l.get("kind") == "route"]
     inert = [l for l in locks if l.get("state") == SA.LOCKED]
-    unproven = [l for l in locks if l.get("state") == SA.UNPROVEN]
-    opened = [l for l in locks if l.get("state") == SA.OPEN]
+    unproven = [l for l in valves if l.get("state") == SA.UNPROVEN]
+    incomplete = [l for l in valves if l.get("state") == SA.INCOMPLETE]
+    opened = [l for l in valves if l.get("state") in (SA.OPEN, SA.HARDENED)]
     # ⚠⚠ v3093 — THE TALLY IS COMPUTED BEFORE THE BRANCHES, BECAUSE IT USED TO REACH ONLY ONE.
     # `k=tot_k, n=tot_n` were passed on the OK return and on NEITHER of the others. So the moment a
     # lock actually went inert — the finding this check exists to make — the row lost its proofK,
@@ -662,9 +668,28 @@ def check_self_arming():
     # ⚠ DERIVED, NOT DECLARED: the surfaces are the locks this row actually judged, taken from
     # the same list its evidence is built from. A declaration beside the function could drift
     # from what it reads; this cannot.
-    return _row("selfArming", OK,
-                "%d of %d locks open · %d still unproven (nobody has tried to break them yet, "
-                "which is work owed and not a fault)" % (len(opened), len(locks), len(unproven)),
+    # A missing or blind heart means may() is refusing. A stale census is the prover lagging
+    # the code, which is not a verdict about these locks, so it is named and the row stays OK.
+    parts = ["%d of %d locks open" % (len(opened), len(valves))]
+    if incomplete:
+        parts.append("%d incomplete (an axis nobody could exercise, not a fault)"
+                     % len(incomplete))
+    parts.append("%d still unproven (nobody has tried to break them yet, "
+                 "which is work owed and not a fault)" % len(unproven))
+    if routes:
+        route_open = sum(1 for r in routes if r.get("state") in (SA.OPEN, SA.HARDENED))
+        parts.append("%d of %d routes proven" % (route_open, len(routes)))
+    line = " · ".join(parts)
+    heart_why = str(rep.get("heartWhy") or "")
+    heart_shut = (not rep.get("heartOk") and SA.heart_block_kind(heart_why) != "stale")
+    state = OK
+    if heart_shut:
+        state = UNKNOWN
+        line = "%s — none of that may act here: %s" % (
+            line, heart_why or "the heart refused and gave no reason")
+    elif heart_why and not rep.get("heartOk"):
+        line = "%s — %s" % (line, heart_why)
+    return _row("selfArming", state, line,
                 ev, k=tot_k, n=tot_n,
                 surfaces=[l.get("lock") for l in locks if l.get("lock")])
 
