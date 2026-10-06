@@ -30,8 +30,17 @@ _NOT_READ = "the journal was not read"
 _ZERO_REFIRES = "0 re-fires \u00b7 fired 0"
 
 
+def _predicate(ui):
+    """REG-1824 — the one unread predicate the page asks, as the page declares it."""
+    start = ui.find("  function _journalUnread(st){")
+    end = ui.find("  function _engineOrganData(st){", start)
+    if start < 0 or end < 0:
+        raise AssertionError("the one journal predicate is not in control_ui.html")
+    return ui[start:end]
+
+
 def _strip(on=True, verdict="idle", tab_summary=None, leases=None,
-           refires=0, fired=0, omit_counts=False, omit_health=False):
+           refires=0, fired=0, omit_counts=False, omit_health=False, journal=None):
     with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
         ui = fh.read()
     start = ui.find("    // v946 — SESSION HEALTH strip\n")
@@ -55,8 +64,11 @@ def _strip(on=True, verdict="idle", tab_summary=None, leases=None,
             sh["refires"] = refires
             sh["driverFired"] = fired
         st = {"sessionHealth": sh}
+    if journal is not None:
+        st["journal"] = journal
     js = (
-        "var window = {};\n"
+        _predicate(ui)
+        + "var window = {};\n"
         "function paintStrip(st, on){\n"
         "  var els = {};\n"
         "  function make(){\n"
@@ -201,10 +213,17 @@ class AnUnreadJournalIsNotAQuietSessionStrip(unittest.TestCase):
         self.assertEqual(row["verdict"], "idle")
         self.assertNotIn("was not read", row["tabs"])
 
-    def test_the_strip_asks_this_look(self):
+    def test_the_strip_follows_the_polls_one_journal_key(self):
+        """REG-1824 — this pinned the strip's own copy of the check. The one key decides now."""
+        got = _strip(on=True, verdict="idle", journal={"read": False, "why": "PermissionError: denied"})
+        self.assertEqual(got["tabs"], "the journal was not read")
+        self.assertEqual(got["lease"], "the journal was not read")
+        self.assertEqual(got["refire"], "the journal was not read")
+        got = _strip(on=True, verdict="idle", journal={"read": True, "why": None})
+        self.assertEqual(got["tabs"], "no tallies yet")
+        self.assertEqual(got["lease"], "free")
         with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
             ui = fh.read()
-        self.assertIn("var shUnread = (sh.verdict === 'unknown');", ui)
         self.assertIn(
             ": (shUnread ? 'the journal was not read' : (on ? 'no tallies yet' : '\u2014'));",
             ui)
@@ -219,14 +238,14 @@ RED_PROOF = [
     {
         "why": "REG-1805 - an unread journal is painted as a quiet session strip",
         "file": "control_ui.html",
-        "find": "      var shUnread = (sh.verdict === 'unknown');\n",
+        "find": "      var shUnread = _journalUnread(st);\n",
         "replace": "      var shUnread = false;\n",
         "matches": 1,
     },
     {
         "why": "REG-1805 - a measured empty night is painted as a journal that was not read",
         "file": "control_ui.html",
-        "find": "      var shUnread = (sh.verdict === 'unknown');\n",
+        "find": "      var shUnread = _journalUnread(st);\n",
         "replace": "      var shUnread = (tabKeys.length === 0);\n",
         "matches": 1,
     },

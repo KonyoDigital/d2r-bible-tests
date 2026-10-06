@@ -145,8 +145,9 @@ class AnUnreadJournalSizeIsNotACleanLedger(unittest.TestCase):
 
     def test_an_unread_size_is_not_a_clean_ledger(self):
         led = _ledger(None)
-        self.assertEqual(led["pulse"], "warn")
-        self.assertEqual(led["state"], "STRAINED")
+        # REG-1824 — not read is UNKNOWN, not a strained organ that was measured.
+        self.assertEqual(led["pulse"], "unknown")
+        self.assertEqual(led["state"], "UNKNOWN")
         self.assertEqual(led["sub"], "the journal size was not read")
         self.assertNotIn("journal clean", led["sub"])
         self.assertNotIn("0", led["stat"])

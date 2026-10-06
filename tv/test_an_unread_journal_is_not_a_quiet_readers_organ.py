@@ -32,7 +32,7 @@ _NOT_READ = "the journal was not read"
 
 
 def _paint(mode="off", driver=None, judge_q=0, read_count=0, eyes=None,
-           completeness=None, engine_alive=True, ai_paused=False, readers=None):
+           completeness=None, engine_alive=True, ai_paused=False, readers=None, journal=None):
     with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
         ui = fh.read()
     start = ui.find("var _EH_STATE = { ok: 'HEALTHY'")
@@ -60,6 +60,8 @@ def _paint(mode="off", driver=None, judge_q=0, read_count=0, eyes=None,
     }
     if readers is not None:
         st["readers"] = readers
+    if journal is not None:
+        st["journal"] = journal
     js = (
         "function esc(s){return String(s==null?'':s);}\n"
         + fn
@@ -100,8 +102,8 @@ class AnUnreadJournalIsNotAQuietReadersOrgan(unittest.TestCase):
             mode="live",
             driver={"seen": None, "queued": None, "fired": None, "refire": None},
             read_count=7, ai_paused=True)
-        self.assertEqual(row["pulse"], "warn")
-        self.assertEqual(row["state"], "STRAINED")
+        self.assertEqual(row["pulse"], "unknown")  # REG-1824: not read is UNKNOWN, not strained
+        self.assertEqual(row["state"], "UNKNOWN")
         self.assertEqual(row["sub"], _NOT_READ)
         self.assertNotEqual(row["pulse"], "ok")
         self.assertNotIn("queue", row["sub"])
@@ -112,9 +114,9 @@ class AnUnreadJournalIsNotAQuietReadersOrgan(unittest.TestCase):
         row = _paint(
             mode="off",
             driver={"seen": None, "queued": None, "fired": None, "refire": None})
-        self.assertEqual(row["pulse"], "warn")
+        self.assertEqual(row["pulse"], "unknown")  # REG-1824: not read is UNKNOWN, not strained
         self.assertNotEqual(row["pulse"], "idle")
-        self.assertEqual(row["state"], "STRAINED")
+        self.assertEqual(row["state"], "UNKNOWN")
         self.assertEqual(row["sub"], _NOT_READ)
         self.assertNotIn("queue 0", row["sub"])
 
@@ -185,7 +187,7 @@ class AnUnreadJournalIsNotAQuietReadersOrgan(unittest.TestCase):
             mode="live",
             driver={"seen": None, "queued": None, "fired": None},
             completeness={"reads": 2, "unread": 0, "film": 3, "dropped": 0})
-        self.assertEqual(row["pulse"], "warn")
+        self.assertEqual(row["pulse"], "unknown")  # REG-1824: not read is UNKNOWN, not strained
         self.assertEqual(row["sub"], _NOT_READ)
         self.assertNotIn("live", row["sub"])
 
@@ -204,7 +206,7 @@ class AnUnreadJournalIsNotAQuietReadersOrgan(unittest.TestCase):
             mode="live",
             driver={"seen": None, "queued": None, "fired": None},
             readers={"backupReads": 2, "backupWhy": "claude"})
-        self.assertEqual(row["pulse"], "warn")
+        self.assertEqual(row["pulse"], "unknown")  # REG-1824: not read is UNKNOWN, not strained
         self.assertEqual(row["sub"], _NOT_READ)
         self.assertNotIn("Grok", row["sub"])
 
@@ -220,7 +222,7 @@ class AnUnreadJournalIsNotAQuietReadersOrgan(unittest.TestCase):
             mode="live",
             driver={"seen": None, "queued": None, "fired": None, "refire": None},
             judge_q=2)
-        self.assertEqual(row["pulse"], "warn")
+        self.assertEqual(row["pulse"], "unknown")  # REG-1824: not read is UNKNOWN, not strained
         self.assertEqual(row["sub"], _NOT_READ)
         self.assertNotIn("queue", row["sub"])
         self.assertNotEqual(row["sub"], "queue 2")
@@ -232,22 +234,19 @@ class AnUnreadJournalIsNotAQuietReadersOrgan(unittest.TestCase):
         self.assertEqual(row["sub"], "queue 0")
         self.assertNotIn("was not read", row["sub"])
 
-    def test_the_organ_asks_this_look(self):
-        with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
-            ui = fh.read()
-        self.assertEqual(ui.count("\x00"), 1)
-        self.assertIn("    var queueUnread = (dr.queued === null);\n", ui)
-        self.assertIn(
-            "var rdPulse = dead ? 'bad' : (queueUnread ? 'warn' : "
-            "(!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok')));",
-            ui)
-        self.assertIn("    var rdSub = queueUnread\n", ui)
-        self.assertIn(
-            "    if (!queueUnread && typeof _bkN === 'number' && _bkN > 0)\n",
-            ui)
-        self.assertNotIn(
-            "var rdPulse = dead ? 'bad' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok'));",
-            ui)
+    def test_the_organ_follows_the_polls_one_journal_key(self):
+        """REG-1824 — this pinned the organ's own `dr.queued === null` copy. The one key decides."""
+        row = _paint(mode="live", driver={"queued": 0},
+                     journal={"read": False, "why": "PermissionError: denied"})
+        self.assertEqual(row["pulse"], "unknown")
+        self.assertEqual(row["state"], "UNKNOWN")
+        self.assertEqual(row["sub"], "the journal was not read")
+        row = _paint(mode="live", driver={"queued": 0}, journal={"read": True, "why": None})
+        self.assertEqual(row["pulse"], "ok")
+        self.assertIn("queue 0", row["sub"])
+        dead = _paint(mode="live", driver={"queued": 0}, engine_alive=False,
+                      journal={"read": False, "why": "PermissionError: denied"})
+        self.assertEqual(dead["pulse"], "bad", "a dead engine is DOWN whatever the journal said")
         with open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
             src = fh.read()
         self.assertIn('"queued": None', src)
@@ -257,14 +256,14 @@ RED_PROOF = [
     {
         "why": "REG-1807 - an unread journal is painted as a quiet readers organ",
         "file": "control_ui.html",
-        "find": "    var queueUnread = (dr.queued === null);\n",
+        "find": "    var queueUnread = _journalUnread(st);\n",
         "replace": "    var queueUnread = false;\n",
         "matches": 1,
     },
     {
         "why": "REG-1807 - a measured zero is painted as a journal that was not read",
         "file": "control_ui.html",
-        "find": "    var queueUnread = (dr.queued === null);\n",
+        "find": "    var queueUnread = _journalUnread(st);\n",
         "replace": "    var queueUnread = (dr.queued === 0);\n",
         "matches": 1,
     },
@@ -280,7 +279,7 @@ RED_PROOF = [
     {
         "why": "REG-1807 - an unread journal stays an ok readers organ",
         "file": "control_ui.html",
-        "find": "    var rdPulse = dead ? 'bad' : (queueUnread ? 'warn' : "
+        "find": "    var rdPulse = dead ? 'bad' : (queueUnread ? 'unknown' : "
                 "(!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok')));\n",
         "replace": "    var rdPulse = dead ? 'bad' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok'));\n",
         "matches": 1,

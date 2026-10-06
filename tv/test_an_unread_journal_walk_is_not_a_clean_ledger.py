@@ -48,9 +48,11 @@ def _slice():
     return fn
 
 
-def _ledger(journal_mb, verdict="omit", violations=0):
+def _ledger(journal_mb, verdict="omit", violations=0, journal=None):
     lit = "null" if journal_mb is None else json.dumps(journal_mb)
     health = "{}" if verdict == "omit" else json.dumps({"verdict": verdict})
+    if journal is not None:
+        health += ",journal:" + json.dumps(journal)
     js = (
         "function esc(s){return String(s==null?'':s);}\n"
         + _slice()
@@ -60,7 +62,7 @@ def _ledger(journal_mb, verdict="omit", violations=0):
         + ",driver:{},eyes:{}});\n"
         + "var led=o.filter(function(x){return x.key==='ledger';})[0];\n"
         + "process.stdout.write(JSON.stringify({pulse:led.pulse,stat:led.stat,"
-        + "sub:led.sub,state:led.state}));\n"
+        + "sub:led.sub,state:led.state,why:led.why||null}));\n"
     )
     got = subprocess.run(
         ["node", "-"], input=js.encode("utf-8"),
@@ -110,8 +112,8 @@ class AnUnreadJournalWalkIsNotACleanLedger(unittest.TestCase):
 
     def test_an_unread_walk_is_not_a_clean_ledger(self):
         led = _ledger(1.5, verdict="unknown")
-        self.assertEqual(led["pulse"], "warn")
-        self.assertEqual(led["state"], "STRAINED")
+        self.assertEqual(led["pulse"], "unknown")  # REG-1824: not read is UNKNOWN, not strained
+        self.assertEqual(led["state"], "UNKNOWN")
         self.assertEqual(led["sub"], _NOT_READ)
         self.assertNotIn(_CLEAN, led["sub"])
         self.assertIn("1.5 MB", led["stat"])
@@ -119,14 +121,14 @@ class AnUnreadJournalWalkIsNotACleanLedger(unittest.TestCase):
 
     def test_a_measured_zero_with_an_unread_walk_is_not_clean(self):
         led = _ledger(0.0, verdict="unknown")
-        self.assertEqual(led["pulse"], "warn")
+        self.assertEqual(led["pulse"], "unknown")  # REG-1824: not read is UNKNOWN, not strained
         self.assertEqual(led["sub"], _NOT_READ)
         self.assertEqual(led["stat"], "0 MB")
         self.assertNotIn(_CLEAN, led["sub"])
 
     def test_an_unread_size_still_says_the_size_was_not_read(self):
         led = _ledger(None, verdict="unknown")
-        self.assertEqual(led["pulse"], "warn")
+        self.assertEqual(led["pulse"], "unknown")  # REG-1824: not read is UNKNOWN, not strained
         self.assertEqual(led["sub"], _SIZE)
         self.assertNotIn(_CLEAN, led["sub"])
         self.assertNotIn("MB", led["stat"])
@@ -139,36 +141,57 @@ class AnUnreadJournalWalkIsNotACleanLedger(unittest.TestCase):
         self.assertNotIn(_NOT_READ, led["sub"])
         self.assertNotIn(_CLEAN, led["sub"])
 
-    def test_the_ledger_organ_asks_this_look(self):
-        fn = _slice()
-        self.assertEqual(fn.count("var walkUnread = (sh.verdict === 'unknown');"), 1)
-        self.assertEqual(fn.count("journalUnread || walkUnread"), 1)
-        self.assertEqual(
-            fn.count("walkUnread ? 'the journal was not read' : 'journal clean'"), 1)
-        self.assertEqual(fn.count("var journalUnread = (st.journalMB == null);"), 1)
-        self.assertEqual(fn.count(_CLEAN), 1)
+    def test_the_ledger_organ_follows_the_polls_one_journal_key(self):
+        """REG-1824 — this pinned the organ's own copy of the check. The one key decides now, and
+        the reason the poll gave rides on the organ for its hover."""
+        led = _ledger(1.5, verdict="idle", journal={"read": False, "why": "PermissionError: denied"})
+        self.assertEqual(led["pulse"], "unknown")
+        self.assertEqual(led["state"], "UNKNOWN")
+        self.assertEqual(led["sub"], _NOT_READ)
+        self.assertIn("PermissionError", led["why"] or "")
+        led = _ledger(1.5, verdict="idle", journal={"read": True, "why": None})
+        self.assertEqual(led["pulse"], "ok")
+        self.assertEqual(led["sub"], _CLEAN)
+        led = _ledger(None, verdict="idle", journal={"read": True, "why": None})
+        self.assertEqual(led["pulse"], "unknown")
+        self.assertEqual(led["sub"], _SIZE)
+        self.assertIsNone(led["why"], "the size was not read; the walk was, so no walk reason")
 
 
 RED_PROOF = [
     {
+        "why": "REG-1824 - the one predicate forgets the marks an older poll left, and an unread walk paints as read",
+        "file": "control_ui.html",
+        "find": "    return sh.verdict === 'unknown' || dr.seen === null || dr.queued === null;\n",
+        "replace": "    return false;\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1824 - the organ drops the poll's reason, so its hover can never say why",
+        "file": "control_ui.html",
+        "find": "if (o.pulse === 'unknown' && _journalUnread(st)) o.why = _journalUnreadWhy(st);",
+        "replace": "if (false) o.why = _journalUnreadWhy(st);",
+        "matches": 1,
+    },
+    {
         "why": "REG-1810 - an unread walk is painted as a clean ledger",
         "file": "control_ui.html",
-        "find": "    var walkUnread = (sh.verdict === 'unknown');\n",
+        "find": "    var walkUnread = _journalUnread(st);\n",
         "replace": "    var walkUnread = false;\n",
         "matches": 1,
     },
     {
         "why": "REG-1810 - a measured night is painted as a journal that was not read",
         "file": "control_ui.html",
-        "find": "    var walkUnread = (sh.verdict === 'unknown');\n",
+        "find": "    var walkUnread = _journalUnread(st);\n",
         "replace": "    var walkUnread = true;\n",
         "matches": 1,
     },
     {
         "why": "REG-1810 - an unread walk stays ok",
         "file": "control_ui.html",
-        "find": "    var ldPulse = (viol > 0 || journalUnread || walkUnread) ? 'warn' : 'ok';\n",
-        "replace": "    var ldPulse = (viol > 0 || journalUnread) ? 'warn' : 'ok';\n",
+        "find": "    var ldPulse = viol > 0 ? 'warn' : ((journalUnread || walkUnread) ? 'unknown' : 'ok');\n",
+        "replace": "    var ldPulse = viol > 0 ? 'warn' : (journalUnread ? 'unknown' : 'ok');\n",
         "matches": 1,
     },
     {

@@ -29,7 +29,7 @@ _console_safe_enable()
 import control_app as ca  # noqa: E402
 
 
-def _funnels(mode="off", verdict="idle", tabs=None, gate=None):
+def _funnels(mode="off", verdict="idle", tabs=None, gate=None, journal=None):
     with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
         ui = fh.read()
     start = ui.find("var _EH_STATE = { ok: 'HEALTHY'")
@@ -43,13 +43,15 @@ def _funnels(mode="off", verdict="idle", tabs=None, gate=None):
     if gate is not None:
         sh["gate"] = gate
     st = {"mode": mode, "sessionHealth": sh, "driver": {}, "eyes": {}, "watchdog": {}}
+    if journal is not None:
+        st["journal"] = journal
     js = (
         "function esc(s){return String(s==null?'':s);}\n"
         + fn
         + "var o=_engineOrganData(" + json.dumps(st) + ");\n"
         + "var fun=o.filter(function(x){return x.key==='funnels';})[0];\n"
         + "process.stdout.write(JSON.stringify({pulse:fun.pulse,stat:fun.stat,"
-        + "sub:fun.sub,state:fun.state}));\n"
+        + "sub:fun.sub,state:fun.state,why:fun.why||null}));\n"
     )
     got = subprocess.run(
         ["node", "-"], input=js.encode("utf-8"),
@@ -77,15 +79,15 @@ class AnUnreadJournalIsNotANightWithNoStashTabs(unittest.TestCase):
 
     def test_an_unread_journal_is_not_a_night_with_no_stash_tabs(self):
         fun = _funnels(mode="live", verdict="unknown")
-        self.assertEqual(fun["pulse"], "warn")
-        self.assertEqual(fun["state"], "STRAINED")
+        self.assertEqual(fun["pulse"], "unknown")  # REG-1824: not read is UNKNOWN, not strained
+        self.assertEqual(fun["state"], "UNKNOWN")
         self.assertEqual(fun["sub"], "the journal was not read")
         self.assertNotIn("no stash tabs", fun["sub"])
         self.assertNotEqual(fun["pulse"], "ok")
 
     def test_an_off_air_unread_journal_is_not_an_idle_funnel(self):
         fun = _funnels(mode="off", verdict="unknown")
-        self.assertEqual(fun["pulse"], "warn")
+        self.assertEqual(fun["pulse"], "unknown")  # REG-1824: not read is UNKNOWN, not strained
         self.assertNotEqual(fun["pulse"], "idle")
         self.assertEqual(fun["sub"], "the journal was not read")
         self.assertNotIn("no stash tabs", fun["sub"])
@@ -132,16 +134,21 @@ class AnUnreadJournalIsNotANightWithNoStashTabs(unittest.TestCase):
         fun = _funnels(
             mode="live", verdict="unknown",
             gate={"proven": 4, "held": 0})
-        self.assertEqual(fun["pulse"], "warn")
+        self.assertEqual(fun["pulse"], "unknown")  # REG-1824: not read is UNKNOWN, not strained
         self.assertEqual(fun["sub"], "the journal was not read")
         self.assertNotIn("proven", fun["sub"])
 
-    def test_the_organ_asks_this_look(self):
-        with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
-            ui = fh.read()
-        self.assertIn("var tabsUnread = (sh.verdict === 'unknown');", ui)
-        self.assertIn("? 'the journal was not read'", ui)
-        self.assertIn("var fnPulse = tabsUnread ? 'warn'", ui)
+    def test_the_organ_follows_the_polls_one_journal_key(self):
+        """REG-1824 — this pinned the organ's own copy of the check. The one key decides now."""
+        fun = _funnels(mode="live", verdict="idle",
+                       journal={"read": False, "why": "PermissionError: denied"})
+        self.assertEqual(fun["pulse"], "unknown")
+        self.assertEqual(fun["sub"], "the journal was not read")
+        self.assertIn("PermissionError", fun["why"] or "")
+        fun = _funnels(mode="live", verdict="idle", journal={"read": True, "why": None})
+        self.assertEqual(fun["pulse"], "ok")
+        self.assertEqual(fun["sub"], "no stash tabs yet")
+        self.assertIsNone(fun["why"])
         src = inspect.getsource(ca.status_payload)
         self.assertIn('"verdict": "unknown"', src)
         self.assertIn('"error": "journal unread"', src)
@@ -150,16 +157,30 @@ class AnUnreadJournalIsNotANightWithNoStashTabs(unittest.TestCase):
 
 RED_PROOF = [
     {
+        "why": "REG-1824 - the one predicate ignores the poll's journal key and an unread walk paints as read",
+        "file": "control_ui.html",
+        "find": "    if (j && typeof j.read === 'boolean') return j.read === false;\n",
+        "replace": "    if (j && typeof j.read === 'boolean') return false;\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1824 - unread maps to STRAINED again: _EH_STATE has no UNKNOWN",
+        "file": "control_ui.html",
+        "find": "idle: 'IDLE', unknown: 'UNKNOWN' };\n",
+        "replace": "idle: 'IDLE' };\n",
+        "matches": 1,
+    },
+    {
         "why": "REG-1804 - an unread journal is painted as a night with no stash tabs",
         "file": "control_ui.html",
-        "find": "    var tabsUnread = (sh.verdict === 'unknown');\n",
+        "find": "    var tabsUnread = _journalUnread(st);\n",
         "replace": "    var tabsUnread = false;\n",
         "matches": 1,
     },
     {
         "why": "REG-1804 - a measured empty night is painted as a journal that was not read",
         "file": "control_ui.html",
-        "find": "    var tabsUnread = (sh.verdict === 'unknown');\n",
+        "find": "    var tabsUnread = _journalUnread(st);\n",
         "replace": "    var tabsUnread = (tk.length === 0);\n",
         "matches": 1,
     },
@@ -174,7 +195,7 @@ RED_PROOF = [
     {
         "why": "REG-1804 - an unread journal stays an ok funnel",
         "file": "control_ui.html",
-        "find": "    var fnPulse = tabsUnread ? 'warn'\n"
+        "find": "    var fnPulse = tabsUnread ? 'unknown'\n"
                 "      : ((!on && !tk.length && !hasGate) ? 'idle' : ((missTabs > 0 || (hasGate && (held || 0) > (proven || 0))) ? 'warn' : 'ok'));\n",
         "replace": "    var fnPulse = (!on && !tk.length && !hasGate) ? 'idle' : ((missTabs > 0 || (hasGate && (held || 0) > (proven || 0))) ? 'warn' : 'ok');\n",
         "matches": 1,

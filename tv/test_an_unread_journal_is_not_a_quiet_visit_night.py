@@ -169,6 +169,20 @@ class AnUnreadJournalIsNotAQuietVisitNight(unittest.TestCase):
         self.assertEqual(data.count(needle), 1)
         self.assertIn(b"not an empty visit list", data)
 
+    def test_the_offer_screen_reads_the_reason_beside_the_reels(self):
+        """REG-1824 — visitWhy was written by the server and read by nothing: an offer of reels
+        alone looked like every visit there was."""
+        with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            ui = fh.read()
+        start = ui.find("window._chronVisits = async function")
+        end = ui.find("window._chronReadVisit", start)
+        self.assertGreater(start, 0)
+        self.assertGreater(end, start)
+        fn = ui[start:end]
+        self.assertEqual(fn.count("j.visitWhy"), 2)
+        self.assertIn("not every visit", fn)
+        self.assertLess(fn.find("j.visitWhy"), fn.find("v.map(function (x)"))
+
 
 RED_PROOF = [
     {

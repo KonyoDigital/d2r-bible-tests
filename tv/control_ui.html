@@ -5943,6 +5943,10 @@
   .eh-organ.eh-ok   { border-color: rgba(143,230,160,.28); }
   .eh-organ.eh-warn { border-color: rgba(233,185,110,.4); }
   .eh-organ.eh-bad  { border-color: rgba(255,106,90,.5); }
+  /* REG-1824 — unknown: the journal walk was not read. Not a fifth colour (v1503): the NEEDS token,
+     hollow and still, so it reads neither as a resting organ nor as a strained one that was measured. */
+  .eh-organ.eh-unknown { border-color: rgba(233,185,110,.4); border-style: dashed; }
+  .eh-organ.eh-unknown .eh-dot { background: transparent; box-shadow: inset 0 0 0 2px var(--st-needs); }
   @keyframes ehPulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
   /* v1212 (Engine Room r3) — the plain-language health pill (cockpit live spine): STRAINED/DOWN pop
      against the calm HEALTHY organs, so the bottleneck this instant is obvious at a glance. */
@@ -5952,6 +5956,7 @@
   .eh-state-warn { color: #f0d89a; background: rgba(233,185,110,.14); border: 1px solid rgba(233,185,110,.55); }
   .eh-state-bad  { color: #ffb0a0; background: rgba(255,106,90,.16);  border: 1px solid rgba(255,106,90,.6); }
   .eh-state-idle { color: #9a8d73; background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.12); }
+  .eh-state-unknown { color: #f0d89a; background: transparent; border: 1px dashed rgba(233,185,110,.55); }
   body[data-endurance="1"] .eh-dot { animation: none !important; }
   @media (max-width: 720px){ .eh-flow { display: none; } .eh-organ { flex: 1 1 44%; } }
   /* the big organ cards — the engine-health organs, cockpit-sized */
@@ -10796,7 +10801,7 @@ window._lockMark = function(isOpen, px, label){
     // REG-1808 — unknown is a journal that was not read. An empty thought
     // list is also a quiet mind, and this lamp called that quiet a pass.
     var _shMind = st.sessionHealth || {};
-    var _mindUnread = (_shMind.verdict === 'unknown');
+    var _mindUnread = _journalUnread(st);
     var _story = st.mindStory || (_shMind.story) || [];
     _engRow('mind', !_mindUnread && on && _story.length > 0,
       _mindUnread
@@ -10821,7 +10826,7 @@ window._lockMark = function(isOpen, px, label){
       }
       var ts = sh.tabSummary || {};
       var tabKeys = Object.keys(ts);
-      var shUnread = (sh.verdict === 'unknown');
+      var shUnread = _journalUnread(st);
       var tabEl = $('sh-tabs');
       if (tabEl) tabEl.textContent = tabKeys.length
         ? tabKeys.map(function(k){ return k + ' ' + ts[k]; }).join(' · ')
@@ -11392,14 +11397,14 @@ window._lockMark = function(isOpen, px, label){
     // REG-1809 — unknown is a journal that was not read. An empty story
     // is also a night that has not started, and this feed called that a pass.
     if (window.__mindMode === 'story') {
-      var _shStory = st.sessionHealth || {};
-      var storyUnread = (_shStory.verdict === 'unknown');
+      var storyUnread = _journalUnread(st);
+      var _sWhy = storyUnread ? _journalUnreadWhy(st) : '';
       var story = window.__mindStory || st.mindStory || [];
-      var ssig = 'story|' + (storyUnread ? 'unread' : story.join('¦'));
+      var ssig = 'story|' + (storyUnread ? 'unread|' + _sWhy : story.join('¦'));
       if (ssig === brainSig) return;
       brainSig = ssig;
       if (storyUnread) {
-        brain.innerHTML = '<div class="empty">the journal was not read</div>';
+        brain.innerHTML = '<div class="empty">the journal was not read' + (_sWhy ? ' (' + esc(_sWhy) + ')' : '') + '</div>';
       } else if (!story.length) {
         brain.innerHTML = '<div class="empty">— session story builds as reads &amp; intakes land —</div>';
       } else {
@@ -23834,7 +23839,24 @@ window._lockMark = function(isOpen, px, label){
   // v1212 (Engine Room r3) — plain-language health per organ, so "which engine is hot/cold/stalled
   // RIGHT NOW" reads at a glance without decoding the corner dot's colour. Shown on the cockpit live
   // spine only (big); the retro spine sets no `state` (it shows the frame's per-organ verdict instead).
-  var _EH_STATE = { ok: 'HEALTHY', warn: 'STRAINED', bad: 'DOWN', idle: 'IDLE' };
+  var _EH_STATE = { ok: 'HEALTHY', warn: 'STRAINED', bad: 'DOWN', idle: 'IDLE', unknown: 'UNKNOWN' };
+  // REG-1824 — ONE question for ONE server event: was the journal walk read on this poll? The poll
+  // says so in journal:{read, why}. A poll that does not carry that key still left the three marks
+  // the same event always left - verdict unknown, and the walk's two counters published as null -
+  // so those answer instead. Every surface asks this, never its own key: it was eight checks over
+  // three keys, and an unread walk is not a strained organ, it is an UNKNOWN one.
+  function _journalUnread(st){
+    st = st || {};
+    var j = st.journal;
+    if (j && typeof j.read === 'boolean') return j.read === false;
+    var sh = st.sessionHealth || {}, dr = st.driver || {};
+    return sh.verdict === 'unknown' || dr.seen === null || dr.queued === null;
+  }
+  // ...and WHY, when the poll said. '' when it did not.
+  function _journalUnreadWhy(st){
+    var j = (st && st.journal) || {};
+    return String(j.why || ((st && st.sessionHealth) || {}).why || '');
+  }
   function _engineOrganData(st){
     st = st || {};
     var dr = st.driver || {}, ey = st.eyes || {}, sh = st.sessionHealth || {}, wd = st.watchdog || {};
@@ -23869,9 +23891,9 @@ window._lockMark = function(isOpen, px, label){
     // 2) READERS — 🔴🔵🧠 layered eyes (the retro-catch is a STRENGTH: the film had what live missed)
     // REG-1807 — null queued is a count the journal walk did not copy. 0 is a quiet queue.
     var reads = st.readCount || 0, kaiMiss = ey.kaiMissed || 0, qDepth = (dr.queued || 0) + (dr.judgeQ || 0);
-    var queueUnread = (dr.queued === null);
+    var queueUnread = _journalUnread(st);
     var retro = (cpUnread != null) ? cpUnread : kaiMiss;
-    var rdPulse = dead ? 'bad' : (queueUnread ? 'warn' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok')));
+    var rdPulse = dead ? 'bad' : (queueUnread ? 'unknown' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok')));
     var rdStat = '🔴 ' + (hasCp ? cpReads : reads) + ' <span class="eh-x">·</span> 🔵 ' + (ey.verifyTs ? '✓' : '—') + ' <span class="eh-x">·</span> 🧠 ' + (retro ? retro : '✓');
     var rdSub = queueUnread
       ? 'the journal was not read'
@@ -23906,8 +23928,8 @@ window._lockMark = function(isOpen, px, label){
     var gt = sh.gate || {}, proven = gt.proven, held = gt.held, hasGate = (proven != null || held != null);
     // REG-1804 — unknown is a journal that was not read. Empty tabs are also a
     // night that has not visited a stash, and this organ called that a pass.
-    var tabsUnread = (sh.verdict === 'unknown');
-    var fnPulse = tabsUnread ? 'warn'
+    var tabsUnread = _journalUnread(st);
+    var fnPulse = tabsUnread ? 'unknown'
       : ((!on && !tk.length && !hasGate) ? 'idle' : ((missTabs > 0 || (hasGate && (held || 0) > (proven || 0))) ? 'warn' : 'ok'));
     var fnStat = recv + ' receipt' + (recv === 1 ? '' : 's') + (tk.length ? ' <span class="eh-x">·</span> ' + okTabs + '/' + tk.length + ' tabs' : '');
     var fnSub = tabsUnread
@@ -23921,8 +23943,8 @@ window._lockMark = function(isOpen, px, label){
     var journalUnread = (st.journalMB == null);
     // REG-1810 — unknown is a walk that was not read. Idle is a measured
     // empty night, and that one stays clean. A breach is still a breach.
-    var walkUnread = (sh.verdict === 'unknown');
-    var ldPulse = (viol > 0 || journalUnread || walkUnread) ? 'warn' : 'ok';
+    var walkUnread = _journalUnread(st);
+    var ldPulse = viol > 0 ? 'warn' : ((journalUnread || walkUnread) ? 'unknown' : 'ok');
     var ldStat = (journalUnread ? '—' : (st.journalMB + ' MB')) + (viol ? ' <span class="eh-x">·</span> <span style="color:#ff9a7a">' + viol + ' miss</span>' : '');
     var ldSub = journalUnread
       ? 'the journal size was not read'
@@ -23933,11 +23955,11 @@ window._lockMark = function(isOpen, px, label){
       { key: 'router',  icon: '🚦', title: 'ROUTER', stat: rtStat, pulse: rtPulse, sub: rtSub, state: _EH_STATE[rtPulse] },
       { key: 'funnels', icon: '🩹', title: 'FUNNELS', stat: fnStat, pulse: fnPulse, sub: fnSub, state: _EH_STATE[fnPulse] },
       { key: 'ledger',  icon: '📒', title: 'LEDGER', stat: ldStat, pulse: ldPulse, sub: ldSub, state: _EH_STATE[ldPulse] }
-    ];
+    ].map(function(o){ if (o.pulse === 'unknown' && _journalUnread(st)) o.why = _journalUnreadWhy(st); return o; });
   }
   function _ehOrganHtml(o, big){
     return '<div class="eh-organ' + (big ? ' eh-big' : '') + ' eh-' + o.pulse + '"' + (big ? ' data-organ="' + o.key + '"' : '')
-      + ' title="' + esc(o.title + (o.sub ? ' — ' + o.sub.replace(/<[^>]+>/g, '') : '')) + '">'
+      + ' title="' + esc(o.title + (o.sub ? ' — ' + o.sub.replace(/<[^>]+>/g, '') : '') + (o.why ? ' (' + o.why + ')' : '')) + '">'
       + '<span class="eh-dot"></span>'
       + '<div class="eh-head"><span class="eh-ic">' + o.icon + '</span><span class="eh-title">' + esc(o.title) + '</span></div>'
       + (big && o.state ? '<span class="eh-state eh-state-' + o.pulse + '">' + o.state + '</span>' : '')
@@ -28579,7 +28601,13 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       }
       if (!v.length) { box.hidden = true; return; }
       box.hidden = false;
-      box.innerHTML = v.map(function (x) {
+      // REG-1824 — the reels he focused are still offered when the journal half failed, and the
+      // server says so in visitWhy. The list is then not every visit, and the line says why.
+      var vWhy = (j && j.visitWhy)
+        ? '<span class="chron-v unread" title="the in-game visits were not read, so this list is the focused reels only">'
+          + escC(String(j.visitWhy)) + ' - not every visit</span>'
+        : '';
+      box.innerHTML = vWhy + v.map(function (x) {
         var when = _agoMs(x.ts);
         // v1528 — a visit with a KNOWN ledger is readable in one click, and costs no classifies at
         // all (v1527). One without a ledger is shown but NOT offered: sweeping it would have to

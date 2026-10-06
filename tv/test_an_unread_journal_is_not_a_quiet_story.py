@@ -45,9 +45,21 @@ def _slice():
     return fn
 
 
+def _predicate(ui):
+    """REG-1824 — the one unread predicate the page asks, as the page declares it."""
+    start = ui.find("  function _journalUnread(st){")
+    end = ui.find("  function _engineOrganData(st){", start)
+    if start < 0 or end < 0:
+        raise AssertionError("the one journal predicate is not in control_ui.html")
+    return ui[start:end]
+
+
 def _paint(script):
+    with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+        ui = fh.read()
     js = (
-        "var window = {};\n"
+        _predicate(ui)
+        + "var window = {};\n"
         "var brainSig = '';\n"
         "var brain = {innerHTML: ''};\n"
         "function esc(s){return String(s==null?'':s);}\n"
@@ -68,8 +80,10 @@ def _paint(script):
 
 
 def _story(verdict="idle", story=None, window_story=None, omit_window=False,
-           omit_health=False):
+           omit_health=False, journal=None):
     st = {}
+    if journal is not None:
+        st["journal"] = journal
     if not omit_health:
         sh = {}
         if verdict is not None:
@@ -163,12 +177,21 @@ class AnUnreadJournalIsNotAQuietStory(unittest.TestCase):
         self.assertIn(_NOT_READ, got["b"])
         self.assertNotIn(_QUIET, got["b"])
 
-    def test_the_story_feed_asks_this_look(self):
+    def test_the_story_feed_follows_the_polls_one_journal_key(self):
+        """REG-1824 — this pinned the feed's own copy of the check. The one key decides now, and
+        the feed has the room to say why."""
+        got = _story(verdict="idle", story=["visited stash"],
+                     journal={"read": False, "why": "PermissionError: denied"})
+        self.assertIn(_NOT_READ, got)
+        self.assertIn("PermissionError: denied", got)
+        self.assertNotIn("visited stash", got)
+        got = _story(verdict="idle", story=[], journal={"read": True, "why": None})
+        self.assertIn(_QUIET, got)
+        self.assertNotIn(_NOT_READ, got)
         fn = _slice()
-        self.assertEqual(fn.count("var storyUnread = (_shStory.verdict === 'unknown');"), 1)
         self.assertEqual(fn.count(_NOT_READ), 1)
         self.assertEqual(fn.count(_QUIET), 1)
-        self.assertIn("storyUnread ? 'unread'", fn)
+        self.assertIn("storyUnread ? 'unread|' + _sWhy", fn)
         self.assertIn("if (storyUnread) {", fn)
 
 
@@ -176,14 +199,14 @@ RED_PROOF = [
     {
         "why": "REG-1809 - an unread journal is painted as a quiet story",
         "file": "control_ui.html",
-        "find": "      var storyUnread = (_shStory.verdict === 'unknown');\n",
+        "find": "      var storyUnread = _journalUnread(st);\n",
         "replace": "      var storyUnread = false;\n",
         "matches": 1,
     },
     {
         "why": "REG-1809 - a measured night is painted as a journal that was not read",
         "file": "control_ui.html",
-        "find": "      var storyUnread = (_shStory.verdict === 'unknown');\n",
+        "find": "      var storyUnread = _journalUnread(st);\n",
         "replace": "      var storyUnread = true;\n",
         "matches": 1,
     },
@@ -191,7 +214,7 @@ RED_PROOF = [
         "why": "REG-1809 - the feed calls an unread journal a night that has not started",
         "file": "control_ui.html",
         "find": "      if (storyUnread) {\n"
-                "        brain.innerHTML = '<div class=\"empty\">the journal was not read</div>';\n"
+                "        brain.innerHTML = '<div class=\"empty\">the journal was not read' + (_sWhy ? ' (' + esc(_sWhy) + ')' : '') + '</div>';\n"
                 "      } else if (!story.length) {\n",
         "replace": "      if (!story.length) {\n",
         "matches": 1,
@@ -200,7 +223,7 @@ RED_PROOF = [
         "why": "REG-1809 - a leftover list paints on an unread journal",
         "file": "control_ui.html",
         "find": "      if (storyUnread) {\n"
-                "        brain.innerHTML = '<div class=\"empty\">the journal was not read</div>';\n"
+                "        brain.innerHTML = '<div class=\"empty\">the journal was not read' + (_sWhy ? ' (' + esc(_sWhy) + ')' : '') + '</div>';\n"
                 "      } else if (!story.length) {\n",
         "replace": "      if (storyUnread && !story.length) {\n"
                    "        brain.innerHTML = '<div class=\"empty\">the journal was not read</div>';\n"
@@ -210,7 +233,7 @@ RED_PROOF = [
     {
         "why": "REG-1809 - a second poll keeps the quiet story after the walk goes unread",
         "file": "control_ui.html",
-        "find": "      var ssig = 'story|' + (storyUnread ? 'unread' : story.join('\u00a6'));\n",
+        "find": "      var ssig = 'story|' + (storyUnread ? 'unread|' + _sWhy : story.join('\u00a6'));\n",
         "replace": "      var ssig = 'story|' + story.join('\u00a6');\n",
         "matches": 1,
     },

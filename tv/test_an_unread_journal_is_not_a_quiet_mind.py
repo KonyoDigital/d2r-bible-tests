@@ -30,8 +30,17 @@ _NOT_READ = "the journal was not read"
 _QUIET = "quiet \u00b7 no thoughts yet"
 
 
+def _predicate(ui):
+    """REG-1824 — the one unread predicate the page asks, as the page declares it."""
+    start = ui.find("  function _journalUnread(st){")
+    end = ui.find("  function _engineOrganData(st){", start)
+    if start < 0 or end < 0:
+        raise AssertionError("the one journal predicate is not in control_ui.html")
+    return ui[start:end]
+
+
 def _mind(on=True, verdict="idle", story=None, mind_story=None, omit_health=False,
-          omit_mind=True):
+          omit_mind=True, journal=None):
     with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
         ui = fh.read()
     start = ui.find("    // REG-1808 — unknown is a journal that was not read.")
@@ -53,8 +62,11 @@ def _mind(on=True, verdict="idle", story=None, mind_story=None, omit_health=Fals
         st["sessionHealth"] = sh
     if not omit_mind:
         st["mindStory"] = mind_story
+    if journal is not None:
+        st["journal"] = journal
     js = (
-        "function paintMind(st, on){\n"
+        _predicate(ui)
+        + "function paintMind(st, on){\n"
         "  var got = null;\n"
         "  function _engRow(id, lit, txt){\n"
         "    if (id === 'mind') got = {lit: !!lit, txt: String(txt)};\n"
@@ -147,11 +159,16 @@ class AnUnreadJournalIsNotAQuietMind(unittest.TestCase):
         self.assertEqual(row["txt"], _QUIET)
         self.assertNotIn("was not read", row["txt"])
 
-    def test_the_mind_lamp_asks_this_look(self):
+    def test_the_mind_lamp_follows_the_polls_one_journal_key(self):
+        """REG-1824 — this pinned the lamp's own copy of the check. The one key decides now."""
+        row = _mind(on=True, verdict="idle", story=["visited stash"],
+                    journal={"read": False, "why": "PermissionError: denied"})
+        self.assertFalse(row["lit"])
+        self.assertEqual(row["txt"], _NOT_READ)
+        row = _mind(on=True, verdict="idle", story=[], journal={"read": True, "why": None})
+        self.assertEqual(row["txt"], _QUIET)
         with open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
             ui = fh.read()
-        needle = "var _mindUnread = (_shMind.verdict === 'unknown');"
-        self.assertEqual(ui.count(needle), 1)
         self.assertEqual(ui.count("_engRow('mind'"), 1)
         self.assertIn(
             "_engRow('mind', !_mindUnread && on && _story.length > 0,",
@@ -165,14 +182,14 @@ RED_PROOF = [
     {
         "why": "REG-1808 - an unread journal is painted as a quiet mind",
         "file": "control_ui.html",
-        "find": "    var _mindUnread = (_shMind.verdict === 'unknown');\n",
+        "find": "    var _mindUnread = _journalUnread(st);\n",
         "replace": "    var _mindUnread = false;\n",
         "matches": 1,
     },
     {
         "why": "REG-1808 - a measured thought is painted as a journal that was not read",
         "file": "control_ui.html",
-        "find": "    var _mindUnread = (_shMind.verdict === 'unknown');\n",
+        "find": "    var _mindUnread = _journalUnread(st);\n",
         "replace": "    var _mindUnread = true;\n",
         "matches": 1,
     },
