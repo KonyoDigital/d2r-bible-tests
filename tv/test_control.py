@@ -15159,7 +15159,13 @@ class TestNoSuiteImportsSomethingCIDoesNotHave(unittest.TestCase):
     on the only machine that publishes — a test that skips where it matters is a test that does not
     exist. [[feedback-blind-fixture-green-gate]] [[dual-machine-setup]]"""
 
-    ALLOWED_BARE = {"PIL"}                 # installed by `pip install --quiet pillow` on CI
+    # v3601 - numpy joins PIL: v2881 put it on BOTH runners' install line (publish.yml and tv-tests.yml,
+    # "pip install --quiet pillow numpy ..."), and this list was never told, so the first suite to import
+    # it (the stash-grid law, REG-1889) refused a push for a package CI has. The list is now CHECKED
+    # against those two lines below, in both directions, so it cannot lag them again.
+    ALLOWED_BARE = {"PIL", "numpy"}        # installed by `pip install --quiet pillow numpy` on BOTH runners
+    # the pip name each allowed import arrives under
+    PIP_NAME = {"PIL": "pillow", "numpy": "numpy", "websocket": "websocket-client", "playwright": "playwright"}
     # v2008 — `websocket` joins them, and ONLY as a GUARDED import. It drives the CDP fallback that
     # lets three long-dead guards run on his Mac, and it is optional by construction: absent, the
     # import raises, the helper returns None, and every caller skips exactly as it did before. CI is
@@ -15167,7 +15173,7 @@ class TestNoSuiteImportsSomethingCIDoesNotHave(unittest.TestCase):
     # adding a package to two workflows to enable a fallback nothing there needs is cost for
     # nothing. If that ever changes, the guard's own message says the price: add it to publish.yml
     # AND tv-tests.yml, then widen this.
-    ALLOWED_GUARDED = {"PIL", "playwright", "websocket"}
+    ALLOWED_GUARDED = {"PIL", "numpy", "playwright", "websocket"}
 
     @staticmethod
     def _is_third_party(mod):
@@ -15280,8 +15286,38 @@ class TestNoSuiteImportsSomethingCIDoesNotHave(unittest.TestCase):
         self.assertEqual(bad, [],
                          "a suite imports something the CI runner does not have — it will pass here "
                          "and take the deploy down there:\n  " + "\n  ".join(bad)
-                         + "\nCI installs only pillow. Parse it by hand, or add the dependency to "
-                           "publish.yml AND tv-tests.yml and widen this allowlist.")
+                         + "\nCI installs only what publish.yml AND tv-tests.yml pip-install. Parse it by hand, "
+                           "or add the dependency to both and widen this allowlist.")
+
+    @staticmethod
+    def _runner_installs(text):
+        """The pip packages one workflow installs, read from its `pip install` lines."""
+        import re
+        out = set()
+        for line in text.splitlines():
+            m = re.search(r"pip install\s+(.*)$", line.split("#", 1)[0])
+            if m:
+                out |= {w for w in m.group(1).split() if not w.startswith("-")}
+        return out
+
+    def test_the_bare_allowlist_is_exactly_what_both_runners_install(self):
+        """v3601 - the allowlist above is a CLAIM about two workflow files. It lagged them once (numpy, installed
+        on both since v2881, refused a push), and the opposite drift - a name allowed here that a runner dropped -
+        is the v1911 outage itself. So both directions are asked of the files, never of this comment."""
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        both = None
+        for wf in ("publish.yml", "tv-tests.yml"):
+            with open(os.path.join(root, ".github", "workflows", wf), encoding="utf-8") as fh:
+                got = self._runner_installs(fh.read())
+            self.assertTrue(got, "%s has no pip install line - the reader is blind, not the runner bare" % wf)
+            both = got if both is None else (both & got)
+        allowed = {self.PIP_NAME.get(m, m) for m in self.ALLOWED_BARE}
+        self.assertEqual(sorted(allowed - both), [],
+                         "allowed bare here but NOT installed on both runners - a suite importing it passes on "
+                         "his Mac and errors on CI")
+        self.assertEqual(sorted(both - allowed), [],
+                         "installed on both runners but not allowed here - the next suite to import it is "
+                         "refused for a package CI has")
 
 
 class TestEveryRoutineCanSeeTheInputItPolices(unittest.TestCase):
@@ -46278,6 +46314,23 @@ RED_PROOF = [
         "find": "            if not include_slow and name in SLOW:\n",
         "replace": "            if name in SLOW:\n",
         "matches": 1,
+    },
+    {
+        "why": "REG-1903 - a runner stops installing numpy while the allowlist still admits it bare: the suite that "
+               "imports it passes on his Mac and errors on CI (the v1911 outage, one package over)",
+        "file": ".github/workflows/tv-tests.yml",
+        "find": "pip install --quiet pillow numpy websocket-client",
+        "replace": "pip install --quiet pillow websocket-client",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1903 - the allowlist lags what both runners install (numpy dropped from it): the stash-grid law is "
+               "refused for a package CI has, which is how v3601's first push was stopped. matches 2: this file is its "
+               "own gate, so the declaration's find is the second occurrence.",
+        "file": "tv/test_control.py",
+        "find": 'ALLOWED_BARE = {"PIL", "numpy"}',
+        "replace": 'ALLOWED_BARE = {"PIL"}',
+        "matches": 2,
     },
 ]
 
