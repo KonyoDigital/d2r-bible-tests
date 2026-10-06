@@ -25473,6 +25473,28 @@ function escC(s) {
     return { state: 'here', dot: '', ageS: ageS, word: '', why: '' };
   };
   window._fleetPresence = _fleetPresence;
+  /* #86 gap 15 (REG-1773) — A RESTART NOBODY COULD ASK ABOUT IS NOT CLEAR TO GO.
+     The pending badge's else said "clear to restart" for every may that was not false,
+     including null: the console could not ask, and the card answered for it. may true is
+     clear. may false is holding off, with that console's own why. Anything else is
+     UNKNOWN, and the why is kept. No relaunch object is an older console: say nothing.
+     The row puts this sentence in the span's text. The hover strips tags, so a sentence
+     that lives only in the title never reaches him. [[unknown-stays-unknown]] */
+  var _fleetRelaunchSay = function (relaunch) {
+    if (!relaunch || typeof relaunch !== 'object') return '';
+    var why = String(relaunch.why || '').replace(/[<>]/g, '').replace(/\s+/g, ' ').trim();
+    if (relaunch.armed === false) {
+      return ' Auto-relaunch is OFF on that machine \u2014 it will not restart itself.';
+    }
+    if (relaunch.may === false) {
+      return ' It is holding off because: ' + (why || 'something is in flight');
+    }
+    if (relaunch.may === true) {
+      return ' It is clear to restart and should do so shortly.';
+    }
+    return ' whether it may restart is UNKNOWN' + (why ? (' \u2014 ' + why) : '') + '.';
+  };
+  window._fleetRelaunchSay = _fleetRelaunchSay;
   /* #74 (REG-1461) — a red "river stuck" when a station has held a reel. #86 gap 9 (REG-1770) — that
      empty return was also what a shut lock drew, and what a null stuck list drew. A proof that is missing, stale
      or unreadable is "locks shut": every river lock fails closed. A stuck list that is null, or a census that
@@ -26250,15 +26272,11 @@ function escC(s) {
                       /* v2255 — AND WHY. Without this the row states the situation and not the
                          cause, which is a dead end: he can see that Dean has not restarted and
                          still not know whether to flip a switch or simply wait. The two answers
-                         need different things from him. */
-                      + (m.relaunch ? (m.relaunch.armed === false
-                            ? ' Auto-relaunch is OFF on that machine — it will not restart itself.'
-                            : (m.relaunch.may === false
-                                 ? ' It is holding off because: ' + escC(String(m.relaunch.why || 'something is in flight'))
-                                 : ' It is clear to restart and should do so shortly.'))
-                          : '')
+                         need different things from him. #86 gap 15 — the same sentence is the
+                         span's text, not only this title: the hover strips tags. */
+                      + escC(_fleetRelaunchSay(m.relaunch))
                       + '">' + ' · ' + escC(m.diskVer) + ' on disk'
-                      + (m.relaunch && m.relaunch.armed === false ? ', auto-relaunch OFF' : '')
+                      + _fleetRelaunchSay(m.relaunch)
                       + '</span>' : '')
              + (stuck ? '<span class="fleet-stuck" title="this console is behind and its update is '
                       + 'being REFUSED, so it will not catch up on its own: '

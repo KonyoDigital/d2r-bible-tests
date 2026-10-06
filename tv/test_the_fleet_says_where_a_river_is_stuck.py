@@ -18,6 +18,8 @@ Three joints, each driven, never grepped:
     null census is "river UNKNOWN" — not the empty chip a draining river uses. The verdict hover keeps both sentences.
     A presence key older than two refreshes plus one beacon is not "here": the dot is silent and the words
     say presence UNKNOWN, never ON AIR.
+    A restart the console could not ask about is not "clear to restart": may null says UNKNOWN and keeps
+    the why, and that sentence is the pending span's text because the hover strips titles.
 RED_PROOF below.
 """
 import io
@@ -518,6 +520,62 @@ class AStalePresenceIsNotOnline(unittest.TestCase):
         self.assertIn("escC(pres.word)", ui)
 
 
+class AnUnaskedRestartIsNotClearToGo(unittest.TestCase):
+    """#86 gap 15. The pending badge's else said clear to restart whenever may was not false.
+    null is the console saying it could not ask. That is not a yes, and the why stays."""
+
+    def _say(self, relaunch):
+        return F._run("OUT.s = _fleetRelaunchSay(%s);" % json.dumps(relaunch))["s"]
+
+    def test_a_measured_yes_is_clear_and_a_measured_no_names_the_hold(self):
+        yes = self._say({"armed": True, "may": True, "why": ""})
+        self.assertIn("clear to restart", yes)
+        self.assertNotIn("UNKNOWN", yes)
+        no = self._say({"armed": True, "may": False, "why": "waiting for the shadow reel to close"})
+        self.assertIn("holding off because: waiting for the shadow reel to close", no)
+        self.assertNotIn("clear to restart", no)
+        self.assertNotIn("UNKNOWN", no)
+        off = self._say({"armed": False, "may": None, "why": "could not ask whether a restart is safe right now"})
+        self.assertIn("Auto-relaunch is OFF", off)
+        self.assertNotIn("UNKNOWN", off)
+        self.assertNotIn("clear to restart", off)
+
+    def test_an_unasked_restart_is_unknown_and_keeps_the_why(self):
+        why = "could not ask whether a restart is safe right now"
+        got = self._say({"armed": True, "may": None, "why": why})
+        self.assertIn("whether it may restart is UNKNOWN", got)
+        self.assertIn(why, got)
+        self.assertNotIn("clear to restart", got)
+        self.assertNotIn("holding off", got)
+        bare = self._say({"armed": True, "may": None, "why": ""})
+        self.assertIn("UNKNOWN", bare)
+        self.assertNotIn("clear to restart", bare)
+        self.assertNotIn("\u2014", bare)
+
+    def test_an_older_console_that_sent_no_relaunch_says_nothing(self):
+        self.assertEqual(self._say(None), "")
+
+    def test_the_hover_keeps_the_sentence_the_title_would_have_lost(self):
+        """The hover strips tags. A sentence only in the title is the same as silence, and silence
+        here used to read as clear. The pending span's text is what the hover keeps."""
+        why = "could not ask whether a restart is safe right now"
+        out = F._run(
+            "var say = _fleetRelaunchSay(%s);\n"
+            "var meta = '<span class=\"fleet-pending\" title=\"outstanding.' + say + '\"> · v3596 on disk' + say + '</span>';\n"
+            "OUT.hover = plain(_fleetHoverPlain({nickname:'ALT'}, meta, NOW));\n"
+            "OUT.say = say;" % json.dumps({"armed": True, "may": None, "why": why}))
+        self.assertIn("whether it may restart is UNKNOWN", out["hover"])
+        self.assertIn(why, out["hover"])
+        self.assertNotIn("clear to restart", out["hover"])
+        ui = F.UI
+        i = ui.index('class="fleet-pending"')
+        span = ui[i:ui.index("</span>", i)]
+        self.assertIn("only the ", span)
+        self.assertIn("_fleetRelaunchSay(m.relaunch)", span.split(">", 1)[1],
+                      "the restart sentence is only in the title, and the hover strips titles")
+        self.assertEqual(ui.count("var _fleetRelaunchSay = function"), 1)
+
+
 RED_PROOF = [
     {"why": "REG-1738 - a river nobody ever stamped reads as draining again",
      "file": "control_app.py",
@@ -641,6 +699,13 @@ RED_PROOF = [
         "file": "tv/control_ui.html",
         "find": "        var heard = !!(pres && pres.state === 'here');\n",
         "replace": "        var heard = !!online;\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1773 - a restart nobody could ask about reads as clear to go again",
+        "file": "tv/control_ui.html",
+        "find": "    if (relaunch.may === true) {\n",
+        "replace": "    if (true) {\n",
         "matches": 1,
     },
 ]

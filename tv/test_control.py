@@ -36630,19 +36630,23 @@ class TestV2255ItSaysWHYAConsoleHasNotRestarted(unittest.TestCase):
 
     def test_the_row_distinguishes_a_SWITCH_from_a_WAIT(self):
         u = self._ui()
-        i = u.index('class="fleet-pending"')
-        block = u[i:u.index("' : '')", i)]
+        i = u.index("var _fleetRelaunchSay = function")
+        block = u[i:u.index("window._fleetRelaunchSay", i)]
         self.assertIn("Auto-relaunch is OFF", block,
                       "the row no longer names the case he has to act on")
         self.assertIn("holding off because", block,
                       "the row no longer names the case that clears itself")
+        j = u.index('class="fleet-pending"')
+        span = u[j:u.index("</span>", j)]
+        self.assertIn("_fleetRelaunchSay(m.relaunch)", span.split(">", 1)[1],
+                      "the restart sentence is only in the title, and the hover strips titles")
 
     def test_a_console_that_omits_the_field_says_nothing(self):
         u = self._ui()
-        i = u.index('class="fleet-pending"')
-        block = u[i:u.index("' : '')", i)]
-        self.assertIn("m.relaunch ?", block,
-                      "the marker reads m.relaunch without checking it exists — an older console "
+        i = u.index("var _fleetRelaunchSay = function")
+        block = u[i:u.index("window._fleetRelaunchSay", i)]
+        self.assertIn("if (!relaunch || typeof relaunch !== 'object') return '';", block,
+                      "the marker reads a missing relaunch as a verdict — an older console "
                       "sends no such field and would render undefined into his panel")
 
 
