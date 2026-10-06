@@ -9452,6 +9452,15 @@ GATES = [
              "grant does not refuse a reel. The report says UNMEASURED. A held grant still says "
              "granted. An absent grant still blocks. The relaunch lamp does not publish that "
              "unread as a denial."),
+    Gate("test_an_unread_screen_grant_is_not_a_status_pass",
+         [sys.executable, os.path.join(HERE, "test_an_unread_screen_grant_is_not_a_status_pass.py")], 90,
+         needs_app=False,
+         why="REG-1794 - the poll published the action bool. That bool is true when the probe "
+             "cannot answer, so a stalled capture said the grant was held. The action stays: an "
+             "unreadable grant does not refuse a reel. The poll says the grant was not measured. "
+             "The stall copy says granted only when the bit is true, and absent only when it is "
+             "false. An unread answer is remembered for the poll interval, so Quartz is not asked "
+             "again on the next poll."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

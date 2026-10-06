@@ -10548,7 +10548,9 @@ window._lockMark = function(isOpen, px, label){
       ? '<b>Capture stalled</b> — last eye frame is old. Focus the D2R game window or press <b>RESTART</b>.'
       : (st.screenRecOk === false
           ? '<b>Capture stalled</b> — last eye frame is old and Screen Recording is NOT granted to this Python. Grant it, then RESTART.'
-          : '<b>Capture stalled</b> — last eye frame is old. Screen Recording is granted, so a static D2R loading screen looks exactly like this.');
+          : (st.screenRecOk === true
+            ? '<b>Capture stalled</b> — last eye frame is old. Screen Recording is granted, so a static D2R loading screen looks exactly like this.'
+            : '<b>Capture stalled</b> — last eye frame is old. Screen Recording was not measured, so this is not a grant and not a denial.'));
     else if (on) cap = 'Auto Intake live · pause on <b>Runes / Gems / Materials / stash</b> — same AI as Tools 📸. Board: <b>SESSIONS</b>.';
     else if (st.pid) cap = 'Process signal without a bridge — try <b>RESTART</b>.';
     $('caption').innerHTML = cap;
@@ -10577,9 +10579,10 @@ window._lockMark = function(isOpen, px, label){
             else if (st.screenRecOk === false) shb.innerHTML = isWin
               ? 'Last frame is stale. Focus the <b>D2R game window</b> (borderless preferred), then press <b>RESTART</b>.'
               : 'Last frame is stale, and <b>Screen Recording is NOT granted</b> to this Python — the eye can only see the desktop. Grant it in System Settings → Privacy → Screen Recording, then press <b>RESTART</b>.';
-            else shb.innerHTML = isWin
+            else if (st.screenRecOk === true) shb.innerHTML = isWin
               ? 'Last frame is stale. Focus the <b>D2R game window</b> (borderless preferred), then press <b>RESTART</b>.'
               : 'Last frame is stale — the screen has not changed. Screen Recording <b>is</b> granted, so if D2R is on a <b>loading screen</b> or minimised this is expected and nothing is wrong. Press <b>RESTART</b> only if it persists once you are in-game.';
+            else shb.innerHTML = 'Last frame is stale. Screen Recording was <b>not measured</b> — not a grant that is held, and not a denial.';
           }
           if (shh) shh.textContent = (ct0.mode ? ('capture: ' + ct0.mode + (ct0.label ? ' · ' + ct0.label : ''))
             : (isWin ? 'D2R.exe process-first pin · capture_win.ps1 · not Battle.net' : 'CrossOver bottle · D2R.exe · Screen Recording → Python'));

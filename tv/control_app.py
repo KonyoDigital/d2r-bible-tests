@@ -7962,7 +7962,7 @@ def capture_door_report():
     return out
 
 
-_SCREEN_REC_CACHE = {"t": 0.0, "v": None}
+_SCREEN_REC_CACHE = {"t": 0.0, "v": None, "known": False}
 _SCREEN_REC_TTL_S = 10.0
 
 
@@ -8123,7 +8123,15 @@ def _vault_autoread_state_cached():
 
 
 def screen_recording_ok_cached():
-    """The grant, at most _SCREEN_REC_TTL_S seconds old. -> bool
+    """The grant the status poll may publish. At most _SCREEN_REC_TTL_S seconds old.
+
+    True held, False absent, None not measured. None is remembered for the TTL:
+    asking Quartz again on every poll is what froze his console, and an unread
+    answer is not a grant that is held.
+
+    The action question stays _screen_recording_ok_quick. That one returns true
+    when the probe cannot answer, so a reel is not refused. This function is the
+    report.
 
     ⚠ v2319 — THIS EXISTS BECAUSE I PUT THE UNCACHED CALL IN THE STATUS PAYLOAD AND FROZE HIS
     CONSOLE. v2316 added `"screenRecOk": bool(_screen_recording_ok_quick())` to status_payload,
@@ -8132,22 +8140,23 @@ def screen_recording_ok_cached():
     /api/shadow took 517. He pressed ON AIR and MINI and nothing happened, twice, and reported the
     buttons as broken. They were not: the POST was issued and the console could not answer.
 
-    A per-frame-cost call belongs nowhere near a payload something polls. The refusal paths use the
-    cache too — a grant that changed in the last ten seconds is not a case worth a two-second stall
-    on every poll, and the capture path self-diagnoses if it is wrong.
+    A per-frame-cost call belongs nowhere near a payload something polls. A grant that changed
+    in the last ten seconds is not a case worth a two-second stall on every poll.
 
     ⚠ AND IT CARRIES ITS AGE HONESTLY: ten seconds is the most this can be wrong by, which is why
     the TTL is short rather than absent. [[stale-reading]]
     """
     now = time.time()
     c = _SCREEN_REC_CACHE
-    if c["v"] is not None and (now - c["t"]) < _SCREEN_REC_TTL_S:
-        return bool(c["v"])
+    if c.get("known") and (now - c["t"]) < _SCREEN_REC_TTL_S:
+        return c["v"]
     try:
-        v = bool(_screen_recording_ok_quick())
+        v = _screen_recording_probe()
     except Exception:
-        v = True                      # never BLOCK on an unreadable grant; the capture path refuses
-    c["t"], c["v"] = now, v
+        v = None
+    if v is not None:
+        v = bool(v)
+    c["t"], c["v"], c["known"] = now, v, True
     return v
 
 

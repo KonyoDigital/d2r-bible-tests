@@ -5751,32 +5751,40 @@ class TestV2319StatusIsCheapEnoughToPOLL(unittest.TestCase):
 
     def test_the_grant_cache_actually_caches(self):
         calls = {"n": 0}
-        real = ca._screen_recording_ok_quick
-        ca._screen_recording_ok_quick = lambda: (calls.__setitem__("n", calls["n"] + 1), True)[1]
+        real = ca._screen_recording_probe
+        ca._screen_recording_probe = lambda: (calls.__setitem__("n", calls["n"] + 1), True)[1]
         try:
             ca._SCREEN_REC_CACHE["t"], ca._SCREEN_REC_CACHE["v"] = 0.0, None
+            ca._SCREEN_REC_CACHE["known"] = False
             for _ in range(25):
                 ca.screen_recording_ok_cached()
         finally:
-            ca._screen_recording_ok_quick = real
+            ca._screen_recording_probe = real
             ca._SCREEN_REC_CACHE["t"], ca._SCREEN_REC_CACHE["v"] = 0.0, None
+            ca._SCREEN_REC_CACHE["known"] = False
         self.assertEqual(calls["n"], 1,
                          "the grant was probed %d times in 25 calls" % calls["n"])
 
     def test_an_unreadable_grant_does_not_BLOCK(self):
-        """A probe that raises must not refuse every capture; the capture path self-diagnoses."""
-        real = ca._screen_recording_ok_quick
-        def boom():
-            raise RuntimeError("Quartz is unhappy")
-        ca._screen_recording_ok_quick = boom
+        """An unread probe is not a grant the poll publishes, and it is not a refusal.
+
+        REG-1794 — the cache used to bool the action answer, and that answer is true
+        when Quartz cannot be asked. The poll then said the grant was held. The
+        action stays true. The report is None.
+        """
+        real = ca._screen_recording_probe
+        ca._screen_recording_probe = lambda: None
         try:
             ca._SCREEN_REC_CACHE["t"], ca._SCREEN_REC_CACHE["v"] = 0.0, None
-            self.assertTrue(ca.screen_recording_ok_cached(),
-                            "an unreadable grant became a refusal — that would block ON AIR and "
-                            "MINI on a machine whose only fault is a flaky Quartz call")
+            ca._SCREEN_REC_CACHE["known"] = False
+            self.assertIsNone(ca.screen_recording_ok_cached(),
+                              "an unread probe was published as a grant the poll calls held")
+            self.assertIs(ca._screen_recording_ok_quick(), True,
+                          "an unread probe refused the reel")
         finally:
-            ca._screen_recording_ok_quick = real
+            ca._screen_recording_probe = real
             ca._SCREEN_REC_CACHE["t"], ca._SCREEN_REC_CACHE["v"] = 0.0, None
+            ca._SCREEN_REC_CACHE["known"] = False
 
 
 class TestV2319TheTwoDoorsStayGAPLESS(unittest.TestCase):
