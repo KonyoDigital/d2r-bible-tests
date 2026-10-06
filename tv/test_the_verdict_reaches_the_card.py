@@ -159,6 +159,8 @@ class TheVerdictReachesTheCard(unittest.TestCase):
         if i_blanket < 0:
             i_blanket = UI.find(u"running on the OWNER\u2019S SEED")
         self.assertGreater(i_blanket, 0, "the fallback sentence is gone entirely")
+        self.assertNotEqual(-1, i_rows, "REG-1892 - the per-ledger verdict rows (var _lvRows) are gone: "
+                                        "the order below would be vacuous")
         self.assertLess(i_rows, i_blanket,
                         "the blanket 'inherited, not synced' sentence is reached BEFORE the "
                         "per-ledger verdict, so the accusation renders on his own board again")

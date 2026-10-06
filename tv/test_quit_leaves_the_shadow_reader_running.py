@@ -332,7 +332,11 @@ class QuitLeavesTheShadowReaderRunning(unittest.TestCase):
             src = fh.read()
         i = src.find("def open_control_window(")
         blk = src[i:src.find("\ndef ", i + 1)]
-        self.assertLess(blk.find("_WINDOW_ONLY"), blk.find('tvd-engine-driver'))
+        only_at = blk.find("_WINDOW_ONLY")
+        self.assertNotEqual(-1, only_at,
+                            "REG-1892 - open_control_window no longer reads _WINDOW_ONLY: the order "
+                            "below would be vacuous")
+        self.assertLess(only_at, blk.find('tvd-engine-driver'))
         self.assertIn('_start_daemon_once("tvd-engine-driver"', blk)
         self.assertIn('_start_daemon_once("tvd-kai-closer"', blk)
         arm = src.find('_console_rescue_loop, name="console-rescue"')

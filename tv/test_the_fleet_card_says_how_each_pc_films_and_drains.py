@@ -388,7 +388,10 @@ class TheRiverSaysWhatItsTriageLaneIsDoing(unittest.TestCase):
         for k in ("full", "noLanes", "refused", "none"):
             self.assertIn('class="shr-tri', out[k], "%s: the river drew no triage line" % k)
         self.assertIn("standing aside for his game", out["full"])
-        self.assertGreater(out["full"].find('class="shr-tri'), out["full"].find("</details>"),
+        fold_at = out["full"].find("</details>")
+        self.assertNotEqual(-1, fold_at,
+                            "REG-1892 - the full render drew no fold close: the order below would be vacuous")
+        self.assertGreater(out["full"].find('class="shr-tri'), fold_at,
                            "the line sits inside the fold - it must read with the river shut")
         self.assertIn("UNKNOWN", out["none"])
 

@@ -28731,7 +28731,11 @@ class TestV2157TheFleetRosterNeverInventsACount(unittest.TestCase):
                 self.assertIn(key, js, "the script never emits %r (dump_stores=%s)" % (key, dump))
             # ...and DEFINED BEFORE USED, which parsing alone does not prove: `var` hoists, so a
             # helper referenced above its definition parses fine and is undefined at run time.
-            self.assertLess(js.find("var _n=function"), js.find("uniT"),
+            n_at = js.find("var _n=function")
+            self.assertNotEqual(-1, n_at,
+                                "REG-1892 - the script no longer defines the _n helper (dump_stores=%s): "
+                                "the order below would be vacuous" % dump)
+            self.assertLess(n_at, js.find("uniT"),
                             "the helpers are used before they are defined (dump_stores=%s)" % dump)
 
     def test_the_board_ACTUALLY_EMITS_what_the_tally_reads(self):

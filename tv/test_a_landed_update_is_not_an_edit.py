@@ -914,12 +914,17 @@ class TheLauncherUsesTheSameRule(unittest.TestCase):
                          "one of the in-process pull doors does not use the launcher rule")
         call = mac.find("if ! _tvd_may_pull; then")
         recorded = mac.find('_tvd_before="$(git -C "$REPO" rev-parse --short HEAD')
+        self.assertNotEqual(-1, recorded, "REG-1892 - the Mac launcher no longer records HEAD before "
+                                          "the pull at all: the order below would be vacuous")
         self.assertGreater(call, recorded,
                            "the Mac launcher records HEAD after the reset, so the move looks like no change")
         for name in ("def fleet_pull(", "def _pull_once("):
             start = app.find(name)
             body = app[start:app.find("\ndef ", start + 1)]
-            self.assertLess(body.find('rev-parse", "--short", "HEAD"'),
+            rec_at = body.find('rev-parse", "--short", "HEAD"')
+            self.assertNotEqual(-1, rec_at, "REG-1892 - %s no longer records HEAD at all: the order "
+                                            "below would be vacuous" % name.split("(")[0])
+            self.assertLess(rec_at,
                             body.find("import launcher_pull as _lp"),
                             "%s records HEAD after the reset" % name.split("(")[0])
 
