@@ -8851,6 +8851,18 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_a_relook_says_what_this_os_can_film", [sys.executable,
+         os.path.join(HERE, "test_a_relook_says_what_this_os_can_film.py")], 60,
+         needs_app=False,
+         why=("REG-1917 - off a Mac the launcher relook claimed Linux 'films only inside a reel', and a bool launcherUntil "
+              "read as 1 ms; the sentence says what this OS can film and all three deadline reads refuse a bool.")
+         ),
+    Gate("test_a_demo_bounds_the_server_and_the_render_apart", [sys.executable,
+         os.path.join(HERE, "test_a_demo_bounds_the_server_and_the_render_apart.py")], 30,
+         needs_app=False,
+         why=("REG-1916 - j7_shelfStory refused pushes at one 15 s wait that paid for /api/sessions' cold answer (9.2 s "
+              "measured) and the render; the server is asked first under its own 60 s bound, the render keeps 15 s.")
+         ),
     Gate("test_a_sharded_verdict_counts_the_union", [sys.executable,
          os.path.join(HERE, "test_a_sharded_verdict_counts_the_union.py")], 30,
          needs_app=False,

@@ -598,6 +598,22 @@ async function j7_shelfStory(page) {
   const name = 'J7 SHELF STORY';
   await goHome(page);
   const shellBefore = await shellOpen(page); // home → false
+  /* REG-1916 — TWO WAITS, TWO BOUNDS. This journey refused the v3597 and v3601 pushes (and 2 of 13 over 09-27..29) at
+     the 15 s wait below. MEASURED on his console mid chronicle sweep, 2026-10-07: GET /api/sessions answered in 9.2 s
+     cold and 1.1 s warm (663 KB). The 15 s bound was paying for the SERVER's cold answer and the shelf's render at once,
+     on a console the hook itself says is loaded. So the server is asked first, under its own measured 60 s bound and
+     with the time printed, and the 15 s bound below covers the render alone. A server that does not answer in 60 s is
+     still a refusal - and now one that names which half was slow. */
+  const warm = await page.evaluate(async () => {
+    const t0 = Date.now();
+    const bound = new Promise((res) => setTimeout(() => res({ ok: false, why: 'no answer in 60 s' }), 60000));
+    const ask = fetch('/api/sessions', { cache: 'no-store' })
+      .then(async (r) => { await r.text(); return { ok: r.ok, why: r.ok ? '' : ('HTTP ' + r.status) }; })
+      .catch((e) => ({ ok: false, why: String(e && e.message || e) }));
+    const got = await Promise.race([ask, bound]);
+    return Object.assign({ ms: Date.now() - t0 }, got);
+  });
+  if (!warm.ok) throw new Error(`/api/sessions did not answer (${warm.why}, ${warm.ms} ms) - the server half, not the shelf`);
   // 📚 The Shelf console button: thOpen() (loads TH.sessions from /api/sessions) then thShelf(true)
   await page.click('#btn-shelf');
   // the shelf overlay #th-shelfov renders one .sh-card per recorded session
@@ -645,7 +661,7 @@ async function j7_shelfStory(page) {
   }, null, { timeout: 6000 });
   const shellAfter = await shellOpen(page);
   if (shellBefore !== shellAfter) throw new Error('shelf journey left the shell state changed');
-  record(name, true, `${r.cards} .sh-card, ${r.verdicts} verdict line(s) all glyph-tagged, closed → home`);
+  record(name, true, `${r.cards} .sh-card, ${r.verdicts} verdict line(s) all glyph-tagged, closed → home (sessions answered in ${warm.ms} ms)`);
 }
 
 // v1378 — J8: the console-native Sessions flagship. 'session' nav sets data-view=sessions and

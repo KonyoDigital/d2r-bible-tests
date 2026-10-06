@@ -33140,7 +33140,7 @@ def tv_label_is_bare(pre):
 def _bare_relook_open(now):
     cur = _shadow_watch_stored() or {}
     until = cur.get("launcherUntil")
-    if not isinstance(until, (int, float)):
+    if not isinstance(until, (int, float)) or isinstance(until, bool):     # REG-1917 - a bool is not a time
         return True
     return now >= float(until)
 
@@ -33230,7 +33230,9 @@ def _relook_unknown(now, pre, cur, what):
 
     #167 — UNKNOWN holds the door for one more wait, never for ever. After that the reel opens and its reads judge."""
     until = cur.get("launcherUntil")
-    if isinstance(until, (int, float)) and now >= float(until) + _BARE_HUD_RELOOK_S * 1000:
+    # REG-1917 - a bool is an int in Python: True would read as 1 ms and open the reel at once. Not a time.
+    if isinstance(until, (int, float)) and not isinstance(until, bool) \
+            and now >= float(until) + _BARE_HUD_RELOOK_S * 1000:
         return ("%s for another %d s, so this reel's reads judge whether he left the launcher"
                 % (what, _BARE_HUD_RELOOK_S))
     why = "%s, so whether he left the launcher is UNKNOWN" % what
@@ -33247,8 +33249,14 @@ def _bare_relook_one_frame(now, pre, cur):
         # #167 — on Windows there is no camera outside a reel, so this frame can never be taken. Waiting for it held
         # the door for ever: after the first launcher seal the ALT and Dean's PC were never filmed. There the reel is
         # the camera, and its reads judge, as they did before the relook was one frame.
-        return ("this PC films only inside a reel, so the relook cannot be one frame; "
-                "this reel's reads judge whether he left the launcher")
+        # REG-1917 - SAY WHAT THIS OS CAN FILM. "films only inside a reel" is Windows (capture_win.ps1 rolls with the
+        # agent); Linux films no window at all (_launcher_camera_here), and the old sentence claimed a camera there that
+        # nothing measured (a Grok look at v3596, windows slice, finding 2).
+        if sys.platform.startswith("win"):
+            return ("this PC films only inside a reel, so the relook cannot be one frame; "
+                    "this reel's reads judge whether he left the launcher")
+        return ("this PC cannot film a window outside a reel (%s has no one-frame camera here), so the relook cannot "
+                "be one frame; this reel's reads judge whether he left the launcher" % sys.platform)
     token = _launcher_picture(pre)
     held = cur.get("launcherFrame")
     held = held if isinstance(held, str) and held else None
@@ -33494,7 +33502,8 @@ def shadow_watch_tick():
     _relook_opens = None   # why the relook opens this reel, when it does (#167: or why no frame can settle it)
     if hud is None and tv_label_is_bare(pre) and _bare_relook_open(now):
         _cur_rl = _shadow_watch_stored() or {}
-        if isinstance(_cur_rl.get("launcherUntil"), (int, float)):
+        if isinstance(_cur_rl.get("launcherUntil"), (int, float)) \
+                and not isinstance(_cur_rl.get("launcherUntil"), bool):          # REG-1917 - a bool is not a time
             _held_back = _bare_relook_one_frame(now, pre, _cur_rl)
             if isinstance(_held_back, dict):
                 return _held_back
