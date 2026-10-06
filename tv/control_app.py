@@ -21080,6 +21080,98 @@ def _chron_reels_retired():
     return _CHRON_AUTOREAD["retired"]
 
 
+def _chron_retirement_map():
+    """The tick's retirement record. {} when none was written. None when it cannot be read.
+
+    The in-memory copy is the one the tick already uses. A missing file is no retirements.
+    A file that will not parse is not that, and it is not cached as an empty one.
+    """
+    cached = _CHRON_AUTOREAD.get("retired")
+    if isinstance(cached, dict):
+        return cached
+    if cached is not None:
+        return None
+    try:
+        with open(_CHRON_AUTOREAD_PATH, encoding="utf-8") as fh:
+            raw = json.load(fh) or {}
+    except FileNotFoundError:
+        return {}
+    except Exception:
+        return None
+    if not isinstance(raw, dict):
+        return None
+    got = raw.get("retired") or {}
+    if not isinstance(got, dict):
+        return None
+    return got
+
+
+def _chron_retired_still_owing(hist_dir=None):
+    """How many retired reels still owe a read. None when that cannot be counted."""
+    retired = _chron_retirement_map()
+    if retired is None:
+        return None
+    if not retired:
+        return 0
+    try:
+        import chronicle_retro as _cr
+        _h = hist_dir or os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
+        _dirs = _cr.reel_dirs(_h, newest_first=True) or []
+    except Exception:
+        return None
+    try:
+        mem = _chron_swept_mem()
+    except Exception:
+        return None
+    n = 0
+    for d in _dirs:
+        rid = os.path.basename(str(d))
+        if rid not in retired:
+            continue
+        try:
+            owes = bool(_chron_reel_owes_a_read(rid, mem))
+        except Exception:
+            return None
+        if owes:
+            n += 1
+    return n
+
+
+def _chron_older_seal_tail(waiting_n, owed):
+    """The clause after the above-floor sentence. '' when there is nothing further to say.
+
+    #86 gap audit 36 (REG-1780). owed minus the waiting list used to be one promise: those
+    reels were sealed by an older reader and will be re-read. A retired reel is inside that
+    owed count, and the tick will not start it. Those are named, and they are not promised.
+    An owed count that was not taken says nothing. A retirement record that will not read
+    promises nothing.
+    """
+    if not isinstance(owed, int):
+        return ""
+    try:
+        waiting_n = int(waiting_n)
+    except (TypeError, ValueError):
+        return ""
+    if waiting_n < 0:
+        return ""
+    retired = _chron_retired_still_owing()
+    if retired is None:
+        return (" Whether any reel was retired after a refusal could not be read, "
+                "so none are promised a re-read.")
+    will = owed - waiting_n - retired
+    if will < 0:
+        will = 0
+    parts = []
+    if will:
+        parts.append("%d more were sealed by an older reader and will be re-read" % will)
+    if retired:
+        parts.append("%d retired after a refusal and will not be re-read "
+                     "until that give-up is proved false" % retired)
+    if not parts:
+        return ""
+    return " " + ". ".join(parts) + "."
+
+
 _FALSE_RETIREMENT = "the sweep started but never wrote a result"
 
 
@@ -26263,10 +26355,10 @@ def _retention_once():
     if _above_floor and not cands:
         _dr = _retention_drain(unknown_why=_drain_unknown, plan=p, keep_recent=_keep)
         with _PRUNE_LOCK:
+            # REG-1780 (#86 gap audit 36) — a retired reel is inside this owed count, and the
+            # tick will not start it. The old tail promised every one of them a re-read.
             _owed = _chron_owed_count()
-            _extra = (_owed - len(waiting)) if isinstance(_owed, int) else 0
-            _tail = ("" if _extra <= 0 else
-                     " %d more were sealed by an older reader and will be re-read." % _extra)
+            _tail = _chron_older_seal_tail(len(waiting), _owed)
             _RETENTION.update(dict(base, owedARead=_owed,
                                    say="%.1fGB free — above the %.0fGB floor. Nothing is eligible "
                                        "to free. %s%s.%s"

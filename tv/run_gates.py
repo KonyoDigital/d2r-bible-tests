@@ -9371,6 +9371,13 @@ GATES = [
              "life of a console that had never run it. On Windows that sweep is due about 20 s after boot. "
              "Past a minute, never-ran is UNKNOWN: the rescue loop may be dead, and an older capture may "
              "still be filming. A Mac never runs it. The first minute of a Windows boot is still not a fault."),
+    Gate("test_a_retired_reel_is_not_promised_a_reread",
+         [sys.executable, os.path.join(HERE, "test_a_retired_reel_is_not_promised_a_reread.py")], 90,
+         needs_app=False,
+         why="REG-1780 (#86 gap audit 36) - the above-floor sentence promised a re-read to every chronicle "
+             "reel past the waiting list. A reel retired after a refusal is inside that count, and the tick "
+             "will not start it. That reel is named and is not promised. The ones that are not retired still "
+             "will be. A retirement record that will not read promises none."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
