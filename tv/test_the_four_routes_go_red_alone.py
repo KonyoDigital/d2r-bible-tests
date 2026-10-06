@@ -422,12 +422,75 @@ class TheDoctorWatchesEachOne(unittest.TestCase):
         self.assertIn("no longer reports", why)
 
 
+class TheRiverIsWalkedOncePerTick(unittest.TestCase):
+    """REG-1840 - four doctor rows each walked the whole shelf through reel_router.route(); with 80 reels on his
+    Mac that was 1.4-2.4 s of CPU per row and the cheap-subset law read 10.1 s against 9 s. Inside run()'s tick
+    the route is read ONCE and every row gets its own copy; a row called on its own still asks fresh."""
+
+    RIVER = ("the river", "river outlet", "names banked", "river owes what its engine says")
+
+    def setUp(self):
+        import reel_router as RR
+        self.RR, self.calls, self.real = RR, [], RR.route
+        def fake(*a, **k):
+            self.calls.append(1)
+            return {"ok": True, "reels": [{"reel": "reel_fixture_1", "station": "PRINTER"}]}
+        RR.route = fake
+        self.addCleanup(setattr, RR, "route", self.real)
+        self.addCleanup(D._rroute_cache.update, {"active": False, "got": None})
+
+    def test_inside_a_tick_the_route_is_walked_once_and_each_row_gets_its_own_copy(self):
+        D._rroute_cache.update(active=True, got=None)
+        a, b = D._reel_route_read(), D._reel_route_read()
+        D._reel_route_read(); D._reel_route_read()
+        self.assertEqual(1, len(self.calls), "the shelf was walked %d times in one tick" % len(self.calls))
+        self.assertEqual(a, b)
+        a["reels"].append("edited by one row")
+        self.assertEqual(1, len(D._reel_route_read()["reels"]), "one row's edit reached another row's reading")
+
+    def test_a_route_that_raises_raises_for_every_row_and_is_still_asked_once(self):
+        def boom(*a, **k):
+            self.calls.append(1)
+            raise ValueError("shelf unreadable")
+        self.RR.route = boom
+        D._rroute_cache.update(active=True, got=None)
+        for _ in range(3):
+            with self.assertRaises(ValueError):
+                D._reel_route_read()
+        self.assertEqual(1, len(self.calls))
+
+    def test_a_row_called_on_its_own_asks_fresh(self):
+        D._reel_route_read(); D._reel_route_read()
+        self.assertEqual(2, len(self.calls), "outside a tick a stub must be asked every time")
+
+    def test_the_four_rows_read_through_the_one_door(self):
+        fns = dict(D.CHECKS)
+        for n in self.RIVER:
+            code = fns[n].__code__
+            self.assertIn("_reel_route_read", code.co_names, "%r no longer reads through the tick's door" % n)
+            self.assertNotIn("route", code.co_names, "%r walks the shelf itself again" % n)
+
+
 RED_PROOF = [
     {
         'why': 'The line is the ONLY place in the tree where `route_census` catches a reel that carries a route\'s evidence and did not come out on that route — the "the join dropped" arm of the three-state verdict. It is real executable code inside the per-route loop, not a comment and not a message string, and it is not shared with the other side of any comparison: the census derives BROKEN from `r["routes"]` here, while the corroborating label check `_label_agrees` reads `subTemplate` further down and is untouched, so the two halves cannot both move together. It is also not the ROUTES tuple — that IS the shared constant this file\'s tests iterate on both sides, and editing it would have shrunk expectation and answer together. With the arm removed, a route whose reel was un-routed simply produces an empty `took` list and falls through to UNKNOWN, so the census reports `broken == []` instead of naming which of the four died — exactly the defect the file exists for ("a rail that cannot say WHICH of four broke"). Anchor counted 1 in reel_templates.py and 1 tree-wide across every .py/.html/.js, so replace-all and replace-one are the same experiment.  MEASURED: untampered OK; tampered (all 1 match(es)) FAILED (failures=2); reddened law test_a_dropped_route_reddens_ONLY_that_route; that law ALONE FAILED (failures=1) — `python3 -m unittest test_the_four_routes_go_red_alone.OneRouteDiesAlone.test_a_dropped_route_redd.',
         'file': 'reel_templates.py',
         'find': 'if name not in (r.get("routes") or []):',
         'replace': 'if False:',
+        'matches': 1,
+    },
+    {
+        'why': 'REG-1840 - the tick stops sharing the walk, so every river row walks the whole shelf again',
+        'file': 'console_doctor.py',
+        'find': '    if _rroute_cache["active"]:\n        got = _rroute_cache["got"]\n',
+        'replace': '    if False:\n        got = _rroute_cache["got"]\n',
+        'matches': 1,
+    },
+    {
+        'why': 'REG-1840 - rows share one mutable reading, so one row editing it changes what the next row reads',
+        'file': 'console_doctor.py',
+        'find': '        return _copy.deepcopy(val)\n',
+        'replace': '        return val\n',
         'matches': 1,
     },
 ]

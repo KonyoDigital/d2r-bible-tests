@@ -1065,7 +1065,7 @@ def _check_read_names_are_actually_banked():
         return UNKNOWN, ("the printer/router could not be imported (%s), so whether read names are "
                          "banked is UNKNOWN" % type(exc).__name__)
     try:
-        rep, rt = _P.stream(), _RR.route()
+        rep, rt = _P.stream(), _reel_route_read()
     except Exception as exc:
         return UNKNOWN, "the printer or router raised (%s) - UNKNOWN, not clean" % type(exc).__name__
     if not isinstance(rep, dict) or not isinstance(rt, dict) or not rt.get("ok"):
@@ -1373,7 +1373,7 @@ def _check_the_river_is_moving():
     """
     try:
         import reel_router as _rr
-        d = _rr.route()
+        d = _reel_route_read()
     except Exception as e:
         return UNKNOWN, "reel_router will not answer (%s), so the river is UNMEASURED" % str(e)[:60]
     if not isinstance(d, dict) or not d.get("ok"):
@@ -3047,7 +3047,7 @@ def _check_the_river_has_an_outlet():
     except Exception as e:
         return UNKNOWN, "reel_router will not import (%s), so the outlet is unmeasured" % str(e)[:60]
     try:
-        rep = _rr.route()
+        rep = _reel_route_read()
     except Exception as e:
         return UNKNOWN, "the router raised (%s) — unmeasured, not clean" % str(e)[:60]
     if not rep.get("ok"):
@@ -5218,6 +5218,39 @@ def _route_read():
     if _routes_cache["active"]:
         return _routes_cache["got"]
     return _route_census_once()
+
+
+# REG-1840 - ONE reel_router.route() PER TICK. Four river checks ("the river", "river outlet", "river joints",
+# "river owes what its engine says") each walked the whole shelf through route() on their own: measured on his Mac
+# 2026-10-06 with 80 reels on disk, 1.4-2.4 s of CPU EACH, and the cheap-subset law read 10.1 s against its 9 s budget
+# while the v3596 push ran its shards - so the stuck river made its own watchdog four times dearer. Scoped to run()
+# exactly like _route_read: a check called on its own still asks route() fresh (every guard that patches route keeps
+# working), a raise is re-raised to each caller as before, and each caller gets its OWN copy so no check can edit
+# another's reading. [[feedback-suspect-the-instrument]]
+_rroute_cache = {"active": False, "got": None}
+
+
+def _reel_route_once():
+    try:
+        import reel_router as _rr
+        return ("ok", _rr.route())
+    except Exception as e:
+        return ("err", e)
+
+
+def _reel_route_read():
+    """reel_router.route(), once per tick inside run(); fresh when a check is called on its own. -> dict (raises as route does)"""
+    if _rroute_cache["active"]:
+        got = _rroute_cache["got"]
+        if got is None:
+            got = _rroute_cache["got"] = _reel_route_once()
+        kind, val = got
+        if kind == "err":
+            raise val
+        import copy as _copy
+        return _copy.deepcopy(val)
+    import reel_router as _rr
+    return _rr.route()
 
 
 def _route_health(route):
@@ -7966,7 +7999,7 @@ def _check_a_reel_owes_what_its_engine_says():
     except Exception as e:
         return UNKNOWN, "the river will not import: %s" % str(e)[:90]
     try:
-        rep = _RR.route()
+        rep = _reel_route_read()
     except Exception as e:
         return UNKNOWN, "the route raised %s, so no reel could be graded" % type(e).__name__
     if not rep.get("ok"):
@@ -10777,6 +10810,8 @@ def tick_caches():
     _health_cache["rep"] = _health_report()
     CURRENT.update(check="priming: the route census", since=time.time())
     _routes_cache["active"], _routes_cache["got"] = True, _route_census_once()
+    CURRENT.update(check="priming: the reel route", since=time.time())
+    _rroute_cache["active"], _rroute_cache["got"] = True, _reel_route_once()
     CURRENT.update(check=None, since=None)
     try:
         yield
@@ -10784,6 +10819,7 @@ def tick_caches():
         _board_cache["active"], _board_cache["got"] = False, None
         _health_cache["active"], _health_cache["rep"] = False, None
         _routes_cache["active"], _routes_cache["got"] = False, None
+        _rroute_cache["active"], _rroute_cache["got"] = False, None
 
 
 def run(include_slow=True, include_periodic=None, tick=None):
