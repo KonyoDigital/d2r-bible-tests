@@ -19,8 +19,10 @@ The reason string is retention's, so a reel leaves this list the moment retentio
 vault-blocked, and the panel and the sweeper cannot drift apart."* A manager with judgement would be
 a THIRD opinion about "is this reel done" — the exact failure mode, added on purpose.
 
-So this module asks `reel_retention.plan()` and nothing else. It carries retention's own `tag` and
-`why` through untouched. If it ever starts deciding, it has become the defect it was built to avoid.
+So this module asks `reel_retention.plan()` for why a reel is still on disk, and `vault_owes_read`
+for whether the vault lane owes that reel a read. It invents neither answer. It carries retention's
+own `tag` and `why` through untouched. If it ever starts deciding, it has become the defect it was
+built to avoid.
 [[the-unjoined-end]] [[copy-drift]] [[feedback-contradiction-is-the-finding]]
 
 ⚠ IT NEVER DELETES. `_PRUNE_SAFE_TO_RUN` is Konyo's to arm, not this module's. `work()` reports;
@@ -742,8 +744,16 @@ def lane_census(hist=None, work_=None, beats=None, now_ms=None, allow_import=Fal
             owed = None if owed_all is None else len(w.get("releasable") or [])
         elif owed_all is None:
             owed = None
+        elif lane == "vault" and w.get("vaultKnown") is False:
+            # The tag map is only the reels retention already named for this lane. A reel at
+            # PRINTER can owe a read under another tag, and that half is invisible when the
+            # stamp log will not read. The tag count alone would be a shorter list wearing a
+            # measured number. UNKNOWN, not idle. [[unknown-stays-unknown]]
+            owed = None
+            owed_why = str(w.get("vaultWhy") or
+                           "the river could not be asked, so a reel at PRINTER is not in this count")
         else:
-            owed = len([r for r in owed_all if r.get("lane") == lane])
+            owed = len([r for r in owed_all if lane in _lanes_of(r)])
         armed, armed_why = _armed(decl, allow_import=allow_import)
         last_at = b.get("lastWorkAt")
         row = {
@@ -821,13 +831,108 @@ def plan(hist=None):
     return _rr.plan(h)
 
 
-def work(hist=None):
+def _lanes_of(row):
+    """Every lane one owed row counts toward. The tag's own lane, then a read that tag did not name."""
+    lanes = []
+    if not isinstance(row, dict):
+        return lanes
+    primary = row.get("lane")
+    if primary:
+        lanes.append(primary)
+    for extra in row.get("also") or ():
+        if extra and extra not in lanes:
+            lanes.append(extra)
+    return lanes
+
+
+def _vault_read_lane(tag, reel, station, seals):
+    """'vault' when this reel owes the vault a read, else None. Asks vault_owes_read. Never a second table.
+
+    A tag the vault already owns does not depend on the seal store. Anything else is the PRINTER
+    half: an unreadable seal store adds nothing, and a reel the store already holds is not re-bought.
+    """
+    if not reel or not vault_owes_read(tag, station, reel):
+        return None
+    if tag in lane_read_tags("vault"):
+        return "vault"
+    if not isinstance(seals, dict):
+        return None
+    import reel_retention as _rr
+    if _rr.lookup_either_way(seals, reel) is not None:
+        return None
+    return "vault"
+
+
+def _river_and_seals():
+    """The pair the sweeper already asks. -> (positions|None, seals|None, why). Never raises.
+
+    The console process already holds that reader. A gate, where the console is not loaded, reads
+    the same two stores. positions() answers {} for a store that was never written — measured and
+    empty, not unknown. None is a store that would not read.
+    """
+    ca = sys.modules.get("control_app")
+    if ca is not None and hasattr(ca, "_vault_positions_and_seals"):
+        try:
+            pos, seals = ca._vault_positions_and_seals()
+        except Exception as e:
+            return None, None, "the river could not be asked (%s)" % type(e).__name__
+        if pos is None:
+            return None, seals, ("the river could not be read, so a reel at PRINTER is not in "
+                                 "the vault count")
+        return pos, seals, ""
+    try:
+        import river_stamp as _rvs
+        pos, why = _rvs.positions()
+    except Exception as e:
+        return None, None, "the river could not be asked (%s)" % type(e).__name__
+    seals = None
+    try:
+        import frame_authority as _fa
+        import tv_diablo as _tvd
+        blob, ok = _fa.sealed_sessions(_tvd._fixture_root(HERE))
+        seals = blob if ok else None
+    except Exception:
+        seals = None
+    if pos is None:
+        return None, seals, (why or "the river could not be read, so a reel at PRINTER is not in "
+                                   "the vault count")
+    return pos, seals, ""
+
+
+_RIVER_ASK = object()
+
+
+def _take_river(positions, seals):
+    """Injected readings, or the live pair. A caller that passes None has already measured unknown."""
+    if positions is not _RIVER_ASK and seals is not _RIVER_ASK:
+        why = "" if positions is not None else (
+            "the river could not be read, so a reel at PRINTER is not in the vault count")
+        return positions, seals, why
+    live_pos, live_seals, why = _river_and_seals()
+    if positions is _RIVER_ASK:
+        positions = live_pos
+    if seals is _RIVER_ASK:
+        seals = live_seals
+    if positions is None and not why:
+        why = "the river could not be read, so a reel at PRINTER is not in the vault count"
+    return positions, seals, why
+
+
+def work(hist=None, positions=_RIVER_ASK, seals=_RIVER_ASK):
     """What the lanes still owe, straight off retention's plan. -> dict
 
     ⚠ UNKNOWN IS NOT "NOTHING OWED". A plan that could not be built returns ok False and an
     explicit why, never an empty work list — an empty list is a MEASUREMENT ("every lane is
     caught up") and must never be produced by a failed read. [[unknown-stays-unknown]]
     [[zero-needs-a-denominator]]
+
+    ⚠⚠ THE TAG IS WHY THE REEL IS STILL ON DISK. It is not which lane owes a read. A reel at
+    PRINTER (names read, no seal) that retention files as `recent` was held, and one it files as
+    `zero-pages` was billed only to the chronicle, while vault_owes_read already said the vault
+    owes both a read. The census then said the vault lane was idle over work the sweeper had.
+    The tag's lane stays. The vault's read is asked of that one rule and counted beside it.
+    `vaultKnown` False means the stamp log would not read: the vault's number is UNKNOWN, not
+    the tags alone. [[the-unjoined-end]]
     """
     try:
         p = plan(hist)
@@ -850,19 +955,32 @@ def work(hist=None):
                            or "retention could not read this shelf"),
                 "neverRecorded": bool(p.get("neverRecorded")),
                 "owed": None, "held": None, "releasable": None}
+    positions, seals, river_why = _take_river(positions, seals)
+    vault_known = positions is not None
     owed, held = [], []
     for k in (p.get("kept") or []):
         tag = k.get("tag")
-        row = {"reel": k.get("reel"), "tag": tag, "why": k.get("why"), "mb": k.get("mb")}
+        reel = k.get("reel")
+        rid = os.path.basename(str(reel or ""))
+        row = {"reel": reel, "tag": tag, "why": k.get("why"), "mb": k.get("mb")}
+        station = positions.get(rid) if vault_known else None
+        extra = _vault_read_lane(tag, rid, station, seals) if vault_known else None
         if tag in OWED_BY:
             row["lane"] = OWED_BY[tag]
+            if extra and extra != row["lane"]:
+                row["also"] = [extra]
+            owed.append(row)
+        elif extra:
+            row["lane"] = extra
             owed.append(row)
         else:
             held.append(row)
     return {"ok": True, "why": "", "owed": owed, "held": held,
             "releasable": [c.get("reel") if isinstance(c, dict) else str(c)
                            for c in (p.get("candidates") or [])],
-            "onDisk": p.get("onDisk"), "say": p.get("say")}
+            "onDisk": p.get("onDisk"), "say": p.get("say"),
+            "vaultKnown": vault_known,
+            "vaultWhy": "" if vault_known else river_why}
 
 
 def stages(hist=None):
@@ -906,7 +1024,12 @@ def beat(hist=None, write=True):
     w = work(hist)
     lanes = {}
     for row in (w.get("owed") or []):
-        lanes[row["lane"]] = lanes.get(row["lane"], 0) + 1
+        # A vault number taken from the tags alone, while the stamp log would not read, is the
+        # shorter list. Leave it out of this count. The census row says UNKNOWN.
+        for lane in _lanes_of(row):
+            if lane == "vault" and w.get("vaultKnown") is False:
+                continue
+            lanes[lane] = lanes.get(lane, 0) + 1
     # ⚠ THE SAME `work()` ANSWER, PASSED IN. Calling lane_census() bare here would build a SECOND
     # retention plan for one beat — two reads of a moving shelf, which can disagree, and paid for
     # twice. One question, asked once.

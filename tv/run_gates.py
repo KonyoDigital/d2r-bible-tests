@@ -9378,6 +9378,13 @@ GATES = [
              "reel past the waiting list. A reel retired after a refusal is inside that count, and the tick "
              "will not start it. That reel is named and is not promised. The ones that are not retired still "
              "will be. A retirement record that will not read promises none."),
+    Gate("test_a_reel_the_vault_owes_is_not_held",
+         [sys.executable, os.path.join(HERE, "test_a_reel_the_vault_owes_is_not_held.py")], 90,
+         needs_app=False,
+         why="REG-1781 (#86 gap audit 34) - the shelf counted a lane's work from retention's tag, so a reel "
+             "at PRINTER filed as recent was held and one filed as zero-pages was only the chronicle's. "
+             "The vault's own rule already said both owe a read. That read is now on the vault lane. The "
+             "tag's lane stays. A stamp log that will not read makes the vault count UNKNOWN, not idle."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
