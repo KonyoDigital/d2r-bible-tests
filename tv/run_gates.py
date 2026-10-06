@@ -9589,6 +9589,17 @@ GATES = [
              "still says quiet. A thought on air is still a thought. Off air, "
              "a measured night still says quiet. The lamp says the journal was "
              "not read, and a leftover thought list does not light it."),
+    Gate("test_an_unread_journal_is_not_a_quiet_story",
+         [sys.executable, os.path.join(HERE, "test_an_unread_journal_is_not_a_quiet_story.py")], 90,
+         needs_app=False,
+         why="REG-1809 - the story feed treats an empty story as a night that "
+             "has not started. An unread journal walk is that same empty list: "
+             "the poll already says verdict unknown. A measured empty night "
+             "still says the story builds. A landed line is still a line. An "
+             "idle night with a line still shows that line. A miss with no "
+             "line still says the story builds. The feed says the journal was "
+             "not read, a leftover list does not paint, and a second poll "
+             "still repaints when the walk goes unread."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

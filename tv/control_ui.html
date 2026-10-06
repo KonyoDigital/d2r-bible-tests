@@ -11382,12 +11382,18 @@ window._lockMark = function(isOpen, px, label){
     }
     brain.classList.remove('brain-receipts');
     // v946 — story mode: session narrative, not the event firehose
+    // REG-1809 — unknown is a journal that was not read. An empty story
+    // is also a night that has not started, and this feed called that a pass.
     if (window.__mindMode === 'story') {
+      var _shStory = st.sessionHealth || {};
+      var storyUnread = (_shStory.verdict === 'unknown');
       var story = window.__mindStory || st.mindStory || [];
-      var ssig = 'story|' + story.join('¦');
+      var ssig = 'story|' + (storyUnread ? 'unread' : story.join('¦'));
       if (ssig === brainSig) return;
       brainSig = ssig;
-      if (!story.length) {
+      if (storyUnread) {
+        brain.innerHTML = '<div class="empty">the journal was not read</div>';
+      } else if (!story.length) {
         brain.innerHTML = '<div class="empty">— session story builds as reads &amp; intakes land —</div>';
       } else {
         brain.innerHTML = story.map(function(line, i, a){

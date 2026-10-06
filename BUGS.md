@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1809 - AN UNREAD JOURNAL READ AS A QUIET STORY (2026-10-06)
+
+The story feed treats an empty story as "session story builds as reads & intakes land". An unread journal walk is that same empty list: the poll already says verdict unknown, and the story is empty because the walk did not copy it. A measured empty night still says the story builds. A landed line is still a line. An idle night with a line still shows that line. A miss with no line still says the story builds. An unread walk says the journal was not read, a leftover list does not paint, and a second poll still repaints when the walk goes unread. Law `test_an_unread_journal_is_not_a_quiet_story`.
+
 ### REG-1808 - AN UNREAD JOURNAL READ AS A QUIET MIND (2026-10-06)
 
 The mind lamp treats an empty thought list as "quiet · no thoughts yet". An unread journal walk is that same empty list: the poll already says verdict unknown, and the story is empty because the walk did not copy it. A measured empty night still says quiet. A thought on air is still a thought, and two still say thoughts. Off air, a measured night still says quiet. An unread walk says the journal was not read, on air and off, and a leftover thought list does not light the lamp. Law `test_an_unread_journal_is_not_a_quiet_mind`.
