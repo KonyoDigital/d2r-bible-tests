@@ -37015,6 +37015,10 @@ body{
 .vfr-row:hover .vfr-name{text-shadow:0 0 9px rgba(240,192,96,.35)}
 .vfr-loc{font-family:ui-monospace,monospace;font-size:11.5px;color:var(--text);white-space:nowrap}
 .vfr-loc .vfr-mule{color:var(--best,#66ff88);font-weight:var(--fw-semibold)}
+/* #264 — the finder names the cell, or where an item would go, or why it stays; the long ones wrap rather than push the row past a phone's edge */
+.vfr-loc .vfr-cell{color:var(--text-dim)}
+.vfr-loc .vfr-would,.vfr-loc .vfr-main{white-space:normal}
+.vfr-loc .vfr-main{color:var(--gold-dim,#b89b5e)}
 .vfr-loc .vfr-arrow{color:var(--gold-dim);margin:0 5px}
 .vfr-empty{padding:14px 13px;text-align:center;color:var(--text-muted);font-style:italic;font-size:12.5px}
 .vfr-empty b{color:var(--gold-bright,#f0c060);font-style:normal}
@@ -38999,12 +39003,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return;
     }
     var rows = matches.slice(0,30).map(function(n){
-      var mid = assign[n], m = mid ? muleById(mid) : null;
-      var loc = m
-        ? '<span class="vfr-arrow">→</span><span class="vfr-mule">'+esc(m.icon+' '+m.name)+'</span>'
-        : '<span class="vfr-arrow">→</span><span style="color:var(--text-dim)">unsorted · in the dock</span>';
+      /* #264 — the mule AND the cell (or where it would go, or why it stays), from the packer the mule window draws */
+      var w = (typeof window._vaultWhereIs === 'function') ? window._vaultWhereIs(n) : null;
+      var mid = (w && (w.kind === 'filed' || w.kind === 'worn' || w.kind === 'over' || w.kind === 'would')) ? w.mule : null;
+      var loc = !w ? '<span class="vfr-arrow">→</span><span style="color:var(--text-dim)">UNKNOWN — the finder could not ask where it is</span>'
+        : (w.kind === 'would') ? '<span class="vfr-arrow">→</span><span class="vfr-would">would go to <span class="vfr-mule">'+esc(w.muleName)+'</span> — press Auto-Sort to file it</span>'
+        : (w.kind === 'main') ? '<span class="vfr-arrow">→</span><span class="vfr-main">stays with your MAIN — '+esc(w.why)+'</span>'
+        : (w.kind === 'dock') ? '<span class="vfr-arrow">→</span><span style="color:var(--text-dim)">unsorted · in the dock — '+esc(w.why)+'</span>'
+        : '<span class="vfr-arrow">→</span><span class="vfr-mule">'+esc(w.muleName)+'</span>'
+          + (w.cell ? '<span class="vfr-cell"> · '+esc(w.cell)+'</span>' : '<span class="vfr-cell"> · cell UNKNOWN</span>');
       var click = mid ? ' onclick="window.openMuleCard&&window.openMuleCard(\''+jsArg(mid)+'\')"' : '';
-      return '<div class="vfr-row"'+click+' title="'+(mid?'open this mule’s ID card':'still unsorted — assign it to a mule')+'">'
+      return '<div class="vfr-row"'+click+' title="'+(mid?(w.kind==='would'?'open the mule it would go to':'open this mule’s ID card'):'not in a mule — see why beside it')+'">'
         + art(n) + '<span class="vfr-name"'+(typeof _qStyle==='function'?_qStyle(n,'unique'):'')+'>'+esc(n)+'</span><span class="vfr-loc">'+loc+'</span></div>';
     }).join('');
     res.innerHTML = '<div class="vfr-head">'+matches.length+' match'+(matches.length===1?'':'es')+(matches.length>30?' · showing 30':'')+' — click to open the mule</div>' + rows;
@@ -43575,6 +43584,12 @@ window.vaultAutoAssign = function(){
   function _hasPicture(row){
     return !!(row && Array.isArray(row.looks) && row.looks.some(function(e){ return e && e.frame; }));
   }
+  /* the same rule, asked by name - the vault finder says "stays with your MAIN" from it */
+  window._vaultLastSeenOnMain = function(name){
+    var loc = null;
+    try { loc = _newestPlacedLoc(_provAll()[String(name == null ? '' : name).trim()] || null); } catch(e){ loc = null; }
+    return (loc && _WIT_MAIN[loc]) ? loc : null;
+  };
   var _AUTOSORT_LEFT_SAY = { throwout: 'discard suggestion', keep: 'keep-on-MAIN', shared: 'shared-stash-only', stays: 'locked', unknown: 'with no answer' };
   window.vaultAutoSortByHand = function(){
     var first = window.vaultAutoAssign();          /* its own rule first: re-file what already carries a witness */
@@ -43967,16 +43982,23 @@ window.vaultAutoAssign = function(){
   }
   try { window._sharedStashPages = _sharedStashPages; } catch(e){}
   window._sharedSetPage = function(i){ _sharedPage = Math.max(0, Math.min(4, i | 0)); window.openMuleCard('shared'); };
+  /* #264 — what the shared stash holds, and how ONE tab of it packs: the window draws it and the vault finder (_vaultWhereIs)
+     names a cell from it, so the two can never disagree about where an item sits */
+  function _sharedNames(){ try { return Object.keys(assign).filter(function(n){ return assign[n] === 'shared'; }).sort(); } catch(e){ return []; } }
+  function _sharedPack(items){
+    var sized = (items || []).map(function(n){ var s = vaultSize(n); return { n: n, w: s[0], h: s[1], area: s[0] * s[1] }; })
+                             .sort(function(a, b){ return b.area - a.area || b.h - a.h; });
+    return packGrid(sized, 10, 10);
+  }
+  try { window._sharedNames = _sharedNames; window._sharedPack = _sharedPack; } catch(e){}
   function _renderSharedStash(box){
     // v364 — SHARED holds items ASSIGNED here (auto-sorted by value during intake, or dragged manually).
-    var names = (function(){ try { return Object.keys(assign).filter(function(n){ return assign[n] === 'shared'; }).sort(); } catch(e){ return []; } })();
+    var names = _sharedNames();
     var pages = _sharedStashPages(names);
     var pg = pages[_sharedPage] || pages[0];
-    var sized = pg.items.map(function(n){ var s = vaultSize(n); return { n: n, w: s[0], h: s[1], area: s[0] * s[1] }; })
-                        .sort(function(a, b){ return b.area - a.area || b.h - a.h; });
     var vw = window.innerWidth || 1440, vh = window.innerHeight || 900;
     var cell = Math.max(28, Math.min(64, Math.floor(Math.min((vw * 0.46) / 10, (vh - 300) / 10))));
-    var packed = packGrid(sized, 10, 10);
+    var packed = _sharedPack(pg.items);
     var slotName = function(p){ return 'col ' + (p.x + 1) + ' · row ' + (p.y + 1); };
     var tabs = pages.map(function(p, i){ return '<div class="vd-tab' + (i === _sharedPage ? ' vt-on' : '') + '" onclick="window._sharedSetPage(' + i + ')">' + p.icon + ' ' + p.label + '</div>'; }).join('');
     var list = packed.placed.map(function(p){ return '<div>' + esc(p.n) + ' → <span class="vl-slot">' + esc(pg.label.toUpperCase()) + ' ' + slotName(p) + '</span></div>'; }).join('');
@@ -44258,6 +44280,57 @@ window.vaultAutoAssign = function(){
     return names;
   }
   window._muleNamesFor = _muleNamesFor;
+  /* ══ #264 (2026-10-07) — WHERE IS IT: THE MULE AND THE CELL, THE SAME ANSWER THE MULE WINDOW DRAWS ═════════════════
+     His words: "that way i also can just type it in the console and find the mule related". The finder said a mule's
+     name, or "unsorted · in the dock" for everything else - including a charm sitting in MAGIC & RARE. Now it asks the
+     packer the mule window uses (_muleLoad with the doll's worn copies; _sharedPack for the shared tabs), so the finder
+     and the window cannot disagree about a cell. A dock item says where it WOULD go and that Auto-Sort files it; an item
+     his MAIN wore or carried when last seen says so; anything else in the dock says the router's own answer.
+     -> {kind:'filed'|'worn'|'over'|'would'|'main'|'dock', mule, muleName, cell, why} or null for no name */
+  function _vaultWhereIs(n){
+    var nm = String(n == null ? '' : n).trim();
+    if (!nm) return null;
+    var mid = assign[nm];
+    if (mid == null && window._vaultInMagicRare && window._vaultInMagicRare(nm)) mid = 'magic-rare';
+    if (mid != null && mid !== '__throwout' && mid !== '__keep'){
+      var m = muleById(mid), mName = m ? ((m.icon ? m.icon + ' ' : '') + m.name) : mid;
+      var out = { kind: 'filed', mule: mid, muleName: mName, cell: null, why: '' };
+      try {
+        if (mid === 'shared'){
+          var pages = _sharedStashPages(_sharedNames());
+          for (var i = 0; i < pages.length && !out.cell; i++){
+            var pk = _sharedPack(pages[i].items);
+            pk.placed.forEach(function(p){ if (!out.cell && p.n === nm) out.cell = pages[i].label + ' tab · col ' + (p.x + 1) + ' · row ' + (p.y + 1); });
+            if (!out.cell && pk.left.some(function(p){ return p.n === nm; })){ out.kind = 'over'; out.cell = pages[i].label + ' tab - it does not fit on that tab'; }
+          }
+        } else {
+          var eq = _mpEqAll(), worn = _mpWornFor(mid, eq);
+          if (worn[nm]){ out.kind = 'worn'; out.cell = 'worn by the doll'; return out; }
+          var load = _muleLoad(_muleNamesFor(mid), worn, mid);
+          (load.mules || []).forEach(function(mu, pi){
+            if (out.cell) return;
+            var tag = (load.mules.length > 1 ? 'Mule ' + (pi + 1) + ' · ' : '');
+            (mu.stash || []).forEach(function(p){ if (!out.cell && p.n === nm) out.cell = tag + 'Personal stash · col ' + (p.x + 1) + ' · row ' + (p.y + 1); });
+            MULE_STASH_TABS.slice(1).forEach(function(t){ ((mu.tabs || {})[t] || []).forEach(function(p){
+              if (!out.cell && p.n === nm) out.cell = tag + MULE_AREAS[t][2] + ' stash · col ' + (p.x + 1) + ' · row ' + (p.y + 1); }); });
+            (mu.inv || []).forEach(function(p){ if (!out.cell && p.n === nm) out.cell = tag + 'Inventory · col ' + (p.x + 1) + ' · row ' + (p.y + 1); });
+          });
+          if (!out.cell && (load.rem || []).some(function(p){ return p && p.n === nm; })){ out.kind = 'over'; out.cell = 'it does not fit - this locker is over its mules'; }
+        }
+      } catch(e){ out.cell = null; }
+      return out;
+    }
+    var mainLoc = (typeof window._vaultLastSeenOnMain === 'function') ? window._vaultLastSeenOnMain(nm) : null;
+    if (mainLoc) return { kind: 'main', mule: null, muleName: null, cell: null, why: (mainLoc === 'equipped' ? 'worn' : 'carried in your ' + mainLoc) + ' by your MAIN when last seen' };
+    var pg = null;
+    try { pg = window.vaultPropose(nm); } catch(e){ pg = null; }
+    if (pg && pg.ok === true && pg.kind === 'mule'){
+      var wm = muleById(pg.id);
+      return { kind: 'would', mule: pg.id, muleName: wm ? ((wm.icon ? wm.icon + ' ' : '') + wm.name) : pg.home, cell: null, why: pg.why };
+    }
+    return { kind: 'dock', mule: null, muleName: null, cell: null, why: (pg && pg.why) || 'no answer from the router' };
+  }
+  window._vaultWhereIs = _vaultWhereIs;
 
   /* ══ #174 v-B — THE DOLL EQUIPS FROM ITS OWN LOCKER, AND EVERY STAT SAYS WHERE ITS NUMBER CAME FROM.
      His words: click a slot and pick from this mule's items; hover is the board's own item card; the stats
