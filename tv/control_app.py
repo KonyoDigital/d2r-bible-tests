@@ -24082,19 +24082,25 @@ def relaunch_in_use(input_age_s, hidden, held_for_s, still_s=None, max_s=None, t
     still = RELAUNCH_STILL_S if still_s is None else float(still_s)
     cap = RELAUNCH_IN_USE_MAX_S if max_s is None else float(max_s)
     if hidden or input_age_s is None or float(input_age_s) >= still:
-        if track:
-            _IN_USE_HOLD["since"] = None
-            _IN_USE_HOLD["capped"] = False     # his streak ended: the next one gets its own ceiling
+        _IN_USE_HOLD["since"] = None
+        _IN_USE_HOLD["capped"] = False         # his streak ended: the next one gets its own ceiling
         return False, ""
+    if not track:
+        # REG-2015 (the #231 eye on v3612) - NO BUILD IS WAITING, SO NO HOLD IS RUNNING, SO NO CLOCK. Skipping the writes
+        # here (REG-2014's first cut) also skipped the CLEAR: a drift flag that read None for one poll left an old
+        # `since` ageing, and the next waiting build met the ceiling at once and replaced the window under him.
+        _IN_USE_HOLD["since"] = None
+        _IN_USE_HOLD["capped"] = False
+        return True, ("you are using the window (last touched %ds ago) - an update would wait until it has been still "
+                      "for %ds" % (int(float(input_age_s)), int(still)))
     # REG-2012 (the #231 eye on v3609) - THE CEILING IS STICKY until his streak ends. It used to clear `since`, so the
     # next poll - the fleet beacon's _relaunch_report asks this same question - started a fresh 20 minutes, and the
     # drift loop might never see the ceiling at all.
     if _IN_USE_HOLD.get("capped") or float(held_for_s or 0.0) >= cap:
-        if track:
-            _IN_USE_HOLD["capped"] = True
+        _IN_USE_HOLD["capped"] = True
         return False, ("he has used the window for %d min straight - the update lands now rather than never"
                        % int(cap // 60))
-    if track and _IN_USE_HOLD.get("since") is None:
+    if _IN_USE_HOLD.get("since") is None:
         _IN_USE_HOLD["since"] = time.time()
     return True, ("you are using the window (last touched %ds ago) - the update lands once it has been still for %ds"
                   % (int(float(input_age_s)), int(still)))

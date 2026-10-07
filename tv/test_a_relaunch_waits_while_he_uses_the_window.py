@@ -126,6 +126,18 @@ class ARelaunchWaitsWhileHeUsesTheWindow(unittest.TestCase):
             CA.drift_may_relaunch(detail={})
         self.assertIsNotNone(CA._IN_USE_HOLD["since"], "a waiting build held for him but its clock did not start")
 
+    def test_a_poll_with_no_build_waiting_clears_an_old_hold(self):
+        """REG-2015 (the #231 eye on v3612) - a hold that was running when the drift flag read not-True for a poll must
+        not keep ageing: no build waiting means no hold, so its clock and latch are cleared, and the next waiting
+        build starts from zero."""
+        CA._IN_USE_HOLD.update(since=time.time() - 3 * 3600, capped=True)
+        hold, _w = CA.relaunch_in_use(5.0, False, 3 * 3600.0, track=False)
+        self.assertTrue(hold, "with no build waiting the verdict still says he would be waited for")
+        self.assertIsNone(CA._IN_USE_HOLD["since"], "an old hold's clock kept ageing with no build waiting (REG-2015)")
+        self.assertFalse(CA._IN_USE_HOLD["capped"], "an old latch survived a poll with no build waiting")
+        hold, _w = CA.relaunch_in_use(5.0, False, CA._in_use_held_for_s(), track=True)
+        self.assertTrue(hold, "the next waiting build met a stale ceiling and replaced the window at once")
+
     def test_status_reads_the_input_age_once(self):
         vals = iter([5.0, None])
         with mock.patch.object(CA, "ui_input_age_s", lambda: next(vals)):
@@ -141,6 +153,11 @@ class ARelaunchWaitsWhileHeUsesTheWindow(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2015 - a poll with no build waiting leaves an old hold ageing, so the next build meets a stale ceiling",
+     "file": "tv/control_app.py",
+     "find": "    if not track:\n",
+     "replace": "    if False:\n",
+     "matches": 1},
     {"why": "REG-2014 - the ceiling clock runs with no build waiting, so a build landing mid-streak replaces the window at once",
      "file": "tv/control_app.py",
      "find": '                                     track=(_DRIFT.get("drift") is True))\n',
