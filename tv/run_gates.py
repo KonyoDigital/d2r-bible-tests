@@ -8923,6 +8923,12 @@ GATES = [
          why=("REG-1959 - the ALT has no stash_gate_cache (it never filmed a stash panel), so its vault lane could never "
               "prove itself live and retired every reel un-extracted; a tracked stash frame, pinned by sha256, is the canary.")
          ),
+    Gate("test_a_lane_short_of_memory_says_so", [sys.executable,
+         os.path.join(HERE, "test_a_lane_short_of_memory_says_so.py")], 60,
+         needs_app=False,
+         why=("REG-2003 - on the ALT the 1024 MB worker floor kept the canary's OCR worker from starting (403 MB free), and "
+              "every held reel said only 'could not be proven live'; the probe now names memory and an idle PC frees its view.")
+         ),
     Gate("test_a_proof_short_of_memory_frees_an_idle_view", [sys.executable,
          os.path.join(HERE, "test_a_proof_short_of_memory_frees_an_idle_view.py")], 30,
          needs_app=False,

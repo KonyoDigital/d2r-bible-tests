@@ -406,6 +406,12 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2003 - THE ALT'S VAULT LANE WAS HELD BY MEMORY AND SAID ONLY "COULD NOT BE PROVEN LIVE" (2026-10-07, read over SSH on v3604)
+
+After v3604 landed the ALT relaunched onto it, and every held reel in its .vault_autoread.json still read "the lane could not be proven live, so 'no stash here' is UNKNOWN" - REG-1959's shipped canary had not proven the lane. Measured on the ALT with one bounded read-only child: the canary frame is present and pinned, the OCR command is ocr_win.ps1, and the read came back in 0.03 s with nothing - `_child_guard.secondary_spawn_allowed()` answered "free RAM 403 MB is under the 1024 MB floor" (7.9 GB box: the console 1.2 GB, WebView2 ~1 GB, Boosteroid 0.4 GB, Defender 0.3 GB). The refusal is right; what was wrong is that nothing said so, and that REG-1957's idle-PC view release - built for exactly this shortage - answered only an owed proof.
+
+Fixed: `OcrWorker.ram_refused` keeps the floor's sentence (cleared by a spawn that is not refused); `LaneCanary.probe` carries it as `why`; the vault sweep prints it, appends it to the lane note, and asks `_vault_lane_free_view`, which goes through the SAME `view_release_for_proof` decision as the proof (memory the one refusal, he is measured not playing, the window already sent away or 30 idle minutes) and frees the view under its own reason. While he plays on the ALT nothing changes, and the note now says why. Law `test_a_lane_short_of_memory_says_so` (5 cases, 5 RED_PROOFs).
+
 ### REG-2002 - HIS OWN RULING WAS HELD BY HIS OWN UN-TICK (2026-10-07, Routine I red on da9651a3)
 
 Routine I went red on da9651a3 with eight cases in two specs, both green on 76b1b8f3. Attributed by delta to REG-1906 (a sweep holds every name in d2r_grailUnfound), and the two specs split:

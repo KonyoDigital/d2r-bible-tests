@@ -19462,7 +19462,7 @@ def view_release_for_proof(key, playing, mode, idle_s, idle_bar_s=None):
                   "(every lane keeps running - the Desktop icon brings the window back)" % int(idle // 60))
 
 
-def _self_prove_free_view(r):
+def _self_prove_free_view(r, owed="a proof is owed and memory is short"):
     """REG-1957 — act on view_release_for_proof after a memory-refused tick. -> r, with what was decided. Never raises."""
     try:
         if not isinstance(r, dict) or r.get("key") != "low-memory":
@@ -19471,7 +19471,7 @@ def _self_prove_free_view(r):
         ok, why = view_release_for_proof(r.get("key"), _sp_playing_here(), mode, _os_input_idle_s())
         r = dict(r, viewRelease=why)
         if ok:
-            q = _quit_window_keeps_service("a proof is owed and memory is short")
+            q = _quit_window_keeps_service(owed)
             r = dict(r, viewFreed=bool((q or {}).get("windowDestroyed")),
                      say="%s - %s" % (r.get("say") or r.get("why") or "low memory", why))
         return r
@@ -35103,11 +35103,17 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
             # cached "panel" is a note about the last time the lane spoke, which would make this a
             # gate that cannot fail. [[feedback-blind-fixture-green-gate]]
             _canary = False
+            _cn_why = ""
             if _read_ok[0] == 0 and _not_stash[0] > 0 and not _pix_err:
                 try:
                     _cn = LaneCanary()
                     _kg = _cn.known_good_frame()
                     _canary = bool(_cn.probe(_kg)) if _kg else False
+                    _cn_why = getattr(_cn, "why", "") if (_kg and not _canary) else ""
+                    if _cn_why:            # REG-2003 - memory, not the gate: say so, and let an idle PC free its view
+                        print("   \u26a0 %s - the vault lane cannot prove itself until memory allows" % _cn_why,
+                              flush=True)
+                        _vault_lane_free_view(_cn_why)
                     if not _canary:
                         print("   \u26a0 the stash gate refused every frame AND the lane could not "
                               "be proven live%s — that is UNKNOWN, not 'nothing here', so nothing "
@@ -35214,7 +35220,8 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
                 # about nothing wrong - while notDefinitiveWhy, computed by the pure function a few lines up, held the
                 # true reason; the lane note prefers this one. Two copies of one rule disagreed, exactly as warned at
                 # the call site above. [[copy-drift]] [[unknown-stays-unknown]]
-                _whynot = ("the lane could not be proven live, so 'no stash here' is UNKNOWN"
+                _whynot = (("the lane could not be proven live, so 'no stash here' is UNKNOWN"
+                            + (" - %s" % _cn_why if _cn_why else ""))   # REG-2003 - the reason, when memory is it
                            if (not _read_ok[0] and _not_stash[0] and not _canary)
                            else "nothing was read" if not _read_ok[0]
                            else ("; ".join(_nd) if (not _definitive and _nd)       # the pure function's answer, asked ONCE
@@ -36362,6 +36369,27 @@ def _shipped_canary(root=None):
     return None
 
 
+def _ocr_ram_refusal():
+    """REG-2003 - the sentence for an OCR worker that memory kept from starting, or "". Never raises.
+
+    MEASURED on his ALT 2026-10-07 18:2x, on v3604: free RAM 403 MB under the 1024 MB secondary-worker floor, so the
+    canary's read came back in 0.03 s with no worker at all, every held reel said only "the lane could not be proven
+    live", and nothing said memory was the reason - or that the idle-PC view release (REG-1957) could fix it."""
+    try:
+        import tv_diablo as _tvd
+        why = str(getattr(getattr(_tvd, "_OCR", None), "ram_refused", "") or "")
+    except Exception:
+        return ""
+    return ("the OCR worker was not started (%s)" % why) if why else ""
+
+
+def _vault_lane_free_view(why):
+    """REG-2003 - the vault lane could not prove itself because memory kept its OCR worker from starting: the SAME
+    idle-PC view release REG-1957 runs for an owed proof (one decision, view_release_for_proof). -> dict. Never raises."""
+    return _self_prove_free_view({"key": "low-memory", "say": "the vault lane cannot prove itself - %s" % why},
+                                 owed="the vault lane cannot prove itself and memory is short")
+
+
 class LaneCanary(object):
     """Proof, from DELIBERATE PROBES, that the OCR lane was alive around a given moment.
 
@@ -36389,6 +36417,7 @@ class LaneCanary(object):
 
     def __init__(self, window_s=None):
         self.marks = []          # (t, live) — PROBES ONLY
+        self.why = ""           # REG-2003 - why the last probe failed, when memory kept the OCR worker from starting
         self.window_s = float(window_s if window_s is not None
                               else os.environ.get("TV_CANARY_WINDOW_S") or 180.0)
 
@@ -36479,6 +36508,7 @@ class LaneCanary(object):
         # this frame is KNOWN to be a panel, so the lane is proven only if it says so again
         live = bool(val is not None and not _gate_blind(r))
         self.marks.append((now, live))
+        self.why = "" if live else _ocr_ram_refusal()
         return live
 
     def live_at(self, t):

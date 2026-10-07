@@ -5418,6 +5418,7 @@ class OcrWorker:
         self.q = None
         self.lock = threading.Lock()
         self.ok = False
+        self.ram_refused = ""     # REG-2003 - why the last spawn was refused for memory; "" once a spawn is not
 
     def available(self):
         return bool(OCR_ENABLED and _ocr_worker_cmd() is not None)   # v818 — platform-aware
@@ -5437,11 +5438,13 @@ class OcrWorker:
             _ram_ok, _ram_why = _child_guard.secondary_spawn_allowed()
             if not _ram_ok:
                 self.ok = False
+                self.ram_refused = str(_ram_why or "memory is short")   # REG-2003 - the canary names it
                 if not globals().get("_OCR_RAM_SAID"):
                     globals()["_OCR_RAM_SAID"] = True
                     ev("cap", "ocr worker not started: " + _ram_why)
                 return False
             globals()["_OCR_RAM_SAID"] = False
+            self.ram_refused = ""
             self.p = _child_guard.spawn("ocr",
                 cmd,
                 stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
