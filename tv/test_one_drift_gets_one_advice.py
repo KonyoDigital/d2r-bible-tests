@@ -78,7 +78,7 @@ class OneDriftGetsOneAdvice(unittest.TestCase):
 RED_PROOF = [
     {"why": "REG-2025 - the page-newer line shows beside an armed RELAUNCH NOW again",
      "file": "tv/control_ui.html",
-     "find": DEFER,
+     "find": "      if (_newer && _fb && !_fb.hidden && _fb.getAttribute('data-stage') === 'ready') _newer = '';\n",
      "replace": "",
      "matches": 1},
     {"why": "REG-2025 - armRelaunch stops marking its stage",
