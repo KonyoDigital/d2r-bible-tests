@@ -5739,6 +5739,12 @@ class TestV2319StatusIsCheapEnoughToPOLL(unittest.TestCase):
         real = ca._vault_autoread_state
         ca._vault_autoread_state = lambda: (calls.__setitem__("n", calls["n"] + 1), {})[1]
         try:
+            # ⚠ 2026-10-07 - AND ONE REFRESH AT A TIME: a REAL refresh an earlier case kicked can still be running in this
+            # process, and while it runs the kick starts nothing - so the stub is never called (the v3615 pre-run's
+            # second red, inside the full suite only). Let it finish first (bounded).
+            _busy_until = time.time() + 30.0
+            while ca._VAULT_AUTOREAD_REFRESH.get("running") and time.time() < _busy_until:
+                time.sleep(0.05)
             ca._VAULT_AUTOREAD_CACHE["t"], ca._VAULT_AUTOREAD_CACHE["d"] = 0.0, None
             for _ in range(20):
                 ca._vault_autoread_state_cached()
