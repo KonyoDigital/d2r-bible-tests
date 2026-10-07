@@ -42,6 +42,11 @@ NODE = shutil.which("node")
 UI = os.path.join(HERE, "control_ui.html")
 
 RED_PROOF = [
+    {"why": "REG-1985 - a PC with no Claude CLI is told 'nothing to sign in with' again, and never how to get one",
+     "file": "claude_signin.py",
+     "find": "        return None, (\"the Claude CLI is not installed on this PC - install it once in %s:  %s  - then click SIGN IN \"\n",
+     "replace": "        return None, \"the Claude CLI was not found on this PC, so there is nothing to sign in with\"; (\"\"\n",
+     "matches": 1},
     {"why": "REG-1639 - the Mac's second click opens a second Terminal sign-in again (osascript leaves nothing to ask)",
      "file": "claude_signin.py",
      "find": "        if how == \"terminal\" and _PROC.get(\"proc\") is None and _at is not None and 0 <= now - float(_at) < TERMINAL_AGAIN_S:\n",
@@ -164,6 +169,10 @@ class TheCliIsAskedAndDriven(unittest.TestCase):
         self.assertEqual(len(mac), 2)
         CS._PROC.update(proc=None, at=None)
         self.assertEqual((none["started"], none["reason"]), (False, "no-cli"))
+        # REG-1985 - a PC with no CLI is told the one line that installs it, on its own shell - never a dead end
+        self.assertIn("PowerShell:  " + CS.INSTALL["win32"], none["why"], "a click on a PC with no Claude CLI went nowhere")
+        mac_none = CS.start(None, "darwin", _popen=pop)
+        self.assertIn("Terminal:  " + CS.INSTALL["other"], mac_none["why"])
         self.assertEqual(len(calls), 1)
 
 

@@ -54,11 +54,19 @@ def status(bin_path, _run=None, timeout=30):
             "why": "claude auth status: %s" % ("signed in" if li else "signed out (%s)" % (d.get("authMethod") or "none"))}
 
 
+#: REG-1985 — the CLI's own installer, the line ON AIR's "fix" already prints (control_app.start_agent). His "if he clicks
+#: it it should route him intelligently to the sign in": a PC with no CLI is the one place a click had nowhere to go - the
+#: answer ended at "nothing to sign in with". It now says the one line that gets there, as Grok's own no-cli answer does.
+INSTALL = {"win32": "irm https://claude.ai/install.ps1 | iex", "other": "curl -fsSL https://claude.ai/install.sh | bash"}
+
+
 def command(bin_path, platform=None):
     """The ONE sign-in command, as the argv to spawn. -> (argv, how) | (None, why)"""
     plat = sys.platform if platform is None else platform
     if not bin_path:
-        return None, "the Claude CLI was not found on this PC, so there is nothing to sign in with"
+        return None, ("the Claude CLI is not installed on this PC - install it once in %s:  %s  - then click SIGN IN "
+                      "(or CLAUDE) again" % (("PowerShell", INSTALL["win32"]) if plat == "win32"
+                                             else ("Terminal", INSTALL["other"])))
     if plat == "win32":
         return [bin_path, "auth", "login"], "window"
     if plat == "darwin":
