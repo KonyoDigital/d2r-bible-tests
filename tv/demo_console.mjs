@@ -644,14 +644,16 @@ async function j7_shelfStory(page) {
   });
   if (r.cards < 1) throw new Error('shelf rendered zero .sh-card');
   if (r.bad) throw new Error(`.sh-verdict missing a 🛡/🚨/🧠/📸 glyph: "${r.bad}"`);
-  // close cleanly: the shelf toggle (#th-shelf, in the uncovered bottom strip) hides the
-  // overlay, then #th-close folds the theatre → console returns to its prior (home) state.
+  // ⚠ REG-1944 (v3603) - THE SHELF OPENED FROM THE CONSOLE'S SHELF BUTTON IS THE DOOR, AND HIDING IT CLOSES EVERYTHING.
+  // This journey used to hide the overlay with #th-shelf and then fold the theatre with #th-close. Since REG-1944
+  // (a door shelf hidden bare left an empty black stage captioned 'the shelf') #th-shelf on a door closes the theatre
+  // too, so #th-close was hidden and the click waited 30 s for a button that can no longer be there - the v3603 push
+  // was refused on it. The journey now ASSERTS the rule: one #th-shelf, and the console is home.
   await page.click('#th-shelf');
   await page.waitForFunction(() => {
     const ov = document.getElementById('th-shelfov');
     return !ov || ov.hidden;
   }, null, { timeout: 5000 });
-  await page.click('#th-close');
   await page.waitForFunction(() => {
     const th = document.getElementById('theatre');
     if (!th || !th.hidden) return false;
