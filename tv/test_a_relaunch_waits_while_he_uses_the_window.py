@@ -105,6 +105,27 @@ class ARelaunchWaitsWhileHeUsesTheWindow(unittest.TestCase):
             CA.drift_may_relaunch(detail={})
         self.assertIsNotNone(CA._IN_USE_HOLD["since"], "a brief sweep restarted his 20 minutes (REG-2012)")
 
+    def test_the_clock_runs_only_while_a_build_waits(self):
+        """REG-2014 (the #231 eye on v3611) - the beacon asks drift_may_relaunch every 240 s even with no build on disk;
+        his use streak must not count toward the ceiling until a build is actually waiting."""
+        keep = dict(CA._UI_BEAT)
+        self.addCleanup(lambda: (CA._UI_BEAT.clear(), CA._UI_BEAT.update(keep)))
+        CA.ui_beat_record({"inputAgeS": 2.0, "hidden": False})
+        stub = (mock.patch.object(CA, "_env_tristate", lambda k: True),
+                mock.patch.object(CA, "board_identity_drift", lambda: {"state": "ok"}),
+                mock.patch.object(CA, "_sweep_lock_path", lambda: "/nonexistent/.sweep.lock"),
+                mock.patch.object(CA, "_tree_is_mid_edit", lambda: (False, "")),
+                mock.patch.object(CA, "nothing_in_flight", lambda parts=None: (True, "nothing in flight")))
+        for p in stub:
+            p.start()
+            self.addCleanup(p.stop)
+        with mock.patch.dict(CA._DRIFT, {"drift": False}):
+            CA.drift_may_relaunch(detail={})
+        self.assertIsNone(CA._IN_USE_HOLD["since"], "with no build waiting his use streak started the ceiling clock")
+        with mock.patch.dict(CA._DRIFT, {"drift": True}):
+            CA.drift_may_relaunch(detail={})
+        self.assertIsNotNone(CA._IN_USE_HOLD["since"], "a waiting build held for him but its clock did not start")
+
     def test_status_reads_the_input_age_once(self):
         vals = iter([5.0, None])
         with mock.patch.object(CA, "ui_input_age_s", lambda: next(vals)):
@@ -120,6 +141,11 @@ class ARelaunchWaitsWhileHeUsesTheWindow(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2014 - the ceiling clock runs with no build waiting, so a build landing mid-streak replaces the window at once",
+     "file": "tv/control_app.py",
+     "find": '                                     track=(_DRIFT.get("drift") is True))\n',
+     "replace": "                                     track=True)\n",
+     "matches": 1},
     {"why": "REG-2012 - the ceiling is not sticky: the next poll starts a fresh 20 minutes",
      "file": "tv/control_app.py",
      "find": '    if _IN_USE_HOLD.get("capped") or float(held_for_s or 0.0) >= cap:\n',

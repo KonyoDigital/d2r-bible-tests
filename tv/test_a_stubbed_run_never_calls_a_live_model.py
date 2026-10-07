@@ -68,13 +68,13 @@ class AStubbedRunNeverCallsALiveModel(unittest.TestCase):
                              % name)
             self.assertNotIn("raised", out if isinstance(out, dict) else {}, "%s raised: %r" % (name, out))
 
-    def test_baseline_without_the_stub_the_recorder_sees_the_backup_path(self):
-        """Without TV_STUB the same miss DOES go to the model door - so the case above can tell the two apart."""
-        seen = 0
+    def test_baseline_without_the_stub_each_reader_reaches_the_model_door(self):
+        """Without TV_STUB the same miss DOES go to the model door, FOR EACH READER - the #231 eye on v3611: one OR'd
+        count let three readers pass the stub case without ever having been shown to have a live door."""
         for name, call in READERS:
             calls, _o = self._run(call, stub=False)
-            seen += len(calls)
-        self.assertGreater(seen, 0, "premise: the recorder never saw a model call, so the stub case proves nothing")
+            self.assertGreater(len(calls), 0, "premise: %s never reached the model door without the stub, so its stub "
+                                              "case proves nothing" % name)
 
 
 RED_PROOF = [

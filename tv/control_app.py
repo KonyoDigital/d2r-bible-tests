@@ -24020,7 +24020,11 @@ def drift_may_relaunch(detail=None):
     _detail["parts"] = _parts
     if ok:
         # REG-2010 - nothing is in flight, so the last thing between the build and his window is HIS HANDS.
-        _hold, _iu = relaunch_in_use(ui_input_age_s(), bool(_UI_BEAT.get("hidden")), _in_use_held_for_s())
+        # REG-2014 (the #231 eye on v3611) - the clock runs only while a build is WAITING. _relaunch_report asks this
+        # same question every beacon, so with no build on disk his whole use streak used to count toward the ceiling,
+        # and a build landing at minute 25 replaced the window under him at once.
+        _hold, _iu = relaunch_in_use(ui_input_age_s(), bool(_UI_BEAT.get("hidden")), _in_use_held_for_s(),
+                                     track=(_DRIFT.get("drift") is True))
         if _hold:
             _detail["blocker"] = "in-use"
             return False, _iu
@@ -24067,7 +24071,7 @@ def _in_use_held_for_s(now=None, reset=False):
     return 0.0 if since is None else max(0.0, (time.time() if now is None else float(now)) - float(since))
 
 
-def relaunch_in_use(input_age_s, hidden, held_for_s, still_s=None, max_s=None):
+def relaunch_in_use(input_age_s, hidden, held_for_s, still_s=None, max_s=None, track=True):
     """REG-2010 - does HE hold the relaunch? -> (bool, why). Decides the rule; records only when a hold starts/ends.
 
     GrokBot, 2026-10-07 ticks 400, 401 and 404: the console replaced itself three times with an overlay up (the Shelf at
@@ -24078,17 +24082,19 @@ def relaunch_in_use(input_age_s, hidden, held_for_s, still_s=None, max_s=None):
     still = RELAUNCH_STILL_S if still_s is None else float(still_s)
     cap = RELAUNCH_IN_USE_MAX_S if max_s is None else float(max_s)
     if hidden or input_age_s is None or float(input_age_s) >= still:
-        _IN_USE_HOLD["since"] = None
-        _IN_USE_HOLD["capped"] = False         # his streak ended: the next one gets its own ceiling
+        if track:
+            _IN_USE_HOLD["since"] = None
+            _IN_USE_HOLD["capped"] = False     # his streak ended: the next one gets its own ceiling
         return False, ""
     # REG-2012 (the #231 eye on v3609) - THE CEILING IS STICKY until his streak ends. It used to clear `since`, so the
     # next poll - the fleet beacon's _relaunch_report asks this same question - started a fresh 20 minutes, and the
     # drift loop might never see the ceiling at all.
     if _IN_USE_HOLD.get("capped") or float(held_for_s or 0.0) >= cap:
-        _IN_USE_HOLD["capped"] = True
+        if track:
+            _IN_USE_HOLD["capped"] = True
         return False, ("he has used the window for %d min straight - the update lands now rather than never"
                        % int(cap // 60))
-    if _IN_USE_HOLD.get("since") is None:
+    if track and _IN_USE_HOLD.get("since") is None:
         _IN_USE_HOLD["since"] = time.time()
     return True, ("you are using the window (last touched %ds ago) - the update lands once it has been still for %ds"
                   % (int(float(input_age_s)), int(still)))
