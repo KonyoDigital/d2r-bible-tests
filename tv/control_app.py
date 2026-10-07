@@ -278,12 +278,23 @@ def _journal_read(tail_lines=None, tail_bytes=None):
       · one bad line beside a real beat is still that beat (`torn` counts it);
       · a file that opened and held lines, none of them a beat, is UNKNOWN (REG-1791);
       · anything else that stops the read - a stat or open that raised, a path that is not a
-        file, a decode error - is UNKNOWN, and `why` says which.
+        file - is UNKNOWN, and `why` says which.
     `tail_lines` keeps the last N lines, `tail_bytes` the last N bytes (the cut first line is
     dropped, not counted). A whole read is shared by every reader inside one status poll.
+
+    REG-1928 — A BAD BYTE IS A BAD LINE, AND A TAIL WITH NO WHOLE LINE IS NOT AN EMPTY JOURNAL.
+    The whole window was decoded before any line was parsed, so one torn UTF-8 sequence (a write
+    cut mid-character; every writer appends with ensure_ascii=False) turned every beat in the file
+    into UNKNOWN - measured: 3 good beats beside one torn line read 0 rows. Each line is decoded on
+    its own now and a line that will not decode is `torn`, like any other bad line. Lines are cut
+    on "\\n" only: str.splitlines also cuts at U+2028 and U+0085, which a beat can carry inside a
+    string, and turned that one beat into two torn halves. And a `tail_bytes` window that holds no
+    whole line (the newest row is longer than the window) said rows [] with no reason - a measured
+    empty journal for a file full of rows. That is UNKNOWN now, and `why` says the window was short.
     [[unknown-stays-unknown]] [[copy-drift]]
     """
     out = {"rows": [], "why": None, "lines": 0, "torn": 0}
+    _short = False
     try:
         path = _journal_path()
         st, why = _file_look(path, "journal file")
@@ -306,11 +317,14 @@ def _journal_read(tail_lines=None, tail_bytes=None):
             if start:
                 # the byte before the cut says whether the first line is whole; a cut line is not a beat
                 data = data.split(b"\n", 1)[1] if b"\n" in data else b""
-            text = data.decode("utf-8")
+                _short = not data              # REG-1928 - bytes before the window, and no whole line in it
+            text = data.decode("utf-8", "surrogateescape")
         else:
-            with open(path, encoding="utf-8") as fh:
+            with open(path, encoding="utf-8", errors="surrogateescape") as fh:
                 text = fh.read()
-        lines = text.splitlines()
+        lines = text.split("\n")
+        if lines and lines[-1] == "":
+            lines.pop()                        # the newline that ends the last row opens no line
         if tail_lines:
             lines = lines[-int(tail_lines):]
         for ln in lines:
@@ -319,6 +333,7 @@ def _journal_read(tail_lines=None, tail_bytes=None):
                 continue
             out["lines"] += 1
             try:
+                ln.encode("utf-8")             # a byte that was not UTF-8 makes THIS line torn, not the file
                 parsed = json.loads(ln)
             except Exception:
                 out["torn"] += 1      # one bad line is not an unreadable journal
@@ -334,6 +349,10 @@ def _journal_read(tail_lines=None, tail_bytes=None):
     if out["lines"] and not out["rows"]:
         # REG-1791 — opened, and not one line was a beat. That is not a missing file.
         out["why"] = "the journal opened and none of its %d line(s) parsed" % out["lines"]
+    elif _short:
+        # REG-1928 — bytes sit before the window and the window held no whole line: not an empty journal
+        out["why"] = ("the newest journal line is longer than the %d-byte tail, so the tail holds no whole "
+                      "row - UNKNOWN, not an empty journal" % int(tail_bytes))
     elif memo is not None:
         memo[key] = dict(out, rows=list(out["rows"]))   # a read that failed is never shared
     return out
