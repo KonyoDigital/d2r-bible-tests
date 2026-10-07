@@ -5742,6 +5742,14 @@ class TestV2319StatusIsCheapEnoughToPOLL(unittest.TestCase):
             ca._VAULT_AUTOREAD_CACHE["t"], ca._VAULT_AUTOREAD_CACHE["d"] = 0.0, None
             for _ in range(20):
                 ca._vault_autoread_state_cached()
+            # ⚠ 2026-10-07 - THE CACHE KICKS A BACKGROUND REFRESH ("KICK, NEVER BLOCK"), so the one expensive call lands
+            # on another thread. Counting the instant the loop ends read 0 under load (the v3615 pre-run went RED on it,
+            # a race, not the cache), and a refresh that ran after `finally` restored the real function was never
+            # counted at all. Wait (bounded) INSIDE the stubbed window for the kicked refresh, then count.
+            _until = time.time() + 5.0
+            while calls["n"] < 1 and time.time() < _until:
+                time.sleep(0.02)
+            time.sleep(0.2)                     # a second, wrongly-kicked refresh would land in this window
         finally:
             ca._vault_autoread_state = real
             ca._VAULT_AUTOREAD_CACHE["t"], ca._VAULT_AUTOREAD_CACHE["d"] = 0.0, None
