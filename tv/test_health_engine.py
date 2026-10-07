@@ -15,6 +15,13 @@ import health_engine as HE
 
 RED_PROOF = [
     {
+        "why": "REG-1950 - a route that did not refuse is counted as a lock again",
+        "file": "tv/health_engine.py",
+        "find": "    inert = [l for l in valves if l.get(\"state\") == SA.LOCKED]\n",
+        "replace": "    inert = [l for l in locks if l.get(\"state\") == SA.LOCKED]\n",
+        "matches": 1,
+    },
+    {
         "why": 'the law requires this text in health_engine.py, where it occurs exactly once and in no other file the gate names; deleting it must turn the gate red',
         "file": 'health_engine.py',
         "find": 'from confidence import wilson_lower',
@@ -516,6 +523,16 @@ class AHardenedLockIsOpenAndARouteIsNotALock(unittest.TestCase):
         self.assertEqual(r["state"], HE.OK)
         self.assertIn("census is STALE", r["line"])
         self.assertNotIn("none of that may act here", r["line"])
+
+    def test_a_route_that_did_not_refuse_is_named_a_route_and_kept_out_of_the_lock_score(self):
+        """REG-1950 (the #231 eye on 2f5cb714)."""
+        import self_arming as SA
+        r = self._ask([self._one("frame.release", SA.UNPROVEN, k=0, n=0),
+                       self._one("chronicle", SA.LOCKED, kind="route", k=0, n=4)])
+        self.assertEqual(r["state"], HE.WARN, "a route that did not refuse stopped being a warning")
+        self.assertIn("1 route(s) were sabotaged and did not refuse", r["line"])
+        self.assertNotIn("lock(s) were sabotaged", r["line"], "a route was reported as a lock (REG-1950)")
+        self.assertEqual(r.get("proofN"), 0, "a route's trials are in the lock score")
 
     def test_a_lock_that_did_not_refuse_is_still_the_warning(self):
         import self_arming as SA

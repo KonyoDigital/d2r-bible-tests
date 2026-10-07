@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1950 - A ROUTE THAT DID NOT REFUSE WAS REPORTED AS A LOCK (2026-10-07, the #231 eye on 2f5cb714)
+
+`health_engine.check_self_arming` counted valves and routes apart on its OK line, but its WARN branch and its score ran over every row: a route that was sabotaged and did not refuse read "N lock(s) were sabotaged and did not refuse", and a route's trials sat in the lock score. The warning now says lock(s) and route(s) separately and the score counts valves. Law `test_health_engine` (+1 case, +1 RED_PROOF).
+
 ### REG-1949 - A BACKLOG THAT CAUGHT UP KEPT ITS RELAUNCH COUNT IN MEMORY (2026-10-07, the #231 eye on 1ae4574f)
 
 When the triage backlog reached 0, `_triage_backlog_save` wrote relaunches 0 to the file and left `_TRIAGE_LANE["relaunches"]` at its old count; the next backlog in the same process skipped the `n < 1` reset and was saved, and doctored by console_doctor at N >= 2, "across N relaunches" it never relaunched through. A caught-up mark now resets the memory too. Law `test_triage_runs_beside_a_shadow_reel` (+1 case, +1 RED_PROOF).

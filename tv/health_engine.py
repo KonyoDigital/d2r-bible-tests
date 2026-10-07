@@ -636,7 +636,11 @@ def check_self_arming():
     # was the second copy, and it counted OPEN only, so a hardened shelf read as none open.
     valves = [l for l in locks if l.get("kind") != "route"]
     routes = [l for l in locks if l.get("kind") == "route"]
-    inert = [l for l in locks if l.get("state") == SA.LOCKED]
+    # REG-1950 — A ROUTE IS NOT A LOCK HERE EITHER. The OK line below counts valves and routes apart, while
+    # this list and the score ran over EVERY row: a route that did not refuse was reported as "a lock that did
+    # not refuse", and a route's trials sat in the lock score (the #231 eye on 2f5cb714). Each keeps its own word.
+    inert = [l for l in valves if l.get("state") == SA.LOCKED]
+    inert_routes = [l for l in routes if l.get("state") == SA.LOCKED]
     unproven = [l for l in valves if l.get("state") == SA.UNPROVEN]
     incomplete = [l for l in valves if l.get("state") == SA.INCOMPLETE]
     opened = [l for l in valves if l.get("state") in (SA.OPEN, SA.HARDENED)]
@@ -653,16 +657,20 @@ def check_self_arming():
     # refused thirty-eight has that history whether today's answer is OK, WARN or UNKNOWN, and the
     # heart needs it most precisely when something is wrong. [[the-unjoined-end]]
     # [[zero-needs-a-denominator]]
-    tot_k = sum(int(l.get("k") or 0) for l in locks)
-    tot_n = sum(int(l.get("n") or 0) for l in locks)
-    if inert:
+    tot_k = sum(int(l.get("k") or 0) for l in valves)
+    tot_n = sum(int(l.get("n") or 0) for l in valves)
+    if inert or inert_routes:
         # tested, and could not refuse. THAT is the finding — a guard that cannot say no.
-        worst = inert[0]
+        worst = (inert or inert_routes)[0]
         ev = [("%s: %s — %s" % (worst.get("lock"), worst.get("state"), worst.get("why", "")))] \
              + [e for e in ev if not e.startswith("%s:" % worst.get("lock"))]
+        said = []
+        if inert:
+            said.append("%d lock(s) were sabotaged and did not refuse" % len(inert))
+        if inert_routes:
+            said.append("%d route(s) were sabotaged and did not refuse" % len(inert_routes))
         return _row("selfArming", WARN,
-                    "%d lock(s) were sabotaged and did not refuse — %s"
-                    % (len(inert), worst.get("lock")), ev, k=tot_k, n=tot_n,
+                    "%s — %s" % (" · ".join(said), worst.get("lock")), ev, k=tot_k, n=tot_n,
                     surfaces=[l.get("lock") for l in locks if l.get("lock")])
 
     # ⚠ DERIVED, NOT DECLARED: the surfaces are the locks this row actually judged, taken from
