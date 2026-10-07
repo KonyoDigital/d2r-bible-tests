@@ -42363,7 +42363,8 @@ class TestV2392TheWorklistMatchesTheTagNotTheSentence(unittest.TestCase):
 
     def _body(self):
         """Executable lines only — a source guard must not match its own explanation."""
-        raw = _between(self, self.src, "def _vault_owed_reels(", "\ndef ",
+        # REG-1943 - the worklist's body is the counted pass; _vault_owed_reels is the wrapper that assigns the count once
+        raw = _between(self, self.src, "def _vault_owed_reels_counted(", "\ndef ",
                        what="the vault worklist")
         out, in_doc = [], False
         for ln in raw.split("\n"):

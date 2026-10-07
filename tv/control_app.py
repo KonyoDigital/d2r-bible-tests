@@ -30721,18 +30721,31 @@ def _vault_owed_reels(hist=None):
     retention stops calling it vault-blocked, and the panel and the sweeper cannot drift apart.
     [[the-unjoined-end]] [[copy-drift]] [[feedback-contradiction-is-the-finding]]
     """
-    _TRIAGE_RULED_EMPTY["vault"] = None   # REG-1755 - UNKNOWN until this pass counts
+    # REG-1943 (the #231 eye on v3568) - ONE assignment, AFTER the pass. REG-1755 set UNKNOWN on entry so an early
+    # return could not leave the last count standing, but that opened a window: a status poll on another thread,
+    # during a long pass, read UNKNOWN although the last pass had counted (measured: 2 -> None -> 2 across one
+    # overlapping pass). The pass now hands back its own count, None on every UNKNOWN path and on a raise.
+    out, ruled = None, None
+    try:
+        out, ruled = _vault_owed_reels_counted(hist)
+    finally:
+        _TRIAGE_RULED_EMPTY["vault"] = ruled   # REG-1755 - UNKNOWN unless this pass counted
+    return out
+
+
+def _vault_owed_reels_counted(hist=None):
+    """_vault_owed_reels' pass. -> (owed reel paths | None, triage-ruled-empty count | None). None = UNKNOWN."""
     try:
         import reel_retention as _rr
     except Exception:
-        return None                    # UNKNOWN. Never [] - see vault_autoreel_tick.
+        return None, None              # UNKNOWN. Never [] - see vault_autoreel_tick.
     h = hist or os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
     try:
         p = _rr.plan(h)
     except Exception:
-        return None
+        return None, None
     if not p.get("ok"):
-        return None
+        return None, None
     # ⚠⚠ v2225 — PATHS, NOT BASENAMES, AND THIS IS WHY v2223 DID NOTHING AT ALL.
     # reel_retention reports `reel` as a bare basename. The tick handed that straight to
     # _reel_is_growing(), which needs a DIRECTORY and answers GROWING for anything it cannot stat.
@@ -30787,9 +30800,9 @@ def _vault_owed_reels(hist=None):
         # then retires the reel as "still owed". READ_CLEARS is the subset a read can fix.
         _vault_tags = _sd.lane_read_tags("vault")
     except Exception:
-        return None
+        return None, None
     if not _vault_tags:
-        return None
+        return None, None
     # ⚠⚠ 2026-09-29 (#50, REG-1446) — AND THE RIVER'S OWN POSITION, WHICH RETENTION'S ORDER HIDES.
     # A reel at PRINTER (names read, no seal) that retention files as `recent` or `zero-pages`
     # carried no vault tag, so this list never held it and the lane published owed:0 over a reel
@@ -30807,7 +30820,7 @@ def _vault_owed_reels(hist=None):
     #   · an UNREADABLE seal store let a stale PRINTER stamp re-buy a reel that is already sealed. With
     #     the seals UNKNOWN the PRINTER half adds nothing; the tag half is unchanged.
     if _pos is None:
-        return None
+        return None, None
     out = []
     _ruled = 0
     for k in (p.get("kept") or []):
@@ -30831,8 +30844,7 @@ def _vault_owed_reels(hist=None):
         reel_path = os.path.join(h_abs, rid)
         if os.path.isdir(reel_path):
             out.append(reel_path)
-    _TRIAGE_RULED_EMPTY["vault"] = _ruled
-    return out
+    return out, _ruled
 
 
 def _vault_positions_and_seals():

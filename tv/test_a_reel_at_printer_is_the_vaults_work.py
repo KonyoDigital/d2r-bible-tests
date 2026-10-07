@@ -289,6 +289,52 @@ class TheTriageHasRuled(unittest.TestCase):
         self.assertIsNone(ca._TRIAGE_RULED_EMPTY.get("vault"),
                           "the vault list returned UNKNOWN and the heart still shows the last count, 7")
 
+    def test_a_status_poll_during_a_pass_reads_the_last_count_not_unknown(self):
+        """REG-1943 (the #231 eye on v3568) - REG-1755 cleared the count on ENTRY, so a status poll on another thread
+        during a long pass read UNKNOWN although the last pass had counted. MEASURED before the fix: 2 -> None -> 2
+        across one overlapping pass. The pass now assigns its count once, after it ends."""
+        import threading
+        import control_app as ca
+        import reel_retention as rr
+        gate, inside = threading.Event(), threading.Event()
+        kept = list(TheSweeperSelectsOnTheRule.KEPT)
+
+        def plan(h, **k):
+            if threading.current_thread().name == "law-second-pass":
+                inside.set()
+                gate.wait(10)
+            return {"ok": True, "kept": list(kept)}
+        with self._proven("reel_s_15_f", "reel_s_11_b"), mock.patch.object(rr, "plan", plan), \
+                mock.patch.object(ca, "_vault_positions_and_seals", lambda: (self.POS, {"s_14_e": {"by": "vault"}})):
+            ca._vault_owed_reels(hist=tempfile.gettempdir())
+            self.assertEqual(2, ca._TRIAGE_RULED_EMPTY.get("vault"), "PREMISE: the finished pass counted 2")
+            t = threading.Thread(target=ca._vault_owed_reels, kwargs={"hist": tempfile.gettempdir()},
+                                 name="law-second-pass", daemon=True)
+            t.start()
+            try:
+                self.assertTrue(inside.wait(10), "PREMISE: the second pass never reached the plan")
+                during = ca._TRIAGE_RULED_EMPTY.get("vault")
+            finally:
+                gate.set()
+                t.join(10)
+        self.assertEqual(2, during, "a status poll during a pass read %r - UNKNOWN over a count that was measured"
+                                    % (during,))
+
+    def test_a_pass_that_raises_clears_the_count(self):
+        """REG-1943 - the one assignment runs on a raise too: a pass that blew up is UNKNOWN, never the last count."""
+        import control_app as ca
+        import reel_retention as rr
+        ca._TRIAGE_RULED_EMPTY["vault"] = 7
+
+        def boom(*a, **k):
+            raise RuntimeError("law: the rule blew up mid-pass")
+        with mock.patch.object(rr, "plan", lambda h, **k: {"ok": True, "kept": list(TheSweeperSelectsOnTheRule.KEPT)}), \
+                mock.patch.object(ca, "_vault_positions_and_seals", lambda: (self.POS, {})), \
+                mock.patch.object(SD, "vault_owes_read", boom):
+            with self.assertRaises(RuntimeError):
+                ca._vault_owed_reels(hist=tempfile.gettempdir())
+        self.assertIsNone(ca._TRIAGE_RULED_EMPTY.get("vault"), "a pass that raised left the last count, 7")
+
     def test_a_chronicle_pass_that_cannot_list_reels_clears_its_count(self):
         """REG-1755 — the first except in _chron_owed_count returned None and left the chronicle count."""
         import control_app as ca
@@ -316,7 +362,7 @@ RED_PROOF = [
     {
         "why": "2026-09-29 (second eye) - an unreadable stamp log yields a confident shorter list instead of UNKNOWN",
         "file": "tv/control_app.py",
-        "find": "    if _pos is None:\n        return None\n    out = []\n",
+        "find": "    if _pos is None:\n        return None, None\n    out = []\n",
         "replace": "    _pos = _pos or {}\n    out = []\n",
         "matches": 1,
     },
@@ -377,8 +423,20 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-1755 - an early UNKNOWN from the vault list keeps the last triage count beside owed=UNKNOWN",
      "file": "tv/control_app.py",
-     "find": "    _TRIAGE_RULED_EMPTY[\"vault\"] = None   # REG-1755 - UNKNOWN until this pass counts\n",
-     "replace": "",
+     "find": "        _TRIAGE_RULED_EMPTY[\"vault\"] = ruled   # REG-1755 - UNKNOWN unless this pass counted\n",
+     "replace": "        _TRIAGE_RULED_EMPTY[\"vault\"] = ruled if ruled is not None else _TRIAGE_RULED_EMPTY[\"vault\"]\n",
+     "matches": 1},
+    {"why": "REG-1943 - the vault count is cleared on ENTRY again: a status poll during a pass reads UNKNOWN",
+     "file": "tv/control_app.py",
+     "find": "    out, ruled = None, None\n    try:\n        out, ruled = _vault_owed_reels_counted(hist)\n",
+     "replace": "    out, ruled = None, None\n    _TRIAGE_RULED_EMPTY[\"vault\"] = None\n    try:\n"
+                "        out, ruled = _vault_owed_reels_counted(hist)\n",
+     "matches": 1},
+    {"why": "REG-1943 - a pass that raises keeps the last count standing",
+     "file": "tv/control_app.py",
+     "find": "    try:\n        out, ruled = _vault_owed_reels_counted(hist)\n    finally:\n",
+     "replace": "    try:\n        out, ruled = _vault_owed_reels_counted(hist)\n    except Exception:\n"
+                "        raise\n    else:\n",
      "matches": 1},
     {"why": "REG-1755 - a chronicle pass that cannot list the reels keeps the last triage count",
      "file": "tv/control_app.py",
