@@ -8866,6 +8866,12 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_a_repainted_press_is_not_a_click", [sys.executable,
+         os.path.join(HERE, "test_a_repainted_press_is_not_a_click.py")], 30,
+         needs_app=False,
+         why=("REG-1951 - the shelf repaints when /api/sessions lands, so a press on a card it removed ended as a click "
+              "between the new cards and the click-outside rule closed the shelf door; that click is now ignored.")
+         ),
     Gate("test_a_dict_literal_sets_each_key_once", [sys.executable,
          os.path.join(HERE, "test_a_dict_literal_sets_each_key_once.py")], 60,
          needs_app=False,

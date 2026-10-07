@@ -18514,7 +18514,9 @@ window._lockMark = function(isOpen, px, label){
       _ss.onkeydown = function(e){ e.stopPropagation(); };   // arrow keys navigate options, never the theatre transport
       _shSort();                                  // apply the (persisted or default) sort on every render
     }
+    ov.onpointerdown = function(e){ ov.__pressT = e.target; };   // REG-1951 — what the press landed on
     ov.onclick = function(e){
+      if (_shPressWasRepainted(ov, e)) return;   // REG-1951 — the shelf repainted under the press: not a decision
       /* v2451 — ✕ LEAVES THE WAY HE CAME IN. Measured: it hid the overlay and left him on a bare
          theatre stage — a black rectangle he never asked for, which is very likely the "empty
          panel" he photographed earlier and I mis-attributed to a rejected thOpen().
@@ -20130,6 +20132,20 @@ window._lockMark = function(isOpen, px, label){
      should put him back to it. Both wrong answers are kept here because the second one looks more
      principled than the first and is not.
      [[unknown-stays-unknown]] [[feedback-verify-not-proxy]] */
+  /* REG-1951 — A CLICK WHOSE PRESS WAS REPAINTED AWAY IS NOT A DECISION. The shelf re-renders itself when its
+     /api/sessions answer lands (innerHTML replaced), so a press on card 6 that the repaint removed ends as a click
+     on the overlay between the new cards - and "a click outside a card dismisses" closed the whole shelf door onto
+     the TV.D body (GrokBot tick 381, 07:13:08: "the first click on card 6 didn't open the theatre; the whole
+     drawer closed", and it reopened at the top). A press whose element is no longer in the page, or a click on a
+     node that is gone, does nothing; the next click is his. -> true = ignore this click */
+  function _shPressWasRepainted(ov, e){
+    try {
+      var p = ov && ov.__pressT;
+      if (ov) ov.__pressT = null;
+      if (e && e.target && e.target.isConnected === false) return true;
+      return !!(p && p.isConnected === false);
+    } catch (_e) { return false; }
+  }
   function _thShelfWasTheDoor(){
     try { return !!TH.shelfIsDoor; } catch (e) { return false; }
   }

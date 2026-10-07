@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1951 - THE SHELF CLOSED ON A CARD CLICK THAT A REPAINT HAD SWALLOWED (2026-10-07, GrokBot tick 381)
+
+GrokBot, 07:13:08 on v3601: "the first click on card 6 didn't open the theatre; the whole drawer closed onto the TV.D body", and it reopened at the top. The shelf re-renders itself when its /api/sessions answer lands (innerHTML replaced), so a press on a card that the repaint removed ended as a click on the overlay between the new cards, and the handler's "a click outside a card dismisses, the same way the X does" closed the door. The shelf now records what its press landed on; a click whose press element left the page, or whose own target is gone, is ignored - the next click is his. Law `test_a_repainted_press_is_not_a_click` (node on the real helper + the handler's order, 2 RED_PROOFs).
+
 ### REG-1950 - A ROUTE THAT DID NOT REFUSE WAS REPORTED AS A LOCK (2026-10-07, the #231 eye on 2f5cb714)
 
 `health_engine.check_self_arming` counted valves and routes apart on its OK line, but its WARN branch and its score ran over every row: a route that was sabotaged and did not refuse read "N lock(s) were sabotaged and did not refuse", and a route's trials sat in the lock score. The warning now says lock(s) and route(s) separately and the score counts valves. Law `test_health_engine` (+1 case, +1 RED_PROOF).
