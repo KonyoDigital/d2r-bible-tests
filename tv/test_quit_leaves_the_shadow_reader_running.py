@@ -128,6 +128,25 @@ class QuitLeavesTheShadowReaderRunning(unittest.TestCase):
         self.assertIs(allowed, False, "X on a reopened window let the view be destroyed")
         self.assertEqual(len(spawned), 1)
 
+    def test_a_second_quit_with_no_window_does_not_unlock_the_next_x(self):
+        """REG-1930 - a quit while parked recorded no window, and the reopened window's X destroyed the view."""
+        self.win.destroy = lambda: None
+        self.assertTrue(ca._quit_window_keeps_service("api-quit:quit-button")["windowDestroyed"])
+        r = ca._quit_window_keeps_service("api-quit:escape-empty-stack")     # parked: there is no window
+        self.assertTrue(r["ok"], r)
+        self.assertFalse(r["windowDestroyed"], r)
+        self.assertIsNone(ca._QUIT_KEEPS_WINDOW, "the fixture no longer reaches the no-window record")
+        ca._MAIN_WIN = _FakeWin()          # the park loop opened a new window in this process
+        spawned = []
+        ca._BG_SPAWN = lambda fn: spawned.append(fn)
+        self.assertIs(ca._on_console_window_closing(), False,
+                      "X on a window the quit never saw let the view be destroyed")
+        self.assertEqual(len(spawned), 1, "the X did not take the background route")
+        self.assertEqual(self.exits, [])
+        # and the quit's own close (its window already marked gone) is still let through
+        ca._MAIN_WIN = None
+        self.assertIs(ca._on_console_window_closing(), True)
+
     def test_a_destroy_that_fails_puts_the_window_back(self):
         def destroy():
             raise RuntimeError("the view would not close")
@@ -354,10 +373,17 @@ RED_PROOF = [
         "why": "quit cancels the close again, so the window stays and the button does nothing",
         "file": "tv/control_app.py",
         "find": "    if (globals().get(\"_QUIT_KEEPS_SERVICE\") and not globals().get(\"_EXIT_REQUESTED\")\n"
-                "            and (_qwin is None or _cur is None or _cur is _qwin)):\n"
+                "            and (_cur is None or _cur is _qwin)):\n"
                 "        return True\n",
         "replace": "    if False:\n"
                    "        return True\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1930 - no recorded window is read as the quit's own close, so a later window's X destroys the view",
+        "file": "tv/control_app.py",
+        "find": "            and (_cur is None or _cur is _qwin)):\n",
+        "replace": "            and (_qwin is None or _cur is None or _cur is _qwin)):\n",
         "matches": 1,
     },
     {

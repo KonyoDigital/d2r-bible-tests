@@ -87,7 +87,7 @@ def _no_sleep(_s):
 
 
 class _Base(unittest.TestCase):
-    KEEP = ("_MAIN_WIN", "_EXIT_REQUESTED", "_QUIT_KEEPS_SERVICE", "_WINDOW_ONLY", "_BG_SPAWN",
+    KEEP = ("_MAIN_WIN", "_EXIT_REQUESTED", "_QUIT_KEEPS_SERVICE", "_QUIT_KEEPS_WINDOW", "_WINDOW_ONLY", "_BG_SPAWN",
             "_request_console_exit", "_win_is_fullscreen", "_win_focus_existing_console",
             "_RE_FULLSCREEN_BUSY", "_mac_set_dock_icon", "_mac_fullscreen_bit")
 
@@ -101,6 +101,7 @@ class _Base(unittest.TestCase):
         ca._BG_SPAWN = lambda fn: fn()
         ca._EXIT_REQUESTED = None
         ca._QUIT_KEEPS_SERVICE = None
+        ca._QUIT_KEEPS_WINDOW = None
         ca._WIN_FS_CACHE["t"] = 0.0
         ca._WIN_FS_CACHE["v"] = None
         ca._WINDOW_ONLY = False
@@ -156,8 +157,12 @@ class WhatTheCloseButtonDoes(_Base):
         self.assertFalse(ca._BACKGROUND["on"])
 
     def test_a_quit_that_keeps_the_service_lets_the_window_close(self):
-        """⏻ Quit sets the flag and does not ask for a process exit. The close is allowed."""
+        """⏻ Quit sets the flag and does not ask for a process exit. The close is allowed.
+
+        REG-1930 - the fixture is the state the quit really leaves: it records the window it closes
+        (_quit_window_keeps_service), and a window up that it did not record is a later one, whose X hides."""
         ca._QUIT_KEEPS_SERVICE = "api-quit:quit-button"
+        ca._QUIT_KEEPS_WINDOW = self.win
         allowed = ca._on_console_window_closing()
         self.assertIs(allowed, True, "quit closed nothing — the window stayed")
         self.assertEqual(self.exits, [], "quit asked the console to exit: %r" % self.exits)

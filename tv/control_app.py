@@ -6468,10 +6468,14 @@ def _on_console_window_closing():
     _cur = globals().get("_MAIN_WIN")
     _qwin = globals().get("_QUIT_KEEPS_WINDOW")
     # REG-1830 — a quit that recorded its window lets only THAT window go. A window that is not
-    # it (one the park loop reopened) takes the normal ✕ route. No recorded window means which
-    # one is UNKNOWN, so the old answer stands: the quit's close is allowed.
+    # it (one the park loop reopened) takes the normal ✕ route.
+    # ⚠ REG-1930 — AND NO RECORDED WINDOW IS NOT A YES. A quit marks its window gone before destroy(),
+    # so its own close always arrives with no window up (`_cur is None`). A quit that found NO window
+    # records None - measured: a second quit while parked overwrote the record, the park loop then
+    # opened a window, and its ✕ was let through to destroy the view instead of hiding it (REG-1830's
+    # defect through a second door). A window up now that the quit did not record is a later one.
     if (globals().get("_QUIT_KEEPS_SERVICE") and not globals().get("_EXIT_REQUESTED")
-            and (_qwin is None or _cur is None or _cur is _qwin)):
+            and (_cur is None or _cur is _qwin)):
         return True
     bg, why = close_means_background(globals().get("_EXIT_REQUESTED"), bool(globals().get("_WINDOW_ONLY")))
     if not bg:
