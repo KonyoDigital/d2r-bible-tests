@@ -53,10 +53,10 @@ class TestTheAuthorIsReadFromTheStamp(unittest.TestCase):
         shutil.rmtree(self.d, ignore_errors=True)
         shutil.rmtree(self.repo, ignore_errors=True)
 
-    def _commit(self, ver, message):
+    def _commit(self, ver, message, extra=None):
         ship = os.path.join(self.repo, "tv", "WINDOWS_SHIP.json")
         with io.open(ship, "w", encoding="utf-8") as fh:
-            json.dump({"ver": ver}, fh)
+            json.dump(dict({"ver": ver}, **(extra or {})), fh)
         subprocess.check_call(["git", "add", "tv/WINDOWS_SHIP.json"], cwd=self.repo)
         subprocess.check_call(
             ["git", "-c", "user.email=seat@example.com", "-c", "user.name=Seat",
@@ -112,11 +112,29 @@ class TestTheAuthorIsReadFromTheStamp(unittest.TestCase):
                          "Claude reviewing Claude counted: %r" % v1)
 
 
+    def test_a_later_rewrite_of_the_same_stamp_line_keeps_the_original_author(self):
+        """REG-2011 (the #231 eye on v3577) - the log is newest-first and the first commit seen to ADD a version kept it,
+        so a later commit that rewrote the same "ver" line (a hand-fixed half-bump, a one-line stamp file edited for
+        another field) took the authorship - and with it which family's look closes the version. The stamp is the
+        OLDEST commit that added the version."""
+        self._commit("v0002", "v0002 each frame keeps its reason\n\nSeat: Grok CLI (code)\n")
+        self._commit("v0002", "fix: the note field of the v0002 stamp", extra={"note": "rewritten"})
+        self.assertEqual(L.author_family("v0002"), "xai",
+                         "a later rewrite of the stamp line took the Grok seat's authorship (REG-2011)")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 
 
 RED_PROOF = [
+    {
+        "why": "REG-2011 - the newest commit that re-adds a stamp line takes its authorship again",
+        "file": "tv/second_eye_ledger.py",
+        "find": '    for part in reversed((log.stdout or "").split("COMMIT ")[1:]):\n',
+        "replace": '    for part in (log.stdout or "").split("COMMIT ")[1:]:\n',
+        "matches": 1,
+    },
     {
         "why": "the author is hardcoded to anthropic again, so a Grok look on a Grok stamp "
                "counts as the other family and a Claude look on it is refused",

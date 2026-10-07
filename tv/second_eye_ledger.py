@@ -706,7 +706,10 @@ def _stamp_authors(repo):
     # pretty line (`  "ver": "v3577"`). Either way the added line is the ver this
     # commit wrote. A context line is a version this commit left alone.
     ver_rx = re.compile(r'^\+.*"ver"\s*:\s*"([^"]+)"', re.M)
-    for part in (log.stdout or "").split("COMMIT ")[1:]:
+    # REG-2011 (the #231 eye on v3577) - OLDEST FIRST. git log is newest-first and the first commit seen to add a
+    # version kept it, so a later rewrite of the same "ver" line (a hand-fixed half-bump, a one-line stamp edited
+    # for another field) took the authorship - and with it which family's look closes the version.
+    for part in reversed((log.stdout or "").split("COMMIT ")[1:]):
         msg, _, diff = part.partition("\nENDMSG\n")
         added = ver_rx.findall(diff)
         if not added:
