@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""REG-1993 — THE RENDER GATE'S BOUND MOVES WITH THE MACHINE'S LOAD, ALL THREE NUMBERS TOGETHER.
+"""REG-1993 - THE RENDER GATE'S BOUND MOVES WITH THE MACHINE'S LOAD, ALL THREE NUMBERS TOGETHER.
 
 His question, 2026-10-07, after the v3603 push starved at the render (353 s, load 8 while he played ON AIR over
 GeForceNOW): "raise the limit why not?". A FIXED higher ceiling is an absent hang detector at every quiet minute, so the
