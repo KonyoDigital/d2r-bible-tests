@@ -12475,7 +12475,7 @@ window._lockMark = function(isOpen, px, label){
     var dov = document.getElementById('th-dossier-ov'); if (dov) dov.hidden = true;
     var sov = document.getElementById('th-shelfov'); if (sov) sov.hidden = true;   // leave the shelf; we're going into the film
     try { if (typeof thOpen === 'function' && !(typeof TH !== 'undefined' && TH.open)) await thOpen(); } catch (e) {}   // v1275 (D3) — dossier can launch from the home (theatre closed): open it first
-    if (typeof thLoadSession === 'function') thLoadSession(Number(n) || 1);
+    if (typeof thLoadSession === 'function') thLoadSession(Number(n) || 1, false, DOSSIER.sid);   // REG-1933 — this dossier's reel, by id
   };
   window._shelfLastSession = async function(){
     /* Last session lives IN the shelf. Same exit as the dossier (hide the shelf, then a reel),
@@ -17055,7 +17055,14 @@ window._lockMark = function(isOpen, px, label){
     clearTimeout(t.__timer);
     t.__timer = setTimeout(function(){ t.classList.remove('show'); setTimeout(function(){ t.hidden = true; }, 220); }, 1600);
   }
-  async function thLoadSession(n, isEntry){
+  async function thLoadSession(n, isEntry, sid){
+    /* REG-1933 — ask for the REEL, not the place it sat. `n` indexes the list this page last
+       fetched, newest first, so one new session between that fetch and this click moves every reel
+       down a place and `?n=46` answered with Session 45. GrokBot's S46 dossier said 49 film frames
+       and the theatre it opened said "film 64": two counts of two different reels, under one name.
+       The id rides along; the server finds the reel by it, and a reel that comes back under any
+       other id is refused here rather than painted. */
+    var _wantSid = String(sid || ((TH.sessions && TH.sessions[n - 1]) || {}).sessionId || '');
     /* v2451 — HE IS WATCHING SOMETHING NOW. Until this call, the shelf was the top surface and ✕
        meant "back to the console". From here on there is a reel he chose, and ✕ means "back to the
        reel". Clearing it HERE rather than guessing at close time is the whole difference between
@@ -17088,7 +17095,7 @@ window._lockMark = function(isOpen, px, label){
     try {
       var _sac = (typeof AbortController !== 'undefined') ? new AbortController() : null;
       var _sto = setTimeout(function(){ try { _sac && _sac.abort(); } catch(e){} }, 12000);
-      r = await fetch('/api/session?n=' + n, _sac ? { signal: _sac.signal } : undefined);
+      r = await fetch('/api/session?n=' + n + (_wantSid ? '&sid=' + encodeURIComponent(_wantSid) : ''), _sac ? { signal: _sac.signal } : undefined);
       clearTimeout(_sto);
       j = await r.json();
     } catch (_se) {
@@ -17101,6 +17108,12 @@ window._lockMark = function(isOpen, px, label){
     }
     if (gen !== TH.loadGen) return;
     if (j.error){ $('th-caption').textContent = '🎞 ' + j.error; TH.beats = []; return; }
+    if (_wantSid && j.sessionId && String(j.sessionId) !== _wantSid){
+      // REG-1933 — an older server ignores sid and answers by place: that is another reel.
+      $('th-caption').textContent = '🎞 the shelf moved while this opened - session ' + n
+        + ' is now a different reel, so nothing was played. Open it again from the shelf.';
+      TH.beats = []; return;
+    }
     var raw = j.beats || [];
     // An empty reel stays THIS session. Opening another one is how the theatre played the wrong film.
     var framed = raw.filter(function(b){ return b && b.frame; }).length;
@@ -19790,7 +19803,7 @@ window._lockMark = function(isOpen, px, label){
     btn.__armed = false; btn.textContent = _thDelLabel; btn.style.color = '';
     try {
       var meta = TH.sessions[TH.sn - 1] || {};
-      var r = await fetch('/api/session/delete', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ n: meta.n || TH.sn }) });
+      var r = await fetch('/api/session/delete', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ n: meta.n || TH.sn, sid: TH.sessionId || meta.sessionId || '' }) });   // REG-1933 — the reel he is watching, by id
       var j = await r.json();
       if (j.ok){
         toast('🗑 session deleted — ' + j.removedReads + ' reads · ' + j.removedFrames + ' frames gone');

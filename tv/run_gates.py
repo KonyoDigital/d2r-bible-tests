@@ -8851,6 +8851,13 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_a_reel_opens_by_its_id", [sys.executable,
+         os.path.join(HERE, "test_a_reel_opens_by_its_id.py")], 30,
+         needs_app=False,
+         why=("REG-1933 - the theatre opened /api/session?n= by PLACE in a newest-first list, so one new session "
+              "moved every reel down and S46's dossier (49 film frames) opened a theatre saying 'film 64'. The page "
+              "sends the reel's id, the server finds it by id, and a reel back under another id is never painted.")
+         ),
     Gate("test_a_relook_says_what_this_os_can_film", [sys.executable,
          os.path.join(HERE, "test_a_relook_says_what_this_os_can_film.py")], 60,
          needs_app=False,

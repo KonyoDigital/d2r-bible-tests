@@ -43185,15 +43185,29 @@ class Handler(BaseHTTPRequestHandler):
                     pass
         threading.Thread(target=_run, daemon=True, name="tvd-prewarm-sess").start()
 
-    def _theatre_session(self, n, pack="debug"):
+    def _theatre_session(self, n, pack="debug", sid=None):
         """v895 — personal visual debugger for one ON AIR session.
         pack=debug|raw: every footage frame + every AI read, capture-clock ordered (default).
-        pack=fast: server-thinned quiet film (optional zip mode — not the debugger default)."""
+        pack=fast: server-thinned quiet film (optional zip mode — not the debugger default).
+
+        REG-1933 — `sid` names the reel; `n` is only where it sat in the list the page last saw.
+        The list is newest first, so one new session moves every reel down a place: GrokBot's
+        Session 46 dossier said 49 film frames while the theatre opened from it said "film 64",
+        S74's card said FILM FRAMES 0 beside a theatre with 11. Given a sid, the reel is found by
+        its id in the journal as it is NOW; a sid the journal no longer holds is refused, never
+        answered with whatever reel now sits at n."""
         try:
             if HERE not in sys.path:
                 sys.path.insert(0, HERE)
             import replay as _rp
             sessions = _rp.split_sessions(self._load_journal_cached())
+            if sid:
+                _at = next((i for i, s2 in enumerate(sessions, 1)
+                            if next((r.get("sessionId") for r in s2 if r.get("sessionId")), "") == sid), 0)
+                if not _at:
+                    return {"error": "reel %s is no longer in the journal - nothing else was opened" % sid,
+                            "sessionId": sid}
+                n = _at
             if n < 1 or n > len(sessions):
                 return {"error": "no such session"}
             sess = sessions[n - 1]
@@ -44836,7 +44850,9 @@ class Handler(BaseHTTPRequestHandler):
             pack = (q.get("pack") or ["debug"])[0].strip().lower()
             if pack not in ("debug", "raw", "fast"):
                 pack = "debug"
-            self._json(200, self._theatre_session(num, pack=pack))
+            # REG-1933 — the reel's id wins over its position; see _theatre_session.
+            _sid_q = str((q.get("sid") or [""])[0]).strip()[:80] or None
+            self._json(200, self._theatre_session(num, pack=pack, sid=_sid_q))
             return
         if path == "/api/forensics":
             # 🔬 READS FORENSICS — the per-item forensic X-ray for one reel (sid) or the newest.
@@ -45646,9 +45662,16 @@ class Handler(BaseHTTPRequestHandler):
             # its window. User-initiated, session-scoped, never touches other reels.
             try:
                 n = int(body.get("n") or 0)
-                sess = self._theatre_session(n)
+                # REG-1933 — the same place-for-reel defect as /api/session, and here it DELETES: one
+                # session started after the theatre loaded and {n} named the reel below his. The id
+                # of the reel he is watching decides; a reel not found by it deletes nothing.
+                _sid_d = str(body.get("sid") or "").strip()[:80] or None
+                sess = self._theatre_session(n, sid=_sid_d)
                 if not isinstance(sess, dict) or not sess.get("beats"):
-                    self._json(404, {"ok": False, "msg": "no such session"})
+                    self._json(404, {"ok": False, "msg": "no such session - nothing was deleted"})
+                    return
+                if _sid_d and sess.get("sessionId") != _sid_d:
+                    self._json(409, {"ok": False, "msg": "that reel moved - nothing was deleted"})
                     return
                 sid = sess.get("sessionId") or ""
                 t0d = (sess.get("t0") or 0) - 2000
