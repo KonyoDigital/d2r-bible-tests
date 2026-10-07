@@ -8851,6 +8851,12 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_the_receipt_answers_beside_itself", [sys.executable,
+         os.path.join(HERE, "test_the_receipt_answers_beside_itself.py")], 60,
+         needs_app=False,
+         why=("REG-1936 - the vault's ◉ refused honestly into #vault-status, a 4.2 s line at the top of the pane, so on "
+              "his console it 'opened NO picture' with the reason off-screen; every refusal now lands beside the ◉.")
+         ),
     Gate("test_a_failed_read_is_not_the_eye_reading", [sys.executable,
          os.path.join(HERE, "test_a_failed_read_is_not_the_eye_reading.py")], 30,
          needs_app=False,
