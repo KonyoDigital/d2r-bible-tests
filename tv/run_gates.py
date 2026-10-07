@@ -8866,6 +8866,12 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_an_install_line_names_this_pcs_shell", [sys.executable,
+         os.path.join(HERE, "test_an_install_line_names_this_pcs_shell.py")], 30,
+         needs_app=False,
+         why=("REG-1991 - the Grok 'Install first' tip offered the Windows PowerShell line on GrokBot's Linux console; "
+              "the page's own platform names the shell (_g5InstallLine).")
+         ),
     Gate("test_a_lane_never_waits_on_the_browser_while_work_waits", [sys.executable,
          os.path.join(HERE, "test_a_lane_never_waits_on_the_browser_while_work_waits.py")], 60,
          needs_app=False,

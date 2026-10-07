@@ -21532,6 +21532,14 @@ window._lockMark = function(isOpen, px, label){
 
        So the card is now ALWAYS present inside ADVANCED and says which of the three it is.
        [[unknown-stays-unknown]] [[feedback-silence-is-not-evidence]] */
+    /* REG-1991 - THE INSTALL LINE FOR THIS PC. GrokBot tick 389, on a Linux console: "⚡ Install first ... offers a Windows
+       PowerShell command" - the tip carried only `irm ... install.ps1 | iex`. The page always runs on the PC it speaks for
+       (127.0.0.1), so its own platform names the shell; REG-1985 did the same for Claude's sign-in. */
+    function _g5InstallLine(plat, ua){
+      var win = /^win/i.test(String(plat || '')) || /Windows/.test(String(ua || ''));
+      return win ? 'in PowerShell: irm https://x.ai/cli/install.ps1 | iex'
+                 : 'in Terminal: curl -fsSL https://x.ai/cli/install.sh | bash';
+    }
     function paintG5(st, why){
       card.hidden = false;                 // never again: a control he is hunting for must be there
       if (!st || st.present === false) {
@@ -21575,7 +21583,8 @@ window._lockMark = function(isOpen, px, label){
       var authorized = st.authorized;
       var _gNeed = g5GrokNeeds(st);        // the ONE readiness rule - the switch's popup asks it too
       if (_gNeed === 'install')
-        bits.push('install Grok CLI via TV installer (or: irm https://x.ai/cli/install.ps1 | iex)');
+        bits.push('install Grok CLI via TV installer (or ' + _g5InstallLine(              // REG-1991 - this PC's shell
+          (typeof navigator !== 'undefined' && navigator.platform) || '', (typeof navigator !== 'undefined' && navigator.userAgent) || '') + ')');
       else if (_gNeed === 'login')
         bits.push('click ⚡ Authorize — browser SuperGrok login once · NO API keys');
       else if (intent === 'only') bits.push('GROK ONLY · Grok reads every frame · Claude is not asked at all');
@@ -21717,7 +21726,8 @@ window._lockMark = function(isOpen, px, label){
         } else if (st.needsInstall || cli === false){
           authBtn.textContent = '⚡ Install first';
           authBtn.classList.add('is-need');
-          authBtn.title = 'Grok CLI missing — re-run TV installer, or: irm https://x.ai/cli/install.ps1 | iex';
+          authBtn.title = 'Grok CLI missing — re-run TV installer, or ' + _g5InstallLine(
+            (typeof navigator !== 'undefined' && navigator.platform) || '', (typeof navigator !== 'undefined' && navigator.userAgent) || '');
         } else {
           authBtn.textContent = '⚡ Authorize';
           authBtn.classList.add('is-need');
