@@ -8866,6 +8866,12 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_the_sweep_box_says_whose_sweep", [sys.executable,
+         os.path.join(HERE, "test_the_sweep_box_says_whose_sweep.py")], 30,
+         needs_app=False,
+         why=("REG-1947 - the rail's SWEEP box paints THIS console's sweep under a bare head beneath THE FLEET, so GrokBot "
+              "set its IDLE against Konyo's 'a sweep is already running'; the head says this PC.")
+         ),
     Gate("test_a_tab_click_is_never_silently_dropped", [sys.executable,
          os.path.join(HERE, "test_a_tab_click_is_never_silently_dropped.py")], 60,
          needs_app=False,
