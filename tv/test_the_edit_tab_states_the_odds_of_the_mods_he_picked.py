@@ -8,8 +8,10 @@ three quarters, both on a quarter — times this row's frequency over the whole
 eligible pool of that kind. A blank range does not divide the value line. A typed
 floor keeps the inclusive share of its range at or above it.
 
-A rare draw, a crafted draw, an automod, a superior row and a chosen class are not
-pinned. Those print UNKNOWN. No mods picked prints nothing: a 1/1 is not a measurement.
+A rare draw, a crafted draw, an automod and a superior row are not pinned. Those print
+UNKNOWN. A chosen class IS a pinned draw, so its mod odds print; only its value line is
+UNKNOWN, because a class has no order to be at or above (the second eye on 0a7ab41c caught
+this prose saying the whole of it was UNKNOWN while the painter and this law said otherwise). No mods picked prints nothing: a 1/1 is not a measurement.
 
 The ratios are recomputed from this install's tables on each run. Nothing here is 1/490.
 Drives the shipped builder. A missing node raises. This law does not skip.
