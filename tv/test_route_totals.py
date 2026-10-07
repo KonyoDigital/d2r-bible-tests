@@ -137,6 +137,10 @@ class L2_TheProducerMovesAllThree(unittest.TestCase):
     def tearDown(self):
         RT.BIBLE = self._real
         shutil.rmtree(self.tmp, ignore_errors=True)
+        # REG-1893 - and drop the caches AGAIN: the bumped answer (106) was written to the routes' disk cache
+        # under the REAL tree's key, so this test run alone left the next process's L1 reading 106 against a
+        # producer saying 99 (measured at 873e591b).
+        self._drop_row_caches()
 
     def _bump(self, old, new):
         s = io.open(self.copy, encoding="utf-8").read()
@@ -162,6 +166,9 @@ class L2_TheProducerMovesAllThree(unittest.TestCase):
         # which is in _source_key(). Only a test editing a COPY can hold the key still while the
         # producer moves. Prefer the module's own reset so a THIRD cache added later is cleared
         # here automatically, and fall back to the memo for a module that has no reset yet.
+        self._drop_row_caches()
+
+    def _drop_row_caches(self):
         for mod in (CR, FR, RR):
             reset = getattr(mod, "cache_reset", None)
             if callable(reset):

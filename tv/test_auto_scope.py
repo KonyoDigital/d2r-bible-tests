@@ -400,7 +400,20 @@ class TestV2410RotatesIsACheckablePermissionNotAnExemption(unittest.TestCase):
         unexplained = [r for r in rows if not r["permitted"]]
         # REG-1893 - a reporter that rounded every row to "permitted" (the defect this docstring
         # names) would leave this list empty, and all() of nothing says each row carries its size.
-        self.assertTrue(unexplained, "the reporter says every reach row is permitted: %r" % rows)
+        # Today's unexplained rows may legitimately go (a narrower reach), so the reporter is also
+        # asked with every `rotates` clause removed: then nothing holds a permission, every row it
+        # reports must say so, and those rows join the ones the claim below is asked of.
+        saved = AS.LANES
+        AS.LANES = {lane: dict(spec, rotates=None) for lane, spec in saved.items()}
+        try:
+            bare = AS.undeclared_reach_abilities(self._ca())
+        finally:
+            AS.LANES = saved
+        self.assertTrue(bare, "with no rotates clause anywhere the reporter found no forbidden reach, "
+                              "so this law would judge no unexplained row")
+        self.assertEqual([], [r["lane"] for r in bare if r["permitted"]],
+                         "the reporter says a row is permitted that no clause permits: %r" % bare)
+        unexplained += bare
         self.assertTrue(all(isinstance(r.get("functions"), int) for r in unexplained),
                         "an unexplained row does not carry its reach size, so a reader cannot tell "
                         "a one-frame contradiction from 71 functions of noise")
