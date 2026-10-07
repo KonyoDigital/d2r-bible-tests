@@ -193,6 +193,9 @@ EXCERPT_WINDOW = 80          # non-Python: lines either side of a changed line
 EXCERPT_MAX_BLOCK = 400      # the most of any one block (a 2,000-line def is cut around its hunk)
 EXCERPT_MAX_CHARS = 150000   # the whole excerpt file
 _PY_TOP = re.compile(r"^(def |class |async def |@)")
+_PY_DEF = re.compile(r"^(def |class |async def )")
+#: REG-2026 - a line that cannot START a top-level statement: indented, blank, or a closing bracket at column 0
+_PY_CONT = re.compile(r"^(?:[ \t]|[)\]}]|$)")
 
 
 def excerpt_blocks(text, lines, is_py, window=None, max_block=None, max_chars=None):
@@ -201,7 +204,8 @@ def excerpt_blocks(text, lines, is_py, window=None, max_block=None, max_chars=No
     MEASURED 2026-10-07: control_ui.html (2.2 MB) and control_app.py (2.7 MB) are both over the 2 MB snapshot
     limit, so every console change reached the eye as bare hunks; v3607's look answered cannot-tell ("I could not
     see the caller that concatenates the version word onto the lag span") and v3608's push was refused until a
-    re-ask. A Python hunk gets its enclosing top-level def/class; anything else a window either side."""
+    re-ask. A Python hunk gets its enclosing top-level def/class (with its decorators), a module-level line its whole
+    statement plus a window; anything else a window either side."""
     window = EXCERPT_WINDOW if window is None else int(window)
     max_block = EXCERPT_MAX_BLOCK if max_block is None else int(max_block)
     max_chars = EXCERPT_MAX_CHARS if max_chars is None else int(max_chars)
@@ -212,25 +216,46 @@ def excerpt_blocks(text, lines, is_py, window=None, max_block=None, max_chars=No
         i = ln - 1
         # REG-2018 (the #231 eye on v3614) - a MODULE-LEVEL edit (a non-blank column-0 line that is not a def/class/
         # decorator) has no enclosing def: walking up would glue it to the previous function. It gets a window.
-        _module_level = is_py and src[i][:1] not in ("", " ", "\t") and not _PY_TOP.match(src[i])
+        # REG-2026 (the #231 eye on v3615) - an INDENTED, blank or closing-bracket line belongs to the statement it
+        # sits in: `    limit=5,` inside `SETTINGS = dict(` is module-level too, and was glued to the previous def.
+        # h = that statement's first line (the nearest column-0 line of code above; comments are stepped over).
+        h = i
+        if is_py and _PY_CONT.match(src[i]):
+            while h > 0 and (_PY_CONT.match(src[h]) or src[h].startswith("#")):
+                h -= 1
+        _module_level = is_py and src[h][:1] not in ("", " ", "\t") and not _PY_TOP.match(src[h])
         if is_py and not _module_level:
             a = i
             while a > 0 and not _PY_TOP.match(src[a]):
                 a -= 1
-            while a > 0 and src[a - 1].startswith("@"):
-                a -= 1
+            _in_decorator = src[a].startswith("@")         # the changed line is a decorator, or inside one's arguments
+            # REG-2026 - step up over the decorators above the def/class, each of which may run over several lines
+            # (`@app.route(\n    "/x",\n)`): an @ line is the next statement up past only continuation lines.
+            while a > 0:
+                k = a - 1
+                while k > 0 and (_PY_CONT.match(src[k]) or src[k].startswith("#")):
+                    k -= 1
+                if not src[k].startswith("@"):
+                    break
+                a = k
             b = i + 1
-            # REG-2018 - a hunk on a decorator carries the function it decorates: step past the stacked decorators
-            # and the def/class line before looking for the next top-level marker.
-            if src[i].startswith("@"):
-                while b < n and src[b].startswith("@"):
+            # REG-2018 - a hunk on a decorator carries the function it decorates. REG-2026 - step past every decorator
+            # line AND its continuation lines to the def/class line, then past that, before the next top-level marker.
+            if _in_decorator:
+                while b < n and not _PY_DEF.match(src[b]):
                     b += 1
-                if b < n and _PY_TOP.match(src[b]):
-                    b += 1
+                b = min(n, b + 1)
             while b < n and not _PY_TOP.match(src[b]):     # the next top-level def / class / decorator ends it
                 b += 1
         else:
             a, b = max(0, i - window), min(n, i + window + 1)
+            if is_py:
+                # REG-2026 - a module-level line gets its whole statement, first line to last (a 268-line `CHECKS = [`
+                # read as a window only never said which list it was); the max_block cut below still bounds it.
+                e = i + 1
+                while e < n and (_PY_CONT.match(src[e]) or src[e].startswith("#")):
+                    e += 1
+                a, b = min(a, h), max(b, e)
         if b - a > max_block:                        # a huge block: keep the part around the hunk
             a, b = max(a, i - max_block // 2), min(b, i + max_block // 2)
         spans.append([a, b])

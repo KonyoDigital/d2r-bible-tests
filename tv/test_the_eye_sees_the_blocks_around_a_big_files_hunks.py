@@ -89,6 +89,52 @@ class TheEyeSeesTheBlocksAroundABigFilesHunks(unittest.TestCase):
         self.assertIn("return 1", out)
         self.assertNotIn("def g", out)
 
+    def test_an_indented_line_of_a_module_level_statement_is_not_glued_to_the_def_above(self):
+        """REG-2026 (the #231 eye on v3615) - the inside of `SETTINGS = dict(` is module-level too."""
+        head = "def first():\n    return 1\n\n\n"
+        tail = "\n\n\ndef second():\n    return 2\n"
+        cases = [("SETTINGS = dict(\n    limit=5,\n)", 6, "SETTINGS = dict("),
+                 ("CONST = (\n    1,\n)", 6, "CONST = ("),
+                 ('if __name__ == "__main__":\n    main()', 6, 'if __name__ == "__main__":'),
+                 ("LIMIT = 5\n\nOTHER = 6", 6, "LIMIT = 5")]                # a blank line between two statements
+        for body, ln, want in cases:
+            with self.subTest(statement=want, line=ln):
+                out = E.excerpt_blocks(head + body + tail, [ln], True, window=1)
+                self.assertIn(want, out, "the excerpt is not the module-level statement around the changed line")
+                self.assertNotIn("return 1", out, "an indented module-level line was excerpted as the def above it")
+                self.assertNotIn("def first", out)
+
+    def test_a_long_module_level_statement_is_shown_whole(self):
+        """REG-2026 - a line deep inside a long statement gets that statement, first line to last, not a bare window."""
+        text = ("def first():\n    return 1\n\n\nBIG = dict(\n" + "".join("    k%d=%d,\n" % (k, k) for k in range(40))
+                + ")\n\n\ndef second():\n    return 2\n")
+        out = E.excerpt_blocks(text, [25], True, window=2)
+        self.assertIn("     5: BIG = dict(", out, "the excerpt of a long statement does not show which statement it is")
+        self.assertIn("    46: )", out, "the excerpt of a long statement stops before the statement does")
+        self.assertNotIn("return 1", out)
+        self.assertNotIn("def second", out)
+
+    def test_a_multi_line_decorator_carries_the_function_it_decorates(self):
+        """REG-2026 (the #231 eye on v3615) - `@app.route(\\n    "/x",\\n)` is one decorator over three lines."""
+        text = 'import x\n\n\n@app.route(\n    "/x",\n)\ndef f():\n    return 1\n\n\ndef g():\n    return 2\n'
+        for ln in (4, 5, 6):                       # the @ line, a line inside its arguments, its closing bracket
+            with self.subTest(line=ln):
+                out = E.excerpt_blocks(text, [ln], True, window=1)
+                self.assertIn("@app.route(", out)
+                self.assertIn("def f():", out, "a multi-line decorator's hunk stopped before the def it decorates")
+                self.assertIn("return 1", out, "a multi-line decorator's hunk left out the body it decorates")
+                self.assertNotIn("def g", out)
+                self.assertNotIn("import x", out)
+
+    def test_a_body_edit_under_a_multi_line_decorator_carries_the_decorator(self):
+        """REG-2026 - the same decorator seen from the body: the walk up stepped over single-line decorators only."""
+        text = 'def g():\n    return 2\n\n\n@app.route(\n    "/x",\n)\n@cache\ndef f():\n    return 1\n'
+        out = E.excerpt_blocks(text, [10], True)
+        self.assertIn("@app.route(", out, "a body edit under a multi-line decorator lost the decorator")
+        self.assertIn('"/x",', out)
+        self.assertIn("@cache", out)
+        self.assertNotIn("return 2", out, "the walk up over decorators reached into the def above")
+
     def test_a_first_block_over_the_cap_still_carries_code(self):
         text = "def big():\n" + "\n".join("    v%d = '%s'" % (k, "x" * 200) for k in range(300)) + "\n"
         out = E.excerpt_blocks(text, [150], True, max_chars=5000)
@@ -136,8 +182,33 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2018 - a decorator-only hunk excerpts the decorator alone again",
      "file": "tv/second_eye_run.py",
-     "find": '            if src[i].startswith("@"):\n',
+     "find": "            if _in_decorator:\n",
      "replace": "            if False:\n",
+     "matches": 1},
+    {"why": "REG-2026 - an indented line of a module-level statement is glued to the previous def again",
+     "file": "tv/second_eye_run.py",
+     "find": '        _module_level = is_py and src[h][:1] not in ("", " ", "\\t") and not _PY_TOP.match(src[h])\n',
+     "replace": '        _module_level = is_py and src[i][:1] not in ("", " ", "\\t") and not _PY_TOP.match(src[i])\n',
+     "matches": 1},
+    {"why": "REG-2026 - a line deep inside a long module-level statement gets a bare window that never names it again",
+     "file": "tv/second_eye_run.py",
+     "find": "                a, b = min(a, h), max(b, e)\n",
+     "replace": "                pass\n",
+     "matches": 1},
+    {"why": "REG-2026 - a hunk on a multi-line decorator stops before the def it decorates again",
+     "file": "tv/second_eye_run.py",
+     "find": "                while b < n and not _PY_DEF.match(src[b]):\n",
+     "replace": '                while b < n and src[b].startswith("@"):\n',
+     "matches": 1},
+    {"why": "REG-2026 - a hunk inside a decorator's arguments, or on its closing bracket, loses the def again",
+     "file": "tv/second_eye_run.py",
+     "find": '            _in_decorator = src[a].startswith("@")',
+     "replace": '            _in_decorator = src[i].startswith("@")',
+     "matches": 1},
+    {"why": "REG-2026 - a body edit under a multi-line decorator loses the decorator again (single-line steps only)",
+     "file": "tv/second_eye_run.py",
+     "find": '                while k > 0 and (_PY_CONT.match(src[k]) or src[k].startswith("#")):\n',
+     "replace": "                while False:\n",
      "matches": 1},
     {"why": "REG-2018 - an over-cap first block reaches the eye as a banner with no code again",
      "file": "tv/second_eye_run.py",
