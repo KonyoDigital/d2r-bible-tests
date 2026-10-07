@@ -1707,6 +1707,22 @@ def _tombstone(hist, cands):
     return rows
 
 
+def _is_reel_dir_name(name):
+    """REG-1918 - one path segment named like a reel ("reel_..."): never "", ".", "..", or anything with a separator."""
+    return (isinstance(name, str) and name.startswith("reel_") and name not in (".", "..")
+            and "/" not in name and "\\" not in name and os.sep not in name and "\0" not in name)
+
+
+def _is_child_dir(hist, name):
+    """REG-1918 - `hist/name` resolves to a directory DIRECTLY under hist (a symlink out of the shelf is not)."""
+    try:
+        h = os.path.realpath(hist)
+        d = os.path.realpath(os.path.join(hist, name))
+        return os.path.dirname(d) == h and d != h
+    except Exception:
+        return False
+
+
 def apply_plan(p, yes=False):
     """Delete what plan() selected. Refuses without an explicit yes — this is not undoable."""
     if not yes:
@@ -1765,6 +1781,16 @@ def apply_plan(p, yes=False):
         _ewhy = "the witness index could not be read (%s)" % type(_ke).__name__
     removed, failed, go, notes = [], [], [], {}
     for c in p.get("candidates") or []:
+        # REG-1918 - THE ONLY DELETER TAKES ONLY A REEL DIRECTORY NAME. `shutil.rmtree(os.path.join(hist, reel))` below
+        # would remove the WHOLE hist root - every reel he has - for a candidate whose reel is "" (join(hist, "") IS hist),
+        # and a name holding a separator or ".." walks out of it. plan() only ever lists real reel_* folders, so this has
+        # never happened; a Grok look at v3596 (river slice, finding 4) found the path a malformed candidate would take
+        # through _drop_reels_still_filming, and the cost of being wrong once is all of his footage.
+        _rn = c.get("reel") if isinstance(c, dict) else None
+        if not _is_reel_dir_name(_rn) or not _is_child_dir(p.get("hist"), _rn):
+            failed.append({"reel": repr(_rn)[:80], "why": "REFUSED, nothing deleted - not a reel directory directly under "
+                                                         "the shelf, so the deleter will not touch it"})
+            continue
         path = os.path.join(p["hist"], c["reel"])
         if _evid is None:
             failed.append({"reel": c["reel"], "why": "HELD, nothing deleted - which pictures in it are evidence is "

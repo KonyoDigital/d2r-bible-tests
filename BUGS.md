@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1918 - THE ONLY DELETER WOULD HAVE TAKEN ANY NAME, "" INCLUDED (2026-10-07, a Grok look at v3596, the river slice re-asked at --effort low)
+
+`reel_retention.apply_plan` runs `shutil.rmtree(os.path.join(hist, c["reel"]))`, and nothing checked that `reel` is a reel: `os.path.join(hist, "")` IS the shelf, so one malformed candidate would remove every reel he has, and ".." or a separator walks out of it. The Grok look found the path a nameless candidate takes through `_drop_reels_still_filming` (it joins to the hist root). plan() only lists real reel_* folders, so it never happened; the cost of once is all of his footage. The deleter now refuses, by name and before the evidence check, any candidate that is not one `reel_*` path segment resolving to a directory directly under the shelf (a symlink out of it included), and a real candidate beside them still goes. Law `test_the_river_drains_every_pass` (TheDeleterTakesOnlyAReelName, 1 RED_PROOF).
+
 ### REG-1902 - THE BUILD'S STASH ALREADY IS THE MULE STASH VIEW (2026-10-07, #153) - NO CODE
 
 His ask - the build's STASH showing Inventory / Personal / Shared tabs through the mule window's own tab renderer, with adding in a separate Create tab - shipped in v3595. Driven in node; its law `test_the_build_stash_is_the_mule_stash_view` passes. Recorded so the row can close on a measurement.

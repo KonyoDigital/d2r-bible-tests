@@ -867,7 +867,42 @@ def tearDownModule():
     shutil.rmtree(_BOOT, ignore_errors=True)
 
 
+class TheDeleterTakesOnlyAReelName(AVaultPictureHoldsItsReel):
+    """REG-1918 - apply_plan rmtree's os.path.join(hist, reel). A candidate whose reel is "" IS the hist root - every reel
+    he has - and ".." or a separator walks out of it; a symlinked reel_* that points outside the shelf is not his shelf.
+    plan() never produces one; the deleter refuses them anyway, and a real candidate beside them still goes."""
+
+    def test_a_malformed_name_deletes_nothing_and_a_real_one_still_goes(self):
+        import tempfile, shutil
+        outside = tempfile.mkdtemp(prefix="reel_outside_")
+        self.addCleanup(shutil.rmtree, outside, True)
+        with open(os.path.join(outside, "keep.jpg"), "wb") as fh:
+            fh.write(b"x")
+        os.symlink(outside, os.path.join(self.w.hist, "reel_link_out"))
+        self._cite(set())
+        p = RR.plan(self.w.hist)
+        real = [c for c in (p.get("candidates") or []) if c.get("reel") == self.old[0]]
+        self.assertTrue(real, "premise: the oldest finished reel is a candidate")
+        bad = [{"reel": "", "mb": 1.0}, {"reel": "..", "mb": 1.0}, {"reel": "reel_x/../..", "mb": 1.0},
+               {"reel": "reel_link_out", "mb": 1.0}, {"mb": 1.0}]
+        before = sorted(self.w.on_disk())
+        r = self._apply(dict(p, candidates=bad + real))
+        self.assertTrue(os.path.isdir(self.w.hist), "THE SHELF ITSELF WAS DELETED (REG-1918)")
+        self.assertTrue(os.path.isfile(os.path.join(outside, "keep.jpg")), "a symlinked reel deleted outside the shelf")
+        self.assertEqual(sorted(r.get("removed") or []), [self.old[0]], "the real candidate did not go, or another did: %r" % r)
+        refused = [f for f in (r.get("failed") or []) if "REFUSED" in str(f.get("why"))]
+        self.assertEqual(len(refused), 5, "every malformed candidate must be refused by name: %r" % r.get("failed"))
+        self.assertEqual(sorted(set(before) - set(self.w.on_disk())), [self.old[0]])
+
+
 RED_PROOF = [
+    {
+        "why": "REG-1918 - the deleter takes any name again: a candidate whose reel is '' rmtree's the whole shelf",
+        "file": "tv/reel_retention.py",
+        "find": "        if not _is_reel_dir_name(_rn) or not _is_child_dir(p.get(\"hist\"), _rn):\n",
+        "replace": "        if False:\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1838 - a rolling shadow reel holds the drain again, so the ALT's 416 releasable reels wait for ever",
         "file": "control_app.py",
