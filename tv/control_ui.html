@@ -25667,6 +25667,15 @@ function escC(s) {
     } else if (!sk.length) {
       var keep = (typeof rv.stuckKeep === 'number' && isFinite(rv.stuckKeep) && rv.stuckKeep >= 1)
         ? Math.floor(rv.stuckKeep) : 0;
+      /* REG-1960 — AN EMPTY STUCK LIST UNDER SHUT LOCKS IS NOT "DRAINING". GrokBot tick 387: Dean's row wore
+         "locks shut" while this tip said "every station is draining" - with the proof missing, stale or unreadable
+         every river lock fails closed (_fleetStuckChip's own rule), so nothing that spends a reel may act. */
+      var _hs = (rv.heart && typeof rv.heart === 'object') ? rv.heart.census : undefined;
+      if (_hs === 'missing' || _hs === 'stale' || _hs === 'unreadable') {
+        out.push(_fleetPart('stuck', ['none stuck yet — but nothing drains: the locks are shut (proof ' + _hs + ')'], {
+                   why: 'no station on that PC has held a reel for more than 6 hours, but its river locks are shut - '
+                      + 'its proof is ' + _hs + ', so nothing that spends a reel may act there until it proves' }));
+      } else
       out.push(_fleetPart('stuck', [keep ? ('none — the newest ' + keep + ' are draining')
                                           : 'none — every station is draining'], {
                  why: keep

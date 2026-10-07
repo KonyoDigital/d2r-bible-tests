@@ -552,6 +552,17 @@ class TheCardSaysIt(unittest.TestCase):
         self.assertIn("every station is draining", old["p"]["stuck"]["t"])
         self.assertNotIn("newest", old["p"]["stuck"]["t"])
 
+    def test_an_empty_stuck_list_under_shut_locks_is_not_draining(self):
+        """REG-1960 - GrokBot tick 387: Dean's row wore 'locks shut' while its tip said 'every station is draining'."""
+        for census in ("missing", "stale", "unreadable"):
+            with self.subTest(census=census):
+                out = self._run({"stuck": [], "stuckKeep": 16, "heart": {"census": census, "blind": None}})
+                self.assertIn("locks shut", out["chip"], "baseline: the row did not wear the shut locks")
+                self.assertNotIn("draining", out["p"]["stuck"]["t"],
+                                 "a PC whose locks are shut was told its stations are draining (REG-1960)")
+                self.assertIn("nothing drains", out["p"]["stuck"]["t"])
+                self.assertIn(census, out["p"]["stuck"]["why"])
+
     def test_a_stuck_window_stays_on_the_row(self):
         out = self._run({"stuck": [{"station": "PRINTER", "n": 7, "oldestS": 40 * H,
                                     "why": "vault lane: owes 1"}], "stuckKeep": 16})
@@ -1014,6 +1025,13 @@ class OneBoxAtATimeOnTheRow(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1960 - an empty stuck list under shut locks says 'every station is draining' again",
+        "file": "tv/control_ui.html",
+        "find": "      if (_hs === 'missing' || _hs === 'stale' || _hs === 'unreadable') {\n",
+        "replace": "      if (false) {\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1863 - a fresh console's sweep owes reads and says nothing, so STATION falls back to the note again",
         "file": "tv/control_app.py",
