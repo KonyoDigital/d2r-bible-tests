@@ -52,7 +52,7 @@ class BothTwinsStampTheirPayload(unittest.TestCase):
              # v2974 — the bank of UNGROUNDED sightings kept so a LATER session can corroborate
              # them. A row written under an older grounding rule is exactly what a future sweep
              # must be able to re-judge, and without a producer it cannot.
-             ("vault_seen", "def vault_seen_save(unsure_rows):", "return len(rows)"),
+             ("vault_seen", "def vault_seen_save(unsure_rows, grounded=None):", "return len(rows)"),   # REG-1909 added `grounded`
              # v2975 — the chronicle's banked PROPOSAL. Stamps a COPY: provenance.stamp() returns a
              # new dict, so the caller's live `prop` never gains a key that travels to other
              # readers. Its `_doc` name differs from the source `prop`, which is why the regex

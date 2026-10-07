@@ -46,7 +46,7 @@ class AnAgeKeepsAging(unittest.TestCase):
         ui = _ui()
         since = _cut(ui, "  var _fleetSince = function (iso) {", "    return Math.round(h / 24) + 'd ago';\n  };\n")
         age = _cut(ui, "  var _flAge = function (iso) {", "  };\n")
-        tick = _cut(ui, "  window._flAgeTick = function (root) {", "    return n;\n  };\n")
+        tick = _cut(ui, "  if (typeof window !== 'undefined') window._flAgeTick = function (root) {", "    return n;\n  };\n")
         js = r"""
 var window = {}; var fetched = 0; function fetch(){ fetched++; }
 function escC(s){ return String(s); }

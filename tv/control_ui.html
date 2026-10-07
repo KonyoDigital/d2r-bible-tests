@@ -25319,7 +25319,7 @@ function escC(s) {
   var _flAge = function (iso) {
     return '<span class="fl-age" data-fl-t="' + escC(String(iso || '')) + '">' + escC(_fleetSince(iso)) + '</span>';
   };
-  window._flAgeTick = function (root) {
+  if (typeof window !== 'undefined') window._flAgeTick = function (root) {   // REG-1937 — a lifted block has no window
     var els = (root || document).querySelectorAll('[data-fl-t]'), n = 0;
     for (var i = 0; i < els.length; i++) {
       var t = els[i].getAttribute('data-fl-t');
