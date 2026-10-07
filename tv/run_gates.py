@@ -8923,6 +8923,12 @@ GATES = [
          why=("REG-1959 - the ALT has no stash_gate_cache (it never filmed a stash panel), so its vault lane could never "
               "prove itself live and retired every reel un-extracted; a tracked stash frame, pinned by sha256, is the canary.")
          ),
+    Gate("test_his_auto_sort_re_homes_misfiled_items", [sys.executable,
+         os.path.join(HERE, "test_his_auto_sort_re_homes_misfiled_items.py")], 120,
+         needs_app=False,
+         why=("REG-2023 (#269, GrokBot 411/412) - war gear filed in old drawers stayed there under 'perfect order'; his "
+              "Auto-Sort click moves the audit's misroutes (never his own hand's placement), and the empty dock asks the audit.")
+         ),
     Gate("test_two_sessions_in_his_stash_file_an_item", [sys.executable,
          os.path.join(HERE, "test_two_sessions_in_his_stash_file_an_item.py")], 120,
          needs_app=False,

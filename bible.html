@@ -37087,6 +37087,8 @@ body{
 /* swept with M4 / L2 (review of bd976210) — nothing LOOSE is not "every owned item has a home" while some of it is still in
    his hands: carried loot has no home until it lands, so the empty dock says what is true beside a carried strip */
 .vault-dock[data-owned="1"][data-carried="1"]:empty::after{content:"nothing loose — what you carry lands when it is seen in a stash tab or on a mule ✦"}
+/* #269 (GrokBot tick 412, K03) — "perfect order" sat directly under VAULT INTEGRITY listing three items in the wrong locker */
+.vault-dock[data-owned="1"][data-misfiled="1"]:empty::after{content:"nothing loose — but some filed items sit in the wrong locker: see VAULT INTEGRITY, or press Auto-Sort ✦"}
 /* §31.2 — THE CARRIED STRIP: loot in a character's inventory, owned and not filed. A quieter frame than the dock (it is
    not waiting to be sorted) and the same chip, so an item reads the same wherever it sits. A stale chip (a few game
    sessions unseen) takes the amber of a question, never the red of a loss. */
@@ -39987,6 +39989,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        [[unknown-stays-unknown]] */
     try { dock.setAttribute('data-owned', pool.length ? '1' : '0'); } catch(e){}
     try { dock.setAttribute('data-carried', _carried.length ? '1' : '0'); } catch(e){}
+    try {   /* #269 — the empty-dock line asks the integrity check before it claims perfect order */
+      var _misN = (_vaultAudit().findings || []).filter(function(f){ return f.kind === 'misroute' || f.kind === 'rw-in-magic'; }).length;
+      dock.setAttribute('data-misfiled', _misN ? '1' : '0');
+    } catch(e){ dock.removeAttribute('data-misfiled'); }
     // v251: the dock's own "Auto-Sort" widget — appears only when items are unsorted,
     // sends every loose item back to its proper mule/alt in one click (vaultAutoAssign).
     var dbar=document.getElementById('vault-dock-bar');
@@ -43688,8 +43694,24 @@ window.vaultAutoAssign = function(){
                                       target: pg.id, source: 'auto-sort (his click)', _bump: true }); } catch(e){}
       } else out.refused.push({ name: name, why: (r && r.why) || 'the door refused it' });
     });
+    /* #269 (GrokBot tick 411: Dwarf Star / Enigma / Raven Frost "belongs in SHARED STASH", filed in old drawers before the
+       war rule) — his click also MOVES what the router now places elsewhere: the audit's own misroute rows, through the
+       door's move (which refuses a HARDENED row). Never over a home HIS hand chose (a hand row not made by this button). */
+    out.moved = []; out.keptHand = [];
+    try {
+      var _pvM = _provAll();
+      (_vaultAudit().findings || []).forEach(function(f){
+        if (f.kind !== 'misroute' || !f.to) return;
+        var pr = _pvM[f.item];
+        if (pr && pr.kind !== 'owned' && pr.source === 'hand' && !/Auto-Sort/.test(String(pr.where || ''))){ out.keptHand.push(f.item); return; }
+        var mv = window.vaultFile(f.item, null, { move: true, mule: f.to, by: 'Auto-Sort (his click)' });
+        if (mv && mv.ok) out.moved.push({ name: f.item, to: f.to }); else out.refused.push({ name: f.item, why: (mv && mv.why) || 'the move was refused' });
+      });
+    } catch(eM){}
     saveA(); renderVault();
     var bits = ['🪄 filed ' + (out.filed + ((first && first.filed) || 0)) + ' into their mules'];
+    if (out.moved.length) bits.push('moved ' + out.moved.length + ' to where they belong now');
+    if (out.keptHand.length) bits.push(out.keptHand.length + ' stay where your hand put them');
     if (out.main.length) bits.push(out.main.length + ' stay with your MAIN (worn or carried when last seen)');
     if (out.noPicture.length) bits.push(out.noPicture.length + ' have no picture yet - film them once, or drag them to a locker');
     var lk = Object.keys(out.left);
