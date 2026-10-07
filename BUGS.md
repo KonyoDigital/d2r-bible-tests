@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1956 - AN UNREADABLE CONSOLE AGE WAS REPORTED AS "PAST THE MINUTE" (2026-10-07, the #231 eye on fe35b4cd)
+
+The doctor's one_capture row treats a never-ran boot sweep on Windows as UNKNOWN once the console is past its first minute, and - by its own docstring - treats an age that will not parse, a negative one, or a clock read that raises as that same unknown. Right, but its sentence then said "this console is past that", a minute it never read. The row stays a warning; the sentence now says the uptime could not be read. Law `test_a_boot_sweep_that_never_ran_is_not_a_clean_capture` (+1 RED_PROOF).
+
 ### REG-1952 - A FLEET ROW NOT HEARD FROM PRINTED "N BEHIND" WITHOUT WHETHER IT COULD CATCH UP (2026-10-07, the #231 eye on 475f672e and db25b884)
 
 Only the heard arm of a fleet row carried "not pulling" (a refused pull) and "pull UNKNOWN" (git could not say); the silent arm (online, beacon past the bar), the roster-refused arm and the offline arm printed the behind count bare, which reads as a machine that will catch up. Each arm now carries the pull tail from the PC's last report. (The same look's other finding - the shadow eye calling a silent row "offline" - was already fixed: the eye takes the presence state and says the roster still holds the PC.) Law `test_a_behind_count_says_whether_it_can_catch_up` (the shipped rail in node, 1 RED_PROOF).

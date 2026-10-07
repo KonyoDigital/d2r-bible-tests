@@ -41031,9 +41031,13 @@ def _one_capture_check(alive=None, uptime_s=None):
     _c_bad = bool(_failed_live) or _surv_live or _unknown or _late
     _say = _cs.get("say") or "not asked yet"
     if _late:
+        # REG-1956 — "past that" is measured only when the age is a number. An age that would not parse, a negative
+        # one, or a clock read that raised is still UNKNOWN (the row stays a warning), but the sentence must not
+        # claim a minute it never read (the #231 eye on fe35b4cd).
         _say = ("UNKNOWN - the boot sweep never ran, so whether an older console left a "
-                "capture filming is not known. It is due about 20 s after boot; this "
-                "console is past that")
+                "capture filming is not known. It is due about 20 s after boot; "
+                + ("this console is past that" if _asked is not None else
+                   "how long this console has been up could not be read, so whether it is past that is UNKNOWN too"))
     elif _unknown and "UNKNOWN" not in _say:
         _say = "UNKNOWN - " + _say
     if _cs.get("failed") and not _failed_live:

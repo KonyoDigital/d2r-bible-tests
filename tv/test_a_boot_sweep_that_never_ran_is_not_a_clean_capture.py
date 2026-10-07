@@ -79,6 +79,13 @@ class ABootSweepThatNeverRan(unittest.TestCase):
         self.assertIn("boot sweep never ran", row["detail"])
         young = self._row(True, -1)
         self.assertIs(young["ok"], False, young)
+        # REG-1956 (the #231 eye on fe35b4cd) - still a warning, but the sentence must not claim a minute it never read
+        for r in (row, young):
+            self.assertNotIn("this console is past that", r["detail"],
+                             "an unreadable age was reported as a console already past the minute: %r" % r["detail"])
+            self.assertIn("could not be read", r["detail"])
+        past = self._row(True, 600)
+        self.assertIn("this console is past that", past["detail"], "a MEASURED age past the minute lost its sentence")
 
     def test_the_first_minute_and_a_mac_and_a_sweep_that_ran_stay_clean(self):
         inside = self._row(True, 60.0)
@@ -121,6 +128,11 @@ class ABootSweepThatNeverRan(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-1956 - an unreadable age is reported as a console already past the minute again",
+     "file": "tv/control_app.py",
+     "find": "                + (\"this console is past that\" if _asked is not None else\n",
+     "replace": "                + (\"this console is past that\" if True else\n",
+     "matches": 1},
     {"why": "REG-1779 - a Windows boot sweep that never ran, past the minute it was due, reads as a clean capture",
      "file": "control_app.py",
      "find": "    _late = bool(IS_WIN and _never and (_asked is None or _asked > CAPTURE_SWEEP_LATE_S))\n",
