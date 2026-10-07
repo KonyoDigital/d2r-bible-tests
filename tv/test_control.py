@@ -6889,7 +6889,8 @@ class TestV2286EveryIdentityNormaliserFoldsTheApostrophe(unittest.TestCase):
     #: v2765 — `_qlvlOf` joined: it resolves an item NAME to a row, so it keys identity.
     #: #174 v-B — `_mpClean` joined: the mule window's picker resolves a name to its base and slot
     #: through it (the game's unique table, the install's base map), so it keys identity.
-    MUST_FOLD = ("_regKey", "_cnV", "_qlvlOf", "_mpClean")
+    #: #264 (REG-2019) — `_warKey` joined: it keys the WAR_GEAR lookup that sends an item to the shared stash.
+    MUST_FOLD = ("_regKey", "_cnV", "_qlvlOf", "_mpClean", "_warKey")
 
     def setUp(self):
         p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "bible.html")
@@ -6949,8 +6950,10 @@ class TestV2286EveryIdentityNormaliserFoldsTheApostrophe(unittest.TestCase):
         # the rule was taken too: it folds the curly apostrophe and has joined MUST_FOLD above.
         # #174 v-B — RAISED 13 -> 14 DELIBERATELY for `_mpClean` (the mule window's picker): it keys
         # identity, so it folds the curly apostrophe and has joined MUST_FOLD above as well.
-        self.assertLessEqual(len(found), 14,
-                             "a new name-normaliser appeared (%d now, 14 known). Decide whether it "
+        # #264 (REG-2019) — RAISED 14 -> 15 DELIBERATELY for `_warKey` (the war-gear lookup): it keys identity, so it
+        # folds the curly apostrophe and has joined MUST_FOLD above.
+        self.assertLessEqual(len(found), 15,
+                             "a new name-normaliser appeared (%d now, 15 known). Decide whether it "
                              "keys IDENTITY: if it does it must fold the curly apostrophe and join "
                              "MUST_FOLD; if it does not, raise this bound deliberately. %s"
                              % (len(found), sorted(found)))

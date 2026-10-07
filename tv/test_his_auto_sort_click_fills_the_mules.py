@@ -26,6 +26,12 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
+
 import test_a_sweep_never_reticks_what_he_unticked as H  # noqa: E402  (its Board drives the shipped page)
 
 ROOT = os.path.dirname(HERE)
