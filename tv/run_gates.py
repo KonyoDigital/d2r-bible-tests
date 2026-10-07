@@ -8923,6 +8923,12 @@ GATES = [
          why=("REG-1959 - the ALT has no stash_gate_cache (it never filmed a stash panel), so its vault lane could never "
               "prove itself live and retired every reel un-extracted; a tracked stash frame, pinned by sha256, is the canary.")
          ),
+    Gate("test_a_harness_console_never_joins_the_fleet", [sys.executable,
+         os.path.join(HERE, "test_a_harness_console_never_joins_the_fleet.py")], 60,
+         needs_app=False,
+         why=("REG-2009 - consoles booted by laws and harnesses beaconed into his LIVE fleet (GrokBot tick 403 saw a 4th "
+              "headless 'Konyo' row); one rule for both senders now, and a private port is a harness, never a fleet row.")
+         ),
     Gate("test_a_backup_counts_only_an_ask", [sys.executable,
          os.path.join(HERE, "test_a_backup_counts_only_an_ask.py")], 60,
          needs_app=False,

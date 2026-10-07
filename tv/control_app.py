@@ -4116,6 +4116,38 @@ def _relaunch_report():
             "why": _word_cut(_w or str(st.get("why") or ""), 160)})
 
 
+#: REG-2009 - the one port a real console serves. Every installer, and his, Dean's, the ALT's and GrokBot's consoles, run
+#: here; a harness that wants its own server sets TV_CONTROL_PORT to a free one.
+LIVE_CONTROL_PORT = 17772
+
+
+def _beacon_suppressed_by(env=None, port=None):
+    """Why this process must NOT report to the fleet, or "". ONE rule for both senders. -> str
+
+    REG-2009 (GrokBot tick 403, 2026-10-07 19:42-19:47): a fourth "Konyo" row appeared in the LIVE fleet - "this console
+    has no native window (headless or --no-open)" - while the plain Konyo row vanished, then all of it went back. Every
+    console started through main() starts the beacon thread whatever its port, and of the harnesses that boot a private
+    console (laws, render_check, the push gate's demos, heart2's prove lanes) only a handful set TVD_NO_BEACON - none of
+    run_gates, shard_suite, heart2 or render_check. So a law run on his Mac could write a row into the roster every other
+    PC reads. A console on a private port is a harness, never a fleet row; TVD_BEACON_ANY_PORT=1 lets one through on
+    purpose. The CI / GITHUB_ACTIONS / TVD_NO_BEACON rules are unchanged, and this used to be two copies of them."""
+    env = os.environ if env is None else env
+    if env.get("CI"):
+        return "CI"
+    if env.get("GITHUB_ACTIONS"):
+        return "GITHUB_ACTIONS"
+    if env.get("TVD_NO_BEACON"):
+        return "TVD_NO_BEACON"
+    p = CONTROL_PORT if port is None else port
+    try:
+        p = int(p)
+    except (TypeError, ValueError):
+        p = None
+    if p != LIVE_CONTROL_PORT and not env.get("TVD_BEACON_ANY_PORT"):
+        return "a private port (%s) - a harness console, never a fleet row" % p
+    return ""
+
+
 def _console_beacon(event="hb"):
     """v875 (Konyo: 'a tracker so I know whose console is online — like the site visits') —
     phone the presence beacon home. Never blocks a caller; never raises into one.
@@ -4134,9 +4166,7 @@ def _console_beacon(event="hb"):
     server can report that the previous one did not — the transient/partial failure case that is
     otherwise invisible from either end. Chicken-and-egg is intentional: a machine that NEVER
     reaches the server says so on its own screen (doctor check `console_beacon`), not here."""
-    supp = ("CI" if os.environ.get("CI") else
-            "GITHUB_ACTIONS" if os.environ.get("GITHUB_ACTIONS") else
-            "TVD_NO_BEACON" if os.environ.get("TVD_NO_BEACON") else "")
+    supp = _beacon_suppressed_by()
     if supp:
         # v1597 — the v1496 suppression is CORRECT and stays. But a machine with TVD_NO_BEACON
         # stuck in its environment was permanently absent from the fleet with zero explanation.
@@ -4387,9 +4417,7 @@ def _console_beacon_presence():
     the resent body is the last full one. No landed beacon yet, or no stored row,
     sends the full beacon instead. Never raises into the caller.
     """
-    supp = ("CI" if os.environ.get("CI") else
-            "GITHUB_ACTIONS" if os.environ.get("GITHUB_ACTIONS") else
-            "TVD_NO_BEACON" if os.environ.get("TVD_NO_BEACON") else "")
+    supp = _beacon_suppressed_by()
     if supp:
         _console_beacon("hb")
         return
