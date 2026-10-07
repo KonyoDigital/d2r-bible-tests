@@ -30158,6 +30158,23 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
   try {
     setInterval(function(){
       try {
+        /* REG-1934 — A THEATRE FLAGGED OPEN WITH NO STAGE UP. The hero's THEATRE word, the
+           marquee and "Theatre open · eyes on a real session" all read TH.open, and the arm below
+           only ever dropped the CLASS - so a flag left true over a hidden stage kept the cockpit
+           saying THEATRE with nothing open (GrokBot tick 375: it survived a shelf reopen + close),
+           and the theatre button's first click "closed" a theatre he could not see. Close it the
+           one way (thClose resets every layer) and record it, so the next one names itself. */
+        var _thx = document.getElementById('theatre');
+        if (window.TH && window.TH.open && (!_thx || _thx.hidden)) {
+          if (typeof window.thClose === 'function') window.thClose(); else window.TH.open = false;
+          try {
+            fetch('/api/ui_fault', {method: 'POST', headers: {'Content-Type': 'application/json'},
+              body: JSON.stringify({kind: 'theatre-flag-without-stage',
+                why: 'TH.open was true with #theatre ' + (_thx ? 'hidden' : 'missing') + ' - closed',
+                where: 'control_ui theatre self-heal'})});
+          } catch (_f) {}
+          return;
+        }
         if (!document.body.classList.contains('theatre-open')) return;
         var th = document.getElementById('theatre');
         if (!th || th.hidden) {                      /* class set, stage hidden = inconsistent */

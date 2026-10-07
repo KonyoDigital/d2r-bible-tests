@@ -8851,6 +8851,13 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_a_theatre_flag_needs_a_stage", [sys.executable,
+         os.path.join(HERE, "test_a_theatre_flag_needs_a_stage.py")], 60,
+         needs_app=False,
+         why=("REG-1934 - the 3 s theatre self-heal dropped only the CSS class over a hidden stage and left TH.open true, "
+              "so every cockpit label kept saying THEATRE with nothing open; it now closes it the one way and posts a "
+              "ui_fault naming it.")
+         ),
     Gate("test_a_reel_opens_by_its_id", [sys.executable,
          os.path.join(HERE, "test_a_reel_opens_by_its_id.py")], 30,
          needs_app=False,
