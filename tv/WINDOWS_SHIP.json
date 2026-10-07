@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3618",
+  "ver": "v3619",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3618: Two stash sessions file an item with no confidence needed when the reader gives none (his ruling), Auto-Sort re-homes misfiled war gear, rolled rare names go to Magic and Rare, and one drift gets one advice (REG-2022, REG-2023, REG-2024, REG-2025, #264, #266, #269)",
+  "note": "v3619: The push proof bank counts only tracked files so a banked proof is reused, standing kit stays with his character, the excerpt cutter keeps module statements off the def above, and the cost table migrates old fills (REG-2026, REG-2027, REG-2028, REG-2029)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
