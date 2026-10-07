@@ -691,8 +691,9 @@ RED_PROOF = [
     {
         "why": "#151 - his maxed-out Claude cap stops a Grok-only read again",
         "file": "tv_diablo.py",
-        "find": "    _blocked = None if _reader_choice() == \"grok\" else _sub_budget_check(\"oneshot\")\n    if _blocked and _reader_choice() != \"both\":\n        return {\"note\": \"not read - %s\" % _blocked}\n",
-        "replace": "    _blocked = _sub_budget_check(\"oneshot\")\n    if _blocked and _reader_choice() != \"both\":\n        return {\"note\": \"not read - %s\" % _blocked}\n",
+        # REG-1941 re-anchored: the panel notes are built by _panel_note now (asked/later)
+        "find": "    _blocked = None if _reader_choice() == \"grok\" else _sub_budget_check(\"oneshot\")\n    if _blocked and _reader_choice() != \"both\":\n        return _panel_note(\"not read - %s\" % _blocked, later=True)\n",
+        "replace": "    _blocked = _sub_budget_check(\"oneshot\")\n    if _blocked and _reader_choice() != \"both\":\n        return _panel_note(\"not read - %s\" % _blocked, later=True)\n",
         "matches": 2,
     },
     {
