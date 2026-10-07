@@ -4781,6 +4781,9 @@
     letter-spacing: var(--ls-tight); }
   .ftt-seed-rows .ftts-led { color: var(--gold-hi); text-transform: uppercase; font-weight: var(--fw-bold); }
   .ftt-seed-rows .ftts-pv { color: var(--gold-dim); text-transform: uppercase; }
+  /* REG-1986 - the caption that keeps SYNCED-the-provenance apart from synced-the-match beside the name */
+  .ftt-seed-rows .ftts-cap { font: var(--fw-medium) var(--fs-2xs)/1.3 var(--mono); letter-spacing: var(--ls-tight);
+    color: var(--muted, #8b8071); }
   /* UNKNOWN must not read like a clean result — it is the absence of an answer, not an answer */
   .ftt-seed-rows .ftts-unknown .ftts-pv { color: var(--warn, var(--gold-dim)); opacity: .95; }
   /* 2026-09-07 — UNSYNCED is a fifth provenance, added because "SYNCED" sat above
@@ -26301,12 +26304,16 @@ function escC(s) {
         if (!_MINE) return {w: 'no reference', c: 'ftts-unknown',
                             t: 'this console\u2019s own row is not in the roster, so there is '
                              + 'nothing to compare against \u2014 not the same as disagreeing'};
-        var seen = 0, same = 0;
+        /* REG-1986 - THE TIP NAMES THE LEDGERS. GrokBot tick 388: "Konyo ALT TEST's card shows only RUNEWORDS UNSYNCED
+           (uniques and sets SYNCED), but its tip says 3 of 3 ledger(s) disagree". The rows under the name are where each
+           ledger's rows CAME FROM (ledger_authority: SYNCED = earned on that board); this word is whether its COUNTS match
+           this console's. Two questions, one word - so the tip now says which ledgers differ and which agree. */
+        var seen = 0, same = 0, _off = [], _on = [];
         ['sets', 'uniques', 'runewords'].forEach(function (k) {
           var p = t && t[k], mine = _MINE && _MINE[k];
           if (!p || typeof p.have !== 'number') return;
           if (!mine || typeof mine.have !== 'number') return;
-          seen++; if (p.have === mine.have) same++;
+          seen++; if (p.have === mine.have) { same++; _on.push(k); } else { _off.push(k); }
         });
         if (!seen) return {w: 'no report', c: 'ftts-unknown',
                            t: 'this machine reported no ledger this console can compare \u2014 '
@@ -26315,8 +26322,10 @@ function escC(s) {
                                    t: 'every one of the ' + seen + ' ledger(s) it reports agrees '
                                     + 'with this console'};
         return {w: 'differs', c: 'ftts-unsynced',
-                t: (seen - same) + ' of ' + seen + ' ledger(s) disagree with this console \u2014 '
-                 + 'the figures beside the name say which'};
+                t: (seen - same) + ' of ' + seen + ' ledger(s) count differently from this console: '
+                 + _off.join(', ') + (_on.length ? ' (' + _on.join(', ') + ' match)' : '')
+                 + ' \u2014 the figures say by how much. SYNCED / SEEDED beside a ledger is where its '
+                 + 'rows came from, not whether they match'};
       };
       /* REG-1828 — what a click opens, said by the card. It was the row's title, and that opened a native box
          beside this card, and over the hint of any word on the row whose title the hint lane had taken. */
@@ -26430,7 +26439,9 @@ function escC(s) {
           ? _lv.ledgers.filter(function(L){ return L && L.provenance; })
           : [];
         var seeded = _lvRows.length
-          ? '<div class="ftt-seed ftt-seed-rows">'
+          /* REG-1986 - the block says what its words answer: where each ledger's rows came from, never whether they
+             match this console (the word beside the name answers that) */
+          ? '<div class="ftt-seed ftt-seed-rows"><div class="ftts-cap">where its rows came from</div>'
             + _lvRows.map(function(L){
                 /* ⚠ v3111 — THE VERDICT, NOT THE ESSAY. His ruling: *"the entire sentence
                    should be sycned/unsycned for now simple"*. Each row used to carry `L.why` — a

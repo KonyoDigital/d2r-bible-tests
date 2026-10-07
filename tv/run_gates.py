@@ -8866,6 +8866,12 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_a_ledger_word_says_what_it_compares", [sys.executable,
+         os.path.join(HERE, "test_a_ledger_word_says_what_it_compares.py")], 30,
+         needs_app=False,
+         why=("REG-1986 - the fleet card's provenance rows (SYNCED = earned on that board) sat under a 'differs' tip that "
+              "said only '3 of 3 disagree'; the tip names which ledgers differ and match, and the rows say what they answer.")
+         ),
     Gate("test_a_pc_with_no_panel_of_its_own_still_proves_its_lane", [sys.executable,
          os.path.join(HERE, "test_a_pc_with_no_panel_of_its_own_still_proves_its_lane.py")], 60,
          needs_app=False,
