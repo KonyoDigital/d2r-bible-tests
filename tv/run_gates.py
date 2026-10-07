@@ -8866,6 +8866,12 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_a_red_law_refuses_before_any_tamper", [sys.executable,
+         os.path.join(HERE, "test_a_red_law_refuses_before_any_tamper.py")], 60,
+         needs_app=False,
+         why=("REG-1992 - the v3601 and v3602 pushes were refused at minutes 39 and 80 on a law already red untampered; "
+              "the clean wave runs every gate's untampered run first, so that refusal comes before any tamper.")
+         ),
     Gate("test_an_install_line_names_this_pcs_shell", [sys.executable,
          os.path.join(HERE, "test_an_install_line_names_this_pcs_shell.py")], 30,
          needs_app=False,

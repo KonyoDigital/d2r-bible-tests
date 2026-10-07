@@ -189,8 +189,8 @@ RED_PROOF = [
     {
         "why": "REG-1710 - the memory is consulted outside push time too",
         "file": "heart2.py",
-        "find": "    _rk = _red_key(name, idx, pr) if (_PUSH is not None and not _script and not _extra) else None\n",
-        "replace": "    _rk = _red_key(name, idx, pr) if (not _script and not _extra) else None\n",
+        "find": "    _rk = _red_key(name, idx, pr) if (_PUSH is not None and not _script and not _extra and not clean_only) else None\n",
+        "replace": "    _rk = _red_key(name, idx, pr) if (not _script and not _extra and not clean_only) else None\n",
         "matches": 1,
     },
 ]

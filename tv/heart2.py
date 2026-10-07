@@ -1659,6 +1659,7 @@ class _LaneSay(object):
 #      Every other gate keeps its lane.
 # The law: test_a_push_proof_runs_only_where_its_defect_shows. [[regression-guard]] [[unknown-stays-unknown]]
 NOT_RUN = "NOT RUN"     # a push-time proof the run STOPPED before reaching - never a verdict, never banked
+CLEAN = "CLEAN"         # REG-1992: a clean-only run came back green - the wave's answer, never a verdict, never banked
 _PUSH = None            # the running push-time context (_PushRun) while prove(push=True) runs; None otherwise
 # REG-1669 (#42) — ONE CLEAN RUN SERVES A GATE'S PROOFS. Every proof ran the untampered law first, so a gate with N
 # proofs paid 2N runs where N+2 do: MEASURED on his ALT 2026-10-01, a 40-gate census slice took 82 minutes. While
@@ -1682,6 +1683,8 @@ class _PushRun(object):
         self.cache = cache                      # P3: the verdict cache prove(push=True) opened, or None (every proof runs)
         self._items = None                      # REG-1989: the gates take() hands out, drained from the queue once
         self._qlock = threading.Lock()
+        self.wave = False                       # REG-1992: True while the clean wave runs (one clean run per gate)
+        self.clean_wave = {}                    # REG-1992: clean-run key -> (ok, tail) the wave measured
 
     def fail(self, name, idx, verdict, reason):
         """Record the FIRST failure and stop the run. -> True for the call that stopped it"""
@@ -2485,12 +2488,79 @@ def _push_gate_verdict(per):
     return UNPROVABLE if UNPROVABLE in got else PROVEN
 
 
+def _wave_gate(sandbox, name, filename, proofs, say, run):
+    """REG-1992 — THE CLEAN WAVE: one untampered run of this gate, before ANY gate's tampered runs. -> (NOT_RUN, [None])
+
+    MEASURED: the v3601 push was refused at minute 39 and the v3602 push at minute 80, both on a law ALREADY RED
+    untampered - the cheapest verdict the prover makes (one run per gate), scheduled gate by gate among the expensive
+    ones. Now every gate's clean run goes first across the lanes, so a law that is red here refuses the push in the
+    wave's minutes; the main pass reuses the wave's green verdict for its first proof (_prove_one seeds it) and its
+    closing run asks it again in that pass's own sandbox. The clean run asked is exactly the one the gate's first proof
+    in run order would ask (its widths). A gate whose every proof the verdict cache would serve is not asked: its PROVENs
+    were judged over byte-identical inputs on this machine. Nothing here is a verdict: the wave answers green, red, or
+    nothing, and only a red is said."""
+    _CLEAN.runs = {}
+    _CLEAN.pending = None
+    _held = []
+    _q = lambda *a, **k: _held.append(a[0] if a else "")      # noqa: E731 - lines are said only for a red
+    try:
+        order = run.order.get(name) or list(range(len(proofs)))
+        cache = run.cache
+        if cache is not None:
+            _all = True
+            for i in order:
+                try:
+                    key, _r, _w = cache.key_for(sandbox, name, filename, proofs[i])
+                except Exception:
+                    key = None
+                if key is None or cache.lookup(key) is None:
+                    _all = False
+                    break
+            if _all:
+                return NOT_RUN, [None] * len(proofs)
+        for i in order:
+            if run.stop.is_set():
+                break
+            pr = proofs[i]
+            widths = None
+            if isinstance(pr, dict) and "widths" in pr:
+                import law_widths as _LW
+                try:
+                    widths = _LW.declared(pr)
+                except ValueError:
+                    continue                    # the main pass refuses an unreadable declaration (INVALID); not the wave's
+            why = {}
+            try:
+                v = _prove_one(sandbox, name, filename, pr, i, _q, widths=widths, why=why, clean_only=True)
+            except Exception as _we:
+                v = None
+                _held.append("    the wave's clean run raised %s - left to the main pass" % type(_we).__name__)
+            if v == ELSEWHERE or v == INVALID:
+                continue                        # this proof is not judged here; the next one may be
+            if v == UNPROVABLE and why.get("red"):
+                for ln in _held:
+                    say(ln)
+                if run.fail(name, i, UNPROVABLE, "the law is ALREADY RED untampered, so no proof of it can be judged"):
+                    say("  ⛔ #42 FAIL FAST (REG-1992 clean wave) — %s[%d] is ALREADY RED untampered. Found before any "
+                        "tampered run: every proof is NOT RUN and the push is refused on this one." % (name, i))
+            break
+        with run._qlock:
+            for _ck, _e in (_CLEAN.runs or {}).items():
+                run.clean_wave[_ck] = (_e.get("ok"), _e.get("tail"))
+    finally:
+        _CLEAN.pending = None
+        _CLEAN.runs = None
+    return NOT_RUN, [None] * len(proofs)
+
+
 def _prove_gate_push(sandbox, name, filename, proofs, say, run):
     """#42 — one gate's proofs at push time: in the run's order, each at its declared widths, the whole run stopped at
     the first failure. -> (verdict | NOT_RUN, [verdict | None per proof, in RED_PROOF order])
 
     The per-proof rule is _prove_gate's - a proof that raises is BLIND and is recorded - only the order, the widths and
     the stop are new."""
+    if getattr(run, "wave", False):
+        return _wave_gate(sandbox, name, filename, proofs, say, run)     # REG-1992 - the clean wave's pass
     got = {}
     # ⚠⚠ REG-1988 — THE PUSH PATH NEVER GOT REG-1669. _prove_gate hands a push-time gate here BEFORE it sets _CLEAN.runs,
     # so at push time every proof still ran the untampered law first: a gate with N proofs paid 2N law runs where N+2 do
@@ -2573,7 +2643,28 @@ def _prove_push(have, say, stopped=None, cache=None, blank=None):
     run = _PushRun(order, browser, cache)
     _prev, _PUSH = _PUSH, run
     try:
-        results, per_proof = _prove_gates([by[n] for n in gates], say, blank=blank)
+        # REG-1992 — THE CLEAN WAVE FIRST: every gate's one untampered run, across the lanes, before any tamper
+        # Only when gates outnumber lanes: with as many lanes as gates, every gate's first clean run already starts
+        # at the run's first second, and a wave would only add a run.
+        _lanes = prove_workers(len(gates))
+        if len(gates) > _lanes:
+            _w0 = time.time()
+            say("  REG-1992 CLEAN WAVE: %d gate(s) over %d lane(s) - every gate's untampered run first, so a law "
+                "already red refuses in minutes" % (len(gates), _lanes))
+            run.wave = True
+            try:
+                _prove_gates([by[n] for n in gates], say, blank=set())
+            finally:
+                run.wave = False
+                run._items = None              # take() drains the main pass's own queue
+            say("  REG-1992 CLEAN WAVE: %d clean run(s) measured in %.0f s%s"
+                % (len(run.clean_wave), time.time() - _w0,
+                   " - STOPPED on a red" if run.stop.is_set() else " - all green"))
+        if run.stop.is_set():
+            results = dict((n, NOT_RUN) for n in gates)
+            per_proof = dict((n, [None] * len(by[n][2])) for n in gates)
+        else:
+            results, per_proof = _prove_gates([by[n] for n in gates], say, blank=blank)
     finally:
         _PUSH = _prev
     if cache is not None:
@@ -3191,7 +3282,7 @@ def _at_widths(widths):
     return " at %s" % _LW.label(widths)
 
 
-def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None):
+def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, clean_only=False):
     # REG-1686 — a proof that declared what this PC must have is judged only where it is (see ELSEWHERE above)
     _need = pr.get("needs") if isinstance(pr, dict) else None
     if _need:
@@ -3302,7 +3393,7 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None):
     _to = int(_to * DEADLINE_SCALE) if _to else _to
     # #42 lever 1 (REG-1710) — at push time, a plain unittest law whose sabotage was caught before is asked only of the
     # cases that caught it. PROVEN there is a proof; anything else falls through to the full proof below, unchanged.
-    _rk = _red_key(name, idx, pr) if (_PUSH is not None and not _script and not _extra) else None
+    _rk = _red_key(name, idx, pr) if (_PUSH is not None and not _script and not _extra and not clean_only) else None
     _rids = _red_recall(_rk) if _rk else None
     if _rids and _prove_narrow(sandbox, label, tgt, tgt_rel, find, repl, want, filename, _to, _w, _rids, widths,
                                say) == PROVEN:
@@ -3310,6 +3401,15 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None):
     _runs = getattr(_CLEAN, "runs", None)
     _ck = (filename, repr(_extra), repr(_script), _at_widths(widths), _to)
     _hit = _runs.get(_ck) if isinstance(_runs, dict) else None
+    if _hit is None and isinstance(_runs, dict) and not clean_only and _PUSH is not None:
+        # REG-1992 - the clean wave already ran this law untampered over the same bytes in another lane: reuse its GREEN
+        # verdict, bound to THIS sandbox for the closing run (`reused` makes _closing_clean ask it here). A red never
+        # reaches here - it stopped the run in the wave.
+        _wv = (getattr(_PUSH, "clean_wave", None) or {}).get(_ck)
+        if _wv is not None and _wv[0] is True:
+            _hit = _runs[_ck] = {"ok": True, "tail": _wv[1], "reused": 0,
+                                 "again": (lambda: _run_gate(sandbox, filename, timeout=_to, extra=_extra,
+                                                             script=_script, **_w))}
     if _hit is not None:
         ok_clean, tail = _hit["ok"], _hit["tail"]           # REG-1669 — this gate's one clean run
         _hit["reused"] += 1
@@ -3332,6 +3432,8 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None):
         if why is not None:
             why["red"] = True
         return UNPROVABLE
+    if clean_only:
+        return CLEAN                                     # REG-1992 - the wave asks the untampered run only
 
     with io.open(tgt, encoding="utf-8") as fh:
         original = fh.read()
