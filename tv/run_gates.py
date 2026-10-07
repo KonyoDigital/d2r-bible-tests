@@ -8877,6 +8877,12 @@ GATES = [
               "so every cockpit label kept saying THEATRE with nothing open; it now closes it the one way and posts a "
               "ui_fault naming it.")
          ),
+    Gate("test_a_private_ledger_is_not_a_route", [sys.executable,
+         os.path.join(HERE, "test_a_private_ledger_is_not_a_route.py")], 30,
+         needs_app=False,
+         why=("REG-1954 - both route finders read char_select's hidden per-PC ledger .char_roster.json as a route keyed "
+              "'.char', so test_organ_matrix went red only on a PC that had learned characters; a dot-file is never a route.")
+         ),
     Gate("test_a_reel_opens_by_its_id", [sys.executable,
          os.path.join(HERE, "test_a_reel_opens_by_its_id.py")], 30,
          needs_app=False,

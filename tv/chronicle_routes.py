@@ -103,6 +103,11 @@ def _routes_on_disk():
     """-> [(key, filename)] discovered, never typed."""
     out = []
     for p in sorted(os.listdir(HERE)):
+        # REG-1954 — a HIDDEN file is a private ledger, never a shipped roster: char_select's per-PC
+        # `.char_roster.json` (gitignored, present only where characters were learned) read as a route keyed
+        # ".char", the corroborator published "chronicle..char", and test_organ_matrix went red only in main.
+        if p.startswith("."):
+            continue
         if p.endswith("_roster.json") and p not in NOT_A_ROUTE:
             out.append((p[:-len("_roster.json")], p))
     return out
