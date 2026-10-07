@@ -43319,6 +43319,7 @@ class Handler(BaseHTTPRequestHandler):
                     "conf": r.get("conf"),
                     "sim": bool(r.get("sim")),
                 })
+            _idx_missing = 0   # REG-1933 — frames the reel's index lists that the disk no longer holds
             # Footage interleave — prefer sealed reel; never double-scan loose hist when reel exists
             try:
                 _sid0 = str(sess[0].get("sessionId") or "")
@@ -43345,6 +43346,18 @@ class Handler(BaseHTTPRequestHandler):
                     # now via chronicle_retro so a reel whose seal never wrote one is rebuilt from
                     # its filenames instead of falling through as an unindexed frame scan.
                     _frames = _reel_index_frames(_reel_dir)
+                    # REG-1933 — film is what is ON DISK. The dossier counts the reel directory
+                    # (footageN) and this counted the index, so a frame the index lists and the disk
+                    # no longer holds made two counts of one reel ("FILM FRAMES 49" beside "film 64")
+                    # and a beat with no picture. One listing joins them; what fell out is counted.
+                    if _frames:
+                        try:
+                            _ondisk = set(os.listdir(_reel_dir))
+                            _kept_f = [it for it in _frames if str(it.get("f") or "") in _ondisk]
+                            _idx_missing = len(_frames) - len(_kept_f)
+                            _frames = _kept_f
+                        except OSError:
+                            pass
                     if _frames is None:
                         _frames = []
                         for fn in os.listdir(_reel_dir):
@@ -43518,7 +43531,8 @@ class Handler(BaseHTTPRequestHandler):
                 "n": n, "beats": beats, "sessionId": sid,
                 "pack": "debug" if pack != "fast" else "fast",
                 "modeHint": "real",   # client: wall-clock debugger default
-                "stats": {"reads": n_read, "footage": n_foot, "beats": len(beats)},
+                "stats": {"reads": n_read, "footage": n_foot, "beats": len(beats),
+                          "indexMissing": _idx_missing},   # REG-1933 — indexed, gone from disk
                 "t0": beats[0].get("ts") if beats else sess[0].get("ts"),
                 "t1": beats[-1].get("ts") if beats else sess[-1].get("ts"),
             }

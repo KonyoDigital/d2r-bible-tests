@@ -17,6 +17,7 @@ another id, and the dossier hands in its own reel's id.
 Fixtures only: the journal is a list in memory and HIST_DIR is an empty temp dir.
 """
 import io
+import json
 import os
 import re
 import shutil
@@ -44,6 +45,9 @@ def _rows(sid, t0, k=3):
 
 OLD = _rows("s_1000_1", 1000000) + _rows("s_2000_2", 2000000) + _rows("s_3000_3", 3000000)
 NEW = OLD + _rows("s_4000_4", 4000000)      # one more session started after the shelf was drawn
+# split_sessions orders reels by their NEWEST row, so a retro lane (kai, intake) writing a row onto an OLD reel
+# moves it to the top with no new session at all - the Mac's own list has a Sep-8 reel at n=2 for 850 kai rows.
+RETRO = OLD + [{"ts": 5000000, "sessionId": "s_1000_1", "lane": "kai", "names": []}]
 
 
 class _Fake(object):
@@ -89,11 +93,37 @@ class AReelOpensByItsId(unittest.TestCase):
         self.assertEqual(j.get("n"), 3, "the reel's place NOW is not reported back")
         self.assertTrue(j.get("beats"), "the reel was found and carried no beats")
 
+    def test_a_retro_row_on_an_old_reel_reorders_the_list_and_the_id_still_wins(self):
+        self.assertEqual(self.open(RETRO, 1).get("sessionId"), "s_1000_1",
+                         "the fixture no longer reorders on a retro row, so this case measures nothing")
+        j = self.open(RETRO, 1, sid="s_3000_3")
+        self.assertEqual(j.get("sessionId"), "s_3000_3",
+                         "a kai row on an old reel moved the list and ?n=1 opened that reel instead")
+        self.assertEqual(j.get("n"), 2)
+
     def test_a_reel_no_longer_in_the_journal_is_refused(self):
         j = self.open(NEW, 2, sid="s_9999_9")
         self.assertIn("error", j, "a vanished reel was answered with whatever sat at n=2: %s" % j.get("sessionId"))
         self.assertNotIn("beats", j)
         self.assertEqual(j.get("sessionId"), "s_9999_9", "the refusal does not say which reel it could not find")
+
+    def test_film_is_what_is_on_disk_and_the_gone_are_counted(self):
+        """The other way two counts of one reel part: the dossier counts the reel directory, the theatre counted
+        its index. A frame the index lists and the disk no longer holds is not film."""
+        rd = os.path.join(self.d, "reel_s_2000_2")
+        os.makedirs(rd)
+        names = ["f_2000100.jpg", "f_2000200.jpg", "f_2000300.jpg"]
+        with io.open(os.path.join(rd, "index.json"), "w", encoding="utf-8") as fh:
+            json.dump({"frames": [{"f": n, "ts": int(n[2:-4])} for n in names]}, fh)
+        for n in names[:2]:
+            with open(os.path.join(rd, n), "wb") as fh:
+                fh.write(b"\xff\xd8\xff\xd9")
+        j = self.open(OLD, 2, sid="s_2000_2")
+        foot = [b for b in j.get("beats") or [] if b.get("footage")]
+        self.assertEqual(sorted(b["frame"].split("/")[-1] for b in foot), names[:2],
+                         "the theatre played a frame the disk no longer holds (REG-1933)")
+        self.assertEqual(j["stats"]["footage"], 2)
+        self.assertEqual(j["stats"].get("indexMissing"), 1, "the frame that fell out was not counted")
 
     def test_no_sid_keeps_the_old_answer(self):
         self.assertEqual(self.open(NEW, 1).get("sessionId"), "s_4000_4")
@@ -173,6 +203,13 @@ RED_PROOF = [
         "file": "tv/control_ui.html",
         "find": "if (_wantSid && j.sessionId && String(j.sessionId) !== _wantSid){",
         "replace": "if (false){",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1933 - film is the index again, not the disk: a frame that is gone plays as a beat with no picture",
+        "file": "tv/control_app.py",
+        "find": "                            _kept_f = [it for it in _frames if str(it.get(\"f\") or \"\") in _ondisk]\n",
+        "replace": "                            _kept_f = list(_frames)\n",
         "matches": 1,
     },
     {
