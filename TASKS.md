@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3603** | `(this commit)` | v3603 — v3602 70 commits plus REG-1940..1992: the push path shares one clean run per gate, a clean wave refuses an already-red law in minutes, lanes never idle behind the browser, the cheap-subset budget reads the core; the ALT frees an idle view to prove itself and its vault lane proves live from a shipped canary; fleet words say what they compare; sign-in names the installer |
+| **v3604** | `(this commit)` | v3604 — one verdict cache per machine, a load-measured render extension, low-effort second eye, and the four v3603 CI reds fixed (REG-1995, REG-1996, REG-1999, REG-2000, REG-2001) |
+| **v3603** | `4be9551f` | v3603 — v3602 70 commits plus REG-1940..1992: the push path shares one clean run per gate, a clean wave refuses an already-red law in minutes, lanes never idle behind the browser, the cheap-subset budget reads the core; the ALT frees an idle view to prove itself and its vault lane proves live from a shipped canary; fleet words say what they compare; sign-in names the installer |
 | **v3602** | `ff97e665` | v3602 — REG-1904..1939: the prune frees no word, a prover never waits for idle, an unticked item stays unticked, the disk tally carries its verdict, the theatre opens a reel by its id and the dossier numbers never count, the shelf stays open, a failed read is not reading, the vault receipt answers beside itself |
 | **v3601** | `546e76ad` | v3601 — a unique tick records who made it, the character window uses the vault doll, stash reads are counted on the tab own grid, ten vacuous find laws swept, and a vanished sandbox file is named |
 | **v3600** | `873e591b` | v3600 — the console own record no longer holds any PC pull (the ALT sat 123 versions behind) - one rule for every pull door - and two fixes from the v3599 cross-family look |
