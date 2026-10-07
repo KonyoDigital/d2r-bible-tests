@@ -75,9 +75,22 @@ console.log(JSON.stringify({ first: first, later: el.textContent, changed: chang
         self.assertEqual(ui.count("|| 'no login name') + ' ' + _flAge(w.t);"), 1, "the 'also on the site' age is not stamped")
         self.assertEqual(ui.count("setInterval(function () { try { window._flAgeTick(); } catch (e) {} }, 60000);"), 1,
                          "nothing re-reads the stamped ages")
+        # REG-1932 - the tick starts only on a page and never holds a process open: the node laws lift this block, and
+        # a live interval kept node running until four fleet gates timed out (v3602's pre-flight).
+        self.assertEqual(ui.count("    if (typeof document !== 'undefined' && document && document.querySelectorAll) {\n"
+                                  "      var _flAgeTimer = setInterval("), 1, "the age tick starts where there is no page")
+        self.assertEqual(ui.count("if (_flAgeTimer && typeof _flAgeTimer.unref === 'function') _flAgeTimer.unref();"), 1,
+                         "the age tick can hold a node process open")
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1932 - the age tick is no longer unref'd: a node law that lifts its block never exits",
+        "file": "tv/control_ui.html",
+        "find": "      if (_flAgeTimer && typeof _flAgeTimer.unref === 'function') _flAgeTimer.unref();\n",
+        "replace": "",
+        "matches": 1,
+    },
     {
         "why": "REG-1914 - the tick re-reads nothing: an open card keeps saying '6m ago' for 22 minutes",
         "file": "tv/control_ui.html",

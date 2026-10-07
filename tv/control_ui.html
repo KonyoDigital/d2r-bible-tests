@@ -25328,7 +25328,15 @@ function escC(s) {
     }
     return n;
   };
-  try { setInterval(function () { try { window._flAgeTick(); } catch (e) {} }, 60000); } catch (e) {}
+  /* REG-1932 - ONLY ON A PAGE, AND NEVER HOLDING A PROCESS OPEN. The node laws lift this block to run its functions,
+     and a live interval kept node's event loop alive for ever: four fleet gates timed out at 120-240 s in v3602's
+     pre-flight. A page has a document; unref() (node only) lets any other host exit. */
+  try {
+    if (typeof document !== 'undefined' && document && document.querySelectorAll) {
+      var _flAgeTimer = setInterval(function () { try { window._flAgeTick(); } catch (e) {} }, 60000);
+      if (_flAgeTimer && typeof _flAgeTimer.unref === 'function') _flAgeTimer.unref();
+    }
+  } catch (e) {}
   /* ── v3387 — ONE PRESENCE PHRASE, AND IT NAMES THE DOOR IT CAME THROUGH ─────────────────
      Konyo, 2026-09-20: "make sure to join them so there is not mismatch and unsycn between them
      so they match and work as a one visual read."

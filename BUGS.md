@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1932 - THE FLEET AGE TICK HELD NODE OPEN, AND FOUR FLEET GATES HUNG (2026-10-07, v3602's pre-flight)
+
+REG-1914's 60 s tick (`setInterval(_flAgeTick)`) sat at the top level of the fleet block in control_ui.html. The node laws lift that block to run its shaping functions, and a live interval keeps node's event loop alive, so test_the_fleet_says_where_a_river_is_stuck, ..._shows_the_shadow_eye, ..._shows_each_pcs_readers and test_the_picker_census_reaches_the_fleet each timed out at 120-240 s (and one test_control case erred the same way) on the integration tip. The tick now starts only where there is a page (a document) and is unref'd where the host supports it, so it can never hold a process open; all four gates pass in 1-4 s. Caught by the pre-flight, before any push. Law `test_an_age_on_the_fleet_card_keeps_aging` (+1 RED_PROOF).
+
 ### REG-1931 - TWO STAMPS THE SERVER CALLS DRIFT PAINTED NO BANNER (2026-10-07, Grok ui slice 0 #2)
 
 `_pageNewerSay` returned '' on a numeric tie between two different strings (v1 / v1.0, 3600 / v3600), while `_drift_once` compares the strings and calls that drift. The banner now says the two differ and that which is newer is UNKNOWN. Law `test_a_window_that_fails_says_why`.
