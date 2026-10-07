@@ -869,7 +869,7 @@ def _health(st):
          "sessionMs": 0, "lastReadAgeMs": -1, "named": 0, "vaulted": 0,
          # v846 — Tesla-drive dashboard truth
          "filmFps": _film_fps_now(), "filmTargetFps": _FILM_FPS,
-         "footageFps": _foot_fps_now(), "footageTargetFps": _FOOTAGE_FPS,
+         "footageTargetFps": _FOOTAGE_FPS,   # REG-1948 — "footageFps" is set once, above (it was set twice here)
          "filmLane": globals().get("_FILM_LANE", ""), "filmCapMs": globals().get("_FILM_CAP_MS"),   # v867
          "footageWhy": globals().get("_FOOTAGE_WHY", ""),   # v947 — grab|bridge-last-good|disk-full
          "footageBridges": int(globals().get("_FOOTAGE_BRIDGES") or 0),

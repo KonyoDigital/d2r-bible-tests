@@ -25795,7 +25795,10 @@ def heart_state(force=False):
         # trust in the number it prints the way a valve earns permission to act.
         "routes": locks.get("routes") or [],
         "routesProven": locks.get("routesProven"), "routesTotal": locks.get("routesTotal"),
-        "locksOk": bool(locks.get("ok")),
+        # REG-1948 — this was a SECOND "locksOk" in the same literal, and the later key wins: the self-arming lock
+        # report's verdict overwrote "the lock ledger was read" above, so the panel's PART OF THE HEART WAS NOT READ
+        # never saw an unread ledger and fired on a lock that was merely not ok (the #231 eye on 5f85fc67).
+        "lockReportOk": bool(locks.get("ok")),
         "locksWhy": locks.get("why", ""),
         "open": locks.get("open"), "total": locks.get("total"),
         # REG-1737 - how many may act now; each lock row carries its own permittedWhy

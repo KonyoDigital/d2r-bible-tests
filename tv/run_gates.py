@@ -8866,6 +8866,12 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_a_dict_literal_sets_each_key_once", [sys.executable,
+         os.path.join(HERE, "test_a_dict_literal_sets_each_key_once.py")], 60,
+         needs_app=False,
+         why=("REG-1948 - heart_state's route literal set \"locksOk\" twice and the later (the self-arming verdict) won, so an "
+              "unread lock ledger never showed; no dict literal in tv/*.py may repeat a key (ast, every file).")
+         ),
     Gate("test_the_sweep_box_says_whose_sweep", [sys.executable,
          os.path.join(HERE, "test_the_sweep_box_says_whose_sweep.py")], 30,
          needs_app=False,
