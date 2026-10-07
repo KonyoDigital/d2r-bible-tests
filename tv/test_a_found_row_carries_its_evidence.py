@@ -108,7 +108,10 @@ def _regions(src=None):
 #: The one line of `toggleOwned` this gate's node stub reproduces. Pinned as its own law below,
 #: so the fixture cannot quietly stop resembling the thing it stands in for — the fixture is the
 #: usual culprit. [[feedback-fixtures-never-touch-live-data]]
-TOGGLE_WRITE = ("else fl[name] = window._grailStamp ? window._grailStamp() : "
+# REG-1921 - REG-1886 turned this line into a block (`else { fl[name] = ...;` then the foundBy mark: who made the tick).
+# The WRITE is unchanged - the stub still reproduces it - but the pin still quoted the old one-line form, so CI went red on
+# v3601 while every changed-law gate passed (this law did not change; the page did).
+TOGGLE_WRITE = ("else { fl[name] = window._grailStamp ? window._grailStamp() : "
                 "new Date().toLocaleString();")
 
 HARNESS = r"""
@@ -140,6 +143,8 @@ window._vaultMayClaim     = function(){ return false; };
 window.tvVaultRegister    = function(){ return { ok:false, why:'not this law' }; };
 window._tvExtraRemember   = function(){};
 window._chronSetPieceSet  = function(){ return new Set(%(pieces)s); };
+/* REG-1906 - the apply loops now ask his un-ticks first; this law's world has none, so nothing is held. */
+window._chronHeldByUntick = function(){ return false; };
 
 var ALREADY_UNI = %(alreadyUni)s, ALREADY_SET = %(alreadySet)s;
 function _chronAlreadyUni(n){ return ALREADY_UNI.indexOf(n) >= 0; }
