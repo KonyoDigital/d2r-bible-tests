@@ -210,13 +210,23 @@ def excerpt_blocks(text, lines, is_py, window=None, max_block=None, max_chars=No
     spans = []
     for ln in sorted(set(int(x) for x in lines if isinstance(x, int) and 1 <= x <= n)):
         i = ln - 1
-        if is_py:
+        # REG-2018 (the #231 eye on v3614) - a MODULE-LEVEL edit (a non-blank column-0 line that is not a def/class/
+        # decorator) has no enclosing def: walking up would glue it to the previous function. It gets a window.
+        _module_level = is_py and src[i][:1] not in ("", " ", "\t") and not _PY_TOP.match(src[i])
+        if is_py and not _module_level:
             a = i
             while a > 0 and not _PY_TOP.match(src[a]):
                 a -= 1
             while a > 0 and src[a - 1].startswith("@"):
                 a -= 1
             b = i + 1
+            # REG-2018 - a hunk on a decorator carries the function it decorates: step past the stacked decorators
+            # and the def/class line before looking for the next top-level marker.
+            if src[i].startswith("@"):
+                while b < n and src[b].startswith("@"):
+                    b += 1
+                if b < n and _PY_TOP.match(src[b]):
+                    b += 1
             while b < n and not _PY_TOP.match(src[b]):     # the next top-level def / class / decorator ends it
                 b += 1
         else:
@@ -234,6 +244,12 @@ def excerpt_blocks(text, lines, is_py, window=None, max_block=None, max_chars=No
     for a, b in merged:
         part = "--- lines %d-%d ---\n" % (a + 1, b) + "\n".join("%6d: %s" % (k + 1, src[k]) for k in range(a, b))
         if used + len(part) > max_chars:
+            if not out:
+                # REG-2018 - a FIRST block over the cap used to leave only this banner: a file "excerpted" with no code.
+                # Keep as much of it as fits, around its start, and say it was cut.
+                out.append(part[:max_chars])
+                out.append("--- (cut: this block alone passed %d characters; the rest is in the diff only) ---" % max_chars)
+                break
             out.append("--- (cut: the excerpt reached %d characters; later blocks are in the diff only) ---" % max_chars)
             break
         out.append(part)

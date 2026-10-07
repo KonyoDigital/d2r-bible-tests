@@ -75,6 +75,26 @@ class TheEyeSeesTheBlocksAroundABigFilesHunks(unittest.TestCase):
         self.assertLessEqual(len(out), 12000 + 200)
         self.assertIn("(cut: the excerpt reached", out, "a cut excerpt does not say it was cut")
 
+    def test_a_module_level_edit_is_not_glued_to_the_previous_def(self):
+        """REG-2018 (the #231 eye on v3614)."""
+        text = "def first():\n    return 1\n\nLIMIT = 5\n\ndef second():\n    return 2\n"
+        out = E.excerpt_blocks(text, [4], True, window=1)
+        self.assertIn("LIMIT = 5", out)
+        self.assertNotIn("return 1", out, "a module-level edit was excerpted as part of the def above it")
+
+    def test_a_decorator_edit_carries_the_function_it_decorates(self):
+        text = "import x\n\n\n@cache\ndef f():\n    return 1\n\n\ndef g():\n    return 2\n"
+        out = E.excerpt_blocks(text, [4], True)
+        self.assertIn("def f():", out, "a decorator-only hunk excerpted the decorator alone")
+        self.assertIn("return 1", out)
+        self.assertNotIn("def g", out)
+
+    def test_a_first_block_over_the_cap_still_carries_code(self):
+        text = "def big():\n" + "\n".join("    v%d = '%s'" % (k, "x" * 200) for k in range(300)) + "\n"
+        out = E.excerpt_blocks(text, [150], True, max_chars=5000)
+        self.assertIn("this block alone passed", out, "the cut is not said")
+        self.assertIn(": def big():", out, "an over-cap first block reached the eye as a banner with no code (REG-2018)")
+
     def test_a_real_snapshot_excerpts_the_big_file_around_its_own_commit(self):
         repo = tempfile.mkdtemp(prefix="eyeexcerpt_")
         cwd = tempfile.mkdtemp(prefix="eyecwd_")
@@ -109,6 +129,21 @@ class TheEyeSeesTheBlocksAroundABigFilesHunks(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2018 - a module-level edit is glued to the previous def again",
+     "file": "tv/second_eye_run.py",
+     "find": "        if is_py and not _module_level:\n",
+     "replace": "        if is_py:\n",
+     "matches": 1},
+    {"why": "REG-2018 - a decorator-only hunk excerpts the decorator alone again",
+     "file": "tv/second_eye_run.py",
+     "find": '            if src[i].startswith("@"):\n',
+     "replace": "            if False:\n",
+     "matches": 1},
+    {"why": "REG-2018 - an over-cap first block reaches the eye as a banner with no code again",
+     "file": "tv/second_eye_run.py",
+     "find": "            if not out:\n                # REG-2018",
+     "replace": "            if False:\n                # REG-2018",
+     "matches": 1},
     {"why": "#259 - an over-limit file is dropped again, so the eye judges console changes from bare hunks",
      "file": "tv/second_eye_run.py",
      "find": "            excerpts.append(ex)\n",
@@ -121,7 +156,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "#259 - a Python hunk gets a fixed window instead of its enclosing def",
      "file": "tv/second_eye_run.py",
-     "find": "        if is_py:\n",
+     "find": "        if is_py and not _module_level:\n",
      "replace": "        if False:\n",
      "matches": 1},
 ]
