@@ -13,6 +13,8 @@ import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+from console_safe import enable as _console_safe_enable  # noqa: E402 - it prints "──" (test_encoding_rule_one_def)
+_console_safe_enable()
 
 import suite_verdict as SV  # noqa: E402
 
