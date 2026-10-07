@@ -57,6 +57,10 @@ UNSEALED = "UNSEALED"         # read (maybe named) but no seal at all yet.
 #: either. See holding_possible() for the law and the measurement that forced it.
 NOT_A_HOLDING = "NOT_A_HOLDING"
 UNKNOWN = "UNKNOWN"           # nobody could be asked. Never a verdict.
+#: REG-2004 - sealed, names read, AND the seal certifies the extraction contract (name, location, provenance). The join
+#: is DONE. MEASURED on his Mac 2026-10-07: 6 of 13 "RECOVERABLE" reels had seals frame_authority certified COVERED, so
+#: the river held them at JOIN owing a join that had already been written - one of the two halves of the JOIN dam.
+JOINED = "JOINED"
 
 
 def _session_of(reel):
@@ -402,6 +406,11 @@ def gap(reels=None, river=None):
             state = UNKNOWN
             why = ("this session IS sealed, but %s — so whether the reader ever got a name for it "
                    "is UNKNOWN. Not zero, and certainly not a capture problem." % nwhy)
+        elif has_seal and n and _cert:
+            # REG-2004 - the certificate is the join. Asked BEFORE the recoverable branch, which never looked at it.
+            state = JOINED
+            why = ("SEALED, and the seal certifies name, location and provenance for this session (%d item name(s) "
+                   "read) - the join is done. Nothing is owed here." % n)
         elif has_seal and n and hold is True:
             state = RECOVERABLE
             why = ("SEALED and the reader already read %d item name(s) for this session, %d of "
@@ -472,6 +481,7 @@ def gap(reels=None, river=None):
         "ok": bool(rows), "rows": rows, "counts": counts, "walked": len(rows),
         "recoverable": rec,
         "notAHolding": noth,
+        "joined": counts.get(JOINED, 0),     # REG-2004 - sealed, named and certified: nothing owed
         # the two figures the headline is about, published rather than left to be re-summed
         "recoverablePanelNames": _rec_names,
         "notAHoldingNames": _noth_names,

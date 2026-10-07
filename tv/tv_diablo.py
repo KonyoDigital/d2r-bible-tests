@@ -5419,6 +5419,7 @@ class OcrWorker:
         self.lock = threading.Lock()
         self.ok = False
         self.ram_refused = ""     # REG-2003 - why the last spawn was refused for memory; "" once a spawn is not
+        self.ram_refused_at = 0.0  # REG-2005 - WHEN it was refused, so a probe blames only a refusal made during it
 
     def available(self):
         return bool(OCR_ENABLED and _ocr_worker_cmd() is not None)   # v818 — platform-aware
@@ -5439,6 +5440,7 @@ class OcrWorker:
             if not _ram_ok:
                 self.ok = False
                 self.ram_refused = str(_ram_why or "memory is short")   # REG-2003 - the canary names it
+                self.ram_refused_at = time.time()
                 if not globals().get("_OCR_RAM_SAID"):
                     globals()["_OCR_RAM_SAID"] = True
                     ev("cap", "ocr worker not started: " + _ram_why)
@@ -7061,7 +7063,6 @@ def _grok_backup(ap, claude_why, prompt=None, raw_json=False, timeout=90, backed
     backed["fail"] = None
     try:
         import g5_grok_eyes as _G5b
-        _G5b.note_backup(label)
     except Exception as e:
         backed["fail"] = "%s — the Grok module would not load (%s)" % (label, type(e).__name__)
         journal_skip("backup", backed["fail"])
@@ -7078,6 +7079,12 @@ def _grok_backup(ap, claude_why, prompt=None, raw_json=False, timeout=90, backed
         backed["fail"] = "%s — a Grok read was already running for the whole wait" % label
         journal_skip("backup", backed["fail"])
         return None
+    try:
+        # REG-2006 (the #231 eye on v3576) - "Grok stepped in" counts frames Grok was ASKED (note_backup's own contract):
+        # counted here, past the install, sign-in and one-Grok gate, never for a frame refused before any ask.
+        _G5b.note_backup(label)
+    except Exception:
+        pass
     try:
         backed["asked"] = backed.get("asked") or "grok"   # REG-1941 - a Claude call that already ran stays the spend
         gr = _G5b.g5_vision_read(ap, prompt=(prompt if prompt else READ_PROMPT.format(path=ap)))

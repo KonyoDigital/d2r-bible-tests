@@ -218,7 +218,10 @@ class TheConsoleNamesItsStuckStations(unittest.TestCase):
         self.assertIn("vault lane", why[("PRINTER", False)], "a reel past the window lost its lane's word")
         self.assertNotIn("older than", why[("PRINTER", None)], "a reel inside the window was called older")
         self.assertNotIn("capture", why[("JOIN", None)].lower())
-        self.assertIn("No lane can fix that", why[("JOIN", None)])
+        # REG-2004 - JOIN has a lane (slice 4's one re-read, then the route lane); its word is that lane's state, never
+        # reel_router.OWES's "No lane can fix that" slogan, which was false while 16 re-reads had already run.
+        self.assertIn("the join lane:", why[("JOIN", None)])
+        self.assertNotIn("No lane can fix that", why[("JOIN", None)])
 
     def test_the_alts_dam_past_the_window_is_named(self):
         """#168 - his ALT 2026-10-06: the newest 16 draining, and 84 older reels at PRINTER for up to 9 days. The
@@ -378,7 +381,7 @@ class TheConsoleNamesItsStuckStations(unittest.TestCase):
             station = ca._river_stuck_why("STATION")
             empty = ca._river_stuck_why("EMPTY")
         self.assertNotIn("capture", join.lower())
-        self.assertIn("No lane can fix that", join)
+        self.assertIn("the join lane:", join)       # REG-2004 - the join lane's own word, not the route lane's
         self.assertIn("NOT ITS INPUT", station)
         self.assertNotIn("capture", station.lower())
         self.assertIn("capture", empty.lower(), "EMPTY stopped quoting the route lane")

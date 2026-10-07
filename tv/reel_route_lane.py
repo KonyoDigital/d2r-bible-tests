@@ -109,6 +109,36 @@ def _nothing_owed_say():
     return None
 
 
+def _engine_token(name):
+    """extract_gap's own token `name` (JOINED, RECOVERABLE). -> str | None - None when the engine cannot be asked."""
+    try:
+        import extract_gap as _eg
+        tok = getattr(_eg, name, None)
+    except Exception:
+        return None
+    return tok if isinstance(tok, str) and tok else None
+
+
+def spent_past_window(reels, spent, pinned, shield=None):
+    """REG-2004 - the reel ids whose one join re-read is SPENT and that sit OUTSIDE the newest-16 shield. -> set
+
+    His ruling 2026-10-02: every reel but the newest 16 (and the suite's fixtures) is extracted, tallied and then
+    tombstoned FIFO - "no station may hold a reel for ever", JOIN included - and a re-read is allowed when extraction
+    needs one. #152 slice 4 gave a RECOVERABLE join that one re-read; MEASURED on his Mac 2026-10-07, 7 of them had it
+    (0.5-21 h earlier), the seal still recorded an empty examination, and nothing could ever move them again. Inside
+    the shield a reel keeps waiting. `spent` or `pinned` None (unreadable / still scanning) = nothing, fail closed.
+    `shield` is the CALLER's newest-16 function (reel_retention.recent_shield): this lane never imports the deleter's
+    module (test_the_river_has_an_outlet), and no function handed in means nothing routes."""
+    if spent is None or pinned is None or not callable(shield):
+        return set()
+    try:
+        shield = set(shield(list(reels)))
+    except Exception:
+        return set()
+    pin = set(str(x) for x in pinned)
+    return set(str(r) for r in reels if r in spent and r not in shield and str(r) not in pin)
+
+
 def _why_for(station, reel_why, ruled=None):
     """The sentence that goes in the stamp. -> str
 
@@ -117,6 +147,13 @@ def _why_for(station, reel_why, ruled=None):
     `ruled` is the engine's own token, when this reel was routed because that token said nothing
     is owed. The sentence cites that token. It does not invent a second one.
     """
+    if ruled and ruled == _engine_token("JOINED"):
+        return ("the join is done — the engine ruled %s: the seal certifies name, location and provenance. "
+                "It owes only a tombstone. [%s]" % (ruled, reel_why))
+    if ruled and ruled == _engine_token("RECOVERABLE"):
+        return ("its one re-read is spent and it is older than the newest 16 - the engine still rules %s and "
+                "nothing else can move it; the names the reader took stay on record, and his 10-02 keep-16 ruling "
+                "sends it on to a tombstone. [%s]" % (ruled, reel_why))
     if ruled:
         return ("nothing left to join — the engine ruled %s, so the names were read and none of "
                 "them can become a holding. It owes only a tombstone. [%s]" % (ruled, reel_why))
@@ -127,7 +164,7 @@ def _why_for(station, reel_why, ruled=None):
     return "routed from %s — %s" % (station, reel_why)
 
 
-def plan(rep=None, path=None):
+def plan(rep=None, path=None, spent=None, pinned=None, shield=None):
     """Who would be routed, who would be refused, and why. Writes NOTHING. -> dict
 
     -> {"ok", "route": [...], "declined": [...], "shelf", "why"}
@@ -158,10 +195,19 @@ def plan(rep=None, path=None):
     # extract_gap's, read once. A missing token routes none of them: unknown is not nothing.
     # RECOVERABLE and any other word stay where they are. They still owe a join.
     _hold = _nothing_owed_say()
+    _done = _engine_token("JOINED")              # REG-2004 - a certified seal: the join is written
+    _rec = _engine_token("RECOVERABLE")
+    _reels = [r.get("reel") for r in (rep.get("reels") or []) if r.get("reel")]
+    _spent = spent_past_window(_reels, spent, pinned, shield) if _rec else set()
     for r in (rep.get("reels") or []):
         st = r.get("station")
-        _ruled = _hold if (st == "JOIN" and _hold is not None
-                           and r.get("extractSay") == _hold) else None
+        _say = r.get("extractSay")
+        _ruled = None
+        if st == "JOIN" and _say is not None:
+            if _say in (_hold, _done):
+                _ruled = _say
+            elif _say == _rec and r.get("reel") in _spent:
+                _ruled = _say                    # REG-2004 - a spent re-read past the shield
         if st in ROUTES_FROM or _ruled:
             out["route"].append({"reel": r.get("reel"), "from": st,
                                  "capturedMs": r.get("capturedMs"),
@@ -176,7 +222,7 @@ def plan(rep=None, path=None):
     return out
 
 
-def apply(by, rep=None, limit=None, path=None):
+def apply(by, rep=None, limit=None, path=None, spent=None, pinned=None, shield=None):
     """Stamp each routable reel ROUTED, as an ACTOR. -> dict
 
     ⚠⚠ v3049 — THIS ASKS `may("reel.route")` NOW, and until today nothing did. The lock existed,
@@ -218,7 +264,7 @@ def apply(by, rep=None, limit=None, path=None):
     if not _ok:
         out["why"] = "reel.route is LOCKED — %s" % _lw
         return out
-    p = plan(rep, path=path)
+    p = plan(rep, path=path, spent=spent, pinned=pinned, shield=shield)
     if not p["ok"]:
         out["why"] = p["why"]
         return out

@@ -356,6 +356,10 @@ def _owes_of(station, ev):
                               "read and none of them can satisfy the contract's `location`, so "
                               "there is no join to write. Forwarded from the engine, not "
                               "re-derived here")
+    if say == "JOINED":
+        return NOTHING_OWED, ("extract_gap ruled JOINED for this reel: the seal certifies name, location and "
+                              "provenance, so the join is already written (REG-2004). Forwarded from the "
+                              "engine, not re-derived here")
     if say == "RECOVERABLE":
         return base, ("extract_gap ruled RECOVERABLE for this reel — the names exist, a cell box "
                       "exists for them, and the seal carries neither. The join IS owed")

@@ -56,6 +56,7 @@ READY = "!!(window.chronicleApply&&window.LSR&&window.toggleOwned&&window.toggle
 UNTICKED = "The Cat's Eye"
 CONTROL = "Nagelring"
 PIECE = "Aldur's Advance (boots)"
+RULED = "Gravepalm"          # one of the nine his v1693 ruling names
 
 
 class Board(object):
@@ -164,9 +165,9 @@ class ASweepNeverReticksWhatHeUnticked(unittest.TestCase):
 
     def test_4_his_recorded_ruling_overrules_his_un_tick(self):
         """REG-2002 - the v1693 one-shot is HIS ruling on names he un-ticked; held, it applied nothing and set its flag."""
-        o = apply_world(board(), [UNTICKED], {"uniques": [{"name": UNTICKED}]}, lanes=["v1693-konyo-ruling-the-nine"])
-        self.assertIn(UNTICKED, o["foundLog"], "his recorded ruling was held by his own un-tick (REG-2002): %s" % o)
-        self.assertNotIn(UNTICKED, o["unfound"], "the ruled name kept its un-tick, so it re-surfaces as a conflict")
+        o = apply_world(board(), [RULED], {"uniques": [{"name": RULED}]}, lanes=["v1693-konyo-ruling-the-nine"])
+        self.assertIn(RULED, o["foundLog"], "his recorded ruling was held by his own un-tick (REG-2002): %s" % o)
+        self.assertNotIn(RULED, o["unfound"], "the ruled name kept its un-tick, so it re-surfaces as a conflict")
         self.assertEqual(o["res"]["overruledBy"], "v1693-konyo-ruling-the-nine", "the receipt does not say which "
                          "ruling overruled the un-tick: %s" % o)
         self.assertEqual(o["res"]["held"], [])
@@ -178,19 +179,35 @@ class ASweepNeverReticksWhatHeUnticked(unittest.TestCase):
         self.assertIn(UNTICKED, o["res"]["held"])
         self.assertEqual(o["res"]["overruledBy"], "")
 
+    def test_6_the_ruling_overrules_only_the_names_it_ruled_on(self):
+        """REG-2005 (the #231 eye on v3605) - a name he un-ticked that the ruling does not list stays held beside it."""
+        o = apply_world(board(), [RULED, UNTICKED], {"uniques": [{"name": RULED}, {"name": UNTICKED}]},
+                        lanes=["v1693-konyo-ruling-the-nine"])
+        self.assertIn(RULED, o["foundLog"], "premise: the ruled name did not apply, so the hold below proves nothing")
+        self.assertNotIn(UNTICKED, o["foundLog"], "a name outside the ruling rode in on its lane (REG-2005): %s" % o)
+        self.assertIn(UNTICKED, o["unfound"])
+        self.assertIn(UNTICKED, o["res"]["held"])
+
 
 RED_PROOF = [
     {
+        "why": "REG-2005 - the ruling's lane overrules EVERY un-tick in its proposal, not only the nine it names",
+        "file": "bible.html",
+        "find": "        window._CHRON_HIS_RULINGS[_ruled].forEach(function(n){ window._chUntickedNow.delete(window._chronUntickedFold(n)); });\n",
+        "replace": "        window._chUntickedNow = new Set();\n",
+        "matches": 1,
+    },
+    {
         "why": "REG-2002 - his recorded ruling is held by his own un-tick again: the v1693 nine apply nothing",
         "file": "bible.html",
-        "find": "window._chUntickedNow = _ruled ? new Set() : window._chronUntickedSet();",
-        "replace": "window._chUntickedNow = window._chronUntickedSet();",
+        "find": "        window._CHRON_HIS_RULINGS[_ruled].forEach(function(n){ window._chUntickedNow.delete(window._chronUntickedFold(n)); });\n",
+        "replace": "",
         "matches": 1,
     },
     {
         "why": "REG-2002 - any lane that says 'ruling' overrules his un-tick, so a sweep can name one",
         "file": "bible.html",
-        "find": "if (window._CHRON_HIS_RULINGS[l[i]] === 1) return String(l[i]);",
+        "find": "if (Array.isArray(window._CHRON_HIS_RULINGS[l[i]])) return String(l[i]);",
         "replace": "if (/ruling/.test(l[i])) return String(l[i]);",
         "matches": 1,
     },

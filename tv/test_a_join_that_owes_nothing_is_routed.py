@@ -115,9 +115,8 @@ class AJoinThatOwesNothingIsRouted(unittest.TestCase):
 RED_PROOF = [
     {"why": "REG-1782 - the join the engine ruled nothing is left at JOIN again",
      "file": "reel_route_lane.py",
-     "find": "        _ruled = _hold if (st == \"JOIN\" and _hold is not None\n"
-             "                           and r.get(\"extractSay\") == _hold) else None\n",
-     "replace": "        _ruled = None\n",
+     "find": "            if _say in (_hold, _done):\n",          # REG-2004 - the one test both tokens now share
+     "replace": "            if _say == _done:\n",
      "matches": 1},
     {"why": "REG-1782 - a token that could not be read is filled in, and the join is routed on a guess",
      "file": "reel_route_lane.py",

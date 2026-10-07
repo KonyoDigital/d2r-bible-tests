@@ -308,7 +308,10 @@ RED_PROOF = [
         'why': 'removes the only call that drives the lane, so the triage loop observes a river '
                'nothing is routing and test_something_actually_CALLS_the_lane must go red',
         'file': 'control_app.py',
-        'find': '_rl = _rrl.apply(by="loop:tvd-retro-triage", limit=_ROUTE_LANE_MAX_PER_TICK)',
+        # REG-2004 - the call now spans three lines (spent / pinned / shield); the tamper removes the WHOLE statement
+        'find': '_rl = _rrl.apply(by="loop:tvd-retro-triage", limit=_ROUTE_LANE_MAX_PER_TICK,\n'
+                '                                 spent=_join_reread_spent(), pinned=_route_pinned_reels(),\n'
+                '                                 shield=_route_shield_fn())   # REG-2004',
         'replace': '_rl = None  # _HEART2_TAMPERED_ — nothing drives the lane',
         'matches': 1,
     },

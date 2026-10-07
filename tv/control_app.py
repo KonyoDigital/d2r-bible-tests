@@ -15782,6 +15782,20 @@ def _river_stuck_why(station):
         if isinstance(_owed_r, int) and not isinstance(_owed_r, bool) and _owed_r > 0:
             # REG-1863 - a fresh console's sweep owes reads and has said nothing yet: not the note's case either
             return "the reel sweep owes %d read(s) - it has not spoken since this console started" % _owed_r
+    if station == "JOIN":
+        # REG-2004 - JOIN HAS A LANE, AND ITS WORD IS THE LANE'S. The note below is reel_router.OWES's standing text,
+        # "...the seal does not carry them. Code. No lane can fix that; an edit can" - printed on his Mac while slice 4's
+        # re-read had 3 queued and 16 tried. A certified seal or a spent re-read past the shield is routed on.
+        _jq, _js = None, None
+        try:
+            with _VAULT_AUTOREAD_LOCK:
+                _jq = len(_VAULT_AUTOREAD.get("joinQueued") or {})
+            _js = _join_reread_spent()
+        except Exception:
+            _jq, _js = None, None
+        if _jq is not None and _js is not None:
+            return ("the join lane: %d queued for their one re-read, %d have had it - a certified seal, or a spent "
+                    "re-read older than the newest 16, is routed on" % (_jq, len(_js)))
     if station in ("JOIN", "STATION"):
         try:
             import river_walk as _rw
@@ -30239,6 +30253,39 @@ def _join_once_pick(rows, tried, queued, cap):
     return out[:cap]
 
 
+def _join_reread_spent():
+    """REG-2004 - the reels whose ONE join re-read has run (tried, and no longer queued). -> set | None (store unread)
+
+    vault_join_once writes joinTried and joinQueued together; the re-read pops joinQueued when it runs, and REG-1817
+    puts the entry back when the lane could not start - so tried-and-not-queued is exactly "the re-read happened"."""
+    try:
+        with _VAULT_AUTOREAD_LOCK:
+            tried = dict(_VAULT_AUTOREAD.get("joinTried") or {})
+            queued = dict(_VAULT_AUTOREAD.get("joinQueued") or {})
+    except Exception:
+        return None
+    return set(str(r) for r in tried if r not in queued)
+
+
+def _route_shield_fn():
+    """REG-2004 - the deleter's newest-16 shield, handed to the route lane (which must not import the deleter). -> fn | None"""
+    try:
+        import reel_retention as _rt
+        return _rt.recent_shield
+    except Exception:
+        return None
+
+
+def _route_pinned_reels():
+    """REG-2004 - the reels the suite opens by name, which never move. -> list | None (None while its first scan runs)"""
+    try:
+        import frame_authority as _fa
+        got = _fa.test_referenced_reels_nowait()
+    except Exception:
+        return None
+    return None if got is None else list(got)
+
+
 def vault_join_once(dry=True, rows=None):
     """Queue one re-read for RECOVERABLE joins. -> dict
 
@@ -31980,7 +32027,9 @@ def _retro_triage_loop():
             _rl_runs = int(_ROUTE_LANE.get("runs") or 0) + 1
             try:
                 import reel_route_lane as _rrl
-                _rl = _rrl.apply(by="loop:tvd-retro-triage", limit=_ROUTE_LANE_MAX_PER_TICK)
+                _rl = _rrl.apply(by="loop:tvd-retro-triage", limit=_ROUTE_LANE_MAX_PER_TICK,
+                                 spent=_join_reread_spent(), pinned=_route_pinned_reels(),
+                                 shield=_route_shield_fn())   # REG-2004
                 # ⚠ BUILT THEN SWAPPED IN ONE ASSIGNMENT, not mutated field by field. Raised by
                 # the second eye: the doctor reads this dict from another thread and could see it
                 # half-written — `runs` incremented while `ok` still held the previous tick's
@@ -36369,7 +36418,7 @@ def _shipped_canary(root=None):
     return None
 
 
-def _ocr_ram_refusal():
+def _ocr_ram_refusal(since=None):
     """REG-2003 - the sentence for an OCR worker that memory kept from starting, or "". Never raises.
 
     MEASURED on his ALT 2026-10-07 18:2x, on v3604: free RAM 403 MB under the 1024 MB secondary-worker floor, so the
@@ -36377,8 +36426,15 @@ def _ocr_ram_refusal():
     live", and nothing said memory was the reason - or that the idle-PC view release (REG-1957) could fix it."""
     try:
         import tv_diablo as _tvd
-        why = str(getattr(getattr(_tvd, "_OCR", None), "ram_refused", "") or "")
+        _w = getattr(_tvd, "_OCR", None)
+        why = str(getattr(_w, "ram_refused", "") or "")
+        at = float(getattr(_w, "ram_refused_at", 0.0) or 0.0)
     except Exception:
+        return ""
+    # REG-2005 (the #231 eye on v3605) - the flag is sticky until a spawn succeeds, so a probe that failed WITHOUT
+    # trying to start the worker (OCR off, a frame refused before any read) would blame an old refusal and could free
+    # an idle window for it. Only a refusal made at or after `since` belongs to this probe.
+    if since is not None and at < float(since):
         return ""
     return ("the OCR worker was not started (%s)" % why) if why else ""
 
@@ -36498,6 +36554,7 @@ class LaneCanary(object):
             self.marks.append((now, False))
             return False
         r = _gate_receipt_begin()
+        _t_probe = time.time()            # REG-2005 - a memory refusal blamed below must be this probe's own
         try:
             val = stash_screen_open(path)
         except Exception:
@@ -36508,7 +36565,7 @@ class LaneCanary(object):
         # this frame is KNOWN to be a panel, so the lane is proven only if it says so again
         live = bool(val is not None and not _gate_blind(r))
         self.marks.append((now, live))
-        self.why = "" if live else _ocr_ram_refusal()
+        self.why = "" if live else _ocr_ram_refusal(since=_t_probe)
         return live
 
     def live_at(self, t):

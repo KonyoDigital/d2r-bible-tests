@@ -53601,10 +53601,14 @@ function renderJournal(){
      then held all nine, so the ruling applied nothing and still set its once-only flag — a board rebuilt from before
      the ruling lost it for good (Routine I, v1693_the_nine_applied, red on da9651a3). Only a ruling recorded HERE, by
      the lane its one-shot already carries, may overrule; a sweep cannot name one, and res says which ruling did. */
-  window._CHRON_HIS_RULINGS = { 'v1693-konyo-ruling-the-nine': 1 };
+  /* REG-2005 (the #231 eye on v3605) — A RULING NAMES WHAT IT RULED ON. Overruling every un-tick in a proposal that
+     carries the lane would let any other name he un-ticked ride in beside the nine. Only the names the ruling lists
+     leave the held set; every other un-tick in the same apply is still held. */
+  window._CHRON_HIS_RULINGS = { 'v1693-konyo-ruling-the-nine': ["Blackbog's Sharp", 'Islestrike', 'Lidless Wall',
+    'Sureshrill Frost', 'Gravepalm', 'Hellslayer', 'Vampire Gaze', 'Pluckeye', 'Chance Guards'] };
   window._chronIsHisRuling = function(proposal){
     var l = (proposal && proposal.lanes) || [];
-    for (var i = 0; i < l.length; i++) if (window._CHRON_HIS_RULINGS[l[i]] === 1) return String(l[i]);
+    for (var i = 0; i < l.length; i++) if (Array.isArray(window._CHRON_HIS_RULINGS[l[i]])) return String(l[i]);
     return '';
   };
   window.chronicleApply = function(proposal){
@@ -53613,7 +53617,13 @@ function renderJournal(){
     // every row this apply writes shares one moment — see the writer's note on _chBatchTs
     window._chBatchTs = res.ts;
     var _ruled = window._chronIsHisRuling(proposal);   // REG-2002 — a recorded ruling of his overrules his un-tick
-    try { window._chUntickedNow = _ruled ? new Set() : window._chronUntickedSet(); if (_ruled) res.untickOverruledBy = _ruled; }
+    try {
+      window._chUntickedNow = window._chronUntickedSet();
+      if (_ruled) {
+        window._CHRON_HIS_RULINGS[_ruled].forEach(function(n){ window._chUntickedNow.delete(window._chronUntickedFold(n)); });
+        res.untickOverruledBy = _ruled;
+      }
+    }
     catch(e){ window._chUntickedNow = null; res.untickUnread = String(e && e.message || e).slice(0, 80); }
     try {
     return window._chronicleApplyInner(proposal, add, res);

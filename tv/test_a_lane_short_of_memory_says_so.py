@@ -19,6 +19,7 @@ import io
 import os
 import sys
 import tempfile
+import time
 import unittest
 import unittest.mock as mock
 
@@ -68,13 +69,22 @@ class ALaneShortOfMemorySaysSo(unittest.TestCase):
     def test_a_spawn_refused_for_memory_records_why_and_a_later_spawn_clears_it(self):
         self.assertFalse(self._spawn(ram_ok=False), "premise: the memory floor did not refuse the worker")
         self.assertEqual(self.w.ram_refused, RAM_WHY, "the worker forgot why memory refused it (REG-2003)")
+        self.assertGreater(self.w.ram_refused_at, 0, "the refusal carries no time, so a probe cannot tell it is its own")
         self.assertTrue(self._spawn(ram_ok=True), "premise: a spawn with memory to spare did not start")
         self.assertEqual(self.w.ram_refused, "", "a worker that started still reports a memory refusal")
 
-    def _probe(self, refused):
-        with mock.patch.object(CA, "_gate_cache", lambda: {}), \
-                mock.patch.object(CA, "stash_screen_open", lambda path: None), \
-                mock.patch.object(T._OCR, "ram_refused", refused):
+    def _probe(self, refused, during=True):
+        """The real probe; the stubbed gate read refuses the worker DURING the probe, or the refusal is a minute old."""
+        prev = (T._OCR.ram_refused, getattr(T._OCR, "ram_refused_at", 0.0))
+        self.addCleanup(lambda: (setattr(T._OCR, "ram_refused", prev[0]), setattr(T._OCR, "ram_refused_at", prev[1])))
+        T._OCR.ram_refused, T._OCR.ram_refused_at = ((refused, time.time() - 60) if (refused and not during) else ("", 0.0))
+
+        def _read(path):
+            if refused and during:
+                T._OCR.ram_refused, T._OCR.ram_refused_at = refused, time.time()
+            return None
+
+        with mock.patch.object(CA, "_gate_cache", lambda: {}), mock.patch.object(CA, "stash_screen_open", _read):
             cn = CA.LaneCanary()
             ok = cn.probe(cn.known_good_frame())
             return ok, cn.why
@@ -87,6 +97,13 @@ class ALaneShortOfMemorySaysSo(unittest.TestCase):
         ok, why = self._probe("")
         self.assertFalse(ok)
         self.assertEqual(why, "", "a probe that failed for another reason was blamed on memory")
+
+    def test_an_old_refusal_is_not_blamed_for_a_probe_that_never_asked_the_worker(self):
+        """REG-2005 (the #231 eye on v3605) - the flag is sticky until a spawn succeeds; a probe that failed without
+        trying the worker must not inherit it (and must not free a window for it)."""
+        ok, why = self._probe(RAM_WHY, during=False)
+        self.assertFalse(ok)
+        self.assertEqual(why, "", "a refusal from before this probe was blamed for it: %r" % why)
 
     def _release(self, playing, mode):
         seen = []
@@ -124,6 +141,11 @@ class ALaneShortOfMemorySaysSo(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2005 - a sticky memory refusal from before the probe is blamed for it, and can free an idle window",
+     "file": "tv/control_app.py",
+     "find": "    if since is not None and at < float(since):\n        return \"\"\n",
+     "replace": "",
+     "matches": 1},
     {"why": "REG-2003 - the OCR worker forgets why memory refused it, so the canary cannot say so",
      "file": "tv/tv_diablo.py",
      "find": '                self.ram_refused = str(_ram_why or "memory is short")   # REG-2003 - the canary names it\n',
@@ -136,7 +158,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2003 - the failed probe drops the reason: every held reel says only 'could not be proven live'",
      "file": "tv/control_app.py",
-     "find": '        self.why = "" if live else _ocr_ram_refusal()\n',
+     "find": '        self.why = "" if live else _ocr_ram_refusal(since=_t_probe)\n',
      "replace": '        self.why = ""\n',
      "matches": 1},
     {"why": "REG-2003 - the vault lane never asks the idle-PC release, so a short ALT never drains",

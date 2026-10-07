@@ -8923,6 +8923,18 @@ GATES = [
          why=("REG-1959 - the ALT has no stash_gate_cache (it never filmed a stash panel), so its vault lane could never "
               "prove itself live and retired every reel un-extracted; a tracked stash frame, pinned by sha256, is the canary.")
          ),
+    Gate("test_a_backup_counts_only_an_ask", [sys.executable,
+         os.path.join(HERE, "test_a_backup_counts_only_an_ask.py")], 60,
+         needs_app=False,
+         why=("REG-2006 (the #231 eye on v3576) - _grok_backup counted 'Grok stepped in' before the install, sign-in and "
+              "gate checks, so a PC with no Grok counted frames nobody asked; it counts at the ask now.")
+         ),
+    Gate("test_a_join_that_is_done_or_spent_moves_on", [sys.executable,
+         os.path.join(HERE, "test_a_join_that_is_done_or_spent_moves_on.py")], 60,
+         needs_app=False,
+         why=("REG-2004 (#168) - his Mac's drain sat behind JOIN 9 for 8 days: 6 certified seals read RECOVERABLE and 7 "
+              "spent re-reads had nowhere to go; a certified join and a spent re-read past the newest 16 now route on.")
+         ),
     Gate("test_a_lane_short_of_memory_says_so", [sys.executable,
          os.path.join(HERE, "test_a_lane_short_of_memory_says_so.py")], 60,
          needs_app=False,
