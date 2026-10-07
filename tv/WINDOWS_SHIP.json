@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3608",
+  "ver": "v3609",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3608: a console on a private port is a harness, never a row in his live fleet (REG-2009)",
+  "note": "v3609: a waiting build never replaces the window under his hand (REG-2010)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

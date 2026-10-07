@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3608** | `(this commit)` | v3608 — a console on a private port is a harness, never a row in his live fleet (REG-2009) |
+| **v3609** | `(this commit)` | v3609 — a waiting build never replaces the window under his hand (REG-2010) |
+| **v3608** | `74b42d3e` | v3608 — a console on a private port is a harness, never a row in his live fleet (REG-2009) |
 | **v3607** | `f8fc5ffa` | v3607 — a past-window stuck row says older and the lag word keeps its space (REG-2007, REG-2008) |
 | **v3606** | `1d526d27` | v3606 — a finished join and a spent re-read past the newest 16 move on, a ruling overrules only its nine, and Grok stepped in counts only an ask (REG-2004, REG-2005, REG-2006) |
 | **v3605** | `320dea94` | v3605 — his recorded v1693 ruling overrules his un-tick again, and a vault lane held by memory on the ALT says so and frees an idle view (REG-2002, REG-2003) |
