@@ -88,7 +88,7 @@ class TheRegisteredTotalNamesItsParts(unittest.TestCase):
         self.assertIsNotNone(fn, "renderVaultRegistered is gone from bible.html")
         js = HARNESS % (json.dumps(owned), json.dumps(pool), json.dumps(muled), json.dumps(finds), json.dumps(unk),
                         json.dumps(fn))
-        p = subprocess.run(["node", "-e", js], capture_output=True, text=True, timeout=30)
+        p = subprocess.run(["node", "-"], input=js, capture_output=True, text=True, timeout=30)
         self.assertEqual(p.returncode, 0, "the shipped renderer would not run: %s" % p.stderr[-800:])
         return json.loads(p.stdout)
 

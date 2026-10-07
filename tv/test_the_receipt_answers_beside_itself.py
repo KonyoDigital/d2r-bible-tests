@@ -98,7 +98,7 @@ class TheReceiptAnswersBesideItself(unittest.TestCase):
         self.assertIsNotNone(h, "the ◉ click handler's REG-1936 block is gone from bible.html")
         base = {"protocol": "http:", "answer": None, "reject": False, "twice": False}
         base.update(cfg)
-        p = subprocess.run(["node", "-e", HARNESS % (json.dumps(base), h)], capture_output=True, text=True,
+        p = subprocess.run(["node", "-"], input=HARNESS % (json.dumps(base), h), capture_output=True, text=True,
                            timeout=30)
         self.assertEqual(p.returncode, 0, p.stderr[-800:])
         return json.loads(p.stdout)
@@ -141,7 +141,7 @@ class TheReceiptAnswersBesideItself(unittest.TestCase):
         js = ("var n = 0; var window = {}; var document = {addEventListener: function(){ n++; }};\n"
               "function render(){\n" + block + "}\nrender(); render(); render();\n"
               "process.stdout.write(String(n));")
-        p = subprocess.run(["node", "-e", js], capture_output=True, text=True, timeout=30)
+        p = subprocess.run(["node", "-"], input=js, capture_output=True, text=True, timeout=30)
         self.assertEqual(p.returncode, 0, p.stderr[-600:])
         self.assertEqual(p.stdout.strip(), "1", "three vault renders bound %s ◉ listeners (REG-1936)" % p.stdout)
 

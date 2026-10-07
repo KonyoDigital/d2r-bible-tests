@@ -203,7 +203,7 @@ class ANumberNeverCountsOnScreen(unittest.TestCase):
         lo = ui.find("  function _animCounts(root){")
         self.assertGreaterEqual(lo, 0, "_animCounts is gone from control_ui.html")
         hi = ui.find("\n  }\n", lo)
-        p = subprocess.run(["node", "-e", COUNT_JS % ui[lo:hi + 4]], capture_output=True, text=True, timeout=30)
+        p = subprocess.run(["node", "-"], input=COUNT_JS % ui[lo:hi + 4], capture_output=True, text=True, timeout=30)
         self.assertEqual(p.returncode, 0, p.stderr[-600:])
         out = json.loads(p.stdout)
         self.assertEqual(out["seen"], [], "the dossier wrote numbers that are not the value: %s (REG-1933)" % out["seen"][:8])
@@ -225,7 +225,7 @@ class ANumberNeverCountsOnScreen(unittest.TestCase):
               "function $(){ return el; }\nvar _reads = 0, _readsRaf = null, _readsTarget = -1;\n"
               + ui[lo:hi + 4] + "\ntweenReads(5); tweenReads(12);\n"
               "process.stdout.write(JSON.stringify({seen: seen, frames: frames}));")
-        p = subprocess.run(["node", "-e", js], capture_output=True, text=True, timeout=30)
+        p = subprocess.run(["node", "-"], input=js, capture_output=True, text=True, timeout=30)
         self.assertEqual(p.returncode, 0, p.stderr[-600:])
         out = json.loads(p.stdout)
         self.assertEqual(out["seen"], ["5", "12"], "the reads meter wrote numbers in between: %s (REG-1933)" % out["seen"][:10])

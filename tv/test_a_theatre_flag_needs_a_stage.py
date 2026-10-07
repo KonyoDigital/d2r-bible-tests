@@ -97,7 +97,7 @@ class TheShelfIsNotAnEmptyStage(unittest.TestCase):
     def run_heal(self, shelf=False, dossier=False):
         cb = _callback()
         self.assertIsNotNone(cb, "the theatre self-heal is gone from control_ui.html")
-        p = subprocess.run(["node", "-e", HEAL % (cb, json.dumps({"shelf": shelf, "dossier": dossier}))],
+        p = subprocess.run(["node", "-"], input=HEAL % (cb, json.dumps({"shelf": shelf, "dossier": dossier})),
                            capture_output=True, text=True, timeout=30)
         self.assertEqual(p.returncode, 0, p.stderr[-800:])
         return json.loads(p.stdout)
@@ -123,7 +123,7 @@ class ATheatreFlagNeedsAStage(unittest.TestCase):
         cb = _callback()
         self.assertIsNotNone(cb, "the self-heal's REG-1934 arm is gone from control_ui.html")
         js = HARNESS % (cb, json.dumps({"open": open_, "stage": stage}))
-        p = subprocess.run(["node", "-e", js], capture_output=True, text=True, timeout=30)
+        p = subprocess.run(["node", "-"], input=js, capture_output=True, text=True, timeout=30)
         self.assertEqual(p.returncode, 0, p.stderr[-800:])
         return json.loads(p.stdout)
 
