@@ -8866,6 +8866,12 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_a_behind_count_says_whether_it_can_catch_up", [sys.executable,
+         os.path.join(HERE, "test_a_behind_count_says_whether_it_can_catch_up.py")], 60,
+         needs_app=False,
+         why=("REG-1952 - only a heard fleet row said 'not pulling' / 'pull UNKNOWN'; the silent, roster-refused and "
+              "offline rows printed 'N behind' bare, which reads as a PC that will catch up.")
+         ),
     Gate("test_a_repainted_press_is_not_a_click", [sys.executable,
          os.path.join(HERE, "test_a_repainted_press_is_not_a_click.py")], 30,
          needs_app=False,

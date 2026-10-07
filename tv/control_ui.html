@@ -26588,8 +26588,12 @@ function escC(s) {
         /* #86 gap 12 — ON AIR and the green dot only while the pulse was measured. */
         var pres = _fleetPresence(m, online);
         var heard = !!(pres && pres.state === 'here');
+        /* REG-1952 — A BEHIND COUNT ALWAYS TRAVELS WITH WHETHER IT CAN CATCH UP. Only the heard arm carried "not
+           pulling" / "pull UNKNOWN"; the silent, roster-refused and offline arms printed "N behind" bare, which reads
+           as a machine that will catch up (the #231 eye on 475f672e and db25b884). Its last report says what it says. */
+        var _pullTail = escC((stuck ? ' \u00b7 not pulling' : '') + pullSay);
         var meta = (online && !heard)
-          ? (escC(pres.word) + _lagTxt(m) + ' · ' + escC(_fleetSeen(m)))
+          ? (escC(pres.word) + _lagTxt(m) + _pullTail + ' · ' + escC(_fleetSeen(m)))
           : online
           ? (escC(m.mode === 'live' ? '🔴 ON AIR' : 'idle') + ' · ' + escC(m.ver || '')
              + (function () {
@@ -26652,10 +26656,10 @@ function escC(s) {
               if (lb && lb.ok === false) {
                 return 'roster refused its beacon \u00b7 presence UNKNOWN, not offline'
                      + (lb.code ? (' \u00b7 HTTP ' + escC(String(lb.code))) : '')
-                     + _lagTxt(m)
+                     + _lagTxt(m) + _pullTail
                      + ' \u00b7 last recorded ' + escC(_fleetSeen(m));
               }
-              return 'offline \u00b7 ' + escC(m.ver || '?') + _lagTxt(m) + escC(_sysTxt(m))
+              return 'offline \u00b7 ' + escC(m.ver || '?') + _lagTxt(m) + _pullTail + escC(_sysTxt(m))
                    + ' \u00b7 last seen ' + escC(_fleetSeen(m));
             })();
         /* v2213 — CLICK A PLAYER. Konyo: "a click on the player itself will open a box and tell
