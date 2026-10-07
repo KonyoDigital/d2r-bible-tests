@@ -53596,12 +53596,24 @@ function renderJournal(){
     (res.untickedHeld = res.untickedHeld || []).push(n);
     return true;
   };
+  /* REG-2002 — HIS RULING IS HIS OVERRULE. The v1693 one-shot is the one apply that carries names he un-ticked ON
+     PURPOSE: on 2026-08-11 he read the First Found evidence for nine of his un-ticks and ruled "apply them". REG-1906
+     then held all nine, so the ruling applied nothing and still set its once-only flag — a board rebuilt from before
+     the ruling lost it for good (Routine I, v1693_the_nine_applied, red on da9651a3). Only a ruling recorded HERE, by
+     the lane its one-shot already carries, may overrule; a sweep cannot name one, and res says which ruling did. */
+  window._CHRON_HIS_RULINGS = { 'v1693-konyo-ruling-the-nine': 1 };
+  window._chronIsHisRuling = function(proposal){
+    var l = (proposal && proposal.lanes) || [];
+    for (var i = 0; i < l.length; i++) if (window._CHRON_HIS_RULINGS[l[i]] === 1) return String(l[i]);
+    return '';
+  };
   window.chronicleApply = function(proposal){
     var add = (proposal && proposal.wouldAdd) || {};
     var res = { uniques: [], sets: [], skipped: [], unknown: [], ts: Date.now() };
     // every row this apply writes shares one moment — see the writer's note on _chBatchTs
     window._chBatchTs = res.ts;
-    try { window._chUntickedNow = window._chronUntickedSet(); }
+    var _ruled = window._chronIsHisRuling(proposal);   // REG-2002 — a recorded ruling of his overrules his un-tick
+    try { window._chUntickedNow = _ruled ? new Set() : window._chronUntickedSet(); if (_ruled) res.untickOverruledBy = _ruled; }
     catch(e){ window._chUntickedNow = null; res.untickUnread = String(e && e.message || e).slice(0, 80); }
     try {
     return window._chronicleApplyInner(proposal, add, res);

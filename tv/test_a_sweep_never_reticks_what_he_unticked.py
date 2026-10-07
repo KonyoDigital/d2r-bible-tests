@@ -14,6 +14,8 @@ WHAT THIS LAW HOLDS, each case driven in bible.html itself in its own headless C
   * an un-ticked unique is HELD: not in d2r_foundLog, still in d2r_grailUnfound, named in res.untickedHeld;
   * the same, when the sweep spells it with a CURLY apostrophe (his store holds both byte forms);
   * an un-ticked SET PIECE in the sets half is held the same way, and d2r_setPieces does not gain it.
+  * REG-2002 - his RECORDED ruling (the v1693 one-shot's lane) overrules his un-tick and says so; a lane that only
+    sounds like a ruling is still held.
 Game item names only - never his store. NO CHROME AT ALL = a declared skip, never a pass.
 """
 import json
@@ -118,16 +120,20 @@ def tearDownModule():
         b.close()
 
 
-def apply_world(b, unticked, wouldAdd):
+def apply_world(b, unticked, wouldAdd, lanes=None):
     """A world where `unticked` are his un-ticks and nothing is found, then ONE chronicleApply of `wouldAdd`."""
+    prop = {"wouldAdd": wouldAdd}
+    if lanes is not None:
+        prop["lanes"] = lanes
     b.seed({"d2r_grailUnfound": dict((n, 1) for n in unticked), "d2r_foundLog": {}, "d2r_owned": [],
             "d2r_setPieces": [], "d2r_muleAssign": {}, "d2r_chronApplied": None, "d2r_rwProfile": "fresh"})
-    return b.run("var res = window.chronicleApply({ wouldAdd: %s });"
-                 "OUT.res = { uniques: res.uniques, sets: res.sets, held: res.untickedHeld || [] };"
+    return b.run("var res = window.chronicleApply(%s);"
+                 "OUT.res = { uniques: res.uniques, sets: res.sets, held: res.untickedHeld || [],"
+                 " overruledBy: res.untickOverruledBy || '' };"
                  "OUT.foundLog = Object.keys(JSON.parse(window.LSR.getItem('d2r_foundLog') || '{}'));"
                  "OUT.setPieces = JSON.parse(window.LSR.getItem('d2r_setPieces') || '[]');"
                  "OUT.unfound = Object.keys(JSON.parse(window.LSR.getItem('d2r_grailUnfound') || '{}'));"
-                 % json.dumps(wouldAdd))
+                 % json.dumps(prop))
 
 
 @unittest.skipUnless(os.path.exists(RC.CHROME), "no Chrome/Chromium on this machine, so the shipped board was not "
@@ -156,8 +162,38 @@ class ASweepNeverReticksWhatHeUnticked(unittest.TestCase):
         self.assertIn(PIECE, o["unfound"])
         self.assertIn(PIECE, o["res"]["held"])
 
+    def test_4_his_recorded_ruling_overrules_his_un_tick(self):
+        """REG-2002 - the v1693 one-shot is HIS ruling on names he un-ticked; held, it applied nothing and set its flag."""
+        o = apply_world(board(), [UNTICKED], {"uniques": [{"name": UNTICKED}]}, lanes=["v1693-konyo-ruling-the-nine"])
+        self.assertIn(UNTICKED, o["foundLog"], "his recorded ruling was held by his own un-tick (REG-2002): %s" % o)
+        self.assertNotIn(UNTICKED, o["unfound"], "the ruled name kept its un-tick, so it re-surfaces as a conflict")
+        self.assertEqual(o["res"]["overruledBy"], "v1693-konyo-ruling-the-nine", "the receipt does not say which "
+                         "ruling overruled the un-tick: %s" % o)
+        self.assertEqual(o["res"]["held"], [])
+
+    def test_5_a_lane_that_only_sounds_like_a_ruling_is_still_held(self):
+        o = apply_world(board(), [UNTICKED], {"uniques": [{"name": UNTICKED}]},
+                        lanes=["sweep", "v9999-konyo-ruling-not-recorded"])
+        self.assertNotIn(UNTICKED, o["foundLog"], "a lane nobody recorded overruled his un-tick: %s" % o)
+        self.assertIn(UNTICKED, o["res"]["held"])
+        self.assertEqual(o["res"]["overruledBy"], "")
+
 
 RED_PROOF = [
+    {
+        "why": "REG-2002 - his recorded ruling is held by his own un-tick again: the v1693 nine apply nothing",
+        "file": "bible.html",
+        "find": "window._chUntickedNow = _ruled ? new Set() : window._chronUntickedSet();",
+        "replace": "window._chUntickedNow = window._chronUntickedSet();",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2002 - any lane that says 'ruling' overrules his un-tick, so a sweep can name one",
+        "file": "bible.html",
+        "find": "if (window._CHRON_HIS_RULINGS[l[i]] === 1) return String(l[i]);",
+        "replace": "if (/ruling/.test(l[i])) return String(l[i]);",
+        "matches": 1,
+    },
     {
         "why": "REG-1906 - the uniques half stops asking his un-ticks: a swept unique he un-ticked is ticked again and "
                "his un-tick erased",

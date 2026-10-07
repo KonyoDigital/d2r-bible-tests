@@ -406,6 +406,15 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2002 - HIS OWN RULING WAS HELD BY HIS OWN UN-TICK (2026-10-07, Routine I red on da9651a3)
+
+Routine I went red on da9651a3 with eight cases in two specs, both green on 76b1b8f3. Attributed by delta to REG-1906 (a sweep holds every name in d2r_grailUnfound), and the two specs split:
+
+* **v1693_the_nine_applied - a real regression.** The v1693 one-shot is the one apply that carries names he un-ticked ON PURPOSE: on 2026-08-11 he read the First Found evidence for nine of his un-ticks and ruled "apply them". It goes through chronicleApply, REG-1906 held all nine, and the one-shot set d2r_v1693RulingApplied anyway - so a board rebuilt from before the ruling lost it for good. His live board was not affected (the ruling fired in August). Fixed: `_CHRON_HIS_RULINGS` names the recorded rulings by the lane their one-shot already carries; only those overrule the un-tick, and the receipt says which (`res.untickOverruledBy`). A lane that merely says "ruling" is still held.
+* **v1918_item_provenance - a stale fixture.** It un-owned its three names through d2r_grailUnfound (to beat the boot floor), which REG-1906 now reads as his un-tick. The spec clears that store through LSR after boot; the memoised owned set still says un-owned, so the provenance rows it grades are unchanged.
+
+Guard: test_a_sweep_never_reticks_what_he_unticked.py cases 4 and 5, plus two RED_PROOFs (the ruling held again; any lane saying "ruling" overrules).
+
 ### REG-2001 - FOUR CI REDS ON v3603 THAT HIS MAC COULD NOT SEE (2026-10-07, read by delta after da9651a3 landed)
 
 The agent-tests run on da9651a3 went red on four laws that were green in every local run, against v3601's green. Read from `gh run view --log-failed`, then reproduced or explained one by one:

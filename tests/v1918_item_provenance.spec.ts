@@ -49,6 +49,10 @@ test.describe('v1918 — every applied item leaves a provenance row', () => {
     await page.goto(URL);
     await page.waitForTimeout(1200);
     await page.evaluate(() => window.localStorage.setItem('d2r_chronicleInboxLog', '[]'));
+    /* REG-2002 — the un-tick above is a FIXTURE device (it keeps the boot floor from owning these names), not his
+       un-tick under test. Since REG-1906 an apply HOLDS every name in d2r_grailUnfound, so once boot has read it the
+       fixture clears it through the board's own store door; the memoised owned set still says un-owned. */
+    await page.evaluate(() => (window as any).LSR.setItem('d2r_grailUnfound', '{}'));
   });
 
   const PROPOSAL = {
