@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3613** | `(this commit)` | v3613 — with no build waiting the in-use hold is cleared (REG-2015) |
+| **v3614** | `(this commit)` | v3614 — a file over the second eye limit goes in as numbered excerpts of its changed blocks (REG-2016) |
+| **v3613** | `f41adbe0` | v3613 — with no build waiting the in-use hold is cleared (REG-2015) |
 | **v3612** | `a6306e54` | v3612 — the in-use ceiling counts only while a build waits (REG-2014) |
 | **v3611** | `3c25dfc0` | v3611 — a stubbed run never makes a live Grok read (REG-2013) |
 | **v3610** | `87f54758` | v3610 — the author of a stamp is the oldest commit that added its version line (REG-2011) |
