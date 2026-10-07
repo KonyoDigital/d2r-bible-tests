@@ -37019,6 +37019,8 @@ body{
 .vfr-loc .vfr-cell{color:var(--text-dim)}
 .vfr-loc .vfr-would,.vfr-loc .vfr-main{white-space:normal}
 .vfr-loc .vfr-main{color:var(--gold-dim,#b89b5e)}
+/* #264 — on a phone the location gets its own line under the name, so a cell never runs past the screen's edge */
+@media (max-width: 640px){ .vfr-row{grid-template-columns:auto 1fr} .vfr-loc{grid-column:1 / -1;white-space:normal} }
 .vfr-loc .vfr-arrow{color:var(--gold-dim);margin:0 5px}
 .vfr-empty{padding:14px 13px;text-align:center;color:var(--text-muted);font-style:italic;font-size:12.5px}
 .vfr-empty b{color:var(--gold-bright,#f0c060);font-style:normal}
@@ -39009,7 +39011,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var loc = !w ? '<span class="vfr-arrow">→</span><span style="color:var(--text-dim)">UNKNOWN — the finder could not ask where it is</span>'
         : (w.kind === 'would') ? '<span class="vfr-arrow">→</span><span class="vfr-would">would go to <span class="vfr-mule">'+esc(w.muleName)+'</span> — press Auto-Sort to file it</span>'
         : (w.kind === 'main') ? '<span class="vfr-arrow">→</span><span class="vfr-main">stays with your MAIN — '+esc(w.why)+'</span>'
-        : (w.kind === 'dock') ? '<span class="vfr-arrow">→</span><span style="color:var(--text-dim)">unsorted · in the dock — '+esc(w.why)+'</span>'
+        : (w.kind === 'dock') ? '<span class="vfr-arrow">→</span><span style="color:var(--text-dim)" title="'+esc(w.why)+'">unsorted · in the dock — '+esc(String(w.why).split(' — ')[0].slice(0, 48))+'</span>'
         : '<span class="vfr-arrow">→</span><span class="vfr-mule">'+esc(w.muleName)+'</span>'
           + (w.cell ? '<span class="vfr-cell"> · '+esc(w.cell)+'</span>' : '<span class="vfr-cell"> · cell UNKNOWN</span>');
       var click = mid ? ' onclick="window.openMuleCard&&window.openMuleCard(\''+jsArg(mid)+'\')"' : '';
