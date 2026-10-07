@@ -39026,7 +39026,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var w = (typeof window._vaultWhereIs === 'function') ? window._vaultWhereIs(n) : null;
       var mid = (w && (w.kind === 'filed' || w.kind === 'worn' || w.kind === 'over' || w.kind === 'would')) ? w.mule : null;
       var loc = !w ? '<span class="vfr-arrow">→</span><span style="color:var(--text-dim)">UNKNOWN — the finder could not ask where it is</span>'
-        : (w.kind === 'would') ? '<span class="vfr-arrow">→</span><span class="vfr-would">would go to <span class="vfr-mule">'+esc(w.muleName)+'</span> — press Auto-Sort to file it</span>'
+        : (w.kind === 'would') ? '<span class="vfr-arrow">→</span><span class="vfr-would">unsorted · would go to <span class="vfr-mule">'+esc(w.muleName)+'</span> — press Auto-Sort to file it</span>'
         : (w.kind === 'main') ? '<span class="vfr-arrow">→</span><span class="vfr-main">stays with your MAIN — '+esc(w.why)+'</span>'
         : (w.kind === 'dock') ? '<span class="vfr-arrow">→</span><span style="color:var(--text-dim)" title="'+esc(w.why)+'">unsorted · in the dock — '+esc(String(w.why).split(' — ')[0].slice(0, 48))+'</span>'
         : '<span class="vfr-arrow">→</span><span class="vfr-mule">'+esc(w.muleName)+'</span>'

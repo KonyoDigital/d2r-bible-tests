@@ -68,6 +68,10 @@ T = 1790400000000        # a fixture clock (2026-09-26, in the past); every date
 VR_FROM = "  var _VR_LOG = 'd2r_vaultRemoved', _VR_RING = 20;\n"
 VR_TO = "  // v342.3 — throw out a Magic & Rare keeper"
 DOOR_CLEAR = "  window.vaultClearUnsorted = async function(){\n"
+#: #264 (REG-2021) - Delete unsorted asks the ONE dock list; it is cut whole beside the door, never stubbed (a stub would
+#: be a second copy of "what is loose", the defect REG-2021 closed)
+DOCK_FROM = "  function _inMagicRare(n){\n"
+DOCK_TO = "  window._vaultInMagicRare = _inMagicRare;\n"
 DOOR_MENU = "  window.vaultDropMenuImport = async function(){\n"
 DOOR_TV = "  window.tvVaultUnregisterMany = function(names, proof){\n"
 DOOR_TV1 = "  window.tvVaultUnregister = function(name, proof){\n"
@@ -111,6 +115,7 @@ window.uiConfirm = function(){ return Promise.resolve(true); };
 window._repaintOwned = function(){};
 globalThis.document = { getElementById: function(){ return null; } };
 %(vr)s
+%(dock)s
 %(clear)s
 %(menu)s
 %(tvms)s
@@ -350,7 +355,7 @@ def _drive():
     assert s.count(TV_MS_LINE) == 1, "the TV frame-stamp line is not where this law cuts it (%d)" % s.count(TV_MS_LINE)
     head = P._between(s, P.REG_FROM, REG_HEAD_TO).split("\n")
     assert head[0].strip().startswith("window.tvVaultRegister = function") and head[1].strip() == "try {", head[:2]
-    doors = DOORS_JS % {"vr": P._between(s, VR_FROM, VR_TO), "clear": _door(s, DOOR_CLEAR), "menu": _door(s, DOOR_MENU),
+    doors = DOORS_JS % {"vr": P._between(s, VR_FROM, VR_TO), "dock": P._between(s, DOCK_FROM, DOCK_TO), "clear": _door(s, DOOR_CLEAR), "menu": _door(s, DOOR_MENU),
                         "tvms": TV_MS_LINE, "tv": _door(s, DOOR_TV), "tv1": _door(s, DOOR_TV1), "hold": _door(s, DOOR_HOLD),
                         "reghead": "\n".join(head[2:])}
     head = "var T0 = %d;\n" % T
