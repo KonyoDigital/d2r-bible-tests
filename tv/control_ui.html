@@ -21584,7 +21584,7 @@ window._lockMark = function(isOpen, px, label){
       var _gNeed = g5GrokNeeds(st);        // the ONE readiness rule - the switch's popup asks it too
       if (_gNeed === 'install')
         bits.push('install Grok CLI via TV installer (or ' + _g5InstallLine(              // REG-1991 - this PC's shell
-          (typeof navigator !== 'undefined' && navigator.platform) || '', (typeof navigator !== 'undefined' && navigator.userAgent) || '') + ')');
+          (window.navigator || {}).platform || '', (window.navigator || {}).userAgent || '') + ')');
       else if (_gNeed === 'login')
         bits.push('click ⚡ Authorize — browser SuperGrok login once · NO API keys');
       else if (intent === 'only') bits.push('GROK ONLY · Grok reads every frame · Claude is not asked at all');
@@ -21727,7 +21727,7 @@ window._lockMark = function(isOpen, px, label){
           authBtn.textContent = '⚡ Install first';
           authBtn.classList.add('is-need');
           authBtn.title = 'Grok CLI missing — re-run TV installer, or ' + _g5InstallLine(
-            (typeof navigator !== 'undefined' && navigator.platform) || '', (typeof navigator !== 'undefined' && navigator.userAgent) || '');
+            (window.navigator || {}).platform || '', (window.navigator || {}).userAgent || '');
         } else {
           authBtn.textContent = '⚡ Authorize';
           authBtn.classList.add('is-need');
