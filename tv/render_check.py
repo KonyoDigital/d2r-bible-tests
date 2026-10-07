@@ -236,7 +236,11 @@ _CDP_READ_TIMEOUT = 90.0
 #: the hook killed a run that had finished every target but the last as "render HUNG" on an IDLE machine. The
 #: heart target alone is ~74s (a 10s warmup per width, by design). The three numbers move TOGETHER: this cost,
 #: _RUN_REPORT_BY and the hook's render bound. [[stale-reading]]
-_CLEAN_RUN_COST = 317.0
+#: REG-1993 - the factor all three render numbers grow by under load (tv/render_bound.py; the hook measures it when
+#: the render starts and hands it down as TV_RENDER_SCALE). 1 on a quiet machine and on every hand run.
+import render_bound as _RB  # noqa: E402 - a sibling module; it never raises, and an absent factor is 1
+_RENDER_SCALE = _RB.from_env()
+_CLEAN_RUN_COST = 317.0 * _RENDER_SCALE
 
 #: the wall clock, from the top of main(), by which a verdict MUST have been PRINTED. Derived: the
 #: hook kills at 353s (300 until 2026-09-27), so this leaves 20s for the verdict lines, .render_verdict.json and tearing
@@ -254,7 +258,7 @@ _CLEAN_RUN_COST = 317.0
 #: _read_floor() for the arithmetic and _budget_shortened_the_read() for what is printed.
 #: A half-true comment is how the next reader gets it wrong. [[feedback-comments-vs-code]]
 #: [[strictness-that-closes-the-lane]]
-_RUN_REPORT_BY = 333.0   # 2026-09-27 — cost 317 + the same 16s floor as before; the hook kills at 353 (was 280/300)
+_RUN_REPORT_BY = 333.0 * _RENDER_SCALE   # REG-1993 scaled with the hook's bound; 2026-09-27 — cost 317 + the same 16s floor as before; the hook kills at 353 (was 280/300)
 
 #: the default patience ONE page operation gets when a target does not declare its own. Named
 #: because it already had copies that drifted: v3126 records a sibling keeping a hardcoded 12.0

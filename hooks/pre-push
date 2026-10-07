@@ -95,6 +95,11 @@ mkdir -p "$GATE_LOG_DIR" 2>/dev/null || GATE_LOG_DIR="/tmp"
 
 gate_run() {
   label="$1"; rerun="$2"; limit="$3"; shift 4   # label, rerun, limit, and the literal --
+  # REG-1993 - a caller may widen THIS gate's bound by the load it measured (GATE_SCALE, clamped 1.00-2.50). The
+  # literal at the call site stays the measured base, so every law that reads it still reads the measured number.
+  if [ -n "${GATE_SCALE:-}" ]; then
+    limit="$(awk -v l="$limit" -v s="$GATE_SCALE" 'BEGIN{ s += 0; if (s < 1) s = 1; if (s > 2.5) s = 2.5; printf "%d", l * s + 0.5 }')"
+  fi
   # Log name carries the label + pid so concurrent/consecutive pushes never overwrite
   # each other's evidence.
   log="$GATE_LOG_DIR/${label}.$$.log"
@@ -496,7 +501,16 @@ if [ "$_px_touched" = "1" ]; then
     # reported IDLE by the hang message), so 300 killed runs that had finished all but the last target and called
     # them HUNG. The margins are the old ones moved with the cost (264/280/300 -> 317/333/353: a 16s read floor,
     # 20s to print and tear down). Moves with render_check._CLEAN_RUN_COST / _RUN_REPORT_BY, never alone.
+    # REG-1993 - his "raise the limit why not?" (2026-10-07, after this gate starved at 353s, load 8, while he played
+    # ON AIR). Not a fixed higher ceiling - that is an absent hang detector on every quiet push: the load measured NOW
+    # scales the hook's kill AND render_check's cost and report-by deadline together (tv/render_bound.py, x1-x2.5).
+    _rb="$(python3 "$REPO/tv/render_bound.py" 2>/dev/null)"; read -r _rs _rload <<< "${_rb:-1.00 unknown}"
+    if [ "${_rs:-1.00}" != "1.00" ]; then
+      echo "pre-push: [$(_pp_el)] render bound x${_rs} for load ${_rload} - the hook kill, the clean-run cost and the report-by deadline move together (REG-1993)"
+    fi
+    export GATE_SCALE="${_rs:-1.00}" TV_RENDER_SCALE="${_rs:-1.00}"
     gate_run "render" "python3 tv/render_check.py" 353 -- python3 "$REPO/tv/render_check.py" || _px_fail=1
+    unset GATE_SCALE TV_RENDER_SCALE
     gate_run "crest-loudness" "python3 tv/crest_loudness.py" 180 -- python3 "$REPO/tv/crest_loudness.py" || _px_fail=1
   else
     echo "pre-push: [$(_pp_el)] 🔴 a visual file is shipping and NO browser could be started — this push was"

@@ -8866,6 +8866,12 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_the_render_bound_moves_with_the_load", [sys.executable,
+         os.path.join(HERE, "test_the_render_bound_moves_with_the_load.py")], 60,
+         needs_app=False,
+         why=("REG-1993 - the v3603 push starved at the render (353 s, load 8, he was playing); the load measured at the "
+              "render scales the hook's kill and render_check's cost and deadline together, 1x-2.5x (tv/render_bound.py).")
+         ),
     Gate("test_a_red_law_refuses_before_any_tamper", [sys.executable,
          os.path.join(HERE, "test_a_red_law_refuses_before_any_tamper.py")], 60,
          needs_app=False,
