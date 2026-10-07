@@ -757,7 +757,32 @@ class ASandboxFileThatVanishesIsNamedAndNeverGradedAsTheLaw(unittest.TestCase):
         self.assertIn("vanished", tail)
         self.assertIn("re-run once", tail)
         self.assertTrue(os.path.isfile(os.path.join(self.sb, "victim.py")), "the file was not restored")
-        self.assertEqual([(g, f) for g, f, _l in H.vanished()], [("test_zz_vanish.py", "victim.py")])
+        self.assertEqual([(g, f) for g, f, _l in H.vanished()], [("test_zz_vanish.py", "tv/victim.py")])
+
+    def test_a_project_skill_that_vanishes_is_watched_too(self):
+        """REG-1919 - v3601's push #2: .claude/skills/human-eyes-harness/SKILL.md was gone from a lane's sandbox, the
+        skill law read ALREADY RED untampered, and the census (tv/*.py only) named nothing."""
+        rel = os.path.join(".claude", "skills", "human-eyes-harness", "SKILL.md")
+        for base in (self.real, os.path.dirname(self.sb)):
+            os.makedirs(os.path.dirname(os.path.join(base, rel)), exist_ok=True)
+            with io.open(os.path.join(base, rel), "w") as fh:
+                fh.write("---\nname: human-eyes-harness\n---\n")
+        with io.open(os.path.join(self.sb, "test_zz_skill.py"), "w") as fh:
+            fh.write("import os, sys\n"
+                     "here = os.path.dirname(os.path.abspath(__file__))\n"
+                     "n = os.path.join(here, 'skill_runs.txt')\n"
+                     "runs = int(open(n).read()) if os.path.exists(n) else 0\n"
+                     "open(n, 'w').write(str(runs + 1))\n"
+                     "sk = os.path.join(os.path.dirname(here), %r)\n"
+                     "if runs == 0:\n"
+                     "    os.remove(sk)\n"
+                     "    print('AssertionError: the harness skill is gone')\n"
+                     "    sys.exit(1)\n"
+                     "print('OK')\n" % rel)
+        ok, tail = H._run_gate(self.sb, "test_zz_skill.py", timeout=60)
+        self.assertIs(ok, True, "a vanished skill file was graded as the law's failure: %r" % (tail,))
+        self.assertTrue(os.path.isfile(os.path.join(os.path.dirname(self.sb), rel)), "the skill was not restored")
+        self.assertEqual([f for _g, f, _l in H.vanished()], [".claude/skills/human-eyes-harness/SKILL.md"])
 
     def test_a_run_that_passed_is_not_repeated_but_the_vanish_is_still_named(self):
         os.environ["VANISH_FAILS"] = "0"
@@ -824,6 +849,12 @@ RED_PROOF = [
      "file": "heart2.py",
      "find": "    if r.returncode != 0:\n        _ids = _LAST_RED.get(threading.get_ident()) or []\n",
      "replace": "    if False:\n        _ids = _LAST_RED.get(threading.get_ident()) or []\n",
+     "matches": 1},
+    {"why": "REG-1919 - the census stops watching the project skills: a skill gone from a lane's sandbox reads as the law's "
+            "failure again (v3601 push #2)",
+     "file": "tv/heart2.py",
+     "find": "        sk = os.path.join(root, \".claude\", \"skills\")\n",
+     "replace": "        sk = os.path.join(root, \"__not_watched__\")\n",
      "matches": 1},
     {"why": "REG-1876 - a vanished sandbox file is no longer seen after a run: a missing module is graded as the law's defect again",
      "file": "heart2.py",

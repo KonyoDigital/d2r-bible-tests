@@ -1287,10 +1287,32 @@ def vanished():
 
 
 def _tv_files(sandbox_tv):
+    """The sandbox files a vanishing is watched for, as paths relative to the sandbox REPO. -> set
+
+    REG-1919 - tv/*.py alone was too narrow: v3601's push #2 was refused when test_control[2] read ALREADY RED
+    untampered on TestV2395...test_the_skill_parses_and_would_actually_load - .claude/skills/human-eyes-harness/SKILL.md
+    was gone from that lane's sandbox, present in a fresh one built minutes later, and the instrument (which only
+    listed tv/*.py) named nothing. The project skills and the repo-root files laws read are watched too."""
+    out = set()
     try:
-        return set(n for n in os.listdir(sandbox_tv) if n.endswith(".py"))
+        out |= set("tv/" + n for n in os.listdir(sandbox_tv) if n.endswith(".py"))
     except OSError:
-        return set()
+        pass
+    root = os.path.dirname(sandbox_tv)
+    try:
+        sk = os.path.join(root, ".claude", "skills")
+        for d in os.listdir(sk):
+            if os.path.isfile(os.path.join(sk, d, "SKILL.md")):
+                out.add(".claude/skills/%s/SKILL.md" % d)
+    except OSError:
+        pass
+    try:
+        for n in os.listdir(root):
+            if n.endswith((".md", ".html", ".json")) and os.path.isfile(os.path.join(root, n)):
+                out.add(n)
+    except OSError:
+        pass
+    return out
 
 
 def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=None):
@@ -1304,10 +1326,13 @@ def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=N
     if not gone:
         return res
     restored = []
+    _sb_root = os.path.dirname(sandbox_tv)
     for n in gone:
-        src = os.path.join(REPO, "tv", n)
+        src = os.path.join(REPO, n)          # REG-1919 - n is relative to the repo now (tv/x.py, .claude/skills/...)
         try:
-            shutil.copyfile(src, os.path.join(sandbox_tv, n))
+            dst = os.path.join(_sb_root, n)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copyfile(src, dst)
             restored.append(n)
         except OSError:
             pass
