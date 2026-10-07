@@ -8923,6 +8923,12 @@ GATES = [
          why=("REG-1959 - the ALT has no stash_gate_cache (it never filmed a stash panel), so its vault lane could never "
               "prove itself live and retired every reel un-extracted; a tracked stash frame, pinned by sha256, is the canary.")
          ),
+    Gate("test_a_relaunch_waits_while_he_uses_the_window", [sys.executable,
+         os.path.join(HERE, "test_a_relaunch_waits_while_he_uses_the_window.py")], 60,
+         needs_app=False,
+         why=("REG-2010 (#254) - the console replaced itself three times with an overlay up, minutes after a build landed; "
+              "the page reports its last touch and the drift relaunch waits for 60 s of stillness, never past 20 min.")
+         ),
     Gate("test_a_harness_console_never_joins_the_fleet", [sys.executable,
          os.path.join(HERE, "test_a_harness_console_never_joins_the_fleet.py")], 60,
          needs_app=False,

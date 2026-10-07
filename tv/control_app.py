@@ -18287,6 +18287,11 @@ def ui_beat_record(state=None):
         # imports. None means the page did not say — UNKNOWN, never "the same".
         _b = state.get("docVer")
         _UI_BEAT["docVer"] = _b if (isinstance(_b, str) and _b.strip()) else None
+        # REG-2010 - seconds since he last moved, pressed, typed or scrolled in this window, as the page measured it at
+        # this beat. None = the page did not say (an older page) - UNKNOWN, never "idle" and never "in use".
+        _ia = state.get("inputAgeS")
+        _UI_BEAT["inputAgeS"] = (float(_ia) if isinstance(_ia, (int, float)) and not isinstance(_ia, bool)
+                                 and _ia >= 0 else None)
         # v3538 — WHICH SESSION'S DOSSIER IS ON SCREEN, by number (the page reads it off the overlay): a
         # number, None (no dossier shown) or "UNKNOWN". A page that did not send the key at all predates it -
         # UNKNOWN, never "none shown". GrokBot's visual pass counts a tick as opened only when this says N.
@@ -24014,8 +24019,67 @@ def drift_may_relaunch(detail=None):
     _detail["blocker"] = _relaunch_blocker(ok, _parts)
     _detail["parts"] = _parts
     if ok:
+        # REG-2010 - nothing is in flight, so the last thing between the build and his window is HIS HANDS.
+        _hold, _iu = relaunch_in_use(ui_input_age_s(), bool(_UI_BEAT.get("hidden")), _in_use_held_for_s())
+        if _hold:
+            _detail["blocker"] = "in-use"
+            return False, _iu
         return True, why
+    _in_use_held_for_s(reset=True)
     return False, _relaunch_waiting_why(_detail["blocker"], why, _parts)
+
+
+#: REG-2010 - how long the window must have been still before a waiting build may replace it, and the most an
+#: in-use hold may last before the build lands anyway (so a window he never leaves still gets its update).
+RELAUNCH_STILL_S = 60.0
+RELAUNCH_IN_USE_MAX_S = 20 * 60.0
+_IN_USE_HOLD = {"since": None}
+
+
+def ui_input_age_s(now=None):
+    """REG-2010 - seconds since he last touched the console window, or None. -> float | None
+
+    The page measures its own input age at each 5 s beat; the beat's own age is added, so a quiet window keeps ageing
+    between beats. A beat older than 30 s is a page that is not talking (wedged, hidden, closed): None, never 'in use'."""
+    a, t = _UI_BEAT.get("inputAgeS"), _UI_BEAT.get("t")
+    if a is None or not t:
+        return None
+    gap = (time.time() if now is None else float(now)) - float(t)
+    if gap < 0 or gap > 30:
+        return None
+    return float(a) + gap
+
+
+def _in_use_held_for_s(now=None, reset=False):
+    """How long the current in-use hold has lasted. -> float (0 when no hold is running). Pure-ish: one dict."""
+    if reset:
+        _IN_USE_HOLD["since"] = None
+        return 0.0
+    since = _IN_USE_HOLD.get("since")
+    return 0.0 if since is None else max(0.0, (time.time() if now is None else float(now)) - float(since))
+
+
+def relaunch_in_use(input_age_s, hidden, held_for_s, still_s=None, max_s=None):
+    """REG-2010 - does HE hold the relaunch? -> (bool, why). Decides the rule; records only when a hold starts/ends.
+
+    GrokBot, 2026-10-07 ticks 400, 401 and 404: the console replaced itself three times with an overlay up (the Shelf at
+    18:21, the Heart mid-census at 18:47, the Heart again at 20:18), each a white flash and ~10 s of nothing, minutes after
+    a version landed. The drift relaunch waited for WORK (a sweep, a reel) and never for the person at the window.
+    Held only when the window is visible AND was touched within still_s; an unknown age, a hidden window or a hold past
+    max_s never holds, so a build always lands."""
+    still = RELAUNCH_STILL_S if still_s is None else float(still_s)
+    cap = RELAUNCH_IN_USE_MAX_S if max_s is None else float(max_s)
+    if hidden or input_age_s is None or float(input_age_s) >= still:
+        _IN_USE_HOLD["since"] = None
+        return False, ""
+    if float(held_for_s or 0.0) >= cap:
+        _IN_USE_HOLD["since"] = None
+        return False, ("he has used the window for %d min straight - the update lands now rather than never"
+                       % int(cap // 60))
+    if _IN_USE_HOLD.get("since") is None:
+        _IN_USE_HOLD["since"] = time.time()
+    return True, ("you are using the window (last touched %ds ago) - the update lands once it has been still for %ds"
+                  % (int(float(input_age_s)), int(still)))
 
 
 #: 2026-09-28 — the two sentences the heart and the fleet beacon must be able to tell apart. The
@@ -40862,6 +40926,9 @@ def status_payload():
                    # the v2457 note below records: shipping a verdict without the number it
                    # derives from lets a supervisor read a conclusion he cannot check.
                    "docVer": _UI_BEAT.get("docVer"),
+                   # REG-2010 - seconds since he last touched this window, aged to NOW; None = UNKNOWN. The relaunch
+                   # hold reads this same number, so the reason the update waits is checkable from outside.
+                   "inputAgeS": (round(ui_input_age_s(), 1) if ui_input_age_s() is not None else None),
                    # v3538 — the session whose dossier is ON SCREEN (a number), None when none is shown,
                    # "UNKNOWN" when no beat has said. Read it beside ageS: a stale beat is a stale answer.
                    "dossier": _UI_BEAT.get("dossier", "UNKNOWN"),

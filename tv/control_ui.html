@@ -29809,6 +29809,14 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
       try { requestAnimationFrame(_tick); } catch (e) {}
     })();
   } catch (e) {}
+  /* REG-2010 - WHEN DID HE LAST TOUCH THIS WINDOW. The beat reports it so a waiting build never replaces the window
+     under his hand (three self-relaunches with an overlay up, GrokBot ticks 400/401/404). One timestamp, no work. */
+  try {
+    window.__lastInputTs = 0;
+    ['pointerdown', 'pointermove', 'keydown', 'wheel'].forEach(function (ev) {
+      document.addEventListener(ev, function () { window.__lastInputTs = Date.now(); }, { capture: true, passive: true });
+    });
+  } catch (e) {}
   try {
     var _beat = function(){
       try {
@@ -29847,6 +29855,8 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                ⚠ null, never a guess, if the server did not stamp — UNKNOWN never reads as agreement.
                [[label-outlived-referent]] [[unknown-stays-unknown]] [[the-unjoined-end]] */
             docVer: (window.__DOC_VER__ || null),
+            /* REG-2010 - seconds since his last pointer / key / wheel here; null = never touched since this page loaded */
+            inputAgeS: (window.__lastInputTs ? Math.max(0, (Date.now() - window.__lastInputTs) / 1000) : null),
             /* ⚠⚠ v2457 — THE HOLE IN THIS BEAT'S OWN PREMISE, WHICH IT STATES 15 LINES ABOVE:
                "a renderer that has wedged runs no timers, so it stops beating". Measured on his
                machine 2026-09-03 while he was looking at a black window: it beat the whole time.
