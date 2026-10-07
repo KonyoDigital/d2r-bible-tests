@@ -322,11 +322,13 @@ GATES = [
          os.path.join(HERE, "test_the_launcher_brings_a_running_console_forward.py")], 60,
          why="REG-1514 - the second eye on 4e22a57a: a Desktop double-click on a Mac console whose window was UP fell "
              "through to the kill of :17772 and replaced a healthy console (and its session). tv/launcher_decide.py "
-             "asks it forward unless it is stale, windowless or silent; driven against a fake console on an "
+             "asks it forward unless it SAYS it is stale or windowless; driven against a fake console on an "
              "ephemeral port. v3525 - and the SHELL block that calls it, run for real under "
              "set -euo pipefail: a 'replace it' answer ended the script and the icon launched nothing. "
              "A freshness check that times out is not an answer: the window was already read, so the icon asks "
-             "it forward. The small route is /api/freshness; a timeout does not also open /api/status."),
+             "it forward. The small route is /api/freshness; a timeout does not also open /api/status. "
+             "REG-1940 - UNKNOWN IS NOT CONSENT: a timeout, an ok:false reply or a fullscreen window exited 1 and "
+             "the Windows click Stop-Process -Forced the console; only exit 3 replaces, exit 2 leaves it running."),
     Gate("test_a_window_change_reaches_the_fleet", [sys.executable,
          os.path.join(HERE, "test_a_window_change_reaches_the_fleet.py")], 90,
          why="The ALT's fleet row lagged about 9 minutes because the beacon sleeps 240s and then builds the whole "

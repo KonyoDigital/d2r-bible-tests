@@ -1089,8 +1089,8 @@
       "decide",
       "main"
     ],
-    "gotcha": "Never binds or kills anything: it only ASKS the console on the given port (/api/window, /api/status moduleFreshness) and POSTs a front request. Exit 0 = the console came forward, the launcher ends; exit 1 = replace it (stale, headless, window-only, silent, or it would not come forward - v1460: the icon must never do nothing). A backgrounded console that cannot say it is current is still asked forward (replacing it would stop its reel).",
-    "purpose": "REG-1514 - the Mac launcher's one decision: bring the running console forward, or let the launcher replace it (v1379.1's stale-code case only).",
+    "gotcha": "Never binds or kills anything: it only ASKS the console on the given port (/api/window, /api/freshness, /api/status moduleFreshness) and POSTs a front request. Exit 0 = the console came forward, the launcher ends; exit 3 = replace it (it SAYS it is older than the disk or has no window, or nothing serves the port); exit 2 = could not tell (a timeout, an ok:false or unreadable answer, a window mode it does not know, the 9 s budget ran out) - the console is left running. REG-1940: exit 1 is never a verdict, because an uncaught exception exits 1; the Windows launcher read 1 as consent and Stop-Process -Forced a fullscreen or slow console.",
+    "purpose": "REG-1514/1758/1940 - both launchers' one decision: bring the running console forward, leave it running, or let the launcher replace it (v1379.1's stale-code case and a windowless console only).",
     "territory": "console"
   },
   "launcher_pull.py": {

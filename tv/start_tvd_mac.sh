@@ -263,15 +263,21 @@ fi
 # console, maybe filming his session, replaced by a fresh one. The kill exists for one reason (v1379.1): never
 # window-only onto a STALE console running older code, and the console answers that itself. One decision,
 # tv/launcher_decide.py (driven by a law against a fake console): current code + a window -> brought forward
-# and this launch ends; stale, headless, or not answering -> replaced below, exactly as before.
-# TV_FORCE_PORT=1 still replaces it unconditionally.
+# and this launch ends; it SAYS it is stale or windowless, or nothing serves the port (rc 3) -> replaced below.
+# REG-1940 - "could not tell" (rc 2: a timeout, an unreadable answer, a refused front request) is NOT consent:
+# the console is left running and a notification says so. TV_FORCE_PORT=1 still replaces it unconditionally.
 if [ -z "${TV_FORCE_PORT:-}" ]; then
-  # ⚠ `set -e` is on (line 4): a bare `x=$(cmd)` whose cmd exits 1 ENDS THE SCRIPT right here, so "replace it"
-  # (rc 1 - the console is down, stale or windowless) launched nothing and the Desktop icon did nothing (v3524).
+  # ⚠ `set -e` is on (line 4): a bare `x=$(cmd)` whose cmd exits non-zero ENDS THE SCRIPT right here, so "replace
+  # it" (the console is down, stale or windowless) launched nothing and the Desktop icon did nothing (v3524).
   _tvd_rc=0
   _tvd_why=$(python3 "$HERE/launcher_decide.py" --port 17772 --from mac-launcher 2>/dev/null) || _tvd_rc=$?
   echo "$(date '+%Y-%m-%d %H:%M:%S') launcher: ${_tvd_why:-no answer from launcher_decide}" >>"$HERE/control_app.log" 2>/dev/null || true
   if [ "$_tvd_rc" -eq 0 ]; then
+    exit 0
+  fi
+  # the decision always prints why, so an empty answer with rc 2 is python failing to open the file, not a verdict
+  if [ "$_tvd_rc" -eq 2 ] && [ -n "$_tvd_why" ]; then
+    osascript -e 'display notification "the running console did not answer in time - left running, not replaced" with title "TV DIABLO"' 2>/dev/null || true
     exit 0
   fi
 fi

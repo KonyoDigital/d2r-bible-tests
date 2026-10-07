@@ -244,8 +244,8 @@ function Stop-TvdListenerOnControlPort {
 }
 
 # ALREADY UP. One rule with the Mac launcher (launcher_decide.py):
-# the running console is the code on disk -> bring it forward and stop;
-# it is older, headless, or will not come forward -> his click is the consent
+# it came forward (exit 0) -> stop; the decision could not tell (any exit but 0 and 3) -> focus it and stop;
+# it SAYS it is older than the disk or has no window (exit 3) -> his click is the consent
 # to update, so this launch falls through, pulls, stops the old process, and boots the disk.
 # A sign-in start (-Background) does neither: it leaves a running console exactly as it is.
 $script:TvdReplaceRunning = $false
@@ -287,12 +287,22 @@ if (Test-TvdControlUp) {
       $decideRc = 1
     }
     if ($decideRc -eq 0) {
-      Write-TvdLaunchLog ("running console is the code on disk - brought forward {0}" -f ([string]$decideOut).Trim())
+      Write-TvdLaunchLog ("running console brought forward: {0}" -f ([string]$decideOut).Trim())
       [void](Focus-TvdWindow)
       if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
       return
     }
-    Write-TvdLaunchLog ("running console is older than the disk or has no window (decide exit {0}) - this open updates it" -f $decideRc)
+    # REG-1940 - COULD NOT TELL IS NOT CONSENT. Only exit 3 is the console's own answer that it is older than the
+    # disk or has no window. Exit 2 (a timeout under the game, an ok:false reply, a window mode the decision does
+    # not know), exit 1 (python itself raised) and the catch above all used to fall through to
+    # Stop-TvdListenerOnControlPort, which is Stop-Process -Force on a console that may be filming his session.
+    if ($decideRc -ne 3) {
+      Write-TvdLaunchLog ("could not tell whether the running console is current (decide exit {0}: {1}) - it is left running and focused, never stopped on a guess" -f $decideRc, ([string]$decideOut).Trim())
+      [void](Focus-TvdWindow)
+      if ($mutex) { try { $mutex.ReleaseMutex() | Out-Null } catch {}; $mutex.Dispose() }
+      return
+    }
+    Write-TvdLaunchLog ("running console is older than the disk or has no window (decide exit {0}: {1}) - this open updates it" -f $decideRc, ([string]$decideOut).Trim())
     $script:TvdReplaceRunning = $true
   }
 }

@@ -38,6 +38,9 @@ class _Console(BaseHTTPRequestHandler):
     fresh_delay = 0
     fresh_code = 200
     status_delay = 0
+    window_delay = 0
+    window_body = None
+    post_delay = 0
 
     def _send(self, obj):
         body = json.dumps(obj).encode("utf-8")
@@ -51,7 +54,10 @@ class _Console(BaseHTTPRequestHandler):
         import time as _time
         path = self.path.split("?", 1)[0]
         if path == "/api/window":
-            self._send({"ok": True, "mode": _Console.mode})
+            if _Console.window_delay:
+                _time.sleep(_Console.window_delay)
+            self._send(_Console.window_body if _Console.window_body is not None
+                       else {"ok": True, "mode": _Console.mode})
         elif path == "/api/freshness":
             _Console.fresh_hits += 1
             if _Console.fresh_delay:
@@ -71,15 +77,19 @@ class _Console(BaseHTTPRequestHandler):
             self._send({})
 
     def do_POST(self):
+        import time as _time
         n = int(self.headers.get("Content-Length") or 0)
         _Console.posts.append(json.loads(self.rfile.read(n).decode("utf-8") or "{}"))
+        if _Console.post_delay:
+            _time.sleep(_Console.post_delay)
         self._send({"ok": _Console.front_ok})
 
     def log_message(self, *a):
         pass
 
 
-class TheDecision(unittest.TestCase):
+class _FakeConsoleCase(unittest.TestCase):
+    """The fake console on an ephemeral port, shared by the decision's laws. Holds no tests itself."""
 
     @classmethod
     def setUpClass(cls):
@@ -95,60 +105,70 @@ class TheDecision(unittest.TestCase):
         cls.srv.server_close()
 
     def _decide(self, mode, fresh, front_ok=True, fresh_delay=0, fresh_code=200,
-                status_delay=0, timeout=5.0):
+                status_delay=0, timeout=5.0, window_delay=0, window_body=None, post_delay=0, **kw):
         _Console.mode, _Console.fresh, _Console.front_ok, _Console.posts = mode, fresh, front_ok, []
         _Console.fresh_hits = _Console.status_hits = 0
         _Console.fresh_delay, _Console.fresh_code = fresh_delay, fresh_code
         _Console.status_delay = status_delay
-        done, why = LD.decide(self.port, "law", timeout=timeout)
-        return done, why, list(_Console.posts)
+        _Console.window_delay, _Console.window_body, _Console.post_delay = window_delay, window_body, post_delay
+        verdict, why = LD.decide(self.port, "law", timeout=timeout, **kw)
+        return verdict, why, list(_Console.posts)
 
     CURRENT = {"known": True, "stale": False}
     STALE = {"known": True, "stale": True}
     UNKNOWN = {"known": False}
 
+
+class TheDecision(_FakeConsoleCase):
+
     def test_a_window_that_is_up_on_current_code_is_brought_forward_not_replaced(self):
-        done, why, posts = self._decide("front", self.CURRENT)
-        self.assertTrue(done, "a healthy console with its window up was replaced by a double-click: %s" % why)
+        verdict, why, posts = self._decide("front", self.CURRENT)
+        self.assertEqual(LD.FORWARD, verdict,
+                         "a healthy console with its window up was not brought forward by a double-click: %s" % why)
         self.assertEqual([{"do": "front", "from": "law"}], posts)
         self.assertEqual(1, _Console.fresh_hits, "the icon did not ask the small freshness route")
         self.assertEqual(0, _Console.status_hits, "a current console was judged from the slow status route")
 
     def test_a_backgrounded_console_is_brought_forward_even_when_it_cannot_say_it_is_current(self):
-        done, why, posts = self._decide("background", self.UNKNOWN)
-        self.assertTrue(done, "a hidden console filming a reel was replaced: %s" % why)
+        verdict, why, posts = self._decide("background", self.UNKNOWN)
+        self.assertEqual(LD.FORWARD, verdict, "a hidden console filming a reel was not brought forward: %s" % why)
         self.assertEqual(1, len(posts))
 
     def test_a_stale_console_is_replaced_and_never_asked(self):
-        for mode in ("front", "background"):
-            done, why, posts = self._decide(mode, self.STALE)
-            self.assertFalse(done, "a console running OLDER code was kept (v1379.1): %s" % why)
+        for mode in ("front", "fullscreen", "background"):
+            verdict, why, posts = self._decide(mode, self.STALE)
+            self.assertEqual(LD.REPLACE, verdict, "a console running OLDER code was kept (v1379.1): %s" % why)
             self.assertEqual([], posts, "a stale console was asked forward")
             self.assertIn("OLDER", why)
             self.assertEqual(0, _Console.status_hits, "a stale answer on the small route still opened status")
 
-    def test_a_window_up_that_cannot_say_it_is_current_is_replaced(self):
-        done, why, posts = self._decide("front", self.UNKNOWN)
-        self.assertFalse(done)
-        self.assertEqual([], posts)
+    def test_a_window_up_that_cannot_say_it_is_current_is_asked_forward_not_replaced(self):
+        """REG-1940 - this used to REPLACE. 'Cannot say' is not 'older': unknown is not consent to a kill."""
+        verdict, why, posts = self._decide("front", self.UNKNOWN)
+        self.assertEqual(LD.FORWARD, verdict, why)
+        self.assertEqual([{"do": "front", "from": "law"}], posts)
+        self.assertIn("could not say whether it is current", why)
 
     def test_a_windowless_console_is_replaced(self):
-        for mode in ("headless", "window-only", ""):
-            done, why, posts = self._decide(mode, self.CURRENT)
-            self.assertFalse(done, "a console with no window to show was kept for a double-click (%r)" % mode)
+        for mode in ("headless", "window-only"):
+            verdict, why, posts = self._decide(mode, self.CURRENT)
+            self.assertEqual(LD.REPLACE, verdict,
+                             "a console with no window to show was kept for a double-click (%r)" % mode)
             self.assertEqual([], posts)
 
-    def test_a_console_that_does_not_come_forward_is_replaced(self):
-        done, why, posts = self._decide("front", self.CURRENT, front_ok=False)
-        self.assertFalse(done, "the icon would do nothing (v1460): %s" % why)
-        self.assertIn("v1460", why)
+    def test_a_console_that_does_not_come_forward_is_left_running_not_replaced(self):
+        """REG-1940 - an ok:false front reply used to replace the console 'so the icon never does nothing'
+        (v1460). The Windows launcher now focuses it from outside instead, and nothing is killed."""
+        verdict, why, posts = self._decide("front", self.CURRENT, front_ok=False)
+        self.assertEqual(LD.LEAVE, verdict, "a console that answered 'no' to the front request was killed: %s" % why)
+        self.assertEqual(1, len(posts))
 
     def test_a_slow_freshness_check_asks_a_window_that_is_up_forward(self):
         """The ALT's status took 10.5s. The icon waits 5s. A timeout while the window is up
         used to replace a healthy console. It now asks the window forward and does not also
         open the slow route."""
-        done, why, posts = self._decide("front", self.CURRENT, fresh_delay=0.6, timeout=0.2)
-        self.assertTrue(done, why)
+        verdict, why, posts = self._decide("front", self.CURRENT, fresh_delay=0.6, timeout=0.2)
+        self.assertEqual(LD.FORWARD, verdict, why)
         self.assertEqual([{"do": "front", "from": "law"}], posts)
         self.assertEqual(0, _Console.status_hits, "a timeout fell through onto /api/status")
         self.assertIn("did not answer the freshness check", why)
@@ -156,9 +176,9 @@ class TheDecision(unittest.TestCase):
     def test_an_old_console_whose_status_times_out_is_asked_forward(self):
         """A console that has no /api/freshness yet (404) is asked /api/status once.
         If THAT times out, the window was already read, so the icon asks it forward."""
-        done, why, posts = self._decide(
+        verdict, why, posts = self._decide(
             "front", self.STALE, fresh_code=404, status_delay=0.6, timeout=0.2)
-        self.assertTrue(done, why)
+        self.assertEqual(LD.FORWARD, verdict, why)
         self.assertEqual([{"do": "front", "from": "law"}], posts)
         self.assertGreaterEqual(_Console.status_hits, 1)
         self.assertIn("did not answer the freshness check", why)
@@ -169,9 +189,88 @@ class TheDecision(unittest.TestCase):
         s.bind(("127.0.0.1", 0))
         dead = s.getsockname()[1]
         s.close()
-        done, why = LD.decide(dead, "law", timeout=2.0)
-        self.assertFalse(done)
-        self.assertIn("did not answer", why)
+        verdict, why = LD.decide(dead, "law", timeout=2.0)
+        self.assertEqual(LD.REPLACE, verdict, why)
+        self.assertIn("nothing is serving", why)
+
+
+class UnknownIsNotConsent(_FakeConsoleCase):
+    """REG-1940 - the #231 eye on v3571 (the cross-family Claude CLI look). launcher_decide exited 1 on ANY failure
+    and start_tvd_win.ps1 read exit 1 as his consent to Stop-Process -Force the console on :17772. MEASURED against
+    this fake console before the fix: a CURRENT console whose window is FULLSCREEN (v3579 added that mode, and it is
+    the Windows default), a slow /api/window, a slow front request and an ok:false front reply all came back
+    "replace". A Desktop click while he plays must never kill a running console on something this file could not
+    tell. Only the console's own answer - older than the disk, or no window - replaces it."""
+
+    def test_a_current_fullscreen_console_is_brought_forward_not_replaced(self):
+        verdict, why, posts = self._decide("fullscreen", self.CURRENT)
+        self.assertEqual(LD.FORWARD, verdict, "a healthy FULLSCREEN console was replaced by a double-click: %s" % why)
+        self.assertEqual([{"do": "front", "from": "law"}], posts)
+
+    def test_a_window_route_that_times_out_leaves_the_console_running(self):
+        verdict, why, posts = self._decide("front", self.CURRENT, window_delay=0.6, timeout=0.2)
+        self.assertEqual(LD.LEAVE, verdict, "a 5 s timeout under the game replaced a running console: %s" % why)
+        self.assertEqual([], posts)
+
+    def test_a_front_request_that_times_out_leaves_the_console_running(self):
+        verdict, why, posts = self._decide("front", self.CURRENT, post_delay=0.6, timeout=0.2)
+        self.assertEqual(LD.LEAVE, verdict, "a slow front request replaced a running console: %s" % why)
+
+    def test_a_window_answer_with_no_mode_or_a_new_mode_leaves_the_console_running(self):
+        for body in ({"ok": False}, {}, {"ok": True, "mode": "some-mode-this-file-has-never-seen"}):
+            verdict, why, posts = self._decide("front", self.CURRENT, window_body=body)
+            self.assertEqual(LD.LEAVE, verdict, "%r was read as consent to replace: %s" % (body, why))
+            self.assertEqual([], posts)
+
+    def test_the_decision_has_one_budget_and_running_out_of_it_replaces_nothing(self):
+        """Three slow calls held the icon 15-20 s (v1445/v1463). The decision gets BUDGET_S in all; when it runs out
+        before the front request, the console is left running."""
+        t = [0.0]
+
+        def clock():
+            t[0] += 4.0          # every reading of the clock is four seconds later
+            return t[0]
+        verdict, why, posts = self._decide("front", self.CURRENT, budget=6.0, clock=clock)
+        self.assertEqual(LD.LEAVE, verdict, why)
+        self.assertIn("ran out", why)
+        self.assertEqual([], posts, "the front request was sent after the budget had run out")
+
+    def test_the_exit_codes_never_let_a_crash_read_as_replace(self):
+        self.assertEqual({LD.FORWARD: 0, LD.LEAVE: 2, LD.REPLACE: 3}, LD.EXIT)
+        self.assertNotIn(1, LD.EXIT.values(), "exit 1 is what an uncaught exception exits with")
+        real = LD.decide
+        try:
+            def boom(*a, **k):
+                raise RuntimeError("decision blew up")
+            LD.decide = boom
+            buf = io.StringIO()
+            old, sys.stdout = sys.stdout, buf
+            try:
+                rc = LD.main(["--port", str(self.port)])
+            finally:
+                sys.stdout = old
+        finally:
+            LD.decide = real
+        self.assertEqual(2, rc, "a decision that raised was read as consent to replace")
+        self.assertIn("RuntimeError", buf.getvalue())
+
+    def test_main_exits_with_the_verdict_code(self):
+        for kw, want in (({"window_delay": 0.6}, 2), ({}, 0)):
+            _Console.window_delay = kw.get("window_delay", 0)
+            _Console.window_body, _Console.post_delay, _Console.mode = None, 0, "front"
+            _Console.fresh, _Console.front_ok, _Console.fresh_delay, _Console.fresh_code = self.CURRENT, True, 0, 200
+            real = LD.decide
+            try:
+                LD.decide = lambda port, who: real(port, who, timeout=0.2)
+                old, sys.stdout = sys.stdout, io.StringIO()
+                try:
+                    rc = LD.main(["--port", str(self.port), "--from", "law"])
+                finally:
+                    sys.stdout = old
+            finally:
+                LD.decide = real
+            self.assertEqual(want, rc, kw)
+        _Console.window_delay = 0
 
 
 class TheShellBlockRunsUnderSetE(unittest.TestCase):
@@ -181,7 +280,7 @@ class TheShellBlockRunsUnderSetE(unittest.TestCase):
     2026-09-29 21:03, `bash -x`: last line was the decide call). DRIVEN: the real block, cut from the real script,
     run by bash with the same flags against a fake launcher_decide.py."""
 
-    def _run_block(self, rc):
+    def _run_block(self, rc, why="fake decide"):
         import subprocess, tempfile
         src = io.open(os.path.join(HERE, "start_tvd_mac.sh"), encoding="utf-8").read()
         i = src.index('if [ -z "${TV_FORCE_PORT:-}" ]; then\n', src.index("REG-1514"))
@@ -191,8 +290,10 @@ class TheShellBlockRunsUnderSetE(unittest.TestCase):
         d = tempfile.mkdtemp(prefix="launcher_block_")
         try:
             io.open(os.path.join(d, "launcher_decide.py"), "w", encoding="utf-8").write(
-                "import sys\nprint('fake decide')\nsys.exit(%d)\n" % rc)
-            script = "set -euo pipefail\nHERE=%s\n%s\necho REACHED-THE-LAUNCH\n" % (d, block)
+                "import sys\n%ssys.exit(%d)\n" % (("print(%r)\n" % why) if why else "", rc))
+            # osascript is shadowed: the could-not-tell arm posts a notification, and a law never puts one on his screen
+            script = ("set -euo pipefail\nHERE=%s\nosascript() { echo NOTIFIED; }\n%s\necho REACHED-THE-LAUNCH\n"
+                      % (d, block))
             import posix_shell as _PS   # REG-1632 - a real POSIX bash, never the WSL launcher
             _bash = _PS.bash()
             if _bash is None:           # REG-1642 - never whatever `bash` names (the WSL launcher runs nothing)
@@ -204,23 +305,37 @@ class TheShellBlockRunsUnderSetE(unittest.TestCase):
             shutil.rmtree(d, ignore_errors=True)
 
     def test_replace_it_goes_on_to_launch(self):
-        r = self._run_block(1)
-        self.assertIn("REACHED-THE-LAUNCH", r.stdout,
-                      "with the console down the launcher stopped at the decide call and launched nothing "
-                      "(rc=%s stderr=%r)" % (r.returncode, r.stderr[-200:]))
+        for rc in (3, 1):    # 3 = the console said it is stale/windowless or nothing serves; 1 = the decide is broken
+            r = self._run_block(rc)
+            self.assertIn("REACHED-THE-LAUNCH", r.stdout,
+                          "with the console down the launcher stopped at the decide call and launched nothing "
+                          "(rc=%s stderr=%r)" % (r.returncode, r.stderr[-200:]))
 
     def test_brought_forward_ends_the_launch(self):
         r = self._run_block(0)
         self.assertEqual(0, r.returncode)
         self.assertNotIn("REACHED-THE-LAUNCH", r.stdout, "a console brought forward was replaced anyway")
 
+    def test_could_not_tell_leaves_the_console_running(self):
+        """REG-1940 - rc 2 is 'could not tell'. It is not consent: the launch ends, nothing is killed, and a
+        notification says the console was left running."""
+        r = self._run_block(2, why="the console did not answer /api/window in time")
+        self.assertEqual(0, r.returncode, r.stderr[-200:])
+        self.assertNotIn("REACHED-THE-LAUNCH", r.stdout, "a console the decision could not judge was replaced")
+        self.assertIn("NOTIFIED", r.stdout, "the icon left the console without saying so")
+
+    def test_premise_rc_2_with_no_answer_is_python_failing_and_still_launches(self):
+        """python3 exits 2 when it cannot open the file; the decision always prints why. No why = no verdict."""
+        r = self._run_block(2, why="")
+        self.assertIn("REACHED-THE-LAUNCH", r.stdout, r.stderr[-200:])
+
 
 class TheWindowsClickUsesTheSameDecision(unittest.TestCase):
     """REG-1758 — opening the console is one rule on both machines. The Mac launcher already asks
     launcher_decide.py. The Windows launcher used to focus whatever was answering :17772, so an old
     process stayed up after the disk had moved. A click now asks the same function: exit 0 brings
-    the window forward, anything else is his consent to replace it. A sign-in start still leaves
-    a running console alone."""
+    the window forward, exit 3 is his consent to replace it, anything else leaves it running and
+    focused (REG-1940). A sign-in start still leaves a running console alone."""
 
     def test_the_click_asks_the_shared_decision_and_a_sign_in_does_not(self):
         with io.open(os.path.join(HERE, "start_tvd_win.ps1"), encoding="utf-8-sig") as fh:
@@ -323,11 +438,85 @@ class TheWindowsClickWithNoPythonBringsTheConsoleForward(unittest.TestCase):
         self.assertNotIn("FOCUSED", r.stdout)
 
 
+def _code_only(text):
+    """PowerShell text with every '#' comment cut off its line (the block carries no '#' inside a string)."""
+    return "\n".join(l.split("#", 1)[0].rstrip() for l in text.split("\n"))
+
+
+class TheWindowsClickNeverStopsAConsoleItCouldNotJudge(unittest.TestCase):
+    """REG-1940 - the #231 eye on v3571. The Windows click read ANY non-zero decide exit as consent and set the flag
+    that runs Stop-TvdListenerOnControlPort (Stop-Process -Force on :17772). A 5 s timeout under the game, an
+    ok:false reply, python raising, or the console simply being fullscreen hard-killed a running console mid-reel.
+    Only exit 3 - the console's own answer that it is older than the disk or has no window - may set that flag;
+    every other answer focuses the running console and ends the launch."""
+
+    def _arms(self):
+        blk = _code_only(_already_up_block(_ps_text()))
+        flag = "    $script:TvdReplaceRunning = $true\n"
+        self.assertEqual(blk.count(flag), 1, "the consent flag is not set in exactly one place")
+        gate = "    if ($decideRc -ne 3) {\n"
+        self.assertEqual(blk.count(gate), 1, "the could-not-tell arm is gone: every non-zero exit is consent again")
+        return blk, blk.index(gate), blk.index(flag)
+
+    def test_only_exit_3_reaches_the_consent_flag(self):
+        blk, gate, flag = self._arms()
+        self.assertLess(gate, flag, "the consent flag is set before the could-not-tell arm can stop the launch")
+        arm = blk[gate:flag]
+        self.assertIn("      [void](Focus-TvdWindow)\n", arm, "a console the decision could not judge is left behind")
+        self.assertIn("\n      return\n", arm, "the could-not-tell arm falls through to the kill")
+        self.assertNotIn("Stop-TvdListenerOnControlPort", arm)
+        ok = blk.index("    if ($decideRc -eq 0) {\n")
+        self.assertLess(ok, gate, "the brought-forward arm moved behind the could-not-tell arm")
+
+    def _run(self, rc):
+        ps = _powershell()
+        if not ps:
+            self.skipTest("no PowerShell on this machine - the block runs where it is proven (Windows, CI's pwsh)")
+        import subprocess, tempfile, shutil
+        stub = "\n".join([
+            "$Background = $false",
+            "$mutex = $null",
+            "$here = '%s'" % tempfile.gettempdir().replace("'", "''"),
+            "function Write-TvdLaunchLog([string]$msg) { [Console]::Out.WriteLine('LOG ' + $msg) }",
+            "function Test-TvdControlUp { return $true }",
+            # the decision is a function named like a command, so `& $decideCmd ...` runs it and no python starts
+            "function Real-Python { return @{ Cmd = 'fake-decide'; Prefix = @() } }",
+            "function fake-decide { $global:LASTEXITCODE = %d; 'fake decide answered' }" % rc,
+            "function Invoke-WebRequest { [Console]::Out.WriteLine('ASKED'); return [pscustomobject]@{ Content = '{}' } }",
+            "function Focus-TvdWindow([bool]$unhide = $true, [uint32]$wantPid = 0) "
+            "{ [Console]::Out.WriteLine('FOCUSED'); return $true }",
+            "function Stop-TvdListenerOnControlPort { [Console]::Out.WriteLine('STOPPED') }",
+        ])
+        d = tempfile.mkdtemp(prefix="launcher_rc_")
+        try:
+            path = os.path.join(d, "b.ps1")
+            io.open(path, "w", encoding="utf-8").write(
+                stub + "\n" + _already_up_block(_ps_text()) +
+                "\n[Console]::Out.WriteLine('FELL-THROUGH replace=' + $script:TvdReplaceRunning)\n")
+            return subprocess.run([ps, "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", path],
+                                  capture_output=True, text=True, timeout=120)
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_in_real_powershell_could_not_tell_focuses_and_never_flags_a_replace(self):
+        for rc in (2, 1):
+            r = self._run(rc)
+            out = "rc %d stdout %r stderr %r" % (rc, r.stdout[-300:], r.stderr[-300:])
+            self.assertIn("FOCUSED", r.stdout, out)
+            self.assertNotIn("FELL-THROUGH", r.stdout, out)
+            self.assertIn("could not tell", r.stdout, out)
+
+    def test_in_real_powershell_exit_3_is_the_consent_to_replace(self):
+        r = self._run(3)
+        self.assertIn("FELL-THROUGH replace=True", r.stdout, "stdout %r stderr %r" % (r.stdout[-300:], r.stderr[-300:]))
+        self.assertNotIn("FOCUSED", r.stdout)
+
+
 RED_PROOF = [
     {
-        "why": "2026-09-29 (REG-1514) - only a BACKGROUNDED console is asked forward; a window that is up is replaced",
+        "why": "2026-09-29 (REG-1514) - only a BACKGROUNDED console is asked forward; a window that is up is not",
         "file": "tv/launcher_decide.py",
-        "find": "    if mode not in (\"front\", \"background\"):\n",
+        "find": "    if mode not in WINDOW_UP:\n",
         "replace": "    if mode != \"background\":\n",
         "matches": 1,
     },
@@ -339,9 +528,9 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "2026-09-29 (REG-1514) - a console that did not come forward ends the launch anyway (v1460's dead icon)",
+        "why": "2026-09-29 (REG-1514) / REG-1940 - a console that did not come forward reads as brought forward",
         "file": "tv/launcher_decide.py",
-        "find": "    if not ok:\n",
+        "find": "    if not (isinstance(rec, dict) and rec.get(\"ok\")):\n",
         "replace": "    if False:\n",
         "matches": 1,
     },
@@ -353,10 +542,13 @@ RED_PROOF = [
         "matches": 1,
     },
     {
+        # REG-1940 - both lines go: replacing the call alone left `$decideRc = $LASTEXITCODE` to overwrite the
+        # mutation, so it only went red on the text (the #231 eye on v3571)
         "why": "REG-1758 - the Windows click stops asking the shared decision and keeps whatever is already serving",
         "file": "tv/start_tvd_win.ps1",
-        "find": "      $decideOut = & $decideCmd @decidePrefix $decideScript --port 17772 --from win-launcher 2>&1\n",
-        "replace": "      $decideRc = 0\n",
+        "find": "      $decideOut = & $decideCmd @decidePrefix $decideScript --port 17772 --from win-launcher 2>&1\n"
+                "      $decideRc = $LASTEXITCODE\n",
+        "replace": "      $decideOut = 'kept'\n      $decideRc = 0\n",
         "matches": 1,
     },
     {
@@ -371,6 +563,55 @@ RED_PROOF = [
         "file": "tv/start_tvd_win.ps1",
         "find": "      $front = Invoke-WebRequest @frontArgs\n",
         "replace": "      $front = $null\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1940 - fullscreen (the Windows default since v3579) is not a window again: a current console is killed",
+        "file": "tv/launcher_decide.py",
+        "find": "WINDOW_UP = (\"front\", \"fullscreen\", \"background\")\n",
+        "replace": "WINDOW_UP = (\"front\", \"background\")\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1940 - a /api/window that times out under the game is read as consent to replace the console",
+        "file": "tv/launcher_decide.py",
+        "find": "        return LEAVE, (\"the console did not answer /api/window in time (%s) - it is left running, \"\n",
+        "replace": "        return REPLACE, (\"the console did not answer /api/window in time (%s) - it is left running, \"\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1940 - a front request that times out is read as consent to replace the console",
+        "file": "tv/launcher_decide.py",
+        "find": "        return LEAVE, (\"it did not answer the front request (%s) - it is left running and focused from outside, \"\n",
+        "replace": "        return REPLACE, (\"it did not answer the front request (%s) - it is left running and focused from outside, \"\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1940 - 'could not tell' and 'replace' share exit 1 again, the code a crash exits with",
+        "file": "tv/launcher_decide.py",
+        "find": "EXIT = {FORWARD: 0, LEAVE: 2, REPLACE: 3}\n",
+        "replace": "EXIT = {FORWARD: 0, LEAVE: 1, REPLACE: 1}\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1940 - the decision has no overall budget: three slow calls hold the Desktop icon",
+        "file": "tv/launcher_decide.py",
+        "find": "    end = clock() + float(budget)\n",
+        "replace": "    end = clock() + 1e9\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1940 - the Windows click reads every non-zero exit as consent and Stop-Process -Forces the console",
+        "file": "tv/start_tvd_win.ps1",
+        "find": "    if ($decideRc -ne 3) {\n",
+        "replace": "    if ($false) {\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1940 - the Mac click reads 'could not tell' as consent and soft-kills the console",
+        "file": "tv/start_tvd_mac.sh",
+        "find": "  if [ \"$_tvd_rc\" -eq 2 ] && [ -n \"$_tvd_why\" ]; then\n",
+        "replace": "  if false; then\n",
         "matches": 1,
     },
 ]
