@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3617",
+  "ver": "v3618",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3617: The vault finder names the mule and the cell, a Chronicle page is never a filing picture, and the dock is one list that Delete unsorted and Auto-Sort both ask (REG-2020, REG-2021, #264)",
+  "note": "v3618: Two stash sessions file an item with no confidence needed when the reader gives none (his ruling), Auto-Sort re-homes misfiled war gear, rolled rare names go to Magic and Rare, and one drift gets one advice (REG-2022, REG-2023, REG-2024, REG-2025, #264, #266, #269)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

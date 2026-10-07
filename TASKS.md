@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3617** | `(this commit)` | v3617 — The vault finder names the mule and the cell, a Chronicle page is never a filing picture, and the dock is one list that Delete unsorted and Auto-Sort both ask (REG-2020, REG-2021, #264) |
+| **v3618** | `(this commit)` | v3618 — Two stash sessions file an item with no confidence needed when the reader gives none (his ruling), Auto-Sort re-homes misfiled war gear, rolled rare names go to Magic and Rare, and one drift gets one advice (REG-2022, REG-2023, REG-2024, REG-2025, #264, #266, #269) |
+| **v3617** | `4b79bc7a` | v3617 — The vault finder names the mule and the cell, a Chronicle page is never a filing picture, and the dock is one list that Delete unsorted and Auto-Sort both ask (REG-2020, REG-2021, #264) |
 | **v3616** | `b1df695e` | v3616 — His Auto-Sort click files the loose items into their mules, war and swap gear goes to the shared stash laid out by slot, and a Magic and Rare charm is no longer loose or double-filed (REG-2019, #264) |
 | **v3615** | `bae46663` | v3615 — a lock names the proof census, and the excerpt cutter edges are closed (REG-2017, REG-2018) |
 | **v3614** | `0033fea5` | v3614 — a file over the second eye limit goes in as numbered excerpts of its changed blocks (REG-2016) |
