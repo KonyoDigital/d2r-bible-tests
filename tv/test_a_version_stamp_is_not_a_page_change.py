@@ -108,6 +108,34 @@ class AnythingElseStillIs(_Repo):
         head = self.commit(BODY % smuggled)
         self.assertTrue(self.changed(head))
 
+    # REG-1942 - the #231 eye on v3568. MEASURED on real `git diff -U0` output before the fix: each of these four read
+    # as stamp-only (changed=False), so the pre-push hook skipped render and smoke while the deploy published them.
+    def test_a_removed_page_line_that_starts_with_two_dashes_is_a_page_change(self):
+        base = BODY % (STAMP % ("v100", "v100", "first"))
+        self.base = self.commit(base.replace("  var x = 1;\n", "  var x = 1;\n-->\n"))
+        head = self.commit(BODY % (STAMP % ("v101", "v101", "second")))
+        diff = _git(self.repo, "diff", "-U0", "%s..%s" % (self.base, head))
+        self.assertIn("\n--->", diff, "PREMISE: the removed '-->' reads '--->' in the diff")
+        self.assertTrue(self.changed(head), "a removed page line was skipped as a file header")
+
+    def test_an_added_page_line_that_starts_with_two_pluses_is_a_page_change(self):
+        head = self.commit((BODY % (STAMP % ("v101", "v101", "second"))).replace("  var x = 1;\n",
+                                                                                 "  var x = 1;\n++i;\n"))
+        self.assertTrue(self.changed(head), "an added page line was skipped as a file header")
+
+    def test_deleting_the_stamp_is_a_page_change(self):
+        head = self.commit(BODY % "")
+        self.assertTrue(self.changed(head), "a page that lost its D2R_BUILD read as a stamp-only bump")
+
+    def test_a_stamp_whose_note_closes_the_script_is_a_page_change(self):
+        head = self.commit(BODY % (STAMP % ("v101", "v101", "closed the </script> tag")))
+        self.assertTrue(self.changed(head), "a note that ends the <script> block read as a stamp-only bump")
+
+    def test_a_bare_diff_still_has_its_two_header_lines_skipped(self):
+        diff = ("--- a/bible.html\n+++ b/bible.html\n@@ -3 +3 @@\n-" + STAMP % ("v1", "v1", "a") +
+                "+" + STAMP % ("v2", "v2", "b"))
+        self.assertTrue(P.stamp_only(diff))
+
     def test_a_range_git_cannot_read_runs_the_gates(self):
         changed, why = P.page_changed(["no-such-ref..also-not"], repo=self.repo)
         self.assertTrue(changed)
@@ -304,8 +332,24 @@ class TheFastShardsFollowMeasuredDuration(unittest.TestCase):
 RED_PROOF = [
     {"why": "REG-1753 - every changed line counted as a stamp: a real page change skips render and smoke",
      "file": "page_delta.py",
-     "find": "            if not STAMP_LINE.match(line[1:]):\n                return False\n",
-     "replace": "            if False:\n                return False\n",
+     "find": "        if not _is_stamp(line[1:]):\n            return False\n",
+     "replace": "        if False:\n            return False\n",
+     "matches": 1},
+    {"why": "REG-1942 - every +++/--- line is skipped as a header again: a removed '-->' or an added '++i;' "
+            "beside a stamp bump reads as stamp-only and render + smoke are skipped",
+     "file": "page_delta.py",
+     "find": "        if in_header or not line or line[0] not in \"+-\":\n",
+     "replace": "        if in_header or not line or line[0] not in \"+-\" or line.startswith((\"+++\", \"---\")):\n",
+     "matches": 1},
+    {"why": "REG-1942 - a removed stamp no longer needs an added one: deleting D2R_BUILD reads as stamp-only",
+     "file": "page_delta.py",
+     "find": "    return added > 0 and added == removed\n",
+     "replace": "    return added + removed > 0\n",
+     "matches": 1},
+    {"why": "REG-1942 - a stamp whose note closes the <script> block reads as stamp-only",
+     "file": "page_delta.py",
+     "find": "    return bool(STAMP_LINE.match(text)) and not _HTML_BREAK.search(text)\n",
+     "replace": "    return bool(STAMP_LINE.match(text))\n",
      "matches": 1},
     {"why": "REG-1753 - a stamp-only bump answered as a page change: the skip never happens",
      "file": "page_delta.py",

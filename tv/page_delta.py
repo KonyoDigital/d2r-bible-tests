@@ -44,17 +44,42 @@ STAMP_LINE = re.compile(
     r"date:'\d{4}-\d{2}-\d{2}', note:'(?:[^'\\]|\\.)*' \};\s*$")
 
 
+# REG-1942 - a stamp line that holds `</` or `<!--` matches STAMP_LINE and still changes how the HTML parses: the note
+# lands inside a <script> block, and `</script>` ends it (bump_version refuses it; a hand-edit would not be refused).
+_HTML_BREAK = re.compile(r"</|<!--", re.I)
+
+
+def _is_stamp(text):
+    return bool(STAMP_LINE.match(text)) and not _HTML_BREAK.search(text)
+
+
 def stamp_only(diff_text):
-    """True when a unified diff changes at least one line and EVERY changed line is a whole build-stamp line."""
-    changed = 0
+    """True when a unified diff changes the build stamp and NOTHING else: every changed line is a whole build-stamp
+    line, and every stamp it removes is put back (as many added as removed, at least one of each).
+
+    REG-1942 (the #231 eye on v3568) - the file headers are the `---`/`+++` lines BEFORE a section's first `@@`, never
+    a changed line that happens to start that way: a removed page line `-->` reads `--->` in the diff, and an added
+    `++i;` reads `+++i;`. Both used to be skipped as headers, so a stamp bump that also changed them read as
+    stamp-only and the hook skipped render and smoke while the deploy published the change. A diff that only DELETED
+    the stamp line read as stamp-only too, and shipped a page with no D2R_BUILD."""
+    added = removed = 0
+    in_header = True                     # a bare diff (no `diff --git` line) still opens with its two header lines
     for line in (diff_text or "").splitlines():
-        if line.startswith("+++") or line.startswith("---"):
+        if line.startswith("diff --git "):
+            in_header = True
             continue
-        if line and line[0] in "+-":
-            changed += 1
-            if not STAMP_LINE.match(line[1:]):
-                return False
-    return changed > 0
+        if line.startswith("@@"):
+            in_header = False
+            continue
+        if in_header or not line or line[0] not in "+-":
+            continue                     # headers, `\ No newline at end of file`, context
+        if not _is_stamp(line[1:]):
+            return False
+        if line[0] == "+":
+            added += 1
+        else:
+            removed += 1
+    return added > 0 and added == removed
 
 
 def _git(args, repo):
