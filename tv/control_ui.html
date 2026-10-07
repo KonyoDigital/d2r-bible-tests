@@ -9153,24 +9153,17 @@ window._lockMark = function(isOpen, px, label){
     el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump');
   }
 
-  // ease the reads counter toward its target instead of snapping
+  /* REG-1933 (the sweep) — the reads counter SNAPS to its count and bumps. It used to ease toward it on
+     requestAnimationFrame, writing every number in between - the dossier count-up's twin: on a busy machine
+     those frames come seconds apart, so a half-way number is what an eye reads. */
   var _reads = 0, _readsRaf = null, _readsTarget = -1;
   function tweenReads(target){
     if (target === _readsTarget) return;
+    var first = _readsTarget === -1;
     _readsTarget = target;
-    if (_readsRaf) cancelAnimationFrame(_readsRaf);
     var el = $('m-reads');
-    if (typeof performance === 'undefined' || !window.requestAnimationFrame) { _reads = target; el.textContent = target; return; }
-    var from = _reads, start = performance.now(), dur = 550;
-    function step(now){
-      var p = Math.min(1, (now - start) / dur);
-      var e = 1 - Math.pow(1 - p, 3);
-      _reads = Math.round(from + (target - from) * e);
-      el.textContent = _reads;
-      if (p < 1) { _readsRaf = requestAnimationFrame(step); }
-      else { _reads = target; el.textContent = target; el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
-    }
-    _readsRaf = requestAnimationFrame(step);
+    _reads = target; el.textContent = target;
+    if (!first) { el.classList.remove('bump'); void el.offsetWidth; el.classList.add('bump'); }
   }
   function esc(s){
     return String(s).replace(/[&<>"']/g, function(c){

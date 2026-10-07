@@ -211,8 +211,34 @@ class ANumberNeverCountsOnScreen(unittest.TestCase):
         self.assertEqual(out["frames"], 0, "the numbers are tweened on animation frames again")
         self.assertTrue(out["popped"], "the arrival is no longer marked for its (opacity-only) animation")
 
+    def test_the_live_reads_meter_never_shows_a_number_in_between(self):
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            ui = fh.read()
+        lo = ui.find("  function tweenReads(target){")
+        self.assertGreaterEqual(lo, 0, "tweenReads is gone from control_ui.html")
+        hi = ui.find("\n  }\n", lo)
+        js = ("var seen = [], frames = 0; function requestAnimationFrame(f){ frames++; if (frames < 50) f(frames * 40); }\n"
+              "function cancelAnimationFrame(){}\nvar performance = {now: function(){ return 0; }};\n"
+              "var window = {requestAnimationFrame: requestAnimationFrame};\n"
+              "var el = {classList: {add: function(){}, remove: function(){}}, offsetWidth: 1};\n"
+              "Object.defineProperty(el, 'textContent', {set: function(v){ seen.push(String(v)); }});\n"
+              "function $(){ return el; }\nvar _reads = 0, _readsRaf = null, _readsTarget = -1;\n"
+              + ui[lo:hi + 4] + "\ntweenReads(5); tweenReads(12);\n"
+              "process.stdout.write(JSON.stringify({seen: seen, frames: frames}));")
+        p = subprocess.run(["node", "-e", js], capture_output=True, text=True, timeout=30)
+        self.assertEqual(p.returncode, 0, p.stderr[-600:])
+        out = json.loads(p.stdout)
+        self.assertEqual(out["seen"], ["5", "12"], "the reads meter wrote numbers in between: %s (REG-1933)" % out["seen"][:10])
+
 
 RED_PROOF = [
+    {
+        "why": "REG-1933 - the live reads meter eases between counts again and shows numbers that were never the count",
+        "file": "tv/control_ui.html",
+        "find": "    _reads = target; el.textContent = target;\n    if (!first)",
+        "replace": "    if (!first) el.textContent = Math.round((_reads + target) / 2);\n    _reads = target; el.textContent = target;\n    if (!first)",
+        "matches": 1,
+    },
     {
         "why": "REG-1933 - the dossier counts its numbers up again: every frame in between shows a number that is not true",
         "file": "tv/control_ui.html",
