@@ -88,6 +88,20 @@ process.stdout.write(JSON.stringify(out));
 """
 
 
+class AClosedTheatreRepaintsTheCockpitAtOnce(unittest.TestCase):
+    """REG-1934 - after a close the cockpit kept saying THEATRE until the next status poll (ticks 377, 378, 381)."""
+
+    def test_thclose_repaints_from_the_last_poll(self):
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            ui = fh.read()
+        i = ui.find("  function thClose(){")
+        self.assertGreaterEqual(i, 0, "thClose is gone - re-point this law")
+        body = ui[i:ui.find("\n  }\n", i)]
+        self.assertIn("paint(window.__lastStatus)", body, "a closed theatre leaves the cockpit saying THEATRE until a poll")
+        self.assertLess(body.find("TH.open = false"), body.find("paint(window.__lastStatus)"),
+                        "the repaint runs before the flag is down, so it paints THEATRE again")
+
+
 @unittest.skipUnless(shutil.which("node"), "node is not installed")
 class TheShelfIsNotAnEmptyStage(unittest.TestCase):
     """REG-1934 - GrokBot tick 377: the Shelf drawer closed by itself (~05:11:50) while the pointer was held on a
@@ -150,6 +164,13 @@ class ATheatreFlagNeedsAStage(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1934 - thClose stops repainting the cockpit: THEATRE stays up over TV.D until the next poll",
+        "file": "tv/control_ui.html",
+        "find": "    try { if (window.__lastStatus && typeof paint === 'function') paint(window.__lastStatus); } catch(e){}\n",
+        "replace": "",
+        "matches": 1,
+    },
     {
         "why": "REG-1934 - the empty-stage heal stops exempting a shelf on screen: it closes the shelf he is reading",
         "file": "tv/control_ui.html",

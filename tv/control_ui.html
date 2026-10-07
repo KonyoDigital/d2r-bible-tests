@@ -17387,6 +17387,11 @@ window._lockMark = function(isOpen, px, label){
     try { var _c = $('th-coach'); if (_c) _c.hidden = true; } catch(e){}
     thCinema(false);   // v825 — leaving the theatre always leaves cinema
     thLit();
+    /* REG-1934 — AND THE COCKPIT'S WORDS NOW, NOT AT THE NEXT POLL. The THEATRE word, marquee, kicker and
+       "Theatre open · eyes on a real session" are painted from the status poll, so for a few seconds after a close
+       they still said THEATRE over the TV.D body (GrokBot ticks 377, 378, 381). Repaint from the last poll's own
+       status - the same object the poll paints from, nothing new is asked. */
+    try { if (window.__lastStatus && typeof paint === 'function') paint(window.__lastStatus); } catch(e){}
   }
   function thLit(){
     var bt = $('btn-theatre');
