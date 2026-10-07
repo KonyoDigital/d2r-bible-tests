@@ -23057,7 +23057,7 @@ window.extraUniqueDetailHtml = extraItemDetailHtml; // alias
 const RARE_NAME_POOLS = {
   Amulet: ['Wing','Mark','Emblem','Clasp','Talisman','Heart','Noose','Necklace','Collar','Beads','Torc','Gorget','Scarab'],
   Ring:   ['Grip','Grasp','Hold','Touch','Finger','Knot','Circle','Loop','Turn','Spiral','Coil','Gyre','Band','Whorl','Master'],
-  Jewel:  ['Gyre','Whorl','Talisman','Heart','Scarab'],
+  Jewel:  ['Gyre','Whorl','Talisman','Heart','Scarab','Eye'],   // #269 — 'Eye' is the word this block's own example names ("Viper Eye → a rare jewel") and the pool lacked
 };
 const RARE_NAME_PREFIXES = ['Beast','Eagle','Raven','Viper','Ghoul','Skull','Blood','Dread','Doom','Grim','Bone','Death','Shadow','Storm','Rune','Plague','Stone','Wraith','Spirit','Demon','Cruel','Empyrion','Bramble','Pain','Loath','Glyph','Imp','Fiend','Hailstone','Gale','Dire','Soul','Brimstone','Corpse','Carrion','Holocaust','Havoc','Bitter','Entropy','Chaos','Order','Rule','Warp','Rift','Corruption'];
 window.RARE_NAME_POOLS = RARE_NAME_POOLS; window.RARE_NAME_PREFIXES = RARE_NAME_PREFIXES;
@@ -38935,6 +38935,23 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          correctly by the word, and nothing here touches them. */
       if (_bRec && (_bRec.oneH || _bRec.twoH)) return {id:'uni-weap', why:'weapon — '+base+' (BASE_DB damage '+(_bRec.oneH||_bRec.twoH)+')'};
     } catch(e){}
+    /* ══ #269 (GrokBot ticks 411/412) — A RARE'S ROLLED NAME GOES TO MAGIC & RARE, NOT TO A SLOT DRAWER BY ONE WORD ══════
+       MEASURED: Dread Grasp -> UNI-ARMOR ("armor slot — base: name match"), and Storm Scarab, Death Loop, Viper Eye,
+       Bitter Spiral, Doom Spiral -> UNI-WEAPONS ("nothing on the board recognises this name"), each tipped as a TV-vaulted
+       "Base item". They are rares: one word from the game's RarePrefix table + one from RareSuffix (RARE_NAME_PREFIXES /
+       RARE_NAME_POOLS, v332), and rolled-name keepers live in MAGIC & RARE. Asked only when NO catalogue knows the name
+       (a real item never wears the rare grammar's clothes here), and only on the exact two-word shape. */
+    try {
+      if (!base && typeof RARE_NAME_PREFIXES !== 'undefined' && typeof RARE_NAME_POOLS !== 'undefined'
+          && !(typeof d2rItemLookup === 'function' && d2rItemLookup(name))){
+        var _rw2 = String(name || '').trim().split(/\s+/);
+        if (_rw2.length === 2 && RARE_NAME_PREFIXES.indexOf(_rw2[0]) >= 0){
+          var _rk2 = Object.keys(RARE_NAME_POOLS).filter(function(k){ return RARE_NAME_POOLS[k].indexOf(_rw2[1]) >= 0; });
+          if (_rk2.length && muleById('magic-rare'))
+            return {id:'magic-rare', why:'a rare’s rolled name (' + _rw2[0] + ' + ' + _rw2[1] + ': ' + _rk2.join(' / ').toLowerCase() + ') — rolled-name keepers live in MAGIC & RARE'};
+        }
+      }
+    } catch(eRn){}
     if (ARMOR_RE.test(probe))   return {id:'uni-armor', why:'armor slot — base: '+(base||'name match')};
     if (JEWELRY_RE.test(probe)) return {id:'uni-small', why:'jewelry/charm — base: '+(base||'name match')};
     /* v1958 \u2014 the last line, and the one that must not sound sure. Reaching here means NOTHING
@@ -39018,7 +39035,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return '<div class="vfr-row"'+click+' title="'+(mid?(w.kind==='would'?'open the mule it would go to':'open this mule’s ID card'):'not in a mule — see why beside it')+'">'
         + art(n) + '<span class="vfr-name"'+(typeof _qStyle==='function'?_qStyle(n,'unique'):'')+'>'+esc(n)+'</span><span class="vfr-loc">'+loc+'</span></div>';
     }).join('');
-    res.innerHTML = '<div class="vfr-head">'+matches.length+' match'+(matches.length===1?'':'es')+(matches.length>30?' · showing 30':'')+' — click to open the mule</div>' + rows;
+    /* the #231 eye on v3617 — a row his MAIN wears or the dock holds has no mule to open, so the header says which rows open */
+    res.innerHTML = '<div class="vfr-head">'+matches.length+' match'+(matches.length===1?'':'es')+(matches.length>30?' · showing 30':'')+' — click a row with a mule to open it</div>' + rows;
   };
 
   // ── render ──

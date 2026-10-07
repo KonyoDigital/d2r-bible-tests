@@ -8923,6 +8923,12 @@ GATES = [
          why=("REG-1959 - the ALT has no stash_gate_cache (it never filmed a stash panel), so its vault lane could never "
               "prove itself live and retired every reel un-extracted; a tracked stash frame, pinned by sha256, is the canary.")
          ),
+    Gate("test_a_rolled_rare_name_goes_to_magic_and_rare", [sys.executable,
+         os.path.join(HERE, "test_a_rolled_rare_name_goes_to_magic_and_rare.py")], 90,
+         needs_app=False,
+         why=("REG-2024 (#269) - Dread Grasp went to UNI-ARMOR and Storm Scarab / Death Loop / Viper Eye to UNI-WEAPONS by one "
+              "word; a rare's rolled name (RarePrefix + RareSuffix) goes to MAGIC & RARE now.")
+         ),
     Gate("test_his_auto_sort_re_homes_misfiled_items", [sys.executable,
          os.path.join(HERE, "test_his_auto_sort_re_homes_misfiled_items.py")], 120,
          needs_app=False,

@@ -67,7 +67,9 @@ RECEIPTS = {
                      _look("s_3", "7_3", "2026-10-07T10:07:00.000Z", "equipped")],
     # one stash look + an OLDER inventory look from another session: only the stash look may count (the inventory look is
     # his MAIN's), and the newest placed look is the stash one, so the MAIN rule does not hide a wrong gather
-    "Gloom": [_look("s_2", "8_0", "2026-10-07T07:08:00.000Z", "inventory"), _look("s_1", "8_1", "2026-10-07T08:08:00.000Z", "stash")],
+    # (the stash look FIRST: a gather that took every look would then call the whole witness a stash one - the order the
+    #  heart2 proof showed the case needs, or the wrong gather is refused as "inventory" for the wrong reason)
+    "Gloom": [_look("s_1", "8_1", "2026-10-07T08:08:00.000Z", "stash"), _look("s_2", "8_0", "2026-10-07T07:08:00.000Z", "inventory")],
 }
 
 
