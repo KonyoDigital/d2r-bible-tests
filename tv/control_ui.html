@@ -3139,6 +3139,10 @@
   .dsr-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 12px; }
   .dsr-stat { background: rgba(10,9,6,.6); border: 1px solid var(--edge); border-radius: 10px; padding: 12px 10px; text-align: center; }
   .dsr-sv { font: var(--fw-bold) var(--fs-lg)/1 var(--mono); color: #e8dcc0; font-variant-numeric: tabular-nums; }
+  /* D20 / REG-1933 — the number arrives, it never counts: only opacity moves, so every frame shows the true value */
+  @keyframes dsrPop { from { opacity: .25; } to { opacity: 1; } }
+  .dsr-pop { animation: dsrPop .32s ease-out both; }
+  @media (prefers-reduced-motion: reduce) { .dsr-pop { animation: none; } }
   .dsr-sl { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label); text-transform: uppercase; color: #7d7358; margin-top: 6px; }
   .dsr-sealrow { display: flex; align-items: center; justify-content: center; gap: 14px; margin-bottom: 22px; }
   /* ══ D19 · BEAT CHIPS — the run's story as an iconographic ribbon (scene/find/seal-derived, color-coded) ══ */
@@ -12433,40 +12437,29 @@ window._lockMark = function(isOpen, px, label){
     ov.setAttribute('data-sid', String(sm.sessionId || ''));
     ov.hidden = false; ov.scrollTop = 0;
     if (freshOpen){
-      _animCounts(ov);   // D20 — animate the key numbers up from 0 (cosmetic; lands on the exact value)
+      _animCounts(ov);   // D20 — the key numbers arrive with a pop; the value itself never moves (REG-1933)
       var _sl = ov.querySelector('.dsr-seal'); if (_sl) _sl.classList.add('dss-in');   // D21 — stamp the verdict seal in (CSS handles reduced-motion)
     }
   }
   /* ⟦SESSION DOSSIER END⟧ */
-  // ══ D20 · STAT COUNT-UPS — when the dossier opens, the key numbers tick up from 0 to their value (reads ·
-  // frames · named · found · the decision funnel · coverage%). Purely cosmetic: the LAST frame writes the exact
-  // original text verbatim, so the truth is never altered. Respects prefers-reduced-motion (no motion at all). ══
+  // ══ D20 · STAT ARRIVALS — when the dossier opens, the key numbers (reads · frames · named · found · the decision
+  // funnel · coverage%) arrive with a short pop. Respects prefers-reduced-motion (no motion at all). ══
+  /* REG-1933 — A NUMBER IN MOTION IS A FALSE NUMBER.
+     This used to TICK each value up from 0 over 520 ms on requestAnimationFrame, and its comment promised
+     "the truth is never altered" because the last frame lands on the exact text. GrokBot read the frames
+     in between for four ticks running and filed each as a defect: S41 painted 0, then 6, then 8 (its card
+     says 8); S175 60 -> 63, then 61 on reopen; S53 105 then 106; S74 0/0/0/0 then 3/11/1 - and very likely
+     #223's "FILM FRAMES 49" beside the theatre's "film 64". On a busy machine rAF frames come seconds apart,
+     so a half-counted number is what stays on screen. The value is now written once and never changes;
+     only its opacity moves. */
   function _animCounts(root){
-    if (!root || typeof requestAnimationFrame !== 'function') return;
+    if (!root) return;
     var reduce = false;
     try { reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e){}
-    if (reduce) return;   // reduced motion → leave the real values in place, no animation
+    if (reduce) return;   // reduced motion → the real values, no animation
     var els = root.querySelectorAll('.dsr-sv, .dfn-n, .dsr-cov-lab b');
     Array.prototype.forEach.call(els, function(el){
-      var finalText = el.textContent;
-      var mm = finalText.match(/\d[\d,]*/);
-      if (!mm) return;                                   // no number (e.g. "—") → leave
-      var post = finalText.slice(mm.index + mm[0].length);
-      if (/^[KkMm]/.test(post)) return;                  // abbreviated (12.3K) → leave exact, don't animate
-      var pre = finalText.slice(0, mm.index);
-      var target = parseInt(mm[0].replace(/,/g, ''), 10);
-      if (!(target > 0)) return;                         // 0 / NaN → leave
-      el.textContent = pre + '0' + post;                 // start at 0
-      var dur = 520, t0 = null;
-      function frame(ts){
-        if (t0 == null) t0 = ts;
-        var p = (ts - t0) / dur;
-        if (p >= 1){ el.textContent = finalText; return; }   // land on the EXACT original text
-        var eased = 1 - Math.pow(1 - p, 3);              // easeOutCubic
-        el.textContent = pre + Math.round(eased * target).toLocaleString() + post;
-        requestAnimationFrame(frame);
-      }
-      requestAnimationFrame(frame);
+      try { el.classList.remove('dsr-pop'); void el.offsetWidth; el.classList.add('dsr-pop'); } catch (e) {}
     });
   }
   window._dossierClose = function(){ var ov = document.getElementById('th-dossier-ov'); if (ov) ov.hidden = true; };

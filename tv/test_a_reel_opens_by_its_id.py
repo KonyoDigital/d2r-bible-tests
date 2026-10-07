@@ -21,6 +21,7 @@ import json
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -173,7 +174,52 @@ class ThePageAsksForTheReelItShowed(unittest.TestCase):
                          "the theatre's delete does not send the id of the reel he is watching")
 
 
+COUNT_JS = r"""
+var frames = 0, seen = [];
+function requestAnimationFrame(f){ frames++; if (frames < 50) f(frames * 40); }
+var window = {matchMedia: function(){ return {matches: false}; }};
+function El(t){ var self = this; this._t = t; this.cls = {}; this.offsetWidth = 1;
+  this.classList = {add: function(c){ self.cls[c] = 1; }, remove: function(c){ delete self.cls[c]; }}; }
+Object.defineProperty(El.prototype, 'textContent', {get: function(){ return this._t; },
+  set: function(v){ seen.push(v); this._t = v; }});
+var els = [new El('64'), new El('3 READ'), new El('1,208')];
+var root = {querySelectorAll: function(){ return els; }};
+%s
+_animCounts(root);
+process.stdout.write(JSON.stringify({frames: frames, seen: seen, final: els.map(function(e){ return e._t; }),
+  popped: els.every(function(e){ return !!e.cls['dsr-pop']; })}));
+"""
+
+
+@unittest.skipUnless(shutil.which("node"), "node is not installed")
+class ANumberNeverCountsOnScreen(unittest.TestCase):
+    """GrokBot read the dossier's numbers mid-count for four ticks (S41 0 -> 6 -> 8, S175 60 -> 63 -> 61, S53 105/106,
+    S74 0/0/0/0 then 3/11/1): the D20 count-up wrote every in-between value, and on a busy machine those frames
+    stayed up for seconds. The value is written once; only opacity moves."""
+
+    def test_the_dossier_numbers_are_never_anything_but_their_value(self):
+        with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
+            ui = fh.read()
+        lo = ui.find("  function _animCounts(root){")
+        self.assertGreaterEqual(lo, 0, "_animCounts is gone from control_ui.html")
+        hi = ui.find("\n  }\n", lo)
+        p = subprocess.run(["node", "-e", COUNT_JS % ui[lo:hi + 4]], capture_output=True, text=True, timeout=30)
+        self.assertEqual(p.returncode, 0, p.stderr[-600:])
+        out = json.loads(p.stdout)
+        self.assertEqual(out["seen"], [], "the dossier wrote numbers that are not the value: %s (REG-1933)" % out["seen"][:8])
+        self.assertEqual(out["final"], ["64", "3 READ", "1,208"])
+        self.assertEqual(out["frames"], 0, "the numbers are tweened on animation frames again")
+        self.assertTrue(out["popped"], "the arrival is no longer marked for its (opacity-only) animation")
+
+
 RED_PROOF = [
+    {
+        "why": "REG-1933 - the dossier counts its numbers up again: every frame in between shows a number that is not true",
+        "file": "tv/control_ui.html",
+        "find": "      try { el.classList.remove('dsr-pop'); void el.offsetWidth; el.classList.add('dsr-pop'); } catch (e) {}\n",
+        "replace": "      var f = el.textContent; el.textContent = '0'; requestAnimationFrame(function(){ el.textContent = f; });\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1933 - the server finds the reel by id and then ignores it: ?n=2&sid=... answers with "
                "whatever reel now sits at 2",
