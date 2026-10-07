@@ -947,9 +947,20 @@ async function j9_terrorZoneFlagship(page) {
      window is the fixture, exactly as the second rotation is. Restored below so nothing after this
      inherits it. */
   await page.setViewportSize({ width: 1920, height: 1200 });
-  await page.evaluate(() => { const b = document.getElementById('tz-refresh'); if (b) b.click(); });
-  await page.waitForFunction(() => [...document.querySelectorAll('#tz-body .tzz b')]
-    .some((b) => /Worldstone/.test(b.textContent)), null, { timeout: 9000 }).catch(() => {});
+  /* REG-1998 - THE WAIT FOR THE SECOND ROTATION WAS SWALLOWED. It ended `.catch(() => {})`, so a refresh that had not
+     painted in 9 s left the FIRST rotation on screen and the checks below measured it - every one of those cards carries
+     a verdict, and the v3603 push #9 was refused with "FIXTURE IS BLIND" for a fixture that was never shown. A re-run a
+     minute later was 16/16. Now: up to 30 s, the refresh pressed again at 10 s, and a second rotation that never paints
+     fails with THAT reason - never measured as if it had. */
+  const _sawSecond = () => page.waitForFunction(() => [...document.querySelectorAll('#tz-body .tzz b')]
+    .some((b) => /Worldstone/.test(b.textContent)), null, { timeout: 10000 }).then(() => true, () => false);
+  let _second = false;
+  for (let _try = 0; _try < 3 && !_second; _try++) {
+    await page.evaluate(() => { const b = document.getElementById('tz-refresh'); if (b) b.click(); });
+    _second = await _sawSecond();
+  }
+  if (!_second) throw new Error('the second rotation never painted in 30 s (3 refreshes) - its checks would have '
+                                + 'measured the FIRST rotation, so nothing below is run');
   const rows = await page.evaluate(() => {
     const cards = [...document.querySelectorAll('#tz-body .tz-slot .tzz')];
     /* offset FROM ITS OWN CARD, subtracted before rounding: grid tracks land on half pixels, and
