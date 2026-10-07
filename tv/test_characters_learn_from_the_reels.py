@@ -257,11 +257,27 @@ class OneTickOverAReelStore(unittest.TestCase):
     def test_a_refusal_is_counted_refused_not_worked(self):
         base = 1790000000000
         self._reel("reel_s_1", [(base, True)])
-        r = self._tick(reader=lambda c: {"note": "not read - subscription cap"})
+        r = self._tick(reader=lambda c: "not json at all")
         d = C.load()
         self.assertEqual((d["stats"]["reads"], d["stats"]["refused"]), (0, 1))
-        self.assertIn("subscription cap", d["stats"]["lastWhy"])
+        self.assertIn("not JSON", d["stats"]["lastWhy"])
         self.assertEqual(C.status(self.hist)["worked"], 0)
+
+    def test_a_budget_block_is_a_read_that_did_not_happen_not_a_refusal(self):
+        """REG-1945 (the #231 eye on v3574) - this law used to pin the budget note as a REFUSAL, which spent one of the
+        visit's two reads and an hourly slot on a read nobody made: a throttle across a visit's frames used both and
+        the visit was never read once it lifted. It is now the lobby's rule: the frame waits, nothing is spent."""
+        base = 1790000000000
+        self._reel("reel_s_1", [(base, True)])
+        r = self._tick(reader=lambda c: {"note": "not read - subscription cap"})
+        d = C.load()
+        self.assertEqual((d["stats"]["reads"], d["stats"]["refused"]), (0, 0))
+        self.assertEqual([], d["stats"]["readTs"], "a budget block spent an hourly slot")
+        self.assertIn("subscription cap", d["stats"]["lastWhy"])
+        self.assertEqual(0, int(d["reels"]["reel_s_1"]["pos"]), "the frame the block did not read was walked past")
+        self.assertEqual(0, d["reels"]["reel_s_1"]["open"]["reads"], "the visit's reads were spent on no read")
+        later = self._tick(now=1000000.0 + 60)
+        self.assertGreater(later["reads"], 0, "the visit was never read once the block lifted")
 
     def test_a_deleted_reel_is_forgotten_but_what_it_taught_stays(self):
         base = 1790000000000
@@ -408,6 +424,13 @@ class AFixtureWorldKeepsItsOwnRoster(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1945 - a budget block or a throttle on a list read spends the visit's reads and an hourly slot again",
+        "file": "tv/char_select.py",
+        "find": "                raw = _ask(reader, crop)\n                if _surface_later(raw):\n",
+        "replace": "                raw = _ask(reader, crop)\n                if False:\n",
+        "matches": 1,
+    },
     {
         "why": "2026-09-30 his rule - the builder offers his hand-typed characters on every console again (GrokBot's opened on Konyolock)",
         "file": "bible.html",

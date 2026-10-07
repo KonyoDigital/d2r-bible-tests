@@ -200,6 +200,29 @@ class AFailedCloseConfirmsNothing(_Reels):
     def test_a_refused_close(self):
         self._unconfirmed("refused")
 
+    def test_a_throttled_close_stays_owed_and_is_read_when_it_lifts(self):
+        """REG-1945 (the #231 eye on v3574) - a closing read the reader could not make NOW (a throttle, a budget block)
+        was closed 'refused' for good, so the session was filed under the arrival highlight. It stays owed."""
+        reel = "reel_f_throttled"
+        self.reel(reel, [(T0 + i * 1000, True) for i in range(11)] + [(T0 + 20000 + i * 60000, False) for i in range(4)])
+        base = self.reader_for(lambda ts: "Frostnova" if ts == self.LAST else "Hammerdin")
+        state = {"throttled": True}
+
+        def read(crop):
+            if CS._frame_ts(crop) == self.LAST and state["throttled"]:
+                return {"note": "reader throttled - not read", "asked": False, "later": True}
+            return base(crop)
+        CS.tick(root=self.hist, stats=self.stats, reader=read, now=(T0 + 400000) / 1000.0)
+        d = CS.load()
+        vis = [v for vid, v in d["visits"].items() if str(vid).startswith(reel)]
+        self.assertEqual(1, len(vis), "PREMISE: the visit was read on arrival")
+        self.assertFalse(vis[0].get("closed"), "a throttled closing read closed the visit: %r" % vis[0].get("closed"))
+        self.assertFalse(CS.scanned_reel(d, reel), "a reel whose closing read is still owed was called finished")
+        state["throttled"] = False
+        CS.tick(root=self.hist, stats=self.stats, reader=read, now=(T0 + 460000) / 1000.0)
+        L = [x for x in CS.logins(CS.load()) if x["reel"] == reel]
+        self.assertEqual(["Frostnova"], [x["character"] for x in L], "the close was not read once the throttle lifted")
+
     def test_a_close_whose_frame_would_not_open(self):
         self._unconfirmed("unopenable")
 
@@ -363,6 +386,10 @@ class TheConsoleRunsTheNextStation(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-1945 - a throttled closing read closes the visit 'refused' for good",
+     "file": "tv/char_select.py",
+     "find": "        raw = _ask(reader, crop)\n        if _surface_later(raw):\n",
+     "replace": "        raw = _ask(reader, crop)\n        if False:\n", "matches": 1},
     {"why": "#114 (REG-1620) - a whole list that shows nobody is never stored, so it counts against no one",
      "file": "tv/char_select.py",
      "find": "                elif _whole_and_empty(raw, rwhy):\n",

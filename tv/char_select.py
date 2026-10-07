@@ -859,6 +859,9 @@ def _closing_reads(d, root, reader, st, now_s, work, t0, budget_s, clock):
             v["closed"] = "its last frame could not be opened"
             continue
         raw = _ask(reader, crop)
+        if _surface_later(raw):
+            # REG-1945 - the reader cannot be asked now: the visit keeps its closing read owed, never closed "refused"
+            return n, "closing read not read: " + str((raw or {}).get("note") or "")[:120]
         st["readTs"].append(now_s)
         rows, rwhy = normalize(raw)
         if rows is None:
@@ -1211,6 +1214,14 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
                 if not crop:
                     continue
                 raw = _ask(reader, crop)
+                if _surface_later(raw):
+                    # REG-1945 (the #231 eye on v3574) - a throttle or a budget block is a read that did not happen,
+                    # not a refusal. It spent one of the visit's MAX_READS_PER_VISIT and an hourly slot, so a throttle
+                    # across a visit's frames used both reads and the visit was never read once it lifted (measured:
+                    # 2 reads spent, 0 visits recorded). The frame waits for the reader, like the lobby's.
+                    rs["pos"] = i - SAMPLE_EVERY
+                    why = "list not read: " + str((raw or {}).get("note") or "")[:120]
+                    break
                 st["readTs"].append(now_s)
                 op["reads"] += 1
                 rows, rwhy = normalize(raw)
