@@ -27917,9 +27917,17 @@ def cross_panel_verdict(verdict, surface, counted=_LATTICE_PANEL):
     REG-1889 — `counted` is the panel the cells came from. A stash-tab read counted on the stash tab's OWN grid is
     the same panel, so an over-read there is an over-read: the one fabrication signal, now about the panel it read.
     Pure, so it is argued with directly. [[unknown-stays-unknown]] [[feedback-contradiction-is-the-finding]]"""
+    s = str(surface or "").strip().lower()
+    # REG-1920 - THE OTHER HALF OF REG-1889. Only an over-read was remapped, so a stash/shared/personal read whose OWN
+    # grid was refused (a tooltip over it, no grid on the frame) fell back to the BAG's cells, came back "agree" (0 vs
+    # 0) or "under-read", and vault_seal_is_definitive admitted it: the reel sealed FINAL on a coincidence with another
+    # container (the cross-family look at v3601). A grid tab counted on anything but its own grid says nothing, in
+    # any direction. Scoped to the grid tabs on purpose: the fixed-slot tabs (runes, gems, materials) have no grid of
+    # their own and keep what they did, so a whole class of reels does not start re-reading every sweep.
+    if s in _STASH_GRID_SURFACES and counted != "stash" and verdict in ("agree", "under-read"):
+        return "other-panel"
     if verdict != "over-read":
         return verdict
-    s = str(surface or "").strip().lower()
     if counted == "stash" and s in _STASH_GRID_SURFACES:
         return verdict
     if counted == _LATTICE_PANEL and s == _LATTICE_PANEL:

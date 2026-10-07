@@ -73,10 +73,36 @@ class TheVerdictKnowsWhichPanelWasCounted(unittest.TestCase):
             self.assertEqual(ca.cross_panel_verdict("over-read", surface), "over-read",
                              "the one real fabrication signal was silenced")
 
-    def test_the_other_verdicts_are_untouched(self):
+    def test_the_other_verdicts_are_untouched_where_the_count_is_about_the_panel(self):
+        """REG-1920 corrected this case: it asserted that a STASH read's agree/under-read counted on the BAG stays as
+        it is - the exact coincidence that sealed a reel final. Untouched now only where the count speaks for the
+        panel (the bag for an inventory read) or where nothing grid-shaped exists (fixed-slot tabs, unknown)."""
         for v in ("agree", "under-read"):
-            for surface in ("stash", "inventory", None):
+            for surface in ("inventory", "materials", "runes", "gems", None):
                 self.assertEqual(ca.cross_panel_verdict(v, surface), v)
+
+
+class AGridTabCountedOffItsGridSaysNothing(unittest.TestCase):
+    """REG-1920 (the cross-family look at v3601) - only an over-read was remapped, so a stash/shared/personal read whose
+    own grid was refused fell back to the bag, came back agree (0 vs 0) or under-read, and vault_seal_is_definitive
+    sealed the reel FINAL on a coincidence with another container."""
+
+    def test_a_bag_counted_agree_or_under_read_on_a_grid_tab_is_other_panel(self):
+        for v in ("agree", "under-read"):
+            for surface in ("stash", "shared", "Personal "):
+                self.assertEqual(ca.cross_panel_verdict(v, surface), "other-panel",
+                                 "a %r read counted on the bag still said %r (REG-1920)" % (surface, v))
+                self.assertEqual(ca.cross_panel_verdict(v, surface, "inventory"), "other-panel")
+
+    def test_counted_on_its_own_grid_it_is_untouched(self):
+        for v in ("agree", "under-read"):
+            self.assertEqual(ca.cross_panel_verdict(v, "stash", "stash"), v)
+
+    def test_it_no_longer_seals_final(self):
+        rec = [{"frame": "f.jpg", "surface": "stash", "named": 0, "occupied": 0,
+                "verdict": ca.cross_panel_verdict("agree", "stash", "inventory")}]
+        self.assertFalse(ca.vault_seal_is_definitive(1, rec, [], None),
+                         "a stash read counted on the bag sealed the reel final (REG-1920)")
 
 
 class TheVerdictKnowsWhetherTheStashWasCounted(unittest.TestCase):
@@ -421,6 +447,13 @@ class TheGlimpseNamesThePanelItCounted(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1920 - a grid tab counted on the bag says agree again, and the reel seals final on a coincidence",
+        "file": "tv/control_app.py",
+        "find": "    if s in _STASH_GRID_SURFACES and counted != \"stash\" and verdict in (\"agree\", \"under-read\"):\n",
+        "replace": "    if False:\n",
+        "matches": 1,
+    },
     {"why": "REG-1657 - a stash read is called a fabrication again for what the bag beside it holds",
      "file": "control_app.py",
      # REG-1889 — re-anchored: the function now asks which panel was counted, and this is its last word
