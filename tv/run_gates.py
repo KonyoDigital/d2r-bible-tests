@@ -8866,6 +8866,13 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_a_lane_never_waits_on_the_browser_while_work_waits", [sys.executable,
+         os.path.join(HERE, "test_a_lane_never_waits_on_the_browser_while_work_waits.py")], 60,
+         needs_app=False,
+         why=("REG-1989 - at push time a lane that took a browser gate while another held the browser waited holding it, "
+              "so the serial browser chain started late and three lanes idled for the tail; the free browser goes first "
+              "and a lane takes free work instead of waiting.")
+         ),
     Gate("test_a_ledger_word_says_what_it_compares", [sys.executable,
          os.path.join(HERE, "test_a_ledger_word_says_what_it_compares.py")], 30,
          needs_app=False,

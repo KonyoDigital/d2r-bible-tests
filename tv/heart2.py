@@ -1680,6 +1680,8 @@ class _PushRun(object):
         self.first = None                       # (gate, index, verdict, reason): the failure that stopped the run
         self._lock = threading.Lock()
         self.cache = cache                      # P3: the verdict cache prove(push=True) opened, or None (every proof runs)
+        self._items = None                      # REG-1989: the gates take() hands out, drained from the queue once
+        self._qlock = threading.Lock()
 
     def fail(self, name, idx, verdict, reason):
         """Record the FIRST failure and stop the run. -> True for the call that stopped it"""
@@ -1694,6 +1696,51 @@ class _PushRun(object):
         """The lock a browser gate is proved under; for every other gate a context that holds nothing."""
         import contextlib
         return self.browser_lock if name in self.browser else contextlib.nullcontext()
+
+    def take(self, work):
+        """REG-1989 — the next gate for a lane, never one that parks it behind the browser while other work waits.
+        -> ((name, filename, proofs), context the gate is proved under) | None when nothing is left
+
+        MEASURED on the v3602 push (11 browser gates of 131): lanes took gates in queue order, and a lane that took a
+        browser gate while another held the browser WAITED holding it - so the serial browser chain started late, ran
+        last, and three lanes sat idle behind it for the tail. Now the free browser is always taken first (the serial
+        chain is the critical path, so it starts at the run's first second and never stops while browser work is left),
+        a lane that finds it busy takes the next gate that needs no browser, and only when nothing else is left does a
+        lane wait for it. Each kind keeps its own fail-fast order. The lock is the same one; only who waits on it moved."""
+        import contextlib
+        with self._qlock:
+            if self._items is None:
+                self._items = []
+                while True:
+                    try:
+                        self._items.append(work.get_nowait())
+                    except Exception:
+                        break
+            if not self._items:
+                return None
+            if self.browser_lock.acquire(False):
+                for k, it in enumerate(self._items):
+                    if it[0] in self.browser:
+                        return self._items.pop(k), _HeldLock(self.browser_lock)
+                self.browser_lock.release()
+            for k, it in enumerate(self._items):
+                if it[0] not in self.browser:
+                    return self._items.pop(k), contextlib.nullcontext()
+            return self._items.pop(0), self.browser_lock     # only browser gates are left: wait for the one browser
+
+
+class _HeldLock(object):
+    """REG-1989 — a lock take() already acquired for a gate: entering holds it, leaving releases it."""
+
+    def __init__(self, lock):
+        self.lock = lock
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.lock.release()
+        return False
 
 
 # ══ #42 P3 — THE VERDICT CACHE: A PROVEN IS REUSED ONLY OVER BYTE-IDENTICAL INPUTS ═════════════════════════════════
@@ -2686,13 +2733,20 @@ def _prove_lane(lane, work, out, lock, sink, built, buffered=True, blank=None):
             # #42 — a STOPPED push-time run takes no further gate; _prove_gates names what is left NOT RUN
             if _PUSH is not None and _PUSH.stop.is_set():
                 break
-            try:
-                name, filename, proofs = work.get_nowait()
-            except Exception:
-                break
+            if _PUSH is not None and _PUSH.browser:
+                _got = _PUSH.take(work)            # REG-1989 — a lane never parks behind the browser while work waits
+                if _got is None:
+                    break
+                (name, filename, proofs), _slot = _got
+            else:
+                try:
+                    name, filename, proofs = work.get_nowait()
+                except Exception:
+                    break
+                _slot = _browser_slot(name)        # #42 — a browser gate waits for the one browser at push time
             holding = [(name, proofs)]
             try:
-                with _browser_slot(name):          # #42 — a browser gate waits for the one browser at push time
+                with _slot:
                     v, per = _prove_gate(sandbox, name, filename, proofs, say)
             except Exception as _ge:
                 say("    %s raised %s outside its own proofs — recorded BLIND, the run continues: "
