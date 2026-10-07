@@ -8923,6 +8923,13 @@ GATES = [
          why=("REG-1959 - the ALT has no stash_gate_cache (it never filmed a stash panel), so its vault lane could never "
               "prove itself live and retired every reel un-extracted; a tracked stash frame, pinned by sha256, is the canary.")
          ),
+    Gate("test_the_vault_finder_names_the_mule_and_the_cell", [sys.executable,
+         os.path.join(HERE, "test_the_vault_finder_names_the_mule_and_the_cell.py")], 120,
+         needs_app=False,
+         why=("REG-2020 (#264) - the vault finder said a mule name or 'unsorted' for everything, a Magic & Rare charm and "
+              "worn MAIN armour included; it names the mule AND the cell from the mule window's own packer now, and the two "
+              "are compared.")
+         ),
     Gate("test_his_auto_sort_click_fills_the_mules", [sys.executable,
          os.path.join(HERE, "test_his_auto_sort_click_fills_the_mules.py")], 120,
          needs_app=False,

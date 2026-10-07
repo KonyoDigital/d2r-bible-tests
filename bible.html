@@ -39931,8 +39931,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var _carUnknown = (_carried === null);
     _carried = (_carried || []).filter(function(c){ return pool.indexOf(c.name) >= 0 && !isSharedStash(c.name); });
     var _carSet = {}; _carried.forEach(function(c){ _carSet[c.name] = 1; });
-    var unsorted = pool.filter(function(n){ return !assign[n] && !isSharedStash(n) && !_carSet[n]
-                                         && !(window._vaultInMagicRare && window._vaultInMagicRare(n)); });   /* #264 — filed in MAGIC & RARE */
+    var unsorted = _dockNames();   /* #264 (REG-2021) — the ONE dock list: Delete unsorted and Auto-Sort ask the same function */
     /* ══ v3286 — THE VAULT SAYS ITS OWN POPULATION ═══════════════════════════════════════════
        Every figure below is DERIVED BY SUBTRACTION from the two pools this function already
        built, never counted independently. That is the whole point: an independent tally can
@@ -41522,14 +41521,29 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   /* #264 — an item in the MAGIC & RARE locker is filed THERE (that locker reads magicFinds, not the mule map), so it is never
      loose: his dock listed Harpoonist's Grand Charm as unsorted while MAGIC & RARE showed it, and the integrity check called
      it double-filed */
-  window._vaultInMagicRare = function(n){
+  function _inMagicRare(n){
     try { return typeof magicFinds === 'object' && !!magicFinds && Object.prototype.hasOwnProperty.call(magicFinds, n); }
     catch (e) { return false; }
-  };
-  window._vaultDockNames = function(){
-    try { return ownedPool().filter(function(n){ return assign[n] == null && !isSharedStash(n) && !window._vaultInMagicRare(n); }); }
-    catch (e) { return []; }
-  };
+  }
+  /* ══ #264 (REG-2021, the #231 eye on v3616) — THE DOCK IS ONE LIST, AND EVERY DOOR ASKS IT ══════════════════════════
+     The dock he sees, the dock's count, Auto-Sort and "Delete unsorted" each carried their own copy of "what is loose".
+     v3616 taught two of them that a Magic & Rare item is filed there; "Delete unsorted" still used the old copy, so its
+     confirm offered more names than the dock showed and deleted his Magic & Rare items from owned - and it never knew
+     about CARRIED loot either (the §31.2 strip), so loot in his hands went with it. Now the dock is this one function:
+     owned, not filed, not a shared-stash type, not in MAGIC & RARE, not carried. When the carried store will not read
+     (UNKNOWN), nothing is taken out of the dock - the same rule the render has always had. [[copy-drift]] */
+  function _dockNames(){
+    try {
+      var car = null;
+      try { car = (typeof window._carriedNames === 'function') ? window._carriedNames(function(n){ return assign[n] != null; }) : null; }
+      catch (e) { car = null; }
+      var carSet = {};
+      (car || []).forEach(function(c){ if (c && c.name) carSet[c.name] = 1; });
+      return ownedPool().filter(function(n){ return assign[n] == null && !isSharedStash(n) && !_inMagicRare(n) && !carSet[n]; });
+    } catch (e) { return []; }
+  }
+  window._vaultInMagicRare = _inMagicRare;
+  window._vaultDockNames = _dockNames;
   /* ⟦#246 VAULTFILE END⟧ */
   // v723 — TV farmed wire (name-only, NO AI call, NO photo). Reuses the SAME owned + suggestMule
   // + muleAssign path vault intake uses. Called when TV sees inventory/stash after a physical pickup.
@@ -43581,8 +43595,12 @@ window.vaultAutoAssign = function(){
     });
     return best;
   }
+  /* a framed look that is not a Chronicle page: a Chronicle read proves he found it ONCE (§28, found-ever), never that
+     he holds it, so it is never the picture a filing stands on */
   function _hasPicture(row){
-    return !!(row && Array.isArray(row.looks) && row.looks.some(function(e){ return e && e.frame; }));
+    return !!(row && Array.isArray(row.looks) && row.looks.some(function(e){
+      return e && e.frame && String(e.loc || '').toLowerCase() !== 'chronicle' && String(e.scene || '').toLowerCase() !== 'chronicle';
+    }));
   }
   /* the same rule, asked by name - the vault finder says "stays with your MAIN" from it */
   window._vaultLastSeenOnMain = function(name){
@@ -43629,7 +43647,7 @@ window.vaultAutoAssign = function(){
   // v327: nuke the unsorted dock — removes every UNSORTED item from ✓ owned. Items already filed
   // in a mule are untouched (only `!assign[name]`). Konyo wanted this beside the Auto-Sort button.
   window.vaultClearUnsorted = async function(){
-    var unsorted = ownedPool().filter(function(name){ return !assign[name] && !isSharedStash(name); });
+    var unsorted = _dockNames();   /* #264 (REG-2021) — exactly the names the dock shows, never Magic & Rare or carried loot */
     if (!unsorted.length){ status('nothing unsorted to clear'); return; }
     if (!(await uiConfirm('Delete all '+unsorted.length+' UNSORTED item'+(unsorted.length===1?'':'s')+' from the dock?\n\nThis removes them from ✓ owned. Items already filed in a mule are NOT touched. You can re-✓ any of them later from its item card.'))) return;
     /* ⚠ M-3 (review of 7cded0c1, reproduced) — HIS DELETE IS HIS WORD, SO IT GOES THROUGH THE JOURNALED DOOR. This took the

@@ -5745,6 +5745,11 @@ class TestV2319StatusIsCheapEnoughToPOLL(unittest.TestCase):
             _busy_until = time.time() + 30.0
             while ca._VAULT_AUTOREAD_REFRESH.get("running") and time.time() < _busy_until:
                 time.sleep(0.05)
+            # ⚠ the #231 eye on v3616: past the bound the 20 calls below start nothing and the in-flight refresh alone can
+            # make n == 1 - a pass that measured nothing. Say UNKNOWN instead.
+            if ca._VAULT_AUTOREAD_REFRESH.get("running"):
+                self.fail("a refresh an earlier case kicked was still running after 30 s - the cache cannot be counted "
+                          "(UNKNOWN, not a pass)")
             ca._VAULT_AUTOREAD_CACHE["t"], ca._VAULT_AUTOREAD_CACHE["d"] = 0.0, None
             for _ in range(20):
                 ca._vault_autoread_state_cached()
@@ -5757,6 +5762,11 @@ class TestV2319StatusIsCheapEnoughToPOLL(unittest.TestCase):
                 time.sleep(0.02)
             time.sleep(0.2)                     # a second, wrongly-kicked refresh would land in this window
         finally:
+            # ⚠ the #231 eye on v3616: the stubbed refresh may still be running here; restoring and clearing under it let
+            # its {} land in the cache AFTER the clear, for the next case to read. Let it finish first (bounded).
+            _done_until = time.time() + 10.0
+            while ca._VAULT_AUTOREAD_REFRESH.get("running") and time.time() < _done_until:
+                time.sleep(0.02)
             ca._vault_autoread_state = real
             ca._VAULT_AUTOREAD_CACHE["t"], ca._VAULT_AUTOREAD_CACHE["d"] = 0.0, None
         self.assertEqual(calls["n"], 1,
