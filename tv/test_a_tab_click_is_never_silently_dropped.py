@@ -77,7 +77,7 @@ class ATabClickIsNeverSilentlyDropped(unittest.TestCase):
         fn = _lift()
         self.assertIsNotNone(fn, "shellOpen is gone from tv/control_ui.html")
         js = HARNESS % (json.dumps({"okAt": ok_at, "leaveAt": leave_at}), fn)
-        p = subprocess.run(["node", "-e", js], capture_output=True, text=True, timeout=30)
+        p = subprocess.run(["node", "-"], input=js, capture_output=True, text=True, timeout=30)
         self.assertEqual(p.returncode, 0, "the shipped shellOpen would not run: %s" % p.stderr[-800:])
         return json.loads(p.stdout)
 
