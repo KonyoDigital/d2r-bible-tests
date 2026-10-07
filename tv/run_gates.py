@@ -8866,6 +8866,12 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_a_pc_with_no_panel_of_its_own_still_proves_its_lane", [sys.executable,
+         os.path.join(HERE, "test_a_pc_with_no_panel_of_its_own_still_proves_its_lane.py")], 60,
+         needs_app=False,
+         why=("REG-1959 - the ALT has no stash_gate_cache (it never filmed a stash panel), so its vault lane could never "
+              "prove itself live and retired every reel un-extracted; a tracked stash frame, pinned by sha256, is the canary.")
+         ),
     Gate("test_a_proof_short_of_memory_frees_an_idle_view", [sys.executable,
          os.path.join(HERE, "test_a_proof_short_of_memory_frees_an_idle_view.py")], 30,
          needs_app=False,

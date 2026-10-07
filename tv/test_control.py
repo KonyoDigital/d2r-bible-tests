@@ -6668,16 +6668,21 @@ class TestV2288TheCanaryWasDecorationForItsWholeLife(unittest.TestCase):
         blind = {"/tmp/b.jpg": [10, 20, "stash", True, ca._GATE_ROW_V]}
         with mock.patch.object(ca, "_gate_cache", lambda: blind), \
              mock.patch.object(ca.os.path, "isfile", lambda p: True):
-            self.assertIsNone(ca.LaneCanary().known_good_frame(),
-                              "a frame whose receipt says the gate was BLIND was offered as proof "
-                              "that the gate can see")
+            got = ca.LaneCanary().known_good_frame()
+            # REG-1959 - with no usable row of its own the canary is the SHIPPED frame, never the blind one
+            self.assertNotEqual(got, "/tmp/b.jpg",
+                                "a frame whose receipt says the gate was BLIND was offered as proof "
+                                "that the gate can see")
+            self.assertEqual(got, ca._shipped_canary())
 
     def test_a_None_verdict_is_never_a_candidate(self):
         ca = self._ca()
         import unittest.mock as mock
         with mock.patch.object(ca, "_gate_cache", lambda: {"/tmp/n.jpg": [1, 2, None]}), \
              mock.patch.object(ca.os.path, "isfile", lambda p: True):
-            self.assertIsNone(ca.LaneCanary().known_good_frame())
+            got = ca.LaneCanary().known_good_frame()
+            self.assertNotEqual(got, "/tmp/n.jpg", "a None verdict was offered as a canary")   # REG-1959
+            self.assertEqual(got, ca._shipped_canary())
 
     def test_the_probe_does_not_demand_a_shape_the_writer_never_wrote(self):
         ca = self._ca()
@@ -6719,9 +6724,15 @@ class TestV2288TheCanaryWasDecorationForItsWholeLife(unittest.TestCase):
         ca = self._ca()
         import unittest.mock as mock
         cn = ca.LaneCanary()
-        with mock.patch.object(ca, "_gate_cache", lambda: {}):
+        with mock.patch.object(ca, "_gate_cache", lambda: {}), \
+             mock.patch.object(ca, "_shipped_canary", lambda root=None: None):
             self.assertFalse(cn.probe(None), "with no candidate at all the canary claimed the lane "
                                              "was live")
+        # REG-1959 - the SHIPPED canary can fail too: a gate that cannot read it does not prove the lane
+        with mock.patch.object(ca, "_gate_cache", lambda: {}), \
+             mock.patch.object(ca, "stash_screen_open", lambda p: None):
+            self.assertFalse(cn.probe(None), "a gate that could not read the shipped canary still claimed the "
+                                             "lane was live")
         with mock.patch.object(ca, "_gate_cache", lambda: {"/tmp/g.jpg": [1, 2, "stash"]}), \
              mock.patch.object(ca.os.path, "isfile", lambda p: True), \
              mock.patch.object(ca.os, "stat", lambda p: type("S", (), {"st_size": 1, "st_mtime": 2})()), \
@@ -30379,7 +30390,9 @@ class TestV2197ThePruneDeletesOnlyWhatIsPROVENBlank(unittest.TestCase):
         """Cold start: nothing has proven the lane, so nothing may be freed."""
         import unittest.mock as mock
         c = self.ca.LaneCanary()
-        with mock.patch.object(self.ca, "_gate_cache", lambda: {}):
+        # REG-1959 - "no frame" now means no row of its own AND no shipped canary
+        with mock.patch.object(self.ca, "_gate_cache", lambda: {}), \
+             mock.patch.object(self.ca, "_shipped_canary", lambda root=None: None):
             self.assertFalse(c.probe(), "the pass claimed the lane was live with no frame to "
                                         "prove it with")
         self.assertEqual(len(c.marks), 1, "a failed probe left NO mark, so it cannot close a "

@@ -36326,6 +36326,40 @@ def stash_screen_open_cached(frame_path):
     return val
 
 
+#: REG-1959 — A PC THAT NEVER SAW A STASH PANEL HAS NO CANARY OF ITS OWN, SO IT CAN NEVER PROVE ITS LANE LIVE.
+#: MEASURED on his ALT, 2026-10-07 09:3x: tv/stash_gate_cache.json does not exist (it films the Boosteroid launcher,
+#: the lobby and gameplay; its session health reads 0 stash tabs), so known_good_frame() was None, every vault pass
+#: said "the lane could not be proven live, so 'no stash here' is UNKNOWN", each reel was tried twice and retired
+#: UN-EXTRACTED (15 so far), and no ALT reel could ever be sealed for the river to release. These tracked frames are
+#: stash panels the gate reads as one (measured on the Mac: 'stash'); identity is the pinned sha256, not a cache row.
+SHIPPED_CANARY_FRAMES = (
+    ("fixtures/pack-stash-001/reels/reel_s_1784984019250_fxstash001/f_1784984191754.jpg",
+     "b9caf8fbe03055e3a8ef18c3477f43fa7646c73c5e1dbe98164782e48cc87edc"),
+    ("fixtures/pack-stash-001/reels/reel_s_1784984019250_fxstash001/f_1784984201778.jpg",
+     "096c58a0a231c0cc7073b35dc4db0d8ec4e0fe9bf9bb08dfc3ad7a7fb7b49c8b"),
+)
+
+
+class _ShippedCanary(Exception):
+    """REG-1959 — the probe's frame is the shipped canary: skip the cache-row identity check."""
+    pass   # a real body: the laws that strip docstrings before parsing this file need one
+
+
+def _shipped_canary(root=None):
+    """The first shipped canary frame whose bytes are still exactly the pinned ones. -> path | None"""
+    import hashlib as _hl
+    base = root or os.path.dirname(HERE)
+    for rel, want in SHIPPED_CANARY_FRAMES:
+        p = os.path.join(base, rel)
+        try:
+            with open(p, "rb") as fh:
+                if _hl.sha256(fh.read()).hexdigest() == want:
+                    return p
+        except Exception:
+            continue
+    return None
+
+
 class LaneCanary(object):
     """Proof, from DELIBERATE PROBES, that the OCR lane was alive around a given moment.
 
@@ -36390,10 +36424,11 @@ class LaneCanary(object):
                     continue                   # explicitly recorded blind — never a canary
                 if fallback is None:
                     fallback = path            # legacy row: a verdict is evidence enough to PROBE
-            return fallback
+            if fallback:
+                return fallback
         except Exception:
             pass
-        return None
+        return _shipped_canary()   # REG-1959 — this PC never saw a panel of its own: the shipped one
 
     def probe(self, known_good=None, t=None):
         """One UNCACHED read of a known-good frame. Records a mark either way. -> bool
@@ -36408,6 +36443,8 @@ class LaneCanary(object):
             return False
         # the frame must still BE the frame the cache row describes
         try:
+            if path == _shipped_canary():
+                raise _ShippedCanary()   # REG-1959 — its identity is the pinned sha256, already checked
             row = (_gate_cache() or {}).get(path)
             st = os.stat(path)
             # ⚠ v2288 — THE SECOND SITE DEMANDING A ROW SHAPE THE WRITER NEVER PRODUCED.
@@ -36424,6 +36461,8 @@ class LaneCanary(object):
                     and row[0] == int(st.st_size) and row[1] == int(st.st_mtime)):
                 self.marks.append((now, False))
                 return False
+        except _ShippedCanary:
+            pass
         except Exception:
             self.marks.append((now, False))
             return False
