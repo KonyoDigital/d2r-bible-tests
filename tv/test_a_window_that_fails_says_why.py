@@ -41,6 +41,8 @@ def _say():
             "  ahead: window._pageNewerSay({drift:{running:'v10', disk:'v9', drift:true}}),\n"
             "  numeric: window._pageNewerSay({drift:{running:'v9', disk:'v10', drift:true}}),\n"
             "  odd: window._pageNewerSay({drift:{running:'abc', disk:'v9', drift:true}}),\n"
+            "  tie: window._pageNewerSay({drift:{running:'v1', disk:'v1.0', drift:true}}),\n"
+            "  bare: window._pageNewerSay({drift:{running:'3600', disk:'v3600', drift:true}}),\n"
             "  same: window._pageNewerSay({drift:{running:'v2', disk:'v2', drift:false}}),\n"
             "  missing: window._pageNewerSay({drift:{running:'v2'}}),\n"
             "  none: window._pageNewerSay({}),\n"
@@ -76,6 +78,11 @@ class AWindowThatFailsSaysWhy(unittest.TestCase):
         self.assertIn("ahead", got["ahead"])
         self.assertIn("UNKNOWN", got["odd"])
         self.assertNotEqual(got["odd"], BANNER)
+        # REG-1931 - different strings with the same numbers are a drift to the server, never silence
+        for k in ("tie", "bare"):
+            self.assertIn("UNKNOWN", got[k], "%s: a stamp the server calls drift painted no banner" % k)
+            self.assertIn(" vs ", got[k])
+            self.assertNotEqual(got[k], BANNER)
         self.assertEqual(got["missing"], "", "a missing version was called a mismatch")
         self.assertEqual(got["none"], "")
 
@@ -115,6 +122,13 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1931 - a numeric tie between two different stamps paints no banner while the server calls it drift",
+        "file": "tv/control_ui.html",
+        "find": "    if (!a || !b || c === 0) return 'the console and the files on disk differ (' + run + ' vs ' + disk + ') and which is newer is UNKNOWN';\n",
+        "replace": "    if (c === 0 && a && b) return '';\n    if (!a || !b) return 'the console and the files on disk differ (' + run + ' vs ' + disk + ') and which is newer is UNKNOWN';\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1831 - the page-newer sentence ignores order, so a process ahead gets it",
         "file": "tv/control_ui.html",

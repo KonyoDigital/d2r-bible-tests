@@ -11491,9 +11491,10 @@ window._lockMark = function(isOpen, px, label){
         c = Math.sign((a[i] || 0) - (b[i] || 0));
       }
     }
-    if (!a || !b) return 'the console and the files on disk differ (' + run + ' vs ' + disk + ') and which is newer is UNKNOWN';
+    /* REG-1931 - two stamps that are different strings and the same numbers (v1 / v1.0, 3600 / v3600) are a
+       drift to the server (_drift_once compares the strings), so they are not silence here: no order, UNKNOWN. */
+    if (!a || !b || c === 0) return 'the console and the files on disk differ (' + run + ' vs ' + disk + ') and which is newer is UNKNOWN';
     if (c > 0) return 'the console behind this window is running ' + run + ', ahead of ' + disk + ' on disk \u2014 this window is not the newer one';
-    if (c === 0) return '';
     return 'this window is newer than the console behind it \u2014 reopen TV DIABLO from the Desktop icon';
   };
   window._fleetWin = function (m) {
