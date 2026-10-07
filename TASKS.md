@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3611** | `(this commit)` | v3611 — a stubbed run never makes a live Grok read (REG-2013) |
+| **v3612** | `(this commit)` | v3612 — the in-use ceiling counts only while a build waits (REG-2014) |
+| **v3611** | `3c25dfc0` | v3611 — a stubbed run never makes a live Grok read (REG-2013) |
 | **v3610** | `87f54758` | v3610 — the author of a stamp is the oldest commit that added its version line (REG-2011) |
 | **v3609** | `80e9d5f2` | v3609 — a waiting build never replaces the window under his hand (REG-2010) |
 | **v3608** | `74b42d3e` | v3608 — a console on a private port is a harness, never a row in his live fleet (REG-2009) |

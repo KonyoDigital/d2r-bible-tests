@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3611",
+  "ver": "v3612",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3611: a stubbed run never makes a live Grok read (REG-2013)",
+  "note": "v3612: the in-use ceiling counts only while a build waits (REG-2014)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
