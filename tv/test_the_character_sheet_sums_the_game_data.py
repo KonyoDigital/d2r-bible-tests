@@ -156,6 +156,10 @@ CASES = {
         "inv0": _slot("Annihilus", rolls={"res-all": 20})}}]}, {"difficulty": "Normal", "quests": True}),
     "I-unmapped": ({"cls": "Warlock", "level": 88, "sets": [{"slots": {"feet": _slot("Wraithstep")}}]},
                    {"difficulty": "Hell", "quests": True}),
+    # #166 (REG-1868) - a code NO table carries is still said: Renewed Cold Rupture's Gelid-Affix5 is in neither
+    # properties.txt nor propertygroups.txt (its five siblings are groups)
+    "I-gelid": ({"cls": "Warlock", "level": 88, "sets": [{"slots": {"inv0": _slot("Renewed Cold Rupture")}}]},
+                {"difficulty": "Hell", "quests": True}),
     "I-unknown": ({"cls": "Sorceress", "level": 88, "sets": [{"slots": {
         "head": _slot(CROWN), "rrin": _slot("Dread Loop")}}]}, {"difficulty": "Hell", "quests": True}),
     "J-sorc": ({"cls": "Sorceress", "level": 88, "sets": [{"slots": {"rarm": _slot(OCULUS)}}]},
@@ -325,6 +329,13 @@ class TheSheetSumsTheGameData(unittest.TestCase):
             self.assertIn("skilltab-war", r["why"])
             self.assertIn("21..23", r["why"])
         self.assertEqual(_val("I-unmapped", "frw"), (30, 30))
+        un = [r for r in _run()["I-gelid"]["rows"] if r["group"] == "unmapped"]
+        self.assertEqual(len(un), 1, [r["key"] for r in un])
+        self.assertIsNone(un[0]["value"])
+        self.assertEqual(un[0]["source"], "UNKNOWN")
+        self.assertIn("Renewed Cold Rupture", un[0]["why"])
+        self.assertIn("Gelid-Affix5", un[0]["why"])
+        self.assertIn("properties.txt has no such property", un[0]["why"])
 
     def test_I_an_item_the_data_does_not_name_makes_rows_UNKNOWN_never_zero(self):
         for k in ("res-fire", "fcr", "mf"):
