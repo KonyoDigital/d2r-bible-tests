@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3609",
+  "ver": "v3610",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3609: a waiting build never replaces the window under his hand (REG-2010)",
+  "note": "v3610: the author of a stamp is the oldest commit that added its version line (REG-2011)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

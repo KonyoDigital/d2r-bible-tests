@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3609** | `(this commit)` | v3609 — a waiting build never replaces the window under his hand (REG-2010) |
+| **v3610** | `(this commit)` | v3610 — the author of a stamp is the oldest commit that added its version line (REG-2011) |
+| **v3609** | `80e9d5f2` | v3609 — a waiting build never replaces the window under his hand (REG-2010) |
 | **v3608** | `74b42d3e` | v3608 — a console on a private port is a harness, never a row in his live fleet (REG-2009) |
 | **v3607** | `f8fc5ffa` | v3607 — a past-window stuck row says older and the lag word keeps its space (REG-2007, REG-2008) |
 | **v3606** | `1d526d27` | v3606 — a finished join and a spent re-read past the newest 16 move on, a ruling overrules only its nine, and Grok stepped in counts only an ask (REG-2004, REG-2005, REG-2006) |
