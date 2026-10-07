@@ -1357,6 +1357,7 @@ def _run_gate_once(sandbox_tv, filename, timeout=180, extra=(), script=None, wid
         return None, "the gate file is not in the sandbox"
     env = dict(os.environ)
     env["PYTHONDONTWRITEBYTECODE"] = "1"      # no stale .pyc can outlive a tamper
+    env["HEART2_LANES"] = str(int(LANES_NOW or 1))   # REG-1997 - the lanes running beside this law right now
     # ⚠ #42 — THE RESTRICTION BELONGS TO THE PROOF, NEVER TO THE ENVIRONMENT. `widths` is handed in only by a push-time
     # proof that DECLARED them (_prove_push_one); every other run — every run without --push, every proof that declares
     # none, triage — has TV_LAW_WIDTHS REMOVED, so a value left in a shell can never quietly turn a full sweep into a
@@ -1519,6 +1520,9 @@ LANE_DISK_FLOOR_MB = 4096     # the same floor safe_copy itself refuses to copy 
 # had, and a genuinely hung gate still gives up — at 2x a bounded budget, never never.
 LANE_DEADLINE_SCALE = 2
 DEADLINE_SCALE = 1            # what _prove_one actually multiplies in; set by _prove_gates
+#: REG-1997 - how many proving lanes run side by side right now (set by _prove_gates, 1 outside it). Every law run is told
+#: (HEART2_LANES), so a law that judges its own CPU or wall cost can say the reading is the prover's load, not its code.
+LANES_NOW = 1
 #: ⚠⚠ #50 (REG-1454) — A BACKGROUND PROOF ON A SLOWER PC IS THE SAME CASE AS A BUSY LANE. On the ALT the
 #: self-prove lane runs this at BELOW_NORMAL priority beside a console that is filming, and
 #: `test_screen_parity` timed out at its 120 s on every proof - UNPROVABLE - while the same law passes in a
@@ -2936,9 +2940,10 @@ def _prove_gates(have, say=print, workers=None, blank=None):
     # ⚠ RESTORED IN A `finally`, because a module global left widened would silently extend every
     # later single-lane deadline in the same process — control_app.py imports this module and
     # keeps it. A dial that does not spring back is a dial nobody set. [[label-outlived-referent]]
-    global DEADLINE_SCALE
-    _prev_scale = DEADLINE_SCALE
+    global DEADLINE_SCALE, LANES_NOW
+    _prev_scale, _prev_lanes = DEADLINE_SCALE, LANES_NOW
     DEADLINE_SCALE = _deadline_scale(n, say=say)
+    LANES_NOW = n
     try:
         if n == 1:
             _prove_lane(1, work, out, lock, say, built, buffered=False, blank=blank)
@@ -2958,6 +2963,7 @@ def _prove_gates(have, say=print, workers=None, blank=None):
                         say("  ⚠ a lane raised past its own handler: %s" % type(_e).__name__)
     finally:
         DEADLINE_SCALE = _prev_scale
+        LANES_NOW = _prev_lanes
     if built and not any(built):
         say("  no lane could build a sandbox — nothing was proven, and that is UNKNOWN, not clean.")
         return None, None
