@@ -8,7 +8,7 @@ Bone Visor answered ok:false "nothing banked ... no look at it either" - the ◉
 right and was not where his eye was.
 
 The law, driven in node on the real click handler lifted from bible.html: every refusal (no console, nothing
-banked, no frame kept, no answer) writes a short reason in a span right after the ◉, puts the whole sentence on
+banked, no frame kept, no answer) writes its reason on a line right under the ◉'s row, puts the whole sentence on
 the ◉'s title and dims it, and no longer writes the status line; a second refusal reuses the span.
 """
 import io
@@ -55,6 +55,9 @@ El.prototype.getAttribute = function(k){ return this.attrs[k] == null ? null : t
 El.prototype.setAttribute = function(k, v){ this.attrs[k] = String(v); };
 El.prototype.insertBefore = function(n, ref){ var i = this.kids.indexOf(ref); n.parentNode = this;
   if (i < 0) this.kids.push(n); else this.kids.splice(i, 0, n); };
+Object.defineProperty(El.prototype, 'nextElementSibling', {get: function(){
+  var p = this.parentNode; if (!p) return null; var i = p.kids.indexOf(this); return p.kids[i + 1] || null; }});
+Object.defineProperty(El.prototype, 'nextSibling', {get: function(){ return this.nextElementSibling; }});
 El.prototype.querySelector = function(sel){ var c = sel.replace(/^\./, '');
   for (var i = 0; i < this.kids.length; i++) if (this.kids[i].classList.contains(c)) return this.kids[i]; return null; };
 var cfg = %s;
@@ -67,16 +70,18 @@ var document = {addEventListener: function(type, fn){ handler = fn; },
 function fetch(){ if (cfg.reject) return Promise.reject({name: 'TypeError'});
   return Promise.resolve({json: function(){ return cfg.answer; }}); }
 %s
-var row = new El('div', 'vrg-row'), btn = new El('button', 'vrg-rcpt');
+var col = new El('div', 'vrg-col-body'), row = new El('div', 'vrg-row'), btn = new El('button', 'vrg-rcpt'),
+    nextRow = new El('div', 'vrg-row');
+row.parentNode = col; nextRow.parentNode = col; col.kids.push(row); col.kids.push(nextRow);
 btn.attrs['data-rcpt'] = 'Bone Visor'; btn.parentNode = row; row.kids.push(btn);
 function click(){ handler({target: btn, preventDefault: function(){}, stopPropagation: function(){}}); }
 click();
 setTimeout(function(){
   if (cfg.twice) click();
   setTimeout(function(){
-    var spans = row.kids.filter(function(k){ return k.classList.contains('vrg-rcpt-why'); });
+    var spans = col.kids.filter(function(k){ return k.classList.contains('vrg-rcpt-why'); });
     process.stdout.write(JSON.stringify({
-      spans: spans.length, after: row.kids.indexOf(spans[0]) === row.kids.indexOf(btn) + 1,
+      spans: spans.length, after: col.kids.indexOf(spans[0]) === col.kids.indexOf(row) + 1,
       short: spans[0] ? spans[0].textContent : null, spanTitle: spans[0] ? spans[0].title : null,
       title: btn.title, dim: btn.classList.contains('vrg-rcpt-none'), aria: btn.getAttribute('aria-label'),
       status: statusCalls}));
@@ -99,9 +104,10 @@ class TheReceiptAnswersBesideItself(unittest.TestCase):
         return json.loads(p.stdout)
 
     def assert_beside(self, out, short, why_part):
-        self.assertEqual(out["spans"], 1, "the ◉'s answer did not land beside it (REG-1936): %s" % out)
-        self.assertTrue(out["after"], "the answer is in the row but not next to the ◉")
-        self.assertEqual(out["short"], short)
+        self.assertEqual(out["spans"], 1, "the ◉'s answer did not land under its row (REG-1936): %s" % out)
+        self.assertTrue(out["after"], "the answer is in the list but not right under the ◉'s row")
+        self.assertTrue(out["short"].startswith("\u25c9 " + short + " \u2014 "), out["short"])
+        self.assertIn(why_part, out["short"], "the line under the row does not carry the reason")
         self.assertIn(why_part, out["title"], "the ◉'s title does not carry the whole reason")
         self.assertIn(why_part, out["spanTitle"])
         self.assertTrue(out["dim"], "a ◉ with nothing to show still looks like it has a frame")
@@ -155,7 +161,7 @@ RED_PROOF = [
     {
         "why": "REG-1936 - the ◉'s answer is no longer placed beside it: the reason is computed and shown nowhere",
         "file": "bible.html",
-        "find": "              _row.insertBefore(_w, t.nextSibling);",
+        "find": "              _row.parentNode.insertBefore(_w, _row.nextSibling);",
         "replace": "              _w = null;",
         "matches": 1,
     },

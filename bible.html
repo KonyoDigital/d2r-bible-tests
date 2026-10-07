@@ -37592,8 +37592,9 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
 .vrg-tag-shared{color:#7fb9d8}
 .vrg-tag-kept{color:#c9ab5f}
 .vrg-tag-orphan{color:#8a939d}
+.vrg-rcpt{flex:0 0 auto;margin-left:6px;width:18px;height:18px;padding:0;line-height:var(--lh-none);border:1px solid rgba(127,212,255,.35);background:rgba(127,212,255,.08);color:#bfe6ff;border-radius:5px;cursor:pointer;font-size:var(--fs-micro)}   /* REG-1936 — it was an unstyled default button: a white square on the dark panel */
 .vrg-rcpt-none{opacity:.45}
-.vrg-rcpt-why{flex:0 1 auto;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-micro);color:var(--ink-muted)}   /* REG-1936 — the ◉'s answer, beside the ◉ */
+.vrg-rcpt-why{padding:0 7px 4px 41px;font-size:var(--fs-micro);color:var(--ink-muted);overflow-wrap:anywhere}   /* REG-1936 — the ◉'s answer, on its own line under its row */
 .vrg-x{flex:0 0 auto;margin-left:8px;width:18px;height:18px;line-height:var(--lh-none);border:1px solid rgba(255,80,80,.4);background:rgba(255,60,60,.1);color:#ff9a9a;border-radius:5px;cursor:pointer;font-size:var(--fs-micro)}
 .vrg-x:hover{background:rgba(255,60,60,.25);border-color:rgba(255,80,80,.7)}
 .vault-chip:active{cursor:grabbing}
@@ -39102,17 +39103,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
            console the ◉ "opened NO picture" with the reason off-screen (GrokBot C10, Bone Visor:
            /api/evidence said 'nothing banked … no look at it either'). The reason now lands beside
            the ◉ it answers, and the ◉ dims with the whole sentence on hover. */
+        /* The answer is its own line UNDER the row: squeezed into the row it read "n…" at 375 px and broke the
+           item's name (rendered 2026-10-07). */
         var _say = function (short, why) {
           try {
             t.title = '\u25c9 ' + why;
             t.setAttribute('aria-label', why);
             t.classList.add('vrg-rcpt-none');
-            var _row = t.parentNode, _w = _row && _row.querySelector('.vrg-rcpt-why');
-            if (_row && !_w) {
-              _w = document.createElement('span'); _w.className = 'vrg-rcpt-why'; _w.setAttribute('role', 'status');
-              _row.insertBefore(_w, t.nextSibling);
+            var _row = t.parentNode, _w = _row && _row.nextElementSibling;
+            if (_w && !(_w.classList && _w.classList.contains('vrg-rcpt-why'))) _w = null;
+            if (_row && !_w && _row.parentNode) {
+              _w = document.createElement('div'); _w.className = 'vrg-rcpt-why'; _w.setAttribute('role', 'status');
+              _row.parentNode.insertBefore(_w, _row.nextSibling);
             }
-            if (_w) { _w.textContent = short; _w.title = why; }
+            if (_w) { _w.textContent = '\u25c9 ' + short + ' \u2014 ' + why; _w.title = why; }
           } catch (_) {}
         };
         if (location.protocol === 'file:') {
