@@ -8923,6 +8923,12 @@ GATES = [
          why=("REG-1959 - the ALT has no stash_gate_cache (it never filmed a stash panel), so its vault lane could never "
               "prove itself live and retired every reel un-extracted; a tracked stash frame, pinned by sha256, is the canary.")
          ),
+    Gate("test_the_prover_census_is_named_apart_from_the_hearts", [sys.executable,
+         os.path.join(HERE, "test_the_prover_census_is_named_apart_from_the_hearts.py")], 60,
+         needs_app=False,
+         why=("REG-2017 (#260) - a lock shut for want of a heart2 proof said 'the heart has never run here' beside a Heart "
+              "panel showing a fresh census; it names the PROOF census now.")
+         ),
     Gate("test_the_eye_sees_the_blocks_around_a_big_files_hunks", [sys.executable,
          os.path.join(HERE, "test_the_eye_sees_the_blocks_around_a_big_files_hunks.py")], 60,
          needs_app=False,

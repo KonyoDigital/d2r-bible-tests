@@ -1170,9 +1170,12 @@ def _heart_says_watched():
         return False, ("the heart could not be imported (%s), so nothing can say whether the gates "
                        "watching this surface still work. UNKNOWN fails CLOSED." % type(_e).__name__)
     if not os.path.exists(_p):
-        return False, ("the heart has never run here, so nothing has shown that the gates watching "
-                       "this surface can still go red. Run `python3 tv/heart2.py --prove`. "
-                       "UNKNOWN fails CLOSED.")
+        # REG-2017 (#260, GrokBot tick 405) - NAME THE INSTRUMENT. "the heart has never run here" sat in GrokBot's fleet
+        # tip seconds after its Heart panel read "census taken 15 s ago": two different censuses, one word. This one is
+        # heart2 --prove's proof census (.heart2.json), not the Heart panel's live walk.
+        return False, ("this PC's gates have never been PROVEN here (no heart2 proof census - not the Heart panel's live "
+                       "census, which is a different walk), so nothing has shown that the gates watching this surface "
+                       "can still go red. Run `python3 tv/heart2.py --prove`. UNKNOWN fails CLOSED.")
     try:
         with io.open(_p, encoding="utf-8") as _fh:
             _st = json.load(_fh)
