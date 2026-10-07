@@ -811,37 +811,58 @@ class AVesselMayNotBeToldWorkIsOwedThatCannotLand(unittest.TestCase):
         return heart
 
     def test_work_owed_is_only_said_when_a_score_could_land(self):
+        """REG-1953 - DRIVEN OVER TWO FIXTURE ORGAN WORLDS, NEVER THE TREE'S OWN. This read the live census
+        (HE.report over this tree's proof records) and its REG-1893 vacuity guard demanded a WATCHED vessel - so in
+        his main checkout, where the lanes carry real scores (FLOWING 22, WATCHED 0: the world this docstring calls
+        the point), it went red untampered and refused the v3602 push after 80 minutes, while every worktree (no
+        proof records) passed. Judged in each world the way the census means it - once ANY watcher can be scored,
+        an unscored one is work that could land:
+          world A - no organ carries a score: every WATCHED row says it is a missing scorer, never work owed;
+          world B - one organ scores one watcher at 0: every WATCHED row says the work is owed."""
+        import unittest.mock as _mock
         H = self._heart()
-        rep = H.vessels()
-        organs, _why = H._health_rows()
-        watchers = {v.get("watcher") for v in (rep.get("vessels") or []) if v.get("watcher")}
-        scorable = bool(_scored_names(organs) & watchers)
+        with _mock.patch.object(H, "_health_rows", lambda: ([], "")):
+            rep_a = H.vessels()
+        watched_a = [v for v in (rep_a.get("vessels") or []) if v.get("state") == "WATCHED"]
         # REG-1893 - a census that refused (or a renamed key) leaves no WATCHED vessel, and the law asks nothing
-        self.assertTrue([v for v in (rep.get("vessels") or []) if v.get("state") == "WATCHED"],
-                        "the census returned no WATCHED vessel, so no row's 'work owed' was judged: %r"
-                        % (rep.get("counts"),))
-        for v in (rep.get("vessels") or []):
-            if v.get("state") != "WATCHED":
-                continue
-            why = str(v.get("why") or "")
-            # ⚠ MATCH THE CLAIM, NOT A SUBSTRING OF IT. The first version asserted `"work owed"
-            # not in why` and went red on the CORRECT sentence, because that sentence ends
-            # "...a missing scorer, not work owed by anyone" — the phrase appears inside its own
-            # negation. A guard that cannot tell an assertion from its denial is measuring the
-            # letters, not the claim.
-            if scorable:
-                self.assertIn("work owed, not a fault", why,
-                              "%s can be scored but the row does not say the work is owed"
-                              % v.get("name"))
-            else:
-                self.assertNotIn(
-                    "work owed, not a fault", why,
-                    "%s is told sabotage is owed, but no organ publishes a score under a lane "
-                    "name — no organ id or surface carries a score for any watcher, so that "
-                    "work could not land however well it was done. Nobody-tested-it and "
-                    "nothing-can-record-a-test are different facts." % v.get("name"))
-                self.assertIn("scorer", why,
-                              "%s does not say WHY it cannot be proven" % v.get("name"))
+        self.assertTrue(watched_a, "with no organ scores the census returned no WATCHED vessel, so no row's "
+                                   "'work owed' was judged: %r" % (rep_a.get("counts"),))
+        w = watched_a[0].get("watcher")
+        organs_b = [{"id": "fixture-scorer", "score": 0.0, "surfaces": [w]}]
+        with _mock.patch.object(H, "_health_rows", lambda: (list(organs_b), "")):
+            rep_b = H.vessels()
+        for world, rep, organs in (("A", rep_a, []), ("B", rep_b, organs_b)):
+            watchers = {v.get("watcher") for v in (rep.get("vessels") or []) if v.get("watcher")}
+            scorable = bool(_scored_names(organs) & watchers)
+            self.assertEqual(scorable, world == "B", "world %s is not the world this case means" % world)
+            judged = 0
+            for v in (rep.get("vessels") or []):
+                if v.get("state") != "WATCHED":
+                    continue
+                judged += 1
+                why = str(v.get("why") or "")
+                # ⚠ MATCH THE CLAIM, NOT A SUBSTRING OF IT. The first version asserted `"work owed"
+                # not in why` and went red on the CORRECT sentence, because that sentence ends
+                # "...a missing scorer, not work owed by anyone" — the phrase appears inside its own
+                # negation. A guard that cannot tell an assertion from its denial is measuring the
+                # letters, not the claim.
+                if scorable:
+                    self.assertIn("work owed, not a fault", why,
+                                  "world %s: %s can be scored but the row does not say the work is owed"
+                                  % (world, v.get("name")))
+                else:
+                    self.assertNotIn(
+                        "work owed, not a fault", why,
+                        "world %s: %s is told sabotage is owed, but no organ publishes a score under its "
+                        "watcher's name, so that work could not land however well it was done. "
+                        "Nobody-tested-it and nothing-can-record-a-test are different facts."
+                        % (world, v.get("name")))
+                    self.assertIn("scorer", why,
+                                  "world %s: %s does not say WHY it cannot be proven" % (world, v.get("name")))
+            self.assertTrue(judged, "world %s judged no WATCHED row" % world)
+        self.assertIn("work owed, not a fault",
+                      str(([v for v in rep_b["vessels"] if v.get("watcher") == w] or [{}])[0].get("why") or ""),
+                      "baseline: world B's scorable watcher does not say work owed - the case cannot tell the worlds apart")
 
     def test_the_census_never_reports_a_state_it_cannot_reach(self):
         """If FLOWING is unreachable, the panel must not imply otherwise by silence."""
