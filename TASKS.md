@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3601** | `(this commit)` | v3601 — a unique tick records who made it, the character window uses the vault doll, stash reads are counted on the tab own grid, ten vacuous find laws swept, and a vanished sandbox file is named |
+| **v3602** | `(this commit)` | v3602 — REG-1904..1939: the prune frees no word, a prover never waits for idle, an unticked item stays unticked, the disk tally carries its verdict, the theatre opens a reel by its id and the dossier numbers never count, the shelf stays open, a failed read is not reading, the vault receipt answers beside itself |
+| **v3601** | `546e76ad` | v3601 — a unique tick records who made it, the character window uses the vault doll, stash reads are counted on the tab own grid, ten vacuous find laws swept, and a vanished sandbox file is named |
 | **v3600** | `873e591b` | v3600 — the console own record no longer holds any PC pull (the ALT sat 123 versions behind) - one rule for every pull door - and two fixes from the v3599 cross-family look |
 | **v3599** | `3a483514` | v3599 — the lattice-refusal law reaches the path it guards again on a generated frame, so no instrument is blind and the deleter may release on his Mac - and seven vault and crafted fixes from a cross-family look |
 | **v3598** | `6907c2ef` | v3598 — the sandbox copy no longer carries heart2 own cache or the reel-seed archive, so a proof can run on his Mac and the river unlocks - a refused copy says why instead of waiting 3 h - STATION names the locked sweep |
