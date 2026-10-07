@@ -26310,8 +26310,12 @@ RETENTION_BESIDE_SHADOW_MAX = 20
 
 def _cap_beside_shadow(p, cap=None):
     """REG-1838 — `p` with only the first `cap` candidates, in the plan's own order (oldest first). -> (plan copy,
-    [reel left for the next pass]). The shared plan is never edited."""
-    cap = RETENTION_BESIDE_SHADOW_MAX if cap is None else int(cap)
+    [reel left for the next pass]). The shared plan is never edited.
+
+    ⚠ REG-1926 — A CAP BELOW ZERO RELEASES NONE. `cands[:cap]` read a negative cap from the END: measured on five
+    candidates, cap -1 released 4 and cap 0 released 0, so a smaller number deleted more. The one caller passes
+    the constant today; on the only irreversible deleter the arithmetic must still point the safe way."""
+    cap = max(0, RETENTION_BESIDE_SHADOW_MAX if cap is None else int(cap))
     cands = list(p.get("candidates") or [])
     return dict(p, candidates=cands[:cap]), [str((c or {}).get("reel")) for c in cands[cap:]]
 

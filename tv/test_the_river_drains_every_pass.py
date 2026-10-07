@@ -862,6 +862,28 @@ class TheDrainRunsBesideTheShadowReader(_Base):
         self._live_intact()
 
 
+class TheShadowCapNeverWidens(unittest.TestCase):
+    """REG-1926 - `cands[:cap]` read a negative cap from the end, so a smaller cap released MORE reels."""
+
+    def test_a_cap_below_zero_releases_nothing(self):
+        p = {"candidates": [{"reel": "reel_s_%d_a" % i} for i in range(1, 6)]}
+        names = [c["reel"] for c in p["candidates"]]
+        for cap in (0, -1, -4, -50):
+            go, later = CA._cap_beside_shadow(p, cap)
+            self.assertEqual(go["candidates"], [], "cap %d released %r" % (cap, go["candidates"]))
+            self.assertEqual(later, names, "cap %d did not leave every reel for the next pass" % cap)
+        go, later = CA._cap_beside_shadow(p, 2)
+        self.assertEqual([c["reel"] for c in go["candidates"]], names[:2], "the cap is no longer oldest first")
+        self.assertEqual(later, names[2:])
+        self.assertEqual(len(p["candidates"]), 5, "the shared plan was edited")
+        saved = CA.RETENTION_BESIDE_SHADOW_MAX
+        try:
+            CA.RETENTION_BESIDE_SHADOW_MAX = -1          # the default path reads the constant the same way
+            self.assertEqual(CA._cap_beside_shadow(p)[0]["candidates"], [])
+        finally:
+            CA.RETENTION_BESIDE_SHADOW_MAX = saved
+
+
 def tearDownModule():
     for k, v in _SAVED_ENV.items():
         if v is None:
@@ -900,6 +922,13 @@ class TheDeleterTakesOnlyAReelName(AVaultPictureHoldsItsReel):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1926 - a negative beside-shadow cap is read from the end again, so a smaller cap deletes more reels",
+        "file": "control_app.py",
+        "find": "    cap = max(0, RETENTION_BESIDE_SHADOW_MAX if cap is None else int(cap))\n",
+        "replace": "    cap = RETENTION_BESIDE_SHADOW_MAX if cap is None else int(cap)\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1918 - the deleter takes any name again: a candidate whose reel is '' rmtree's the whole shelf",
         "file": "tv/reel_retention.py",
