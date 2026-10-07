@@ -406,6 +406,62 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1902 - THE BUILD'S STASH ALREADY IS THE MULE STASH VIEW (2026-10-07, #153) - NO CODE
+
+His ask - the build's STASH showing Inventory / Personal / Shared tabs through the mule window's own tab renderer, with adding in a separate Create tab - shipped in v3595. Driven in node; its law `test_the_build_stash_is_the_mule_stash_view` passes. Recorded so the row can close on a measurement.
+
+### REG-1901 - THE CRAFTED VARIANT DID NOT FILL ITS NAME OR THE TOP OF ITS RANGES (2026-10-07, his demo via GrokBot #230)
+
+With the planner beside the console he showed that choosing the Caster variant names the item ("Grim Noose Amulet") and shows the top of each crafted range, and that an Add Mod pick lands at the top of its range. The dialog named it by its recipe and kept every pick at its range. A crafted item is now named like a rare - two words from the rare tables over its base, his to choose or re-roll - with the recipe said once as its CRAFTED line; each recipe line and each mod picked on that dialog lands at the top of its range; a typed box still wins and a cleared one is the range again. Law `test_the_crafted_variant_fills_its_name_and_the_top_of_each_range` (14 RED_PROOFs PROVEN).
+
+### REG-1900 - A RENAMED SUBJECT READ AS A SKIP (2026-10-07, #201)
+
+13 node harnesses, 28 sites, came back None when their anchor moved, their script crashed, or it hung, and the caller said "node unavailable". Renaming each subject in a scratch copy, 50 laws in 7 files skipped where they now fail. One harness returned a non-empty error object on a crash, which the fresh-install law read as the seeds still running. A missing anchor now fails, saying its subject is gone; a crash fails with its stderr; a timeout fails too. Only an absent node may skip. Law `test_the_node_venue_is_not_silently_absent`.
+
+### REG-1899 - THE VERDICT KEY KEPT A SECOND LIST BESIDE THE CONSOLE'S (2026-10-07, the v3600 cross-family look)
+
+suite_verdict.tree_key ran the console's own-records rule and then skipped its own SELF_RECORDS, two lists that could drift. SELF_RECORDS is now derived: CONSOLE_OWN_RECORDS plus the records a gate run writes, each listed once. tree_key forgives exactly that set through the one rule. Law `test_every_pc_proves_itself`.
+
+### REG-1898 - ONE RULE GAVE TWO ANSWERS WHEN IT FAILED (2026-10-07, the v3600 cross-family look)
+
+Each reader of a dirty tree wrapped self_prove's own-records rule itself. When the rule raised, launcher_pull blocked the pull, the fleet row and the ship audit kept the raw rows (the fleet read a made-up dirty), and the suite-verdict key raised. self_prove.tracked_edits is now the one door, and its failure answer is one: UNKNOWN. Each reader's safe answer is written at its call: the pull says it cannot tell and resets nothing; the fleet's dirty flag is None, never clean, and the banner neither auto-pulls nor offers the update; the ship audit claims nothing; the verdict key is None; the prover's tree is unknown. Behaviour he will see: a PC whose git cannot answer stops auto-pulling and says so, where it used to read clean. Laws `test_every_pc_proves_itself`, `test_a_stale_git_lock_is_cleared_and_said`.
+
+### REG-1875 - THE ALT'S 16:9 PANELS SIT AT THE EDGES, NOT WHERE THE CENTRED LAW PUT THEM (2026-10-07, #155)
+
+REG-1712's centred law was measured on his Mac's 1440x904 film and only derived for 16:9. On the ALT's Boosteroid film (800x450 of a 1920x1080 window) a lattice fit puts the stash grid at x 68.5 and the inventory at 529.25; the centred law said 120.2 and 475.6, 2.5 cells inward, and the stamped ALT reels' stash crop started 43 px inside the grid. The boosteroid route at 16:9 now holds each panel to its own edge at the grids' measured gaps; the stash crop takes the route from the reel's stamp only when the stamp names a window of the frame's shape; the live tally crop passes the agent's own route. His Mac is byte-identical, and every unmeasured route keeps what it did (Dean's GeForce NOW at 16:9 is unmeasured). Sweep: test_a_new_reel_carries_the_capture_it_measured and test_a_window_change_reaches_the_fleet had no unittest.main(), so their gates ran no case at all; both run now. Law `test_one_ui_law_places_every_panel`.
+
+### REG-1874 - "MATCHED 0" AT A FILM SIZE READ AS "NO LOBBY" (2026-10-07, #149)
+
+The lane counted lobby matches per film size, and a zero read the same whether no game is drawn at that size or the bands are blind there. Every zero-match size with over a thousand checks was opened: the ALT's 800x400/800x420 are Boosteroid's own no-activity window; his Mac's 1440x1327, 1440x813 and 1440x861 are GeForce NOW's app, GeForce NOW in Chrome, and Boosteroid's app. No game is drawn at any of them, and seven ALT lobby frames at 800x450 still pass, so per-size bands are not owed. Each zero now says what it is (LOBBY_SIZES_SEEN), or that nobody looked (UNKNOWN), on the in-game section. Law `test_the_lobby_names_the_character`.
+
+### REG-1873 - D2R'S OWN LOBBY WAS SEALED AS THE LAUNCHER (2026-10-07, #148)
+
+Measured on his ALT: no launcher seal that recorded its feed held a stash, inventory, loot, town or chronicle read (0 of 68), and his real reads of 10-06 22:00 to 10-07 01:24, replayed through the judge, never said launcher in a session that held one. The hole was the lobby: reel_s_1791313228675_15264 sat on the create-game lobby for 40 minutes, its four reads were filed "transition", and the seal said "the launcher, not the game". He was in a game six minutes later. reel_film_shows_the_lobby now checks the reel's three newest film frames from the last 60 s with char_select's measured lobby bands; a lobby on the film keeps the session and the game verdict says so; no fresh or readable frame is UNKNOWN. Open for his ruling: a 40-minute idle in the lobby now keeps a reel open until the clock hour. Law `test_a_session_is_one_session_whatever_he_does`.
+
+### REG-1872 - TEXT A SCROLL BOX CLIPPED AWAY READ AS 4PX OVER THE FOOTER (2026-10-07)
+
+The overlap gate reported the terror zone's last line 4px over the footer's "not taken" at 1440. Measured: #home-dash ends at y=929 and clips it; the line sat at 971-999 and the footer at 957-976. The gate's hit-test accepts an ancestor at the centre, and .shell is under the centre of clipped text, so an invisible line collided. Boxes are now cut to what their clipping ancestors leave visible before both the paint test and the pair comparison; a real overlap still counts. 1440 goes from 2 overlaps over 75 leaves to 0 over 72. An instrument fix; the page is unchanged. Law `test_overlap_ratchet`.
+
+### REG-1871 - A TITLE ABOVE OR INSIDE THE HOVERED THING OPENED THE NATIVE BOX ANYWAY (2026-10-07, #189)
+
+The prose lane takes the hovered word's title so the browser has nothing to show; its nearest titled ancestor was then the title the browser asked for, and the grey box opened over the skinned bubble. The static markup alone holds 7 such pairs on the console and 16 on the board. GrokBot found five more on v3600: the fleet box's river line and "GROK ONLY" inside the eyes card (nested pairs); the vault row's ◉ and the mule tile's evidence badge (titled controls inside an item card, which the board's prose lane deferred on and the card never took); and the vault cell's "— 2×2 = 4 cells" over the Laying of Hands card. Every lane now borrows every title above its host for the same hover, re-takes one that repaints with its newest words, and gives each back on release; a titled control strictly inside an item-card anchor is the prose lane's and the card steps aside; when an anchor says nothing itself, the nearest anchor above it speaks in the card's footer. Focus still borrows nothing. Not yet seen on pixels. Law `test_control`.
+
+### REG-1870 - THE CHARM WAS NOT MISSING FROM THE ITEM LIST (2026-10-07, #166) - NO FIX REQUIRED
+
+Fire -70 EXACT beside a magic small charm was read as the charm never entering the sum. Measured, both inventory charms reach the engine; the small charm's only mod was Bronze (attack rating +2..4), so -70 was right. A latent sunder's negative resist is in the resist sum too. Pinned. Law `test_the_character_builder_is_joined_to_the_engine_and_the_mule_window`.
+
+### REG-1869 - THE PALADIN'S LEVEL-29 CHARM, VERIFIED (2026-10-07, #166) - NO FIX REQUIRED
+
+The claim was that a Shimmering Small Charm of Balance gives nothing below level 29, and -65% and 5% FHR at 29. Driven through the shipped builder and engine, every sentence holds, including the breakpoint sentences and the worn Buckler (level 4) and Quilted Armor of Balance (level 3). Pinned. Law `test_the_character_builder_is_joined_to_the_engine_and_the_mule_window`.
+
+### REG-1868 - A RENEWED SUNDER'S GROUPS WERE CALLED UNDESCRIBED (2026-10-07, #166, GrokBot ACT)
+
+Renewed Bone Break printed "an effect the game's tables name Breaching-AffixN but do not describe" five times. The codes are rows of propertygroups.txt, a table neither generator pulled. Each now shows its rows in the game's own words and ranges, a button for the one that rolled, then the roll box; the stats sum the picked row, and an unpicked group makes every stat its rows feed UNKNOWN instead of leaving them EXACT. The built-in sunder lines stay fixed; Gelid-Affix5, in no table, stays UNKNOWN. Law `test_the_character_builder_is_joined_to_the_engine_and_the_mule_window`.
+
+### REG-1839 - A REASON CUT WITH NO MARK READ AS A WHOLE ONE (2026-10-07)
+
+The beacon worker cut a console's own words with a bare slice: eight sites at 160 and five more at 120-200, so the fleet row read "...relaunch it WITH a window; and the board has not" and stopped, as if that were the reason. The console cut its git sentences and four beacon reasons the same way. One cut now does all of them, in the worker (cutAtWord) and its console twin (_word_cut): it stops at the last word that fits and ends with an ellipsis; text that fits comes back as it came; a single token too long for half the room keeps a hard cut and still says so. A law that lifts one worker shaper into node lifts the shipped cut with it. Law `test_console_fleet`.
+
 ### REG-1917 - THE RELOOK CLAIMED A CAMERA LINUX DOES NOT HAVE, AND A BOOL READ AS A DEADLINE (2026-10-07, a Grok look at v3596, the windows slice)
 
 The #197 re-ask (the windows slice, answered at --effort low after three empty 420 s seats) found two of six real. Off a Mac, `_bare_relook_one_frame` said "this PC films only inside a reel" - Windows, yes; Linux films no window at all (`_launcher_camera_here`), so the sentence claimed a camera nothing measured. And `launcherUntil` was read with `isinstance(x, (int, float))`, which a bool passes: True read as 1 ms, so the wait was over at once. The sentence now names what the OS can film; all three reads of the deadline (`_relook_unknown`, `_bare_relook_open`, the shadow tick) refuse a bool. Not defects: `ok: True` on an UNKNOWN hold (it means the tick ran; the why says UNKNOWN), a first-frame match falling through (refuted - the current code holds the door on a match). Unverified by the seat itself: the watch loop's except wording, and the Windows launcher's unchecked focus. Law `test_a_relook_says_what_this_os_can_film` (2 RED_PROOFs).
