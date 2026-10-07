@@ -105,7 +105,7 @@ geometry, not preference.
     shadow_watch.json        live      810 B  when the shadow watcher last looked, and what it saw
     shadow_seals.jsonl       live    46296 B  every shadow reel opened and closed, with the rule that did it (REG-1675)
     vault_seen.json          live   309786 B  vault sightings
-    chronicle_swept.json     live    75038 B  which reels the chronicle lane has read
+    chronicle_swept.json     live    75328 B  which reels the chronicle lane has read
 <!-- LIVE:END -->
 
 ## WILSON — one statistic, every lane that scores itself

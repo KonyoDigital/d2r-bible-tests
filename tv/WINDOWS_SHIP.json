@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3604",
+  "ver": "v3605",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3604: one verdict cache per machine, a load-measured render extension, low-effort second eye, and the four v3603 CI reds fixed (REG-1995, REG-1996, REG-1999, REG-2000, REG-2001)",
+  "note": "v3605: his recorded v1693 ruling overrules his un-tick again, and a vault lane held by memory on the ALT says so and frees an idle view (REG-2002, REG-2003)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
