@@ -713,9 +713,21 @@ async function j9_terrorZoneFlagship(page) {
                            next: 'Cold Plains and Outer Cloister', ts: Date.now() }) }));
   await goHome(page);
   await page.click('#head-tabs .ht[data-tab="session"]');
-  await page.evaluate(() => { const b = document.getElementById('tz-refresh'); if (b) b.click(); });
-  await page.waitForFunction(() => document.querySelectorAll('#tz-body .tzz').length >= 5,
-                             null, { timeout: 9000 });
+  /* REG-1998 (the same push, the first rotation) - ">= 5 cards" was already true of the LIVE zones the console painted at
+     boot, so after the hour turned (14:00) the journey measured the real terror zones instead of this stub: "no LIVE NOW
+     card carries a why", "Travincal was not PRIME". It waits for THIS stub's own zone names now, pressing refresh up to
+     3 times, and a stub that never paints is said as that. */
+  const _stubNames = ['Stony Tomb', 'Travincal', "Ancient's Way", 'Blood Moor', 'Cold Plains', 'Outer Cloister'];
+  let _first = false;
+  for (let _try = 0; _try < 3 && !_first; _try++) {
+    await page.evaluate(() => { const b = document.getElementById('tz-refresh'); if (b) b.click(); });
+    _first = await page.waitForFunction((names) => {
+      const shown = [...document.querySelectorAll('#tz-body .tzz b')].map((b) => (b.textContent || '').trim());
+      return names.every((n) => shown.includes(n));
+    }, _stubNames, { timeout: 10000 }).then(() => true, () => false);
+  }
+  if (!_first) throw new Error('the stub rotation never painted in 30 s (3 refreshes) - the live zones were on screen, '
+                               + 'so nothing below is measured');
   const out = await page.evaluate(() => [...document.querySelectorAll('#tz-body .tzz')].map((z) => ({
     n: (z.querySelector('b') || {}).textContent || '',
     t: [...z.classList].find((c) => ['tzz-prime', 'tzz-good', 'tzz-thin'].includes(c)) || '',

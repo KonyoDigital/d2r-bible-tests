@@ -409,6 +409,7 @@ not shown). Every finding was put to the code before anything changed:
 ### REG-1998 - THE TERROR-ZONE DEMO SWALLOWED ITS OWN WAIT AND MEASURED THE WRONG ROTATION (2026-10-07, v3603 push #9)
 
 Push #9 was refused by the console demos: `J9 TERROR ZONE FLAGSHIP — FIXTURE IS BLIND — every card carries a → 96 terrorized verdict`. It passed 20 minutes earlier on the same UI code, and passed 16/16 again a minute later. The journey re-routes /api/tz to a second-rotation fixture, which plants one zone (Worldstone Chamber) with no verdict, clicks refresh and waits 9 s for "Worldstone". That wait ended `.catch(() => {})`. When the refresh had not painted in 9 s, the FIRST rotation was still on screen and the checks measured it; all of its cards carry a verdict. The journey now waits up to 30 s, pressing refresh up to 3 times, and a second rotation that never paints fails with that reason. Seen 16/16 after the change.
+Push #10 then found the same defect in the FIRST rotation: it waited for ">= 5 zone cards", which the LIVE zones the console painted at boot already satisfied. After the hour turned at 14:00 it measured the real terror zones, giving "no LIVE NOW card carries a why" and "Travincal was not PRIME". It now waits for the stub's own six zone names, with the same 3 refreshes and the same honest failure. 16/16 twice after the change.
 
 ### REG-1997 - THE CHEAP-SUBSET BUDGET WAS JUDGED UNDER THE PROVER'S OWN FOUR LANES (2026-10-07, v3603 push #8)
 
