@@ -11526,6 +11526,13 @@ window._lockMark = function(isOpen, px, label){
       _fetchFails = 0;
       paint(st);
       var _newer = window._pageNewerSay ? window._pageNewerSay(st) : '';
+      /* ══ #266 (GrokBot K11, ticks 409 + 413) — ONE ADVICE FOR ONE FACT ══════════════════════════════════════════════
+         Both lines fire on the same drift (the console running an older build than the files on disk): the fleet bar's
+         "vNNNN is on disk - RELAUNCH NOW" and this line's "this window is newer than the console behind it - reopen TV
+         DIABLO from the Desktop icon". GrokBot saw them side by side, opposite advice. While the relaunch banner is armed
+         and showing, it is the answer (the console can relaunch itself); this line speaks only when it is not. */
+      var _fb = document.getElementById('fleet-bar');
+      if (_newer && _fb && !_fb.hidden && _fb.getAttribute('data-stage') === 'ready') _newer = '';
       var _newerBar = document.getElementById('page-newer');
       if (_newerBar) {
         _newerBar.hidden = !_newer;
@@ -19938,6 +19945,7 @@ window._lockMark = function(isOpen, px, label){
           } catch (e){ /* fall through to the announcement */ }
         }
         stage = 'behind';
+        bar.setAttribute('data-stage', 'behind');
         txt.textContent = 'this console is ' + j.behind + ' commit' + (j.behind > 1 ? 's' : '')
           + ' behind the fleet' + (j.ver ? ' (running ' + j.ver + ')' : '')
           + (j.latest ? ' — latest: "' + j.latest + '"' : '')
@@ -20036,6 +20044,7 @@ window._lockMark = function(isOpen, px, label){
 
     function armRelaunch(ver){
       stage = 'ready';
+      bar.setAttribute('data-stage', 'ready');   /* #266 (K11) - the page-newer line reads this and defers to RELAUNCH NOW */
       txt.textContent = (ver ? ver : 'a newer console') + ' is on disk — this window is still running '
         + 'the old one. Relaunch to use it.';
       go.textContent = 'RELAUNCH NOW';

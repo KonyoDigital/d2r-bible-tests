@@ -8923,6 +8923,12 @@ GATES = [
          why=("REG-1959 - the ALT has no stash_gate_cache (it never filmed a stash panel), so its vault lane could never "
               "prove itself live and retired every reel un-extracted; a tracked stash frame, pinned by sha256, is the canary.")
          ),
+    Gate("test_one_drift_gets_one_advice", [sys.executable,
+         os.path.join(HERE, "test_one_drift_gets_one_advice.py")], 60,
+         needs_app=False,
+         why=("REG-2025 (#266, GrokBot K11) - 'RELAUNCH NOW' and 'reopen TV DIABLO from the Desktop icon' showed at once for "
+              "the same drift; the page-newer line defers while the relaunch banner is armed.")
+         ),
     Gate("test_a_rolled_rare_name_goes_to_magic_and_rare", [sys.executable,
          os.path.join(HERE, "test_a_rolled_rare_name_goes_to_magic_and_rare.py")], 90,
          needs_app=False,
