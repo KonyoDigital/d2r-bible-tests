@@ -185,7 +185,68 @@ class AReusedCleanRunNeverBanksAFalseBlind(unittest.TestCase):
         self.assertEqual(verdict, H.UNPROVABLE)
 
 
+class ThePushPathSharesItsCleanRunToo(OneCleanRunServesAGate):
+    """REG-1988 - _prove_gate handed a push-time gate to _prove_gate_push BEFORE it set _CLEAN.runs, so the run the hook
+    pays on every push still ran the untampered law before each proof: 2N runs where N+2 do. The same cases as above,
+    driven through the REAL push path (H._PUSH set, as `--prove --push` sets it), plus what the verdict cache banks."""
+
+    def setUp(self):
+        super(ThePushPathSharesItsCleanRunToo, self).setUp()
+        from unittest import mock
+        p = mock.patch.dict(os.environ, {"HEART2_RED_MEMORY": "0"})   # the sabotage memory is neither read nor written
+        p.start()
+        self.addCleanup(p.stop)
+        self.cache = H._VerdictCache(path=os.path.join(self.root, ".heart2_cache.json"), say=_quiet)
+        self.addCleanup(lambda: setattr(H, "_PUSH", None))
+
+    def _gate(self, runs, proofs=None):
+        H._run_gate = runs
+        H._PUSH = self.run = H._PushRun(order={}, browser=(), cache=self.cache)
+        try:
+            return H._prove_gate(self.tv, GATE, "fake_gate.py", self.proofs if proofs is None else proofs, _quiet)
+        finally:
+            H._PUSH = None
+
+    def test_a_proven_push_gate_banks_every_proof_after_its_closing_run(self):
+        verdict, per = self._gate(_Runs(self.tv))
+        self.assertEqual((verdict, per), (H.PROVEN, [H.PROVEN] * 3))
+        self.assertEqual(len(self.cache.entries), 3, "a PROVEN push gate banked %d of its 3 proofs" % len(self.cache.entries))
+
+    def test_a_red_closing_run_banks_nothing(self):
+        verdict, per = self._gate(_Runs(self.tv, red_clean_at=2))
+        self.assertEqual(per, [H.UNPROVABLE] * 3)
+        self.assertEqual(self.cache.entries, {}, "a PROVEN the closing clean run took away was still banked")
+
+    def test_a_law_already_red_untampered_is_judged_once(self):
+        runs = _Runs(self.tv, red_clean_at=1)
+        verdict, per = self._gate(runs)
+        self.assertEqual((runs.clean, runs.tampered), (1, 0), "a red clean run was re-run at push time")
+        self.assertEqual(self.run.first[3], "the law is ALREADY RED untampered, so no proof of it can be judged",
+                         "the push no longer stops on a law already red untampered")
+        self.assertEqual(per[0], H.UNPROVABLE)
+
+    def test_the_share_ends_with_the_gate(self):
+        self._gate(_Runs(self.tv))
+        self.assertIsNone(getattr(H._CLEAN, "runs", None), "a push gate's clean run outlived it into the next gate")
+        self.assertIsNone(getattr(H._CLEAN, "pending", None), "a push gate's unbanked proofs outlived it")
+
+
 RED_PROOF = [
+    {"why": "REG-1988 - the push path pays its own clean run per proof again (2N runs on every push)",
+     "file": "heart2.py",
+     "find": "    _CLEAN.runs = {}\n    _CLEAN.pending = []",
+     "replace": "    _CLEAN.runs = None\n    _CLEAN.pending = []",
+     "matches": 1},
+    {"why": "REG-1988 - the push path asks no closing clean run, so a drifted sandbox's PROVEN is banked",
+     "file": "heart2.py",
+     "find": "        per = _closing_clean(name, per, say)             # REG-1988",
+     "replace": "        per = per                                        # REG-1988",
+     "matches": 1},
+    {"why": "REG-1988 - a push-time PROVEN is banked before the closing run can take it away",
+     "file": "heart2.py",
+     "find": "                if isinstance(_pend, list):\n",
+     "replace": "                if False:\n",
+     "matches": 1},
     {"why": "REG-1677 - the closing run is skipped when nothing was PROVEN, so a reused clean run banks a false BLIND",
      "file": "heart2.py",
      "find": "    if not shared or not any(v in (PROVEN, BLIND, INVALID) for v in verdicts):\n",

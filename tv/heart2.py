@@ -2377,10 +2377,15 @@ def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
                     _at = _LW.declared(pr)
                 except ValueError:
                     _at = None
-                cache.store(key, {"verdict": PROVEN, "gate": name, "proof": idx, "why": str(pr.get("why") or "")[:120],
-                                  "at": _LW.label(_at) if _at else "", "provedAt": int(time.time() * 1000),
-                                  "target": str(pr.get("file") or ""), "inputs": rels})
-                cache.count("stores")
+                _entry = {"verdict": PROVEN, "gate": name, "proof": idx, "why": str(pr.get("why") or "")[:120],
+                          "at": _LW.label(_at) if _at else "", "provedAt": int(time.time() * 1000),
+                          "target": str(pr.get("file") or ""), "inputs": rels}
+                _pend = getattr(_CLEAN, "pending", None)
+                if isinstance(_pend, list):
+                    _pend.append((idx, key, _entry))     # REG-1988 - banked by _prove_gate_push after the closing run
+                else:
+                    cache.store(key, _entry)
+                    cache.count("stores")
             except Exception as _se:
                 cache.count("moved")
                 say("     %-52s   ↳ #42 P3: could not be banked (%s) - PROVEN stands, nothing is banked"
@@ -2440,25 +2445,54 @@ def _prove_gate_push(sandbox, name, filename, proofs, say, run):
     The per-proof rule is _prove_gate's - a proof that raises is BLIND and is recorded - only the order, the widths and
     the stop are new."""
     got = {}
-    for i in (run.order.get(name) or list(range(len(proofs)))):
-        if run.stop.is_set():
-            break
-        why = {}
-        try:
-            got[i] = _prove_push_one(sandbox, name, filename, proofs[i], i, say, why)
-        except Exception as _pe:
-            say("    proof %d raised %s — recorded BLIND: %s" % (i, type(_pe).__name__, str(_pe)[:120]))
-            got[i] = BLIND
-        reason = {BLIND: "the tamper ran and the law stayed GREEN",
-                  INVALID: "the red-proof cannot tamper as declared"}.get(got[i])
-        if got[i] == UNPROVABLE and why.get("red"):
-            reason = "the law is ALREADY RED untampered, so no proof of it can be judged"
-        if reason:
-            if run.fail(name, i, got[i], reason):
-                say("  ⛔ #42 FAIL FAST — %s[%d] %s: %s. The run stops here: every proof not yet run is NOT RUN, and "
-                    "the push is refused on this one." % (name, i, got[i], reason))
-            break
-    per = [got.get(i) for i in range(len(proofs))]
+    # ⚠⚠ REG-1988 — THE PUSH PATH NEVER GOT REG-1669. _prove_gate hands a push-time gate here BEFORE it sets _CLEAN.runs,
+    # so at push time every proof still ran the untampered law first: a gate with N proofs paid 2N law runs where N+2 do
+    # - the run the hook pays on every push, the one he waits on. MEASURED on the v3602 pushes: 893 proofs over 131
+    # gates, ~1786 runs where ~1155 do, and 168 of the 241 gate minutes of 15 pushes were this stage. Now the gate's
+    # proofs share one clean run here too, and the CLOSING clean run (_closing_clean, the one rule) must still be green.
+    # A proof proved here is banked only AFTER that closing run: a PROVEN it turns UNPROVABLE is never stored.
+    _CLEAN.runs = {}
+    _CLEAN.pending = []                                  # (index, key, entry) a PROVEN waits in until the closing run
+    try:
+        for i in (run.order.get(name) or list(range(len(proofs)))):
+            if run.stop.is_set():
+                break
+            why = {}
+            try:
+                got[i] = _prove_push_one(sandbox, name, filename, proofs[i], i, say, why)
+            except Exception as _pe:
+                say("    proof %d raised %s — recorded BLIND: %s" % (i, type(_pe).__name__, str(_pe)[:120]))
+                got[i] = BLIND
+            reason = {BLIND: "the tamper ran and the law stayed GREEN",
+                      INVALID: "the red-proof cannot tamper as declared"}.get(got[i])
+            if got[i] == UNPROVABLE and why.get("red"):
+                reason = "the law is ALREADY RED untampered, so no proof of it can be judged"
+            if reason:
+                if run.fail(name, i, got[i], reason):
+                    say("  ⛔ #42 FAIL FAST — %s[%d] %s: %s. The run stops here: every proof not yet run is NOT RUN, "
+                        "and the push is refused on this one." % (name, i, got[i], reason))
+                break
+        per = [got.get(i) for i in range(len(proofs))]
+        _before = list(per)
+        per = _closing_clean(name, per, say)             # REG-1988 - None (NOT RUN) passes through untouched
+        _f = run.first if (run.first and run.first[0] == name) else None
+        if _f is not None and _before[_f[1]] in (BLIND, INVALID) and per[_f[1]] == UNPROVABLE:
+            # FAIL CLOSED: the stop already stands. Only its REASON is corrected - the failure may be the drift.
+            say("     %-52s   ↳ REG-1988: the closing clean run went RED, so the sandbox drifted across this gate's "
+                "proofs and the %s above may be that drift, not the law; the push stays refused. Reproduce: "
+                "python3 tv/heart2.py --prove %s" % ("%s[%d]" % (name, _f[1]), _before[_f[1]], name))
+        if run.cache is not None:
+            for _i, _key, _entry in (getattr(_CLEAN, "pending", None) or []):
+                if per[_i] == PROVEN:
+                    run.cache.store(_key, _entry)
+                    run.cache.count("stores")
+                else:
+                    run.cache.count("moved")
+                    say("     %-52s   ↳ #42 P3: not banked - the gate's closing clean run took its PROVEN away"
+                        % ("%s[%d]" % (name, _i)))
+    finally:
+        _CLEAN.pending = None
+        _CLEAN.runs = None
     if run.cache is not None:
         run.cache.flush()          # P3: what this gate proved reaches the disk now, not only at the end of the run
     return _push_gate_verdict(per), per
