@@ -2561,6 +2561,14 @@
     "gotcha": "Exit 77 = could not run (no manifest), never a pass. TVD_BOOT_CHECK_TREE points it at another tree, which is how it was proven on the ALT over SSH without touching his checkout. The console is stopped by its own PID and the sandbox removed whatever happens.",
     "territory": "routines-infra"
   },
+  "worker_source.py": {
+    "entryPoints": [
+      "prelude"
+    ],
+    "gotcha": "Nothing in the console imports it - only node laws do, to put the beacon worker's SHIPPED top-level helpers (cutAtWord, functions/api/console.js) in front of a block they lift and run alone. Each helper is cut from the worker by its own declaration and must occur exactly once (assert); a copy written here would be what the law grades instead of the worker (REG-1839).",
+    "purpose": "Lifts the beacon worker's shared top-level helpers out of functions/api/console.js for laws that run one shaper of it in node.",
+    "territory": "gates-proofs"
+  },
   "write_census.py": {
     "entryPoints": [
       "census",
