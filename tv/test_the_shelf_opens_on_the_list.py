@@ -58,7 +58,9 @@ class TheShelfOpensOnTheList(unittest.TestCase):
             self.src = fh.read()
 
     def test_the_shelf_door_returns_before_a_session(self):
-        body = _body(self.src, "async function thOpen(){")
+        # the #231 eye on v3570: the first TEXTUAL thLoadSession was read, so a comment naming it above the door
+        # would have moved the anchor - the comments are cut first
+        body = _code_only(_body(self.src, "async function thOpen(){"))
         self.assertIn("TH.shelfAsDoor = false", body,
                       "thOpen does not clear the shelf request, so the next open inherits it")
         door = body.find("if (_shelfDoor)")
@@ -89,7 +91,8 @@ class TheShelfOpensOnTheList(unittest.TestCase):
         self.assertEqual(self.src.count('id="sh-last-session"'), 1)
         i = self.src.index('id="sh-last-session"')
         end = self.src.index(">", i)
-        tag = self.src[i:end]
+        # the #231 eye on v3572: the slice started AT id=, so an onclick written before the id was outside it
+        tag = self.src[self.src.rindex("<", 0, i):end]
         self.assertIn('onclick="window._shelfLastSession()"', tag)
         self.assertNotIn("_dossierToTheatre", tag)
         body = _body(self.src, "window._shelfLastSession = async function(){")
@@ -115,7 +118,7 @@ class TheShelfOpensOnTheList(unittest.TestCase):
         self.assertEqual(self.src.count('id="dsr-x"'), 1)
         i = self.src.index('id="dsr-x"')
         end = self.src.index(">", i)
-        self.assertIn('onclick="window._dossierClose()"', self.src[i:end])
+        self.assertIn('onclick="window._dossierClose()"', self.src[self.src.rindex("<", 0, i):end])
 
     def test_the_read_panel_and_the_frame_are_one_width(self):
         self.assertEqual(self.src.count("min(280px, 30%)"), 2,
@@ -272,10 +275,11 @@ class TheShelfDoorLeavesTheWayItCame(unittest.TestCase):
         self.assertTrue(kept["theatreOpen"], "a shelf opened over a reel took the reel with it")
 
     def test_both_toggles_ask_the_door_rule(self):
-        code = _code_only(self.src)
-        self.assertEqual(1, code.count("$('th-shelf').onclick = function(){ thShelfToggle(); };"),
+        # whole statements on their own line - a comment that quotes one is not the statement
+        lines = [l.strip() for l in self.src.split("\n")]
+        self.assertEqual(1, lines.count("$('th-shelf').onclick = function(){ thShelfToggle(); };"),
                          "the stage's shelf button toggles the shelf bare")
-        self.assertEqual(1, code.count("else if (e.key === 's' || e.key === 'S'){ thShelfToggle(); e.preventDefault(); }"),
+        self.assertEqual(1, lines.count("else if (e.key === 's' || e.key === 'S'){ thShelfToggle(); e.preventDefault(); }"),
                          "the s key toggles the shelf bare")
 
 
