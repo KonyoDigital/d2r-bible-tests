@@ -149,8 +149,8 @@ RED_PROOF = [
                "row loses proofK/proofN/score and 564 sabotages of evidence vanish exactly when "
                "something is wrong",
         "file": "health_engine.py",
-        "find": '''                    % (len(inert), worst.get("lock")), ev, k=tot_k, n=tot_n,''',
-        "replace": '''                    % (len(inert), worst.get("lock")), ev,''',
+        "find": '''                    "%s — %s" % (" · ".join(said), worst.get("lock")), ev, k=tot_k, n=tot_n,''',
+        "replace": '''                    "%s — %s" % (" · ".join(said), worst.get("lock")), ev,''',
         "matches": 1,
     },
     {
