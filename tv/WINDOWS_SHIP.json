@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3606",
+  "ver": "v3607",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3606: a finished join and a spent re-read past the newest 16 move on, a ruling overrules only its nine, and Grok stepped in counts only an ask (REG-2004, REG-2005, REG-2006)",
+  "note": "v3607: a past-window stuck row says older and the lag word keeps its space (REG-2007, REG-2008)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
