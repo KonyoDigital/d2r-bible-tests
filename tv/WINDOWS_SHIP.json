@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3607",
+  "ver": "v3608",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3607: a past-window stuck row says older and the lag word keeps its space (REG-2007, REG-2008)",
+  "note": "v3608: a console on a private port is a harness, never a row in his live fleet (REG-2009)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
