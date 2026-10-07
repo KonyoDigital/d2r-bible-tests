@@ -507,7 +507,13 @@ class AProvenVerdictIsReusedOnlyOnIdenticalBytes(_Case):
             ignored = [l.strip() for l in fh if l.strip() and not l.startswith("#")]
         self.assertIn("tv/.heart2_cache.json", ignored, "the cache is not gitignored - one Mac's proofs would travel")
         self.assertIn("tv/.heart2_cache.json.tmp", ignored)
-        self.assertEqual(os.path.dirname(H.CACHE), os.path.dirname(H.STATE), "the cache is not beside the census")
+        # #242 (REG-1996) - ONE CACHE PER MACHINE: beside the census of the MAIN checkout. In the main checkout that is this
+        # tree's own STATE; in a worktree it is the main checkout's tv/ (heart2._shared_cache_path), never the worktree's.
+        self.assertEqual(H.CACHE, H._shared_cache_path(), "the cache is not the machine's one shared cache")
+        self.assertEqual(os.path.basename(H.CACHE), ".heart2_cache.json")
+        self.assertEqual(os.path.basename(os.path.dirname(H.CACHE)), "tv", "the cache is not in a tv/ beside a census")
+        if not os.path.isfile(os.path.join(os.path.dirname(H.HERE), ".git")):       # the main checkout, not a worktree
+            self.assertEqual(os.path.dirname(H.CACHE), os.path.dirname(H.STATE), "the cache is not beside the census")
 
 
 class TheKeyNamesEveryInput(unittest.TestCase):
@@ -598,8 +604,8 @@ RED_PROOF = [
     {
         "why": "a BLIND / INVALID is banked as if it were PROVEN, and the next push reuses it",
         "file": "heart2.py",
-        "find": "    if key is not None and v == PROVEN:\n",
-        "replace": "    if key is not None and v in (PROVEN, BLIND, INVALID):\n",
+        "find": "    return verdict == PROVEN\n",
+        "replace": "    return verdict in (PROVEN, BLIND, INVALID)\n",
         "matches": 1,
     },
     {

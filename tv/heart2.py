@@ -1793,7 +1793,41 @@ class _HeldLock(object):
 #   with a fixture) hands none and runs every proof. The file is per machine, gitignored, beside .heart2.json.
 #   HEART2_PROVE_CACHE=0 leaves it closed for one run (the cold half of a measurement) and says so.
 # The law: test_a_proven_verdict_is_reused_only_on_identical_bytes. [[regression-guard]] [[unknown-stays-unknown]]
-CACHE = os.path.join(HERE, ".heart2_cache.json")
+def _shared_cache_path(here=None, repo=None, env=None):
+    """#242 (2026-10-07) - ONE VERDICT CACHE PER MACHINE, NOT ONE PER WORKTREE. -> the .heart2_cache.json to use
+
+    MEASURED on the v3602 pushes: every pre-prove I ran in a worktree banked into THAT tree's cache, and the push in main
+    read main's own - so the 136 laws the hook proved were proved from nothing while their worktree proofs sat unread
+    one directory over. A worktree's `.git` is a FILE naming `<main>/.git/worktrees/<name>`, so its main checkout is
+    found without asking git; the cache is that checkout's tv/.heart2_cache.json. Sharing is safe for the same reason
+    the cache is: an entry is reused only over byte-identical keyed inputs. What it cannot see - a law that reads live
+    state by a computed path, present only in main - is why every entry records its TREE and the clean wave (REG-1992)
+    skips only a gate whose proofs were banked in the tree being proved. HEART2_CACHE_PATH overrides (a law's seam)."""
+    here = HERE if here is None else here
+    repo = REPO if repo is None else repo
+    env = os.environ if env is None else env
+    own = os.path.join(here, ".heart2_cache.json")
+    if env.get("HEART2_CACHE_PATH"):
+        return env["HEART2_CACHE_PATH"]
+    g = os.path.join(repo, ".git")
+    try:
+        if os.path.isfile(g):
+            with io.open(g, encoding="utf-8") as fh:
+                line = fh.read().strip()
+            if line.startswith("gitdir:"):
+                gd = os.path.normpath(line.split(":", 1)[1].strip())
+                if os.path.basename(os.path.dirname(gd)) == "worktrees":
+                    main = os.path.dirname(os.path.dirname(os.path.dirname(gd)))
+                    if os.path.isdir(os.path.join(main, "tv")):
+                        return os.path.join(main, "tv", ".heart2_cache.json")
+    except OSError:
+        return own                       # an unreadable pointer: this tree's own cache, as before - never a guess
+    return own
+
+
+#: #242 - the tree a verdict was proved in, carried on every banked entry (local only: the cache is never committed)
+TREE_ID = os.path.realpath(REPO)
+CACHE = _shared_cache_path()
 CACHE_MAX = 4000          # entries kept; the oldest leave first - a cache, not a ledger
 _NAME_MAX = 240           # a string constant longer than this is prose, not a path
 #: the run's OWN records - written by the prove / render that reads them. Keyed, every law whose closure names heart2
@@ -2224,6 +2258,18 @@ class _VerdictCache(object):
                             "byte each depends on (tv/heart2.py law_inputs). Per machine, never committed.",
                     "entries": self.entries}
             tmp = self.path + ".tmp"
+            # #242 - ONE FILE, SEVERAL PROVERS (a worktree's pre-flight and main's push share it): merge what another run
+            # banked since this one loaded, so the later writer never erases the earlier one's entries. A lost race
+            # still costs only a re-prove - an entry is a shortcut, never a verdict.
+            try:
+                _disk, _dwhy = _load_cache(self.path)
+                for _k, _v in (_disk or {}).items():
+                    if _k not in self.entries and isinstance(_v, dict) and _v.get("verdict") == PROVEN:
+                        self.entries[_k] = _v
+                body["entries"] = self.entries
+            except Exception as _me:
+                self.say("  #42 P3 CACHE: could not merge %s before writing (%s) - writing this run's entries only"
+                         % (os.path.basename(self.path), type(_me).__name__))
             # ⛔ IT NEVER EDITS A GUARD: the only file this object may write is one named like CACHE - the real one
             # beside .heart2.json, or a law's fixture copy of it. Any other path is refused, and said. The refusal sits
             # DIRECTLY above the write because the instruments law admits this write on the guard expression, read
@@ -2331,6 +2377,50 @@ def _git(*args):
     return r.returncode == 0, (r.stdout or b"").decode("utf-8", "replace")
 
 
+def gates_for_tests(paths):
+    """#242 - the gate names a set of changed tv/test_*.py files map to, by the hook's own rule. -> [name] (sorted)
+
+    hooks/pre-push derives the push's changed-law set with an inline script: every registered gate whose argv names one
+    of the files by basename, its name passing a bare-argument check. A pre-flight that proves a different set is the
+    mistake measured on v3602 - 17 laws pre-proved where the hook proved 136 - so this is the same rule, and a law runs
+    the hook's script beside it over the same files and requires the same answer."""
+    try:
+        import run_gates as _rg
+    except Exception:
+        return []
+    changed = set(os.path.basename(str(p)) for p in (paths or []))
+    safe = re.compile(r"^[A-Za-z0-9_.-]+$")
+    out = []
+    for g in getattr(_rg, "GATES", []):
+        for part in (getattr(g, "argv", None) or []):
+            if os.path.basename(str(part)) in changed:
+                if safe.match(str(getattr(g, "name", "") or "")):
+                    out.append(g.name)
+                break
+    return sorted(set(out))
+
+
+def changed_gates():
+    """#242 - THE PUSH'S OWN CHANGED-LAW SET, for a pre-flight. -> (names, base | None, why | None)
+
+    The hook's order of bases (@{push}, else origin/main), the hook's committed range, files still on disk only."""
+    base = None
+    for ref in ("@{push}", "origin/main"):
+        ok, out = _git("rev-parse", "--verify", "--quiet", ref)
+        if ok and out.strip():
+            base = ref
+            break
+    if base is None:
+        return [], None, "neither @{push} nor origin/main resolves, so the changed-law set is UNKNOWN"
+    rng = "@{push}.." if base == "@{push}" else "origin/main..HEAD"
+    ok, out = _git("diff", "--name-only", rng)
+    if not ok:
+        return [], base, "git diff --name-only %s could not be read - UNKNOWN" % rng
+    files = [l.strip() for l in out.splitlines() if re.match(r"^tv/test_.*\.py$", l.strip())]
+    live = [f for f in files if os.path.isfile(os.path.join(REPO, f))]
+    return gates_for_tests(live), base, None
+
+
 def _push_facts(have, say):
     """#42 — what push_order needs, read from git and the tree being proved. -> (base | None, order, gates, counts)"""
     base = None
@@ -2384,6 +2474,16 @@ def _browser_slot(name):
     return _PUSH.browser_slot(name) if _PUSH is not None else contextlib.nullcontext()
 
 
+def _bankable(verdict):
+    """#42 P3 / REG-1988 - ONE RULE FOR WHAT THE VERDICT CACHE MAY BANK: a PROVEN, and nothing else. -> bool
+
+    Two places ask it - the proof that just ran (_prove_push_one) and the gate after its closing clean run
+    (_prove_gate_push) - and they used to spell it twice, `v == PROVEN` and `per[_i] == PROVEN`. Twice is the trap the
+    v3604 prove found: a law's sabotage of ONE spelling stayed green because the other still refused the BLIND, so the
+    law that guards "a BLIND is never banked" read BLIND itself. One definition, asked twice, sabotaged once."""
+    return verdict == PROVEN
+
+
 def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
     """#42 — ONE proof at push time: reused from the verdict cache when every keyed byte is identical (P3), otherwise
     run at the widths it declares and banked only when it came back PROVEN. -> verdict (the PUSH TIME block above)"""
@@ -2415,7 +2515,7 @@ def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
                 return PROVEN
             cache.count("misses")
     v = _prove_push_one_run(sandbox, name, filename, pr, idx, say, why)
-    if key is not None and v == PROVEN:
+    if key is not None and _bankable(v):
         # ⚠ KEYED AGAIN AFTER THE RUN: the tamper wrote and restored the target, and a law may write beside itself; a key
         # that moved means the bytes proved are not the bytes on disk, and a PROVEN banked under them would be a lie.
         # And the same rule as above: a key that cannot be taken again is a tree that moved - PROVEN stands.
@@ -2433,7 +2533,7 @@ def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
                     _at = None
                 _entry = {"verdict": PROVEN, "gate": name, "proof": idx, "why": str(pr.get("why") or "")[:120],
                           "at": _LW.label(_at) if _at else "", "provedAt": int(time.time() * 1000),
-                          "target": str(pr.get("file") or ""), "inputs": rels}
+                          "target": str(pr.get("file") or ""), "inputs": rels, "tree": TREE_ID}
                 _pend = getattr(_CLEAN, "pending", None)
                 if isinstance(_pend, list):
                     _pend.append((idx, key, _entry))     # REG-1988 - banked by _prove_gate_push after the closing run
@@ -2517,7 +2617,10 @@ def _wave_gate(sandbox, name, filename, proofs, say, run):
                     key, _r, _w = cache.key_for(sandbox, name, filename, proofs[i])
                 except Exception:
                     key = None
-                if key is None or cache.lookup(key) is None:
+                _hit = cache.lookup(key) if key is not None else None
+                # #242 - a proof banked in ANOTHER tree is reused, but its gate still owes this tree one clean run: a
+                # law that reads live state only main holds can be red here and green there
+                if _hit is None or _hit.get("tree") != TREE_ID:
                     _all = False
                     break
             if _all:
@@ -2604,7 +2707,7 @@ def _prove_gate_push(sandbox, name, filename, proofs, say, run):
                 "python3 tv/heart2.py --prove %s" % ("%s[%d]" % (name, _f[1]), _before[_f[1]], name))
         if run.cache is not None:
             for _i, _key, _entry in (getattr(_CLEAN, "pending", None) or []):
-                if per[_i] == PROVEN:
+                if _bankable(per[_i]):
                     run.cache.store(_key, _entry)
                     run.cache.count("stores")
                 else:
@@ -3861,6 +3964,10 @@ def main(argv):
     ap.add_argument("--push", action="store_true",
                     help="#42 push-time proving, what hooks/pre-push runs: declared 'widths' restrict a proof's runs, the "
                          "likeliest failures run first and the run stops at the first; one browser gate at a time")
+    ap.add_argument("--changed", action="store_true",
+                    help="#242 add the push's own changed-law set (the hook's rule) to --prove - the pre-flight")
+    ap.add_argument("--changed-gates", action="store_true",
+                    help="#242 print the push's changed-law set, one line, and exit")
     ap.add_argument("--slice", action="store_true",
                     help="#99 prove these gates as ONE SLICE of a census: the verdicts merge, and the gate fingerprint "
                          "is stamped only once no declaring gate is owed (self_prove's runs on a PC he plays on)")
@@ -3869,6 +3976,20 @@ def main(argv):
     ap.add_argument("--triage", action="store_true",
                     help="split the no-red-proof gates into WRITABLE vs NOT PROVABLE HERE")
     a = ap.parse_args(argv)
+    if a.changed_gates or a.changed:
+        _names, _base, _cwhy = changed_gates()
+        if _cwhy:
+            print("  #242 %s" % _cwhy)
+            if a.changed_gates:
+                return 2
+        if a.changed_gates:
+            print(" ".join(_names))
+            return 0
+        print("  #242 the push's changed-law set (since %s): %d gate(s)" % (_base, len(_names)))
+        a.prove = list(a.prove or []) + _names
+        if not a.prove:
+            print("  nothing changed since %s - nothing to pre-flight" % _base)
+            return 0
     if a.prove is not None:
         # a killed prover removes its sandboxes; and the ones an EARLIER killed run left are swept first
         install_sandbox_cleanup()

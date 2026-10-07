@@ -97,6 +97,7 @@ gate_run() {
   label="$1"; rerun="$2"; limit="$3"; shift 4   # label, rerun, limit, and the literal --
   # REG-1993 - a caller may widen THIS gate's bound by the load it measured (GATE_SCALE, clamped 1.00-2.50). The
   # literal at the call site stays the measured base, so every law that reads it still reads the measured number.
+  GATE_BASE="$limit"; export GATE_BASE       # REG-1995 - the measured bound, before any widening, for the deadline grace
   if [ -n "${GATE_SCALE:-}" ]; then
     limit="$(awk -v l="$limit" -v s="$GATE_SCALE" 'BEGIN{ s += 0; if (s < 1) s = 1; if (s > 2.5) s = 2.5; printf "%d", l * s + 0.5 }')"
   fi
@@ -123,8 +124,17 @@ gate_run() {
   perl -e 'my $t = shift;
            my $p = fork; die "fork: $!" unless defined $p;
            if (!$p) { exec @ARGV; exit 127 }
-           $SIG{ALRM} = sub { kill "TERM", $p; waitpid($p, 0); exit 142 };
-           alarm $t; waitpid($p, 0); my $st = $?; alarm 0;
+           # REG-1995: a gate its caller marked GATE_LOAD_GRACE gets ONE extension when the machine is busy AT THE DEADLINE -
+           # the load that starves it may arrive after it starts (GrokBot began a tick 2 min into a render). Quiet at the
+           # deadline is still a kill: a slow run on a quiet machine is the hang this bound exists for.
+           my $t0 = time; my $grace = $ENV{GATE_LOAD_GRACE} ? 1 : 0; my $base = $ENV{GATE_BASE} || $t;
+           $SIG{ALRM} = sub {
+             if ($grace) { $grace = 0;
+               my @la = split /\s+/, ((`sysctl -n vm.loadavg 2>/dev/null` =~ s/[{}]//gr) =~ s/^\s+//r); my $l = $la[0] || 0;
+               my $s = $l > 5 ? $l / 5 : 1; $s = 2.5 if $s > 2.5; my $want = int($base * $s + 0.5); my $el = time - $t0;
+               if ($want > $el + 1) { print STDERR "gate: busy at the deadline (load $l) - one extension to ${want}s\n"; alarm($want - $el); return; } }
+             kill "TERM", $p; waitpid($p, 0); exit 142 };
+           alarm $t; my $r; do { $r = waitpid($p, 0) } while ($r == -1 && $!{EINTR}); my $st = $?; alarm 0;
            # A child killed by a SIGNAL puts the signal in the LOW byte and leaves $?>>8 as 0,
            # so the old `exit($? >> 8)` reported a KILLED gate as a PASS. v1582 was SIGTERMed
            # mid-smoke; with this wrapper in front of it the push would have been waved
@@ -508,9 +518,9 @@ if [ "$_px_touched" = "1" ]; then
     if [ "${_rs:-1.00}" != "1.00" ]; then
       echo "pre-push: [$(_pp_el)] render bound x${_rs} for load ${_rload} - the hook kill, the clean-run cost and the report-by deadline move together (REG-1993)"
     fi
-    export GATE_SCALE="${_rs:-1.00}" TV_RENDER_SCALE="${_rs:-1.00}"
+    export GATE_SCALE="${_rs:-1.00}" TV_RENDER_SCALE="${_rs:-1.00}" GATE_LOAD_GRACE=1
     gate_run "render" "python3 tv/render_check.py" 353 -- python3 "$REPO/tv/render_check.py" || _px_fail=1
-    unset GATE_SCALE TV_RENDER_SCALE
+    unset GATE_SCALE TV_RENDER_SCALE GATE_LOAD_GRACE
     gate_run "crest-loudness" "python3 tv/crest_loudness.py" 180 -- python3 "$REPO/tv/crest_loudness.py" || _px_fail=1
   else
     echo "pre-push: [$(_pp_el)] 🔴 a visual file is shipping and NO browser could be started — this push was"

@@ -8872,6 +8872,20 @@ GATES = [
          why=("REG-1997 - the v3603 clean wave ran test_control in 1 of 4 lanes and its CPU budget went red on the "
               "prover's own load; every law run is told HEART2_LANES and the cheap-subset budget is judged with none.")
          ),
+    Gate("test_one_verdict_cache_serves_every_tree", [sys.executable,
+         os.path.join(HERE, "test_one_verdict_cache_serves_every_tree.py")], 60,
+         needs_app=False,
+         why=("#242 / REG-1996 - worktree pre-proves banked where the push never reads, and named 17 laws where the hook "
+              "proved 136; one cache per machine, every entry names its tree, the wave still runs a gate banked "
+              "elsewhere, writes merge, and --changed is the hook's own set.")
+         ),
+    Gate("test_a_gate_busy_at_its_deadline_gets_one_extension", [sys.executable,
+         os.path.join(HERE, "test_a_gate_busy_at_its_deadline_gets_one_extension.py")], 90,
+         needs_app=False,
+         why=("REG-1995 - load that arrives after the render starts (GrokBot began a tick 2 min in) was not covered by "
+              "REG-1993; a gate marked GATE_LOAD_GRACE gets one load-measured extension at its deadline, and a quiet "
+              "deadline is still a kill.")
+         ),
     Gate("test_the_render_bound_moves_with_the_load", [sys.executable,
          os.path.join(HERE, "test_the_render_bound_moves_with_the_load.py")], 60,
          needs_app=False,

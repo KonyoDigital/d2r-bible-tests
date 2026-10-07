@@ -30,8 +30,8 @@ import render_bound as RB  # noqa: E402
 
 HOOK = os.path.join(os.path.dirname(HERE), "hooks", "pre-push")
 WIDEN = '  if [ -n "${GATE_SCALE:-}" ]; then\n'
-EXPORT = '    export GATE_SCALE="${_rs:-1.00}" TV_RENDER_SCALE="${_rs:-1.00}"\n'
-UNSET = '    unset GATE_SCALE TV_RENDER_SCALE\n'
+EXPORT = '    export GATE_SCALE="${_rs:-1.00}" TV_RENDER_SCALE="${_rs:-1.00}" GATE_LOAD_GRACE=1\n'
+UNSET = '    unset GATE_SCALE TV_RENDER_SCALE GATE_LOAD_GRACE\n'
 
 
 def _hook():
@@ -123,7 +123,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-1993 - the render call site never hands its measured factor down",
      "file": "hooks/pre-push",
-     "find": '    export GATE_SCALE="${_rs:-1.00}" TV_RENDER_SCALE="${_rs:-1.00}"\n',
+     "find": '    export GATE_SCALE="${_rs:-1.00}" TV_RENDER_SCALE="${_rs:-1.00}" GATE_LOAD_GRACE=1\n',
      "replace": '    : no factor\n',
      "matches": 1},
 ]
