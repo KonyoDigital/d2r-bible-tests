@@ -83,6 +83,33 @@ class ARelaunchWaitsWhileHeUsesTheWindow(unittest.TestCase):
         ok, _w, blocker = self._decide(None)
         self.assertTrue(ok, "a page that never reported an input age kept every build out")
 
+    def test_the_ceiling_is_sticky_until_his_streak_ends(self):
+        """REG-2012 (the #231 eye on v3609) - once the ceiling is reached, a second poll (the beacon asks too) must not
+        start a fresh 20 minutes; only a still window ends the streak."""
+        self.assertFalse(CA.relaunch_in_use(5.0, False, CA.RELAUNCH_IN_USE_MAX_S + 1)[0])
+        self.assertFalse(CA.relaunch_in_use(5.0, False, 0.0)[0], "the next poll after the ceiling started a new hold")
+        CA.relaunch_in_use(90.0, False, 0.0)                    # he stopped: the streak ends
+        self.assertTrue(CA.relaunch_in_use(5.0, False, 0.0)[0], "a new streak after a still minute was not held")
+
+    def test_another_blocker_does_not_restart_his_clock(self):
+        CA._IN_USE_HOLD["since"] = time.time() - 600
+        keep = dict(CA._UI_BEAT)
+        self.addCleanup(lambda: (CA._UI_BEAT.clear(), CA._UI_BEAT.update(keep)))
+        CA.ui_beat_record({"inputAgeS": 2.0, "hidden": False})
+        with mock.patch.object(CA, "_env_tristate", lambda k: True), \
+                mock.patch.object(CA, "board_identity_drift", lambda: {"state": "ok"}), \
+                mock.patch.object(CA, "_sweep_lock_path", lambda: "/nonexistent/.sweep.lock"), \
+                mock.patch.object(CA, "_tree_is_mid_edit", lambda: (False, "")), \
+                mock.patch.object(CA, "nothing_in_flight", lambda parts=None: (False, "a sweep is reading")), \
+                mock.patch.object(CA, "_relaunch_blocker", lambda ok, parts: "work"):
+            CA.drift_may_relaunch(detail={})
+        self.assertIsNotNone(CA._IN_USE_HOLD["since"], "a brief sweep restarted his 20 minutes (REG-2012)")
+
+    def test_status_reads_the_input_age_once(self):
+        vals = iter([5.0, None])
+        with mock.patch.object(CA, "ui_input_age_s", lambda: next(vals)):
+            self.assertEqual(CA._ui_input_age_rounded(), 5.0, "the status field read the age twice and could raise")
+
     def test_the_page_reports_its_last_touch(self):
         with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
             ui = fh.read()
@@ -93,6 +120,21 @@ class ARelaunchWaitsWhileHeUsesTheWindow(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2012 - the ceiling is not sticky: the next poll starts a fresh 20 minutes",
+     "file": "tv/control_app.py",
+     "find": '    if _IN_USE_HOLD.get("capped") or float(held_for_s or 0.0) >= cap:\n',
+     "replace": "    if float(held_for_s or 0.0) >= cap:\n",
+     "matches": 1},
+    {"why": "REG-2012 - another blocker restarts his in-use clock",
+     "file": "tv/control_app.py",
+     "find": '    return False, _relaunch_waiting_why(_detail["blocker"], why, _parts)\n',
+     "replace": '    _IN_USE_HOLD["since"] = None\n    return False, _relaunch_waiting_why(_detail["blocker"], why, _parts)\n',
+     "matches": 1},
+    {"why": "REG-2012 - the status field reads the age twice and can round(None)",
+     "file": "tv/control_app.py",
+     "find": "    a = ui_input_age_s()\n    return None if a is None else round(a, 1)\n",
+     "replace": "    return None if ui_input_age_s() is None else round(ui_input_age_s(), 1)\n",
+     "matches": 1},
     {"why": "REG-2010 - the drift relaunch stops asking his hands: the window is replaced mid-use again",
      "file": "tv/control_app.py",
      "find": "        if _hold:\n            _detail[\"blocker\"] = \"in-use\"\n            return False, _iu\n",
@@ -105,8 +147,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2010 - the ceiling is gone: a window he never leaves never gets its update",
      "file": "tv/control_app.py",
-     "find": "    if float(held_for_s or 0.0) >= cap:\n",
-     "replace": "    if False:\n",
+     "find": '    if _IN_USE_HOLD.get("capped") or float(held_for_s or 0.0) >= cap:\n',
+     "replace": '    if _IN_USE_HOLD.get("capped"):\n',
      "matches": 1},
     {"why": "REG-2010 - the beat's own age is not added, so a quiet window never ages between beats",
      "file": "tv/control_app.py",

@@ -49,6 +49,7 @@ EXEMPT = {
     "_read_pid":                "one small file read, already covered by the `pid` section",
     "_pid_alive":               "a kill(pid, 0) syscall — microseconds",
     "ui_beat_age":              "arithmetic over an in-memory timestamp",
+    "_ui_input_age_rounded":    "REG-2012 - two in-memory dict reads and a round (ui_input_age_s); no I/O",
     "_windows_ship":            "reads a small JSON only on Windows; on his Mac the branch is dead",
     "_status_timing_payload":   "this is the breakdown itself — timing it would time the meter",
     "_diablo_scene_label":      "a string lookup over a value already in hand",

@@ -24025,7 +24025,8 @@ def drift_may_relaunch(detail=None):
             _detail["blocker"] = "in-use"
             return False, _iu
         return True, why
-    _in_use_held_for_s(reset=True)
+    # REG-2012 (the #231 eye on v3609) - another blocker does NOT restart his in-use clock: a brief sweep at minute 19
+    # used to reset the 20 minutes, so a busy console could hold a build for ever while he used it.
     return False, _relaunch_waiting_why(_detail["blocker"], why, _parts)
 
 
@@ -24033,7 +24034,7 @@ def drift_may_relaunch(detail=None):
 #: in-use hold may last before the build lands anyway (so a window he never leaves still gets its update).
 RELAUNCH_STILL_S = 60.0
 RELAUNCH_IN_USE_MAX_S = 20 * 60.0
-_IN_USE_HOLD = {"since": None}
+_IN_USE_HOLD = {"since": None, "capped": False}
 
 
 def ui_input_age_s(now=None):
@@ -24048,6 +24049,13 @@ def ui_input_age_s(now=None):
     if gap < 0 or gap > 30:
         return None
     return float(a) + gap
+
+
+def _ui_input_age_rounded():
+    """REG-2012 (the #231 eye on v3609) - ONE read of the input age, rounded. Two reads in one expression could straddle
+    the 30 s staleness edge (or a clock step) and round(None) would raise inside status_payload. -> float | None"""
+    a = ui_input_age_s()
+    return None if a is None else round(a, 1)
 
 
 def _in_use_held_for_s(now=None, reset=False):
@@ -24071,9 +24079,13 @@ def relaunch_in_use(input_age_s, hidden, held_for_s, still_s=None, max_s=None):
     cap = RELAUNCH_IN_USE_MAX_S if max_s is None else float(max_s)
     if hidden or input_age_s is None or float(input_age_s) >= still:
         _IN_USE_HOLD["since"] = None
+        _IN_USE_HOLD["capped"] = False         # his streak ended: the next one gets its own ceiling
         return False, ""
-    if float(held_for_s or 0.0) >= cap:
-        _IN_USE_HOLD["since"] = None
+    # REG-2012 (the #231 eye on v3609) - THE CEILING IS STICKY until his streak ends. It used to clear `since`, so the
+    # next poll - the fleet beacon's _relaunch_report asks this same question - started a fresh 20 minutes, and the
+    # drift loop might never see the ceiling at all.
+    if _IN_USE_HOLD.get("capped") or float(held_for_s or 0.0) >= cap:
+        _IN_USE_HOLD["capped"] = True
         return False, ("he has used the window for %d min straight - the update lands now rather than never"
                        % int(cap // 60))
     if _IN_USE_HOLD.get("since") is None:
@@ -40928,7 +40940,7 @@ def status_payload():
                    "docVer": _UI_BEAT.get("docVer"),
                    # REG-2010 - seconds since he last touched this window, aged to NOW; None = UNKNOWN. The relaunch
                    # hold reads this same number, so the reason the update waits is checkable from outside.
-                   "inputAgeS": (round(ui_input_age_s(), 1) if ui_input_age_s() is not None else None),
+                   "inputAgeS": _ui_input_age_rounded(),
                    # v3538 — the session whose dossier is ON SCREEN (a number), None when none is shown,
                    # "UNKNOWN" when no beat has said. Read it beside ageS: a stale beat is a stale answer.
                    "dossier": _UI_BEAT.get("dossier", "UNKNOWN"),

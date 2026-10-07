@@ -406,6 +406,13 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2012 - THREE HOLES THE #231 EYE FOUND IN REG-2010 (2026-10-07, the look on v3609)
+
+1. **The 20-minute ceiling was not sticky.** Reaching it cleared the hold's start, so the next poll began a fresh 20 minutes - and the fleet beacon's `_relaunch_report` asks `drift_may_relaunch` too, so the beacon could consume the ceiling moment before the drift loop ever saw it. The ceiling now latches (`capped`) until his streak ends (the window still for 60 s, hidden, or its age unknown).
+2. **Any other blocker restarted his clock.** The not-ok path reset the hold, so a brief sweep at minute 19 began the 20 minutes again and a busy console could hold a build for ever while he used it. Only the end of his streak resets it now.
+3. **`/api/status` read the input age twice in one expression.** Straddling the 30 s staleness edge, `round(None, 1)` would raise inside status_payload. `_ui_input_age_rounded()` reads it once (exempted in the status breakdown law: two dict reads, no I/O).
+Law `test_a_relaunch_waits_while_he_uses_the_window` (+3 cases, +3 RED_PROOFs, one re-anchored; 7/7 PROVEN).
+
 ### REG-2011 - A LATER REWRITE OF A STAMP LINE COULD TAKE THE STAMP'S AUTHORSHIP (2026-10-07, #256, the #231 eye on v3577)
 
 `second_eye_ledger._stamp_authors` reads `git log -p tv/WINDOWS_SHIP.json` newest-first and kept the first commit seen to ADD a version's `"ver"` line. So a later commit that re-added the same line - a hand-fixed half-bump, or any edit to a one-line stamp file - took the authorship, and authorship decides which family's look closes the version. Reproduced on a built repo (a Grok-seat stamp, then a seatless rewrite: author flipped xai -> anthropic). Measured on his history first: 119 versions, 28 Grok-seat stamps, and no version added by more than one commit, so nothing has been mis-credited. The log is now read OLDEST first; identical authors on the real history. Law `test_the_author_is_read_from_the_stamp` (+1 case, +1 RED_PROOF).
