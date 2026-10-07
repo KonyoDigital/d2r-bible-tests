@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3612",
+  "ver": "v3613",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3612: the in-use ceiling counts only while a build waits (REG-2014)",
+  "note": "v3613: with no build waiting the in-use hold is cleared (REG-2015)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
