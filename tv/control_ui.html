@@ -25339,6 +25339,19 @@ function escC(s) {
       var say = _fleetSince(t || null);
       if (els[i].textContent !== say) { els[i].textContent = say; n++; }
     }
+    /* REG-1938 — AND THE AGES IN A HOVER. The row's word carries its whole meta line as a title, and the
+       "console 4m ago" inside it was baked at paint (GrokBot tick 376: frozen five ticks). The title keeps the
+       phrase it was painted with (data-fl-seen) and both doors' stamps; the tick swaps the phrase in place. */
+    var tt = (root || document).querySelectorAll('[data-fl-seen]');
+    for (var k = 0; k < tt.length && typeof _fleetSeen === 'function'; k++) {
+      var was = tt[k].getAttribute('data-fl-seen') || '';
+      var now = _fleetSeen({ t: tt[k].getAttribute('data-fl-con') || null, webAt: tt[k].getAttribute('data-fl-web') || null });
+      if (was && now !== was) {
+        var ttl = tt[k].getAttribute('title') || '';
+        if (ttl.indexOf(was) >= 0) tt[k].setAttribute('title', ttl.split(was).join(now));
+        tt[k].setAttribute('data-fl-seen', now); n++;
+      }
+    }
     return n;
   };
   /* REG-1932 - ONLY ON A PAGE, AND NEVER HOLDING A PROCESS OPEN. The node laws lift this block to run its functions,
@@ -26635,8 +26648,10 @@ function escC(s) {
                       + '">' + escC('\u00b7 ' + _rk[0]) + '</span>';
                 }
               } catch (_) {}
-              return '<span class="fleet-meta fleet-word ' + w.c + '" title="'
-                + escC(w.t + (plain ? ('  \u2014  ' + plain) : '')) + '">'
+              return '<span class="fleet-meta fleet-word ' + w.c + '"'
+                + ' data-fl-seen="' + escC(_fleetSeen(m)) + '" data-fl-con="' + escC(String((m && m.t) || ''))
+                + '" data-fl-web="' + escC(String((m && m.webAt) || '')) + '"'   /* REG-1938 — its ages keep aging */
+                + ' title="' + escC(w.t + (plain ? ('  \u2014  ' + plain) : '')) + '">'
                 + escC(w.w) + '</span>'
                 /* REG-1613 — AFTER the verdict, so the verdict keeps row one and the words take row two */
                 + _fleetRowChips(m, heard) + _rw;

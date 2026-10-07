@@ -69,6 +69,38 @@ console.log(JSON.stringify({ first: first, later: el.textContent, changed: chang
         self.assertEqual(o["changed"], 1)
         self.assertEqual(o["fetched"], 0, "the tick asked the server - his ruling is events, not a shorter poll")
 
+    def test_an_age_inside_a_hover_title_keeps_aging_too(self):
+        """REG-1938 - GrokBot tick 376: the row's hover said 'console 4m ago' for five ticks. The title keeps the
+        phrase it was painted with and both doors' stamps, and the same tick swaps the phrase in place."""
+        ui = _ui()
+        since = _cut(ui, "  var _fleetSince = function (iso) {", "    return Math.round(h / 24) + 'd ago';\n  };\n")
+        seen = _cut(ui, "  var _fleetSeen = function (m) {", "  };\n")
+        tick = _cut(ui, "  if (typeof window !== 'undefined') window._flAgeTick = function (root) {", "    return n;\n  };\n")
+        js = r"""
+var window = {}; function escC(s){ return String(s); }
+var NOW = Date.parse('2026-10-07T01:41:00Z'); Date.now = function(){ return NOW; };
+%s
+%s
+%s
+var con = '2026-10-07T01:37:00Z', web = '2026-10-07T01:31:00Z';
+var was = _fleetSeen({t: con, webAt: web});
+var el = { a: {'data-fl-seen': was, 'data-fl-con': con, 'data-fl-web': web, 'title': 'synced  -  idle - v3601 - ' + was},
+           getAttribute: function(k){ return this.a[k] == null ? null : this.a[k]; },
+           setAttribute: function(k, v){ this.a[k] = String(v); } };
+var doc = { querySelectorAll: function(sel){ return sel === '[data-fl-seen]' ? [el] : []; } };
+NOW = Date.parse('2026-10-07T02:01:00Z');
+var changed = window._flAgeTick(doc);
+console.log(JSON.stringify({ was: was, title: el.a.title, seen: el.a['data-fl-seen'], changed: changed }));
+""" % (since, tick, seen)
+        o = _node(js)
+        self.assertEqual(o["was"], "console 4m ago \u00b7 on the site 10m ago", o)
+        self.assertEqual(o["title"], "synced  -  idle - v3601 - console 24m ago \u00b7 on the site 30m ago",
+                         "the hover kept saying %r after 20 minutes (REG-1938)" % o["title"])
+        self.assertEqual(o["seen"], "console 24m ago \u00b7 on the site 30m ago")
+        self.assertEqual(o["changed"], 1)
+        self.assertEqual(ui.count("' data-fl-seen=\"' + escC(_fleetSeen(m)) + '\" data-fl-con=\"'"), 1,
+                         "the row's word no longer stamps the ages its hover carries")
+
     def test_both_painters_stamp_their_age_and_the_tick_runs(self):
         ui = _ui()
         self.assertEqual(ui.count("'<div class=\"ftt-age\">as of ' + _flAge("), 1, "the card's 'as of' age is not stamped")
@@ -84,6 +116,13 @@ console.log(JSON.stringify({ first: first, later: el.textContent, changed: chang
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1938 - the tick no longer touches hover titles: the row's 'console 4m ago' is frozen at paint again",
+        "file": "tv/control_ui.html",
+        "find": "        if (ttl.indexOf(was) >= 0) tt[k].setAttribute('title', ttl.split(was).join(now));\n",
+        "replace": "",
+        "matches": 1,
+    },
     {
         "why": "REG-1932 - the age tick is no longer unref'd: a node law that lifts its block never exits",
         "file": "tv/control_ui.html",
