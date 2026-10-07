@@ -7297,6 +7297,10 @@
     margin-right: 3px; opacity: .88; filter: drop-shadow(0 1px 1px rgba(0,0,0,.6)); }
   .head-tabs .ht:hover .ht-i { opacity: 1; }
   .head-tabs .ht.shell-on .ht-i { opacity: 1; filter: brightness(1.25) contrast(1.08) drop-shadow(0 1px 1px rgba(0,0,0,.45)); }
+  /* REG-1946 — a tab whose pane is still opening says so: a slow pulse until the board moves (none with reduced motion) */
+  @keyframes htOpening { from { opacity: 1; } to { opacity: .55; } }
+  .head-tabs .ht.ht-opening { animation: htOpening .7s ease-in-out infinite alternate; }
+  @media (prefers-reduced-motion: reduce) { .head-tabs .ht.ht-opening { animation: none; outline: 1px dashed var(--gold-hi); } }
   @media (max-width: 900px){ .head-tabs .ht .ht-i { width: 15px; height: 15px; vertical-align: -2px; } }
   /* ⚠⚠ v3205 (#227 §4) — TWO SOURCES FOR ONE FACT, AND THE ONE EVERYONE QUOTES WAS DEAD.
      MEASURED: this rule declared `opacity: .55` at normal importance, and the LAST tab-opacity
@@ -22113,13 +22117,28 @@ window._lockMark = function(isOpen, px, label){
     _shellLight(tab);
     // v935.10 — NO floating ⌂ CONSOLE pill. One shell: header tabs only (TV·D = home).
     if (_shellRoute(tab)) return;
-    // retry until switchTab exists (engine iframe boots bible JS async)
+    /* REG-1946 — THE FIRST CLICK MUST VISIBLY DO SOMETHING, AND A ROUTE THAT GIVES UP MUST SAY SO. This retried
+       50 x 80 ms = 4 s and then stopped without a word. On GrokBot's 93%-busy machine the board's switchTab no-ops
+       for longer than that, so the Vault tab lit, the TV.D body stayed, and only a SECOND click opened it (tick 377);
+       when the board finished booting late it painted ~6 s on (tick 378). It now marks the tab as opening, retries
+       for 20 s, and if the board still has not moved it says so on screen and records the fault. */
+    var _btn = null;
+    try { _btn = document.querySelector('#head-tabs .ht[data-tab="' + tab + '"]'); if (_btn) _btn.classList.add('ht-opening'); } catch (_b) {}
+    var _done = function(){ try { if (_btn) _btn.classList.remove('ht-opening'); } catch (_d) {} };
     if (_shellRouteTimer) clearInterval(_shellRouteTimer);
     var n = 0;
     _shellRouteTimer = setInterval(function(){
       n++;
-      if (_shellRoute(tab) || n > 50){
-        clearInterval(_shellRouteTimer); _shellRouteTimer = null;
+      if (_shellTab !== tab) { clearInterval(_shellRouteTimer); _shellRouteTimer = null; _done(); return; }   // he went elsewhere
+      if (_shellRoute(tab)) { clearInterval(_shellRouteTimer); _shellRouteTimer = null; _done(); return; }
+      if (n > 250) {
+        clearInterval(_shellRouteTimer); _shellRouteTimer = null; _done();
+        try { toast('The board did not open ' + tab + ' in 20 s - it may still be loading. Click the tab again.'); } catch (_t) {}
+        try {
+          fetch('/api/ui_fault', {method: 'POST', headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({kind: 'shell-route-gave-up', why: 'switchTab(' + tab + ') never moved the board in 20 s',
+                                  where: 'control_ui shellOpen'})});
+        } catch (_f) {}
       }
     }, 80);
   }

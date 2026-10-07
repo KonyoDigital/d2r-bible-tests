@@ -8866,6 +8866,12 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_a_tab_click_is_never_silently_dropped", [sys.executable,
+         os.path.join(HERE, "test_a_tab_click_is_never_silently_dropped.py")], 60,
+         needs_app=False,
+         why=("REG-1946 - shellOpen retried the board route for 4 s and stopped without a word, so on a busy machine the "
+              "first Vault click lit the tab and opened nothing; it marks the tab opening, retries 20 s, and says so if it gives up.")
+         ),
     Gate("test_the_registered_total_names_its_parts", [sys.executable,
          os.path.join(HERE, "test_the_registered_total_names_its_parts.py")], 60,
          needs_app=False,
