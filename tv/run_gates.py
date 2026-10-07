@@ -8923,6 +8923,12 @@ GATES = [
          why=("REG-1959 - the ALT has no stash_gate_cache (it never filmed a stash panel), so its vault lane could never "
               "prove itself live and retired every reel un-extracted; a tracked stash frame, pinned by sha256, is the canary.")
          ),
+    Gate("test_the_eye_sees_the_blocks_around_a_big_files_hunks", [sys.executable,
+         os.path.join(HERE, "test_the_eye_sees_the_blocks_around_a_big_files_hunks.py")], 60,
+         needs_app=False,
+         why=("#259 (REG-2016) - control_ui.html and control_app.py are over the eye's 2 MB snapshot limit, so console "
+              "changes reached it as bare hunks (v3607 cannot-tell, a refused push); they go in as numbered excerpts now.")
+         ),
     Gate("test_a_stubbed_run_never_calls_a_live_model", [sys.executable,
          os.path.join(HERE, "test_a_stubbed_run_never_calls_a_live_model.py")], 60,
          needs_app=False,

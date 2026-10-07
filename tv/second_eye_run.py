@@ -188,6 +188,73 @@ def _rm_snapshot(path):
 EYE_SNAPSHOT_MAX_BYTES = 2_000_000
 
 
+#: #259 - an over-limit file is not dropped: its hunks' enclosing blocks go in as a NAMED excerpt, bounded.
+EXCERPT_WINDOW = 80          # non-Python: lines either side of a changed line
+EXCERPT_MAX_BLOCK = 400      # the most of any one block (a 2,000-line def is cut around its hunk)
+EXCERPT_MAX_CHARS = 150000   # the whole excerpt file
+_PY_TOP = re.compile(r"^(def |class |async def |@)")
+
+
+def excerpt_blocks(text, lines, is_py, window=None, max_block=None, max_chars=None):
+    """#259 - the code around each changed line, numbered, merged and bounded. -> str ("" for no lines)
+
+    MEASURED 2026-10-07: control_ui.html (2.2 MB) and control_app.py (2.7 MB) are both over the 2 MB snapshot
+    limit, so every console change reached the eye as bare hunks; v3607's look answered cannot-tell ("I could not
+    see the caller that concatenates the version word onto the lag span") and v3608's push was refused until a
+    re-ask. A Python hunk gets its enclosing top-level def/class; anything else a window either side."""
+    window = EXCERPT_WINDOW if window is None else int(window)
+    max_block = EXCERPT_MAX_BLOCK if max_block is None else int(max_block)
+    max_chars = EXCERPT_MAX_CHARS if max_chars is None else int(max_chars)
+    src = text.split("\n")
+    n = len(src)
+    spans = []
+    for ln in sorted(set(int(x) for x in lines if isinstance(x, int) and 1 <= x <= n)):
+        i = ln - 1
+        if is_py:
+            a = i
+            while a > 0 and not _PY_TOP.match(src[a]):
+                a -= 1
+            while a > 0 and src[a - 1].startswith("@"):
+                a -= 1
+            b = i + 1
+            while b < n and not _PY_TOP.match(src[b]):     # the next top-level def / class / decorator ends it
+                b += 1
+        else:
+            a, b = max(0, i - window), min(n, i + window + 1)
+        if b - a > max_block:                        # a huge block: keep the part around the hunk
+            a, b = max(a, i - max_block // 2), min(b, i + max_block // 2)
+        spans.append([a, b])
+    merged = []
+    for a, b in sorted(spans):
+        if merged and a <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], b)
+        else:
+            merged.append([a, b])
+    out, used = [], 0
+    for a, b in merged:
+        part = "--- lines %d-%d ---\n" % (a + 1, b) + "\n".join("%6d: %s" % (k + 1, src[k]) for k in range(a, b))
+        if used + len(part) > max_chars:
+            out.append("--- (cut: the excerpt reached %d characters; later blocks are in the diff only) ---" % max_chars)
+            break
+        out.append(part)
+        used += len(part)
+    return "\n".join(out)
+
+
+def _hunk_new_lines(sha, path):
+    """#259 - the new-side line numbers this look's diff touches in `path`. -> list[int] | None (diff unreadable)"""
+    # ⚠ the path goes AFTER the sha: _changes() appends the sha last, so `"--", path` inside it made git read the sha
+    # as a second PATH and diff HEAD instead (caught by the first dry run - the excerpt held the stamp line).
+    d, _w = _sh(_changes(sha, "-U0") + ["--", path], timeout=60)
+    if d is None:
+        return None
+    got = []
+    for m in re.finditer(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@", d, re.M):
+        start, count = int(m.group(1)), int(m.group(2) if m.group(2) is not None else 1)
+        got.extend(range(start, start + max(1, count)))
+    return got
+
+
 def eye_snapshot(sha, max_bytes=None):
     """#169 WIN 2 — GIVE THE EYE THE FILES IT IS REVIEWING, READ-ONLY. -> dict
 
@@ -207,7 +274,7 @@ def eye_snapshot(sha, max_bytes=None):
     if names is None:
         out["why"] = "could not list the %s's files: %s" % ("range" if REVIEW_BASE else "commit", why)
         return out
-    want = []
+    want, big = [], []
     for n in [x.strip() for x in names.splitlines() if x.strip()]:
         sz, _w = _sh(["git", "cat-file", "-s", "%s:%s" % (sha, n)], timeout=30)
         try:
@@ -216,20 +283,43 @@ def eye_snapshot(sha, max_bytes=None):
             out["skipped"].append("%s (deleted or not a file at this commit)" % n)
             continue
         if size > lim:
-            out["skipped"].append("%s (%d bytes, over the %d-byte snapshot limit)" % (n, size, lim))
+            big.append((n, size))
             continue
         want.append(n)
-    if not want:
+    if not want and not big:
         out["why"] = "no file of this commit fits the snapshot"
         return out
-    tar, why = _sh_bytes(["git", "archive", "--format=tar", sha, "--"] + want, timeout=120)
-    if tar is None:
-        out["why"] = "git archive failed: %s" % why
-        return out
+    tar = b""
+    if want:
+        tar, why = _sh_bytes(["git", "archive", "--format=tar", sha, "--"] + want, timeout=120)
+        if tar is None:
+            out["why"] = "git archive failed: %s" % why
+            return out
     import tarfile
     _eye_cwd_ready()
+    # #259 - an over-limit file goes in as the blocks around its hunks, NAMED as an excerpt, never as nothing.
+    excerpts = []
+    for n, size in big:
+        lines = _hunk_new_lines(sha, n)
+        body, _w = _sh(["git", "show", "%s:%s" % (sha, n)], timeout=60)
+        text = excerpt_blocks(body or "", lines or [], n.endswith(".py")) if (body and lines) else ""
+        if not text:
+            out["skipped"].append("%s (%d bytes, over the %d-byte snapshot limit; no excerpt could be cut)" % (n, size, lim))
+            continue
+        ex = n + ".EXCERPT.txt"
+        try:
+            os.makedirs(os.path.join(EYE_CWD, os.path.dirname(ex)), exist_ok=True)
+            with io.open(os.path.join(EYE_CWD, ex), "w", encoding="utf-8") as fh:
+                fh.write("EXCERPT of %s at %s - %d bytes is over the snapshot limit, so these are the blocks around "
+                         "its changed lines, numbered as in the file. Anything outside them is NOT here.\n\n%s\n"
+                         % (n, sha[:12], size, text))
+            excerpts.append(ex)
+            out["skipped"].append("%s (%d bytes, over the limit - the blocks around its hunks are in %s)" % (n, size, ex))
+        except Exception as e:
+            out["skipped"].append("%s (%d bytes, over the limit; the excerpt could not be written: %s)"
+                                  % (n, size, type(e).__name__))
     try:
-        with tarfile.open(fileobj=io.BytesIO(tar)) as tf:
+        with tarfile.open(fileobj=io.BytesIO(tar)) if tar else _NoTar() as tf:
             for m in tf.getmembers():
                 if not (m.isfile() or m.isdir()) or m.name.startswith("/") or ".." in m.name.split("/"):
                     continue
@@ -248,8 +338,21 @@ def eye_snapshot(sha, max_bytes=None):
                 os.chmod(os.path.join(_root, _n), 0o555)
             except Exception:
                 pass
-    out.update(ok=True, included=want)
+    out.update(ok=bool(want or excerpts), included=want + excerpts, excerpts=excerpts)
     return out
+
+
+class _NoTar(object):
+    """#259 - a snapshot with only excerpts has no archive to unpack."""
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+    def getmembers(self):
+        return []
 
 
 def snapshot_note(snap):
