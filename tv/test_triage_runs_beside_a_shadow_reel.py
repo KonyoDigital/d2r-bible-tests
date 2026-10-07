@@ -915,6 +915,22 @@ class ARelaunchDoesNotResetTheWait(_Base):
                        "relaunches": relaunches}, fh)
         return path
 
+    def test_a_backlog_that_caught_up_starts_the_next_one_at_one_relaunch(self):
+        """REG-1949 (the #231 eye on 1ae4574f) - caught up wrote relaunches 0 to the file and kept the count in memory,
+        so the next backlog in the same process was saved, and doctored, "across N relaunches" it never lived."""
+        owed = int(time.time() * 1000) - int(2 * HOUR * 1000)
+        path = self._mark(owed, relaunches=2)
+        ca._triage_backlog_load()
+        self.assertEqual(ca._TRIAGE_LANE.get("relaunches"), 3, "baseline: the relaunch was not counted")
+        ca._triage_record({"ok": True, "key": "idle", "backlog": 0})
+        with io.open(path, encoding="utf-8") as fh:
+            self.assertEqual(json.load(fh).get("relaunches"), 0)
+        ca._triage_record({"ok": True, "key": "surveyed", "backlog": 2})
+        with io.open(path, encoding="utf-8") as fh:
+            saved = json.load(fh).get("relaunches")
+        self.assertEqual(saved, 1, "a fresh backlog inherited the old one's relaunch count (REG-1949): %s" % saved)
+        self.assertEqual(ca._TRIAGE_LANE.get("relaunches"), 1)
+
     def test_a_relaunch_keeps_the_first_backlog_mark(self):
         owed = int(time.time() * 1000) - int(6 * HOUR * 1000)
         self._mark(owed)
@@ -1468,6 +1484,13 @@ class TheFarmGateAsksTheSameProbe(_Base):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1949 - caught up stops resetting the relaunch count in memory: the next backlog inherits the old one's",
+        "file": "tv/control_app.py",
+        "find": "    elif owed is None and old is None:\n",
+        "replace": "    elif False:\n",
+        "matches": 1,
+    },
     {
         "why": "2026-09-28 round 2 - a single 'playing-unknown' flake ends the run of play again (the 12 h clock restarts)",
         "file": "control_app.py",

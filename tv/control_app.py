@@ -31164,6 +31164,11 @@ def _triage_backlog_save():
     if (owed is not None or old is not None) and n < 1:
         n = 1
         L["relaunches"] = n
+    elif owed is None and old is None:
+        # REG-1949 — CAUGHT UP RESETS THE MEMORY TOO, not only the file. The file got 0 and memory kept its count,
+        # so the next backlog in this process was saved "across N relaunches" it never relaunched through - and
+        # console_doctor prints that phrase at N >= 2 (the #231 eye on 1ae4574f).
+        L["relaunches"] = 0
     blob = {"owedSince": owed, "oldestReelMs": old,
             "relaunches": n if (owed is not None or old is not None) else 0}
     try:
