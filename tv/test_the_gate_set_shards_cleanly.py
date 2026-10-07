@@ -71,7 +71,10 @@ class TheGateSetShardsCleanly(unittest.TestCase):
             bn[0] += float(g.timeout or 0)
             bn[2].append(g.name)
         da, db = [sum(w[x] for x in bn[2]) for bn in bins]
-        self.assertLess(abs(a - b), abs(da - db),
+        # ⚠ 2026-10-08 - AND BY A MARGIN, NOT BY FLOAT NOISE: under the declared-timeout sabotage the two deals are the SAME
+        # bins (31.0 s apart both ways on the refreshed 894-gate table), summed in a different order, and a strict `<`
+        # between 31.0 and 31.0 passed on rounding - heart2 read this proof BLIND. The measured deal must win by 0.5 s.
+        self.assertLess(abs(a - b) + 0.5, abs(da - db),
                         "dealing by MEASURED cost balances no better than dealing by declared timeout "
                         "(%.1f s apart vs %.1f s apart, judged on measured seconds)" % (abs(a - b), abs(da - db)))
 

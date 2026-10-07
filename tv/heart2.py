@@ -2061,7 +2061,28 @@ def _lists_a_directory(tree):
     return min(hits, key=lambda h: h[1]) if hits else None
 
 
-def law_inputs(sandbox, filename, proofs, parsed=None):
+def _tracked_files(repo=None):
+    """#242 (2026-10-08, his order: "preserving the proves" · "optimizing exactly this to save wall clock time" · "this is
+    it critical") - the repo-relative paths git TRACKS in the real tree, once per call site. -> frozenset | None (UNKNOWN)
+
+    MEASURED on the v3618 push: the wrapper pre-proved and BANKED 66 proofs on the final bytes, and the hook ten minutes
+    later reused ONE of them. test_vault_population's key held 1,144 inputs, and among them 40+ runtime files his live
+    console rewrites every few seconds (.subscription_budget.json 2 s old, shadow_watch.json 4 s, board_*.json 10 s): a
+    literal like "board_tally.json" anywhere in control_app's closure makes that file a key input, so every key moved
+    between any two pushes and the cache could never hit. Such a file is DATA no law may read (fixtures never touch live
+    data); the named-file half of the key counts only files git tracks. The closure, the tampered target, PROOF_NEEDS and
+    the prover are unchanged. None (git not answering) leaves the key as it was - over-inclusion, never a stale PROVEN."""
+    repo = REPO if repo is None else repo
+    try:
+        r = subprocess.run(["git", "-C", repo, "ls-files", "-z"], capture_output=True, timeout=30)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if r.returncode != 0:
+        return None
+    return frozenset(x.decode("utf-8", "replace") for x in r.stdout.split(b"\0") if x)
+
+
+def law_inputs(sandbox, filename, proofs, parsed=None, tracked=None):
     """#42 P3 — every file in `sandbox` (a copied tv/) that a law's verdict can depend on. -> (sorted [abs path], why)
 
     `why` is None when every input could be found and read; otherwise the reason this law is UNKEYABLE (the list then
@@ -2115,6 +2136,8 @@ def law_inputs(sandbox, filename, proofs, parsed=None):
         inputs.add(p)
         for dep in names & set(local):
             stack.append(local[dep])
+        if tracked is not None:           # #242 (2026-10-08) - a named file git does not track is runtime data, not a key input
+            named = {q for q in named if os.path.relpath(q, repo).replace(os.sep, "/") in tracked}
         inputs |= named
     for pr in (proofs or []):
         rel = str(pr.get("file") or "") if isinstance(pr, dict) else ""
@@ -2166,6 +2189,7 @@ class _VerdictCache(object):
         self.lock = threading.Lock()
         self.memo = {}                   # (path, size, mtime_ns) -> sha256, this run only
         self.parsed = {}                 # (path, size, mtime_ns) -> (imports, named files), this run only
+        self.tracked = _tracked_files()  # #242 (2026-10-08) - the named files a key may count: tracked ones only
         self.closures = {}               # (sandbox, filename) -> (inputs, why): one closure walk per law per lane
         self.hits = self.misses = self.stores = self.unkeyable = self.moved = 0
         self.dirty = False               # stores since the last flush - written per GATE, not per proof
@@ -2185,7 +2209,7 @@ class _VerdictCache(object):
         with self.lock:
             ck = (sandbox, filename)
             if ck not in self.closures:
-                self.closures[ck] = law_inputs(sandbox, filename, [], parsed=self.parsed)
+                self.closures[ck] = law_inputs(sandbox, filename, [], parsed=self.parsed, tracked=self.tracked)
             base, why = self.closures[ck]
         if why:
             return None, [], why

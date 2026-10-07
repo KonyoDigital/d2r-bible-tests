@@ -34,6 +34,7 @@ import io
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -554,6 +555,46 @@ class TheKeyNamesEveryInput(unittest.TestCase):
         finally:
             shutil.rmtree(d, ignore_errors=True)
 
+    def test_a_named_file_git_does_not_track_is_not_a_key_input(self):
+        """#242 (2026-10-08) - MEASURED on the v3618 push: 66 proofs banked on the final bytes, 1 reused - each key held
+        40+ runtime files his live console rewrites every few seconds, named as literals somewhere in control_app's
+        closure, so every key moved. The push-time cache counts a NAMED file only when git tracks it."""
+        d = tempfile.mkdtemp(prefix="p3tracked.")
+        try:
+            repo = os.path.join(d, "repo")
+            tv = os.path.join(repo, "tv")
+            os.makedirs(tv)
+            files = {"tv/t_law.py": "X = 'bible.html'\nY = 'state_p3.json'\n", "tv/state_p3.json": "{}",
+                     "tv/subject.txt": "s\n", "bible.html": "<html>\n"}
+            for rel, text in files.items():
+                with io.open(os.path.join(repo, rel), "w", encoding="utf-8") as fh:
+                    fh.write(text)
+            pr = [{"file": "subject.txt", "find": "s", "replace": "x"}]
+            every, _w = H.law_inputs(tv, "t_law.py", pr)
+            some, _w2 = H.law_inputs(tv, "t_law.py", pr, tracked=frozenset(["tv/t_law.py", "tv/subject.txt", "bible.html"]))
+            rel = lambda xs: sorted(os.path.relpath(p, repo) for p in xs)
+            self.assertIn("tv/state_p3.json", rel(every), "BASELINE: with no tracked set the named file must be keyed")
+            self.assertNotIn("tv/state_p3.json", rel(some), "an untracked runtime file is still a key input (#242)")
+            self.assertIn("bible.html", rel(some), "a TRACKED named file left the key")
+            self.assertIn("tv/subject.txt", rel(some), "the tampered target left the key")
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+        # the tracked set is git's own answer for a real tree - asked of a throwaway git repo, never of this tree (a heart2
+        # sandbox is a copy with no .git, where git cannot answer and the key falls back to counting every named file)
+        e = tempfile.mkdtemp(prefix="p3git.")
+        try:
+            with io.open(os.path.join(e, "kept.txt"), "w", encoding="utf-8") as fh:
+                fh.write("k\n")
+            with io.open(os.path.join(e, "state.json"), "w", encoding="utf-8") as fh:
+                fh.write("{}")
+            for cmd in (["git", "init", "-q"], ["git", "add", "kept.txt"]):
+                subprocess.run(cmd, cwd=e, capture_output=True, check=True)
+            got = H._tracked_files(e)
+            self.assertEqual(got, frozenset(["kept.txt"]), "git's tracked set was not read: %r" % (got,))
+            self.assertIsNone(H._tracked_files(os.path.join(e, "no_such_dir")), "a tree git cannot answer for was not UNKNOWN")
+        finally:
+            shutil.rmtree(e, ignore_errors=True)
+
     def test_a_restored_target_is_hashed_again_not_served_from_before_the_tamper(self):
         """the digest memo keys on size and mtime, so the bytes a tamper wrote and restored are read again"""
         d = tempfile.mkdtemp(prefix="p3sha.")
@@ -573,6 +614,13 @@ class TheKeyNamesEveryInput(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "#242 (2026-10-08) - an untracked runtime file named in a law's closure is a key input again, so every key moves",
+        "file": "tv/heart2.py",
+        "find": "            named = {q for q in named if os.path.relpath(q, repo).replace(os.sep, \"/\") in tracked}\n",
+        "replace": "            pass\n",
+        "matches": 1,
+    },
     {
         "why": "#41 rank 8 - the tampered target never enters the key: an edit to the SUBJECT reuses a PROVEN",
         "file": "heart2.py",
