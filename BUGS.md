@@ -406,6 +406,30 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1945 - A THROTTLE ON A CHARACTER-SELECT READ WAS COUNTED AS A REFUSAL (2026-10-07, sibling of REG-1941)
+
+Measured: a throttle or budget block spent both of a visit's reads and 2 hourly slots, and the visit was never read after the throttle lifted. The frame now waits, and a closing read stays owed. A throttle on a list read shows as "list not read: ..." in lastWhy, so the "refused" counter is lower. Laws `test_characters_learn_from_the_reels`, `test_a_session_is_bound_to_the_character_he_entered_with`.
+
+### REG-1944 - THE SHELF DOOR'S LEFTOVERS (2026-10-07, the #231 Claude eye on Grok's v3570)
+
+Measured in node on the shipped page: Last session loaded "session 1" onto an empty stage (thPickEntrySession fell back to 1, so the 'no film' toast could never show); a theatre that failed to open was toasted "no session has film yet"; a reel opened from the door ignored his saved read-panel preference; `s` and the stage's shelf button left an empty stage. All four fixed. Law `test_the_shelf_opens_on_the_list` (its fragile first-match and id-slice reads hardened in the same pass).
+
+### REG-1943 - THE VAULT TRIAGE COUNT READ UNKNOWN DURING EVERY OVERLAPPING PASS (2026-10-07, the #231 Claude eye on Grok's v3568)
+
+Measured 2 -> None -> 2 with two overlapping passes. The count is now assigned once, after the pass, in a `finally` (None on every unknown path and on a raise). Law `test_a_reel_at_printer_is_the_vaults_work`.
+
+### REG-1942 - A STAMP BUMP THAT ALSO CHANGED THE PAGE READ AS STAMP-ONLY (2026-10-07, the #231 Claude eye on Grok's v3568)
+
+On real `git diff -U0` output `page_delta.stamp_only` called a removed `-->` (shown as `--->`), an added `++...` line, a deleted D2R_BUILD and a note holding `</script>` stamp-only. Headers are now only the lines before a section's first `@@`, added stamp lines must equal removed ones, and a stamp holding `</` or `<!--` is not a stamp. Law `test_a_version_stamp_is_not_a_page_change`.
+
+### REG-1941 - A LOBBY READ THAT DID NOT HAPPEN WAS UNBOUNDED, MIS-SPENT, AND COULD RAISE OUT OF THE TICK (2026-10-07, the #231 Claude eye on Grok's v3574/v3575)
+
+Measured: one bad frame held its reel for ever (12 ticks asked the same frame 12 times); under BOTH, 20 paid calls spent 0 hourly slots because the note was the backup's own wording; a busy gate counted as spent; a raising reader left no ledger. Panel notes now say whether the reader was asked and whether to try later; a frame is passed (and said, in `stats.lobbyPassed`) after 3 misses that are not a throttle; `char_select._ask` turns a raise into a read that did not happen; any stop ends the scan. ⚠ Left: exceptions other than timeouts from `_oneshot_inner` (e.g. a missing claude CLI) still escape `_oneshot` to every caller except char_select, and under BOTH that also skips the Grok backup. Law `test_a_read_that_did_not_happen_is_bounded`.
+
+### REG-1940 - A DESKTOP CLICK KILLED A RUNNING CONSOLE IT COULD NOT JUDGE (2026-10-07, the #231 Claude eye on Grok's v3571)
+
+`launcher_decide` exited 1 on any failure and `start_tvd_win.ps1` read 1 as consent to Stop-Process -Force on :17772. Measured against a fake console: a current fullscreen console (the Windows default since v3579), a slow `/api/window`, a slow front request and an `ok:false` reply all came back "replace". Now three answers: 0 brought forward; 3 replace (it says it is older or has no window, or nothing serves the port); 2 could not tell (left running - Windows focuses it, Mac notifies). Exit 1 is never a verdict, because a crash exits 1; one 9 s budget. ⚠ HIS RULING OWED on three behaviour changes: a front window that cannot say whether it is current is asked forward instead of replaced; a wedged console that still answers the 0.35 s probe can no longer be replaced by the icon (Mac: TV_FORCE_PORT=1 still forces it); headless / window-only consoles (incl. a supervisor-revived --no-open one that may be filming) are still replaced on a click. The .ps1 change has not run on any PC yet - its real-PowerShell cases first run on CI. Law `test_the_launcher_brings_a_running_console_forward`.
+
 ### REG-1939 - THE REGISTERED TOTAL LEFT A COLUMN OUT AND NEVER SAID WHAT IT COUNTED (2026-10-07, #225 / GrokBot tick 370-371)
 
 GrokBot read "19 owned" and "REGISTERED 20" on one Vault pane, twice. Not a contradiction by itself: the Registered total counts everything read (his v342.20 words, "register the item regardless... distinguished but still a total amount"), so magic & rare finds and throw-outs sit on top of the chronicle - but nothing on screen said so. And the sum (`all + finds + throw-outs`) left out the "❓ Not recognised" column that v2402 added so that "the total be honest": with one orphan the badge said one less than the columns under it. Every column now counts, and the subtitle carries the split ("N chronicle . N magic & rare . N throw-out"). Law `test_the_registered_total_names_its_parts` drives the real renderVaultRegistered in node (2 cases, 2 RED_PROOFs).
