@@ -4121,7 +4121,22 @@ def _relaunch_report():
 LIVE_CONTROL_PORT = 17772
 
 
-def _beacon_suppressed_by(env=None, port=None):
+#: REG-2009 - set by main() ONLY, when this process SERVES a private port: a console booted by a law, render_check, the
+#: push gate's demos or a prove lane. None in every process that merely imports this module (the laws that test the
+#: senders themselves), so their direct calls behave exactly as before.
+_HARNESS_PORT = None
+
+
+def _mark_harness_port(env=None):
+    """REG-2009 - called first thing in main(): remember whether this console serves a private port. -> the port | None"""
+    global _HARNESS_PORT
+    env = os.environ if env is None else env
+    _HARNESS_PORT = (CONTROL_PORT if (CONTROL_PORT != LIVE_CONTROL_PORT and not env.get("TVD_BEACON_ANY_PORT"))
+                     else None)
+    return _HARNESS_PORT
+
+
+def _beacon_suppressed_by(env=None, harness_port=None):
     """Why this process must NOT report to the fleet, or "". ONE rule for both senders. -> str
 
     REG-2009 (GrokBot tick 403, 2026-10-07 19:42-19:47): a fourth "Konyo" row appeared in the LIVE fleet - "this console
@@ -4129,8 +4144,10 @@ def _beacon_suppressed_by(env=None, port=None):
     console started through main() starts the beacon thread whatever its port, and of the harnesses that boot a private
     console (laws, render_check, the push gate's demos, heart2's prove lanes) only a handful set TVD_NO_BEACON - none of
     run_gates, shard_suite, heart2 or render_check. So a law run on his Mac could write a row into the roster every other
-    PC reads. A console on a private port is a harness, never a fleet row; TVD_BEACON_ANY_PORT=1 lets one through on
-    purpose. The CI / GITHUB_ACTIONS / TVD_NO_BEACON rules are unchanged, and this used to be two copies of them."""
+    PC reads. A console main() booted on a private port is a harness, never a fleet row (_mark_harness_port); a process
+    that only imports this module is not marked, so the laws that drive the senders directly behave as before (five of
+    them went red under run_gates' private port when the first cut keyed on the port alone). TVD_BEACON_ANY_PORT=1 lets
+    a private console through on purpose. CI / GITHUB_ACTIONS / TVD_NO_BEACON are unchanged; this was two copies."""
     env = os.environ if env is None else env
     if env.get("CI"):
         return "CI"
@@ -4138,13 +4155,9 @@ def _beacon_suppressed_by(env=None, port=None):
         return "GITHUB_ACTIONS"
     if env.get("TVD_NO_BEACON"):
         return "TVD_NO_BEACON"
-    p = CONTROL_PORT if port is None else port
-    try:
-        p = int(p)
-    except (TypeError, ValueError):
-        p = None
-    if p != LIVE_CONTROL_PORT and not env.get("TVD_BEACON_ANY_PORT"):
-        return "a private port (%s) - a harness console, never a fleet row" % p
+    hp = _HARNESS_PORT if harness_port is None else harness_port
+    if hp:
+        return "a private port (%s) - a harness console, never a fleet row" % hp
     return ""
 
 
@@ -46738,6 +46751,7 @@ def main():
     except Exception as _cp_e:
         print("⚠ the console path could not be marked (%s) - plans are computed fresh, every call"
               % type(_cp_e).__name__, flush=True)
+    _mark_harness_port()   # REG-2009 - a console serving a private port never beacons into his fleet
     # ⚠⚠ #224 — before this image SPAWNS anything: the children present now were inherited from the image
     # os.execv replaced, and only this image can ever wait() them. Reaped BY PID — a blanket waitpid(-1) would
     # steal the exit status of our own Popen children. (status_payload() below spawns git.)

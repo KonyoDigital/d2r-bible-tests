@@ -1718,7 +1718,12 @@ class TestV875Beacon(unittest.TestCase):
         # is not one of Konyo's machines and had been showing up in his fleet), so this test has to
         # say which side of that it is testing. It passed on the Mac and ERRORed on the runner purely
         # because CI=true is set there — the same local-vs-CI blindness as REG-082, inverted.
-        _saved_env = {k: os.environ.pop(k, None) for k in ("CI", "GITHUB_ACTIONS", "TVD_NO_BEACON")}
+        _saved_env = {k: os.environ.pop(k, None) for k in ("CI", "GITHUB_ACTIONS", "TVD_NO_BEACON", "TVD_BEACON_ANY_PORT")}
+        # REG-2009 - a console main() booted on a private port is marked a harness and stays silent; this process only
+        # imports the module, so it is not marked - and the private side is checked below by marking it.
+        _harness_keep = ca._HARNESS_PORT
+        ca._HARNESS_PORT = None
+        self.addCleanup(setattr, ca, "_HARNESS_PORT", _harness_keep)
         # v1874 — AND OWN THE FILE IT WRITES. Stubbing urlopen stops the network half; the beacon
         # ALSO persists to _BEACON_STATE_PATH ("otherwise 'it has never ONCE succeeded' is
         # unanswerable after a reboot"), which is his real tv/.tvd_beacon.json. Measured with his
@@ -1747,6 +1752,10 @@ class TestV875Beacon(unittest.TestCase):
             os.environ["CI"] = "true"
             ca._console_beacon("boot")
             self.assertEqual(sent, {}, "a CI runner must never check in to Konyo's fleet")
+            os.environ.pop("CI", None)
+            ca._HARNESS_PORT = 17991
+            ca._console_beacon("boot")
+            self.assertEqual(sent, {}, "a harness console on a private port checked in to his fleet (REG-2009)")
         finally:
             _ur.urlopen = old
             os.environ.pop("CI", None)

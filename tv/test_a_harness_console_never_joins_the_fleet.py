@@ -39,17 +39,27 @@ CLEAN = {}                                    # an environment with none of the 
 
 class AHarnessConsoleNeverJoinsTheFleet(unittest.TestCase):
 
-    def test_the_live_port_reports_and_a_private_port_does_not(self):
-        self.assertEqual(CA._beacon_suppressed_by(CLEAN, 17772), "", "the live console stopped reporting to the fleet")
+    def _mark(self, port, env):
+        keep = CA._HARNESS_PORT
+        self.addCleanup(setattr, CA, "_HARNESS_PORT", keep)
+        with mock.patch.object(CA, "CONTROL_PORT", port):
+            return CA._mark_harness_port(env)
+
+    def test_main_marks_a_private_port_and_never_the_live_one(self):
+        self.assertEqual(self._mark(17991, CLEAN), 17991, "a console booted on a private port was not marked a harness")
+        self.assertIsNone(self._mark(17772, CLEAN), "the live console was marked a harness - it would leave his fleet")
+
+    def test_a_marked_console_is_silent_and_an_unmarked_one_reports(self):
+        self.assertEqual(CA._beacon_suppressed_by(CLEAN, 0) or "", "", "an unmarked process stopped reporting")
         why = CA._beacon_suppressed_by(CLEAN, 17991)
         self.assertIn("private port (17991)", why, "a harness console on a private port reports as a fleet row (REG-2009)")
 
     def test_a_deliberate_override_lets_a_private_port_through(self):
-        self.assertEqual(CA._beacon_suppressed_by({"TVD_BEACON_ANY_PORT": "1"}, 17991), "")
+        self.assertIsNone(self._mark(17991, {"TVD_BEACON_ANY_PORT": "1"}))
 
     def test_the_old_rules_still_win(self):
         for k in ("CI", "GITHUB_ACTIONS", "TVD_NO_BEACON"):
-            self.assertEqual(CA._beacon_suppressed_by({k: "1"}, 17772), k)
+            self.assertEqual(CA._beacon_suppressed_by({k: "1"}, 0), k)
 
     def _sends(self, fn):
         sent = []
@@ -60,7 +70,7 @@ class AHarnessConsoleNeverJoinsTheFleet(unittest.TestCase):
 
         env = {k: v for k, v in os.environ.items() if k not in ("CI", "GITHUB_ACTIONS", "TVD_NO_BEACON")}
         with mock.patch.dict(os.environ, env, clear=True), \
-                mock.patch.object(CA, "CONTROL_PORT", 17991), \
+                mock.patch.object(CA, "_HARNESS_PORT", 17991), \
                 mock.patch("urllib.request.urlopen", _urlopen), \
                 mock.patch.object(CA, "_beacon_state_save", lambda *a, **k: None), \
                 mock.patch.dict(CA._FLEET_LAST_BODY, {"body": {"machine": "law", "ver": "v0"}}):
@@ -74,23 +84,32 @@ class AHarnessConsoleNeverJoinsTheFleet(unittest.TestCase):
         sent, _l = self._sends(CA._console_beacon_presence)
         self.assertEqual(sent, [], "the presence beacon left a private-port console (REG-2009)")
 
-    def test_both_senders_ask_the_one_rule(self):
+    def test_both_senders_ask_the_one_rule_and_main_marks_the_port(self):
         with io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
             code = "\n".join(l.split("#", 1)[0] for l in fh.read().split("\n"))
         self.assertEqual(code.count("    supp = _beacon_suppressed_by()\n"), 2,
                          "a sender keeps its own copy of the suppression rule again")
+        i = code.find("\ndef main():\n")
+        self.assertGreater(i, 0)
+        body = code[i:code.find("\ndef ", i + 10)]
+        self.assertEqual(body.count("    _mark_harness_port()"), 1, "main() no longer marks a private-port console")
 
 
 RED_PROOF = [
-    {"why": "REG-2009 - a private-port harness console reports to the live fleet again",
+    {"why": "REG-2009 - a marked harness console reports to the live fleet again",
      "file": "tv/control_app.py",
-     "find": '    if p != LIVE_CONTROL_PORT and not env.get("TVD_BEACON_ANY_PORT"):\n',
-     "replace": "    if False:\n",
+     "find": "    if hp:\n        return \"a private port (%s) - a harness console, never a fleet row\" % hp\n",
+     "replace": "    if False:\n        return \"\"\n",
      "matches": 1},
-    {"why": "REG-2009 - the deliberate override is ignored, so no private console can ever report",
+    {"why": "REG-2009 - main() never marks a private-port console, so every booted harness beacons",
      "file": "tv/control_app.py",
-     "find": '    if p != LIVE_CONTROL_PORT and not env.get("TVD_BEACON_ANY_PORT"):\n',
-     "replace": "    if p != LIVE_CONTROL_PORT:\n",
+     "find": "    _mark_harness_port()   # REG-2009 - a console serving a private port never beacons into his fleet\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "REG-2009 - the deliberate override is ignored, so no private console can ever report on purpose",
+     "file": "tv/control_app.py",
+     "find": '    _HARNESS_PORT = (CONTROL_PORT if (CONTROL_PORT != LIVE_CONTROL_PORT and not env.get("TVD_BEACON_ANY_PORT"))\n',
+     "replace": '    _HARNESS_PORT = (CONTROL_PORT if (CONTROL_PORT != LIVE_CONTROL_PORT)\n',
      "matches": 1},
     {"why": "REG-2009 - the presence sender skips the rule and reports from a private port",
      "file": "tv/control_app.py",
