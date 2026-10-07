@@ -1690,6 +1690,16 @@
     "purpose": "The relaunch INTERLOCK (his #38 ruling): hold a relaunch while a sweep is reading, then GREEN-LIGHT it by itself when the work finishes, so a sweep is never killed mid-read and the request is never silently dropped.",
     "territory": "console"
   },
+  "render_bound.py": {
+    "entryPoints": [
+      "scale",
+      "from_env",
+      "main"
+    ],
+    "gotcha": "Not a higher fixed ceiling - that is an absent hang detector on every quiet push. A hand run of render_check reads no factor and keeps 317 / 333; the hook's literal 353 stays the measured base so the laws that read it are unchanged.",
+    "purpose": "REG-1993 - the factor the render gate's three coupled numbers grow by under load: the hook's kill, render_check._CLEAN_RUN_COST and _RUN_REPORT_BY. load / 5 (the daytime load they were measured at), never below 1, capped at 2.5; the hook measures it when the render starts and hands it down as GATE_SCALE / TV_RENDER_SCALE.",
+    "territory": "render-pixels"
+  },
   "render_check.py": {
     "entryPoints": [
       "check",
