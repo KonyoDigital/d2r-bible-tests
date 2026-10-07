@@ -8866,6 +8866,13 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_a_proof_short_of_memory_frees_an_idle_view", [sys.executable,
+         os.path.join(HERE, "test_a_proof_short_of_memory_frees_an_idle_view.py")], 30,
+         needs_app=False,
+         why=("REG-1957 - his ALT never proved itself: 653 MB free with the console window up, a proof needs ~1.1 GB. "
+              "When memory is the ONE refusal, he is not playing and the PC is idle 30 min (or the window is hidden), "
+              "the console frees its own view the way Quit does; every lane keeps running."
+              )),
     Gate("test_a_behind_count_says_whether_it_can_catch_up", [sys.executable,
          os.path.join(HERE, "test_a_behind_count_says_whether_it_can_catch_up.py")], 60,
          needs_app=False,

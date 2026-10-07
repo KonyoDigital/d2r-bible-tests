@@ -19400,6 +19400,83 @@ _SELF_PROVE = {"on": None, "worked": None, "lastTs": None, "owed": None, "key": 
                "say": "the self-prove lane has not ticked yet since this console started"}
 
 
+#: REG-1957 — how long this PC must have had NO keyboard or mouse input before the console frees its own view so an
+#: owed proof can run. His ALT (7.9 GB) measured 653 MB free with nothing playing and the console window up
+#: (WebView2 ~2 GB, the console ~1.6 GB), while a proof needs ~1.1 GB on top of a 700 MB floor (REG-1715) - so its
+#: census stayed stale, frame.release stayed LOCKED and 446 reels piled up. His word, 2026-10-07: "no RAM ruling -
+#: make it and fix it". The view is what ⏻ Quit already frees (_quit_window_keeps_service): every lane keeps
+#: running and the Desktop icon brings the window back.
+VIEW_RELEASE_IDLE_S = 30 * 60
+
+
+def _os_input_idle_s():
+    """Seconds since anyone touched this PC's keyboard or mouse. -> float | None (None = cannot be read: do nothing)."""
+    try:
+        if IS_WIN:
+            import ctypes as _ct
+
+            class _LII(_ct.Structure):
+                _fields_ = [("cbSize", _ct.c_uint), ("dwTime", _ct.c_uint)]
+            lii = _LII()
+            lii.cbSize = _ct.sizeof(lii)
+            if not _ct.windll.user32.GetLastInputInfo(_ct.byref(lii)):
+                return None
+            return ((_ct.windll.kernel32.GetTickCount() - lii.dwTime) & 0xFFFFFFFF) / 1000.0
+        if sys.platform == "darwin":
+            out = subprocess.run(["ioreg", "-c", "IOHIDSystem", "-d", "4"], capture_output=True, text=True,
+                                 timeout=3).stdout
+            for ln in out.splitlines():
+                if "HIDIdleTime" in ln:
+                    return int(ln.rsplit("=", 1)[1].strip()) / 1e9
+        return None
+    except Exception:
+        return None
+
+
+def view_release_for_proof(key, playing, mode, idle_s, idle_bar_s=None):
+    """REG-1957 — may this console free its own view so an owed proof can start? -> (bool, why). Pure.
+
+    Only when memory is the ONE thing refusing the proof, he is MEASURED not playing, there is a view to free, and
+    either he already sent the window away (hidden - its view still holds the memory) or nobody has touched this PC
+    for VIEW_RELEASE_IDLE_S. An idle time that cannot be read frees nothing."""
+    bar = VIEW_RELEASE_IDLE_S if idle_bar_s is None else idle_bar_s
+    if key != "low-memory":
+        return False, "memory is not what holds the proof back"
+    if playing is not False:
+        return False, ("he is playing here" if playing else "whether he is playing could not be asked")
+    if mode == "background":
+        return True, "the window was already sent away; its view is freed so the owed proof has the memory"
+    if mode not in ("front", "fullscreen"):
+        return False, "there is no window view to free (%s)" % (mode or "unknown")
+    try:
+        idle = None if idle_s is None else float(idle_s)
+    except (TypeError, ValueError):
+        idle = None
+    if idle is None or idle != idle or idle < 0:
+        return False, "how long this PC has been idle could not be read, so the window stays"
+    if idle < bar:
+        return False, "this PC was used %d min ago, so the window stays" % int(idle // 60)
+    return True, ("nobody has touched this PC for %d min; its window view is freed so the owed proof has the memory "
+                  "(every lane keeps running - the Desktop icon brings the window back)" % int(idle // 60))
+
+
+def _self_prove_free_view(r):
+    """REG-1957 — act on view_release_for_proof after a memory-refused tick. -> r, with what was decided. Never raises."""
+    try:
+        if not isinstance(r, dict) or r.get("key") != "low-memory":
+            return r
+        mode = (window_mode_payload() or {}).get("mode")
+        ok, why = view_release_for_proof(r.get("key"), _sp_playing_here(), mode, _os_input_idle_s())
+        r = dict(r, viewRelease=why)
+        if ok:
+            q = _quit_window_keeps_service("a proof is owed and memory is short")
+            r = dict(r, viewFreed=bool((q or {}).get("windowDestroyed")),
+                     say="%s - %s" % (r.get("say") or r.get("why") or "low memory", why))
+        return r
+    except Exception as e:
+        return dict(r, viewRelease="the view-release check raised %s" % type(e).__name__) if isinstance(r, dict) else r
+
+
 def _self_prove_tick():
     """#50 (REG-1447) — one pass of `self_prove.tick`. Never raises; the rescue loop must keep going.
 
@@ -19411,6 +19488,7 @@ def _self_prove_tick():
         import self_prove as _sp
         r = _sp.tick(busy=_cpu_busy_pct, playing=_sp_playing_here)     # REG-1666 - the game on his screen
         r = dict(r, gameOnScreen=shadow_game_detail())
+        r = _self_prove_free_view(r)     # REG-1957 - memory is the only block: free the view of an idle PC
     except Exception as e:
         r = {"on": None, "worked": None, "lastTs": None, "owed": None, "key": "raised",
              "say": "the self-prove tick raised %s" % type(e).__name__}
