@@ -27,6 +27,8 @@ try:
 except Exception:
     pass
 
+import fixture_tmp as _fx_tmp  # noqa: E402
+_fx_tmp.contain()
 _T = tempfile.mkdtemp(prefix="canary_law_")
 os.environ.setdefault("TV_GATE_CACHE", os.path.join(_T, "gate_cache.json"))
 import control_app as CA  # noqa: E402
@@ -44,9 +46,18 @@ class APcWithNoPanelOfItsOwnStillProvesItsLane(unittest.TestCase):
         self.assertEqual(os.path.basename(got), "f_1784984191754.jpg")
 
     def test_the_shipped_canary_proves_the_lane_live(self):
+        """Drives the REAL OCR worker. A host whose worker cannot read at all (a Linux runner: bin/ocr_mac is a Mach-O
+        binary and exec fails) has no lane to prove, so the case is UNMEASURED there and says why - never a red about a
+        frame nobody read. A worker that DOES read and still does not see the panel stays red."""
+        import tv_diablo as TVD
         with mock.patch.object(CA, "_gate_cache", lambda: {}):
             cn = CA.LaneCanary()
-            self.assertTrue(cn.probe(cn.known_good_frame()),
+            frame = cn.known_good_frame()
+            raw = TVD._OCR.read(frame, timeout=20)
+            if not raw or str(raw.get("mode") or "") == "err":
+                self.skipTest("UNMEASURED - this host's OCR worker cannot read a frame (%s), so no lane exists to prove"
+                              % ("no worker command" if not TVD._ocr_worker_cmd() else "the worker did not answer"))
+            self.assertTrue(cn.probe(frame),
                             "the shipped canary did not prove a live lane - the ALT's reels stay UNKNOWN for ever")
 
     def test_a_tampered_copy_is_never_the_canary(self):

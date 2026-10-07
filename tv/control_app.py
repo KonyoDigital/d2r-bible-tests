@@ -19426,7 +19426,7 @@ def _os_input_idle_s():
             return ((_ct.windll.kernel32.GetTickCount() - lii.dwTime) & 0xFFFFFFFF) / 1000.0
         if sys.platform == "darwin":
             out = subprocess.run(["ioreg", "-c", "IOHIDSystem", "-d", "4"], capture_output=True, text=True,
-                                 timeout=3).stdout
+                                 encoding="utf-8", errors="replace", timeout=3).stdout
             for ln in out.splitlines():
                 if "HIDIdleTime" in ln:
                     return int(ln.rsplit("=", 1)[1].strip()) / 1e9

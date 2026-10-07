@@ -180,6 +180,18 @@ class TheHookAsksIt(unittest.TestCase):
 class RoutineIOnRealHistory(unittest.TestCase):
     """The two commits the workflow has to get right, on this repo, not a hand-built diff."""
 
+    PINNED = ("debc96a5", "f5919534", "a8246cdf", "a8246cdf^")
+
+    @classmethod
+    def setUpClass(cls):
+        # A checkout that does not hold these commits cannot grade them: the decision fails closed ("could not read")
+        # and the page-change case would pass for THAT reason. The agent-tests runner keeps 200 commits and these sit
+        # deeper every day, so there the class is UNMEASURED and says so; RoutineIFailsClosed grades the logic anywhere.
+        miss = [c for c in cls.PINNED if subprocess.run(["git", "-C", REPO, "cat-file", "-e", c + "^{commit}"],
+                                                         capture_output=True).returncode != 0]
+        if miss:
+            raise unittest.SkipTest("UNMEASURED - this checkout does not hold %s (a shallow clone)" % ", ".join(miss))
+
     def test_a_stamp_only_push_skips(self):
         # debc96a5..f5919534 is the v3575 stamp. bible.html moved one line; nothing under tests/ did.
         run, why = P.routine_i_decision("push", "debc96a5", "f5919534", repo=REPO)
