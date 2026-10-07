@@ -41269,8 +41269,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         .map(function(k){ lane = lane || String(k.loc).toLowerCase(); return { session: k.id, frame: k.frame, conf: k.conf }; })
         .concat(extra.map(function(e){ return { session: e.session || e.witness || e.id, frame: e.frame, conf: e.conf }; }))
         .forEach(function(e){
+          /* a frameless or unsure look is passed through, never dropped here: _vaultWitnessCheck is the ONE judge of what a
+             look is worth (a second copy of that rule here masked its own red-proof - test_the_witnessed_lane, Magefist) */
           var key = String(e.session || '') + '|' + String(e.frame || '');
-          if (!e.session || !e.frame || seen[key]) return;
+          if (!e.session || seen[key]) return;
           seen[key] = 1; out.push(e);
         });
     if (!out.length) return null;

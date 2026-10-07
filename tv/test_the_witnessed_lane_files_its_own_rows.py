@@ -204,9 +204,10 @@ RED_PROOF = [
         "matches": 1,
     },
     {
+        # re-anchored 2026-10-08 (REG-2022, his #267 ruling) - the rule is unchanged: a frameless or unsure look never counts
         "why": "#246 W3 - the board's door counts a frameless, unsure look as a witness again (Magefist files)",
         "file": "bible.html",
-        "find": "      if (!id || !fr || c == null || c < VAULT_WITNESS_FLOOR){ dropped++; return; }\n",
+        "find": "      if (!id || !fr || (c == null && _anyConf) || (c != null && c < VAULT_WITNESS_FLOOR)){ dropped++; return; }\n",
         "replace": "      if (!id){ dropped++; return; }\n",
         "matches": 1,
     },

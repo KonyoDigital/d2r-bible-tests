@@ -355,9 +355,11 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "#246 W3 - the board's door counts a look with no frame and no confidence as a witness again",
+        # re-anchored 2026-10-08 (REG-2022, his #267 ruling: a look with no confidence counts when the reader gives none) - the
+        # rule this proves is unchanged: a look with no FRAME, or under the floor, is never a witness
+        "why": "#246 W3 - the board's door counts a look with no frame, or an unsure look, as a witness again",
         "file": "bible.html",
-        "find": "      if (!id || !fr || c == null || c < VAULT_WITNESS_FLOOR){ dropped++; return; }\n",
+        "find": "      if (!id || !fr || (c == null && _anyConf) || (c != null && c < VAULT_WITNESS_FLOOR)){ dropped++; return; }\n",
         "replace": "      if (!id){ dropped++; return; }\n",
         "matches": 1,
     },
