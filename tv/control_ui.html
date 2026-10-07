@@ -25711,7 +25711,10 @@ function escC(s) {
       }
       out.push(_fleetPart('stuck', sk.map(function (e) {
                    var a = _fleetAgeNow(e.oldestS, m, nowMs);
-                   return e.station + ' ' + (typeof e.n === 'number' ? e.n : '?') + ' for '
+                   /* #251 - one station can hold reels inside the newest-N window AND past it, and both rows printed
+                      'STATION 9 for 5d · STATION 4 for 2d' with nothing saying which was which. */
+                   return e.station + ' ' + (typeof e.n === 'number' ? e.n : '?')
+                        + ((e && e.window === false) ? ' older' : '') + ' for '
                         + _fleetAgeTxt(a).replace(/[\s ]ago$/, '');
                  }), { warn: true, why: whyBits.join('  |  ') }));
     }
@@ -26521,14 +26524,14 @@ function escC(s) {
         if (!lg) return '';
         if (lg.behind == null) {
           return '<span class="fleet-lag unk" title="' + escC(String(lg.why || 'not established'))
-               + '">\u00b7 lag unknown</span>';
+               + '"> \u00b7 lag unknown</span>';   /* #255 - the version word before it has no trailing space */
         }
         if (!lg.behind) return '';
         return '<span class="fleet-lag" title="this console runs ' + escC(String(m.ver || '?'))
              + ' and origin publishes ' + escC(String(lg.of || '?'))
              + '. Counted here from what origin publishes, not from what that machine last said '
              + 'about itself — its own report is as old as its last beacon.">'
-             + '\u00b7 ' + lg.behind + ' behind</span>';
+             + ' \u00b7 ' + lg.behind + ' behind</span>';   /* #255 - 'v3577 · 27 behind', never 'v3577· 27' */
       };
       /* ── v2766 — A DARK EYE AND AN ABSENT ONE STOPPED LOOKING IDENTICAL ────────────────
          This rendered the glyph ONLY when `m.eye.live`, so three different machines drew the

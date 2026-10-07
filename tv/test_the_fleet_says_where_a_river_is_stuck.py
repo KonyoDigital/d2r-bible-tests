@@ -597,7 +597,7 @@ class TheCardSaysIt(unittest.TestCase):
         why = "older than the newest 16, still at ROUTED, so the drain owes them a tombstone"
         out = self._run({"stuck": [{"station": "ROUTED", "n": 4, "oldestS": 90 * H,
                                     "why": why, "window": False}], "stuckKeep": 16})
-        self.assertIn("ROUTED 4 for", out["p"]["stuck"]["t"])
+        self.assertIn("ROUTED 4 older for", out["p"]["stuck"]["t"])     # REG-2007 - the chip says it is past the window
         self.assertIn(why, out["p"]["stuck"]["why"])
         self.assertNotIn("among the newest", out["p"]["stuck"]["why"])
         self.assertTrue(out["p"]["stuck"]["warn"])

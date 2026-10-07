@@ -58,6 +58,7 @@ def _fixture():
     alt["pull"] = {"can": False, "behind": 5, "why": "a local edit blocks the pull"}
     wife = fx["offline"][0]
     wife["pull"] = {"can": None, "behind": 9, "why": "git could not be asked"}
+    wife["lag"] = {"behind": 27, "of": "v3604"}                # #255 - the lag word beside the version
     return fx
 
 
@@ -83,7 +84,23 @@ class ABehindCountSaysWhetherItCanCatchUp(unittest.TestCase):
                       "an offline row printed its behind count with no word on whether it can pull (REG-1952)")
 
 
+    def test_the_lag_word_keeps_its_space_after_the_version(self):
+        """#255 - GrokBot ticks 400/401 read Dean's row as 'v3577\u00b7 27 behind': every caller glues the version
+        word straight onto the lag span, so the span carries the space."""
+        row = self.rows["box-c"]
+        i = row.find("\u00b7 27 behind")
+        self.assertGreater(i, 0, "premise: the offline row painted no lag word, so this case judges nothing")
+        self.assertEqual(row[i - 1], " ", "the lag word glued onto the version: %r (#255)" % row[i - 12:i + 12])
+
+
 RED_PROOF = [
+    {
+        "why": "#255 - the lag word loses its leading space and glues onto the version word",
+        "file": "tv/control_ui.html",
+        "find": "             + ' \\u00b7 ' + lg.behind + ' behind</span>';",
+        "replace": "             + '\\u00b7 ' + lg.behind + ' behind</span>';",
+        "matches": 1,
+    },
     {
         "why": "REG-1952 - the rows that were not heard print their behind count bare again",
         "file": "tv/control_ui.html",

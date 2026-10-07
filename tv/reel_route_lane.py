@@ -132,11 +132,12 @@ def spent_past_window(reels, spent, pinned, shield=None):
     if spent is None or pinned is None or not callable(shield):
         return set()
     try:
-        shield = set(shield(list(reels)))
+        shield = set(str(x) for x in shield([str(r) for r in reels]))
     except Exception:
         return set()
     pin = set(str(x) for x in pinned)
-    return set(str(r) for r in reels if r in spent and r not in shield and str(r) not in pin)
+    spent = set(str(x) for x in spent)     # the #231 eye on v3606: one key type on every side of every test
+    return set(str(r) for r in reels if str(r) in spent and str(r) not in shield and str(r) not in pin)
 
 
 def _why_for(station, reel_why, ruled=None):

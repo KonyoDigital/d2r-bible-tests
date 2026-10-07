@@ -308,6 +308,17 @@ class TheFleetRowSaysHowItFilmsAndDrains(unittest.TestCase):
         self.assertEqual(out["s"], "age UNKNOWN", "_fleetSince reads an unparseable time as %r" % out["s"])
         self.assertEqual(out["v"], "2h ago", "PREMISE: _fleetSince stopped reading a real time")
 
+    def test_r3_one_station_inside_and_past_the_window_reads_as_two_rows(self):
+        """#251 - GrokBot tick 400: 'STATION 7 for 2d · STATION 4 for 2d' with one reason twice; one station held reels
+        inside the newest 16 AND past it, and nothing on the chip said which row was which."""
+        H = 3600.0
+        p = _parts(_row(60, river={"lanes": {"STATION": 13}, "stuckKeep": 16, "stuck": [
+            {"station": "STATION", "n": 9, "oldestS": 120 * H, "window": False, "why": "older than the newest 16 - x"},
+            {"station": "STATION", "n": 4, "oldestS": 40 * H, "why": "x"}],
+            "heart": {"census": "current", "key": "current", "blind": 0}}))
+        self.assertEqual(p["stuck"]["t"], "STATION 9 older for 5d · STATION 4 for 2d",
+                         "the past-window row is not told apart from the one inside the newest 16 (#251)")
+
     def test_r2_each_fact_is_its_own_item_with_no_glyph_between_them(self):
         """REG-1377 (round 2): the line's facts are separate items, so no middot sits between two of them for a wrap to
         strand - in every part and in the formerly line. The joined text a reader gets (`t`) is unchanged."""
@@ -608,6 +619,11 @@ class TheShippedCardDrawsIt(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "#251 - a station's past-window row reads exactly like its row inside the newest 16 again",
+     "file": "tv/control_ui.html",
+     "find": "                        + ((e && e.window === false) ? ' older' : '') + ' for '\n",
+     "replace": "                        + ' for '\n",
+     "matches": 1},
     {
         "why": "2026-09-29 (REG-1462) - the compare footer's age separator is breakable again, and at 375 its second line starts with a lone middot (Grok's cold look)",
         "file": "tv/control_ui.html",
