@@ -376,8 +376,8 @@ RED_PROOF = [
     {
         "why": "#246 W1 - the TV registrar files with no witness again (the v2193 door that filed 112 Chronicle names)",
         "file": "bible.html",
-        "find": "        _vf = witness ? window.vaultFile(name, witness, { mule: sg.id })\n",
-        "replace": "        _vf = window.vaultFile(name, witness || { by: 'hand', at: new Date().toISOString(), where: 'no witness' }, { mule: sg.id });\n        if (false) _vf = witness ? window.vaultFile(name, witness, { mule: sg.id })\n",
+        "find": "        _vf = witness ? window.vaultFile(name, _wG || witness, { mule: sg.id })\n",
+        "replace": "        _vf = window.vaultFile(name, witness || { by: 'hand', at: new Date().toISOString(), where: 'no witness' }, { mule: sg.id });\n        if (false) _vf = witness ? window.vaultFile(name, _wG || witness, { mule: sg.id })\n",
         "matches": 1,
     },
     {

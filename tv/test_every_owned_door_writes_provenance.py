@@ -95,7 +95,10 @@ SORT_TO = "    /* the throw-out ADVICE is still computed for the dock"
 W6_FROM = "    var _pvW6 = _provAll();\n"
 W6_TO = "    // v360 — shared-stash items"
 WIT_FROM = "  function _provAsWitness(row){\n"
-WIT_TO = "  window._vaultProvAsWitness = _provAsWitness;\n"
+#: 2026-10-08 (REG-2022, his #267 ruling) - the cut runs to the end of the receipt's stash gatherer, which the sorter now asks,
+#: and the stash-place constant it reads is cut from the page too (never re-typed here)
+WIT_TO = "  window._vaultReceiptStashWitness = _receiptStashWitness;\n"
+WIT_STASH_LINE = "  var _WIT_STASH = { stash: 1, mule: 1, locker: 1, tomb: 1, tombs: 1 };\n"
 
 #: the ONLY bare `owned.add(` allowed outside the door, each with its reason
 NAMED = {
@@ -327,6 +330,9 @@ function sorter(P, A){
   function _log(){ LOGS.push(Array.prototype.slice.call(arguments)); }
   window.vaultFile = function(name, w, o){ calls.push({ name: name, witness: w, opts: o }); return { ok: false, refused: 'witness', why: 'stub' }; };
   window._vaultProvSay = function(){ return ''; };
+  function suggestMule(){ return { id: 'uni-armor' }; }          /* the router is not under test here */
+  window._vaultLastSeenOnMain = function(){ return null; };
+%(witstash)s
 %(wit)s
 %(sort)s
   return calls;
@@ -537,8 +543,12 @@ STORE['d2r_vaultRemoved'] = '[broken';
 OUT.removalsUnread = { b: window._ownedProvBackfill(), prov: prov() };
 // ── a receipt is never a witness ──
 OUT.sorter = sorter({ 'Receipt Only': { kind: 'owned', source: 'hand', at: '2026-09-28T00:00:00Z', where: 'the card' },
-                      'Lost Home': { mule: 'uni-armor', source: 'hand', by: 'hand', at: '2026-09-01T00:00:00Z', where: 'the mule window' } }, {})
-                 .map(function(c){ return { name: c.name, witnessed: !!c.witness }; });
+                      'Lost Home': { mule: 'uni-armor', source: 'hand', by: 'hand', at: '2026-09-01T00:00:00Z', where: 'the mule window' },
+                      /* his #267 ruling: a receipt's stash looks from two sessions ARE a witness - gathered, never the receipt itself */
+                      'Two Stash Looks': { kind: 'owned', source: 'kai-register', looks: [
+                          { id: 's_1', frame: 'f_1', conf: null, at: '2026-10-07T08:00:00Z', loc: 'stash' },
+                          { id: 's_2', frame: 'f_2', conf: null, at: '2026-10-07T09:00:00Z', loc: 'stash' }] } }, {})
+                 .map(function(c){ return { name: c.name, witnessed: !!c.witness, gathered: (c.witness && c.witness.gathered) || null }; });
 OUT.w6 = w6({ 'Receipt Only': { kind: 'owned', source: 'hand' }, 'Stash Witness': { mule: 'uni-armor', source: 'stash' } },
             { 'Receipt Only': 'uni-armor', 'Stash Witness': 'uni-armor' }, []);
 """
@@ -715,7 +725,8 @@ def _register_items():
 
 def _drive():
     s = _src()
-    sort_src = SORTER % {"wit": _between(s, WIT_FROM, WIT_TO), "sort": _between(s, SORT_FROM, SORT_TO),
+    assert s.count(WIT_STASH_LINE) == 1, "the stash-place constant moved"
+    sort_src = SORTER % {"witstash": WIT_STASH_LINE, "wit": _between(s, WIT_FROM, WIT_TO), "sort": _between(s, SORT_FROM, SORT_TO),
                          "w6": _between(s, W6_FROM, W6_TO)}
     reg, items = _register_items()
     script = ("var REGISTER_ITEMS = %s;\n" % json.dumps(items)) + sort_src + SCRIPT % {"log": json.dumps(LOG)}
@@ -1270,8 +1281,11 @@ class AReceiptIsNeverAWitness(unittest.TestCase):
 
     def test_the_sorter_files_nothing_on_a_receipt(self):
         calls = out()["sorter"]
-        self.assertEqual(["Lost Home"], [c["name"] for c in calls], "the sorter handed a receipt to the mule door")
+        self.assertEqual(["Lost Home", "Two Stash Looks"], [c["name"] for c in calls],
+                         "the sorter handed a bare receipt to the mule door, or did not hand the gathered one")
         self.assertTrue(calls[0]["witnessed"])
+        self.assertEqual("receipt", calls[1]["gathered"], "the two-session receipt reached the door on something other than "
+                                                          "its gathered stash looks: %r" % calls[1])
 
     def test_the_prune_keeps_no_filing_on_a_receipt(self):
         a = out()["w6"]
@@ -1418,8 +1432,8 @@ RED_PROOF = [
     {
         "why": "the sorter hands an owned receipt to the mule door as a witness",
         "file": "bible.html",
-        "find": "      if (_row.kind === 'owned') return;          /* 2026-09-28 — an owned RECEIPT is not a witness: it files nothing */\n",
-        "replace": "",
+        "find": "        if (!_wR) return;\n",
+        "replace": "        _wR = _wR || _provAsWitness(_row) || { lane: 'receipt', sessions: [] };\n",
         "matches": 1,
     },
     {
