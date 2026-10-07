@@ -38619,6 +38619,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
     } catch(e){}
     if (KEEP_IN_INVENTORY.test(String(name||'').trim())) return {id:'__keep', why:'keep in your inventory — only works on the character you are actively playing'};
+    /* #211 — STANDING KIT RIDES ON HIS CHARACTER. MEASURED: suggestMule('Horadric Cube') -> uni-weap, and GrokBot saw "Tome of
+       Identify ⚠ filed in UNI-WEAPONS". The board's ONE furniture list (the §29 law, _FURNITURE_WORDS / _FURNITURE_WHOLE,
+       pinned to inventory_law) already names them; asked here on the EXACT name only - the list's bare 'tome' word would
+       also match a real off-hand, so it is left to the lock that already uses it. */
+    try {
+      var _kitF = String(name || '').replace(/[‘’ʼ`]/g, "'").toLowerCase().replace(/\s+/g, ' ').trim();
+      var _kitL = (window._FURNITURE_WORDS || []).filter(function(w){ return w !== 'tome'; }).concat(window._FURNITURE_WHOLE || []);
+      if (_kitF && _kitL.indexOf(_kitF) >= 0)
+        return {id:'__keep', why:'standing kit — the Cube, your tomes, Wirt’s Leg and keys stay with your character, never a mule'};
+    } catch(eK){}
     /* #264 — war / swap gear goes to the SHARED stash every character can reach, ahead of the set, runeword and unique
        drawers (sets are not on the list, and KEEP_IN_INVENTORY above wins) */
     var _war = warGearRole(name);

@@ -8923,6 +8923,12 @@ GATES = [
          why=("REG-1959 - the ALT has no stash_gate_cache (it never filmed a stash panel), so its vault lane could never "
               "prove itself live and retired every reel un-extracted; a tracked stash frame, pinned by sha256, is the canary.")
          ),
+    Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
+         os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
+         needs_app=False,
+         why=("REG-2028 (#211) - the Horadric Cube and a Tome of Identify routed to UNI-WEAPONS; standing kit (the one "
+              "furniture list, exact names) stays with his character now.")
+         ),
     Gate("test_one_drift_gets_one_advice", [sys.executable,
          os.path.join(HERE, "test_one_drift_gets_one_advice.py")], 60,
          needs_app=False,
