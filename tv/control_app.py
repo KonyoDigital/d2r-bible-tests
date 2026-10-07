@@ -16125,6 +16125,12 @@ def _eyes_pulse():
         for r in (rows or [])[-400:]:
             ln = r.get("lane")
             if ln == "deep":
+                # REG-1935 — a read that FAILED is not the eye reading. Dean's card said "the reader ·
+                # reading now" on the row that also said "Claude signed out": every attempt there
+                # journals a readFailed row, and this counted each one as a live read. The same rule
+                # the readers lamp classifies a failure by (readFailed, or a read that came back empty).
+                if r.get("readFailed") or r.get("mode") == "empty":
+                    continue
                 out["liveTs"] = max(out["liveTs"], int(r.get("completedTs") or r.get("ts") or 0))
             elif ln == "verify":
                 out["verifyTs"] = max(out["verifyTs"], int(r.get("completedTs") or r.get("ts") or 0))

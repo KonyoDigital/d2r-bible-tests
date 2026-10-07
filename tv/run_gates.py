@@ -8851,6 +8851,12 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_a_failed_read_is_not_the_eye_reading", [sys.executable,
+         os.path.join(HERE, "test_a_failed_read_is_not_the_eye_reading.py")], 30,
+         needs_app=False,
+         why=("REG-1935 - _eyes_pulse counted every deep row, failures included, so a signed-out PC's fleet row said "
+              "'the reader . reading now' beside 'Claude signed out'; a failed or empty read no longer moves the eye.")
+         ),
     Gate("test_a_theatre_flag_needs_a_stage", [sys.executable,
          os.path.join(HERE, "test_a_theatre_flag_needs_a_stage.py")], 60,
          needs_app=False,
