@@ -11,7 +11,7 @@ test.describe('v405 runeword mule + capacity overflow', () => {
     await page.waitForTimeout(1200);
   });
 
-  test('every runeword (weapon OR armor base) routes to {id:"runewords"}', async ({ page }) => {
+  test('every runeword that is not war gear (weapon OR armor base) routes to {id:"runewords"}; war runewords go to SHARED', async ({ page }) => {
     const r = await page.evaluate(() => {
       const w = window as any;
       // Enigma = body armor base, Spirit = sword/shield base, Insight = polearm — all must go to one mule
@@ -22,10 +22,12 @@ test.describe('v405 runeword mule + capacity overflow', () => {
         cta: w.suggestMule('Call to Arms'),
       };
     });
-    expect(r.enigma.id).toBe('runewords');
+    // #264 (REG-2019, his ruling 2026-10-07) — WAR / SWAP runewords (Enigma, Call to Arms ...) live in the SHARED stash every
+    // character reaches; every other runeword, weapon or armour base, still goes to the one RUNEWORDS mule
+    expect(r.enigma.id).toBe('shared');
     expect(r.spirit.id).toBe('runewords');
     expect(r.insight.id).toBe('runewords');
-    expect(r.cta.id).toBe('runewords');
+    expect(r.cta.id).toBe('shared');
   });
 
   test('a runeword stays in ownedPool (so its mule assignment is not pruned)', async ({ page }) => {

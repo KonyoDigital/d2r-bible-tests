@@ -8923,6 +8923,13 @@ GATES = [
          why=("REG-1959 - the ALT has no stash_gate_cache (it never filmed a stash panel), so its vault lane could never "
               "prove itself live and retired every reel un-extracted; a tracked stash frame, pinned by sha256, is the canary.")
          ),
+    Gate("test_two_sessions_in_his_stash_file_an_item", [sys.executable,
+         os.path.join(HERE, "test_two_sessions_in_his_stash_file_an_item.py")], 120,
+         needs_app=False,
+         why=("REG-2022 (#264/#267, his '2 sessions, no conf') - the live reader gives no confidence (400 of 400 rows), so "
+              "nothing ever filed itself; two distinct stash sessions file an item now, at intake and in the automatic "
+              "sorter, on that witness and never as his hand.")
+         ),
     Gate("test_the_vault_finder_names_the_mule_and_the_cell", [sys.executable,
          os.path.join(HERE, "test_the_vault_finder_names_the_mule_and_the_cell.py")], 120,
          needs_app=False,

@@ -38388,7 +38388,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      A mule is a character he has to log into; the shared stash is the one place EVERY character reaches. So the gear he
      swaps between characters for ubers or PvP goes there, and the rest goes to its mule. Before this, every runeword
      went to RUNEWORDS and every unique to UNI-*, so Enigma, Raven Frost and Dwarf Star were each one character switch away.
-     The list is the SEED, by role, each with why it is war gear - his eight names first. The high-trade-value rule below
+     The list is the SEED, by role, each with why it is war gear - his eight names first. (v3618: four armour picks of MINE -
+     Stormshield, Vampire Gaze, Andariel's Visage, Nightwing's Veil - came off: general gear, not swap gear, and the
+     standard UNI-ARMOR examples three specs route by.) The high-trade-value rule below
      (SoJ, Shako, Arachnid, Mara's...) already sends the other top keepers to the same stash. Sets stay with their set
      (never split a set), and Anni / Torch / Gheed's stay in his inventory (KEEP_IN_INVENTORY), both checked first.
      The shared stash lays them out by slot across its 5 tabs (_sharedStashPages). */
@@ -38417,11 +38419,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     'wisp projector': 'lightning absorb ring',
     "verdungo's hearty cord": 'damage reduction belt - ubers',
     'string of ears': 'damage reduction + leech belt',
-    "dracul's grasp": 'life tap gloves - ubers',
-    'stormshield': 'damage reduction shield - ubers',
-    'vampire gaze': 'damage reduction + leech helm',
-    "andariel's visage": 'leech + strength helm',
-    "nightwing's veil": 'cold mastery helm'
+    "dracul's grasp": 'life tap gloves - ubers'
   };
   function _warKey(n){ return String(n == null ? '' : n).toLowerCase().replace(/[‘’ʼ´`]/g, "'")
                                 .replace(/\s*\([^)]*\)\s*$/, '').trim(); }
@@ -40601,13 +40599,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var looks = w.sessions || w.witnesses || w.looks || [];
     if (!Array.isArray(looks)) looks = [];
     var keep = [], dropped = 0, best = null;
+    /* ══ HIS RULING 2026-10-07 (#264/#267, asked and answered) — A READER THAT GIVES NO CONFIDENCE IS NOT AN UNSURE ONE ══
+       MEASURED on a copy of his store: the live reader records NO confidence - 400 of 400 ledger rows and all 96 receipts
+       carry conf null - so "each look with its own conf >= the floor" could never pass, and nothing ever filed itself at
+       intake. His call: "2 sessions, no conf" - when NOT ONE look in the witness carries a confidence, a look counts on its
+       own frame and its own session, and the 2-distinct-session bar below still decides. When the reader does give
+       confidences, a look without one is still dropped and the floor still applies (an unsure read never files). */
+    var _anyConf = looks.some(function(e){ return e && typeof e === 'object' && _lookConf(e) != null; });
     looks.forEach(function(e){
       if (!e || typeof e !== 'object'){ dropped++; return; }
       var id = String(e.witness || e.session || e.reel || e.sid || e.id || '').trim();
       var c = _lookConf(e), fr = e.frame;
-      if (!id || !fr || c == null || c < VAULT_WITNESS_FLOOR){ dropped++; return; }
+      if (!id || !fr || (c == null && _anyConf) || (c != null && c < VAULT_WITNESS_FLOOR)){ dropped++; return; }
       keep.push({ id: id, frame: String(fr), conf: c, reel: String(e.reel || e.session || '') || null });
-      if (best == null || c > best) best = c;
+      if (c != null && (best == null || c > best)) best = c;
     });
     var ids = {};
     keep.forEach(function(k){ ids[k.id] = 1; });
@@ -41223,6 +41228,32 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
              gate: row.gate ? { pass: row.gate.pass, why: row.gate.why, wilson: row.wilson } : null };
   }
   window._vaultProvAsWitness = _provAsWitness;
+  /* ══ #264 / #267 (his "2 sessions, no conf", 2026-10-07) — A RECEIPT'S STASH LOOKS, GATHERED INTO ONE WITNESS ═════════
+     Each live read hands the register ONE look (its own session), so a second sighting in another session was judged
+     alone again and the 2-session bar could never be met at intake - the second reason nothing ever filed itself. The
+     receipt already keeps every look (LOOKS_CAP). This reads the looks that were IN A PLACE HE KEEPS THINGS (stash,
+     mule, locker - never his MAIN's equipment or inventory, never a Chronicle page, never an unplaced look) and adds
+     the read in hand, one entry per session+frame. The bar itself is still _vaultWitnessCheck's: 2 distinct sessions.
+     -> a stash witness {lane, by, sessions, gathered} or null when the receipt holds no stash look */
+  function _receiptStashWitness(nm, w){
+    var row = _provAll()[String(nm == null ? '' : nm).trim()];
+    var mine = (row && row.kind === 'owned' && Array.isArray(row.looks)) ? row.looks : [];
+    var extra = (w && typeof w === 'object' && _WIT_STASH[String(w.lane || w.loc || '').toLowerCase()])
+              ? (w.sessions || w.witnesses || w.looks || []) : [];
+    var seen = {}, out = [], lane = null;
+    mine.filter(function(k){ return k && _WIT_STASH[String(k.loc || '').toLowerCase()]; })
+        .map(function(k){ lane = lane || String(k.loc).toLowerCase(); return { session: k.id, frame: k.frame, conf: k.conf }; })
+        .concat(extra.map(function(e){ return { session: e.session || e.witness || e.id, frame: e.frame, conf: e.conf }; }))
+        .forEach(function(e){
+          var key = String(e.session || '') + '|' + String(e.frame || '');
+          if (!e.session || !e.frame || seen[key]) return;
+          seen[key] = 1; out.push(e);
+        });
+    if (!out.length) return null;
+    return { lane: lane || String((w && (w.lane || w.loc)) || 'stash').toLowerCase(),
+             by: String((w && w.by) || (row && row.source) || 'kai-register'), sessions: out, gathered: 'receipt' };
+  }
+  window._vaultReceiptStashWitness = _receiptStashWitness;
   /* THE TAG — what the mule window and every vault tile say about WHERE a filing came from. Read from
      d2r_vaultProv, in MP_SRC_SAY's words; a filing with no row says so, loudly, and never guesses. */
   window._vaultProvSay = function(name){
@@ -41729,7 +41760,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         _vf = { ok: false, refused: 'carried',
                 why: 'carried in ' + (_w0.character ? (_w0.character + '’s') : 'your') + ' inventory — yours (§31.2), not filed; it lands when next seen in a stash tab or on a mule, and leaves on a drop (vendor/trade reads are not supported yet)' };
       } else if (!muleId && sg && (sg.id === '__keep' || muleById(sg.id))){
-        _vf = witness ? window.vaultFile(name, witness, { mule: sg.id })
+        /* #264 / #267 — the read in hand AND the stash looks its receipt already holds, so a second session's sighting
+           can meet the 2-session bar (a stash read only; a MAIN or unplaced read is judged as it came) */
+        var _wG = null;
+        try { _wG = (witness && _WIT_STASH[String(witness.lane || witness.loc || '').toLowerCase()]) ? _receiptStashWitness(name, witness) : null; }
+        catch (eG) { _wG = null; }
+        _vf = witness ? window.vaultFile(name, _wG || witness, { mule: sg.id })
                       : { ok: false, refused: 'witness', why: 'no witness was handed over — registered, not filed' };
         if (_vf && _vf.ok) muleId = _vf.mule;
       } else if (!muleId){
@@ -43538,7 +43574,24 @@ window.vaultAutoAssign = function(){
     Object.keys(_pvS).sort().forEach(function(name){
       if (assign[name] != null) return;
       var _row = _pvS[name] || {};
-      if (_row.kind === 'owned') return;          /* 2026-09-28 — an owned RECEIPT is not a witness: it files nothing */
+      if (_row.kind === 'owned'){
+        /* 2026-09-28 — a RECEIPT is not itself a witness. #264 / #267 (his "2 sessions, no conf") — but the stash looks it
+           holds can be: 2 distinct sessions seeing it in a place he keeps things file it, on THAT witness (source: the lane,
+           never his hand). One look, or looks only on his MAIN or a Chronicle page, files nothing and waits. */
+        var _wR = null, _sgR = null;
+        try { _wR = _receiptStashWitness(name, null); } catch (eR) { _wR = null; }
+        if (!_wR) return;
+        /* never an automatic discard or keep-on-MAIN decision (those are his), and never what his MAIN wore or carried
+           AFTER the stash looks - the same two rules his Auto-Sort click keeps */
+        try { _sgR = suggestMule(name); } catch (eS) { _sgR = null; }
+        if (!_sgR || !_sgR.id || _sgR.id.charAt(0) === '_' || !muleById(_sgR.id)) return;
+        if (window._vaultLastSeenOnMain && window._vaultLastSeenOnMain(name)) return;
+        var _rR = window.vaultFile(name, _wR, { mule: _sgR.id });
+        if (_rR && _rR.ok && (_rR.mode === 'filed' || _rR.mode === 'confirmed')){
+          n++; _log(name, 'muled', { id: _rR.mule, why: 'filed on ' + _wR.sessions.length + ' stash looks across its sessions' });
+        }
+        return;
+      }
       if (_row.mule === '__throwout') return;
       var _home = (_row.mule && (_row.mule === '__keep' || muleById(_row.mule))) ? _row.mule : null;
       var _r = window.vaultFile(name, _provAsWitness(_row), _home ? { mule: _home } : {});

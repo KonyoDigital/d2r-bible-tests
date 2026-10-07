@@ -91,7 +91,9 @@ class TestTheVaultSaysItsOwnPopulation(unittest.TestCase):
     def test_the_carried_part_is_cut_from_the_same_pool(self):
         """§31.2 — the carried figure is a SUBSET of the pool, never a second count: only names the pool holds, and
         the loose dock excludes exactly those."""
-        pre = _between(self.code, "var _carried = null;", "var unsorted = pool.filter(", "the carried cut")
+        # #264 (REG-2021): the dock line became `var unsorted = _dockNames();` (one list every door asks), so the cut ends at
+        # the carried SET, the line that is still unique between the two
+        pre = _between(self.code, "var _carried = null;", "var _carSet = {}; _carried.forEach(function(c){ _carSet[c.name] = 1; });", "the carried cut")
         self.assertIn("pool.indexOf(c.name) >= 0", pre, "the carried strip counts names the pool does not hold")
         self.assertIn("return assign[n] != null", pre, "a FILED item can also be counted as carried")
 
@@ -99,7 +101,7 @@ class TestTheVaultSaysItsOwnPopulation(unittest.TestCase):
         # both anchors are EXECUTABLE: a comment anchor cannot survive _executable_only
         return _between(
             self.code,
-            "var unsorted = pool.filter(function(n){ return !assign[n] && !isSharedStash(n) && !_carSet[n]; });",
+            "var unsorted = _dockNames();",      # #264 (REG-2021) - the ONE dock list; the first occurrence is the render's
             "window._menuAscendingFraction",
             "the v3286 population fill")
 

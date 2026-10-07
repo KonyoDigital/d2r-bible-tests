@@ -14,7 +14,8 @@ WHAT THIS LAW HOLDS:
   · NODE HALF — window.vaultFile, CUT from bible.html between its own markers and run in node (never re-typed):
       a call with no witness files nothing; a manual declaration {by:'hand', at, where} files; a .d2s read files
       only when it verified; a stash sighting files only with VAULT_WITNESS_MIN distinct looks each carrying its
-      OWN frame and conf ≥ VAULT_WITNESS_FLOOR (one look, a frameless look, an unsure look, two frames of one
+      OWN frame and conf ≥ VAULT_WITNESS_FLOOR - or, HIS RULING 2026-10-07 (#267), no conf on ANY look when the reader
+      gives none at all, still two distinct sessions (one look, a frameless look, an unsure look, two frames of one
       session, a bare session folded into its own re-look, and a gate that held it — all refused); an
       equipment / inventory / belt / cube sighting is refused as the MAIN's (main:true); a MAIN-locked name is
       refused even by hand; a home he chose is never overridden except by his hand naming a home; a MOVE carries
