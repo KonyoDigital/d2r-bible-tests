@@ -85,6 +85,9 @@ class TestALookNamesTheFamilyThatLooked(unittest.TestCase):
         grok = SER._eye_argv("look")
         self.assertIn("--deny", grok)
         self.assertNotIn("--restricted", grok)
+        # REG-1999 - a big pasted diff at default effort answers nothing in 420 s; the Grok seat asks at low effort
+        self.assertEqual(grok[grok.index("--effort") + 1] if "--effort" in grok else None, "low",
+                         "the Grok seat is asked at default effort again - a big diff comes back as an empty seat")
 
     def test_a_codex_binary_under_a_claude_folder_keeps_codex_flags(self):
         real = SER.EYE_CLI
@@ -94,6 +97,7 @@ class TestALookNamesTheFamilyThatLooked(unittest.TestCase):
         self.assertEqual(SER._model_from_transport(), "codex-cli")
         self.assertIn("--deny", argv)
         self.assertNotIn("--restricted", argv)
+        self.assertNotIn("--effort", argv, "a codex binary was handed Grok's effort flag")
 
     def test_a_claude_envelope_counts_as_a_constrained_answer(self):
         raw = ('{"result": "{\\"verdict\\":\\"clean\\"}", '
@@ -173,6 +177,11 @@ class TestALookNamesTheFamilyThatLooked(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-1999 - the Grok seat is asked at default effort again, and a big pasted diff comes back as an empty seat",
+     "file": "second_eye_run.py",
+     "find": "    if \"grok\" in low:\n        argv += [\"--effort\", os.environ.get(\"THIRD_EYE_EFFORT\") or \"low\"]\n",
+     "replace": "",
+     "matches": 1},
     {
         "why": "The Claude binary is attributed. Blanking this return files the look as an "
                "unknown transport, and an unknown transport cannot discharge the debt.",

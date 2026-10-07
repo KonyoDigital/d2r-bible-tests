@@ -1261,9 +1261,15 @@ def _eye_argv(prompt):
                 "--output-format", "json", "--restricted",
                 "--permission-mode", "dontAsk", "--disable-slash-commands",
                 "--disallowedTools", "Edit,Write,MultiEdit,NotebookEdit"]
-    return [EYE_CLI, "-p", prompt, "--json-schema", EYE_VERDICT_SCHEMA,
+    argv = [EYE_CLI, "-p", prompt, "--json-schema", EYE_VERDICT_SCHEMA,
             "--deny", "Edit", "--deny", "Write", "--deny", "MultiEdit",
             "--disable-web-search"]
+    # REG-1999 - A BIG PASTED DIFF AT DEFAULT EFFORT ANSWERS NOTHING. MEASURED 2026-10-07: a 10.7k-char slice returned 0 bytes
+    # at 420 s three times; with --effort low it answered in 192 s with 6 findings. `-p` prints nothing until it finishes, so
+    # a timeout reads as an empty seat. Grok only (a codex binary shares this branch); THIRD_EYE_EFFORT overrides.
+    if "grok" in low:
+        argv += ["--effort", os.environ.get("THIRD_EYE_EFFORT") or "low"]
+    return argv
 
 
 def _model_from_transport():
