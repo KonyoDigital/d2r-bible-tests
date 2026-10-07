@@ -122,12 +122,36 @@ class TheReceiptAnswersBesideItself(unittest.TestCase):
     def test_a_console_that_does_not_answer(self):
         self.assert_beside(self.run_click(reject=True), "no answer", "TypeError")
 
+    def test_the_listener_binds_once_however_often_the_vault_renders(self):
+        """The binding sits inside renderVaultRegistered, which runs on every vault render; each run used to add
+        another capture listener, so one click sent one /api/evidence request per render so far."""
+        with io.open(os.path.join(ROOT, "bible.html"), encoding="utf-8") as fh:
+            src = fh.read()
+        lo = src.find("      if (!window.__vrgRcptBound) {")
+        self.assertGreaterEqual(lo, 0, "the ◉ listener is bound on every render again")
+        hi = src.find("      }, true);\n      }\n", lo)
+        self.assertGreater(hi, lo, "the bind-once block cannot be bounded")
+        block = src[lo:hi + len("      }, true);\n      }\n")]
+        js = ("var n = 0; var window = {}; var document = {addEventListener: function(){ n++; }};\n"
+              "function render(){\n" + block + "}\nrender(); render(); render();\n"
+              "process.stdout.write(String(n));")
+        p = subprocess.run(["node", "-e", js], capture_output=True, text=True, timeout=30)
+        self.assertEqual(p.returncode, 0, p.stderr[-600:])
+        self.assertEqual(p.stdout.strip(), "1", "three vault renders bound %s ◉ listeners (REG-1936)" % p.stdout)
+
     def test_a_second_refusal_reuses_the_note(self):
         out = self.run_click(answer={"ok": False, "why": "nothing banked"}, twice=True)
         self.assertEqual(out["spans"], 1, "a second click stacked a second note")
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1936 - the ◉ listener is bound on every vault render again: one click, one request per render",
+        "file": "bible.html",
+        "find": "      if (!window.__vrgRcptBound) {\n      window.__vrgRcptBound = true;\n",
+        "replace": "      if (true) {\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1936 - the ◉'s answer is no longer placed beside it: the reason is computed and shown nowhere",
         "file": "bible.html",

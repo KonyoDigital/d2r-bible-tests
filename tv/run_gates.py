@@ -8851,6 +8851,12 @@ GATES = [
          why="#182 (his go 2026-10-06) - a push whose every ref is refs/heads/ci/* is graded on GitHub: the hook "
              "stops before its Mac stages and says so; one ref that is not ci/* (main above all, even a deletion of "
              "main) runs the full gate exactly as before; publish.yml deploys from main only."),
+    Gate("test_the_registered_total_names_its_parts", [sys.executable,
+         os.path.join(HERE, "test_the_registered_total_names_its_parts.py")], 60,
+         needs_app=False,
+         why=("REG-1939 - the Vault's Registered badge left the ❓ Not recognised column out of its sum and never said what "
+              "it was made of, so '20 vs 19 owned' read as a contradiction; every column counts and the split is said.")
+         ),
     Gate("test_the_receipt_answers_beside_itself", [sys.executable,
          os.path.join(HERE, "test_the_receipt_answers_beside_itself.py")], 60,
          needs_app=False,

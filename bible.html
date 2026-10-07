@@ -39086,6 +39086,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        a name with nothing banked is a REAL fact about that row, not a failure — the two must not
        look the same. [[unknown-stays-unknown]] */
     try {
+      /* REG-1936 — ONCE, NOT ONCE PER RENDER. This sits inside renderVaultRegistered, which runs on every vault
+         render, and each run added another capture listener on document: after N renders one ◉ click sent N
+         /api/evidence requests and wrote N answers (stopPropagation does not stop a sibling on the same node). */
+      if (!window.__vrgRcptBound) {
+      window.__vrgRcptBound = true;
       document.addEventListener('click', function (e) {
         var t = e.target;
         if (!t || !t.classList || !t.classList.contains('vrg-rcpt')) return;
@@ -39151,6 +39156,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           })
           .then(function () { t.disabled = false; });
       }, true);
+      }
     } catch (e) {}
     // v342.21 — render each bucket as its OWN COLUMN (header + independent scrollbar) so all sections are
     // visible side-by-side at once, per Konyo. Responsive grid wraps on narrow screens.
@@ -39191,8 +39197,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var h='<div class="vrg-cols">'+cols.join('')+'</div>';
     // v342.20 — the GRAND total counts EVERYTHING read (grail + magic + throw-out), distinguished into
     // sections below. Konyo: "register the item regardless… distinguished but still a total amount."
-    var _regTot=all.length+findNames.length+unkNames.length;
-    el.innerHTML='<details class="vrg-det"><summary class="vrg-sum to-sum to-acc-blue"><span class="to-emblem">📋</span><span class="to-hd"><span class="to-hd-top"><span class="to-st">Registered</span><span class="to-ct">'+_regTot+'</span></span><span class="to-subt">chronicle · magic &amp; rare · throw-out — everything read, sorted</span></span><span class="to-rule"></span><span class="to-chev">▾</span></summary><div class="vrg-body">'+h+'</div></details>';
+    /* REG-1939 — THE TOTAL NAMES ITS PARTS, AND THE ❓ COLUMN IS ONE OF THEM. GrokBot read "19 owned" and
+       "REGISTERED 20" on one pane and called it a contradiction. It is not one - this total counts everything
+       read (his v342.20 words), so magic & rare and throw-outs sit on top of the chronicle - but nothing on
+       screen said so, and the sum left out the ❓ Not recognised column v2402 added so that "the total be
+       honest": with one orphan the badge said one less than it showed. Every column counts, and the subtitle
+       carries the split. [[zero-needs-a-denominator]] */
+    var _regChron=all.length+orphan.length;
+    var _regTot=_regChron+findNames.length+unkNames.length;
+    el.innerHTML='<details class="vrg-det"><summary class="vrg-sum to-sum to-acc-blue"><span class="to-emblem">📋</span><span class="to-hd"><span class="to-hd-top"><span class="to-st">Registered</span><span class="to-ct">'+_regTot+'</span></span><span class="to-subt">'+_regChron+' chronicle · '+findNames.length+' magic &amp; rare · '+unkNames.length+' throw-out — everything read, sorted</span></span><span class="to-rule"></span><span class="to-chev">▾</span></summary><div class="vrg-body">'+h+'</div></details>';
   }
   // v366 — DEDICATED Throw-Out Review: its own section that VISUALLY shows each discarded read paired with
   // the SOURCE SCREENSHOT it came from (synced from the per-screenshot breakdown) + a description, so Konyo
