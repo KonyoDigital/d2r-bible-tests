@@ -128,6 +128,25 @@ class TheConsoleNamesItsStuckStations(unittest.TestCase):
         for e in got.values():
             self.assertTrue(e["why"], "a stuck station was named without its lane's reason")
 
+    def test_a_long_reason_ends_at_a_word_and_says_it_was_cut(self):
+        """REG-1987 - GrokBot tick 388: tips ended "...the heart census is S" and "...the lane could not be". A bare
+        [:200] cut the lane's own sentence mid-word; the wire sentence ends at a word with an ellipsis."""
+        import control_app as ca
+        from unittest import mock
+        long_why = ("the route lane is shut until this PC proves its own gates and the heart census is STALE " * 4).strip()
+        self.assertGreater(len(long_why), 200)
+        rows = [_stamp("reel_s_1_a", "EMPTY", 40 * H, 1)]
+        with mock.patch.object(ca, "_river_stuck_why", lambda st: long_why):
+            got = self._stuck(rows)
+        why = got[0]["why"]
+        self.assertLessEqual(len(why), 200)
+        self.assertTrue(why.endswith("…"), "a cut reason did not say it was cut: %r" % why[-30:])
+        self.assertIn(why[:-1].rsplit(" ", 1)[-1], long_why.split(" "),
+                      "the reason was cut mid-word: %r" % why[-30:])
+        short = "the vault lane is waiting on its canary"
+        with mock.patch.object(ca, "_river_stuck_why", lambda st: short):
+            self.assertEqual(self._stuck(rows)[0]["why"], short, "a reason that fits was changed")
+
     def test_a_flowing_river_is_an_empty_list_and_an_unreadable_log_is_none(self):
         self.assertEqual(self._stuck([_stamp("reel_s_1_a", "EMPTY", 60, 1)]), [])
         import control_app as ca
@@ -1025,6 +1044,13 @@ class OneBoxAtATimeOnTheRow(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "REG-1987 - the stuck reason is a bare [:200] again and ends mid-word on every fleet tip",
+        "file": "tv/control_app.py",
+        "find": "        e[\"why\"] = _word_cut(_river_stuck_why(e[\"station\"]) if e.get(\"window\") is not False\n                             else _river_owed_why(e[\"station\"], _keep), 200)\n",
+        "replace": "        e[\"why\"] = (_river_stuck_why(e[\"station\"]) if e.get(\"window\") is not False\n                     else _river_owed_why(e[\"station\"], _keep))[:200]\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1960 - an empty stuck list under shut locks says 'every station is draining' again",
         "file": "tv/control_ui.html",

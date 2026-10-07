@@ -236,9 +236,9 @@ RED_PROOF = [
         "why": "REG-1799 - the wire publishes an unread stream as a measured night",
         "file": "control_app.py",
         "find": "    if isinstance(raw, dict) and raw.get(\"why\"):\n"
-                "        return None, str(raw.get(\"why\"))[:200]\n",
+                "        return None, _word_cut(str(raw.get(\"why\")), 200)",
         "replace": "    if False and isinstance(raw, dict) and raw.get(\"why\"):\n"
-                   "        return None, str(raw.get(\"why\"))[:200]\n",
+                   "        return None, _word_cut(str(raw.get(\"why\")), 200)",
         "matches": 1,
     },
     {

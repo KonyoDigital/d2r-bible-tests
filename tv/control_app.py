@@ -15921,8 +15921,10 @@ def _river_stuck_for_wire(now_ms=None, _rows=None, _shelf=None, _fixtures=None):
         e["oldestS"] = max(e["oldestS"], int(age))
     out = sorted(by.values(), key=lambda e: -e["oldestS"])[:6]
     for e in out:
-        e["why"] = (_river_stuck_why(e["station"]) if e.get("window") is not False
-                    else _river_owed_why(e["station"], _keep))[:200]
+        # REG-1987 - GrokBot tick 388: the tips ended "...the heart census is S" and "...the lane could not be". A bare
+        # [:200] cut the lane's own sentence mid-word; _word_cut ends at a word and says it was cut (REG-1839's helper).
+        e["why"] = _word_cut(_river_stuck_why(e["station"]) if e.get("window") is not False
+                             else _river_owed_why(e["station"], _keep), 200)
     return out
 
 
@@ -16484,7 +16486,7 @@ def _receipts_for_wire(raw):
     None on the wire is UNKNOWN. A quiet night stays [].
     """
     if isinstance(raw, dict) and raw.get("why"):
-        return None, str(raw.get("why"))[:200]
+        return None, _word_cut(str(raw.get("why")), 200)     # REG-1987 - a wire sentence ends at a word
     if isinstance(raw, list):
         return raw, None
     return None, "the receipt stream was not measured"
