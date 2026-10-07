@@ -22270,6 +22270,58 @@ class TestV2077HdArtCoverageDoesNotRegress(unittest.TestCase):
                                   "to the generic icon" % gem)
 
 
+#: REG-1990 - the fixed workload the cheap-subset gate reads a core's speed with, and its CPU cost on a FAST core of his
+#: M4 (MEASURED 2026-10-07, 12 runs: min 102, median 106, max 118 ms). REF_CAP bounds how far a slow machine can widen
+#: the budget: past 3x the reading says more about the machine than the subset, and the gate still judges it.
+REF_FAST_MS = 105.0
+REF_CAP = 3.0
+
+
+def _cheap_budget(refs, base_ms):
+    """REG-1990 - the cheap-subset budget for a pass read beside these reference timings. -> (budget ms, scale)
+
+    The scale is how much slower the reference ran than on a fast core: never below 1 (a faster machine is judged at
+    the full budget, never a tighter one), never above REF_CAP. No reading is the fast-core budget, never a guess."""
+    good = [float(r) for r in (refs or []) if isinstance(r, (int, float)) and r > 0]
+    if not good:
+        return float(base_ms), 1.0
+    scale = max(1.0, min(REF_CAP, (sum(good) / len(good)) / REF_FAST_MS))
+    return float(base_ms) * scale, scale
+
+
+def _ref_cpu_ms():
+    """REG-1990 - one fixed pure-python workload's CPU time on whatever core runs it now. -> ms"""
+    import time as _tt
+    c = _tt.process_time()
+    s = 0
+    for i in range(2000000):
+        s += i * i % 7
+    return (_tt.process_time() - c) * 1000.0
+
+
+class TestREG1990TheCheapBudgetReadsTheCore(unittest.TestCase):
+    """REG-1990 - the cheap-subset budget grows by how much slower a reference workload ran here, and only that."""
+
+    def test_a_fast_core_gets_the_plain_budget_and_a_faster_one_never_a_tighter_one(self):
+        self.assertEqual(_cheap_budget([REF_FAST_MS, REF_FAST_MS], 9000), (9000.0, 1.0))
+        self.assertEqual(_cheap_budget([REF_FAST_MS / 2], 9000), (9000.0, 1.0),
+                         "a machine faster than his M4 was judged on a TIGHTER budget")
+
+    def test_a_slow_core_widens_it_by_exactly_the_ratio(self):
+        b, sc = _cheap_budget([REF_FAST_MS * 1.5, REF_FAST_MS * 2.5], 9000)
+        self.assertAlmostEqual(sc, 2.0)
+        self.assertAlmostEqual(b, 18000.0)
+
+    def test_the_widening_is_capped_and_no_reading_is_no_widening(self):
+        self.assertEqual(_cheap_budget([REF_FAST_MS * 10], 9000), (9000.0 * REF_CAP, REF_CAP),
+                         "an overloaded machine widened the budget without limit")
+        self.assertEqual(_cheap_budget([], 9000), (9000.0, 1.0), "no reference reading was read as a slow core")
+        self.assertEqual(_cheap_budget([None, -3, "x"], 9000), (9000.0, 1.0))
+
+    def test_the_reference_workload_measures_something(self):
+        self.assertGreater(_ref_cpu_ms(), 1.0, "the reference workload costs nothing, so it scales nothing")
+
+
 class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
     """Konyo: "put it all under eagle eye and watchdog so if something within the console is out of
     sync it can catch it."
@@ -22509,6 +22561,7 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
             # REG-1748 — the CPU clock starts AFTER the priming, on the span the wall total covers. It started before
             # `tick_caches()` and so charged the priming (board, health report, route census - judged on its own
             # ceiling above) to the subset, while the wall figure printed beside it did not. (the v3563 second eye)
+            _refs = [_ref_cpu_ms()]                   # REG-1990 - this core's speed, read beside the pass it scales
             _cpu0 = _t.process_time()
             for name, fn in cd.CHECKS:
                 if name in _skip:
@@ -22526,6 +22579,7 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
                 if ms > BUDGET_MS:
                     slow.append("%s (%.0f ms)" % (name, ms))
         _cpu_total = (_t.process_time() - _cpu0) * 1000.0
+        _refs.append(_ref_cpu_ms())
         # ── the priming, reported every run so it can never go back to being unmeasured ──
         print("   tick priming (board + health report + route census): %.0f ms" % _prime_ms)
         print("   dearest check on the every-tick roster: %s"
@@ -22629,6 +22683,7 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
             # [[feedback-suspect-the-instrument]] [[a-gate-can-perturb-what-it-measures]]
             _t2 = 0.0
             with cd.tick_caches():
+                _refs.append(_ref_cpu_ms())
                 _c2 = _t.process_time()        # REG-1748 — after this pass's priming too
                 for _n, _f in cd.CHECKS:
                     if _n in _skip:
@@ -22645,17 +22700,30 @@ class TestV2078TheWatchdogLooksByItself(unittest.TestCase):
                   flush=True)
             total = min(total, _t2)
             _cpu_total = min(_cpu_total, (_t.process_time() - _c2) * 1000.0)
+            _refs.append(_ref_cpu_ms())
         # ⚠ #42 (2026-10-02) - THE WHOLE-SUBSET TOTAL IS JUDGED ON CPU TIME, the work these checks do. Wall clock counts
         # every other process on his Mac: the v3562/v3563 pushes were refused at 9,882 / 10,115 ms while he played,
         # Time Machine backed up and GrokBot drove (load 5-6); alone, minutes later, the same case passed. The
         # per-check limits above stay on wall clock - a single heavy check (the 16,585 ms sweep this gate exists for)
         # is still caught there, twice-confirmed or past the 5x ceiling.
-        print("   the whole cheap subset: %.0f ms wall, %.0f ms CPU (the CPU figure is judged)" % (total, _cpu_total))
+        # ⚠⚠ REG-1990 - CPU TIME IS NOT WORK ON HIS MAC. The M4 has 4 fast cores and 6 slow ones, and MEASURED on
+        # 2026-10-07 the same fixed loop cost 102-118 ms of CPU on a fast core and ~1,000 ms per 6M on a slow one
+        # (2.5x). Under load (his console reading, a push proving) the scheduler moves this process to the slow
+        # cores and every "CPU ms" grows with it: the v3596, v3599 and v3602 pushes were refused at 10,083 /
+        # 12,730 / 11,147 ms, and the last, run ALONE minutes later, read 11,039. So the figure is judged against a
+        # REFERENCE workload read in this same process before and after each pass: the budget is BUDGET_MS * 3 at
+        # the fast-core reference speed and grows by the ratio the reference itself slowed, capped at REF_CAP. A
+        # subset that really got dearer is dearer than the reference too, and still fails. [[suspect-the-instrument]]
+        _ref = sum(_refs) / float(len(_refs))
+        _budget, _scale = _cheap_budget(_refs, BUDGET_MS * 3)
+        print("   the whole cheap subset: %.0f ms wall, %.0f ms CPU (the CPU figure is judged); the reference workload read %.0f ms here against %.0f ms on a fast core, so the budget is %.0f ms (x%.2f)"
+              % (total, _cpu_total, _ref, REF_FAST_MS, _budget, _scale))
         total = _cpu_total
-        self.assertLess(total, BUDGET_MS * 3,
+        self.assertLess(total, _budget,
                         "the whole cheap subset costs %.0f ms across TWO passes — it is in the "
                         "boot path of every console a test spawns, and a second reading confirmed "
-                        "it across two passes)" % total)
+                        "it across two passes (the budget %.0f ms already allows for a core %.2fx slower)"
+                        % (total, _budget, _scale))
         # And say plainly when the measurement was thin, rather than reporting a pass that measured
         # nothing. This is UNMEASURED, not fine — the distinction the whole tree is built on.
         if did_work < 2:
@@ -46771,6 +46839,21 @@ TestV2078TheWatchdogLooksByItself.SHARD_ALONE = True     # the cheap subset's wa
 TestExitSafeguard.SHARD_ALONE = True                     # an exit must return in under 0.25 s
 
 RED_PROOF = [
+    {"why": "REG-1990 - the cheap budget is never widened again: a slow-core reading refuses the push (v3596/v3599/v3602)",
+     "file": "tv/test_control.py",
+     "find": "    scale = max(1.0, min(REF_CAP, (sum(good) / len(good)) / REF_FAST_MS))\n",
+     "replace": "    scale = 1.0\n",
+     "matches": 1},
+    {"why": "REG-1990 - an overloaded machine widens the cheap budget without limit",
+     "file": "tv/test_control.py",
+     "find": "    scale = max(1.0, min(REF_CAP, (sum(good) / len(good)) / REF_FAST_MS))\n",
+     "replace": "    scale = max(1.0, (sum(good) / len(good)) / REF_FAST_MS)\n",
+     "matches": 1},
+    {"why": "REG-1990 - a faster machine is judged on a tighter budget than his M4",
+     "file": "tv/test_control.py",
+     "find": "    scale = max(1.0, min(REF_CAP, (sum(good) / len(good)) / REF_FAST_MS))\n",
+     "replace": "    scale = min(REF_CAP, (sum(good) / len(good)) / REF_FAST_MS)\n",
+     "matches": 1},
     {
         "why": "REG-1602 - the sweep door refuses on its self-arming lock without saying it is a lock, so the "
                "auto-sweep reads the machine-wide refusal as the reel's own failure",
