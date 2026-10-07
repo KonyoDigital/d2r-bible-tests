@@ -6947,9 +6947,10 @@ def _grok_only_failed(why):
     return None
 
 
-def _grok_oneshot(ap, timeout=90, prompt=None, raw_json=False):
+def _grok_oneshot(ap, timeout=90, prompt=None, raw_json=False, backed=None):
     """#151 — one read on the Grok CLI ALONE (his switch at GROK ONLY). -> what _oneshot returns, or None with the reason
-    said. NEVER hands the frame to Claude: a failed Grok read is a failed read, left owed for the next pass."""
+    said. NEVER hands the frame to Claude: a failed Grok read is a failed read, left owed for the next pass.
+    REG-1941 - `backed["asked"]` is set only once the Grok read is really called (see _oneshot)."""
     try:
         import g5_grok_eyes as _G5o
     except Exception as e:
@@ -6960,6 +6961,8 @@ def _grok_oneshot(ap, timeout=90, prompt=None, raw_json=False):
     if not _GROK_ONLY_GATE.acquire(timeout=max(1.0, float(timeout or 90))):
         return _grok_only_failed("two Grok reads were already running for the whole wait")
     try:
+        if isinstance(backed, dict):
+            backed["asked"] = "grok"
         gr = _G5o.g5_vision_read(ap, prompt=(prompt if prompt else READ_PROMPT.format(path=ap)))
     except Exception as e:
         gr = None
@@ -7073,6 +7076,7 @@ def _grok_backup(ap, claude_why, prompt=None, raw_json=False, timeout=90, backed
         journal_skip("backup", backed["fail"])
         return None
     try:
+        backed["asked"] = backed.get("asked") or "grok"   # REG-1941 - a Claude call that already ran stays the spend
         gr = _G5b.g5_vision_read(ap, prompt=(prompt if prompt else READ_PROMPT.format(path=ap)))
     except Exception as e:
         gr = None
@@ -7129,15 +7133,20 @@ def _oneshot(ap, model, timeout=90, prompt=None, raw_json=False, allow_backup=Tr
     `remaining` well past the caller's intended budget — the same clock-skew class as
     VisionWorker.ask(), just bending the number the other way (too much budget instead of
     too little)."""
+    # REG-1941 - `backed["asked"]` says which reader was ACTUALLY called ("claude" / "grok"), or None when none was:
+    # the gate stayed busy for the whole wait, the budget stopped it, Grok was blocked. char_select spends an hourly slot
+    # on a read that came back empty only when it was asked - it used to match one note string, which the BOTH backup's
+    # own words never were, so a Claude timeout under BOTH was re-asked on every tick with no slot spent.
+    if backed is None:
+        backed = {"why": None, "fail": None}
+    backed["asked"] = None
     if _reader_choice() == "grok":   # #151 his switch at GROK ONLY: this frame goes to the Grok CLI and nowhere else
-        return _grok_oneshot(ap, timeout=timeout, prompt=prompt, raw_json=raw_json)
+        return _grok_oneshot(ap, timeout=timeout, prompt=prompt, raw_json=raw_json, backed=backed)
     # The Claude call finishes, and the gate is released, before any backup. A frame Claude
     # answered — names or "nothing here" — returns here and Grok is not asked. A timeout is a
     # non-read, caught here so it can be that one backup instead of escaping the caller.
     # `backed` belongs to THIS call. Eight frames can be in flight; the Claude call is the only
     # part that runs one at a time, so a module cell would hand one frame another's reason.
-    if backed is None:
-        backed = {"why": None, "fail": None}
     backed["why"] = None
     backed["fail"] = None
     why = str(claude_miss) if claude_miss else None
@@ -7157,6 +7166,7 @@ def _oneshot(ap, model, timeout=90, prompt=None, raw_json=False, allow_backup=Tr
         else:
             try:
                 remaining = max(1.0, float(timeout) - (time.monotonic() - t0))
+                backed["asked"] = "claude"
                 try:
                     result = _oneshot_inner(ap, model, remaining, prompt=prompt, raw_json=raw_json)
                 except subprocess.TimeoutExpired:
@@ -7166,6 +7176,8 @@ def _oneshot(ap, model, timeout=90, prompt=None, raw_json=False, allow_backup=Tr
                 _ONESHOT_GATE.release()
             if result is None and not why:
                 why = _claude_miss_why()
+                if why == "claude over budget":
+                    backed["asked"] = None   # _oneshot_inner's own budget check stopped it before any call
         if _reader_choice() == "both" and allow_backup:
             _claude_lane_observe(result is not None, why)
     if result is not None:   # Claude answered, even with nothing here: Grok is not asked
@@ -7861,16 +7873,25 @@ CHARSEL_READ_PROMPT = (
 )
 
 
+def _panel_note(note, asked=False, later=False):
+    """REG-1941 - a panel-lane note says what char_select needs to spend and retry honestly. -> dict
+
+    asked  the reader was really called and came back empty (a timeout counts) - that spends an hourly slot.
+    later  the reader cannot be asked NOW (throttled, over budget, no stub to read) - nothing about the frame,
+           so the frame is not passed for it."""
+    return {"note": str(note), "asked": bool(asked), "later": bool(later)}
+
+
 def charselect_read(image_path, timeout=None):
     """One character-select panel crop -> the reader's JSON (char_select.normalize() judges it), or a {"note"} that
     says why it was NOT read. Never an empty list for a read that did not happen."""
     backed = {"why": None, "fail": None}
     _miss = "claude throttled" if (_reader_choice() == "both" and _is_throttled()) else None
     if _miss is None and _reader_choice() != "grok" and _is_throttled():   # #151 Claude's throttle gates Claude's reads only
-        return {"note": "reader throttled - not read"}
+        return _panel_note("reader throttled - not read", later=True)
     _blocked = None if _reader_choice() == "grok" else _sub_budget_check("oneshot")
     if _blocked and _reader_choice() != "both":
-        return {"note": "not read - %s" % _blocked}
+        return _panel_note("not read - %s" % _blocked, later=True)
     if _blocked and _miss is None and _reader_choice() == "both":
         _miss = "claude over budget"
     if os.environ.get("TV_STUB") and not _miss:
@@ -7880,17 +7901,18 @@ def charselect_read(image_path, timeout=None):
                 man = json.load(f)
         except Exception as e:
             # an unreadable stub is NOT a stub with no answer — say which, never hand back {} as if it were read
-            return {"note": "stub manifest unreadable (%s) - not read" % type(e).__name__}
+            return _panel_note("stub manifest unreadable (%s) - not read" % type(e).__name__, later=True)
         raw = man.get(os.path.basename(str(image_path or "")) + "#charselect") or man.get("*#charselect")
-        return raw if raw is not None else {"note": "stub has no #charselect answer"}
+        return raw if raw is not None else _panel_note("stub has no #charselect answer")
     ap = os.path.abspath(str(image_path or ""))
     if not os.path.isfile(ap):
-        return {"note": "no such frame"}
+        return _panel_note("no such frame")
     raw = _oneshot(ap, GENIUS_MODEL, timeout=float(timeout or 120),
                    prompt=CHARSEL_READ_PROMPT.format(path=ap), raw_json=True,
                    backed=backed,
                    **({"claude_miss": _miss} if _miss else {}))
-    return raw if raw is not None else {"note": _not_read_note("the reader returned nothing", backed)}
+    return raw if raw is not None else _panel_note(_not_read_note("the reader returned nothing", backed),
+                                                   asked=backed.get("asked"))
 
 
 # #149 — the lobby plaque and the in-game character panel. char_select.py decides WHICH frames.
@@ -7916,10 +7938,10 @@ def surface_read(image_path, timeout=None):
     backed = {"why": None, "fail": None}
     _miss = "claude throttled" if (_reader_choice() == "both" and _is_throttled()) else None
     if _miss is None and _reader_choice() != "grok" and _is_throttled():
-        return {"note": "reader throttled - not read"}
+        return _panel_note("reader throttled - not read", later=True)
     _blocked = None if _reader_choice() == "grok" else _sub_budget_check("oneshot")
     if _blocked and _reader_choice() != "both":
-        return {"note": "not read - %s" % _blocked}
+        return _panel_note("not read - %s" % _blocked, later=True)
     if _blocked and _miss is None and _reader_choice() == "both":
         _miss = "claude over budget"
     if os.environ.get("TV_STUB") and not _miss:
@@ -7928,17 +7950,18 @@ def surface_read(image_path, timeout=None):
             with open(man_path, encoding="utf-8") as f:
                 man = json.load(f)
         except Exception as e:
-            return {"note": "stub manifest unreadable (%s) - not read" % type(e).__name__}
+            return _panel_note("stub manifest unreadable (%s) - not read" % type(e).__name__, later=True)
         raw = man.get(os.path.basename(str(image_path or "")) + "#surface") or man.get("*#surface")
-        return raw if raw is not None else {"note": "stub has no #surface answer"}
+        return raw if raw is not None else _panel_note("stub has no #surface answer")
     ap = os.path.abspath(str(image_path or ""))
     if not os.path.isfile(ap):
-        return {"note": "no such frame"}
+        return _panel_note("no such frame")
     raw = _oneshot(ap, GENIUS_MODEL, timeout=float(timeout or 120),
                    prompt=SURFACE_READ_PROMPT.format(path=ap), raw_json=True,
                    backed=backed,
                    **({"claude_miss": _miss} if _miss else {}))
-    return raw if raw is not None else {"note": _not_read_note("the reader returned nothing", backed)}
+    return raw if raw is not None else _panel_note(_not_read_note("the reader returned nothing", backed),
+                                                   asked=backed.get("asked"))
 
 
 def _maybe_genius(ap, parsed, t0, mode):

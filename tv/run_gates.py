@@ -8821,6 +8821,15 @@ GATES = [
              "UNKNOWN, not a zero. No character-panel frame was filmed, so no pixel band was invented for it. "
              "A reader that says c-panel still banks. One lobby read per visit, on the character-select hourly "
              "cap, and the cap rewinds onto the frame it did not read."),
+    Gate("test_a_read_that_did_not_happen_is_bounded", [sys.executable,
+         os.path.join(HERE, "test_a_read_that_did_not_happen_is_bounded.py")], 60,
+         why="REG-1941 - the #231 eye on v3574/v3575, measured on the shipped tick: one lobby frame that kept coming "
+             "back with a note held its reel for ever (12 ticks, the same frame 12 times, pos 0 of 4); under BOTH a "
+             "Claude timeout's note was the backup's words, so 20 ticks made 20 paid calls and spent 0 hourly "
+             "slots; a busy gate made no call and read as spent; a reader that raised escaped tick() and no "
+             "ledger was written. The reader now says asked/later, a frame is passed (and said) after "
+             "LOBBY_TRIES_PER_FRAME misses that are not a throttle, the reader door turns a raise into a read that "
+             "did not happen, and any stop ends the whole scan."),
     Gate("test_the_builder_keeps_in_game_apart_from_simulation", [sys.executable,
          os.path.join(HERE, "test_the_builder_keeps_in_game_apart_from_simulation.py")], 90,
          needs_app=False,

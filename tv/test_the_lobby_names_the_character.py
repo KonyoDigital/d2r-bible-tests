@@ -279,7 +279,9 @@ class _Reel(unittest.TestCase):
         self.assertEqual(C.surface_witnesses(C.load())[0]["name"], "Konyossin")
 
     def test_a_timeout_spends_the_hourly_cap_and_a_throttle_does_not(self):
-        self._reel([1790978100063])
+        # REG-1941 - one lobby visit of four frames: a frame that keeps coming back empty is passed after
+        # LOBBY_TRIES_PER_FRAME tries, so the cap is reached across the visit's frames, not on one frame for ever
+        self._reel([1790978100063 + n * 1000 for n in range(4)])
         name = "reel_s_1500000000001_12001"
 
         def nothing(p):
@@ -619,22 +621,15 @@ RED_PROOF = [
     {
         "why": "REG-1761 - a lobby read that did not happen is kept and never retried",
         "file": "tv/char_select.py",
+        # REG-1941 re-anchored: the per-frame bound now sits between the spend and the rewind
         "find": "            if _surface_unread(raw):\n"
                 "                if _surface_call_was_spent(raw):\n"
                 "                    st[\"readTs\"].append(now_s)\n"
-                "                if rewind_i is not None:\n"
-                "                    _rewind_unread(rs, rewind_i)\n"
-                "                acc[\"why\"] = \"surface not read: \" + rwhy\n"
-                "                acc[\"stop\"] = True\n"
-                "                return\n",
+                "                if not _surface_later(raw) and _lobby_tries(rs, p) >= LOBBY_TRIES_PER_FRAME:\n",
         "replace": "            if False and _surface_unread(raw):\n"
                    "                if _surface_call_was_spent(raw):\n"
                    "                    st[\"readTs\"].append(now_s)\n"
-                   "                if rewind_i is not None:\n"
-                   "                    _rewind_unread(rs, rewind_i)\n"
-                   "                acc[\"why\"] = \"surface not read: \" + rwhy\n"
-                   "                acc[\"stop\"] = True\n"
-                   "                return\n",
+                   "                if not _surface_later(raw) and _lobby_tries(rs, p) >= LOBBY_TRIES_PER_FRAME:\n",
         "matches": 1,
     },
     {

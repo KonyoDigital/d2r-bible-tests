@@ -689,7 +689,11 @@ def _surface_unread(raw):
 
 def _surface_call_was_spent(raw):
     """The reader was asked and came back empty. That spends one hourly slot. A throttle, a budget
-    note, a missing frame, or a stub that was never asked does not."""
+    note, a missing frame, or a stub that was never asked does not.
+
+    REG-1941 - the reader says so itself (`asked`, tv_diablo._panel_note). The exact note string is only the fallback
+    for a reader that does not say: under BOTH the note is the backup's own words, so a Claude timeout was never
+    counted and the same frame was re-asked, paid, on every tick."""
     if raw is None:
         return True
     if isinstance(raw, str):
@@ -697,7 +701,49 @@ def _surface_call_was_spent(raw):
             raw = json.loads(raw)
         except Exception:
             return False
+    if isinstance(raw, dict) and "asked" in raw:
+        return bool(raw.get("asked"))
     return isinstance(raw, dict) and raw.get("note") == "the reader returned nothing"
+
+
+def _surface_later(raw):
+    """The reader cannot be asked NOW (throttled, over budget, no stub to read). That says nothing about the frame, so
+    it never counts toward passing the frame. -> bool"""
+    if not isinstance(raw, dict):
+        return False
+    if "later" in raw:
+        return bool(raw.get("later"))
+    n = str(raw.get("note") or "")
+    return "throttled" in n or n.startswith("not read - ")
+
+
+#: REG-1941 - a lobby frame whose read keeps not happening (an empty answer, a reader that raises, a frame the reader
+#: cannot open) is tried this many times and then PASSED, said in lastWhy and counted in stats.lobbyPassed. It used to
+#: hold its reel for ever: the cursor rewound onto it on every tick, no later frame of that reel was ever scanned, and
+#: owed() never reached 0. A throttle or a budget block is not the frame's fault and does not count.
+LOBBY_TRIES_PER_FRAME = 3
+
+
+def _ask(reader, path):
+    """REG-1941 - THE READER DOOR. A reader that RAISES is a read that did not happen, never an exception out of the tick:
+    a subprocess.TimeoutExpired (or a missing CLI's OSError) used to escape tick()'s try/finally, so save() never ran
+    and every read already paid for in that tick lost its hourly slot. -> the reader's answer, or a note that says it
+    raised (a timeout is a call that ran, so it is `asked`)."""
+    try:
+        return reader(path)
+    except Exception as e:
+        import subprocess as _sp
+        return {"note": "the reader raised %s - not read" % type(e).__name__,
+                "asked": isinstance(e, _sp.TimeoutExpired), "later": False}
+
+
+def _lobby_tries(rs, p):
+    """Count one more read of this lobby frame that did not happen. -> the count for this frame."""
+    name = os.path.basename(p)
+    lt = rs.get("lobbyTry") if isinstance(rs.get("lobbyTry"), dict) else {}
+    n = int(lt.get("n") or 0) + 1 if lt.get("frame") == name else 1
+    rs["lobbyTry"] = {"frame": name, "n": n}
+    return n
 
 
 def _rewind_unread(rs, i):
@@ -812,7 +858,7 @@ def _closing_reads(d, root, reader, st, now_s, work, t0, budget_s, clock):
         if not crop:
             v["closed"] = "its last frame could not be opened"
             continue
-        raw = reader(crop)
+        raw = _ask(reader, crop)
         st["readTs"].append(now_s)
         rows, rwhy = normalize(raw)
         if rows is None:
@@ -963,16 +1009,28 @@ def _lobby_handle(rs, p, fi, st, d, surface_stats, surface_reader, size_of, now_
                 acc["why"] = "hourly read cap (%d) reached" % READS_PER_HOUR
                 acc["stop"] = True
                 return
-            raw = surface_reader(p)
+            raw = _ask(surface_reader, p)
             row, rwhy = surface_of(raw)
             if _surface_unread(raw):
                 if _surface_call_was_spent(raw):
                     st["readTs"].append(now_s)
+                if not _surface_later(raw) and _lobby_tries(rs, p) >= LOBBY_TRIES_PER_FRAME:
+                    # REG-1941 - the frame keeps failing: pass it, say so, and let the scan go on. The visit stays
+                    # unread (lobby reads 0), so the next frame of the same visit is still asked.
+                    rs.pop("lobbyTry", None)
+                    st["lobbyPassed"] = int(st.get("lobbyPassed") or 0) + 1
+                    st["lobbyPassedLast"] = {"reel": os.path.basename(os.path.dirname(p)), "frame": os.path.basename(p),
+                                             "tries": LOBBY_TRIES_PER_FRAME, "why": rwhy, "ts": int(now_s * 1000)}
+                    st["lastWhy"] = "lobby frame %s passed after %d reads that did not happen: %s" % (
+                        os.path.basename(p), LOBBY_TRIES_PER_FRAME, rwhy)
+                    _lobby_mark(rs, fi, lhit, size_of, p, st)
+                    return
                 if rewind_i is not None:
                     _rewind_unread(rs, rewind_i)
                 acc["why"] = "surface not read: " + rwhy
                 acc["stop"] = True
                 return
+            rs.pop("lobbyTry", None)
             st["readTs"].append(now_s)
             lop["reads"] = 1
             if row is None and rwhy not in ("other screen", "no name"):
@@ -1055,6 +1113,8 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
     A note, or no answer, is a read that did not happen: the cursor waits on that frame and the visit stays
     unread. A call that came back empty spends one hourly slot, so a timeout cannot retry without limit.
     A throttle or a budget note does not. An answer that names nothing is a look, and it is not retried.
+    A lobby frame that fails LOBBY_TRIES_PER_FRAME times for any other reason is passed and said (REG-1941),
+    a reader that raises is a read that did not happen, and any stop ends the whole scan.
     Each lobby check is counted by the file's pixel size. Frames the char cursor already finished are
     checked on a backfill, so a reel scanned before the lobby rule is not a zero."""
     d = load()
@@ -1150,7 +1210,7 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
                 crop = panel_crop(p, work)
                 if not crop:
                     continue
-                raw = reader(crop)
+                raw = _ask(reader, crop)
                 st["readTs"].append(now_s)
                 op["reads"] += 1
                 rows, rwhy = normalize(raw)
@@ -1175,7 +1235,12 @@ def tick(root=None, stats=None, reader=None, now=None, budget_s=TICK_BUDGET_S, c
                     d["visits"][op["id"]]["lastFrame"] = {"reel": name, "frame": os.path.basename(p), "ts": ts}
             if pos0 < len(frames) <= int(rs.get("pos") or 0):
                 finished.append(name)
-            if why == "tick budget spent" or why.startswith("hourly read cap"):
+            # REG-1941 (the #231 eye on v3574) - EVERY stop ends the scan, not only the budget and the cap. A lobby read
+            # that did not happen broke this reel's loop and the next reel was scanned with `why` already set: its
+            # char-select reads ran against the same throttle and were counted as refusals (a visit's reads and the
+            # hourly cap spent on reads that never happened), the closing reads were skipped, and a later note
+            # overwrote the first failure's reason.
+            if why:
                 break
         if not why:
             n_close, cwhy = _closing_reads(d, root, reader, st, now_s, work, t0, budget_s, clock)
@@ -1219,4 +1284,6 @@ def status(root=None):
             "learned": len(got), "seen": len(d.get("chars") or {}), "visits": len(d.get("visits") or {}),
             "ticks": int(st.get("ticks") or 0), "refused": int(st.get("refused") or 0),
             "lobbyBySize": lobby_by_size(d),
+            # REG-1941 - lobby frames passed after LOBBY_TRIES_PER_FRAME reads that did not happen, and the last one
+            "lobbyPassed": int(st.get("lobbyPassed") or 0), "lobbyPassedLast": st.get("lobbyPassedLast"),
             "say": st.get("lastWhy") or ""}
