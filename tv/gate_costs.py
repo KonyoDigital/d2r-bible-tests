@@ -118,14 +118,23 @@ class LockError(RuntimeError):
     pass
 
 
+def _migrate_fills(est):
+    """REG-1860/2027 - an old-shape localEstimates ({source, date}, no `fills`) becomes its own first fill. -> est
+
+    It must run BEFORE a new fill is appended: once `fills` exists nothing moves the old keys, so they would sit beside a
+    list holding only the new fill and the earlier fill would never be one of its entries."""
+    if est and "fills" not in est:
+        est["fills"] = [{"source": est.pop("source", "unknown"), "date": est.pop("date", "unknown"),
+                         "count": len(est.get("gates", []))}]
+    return est
+
+
 def _normalise(rec):
     """REG-1858/1860 - the header counts MEASURED gates only; estimates are counted beside them, and each fill keeps its own
     source and date (an earlier fill never reads as from the latest log). -> rec"""
     est = rec.get("localEstimates")
     if est:
-        if "fills" not in est:
-            est["fills"] = [{"source": est.pop("source", "unknown"), "date": est.pop("date", "unknown"),
-                             "count": len(est.get("gates", []))}]
+        _migrate_fills(est)
         est["count"] = len(est.get("gates", []))
     names = set((est or {}).get("gates", []))
     costs = rec.get("costs") or {}
@@ -155,7 +164,7 @@ def fill_missing(paths, label, date, table=None):
             return 0
         have.update(new)
         rec["costs"] = dict(sorted(have.items()))
-        est = rec.get("localEstimates") or {"gates": [], "fills": []}
+        est = _migrate_fills(rec.get("localEstimates")) or {"gates": [], "fills": []}   # REG-2027 - old shape first
         est["gates"] = sorted(set(est.get("gates", [])) | set(new))
         est.setdefault("fills", []).append({"source": label, "date": date, "count": len(new),
                                             "locked": bool(_lk.locked)})   # REG-1894 - an unlocked fill says so
