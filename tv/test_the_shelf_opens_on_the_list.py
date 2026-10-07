@@ -16,7 +16,10 @@ and the frame's inset are one width, and the panel does not open itself. The sta
 touch, so a press between them hits a tab.
 """
 import io
+import json
 import os
+import shutil
+import subprocess
 import sys
 import unittest
 
@@ -26,6 +29,7 @@ from console_safe import enable
 enable()
 
 UI = os.path.join(HERE, "control_ui.html")
+NODE = shutil.which("node")
 
 
 def _body(src, sig):
@@ -133,11 +137,180 @@ class TheShelfOpensOnTheList(unittest.TestCase):
         self.assertEqual(self.src.count(".sh-stationbar > .sh-chip { padding: 8px 16px; }"), 1)
 
 
+def _fn_text(src, sig):
+    """The whole function (header + brace-bounded body) at the one occurrence of sig, or None when absent."""
+    if src.count(sig) == 0:
+        return None
+    i = src.index(sig)
+    return src[i:src.index("{", i)] + _body(src, sig)
+
+
+def _code_only(text):
+    """JavaScript with its /* */ and // comments cut (the bodies cut here carry no '//' inside a string)."""
+    import re
+    text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+    return "\n".join(l.split("//", 1)[0] for l in text.split("\n"))
+
+
+_STUBS = r"""
+var LOG = [], store = {}, ELS = {};
+var localStorage = { getItem: function(k){ return store[k] === undefined ? null : store[k]; },
+                     setItem: function(k, v){ store[k] = String(v); } };
+function _el(id){ return { id: id, hidden: true, textContent: '', style: {},
+                           classList: { add: function(){}, remove: function(){}, toggle: function(){},
+                                        contains: function(){ return false; } } }; }
+function $(id){ return ELS[id] || (ELS[id] = _el(id)); }
+var document = { getElementById: function(id){ return $(id); },
+                 body: { getAttribute: function(){ return null; }, removeAttribute: function(){},
+                         classList: { add: function(){}, remove: function(){}, contains: function(){ return false; } } } };
+var window = {};
+var TH = { sessions: [], open: false };
+var CARD = { open: false, autoArmed: true };
+function toast(m){ LOG.push('toast:' + m); }
+function thCardToggle(){ CARD.open = !CARD.open; LOG.push('cardToggle'); }
+function thClose(){ TH.open = false; LOG.push('close'); }
+function thShelf(f){ LOG.push('shelf'); }
+function thLit(){} function thArtInit(){} function thRibbon(){} function thCoachOnce(){}
+function thModePill(){} function thFilter(b){ return b; } function thClock(){} function thBuildAxis(){}
+function thTimeline(){} function thPaint(){} function thSessionPhotoStats(){ return {}; } function thToast(){}
+var FETCH = {};
+function fetch(url){ var body = FETCH[String(url).split('?')[0]];
+  return Promise.resolve({ json: function(){ return Promise.resolve(body); } }); }
+function _done(extra){ process.stdout.write(JSON.stringify(Object.assign({ log: LOG, cardOpen: CARD.open }, extra || {}))); }
+"""
+
+
+def _drive(src, names, scenario, extra_stubs=""):
+    """Run the named functions of `src` (the real control_ui.html text) in node over the stubs above. -> dict"""
+    fns = []
+    for sig in names:
+        t = _fn_text(src, sig)
+        if t is not None:
+            fns.append(t)
+    prog = _STUBS + extra_stubs + "\n" + "\n".join(fns) + "\n" + scenario
+    r = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=60)
+    if r.returncode != 0:
+        raise AssertionError("node failed: %s" % (r.stderr[-600:] or r.stdout[-600:]))
+    return json.loads(r.stdout)
+
+
+_LAST = ["function thPickEntrySession(", "window._shelfLastSession = async function(){"]
+_OPEN = ["async function thOpen(){", "async function thLoadSession(", "function thApplyCardPref(){",
+         "function thPickEntrySession("]
+_TOGGLE = ["function _thShelfWasTheDoor(){", "function thShelfToggle(){"]
+
+
+def last_session_with_no_film(src):
+    return _drive(src, _LAST, "TH.sessions = [{n: 5, frames: 0, footageN: 0}, {n: 6, stub: true}];\n"
+                              "window._shelfLastSession().then(function(){ _done(); });",
+                  extra_stubs="function thLoadSession(n, e){ LOG.push('load:' + n); }\n"
+                              "async function thOpen(){ LOG.push('open'); }\n")
+
+
+def last_session_when_the_theatre_will_not_open(src):
+    return _drive(src, _LAST, "TH.sessions = [];\nwindow._shelfLastSession().then(function(){ _done(); });",
+                  extra_stubs="function thLoadSession(n, e){ LOG.push('load:' + n); }\n"
+                              "async function thOpen(){ throw new Error('law: no stage'); }\n")
+
+
+def a_reel_opened_from_the_shelf_door(src):
+    return _drive(src, _OPEN, (
+        "store['tvd_card_pref'] = 'open';\n"
+        "FETCH['/api/sessions'] = { sessions: [{n: 7, frames: 3, footageN: 20, named: 1}] };\n"
+        "FETCH['/api/session'] = { beats: [{frame: 'f_1790000000000.jpg', ts: 1}], sessionId: 's7' };\n"
+        "TH.shelfAsDoor = true;\n"
+        "(async function(){ await thOpen(); var atShelf = CARD.open; await thLoadSession(7);\n"
+        "  _done({atShelf: atShelf}); })();"))
+
+
+def hiding_the_shelf(src, was_door):
+    return _drive(src, _TOGGLE, (
+        "ELS['th-shelfov'] = _el('th-shelfov'); ELS['th-shelfov'].hidden = false;\n"
+        "TH.open = true; TH.shelfIsDoor = %s;\n"
+        "if (typeof thShelfToggle === 'function') thShelfToggle(); else thShelf();\n"
+        "_done({shelfHidden: ELS['th-shelfov'].hidden, theatreOpen: TH.open});") % ("true" if was_door else "false"))
+
+
+@unittest.skipUnless(NODE, "no node on this machine - the shelf-door residue is UNMEASURED here, not passing")
+class TheShelfDoorLeavesTheWayItCame(unittest.TestCase):
+    """REG-1944 - the #231 eye on v3570. DRIVEN in node on the real control_ui.html functions. MEASURED on the
+    shipped v3602 page before the fix: Last session with sessions but no film loaded session 1 ('load:1') instead of
+    saying 'no session has film yet'; with a theatre that would not open it toasted 'no session has film yet'; a reel
+    opened from the shelf door never got his saved read panel (cardOpen false with tvd_card_pref 'open'); and `s` or
+    the stage's shelf button hid a shelf that WAS the door and left the theatre open on an empty stage."""
+
+    def setUp(self):
+        with io.open(UI, encoding="utf-8") as fh:
+            self.src = fh.read()
+
+    def test_last_session_with_no_film_says_so_and_loads_nothing(self):
+        got = last_session_with_no_film(self.src)
+        self.assertNotIn("load:1", got["log"], "Last session loaded 'session 1' onto an empty stage: %r" % got["log"])
+        self.assertIn("toast:no session has film yet", got["log"])
+
+    def test_a_theatre_that_will_not_open_is_not_called_no_film(self):
+        got = last_session_when_the_theatre_will_not_open(self.src)
+        self.assertNotIn("toast:no session has film yet", got["log"], "a failed open was reported as 'no film'")
+        self.assertTrue(any(x.startswith("toast:the theatre could not open") for x in got["log"]), got["log"])
+
+    def test_premise_the_theatre_button_keeps_its_fallback(self):
+        out = _drive(self.src, ["function thPickEntrySession("],
+                     "TH.sessions = [{n: 5, frames: 0}];\n_done({loose: thPickEntrySession(), strict: thPickEntrySession(true)});")
+        self.assertEqual((1, 0), (out["loose"], out["strict"]))
+
+    def test_a_reel_opened_from_the_shelf_door_gets_his_saved_panel(self):
+        got = a_reel_opened_from_the_shelf_door(self.src)
+        self.assertFalse(got["atShelf"], "PREMISE: the shelf itself opens no panel")
+        self.assertTrue(got["cardOpen"], "his saved 'open' read panel was not honoured on a reel from the shelf door")
+        self.assertEqual(1, got["log"].count("cardToggle"))
+
+    def test_hiding_a_shelf_that_was_the_door_closes_the_theatre(self):
+        got = hiding_the_shelf(self.src, was_door=True)
+        self.assertFalse(got["theatreOpen"], "hiding the door's shelf left an empty stage open: %r" % got)
+        self.assertTrue(got["shelfHidden"])
+        kept = hiding_the_shelf(self.src, was_door=False)
+        self.assertTrue(kept["theatreOpen"], "a shelf opened over a reel took the reel with it")
+
+    def test_both_toggles_ask_the_door_rule(self):
+        code = _code_only(self.src)
+        self.assertEqual(1, code.count("$('th-shelf').onclick = function(){ thShelfToggle(); };"),
+                         "the stage's shelf button toggles the shelf bare")
+        self.assertEqual(1, code.count("else if (e.key === 's' || e.key === 'S'){ thShelfToggle(); e.preventDefault(); }"),
+                         "the s key toggles the shelf bare")
+
+
 RED_PROOF = [
+    {"why": "REG-1944 - Last session's pick falls back to session 1 again, so 'no session has film yet' is unreachable",
+     "file": "control_ui.html",
+     "find": "    var pick = (typeof thPickEntrySession === 'function') ? thPickEntrySession(true) : 0;\n",
+     "replace": "    var pick = (typeof thPickEntrySession === 'function') ? thPickEntrySession() : 0;\n",
+     "matches": 1},
+    {"why": "REG-1944 - a theatre that would not open is toasted as 'no session has film yet'",
+     "file": "control_ui.html",
+     "find": "      try { toast('the theatre could not open (' + String(e && e.message || e).slice(0, 80) + ')'); } catch (e3) {}\n"
+             "      return;\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "REG-1944 - a reel opened from the shelf door never gets his saved read panel",
+     "file": "control_ui.html",
+     "find": "    if (TH.cardPrefOwed) { TH.cardPrefOwed = false; thApplyCardPref(); }",
+     "replace": "",
+     "matches": 1},
+    {"why": "REG-1944 - hiding a shelf that was the door leaves an empty stage open",
+     "file": "control_ui.html",
+     "find": "    if (ov && !ov.hidden && _thShelfWasTheDoor()) {\n",
+     "replace": "    if (false) {\n",
+     "matches": 1},
+    {"why": "REG-1944 - the s key toggles the shelf bare again",
+     "file": "control_ui.html",
+     "find": "else if (e.key === 's' || e.key === 'S'){ thShelfToggle(); e.preventDefault(); }",
+     "replace": "else if (e.key === 's' || e.key === 'S'){ thShelf(); e.preventDefault(); }",
+     "matches": 1},
     {"why": "REG-1757 - the shelf door loads a session again",
      "file": "control_ui.html",
      "find": "    if (_shelfDoor) {\n"
              "      try { $('th-caption').textContent = 'the shelf'; } catch (e) {}\n"
+             "      TH.cardPrefOwed = true;   // REG-1944 - the first reel he opens from this shelf gets his saved panel\n"
              "      thLit();\n"
              "      return;\n"
              "    }\n",

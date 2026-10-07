@@ -7472,7 +7472,10 @@ GATES = [
              "returns before thLoadSession, Last session asks the Theatre pick, an empty reel "
              "stays put, the dossier names the count and has a close, the read panel and the "
              "frame inset are one narrower width and the panel does not open itself, and the "
-             "station tabs have no dead gap."),
+             "station tabs have no dead gap. REG-1944 (the #231 eye on v3570), driven in node: Last "
+             "session with no film says so instead of loading 'session 1', a failed open is not "
+             "called no film, a reel from the shelf door gets his saved read panel, and s / the "
+             "stage's shelf button close a shelf that was the door instead of leaving a bare stage."),
     Gate("test_shell_tracks", [sys.executable, os.path.join(HERE, "test_shell_tracks.py")], 60,
          why="v2453 — THE TRACK COUNT MUST MATCH THE AREA ROW COUNT. Konyo photographed a black "
              "panel twice and found the cause himself: \"maybe it because i wasnt full screen\". "

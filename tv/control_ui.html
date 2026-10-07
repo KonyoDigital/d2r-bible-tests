@@ -12470,8 +12470,13 @@ window._lockMark = function(isOpen, px, label){
     var have = (typeof TH !== 'undefined' && TH.sessions && TH.sessions.length);
     try {
       if (!have && typeof thOpen === 'function') { await thOpen(); return; }
-    } catch (e) {}
-    var pick = (typeof thPickEntrySession === 'function') ? thPickEntrySession() : 0;
+    } catch (e) {
+      /* REG-1944 - a theatre that would not open is not "no film": it fell through to the pick
+         below, found no sessions, and toasted 'no session has film yet' over a failed open. */
+      try { toast('the theatre could not open (' + String(e && e.message || e).slice(0, 80) + ')'); } catch (e3) {}
+      return;
+    }
+    var pick = (typeof thPickEntrySession === 'function') ? thPickEntrySession(true) : 0;
     if (pick && typeof thLoadSession === 'function') thLoadSession(pick, true);
     else { try { toast('no session has film yet'); } catch (e2) {} }
   };
@@ -17168,6 +17173,7 @@ window._lockMark = function(isOpen, px, label){
     TH.playing = !isEntry;
     $('th-play').textContent = TH.playing ? '⏸' : '▶';
     thTimeline(); thPaint();
+    if (TH.cardPrefOwed) { TH.cardPrefOwed = false; thApplyCardPref(); }   // REG-1944 - the shelf door's first reel
     // v946.9 — on open, tell the user how many screenshots L/R will step (the real feed)
     if (isEntry){
       var _st0 = thSessionPhotoStats();
@@ -17181,10 +17187,14 @@ window._lockMark = function(isOpen, px, label){
       }
     }
   }
-  function thPickEntrySession(){
+  function thPickEntrySession(strict){
     /* The Theatre button's pick: newest reel with real film, then anything with frames.
-       The shelf's Last session button asks the same function. One pick. */
-    var pick = 1, tiers = [
+       The shelf's Last session button asks the same function. One pick.
+       REG-1944 (the #231 eye on v3570) - `strict` answers 0 when no session has a frame or any film:
+       the pick fell back to a literal 1, so Last session loaded "session 1" (maybe not a real n) onto
+       an empty stage and its own 'no session has film yet' could never be said while sessions existed.
+       The Theatre button keeps its old fallback. */
+    var pick = strict ? 0 : 1, tiers = [
       function(s){ return !s.stub && (s.footageN||0) > 10 && (s.named||0) > 0; },
       function(s){ return !s.stub && (s.footageN||0) > 10; },
       function(s){ return !s.stub && (s.reads||0) >= 3 && (s.named||0) > 0 && (s.frames||0) > 0; },
@@ -17334,19 +17344,27 @@ window._lockMark = function(isOpen, px, label){
     // real video beats everything; a 1-read ghost (stub flag) can never win the default slot.
     if (_shelfDoor) {
       try { $('th-caption').textContent = 'the shelf'; } catch (e) {}
+      TH.cardPrefOwed = true;   // REG-1944 - the first reel he opens from this shelf gets his saved panel
       thLit();
       return;
     }
+    TH.cardPrefOwed = false;
     var pick = thPickEntrySession();
     await thLoadSession(pick, true);   // v943 §C1 — entry pins REAL
-    // The read panel stays shut unless he left it open. The frame is the picture.
-    // A saved open still opens it here; no preference does not arm it for the first named beat.
+    thApplyCardPref();
+    thLit();
+  }
+  function thApplyCardPref(){
+    /* The read panel stays shut unless he left it open. The frame is the picture.
+       A saved open still opens it here; no preference does not arm it for the first named beat.
+       REG-1944 (the #231 eye on v3570) - ONE function: the Theatre button applies it after its
+       load, and a theatre entered through the shelf door owes it to the first reel that loads
+       there (the door returns before any load, so his saved 'open' was never honoured). */
     try {
       var pref = localStorage.getItem('tvd_card_pref');
       if (pref === 'open' && !CARD.open) thCardToggle();
       else CARD.autoArmed = false;
     } catch (e) { CARD.autoArmed = false; }
-    thLit();
   }
   function thClose(){
     /* v3304 (#59) — INVALIDATE ANY OPEN STILL IN FLIGHT. Without this the pending thOpen()
@@ -19741,7 +19759,7 @@ window._lockMark = function(isOpen, px, label){
     } catch (_e) {}
     _shGroups();   // v1285 (D10) — re-draw day headers over the newly-filtered visible set
   }
-  $('th-shelf').onclick = function(){ thShelf(); };
+  $('th-shelf').onclick = function(){ thShelfToggle(); };
   /* ⚠ v2804 — EXPORTED, because a panel nothing can open is a panel nothing can photograph.
      `thShelf` lives inside this file's IIFE, exactly like `_shLanesLoad` two thousand lines up —
      and that one is explicitly put on `window` while this one never was. Measured: a render
@@ -20111,6 +20129,19 @@ window._lockMark = function(isOpen, px, label){
   function _thShelfWasTheDoor(){
     try { return !!TH.shelfIsDoor; } catch (e) { return false; }
   }
+  function thShelfToggle(){
+    /* REG-1944 (the #231 eye on v3570) - THE THIRD AND FOURTH WAY OUT OF THE SHELF. ✕, Esc and a click
+       outside already leave the way he came in (v2451, v3264). `s` and the stage's shelf button
+       toggled it bare, and since v3570 the door loads no reel - so hiding a shelf that WAS the door
+       left an empty black stage captioned 'the shelf'. Same rule: the door closes everything. */
+    var ov = $('th-shelfov');
+    if (ov && !ov.hidden && _thShelfWasTheDoor()) {
+      ov.hidden = true;
+      try { thClose(); } catch (e) {}
+      return;
+    }
+    thShelf();
+  }
 
   function thEscUnwind(){
     if (TH.hdOpen){ thHdClose(); return; }   // v944.7 — the frame lightbox is the topmost layer
@@ -20196,7 +20227,7 @@ window._lockMark = function(isOpen, px, label){
     }
     if (e.key === 'i' || e.key === 'I'){ thCardToggle(); e.preventDefault(); }
     else if (e.key === 'f' || e.key === 'F'){ thCinema(); e.preventDefault(); }
-    else if (e.key === 's' || e.key === 'S'){ thShelf(); e.preventDefault(); }
+    else if (e.key === 's' || e.key === 'S'){ thShelfToggle(); e.preventDefault(); }
     else if (e.key === 'Escape'){ thEscUnwind(); e.preventDefault(); }
     else if (e.key === 'r' || e.key === 'R'){ thInstantReplay(); e.preventDefault(); }
     else if (e.key === 'Home'){ thGo(0, false); e.preventDefault(); }
