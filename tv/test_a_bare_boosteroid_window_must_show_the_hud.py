@@ -631,7 +631,8 @@ RED_PROOF = [
     {
         "why": "#167 - a frame that will not come holds the door for ever",
         "file": "control_app.py",
-        "find": "    if isinstance(until, (int, float)) and now >= float(until) + _BARE_HUD_RELOOK_S * 1000:\n",
+        "find": "    if isinstance(until, (int, float)) and not isinstance(until, bool) \\\n"
+                "            and now >= float(until) + _BARE_HUD_RELOOK_S * 1000:\n",
         "replace": "    if False:\n",
         "matches": 1,
     },

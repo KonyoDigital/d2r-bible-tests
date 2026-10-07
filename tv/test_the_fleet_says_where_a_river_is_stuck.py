@@ -1224,8 +1224,8 @@ RED_PROOF = [
     {
         "why": "REG-1828 - the counted card drops the click sentence, so what a click opens is said nowhere",
         "file": "tv/control_ui.html",
-        "find": "toISOString() : m.t))\n          + '</div>' + _fttClick + '</div>';",
-        "replace": "toISOString() : m.t))\n          + '</div></div>';",
+        "find": "toISOString() : m.t)\n          + '</div>' + _fttClick + '</div>';",
+        "replace": "toISOString() : m.t)\n          + '</div></div>';",
         "matches": 1,
     },
     {
