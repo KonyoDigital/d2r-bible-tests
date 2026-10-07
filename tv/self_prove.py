@@ -604,7 +604,11 @@ def _edits_beyond_own_records(porcelain, also=()):
             continue
         path = bits[-1].strip().strip('"')
         # a rename is never forgiven: its other end is a file of the tree that moved
-        if len(bits) < 2 or path not in forgiven:
+        # ⚠ REG-1927 — AND ONLY A REWRITE IS THE RECORD'S OWN. Its writers rewrite it in place (os.replace), which
+        # git shows as M in either column. A deleted, added, unmerged or retyped record (` D`, `A `, `UU`, `AA`,
+        # ` T`) is not that write, and every one of them was forgiven: measured, `UU tv/.status_worst.json` alone
+        # gave tree_state "installed", so a tree mid-merge could prove in the background.
+        if len(bits) < 2 or path not in forgiven or set(bits[0]) - {"M"}:
             out.append(ln)
     return out
 

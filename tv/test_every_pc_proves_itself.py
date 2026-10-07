@@ -492,6 +492,25 @@ class TheTreeIsToldApart(unittest.TestCase):
                          "a file renamed onto the record was forgiven, and the file it was is gone")
         self.assertEqual(f(""), [])
 
+    def test_only_a_rewrite_of_the_record_is_forgiven(self):
+        """REG-1927 - every porcelain state of the record was forgiven, so `UU` alone (a tree mid-merge) read installed."""
+        f = SP._edits_beyond_own_records
+        for row in (" M tv/.status_worst.json", "M  tv/.status_worst.json", "MM tv/.status_worst.json",
+                    "M tv/.status_worst.json"):            # the last: self_prove._git strips the whole output
+            self.assertEqual(f(row), [], "the console's own rewrite read as a local edit: %r" % row)
+        for row in (" D tv/.status_worst.json", "D  tv/.status_worst.json", "UU tv/.status_worst.json",
+                    "AA tv/.status_worst.json", "A  tv/.status_worst.json", " T tv/.status_worst.json",
+                    "DU tv/.status_worst.json"):
+            self.assertEqual(f(row), [row], "a record that was not rewritten was forgiven: %r" % row)
+
+        def git(rows):
+            def g(*args):
+                return (0, rows) if args[0] == "status" else (0, "0\t0")
+            return g
+        self.assertEqual(SP.tree_state(git("M tv/.status_worst.json"))[0], "installed")
+        self.assertEqual(SP.tree_state(git("UU tv/.status_worst.json"))[0], "dev",
+                         "a tree mid-merge on the record was called an installed console")
+
 
 class TheSandboxRefusalIsSaid(unittest.TestCase):
     """REG-1845 - heart2 handed safe_copy's refusal to a no-op and logged only "exit 1", 125 times on his Mac."""
@@ -1090,6 +1109,13 @@ class TwoLanesOnlyWithRoom(unittest.TestCase):
         self.assertEqual(seen, ["4", "1", "1"], "the prover's lane count did not follow the memory free at spawn")
 
 RED_PROOF = [
+    {
+        "why": "REG-1927 - every porcelain state of the console's own record is forgiven again, so UU reads installed",
+        "file": "tv/self_prove.py",
+        "find": "        if len(bits) < 2 or path not in forgiven or set(bits[0]) - {\"M\"}:\n",
+        "replace": "        if len(bits) < 2 or path not in forgiven:\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1898 - the launcher acts on a rule it could not ask (a failure reads as a verdict)",
         "file": "tv/launcher_pull.py",
