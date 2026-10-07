@@ -64,7 +64,7 @@ class TheGateSetShardsCleanly(unittest.TestCase):
         # beat what the declared timeouts would have dealt, judged by the same weights - that comparison cannot drift
         # above the defect however the registry grows.
         self.assertLess(abs(a - b), max(20.0, 0.02 * (a + b)),
-                        "slices differ by more than 2%% of the MEASURED total: %.0f vs %.0f" % (a, b))
+                        "slices differ by 2%% or more of the MEASURED total (floor 20 s): %.0f vs %.0f" % (a, b))
         bins = [[0.0, i, []] for i in range(2)]
         for g in sorted(RG.GATES, key=lambda g: (-float(g.timeout or 0), g.name)):
             bn = min(bins, key=lambda x: (x[0], x[1]))
@@ -194,6 +194,41 @@ class TheFillMissingKeepsItsHonesty(unittest.TestCase):
                 GC.fill_missing([log], "x", "d", table=self.table)
         self.assertNotIn("c", self._rec()["costs"], "the table was edited without its lock")
 
+    def test_a_flock_that_fails_where_fcntl_exists_refuses_the_write(self):
+        """REG-2027 (the #231 eye on v3599) - "on a machine that HAS fcntl an open() or flock() failure also silently skips
+        the lock". The open() arm is the case above; this is the flock() arm, with fcntl really imported."""
+        from unittest import mock
+        import gate_costs as GC
+        try:
+            import fcntl
+        except ImportError:
+            self.skipTest("no fcntl on this platform - the unlocked arm is test_a_platform_without_fcntl_edits_unlocked_and_says_so")
+        log = self._log("l1", [("c", 4.0)])
+        with mock.patch.object(fcntl, "flock", side_effect=OSError("flock refused")) as fl:
+            with self.assertRaises(GC.LockError):
+                GC.fill_missing([log], "x", "d", table=self.table)
+        self.assertTrue(fl.called, "premise: the lock never reached flock(), so this case measured nothing")
+        self.assertNotIn("c", self._rec()["costs"], "a failed flock() on a machine with fcntl still wrote the table")
+
+    def test_an_old_shape_estimate_becomes_the_first_fill_before_a_new_one(self):
+        """REG-2027 (the #231 eye on v3599) - fill_missing appended its fill BEFORE _normalise, and _normalise migrates an
+        old-shape localEstimates ({source, date}, no fills) only when `fills` is absent: the old source/date stayed
+        beside a fills list that held only the new fill, and the earlier fill was never one of them."""
+        import gate_costs as GC
+        rec = self._rec()
+        rec["costs"]["x"] = 7.0
+        rec["localEstimates"] = {"gates": ["x"], "count": 1, "source": "old run", "date": "d0"}
+        with open(self.table, "w", encoding="utf-8") as fh:
+            self.json.dump(rec, fh)
+        self.assertEqual(GC.fill_missing([self._log("l1", [("c", 4.0)])], "new run", "d1", table=self.table), 1)
+        est = self._rec()["localEstimates"]
+        self.assertEqual([(f["source"], f["date"], f["count"]) for f in est["fills"]],
+                         [("old run", "d0", 1), ("new run", "d1", 1)],
+                         "the old-shape fill was not migrated before the new fill was appended")
+        self.assertEqual(sorted(k for k in ("source", "date") if k in est), [],
+                         "the old-shape source/date still sit beside the fills list")
+        self.assertEqual((est["gates"], est["count"]), (["c", "x"], 2))
+
     def test_a_platform_without_fcntl_edits_unlocked_and_says_so(self):
         import contextlib
         import io
@@ -321,6 +356,20 @@ RED_PROOF = [
         "file": "run_gates.py",
         "find": "    if not (1 <= int(k) <= int(n)) or int(n) > len(gates):\n",
         "replace": "    if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2027 - a failed flock() on a machine that HAS fcntl is swallowed: the table is written unlocked and the fill says locked",
+        "file": "gate_costs.py",
+        "find": "            fcntl.flock(self.fh, fcntl.LOCK_EX)\n",
+        "replace": "            try:\n                fcntl.flock(self.fh, fcntl.LOCK_EX)\n            except OSError:\n                pass\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2027 - fill_missing appends before the old-shape {source, date} is migrated: the earlier fill is lost from fills",
+        "file": "gate_costs.py",
+        "find": "        est = _migrate_fills(rec.get(\"localEstimates\")) or {\"gates\": [], \"fills\": []}",
+        "replace": "        est = rec.get(\"localEstimates\") or {\"gates\": [], \"fills\": []}",
         "matches": 1,
     },
 ]
