@@ -30265,7 +30265,15 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
         var touchedRecently = (Date.now() - (window._thTouchedAt || 0)) < 12000;
         /* v2432 — `ink === false` is a MEASURED absence of pixels and now defeats the early
            return. `ink === null` (unjudgeable surface) leaves the old behaviour exactly as it was. */
-        if (((painted && loaded && ink !== false)) || touchedRecently) { window._thEmptyFor = 0; return; }
+        /* REG-1934 — THE SHELF IS NOT AN EMPTY STAGE. Opened as the door, the shelf sits on a theatre with no reel by
+           design, so the film is ink-less and, with the pointer held still on a card (reading its tip), nothing counts
+           as a touch: after 12 s this closed the theatre and the shelf went with it (GrokBot tick 377, ~05:11:50,
+           "self-closed while hovering a star icon, no wheel, no ×"). A shelf or a dossier on screen is him using it. */
+        var _ovUp = false;
+        try {
+          ['th-shelfov', 'th-dossier-ov'].forEach(function (id) { var o = document.getElementById(id); if (o && !o.hidden) _ovUp = true; });
+        } catch (_o) {}
+        if (((painted && loaded && ink !== false)) || touchedRecently || _ovUp) { window._thEmptyFor = 0; return; }
         window._thEmptyFor = (window._thEmptyFor || 0) + 1;
         if (window._thEmptyFor >= 4) {               /* ~12s open and never finished loading */
           window._thEmptyFor = 0;

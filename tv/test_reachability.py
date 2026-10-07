@@ -242,6 +242,10 @@ EXTERNAL_SYMBOLS = {
     ("bible.html", "window"): "the environment probe `typeof window !== 'undefined'` — never a "
                               "symbol this document declares",
     ("tv/control_ui.html", "window"): "same environment probe, same reason",
+    # REG-1937 — REG-1932's age tick starts only where there is a page: `typeof document !== 'undefined'`
+    # is the same kind of environment probe (the node laws lift that block, and node has no document).
+    ("tv/control_ui.html", "document"): "the environment probe `typeof document !== 'undefined'` — never a "
+                                        "symbol this file declares",
     # v1695 — the third of the same kind, and it had been failing this gate as a standing red.
     # Verified at the source rather than waved through by category: bible.html:39053 guards
     # `typeof MutationObserver === 'function'` and constructs `new MutationObserver(...)` on the
