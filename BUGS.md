@@ -406,6 +406,30 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-1931 - TWO STAMPS THE SERVER CALLS DRIFT PAINTED NO BANNER (2026-10-07, Grok ui slice 0 #2)
+
+`_pageNewerSay` returned '' on a numeric tie between two different strings (v1 / v1.0, 3600 / v3600), while `_drift_once` compares the strings and calls that drift. The banner now says the two differ and that which is newer is UNKNOWN. Law `test_a_window_that_fails_says_why`.
+
+### REG-1930 - A SECOND QUIT LET THE NEXT WINDOW'S X DESTROY THE VIEW (2026-10-07, Grok ui slice 0 #1)
+
+The closing handler let a close through whenever the quit had recorded no window. A quit marks its window gone before `destroy()`, so its own close always arrives with no window up; a quit while parked records None. Measured: after that, the park loop's new window had its ✕ destroy the view instead of hiding it - REG-1830's defect through a second door. A window up that the quit did not record now takes the normal ✕ route. Law `test_quit_leaves_the_shadow_reader_running`.
+
+### REG-1929 - THE READERS CARD PRINTED A CLEAN KAI OFF A JOURNAL NOBODY READ (2026-10-07, Grok journal slice 1 #3)
+
+On an unread journal the readers card kept 🔵 — ("no verify yet") and 🧠 ✓ ("KAI caught nothing"); both come from the journal through the eye pulse. They print ? now. 🔴 is the agent's own read count and a film's retro count comes off the reel, so both still show. Law `test_an_unread_journal_is_not_a_quiet_readers_organ`.
+
+### REG-1928 - ONE BAD BYTE BLINDED THE JOURNAL, AND A SHORT TAIL READ AS EMPTY (2026-10-07, Grok journal slice 0 #1 #3)
+
+`_journal_read` decoded the whole window before parsing any line, so one torn UTF-8 write (every writer appends with `ensure_ascii=False`) gave rows [] and UNKNOWN - measured, the file held 3 good beats. Each line is now decoded on its own and a line that will not decode counts as torn; lines split on "\n" only, because `str.splitlines` also split a beat at U+2028 and U+0085. A `tail_bytes` window with no whole line in it (the newest row longer than the window) returned rows [] with no reason, which read as an empty journal; it is UNKNOWN now. Law `test_a_dead_journal_reader_says_so`.
+
+### REG-1927 - EVERY GIT STATE OF THE CONSOLE'S OWN RECORD WAS FORGIVEN (2026-10-07, Grok river slice 1 #1)
+
+`_edits_beyond_own_records` forgave `tv/.status_worst.json` whatever its porcelain status; its writer only rewrites it in place (`os.replace`, shown as M). Measured: `UU tv/.status_worst.json` alone made `tree_state` "installed", so a tree mid-merge could prove in the background. Only M in either column is forgiven now; a deleted or unmerged record also blocks the fleet pull and sets the fleet's dirty flag (all four callers share the one rule; nothing deletes that record today). Law `test_every_pc_proves_itself`.
+
+### REG-1926 - A BESIDE-SHADOW CAP BELOW ZERO DELETED MORE REELS, NOT FEWER (2026-10-07, Grok river slice 1 #5)
+
+`_cap_beside_shadow` took `cands[:cap]`, so a negative cap was read from the end: measured on five candidates, cap -1 released 4 and cap 0 released 0. The one caller passes the constant 20, so nothing reached this; on the only irreversible deleter the cap is clamped at 0. The v3596 slices' other 26 findings were measured not defects or already fixed (the table is in the agent's report). Law `test_the_river_drains_every_pass` (TheShadowCapNeverWidens).
+
 ### REG-1921 - v3601's CI WENT RED ON A LAW THAT DID NOT CHANGE (2026-10-07, CI on 76b1b8f3)
 
 `test_a_found_row_carries_its_evidence` pins the one line of `toggleOwned` its node stub reproduces, and REG-1886 (who made the tick) turned that line into a block (`else { fl[name] = ...;` then the foundBy mark). The write is unchanged and the stub still reproduces it; the pin quoted the old one-line form. The push gate proves CHANGED laws, and this law did not change - the page did - so only CI's full gate set saw it (the pre_push_gate_is_a_subset scar, again). The pin now quotes the block's first line. The same law then went red on the v3602 branch for a second reason: it lifts the apply loops into node, and REG-1906's un-tick check (`window._chronHeldByUntick`) is a function its harness did not define - the harness now stubs it (this world has no un-ticks). Law `test_a_found_row_carries_its_evidence`.
