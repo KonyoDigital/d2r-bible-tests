@@ -8923,6 +8923,12 @@ GATES = [
          why=("REG-1959 - the ALT has no stash_gate_cache (it never filmed a stash panel), so its vault lane could never "
               "prove itself live and retired every reel un-extracted; a tracked stash frame, pinned by sha256, is the canary.")
          ),
+    Gate("test_a_stubbed_run_never_calls_a_live_model", [sys.executable,
+         os.path.join(HERE, "test_a_stubbed_run_never_calls_a_live_model.py")], 60,
+         needs_app=False,
+         why=("REG-2013 (#253) - four readers took the TV_STUB stub only when Claude had NOT missed, so a throttled Claude "
+              "on BOTH fell through to a LIVE Grok read from a stubbed run; each returns not-read now, like claude_read.")
+         ),
     Gate("test_a_relaunch_waits_while_he_uses_the_window", [sys.executable,
          os.path.join(HERE, "test_a_relaunch_waits_while_he_uses_the_window.py")], 60,
          needs_app=False,

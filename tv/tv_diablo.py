@@ -7595,6 +7595,10 @@ def claude_vault_read(image_path, surface, timeout=None):
     # nothing and removes a silent wrong answer from a plausible caller mistake. [[the-unjoined-end]]
     if surface in ("personal", "shared"):
         surface = "stash"
+    # REG-2013 (the #231 eye on v3576) - a STUBBED run that hits a Claude miss returns not-read, like claude_read;
+    # skipping the stub on a miss fell through to _oneshot -> _grok_backup, a LIVE Grok read from a stubbed sweep.
+    if _miss and os.environ.get("TV_STUB"):
+        return {"note": "not read - %s under TV_STUB (vault: a stubbed run never calls a live model)" % _miss}
     if os.environ.get("TV_STUB") and not _miss:
         # the same TDD seam the other readers have: drivable end to end at zero vision cost
         try:
@@ -7778,6 +7782,10 @@ def claude_chronicle_read(image_path, kind, timeout=None):
     _blocked = None if _reader_choice() == "grok" else _sub_budget_check("oneshot")   # #151 Claude's cap, Claude's reads
     if _miss is None and _blocked:
         return {"note": "not read — %s" % _blocked}
+    # REG-2013 (the #231 eye on v3576) - a STUBBED run that hits a Claude miss returns not-read, like claude_read;
+    # skipping the stub on a miss fell through to _oneshot -> _grok_backup, a LIVE Grok read from a stubbed sweep.
+    if _miss and os.environ.get("TV_STUB"):
+        return {"note": "not read - %s under TV_STUB (chronicle: a stubbed run never calls a live model)" % _miss}
     if os.environ.get("TV_STUB") and not _miss:
         # the TDD seam: the sweep must be drivable end-to-end with zero vision cost, exactly like
         # the live loop is (TV_STUB, v711)
@@ -7904,6 +7912,10 @@ def charselect_read(image_path, timeout=None):
         return _panel_note("not read - %s" % _blocked, later=True)
     if _blocked and _miss is None and _reader_choice() == "both":
         _miss = "claude over budget"
+    # REG-2013 (the #231 eye on v3576) - a STUBBED run that hits a Claude miss returns not-read, like claude_read;
+    # skipping the stub on a miss fell through to _oneshot -> _grok_backup, a LIVE Grok read from a stubbed sweep.
+    if _miss and os.environ.get("TV_STUB"):
+        return _panel_note("%s under TV_STUB - not read (charselect: a stubbed run never calls a live model)" % _miss, later=True)
     if os.environ.get("TV_STUB") and not _miss:
         try:
             man_path = os.environ.get("TV_STUB_MANIFEST") or os.path.join(HERE, "stub_manifest.json")
@@ -7954,6 +7966,10 @@ def surface_read(image_path, timeout=None):
         return _panel_note("not read - %s" % _blocked, later=True)
     if _blocked and _miss is None and _reader_choice() == "both":
         _miss = "claude over budget"
+    # REG-2013 (the #231 eye on v3576) - a STUBBED run that hits a Claude miss returns not-read, like claude_read;
+    # skipping the stub on a miss fell through to _oneshot -> _grok_backup, a LIVE Grok read from a stubbed sweep.
+    if _miss and os.environ.get("TV_STUB"):
+        return _panel_note("%s under TV_STUB - not read (surface: a stubbed run never calls a live model)" % _miss, later=True)
     if os.environ.get("TV_STUB") and not _miss:
         try:
             man_path = os.environ.get("TV_STUB_MANIFEST") or os.path.join(HERE, "stub_manifest.json")
