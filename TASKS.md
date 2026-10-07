@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3605** | `(this commit)` | v3605 — his recorded v1693 ruling overrules his un-tick again, and a vault lane held by memory on the ALT says so and frees an idle view (REG-2002, REG-2003) |
+| **v3606** | `(this commit)` | v3606 — a finished join and a spent re-read past the newest 16 move on, a ruling overrules only its nine, and Grok stepped in counts only an ask (REG-2004, REG-2005, REG-2006) |
+| **v3605** | `320dea94` | v3605 — his recorded v1693 ruling overrules his un-tick again, and a vault lane held by memory on the ALT says so and frees an idle view (REG-2002, REG-2003) |
 | **v3604** | `dd79809a` | v3604 — one verdict cache per machine, a load-measured render extension, low-effort second eye, and the four v3603 CI reds fixed (REG-1995, REG-1996, REG-1999, REG-2000, REG-2001) |
 | **v3603** | `4be9551f` | v3603 — v3602 70 commits plus REG-1940..1992: the push path shares one clean run per gate, a clean wave refuses an already-red law in minutes, lanes never idle behind the browser, the cheap-subset budget reads the core; the ALT frees an idle view to prove itself and its vault lane proves live from a shipped canary; fleet words say what they compare; sign-in names the installer |
 | **v3602** | `ff97e665` | v3602 — REG-1904..1939: the prune frees no word, a prover never waits for idle, an unticked item stays unticked, the disk tally carries its verdict, the theatre opens a reel by its id and the dossier numbers never count, the shelf stays open, a failed read is not reading, the vault receipt answers beside itself |

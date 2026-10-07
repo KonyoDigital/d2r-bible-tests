@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3605",
+  "ver": "v3606",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3605: his recorded v1693 ruling overrules his un-tick again, and a vault lane held by memory on the ALT says so and frees an idle view (REG-2002, REG-2003)",
+  "note": "v3606: a finished join and a spent re-read past the newest 16 move on, a ruling overrules only its nine, and Grok stepped in counts only an ask (REG-2004, REG-2005, REG-2006)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
