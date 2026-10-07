@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3610",
+  "ver": "v3611",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3610: the author of a stamp is the oldest commit that added its version line (REG-2011)",
+  "note": "v3611: a stubbed run never makes a live Grok read (REG-2013)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
