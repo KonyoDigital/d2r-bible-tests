@@ -1739,7 +1739,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3614** | `(this commit)` | v3614 — a file over the second eye limit goes in as numbered excerpts of its changed blocks (REG-2016) |
+| **v3615** | `(this commit)` | v3615 — a lock names the proof census, and the excerpt cutter edges are closed (REG-2017, REG-2018) |
+| **v3614** | `0033fea5` | v3614 — a file over the second eye limit goes in as numbered excerpts of its changed blocks (REG-2016) |
 | **v3613** | `f41adbe0` | v3613 — with no build waiting the in-use hold is cleared (REG-2015) |
 | **v3612** | `a6306e54` | v3612 — the in-use ceiling counts only while a build waits (REG-2014) |
 | **v3611** | `3c25dfc0` | v3611 — a stubbed run never makes a live Grok read (REG-2013) |

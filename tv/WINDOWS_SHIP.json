@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3614",
+  "ver": "v3615",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3614: a file over the second eye limit goes in as numbered excerpts of its changed blocks (REG-2016)",
+  "note": "v3615: a lock names the proof census, and the excerpt cutter edges are closed (REG-2017, REG-2018)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
