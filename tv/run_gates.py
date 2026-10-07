@@ -8923,6 +8923,13 @@ GATES = [
          why=("REG-1959 - the ALT has no stash_gate_cache (it never filmed a stash panel), so its vault lane could never "
               "prove itself live and retired every reel un-extracted; a tracked stash frame, pinned by sha256, is the canary.")
          ),
+    Gate("test_his_auto_sort_click_fills_the_mules", [sys.executable,
+         os.path.join(HERE, "test_his_auto_sort_click_fills_the_mules.py")], 120,
+         needs_app=False,
+         why=("REG-2019 (#264) - his Auto-Sort click filed ZERO of 85 loose items (every row an owned receipt, which the "
+              "automatic sorter never files); the buttons file by his click now, war gear goes to the shared stash by slot, "
+              "and a Magic & Rare charm is neither loose nor 'double-filed'.")
+         ),
     Gate("test_the_prover_census_is_named_apart_from_the_hearts", [sys.executable,
          os.path.join(HERE, "test_the_prover_census_is_named_apart_from_the_hearts.py")], 60,
          needs_app=False,

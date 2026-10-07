@@ -6,11 +6,12 @@ import { test, expect } from './_net_stub';
 
 // v363/v364 — the SHARED STASH fullscreen replica = D2R's 5 shared tabs. AUTO-SORT routes "worth keeping
 // close" items (high/very-high trade value) → SHARED during intake (alongside muling the rest). The
-// replica puts them on Pg1 (Trade, value-sorted); Pg2-5 are empty spare looting room.
+// replica lays them on the tab for their SLOT (#264: weapons · armor/helms/shields · gloves/belts/boots ·
+// rings/amulets/charms), best value first; tab 5 is spare looting room.
 
 const URL = 'file://' + process.cwd() + '/bible.html';
 
-test('high-value items auto-route to SHARED Pg1; pages 2-5 are spare', async ({ page }) => {
+test('high-value items auto-route to SHARED, laid on the tab for their slot (#264); tab 5 is spare', async ({ page }) => {
   const errs: string[] = [];
   page.on('pageerror', (e) => errs.push(e.message));
   await page.addInitScript(() => {
@@ -35,7 +36,7 @@ test('high-value items auto-route to SHARED Pg1; pages 2-5 are spare', async ({ 
   expect(r.routes.anni).toBe('__keep');        // never-mule keeper, not shared
   expect(r.routes.arachnid).toBe('shared');    // high trade value → auto-routes to SHARED
   expect(r.routes.wf).not.toBe('shared');
-  expect(r.counts[0]).toBe(3);
-  expect(r.counts[1]).toBe(0);
-  expect(r.counts[3]).toBe(0);
+  // #264 (REG-2019) — the 5 tabs are laid out BY SLOT: Crown of Ages (a helm) on tab 2, Arachnid Mesh (a belt) on
+  // tab 3, Annihilus (a charm) on tab 4; tab 1 holds weapons (none here) and tab 5 is the spare room
+  expect(r.counts).toEqual([0, 1, 1, 1, 0]);
 });

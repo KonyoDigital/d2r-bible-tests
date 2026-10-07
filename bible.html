@@ -11060,7 +11060,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       <!-- v1984 — what the lock is holding, shown next to the button that skips them. -->
 <div id="vault-lane-locks" class="vault-lane-locks" hidden></div>
 <div class="vault-toolbar">
-        <button class="vault-btn vault-btn-primary" onclick="window.vaultAutoAssign()">⚖️ Auto-assign unsorted</button>
+        <button class="vault-btn vault-btn-primary" onclick="window.vaultAutoSortByHand()">⚖️ Auto-assign unsorted</button>
         <button class="vault-btn" onclick="window.vaultAddMule()">➕ Add mule</button>
         <button class="vault-btn" type="button" onclick="window.vaultHandOpen()">+ Add an item</button>
         <button class="vault-btn" onclick="window.vaultExport()">📋 Copy manifests</button>
@@ -38246,16 +38246,24 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
 (function(){
   'use strict';
   var RK='d2r_muleRoster', AK='d2r_muleAssign';
+  /* #264 — ONE copy of the shared stash's note (it was written twice), and the old one is retired on a stored roster below:
+     Anni was never here (it stays in his inventory), and war / swap gear now is */
+  var SHARED_NOTE_OLD = 'worth-keeping-close keepers shared across all your characters — auto-sorted here (SoJ · Anni · Shako · top charms) · 5 shared tabs';
+  var SHARED_NOTE = 'war & swap gear and top-value keepers every character can reach — Enigma · Grief · Raven Frost · Dwarf Star · SoJ · Shako — 5 tabs laid out by slot';
+  var RUNEWORDS_NOTE = 'forged runewords — Spirit · Insight · Obedience · every runeword that is not war gear (Enigma, Grief, Infinity, Call to Arms live in the SHARED STASH)';
+  /* a stored roster keeps the note it was saved with; these exact retired notes are replaced, a note he edited is his */
+  var RETIRED_NOTES = { shared: [SHARED_NOTE_OLD, SHARED_NOTE],
+                        runewords: ['forged runewords — Enigma · Spirit · Call to Arms · Insight · Infinity… every runeword lives here, weapon or armor', RUNEWORDS_NOTE] };
   var DEFAULT_ROSTER=[
     {id:'sets-major', name:'SETS-TAL-IK', icon:'🛡️', note:'Tal Rasha · Immortal King · Griswold — never split a set'},
     {id:'sets-rest',  name:'SETS-REST',   icon:'🧩', note:'every other set — partials live here'},
     {id:'uni-weap',   name:'UNI-WEAPONS', icon:'⚔️', note:'unique melee + caster weapons'},
     {id:'uni-armor',  name:'UNI-ARMOR',   icon:'🪖', note:'body armor · helms · shields · belts · boots · gloves'},
     {id:'uni-small',  name:'UNI-SMALL',   icon:'💍', note:'rings · amulets · jewels · charms'},
-    {id:'runewords',  name:'RUNEWORDS',   icon:'📜', note:'forged runewords — Enigma · Spirit · Call to Arms · Insight · Infinity… every runeword lives here, weapon or armor'},
+    {id:'runewords',  name:'RUNEWORDS',   icon:'📜', note:RUNEWORDS_NOTE},
     {id:'bases',      name:'SOCKETED',    icon:'🔩', note:'socketed bases — white / magic / rare bases for runewords & crafts (they look like junk, they are not)'},
     {id:'magic-rare', name:'MAGIC & RARE',icon:'🔮', note:'skillers · magic / rare charms · jewels · rings · amulets · crafts (rolled-name keepers)'},
-    {id:'shared',     name:'SHARED STASH',icon:'📦', note:'worth-keeping-close keepers shared across all your characters — auto-sorted here (SoJ · Anni · Shako · top charms) · 5 shared tabs'},
+    {id:'shared',     name:'SHARED STASH',icon:'📦', note:SHARED_NOTE},
     {id:'dupes',      name:'GRAIL-DUPES', icon:'♻️', note:'second copies — trade stock'},
     {id:'wip',        name:'WIP',         icon:'🛠️', note:'next-build staging — the only locker that churns'}
   ];
@@ -38288,7 +38296,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // mule for runewords, regardless of armor or weapon"). Insert it just before SOCKETED ('bases').
   (function(){
     if (roster.some(function(m){ return m.id === 'runewords'; })) return;
-    var rw = {id:'runewords', name:'RUNEWORDS', icon:'📜', note:'forged runewords — Enigma · Spirit · Call to Arms · Insight · Infinity… every runeword lives here, weapon or armor'};
+    var rw = {id:'runewords', name:'RUNEWORDS', icon:'📜', note:RUNEWORDS_NOTE};
     var bi = roster.findIndex(function(m){ return m.id === 'bases'; });
     if (bi >= 0) roster.splice(bi, 0, rw); else roster.push(rw);
     try{ _guardedSet(RK, JSON.stringify(roster)); }catch(e){}
@@ -38313,11 +38321,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     // v360 — ensure the SHARED STASH locker exists on rosters saved before it (holds the never-muled items)
     if (!roster.some(function(m){ return m.id==='shared'; })){
-      var sh={id:'shared', name:'SHARED STASH', icon:'📦', note:'worth-keeping-close keepers shared across all your characters — auto-sorted here (SoJ · Anni · Shako · top charms) · 5 shared tabs'};
+      var sh={id:'shared', name:'SHARED STASH', icon:'📦', note:SHARED_NOTE};
       var mi=roster.findIndex(function(m){ return m.id==='magic-rare'; });
       if (mi>=0) roster.splice(mi+1, 0, sh); else roster.push(sh);
       try{ _guardedSet(RK, JSON.stringify(roster)); }catch(e){}
     }
+    // #264 — a roster saved with a retired note gets the current one (only that exact text: a note he edited stays his)
+    var _retired = false;
+    roster.forEach(function(m){ var r = RETIRED_NOTES[m.id]; if (r && m.note === r[0]){ m.note = r[1]; _retired = true; } });
+    if (_retired){ try{ _guardedSet(RK, JSON.stringify(roster)); }catch(e){} }
   })();
   function saveR(){ _guardedSet(RK, JSON.stringify(roster)); }
   function saveA(){ _guardedSet(AK, JSON.stringify(assign)); }
@@ -38362,6 +38374,54 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // MUST match that and never route them to a mule. {id:'__keep'} → muleById() can't resolve it → the item is
   // still registered/owned + shown in the keep advisory, but it is NOT assigned to any mule.
   var KEEP_IN_INVENTORY = /^(Annihilus|Hellfire Torch|Gheed's Fortune)$/i;
+  /* ══ #264 (2026-10-07) — THE WAR CLOSET: SWAP GEAR LIVES IN THE SHARED STASH, NOT ON A MULE ══════════════════
+     His words: "items that are rare or war items/like for ubers switching gears and stuff should stay in the SHARED/MAIN
+     within those 5 pages also organized" · "like dwarf star rings raven frosts.. thundergods.. all kinds of different
+     types of OP items that are obviously for war/gears" · "like enigma.. duress.. runewords that are good.. and BOTD,
+     DEATH DOOM all these items are there for a reason. between characters switching up sometimes to war or to PVP".
+     A mule is a character he has to log into; the shared stash is the one place EVERY character reaches. So the gear he
+     swaps between characters for ubers or PvP goes there, and the rest goes to its mule. Before this, every runeword
+     went to RUNEWORDS and every unique to UNI-*, so Enigma, Raven Frost and Dwarf Star were each one character switch away.
+     The list is the SEED, by role, each with why it is war gear - his eight names first. The high-trade-value rule below
+     (SoJ, Shako, Arachnid, Mara's...) already sends the other top keepers to the same stash. Sets stay with their set
+     (never split a set), and Anni / Torch / Gheed's stay in his inventory (KEEP_IN_INVENTORY), both checked first.
+     The shared stash lays them out by slot across its 5 tabs (_sharedStashPages). */
+  var WAR_GEAR = {
+    'enigma': 'teleport for any class - the swap body armour',
+    'duress': 'crushing blow + open wounds body armour',
+    'breath of the dying': 'leech + attack speed war weapon',
+    'death': 'crushing blow + deadly strike war weapon',
+    'doom': 'holy freeze + cold pierce war weapon',
+    'raven frost': 'cannot be frozen - the uber ring',
+    'dwarf star': 'fire absorb - the uber ring',
+    "thundergod's vigor": 'lightning absorb - the uber belt swap',
+    'grief': 'flat damage war weapon',
+    'infinity': 'conviction aura - breaks immunities',
+    'last wish': 'might aura + crushing blow war weapon',
+    'faith': 'fanaticism aura bow',
+    'call to arms': 'battle orders swap weapon',
+    'heart of the oak': 'caster swap - skills + cast rate',
+    'beast': 'fanaticism aura war weapon',
+    'fortitude': 'enhanced damage + resists armour',
+    'chains of honor': 'all resists + skills body armour',
+    'dream': 'holy shock aura - PvP helm or shield',
+    'exile': 'defiance aura - PvP shield',
+    'phoenix': 'redemption aura + absorb - uber shield',
+    'dragon': 'holy fire aura armour',
+    'wisp projector': 'lightning absorb ring',
+    "verdungo's hearty cord": 'damage reduction belt - ubers',
+    'string of ears': 'damage reduction + leech belt',
+    "dracul's grasp": 'life tap gloves - ubers',
+    'stormshield': 'damage reduction shield - ubers',
+    'vampire gaze': 'damage reduction + leech helm',
+    "andariel's visage": 'leech + strength helm',
+    "nightwing's veil": 'cold mastery helm'
+  };
+  function _warKey(n){ return String(n == null ? '' : n).toLowerCase().replace(/[‘’ʼ´`]/g, "'")
+                                .replace(/\s*\([^)]*\)\s*$/, '').trim(); }
+  /* -> the role words, or null (not war gear) */
+  function warGearRole(n){ var k = _warKey(n); return (k && Object.prototype.hasOwnProperty.call(WAR_GEAR, k)) ? WAR_GEAR[k] : null; }
+  try { window.vaultWarGearRole = warGearRole; } catch(e){}
   var _sugFolding = false;   // v1958 re-entry guard, see below
   /* ══ v2198 — THE ROUTING UNIVERSE IS ITEM_REGISTRY (547), NOT THE CALCULATOR'S ITEMS (320) ══
      Konyo, measuring his own empty Vault Manager: "everywhere and anything that uses the items to
@@ -38553,6 +38613,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
     } catch(e){}
     if (KEEP_IN_INVENTORY.test(String(name||'').trim())) return {id:'__keep', why:'keep in your inventory — only works on the character you are actively playing'};
+    /* #264 — war / swap gear goes to the SHARED stash every character can reach, ahead of the set, runeword and unique
+       drawers (sets are not on the list, and KEEP_IN_INVENTORY above wins) */
+    var _war = warGearRole(name);
+    if (_war) return {id:'shared', why:'war gear: ' + _war + ' - in the shared stash, where every character can reach it'};
     // v394 — KEEP only the genuinely good sets; the low/junk partial sets (Sigon's, Sander's, Hsarus',
     // Cleglaw's, Iratha's, Angelic, Arctic, Cathan's, Death's, Vidala's, Berserker's, Milabrega's, Isenhart's,
     // Civerb's, Infernal, Bul-Kathos, Cow King's, Tancred's…) are NOT worth muling — Konyo: identify them for
@@ -39586,9 +39650,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function _vaultAudit(){
     var F = [];
     // group membership — the keep / magic / throw stores are meant to be MUTUALLY EXCLUSIVE
-    var inKeep={}, inMagic={}, inThrow={};
+    var inKeep={}, inMagic={}, inThrow={}, inFiled={};
     try { owned.forEach(function(n){ inKeep[n]=1; }); } catch(e){}
-    try { Object.keys(assign).forEach(function(n){ if(assign[n]!=='__throwout') inKeep[n]=1; }); } catch(e){}
+    try { Object.keys(assign).forEach(function(n){ if(assign[n]!=='__throwout'){ inKeep[n]=1; inFiled[n]=1; } }); } catch(e){}
     try { if(magicFinds) Object.keys(magicFinds).forEach(function(n){ inMagic[n]=1; }); } catch(e){}
     try { unknownReads.forEach(function(n){ inThrow[n]=1; }); } catch(e){}
     // 1) MIS-ROUTE + SHOULD-REVIEW — every mule assignment vs the rule-derived locker
@@ -39614,7 +39678,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var all={}; [inKeep,inMagic,inThrow].forEach(function(g){ Object.keys(g).forEach(function(n){ all[n]=1; }); });
       Object.keys(all).forEach(function(n){
         if (_vaIsRW(n)) return;   // a runeword-in-magic is already the sharper rw-in-magic finding
-        var g=[]; if(inKeep[n])g.push('keep'); if(inMagic[n])g.push('magic'); if(inThrow[n])g.push('throw');
+        /* #264 — OWNING a Magic & Rare item is not a second filing of it. Since #246 `owned` is what he has (the dock), not
+           a mule filing, so an owned charm that sits in MAGIC & RARE was read as "Kept / Muled AND Magic & Rare" - and the
+           one-click fix (keep beats magic) deleted it from Magic & Rare, its only home. Only a real mule filing counts. */
+        var keepHere = inFiled[n] || (inKeep[n] && !inMagic[n]);
+        var g=[]; if(keepHere)g.push('keep'); if(inMagic[n])g.push('magic'); if(inThrow[n])g.push('throw');
         if (g.length>=2) F.push({sev:'med', kind:'dupe', item:n, store:g.join('+'), to:null, fixable:true,
           detail:'double-filed — appears in '+g.map(_vaStoreLabel).join(' AND ')+'; it should live in one place'});
       });
@@ -39854,7 +39922,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var _carUnknown = (_carried === null);
     _carried = (_carried || []).filter(function(c){ return pool.indexOf(c.name) >= 0 && !isSharedStash(c.name); });
     var _carSet = {}; _carried.forEach(function(c){ _carSet[c.name] = 1; });
-    var unsorted = pool.filter(function(n){ return !assign[n] && !isSharedStash(n) && !_carSet[n]; });
+    var unsorted = pool.filter(function(n){ return !assign[n] && !isSharedStash(n) && !_carSet[n]
+                                         && !(window._vaultInMagicRare && window._vaultInMagicRare(n)); });   /* #264 — filed in MAGIC & RARE */
     /* ══ v3286 — THE VAULT SAYS ITS OWN POPULATION ═══════════════════════════════════════════
        Every figure below is DERIVED BY SUBTRACTION from the two pools this function already
        built, never counted independently. That is the whole point: an independent tally can
@@ -39969,7 +40038,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                                                  : 'These look like a chronicle page')
                  + '</span></button>')
               : '')
-          +'<button class="vault-resort-btn" onclick="window.vaultAutoAssign()" title="Auto-Sort: send every unsorted item back to its proper mule / alt">'
+          +'<button class="vault-resort-btn" onclick="window.vaultAutoSortByHand()" title="Auto-Sort: file every loose item you have a picture of into the mule the planner names (war gear into the shared stash). What your MAIN wears or carries, discards and items with no picture stay here, and the status line says how many of each.">'
           +'<span class="vrb-wand">🪄</span><span>Auto-Sort to Mules</span><span class="vrb-go">→</span></button>'
           +'</span>';
       } else { dbar.hidden=true; dbar.innerHTML=''; }
@@ -41441,8 +41510,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   };
   /* ⟦VAULT EVIDENCE LINE END⟧ */
   /* the dock: what is owned and NOT filed. Read only — the sorter never files from it. */
+  /* #264 — an item in the MAGIC & RARE locker is filed THERE (that locker reads magicFinds, not the mule map), so it is never
+     loose: his dock listed Harpoonist's Grand Charm as unsorted while MAGIC & RARE showed it, and the integrity check called
+     it double-filed */
+  window._vaultInMagicRare = function(n){
+    try { return typeof magicFinds === 'object' && !!magicFinds && Object.prototype.hasOwnProperty.call(magicFinds, n); }
+    catch (e) { return false; }
+  };
   window._vaultDockNames = function(){
-    try { return ownedPool().filter(function(n){ return assign[n] == null && !isSharedStash(n); }); }
+    try { return ownedPool().filter(function(n){ return assign[n] == null && !isSharedStash(n) && !window._vaultInMagicRare(n); }); }
     catch (e) { return []; }
   };
   /* ⟦#246 VAULTFILE END⟧ */
@@ -43469,6 +43545,72 @@ window.vaultAutoAssign = function(){
       +(suggested?(' · '+suggested+' suggested for throw-out (nothing binned)'):''));
     return { filed: n, dock: _dockN, suggested: suggested };
   };
+  /* ══ #264 (2026-10-07) — HIS CLICK ON AUTO-SORT FILES THE DOCK WHERE THE PLANNER SAYS ═══════════════════════════════
+     His words, at a vault of 85 loose items and ten empty mules: "the vault all those items when i click auto-assort should
+     be assembled correctly and organized within the mules" · "the other items need to be organized in mules. and not like
+     they are currently in my stash.. they are a mess".
+     MEASURED on a copy of his store (2026-10-07 22:30): d2r_muleAssign {} - not one item filed - and 96 owned, every one an
+     owned RECEIPT with reel looks. vaultAutoAssign files only rows that already carry a filing witness (#246), and since
+     2026-09-28 a receipt is never one, so both buttons filed ZERO. The button promised "send every unsorted item back to
+     its proper mule" and could not.
+     So the BUTTONS call this, and only the buttons: his click is the witness (his #246 ruling, "from here on if i do add an
+     item there manually yes of course"), and the provenance row says it was the Auto-Sort click. vaultAutoAssign keeps its
+     own rule, because sweeps and applies call it with nobody at the screen - the automatic triggers behind the 173 false
+     filings of 2026-09-16 - so an automatic caller can never file by a hand that did not move.
+     It files a dock item that has at least one PICTURE (a framed look on its receipt) and whose router answer is a locker.
+     What stays is counted and said: a found-ever tick with no picture (never seen owned - the 09-26 rule), an item whose
+     newest placed look is on his MAIN (worn or carried - "SHOULD NEVER BE TOLD TO BE MOVED"), and every discard,
+     keep-on-MAIN or no-home answer (throwing away is his decision). [[the-unjoined-end]] [[unknown-stays-unknown]] */
+  function _newestPlacedLoc(row){
+    var looks = (row && Array.isArray(row.looks)) ? row.looks : [], best = null, bt = -Infinity;
+    looks.forEach(function(e){
+      var loc = (e && e.loc) ? String(e.loc).toLowerCase() : '';
+      if (!loc) return;
+      var t = Date.parse(String((e && e.at) || ''));
+      t = isFinite(t) ? t : -1;
+      if (t >= bt){ bt = t; best = loc; }
+    });
+    return best;
+  }
+  function _hasPicture(row){
+    return !!(row && Array.isArray(row.looks) && row.looks.some(function(e){ return e && e.frame; }));
+  }
+  var _AUTOSORT_LEFT_SAY = { throwout: 'discard suggestion', keep: 'keep-on-MAIN', shared: 'shared-stash-only', stays: 'locked', unknown: 'with no answer' };
+  window.vaultAutoSortByHand = function(){
+    var first = window.vaultAutoAssign();          /* its own rule first: re-file what already carries a witness */
+    if (first && first.refused) return first;      /* an unreadable mule map is UNKNOWN - nothing is filed over it */
+    var at = new Date().toISOString(), pv = _provAll();
+    var out = { filed: 0, main: [], noPicture: [], left: {}, refused: [], rows: [] };
+    (window._vaultDockNames() || []).forEach(function(name){
+      var row = pv[name] || null;
+      if (!_hasPicture(row)){ out.noPicture.push(name); return; }
+      var lastLoc = _newestPlacedLoc(row);
+      if (lastLoc && _WIT_MAIN[lastLoc]){ out.main.push(name); return; }
+      var pg = null;
+      try { pg = window.vaultPropose(name); } catch(e){ pg = null; }
+      if (!pg || pg.ok !== true || pg.kind !== 'mule'){
+        var k = (pg && pg.ok === true) ? pg.kind : 'unknown';
+        out.left[k] = (out.left[k] || 0) + 1; return;
+      }
+      var r = window.vaultFile(name, { by: 'hand', at: at, where: 'Auto-Sort to Mules - your click filed it where the planner says' }, { mule: pg.id });
+      if (r && r.ok && (r.mode === 'filed' || r.mode === 'confirmed')){
+        out.filed++; out.rows.push({ name: name, mule: pg.id });
+        try { if (typeof window.kaiChronicleRecord === 'function')
+          window.kaiChronicleRecord({ name: name, status: 'muled', store: 'assign', ledger: 'vault', why: pg.why || '',
+                                      target: pg.id, source: 'auto-sort (his click)', _bump: true }); } catch(e){}
+      } else out.refused.push({ name: name, why: (r && r.why) || 'the door refused it' });
+    });
+    saveA(); renderVault();
+    var bits = ['🪄 filed ' + (out.filed + ((first && first.filed) || 0)) + ' into their mules'];
+    if (out.main.length) bits.push(out.main.length + ' stay with your MAIN (worn or carried when last seen)');
+    if (out.noPicture.length) bits.push(out.noPicture.length + ' have no picture yet - film them once, or drag them to a locker');
+    var lk = Object.keys(out.left);
+    if (lk.length) bits.push(lk.map(function(k){ return out.left[k] + ' ' + (_AUTOSORT_LEFT_SAY[k] || k); }).join(' · ') + ' left for you');
+    if (out.refused.length) bits.push(out.refused.length + ' refused by the door');
+    status(bits.join(' · '), 9000);
+    out.first = first;
+    return out;
+  };
   // v327: nuke the unsorted dock — removes every UNSORTED item from ✓ owned. Items already filed
   // in a mule are untouched (only `!assign[name]`). Konyo wanted this beside the Auto-Sort button.
   window.vaultClearUnsorted = async function(){
@@ -43773,33 +43915,57 @@ window.vaultAutoAssign = function(){
   try { window._stabHtml = _stabHtml; } catch (e) {}
   /* ⟦/STASH TABS⟧ */
   // v364/v367 — SHARED STASH = D2R's 5 shared-stash tabs = GENERAL cross-account storage for high-value
-  // "worth keeping close" keepers (Konyo's corrected scheme): Pg1 💎 Trade = the auto-sorted keepers,
-  // value-sorted; Pg2-5 📦 Spare = empty looting room. Runes/gems/materials are NOT here — they live in
-  // their own dedicated planners (already individually synced). (v363's runes/materials pages were wrong.)
+  // "worth keeping close" keepers. Runes/gems/materials are NOT here — they live in their own dedicated
+  // planners (already individually synced). (v363's runes/materials pages were wrong.) #264 (2026-10-07):
+  // war / swap gear joins them, and the 5 tabs are laid out BY SLOT (tabs 1-4) with tab 5 the spare room —
+  // see SHARED_TABS below. (v364's "Pg1 Trade, Pg2-5 Spare" layout is gone.)
   var _sharedPage = 0;
   // v367 — removed dead _HIGH_RUNE_RE / _MAT_RE / _runeOrder / _isRuneName helpers (leftover from v363's
   // runes/materials pages, never referenced after v364 made SHARED general high-value storage).
-  // v364 — the 5 SHARED tabs = general cross-account storage. Auto-sorted items (high/very-high trade
-  // value, "worth keeping close") distribute best-first: Pg1 💎 Trade = Very-High, Pg2 ⭐ High, Pg3 📦 Keep
-  // = anything else assigned here, Pg4+Pg5 📦 Spare = left empty as looting room. Runes/gems/mats live in
-  // their own planners — never here.
+  /* ══ #264 (2026-10-07) — THE 5 SHARED TABS ARE ORGANIZED BY SLOT, NOT PILED ON PAGE 1 ══════════════════════════════
+     His words: "should stay in the SHARED/MAIN within those 5 pages also organized". Until now every shared item was laid
+     on page 1 ("Trade") by value and pages 2-5 were empty spare room, so a stash of swap gear read as one pile. Now each
+     item goes to the tab for the slot it is worn in - the same slot the mule doll uses (_mpFit: the game's own base
+     table, then the item's tip, its set-piece slot, its runeword base, its own name). Inside a tab the best value goes
+     first. An item whose slot is not on record goes to tab 5 under its own label and is never guessed onto a slot tab.
+     ⚠ _mpFit lives further down this script; it is reached through window at render time, never at parse time. */
+  var SHARED_TABS = [
+    { icon: '⚔️', label: 'Weapons',                kinds: { weapon: 1, quiver: 1 } },
+    { icon: '🛡️', label: 'Armor · Helms · Shields', kinds: { armor: 1, helm: 1, shield: 1 } },
+    { icon: '🧤', label: 'Gloves · Belts · Boots', kinds: { gloves: 1, belt: 1, boots: 1 } },
+    { icon: '💍', label: 'Rings · Amulets · Charms', kinds: { ring: 1, amulet: 1, none: 1 } },
+    { icon: '📦', label: 'Spare · slot unknown',   kinds: {} }
+  ];
+  /* -> the tab index (0-4) an item is laid on, and the slot it was read as */
+  function _sharedTabOf(n){
+    var f = null;
+    try { f = (typeof window._mpFit === 'function') ? window._mpFit(n) : null; } catch(e){ f = null; }
+    var k = f && f.kind;
+    /* a runeword the doll's table names with a suffix ("Breath of the Dying (BotD)") is still on record in its tip: its
+       socket base ("6 socket Weapons") read by the same slot words the doll uses */
+    if (!k){
+      try {
+        var _rt = (typeof RUNEWORD_TIP !== 'undefined' && RUNEWORD_TIP) ? RUNEWORD_TIP[n] : null;
+        var _rk = (_rt && _rt.b && typeof window._mpSlotKind === 'function') ? window._mpSlotKind(_rt.b) : null;
+        if (_rk && _rk.kind) k = _rk.kind;
+      } catch(e){}
+    }
+    for (var i = 0; i < 4; i++) if (k && SHARED_TABS[i].kinds[k]) return { tab: i, kind: k };
+    return { tab: 4, kind: null };
+  }
+  try { window._sharedTabOf = _sharedTabOf; } catch(e){}
   function _sharedStashPages(names){
-    // Pg1 holds the auto-sorted keep-close items (value-sorted vhigh→high→rest); Pg2-5 are spare
-    // looting room. (Item value tiers from the maxroll data: uniques top out at 'high'.)
     var rank = { vhigh: 0, high: 1, med: 2, low: 3, none: 4, trash: 5 };
     var sorted = names.slice().sort(function(a, b){
       var ra = rank[(typeof _itemValue === 'function' ? _itemValue(a) : '') || 'none'];
       var rb = rank[(typeof _itemValue === 'function' ? _itemValue(b) : '') || 'none'];
       return (ra == null ? 9 : ra) - (rb == null ? 9 : rb) || a.localeCompare(b);
     });
-    return [
-      { icon: '💎', label: 'Trade', items: sorted },
-      { icon: '📦', label: 'Spare', items: [] },
-      { icon: '📦', label: 'Spare', items: [] },
-      { icon: '📦', label: 'Spare', items: [] },
-      { icon: '📦', label: 'Spare', items: [] },
-    ];
+    var pages = SHARED_TABS.map(function(t){ return { icon: t.icon, label: t.label, items: [] }; });
+    sorted.forEach(function(n){ pages[_sharedTabOf(n).tab].items.push(n); });
+    return pages;
   }
+  try { window._sharedStashPages = _sharedStashPages; } catch(e){}
   window._sharedSetPage = function(i){ _sharedPage = Math.max(0, Math.min(4, i | 0)); window.openMuleCard('shared'); };
   function _renderSharedStash(box){
     // v364 — SHARED holds items ASSIGNED here (auto-sorted by value during intake, or dragged manually).
@@ -43829,7 +43995,7 @@ window.vaultAutoAssign = function(){
       + '</div>'
       + (packed.left.length ? '<div class="vd-overflow">⚠ <strong>' + packed.left.length + ' item' + (packed.left.length === 1 ? '' : 's') + ' overflow this page</strong> — D2R shared tabs hold 100 slots; this is the 10×10 preview: ' + packed.left.map(function(i){ return esc(i.n); }).join(' · ') + '</div>' : '')
       + (pg.items.length ? '<div class="vd-list">' + list + '</div>'
-         : '<div class="vm-empty" style="padding:8px 2px">' + (_sharedPage >= 3 ? '📦 spare page — kept empty as room for fresh loot while hunting' : 'nothing on this page yet') + '</div>');
+         : '<div class="vm-empty" style="padding:8px 2px">' + (_sharedPage === 4 ? '📦 spare tab — room for fresh loot while hunting (an item whose slot is not on record is laid here too)' : 'nothing on this tab yet') + '</div>');
   }
   var openMuleId = null, _muleReturnTab = null, _mulePage = 0;
   // ⚠ v2240 — ONE MULE GEOMETRY, STATED ONCE. The inventory is 10x4 = 40 cells, so a mule is 140.
