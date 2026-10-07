@@ -135,14 +135,14 @@ class AnEntityInsideAnEscaperIsPrinted(unittest.TestCase):
     def test_the_sweep_meter_uses_the_CHARACTER(self):
         """the two sites that were wrong, pinned by what they should be."""
         code = _strip_comments(self.src)
-        self.assertIn("escC(took || '\\u2014')", code,
+        self.assertIn("escC(took ? ('took ' + took) : '\\u2014')", code,
                       "the sweep meter's cold clock no longer falls back to the em-dash character")
         self.assertIn("escC(elapsed || '\\u2014')", code,
                       "the sweep meter's live clock no longer falls back to the em-dash character")
 
 
 RED_PROOF = [
-    ("control_ui.html", "escC(took || '\\u2014')", "escC(took || '&mdash;')",
+    ("control_ui.html", "escC(took ? ('took ' + took) : '\\u2014')", "escC(took ? ('took ' + took) : '&mdash;')",
      "test_no_escaper_is_handed_an_html_entity"),
     ("control_ui.html", "escC(elapsed || '\\u2014')", "escC(elapsed || '&mdash;')",
      "test_the_sweep_meter_uses_the_CHARACTER"),

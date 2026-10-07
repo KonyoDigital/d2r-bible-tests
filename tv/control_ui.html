@@ -29518,10 +29518,14 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
                  the markup directly and never pass through an escaper. Same six characters,
                  opposite correctness, which is exactly why the law added with this greps for the
                  PAIRING rather than for the entity. [[label-outlived-referent]] */
-              + '<span class="swm-clock swm-cold">' + escC(took || '\u2014') + '</span>'
-              + '<span class="ce-t">' + escC(_swmAgo(ended) || '') + '</span></div>'
-              + '<div class="ce-say">last read'
-              + (took ? '' : ' &mdash; duration not recorded')
+              /* REG-1958 — EACH FIGURE SAYS WHAT IT IS. The big one is how long the last read TOOK and the small one
+                 is when it ENDED, and neither was named, so "0:02 · 1m ago · last read" read as a read at two past
+                 midnight beside a read a minute ago (his words: "it saiys IDLE last read 00:02 ... but then it reads 1
+                 min ago too so its confusing"). */
+              + '<span class="swm-clock swm-cold" title="how long the last vault read took">' + escC(took ? ('took ' + took) : '\u2014') + '</span>'
+              + '<span class="ce-t" title="when the last vault read ended">' + escC(_swmAgo(ended) ? ('ended ' + _swmAgo(ended)) : '') + '</span></div>'
+              + '<div class="ce-say">the last vault read on this PC'
+              + (took ? '' : ' &mdash; how long it took was not recorded')
               + '</div>';
         var bits = [];
         if (st.lastRunReels !== null && st.lastRunReels !== undefined)
