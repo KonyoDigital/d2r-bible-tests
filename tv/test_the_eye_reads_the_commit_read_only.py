@@ -79,11 +79,13 @@ class TheEyeReadsTheCommitReadOnly(unittest.TestCase):
     def test_the_snapshot_holds_the_commit_and_only_it(self):
         snap = SE.eye_snapshot(self.sha, max_bytes=100)
         self.assertTrue(snap["ok"], snap)
-        self.assertEqual(snap["included"], ["tv/small.py"])
+        # REG-2016 (#259) - an over-limit file of the commit goes in as a NAMED excerpt of its changed blocks, not as nothing
+        self.assertEqual(snap["included"], ["tv/small.py", "big.txt.EXCERPT.txt"])
         with open(os.path.join(self.cwd, "tv", "small.py")) as fh:
             self.assertEqual(fh.read(), "COMMITTED = True\n", "the eye read the live tree, not the commit")
         self.assertFalse(os.path.exists(os.path.join(self.cwd, "untouched.py")), "a file the commit never touched")
-        self.assertTrue(any(s.startswith("big.txt") for s in snap["skipped"]), "an oversized file vanished unnamed")
+        self.assertTrue(any(s.startswith("big.txt") and "EXCERPT" in s for s in snap["skipped"]),
+                        "an oversized file vanished unnamed, or its excerpt is not named beside it")
 
     def test_every_entry_is_read_only(self):
         SE.eye_snapshot(self.sha, max_bytes=100)
