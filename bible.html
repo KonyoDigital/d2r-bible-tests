@@ -41274,8 +41274,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           seen[key] = 1; out.push(e);
         });
     if (!out.length) return null;
-    return { lane: lane || String((w && (w.lane || w.loc)) || 'stash').toLowerCase(),
-             by: String((w && w.by) || (row && row.source) || 'kai-register'), sessions: out, gathered: 'receipt' };
+    /* the read in hand keeps EVERYTHING it carried (its gate verdict, door, tier, scene, time, kind) - only its looks are
+       widened (test_the_witnessed_lane_files_its_own_rows caught the first cut dropping the gate's verdict) */
+    return Object.assign({}, (w && typeof w === 'object') ? w : {},
+                         { lane: lane || String((w && (w.lane || w.loc)) || 'stash').toLowerCase(),
+                           by: String((w && w.by) || (row && row.source) || 'kai-register'), sessions: out, gathered: 'receipt' });
   }
   window._vaultReceiptStashWitness = _receiptStashWitness;
   /* THE TAG — what the mule window and every vault tile say about WHERE a filing came from. Read from
