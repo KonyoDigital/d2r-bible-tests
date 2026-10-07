@@ -23926,7 +23926,11 @@ window._lockMark = function(isOpen, px, label){
     var queueUnread = _journalUnread(st);
     var retro = (cpUnread != null) ? cpUnread : kaiMiss;
     var rdPulse = dead ? 'bad' : (queueUnread ? 'unknown' : (!on ? 'idle' : (qDepth > 8 ? 'warn' : 'ok')));
-    var rdStat = '🔴 ' + (hasCp ? cpReads : reads) + ' <span class="eh-x">·</span> 🔵 ' + (ey.verifyTs ? '✓' : '—') + ' <span class="eh-x">·</span> 🧠 ' + (retro ? retro : '✓');
+    /* REG-1929 — 🔵 and 🧠 are journal beats (the eye pulse's verifyTs / kaiMissed). On a journal that was not
+       read they are not '—' (no verify yet) and not '✓' (KAI caught nothing): they are '?'. 🔴 is the agent's own
+       read count and a film's retro count comes off the reel, so both stay what they measured. */
+    var eyUnread = queueUnread || !!ey.why;
+    var rdStat = '🔴 ' + (hasCp ? cpReads : reads) + ' <span class="eh-x">·</span> 🔵 ' + (eyUnread ? '?' : (ey.verifyTs ? '✓' : '—')) + ' <span class="eh-x">·</span> 🧠 ' + ((eyUnread && cpUnread == null) ? '?' : (retro ? retro : '✓'));
     var rdSub = queueUnread
       ? 'the journal was not read'
       : (hasCp

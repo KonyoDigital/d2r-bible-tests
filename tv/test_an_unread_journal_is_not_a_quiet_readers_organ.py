@@ -234,6 +234,32 @@ class AnUnreadJournalIsNotAQuietReadersOrgan(unittest.TestCase):
         self.assertEqual(row["sub"], "queue 0")
         self.assertNotIn("was not read", row["sub"])
 
+    def test_an_unread_journal_does_not_print_kai_clean(self):
+        """REG-1929 - the card said 🧠 ✓ (KAI caught nothing) and 🔵 — off a journal nobody read."""
+        why = "PermissionError: denied"
+        unread_eyes = {"liveTs": 0, "verifyTs": 0, "kaiTs": 0, "kaiMissed": None, "why": why}
+        nulls = {"seen": None, "queued": None, "fired": None, "refire": None}
+        row = _paint(mode="live", driver=nulls, read_count=7, eyes=unread_eyes,
+                     journal={"read": False, "why": why})
+        self.assertNotIn("✓", row["stat"], "an unread journal printed a check mark: %r" % row["stat"])
+        self.assertNotIn("—", row["stat"], "an unread journal printed 'no verify yet': %r" % row["stat"])
+        self.assertEqual(row["stat"].count("?"), 2, row["stat"])
+        self.assertIn("🔴 7", row["stat"], "the agent's own read count is a measurement and stays")
+        # the eye pulse alone unread (the walk itself read) is the same unknown for the two beats
+        alone = _paint(mode="live", driver={"seen": 1, "queued": 0, "fired": 1}, read_count=7,
+                       eyes=unread_eyes, journal={"read": True, "why": None})
+        self.assertEqual(alone["stat"].count("?"), 2, alone["stat"])
+        # a film's retro count comes off the reel, not the journal, so it is still said
+        film = _paint(mode="live", driver=nulls, eyes=unread_eyes, journal={"read": False, "why": why},
+                      completeness={"reads": 2, "unread": 3, "film": 5, "dropped": 0})
+        self.assertIn("🧠 3", film["stat"], film["stat"])
+        # and a read journal still says what it read
+        read = _paint(mode="live", driver={"seen": 1, "queued": 0, "fired": 1}, read_count=7,
+                      eyes={"liveTs": 5, "verifyTs": 9, "kaiTs": 0, "kaiMissed": None},
+                      journal={"read": True, "why": None})
+        self.assertNotIn("?", read["stat"])
+        self.assertEqual(read["stat"].count("✓"), 2, read["stat"])
+
     def test_the_organ_follows_the_polls_one_journal_key(self):
         """REG-1824 — this pinned the organ's own `dr.queued === null` copy. The one key decides."""
         row = _paint(mode="live", driver={"queued": 0},
@@ -289,6 +315,20 @@ RED_PROOF = [
         "file": "control_ui.html",
         "find": "    if (!queueUnread && typeof _bkN === 'number' && _bkN > 0)\n",
         "replace": "    if (typeof _bkN === 'number' && _bkN > 0)\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1929 - an unread journal prints 🔵 — and 🧠 ✓ again, a verify gap and a clean KAI nobody read",
+        "file": "control_ui.html",
+        "find": "    var eyUnread = queueUnread || !!ey.why;\n",
+        "replace": "    var eyUnread = false;\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-1929 - an unread eye pulse under a read walk prints 🔵 — and 🧠 ✓ again",
+        "file": "control_ui.html",
+        "find": "    var eyUnread = queueUnread || !!ey.why;\n",
+        "replace": "    var eyUnread = queueUnread;\n",
         "matches": 1,
     },
 ]
