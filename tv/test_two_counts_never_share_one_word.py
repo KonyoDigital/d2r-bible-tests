@@ -7,9 +7,14 @@ quantities read as a contradiction. The tile now says "AI reads" and the coverag
 Read from the shipped control_ui.html by the full expressions (never a fragment a comment could satisfy).
 """
 import os
+import sys
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
 
 
 class TwoCountsNeverShareOneWord(unittest.TestCase):

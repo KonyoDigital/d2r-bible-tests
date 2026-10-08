@@ -12022,6 +12022,26 @@ window._lockMark = function(isOpen, px, label){
   // ══ v1277 (SESSIONS FLAGSHIP D6 · SUPER-RECOVERY BADGE) — KAI's super-analyze re-reads frames its first pass
   // missed; this celebrates the save. Consumes the engine's sm.superRecovery = {recovered, missed}; degrades to
   // the existing kaiMissed count when the recovery ledger isn't exposed; honest "full read" at zero. ══
+  /* #277 (REG-2055) - 'CLEAN RUN' SAT ON GAPS. GrokBot ticks 416-418: Session 30 read 'CLEAN RUN' beside '0% coverage · 0 of
+     10 item reads · 10 gaps', and Session 41 'CLEAN RUN' + '0 READS'. The seal asked only the watchdog. A run is clean when
+     the watchdog flagged nothing AND no item moment went unread AND no frame held text no eye read. One verdict, read by
+     the card's seal and the copied summary alike. -> {k:'open'|'flag'|'gaps'|'clean', n, gaps, missed} */
+  function _runSeal(sm){
+    sm = sm || {};
+    if (sm.kaiMissed == null) return { k: 'open' };
+    if (sm.watchdogViolations > 0) return { k: 'flag', n: sm.watchdogViolations };
+    var gaps = (sm.coverage && sm.coverage.gaps > 0) ? sm.coverage.gaps : 0;
+    var missed = (sm.kaiMissed > 0) ? sm.kaiMissed : 0;
+    if (gaps || missed) return { k: 'gaps', gaps: gaps, missed: missed };
+    return { k: 'clean' };
+  }
+  window._runSeal = _runSeal;
+  function _runSealGapsSay(rs){
+    var b = [];
+    if (rs.gaps) b.push(rs.gaps + ' unread gap' + (rs.gaps === 1 ? '' : 's'));
+    if (rs.missed) b.push(rs.missed + ' missed-text frame' + (rs.missed === 1 ? '' : 's'));
+    return b.join(' · ');
+  }
   function _dossierRecovery(sm){
     var sr = sm.superRecovery;
     var missed = (sr && sr.missed != null) ? sr.missed : sm.kaiMissed;
@@ -12031,6 +12051,10 @@ window._lockMark = function(isOpen, px, label){
       return '<span class="dsr-recov' + (rec > 0 ? ' dsr-recov-win' : '') + '"><span class="drv-ic">🧠🔬</span> recovered <b>' + rec + '/' + m + '</b> missed read' + (m === 1 ? '' : 's') + (rec > 0 ? ' <span class="drv-pct">' + pct + '%</span>' : '') + '</span>';
     }
     if (missed > 0) return '<span class="dsr-recov dsr-recov-plain"><span class="drv-ic">🧠</span> <b>' + missed + '</b> missed-text frame' + (missed === 1 ? '' : 's') + '</span>';
+    /* #277 (tick 418 K06) - "a full read" stood under "- no reads on this reel -": no missed text is a full read only when
+       something was read and no item moment went unread */
+    if (sm.reads === 0) return '<span class="dsr-recov dsr-recov-plain"><span class="drv-ic">🧠</span> no missed text flagged — but nothing on this reel was read</span>';
+    if (sm.coverage && sm.coverage.gaps > 0) return '<span class="dsr-recov dsr-recov-plain"><span class="drv-ic">🧠</span> no missed text flagged — ' + sm.coverage.gaps + ' item moment' + (sm.coverage.gaps === 1 ? '' : 's') + ' still unread</span>';
     return '<span class="dsr-recov dsr-recov-clean"><span class="drv-ic">🧠</span> no missed text — a full read</span>';
   }
   // MISSED-TEXT DRILL — consumes the engine's sm.missedFrames = [{frameId, ts, label?}]; each row jumps to the
@@ -12206,10 +12230,11 @@ window._lockMark = function(isOpen, px, label){
     var cover = _dcov
       ? '<img class="dsr-cover" src="' + _dcov + '?w=420" alt="" loading="lazy" onerror="this.src=\'/art/hd_zod_rune.png\';this.classList.add(\'dsr-cover-fb\')">'
       : '<div class="dsr-cover dsr-cover-none">🎞</div>';
-    var sealed = (sm.kaiMissed != null), clean = !(sm.watchdogViolations > 0);
-    var seal = !sealed ? '<span class="dsr-seal dsr-seal-open"><span class="dss-ic">◌</span><span class="dss-lab">unsealed</span></span>'
-      : (clean ? '<span class="dsr-seal dsr-seal-clean"><span class="dss-ic">🛡</span><span class="dss-lab">clean run</span></span>'
-               : '<span class="dsr-seal dsr-seal-flag"><span class="dss-ic">🚨</span><span class="dss-lab">' + sm.watchdogViolations + ' flagged</span></span>');
+    var _rs = _runSeal(sm);   /* #277 (REG-2055) - the seal no longer reads clean over gaps */
+    var seal = (_rs.k === 'open') ? '<span class="dsr-seal dsr-seal-open"><span class="dss-ic">◌</span><span class="dss-lab">unsealed</span></span>'
+      : (_rs.k === 'flag') ? '<span class="dsr-seal dsr-seal-flag"><span class="dss-ic">🚨</span><span class="dss-lab">' + _rs.n + ' flagged</span></span>'
+      : (_rs.k === 'gaps') ? '<span class="dsr-seal dsr-seal-open" title="sealed, but not a clean read: ' + esc(_runSealGapsSay(_rs)) + '"><span class="dss-ic">◐</span><span class="dss-lab">sealed with gaps</span></span>'
+      : '<span class="dsr-seal dsr-seal-clean"><span class="dss-ic">🛡</span><span class="dss-lab">clean run</span></span>';
     function tile(label, val){ return '<div class="dsr-stat"><div class="dsr-sv">' + val + '</div><div class="dsr-sl">' + label + '</div></div>'; }
     var found = (sm.registered != null) ? sm.registered : ((sm.finds || []).length || '—');
     /* ⚠⚠ v3060 — THIS TILE PRINTED THE WRONG WITNESS AND HE CAUGHT IT ON HIS OWN SCREEN.
@@ -12394,7 +12419,9 @@ window._lockMark = function(isOpen, px, label){
     L.push(st.join(' · '));
     if (sm.coverage && sm.coverage.total){ var pct = Math.round((sm.coverage.read || 0) / sm.coverage.total * 100);
       L.push('Coverage ' + pct + '% (' + (sm.coverage.read || 0).toLocaleString() + ' / ' + sm.coverage.total.toLocaleString() + ' frames read)'); }
-    L.push('Verdict: ' + (sm.watchdogViolations > 0 ? ('🚨 ' + sm.watchdogViolations + ' flagged') : (sm.kaiMissed != null ? '🛡 clean run' : '◌ unsealed')));
+    var _rsV = _runSeal(sm);   /* #277 (REG-2055) - the same verdict as the card's seal */
+    L.push('Verdict: ' + (_rsV.k === 'flag' ? ('🚨 ' + _rsV.n + ' flagged') : _rsV.k === 'gaps' ? ('◐ sealed with gaps (' + _runSealGapsSay(_rsV) + ')')
+                          : _rsV.k === 'clean' ? '🛡 clean run' : '◌ unsealed'));
     var grails = (sm.finds || []).filter(function(f){ return f.tier === 'grail'; }).map(function(f){ return f.name || 'grail'; });
     var keeps = (sm.finds || []).filter(function(f){ return f.tier !== 'grail'; }).map(function(f){ return f.name; }).filter(Boolean);
     if (grails.length){ L.push(''); L.push('🏆 Grails (' + grails.length + '): ' + grails.join(', ')); }

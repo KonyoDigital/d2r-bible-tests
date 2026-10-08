@@ -406,6 +406,27 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2055 - "CLEAN RUN" OVER TEN UNREAD GAPS, AND "A FULL READ" ON A REEL NOBODY READ (2026-10-08, #277)
+
+GrokBot ticks 416-418: Session 30 read "CLEAN RUN" beside "0% coverage · 0 of 10 item reads · 10 gaps"; Session 41
+"CLEAN RUN" + "0 READS" with the chip "no missed text - a full read" under "- no reads on this reel -". The seal asked
+only the watchdog, the chip only the missed-text count. `_runSeal(sm)` is one verdict - open / flagged / sealed with
+gaps / clean - read by the card's seal and the copied summary; the chip says "a full read" only when the reel was read
+and no item moment is unread. Still open on #277: the theatre banner's "0 frames swept" vs the dossier's "swept · N",
+and why Session 46's legible Flame Rift tooltip was never read. Law: test_a_clean_run_has_no_gaps.
+
+### REG-2054 - MAGIC GRAND CHARMS FILED AS UNIQUES AND TIPPED "BASE ITEM · BEST-OF-THE-BEST" (2026-10-08, #269)
+
+GrokBot ticks 411-418: Dread Grasp / Storm Scarab tipped "Base item · TV-vaulted"; Chaotic Grand Charm of Greed, Grand
+Charm of Inertia and Steel Grand Charm of Balance sat in UNI-SMALL as "Base item … Best-of-the-best — rivals runewords /
+uniques" while MAGIC & RARE was empty. The router knew the rare grammar (REG-2024); the two TV stub writers stamped
+rarity:'basic' for every name no catalogue knew. `_rolledQuality(name)` is the one grammar - a RarePrefix + RareSuffix
+two-word name -> rare; a charm / jewel / ring / amulet with a prefix and/or an "of ..." suffix -> magic + base - asked
+by the router (a magic small item now files to MAGIC & RARE; the ones already in UNI-SMALL surface as misroutes that
+Auto-Sort moves) and by both stub writers. An old 'basic' stub is read as its name says at tip time (no store write),
+and a TV-registered stub no longer calls itself "Best-of-the-best". REG-2024's red-proof re-pointed to the helper.
+Law: test_a_rolled_name_is_stamped_as_what_it_is (+ test_a_rolled_rare_name_goes_to_magic_and_rare, magic cases).
+
 ### REG-2053 - A SEAL THAT PROBED MORE PANELS THAN TRIAGE SAW STILL RELEASED ITS REEL (2026-10-08, #231 on v3622)
 
 The second eye on v3622: `probed_every_panel` released on `probedPanels >= triagePanels`, so 5 probes against 3

@@ -63,7 +63,7 @@ from test_the_mule_window_is_the_planner_shell import _vault_span, _static_attrs
 from test_the_mule_window_equips_and_says_its_source import _src, _between, _line, _guard, _sets_and_runewords  # noqa: E402
 
 MULE = "uni-armor"
-#: the board's own spellings, with the packer's real footprints (the SIZE_RULES answer for each base)
+#: the board's own spellings, with the packer's real footprints (vaultSize answers _itemCells since REG-2051)
 SIZES = {"The Stone of Jordan": [1, 1], "Nagelring": [1, 1], "Mara's Kaleidoscope": [1, 1],
          "Harlequin Crest (Shako)": [2, 2], "Magefist": [2, 2], "Arachnid Mesh": [2, 1],
          "Tyrael's Might": [2, 3], "Windforce": [2, 4], "Stormshield": [2, 3]}

@@ -22,6 +22,8 @@ import unittest
 HERE = os.path.dirname(os.path.abspath(__file__))
 if HERE not in sys.path:
     sys.path.insert(0, HERE)
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
 from cb_node_harness import NODE  # noqa: E402
 
 PAGE = os.path.join(os.path.dirname(HERE), "bible.html")

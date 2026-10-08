@@ -29,6 +29,7 @@ import test_a_sweep_never_reticks_what_he_unticked as H  # noqa: E402  (its Boar
 
 _B = {}
 ROLLED = ("Dread Grasp", "Storm Scarab", "Death Loop", "Viper Eye", "Bitter Spiral", "Doom Spiral")
+MAGIC = ("Chaotic Grand Charm of Greed", "Grand Charm of Inertia", "Steel Grand Charm of Balance")
 
 
 def board():
@@ -48,9 +49,11 @@ class ARolledRareNameGoesToMagicAndRare(unittest.TestCase):
 
     def test_the_rolled_names_go_to_magic_and_rare_and_real_items_keep_their_route(self):
         o = board().run("OUT.r = {}; %s.forEach(function(n){ var s = window.suggestMule(n); OUT.r[n] = s ? s.id : null; });"
-                        % repr(list(ROLLED) + ["Raven Frost", "Heavy Belt", "Nokozan Relic"]).replace("'", '"'))["r"]
+                        % repr(list(ROLLED) + list(MAGIC) + ["Raven Frost", "Heavy Belt", "Nokozan Relic"]).replace("'", '"'))["r"]
         for n in ROLLED:
             self.assertEqual(o[n], "magic-rare", "%s - a rare's rolled name - was filed into %r by one word" % (n, o[n]))
+        for n in MAGIC:   # REG-2054 (#269, tick 416 K05) - a magic charm is a rolled-name keeper too
+            self.assertEqual(o[n], "magic-rare", "%s - a magic grand charm - was filed into %r" % (n, o[n]))
         self.assertEqual(o["Raven Frost"], "shared", "a real item that shares a rare prefix lost its own route")
         self.assertEqual(o["Heavy Belt"], "__throwout", "a white base lost its throw-out advice")
         self.assertEqual(o["Nokozan Relic"], "uni-small", "the control: a catalogued unique amulet moved")
@@ -59,8 +62,13 @@ class ARolledRareNameGoesToMagicAndRare(unittest.TestCase):
 RED_PROOF = [
     {"why": "REG-2024 - a rare's rolled name is filed into a slot drawer by one word again",
      "file": "bible.html",
-     "find": "        if (_rw2.length === 2 && RARE_NAME_PREFIXES.indexOf(_rw2[0]) >= 0){\n",
+     "find": "  if (w.length === 2 && RARE_NAME_PREFIXES.indexOf(w[0]) >= 0){\n",
      "replace": "        if (false){\n",
+     "matches": 1},
+    {"why": "REG-2054 - a magic grand charm is filed into UNI-SMALL again",
+     "file": "bible.html",
+     "find": "      if (_rq && _rq.q === 'magic' && muleById('magic-rare'))\n",
+     "replace": "      if (false)\n",
      "matches": 1},
 ]
 

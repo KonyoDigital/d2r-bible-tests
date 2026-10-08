@@ -9036,6 +9036,18 @@ GATES = [
          why=("REG-2052 (#276, GrokBot 417 K10) - a Tome of Identify sat as a mule tile in UNI-WEAPONS under the note "
               "'a MAIN item is never in a mule', and VAULT INTEGRITY did not name it.")
          ),
+    Gate("test_a_rolled_name_is_stamped_as_what_it_is", [sys.executable,
+         os.path.join(HERE, "test_a_rolled_name_is_stamped_as_what_it_is.py")], 30,
+         needs_app=False,
+         why=("REG-2054 (#269, GrokBot 411-418) - magic grand charms in UNI-SMALL tipped 'Base item … Best-of-the-best' "
+              "and rares tipped 'Base item': the stub writers never asked the rolled-name grammar the router knew.")
+         ),
+    Gate("test_a_clean_run_has_no_gaps", [sys.executable,
+         os.path.join(HERE, "test_a_clean_run_has_no_gaps.py")], 30,
+         needs_app=False,
+         why=("REG-2055 (#277, GrokBot 416-418) - 'CLEAN RUN' beside '0 of 10 item reads · 10 gaps', and 'a full read' "
+              "under 'no reads on this reel'.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

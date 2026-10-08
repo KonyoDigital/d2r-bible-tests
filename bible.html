@@ -23087,6 +23087,28 @@ const RARE_NAME_POOLS = {
 };
 const RARE_NAME_PREFIXES = ['Beast','Eagle','Raven','Viper','Ghoul','Skull','Blood','Dread','Doom','Grim','Bone','Death','Shadow','Storm','Rune','Plague','Stone','Wraith','Spirit','Demon','Cruel','Empyrion','Bramble','Pain','Loath','Glyph','Imp','Fiend','Hailstone','Gale','Dire','Soul','Brimstone','Corpse','Carrion','Holocaust','Havoc','Bitter','Entropy','Chaos','Order','Rule','Warp','Rift','Corruption'];
 window.RARE_NAME_POOLS = RARE_NAME_POOLS; window.RARE_NAME_PREFIXES = RARE_NAME_PREFIXES;
+/* #269 (REG-2054) - ONE GRAMMAR FOR A ROLLED NAME, asked by the router AND both TV stub writers. GrokBot ticks 411-418:
+   Dread Grasp / Storm Scarab tipped 'Base item', and Chaotic Grand Charm of Greed, Grand Charm of Inertia and Steel Grand
+   Charm of Balance sat in UNI-SMALL as 'Base item … Best-of-the-best' while MAGIC & RARE was empty - the router knew the
+   rare grammar (REG-2024) and the stub writers stamped rarity:'basic' for every name no catalogue knew.
+   -> {q:'rare', slots:[...]} for the exact two-word rare shape (a RarePrefix + a RareSuffix word); {q:'magic', base}
+   for a charm / jewel / ring / amulet wearing a prefix and/or an 'of ...' suffix; null otherwise. Asked only for a name
+   no catalogue knows - a real item never wears these clothes here. */
+var _MAGIC_SMALL_RE = /^(?:([A-Z][A-Za-z'\-]*)\s+)?(Grand Charm|Large Charm|Small Charm|Jewel|Ring|Amulet)(?:\s+(of\s+[A-Z][A-Za-z' \-]*))?$/;
+function _rolledQuality(name){
+  var nm = String(name == null ? '' : name).trim();
+  if (!nm) return null;
+  try { if (typeof d2rItemLookup === 'function' && d2rItemLookup(nm)) return null; } catch(e){}
+  var w = nm.split(/\s+/);
+  if (w.length === 2 && RARE_NAME_PREFIXES.indexOf(w[0]) >= 0){
+    var ks = Object.keys(RARE_NAME_POOLS).filter(function(k){ return RARE_NAME_POOLS[k].indexOf(w[1]) >= 0; });
+    if (ks.length) return { q: 'rare', slots: ks, prefix: w[0], suffix: w[1] };
+  }
+  var m = _MAGIC_SMALL_RE.exec(nm);
+  if (m && (m[1] || m[3])) return { q: 'magic', base: m[2] };
+  return null;
+}
+window._rolledQuality = _rolledQuality;
 function _rareNamePoolHtml(){
   var chips = function(arr){ return arr.map(function(w){ return '<span class="rnp-chip">'+w+'</span>'; }).join(''); };
   var rows = Object.keys(RARE_NAME_POOLS).map(function(slot){
@@ -30799,7 +30821,12 @@ window._tipTint = _tipTint;
 // Rich hover-card body for a High-Value Finds reference profile (matches the gem/item tip style).
 function _extraTipHtml(nm){
   var e = (typeof EXTRA_ITEMS !== 'undefined') ? EXTRA_ITEMS[nm] : null; if (!e) return '';
-  var rar = e.rarity || 'rare';
+  var rar = e.rarity || 'rare', _eBase = e.base;
+  /* #269 (REG-2054) - a TV stub stored before the grammar was asked still says 'basic'; its NAME says what it is */
+  if (e.val === 'tv' && rar === 'basic' && typeof _rolledQuality === 'function'){
+    var _rqT = _rolledQuality(nm);
+    if (_rqT){ rar = _rqT.q; if (_rqT.base && e.base === nm) _eBase = _rqT.base; }
+  }
   var rarLabel = (typeof _Q_LABEL !== 'undefined' && _Q_LABEL[rar]) ? _Q_LABEL[rar] : (rar.charAt(0).toUpperCase() + rar.slice(1));
   var roll = rar === 'magic' ? '1–2 random affixes' : rar === 'crafted' ? '3 fixed mods + 1–4 random' : rar === 'basic' ? 'base item — value = type + sockets + ethereal' : '3–6 random affixes';
   var statLines = (e.stats && e.stats.length) ? e.stats.map(function(l){ return '<div class="att-aff">' + l + '</div>'; }).join('') : '';
@@ -30808,7 +30835,7 @@ function _extraTipHtml(nm){
   var sockLine = (e.sockets || e.hand)
     ? '<div class="att-meta" style="color:#cdb988">🔩 ' + (e.sockets ? e.sockets + ' socket' + (e.sockets === 1 ? '' : 's') : 'socketed') + (e.hand ? ' &middot; ' + (e.hand === '1h' ? 'One-Handed' : 'Two-Handed') : '') + '</div>'
     : '';
-  return '<div class="att-type">' + rarLabel + (e.base ? ' &middot; ' + e.base : '') + (e.req != null ? ' &middot; req ' + e.req : '') + '</div>'
+  return '<div class="att-type">' + rarLabel + (_eBase ? ' &middot; ' + _eBase : '') + (e.req != null ? ' &middot; req ' + e.req : '') + '</div>'
     + sockLine
     + (e.cat ? '<div class="att-meta">' + e.cat + (e.val ? ' &middot; 💰 ' + e.val : '') + '</div>' : (e.val ? '<div class="att-meta">💰 ' + e.val + '</div>' : ''))
     + beatsLine
@@ -30819,7 +30846,8 @@ function _extraTipHtml(nm){
     /* REG-1912 — no retired total on his screen. "312" was the curated grail at v304; the chronicle counts 403 now and
        every fleet tip says so, so this line put a third universe beside the other two (GrokBot tick 371, Storm Scarab).
        What is true of every EXTRA_ITEMS row is that the grail does not count it - so that is what it says. */
-    + '<div class="att-info">Best-of-the-best — rivals runewords / uniques. Not a grail item: the chronicle does not count it.</div>';
+    /* #269 - a TV-registered stub is a name the board learned from a read, not a curated reference profile */
+    + '<div class="att-info">' + (e.val === 'tv' ? '' : 'Best-of-the-best — rivals runewords / uniques. ') + 'Not a grail item: the chronicle does not count it.</div>';
 }
 // v340 — crafted-item BUFF RANGES for the floating tooltip + card: the craft's guaranteed mods
 // shown floor→godly (the top % highlighted green) + the affixes to chase. Konyo: "the buffs, like
@@ -38984,15 +39012,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        RARE_NAME_POOLS, v332), and rolled-name keepers live in MAGIC & RARE. Asked only when NO catalogue knows the name
        (a real item never wears the rare grammar's clothes here), and only on the exact two-word shape. */
     try {
-      if (!base && typeof RARE_NAME_PREFIXES !== 'undefined' && typeof RARE_NAME_POOLS !== 'undefined'
-          && !(typeof d2rItemLookup === 'function' && d2rItemLookup(name))){
-        var _rw2 = String(name || '').trim().split(/\s+/);
-        if (_rw2.length === 2 && RARE_NAME_PREFIXES.indexOf(_rw2[0]) >= 0){
-          var _rk2 = Object.keys(RARE_NAME_POOLS).filter(function(k){ return RARE_NAME_POOLS[k].indexOf(_rw2[1]) >= 0; });
-          if (_rk2.length && muleById('magic-rare'))
-            return {id:'magic-rare', why:'a rare’s rolled name (' + _rw2[0] + ' + ' + _rw2[1] + ': ' + _rk2.join(' / ').toLowerCase() + ') — rolled-name keepers live in MAGIC & RARE'};
-        }
-      }
+      var _rq = (!base && typeof _rolledQuality === 'function') ? _rolledQuality(name) : null;
+      if (_rq && _rq.q === 'rare' && muleById('magic-rare'))
+        return {id:'magic-rare', why:'a rare\u2019s rolled name (' + _rq.prefix + ' + ' + _rq.suffix + ': ' + _rq.slots.join(' / ').toLowerCase() + ') \u2014 rolled-name keepers live in MAGIC & RARE'};
+      /* #269 (tick 416 K05) - a MAGIC charm / jewel / ring / amulet is a rolled-name keeper too, never a unique drawer */
+      if (_rq && _rq.q === 'magic' && muleById('magic-rare'))
+        return {id:'magic-rare', why:'a magic ' + _rq.base.toLowerCase() + ' (a rolled prefix / suffix) \u2014 rolled-name keepers live in MAGIC & RARE'};
     } catch(eRn){}
     if (ARMOR_RE.test(probe))   return {id:'uni-armor', why:'armor slot — base: '+(base||'name match')};
     if (JEWELRY_RE.test(probe)) return {id:'uni-small', why:'jewelry/charm — base: '+(base||'name match')};
@@ -41858,7 +41883,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
              here is what made the item drawable; it is also what made it VANISH on the next load,
              because the load-time prune filters `owned` against a set built from the static const.
              _tvExtraRemember writes both the object and the store. */
-          var _tvEntry = { rarity:'basic', base:name, cat:'📺 TV-vaulted', val:'tv',
+          /* #269 (REG-2054) - a rolled name is stamped as what it is, never 'Base item' */
+          var _rq1 = (typeof _rolledQuality === 'function') ? _rolledQuality(name) : null;
+          var _tvEntry = { rarity: _rq1 ? _rq1.q : 'basic', base: (_rq1 && _rq1.base) ? _rq1.base : name, cat:'📺 TV-vaulted', val:'tv',
             desc:'registered live by TV DIABLO — physically in your stash' };
           if (typeof window._tvExtraRemember === 'function') window._tvExtraRemember(name, _tvEntry);
           else EXTRA_ITEMS[name] = _tvEntry;
@@ -54443,8 +54470,9 @@ function renderJournal(){
                decide a DURABLE action is asking the wrong question. _tvExtraRemember is idempotent,
                so remembering an already-known name costs one dictionary write. */
             if (typeof window._tvExtraRemember === 'function') {
-              window._tvExtraRemember(n, { rarity:'basic', base:n, cat:'\ud83d\udcfa TV-vaulted',
-                                           val:'tv', src:'chronicle-apply' });
+              var _rq2 = (typeof _rolledQuality === 'function') ? _rolledQuality(n) : null;   /* #269 (REG-2054) */
+              window._tvExtraRemember(n, { rarity: _rq2 ? _rq2.q : 'basic', base: (_rq2 && _rq2.base) ? _rq2.base : n,
+                                           cat:'\ud83d\udcfa TV-vaulted', val:'tv', src:'chronicle-apply' });
             }
           } catch(e){}
           /* THE FILING IS NOT DONE HERE, AND THAT IS THE POINT. My first cut wrote
