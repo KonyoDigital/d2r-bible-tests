@@ -43,7 +43,14 @@ def _callback():
     hi = src.find("}, 3000);", at)
     if lo < 0 or hi < 0:
         return None
-    return src[lo + len("setInterval("):hi + 1]
+    cb = src[lo + len("setInterval("):hi + 1]
+    # REG-2057 (#279) - the heal asks _thStageHolds (defined beside it, outside the interval); the cut carries the SHIPPED
+    # one with it, or the callback throws inside its own try and an empty stage silently never closes.
+    fs = src.find("  function _thStageHolds(st){\n")
+    if fs < 0:
+        return None
+    fe = src.find("    return false;\n  }\n", fs)
+    return "(function(){\n" + src[fs:fe + len("    return false;\n  }\n")] + "return " + cb + ";\n})()"
 
 
 HARNESS = r"""
@@ -174,8 +181,8 @@ RED_PROOF = [
     {
         "why": "REG-1934 - the empty-stage heal stops exempting a shelf on screen: it closes the shelf he is reading",
         "file": "tv/control_ui.html",
-        "find": "        if (((painted && loaded && ink !== false)) || touchedRecently || _ovUp) { window._thEmptyFor = 0; return; }",
-        "replace": "        if (((painted && loaded && ink !== false)) || touchedRecently) { window._thEmptyFor = 0; return; }",
+        "find": "touched: touchedRecently, overlay: _ovUp, beat: _cb })) {",
+        "replace": "touched: touchedRecently, overlay: false, beat: _cb })) {",
         "matches": 1,
     },
     {

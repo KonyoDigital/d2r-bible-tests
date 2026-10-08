@@ -18422,7 +18422,8 @@ class TestV2018ThePlannerIsAskedAboutTheItemNotAboutMyStub(unittest.TestCase):
     def test_the_planner_is_asked_before_the_stub_is_written(self):
         body = self._register_body()
         i_ask = body.find("sg = suggestMule(name)")
-        i_stub = body.find("var _tvEntry = { rarity:'basic'")
+        # REG-2054 (#269) - the stub stamps the rolled quality now (`rarity: _rq1 ? _rq1.q : 'basic'`); still a stub, same place
+        i_stub = body.find("var _tvEntry = { rarity:")
         i_branch = body.find("if (sg && sg.id === '__throwout')")
         self.assertNotEqual(i_ask, -1, "suggestMule call not found in tvVaultRegister")
         self.assertNotEqual(i_stub, -1, "the v739 universe stub not found in tvVaultRegister")

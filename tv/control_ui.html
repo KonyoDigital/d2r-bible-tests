@@ -6097,6 +6097,9 @@
     transition: opacity .16s, transform .16s, visibility .16s;
     pointer-events: none;
   }
+  /* #280 (REG-2058, GrokBot tick 418 K02) - the card opens ABOVE its row, so the rail's top row ran its header off the top
+     under the tab bar. Where there is no room above, it opens below (_fttPlace decides, on hover). */
+  .fleet-row.has-ftt .ftt.ftt-below { bottom: auto; top: calc(100% + 8px); }
   .fleet-row.has-ftt:hover .ftt, .fleet-row.has-ftt:focus-visible .ftt {
     opacity: 1; visibility: visible; transform: translateY(0);
   }
@@ -16419,7 +16422,10 @@ window._lockMark = function(isOpen, px, label){
     // ACCURACY strip: capture clock · AI complete · frame file · lock badge
     var lock = (b.frameOk !== false && b.frame)
       ? '<span style="color:#8fe6a0">🔒 frame locked</span>'
-      : '<span style="color:#f88">⚠ photo pruned from disk — caption-only beat (REG-025 era)</span>';
+      /* #279 - it said "pruned" while the prune is OFF (tick 418): a read with no frame never had a photo (a stills-only
+         reel); a named frame missing from disk is only "not on disk" - nothing here knows why it went */
+      : (b.frame ? '<span style="color:#f88">⚠ this read&#39;s photo is not on disk — caption-only beat</span>'
+                 : '<span style="color:#e9b96e">no photo for this read — the reel kept its caption only</span>');
     // v824 (Grok R9a) — ONE read card: the old accuracy strip carried the same clocks twice.
     // It shrinks to identity + lock + story flags; all timing lives in the AI Read Line.
     var bits = ['read #'+esc(b.n||'?')];
@@ -25763,13 +25769,10 @@ function escC(s) {
       };
       var whyBits = [];
       if (inside.length) {
-        whyBits.push((keepN ? ('among the newest ' + keepN + ' — ') : '')
-          + inside.map(function (e) { return _stuckLabel(e) + ': ' + (e.why || 'no reason given'); }).join('  |  '));
+        whyBits.push((keepN ? ('among the newest ' + keepN + ' — ') : '') + _fleetStuckWhy(inside, _stuckLabel));
       }
       if (beyond.length) {
-        whyBits.push(beyond.map(function (e) {
-          return _stuckLabel(e) + ': ' + (e.why || 'no reason given');
-        }).join('  |  '));
+        whyBits.push(_fleetStuckWhy(beyond, _stuckLabel));
       }
       /* #250 (REG-2047, GrokBot tick 415) - THESE ARE THAT PC'S OWN SENTENCES, TRUE WHEN IT LAST REPORTED. Dean's offline
          row (last seen 5h) said "triage lane: he is playing - D2R.exe is running on this machine" in the present tense.
@@ -30348,6 +30351,57 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     });
   } catch (e) {}
 
+  /* #279 (REG-2057, GrokBot tick 418 K07-K09) - IS THE OPEN STAGE DOING ITS JOB? The self-heal below closes a stage that
+     shows no picture for ~12 s with nobody touching it - meant for a stage that never finished LOADING. Session 41 recorded
+     8 stills (its film lane was off); the replay reached a beat the reel carries with no photo at 11:43:29, the film had
+     nothing to paint, and by 11:43:40 the theatre had closed itself with the mouse parked. A caption-only beat is the reel,
+     not a stuck stage: it HOLDS. -> true when the stage is working (painted, touched, an overlay up, or a caption beat) */
+  function _thStageHolds(st){
+    st = st || {};
+    if (st.painted && st.loaded && st.ink !== false) return true;
+    if (st.touched || st.overlay) return true;
+    var b = st.beat;
+    if (b && (b.frameOk === false || !b.frame)) return true;
+    return false;
+  }
+  window._thStageHolds = _thStageHolds;
+
+  /* #281 (REG-2059, GrokBot tick 418 K03) - ONE REASON, SAID ONCE. Konyo's river tip printed 'STATION 5: the reel sweep owes 9
+     read(s) ... vault.sweep_start is LOCKED ...' twice word for word, and PRINTER 2 and PRINTER 1 each carried the same
+     'vault lane: owes 7 ...' paragraph, so the tip ran out of room and ended in '…'. Rows that share a reason are named
+     together in front of it, in the order they came. -> 'A · B: why  |  C: why2' */
+  function _fleetStuckWhy(list, label){
+    var order = [], by = {};
+    (list || []).forEach(function (e) {
+      var w = String((e && e.why) || 'no reason given');
+      if (!Object.prototype.hasOwnProperty.call(by, w)) { by[w] = []; order.push(w); }
+      by[w].push(label(e));
+    });
+    return order.map(function (w) { return by[w].join(' · ') + ': ' + w; }).join('  |  ');
+  }
+  window._fleetStuckWhy = _fleetStuckWhy;
+
+  /* #280 (REG-2058) - WHERE A FLEET NAME CARD OPENS. Above its row when the card fits between the row and the tab bar,
+     else below - a card whose header runs under the tab bar cannot be read (GrokBot tick 418 K02, ALT TEST's card).
+     -> 'below' | 'above'. Pure on three numbers so a law can ask it. */
+  function _fttPlace(rowTop, cardH, ceiling){
+    return ((+rowTop || 0) - (+cardH || 0) - 8 < (+ceiling || 0)) ? 'below' : 'above';
+  }
+  window._fttPlace = _fttPlace;
+  try {
+    document.addEventListener('pointerover', function(e){
+      try {
+        var row = (e.target && e.target.closest) ? e.target.closest('.fleet-row.has-ftt') : null;
+        if (!row) return;
+        var card = row.querySelector('.ftt');
+        if (!card) return;
+        var head = document.getElementById('head-tabs');
+        var ceil = head ? head.getBoundingClientRect().bottom : 0;
+        card.classList.toggle('ftt-below', _fttPlace(row.getBoundingClientRect().top, card.offsetHeight, ceil) === 'below');
+      } catch (_e) {}
+    }, true);
+  } catch (_l) {}
+
   try {
     setInterval(function(){
       try {
@@ -30451,7 +30505,11 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
         try {
           ['th-shelfov', 'th-dossier-ov'].forEach(function (id) { var o = document.getElementById(id); if (o && !o.hidden) _ovUp = true; });
         } catch (_o) {}
-        if (((painted && loaded && ink !== false)) || touchedRecently || _ovUp) { window._thEmptyFor = 0; return; }
+        var _cb = null;
+        try { _cb = (window.TH && TH.beats && TH.beats.length) ? TH.beats[TH.i] : null; } catch (_c) { _cb = null; }
+        if (_thStageHolds({ painted: painted, loaded: loaded, ink: ink, touched: touchedRecently, overlay: _ovUp, beat: _cb })) {
+          window._thEmptyFor = 0; return;
+        }
         window._thEmptyFor = (window._thEmptyFor || 0) + 1;
         if (window._thEmptyFor >= 4) {               /* ~12s open and never finished loading */
           window._thEmptyFor = 0;

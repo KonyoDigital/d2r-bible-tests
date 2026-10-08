@@ -134,7 +134,9 @@ var escC = esc;
 
 def _run(body):
     """Run `body` against the shipped helpers in node. -> the OUT object it filled"""
-    prog = (HARNESS + _cut(RIVER_START, RIVER_END, inclusive_end=True) + "\n" + _cut(FLEET_START, FLEET_END) + "\n"
+    # REG-2059 (#281) - the stuck tip says a shared reason once through _fleetStuckWhy, defined at the script's top level
+    prog = (HARNESS + _cut("  function _fleetStuckWhy(list, label){\n", "join('  |  ');\n  }\n", inclusive_end=True) + "\n"
+            + _cut(RIVER_START, RIVER_END, inclusive_end=True) + "\n" + _cut(FLEET_START, FLEET_END) + "\n"
             + "var NOW = %d; function iso(ms){ return new Date(ms).toISOString(); }\n" % NOW
             + "function plain(s){ return String(s).replace(/\\u00a0/g, ' '); }\n"
             + "function strip(h){ return plain(String(h).replace(/<[^>]+>/g, '')); }\n"
@@ -643,8 +645,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2044 - the stuck tip names a past-window row only by its station again",
      "file": "tv/control_ui.html",
-     "find": "          return _stuckLabel(e) + ': ' + (e.why || 'no reason given');\n",
-     "replace": "          return e.station + ': ' + (e.why || 'no reason given');\n",
+     "find": "        whyBits.push(_fleetStuckWhy(beyond, _stuckLabel));\n",
+     "replace": "        whyBits.push(_fleetStuckWhy(beyond, function (e) { return e.station; }));\n",
      "matches": 1},
     {"why": "#251 - a station's past-window row reads exactly like its row inside the newest 16 again",
      "file": "tv/control_ui.html",

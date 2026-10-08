@@ -18618,7 +18618,7 @@ function _itemCells(name){
         base = (c && c.base) || (t && t.b) || (ex && ex.base) || '';
       } catch(e){}
       /* #275 (GrokBot tick 418, K14) - A RUNEWORD IS SIZED BY ITS BASE, NEVER BY ITS NAME. Enigma has no codex row, so it
-         fell to the default 1x2 ("size not established") although every Enigma is body armour (2x3) - and a runeword
+         fell to the default 1x2 (its tile admitted the size was a guess) although every Enigma is body armour (2x3) - and a runeword
          name matched as a base keyword lies outright ("Hand of Justice" read as gloves). Its tip names the base CLASS;
          only a class with ONE size settles it (body armour 2x3, helms 2x2). Anything else - "Swords or Shields",
          "Weapons" - stays a guess that says so. */

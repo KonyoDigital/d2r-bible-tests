@@ -406,6 +406,35 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2059 - ONE RIVER TIP SAID THE SAME REASON TWICE, AND RAN OUT OF ROOM (2026-10-08, #281)
+
+GrokBot tick 418 (K03): Konyo's river tip printed "STATION 5: the reel sweep owes 9 read(s) … vault.sweep_start is
+LOCKED …" twice word for word, and PRINTER 2 and PRINTER 1 each carried the same "vault lane: owes 7 …" paragraph; the
+tip ended in "…". `_fleetStuckWhy(list, label)` names every row that shares a reason in front of it, once, in the
+order they came; both halves of the stuck tip (inside the newest-N window and older) go through it. Law:
+test_a_shared_reason_is_said_once (+ the fleet card law bundles the helper; REG-2044's red-proof re-pointed).
+
+### REG-2058 - THE TOP FLEET CARD RAN ITS HEADER UNDER THE TAB BAR (2026-10-08, #280)
+
+GrokBot tick 418 (K02): the ALT TEST name card - the rail's first row - opened above its row (`bottom: calc(100% +
+8px)`) where there is no room, so its header sat under the tab bar. `_fttPlace(rowTop, cardH, ceiling)` decides on
+hover: above when the card fits between the row and the tab bar, else below (`.ftt-below`). K01 - the Wife PC card
+covering the rows above it - is a hover card covering its neighbours, by design; it now never leaves the screen.
+Law: test_a_fleet_card_opens_where_it_can_be_read.
+
+### REG-2057 - THE THEATRE CLOSED ITSELF ON A BEAT WITH NO PHOTO (2026-10-08, #279)
+
+GrokBot tick 418 (K07-K09): the Theatre for Session 41 closed with no input, twice within ~25 s; the second time it
+played to T+8:56, the picture dropped to a caption-only beat at 11:43:29 and the stage was gone by 11:43:40. Session
+41 recorded 8 stills (its film lane was off). The stuck-black self-heal (v2228/v3365) closes a stage whose film shows
+no picture for ~12 s with nobody touching it - and a beat the reel carries without a photo has no picture by design.
+`_thStageHolds` is the decision: painted, touched or an overlay up hold as before, and a caption-only beat now holds
+too (GrokBot asked: should a replay that runs out of stills hold rather than close - it holds); a photo beat that never
+painted still closes. The caption stopped saying "pruned" (the prune is OFF): no frame -> "no photo for this read", a
+named frame missing -> "not on disk". test_a_theatre_flag_needs_a_stage's harness now cuts the helper with the heal
+(its baseline went silent otherwise - a ReferenceError inside the heal's own try). Law:
+test_a_replay_holds_on_a_beat_with_no_photo.
+
 ### REG-2056 - A LAW I SHIPPED IN v3622 PASSED ON HIS MAC AND RAN NOTHING ON CI (2026-10-08, CI on 1f11c64a)
 
 agent tests shard 3/4 on v3622: `test_a_grok_read_asks_low_effort_and_survives_an_older_cli` - "the refused flag was

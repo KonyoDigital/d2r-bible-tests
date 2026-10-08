@@ -9048,6 +9048,21 @@ GATES = [
          why=("REG-2055 (#277, GrokBot 416-418) - 'CLEAN RUN' beside '0 of 10 item reads · 10 gaps', and 'a full read' "
               "under 'no reads on this reel'.")
          ),
+    Gate("test_a_replay_holds_on_a_beat_with_no_photo", [sys.executable,
+         os.path.join(HERE, "test_a_replay_holds_on_a_beat_with_no_photo.py")], 30,
+         needs_app=False,
+         why=('REG-2057 (#279, GrokBot 418 K07-K09) - the Theatre for Session 41 closed itself ~11 s after the replay reached a caption-only beat: the stuck-black self-heal read a beat with no photo as a stage that never loaded.')
+         ),
+    Gate("test_a_fleet_card_opens_where_it_can_be_read", [sys.executable,
+         os.path.join(HERE, "test_a_fleet_card_opens_where_it_can_be_read.py")], 30,
+         needs_app=False,
+         why=("REG-2058 (#280, GrokBot 418 K02) - the rail's top fleet card always opened above its row and ran its header under the tab bar.")
+         ),
+    Gate("test_a_shared_reason_is_said_once", [sys.executable,
+         os.path.join(HERE, "test_a_shared_reason_is_said_once.py")], 30,
+         needs_app=False,
+         why=("REG-2059 (#281, GrokBot 418 K03) - Konyo's river tip printed one station's reason twice and two printers' shared paragraph twice, then ran out of room.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,
