@@ -30529,6 +30529,33 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
     return ((+rowTop || 0) - (+cardH || 0) - 8 < (+ceiling || 0)) ? 'below' : 'above';
   }
   window._fttPlace = _fttPlace;
+  /* REG-2082 (GrokBot tick 425 K06) - THE CEILING IS WHATEVER CLIPS THE CARD, NOT ONLY THE TAB BAR. The top row's card opened
+     above it and 'GROKBOT this console' was cut at the top edge: the fleet sits inside the rail, a scroll container, and
+     a card above its top visible row is clipped by the RAIL's edge (and by anything stuck at the rail's top), which the
+     tab-bar ceiling never saw. -> the lowest of: the tab bar's bottom, the nearest scroller's top, and the bottom of a
+     sticky child pinned at that scroller's top. Pure on a node and its ancestors. */
+  function _fttCeiling(row){
+    var c = 0;
+    try { var head = document.getElementById('head-tabs'); if (head) c = head.getBoundingClientRect().bottom; } catch (e) {}
+    try {
+      for (var n = row && row.parentElement; n && n !== document.body && n !== document.documentElement; n = n.parentElement){
+        var oy = getComputedStyle(n).overflowY;
+        if (oy !== 'auto' && oy !== 'scroll' && oy !== 'hidden') continue;
+        var top = n.getBoundingClientRect().top;
+        if (top > c) c = top;
+        var kids = n.children || [];
+        for (var i = 0; i < kids.length; i++){
+          var ks = getComputedStyle(kids[i]);
+          if (ks.position !== 'sticky' && ks.position !== 'fixed') continue;
+          var kr = kids[i].getBoundingClientRect();
+          if (kr.top <= top + 2 && kr.bottom > c) c = kr.bottom;
+        }
+        break;
+      }
+    } catch (e2) {}
+    return c;
+  }
+  window._fttCeiling = _fttCeiling;
   try {
     document.addEventListener('pointerover', function(e){
       try {
@@ -30536,8 +30563,7 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
         if (!row) return;
         var card = row.querySelector('.ftt');
         if (!card) return;
-        var head = document.getElementById('head-tabs');
-        var ceil = head ? head.getBoundingClientRect().bottom : 0;
+        var ceil = _fttCeiling(row);   /* REG-2082 - the tab bar, the rail's edge or what sticks there, whichever is lowest */
         card.classList.toggle('ftt-below', _fttPlace(row.getBoundingClientRect().top, card.offsetHeight, ceil) === 'below');
       } catch (_e) {}
     }, true);

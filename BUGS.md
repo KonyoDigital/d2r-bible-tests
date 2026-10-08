@@ -406,6 +406,14 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2082 - THE TOP FLEET CARD WAS CUT AT THE RAIL'S EDGE (2026-10-08, GrokBot tick 425 K06)
+
+'GROKBOT this console' - the top row's name card - opened ABOVE its row with its header cut off at the top edge. REG-2058
+(#280) opens a card below when it would not fit under the TAB BAR; the fleet sits inside the rail, a scroll container, so
+a card above the top visible row is clipped by the rail's own edge and by what sticks at the rail's top. `_fttCeiling`
+takes the lowest of the three. Law: test_a_fleet_card_knows_what_clips_it (2 red-proofs). Pixels owed: GrokBot's next
+tick on his rail (a hover state no render target reaches).
+
 ### REG-2081 - "SCROLL TO FULL FILTERABLE DROP TABLE" BLANKED THE PAGE (2026-10-08, GrokBot tick 425 ACT)
 
 On Hell Mephisto's boss card the button left the search bar, 'PICK A BOSS', an empty band and the footer, and 'the wheel

@@ -9161,6 +9161,11 @@ GATES = [
          needs_app=False,
          why=("REG-2081 (GrokBot 425 K09/K10) - 'scroll to full filterable drop table' blanked the Bosses page: the sticky "
               "boss nav covered 40-178%% of the window and the card landed under it.")),
+    Gate("test_a_fleet_card_knows_what_clips_it", [sys.executable,
+         os.path.join(HERE, "test_a_fleet_card_knows_what_clips_it.py")], 30,
+         needs_app=False,
+         why=("REG-2082 (GrokBot 425 K06) - the top fleet row's card opened above and was cut at the rail's edge: the "
+              "ceiling knew only the tab bar, not the rail scroller or its sticky title.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,
