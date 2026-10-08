@@ -52,6 +52,11 @@ UI = os.path.join(HERE, "control_ui.html")
 PROOF_NEEDS = ["../functions/api/console.js", "../functions/_middleware.js"]
 
 RED_PROOF = [
+    {"why": "REG-2048 - the eye calls a row whose beacon the roster refused 'offline' again",
+     "file": "tv/control_ui.html",
+     "find": "        : (m && m.lastBeacon && m.lastBeacon.ok === false)\n",
+     "replace": "        : false\n",
+     "matches": 1},
     {
         "why": "#93 - a watcher that ticks inside its bound no longer reads as working",
         "file": "control_app.py",
@@ -255,8 +260,9 @@ class TheWorkerKeepsIt(unittest.TestCase):
 
 
 # ══ JOINT 4 — THE CARD ════════════════════════════════════════════════════════════════════════════════════════════
-def _eye(shadow, online=True):
+def _eye(shadow, online=True, extra=None):
     row = {"nickname": "Box", "machine": "box-1", "ver": "v3527", "t": _iso(UI_NOW - 40000)}
+    row.update(extra or {})
     if shadow != "absent":
         row["shadow"] = shadow
     out = _ui_run("var h = _fleetShadowEye(%s, %s, NOW); OUT.h = h; OUT.text = strip(h);"
@@ -278,6 +284,16 @@ class TheEyeOnEveryRow(unittest.TestCase):
         self.assertIn("background", e["title"])
         self.assertEqual(e["text"], "", "the eye added words to the name cell: %r" % e["text"])
         self.assertEqual(_eye(dict(LIVE, recording=True))["st"], "live")
+
+    def test_a_refused_beacon_is_not_called_offline(self):
+        """#250 (REG-2048) - Wife PC: the name line said 'presence UNKNOWN, not offline' (the roster refused its last
+        beacon) while the eye on the same row said 'this PC is offline'. The eye follows the name line's rule."""
+        e = _eye(LIVE, online=False, extra={"lastBeacon": {"ok": False, "code": 403}})
+        self.assertEqual(e["st"], "unk", e)
+        self.assertIn("presence is UNKNOWN (not offline)", e["title"] or "", e)
+        self.assertNotIn("this PC is offline", e["title"] or "", "the eye still calls a refused beacon offline")
+        plain = _eye(LIVE, online=False)
+        self.assertIn("this PC is offline", plain["title"] or "", "PREMISE: a truly offline row is still called offline")
 
     def test_switched_off_is_a_shut_lid(self):
         e = _eye(dict(LIVE, on=False))

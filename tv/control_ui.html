@@ -25976,6 +25976,10 @@ function escC(s) {
                + Math.round(_FLEET_SILENT_AFTER_S / 60) + ' min bound'
              : 'this row has no beacon time the card can read')
           + ', so presence is UNKNOWN and nobody can say whether it runs; the roster still holds this PC'
+        /* #250 (REG-2048) - THE NAME LINE'S RULE, ON THE EYE TOO. A row whose last beacon the roster REFUSED is "presence
+           UNKNOWN, not offline" beside its name; the eye said "this PC is offline" on the same row (GrokBot: Wife PC). */
+        : (m && m.lastBeacon && m.lastBeacon.ok === false)
+        ? 'shadow reader UNKNOWN - the roster refused this PC\u2019s last beacon, so presence is UNKNOWN (not offline) and nobody can say whether it runs'
         : 'shadow reader UNKNOWN - this PC is offline, so nobody can say whether it runs until it reports again';
     } else if (!sh) {
       st = 'unk'; tip = 'shadow reader UNKNOWN - this console does not report it (a build older than the eye)';
