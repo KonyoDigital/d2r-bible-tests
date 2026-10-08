@@ -8923,6 +8923,12 @@ GATES = [
          why=("REG-1959 - the ALT has no stash_gate_cache (it never filmed a stash panel), so its vault lane could never "
               "prove itself live and retired every reel un-extracted; a tracked stash frame, pinned by sha256, is the canary.")
          ),
+    Gate("test_the_organizer_says_the_mule_the_cell_and_the_picture", [sys.executable,
+         os.path.join(HERE, "test_the_organizer_says_the_mule_the_cell_and_the_picture.py")], 120,
+         needs_app=False,
+         why=("REG-2030 (#264, his 2026-10-08 ruling) - the dock's organizer named the mule but not the stash cell or the "
+              "picture, hid 25 of 85 behind a 60 cap and left his inventory loot out; every row says all three now.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

@@ -12,8 +12,9 @@ block and the board's own no-home sentence (_vNoHomeWhy):
   · null IS THE SHARED STASH, said in the door's own sentence; a lock on his MAIN stays (the router is not asked).
   · UNKNOWN STAYS UNKNOWN: an id with no mule on this board (the door's own "routed to ... but no mule" sentence), a
     reason the router did not give, a router that throws or is absent — each says so and names no home.
-  · THE ORGANIZER moves nothing: a head line says so, at most 60 rows (and how many more), no control, no store write,
-    hidden when nothing is unsorted; renderVault paints it from the dock's own unsorted list.
+  · THE ORGANIZER moves nothing: a head line says so, at most VAULT_ORG_SHOWN rows (and how many more), no control, no
+    store write, hidden when nothing is unsorted; renderVault paints it from the dock's own unsorted list plus the loot
+    he carries (#264, v3620 - the cap is read from the page, never pinned here).
 
 A missing node raises — this law does not skip. RED_PROOF below.
 """
@@ -195,7 +196,8 @@ class TheVaultProposesAHomeAndDoesNotMove(unittest.TestCase):
           OUT.bad = window.vaultOrganizePaint(null);
           OUT.paint = window.vaultOrganizePaint(['Battlecage', 'a < b', 'Short Sword']);
           OUT.html = ELS['vault-organize']._html;
-          var many = []; for (var i = 0; i < 61; i++) many.push('Item ' + i);
+          var many = []; for (var i = 0; i < VAULT_ORG_SHOWN + 1; i++) many.push('Item ' + i);
+          OUT.cap = VAULT_ORG_SHOWN;
           OUT.many = window.vaultOrganizePaint(many);
           OUT.manyHtml = ELS['vault-organize']._html;
           OUT.writes = WRITES;
@@ -204,22 +206,24 @@ class TheVaultProposesAHomeAndDoesNotMove(unittest.TestCase):
         self.assertTrue(out["hidden"])
         self.assertFalse(out["bad"]["ok"])
         self.assertEqual(out["paint"]["n"], 3)
-        self.assertIn("nothing moves until you file it", out["html"])
+        self.assertIn("nothing moves until you move it", out["html"])
         self.assertIn('data-name="Battlecage"', out["html"])
         self.assertIn("→ UNI-WEAPONS — " + PARK, out["html"])
         self.assertIn('data-name="a &lt; b"', out["html"])
         self.assertIn('data-state="throwout"', out["html"])
         self.assertNotIn("onclick", out["html"])
         self.assertNotIn("<button", out["html"])
-        self.assertEqual(out["many"]["shown"], 60)
-        self.assertEqual(out["manyHtml"].count('class="vault-org-row" data-name='), 60)
-        self.assertIn("60 of 61 shown", out["manyHtml"])
+        cap = out["cap"]
+        self.assertEqual(cap, int(re.search(r"var VAULT_ORG_SHOWN = (\d+);", _src()).group(1)), "the harness read another cap")
+        self.assertEqual(out["many"]["shown"], cap)
+        self.assertEqual(out["manyHtml"].count('class="vault-org-row" data-name='), cap)
+        self.assertIn("%d of %d shown" % (cap, cap + 1), out["manyHtml"])
         self.assertEqual(out["writes"], 0)
 
     def test_the_joins(self):
         s = _src()
         code = code_only(s)
-        self.assertEqual(code.count("    try { if (typeof window.vaultOrganizePaint === 'function') window.vaultOrganizePaint(unsorted); } catch (eO) {}"), 1)
+        self.assertEqual(code.count('            window.vaultOrganizePaint(unsorted, (_carried || []).map(function(c){ return c.name; })\n'), 1)
         dock_at = code.find("dock.innerHTML = unsorted.map(function(n){")
         self.assertGreater(dock_at, 0)
         self.assertNotIn("vaultPropose", code[dock_at:code.find(".join('');", dock_at)])
@@ -268,8 +272,8 @@ RED_PROOF = [
     {
         "why": "the dock's unsorted items must be asked; dropping the paint leaves the organizer unjoined",
         "file": "bible.html",
-        "find": "    try { if (typeof window.vaultOrganizePaint === 'function') window.vaultOrganizePaint(unsorted); } catch (eO) {}\n",
-        "replace": "",
+        "find": '            window.vaultOrganizePaint(unsorted, (_carried || []).map(function(c){ return c.name; })\n',
+        "replace": "            void (0\n",   # still parses: (0 .filter(...)) throws inside the try, so nothing is painted
         "matches": 1,
     },
 ]

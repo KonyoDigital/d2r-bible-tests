@@ -10387,6 +10387,8 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .vault-organize[hidden]{display:none}
 .vault-organize .vault-org-row{margin:0 0 4px;font-size:var(--fs-meta);color:var(--text)}
 .vault-organize .vault-org-h{margin:0 0 6px;font-size:var(--fs-meta);color:var(--text-dim)}
+/* #264 — the planned cell and where it is now, quieter than the mule it goes to */
+.vault-organize .vault-org-cell,.vault-organize .vault-org-from{color:var(--text-dim)}
 #vault-hand-win{position:fixed;inset:0;z-index:130;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(4,3,2,.62);box-sizing:border-box}
 #vault-hand-win[hidden]{display:none}
 #vault-hand-win .vault-hand-box{width:min(440px,100%);max-height:min(640px,100%);overflow:auto;background:var(--surface);border:1px solid var(--border-light);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
@@ -40106,7 +40108,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         }
       }
     } catch(e){}
-    try { if (typeof window.vaultOrganizePaint === 'function') window.vaultOrganizePaint(unsorted); } catch (eO) {}
+    /* #264 (his ruling 2026-10-08) - the loot in his inventory's free cells is organized too: the organizer gets the
+       carried names (never kit - charms, tomes, the Cube stay on him), each said as "in your inventory" */
+    try { if (typeof window.vaultOrganizePaint === 'function')
+            window.vaultOrganizePaint(unsorted, (_carried || []).map(function(c){ return c.name; })
+              .filter(function(n){ return !(window._standingKit && window._standingKit(n)); })); } catch (eO) {}
     dock.innerHTML = unsorted.map(function(n){
       var _vr = (typeof _artRarity==='function') ? _artRarity(n) : '';
       return '<span class="vault-chip'+(_vr?' vc-r-'+_vr:'')+(selectedChip===n?' vc-selected':'')+'" draggable="true" data-vault-item="'+esc(n)+'" title="drag onto a locker — or click, then click a locker">'+art(n)+'<span class="vault-chip-name"'+(typeof _qStyle==='function'?_qStyle(n,'unique'):'')+'>'+esc(n)+'</span>'
@@ -41023,8 +41029,44 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (pg.kind === 'stays') return span('stays', 'stays where it is — ' + pg.why);
     return span('unknown', 'the router gave an answer this page does not know');
   };
-  var VAULT_ORG_SHOWN = 60;
-  window.vaultOrganizePaint = function(names){
+  /* ══ #264 (his ruling 2026-10-08) - THE ORGANIZER TELLS HIM WHERE: THE MULE, THE STASH CELL, AND THE PICTURE ═════════
+     His words: "tell me which mule to mule it in and stash it in" · "with the tooltip picture proof synced to the ledger
+     obviously for evidence" · "without me telling it or click auto assemble". The rows already said which mule (the router,
+     vaultPropose). Each row now also says WHERE in that mule: its cell, packed by the SAME packer the mule window and the
+     finder use (_muleLoad over the locker's filed items plus every item planned for it; _sharedPack per shared tab), so
+     the row, the window and the finder can never name different cells. And its evidence door (_vaultEvidenceBtn - the
+     frame it was read on, opened in the evidence viewer). Nothing moves: a plan is shown, filing stays on his 2-session
+     ruling, his move, or Auto-Sort. Every row is shown (the old 60 cap hid 25 of his 85). */
+  var VAULT_ORG_SHOWN = 400;
+  function _orgPlannedCells(plans){
+    var cells = {};
+    try {
+      var byMule = {};
+      plans.forEach(function(p){ if (p.pg && p.pg.ok === true && p.pg.kind === 'mule') (byMule[p.pg.id] = byMule[p.pg.id] || []).push(p.nm); });
+      Object.keys(byMule).forEach(function(mid){
+        var planned = byMule[mid];
+        if (mid === 'shared'){
+          var pages = _sharedStashPages(_sharedNames().concat(planned));
+          pages.forEach(function(pg){
+            _sharedPack(pg.items).placed.forEach(function(q){
+              if (planned.indexOf(q.n) >= 0) cells[q.n] = pg.label + ' tab · col ' + (q.x + 1) + ' · row ' + (q.y + 1); });
+          });
+          return;
+        }
+        var load = _muleLoad(_muleNamesFor(mid).concat(planned), _mpWornFor(mid, _mpEqAll()), mid);
+        (load.mules || []).forEach(function(mu, pi){
+          var tag = ((load.mules || []).length > 1 ? 'Mule ' + (pi + 1) + ' · ' : '');
+          (mu.stash || []).forEach(function(q){ if (planned.indexOf(q.n) >= 0 && !cells[q.n]) cells[q.n] = tag + 'Personal stash · col ' + (q.x + 1) + ' · row ' + (q.y + 1); });
+          MULE_STASH_TABS.slice(1).forEach(function(t){ ((mu.tabs || {})[t] || []).forEach(function(q){
+            if (planned.indexOf(q.n) >= 0 && !cells[q.n]) cells[q.n] = tag + MULE_AREAS[t][2] + ' stash · col ' + (q.x + 1) + ' · row ' + (q.y + 1); }); });
+          (mu.inv || []).forEach(function(q){ if (planned.indexOf(q.n) >= 0 && !cells[q.n]) cells[q.n] = tag + 'Inventory · col ' + (q.x + 1) + ' · row ' + (q.y + 1); });
+        });
+      });
+    } catch (e) {}
+    return cells;
+  }
+  try { window._orgPlannedCells = _orgPlannedCells; } catch (e) {}
+  window.vaultOrganizePaint = function(names, carried){
     var el = document.getElementById('vault-organize');
     if (!el) return { ok: false, why: 'the organizer is not on this page' };
     if (!Array.isArray(names)){
@@ -41032,17 +41074,29 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       el.innerHTML = '<p class="vault-propose" data-state="unknown" data-moved="false">the organizer was not given a list</p>';
       return { ok: false, why: 'the organizer was not given a list' };
     }
-    var list = names.filter(Boolean);
+    var inInv = {};
+    (Array.isArray(carried) ? carried : []).forEach(function(n){ if (n) inInv[n] = 1; });
+    var list = names.filter(Boolean).concat(Object.keys(inInv).filter(function(n){ return names.indexOf(n) < 0; }));
     if (!list.length){ el.hidden = true; el.innerHTML = ''; return { ok: true, n: 0 }; }
-    var h = '<p class="vault-org-h">Where each unsorted item would go — nothing moves until you file it</p>';
-    list.slice(0, VAULT_ORG_SHOWN).forEach(function(nm){
-      h += '<p class="vault-org-row" data-name="' + _vhEsc(nm) + '">' + _vhEsc(nm) + ' ' + window.vaultProposeLine(nm) + '</p>';
+    var shown = list.slice(0, VAULT_ORG_SHOWN);
+    var plans = shown.map(function(nm){ var pg = null; try { pg = window.vaultPropose(nm); } catch (e) { pg = null; } return { nm: nm, pg: pg }; });
+    var cells = _orgPlannedCells(plans);
+    var h = '<p class="vault-org-h">Where each item goes — the mule, the stash cell, and the picture it was read on · nothing moves until you move it (or press Auto-Sort)</p>';
+    var nCell = 0;
+    plans.forEach(function(p){
+      var nm = p.nm;
+      var from = inInv[nm] ? '<span class="vault-org-from" data-from="inventory">in your inventory · </span>' : '';
+      var cell = cells[nm] ? '<span class="vault-org-cell"> · ' + _vhEsc(cells[nm]) + '</span>' : '';
+      if (cells[nm]) nCell++;
+      var ev = (typeof window._vaultEvidenceBtn === 'function') ? window._vaultEvidenceBtn(nm) : '';
+      h += '<p class="vault-org-row" data-name="' + _vhEsc(nm) + '"' + (cells[nm] ? ' data-cell="' + _vhEsc(cells[nm]) + '"' : '') + '>'
+         + ev + _vhEsc(nm) + ' ' + from + window.vaultProposeLine(nm) + cell + '</p>';
     });
     if (list.length > VAULT_ORG_SHOWN)
       h += '<p class="vault-org-row" data-state="more">' + VAULT_ORG_SHOWN + ' of ' + list.length + ' shown — file some to see the rest</p>';
     el.hidden = false;
     el.innerHTML = h;
-    return { ok: true, n: list.length, shown: Math.min(list.length, VAULT_ORG_SHOWN) };
+    return { ok: true, n: list.length, shown: shown.length, cells: nCell, carried: Object.keys(inInv).length };
   };
   /* ⟦VAULT PROPOSE END⟧ */
   /* THE DOOR. -> {ok, mode:'filed'|'confirmed'|'already'|'moved', mule, prov} or {ok:false, refused, why}
