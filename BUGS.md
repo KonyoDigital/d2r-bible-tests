@@ -406,6 +406,15 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2106 - A LAW ABOUT A TOTAL'S PARTS READ THE HOST'S FREE DISK (2026-10-08, #308)
+
+test_a_total_is_only_as_known_as_its_parts built its own shelf (TV_HIST at a temp dir) but not its own disk: _retention_once
+reads the real free space under TV_HIST, and with the Mac at 6.5-7.0 GB (30 worktrees, cleaned the same hour) the pass took the
+BELOW-the-8GB-floor branch, whose sentence never names the unreadable lane - red in the v3633 gate run, green alone at 10 GB.
+The law now pins disk_usage at 50 GB for its pass. Evidence the pin holds: the whole law run with shutil.disk_usage forced to
+6.5 GB passes (5/5). Same run: test_roundtrip_sim "DISK TOO FULL" and test_button_matrix "SIM -> reads=0" were the same host
+floor and re-ran green once the disk was freed.
+
 ### REG-2105 - THE KEY SWEEPS WERE ONE SPELLING WIDE (2026-10-08, the v3627 second eye)
 
 REG-2100 swept "/players 3+" and REG-2101 the Uber lead's "3 keys -> red portal"; the v3627 eye found the same claims in

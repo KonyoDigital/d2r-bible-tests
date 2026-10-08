@@ -50,7 +50,14 @@ def _run(broken):
     os.environ["TV_HIST"] = _tmp
     try:
         import control_app as CA
-        CA._retention_once()
+        # REG-2106 (#308) - AND ITS OWN DISK. The pass reads the real free space under TV_HIST, so on a Mac under the 8 GB
+        # ON AIR floor (6.5 GB, 2026-10-08) it took the BELOW-the-floor branch and this law read the host's disk instead of
+        # its subject. 50 GB free keeps the pass on the lane logic everywhere.
+        from collections import namedtuple
+        from unittest import mock
+        _du = namedtuple("usage", "total used free")
+        with mock.patch.object(shutil, "disk_usage", lambda _p: _du(1000e9, 950e9, 50e9)):
+            CA._retention_once()
         return dict(CA._RETENTION)
     finally:
         shutil.rmtree(_tmp, ignore_errors=True)
