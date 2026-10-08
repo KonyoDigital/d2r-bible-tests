@@ -41,7 +41,7 @@ RED_PROOF = [
     {
         "why": "REG-1845 - heart2's own cache and his reel-seed archive are copied again, and his Mac's every sandbox is refused at 420 MB",
         "file": "safe_copy.py",
-        "find": "    return name in HEAVY_FILES or name.endswith(HEAVY_SUFFIXES)\n",
+        "find": "    return name in HEAVY_FILES or name.endswith(HEAVY_SUFFIXES) or name.endswith(LIVE_SUFFIXES)\n",
         "replace": "    return False\n",
         "matches": 1,
     },
@@ -57,6 +57,13 @@ RED_PROOF = [
         "file": 'safe_copy.py',
         "find": 'force=a.force',
         "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+    {
+        "why": "REG-2123 - a .pid file naming his live agent is copied into a sandbox again, where a private app kills it",
+        "file": "safe_copy.py",
+        "find": "LIVE_SUFFIXES = (\".pid\",)\n",
+        "replace": "LIVE_SUFFIXES = (\".never-a-suffix\",)\n",
         "matches": 1,
     },
 ]
@@ -160,6 +167,21 @@ class TheHeavyDirectoriesAreNeverCopied(unittest.TestCase):
         self.assertFalse(os.path.exists(os.path.join(self.dst, "tv", ".heart2_cache.json")))
         self.assertFalse(os.path.exists(os.path.join(self.dst, "tv", "tvd-reel-seed-small.tgz")))
         self.assertTrue(os.path.exists(os.path.join(self.dst, "tv", "kept.json")), "an ordinary json was dropped")
+
+    def test_a_file_naming_a_live_process_is_never_copied(self):
+        """REG-2123 - tv/control_agent.pid holds HIS live agent's pid. Copied into a prover sandbox, a private control_app
+        there read it as its own agent and its STOP path SIGTERMed it: two of his ON AIR sessions were cut at 02:16 and 02:26 on
+        2026-10-09, both during a push-time prove. A copy never carries a .pid file, at any depth."""
+        io.open(os.path.join(self.src, "tv", "control_agent.pid"), "w").write("98162")
+        io.open(os.path.join(self.src, "board_window.pid"), "w").write("12345")
+        io.open(os.path.join(self.src, "tv", "pidfile_notes.json"), "w").write("{}")
+        _files, _total, skipped = SC.plan(self.src)
+        self.assertIn(os.path.join("tv", "control_agent.pid"), skipped, "the plan still counts his agent's pid file")
+        self.assertEqual(SC.copy(self.src, self.dst, say=lambda m: None), 0)
+        self.assertFalse(os.path.exists(os.path.join(self.dst, "tv", "control_agent.pid")),
+                         "his live agent's pid travelled into the copy")
+        self.assertFalse(os.path.exists(os.path.join(self.dst, "board_window.pid")))
+        self.assertTrue(os.path.exists(os.path.join(self.dst, "tv", "pidfile_notes.json")), "a json that merely says pid was dropped")
 
     def test_check_is_the_rule_copy_applies(self):
         """REG-1845 - one refusal rule: what check() answers is what copy() says and returns."""

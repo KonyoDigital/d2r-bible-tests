@@ -175,6 +175,7 @@
   "test_a_plan_is_computed_once": 17.7,
   "test_a_populated_world_survives_a_lost_claim": 1.1,
   "test_a_presence_reading_names_its_door": 0.7,
+  "test_a_private_console_never_shares_his_ports": 0.1,
   "test_a_private_ledger_is_not_a_route": 0.1,
   "test_a_probe_licenses_only_what_it_tested": 1.3,
   "test_a_proof_history_survives_its_verdict": 6.9,
@@ -966,6 +967,7 @@
    "test_a_mini_focus_is_declared_only_when_he_chose_it",
    "test_a_name_nothing_knows_gets_no_guessed_mule",
    "test_a_never_synced_ledger_is_not_a_difference",
+   "test_a_private_console_never_shares_his_ports",
    "test_a_read_says_what_it_is_once",
    "test_a_reel_from_the_shelf_closes_back_to_the_shelf",
    "test_a_replay_holds_on_a_beat_with_no_photo",
@@ -1051,10 +1053,16 @@
     "date": "2026-10-09",
     "count": 1,
     "locked": true
+   },
+   {
+    "source": "v3631 local run",
+    "date": "2026-10-09",
+    "count": 1,
+    "locked": true
    }
   ],
-  "count": 57
+  "count": 58
  },
- "estimatedGates": 57,
- "estimatedSeconds": 39.2
+ "estimatedGates": 58,
+ "estimatedSeconds": 39.3
 }

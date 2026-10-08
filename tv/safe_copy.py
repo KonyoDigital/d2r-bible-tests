@@ -61,10 +61,15 @@ HEAVY = (
 #: per-machine proof cache (105.9 MB) and a reel-seed archive of his sessions (97.8 MB). Without them: 216.7 MB.
 HEAVY_FILES = (".heart2_cache.json",)
 HEAVY_SUFFIXES = (".tgz",)
+#: REG-2123 - FILES THAT NAME A LIVE PROCESS ON THIS MACHINE NEVER TRAVEL. tv/control_agent.pid holds HIS live agent's pid;
+#: copied into a prover sandbox, a private control_app there read it as its own agent, and its STOP path SIGTERMed it -
+#: measured on 2026-10-09: "closing session (signal:SIGTERM)" in his agent log at 02:16 and 02:26, both during a push-time
+#: prove of test_button_matrix. A copy is a tree of source and state, never a handle on his processes.
+LIVE_SUFFIXES = (".pid",)
 
 
 def _heavy_file(name):
-    return name in HEAVY_FILES or name.endswith(HEAVY_SUFFIXES)
+    return name in HEAVY_FILES or name.endswith(HEAVY_SUFFIXES) or name.endswith(LIVE_SUFFIXES)
 
 
 #: Refuse outright above this. A sabotage copy that needs a gigabyte is not a sabotage copy, it is

@@ -73,7 +73,11 @@ def _boot_control():
     atexit.register(shutil.rmtree, _sand, True)
     _hist = os.path.join(_sand, "frames", "hist")
     os.makedirs(_hist, exist_ok=True)
-    env = dict(os.environ, TV_CONTROL_PORT=str(port), TV_ROBOT="1",
+    # REG-2123 - AND ITS OWN AGENT PORT. Only the control port was private: TV_PORT fell through to :17771, HIS live agent's
+    # port, so this app's OFF asked HIS agent to shut down and its STOP SIGTERMed whatever listened there - measured in his
+    # agent log on 2026-10-09: eleven ON AIR sessions cut between 02:00 and 02:37 ("closing session (off)" / "signal:SIGTERM"),
+    # each lining up with a gate shard, a push or a run of this law. A private app never shares a port with his console.
+    env = dict(os.environ, TV_CONTROL_PORT=str(port), TV_PORT=str(_free_port()), TV_ROBOT="1",
                TV_HIST=_hist,
                TV_FRAMES_DIR=os.path.join(_sand, "frames"),
                TV_SESSIONS=os.path.join(_sand, "sessions.jsonl"),
@@ -100,7 +104,12 @@ def _boot_control():
 
 
 CTRL = os.environ.get("TV_CTRL_URL") or ""
-AGENT = "http://127.0.0.1:17771"
+# REG-2123 - THE AGENT THIS LAW PINGS IS THE ONE ITS OWN APP RUNS. This was the literal :17771 while the private control_app it
+# boots runs its agent on TV_PORT (control_app.AGENT_PORT). Under the prover's lane ports (TV_PORT=21001) every agent check asked
+# the wrong port - SIM -> agent ping, RESTART -> agent up, OFF -> dark, STOP -> dark - so the law was "already red untampered"
+# in every sandbox and refused the v3631 push twice. And :17771 is where HIS live console's agent listens. The default follows
+# TV_PORT like the app's; main() then adopts the agentPort the app itself reports.
+AGENT = "http://127.0.0.1:%s" % (os.environ.get("TV_PORT") or "17771")
 FAILS = []
 SKIPS = []
 
@@ -430,6 +439,14 @@ RED_PROOF = [
         'replace': 'nav = "board?app=1#%s" % tab',
         'matches': 1,
     },
+    {
+        'why': 'REG-2123 - the law pings a fixed :17771 instead of the agent its own app runs (red in every prover lane; '
+               'it is also the port of his live agent)',
+        'file': 'tv/test_button_matrix.py',
+        'find': '        AGENT = "http://127.0.0.1:%d" % _ap0   # noqa: F811 - REG-2123: the agent its own app reports, never a guess\n',
+        'replace': '        AGENT = "http://127.0.0.1:17771"   # noqa: F811\n',
+        'matches': 1,
+    },
 ]
 
 
@@ -443,10 +460,13 @@ if __name__ == "__main__":
               "a matrix that never ran must not read as green.")
         sys.exit(2)
     try:
-        get(CTRL + "/api/status")
+        _st0 = get(CTRL + "/api/status")
     except Exception as e:
         print("SKIPPED — control_app started but never answered /api/status at %s" % CTRL)
         print(e)
         sys.exit(2)
-    print("button matrix running against %s (private instance, his :17772 untouched)" % CTRL)
+    _ap0 = (_st0 or {}).get("agentPort")
+    if isinstance(_ap0, int) and _ap0 > 0:
+        AGENT = "http://127.0.0.1:%d" % _ap0   # noqa: F811 - REG-2123: the agent its own app reports, never a guess
+    print("button matrix running against %s (private instance, his :17772 untouched), agent %s" % (CTRL, AGENT))
     sys.exit(main())

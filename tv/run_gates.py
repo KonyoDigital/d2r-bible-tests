@@ -9211,6 +9211,11 @@ GATES = [
          needs_app=False,
          why=("REG-2112 (#314) - navClean scrolled to 0 after clearing an item whose own route-back scroll fires 60 ms later "
               "and always won; one owner now")),
+    Gate("test_a_private_console_never_shares_his_ports", [sys.executable,
+         os.path.join(HERE, "test_a_private_console_never_shares_his_ports.py")], 30,
+         needs_app=False,
+         why=("REG-2123 - test_button_matrix's private control_app inherited his agent port :17771, so its OFF / STOP cut "
+              "eleven of his ON AIR sessions on 2026-10-09; the env it hands its app must carry ports of its own")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,
