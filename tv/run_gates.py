@@ -9000,6 +9000,12 @@ GATES = [
          why=("REG-2043 (#142, GrokBot on v3621) - a right-click on the TV·D tab label switched rooms: the leave-on-press fix "
               "listened to every button. Only a primary press moves; a right, middle or Mac ctrl-click never does.")
          ),
+    Gate("test_a_sentence_names_only_buttons_the_page_has", [sys.executable,
+         os.path.join(HERE, "test_a_sentence_names_only_buttons_the_page_has.py")], 60,
+         needs_app=False,
+         why=("REG-2045 (#274, GrokBot tick 415) - the Vault told him to 'press Auto-Sort' and no button has that name; every "
+              "'press X' must name a button the page has (keys and the browser's confirm buttons excepted).")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

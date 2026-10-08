@@ -37101,7 +37101,7 @@ body{
    his hands: carried loot has no home until it lands, so the empty dock says what is true beside a carried strip */
 .vault-dock[data-owned="1"][data-carried="1"]:empty::after{content:"nothing loose — what you carry lands when it is seen in a stash tab or on a mule ✦"}
 /* #269 (GrokBot tick 412, K03) — "perfect order" sat directly under VAULT INTEGRITY listing three items in the wrong locker */
-.vault-dock[data-owned="1"][data-misfiled="1"]:empty::after{content:"nothing loose — but some filed items sit in the wrong locker: see VAULT INTEGRITY, or press Auto-Sort ✦"}
+.vault-dock[data-owned="1"][data-misfiled="1"]:empty::after{content:"nothing loose — but some filed items sit in the wrong locker: see VAULT INTEGRITY, or press ⚖️ Auto-assign unsorted"}
 /* §31.2 — THE CARRIED STRIP: loot in a character's inventory, owned and not filed. A quieter frame than the dock (it is
    not waiting to be sorted) and the same chip, so an item reads the same wherever it sits. A stale chip (a few game
    sessions unseen) takes the amber of a question, never the red of a loss. */
@@ -39049,7 +39049,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var w = (typeof window._vaultWhereIs === 'function') ? window._vaultWhereIs(n) : null;
       var mid = (w && (w.kind === 'filed' || w.kind === 'worn' || w.kind === 'over' || w.kind === 'would')) ? w.mule : null;
       var loc = !w ? '<span class="vfr-arrow">→</span><span style="color:var(--text-dim)">UNKNOWN — the finder could not ask where it is</span>'
-        : (w.kind === 'would') ? '<span class="vfr-arrow">→</span><span class="vfr-would">unsorted · would go to <span class="vfr-mule">'+esc(w.muleName)+'</span> — press Auto-Sort to file it</span>'
+        : (w.kind === 'would') ? '<span class="vfr-arrow">→</span><span class="vfr-would">unsorted · would go to <span class="vfr-mule">'+esc(w.muleName)+'</span> — press ⚖️ Auto-assign unsorted to file it</span>'
         : (w.kind === 'main') ? '<span class="vfr-arrow">→</span><span class="vfr-main">stays with your MAIN — '+esc(w.why)+'</span>'
         : (w.kind === 'dock') ? '<span class="vfr-arrow">→</span><span style="color:var(--text-dim)" title="'+esc(w.why)+'">unsorted · in the dock — '+esc(String(w.why).split(' — ')[0].slice(0, 48))+'</span>'
         : '<span class="vfr-arrow">→</span><span class="vfr-mule">'+esc(w.muleName)+'</span>'
@@ -39830,7 +39830,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var rows=r.findings.slice(0,40).map(function(f){
       var art=''; try{ if(typeof _artRarity==='function'){ /* keep light — glyph only */ } }catch(e){}
       var btn = f.fixable
-        ? '<button class="va-fix" onclick="window._vaultAuditFixOne(\''+f.kind+'\',\''+jsArg(f.item)+'\')">Fix</button>'
+        ? '<button class="va-fix" title="fix this one now: '+esc(f.detail)+'" onclick="window._vaultAuditFixOne(\''+f.kind+'\',\''+jsArg(f.item)+'\')">Fix</button>'
         : '<span class="va-review" title="a judgement call — left for you">review</span>';
       return '<div class="va-row va-'+f.sev+'"><span class="va-ic">'+(KIND_IC[f.kind]||'•')+'</span>'
         + '<span class="va-item">'+esc(f.item)+'</span>'
@@ -39842,7 +39842,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       + '<span class="va-sum">'+r.total+' issue'+(r.total===1?'':'s')
       + (r.fixable?' · <b>'+r.fixable+'</b> auto-fixable':'')
       + (r.review?' · '+r.review+' to review':'')+'</span>'
-      + (r.fixable? '<button class="va-fixall" onclick="var n=window._vaultAuditFixAll();window._grailToast&&window._grailToast(\'🔍\',\'fixed <b>\'+n+\'</b> vault issue\'+(n===1?\'\':\'s\'),\'vault integrity\')">🪄 Fix all safe ('+r.fixable+')</button>':'')
+      + (r.fixable? '<button class="va-fixall" title="apply every auto-fixable row above at once - the review rows stay for you" onclick="var n=window._vaultAuditFixAll();window._grailToast&&window._grailToast(\'🔍\',\'fixed <b>\'+n+\'</b> vault issue\'+(n===1?\'\':\'s\'),\'vault integrity\')">🪄 Fix all safe ('+r.fixable+')</button>':'')
       + '</div><div class="va-rows">'+rows+'</div>'
       + (r.findings.length>40?'<div class="va-more">+ '+(r.findings.length-40)+' more</div>':'');
   }
@@ -41098,7 +41098,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var shown = list.slice(0, VAULT_ORG_SHOWN);
     var plans = shown.map(function(nm){ var pg = null; try { pg = window.vaultPropose(nm); } catch (e) { pg = null; } return { nm: nm, pg: pg }; });
     var planned = _orgPlannedCells(plans), cells = planned.cells || {}, cellWhy = planned.why || null;
-    var h = '<p class="vault-org-h">Where each item goes — the mule, the stash cell, and the picture it was read on · nothing moves until you move it (or press Auto-Sort)'
+    var h = '<p class="vault-org-h">Where each item goes — the mule, the stash cell, and the picture it was read on · nothing moves until you move it (or press ⚖️ Auto-assign unsorted)'
           + (cellWhy ? ' · <span data-state="unknown">no cell could be planned: ' + _vhEsc(cellWhy) + '</span>' : '') + '</p>';
     var nCell = 0;
     plans.forEach(function(p){
