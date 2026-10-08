@@ -287,6 +287,27 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         bad = [(a, b) for (a, x), (b, y) in zip(lv, lv[1:]) if y < x or (y == x and (a, b) not in ties)]
         self.assertEqual(bad, [], "rune level requirements do not rise along the table: %r" % bad)
 
+    def test_the_most_wanted_act_cards_agree_with_their_bosses(self):
+        """REG-2111 (#231 eye on v43 5361d57a, #313) - Act 1 promised the Countess "up to Lo" and starred Ber and Jah, which her
+        own rune table never lists; Act 2 named Ancient Tunnels over a click that opens Duriel and said "every unique drops";
+        Act 3 called Mephisto "high runes + top uniques" against his own TC78-capped plan; a runeword row stayed
+        aria-expanded="false" while it opened; Grief's "Eth base = premium" cannot be a Phase Blade."""
+        s = _src()
+        ci = s.find("const COUNTESS_RUNES = [")
+        countess = set(re.findall(r'n:"([A-Z][a-z]+)(?: #\d+)?"', s[ci:s.find("\n];", ci)]))
+        ri = s.find("const RUNES = [")
+        runes = set(re.findall(r'n:"([A-Z][a-z]+)",\s*clvl:', s[ri:s.find("\n];", ri)]))
+        a1 = s.find('label:"Act 1",')
+        self.assertGreater(a1, 0, "the Most Wanted Act 1 card is gone - re-point this law")
+        wants = re.findall(r'\{n:"([^"]+)",drop:', s[a1:s.find("] },", a1)])
+        stray = [w for w in wants if w in runes and w not in countess]
+        self.assertEqual(stray, [], "Act 1 stars runes the Countess's own table never drops: %r" % stray)
+        a3 = s.find('label:"Act 3",')
+        self.assertNotIn("top uniques", s[a3:s.find("] },", a3)], "Mephisto is promised top uniques over his TC78 cap again")
+        self.assertNotIn("Eth base = premium", s, "Grief's base advice names an ethereal Phase Blade again")
+        self.assertIn('row.setAttribute("aria-expanded", _o ? "true" : "false");', s,
+                      "a runeword row opens while its aria-expanded stays false")
+
 
 RED_PROOF = [
     {"why": "REG-2089 - Veil of Steel's tagline swaps its resist and defense figures again",
@@ -373,6 +394,16 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "up:\"2 Lo + Flawless Topaz → Sur\"",
      "replace": "up:\"2 Lo + Perfect Amethyst → Sur\"",
+     "matches": 1},
+    {"why": "REG-2111 - the Countess act card stars Ber again",
+     "file": "bible.html",
+     "find": "    wants:[ {n:\"Lo\",drop:\"Lo\"}, {n:\"Ohm\",drop:\"Ohm\"}, {n:\"Stone of Jordan\",drop:\"The Stone of Jordan\"} ] },",
+     "replace": "    wants:[ {n:\"Ber\",drop:\"Ber\"}, {n:\"Ohm\",drop:\"Ohm\"}, {n:\"Stone of Jordan\",drop:\"The Stone of Jordan\"} ] },",
+     "matches": 1},
+    {"why": "REG-2111 - a runeword row opens with aria-expanded stuck at false again",
+     "file": "bible.html",
+     "find": "  if (row){ var _o = row.classList.toggle(\"open\"); row.setAttribute(\"aria-expanded\", _o ? \"true\" : \"false\"); }\n",
+     "replace": "  if (row) row.classList.toggle(\"open\");\n",
      "matches": 1},
     {"why": "REG-2108 - Jah's level ties Cham's again",
      "file": "bible.html",

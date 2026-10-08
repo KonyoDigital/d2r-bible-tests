@@ -32602,7 +32602,7 @@ const MW_TOP10 = [
   { n:"Enigma",                  dt:"S", why:"Teleport on any class — the #1 chase, period. Gated by Ber + Jah.",                rw:["Jah","Ith","Ber"], ic:"🛡️" },
   { n:"Ber Rune",                dt:"S", why:"The bottleneck high rune: Enigma, Infinity (×2), CoH. The high-end currency unit.", drop:"Ber" },
   { n:"Jah Rune",                dt:"S", why:"Enigma's other half + Faith. Co-top high rune.",                                    drop:"Jah" },
-  { n:"Grief",                   dt:"S", why:"Melee phys-DPS king — still unmatched. Eth base = premium.",                        rw:["Eth","Tir","Lo","Mal","Ral"], ic:"⚔️" },
+  { n:"Grief",                   dt:"S", why:"Melee phys-DPS king — still unmatched. Phase Blade for speed; an eth Berserker Axe for raw damage.",                        rw:["Eth","Tir","Lo","Mal","Ral"], ic:"⚔️" },
   { n:"Infinity",                dt:"S", why:"Conviction aura — caster + merc BiS. Eats 2 Ber.",                                  rw:["Ber","Mal","Ber","Ist"], ic:"🔱" },
   { n:"Colossal Ancient Jewels", dt:"S", why:"ROTW endgame BiS — strictly better than Rainbow Facets. ~1 per character.",        drop:"Colossal Ancient Jewels", rotw:true },
   { n:"Hellfire Torch",          dt:"S", why:"+3 class skills · +10-20 stats · +10-20 all res. Every character wants one.",                drop:"Hellfire Torch" },
@@ -32613,12 +32613,12 @@ const MW_TOP10 = [
 const MW_SECTIONS = [
   { icon:"🏰", label:"Act 1",        target:"Countess · Forgotten Tower",            boss:"countess",
     note:"Best targeted rune farm — terrorized she pushes high runes up to Lo.",
-    wants:[ {n:"Ber",drop:"Ber"}, {n:"Jah",drop:"Jah"}, {n:"Stone of Jordan",drop:"The Stone of Jordan"} ] },
-  { icon:"🏜️", label:"Act 2",        target:"Duriel · Ancient Tunnels",              boss:"duriel",
-    note:"Ancient Tunnels = premier Hell MF — dense, fast, every unique drops.",
+    wants:[ {n:"Lo",drop:"Lo"}, {n:"Ohm",drop:"Ohm"}, {n:"Stone of Jordan",drop:"The Stone of Jordan"} ] },
+  { icon:"🏜️", label:"Act 2",        target:"Duriel · Tal Rasha's Chamber",          boss:"duriel",
+    note:"Duriel is a fast act-boss kill; Ancient Tunnels (alvl 85) is Act 2's premier Hell MF zone — dense and fast.",
     wants:[ {n:"Mara's Kaleidoscope",drop:"Mara's Kaleidoscope"}, {n:"Stormshield",drop:"Stormshield"} ] },
   { icon:"🌀", label:"Act 3",        target:"Mephisto · Durance of Hate",            boss:"mephisto",
-    note:"THE value boss — easy, fast, huge loot table (high runes + top uniques).",
+    note:"THE value boss — easy and fast, but his loot caps at TC78 (no Tyrael's, CoA or Griffon's); Travincal's council beside him carries the high runes.",
     wants:[ {n:"Harlequin Crest (Shako)",drop:"Harlequin Crest (Shako)"}, {n:"Jah (Travincal)",drop:"Jah"} ] },
   { icon:"🔥", label:"Act 4",        target:"Diablo · Chaos Sanctuary + Hellforge",  boss:"diablo",
     note:"Guaranteed Hellforge rune; CS runs for uniques + runes.",
@@ -32651,7 +32651,8 @@ window.mwSection = function(boss, tab){
 window.mwToggleRw = function(i, ev){
   if (ev) ev.stopPropagation();
   const row = document.querySelector('#most-wanted .mw-row[data-mw="'+i+'"]');
-  if (row) row.classList.toggle("open");
+  /* REG-2111 (#313) - the row is born aria-expanded="false"; the attribute follows the open state */
+  if (row){ var _o = row.classList.toggle("open"); row.setAttribute("aria-expanded", _o ? "true" : "false"); }
 };
 function renderMostWanted(){
   const host = document.getElementById("most-wanted");
@@ -32706,7 +32707,7 @@ function renderMostWanted(){
   host.innerHTML = `
     <h2 class="sec-h mw-title collapsed" onclick="toggleSec(this)">🔥 Most Wanted <span class="mw-sub">community &amp; forum trade demand · diablo.io-style · ROTW-aware</span> <span class="sec-chev">▾</span></h2>
     <div class="sec-body" hidden>
-    <div class="mw-note">A separate layer from the Chronicle: the chronicle tables rank by <em>game rarity</em> (how hard to find); this ranks by <em>community demand / trade value</em> (what's worth chasing &amp; holding) — they diverge. Demand tiers are an editorial community-consensus call, NOT a drop rate. Every item is clickable → opens its real card.</div>
+    <div class="mw-note">A separate layer from the Chronicle: the chronicle tables rank by <em>game rarity</em> (how hard to find); this ranks by <em>community demand / trade value</em> (what's worth chasing &amp; holding) — they diverge. Demand tiers are an editorial community-consensus call, NOT a drop rate. Every item is clickable → opens its real card; a runeword row opens its recipe.</div>
     <div class="mw-section-label">Top 10 · most-wanted overall</div>
     <ol class="mw-top">${rows}</ol>
     <div class="mw-section-label">#1 most-wanted per act / section</div>
