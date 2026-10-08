@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3624",
+  "ver": "v3625",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3624: REG-2061..2084 - find links open their own reel, the fleet rail holds still, set pieces sized by slot, the shelf card shares the dossier seal, river tips say a shared reason once, the census age ticks, a reel from the shelf closes back to it, unknown names stay unsorted, the boss card is no longer buried under its nav",
+  "note": "v3625: REG-2085..2094 - zone cards list their own super-uniques, last-session and history badges share the dossier seal, a re-render keeps his dossier, taglines and the slider agree with their cards, Blood Raven and Andariel name their own quests, a close cancels the reel still loading, Mule it files a registered find again, Escape closes only the card it names",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
