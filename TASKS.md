@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3628** | `(this commit)` | v3628 — REG-2103..2105 - a special-drop rate in words is labelled how it comes, the rune cards list runewords from the recipe table, the keys card and special drops say one of each key per mini-uber portal |
+| **v3629** | `(this commit)` | v3629 — REG-2106..2107 - the totals law pins its own disk reading, each key card carries its sourced rate, a 100 percent drop is called guaranteed |
+| **v3628** | `53f9564b` | v3628 — REG-2103..2105 - a special-drop rate in words is labelled how it comes, the rune cards list runewords from the recipe table, the keys card and special drops say one of each key per mini-uber portal |
 | **v3627** | `96810197` | v3627 — REG-2100..2102 - the Pandemonium keys drop on Hell at any players setting, the Uber Tristram lead walks the organ step, LAST SESSION says OPEN for a run that is not sealed |
 | **v3626** | `99a439f2` | v3626 — REG-2095..2099 - the reel last frame leaves with it, a TV stub placeholder base is not a base, Registered counts owned like the top line, one river debt is said once, the rune grids name runewords that hold the rune |
 | **v3625** | `a4fa0efb` | v3625 — REG-2085..2094 - zone cards list their own super-uniques, last-session and history badges share the dossier seal, a re-render keeps his dossier, taglines and the slider agree with their cards, Blood Raven and Andariel name their own quests, a close cancels the reel still loading, Mule it files a registered find again, Escape closes only the card it names |

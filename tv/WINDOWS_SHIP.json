@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3628",
+  "ver": "v3629",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3628: REG-2103..2105 - a special-drop rate in words is labelled how it comes, the rune cards list runewords from the recipe table, the keys card and special drops say one of each key per mini-uber portal",
+  "note": "v3629: REG-2106..2107 - the totals law pins its own disk reading, each key card carries its sourced rate, a 100 percent drop is called guaranteed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
