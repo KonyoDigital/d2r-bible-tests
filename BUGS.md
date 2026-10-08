@@ -406,6 +406,16 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2034 - THE PERF SWEEP LEAKED A CHROMIUM ON EVERY FAILED RUN AND SAID NOTHING (2026-10-08, #273)
+
+The #231 eye on 8fae6208 (May): K_perf.js (CI Routine K) called browser.close() only after the last wait, and its
+three-run loop caught a throw with an empty block - so a failed pass left its Chromium up, the next pass launched
+another, and three failures printed only 'all runs failed'. Fixed: the close is in a finally; a failed run names
+itself on stderr (stdout stays the one JSON line the workflow parses). Same review: the ten _audit_clickable*.js
+one-off scripts logged success without reading their results and nothing runs them - removed. Two spec findings from
+the same looks (v42_full_ux_audit '|| true', v43_editorial_audit's absolute file URL) were already fixed at HEAD.
+Law: test_the_perf_sweep_closes_its_browser (2 red-proofs).
+
 ### REG-2033 - THE BIBLE STATED BOSS AND ITEM FACTS ITS OWN CARDS CONTRADICT, ON THE PAGE HE READS MID-GAME (2026-10-08, #272)
 
 The #231 second eye (grok-4.7) read the May commits labelled v42/v43 and listed game facts. MEASURED in bible.html at

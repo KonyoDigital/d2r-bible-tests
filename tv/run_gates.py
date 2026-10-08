@@ -8940,6 +8940,12 @@ GATES = [
          why=("REG-2033 (#272, the #231 eye on v42/v43) - the Pandemonium table named immunities its uber cards contradict, "
               "three Hellfire Torch lines said +20 stats against its +10-20 data, and two sent him to Anya for a Torch that drops in the fight.")
          ),
+    Gate("test_the_perf_sweep_closes_its_browser", [sys.executable,
+         os.path.join(HERE, "test_the_perf_sweep_closes_its_browser.py")], 60,
+         needs_app=False,
+         why=("REG-2034 (#273, the #231 eye on a May commit) - K_perf.js closed its browser only on the success path and its "
+              "run loop swallowed the throw, so every failed pass leaked a Chromium and said nothing.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,
