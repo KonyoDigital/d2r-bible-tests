@@ -406,6 +406,15 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2064 - "UNIQUES —" ON THE CARD, "3 OF 3 COUNT DIFFERENTLY" IN THE TIP (2026-10-08, #298)
+
+GrokBot tick 422 (K01-K03): Dean's card printed "UNIQUES —" (never synced - the figure it sent is not a count of
+anything, v3389/#240) while his "differs" tip counted that very figure among "3 of 3 ledger(s) count differently";
+ALT TEST's "RUNEWORDS —" the same. The cell asked the ledger's measurement flag, the machine word only whether `have`
+was a number. One reader, `_ledgerMeasured(t, lab)`, now answers for both; a never-synced ledger is named "never
+synced, so not compared" instead of counted. Two laws that cut `_machineWord` / `_measOf` carry the helper now, and
+two of their red-proofs were re-anchored to the moved lines. Law: test_a_never_synced_ledger_is_not_a_difference.
+
 ### REG-2063 - "NO TOMBSTONE LEDGER" BESIDE "11 CARRY TOMBSTONE IN THE RIVER LEDGER" (2026-10-08, #289)
 
 GrokBot ticks 419-422 asked which was true. Both: the header is `river_mouth()` on retention's DELETION record

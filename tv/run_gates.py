@@ -9087,6 +9087,12 @@ GATES = [
          why=("REG-2063 (#289, GrokBot 419-422) - the River header said there is no tombstone ledger while its TOMBSTONE "
               "chip counted 'the river LEDGER': two records under one name.")
          ),
+    Gate("test_a_never_synced_ledger_is_not_a_difference", [sys.executable,
+         os.path.join(HERE, "test_a_never_synced_ledger_is_not_a_difference.py")], 30,
+         needs_app=False,
+         why=("REG-2064 (#298, GrokBot 422) - Dean's card printed UNIQUES — (never synced) while his tip counted it among "
+              "'3 of 3 ledger(s) count differently'.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

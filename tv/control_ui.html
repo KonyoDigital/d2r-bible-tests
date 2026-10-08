@@ -26401,6 +26401,28 @@ function escC(s) {
       };
       /* ONE WORD FOR THE MACHINE. `synced` only when every ledger it reports agrees with this
          console — the numbers beside it say which one differs, so the word does not have to. */
+      /* #298 (REG-2064) - IS THIS LEDGER'S FIGURE A MEASUREMENT? (true / false / null = an older peer that cannot say).
+         Lifted out of the card so the machine word asks the SAME question the cell does: the cell printed Dean's uniques as
+         '—' (never synced) while the word counted that very figure among '3 of 3 ledger(s) count differently'. */
+      var _ledgerMeasured = function (t, lab) {
+        var by = t.measuredBy;
+        if (by && typeof by === 'object') return (typeof by[lab] === 'boolean') ? by[lab] : null;
+        /* #240 — A PEER STILL RUNNING THE OLD SEAL sends the broken row bit (measured:false over SYNCED
+           ledgers) and no measuredBy. MEASURED on GrokBot's glass after 3cd6bb26: Konyo and the ALT still
+           read "—" because their consoles had not restarted. Their own ledgerVerdict rows already say
+           SYNCED, so read THAT, with the seal's exact table (control_app._PROVENANCE_MEASURED). */
+        try {
+          var lv = t.ledgerVerdict, ls = (lv && lv.ledgers) || [];
+          for (var i = 0; i < ls.length; i++) {
+            if (!ls[i] || ls[i].ledger !== lab || !ls[i].provenance) continue;
+            var pv = String(ls[i].provenance).toUpperCase();
+            if (pv === 'SYNCED' || pv === 'SEEDED' || pv === 'MANUAL') return true;
+            if (pv === 'UNSYNCED') return false;
+            return null;
+          }
+        } catch (_lv) {}
+        return t.measured;
+      };
       var _machineWord = function (t, isMe) {
         if (isMe) return {w: 'this console', c: 'ftts-unknown',
                           t: 'the machine you are reading the card ON \u2014 the reference the '
@@ -26412,11 +26434,12 @@ function escC(s) {
            (uniques and sets SYNCED), but its tip says 3 of 3 ledger(s) disagree". The rows under the name are where each
            ledger's rows CAME FROM (ledger_authority: SYNCED = earned on that board); this word is whether its COUNTS match
            this console's. Two questions, one word - so the tip now says which ledgers differ and which agree. */
-        var seen = 0, same = 0, _off = [], _on = [];
+        var seen = 0, same = 0, _off = [], _on = [], _unk = [];
         ['sets', 'uniques', 'runewords'].forEach(function (k) {
           var p = t && t[k], mine = _MINE && _MINE[k];
           if (!p || typeof p.have !== 'number') return;
           if (!mine || typeof mine.have !== 'number') return;
+          if (_ledgerMeasured(t, k) === false) { _unk.push(k); return; }   /* #298 - '—' on the card is not a difference */
           seen++; if (p.have === mine.have) { same++; _on.push(k); } else { _off.push(k); }
         });
         if (!seen) return {w: 'no report', c: 'ftts-unknown',
@@ -26424,10 +26447,12 @@ function escC(s) {
                             + 'UNMEASURED, which is not the same as disagreeing'};
         if (same === seen) return {w: 'synced', c: 'ftts-synced',
                                    t: 'every one of the ' + seen + ' ledger(s) it reports agrees '
-                                    + 'with this console'};
+                                    + 'with this console'
+                                    + (_unk.length ? ' (' + _unk.join(', ') + ' never synced, so not compared)' : '')};
         return {w: 'differs', c: 'ftts-unsynced',
                 t: (seen - same) + ' of ' + seen + ' ledger(s) count differently from this console: '
                  + _off.join(', ') + (_on.length ? ' (' + _on.join(', ') + ' match)' : '')
+                 + (_unk.length ? ' \u2014 ' + _unk.join(', ') + ' never synced, so not compared' : '')
                  + ' \u2014 the figures say by how much. SYNCED / SEEDED beside a ledger is where its '
                  + 'rows came from, not whether they match'};
       };
@@ -26455,25 +26480,7 @@ function escC(s) {
            which seals nothing, kept its numbers. The seal now answers per ledger (`measuredBy`),
            so one never-synced store cannot blank its neighbours. The row-level bit is read only
            for a peer too old to send `measuredBy`. [[unknown-stays-unknown]] */
-        var _measOf = function (lab) {
-          var by = t.measuredBy;
-          if (by && typeof by === 'object') return (typeof by[lab] === 'boolean') ? by[lab] : null;
-          /* #240 — A PEER STILL RUNNING THE OLD SEAL sends the broken row bit (measured:false over SYNCED
-             ledgers) and no measuredBy. MEASURED on GrokBot's glass after 3cd6bb26: Konyo and the ALT still
-             read "—" because their consoles had not restarted. Their own ledgerVerdict rows already say
-             SYNCED, so read THAT, with the seal's exact table (control_app._PROVENANCE_MEASURED). */
-          try {
-            var lv = t.ledgerVerdict, ls = (lv && lv.ledgers) || [];
-            for (var i = 0; i < ls.length; i++) {
-              if (!ls[i] || ls[i].ledger !== lab || !ls[i].provenance) continue;
-              var pv = String(ls[i].provenance).toUpperCase();
-              if (pv === 'SYNCED' || pv === 'SEEDED' || pv === 'MANUAL') return true;
-              if (pv === 'UNSYNCED') return false;
-              return null;
-            }
-          } catch (_lv) {}
-          return t.measured;
-        };
+        var _measOf = function (lab) { return _ledgerMeasured(t, lab); };   /* #298 - one rule, shared with _machineWord */
         var _cs = [_bar('sets', t.sets, _isMe, _measOf('sets'), t.measuredWhy),
                    _bar('uniques', t.uniques, _isMe, _measOf('uniques'), t.measuredWhy),
                    _bar('runewords', t.runewords, _isMe, _measOf('runewords'), t.measuredWhy)]

@@ -87,8 +87,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2061 - the +N more link stops handing its reel's id",
      "file": "control_ui.html",
-     "find": "window._tvdJumpFind(event,' + (Number(n) || 0) + ',&quot;&quot;,0,' + _sidq + ')",
-     "replace": "window._tvdJumpFind(event,' + (Number(n) || 0) + ',&quot;&quot;,0)",
+     "find": "onclick=\"window._tvdJumpFind(event,' + (Number(n) || 0) + ',&quot;&quot;,0,' + _sidq + ')",
+     "replace": "onclick=\"window._tvdJumpFind(event,' + (Number(n) || 0) + ',&quot;&quot;,0)",
      "matches": 1},
 ]
 

@@ -131,9 +131,10 @@ class TheRelayAndTheCardCarryIt(unittest.TestCase):
 
     def _meas(self, t, lab):
         ui = _src("tv/control_ui.html")
-        a = ui.index("        var _measOf = function (lab) {")
-        b = ui.index("        };\n", a) + len("        };\n")
-        return _node("var t = %s;\n%s\nconsole.log(JSON.stringify(_measOf(%s)));"
+        # REG-2064 (#298) - the card's rule now lives in _ledgerMeasured (shared with the machine word); _measOf calls it
+        a = ui.index("      var _ledgerMeasured = function (t, lab) {")
+        b = ui.index("        return t.measured;\n      };\n", a) + len("        return t.measured;\n      };\n")
+        return _node("var t = %s;\n%s\nconsole.log(JSON.stringify(_ledgerMeasured(t, %s)));"
                      % (json.dumps(t), ui[a:b], json.dumps(lab)))
 
     def test_each_bar_reads_its_own_ledger(self):
@@ -213,7 +214,7 @@ RED_PROOF = [
     {
         "why": "#240 - an old peer's broken row bit wins again; Konyo and the ALT read '-' on every other console",
         "file": "tv/control_ui.html",
-        "find": "              if (pv === 'SYNCED' || pv === 'SEEDED' || pv === 'MANUAL') return true;\n",
+        "find": "            if (pv === 'SYNCED' || pv === 'SEEDED' || pv === 'MANUAL') return true;\n",
         "replace": "",
         "matches": 1,
     },
@@ -241,7 +242,7 @@ RED_PROOF = [
     {
         "why": "#240 - the card reads the row bit for every bar again; one never-synced store blanks all three",
         "file": "tv/control_ui.html",
-        "find": "          if (by && typeof by === 'object') return (typeof by[lab] === 'boolean') ? by[lab] : null;\n",
+        "find": "        if (by && typeof by === 'object') return (typeof by[lab] === 'boolean') ? by[lab] : null;\n",
         "replace": "",
         "matches": 1,
     },

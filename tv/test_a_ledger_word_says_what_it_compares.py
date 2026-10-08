@@ -43,7 +43,13 @@ def _lift(src):
         return None
     i = src.find(START)
     j = src.find("\n      };\n", i)
-    return src[i:j + 9] if j > i else None
+    if j <= i:
+        return None
+    # REG-2064 (#298) - the word asks _ledgerMeasured (defined beside it); the cut carries the shipped one along
+    a = src.find("      var _ledgerMeasured = function (t, lab) {")
+    b = src.find("        return t.measured;\n      };\n", a)
+    helper = src[a:b + len("        return t.measured;\n      };\n")] if (a >= 0 and b > a) else ""
+    return helper + src[i:j + 9]
 
 
 HARNESS = r"""
