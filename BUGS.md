@@ -406,6 +406,19 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2093 - "MULE IT" FILED NOTHING: A FIND HE REGISTERED READ AS A NAME NOTHING KNOWS (2026-10-08, CI Routine I on v3624)
+
+Routine I on 648959db, attributed by delta against v3623 (367f4f8f): v203:149 and v405:59 GONE (REG-2068 held); two NEW.
+* v466:55 - the AI Item Checker's 'Mule it' registers HIS name ('Caster Wonder', a rare Crystal Sword) in magicFinds, then
+  asks suggestMule - whose base comes from the catalogues only, so REG-2080 answered "nothing on the board recognises this
+  name" and nothing was filed. The board's own Magic & Rare register held it. A registered magic / rare / crafted find now
+  keeps in MAGIC & RARE, asked before Unsorted. Measured on the real page AS THE OWNER (navigator.webdriver, as Playwright
+  runs it): HEAD leaves the assignment empty, this tree files it in magic-rare; a name no register knows is still Unsorted.
+  Why REG-2080's own sweep missed it: its 1,363-name diff ran in a GUEST world, where every register is empty - it could
+  only ever see catalogue names.
+* v766:136 - my REG-2077 commit edited the SITE theatre's spec to expect the APP theatre's new 'session 1 of all 2'; the
+  site theatre counts one list and still says 'session 1/2', which is honest there. The spec lines are restored.
+
 ### REG-2092 - A FAILED rev-parse SAID THE MAIN CHECKOUT HAD NO STORE (2026-10-08, the v3624 second eye)
 
 render_check._world_source ignored git's exit code, so a tree git could not place printed "no session store in this tree or its

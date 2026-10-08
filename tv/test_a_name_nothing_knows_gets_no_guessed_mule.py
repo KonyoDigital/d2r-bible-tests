@@ -17,6 +17,8 @@ hyphen and returned that answer unconditionally; the fold now asks the original 
   * a filing asked of the router refuses 'unsorted' with the router's own reason.
 The proposal and the audit halves are driven in node by their own laws (test_the_vault_proposes_a_home_and_does_not_move,
 test_furniture_filed_in_a_mule_is_an_integrity_finding); this law pins the router's order, which no stub can show.
+REG-2093 (CI Routine I on v3624): a find HE registered in Magic & Rare is known to the board - the router asks that register
+before it answers Unsorted, and the AI Item Checker writes it before it asks.
 """
 import io
 import os
@@ -35,6 +37,9 @@ UNKNOWN = "    if (!base && !it && !itip && !_exIsCatalogue)\n      return {id:n
 ARMOR = "    if (ARMOR_RE.test(probe))   return {id:'uni-armor', why:'armor slot — base: '+(base||'name match')};\n"
 PARK = "    return {id:'uni-weap', why: base ? 'weapon — base: '+base\n"
 FOLD = "            if (!(_as && _as.unsorted)) return _as;"
+MAGIC_RARE = "      if (typeof magicFinds !== 'undefined' && magicFinds && magicFinds[name] && muleById('magic-rare')){\n"
+AIC_WRITE = "      magicFinds[nm]=_rec;\n"
+AIC_ASK = "    try { var sg=suggestMule(nm); if(sg && sg.id!=='__throwout' && muleById(sg.id) && !assign[nm])"
 FILE_REFUSE = "    if (!home && sg && sg.unsorted) return { ok: false, refused: 'unsorted', why: nm + ': ' + sg.why };"
 
 
@@ -66,6 +71,21 @@ class ANameNothingKnowsGetsNoGuessedMule(unittest.TestCase):
         s, _b = _router()
         self.assertEqual(s.count(FILE_REFUSE), 1, "vaultFile no longer carries the router's Unsorted reason")
 
+    def test_a_name_he_registered_in_magic_and_rare_is_known_to_the_board(self):
+        """REG-2093 (CI Routine I on v3624, v466:55) - the AI Item Checker's 'Mule it' registers HIS name ('Caster Wonder',
+        a rare Crystal Sword) in magicFinds and then asks the router; REG-2080 answered 'nothing on the board recognises
+        this name' and the keeper was never filed. The register is the board's - it is asked before Unsorted."""
+        s, body = _router()
+        self.assertEqual(body.count(MAGIC_RARE), 1, "the router no longer asks his Magic & Rare register")
+        self.assertLess(body.index(MAGIC_RARE), body.index(UNKNOWN),
+                        "a find he registered in Magic & Rare reaches the Unsorted answer first")
+        tail = body[body.index(MAGIC_RARE):body.index(MAGIC_RARE) + 400]
+        self.assertIn("return {id:'magic-rare', why:'registered in Magic & Rare (", tail,
+                      "his registered find is not sent to MAGIC & RARE")
+        self.assertEqual((s.count(AIC_WRITE), s.count(AIC_ASK)), (1, 1), "premise: the checker's write and its ask")
+        self.assertLess(s.index(AIC_WRITE), s.index(AIC_ASK),
+                        "the checker asks the router before it has registered the find - the router cannot know it")
+
 
 RED_PROOF = [
     {"why": "REG-2080 - a name nothing knows reaches the keyword guess again (Bone Visor -> UNI-ARMOR)",
@@ -77,6 +97,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "            if (!(_as && _as.unsorted)) return _as;",
      "replace": "            return _as;",
+     "matches": 1},
+    {"why": "REG-2093 - a find he registered in Magic & Rare reads as a name nothing knows again (v466 Mule it)",
+     "file": "bible.html",
+     "find": "      if (typeof magicFinds !== 'undefined' && magicFinds && magicFinds[name] && muleById('magic-rare')){\n",
+     "replace": "      if (false){\n",
      "matches": 1},
 ]
 

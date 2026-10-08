@@ -39094,6 +39094,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (_rq && _rq.q === 'magic' && muleById('magic-rare'))
         return _rolledRoute(_rq);
     } catch(eRn){}
+    /* REG-2093 (CI Routine I on v3624, v466:55) - A NAME HE REGISTERED IN MAGIC & RARE IS KNOWN TO THE BOARD. The AI Item
+       Checker's 'Mule it' writes magicFinds[name] = {q, base, mods} and then asks this router; the name is his own ('Caster
+       Wonder'), so no catalogue knows it, and the REG-2080 line below called it 'nothing on the board recognises this name'
+       while the board's own Magic & Rare register held it, base and all. A registered magic / rare / crafted find keeps in
+       MAGIC & RARE - the drawer a rolled name goes to (#269), never a slot drawer by one word. */
+    try {
+      if (typeof magicFinds !== 'undefined' && magicFinds && magicFinds[name] && muleById('magic-rare')){
+        var _mfq = _mfQual(name), _mfb = _mfBase(name);
+        if (_mfq === 'magic' || _mfq === 'rare' || _mfq === 'crafted')
+          return {id:'magic-rare', why:'registered in Magic & Rare (' + _mfq + (_mfb ? ' ' + _mfb : '') + ') \u2014 a find he named keeps in MAGIC & RARE'};
+      }
+    } catch(eMf){}
     /* #294 (REG-2080, GrokBot ticks 420 + 424, his ruling 2026-10-07) - A NAME NOTHING KNOWS IS NEVER GIVEN A MULE BY A WORD
        IN IT. 'Bone Visor' (a misread: Bone Helm -> Grim Helm -> Bone VISAGE) reached the keyword guess with no base from any
        catalogue, matched 'visor', and was filed in UNI-ARMOR as a 'Base item'; a name with no keyword at all was parked in
