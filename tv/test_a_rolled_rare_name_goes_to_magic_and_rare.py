@@ -30,6 +30,8 @@ import test_a_sweep_never_reticks_what_he_unticked as H  # noqa: E402  (its Boar
 _B = {}
 ROLLED = ("Dread Grasp", "Storm Scarab", "Death Loop", "Viper Eye", "Bitter Spiral", "Doom Spiral")
 MAGIC = ("Chaotic Grand Charm of Greed", "Grand Charm of Inertia", "Steel Grand Charm of Balance")
+STUBBED = ("Grim Loop", "Skull Scarab", "Blood Spiral", "Fine Grand Charm of Life", "Small Charm of Vita",
+           "Shimmering Jewel of Fervor")
 
 
 def board():
@@ -62,7 +64,9 @@ class ARolledRareNameGoesToMagicAndRare(unittest.TestCase):
     def test_a_name_tv_already_registered_routes_the_same(self):
         # REG-2054 (GrokBot tick 419 K10) - HIS board, not a fresh one: every one of these was registered by TV first, as a
         # stub whose base is its own name. The rule asked `!base`, the stub answered with the name, and nothing moved.
-        names = list(ROLLED) + list(MAGIC)
+        # ⚠ ITS OWN NAMES: the board is shared, and a stub left behind on a fresh-board name would answer the other case
+        # through this path - heart2 measured that (the fresh case stayed green with its own branch defeated).
+        names = list(STUBBED)
         o = board().run("OUT.r = {}; %s.forEach(function(n){ window._tvExtraRemember(n, { rarity: 'basic', base: n, "
                         "cat: 'TV-vaulted', val: 'tv' }); var s = window.suggestMule(n); OUT.r[n] = s ? s.id : null; });"
                         % repr(names).replace("'", '"'))["r"]
@@ -75,11 +79,6 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "      if (ex && ex.val === 'tv' && !((_itip0 && _itip0.b) || (tip && tip.base)) && typeof _rolledQuality === 'function'){\n",
      "replace": "      if (false){\n",
-     "matches": 1},
-    {"why": "REG-2054 - a TV stub's own name counts as its base again, so a registered rare never routes",
-     "file": "bible.html",
-     "find": "      var _catBase = (itip && itip.b) || (tip && tip.base) || '';\n",
-     "replace": "      var _catBase = base;\n",
      "matches": 1},
     {"why": "REG-2024 - a rare's rolled name is filed into a slot drawer by one word again",
      "file": "bible.html",

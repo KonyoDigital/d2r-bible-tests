@@ -39030,12 +39030,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        RARE_NAME_POOLS, v332), and rolled-name keepers live in MAGIC & RARE. Asked only when NO catalogue knows the name
        (a real item never wears the rare grammar's clothes here), and only on the exact two-word shape. */
     try {
-      /* #269 (REG-2054, GrokBot tick 419 K10) - ASK BY THE CATALOGUES' BASE, NEVER THE TV STUB'S. `base` falls back to
-         EXTRA_ITEMS[name].base, and a TV stub's base IS its own name ('Death Loop'), so `!base` was false for every name TV
-         had registered: REG-2024's rare rule never fired on his board (Death Loop and Storm Scarab stayed UNI-WEAPONS
-         tiles) while its law, on a fresh board with no stubs, stayed green. Only a codex / ITEM_TIP base is a real base. */
-      var _catBase = (itip && itip.b) || (tip && tip.base) || '';
-      var _rq = (!_catBase && typeof _rolledQuality === 'function') ? _rolledQuality(name) : null;
+      var _rq = (!base && typeof _rolledQuality === 'function') ? _rolledQuality(name) : null;   /* a TV stub is answered above, before the curated branch */
       if (_rq && _rq.q === 'rare' && muleById('magic-rare')) return _rolledRoute(_rq);
       /* #269 (tick 416 K05) - a MAGIC charm / jewel / ring / amulet is a rolled-name keeper too, never a unique drawer */
       if (_rq && _rq.q === 'magic' && muleById('magic-rare'))

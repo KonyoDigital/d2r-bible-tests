@@ -467,9 +467,11 @@ GrokBot tick 419 (v3622, K10) then showed Death Loop and Storm Scarab STILL tile
 REG-2024's rule had never fired on his board. `suggestMule`'s base falls back to EXTRA_ITEMS[name].base, and a TV stub's
 base is its own name, so `!base` was false for every name TV had registered - and a stubbed magic grand charm was
 answered by the curated-EXTRA branch ('charm/skiller' -> UNI-SMALL) before any grammar was asked. MEASURED on the real
-page: fresh board 9/9 to MAGIC & RARE, stubbed board 2/3 (the charm to uni-small) before the fix, 3/3 after. The rule now
-asks by the catalogues' base (codex / ITEM_TIP), a TV stub asks the grammar before the curated branch, and REG-2024's law
-gained the his-board case (stubs registered first) - the fresh-board case alone could never see this.
+page: fresh board 9/9 to MAGIC & RARE, stubbed board 2/3 (the charm to uni-small) before the fix, 3/3 after. A TV stub
+(val 'tv') now asks the grammar before the curated-EXTRA branch, and REG-2024's law gained the his-board case (stubs
+registered first, on names of its own - heart2 caught the shared board leaking stubs into the fresh case, which then
+stayed green with its branch defeated). A second change I made first (asking by the catalogue base) proved BLIND once
+the stub branch existed - it could change nothing - and was reverted rather than kept unproven.
 Law: test_a_rolled_name_is_stamped_as_what_it_is (+ test_a_rolled_rare_name_goes_to_magic_and_rare, magic cases).
 
 ### REG-2053 - A SEAL THAT PROBED MORE PANELS THAN TRIAGE SAW STILL RELEASED ITS REEL (2026-10-08, #231 on v3622)
