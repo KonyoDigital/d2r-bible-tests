@@ -8982,6 +8982,12 @@ GATES = [
          why=("REG-2040 (#239) - 46% of the console's Grok reads timed out at 140 s; one real Chronicle page took 115-123 s at the CLI's "
               "default effort and 26-37 s at --effort low with the same names. An older CLI that refuses the flag is retried without it.")
          ),
+    Gate("test_a_mini_focus_is_declared_only_when_he_chose_it", [sys.executable,
+         os.path.join(HERE, "test_a_mini_focus_is_declared_only_when_he_chose_it.py")], 60,
+         needs_app=False,
+         why=("REG-2041 (#214 F10, finding 17) - every Mini reel was stamped focusChosen: mini_start turned 'nothing chosen' into "
+              "'stash' and the page always posted its pre-selected chip, so the sweep trusted a focus he never declared.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

@@ -27862,11 +27862,18 @@ def mini_state():
     }
 
 
-def mini_start(seconds=None, test=False, focus=None):
+def mini_start(seconds=None, test=False, focus=None, chosen=None):
     """⏱ MINI ON AIR. Same start_agent() as ON AIR — no second spawn path anywhere.
 
     v1603 — `focus` names WHAT he is parked on, and it is not decoration: the retro sweep trusts it
     in place of a classify call, so it is validated here rather than passed through raw."""
+    # REG-2041 (#214 F10, finding 17) - WHETHER HE CHOSE IT travels apart from WHAT it is. _mini_focus() turns "nothing
+    # chosen" into the default "stash" (right for the clamp and the capture), and start_agent's v1783 guard then saw a
+    # focus every time - so every Mini reel was stamped focusChosen and the sweep trusted an untouched default. The page
+    # now says whether he clicked a focus; only a chosen one reaches start_agent. Absent (an older page) = not chosen:
+    # the cost is one classify, never a town frame labelled a stash panel.
+    _chosen_focus = (str(focus).strip().lower() if (chosen is True and str(focus or "").strip().lower() in MINI_FOCUSES)
+                     else None)
     focus = _mini_focus(focus)
     secs, asked = _mini_clamp(seconds, focus)   # v1744 — focus decides the default AND the ceiling
     # v891 (Grok C3) — DISK PREFLIGHT, copied verbatim from /api/on: below the floor the reaper
@@ -27937,7 +27944,7 @@ def mini_start(seconds=None, test=False, focus=None):
     threading.Thread(target=_mini_watchdog, args=(token, ends), daemon=True,
                      name="tvd-mini-watchdog").start()
     try:
-        r = start_agent(sim=False, test=bool(test), mini=secs, focus=focus, origin="mini")
+        r = start_agent(sim=False, test=bool(test), mini=secs, focus=_chosen_focus, origin="mini")
     finally:
         with _MINI_LOCK:
             if _MINI["token"] == token:
@@ -46405,7 +46412,7 @@ class Handler(BaseHTTPRequestHandler):
             # the stash on gems / runes / materials. Same start_agent(), same seal path.
             # The clamped value is ECHOED (5 and 999 come back honest, never silently altered).
             self._json(200, mini_start(body.get("seconds"), test=bool(body.get("test")),
-                                       focus=body.get("focus")))
+                                       focus=body.get("focus"), chosen=body.get("focusChosen")))
             return
         if path == "/api/shadow":
             # v2000 — ONE WRITER. The agent only ever READS this file, so there is no lock and no

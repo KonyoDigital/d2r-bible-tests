@@ -13,7 +13,7 @@
 | ☐ | [VAULT-ATTR-01](#vault-attr-01) | Filmed tooltip → sockets / eth / quality reach the vault row | Vault | 10 💳 | #60 (vp3368, v3369) |
 | ☐ | [VAULT-MAGIC-01](#vault-magic-01) | Magic/rare names carry affix vocab; grounding never ticks the Chronicle | Vault | 10 💳 | #53 (v3364) |
 | ☐ | [MULE-01](#mule-01) | One Esc closes the mule window on your Mac | Vault | 3 | #174 v-A · REG-1298 |
-| ☐ | [VAULT-INTAKE-01](#vault-intake-01) | Inventory read is HELD, stash read is filed to its locker | Vault | 5 | live vault door · v2346 ruling |
+| ☐ | [VAULT-INTAKE-01](#vault-intake-01) | Inventory read is KEPT ON YOU (never filed), stash read is filed to its locker | Vault | 5 | live vault door · his 10-07 ruling |
 | ☐ | [MULE-VB-01](#mule-vb-01) | ⏸ Slot picker offers only this locker's fitting items | Vault | 5 | #174 v-B |
 | ☐ | [MULE-VB-02](#mule-vb-02) | ⏸ Stats summed from item text; ranges, never averages | Vault | 5 | #174 v-B |
 | ☐ | [MULE-VB2-01](#mule-vb2-01) | ⏸ Drag an item to any cell: it locks there, survives a relaunch, unlocks | Vault | 5 | #174 v-B2 |
@@ -175,9 +175,9 @@ Includes #174 (mule window) and #60 (item facts). Baseline on 2026-09-25, from a
 > **Note:** This is also the backlog item #174 "Esc REFUTES on WebKit": the first real test on your Mac.
 
 <a id="vault-intake-01"></a>
-### VAULT-INTAKE-01 — Live ON AIR: an item read in the INVENTORY is HELD, not vaulted; the same item carried into the STASH is filed to its locker
+### VAULT-INTAKE-01 — Live ON AIR: an item read in the INVENTORY is KEPT ON YOU (owned, never filed); the same item carried into the STASH is filed to its locker
 
-**Proves:** The live door that actually files a hovered stash item (the agent's LootLifecycle): an inventory read is HELD, and a stash read with a chain is VAULTED to its locker. Also tests your v2346 ruling against the 30 s HOLD commit. Proven only by code reading and fixtures.  
+**Proves:** The live door that actually files a hovered stash item (the agent's LootLifecycle): an inventory read makes the item yours and KEPT ON YOU (his ruling 2026-10-07, #214: "found + Kept on you", §31.2 "owned right away") and never files it to a locker; a stash read with a chain is VAULTED to its locker. Proven only by code reading and fixtures.  
 **Setup:** Console ON AIR during a normal run. Use a unique you have ALREADY ticked in the Chronicle but have NOT filed in any locker, so the Uniques tally cannot move. Pick it up FROM THE FLOOR in this session: the stash commit needs a floor or inventory chain from this session, otherwise the item is refused 'stash-no-chain'. On the board Vault card, write down the population line and the target locker's plate count.
 
 **Items:**
@@ -188,17 +188,17 @@ Includes #174 (mule window) and #60 (item facts). Baseline on 2026-09-25, from a
 **Steps:**
 1. Pick up the unique. Open the INVENTORY ONLY (stash closed), hover it for 2–3 s with the tooltip fully visible, then close the inventory within about 20 s.
 2. In the console's live read feed, the read line for that frame should read '⏳ holding inventory … · HOLDING NAME (≥30s or stash)'. In the theatre beat, '📖 IT SAW' shows the name with 🎒.
-3. Board → Vault: the population line and the '#vault-status' text beside the card title must be UNCHANGED.
+3. Board → Vault: the item is NOT on any locker (the finder does not name a mule for it); it shows as carried on that character, and its read receipt says '🎒 kept on you', never '🗄 registered'.
 4. Open the stash with both windows up, move the item INTO the stash, and hover it there (in the stash grid, not while it is still in the inventory) for 2–3 s.
 5. Live read line: '🏦 vaulted stash … · VAULT NAME'. Theatre beat: the name carries 🏦.
 6. Board → Vault: read the status text and the population line, then type the name into 'Find an item across your mules — which alt is it on?'.
-7. OPTIONAL, YOUR RULING: with a SECOND unique (e.g. Dwarf Star), hover it in the inventory only, wait 40 s with the inventory still open, and hover it again. Then check the Vault.
+7. With a SECOND unique (e.g. Dwarf Star), hover it in the inventory only, wait 40 s with the inventory still open, and hover it again. Then check the Vault.
 
-**✅ Expect:** After the inventory-only hover (step 3): no vault change (same 'owned' count, no '📺 TV vaulted' text). After the stash hover: the status reads '📺 TV vaulted: NAME → LOCKER', or '📺 TV vaulted (throw-out advice): NAME — trade value TRASH — …' for a trash-tier item. The population line's 'owned' goes up by 1, and the finder shows the name '→ <locker>'. Destination by the planner's rules (traced in suggestMule): a 'high' item → SHARED STASH ('high trade value — keep close in the shared stash'); a 'trash' item → 🗑 throw-out review (still owned); a 'low' ring such as Nagelring or Dwarf Star → UNI-SMALL (its base Ring matches the jewelry rule). The '#vault-status' text is transient, so the finder and the plate count are the durable checks. Optional step 7: code reading predicts the second hover, 30 s or more after the first, commits the item ('vault:hold') and files it without any stash. That contradicts your v2346 ruling; record what happens.
+**✅ Expect:** After the inventory-only hover (step 3): the item is owned and kept on you - no locker, no '📺 TV vaulted … → LOCKER' text. After the stash hover: the status reads '📺 TV vaulted: NAME → LOCKER', or '📺 TV vaulted (throw-out advice): NAME — trade value TRASH — …' for a trash-tier item. The population line's 'owned' goes up by 1, and the finder shows the name '→ <locker>'. Destination by the planner's rules (traced in suggestMule): a 'high' item → SHARED STASH ('high trade value — keep close in the shared stash'); a 'trash' item → 🗑 throw-out review (still owned); a 'low' ring such as Nagelring or Dwarf Star → UNI-SMALL (its base Ring matches the jewelry rule). The '#vault-status' text is transient, so the finder and the plate count are the durable checks. Step 7: the second hover, 30 s or more after the first, commits the read (the agent's tag says 'vault:hold' - its old word for it); the board's holding route reads the inventory place and keeps the item ON YOU ('carried'), so it is still on no locker.
 
 **❌ Fail looks like:**
 
-- (a) The vault gains the item within 30 s of an inventory-only hover: a leak.
+- (a) An inventory-only hover files the item to a locker (the finder names a mule for it): a leak.
 - (b) The read line says '🏦 vaulted' but the board never changes: the TV feed or tvVaultRegister refused. Look for a 'route-failed' row, or a feed that is off.
 - (c) The stash hover is tagged 'stash-no-chain' and nothing is filed: the floor/inventory chain was lost (e.g. a console restart in between).
 - (d) A trash-tier unique is filed onto a UNI-* locker.
@@ -207,10 +207,10 @@ Includes #174 (mule window) and #60 (item facts). Baseline on 2026-09-25, from a
 **🔎 Debug first:** The live read line's lifecycle note first (HOLDING / VAULT / stash-no-chain / hold-low-conf). 'hold-low-conf' means no Horadric Cube or tome was visible in the inventory AND the read confidence was below 0.75, so nothing was held. Then the theatre beat's WHERE badge: no badge means the reader returned no names_loc. Then the board's chronicle ledger row for the name, then suggestMule's answer for it.
 
 **Cost:** About 5 min inside a normal run. ON AIR live reads only, no vault sweep. It files real items into your vault (additive), which is the product doing its job.  
-**Unknowns:** UNKNOWN whether the live reader reports names_loc for a hovered stash item on your current prompt. Without it, the stash-side split falls back to the panel scene. UNKNOWN whether the console's board TV feed is switched on in your session. Whether the 30 s inventory HOLD commit should exist at all under your v2346 ruling is your call.  
+**Unknowns:** UNKNOWN whether the live reader reports names_loc for a hovered stash item on your current prompt. Without it, the stash-side split falls back to the panel scene. UNKNOWN whether the console's board TV feed is switched on in your session.  
 **Read from:** tv/tv_diablo.py:LootLifecycle.process, _track_pending, _on_stash · bible.html:tvVaultRegister, kaiChroniclePropose, _vaultMayClaim, suggestMule, ITEM_VALUE
 
-> **Note:** Step 7 is your ruling to make: record what happens, then decide whether the 30 s inventory commit should exist.
+> **Note:** RULED 2026-10-07 (#214): an inventory read is found + kept on you, never a stash witness. Step 7 checks that the 30 s commit honours it.
 
 <a id="mule-vb-01"></a>
 ### MULE-VB-01 — PENDING-v-B: clicking a doll slot offers only THIS locker's items that fit it; equip, hover, unequip, persist, Esc order
@@ -1288,7 +1288,7 @@ As a needs-you row: amber, under WAITING ON YOU, with the button 'YOUR CALL — 
 2. **"N witnesses" counts sighting frames, not looks.** War Traveler reads *4 witnesses* and Horadric Cube *20 witnesses* with ONE look each. The proof chip's 2-witness bar counts frames too. The doctor row *item facts captured* says "sighting(s)" but counts names.
 3. **`vault_seen.json` never drops a row that has since grounded.** 9 of the 44 "seen once" rows are already grounded, so a sweep panel can list one name as both OWNED and UNSURE. The save function's docstring says otherwise.
 4. **`register N ✓` re-sends every grounded row** (potions, Horadric Cube, charms), not just the new ones from this sweep.
-5. **Your v2346 ruling vs the live lifecycle.** An item read again in the INVENTORY 30 s or more after it was first held is committed to the vault (`vault:hold`), with no stash involved. v2346 was implemented only on a door that returns early for Chronicle names. Your call (VAULT-INTAKE-01 step 7).
+5. **RULED 2026-10-07 (#214):** an inventory read is found + KEPT ON YOU, never a stash witness. The agent's 30 s re-read commit (`vault:hold`) lands as 'carried' on the board (owned, on no locker) - VAULT-INTAKE-01 step 7 checks it.
 6. **Routing of grounded magic/rare items.** By code reading, a rare ring or amulet parks in UNI-WEAPONS (*weapon — base: <name>*) or UNI-SMALL. MAGIC & RARE is reachable only for a rare circlet. Needs your ruling.
 7. **The vault lane has banked nothing since about 2026-09-19.** The 45-second autoread cannot be relied on to pick up a test reel, so every scenario uses the manual sweep.
 8. **Curly apostrophe.** *Atma's Scarab*, *Saracen's Chance* and *Cat's Eye* tag UNKNOWN instead of GRAIL. The vault fold returns the curly roster spelling, but the lexicon only holds the straight one.

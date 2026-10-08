@@ -406,6 +406,19 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2041 - EVERY MINI REEL CLAIMED HE HAD CHOSEN ITS FOCUS (2026-10-08, #214)
+
+Finding 17 / F10 of the 10-07 simulation pass: the retro sweep trusts a declared Mini focus in place of a paid classify
+(vault_retro._declared_surface), and v1783 made start_agent send --mini-focus only for a chosen focus - but mini_start
+ran _mini_focus() first, which turns "nothing chosen" into the default "stash", and the console page always posted its
+pre-selected "stash". So tv_diablo.MINI_FOCUS_CHOSEN was true for every Mini reel and an untouched default could label
+town or a Chronicle page as a stash panel. Now the page sends focusChosen (true only after he clicks a focus chip),
+mini_start hands start_agent a focus only then, and an older page that sends nothing counts as not chosen (one classify,
+never a wrong label); the default still decides the clamp and the capture. Same row, F11: his 10-07 ruling ("an
+inventory read is found + Kept on you") already holds in code - the agent's 30 s re-read commit lands as 'carried' on
+the board, on no locker - and TESTING_PHASE.md VAULT-INTAKE-01, written before it, now expects exactly that.
+Law: test_a_mini_focus_is_declared_only_when_he_chose_it (2 red-proofs).
+
 ### REG-2040 - 46% OF THE CONSOLE'S GROK READS TIMED OUT, BECAUSE EVERY READ ASKED FOR DEFAULT REASONING (2026-10-08, #239)
 
 MEASURED on his console's /api/g5_status: 7,832 calls, 3,608 errors, last "grok -p timeout 140s". The same call

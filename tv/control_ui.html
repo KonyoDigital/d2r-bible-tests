@@ -20670,6 +20670,7 @@ window._lockMark = function(isOpen, px, label){
      with the run it claims to describe. */
   // v1603 — the focus he last picked. Sent with the start and stamped into the reel.
   var _miniFocus = 'stash';
+  var _miniFocusChosen = false;   // REG-2041 - true only once he clicks a focus; the pre-selected default is not a choice
   /* v1614 — the focus buttons wear the ITEM they are pointing the camera at.
      The four physical categories take real item sprites (the Horadric Cube, a Ber rune, a perfect
      ruby, an essence) because an item icon says "runes" more directly than any symbol could. The
@@ -20744,6 +20745,7 @@ window._lockMark = function(isOpen, px, label){
     box.addEventListener('click', function(e){
       var b = e.target.closest('.mf'); if (!b) return;
       _miniFocus = b.dataset.f || 'stash';
+      _miniFocusChosen = true;
       Array.prototype.forEach.call(box.querySelectorAll('.mf'), function(x){
         x.classList.toggle('on', x === b);
       });
@@ -20756,7 +20758,7 @@ window._lockMark = function(isOpen, px, label){
     var btn = this;
     try {
       var r = await fetch('/api/mini', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                                         body: JSON.stringify({ focus: _miniFocus }) });
+                                         body: JSON.stringify({ focus: _miniFocus, focusChosen: _miniFocusChosen }) });
       var j = await r.json();
       if (!j || j.ok === false) {
         /* v1604 — SAY WHY. Konyo, on his wife's Windows PC: "i clicked mini and it doesnt record
