@@ -8929,6 +8929,11 @@ GATES = [
          why=("REG-2030 (#264, his 2026-10-08 ruling) - the dock's organizer named the mule but not the stash cell or the "
               "picture, hid 25 of 85 behind a 60 cap and left his inventory loot out; every row says all three now.")
          ),
+    Gate("test_a_tooltip_judge_read_never_claims_he_does_not_hold_it", [sys.executable,
+         os.path.join(HERE, "test_a_tooltip_judge_read_never_claims_he_does_not_hold_it.py")], 120,
+         needs_app=False,
+         why=("REG-2032 (#270, his Session 1 question) - the board said a tooltip-judge read 'does not show that you hold it' while the frame showed him WEARING Highlord's Wrath; the judge records no place, so the place is UNKNOWN.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

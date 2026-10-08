@@ -406,6 +406,19 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2032 - THE BOARD SAID A TOOLTIP-JUDGE READ "DOES NOT SHOW THAT YOU HOLD IT" WHILE THE FRAME SHOWED HIM WEARING IT (2026-10-08, #270)
+
+His question on Session 1 (the Highlord's Wrath tooltip open in the theatre): was it registered to the vault, or to his
+equipment lock? MEASURED read-only on the reel's frame f_1790549369044 (1440x936): the tooltip hangs off his EQUIPPED
+amulet slot on the paper doll - he was wearing it. The KAI tooltip judge registered it with loc None and the lane name
+'kai' as its scene; _vaultHoldingRoute fell to its last line, "read during kai, which does not show that you hold it".
+So: not filing it to a mule was right (worn gear is locked to his MAIN); the sentence was false. Fixed: a 'kai' read says
+the judge records the item and not where it sat, so this read alone files nothing and a placing look decides. Route
+unchanged (changing it to 'wait' would make a KAI-judged runeword owned with no place - out of scope).
+STILL OWED (#270): the place itself. tooltip_find.locate refuses 4 of 4 Session 1 frames (densest text 2.8-5.6% vs an 8%
+floor set at another capture size), and a right-panel tooltip cannot tell worn from carried by itself.
+Law: test_a_tooltip_judge_read_never_claims_he_does_not_hold_it (red-proof PROVEN).
+
 ### REG-2031 - THE ORGANIZER'S EVIDENCE DOOR WAS A BARE WHITE BUTTON, AND FOUR EDGES THE #231 EYE FOUND ON v3620 (2026-10-08, #264)
 
 SEEN on the v3620 render (new render_check target `vault-organizer`, 1440 and 375): the evidence door each row carries was

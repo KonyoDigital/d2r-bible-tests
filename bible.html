@@ -19942,6 +19942,13 @@ try {
       return { route: 'wait', why: 'read while your inventory was open, but the reader did not say where this name sat — your inventory, your doll, or the ground beside you — so it waits for a look that says (§31.2 needs its place)' };
     if (s === 'stash')
       return { route: 'wait', why: 'read while the stash was open, but the reader did not say whether it sat in the stash or the inventory — it waits' };
+    /* #270 (his Session 1 question, 2026-10-08) - 'kai' is the TOOLTIP JUDGE's lane, not a scene. Measured on his frame: the
+       Highlord's Wrath it judged hung off his EQUIPPED amulet slot - he was wearing it - and the board said the read 'does not
+       show that you hold it'. The judge records the item and never where it sat (stash, inventory, worn or the ground), so
+       the place is UNKNOWN and this read alone still files nothing; the sentence says that instead of a claim the frame
+       contradicts. [[unknown-stays-unknown]] */
+    if (s === 'kai')
+      return { route: 'not-held', why: 'read by the tooltip judge, which records the item but not where it sat (stash, inventory, worn or the ground) - this read alone files nothing; a look that places it decides' };
     return { route: 'not-held', why: 'read during ' + s + ', which does not show that you hold it' };
   };
   /* ⚠ H1 (review of 77d8d8b5) — ONE SIGHTING, ONE TUPLE. A row carries its FIRST sighting (loc, scene, frameId from one
