@@ -4204,7 +4204,7 @@ def _world_source(here=None):
     common = ""
     try:
         common = subprocess.run(["git", "-C", here, "rev-parse", "--path-format=absolute", "--git-common-dir"],
-                                capture_output=True, text=True, timeout=10).stdout.strip()
+                                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10).stdout.strip()
     except Exception as e:
         return here, "no session store in this tree, and git could not name its main checkout (%s)" % e
     if common and os.path.basename(common.rstrip("/")) == ".git":
