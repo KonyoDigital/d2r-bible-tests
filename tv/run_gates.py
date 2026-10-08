@@ -8964,6 +8964,12 @@ GATES = [
          why=("REG-2037 (#207, the 10-07 sim F6) - one eth:true read beside two eth:false reads of his Grief in one session made "
               "an ethereal Grief nobody owns; a runeword's name colour was carried as its quality.")
          ),
+    Gate("test_a_retired_reel_is_counted_once", [sys.executable,
+         os.path.join(HERE, "test_a_retired_reel_is_counted_once.py")], 90,
+         needs_app=False,
+         why=("REG-2038 (#238, the #231 eye on v3595) - a retired never-swept reel was 'waiting on a sweep' and retired at once, so the "
+              "older-seal tail subtracted it twice (and vault reels from a chronicle count); an unreadable retirement record let the tick restart a retired reel.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

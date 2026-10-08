@@ -406,6 +406,18 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2038 - A RETIRED REEL WAS COUNTED TWICE, CALLED "WAITING", AND COULD BE RESTARTED ON A BAD READ (2026-10-08, #238)
+
+The #231 eye on 00e3efbe (v3595), reproduced against the shipped functions. (1) A retired never-swept reel sat on the
+retention plan's never-chronicle-swept list AND in _chron_retired_still_owing, so the older-seal tail's
+owed - waiting - retired subtracted it twice and the clamp at 0 dropped real reels from the "will be re-read"
+promise; the waiting count handed to it also held vault-lane reels, which are not in the chronicle's owed count.
+(2) That reel read "waiting on a sweep" while the tick skips it. (3) An unreadable retirement record made
+_chron_reels_retired() answer {} (uncached), so the next tick could restart a reel the v1766.1 bound gave up on while
+the tail said none were promised. Fixed: _chron_retired_owing_ids names the reels; they leave the chronicle waiting
+list; the tail gets the chronicle waiting count only; the tick starts nothing while the record will not read.
+Law: test_a_retired_reel_is_counted_once (2 red-proofs).
+
 ### REG-2037 - ONE DISAGREEING READ MADE AN ETHEREAL GRIEF NOBODY OWNS (2026-10-08, #207)
 
 From the 2026-10-07 simulation pass (F6). His seen bank: Grief, one session, three reads 1.4-3 s apart, 5 sockets -

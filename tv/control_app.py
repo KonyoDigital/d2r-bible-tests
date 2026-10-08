@@ -21679,11 +21679,21 @@ def _chron_retirement_map():
 
 def _chron_retired_still_owing(hist_dir=None):
     """How many retired reels still owe a read. None when that cannot be counted."""
+    ids = _chron_retired_owing_ids(hist_dir)
+    return None if ids is None else len(ids)
+
+
+def _chron_retired_owing_ids(hist_dir=None):
+    """The ids of the retired reels that still owe a read. None when that cannot be established.
+
+    REG-2038 (#238) - the panel needs WHICH reels, not only how many: a retired reel that was never swept is also on
+    the retention plan's never-chronicle-swept list, and counting it in both made the older-seal tail subtract it twice.
+    """
     retired = _chron_retirement_map()
     if retired is None:
         return None
     if not retired:
-        return 0
+        return set()
     try:
         import chronicle_retro as _cr
         _h = hist_dir or os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
@@ -21694,7 +21704,7 @@ def _chron_retired_still_owing(hist_dir=None):
         mem = _chron_swept_mem()
     except Exception:
         return None
-    n = 0
+    out = set()
     for d in _dirs:
         rid = os.path.basename(str(d))
         if rid not in retired:
@@ -21704,8 +21714,8 @@ def _chron_retired_still_owing(hist_dir=None):
         except Exception:
             return None
         if owes:
-            n += 1
-    return n
+            out.add(rid)
+    return out
 
 
 def _chron_older_seal_tail(waiting_n, owed):
@@ -21900,6 +21910,13 @@ def chronicle_autoreel_tick():
         return {"ok": False, "why": "could not list reels: %s" % e}
     _mem = _chron_swept_mem()
     _retired = _chron_reels_retired()
+    # REG-2038 (#238, claim 3) - AN UNREADABLE RETIREMENT RECORD STARTS NOTHING. _chron_reels_retired() answers {} for a
+    # file that will not read (uncached, so a later tick retries), and this loop read that {} as "nothing retired" - so
+    # the one tick after a bad read could restart a reel the v1766.1 bound gave up on, while the panel's tail said
+    # "none are promised a re-read". The tick now asks the same question the tail asks and refuses on None.
+    if _chron_retirement_map() is None:
+        return {"ok": False, "why": "the retirement record could not be read - no reel is started until it reads, "
+                                    "so a reel that was given up on is never restarted by accident"}
     _owed = 0
     _retired_owing = 0
     for d in dirs:
@@ -26904,6 +26921,16 @@ def _retention_once():
     # matching the tag is the same reels by the same rule — it simply stops breaking the day
     # somebody improves the wording.
     _w_chron = [k for k in (p.get("kept") or []) if k.get("tag") == "never-chronicle-swept"]
+    # REG-2038 (#238, claims 1+2) - A RETIRED REEL IS NOT WAITING ON A SWEEP. The tick skips it (it gave up), yet a
+    # retired never-swept reel sat here as "waiting on a sweep" AND in _chron_retired_still_owing, so the older-seal
+    # tail subtracted it twice and the clamp at 0 dropped real reels from the promise. It leaves this list; the tail
+    # names it once, as retired. An unreadable retirement record leaves the list as it was (the tail says so).
+    try:
+        _ret_ids = _chron_retired_owing_ids()
+    except Exception:
+        _ret_ids = None
+    if _ret_ids:
+        _w_chron = [k for k in _w_chron if str(k.get("reel") or "") not in _ret_ids]
     # ⚠⚠ v2878 — THE SECOND READER OF plan()["kept"], AND v2876 MOVED ONLY THE FIRST.
     # A cross-family review caught it: `_vault_owed_reels` learned `panels-never-banked`
     # and this did not, so the sweeper saw 18 owed while this sentence still said 0 were
@@ -27161,7 +27188,9 @@ def _retention_once():
             # REG-1780 (#86 gap audit 36) — a retired reel is inside this owed count, and the
             # tick will not start it. The old tail promised every one of them a re-read.
             _owed = _chron_owed_count()
-            _tail = _chron_older_seal_tail(len(waiting), _owed)
+            # REG-2038 - the CHRONICLE waiting list only: `waiting` also holds vault-lane reels, which are not in the
+            # chronicle's owed count, and subtracting them shrank the "will be re-read" promise by reels it never held
+            _tail = _chron_older_seal_tail(len(_w_chron), _owed)
             _RETENTION.update(dict(base, owedARead=_owed,
                                    say="%.1fGB free — above the %.0fGB floor. Nothing is eligible "
                                        "to free. %s%s.%s"
