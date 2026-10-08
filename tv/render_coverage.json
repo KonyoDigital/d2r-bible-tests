@@ -208,6 +208,10 @@
       "1440x1000": 1,
       "375x800": 1,
       "901x900": 1
+    },
+    "update-wait-say": {
+      "1120x900": 1,
+      "1440x1000": 1
     }
   },
   "nodes": {
@@ -3815,6 +3819,14 @@
         "span.win-ctl|–⤢window",
         "button|–",
         "button|⤢window"
+      ]
+    },
+    "update-wait-say": {
+      "1120x900": [
+        "span.fbe-say|waiting for it to finish"
+      ],
+      "1440x1000": [
+        "span.fbe-say|waiting for it to finish"
       ]
     }
   }
