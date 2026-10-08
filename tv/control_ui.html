@@ -11839,7 +11839,8 @@ window._lockMark = function(isOpen, px, label){
   // cards. Colour by KAI TIER (grail/keep/border) — the console has no D2-rarity DB, so tier IS the honest
   // premium signal. Click a card → jump to the frame KAI first saw it (_thJumpToFind). TRUTHFUL: '' when no finds. ══
   var _FIND_TIER = { grail: { cls: 'grail', mark: '🏆' }, keep: { cls: 'keep', mark: '✦' }, border: { cls: 'border', mark: '' } };
-  function _findCard(f, n){
+  function _findCard(f, n, sid){
+    var _sidq = '&quot;' + esc(String(sid || '').replace(/"/g, '')) + '&quot;';   /* #293 (REG-2061) - the reel's own id, never only its number */
     if (!f || !f.name) return '';
     var t = _FIND_TIER[f.tier] || { cls: 'seen', mark: '' };
     var art = (typeof thArtImg === 'function') ? thArtImg(f.name, 'fc-art') : '';
@@ -11848,8 +11849,8 @@ window._lockMark = function(isOpen, px, label){
     var ts = Number(f.ts) || 0;   // NB: ts is > 2^31 — never bit-op it
     var canJump = !!(fid || ts);
     var jump = canJump
-      ? ' role="button" tabindex="0" onclick="window._tvdJumpFind(event,' + (Number(n) || 0) + ',&quot;' + esc(fid) + '&quot;,' + ts + ')"'
-        + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window._tvdJumpFind(event,' + (Number(n) || 0) + ',&quot;' + esc(fid) + '&quot;,' + ts + ');}"'
+      ? ' role="button" tabindex="0" onclick="window._tvdJumpFind(event,' + (Number(n) || 0) + ',&quot;' + esc(fid) + '&quot;,' + ts + ',' + _sidq + ')"'
+        + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window._tvdJumpFind(event,' + (Number(n) || 0) + ',&quot;' + esc(fid) + '&quot;,' + ts + ',' + _sidq + ');}"'
         + ' title="jump to the frame KAI saw this — ' + esc(f.name) + '"'
       : ' title="' + esc(f.name) + '"';
     return '<span class="find-card fc-' + t.cls + '"' + jump + '>'
@@ -11862,11 +11863,12 @@ window._lockMark = function(isOpen, px, label){
     var finds = sm && sm.finds;
     if (!Array.isArray(finds) || !finds.length) return '';   // honest: nothing to show when no finds (unsealed/older reel)
     var n = sm.n || 1, lim = cap || 5;
-    var cards = finds.slice(0, lim).map(function(f){ return _findCard(f, n); }).join('');
+    var _sid = String((sm && sm.sessionId) || '').replace(/"/g, ''), _sidq = '&quot;' + esc(_sid) + '&quot;';   /* #293 (REG-2061) */
+    var cards = finds.slice(0, lim).map(function(f){ return _findCard(f, n, _sid); }).join('');
     var reg = (sm.registered != null) ? sm.registered : finds.length;   // registered null → fall back to shown count (never fake a total)
     var more = (reg > lim)
-      ? '<span class="find-more" role="button" tabindex="0" onclick="window._tvdJumpFind(event,' + (Number(n) || 0) + ',&quot;&quot;,0)"'
-        + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window._tvdJumpFind(event,' + (Number(n) || 0) + ',&quot;&quot;,0);}"'
+      ? '<span class="find-more" role="button" tabindex="0" onclick="window._tvdJumpFind(event,' + (Number(n) || 0) + ',&quot;&quot;,0,' + _sidq + ')"'
+        + ' onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();window._tvdJumpFind(event,' + (Number(n) || 0) + ',&quot;&quot;,0,' + _sidq + ');}"'
         + ' title="open this run in the Theatre to see them all">+' + (reg - lim) + ' more</span>'
       : '';
     var lead = bare ? '' : '<span class="finds-lead">🏆 What I found</span>';   // v1268 (D2) — the dossier supplies its own section header
@@ -11874,10 +11876,13 @@ window._lockMark = function(isOpen, px, label){
   }
   // click a find → open the session's Theatre and seek to the exact frame KAI witnessed the item (by frameId,
   // ts fallback). Empty frameId+ts (the "+N more" chip) just opens the run. Best-effort: never throws into the UI.
-  async function _thJumpToFind(n, frameId, ts){
+  async function _thJumpToFind(n, frameId, ts, sid){
     try {
       if (typeof thOpen === 'function' && !(typeof TH !== 'undefined' && TH.open)) await thOpen();
-      if (typeof thLoadSession === 'function') await thLoadSession(Number(n) || 1, true);
+      /* #293 (REG-2061, GrokBot ticks 420-421) - '+51 more' on Session 28 opened Session 48's film under a 'SESSION 28'
+         header: this passed only the NUMBER, which thLoadSession reads as a POSITION in its newest-first list (REG-1933).
+         Every find door now hands the reel's own id along, and the reel is found by it. */
+      if (typeof thLoadSession === 'function') await thLoadSession(Number(n) || 1, true, sid ? String(sid) : undefined);
       var beats = (typeof TH !== 'undefined' && TH.beats) || [], idx = -1, i;
       if (frameId){ for (i = 0; i < beats.length; i++){ if (beats[i] && beats[i].frameId === frameId){ idx = i; break; } } }
       if (idx < 0 && ts){ var best = Infinity; for (i = 0; i < beats.length; i++){ var d = Math.abs((beats[i].ts || 0) - ts); if (d < best){ best = d; idx = i; } } }
@@ -11886,7 +11891,7 @@ window._lockMark = function(isOpen, px, label){
       var dov = document.getElementById('th-dossier-ov'); if (dov) dov.hidden = true;   // v1268 — and the dossier, if the jump came from it
     } catch (e) {}
   }
-  window._tvdJumpFind = function(ev, n, frameId, ts){ if (ev){ ev.stopPropagation(); ev.preventDefault(); } _thJumpToFind(n, frameId, ts); };
+  window._tvdJumpFind = function(ev, n, frameId, ts, sid){ if (ev){ ev.stopPropagation(); ev.preventDefault(); } _thJumpToFind(n, frameId, ts, sid); };
   // ══ v1268 (SESSIONS FLAGSHIP D2 · THE SESSION DETAIL DOSSIER) — tapping a session card opens a real
   // destination (hero · headline stats · full finds · scene fingerprint · verdict story · ▶ Open in Theatre)
   // BEFORE the Theatre. All from the /api/sessions summary already in TH.sessions/HD_ALL; honest "—" for absent
@@ -11999,7 +12004,7 @@ window._lockMark = function(isOpen, px, label){
       var ic, txt, colorScene;
       if (c.native){ ic = _NATIVE_ICON[c.native.kind] || '·'; txt = c.native.label; colorScene = _NATIVE_SCENE[c.native.kind] || ''; }
       else { var L = _sceneLabel(c.scene); ic = L.ic; txt = L.key || 'scene'; colorScene = L.colorScene; }
-      var jump = (c.frameId || c.ts) ? ' onclick="window._tvdJumpFind(event,' + (Number(sm.n) || 0) + ',&quot;' + esc(String(c.frameId || '')) + '&quot;,' + (Number(c.ts) || 0) + ')"' : '';
+      var jump = (c.frameId || c.ts) ? ' onclick="window._tvdJumpFind(event,' + (Number(sm.n) || 0) + ',&quot;' + esc(String(c.frameId || '')) + '&quot;,' + (Number(c.ts) || 0) + ',&quot;' + esc(String(sm.sessionId || '').replace(/"/g, '')) + '&quot;)"' : '';
       return (i ? '<span class="dsr-chap-arrow">→</span>' : '')
         + '<button type="button" class="dsr-chap' + (colorScene ? ' dl-' + colorScene : '') + '"' + jump + ' title="jump to this chapter">'
         + '<span class="dsr-chap-ic">' + ic + '</span>' + esc(txt)
@@ -12016,7 +12021,7 @@ window._lockMark = function(isOpen, px, label){
       // stash sub-tabs + nice casing (never raw "STASH-GEMS"), coloured as stash.
       var L = _sceneLabel(f.scene), key = L.key, colorScene = L.colorScene;
       var img = f.thumb ? '<img class="dsr-mont-img" src="/hist/' + encodeURI(f.thumb) + '?w=200" alt="" loading="lazy" onerror="this.style.opacity=0">' : '';
-      var jump = (f.frameId || f.ts) ? ' onclick="window._tvdJumpFind(event,' + (Number(sm.n) || 0) + ',&quot;' + esc(String(f.frameId || '')) + '&quot;,' + (Number(f.ts) || 0) + ')"' : '';
+      var jump = (f.frameId || f.ts) ? ' onclick="window._tvdJumpFind(event,' + (Number(sm.n) || 0) + ',&quot;' + esc(String(f.frameId || '')) + '&quot;,' + (Number(f.ts) || 0) + ',&quot;' + esc(String(sm.sessionId || '').replace(/"/g, '')) + '&quot;)"' : '';
       var mark = (f.frameId && findMap[String(f.frameId)]) ? '<span class="dsr-mont-find">' + findMap[String(f.frameId)] + '</span>' : '';   // D22 — a find landed on this exact frame
       return '<button type="button" class="dsr-mont"' + jump + ' title="' + esc(key || 'frame') + ' — jump to this frame">'
         + img + mark + (key ? '<span class="dsr-mont-lab' + (colorScene ? ' dl-' + colorScene : '') + '">' + esc(key) + '</span>' : '') + '</button>';
@@ -12067,7 +12072,7 @@ window._lockMark = function(isOpen, px, label){
     if (!Array.isArray(mf) || !mf.length) return '';
     return '<div class="dsr-missed">' + mf.slice(0, 24).map(function(f){
       var lab = f.label ? esc(String(f.label)) : '<span class="dmr-none">— unreadable text —</span>';
-      var jump = (f.frameId || f.ts) ? ' onclick="window._tvdJumpFind(event,' + (Number(sm.n) || 0) + ',&quot;' + esc(String(f.frameId || '')) + '&quot;,' + (Number(f.ts) || 0) + ')"' : '';
+      var jump = (f.frameId || f.ts) ? ' onclick="window._tvdJumpFind(event,' + (Number(sm.n) || 0) + ',&quot;' + esc(String(f.frameId || '')) + '&quot;,' + (Number(f.ts) || 0) + ',&quot;' + esc(String(sm.sessionId || '').replace(/"/g, '')) + '&quot;)"' : '';
       return '<button type="button" class="dsr-miss-row"' + jump + '><span class="dmr-ic">🔍</span><span class="dmr-t">' + lab + '</span><span class="dmr-jump">jump →</span></button>';
     }).join('') + '</div>';
   }
@@ -12090,7 +12095,7 @@ window._lockMark = function(isOpen, px, label){
       + (n === 1 ? 'an item' : n + ' items') + ' worth keeping</div>';
     if (Array.isArray(items) && items.length){
       var rows = items.slice(0, 12).map(function(it){
-        var jump = (it.frameId || it.ts) ? ' onclick="window._tvdJumpFind(event,' + (Number(sm.n) || 0) + ',&quot;' + esc(String(it.frameId || '')) + '&quot;,' + (Number(it.ts) || 0) + ')"' : '';
+        var jump = (it.frameId || it.ts) ? ' onclick="window._tvdJumpFind(event,' + (Number(sm.n) || 0) + ',&quot;' + esc(String(it.frameId || '')) + '&quot;,' + (Number(it.ts) || 0) + ',&quot;' + esc(String(sm.sessionId || '').replace(/"/g, '')) + '&quot;)"' : '';
         return '<button type="button" class="dsr-regret-row"' + jump + '><span class="drg-n">' + esc(it.name || '?') + '</span><span class="drg-jump">jump →</span></button>';
       }).join('');
       return '<div class="dsr-regret">' + head + '<div class="dsr-regret-list">' + rows + '</div></div>';

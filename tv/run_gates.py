@@ -9069,6 +9069,12 @@ GATES = [
          why=("REG-2060 (#243) - the watchdog's cheap end-routes row cost 5-6 s against a 3 s budget: end_routes.report "
               "rebuilt the durable witness index once per reel (182 store passes on his Mac).")
          ),
+    Gate("test_a_find_opens_its_own_reel", [sys.executable,
+         os.path.join(HERE, "test_a_find_opens_its_own_reel.py")], 30,
+         needs_app=False,
+         why=("REG-2061 (#293, GrokBot 420-421) - '+51 more' on Session 28 played Session 48's film under a SESSION 28 "
+              "header: the find doors passed only the number, read as a position.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

@@ -406,6 +406,15 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2061 - "+51 MORE" ON SESSION 28 PLAYED SESSION 48 (2026-10-08, #293)
+
+GrokBot ticks 420-421 (v3622): TV·D "+51 more" opened "THEATRE · SESSION 28" whose info line was Session 48's ("session
+48/216 · film 19 · all 28 photos") - confirmed by opening 48 from its own card. The find doors (the "+N more" link, each
+find card, the dossier montage / evidence / timeline jumps) called `_tvdJumpFind(event, n, frameId, ts)` with the NUMBER
+only, and `thLoadSession` reads a bare number as a POSITION in its newest-first list (REG-1933); #135 had made every
+dossier door pass its id and never reached these eight. Every find door now passes the reel's session id, and
+`_thJumpToFind` hands it to `thLoadSession`, which finds the reel by it. Law: test_a_find_opens_its_own_reel.
+
 ### REG-2060 - THE WATCHDOG'S "CHEAP" END-ROUTES ROW COST 6 SECONDS AND GREW WITH EVERY REEL (2026-10-08, #243)
 
 It blocked the v3623 push: test_control's "the cheap subset is actually CHEAP" refused "end routes reachable (5043 ms,
