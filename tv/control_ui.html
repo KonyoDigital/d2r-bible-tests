@@ -1118,6 +1118,10 @@
   .rcpt-banked { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); color: #9ec7a6;
     background: rgba(102,255,136,.08); border: 1px solid rgba(102,255,136,.28);
     border-radius: 6px; padding: 2px 6px; margin-left: 6px; white-space: nowrap; }
+  /* REG-2036 - KEPT ON YOU: owned and carried, between "seen" and "registered" */
+  .rcpt-kept { font: var(--fw-semibold) var(--fs-2xs)/1 var(--mono); color: #d8c48a;
+    background: rgba(216,196,138,.08); border: 1px solid rgba(216,196,138,.28);
+    border-radius: 6px; padding: 2px 6px; margin-left: 6px; white-space: nowrap; }
   .brain .line.mind-scene { color: #9db8d8; }
   .brain .line.mind-scene .k { filter: drop-shadow(0 0 5px rgba(120,160,220,.5)); }
   .brain .line.mind-ocr   { color: #c7b6e6; }
@@ -9471,7 +9475,10 @@ window._lockMark = function(isOpen, px, label){
        ⚠ null is UNKNOWN and gets NO chip: most lanes do not carry the fact, and a "not registered"
        chip on a read that WAS registered is worse than the silence it replaces. */
     var own = r.own || {};
-    var ownChip = (own.banked === false)
+    /* REG-2036 (#212 F13) - an inventory read is found and KEPT ON YOU (his 2026-10-07 ruling), never "registered" */
+    var ownChip = own.kept
+      ? '<span class="rcpt-kept" title="' + esc(own.why || 'found and kept on you') + '">🎒 kept on you</span>'
+      : (own.banked === false)
       ? '<span class="rcpt-seen" title="' + esc(own.why || 'seen, not registered') + '">👁 seen</span>'
       : (own.banked === true
          ? '<span class="rcpt-banked" title="' + esc(own.why || 'registered') + '">🗄 registered</span>'

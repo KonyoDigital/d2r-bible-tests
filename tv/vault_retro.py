@@ -1378,6 +1378,8 @@ def _name_folder(resolve=None):
     # roster names EXACTLY (_norm folds ’ to ' and strips non-letters).
     # WHAT IT DELIBERATELY DOES NOT FIX: "Battlecage" -> "Rattlecage". That needs a near match, and
     # an uncorrected row he can SEE is better than a confident wrong attribution he cannot.
+    joined = _base_joined_keys(_res._norm)
+
     def fold(name):
         try:
             k = _res._norm(name)
@@ -1388,9 +1390,42 @@ def _name_folder(resolve=None):
         for r in (roster, set_roster):
             if r and k in r:
                 return r[k]
+        # REG-2036 (#212 F14) - THE TOOLTIP'S BASE LINE JOINED TO ITS NAME. MEASURED on frame f_1791058494714:
+        # "Dwarf Star" and "Dwarf Star Ring" were both stored from ONE tooltip - the reader joined the unique's name
+        # to the base line under it. Still EXACT: a name folds only when it is a roster item's name followed by THAT
+        # item's own base (the game's tables: Dwarf Star is a 'rin', a Ring), so "Dwarf Star Ring" -> "Dwarf Star"
+        # and "Dwarf Star Amulet" stays as read.
+        j = joined.get(k)
+        if j:
+            for r in (roster, set_roster):
+                if r and j in r:
+                    return r[j]
         return name           # a rune, a gem, a base, a charm — not debris, just not a grail name
 
     return fold
+
+
+def _base_joined_keys(norm):
+    """{norm(item name + its own base name): norm(item name)} for every unique and set item in the game's tables.
+
+    From tv/item_tables.json (generated from the CASC): each unique / set item carries its base code, and the
+    base code names its base. Unreadable tables -> {} (the fold stays exact-only, as it was), never a guess.
+    """
+    out = {}
+    try:
+        with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "item_tables.json"),
+                  encoding="utf-8") as fh:
+            t = json.load(fh)
+        bases = t.get("items") or {}
+        for grp in ("uniques", "setItems"):
+            for row in (t.get(grp) or {}).values():
+                b = (bases.get(row.get("code")) or {}).get("name")
+                n = row.get("name")
+                if b and n and norm(b) and not norm(n).endswith(norm(b)):
+                    out.setdefault(norm(n + " " + b), norm(n))
+    except Exception:
+        return {}
+    return out
 
 
 def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=None,
@@ -1795,7 +1830,9 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
     for _row in (prior_seen or []):
         if not isinstance(_row, dict):
             continue
-        _nm = str(_row.get("name") or "").strip()
+        # REG-2036 (#212 F14) - an earlier sighting passes the SAME exact fold as a fresh read, so a row stored as
+        # "Dwarf Star Ring" before the base-line fold existed corroborates "Dwarf Star" instead of living beside it
+        _nm = _fold(str(_row.get("name") or "").strip())
         _ln = str(_row.get("lane") or "").strip().lower()
         if not _nm or _ln not in LANES:
             continue

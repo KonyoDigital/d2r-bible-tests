@@ -406,6 +406,20 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2036 - A READ SAID MORE THAN IT WAS: AN INVENTORY READ "REGISTERED", ONE TOOLTIP TWO ITEMS, A DIRECTORY AS A REEL (2026-10-08, #212)
+
+From the 2026-10-07 simulation pass on his real reels (F13-F15). F13: _receipts_stream marked banked for any scene in
+vault_retro.OWNERSHIP_SURFACES, which includes 'inventory', so an inventory read wore "registered" while the lifecycle
+only holds it; his 10-07 ruling is found + "Kept on you", never a stash witness - it now says "kept on you". F14:
+"Dwarf Star" and "Dwarf Star Ring" were both stored from one tooltip (f_1791058494714) - the reader joined the name to
+the base line under it and the vault fold is exact-only. A name now folds when it is a roster item's name followed by
+THAT item's own base from the game's tables (still exact: "Dwarf Star Amulet" stays as read), and an earlier sighting
+goes through the same fold so the stored "Dwarf Star Ring" row corroborates "Dwarf Star" on the next sweep. F15:
+/api/evidence listed "hist" and a bare "s_..." id as reels; a bare id is now spelled as its reel path and anything
+else is a row whose reel is UNKNOWN. NOT FIXED HERE: 'Ice' + 'Gorgon Crossbow' + 'Ice Gorgon Crossbow' (a runeword on
+its base) - folding a runeword needs the runeword-on-base naming his #174 wave-2 answer settles.
+Law: test_a_read_says_what_it_is_once (4 red-proofs).
+
 ### REG-2035 - TWO UNIQUES NUMBERS FOR ONE BOARD, AND A PEER'S OWN COUNT RE-COUNTED FROM ITS MASK (2026-10-08, #213)
 
 His ruling 2026-10-07: the board's uniques headline is THE number; the console and the fleet card read it, never

@@ -16472,10 +16472,17 @@ def _receipts_stream():
             # would have seen "not registered" beside reads that were. So this now answers only
             # where it can, and says UNKNOWN otherwise. [[unknown-stays-unknown]]
             _SEEN_ONLY = ("loot", "gameplay", "town", "transition", "session_end")
+            # ⚖ REG-2036 (#212 F13) - HIS RULING 2026-10-07: an inventory read is FOUND + "Kept on you" - owned for
+            # the grail, never a stash witness. 'inventory' is one of vault_retro.OWNERSHIP_SURFACES (the vault
+            # lane's focus words), so the branch below called it "registered" while the lifecycle only HOLDS it.
+            _KEPT_ON_YOU = ("inventory",)
             _sl = (scene or "").lower()
             if _sl in _SEEN_ONLY:
                 _own = {"banked": False, "scene": _sl,
                         "why": "read from the %s view — seen, not registered" % _sl}
+            elif _sl in _KEPT_ON_YOU:
+                _own = {"banked": False, "kept": True, "scene": _sl,
+                        "why": "read from your inventory — found and kept on you, not registered to a locker"}
             else:
                 try:
                     _surfaces = getattr(_vault_retro(), "OWNERSHIP_SURFACES", ())
@@ -37036,6 +37043,19 @@ def _stamp_math_broke(where, exc):
 # name a LANE. [[label-outlived-referent]]
 
 
+_EVIDENCE_REEL_RE = re.compile(r"^(?:reel_)?(s_\d+_\d+)$")
+
+
+def _evidence_reel_id(r):
+    """A sighting's reel field as the reel's directory name ('reel_s_<ms>_<n>'), or None when it is not a reel.
+
+    REG-2036 (#212 F15) - /api/evidence listed "hist" and a bare "s_1788194356763_27344" as reels. A bare session id is
+    the same reel under read_reel's sessionId fallback, so it is spelled as the path; anything else names no reel.
+    """
+    m = _EVIDENCE_REEL_RE.match(str(r or "").strip())
+    return ("reel_" + m.group(1)) if m else None
+
+
 def evidence_for(name, ledger=None):
     """WHY does the board believe he has this? -> the sightings that earned the tick.
 
@@ -37112,7 +37132,10 @@ def evidence_for(name, ledger=None):
         reels, lanes, frames, _reel_keys = [], [], [], set()
         found_at = dropped_by = None
         for sg in uniq:
-            r = sg.get("reel")
+            # REG-2036 (#212 F15) - only a REEL is listed as one: "hist" (a directory) and a bare "s_..." session id were
+            # listed beside reel_s_... paths; a bare id now reads as its reel path, anything else is a row whose reel is
+            # UNKNOWN (counted in _unplaced below), never a reel a surface tries to open.
+            r = _evidence_reel_id(sg.get("reel"))
             if r and _rk(r) not in _reel_keys:
                 _reel_keys.add(_rk(r))
                 reels.append(r)
@@ -37139,7 +37162,7 @@ def evidence_for(name, ledger=None):
         # and chronicle_retro.witnesses already tags it `hand`. Only a NON-manual row with no reel
         # leaves which reel it came from unknown. [[manual-tally-is-witness]] [[unknown-stays-unknown]]
         _hand = sum(1 for sg in uniq if _is_hand_row(sg))
-        _unplaced = sum(1 for sg in uniq if not sg.get("reel") and not _is_hand_row(sg))
+        _unplaced = sum(1 for sg in uniq if not _evidence_reel_id(sg.get("reel")) and not _is_hand_row(sg))
         if _cr is None:
             wit_why = _cr_why
         else:

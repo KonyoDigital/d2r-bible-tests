@@ -8952,6 +8952,12 @@ GATES = [
          why=("REG-2035 (#213, his 10-07 ruling) - the board's uniques headline is THE number: a SYNCED peer's own count was "
               "re-counted from its mask (GrokBot 308 shown as 309) and the cross-reference said his mask's 327 as yours beside his board's 326.")
          ),
+    Gate("test_a_read_says_what_it_is_once", [sys.executable,
+         os.path.join(HERE, "test_a_read_says_what_it_is_once.py")], 120,
+         needs_app=False,
+         why=("REG-2036 (#212, the 10-07 sim pass) - an inventory read wore the 'registered' chip (his ruling: found + kept on you), "
+              "one tooltip became 'Dwarf Star' and 'Dwarf Star Ring', and /api/evidence listed 'hist' and a bare session id as reels.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,
