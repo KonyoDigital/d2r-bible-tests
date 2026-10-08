@@ -84,20 +84,6 @@ class ALawIsToldHowManyLanesRun(unittest.TestCase):
         self.assertEqual(blk.count(BRANCH), 1, "the cheap-subset case lost its lanes branch, or it now fires at 1 lane")
         self.assertEqual(blk.count('_lanes = int(os.environ.get("HEART2_LANES") or 1)'), 1)
 
-    def test_the_button_matrix_waits_longer_only_beside_other_lanes(self):
-        """REG-2122 - the v3631 push proved test_button_matrix beside four lanes and its fixed 20 s 'STOP -> dark' wait timed
-        out (already red untampered). Its waits now double with the prover's deadline when HEART2_LANES > 1, and never alone."""
-        import subprocess, sys
-        got = {}
-        for lanes in ("4", "1", ""):
-            env = dict(os.environ)
-            env["HEART2_LANES"] = lanes
-            r = subprocess.run([sys.executable, "-c", "import test_button_matrix as M; print(M._WAIT_SCALE)"],
-                               cwd=HERE, env=env, capture_output=True, text=True, timeout=60)
-            self.assertEqual(r.returncode, 0, r.stderr[-400:])
-            got[lanes] = r.stdout.strip().splitlines()[-1]
-        self.assertEqual(got, {"4": "2", "1": "1", "": "1"}, "the matrix's waits do not follow the lanes beside it: %r" % got)
-
 
 RED_PROOF = [
     {"why": "REG-1997 - the prover stops telling a law how many lanes run beside it, so a cost law judges the prover's load",
@@ -114,11 +100,6 @@ RED_PROOF = [
      "file": "tv/test_control.py",
      "find": "        if _lanes > 1:\n",
      "replace": "        if _lanes > 0:\n",
-     "matches": 1},
-    {"why": "REG-2122 - the button matrix's waits stay fixed beside four proving lanes (STOP -> dark timed out on the v3631 push)",
-     "file": "tv/test_button_matrix.py",
-     "find": "_WAIT_SCALE = 2 if _LANES > 1 else 1\n",
-     "replace": "_WAIT_SCALE = 1\n",
      "matches": 1},
 ]
 

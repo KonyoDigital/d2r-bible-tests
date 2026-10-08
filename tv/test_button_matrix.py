@@ -117,16 +117,7 @@ def post(path, t=30, body=None):
         return json.loads(r.read().decode())
 
 
-# REG-2122 - THE WAITS WERE A ONE-MACHINE GUESS. The v3631 push proved this law beside four proving lanes and "STOP → dark"
-# timed out at 20 s, already red untampered, so the push refused (it passed alone and in both gate lanes). The prover tells a
-# law how many lanes run beside it (HEART2_LANES, REG-1997) and doubles its deadline for them; the waits inside it now double
-# with it. A wait that succeeds still returns at once - only a real timeout takes longer.
-_LANES = int(os.environ.get("HEART2_LANES") or 1) if str(os.environ.get("HEART2_LANES") or "1").isdigit() else 1
-_WAIT_SCALE = 2 if _LANES > 1 else 1
-
-
 def wait_mode(want, sec=20, bridge=None):
-    sec = sec * _WAIT_SCALE   # REG-2122
     t0 = time.time()
     last = None
     while time.time() - t0 < sec:
@@ -147,7 +138,6 @@ def wait_mode(want, sec=20, bridge=None):
 
 
 def wait_agent(up: bool, sec=15):
-    sec = sec * _WAIT_SCALE   # REG-2122
     t0 = time.time()
     while time.time() - t0 < sec:
         try:
@@ -229,7 +219,7 @@ def main():
     # for up to 15 s - a SIM agent that is really gone never answers it, and the last sample is what the failure prints.
     time.sleep(2)
     s, _ok = {}, False
-    for _i in range(15 * _WAIT_SCALE):   # REG-2122
+    for _i in range(15):
         try:
             s = get(CTRL + "/api/status") or {}
         except Exception:
