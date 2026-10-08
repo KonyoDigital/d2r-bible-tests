@@ -34,6 +34,12 @@ RED_PROOF = [
      "find": "var stats = tile('AI reads', (sm.reads != null ? sm.reads : '—'))",
      "replace": "var stats = tile('reads', (sm.reads != null ? sm.reads : '—'))",
      "matches": 1},
+    # #231 eye on v3623: the proof above reverted only the tile; the coverage half of the law was never seen red
+    {"why": "REG-2049 - the coverage line calls item-text moments 'item reads' again",
+     "file": "control_ui.html",
+     "find": "? ' item moments read · full coverage' : ' item moments read';",
+     "replace": "? ' item reads · full coverage' : ' item reads';",
+     "matches": 1},
 ]
 
 
