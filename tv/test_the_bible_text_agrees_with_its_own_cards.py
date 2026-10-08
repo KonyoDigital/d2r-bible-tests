@@ -341,6 +341,49 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         self.assertEqual(bad, [], "a key's rate disagrees with its own card:\n  " + "\n  ".join(bad))
 
 
+    def test_the_colossal_jewel_note_says_what_each_jewel_carries(self):
+        """REG-2120 (#309 (4), the #231 eye on v43; sourced 2026-10-09: maxroll + diablobytes) - the aggregate note said EACH of the
+        six jewels carries +skill damage and -enemy element resist; the page's own Protector's Stone carries +Enhanced Damage and
+        -enemy PHYSICAL resistance and no skill damage. Derived from the six jewels' own stats: one that lacks skill damage must be
+        named in the note as the one without it, and no 'Each:' clause may promise skill damage."""
+        s = _src()
+        jewels = {m.group(1): m.group(2) for m in re.finditer(
+            r'"((?:Defender|Protector|Guardian)\'s [A-Z][a-z]+)": \{"rarity":"unique","base":"Colossal Jewel"[^\n]*?"stats":\[([^\]]*)\]', s)}
+        self.assertEqual(len(jewels), 6, "premise: the six Colossal Jewels carry their stats (%r)" % sorted(jewels))
+        without = sorted(n for n, st in jewels.items() if "Skill Damage" not in st)
+        i = s.find('{n: "Colossal Ancient Jewels", from:')
+        self.assertGreater(i, 0, "the Colossal Jewels material row is gone - re-point this law")
+        note = re.search(r'note: "([^"]*)"', s[i:s.find("\n", i)]).group(1)
+        self.assertIsNone(re.search(r"Each:[^.;]*skill", note), "an 'Each:' clause promises skill damage to every jewel: %r" % note)
+        for n in without:
+            self.assertIn(n, note, "%s carries no skill damage and the note does not say which jewel is the exception" % n)
+        self.assertIn("no skill damage", note)
+
+    def test_no_text_gives_an_ancient_one_jewel(self):
+        """REG-2120 (#309 (3)) - six jewels, two per Ancient, and the Ancient killed last decides the PAIR (the page's own
+        COLOSSAL table lists two per Ancient). Four sentences said 'the jewel matching the Ancient killed last', as if one."""
+        s = _src()
+        pairs = re.findall(r"drop:'Colossal Ancient Jewels', jewels:\[([^\]]*)\]", s)
+        self.assertEqual(len(pairs), 3, "premise: the three Ancients each list their jewels (%d)" % len(pairs))
+        self.assertEqual([len(re.findall(r'"([^"]+)"', p)) for p in pairs], [2, 2, 2], "an Ancient no longer lists two jewels")
+        singular = re.findall(r"(?:the jewel|the one) matching the Ancient", s)
+        self.assertEqual(singular, [], "a sentence gives the last-killed Ancient ONE jewel again: %r" % singular)
+
+    def test_black_cleft_takes_three_shards_wherever_a_recipe_is_told(self):
+        """REG-2120 (#309 (5); maxroll sundered-charms + wikiwiki.jp agree) - every Renewed charm takes one Worldstone Shard
+        except Black Cleft, which takes three (Southern + Deep + Northern). The category recipe said one for all, the shard blurb
+        said each shard upgrades 'a specific' charm (three of them feed two), and Black Cleft's own note read 'Worldstone Shard
+        (Northern)s'."""
+        s = _src()
+        i = s.find("  sunder: {"); j = s.find("  worldstoneShard: {", i); k = s.find("  cowAccess: {", j)
+        self.assertTrue(0 < i < j < k, "the sunder / shard material entries moved - re-point this law")
+        sunder, shard = s[i:j], s[j:k]
+        recipe = re.search(r'\n    recipe: "([^"]*)"', sunder).group(1)
+        self.assertIn("Black Cleft takes three", recipe, "the Sunder recipe tells one shard for every charm again: %r" % recipe)
+        cleft = re.search(r'\{n: "Black Cleft"[^\n]*', sunder).group(0)
+        self.assertIn("three Worldstone Shards (Southern + Deep + Northern)", cleft, "Black Cleft's own recipe lost its three shards")
+        self.assertNotIn("Each shard upgrades a specific", shard, "the shard blurb gives every shard one charm again")
+
 RED_PROOF = [
     {"why": "REG-2089 - Veil of Steel's tagline swaps its resist and defense figures again",
      "file": "bible.html",
@@ -461,6 +504,21 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "'Hell Summoner · Arcane Sanctuary','~9-13% · Hell only'",
      "replace": "'Hell Summoner · Arcane Sanctuary','~10% · Hell only'",
+     "matches": 1},
+    {"why": "REG-2120 - the Colossal note promises skill damage to every jewel again",
+     "file": "bible.html",
+     "find": "Each: a 1% chance to cast a spell when struck, +3-5% experience",
+     "replace": "Each: a 1% chance to cast a spell when struck, +5-10% to that skill damage, +3-5% experience",
+     "matches": 1},
+    {"why": "REG-2120 - a sentence gives the last-killed Ancient one jewel again",
+     "file": "bible.html",
+     "find": "You keep one of the two jewels matching the Ancient killed <strong>last</strong>.</div>",
+     "replace": "You keep the jewel matching the Ancient killed <strong>last</strong>.</div>",
+     "matches": 1},
+    {"why": "REG-2120 - the Sunder recipe tells one shard for Black Cleft too",
+     "file": "bible.html",
+     "find": "; Black Cleft takes three (Southern + Deep + Northern). Source: Maxroll.",
+     "replace": ". Source: Maxroll.",
      "matches": 1},
 ]
 

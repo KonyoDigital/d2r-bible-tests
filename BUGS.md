@@ -406,6 +406,21 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2120 - THE COLOSSAL JEWELS AND THE SUNDER RECIPE, TOLD FROM A SOURCE (2026-10-09, #309 (3)(4)(5))
+
+The #231 eye's v43 looks found bible.html contradicting itself on Reign of the Warlock content; each item was held until a
+source was read (never a pick). Sourced 2026-10-09: maxroll.gg/d2/resources/sundered-charms and wikiwiki.jp (Black Cleft) agree
+on the Renewed recipes; diablobytes' Colossal Ancients guide and an Icy Veins summary agree on the jewels (diablobytes' SUNDER page
+has its rows shuffled - not used). Fixed: (3) four sentences gave the last-killed Ancient ONE jewel - there are six, two per
+Ancient, and the last kill decides the pair; (4) the aggregate note gave all six +skill damage and -enemy element res - the page's
+own Protector's Stone carries +30-50% ED, Damage +10-30 and -enemy PHYSICAL res, no skill damage (and its when-struck cast is
+Fade, not an armor); (5) the Sunder recipe told one shard for every charm - Black Cleft takes three (Southern + Deep + Northern),
+its own note read "Worldstone Shard (Northern)s", and the shard blurb gave each shard "a specific" charm (three feed two).
+Laws derive from the page: the note is checked against the six jewels' own stats, the singular sentence against the COLOSSAL
+table's two-per-Ancient pairs. 3 red-proofs, each red on its own case. Still OPEN on #309: (1) essence rates (no source read)
+and (2) "Colossal Ancient Jewels" vs the sources' "Colossal Jewels" - that string is also the material's internal id in ~30
+places, so it is a display-name change with the id kept, its own batch.
+
 ### REG-2115 - THE UPDATE BAR'S WAIT LABEL WAS THE FIRST THING TO GIVE, AND THE RENDER GATE CALLED A 0px LABEL CLEAN (2026-10-09, #315)
 
 His screenshot 2026-10-08 23:43: "not now - a read is in flight · waiting for it to fi…". Measured in headless Chrome at 1120:

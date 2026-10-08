@@ -11918,9 +11918,9 @@ const SPECIAL_DROPS = {
   colossalJewel: {
     label: "Colossal Ancient Jewels",
     icon: "💎",
-    blurb: "Six element-themed unique jewels (ilvl 75) - strictly better than Rainbow Facets. From the Colossal Ancient encounter; you get the one matching the Ancient you kill last. 1 per character.",
+    blurb: "Six element-themed unique jewels (ilvl 75) - strictly better than Rainbow Facets. From the Colossal Ancient encounter - six jewels, two per Ancient; the Ancient you kill last decides which pair, and you get one of its two. 1 per character.",
     items: [
-      {n: "Colossal Ancient Jewels", from: ["Colossal Ancient encounter - by last Ancient killed"], rate: "1 per character (pinnacle reward)", note: "6 variants: Bile (poison), Thunder (lightning), Frost (cold), Fire (fire), Stone (physical), Light (magic). Each: 1% chance-to-cast its element armor when struck, +element damage, +5-10% to that skill-damage type, -5-10% to enemy element resist, +3-5% experience, +25-50% extra gold, +15-35% MF. Per-jewel affixes in the Colossal Ancients event card. Source: Maxroll."}
+      {n: "Colossal Ancient Jewels", from: ["Colossal Ancient encounter - by last Ancient killed"], rate: "1 per character (pinnacle reward)", note: "6 variants, two per Ancient: Bile (poison), Thunder (lightning), Frost (cold), Fire (fire), Stone (physical), Light (magic). Each: a 1% chance to cast a spell when struck, +3-5% experience, +25-50% extra gold, +15-35% MF. The five elemental ones add their element's damage, +5-10% to that element's skill damage and -5-10% to enemy resistance of it; Protector's Stone instead adds +30-50% Enhanced Damage, Damage +10-30 and -5-10% to enemy physical resistance - no skill damage. Per-jewel affixes in the Colossal Ancients event card. Source: Maxroll."}
     ],
     recipe: "Reward of the Colossal Ancient fight - not a cube ingredient"
   },
@@ -11939,18 +11939,18 @@ const SPECIAL_DROPS = {
     blurb: "Immunity-breaking grand charms - Latent versions drop only from Hell Terror-Zone Heralds of Terror; each breaks one immunity to ~95% resist. Upgrade to Renewed via a cube recipe for extra random stats.",
     items: [
       {n: "Bone Break", from: ["Hell TZ Heralds of Terror"], rate: "Latent drops from Heralds", does: "Grand charm. Sunders PHYSICAL immunity - physical-immune monsters (>=100% res) are floored to ~95% resist, so physical and melee skills finally chip them instead of dealing zero. Hell only; the ~95% floor still cuts most of your damage, so stack Amplify Damage, -enemy-physical-res and Crushing Blow to push it lower. Only ONE Sunder can be active at a time. The Konyolock physical Assassin runs this to clear physical-immune Hell packs.", note: "Breaks PHYSICAL immunity to ~95%. Best for Konyolock. Renewed upgrade: Latent Bone Break + Perfect Amethyst + Pul rune + Worldstone Shard (Northern)."},
-      {n: "Black Cleft", from: ["Hell TZ Heralds of Terror"], rate: "Latent drops from Heralds", does: "Grand charm. Sunders MAGIC immunity - the rare but brutal magic-immune monsters are floored to ~95% resist. Hell only; pair with -enemy-magic-res to push below the floor. Only ONE Sunder active at a time. The Konyodin Hammerdin needs this above all: Blessed Hammer deals magic damage, so magic-immune packs are otherwise a hard wall.", note: "Breaks MAGIC immunity to ~95%. Best for Konyodin. Renewed upgrade: Latent Black Cleft + Perfect Diamond + Mal rune + Southern + Deep + Worldstone Shard (Northern)s."},
+      {n: "Black Cleft", from: ["Hell TZ Heralds of Terror"], rate: "Latent drops from Heralds", does: "Grand charm. Sunders MAGIC immunity - the rare but brutal magic-immune monsters are floored to ~95% resist. Hell only; pair with -enemy-magic-res to push below the floor. Only ONE Sunder active at a time. The Konyodin Hammerdin needs this above all: Blessed Hammer deals magic damage, so magic-immune packs are otherwise a hard wall.", note: "Breaks MAGIC immunity to ~95%. Best for Konyodin. Renewed upgrade: Latent Black Cleft + Perfect Diamond + Mal rune + three Worldstone Shards (Southern + Deep + Northern)."},
       {n: "Crack of the Heavens", from: ["Hell TZ Heralds of Terror"], rate: "Latent drops from Heralds", does: "Grand charm. Sunders LIGHTNING immunity - lightning-immune monsters drop to ~95% resist. Hell only; stack Conviction and -enemy-lightning-res to go lower. Only ONE Sunder at a time. The Konyoress lightning sorc uses this so Lightning and Chain Lightning can hit the many lightning-immune Hell monsters.", note: "Breaks LIGHTNING immunity to ~95%. Best for Konyoress. Renewed upgrade: Latent Crack of the Heavens + Perfect Topaz + Fal rune + Worldstone Shard (Southern)."},
       {n: "Cold Rupture", from: ["Hell TZ Heralds of Terror"], rate: "Latent drops from Heralds", does: "Grand charm. Sunders COLD immunity - cold-immune monsters drop to ~95% resist. Hell only; add -enemy-cold-res to push lower. Only ONE Sunder at a time. Best for a Frozen Orb or Blizzard sorc breaking the heavy cold-immune presence in Hell.", note: "Breaks COLD immunity to ~95%. Renewed upgrade: Latent Cold Rupture + Perfect Sapphire + Lum rune + Worldstone Shard (Eastern)."},
       {n: "Flame Rift", from: ["Hell TZ Heralds of Terror"], rate: "Latent drops from Heralds", does: "Grand charm. Sunders FIRE immunity - fire-immune monsters drop to ~95% resist. Hell only; pair with Conviction and -enemy-fire-res to go lower. Only ONE Sunder at a time. Best for a Fireball or Meteor sorc clearing fire-immune packs.", note: "Breaks FIRE immunity to ~95%. Renewed upgrade: Latent Flame Rift + Perfect Ruby + Io rune + Worldstone Shard (Deep)."},
       {n: "Rotting Fissure", from: ["Hell TZ Heralds of Terror"], rate: "Latent drops from Heralds", does: "Grand charm. Sunders POISON immunity - poison-immune monsters drop to ~95% resist. Hell only; -enemy-poison-res pushes it lower. Only ONE Sunder at a time. Best for a Poison Necromancer so Poison Nova finally lands on the poison-immune monsters of Hell.", note: "Breaks POISON immunity to ~95%. Renewed upgrade: Latent Rotting Fissure + Perfect Emerald + Ko rune + Worldstone Shard (Western)."}
     ],
-    recipe: "Renewed upgrade (per charm): Latent Sunder + Perfect Gem + Rune + Worldstone Shard -> Renewed (adds random stats). Source: Maxroll."
+    recipe: "Renewed upgrade (per charm): Latent Sunder + Perfect Gem + Rune + one Worldstone Shard -> Renewed (adds random stats); Black Cleft takes three (Southern + Deep + Northern). Source: Maxroll."
   },
   worldstoneShard: {
     label: "Worldstone Shards",
     icon: "💠",
-    blurb: "Drop from Hell TZ zones. MF does NOT affect shard rate. Each shard upgrades a specific Latent Sunder Charm into its Renewed version via cube (Latent + Perfect Gem + Rune + Shard).",
+    blurb: "Drop from Hell TZ zones. MF does NOT affect shard rate. Each Renewed Sunder recipe uses shards (Latent + Perfect Gem + Rune + Shard): Western and Eastern feed one charm each; Southern, Deep and Northern each feed one charm AND are one of the three shards Renewed Black Cleft takes.",
     items: [
       {n: "Worldstone Shard (Western)", from: ["Hell TZ Act 1 zones"], rate: "~1:500-1500", note: "Drops: Catacombs, Pit, Tristram, Black Marsh. -> Renewed Rotting Fissure (poison)."},
       {n: "Worldstone Shard (Eastern)", from: ["Hell TZ Act 2 zones"], rate: "~1:500-1500", note: "Drops: Far Oasis, Maggot Lair, Arcane Sanctuary, Tombs. -> Renewed Cold Rupture (cold)."},
@@ -12574,7 +12574,7 @@ function colossalJewelDetailHtml(name){
         <div class="zd-stat"><span class="zd-sk">per character</span><span class="zd-sv">1 (pinnacle reward)</span></div>
         <div class="zd-stat"><span class="zd-sk">MF affects?</span><span class="zd-sv">no — fixed pinnacle reward</span></div>
       </div>
-      <div class="zd-row"><span class="zd-k">you get this jewel by</span><span class="zd-v">killing <span class="zd-item-click" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="window.jumpToUberBoss&&window.jumpToUberBoss('${j.ancient.toLowerCase()}')">Colossal ${j.ancient} →</span> <strong>last</strong> in the encounter (you keep the jewel matching the Ancient killed last)</span></div>
+      <div class="zd-row"><span class="zd-k">you get this jewel by</span><span class="zd-v">killing <span class="zd-item-click" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="window.jumpToUberBoss&&window.jumpToUberBoss('${j.ancient.toLowerCase()}')">Colossal ${j.ancient} →</span> <strong>last</strong> in the encounter (the Ancient killed last decides the pair - this jewel is one of its two)</span></div>
       <div class="zd-row"><span class="zd-k">the other jewel ${j.ancient} can give</span><span class="zd-v"><span class="zd-item-click" data-arttip="${_d2artEsc(j.sister)}" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="window.openDrop('${_esc1(j.sister)}')">${j.sister} →</span></span></div>
     </section>
     <section class="gic-section">
@@ -12773,7 +12773,7 @@ function colossalAncientsDetailHtml(){
       <div class="gic-section-title">🎲 The roll &amp; the reward</div>
       <div class="zd-row"><span class="zd-k">immunities</span><span class="zd-v"><strong>One random immunity each, re-rolled every game</strong> (like vanilla Ancients). If all 3 share an unbreakable immunity, leave &amp; remake to re-roll.</span></div>
       <div class="zd-row"><span class="zd-k">level</span><span class="zd-v">mlvl Colossal — massively buffed HP / defense, they drop lvl-75 jewels</span></div>
-      <div class="zd-row"><span class="zd-k">you keep</span><span class="zd-v">the <span class="zd-item-click" data-arttip="Colossal Ancient Jewels" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="window.openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewel →</span> matching the Ancient you kill <strong>LAST</strong> — 1 per character</span></div>
+      <div class="zd-row"><span class="zd-k">you keep</span><span class="zd-v">the <span class="zd-item-click" data-arttip="Colossal Ancient Jewels" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-medium)" onclick="window.openDrop('Colossal Ancient Jewels')">Colossal Ancient Jewel →</span> matching the Ancient you kill <strong>LAST</strong> (one of its two) — 1 per character</span></div>
     </section>
     <div class="zd-note">⚠ Never bindable (Act-boss-class). Immunities vary per game so none are shown as fixed. Source: GAME_RULES / Maxroll (Reign of the Warlock).</div>
   </div>`;
@@ -31677,7 +31677,7 @@ function renderUberBossCards(){
     const _jewelChips = (b.jewels && b.jewels.length)
       ? '<div style="display:flex;flex-wrap:wrap;gap:7px;margin-top:7px">'
         + b.jewels.map((jn) => '<span class="zd-item-click" data-arttip="' + _d2artEsc(jn) + '" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-semibold);font-size:var(--fs-body);border:1px solid rgba(201,161,74,.4);border-radius:6px;padding:4px 9px;background:rgba(90,58,122,.18)" onclick="window.openDrop(\'' + jn.replace(/'/g, "\\'") + '\')">' + nameLogo(jn) + jn + ' →</span>').join('')
-        + '</div><div style="color:var(--gold-dim);font-size:var(--fs-meta);margin-top:5px;font-style:italic">You keep the jewel matching the Ancient killed <strong>last</strong>.</div>'
+        + '</div><div style="color:var(--gold-dim);font-size:var(--fs-meta);margin-top:5px;font-style:italic">You keep one of the two jewels matching the Ancient killed <strong>last</strong>.</div>'
       : '';
     const _headLink = (b.jewels && b.jewels.length)
       ? '<span class="zd-item-click" data-arttip="Colossal Ancient Jewels" style="cursor:pointer;color:var(--q-orange);font-weight:var(--fw-semibold);font-size:14px" onclick="window.openDrop(\'Colossal Ancient Jewels\')">' + nameLogo(_item) + _item + ' →</span>'
