@@ -406,6 +406,14 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2101 - THE UBER TRISTRAM LEAD SKIPPED THE ORGAN CUBE ITS OWN STEPS LIST (2026-10-08, #231 on v43 19cdf410)
+
+The lead read "Cube the 3 Pandemonium Keys -> red portal -> kill all three ubers in one room" over the card's own Step 2 (1 of
+each key -> a random mini-uber portal) and Step 3 (3 organs -> Uber Tristram), and gave the torch "+3 to a random class's skill
+tab" where ITEM_INFO says "+3 random class skills". Re-measured at HEAD: the look's other findings (a flat "+20 all res" on the
+torch and Annihilus, "3x Key of Terror -> Lilith", an Anya turn-in) are already gone. The same hour's 139f3a7b and d4c5a3d1
+looks were clean.
+
 ### REG-2100 - ELEVEN PLACES SAID THE KEYS NEED /PLAYERS 3+; THE CITED SOURCES SAY ANY /PLAYERS (2026-10-08, #231 on v43, #306)
 
 'drops require /players 3+', '/players 3+ required for the key to roll', 'Hell /p3+' and three guide rows at '~1:278 (/p3)' -

@@ -202,6 +202,18 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         self.assertEqual(stray, [], "a key is said to need /players 3+ again (or ~1:278): %r" % stray)
         self.assertIn("Keys are <strong>Hell only</strong>, at any /players", s, "premise: the keys card says Hell only")
 
+    def test_the_uber_lead_walks_the_steps_its_own_card_lists(self):
+        """REG-2101 (#231 eye on v43 19cdf410) - the Uber Tristram lead said 'Cube the 3 Pandemonium Keys -> red portal ->
+        kill all three ubers', skipping the mini-uber portals and the organ cube its own Step 2 and Step 3 describe, and gave
+        the torch '+3 to a random class's skill tab' (the torch's +3 is to one class's skills, as ITEM_INFO says)."""
+        s = _src()
+        self.assertIn("Step 2 — Cube 1 of each key → a random mini-uber portal", s, "premise: the card's own Step 2")
+        self.assertIn("Step 3 — Cube 3 organs → Uber Tristram portal", s, "premise: the card's own Step 3")
+        self.assertNotIn("Cube the 3 Pandemonium Keys → red portal", s, "the lead skips the organ cube its own steps list")
+        self.assertIn("→ cube the 3 organs → Uber Tristram →", s, "the lead no longer walks the organ step")
+        self.assertNotIn("skill tab", s[s.find("Hellfire Torch →"):s.find("Click it for the full material card.")],
+                         "the torch's +3 is narrowed to one skill tab again")
+
 
 RED_PROOF = [
     {"why": "REG-2089 - Veil of Steel's tagline swaps its resist and defense figures again",
@@ -248,6 +260,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "Keys are <strong>Hell only</strong>, at any /players - the chance rises a little at higher /players.",
      "replace": "Keys are <strong>Hell only</strong>, at any /players - the chance rises a little at higher /players. They require /players 3+ to roll.",
+     "matches": 1},
+    {"why": "REG-2101 - the Uber Tristram lead sends the three keys straight to the trio again, skipping the organ cube",
+     "file": "bible.html",
+     "find": "Cube 1 of each Pandemonium key → a mini-uber portal (each mini-uber drops one organ) → cube the 3 organs → Uber Tristram → kill all three ubers in one room.",
+     "replace": "Cube the 3 Pandemonium Keys → red portal → kill all three ubers in one room.",
      "matches": 1},
 ]
 
