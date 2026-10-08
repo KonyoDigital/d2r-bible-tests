@@ -38,6 +38,8 @@ ARMOR = "    if (ARMOR_RE.test(probe))   return {id:'uni-armor', why:'armor slot
 PARK = "    return {id:'uni-weap', why: base ? 'weapon — base: '+base\n"
 FOLD = "            if (!(_as && _as.unsorted)) return _as;"
 MAGIC_RARE = "      if (typeof magicFinds !== 'undefined' && magicFinds && magicFinds[name] && muleById('magic-rare')){\n"
+STUB_BASE = ("    if (ex && ex.val === 'tv' && _exBase && String(_exBase) === String(name) && !(typeof _baseRec === 'function' && "
+             "_baseRec(_exBase))) _exBase = '';\n    var base = (itip && itip.b) || (tip && tip.base) || _exBase || '';\n")
 AIC_WRITE = "      magicFinds[nm]=_rec;\n"
 AIC_ASK = "    try { var sg=suggestMule(nm); if(sg && sg.id!=='__throwout' && muleById(sg.id) && !assign[nm])"
 FILE_REFUSE = "    if (!home && sg && sg.unsorted) return { ok: false, refused: 'unsorted', why: nm + ': ' + sg.why };"
@@ -87,6 +89,16 @@ class ANameNothingKnowsGetsNoGuessedMule(unittest.TestCase):
         self.assertLess(s.index(AIC_WRITE), s.index(AIC_ASK),
                         "the checker asks the router before it has registered the find - the router cannot know it")
 
+    def test_a_tv_stubs_placeholder_base_is_not_a_base(self):
+        """REG-2096 (GrokBot tick 427, #294) - on his PC 'Bone Visor' is a TV vault stub, minted {base: its own name,
+        val:'tv'} because nothing knew it; the router read that placeholder as a base, never reached Unsorted, and
+        ARMOR_RE filed it by 'visor'. The stub's base counts only when the base table knows it - before Unsorted is asked."""
+        s, body = _router()
+        self.assertEqual(body.count(STUB_BASE), 1, "the router reads a TV stub's own name as its base again")
+        self.assertLess(body.index(STUB_BASE), body.index(UNKNOWN), "the placeholder rule comes after the Unsorted answer")
+        i = s.find("var _tvEntry = { rarity: _rq1 ? _rq1.q : 'basic', base: (_rq1 && _rq1.base) ? _rq1.base : name,")
+        self.assertGreater(i, 0, "premise: the vault still mints a stub whose base is its own name - re-point this law")
+
 
 RED_PROOF = [
     {"why": "REG-2080 - a name nothing knows reaches the keyword guess again (Bone Visor -> UNI-ARMOR)",
@@ -103,6 +115,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "      if (typeof magicFinds !== 'undefined' && magicFinds && magicFinds[name] && muleById('magic-rare')){\n",
      "replace": "      if (false){\n",
+     "matches": 1},
+    {"why": "REG-2096 - a TV stub's placeholder base keeps Bone Visor out of Unsorted again",
+     "file": "bible.html",
+     "find": "    if (ex && ex.val === 'tv' && _exBase && String(_exBase) === String(name) && !(typeof _baseRec === 'function' && _baseRec(_exBase))) _exBase = '';\n",
+     "replace": "",
      "matches": 1},
 ]
 

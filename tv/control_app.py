@@ -16038,8 +16038,10 @@ def _river_stuck_for_wire(now_ms=None, _rows=None, _shelf=None, _fixtures=None):
     for e in out:
         # REG-1987 - GrokBot tick 388: the tips ended "...the heart census is S" and "...the lane could not be". A bare
         # [:200] cut the lane's own sentence mid-word; _word_cut ends at a word and says it was cut (REG-1839's helper).
-        e["why"] = _word_cut(_river_stuck_why(e["station"]) if e.get("window") is not False
-                             else _river_owed_why(e["station"], _keep), 200)
+        # REG-2098 (GrokBot tick 427) - the owed sentence cuts its OWN lane reason before it adds the window prefix, so a
+        # station past the window and the same station inside it carry the same reason, and the fleet tip says it once.
+        e["why"] = (_word_cut(_river_stuck_why(e["station"]), 200) if e.get("window") is not False
+                    else _word_cut(_river_owed_why(e["station"], _keep), 280))
     return out
 
 
@@ -16050,8 +16052,10 @@ def _river_owed_why(station, keep):
     it waits behind that lane). Any other station - ROUTED, CAPTURE, TOMBSTONE - is the deleter's to clear,
     so the sentence is the debt and the retention pass's own last word on why it did not pay it."""
     if station in _RIVER_OWNER:
-        return "older than the newest %s - %s" % (keep, _river_stuck_why(station))
-    why = "older than the newest %s, still at %s, so the drain owes them a tombstone" % (keep, station)
+        return "older than the newest %s - %s" % (keep, _word_cut(_river_stuck_why(station), 200))
+    # REG-2098 - the station is the row's own label, so the sentence no longer repeats it: ROUTED and CAPTURE owing the
+    # same tombstone read word for word alike, and the tip names them together once ('still at ROUTED' kept them apart)
+    why = "older than the newest %s - the drain owes them a tombstone" % keep
     try:
         r = dict(_RETENTION)
         say = str(r.get("say") or "") if r.get("checked") is not None else ""

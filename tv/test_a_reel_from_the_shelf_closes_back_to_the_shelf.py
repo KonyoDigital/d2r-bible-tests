@@ -48,14 +48,16 @@ def _press(th, shelf_opens=True):
         raise AssertionError("node is not on this machine - this gate does not skip")
     js = """
 var TH = %s, CALLS = [], OV = { hidden: true };
-function $(id){ return id === 'th-shelfov' ? OV : null; }
+var FILM = { src: 'frame_0042.jpg', __url: 'frame_0042.jpg', __want: 'frame_0042.jpg', title: 'a frame',
+  removeAttribute: function(k){ delete this[k]; } };
+function $(id){ return id === 'th-shelfov' ? OV : (id === 'th-film' ? FILM : null); }
 function clearTimeout(){}
 function thShelf(on){ CALLS.push('shelf:' + on); if (on && %s) OV.hidden = false; }
 function thClose(){ CALLS.push('close'); }
 function thLit(){ CALLS.push('lit'); }
 %s
 thCloseReel();
-console.log(JSON.stringify({ calls: CALLS, th: TH, shelfShown: !OV.hidden }));
+console.log(JSON.stringify({ calls: CALLS, th: TH, shelfShown: !OV.hidden, film: { src: FILM.src || null, url: FILM.__url, want: FILM.__want } }));
 """ % (json.dumps(th), "true" if shelf_opens else "false", _cut(_src()))
     # the program goes in on STDIN - a law never hands node its program on argv
     r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=30)
@@ -73,6 +75,9 @@ class AReelFromTheShelfClosesBackToTheShelf(unittest.TestCase):
         self.assertTrue(out["th"]["shelfIsDoor"], "the shelf is not the door now - its ✕ would leave a bare stage")
         self.assertFalse(out["th"]["reelFromShelf"], "the mark survived the step back - a second ✕ would loop")
         self.assertFalse(out["th"]["playing"], "the reel kept playing under the shelf")
+        # REG-2095 (GrokBot tick 427) - the reel's last frame stayed painted under the gallery's see-through strip
+        self.assertEqual(out["film"], {"src": None, "url": "", "want": ""},
+                         "the reel's last frame is still on the stage under the shelf: %r" % out["film"])
 
     def test_a_reel_not_from_the_shelf_closes_the_theatre(self):
         out = _press({"open": True, "reelFromShelf": False, "shelfIsDoor": False})
@@ -110,6 +115,11 @@ RED_PROOF = [
      "file": "tv/control_ui.html",
      "find": "  $('th-close').onclick = thCloseReel;",
      "replace": "  $('th-close').onclick = thClose;",
+     "matches": 1},
+    {"why": "REG-2095 - the reel's last frame stays painted under the gallery after the step back",
+     "file": "tv/control_ui.html",
+     "find": "      try { var _fm = $('th-film'); if (_fm){ _fm.__want = ''; _fm.__url = ''; _fm.removeAttribute('src'); _fm.title = ''; } } catch (e) {}\n",
+     "replace": "",
      "matches": 1},
 ]
 

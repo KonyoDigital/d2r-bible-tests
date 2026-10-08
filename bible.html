@@ -17199,17 +17199,17 @@ window.setPiecesSectionHtml = setPiecesSectionHtml;
 
 const COUNTESS_RUNES = [
   {n:"Lo #28",norm:null,nm:null,hell:320197,hellTz:80000,use:"Fortitude, Grief"},
-  {n:"Ohm #27",norm:null,nm:null,hell:213465,hellTz:53000,use:"Beast, HotO"},
+  {n:"Ohm #27",norm:null,nm:null,hell:213465,hellTz:53000,use:"CtA, Faith, Doom"},
   {n:"Vex #26",norm:null,nm:null,hell:183073,hellTz:46000,use:"HotO, Phoenix"},
-  {n:"Gul #25",norm:null,nm:null,hell:122049,hellTz:31000,use:"Wrath, Bramble"},
-  {n:"Ist #24",norm:null,nm:null,hell:1110,hellTz:550,use:"CtA, Insight, +25% MF"},
+  {n:"Gul #25",norm:null,nm:null,hell:122049,hellTz:31000,use:"Death, Fury, Brand"},
+  {n:"Ist #24",norm:null,nm:null,hell:1110,hellTz:550,use:"CtA, Infinity, +25% MF"},
   {n:"Mal #23",norm:null,nm:null,hell:740,hellTz:370,use:"Last Wish, Grief"},
-  {n:"Um #22",norm:null,nm:null,hell:635,hellTz:320,use:"Smoke, Wealth"},
-  {n:"Pul #21",norm:null,nm:1800,hell:424,hellTz:210,use:"Spirit, Lionheart"},
+  {n:"Um #22",norm:null,nm:null,hell:635,hellTz:320,use:"CoH, Doom, Beast"},
+  {n:"Pul #21",norm:null,nm:1800,hell:424,hellTz:210,use:"HotO, Wrath, Dream"},
   {n:"Lem #20",norm:null,nm:1100,hell:319,hellTz:160,use:"Lawbringer, Treachery"},
   {n:"Io #16",norm:null,nm:240,hell:82,hellTz:41,use:"Dream RW (caster)"},
   {n:"Hel #15",norm:null,nm:140,hell:55,hellTz:28,use:"req -20%, unsocket"},
-  {n:"Shael #13",norm:null,nm:60,hell:28,hellTz:14,use:"+IAS, FHR, Spirit"},
+  {n:"Shael #13",norm:null,nm:60,hell:28,hellTz:14,use:"+IAS, FHR, Treachery"},
   {n:"Amn-Sol",norm:80,nm:30,hell:18,hellTz:10,use:"life leech, dmg"},
   {n:"Ral-El-Tir-Tal-Ith-Ort",norm:5,nm:3,hell:5,hellTz:3,use:"basic runewords"}
 ];
@@ -26953,9 +26953,9 @@ const RUNE_SOURCES = [
       {n:'Ber #30', hell:'1:27,897', use:'Enigma, Infinity, CoH'},
       {n:'Jah #31', hell:'1:24,981', use:'Enigma, Faith'},
       {n:'Lo #28', hell:'1:20,631', use:'Fortitude, Grief'},
-      {n:'Sur #29', hell:'1:18,598', use:'Infinity ×2'},
+      {n:'Sur #29', hell:'1:18,598', use:'Last Wish, Pride'},
       {n:'Vex #26', hell:'1:14,489', use:'HotO, Phoenix'},
-      {n:'Ohm #27', hell:'1:13,754', use:'Beast, HotO'},
+      {n:'Ohm #27', hell:'1:13,754', use:'CtA, Faith, Doom'},
       {n:'Mal #23', hell:'1:6,811', use:'CtA class'}
     ],
     gridNote:'EXACT (v699, silospen RoW): one full council kill = the 3 members combined (1/(Σ1/Nᵢ)), Hell, MF300. Terrorized ≈ identical for these tiers — EXCEPT <strong>Zod, which ONLY drops terrorized (1:97,811)</strong>. Lower runes drop far more often (Ist 1:10,216 · Gul 1:9,660).',
@@ -38971,7 +38971,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // v362 — prefer the AUTHORITATIVE ITEM_TIP base (verified per-item) over tipOf(), which mis-resolves
     // some names via loose matching (Jalal's Mane → "Dream Spirit" runeword collision → mis-filed to weapons).
     var itip = (typeof ITEM_TIP !== 'undefined') ? ITEM_TIP[name] : null;
-    var base = (itip && itip.b) || (tip && tip.base) || (ex && ex.base) || '';
+    /* REG-2096 (GrokBot tick 427, #294) - A TV STUB'S 'BASE' IS ITS OWN NAME, WRITTEN BECAUSE NOTHING KNEW IT. The vault
+       mints {base: name, val:'tv'} only when no catalogue, lookup or EXTRA entry knows the name - a placeholder, not a base.
+       Read as one, it kept 'Bone Visor' out of the REG-2080 Unsorted answer below and ARMOR_RE filed it by the word
+       'visor' (his console, v3624: still in UNI-ARMOR, no integrity row). A stub's base counts only when the base table
+       knows it (a rolled magic base, or a real white base). */
+    var _exBase = (ex && ex.base) || '';
+    if (ex && ex.val === 'tv' && _exBase && String(_exBase) === String(name) && !(typeof _baseRec === 'function' && _baseRec(_exBase))) _exBase = '';
+    var base = (itip && itip.b) || (tip && tip.base) || _exBase || '';
     var probe = base + ' ' + name;
     // v322: socketed bases (generic "Socketed <Slot>" buckets, or any item literally named with
     // sockets) get their own home — the SOCKETED mule — BEFORE the jewelry/armor/weapon fallbacks.
@@ -39472,8 +39479,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        nothing between them: the 2 are owned names no catalogue resolves (the ❓ Not recognised column), which the
        population line cannot place and does not count. The subtitle bridges with the top line's own word. */
     var _regChron=all.length+orphan.length;
+    /* REG-2097 (GrokBot tick 427 K18b) - '20 owned' under the top line's '19 owned': `all` also holds owned shared-stash
+       goods (runes, essences, organs) that the vault pool leaves out on purpose. 'owned' here is now the pool's own count -
+       the top line's number - and the goods outside it are named, never folded in. */
+    var _regShared=all.filter(function(n){ return poolM.indexOf(n)<0; }).length, _regOwned=all.length-_regShared;
     var _regTot=_regChron+findNames.length+unkNames.length;
-    el.innerHTML='<details class="vrg-det"><summary class="vrg-sum to-sum to-acc-blue"><span class="to-emblem">📋</span><span class="to-hd"><span class="to-hd-top"><span class="to-st">Registered</span><span class="to-ct">'+_regTot+'</span></span><span class="to-subt">'+_regChron+' chronicle'+(orphan.length?' ('+all.length+' owned · '+orphan.length+' ❓ not recognised)':'')+' · '+findNames.length+' magic &amp; rare · '+unkNames.length+' throw-out — everything read, sorted</span></span><span class="to-rule"></span><span class="to-chev">▾</span></summary><div class="vrg-body">'+h+'</div></details>';
+    el.innerHTML='<details class="vrg-det"><summary class="vrg-sum to-sum to-acc-blue"><span class="to-emblem">📋</span><span class="to-hd"><span class="to-hd-top"><span class="to-st">Registered</span><span class="to-ct">'+_regTot+'</span></span><span class="to-subt">'+_regChron+' chronicle'+((orphan.length||_regShared)?' ('+_regOwned+' owned'+(_regShared?' · '+_regShared+' shared-stash good'+(_regShared===1?'':'s')+' (not in the vault\'s count)':'')+(orphan.length?' · '+orphan.length+' ❓ not recognised':'')+')':'')+' · '+findNames.length+' magic &amp; rare · '+unkNames.length+' throw-out — everything read, sorted</span></span><span class="to-rule"></span><span class="to-chev">▾</span></summary><div class="vrg-body">'+h+'</div></details>';
   }
   // v366 — DEDICATED Throw-Out Review: its own section that VISUALLY shows each discarded read paired with
   // the SOURCE SCREENSHOT it came from (synced from the per-screenshot breakdown) + a description, so Konyo

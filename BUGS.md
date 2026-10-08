@@ -406,6 +406,37 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2098 - THE RIVER TIP SAID ONE DEBT TWICE (2026-10-08, GrokBot tick 427 K03)
+
+v3624's grouping (REG-2072) names rows sharing a reason once, and his "river stuck" tip still read STATION 5 and STATION 4
+older with the same reason, and ROUTED 8 and CAPTURE 5 older with the same tombstone debt. Two causes, both on the wire: the
+deleter's sentence repeated the station its row already names ("older than the newest 16, still at ROUTED, so the drain
+owes..."), and a lane's reason past the window was cut at 200 chars AFTER its "older than the newest 16 - " prefix, so its
+tail ended at another word than the same reason inside the window. The owed sentence now cuts the lane's reason before it
+prefixes, and the deleter's reads "older than the newest N - the drain owes them a tombstone" for every station.
+
+### REG-2097 - REGISTERED SAID 20 OWNED UNDER THE TOP LINE'S 19 (2026-10-08, GrokBot tick 427 K18b)
+
+REG-2075's subtitle counted `all` - owned names in the vault pool PLUS owned shared-stash goods (runes, essences, organs)
+that the pool leaves out on purpose - and called it "owned", while the top line's "owned" is the pool. 'owned' is now the
+pool's own count, and the goods outside it are named: "(19 owned · 1 shared-stash good (not in the vault's count) · ...)".
+
+### REG-2096 - A TV STUB'S PLACEHOLDER BASE KEPT 'BONE VISOR' IN UNI-ARMOR (2026-10-08, GrokBot tick 427, #294)
+
+REG-2080 ("a name nothing knows stays Unsorted") never reached the case that asked for it: on his PC 'Bone Visor' is a TV
+vault stub, minted {base: its own name, val:'tv'} precisely because nothing knew the name - and suggestMule read that
+placeholder as a base, skipped the Unsorted answer and filed it by the word 'visor'. Measured on v3624: still in UNI-ARMOR,
+no integrity row. The REG-2080 sweep ran in a guest world with no TV stubs (the guest-world scar, a third time). A stub's
+base counts only when the base table knows it.
+
+### REG-2095 - THE REEL'S LAST FRAME STAYED UNDER THE GALLERY AFTER ✕ (2026-10-08, GrokBot tick 427 K63/K69)
+
+After ✕ stepped back from a reel to the River gallery (REG-2074), the theatre kept the reel's last frame on #th-film; the
+gallery's bottom strip is see-through, so the belt row and mana orb showed under the cards until the console was reopened.
+The step back now clears the film (src, url cache and the pending probe's want) like thPaint's own no-frame path.
+#231 FYI the same hour: ec36a815's handoff doc carries an absolute home path - inside the #27 ratchet's baseline (old docs
+are pinned, rewriting them is his call); 27cffbdf and 00e4b6b4 clean.
+
 ### REG-2094 - ESCAPE WIPED AN ITEM CARD OPENED AFTER A MATERIAL CARD (2026-10-08, #231 eye on v43)
 
 The #231 code seat on May's 0133be32 and 113be899: a material / rune card sets window.__activeMaterial / __activeRune so

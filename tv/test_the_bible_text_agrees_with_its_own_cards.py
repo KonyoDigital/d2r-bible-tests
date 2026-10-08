@@ -161,6 +161,36 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         q = re.search(r'\n    quest: "([^"]*)"', s[i:s.index("\n  },\n", i)]).group(1)   # andariel's own block
         self.assertIn("Sisters to the Slaughter", q, "Andariel's quest line no longer names her own quest: %r" % q)
         self.assertNotRegex(q, r"Den[- ]of[- ]Evil", "Andariel's quest line names another quest: %r" % q)
+    def test_every_rune_use_names_a_runeword_that_holds_the_rune(self):
+        """REG-2099 (#231 eye on v43 4decd6cf) - the rune grids' 'used for' column named runewords that do not contain the
+        rune: Ohm 'Beast, HotO' (twice), Gul 'Wrath, Bramble', Ist 'Insight', Um 'Smoke, Wealth', Pul 'Spirit, Lionheart',
+        Shael 'Spirit', Sur 'Infinity x2' - 13 claims, checked against the file's own RUNEWORDS recipes."""
+        s = _src()
+        i = s.find("const RUNEWORDS = [")
+        self.assertGreater(i, 0, "RUNEWORDS is gone - re-point this law")
+        rw = [(re.sub(r"\s*\(.*\)$", "", m.group(1)).lower(), [r.strip() for r in m.group(2).split("+")])
+              for m in re.finditer(r'\{n:"([^"]+)", runes:"([^"]+)"', s[i:s.find("\n];", i)])]
+        names = {n for n, _ in rw}
+        abbrev = {"hoto": "heart of the oak", "cta": "call to arms", "coh": "chains of honor", "botd": "breath of the dying"}
+
+        def norm(u):
+            u = re.sub(r"\s*×\s*\d+\s*$", "", u.strip())
+            u = re.sub(r"\s+class$", "", u)
+            u = re.sub(r"\s+RW\b.*$", "", u)
+            return abbrev.get(u.lower(), u.lower())
+        checked, bad = 0, []
+        for m in re.finditer(r'n:\s*["\']([A-Z][a-z]+) #(\d+)["\'][^}]*?use:\s*["\']([^"\']*)["\']', s):
+            rune = m.group(1)
+            for part in [p for p in m.group(3).split(",") if p.strip()]:
+                nm = norm(part)
+                if nm not in names:
+                    continue
+                checked += 1
+                if not any(rune in rs for n, rs in rw if n == nm):
+                    bad.append("%s: '%s'" % (rune, part.strip()))
+        self.assertGreaterEqual(checked, 25, "premise: the sweep reaches the rune grids (%d checked)" % checked)
+        self.assertEqual(bad, [], "a rune's 'used for' names a runeword whose recipe does not hold that rune: %r" % bad)
+
 
 RED_PROOF = [
     {"why": "REG-2089 - Veil of Steel's tagline swaps its resist and defense figures again",
@@ -197,6 +227,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "quest: \"Sisters to the Slaughter still open →",
      "replace": "quest: \"Den-of-Evil + Sisters quest still active →",
+     "matches": 1},
+    {"why": "REG-2099 - Ohm is 'used for' Beast and HotO again, neither of which holds it",
+     "file": "bible.html",
+     "find": "{n:'Ohm #27', hell:'1:13,754', use:'CtA, Faith, Doom'}",
+     "replace": "{n:'Ohm #27', hell:'1:13,754', use:'Beast, HotO'}",
      "matches": 1},
 ]
 

@@ -17512,6 +17512,9 @@ window._lockMark = function(isOpen, px, label){
       TH.reelFromShelf = false;
       TH.playing = false; clearTimeout(TH.timer);
       TH.loadGen = (TH.loadGen || 0) + 1;   /* REG-2091 - a reel still loading must not land and play under the shelf */
+      /* REG-2095 (GrokBot tick 427, K63/K69) - and its LAST FRAME must not stay painted: the gallery's bottom strip is
+         see-through, and after ✕ it showed the reel's belt row and mana orb until the console was reopened */
+      try { var _fm = $('th-film'); if (_fm){ _fm.__want = ''; _fm.__url = ''; _fm.removeAttribute('src'); _fm.title = ''; } } catch (e) {}
       try { TH.shelfIsDoor = true; } catch (e) {}
       try { thShelf(true); } catch (e) {}
       var _bk = $('th-shelfov');

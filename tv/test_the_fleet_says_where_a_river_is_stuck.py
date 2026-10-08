@@ -280,7 +280,8 @@ class TheConsoleNamesItsStuckStations(unittest.TestCase):
             rows.append(_stamp(nm(i), "CAPTURE", 90 * H, i))
         got = self._stuck(rows, shelf=shelf)
         self.assertEqual(self._rows_of(got), [("CAPTURE", 2, 90 * H, False)], got)
-        self.assertIn("still at CAPTURE, so the drain owes them a tombstone", got[0]["why"])
+        self.assertIn("older than the newest %d - the drain owes them a tombstone" % keep, got[0]["why"])
+        self.assertNotIn("still at", got[0]["why"], "the sentence repeats the station its row already names (REG-2098)")
 
     def test_the_owed_sentence_carries_the_drains_last_word(self):
         """A row past the window at the deleter's own stage names why the last pass did not pay it - the lock on
@@ -291,10 +292,29 @@ class TheConsoleNamesItsStuckStations(unittest.TestCase):
                                          "frame.release is LOCKED"}
         with mock.patch.object(ca, "_RETENTION", said):
             w = ca._river_owed_why("ROUTED", 16)
-        self.assertIn("so the drain owes them a tombstone - the drain: 11.1GB free", w)
+        self.assertIn("- the drain owes them a tombstone - the drain: 11.1GB free", w)
         self.assertIn("frame.release is LOCKED", w)
         with mock.patch.object(ca, "_RETENTION", {"checked": None, "say": "not measured yet"}):
             self.assertNotIn("the drain:", ca._river_owed_why("ROUTED", 16))
+
+    def test_two_stations_owing_the_same_debt_read_word_for_word_alike(self):
+        """REG-2098 (GrokBot tick 427 K03) - the tip said ROUTED 8's and CAPTURE 5's tombstone debt twice ('still at ROUTED'
+        / 'still at CAPTURE'), and STATION 5's reason twice beside STATION 4 older: the prefixed copy was cut at 200 AFTER
+        the prefix, so its tail ended at another word. Same debt, same words - the tip can then say it once."""
+        from unittest import mock
+        import control_app as ca
+        said = {"checked": NOW, "say": "12.5GB free and 5 reel(s) could go, but the deleter refused: frame.release is LOCKED"}
+        with mock.patch.object(ca, "_RETENTION", said):
+            self.assertEqual(ca._river_owed_why("ROUTED", 16), ca._river_owed_why("CAPTURE", 16),
+                             "two stations owing the same tombstone are worded apart")
+        long_why = ("the reel sweep owes 10 read(s) - its last word: the sweep door is LOCKED until the census " * 4).strip()
+        owner = sorted(ca._RIVER_OWNER)[0]
+        with mock.patch.object(ca, "_river_stuck_why", lambda st: long_why):
+            older = ca._river_owed_why(owner, 16)
+            inside = ca._word_cut(long_why, 200)
+        self.assertTrue(older.startswith("older than the newest 16 - "), older[:40])
+        self.assertEqual(older[len("older than the newest 16 - "):], inside,
+                         "the older copy of a lane's reason ends at a different word than the copy inside the window")
 
     def test_the_alarm_has_one_counting_loop(self):
         """REG-1812 - one rule, not a copy per station: 23e37f91 added a second loop for ROUTED alone. AST of the
@@ -1051,10 +1071,24 @@ class OneBoxAtATimeOnTheRow(unittest.TestCase):
 
 RED_PROOF = [
     {
+        "why": "REG-2098 - the deleter's sentence repeats its station again, so ROUTED and CAPTURE owing one tombstone read apart",
+        "file": "tv/control_app.py",
+        "find": "    why = \"older than the newest %s - the drain owes them a tombstone\" % keep\n",
+        "replace": "    why = \"older than the newest %s, still at %s, so the drain owes them a tombstone\" % (keep, station)\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2098 - the older copy of a lane's reason is cut after its prefix again and ends at another word",
+        "file": "tv/control_app.py",
+        "find": "        return \"older than the newest %s - %s\" % (keep, _word_cut(_river_stuck_why(station), 200))\n",
+        "replace": "        return \"older than the newest %s - %s\" % (keep, _river_stuck_why(station))\n",
+        "matches": 1,
+    },
+    {
         "why": "REG-1987 - the stuck reason is a bare [:200] again and ends mid-word on every fleet tip",
         "file": "tv/control_app.py",
-        "find": "        e[\"why\"] = _word_cut(_river_stuck_why(e[\"station\"]) if e.get(\"window\") is not False\n                             else _river_owed_why(e[\"station\"], _keep), 200)\n",
-        "replace": "        e[\"why\"] = (_river_stuck_why(e[\"station\"]) if e.get(\"window\") is not False\n                     else _river_owed_why(e[\"station\"], _keep))[:200]\n",
+        "find": "        e[\"why\"] = (_word_cut(_river_stuck_why(e[\"station\"]), 200) if e.get(\"window\") is not False\n                    else _word_cut(_river_owed_why(e[\"station\"], _keep), 280))\n",
+        "replace": "        e[\"why\"] = (_river_stuck_why(e[\"station\"])[:200] if e.get(\"window\") is not False\n                    else _river_owed_why(e[\"station\"], _keep)[:280])\n",
         "matches": 1,
     },
     {
