@@ -103,6 +103,32 @@ test.describe('v39 polish — sync pulse on MF change', () => {
     expect(r.syncingCount).toBeGreaterThan(0);
   });
 
+  test('MF slider input triggers the pulse on a synced cell', async ({ page }) => {
+    // #271 (the #231 eye on 46c8cda9) - the May cut deleted this case, so an MF slider whose input
+    // listener never pulses passed every remaining case (they all call the pulse directly). This drives
+    // the slider itself: seed one synced cell, clear the throttle, fire `input` on #mf, and require the
+    // class ON within two animation frames - the listener pulses on a single rAF.
+    await page.goto(BIBLE);
+    await page.waitForFunction(() => typeof (window as any)._v39_pulseAllSyncedCells !== 'undefined', { timeout: 3000 });
+    await page.waitForTimeout(500); // _v39_whenReady hooks the slider after load
+    const r = await page.evaluate(async () => {
+      const seed = document.createElement('span');
+      seed.className = 'stat-value';
+      seed.id = 'v39-mf-seeded-cell';
+      seed.textContent = '0';
+      document.body.appendChild(seed);
+      (0, eval)('_v39_pulseTimer = null;');
+      const mf = document.getElementById('mf') as HTMLInputElement | null;
+      if (!mf) return { slider: false, seeded: false };
+      mf.value = String(Math.min(Number(mf.max) || 1000, Number(mf.value) + 1));
+      mf.dispatchEvent(new Event('input', { bubbles: true }));
+      await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
+      return { slider: true, seeded: seed.classList.contains('syncing') };
+    });
+    expect(r.slider, 'premise: the page has its MF slider (#mf)').toBe(true);
+    expect(r.seeded, 'moving the MF slider did not pulse the synced cells').toBe(true);
+  });
+
   test('.syncing class is removed after pulse window (~700ms)', async ({ page }) => {
     // #80 (REG-1518) — the old shape (pulse, sleep 1100ms, expect 0) could never fail: a pulse that
     // early-returns on its throttle, or finds no summary cell, ALSO leaves 0. So this seeds one synced
