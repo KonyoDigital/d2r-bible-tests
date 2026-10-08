@@ -66,10 +66,14 @@ ATTACKS = (
 
     ("a declared examined-empty seal",
      {"extracted": [], "extractedWhy": "examined and there was nothing to take",
-      "examinedEmpty": True, "rows": 0}, True,
+      "examinedEmpty": True, "rows": 0, "triagePanels": 2, "probedPanels": 2}, True,
      "HIS RULING — this one MUST release, or the ruling was never implemented and the gate is "
      "merely stuck shut. A lock that only ever refuses proves nothing about judgement"),
 
+    ("an examined-empty seal that probed 1 of 268 triage panels",
+     {"extracted": [], "extractedWhy": "examined and there was nothing to take",
+      "examinedEmpty": True, "rows": 0, "triagePanels": 268, "probedPanels": 1}, False,
+     "HIS RULING 2026-10-07 (REG-2042) - probe every panel: reel ...39108 was deleted on one probe against 268"),
     ("a fully covered seal", {"extracted": None, "rows": 3}, True,
      "the ordinary success path — filled in at runtime with the real contract"),
 

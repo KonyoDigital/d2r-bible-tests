@@ -40,7 +40,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REEL = "reel_s_1700000000000_00001"
 SEAL_EXAMINED = {"ts": 1, "rows": 0, "extracted": [],
                  "extractedWhy": "examined and there was nothing to take",
-                 "examinedEmpty": True}
+                 "examinedEmpty": True,
+                 "triagePanels": 3, "probedPanels": 3}   # REG-2042 - it probed every panel triage saw
 SEAL_DEFAULT = {"ts": 1, "rows": 0, "extracted": [], "extractedWhy": "nothing was taken"}
 
 

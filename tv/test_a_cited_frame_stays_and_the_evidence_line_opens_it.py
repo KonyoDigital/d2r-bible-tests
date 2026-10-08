@@ -141,7 +141,8 @@ class ACitedFrameStaysAndTheLineOpensIt(unittest.TestCase):
         return {"ok": True, "haveIndex": True, "frames": set(), "cited": set(frames)}
 
     def _seal(self):
-        return {"s_9_1": {"extracted": [], "rows": 0, "examinedEmpty": True}}
+        return {"s_9_1": {"extracted": [], "rows": 0, "examinedEmpty": True,
+                          "triagePanels": 0, "probedPanels": 0}}    # REG-2042 - the every-panel denominator
 
     def test_a_cited_frame_stays_and_an_uncited_one_goes(self):
         got = VE.cited_frames(self.ledger)

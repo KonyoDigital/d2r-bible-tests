@@ -51,6 +51,7 @@ import console_doctor as CD  # noqa: E402
 SEAL_TOOK_NOTHING = {"rows": 0, "extracted": [], "extractedWhy": "nothing was taken",
                      "agentVer": "fixture", "promptVer": 1}
 SEAL_EXAMINED_EMPTY = {"rows": 0, "extracted": [], "examinedEmpty": True,
+                       "triagePanels": 0, "probedPanels": 0,      # REG-2042 - the every-panel denominator
                        "extractedWhy": "examined and there was nothing to take",
                        "agentVer": "fixture", "promptVer": 1}
 SEAL_SEVEN_ROWS = {"rows": 7, "agentVer": "fixture", "promptVer": 1}

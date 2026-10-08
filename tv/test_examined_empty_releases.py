@@ -89,7 +89,10 @@ class ExaminedEmptyReleases(unittest.TestCase):
         """The other direction — otherwise the ruling was never implemented at all."""
         ok, _ = FA.seal_releases_frames(
             {"extracted": [], "extractedWhy": "examined and there was nothing to take",
-             "examinedEmpty": True, "rows": 0})
+             "examinedEmpty": True, "rows": 0,
+             # REG-2042 (his 10-07 ruling, "probe every panel"): a release also needs the seal to show it probed
+             # every panel triage saw - here a full triage pass saw none
+             "triagePanels": 0, "probedPanels": 0})
         self.assertTrue(ok, "a seal that DECLARED examinedEmpty was still held — his ruling says "
                             "it may continue down the river")
 
@@ -113,7 +116,8 @@ class ExaminedEmptyReleases(unittest.TestCase):
         # with the key absent, even examinedEmpty=True refused to release.
         # A law whose cases all fail for an unrelated reason tests nothing.
         # [[sabotage-is-usually-the-wrong-one]] [[zero-needs-a-denominator]]
-        base = {"extracted": [], "extractedWhy": "nothing was taken", "rows": 0}
+        base = {"extracted": [], "extractedWhy": "nothing was taken", "rows": 0,
+                "triagePanels": 0, "probedPanels": 0}     # REG-2042 - the every-panel denominator
         ok, _ = FA.seal_releases_frames(dict(base, examinedEmpty=True))
         self.assertTrue(ok, "the CONTROL for this law does not hold: a declared examinedEmpty seal "
                             "must release, or every case below fails for the wrong reason")

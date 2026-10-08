@@ -406,6 +406,21 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2042 - AN EXAMINED-EMPTY SEAL RELEASED A REEL ON ONE PROBE AGAINST 268 STASH PANELS (2026-10-08, #203)
+
+REC-02 F1 of the 10-07 simulation pass: reel ...39108 was deleted on 09-28 on an examinedEmpty seal that probed ONE frame
+while triage had counted 268 stash panels in it; frame_authority.seal_releases_frames accepted any examinedEmpty seal and
+its own docstring named the gap for his ruling. HIS RULING 2026-10-07: probe every panel (stricter than the half I
+recommended). MEASURED on his store 2026-10-08: 33 examined-empty seals - 8 contradict a full triage pass (none still on
+disk), 9 sit on reels a full triage pass proved panel-free, 16 were never triaged (7 still on disk). Now a seal carries
+`triagePanels` (a FULL triage pass's count) and `probedPanels`; probed_every_panel releases only when both are known and
+probed >= triage; missing either keeps the reel and says why. Both seal writers stamp them (a read count only when the
+pass read ONE reel - refused probes are not triage panels); a once-per-process backfill stamps older seals where a full
+triage pass proved the reel panel-free (re-derivable: nothing to probe), records the count where triage saw panels (so
+the reel stays held), and leaves partial or missing triage alone. Four laws that pinned "any examinedEmpty releases" now
+carry the denominator, and frame_release_wilson gained the 1-of-268 state (35/35).
+Law: test_an_examined_seal_releases_only_when_every_panel_was_probed (3 red-proofs).
+
 ### REG-2041 - EVERY MINI REEL CLAIMED HE HAD CHOSEN ITS FOCUS (2026-10-08, #214)
 
 Finding 17 / F10 of the 10-07 simulation pass: the retro sweep trusts a declared Mini focus in place of a paid classify

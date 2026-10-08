@@ -8988,6 +8988,12 @@ GATES = [
          why=("REG-2041 (#214 F10, finding 17) - every Mini reel was stamped focusChosen: mini_start turned 'nothing chosen' into "
               "'stash' and the page always posted its pre-selected chip, so the sweep trusted a focus he never declared.")
          ),
+    Gate("test_an_examined_seal_releases_only_when_every_panel_was_probed", [sys.executable,
+         os.path.join(HERE, "test_an_examined_seal_releases_only_when_every_panel_was_probed.py")], 90,
+         needs_app=False,
+         why=("REG-2042 (#203, his 10-07 ruling 'probe every panel') - reel ...39108 was deleted on an examined-empty seal that "
+              "probed 1 frame against 268 triage stash panels; a seal now releases only when it probed every panel triage saw.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

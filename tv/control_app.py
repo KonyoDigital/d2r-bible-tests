@@ -21225,6 +21225,7 @@ _CHRON_STOP_FOR_RELAUNCH = {"ts": 0.0}
 
 class _ChronSweepStopped(Exception):
     """REG-2039 - raised inside a page read when a relaunch asked the sweep to stop; carries the sentence."""
+    pass
 
 
 def _chron_autoread_save():
@@ -32609,8 +32610,77 @@ def _unextracted_seal_needs_one_pass(refusal, already):
     return str(already or "") != prompt
 
 
+def _seal_triage_denominator(rec, sess, probed=None, triage=None):
+    """REG-2042 (#203) - stamp an examined-empty seal with the denominator his ruling asks for. -> rec
+
+    "Probe every panel" (his ruling 2026-10-07): frame_authority.probed_every_panel releases the reel only when the
+    seal carries `triagePanels` (a FULL triage pass's stash-panel count for the reel) and `probedPanels` >= it. This
+    reads the reel's triage record once and adds both; `probed` is the panels this seal itself read, given only when it
+    can be attributed to this ONE reel. Anything it cannot establish stays absent, which keeps the reel.
+    """
+    try:
+        import frame_authority as _fa
+        import retro_triage as _rt
+        if triage is None:
+            triage, _tok = _rt.load()
+            if not _tok:
+                return rec
+        _rk = str(sess) if str(sess).startswith("reel_") else "reel_" + str(sess)
+        out, _ch = _fa.stamp_examined_from_triage(rec, (triage or {}).get(_rk))
+        if (isinstance(probed, int) and not isinstance(probed, bool) and isinstance(out.get("triagePanels"), int)
+                and "probedPanels" not in out):
+            out = dict(out)
+            out["probedPanels"] = int(probed)
+        return out
+    except Exception as _e:
+        print("   \u26a0 vault seal: the triage denominator could not be added (%s) - the reel stays held"
+              % str(_e)[:60], flush=True)
+        return rec
+
+
+_EXAMINED_BACKFILL = {"done": False}
+
+
+def _examined_seals_backfill():
+    """REG-2042 - ONCE per process: older examined-empty seals get the triage denominator. -> n stamped
+
+    A seal written before the every-panel rule cannot release on its own any more; where a FULL triage pass proved the
+    reel panel-free (nothing to probe) the denominator is re-derivable and is written, so those keep releasing. A reel
+    triage saw panels in gets its count and stays held (the seal never probed them). Writes nothing it cannot derive.
+    """
+    if _EXAMINED_BACKFILL["done"]:
+        return 0
+    _EXAMINED_BACKFILL["done"] = True
+    try:
+        import retro_triage as _rt
+        sw = _vault_swept_load()
+        if not isinstance(sw, dict) or not sw:
+            return 0
+        tri, ok = _rt.load()
+        if not ok:
+            _EXAMINED_BACKFILL["done"] = False      # unreadable triage: try again next tick, never guess
+            return 0
+        n = 0
+        for k, v in list(sw.items()):
+            if isinstance(v, dict) and v.get("examinedEmpty") is True and not isinstance(v.get("triagePanels"), int):
+                nv = _seal_triage_denominator(v, k, triage=tri)
+                if nv is not v:
+                    sw[k] = nv
+                    n += 1
+        if n:
+            _vault_swept_save(sw)
+            print("   \u2696 vault seals: %d older examined-empty seal(s) given the triage panel count (his "
+                  "every-panel ruling)" % n, flush=True)
+        return n
+    except Exception as _e:
+        _EXAMINED_BACKFILL["done"] = False
+        print("   \u26a0 vault seals: the every-panel backfill did not run (%s)" % str(_e)[:60], flush=True)
+        return 0
+
+
 def vault_autoreel_tick():
     """One pass. Starts at most one vault sweep, and every refusal carries a named reason."""
+    _examined_seals_backfill()      # REG-2042 - once per process, before anything decides on a seal
     # ⚠⚠⚠ v2902 — THE ACTOR LOADS, NOT JUST THE REPORTER. Raised by the cross-family eye on v2901
     # and it is the money bug the ship existed to stop, shipped inside the fix for it.
     #
@@ -35399,6 +35469,9 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
                     _rec["examinedEmpty"] = True
                     _rec["why"] = ("read %d panel(s), every one cross-checked, no name to be had"
                                    % _read_ok[0])
+                    # REG-2042 - the panels read count only when this pass read ONE reel
+                    _rec = _seal_triage_denominator(
+                        _rec, sess, probed=(_read_ok[0] if len(prop.get("sessionsRead") or []) == 1 else None))
                 swept[str(sess)] = _rec
             _seal_pending = True          # v2060 — persisted only after the ledger is down
         else:
@@ -35528,13 +35601,16 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
                 for sess in (prop.get("sessionsExamined")
                              or prop.get("sessionsRead") or []):
                     _ex, _exwhy = _seal_extracted(0, examined_empty=True)
-                    swept[str(sess)] = {"ts": int(time.time() * 1000), "rows": 0,
-                                        "promptVer": _pv, "agentVer": _av,
-                                        "extracted": _ex, "extractedWhy": _exwhy,   # v2305
-                                        "examinedEmpty": True,
-                                        "why": "every one of %d frame(s) was offered to the stash "
-                                               "gate and refused; the lane was proven live in the "
-                                               "same pass" % _not_stash[0]}
+                    _erec = {"ts": int(time.time() * 1000), "rows": 0,
+                             "promptVer": _pv, "agentVer": _av,
+                             "extracted": _ex, "extractedWhy": _exwhy,   # v2305
+                             "examinedEmpty": True,
+                             "why": "every one of %d frame(s) was offered to the stash "
+                                    "gate and refused; the lane was proven live in the "
+                                    "same pass" % _not_stash[0]}
+                    # REG-2042 - refused probes are not triage panels: only a reel triage proved panel-free releases
+                    _erec = _seal_triage_denominator(_erec, sess)
+                    swept[str(sess)] = _erec
                 _seal_pending = True
                 _seal_say = ("   ✅ examined %d frame(s) and NONE is a stash screen — that "
                              "is a complete answer, not a silence. The lane was proven live in this "

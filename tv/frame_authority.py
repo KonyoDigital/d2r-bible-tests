@@ -329,6 +329,51 @@ def seal_verdict(row, contract=EXTRACTION_CONTRACT):
                          "empty examination — it is an unevidenced one" % rows)
 
 
+def probed_every_panel(row):
+    """REG-2042 - did this examined-empty seal probe every stash panel triage saw in its reel? -> (bool, why)
+
+    Pure: it reads the two counts the seal carries - `triagePanels` (a FULL triage pass's panel count for the reel) and
+    `probedPanels` (how many of those the seal looked at) - and never a store. Either one missing is UNKNOWN, and
+    UNKNOWN keeps the footage.
+    """
+    tp = (row or {}).get("triagePanels")
+    pp = (row or {}).get("probedPanels")
+    if not isinstance(tp, int) or isinstance(tp, bool):
+        return False, ("this examined-empty seal does not say how many stash panels triage saw in the reel (it predates "
+                       "the every-panel rule, or the reel was never fully triaged) - his ruling: probe every panel, so "
+                       "the reel is kept")
+    if not isinstance(pp, int) or isinstance(pp, bool):
+        return False, ("triage saw %d stash panel(s) in this reel and the seal does not say it probed them - kept until "
+                       "every panel is probed" % tp)
+    if pp < tp:
+        return False, ("the seal probed %d of the %d stash panel(s) triage saw - his ruling is every panel, so the reel "
+                       "is kept" % (pp, tp))
+    return True, ("examined and empty: it probed all %d stash panel(s) triage saw%s"
+                  % (tp, "" if tp else " (a full triage pass saw none)"))
+
+
+def stamp_examined_from_triage(row, triage_row):
+    """REG-2042 - add the triage denominator to an examined-empty seal that lacks it. -> (row, changed)
+
+    Re-derivable from evidence, so it may be written onto an older seal: a FULL triage pass that saw ZERO panels makes
+    `probedPanels` 0 (nothing to probe); one that saw panels records how many and leaves `probedPanels` UNKNOWN, which
+    keeps the reel. A partial or missing triage pass changes nothing. Pure.
+    """
+    if not isinstance(row, dict) or row.get("examinedEmpty") is not True or isinstance(row.get("triagePanels"), int):
+        return row, False
+    if not isinstance(triage_row, dict) or not triage_row.get("full"):
+        return row, False
+    try:
+        n = int(triage_row.get("panels") or 0)
+    except (TypeError, ValueError):
+        return row, False
+    out = dict(row)
+    out["triagePanels"] = n
+    if n == 0:
+        out["probedPanels"] = 0
+    return out, True
+
+
 def seal_releases_frames(row):
     """May this seal let its frames go? -> (bool, why). The DECIDING question, stricter than the
     reporting one — and the difference is measured, not stylistic.
@@ -373,7 +418,12 @@ def seal_releases_frames(row):
     if v == COVERED:
         return True, why
     if v == EMPTY and isinstance(row, dict) and row.get("examinedEmpty") is True:
-        return True, why
+        # ⚖ REG-2042 (#203) - HIS RULING 2026-10-07: "probe every panel". An examined-empty seal releases a reel's frames
+        # only when it probed EVERY stash panel triage saw in that reel. MEASURED on his store 2026-10-08: of 33
+        # examined-empty seals, 8 had a full triage pass that saw panels they never probed - reel ...39108 was deleted on
+        # 1 probe against 268 panels - 9 sat on reels triage proved panel-free, 16 were never triaged. A seal that
+        # cannot show the count (an older seal, or one whose reel triage never finished) KEEPS the reel and says why.
+        return probed_every_panel(row)
     if v == EMPTY:
         return False, ("this seal reads as empty only because it says %r — that is the default for "
                        "a sweep that grounded nothing, not a record that anyone established there "
