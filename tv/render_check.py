@@ -1366,6 +1366,28 @@ TARGETS = {
         "warmup": 4.0,
         "widths": ((1440, 1000), (901, 900), (375, 800)),   # one breakpoint; see check()      # fixture-seeded; waits only for the page (the gate is 300s)
     },
+    "builder-crafted": {
+        "why": "#95 (REG-1823 / REG-1901) - THE CRAFTED EDITOR HE DEMOED. A crafted Caster Amulet is named once over its "
+               "base (two rare words + Amulet, never 'Caster Amulet Amulet'), says its recipe as the CRAFTED line, lands "
+               "each recipe line at the top of its range and carries the Regular Mods block (Add Mod). Its law drives the "
+               "builder in node; this is the editor on pixels",
+        "seed": """(function(){ return 1; })()""",
+        "activate": """(function(){
+            /* ⚠ IDEMPOTENT: the harness re-runs this every 0.4s, so the builder is opened once */
+            if (!window.__rcCbOpened) {
+              window.__rcCbOpened = 1;
+              try { window.openCharBuilder(); window._cbOpenNew(); window._cbNewCls('Warlock'); window._cbNewLvl(90);
+                    window._cbNewGo(); window._cbOpenPick('slot', 'neck'); window._cbChoose('c88'); }
+              catch (e) { window.__rcCbErr = String(e); }
+            }
+            var m = document.getElementById('cb-modal');
+            if (!m) return false;
+            var r = m.getBoundingClientRect();
+            return !!(r.width > 0 && r.height > 0 && getComputedStyle(m).display !== 'none'
+                      && /CRAFTED/.test(m.innerText || '')); })()""",
+        "sel": "#cb-modal",
+        "widths": ((1440, 1000), (901, 900), (375, 800)),
+    },
     "chars-ingame": {
         "serve": True,
         "path": "/board?app=1#chars",
