@@ -21166,6 +21166,63 @@ def _chron_autoread_done():
     return _CHRON_AUTOREAD["done"]
 
 
+def _chron_resume():
+    """REG-2039 (#239) - passes STOPPED at a banked page so a waiting build could relaunch. -> {reel: record}
+
+    {reel basename: {"frames": [frame names read and banked], "promptVer": str, "ts": ms}}. The next pass of that reel
+    skips those frames (they are paid for and in the evidence store) and seals the reel with them counted. Lazy-loaded
+    from chron_autoread.json; a missing file is none; an unreadable one answers {} UNCACHED, as the retirement record
+    does, so a later call retries rather than forgetting a stop for the process's life.
+    """
+    if _CHRON_AUTOREAD.get("resume") is None:
+        try:
+            with open(_CHRON_AUTOREAD_PATH, encoding="utf-8") as fh:
+                out = (json.load(fh) or {}).get("resume") or {}
+        except FileNotFoundError:
+            out = {}
+        except Exception:
+            return {}
+        _CHRON_AUTOREAD["resume"] = out if isinstance(out, dict) else {}
+    return _CHRON_AUTOREAD["resume"]
+
+
+# REG-2039 (#239) - how long a stop-for-relaunch keeps a NEW sweep from starting. The relaunch normally follows within
+# one drift tick (300 s); the bound exists so a relaunch that cannot fire (another blocker) never starves the reader.
+_CHRON_STOP_HOLD_S = 1800
+
+
+def _chron_ask_stop_for_relaunch(detail=None):
+    """A build is waiting and a CHRONICLE sweep in this process is what holds it. -> bool (asked?)
+
+    REG-2039 (#239). MEASURED 2026-10-07 on the Mac: "may false - a chronicle sweep is reading footage", the sweep at
+    '5 of 293 frames - about 804 min left' with Grok reads timing out at 140 s: every new build waited up to ~13 h.
+    The sweep banks evidence as it reads, so it is asked to stop at its NEXT page: it banks what it has read, leaves
+    the reel unsealed with its read frames on record, and the reel's next pass pays only for the frames it has not.
+    Asked only by the two callers that relaunch next (the drift loop, a held relaunch) - never by a status read.
+    """
+    try:
+        if (detail or {}).get("blocker") != "work":
+            return False
+        with _CHRON_LOCK:
+            if not _CHRON_JOB.get("running"):
+                return False
+            if not _CHRON_JOB.get("stopAsk"):
+                _CHRON_JOB["stopAsk"] = int(time.time() * 1000)
+                print("  \u27f2 a build is waiting: asked the chronicle sweep to stop at its next banked page "
+                      "(nothing read is lost; the reel resumes after the relaunch)", flush=True)
+        _CHRON_STOP_FOR_RELAUNCH["ts"] = time.time()
+        return True
+    except Exception:
+        return False
+
+
+_CHRON_STOP_FOR_RELAUNCH = {"ts": 0.0}
+
+
+class _ChronSweepStopped(Exception):
+    """REG-2039 - raised inside a page read when a relaunch asked the sweep to stop; carries the sentence."""
+
+
 def _chron_autoread_save():
     """THE ONE WRITER of chron_autoread.json — every key, every time.
 
@@ -21191,7 +21248,8 @@ def _chron_autoread_save():
     payload = {"done": sorted(_chron_autoread_done()),
                "reels": sorted(_chron_reels_seen()),
                "retired": dict(_chron_reels_retired()),   # v2139 — added HERE, per this docstring
-               "skipped": dict(_CHRON_AUTOREAD.get("skipped") or {})}
+               "skipped": dict(_CHRON_AUTOREAD.get("skipped") or {}),
+               "resume": dict(_chron_resume())}          # REG-2039 (#239) - a stopped pass's banked frames
     try:
         try:
             os.makedirs(os.path.dirname(_CHRON_AUTOREAD_PATH) or ".", exist_ok=True)
@@ -24934,6 +24992,9 @@ def _drift_loop():
                 announced = st.get("disk")
             _dd = {}
             ok, why = drift_may_relaunch(detail=_dd)
+            if not ok and _chron_ask_stop_for_relaunch(_dd):     # REG-2039 (#239) - a build waits on a chronicle sweep
+                why = (str(why) + " - asked it to stop at its next banked page; nothing read is lost and the reel "
+                       "resumes after the relaunch")
             _drift_publish_relaunch(ok, why, _dd.get("blocker"))
             if not ok:
                 # ══ 2026-09-28 — A SHADOW REEL IS A HOLD, NOT A REFUSAL ══════════════════════════
@@ -38575,6 +38636,17 @@ def chronicle_sweep_state():
 def chronicle_sweep_start(hist_dir=None, limit=None, force=False, visit=None, reel_id=None):
     """Kick the background sweep. Refuses to start a second one — two sweeps over the same reels
     would double the spend and produce two proposals that each look like the whole truth."""
+    # REG-2039 (#239) - A SWEEP THAT STOPPED FOR A WAITING BUILD IS NOT REPLACED BY THE NEXT ONE. Without this the
+    # autoread tick starts a fresh sweep moments after the stop and the relaunch is held again. Bounded: after
+    # _CHRON_STOP_HOLD_S a relaunch that could not fire stops holding the reader.
+    try:
+        _sa = float(_CHRON_STOP_FOR_RELAUNCH.get("ts") or 0.0)
+        if _sa and (time.time() - _sa) < _CHRON_STOP_HOLD_S:
+            return {"ok": False, "why": ("a sweep stopped %ds ago so a waiting build could relaunch - the next sweep "
+                                         "starts after the relaunch (or in %dm if it cannot fire)"
+                                         % (int(time.time() - _sa), int((_CHRON_STOP_HOLD_S - (time.time() - _sa)) // 60)))}
+    except Exception:
+        pass
     with _CHRON_LOCK:
         if _CHRON_JOB["running"]:
             # v2206 — `busy` is the STRUCTURED reason. A cross-family review of v2204 refused the
@@ -38655,6 +38727,7 @@ def chronicle_sweep_start(hist_dir=None, limit=None, force=False, visit=None, re
                     "why": "the primary (Claude) lane is unavailable — nothing to sweep with",
                     "lanes": lanes, "laneDetail": _chron_lane_detail()}
         _CHRON_JOB.update({"running": True, "startedTs": int(time.time() * 1000), "phase": "grouping",
+                           "stopAsk": None, "stopped": None,      # REG-2039 - an old ask never stops a new run
                            "reelsDone": 0, "reelsTotal": 0, "classified": 0, "pagesRead": 0,
                            "result": None, "error": None, "lanes": lanes})
     if visit:
@@ -39283,11 +39356,39 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         # is honest evidence — the gate still needs two witnesses, and a half-read reel simply has
         # fewer of them.
         _ckpt = {"pages": [], "banked": 0}
+        # REG-2039 (#239) - frames read THIS run, per reel (what a stop records), and the frames an earlier stopped pass
+        # already read and banked under THIS prompt (what this run does not pay for again). A record from another
+        # PROMPT_VER is ignored: a new prompt reopening a reel is deliberate (v1830), and its old reads do not count.
+        _read_now = {}
+        try:
+            _resume_in = {str(_r): set(_v.get("frames") or []) for _r, _v in (_chron_resume() or {}).items()
+                          if isinstance(_v, dict) and _v.get("promptVer") == _tv.PROMPT_VER}
+        except Exception:
+            _resume_in = {}
 
         def _read_and_bank(p, k):
             resp = read_page(p, k)
+            _rl_b = os.path.basename(os.path.dirname(str(p)))
+            _read_now.setdefault(_rl_b, set()).add(os.path.basename(str(p)))
+            if _CHRON_JOB.get("stopAsk"):
+                # REG-2039 - A WAITING BUILD ASKED. Bank this page and every page since the last checkpoint NOW, put
+                # the read frames on record so the reel's next pass skips them, and end the run here. Nothing paid is
+                # lost; nothing is sealed (the reel still owes the frames it has not read).
+                _ckpt["pages"].append({"reel": _rl_b, "frame": os.path.basename(str(p)), "kind": k,
+                                       "resp": resp or {}})
+                _chron_evidence_merge(_cr.proposal_from_pages(_ckpt["pages"]))
+                _ckpt["banked"] += len(_ckpt["pages"])
+                _ckpt["pages"] = []
+                _rs = _chron_resume()
+                for _r, _fs in _read_now.items():
+                    _rs[_r] = {"frames": sorted(set(_fs) | _resume_in.get(_r, set())),
+                               "promptVer": _tv.PROMPT_VER, "ts": int(time.time() * 1000)}
+                _chron_autoread_save()
+                raise _ChronSweepStopped(
+                    "stopped at a banked page for the waiting build: %d page(s) banked this run, %d reel(s) resume "
+                    "after the relaunch from the frames already read" % (_ckpt["banked"], len(_read_now)))
             try:
-                _ckpt["pages"].append({"reel": os.path.basename(os.path.dirname(str(p))),
+                _ckpt["pages"].append({"reel": _rl_b,
                                        "frame": os.path.basename(str(p)),
                                        "kind": k, "resp": resp or {}})
                 if len(_ckpt["pages"]) >= _CHRON_CKPT_PAGES:
@@ -39343,10 +39444,20 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                 _skip = {r for r in _all if r != str(reel_id)}
             except Exception:
                 pass
-        res = _cr.sweep_hist(hist, _classify, _read_and_bank, limit=limit,
-                             skip_reels=_skip,
-                             known_chronicle=known,
-                             on_reel=lambda st: _tick(reelsDone=1))
+        try:
+            res = _cr.sweep_hist(hist, _classify, _read_and_bank, limit=limit,
+                                 skip_reels=_skip,
+                                 known_chronicle=known,
+                                 on_reel=lambda st: _tick(reelsDone=1),
+                                 skip_read=_resume_in)
+        except _ChronSweepStopped as _stop:
+            # REG-2039 - the run ends HERE for a waiting build. Not an error: every page it read is banked and on
+            # record; the finally below releases the lock, which is what lets the relaunch through.
+            with _CHRON_LOCK:
+                _CHRON_JOB.update({"running": False, "phase": "stopped", "stopped": str(_stop)[:300],
+                                   "stopAsk": None})
+            print("   \u23f8 chronicle sweep %s" % _stop, flush=True)
+            return
         # remember ONLY the reels this run actually read. A reel that errored or was skipped must
         # stay unread, or one bad run would permanently hide footage from every future sweep.
         #
@@ -39379,6 +39490,14 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
             _tick(cappedReads=_capped[0])
             print("   🚦 %d read(s) refused by the subscription cap — NOTHING sealed this run"
                   % _capped[0])
+        # REG-2039 - a reel resumed from a stopped pass seals with the frames that pass read and banked COUNTED, so a
+        # resume whose new frames were all read before never looks like "read and found nothing" (a 0-page seal
+        # reopens under v1830).
+        for st in res["reels"]:
+            _rk_b = "reel_" + str(st.get("reel") or "")
+            if _rk_b in _resume_in and st.get("note") != "already-swept":
+                st["resumedFrames"] = len(_resume_in[_rk_b])
+                st["pages"] = int(st.get("pages") or 0) + len(_resume_in[_rk_b])
         for st in res["reels"]:
             if _throttled[0] or _capped[0]:
                 break
@@ -39469,6 +39588,17 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                 % (st.get("classified") or 0, st.get("pages") or 0)))
             swept["reel_" + str(st["reel"])] = _row
         _chron_swept_save(swept)
+        # REG-2039 - a resumed reel that sealed this run owes nothing more: its stop record goes
+        if _resume_in and not (_throttled[0] or _capped[0]):
+            try:
+                _rs = _chron_resume()
+                _gone = [r for r in list(_resume_in) if r in swept and r in _rs]
+                for r in _gone:
+                    _rs.pop(r, None)
+                if _gone:
+                    _chron_autoread_save()
+            except Exception:
+                pass
         prop = res["proposal"]
         # v1859 — REPORTED HERE, AFTER THE SWEEP, because that is when the counter has a value.
         # v1856 put this line beside the skip-set, which runs BEFORE sweep_hist — so _tmpl_hits was

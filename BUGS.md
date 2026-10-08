@@ -406,6 +406,20 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2039 - A CHRONICLE SWEEP HELD A WAITING BUILD FOR HOURS (2026-10-08, #239)
+
+MEASURED 2026-10-07 on his Mac's fleet row: "may false - a chronicle sweep is reading footage", the sweep at "5 of 293
+frames - about 804 min left" (Grok reads timing out at 140 s) - every new build waited up to ~13 h, because the sweep
+lock is released only when the run ends. Now the drift loop, with a build waiting and the relaunch blocked by a chronicle
+sweep in this process, asks it to stop (a status read never does): at its next page the sweep banks that page and every
+page since its last checkpoint, records the frames it read per reel with the prompt version (chron_autoread.json
+"resume", through the one writer), seals nothing and ends - the finally releases the lock and the relaunch follows. The
+reel's next pass is handed those frames and does not pay for them (chronicle_retro counts them as resumedFrames); the
+seal counts them, so a resumed reel never seals as 0 pages; a record from another prompt version is ignored. For 30 min
+after a stop no new sweep starts, so the next one cannot hold the relaunch again. NOT DONE: why Grok reads time out
+(3546 errors on the Mac, 484 on the ALT) - still on #239.
+Law: test_a_waiting_build_stops_the_sweep_at_a_banked_page (4 red-proofs).
+
 ### REG-2038 - A RETIRED REEL WAS COUNTED TWICE, CALLED "WAITING", AND COULD BE RESTARTED ON A BAD READ (2026-10-08, #238)
 
 The #231 eye on 00e3efbe (v3595), reproduced against the shipped functions. (1) A retired never-swept reel sat on the

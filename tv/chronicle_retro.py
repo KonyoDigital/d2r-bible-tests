@@ -574,7 +574,7 @@ def _journal_runs(frames, known, covered_runs=None):
 
 
 def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRAMES,
-              known_chronicle=None):
+              known_chronicle=None, skip_read=None):
     """Sweep ONE sealed reel. Returns evidence — it writes nothing, anywhere.
 
     classify(frame_path) -> ("chronicle-uniques" | "chronicle-sets" | None)
@@ -642,6 +642,8 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
     refused_runs = []    # runs a probe rejected, kept in case this reel proves itself
     classify_proved = []  # a PAID classify said chronicle here — a journal mark is not that
 
+    resumed = [0]         # REG-2039 - frames skipped because a stopped pass already banked them
+
     def _sweep_runs(run_list):
         nonlocal classified, blank_runs, trusted, journal_trusted, rescued_probes
         for run in run_list:
@@ -693,6 +695,12 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
                 if name in read_seen:
                     continue
                 read_seen.add(name)
+                # REG-2039 (#239) - a frame an EARLIER, STOPPED pass already read and banked is not paid for again:
+                # the console stopped that pass at a banked page so a waiting build could relaunch, and its
+                # evidence is already in the durable store. The run still classifies (a few cheap calls).
+                if skip_read and name in skip_read:
+                    resumed[0] += 1
+                    continue
                 resp = read_page(os.path.join(reel_dir, name), kind) or {}
                 pages.append({"reel": sid, "frame": name, "kind": kind, "resp": resp})
     _sweep_runs(cands)
@@ -771,6 +779,7 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
 
     return {"reel": sid, "runs": len(runs), "candidates": len(cands) + rescued,
             "classified": classified, "blankRuns": blank_runs, "pages": pages,
+            "resumedFrames": resumed[0],
             "trustedFocus": trusted, "journalRuns": len(jruns),
             "journalTrusted": journal_trusted, "rescuedShortRuns": rescued,
             "rescuedProbes": rescued_probes}
@@ -2519,7 +2528,7 @@ def _reel_known(known, reel):
 
 
 def sweep_hist(hist_dir, classify, read_page, limit=None, sig_of=None, on_reel=None,
-               skip_reels=None, known_chronicle=None, priced_only=False):
+               skip_reels=None, known_chronicle=None, priced_only=False, skip_read=None):
     """v1524 — `skip_reels` is the sweep's MEMORY: reel basenames already read, which are not paid
     for twice. A sealed reel never changes, so re-reading one buys nothing and costs everything.
 
@@ -2597,14 +2606,15 @@ def sweep_hist(hist_dir, classify, read_page, limit=None, sig_of=None, on_reel=N
                     pass
             continue
         r = read_reel(reel_dir, classify, read_page, sig_of=sig_of,
-                      known_chronicle=_reel_known(known_chronicle, os.path.basename(reel_dir)))
+                      known_chronicle=_reel_known(known_chronicle, os.path.basename(reel_dir)),
+                      skip_read=(skip_read or {}).get(os.path.basename(reel_dir)))
         # v1607 — same accessor as read_reel(), so the frame COUNT and the frames actually swept can
         # never disagree. Counting straight off index.json here would have reported 0 frames for a
         # reel the sweep had just read 98 of.
         frames_seen += len((load_index(reel_dir) or {}).get("frames") or [])
         pages.extend(r.get("pages") or [])
         stat = {k: r.get(k) for k in ("reel", "runs", "candidates", "classified", "blankRuns",
-                                      "journalRuns", "note")}
+                                      "journalRuns", "note", "resumedFrames")}
         stat["pages"] = len(r.get("pages") or [])
         stats.append(stat)
         if on_reel:
