@@ -23806,7 +23806,9 @@ window._bossNavFit = function(){
     window.addEventListener('resize', kick);
     var hook = function(){
       var n = document.querySelector('.boss-nav-sticky');
-      if (n && typeof ResizeObserver === 'function') new ResizeObserver(kick).observe(n);   /* also fires when the tab shows */
+      /* through _roDefer, like every observer on this page (#223: a callback that lays out inside the delivery loop throws
+         'ResizeObserver loop completed'); the hook runs at DOMContentLoaded, after the script that publishes it */
+      if (n && typeof ResizeObserver === 'function' && typeof _roDefer === 'function') new ResizeObserver(_roDefer(kick)).observe(n);
       kick();
     };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hook); else hook();
@@ -62949,6 +62951,7 @@ try {
       });
     };
   };
+  try { window._roDefer = _roDefer; } catch (e) {}   /* REG-2081 - the boss-nav fit (a script far above) observes through it too */
   var _dockEl = document.querySelector('#control-dock .dock-inner');
   var _dockHLast = 0;
   var _dockSync = function(){

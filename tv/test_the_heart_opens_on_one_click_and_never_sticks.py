@@ -169,6 +169,12 @@ HARNESS = r"""
 var window = {}, PAINTS = [], CALLS = [], TIMERS = [], NOW = 0;
 function setTimeout(fn, ms){ var t = {fn: fn, at: NOW + (ms || 0), id: TIMERS.length + 1}; TIMERS.push(t); return t.id; }
 function clearTimeout(id){ TIMERS = TIMERS.filter(function(t){ return t.id !== id; }); }
+/* REG-2073 - the census age now ticks on a setInterval while the panel is open; the panel here never closes, and node's
+   real interval kept the process alive until the 60 s timeout. Recorded on the harness clock, never fired - the tick has
+   its own law (test_the_census_age_ticks_from_its_stamp). */
+var INTERVALS = [];
+function setInterval(fn, ms){ INTERVALS.push({fn: fn, ms: ms}); return 100000 + INTERVALS.length; }
+function clearInterval(id){}
 function fetch(url){ return new Promise(function(res, rej){ CALLS.push({url: url, res: res, rej: rej}); }); }
 function answer(d){ var c = CALLS[CALLS.length - 1]; c.res({ json: function(){ return Promise.resolve(d); } }); }
 function mk(id){ return { id: id, children: [], textContent: '', className: '', attrs: {},
