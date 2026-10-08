@@ -53,6 +53,7 @@
   "test_a_cited_frame_stays_and_the_evidence_line_opens_it": 0.3,
   "test_a_clean_look_is_filed_as_clean": 0.1,
   "test_a_clean_run_has_no_gaps": 0.1,
+  "test_a_close_cancels_the_reel_still_loading": 0.7,
   "test_a_cold_review_must_carry_the_code": 0.1,
   "test_a_composed_name_is_not_an_unknown_one": 0.1,
   "test_a_conditional_reap_is_not_a_reaper": 0.9,
@@ -214,6 +215,7 @@
   "test_a_render_fixture_waits_for_the_pages_own_answer": 0.4,
   "test_a_repainted_press_is_not_a_click": 0.1,
   "test_a_replay_holds_on_a_beat_with_no_photo": 0.4,
+  "test_a_rerender_keeps_the_dossier_he_reads": 0.2,
   "test_a_reset_keeps_the_retro_rows_filed": 0.3,
   "test_a_reset_refiles_only_what_the_plan_says": 0.2,
   "test_a_resize_callback_defers_its_layout": 0.2,
@@ -428,6 +430,7 @@
   "test_equipped_items_are_pixel_exact_per_character": 0.7,
   "test_esc_on_a_console_panel_never_quits": 0.4,
   "test_escape_answers_the_question_no": 0.2,
+  "test_escape_closes_only_the_card_it_names": 0.2,
   "test_every_decision_file_is_ignored": 0.2,
   "test_every_doctor_check_is_explained": 0.1,
   "test_every_lane_stamps_its_own_beat": 2.6,
@@ -654,6 +657,7 @@
   "test_the_beacon_says_how_each_pc_films_and_drains": 3.0,
   "test_the_beat_says_which_dossier_is_on_screen": 1.4,
   "test_the_bible_states_a_boss_fact_the_way_its_card_does": 0.4,
+  "test_the_bible_text_agrees_with_its_own_cards": 0.2,
   "test_the_blueprint_cannot_go_stale": 35.3,
   "test_the_blueprint_names_the_engine": 53.4,
   "test_the_board_hands_its_stores_over": 0.8,
@@ -873,6 +877,7 @@
   "test_the_status_breakdown_covers_what_it_bills": 2.5,
   "test_the_status_breakdown_names_its_own_blind_spot": 3.4,
   "test_the_status_poll_never_waits_on_a_spawn": 1.9,
+  "test_the_super_uniques_row_holds_super_uniques": 0.3,
   "test_the_sweep_box_says_whose_sweep": 0.1,
   "test_the_sweep_knows_whose_world_it_is": 0.1,
   "test_the_sweep_reads_the_reels_that_have_something": 1.6,
@@ -952,6 +957,7 @@
  "localEstimates": {
   "gates": [
    "test_a_clean_run_has_no_gaps",
+   "test_a_close_cancels_the_reel_still_loading",
    "test_a_find_opens_its_own_reel",
    "test_a_fleet_card_knows_what_clips_it",
    "test_a_fleet_card_opens_where_it_can_be_read",
@@ -962,6 +968,7 @@
    "test_a_read_says_what_it_is_once",
    "test_a_reel_from_the_shelf_closes_back_to_the_shelf",
    "test_a_replay_holds_on_a_beat_with_no_photo",
+   "test_a_rerender_keeps_the_dossier_he_reads",
    "test_a_retired_reel_is_counted_once",
    "test_a_right_click_on_a_tab_does_not_switch_rooms",
    "test_a_rolled_name_is_stamped_as_what_it_is",
@@ -975,6 +982,7 @@
    "test_a_waiting_build_stops_the_sweep_at_a_banked_page",
    "test_a_worktree_render_reads_the_main_checkouts_world",
    "test_an_examined_seal_releases_only_when_every_panel_was_probed",
+   "test_escape_closes_only_the_card_it_names",
    "test_furniture_filed_in_a_mule_is_an_integrity_finding",
    "test_his_auto_sort_re_homes_misfiled_items",
    "test_his_own_fleet_row_shows_the_version_it_runs",
@@ -982,6 +990,7 @@
    "test_one_look_that_disagrees_is_not_a_second_item",
    "test_standing_kit_never_files_to_a_mule",
    "test_the_bible_states_a_boss_fact_the_way_its_card_does",
+   "test_the_bible_text_agrees_with_its_own_cards",
    "test_the_board_headline_is_the_one_uniques_number",
    "test_the_boss_nav_never_buries_the_card",
    "test_the_census_age_ticks_from_its_stamp",
@@ -997,6 +1006,7 @@
    "test_the_shelf_census_names_the_part_he_sees",
    "test_the_shelf_door_says_the_shelf",
    "test_the_sim_paragraph_does_its_own_math",
+   "test_the_super_uniques_row_holds_super_uniques",
    "test_the_vault_finder_names_the_mule_and_the_cell",
    "test_three_run_counts_name_their_universes",
    "test_two_counts_never_share_one_word",
@@ -1027,10 +1037,16 @@
     "date": "2026-10-08",
     "count": 13,
     "locked": true
+   },
+   {
+    "source": "v3631 local shards",
+    "date": "2026-10-08",
+    "count": 5,
+    "locked": true
    }
   ],
-  "count": 51
+  "count": 56
  },
- "estimatedGates": 51,
- "estimatedSeconds": 37.5
+ "estimatedGates": 56,
+ "estimatedSeconds": 39.1
 }
