@@ -108,14 +108,47 @@ class ACloseCancelsTheReelStillLoading(unittest.TestCase):
             self.assertEqual(out["caption"], "WINNER CAPTION",
                              "a reel still loading when ✕ stepped back to the shelf wrote the stage anyway (%s): %r"
                              % (settle, out))
-            self.assertEqual(out["beats"], ["WINNER"], "the late load cleared the stage under the shelf (%s)" % settle)
+            # REG-2118 - the step back now drops the reel itself, so the caption is what proves the late load stayed out
+            self.assertEqual(out["beats"], [], "the step back did not let go of the reel (%s): %r" % (settle, out))
 
     def test_a_full_close_cancels_the_loading_reel(self):
         for settle in ("reject", "error"):
             out = _run({"settle": settle, "during": "close"})
             self.assertEqual(out["caption"], "WINNER CAPTION",
                              "a reel still loading when the theatre closed wrote the closed stage (%s): %r" % (settle, out))
-            self.assertEqual(out["beats"], ["WINNER"], "the late load cleared a closed stage's beats (%s)" % settle)
+            self.assertEqual(out["beats"], [], "the full close did not let go of the reel (%s): %r" % (settle, out))
+
+    def test_a_full_close_holds_no_reel_and_no_frame(self):
+        """REG-2118 (GrokBot tick 429 ACT K49) - thCinema(false) inside the close repainted the stage from the reel it still
+        held, so the next shelf door opened over the closed reel's frame. The reel is dropped BEFORE that repaint."""
+        if NODE is None:
+            raise AssertionError("node is not on this machine - this gate does not skip")
+        js = """
+var EL = {};
+function $(id){ return EL[id] || (EL[id] = { id: id, hidden: false, textContent: '',
+  removeAttribute: function(k){ delete this[k]; } }); }
+var document = { body: { classList: { add: function(){}, remove: function(){} } } };
+var window = {};
+var clearTimeout = function(){};
+var TH = { open: true, reelFromShelf: false, beats: ['S53-a', 'S53-b'], allBeats: ['S53-a', 'S53-b'], i: 1 };
+var SEEN = {};
+function thLit(){} function thMore(){}
+function thTimeline(){ SEEN.timeline = TH.beats.length; }
+function thCinema(){ SEEN.cinema = TH.beats.length; }
+$('th-film').src = 'S53-b.jpg'; $('th-film').__url = 'S53-b.jpg';
+%s
+thClose();
+console.log(JSON.stringify({ beats: TH.beats, all: TH.allBeats, seen: SEEN, film: $('th-film').src || null,
+                             url: $('th-film').__url }));
+""" % _cut(_src(), CLOSE)
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=30)
+        self.assertEqual(r.returncode, 0, "thClose did not run in node: %s" % r.stderr[-600:])
+        out = json.loads(r.stdout.strip().splitlines()[-1])
+        self.assertEqual((out["beats"], out["all"]), ([], []), "a closed theatre still holds the reel: %r" % out)
+        self.assertEqual(out["seen"].get("cinema"), 0,
+                         "leaving cinema repainted the stage while it still held the closed reel: %r" % out)
+        self.assertEqual(out["seen"].get("timeline"), 0, "the strip was not rebuilt empty: %r" % out)
+        self.assertEqual((out["film"], out["url"]), (None, ""), "the closed reel's frame is still on the stage: %r" % out)
 
 
 RED_PROOF = [
@@ -132,6 +165,16 @@ RED_PROOF = [
     {"why": "REG-2091 - an overtaken load's timeout clears the winner's beats again",
      "file": "tv/control_ui.html",
      "find": "      if (gen !== TH.loadGen) return;   /* REG-2091 - an overtaken load's timeout must not clear the winner's beats or caption */\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "REG-2118 - a full close keeps the reel, and leaving cinema paints its frame back onto the closed stage",
+     "file": "tv/control_ui.html",
+     "find": "\n    try { TH.beats = []; TH.allBeats = []; TH.i = 0; thTimeline(); } catch (e) {}\n    try { var _cf",
+     "replace": "\n    try { var _cf",
+     "matches": 1},
+    {"why": "REG-2118 - a full close leaves the closed reel's frame on the stage",
+     "file": "tv/control_ui.html",
+     "find": "    try { var _cf = $('th-film'); if (_cf){ _cf.__want = ''; _cf.__url = ''; _cf.removeAttribute('src'); _cf.title = ''; } } catch (e) {}\n",
      "replace": "",
      "matches": 1},
 ]

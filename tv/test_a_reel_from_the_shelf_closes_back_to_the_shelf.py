@@ -55,6 +55,7 @@ function clearTimeout(){}
 function thShelf(on){ CALLS.push('shelf:' + on); if (on && %s) OV.hidden = false; }
 function thClose(){ CALLS.push('close'); }
 function thLit(){ CALLS.push('lit'); }
+function thTimeline(){ CALLS.push('timeline:' + TH.beats.length); }
 %s
 thCloseReel();
 console.log(JSON.stringify({ calls: CALLS, th: TH, shelfShown: !OV.hidden, film: { src: FILM.src || null, url: FILM.__url, want: FILM.__want } }));
@@ -69,7 +70,8 @@ console.log(JSON.stringify({ calls: CALLS, th: TH, shelfShown: !OV.hidden, film:
 class AReelFromTheShelfClosesBackToTheShelf(unittest.TestCase):
 
     def test_a_reel_from_the_shelf_steps_back_to_the_shelf(self):
-        out = _press({"open": True, "reelFromShelf": True, "shelfIsDoor": False, "playing": True})
+        out = _press({"open": True, "reelFromShelf": True, "shelfIsDoor": False, "playing": True,
+                      "beats": ["S53-a", "S53-b"], "allBeats": ["S53-a", "S53-b"], "i": 1})
         self.assertNotIn("close", out["calls"], "✕ on a reel from the shelf closed the whole theatre: %r" % out["calls"])
         self.assertTrue(out["shelfShown"], "the shelf it came through did not come back: %r" % out)
         self.assertTrue(out["th"]["shelfIsDoor"], "the shelf is not the door now - its ✕ would leave a bare stage")
@@ -78,6 +80,11 @@ class AReelFromTheShelfClosesBackToTheShelf(unittest.TestCase):
         # REG-2095 (GrokBot tick 427) - the reel's last frame stayed painted under the gallery's see-through strip
         self.assertEqual(out["film"], {"src": None, "url": "", "want": ""},
                          "the reel's last frame is still on the stage under the shelf: %r" % out["film"])
+        # REG-2118 (GrokBot tick 429 ACT) - the stage still HELD the closed reel, so its filmstrip stayed under the gallery
+        # and every later repaint painted its frame back: the step back drops the reel and rebuilds the strip empty
+        self.assertEqual((out["th"].get("beats"), out["th"].get("allBeats")), ([], []),
+                         "the closed reel is still held by the stage under the shelf: %r" % out["th"])
+        self.assertIn("timeline:0", out["calls"], "the strip was not rebuilt empty after the step back: %r" % out["calls"])
 
     def test_a_reel_not_from_the_shelf_closes_the_theatre(self):
         out = _press({"open": True, "reelFromShelf": False, "shelfIsDoor": False})
@@ -115,6 +122,11 @@ RED_PROOF = [
      "file": "tv/control_ui.html",
      "find": "  $('th-close').onclick = thCloseReel;",
      "replace": "  $('th-close').onclick = thClose;",
+     "matches": 1},
+    {"why": "REG-2118 - the step back keeps the closed reel on the stage, so its filmstrip stays under the gallery",
+     "file": "tv/control_ui.html",
+     "find": "      try { TH.beats = []; TH.allBeats = []; TH.i = 0; thTimeline(); } catch (e) {}\n      try { TH.shelfIsDoor = true; } catch (e) {}\n",
+     "replace": "      try { TH.shelfIsDoor = true; } catch (e) {}\n",
      "matches": 1},
     {"why": "REG-2095 - the reel's last frame stays painted under the gallery after the step back",
      "file": "tv/control_ui.html",

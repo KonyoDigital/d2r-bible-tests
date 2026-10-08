@@ -17540,6 +17540,12 @@ window._lockMark = function(isOpen, px, label){
       /* REG-2095 (GrokBot tick 427, K63/K69) - and its LAST FRAME must not stay painted: the gallery's bottom strip is
          see-through, and after ✕ it showed the reel's belt row and mana orb until the console was reopened */
       try { var _fm = $('th-film'); if (_fm){ _fm.__want = ''; _fm.__url = ''; _fm.removeAttribute('src'); _fm.title = ''; } } catch (e) {}
+      /* REG-2118 (#317, GrokBot tick 429 ACT K48/K49) - AND THE STAGE LETS GO OF THE REEL. Clearing the frame was not enough:
+         the FILMSTRIP (the thumb row at the stage's foot) stayed under the gallery's see-through bottom bar, and the theatre
+         still held the closed reel, so every later repaint (the art map landing, leaving cinema, a full close) painted its
+         frame back. The stage now holds no reel - the state a film-less session already uses - and the strip is rebuilt
+         empty; the next reel picked from the shelf loads its own. */
+      try { TH.beats = []; TH.allBeats = []; TH.i = 0; thTimeline(); } catch (e) {}
       try { TH.shelfIsDoor = true; } catch (e) {}
       try { thShelf(true); } catch (e) {}
       var _bk = $('th-shelfov');
@@ -17565,6 +17571,11 @@ window._lockMark = function(isOpen, px, label){
        shelf overlay hanging over a closed theatre. [[sweep-dont-ask]] */
     try { var _sv = $('th-shelfov'); if (_sv) _sv.hidden = true; } catch(e){}
     try { var _c = $('th-coach'); if (_c) _c.hidden = true; } catch(e){}
+    /* REG-2118 (#317) - A CLOSED THEATRE HOLDS NO REEL. thCinema(false) below repaints the stage from TH.beats, so a full
+       close painted the closed reel's frame back onto the hidden stage, and the next shelf door opened over it ("opening
+       the shelf…" in front of Session 53's frame). The reel is dropped first; the next open loads its own. */
+    try { TH.beats = []; TH.allBeats = []; TH.i = 0; thTimeline(); } catch (e) {}
+    try { var _cf = $('th-film'); if (_cf){ _cf.__want = ''; _cf.__url = ''; _cf.removeAttribute('src'); _cf.title = ''; } } catch (e) {}
     thCinema(false);   // v825 — leaving the theatre always leaves cinema
     thLit();
     /* REG-1934 — AND THE COCKPIT'S WORDS NOW, NOT AT THE NEXT POLL. The THEATRE word, marquee, kicker and

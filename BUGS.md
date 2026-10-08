@@ -406,6 +406,19 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2118 - A CLOSED REEL STAYED ON THE STAGE, SO ITS FILMSTRIP AND FRAME CAME BACK UNDER THE SHELF (2026-10-09, #317)
+
+GrokBot tick 429 ACT (v3629, Session 53, Shelf -> River gallery -> dossier -> Theatre -> CLOSE): the film-strip frames stayed
+under the gallery's bottom bar (still there ~7 s later), and reopening THE SHELF showed Session 53's frame behind "opening the
+shelf...". REG-2095 cleared only the big frame, and only on the step back. Two holes, both read in the code: the FILMSTRIP (the
+thumb row at the stage's foot) was never cleared, and the theatre still HELD the closed reel, so every later repaint - the art
+map landing (thArtRepaint -> thFilmstrip), leaving cinema inside thClose (thCinema(false) -> thPaint) - painted it back. Both
+closes now drop the reel (TH.beats / allBeats emptied, the state a film-less session already uses) and rebuild the strip empty;
+a full close does it BEFORE leaving cinema and blanks the frame. Laws: the shelf law asserts the step back holds no reel; the
+close law gains a full-close case (no reel, no frame, and cinema saw an empty reel). REG-2091's two beats asserts moved from
+['WINNER'] to [] - the close now drops the reel itself - and its three red-proofs were re-measured red (the caption proves the
+late load stayed out).
+
 ### REG-2119 - THE RUNE RECIPE LAW COULD RUN ON NOTHING, AND IT NEVER SAW ZOD (2026-10-09, the v3630 second eye)
 
 The cross-family look at v3630 (grok-cli, 18,541 chars, 3 findings) on REG-2108's law, both reproduced: it compared a rune card
