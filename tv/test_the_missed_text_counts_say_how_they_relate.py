@@ -69,6 +69,8 @@ class TheMissedTextCountsSayHowTheyRelate(unittest.TestCase):
         self.assertEqual(s.count("chips.push('<span class=\"dsr-chip\">🧠 ' + esc(_missedSay(sm)) + '</span>');"), 1, "the dossier chip counts on its own again")
         self.assertEqual(s.count("vparts.push('🧠 ' + esc(_missedSay(sm)));"), 1, "the shelf card counts on its own again")
         self.assertEqual(s.count(HEAD), 1, "the MISSED TEXT list no longer says what its rows are")
+        self.assertEqual(s.count("dsr-h\">🔬 Missed text' + _mHead + ' · tap to jump</div>'"), 1,
+                         "the list header builds its parts and then does not print them (the heart found this law BLIND to it)")
 
 
 RED_PROOF = [
