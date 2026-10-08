@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3621",
+  "ver": "v3622",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3621: the organizer evidence door is styled, the loot he carries leads the list, the kit rule lives in the organizer and a packer that raises says cell UNKNOWN (REG-2031); a tooltip-judge read says its place is UNKNOWN instead of claiming he does not hold the item - his Session 1 Highlords Wrath was worn (REG-2032). HEART: test_the_organizer_says_the_mule_the_cell_and_the_picture, test_a_tooltip_judge_read_never_claims_he_does_not_hold_it",
+  "note": "v3622: boss and item facts follow their cards; the board uniques headline is THE number; an inventory read is kept on you; one tooltip is one item; a disagreeing eth read is UNKNOWN; a retired reel is counted once; a waiting build stops the chronicle sweep at a banked page; Grok reads ask low effort; a Mini focus counts only when clicked; a seal releases only when every triage panel was probed; a right-click never switches a tab; the stuck tip names each row; the Vault names its real button; his own fleet row shows the version it runs (REG-2033..2046)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
