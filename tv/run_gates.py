@@ -9190,6 +9190,11 @@ GATES = [
          needs_app=False,
          why=("REG-2087 (GrokBot 425) - a re-render that missed its session closed the open dossier ('it closed itself "
               "within ~2 s; the second click held'); a miss on what is showing now keeps it.")),
+    Gate("test_the_bible_text_agrees_with_its_own_cards", [sys.executable,
+         os.path.join(HERE, "test_the_bible_text_agrees_with_its_own_cards.py")], 30,
+         needs_app=False,
+         why=("REG-2089 (#231 eye on v43) - taglines and codex notes swept against their own codex props: Veil of Steel, "
+              "Moser's, Suicide Branch, Ondal's, Que-Hegan's and The Oculus disagreed; the Summoner 'had no boss card'.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

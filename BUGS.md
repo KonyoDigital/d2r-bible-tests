@@ -406,6 +406,15 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2089 - SIX TAGLINES DISAGREED WITH THEIR OWN CODEX; THE SUMMONER 'HAD NO BOSS CARD' (2026-10-08, #231 eye on v43)
+
+The #231 code seat's looks at May's 4275b03a and a78bae20, re-measured at HEAD, then SWEPT: Veil of Steel '+60 all res ·
++140% defense' (codex: All Res +50, +60% ED, +140 Defense - swapped, in its tagline AND its codex note); Moser's Blessed Circle
++20 all res (25); Suicide Branch +40% FCR / +30 all res (50 / 10); Ondal's Wisdom +30% FCR (45); Que-Hegan's Wisdom +30% (20);
+The Oculus +20% (30). Every time the codex held the game's number. And 'The Summoner - the only Key dropper without its own
+boss card' sat under a link to its own boss detail, with BOSSES[0] the Summoner. The look's uber-flow finding is moot at HEAD.
+Law: test_the_bible_text_agrees_with_its_own_cards - three sweeps (taglines' all res, taglines' FCR, codex notes vs props).
+
 ### REG-2088 - TWO GATES AT 95% OF THEIR BUDGET TIMED OUT THREE RUNS RUNNING (2026-10-08)
 
 test_health_engine measured 54-58 s in every quiet full run on his Mac against a 60 s ceiling; test_heart_surface 38-52 s,
