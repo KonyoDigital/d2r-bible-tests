@@ -406,6 +406,22 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2033 - THE BIBLE STATED BOSS AND ITEM FACTS ITS OWN CARDS CONTRADICT, ON THE PAGE HE READS MID-GAME (2026-10-08, #272)
+
+The #231 second eye (grok-4.7) read the May commits labelled v42/v43 and listed game facts. MEASURED in bible.html at
+2c1ae533, the ones the page's OWN data contradicts were still live: the Pandemonium table said Uber Mephisto
+'Cold + Lit immune', Uber Diablo 'Fire + Lit immune', Uber Baal 'None' while the uber ID cards (with resist numbers) say
+Lightning + Poison / Fire + Cold / Fire + Cold; three Hellfire Torch lines said '+20 stats' against the drop data's
+'+10-20 attr'; two lines sent him to Anya with a Standard of Heroes while the Torch card says the trio is the only source.
+Also fixed, as game mechanics rather than two-source drift: an invented 'Hellbovine glove' cow-only drop, the cow level
+as 'always-Hell', a fixed cairn order (the deciphered scroll shows it), Wirt's Leg 'never breaks' (the cube uses it up),
+'Smite ignores immunities' (it never misses; it is physical), keys 'p3 boosts elite packs' (players lower no-drop), the
+Pindle route via the Halls of Anguish waypoint (the bible's own route table says Anya's red portal) and the Duriel route
+via the Halls of the Dead. REFUTED and left: 'the Cow King lock is not in D2R' - it is. STILL OWED: Countess Ist is
+1:1,110 in four places and '1:850 (all diffs)' in the methodology block; Ist only drops in Hell, so both cannot hold,
+and nothing here measures which - left UNKNOWN on #272 rather than replaced by a guess.
+Law: test_the_bible_states_a_boss_fact_the_way_its_card_does (3 red-proofs).
+
 ### REG-2032 - THE BOARD SAID A TOOLTIP-JUDGE READ "DOES NOT SHOW THAT YOU HOLD IT" WHILE THE FRAME SHOWED HIM WEARING IT (2026-10-08, #270)
 
 His question on Session 1 (the Highlord's Wrath tooltip open in the theatre): was it registered to the vault, or to his

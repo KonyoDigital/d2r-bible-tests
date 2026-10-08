@@ -8934,6 +8934,12 @@ GATES = [
          needs_app=False,
          why=("REG-2032 (#270, his Session 1 question) - the board said a tooltip-judge read 'does not show that you hold it' while the frame showed him WEARING Highlord's Wrath; the judge records no place, so the place is UNKNOWN.")
          ),
+    Gate("test_the_bible_states_a_boss_fact_the_way_its_card_does", [sys.executable,
+         os.path.join(HERE, "test_the_bible_states_a_boss_fact_the_way_its_card_does.py")], 60,
+         needs_app=False,
+         why=("REG-2033 (#272, the #231 eye on v42/v43) - the Pandemonium table named immunities its uber cards contradict, "
+              "three Hellfire Torch lines said +20 stats against its +10-20 data, and two sent him to Anya for a Torch that drops in the fight.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,
