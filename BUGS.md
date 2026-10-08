@@ -435,6 +435,15 @@ close law gains a full-close case (no reel, no frame, and cinema saw an empty re
 ['WINNER'] to [] - the close now drops the reel itself - and its three red-proofs were re-measured red (the caption proves the
 late load stayed out).
 
+### REG-2122 - THE BUTTON MATRIX'S WAITS WERE A ONE-MACHINE GUESS, AND THE v3631 PUSH REFUSED ON ONE (2026-10-09)
+
+The first v3631 push pre-proved its changed laws beside four proving lanes; test_button_matrix (changed by REG-2113) came up
+"already red untampered" on "STOP -> dark" - its fixed 20 s wait for the agent to stop - and the push refused at minute 12
+before any proof ran. It passed alone (12 s) and in both gate lanes. Same class as REG-2113 one check further on. The prover
+already tells a law how many lanes run beside it (HEART2_LANES, REG-1997) and doubles its DEADLINE for them; the law's own waits
+(wait_mode, wait_agent, REG-2113's SIM poll) now double with it when HEART2_LANES > 1 and never alone. A wait that succeeds still
+returns at once. Law: test_a_law_is_told_how_many_lanes_run drives the import at 4, 1 and unset lanes; 1 red-proof, red.
+
 ### REG-2119 - THE RUNE RECIPE LAW COULD RUN ON NOTHING, AND IT NEVER SAW ZOD (2026-10-09, the v3630 second eye)
 
 The cross-family look at v3630 (grok-cli, 18,541 chars, 3 findings) on REG-2108's law, both reproduced: it compared a rune card
