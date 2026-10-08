@@ -406,6 +406,14 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2113 - THE BUTTON MATRIX'S SIM CHECK WAS ONE SAMPLE AFTER A FIXED SLEEP (2026-10-09, #310)
+
+"SIM -> reads grow or bridge stays: reads=0" went red in gate shard 2 on v3631, v3633, v3634 and v3635 - beside a second gate
+lane and his console's own prover - and passed alone every time. It slept 6 s and read /api/status once: one late heartbeat
+read as "bridge down". It now asks the same question once a second for up to 15 s (a status call that times out under load
+counts as a sample with no answer) and fails with the last sample's reads and bridge if the agent never answers. The swallow
+ratchet held (67 / 67).
+
 ### REG-2112 - TWO SCROLLS RACED ON THE RETURN TO BOSSES (2026-10-09, #231 on v43 fbdcf7a0, #314)
 
 navClean('bosses') cleared the active item - whose setActiveItem(null) schedules a route-back scroll to the boss nav 60 ms

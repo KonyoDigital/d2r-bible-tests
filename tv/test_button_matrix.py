@@ -214,9 +214,21 @@ def main():
     check("SIM → bridge up", s and s.get("bridge") is True)
     check("SIM → agent ping", wait_agent(True, 5))
     # let stub produce at least one read if synth path works
-    time.sleep(6)
-    s = get(CTRL + "/api/status")
-    check("SIM → reads grow or bridge stays", s.get("bridge") is True, f"reads={s.get('readCount')}")
+    # REG-2113 (#310) - ONE SAMPLE AFTER A FIXED 6 s WAS A TIMING GUESS. Red in gate shard 2 on four batches running beside a second
+    # lane and his console's prover, green alone every time: a single late heartbeat read as "bridge down". Poll the same question
+    # for up to 15 s - a SIM agent that is really gone never answers it, and the last sample is what the failure prints.
+    time.sleep(2)
+    s, _ok = {}, False
+    for _i in range(15):
+        try:
+            s = get(CTRL + "/api/status") or {}
+        except Exception:
+            s = {}   # a status call that timed out under load is a sample with no answer, not a crash
+        if s.get("bridge") is True or (s.get("readCount") or 0) > 0:
+            _ok = True
+            break
+        time.sleep(1)
+    check("SIM → reads grow or bridge stays", _ok, f"reads={s.get('readCount')} bridge={s.get('bridge')} after 15 s of asking")
 
     print("\n· SIM again (toggle cut) via /api/off  [UI maps 2nd SIM click → off]")
     r = post("/api/off")
