@@ -33,7 +33,10 @@ _REFRESH_END = "  /* ⚠⚠ v3086 — NOBODY EVER ASKED."
 
 
 def _rail(fx):
-    prog = (F.HARNESS + F._cut(F.FLEET_START, _REFRESH_END) + "\n"
+    # REG-2072 - the rail's river chip groups its tip through _fleetStuckWhy, defined further down the page: declared here
+    # from the page's own bytes, as test_the_fleet_says_where_a_river_is_stuck's rail does.
+    prog = (F.HARNESS + F._cut("  function _fleetStuckWhy(list, label){\n", "join('  |  ');\n  }\n", inclusive_end=True) + "\n"
+            + F._cut(F.FLEET_START, _REFRESH_END) + "\n"
             + "ELS['fleet-list'] = { innerHTML: '' };\n"
             + "var fetch = function(){ return Promise.resolve({ json: function(){ return Promise.resolve(%s); } }); };\n"
             % json.dumps(fx)

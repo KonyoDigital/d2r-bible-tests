@@ -969,7 +969,10 @@ def _rail():
     One row carries counts so both of the card's paths draw (counted, and no report)."""
     fx = F._fixture()
     fx["online"][0]["tally"] = {"ok": True, "at": F._iso(F.NOW)}
-    prog = (F.HARNESS + F._cut(F.FLEET_START, _REFRESH_END) + "\n"
+    # REG-2072 - the rail's river chip now groups its tip through _fleetStuckWhy, defined further down the page; the cut
+    # region does not hold it, so it is declared from the page's own bytes (a free name the harness was never told).
+    prog = (F.HARNESS + F._cut("  function _fleetStuckWhy(list, label){\n", "join('  |  ');\n  }\n", inclusive_end=True) + "\n"
+            + F._cut(F.FLEET_START, _REFRESH_END) + "\n"
             + "ELS['fleet-list'] = { innerHTML: '' };\n"
             + "var fetch = function(){ return Promise.resolve({ json: function(){ return Promise.resolve(%s); } }); };\n"
             % json.dumps(fx)
