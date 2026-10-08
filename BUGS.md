@@ -406,6 +406,13 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2079 - "1-in-836", THEN THE 1:912 ARITHMETIC (2026-10-08, #231 eye on v43)
+
+The #231 code seat's look at May's 13f8e944, re-measured at HEAD: the simulator help said a Shako is 1-in-836, then "not
+guaranteed in 912 runs", "~58% of 500-kill sessions get zero" and "0.55 is the math-expected number" - the old 1:912
+math (500/912 = 0.548, (1-1/912)^500 = 57.8%). At 1:836: 836 runs, ~55% zero, 0.60 expected. The 50%/95% line (~580 /
+~2,500) already matched. Law: test_the_sim_paragraph_does_its_own_math reads the rate from the paragraph and recomputes.
+
 ### REG-2078 - A 19-SECOND LAW THAT TOOK 308 ON HIS MAC (2026-10-08, the v3627 gates)
 
 test_a_cached_absence_is_not_an_absence timed out at its 300 s budget in shard 3 (CI cost 19.1 s; the last session saw it

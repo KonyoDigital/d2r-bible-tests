@@ -9146,6 +9146,11 @@ GATES = [
          needs_app=False,
          why=("REG-2077 (#283, GrokBot 418 K11) - TV·D '162 RUNS', the theatre 'session 41/216' and the shelf '8 RUNS' "
               "never said what they counted.")),
+    Gate("test_the_sim_paragraph_does_its_own_math", [sys.executable,
+         os.path.join(HERE, "test_the_sim_paragraph_does_its_own_math.py")], 30,
+         needs_app=False,
+         why=("REG-2079 (#231 eye on v43) - the simulator help named 1-in-836 and quoted 1:912 arithmetic (912 runs, "
+              "~58% zero, 0.55 expected); every figure is now recomputed from the rate the paragraph names.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,
