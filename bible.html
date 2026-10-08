@@ -25120,6 +25120,11 @@ function _bossFilteredDrops(boss){
   }
   return dropTable;
 }
+/* #278 - the summary names what the table holds: 'Show all N' only when no filter took rows out,
+   'Show n of N' when one did (Mephisto under the grail filter said 'Show all 32' of 267). */
+function _allDropsSummaryLabel(shown, total){
+  return shown < total ? ('Show ' + shown + ' of ' + total + ' droppable items') : ('Show all ' + total + ' droppable items');
+}
 window._bossFilteredDrops = _bossFilteredDrops;
 function _bossDropRowsHtml(bossId){
   const boss = (typeof BOSSES !== 'undefined') ? BOSSES.find(b => b.id === bossId) : null;
@@ -25260,7 +25265,7 @@ function renderBossCards() {
         ${quickTake}
         ${topDropsHtml}
         <details class="all-drops-details" data-boss="${boss.id}"${window._openDropBosses.has(boss.id)?' open':''}>
-        <summary class="all-drops-summary">&#9656; Show all ${dropTable.length} droppable items &mdash; full table (filter &amp; sort)</summary>
+        <summary class="all-drops-summary">&#9656; ${_allDropsSummaryLabel(dropTable.length, boss.dropTable.length)} &mdash; full table (filter &amp; sort)</summary>
         <div class="boss-filter-bar">
           <span class="boss-filter-label">show:</span>
           <button class="boss-filter-pill ${filter==='all'?'active':''}" onclick="setBossFilter('${boss.id}','all')">all (${_calcDrops(boss).length})</button>

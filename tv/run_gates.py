@@ -9018,6 +9018,12 @@ GATES = [
          why=("REG-2049 (#252, GrokBot tick 415) - Session 175 read '1 READS' beside '0 of 3 item reads': paid AI read calls "
               "and item-text moments read, two counts under one word.")
          ),
+    Gate("test_a_summary_counts_the_table_it_opens", [sys.executable,
+         os.path.join(HERE, "test_a_summary_counts_the_table_it_opens.py")], 30,
+         needs_app=False,
+         why=("REG-2050 (#278, #231 look on v43) - Mephisto under the grail filter said 'Show all 32 droppable items' "
+              "of 267: the filtered count printed under the word all.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

@@ -406,6 +406,16 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2050 - "SHOW ALL 32 DROPPABLE ITEMS" OF 267 (2026-10-08, #278)
+
+The #231 second eye on the May commit e45c1d36 (v43), re-measured at HEAD: the boss card's summary printed
+`dropTable.length` - the FILTERED copy from `_bossFilteredDrops` - under the words "Show all", while the pill beside it
+counts `boss.dropTable.length`. Mephisto under the grail filter read "Show all 32" of 267. `_allDropsSummaryLabel(shown,
+total)` says "Show all N" only when no filter took rows out, else "Show n of N". Same batch, the other v43/v44 looks:
+the super-unique zone spec now requires each zone present and carrying exactly its own id (`not.toBe(proxy)` passed
+any other proxy; `if (entry)` skipped a missing zone), and the TZ_BOSS_MAP comment stopped listing Arcane Sanctuary
+as unlinked (it routes to the Summoner's card). Law: test_a_summary_counts_the_table_it_opens.
+
 ### REG-2049 - "1 READS" BESIDE "0 OF 3 ITEM READS" ON ONE SESSION CARD (2026-10-08, #252)
 
 GrokBot tick 415 (v3621), Session 175. Both numbers were true and answered different questions: the AI read calls the
