@@ -44,8 +44,14 @@ class AMiniFocusIsDeclaredOnlyWhenHeChoseIt(unittest.TestCase):
             return {"ok": True, "sid": "s_law_1"}
 
         saved = dict(ca._MINI)
+        import tempfile, shutil
+        tmp = tempfile.mkdtemp(prefix="mini-focus-law-")
         try:
-            with mock.patch.object(ca, "ON_AIR_FLOOR_GB", 0), \
+            # ⚠ HIS STATE NEVER MOVES: mini_start notes the "mini" capture door before it spawns, and that ledger lives under
+            # the state root - so the root is a temp dir (TV_HIST, read at call time) and the door note is not this law's.
+            with mock.patch.dict(os.environ, {"TV_HIST": tmp}), \
+                    mock.patch.object(ca, "_capture_door_note", lambda *a, **k: None), \
+                    mock.patch.object(ca, "ON_AIR_FLOOR_GB", 0), \
                     mock.patch.object(ca, "_screen_recording_ok_quick", lambda: True), \
                     mock.patch.object(ca, "_agent_alive", lambda: False), \
                     mock.patch.object(ca, "_lane_waking", lambda *a, **k: None), \
@@ -57,6 +63,7 @@ class AMiniFocusIsDeclaredOnlyWhenHeChoseIt(unittest.TestCase):
         finally:
             ca._MINI.clear()
             ca._MINI.update(saved)
+            shutil.rmtree(tmp, ignore_errors=True)
         return seen
 
     def test_the_pre_selected_default_is_not_a_declaration(self):

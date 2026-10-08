@@ -63,7 +63,8 @@ EV.forEach(function(ev){
 });
 console.log(JSON.stringify(OUT));
 """ % (_fn_src(), json.dumps(events))
-    r = subprocess.run([NODE, "-e", js], capture_output=True, text=True, timeout=30)
+    # the program goes in on STDIN - a law never hands node its program on argv (test_no_law_hands_node_its_program_on_argv)
+    r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=30)
     if r.returncode != 0:
         raise AssertionError("the cut function did not run in node: %s" % r.stderr[-400:])
     return json.loads(r.stdout.strip().splitlines()[-1])
