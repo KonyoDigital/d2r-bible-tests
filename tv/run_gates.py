@@ -8976,6 +8976,12 @@ GATES = [
          why=("REG-2039 (#239) - a chronicle sweep held a waiting build for up to ~13 h ('5 of 293 frames - about 804 min left'): "
               "it now stops at its next banked page when a build waits, records what it read, and the reel resumes without paying again.")
          ),
+    Gate("test_a_grok_read_asks_low_effort_and_survives_an_older_cli", [sys.executable,
+         os.path.join(HERE, "test_a_grok_read_asks_low_effort_and_survives_an_older_cli.py")], 60,
+         needs_app=False,
+         why=("REG-2040 (#239) - 46% of the console's Grok reads timed out at 140 s; one real Chronicle page took 115-123 s at the CLI's "
+              "default effort and 26-37 s at --effort low with the same names. An older CLI that refuses the flag is retried without it.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

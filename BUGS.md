@@ -406,6 +406,22 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2040 - 46% OF THE CONSOLE'S GROK READS TIMED OUT, BECAUSE EVERY READ ASKED FOR DEFAULT REASONING (2026-10-08, #239)
+
+MEASURED on his console's /api/g5_status: 7,832 calls, 3,608 errors, last "grok -p timeout 140s". The same call
+(prompt, flags, his signed-in CLI) on one real Chronicle page (reel_s_1786999742937_35523 f_1786999846054, uniques), two
+runs per arm on an idle Mac: default effort 115.4 s and 123.4 s - 82-88% of the timeout before any load; --effort low
+26.5 s and 37.2 s with the same names (Djinn Slayer, Doomslinger, Dreadfang, Duriel's Shell; one low run left out the
+half-cut bottom row - an omission, never an invention; neither arm claimed the rows under the tooltip). n=2 per arm: a
+sample, not a proof. A read that times out answers nothing, so G5 vision reads ask --effort low (G5_GROK_EFFORT="" restores
+the default). An older CLI that refuses the flag itself is retried once without it and the flag is not sent again in
+that process; g5 status publishes effort and effortRefused so the doctor can name a PC on an older Grok.
+Also on this branch (the REG-2033 class - the bible contradicting itself), from the #231 look on f1c92776: the
+"What you CANNOT bind" table's "Already at slot cap / Demonic Mastery limit reached" row explained that a new bind
+REPLACES the current demon and then said "Consume to free a slot is still useful"; it is now "A second demon while one is
+bound / Not refused - a new bind REPLACES the current one", and the contradicting sentence is gone.
+Law: test_a_grok_read_asks_low_effort_and_survives_an_older_cli (2 red-proofs).
+
 ### REG-2039 - A CHRONICLE SWEEP HELD A WAITING BUILD FOR HOURS (2026-10-08, #239)
 
 MEASURED 2026-10-07 on his Mac's fleet row: "may false - a chronicle sweep is reading footage", the sweep at "5 of 293

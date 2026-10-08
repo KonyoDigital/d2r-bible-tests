@@ -74,6 +74,41 @@ _BUDGET_PATH = os.path.join(HERE, "g5_subscription_budget.json")
 _HOURLY_MAX = max(0, int(os.environ.get("G5_GROK_HOURLY_MAX", "4000")))
 _DAILY_MAX = max(0, int(os.environ.get("G5_GROK_DAILY_MAX", "20000")))
 _TIMEOUT_S = float(os.environ.get("G5_GROK_TIMEOUT_S", "140"))
+# REG-2040 (#239) - REASONING EFFORT. MEASURED 2026-10-08 on his Mac, one real Chronicle page (reel_s_1786999742937_35523
+# f_1786999846054, uniques), this exact call twice per arm: default effort 115.4 s and 123.4 s - 82-88% of the 140 s
+# timeout on an IDLE machine, which is why 3,608 of 7,832 console reads (46%) ended "grok -p timeout 140s"; --effort low
+# 26.5 s and 37.2 s with the same names (Djinn Slayer, Doomslinger, Dreadfang, Duriel's Shell; one low run left out the
+# half-cut bottom row - an omission, never an invention). n=2 per arm: a sample, not a proof. A read that times out
+# answers nothing, so low wins. G5_GROK_EFFORT="" restores the CLI default.
+_EFFORT = os.environ.get("G5_GROK_EFFORT", "low")
+
+
+def _vision_args(bin_path, text_prompt, work):
+    """The one argv for a G5 vision read. -> list"""
+    args = [
+        bin_path,
+        "-p", text_prompt,
+        "--output-format", "plain",
+        "--always-approve",
+        "--tools", "read_file",
+        "--cwd", work,
+        "--disable-web-search",
+    ]
+    if _EFFORT and not _EFFORT_STATE.get("refused"):
+        args += ["--effort", _EFFORT]
+    return args
+
+
+_EFFORT_STATE = {"refused": None}
+
+
+def _effort_refused(args, stderr):
+    """True when this CLI refused the --effort flag itself (an older build), not when a read failed. -> bool"""
+    if "--effort" not in (args or []):
+        return False
+    e = str(stderr or "").lower()
+    return ("effort" in e) and any(w in e for w in ("unexpected argument", "unrecognized", "unknown argument",
+                                                    "found argument", "invalid value", "unknown option"))
 _MODES = ("off", "shadow", "primary", "only")
 
 # API-style secrets we ALWAYS strip so vision cannot ride console tokens
@@ -679,6 +714,9 @@ def status():
         # #151 - his switch: claude | both | grok, and what it means. readerBlocked is said whenever Grok-only cannot read.
         "reader": reader(),
         "readerRule": READER_RULES.get(reader(), READER_RULES["claude"]),
+        # REG-2040 - which reasoning effort the reads ask for, and whether this PC's CLI refused it (older build)
+        "effort": (None if _EFFORT_STATE.get("refused") else (_EFFORT or "default")),
+        "effortRefused": _EFFORT_STATE.get("refused"),
         "readerBlocked": (grok_only_blocked_why() if reader() == "grok" else None),
         # BOTH: how often Grok had to read a frame Claude did not, and the last reason Claude did not.
         "backupReads": int(_sv.get("backup_reads") or 0),
@@ -1105,15 +1143,7 @@ def g5_vision_read(image_path, prompt=None, *, force=False):
 
     # Prefer adding image dir for tools
     img_dir = os.path.dirname(path)
-    args = [
-        bin_path,
-        "-p", text_prompt,
-        "--output-format", "plain",
-        "--always-approve",
-        "--tools", "read_file",
-        "--cwd", work,
-        "--disable-web-search",
-    ]
+    args = _vision_args(bin_path, text_prompt, work)
     # Allow reading the frame directory
     if img_dir and os.path.isdir(img_dir):
         # some builds support --add-dir; if not, path is absolute and read_file still works
@@ -1130,6 +1160,13 @@ def g5_vision_read(image_path, prompt=None, *, force=False):
             env=env,
             cwd=work,
         )
+        # REG-2040 - AN OLDER CLI THAT DOES NOT KNOW --effort MUST NOT LOSE EVERY READ. Retry once without it and stop
+        # sending it for this process; the reason is kept so the doctor can say which PC runs an older Grok.
+        if r.returncode != 0 and not (r.stdout or "").strip() and _effort_refused(args, r.stderr):
+            _EFFORT_STATE["refused"] = (r.stderr or "")[:160]
+            args = _vision_args(bin_path, text_prompt, work)
+            r = subprocess.run(args, capture_output=True, text=True, encoding="utf-8", errors="replace",
+                               timeout=_TIMEOUT_S, stdin=subprocess.DEVNULL, env=env, cwd=work)
     except subprocess.TimeoutExpired:
         _STATS["errors"] += 1
         _STATS["calls"] += 1
