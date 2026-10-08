@@ -406,6 +406,16 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2053 - A SEAL THAT PROBED MORE PANELS THAN TRIAGE SAW STILL RELEASED ITS REEL (2026-10-08, #231 on v3622)
+
+The second eye on v3622: `probed_every_panel` released on `probedPanels >= triagePanels`, so 5 probes against 3
+triage panels released. Two instruments disagreeing about one reel is the finding, not coverage - a count cannot show
+the probe covered the panels triage saw - so pp > tp now keeps the reel and says the counts disagree. Measured on his
+vault_swept.json first: 17 examined seals carry a triage count, 9 equal, 0 greater, 8 without a probe count (already
+kept) - the change moves nothing of his today. The other six v3622 looks were reach limits or already true at HEAD
+(resumed frames join the seal's pages, control_app ~L39615; `_EFFORT_STATE["refused"]` is written where the CLI
+refuses the flag, g5_grok_eyes ~L1166). Law: test_an_examined_seal_releases_only_when_every_panel_was_probed (+1).
+
 ### REG-2052 - A TOME OF IDENTIFY FILED IN A MULE, AND THE INTEGRITY CHECK SAID NOTHING (2026-10-08, #276)
 
 GrokBot tick 417 (v3621, K10): a Tome of Identify was a mule tile in UNI-WEAPONS while the lock note above it said MAIN

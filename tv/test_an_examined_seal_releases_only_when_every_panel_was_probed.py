@@ -46,6 +46,12 @@ class AnExaminedSealReleasesOnlyWhenEveryPanelWasProbed(unittest.TestCase):
         ok, why = FA.seal_releases_frames(dict(_SEAL, triagePanels=6))
         self.assertFalse(ok, "panels triage saw but the seal never probed released the reel")
 
+    def test_more_probes_than_triage_saw_is_a_disagreement_and_is_kept(self):
+        # #231 second eye on v3622 - a count cannot show the probe covered the panels triage saw
+        ok, why = FA.seal_releases_frames(dict(_SEAL, triagePanels=3, probedPanels=5))
+        self.assertFalse(ok, "a seal that probed MORE panels than triage saw released the reel: %s" % why)
+        self.assertIn("disagree", why)
+
     def test_every_panel_probed_releases(self):
         self.assertTrue(FA.seal_releases_frames(dict(_SEAL, triagePanels=6, probedPanels=6))[0])
         self.assertTrue(FA.seal_releases_frames(dict(_SEAL, triagePanels=0, probedPanels=0))[0])
@@ -102,6 +108,11 @@ RED_PROOF = [
     {"why": "REG-2042 - fewer probes than triage panels release the reel again",
      "file": "frame_authority.py",
      "find": "    if pp < tp:\n",
+     "replace": "    if False:\n",
+     "matches": 1},
+    {"why": "REG-2042 - a probe count larger than triage saw releases the reel again (#231 on v3622)",
+     "file": "frame_authority.py",
+     "find": "    if pp > tp:\n",
      "replace": "    if False:\n",
      "matches": 1},
     {"why": "REG-2042 - a partial triage pass backfills a release",

@@ -348,6 +348,11 @@ def probed_every_panel(row):
     if pp < tp:
         return False, ("the seal probed %d of the %d stash panel(s) triage saw - his ruling is every panel, so the reel "
                        "is kept" % (pp, tp))
+    if pp > tp:
+        # #231 second eye on v3622: a seal that says it probed MORE panels than a full triage saw is two instruments
+        # disagreeing about one reel - a count cannot show the probe covered the panels triage saw, so the reel is kept.
+        return False, ("the seal says it probed %d stash panel(s) but a full triage saw %d - the two counts disagree about "
+                       "this reel, so it is kept" % (pp, tp))
     return True, ("examined and empty: it probed all %d stash panel(s) triage saw%s"
                   % (tp, "" if tp else " (a full triage pass saw none)"))
 
