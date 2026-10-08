@@ -406,6 +406,14 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2063 - "NO TOMBSTONE LEDGER" BESIDE "11 CARRY TOMBSTONE IN THE RIVER LEDGER" (2026-10-08, #289)
+
+GrokBot ticks 419-422 asked which was true. Both: the header is `river_mouth()` on retention's DELETION record
+(`reel_tombstones.json`, gitignored runtime state, absent on that PC), the chip counts the river's own STAMP LOG. The
+chip now names its record ("the river's own stamp log (not retention's tombstone ledger)"). The backend sentence is
+left as it is - three laws and a predicate key on its "no tombstone ledger" phrase. Law:
+test_two_tombstone_records_never_share_one_name.
+
 ### REG-2062 - THE FLEET RAIL RESHUFFLED ITSELF WITH NOTHING CLICKED (2026-10-08, #237/#285)
 
 GrokBot ticks 418-420: ALT TEST / Konyo / GrokBot / Dean / Wife PC at 11:37 became GrokBot / ALT TEST / Konyo / Dean /

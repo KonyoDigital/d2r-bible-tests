@@ -9081,6 +9081,12 @@ GATES = [
          why=("REG-2062 (#237/#285, GrokBot 418-420) - the rail reshuffled with nothing clicked: the site sends rows "
               "newest-beacon-first and the rail painted that order.")
          ),
+    Gate("test_two_tombstone_records_never_share_one_name", [sys.executable,
+         os.path.join(HERE, "test_two_tombstone_records_never_share_one_name.py")], 30,
+         needs_app=False,
+         why=("REG-2063 (#289, GrokBot 419-422) - the River header said there is no tombstone ledger while its TOMBSTONE "
+              "chip counted 'the river LEDGER': two records under one name.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

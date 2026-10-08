@@ -18964,10 +18964,14 @@ window._lockMark = function(isOpen, px, label){
         say = tally[st] + ' of the ' + total + ' stamped reel(s) ON THIS SHELF are at ' + lab
             + ' right now';
         if (rHere !== null) {
-          say += '. In the river LEDGER, ' + rHere + ' carry ' + lab + ' as their most recent '
-               + 'stamp';
+          /* #289 (REG-2063, GrokBot ticks 419-422) - the header beside this chip can say "there is no tombstone ledger on
+             this venue" (river_mouth: retention's DELETION record, reel_tombstones.json, absent on that PC) while this said
+             "In the river LEDGER, 11 carry TOMBSTONE" - two different records, both called the ledger, read as a
+             contradiction. This one is the river's own STAMP LOG; it says so, and that it is not retention's record. */
+          say += '. In the river\u2019s own stamp log (not retention\u2019s tombstone ledger), ' + rHere + ' carry ' + lab
+               + ' as their most recent stamp';
           if (thru !== null) say += ' and ' + thru + ' have ever been stamped here';
-          say += ' \u2014 that ledger counts reels since deleted, so it is a different '
+          say += ' \u2014 that log counts reels since deleted, so it is a different '
                + 'population from this shelf, never a fraction of it';
         } else if (thru !== null && thru > tally[st]) {
           say += ', and ' + thru + ' have passed through it in all (whole river)';
