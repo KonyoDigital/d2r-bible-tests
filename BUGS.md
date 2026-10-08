@@ -406,6 +406,15 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2094 - ESCAPE WIPED AN ITEM CARD OPENED AFTER A MATERIAL CARD (2026-10-08, #231 eye on v43)
+
+The #231 code seat on May's 0133be32 and 113be899: a material / rune card sets window.__activeMaterial / __activeRune so
+Escape can close it; navigateToItem (openDrop's grail branch, every grail chip, a search pick) painted an ITEM card over it
+and left the latch set, so the next Escape emptied the card he had just opened. Measured on the real page as the owner:
+HEAD - latch 'Key of Terror' under a Harlequin Crest card, Escape -> 0 chars, hidden; this tree - latch null, the card
+(3,568 chars) stays. renderDetail, the one place an item card is painted, clears both latches. Law + a CI spec that drives
+the real Escape, with a baseline that Escape still closes a material card. The same seat's ff57d9fa look was clean.
+
 ### REG-2093 - "MULE IT" FILED NOTHING: A FIND HE REGISTERED READ AS A NAME NOTHING KNOWS (2026-10-08, CI Routine I on v3624)
 
 Routine I on 648959db, attributed by delta against v3623 (367f4f8f): v203:149 and v405:59 GONE (REG-2068 held); two NEW.

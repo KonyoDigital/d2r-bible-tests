@@ -9201,6 +9201,11 @@ GATES = [
          why=("REG-2091 (Grok CLI on v3624) - a reel still loading when ✕ stepped back to the shelf landed and played "
               "under it, and thClose left it free to write a closed stage: both closes now move TH.loadGen, and an "
               "overtaken load's timeout no longer clears the winner's beats")),
+    Gate("test_escape_closes_only_the_card_it_names", [sys.executable,
+         os.path.join(HERE, "test_escape_closes_only_the_card_it_names.py")], 30,
+         needs_app=False,
+         why=("REG-2094 (#231 eye on v43) - a material card's Escape latch survived navigateToItem painting an item card "
+              "over it, so the next Escape wiped the item card; renderDetail clears the latch when it paints one")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

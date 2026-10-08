@@ -25876,6 +25876,10 @@ function renderDetail() {
   const item = ITEMS.find(i => i.n === selectedItem);
   if (!item) { panel.classList.remove("show"); return; }
   panel.classList.add("show");
+  /* REG-2094 (#231 eye on v43 0133be32 / 113be899) - THE LATCH NAMES THE CARD ON SCREEN. A material or rune card sets
+     __activeMaterial / __activeRune so Escape can close it; an ITEM card painted here (navigateToItem, a grail chip, a tile)
+     left the old latch set, so the next Escape wiped the item card he had just opened. */
+  window.__activeMaterial = null; window.__activeRune = null;
   const adjusted = item.sources.map(s => ({...s, adjustedChance:s.chance?effChance(s.chance,s.bossId,s.diffKey):null}));
   const valid = adjusted.filter(s => s.adjustedChance !== null && s.adjustedChance >= 100);
   const sorted = [...valid].sort((a,b) => {
