@@ -406,6 +406,14 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2107 - A KEY'S ~1:10 BESIDE ITS OWN ~8%; THE FOOTER CALLED GUARANTEED DROPS ESTIMATES (2026-10-08, the v3628 eye)
+
+REG-2100 set the three key cards to "~1:10" to match the page's rounded ~10% - while the same card's important line (REG-2105)
+cites d2runewizard's ~8% for the Countess at /players 1. Each key now carries its sourced figure: Terror ~8-9%, Hate ~9-13%
+(diablowiki 8.6-12.8%), Destruction keeps the file's ~10% (no source read for Nihlathak yet). And REG-2103's footer said every
+1:N or % line was a community estimate - over Diablo's Horn, Mephisto's Brain and Baal's Eye at "100% per kill" under a blurb
+that calls them guaranteed. The footer now says a 100% line is a guaranteed drop.
+
 ### REG-2106 - A LAW ABOUT A TOTAL'S PARTS READ THE HOST'S FREE DISK (2026-10-08, #308)
 
 test_a_total_is_only_as_known_as_its_parts built its own shelf (TV_HIST at a temp dir) but not its own disk: _retention_once

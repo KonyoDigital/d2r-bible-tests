@@ -242,10 +242,14 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         got = _json.loads(r.stdout.strip().splitlines()[-1])
         for rate in ("crafted — 1 per full essence set", "100% per recipe", "1 per character (pinnacle reward)", "common"):
             self.assertEqual(got.get(rate), "how it comes", "a rate in words is labelled %r: %r" % (got.get(rate), rate))
-        for rate in ("~1:10 (Hell only)", "~1:500-1500", "100% per kill"):
+        for rate in ("~8-9% (Hell only)", "~1:500-1500", "100% per kill"):
             self.assertEqual(got.get(rate), "per-kill rate", "a per-kill rate lost its label: %r -> %r" % (rate, got.get(rate)))
         self.assertNotIn("Per-kill figures above are the canonical community estimates", s,
                          "the footer calls every rate a community per-kill estimate again")
+        # REG-2107 (the v3628 eye) - "100% per kill" is a guaranteed drop, not an estimate; and a key card's ~1:10 sat beside its
+        # own sourced ~8% (the Countess at /players 1)
+        self.assertIn("a 100% line is a guaranteed drop", s, "the footer calls the guaranteed organ drops estimates again")
+        self.assertNotIn('rate: "~1:10 (Hell only)"', s, "a key card's rate disagrees with the sourced figure beside it again")
 
     def test_the_rune_card_lists_runewords_from_the_recipe_table(self):
         """REG-2104 (the v3626 second eye, swept) - RUNES[].rw was a hand-written runeword list and 91 of its 132 names did not
@@ -339,6 +343,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "cube 1 of each \\u2192 a mini-uber portal \\u2192 its organ; 3 organs \\u2192 Uber Tristram.",
      "replace": "cube all 3 \\u2192 red portal \\u2192 Pandemonium Run.",
+     "matches": 1},
+    {"why": "REG-2107 - the Key of Terror card's rate disagrees with the sourced ~8% beside it again",
+     "file": "bible.html",
+     "find": "rate: \"~8-9% (Hell only)\"",
+     "replace": "rate: \"~1:10 (Hell only)\"",
      "matches": 1},
 ]
 

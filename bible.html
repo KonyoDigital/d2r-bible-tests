@@ -11887,9 +11887,9 @@ const SPECIAL_DROPS = {
     icon: "🗝️",
     blurb: "Pandemonium event — one of each key opens a mini-uber portal; the three organs they drop open Uber Tristram. Hell only, at any /players.",
     items: [
-      {n: "Key of Terror", from: ["Hell Countess"], rate: "~1:10 (Hell only)", note: "fastest farm — Countess kph is ~120-150/hr"},
-      {n: "Key of Hate", from: ["Hell Summoner (Arcane Sanctuary)"], rate: "~1:10 (Hell only)", note: "Summoner is tracked — accessed via Lost City waypoint → Arcane Sanctuary"},
-      {n: "Key of Destruction", from: ["Hell Nihlathak"], rate: "~1:10 (Hell only)", note: "Nihl is dangerous (Corpse Explosion) — be careful"}
+      {n: "Key of Terror", from: ["Hell Countess"], rate: "~8-9% (Hell only)", note: "fastest farm — Countess kph is ~120-150/hr"},
+      {n: "Key of Hate", from: ["Hell Summoner (Arcane Sanctuary)"], rate: "~9-13% (Hell only)", note: "Summoner is tracked — accessed via Lost City waypoint → Arcane Sanctuary"},
+      {n: "Key of Destruction", from: ["Hell Nihlathak"], rate: "~10% (Hell only)", note: "Nihl is dangerous (Corpse Explosion) — be careful"}
     ],
     recipe: "1 Terror + 1 Hate + 1 Destruction in the cube (Hell Harrogath) → one random mini-uber portal; a full set per portal, three for all three",
     important: "Keys drop on Hell only, at any /players - the chance rises a little at higher /players (d2runewizard: the Countess ~8% at /players 1)."
@@ -12179,7 +12179,7 @@ function materialDetailHtml(name){
       <div class="zd-row"><span class="zd-k">recipe</span><span class="zd-v">${cat.recipe || '—'}</span></div>
       ${cat.important ? `<div class="zd-row"><span class="zd-k">⚠ important</span><span class="zd-v">${cat.important}</span></div>` : ''}
     </section>
-    <div class="zd-note">⚠ Material drop rates are not MF-scaled and are not part of the tracked chronicle count. A per-kill rate above (a 1:N or a %) is the community estimate (silospen / d2runewizard / diablo2.io / Maxroll), not fabricated odds; a rate written in words says how the item comes, not a chance per kill.</div>
+    <div class="zd-note">⚠ Material drop rates are not MF-scaled and are not part of the tracked chronicle count. A per-kill odds line above (a 1:N, or a % under 100) is the community estimate (silospen / d2runewizard / diablo2.io / Maxroll), not fabricated odds; a 100% line is a guaranteed drop, and a rate written in words says how the item comes.</div>
   </div>`;
 }
 
