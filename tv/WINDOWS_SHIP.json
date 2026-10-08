@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3620",
+  "ver": "v3621",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3620: each organizer row names the mule, the stash cell and the picture it was read on, for every unsorted item and the loot in his inventory free cells; kit stays on him; the 60-row cap is 400. HEART: test_the_organizer_says_the_mule_the_cell_and_the_picture, test_the_vault_proposes_a_home_and_does_not_move (REG-2030)",
+  "note": "v3621: the organizer evidence door is styled, the loot he carries leads the list, the kit rule lives in the organizer and a packer that raises says cell UNKNOWN (REG-2031); a tooltip-judge read says its place is UNKNOWN instead of claiming he does not hold the item - his Session 1 Highlords Wrath was worn (REG-2032). HEART: test_the_organizer_says_the_mule_the_cell_and_the_picture, test_a_tooltip_judge_read_never_claims_he_does_not_hold_it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
