@@ -2393,6 +2393,32 @@ def _fleet_reconcile_tally_with_masks(fl):
     return n
 
 
+def _fleet_overlay_local_version(fl, me):
+    """#246 (REG-2046) - THIS console's own fleet row shows the version it is running. -> rows changed
+
+    GrokBot tick 401 (v3603 vs v3604) and tick 415 (v3620 vs v3621): its own row printed the version its last beacon
+    PUBLISHED while its Vault chip printed the one it runs - a relaunch lands minutes before the next beacon. The
+    running stamp is the drift loop's own reading (_DRIFT["running"], from status_payload's compiled `ver`); unmeasured
+    leaves the row exactly as published, and the published word stays beside it as verPublished. Only his row: a peer's
+    version is only knowable through its beacon.
+    """
+    try:
+        live = str((_DRIFT or {}).get("running") or "")
+    except Exception:
+        live = ""
+    if not live or not isinstance(fl, dict) or not me:
+        return 0
+    n = 0
+    for grp in ("online", "offline"):
+        for row in (fl.get(grp) or []):
+            if isinstance(row, dict) and str(row.get("machine") or "") == str(me) and row.get("ver") != live:
+                row["verPublished"] = row.get("ver")
+                row["ver"] = live
+                row["verLive"] = True
+                n += 1
+    return n
+
+
 def _fleet_overlay_local_tally(fl, me):
     """HIS OWN ROW READS THE LOCAL TALLY INSTEAD OF THE ROUND TRIP. -> how many rows changed
 
@@ -44338,6 +44364,8 @@ class Handler(BaseHTTPRequestHandler):
                     # ⚠ ONLY HIS ROW. A peer's numbers are only knowable through the beacon, and
                     # overlaying local figures onto their row would report his board as theirs.
                     _fleet_overlay_local_tally(_fl, _fl["me"])
+                    # #246 (REG-2046) - and its own row shows the version it is RUNNING, not the one its last beacon published
+                    _fleet_overlay_local_version(_fl, _fl["me"])
                     # #41 rank 22 (REG-1564) — his own row's picker census from the local file, the same way
                     _fleet_overlay_local_picker(_fl, _fl["me"])
                     # v2814 — AFTER the local overlay, so his own row is reconciled too

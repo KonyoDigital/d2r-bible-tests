@@ -9006,6 +9006,12 @@ GATES = [
          why=("REG-2045 (#274, GrokBot tick 415) - the Vault told him to 'press Auto-Sort' and no button has that name; every "
               "'press X' must name a button the page has (keys and the browser's confirm buttons excepted).")
          ),
+    Gate("test_his_own_fleet_row_shows_the_version_it_runs", [sys.executable,
+         os.path.join(HERE, "test_his_own_fleet_row_shows_the_version_it_runs.py")], 90,
+         needs_app=False,
+         why=("REG-2046 (#246, GrokBot ticks 401 + 415) - this console's own fleet row printed its last PUBLISHED version "
+              "(v3620) beside a Vault chip reading the running one (v3621).")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,
