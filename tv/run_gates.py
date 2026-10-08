@@ -9181,6 +9181,11 @@ GATES = [
          needs_app=False,
          why=("REG-2085 (#231 eye on v43) - Worldstone Keep's 'packs · multiple chests' were painted as super-unique "
               "chips, and the TC87 line credited terror with a ceiling WSK L3 has without it.")),
+    Gate("test_a_rerender_keeps_the_dossier_he_reads", [sys.executable,
+         os.path.join(HERE, "test_a_rerender_keeps_the_dossier_he_reads.py")], 30,
+         needs_app=False,
+         why=("REG-2087 (GrokBot 425) - a re-render that missed its session closed the open dossier ('it closed itself "
+              "within ~2 s; the second click held'); a miss on what is showing now keeps it.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

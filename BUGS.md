@@ -406,6 +406,14 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2087 - A RE-RENDER CLOSED THE DOSSIER HE WAS READING (2026-10-08, GrokBot tick 425)
+
+'First click opened the dossier and it closed itself within ~2 s; the second click held.' The art-map repaint and the
+poll re-render an OPEN dossier through _sessionDossier, whose lookup miss hid it. A miss on the dossier already showing now
+keeps its last good session; a fresh open with no match still closes; another session never borrows it. That this door
+WAS the close GrokBot saw is UNPROVEN - not reproduced without his lists; it is a door that produces exactly that close.
+Law: test_a_rerender_keeps_the_dossier_he_reads.
+
 ### REG-2086 - "🛡 CLEAN" ON TV·D OVER A REEL SEALED WITH GAPS (2026-10-08, swept from GrokBot ticks 424/425)
 
 Checking tick 424's K17/K18 ('LAST SESSION shows Session 28 while 29 and 30 sealed exist'): the picker is RIGHT - sessions

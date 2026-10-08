@@ -12511,6 +12511,12 @@ window._lockMark = function(isOpen, px, label){
     if (!sid && typeof n === 'string' && n.indexOf('s_') === 0){ sid = n; n = null; }
     if (sid){ for (var j = 0; j < list.length; j++){ if (list[j] && list[j].sessionId === sid){ sm = list[j]; n = list[j].n || (j + 1); break; } } }
     if (!sm && !sid){ for (var i = 0; i < list.length; i++){ if ((list[i].n || (i + 1)) === n){ sm = list[i]; break; } } }
+    /* REG-2087 (GrokBot tick 425: 'the first click opened the dossier and it closed itself within ~2 s; the second click
+       held') - A RE-RENDER THAT CANNOT FIND ITS SESSION KEEPS THE DOSSIER HE IS READING. The art-map repaint and the poll
+       re-render an OPEN dossier through here, and a lookup miss (the list it reads was swapped between the shelf's copy and
+       HD_ALL, or refreshed) used to HIDE it. A miss on a fresh open still closes; a miss on the dossier already showing keeps
+       its last good session. Whether this was the cause of that close is UNPROVEN - it is a door that could do it. */
+    if (!sm && !ov.hidden && DOSSIER.sm && ((sid && DOSSIER.sid === sid) || (!sid && DOSSIER.n === n))) { sm = DOSSIER.sm; n = DOSSIER.n; }
     if (!sm){ ov.hidden = true; return; }
     var freshOpen = ov.hidden || DOSSIER.n !== n;   // D20 — only count up on a real open, not the 12s poll re-render
     DOSSIER.n = n; DOSSIER.sid = sm.sessionId || ''; DOSSIER.sm = sm;   // D25 — stable key for notes/naming · D27 — recap source
