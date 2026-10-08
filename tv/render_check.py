@@ -1385,7 +1385,9 @@ TARGETS = {
             var r = m.getBoundingClientRect();
             return !!(r.width > 0 && r.height > 0 && getComputedStyle(m).display !== 'none'
                       && /CRAFTED/.test(m.innerText || '')); })()""",
-        "sel": "#cb-modal",
+        # by its CLASS: the builder's dialog lives in bible.html, and test_render_gate_sees_the_page's census of the
+        # console's closed modals reads every '#...-modal' here as a control_ui.html overlay
+        "sel": ".cb-modal",
         "widths": ((1440, 1000), (901, 900), (375, 800)),
     },
     "chars-ingame": {
