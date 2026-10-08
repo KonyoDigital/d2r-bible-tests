@@ -63,7 +63,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3629"   # each key carries its sourced rate and a guaranteed drop is not called an estimate
+VERSION = "v3630"   # every rune card gives the real cube recipe and the river locks can open again
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3629",
+  "ver": "v3630",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3629: REG-2106..2107 - the totals law pins its own disk reading, each key card carries its sourced rate, a 100 percent drop is called guaranteed",
+  "note": "v3630: REG-2108..2109 - the rune cards cube recipes come from the page own cube section and Lo to Jah carry their real levels; a blind shelf law that held every river lock shut can go red again",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
