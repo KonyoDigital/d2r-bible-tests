@@ -406,6 +406,18 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2051 - "3 ITEMS · 12 CELLS" OVER THREE 1x2 TILES (2026-10-08, #275)
+
+GrokBot ticks 416-417 (v3621): UNI-WEAPONS "3 items · 12 cells" while its three tiles each said "default 1x2";
+UNI-ARMOR "24 cells" over tiles summing to 22. The packer behind the chip, the gauge and the mule window (`vaultSize`)
+carried its own keyword table, unknown base -> [2,2]; every tile prints `_itemCells`, unknown base -> 1x2 marked
+approx, with EXTRA_ITEMS.cells and the v2240/v2242 fixes the packer never had. `vaultSize` now returns `_itemCells`'
+answer and the second table is gone; the chip says "(k of unknown size, counted at the default 1x2)". A hand-placed
+spot a new size no longer fits is not erased - the packer says "your spot no longer fits" and re-packs it. Same
+ticket: the Routing Ledger subtitle the ellipsis cut at "droppe" now reads "the last 400 decisions · older ones
+dropped". The "gbeyes" typo GrokBot read in the UNI-ARMOR note is in no source file (the note reads "… boots ·
+gloves") - recorded as a likely transcription, UNKNOWN. Law: test_the_packer_reads_the_footprint_the_tile_prints.
+
 ### REG-2050 - "SHOW ALL 32 DROPPABLE ITEMS" OF 267 (2026-10-08, #278)
 
 The #231 second eye on the May commit e45c1d36 (v43), re-measured at HEAD: the boss card's summary printed

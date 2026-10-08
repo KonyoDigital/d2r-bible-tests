@@ -40169,6 +40169,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _known = !!_ld;
       var muleN = _ld ? (_ld.mules.length || 1) : 1;
       var cells = _ld ? _ld.cells : total;
+      /* #275 - a size nobody established says so on the chip too, not only on its tile */
+      var _approxN = items.filter(function(n){ var c = (typeof _itemCells === 'function') ? _itemCells(n) : null; return !!(c && c.approx); }).length;
       var capCells = (_ld && _ld.capCells) ? _ld.capCells : (window.MULE_CAP || 140);
       /* v2240 — DERIVES, with ONE stated last resort. This is the card's fallback when no
          ledger exists yet; a bare 140 here is a second copy of the geometry, and the guard
@@ -40280,7 +40282,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         + '<span class="vm-icon">'+esc(m.icon||'📦')+'</span><span class="vm-name">'+esc(m.name)+'</span>'
         + '<span class="vm-count"'
           + ' title="'+total+' item'+(total===1?'':'s')
-          + (_known ? (' · '+cells+' cells, packed across '+muleN+' mule'+(muleN===1?'':'s')
+          + (_known ? (' · '+cells+' cells'
+                       + (_approxN ? ' (' + _approxN + ' of unknown size, counted at the default 1x2)' : '')
+                       + ', packed across '+muleN+' mule'+(muleN===1?'':'s')
                        + ' (each = a ' + (window.MULE_GEOM_SAY || '10x10 stash + a 10x4 inventory') + '). '
                        + 'Open the locker to see the packing.')
                     : (_isMule ? ' · the packer could not be asked, so the mule count is UNKNOWN'
@@ -43973,26 +43977,14 @@ window.vaultAutoAssign = function(){
     navigator.clipboard.writeText(md).then(function(){ status('📋 manifests copied — paste anywhere'); }, function(){ status('clipboard blocked — copy manually'); });
   };
   // ── v204: in-game size taxonomy (approximate, from base type) ──
-  var SIZE_RULES=[
-    [/\b(small charm|annihilus)\b/i,[1,1]],
-    [/\b(large charm|torch)\b/i,[1,2]],
-    [/\b(grand charm|sunder|gheed)\b/i,[1,3]],
-    [/\b(ring|amulet|jewel|essence|organ|eye|brain|horn)\b/i,[1,1]],
-    [/\b(key)\b/i,[1,2]],
-    [/\b(wand|orb|eagle orb|fang|swirling crystal)\b/i,[1,2]],
-    [/\b(dagger|dirk|kris|stiletto|blade of|cinquedeas?)\b/i,[1,3]],
-    [/\b(javelin|pilum|glaive|spiculum|katar|claws?|talons?|cestus|fist|knuckles?|scepter|caduceus|rod|club|cudgel|truncheon)\b/i,[1,3]],
-    [/\b(gloves?|gauntlets?|grasp|bracers?|vambraces?|boots?|greaves|sabatons?|treads?|trek|belt|sash|cord|girdle|buckle|helm|cap|crown|casque|basinet|bonnet|mask|circlet|coronet|tiara|diadem|sallet|armet|shako|visor|pelt|buckler)\b/i,[2,2]],
-    [/\b(maul|great maul|thunder maul|stave|staff|bow|crossbow|matriarchal|grand matron|spear|pike|lance|trident|brandistock|spetum|poleaxe|polearm|halberd|scythe|thresher|cromachan|war pike|colossus|executioner|decapitator|champion|balrog blade|glorious)\b/i,[2,4]],
-    [/\b(armor|plate|mail|hauberk|tunic|jupon|cuirass|husk|hide|shell|carapace|wyrmhide|leather|splint|gothic|ornate|embossed|templar|shadow plate|kraken|hellforge|balrog skin|archon|dusk shroud|wire fleece|scarab husk|loricated|shield|rondache|aegis|ward|monarch|luna|hyperion|defender|targe|scutum|pavise|tower|royal|kite|dragon)\b/i,[2,3]],
-    [/\b(sword|sabre|scimitar|falchion|tulwar|crystal|axe|hammer|mace|flail|morning star|war hammer)\b/i,[2,3]]
-  ];
+  /* #275 (REG-2051) - ONE FOOTPRINT. This packer sized items with its own keyword table (unknown base -> 2x2) while
+     every locker tile prints _itemCells (unknown base -> a 1x2 marked approx; EXTRA_ITEMS.cells honoured; the plural,
+     claw and unique-charm fixes of v2240/v2242). GrokBot, v3621: UNI-WEAPONS '3 items · 12 cells' over three tiles
+     that each say 'default 1x2', UNI-ARMOR '24 cells' over tiles summing to 22. Two copies of one rule drift; the
+     packer, the chip and the mule window now read the footprint the tile prints. [[copy-drift]] */
   function vaultSize(name){
-    var tip=tipOf(name);
-    var probe=((tip&&tip.base)||'')+' '+name;
-    try{ var spz=window.findSetPiece && window.findSetPiece(name); if (spz && spz.slot) probe = spz.slot + ' ' + probe; }catch(e){}
-    for (var i=0;i<SIZE_RULES.length;i++){ if (SIZE_RULES[i][0].test(probe)) return SIZE_RULES[i][1]; }
-    return [2,2];
+    var c = (typeof _itemCells === 'function') ? _itemCells(name) : null;
+    return c ? [c.w || 1, c.h || 1] : [1, 2];
   }
   // first-fit-decreasing packer over a w×h grid
   var _MULE_COPY_CAP = 3;   // v403 — mule shows at most 3 of the same base, each in its own slot
@@ -47089,7 +47081,7 @@ window.renderRoutingLedger = function(){
        The cap is NOT changed here: that is a storage-policy call and 400 is a deliberate number.
        What changes is that the subtitle stops overclaiming once the window is full. */
     + '<span class="to-subt">' + (rows.length >= 400
-        ? 'the most recent 400 decisions — older ones have been dropped'
+        ? 'the last 400 decisions · older ones dropped'   /* #275 - the longer sentence was cut mid-word ("droppe") */
         : 'every decision the board made — what went where, and why') + '</span></span>'
     /* v2137 — the only one of six to-sum headers with no expand cue, so the ledger read as a
        dead banner while it is a <details> he can open. Same chevron as its five siblings. */

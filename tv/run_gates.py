@@ -9024,6 +9024,12 @@ GATES = [
          why=("REG-2050 (#278, #231 look on v43) - Mephisto under the grail filter said 'Show all 32 droppable items' "
               "of 267: the filtered count printed under the word all.")
          ),
+    Gate("test_the_packer_reads_the_footprint_the_tile_prints", [sys.executable,
+         os.path.join(HERE, "test_the_packer_reads_the_footprint_the_tile_prints.py")], 30,
+         needs_app=False,
+         why=("REG-2051 (#275, GrokBot 416-417) - UNI-WEAPONS '3 items · 12 cells' over three 'default 1x2' tiles: the "
+              "packer kept its own footprint table (unknown -> 2x2) beside the tile's _itemCells (unknown -> 1x2).")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,
