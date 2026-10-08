@@ -547,6 +547,7 @@
   "test_one_partition": 1.5,
   "test_one_reel_is_one_session_row": 0.1,
   "test_one_route_table_on_every_pc": 0.1,
+  "test_one_scroll_owns_the_bosses_return": 0.1,
   "test_one_start_point": 0.0,
   "test_one_story_per_snapshot": 0.1,
   "test_one_terror_level": 0.2,
@@ -988,6 +989,7 @@
    "test_his_own_fleet_row_shows_the_version_it_runs",
    "test_one_drift_gets_one_advice",
    "test_one_look_that_disagrees_is_not_a_second_item",
+   "test_one_scroll_owns_the_bosses_return",
    "test_standing_kit_never_files_to_a_mule",
    "test_the_bible_states_a_boss_fact_the_way_its_card_does",
    "test_the_bible_text_agrees_with_its_own_cards",
@@ -1043,10 +1045,16 @@
     "date": "2026-10-08",
     "count": 5,
     "locked": true
+   },
+   {
+    "source": "v3631 local shards",
+    "date": "2026-10-09",
+    "count": 1,
+    "locked": true
    }
   ],
-  "count": 56
+  "count": 57
  },
- "estimatedGates": 56,
- "estimatedSeconds": 39.1
+ "estimatedGates": 57,
+ "estimatedSeconds": 39.2
 }
