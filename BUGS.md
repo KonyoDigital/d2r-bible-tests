@@ -406,6 +406,13 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2112 - TWO SCROLLS RACED ON THE RETURN TO BOSSES (2026-10-09, #231 on v43 fbdcf7a0, #314)
+
+navClean('bosses') cleared the active item - whose setActiveItem(null) schedules a route-back scroll to the boss nav 60 ms
+later - and then scrolled to 0 itself; the later writer always won, so navClean's own scroll never stuck. One owner now: the
+route-back when an item was cleared, the top otherwise. And the v59 spec's "closes any open boss detail" could not fail -
+navigateToItem had already hidden the overlay before navTo ran; it now re-opens the overlay and asserts it is visible first.
+
 ### REG-2111 - THE MOST WANTED ACT CARDS CONTRADICTED THEIR BOSSES (2026-10-09, #231 on v43 5361d57a, #313)
 
 Re-measured at HEAD: Act 1 said the Countess pushes runes "up to Lo" and starred Ber and Jah, neither in her own COUNTESS_RUNES

@@ -9206,6 +9206,11 @@ GATES = [
          needs_app=False,
          why=("REG-2094 (#231 eye on v43) - a material card's Escape latch survived navigateToItem painting an item card "
               "over it, so the next Escape wiped the item card; renderDetail clears the latch when it paints one")),
+    Gate("test_one_scroll_owns_the_bosses_return", [sys.executable,
+         os.path.join(HERE, "test_one_scroll_owns_the_bosses_return.py")], 30,
+         needs_app=False,
+         why=("REG-2112 (#314) - navClean scrolled to 0 after clearing an item whose own route-back scroll fires 60 ms later "
+              "and always won; one owner now")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

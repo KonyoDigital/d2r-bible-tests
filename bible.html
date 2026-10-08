@@ -32569,9 +32569,13 @@ function navClean(name) {
   if (typeof window.closeDrop === "function") window.closeDrop();
   if (typeof window.closeItemDetail === "function") window.closeItemDetail();
   if (typeof window.clearActiveBoss === "function") window.clearActiveBoss({ noScroll: true });
-  if (name === "bosses" && typeof activeItem !== "undefined" && activeItem && typeof window.clearActiveItem === "function") window.clearActiveItem();
+  const _hadItem = !!(name === "bosses" && typeof activeItem !== "undefined" && activeItem);
+  if (_hadItem && typeof window.clearActiveItem === "function") window.clearActiveItem();
   window.switchTab(name);
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  /* REG-2112 (#314) - clearing an item schedules its own route-back scroll to the boss nav (60 ms, "the top of bosses tab so
+     they can pick another item"); a second scroll to 0 here raced it and always lost. One owner: the route-back when an item
+     was cleared, the top otherwise. */
+  if (!_hadItem) window.scrollTo({ top: 0, behavior: "smooth" });
 }
 window.navClean = navClean;
 function navTo(tab) {

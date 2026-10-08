@@ -230,6 +230,10 @@ test.describe('v59 nav compass widget', () => {
     // navigate to an item (sets the farming bar) then return home via the WIDGET chip
     await page.evaluate(() => (window as any).navigateToItem('Harlequin Crest (Shako)', null));
     await page.waitForTimeout(250);
+    // REG-2112 (#314) - navigateToItem already hid the overlay, so the old assert could not fail on navTo: re-open it
+    await page.evaluate(() => (window as any).openBossDetail('countess'));
+    await page.waitForTimeout(300);
+    await expect(page.locator('#boss-detail-overlay')).not.toHaveClass(/hidden/);
     await page.evaluate(() => (window as any).navTo('bosses'));
     await page.waitForTimeout(400);
     const r = await page.evaluate(() => ({
