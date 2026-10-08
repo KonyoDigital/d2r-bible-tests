@@ -406,6 +406,16 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2110 - A SLOW BOARD LIT THE VAULT TAB OVER THE TV·D BODY AND SAID NOTHING ON THE PANE (2026-10-09, GrokBot tick 428 ACT, #311)
+
+GrokBot: "Vault tab gold-lit; body still shows STANDBY + THE RECORD for at least 3 s", recovered via Sessions -> Vault. Measured:
+the REG-1946 path working as built - shellOpen lights the tab, marks it .ht-opening and retries the board's switchTab for up to
+20 s; ui_faults held 0 'shell-route-gave-up' rows, so every open landed, on a Mac busy proving 885 laws. The defect was that
+only the TAB said "opening" while the pane kept the board's previous room. A veil now covers the pane - "opening Vault - the
+board is busy; it lands by itself" - from the first failed route until it lands, gives up, or he leaves; shellHome and
+showSessions clear it and the tab's opening mark (shellHome used to leave .ht-opening on a tab it walked away from). Not yet seen
+on pixels - in the next GrokBot brief.
+
 ### REG-2109 - ONE BLIND ARM KEPT EVERY RIVER LOCK SHUT ON HIS MAC (2026-10-08, his "clean it and unlock it")
 
 He asked for the footage drain to be cleaned and unlocked (his Mac fell under the 8 GB ON AIR floor twice). Measured why it

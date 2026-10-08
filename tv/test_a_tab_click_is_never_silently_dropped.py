@@ -10,6 +10,8 @@ The law drives the REAL shellOpen (lifted from tv/control_ui.html) against a boa
 he went elsewhere: a board that moves at 9.6 s still opens (the old 4 s gave up); a board that never moves ends at 20 s
 with a toast and one ui_fault; the tab is marked opening while it waits and unmarked after; leaving for another tab
 stops the retry silently.
+REG-2110 (#311, GrokBot tick 428 ACT): the PANE says it is opening, not only the tab - the veil shows while the board is
+slow and is gone after it lands, after a give-up and after he leaves. The helpers are lifted from the page bytes too.
 """
 import io
 import json
@@ -34,11 +36,16 @@ START = "  function shellOpen(tab){"
 def _lift():
     with io.open(os.path.join(HERE, "control_ui.html"), encoding="utf-8") as fh:
         src = fh.read()
-    i = src.find(START)
-    if i < 0:
-        return None
-    j = src.find("\n  }\n", i)
-    return src[i:j + 4] if j > i else None
+    out = []
+    for start in ("  function _shellVeil(tab){", "  function _shellOpeningEnd(){", START):   # REG-2110 - the helpers come from the page
+        i = src.find(start)
+        if i < 0:
+            return None
+        j = src.find("\n  }\n", i)
+        if j <= i:
+            return None
+        out.append(src[i:j + 4])
+    return "\n".join(out)
 
 
 HARNESS = r"""
@@ -46,9 +53,14 @@ var cfg = %s;
 var out = {toasts: [], faults: [], ticks: 0, openingDuring: null};
 function Cls(){ var s = {}; return {add: function(c){ s[c] = 1; }, remove: function(c){ delete s[c]; },
                                     contains: function(c){ return !!s[c]; }}; }
-var btn = {classList: Cls()};
-var document = {getElementById: function(id){ return id === 'tvd-eng' ? {} : null; },
-                querySelector: function(){ return btn; }, body: {classList: Cls()}};
+var btn = {classList: Cls(), textContent: ' Vault '};
+var VEIL = null;
+var document = {getElementById: function(id){ return id === 'tvd-eng' ? {} : (id === 'shell-opening' ? VEIL : null); },
+                createElement: function(){ return {style: {}, setAttribute: function(){}}; },
+                querySelector: function(){ return btn; },
+                querySelectorAll: function(){ return btn.classList.contains('ht-opening') ? [btn] : []; },
+                body: {classList: Cls(), appendChild: function(el){ VEIL = el; }}};
+function _shellHeadH(){ return 64; }
 var _shellTab = 'tvd', _shellRouteTimer = null;
 function _glide(){} function _shellSizePane(){} function _shellLight(){}
 var calls = 0;
@@ -61,11 +73,13 @@ function clearInterval(id){ if (id === 7) q = null; }
 %s
 shellOpen('vault');
 out.openingDuring = btn.classList.contains('ht-opening');
+out.veilDuring = !!(VEIL && VEIL.style.display !== 'none' && /opening Vault - the board is busy/.test(VEIL.textContent || ''));
 while (q && out.ticks < 2000) {
   if (cfg.leaveAt && out.ticks === cfg.leaveAt) _shellTab = 'session';
   q(); out.ticks++;
 }
 out.openingAfter = btn.classList.contains('ht-opening');
+out.veilAfter = !!(VEIL && VEIL.style.display !== 'none');
 process.stdout.write(JSON.stringify(out));
 """
 
@@ -98,6 +112,14 @@ class ATabClickIsNeverSilentlyDropped(unittest.TestCase):
         self.assertEqual(out["faults"], ["shell-route-gave-up"], "the give-up was not recorded")
         self.assertFalse(out["openingAfter"])
 
+    def test_the_pane_says_it_is_opening_and_stops_saying_it(self):
+        """REG-2110 - the veil covers the pane while the board is slow, and is gone after it lands, gives up, or he leaves."""
+        for kw, what in (({"ok_at": 30}, "after the pane opened"), ({"ok_at": 0}, "after the give-up"),
+                         ({"ok_at": 0, "leave_at": 10}, "after he went elsewhere")):
+            out = self.drive(**kw)
+            self.assertTrue(out["veilDuring"], "the pane said nothing while the board was slow (REG-2110): %s" % out)
+            self.assertFalse(out["veilAfter"], "the opening veil stayed up %s: %s" % (what, out))
+
     def test_leaving_for_another_tab_stops_quietly(self):
         out = self.drive(ok_at=0, leave_at=10)
         self.assertEqual((out["toasts"], out["faults"]), ([], []), "a retry he walked away from still complained")
@@ -125,6 +147,20 @@ RED_PROOF = [
         "file": "tv/control_ui.html",
         "find": "if (_btn) _btn.classList.add('ht-opening'); } catch (_b) {}",
         "replace": "} catch (_b) {}",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2110 - the pane says nothing while the board is slow again (only the tab pulses)",
+        "file": "tv/control_ui.html",
+        "find": "    _shellVeil(tab);   /* REG-2110 - the pane says what it is waiting for */\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2110 - the veil stays up after the pane opened",
+        "file": "tv/control_ui.html",
+        "find": "catch (_d) {} _shellOpeningEnd(); };",
+        "replace": "catch (_d) {} };",
         "matches": 1,
     },
 ]

@@ -22331,6 +22331,26 @@ window._lockMark = function(isOpen, px, label){
       return false;
     } catch(e){ return false; }
   }
+  /* #311 (REG-2110, GrokBot tick 428 ACT) - THE PANE SAYS IT IS OPENING, NOT ONLY THE TAB. While the board's switchTab
+     lags (his Mac proving 885 laws), shellOpen lit the Vault tab and marked it .ht-opening - a pulse on the TAB - while the
+     body kept the board's previous room (TV.D's STANDBY / THE RECORD) for 3 s+; GrokBot read it as a broken switch. The veil
+     covers the pane with what is happening until the route lands, he leaves, or it gives up. ui_faults held 0 give-ups. */
+  function _shellVeil(tab){
+    try {
+      var v = document.getElementById('shell-opening');
+      if (!v){ v = document.createElement('div'); v.id = 'shell-opening'; v.setAttribute('role', 'status'); document.body.appendChild(v); }
+      var b = document.querySelector('#head-tabs .ht[data-tab="' + tab + '"]');
+      var label = ((b && b.textContent) || '').replace(/\s+/g, ' ').trim() || tab;
+      v.textContent = 'opening ' + label + ' - the board is busy; it lands by itself';
+      v.style.cssText = 'position:fixed;left:0;right:0;bottom:0;top:' + _shellHeadH() + 'px;z-index:941;display:flex;'
+        + 'align-items:center;justify-content:center;background:rgba(7,6,5,.94);color:#f0c060;font-size:14px;'
+        + 'letter-spacing:.08em;pointer-events:none';
+    } catch (e) {}
+  }
+  function _shellOpeningEnd(){
+    try { var v = document.getElementById('shell-opening'); if (v) v.style.display = 'none'; } catch (e) {}
+    try { document.querySelectorAll('#head-tabs .ht.ht-opening').forEach(function(b){ b.classList.remove('ht-opening'); }); } catch (e) {}
+  }
   function shellOpen(tab){
     tab = tab || 'session';
     _shellTab = tab;
@@ -22352,7 +22372,8 @@ window._lockMark = function(isOpen, px, label){
        for 20 s, and if the board still has not moved it says so on screen and records the fault. */
     var _btn = null;
     try { _btn = document.querySelector('#head-tabs .ht[data-tab="' + tab + '"]'); if (_btn) _btn.classList.add('ht-opening'); } catch (_b) {}
-    var _done = function(){ try { if (_btn) _btn.classList.remove('ht-opening'); } catch (_d) {} };
+    var _done = function(){ try { if (_btn) _btn.classList.remove('ht-opening'); } catch (_d) {} _shellOpeningEnd(); };
+    _shellVeil(tab);   /* REG-2110 - the pane says what it is waiting for */
     if (_shellRouteTimer) clearInterval(_shellRouteTimer);
     var n = 0;
     _shellRouteTimer = setInterval(function(){
@@ -22419,6 +22440,7 @@ window._lockMark = function(isOpen, px, label){
   function shellHome(){
     // v935.9 — demote board FIRST so it can't cover the homepage, then restore console
     if (_shellRouteTimer){ clearInterval(_shellRouteTimer); _shellRouteTimer = null; }
+    _shellOpeningEnd();   /* REG-2110 - leaving clears the veil and the tab's opening mark */
     _shellDemotePane();
     _shellRestoreConsole();
     _shellTab = 'tvd';
@@ -22469,6 +22491,7 @@ window._lockMark = function(isOpen, px, label){
   // "full grail bible →" link (in the hub) opens the bible pane when Konyo wants the deep data. ══
   function showSessions(){
     if (_shellRouteTimer){ clearInterval(_shellRouteTimer); _shellRouteTimer = null; }
+    _shellOpeningEnd();   /* REG-2110 */
     _shellDemotePane();
     _shellRestoreConsole();
     _shellTab = 'session';
