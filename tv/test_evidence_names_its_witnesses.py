@@ -182,8 +182,9 @@ RED_PROOF = [
     {
         "why": "his hand tick is counted unplaced again, so every hand-ticked item reads witnesses None (finding A)",
         "file": "control_app.py",
-        "find": "        _unplaced = sum(1 for sg in uniq if not sg.get(\"reel\") and not _is_hand_row(sg))\n",
-        "replace": "        _unplaced = sum(1 for sg in uniq if not sg.get(\"reel\"))\n",
+        # REG-2036 moved this line onto _evidence_reel_id (a field that is not a reel id is unplaced too)
+        "find": "        _unplaced = sum(1 for sg in uniq if not _evidence_reel_id(sg.get(\"reel\")) and not _is_hand_row(sg))\n",
+        "replace": "        _unplaced = sum(1 for sg in uniq if not _evidence_reel_id(sg.get(\"reel\")))\n",
         "matches": 1,
     },
     {
