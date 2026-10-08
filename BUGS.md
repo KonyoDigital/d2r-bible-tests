@@ -406,6 +406,36 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2073 - "census taken 14 s ago", FOR 26 SECONDS - AND A SECOND CENSUS UNDER THE SAME WORD (2026-10-08, #284)
+
+GrokBot ticks 418, 422 and 423 (K16/K17): the Heart's census age read the same for 26 s and longer. It arrived right
+(ageMs at the moment of the answer) and was painted ONCE, and a settled panel asks nothing more. `_hrtStatusLine`
+now adds the time since the answer landed and `_hrtAgeTick` repaints it every second while the panel is open; an
+unknown age stays unknown. Tick 422's other half - a lock tip on the same panel saying "the heart census is STALE: it
+is still being proven (759 owed)" beside "census taken 14 s ago" - was REG-2017's collision on the branches it did
+not sweep: the STALE (still proving / gates changed), unparseable and no-fingerprint sentences now name "the heart2
+PROOF census ... (not the Heart panel's live census)", keeping the "census is STALE" phrase its readers match on.
+Tick 422's double '..' was not reproduced in code - recorded, not guessed at.
+Laws: test_the_census_age_ticks_from_its_stamp (2 red-proofs), test_the_prover_census_is_named_apart_from_the_hearts (+1 case).
+
+### REG-2072 - THE ROW'S "river stuck" CHIP KEPT ITS OWN UNGROUPED TIP (2026-10-08, GrokBot tick 423 K07)
+
+REG-2059 (#281) grouped the fleet CARD's river tip through `_fleetStuckWhy`; GrokBot hovered the RAIL ROW's "river stuck"
+chip on v3623 and still read 'vault lane: owes 7 ...' for PRINTER 2 and again for PRINTER 1, 'the reel sweep owes 9 ...'
+twice under STATION 5, and the deleter's refusal for ROUTED 8 and CAPTURE 5. The chip built its own row-by-row copy
+(copy drift), and a row past the keep window carries the server's 'older than the newest N - ' in front of the SAME
+reason, so grouping by the whole string could not have joined them anyway. The chip now goes through `_fleetStuckWhy`,
+and the prefix becomes the row's ' older' label (the card's word): 'PRINTER 2 older · PRINTER 1: vault lane: ...'.
+Law: test_the_river_chip_says_a_shared_reason_once (drives the shipped chip in node; 2 red-proofs).
+
+### REG-2071 - THE SHELF CARD SAID "🛡 clean" OVER A DOSSIER SEALED WITH GAPS (2026-10-08, GrokBot tick 423 K14)
+
+REG-2055 (#277) made `_runSeal` the one verdict and wired the dossier and the copied summary to it; the Shelf card's
+verdict line, its seal badge and its filter token each kept their own `kaiMissed != null` rule, so Session 48's card
+wore '🛡 clean' over 'SEALED WITH GAPS · 8 gaps'. All three now ask `_runSeal`: a gap run reads '◐ gaps' (its tip names
+the unread gaps and missed-text frames in the dossier's words) and no longer matches the 🛡 clean filter.
+Law: test_a_clean_run_has_no_gaps (+1 case, +2 red-proofs).
+
 ### REG-2070 - A RENDER IN A WORKTREE MET AN EMPTY WORLD AND CALLED THE SHELF RED (2026-10-08)
 
 render_check copies his small state (sessions.jsonl + ten ledgers) from the tree it runs in; they are gitignored, so a

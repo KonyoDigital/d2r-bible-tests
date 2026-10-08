@@ -9121,6 +9121,16 @@ GATES = [
          needs_app=False,
          why=("REG-2069 (#231 eye on v43) - the tier multipliers (boss nav + boss-card heads) are computed for Hell and "
               "their titles named no difficulty; PLAYER_Q differs by difficulty, so the number must say which it is.")),
+    Gate("test_the_river_chip_says_a_shared_reason_once", [sys.executable,
+         os.path.join(HERE, "test_the_river_chip_says_a_shared_reason_once.py")], 30,
+         needs_app=False,
+         why=("REG-2072 (GrokBot 423 K07) - the fleet row's river-stuck chip kept its own row-by-row tip after REG-2059 "
+              "grouped the card's: 'vault lane: owes 7' twice, 'the reel sweep owes 9' under two spellings.")),
+    Gate("test_the_census_age_ticks_from_its_stamp", [sys.executable,
+         os.path.join(HERE, "test_the_census_age_ticks_from_its_stamp.py")], 30,
+         needs_app=False,
+         why=("REG-2073 (#284, GrokBot 418/422/423 K16-K17) - the Heart's 'census taken 14 s ago' froze at the value it "
+              "rendered for 26 s and longer: painted once from the answer, never advanced.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

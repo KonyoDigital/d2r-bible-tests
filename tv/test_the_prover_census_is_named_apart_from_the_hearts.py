@@ -37,8 +37,34 @@ class TheProverCensusIsNamedApartFromTheHearts(unittest.TestCase):
         self.assertIn("not the Heart panel's live census", why, "the lock does not tell its census from the Heart panel's")
         self.assertNotIn("the heart has never run here", why, "the old two-instruments-one-word sentence is back")
 
+    def _may_with(self, census):
+        import json as _json
+        p = os.path.join(tempfile.mkdtemp(prefix="stalecensus_"), ".heart2.json")
+        with open(p, "w") as f:
+            _json.dump(census, f)
+        with mock.patch.dict(os.environ, {"TV_HEART_CENSUS": p}):
+            # frame.release - an act with no undo, so it waits on a stale census (an ordinary act refuses on merit, v3042)
+            return SA.may("frame.release")
+
+    def test_a_stale_proof_census_names_the_proof_not_the_heart_panel(self):
+        """REG-2073 (#284, GrokBot tick 422 K17) - REG-2017 named the MISSING branch; the STALE branches three lines below
+        still said 'the heart census is STALE' beside a Heart panel reading 'census taken 14 s ago'."""
+        for census, what in (({"partial": True, "sliceOwed": 3, "blind": []}, "still being proven"),
+                             ({"gatesFingerprint": "0000dead", "blind": []}, "the gate files have changed")):
+            ok, why = self._may_with(census)
+            self.assertFalse(ok, "a lock opened on a stale proof census (%s)" % what)
+            self.assertIn(what, why, "premise: the %r branch answered: %r" % (what, why))
+            self.assertIn("PROOF census is STALE (not the Heart panel's live census)", why,
+                          "a stale lock does not tell its census from the Heart panel's (%s): %r" % (what, why))
+            self.assertIn(SA._HEART_STALE_PHRASE, why, "the phrase its readers match on is gone: %r" % why)
+
 
 RED_PROOF = [
+    {"why": "REG-2073 - a lock shut on a census still being proven calls it 'the heart census' again",
+     "file": "tv/self_arming.py",
+     "find": '            return False, ("the heart2 PROOF census is STALE (not the Heart panel\'s live census): it is still being proven "\n',
+     "replace": '            return False, ("the heart census is STALE: it is still being proven "\n',
+     "matches": 1},
     {"why": "REG-2017 - the lock says 'the heart has never run here' again, beside a Heart panel showing a fresh census",
      "file": "tv/self_arming.py",
      "find": '        return False, ("this PC\'s gates have never been PROVEN here (no heart2 proof census - not the Heart panel\'s live "\n',

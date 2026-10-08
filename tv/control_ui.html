@@ -2309,6 +2309,7 @@
   .shc-seal.clean { color: var(--gold-hi); border: 1px solid rgba(240,192,96,.38); }
   .shc-seal.flag { color: #ff9a8a; border: 1px solid rgba(255,120,80,.5); }
   .shc-seal.open { color: #9a8d73; border: 1px solid rgba(255,255,255,.12); }
+  .shc-seal.gaps { color: #e3b86a; border: 1px solid rgba(227,184,106,.4); }   /* REG-2071 - sealed, with unread gaps */
   .shc-headfind { position: absolute; left: 12px; right: 12px; bottom: 8px; z-index: 2;
     font: var(--fw-semibold) var(--fs-xs)/var(--lh-tight) var(--mono); color: #e8dcc0; text-shadow: 0 2px 7px rgba(0,0,0,.95);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -12055,6 +12056,7 @@ window._lockMark = function(isOpen, px, label){
     if (rs.missed) b.push(rs.missed + ' missed-text frame' + (rs.missed === 1 ? '' : 's'));
     return b.join(' · ');
   }
+  window._runSealGapsSay = _runSealGapsSay;
   function _dossierRecovery(sm){
     var sr = sm.superRecovery;
     var missed = (sr && sr.missed != null) ? sr.missed : sm.kaiMissed;
@@ -15751,18 +15753,34 @@ window._lockMark = function(isOpen, px, label){
     b.title = 'take a fresh census now'; b.setAttribute('aria-label', 'take a fresh census now');
     head.insertBefore(b, head.querySelector('#hrt-close'));
   }
+  /* #284 (REG-2073, GrokBot ticks 418/422/423 K16-K17) - THE CENSUS AGE TICKS FROM ITS STAMP. 'census taken 14 s ago' read
+     the same for 26 s and longer: the age arrived right (ageMs at the moment of the answer) and was painted ONCE, and a
+     settled panel asks nothing more - so the number froze at the value it rendered. The line keeps the moment its answer
+     landed and adds the time since, every second while the panel is open. [[stale-reading]] */
+  function _hrtStatusLine(d, sinceMs){
+    var rf = (d && d.refresh) || {};
+    var took = rf.lastTookMs != null ? ' (the last one took ' + _hrtAgo(rf.lastTookMs) + ')' : '';
+    var line = (d && d.ok === true)
+      ? ('census taken ' + (d.ageMs != null ? _hrtAgo(d.ageMs + Math.max(0, sinceMs || 0)) + ' ago' : 'at an unknown time'))
+      : 'no census is showing';
+    if (d && d.refreshing) line += ' · a fresh one is being taken' + took + ' - this panel fills itself in';
+    else if (rf.lastError) line += ' · the last refresh failed: ' + rf.lastError + ' - ↻ asks again';
+    return line;
+  }
+  window._hrtStatusLine = _hrtStatusLine;
+  var _hrtAgeT = null;
+  function _hrtAgeTick(){
+    var ov = document.getElementById('heart-ov');
+    var el = ov && ov.querySelector('#hrt-age');
+    if (!ov || ov.hidden || !el || !el.__hrtD) { if (_hrtAgeT) { clearInterval(_hrtAgeT); _hrtAgeT = null; } return; }
+    el.textContent = _hrtStatusLine(el.__hrtD, Date.now() - el.__hrtAt);
+  }
   function _hrtStatus(ov, d){
     /* the census's own age, whether a fresh one is on its way, and the ↻. The line opens the BODY, full width: as a
        header child it became a third flex column, squeezed under the ↻ at 375 px (photographed) */
     var head = ov.querySelector('.hrt-head');
     if (!head) return;
-    var rf = (d && d.refresh) || {};
-    var took = rf.lastTookMs != null ? ' (the last one took ' + _hrtAgo(rf.lastTookMs) + ')' : '';
-    var line = (d && d.ok === true)
-      ? ('census taken ' + (d.ageMs != null ? _hrtAgo(d.ageMs) + ' ago' : 'at an unknown time'))
-      : 'no census is showing';
-    if (d && d.refreshing) line += ' · a fresh one is being taken' + took + ' - this panel fills itself in';
-    else if (rf.lastError) line += ' · the last refresh failed: ' + rf.lastError + ' - ↻ asks again';
+    var line = _hrtStatusLine(d, 0);
     var el = ov.querySelector('#hrt-age');   /* #145 (#231, v3544) - it lives in the BODY; looked for in the head, every pending answer added one more */
     if (!el) {
       el = document.createElement('div'); el.className = 'hrt-note'; el.id = 'hrt-age';
@@ -15770,6 +15788,8 @@ window._lockMark = function(isOpen, px, label){
       if (body) body.insertBefore(el, body.firstChild); else head.appendChild(el);
     }
     el.textContent = line;
+    el.__hrtD = d; el.__hrtAt = Date.now();          /* REG-2073 - the moment this answer landed; the age ticks from it */
+    if (!_hrtAgeT) _hrtAgeT = setInterval(_hrtAgeTick, 1000);
     _hrtRefreshBtn(ov);
   }
   function _heartOpen(again){
@@ -17998,9 +18018,15 @@ window._lockMark = function(isOpen, px, label){
       // v936 (STORY ARC R2a) — the SEAL VERDICT: one line telling if the reel ran clean.
       // watchdog + KAI sweep + tally count, all in the shelf card's .sh-dim aesthetic.
       var vparts = [];
-      if (sm.watchdogViolations > 0){
-        vparts.push('<span class="sh-warn">🚨 ' + sm.watchdogViolations + ' miss' + (sm.watchdogViolations > 1 ? 'es' : '') + '</span>');
-      } else if (sm.kaiMissed != null){   // watchdogViolations==0 AND sealed (KAI has closed it)
+      /* REG-2071 (GrokBot tick 423 K14) - THE SHELF CARD ASKS THE SAME VERDICT AS THE DOSSIER. REG-2055 made _runSeal the one
+         answer to "is this run clean" and wired the dossier and the copied summary to it; the Shelf card kept its own
+         `kaiMissed != null` rule, so Session 48 wore '🛡 clean' on its card over a dossier reading 'SEALED WITH GAPS · 8 gaps'. */
+      var _shRs = _runSeal(sm);
+      if (_shRs.k === 'flag'){
+        vparts.push('<span class="sh-warn">🚨 ' + _shRs.n + ' miss' + (_shRs.n > 1 ? 'es' : '') + '</span>');
+      } else if (_shRs.k === 'gaps'){
+        vparts.push('<span class="sh-warn">◐ sealed with gaps · ' + _runSealGapsSay(_shRs) + '</span>');
+      } else if (_shRs.k === 'clean'){
         vparts.push('<span class="sh-clean">🛡 clean</span>');
       }
       if (sm.kaiMissed != null) vparts.push('🧠 swept · ' + sm.kaiMissed + ' missed-text');
@@ -18034,7 +18060,7 @@ window._lockMark = function(isOpen, px, label){
                 _sq.push(d0.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })); }
       (sm.finds || []).forEach(function(f){ if (f.name) _sq.push(f.name); if (f.tier === 'grail') _sq.push('grail'); });
       (sm.areas || []).forEach(function(a){ _sq.push(a); });
-      var _verd = sm.watchdogViolations > 0 ? 'flagged' : (sm.kaiMissed != null ? 'clean' : 'unsealed');
+      var _verd = ({ flag: 'flagged', gaps: 'gaps', clean: 'clean' })[_runSeal(sm).k] || 'unsealed';   /* REG-2071 */
       _sq.push(_verd === 'unsealed' ? '' : _verd);
       /* v3091 — the chip is LABELLED 'chronicle' (see _shChip: f === 'chronicle' && SHELF_F.grail)
          and was filtered on tier === 'grail', which is unset on 194 of 218 finds. So clicking
@@ -18057,8 +18083,10 @@ window._lockMark = function(isOpen, px, label){
       var _chronN = sm.chron ? ((sm.chron.uniques || 0) + (sm.chron.sets || 0)) : _grailN;
       var _tf = (sm.finds || []).filter(function(f){ return f.tier === 'grail'; })[0] || (sm.finds || [])[0];
       var headFind = _tf ? '<div class="shc-headfind' + (_tf.tier === 'grail' ? ' grail' + _nameRarCls(_tf.name) : '') + '">' + (_tf.tier === 'grail' ? '🏆 ' : '') + esc(_pieceLabel(_tf.name) || 'a keep') + '</div>' : '';
-      var seal = sm.watchdogViolations > 0 ? '<span class="shc-seal flag">🚨 ' + sm.watchdogViolations + '</span>'
-               : (sm.kaiMissed != null ? '<span class="shc-seal clean">🛡 clean</span>' : '<span class="shc-seal open">◌ open</span>');
+      var _sealRs = _runSeal(sm);   /* REG-2071 - the card's seal is the dossier's verdict, gaps included */
+      var seal = _sealRs.k === 'flag' ? '<span class="shc-seal flag">🚨 ' + _sealRs.n + '</span>'
+               : _sealRs.k === 'gaps' ? '<span class="shc-seal gaps" title="sealed with gaps - ' + esc(_runSealGapsSay(_sealRs)) + '">◐ gaps</span>'
+               : _sealRs.k === 'clean' ? '<span class="shc-seal clean">🛡 clean</span>' : '<span class="shc-seal open">◌ open</span>';
       var _pin = _sesPinned(sm.sessionId);   // D26 — favorite/pin state
       var pinBtn = '<button type="button" class="shc-pin' + (_pin ? ' on' : '') + '" data-pin-sid="' + esc(sm.sessionId || '') + '" title="' + (_pin ? 'unpin this run' : 'pin to the top') + '" aria-label="pin run">' + (_pin ? '★' : '☆') + '</button>';
       var _coverArt = _coverSrc(sm);   // D30 — best-find frame (money moment) → reel thumb → placeholder gradient
@@ -25974,9 +26002,19 @@ function escC(s) {
     var census = (hs && typeof hs === 'object') ? hs.census : undefined;
     var bits = [];
     if (Array.isArray(sk) && sk.length) {
-      var tip = sk.map(function (e) {
-        return e.station + ' ' + (typeof e.n === 'number' ? e.n : '?') + ': ' + (e.why || 'no reason given');
-      }).join(' | ');
+      /* REG-2072 (GrokBot tick 423 K07) - THE ROW'S CHIP SAYS A SHARED REASON ONCE TOO. REG-2059 grouped the fleet CARD's
+         tip through _fleetStuckWhy; this chip kept its own row-by-row copy, so 'vault lane: owes 7 ...' printed for PRINTER 2
+         and again for PRINTER 1. And a row past the keep window carries the server's 'older than the newest N - ' in front of
+         the same reason, so STATION 5 printed 'the reel sweep owes 9 ...' twice under two spellings. The prefix becomes the
+         row's 'older' label - the words the card already uses - and rows that share what is left are named together. */
+      var _olderRe = /^older than the newest \d+ - /;
+      var tip = _fleetStuckWhy(sk.map(function (e) {
+        var w = String((e && e.why) || 'no reason given');
+        return { station: e && e.station, n: e && e.n, older: (e && e.window === false) || _olderRe.test(w),
+                 why: w.replace(_olderRe, '') };
+      }), function (r) {
+        return r.station + ' ' + (typeof r.n === 'number' ? r.n : '?') + (r.older ? ' older' : '');
+      });
       bits.push('<span class="fleet-riverstuck" title="river stuck on this PC - ' + escC(tip) + '">river stuck</span>');
     }
     if (census === 'missing' || census === 'stale' || census === 'unreadable') {

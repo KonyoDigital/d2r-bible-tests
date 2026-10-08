@@ -1180,7 +1180,7 @@ def _heart_says_watched():
         with io.open(_p, encoding="utf-8") as _fh:
             _st = json.load(_fh)
     except Exception as _e:
-        return False, ("the heart census would not parse (%s) — UNKNOWN fails CLOSED."
+        return False, ("the heart2 PROOF census would not parse (%s) — UNKNOWN fails CLOSED."
                        % type(_e).__name__)
     # ⚠⚠ v2862 — AND IT MUST NOT BE STALE. A cross-family review: "the file still exists with
     # blind=[], so may() returns true and a surface can arm itself even though no live supervision
@@ -1213,10 +1213,11 @@ def _heart_says_watched():
                            "catch its failure cannot go red (recorded by a census still being proven)."
                            % (len(_blind0), ", ".join(sorted(_blind0)[:3])))
         if _st.get("partial") or _st.get("sliceOwed"):
-            return False, ("the heart census is STALE: it is still being proven (%s gate(s) owed) and carries no gate "
+            return False, ("the heart2 PROOF census is STALE (not the Heart panel's live census): it is still being proven "
+                           "(%s gate(s) owed) and carries no gate "
                            "fingerprint yet, so it cannot speak for the instruments now on disk."
                            % (_st.get("sliceOwed") if isinstance(_st.get("sliceOwed"), int) else "some"))
-        return False, ("the heart census carries no gate fingerprint, so nothing can say whether it "
+        return False, ("the heart2 PROOF census carries no gate fingerprint, so nothing can say whether it "
                        "still describes the instruments on disk. UNKNOWN fails CLOSED.")
     try:
         _have = _h2.gates_fingerprint()
@@ -1224,7 +1225,8 @@ def _heart_says_watched():
         return False, ("the gate fingerprint could not be computed (%s) — UNKNOWN fails CLOSED."
                        % type(_e).__name__)
     if _have != _want:
-        return False, ("the heart census is STALE: the gate files have changed since it ran "
+        return False, ("the heart2 PROOF census is STALE (not the Heart panel's live census): the gate files have changed "
+                       "since it ran "
                        "(%s != %s). The last proof does not speak for the instruments now on disk "
                        "— re-run `python3 tv/heart2.py --prove`." % (_have[:8], str(_want)[:8]))
     _blind = list(_st.get("blind") or [])

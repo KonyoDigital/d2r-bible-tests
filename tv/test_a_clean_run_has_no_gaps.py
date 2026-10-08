@@ -7,7 +7,8 @@ under "- no reads on this reel -". The seal asked only the watchdog; the chip as
 
   * _runSeal: unsealed -> open; a watchdog flag -> flag; unread item moments or missed-text frames -> gaps; else clean.
     The card's seal and the copied summary read the same verdict;
-  * the recovery chip says "a full read" only when the reel was read and no item moment is unread.
+  * the recovery chip says "a full read" only when the reel was read and no item moment is unread;
+  * REG-2071 (GrokBot tick 423 K14): the Shelf card's verdict line, seal badge and filter token ask the same _runSeal.
 Drives the SHIPPED _runSeal and _dossierRecovery, cut from control_ui.html and run in node. A missing node raises; this law
 does not skip.
 """
@@ -85,6 +86,18 @@ class ACleanRunHasNoGaps(unittest.TestCase):
         self.assertEqual(s.count("    var _rs = _runSeal(sm);"), 1, "the card's seal no longer asks _runSeal")
         self.assertEqual(s.count("    var _rsV = _runSeal(sm);"), 1, "the copied summary no longer asks _runSeal")
 
+    def test_every_shelf_surface_asks_the_same_seal(self):
+        """REG-2071 (GrokBot tick 423 K14) - Session 48's Shelf card wore '🛡 clean' over a dossier reading 'SEALED WITH GAPS ·
+        8 gaps': the card's verdict line, its seal badge and its filter token each kept their own `kaiMissed != null` rule."""
+        s = _src()
+        for expr, what in (("      var _shRs = _runSeal(sm);\n", "the shelf card's verdict line"),
+                           ("      var _sealRs = _runSeal(sm);", "the shelf card's seal badge"),
+                           ("      var _verd = ({ flag: 'flagged', gaps: 'gaps', clean: 'clean' })[_runSeal(sm).k] || 'unsealed';",
+                            "the shelf filter's verdict token")):
+            self.assertEqual(s.count(expr), 1, "%s no longer asks _runSeal" % what)
+        self.assertEqual(s.count(": (sm.kaiMissed != null ? '<span class=\"shc-seal clean\">"), 0,
+                         "a shelf seal decides 'clean' on the missed-text count alone again")
+
 
 RED_PROOF = [
     {"why": "REG-2055 - a run with unread gaps is sealed clean again",
@@ -96,6 +109,16 @@ RED_PROOF = [
      "file": "control_ui.html",
      "find": "    if (sm.reads === 0) return '<span class=\"dsr-recov dsr-recov-plain\">",
      "replace": "    if (false) return '<span class=\"dsr-recov dsr-recov-plain\">",
+     "matches": 1},
+    {"why": "REG-2071 - the shelf card's verdict line decides clean on its own again",
+     "file": "control_ui.html",
+     "find": "      var _shRs = _runSeal(sm);\n",
+     "replace": "      var _shRs = { k: sm.kaiMissed != null ? 'clean' : 'open' };\n",
+     "matches": 1},
+    {"why": "REG-2071 - the shelf card's seal badge reads clean over gaps again",
+     "file": "control_ui.html",
+     "find": "      var _sealRs = _runSeal(sm);",
+     "replace": "      var _sealRs = { k: sm.kaiMissed != null ? 'clean' : 'open' };",
      "matches": 1},
     {"why": "REG-2055 - the card's seal stops asking the shared verdict",
      "file": "control_ui.html",
