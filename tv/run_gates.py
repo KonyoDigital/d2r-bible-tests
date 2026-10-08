@@ -9166,6 +9166,11 @@ GATES = [
          needs_app=False,
          why=("REG-2082 (GrokBot 425 K06) - the top fleet row's card opened above and was cut at the rail's edge: the "
               "ceiling knew only the tab bar, not the rail scroller or its sticky title.")),
+    Gate("test_the_missed_text_counts_say_how_they_relate", [sys.executable,
+         os.path.join(HERE, "test_the_missed_text_counts_say_how_they_relate.py")], 30,
+         needs_app=False,
+         why=("REG-2083 (GrokBot 424 K08/K09) - 'swept · 3 missed-text' over a list of 5 and 'recovered 2/5': three true "
+              "counts that never said which was which.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

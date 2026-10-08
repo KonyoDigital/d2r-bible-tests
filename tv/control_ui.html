@@ -11913,7 +11913,7 @@ window._lockMark = function(isOpen, px, label){
   var DOSSIER = { n: 0 };
   function _dossierStory(sm){
     var chips = [];
-    if (sm.kaiMissed != null) chips.push('<span class="dsr-chip">🧠 swept · ' + sm.kaiMissed + ' missed-text</span>');
+    if (sm.kaiMissed != null) chips.push('<span class="dsr-chip">🧠 ' + esc(_missedSay(sm)) + '</span>');   /* REG-2083 */
     if (sm.tallies > 0) chips.push('<span class="dsr-chip">📸 ' + sm.tallies + ' intake tall' + (sm.tallies > 1 ? 'ies' : 'y') + '</span>');
     if (sm.judged > 0) chips.push('<span class="dsr-chip">🔬 ' + sm.judged + ' judged</span>');
     if (sm.regrets > 0) chips.push('<span class="dsr-chip dsr-warn">💔 ' + sm.regrets + ' regret' + (sm.regrets > 1 ? 's' : '') + '</span>');
@@ -12065,6 +12065,19 @@ window._lockMark = function(isOpen, px, label){
     return b.join(' · ');
   }
   window._runSealGapsSay = _runSealGapsSay;
+  /* REG-2083 (GrokBot tick 424 K08/K09) - THE MISSED-TEXT COUNTS SAY HOW THEY RELATE. Session 29 read 'swept · 3 missed-text'
+     over a MISSED TEXT list of 5 rows and 'recovered 2/5'. All three are true: the first pass missed 5 frames, a deeper pass
+     named 2 of them (both Heart of the Oak), 3 are still unread - kai.missedFrames is the still-unread ledger, superRecovery
+     .missed is recovered + still unread. The words now say which is which. -> the chip's text after the brain icon */
+  function _missedSay(sm){
+    sm = sm || {};
+    if (sm.kaiMissed == null) return '';
+    var sr = sm.superRecovery;
+    if (sr && sr.recovered > 0 && sr.missed)
+      return 'swept · ' + sm.kaiMissed + ' still unread · ' + sr.recovered + ' of ' + sr.missed + ' missed frames recovered';
+    return 'swept · ' + sm.kaiMissed + ' missed-text still unread';
+  }
+  window._missedSay = _missedSay;
   function _dossierRecovery(sm){
     var sr = sm.superRecovery;
     var missed = (sr && sr.missed != null) ? sr.missed : sm.kaiMissed;
@@ -12304,7 +12317,11 @@ window._lockMark = function(isOpen, px, label){
     var montSec = mont ? '<div class="dsr-sec"><div class="dsr-h">🎞 The reel · chapters</div>' + _dossierChapters(sm) + mont + '</div>' : '';
     // v1277 (D6) — missed-text drill (engine, honest-absent): every frame KAI couldn't read, jump to it
     var missDrill = _dossierMissedDrill(sm);
-    var missSec = missDrill ? '<div class="dsr-sec"><div class="dsr-h">🔬 Missed text · tap to jump</div>' + missDrill + '</div>' : '';
+    /* REG-2083 - the list says what its rows are: every frame the first pass missed, the named ones recovered later */
+    var _msr = sm.superRecovery, _mHead = (_msr && _msr.missed)
+      ? ' · ' + _msr.missed + ' frame' + (_msr.missed === 1 ? '' : 's') + ': ' + (_msr.recovered || 0) + ' recovered (named), ' + (_msr.missed - (_msr.recovered || 0)) + ' still unread'
+      : '';
+    var missSec = missDrill ? '<div class="dsr-sec"><div class="dsr-h">🔬 Missed text' + _mHead + ' · tap to jump</div>' + missDrill + '</div>' : '';
     // v1279 (D7) — seal-latency chip (engine) + regret spotlight (engine, degrades to count)
     var sealLat = _dossierSealLatency(sm);
     var regret = _dossierRegret(sm);
@@ -18060,7 +18077,7 @@ window._lockMark = function(isOpen, px, label){
       } else if (_shRs.k === 'clean'){
         vparts.push('<span class="sh-clean">🛡 clean</span>');
       }
-      if (sm.kaiMissed != null) vparts.push('🧠 swept · ' + sm.kaiMissed + ' missed-text');
+      if (sm.kaiMissed != null) vparts.push('🧠 ' + esc(_missedSay(sm)));   /* REG-2083 - the dossier's words */
       if (sm.tallies > 0) vparts.push('📸 ' + sm.tallies + ' tall' + (sm.tallies > 1 ? 'ies' : 'y'));
       if (sm.regrets > 0) vparts.push('<span class="sh-warn">💔 ' + sm.regrets + ' regret' + (sm.regrets > 1 ? 's' : '') + '</span>');
       else if (sm.judged > 0) vparts.push('🔬 ' + sm.judged + ' judged');
