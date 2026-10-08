@@ -17500,8 +17500,8 @@ window._lockMark = function(isOpen, px, label){
        resolves after the teardown and re-shows an empty stage; that is the reopen-after-close
        failure he reported five times. */
     TH.gen = (TH.gen | 0) + 1;
-    TH.reelFromShelf = false;   /* REG-2074 - a full teardown forgets the door */
     TH.open = false; clearTimeout(TH.timer); TH.playing = false;
+    TH.reelFromShelf = false;   /* REG-2074 - a full teardown forgets the door */
     try { window._backFromLive && window._backFromLive(); } catch(e){}   // v1627 — back to where he opened it from
     $('theatre').hidden = true;
     document.body.classList.remove('theatre-open');
