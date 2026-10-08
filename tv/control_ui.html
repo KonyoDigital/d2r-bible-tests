@@ -9693,7 +9693,7 @@ window._lockMark = function(isOpen, px, label){
         + (d.go ? '<div class="itip-go">' + esc(String(d.go)) + '</div>' : '');
     }
     return {
-      show: function(node){
+      show: function(node, viaFocus){
         if (!node) return this.hide();
         var raw = node.getAttribute('data-itip'); if (!raw) return this.hide();
         ensure();
@@ -9708,8 +9708,33 @@ window._lockMark = function(isOpen, px, label){
            on top of it. Shed the prose skin before painting the item. */
         el.classList.remove('tip-say','tip-side-right','tip-side-left','tip-side-below','tip-side-above');
         el.setAttribute('aria-hidden', 'true');
-        this.release();
+        /* #220 (REG-2116) - AND THE ITEM CARD BORROWS TOO. This only called release() - it gave the prose lane's titles
+           back and never took the hovered node's own title or the titles above it, so a [data-itip] node that carries a
+           title, or sits inside a titled card or row, painted the rich card with the grey OS box over it (GrokBot ticks
+           392 / 407 / 422). It now holds the same state say() holds - the host's title and every title above it parked
+           in data-tip-held - so release() (and every hide) gives them back by the one path it already has. show() runs
+           on every mousemove, so it borrows once per host; a title a poll repaints mid-hover is re-taken. */
+        if (sayHost !== node){ if (viaFocus) this.release(); else this._holdItem(node); }   /* focus opens no native box: nothing to take */
         el.classList.add('on');
+      },
+      _holdItem: function(node){
+        this.release();
+        sayHost = node;
+        sayHeld = node.getAttribute('title');
+        var park = function(e, t){ try { e.setAttribute('data-tip-held', t); e.removeAttribute('title'); } catch(x){} };
+        if (sayHeld !== null) park(node, sayHeld);
+        holdAbove(node);
+        try {
+          sayWatch = new MutationObserver(function(){
+            if (sayHost !== node) return;
+            sayAbove.forEach(function(h){ var up = h[0].getAttribute('title'); if (up != null){ h[1] = up; park(h[0], up); } });
+            var back = node.getAttribute('title');
+            if (back != null){ sayHeld = back; park(node, back); }
+          });
+          [node].concat(sayAbove.map(function(h){ return h[0]; })).forEach(function(e){
+            sayWatch.observe(e, { attributes: true, attributeFilter: ['title'] });
+          });
+        } catch(x){}
       },
       /* ⚠ v2452 — ONE CLAMP, AND BOTH PLACEMENT PATHS MUST REACH IT. This tip is positioned two
          ways: move() follows the cursor, anchor() pins to an element. A `title=` hint goes through
@@ -9890,7 +9915,7 @@ window._lockMark = function(isOpen, px, label){
         var node = e.target && e.target.closest && e.target.closest('[data-itip]');
         if (node){
           var r = node.getBoundingClientRect();
-          _itemTip.show(node); _itemTip.move(r.left + r.width / 2, r.bottom);
+          _itemTip.show(node, true); _itemTip.move(r.left + r.width / 2, r.bottom);   // focus borrows nothing (REG-2116)
           return;
         }
         /* v2105 — sighted KEYBOARD users GAIN something they never had: a native tooltip does not

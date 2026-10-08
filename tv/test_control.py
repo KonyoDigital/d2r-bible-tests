@@ -26477,6 +26477,65 @@ process.stdout.write(JSON.stringify(OUT)); })();
                          "%d of %d of the board's nested pairs still hand the browser a title" % (len(o["left"]), o["n"]))
 
 
+class TestReg2116TheItemCardBorrowsLikeTheProseLane(unittest.TestCase):
+    """REG-2116 (#220) - THE ITEM CARD NEVER BORROWED. `_itemTip.show()` - the [data-itip] lane - only called release():
+    it gave the prose lane's titles back and never took the hovered node's own title or any title above it. So a
+    [data-itip] node carrying a title, or sitting inside a titled card or row, painted the rich card with the grey OS
+    box over it (GrokBot ticks 392 / 407 / 422: the eyes card, a stray 'default OFF' tip, the Accumulator LOCKED box).
+
+    Drives the SHIPPED lane in node over REG-1871's fake DOM - the same harness, never a copy of the lane."""
+
+    HARNESS = TestReg1871ATitleAboveTheHostIsBorrowedToo.HARNESS + r"""
+var _itemArtImg = function(){ return ''; }, _rarCls = function(){ return ''; }, _pieceLabel = function(s){ return s; };
+function item(){ return {'data-itip': JSON.stringify({name: 'Shako'}), title: 'the item'}; }
+"""
+    setUpClass = classmethod(TestReg1871ATitleAboveTheHostIsBorrowedToo.setUpClass.__func__)
+    _run = TestReg1871ATitleAboveTheHostIsBorrowedToo._run
+
+    def test_a_hover_borrows_the_item_and_every_title_above_it_and_gives_them_back(self):
+        o = self._run("""
+var c = chain([['div', {title: 'the card'}], ['span', {}], ['button', item()]]);
+_itemTip.show(c[2]); _itemTip.show(c[2]);
+OUT.during = titles(c); OUT.heldDuring = held(c);
+_itemTip.hide();
+OUT.after = titles(c); OUT.heldAfter = held(c);""")
+        self.assertEqual(o["during"], [None, None, None],
+                         "a title stayed on the item's chain, so the OS box opens over the item card: %r" % o["during"])
+        self.assertEqual(o["heldDuring"], ["the card", None, "the item"])
+        self.assertEqual(o["after"], ["the card", None, "the item"], "a borrowed title was not given back")
+        self.assertEqual(o["heldAfter"], [None, None, None], "a stray data-tip-held is left at rest")
+
+    def test_a_title_repainted_mid_hover_is_retaken_with_its_newest_words(self):
+        o = self._run("""
+var c = chain([['div', {title: 'v1 of the row'}], ['button', item()]]);
+_itemTip.show(c[1]);
+repaint(c[0], 'v2 of the row'); repaint(c[1], 'v2 of the item');
+OUT.during = titles(c);
+_itemTip.hide();
+OUT.after = titles(c);""")
+        self.assertEqual(o["during"], [None, None], "a repainted title opened the OS box over the item card mid-hover")
+        self.assertEqual(o["after"], ["v2 of the row", "v2 of the item"], "release gave back a stale sentence")
+
+    def test_focus_borrows_nothing_and_still_sheds_the_prose_lane(self):
+        o = self._run("""
+var c = chain([['div', {title: 'the card'}], ['button', item()]]);
+var w = chain([['div', {title: 'a row'}], ['b', {title: 'a word'}]]);
+_itemTip.say(w[1], false);
+_itemTip.show(c[1], true);
+OUT.item = titles(c); OUT.word = titles(w);""")
+        self.assertEqual(o["item"], ["the card", "the item"], "focus opens no OS box, so nothing may be taken")
+        self.assertEqual(o["word"], ["a row", "a word"], "the prose lane kept its borrowed titles under the item card")
+
+    def test_moving_from_a_word_to_an_item_gives_the_word_back(self):
+        o = self._run("""
+var w = chain([['div', {title: 'a row'}], ['b', {title: 'a word'}]]);
+var c = chain([['button', item()]]);
+_itemTip.say(w[1], false);
+_itemTip.show(c[0]);
+OUT.word = titles(w); OUT.item = titles(c);""")
+        self.assertEqual(o["word"], ["a row", "a word"], "the word's titles were not given back when the item card opened")
+        self.assertEqual(o["item"], [None], "the item's own title stayed")
+
 
 class TestReg1871ATitledControlInsideAnItemCardSpeaksForItself(unittest.TestCase):
     """REG-1871 (#189), the three sites GrokBot photographed on v3600, each a native strip over a styled box:
@@ -47008,6 +47067,42 @@ RED_PROOF = [
         "file": "tv/control_ui.html",
         "find": "            sayAbove.forEach(function(h){ sayWatch.observe(h[0], { attributes: true, attributeFilter: ['title'] }); });\n",
         "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2116 - the item card only releases: the hovered item's title and every title above it stay, so the "
+               "OS box opens over the rich card",
+        "file": "tv/control_ui.html",
+        "find": "        if (sayHost !== node){ if (viaFocus) this.release(); else this._holdItem(node); }   /* focus opens no native box: nothing to take */\n",
+        "replace": "        this.release();\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2116 - the hovered item's own title is not parked, so its OS box opens over the item card",
+        "file": "tv/control_ui.html",
+        "find": "        if (sayHeld !== null) park(node, sayHeld);\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2116 - the titles above a hovered item are not borrowed, so a titled card's OS box opens over it",
+        "file": "tv/control_ui.html",
+        "find": "        holdAbove(node);\n        try {\n          sayWatch = new MutationObserver(function(){\n",
+        "replace": "        try {\n          sayWatch = new MutationObserver(function(){\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2116 - a title the poll repaints mid-hover on the item is not re-taken",
+        "file": "tv/control_ui.html",
+        "find": "            if (back != null){ sayHeld = back; park(node, back); }\n",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2116 - focus borrows the item's titles although no OS box opens on focus",
+        "file": "tv/control_ui.html",
+        "find": "if (viaFocus) this.release(); else this._holdItem(node); }",
+        "replace": "this._holdItem(node); }",
         "matches": 1,
     },
     {

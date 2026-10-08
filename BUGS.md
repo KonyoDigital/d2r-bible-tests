@@ -406,6 +406,18 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2116 - THE CONSOLE'S ITEM CARD NEVER BORROWED A TITLE, SO THE OS BOX OPENED OVER IT (2026-10-09, #220)
+
+GrokBot ticks 392 / 407 / 422 photographed a grey OS tooltip painted with a styled one (the eyes card, a stray "default OFF"
+line, the Accumulator's LOCKED box). Code read: `_itemTip.show()` - the console's [data-itip] lane - only called release(),
+which GIVES BACK the prose lane's titles; it never took the hovered node's own title or any title above it, the way say()
+has since v2105 / REG-1871. It now holds the same state say() holds (host title + every title above it parked in
+data-tip-held, re-taken if a poll repaints one) once per host, so release() and every hide give them back by the one path
+they already had; focus borrows nothing, as in say(). Law: TestReg2116TheItemCardBorrowsLikeTheProseLane drives the shipped
+lane over REG-1871's fake DOM (4 cases, 5 red-proofs, each measured red on a safe copy). The board's own item lane
+(bible.html _artHold) already borrows; the board's Vault REGISTERED and tile '?' doubles in the row still need a render to
+name their lane - not claimed fixed here.
+
 ### REG-2114 - THE ONE-BROWSER PROOF TAMPERED DEAD CODE, AND THAT BLIND HELD EVERY RIVER LOCK SHUT (2026-10-09)
 
 His console's full prove (885 laws, 10-09 00:1x-01:00) left one instrument BLIND: test_a_push_proof_runs_only_where_its_defect_shows
