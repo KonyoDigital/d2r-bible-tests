@@ -151,7 +151,8 @@ class TheTwoAuthoritiesAreCompared(unittest.TestCase):
         self.assertEqual(ER.deleter_disagrees(None), [])
 
     def test_the_report_carries_it(self):
-        self.assertIn("deleter_disagrees", ER.report.__code__.co_names,
+        # REG-2060 (#243) - report() holds the durable memo and hands the pass to _report_pass, which does the work
+        self.assertIn("deleter_disagrees", getattr(ER, "_report_pass", ER.report).__code__.co_names,
                       "report() never asks whether the deleter agrees - the comparison is unjoined")
 
     def _row(self, rep):

@@ -498,7 +498,17 @@ def unextracted_door(reel, src):
                 _root = os.path.dirname((src.get("paths") or {})["vault_swept.json"])
             except Exception:
                 _root = None
-            _sess, _ok, _dwhy = _rr_d._durable_sessions(_root)
+            # #243 (REG-2060) - ONE durable answer per world per report pass. This line ran once per reel with rows (182 on
+            # his Mac), and each call rebuilt frame_authority.witness_index - re-reading and re-parsing the same stores -
+            # so the watchdog's 'cheap' end-routes row cost ~6 s against a 3 s budget and grew with every reel. Inside a
+            # report the stores do not change; outside one (a bare verdict()) nothing is remembered, exactly as before.
+            _memo = _DUR_PASS
+            if _memo is not None and _root in _memo:
+                _sess, _ok, _dwhy = _memo[_root]
+            else:
+                _sess, _ok, _dwhy = _rr_d._durable_sessions(_root)
+                if _memo is not None:
+                    _memo[_root] = (_sess, _ok, _dwhy)
             durable = (_rr_d._reel_ts_key(reel) in _sess) if _ok else None
         except Exception as _e:
             durable = None                                 # cannot ask -> UNKNOWN, never a yes
@@ -724,8 +734,25 @@ def deleter_disagrees(rows):
                   if isinstance(x, dict) and x.get("say") == "HELD" and x.get("safetyHold") == "eligible")
 
 
+_DUR_PASS = None   # #243 - {world root: durable answer} while a report() pass runs, else None
+
+
 def report(hist_dir=None, safety=True):
-    """Every reel on the shelf, its verdict, and what is missing. -> dict. Writes nothing."""
+    """Every reel on the shelf, its verdict, and what is missing. -> dict. Writes nothing.
+
+    #243 (REG-2060) - one pass asks the durable store once per world (see unextracted_door), not once per reel."""
+    global _DUR_PASS
+    _outer = _DUR_PASS
+    if _outer is None:
+        _DUR_PASS = {}
+    try:
+        return _report_pass(hist_dir, safety)
+    finally:
+        if _outer is None:
+            _DUR_PASS = None
+
+
+def _report_pass(hist_dir=None, safety=True):
     src = sources(hist_dir)
     hist = hist_dir or os.environ.get("TV_HIST") or os.path.join(HERE, "frames", "hist")
     try:

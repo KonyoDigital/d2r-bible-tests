@@ -9063,6 +9063,12 @@ GATES = [
          needs_app=False,
          why=("REG-2059 (#281, GrokBot 418 K03) - Konyo's river tip printed one station's reason twice and two printers' shared paragraph twice, then ran out of room.")
          ),
+    Gate("test_the_cheap_end_route_row_asks_the_store_once", [sys.executable,
+         os.path.join(HERE, "test_the_cheap_end_route_row_asks_the_store_once.py")], 30,
+         needs_app=False,
+         why=("REG-2060 (#243) - the watchdog's cheap end-routes row cost 5-6 s against a 3 s budget: end_routes.report "
+              "rebuilt the durable witness index once per reel (182 store passes on his Mac).")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

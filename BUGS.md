@@ -406,6 +406,16 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2060 - THE WATCHDOG'S "CHEAP" END-ROUTES ROW COST 6 SECONDS AND GREW WITH EVERY REEL (2026-10-08, #243)
+
+It blocked the v3623 push: test_control's "the cheap subset is actually CHEAP" refused "end routes reachable (5043 ms,
+again 4772 ms)" against its 3000 ms budget - slow BOTH times, so not a burst. Timed alone: 5.9-6.3 s. cProfile of
+`end_routes.report()`: `reel_retention._durable_sessions` ran 182 times (once per reel with rows) and each rebuilt
+`frame_authority.witness_index` - 366 store loads, 2.8 of 4.3 s. Not from this batch (the only frame_authority change
+in it is REG-2053's five lines): the row has been O(reels x store) and his shelf grew. One report pass now asks the
+durable store once per world root (`_DUR_PASS`), a bare door call outside a pass asks as before. After: 1.7-2.0 s,
+the same verdict (30 of 42 dead-ended). Law: test_the_cheap_end_route_row_asks_the_store_once.
+
 ### REG-2059 - ONE RIVER TIP SAID THE SAME REASON TWICE, AND RAN OUT OF ROOM (2026-10-08, #281)
 
 GrokBot tick 418 (K03): Konyo's river tip printed "STATION 5: the reel sweep owes 9 read(s) … vault.sweep_start is
