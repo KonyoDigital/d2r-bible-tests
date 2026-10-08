@@ -406,6 +406,17 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2114 - THE ONE-BROWSER PROOF TAMPERED DEAD CODE, AND THAT BLIND HELD EVERY RIVER LOCK SHUT (2026-10-09)
+
+His console's full prove (885 laws, 10-09 00:1x-01:00) left one instrument BLIND: test_a_push_proof_runs_only_where_its_defect_shows
+proof [12], "two browser gates run at once in two lanes". It tampered _PushRun.browser_slot(), but REG-1989 (2026-10-07) moved
+every push lane that has a browser gate onto take(), so browser_slot's lock branch is never reached - the law stayed green through
+its own defeat. Under his 09-02 rule a BLIND instrument shuts frame.release, reel.route, vault.sweep_start and vault.apply, so the
+drain could not free disk while he filmed. The proof now tampers the line the one-browser case actually drives (take()'s wait for
+the one browser when only browser gates are left). Measured on a safe copy: clean OK; the new tamper red on "two browser gates ran
+at once"; the old tamper still OK (the blind). Same class as an_edit_orphans_other_laws_red_proofs: an edit to heart2 orphaned a
+red-proof in another law, and nothing re-proved that law because it was not in the changed set.
+
 ### REG-2113 - THE BUTTON MATRIX'S SIM CHECK WAS ONE SAMPLE AFTER A FIXED SLEEP (2026-10-09, #310)
 
 "SIM -> reads grow or bridge stays: reads=0" went red in gate shard 2 on v3631, v3633, v3634 and v3635 - beside a second gate

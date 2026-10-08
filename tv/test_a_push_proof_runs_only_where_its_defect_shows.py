@@ -680,10 +680,14 @@ RED_PROOF = [
         "matches": 1,
     },
     {
+        # REG-2114 - this proof used to tamper browser_slot(); REG-1989 moved every push lane with a browser gate onto
+        # take(), so browser_slot's lock branch is never reached and the proof stayed green through its own defeat
+        # (BLIND - it held every river lock shut on his Mac). It now tampers the line the one-browser case drives: two
+        # browser gates in two lanes, so the second lane finds the browser busy, nothing else left, and waits on it.
         "why": "two browser gates run at once in two lanes (four parallel Chromes drove his Mac to load 100)",
         "file": "heart2.py",
-        "find": "        return self.browser_lock if name in self.browser else contextlib.nullcontext()\n",
-        "replace": "        return contextlib.nullcontext()\n",
+        "find": "            return self._items.pop(0), self.browser_lock     # only browser gates are left: wait for the one browser\n",
+        "replace": "            return self._items.pop(0), contextlib.nullcontext()\n",
         "matches": 1,
     },
     {
