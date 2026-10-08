@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3626",
+  "ver": "v3627",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3626: REG-2095..2099 - the reel last frame leaves with it, a TV stub placeholder base is not a base, Registered counts owned like the top line, one river debt is said once, the rune grids name runewords that hold the rune",
+  "note": "v3627: REG-2100..2102 - the Pandemonium keys drop on Hell at any players setting, the Uber Tristram lead walks the organ step, LAST SESSION says OPEN for a run that is not sealed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
