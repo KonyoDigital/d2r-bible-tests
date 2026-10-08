@@ -79,7 +79,8 @@ class ANameNothingKnowsGetsNoGuessedMule(unittest.TestCase):
         self.assertEqual(body.count(MAGIC_RARE), 1, "the router no longer asks his Magic & Rare register")
         self.assertLess(body.index(MAGIC_RARE), body.index(UNKNOWN),
                         "a find he registered in Magic & Rare reaches the Unsorted answer first")
-        tail = body[body.index(MAGIC_RARE):body.index(MAGIC_RARE) + 400]
+        j = body.index(MAGIC_RARE)
+        tail = body[j:body.index("    } catch(eMf){}", j)]   # the branch's own try block, never a byte count
         self.assertIn("return {id:'magic-rare', why:'registered in Magic & Rare (", tail,
                       "his registered find is not sent to MAGIC & RARE")
         self.assertEqual((s.count(AIC_WRITE), s.count(AIC_ASK)), (1, 1), "premise: the checker's write and its ask")

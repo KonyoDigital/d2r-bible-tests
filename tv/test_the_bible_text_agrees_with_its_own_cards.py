@@ -158,7 +158,7 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         self.assertEqual(wrong, [], "Blood Raven is given the Den of Evil quest - hers is Sisters' Burial Grounds: %r" % wrong)
         i = s.find("  andariel: {\n    run:")
         self.assertGreater(i, 0, "andariel's tip block is gone - re-point this law")
-        q = re.search(r'\n    quest: "([^"]*)"', s[i:i + 2000]).group(1)
+        q = re.search(r'\n    quest: "([^"]*)"', s[i:s.index("\n  },\n", i)]).group(1)   # andariel's own block
         self.assertIn("Sisters to the Slaughter", q, "Andariel's quest line no longer names her own quest: %r" % q)
         self.assertNotRegex(q, r"Den[- ]of[- ]Evil", "Andariel's quest line names another quest: %r" % q)
 
