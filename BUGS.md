@@ -406,6 +406,17 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2037 - ONE DISAGREEING READ MADE AN ETHEREAL GRIEF NOBODY OWNS (2026-10-08, #207)
+
+From the 2026-10-07 simulation pass (F6). His seen bank: Grief, one session, three reads 1.4-3 s apart, 5 sockets -
+eth True once, False twice; the tooltip at native resolution has no Ethereal line. _variants_of counted (5, True) and
+(5, False) as two physical items. Now: sightings in one session with the same sockets and no cell telling them apart
+whose eth reads disagree are ONE variant with eth UNKNOWN and the reads beside it (ethReads) - a minority read never
+invents an ethereal item, and nothing claims it is not one; different cells or sessions stay different items (an eth
+Phase Blade Grief is real). A runeword's variant carries no reader quality (Heart of the Oak was read unique, blue and
+gold - the colour of a runeword's name). The per-look witness rows keep what each look read.
+Law: test_one_look_that_disagrees_is_not_a_second_item (2 red-proofs).
+
 ### REG-2036 - A READ SAID MORE THAN IT WAS: AN INVENTORY READ "REGISTERED", ONE TOOLTIP TWO ITEMS, A DIRECTORY AS A REEL (2026-10-08, #212)
 
 From the 2026-10-07 simulation pass on his real reels (F13-F15). F13: _receipts_stream marked banked for any scene in

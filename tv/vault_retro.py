@@ -1016,7 +1016,7 @@ APPLY_NOT_SHIPPED = {
 }
 
 
-def _variants_of(evidence):
+def _variants_of(evidence, name=None):
     """The DISTINCT (sockets, eth, quality) triples under one (name, lane) key, each with its count.
 
     ⚠ ONE KEY LEGITIMATELY HOLDS SEVERAL PHYSICAL ITEMS. A 4-socket Gorgon Crossbow and a plain one
@@ -1031,18 +1031,64 @@ def _variants_of(evidence):
     Triples that are entirely unknown are dropped — a variant nobody could describe is not a
     variant, it is an absence, and counting it would inflate the answer with blanks.
     """
-    seen = {}
+    # REG-2037 (#207, the 10-07 sim F6) - ONE LOOK THAT DISAGREES IS NOT A SECOND ITEM. MEASURED on his seen bank: Grief,
+    # one session, three reads 1.4-3 s apart, 5 sockets each - eth True once, False twice - so the row carried an
+    # ethereal Grief nobody owns. Sightings in ONE session with the same sockets and no cell telling them apart
+    # cannot be shown to be two items; where their eth reads disagree, that item's eth is UNKNOWN (None) and the reads
+    # ride beside it as ethReads - a minority read never invents an ethereal item, and nothing claims it is not one.
+    # Different sessions or different cells stay different items (the law above). And a runeword's "quality" is the
+    # colour of its name, not a quality the reader can give (Heart of the Oak read unique, blue and gold): None.
+    rw = _is_runeword(name)
+    looks = []
     for e in evidence:
         if not isinstance(e, dict):
             continue
-        trip = (e.get("sockets"), e.get("eth"), e.get("quality"))
+        looks.append([e.get("sockets"), e.get("eth"), None if rw else e.get("quality"),
+                      (e.get("session"), str(e.get("cell")) if e.get("cell") is not None else None)])
+    groups = {}
+    for lk in looks:
+        groups.setdefault((lk[3], lk[0], lk[2]), []).append(lk)
+    disagree = {}
+    for gk, g in groups.items():
+        eths = [x[1] for x in g if x[1] is not None]
+        if True in eths and False in eths:
+            for x in g:
+                x[1] = None
+            disagree[(gk[1], None, gk[2])] = {"eth": eths.count(True), "notEth": eths.count(False)}
+    seen = {}
+    for lk in looks:
+        trip = (lk[0], lk[1], lk[2])
         if trip == (None, None, None):
             continue
         seen[trip] = seen.get(trip, 0) + 1
-    out = [{"sockets": t[0], "eth": t[1], "quality": t[2], "witnesses": n}
-           for t, n in seen.items()]
+    out = []
+    for t, n in seen.items():
+        v = {"sockets": t[0], "eth": t[1], "quality": t[2], "witnesses": n}
+        if t in disagree:
+            v["ethReads"] = disagree[t]
+        out.append(v)
     # sorted so the answer does not depend on the order the sightings arrived in
     return sorted(out, key=lambda v: (str(v["sockets"]), str(v["eth"]), str(v["quality"])))
+
+
+_RUNEWORDS = {}
+
+
+def _is_runeword(name):
+    """True when `name` is a runeword in the game's own tables (tv/item_tables.json); False when it is not or the
+    tables cannot be read - an unreadable table never strips a fact."""
+    if not name:
+        return False
+    if "n" not in _RUNEWORDS:
+        try:
+            with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "item_tables.json"),
+                      encoding="utf-8") as fh:
+                t = json.load(fh)
+            _RUNEWORDS["n"] = {re.sub(r"[^a-z]", "", str(r.get("name") or "").replace("\u2019", "'").lower())
+                               for r in (t.get("runewords") or {}).values()} - {""}
+        except Exception:
+            _RUNEWORDS["n"] = set()
+    return re.sub(r"[^a-z]", "", str(name).replace("\u2019", "'").lower()) in _RUNEWORDS["n"]
 
 
 def _owned_row(key, evidence):
@@ -1069,7 +1115,7 @@ def _owned_row(key, evidence):
     kind = sorted(kinds.items(), key=lambda kv: (-kv[1], kv[0]))[0][0] if kinds else "item"
     return {"name": name, "lane": lane, "kind": kind, "count": count, "conf": round(conf, 3),
             "witnesses": _witness_rows(evidence), "lastSeenTs": last,
-            "variants": _variants_of(evidence)}
+            "variants": _variants_of(evidence, key[0])}
 
 
 def merge_vault(existing, incoming):
@@ -1882,7 +1928,7 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
                            "conf": v.get("bestConf"),
                            "sessions": v.get("sessions") or [],
                            "witnesses": [dict(e) for e in ev if isinstance(e, dict)],
-                           "variants": _variants_of(ev),
+                           "variants": _variants_of(ev, key[0]),
                            "lastSeenTs": max([e.get("ts") or 0 for e in ev] or [0]) or None})
             continue
         owned.append(_owned_row(key, ev))

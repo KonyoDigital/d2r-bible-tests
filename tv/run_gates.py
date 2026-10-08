@@ -8958,6 +8958,12 @@ GATES = [
          why=("REG-2036 (#212, the 10-07 sim pass) - an inventory read wore the 'registered' chip (his ruling: found + kept on you), "
               "one tooltip became 'Dwarf Star' and 'Dwarf Star Ring', and /api/evidence listed 'hist' and a bare session id as reels.")
          ),
+    Gate("test_one_look_that_disagrees_is_not_a_second_item", [sys.executable,
+         os.path.join(HERE, "test_one_look_that_disagrees_is_not_a_second_item.py")], 60,
+         needs_app=False,
+         why=("REG-2037 (#207, the 10-07 sim F6) - one eth:true read beside two eth:false reads of his Grief in one session made "
+              "an ethereal Grief nobody owns; a runeword's name colour was carried as its quality.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,
