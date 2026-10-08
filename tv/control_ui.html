@@ -27162,7 +27162,11 @@ function escC(s) {
       /* each dot is glued on BOTH sides (\u00a0), so a wrap can never leave one at a line's start or end -
          Grok's cold look at 375px, 2026-09-29, the same class as REG-1441 [[REG-1462]] */
       + '<div class="fx-foot">'
-      + (j.ok ? ((j.mineN | 0) + ' / ' + _fxDen(j) + ' yours')
+      /* REG-2035 (#213) - his ruling: the board's headline is THE number; the mask's matched-name count is said
+         beside it only when the two differ (the contradiction is kept, never averaged) */
+      + (j.ok ? ((typeof j.mineHeadline === 'number' ? j.mineHeadline : (j.mineN | 0)) + ' / ' + _fxDen(j) + ' yours'
+                 + (typeof j.mineHeadline === 'number' && typeof j.mineN === 'number' && j.mineHeadline !== j.mineN
+                    ? ' (' + j.mineN + '\u00a0cross-referenced)' : ''))
               : (_yoursN + ' / ' + _fxDen(j) + ' yours'))
       + '\u00a0·\u00a0'
       + (j.ok ? ((j.theirsN | 0) + ' / ' + _fxDen(j) + ' theirs')

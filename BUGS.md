@@ -406,6 +406,19 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2035 - TWO UNIQUES NUMBERS FOR ONE BOARD, AND A PEER'S OWN COUNT RE-COUNTED FROM ITS MASK (2026-10-08, #213)
+
+His ruling 2026-10-07: the board's uniques headline is THE number; the console and the fleet card read it, never
+re-count. MEASURED 08:5x (read-only GETs on his console): his board 326, the cross-reference's mineN 327 - the mask
+unions d2r_owned (Arachnid Mesh is owned and was never logged found) over a 398-name roster, while the board counts its
+own 403-item chronicle universe. And _fleet_reconcile_tally_with_masks made the MASK win on every peer row: GrokBot,
+whose ledger the authority classifies SYNCED (its own), said 308 and was shown 309. That rule was written for a seed
+(Dean's beacon publishing Konyo's 249 over a mask of 0) before REG-1907 could classify one. Fixed: a SYNCED row keeps
+its board's headline and carries the mask's count as maskHave; SEEDED or unclassified still yields to the mask; his own
+row (localRead) is untouched; fleet_compare carries mineHeadline (board_tally_load) and the card says it as "yours",
+with "(N cross-referenced)" only when the two differ. OWED: the one item the two universes split on.
+Law: test_the_board_headline_is_the_one_uniques_number (3 red-proofs).
+
 ### REG-2034 - THE PERF SWEEP LEAKED A CHROMIUM ON EVERY FAILED RUN AND SAID NOTHING (2026-10-08, #273)
 
 The #231 eye on 8fae6208 (May): K_perf.js (CI Routine K) called browser.close() only after the last wait, and its

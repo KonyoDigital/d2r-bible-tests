@@ -8946,6 +8946,12 @@ GATES = [
          why=("REG-2034 (#273, the #231 eye on a May commit) - K_perf.js closed its browser only on the success path and its "
               "run loop swallowed the throw, so every failed pass leaked a Chromium and said nothing.")
          ),
+    Gate("test_the_board_headline_is_the_one_uniques_number", [sys.executable,
+         os.path.join(HERE, "test_the_board_headline_is_the_one_uniques_number.py")], 120,
+         needs_app=False,
+         why=("REG-2035 (#213, his 10-07 ruling) - the board's uniques headline is THE number: a SYNCED peer's own count was "
+              "re-counted from its mask (GrokBot 308 shown as 309) and the cross-reference said his mask's 327 as yours beside his board's 326.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

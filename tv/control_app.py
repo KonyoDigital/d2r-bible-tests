@@ -2275,6 +2275,23 @@ def board_tally_save(t):
         return False
 
 
+def _fleet_ledger_provenance(tally, led):
+    """The ledger authority's provenance word for one ledger of one fleet row. -> 'SYNCED' / 'SEEDED' / ... or None.
+
+    Read from the row's own tally.ledgerVerdict (REG-1907); a row with no verdict, or no entry for this ledger, is None -
+    UNKNOWN, never assumed SYNCED. [[unknown-stays-unknown]]
+    """
+    try:
+        lv = (tally or {}).get("ledgerVerdict") or {}
+        for e in (lv.get("ledgers") or []):
+            if isinstance(e, dict) and e.get("ledger") == led:
+                p = e.get("provenance")
+                return str(p) if p else None
+    except Exception:
+        return None
+    return None
+
+
 def _fleet_reconcile_tally_with_masks(fl):
     """One record must not hold two answers to one question. -> int rows corrected
 
@@ -2346,6 +2363,23 @@ def _fleet_reconcile_tally_with_masks(fl):
                 if not isinstance(t, dict) or "have" not in t:
                     continue
                 if int(t.get("have") or 0) == int(m.get("have") or 0):
+                    continue
+                # ⚖ REG-2035 (#213) - HIS RULING 2026-10-07: "the board's uniques headline is THE number;
+                # console and fleet card read the board's count, never re-count." The mask-wins rule above was
+                # written for a SEED (Dean's beacon published Konyo's 249 while its own mask said 0), before the
+                # ledger authority could tell a seed from a board's own ledger. It now can (REG-1907): where the
+                # verdict says this ledger is SYNCED - the board declared a ledger of its own - the tally IS that
+                # board's headline and it stays; the mask's count rides beside it as maskHave (it is what the
+                # cross-reference can NAME). SEEDED or UNKNOWN keeps the mask-wins correction - an unclassified
+                # tally may still be a seed. MEASURED 08:5x: GrokBot SYNCED 308 was being shown as its mask's 309.
+                if _fleet_ledger_provenance(tally, led) == "SYNCED":
+                    t = dict(t)
+                    t["maskHave"] = int(m.get("have") or 0)
+                    t["why"] = ("this board's own %s headline is %s (its ledger is its own - SYNCED), and that is "
+                                "the number; its mask names %s, which is what the cross-reference can list."
+                                % (led, t.get("have"), t["maskHave"]))
+                    tally[led] = t
+                    n += 1
                     continue
                 t = dict(t)
                 t["saidHave"] = t.get("have")
@@ -40077,6 +40111,17 @@ def fleet_compare(machine, ledger="sets"):
     # surfaced three layers away as a polite sentence about the network. [[sweep-dont-ask]]
     _slot = _MASK_CACHE.get(ledger) or {}
     out["mineAt"] = int(_slot.get("t", 0) * 1000) if _slot.get("t") else None
+    # ⚖ REG-2035 (#213) - HIS RULING: the board's headline is THE number. mineN is how many names the mask
+    # cross-references, which can differ from the board's own count (MEASURED 08:5x: 327 vs 326 - the mask unions
+    # d2r_owned over a 398-name roster, the board counts its 403-item chronicle universe). The card prints the
+    # board's figure as "yours" and says the matched-name count beside it only when they differ.
+    try:
+        _bt = board_tally_load()
+        _bl = (_bt or {}).get(ledger) if isinstance(_bt, dict) else None
+        out["mineHeadline"] = (int(_bl["have"]) if isinstance(_bl, dict) and isinstance(_bl.get("have"), int)
+                               else None)
+    except Exception:
+        out["mineHeadline"] = None
     out["rosterN"] = len(roster)
     # ══ v2759 — THE DENOMINATOR HE READS IS NOT THE DENOMINATOR THE BITS ARE ALIGNED TO ═════════
     # `rosterN` is LOAD-BEARING: `fleet_mask.decode()` refuses any mask whose `n` does not equal
