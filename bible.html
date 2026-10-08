@@ -39729,6 +39729,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // 1) MIS-ROUTE + SHOULD-REVIEW — every mule assignment vs the rule-derived locker
     try { Object.keys(assign).forEach(function(n){
       if (assign[n]==='__keep') return;
+      /* #276 (GrokBot tick 417, K10) - A MAIN ITEM IS NEVER IN A MULE. A Tome of Identify sat as a mule tile in UNI-WEAPONS
+         while the lock note above it said MAIN carries it as inventory furniture. REG-2031 stops NEW offers; this is an OLD
+         filing, so it is a finding of its own - unfile it, a safe fix (the door refuses a HARDENED row). The shared stash is
+         account storage, not a mule. */
+      var _furn = false; try { _furn = (typeof window._furnitureLocked === 'function') && !!window._furnitureLocked(n); } catch(e){ _furn = false; }
+      if (_furn && assign[n] !== 'shared' && assign[n] !== '__throwout' && muleById(assign[n])){
+        F.push({sev:'high', kind:'kit-in-mule', item:n, store:assign[n], to:null, fixable:true,
+          detail:'filed in “'+_muleName(assign[n])+'” — but it is inventory furniture your MAIN carries, and a MAIN item is never in a mule: unfile it'});
+        return;
+      }
       var sg=null; try{ sg=suggestMule(n); }catch(e){}
       if (!sg) return;
       if (sg.id==='__throwout'){
@@ -39822,6 +39832,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             window._vaultLockSay(f.item, '🔒 the audit\'s fix was not applied: ' + _vfA.why, true);   /* #98 (P7) */
         }
       }
+      else if (f.kind==='kit-in-mule'){ var _ku0 = window.vaultUnassign(f.item); if (!_ku0 || !_ku0.ok) return false; }   /* #276 - the door says a HARDENED refusal itself */
       else if (f.kind==='g3-vault-conflict'){ if(magicFinds) delete magicFinds[f.item]; }   // v1310 — it's tracked elsewhere (G3); drop the redundant Magic & Rare copy
       else return false;
       return true;
@@ -39845,7 +39856,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var r; try{ r=_vaultAudit(); }catch(e){ box.hidden=true; return; }
     if (!r || !r.total){ box.hidden=true; box.innerHTML=''; return; }
     box.hidden=false;
-    var KIND_IC={ 'misroute':'📦', 'rw-in-magic':'📜', 'dupe':'♻️', 'wrongly-thrown':'🛟', 'should-review':'👁', 'checker-toss-kept':'🔬', 'g3-vault-conflict':'🤖' };
+    var KIND_IC={ 'misroute':'📦', 'rw-in-magic':'📜', 'dupe':'♻️', 'wrongly-thrown':'🛟', 'should-review':'👁', 'checker-toss-kept':'🔬', 'g3-vault-conflict':'🤖', 'kit-in-mule':'🎒' };
     var rows=r.findings.slice(0,40).map(function(f){
       var art=''; try{ if(typeof _artRarity==='function'){ /* keep light — glyph only */ } }catch(e){}
       var btn = f.fixable
@@ -43827,13 +43838,19 @@ window.vaultAutoAssign = function(){
     /* #269 (GrokBot tick 411: Dwarf Star / Enigma / Raven Frost "belongs in SHARED STASH", filed in old drawers before the
        war rule) — his click also MOVES what the router now places elsewhere: the audit's own misroute rows, through the
        door's move (which refuses a HARDENED row). Never over a home HIS hand chose (a hand row not made by this button). */
-    out.moved = []; out.keptHand = [];
+    out.moved = []; out.keptHand = []; out.unfiled = [];
     try {
       var _pvM = _provAll();
       (_vaultAudit().findings || []).forEach(function(f){
-        if (f.kind !== 'misroute' || !f.to) return;
+        if (f.kind !== 'misroute' && f.kind !== 'kit-in-mule') return;
+        if (f.kind === 'misroute' && !f.to) return;
         var pr = _pvM[f.item];
         if (pr && pr.kind !== 'owned' && pr.source === 'hand' && !/Auto-Sort/.test(String(pr.where || ''))){ out.keptHand.push(f.item); return; }
+        if (f.kind === 'kit-in-mule'){   /* #276 - furniture MAIN carries leaves the mule; it is not moved to another one */
+          var uu = window.vaultUnassign(f.item);
+          if (uu && uu.ok) out.unfiled.push(f.item); else out.refused.push({ name: f.item, why: (uu && uu.why) || 'the unfile was refused' });
+          return;
+        }
         var mv = window.vaultFile(f.item, null, { move: true, mule: f.to, by: 'Auto-Sort (his click)' });
         if (mv && mv.ok) out.moved.push({ name: f.item, to: f.to }); else out.refused.push({ name: f.item, why: (mv && mv.why) || 'the move was refused' });
       });
@@ -43841,6 +43858,7 @@ window.vaultAutoAssign = function(){
     saveA(); renderVault();
     var bits = ['🪄 filed ' + (out.filed + ((first && first.filed) || 0)) + ' into their mules'];
     if (out.moved.length) bits.push('moved ' + out.moved.length + ' to where they belong now');
+    if (out.unfiled.length) bits.push('took ' + out.unfiled.length + ' out of the mules - furniture your MAIN carries, never a mule item');
     if (out.keptHand.length) bits.push(out.keptHand.length + ' stay where your hand put them');
     if (out.main.length) bits.push(out.main.length + ' stay with your MAIN (worn or carried when last seen)');
     if (out.noPicture.length) bits.push(out.noPicture.length + ' have no picture yet - film them once, or drag them to a locker');

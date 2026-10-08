@@ -9030,6 +9030,12 @@ GATES = [
          why=("REG-2051 (#275, GrokBot 416-417) - UNI-WEAPONS '3 items · 12 cells' over three 'default 1x2' tiles: the "
               "packer kept its own footprint table (unknown -> 2x2) beside the tile's _itemCells (unknown -> 1x2).")
          ),
+    Gate("test_furniture_filed_in_a_mule_is_an_integrity_finding", [sys.executable,
+         os.path.join(HERE, "test_furniture_filed_in_a_mule_is_an_integrity_finding.py")], 30,
+         needs_app=False,
+         why=("REG-2052 (#276, GrokBot 417 K10) - a Tome of Identify sat as a mule tile in UNI-WEAPONS under the note "
+              "'a MAIN item is never in a mule', and VAULT INTEGRITY did not name it.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

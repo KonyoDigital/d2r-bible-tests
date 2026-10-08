@@ -406,6 +406,16 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2052 - A TOME OF IDENTIFY FILED IN A MULE, AND THE INTEGRITY CHECK SAID NOTHING (2026-10-08, #276)
+
+GrokBot tick 417 (v3621, K10): a Tome of Identify was a mule tile in UNI-WEAPONS while the lock note above it said MAIN
+carries it as inventory furniture and "a MAIN item is never in a mule". REG-2031 stops new kit offers; this was an old
+filing, and VAULT INTEGRITY listed only the three SHARED STASH misroutes. `_vaultAudit` now names furniture (the
+furniture law: tomes, the Cube, keys, Wirt's Leg) filed in a mule as `kit-in-mule`, auto-fixable; the fix unfiles it
+through `vaultUnassign` (which refuses a HARDENED row) and files it nowhere else; Auto-Sort applies the same unfile,
+never over a home his own hand chose. The shared stash is account storage, not a mule - no finding there.
+Law: test_furniture_filed_in_a_mule_is_an_integrity_finding.
+
 ### REG-2051 - "3 ITEMS · 12 CELLS" OVER THREE 1x2 TILES (2026-10-08, #275)
 
 GrokBot ticks 416-417 (v3621): UNI-WEAPONS "3 items · 12 cells" while its three tiles each said "default 1x2";
