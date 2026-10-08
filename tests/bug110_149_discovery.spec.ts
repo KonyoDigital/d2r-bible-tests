@@ -185,9 +185,15 @@ test.describe('BUG-110..149 — discovery sweep (find next layer)', () => {
   test('BUG-120 boss detail opens for all 11 bosses without error', async ({ page }) => {
     const errors: string[] = [];
     // v41 routine_status.js sibling-path 404 is an expected graceful-fallback emission, not a bug.
-    const isBenign = (m: string) => /routine_status\.js/i.test(m) || /Failed to load resource.*ERR_FILE_NOT_FOUND/i.test(m);
+    // #271 (the #231 eye on 46c8cda9) - ONLY routine_status.js may fail to load. The old clause forgave EVERY
+    // ERR_FILE_NOT_FOUND, so a missing art file or script passed this test. MEASURED 2026-10-08 on a clean
+    // checkout: a file:// load of bible.html fails no resource at all, so nothing real is lost by narrowing.
+    // Chrome's message does not name the file; the console message's location URL does.
+    const isBenign = (m: string, url = '') => /routine_status\.js/i.test(m)
+      || (/Failed to load resource.*ERR_FILE_NOT_FOUND/i.test(m) && /routine_status\.js/i.test(url));
     page.on('pageerror', e => { if (!isBenign(e.message)) errors.push(e.message); });
-    page.on('console', m => { if (m.type() === 'error' && !isBenign(m.text())) errors.push(m.text()); });
+    page.on('console', m => { const u = (m.location() || {} as any).url || '';
+      if (m.type() === 'error' && !isBenign(m.text(), u)) errors.push(m.text() + (u ? ' @ ' + u : '')); });
     await page.goto(BIBLE);
     await page.evaluate(() => { try { (window as any)._buildAllBossDrops && (window as any)._buildAllBossDrops(true); } catch (e) {} }).catch(() => {});
     await page.waitForTimeout(500);
