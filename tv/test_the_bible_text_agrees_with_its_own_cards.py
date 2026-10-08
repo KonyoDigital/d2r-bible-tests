@@ -267,6 +267,26 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         named = [(n, p.strip()) for n, rw in rows for p in rw.split(",") if p.strip().lower() in names]
         self.assertEqual(named, [], "a rune's rw names a runeword again - the card's list comes from the recipe table: %r" % named)
 
+    def test_the_rune_cards_cube_and_level_agree_with_the_cube_section(self):
+        """REG-2108 (#231 eye on v43 988f0157) - RUNES[].up, the rune card's 'cube up' line, was a second copy of the cube table
+        and every one of its 32 recipes was shifted (El '3 El + Chipped Amethyst', Lo '2 Lo + Perfect Amethyst'), while the page's
+        own cube section - Arreat Summit's table, checked - had them right. And Lo / Sur / Ber / Jah wore 61 / 63 / 65 / 67, two
+        levels high, so Jah tied Cham. Each card's recipe must equal its cube row; levels rise along the table, tied only where
+        the game ties them (El/Eld, Tir/Nef, Eth/Ith)."""
+        s = _src()
+        rows = re.findall(r'<div class="cube-input">(\d)× ([A-Z][a-z]+)(?: \+ ([^<]+))?</div><div class="cube-arrow">→</div>'
+                          r'<div class="cube-output">1× ([A-Z][a-z]+)</div>', s)
+        cube = {r[1]: "%s %s%s → %s" % (r[0], r[1], (" + " + r[2]) if r[2] else "", r[3]) for r in rows}
+        ri = s.find("const RUNES = [")
+        table = re.findall(r'n:"([A-Z][a-z]+)",\s*clvl:(\d+),[^\n]*?up:"([^"]*)"', s[ri:s.find("\n];", ri)])
+        self.assertGreaterEqual(len(table), 32, "premise: the rune table (%d rows)" % len(table))
+        off = [(n, up, cube.get(n)) for n, _cl, up in table if n in cube and up != cube[n]]
+        self.assertEqual(off, [], "a rune card's cube recipe disagrees with the page's own cube section: %r" % off)
+        lv = [(n, int(cl)) for n, cl, _up in table if n != "Hel"]
+        ties = {("El", "Eld"), ("Tir", "Nef"), ("Eth", "Ith")}
+        bad = [(a, b) for (a, x), (b, y) in zip(lv, lv[1:]) if y < x or (y == x and (a, b) not in ties)]
+        self.assertEqual(bad, [], "rune level requirements do not rise along the table: %r" % bad)
+
 
 RED_PROOF = [
     {"why": "REG-2089 - Veil of Steel's tagline swaps its resist and defense figures again",
@@ -348,6 +368,16 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "rate: \"~8-9% (Hell only)\"",
      "replace": "rate: \"~1:10 (Hell only)\"",
+     "matches": 1},
+    {"why": "REG-2108 - a rune card's cube recipe drifts from the cube section again",
+     "file": "bible.html",
+     "find": "up:\"2 Lo + Flawless Topaz → Sur\"",
+     "replace": "up:\"2 Lo + Perfect Amethyst → Sur\"",
+     "matches": 1},
+    {"why": "REG-2108 - Jah's level ties Cham's again",
+     "file": "bible.html",
+     "find": "n:\"Jah\",  clvl:65,",
+     "replace": "n:\"Jah\",  clvl:67,",
      "matches": 1},
 ]
 

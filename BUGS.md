@@ -406,6 +406,17 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2108 - EVERY RUNE CARD'S CUBE RECIPE WAS SHIFTED; LO..JAH WERE TWO LEVELS HIGH (2026-10-08, #231 on v43 988f0157)
+
+RUNES[].up - the rune card's "cube up" line and the attunement meta - was a second copy of the cube table, and all 32 recipes
+were wrong (El "3 El + Chipped Amethyst", Thul "+ Flawed Sapphire", Pul "2 Pul + Flawless Amethyst", Lo "2 Lo + Perfect Amethyst")
+while the page's own cube section had every one right - checked against Arreat Summit and a D2R cube list: El..Ort take 3 runes
+and no gem, Thul..Lem a chipped then flawed gem, Pul..Ohm 2 runes + a flawed diamond then plain gems, Lo..Cham flawless gems.
+The 32 strings are now written FROM the cube section, and a law holds the two copies together. Lo / Sur / Ber / Jah wore clvl
+61 / 63 / 65 / 67 (Arreat Summit: 59 / 61 / 63 / 65), so Jah tied Cham. The cube ratios runeCubeRatio reads were right all along
+(3 to Lem, 2 from Pul), so the planner's math does not move. Re-measured and already right at HEAD: the Sur / Jah armor-vs-shield
+split, the 1-of-each key cube row, the Key runewords lines (REG-2104).
+
 ### REG-2107 - A KEY'S ~1:10 BESIDE ITS OWN ~8%; THE FOOTER CALLED GUARANTEED DROPS ESTIMATES (2026-10-08, the v3628 eye)
 
 REG-2100 set the three key cards to "~1:10" to match the page's rounded ~10% - while the same card's important line (REG-2105)
