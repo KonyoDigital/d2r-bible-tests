@@ -9075,6 +9075,12 @@ GATES = [
          why=("REG-2061 (#293, GrokBot 420-421) - '+51 more' on Session 28 played Session 48's film under a SESSION 28 "
               "header: the find doors passed only the number, read as a position.")
          ),
+    Gate("test_the_fleet_rail_holds_still", [sys.executable,
+         os.path.join(HERE, "test_the_fleet_rail_holds_still.py")], 30,
+         needs_app=False,
+         why=("REG-2062 (#237/#285, GrokBot 418-420) - the rail reshuffled with nothing clicked: the site sends rows "
+              "newest-beacon-first and the rail painted that order.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

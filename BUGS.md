@@ -406,6 +406,15 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2062 - THE FLEET RAIL RESHUFFLED ITSELF WITH NOTHING CLICKED (2026-10-08, #237/#285)
+
+GrokBot ticks 418-420: ALT TEST / Konyo / GrokBot / Dean / Wife PC at 11:37 became GrokBot / ALT TEST / Konyo / Dean /
+Wife PC at 11:57; #237 saw rows "re-sort and churn mid-tick". The site sends rows newest-beacon-first
+(`functions/console.js` sorts by `t`) and the rail painted them in that order, so every beacon that landed moved the
+rows. `_fleetStableOrder(list, me)`: this console first, then by the name each row shows, then by machine id; both
+groups paint through it. A machine changing online/offline still moves - that is news. Law:
+test_the_fleet_rail_holds_still.
+
 ### REG-2061 - "+51 MORE" ON SESSION 28 PLAYED SESSION 48 (2026-10-08, #293)
 
 GrokBot ticks 420-421 (v3622): TV·D "+51 more" opened "THEATRE · SESSION 28" whose info line was Session 48's ("session

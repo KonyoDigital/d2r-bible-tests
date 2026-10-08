@@ -25555,6 +25555,19 @@ function escC(s) {
     /* only the AMBIGUOUS case changes; a nickname owned by one machine renders exactly as before */
     return (seen > 1 && mach) ? (nick + ' \u00b7 ' + mach) : nick;
   };
+  /* #237/#285 (REG-2062) - one fixed order for a group of fleet rows: this console first, then by the name it shows, then
+     by machine id - never by when its last beacon happened to land. -> a sorted copy */
+  var _fleetStableOrder = function (list, me) {
+    var key = function (m) { return String((m && (m.nickname || m.machine)) || '').toLowerCase(); };
+    return (list || []).slice().sort(function (a, b) {
+      var am = (a && me && a.machine === me) ? 0 : 1, bm = (b && me && b.machine === me) ? 0 : 1;
+      if (am !== bm) return am - bm;
+      var an = key(a), bn = key(b);
+      if (an !== bn) return an < bn ? -1 : 1;
+      var ax = String((a && a.machine) || ''), bx = String((b && b.machine) || '');
+      return ax < bx ? -1 : (ax > bx ? 1 : 0);
+    });
+  };
   var _fleetRows = function (j) {
     return (((j && j.online) || []).concat(((j && j.offline) || [])));
   };
@@ -26834,8 +26847,12 @@ function escC(s) {
       (j.online || []).concat(j.offline || []).forEach(function (m) {
         if (m && m.machine) window._fleetByMachine[m.machine] = m;
       });
-      var rows = (j.online || []).map(function (m) { return _row(m, true); })
-        .concat((j.offline || []).map(function (m) { return _row(m, false); }));
+      /* #237/#285 (REG-2062) - THE RAIL HOLDS STILL. The site sends rows newest-beacon-first (functions/console.js sorts
+         by `t`), so every beacon that landed reshuffled the rail with nothing clicked: GrokBot tick 418 saw ALT TEST /
+         Konyo / GrokBot / Dean / Wife at 11:37 and GrokBot / ALT TEST / Konyo / Dean / Wife at 11:57. A machine moving
+         from online to offline still moves - that is news; a beacon arriving is not. */
+      var rows = _fleetStableOrder(j.online, j.me).map(function (m) { return _row(m, true); })
+        .concat(_fleetStableOrder(j.offline, j.me).map(function (m) { return _row(m, false); }));
       /* v3387 — AND THE PEOPLE THIS RAIL HAS ALWAYS BEEN BLIND TO. A cousin who reads the
          bible and has never run the console emits no beacon, so before now he did not exist on
          this panel at all — not "offline", ABSENT. They are listed apart from the machine rows
