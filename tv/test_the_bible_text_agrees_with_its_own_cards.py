@@ -384,6 +384,15 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         self.assertIn("three Worldstone Shards (Southern + Deep + Northern)", cleft, "Black Cleft's own recipe lost its three shards")
         self.assertNotIn("Each shard upgrades a specific", shard, "the shard blurb gives every shard one charm again")
 
+    def test_izual_is_not_next_door_to_the_river(self):
+        """REG-2121 (#231 eye on v43 0136a656) - the River of Flame card said Izual 'guards the adjacent Plains of Despair'.
+        Act 4 runs Outer Steppes, Plains of Despair, City of the Damned, River of Flame: the Plains are two zones back."""
+        s = _src()
+        i = s.find("Izual is NOT here")
+        self.assertGreater(i, 0, "the River of Flame card's Izual line is gone - re-point this law")
+        self.assertNotIn("adjacent Plains of Despair", s, "a card calls the Plains of Despair adjacent to the River again")
+        self.assertIn("City of the Damned", s[i:i + 200], "the Izual line no longer says what lies between")
+
 RED_PROOF = [
     {"why": "REG-2089 - Veil of Steel's tagline swaps its resist and defense figures again",
      "file": "bible.html",
@@ -519,6 +528,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "; Black Cleft takes three (Southern + Deep + Northern). Source: Maxroll.",
      "replace": ". Source: Maxroll.",
+     "matches": 1},
+    {"why": "REG-2121 - the River card calls the Plains of Despair adjacent again",
+     "file": "bible.html",
+     "find": "he guards the Plains of Despair, two zones back: Plains, City of the Damned, then the River.)",
+     "replace": "he guards the adjacent Plains of Despair.)",
      "matches": 1},
 ]
 

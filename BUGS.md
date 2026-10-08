@@ -406,6 +406,14 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2121 - IZUAL'S PLAINS OF DESPAIR WERE CALLED ADJACENT TO THE RIVER OF FLAME (2026-10-09, #231 eye on v43 0136a656)
+
+The River of Flame terror-zone card said Izual "guards the adjacent Plains of Despair". Act 4 runs Outer Steppes, Plains of
+Despair, City of the Damned, River of Flame - two zones apart. The same look's Blood Raven "Den-of-Evil" finding was already
+fixed (REG-2090, 0 left at HEAD). Swept every "adjacent / next door / right next to" in bible.html: the other game-geography ones
+hold (the Hellforge WP, Shenk/Eldritch on one Act 5 ascent); "Burial Grounds-adjacent" for Bone Ash is a terror-zone placement
+question already on #306. 1 red-proof, red on its case.
+
 ### REG-2120 - THE COLOSSAL JEWELS AND THE SUNDER RECIPE, TOLD FROM A SOURCE (2026-10-09, #309 (3)(4)(5))
 
 The #231 eye's v43 looks found bible.html contradicting itself on Reign of the Warlock content; each item was held until a
