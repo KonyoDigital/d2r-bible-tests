@@ -67,9 +67,12 @@ class AGrokReadAsksLowEffort(unittest.TestCase):
                 return _R(2, "", "error: unexpected argument '--effort' found")
             return _R(0, '{"ledger":"uniques","found":["Djinn Slayer"]}', "")
 
+        # ⚠ v3622 CI RED: the read returns at has_subscription() before the CLI on a runner with no Grok login - his Mac
+        # is signed in, so this case passed here and ran nothing there. The login is a fixture, not the host's.
         img = os.path.join(HERE, "__nope__.jpg")
         with mock.patch.object(G5.subprocess, "run", fake_run), \
                 mock.patch.object(G5, "_grok_bin", lambda: "/bin/grok"), \
+                mock.patch.object(G5, "has_subscription", lambda: True), \
                 mock.patch.object(G5, "_stats_flush", lambda *a, **k: None), \
                 mock.patch.dict(G5._STATS, {"calls": 0, "errors": 0}), \
                 mock.patch.object(G5.os.path, "isfile", lambda p: True), \

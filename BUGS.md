@@ -406,6 +406,15 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2056 - A LAW I SHIPPED IN v3622 PASSED ON HIS MAC AND RAN NOTHING ON CI (2026-10-08, CI on 1f11c64a)
+
+agent tests shard 3/4 on v3622: `test_a_grok_read_asks_low_effort_and_survives_an_older_cli` - "the refused flag was
+not retried: []". It stubbed the CLI binary and not the LOGIN: `g5_vision_read` returns at `has_subscription()` before
+the CLI, his Mac is signed in to Grok and a runner never is, so on CI the read never reached the stubbed run. Attribution
+by delta: the law is new in v3622 (the previous push was green on every workflow). The case now stubs the login, and
+`tv/ci_sim.py` HOST_STUBS records it - MEASURED both ways: the old law under ci_sim fails with the CI message verbatim,
+the fixed one reports no known host dependency.
+
 ### REG-2055 - "CLEAN RUN" OVER TEN UNREAD GAPS, AND "A FULL READ" ON A REEL NOBODY READ (2026-10-08, #277)
 
 GrokBot ticks 416-418: Session 30 read "CLEAN RUN" beside "0% coverage · 0 of 10 item reads · 10 gaps"; Session 41

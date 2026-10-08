@@ -74,6 +74,12 @@ HOST_STUBS = (
      "reaches it. On his Mac a stored full pass makes it 'ok'; on a runner nothing was ever stored "
      "so it is UNMEASURED and counts toward `unknown` - CI red, his Mac green, for a reason that "
      "is not in the diff"),
+    # v3622 CI RED (REG-2056): test_a_grok_read_asks_low_effort_and_survives_an_older_cli drove g5_vision_read with the
+    # CLI stubbed and the LOGIN not - his Mac is signed in to Grok, a runner never is, so the read returned at
+    # has_subscription() before the CLI and the case asserted on a call that never happened. Green here, red there.
+    ("g5_grok_eyes", "has_subscription",
+     lambda *a, **k: False,
+     "a runner has no Grok subscription login; g5_vision_read returns before the CLI when it is absent"),
 )
 
 # ─── KIND 2: A PATH ON DISK ─────────────────────────────────────────────────────────
