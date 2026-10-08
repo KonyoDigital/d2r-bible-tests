@@ -9,7 +9,9 @@ listed only the three SHARED STASH misroutes, so neither "Fix all safe" nor Auto
   * a furniture name (the furniture law: tomes, the Cube, keys, Wirt's Leg) filed in a mule -> kind 'kit-in-mule', fixable;
   * the same name in the SHARED STASH is account storage, not a mule -> no finding; a non-furniture name -> none;
   * the fix unfiles it through vaultUnassign (the door that refuses a HARDENED row) and moves it to no other mule;
-  * Auto-Sort applies the same unfile, never over a home his own hand chose.
+  * Auto-Sort applies the same unfile, never over a home his own hand chose;
+  * REG-2080 (#294): a filing whose router now answers Unsorted (a name nothing knows, filed by a word in it) is
+    'guessed-home', fixable by the same unfile; the shared stash is left alone.
 Drives the SHIPPED _vaultAudit, _vaultAuditApply and the furniture law, cut from bible.html and run in node with the
 stores stubbed. A missing node raises; this law does not skip.
 """
@@ -31,7 +33,7 @@ AUDIT = ("  function _vaultAudit(){\n",
          "\n    return { findings:F, total:F.length, fixable:fixable, review:F.length-fixable };\n  }\n")
 APPLY = ("  function _vaultAuditApply(f){\n", "\n    } catch(e){ return false; }\n  }\n")
 FURN = ("var _FURNITURE_WORDS = [", "\n  return _FURNITURE_WORDS.some(function(w){ return new RegExp('(^|[^a-z])' + w + '($|[^a-z])').test(low); });\n};\n")
-AUTOSORT_UNFILE = ("        if (f.kind === 'kit-in-mule'){   /* #276 - furniture MAIN carries leaves the mule; it is not moved to another one */\n"
+AUTOSORT_UNFILE = ("        if (f.kind === 'kit-in-mule' || f.kind === 'guessed-home'){   /* #276 - furniture MAIN carries leaves the mule; REG-2080 a guessed home too */\n"
                    "          var uu = window.vaultUnassign(f.item);\n")
 
 
@@ -49,7 +51,7 @@ def _cut(s, pair):
     return s[i:j + len(end)]
 
 
-def _run(assign, apply_kinds=()):
+def _run(assign, apply_kinds=(), route=None):
     if NODE is None:
         raise AssertionError("node is not on this machine - this gate does not skip")
     s = _src()
@@ -58,7 +60,8 @@ var window = {}, UNASSIGNED = [], FILED = [];
 %s
 var MULES = { "uni-weap": "UNI-WEAPONS", "uni-armor": "UNI-ARMOR", "shared": "SHARED STASH" };
 function muleById(id){ return MULES[id] ? { id: id, name: MULES[id] } : null; }
-function suggestMule(n){ return { id: "uni-weap", why: "stub" }; }
+var ROUTE = %s;
+function suggestMule(n){ return ROUTE[n] || { id: "uni-weap", why: "stub" }; }
 var assign = %s, owned = new Set(Object.keys(assign)), magicFinds = {}, unknownReads = new Set();
 function _muleName(id){ var m = muleById(id); return m ? m.name : id; }
 function _vaStoreLabel(k){ return k; }
@@ -75,7 +78,7 @@ var r = _vaultAudit(), applied = [];
 r.findings.forEach(function(f){ if (%s.indexOf(f.kind) >= 0) applied.push([f.kind, f.item, _vaultAuditApply(f)]); });
 console.log(JSON.stringify({ findings: r.findings.map(function(f){ return [f.kind, f.item, f.fixable, f.to]; }),
                              applied: applied, unassigned: UNASSIGNED, filed: FILED, left: assign }));
-""" % (_cut(s, FURN), json.dumps(assign), _cut(s, AUDIT), _cut(s, APPLY), json.dumps(list(apply_kinds)))
+""" % (_cut(s, FURN), json.dumps(route or {}), json.dumps(assign), _cut(s, AUDIT), _cut(s, APPLY), json.dumps(list(apply_kinds)))
     # the program goes in on STDIN - a law never hands node its program on argv
     r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=30)
     if r.returncode != 0:
@@ -109,8 +112,24 @@ class FurnitureFiledInAMuleIsAnIntegrityFinding(unittest.TestCase):
     def test_auto_sort_unfiles_it_too(self):
         s = _src()
         self.assertEqual(s.count(AUTOSORT_UNFILE), 1, "Auto-Sort no longer unfiles furniture its audit names")
-        self.assertEqual(s.count("        if (f.kind !== 'misroute' && f.kind !== 'kit-in-mule') return;\n"), 1,
+        self.assertEqual(s.count("        if (f.kind !== 'misroute' && f.kind !== 'kit-in-mule' && f.kind !== 'guessed-home') return;\n"), 1,
                          "Auto-Sort skips the kit finding again")
+
+    UNKNOWN = {"Bone Visor": {"id": None, "unsorted": True, "why": "nothing on the board recognises this name"}}
+
+    def test_a_home_guessed_for_a_name_nothing_knows_is_named_and_unfiled(self):
+        """REG-2080 (#294, GrokBot tick 424 K30/K32): a base Bone Visor sat in UNI-ARMOR and integrity listed 11 rows, none
+        of them it - the router had filed it by the word 'visor'. Now the router says Unsorted, and the old filing is named."""
+        out = _run({"Bone Visor": "uni-armor", "Windforce": "uni-weap"}, apply_kinds=["guessed-home"], route=self.UNKNOWN)
+        g = [f for f in out["findings"] if f[0] == "guessed-home"]
+        self.assertEqual([f[1] for f in g], ["Bone Visor"], "a guessed home is not named: %r" % out["findings"])
+        self.assertTrue(g[0][2], "a guessed home is not auto-fixable")
+        self.assertEqual(out["unassigned"], ["Bone Visor"], "the fix did not unfile it through vaultUnassign")
+        self.assertEqual(out["filed"], [], "the fix guessed another mule")
+
+    def test_a_name_nothing_knows_in_the_shared_stash_is_left_alone(self):
+        out = _run({"Bone Visor": "shared"}, route=self.UNKNOWN)
+        self.assertEqual([f for f in out["findings"] if f[0] == "guessed-home"], [], "the shared stash was called a guess")
 
 
 RED_PROOF = [
@@ -126,13 +145,18 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2052 - the fix stops unfiling",
      "file": "bible.html",
-     "find": "      else if (f.kind==='kit-in-mule'){ var _ku0 = window.vaultUnassign(f.item); if (!_ku0 || !_ku0.ok) return false; }",
-     "replace": "      else if (f.kind==='kit-in-mule'){ return false; }",
+     "find": "      else if (f.kind==='kit-in-mule' || f.kind==='guessed-home'){ var _ku0 = window.vaultUnassign(f.item); if (!_ku0 || !_ku0.ok) return false; }",
+     "replace": "      else if (f.kind==='kit-in-mule' || f.kind==='guessed-home'){ return false; }",
      "matches": 1},
     {"why": "REG-2052 - Auto-Sort skips the kit finding",
      "file": "bible.html",
-     "find": "        if (f.kind !== 'misroute' && f.kind !== 'kit-in-mule') return;\n",
+     "find": "        if (f.kind !== 'misroute' && f.kind !== 'kit-in-mule' && f.kind !== 'guessed-home') return;\n",
      "replace": "        if (f.kind !== 'misroute') return;\n",
+     "matches": 1},
+    {"why": "REG-2080 - a home guessed for a name nothing knows is no finding again",
+     "file": "bible.html",
+     "find": "      if (sg.unsorted && assign[n] !== 'shared' && assign[n] !== '__throwout' && muleById(assign[n])){\n",
+     "replace": "      if (false){\n",
      "matches": 1},
 ]
 

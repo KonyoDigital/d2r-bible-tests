@@ -103,6 +103,7 @@ window.suggestMule = function(nm){
   if (nm === 'Annihilus') return { id: '__keep', why: 'keep in your inventory — only works on the character you are actively playing' };
   if (nm === 'Ghost') return { id: 'uni-ghost', why: 'a home this board never had' };
   if (nm === 'Ort Rune') return null;
+  if (nm === 'Bone Visor') return { id: null, unsorted: true, why: 'nothing on the board recognises this name - it stays in Unsorted' };
   if (nm === 'Nope') return { id: 'uni-weap' };
   if (nm === 'Boom') throw new Error('router down');
   return { id: 'uni-weap', why: 'weapon — base: ' + nm };
@@ -232,8 +233,28 @@ class TheVaultProposesAHomeAndDoesNotMove(unittest.TestCase):
         for banned in ("setItem(", "removeItem(", "assign[", "vaultFile(", "vaultAutoAssign", "onclick"):
             self.assertNotIn(banned, propose, "the organizer reaches %s" % banned)
 
+    def test_a_name_nothing_knows_is_proposed_unsorted_not_a_mule(self):
+        """REG-2080 (#294, his ruling 2026-10-07) - the router answers Unsorted for a name nothing knows; the proposal says so
+        in its own words, and never 'the router gave no destination'."""
+        out = _node(ROUTER + r"""
+          OUT.p = window.vaultPropose('Bone Visor');
+          OUT.line = window.vaultProposeLine('Bone Visor');
+          OUT.writes = WRITES;
+        """)
+        self.assertTrue(out["p"]["ok"], "an Unsorted answer was read as a refusal: %r" % out["p"])
+        self.assertEqual(out["p"]["kind"], "unsorted")
+        self.assertIsNone(out["p"]["home"], "a name nothing knows was given a home")
+        self.assertIn('data-state="unsorted"', out["line"])
+        self.assertIn("stays in Unsorted — nothing on the board recognises this name", out["line"])
+        self.assertEqual(out["writes"], 0)
+
 
 RED_PROOF = [
+    {"why": "REG-2080 - the proposal reads the router's Unsorted answer as 'the router gave no destination' again",
+     "file": "bible.html",
+     "find": "    if (sg && typeof sg === 'object' && sg.unsorted && typeof sg.why === 'string' && sg.why.trim())\n",
+     "replace": "    if (false)\n",
+     "matches": 1},
     {
         "why": "REG-1851 - a proposal that raised must say so; printing 'the router is not on this page' is a wrong reason",
         "file": "bible.html",

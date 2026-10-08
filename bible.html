@@ -38659,7 +38659,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                below deliberately keeps the `&& _fs.id` form — a guessed name may not speak for an
                item confidently enough to suppress its filing. */
             var _as = suggestMule(_ap);
-            return _as;   // includes null = shared stash; same item, so its verdict is authoritative
+            /* REG-2080 - EXCEPT 'Unsorted'. The repaired bytes can be the ones NO catalogue holds: 'Rare Jewel (15 IAS / −15 Req)'
+               is an EXTRA_ITEMS key with U+2212, and the hyphen fold asked about a name nothing knows. Unsorted from the
+               repair is not a verdict on the original; ask the original bytes. */
+            if (!(_as && _as.unsorted)) return _as;   // includes null = shared stash; same item, so its verdict is authoritative
           } finally { _sugFolding = false; }
         }
       }
@@ -39042,6 +39045,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (_rq && _rq.q === 'magic' && muleById('magic-rare'))
         return _rolledRoute(_rq);
     } catch(eRn){}
+    /* #294 (REG-2080, GrokBot ticks 420 + 424, his ruling 2026-10-07) - A NAME NOTHING KNOWS IS NEVER GIVEN A MULE BY A WORD
+       IN IT. 'Bone Visor' (a misread: Bone Helm -> Grim Helm -> Bone VISAGE) reached the keyword guess with no base from any
+       catalogue, matched 'visor', and was filed in UNI-ARMOR as a 'Base item'; a name with no keyword at all was parked in
+       weapons. His ruling: an item the board cannot NAME is placed by where the reels saw it, else it stays UNSORTED -
+       'never a blind default like the weapons mule'. So with no base, no lookup hit, no ITEM_TIP and no curated entry, the
+       router answers Unsorted with the reason; every caller files only when muleById(id) resolves, so null leaves it loose
+       in the dock. A known base still routes by its words below. */
+    if (!base && !it && !itip && !_exIsCatalogue)
+      return {id:null, unsorted:true, why:'nothing on the board recognises this name — no catalogue, base table or rolled-name '
+        + 'grammar knows it, so no mule is guessed from a word in it: it stays in Unsorted until a reel shows where it lives'};
     if (ARMOR_RE.test(probe))   return {id:'uni-armor', why:'armor slot — base: '+(base||'name match')};
     if (JEWELRY_RE.test(probe)) return {id:'uni-small', why:'jewelry/charm — base: '+(base||'name match')};
     /* v1958 \u2014 the last line, and the one that must not sound sure. Reaching here means NOTHING
@@ -39792,6 +39805,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
       var sg=null; try{ sg=suggestMule(n); }catch(e){}
       if (!sg) return;
+      /* #294 (REG-2080, GrokBot tick 424 K30/K32: a base Bone Visor in UNI-ARMOR, and no integrity row) - A HOME THAT WAS A
+         GUESS. The router now answers Unsorted for a name nothing knows; a filing it made before that is a guess from a word
+         in the name, and it is named here with a safe unfile (the door refuses a HARDENED row; Auto-Sort keeps his hand). */
+      if (sg.unsorted && assign[n] !== 'shared' && assign[n] !== '__throwout' && muleById(assign[n])){
+        F.push({sev:'med', kind:'guessed-home', item:n, store:assign[n], to:null, fixable:true,
+          detail:'filed in “'+_muleName(assign[n])+'” — but the board cannot name it, so that drawer was guessed from a word in its name: unfile it to Unsorted until a reel shows where it lives'});
+        return;
+      }
       if (sg.id==='__throwout'){
         F.push({sev:'med', kind:'should-review', item:n, store:'keep', to:null, fixable:false,
           detail:'muled in “'+_muleName(assign[n])+'”, but the rules would discard it — '+(sg.why||'low value')});
@@ -39883,7 +39904,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             window._vaultLockSay(f.item, '🔒 the audit\'s fix was not applied: ' + _vfA.why, true);   /* #98 (P7) */
         }
       }
-      else if (f.kind==='kit-in-mule'){ var _ku0 = window.vaultUnassign(f.item); if (!_ku0 || !_ku0.ok) return false; }   /* #276 - the door says a HARDENED refusal itself */
+      else if (f.kind==='kit-in-mule' || f.kind==='guessed-home'){ var _ku0 = window.vaultUnassign(f.item); if (!_ku0 || !_ku0.ok) return false; }   /* REG-2080 - a guessed home is unfiled the same way */   /* #276 - the door says a HARDENED refusal itself */
       else if (f.kind==='g3-vault-conflict'){ if(magicFinds) delete magicFinds[f.item]; }   // v1310 — it's tracked elsewhere (G3); drop the redundant Magic & Rare copy
       else return false;
       return true;
@@ -39907,7 +39928,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var r; try{ r=_vaultAudit(); }catch(e){ box.hidden=true; return; }
     if (!r || !r.total){ box.hidden=true; box.innerHTML=''; return; }
     box.hidden=false;
-    var KIND_IC={ 'misroute':'📦', 'rw-in-magic':'📜', 'dupe':'♻️', 'wrongly-thrown':'🛟', 'should-review':'👁', 'checker-toss-kept':'🔬', 'g3-vault-conflict':'🤖', 'kit-in-mule':'🎒' };
+    var KIND_IC={ 'misroute':'📦', 'rw-in-magic':'📜', 'dupe':'♻️', 'wrongly-thrown':'🛟', 'should-review':'👁', 'checker-toss-kept':'🔬', 'g3-vault-conflict':'🤖', 'kit-in-mule':'🎒', 'guessed-home':'❓' };
     var rows=r.findings.slice(0,40).map(function(f){
       var art=''; try{ if(typeof _artRarity==='function'){ /* keep light — glyph only */ } }catch(e){}
       var btn = f.fixable
@@ -40141,7 +40162,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             unsorted.forEach(function(nm){
               var sg = null;
               try { sg = suggestMule(nm); } catch (e) { sg = null; }
-              var id = (sg && sg.id) ? sg.id : '«no suggestion»';
+              var id = (sg && sg.id) ? sg.id : ((sg && sg.unsorted) ? '«the board cannot name it — Unsorted»' : '«no suggestion»');   /* REG-2080 */
               _h[id] = (_h[id] || 0) + 1; _n++;
             });
             var _keys = Object.keys(_h).sort(function(a,b){ return _h[b] - _h[a]; });
@@ -41097,6 +41118,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { sg = router(nm); }
     catch (e) { return no('the router could not be asked'); }
     if (sg === null) return { ok: true, moved: false, kind: 'shared', id: null, home: null, why: _vNoHomeWhy(nm, null) };
+    /* REG-2080 - a name the board cannot recognise is answered UNSORTED by the router: say that, with its reason */
+    if (sg && typeof sg === 'object' && sg.unsorted && typeof sg.why === 'string' && sg.why.trim())
+      return { ok: true, moved: false, kind: 'unsorted', id: null, home: null, why: sg.why.trim() };
     if (!sg || typeof sg !== 'object' || !sg.id) return no('the router gave no destination');
     var why = (typeof sg.why === 'string') ? sg.why.trim() : '';
     if (!why) return no('the router gave no reason');
@@ -41122,6 +41146,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (pg.kind === 'keep') return span('keep', 'stays with your MAIN, not a mule — ' + pg.why);
     if (pg.kind === 'shared') return span('shared', pg.why);
     if (pg.kind === 'stays') return span('stays', 'stays where it is — ' + pg.why);
+    if (pg.kind === 'unsorted') return span('unsorted', 'stays in Unsorted — ' + pg.why);   /* REG-2080 - a name nothing knows gets no guessed mule */
     return span('unknown', 'the router gave an answer this page does not know');
   };
   /* ══ #264 (his ruling 2026-10-08) - THE ORGANIZER TELLS HIM WHERE: THE MULE, THE STASH CELL, AND THE PICTURE ═════════
@@ -41337,6 +41362,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return { ok: false, refused: 'consumable', why: nm + ' is a consumable — used or thrown out, never filed to a mule by a reader' };
     var home = opts.mule || null, sg = null;
     if (!home){ try { sg = suggestMule(nm); } catch (e) { sg = null; } home = sg ? sg.id : null; }
+    if (!home && sg && sg.unsorted) return { ok: false, refused: 'unsorted', why: nm + ': ' + sg.why };   /* REG-2080 */
     if (!home) return { ok: false, refused: 'no-home', why: _vNoHomeWhy(nm, null) };
     if (!_vHomeOk(home)) return { ok: false, refused: 'no-home', why: _vNoHomeWhy(nm, home) };
     var hand = (wc.kind === 'hand');
@@ -43895,11 +43921,11 @@ window.vaultAutoAssign = function(){
     try {
       var _pvM = _provAll();
       (_vaultAudit().findings || []).forEach(function(f){
-        if (f.kind !== 'misroute' && f.kind !== 'kit-in-mule') return;
+        if (f.kind !== 'misroute' && f.kind !== 'kit-in-mule' && f.kind !== 'guessed-home') return;
         if (f.kind === 'misroute' && !f.to) return;
         var pr = _pvM[f.item];
         if (pr && pr.kind !== 'owned' && pr.source === 'hand' && !/Auto-Sort/.test(String(pr.where || ''))){ out.keptHand.push(f.item); return; }
-        if (f.kind === 'kit-in-mule'){   /* #276 - furniture MAIN carries leaves the mule; it is not moved to another one */
+        if (f.kind === 'kit-in-mule' || f.kind === 'guessed-home'){   /* #276 - furniture MAIN carries leaves the mule; REG-2080 a guessed home too */
           var uu = window.vaultUnassign(f.item);
           if (uu && uu.ok) out.unfiled.push(f.item); else out.refused.push({ name: f.item, why: (uu && uu.why) || 'the unfile was refused' });
           return;

@@ -9151,6 +9151,11 @@ GATES = [
          needs_app=False,
          why=("REG-2079 (#231 eye on v43) - the simulator help named 1-in-836 and quoted 1:912 arithmetic (912 runs, "
               "~58% zero, 0.55 expected); every figure is now recomputed from the rate the paragraph names.")),
+    Gate("test_a_name_nothing_knows_gets_no_guessed_mule", [sys.executable,
+         os.path.join(HERE, "test_a_name_nothing_knows_gets_no_guessed_mule.py")], 30,
+         needs_app=False,
+         why=("REG-2080 (#294, GrokBot 420/424, his 10-07 ruling) - a name nothing knows (Bone Visor) was filed in "
+              "UNI-ARMOR by the word 'visor'; the router now answers Unsorted before any word guess.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,
