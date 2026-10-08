@@ -56,7 +56,9 @@ def _node(body):
     s = _src()
     js = """
 var window = {};
-function d2rItemLookup(n){ return n === "Raven Frost" ? { n: n } : null; }
+// "Blood Spiral" WEARS the rare grammar in the game's real tables (a RarePrefix + a ring suffix); the stub makes it a
+// catalogue name, so only the catalogue guard can decline it - heart2 measured "Raven Frost" (no ring suffix) proving nothing
+function d2rItemLookup(n){ return n === "Blood Spiral" ? { n: n } : null; }
 %s
 %s
 var _Q_LABEL = { basic: 'Base item' };
@@ -79,7 +81,7 @@ class ARolledNameIsStampedAsWhatItIs(unittest.TestCase):
 
     def test_the_grammar_names_rares_and_magic_small_items_and_nothing_else(self):
         names = ["Dread Grasp", "Storm Scarab", "Chaotic Grand Charm of Greed", "Grand Charm of Inertia",
-                 "Steel Grand Charm of Balance", "Grand Charm", "Gheed's Fortune", "Raven Frost", "Annihilus"]
+                 "Steel Grand Charm of Balance", "Grand Charm", "Gheed's Fortune", "Blood Spiral", "Annihilus"]
         got = _node("var O = {}; %s.forEach(function(n){ O[n] = _rolledQuality(n); }); console.log(JSON.stringify(O));"
                     % json.dumps(names))
         self.assertEqual((got["Dread Grasp"] or {}).get("q"), "rare", got["Dread Grasp"])
@@ -89,7 +91,7 @@ class ARolledNameIsStampedAsWhatItIs(unittest.TestCase):
             self.assertEqual(got[n].get("base"), "Grand Charm", got[n])
         for n in ("Grand Charm", "Gheed's Fortune", "Annihilus"):
             self.assertIsNone(got[n], "%s was given a rolled quality: %r" % (n, got[n]))
-        self.assertIsNone(got["Raven Frost"], "a name the catalogue knows (a unique ring) wore the rare grammar")
+        self.assertIsNone(got["Blood Spiral"], "a name the catalogue knows wore the rare grammar")
 
     def test_a_tv_stub_tip_says_what_the_name_is_and_never_best_of_the_best(self):
         got = _node("console.log(JSON.stringify({ m: _extraTipHtml('Chaotic Grand Charm of Greed'), "
