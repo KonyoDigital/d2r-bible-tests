@@ -10389,6 +10389,10 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .vault-organize .vault-org-h{margin:0 0 6px;font-size:var(--fs-meta);color:var(--text-dim)}
 /* #264 — the planned cell and where it is now, quieter than the mule it goes to */
 .vault-organize .vault-org-cell,.vault-organize .vault-org-from{color:var(--text-dim)}
+/* #264 (v3621) - the row's evidence door: styled only inside a mule tile until now, so here it drew as a bare white button */
+.vault-organize .vd-ev{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;padding:0;margin:0 6px 0 0;vertical-align:middle;background:rgba(10,8,5,.82);border:1px solid rgba(240,192,96,.35);border-radius:3px;font-size:var(--fs-micro);line-height:1;cursor:pointer;color:var(--text-dim)}
+.vault-organize .vd-ev:hover{border-color:var(--gold-bright,#f0c060)}
+.vault-organize .vd-ev.ev-none{opacity:.55}
 #vault-hand-win{position:fixed;inset:0;z-index:130;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(4,3,2,.62);box-sizing:border-box}
 #vault-hand-win[hidden]{display:none}
 #vault-hand-win .vault-hand-box{width:min(440px,100%);max-height:min(640px,100%);overflow:auto;background:var(--surface);border:1px solid var(--border-light);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
@@ -40111,8 +40115,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     /* #264 (his ruling 2026-10-08) - the loot in his inventory's free cells is organized too: the organizer gets the
        carried names (never kit - charms, tomes, the Cube stay on him), each said as "in your inventory" */
     try { if (typeof window.vaultOrganizePaint === 'function')
-            window.vaultOrganizePaint(unsorted, (_carried || []).map(function(c){ return c.name; })
-              .filter(function(n){ return !(window._standingKit && window._standingKit(n)); })); } catch (eO) {}
+            window.vaultOrganizePaint(unsorted, (_carried || []).map(function(c){ return c.name; })); } catch (eO) {}
     dock.innerHTML = unsorted.map(function(n){
       var _vr = (typeof _artRarity==='function') ? _artRarity(n) : '';
       return '<span class="vault-chip'+(_vr?' vc-r-'+_vr:'')+(selectedChip===n?' vc-selected':'')+'" draggable="true" data-vault-item="'+esc(n)+'" title="drag onto a locker — or click, then click a locker">'+art(n)+'<span class="vault-chip-name"'+(typeof _qStyle==='function'?_qStyle(n,'unique'):'')+'>'+esc(n)+'</span>'
@@ -41038,8 +41041,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      frame it was read on, opened in the evidence viewer). Nothing moves: a plan is shown, filing stays on his 2-session
      ruling, his move, or Auto-Sort. Every row is shown (the old 60 cap hid 25 of his 85). */
   var VAULT_ORG_SHOWN = 400;
+  /* -> {cells: name -> 'where in the mule', why: null | the reason no cell could be planned}. #264 (the #231 eye on v3620): a
+     packer that raised used to leave every row without a cell while the head line still promised one - now the reason
+     rides out and each mule row says its cell is UNKNOWN. The packer is read off window (the same function the mule
+     window and the finder call) so a law can make it raise. [[unknown-stays-unknown]] */
   function _orgPlannedCells(plans){
-    var cells = {};
+    var cells = {}, why = null;
     try {
       var byMule = {};
       plans.forEach(function(p){ if (p.pg && p.pg.ok === true && p.pg.kind === 'mule') (byMule[p.pg.id] = byMule[p.pg.id] || []).push(p.nm); });
@@ -41053,7 +41060,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           });
           return;
         }
-        var load = _muleLoad(_muleNamesFor(mid).concat(planned), _mpWornFor(mid, _mpEqAll()), mid);
+        var load = (window._muleLoad || _muleLoad)(_muleNamesFor(mid).concat(planned), _mpWornFor(mid, _mpEqAll()), mid);
         (load.mules || []).forEach(function(mu, pi){
           var tag = ((load.mules || []).length > 1 ? 'Mule ' + (pi + 1) + ' · ' : '');
           (mu.stash || []).forEach(function(q){ if (planned.indexOf(q.n) >= 0 && !cells[q.n]) cells[q.n] = tag + 'Personal stash · col ' + (q.x + 1) + ' · row ' + (q.y + 1); });
@@ -41062,8 +41069,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           (mu.inv || []).forEach(function(q){ if (planned.indexOf(q.n) >= 0 && !cells[q.n]) cells[q.n] = tag + 'Inventory · col ' + (q.x + 1) + ' · row ' + (q.y + 1); });
         });
       });
-    } catch (e) {}
-    return cells;
+    } catch (e) { why = 'the stash packer raised (' + String((e && e.message) || e).slice(0, 80) + ')'; }
+    return { cells: cells, why: why };
   }
   try { window._orgPlannedCells = _orgPlannedCells; } catch (e) {}
   window.vaultOrganizePaint = function(names, carried){
@@ -41074,19 +41081,25 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       el.innerHTML = '<p class="vault-propose" data-state="unknown" data-moved="false">the organizer was not given a list</p>';
       return { ok: false, why: 'the organizer was not given a list' };
     }
+    /* #264 (the #231 eye on v3620) - the kit rule lives HERE, not at a caller: charms, tomes and the Cube he carries are
+       never offered a mule, whoever paints. And the loot in his inventory leads the list, so a dock of 400+ can never
+       push what he is holding past the cap. */
     var inInv = {};
-    (Array.isArray(carried) ? carried : []).forEach(function(n){ if (n) inInv[n] = 1; });
-    var list = names.filter(Boolean).concat(Object.keys(inInv).filter(function(n){ return names.indexOf(n) < 0; }));
+    (Array.isArray(carried) ? carried : []).forEach(function(n){ if (n && !(window._standingKit && window._standingKit(n))) inInv[n] = 1; });
+    var list = Object.keys(inInv).concat(names.filter(function(n){ return n && !inInv[n]; }));
     if (!list.length){ el.hidden = true; el.innerHTML = ''; return { ok: true, n: 0 }; }
     var shown = list.slice(0, VAULT_ORG_SHOWN);
     var plans = shown.map(function(nm){ var pg = null; try { pg = window.vaultPropose(nm); } catch (e) { pg = null; } return { nm: nm, pg: pg }; });
-    var cells = _orgPlannedCells(plans);
-    var h = '<p class="vault-org-h">Where each item goes — the mule, the stash cell, and the picture it was read on · nothing moves until you move it (or press Auto-Sort)</p>';
+    var planned = _orgPlannedCells(plans), cells = planned.cells || {}, cellWhy = planned.why || null;
+    var h = '<p class="vault-org-h">Where each item goes — the mule, the stash cell, and the picture it was read on · nothing moves until you move it (or press Auto-Sort)'
+          + (cellWhy ? ' · <span data-state="unknown">no cell could be planned: ' + _vhEsc(cellWhy) + '</span>' : '') + '</p>';
     var nCell = 0;
     plans.forEach(function(p){
       var nm = p.nm;
       var from = inInv[nm] ? '<span class="vault-org-from" data-from="inventory">in your inventory · </span>' : '';
-      var cell = cells[nm] ? '<span class="vault-org-cell"> · ' + _vhEsc(cells[nm]) + '</span>' : '';
+      var _toMule = !!(p.pg && p.pg.ok === true && p.pg.kind === 'mule');
+      var cell = cells[nm] ? '<span class="vault-org-cell"> · ' + _vhEsc(cells[nm]) + '</span>'
+               : ((_toMule && cellWhy) ? '<span class="vault-org-cell" data-cell-state="unknown"> · cell UNKNOWN</span>' : '');
       if (cells[nm]) nCell++;
       var ev = (typeof window._vaultEvidenceBtn === 'function') ? window._vaultEvidenceBtn(nm) : '';
       h += '<p class="vault-org-row" data-name="' + _vhEsc(nm) + '"' + (cells[nm] ? ' data-cell="' + _vhEsc(cells[nm]) + '"' : '') + '>'
@@ -41096,7 +41109,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       h += '<p class="vault-org-row" data-state="more">' + VAULT_ORG_SHOWN + ' of ' + list.length + ' shown — file some to see the rest</p>';
     el.hidden = false;
     el.innerHTML = h;
-    return { ok: true, n: list.length, shown: shown.length, cells: nCell, carried: Object.keys(inInv).length };
+    return { ok: true, n: list.length, shown: shown.length, cells: nCell, carried: Object.keys(inInv).length, cellWhy: cellWhy };
   };
   /* ⟦VAULT PROPOSE END⟧ */
   /* THE DOOR. -> {ok, mode:'filed'|'confirmed'|'already'|'moved', mule, prov} or {ok:false, refused, why}

@@ -829,6 +829,30 @@ TARGETS = {
                             "in the title attribute",
         },
     },
+    # #264 (v3620, REG-2030) - the "vault" target above files every seeded item, so the dock's organizer (the rows
+    # that say the mule, the stash cell and the picture for each unsorted item) never painted in any render: the
+    # surface v3620 changed was UNMEASURED. These items are registered and left unsorted, so the organizer must paint.
+    "vault-organizer": {
+        "why": "the dock's organizer - each unsorted item's mule, stash cell and evidence door",
+        "seed": """(function(){
+            localStorage.setItem('d2r_ownerClaim','*');
+            ['Obedience','Nokozan Relic','Grief','Enigma','Raven Frost','Arachnid Mesh','War Traveler',
+             'Isenhart\\'s Case (armor)','Magefist','Gloom'].forEach(function(n){
+                try{ window.tvVaultRegister(n); }catch(e){} });
+            return 1; })()""",
+        "activate": """(function(){
+            var el=[].slice.call(document.querySelectorAll('.tab,[data-tab]')).filter(function(x){
+              return /vault/i.test((x.getAttribute&&x.getAttribute('data-tab'))||x.textContent||'');})[0];
+            var on=[].slice.call(document.querySelectorAll('#head-tabs .ht.active,[data-tab].active')).some(function(x){
+              return /vault/i.test(x.getAttribute('data-tab')||''); });
+            if(el && !on) el.click();
+            try{ window.renderVault && window.renderVault(); }catch(e){}
+            var s=document.getElementById('vault-organize');
+            if(!s || s.hidden) return false;
+            var r=s.getBoundingClientRect();
+            return !!(r.width>0 && r.height>0 && s.querySelector('.vault-org-row[data-name]')); })()""",
+        "sel": "#vault-organize",
+    },
     # ⚠ v2440 — A `locks` TARGET WAS WRITTEN AND WITHDRAWN, AND SAYING SO IS THE POINT.
     # The vault lock chip (#lock-vault, added v2438) has NO TARGET here, so it is UNMEASURED — and
     # in a green run unmeasured reads exactly like clean. That is a real gap, named rather than

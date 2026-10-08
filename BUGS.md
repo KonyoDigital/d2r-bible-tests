@@ -406,6 +406,21 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2031 - THE ORGANIZER'S EVIDENCE DOOR WAS A BARE WHITE BUTTON, AND FOUR EDGES THE #231 EYE FOUND ON v3620 (2026-10-08, #264)
+
+SEEN on the v3620 render (new render_check target `vault-organizer`, 1440 and 375): the evidence door each row carries was
+styled only inside a mule tile (`.vd-item .vd-ev`), so in the organizer it drew as the browser's default white button on the
+dark panel. The #231 eye (grok-cli) on v3620, each reproduced before fixing: (1) the loot he carries was appended AFTER the
+dock list, so a dock of 400+ would push it past the cap; (2) the kit rule lived only at the renderVault call, so any other
+caller passing kit got it a mule row; (3) `_orgPlannedCells` swallowed a packer error and painted rows with no cell while
+the head line promised one; (4) the #146 law's red-proof depended on the line after its anchor. Fixed: the door is styled
+like the tile's; carried loot leads the list; the kit rule lives inside vaultOrganizePaint; a packer that raises makes
+each mule row say "cell UNKNOWN" and the head line name the reason; the #146 proof replaces the whole call statement.
+Rejected with reason: "Auto-Sort contradicts 'nothing moves'" - Auto-Sort is his separate button; the organizer writes nothing.
+Laws: test_the_organizer_says_the_mule_the_cell_and_the_picture (7 cases, 7 red-proofs PROVEN),
+test_the_vault_proposes_a_home_and_does_not_move (6 PROVEN). Render: vault-organizer green at 6 widths; Grok CLI cold read
+of the 1440 crop matched the text line for line (cued on the button; its "Grief cut off" is the box's own scroll).
+
 ### REG-2030 - THE ORGANIZER NAMED THE MULE BUT NOT THE CELL, NOT THE PICTURE, AND NOT HIS INVENTORY LOOT (2026-10-08, #264, his ruling)
 
 His ruling: worn gear is locked to his MAIN; charms, tomes and the Cube stay on him; "everything inside the stash (left side) ... and the empty space cells for farming within the inventory should be completely organized autonomously" · "tell me which mule to mule it in and stash it in" · "with the tooltip picture proof synced to the ledger obviously for evidence". RECON FIRST (his "check blueprints, so you dont double build"): the vault lane already places stash sightings with their frame and grounds them on his 2-session rule (vault_seen -> vault_accum -> the witnessed lane - Highlord's Wrath sits there with one stash witness from Session 1, conf 0.9), and the dock's organizer already named the mule for every loose item. So nothing new was built beside them. The organizer's rows now also name the planned CELL (packed by the same _muleLoad / _sharedPack the mule window and the finder use), carry the evidence door (the frame the item was read on), include the loot in his inventory's free cells ("in your inventory", kit excluded), and show every row (the 60 cap hid 25 of his 85). Filing is unchanged: his 2-session rule, his move, or Auto-Sort. Guard: tv/test_the_organizer_says_the_mule_the_cell_and_the_picture.py.
