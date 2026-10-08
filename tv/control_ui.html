@@ -25741,7 +25741,14 @@ function escC(s) {
           return _stuckLabel(e) + ': ' + (e.why || 'no reason given');
         }).join('  |  '));
       }
-      out.push(_fleetPart('stuck', sk.map(_stuckLabel), { warn: true, why: whyBits.join('  |  ') }));
+      /* #250 (REG-2047, GrokBot tick 415) - THESE ARE THAT PC'S OWN SENTENCES, TRUE WHEN IT LAST REPORTED. Dean's offline
+         row (last seen 5h) said "triage lane: he is playing - D2R.exe is running on this machine" in the present tense.
+         Past one beacon cycle (900 s) the tip says whose moment it describes. An unreadable report time says so too. */
+      var _repAt = Date.parse(String((m && m.t) || '')), _repAge = isFinite(_repAt) ? Math.max(0, (nowMs - _repAt) / 1000) : null;
+      var _stuckWhy = whyBits.join('  |  ');
+      if (_repAge === null) _stuckWhy = 'as of a report whose time is UNKNOWN: ' + _stuckWhy;
+      else if (_repAge > 900) _stuckWhy = 'as of this PC\u2019s last report, ' + _fleetAgeTxt(_repAge) + ': ' + _stuckWhy;
+      out.push(_fleetPart('stuck', sk.map(_stuckLabel), { warn: true, why: _stuckWhy }));
     }
     /* 5. #74 (REG-1461) — HAS THAT PC PROVED ITS OWN INSTRUMENTS? Every lock that moves its river (routing, the
        vault sweep, frame release) refuses until it has; REG-1447 makes every PC prove itself in the background. */

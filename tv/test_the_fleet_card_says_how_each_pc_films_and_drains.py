@@ -323,6 +323,18 @@ class TheFleetRowSaysHowItFilmsAndDrains(unittest.TestCase):
         tip = str(p["stuck"].get("why") or "")
         self.assertIn("STATION 9 older for 5d: older than the newest 16", tip, tip)
         self.assertIn("STATION 4 for 2d: x", tip, tip)
+        self.assertNotIn("as of this PC", tip, "a fresh report was dated as stale: %r" % tip)
+
+    def test_r4_a_stale_row_dates_its_stuck_reasons(self):
+        """#250 (REG-2047, GrokBot tick 415) - Dean's row, last seen 5h, said 'triage lane: he is playing - D2R.exe is running
+        on this machine' in the present tense. A report older than one beacon cycle says whose moment the reasons describe."""
+        H = 3600.0
+        p = _parts(_row(5 * 3600, river={"lanes": {"TRIAGE": 1}, "stuckKeep": 16, "stuck": [
+            {"station": "TRIAGE", "n": 1, "oldestS": 12 * H, "why": "triage lane: he is playing"}],
+            "heart": {"census": "current", "key": "current", "blind": 0}}))
+        tip = str(p["stuck"].get("why") or "").replace("\u00a0", " ")   # ages are written with no-break spaces
+        self.assertTrue(tip.startswith("as of this PC\u2019s last report, 5h ago: "), tip)
+        self.assertIn("he is playing", tip)
 
     def test_r2_each_fact_is_its_own_item_with_no_glyph_between_them(self):
         """REG-1377 (round 2): the line's facts are separate items, so no middot sits between two of them for a wrap to
@@ -624,6 +636,11 @@ class TheShippedCardDrawsIt(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2047 - a stale row's stuck reasons read as the present again",
+     "file": "tv/control_ui.html",
+     "find": "      else if (_repAge > 900) _stuckWhy = ",
+     "replace": "      else if (false) _stuckWhy = ",
+     "matches": 1},
     {"why": "REG-2044 - the stuck tip names a past-window row only by its station again",
      "file": "tv/control_ui.html",
      "find": "          return _stuckLabel(e) + ': ' + (e.why || 'no reason given');\n",
