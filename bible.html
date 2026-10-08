@@ -5888,7 +5888,7 @@ try {
   <div class="sec-body" hidden>
   <div id="rotw-essences-hub"></div>
   </div>
-  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art"><span class="d2art-wrap sm"><img class="d2art-img" src="art/questkey_graphic.png" alt="Pandemonium Keys" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🔑</span></span></span><span class="sec-h-block"><span class="sec-h-t" style="color:var(--q-orange)">Pandemonium Keys</span><span class="sec-h-sub">The 3 keys for Uber Tristram → Hellfire Torch · Hell only · /players 3+</span></span><span class="sec-chev">▾</span></h2>
+  <h2 class="sec-h collapsed" onclick="toggleSec(this)"><span class="sec-h-art"><span class="d2art-wrap sm"><img class="d2art-img" src="art/questkey_graphic.png" alt="Pandemonium Keys" loading="lazy" onerror="this.parentNode.classList.add('d2art-failed')"><span class="d2art-fallback">🔑</span></span></span><span class="sec-h-block"><span class="sec-h-t" style="color:var(--q-orange)">Pandemonium Keys</span><span class="sec-h-sub">The 3 keys for Uber Tristram → Hellfire Torch · Hell only · any /players</span></span><span class="sec-chev">▾</span></h2>
   <div class="sec-body" hidden>
   <div id="rotw-pandkeys-hub"></div>
   </div>
@@ -11887,9 +11887,9 @@ const SPECIAL_DROPS = {
     icon: "🗝️",
     blurb: "Pandemonium event — open red portals to Uber Bosses. Hell only, /p3 or higher REQUIRED for drops. Best with /p5 mules trick.",
     items: [
-      {n: "Key of Terror", from: ["Hell Countess"], rate: "~1:278 (/p3)", note: "fastest farm — Countess kph is ~120-150/hr"},
-      {n: "Key of Hate", from: ["Hell Summoner (Arcane Sanctuary)"], rate: "~1:278 (/p3)", note: "Summoner is tracked — accessed via Lost City waypoint → Arcane Sanctuary"},
-      {n: "Key of Destruction", from: ["Hell Nihlathak"], rate: "~1:278 (/p3)", note: "Nihl is dangerous (Corpse Explosion) — be careful"}
+      {n: "Key of Terror", from: ["Hell Countess"], rate: "~1:10 (Hell only)", note: "fastest farm — Countess kph is ~120-150/hr"},
+      {n: "Key of Hate", from: ["Hell Summoner (Arcane Sanctuary)"], rate: "~1:10 (Hell only)", note: "Summoner is tracked — accessed via Lost City waypoint → Arcane Sanctuary"},
+      {n: "Key of Destruction", from: ["Hell Nihlathak"], rate: "~1:10 (Hell only)", note: "Nihl is dangerous (Corpse Explosion) — be careful"}
     ],
     recipe: "3 Terror + 3 Hate + 3 Destruction in cube → opens 3 red portals to Uber bosses",
     important: "Mules ON /p5 + party of 1 in a private game can boost Key drop to 1:25-50 per kill — research the 'p5 mule trick' before farming."
@@ -12339,7 +12339,7 @@ const PAND_KEYS_HUB = [
 window.PAND_KEYS_HUB = PAND_KEYS_HUB;
 function pandemoniumKeysDetailHtml(embedded){
   const keyArt = '<span class="d2art-wrap lg"><img class="d2art-img" src="art/questkey_graphic.png" alt="Pandemonium Key" loading="lazy" onerror="this.parentNode.classList.add(\'d2art-failed\')"><span class="d2art-fallback">\u{1F511}</span></span>';
-  const tiles = PAND_KEYS_HUB.map(k=>`<div class="colossal-tile endgame-relic" role="button" tabindex="0" title="open ${k.n} ID card" onclick="window.openDrop('${_esc1(k.n)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openDrop('${_esc1(k.n)}')}"><span class="ct-art">${keyArt}</span><div class="ct-body"><div class="ct-name">${k.n}</div><div class="ct-sub">${k.boss} \u00b7 ${k.where} \u00b7 ~10% \u00b7 Hell \u00b7 /p3+ \u00b7 ${k.note}</div></div></div>`).join('');
+  const tiles = PAND_KEYS_HUB.map(k=>`<div class="colossal-tile endgame-relic" role="button" tabindex="0" title="open ${k.n} ID card" onclick="window.openDrop('${_esc1(k.n)}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();window.openDrop('${_esc1(k.n)}')}"><span class="ct-art">${keyArt}</span><div class="ct-body"><div class="ct-name">${k.n}</div><div class="ct-sub">${k.boss} \u00b7 ${k.where} \u00b7 ~10% \u00b7 Hell only \u00b7 ${k.note}</div></div></div>`).join('');
   return `<div class="gic-card material-card pandkeys-hub-card">
     <header class="gic-header">
       ${keyArt}
@@ -12347,7 +12347,7 @@ function pandemoniumKeysDetailHtml(embedded){
         <h2 class="gic-name">Pandemonium Keys <span class="gic-grail-badge" style="background:linear-gradient(135deg,#6a4,#363);color:#dfffe0">Pandemonium Keys</span></h2>
         <div class="gic-subtitle">The 3 keys for Uber Tristram \u2192 Hellfire Torch \u2014 cube all 3 \u2192 red portal \u2192 Pandemonium Run.</div>
         <div class="gic-meta-row">
-          <span class="gic-meta-chip">Hell only \u00b7 drops require /players 3+</span>
+          <span class="gic-meta-chip">Hell only \u00b7 any /players (a little more often at higher /players)</span>
           <span class="gic-meta-chip" style="color:#ffd479;border-color:rgba(255,212,121,.4)">cube 3 \u2192 red portal \u2192 Uber Tristram</span>
         </div>
       </div>
@@ -12355,13 +12355,13 @@ function pandemoniumKeysDetailHtml(embedded){
     </header>
     <section class="gic-section">
       <div class="gic-section-title">\u2694\uFE0F What it does</div>
-      <div style="font-size:13.5px;line-height:1.6">Cube <strong>1\u00d7 of each key</strong> (Terror + Hate + Destruction) in Hell Harrogath \u2192 <strong>one random red portal</strong> (Pandemonium Run). Collect the <strong>3 organs</strong> from the mini-uber portals \u2014 the Forgotten Sands roll is <strong>Uber Duriel</strong> \u2192 Baal's Eye \u2014 then cube the 3 organs \u2192 <strong>Uber Tristram \u2192 Hellfire Torch</strong>. Keys are <strong>Hell only</strong> and require <strong>/players 3+</strong> to roll.</div>
+      <div style="font-size:13.5px;line-height:1.6">Cube <strong>1\u00d7 of each key</strong> (Terror + Hate + Destruction) in Hell Harrogath \u2192 <strong>one random red portal</strong> (Pandemonium Run). Collect the <strong>3 organs</strong> from the mini-uber portals \u2014 the Forgotten Sands roll is <strong>Uber Duriel</strong> \u2192 Baal's Eye \u2014 then cube the 3 organs \u2192 <strong>Uber Tristram \u2192 Hellfire Torch</strong>. Keys are <strong>Hell only</strong>, at any /players - the chance rises a little at higher /players.</div>
     </section>
     <section class="gic-section">
       <div class="gic-section-title">\u{1F4CD} Where it drops</div>
       <div class="zd-stats" style="margin-bottom:8px">
         <div class="zd-stat"><span class="zd-sk">category</span><span class="zd-sv">Pandemonium Keys</span></div>
-        <div class="zd-stat"><span class="zd-sk">per-kill rate</span><span class="zd-sv">~10% \u00b7 Hell \u00b7 /players 3+</span></div>
+        <div class="zd-stat"><span class="zd-sk">per-kill rate</span><span class="zd-sv">~10% \u00b7 Hell only \u00b7 any /players</span></div>
         <div class="zd-stat"><span class="zd-sk">feeds into</span><span class="zd-sv">red portal \u2192 Uber Tristram \u2192 Hellfire Torch</span></div>
         <div class="zd-stat"><span class="zd-sk">MF affects?</span><span class="zd-sv">no \u2014 /players count is what matters</span></div>
       </div>
@@ -12384,7 +12384,7 @@ function pandemoniumKeysDetailHtml(embedded){
     </div>
     <table class="drops" style="margin:0;min-width:0"><tbody>
       <tr><td style="white-space:nowrap;color:var(--text-dim);width:1%;padding-right:14px">📍 Location</td><td>Act 2 · <strong>Arcane Sanctuary</strong> — Lost City WP → Palace cellar → Arcane Sanctuary, then teleport the floating platforms to the central pedestal</td></tr>
-      <tr><td style="white-space:nowrap;color:var(--text-dim);padding-right:14px">🔑 Drops</td><td><strong style="color:var(--q-orange)">Key of Hate</strong> — ~10% on Hell, <strong>/players 3+ required</strong> for the key to roll</td></tr>
+      <tr><td style="white-space:nowrap;color:var(--text-dim);padding-right:14px">🔑 Drops</td><td><strong style="color:var(--q-orange)">Key of Hate</strong> — ~10% on Hell (Hell only); <strong>no /players requirement</strong> - the chance rises a little at higher /players</td></tr>
       <tr><td style="white-space:nowrap;color:var(--text-dim);padding-right:14px">⚔️ Kill</td><td>Trivial — low-HP caster (fire/cold/lightning bolts + blinks away). Burst him before he teleports; no immunities to worry about</td></tr>
       <tr><td style="white-space:nowrap;color:var(--text-dim);padding-right:14px">⭐ Best</td><td><strong style="color:var(--best)">Konyolock</strong> — Enigma teleport crosses the platforms instantly and one-shots him</td></tr>
       <tr><td style="white-space:nowrap;color:var(--text-dim);padding-right:14px">🔗 Feeds</td><td><strong>1× of each key</strong> (Terror + Hate + Destruction) → one random portal; the Forgotten Sands roll is <strong>Uber Duriel</strong> → Baal's Eye → cube 3 organs → Uber Tristram</td></tr>
@@ -12395,7 +12395,7 @@ function pandemoniumKeysDetailHtml(embedded){
       <div class="gic-section-title">\u{1F9EA} Recipe / use</div>
       <div class="zd-row"><span class="zd-k">recipe</span><span class="zd-v">cube <strong>Key of Terror + Key of Hate + Key of Destruction</strong> \u2192 one random red portal (Hell Harrogath) \u00b7 collect all <strong>3 organs</strong> \u2192 cube \u2192 <strong>Uber Tristram \u2192 Hellfire Torch</strong></span></div>
     </section>
-    <div class="zd-note">\u26A0 Key rates are not MF-scaled and are not part of the tracked chronicle count. The ~10% \u00b7 /players 3+ figures are the canonical community estimates (silospen / d2runewizard / diablo2.io), not fabricated odds.</div>
+    <div class="zd-note">\u26A0 Key rates are not MF-scaled and are not part of the tracked chronicle count. The ~10% figures are the community estimates (d2runewizard: the Countess ~8% at /players 1, ~9% higher; diablowiki: the Summoner 8.6% at /p1-2, 12.8% at /p7-8). There is no /players requirement - REG-2100 removed a '/players 3+ required' that the cited sources contradict.</div>
   </div>`;
 }
 window.pandemoniumKeysDetailHtml = pandemoniumKeysDetailHtml;
@@ -14526,7 +14526,7 @@ function zoneSpecialDropsHtml(z){
   // 3) zone-specific quest / event specials (each gated on a real zone fact).
   const extras = [];
   if (/river of flame/i.test(z.name)) extras.push(`${matChip('Hellforge rune', '⚒️ Hellforge rune', 'one-time Hellforge quest — Hephasto guards the forge here')}<span class="zd-item zd-item-dim">Hephasto's forge · 1× per difficulty</span>`);
-  if (/arcane sanctuary/i.test(z.name)) extras.push(matChip('Key of Hate', '🔑 Key of Hate', 'The Summoner drops it on Hell /p3+ — 1 of 3 for Uber Tristram'));
+  if (/arcane sanctuary/i.test(z.name)) extras.push(matChip('Key of Hate', '🔑 Key of Hate', 'The Summoner drops it on Hell — 1 of 3 for Uber Tristram'));
   if (/halls of (anguish|pain|vaught)/i.test(z.name)) extras.push(matChip('Key of Destruction', '🔑 Key of Destruction', 'Nihlathak drops it (~10% on Hell) — 1 of 3 for Uber Tristram'));
   if (/tristram/i.test(z.name)) extras.push(`<span class="zd-item zd-item-dim" title="Griswold's undead blacksmith drops the Griswold's Legacy Paladin set">⚒️ Griswold's Legacy set (Griswold)</span>`);
   if (extras.length) grps.push(`<div class="zd-drops-grp"><span class="zd-grp-lab">🔱 zone specials</span><div class="zd-drops">${extras.join('')}</div></div>`);
@@ -15634,7 +15634,7 @@ const TZ_ZONES = [
   {emoji:"⚡",name:"Bloody Foothills + Frigid Highlands + Abaddon",tier:"A",mlvl:96,tcMax:87,act:"Act 5 · terrorize Bloody Foothills",density:"dense",hot:false,unique:"Shenk the Overseer (Bloody Foothills) · Eldritch the Rectifier (Frigid Highlands)",why:"<strong>Two waypoint-adjacent super-uniques on one Act 5 ascent.</strong> Eldritch spawns right on the Frigid Highlands WP (zero walk); Shenk caps the Bloody Foothills with a huge enslaved pack. Both are prime DClone spawn-camps. Terror lifts all three areas to mlvl 96 / TC87.",tags:["dense","tc85"]},
   {emoji:"🏛️",name:"Worldstone Keep L1-L3",tier:"S+",mlvl:96,tcMax:87,act:"Act 5 · terrorize WSK",density:"very dense",hot:true,unique:"Random Champion/Unique packs · multiple chests",why:"<strong>WSK L3 hits TC87 even Hell-only.</strong> Dense knight/oblivion knight packs. Terror = mlvl 96 + 3 rolls on TC87. <strong>Best non-act-boss zone for Tyrael's / Templar's / Schaefer's.</strong>",tags:["hot","dense","tc87"]},
   {emoji:"⚰️",name:"Halls of Anguish/Pain/Vaught",tier:"S",mlvl:96,tcMax:87,act:"Act 5 · terrorize Halls",density:"dense",hot:true,unique:"Nihlathak (Vaught) - Key of Destruction source",why:"<strong>Triple-zone with Nihl finisher.</strong> Each Hall = TC87 in terror. Vaught hosts Nihl + Key of Destruction (Hell only, ~10%). Halls Pain has dense corpse-explosion-vulnerable mobs.",tags:["hot","dense","tc87"]},
-  {emoji:"🔮",name:"Arcane Sanctuary",tier:"A+",mlvl:96,tcMax:85,act:"Act 2 · terrorize Arcane",density:"dense magic",hot:false,unique:"The Summoner",why:"<strong>Dense ghost/lasher packs.</strong> The Summoner super-unique drops higher TC than expected — and on Hell (/p3+) he drops the <strong>🔑 Key of Hate</strong> for Uber Tristram. Hard for melee (ghosts phase). Sorc/caster paradise.",tags:["dense","tc85"]},
+  {emoji:"🔮",name:"Arcane Sanctuary",tier:"A+",mlvl:96,tcMax:85,act:"Act 2 · terrorize Arcane",density:"dense magic",hot:false,unique:"The Summoner",why:"<strong>Dense ghost/lasher packs.</strong> The Summoner super-unique drops higher TC than expected — and on Hell he drops the <strong>🔑 Key of Hate</strong> for Uber Tristram. Hard for melee (ghosts phase). Sorc/caster paradise.",tags:["dense","tc85"]},
   {emoji:"🔥",name:"River of Flame",tier:"A+",mlvl:96,tcMax:87,act:"Act 4 · terrorize RoF",density:"medium-high",hot:false,unique:"Hephasto the Armorer (the Hellforge smith)",why:"<strong>Its own TC87 zone — a Hephasto run, NOT a Diablo run.</strong> Hephasto (the Hellforge smith) is a super-unique that drops superior items, and terror lifts the River to mlvl 96 / TC87 — the same elite ceiling as WSK. The Hellforge rune drop also lives here. (Izual is NOT here — he guards the adjacent Plains of Despair.)",tags:["tc87"]},
   {emoji:"⛪",name:"Tristram (the town)",tier:"A",mlvl:96,tcMax:87,act:"Act 1 · terrorize Tristram",density:"medium",hot:false,unique:"Griswold (drops the Griswold's Legacy set)",why:"<strong>Griswold's undead blacksmith — one of the few sources of the Griswold's Legacy (Paladin) set.</strong> Compact map, fast clear. Hell TZ unlocks the full TC87 ceiling. Cain's old home, surprisingly efficient. (<span class='su-link zd-item-click' data-art-logo='The Smith' data-su-route='The Smith' style='cursor:pointer;color:var(--su)'>The Smith</span>, Bone Ash &amp; Rakanishu are NOT here — they hold the Barracks, Cathedral &amp; Stony Field respectively.)",tags:["dense"]},
   {emoji:"🏚️",name:"Burial Grounds + Crypt + Mausoleum",tier:"A",mlvl:96,tcMax:87,act:"Act 1 · terrorize Burial Grounds",density:"medium",hot:false,unique:"Blood Raven (Sisters' Burial Grounds quest archer)",why:"Three-zone clear (Burial Grounds + Crypt + Mausoleum) headlined by Blood Raven, whose Sisters' Burial Grounds quest can be restarted for repeat kills. Terror &rarr; mlvl 96 / TC87. (Coldcrow is in the Cold Plains cave and Bone Ash in the Cathedral — separate zones, not this TZ.)",tags:["dense"]},
@@ -15746,7 +15746,7 @@ const SUPER_UNIQUES = [
   {emoji:"⚡",name:"Eldritch the Rectifier",act:"Act 5 · Frigid Highlands",mlvl:80,immune:"random (Hell)",dclone:true,tzMatch:"Eldritch",role:"instant kill right on the Frigid Highlands waypoint",drops:"Spawns at the Frigid Highlands WP — zero walk, the fastest super-unique tag in the game. Pairs with Shenk (Bloody Foothills) and a Pindleskin run on the same Act 5 ascent. Terror → mlvl 96 / TC85."},
   {emoji:"❄️",name:"Frozenstein",act:"Act 5 · Frozen River",mlvl:82,immune:"Cold",dclone:false,tzMatch:"Frozenstein",role:"cold-immune boss of the Anya quest river",drops:"Guards the Frozen River (Anya quest). Cold-immune, so bring a second damage type. Terror → mlvl 96 / TC85 (the Crystalline Passage + Frozen River TZ)."},
   {emoji:"🩸",name:"Pindleskin",act:"Act 5 · Nihlathak's Temple",mlvl:86,immune:"random (Hell)",dclone:true,tzMatch:"Pindleskin",role:"mlvl 86 — the highest easily-farmed monster in the game",drops:"The single best fast elite-unique farm: mlvl 86 reaches the TC84/TC85 unique pool every kill, and Anya's red portal drops you next to him for instant repeat runs. Not on the TZ rotation list — you run him on demand, terror or not. Prime DClone camp."},
-  {emoji:"🔮",name:"The Summoner",act:"Act 2 · Arcane Sanctuary",mlvl:83,immune:"random (Hell)",dclone:false,tzMatch:"Summoner",role:"holds the Key of Hate on Hell",drops:"On Hell /players 3+ he drops the 🔑 Key of Hate (1 of 3 for Uber Tristram). Dense ghost/lasher packs around him. Terror → mlvl 96 / TC85."},
+  {emoji:"🔮",name:"The Summoner",act:"Act 2 · Arcane Sanctuary",mlvl:83,immune:"random (Hell)",dclone:false,tzMatch:"Summoner",role:"holds the Key of Hate on Hell",drops:"On Hell he drops the 🔑 Key of Hate (1 of 3 for Uber Tristram). Dense ghost/lasher packs around him. Terror → mlvl 96 / TC85."},
   {emoji:"🗝️",name:"Nihlathak",act:"Act 5 · Halls of Vaught",mlvl:85,immune:"random (Hell)",dclone:false,tzMatch:"Nihlathak",role:"~10% Key of Destruction on Hell",drops:"Drops the 🔑 Key of Destruction (~10% on Hell) plus a real unique pool — he's also a tracked boss with a full drop table. Terror → mlvl 96 / TC87 (the Halls TZ)."},
   {emoji:"🔨",name:"Hephasto the Armorer",act:"Act 4 · River of Flame",mlvl:83,immune:"Fire",dclone:false,tzMatch:"Hephasto",role:"guards the Hellforge",drops:"The Hellforge smith — fire-immune, drops superior items, and his zone (River of Flame) terrors to mlvl 96 / TC87, the same elite ceiling as WSK. Hellforge rune-quest reward lives here too.",pool:{tcMax:87,mlvl:96,src:"River of Flame (terrored) → mlvl 96 / TC87 — the same elite ceiling as WSK"},auraGrid:{mlvl:96},bindTier:"BiS damage · the Fanaticism reroll target",bind:"<p style='margin:0 0 8px;font-style:italic;color:var(--text)'>The best <em>damage</em> bind a Warlock can self-supply — the Hellforge smith fights <strong>solo</strong>, so it is a clean 1-on-1 bind with no minion pack to clear first.</p><ul style='margin:0;padding-left:18px;line-height:1.6'><li><strong style='color:var(--best)'>Always Aura Enchanted</strong> — he <em>always</em> spawns already carrying a random runtime aura, so binding him always keeps one.</li><li><strong style='color:var(--gold-bright)'>⭐ Best roll: Fanaticism.</strong> His aura is random per spawn, so <strong>save &amp; exit / re-make until he carries Fanaticism</strong> (Conviction for a fire build), then bind — once bound the aura is locked in. A permanent personal Fanaticism (attack speed + a big % damage boost) is the single largest DPS multiplier a Warlock can give itself, and it buffs your merc too.</li><li>Bound-aura level = <code>floor(mlvl &divide; 8)</code>; bind him in a <strong>Terror Zone (mlvl 96)</strong> for aura level 12, the cap.</li></ul><div style='margin-top:9px;color:var(--hell)'><strong>Watch-outs:</strong> Super-Unique tier needs <strong>20 hard points</strong>. He is <strong>Fire Immune</strong> — chip him with a non-fire damage type or a sunder to reach the bind HP threshold (historically &lt;40%; the 3.2 per-demon cap is unpublished).</div>"},
   {emoji:"😈",name:"Izual",act:"Act 4 · Plains of Despair",mlvl:81,immune:"Cold",dclone:false,tzMatch:"Izual",role:"guaranteed first-kill drop",drops:"Quest boss in the Plains of Despair — cold-immune, drops a guaranteed item the first time per character and decent uniques after."},
@@ -19275,7 +19275,7 @@ window.markEndgameRelics = markEndgameRelics;
 
 // The Road to the Hellfire Torch — the endgame storyline tab. Every drop node is
 // clickable and routes to its full card; data is cross-referenced with the events
-// tables above (keys ~10% Hell /p3+, organs 100% per kill).
+// tables above (keys ~10% Hell only, organs 100% per kill).
 function renderEndgameRoad(){
   const box = document.getElementById('endgame-road');
   if (!box) return;
@@ -19292,9 +19292,9 @@ function renderEndgameRoad(){
     '<span class="rb-art"><span class="d2art-wrap lg"><img class="d2art-img" src="art/' + file + '" alt="" loading="lazy" onerror="this.parentNode.classList.add(\'d2art-failed\')"><span class="d2art-fallback"><span class="gbc-emoji">' + emoji + '</span></span></span></span>';
   const branchEmblemRaw = (src, emoji) =>
     '<span class="rb-art"><span class="d2art-wrap lg"><img class="d2art-img" src="' + src + '" alt="" loading="lazy" onerror="this.parentNode.classList.add(\'d2art-failed\')"><span class="d2art-fallback"><span class="gbc-emoji">' + emoji + '</span></span></span></span>';
-  const keys = node('Key of Terror','🔑','Hell Countess · Forgotten Tower L5','~10% · Hell · /p3+')
-    + node('Key of Hate','🔑','Hell Summoner · Arcane Sanctuary','~10% · Hell · /p3+')
-    + node('Key of Destruction','🔑','Hell Nihlathak · Halls of Vaught','~10% · Hell · /p3+');
+  const keys = node('Key of Terror','🔑','Hell Countess · Forgotten Tower L5','~10% · Hell only')
+    + node('Key of Hate','🔑','Hell Summoner · Arcane Sanctuary','~10% · Hell only')
+    + node('Key of Destruction','🔑','Hell Nihlathak · Halls of Vaught','~10% · Hell only');
   const organs = node("Diablo's Horn",'🩸',"Lilith · Matron's Den",'100% per kill')
     + node("Mephisto's Brain",'🩸','Uber Izual · Furnace of Pain','100% per kill')
     + node("Baal's Eye",'🩸','Uber Duriel · Forgotten Sands','100% per kill');

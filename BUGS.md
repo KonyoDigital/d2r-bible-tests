@@ -406,6 +406,15 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2100 - ELEVEN PLACES SAID THE KEYS NEED /PLAYERS 3+; THE CITED SOURCES SAY ANY /PLAYERS (2026-10-08, #231 on v43, #306)
+
+'drops require /players 3+', '/players 3+ required for the key to roll', 'Hell /p3+' and three guide rows at '~1:278 (/p3)' -
+under a note naming d2runewizard as the source. d2runewizard: the Countess drops the Key of Terror ~8% at /players 1, ~9% with
+more players; diablowiki: the Summoner 8.6% at /p1-2 to 12.8% at /p7-8; Hell only, no /players requirement (a search for a
+Reign of the Warlock change found none). Every site now says Hell only at any /players, the guide rows ~1:10 like the file's
+own ~10%. No new number was invented. Still owed on #306: the Summoner's mlvl (sources say 80; the file says 83 and 82 and
+the 82 feeds the drop math) and the super-uniques' TC85-vs-TC87 lines - both wait for the RotW authority.
+
 ### REG-2098 - THE RIVER TIP SAID ONE DEBT TWICE (2026-10-08, GrokBot tick 427 K03)
 
 v3624's grouping (REG-2072) names rows sharing a reason once, and his "river stuck" tip still read STATION 5 and STATION 4

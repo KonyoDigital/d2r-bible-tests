@@ -191,6 +191,17 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         self.assertGreaterEqual(checked, 25, "premise: the sweep reaches the rune grids (%d checked)" % checked)
         self.assertEqual(bad, [], "a rune's 'used for' names a runeword whose recipe does not hold that rune: %r" % bad)
 
+    def test_no_key_needs_a_players_setting_its_sources_do_not_name(self):
+        """REG-2100 (#231 eye on v43 46f0f060, #306) - eleven places said the Pandemonium keys need '/players 3+' ('drops
+        require /players 3+', '~1:278 (/p3)', 'Hell /p3+'), under a note citing d2runewizard - which gives the Countess ~8% at
+        /players 1 rising to ~9%, and diablowiki the Summoner 8.6% at /p1-2 to 12.8% at /p7-8. Hell only, any /players.
+        The one sentence left quoting the old claim is its retraction."""
+        s = _src()
+        hits = [m.start() for m in re.finditer(r"players 3\+|/p3\+|1:278", s)]
+        stray = [s[max(0, h - 60):h + 30] for h in hits if "REG-2100 removed" not in s[max(0, h - 120):h + 10]]
+        self.assertEqual(stray, [], "a key is said to need /players 3+ again (or ~1:278): %r" % stray)
+        self.assertIn("Keys are <strong>Hell only</strong>, at any /players", s, "premise: the keys card says Hell only")
+
 
 RED_PROOF = [
     {"why": "REG-2089 - Veil of Steel's tagline swaps its resist and defense figures again",
@@ -232,6 +243,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "{n:'Ohm #27', hell:'1:13,754', use:'CtA, Faith, Doom'}",
      "replace": "{n:'Ohm #27', hell:'1:13,754', use:'Beast, HotO'}",
+     "matches": 1},
+    {"why": "REG-2100 - the keys card says they need /players 3+ to roll again",
+     "file": "bible.html",
+     "find": "Keys are <strong>Hell only</strong>, at any /players - the chance rises a little at higher /players.",
+     "replace": "Keys are <strong>Hell only</strong>, at any /players - the chance rises a little at higher /players. They require /players 3+ to roll.",
      "matches": 1},
 ]
 
