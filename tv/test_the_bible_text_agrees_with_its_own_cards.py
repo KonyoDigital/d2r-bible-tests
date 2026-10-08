@@ -308,6 +308,29 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         self.assertIn('row.setAttribute("aria-expanded", _o ? "true" : "false");', s,
                       "a runeword row opens while its aria-expanded stays false")
 
+    def test_every_key_mention_prints_its_own_cards_rate(self):
+        """REG-2117 - REG-2107 gave each key card its sourced rate (Terror ~8-9%, Hate ~9-13%, Destruction ~10%) and the sweep
+        stopped at the cards: the Uber Step 1 table, the Summoner card and the uber-path nodes still printed ~10% for Terror
+        and Hate (5 sites). Every "~N%" printed after a key's name, up to the next key's name, must be that key's card rate."""
+        s = _src()
+        i = s.find("const SPECIAL_DROPS"); j = s.find("\n};", i)
+        card = {m.group(1): m.group(2) for m in re.finditer(
+            r'\{n: "(Key of (?:Terror|Hate|Destruction))"[^}]*?rate: "(~[0-9]+(?:-[0-9]+)?%)', s[i:j])}
+        self.assertEqual(len(card), 3, "premise: the three key cards carry a sourced rate (%r)" % card)
+        key, rate = re.compile(r"Key of (?:Terror|Hate|Destruction)"), re.compile(r"~\s?[0-9]+(?:[-\u2013][0-9]+)?\s?%")
+        seen, bad = 0, []
+        for ln, line in enumerate(s.split("\n"), 1):
+            ms = list(key.finditer(line))
+            for a, m in enumerate(ms):
+                end = ms[a + 1].start() if a + 1 < len(ms) else len(line)
+                for r in rate.finditer(line[m.end():min(end, m.end() + 260)]):
+                    seen += 1
+                    got = r.group(0).replace(" ", "").replace("\u2013", "-")
+                    if got != card[m.group(0)]:
+                        bad.append("line %d: %s prints %s, its card says %s" % (ln, m.group(0), got, card[m.group(0)]))
+        self.assertGreaterEqual(seen, 12, "PRINT THE DENOMINATOR: only %d key rates were read - re-point this law" % seen)
+        self.assertEqual(bad, [], "a key's rate disagrees with its own card:\n  " + "\n  ".join(bad))
+
 
 RED_PROOF = [
     {"why": "REG-2089 - Veil of Steel's tagline swaps its resist and defense figures again",
@@ -409,6 +432,16 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "n:\"Jah\",  clvl:65,",
      "replace": "n:\"Jah\",  clvl:67,",
+     "matches": 1},
+    {"why": "REG-2117 - the Uber Step 1 table prints the Key of Terror at ~10% again, under its card's ~8-9%",
+     "file": "bible.html",
+     "find": "<td>~8-9% drop · Hell only",
+     "replace": "<td>~10% drop · Hell only",
+     "matches": 1},
+    {"why": "REG-2117 - the uber-path node prints the Key of Hate at ~10% again, under its card's ~9-13%",
+     "file": "bible.html",
+     "find": "'Hell Summoner · Arcane Sanctuary','~9-13% · Hell only'",
+     "replace": "'Hell Summoner · Arcane Sanctuary','~10% · Hell only'",
      "matches": 1},
 ]
 

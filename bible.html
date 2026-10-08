@@ -7474,8 +7474,8 @@ body.app-ctx .dock-mini-tab, body.app-ctx .lore-mini{display:none !important}
 
     <h3>🗝️ Step 1 — Farm the three keys (Hell only)</h3>
     <div class="scroll-table"><table class="drops"><thead><tr><th>Key</th><th>Drops from</th><th>Where</th><th>Notes</th></tr></thead><tbody>
-      <tr><td class="item-name zd-item-click" data-art-logo="Key of Terror" data-art-glyph="🔑" style="color:var(--q-orange);cursor:pointer" onclick="openDrop('Key of Terror')">Key of Terror →</td><td><span data-art-logo="The Countess" data-art-glyph="👸">The Countess</span></td><td>Act 1 · Forgotten Tower L5 (Black Marsh)</td><td>~10% drop · Hell only · same Countess as rune farm</td></tr>
-      <tr><td class="item-name zd-item-click" data-art-logo="Key of Hate" data-art-glyph="🔑" style="color:var(--q-orange);cursor:pointer" onclick="openDrop('Key of Hate')">Key of Hate →</td><td><span data-art-logo="The Summoner" data-art-glyph="🧙">The Summoner</span></td><td>Act 2 · Arcane Sanctuary</td><td>~10% drop · Hell only · short walk from Canyon WP</td></tr>
+      <tr><td class="item-name zd-item-click" data-art-logo="Key of Terror" data-art-glyph="🔑" style="color:var(--q-orange);cursor:pointer" onclick="openDrop('Key of Terror')">Key of Terror →</td><td><span data-art-logo="The Countess" data-art-glyph="👸">The Countess</span></td><td>Act 1 · Forgotten Tower L5 (Black Marsh)</td><td>~8-9% drop · Hell only · same Countess as rune farm</td></tr>
+      <tr><td class="item-name zd-item-click" data-art-logo="Key of Hate" data-art-glyph="🔑" style="color:var(--q-orange);cursor:pointer" onclick="openDrop('Key of Hate')">Key of Hate →</td><td><span data-art-logo="The Summoner" data-art-glyph="🧙">The Summoner</span></td><td>Act 2 · Arcane Sanctuary</td><td>~9-13% drop · Hell only · short walk from Canyon WP</td></tr>
       <tr><td class="item-name zd-item-click" data-art-logo="Key of Destruction" data-art-glyph="🔑" style="color:var(--q-orange);cursor:pointer" onclick="openDrop('Key of Destruction')">Key of Destruction →</td><td><span data-art-logo="Nihlathak" data-art-glyph="☠️">Nihlathak</span></td><td>Act 5 · Halls of Vaught</td><td>~10% drop · Hell only · CE danger, kite him</td></tr>
     </tbody></table></div>
     <div class="info"><strong>Goal:</strong> 3× of EACH key (9 keys total). Don't run keys at players 1 — a higher player count lowers the chance of no drop, so keys drop more often. Multi-key drops possible.</div>
@@ -12388,7 +12388,7 @@ function pandemoniumKeysDetailHtml(embedded){
     </div>
     <table class="drops" style="margin:0;min-width:0"><tbody>
       <tr><td style="white-space:nowrap;color:var(--text-dim);width:1%;padding-right:14px">📍 Location</td><td>Act 2 · <strong>Arcane Sanctuary</strong> — Lost City WP → Palace cellar → Arcane Sanctuary, then teleport the floating platforms to the central pedestal</td></tr>
-      <tr><td style="white-space:nowrap;color:var(--text-dim);padding-right:14px">🔑 Drops</td><td><strong style="color:var(--q-orange)">Key of Hate</strong> — ~10% on Hell (Hell only); <strong>no /players requirement</strong> - the chance rises a little at higher /players</td></tr>
+      <tr><td style="white-space:nowrap;color:var(--text-dim);padding-right:14px">🔑 Drops</td><td><strong style="color:var(--q-orange)">Key of Hate</strong> — ~9-13% on Hell (Hell only); <strong>no /players requirement</strong> - the chance rises a little at higher /players</td></tr>
       <tr><td style="white-space:nowrap;color:var(--text-dim);padding-right:14px">⚔️ Kill</td><td>Trivial — low-HP caster (fire/cold/lightning bolts + blinks away). Burst him before he teleports; no immunities to worry about</td></tr>
       <tr><td style="white-space:nowrap;color:var(--text-dim);padding-right:14px">⭐ Best</td><td><strong style="color:var(--best)">Konyolock</strong> — Enigma teleport crosses the platforms instantly and one-shots him</td></tr>
       <tr><td style="white-space:nowrap;color:var(--text-dim);padding-right:14px">🔗 Feeds</td><td><strong>1× of each key</strong> (Terror + Hate + Destruction) → one random portal; the Forgotten Sands roll is <strong>Uber Duriel</strong> → Baal's Eye → cube 3 organs → Uber Tristram</td></tr>
@@ -19314,8 +19314,8 @@ function renderEndgameRoad(){
     '<span class="rb-art"><span class="d2art-wrap lg"><img class="d2art-img" src="art/' + file + '" alt="" loading="lazy" onerror="this.parentNode.classList.add(\'d2art-failed\')"><span class="d2art-fallback"><span class="gbc-emoji">' + emoji + '</span></span></span></span>';
   const branchEmblemRaw = (src, emoji) =>
     '<span class="rb-art"><span class="d2art-wrap lg"><img class="d2art-img" src="' + src + '" alt="" loading="lazy" onerror="this.parentNode.classList.add(\'d2art-failed\')"><span class="d2art-fallback"><span class="gbc-emoji">' + emoji + '</span></span></span></span>';
-  const keys = node('Key of Terror','🔑','Hell Countess · Forgotten Tower L5','~10% · Hell only')
-    + node('Key of Hate','🔑','Hell Summoner · Arcane Sanctuary','~10% · Hell only')
+  const keys = node('Key of Terror','🔑','Hell Countess · Forgotten Tower L5','~8-9% · Hell only')
+    + node('Key of Hate','🔑','Hell Summoner · Arcane Sanctuary','~9-13% · Hell only')
     + node('Key of Destruction','🔑','Hell Nihlathak · Halls of Vaught','~10% · Hell only');
   const organs = node("Diablo's Horn",'🩸',"Lilith · Matron's Den",'100% per kill')
     + node("Mephisto's Brain",'🩸','Uber Izual · Furnace of Pain','100% per kill')

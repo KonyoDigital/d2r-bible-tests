@@ -406,6 +406,14 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2117 - TERROR AND HATE STILL PRINTED ~10% IN FIVE PLACES UNDER CARDS THAT SAY ~8-9% AND ~9-13% (2026-10-09)
+
+Found while writing the v3629 brief: REG-2107 gave each key card its sourced rate (Terror ~8-9%, Hate ~9-13%, Destruction
+~10%) and stopped at the cards - the Uber "Step 1 - Farm the three keys" table (Terror, Hate), the Summoner card's Drops row
+and the uber-path nodes (Terror, Hate) still said ~10%. The third time tonight a text fix was one spelling wide (REG-2104,
+REG-2105). The five now print their card's rate, and the law is a sweep: every "~N%" after a key's name, up to the next
+key's name, must equal that key's SPECIAL_DROPS rate (13 rates read at the fix; 3 tampers each red on their own line).
+
 ### REG-2116 - THE CONSOLE'S ITEM CARD NEVER BORROWED A TITLE, SO THE OS BOX OPENED OVER IT (2026-10-09, #220)
 
 GrokBot ticks 392 / 407 / 422 photographed a grey OS tooltip painted with a styled one (the eyes card, a stray "default OFF"
