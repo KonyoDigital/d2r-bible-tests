@@ -406,6 +406,15 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2085 - "MULTIPLE CHESTS", A SUPER-UNIQUE (2026-10-08, #231 eye on v43)
+
+The #231 code seat's look at May's ac32a033, re-measured at HEAD: zoneDetailHtml painted every dot-separated piece of a
+zone's `unique` as a super-unique chip - Worldstone Keep's 'Random Champion/Unique packs · multiple chests' became two; and
+the TC87 line said terror LIFTS a zone to TC87 beside WSK's own 'WSK L3 hits TC87 even Hell-only'. A name the super-unique
+index knows stays a clickable chip; the rest goes to an 'also here' row; the TC87 line says what the zone is when
+terrorized. The look's second finding (a <85 'runeword-base farm' line over Catacombs L4) is moot at HEAD - no zone is
+under TC85 now. Law: test_the_super_uniques_row_holds_super_uniques.
+
 ### REG-2084 - "8 RUNS · 12 ON DISK IN ALL (3 HIDDEN FIXTURES)" (2026-10-08, #236)
 
 GrokBot ticks 380, 400, 401 and 425: 8 + 3 is 11, and the strip said '9 on the shelf'. reel_census already counts `his`

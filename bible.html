@@ -14567,12 +14567,18 @@ function zoneDetailHtml(z){
   const tcUnlock = z.tcMax >= 87 ? 'TC87' : z.tcMax >= 85 ? 'TC85' : ('TC' + z.tcMax);
   const elite = `CoA · Death's Fathom · Griffon's · Stormshield · Tomb Reaver`;
   const unlockTxt = z.tcMax >= 87
-    ? `Terror lifts this zone to mlvl ${z.mlvl} / TC87 — the highest ceiling in the game. Every elite unique can roll: the TC85 set (${elite}) plus the top TC87 tier.`
+    ? `Terrorized, this zone is mlvl ${z.mlvl} / TC87 — the highest ceiling in the game. Every elite unique can roll: the TC85 set (${elite}) plus the top TC87 tier.`
     : (z.tcMax >= 85
       ? `Terror lifts this zone to mlvl ${z.mlvl} / TC85 — unlocking the elite uniques that only drop at the terror ceiling: ${elite}.`
       : `Terror caps this zone at mlvl ${z.mlvl} / TC${z.tcMax} — it does NOT reach the TC85 elite pool, so it's a density / quest / runeword-base farm, not an elite-unique target.`);
   const supers = z.unique.split('·').map(s => s.trim()).filter(Boolean);
-  const superHtml = supers.map(s => { const _i = suIndexByName(s); return _i >= 0 ? `<span class="zd-su" data-su-idx="${_i}" onclick="event.stopPropagation(); jumpToSuperUnique(${_i})" style="cursor:pointer" title="open super-unique detail">${s}</span>` : `<span class="zd-su">${s}</span>`; }).join('');
+  /* REG-2085 (#231 eye on v43, re-measured at HEAD) - THE SUPER-UNIQUES ROW HOLDS SUPER-UNIQUES. Worldstone Keep's
+     'Random Champion/Unique packs · multiple chests' was split on the dot and painted as two super-unique chips; an act boss
+     ('Nihlathak (Vaught) - Key of Destruction source') did the same. A name the super-unique index knows is a clickable
+     chip; anything else is said on its own 'also here' row. And the TC87 line no longer says terror is what LIFTS a zone
+     whose own note says it 'hits TC87 even Hell-only' - it says what the zone is when terrorized. */
+  const superHtml = supers.filter(s => suIndexByName(s) >= 0).map(s => { const _i = suIndexByName(s); return `<span class="zd-su" data-su-idx="${_i}" onclick="event.stopPropagation(); jumpToSuperUnique(${_i})" style="cursor:pointer" title="open super-unique detail">${s}</span>`; }).join('');
+  const alsoHtml = supers.filter(s => suIndexByName(s) < 0).map(s => `<span class="zd-also">${s}</span>`).join(' · ');
   const actShort = z.act.split('·')[0].trim();
   // v85.1: render the zone detail in the SAME golden .gbc-card shell the Baal /
   // Herald cards use — gradient header banner (emblem + name + tier) + sectioned
@@ -14598,7 +14604,8 @@ function zoneDetailHtml(z){
         <div class="zd-stat"><span class="zd-sk">TC ceiling</span><span class="zd-sv">${tcUnlock}</span></div>
         <div class="zd-stat"><span class="zd-sk">density</span><span class="zd-sv">${z.density}</span></div>
       </div>
-      <div class="zd-row"><span class="zd-k">super-uniques</span><span class="zd-v zd-su-wrap">${superHtml || '<span class="zd-su">random champion / unique packs</span>'}</span></div>
+      <div class="zd-row"><span class="zd-k">super-uniques</span><span class="zd-v zd-su-wrap">${superHtml || '<span class="zd-su">none named — random champion / unique packs</span>'}</span></div>${alsoHtml ? `
+      <div class="zd-row"><span class="zd-k">also here</span><span class="zd-v">${alsoHtml}</span></div>` : ''}
       ${zoneSuRosterHtml(zi)}
       <div class="zd-row"><span class="zd-k">terror unlocks</span><span class="zd-v">${unlockTxt}</span></div>
       ${zoneHellGridHtml(z)}

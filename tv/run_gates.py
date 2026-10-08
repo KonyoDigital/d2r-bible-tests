@@ -9176,6 +9176,11 @@ GATES = [
          needs_app=False,
          why=("REG-2084 (#236, GrokBot 380/400/401/425) - '8 RUNS · 12 on disk in all (3 hidden fixtures)' did not add "
               "up on screen: the census's recent reels were never printed.")),
+    Gate("test_the_super_uniques_row_holds_super_uniques", [sys.executable,
+         os.path.join(HERE, "test_the_super_uniques_row_holds_super_uniques.py")], 30,
+         needs_app=False,
+         why=("REG-2085 (#231 eye on v43) - Worldstone Keep's 'packs · multiple chests' were painted as super-unique "
+              "chips, and the TC87 line credited terror with a ceiling WSK L3 has without it.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,
