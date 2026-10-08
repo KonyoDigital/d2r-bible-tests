@@ -22388,7 +22388,7 @@ window._lockMark = function(isOpen, px, label){
       var label = ((b && b.textContent) || '').replace(/\s+/g, ' ').trim() || tab;
       v.textContent = 'opening ' + label + ' - the board is busy; it lands by itself';
       v.style.cssText = 'position:fixed;left:0;right:0;bottom:0;top:' + _shellHeadH() + 'px;z-index:941;display:flex;'
-        + 'align-items:center;justify-content:center;background:rgba(7,6,5,.94);color:#f0c060;font-size:14px;'
+        + 'align-items:center;justify-content:center;background:rgba(7,6,5,.94);color:#f0c060;font-size:var(--fs-xs);'
         + 'letter-spacing:.08em;pointer-events:none';
     } catch (e) {}
   }
