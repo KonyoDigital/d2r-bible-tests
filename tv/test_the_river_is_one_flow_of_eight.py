@@ -98,6 +98,15 @@ def _block():
     return src[i:j + len(END)]
 
 
+def _popfn():
+    """REG-2084 - the page's _shelfPopClause, cut whole (its export line excluded), for the river harness."""
+    src = _src()
+    a, b = "  function _shelfPopClause(P, shown, pushed){\n", "\n  }\n  window._shelfPopClause = _shelfPopClause;"
+    assert src.count(a) == 1, "_shelfPopClause occurs %d times" % src.count(a)
+    i = src.find(a)
+    return src[i:src.index(b, i) + len("\n  }\n")]
+
+
 def _fallback_literal():
     """The number after the colon on the RIVER_KEEP line. -> int. Read off the block, never guessed."""
     m = re.search(r"var RIVER_KEEP = \(typeof SHELF_RIVER_KEEP === 'number' && SHELF_RIVER_KEEP >= 1\) "
@@ -168,6 +177,10 @@ var SHELF_MOUTH = %(mouth)s;
    dependency one version earlier. [[source-reading-guard]] — an extracted region carries its free
    names with it, and a harness that does not declare them measures its own gaps. */
 var SHELF_POP = %(pop)s;
+/* REG-2084 - the block now calls _shelfPopClause (the 'on disk in all' clause, re-homed from an inline IIFE): declared
+   here from the page's own bytes, with the escaper it uses, as SHELF_POP was declared above. */
+function esc(s){ return String(s == null ? '' : s); }
+%(popfn)s
 /* REG-1480 — the console's window, as /api/river publishes it and the page's reader stores it.
    null = the river has not answered (the block falls back to his ruling); a number = the console's. */
 var SHELF_RIVER_KEEP = %(keep)s;
@@ -206,7 +219,7 @@ class TheRiverIsOneFlowOfEight(unittest.TestCase):
     def drive(self, cards, mouth="null", pop="null", keep=None, kept=None):
         """`keep` None = the console's published window (KEEP); "null" = the river has not answered.
         `kept` None = the console named no set (riverKept absent); a list = its riverKept."""
-        js = HARNESS % {"cards": json.dumps(cards), "block": _block(), "mouth": mouth,
+        js = HARNESS % {"cards": json.dumps(cards), "block": _block(), "mouth": mouth, "popfn": _popfn(),
                         "pop": pop, "keep": (str(KEEP) if keep is None else str(keep)),
                         "kept": ("null" if kept is None else json.dumps(kept))}
         try:

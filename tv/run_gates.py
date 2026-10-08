@@ -9171,6 +9171,11 @@ GATES = [
          needs_app=False,
          why=("REG-2083 (GrokBot 424 K08/K09) - 'swept · 3 missed-text' over a list of 5 and 'recovered 2/5': three true "
               "counts that never said which was which.")),
+    Gate("test_the_shelf_census_names_the_part_he_sees", [sys.executable,
+         os.path.join(HERE, "test_the_shelf_census_names_the_part_he_sees.py")], 30,
+         needs_app=False,
+         why=("REG-2084 (#236, GrokBot 380/400/401/425) - '8 RUNS · 12 on disk in all (3 hidden fixtures)' did not add "
+              "up on screen: the census's recent reels were never printed.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

@@ -406,6 +406,15 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2084 - "8 RUNS · 12 ON DISK IN ALL (3 HIDDEN FIXTURES)" (2026-10-08, #236)
+
+GrokBot ticks 380, 400, 401 and 425: 8 + 3 is 11, and the strip said '9 on the shelf'. reel_census already counts `his`
+(the recent reels retention keeps for him - 9 that tick); the clause listed fixtures, owed, releasable and unknown tags but
+never the part he sees. Re-homed from an inline IIFE into `_shelfPopClause(P, shown, pushed)`: it now prints '12 on disk in
+all (9 recent · 3 hidden fixtures) · 1 recent reel on disk with no card on this shelf' - the difference measured, the
+reason not guessed. Two laws that read the old IIFE re-pointed honestly (the river harness now declares the function from
+the page's bytes, as it did SHELF_POP). Law: test_the_shelf_census_names_the_part_he_sees (2 red-proofs).
+
 ### REG-2083 - "swept · 3 missed-text" OVER A LIST OF 5 (2026-10-08, GrokBot tick 424 K08/K09)
 
 Session 29's dossier: chip 'swept · 3 missed-text', MISSED TEXT list of 5 rows (two Heart of the Oak, three unreadable),

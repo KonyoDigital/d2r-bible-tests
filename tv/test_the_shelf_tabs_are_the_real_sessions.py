@@ -619,9 +619,11 @@ class TheShelfTabsAreTheRealSessions(unittest.TestCase):
 
     def _pop_clause(self):
         src = _py_only(self.src)
-        i = src.find("var P = SHELF_POP;")
+        # REG-2084 - the clause moved out of an inline IIFE into _shelfPopClause(P, shown, pushed) so a law can drive it;
+        # the same body, bounded by the function and its export line
+        i = src.find("  function _shelfPopClause(P, shown, pushed){")
         self.assertGreater(i, -1, "the header's population clause is gone or renamed")
-        j = src.find("})();", i)
+        j = src.find("  window._shelfPopClause = _shelfPopClause;", i)
         self.assertGreater(j, i, "the population clause never closes")
         return src[i:j]
 

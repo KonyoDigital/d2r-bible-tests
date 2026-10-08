@@ -19343,6 +19343,51 @@ window._lockMark = function(isOpen, px, label){
   // v1285 (D10) — DAY-GROUPING: lightweight date headers (Today · Yesterday · This week · Older) over the VISIBLE,
   // sorted cards, honest per-group counts. Only in the date-ordered (Newest) view — a non-date sort gracefully
   // collapses to a flat list (headers omitted) since day sections would scatter. Composes with search/filter.
+  /* REG-2084 - the shelf's 'on disk in all' clause, re-homed from an inline IIFE so a law can drive it. -> '' | ' · N on disk ...' */
+  function _shelfPopClause(P, shown, pushed){
+                  if (!P || P.sums !== true || typeof P.onDisk !== 'number') return '';
+                  /* ⚠ v3280 — EVERY COUNT IS PROVEN A NUMBER BEFORE IT IS PRINTED. Raised by
+                     the cross-family eye: the guard checked `sums` and `onDisk` and then trusted
+                     `fixtures`/`owed`/`releasable` and the values inside `other` blindly. A
+                     payload carrying `owed:null` or `releasable:"x"` would render
+                     "0 waiting on a lane · NaN releasable" — garbage that still reads as a
+                     measurement. `_n` returns a positive integer or 0, and 0 prints nothing, so a
+                     malformed count becomes SILENCE rather than a number he might act on.
+                     [[unknown-stays-unknown]] [[zero-needs-a-denominator]] */
+                  var _n = function(v){
+                    var x = (typeof v === 'number' && isFinite(v)) ? Math.floor(v) : 0;
+                    return x > 0 ? x : 0;
+                  };
+                  var bits = [], _fx = _n(P.fixtures), _ow = _n(P.owed), _rl = _n(P.releasable);
+                  if (_fx) bits.push(_fx + ' hidden fixture' + (_fx === 1 ? '' : 's'));
+                  /* v3344 — the tag says WHAT is owed; the lane only says who owns it. The
+                     engine now sends owedTags and shelf_driver.OWED_SAYS supplies the wording,
+                     so this prints the same sentence the engine prints. */
+                  if (_ow) bits.push(_ow + ' still owed');
+                  if (_rl) bits.push(_rl + ' releasable');
+                  var oth = P.other && typeof P.other === 'object' ? Object.keys(P.other) : [];
+                  /* ⚠ v3280 — ESCAPED, because `mkHead` inserts this label as HTML and the
+                     sibling clause two lines up already does `esc(String(SHELF_MOUTH.why))`.
+                     These tag names come from `reel_retention`'s own rules, so nothing hostile
+                     reaches here today — but an unescaped backend string in an HTML label is a
+                     habit, not a risk assessment, and the inconsistency is the part that rots.
+                     Caught reading my own bytes after the cross-family eye called it clean. */
+                  for (var i = 0; i < oth.length; i++) {
+                    var _on = _n(P.other[oth[i]]);
+                    if (_on) bits.push(_on + ' ' + esc(String(oth[i])));
+                  }
+                  /* #236 (REG-2084, GrokBot ticks 380, 400, 401, 425) - AND THE PART HE SEES. '8 RUNS · 12 on disk in all (3 hidden
+                     fixtures)' does not add up on screen (8 + 3 is 11) because the census's own `his` - the recent reels kept
+                     for him, 9 that tick - was never printed. Name it, and when more recent reels sit on disk than this shelf
+                     draws (cards + pushed past the cap), say how many have no card here - measured, not explained. */
+                  var _his = _n(P.his), _shown = _n(shown) + _n(pushed);
+                  if (_his) bits.unshift(_his + ' recent');
+                  if (!bits.length) return '';
+                  var _noCard = (_his > _shown) ? (_his - _shown) : 0;
+                  return ' \u00b7 ' + P.onDisk + ' on disk in all (' + bits.join(' \u00b7 ') + ')'
+                    + (_noCard ? ' \u00b7 ' + _noCard + ' recent reel' + (_noCard === 1 ? '' : 's') + ' on disk with no card on this shelf' : '');
+  }
+  window._shelfPopClause = _shelfPopClause;
   function _shGroups(){
     var ov = $('th-shelfov'); if (!ov || ov.hidden) return;
     var grid = ov.querySelector('.sh-grid'); if (!grid) return;
@@ -19663,42 +19708,7 @@ window._lockMark = function(isOpen, px, label){
                  the whole clause is dropped unless the census ADDS UP, because a reconciliation
                  that does not sum is worse on a screen than none at all.
                  [[zero-needs-a-denominator]] [[the-unjoined-end]] */
-              + (function(){
-                  var P = SHELF_POP;
-                  if (!P || P.sums !== true || typeof P.onDisk !== 'number') return '';
-                  /* ⚠ v3280 — EVERY COUNT IS PROVEN A NUMBER BEFORE IT IS PRINTED. Raised by
-                     the cross-family eye: the guard checked `sums` and `onDisk` and then trusted
-                     `fixtures`/`owed`/`releasable` and the values inside `other` blindly. A
-                     payload carrying `owed:null` or `releasable:"x"` would render
-                     "0 waiting on a lane · NaN releasable" — garbage that still reads as a
-                     measurement. `_n` returns a positive integer or 0, and 0 prints nothing, so a
-                     malformed count becomes SILENCE rather than a number he might act on.
-                     [[unknown-stays-unknown]] [[zero-needs-a-denominator]] */
-                  var _n = function(v){
-                    var x = (typeof v === 'number' && isFinite(v)) ? Math.floor(v) : 0;
-                    return x > 0 ? x : 0;
-                  };
-                  var bits = [], _fx = _n(P.fixtures), _ow = _n(P.owed), _rl = _n(P.releasable);
-                  if (_fx) bits.push(_fx + ' hidden fixture' + (_fx === 1 ? '' : 's'));
-                  /* v3344 — the tag says WHAT is owed; the lane only says who owns it. The
-                     engine now sends owedTags and shelf_driver.OWED_SAYS supplies the wording,
-                     so this prints the same sentence the engine prints. */
-                  if (_ow) bits.push(_ow + ' still owed');
-                  if (_rl) bits.push(_rl + ' releasable');
-                  var oth = P.other && typeof P.other === 'object' ? Object.keys(P.other) : [];
-                  /* ⚠ v3280 — ESCAPED, because `mkHead` inserts this label as HTML and the
-                     sibling clause two lines up already does `esc(String(SHELF_MOUTH.why))`.
-                     These tag names come from `reel_retention`'s own rules, so nothing hostile
-                     reaches here today — but an unescaped backend string in an HTML label is a
-                     habit, not a risk assessment, and the inconsistency is the part that rots.
-                     Caught reading my own bytes after the cross-family eye called it clean. */
-                  for (var i = 0; i < oth.length; i++) {
-                    var _on = _n(P.other[oth[i]]);
-                    if (_on) bits.push(_on + ' ' + esc(String(oth[i])));
-                  }
-                  if (!bits.length) return '';
-                  return ' \u00b7 ' + P.onDisk + ' on disk in all (' + bits.join(' \u00b7 ') + ')';
-                })();
+              + _shelfPopClause(SHELF_POP, keptN + pinN, pushedN);   /* REG-2084 */
       mkHead(lab, keptN + pinN, flow[0],
              ' sh-rivergroup' + (_mouthHasRows ? ' sh-rivermouth' : ''));
       /* ⚠⚠ v3261 — THE HEADER COUNTED FILTER-MATCHES WHILE THE RIVER HAD CAPPED THE SCREEN.
