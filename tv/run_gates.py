@@ -9105,6 +9105,12 @@ GATES = [
          why=("REG-2066 (#292, GrokBot 419-422) - ENGINES JOINED read 13 of 14 over 9 joined, 4 no data, 1 unjoined: the "
               "header was rows minus unjoined.")
          ),
+    Gate("test_the_shelf_button_says_what_it_will_do", [sys.executable,
+         os.path.join(HERE, "test_the_shelf_button_says_what_it_will_do.py")], 30,
+         needs_app=False,
+         why=("REG-2067 (#282, GrokBot 418 K04/K05) - the 📚 button read 'pick any recorded session' while a press closed "
+              "the open shelf.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

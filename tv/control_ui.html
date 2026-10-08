@@ -19850,6 +19850,22 @@ window._lockMark = function(isOpen, px, label){
     _shGroups();   // v1285 (D10) — re-draw day headers over the newly-filtered visible set
   }
   $('th-shelf').onclick = function(){ thShelfToggle(); };
+  /* #282 (REG-2067, GrokBot tick 418 K04/K05) - THE BUTTON SAYS WHAT IT WILL DO. It always read 'The shelf - pick any
+     recorded session (S)', and with the shelf already open it closes it (and, the shelf having been the door, closes back to
+     the tab it was opened from) - so 'pick a session' sat on a button that closed the session list. Its words follow the
+     shelf's state, read off the overlay itself wherever it is shown or hidden from. */
+  window._thShelfBtnSay = function(shelfOpen){
+    return shelfOpen ? 'Close the shelf (S) \u2014 back to where you opened it' : 'The shelf \u2014 pick any recorded session (S)';
+  };
+  try {
+    (function(){
+      var ov = $('th-shelfov'), btn = $('th-shelf');
+      if (!ov || !btn || typeof MutationObserver === 'undefined') return;
+      var sync = function(){ var t = window._thShelfBtnSay(!ov.hidden); if (btn.hasAttribute('data-tip-held')) btn.setAttribute('data-tip-held', t); else btn.setAttribute('title', t); };
+      new MutationObserver(sync).observe(ov, { attributes: true, attributeFilter: ['hidden'] });
+      sync();
+    })();
+  } catch (_sb) {}
   /* ⚠ v2804 — EXPORTED, because a panel nothing can open is a panel nothing can photograph.
      `thShelf` lives inside this file's IIFE, exactly like `_shLanesLoad` two thousand lines up —
      and that one is explicitly put on `window` while this one never was. Measured: a render
