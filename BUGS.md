@@ -406,6 +406,14 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2043 - A RIGHT-CLICK ON A TAB LABEL SWITCHED ROOMS (2026-10-08, #142)
+
+GrokBot on #230 (the eight checks, console v3621): a left-click on Sessions now switches on the first click, and "one
+right-click on TV·D then switched to TV·D". #142's fix left on the PRESS (pointerdown) so the first click outside the
+focused board iframe is not spent blurring it - for every button. Now only a primary press moves: a right press, a middle
+press and a Mac ctrl-click (a right-click arriving as button 0) return early. No law covered _headTabGo before this one.
+Law: test_a_right_click_on_a_tab_does_not_switch_rooms (drives the shipped function in node; 1 red-proof).
+
 ### REG-2042 - AN EXAMINED-EMPTY SEAL RELEASED A REEL ON ONE PROBE AGAINST 268 STASH PANELS (2026-10-08, #203)
 
 REC-02 F1 of the 10-07 simulation pass: reel ...39108 was deleted on 09-28 on an examinedEmpty seal that probed ONE frame

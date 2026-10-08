@@ -8994,6 +8994,12 @@ GATES = [
          why=("REG-2042 (#203, his 10-07 ruling 'probe every panel') - reel ...39108 was deleted on an examined-empty seal that "
               "probed 1 frame against 268 triage stash panels; a seal now releases only when it probed every panel triage saw.")
          ),
+    Gate("test_a_right_click_on_a_tab_does_not_switch_rooms", [sys.executable,
+         os.path.join(HERE, "test_a_right_click_on_a_tab_does_not_switch_rooms.py")], 60,
+         needs_app=False,
+         why=("REG-2043 (#142, GrokBot on v3621) - a right-click on the TV·D tab label switched rooms: the leave-on-press fix "
+              "listened to every button. Only a primary press moves; a right, middle or Mac ctrl-click never does.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

@@ -22328,6 +22328,10 @@ window._lockMark = function(isOpen, px, label){
   var _headTabPtr = null, _headTabPtrTs = 0;
   function _headTabGo(e){
     var b = e.target && e.target.closest && e.target.closest('.ht'); if (!b) return;
+    /* #142 (GrokBot, 2026-10-08 on v3621: "one right-click on TV·D jumped straight to TV·D") - ONLY THE PRIMARY PRESS
+       MOVES. A right press, a middle press and a Mac ctrl-click (a right-click that arrives as button 0) open a menu or
+       nothing; they never switch rooms. */
+    if (e.type === 'pointerdown' && (e.button !== 0 || e.ctrlKey)) return;
     if (e.type === 'click' && b === _headTabPtr && ((e.timeStamp || 0) - _headTabPtrTs) < 700) {
       e.preventDefault();
       e.stopPropagation();
