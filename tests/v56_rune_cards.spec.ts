@@ -69,7 +69,7 @@ test.describe('v56 per-rune ID cards', () => {
         loShield: /in a shield/.test(lo),
         loWhere: /Where it drops/.test(lo),
         loCountess: /Countess \(Hell\)/.test(lo),     // pulled from COUNTESS_RUNES
-        loCube: /Cube upgrade/.test(lo) && /Perfect Amethyst/.test(lo),
+        loCube: /Cube upgrade/.test(lo) && /2 Lo \+ Flawless Topaz → Sur/.test(lo),   // REG-2108 - the cube section's recipe (Arreat Summit); a rune never takes a Perfect gem
         loRunewords: /Key runewords/.test(lo) && /Fortitude/.test(lo),
         loNoUndef: !/undefined/.test(lo),
         // Zod is the top rune — no cube-up target
