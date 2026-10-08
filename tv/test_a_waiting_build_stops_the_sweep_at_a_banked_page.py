@@ -32,7 +32,7 @@ import chronicle_retro as cr  # noqa: E402
 import control_app as ca  # noqa: E402
 import tv_diablo as tv  # noqa: E402
 
-REEL = "reel_s_1790000000001_1"
+REEL = "reel_s_law_resume"   # synthetic - a law never names one of his real reels (test_no_pinned_footage)
 
 
 class TheEngineSkipsWhatAStoppedPassBanked(unittest.TestCase):

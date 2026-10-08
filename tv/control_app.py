@@ -37255,7 +37255,7 @@ def _stamp_math_broke(where, exc):
 # name a LANE. [[label-outlived-referent]]
 
 
-_EVIDENCE_REEL_RE = re.compile(r"^(?:reel_)?(s_[A-Za-z0-9_]+)$")
+_EVIDENCE_REEL_RE = re.compile(r"^(?:reel_([A-Za-z0-9_]+)|(s_[A-Za-z0-9_]+))$")
 
 
 def _evidence_reel_id(r):
@@ -37265,7 +37265,7 @@ def _evidence_reel_id(r):
     the same reel under read_reel's sessionId fallback, so it is spelled as the path; anything else names no reel.
     """
     m = _EVIDENCE_REEL_RE.match(str(r or "").strip())
-    return ("reel_" + m.group(1)) if m else None
+    return ("reel_" + (m.group(1) or m.group(2))) if m else None
 
 
 def evidence_for(name, ledger=None):

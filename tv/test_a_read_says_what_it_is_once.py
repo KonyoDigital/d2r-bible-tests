@@ -98,8 +98,10 @@ class AReadSaysWhatItIsOnce(unittest.TestCase):
         self.assertNotIn("Dwarf Star Ring", names, names)
 
     def test_only_a_reel_is_listed_as_a_reel(self):
-        self.assertEqual(ca._evidence_reel_id("reel_s_1786999742937_35523"), "reel_s_1786999742937_35523")
-        self.assertEqual(ca._evidence_reel_id("s_1788194356763_27344"), "reel_s_1788194356763_27344")
+        # synthetic ids only - a law never names one of his real reels (test_no_pinned_footage)
+        self.assertEqual(ca._evidence_reel_id("reel_s_law_one"), "reel_s_law_one")
+        self.assertEqual(ca._evidence_reel_id("s_law_two"), "reel_s_law_two", "a bare session id is spelled as its reel")
+        self.assertEqual(ca._evidence_reel_id("reel_A"), "reel_A", "a reel directory name is a reel")
         self.assertIsNone(ca._evidence_reel_id("hist"))
         self.assertEqual(ca._evidence_reel_id("s_doom_00"), "reel_s_doom_00", "a session id with a name is still a reel")
         self.assertIsNone(ca._evidence_reel_id(None))
@@ -127,8 +129,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2036 F15 - a directory name is listed as a reel again",
      "file": "control_app.py",
-     "find": "    return (\"reel_\" + m.group(1)) if m else None\n",
-     "replace": "    return (\"reel_\" + m.group(1)) if m else (str(r) if r else None)\n",
+     "find": "    return (\"reel_\" + (m.group(1) or m.group(2))) if m else None\n",
+     "replace": "    return (\"reel_\" + (m.group(1) or m.group(2))) if m else (str(r) if r else None)\n",
      "matches": 1},
 ]
 
