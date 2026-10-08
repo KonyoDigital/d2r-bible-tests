@@ -21718,6 +21718,16 @@ def _chron_retired_owing_ids(hist_dir=None):
     return out
 
 
+def _chron_waiting_minus_retired(waiting, retired_ids):
+    """The never-chronicle-swept kept rows that are really WAITING: a reel the tick retired is not. -> list
+
+    REG-2038 (#238). `retired_ids` None (the record would not read) or empty leaves the list as it was.
+    """
+    if not retired_ids:
+        return list(waiting or [])
+    return [k for k in (waiting or []) if str((k or {}).get("reel") or "") not in retired_ids]
+
+
 def _chron_older_seal_tail(waiting_n, owed):
     """The clause after the above-floor sentence. '' when there is nothing further to say.
 
@@ -26929,8 +26939,7 @@ def _retention_once():
         _ret_ids = _chron_retired_owing_ids()
     except Exception:
         _ret_ids = None
-    if _ret_ids:
-        _w_chron = [k for k in _w_chron if str(k.get("reel") or "") not in _ret_ids]
+    _w_chron = _chron_waiting_minus_retired(_w_chron, _ret_ids)
     # ⚠⚠ v2878 — THE SECOND READER OF plan()["kept"], AND v2876 MOVED ONLY THE FIRST.
     # A cross-family review caught it: `_vault_owed_reels` learned `panels-never-banked`
     # and this did not, so the sweeper saw 18 owed while this sentence still said 0 were

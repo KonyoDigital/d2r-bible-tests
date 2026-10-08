@@ -79,8 +79,12 @@ class ARetiredReelIsCountedOnce(unittest.TestCase):
     def test_a_retired_reel_is_not_waiting_and_the_tail_counts_it_once(self):
         with open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as f:
             src = f.read()
-        self.assertEqual(src.count('        _w_chron = [k for k in _w_chron if str(k.get("reel") or "") not in _ret_ids]\n'),
-                         1, "a retired reel is still listed as waiting on a sweep")
+        self.assertEqual(src.count("    _w_chron = _chron_waiting_minus_retired(_w_chron, _ret_ids)\n"), 1,
+                         "the retention step no longer takes the retired reels off its waiting list")
+        rows = [{"reel": "reel_s_1"}, {"reel": "reel_s_2"}]
+        self.assertEqual(ca._chron_waiting_minus_retired(rows, {"reel_s_1"}), [{"reel": "reel_s_2"}],
+                         "a retired reel is still listed as waiting on a sweep")
+        self.assertEqual(ca._chron_waiting_minus_retired(rows, None), rows, "an unreadable record dropped reels")
         self.assertEqual(src.count("            _tail = _chron_older_seal_tail(len(_w_chron), _owed)\n"), 1,
                          "the tail is handed a waiting count that is not the chronicle's")
         # the arithmetic, on disjoint inputs: 1 waiting + 1 retired + 1 older seal = 3 owed
@@ -107,8 +111,8 @@ class ARetiredReelIsCountedOnce(unittest.TestCase):
 RED_PROOF = [
     {"why": "REG-2038 - a retired reel is listed as waiting on a sweep again",
      "file": "control_app.py",
-     "find": "    if _ret_ids:\n        _w_chron = [k for k in _w_chron if str(k.get(\"reel\") or \"\") not in _ret_ids]\n",
-     "replace": "    if False:\n        _w_chron = [k for k in _w_chron if str(k.get(\"reel\") or \"\") not in _ret_ids]\n",
+     "find": "    return [k for k in (waiting or []) if str((k or {}).get(\"reel\") or \"\") not in retired_ids]\n",
+     "replace": "    return list(waiting or [])\n",
      "matches": 1},
     {"why": "REG-2038 - an unreadable retirement record lets the tick start a reel again",
      "file": "control_app.py",
