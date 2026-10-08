@@ -52,6 +52,9 @@ var EXTRA_ITEMS = { "Odd Trophy": { base: "Mystery Base", cells: { w: 2, h: 4 } 
 var ITEM_CODEX = { "Rainbow Facet": { rarity: "unique", base: "Jewels" }, "Bartuc's Cut-Throat": { base: "Greater Talons" },
                    "Shaftstop": { base: "Mesh Armor" }, "Nosferatu's Coil": { base: "Vampirefang Belt" } };
 var ITEM_TIP = {};
+var RUNEWORD_TIP = { "Enigma": { t: "Runeword", b: "3 socket Body Armor" }, "Spirit": { t: "Runeword", b: "4 socket Swords or Shields" },
+                     "Hand of Justice": { t: "Runeword", b: "4 socket Weapons" }, "Delirium": { t: "Runeword", b: "3 socket Helms" } };
+function findRuneword(n){ return RUNEWORD_TIP[n] ? n : null; }
 %s
 %s
 var OUT = {};
@@ -84,6 +87,17 @@ class ThePackerReadsTheFootprintTheTilePrints(unittest.TestCase):
     def test_an_explicit_size_is_honoured_by_the_packer(self):
         self.assertEqual(_sizes(["Odd Trophy"])["Odd Trophy"]["pack"], [2, 4])
 
+    def test_a_runeword_is_sized_by_its_base_never_by_its_name(self):
+        got = _sizes(["Enigma", "Delirium", "Spirit", "Hand of Justice"])
+        self.assertEqual((got["Enigma"]["tile"], got["Enigma"]["approx"]), ([2, 3], False),
+                         "Enigma (3 socket Body Armor) is not drawn as the body armour it always is: %r" % got["Enigma"])
+        self.assertEqual((got["Delirium"]["tile"], got["Delirium"]["approx"]), ([2, 2], False), got["Delirium"])
+        self.assertTrue(got["Spirit"]["approx"], "a runeword whose base names two classes was given a size: %r" % got["Spirit"])
+        self.assertTrue(got["Hand of Justice"]["approx"],
+                        "a runeword was sized by a keyword in its NAME (Hand -> gloves): %r" % got["Hand of Justice"])
+        for n in got:
+            self.assertEqual(got[n]["pack"], got[n]["tile"], n)
+
     def test_the_chip_says_how_many_sizes_are_guessed(self):
         s = _src()
         self.assertEqual(s.count(CHIP), 1, "the locker chip no longer says how many of its sizes are guessed")
@@ -93,6 +107,16 @@ class ThePackerReadsTheFootprintTheTilePrints(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2051 - a runeword falls to the default again although its base settles its size (Enigma 1x2)",
+     "file": "bible.html",
+     "find": "        if (/^\\d+\\s+socket\\s+body armou?r$/.test(_rwb)) cells = {w:2,h:3};\n",
+     "replace": "        if (false) cells = {w:2,h:3};\n",
+     "matches": 1},
+    {"why": "REG-2051 - a runeword is sized by a keyword in its name again (Hand of Justice read as gloves)",
+     "file": "bible.html",
+     "find": "        _ITEM_CELLS_CACHE[name] = cells;\n        return cells;\n      }\n",
+     "replace": "      }\n",
+     "matches": 1},
     {"why": "REG-2051 - the packer answers with its own default again (a second copy of the footprint rule)",
      "file": "bible.html",
      "find": "    return c ? [c.w || 1, c.h || 1] : [1, 2];\n",

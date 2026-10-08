@@ -413,10 +413,14 @@ UNI-ARMOR "24 cells" over tiles summing to 22. The packer behind the chip, the g
 carried its own keyword table, unknown base -> [2,2]; every tile prints `_itemCells`, unknown base -> 1x2 marked
 approx, with EXTRA_ITEMS.cells and the v2240/v2242 fixes the packer never had. `vaultSize` now returns `_itemCells`'
 answer and the second table is gone; the chip says "(k of unknown size, counted at the default 1x2)". A hand-placed
-spot a new size no longer fits is not erased - the packer says "your spot no longer fits" and re-packs it. Same
-ticket: the Routing Ledger subtitle the ellipsis cut at "droppe" now reads "the last 400 decisions · older ones
-dropped". The "gbeyes" typo GrokBot read in the UNI-ARMOR note is in no source file (the note reads "… boots ·
-gloves") - recorded as a likely transcription, UNKNOWN. Law: test_the_packer_reads_the_footprint_the_tile_prints.
+spot a new size no longer fits is not erased - the packer says "your spot no longer fits" and re-packs it.
+Tick 418 (K14) added the runeword half: Enigma has no codex row, so BOTH resolvers guessed (tile 1x2, packer 2x2 -
+"2 items · 8 cells"). A runeword is now sized by the base class its tip names when that class has one size (body
+armour 2x3, helms 2x2) and never by a keyword in its name ("Hand of Justice" was read as gloves); "Swords or Shields"
+stays a labelled guess. Same ticket: the Routing Ledger and REGISTERED subtitles lost their LAST letter ("droppe",
+"sorte") - the italic overhang clipped by `overflow:hidden` beside the rule's diamond; `.to-subt` gets .2em of
+right padding. The "gbeyes" typo GrokBot reads in the UNI-ARMOR note is in no source file (the note reads "… boots
+· gloves") - UNKNOWN, asked back on #230 with a crop. Law: test_the_packer_reads_the_footprint_the_tile_prints.
 
 ### REG-2050 - "SHOW ALL 32 DROPPABLE ITEMS" OF 267 (2026-10-08, #278)
 

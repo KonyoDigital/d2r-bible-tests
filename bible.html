@@ -18617,6 +18617,19 @@ function _itemCells(name){
         var ex = (typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS[name]) ? EXTRA_ITEMS[name] : null;
         base = (c && c.base) || (t && t.b) || (ex && ex.base) || '';
       } catch(e){}
+      /* #275 (GrokBot tick 418, K14) - A RUNEWORD IS SIZED BY ITS BASE, NEVER BY ITS NAME. Enigma has no codex row, so it
+         fell to the default 1x2 ("size not established") although every Enigma is body armour (2x3) - and a runeword
+         name matched as a base keyword lies outright ("Hand of Justice" read as gloves). Its tip names the base CLASS;
+         only a class with ONE size settles it (body armour 2x3, helms 2x2). Anything else - "Swords or Shields",
+         "Weapons" - stays a guess that says so. */
+      var _rwk = (!base && typeof findRuneword === 'function' && typeof RUNEWORD_TIP !== 'undefined') ? findRuneword(name) : null;
+      if (_rwk){
+        var _rwb = String((RUNEWORD_TIP[_rwk] && RUNEWORD_TIP[_rwk].b) || '').trim().toLowerCase();
+        if (/^\d+\s+socket\s+body armou?r$/.test(_rwb)) cells = {w:2,h:3};
+        else if (/^\d+\s+socket\s+(helms|barbarian helms|druid pelts)$/.test(_rwb)) cells = {w:2,h:2};
+        _ITEM_CELLS_CACHE[name] = cells;
+        return cells;
+      }
       var s = ((base ? base + ' ' : '') + name).toLowerCase();
       // ⚠ v2240 — A PLURAL BASE MATCHED NOTHING, AND FELL ALL THE WAY THROUGH TO THE DEFAULT.
       // Konyo, on the Rainbow Facet: "it should be the size 1x1, like the amulet next to it."
@@ -37278,7 +37291,7 @@ body{
    target is kept as a spare, not a discard" (103 chars) ellipsised at "kept as..." with the
    decorative .to-rule taking ~900px beside it. The cap is gone; .to-rule is flex:1 with a 40px
    floor, so the subtitle takes what it needs and ellipsis stays as the NARROW-screen fallback. */
-.to-subt{color:#a8946c;font-size:11.5px;font-style:italic;letter-spacing:var(--ls-tight);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.to-subt{color:#a8946c;font-size:11.5px;font-style:italic;letter-spacing:var(--ls-tight);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding-right:.2em}
 .to-rule{flex:1;min-width:40px;height:1px;margin:0 2px;background:linear-gradient(90deg,rgba(212,168,71,.55),rgba(212,168,71,.14) 62%,transparent);position:relative}
 .to-rule::before{content:'';position:absolute;left:-1px;top:-2.5px;width:6px;height:6px;transform:rotate(45deg);background:linear-gradient(135deg,#f0d489,#a87c28);box-shadow:0 0 7px rgba(212,168,71,.8)}
 @media (max-width:860px){.to-st{font-size:16px;white-space:normal}.to-subt{display:none}.to-rule{min-width:16px}}
@@ -47081,7 +47094,7 @@ window.renderRoutingLedger = function(){
        The cap is NOT changed here: that is a storage-policy call and 400 is a deliberate number.
        What changes is that the subtitle stops overclaiming once the window is full. */
     + '<span class="to-subt">' + (rows.length >= 400
-        ? 'the last 400 decisions · older ones dropped'   /* #275 - the longer sentence was cut mid-word ("droppe") */
+        ? 'the most recent 400 decisions — older ones have been dropped'
         : 'every decision the board made — what went where, and why') + '</span></span>'
     /* v2137 — the only one of six to-sum headers with no expand cue, so the ledger read as a
        dead banner while it is a <details> he can open. Same chevron as its five siblings. */
