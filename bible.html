@@ -12794,6 +12794,24 @@ const _RUNE_TIER_DROP = {
   high: "Travincal council has the best high-rune throughput in the game; Countess (Hell) drops these too but rarely, plus LK superchests and Hell TZ mlvl 85+ monsters. The Hellforge Hell pool tops out at Gul (#25). Cubing up from a stack of the prior rune is often faster than hunting the drop.",
   ultra:"The rarest tier — does NOT drop from the Countess or the Hellforge. Real sources: Travincal council, LK superchests, and Hell mlvl 85+ TZ monsters / act bosses. Most players cube these up (2× of the prior rune + a Perfect gem) rather than ever seeing one drop."
 };
+/* REG-2104 (the v3626 second eye; swept) - THE RUNE CARD'S RUNEWORDS COME FROM THE RECIPE TABLE. RUNES[].rw was a hand-written
+   list, and 91 of its 132 named runewords do not hold the rune (Ber -> Call to Arms, Jah -> Infinity, Ohm -> Beast...). The card now
+   lists every RUNEWORDS entry whose recipe holds this rune - the table the Forge reads - and rw keeps only notes that are not
+   runeword names (Hel's unsocket recipe, a socket filler). */
+function _runeRunewordsHtml(r){
+  var uses = [];
+  try {
+    (typeof RUNEWORDS !== 'undefined' ? RUNEWORDS : []).forEach(function(w){
+      var rs = String((w && w.runes) || '').split('+').map(function(x){ return x.trim(); });
+      var nm = String((w && w.n) || '').replace(/\s*\(.*\)$/, '');
+      if (nm && rs.indexOf(r.n) >= 0 && uses.indexOf(nm) < 0) uses.push(nm);
+    });
+  } catch (e) {}
+  var head = uses.length
+    ? uses.slice(0, 12).join(', ') + (uses.length > 12 ? ' <span style="color:var(--text-dim)">+' + (uses.length - 12) + ' more</span>' : '')
+    : '<span style="color:var(--text-dim)">no runeword in this page\'s recipe table uses it</span>';
+  return head + (r.rw ? '<div style="color:var(--text-dim);margin-top:4px">' + r.rw + '</div>' : '');
+}
 function runeDetailHtml(name){
   const r = findRune(name); if (!r) return '';
   const tierLabel = {low:'Low rune', mid:'Mid rune', high:'High rune', ultra:'Ultra rune'}[r.tier] || 'Rune';
@@ -12833,7 +12851,7 @@ function runeDetailHtml(name){
     </section>
     <section class="gic-section">
       <div class="gic-section-title">🔗 Key runewords</div>
-      <div style="font-size:13.5px;line-height:1.6">${r.rw}</div>
+      <div style="font-size:13.5px;line-height:1.6">${_runeRunewordsHtml(r)}</div>
     </section>
     <div class="zd-note">⚠ Stats above are the canonical D2R rune values. Countess Hell rates come from this app's published Countess table; other tiers are sourced qualitatively (Travincal / Hellforge / LK / TZ) — runes aren't MF-scaled and exact per-source odds beyond the Countess are not cleanly published and are not fabricated here. Runes are not part of the tracked chronicle count.</div>
   </div>`;
@@ -17227,39 +17245,39 @@ const COUNTESS_RUNES = [
    fabricated. Tier classes drive the "where it drops" sourcing text.
    tier: low(1-11) / mid(12-20) / high(21-28) / ultra(29-33).               */
 const RUNES = [
-  {num:1, n:"El",   clvl:11, w:"+50 Attack Rating, +1 Light Radius", a:"+15 Defense, +1 Light Radius", s:"+15 Defense, +1 Light Radius", tier:"low",  up:"3 El + Chipped Amethyst → Eld",   rw:"Leaf, Ancient's Pledge, Steel, Malice"},
-  {num:2, n:"Eld",  clvl:11, w:"+75% Damage to Undead, +50 AR vs Undead", a:"15% Slower Stamina Drain", s:"+7% Block", tier:"low", up:"3 Eld + Chipped Topaz → Tir", rw:"Steel, Edge, Holy Thunder, Ancient's Pledge"},
-  {num:3, n:"Tir",  clvl:13, w:"+2 Mana per Kill", a:"+2 Mana per Kill", s:"+2 Mana per Kill", tier:"low", up:"3 Tir + Chipped Sapphire → Nef", rw:"Stealth, Spirit, Insight, Memory, Leaf"},
-  {num:4, n:"Nef",  clvl:13, w:"Knockback", a:"+30 Defense vs Missiles", s:"+30 Defense vs Missiles", tier:"low", up:"3 Nef + Chipped Emerald → Eth", rw:"Smoke, Lore, Nadir, Radiance"},
-  {num:5, n:"Eth",  clvl:15, w:"-25% Target Defense", a:"Regenerate Mana 15%", s:"Regenerate Mana 15%", tier:"low", up:"3 Eth + Chipped Ruby → Ith", rw:"Insight, Spirit, Gloom, Wealth"},
-  {num:6, n:"Ith",  clvl:15, w:"+9 Maximum Damage", a:"15% Damage Taken Goes to Mana", s:"15% Damage Taken Goes to Mana", tier:"low", up:"3 Ith + Chipped Diamond → Tal", rw:"Spirit, Call to Arms, Wealth, Bone"},
-  {num:7, n:"Tal",  clvl:17, w:"+75 Poison Damage over 5s", a:"+30% Poison Resist", s:"+35% Poison Resist", tier:"low", up:"3 Tal + Chipped Skull → Ral", rw:"Stealth, Rhyme, Enigma, Stone"},
-  {num:8, n:"Ral",  clvl:19, w:"+5-30 Fire Damage", a:"+30% Fire Resist", s:"+35% Fire Resist", tier:"low", up:"3 Ral + Flawed Amethyst → Ort", rw:"Smoke, Ancient's Pledge, Holy Thunder, Peace"},
-  {num:9, n:"Ort",  clvl:21, w:"+1-50 Lightning Damage", a:"+30% Lightning Resist", s:"+35% Lightning Resist", tier:"low", up:"3 Ort + Flawed Topaz → Thul", rw:"Lore, Zephyr, Strength, Malice"},
-  {num:10, n:"Thul", clvl:23, w:"+3-14 Cold Damage", a:"+30% Cold Resist", s:"+35% Cold Resist", tier:"low", up:"3 Thul + Flawed Sapphire → Amn", rw:"Spirit, Rhyme, Stone, Crescent Moon"},
-  {num:11, n:"Amn",  clvl:25, w:"7% Life stolen per hit", a:"Attacker Takes Damage of 14", s:"Attacker Takes Damage of 14", tier:"low", up:"3 Amn + Flawed Emerald → Sol", rw:"Insight, Stone, Crescent Moon, Honor"},
-  {num:12, n:"Sol",  clvl:27, w:"+9 Minimum Damage", a:"Damage Reduced by 7", s:"Damage Reduced by 7", tier:"mid", up:"3 Sol + Flawed Ruby → Shael", rw:"Lionheart, Treachery, Wind, Rift, Exile"},
-  {num:13, n:"Shael", clvl:29, w:"+20% Increased Attack Speed", a:"+20% Faster Hit Recovery", s:"+20% Faster Block Rate", tier:"mid", up:"3 Shael + Flawed Diamond → Dol", rw:"Spirit, Call to Arms, Memory, Phoenix, Last Wish"},
-  {num:14, n:"Dol",  clvl:31, w:"Hit Causes Monster to Flee 25%", a:"Replenish Life +7", s:"Replenish Life +7", tier:"mid", up:"3 Dol + Flawed Skull → Hel", rw:"Treachery, Passion, Wind, Prudence"},
-  {num:15, n:"Hel",  clvl:0,  w:"Requirements -20%", a:"Requirements -15%", s:"Requirements -15%", tier:"mid", up:"3 Hel + Amethyst → Io", rw:"Treachery, Delirium, Pride — also Hel + Scroll of Town Portal UNSOCKETS an item (loses the socketed gem/rune)"},
-  {num:16, n:"Io",   clvl:35, w:"+10 to Vitality", a:"+10 to Vitality", s:"+10 to Vitality", tier:"mid", up:"3 Io + Topaz → Lum", rw:"Wind, Bramble, Dream, Pride"},
-  {num:17, n:"Lum",  clvl:37, w:"+10 to Energy", a:"+10 to Energy", s:"+10 to Energy", tier:"mid", up:"3 Lum + Sapphire → Ko", rw:"Smoke, Dragon, Ice, Wisdom"},
-  {num:18, n:"Ko",   clvl:39, w:"+10 to Dexterity", a:"+10 to Dexterity", s:"+10 to Dexterity", tier:"mid", up:"3 Ko + Emerald → Fal", rw:"Lawbringer, Duress, Crescent Moon, Pride"},
-  {num:19, n:"Fal",  clvl:41, w:"+10 to Strength", a:"+10 to Strength", s:"+10 to Strength", tier:"mid", up:"3 Fal + Ruby → Lem", rw:"Bramble, Eternity, Famine, Voice of Reason"},
-  {num:20, n:"Lem",  clvl:43, w:"+75% Extra Gold from Monsters", a:"+50% Extra Gold from Monsters", s:"+50% Extra Gold from Monsters", tier:"mid", up:"3 Lem + Diamond → Pul", rw:"Lawbringer, Treachery, Wealth, Pride"},
-  {num:21, n:"Pul",  clvl:45, w:"+75% Damage to Demons, +100 AR vs Demons", a:"+30% Enhanced Defense", s:"+30% Enhanced Defense", tier:"high", up:"2 Pul + Flawless Amethyst → Um", rw:"Spirit, Lionheart, Chains of Honor, Bramble, Dragon, Stone"},
-  {num:22, n:"Um",   clvl:47, w:"25% Open Wounds", a:"All Resistances +15", s:"All Resistances +22", tier:"high", up:"2 Um + Flawless Topaz → Mal", rw:"Smoke, Wealth, Crescent Moon, Lionheart, Duress, Myth"},
-  {num:23, n:"Mal",  clvl:49, w:"Prevent Monster Heal", a:"Magic Damage Taken -7", s:"Magic Damage Taken -7", tier:"high", up:"2 Mal + Flawless Sapphire → Ist", rw:"Last Wish, Grief, Bramble, Chains of Honor, Heart of the Oak"},
-  {num:24, n:"Ist",  clvl:51, w:"+30% Magic Find", a:"+25% Magic Find", s:"+25% Magic Find", tier:"high", up:"2 Ist + Flawless Emerald → Gul", rw:"Call to Arms, Insight, Heart of the Oak"},
-  {num:25, n:"Gul",  clvl:53, w:"+20% Attack Rating", a:"+5% Maximum Poison Resist", s:"+5% Maximum Poison Resist", tier:"high", up:"2 Gul + Flawless Ruby → Vex", rw:"Wrath, Bramble, Chains of Honor, Death"},
-  {num:26, n:"Vex",  clvl:55, w:"7% Mana stolen per hit", a:"+5% Maximum Fire Resist", s:"+5% Maximum Fire Resist", tier:"high", up:"2 Vex + Flawless Diamond → Ohm", rw:"Heart of the Oak, Phoenix, Fortitude, Infinity, Death"},
-  {num:27, n:"Ohm",  clvl:57, w:"+50% Enhanced Damage", a:"+5% Maximum Cold Resist", s:"+5% Maximum Cold Resist", tier:"high", up:"2 Ohm + Flawless Skull → Lo", rw:"Beast, Heart of the Oak, Death, Faith"},
-  {num:28, n:"Lo",   clvl:61, w:"+20% Deadly Strike", a:"+5% Maximum Lightning Resist", s:"+5% Maximum Lightning Resist", tier:"high", up:"2 Lo + Perfect Amethyst → Sur", rw:"Fortitude, Grief, Faith, Infinity, Phoenix"},
-  {num:29, n:"Sur",  clvl:63, w:"Hit Blinds Target", a:"+5% Maximum Mana", s:"+50 Mana", tier:"ultra", up:"2 Sur + Perfect Topaz → Ber", rw:"Enigma, Heart of the Oak, Faith, Phoenix, Last Wish"},
-  {num:30, n:"Ber",  clvl:65, w:"+20% Chance of Crushing Blow", a:"Damage Reduced by 8%", s:"Damage Reduced by 8%", tier:"ultra", up:"2 Ber + Perfect Sapphire → Jah", rw:"Enigma, Infinity, Call to Arms, Fortitude, Faith"},
-  {num:31, n:"Jah",  clvl:67, w:"Ignore Target's Defense", a:"+5% Maximum Life", s:"+50 Life", tier:"ultra", up:"2 Jah + Perfect Emerald → Cham", rw:"Enigma, Infinity, Call to Arms, Faith, Breath of the Dying"},
-  {num:32, n:"Cham", clvl:67, w:"Freezes Target +3", a:"Cannot Be Frozen", s:"Cannot Be Frozen", tier:"ultra", up:"2 Cham + Perfect Ruby → Zod", rw:"Cannot-Be-Frozen socket filler, Breath of the Dying, Crown of Ages"},
-  {num:33, n:"Zod",  clvl:69, w:"Indestructible", a:"Indestructible", s:"Indestructible", tier:"ultra", up:null, rw:"Indestructible socket filler — the top rune; not used in a major runeword"}
+  {num:1, n:"El",   clvl:11, w:"+50 Attack Rating, +1 Light Radius", a:"+15 Defense, +1 Light Radius", s:"+15 Defense, +1 Light Radius", tier:"low",  up:"3 El + Chipped Amethyst → Eld",   rw:""},
+  {num:2, n:"Eld",  clvl:11, w:"+75% Damage to Undead, +50 AR vs Undead", a:"15% Slower Stamina Drain", s:"+7% Block", tier:"low", up:"3 Eld + Chipped Topaz → Tir", rw:""},
+  {num:3, n:"Tir",  clvl:13, w:"+2 Mana per Kill", a:"+2 Mana per Kill", s:"+2 Mana per Kill", tier:"low", up:"3 Tir + Chipped Sapphire → Nef", rw:""},
+  {num:4, n:"Nef",  clvl:13, w:"Knockback", a:"+30 Defense vs Missiles", s:"+30 Defense vs Missiles", tier:"low", up:"3 Nef + Chipped Emerald → Eth", rw:""},
+  {num:5, n:"Eth",  clvl:15, w:"-25% Target Defense", a:"Regenerate Mana 15%", s:"Regenerate Mana 15%", tier:"low", up:"3 Eth + Chipped Ruby → Ith", rw:""},
+  {num:6, n:"Ith",  clvl:15, w:"+9 Maximum Damage", a:"15% Damage Taken Goes to Mana", s:"15% Damage Taken Goes to Mana", tier:"low", up:"3 Ith + Chipped Diamond → Tal", rw:""},
+  {num:7, n:"Tal",  clvl:17, w:"+75 Poison Damage over 5s", a:"+30% Poison Resist", s:"+35% Poison Resist", tier:"low", up:"3 Tal + Chipped Skull → Ral", rw:""},
+  {num:8, n:"Ral",  clvl:19, w:"+5-30 Fire Damage", a:"+30% Fire Resist", s:"+35% Fire Resist", tier:"low", up:"3 Ral + Flawed Amethyst → Ort", rw:""},
+  {num:9, n:"Ort",  clvl:21, w:"+1-50 Lightning Damage", a:"+30% Lightning Resist", s:"+35% Lightning Resist", tier:"low", up:"3 Ort + Flawed Topaz → Thul", rw:""},
+  {num:10, n:"Thul", clvl:23, w:"+3-14 Cold Damage", a:"+30% Cold Resist", s:"+35% Cold Resist", tier:"low", up:"3 Thul + Flawed Sapphire → Amn", rw:""},
+  {num:11, n:"Amn",  clvl:25, w:"7% Life stolen per hit", a:"Attacker Takes Damage of 14", s:"Attacker Takes Damage of 14", tier:"low", up:"3 Amn + Flawed Emerald → Sol", rw:""},
+  {num:12, n:"Sol",  clvl:27, w:"+9 Minimum Damage", a:"Damage Reduced by 7", s:"Damage Reduced by 7", tier:"mid", up:"3 Sol + Flawed Ruby → Shael", rw:""},
+  {num:13, n:"Shael", clvl:29, w:"+20% Increased Attack Speed", a:"+20% Faster Hit Recovery", s:"+20% Faster Block Rate", tier:"mid", up:"3 Shael + Flawed Diamond → Dol", rw:""},
+  {num:14, n:"Dol",  clvl:31, w:"Hit Causes Monster to Flee 25%", a:"Replenish Life +7", s:"Replenish Life +7", tier:"mid", up:"3 Dol + Flawed Skull → Hel", rw:""},
+  {num:15, n:"Hel",  clvl:0,  w:"Requirements -20%", a:"Requirements -15%", s:"Requirements -15%", tier:"mid", up:"3 Hel + Amethyst → Io", rw:"Hel + Scroll of Town Portal in the cube UNSOCKETS an item (loses the socketed gem/rune)"},
+  {num:16, n:"Io",   clvl:35, w:"+10 to Vitality", a:"+10 to Vitality", s:"+10 to Vitality", tier:"mid", up:"3 Io + Topaz → Lum", rw:""},
+  {num:17, n:"Lum",  clvl:37, w:"+10 to Energy", a:"+10 to Energy", s:"+10 to Energy", tier:"mid", up:"3 Lum + Sapphire → Ko", rw:""},
+  {num:18, n:"Ko",   clvl:39, w:"+10 to Dexterity", a:"+10 to Dexterity", s:"+10 to Dexterity", tier:"mid", up:"3 Ko + Emerald → Fal", rw:""},
+  {num:19, n:"Fal",  clvl:41, w:"+10 to Strength", a:"+10 to Strength", s:"+10 to Strength", tier:"mid", up:"3 Fal + Ruby → Lem", rw:""},
+  {num:20, n:"Lem",  clvl:43, w:"+75% Extra Gold from Monsters", a:"+50% Extra Gold from Monsters", s:"+50% Extra Gold from Monsters", tier:"mid", up:"3 Lem + Diamond → Pul", rw:""},
+  {num:21, n:"Pul",  clvl:45, w:"+75% Damage to Demons, +100 AR vs Demons", a:"+30% Enhanced Defense", s:"+30% Enhanced Defense", tier:"high", up:"2 Pul + Flawless Amethyst → Um", rw:""},
+  {num:22, n:"Um",   clvl:47, w:"25% Open Wounds", a:"All Resistances +15", s:"All Resistances +22", tier:"high", up:"2 Um + Flawless Topaz → Mal", rw:""},
+  {num:23, n:"Mal",  clvl:49, w:"Prevent Monster Heal", a:"Magic Damage Taken -7", s:"Magic Damage Taken -7", tier:"high", up:"2 Mal + Flawless Sapphire → Ist", rw:""},
+  {num:24, n:"Ist",  clvl:51, w:"+30% Magic Find", a:"+25% Magic Find", s:"+25% Magic Find", tier:"high", up:"2 Ist + Flawless Emerald → Gul", rw:""},
+  {num:25, n:"Gul",  clvl:53, w:"+20% Attack Rating", a:"+5% Maximum Poison Resist", s:"+5% Maximum Poison Resist", tier:"high", up:"2 Gul + Flawless Ruby → Vex", rw:""},
+  {num:26, n:"Vex",  clvl:55, w:"7% Mana stolen per hit", a:"+5% Maximum Fire Resist", s:"+5% Maximum Fire Resist", tier:"high", up:"2 Vex + Flawless Diamond → Ohm", rw:""},
+  {num:27, n:"Ohm",  clvl:57, w:"+50% Enhanced Damage", a:"+5% Maximum Cold Resist", s:"+5% Maximum Cold Resist", tier:"high", up:"2 Ohm + Flawless Skull → Lo", rw:""},
+  {num:28, n:"Lo",   clvl:61, w:"+20% Deadly Strike", a:"+5% Maximum Lightning Resist", s:"+5% Maximum Lightning Resist", tier:"high", up:"2 Lo + Perfect Amethyst → Sur", rw:""},
+  {num:29, n:"Sur",  clvl:63, w:"Hit Blinds Target", a:"+5% Maximum Mana", s:"+50 Mana", tier:"ultra", up:"2 Sur + Perfect Topaz → Ber", rw:""},
+  {num:30, n:"Ber",  clvl:65, w:"+20% Chance of Crushing Blow", a:"Damage Reduced by 8%", s:"Damage Reduced by 8%", tier:"ultra", up:"2 Ber + Perfect Sapphire → Jah", rw:""},
+  {num:31, n:"Jah",  clvl:67, w:"Ignore Target's Defense", a:"+5% Maximum Life", s:"+50 Life", tier:"ultra", up:"2 Jah + Perfect Emerald → Cham", rw:""},
+  {num:32, n:"Cham", clvl:67, w:"Freezes Target +3", a:"Cannot Be Frozen", s:"Cannot Be Frozen", tier:"ultra", up:"2 Cham + Perfect Ruby → Zod", rw:"Cannot-Be-Frozen socket filler"},
+  {num:33, n:"Zod",  clvl:69, w:"Indestructible", a:"Indestructible", s:"Indestructible", tier:"ultra", up:null, rw:"Indestructible socket filler — the top rune"}
 ];
 // Honest per-rune Countess Hell rate, harvested from the EXISTING COUNTESS_RUNES
 // table (single-rune rows only; aggregated rows like Amn-Sol stay unmapped).

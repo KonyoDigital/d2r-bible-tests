@@ -243,6 +243,22 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         self.assertNotIn("Per-kill figures above are the canonical community estimates", s,
                          "the footer calls every rate a community per-kill estimate again")
 
+    def test_the_rune_card_lists_runewords_from_the_recipe_table(self):
+        """REG-2104 (the v3626 second eye, swept) - RUNES[].rw was a hand-written runeword list and 91 of its 132 names did not
+        hold the rune (Ber -> Call to Arms, Jah -> Infinity, Ohm -> Beast). The card now lists RUNEWORDS entries whose recipe
+        holds the rune, and rw keeps only notes; a runeword NAME back in rw is the hand list returning."""
+        s = _src()
+        self.assertEqual(s.count('      <div style="font-size:13.5px;line-height:1.6">${_runeRunewordsHtml(r)}</div>'), 1,
+                         "the rune card prints a hand-written list again instead of the recipe table's")
+        i = s.find("const RUNEWORDS = [")
+        names = {re.sub(r"\s*\(.*\)$", "", m.group(1)).lower()
+                 for m in re.finditer(r'\{n:"([^"]+)", runes:"', s[i:s.find("\n];", i)])}
+        ri = s.find("const RUNES = [")
+        rows = re.findall(r'n:"([A-Z][a-z]+)",.*?rw:"([^"]*)"', s[ri:s.find("\n];", ri)])
+        self.assertGreaterEqual(len(rows), 30, "premise: the rune table (%d rows)" % len(rows))
+        named = [(n, p.strip()) for n, rw in rows for p in rw.split(",") if p.strip().lower() in names]
+        self.assertEqual(named, [], "a rune's rw names a runeword again - the card's list comes from the recipe table: %r" % named)
+
 
 RED_PROOF = [
     {"why": "REG-2089 - Veil of Steel's tagline swaps its resist and defense figures again",
@@ -299,6 +315,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "  const _rateLbl = (/(^|[^\\w])1:\\d|\\d\\s*%/.test(_rateTxt) && !/per (recipe|character|full|tristram visit)/i.test(_rateTxt)) ? 'per-kill rate' : 'how it comes';\n",
      "replace": "  const _rateLbl = 'per-kill rate';\n",
+     "matches": 1},
+    {"why": "REG-2104 - the rune card prints its hand-written runeword list again",
+     "file": "bible.html",
+     "find": "      <div style=\"font-size:13.5px;line-height:1.6\">${_runeRunewordsHtml(r)}</div>",
+     "replace": "      <div style=\"font-size:13.5px;line-height:1.6\">${r.rw}</div>",
      "matches": 1},
 ]
 

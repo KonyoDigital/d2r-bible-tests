@@ -406,6 +406,17 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2104 - 91 OF THE RUNE CARDS' 132 RUNEWORDS DID NOT HOLD THE RUNE (2026-10-08, the v3626 second eye, swept)
+
+REG-2099 fixed the Countess / Travincal grids' "used for" column - and its sweep matched only that field's shape (n:'Ohm #27'
+... use:). The v3626 eye named the same class one table away: RUNES[].rw, the rune ID card's "Key runewords", still said Ohm ->
+Beast / HotO, Gul -> Wrath / Bramble, Sur -> Enigma / HotO / Faith / Phoenix. Swept: 91 of 132 named runewords there do not hold
+the rune (Ber -> Call to Arms, Jah -> Infinity, Lo -> Faith, Cham -> Breath of the Dying...). Not 91 string fixes: the card now
+lists the RUNEWORDS entries whose recipe holds the rune - the table the Forge reads, one source - and rw keeps only notes
+(Hel's unsocket recipe, Cham's and Zod's socket-filler lines; Zod lost "not used in a major runeword" - the table shows Breath
+of the Dying, Obsession and Void). Checked on the real page: Ber lists Enigma, Infinity, Last Wish, Chains of Honor, Beast,
+Destruction, Eternity, Wrath. A sweep must match the CLASS, not the one field shape it was first seen in.
+
 ### REG-2103 - EVERY SPECIAL-DROP RATE WAS LABELLED PER-KILL (2026-10-08, #231 on v43 9f39968e, #307)
 
 The material card printed item.rate under "per-kill rate" in its header chip and stat row, and footnoted all of them as "the
