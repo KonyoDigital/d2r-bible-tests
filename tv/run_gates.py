@@ -9093,6 +9093,12 @@ GATES = [
          why=("REG-2064 (#298, GrokBot 422) - Dean's card printed UNIQUES — (never synced) while his tip counted it among "
               "'3 of 3 ledger(s) count differently'.")
          ),
+    Gate("test_a_tip_inside_the_shelf_stays_by_its_chip", [sys.executable,
+         os.path.join(HERE, "test_a_tip_inside_the_shelf_stays_by_its_chip.py")], 30,
+         needs_app=False,
+         why=("REG-2065 (#297, GrokBot 422) - the River gallery's top-row tips painted ~400 px below their chips: the "
+              "overlay clamp meant for the transport caught controls on the overlay.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

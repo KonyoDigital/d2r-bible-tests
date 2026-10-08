@@ -9717,10 +9717,15 @@ window._lockMark = function(isOpen, px, label){
          patched the path this tooltip does not take. Same shape as the probe that enumerated four
          strip selectors and never looked at the tip itself.
          [[the-unjoined-end]] [[feedback-suspect-the-instrument]] */
-      _clampBelowOverlay: function(top, h){
+      _clampBelowOverlay: function(top, h, node){
         try {
           var ov = document.getElementById('th-shelfov');
           if (!ov || ov.hidden) return top;
+          /* #297 (REG-2065, GrokBot tick 422 K08) - A CONTROL INSIDE THE OVERLAY KEEPS ITS TIP BESIDE IT. The River gallery's
+             own top row (COMPARE, AREAS, sort, the TRIAGE / SEAL / RELEASED / TOMBSTONE chips) lives IN #th-shelfov, and this
+             clamp pushed every one of their tips below the whole overlay - ~400 px down, beside '⋯ more', so 421 reported
+             them missing. The clamp is for controls UNDER the overlay (the transport), never for ones on it. */
+          if (node && ov.contains(node)) return top;
           var b = ov.getBoundingClientRect();
           if (!b.height || top >= b.bottom) return top;
           /* the transport stays reachable under an open shelf, so its tips are legitimate — they
@@ -9795,7 +9800,7 @@ window._lockMark = function(isOpen, px, label){
         el.classList.remove('tip-side-right','tip-side-left','tip-side-below','tip-side-above');
         el.classList.add('tip-side-' + side);
         el.style.left = x + 'px';
-        el.style.top = this._clampBelowOverlay(y, h) + 'px';
+        el.style.top = this._clampBelowOverlay(y, h, node) + 'px';
       },
       /* v2105 — the same card, carrying the words a native `title=` used to carry. */
       say: function(node, viaFocus){
