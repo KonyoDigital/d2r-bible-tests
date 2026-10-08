@@ -25721,24 +25721,27 @@ function escC(s) {
         ? Math.floor(rv.stuckKeep) : 0;
       var inside = sk.filter(function (e) { return !e || e.window !== false; });
       var beyond = sk.filter(function (e) { return e && e.window === false; });
+      /* #251 - one station can hold reels inside the newest-N window AND past it, and both rows printed
+         'STATION 9 for 5d · STATION 4 for 2d' with nothing saying which was which.
+         REG-2044 (GrokBot, the eight checks on v3621) - and the TIP printed both as "STATION 5: ..." with no count or age,
+         so one station read as one row twice. The chip and the tip now name a row with the SAME words, from one place. */
+      var _stuckLabel = function (e) {
+        var a = _fleetAgeNow(e.oldestS, m, nowMs);
+        return e.station + ' ' + (typeof e.n === 'number' ? e.n : '?')
+             + ((e && e.window === false) ? ' older' : '') + ' for '
+             + _fleetAgeTxt(a).replace(/[\s ]ago$/, '');
+      };
       var whyBits = [];
       if (inside.length) {
         whyBits.push((keepN ? ('among the newest ' + keepN + ' — ') : '')
-          + inside.map(function (e) { return e.station + ': ' + (e.why || 'no reason given'); }).join('  |  '));
+          + inside.map(function (e) { return _stuckLabel(e) + ': ' + (e.why || 'no reason given'); }).join('  |  '));
       }
       if (beyond.length) {
         whyBits.push(beyond.map(function (e) {
-          return e.station + ': ' + (e.why || 'no reason given');
+          return _stuckLabel(e) + ': ' + (e.why || 'no reason given');
         }).join('  |  '));
       }
-      out.push(_fleetPart('stuck', sk.map(function (e) {
-                   var a = _fleetAgeNow(e.oldestS, m, nowMs);
-                   /* #251 - one station can hold reels inside the newest-N window AND past it, and both rows printed
-                      'STATION 9 for 5d · STATION 4 for 2d' with nothing saying which was which. */
-                   return e.station + ' ' + (typeof e.n === 'number' ? e.n : '?')
-                        + ((e && e.window === false) ? ' older' : '') + ' for '
-                        + _fleetAgeTxt(a).replace(/[\s ]ago$/, '');
-                 }), { warn: true, why: whyBits.join('  |  ') }));
+      out.push(_fleetPart('stuck', sk.map(_stuckLabel), { warn: true, why: whyBits.join('  |  ') }));
     }
     /* 5. #74 (REG-1461) — HAS THAT PC PROVED ITS OWN INSTRUMENTS? Every lock that moves its river (routing, the
        vault sweep, frame release) refuses until it has; REG-1447 makes every PC prove itself in the background. */

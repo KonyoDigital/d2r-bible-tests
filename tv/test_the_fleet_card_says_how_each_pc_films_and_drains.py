@@ -318,6 +318,11 @@ class TheFleetRowSaysHowItFilmsAndDrains(unittest.TestCase):
             "heart": {"census": "current", "key": "current", "blind": 0}}))
         self.assertEqual(p["stuck"]["t"], "STATION 9 older for 5d · STATION 4 for 2d",
                          "the past-window row is not told apart from the one inside the newest 16 (#251)")
+        # REG-2044 - GrokBot's eight checks on v3621: the TIP still printed both rows as "STATION: ..." with no count or
+        # age, so one station read as one row twice. The tip names each row with the chip's own words.
+        tip = str(p["stuck"].get("why") or "")
+        self.assertIn("STATION 9 older for 5d: older than the newest 16", tip, tip)
+        self.assertIn("STATION 4 for 2d: x", tip, tip)
 
     def test_r2_each_fact_is_its_own_item_with_no_glyph_between_them(self):
         """REG-1377 (round 2): the line's facts are separate items, so no middot sits between two of them for a wrap to
@@ -619,10 +624,15 @@ class TheShippedCardDrawsIt(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2044 - the stuck tip names a past-window row only by its station again",
+     "file": "tv/control_ui.html",
+     "find": "          return _stuckLabel(e) + ': ' + (e.why || 'no reason given');\n",
+     "replace": "          return e.station + ': ' + (e.why || 'no reason given');\n",
+     "matches": 1},
     {"why": "#251 - a station's past-window row reads exactly like its row inside the newest 16 again",
      "file": "tv/control_ui.html",
-     "find": "                        + ((e && e.window === false) ? ' older' : '') + ' for '\n",
-     "replace": "                        + ' for '\n",
+     "find": "             + ((e && e.window === false) ? ' older' : '') + ' for '\n",
+     "replace": "             + ' for '\n",
      "matches": 1},
     {
         "why": "2026-09-29 (REG-1462) - the compare footer's age separator is breakable again, and at 375 its second line starts with a lone middot (Grok's cold look)",

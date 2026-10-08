@@ -406,6 +406,15 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2044 - THE STUCK TIP STILL READ ONE STATION AS ONE ROW TWICE (2026-10-08, REG-2007's follow-up)
+
+GrokBot's eight checks on v3621: Konyo's tip listed "STATION 5: the reel sweep owes 9 read(s) - its last word..." and
+"STATION 5: older than the newest 16 - the reel sweep owes 9 read(s)..." - REG-2007 had told the two rows apart on the
+CHIP ("STATION 9 older for 5d") and left the tip naming each by its station alone, with no count and no age. The chip and
+the tip now name a row with one function (_stuckLabel), so the tip reads "STATION 5 9 older for 5d: ..." beside
+"STATION 5 4 for 2d: ...". Law: test_the_fleet_card_says_how_each_pc_films_and_drains (#251 case extended; +1 RED_PROOF,
+and REG-2007's proof re-pointed onto the moved line).
+
 ### REG-2043 - A RIGHT-CLICK ON A TAB LABEL SWITCHED ROOMS (2026-10-08, #142)
 
 GrokBot on #230 (the eight checks, console v3621): a left-click on Sessions now switches on the first click, and "one
