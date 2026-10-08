@@ -101,6 +101,7 @@ class AReadSaysWhatItIsOnce(unittest.TestCase):
         self.assertEqual(ca._evidence_reel_id("reel_s_1786999742937_35523"), "reel_s_1786999742937_35523")
         self.assertEqual(ca._evidence_reel_id("s_1788194356763_27344"), "reel_s_1788194356763_27344")
         self.assertIsNone(ca._evidence_reel_id("hist"))
+        self.assertEqual(ca._evidence_reel_id("s_doom_00"), "reel_s_doom_00", "a session id with a name is still a reel")
         self.assertIsNone(ca._evidence_reel_id(None))
         with open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as f:
             src = f.read()

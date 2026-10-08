@@ -1469,7 +1469,9 @@ def _base_joined_keys(norm):
                 n = row.get("name")
                 if b and n and norm(b) and not norm(n).endswith(norm(b)):
                     out.setdefault(norm(n + " " + b), norm(n))
-    except Exception:
+    except Exception as _e:
+        print("   \u26a0 vault name-fold: the game's item tables would not read (%s) - a name joined to its base line "
+              "stays as read (the fold is exact-only)" % str(_e)[:60])
         return {}
     return out
 

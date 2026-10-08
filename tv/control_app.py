@@ -21180,7 +21180,11 @@ def _chron_resume():
                 out = (json.load(fh) or {}).get("resume") or {}
         except FileNotFoundError:
             out = {}
-        except Exception:
+        except Exception as _e:
+            # said OUT LOUD: an unreadable record means a stopped pass's frames are read (and paid for) AGAIN - never a
+            # guess about which were banked. Not cached, so the next call retries.
+            print("   \u26a0 chronicle: the resume record would not read (%s) - frames a stopped pass banked may be read "
+                  "again; retried on the next call" % str(_e)[:60], flush=True)
             return {}
         _CHRON_AUTOREAD["resume"] = out if isinstance(out, dict) else {}
     return _CHRON_AUTOREAD["resume"]
@@ -37142,7 +37146,7 @@ def _stamp_math_broke(where, exc):
 # name a LANE. [[label-outlived-referent]]
 
 
-_EVIDENCE_REEL_RE = re.compile(r"^(?:reel_)?(s_\d+_\d+)$")
+_EVIDENCE_REEL_RE = re.compile(r"^(?:reel_)?(s_[A-Za-z0-9_]+)$")
 
 
 def _evidence_reel_id(r):
@@ -39363,7 +39367,9 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         try:
             _resume_in = {str(_r): set(_v.get("frames") or []) for _r, _v in (_chron_resume() or {}).items()
                           if isinstance(_v, dict) and _v.get("promptVer") == _tv.PROMPT_VER}
-        except Exception:
+        except Exception as _e:
+            print("   \u26a0 chronicle: could not read what a stopped pass banked (%s) - this run reads every frame"
+                  % str(_e)[:60], flush=True)
             _resume_in = {}
 
         def _read_and_bank(p, k):
@@ -39493,11 +39499,11 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         # REG-2039 - a reel resumed from a stopped pass seals with the frames that pass read and banked COUNTED, so a
         # resume whose new frames were all read before never looks like "read and found nothing" (a 0-page seal
         # reopens under v1830).
-        for st in res["reels"]:
-            _rk_b = "reel_" + str(st.get("reel") or "")
-            if _rk_b in _resume_in and st.get("note") != "already-swept":
-                st["resumedFrames"] = len(_resume_in[_rk_b])
-                st["pages"] = int(st.get("pages") or 0) + len(_resume_in[_rk_b])
+        for _st_r in (res.get("reels") or []):
+            _rk_b = "reel_" + str(_st_r.get("reel") or "")
+            if _rk_b in _resume_in and _st_r.get("note") != "already-swept":
+                _st_r["resumedFrames"] = len(_resume_in[_rk_b])
+                _st_r["pages"] = int(_st_r.get("pages") or 0) + len(_resume_in[_rk_b])
         for st in res["reels"]:
             if _throttled[0] or _capped[0]:
                 break

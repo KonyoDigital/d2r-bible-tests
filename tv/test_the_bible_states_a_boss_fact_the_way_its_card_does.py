@@ -15,9 +15,17 @@ One fact written in two places drifts; this law makes the copy answer to the car
 """
 import os
 import re
+import sys
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
 PAGE = os.path.join(os.path.dirname(HERE), "bible.html")
 
 _ELEMENTS = ("fire", "cold", "lightning", "poison", "magic", "physical")
