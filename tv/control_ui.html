@@ -23532,7 +23532,9 @@ window._lockMark = function(isOpen, px, label){
         ? '<span class="tf-tag" style="border-color:rgba(255,122,122,.5);color:#ff7a7a">🚨 ' + _lsRs.n + '</span>'
         : _lsRs.k === 'gaps'
           ? '<span class="tf-tag" style="border-color:rgba(227,184,106,.4);color:#e3b86a" title="sealed with gaps - ' + esc(_runSealGapsSay(_lsRs)) + '">◐ GAPS</span>'
-          : '<span class="tf-tag" style="border-color:rgba(240,192,96,.4);color:var(--gold)">🛡 CLEAN</span>';
+          : _lsRs.k === 'clean'
+            ? '<span class="tf-tag" style="border-color:rgba(240,192,96,.4);color:var(--gold)">🛡 CLEAN</span>'
+            : '<span class="tf-tag" style="border-color:rgba(160,160,160,.35);color:var(--text-dim,#9a9a9a)" title="not sealed yet - nothing has been judged clean">◌ OPEN</span>';   /* REG-2102 - an unsealed run is not clean (the shelf card already says open) */
       var _fp = _sceneFingerprint(t);   // v1265 (B8) — the run's Diablo-language scene fingerprint, honest-absent
       var _finds = _findsStrip(t, 4);   // v1267 (D1) — WHAT I FOUND: the grails/keeps KAI witnessed this run
       $('hd-ls-row').innerHTML = '<div class="tf-row tf-stat"><span class="tf-g">📼</span>'

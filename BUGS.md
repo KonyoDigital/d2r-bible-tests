@@ -406,6 +406,22 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2102 - LAST SESSION CALLED AN UNSEALED RUN CLEAN (2026-10-08, the v3625 second eye)
+
+_runSeal answers 'open' for a run nobody sealed (kaiMissed null). The shelf card says "◌ open" and the HISTORY card hides its
+shield for it, but the LAST SESSION badge fell through to "🛡 CLEAN" (before REG-2086 it read the watchdog alone and did the
+same). CLEAN now needs the seal to say clean; an open run wears "◌ OPEN". The v3625 look (re-asked at 90k chars - its first
+answer at 37k was cannot-tell, the python diff alone filled the payload and no product file reached it):
+
+| finding | measured | outcome |
+|---|---|---|
+| a late SUCCESS-with-error load still paints after a close | the success path checks `gen !== TH.loadGen` before `j.error`; the law's settle:'error' case proves the caption stays | REFUTED (the hunk was outside the payload) |
+| an empty super-unique row claims random packs exist | only Worldstone Keep and Catacombs L4 reach it, and both do spawn random champion/unique packs when terrorized | not a defect |
+| _world_source can raise UnboundLocalError | the except returns; the eye withdrew it itself | not a defect |
+| a re-render with a different sid closes the open dossier | the sid is the reel's identity (REG-1933); a different sid is a different reel | by design |
+| LAST SESSION says CLEAN for an open run | real | FIXED - REG-2102 |
+| NOT SHOWN: renderDetail, the magicFinds router | covered by a targeted Grok look the same hour: both held | - |
+
 ### REG-2101 - THE UBER TRISTRAM LEAD SKIPPED THE ORGAN CUBE ITS OWN STEPS LIST (2026-10-08, #231 on v43 19cdf410)
 
 The lead read "Cube the 3 Pandemonium Keys -> red portal -> kill all three ubers in one room" over the card's own Step 2 (1 of

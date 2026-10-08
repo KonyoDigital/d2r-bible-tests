@@ -107,8 +107,24 @@ class ACleanRunHasNoGaps(unittest.TestCase):
         self.assertEqual(s.count("clean = !(t.watchdogViolations > 0);"), 0, "a badge decides CLEAN on the watchdog alone again")
         self.assertEqual(s.count("clean = !(sm.watchdogViolations > 0);"), 0, "a badge decides CLEAN on the watchdog alone again")
 
+    def test_an_unsealed_run_is_never_called_clean(self):
+        """REG-2102 (the v3625 second eye, #5) - _runSeal answers 'open' for a run nobody sealed (kaiMissed null); the shelf card
+        says '◌ open' and the HISTORY card hides its shield, but LAST SESSION fell through to '🛡 CLEAN' for it."""
+        s = _src()
+        self.assertEqual(s.count("          : _lsRs.k === 'clean'\n            ? '<span class=\"tf-tag\" style=\"border-color:rgba(240,192,96,.4);"
+                                 "color:var(--gold)\">🛡 CLEAN</span>'"), 1,
+                         "LAST SESSION's CLEAN badge is no longer guarded by the seal saying clean")
+        self.assertEqual(s.count("      var badge = _hhRs.k === 'open' ? ''"), 1, "premise: the HISTORY card hides an open run's shield")
+        self.assertIn(": _sealRs.k === 'clean' ? '<span class=\"shc-seal clean\">🛡 clean</span>' : '<span class=\"shc-seal open\">◌ open</span>';", s,
+                      "premise: the shelf card says open for an open run")
+
 
 RED_PROOF = [
+    {"why": "REG-2102 - an unsealed run wears LAST SESSION's CLEAN badge again",
+     "file": "tv/control_ui.html",
+     "find": "          : _lsRs.k === 'clean'\n            ? '<span class=\"tf-tag\" style=\"border-color:rgba(240,192,96,.4);color:var(--gold)\">🛡 CLEAN</span>'",
+     "replace": "          : true\n            ? '<span class=\"tf-tag\" style=\"border-color:rgba(240,192,96,.4);color:var(--gold)\">🛡 CLEAN</span>'",
+     "matches": 1},
     {"why": "REG-2055 - a run with unread gaps is sealed clean again",
      "file": "control_ui.html",
      "find": "    if (gaps || missed) return { k: 'gaps', gaps: gaps, missed: missed };\n",
