@@ -494,7 +494,7 @@ Pindle route via the Halls of Anguish waypoint (the bible's own route table says
 via the Halls of the Dead. REFUTED and left: 'the Cow King lock is not in D2R' - it is. STILL OWED: Countess Ist is
 1:1,110 in four places and '1:850 (all diffs)' in the methodology block; Ist only drops in Hell, so both cannot hold,
 and nothing here measures which - left UNKNOWN on #272 rather than replaced by a guess.
-Same class, from the #231 look on 4dbbe61c: the Baal key_mobs line gave the Normal/Nightmare minion counts and then said "All TC87 quality" - the file's own Baal record is TC70 Normal, TC81 Nightmare, TC87 Hell; it now says so.
+Same class, from the #231 look on 4dbbe61c: the Baal key_mobs line gave the Normal/Nightmare minion counts and then said "All TC87 quality" - only the Hell rows of the file's own Baal record are TC87 (the look was on May's record, TC70/TC81; today's says TC85 for both) - the line now scopes TC87 to Hell and restates no other number, so it cannot drift from the record again.
 Law: test_the_bible_states_a_boss_fact_the_way_its_card_does (3 red-proofs).
 
 ### REG-2032 - THE BOARD SAID A TOOLTIP-JUDGE READ "DOES NOT SHOW THAT YOU HOLD IT" WHILE THE FRAME SHOWED HIM WEARING IT (2026-10-08, #270)
