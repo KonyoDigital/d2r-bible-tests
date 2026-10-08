@@ -9111,6 +9111,16 @@ GATES = [
          why=("REG-2067 (#282, GrokBot 418 K04/K05) - the 📚 button read 'pick any recorded session' while a press closed "
               "the open shelf.")
          ),
+    Gate("test_a_worktree_render_reads_the_main_checkouts_world", [sys.executable,
+         os.path.join(HERE, "test_a_worktree_render_reads_the_main_checkouts_world.py")], 30,
+         needs_app=False,
+         why=("REG-2070 - render_check in a git worktree met an EMPTY world (its small state is gitignored and lives in "
+              "the main checkout): river-strip / shelf-cards refused red on bytes that paint 20/20 and 29/29 given a world.")),
+    Gate("test_a_tier_multiplier_names_its_difficulty", [sys.executable,
+         os.path.join(HERE, "test_a_tier_multiplier_names_its_difficulty.py")], 30,
+         needs_app=False,
+         why=("REG-2069 (#231 eye on v43) - the tier multipliers (boss nav + boss-card heads) are computed for Hell and "
+              "their titles named no difficulty; PLAYER_Q differs by difficulty, so the number must say which it is.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

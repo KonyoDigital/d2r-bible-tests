@@ -4188,6 +4188,34 @@ _FILM_STILL_B64 = (
 FILM_RUNS, FILM_FRAMES = 24, 3
 
 
+def _world_source(here=None):
+    """REG-2070 - where the render sandbox reads his small state from. -> (dir, why)
+
+    The tree's own tv/ when it carries the session store. A git WORKTREE carries none - the stores are gitignored and
+    live only in the main checkout - so every shelf target rendered there met an EMPTY world: "seeded film on 0 of 0
+    run(s)", the grid never built, and river-strip / shelf-cards refused 🔴 "could not be ACTIVATED" on bytes that
+    rendered 20/20 and 29/29 painted once given a world (v3627, 2026-10-08; main's own bytes refused identically in a
+    worktree). So: the MAIN checkout's tv/, read-only - copied into the sandbox exactly as before, never written. Neither
+    -> (here, a reason the run prints): the shelf targets then measure an empty world, which is UNKNOWN, not clean.
+    """
+    here = here or HERE
+    if os.path.isfile(os.path.join(here, "sessions.jsonl")):
+        return here, ""
+    common = ""
+    try:
+        common = subprocess.run(["git", "-C", here, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                                capture_output=True, text=True, timeout=10).stdout.strip()
+    except Exception as e:
+        return here, "no session store in this tree, and git could not name its main checkout (%s)" % e
+    if common and os.path.basename(common.rstrip("/")) == ".git":
+        main_tv = os.path.join(os.path.dirname(common.rstrip("/")), "tv")
+        if os.path.realpath(main_tv) != os.path.realpath(here) and os.path.isfile(os.path.join(main_tv, "sessions.jsonl")):
+            return main_tv, ("this tree carries no session store (a git worktree) - the sandbox copies the MAIN checkout's "
+                             "small state from %s, read-only" % main_tv)
+    return here, ("no session store in this tree or its main checkout - the shelf targets will measure an EMPTY world, "
+                  "which is UNKNOWN rather than clean")
+
+
 def _seed_film(sand, hist, runs=FILM_RUNS, frames=FILM_FRAMES):
     """Give the newest `runs` sessions synthetic film. -> (filmed, total_runs_seen)
 
@@ -4315,9 +4343,12 @@ def _serve_console():
              "chronicle_swept.json", "chron_reads.json", "vault_accum.json",
              "vault_last_result.json", "vault_swept.json", "shadow_ledger.json",
              "chron_hunt_memory.json", "chron_autoread.json")
+    _wsrc, _wwhy = _world_source(HERE)
+    if _wwhy:
+        print("   ℹ render sandbox: " + _wwhy, flush=True)
     _copied, _skipped, _bytes = [], [], 0
     for _n in _COPY:
-        _src = os.path.join(HERE, _n)
+        _src = os.path.join(_wsrc, _n)
         if not os.path.isfile(_src):
             continue
         _sz = os.path.getsize(_src)

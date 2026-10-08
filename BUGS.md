@@ -406,6 +406,36 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2070 - A RENDER IN A WORKTREE MET AN EMPTY WORLD AND CALLED THE SHELF RED (2026-10-08)
+
+render_check copies his small state (sessions.jsonl + ten ledgers) from the tree it runs in; they are gitignored, so a
+worktree has none. MEASURED: river-strip and shelf-cards refused 🔴 "could not be ACTIVATED" ("seeded film on 0 of 0 run(s)",
+no .sh-grid) on v3627 AND on main's own bytes rendered in a worktree; given a read-only copy of main's store the same
+v3627 bytes painted 20/20 and 29/29 at all six widths. A red the surface did not earn is how a working shelf gets
+"fixed". `_world_source` now names the main checkout's tv/ when the tree has no store (read-only, copied into the
+sandbox as before) and the run says where its world came from; no store anywhere is said as UNKNOWN.
+Law: test_a_worktree_render_reads_the_main_checkouts_world (3 red-proofs PROVEN).
+
+### REG-2069 - A HELL-ONLY MULTIPLIER UNDER A TITLE THAT NAMED NO DIFFICULTY (2026-10-08, #231 eye on v43)
+
+The #231 code seat's look at May's 51774a21, re-measured at HEAD: renderBossNav's tier labels - and, swept, renderBossCards'
+tier heads - paint a multiplier from playerMult(id, 'hell', players) under "drop-quantity multiplier at /players N".
+PLAYER_Q differs by difficulty (PRIME EVILS x1.18 Hell vs x1.19 Normal/Nightmare at /players 3), so both titles now say
+Hell. The same look's second finding (the players slider never re-rendered the open calc card) was already fixed at HEAD.
+Its sibling look on 3c8d341c (keys/Annihilus read as a per-kill %) is a DATA contradiction - the file says "Key of Hate
+36%", "~10% on Hell" and "~1:278 (/p3)" for one key - recorded on #295 for the RotW authority, not guessed here.
+Law: test_a_tier_multiplier_names_its_difficulty (2 red-proofs PROVEN).
+
+#### the v3623 second eye (grok-cli, 5 findings) - triage, 2026-10-08
+
+| finding | measured | verdict |
+|---|---|---|
+| the fleet-card / river-tip node gates cut a function at the FIRST end anchor | both cuts end exactly at the brace-matched end today; a future nested block could truncate silently, so the two first-match cuts now refuse an unbalanced cut | FRAGILE, hardened (no defect today) |
+| two-counts RED_PROOF reverts the tile only | the coverage half now proves too (5f95c38d) | FIXED |
+| v2018's widened stub anchor binds the first `rarity:` | anchor names the full expression (5f95c38d) | FIXED |
+| `pp > tp` holds a fully examined reel forever | by design and documented in probed_every_panel: two counts disagreeing about one reel cannot show every panel was probed, his ruling keeps it - costs disk, never a wrong delete | REFUTED |
+| NOT SHOWN: bible.html, control_ui.html and five laws | the eye's own words | a reach limit, recorded - Routine I then found REG-2068 in bible.html |
+
 ### REG-2068 - EVERY SET PIECE PACKED AS A GUESSED 1x2 (2026-10-08, Routine I red on v3623)
 
 Routine I went red on v3623 (green on v3622): v203 `v227 exact set pieces` read Tal Rasha's Guardianship as [1,2], not

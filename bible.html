@@ -25097,7 +25097,7 @@ function renderBossNav() {
       const lo = Math.min(...ms), hi = Math.max(...ms);
       xtxt = (Math.abs(lo - hi) < 0.005) ? ('×' + hi.toFixed(2)) : ('×' + lo.toFixed(2) + '–' + hi.toFixed(2));
     }
-    return `<div class="boss-nav-group ${g.cls}"><span class="boss-nav-group-label">${g.name}${players > 1 ? `<span class="boss-nav-group-mult" title="drop-quantity multiplier at /players ${players}"> · ${xtxt}</span>` : ''}</span><div class="boss-nav-group-chips">${chips}</div></div>`;   /* v691 (🏓 R2) — ×1.00 on every group at /p1 is zero information; at /p2+ even ×1.00 is signal (P#-PROOF tier) */
+    return `<div class="boss-nav-group ${g.cls}"><span class="boss-nav-group-label">${g.name}${players > 1 ? `<span class="boss-nav-group-mult" title="Hell drop-quantity multiplier at /players ${players}"> · ${xtxt}</span>` : ''}</span><div class="boss-nav-group-chips">${chips}</div></div>`;   /* v691 (🏓 R2) — ×1.00 on every group at /p1 is zero information; at /p2+ even ×1.00 is signal (P#-PROOF tier) */
   }).join("");
   const leftover = BOSSES.filter(b => !used[b.id]).map(chip).join("");
   const leftoverHtml = leftover ? `<div class="boss-nav-group pt-event"><span class="boss-nav-group-label">WORLD EVENT<span class="boss-nav-group-mult" title="event-only drops — not /players scaled"> · event</span></span><div class="boss-nav-group-chips">${leftover}</div></div>` : "";
@@ -25355,7 +25355,7 @@ function renderBossCards() {
     }
     const cards = g.members.map(id => __cardOf[id] || '').join('');
     return `<div class="tier-section ${g.cls}">
-      <div class="tier-head"><span class="tier-name">${g.name}</span>${players > 1 ? `<span class="tier-mult" title="drop-quantity multiplier at /players ${players}">/players ${players} · ${xtxt}</span>` : ''}</div>
+      <div class="tier-head"><span class="tier-name">${g.name}</span>${players > 1 ? `<span class="tier-mult" title="Hell drop-quantity multiplier at /players ${players}">/players ${players} · ${xtxt}</span>` : ''}</div>
       <div class="tier-tag">${g.tag}</div>${cards}</div>`;
   }).join('');
   const _leftover = BOSSES.filter(b => !_usedIds[b.id]).map(b => __cardOf[b.id] || '').join('');

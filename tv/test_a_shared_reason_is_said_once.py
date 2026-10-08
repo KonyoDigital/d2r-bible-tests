@@ -41,6 +41,11 @@ def _why(rows):
         raise AssertionError("_fleetStuckWhy's anchor matched %d times - re-point this law" % s.count(start))
     i = s.index(start)
     fn = s[i:s.index(end, i) + len(end)]
+    # #231 eye on v3623: the end anchor is the FIRST match after the start - a cut that stops inside the function runs
+    # a truncated body in node. A whole function balances its braces; anything else refuses loudly.
+    if fn.count("{") != fn.count("}"):
+        raise AssertionError("the cut is not a whole function (%d '{' vs %d '}') - the end anchor stopped inside it; "
+                             "re-point this law" % (fn.count("{"), fn.count("}")))
     js = ("%s\nconsole.log(JSON.stringify(_fleetStuckWhy(%s, function(e){ return e.station + ' ' + e.n; })));\n"
           % (fn, json.dumps(rows)))
     # the program goes in on STDIN - a law never hands node its program on argv
