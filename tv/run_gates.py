@@ -9136,6 +9136,11 @@ GATES = [
          needs_app=False,
          why=("REG-2074 (#235/#291, GrokBot 379/403/415/419-421) - ✕ on a reel picked from the River gallery closed onto "
               "Sessions or TV·D; the gallery it came through was unreachable.")),
+    Gate("test_the_shelf_door_says_the_shelf", [sys.executable,
+         os.path.join(HERE, "test_the_shelf_door_says_the_shelf.py")], 30,
+         needs_app=False,
+         why=("REG-2076 (#287, GrokBot 419/423) - opening the shelf painted the LAST reel's header ('SESSION 41 · PAST "
+              "REPLAY') over a shelf that had not painted yet.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

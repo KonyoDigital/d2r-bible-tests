@@ -11670,9 +11670,17 @@ window._lockMark = function(isOpen, px, label){
   }
   // v940.5 — the PAST-not-LIVE ribbon. ON AIR → says recording continues in the background;
   // otherwise → session N + the recorded time span. Re-run on paint, session load, and refresh.
-  function thRibbon(){
+  function thRibbon(door){
     var el = $('th-ribbon'); if (!el) return;
     var onAir = document.body.getAttribute('data-state') === 'on';
+    /* #287 (REG-2076, GrokBot ticks 419 + 423) - THE SHELF DOOR IS NOT A REEL. Opening the shelf shows the theatre shell
+       first, and this line painted from TH.sn - the LAST reel (or 'session 1' on a fresh console) - so 'THEATRE · SESSION 41
+       · PAST REPLAY · NOT LIVE' sat over a shelf that had not painted yet. Until he picks a reel, it says the shelf. */
+    if (!onAir && (door || TH.shelfIsDoor)){
+      el.classList.remove('on-air');
+      el.textContent = '📚 THE SHELF · pick a reel to replay · PAST runs only';
+      return;
+    }
     // v1380.5 — clear label: this CRT is PAST only; live recording (if any) is separate
     if (onAir){
       el.classList.add('on-air');
@@ -17374,7 +17382,7 @@ window._lockMark = function(isOpen, px, label){
     $('theatre').hidden = false;
     document.body.classList.add('theatre-open');
     try { $('th-caption').textContent = _shelfDoor ? 'opening the shelf…' : '🎞 loading the reel…'; } catch (e) {}
-    try { thRibbon(); thCoachOnce(); } catch (e) {}   // v940.5 — banner + one-time keyboard hint
+    try { thRibbon(_shelfDoor); thCoachOnce(); } catch (e) {}   // v940.5 — banner + one-time keyboard hint · REG-2076 the door says the shelf
     thLit();
     /* ══ v2228 — A STAGE THAT CANNOT LOAD ITS REEL MUST NOT SIT BLACK FOREVER ═══════════════
        HIS REPORT, 2026-08-28, with two screenshots: "the console has this bug thats its black
@@ -17482,7 +17490,7 @@ window._lockMark = function(isOpen, px, label){
       try { TH.shelfIsDoor = true; } catch (e) {}
       try { thShelf(true); } catch (e) {}
       var _bk = $('th-shelfov');
-      if (_bk && !_bk.hidden) { thLit(); return; }
+      if (_bk && !_bk.hidden) { try { thRibbon(); } catch (e) {} thLit(); return; }   /* REG-2076 - the ribbon says the shelf again */
     }
     thClose();
   }

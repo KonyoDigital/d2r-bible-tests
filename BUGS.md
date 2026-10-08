@@ -406,6 +406,15 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2076 - THE SHELF DOOR WORE THE LAST REEL'S HEADER (2026-10-08, #287)
+
+GrokBot ticks 419 and 423: the Shelf card showed 'THEATRE · SESSION 1 · PAST REPLAY · NOT LIVE' (423: SESSION 41) for
+seconds before the River gallery painted. The shelf opens inside the theatre shell, and thOpen's ribbon painted from
+TH.sn - the last reel, or 'session 1' on a fresh console. A door open (and the step back to the shelf, REG-2074) now
+says '📚 THE SHELF · pick a reel to replay'; a picked reel still names its session; ON AIR keeps its warning. The shell
+itself is the shelf's container, so 'no Theatre in between' is as far as words go - the race tick 420 could not
+reproduce is not claimed fixed. Law: test_the_shelf_door_says_the_shelf (2 red-proofs).
+
 ### REG-2075 - "REGISTERED 21 · 21 chronicle" UNDER "19 owned", AND NOTHING BETWEEN THEM (2026-10-08, #286)
 
 GrokBot tick 418 K16 (and 423): the Vault's top said '19 owned · 19 filed to mules · 0 still loose' and its Registered
