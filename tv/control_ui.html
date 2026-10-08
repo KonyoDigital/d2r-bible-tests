@@ -14492,6 +14492,20 @@ window._lockMark = function(isOpen, px, label){
      The reason: the census reports engines whose answer arrives at no reel, and a measurement
      read by nobody is the exact defect it was written to catch. It REPORTS — nothing here fails
      a build, and an UNJOINED engine is a gap to close. */
+  /* #292 (REG-2066, GrokBot ticks 419-422 K13/K18) - THE HEADER COUNTS WHAT EACH ROW SAYS. It printed rows - unjoined:
+     '13 OF 14 · 1 REACH NO REEL' over 9 JOINED, 4 NO DATA and 1 UNJOINED - an engine with no data counted as joined.
+     Each state is counted from the rows and named; the denominator is every engine. -> header text */
+  function _hrtJoinsHead(rows, gap){
+    var n = { JOINED: 0, 'BY DESIGN': 0, 'NO DATA': 0 }, other = 0;
+    (rows || []).forEach(function (r) { var st = r && r.state; if (Object.prototype.hasOwnProperty.call(n, st)) n[st]++; else other++; });
+    var tot = (rows || []).length, bits = [n.JOINED + ' of ' + tot + ' joined'];
+    if (n['BY DESIGN']) bits.push(n['BY DESIGN'] + ' by design');
+    if (n['NO DATA']) bits.push(n['NO DATA'] + ' no data yet');
+    if (gap) bits.push(gap + ' reach no reel');
+    else if (!n['NO DATA'] && n.JOINED + n['BY DESIGN'] === tot) bits.push('all connected');
+    return bits.join(' · ');
+  }
+  window._hrtJoinsHead = _hrtJoinsHead;
   function _hrtJoins(jc){
     if (!jc) return '';
     if (!jc.ok){
@@ -14501,9 +14515,7 @@ window._lockMark = function(isOpen, px, label){
         + '<span class="hrt-w">' + _hrtEsc(jc.why || 'it could not be taken') + '</span></div></div>';
     }
     var rows = jc.rows || [], gap = jc.unjoined || 0;
-    var h = '<div class="hrt-sec"><div class="hrt-h">Engines joined to the river · '
-          + (rows.length - gap) + ' of ' + rows.length
-          + (gap ? ' · ' + gap + ' reach no reel' : ' · all connected') + '</div>';
+    var h = '<div class="hrt-sec"><div class="hrt-h">Engines joined to the river · ' + _hrtJoinsHead(rows, gap) + '</div>';
     for (var i = 0; i < rows.length; i++){
       var r = rows[i];
       var cls = (r.state === 'JOINED') ? 'st-FLOWING'

@@ -406,6 +406,13 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2066 - "ENGINES JOINED · 13 OF 14" OVER 9 JOINED (2026-10-08, #292)
+
+GrokBot ticks 419-422 (K13/K18): the Heart header read "13 OF 14 · 1 REACH NO REEL" over 9 JOINED, 4 NO DATA and 1
+UNJOINED - it was rows minus unjoined, so an engine with no data counted as joined. `_hrtJoinsHead` counts each state
+from the rows and names it ("9 of 14 joined · 4 no data yet · 1 reach no reel"); "all connected" only when it is.
+Law: test_the_joined_census_counts_what_each_row_says.
+
 ### REG-2065 - THE RIVER GALLERY'S TIPS PAINTED 400 PX BELOW THEIR CHIPS (2026-10-08, #297)
 
 GrokBot tick 422 (K08): COMPARE, AREAS, the sort box, ☆ and the TRIAGE / SEAL / RELEASED / "8 RUNS" chips all had

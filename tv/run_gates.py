@@ -9099,6 +9099,12 @@ GATES = [
          why=("REG-2065 (#297, GrokBot 422) - the River gallery's top-row tips painted ~400 px below their chips: the "
               "overlay clamp meant for the transport caught controls on the overlay.")
          ),
+    Gate("test_the_joined_census_counts_what_each_row_says", [sys.executable,
+         os.path.join(HERE, "test_the_joined_census_counts_what_each_row_says.py")], 30,
+         needs_app=False,
+         why=("REG-2066 (#292, GrokBot 419-422) - ENGINES JOINED read 13 of 14 over 9 joined, 4 no data, 1 unjoined: the "
+              "header was rows minus unjoined.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,
