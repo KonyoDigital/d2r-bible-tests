@@ -406,6 +406,14 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2077 - THREE RUN COUNTS, NO BRIDGE (2026-10-08, #283)
+
+GrokBot tick 418 K11: TV·D HISTORY '162 RUNS', the Theatre 'session 41/216', the shelf '8 RUNS'. Measured in code: the TV·D
+strip is /api/sessions without empty stubs, the Theatre indexes every run journaled, the shelf shows runs that kept film.
+TV·D now says '162 runs · 54 empty not shown (all 216)' and the Theatre 'session 41 of all 216' - they meet in one
+number; the shelf header already names its population (v3191). v766's spec moved with the label.
+Law: test_three_run_counts_name_their_universes (2 red-proofs).
+
 ### REG-2076 - THE SHELF DOOR WORE THE LAST REEL'S HEADER (2026-10-08, #287)
 
 GrokBot ticks 419 and 423: the Shelf card showed 'THEATRE · SESSION 1 · PAST REPLAY · NOT LIVE' (423: SESSION 41) for

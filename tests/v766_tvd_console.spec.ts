@@ -184,14 +184,14 @@ test.describe('v766 TV·D console architecture', () => {
     }));
     expect(play.open).toBe(true);
     expect(play.beats).toBe(2);                         // two reads → two timeline beats
-    expect(play.sess).toContain('session 1/2');         // newest session first, paginated
+    expect(play.sess).toContain('session 1 of all 2');   // REG-2077 - the index names its universe         // newest session first, paginated
     expect(play.cap).toMatch(/Chaos Sanctuary|Ist|read #/i);
 
     // pagination → older session
     await page.evaluate(() => document.getElementById('tvz-th-prev-s')!.click());
     await page.waitForTimeout(150);
     const older = await page.evaluate(() => document.getElementById('tvz-th-sess')!.textContent || '');
-    expect(older).toContain('session 2/2');
+    expect(older).toContain('session 2 of all 2');
 
     // scrub the timeline to the last beat → the vaulted unique chip renders
     await page.evaluate(() => {

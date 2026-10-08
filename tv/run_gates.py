@@ -9141,6 +9141,11 @@ GATES = [
          needs_app=False,
          why=("REG-2076 (#287, GrokBot 419/423) - opening the shelf painted the LAST reel's header ('SESSION 41 · PAST "
               "REPLAY') over a shelf that had not painted yet.")),
+    Gate("test_three_run_counts_name_their_universes", [sys.executable,
+         os.path.join(HERE, "test_three_run_counts_name_their_universes.py")], 30,
+         needs_app=False,
+         why=("REG-2077 (#283, GrokBot 418 K11) - TV·D '162 RUNS', the theatre 'session 41/216' and the shelf '8 RUNS' "
+              "never said what they counted.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,
