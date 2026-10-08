@@ -9,7 +9,8 @@ said what the 20 was made of, and the sum left out the "❓ Not recognised" colu
 
 The law drives the REAL renderVaultRegistered (lifted from bible.html, its globals stubbed through a scope proxy)
 on a fixture vault: 2 muled, 1 orphan, 1 magic find, 1 throw-out. The badge is the sum of every column (5), the
-subtitle says "3 chronicle . 1 magic & rare . 1 throw-out", and an orphan is counted.
+subtitle says "3 chronicle (2 owned . 1 not recognised) . 1 magic & rare . 1 throw-out", and an orphan is counted.
+REG-2075 (#286): the chronicle count names how it meets the population line's "owned" - the ❓ names it cannot place.
 """
 import io
 import json
@@ -101,14 +102,14 @@ class TheRegisteredTotalNamesItsParts(unittest.TestCase):
         self.assertEqual(out["tot"], sum(out["cols"]),
                          "the Registered badge (%s) is not the sum of the columns under it %s - the ❓ orphan is "
                          "left out (REG-1939)" % (out["tot"], out["cols"]))
-        self.assertEqual(out["sub"], "3 chronicle · 1 magic &amp; rare · 1 throw-out — everything read, sorted",
-                         "the total does not say what it is made of")
+        self.assertEqual(out["sub"], "3 chronicle (2 owned · 1 ❓ not recognised) · 1 magic &amp; rare · 1 throw-out — everything read, sorted",
+                         "the total does not say what it is made of, or how its chronicle meets the top line's 'owned' (REG-2075)")
 
     def test_with_nothing_but_owned_the_total_is_the_owned(self):
         out = self.render(owned=["Shako", "Arachnid Mesh"], pool=["Shako", "Arachnid Mesh"],
                           muled=["Shako", "Arachnid Mesh"], finds={}, unk=[])
         self.assertEqual(out["tot"], 2)
-        self.assertTrue(out["sub"].startswith("2 chronicle · 0 magic"), out["sub"])
+        self.assertTrue(out["sub"].startswith("2 chronicle · 0 magic"), "no orphan, no bridge to say: %r" % out["sub"])
 
 
 RED_PROOF = [
@@ -122,8 +123,15 @@ RED_PROOF = [
     {
         "why": "REG-1939 - the subtitle stops naming the split, so '20 vs 19 owned' reads as a contradiction again",
         "file": "bible.html",
-        "find": "<span class=\"to-subt\">'+_regChron+' chronicle · '+findNames.length+' magic &amp; rare · '+unkNames.length+' throw-out — everything read, sorted</span>",
+        "find": "<span class=\"to-subt\">'+_regChron+' chronicle'+(orphan.length?' ('+all.length+' owned · '+orphan.length+' ❓ not recognised)':'')+' · '+findNames.length+' magic &amp; rare · '+unkNames.length+' throw-out — everything read, sorted</span>",
         "replace": "<span class=\"to-subt\">chronicle · magic &amp; rare · throw-out — everything read, sorted</span>",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2075 - the chronicle count stops saying how it meets the top line's 'owned' (#286: 21 chronicle vs 19 owned)",
+        "file": "bible.html",
+        "find": "(orphan.length?' ('+all.length+' owned · '+orphan.length+' ❓ not recognised)':'')",
+        "replace": "''",
         "matches": 1,
     },
 ]
