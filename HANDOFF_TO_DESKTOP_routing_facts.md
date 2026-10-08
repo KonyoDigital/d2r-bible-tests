@@ -1,6 +1,7 @@
 # HANDOFF → Desktop — Authoritative TZ→boss facts + routing decision
 
 **From:** CC (terminal) · **Date:** 2026-05-30
+**Status (2026-10-08):** HISTORY. The TZ_BOSS_MAP edit this note hands to Desktop landed in the same v44 commit (`2f9ef4b`), and the Summoner later got his own card, so Arcane Sanctuary now routes to `summoner`. The live map is `TZ_BOSS_MAP` in bible.html; the law is `tests/routing_and_data_integrity.spec.ts`.
 **Scope:** answers Konyo's "make these facts authoritative & researched & accurately placed,"
 including the **Duriel** question. CC stayed OUT of bible.html (Desktop is live in it).
 

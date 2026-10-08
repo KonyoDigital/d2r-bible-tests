@@ -9,7 +9,7 @@ affix**, fully in-sync with the existing routing (click an item anywhere → ope
 and from here → back into the calc / boss detail). Est. +3,000–5,000 cells.
 
 ## Why it is NOT built tonight (honest blocker)
-The bible's `BOSSES` data carries, per item: **name, tier (uber/grail/normal), TC, qlvl,
+The bible's `BOSSES` data carries, per item: **name, tier (common/high/grail/set/uber/special — the set `tests/routing_and_data_integrity.spec.ts` allows; this line said uber/grail/normal until 2026-10-08), TC, qlvl,
 and per-difficulty drop odds** — and nothing about the item's *properties*. There is **no
 per-unique/per-set affix dataset anywhere on disk** (checked: bible.html has only narrative
 affix mentions; `~/Downloads/konyo_d2r_special_items.html` is the RotW shards/statues/essence

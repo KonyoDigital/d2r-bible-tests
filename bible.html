@@ -24894,10 +24894,11 @@ const GUARANTEED_PER_BOSS = {
 };
 
 const TZ_BOSS_MAP = [
-  // Only zones where a boss from the 11-boss roster actually spawns / is the headline farm
-  // get a click-through. Super-unique / density-only zones (Crystalline Passage, Tristram,
-  // Arcane Sanctuary, Flayer Dungeon, Spider Forest, Burial Grounds) intentionally return no
-  // match: their value is super-uniques NOT in the roster, so a boss-detail route would mislead.
+  // Only zones where a roster boss actually spawns / is the headline farm get a click-through.
+  // Super-unique / density-only zones (Crystalline Passage, Tristram, Flayer Dungeon, Spider
+  // Forest, Burial Grounds) intentionally return no match: their value is super-uniques NOT in
+  // the roster, so a boss-detail route would mislead. Arcane Sanctuary routes to the Summoner's
+  // own card (Key of Hate) - his zone, never Duriel's.
   // (Render template makes a no-match card non-clickable: cursor:default + honest title.)
   {re:/catacombs/i, boss:'andariel'},                       // Andariel — Catacombs L4
   {re:/halls of (anguish|pain|vaught)|nihl/i, boss:'nihl'}, // Nihlathak — Halls of Vaught

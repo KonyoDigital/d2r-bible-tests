@@ -29,16 +29,18 @@ const TZ_CORRECT: Record<string, string> = {
   'Catacombs L4': 'andariel',     // Andariel literally spawns here
 };
 
-// TZ zones whose value is their OWN super-unique(s) with no boss card. These must
-// NOT mis-route to a same-act proxy boss (Konyo's Crystalline-Passage complaint).
-// Each entry = a substring of the zone name + the WRONG proxy it currently points to.
-const TZ_SUPERUNIQUE_ONLY: { match: string; wrongProxy: string }[] = [
-  { match: 'Crystalline Passage', wrongProxy: 'baal' },     // Frozenstein/Eldritch/Shenk
-  { match: 'Tristram', wrongProxy: 'countess' },            // Griswold/Smith/Rakanishu
-  { match: 'Arcane Sanctuary', wrongProxy: 'duriel' },      // The Summoner (Duriel is in the Tomb)
-  { match: 'Flayer Dungeon', wrongProxy: 'travincal' },     // Witch Doctor Endugu
-  { match: 'Spider Forest', wrongProxy: 'mephisto' },       // Sszark the Burning
-  { match: 'Burial Grounds', wrongProxy: 'andariel' },      // Blood Raven (Andariel is in Catacombs)
+// TZ zones whose value is their OWN resident(s), never a same-act proxy boss (Konyo's
+// Crystalline-Passage complaint). Each entry = a substring of the zone name, the WRONG proxy
+// it once pointed to, and `own` - the only data-boss-id it may carry: '' (a super-unique with
+// no boss card) or the resident's own card. The Summoner got his own card (Key of Hate), so
+// Arcane Sanctuary routes to 'summoner' - his zone, never Duriel's.
+const TZ_SUPERUNIQUE_ONLY: { match: string; wrongProxy: string; own: string }[] = [
+  { match: 'Crystalline Passage', wrongProxy: 'baal', own: '' },             // Frozenstein/Eldritch/Shenk
+  { match: 'Tristram', wrongProxy: 'countess', own: '' },                    // Griswold/Smith/Rakanishu
+  { match: 'Arcane Sanctuary', wrongProxy: 'duriel', own: 'summoner' },      // The Summoner (Duriel is in the Tomb)
+  { match: 'Flayer Dungeon', wrongProxy: 'travincal', own: '' },             // Witch Doctor Endugu
+  { match: 'Spider Forest', wrongProxy: 'mephisto', own: '' },               // Sszark the Burning
+  { match: 'Burial Grounds', wrongProxy: 'andariel', own: '' },              // Blood Raven (Andariel is in Catacombs)
 ];
 
 test.describe('boss-chip routing — each chip opens its OWN boss', () => {
@@ -154,9 +156,13 @@ test.describe('TZ-zone routing — fidelity + correctness', () => {
        So the condition it used to skip on is now the thing it FAILS on, by name. */
     expect(stillBroken.map(z => z.match + ' -> ' + z.wrongProxy),
       'super-unique-only zones are proxy-routed again; TZ_BOSS_MAP has regressed').toEqual([]);
+    /* #231 second eye (2026-10-08, on the v44 commit): `not.toBe(wrongProxy)` let ANY other proxy
+       pass, and `if (entry)` skipped a zone that went missing. A zone must be present, and carry
+       exactly its own id - nothing else. */
     for (const z of TZ_SUPERUNIQUE_ONLY) {
       const entry = Object.entries(map).find(([name]) => name.includes(z.match));
-      if (entry) expect(entry[1], `zone "${entry[0]}" should NOT proxy to "${z.wrongProxy}"`).not.toBe(z.wrongProxy);
+      expect(entry, `expected a TZ zone matching "${z.match}"`).toBeTruthy();
+      expect(entry![1], `zone "${entry![0]}" must carry only its own id ("${z.own}"), never a proxy`).toBe(z.own);
     }
   });
 
