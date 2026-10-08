@@ -406,6 +406,16 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2074 - ✕ ON A REEL FROM THE RIVER GALLERY SKIPPED THE GALLERY (2026-10-08, #235/#291)
+
+GrokBot ticks 379, 403, 415, 419, 420 and 421: a reel opened from the shelf closed onto Sessions or TV·D - "✕ returns to
+the TAB the Shelf was opened from but always skips the River gallery it came through". The stage's ✕ and the last Esc
+called thClose, which tears down the theatre AND the shelf (v2451's rule for the door). A reel that came through the shelf
+- its dossier's ▶, Last session, or a load while the shelf was the door - is now marked `TH.reelFromShelf`, and
+`thCloseReel` steps back ONE layer: the shelf (River sort kept), made the door, so its own ✕ then closes everything as
+before. A reel opened elsewhere still closes the theatre; the cockpit's 'Close Theatre' still leaves it all; the ✕
+title now says which. Law: test_a_reel_from_the_shelf_closes_back_to_the_shelf (3 red-proofs).
+
 ### REG-2073 - "census taken 14 s ago", FOR 26 SECONDS - AND A SECOND CENSUS UNDER THE SAME WORD (2026-10-08, #284)
 
 GrokBot ticks 418, 422 and 423 (K16/K17): the Heart's census age read the same for 26 s and longer. It arrived right

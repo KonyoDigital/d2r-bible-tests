@@ -9131,6 +9131,11 @@ GATES = [
          needs_app=False,
          why=("REG-2073 (#284, GrokBot 418/422/423 K16-K17) - the Heart's 'census taken 14 s ago' froze at the value it "
               "rendered for 26 s and longer: painted once from the answer, never advanced.")),
+    Gate("test_a_reel_from_the_shelf_closes_back_to_the_shelf", [sys.executable,
+         os.path.join(HERE, "test_a_reel_from_the_shelf_closes_back_to_the_shelf.py")], 30,
+         needs_app=False,
+         why=("REG-2074 (#235/#291, GrokBot 379/403/415/419-421) - ✕ on a reel picked from the River gallery closed onto "
+              "Sessions or TV·D; the gallery it came through was unreachable.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

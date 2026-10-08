@@ -7976,7 +7976,7 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
           <button type="button" id="th-open-reel" title="open this session's film folder on disk (all screenshots, labeled or not)" style="margin-left:8px;padding:4px 10px;border-radius:8px;font: var(--fw-semibold) var(--fs-xs)/1 var(--mono);letter-spacing:var(--ls-snug);color:#d9c9a0;border:1px solid rgba(240,192,96,.35);background:rgba(0,0,0,.45);cursor:pointer">📁 film</button>
           <button type="button" id="th-reclose" title="re-run KAI retro on this reel (filters + gap-funnels + multi-retry tallies). OFF AIR only." style="margin-left:6px;padding:4px 10px;border-radius:8px;font: var(--fw-semibold) var(--fs-xs)/1 var(--mono);letter-spacing:var(--ls-snug);color:#c8b8ff;border:1px solid rgba(185,165,255,.4);background:rgba(0,0,0,.45);cursor:pointer">🧠 reclose</button>
           <button class="th-x" id="th-legend-btn" type="button" title="the key — what every symbol means (?)" onclick="window._legendOpen()" style="margin-left:8px;width:auto;padding:0 12px;font-weight:var(--fw-semibold)">? key</button>
-          <button class="th-x" id="th-close" type="button" title="close the theatre" style="width:auto;padding:0 12px;font-weight:var(--fw-semibold);letter-spacing:var(--ls-snug)">✕ CLOSE</button>
+          <button class="th-x" id="th-close" type="button" title="close this reel - back to the shelf if you opened it from there, else close the theatre" style="width:auto;padding:0 12px;font-weight:var(--fw-semibold);letter-spacing:var(--ls-snug)">✕ CLOSE</button>
         </div>
         <div class="th-caption" id="th-caption">loading the reel…</div>
         <div class="th-drawer" id="th-drawer" hidden></div>
@@ -12525,14 +12525,18 @@ window._lockMark = function(isOpen, px, label){
   window._dossierToTheatre = async function(){
     var n = DOSSIER.n;
     var dov = document.getElementById('th-dossier-ov'); if (dov) dov.hidden = true;
-    var sov = document.getElementById('th-shelfov'); if (sov) sov.hidden = true;   // leave the shelf; we're going into the film
+    var sov = document.getElementById('th-shelfov');
+    if (sov && !sov.hidden && typeof TH !== 'undefined') TH.reelFromShelf = true;   // REG-2074 - ✕ on this reel goes back to the shelf
+    if (sov) sov.hidden = true;   // leave the shelf; we're going into the film
     try { if (typeof thOpen === 'function' && !(typeof TH !== 'undefined' && TH.open)) await thOpen(); } catch (e) {}   // v1275 (D3) — dossier can launch from the home (theatre closed): open it first
     if (typeof thLoadSession === 'function') thLoadSession(Number(n) || 1, false, DOSSIER.sid);   // REG-1933 — this dossier's reel, by id
   };
   window._shelfLastSession = async function(){
     /* Last session lives IN the shelf. Same exit as the dossier (hide the shelf, then a reel),
        aimed at the Theatre button's pick rather than whichever dossier happens to be open. */
-    var sov = document.getElementById('th-shelfov'); if (sov) sov.hidden = true;
+    var sov = document.getElementById('th-shelfov');
+    if (sov && !sov.hidden && typeof TH !== 'undefined') TH.reelFromShelf = true;   // REG-2074
+    if (sov) sov.hidden = true;
     var have = (typeof TH !== 'undefined' && TH.sessions && TH.sessions.length);
     try {
       if (!have && typeof thOpen === 'function') { await thOpen(); return; }
@@ -17157,7 +17161,7 @@ window._lockMark = function(isOpen, px, label){
        meant "back to the console". From here on there is a reel he chose, and ✕ means "back to the
        reel". Clearing it HERE rather than guessing at close time is the whole difference between
        the two wrong versions of this fix. */
-    try { TH.shelfIsDoor = false; } catch (e) {}
+    try { if (TH.shelfIsDoor) TH.reelFromShelf = true; TH.shelfIsDoor = false; } catch (e) {}   // REG-2074 - remember the door it came through
     var gen = (TH.loadGen = (TH.loadGen || 0) + 1);   // v859 — stale responses never paint
     /* ⚠⚠ v2790 — THE v2228 FIX, SWEPT TO ITS SIBLING ELEVEN LINES AWAY. This line read
        `await fetch('/api/session?n=' + n)` with NO AbortController, NO timeout and NO catch, while
@@ -17465,11 +17469,30 @@ window._lockMark = function(isOpen, px, label){
       else CARD.autoArmed = false;
     } catch (e) { CARD.autoArmed = false; }
   }
+  /* #235 / #291 (REG-2074, GrokBot ticks 379, 403, 415, 419, 420, 421) - ✕ ON A REEL OPENED THROUGH THE SHELF GOES BACK
+     TO THE SHELF. The stage's ✕ and the last Esc called thClose, which tears the theatre AND the shelf down and returns
+     to the tab - so a reel picked from the River gallery closed onto Sessions or TV·D and the gallery he came through
+     was unreachable. A reel that came through the shelf (its dossier's ▶, Last session, or a load while the shelf was
+     the door) now steps back ONE layer: the shelf, which becomes the door, so its own ✕ then closes everything as
+     before. The cockpit's 'Close Theatre' still leaves the whole theatre. */
+  function thCloseReel(){
+    if (TH.open && TH.reelFromShelf) {
+      TH.reelFromShelf = false;
+      TH.playing = false; clearTimeout(TH.timer);
+      try { TH.shelfIsDoor = true; } catch (e) {}
+      try { thShelf(true); } catch (e) {}
+      var _bk = $('th-shelfov');
+      if (_bk && !_bk.hidden) { thLit(); return; }
+    }
+    thClose();
+  }
+  window.thCloseReel = thCloseReel;
   function thClose(){
     /* v3304 (#59) — INVALIDATE ANY OPEN STILL IN FLIGHT. Without this the pending thOpen()
        resolves after the teardown and re-shows an empty stage; that is the reopen-after-close
        failure he reported five times. */
     TH.gen = (TH.gen | 0) + 1;
+    TH.reelFromShelf = false;   /* REG-2074 - a full teardown forgets the door */
     TH.open = false; clearTimeout(TH.timer); TH.playing = false;
     try { window._backFromLive && window._backFromLive(); } catch(e){}   // v1627 — back to where he opened it from
     $('theatre').hidden = true;
@@ -20310,7 +20333,7 @@ window._lockMark = function(isOpen, px, label){
     }
     if (CARD.open){ thCardToggle(); return; }
     if (document.body.classList.contains('cinema')){ thCinema(false); return; }
-    thClose();
+    thCloseReel();   /* REG-2074 - the last Esc on a reel from the shelf goes back to the shelf, like its ✕ */
   }
   // v943 — CLICK-OUTSIDE dismiss for the side panel: a press anywhere in the theatre that is not
   // the panel, the transport strip, the filmstrip, or the ⋯ drawer closes the panel (and is eaten
@@ -20403,7 +20426,7 @@ window._lockMark = function(isOpen, px, label){
       e.preventDefault();
     }
   });   // v800 — broadcast transport: ←/→ beat snap · space play/pause · I card
-  $('th-close').onclick = thClose;
+  $('th-close').onclick = thCloseReel;   /* REG-2074 */
   // v946.2 — open the physical film folder (all screenshots for this session)
   var _thReelBtn = $('th-open-reel');
   if (_thReelBtn) _thReelBtn.onclick = async function(e){
