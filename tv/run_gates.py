@@ -7456,7 +7456,9 @@ GATES = [
              "is enforced so the deleter cannot arm before the lanes feeding it, that an "
              "unreadable proof queue fails CLOSED, and that may() never grows an override "
              "parameter — which would quietly restore the hand-arming this replaces."),
-    Gate("test_heart_surface", [sys.executable, os.path.join(HERE, "test_heart_surface.py")], 60,
+    # REG-2088 - 120 s, not 60: MEASURED 38-52 s on his Mac in a quiet full run, 80 s ALONE under the console's own prover
+    # (load 18) - a ceiling at 1.2x the healthy time is a coin flip, and 120 s still names a real hang.
+    Gate("test_heart_surface", [sys.executable, os.path.join(HERE, "test_heart_surface.py")], 120,
          why="♥ THE HEART AS A SURFACE — the route and the shell it borrows. test_heart covers the "
          "derivation; this covers what actually broke on the way in. A panel reusing .fleet-xref "
          "inherits a TWO-COLUMN GRID along with the design: #ver-xref hit that and wrote a warning, "
@@ -7808,7 +7810,9 @@ GATES = [
              "CF-10 four states are four words; CF-12 SLOW checks reach slowRows not the cheap "
              "pass; B-83 equipment is names_loc not a frame class; #135 stays unfingerprinted. "
              "Each guard has a named sabotage."),
-    Gate("test_health_engine", [sys.executable, os.path.join(HERE, "test_health_engine.py")], 60,
+    # REG-2088 - 120 s, not 60: MEASURED 54-58 s in EVERY quiet full run on his Mac (5% headroom) - it timed out in three
+    # runs in a row on 10-08 while CI runs it in 11 s; 120 s keeps a hang a hang.
+    Gate("test_health_engine", [sys.executable, os.path.join(HERE, "test_health_engine.py")], 120,
          why="v2277 — ONE HEALTH ENGINE, RED/GREEN, REPORTING ONLY. Konyo: \"not sure we need a "
              "live watchdog that fixes things might be wrong for the console and make a bug worse.. "
              "but maybe a system that does red/green flag us... should be a system working one unit "

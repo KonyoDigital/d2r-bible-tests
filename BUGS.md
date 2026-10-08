@@ -406,6 +406,13 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2088 - TWO GATES AT 95% OF THEIR BUDGET TIMED OUT THREE RUNS RUNNING (2026-10-08)
+
+test_health_engine measured 54-58 s in every quiet full run on his Mac against a 60 s ceiling; test_heart_surface 38-52 s,
+and 80 s ALONE under his console's own prover (load 18). Both timed out in the v3627, v3628 and v3629 runs ('a hung gate
+is a failed gate') while CI runs them in 11 s and 41 s. Not hangs, not regressions - a ceiling with no headroom. Both now
+120 s, which still names a real hang. (The pre-push subset does not run them; CI runs the full set.)
+
 ### REG-2087 - A RE-RENDER CLOSED THE DOSSIER HE WAS READING (2026-10-08, GrokBot tick 425)
 
 'First click opened the dossier and it closed itself within ~2 s; the second click held.' The art-map repaint and the
