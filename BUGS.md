@@ -406,6 +406,22 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2115 - THE UPDATE BAR'S WAIT LABEL WAS THE FIRST THING TO GIVE, AND THE RENDER GATE CALLED A 0px LABEL CLEAN (2026-10-09, #315)
+
+His screenshot 2026-10-08 23:43: "not now - a read is in flight · waiting for it to fi…". Measured in headless Chrome at 1120:
+the label "waiting for it to finish" needs 235px and was laid out at 0px, beside a 66px meter - and render_check's update-wait
+target said "clipped 0/11" at all six widths, because its clip scan only judges a box that HAS a clientWidth; a label crushed
+to nothing has none. Two layout causes: the reason beside it had flex-basis = its whole sentence, so the row's shrink fell on
+the meter in proportion to that; and inside the meter Chrome sized it with the bar at its 54px floor but laid the bar out at
+its 70px basis, taking the difference from the words (235 needed, 222.5 given, even when nothing shrank). Now the reason has
+basis 0 (it takes what is left and wraps, with a 200px floor above 760px), the meter keeps its content width, the bar's basis
+is its floor, and the label carries its text as a title like the reason does. Measured after: whole at 1440, 1120 and 800;
+yields with an ellipsis (and a title) at 901, where the reason keeps its floor; RELAUNCH NOW on screen at every width.
+Gate: a new render target update-wait-say makes the LABEL the subject at 1440 and 1120 with no title to excuse a cut - red on
+the old CSS ("never matched a painted element": the 0px label), green after. Both update targets now hold the bar visible
+against the page's own version check, which under load hid it mid-measure at 5 of 6 widths. OPEN, filed apart: the clip scan
+still cannot see ANY text child crushed to zero width in any other target (#318).
+
 ### REG-2118 - A CLOSED REEL STAYED ON THE STAGE, SO ITS FILMSTRIP AND FRAME CAME BACK UNDER THE SHELF (2026-10-09, #317)
 
 GrokBot tick 429 ACT (v3629, Session 53, Shelf -> River gallery -> dossier -> Theatre -> CLOSE): the film-strip frames stayed

@@ -6023,9 +6023,17 @@
      and the button, so the thing he is waiting on and the thing he wants to press are one line.
      Indeterminate (full width, sheened, drifting) while the server is still measuring — never a
      bar resting at 0%, which reads as "stalled". [[unknown-stays-unknown]] */
-  .fb-eta { display: inline-flex; align-items: center; gap: 9px; min-width: 0; flex: 1 1 190px; }
+  /* REG-2115 (#315, his screenshot 2026-10-08 23:43: "waiting for it to fi…") - THE WORDS WERE THE FIRST THING TO GIVE.
+     Measured in headless Chrome at 1120: the label "waiting for it to finish" needs 235px and was laid out at 0px (the
+     render gate called it "clipped 0" - a box crushed to nothing has no clientWidth to overflow), the meter beside it at
+     66px; on his fonts it kept a sliver. Two causes: the reason beside it had flex-basis = its whole sentence, so the
+     row's shrink fell on the meter in proportion to that, and inside the meter Chrome sized it with the bar at its 54px
+     floor but laid the bar out at its 70px basis, taking the 16px from the words. Now the reason's basis is 0 (it takes
+     the room that is left and wraps, with a 200px floor above 760px), the meter keeps its content width, and the bar's
+     basis IS its floor - so the words are whole wherever the row has room, and only yield (ellipsis) when it has none. */
+  .fb-eta { display: inline-flex; align-items: center; gap: 9px; min-width: 0; flex: 0 1 auto; }
   .fb-eta .fbe-bar {
-    position: relative; height: 6px; flex: 1 1 70px; min-width: 54px;
+    position: relative; height: 6px; flex: 1 1 54px; min-width: 54px;   /* REG-2115 - the basis is the floor */
     border-radius: 999px; overflow: hidden;
     background: rgba(0,0,0,.42); border: 1px solid rgba(240,192,96,.22);
   }
@@ -6063,8 +6071,9 @@
      cut it to one ellipsised line. Since #150 the message is the CONSOLE'S OWN REASON for waiting ("not now — only the
      shadow reader's reel is rolling…"), which the meter does not say: the update-wait render target measured it cut
      mid-word at every width. So it WRAPS while the meter is up - the reason is the one thing he needs to read. */
-  .fleet-bar:has(.fb-eta:not([hidden])) .fb-txt { flex: 1 1 auto; min-width: 0;
+  .fleet-bar:has(.fb-eta:not([hidden])) .fb-txt { flex: 1 1 0; min-width: 0;
     white-space: normal; overflow-wrap: anywhere; }
+  @media (min-width: 761px) { .fleet-bar:has(.fb-eta:not([hidden])) .fb-txt { min-width: min(200px, 40%); } }   /* REG-2115 */
   @media (max-width: 760px) { .fb-eta .fbe-say { display: none; } }
 .fleet-row.has-ftt { position: relative; cursor: default; }
   /* v2455 — the unit that says what a denominator is OVER. Dimmed and italic so it reads as a
@@ -20241,11 +20250,11 @@ window._lockMark = function(isOpen, px, label){
               var pct = (typeof e.pct === 'number') ? Math.max(0, Math.min(100, e.pct)) : null;
               wrap.classList.toggle('fbe-unk', pct === null);
               if (fill) fill.style.width = (pct === null ? 100 : pct.toFixed(1)) + '%';
-              if (say) say.textContent = e.say || 'reading';
+              if (say){ say.textContent = e.say || 'reading'; say.title = say.textContent; }   /* REG-2115 - one hover away where the row is narrow */
             } else {
               wrap.classList.add('fbe-unk');
               if (fill) fill.style.width = '100%';
-              if (say) say.textContent = 'waiting for it to finish';
+              if (say){ say.textContent = 'waiting for it to finish'; say.title = say.textContent; }   /* REG-2115 */
             }
             return;                          // NO recursion. The interval is still running.
           }

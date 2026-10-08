@@ -1971,14 +1971,51 @@ TARGETS = {
                 g = document.getElementById('fleet-go');
             if (!b || !t || !e || !s || !g) return false;
             b.hidden = false; e.hidden = false; g.hidden = false;
+            /* REG-2115 - HOLD THE STATE THIS TARGET PHOTOGRAPHS. The page's own version check hides this bar when the
+               sandbox answers "up to date"; under load that answer landed AFTER this activation and the bar measured 0x0 at
+               5 of 6 widths (a refusal about the instrument's timing, not the bar). */
+            try { new MutationObserver(function(){ if (b.hidden) b.hidden = false; })
+                    .observe(b, { attributes: true, attributeFilter: ['hidden'] }); } catch (_e) {}
             t.textContent = "not now \u2014 only the shadow reader's reel is rolling - an update would be held, not refused, "
               + "and land when that reel closes at its next clean point \u00b7 still watching (21 min) - it relaunches by "
               + "itself when that clears";
             s.textContent = 'waiting for it to finish';
+            s.title = s.textContent;   /* REG-2115 - as _updWaitForRead writes it: a narrow row's cut is one hover away */
             g.textContent = 'RELAUNCH NOW';
             var r = b.getBoundingClientRect();
             return !!(r.width > 50 && r.height > 10 && !b.hidden); })()""",
         "sel": "#fleet-bar, #fleet-txt, #fleet-go",
+        "settles": False,
+        "warmup": 4.0,
+    },
+    "update-wait-say": {
+        "serve": True,
+        "why": "REG-2115 (#315, his screenshot 2026-10-08 23:43) - the wait LABEL itself, at the widths his console opens at. It "
+               "read 'waiting for it to fi…' on his screen and measured 0px wide here, and update-wait called that clean: a "
+               "label crushed to nothing has no clientWidth to overflow, and the clip scan only judges a box with width. "
+               "Here it is the subject - zero-size is a refusal - and it carries no title, so a cut is never excused",
+        "widths": ((1440, 1000), (1120, 900)),
+        "seed": """(function(){ return 1; })()""",
+        "activate": """(function(){
+            var b = document.getElementById('fleet-bar'), t = document.getElementById('fleet-txt'),
+                e = document.getElementById('fleet-eta'), s = document.getElementById('fleet-eta-say'),
+                g = document.getElementById('fleet-go');
+            if (!b || !t || !e || !s || !g) return false;
+            b.hidden = false; e.hidden = false; g.hidden = false;
+            /* REG-2115 - HOLD THE STATE THIS TARGET PHOTOGRAPHS. The page's own version check hides this bar when the
+               sandbox answers "up to date"; under load that answer landed AFTER this activation and the bar measured 0x0 at
+               5 of 6 widths (a refusal about the instrument's timing, not the bar). */
+            try { new MutationObserver(function(){ if (b.hidden) b.hidden = false; })
+                    .observe(b, { attributes: true, attributeFilter: ['hidden'] }); } catch (_e) {}
+            t.textContent = "not now \u2014 only the shadow reader's reel is rolling - an update would be held, not refused, "
+              + "and land when that reel closes at its next clean point \u00b7 still watching (21 min) - it relaunches by "
+              + "itself when that clears";
+            s.textContent = 'waiting for it to finish';
+            s.removeAttribute('title');
+            g.textContent = 'RELAUNCH NOW';
+            var r = s.getBoundingClientRect();
+            return !!(b.getBoundingClientRect().width > 50 && !b.hidden && getComputedStyle(s).display !== 'none'); })()""",
+        "sel": "#fleet-eta-say",
         "settles": False,
         "warmup": 4.0,
     },
