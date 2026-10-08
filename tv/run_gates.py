@@ -9012,6 +9012,12 @@ GATES = [
          why=("REG-2046 (#246, GrokBot ticks 401 + 415) - this console's own fleet row printed its last PUBLISHED version "
               "(v3620) beside a Vault chip reading the running one (v3621).")
          ),
+    Gate("test_two_counts_never_share_one_word", [sys.executable,
+         os.path.join(HERE, "test_two_counts_never_share_one_word.py")], 30,
+         needs_app=False,
+         why=("REG-2049 (#252, GrokBot tick 415) - Session 175 read '1 READS' beside '0 of 3 item reads': paid AI read calls "
+              "and item-text moments read, two counts under one word.")
+         ),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

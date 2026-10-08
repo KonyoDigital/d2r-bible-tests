@@ -406,6 +406,13 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2049 - "1 READS" BESIDE "0 OF 3 ITEM READS" ON ONE SESSION CARD (2026-10-08, #252)
+
+GrokBot tick 415 (v3621), Session 175. Both numbers were true and answered different questions: the AI read calls the
+session paid for (the theatre's own words: "1 AI reads") and the item-text moments that were read. The tile now says
+"AI reads" and the coverage line "N of M item moments read". (The theatre's "film 63" vs "all 67 photos" on the same card
+is a separate count - film frames vs every photo kept - still open on #252.) Law: test_two_counts_never_share_one_word.
+
 ### REG-2048 - ONE ROW CALLED ITSELF "NOT OFFLINE" AND "OFFLINE" AT ONCE (2026-10-08, #250)
 
 GrokBot (Wife PC): the name line read "presence UNKNOWN, not offline · 1502 behind" - the roster refused its last beacon -
