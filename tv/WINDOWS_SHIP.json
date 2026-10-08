@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3622",
+  "ver": "v3623",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3622: boss and item facts follow their cards; the board uniques headline is THE number; an inventory read is kept on you; one tooltip is one item; a disagreeing eth read is UNKNOWN; a retired reel is counted once; a waiting build stops the chronicle sweep at a banked page; Grok reads ask low effort; a Mini focus counts only when clicked; a seal releases only when every triage panel was probed; a right-click never switches a tab; the stuck tip names each row; the Vault names its real button; his own fleet row shows the version it runs (REG-2033..2046)",
+  "note": "v3623: the theatre no longer closes itself on a stills-only session; magic charms and TV-registered rares route to MAGIC and RARE; the mule packer reads the size each tile prints; furniture filed in a mule is an integrity finding; a clean run has no gaps; offline fleet rows date their reasons; REG-2047 to REG-2059",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
