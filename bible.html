@@ -23109,6 +23109,13 @@ function _rolledQuality(name){
   return null;
 }
 window._rolledQuality = _rolledQuality;
+/* the router's ONE answer for a rolled name, so the stub path and the catalogue path say the same words */
+function _rolledRoute(rq){
+  return rq.q === 'rare'
+    ? {id:'magic-rare', why:'a rare\u2019s rolled name (' + rq.prefix + ' + ' + rq.suffix + ': ' + rq.slots.join(' / ').toLowerCase() + ') \u2014 rolled-name keepers live in MAGIC & RARE'}
+    : {id:'magic-rare', why:'a magic ' + String(rq.base || 'item').toLowerCase() + ' (a rolled prefix / suffix) \u2014 rolled-name keepers live in MAGIC & RARE'};
+}
+window._rolledRoute = _rolledRoute;
 function _rareNamePoolHtml(){
   var chips = function(arr){ return arr.map(function(w){ return '<span class="rnp-chip">'+w+'</span>'; }).join(''); };
   var rows = Object.keys(RARE_NAME_POOLS).map(function(slot){
@@ -38837,6 +38844,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        vault row must not. The classifier reads the same answer whether or not the item has been
        filed. [[the-unjoined-end]] [[feedback-contradiction-is-the-finding]] */
     var _exIsCatalogue = !!(ex && String(ex.rarity || '').toLowerCase() !== 'basic');
+    /* #269 (REG-2054, GrokBot tick 419 K10) - A TV STUB IS NOT A CURATED ENTRY. Every name TV registers gets an EXTRA_ITEMS
+       stub (base: its own name, val: 'tv'), and the curated-EXTRA branch below then answered for it: 'grand charm' in the
+       name -> UNI-SMALL ('charm/skiller'). A stub whose name wears the rolled grammar - and no codex / ITEM_TIP base - is
+       a rolled-name keeper. Curated entries keep their own routing. */
+    try {
+      var _itip0 = (typeof ITEM_TIP !== 'undefined') ? ITEM_TIP[name] : null;
+      if (ex && ex.val === 'tv' && !((_itip0 && _itip0.b) || (tip && tip.base)) && typeof _rolledQuality === 'function'){
+        var _rqx = _rolledQuality(name);
+        if (_rqx && muleById('magic-rare')) return _rolledRoute(_rqx);
+      }
+    } catch(eRx){}
     if (ex){
       var xcat = (ex.cat||'').toLowerCase();
       var xb = (ex.base||'').toLowerCase();
@@ -39012,12 +39030,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        RARE_NAME_POOLS, v332), and rolled-name keepers live in MAGIC & RARE. Asked only when NO catalogue knows the name
        (a real item never wears the rare grammar's clothes here), and only on the exact two-word shape. */
     try {
-      var _rq = (!base && typeof _rolledQuality === 'function') ? _rolledQuality(name) : null;
-      if (_rq && _rq.q === 'rare' && muleById('magic-rare'))
-        return {id:'magic-rare', why:'a rare\u2019s rolled name (' + _rq.prefix + ' + ' + _rq.suffix + ': ' + _rq.slots.join(' / ').toLowerCase() + ') \u2014 rolled-name keepers live in MAGIC & RARE'};
+      /* #269 (REG-2054, GrokBot tick 419 K10) - ASK BY THE CATALOGUES' BASE, NEVER THE TV STUB'S. `base` falls back to
+         EXTRA_ITEMS[name].base, and a TV stub's base IS its own name ('Death Loop'), so `!base` was false for every name TV
+         had registered: REG-2024's rare rule never fired on his board (Death Loop and Storm Scarab stayed UNI-WEAPONS
+         tiles) while its law, on a fresh board with no stubs, stayed green. Only a codex / ITEM_TIP base is a real base. */
+      var _catBase = (itip && itip.b) || (tip && tip.base) || '';
+      var _rq = (!_catBase && typeof _rolledQuality === 'function') ? _rolledQuality(name) : null;
+      if (_rq && _rq.q === 'rare' && muleById('magic-rare')) return _rolledRoute(_rq);
       /* #269 (tick 416 K05) - a MAGIC charm / jewel / ring / amulet is a rolled-name keeper too, never a unique drawer */
       if (_rq && _rq.q === 'magic' && muleById('magic-rare'))
-        return {id:'magic-rare', why:'a magic ' + _rq.base.toLowerCase() + ' (a rolled prefix / suffix) \u2014 rolled-name keepers live in MAGIC & RARE'};
+        return _rolledRoute(_rq);
     } catch(eRn){}
     if (ARMOR_RE.test(probe))   return {id:'uni-armor', why:'armor slot — base: '+(base||'name match')};
     if (JEWELRY_RE.test(probe)) return {id:'uni-small', why:'jewelry/charm — base: '+(base||'name match')};

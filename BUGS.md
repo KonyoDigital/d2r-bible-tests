@@ -463,6 +463,13 @@ two-word name -> rare; a charm / jewel / ring / amulet with a prefix and/or an "
 by the router (a magic small item now files to MAGIC & RARE; the ones already in UNI-SMALL surface as misroutes that
 Auto-Sort moves) and by both stub writers. An old 'basic' stub is read as its name says at tip time (no store write),
 and a TV-registered stub no longer calls itself "Best-of-the-best". REG-2024's red-proof re-pointed to the helper.
+GrokBot tick 419 (v3622, K10) then showed Death Loop and Storm Scarab STILL tiles in UNI-WEAPONS with no misroute row:
+REG-2024's rule had never fired on his board. `suggestMule`'s base falls back to EXTRA_ITEMS[name].base, and a TV stub's
+base is its own name, so `!base` was false for every name TV had registered - and a stubbed magic grand charm was
+answered by the curated-EXTRA branch ('charm/skiller' -> UNI-SMALL) before any grammar was asked. MEASURED on the real
+page: fresh board 9/9 to MAGIC & RARE, stubbed board 2/3 (the charm to uni-small) before the fix, 3/3 after. The rule now
+asks by the catalogues' base (codex / ITEM_TIP), a TV stub asks the grammar before the curated branch, and REG-2024's law
+gained the his-board case (stubs registered first) - the fresh-board case alone could never see this.
 Law: test_a_rolled_name_is_stamped_as_what_it_is (+ test_a_rolled_rare_name_goes_to_magic_and_rare, magic cases).
 
 ### REG-2053 - A SEAL THAT PROBED MORE PANELS THAN TRIAGE SAW STILL RELEASED ITS REEL (2026-10-08, #231 on v3622)

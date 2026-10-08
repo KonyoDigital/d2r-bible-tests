@@ -59,7 +59,28 @@ class ARolledRareNameGoesToMagicAndRare(unittest.TestCase):
         self.assertEqual(o["Nokozan Relic"], "uni-small", "the control: a catalogued unique amulet moved")
 
 
+    def test_a_name_tv_already_registered_routes_the_same(self):
+        # REG-2054 (GrokBot tick 419 K10) - HIS board, not a fresh one: every one of these was registered by TV first, as a
+        # stub whose base is its own name. The rule asked `!base`, the stub answered with the name, and nothing moved.
+        names = list(ROLLED) + list(MAGIC)
+        o = board().run("OUT.r = {}; %s.forEach(function(n){ window._tvExtraRemember(n, { rarity: 'basic', base: n, "
+                        "cat: 'TV-vaulted', val: 'tv' }); var s = window.suggestMule(n); OUT.r[n] = s ? s.id : null; });"
+                        % repr(names).replace("'", '"'))["r"]
+        for n in names:
+            self.assertEqual(o[n], "magic-rare", "%s - registered by TV as a stub - was filed into %r" % (n, o[n]))
+
+
 RED_PROOF = [
+    {"why": "REG-2054 - a TV stub answers through the curated-EXTRA branch again (a magic grand charm -> UNI-SMALL)",
+     "file": "bible.html",
+     "find": "      if (ex && ex.val === 'tv' && !((_itip0 && _itip0.b) || (tip && tip.base)) && typeof _rolledQuality === 'function'){\n",
+     "replace": "      if (false){\n",
+     "matches": 1},
+    {"why": "REG-2054 - a TV stub's own name counts as its base again, so a registered rare never routes",
+     "file": "bible.html",
+     "find": "      var _catBase = (itip && itip.b) || (tip && tip.base) || '';\n",
+     "replace": "      var _catBase = base;\n",
+     "matches": 1},
     {"why": "REG-2024 - a rare's rolled name is filed into a slot drawer by one word again",
      "file": "bible.html",
      "find": "  if (w.length === 2 && RARE_NAME_PREFIXES.indexOf(w[0]) >= 0){\n",
