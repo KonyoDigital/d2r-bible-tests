@@ -12112,6 +12112,10 @@ function materialDetailHtml(name){
   const m = findMaterial(name); if (!m) return '';
   const { cat, item, catKey } = m;
   const feeds = MATERIAL_FEEDS[catKey] || '—';
+  /* REG-2103 (#231 eye on v43 9f39968e) - a rate written in words ('1 per character', 'crafted', '100% per recipe') is how the
+     item comes, not a per-kill chance; only a 1:N or a % per kill wears the per-kill label and the community-estimate footnote */
+  const _rateTxt = String(item.rate || '');
+  const _rateLbl = (/(^|[^\w])1:\d|\d\s*%/.test(_rateTxt) && !/per (recipe|character|full|tristram visit)/i.test(_rateTxt)) ? 'per-kill rate' : 'how it comes';
   // Statue-aware: the aggregate Colossal Statue card's `from` rows lead with a
   // named statue ("Talic's Anguish — terrorized Hell Andariel"). Link that lead
   // name to its own statue ID card. Only matches the 5 statues, so every other
@@ -12131,7 +12135,7 @@ function materialDetailHtml(name){
         <h2 class="gic-name">${item.n} <span class="gic-grail-badge" style="background:linear-gradient(135deg,#6a4,#363);color:#dfffe0">${cat.label}</span></h2>
         <div class="gic-subtitle">${cat.blurb || ''}</div>
         <div class="gic-meta-row">
-          <span class="gic-meta-chip">per-kill rate: ${item.rate || '—'}</span>
+          <span class="gic-meta-chip">${_rateLbl}: ${item.rate || '—'}</span>
           <span class="gic-meta-chip" style="color:#ffd479;border-color:rgba(255,212,121,.4)">feeds → ${feeds}</span>
         </div>
       </div>
@@ -12147,7 +12151,7 @@ function materialDetailHtml(name){
       <div class="gic-section-title">📍 Where it drops</div>
       <div class="zd-stats" style="margin-bottom:8px">
         <div class="zd-stat"><span class="zd-sk">category</span><span class="zd-sv">${cat.label}</span></div>
-        <div class="zd-stat"><span class="zd-sk">per-kill rate</span><span class="zd-sv">${item.rate || '—'}</span></div>
+        <div class="zd-stat"><span class="zd-sk">${_rateLbl}</span><span class="zd-sv">${item.rate || '—'}</span></div>
         <div class="zd-stat"><span class="zd-sk">feeds into</span><span class="zd-sv">${feeds}</span></div>
         <div class="zd-stat"><span class="zd-sk">MF affects?</span><span class="zd-sv">${catKey==='worldstoneShard'?'no — fixed rate':catKey==='organ'||catKey==='uberCharm'?'no — guaranteed/event':'no — fixed rate'}</span></div>
       </div>
@@ -12175,7 +12179,7 @@ function materialDetailHtml(name){
       <div class="zd-row"><span class="zd-k">recipe</span><span class="zd-v">${cat.recipe || '—'}</span></div>
       ${cat.important ? `<div class="zd-row"><span class="zd-k">⚠ important</span><span class="zd-v">${cat.important}</span></div>` : ''}
     </section>
-    <div class="zd-note">⚠ Material drop rates are not MF-scaled and are not part of the tracked chronicle count. Per-kill figures above are the canonical community estimates (silospen / d2runewizard / diablo2.io / Maxroll), not fabricated odds.</div>
+    <div class="zd-note">⚠ Material drop rates are not MF-scaled and are not part of the tracked chronicle count. A per-kill rate above (a 1:N or a %) is the community estimate (silospen / d2runewizard / diablo2.io / Maxroll), not fabricated odds; a rate written in words says how the item comes, not a chance per kill.</div>
   </div>`;
 }
 

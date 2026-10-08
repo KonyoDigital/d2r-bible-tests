@@ -214,6 +214,35 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         self.assertNotIn("skill tab", s[s.find("Hellfire Torch →"):s.find("Click it for the full material card.")],
                          "the torch's +3 is narrowed to one skill tab again")
 
+    def test_a_rate_in_words_is_not_labelled_per_kill(self):
+        """REG-2103 (#231 eye on v43 9f39968e) - the material card printed every special-drop rate under 'per-kill rate' and
+        footnoted all of them as community per-kill estimates; 'crafted - 1 per full essence set', '100% per recipe' and the
+        Colossal Jewel's '1 per character (pinnacle reward)' are how an item comes, not a chance per kill. Drives the SHIPPED
+        two-line classifier, cut from materialDetailHtml, over every item rate in SPECIAL_DROPS."""
+        import json as _json
+        import subprocess as _sp
+        from cb_node_harness import NODE
+        if NODE is None:
+            raise AssertionError("node is not on this machine - this gate does not skip")
+        s = _src()
+        a = s.find("  const _rateTxt = String(item.rate || '');\n")
+        self.assertGreater(a, 0, "the card no longer derives its rate label - re-point this law")
+        cut = s[a:s.index("\n", s.index("  const _rateLbl = ", a)) + 1]
+        i = s.find("const SPECIAL_DROPS"); j = s.find("\n};", i)
+        rates = sorted(set(re.findall(r'rate:\s*"([^"]*)"', s[i:j])))
+        self.assertGreaterEqual(len(rates), 10, "premise: the special drops carry their rates (%d)" % len(rates))
+        js = "var out = {}; %s.forEach(function(r){ var item = {rate: r};\n%s out[r] = _rateLbl; });\nconsole.log(JSON.stringify(out));" % (
+            _json.dumps(rates), cut)
+        r = _sp.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr[-400:])
+        got = _json.loads(r.stdout.strip().splitlines()[-1])
+        for rate in ("crafted — 1 per full essence set", "100% per recipe", "1 per character (pinnacle reward)", "common"):
+            self.assertEqual(got.get(rate), "how it comes", "a rate in words is labelled %r: %r" % (got.get(rate), rate))
+        for rate in ("~1:10 (Hell only)", "~1:500-1500", "100% per kill"):
+            self.assertEqual(got.get(rate), "per-kill rate", "a per-kill rate lost its label: %r -> %r" % (rate, got.get(rate)))
+        self.assertNotIn("Per-kill figures above are the canonical community estimates", s,
+                         "the footer calls every rate a community per-kill estimate again")
+
 
 RED_PROOF = [
     {"why": "REG-2089 - Veil of Steel's tagline swaps its resist and defense figures again",
@@ -265,6 +294,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "Cube 1 of each Pandemonium key → a mini-uber portal (each mini-uber drops one organ) → cube the 3 organs → Uber Tristram → kill all three ubers in one room.",
      "replace": "Cube the 3 Pandemonium Keys → red portal → kill all three ubers in one room.",
+     "matches": 1},
+    {"why": "REG-2103 - every special-drop rate is labelled per-kill again, '1 per character' included",
+     "file": "bible.html",
+     "find": "  const _rateLbl = (/(^|[^\\w])1:\\d|\\d\\s*%/.test(_rateTxt) && !/per (recipe|character|full|tristram visit)/i.test(_rateTxt)) ? 'per-kill rate' : 'how it comes';\n",
+     "replace": "  const _rateLbl = 'per-kill rate';\n",
      "matches": 1},
 ]
 

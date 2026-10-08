@@ -406,6 +406,15 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2103 - EVERY SPECIAL-DROP RATE WAS LABELLED PER-KILL (2026-10-08, #231 on v43 9f39968e, #307)
+
+The material card printed item.rate under "per-kill rate" in its header chip and stat row, and footnoted all of them as "the
+canonical community estimates (silospen / d2runewizard / diablo2.io / Maxroll)". Six kinds of rate are not a chance per kill:
+"crafted - 1 per full essence set", "common" / "very common", "100% per recipe", "Latent drops from Heralds", "guaranteed - 1 per
+Tristram visit", and the RotW Colossal Jewel's "1 per character (pinnacle reward)" - which cites none of the four sites. The label
+now comes from the rate's own form (a 1:N or a % per kill -> "per-kill rate", words -> "how it comes"), and the footer says which
+lines are the community estimates.
+
 ### REG-2102 - LAST SESSION CALLED AN UNSEALED RUN CLEAN (2026-10-08, the v3625 second eye)
 
 _runSeal answers 'open' for a run nobody sealed (kaiMissed null). The shelf card says "◌ open" and the HISTORY card hides its
