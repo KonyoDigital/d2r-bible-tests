@@ -23512,10 +23512,15 @@ window._lockMark = function(isOpen, px, label){
       parts.push((t.reads || 0) + ' reads');
       if (t.tallies > 0) parts.push('📸 ' + t.tallies + ' tall' + (t.tallies > 1 ? 'ies' : 'y'));
       if (t.kaiMissed != null) parts.push('🧠 ' + t.kaiMissed + ' missed');
-      var clean = !(t.watchdogViolations > 0);
-      var badge = clean
-        ? '<span class="tf-tag" style="border-color:rgba(240,192,96,.4);color:var(--gold)">🛡 CLEAN</span>'
-        : '<span class="tf-tag" style="border-color:rgba(255,122,122,.5);color:#ff7a7a">🚨 ' + t.watchdogViolations + '</span>';
+      /* REG-2086 (GrokBot ticks 424/425 K17/K18 swept) - THE LAST SESSION BADGE ASKS THE SAME SEAL. It read the watchdog alone,
+         so a reel sealed with unread gaps wore '🛡 CLEAN' here while its dossier said SEALED WITH GAPS - the third copy of the
+         rule REG-2055 made one (_runSeal) and REG-2071 swept to the shelf card. */
+      var _lsRs = _runSeal(t);
+      var badge = _lsRs.k === 'flag'
+        ? '<span class="tf-tag" style="border-color:rgba(255,122,122,.5);color:#ff7a7a">🚨 ' + _lsRs.n + '</span>'
+        : _lsRs.k === 'gaps'
+          ? '<span class="tf-tag" style="border-color:rgba(227,184,106,.4);color:#e3b86a" title="sealed with gaps - ' + esc(_runSealGapsSay(_lsRs)) + '">◐ GAPS</span>'
+          : '<span class="tf-tag" style="border-color:rgba(240,192,96,.4);color:var(--gold)">🛡 CLEAN</span>';
       var _fp = _sceneFingerprint(t);   // v1265 (B8) — the run's Diablo-language scene fingerprint, honest-absent
       var _finds = _findsStrip(t, 4);   // v1267 (D1) — WHAT I FOUND: the grails/keeps KAI witnessed this run
       $('hd-ls-row').innerHTML = '<div class="tf-row tf-stat"><span class="tf-g">📼</span>'
@@ -23602,8 +23607,11 @@ window._lockMark = function(isOpen, px, label){
         : '<div class="hh-art hh-art-fb"></div>';
       var found = (sm.registered != null) ? sm.registered : ((sm.finds || []).length || 0);
       var topGrail = (sm.finds || []).filter(function(f){ return f.tier === 'grail'; })[0];
-      var sealed = (sm.kaiMissed != null), clean = !(sm.watchdogViolations > 0);
-      var badge = !sealed ? '' : (clean ? '<span class="hh-seal hh-clean">🛡</span>' : '<span class="hh-seal hh-flag">🚨</span>');
+      var _hhRs = _runSeal(sm);   /* REG-2086 - the history card's shield is the dossier's verdict, gaps included */
+      var badge = _hhRs.k === 'open' ? ''
+        : _hhRs.k === 'flag' ? '<span class="hh-seal hh-flag">🚨</span>'
+        : _hhRs.k === 'gaps' ? '<span class="hh-seal hh-gaps" title="sealed with gaps - ' + esc(_runSealGapsSay(_hhRs)) + '">◐</span>'
+        : '<span class="hh-seal hh-clean">🛡</span>';
       return '<button type="button" class="hh-card" data-hn="' + n + '" data-sid="' + esc(sm.sessionId || '') + '" title="open session ' + n + ' dossier">'
         + art + badge
         + '<div class="hh-body"><div class="hh-t">Session ' + n + '</div>'

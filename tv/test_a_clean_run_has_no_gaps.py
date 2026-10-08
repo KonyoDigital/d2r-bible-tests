@@ -98,6 +98,15 @@ class ACleanRunHasNoGaps(unittest.TestCase):
         self.assertEqual(s.count(": (sm.kaiMissed != null ? '<span class=\"shc-seal clean\">"), 0,
                          "a shelf seal decides 'clean' on the missed-text count alone again")
 
+    def test_the_last_session_and_history_badges_ask_the_same_seal(self):
+        """REG-2086 - TV·D's LAST SESSION badge and the HISTORY card's shield read the watchdog alone: '🛡 CLEAN' over a reel
+        sealed with gaps, the third and fourth copies of the rule."""
+        s = _src()
+        self.assertEqual(s.count("      var _lsRs = _runSeal(t);"), 1, "the LAST SESSION badge no longer asks _runSeal")
+        self.assertEqual(s.count("      var _hhRs = _runSeal(sm);"), 1, "the HISTORY card's shield no longer asks _runSeal")
+        self.assertEqual(s.count("clean = !(t.watchdogViolations > 0);"), 0, "a badge decides CLEAN on the watchdog alone again")
+        self.assertEqual(s.count("clean = !(sm.watchdogViolations > 0);"), 0, "a badge decides CLEAN on the watchdog alone again")
+
 
 RED_PROOF = [
     {"why": "REG-2055 - a run with unread gaps is sealed clean again",
@@ -119,6 +128,16 @@ RED_PROOF = [
      "file": "control_ui.html",
      "find": "      var _sealRs = _runSeal(sm);",
      "replace": "      var _sealRs = { k: sm.kaiMissed != null ? 'clean' : 'open' };",
+     "matches": 1},
+    {"why": "REG-2086 - the LAST SESSION badge decides CLEAN on its own again",
+     "file": "control_ui.html",
+     "find": "      var _lsRs = _runSeal(t);",
+     "replace": "      var _lsRs = { k: (t.watchdogViolations > 0) ? 'flag' : 'clean', n: t.watchdogViolations };",
+     "matches": 1},
+    {"why": "REG-2086 - the HISTORY card's shield reads clean over gaps again",
+     "file": "control_ui.html",
+     "find": "      var _hhRs = _runSeal(sm);",
+     "replace": "      var _hhRs = { k: (sm.kaiMissed == null) ? 'open' : (sm.watchdogViolations > 0 ? 'flag' : 'clean') };",
      "matches": 1},
     {"why": "REG-2055 - the card's seal stops asking the shared verdict",
      "file": "control_ui.html",
