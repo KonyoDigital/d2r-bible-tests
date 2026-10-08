@@ -147,9 +147,13 @@ class TestACachedAbsenceIsNotAnAbsence(unittest.TestCase):
         # committed here, in the gate written to stop exactly this class of error.
         # [[source-window-shortcut]]
         owner = None
+        # ⚠ SPLIT ONCE. ast.get_source_segment re-splits the WHOLE 2.8 MB source on every call: 822 functions before the
+        # owner x 0.72 s on his Mac = ~590 s, so this law timed out at 300 s locally (19 s on CI). The lines slice to the
+        # same function body.
+        _lines = self.src.splitlines(True)
         for n in ast.walk(self.tree):
             if isinstance(n, ast.FunctionDef):
-                seg = ast.get_source_segment(self.src, n) or ""
+                seg = "".join(_lines[n.lineno - 1:n.end_lineno])
                 if "has not reported which" in seg:
                     owner = (n, seg)
                     break
@@ -169,7 +173,7 @@ class TestACachedAbsenceIsNotAnAbsence(unittest.TestCase):
                    and any(k.arg == "force" for k in (c.keywords or []))]
         _says = [a.lineno for a in ast.walk(_n)
                  if isinstance(a, ast.Assign)
-                 and "has not reported which" in (ast.get_source_segment(self.src, a) or "")]
+                 and "has not reported which" in "".join(_lines[a.lineno - 1:a.end_lineno])]
         self.assertTrue(_reread, "no forced re-read call inside the function")
         self.assertTrue(_says, "nothing in this function ASSIGNS the sentence")
         self.assertLess(min(_reread), min(_says),
