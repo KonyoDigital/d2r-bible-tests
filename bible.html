@@ -18617,6 +18617,12 @@ function _itemCells(name){
         var ex = (typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS[name]) ? EXTRA_ITEMS[name] : null;
         base = (c && c.base) || (t && t.b) || (ex && ex.base) || '';
       } catch(e){}
+      /* REG-2068 - A SET PIECE IS SIZED BY ITS SLOT. Set pieces carry no codex base; the packer's old table asked
+         findSetPiece for the slot ("armor", "helm", "amulet") and REG-2051 moved the packer onto this function without
+         that lookup, so Tal Rasha's Guardianship packed and printed as a guessed 1x2 (Routine I red on v3623, v203). */
+      if (!base){
+        try { var _spz = (typeof findSetPiece === 'function') ? findSetPiece(name) : null; if (_spz && _spz.slot) base = String(_spz.slot); } catch(e){}
+      }
       /* #275 (GrokBot tick 418, K14) - A RUNEWORD IS SIZED BY ITS BASE, NEVER BY ITS NAME. Enigma has no codex row, so it
          fell to the default 1x2 (its tile admitted the size was a guess) although every Enigma is body armour (2x3) - and a runeword
          name matched as a base keyword lies outright ("Hand of Justice" read as gloves). Its tip names the base CLASS;
@@ -18662,9 +18668,9 @@ function _itemCells(name){
       else if (/\b(two-?hand|polearm|poleaxe|halberd|war scythe|scythe|partizan|bardiche|voulge|cryptic axe|great ?(maul|sword|axe)|colossus|gothic (sword|axe)|thresher|berserker axe|giant thresher|ogre maul|maul\b|champion sword|colossus blade|tomb reaver|ettin axe)\b/.test(s)) cells = {w:2,h:4};
       else if (/\b(bow|crossbow|arbalest|ballista|hydra bow|gorgon crossbow)\b/.test(s)) cells = {w:2,h:4};
       else if (/\b(staff|staves|spear|brandistock|war spear|trident|fuscina|stalagmite|hyperion spear|ghost spear|matriarchal spear)\b/.test(s)) cells = {w:1,h:4};
-      else if (/\b(body armor|armou?r|plate|mail|hauberk|tunic|jupon|cuirass|husk|hide|pelt|shell|carapace|wyrmhide|shroud|breast ?plate|sacred armor|dusk shroud|archon plate)\b/.test(s)) cells = {w:2,h:3};
+      else if (/\b(body armor|armou?r|plate|mail|chain ?mail|hauberk|tunic|jupon|cuirass|husk|hide|pelt|shell|carapace|wyrmhide|shroud|breast ?plate|sacred armor|dusk shroud|archon plate)\b/.test(s)) cells = {w:2,h:3};
       else if (/\b(monarch|aegis\b|ward\b|kite shield|tower shield|gothic shield|pavise|grim shield|troll nest|blade barrier|sacred targe|sacred rondache|zakarum|vortex shield|hyperion\b|luna\b)\b/.test(s)) cells = {w:2,h:3};
-      else if (/\b(helm|cap\b|crown|mask|circlet|coronet|tiara|diadem|sallet|armet|casque|basinet|shako|visor|bone visage|demonhead|helmet|barbed|winged|carved|grim helm|spired helm|corona)\b/.test(s)) cells = {w:2,h:2};
+      else if (/\b(helm|cap\b|crown|mask|bonnet|circlet|coronet|tiara|diadem|sallet|armet|casque|basinet|shako|visor|bone visage|demonhead|helmet|barbed|winged|carved|grim helm|spired helm|corona)\b/.test(s)) cells = {w:2,h:2};
       else if (/\b(glove|gauntlet|grasp|bracer|vambrace|clutches|fist|hand)\b/.test(s)) cells = {w:2,h:2};
       else if (/\b(boot|greave|sabaton|tread|spur|myrmidon greaves|war boots)\b/.test(s)) cells = {w:2,h:2};
       else if (/\b(belt|sash|cord|girdle|buckle|war belt|mesh belt|spiderweb sash|vampirefang belt|mithril coil|troll belt|colossus girdle)\b/.test(s)) cells = {w:2,h:1};  /* v333: belts are 2x1 in D2R, not 2x2 */

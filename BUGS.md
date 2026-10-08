@@ -406,6 +406,18 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2068 - EVERY SET PIECE PACKED AS A GUESSED 1x2 (2026-10-08, Routine I red on v3623)
+
+Routine I went red on v3623 (green on v3622): v203 `v227 exact set pieces` read Tal Rasha's Guardianship as [1,2], not
+[2,3]. REG-2051 moved the packer (`vaultSize`) onto `_itemCells`, and the old packer's `findSetPiece` slot lookup did not
+come with it - set pieces carry no codex base, so MEASURED on the page 107 set pieces printed and packed as a guessed
+1x2 (live on v3623). `_itemCells` now takes a set piece's slot as its base when nothing else names one, and the keyword
+rules gained `chain ?mail` (body armour) and `bonnet` (helm): set-piece guesses 107 -> 2 (Cathan's Rule 'rod', Horazon's
+Secrets 'grimoire' - no settled size, they stay guesses that say so). v405's overflow fixture now DECLARES the 2x4 its
+comment means (its 'TestPolearm' names match no base; they packed at the old 2x2 default and fit one mule at 1x2).
+Law: test_the_packer_reads_the_footprint_the_tile_prints (6 red-proofs PROVEN). Not in this fix: v1812 tab-strip fade
+was FLAKY in the same run (passed on retry), and 34 RotW extras carry no base at all (a data gap, not a lost lookup).
+
 ### REG-2067 - "PICK ANY RECORDED SESSION" ON A BUTTON THAT CLOSED THE SESSION LIST (2026-10-08, #282)
 
 GrokBot tick 418 (K04/K05): the theatre's 📚 button always read "The shelf — pick any recorded session (S)"; with the

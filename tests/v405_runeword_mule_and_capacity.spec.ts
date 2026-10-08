@@ -67,7 +67,9 @@ test.describe('v405 runeword mule + capacity overflow', () => {
       for (let i = 0; i < 60; i++) {
         const nm = 'TestPolearm ' + i + ' (Larzuk base)';
         names.push(nm);
-        w.EXTRA_ITEMS[nm] = { cat: 'Socketed bases', slot: 'Weapon' };
+        // REG-2068 - the 8-cell size is DECLARED, never left to a guess: these test names match no base keyword, so they
+        // packed at the old table's 2x2 default and now pack at the 1x2 every tile prints (120 cells - one mule)
+        w.EXTRA_ITEMS[nm] = { cat: 'Socketed bases', slot: 'Weapon', cells: { w: 2, h: 4 } };
         eval("owned.add(" + JSON.stringify(nm) + ");");
         w.vaultAssign(nm, 'bases');
       }

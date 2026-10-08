@@ -57,6 +57,9 @@ var ITEM_TIP = {};
 var RUNEWORD_TIP = { "Enigma": { t: "Runeword", b: "3 socket Body Armor" }, "Spirit": { t: "Runeword", b: "4 socket Swords or Shields" },
                      "Hand of Justice": { t: "Runeword", b: "4 socket Weapons" }, "Delirium": { t: "Runeword", b: "3 socket Helms" } };
 function findRuneword(n){ return RUNEWORD_TIP[n] ? n : null; }
+var SET_SLOTS = { "Tal Rasha's Guardianship": "armor", "Tal Rasha's Horadric Crest": "helm", "Tal Rasha's Adjudication": "amulet",
+                  "Cathan's Mesh": "chainmail", "Cow King's Horns": "war bonnet", "Cathan's Rule": "rod" };
+function findSetPiece(n){ return SET_SLOTS[n] ? { slot: SET_SLOTS[n] } : null; }
 %s
 %s
 var OUT = {};
@@ -100,6 +103,19 @@ class ThePackerReadsTheFootprintTheTilePrints(unittest.TestCase):
         for n in got:
             self.assertEqual(got[n]["pack"], got[n]["tile"], n)
 
+    def test_a_set_piece_is_sized_by_its_slot(self):
+        """REG-2068 - set pieces carry no codex base; REG-2051 dropped the slot lookup the old packer had, so Tal Rasha's
+        Guardianship packed as a guessed 1x2 (Routine I red on v3623, v203_mule_vault:149)."""
+        want = {"Tal Rasha's Guardianship": [2, 3], "Tal Rasha's Horadric Crest": [2, 2], "Tal Rasha's Adjudication": [1, 1],
+                "Cathan's Mesh": [2, 3], "Cow King's Horns": [2, 2]}
+        got = _sizes(sorted(want))
+        for n, w in want.items():
+            self.assertEqual((got[n]["tile"], got[n]["approx"]), (w, False),
+                             "%s: a set piece was not sized by its slot: %r" % (n, got[n]))
+            self.assertEqual(got[n]["pack"], got[n]["tile"], n)
+        rod = _sizes(["Cathan's Rule"])["Cathan's Rule"]
+        self.assertTrue(rod["approx"], "a slot with no settled size (rod) was given one: %r" % rod)
+
     def test_the_chip_says_how_many_sizes_are_guessed(self):
         s = _src()
         self.assertEqual(s.count(CHIP), 1, "the locker chip no longer says how many of its sizes are guessed")
@@ -123,6 +139,16 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "    return c ? [c.w || 1, c.h || 1] : [1, 2];\n",
      "replace": "    return (c && !c.approx) ? [c.w || 1, c.h || 1] : [2, 2];\n",
+     "matches": 1},
+    {"why": "REG-2068 - a set piece falls to the guessed 1x2 again (the slot lookup is dropped)",
+     "file": "bible.html",
+     "find": "if (_spz && _spz.slot) base = String(_spz.slot);",
+     "replace": "if (false) base = '';",
+     "matches": 1},
+    {"why": "REG-2068 - a chainmail set piece (Cathan's Mesh) is a guessed size again",
+     "file": "bible.html",
+     "find": "|mail|chain ?mail|hauberk|",
+     "replace": "|mail|hauberk|",
      "matches": 1},
     {"why": "REG-2051 - the chip stops saying how many sizes are guessed",
      "file": "bible.html",
