@@ -406,6 +406,19 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2109 - ONE BLIND ARM KEPT EVERY RIVER LOCK SHUT ON HIS MAC (2026-10-08, his "clean it and unlock it")
+
+He asked for the footage drain to be cleaned and unlocked (his Mac fell under the 8 GB ON AIR floor twice). Measured why it
+was shut, read-only, with self_arming.may(): frame.release, reel.route, vault.sweep_start and vault.apply ALL refused with
+"3 instrument(s) are BLIND - a surface may not arm itself while the gates that would catch its failure cannot go red" - his
+09-02 ruling's own mechanism (the lock opens itself when its proofs clear; nothing a human types opens it). Re-proved in his
+main checkout: test_a_push_proof_runs_only_where_its_defect_shows and test_the_cross_reference_asks_one_question were STALE
+blinds (8/8 and 5/5 PROVEN on current bytes); test_shelf_accounts_for_every_run[3] was REALLY blind - it asserted the bare
+phrase "counted twice", which also lives in the fleet river-gap line (control_ui.html:25859), so deleting the shelf's
+negative-remainder clause left it green. It now asserts each direction's full expression exactly once; 4/4 PROVEN. Once this
+lands on main and the census is re-proved there, the locks open themselves and the drain runs with its own guards (newest 16
+kept, fixtures held, every panel probed).
+
 ### REG-2108 - EVERY RUNE CARD'S CUBE RECIPE WAS SHIFTED; LO..JAH WERE TWO LEVELS HIGH (2026-10-08, #231 on v43 988f0157)
 
 RUNES[].up - the rune card's "cube up" line and the attunement meta - was a second copy of the cube table, and all 32 recipes

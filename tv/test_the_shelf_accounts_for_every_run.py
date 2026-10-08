@@ -77,12 +77,15 @@ class TestTheShelfAccountsForEveryRun(unittest.TestCase):
         """The guard that keeps the line honest when a NEW dropped bucket appears."""
         self.assertIn("var _named = _shShownN + _shFixtureN + _shStubN + _shRetiredN + _shUnknownN;",
                       self.code, "nothing compares the named buckets against the run total")
-        self.assertIn("unaccounted for", self.code,
-                      "a remainder is absorbed silently, which is the exact defect this replaces")
-        self.assertIn("counted twice", self.code,
-                      "only a POSITIVE remainder is reported, so a future edit that let one "
-                      "session fall through two counters would overshoot the run total and be "
-                      "hidden - the same silence, in the other direction")
+        # REG-2109 - THE FULL EXPRESSION, NEVER THE PHRASE. 'counted twice' also lives in the fleet river-gap line, so the bare
+        # phrase stayed green with this clause deleted: the arm was BLIND, and a BLIND instrument kept every river lock
+        # (frame.release, reel.route, vault.sweep_start, vault.apply) shut on his Mac while footage piled up. [[source-reading-guard]]
+        self.assertEqual(self.code.count("if (_rest > 0) return ' \\u00b7 \\u26a0 ' + _rest + ' unaccounted for';"), 1,
+                         "a remainder is absorbed silently, which is the exact defect this replaces")
+        self.assertEqual(self.code.count("if (_rest < 0) return ' \\u00b7 \\u26a0 ' + (-_rest) + ' counted twice';"), 1,
+                         "only a POSITIVE remainder is reported, so a future edit that let one "
+                         "session fall through two counters would overshoot the run total and be "
+                         "hidden - the same silence, in the other direction")
 
     def test_the_stub_bucket_has_a_chip_like_its_three_siblings(self):
         self.assertIn("sh-chip-stub", self.code,
