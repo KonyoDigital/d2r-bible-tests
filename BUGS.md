@@ -406,6 +406,17 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2081 - "SCROLL TO FULL FILTERABLE DROP TABLE" BLANKED THE PAGE (2026-10-08, GrokBot tick 425 ACT)
+
+On Hell Mephisto's boss card the button left the search bar, 'PICK A BOSS', an empty band and the footer, and 'the wheel
+scrolls nothing'. MEASURED in headless Chrome: the sticky boss nav is 359 px of 900 at 1440, 494 of 660 at his 1120x660,
+640 of 900 at 901 and 1420 of 800 at 375 - stuck at top:64px it covered 40-178% of the viewport. The button opened the card
+at y=273 under the nav and the fixed dock; a probe 40 px into the card hit a boss chip at 1440, 1120 AND 901 (so not his
+window alone). Now the nav sticks only below 35% of the window (`_bossNavFit`, resize + ResizeObserver), `__alignCard`
+clears a stuck nav as well as the header, and both scroll-to-table buttons align through it: the probe hits the card's
+own name at all three sizes, and the 1120x660 PNG shows Mephisto's card under the header (the first capture was a stale
+composite - re-captured after forced frames). Law: test_the_boss_nav_never_buries_the_card (2 red-proofs).
+
 ### REG-2080 - A NAME NOTHING KNOWS WAS FILED BY A WORD IN IT (2026-10-08, #294, his ruling 2026-10-07)
 
 GrokBot ticks 420 and 424 (K30/K32): a base 'Bone Visor' (a misread - Bone Helm -> Grim Helm -> Bone VISAGE) sat in

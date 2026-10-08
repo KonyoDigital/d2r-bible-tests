@@ -9156,6 +9156,11 @@ GATES = [
          needs_app=False,
          why=("REG-2080 (#294, GrokBot 420/424, his 10-07 ruling) - a name nothing knows (Bone Visor) was filed in "
               "UNI-ARMOR by the word 'visor'; the router now answers Unsorted before any word guess.")),
+    Gate("test_the_boss_nav_never_buries_the_card", [sys.executable,
+         os.path.join(HERE, "test_the_boss_nav_never_buries_the_card.py")], 30,
+         needs_app=False,
+         why=("REG-2081 (GrokBot 425 K09/K10) - 'scroll to full filterable drop table' blanked the Bosses page: the sticky "
+              "boss nav covered 40-178%% of the window and the card landed under it.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

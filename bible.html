@@ -2440,6 +2440,9 @@ tr.owned-row{background:rgba(102,255,136,.03)}
   .boss-nav-sticky .boss-nav-sticky-label{font-family:var(--serif-display);font-size:var(--fs-title);font-weight:var(--fw-medium);color:var(--gold-bright);letter-spacing:var(--ls-tight);text-transform:none;margin-bottom:14px;padding-left:2px}
   .boss-nav-sticky .boss-nav-group{border-left-width:4px;padding-left:12px}
   .boss-nav-sticky .boss-nav-group-label{font-family:var(--serif-display);font-size:19px;font-weight:var(--fw-semibold);letter-spacing:var(--ls-tight);color:var(--tier-accent,#d4a847);margin-bottom:6px;line-height:var(--lh-tight);min-height:2.4em}
+  /* REG-2081 - a boss nav that would cover more than 35% of the window scrolls with the page instead of sticking:
+     measured 40-178% of the viewport at 1440x900 .. 375x800, so stuck it buried whatever the page scrolled to. */
+  .boss-nav-sticky.bn-unstick{position:relative;top:auto}
   .boss-nav-sticky .boss-nav-group-mult{font-family:var(--mono);font-size:var(--fs-meta);font-weight:var(--fw-normal);opacity:.55;letter-spacing:0}
   .boss-nav-sticky .boss-nav-group-chips .boss-chip{font-size:13.5px!important;padding:9px 14px!important;letter-spacing:.3px!important}
   .boss-nav-sticky .boss-nav-group-chips .boss-chip .emoji{font-size:17px}
@@ -12909,6 +12912,16 @@ window.__alignCard = function(sel){
     if (!card) return;
     var hdr = document.querySelector(".header");
     var off = (hdr ? hdr.getBoundingClientRect().height : 130) + 14;
+    /* REG-2081 (GrokBot tick 425 K09/K10) - AND BELOW THE BOSS NAV WHEN IT IS STUCK. 'scroll to full filterable drop table'
+       opened Mephisto's card at y=273 under the sticky boss nav (64..558 at his 1120x660) and the fixed dock (528..660):
+       nothing of the card on screen, and the wheel 'scrolled nothing' because the page moved under a panel that did not. */
+    try {
+      var _bn = document.querySelector(".boss-nav-sticky");
+      if (_bn && _bn.offsetHeight && getComputedStyle(_bn).position === "sticky"){
+        var _bnB = (parseFloat(getComputedStyle(_bn).top) || 0) + _bn.offsetHeight + 14;
+        if (_bnB > off) off = _bnB;
+      }
+    } catch (e) {}
     var y = card.getBoundingClientRect().top + window.scrollY - off;
     window.scrollTo({top: Math.max(0, y), behavior:"smooth"});
   };
@@ -23773,6 +23786,33 @@ window.clearActiveBoss = function(opts) {
   void wasActive;
 };
 
+/* REG-2081 (GrokBot tick 425 K09/K10) - THE BOSS NAV STICKS ONLY WHILE IT FITS. MEASURED: 359 px of a 900 px window at
+   1440, 494 of 660 at his 1120x660, 1420 of 800 at 375 - stuck at top:64px it covered 40-178% of the viewport, so a card
+   scrolled to (the 'scroll to full filterable drop table' button, a chip's detail) landed underneath it and the page
+   read blank. Sticky only below 35% of the window; past that it scrolls with the page. A hidden tab has no height and is
+   left alone. -> true (unstuck) | false (sticky) | null (not measurable) */
+window._bossNavFit = function(){
+  var n = document.querySelector('.boss-nav-sticky');
+  if (!n) return null;
+  var h = n.offsetHeight, vh = window.innerHeight || 0;
+  if (!h || !vh) return null;
+  var tall = h > vh * 0.35;
+  n.classList.toggle('bn-unstick', tall);
+  return tall;
+};
+(function(){
+  try {
+    var t = null, kick = function(){ clearTimeout(t); t = setTimeout(window._bossNavFit, 60); };
+    window.addEventListener('resize', kick);
+    var hook = function(){
+      var n = document.querySelector('.boss-nav-sticky');
+      if (n && typeof ResizeObserver === 'function') new ResizeObserver(kick).observe(n);   /* also fires when the tab shows */
+      kick();
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', hook); else hook();
+  } catch (e) {}
+})();
+
 
 /* === v30: MF presets + keyboard shortcuts + number input sync === */
 
@@ -24786,7 +24826,7 @@ function renderBossDetailCard(bossId, focusDiff) {
     <section class="gbc-section">
       <div class="gbc-section-header-row">
         <div class="gbc-section-label">💎 your top 15 chronicle picks from this boss · @${mf}% MF · sorted by hours-to-50%</div>
-        <button class="gbc-section-link" onclick="clearActiveBoss();setTimeout(()=>{document.querySelectorAll('#boss-cards .boss-card.bd-open').forEach(c=>{c.classList.remove('bd-open');c.classList.add('collapsed')});const el=document.getElementById('${boss.id}');if(el){el.classList.remove('collapsed');el.classList.add('bd-open');el.scrollIntoView({behavior:'smooth',block:'start'});el.querySelector('.boss-header')?.classList.add('flash-gold');setTimeout(()=>el.querySelector('.boss-header')?.classList.remove('flash-gold'),1400)}},120)" title="See every drop across all 6 difficulties — sortable + filterable">View Full Drop Table →</button>
+        <button class="gbc-section-link" onclick="clearActiveBoss();setTimeout(()=>{document.querySelectorAll('#boss-cards .boss-card.bd-open').forEach(c=>{c.classList.remove('bd-open');c.classList.add('collapsed')});const el=document.getElementById('${boss.id}');if(el){el.classList.remove('collapsed');el.classList.add('bd-open');(window.__alignCard?window.__alignCard('#'+el.id):el.scrollIntoView({behavior:'smooth',block:'start'}));el.querySelector('.boss-header')?.classList.add('flash-gold');setTimeout(()=>el.querySelector('.boss-header')?.classList.remove('flash-gold'),1400)}},120)" title="See every drop across all 6 difficulties — sortable + filterable">View Full Drop Table →</button>
       </div>
       ${top15Html}
     </section>
@@ -24842,7 +24882,7 @@ function renderBossDetailCard(bossId, focusDiff) {
           }).join('');
         })()}</tbody>
       </table></div>
-      <button class="gbc-close" onclick="clearActiveBoss();setTimeout(()=>{document.querySelectorAll('#boss-cards .boss-card.bd-open').forEach(c=>{c.classList.remove('bd-open');c.classList.add('collapsed')});const el=document.getElementById('${boss.id}');if(el){el.classList.remove('collapsed');el.classList.add('bd-open');el.scrollIntoView({behavior:'smooth',block:'start'});el.querySelector('.boss-header')?.classList.add('flash-gold');setTimeout(()=>el.querySelector('.boss-header')?.classList.remove('flash-gold'),1400)}},120)">↓ scroll to full filterable drop table</button>
+      <button class="gbc-close" onclick="clearActiveBoss();setTimeout(()=>{document.querySelectorAll('#boss-cards .boss-card.bd-open').forEach(c=>{c.classList.remove('bd-open');c.classList.add('collapsed')});const el=document.getElementById('${boss.id}');if(el){el.classList.remove('collapsed');el.classList.add('bd-open');(window.__alignCard?window.__alignCard('#'+el.id):el.scrollIntoView({behavior:'smooth',block:'start'}));el.querySelector('.boss-header')?.classList.add('flash-gold');setTimeout(()=>el.querySelector('.boss-header')?.classList.remove('flash-gold'),1400)}},120)">↓ scroll to full filterable drop table</button>
     </section>
   </div>`;
   panel.classList.add('show');
