@@ -11885,14 +11885,14 @@ const SPECIAL_DROPS = {
   key: {
     label: "Pandemonium Keys",
     icon: "🗝️",
-    blurb: "Pandemonium event — open red portals to Uber Bosses. Hell only, /p3 or higher REQUIRED for drops. Best with /p5 mules trick.",
+    blurb: "Pandemonium event — one of each key opens a mini-uber portal; the three organs they drop open Uber Tristram. Hell only, at any /players.",
     items: [
       {n: "Key of Terror", from: ["Hell Countess"], rate: "~1:10 (Hell only)", note: "fastest farm — Countess kph is ~120-150/hr"},
       {n: "Key of Hate", from: ["Hell Summoner (Arcane Sanctuary)"], rate: "~1:10 (Hell only)", note: "Summoner is tracked — accessed via Lost City waypoint → Arcane Sanctuary"},
       {n: "Key of Destruction", from: ["Hell Nihlathak"], rate: "~1:10 (Hell only)", note: "Nihl is dangerous (Corpse Explosion) — be careful"}
     ],
-    recipe: "3 Terror + 3 Hate + 3 Destruction in cube → opens 3 red portals to Uber bosses",
-    important: "Mules ON /p5 + party of 1 in a private game can boost Key drop to 1:25-50 per kill — research the 'p5 mule trick' before farming."
+    recipe: "1 Terror + 1 Hate + 1 Destruction in the cube (Hell Harrogath) → one random mini-uber portal; a full set per portal, three for all three",
+    important: "Keys drop on Hell only, at any /players - the chance rises a little at higher /players (d2runewizard: the Countess ~8% at /players 1)."
   },
   organ: {
     label: "Uber Organs",
@@ -12349,10 +12349,10 @@ function pandemoniumKeysDetailHtml(embedded){
       ${keyArt}
       <div class="gic-id-block">
         <h2 class="gic-name">Pandemonium Keys <span class="gic-grail-badge" style="background:linear-gradient(135deg,#6a4,#363);color:#dfffe0">Pandemonium Keys</span></h2>
-        <div class="gic-subtitle">The 3 keys for Uber Tristram \u2192 Hellfire Torch \u2014 cube all 3 \u2192 red portal \u2192 Pandemonium Run.</div>
+        <div class="gic-subtitle">The 3 keys for Uber Tristram \u2192 Hellfire Torch \u2014 cube 1 of each \u2192 a mini-uber portal \u2192 its organ; 3 organs \u2192 Uber Tristram.</div>
         <div class="gic-meta-row">
           <span class="gic-meta-chip">Hell only \u00b7 any /players (a little more often at higher /players)</span>
-          <span class="gic-meta-chip" style="color:#ffd479;border-color:rgba(255,212,121,.4)">cube 3 \u2192 red portal \u2192 Uber Tristram</span>
+          <span class="gic-meta-chip" style="color:#ffd479;border-color:rgba(255,212,121,.4)">1 of each \u2192 mini-uber \u2192 organs \u2192 Uber Tristram</span>
         </div>
       </div>
       ${embedded ? '' : '<div style="display:flex;flex-direction:column;gap:6px"><button class="gic-close-btn" onclick="window.closeDrop&&window.closeDrop()" title="press ESC">\u2715 close</button></div>'}
@@ -12366,7 +12366,7 @@ function pandemoniumKeysDetailHtml(embedded){
       <div class="zd-stats" style="margin-bottom:8px">
         <div class="zd-stat"><span class="zd-sk">category</span><span class="zd-sv">Pandemonium Keys</span></div>
         <div class="zd-stat"><span class="zd-sk">per-kill rate</span><span class="zd-sv">~10% \u00b7 Hell only \u00b7 any /players</span></div>
-        <div class="zd-stat"><span class="zd-sk">feeds into</span><span class="zd-sv">red portal \u2192 Uber Tristram \u2192 Hellfire Torch</span></div>
+        <div class="zd-stat"><span class="zd-sk">feeds into</span><span class="zd-sv">a mini-uber portal \u2192 its organ \u2192 Uber Tristram \u2192 Hellfire Torch</span></div>
         <div class="zd-stat"><span class="zd-sk">MF affects?</span><span class="zd-sv">no \u2014 /players count is what matters</span></div>
       </div>
       <div class="zd-row"><span class="zd-k">drops from</span><span class="zd-v"><strong>The Countess</strong> (Terror) \u00b7 <strong>The Summoner</strong> (Hate) \u00b7 <strong>Nihlathak</strong> (Destruction)</span></div>

@@ -197,7 +197,8 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         /players 1 rising to ~9%, and diablowiki the Summoner 8.6% at /p1-2 to 12.8% at /p7-8. Hell only, any /players.
         The one sentence left quoting the old claim is its retraction."""
         s = _src()
-        hits = [m.start() for m in re.finditer(r"players 3\+|/p3\+|1:278", s)]
+        # REG-2105 (the v3627 eye) - the sweep was one spelling wide: "/p3 or higher REQUIRED" and a "/p5 mule trick" survived it
+        hits = [m.start() for m in re.finditer(r"players 3\+|/p3\+|1:278|/p\s*3 or higher|p5 mules? trick", s)]
         stray = [s[max(0, h - 60):h + 30] for h in hits if "REG-2100 removed" not in s[max(0, h - 120):h + 10]]
         self.assertEqual(stray, [], "a key is said to need /players 3+ again (or ~1:278): %r" % stray)
         self.assertIn("Keys are <strong>Hell only</strong>, at any /players", s, "premise: the keys card says Hell only")
@@ -210,6 +211,9 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         self.assertIn("Step 2 — Cube 1 of each key → a random mini-uber portal", s, "premise: the card's own Step 2")
         self.assertIn("Step 3 — Cube 3 organs → Uber Tristram portal", s, "premise: the card's own Step 3")
         self.assertNotIn("Cube the 3 Pandemonium Keys → red portal", s, "the lead skips the organ cube its own steps list")
+        # REG-2105 (the v3627 eye) - the same skip lived in the keys card's subtitle, chip and feeds line and in SPECIAL_DROPS
+        for skip in ("cube all 3 \\u2192 red portal", "cube 3 \\u2192 red portal", "3 Terror + 3 Hate + 3 Destruction", "opens 3 red portals"):
+            self.assertNotIn(skip, s, "a key line skips the mini-uber step again: %r" % skip)
         self.assertIn("→ cube the 3 organs → Uber Tristram →", s, "the lead no longer walks the organ step")
         self.assertNotIn("skill tab", s[s.find("Hellfire Torch →"):s.find("Click it for the full material card.")],
                          "the torch's +3 is narrowed to one skill tab again")
@@ -320,6 +324,21 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "      <div style=\"font-size:13.5px;line-height:1.6\">${_runeRunewordsHtml(r)}</div>",
      "replace": "      <div style=\"font-size:13.5px;line-height:1.6\">${r.rw}</div>",
+     "matches": 1},
+    {"why": "REG-2105 - the special-drops recipe opens three red portals from 3+3+3 keys again",
+     "file": "bible.html",
+     "find": "recipe: \"1 Terror + 1 Hate + 1 Destruction in the cube (Hell Harrogath) → one random mini-uber portal; a full set per portal, three for all three\",",
+     "replace": "recipe: \"3 Terror + 3 Hate + 3 Destruction in cube → opens 3 red portals to Uber bosses\",",
+     "matches": 1},
+    {"why": "REG-2105 - the special-drops blurb says keys need /p3 or higher again",
+     "file": "bible.html",
+     "find": "Hell only, at any /players.\",",
+     "replace": "Hell only, /p3 or higher REQUIRED for drops.\",",
+     "matches": 1},
+    {"why": "REG-2105 - the keys card's subtitle skips the mini-uber step again",
+     "file": "bible.html",
+     "find": "cube 1 of each \\u2192 a mini-uber portal \\u2192 its organ; 3 organs \\u2192 Uber Tristram.",
+     "replace": "cube all 3 \\u2192 red portal \\u2192 Pandemonium Run.",
      "matches": 1},
 ]
 

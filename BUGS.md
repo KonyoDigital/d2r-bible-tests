@@ -406,6 +406,16 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2105 - THE KEY SWEEPS WERE ONE SPELLING WIDE (2026-10-08, the v3627 second eye)
+
+REG-2100 swept "/players 3+" and REG-2101 the Uber lead's "3 keys -> red portal"; the v3627 eye found the same claims in
+other words, beside them: SPECIAL_DROPS' blurb "Hell only, /p3 or higher REQUIRED for drops. Best with /p5 mules trick", its
+important line (an unsourced "/p5 mule trick ... 1:25-50 per kill", worse than the sourced ~1:12 anyway), its recipe "3
+Terror + 3 Hate + 3 Destruction in cube -> opens 3 red portals", and the keys card's own subtitle, chip and "feeds into"
+line ("cube all 3 -> red portal -> Pandemonium Run"). All six now say what the card's Step 2 and the recipe line say: one of
+each key -> one random mini-uber portal, its organ, three organs -> Uber Tristram; Hell only at any /players. Both laws now
+match the meaning in every spelling seen. Second time in one evening (REG-2104): a sweep built from the first spelling.
+
 ### REG-2104 - 91 OF THE RUNE CARDS' 132 RUNEWORDS DID NOT HOLD THE RUNE (2026-10-08, the v3626 second eye, swept)
 
 REG-2099 fixed the Countess / Travincal grids' "used for" column - and its sweep matched only that field's shape (n:'Ohm #27'
