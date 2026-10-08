@@ -406,6 +406,15 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2119 - THE RUNE RECIPE LAW COULD RUN ON NOTHING, AND IT NEVER SAW ZOD (2026-10-09, the v3630 second eye)
+
+The cross-family look at v3630 (grok-cli, 18,541 chars, 3 findings) on REG-2108's law, both reproduced: it compared a rune card
+only when `n in cube`, and nothing asserted how many were compared - a cube row the regex stopped reading (a space between two
+divs was enough) dropped that rune from the comparison and the law stayed green (measured: the Lo row unread -> green before,
+red now). And the level check reused the recipe pattern, which needs a quoted `up`, so Zod (`up:null`) was never in it: Zod
+at 65 under Cham's 67 read green. The law now requires every rune card with a recipe to have been compared, and reads all 33
+levels on their own. Two red-proofs, each measured red on its own case.
+
 ### REG-2117 - TERROR AND HATE STILL PRINTED ~10% IN FIVE PLACES UNDER CARDS THAT SAY ~8-9% AND ~9-13% (2026-10-09)
 
 Found while writing the v3629 brief: REG-2107 gave each key card its sourced rate (Terror ~8-9%, Hate ~9-13%, Destruction

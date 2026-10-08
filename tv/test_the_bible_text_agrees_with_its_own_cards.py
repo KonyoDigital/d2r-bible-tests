@@ -280,9 +280,18 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         ri = s.find("const RUNES = [")
         table = re.findall(r'n:"([A-Z][a-z]+)",\s*clvl:(\d+),[^\n]*?up:"([^"]*)"', s[ri:s.find("\n];", ri)])
         self.assertGreaterEqual(len(table), 32, "premise: the rune table (%d rows)" % len(table))
-        off = [(n, up, cube.get(n)) for n, _cl, up in table if n in cube and up != cube[n]]
+        # REG-2119 (the v3630 second eye) - PRINT THE DENOMINATOR: every rune card with a recipe must have been COMPARED. The
+        # first cut kept a rune only when `n in cube`, so a cube section the regex stopped reading made `off` empty and
+        # the law green while every recipe drifted.
+        unread = [n for n, _cl, _up in table if n not in cube]
+        self.assertEqual(unread, [], "rune cards whose cube row was never read - the comparison ran on nothing: %r" % unread)
+        off = [(n, up, cube.get(n)) for n, _cl, up in table if up != cube[n]]
         self.assertEqual(off, [], "a rune card's cube recipe disagrees with the page's own cube section: %r" % off)
-        lv = [(n, int(cl)) for n, cl, _up in table if n != "Hel"]
+        # REG-2119 - and the LEVELS are read on their own: Zod carries up:null, so the recipe pattern skipped it and the top
+        # rune's level was never checked against Cham's
+        levels = re.findall(r'n:"([A-Z][a-z]+)",\s*clvl:(\d+),', s[ri:s.find("\n];", ri)])
+        self.assertEqual(len(levels), 33, "premise: all 33 runes carry a level (%d read)" % len(levels))
+        lv = [(n, int(cl)) for n, cl in levels if n != "Hel"]
         ties = {("El", "Eld"), ("Tir", "Nef"), ("Eth", "Ith")}
         bad = [(a, b) for (a, x), (b, y) in zip(lv, lv[1:]) if y < x or (y == x and (a, b) not in ties)]
         self.assertEqual(bad, [], "rune level requirements do not rise along the table: %r" % bad)
@@ -437,6 +446,16 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "<td>~8-9% drop · Hell only",
      "replace": "<td>~10% drop · Hell only",
+     "matches": 1},
+    {"why": "REG-2119 - one cube row the law can no longer read (the v3630 eye: the comparison silently ran on fewer runes)",
+     "file": "bible.html",
+     "find": "<div class=\"cube-input\">2× Lo + Flawless Topaz</div><div class=\"cube-arrow\">→</div>",
+     "replace": "<div class=\"cube-input\">2× Lo + Flawless Topaz</div> <div class=\"cube-arrow\">→</div>",
+     "matches": 1},
+    {"why": "REG-2119 - Zod's level falls under Cham's and the level check never sees the top rune",
+     "file": "bible.html",
+     "find": "n:\"Zod\",  clvl:69,",
+     "replace": "n:\"Zod\",  clvl:65,",
      "matches": 1},
     {"why": "REG-2117 - the uber-path node prints the Key of Hate at ~10% again, under its card's ~9-13%",
      "file": "bible.html",
