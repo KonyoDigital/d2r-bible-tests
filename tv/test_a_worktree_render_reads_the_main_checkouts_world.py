@@ -67,6 +67,18 @@ class AWorktreeRenderReadsTheMainCheckoutsWorld(unittest.TestCase):
         self.assertEqual(src, wt_tv)
         self.assertIn("UNKNOWN rather than clean", why, "an empty world must say so: %r" % why)
 
+    def test_a_tree_git_cannot_place_does_not_claim_its_main_checkout_was_asked(self):
+        """REG-2092 (the v3624 second eye) - rev-parse's exit code was ignored, so a tree git could not place printed
+        'no session store in this tree or its main checkout' although no main checkout was ever asked."""
+        lone = os.path.join(self.root, "not-a-repo", "tv")
+        os.makedirs(lone)
+        src, why = render_check._world_source(lone)
+        self.assertEqual(src, lone)
+        self.assertIn("git could not name its main checkout (rev-parse exit", why,
+                      "a tree git could not place must say git could not name a main checkout: %r" % why)
+        self.assertNotIn("or its main checkout", why, "the reason claims a main checkout was asked: %r" % why)
+        self.assertIn("UNKNOWN rather than clean", why)
+
     def test_the_sandbox_copy_loop_reads_the_named_world(self):
         with open(render_check.__file__.replace(".pyc", ".py"), encoding="utf-8") as f:
             src = f.read()
@@ -90,6 +102,11 @@ RED_PROOF = [
      "file": "tv/render_check.py",
      "find": "    if os.path.isfile(os.path.join(here, \"sessions.jsonl\")):\n        return here, \"\"\n",
      "replace": "",
+     "matches": 1},
+    {"why": "REG-2092 - a failed rev-parse is read as 'no main checkout' again",
+     "file": "tv/render_check.py",
+     "find": "    if _g.returncode != 0 or not common:\n",
+     "replace": "    if False:\n",
      "matches": 1},
 ]
 

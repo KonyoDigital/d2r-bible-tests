@@ -4203,10 +4203,15 @@ def _world_source(here=None):
         return here, ""
     common = ""
     try:
-        common = subprocess.run(["git", "-C", here, "rev-parse", "--path-format=absolute", "--git-common-dir"],
-                                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10).stdout.strip()
+        _g = subprocess.run(["git", "-C", here, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)
+        common = _g.stdout.strip()
     except Exception as e:
         return here, "no session store in this tree, and git could not name its main checkout (%s)" % e
+    # REG-2092 (the v3624 second eye) - a FAILED rev-parse never asked the main checkout, so the reason must not say it did
+    if _g.returncode != 0 or not common:
+        return here, ("no session store in this tree, and git could not name its main checkout (rev-parse exit %s) - "
+                      "the shelf targets will measure an EMPTY world, which is UNKNOWN rather than clean" % _g.returncode)
     if common and os.path.basename(common.rstrip("/")) == ".git":
         main_tv = os.path.join(os.path.dirname(common.rstrip("/")), "tv")
         if os.path.realpath(main_tv) != os.path.realpath(here) and os.path.isfile(os.path.join(main_tv, "sessions.jsonl")):

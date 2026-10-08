@@ -9195,6 +9195,12 @@ GATES = [
          needs_app=False,
          why=("REG-2089 (#231 eye on v43) - taglines and codex notes swept against their own codex props: Veil of Steel, "
               "Moser's, Suicide Branch, Ondal's, Que-Hegan's and The Oculus disagreed; the Summoner 'had no boss card'.")),
+    Gate("test_a_close_cancels_the_reel_still_loading", [sys.executable,
+         os.path.join(HERE, "test_a_close_cancels_the_reel_still_loading.py")], 30,
+         needs_app=False,
+         why=("REG-2091 (Grok CLI on v3624) - a reel still loading when ✕ stepped back to the shelf landed and played "
+              "under it, and thClose left it free to write a closed stage: both closes now move TH.loadGen, and an "
+              "overtaken load's timeout no longer clears the winner's beats")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

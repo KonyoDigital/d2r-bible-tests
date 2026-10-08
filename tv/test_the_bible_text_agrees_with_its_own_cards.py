@@ -8,6 +8,14 @@ The #231 code seat, on May's 4275b03a and a78bae20, re-measured at HEAD 2026-10-
   * The Summoner block said "the only Key dropper without its own boss card" - under a link that opens The Summoner's boss
     detail, and with BOSSES[0] being the Summoner.
 Both laws are sweeps over the file, so the next tagline or "no card" sentence that disagrees with the data goes red.
+
+REG-2090 - the #231 code seat on May's 0e22e7d2 and 46f0f060, re-measured at the v3630 tip:
+  * the P# slider tip and the PLAYERS=8 MYTH card said "up to ~2.3x" for Cows & The Pit while the /p8 table printed x2.41
+    and playerMult(cows, hell, 8) is 2.412;
+  * the /p8 table's Heavy droppers row printed q 0.28-0.35 beside x1.39-1.52 - the x came from PLAYER_Q (0.27941,
+    0.34545), so a reader who multiplied the printed q got x1.53. The q now prints to the precision that round-trips;
+  * Blood Raven was "the Den-of-Evil quest archer" in three places (her quest is Sisters' Burial Grounds), and
+    Andariel's quest line said "Den-of-Evil + Sisters quest" (hers is Sisters to the Slaughter).
 """
 import io
 import json
@@ -35,6 +43,13 @@ def _codex(s):
     if i < 0:
         raise AssertionError("ITEM_CODEX is gone - re-point this law")
     return json.loads(s[i + len("const ITEM_CODEX = "):s.find("};\n", i) + 1])
+
+
+def _player_q(s):
+    i = s.find("const PLAYER_Q = ")
+    if i < 0:
+        raise AssertionError("PLAYER_Q is gone - re-point this law")
+    return json.loads(s[i + len("const PLAYER_Q = "):s.find(";\n", i)])
 
 
 class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
@@ -101,6 +116,52 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
                          "a sentence says a boss has no card of its own, and BOSSES carries one")
 
 
+    def test_the_players_prose_says_the_multiplier_the_formula_gives(self):
+        s = _src()
+        q = _player_q(s)["cows"]["hell"]
+        m = (1 - q ** 5) / (1 - q)                       # playerMult at /players 8: k = 1 + floor(8/2)
+        said = re.findall(r"up to (?:<strong>)?~(\d+\.\d+)×(?:</strong>)? for Cows &(?:amp;)? The Pit", s)
+        self.assertGreaterEqual(len(said), 2, "premise: the slider tip and the myth card both say it (%d found)" % len(said))
+        for x in said:
+            self.assertEqual(float(x), round(m, 1),
+                             "a sentence says up to ~%s× for Cows & The Pit; playerMult at /p8 is %.3f" % (x, m))
+
+    def test_the_p8_table_rows_round_trip_from_their_printed_q(self):
+        s = _src()
+        pq = _player_q(s)
+        i = s.find("<thead><tr><th>tier</th><th>bosses</th><th>NoDrop q</th><th>×@ /p8</th></tr></thead>")
+        self.assertGreater(i, 0, "the /p8 multiplier table is gone - re-point this law")
+        body = s[i:s.find("</tbody>", i)]
+        rows = re.findall(r"<tr><td class=\"item-name\">[^<]*</td><td>([^<]+)</td><td>([^<]+)</td><td>(.*?)</td></tr>", body)
+        self.assertEqual(len(rows), 4, "premise: the four tier rows (%d found)" % len(rows))
+        f = lambda v: 1.0 if v == 0 else (1 - v ** 5) / (1 - v)
+        bad = []
+        for bosses, qs, xs in rows:
+            ids = [k for b in bosses.split("·") for k in pq if b.strip().lower().startswith(k)]
+            self.assertEqual(len(ids), len(bosses.split("·")), "premise: every boss in %r has a PLAYER_Q row" % bosses)
+            real = sorted(pq[k]["hell"] for k in ids)
+            printed_q = [float(v) for v in re.findall(r"\d+(?:\.\d+)?", qs)]
+            printed_x = [float(v) for v in re.findall(r"\d+\.\d+", xs[xs.find("×"):])]   # "×1.39–1.52" carries one ×
+            want_x = sorted({round(f(v), 2) for v in (real[0], real[-1])})
+            if [round(v, 2) for v in printed_x] != want_x:
+                bad.append("%s: prints ×%s, PLAYER_Q gives ×%s" % (bosses, printed_x, want_x))
+            # the eye's check: a reader who multiplies the PRINTED q must land on the printed ×
+            from_q = sorted({round(f(v), 2) for v in printed_q})
+            if from_q != want_x:
+                bad.append("%s: q %s printed, which gives ×%s, beside ×%s" % (bosses, qs, from_q, want_x))
+        self.assertEqual(bad, [], "a /p8 table row disagrees with its own q: %r" % bad)
+
+    def test_no_card_gives_a_boss_another_quest(self):
+        s = _src()
+        self.assertGreaterEqual(s.count("Blood Raven"), 3, "premise: Blood Raven's cards are on the page")
+        wrong = re.findall(r"Blood Raven[^\"]{0,120}?Den[- ]of[- ]Evil|Den[- ]of[- ]Evil quest archer", s)
+        self.assertEqual(wrong, [], "Blood Raven is given the Den of Evil quest - hers is Sisters' Burial Grounds: %r" % wrong)
+        i = s.find("  andariel: {\n    run:")
+        self.assertGreater(i, 0, "andariel's tip block is gone - re-point this law")
+        q = re.search(r'\n    quest: "([^"]*)"', s[i:i + 2000]).group(1)
+        self.assertIn("Sisters to the Slaughter", q, "Andariel's quest line no longer names her own quest: %r" % q)
+        self.assertNotRegex(q, r"Den[- ]of[- ]Evil", "Andariel's quest line names another quest: %r" % q)
+
 RED_PROOF = [
     {"why": "REG-2089 - Veil of Steel's tagline swaps its resist and defense figures again",
      "file": "bible.html",
@@ -117,6 +178,26 @@ RED_PROOF = [
      "find": "+3 sorc skills · +30% FCR · MF +50% · the all-round sorc orb",
      "replace": "+3 sorc skills · +20% FCR · MF +50% · the all-round sorc orb",
      "matches": 2},
+    {"why": "REG-2090 - the slider tip says ~2.3x for Cows & The Pit again",
+     "file": "bible.html",
+     "find": "up to ~2.4× for Cows & The Pit",
+     "replace": "up to ~2.3× for Cows & The Pit",
+     "matches": 1},
+    {"why": "REG-2090 - the Heavy droppers row prints a q that does not give its own x",
+     "file": "bible.html",
+     "find": "<td>0.2794–0.3455</td>",
+     "replace": "<td>0.28–0.35</td>",
+     "matches": 1},
+    {"why": "REG-2090 - Blood Raven is the Den of Evil quest archer again",
+     "file": "bible.html",
+     "find": "\"The Sisters' Burial Grounds quest archer. Her quest",
+     "replace": "\"The Den-of-Evil quest archer. Her quest",
+     "matches": 1},
+    {"why": "REG-2090 - Andariel's quest line names the Den of Evil again",
+     "file": "bible.html",
+     "find": "quest: \"Sisters to the Slaughter still open →",
+     "replace": "quest: \"Den-of-Evil + Sisters quest still active →",
+     "matches": 1},
 ]
 
 

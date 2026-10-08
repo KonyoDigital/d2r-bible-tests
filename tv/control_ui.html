@@ -17224,6 +17224,7 @@ window._lockMark = function(isOpen, px, label){
       clearTimeout(_sto);
       j = await r.json();
     } catch (_se) {
+      if (gen !== TH.loadGen) return;   /* REG-2091 - an overtaken load's timeout must not clear the winner's beats or caption */
       try { var _cap = $('th-caption');
             if (_cap) _cap.textContent = '\u{1F39E} the reel did not answer in 12s \u2014 '
                                        + 'the shelf and the rest of the console are unaffected';
@@ -17510,6 +17511,7 @@ window._lockMark = function(isOpen, px, label){
     if (TH.open && TH.reelFromShelf) {
       TH.reelFromShelf = false;
       TH.playing = false; clearTimeout(TH.timer);
+      TH.loadGen = (TH.loadGen || 0) + 1;   /* REG-2091 - a reel still loading must not land and play under the shelf */
       try { TH.shelfIsDoor = true; } catch (e) {}
       try { thShelf(true); } catch (e) {}
       var _bk = $('th-shelfov');
@@ -17524,6 +17526,7 @@ window._lockMark = function(isOpen, px, label){
        failure he reported five times. */
     TH.gen = (TH.gen | 0) + 1;
     TH.open = false; clearTimeout(TH.timer); TH.playing = false;
+    TH.loadGen = (TH.loadGen || 0) + 1;   /* REG-2091 - and any REEL still loading: it must not paint a closed stage */
     TH.reelFromShelf = false;   /* REG-2074 - a full teardown forgets the door */
     try { window._backFromLive && window._backFromLive(); } catch(e){}   // v1627 — back to where he opened it from
     $('theatre').hidden = true;

@@ -406,6 +406,37 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2092 - A FAILED rev-parse SAID THE MAIN CHECKOUT HAD NO STORE (2026-10-08, the v3624 second eye)
+
+render_check._world_source ignored git's exit code, so a tree git could not place printed "no session store in this tree or its
+main checkout" - a claim about a checkout nobody asked. It now says git could not name one (rev-parse exit N); the result
+was and stays UNKNOWN. Re-ask of the v3624 eye at 37k chars (its first answer was cannot-tell at 19.7k):
+
+| finding | measured at HEAD | outcome |
+|---|---|---|
+| end_routes.report() "dead inside its docstring" | the docstring closes on its own line; report() ran and returned its dict, _DUR_PASS back to None | REFUTED - the payload was comment-stripped |
+| _DUR_PASS has no lock; None key shared | one dict per pass, whole-tuple writes, a second pass shares then stops caching when the first clears; one world per pass | not a defect |
+| _world_source ignores rev-parse's exit | real: the reason named a main checkout never asked | FIXED - REG-2092 |
+| NOT SHOWN: bible.html, control_ui.html | the eye's own words | a targeted Grok look covered them (REG-2091) |
+
+### REG-2091 - A REEL STILL LOADING LANDED AFTER ✕ AND PLAYED UNDER THE SHELF (2026-10-08, Grok CLI on v3624)
+
+A targeted Grok look at thCloseReel: the step back to the shelf "never increments TH.gen". Re-measured: the reel load stamps
+TH.loadGen, and NEITHER close moved it - so a load in flight when ✕ stepped back landed under the shelf (TH.open stays true)
+and set TH.playing, and thClose left it free to write a closed stage. Swept to the load's own error path: an overtaken load
+that then timed out still wrote "did not answer" and TH.beats = [] over the reel that won. Both closes now move TH.loadGen;
+the error path checks it first. The same look's other three questions held (unsorted never misread, the fold hop cannot
+loop, the boss nav re-measures on show and cannot flip itself).
+
+### REG-2090 - THE PROSE DISAGREED WITH THE TABLE BESIDE IT; BLOOD RAVEN HAD THE WRONG QUEST (2026-10-08, #231 eye on v43)
+
+The #231 code seat on May's 0e22e7d2, re-measured at the v3630 tip: the P# slider tip and the PLAYERS=8 MYTH card said "up to
+~2.3x" for Cows & The Pit while the /p8 table printed x2.41 (playerMult = 2.412). The Heavy droppers row printed q 0.28-0.35
+beside x1.39-1.52 - the x came from PLAYER_Q 0.27941 / 0.34545, so the printed q gave x1.53; it now prints 0.2794-0.3455, the
+precision that round-trips (0.279 gives x1.38). Blood Raven was "the Den-of-Evil quest archer" in three places (Sisters'
+Burial Grounds), and Andariel's quest line read "Den-of-Evil + Sisters quest" (Sisters to the Slaughter). The same look on
+46f0f060 (super-unique key rates, Summoner mlvl, Pindle TC, Bone Ash's zone) needs a game source - panel #306.
+
 ### REG-2089 - SIX TAGLINES DISAGREED WITH THEIR OWN CODEX; THE SUMMONER 'HAD NO BOSS CARD' (2026-10-08, #231 eye on v43)
 
 The #231 code seat's looks at May's 4275b03a and a78bae20, re-measured at HEAD, then SWEPT: Veil of Steel '+60 all res ·
