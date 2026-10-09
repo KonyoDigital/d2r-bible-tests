@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3637",
+  "ver": "v3638",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3637: REG-2141 - the heart prints the Wilson figure that decided",
+  "note": "v3638: REG-2141 - the tab-strip lock chip prints the Wilson figure that decided",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

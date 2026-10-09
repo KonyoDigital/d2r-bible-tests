@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3637** | `(this commit)` | v3637 — REG-2141 - the heart prints the Wilson figure that decided |
+| **v3638** | `(this commit)` | v3638 — REG-2141 - the tab-strip lock chip prints the Wilson figure that decided |
+| **v3637** | `d578f80a` | v3637 — REG-2141 - the heart prints the Wilson figure that decided |
 | **v3636** | `a0660934` | v3636 — REG-2137..2140 - Herald Fear tile, Renewed Sunder per-charm readiness, film-less reel clock, theatre-head refusal |
 | **v3635** | `73927fe3` | v3635 — REG-2134..2136 - theatre header two rows, film-less reel clears the last reel, shard icon |
 | **v3634** | `55656d80` | v3634 — REG-2131..2133 - the RotW Sunder lead, the Herald law reads text and the port redraw is bounded, a set item codex once on calc |
