@@ -406,6 +406,20 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2146 - A SUNDER RATE STILL NAMED HERALDS AS THE DROP (2026-10-10, #320)
+
+The blurb, the section lead, the card chip and the drop stat already say a Latent
+drops from any Terror-Zone monster, Heralds most often. The six charm `rate`
+fields still said "Latent drops from Heralds", and that spelling has no "only",
+so the sweep never saw it. Those six fields now say the same sourced sentence.
+The `from` arrays stay, because they are the link target, and the 3-shard cube
+recipe stays unsourced. Law: `test_no_sunder_text_says_what_its_own_source_refutes`,
+one more red-proof. Not rendered here.
+
+### REG-2145 - A SET TILE PRINTED THE FILE INDEX (2026-10-10, #295)
+
+The codex set card and the set-member list printed setMembers[].name. For three pieces that string is the game file's index, not the name on the item: Cow King's Hoofs, Griswolds's Redemption, Wihtstan's Guard. The string the game shows is column 0 of the same piece in the generated sets table: Cow King's Hooves, Griswold's Redemption, Whitstan's Guard. The tile, the member line, the hover title and the set-piece tip now ask that column. data-arttip, artOr, the codex name, MP_TEXT_ALIAS and the art map stay on the index. A name the table does not index is unchanged. Two shown names for one index stay the index. Tal Rasha's Howling Wind is the index of Tal Rasha's Guardianship and is not a codex member name, so no tile was printing it. Level-0 procs and the note-versus-props rows stay unsourced. Law: `tv/test_a_set_piece_tile_says_the_name_the_game_shows.py`, two red-proofs. Not rendered here.
+
 ### REG-2144 - THE SIZE-DEBT SNAPSHOT REWROTE A FILE IT COULD NOT READ (2026-10-09, #322)
 
 `--snapshot` caught every failure of size_debt.json and continued with `{}`.

@@ -10278,6 +10278,15 @@ GATES = [
              "size. The capture stops at the quote. A JS expression that starts "
              "with a quote stays the expression. A new 27px is still seen. "
              "The console allowlist is not this ratchet."),
+    Gate("test_a_set_piece_tile_says_the_name_the_game_shows",
+         [sys.executable, os.path.join(HERE, "test_a_set_piece_tile_says_the_name_the_game_shows.py")], 90,
+         needs_app=False,
+         why="REG-2145 - three codex set members print the game file's index. "
+             "The tile, the member line, the hover title and the set-piece tip "
+             "print column 0 of the generated sets table, the string the game "
+             "shows. data-arttip, artOr, the codex name, MP_TEXT_ALIAS and the "
+             "art map stay on the index. A name the table does not index is "
+             "unchanged. Two shown names for one index stay the index."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

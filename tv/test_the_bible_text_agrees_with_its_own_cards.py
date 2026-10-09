@@ -462,6 +462,15 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         herald_src = re.findall(r"Hell-TZ Herald[^.<\"\n]*", text)
         self.assertEqual(herald_src, [], "a text names Hell-TZ Heralds as the Sunder source again: %r" % herald_src)
         self.assertNotIn("farm that region's Heralds", s, "the Herald card reads the shard map as a charm map again")
+        # REG-2146 - the six rate fields still said "Latent drops from Heralds" with no "only",
+        # so every sweep above passed while the charm rows named Heralds as the drop.
+        i = s.find("  sunder: {")
+        self.assertGreater(i, 0, "the sunder category is gone - re-point this law")
+        block = s[i:s.find("\n  worldstoneShard:", i)]
+        rates = re.findall(r'rate: "([^"]*)"', block)
+        sourced = "Latent drops from any Terror-Zone monster, Heralds most often"
+        self.assertEqual(rates, [sourced] * 6,
+                         "a Sunder rate does not say where a Latent drops: %r" % rates)
 
     def test_the_herald_card_tells_the_3_2_spawn_rules(self):
         """REG-2127 (#231 eye on v43 06ad2cd2) - Patch 3.2 / Ladder Season 14: "Heralds now spawn when you kill any monster in a
@@ -735,6 +744,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "label:\"Act 2\",        target:\"Duriel · Tal Rasha's Chamber\",",
      "replace": "label:\"Act 2\",        target:\"Ancient Tunnels · Lost City\",",
+     "matches": 1},
+    {"why": "REG-2146 - a Sunder rate names Heralds as the drop again",
+     "file": "bible.html",
+     "find": '{n: "Rotting Fissure", from: ["Hell TZ Heralds of Terror"], rate: "Latent drops from any Terror-Zone monster, Heralds most often"',
+     "replace": '{n: "Rotting Fissure", from: ["Hell TZ Heralds of Terror"], rate: "Latent drops from Heralds"',
      "matches": 1},
     {"why": "REG-2142 - the Sunder card's chip names Hell-TZ Heralds as the source again",
      "file": "bible.html",
