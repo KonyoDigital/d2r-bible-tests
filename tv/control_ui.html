@@ -11259,7 +11259,11 @@ window._lockMark = function(isOpen, px, label){
            caught it refused to activate for exactly that reason. */
         el.setAttribute('data-state', state);
         var n = l && typeof l.n === 'number' ? l.n : null;
-        var sc = l && typeof l.score === 'number' ? l.score : null;
+        /* REG-2141 - the tab chip was the fourth reader of this lock, and it still printed the raw
+           per-attempt Wilson beside a state decided per distinct attack. n stays the attempt count,
+           so an untested door still says untested. The figure is the one that decided. */
+        var _cf = l ? _hrtLockFigure(l) : null;
+        var sc = (_cf && typeof _cf.score === 'number' && !isNaN(_cf.score)) ? _cf.score : null;
         /* n=0 must NOT print a number. "nobody has tested it" and "it scored zero" are different
            facts, and the second one is the dangerous state.
            ⚠ AND n=0 ITSELF IS TWO FACTS. A door nobody has sabotaged YET is waiting on work; a

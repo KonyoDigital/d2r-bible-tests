@@ -110,6 +110,17 @@ class TheConsolePrintsTheFigureThatDecided(unittest.TestCase):
         self.assertEqual((f["k"], f["n"], f["perAttack"]), (3, 3, True), "the 55/55 attempt pair was printed: %r" % f)
         self.assertAlmostEqual(f["score"], 0.4385, places=4, msg="the raw 0.9347 was printed beside a 0.4385 verdict")
         self.assertAlmostEqual(f["raw"], 0.9347, places=4, msg="the raw figure is no longer carried for the list row")
+        # the tab chip prints toFixed(2) of this same figure, not of the raw 0.9347
+        prog = (_helper_source() + "\n"
+                "var l = " + json.dumps(row) + ";\n"
+                "var _cf = l ? _hrtLockFigure(l) : null;\n"
+                "var sc = (_cf && typeof _cf.score === 'number' && !isNaN(_cf.score)) ? _cf.score : null;\n"
+                "console.log(JSON.stringify(sc));\n")
+        p = subprocess.run([_node(), "-"], input=prog, capture_output=True, text=True, timeout=60)
+        if p.returncode != 0:
+            raise AssertionError("node could not run the chip formula: %s" % (p.stderr or "")[:300])
+        self.assertAlmostEqual(json.loads(p.stdout.strip().split("\n")[-1]), 0.4385, places=4,
+                               msg="the tab chip formula printed the raw Wilson")
 
     def test_every_printed_pair_reproduces_the_printed_figure(self):
         st = self._trimmed()
@@ -138,9 +149,11 @@ class EveryHeartRendererAsksTheHelper(unittest.TestCase):
         self.assertEqual(src.count("var _fig = _hrtLockFigure(L);"), 1, "the valve diagram no longer asks the helper")
         self.assertEqual(src.count("var _fg = _hrtLockFigure(L);"), 1, "the lock list no longer asks the helper")
         self.assertEqual(src.count("var _rf = _hrtLockFigure(r);"), 1, "the route list no longer asks the helper")
+        self.assertEqual(src.count("var _cf = l ? _hrtLockFigure(l) : null;"), 1,
+                         "the tab-strip chip no longer asks the helper")
         # the function's own "(L)" is not a renderer
-        self.assertEqual(len(re.findall(r"(?<!function )_hrtLockFigure\((?:L|r)\)", src)), 3,
-                         "a fourth renderer appeared - it must ask the helper too, and this count must say so")
+        self.assertEqual(len(re.findall(r"(?<!function )_hrtLockFigure\((?:L|r|l)\)", src)), 4,
+                         "a fifth renderer appeared - it must ask the helper too, and this count must say so")
 
 
 RED_PROOF = [
@@ -163,6 +176,11 @@ RED_PROOF = [
      "file": "control_ui.html",
      "find": "      var _fg = _hrtLockFigure(L);",
      "replace": "      var _fg = { k: L.k, n: L.n, score: (L.score == null ? null : Number(L.score)), perAttack: false };",
+     "matches": 1},
+    {"why": "REG-2141 - the tab chip prints the raw per-attempt Wilson again",
+     "file": "control_ui.html",
+     "find": "        var _cf = l ? _hrtLockFigure(l) : null;\n",
+     "replace": "        var _cf = null;\n",
      "matches": 1},
 ]
 
