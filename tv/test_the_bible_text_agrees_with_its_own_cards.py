@@ -450,6 +450,10 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         self.assertEqual(one, [], "a Sunder text says only one can be active again: %r" % one)
         only = re.findall(r"Latent[^.<\"]{0,40}drop[s]? only from[^.<\"]*", s)
         self.assertEqual(only, [], "a Sunder text says Latents drop only from one source again: %r" % only)
+        # REG-2131 (#231 eye on v43 cb53cefc) - the sweep above was one spelling wide: the RotW tab's Sunder lead said "Only
+        # from Hell-TZ Heralds of Terror" with no "Latent ... drop" in front of it. Any "only from ... Herald", any case.
+        heralds_only = re.findall(r"(?i)\bonly from[^.<\"]{0,40}Herald[^.<\"]*", s)
+        self.assertEqual(heralds_only, [], "a text says Sunders come only from Heralds again: %r" % heralds_only)
         self.assertNotIn("farm that region's Heralds", s, "the Herald card reads the shard map as a charm map again")
 
     def test_the_herald_card_tells_the_3_2_spawn_rules(self):
@@ -463,9 +467,16 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         self.assertGreater(i, 0, "the Herald card's spawn section is gone - re-point this law")
         self.assertIn("Herald Tiers now increase when a Herald spawns (not when killed)", s[i:s.index("</section>", i)],
                       "the spawn section no longer carries the 3.2 rule it is built on")
+        # REG-2132 (the v3633 second eye) - read the TEXT, and exempt the one line that names the old system as gone: the
+        # first cut scanned raw HTML, so it passed only because that disclaimer happens to read "<em>ire</em> token" - drop
+        # the tags and the law would fail on the sentence it is meant to allow.
+        text = re.sub(r"<[^>]+>", "", s)
+        allowed = "the older two-step ire token and fresh-tile hunt that pre-3.2 guides describe no longer applies"
+        self.assertEqual(text.count(allowed), 1, "premise: the one line that says the pre-3.2 spawn is gone")
+        text = text.replace(allowed, "")
         for old in ("kill bumps", "bumps the next", "drawn the ire", "ire token", "Ire stacks", "unexplored tile",
                     "draw ire", "draw its ire"):
-            self.assertNotIn(old, s, "the Herald card teaches the pre-3.2 spawn again: %r" % old)
+            self.assertNotIn(old, text, "the Herald card teaches the pre-3.2 spawn again: %r" % old)
 
 RED_PROOF = [
     {"why": "REG-2089 - Veil of Steel's tagline swaps its resist and defense figures again",
@@ -632,6 +643,16 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "Each Herald that <strong>spawns</strong> makes the next one a tier higher — climb",
      "replace": "Each kill bumps the <strong>next</strong> Herald one tier higher — climb",
+     "matches": 1},
+    {"why": "REG-2131 - the RotW tab's Sunder lead says only Heralds drop them again",
+     "file": "bible.html",
+     "find": "<span class=\"sec-h-sub\">From any Terror-Zone monster, Heralds most often · break monster immunities",
+     "replace": "<span class=\"sec-h-sub\">Only from Hell-TZ Heralds of Terror · break monster immunities",
+     "matches": 1},
+    {"why": "REG-2132 - the pre-3.2 ire token is taught as current again, outside the line that says it is gone",
+     "file": "bible.html",
+     "find": "        <br>• <strong>Never exit.</strong> Exiting to the menu resets your whole tier climb back to Fright.",
+     "replace": "        <br>• <strong>Never exit.</strong> Exiting to the menu resets your whole tier climb back to Fright. Bank an ire token first.",
      "matches": 1},
 ]
 

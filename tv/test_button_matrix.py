@@ -81,8 +81,12 @@ def _boot_control():
     # the child would get TV_CONTROL_PORT == TV_PORT. Draw until they differ. And the law's fallback agent is the port it
     # hands its child, never the parent shell's TV_PORT or :17771 - main() still adopts the agentPort the app reports.
     agent_port = _free_port()
-    while agent_port == port:
+    for _ in range(50):   # REG-2132 (the v3633 second eye) - bounded: an OS that keeps handing back one port never hangs the law
+        if agent_port != port:
+            break
         agent_port = _free_port()
+    if agent_port == port:
+        return None   # no second port to be had - report SKIP, never one port for both doors
     AGENT = "http://127.0.0.1:%d" % agent_port
     env = dict(os.environ, TV_CONTROL_PORT=str(port), TV_PORT=str(agent_port), TV_ROBOT="1",
                TV_HIST=_hist,

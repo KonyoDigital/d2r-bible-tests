@@ -87,6 +87,21 @@ class APrivateConsoleNeverSharesHisPorts(unittest.TestCase):
                          "a repeated free port went to both of the private app's doors: %r" % ((env.get("TV_CONTROL_PORT"), env.get("TV_PORT")),))
         self.assertEqual(agent_url, "http://127.0.0.1:40002", "the law's fallback agent is not the one it handed its child")
 
+    def test_an_os_that_repeats_one_port_forever_gets_a_skip_not_a_hang(self):
+        """REG-2132 (the v3633 second eye) - the redraw is bounded: a free-port source that only ever answers one port makes
+        _boot_control give up (None - the law reports SKIP) without starting an app, never loop."""
+        import test_button_matrix as M
+        started = []
+        real_free, real_popen = M._free_port, M.subprocess.Popen
+        try:
+            M._free_port = lambda: 40001
+            M.subprocess.Popen = lambda *a, **k: started.append(a) or _DeadChild()
+            got = M._boot_control()
+        finally:
+            M._free_port, M.subprocess.Popen = real_free, real_popen
+        self.assertIsNone(got, "one repeated port was accepted for both doors")
+        self.assertEqual(started, [], "an app was started with no second port to give it")
+
     def test_his_agent_port_in_the_environment_is_never_handed_on(self):
         """Even when the shell running the gate carries his ports, the private app does not inherit them."""
         env = self._boot_env({"TV_PORT": "17771", "TV_CONTROL_PORT": "17772"})
@@ -95,9 +110,9 @@ class APrivateConsoleNeverSharesHisPorts(unittest.TestCase):
 
 
 RED_PROOF = [
-    {"why": "REG-2128 - the two free-port draws are trusted to differ, so the private app can get one port for both",
+    {"why": "REG-2128/2132 - the two free-port draws are trusted to differ, so the private app can get one port for both",
      "file": "tv/test_button_matrix.py",
-     "find": "    while agent_port == port:\n        agent_port = _free_port()\n",
+     "find": "    for _ in range(50):   # REG-2132 (the v3633 second eye) - bounded: an OS that keeps handing back one port never hangs the law\n        if agent_port != port:\n            break\n        agent_port = _free_port()\n    if agent_port == port:\n        return None   # no second port to be had - report SKIP, never one port for both doors\n",
      "replace": "",
      "matches": 1},
     {"why": "REG-2128 - the law's fallback agent stays the parent's TV_PORT / :17771 instead of the port it handed its child",

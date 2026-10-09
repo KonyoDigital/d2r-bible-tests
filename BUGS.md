@@ -406,6 +406,22 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2132 - THE v3633 SECOND EYE: A HERALD LAW THAT PASSED ON MARKUP, AND AN UNBOUNDED PORT REDRAW (2026-10-09)
+
+grok-cli at 33,934 chars, 4 findings, each re-measured. REFUTED at HEAD (2): "the Herald law fails on the shipped page" - it
+passes, because the allowed disclaimer reads "<em>ire</em> token" in the source; and "the Herald card still says Only ONE
+Sunder" - 0 left (REG-2126 replaced its rules line too). But the first exposed a real fragility: the ban scanned raw HTML and
+passed ONLY because of those tags. It now scans the text and exempts exactly the one line that says the pre-3.2 system is gone.
+REAL (1): _boot_control's port redraw was an unbounded `while` - now 50 tries, then None (SKIP), never one port for both doors
+(a new case feeds one port forever). REG-2128's red-proof re-pointed to the new block. NOT acted on (1): AGENT published before
+the child is up - on a failed boot the law exits 2 (SKIP) before any read of it.
+
+### REG-2131 - THE RotW SUNDER LEAD STILL SAID "ONLY FROM HELL-TZ HERALDS OF TERROR" (2026-10-09, #231 eye on v43 cb53cefc)
+
+REG-2126's sweep matched "Latent ... drop only from" and missed the RotW tab's section lead, "Sunder Charms · Only from Hell-TZ
+Heralds of Terror" - the same refuted claim in different words, so the sweep was one spelling wide (the house scar, again). The
+lead now reads "From any Terror-Zone monster, Heralds most often"; the law adds any "only from ... Herald", any case.
+
 ### REG-2130 - REG-2115 LET A LONG WAIT LABEL CRUSH THE REASON: HIS UPDATE BAR STOOD 512px TALL OVER THE HOME DASH (2026-10-09)
 
 The v3633 push still refused on J3 after REG-2129. A trial click (Playwright's actionability check, no click) on his console
