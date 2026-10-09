@@ -63,6 +63,14 @@ async function goHome(page) {
     await page.click('#head-tabs .ht[data-tab="tvd"]');
     await page.waitForFunction(() => !document.body.classList.contains('shell-open'), null, { timeout: 8000 });
   }
+  /* REG-2129 - AND LEAVE THE SESSIONS VIEW. Sessions is console-native (data-view=sessions, no shell-open), and his console
+     opens on it, so this returned on the Sessions view: the TV.D home dash stayed hidden and J3's tally chip measured 0x0 -
+     "page.click: Timeout 30000ms exceeded" refused the v3632 and v3633 pushes. A private console that opened on TV.D passed
+     the same journey. Leave it the way J8 does: the TV.D tab, then wait for the view to change. */
+  if (await page.evaluate(() => document.body.getAttribute('data-view') === 'sessions')) {
+    await page.click('#head-tabs .ht[data-tab="tvd"]');
+    await page.waitForFunction(() => document.body.getAttribute('data-view') !== 'sessions', null, { timeout: 8000 });
+  }
 }
 
 // Warm up: give the engine iframe a chance to boot bible JS so the first pane route is snappy

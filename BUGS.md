@@ -406,6 +406,16 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2129 - THE CONSOLE DEMO'S goHome NEVER LEFT THE SESSIONS VIEW, SO J3 REFUSED TWO PUSHES (2026-10-09)
+
+The v3632 and v3633 pushes refused at console-demos on "j3_tally - page.click: Timeout 30000ms exceeded". Measured, not
+guessed: run against a PRIVATE console (both ports private, isolated stores) J3 passed; a read-only probe of his console (no
+clicks) found the page on data-view=sessions, data-state=off, and the tally chip at 0x0 - the TV.D home dash is hidden on the
+Sessions view. goHome() only closed an open shell; Sessions is console-native (no shell-open), so it returned with the dash
+still hidden. It now leaves the Sessions view the way J8 does (the TV.D tab, then wait for the view to change). Proved on a
+private console started on Sessions: the old goHome never reached the chip, the new one opened the tally. NOT changed (his
+call, #321): J3 still ends ON AIR first when his console reads on/sim/stopping.
+
 ### REG-2128 - THE v3632 SECOND EYE ON REG-2123: TWO PORT DRAWS COULD MATCH, AND THE FALLBACK AGENT WAS THE PARENT'S (2026-10-09)
 
 grok-cli at 45,181 chars, 2 findings on test_button_matrix's _boot_control, both real. (1) The control port and the agent port
