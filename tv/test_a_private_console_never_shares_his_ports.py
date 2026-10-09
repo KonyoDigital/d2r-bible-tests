@@ -71,6 +71,22 @@ class APrivateConsoleNeverSharesHisPorts(unittest.TestCase):
         self.assertNotIn(ctrl, HIS, "the private app's control port is his: %s" % ctrl)
         self.assertNotEqual(agent, ctrl, "the private app's agent and control share one port")
 
+    def test_a_repeated_free_port_is_drawn_again_and_the_law_pings_its_childs_agent(self):
+        """REG-2128 (the v3632 second eye) - the OS may hand back the same ephemeral port twice; the agent port is drawn again
+        until it differs, and the law's own fallback agent is the port it handed the child."""
+        import test_button_matrix as M
+        seq = iter([40001, 40001, 40002])
+        real = M._free_port
+        try:
+            M._free_port = lambda: next(seq)
+            env = self._boot_env({})
+            agent_url = M.AGENT
+        finally:
+            M._free_port = real
+        self.assertEqual((env.get("TV_CONTROL_PORT"), env.get("TV_PORT")), ("40001", "40002"),
+                         "a repeated free port went to both of the private app's doors: %r" % ((env.get("TV_CONTROL_PORT"), env.get("TV_PORT")),))
+        self.assertEqual(agent_url, "http://127.0.0.1:40002", "the law's fallback agent is not the one it handed its child")
+
     def test_his_agent_port_in_the_environment_is_never_handed_on(self):
         """Even when the shell running the gate carries his ports, the private app does not inherit them."""
         env = self._boot_env({"TV_PORT": "17771", "TV_CONTROL_PORT": "17772"})
@@ -79,9 +95,19 @@ class APrivateConsoleNeverSharesHisPorts(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "REG-2128 - the two free-port draws are trusted to differ, so the private app can get one port for both",
+     "file": "tv/test_button_matrix.py",
+     "find": "    while agent_port == port:\n        agent_port = _free_port()\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "REG-2128 - the law's fallback agent stays the parent's TV_PORT / :17771 instead of the port it handed its child",
+     "file": "tv/test_button_matrix.py",
+     "find": "    AGENT = \"http://127.0.0.1:%d\" % agent_port\n",
+     "replace": "",
+     "matches": 1},
     {"why": "REG-2123 - the matrix's private app inherits TV_PORT again, so its OFF / STOP reach his live agent on :17771",
      "file": "tv/test_button_matrix.py",
-     "find": "    env = dict(os.environ, TV_CONTROL_PORT=str(port), TV_PORT=str(_free_port()), TV_ROBOT=\"1\",\n",
+     "find": "    env = dict(os.environ, TV_CONTROL_PORT=str(port), TV_PORT=str(agent_port), TV_ROBOT=\"1\",\n",
      "replace": "    env = dict(os.environ, TV_CONTROL_PORT=str(port), TV_ROBOT=\"1\",\n",
      "matches": 1},
 ]

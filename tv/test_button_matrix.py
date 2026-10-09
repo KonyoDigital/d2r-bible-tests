@@ -53,7 +53,7 @@ def _free_port():
 
 def _boot_control():
     """Start a private control_app and return its base URL, or None if it will not come up."""
-    global _OWNED
+    global _OWNED, AGENT
     port = _free_port()
     # v1867 — ISOLATING THE PORT IS NOT ISOLATING THE WORLD.
     #
@@ -77,7 +77,14 @@ def _boot_control():
     # port, so this app's OFF asked HIS agent to shut down and its STOP SIGTERMed whatever listened there - measured in his
     # agent log on 2026-10-09: eleven ON AIR sessions cut between 02:00 and 02:37 ("closing session (off)" / "signal:SIGTERM"),
     # each lining up with a gate shard, a push or a run of this law. A private app never shares a port with his console.
-    env = dict(os.environ, TV_CONTROL_PORT=str(port), TV_PORT=str(_free_port()), TV_ROBOT="1",
+    # REG-2128 (the v3632 second eye) - two separate free-port draws can hand back the SAME ephemeral port, and nothing checked:
+    # the child would get TV_CONTROL_PORT == TV_PORT. Draw until they differ. And the law's fallback agent is the port it
+    # hands its child, never the parent shell's TV_PORT or :17771 - main() still adopts the agentPort the app reports.
+    agent_port = _free_port()
+    while agent_port == port:
+        agent_port = _free_port()
+    AGENT = "http://127.0.0.1:%d" % agent_port
+    env = dict(os.environ, TV_CONTROL_PORT=str(port), TV_PORT=str(agent_port), TV_ROBOT="1",
                TV_HIST=_hist,
                TV_FRAMES_DIR=os.path.join(_sand, "frames"),
                TV_SESSIONS=os.path.join(_sand, "sessions.jsonl"),

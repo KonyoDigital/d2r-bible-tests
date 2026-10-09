@@ -406,6 +406,17 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2128 - THE v3632 SECOND EYE ON REG-2123: TWO PORT DRAWS COULD MATCH, AND THE FALLBACK AGENT WAS THE PARENT'S (2026-10-09)
+
+grok-cli at 45,181 chars, 2 findings on test_button_matrix's _boot_control, both real. (1) The control port and the agent port
+were two separate free-port draws with nothing checking they differ - the OS may hand back the same ephemeral port, and the
+private app would get one port for both doors. The agent port is now drawn until it differs. (2) The law's AGENT was adopted
+from /api/status only when agentPort was a positive int; otherwise it stayed the import-time URL - the parent shell's TV_PORT,
+or :17771 when unset (his agent). control_app always reports an int, so this was latent, but the fallback is now the port the
+law handed its child. Law: test_a_private_console_never_shares_his_ports gains a case that forces a repeated free port
+(40001, 40001, 40002) and checks both the env and the law's AGENT; REG-2123's red-proof re-pointed to the new env line; 2 new
+red-proofs. All 3 measured red on a safe copy.
+
 ### REG-2127 - THE HERALD CARD TAUGHT THE PRE-3.2 SPAWN WHILE QUOTING 3.2 ELSEWHERE (2026-10-09, #231 eye on v43 06ad2cd2)
 
 Patch 3.2 / Ladder Season 14 notes (diablofilter, read 2026-10-09; diablobytes agrees): "Heralds now spawn when you kill any
