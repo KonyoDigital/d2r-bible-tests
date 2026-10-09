@@ -85,8 +85,8 @@ RAW_SHORTHAND = re.compile(r"font: *(?:400|500|600|700|800|900)\b")
 # ── TWO SURFACES, TWO INSTRUMENTS, ON PURPOSE ──
 #
 #   tv/control_ui.html  15 values / 20 sites  — ENUMERATED, each with a written reason and a CAP.
-#   bible.html         136 values / 1039 sites — a RATCHET in size_debt.json: no new value, and no
-#                       existing value may grow. Generated, not hand-written.
+#   bible.html         a RATCHET in size_debt.json: no new value, and no existing value may
+#                       grow. The count lives in the file. Generated, not hand-written.
 #
 # ⚠ A CAP, NOT A BARE ALLOWLIST — this is the review's sharpest point and it was right. v2405
 # allowed a value ANYWHERE once it appeared once, so `.78em` (justified for 3 sites in the receipt
@@ -99,6 +99,22 @@ RAW_SHORTHAND = re.compile(r"font: *(?:400|500|600|700|800|900)\b")
 # tool for DEBT (which only has to shrink) and the wrong tool for a LAW. The law is "no raw
 # font-size"; these numbers are the distance still to travel.
 RAW_SIZE = re.compile(r"font-size: *([^;}\n]+)")
+
+
+def _size_value(raw):
+    """The size, not the markup that follows an attribute quote.
+
+    style="font-size:26px" has no semicolon, so a capture that runs to the end of
+    the line makes the debt key the tile's words. A value that starts with a quote
+    is a JS expression ('+(14+...)+'px) and stays whole up to the semicolon the
+    caller already stopped at, except a "> markup tail after that expression.
+    """
+    v = raw.strip()
+    if v[:1] in "\"'`":
+        v = re.split(r"\">", v, maxsplit=1)[0]
+    else:
+        v = re.split(r"[\"'`]", v, maxsplit=1)[0]
+    return re.sub(r"\s+", "", v)
 #: the SHORTHAND's size slot — `font: <weight> <size>/<lh> <family>`. Boundary-anchored to a real
 #: size token so `font: var(--fw-bold) var(--fs-sm)/1 …` never matches.
 RAW_SHORTHAND_SIZE = re.compile(r"font: *([^;}\n]+)")
@@ -150,10 +166,10 @@ def _raw_sizes(text):
     import collections
     c = collections.Counter()
     for m in RAW_SIZE.finditer(text):
-        v = m.group(1).strip()
-        if v.startswith("var(--fs"):
+        v = _size_value(m.group(1))
+        if not v or v.startswith("var(--fs"):
             continue
-        c[re.sub(r"\s+", "", v)] += 1
+        c[v] += 1
     for m in RAW_SHORTHAND_SIZE.finditer(text):
         d = m.group(1)
         if "var(--fs" in d:
@@ -196,7 +212,7 @@ def _sizes_are_tokenised(text, failures, surface):
             if was is None:
                 failures.append(
                     "bible.html: NEW raw font-size `%s` (x%d). This surface is under a debt "
-                    "RATCHET: the 136 values already here are recorded and may only shrink, but a "
+                    "RATCHET: the values already recorded may only shrink, but a "
                     "value that was not there before must be a var(--fs-*) token." % (v, n))
             elif n > was:
                 failures.append(
@@ -487,8 +503,33 @@ def _safe_console():
             pass
 
 
+def _write_snapshot():
+    """Rewrite bible.html's half of size_debt.json from the current reader.
+
+    This is the writer the drift message names. It does not touch the console
+    allowlist. The diff is the review: a collapsed key must be the size the old
+    key already started with, and the counts must add up.
+    """
+    bible = os.path.join(ROOT, "bible.html")
+    with open(bible, encoding="utf-8") as fh:
+        got = _raw_sizes(fh.read())
+    try:
+        with open(DEBT_PATH, encoding="utf-8") as fh:
+            debt = json.load(fh) or {}
+    except Exception:
+        debt = {}
+    debt["bible.html"] = {k: got[k] for k in sorted(got)}
+    with open(DEBT_PATH, "w", encoding="utf-8") as fh:
+        json.dump(debt, fh, indent=1, ensure_ascii=False)
+        fh.write("\n")
+    print("wrote %s — %d bible.html value(s)" % (DEBT_PATH, len(got)))
+    return 0
+
+
 def main():
     _safe_console()
+    if "--snapshot" in sys.argv:
+        return _write_snapshot()
     failures = check()
     if failures:
         print("❌ VISUAL-LOCK DRIFT — the type system moved (%d issue%s):"

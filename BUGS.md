@@ -406,6 +406,20 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2143 - A SIZE-DEBT KEY CARRIED THE TILE'S WORDS (2026-10-09, #322)
+
+`font-size:` was captured until `;`, `}` or a newline, never until the attribute's
+closing quote. `style="font-size:26px"` has no semicolon, so the key was `26px`
+plus the rest of the line, and editing the tile's text read as a new raw size.
+25 bible.html keys were that shape. Each collapses into the size it already
+started with, and the counts add up. The console allowlist does not change.
+A value that starts with a quote is a JS expression and stays the expression,
+except a `">` markup tail. `--snapshot` now writes size_debt.json, which is the
+writer the drift message already named. The snapshot also drops
+`clamp(14px,2.2vh,26px)`, which the current lock already reported as paid.
+Law: `tv/test_a_size_key_is_the_size.py`, one red-proof. Not rendered here.
+The type scale is unchanged. This is the instrument that reads it.
+
 ### REG-2142 - THE HERALD CARD STILL SAID ONE SUNDER AT A TIME, AND THE SWEEP READ THE TAGS (2026-10-09, #320)
 
 REG-2126 rewrote the seven Sunder rows. Three more sentences still said one Sunder at a time, each with

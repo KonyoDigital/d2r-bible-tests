@@ -10269,6 +10269,15 @@ GATES = [
              "to extract. A reel that is there still owes a read. A missing "
              "shelf is still no frames/hist. An unread shelf says the list "
              "was not read, and the row does not stay ok."),
+    Gate("test_a_size_key_is_the_size",
+         [sys.executable, os.path.join(HERE, "test_a_size_key_is_the_size.py")], 60,
+         needs_app=False,
+         why="REG-2143 - the bible size ratchet captured past an attribute quote, "
+             "so a font-size with no semicolon took the rest of the line and a "
+             "tile's words became the key. Editing that text read as a new raw "
+             "size. The capture stops at the quote. A JS expression that starts "
+             "with a quote stays the expression. A new 27px is still seen. "
+             "The console allowlist is not this ratchet."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
