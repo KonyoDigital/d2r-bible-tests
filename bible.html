@@ -5778,7 +5778,7 @@ try {
         <div class="zd-note" style="margin-bottom:8px">Each Herald that <strong>spawns</strong> makes the next one a tier higher — climb Fright → Dread → Fear → Horror → Terror. Click any tier for its full ID card; each is also globally searchable by its own name.</div>
         <div class="colossal-grid"><div class="colossal-tile endgame-relic" role="button" tabindex="0" title="open Herald of Fright ID card" onclick="openDrop('Herald of Fright')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDrop('Herald of Fright')}"><span class="ct-art"><span class="herald-tier-emblem" style="display:inline-flex;font-size:26px"></span></span><div class="ct-body"><div class="ct-name" style="color:#b07cff">Herald of Fright</div><div class="ct-sub">tier 1 · base event stats · standard elite loot</div></div></div>
         <div class="colossal-tile endgame-relic" role="button" tabindex="0" title="open Herald of Dread ID card" onclick="openDrop('Herald of Dread')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDrop('Herald of Dread')}"><span class="ct-art"><span class="herald-tier-emblem" style="display:inline-flex;font-size:26px"></span></span><div class="ct-body"><div class="ct-name" style="color:#b07cff">Herald of Dread</div><div class="ct-sub">tier 2 · ↑ HP &amp; damage · standard elite loot</div></div></div>
-        <div class="colossal-tile endgame-relic" role="button" tabindex="0" title="open Herald of Fear ID card" onclick="openDrop('Herald of Fear')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDrop('Herald of Fear')}"><span class="ct-art"><span class="herald-tier-emblem" style="display:inline-flex;font-size:26px"></span></span><div class="ct-body"><div class="ct-name" style="color:#b07cff">Herald of Fear</div><div class="ct-sub">tier 3 · aggressive combat auras · low Sunder chance</div></div></div>
+        <div class="colossal-tile endgame-relic" role="button" tabindex="0" title="open Herald of Fear ID card" onclick="openDrop('Herald of Fear')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDrop('Herald of Fear')}"><span class="ct-art"><span class="herald-tier-emblem" style="display:inline-flex;font-size:26px"></span></span><div class="ct-body"><div class="ct-name" style="color:#b07cff">Herald of Fear</div><div class="ct-sub">tier 3 · aggressive combat auras · +1 extra item · low Sunder chance</div></div></div>
         <div class="colossal-tile endgame-relic" role="button" tabindex="0" title="open Herald of Horror ID card" onclick="openDrop('Herald of Horror')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDrop('Herald of Horror')}"><span class="ct-art"><span class="herald-tier-emblem" style="display:inline-flex;font-size:26px"></span></span><div class="ct-body"><div class="ct-name" style="color:#b07cff">Herald of Horror</div><div class="ct-sub">tier 4 · extreme damage output · +1 extra item · Sunder threshold opens</div></div></div>
         <div class="colossal-tile endgame-relic" role="button" tabindex="0" title="open Herald of Terror ID card" onclick="openDrop('Herald of Terror')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();openDrop('Herald of Terror')}"><span class="ct-art"><span class="herald-tier-emblem" style="display:inline-flex;font-size:26px"></span></span><div class="ct-body"><div class="ct-name" style="color:#b07cff">Herald of Terror</div><div class="ct-sub">tier 5 · apex · maximum scaling · +2 extra items · optimal Latent Sunder rate</div></div></div></div>
         <div class="gbc-why" style="margin-top:8px">⚠ <strong>Tiers reset to Fright if you exit to the main menu</strong> — stay in one game session to keep climbing. Once you hit <strong>Terror</strong>, every Herald the rest of that session stays a Terror.</div>
@@ -30461,6 +30461,35 @@ const MATERIALS = (function(){
   return out;
 })();
 window.MATERIALS = MATERIALS;
+/* REG-2138 (#231 eye on v43 062b6318) - the Renewed Sunder row read "ready now" on ANY charm plus ANY shard, while its own
+   makes line names a Perfect Gem, a Rune and the MATCHING shard: a Western shard beside a Bone Break (which takes a Northern)
+   lit it, and Black Cleft takes three shards. Readiness is now per charm, from these needs - the same recipes the Herald card's
+   rec column prints (_HERALD_SUNDERS), and test_the_bible_text_agrees_with_its_own_cards holds the two together. */
+const RENEWED_SUNDER_NEEDS = {
+  'Bone Break':           { gem: 'Perfect Amethyst', rune: 'Pul', shards: ['Northern'] },
+  'Black Cleft':          { gem: 'Perfect Diamond',  rune: 'Mal', shards: ['Southern', 'Deep', 'Northern'] },
+  'Crack of the Heavens': { gem: 'Perfect Topaz',    rune: 'Fal', shards: ['Southern'] },
+  'Cold Rupture':         { gem: 'Perfect Sapphire', rune: 'Lum', shards: ['Eastern'] },
+  'Flame Rift':           { gem: 'Perfect Ruby',     rune: 'Io',  shards: ['Deep'] },
+  'Rotting Fissure':      { gem: 'Perfect Emerald',  rune: 'Ko',  shards: ['Western'] },
+};
+window.RENEWED_SUNDER_NEEDS = RENEWED_SUNDER_NEEDS;
+// The held charm closest to a Renewed upgrade, and what it still lacks; no charm held -> any Latent is the first need.
+function _renewedSunderStatus(){
+  var best = null;
+  Object.keys(RENEWED_SUNDER_NEEDS).forEach(function(c){
+    if (_materialCount(c) < 1) return;
+    var nd = RENEWED_SUNDER_NEEDS[c], miss = {};
+    if ((typeof _gemCount === 'function' ? _gemCount(nd.gem) : 0) < 1) miss[nd.gem + ' for ' + c] = 1;
+    if ((typeof _runeCount === 'function' ? _runeCount(nd.rune) : 0) < 1) miss[nd.rune + ' rune'] = 1;
+    nd.shards.forEach(function(sh){ var k = 'Worldstone Shard (' + sh + ')'; if (_materialCount(k) < 1) miss[k] = 1; });
+    var n = Object.keys(miss).length;
+    if (!best || n < best.n) best = { n: n, miss: miss };
+  });
+  if (!best) return { ready: false, missing: { 'Latent Sunder (any)': 1 } };
+  return { ready: best.n === 0, missing: best.miss };
+}
+window._renewedSunderStatus = _renewedSunderStatus;
 const MATERIAL_RECIPES = [
   { n: 'Pandemonium Portal', icon: '🌀',
     need: { 'Key of Terror': 1, 'Key of Hate': 1, 'Key of Destruction': 1 },
@@ -30480,6 +30509,7 @@ const MATERIAL_RECIPES = [
     note: 'cube any 3 Worldstone Shards — any region mix' },
   { n: 'Renewed Sunder (upgrade a Latent)', icon: '💠',
     needCat: [{ key: 'sunder', qty: 1, label: 'Latent Sunder' }, { key: 'worldstoneShard', qty: 1, label: 'Worldstone Shard' }],
+    needFn: _renewedSunderStatus,   /* REG-2138 - the categories say WHAT kind; this says whether THESE ones make a Renewed */
     makes: 'a Renewed Sunder — Latent + Perfect Gem + Rune + matching shard',
     note: 'cube Latent Sunder + Perfect Gem + Rune + matching Worldstone Shard' },
 ];
@@ -30531,6 +30561,7 @@ window._catCount = _catCount;
 // Per-recipe readiness: [{recipe, ready, missing}]. Handles needCat (any-N-of-a-category).
 function materialCraftStatus(){
   return MATERIAL_RECIPES.map((r) => {
+    if (r.needFn){ const st = r.needFn(); return { recipe: r, ready: st.ready, missing: st.missing }; }
     if (r.needCat){
       const miss = {}; let ready = true;
       r.needCat.forEach((req) => { const have = _catCount(req.key); if (have < req.qty){ ready = false; miss[req.label + ' (any)'] = req.qty - have; } });

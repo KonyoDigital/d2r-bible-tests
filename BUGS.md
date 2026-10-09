@@ -406,6 +406,57 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2140 - THE v3635 SECOND EYE: THE THEATRE-HEAD REFUSAL THREW ON A MISSING NODE (2026-10-09)
+
+The v3635 look (grok-4.7, 18,318 chars, 3 commits) returned 6 findings. Each was checked at HEAD 73927fe3 before acting:
+| finding | at HEAD | outcome |
+|---|---|---|
+| 1. the fs-on caption rule lost its selector | `#theatre.fs-on .th-caption { bottom: ...;` sits on the line above the `max-height` line - the hunk showed only the second line | REFUTED |
+| 2. the film-less branch leaves the last reel's caption / frame paint / timer | caption IS rewritten and the pending frame's want is cleared; but the T+ clock kept the last reel's time and the button kept the pause glyph | CONFIRMED in part -> REG-2139 |
+| 3. the node stub's removeAttribute cannot fail where the browser keeps the image | th-film is an <img> whose frame is set through .src; by the HTML spec (update the image data: no source -> the current request is emptied) removing src shows nothing, which is what the stub models - read from the spec, not measured in a browser here | REFUTED (by the spec) |
+| 4. theatre-head's activateWhy has no null check | reproduced: origin's activateWhy throws TypeError on a missing header and on a missing caption | CONFIRMED -> fixed here |
+| 5. REG-2136's red-proof is truncated, the file cannot import | the payload cut it; the file imports and the law ran OK, 37 proofs PROVEN | REFUTED |
+| 6. the shelf law's re-pointed REG-1757 tamper no longer matches | heart2 --prove: test_the_shelf_opens_on_the_list[7] PROVEN (1 match tampered -> red); the tamper re-introduces the hop to another session, it never needed to remove the clear | REFUTED |
+Fix for 4: activateWhy carries the same guards as activate and names what is missing (no header row / no caption / an empty
+caption). Law: TheTheatreRefusalNamesWhatIsMissing runs the REAL activateWhy in node over an open theatre missing each node in
+turn - it must RETURN a reason, never throw; baseline the whole theatre names the overlap. 1 red-proof, red.
+
+### REG-2139 - A REEL WITH NO FILM KEPT THE LAST REEL'S CLOCK AND PLAY STATE (2026-10-09, the v3635 second eye, finding 2)
+
+REG-2135 cleared the last reel's frame and session line from a film-less stage; the T+ clock still showed the last reel's time
+and the play button still showed pause (GrokBot tick 434: "timer frozen"). The branch now stops play (TH.playing false, the
+button back to play) and blanks the clock. The REG-2135 law drives the same shipped branch over a stage that was playing with a
+clock running and asserts both; 2 red-proofs, each red.
+
+### REG-2138 - THE RENEWED SUNDER ROW READ "READY" ON ANY CHARM AND ANY SHARD (2026-10-09, #231 eye on v43 062b6318)
+
+"What I can make" counted one item of the sunder category and one of the shard category, so a Bone Break beside a Western shard
+(it takes a Northern) with no gem and no rune read "✅ ready now" - under a makes line naming a Perfect Gem, a Rune and the
+MATCHING shard; and Black Cleft takes three shards. Readiness is now per charm: RENEWED_SUNDER_NEEDS holds each charm's gem,
+rune and shard(s), the row reads ready only when one held charm has all of its own, and otherwise names what that closest
+charm still lacks. The needs map is the Herald card's printed recipes (_HERALD_SUNDERS.rec) and the law holds the two
+together, so they cannot drift. Law drives the SHIPPED materialCraftStatus in node over the page's own SPECIAL_DROPS: wrong
+shard -> not ready (the old count said ready), no gem/rune -> not ready and names the gem, a whole Bone Break -> ready, Black
+Cleft with one of three shards -> not ready naming Deep and Northern, nothing held -> 'Latent Sunder (any)'. 1 red-proof, red.
+The v70 spec's shape check (every recipe has need or needCat) still holds - needCat stays as the category statement.
+Pixels: a new render target material-craft seeds a Black Cleft with one of its three shards (the longest need the row can print),
+opens the Materials card (it starts collapsed) and measures every recipe row: 5/5 painted, 0 clipped, 0 off-screen, 0 covered at
+1440 / 901 / 375; at 901 the Renewed row reads its whole need on one line.
+
+### REG-2137 - THE HERALD OF FEAR TILE DROPPED THE EXTRA ITEM ITS OWN CARD DROPS (2026-10-09, #231 eye on v43 f9fb6ea8)
+
+The RotW Herald tiles read Fear "aggressive combat auras · low Sunder chance" with no extra item, while the ID card the tile
+opens (HERALD_TIERS) says "normal drops + 1 extra item". d2emu's datamined Herald page (read 2026-10-09) agrees with the card:
+Fright and Dread normal drops, Fear +1, Horror +1, Terror +2 (diablobytes and mtmmo give no per-tier item counts). The Fear tile
+now says "+1 extra item". Law: a sweep over all five tiers - each tile's "+N extra item" equals its card's (PRINT THE
+DENOMINATOR: 5 cards, the same 5 tiles). 1 red-proof, red. The tiles' Sunder framing ("low Sunder chance", "threshold opens")
+stays: the 3.2 note beneath them already marks it as pre-3.2, and the only per-tier Sunder rates found (mtmmo: 1/100, 1/67,
+1/50) come from a seller's guide, not a source to print.
+The visual lock refused the edit as a "NEW raw font-size": its size-debt keys run past an inline style's closing quote into the
+line's prose (`26px"></span>...HeraldofFear...lowSunderchance`), so changing the tile's TEXT reads as new debt. The same one site
+and the same one 26px icon: size_debt.json's Fear key was renamed to the line's new text, count unchanged (a one-line diff), and
+the instrument defect - 24 debt keys carry prose, and the `--snapshot` its own message names has no writer - is panel #322.
+
 ### REG-2136 - THE WORLDSTONE SHARDS WORE THE SUNDER CHARMS' ICON (2026-10-09, #231 eye on v43 e270c63e)
 
 SPECIAL_DROPS.sunder and SPECIAL_DROPS.worldstoneShard both carried 💠, and the material category heads and the stash rows

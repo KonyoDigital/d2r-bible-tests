@@ -1390,6 +1390,40 @@ TARGETS = {
         "sel": ".cb-modal",
         "widths": ((1440, 1000), (901, 900), (375, 800)),
     },
+    "material-craft": {
+        "why": "REG-2138 - WHAT I CAN MAKE. The Renewed Sunder row names what its closest held charm still lacks (that charm's "
+               "Perfect Gem, its Rune, each of its own shards) instead of reading ready on any charm and any shard, so the "
+               "row's need text is now its longest. Seeded with a Black Cleft and one of its three shards - the longest "
+               "need the row can print - every recipe row must paint, unclipped, at every width",
+        "seed": """(function(){ return 1; })()""",
+        "activate": """(function(){
+            /* ⚠ IDEMPOTENT: the harness re-runs this every 0.4s, so the stash is seeded and the tab opened once */
+            if (!window.__rcCraft) {
+              window.__rcCraft = 1;
+              try { materialStash = { 'Black Cleft': 1, 'Worldstone Shard (Southern)': 1 };
+                    window.switchTab('tools'); window.renderMaterialCraftable(); }
+              catch (e) { window.__rcCraftErr = String(e); }
+            }
+            /* the box lives in the Materials card, which the page opens collapsed - a view toggle, nothing written */
+            var card = document.getElementById('material-stash-card');
+            if (card) card.classList.remove('collapsed');
+            var box = document.getElementById('material-craftable');
+            if (!box) return false;
+            var r = box.getBoundingClientRect();
+            return !!(r.width > 0 && r.height > 0 && box.querySelectorAll('.rw-row').length >= 5
+                      && /Perfect Diamond for Black Cleft/.test(box.innerText || '')); })()""",
+        "activateWhy": """(function(){
+            if (window.__rcCraftErr) return 'seeding the stash or opening the tools tab threw: ' + window.__rcCraftErr;
+            var box = document.getElementById('material-craftable');
+            if (!box) return 'the page has no #material-craftable';
+            var r = box.getBoundingClientRect(), card = document.getElementById('material-stash-card');
+            if (!(r.width > 0 && r.height > 0)) return 'the craft box measures 0x0 - the Materials card is '
+                + (card && card.classList.contains('collapsed') ? 'still collapsed' : 'open, so something else hides it');
+            var rw = box.querySelector('.rw-row[data-recipe^="Renewed"]');
+            return 'the Renewed row did not print its per-charm need (' + (rw ? rw.innerText : 'no Renewed row') + ')'; })()""",
+        "sel": "#material-craftable .rw-row",
+        "widths": ((1440, 1000), (901, 900), (375, 800)),
+    },
     "chars-ingame": {
         "serve": True,
         "path": "/board?app=1#chars",
@@ -2040,6 +2074,11 @@ TARGETS = {
             if (!(window.TH && TH.open)) return 'the theatre never opened';
             if (!(TH.beats && TH.beats.length)) return 'the theatre opened with no reel loaded';
             var tl = document.querySelector('#theatre .th-topline'), cap = document.getElementById('th-caption');
+            /* REG-2140 (the v3635 second eye) - the same guards as activate, or a missing node throws and the refusal names a
+               script error instead of what is wrong */
+            if (!tl) return 'the theatre has no header row (#theatre .th-topline)';
+            if (!cap) return 'the theatre has no caption (#th-caption)';
+            if (!cap.textContent.trim()) return 'the theatre opened a reel but its caption is empty';
             var rg = document.createRange(); rg.selectNodeContents(cap); var t = rg.getBoundingClientRect();
             return 'the caption TEXT starts at y=' + Math.round(t.top) + ' but the header ends at y='
                  + Math.round(tl.getBoundingClientRect().bottom) + ' - the caption paints over the header (#290)'; })()""",

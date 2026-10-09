@@ -491,6 +491,80 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         dup = sorted("%s %s" % (icon, label) for _k, label, icon in cats if n[icon] > 1)
         self.assertEqual(dup, [], "two material categories share one icon: %r" % dup)
 
+    def test_every_herald_tile_names_the_extra_items_its_own_card_drops(self):
+        """REG-2137 (#231 eye on v43 f9fb6ea8) - the Fear tile read 'low Sunder chance' and no extra item, while the ID card it
+        opens (HERALD_TIERS) says 'normal drops + 1 extra item' - which d2emu's datamined Herald page agrees with (Fear +1,
+        Horror +1, Terror +2). A sweep over all five tiers: each tile's '+N extra item' count equals its card's."""
+        s = _src()
+        i = s.find("const HERALD_TIERS = ["); j = s.find("\n];", i)
+        self.assertGreater(i, 0, "HERALD_TIERS is gone - re-point this law")
+        card = {n: (int(m.group(1)) if m else 0) for n, m in
+                ((n, re.search(r"\+ (\d+) extra item", d)) for n, d in re.findall(r"n: '(Herald of \w+)',\s*tier: \d, drops: '([^']*)'", s[i:j]))}
+        tiles = dict(re.findall(r"onclick=\"openDrop\('(Herald of \w+)'\)\"[^\n]*?<div class=\"ct-sub\">([^<]*)</div>", s))
+        self.assertEqual(len(card), 5, "PRINT THE DENOMINATOR: %d Herald cards read" % len(card))
+        self.assertEqual(sorted(tiles), sorted(card), "the five tiles and the five cards name different Heralds: %r" % sorted(tiles))
+        bad = []
+        for n, sub in sorted(tiles.items()):
+            m = re.search(r"\+(\d+) extra item", sub)
+            if (int(m.group(1)) if m else 0) != card[n]:
+                bad.append("%s: tile %r, card +%d" % (n, sub, card[n]))
+        self.assertEqual(bad, [], "a Herald tile disagrees with its own ID card about extra items: %r" % bad)
+
+    def test_the_renewed_sunder_row_is_ready_only_with_that_charms_own_recipe(self):
+        """REG-2138 (#231 eye on v43 062b6318) - the Renewed row counted ANY Sunder plus ANY shard as ready. Drives the
+        SHIPPED materialCraftStatus in node over the page's own SPECIAL_DROPS. Baseline: a Bone Break beside a Western shard
+        (the wrong one) with no gem or rune is NOT ready - the old any-of-category count called it ready. And the per-charm
+        needs must agree with the Herald card's printed recipes (_HERALD_SUNDERS.rec), so the two cannot drift."""
+        import json as _json
+        import subprocess as _sp
+        from cb_node_harness import NODE
+        if NODE is None:
+            raise AssertionError("node is not on this machine - this gate does not skip")
+        s = _src()
+        def block(start, end):
+            i = s.find(start)
+            self.assertGreater(i, 0, "%r is gone - re-point this law" % start)
+            return s[i:s.index(end, i) + len(end)]
+        js = """
+var window = {}, materialStash = {}, gemStash = {}, runeStash = {};
+function _gemCount(n){ return gemStash[n] || 0; } function _runeCount(n){ return runeStash[n] || 0; }
+%s
+%s
+function renewed(m, g, r){ materialStash = m; gemStash = g || {}; runeStash = r || {};
+  var st = materialCraftStatus().filter(function(x){ return /^Renewed Sunder/.test(x.recipe.n); })[0];
+  return { ready: st.ready, missing: Object.keys(st.missing) }; }
+console.log(JSON.stringify({
+  wrongShard: renewed({ 'Bone Break': 1, 'Worldstone Shard (Western)': 1 }),
+  noGemRune:  renewed({ 'Bone Break': 1, 'Worldstone Shard (Northern)': 1 }),
+  whole:      renewed({ 'Bone Break': 1, 'Worldstone Shard (Northern)': 1 }, { 'Perfect Amethyst': 1 }, { 'Pul': 1 }),
+  cleftOne:   renewed({ 'Black Cleft': 1, 'Worldstone Shard (Southern)': 1 }, { 'Perfect Diamond': 1 }, { 'Mal': 1 }),
+  nothing:    renewed({}),
+  needs: RENEWED_SUNDER_NEEDS }));
+""" % (block("const SPECIAL_DROPS = {", "\n};"),
+       block("const RENEWED_SUNDER_NEEDS = {", "window.materialCraftStatus = materialCraftStatus;\n"))
+        r = _sp.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr[-500:])
+        out = _json.loads(r.stdout.strip().splitlines()[-1])
+        self.assertFalse(out["wrongShard"]["ready"], "a Bone Break beside the WRONG shard reads ready: %r" % out["wrongShard"])
+        self.assertFalse(out["noGemRune"]["ready"], "the row reads ready with no Perfect Gem and no Rune: %r" % out["noGemRune"])
+        self.assertTrue(any("Perfect Amethyst" in k for k in out["noGemRune"]["missing"]), out["noGemRune"])
+        self.assertTrue(out["whole"]["ready"], "a whole Bone Break recipe does not read ready: %r" % out["whole"])
+        self.assertFalse(out["cleftOne"]["ready"], "Black Cleft reads ready on one of its three shards: %r" % out["cleftOne"])
+        self.assertEqual(sorted(k for k in out["cleftOne"]["missing"] if "Shard" in k),
+                         ["Worldstone Shard (Deep)", "Worldstone Shard (Northern)"], out["cleftOne"])
+        self.assertEqual(out["nothing"], {"ready": False, "missing": ["Latent Sunder (any)"]})
+        # the needs map against the Herald card's printed recipes - two statements of one recipe, held together
+        h = s[s.find("const _HERALD_SUNDERS = ["):]
+        rec = dict(re.findall(r"\{ n: '([^']+)',[^\n]*?rec: '([^']+)' \}", h[:h.find("\n];")]))
+        self.assertEqual(len(rec), 6, "PRINT THE DENOMINATOR: %d Herald recipes read" % len(rec))
+        self.assertEqual(sorted(rec), sorted(out["needs"]), "the needs map and the Herald card name different charms")
+        for c, line in rec.items():
+            parts = line.split(" + ")
+            shards = [re.sub(r" Shards?$", "", x) for x in parts[3:]]
+            nd = out["needs"][c]
+            self.assertEqual((parts[1], parts[2], shards), (nd["gem"], nd["rune"], nd["shards"]),
+                             "%s: the Herald card prints %r, the Renewed row checks %r" % (c, line, nd))
+
     def test_the_calc_panel_paints_a_set_items_codex_once(self):
         """REG-2133 (#231 eye on v43 a19814d9) - renderDetail's calc panel is renderAidCard(.., {context:'calc'}) followed by
         renderCodexCard(item.n); renderAidCard ALSO embedded renderCodexCard for an item whose codex lists set members, in every
@@ -689,6 +763,16 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "    icon: \"🔷\",   /* REG-2136",
      "replace": "    icon: \"💠\",   /* REG-2136",
+     "matches": 1},
+    {"why": "REG-2137 - the Fear tile loses the extra item its own card drops",
+     "file": "bible.html",
+     "find": "tier 3 · aggressive combat auras · +1 extra item · low Sunder chance",
+     "replace": "tier 3 · aggressive combat auras · low Sunder chance",
+     "matches": 1},
+    {"why": "REG-2138 - the Renewed row counts any charm plus any shard as ready again",
+     "file": "bible.html",
+     "find": "    if (r.needFn){ const st = r.needFn(); return { recipe: r, ready: st.ready, missing: st.missing }; }\n",
+     "replace": "",
      "matches": 1},
 ]
 

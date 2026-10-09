@@ -103,7 +103,56 @@ class TheFixtureWaitsForThePage(unittest.TestCase):
         self.assertIn("first /api/status answer", out["why"])
 
 
+
+# REG-2140 (the v3635 second eye) - theatre-head's activateWhy dereferenced the header and caption that its activate guards, so
+# a missing node made the refusal a script error instead of a reason. Runs the REAL activateWhy in node over a theatre that is
+# open with a reel loaded and is missing each node in turn: it must RETURN a reason that names the missing part.
+THEATRE_WHY = r"""
+const vm = require('vm');
+const cap = inp.cap === null ? null : { textContent: inp.cap };
+const tl = inp.tl ? { getBoundingClientRect: () => ({ bottom: 80 }) } : null;
+const document = { querySelector: (s) => s === '#theatre .th-topline' ? tl : null,
+                   getElementById: (id) => id === 'th-caption' ? cap : null,
+                   createRange: () => ({ selectNodeContents: (n) => { if (!n) throw new TypeError('no node'); },
+                                         getBoundingClientRect: () => ({ top: 120 }) }) };
+const TH = { open: true, beats: [1] };
+const ctx = { window: { TH }, document, Math, String, TH };
+let why = '', threw = '';
+try { why = vm.runInNewContext(inp.why, ctx); } catch (e) { threw = String(e); }
+process.stdout.write(JSON.stringify({ why: String(why || ''), threw }));
+"""
+
+
+@unittest.skipUnless(NODE, "node is not on PATH here - the refusal cannot be executed, so this is UNKNOWN, not clean")
+class TheTheatreRefusalNamesWhatIsMissing(unittest.TestCase):
+
+    def why(self, tl, cap):
+        import render_check
+        payload = {"why": render_check.TARGETS["theatre-head"]["activateWhy"], "tl": tl, "cap": cap}
+        r = subprocess.run([NODE, "-"], input="const inp = %s;\n%s" % (json.dumps(payload), THEATRE_WHY),
+                           capture_output=True, text=True, encoding="utf-8", timeout=60)
+        self.assertEqual(r.returncode, 0, "the harness itself failed: %s" % r.stderr[-400:])
+        return json.loads(r.stdout)
+
+    def test_baseline_a_whole_theatre_names_the_overlap(self):
+        out = self.why(True, "a caption")
+        self.assertEqual(out["threw"], "", out)
+        self.assertIn("paints over the header", out["why"])
+
+    def test_a_missing_header_or_caption_is_named_not_thrown(self):
+        for tl, cap, says in ((False, "a caption", "no header row"), (True, None, "no caption"),
+                              (True, "   ", "caption is empty")):
+            out = self.why(tl, cap)
+            self.assertEqual(out["threw"], "", "the refusal THREW instead of naming %r: %r" % (says, out))
+            self.assertIn(says, out["why"], out)
+
+
 RED_PROOF = [
+    {"why": "REG-2140 - theatre-head's refusal dereferences a missing caption and throws",
+     "file": "render_check.py",
+     "find": "            if (!cap) return 'the theatre has no caption (#th-caption)';\n",
+     "replace": "",
+     "matches": 1},
     {"why": "REG-1752 - the wait removed: the fixture is adopted before the page's own answer and gets erased",
      "file": "render_check.py",
      "find": "            if (!_nyT || /waiting-on-you: UNKNOWN$/.test(_nyT)) return false;\n",

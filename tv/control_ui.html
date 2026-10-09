@@ -17308,6 +17308,10 @@ window._lockMark = function(isOpen, px, label){
       var _nf = $('th-film'); if (_nf && _nf.removeAttribute){ _nf.__want = ''; _nf.__url = ''; _nf.removeAttribute('src'); _nf.title = ''; }
       var _ns = $('th-sess'); if (_ns){ _ns.textContent = 'session ' + n + (TH.sessions && TH.sessions.length ? ' of all ' + TH.sessions.length : '')
         + ' · no film yet' + (TH.sessionId ? ' · id ' + String(TH.sessionId).slice(0,18) : ''); _ns.title = _ns.textContent; }
+      /* REG-2139 (the v3635 second eye) - nor its clock or its play state: the T+ clock kept the last reel's time and the
+         button kept ⏸ over a stage with nothing to play ("timer frozen", tick 434). */
+      TH.playing = false; var _np = $('th-play'); if (_np) _np.textContent = '▶';
+      var _nc = $('th-clock'); if (_nc) _nc.textContent = '';
       if (typeof thRibbon === 'function') thRibbon();
       try { thTimeline(); } catch(e){}
       return;

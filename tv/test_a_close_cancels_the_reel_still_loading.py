@@ -166,14 +166,16 @@ function $(id){ return EL[id] || (EL[id] = { id: id, hidden: false, textContent:
 var document = { body: { classList: { add: function(){}, remove: function(){} } } };
 var window = {};
 var setTimeout = function(){ return 0; }, clearTimeout = function(){};
-var TH = { open: true, sn: 48, beats: ['S48-a'], allBeats: ['S48-a'], sessionId: 's_48', sessions: [1, 2, 3], loadGen: 0 };
+var TH = { open: true, playing: true, sn: 48, beats: ['S48-a'], allBeats: ['S48-a'], sessionId: 's_48', sessions: [1, 2, 3], loadGen: 0 };
 var SEEN = { ribbon: 0 };
 function thRibbon(){ SEEN.ribbon = TH.sn; } function thTimeline(){} function thLit(){} function thShelf(){}
 $('th-film').src = 'S48-frame.jpg'; $('th-sess').textContent = 'session 48 of all 216 · id s_48';
+$('th-play').textContent = '\u23f8'; $('th-clock').textContent = 'T+12:34.000 · 01:53:29';
 function fetch(){ return Promise.resolve({ json: function(){ return Promise.resolve({ sessionId: 's_28', beats: [{ ts: 1 }] }); } }); }
 %s
 (async function(){ await thLoadSession(28, false, 's_28');
-  console.log(JSON.stringify({ sn: TH.sn, film: $('th-film').src || null, sess: $('th-sess').textContent, ribbon: SEEN.ribbon })); })();
+  console.log(JSON.stringify({ sn: TH.sn, film: $('th-film').src || null, sess: $('th-sess').textContent, ribbon: SEEN.ribbon,
+    playing: TH.playing, play: $('th-play').textContent, clock: $('th-clock').textContent })); })();
 """ % _cut(s, LOAD, keep_end=False)
         r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=30)
         self.assertEqual(r.returncode, 0, "thLoadSession did not run in node: %s" % r.stderr[-500:])
@@ -183,6 +185,10 @@ function fetch(){ return Promise.resolve({ json: function(){ return Promise.reso
         self.assertIn("session 28", out["sess"], "the session line still names the last reel: %r" % out)
         self.assertNotIn("48", out["sess"], "the session line still names the last reel: %r" % out)
         self.assertEqual(out["ribbon"], 28, "the ribbon is left on the last reel until a later repaint: %r" % out)
+        # REG-2139 (the v3635 second eye) - nor the last reel's clock or its play state
+        self.assertEqual(out["clock"], "", "the T+ clock still shows the last reel's time: %r" % out)
+        self.assertFalse(out["playing"], "the theatre still reads as playing a reel with nothing to play: %r" % out)
+        self.assertEqual(out["play"], "\u25b6", "the play button still shows pause over an empty stage: %r" % out)
 
 
 RED_PROOF = [
@@ -214,6 +220,16 @@ RED_PROOF = [
     {"why": "REG-2135 - a reel with no film leaves the last reel's frame and session line on the stage",
      "file": "tv/control_ui.html",
      "find": "      var _nf = $('th-film'); if (_nf && _nf.removeAttribute){ _nf.__want = ''; _nf.__url = ''; _nf.removeAttribute('src'); _nf.title = ''; }\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "REG-2139 - a reel with no film keeps the last reel's T+ clock on the stage",
+     "file": "tv/control_ui.html",
+     "find": "      var _nc = $('th-clock'); if (_nc) _nc.textContent = '';\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "REG-2139 - a reel with no film still reads as playing",
+     "file": "tv/control_ui.html",
+     "find": "      TH.playing = false; var _np = $('th-play'); if (_np) _np.textContent = '\u25b6';\n",
      "replace": "",
      "matches": 1},
 ]
