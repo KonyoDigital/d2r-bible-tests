@@ -452,6 +452,21 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         self.assertEqual(only, [], "a Sunder text says Latents drop only from one source again: %r" % only)
         self.assertNotIn("farm that region's Heralds", s, "the Herald card reads the shard map as a charm map again")
 
+    def test_the_herald_card_tells_the_3_2_spawn_rules(self):
+        """REG-2127 (#231 eye on v43 06ad2cd2) - Patch 3.2 / Ladder Season 14: "Heralds now spawn when you kill any monster in a
+        Terror Zone, with increasing chance per kill" and "Herald Tiers now increase when a Herald spawns (not when killed)". The
+        Herald card taught the pre-3.2 two-step 'ire' token, the fresh-tile hunt and 'each kill bumps the next Herald one tier
+        higher' across three sections (from a Feb 2026 guide), while the same card quoted 3.2 elsewhere. A sweep: the old
+        mechanics may appear only as the line that says they no longer apply."""
+        s = _src()
+        i = s.find('<div class="gic-section-title">🩸 How to spawn it &amp; climb the ladder</div>')
+        self.assertGreater(i, 0, "the Herald card's spawn section is gone - re-point this law")
+        self.assertIn("Herald Tiers now increase when a Herald spawns (not when killed)", s[i:s.index("</section>", i)],
+                      "the spawn section no longer carries the 3.2 rule it is built on")
+        for old in ("kill bumps", "bumps the next", "drawn the ire", "ire token", "Ire stacks", "unexplored tile",
+                    "draw ire", "draw its ire"):
+            self.assertNotIn(old, s, "the Herald card teaches the pre-3.2 spawn again: %r" % old)
+
 RED_PROOF = [
     {"why": "REG-2089 - Veil of Steel's tagline swaps its resist and defense figures again",
      "file": "bible.html",
@@ -612,6 +627,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "blurb: \"Immunity-breaking grand charms - Latent versions drop from any Terror-Zone monster, Heralds most often;",
      "replace": "blurb: \"Immunity-breaking grand charms - Latent versions drop only from Hell Terror-Zone Heralds of Terror;",
+     "matches": 1},
+    {"why": "REG-2127 - the Herald tier line says each KILL climbs the ladder again (3.2: a SPAWN does)",
+     "file": "bible.html",
+     "find": "Each Herald that <strong>spawns</strong> makes the next one a tier higher — climb",
+     "replace": "Each kill bumps the <strong>next</strong> Herald one tier higher — climb",
      "matches": 1},
 ]
 

@@ -406,6 +406,17 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2127 - THE HERALD CARD TAUGHT THE PRE-3.2 SPAWN WHILE QUOTING 3.2 ELSEWHERE (2026-10-09, #231 eye on v43 06ad2cd2)
+
+Patch 3.2 / Ladder Season 14 notes (diablofilter, read 2026-10-09; diablobytes agrees): "Heralds now spawn when you kill any
+monster in a Terror Zone, with increasing chance per kill", "A lightning storm appears on top of the slain monster giving you 5
+seconds to prepare", "Herald Tiers now increase when a Herald spawns (not when killed)". The Herald card's How-to-spawn, Where
+to draw ire and Work-the-two-step sections taught the pre-3.2 system (a ~2% elite-kill 'ire' token, a ~1% fresh-tile hunt,
+"each kill bumps the next Herald one tier higher") from a Feb 2026 guide - beside a line on the same card that quotes 3.2. The
+three sections and the tier line now tell the 3.2 rules; what 3.2 does not contradict stays (Hell TZs only, leaving resets
+the tiers, the dense-zone list, speed over MF). Law: a sweep that the old mechanics appear nowhere and the spawn section
+carries the 3.2 rule; 1 red-proof, red.
+
 ### REG-2126 - THE SUNDER CARDS SAID WHAT THEIR OWN CITED SOURCE REFUTES (2026-10-09, #231 eye on v43 e62ff8b7, #320)
 
 The Sunder cards cite Maxroll. maxroll.gg/d2/resources/sundered-charms, read 2026-10-09: "You can use all Sundered Charms at the
