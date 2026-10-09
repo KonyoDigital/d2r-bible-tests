@@ -406,6 +406,18 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2130 - REG-2115 LET A LONG WAIT LABEL CRUSH THE REASON: HIS UPDATE BAR STOOD 512px TALL OVER THE HOME DASH (2026-10-09)
+
+The v3633 push still refused on J3 after REG-2129. A trial click (Playwright's actionability check, no click) on his console
+named the blocker: the fleet update bar - the console is behind its disk while his sweeps hold the relaunch, so the bar shows.
+Measured at 1470: the label "hunting 16 names - 24 of at most 288 pages, under 270m 56s left" (63 characters) took 534px whole,
+the 362-character reason beside it sat at its 200px floor, and the bar was 1068 x 512 - over the home dash, under which J3's
+tally chip timed out. REG-2115 (v3631) made the label win outright; the label is now capped at 20em (holds "waiting for it to
+finish" whole, ~235px), and a longer one ends in an ellipsis with its title carrying the rest. Measured with his exact texts:
+bar 208px (short label, whole) / 227px (long label) at 1470, was 512px; the chip clickable on a private console with the bar
+shown. The pre-REG-2115 bar was shorter (132-146px) only because the label sat at 0px - the #315 defect. Guard: the console
+demo J3, which went red on exactly this against his real console.
+
 ### REG-2129 - THE CONSOLE DEMO'S goHome NEVER LEFT THE SESSIONS VIEW, SO J3 REFUSED TWO PUSHES (2026-10-09)
 
 The v3632 and v3633 pushes refused at console-demos on "j3_tally - page.click: Timeout 30000ms exceeded". Measured, not

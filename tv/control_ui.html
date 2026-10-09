@@ -6066,6 +6066,11 @@
     font: var(--fw-medium) var(--fs-2xs)/1 var(--mono); color: var(--gold-bright);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     flex: 0 1 auto; min-width: 0;
+    /* REG-2130 - REG-2115 let the label win outright, and a LONG one ("hunting 16 names - 24 of at most 288 pages, under
+       270m 56s left", 63 characters) took 534px on his console at 1470 and crushed the reason beside it to its 200px floor:
+       the update bar stood 512px tall over the home dash, and the console demo's tally click timed out under it. 20em holds
+       "waiting for it to finish" whole (~235px at 13px); a longer label ends in an ellipsis and its title carries the rest. */
+    max-width: 20em;
   }
   /* #150 (2026-10-01) - this used to say "while the meter is up the message is redundant — let it shrink first", and
      cut it to one ellipsised line. Since #150 the message is the CONSOLE'S OWN REASON for waiting ("not now — only the
