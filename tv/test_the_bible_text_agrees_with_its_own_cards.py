@@ -438,6 +438,20 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
                 bad.append("%s (%s) -> %s" % (n, area, z))
         self.assertEqual(bad, [], "a super-unique resolves to a terror zone that is not its own area: %r" % bad)
 
+    def test_no_sunder_text_says_what_its_own_source_refutes(self):
+        """REG-2126 (#231 eye on v43 e62ff8b7, #320) - the Sunder cards cite Maxroll, and Maxroll's sundered-charms page says
+        "You can use all Sundered Charms at the same time and even stack them. Using the same Charm multiple times only
+        increases the negative effect", and that they drop from any Terror-Zone monster. The page said 'Only ONE Sunder active
+        at a time' in 7 places and 'Latent versions drop only from Hell Terror-Zone Heralds of Terror' in 2, and the Herald
+        card read the SHARD region map as a charm map. A sweep, not a pin: no sentence anywhere may say either again."""
+        s = _src()
+        self.assertGreaterEqual(s.count("Every Sunder can be worn at once"), 7, "premise: the corrected sentence is in every Sunder row")
+        one = re.findall(r"[Oo]nly (?:ONE|one|1) Sunder[^.<\"]*", s)
+        self.assertEqual(one, [], "a Sunder text says only one can be active again: %r" % one)
+        only = re.findall(r"Latent[^.<\"]{0,40}drop[s]? only from[^.<\"]*", s)
+        self.assertEqual(only, [], "a Sunder text says Latents drop only from one source again: %r" % only)
+        self.assertNotIn("farm that region's Heralds", s, "the Herald card reads the shard map as a charm map again")
+
 RED_PROOF = [
     {"why": "REG-2089 - Veil of Steel's tagline swaps its resist and defense figures again",
      "file": "bible.html",
@@ -588,6 +602,16 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "label:\"Act 2\",        target:\"Duriel · Tal Rasha's Chamber\",",
      "replace": "label:\"Act 2\",        target:\"Ancient Tunnels · Lost City\",",
+     "matches": 1},
+    {"why": "REG-2126 - a Sunder row says only one can be active again (Maxroll: all at once, a copy stacks the penalty)",
+     "file": "bible.html",
+     "find": "Hell only; -enemy-poison-res pushes it lower. Every Sunder can be worn at once; a second copy of the same charm only stacks its penalty on you.",
+     "replace": "Hell only; -enemy-poison-res pushes it lower. Only ONE Sunder at a time.",
+     "matches": 1},
+    {"why": "REG-2126 - the Sunder blurb says Latents drop only from Heralds again",
+     "file": "bible.html",
+     "find": "blurb: \"Immunity-breaking grand charms - Latent versions drop from any Terror-Zone monster, Heralds most often;",
+     "replace": "blurb: \"Immunity-breaking grand charms - Latent versions drop only from Hell Terror-Zone Heralds of Terror;",
      "matches": 1},
 ]
 

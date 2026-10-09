@@ -406,6 +406,17 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2126 - THE SUNDER CARDS SAID WHAT THEIR OWN CITED SOURCE REFUTES (2026-10-09, #231 eye on v43 e62ff8b7, #320)
+
+The Sunder cards cite Maxroll. maxroll.gg/d2/resources/sundered-charms, read 2026-10-09: "You can use all Sundered Charms at the
+same time and even stack them. Using the same Charm multiple times only increases the negative effect on your Character", and
+they drop from any monster in Terror Zones (Patch 3.2 notes, via a summary: Heralds keep a raised chance). The page said "Only
+ONE Sunder active at a time" in all 7 places a Sunder row or footer speaks, "Latent versions drop only from Hell Terror-Zone
+Heralds of Terror" in the blurb and the card subtitle, and the Herald card's rules line read the SHARD region map as a charm map
+("farm that region's Heralds"). All 10 rewritten. LEFT STANDING, flagged on #320: "cube 3 Worldstone Shards -> random Latent"
+(3 places) - Maxroll lists no such recipe, but an absence is not a refutation; and "Hell only" (unsourced either way). Law: a
+sweep that no sentence anywhere says one-at-a-time or only-from again; 2 red-proofs, each red.
+
 ### REG-2125 - THE v3631 SECOND EYE ON TWO OF ITS OWN FIXES (2026-10-09)
 
 grok-cli at 60,125 chars, 2 findings, each re-measured before acting. (1) navClean (REG-2112): its scroll owner was "an item
