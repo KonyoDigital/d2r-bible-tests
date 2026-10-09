@@ -756,6 +756,7 @@
   "test_the_heart_map_covers_the_board": 8.2,
   "test_the_heart_map_reads_code_not_prose": 29.3,
   "test_the_heart_opens_on_one_click_and_never_sticks": 1.7,
+  "test_the_heart_prints_the_figure_that_decided": 0.2,
   "test_the_hook_asks_the_console_not_its_pid": 0.1,
   "test_the_hover_reads_the_panel_the_pixels_show": 0.5,
   "test_the_hunt_says_when_somewhere_else_is_quicker": 0.4,
@@ -1000,6 +1001,7 @@
    "test_the_census_age_ticks_from_its_stamp",
    "test_the_cheap_end_route_row_asks_the_store_once",
    "test_the_fleet_rail_holds_still",
+   "test_the_heart_prints_the_figure_that_decided",
    "test_the_joined_census_counts_what_each_row_says",
    "test_the_missed_text_counts_say_how_they_relate",
    "test_the_organizer_says_the_mule_the_cell_and_the_picture",
@@ -1059,10 +1061,16 @@
     "date": "2026-10-09",
     "count": 1,
     "locked": true
+   },
+   {
+    "source": "v3637 local shards",
+    "date": "2026-10-09",
+    "count": 1,
+    "locked": true
    }
   ],
-  "count": 58
+  "count": 59
  },
- "estimatedGates": 58,
- "estimatedSeconds": 39.3
+ "estimatedGates": 59,
+ "estimatedSeconds": 39.5
 }
