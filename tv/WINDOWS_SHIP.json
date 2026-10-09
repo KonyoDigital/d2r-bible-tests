@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3640",
+  "ver": "v3641",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3640: REG-2144 - a size-debt file that will not parse is left as it was. HEART: test_a_size_key_is_the_size",
+  "note": "v3641: REG-2145 and REG-2146 - set tiles show the name the game shows, and a sunder rate names any terror-zone monster",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

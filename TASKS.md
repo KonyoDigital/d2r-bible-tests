@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3640** | `(this commit)` | v3640 — REG-2144 - a size-debt file that will not parse is left as it was. HEART: test_a_size_key_is_the_size |
+| **v3641** | `(this commit)` | v3641 — REG-2145 and REG-2146 - set tiles show the name the game shows, and a sunder rate names any terror-zone monster |
+| **v3640** | `ff34988e` | v3640 — REG-2144 - a size-debt file that will not parse is left as it was. HEART: test_a_size_key_is_the_size |
 | **v3639** | `216a92d8` | v3639 — Herald lines that hid one Sunder behind a tag now say every charm at once, and a size key stops at the quote instead of the tile text |
 | **v3638** | `741fa64c` | v3638 — REG-2141 - the tab-strip lock chip prints the Wilson figure that decided |
 | **v3637** | `d578f80a` | v3637 — REG-2141 - the heart prints the Wilson figure that decided |
