@@ -406,6 +406,20 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2144 - THE SIZE-DEBT SNAPSHOT REWROTE A FILE IT COULD NOT READ (2026-10-09, #322)
+
+`--snapshot` caught every failure of size_debt.json and continued with `{}`.
+A file that exists and will not parse was then overwritten, and the console
+half of the debt went with it. A failed read now prints the reason and returns
+1, and the file on disk stays as it was. A JSON value that is not an object
+is the same refusal. Law: `tv/test_a_size_key_is_the_size.py`, one more
+red-proof. Not rendered here.
+
+The same new suite was graded as a CLI that prints non-ASCII, and as an import
+of a package CI does not install. The em dash was in the module docstring, and
+the lock was imported by its bare name even though the file lives at the repo
+root. The suite is pure ASCII and loads that file by path.
+
 ### REG-2143 - A SIZE-DEBT KEY CARRIED THE TILE'S WORDS (2026-10-09, #322)
 
 `font-size:` was captured until `;`, `}` or a newline, never until the attribute's

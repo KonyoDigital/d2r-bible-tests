@@ -515,9 +515,13 @@ def _write_snapshot():
         got = _raw_sizes(fh.read())
     try:
         with open(DEBT_PATH, encoding="utf-8") as fh:
-            debt = json.load(fh) or {}
-    except Exception:
-        debt = {}
+            debt = json.load(fh)
+    except (OSError, json.JSONDecodeError) as e:
+        print("size_debt.json could not be read (%s) - refusing to rewrite it" % e)
+        return 1
+    if not isinstance(debt, dict):
+        print("size_debt.json is not an object - refusing to rewrite it")
+        return 1
     debt["bible.html"] = {k: got[k] for k in sorted(got)}
     with open(DEBT_PATH, "w", encoding="utf-8") as fh:
         json.dump(debt, fh, indent=1, ensure_ascii=False)
