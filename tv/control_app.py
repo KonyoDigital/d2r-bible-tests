@@ -25735,6 +25735,9 @@ def _self_arming_state():
                     "state": _WORD.get(r.get("state"), r.get("state")),
                     "why": r.get("why"), "score": r.get("wilson"), "bar": r.get("bar"),
                     "permitted": r.get("permitted"), "permittedWhy": r.get("permittedWhy"),
+                    # REG-2141 - a route is scored by the same score(), so it decides per attack too
+                    "deciding": r.get("deciding"), "wilsonByAttack": r.get("wilsonByAttack"),
+                    "attacks": r.get("attacks"), "attacksPassed": r.get("attacksPassed"),
                     "k": r.get("k"), "n": r.get("n")} for r in routes],
         "why": rep.get("why", ""),
         # ⚠⚠ REG-1737 - THE SIXTH FIELD THIS TRIM WOULD HAVE SWALLOWED. report() now carries
@@ -25797,6 +25800,13 @@ def _self_arming_state():
                    "attacks": l.get("attacks"),
                    "wilsonByAttack": l.get("wilsonByAttack"),
                    "repetition": l.get("repetition"),
+                   # ⚠⚠ REG-2141 - THE SIXTH FIELD, AND THIS ONE DECIDES. `score` above is the RAW per-attempt
+                   # figure, while the state has been decided per DISTINCT ATTACK since ddd55279 (his
+                   # 2026-09-04 ruling). Both console renderers printed `score`, so prune.reports read
+                   # "Wilson 0.879" beside a "wilson 0.610 >= 0.510" sentence (GrokBot ticks 416-419) and
+                   # miniauto.run's diagram said "0.935 >= 0.510" while 0.439 decided. `deciding` and the
+                   # per-attack pair travel with it, so the panel prints the figure that decided.
+                   "deciding": l.get("deciding"), "attacksPassed": l.get("attacksPassed"),
                    "k": l.get("k"), "n": l.get("n")} for l in locks],
     }
 

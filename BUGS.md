@@ -406,6 +406,10 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2141 - THE HEART PRINTED THE RAW WILSON BESIDE A VERDICT DECIDED PER ATTACK (2026-10-09, #193, GrokBot ticks 416-419)
+
+A lock's state has been decided per distinct attack since 2026-09-04. The console trim still sent `score` as the raw per-attempt Wilson, and the valve diagram, the lock list, and the route list printed that figure with the raw k/n. On the live ledger, prune.reports read "Wilson 0.879" beside "wilson 0.610 >= 0.510", and miniauto.run's diagram said "0.935 >= 0.510" while 0.439 decided. The engine now publishes `attacksPassed` beside `wilsonByAttack`. The trim forwards `deciding`, `wilsonByAttack`, `attacks`, and `attacksPassed` for both locks and routes. One helper, `_hrtLockFigure`, is what all three renderers ask, and it prints the pair that decided. Law: `tv/test_the_heart_prints_the_figure_that_decided.py`. The published pair reproduces the per-attack figure through the module's own `wilson_lower`; the shipped helper, driven in node over the real trim, does the same; a row with the measured miniauto numbers (raw 0.9347, 3 of 3 attacks, 0.4385) prints 3/3 and 0.4385. 4 red-proofs.
+
 ### REG-2140 - THE v3635 SECOND EYE: THE THEATRE-HEAD REFUSAL THREW ON A MISSING NODE (2026-10-09)
 
 The v3635 look (grok-4.7, 18,318 chars, 3 commits) returned 6 findings. Each was checked at HEAD 73927fe3 before acting:

@@ -9216,6 +9216,11 @@ GATES = [
          needs_app=False,
          why=("REG-2123 - test_button_matrix's private control_app inherited his agent port :17771, so its OFF / STOP cut "
               "eleven of his ON AIR sessions on 2026-10-09; the env it hands its app must carry ports of its own")),
+    Gate("test_the_heart_prints_the_figure_that_decided", [sys.executable,
+         os.path.join(HERE, "test_the_heart_prints_the_figure_that_decided.py")], 120,
+         needs_app=False,
+         why=("REG-2141 (#193, GrokBot ticks 416-419) - the heart printed the raw per-attempt Wilson "
+              "while the badge decided per distinct attack; the panel now prints the figure that decided.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

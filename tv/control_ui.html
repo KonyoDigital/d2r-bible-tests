@@ -14054,6 +14054,22 @@ window._lockMark = function(isOpen, px, label){
       .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
+  /* ⚠⚠ REG-2141 - THE FIGURE THAT DECIDED, AND THE PAIR IT IS COMPUTED FROM. ONE helper for BOTH lock
+     renderers (the valve diagram and the list), because they are two copies of one sentence and each
+     read `L.score` - the RAW per-attempt Wilson - while the lock's state has been decided per DISTINCT
+     ATTACK since his 2026-09-04 ruling. So prune.reports read "Wilson 0.879 · needs 0.51" beside its own
+     "wilson 0.610 >= 0.510" (GrokBot ticks 416-419), and miniauto.run's diagram said "0.935 >= 0.510"
+     while 0.439 decided. Whatever pair this returns, wilson_lower(k, n) reproduces `score`
+     (test_the_heart_prints_the_figure_that_decided). The raw pair rides along for the list row. */
+  function _hrtLockFigure(L){
+    var raw = (L.score == null) ? null : Number(L.score);
+    var byAtk = (L.deciding ? L.deciding === 'wilsonByAttack' : L.wilsonByAttack != null)
+                && L.wilsonByAttack != null && typeof L.attacksPassed === 'number' && typeof L.attacks === 'number';
+    if (byAtk) return { k: L.attacksPassed, n: L.attacks, score: Number(L.wilsonByAttack), perAttack: true,
+                        raw: raw, rk: L.k, rn: L.n };
+    return { k: L.k, n: L.n, score: raw, perAttack: false, raw: raw, rk: L.k, rn: L.n };
+  }
+
   /* The nodes are grouped by state, not left in census order, so every unwatched vessel lands in
      ONE contiguous arc. Scattered, eight dark vessels read as a few specks; gathered, they read as
      the quarter of the console that they are. DARK leads because it is what needs him. */
@@ -14230,7 +14246,8 @@ window._lockMark = function(isOpen, px, label){
          1.8). So this line printed "0.916 < 0.839" on his screen: false arithmetic under a
          correct verdict, which is exactly the shape he keeps catching — a right conclusion with a
          wrong number under it. Compare the numbers, and name the bar that is actually holding. */
-      var _sc = (L.score == null) ? null : Number(L.score);
+      var _fig = _hrtLockFigure(L);   /* REG-2141 - the figure and pair that DECIDED, not the raw ones */
+      var _sc = _fig.score;
       var _bar = Number(L.bar);
       var _conf = (typeof L.confluence === 'number') ? L.confluence : null;
       var _kbar = (typeof L.kindsBar === 'number') ? L.kindsBar : null;
@@ -14243,7 +14260,7 @@ window._lockMark = function(isOpen, px, label){
          label being too wide to sit in clear space. Keep the arithmetic short and put the
          confluence clause on its own row. */
       var arith = (n_ && n_ > 0)
-        ? (L.k + '/' + n_ + ' refused · ' + (_sc == null ? '?' : _sc.toFixed(3))
+        ? (_fig.k + '/' + _fig.n + (_fig.perAttack ? ' attacks · ' : ' refused · ') + (_sc == null ? '?' : _sc.toFixed(3))
            + (_scoreClears ? ' ≥ ' : ' < ') + _bar.toFixed(3))
         : (L.provable === false
              /* ⚠ v2729 — ' to sabotage' dropped: twelve characters of a centred label reach SIX
@@ -14383,7 +14400,8 @@ window._lockMark = function(isOpen, px, label){
         ? 'the score above cannot see that axis at all'
         : (_atk !== null && _rep !== null && _rep > 1.5
              /* ⚠ v2729 — THE ' → 0.832' SUFFIX WAS THE SAME NUMBER AS THE LINE ABOVE IT.
-                `_sc` on the first arithmetic line IS the deciding score, and for every lock in
+                `_sc` on the first arithmetic line IS the deciding score (since REG-2141 - before it, it was
+                the raw one and this sentence was false), and for every lock in
                 this fan `deciding` is `wilsonByAttack` — which is exactly `_wba`. So each label
                 printed its own score twice, on two lines, and paid for it in WIDTH: these labels
                 are centred, so eight wasted characters reach four characters further into BOTH
@@ -15182,9 +15200,11 @@ window._lockMark = function(isOpen, px, label){
       var L = lk[j], lst = String(L.state || 'UNKNOWN').toUpperCase();
       /* the arithmetic, in full, because the lock's whole promise is that it opens itself and a
          promise you cannot check is a promise. n is SABOTAGES ATTEMPTED, never agreements. */
+      var _fg = _hrtLockFigure(L);   /* REG-2141 - the pair that decided; the raw attempts stay in parentheses */
       var ar = (typeof L.n === 'number' && L.n > 0)
-        ? (L.k + '/' + L.n + ' refused · Wilson ' + (L.score == null ? '?' : Number(L.score).toFixed(3))
-           + ' · needs ' + L.bar)
+        ? (_fg.k + '/' + _fg.n + (_fg.perAttack ? ' distinct attacks' : '') + ' refused · Wilson '
+           + (_fg.score == null ? '?' : _fg.score.toFixed(3)) + ' · needs ' + L.bar
+           + (_fg.perAttack ? ' (' + _fg.rk + '/' + _fg.rn + ' attempts · raw ' + (_fg.raw == null ? '?' : _fg.raw.toFixed(3)) + ')' : ''))
         : 'n=0 · needs ' + L.bar;
       /* ⚠⚠ v2650 — RETIRED AXES MUST BE SAID HERE, AND THIS IS THE SECOND COPY OF THIS RENDERER.
          My first cut added the clause to the OTHER lock renderer above (the valve diagram, near
@@ -15329,12 +15349,13 @@ window._lockMark = function(isOpen, px, label){
           for (var i = 0; i < rr.length; i++){
             var r = rr[i];
             var nn = (typeof r.n === 'number') ? r.n : null;
-            var sc = (typeof r.score === 'number') ? r.score : null;
+            var _rf = _hrtLockFigure(r);   /* REG-2141 - the route's deciding figure and pair, as the valves */
+            var sc = (typeof _rf.score === 'number' && !isNaN(_rf.score)) ? _rf.score : null;
             var bar = Number(r.bar || 0);
             /* n=0 must not print a number, and a score UNDER the bar is not a failure — it is too
                few attempts to say so yet. Both are said in words. [[unknown-stays-unknown]] */
             var arith = (!nn) ? 'nothing attempted yet'
-                      : (r.k + '/' + nn + ' refused · '
+                      : (_rf.k + '/' + _rf.n + (_rf.perAttack ? ' attacks · ' : ' refused · ')
                          + (sc === null ? '?' : sc.toFixed(3))
                          + ((sc !== null && sc >= bar) ? ' ≥ ' : ' < ') + bar.toFixed(3));
             h2 += '<div class="hrt-row"><span class="hrt-k">' + _hrtEsc(r.lock) + '</span>'

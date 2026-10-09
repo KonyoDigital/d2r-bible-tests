@@ -930,6 +930,9 @@ def score(lock, rows=None):
            "withdrawnClaims": withdrawn,
            "wilsonByAttack": (None if not attacks
                               else round(wilson_lower(_attacks_passed(k, n, attacks), attacks), 4)),
+           # REG-2141 - the pair that figure is computed from, published so a surface can print the
+           # numbers that DECIDED without re-deriving _attacks_passed (a second copy would drift).
+           "attacksPassed": (None if not attacks else _attacks_passed(k, n, attacks)),
            "repetition": (None if not attacks else round(float(n) / attacks, 1)),
            "k": k, "n": n, "kinds": kinds, "confluence": conf,
            "bar": spec["bar"], "kindsBar": spec["kinds_bar"], "after": list(spec["after"])}
