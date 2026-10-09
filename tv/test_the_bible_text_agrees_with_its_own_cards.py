@@ -312,7 +312,21 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         stray = [w for w in wants if w in runes and w not in countess]
         self.assertEqual(stray, [], "Act 1 stars runes the Countess's own table never drops: %r" % stray)
         a3 = s.find('label:"Act 3",')
+        # REG-2125 (the v3631 second eye) - a missing Act 3 card made the next check read an empty slice and pass
+        self.assertGreater(a3, 0, "the Most Wanted Act 3 card is gone - re-point this law")
         self.assertNotIn("top uniques", s[a3:s.find("] },", a3)], "Mephisto is promised top uniques over his TC78 cap again")
+        # REG-2125 - and EVERY act card's target names the boss its click opens (Act 2 once named Ancient Tunnels over a
+        # click that opened Duriel). The boss's own name comes from BOSSES, never from this law.
+        cards = re.findall(r'label:"(Act \d)",\s*target:"([^"]*)",\s*boss:"([a-z]+)"', s)
+        self.assertGreaterEqual(len(cards), 5, "PRINT THE DENOMINATOR: only %d act cards read" % len(cards))
+        off = []
+        for act, target, boss in cards:
+            b = re.search(r'\{"id":"%s","emoji":"[^"]*","name":"([^"]+)"' % boss, s)
+            self.assertIsNotNone(b, "%s opens boss id %r, which BOSSES does not have" % (act, boss))
+            head = re.sub(r"^The ", "", b.group(1))
+            if head.lower() not in target.split("\u00b7")[0].lower():
+                off.append("%s: target %r, click opens %s" % (act, target, b.group(1)))
+        self.assertEqual(off, [], "an act card names one place and opens another boss: %r" % off)
         self.assertNotIn("Eth base = premium", s, "Grief's base advice names an ethereal Phase Blade again")
         self.assertIn('row.setAttribute("aria-expanded", _o ? "true" : "false");', s,
                       "a runeword row opens while its aria-expanded stays false")
@@ -569,6 +583,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "    if (names.some(function(n){ return word.test(n); })) return {z: TZ_ZONES[i], zi: i};\n",
      "replace": "    if (String(TZ_ZONES[i].unique || '').toLowerCase().includes(needle)) return {z: TZ_ZONES[i], zi: i};\n",
+     "matches": 1},
+    {"why": "REG-2125 - the Act 2 card names Ancient Tunnels again over a click that opens Duriel",
+     "file": "bible.html",
+     "find": "label:\"Act 2\",        target:\"Duriel · Tal Rasha's Chamber\",",
+     "replace": "label:\"Act 2\",        target:\"Ancient Tunnels · Lost City\",",
      "matches": 1},
 ]
 

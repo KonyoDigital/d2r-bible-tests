@@ -406,6 +406,16 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2125 - THE v3631 SECOND EYE ON TWO OF ITS OWN FIXES (2026-10-09)
+
+grok-cli at 60,125 chars, 2 findings, each re-measured before acting. (1) navClean (REG-2112): its scroll owner was "an item
+was set", even when clearActiveItem was not there to clear it - an item nobody could clear would have left the return to
+bosses with no scroll at all. Now the route-back owns the scroll only when it will really run; a node case drives navClean with
+no clearActiveItem. REFUTED half: the eye guessed closeItemDetail() might clear activeItem first and keep the old race - it
+clears activeItemDetail (another variable) and schedules nothing. (2) the REG-2111 law: a missing Act 3 card made its check read
+an empty slice and pass, and Act 2 was never read. It now requires the Act 3 card and checks EVERY act card's target names the
+boss its click opens, with that boss's name taken from BOSSES (5 cards read). 2 red-proofs, each red on its own case.
+
 ### REG-2124 - THE SMITH LANDED ON RIVER OF FLAME THROUGH "THE HELLFORGE SMITH" (2026-10-09, #231 eye on v43 8003b914)
 
 suTzZone matched a substring of a zone's whole roster string, first hit wins. The Smith (Act 1 · Barracks, needle "smith")

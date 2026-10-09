@@ -33,7 +33,7 @@ def _cut():
     return s[i:s.index("\n}\n", i) + 3]
 
 
-def _run(active, tab):
+def _run(active, tab, clear=True):
     if NODE is None:
         raise AssertionError("node is not on this machine - this gate does not skip")
     js = """
@@ -41,10 +41,11 @@ var CALLS = [], activeItem = %s;
 var window = { closeDrop: function(){}, closeItemDetail: function(){}, clearActiveBoss: function(){},
   clearActiveItem: function(){ CALLS.push('clearItem'); activeItem = null; },
   switchTab: function(n){ CALLS.push('tab:' + n); }, scrollTo: function(o){ CALLS.push('scroll:' + o.top); } };
+if (!%s) delete window.clearActiveItem;
 %s
 navClean(%s);
 console.log(JSON.stringify(CALLS));
-""" % (json.dumps(active), _cut(), json.dumps(tab))
+""" % (json.dumps(active), "true" if clear else "false", _cut(), json.dumps(tab))
     r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=30)
     if r.returncode != 0:
         raise AssertionError("navClean did not run in node: %s" % r.stderr[-500:])
@@ -63,12 +64,23 @@ class OneScrollOwnsTheBossesReturn(unittest.TestCase):
         self.assertIn("scroll:0", _run("Harlequin Crest (Shako)", "uniques"),
                       "another tab never clears the item, so navClean still owns its scroll")
 
+    def test_an_item_nobody_can_clear_still_gets_the_top_scroll(self):
+        """REG-2125 (the v3631 second eye) - with no clearActiveItem the route-back never runs, so navClean owns the scroll."""
+        calls = _run("Harlequin Crest (Shako)", "bosses", clear=False)
+        self.assertNotIn("clearItem", calls)
+        self.assertIn("scroll:0", calls, "an item nobody could clear left the return to bosses with no scroll at all: %r" % calls)
+
 
 RED_PROOF = [
     {"why": "REG-2112 - navClean scrolls to 0 even after clearing an item, racing the route-back again",
      "file": "bible.html",
-     "find": "  if (!_hadItem) window.scrollTo({ top: 0, behavior: \"smooth\" });\n",
+     "find": "  if (!_routeBack) window.scrollTo({ top: 0, behavior: \"smooth\" });\n",
      "replace": "  window.scrollTo({ top: 0, behavior: \"smooth\" });\n",
+     "matches": 1},
+    {"why": "REG-2125 - the route-back owns the scroll even when there is no clearActiveItem to run it",
+     "file": "bible.html",
+     "find": "  if (!_routeBack) window.scrollTo({ top: 0, behavior: \"smooth\" });\n",
+     "replace": "  if (!_hadItem) window.scrollTo({ top: 0, behavior: \"smooth\" });\n",
      "matches": 1},
 ]
 
