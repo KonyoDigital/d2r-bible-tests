@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3634",
+  "ver": "v3635",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3634: REG-2131..2133 - the RotW Sunder lead, the Herald law reads text and the port redraw is bounded, a set item codex once on calc",
+  "note": "v3635: REG-2134..2136 - theatre header two rows, film-less reel clears the last reel, shard icon",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
