@@ -479,7 +479,7 @@ close law gains a full-close case (no reel, no frame, and cinema saw an empty re
 ['WINNER'] to [] - the close now drops the reel itself - and its three red-proofs were re-measured red (the caption proves the
 late load stayed out).
 
-### REG-2123 - A GATE'S PRIVATE CONSOLE SHARED HIS AGENT PORT AND CUT HIS ON AIR SESSIONS ELEVEN TIMES IN ONE NIGHT (2026-10-09)
+### REG-2123 - A GATE'S PRIVATE CONSOLE SHARED HIS AGENT PORT AND CUT HIS ON AIR SESSIONS TEN TIMES IN ONE NIGHT (2026-10-09)
 
 Found because the v3631 push refused twice on test_button_matrix "already red untampered" (STOP -> dark). Reproduced alone in a
 sandbox, then narrowed: the law failed only under the prover's lane ports - it pinged a literal :17771 while the private
@@ -487,7 +487,7 @@ control_app it boots runs its agent on TV_PORT. Reading on showed the worse half
 private, so with no lane ports the private app's agent port fell through to :17771 - HIS live agent. Its OFF sent his agent
 /shutdown ("closing session (off)") and its STOP SIGTERMed the port's listener ("signal:SIGTERM"). And inside a prover sandbox
 copied from the main checkout, tv/control_agent.pid named his agent's pid, so the private app's STOP SIGTERMed it by pid even
-on a lane port. His agent log, 2026-10-09: restarts at 02:00, 02:04, 02:05 (gate shards), 02:16, 02:20, 02:26 (the two push
+on a lane port. His agent log, 2026-10-09: restarts at 02:04, 02:05 (gate shards; 02:00:19 was the console's own clock-hour rotation, like 01:00:19 and 03:00:19), 02:16, 02:20, 02:26 (the two push
 pre-proves), 02:32-02:37 (four of my own reproduction runs - Claude's) - each a cut ON AIR session.
 FIXED: the private app gets its own agent port (TV_PORT = a free port, like render_check / the headless law / roundtrip_sim
 already did - the matrix was the one outlier of the four that boot control_app); the law pings the agentPort its app reports;
