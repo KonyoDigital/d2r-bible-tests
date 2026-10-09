@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3635",
+  "ver": "v3636",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3635: REG-2134..2136 - theatre header two rows, film-less reel clears the last reel, shard icon",
+  "note": "v3636: REG-2137..2140 - Herald Fear tile, Renewed Sunder per-charm readiness, film-less reel clock, theatre-head refusal",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

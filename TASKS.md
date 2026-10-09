@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3635** | `(this commit)` | v3635 — REG-2134..2136 - theatre header two rows, film-less reel clears the last reel, shard icon |
+| **v3636** | `(this commit)` | v3636 — REG-2137..2140 - Herald Fear tile, Renewed Sunder per-charm readiness, film-less reel clock, theatre-head refusal |
+| **v3635** | `73927fe3` | v3635 — REG-2134..2136 - theatre header two rows, film-less reel clears the last reel, shard icon |
 | **v3634** | `55656d80` | v3634 — REG-2131..2133 - the RotW Sunder lead, the Herald law reads text and the port redraw is bounded, a set item codex once on calc |
 | **v3633** | `5513605c` | v3633 — REG-2126..2128 - Sunder facts from their own cited source, the Herald card tells the 3.2 spawn rules, the matrix ports drawn until they differ |
 | **v3632** | `a3034068` | v3632 — REG-2120..2125 - Colossal jewels two per Ancient and Black Cleft three shards (sourced), Izual not next to the River, a zone roster names its super-uniques, the v3631 eye on its own fixes |

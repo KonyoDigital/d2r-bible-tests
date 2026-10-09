@@ -63,7 +63,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3635"   # the theatre header stays tidy and a reel with no film clears the stage
+VERSION = "v3636"   # the Fear tile names its extra item and the Renewed Sunder row checks its own recipe
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
