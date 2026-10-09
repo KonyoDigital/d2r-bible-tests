@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3631** | `(this commit)` | v3631 — REG-2110..2119 - slow-board pane says opening, Most Wanted agrees with its bosses, one scroll owns the bosses return, the SIM check waits, the last blind red-proof is live again, the update label, one tooltip on console item cards, key rates in five places, a closed reel leaves the stage, the rune law counts what it read |
+| **v3632** | `(this commit)` | v3632 — REG-2120..2125 - Colossal jewels two per Ancient and Black Cleft three shards (sourced), Izual not next to the River, a zone roster names its super-uniques, the v3631 eye on its own fixes |
+| **v3631** | `9f7642d4` | v3631 — REG-2110..2119 - slow-board pane says opening, Most Wanted agrees with its bosses, one scroll owns the bosses return, the SIM check waits, the last blind red-proof is live again, the update label, one tooltip on console item cards, key rates in five places, a closed reel leaves the stage, the rune law counts what it read |
 | **v3630** | `fcd834c8` | v3630 — REG-2108..2109 - the rune cards cube recipes come from the page own cube section and Lo to Jah carry their real levels; a blind shelf law that held every river lock shut can go red again |
 | **v3629** | `e78a417b` | v3629 — REG-2106..2107 - the totals law pins its own disk reading, each key card carries its sourced rate, a 100 percent drop is called guaranteed |
 | **v3628** | `53f9564b` | v3628 — REG-2103..2105 - a special-drop rate in words is labelled how it comes, the rune cards list runewords from the recipe table, the keys card and special drops say one of each key per mini-uber portal |

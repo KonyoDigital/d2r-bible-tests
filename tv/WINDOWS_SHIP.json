@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3631",
+  "ver": "v3632",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3631: REG-2110..2119 - slow-board pane says opening, Most Wanted agrees with its bosses, one scroll owns the bosses return, the SIM check waits, the last blind red-proof is live again, the update label, one tooltip on console item cards, key rates in five places, a closed reel leaves the stage, the rune law counts what it read",
+  "note": "v3632: REG-2120..2125 - Colossal jewels two per Ancient and Black Cleft three shards (sourced), Izual not next to the River, a zone roster names its super-uniques, the v3631 eye on its own fixes",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
