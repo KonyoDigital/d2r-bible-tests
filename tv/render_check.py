@@ -1397,19 +1397,23 @@ TARGETS = {
                "need the row can print - every recipe row must paint, unclipped, at every width",
         "seed": """(function(){ return 1; })()""",
         "activate": """(function(){
-            /* ⚠ EVERY POLL, NOT ONCE. A one-shot sentinel (window.__rcCraft) made the first poll the
-               only attempt. Under the hook's load the Renewed row was in the DOM and its innerText
-               stayed empty for the whole 12s — crystalReveal's fill-mode `both` holds opacity 0 and
-               a blur until the animation clock moves, and a starved renderer does not move it.
-               Re-seeding is idempotent: the same two counts, written into the object the page
-               functions close over. The fade is dropped before the read so the need line is text. */
+            /* ⚠ EVERY POLL, NOT ONCE. The hook's second refusal named this exactly: the
+               Renewed row's textContent had the need line, its opacity was 1 and its animation was
+               none, and innerText was still empty for the whole 12s. .boss-card is
+               content-visibility:auto with a 90px intrinsic size, and this card sits thousands of
+               pixels below the fold, so a skipped card still has a non-zero box and a blank
+               innerText. Force the card to render before the read. The seed stays idempotent. */
             try {
               var seed = { 'Black Cleft': 1, 'Worldstone Shard (Southern)': 1 };
               Object.keys(seed).forEach(function(k){ materialStash[k] = seed[k]; });
               Object.keys(materialStash).forEach(function(k){ if (!seed[k]) delete materialStash[k]; });
               if (document.documentElement.getAttribute('data-active-tab') !== 'tools') window.switchTab('tools');
               var card0 = document.getElementById('material-stash-card');
-              if (card0) card0.classList.remove('collapsed');
+              if (card0) {
+                card0.classList.remove('collapsed');
+                card0.style.setProperty('content-visibility', 'visible', 'important');
+                card0.scrollIntoView({block:'center'});
+              }
               window.renderMaterialCraftable();
               window.__rcCraftErr = '';
             } catch (e) { window.__rcCraftErr = String(e); return false; }
@@ -1444,7 +1448,8 @@ TARGETS = {
             if (!/Perfect Diamond for Black Cleft/.test(shown)) {
               if (/Perfect Diamond for Black Cleft/.test(raw))
                 return 'the Renewed row has the need in the DOM but innerText is empty (opacity '
-                  + getComputedStyle(rw).opacity + ', animation ' + getComputedStyle(rw).animationName + ')';
+                  + getComputedStyle(rw).opacity + ', animation ' + getComputedStyle(rw).animationName
+                  + ', card content-visibility ' + (card ? getComputedStyle(card).contentVisibility : 'none') + ')';
               return 'the Renewed row did not print its per-charm need (' + (shown || raw || 'empty') + ')';
             }
             return 'the Renewed row printed the need and another activation check still failed'; })()""",
