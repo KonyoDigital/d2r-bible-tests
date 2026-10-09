@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3639** | `(this commit)` | v3639 — Herald lines that hid one Sunder behind a tag now say every charm at once, and a size key stops at the quote instead of the tile text |
+| **v3640** | `(this commit)` | v3640 — REG-2144 - a size-debt file that will not parse is left as it was. HEART: test_a_size_key_is_the_size |
+| **v3639** | `216a92d8` | v3639 — Herald lines that hid one Sunder behind a tag now say every charm at once, and a size key stops at the quote instead of the tile text |
 | **v3638** | `741fa64c` | v3638 — REG-2141 - the tab-strip lock chip prints the Wilson figure that decided |
 | **v3637** | `d578f80a` | v3637 — REG-2141 - the heart prints the Wilson figure that decided |
 | **v3636** | `a0660934` | v3636 — REG-2137..2140 - Herald Fear tile, Renewed Sunder per-charm readiness, film-less reel clock, theatre-head refusal |

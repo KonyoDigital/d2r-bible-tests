@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3639",
+  "ver": "v3640",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3639: Herald lines that hid one Sunder behind a tag now say every charm at once, and a size key stops at the quote instead of the tile text",
+  "note": "v3640: REG-2144 - a size-debt file that will not parse is left as it was. HEART: test_a_size_key_is_the_size",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
