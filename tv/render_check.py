@@ -1397,18 +1397,35 @@ TARGETS = {
                "need the row can print - every recipe row must paint, unclipped, at every width",
         "seed": """(function(){ return 1; })()""",
         "activate": """(function(){
-            /* ⚠ IDEMPOTENT: the harness re-runs this every 0.4s, so the stash is seeded and the tab opened once */
-            if (!window.__rcCraft) {
-              window.__rcCraft = 1;
-              try { materialStash = { 'Black Cleft': 1, 'Worldstone Shard (Southern)': 1 };
-                    window.switchTab('tools'); window.renderMaterialCraftable(); }
-              catch (e) { window.__rcCraftErr = String(e); }
-            }
-            /* the box lives in the Materials card, which the page opens collapsed - a view toggle, nothing written */
-            var card = document.getElementById('material-stash-card');
-            if (card) card.classList.remove('collapsed');
+            /* ⚠ EVERY POLL, NOT ONCE. A one-shot sentinel (window.__rcCraft) made the first poll the
+               only attempt. Under the hook's load the Renewed row was in the DOM and its innerText
+               stayed empty for the whole 12s — crystalReveal's fill-mode `both` holds opacity 0 and
+               a blur until the animation clock moves, and a starved renderer does not move it.
+               Re-seeding is idempotent: the same two counts, written into the object the page
+               functions close over. The fade is dropped before the read so the need line is text. */
+            try {
+              var seed = { 'Black Cleft': 1, 'Worldstone Shard (Southern)': 1 };
+              Object.keys(seed).forEach(function(k){ materialStash[k] = seed[k]; });
+              Object.keys(materialStash).forEach(function(k){ if (!seed[k]) delete materialStash[k]; });
+              if (document.documentElement.getAttribute('data-active-tab') !== 'tools') window.switchTab('tools');
+              var card0 = document.getElementById('material-stash-card');
+              if (card0) card0.classList.remove('collapsed');
+              window.renderMaterialCraftable();
+              window.__rcCraftErr = '';
+            } catch (e) { window.__rcCraftErr = String(e); return false; }
             var box = document.getElementById('material-craftable');
             if (!box) return false;
+            var tab = document.getElementById('tab-tools');
+            if (tab) {
+              tab.style.setProperty('animation', 'none', 'important');
+              tab.style.setProperty('opacity', '1', 'important');
+            }
+            box.querySelectorAll('.rw-row').forEach(function(row){
+              row.style.setProperty('animation', 'none', 'important');
+              row.style.setProperty('opacity', '1', 'important');
+              row.style.setProperty('filter', 'none', 'important');
+            });
+            void box.offsetWidth;
             var r = box.getBoundingClientRect();
             return !!(r.width > 0 && r.height > 0 && box.querySelectorAll('.rw-row').length >= 5
                       && /Perfect Diamond for Black Cleft/.test(box.innerText || '')); })()""",
@@ -1419,8 +1436,18 @@ TARGETS = {
             var r = box.getBoundingClientRect(), card = document.getElementById('material-stash-card');
             if (!(r.width > 0 && r.height > 0)) return 'the craft box measures 0x0 - the Materials card is '
                 + (card && card.classList.contains('collapsed') ? 'still collapsed' : 'open, so something else hides it');
+            var rows = box.querySelectorAll('.rw-row');
             var rw = box.querySelector('.rw-row[data-recipe^="Renewed"]');
-            return 'the Renewed row did not print its per-charm need (' + (rw ? rw.innerText : 'no Renewed row') + ')'; })()""",
+            if (rows.length < 5) return 'the craft box painted ' + rows.length + ' recipe rows';
+            if (!rw) return 'no Renewed row was painted';
+            var shown = rw.innerText || '', raw = rw.textContent || '';
+            if (!/Perfect Diamond for Black Cleft/.test(shown)) {
+              if (/Perfect Diamond for Black Cleft/.test(raw))
+                return 'the Renewed row has the need in the DOM but innerText is empty (opacity '
+                  + getComputedStyle(rw).opacity + ', animation ' + getComputedStyle(rw).animationName + ')';
+              return 'the Renewed row did not print its per-charm need (' + (shown || raw || 'empty') + ')';
+            }
+            return 'the Renewed row printed the need and another activation check still failed'; })()""",
         "sel": "#material-craftable .rw-row",
         "widths": ((1440, 1000), (901, 900), (375, 800)),
     },
