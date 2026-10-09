@@ -2019,6 +2019,39 @@ TARGETS = {
         "settles": False,
         "warmup": 4.0,
     },
+    "theatre-head": {
+        "serve": True,
+        "why": "REG-2134 (#290, GrokBot ticks 419 / 420 / 429 / 431) - the Theatre header on a REAL seeded reel: title, clock, "
+               "the four buttons, and the caption's TEXT never above the header's bottom edge. The header used to wrap into a "
+               "jumble and the bottom-anchored caption (up to 44vh) painted straight over it - text under text, which the generic "
+               "cover probe cannot see (the header sits above the caption), so this target measures the caption's text box itself",
+        "widths": ((1440, 1000), (1120, 900), (901, 900)),
+        "seed": """(function(){ return 1; })()""",
+        "activate": """(function(){
+            if (typeof thOpen !== 'function') return false;
+            if (!window.__rcTheatre) { window.__rcTheatre = 1; thOpen(); }
+            if (!(window.TH && TH.open && TH.beats && TH.beats.length)) return false;
+            var tl = document.querySelector('#theatre .th-topline'), cap = document.getElementById('th-caption');
+            if (!tl || !cap || !cap.textContent.trim()) return false;
+            var rg = document.createRange(); rg.selectNodeContents(cap);
+            var txt = rg.getBoundingClientRect();
+            return !!(txt.height > 0 && txt.top >= tl.getBoundingClientRect().bottom - 1); })()""",
+        "activateWhy": """(function(){
+            if (!(window.TH && TH.open)) return 'the theatre never opened';
+            if (!(TH.beats && TH.beats.length)) return 'the theatre opened with no reel loaded';
+            var tl = document.querySelector('#theatre .th-topline'), cap = document.getElementById('th-caption');
+            var rg = document.createRange(); rg.selectNodeContents(cap); var t = rg.getBoundingClientRect();
+            return 'the caption TEXT starts at y=' + Math.round(t.top) + ' but the header ends at y='
+                 + Math.round(tl.getBoundingClientRect().bottom) + ' - the caption paints over the header (#290)'; })()""",
+        "activate_budget": 30.0,
+        "sel": "#th-close, #th-legend-btn, #th-reclose, #th-open-reel, #theatre .th-topline .th-tag",
+        "truncation_ok": {
+            "th-tag": "the title 'THE THEATRE · EYES ON HISTORY' shares row 1 with the clock and the buttons and ends in an "
+                      "ellipsis when the window is narrow (REG-2134) - its words are fixed, nothing is lost",
+        },
+        "settles": False,
+        "warmup": 3.0,
+    },
     "advanced": {
         "serve": True,
         "why": "the ⚙ ADVANCED drawer — the EYES switch, the shadow reader and THE FLEET. It sits "

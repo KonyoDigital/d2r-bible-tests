@@ -1666,6 +1666,18 @@
     font-weight: var(--fw-bold); text-transform: uppercase; text-shadow: 0 0 14px rgba(240,192,96,.4); }
   .th-sess { margin-left: auto; font-size: var(--fs-sm); color: #9db0a4;
     letter-spacing: var(--ls-wide); font-variant-numeric: tabular-nums; }
+  /* REG-2134 (#290, GrokBot ticks 419 / 420 / 429 / 431) - THE HEADER WRAPPED INTO A JUMBLE AND THE CAPTION CLIMBED OVER IT.
+     Measured on his console at 1470: the title wrapped to a 99x108 column ("THE / THEATRE / · EYES / ON / HISTORY"), the
+     clock to 3 lines, the ~200-character session line to a 400x128 block beside the buttons, and the bottom-anchored caption
+     (up to 44vh) painted straight over that block and the button row. Now: one row of title + clock + buttons (title and
+     clock share what is left, the clock twice as much, each ends in an ellipsis), the session line alone on a second row
+     (one line, its whole text on hover), and the caption may never grow past the header's real height (--th-top-h). */
+  .th-topline { flex-wrap: wrap; row-gap: 4px; }
+  .th-topline .th-tag { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 1 1 0; }
+  .th-topline .th-clock { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; flex: 2 1 0; }
+  .th-topline > button { flex: none; white-space: nowrap; }
+  .th-topline .th-sess { order: 10; flex: 1 0 100%; margin-left: 0; min-width: 0;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .th-x { appearance: none; border: 1px solid var(--edge); background: rgba(0,0,0,.5);
     color: var(--muted); width: 36px; height: 36px; border-radius: 8px; cursor: pointer;
     font-size: var(--fs-base); transition: .15s; }
@@ -1678,6 +1690,7 @@
     font-size: var(--fs-md); color: var(--text); letter-spacing: var(--ls-tight);   /* v945 — never below readable app scale */
     text-shadow: 0 2px 8px rgba(0,0,0,.9); background: linear-gradient(0deg, rgba(5,4,3,.85), transparent); }
   .th-caption b { color: var(--gold-hi); }
+  .th-caption { max-height: min(44vh, calc(100% - var(--th-top-h, 80px) - clamp(56px,8vh,74px) - 8px)); }   /* REG-2134 - never over the header */
   /* v1508 — Diablo word leads, system word trails in muted mono (task #8's rule, applied here) */
   .th-caption .th-dl { color: var(--gold-hi); }
   .th-caption .th-dl-sys { margin-left: 6px; color: var(--muted); opacity: .75;
@@ -2473,7 +2486,8 @@
     border: 1px solid rgba(240,192,96,.2); border-radius: 6px; background: rgba(0,0,0,.3); }
   #th-fs-toggle.on { border-color: var(--edge-hi); color: var(--gold-hi); box-shadow: 0 0 10px rgba(240,192,96,.25); }
   /* when the filmstrip is showing, lift the read/accuracy caption clear above it */
-  #theatre.fs-on .th-caption { bottom: calc(var(--th-strip-h) + 84px); }
+  #theatre.fs-on .th-caption { bottom: calc(var(--th-strip-h) + 84px);
+    max-height: min(44vh, calc(100% - var(--th-top-h, 80px) - var(--th-strip-h, 0px) - 92px)); }   /* REG-2134 */
   /* ══ v941.6 — mode toast: a 1.6s plain-word flash by the mode pill ══ */
   #th-toast { position: absolute; z-index: 5; padding: 6px 13px; border-radius: 8px; max-width: 62%;
     background: rgba(10,8,5,.96); border: 1px solid rgba(240,192,96,.4); color: #f0d89a;
@@ -16800,6 +16814,7 @@ window._lockMark = function(isOpen, px, label){
       + tallySeg
       + filmWarn
       + (TH.sessionId ? ' · id ' + String(TH.sessionId).slice(0,18) : '');
+    var _thSs = $('th-sess'); if (_thSs) _thSs.title = _thSs.textContent;   /* REG-2134 - one line on screen, the whole line on hover */
     thRibbon();   // v940.5 — keep the PAST-not-LIVE banner synced to the loaded reel
   }
   function thGo(i, autoplay){
@@ -17598,6 +17613,13 @@ window._lockMark = function(isOpen, px, label){
        status - the same object the poll paints from, nothing new is asked. */
     try { if (window.__lastStatus && typeof paint === 'function') paint(window.__lastStatus); } catch(e){}
   }
+  /* REG-2134 - the caption's ceiling follows the header's REAL height (it wraps to two rows), so the bottom-anchored caption
+     can never climb over the title, the clock or the buttons. */
+  (function _thTopHeight(){
+    var tl = document.querySelector('#theatre .th-topline'), th = document.getElementById('theatre');
+    if (tl && th && typeof ResizeObserver !== 'undefined')
+      new ResizeObserver(function(){ th.style.setProperty('--th-top-h', Math.ceil(tl.getBoundingClientRect().height) + 'px'); }).observe(tl);
+  })();
   function thLit(){
     var bt = $('btn-theatre');
     if (bt) bt.classList.toggle('on', TH.open);

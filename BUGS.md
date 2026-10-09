@@ -406,6 +406,23 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2134 - THE THEATRE HEADER WRAPPED INTO A JUMBLE AND THE CAPTION CLIMBED OVER IT (2026-10-09, #290)
+
+GrokBot reported it on ticks 419, 420, 429 and 431 ("the session-info block prints straight over THE THEATRE · EYES ON
+HISTORY, the T+ clock and the film / reclose / ?key / CLOSE buttons"). Measured read-only on his console (a headless page,
+thOpen on the last session, no clicks): at 1470 the title wrapped to a 99x108 column, the clock to 3 lines, the ~200-character
+session line to a 400x128 block beside the buttons, and the bottom-anchored caption (up to 44vh) painted its text straight over
+that block and the button row - text under text, since the header sits above the caption. Now: one row of title + clock +
+buttons (title and clock share what is left, the clock twice as much, each ends in an ellipsis), the session line alone on a
+second row (one line, its whole text in its title), and the caption may never grow past the header's real height (a
+ResizeObserver writes --th-top-h; both caption rules cap max-height by it). Measured on his console with the change injected:
+header 87-100px (was 160-196), every button on row 1 and on screen at 1470 / 1120 / 901, the caption text below the header.
+Gate: a new render target theatre-head opens a REAL seeded reel and refuses unless the caption's TEXT starts below the header
+(a Range box, not the padded element), and checks the four buttons painted / unclipped / uncovered / on screen. Green on the
+fix at 1440 / 1120 / 901; RED on the old layout - at 901 "?key" and "CLOSE" were clipped by the theatre and covered (the old
+theatre could not be closed by its own CLOSE at 901). Honest limit: the sandbox's seeded session line is shorter than his
+real ones, so the caption-over-header refusal itself did not fire on the old layout at 1440 / 1120 - the button checks did.
+
 ### REG-2133 - A SET ITEM'S CODEX CARD PAINTED TWICE ON THE CALC PANEL (2026-10-09, #231 eye on v43 a19814d9)
 
 renderDetail's calc panel is renderAidCard(.., {context:'calc'}) followed by renderCodexCard(item.n); renderAidCard ALSO embedded
