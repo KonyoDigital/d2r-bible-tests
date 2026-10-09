@@ -159,8 +159,8 @@ class ASetPieceTileSaysTheNameTheGameShows(unittest.TestCase):
 
     def test_the_hover_and_the_tip_ask_the_same_helper_and_the_alias_keeps_the_index(self):
         src = self.src
-        self.assertEqual(src.count("lab.textContent = _setPieceShown(wn)"), 2)
-        self.assertEqual(src.count("lab.textContent = _setPieceShown(nm)"), 1)
+        self.assertEqual(src.count("lab.textContent = (typeof _setPieceShown==='function') ? _setPieceShown(wn) : wn"), 2)
+        self.assertEqual(src.count("lab.textContent = (typeof _setPieceShown==='function') ? _setPieceShown(nm) : nm"), 1)
         self.assertNotIn("lab.textContent = wn;", src)
         self.assertNotIn("lab.textContent = nm;", src)
         self.assertIn("var _shownPiece = _setPieceShown(sp.base);", src)
