@@ -406,6 +406,14 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2133 - A SET ITEM'S CODEX CARD PAINTED TWICE ON THE CALC PANEL (2026-10-09, #231 eye on v43 a19814d9)
+
+renderDetail's calc panel is renderAidCard(.., {context:'calc'}) followed by renderCodexCard(item.n); renderAidCard ALSO embedded
+renderCodexCard for an item whose ITEM_CODEX lists set members, in every context - so on the calc panel a set item's codex card
+appeared twice (once inside the aid card's aid-set-comp, once after it). The embed now skips the calc context; the bosses tab
+keeps it (no codex follows there). Law: the calc panel's own pair is present once and the embed is guarded; 1 red-proof, red.
+Not rendered here (a set item on the calc panel needs a board render) - the next GrokBot brief asks for it.
+
 ### REG-2132 - THE v3633 SECOND EYE: A HERALD LAW THAT PASSED ON MARKUP, AND AN UNBOUNDED PORT REDRAW (2026-10-09)
 
 grok-cli at 33,934 chars, 4 findings, each re-measured. REFUTED at HEAD (2): "the Herald law fails on the shipped page" - it

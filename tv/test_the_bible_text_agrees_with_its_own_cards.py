@@ -478,6 +478,19 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
                     "draw ire", "draw its ire"):
             self.assertNotIn(old, text, "the Herald card teaches the pre-3.2 spawn again: %r" % old)
 
+    def test_the_calc_panel_paints_a_set_items_codex_once(self):
+        """REG-2133 (#231 eye on v43 a19814d9) - renderDetail's calc panel is renderAidCard(.., {context:'calc'}) followed by
+        renderCodexCard(item.n); renderAidCard ALSO embedded renderCodexCard for an item whose codex lists set members, in every
+        context - so a set item's codex card painted twice on the calc panel. The embed now skips the calc context, and the calc
+        panel keeps its own."""
+        s = _src()
+        calc = "${renderAidCard(item.n, {context:'calc'})}${renderCodexCard(item.n)}"
+        self.assertEqual(s.count(calc), 1, "premise: the calc panel paints the aid card and then its own codex card")
+        i = s.find("ITEM_CODEX[item.n].setMembers.length) ? '<div class=\"aid-set-comp\"")
+        self.assertGreater(i, 0, "the aid card's set-codex embed is gone - re-point this law")
+        line = s[s.rfind("\n", 0, i):i]
+        self.assertIn("opts.context!=='calc'", line, "the aid card embeds the codex in the calc context too - it paints twice")
+
 RED_PROOF = [
     {"why": "REG-2089 - Veil of Steel's tagline swaps its resist and defense figures again",
      "file": "bible.html",
@@ -653,6 +666,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "        <br>• <strong>Never exit.</strong> Exiting to the menu resets your whole tier climb back to Fright.",
      "replace": "        <br>• <strong>Never exit.</strong> Exiting to the menu resets your whole tier climb back to Fright. Bank an ire token first.",
+     "matches": 1},
+    {"why": "REG-2133 - the aid card embeds a set item's codex in the calc context again, where the panel already paints it",
+     "file": "bible.html",
+     "find": "        : ((opts.context!=='calc' && typeof ITEM_CODEX!=='undefined' && ITEM_CODEX[item.n]",
+     "replace": "        : ((typeof ITEM_CODEX!=='undefined' && ITEM_CODEX[item.n]",
      "matches": 1},
 ]
 

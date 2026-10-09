@@ -26305,7 +26305,7 @@ function renderAidCard(name, opts){
 
     ${(typeof isSetAggregate==='function' && isSetAggregate(item.n))
         ? '<div class="aid-set-comp" style="margin:14px 0 2px">'+setDetailHtml(item.n, {embed:true})+'</div>'
-        : ((typeof ITEM_CODEX!=='undefined' && ITEM_CODEX[item.n] && ITEM_CODEX[item.n].setMembers && ITEM_CODEX[item.n].setMembers.length) ? '<div class="aid-set-comp" style="margin:14px 0 2px">'+renderCodexCard(item.n)+'</div>' : '')}
+        : ((opts.context!=='calc' && typeof ITEM_CODEX!=='undefined' && ITEM_CODEX[item.n] && ITEM_CODEX[item.n].setMembers && ITEM_CODEX[item.n].setMembers.length) ? '<div class="aid-set-comp" style="margin:14px 0 2px">'+renderCodexCard(item.n)+'</div>' : '')}
     <div class="aid-tabbar">
       <div class="aid-tabbar-label">↔ pick your source · ${chipSrc.length} option${chipSrc.length===1?'':'s'} · click any to refocus the panel below</div>
       <div class="aid-tabbar-chips">
