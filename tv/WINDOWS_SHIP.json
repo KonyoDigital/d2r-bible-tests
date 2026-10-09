@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3641",
+  "ver": "v3642",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3641: REG-2145 and REG-2146 - set tiles show the name the game shows, and a sunder rate names any terror-zone monster",
+  "note": "v3642: REG-2147 - the item-card hover does not throw when the set helper is outside its scope",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
