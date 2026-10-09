@@ -64,19 +64,26 @@ test.describe('v51 super-uniques section + TZ cross-reference', () => {
       // every entry whose tzMatch token appears in a zone unique-string must resolve
       const unmatchedButShould = data.filter((s) => {
         const m = suTz(s);
-        const inAnyZone = (TZ_ZONES as any[]).some((z) => (z.unique || '').toLowerCase().includes((s.tzMatch || s.name).toLowerCase()));
+        // REG-2124 - a roster NAMES its super-uniques before ' (' / ' - '; the note after it does not ("the Hellforge smith"
+        // is Hephasto's note, not The Smith). The premise reads names, exactly as the page's own resolver now does.
+        const needle = (s.tzMatch || s.name).toLowerCase();
+        const inAnyZone = (TZ_ZONES as any[]).some((z) => String(z.unique || '').split(' \u00b7 ')
+          .some((e: string) => new RegExp('(^|[^a-z])' + needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '($|[^a-z])')
+            .test(e.split(/ \(| - /)[0].toLowerCase())));
         return inAnyZone && !m;
       }).map((s) => s.name);
       return {
         eldZone: matchZone(eld),
         enduguZone: matchZone(endugu),
         pindleZone: matchZone(pindle),       // Pindle is run on-demand, not in TZ_ZONES list
+        smithZone: matchZone(data.find((s) => s.name === 'The Smith')),   // REG-2124 - the Barracks has no terror-zone card
         unmatchedButShould,
       };
     });
     expect(r.eldZone).toMatch(/Frigid Highlands/);   // de-bundled: Eldritch lives in Bloody Foothills + Frigid Highlands, NOT Crystalline Passage
     expect(r.enduguZone).toMatch(/Flayer Dungeon/);
     expect(r.pindleZone).toBeNull();
+    expect(r.smithZone).toBeNull();   // REG-2124 - never River of Flame through "the Hellforge smith"
     expect(r.unmatchedButShould).toEqual([]);
   });
 

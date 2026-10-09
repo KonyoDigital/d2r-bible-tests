@@ -393,6 +393,37 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         self.assertNotIn("adjacent Plains of Despair", s, "a card calls the Plains of Despair adjacent to the River again")
         self.assertIn("City of the Damned", s[i:i + 200], "the Izual line no longer says what lies between")
 
+    def test_every_super_unique_resolves_to_its_own_area(self):
+        """REG-2124 (#231 eye on v43 8003b914) - suTzZone matched a substring of a zone's whole roster string, so The Smith
+        (Act 1 Barracks) resolved to River of Flame through "the Hellforge smith" in Hephasto's note. Drives the SHIPPED
+        suTzZone in node over the page's own TZ_ZONES and SUPER_UNIQUES: every super-unique that resolves must land on a zone
+        whose name carries the last word of its own area ('Act 1 · Barracks' -> Barracks)."""
+        import json as _json
+        import subprocess as _sp
+        from cb_node_harness import NODE
+        if NODE is None:
+            raise AssertionError("node is not on this machine - this gate does not skip")
+        s = _src()
+        def block(start, end):
+            i = s.find(start)
+            self.assertGreater(i, 0, "%r is gone - re-point this law" % start)
+            return s[i:s.index(end, i) + len(end)]
+        js = "%s\n%s\n%s\nconsole.log(JSON.stringify(SUPER_UNIQUES.map(function(su){ var m = suTzZone(su); "\
+             "return [su.name, su.act, m ? m.z.name : null]; })));" % (
+                 block("const TZ_ZONES = [", "\n];"), block("const SUPER_UNIQUES = [", "\n];"),
+                 block("function suTzZone(su){", "\n}\n"))
+        r = _sp.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr[-500:])
+        rows = _json.loads(r.stdout.strip().splitlines()[-1])
+        resolved = [(n, a, z) for n, a, z in rows if z]
+        self.assertGreaterEqual(len(resolved), 10, "PRINT THE DENOMINATOR: only %d super-uniques resolved" % len(resolved))
+        bad = []
+        for n, act, z in resolved:
+            area = re.sub(r"\s*L\d+$", "", act.split("\u00b7")[-1].strip())
+            if area.split()[-1].lower() not in z.lower():
+                bad.append("%s (%s) -> %s" % (n, area, z))
+        self.assertEqual(bad, [], "a super-unique resolves to a terror zone that is not its own area: %r" % bad)
+
 RED_PROOF = [
     {"why": "REG-2089 - Veil of Steel's tagline swaps its resist and defense figures again",
      "file": "bible.html",
@@ -533,6 +564,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "he guards the Plains of Despair, two zones back: Plains, City of the Damned, then the River.)",
      "replace": "he guards the adjacent Plains of Despair.)",
+     "matches": 1},
+    {"why": "REG-2124 - suTzZone matches a substring of the whole roster again, so The Smith lands on River of Flame",
+     "file": "bible.html",
+     "find": "    if (names.some(function(n){ return word.test(n); })) return {z: TZ_ZONES[i], zi: i};\n",
+     "replace": "    if (String(TZ_ZONES[i].unique || '').toLowerCase().includes(needle)) return {z: TZ_ZONES[i], zi: i};\n",
      "matches": 1},
 ]
 

@@ -406,6 +406,17 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2124 - THE SMITH LANDED ON RIVER OF FLAME THROUGH "THE HELLFORGE SMITH" (2026-10-09, #231 eye on v43 8003b914)
+
+suTzZone matched a substring of a zone's whole roster string, first hit wins. The Smith (Act 1 · Barracks, needle "smith")
+matched River of Flame's "Hephasto the Armorer (the Hellforge smith)" - the River card's roster listed the Barracks Smith and
+its click opened him. A roster is "Name (note) · Name - note": the needle now has to be a whole word of an entry's NAME part.
+Measured over all 17 super-uniques before changing it: only The Smith moves (River of Flame -> no zone; the Barracks has no
+terror-zone card). Law: drives the shipped suTzZone in node over the page's own TZ_ZONES and SUPER_UNIQUES and requires every
+resolved zone to carry the last word of the super-unique's own area - an independent truth, not a copy of the rule (red on the
+old rule: "The Smith (Barracks) -> River of Flame"). The v51 spec's premise used the same raw substring test and would have
+called the fix a regression; it now reads roster names too, and pins The Smith to no zone.
+
 ### REG-2121 - IZUAL'S PLAINS OF DESPAIR WERE CALLED ADJACENT TO THE RIVER OF FLAME (2026-10-09, #231 eye on v43 0136a656)
 
 The River of Flame terror-zone card said Izual "guards the adjacent Plains of Despair". Act 4 runs Outer Steppes, Plains of

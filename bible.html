@@ -14682,8 +14682,15 @@ function toggleZoneDetail(zi){
 function suTzZone(su){
   if (typeof TZ_ZONES === 'undefined' || !su) return null;
   const needle = (su.tzMatch || su.name).toLowerCase();
+  /* REG-2124 (#231 eye on v43 8003b914) - A ZONE'S ROSTER NAMES ITS SUPER-UNIQUES; ITS NOTES DO NOT. This was a substring
+     test over the whole roster string, so The Smith (Act 1 Barracks, needle "smith") matched River of Flame's
+     "Hephasto the Armorer (the Hellforge smith)" first - the River card listed the Barracks Smith and its click opened him.
+     A roster is "Name (note) · Name - note"; the needle must be a whole word of an entry's NAME part. Measured over all 17
+     super-uniques: only The Smith moves (River of Flame -> no zone; the Barracks has no terror-zone card). */
+  const word = new RegExp('(^|[^a-z])' + needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '($|[^a-z])');
   for (let i = 0; i < TZ_ZONES.length; i++){
-    if ((TZ_ZONES[i].unique || '').toLowerCase().includes(needle)) return {z: TZ_ZONES[i], zi: i};
+    const names = String(TZ_ZONES[i].unique || '').split(' \u00b7 ').map(function(e){ return e.split(/ \(| - /)[0].toLowerCase(); });
+    if (names.some(function(n){ return word.test(n); })) return {z: TZ_ZONES[i], zi: i};
   }
   return null;
 }
