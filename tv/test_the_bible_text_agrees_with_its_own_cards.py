@@ -391,7 +391,7 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         i = s.find("Izual is NOT here")
         self.assertGreater(i, 0, "the River of Flame card's Izual line is gone - re-point this law")
         self.assertNotIn("adjacent Plains of Despair", s, "a card calls the Plains of Despair adjacent to the River again")
-        self.assertIn("City of the Damned", s[i:i + 200], "the Izual line no longer says what lies between")
+        self.assertIn("City of the Damned", s[i:s.index(".)", i)], "the Izual line no longer says what lies between")
 
     def test_every_super_unique_resolves_to_its_own_area(self):
         """REG-2124 (#231 eye on v43 8003b914) - suTzZone matched a substring of a zone's whole roster string, so The Smith
