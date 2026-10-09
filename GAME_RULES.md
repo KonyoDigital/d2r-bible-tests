@@ -77,7 +77,7 @@ Worldstone-Shard method: pop a shard to terrorize a whole act for continuous fre
   the 4 lower rungs use lean tier cards.
 
 ### The 6 Latent Sunder Charms (grand charms — each breaks ONE immunity to ~95%)
-Drop from Hell-TZ Heralds. Only ONE Sunder active at a time. Hell only.
+Drop from any Terror-Zone monster, Heralds most often. Every Sunder can be worn at once; a second copy of the same charm only stacks its penalty. Hell only.
 | Charm | Breaks | Best for (Konyo's build) | Renewed upgrade |
 |---|---|---|---|
 | Bone Break | physical | Konyolock (phys Assassin) | + Perf Amethyst + Pul + Northern shard |

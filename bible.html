@@ -5839,12 +5839,12 @@ try {
       </section>
       <section class="gic-section">
         <div class="gic-section-title">⚔ Rules of thumb</div>
-        <div class="gbc-why">Only <strong>ONE Sunder active at a time</strong>. The ~95% floor still leaves resist on the monster, so it cuts most of your damage — stack <strong>−enemy-resist</strong>, <strong>Conviction / Lower Resist</strong>, <strong>Amplify Damage</strong> and <strong>Crushing Blow</strong> to push below it. Match the Sunder to your build damage type (table above), farm Heralds for the Latent and the shard region above for the upgrade (the region map is where each SHARD drops, not which charm a Herald rolls), upgrade to Renewed once shards are spare.</div>
+        <div class="gbc-why">Every Sunder can be worn at once. A second copy of the same charm only stacks its penalty. The ~95% floor still leaves resist on the monster, so it cuts most of your damage — stack <strong>−enemy-resist</strong>, <strong>Conviction / Lower Resist</strong>, <strong>Amplify Damage</strong> and <strong>Crushing Blow</strong> to push below it. Match the Sunder to your build damage type (table above), farm Heralds for the Latent and the shard region above for the upgrade (the region map is where each SHARD drops, not which charm a Herald rolls), upgrade to Renewed once shards are spare.</div>
       </section>
       <section class="gic-section">
         <div class="gic-section-title">🧪 Recipe / use</div>
         <div class="zd-row"><span class="zd-k">recipe</span><span class="zd-v"><strong>Latent Sunder + Perfect Gem + Rune + matching Worldstone Shard → Renewed Sunder</strong> (per-charm combos in the table above) · or cube <strong>3 Worldstone Shards → random Latent</strong></span></div>
-        <div class="zd-row"><span class="zd-k">⚠ important</span><span class="zd-v">Only <strong>ONE Sunder active at a time</strong> · tiers reset to Fright if you exit to the main menu — stay in one game session to keep climbing.</span></div>
+        <div class="zd-row"><span class="zd-k">⚠ important</span><span class="zd-v">Every Sunder can be worn at once; a second copy of the same charm only stacks its penalty · tiers reset to Fright if you exit to the main menu — stay in one game session to keep climbing.</span></div>
       </section>
       <div class="zd-note">⚠ Spawn figures (~2% ire / ~1% hunt) and tier behavior are the canonical community estimates (TheBugWarrior / DiabloBytes / Maxroll), not fabricated odds.</div>
     </div>
@@ -12242,7 +12242,7 @@ function sunderCharmsDetailHtml(embedded){
         <h2 class="gic-name">Sunder Charms <span class="gic-grail-badge" style="background:linear-gradient(135deg,#6a4,#363);color:#dfffe0">Sunder Charms</span></h2>
         <div class="gic-subtitle">Immunity-breaking grand charms — Latent versions drop from any Terror-Zone monster, Heralds most often; each breaks one immunity to ~95% resist. Upgrade to Renewed via a cube recipe for extra random stats.</div>
         <div class="gic-meta-row">
-          <span class="gic-meta-chip">Latent · drops from Hell-TZ Heralds of Terror</span>
+          <span class="gic-meta-chip">Latent · drops from any Terror-Zone monster, Heralds most often</span>
           <span class="gic-meta-chip" style="color:#ffd479;border-color:rgba(255,212,121,.4)">feeds → equipped — one immunity broken to ~95%</span>
         </div>
       </div>
@@ -12250,13 +12250,13 @@ function sunderCharmsDetailHtml(embedded){
     </header>
     <section class="gic-section">
       <div class="gic-section-title">⚔️ What it does</div>
-      <div style="font-size:13.5px;line-height:1.6">Six element-piercing grand charms — one per damage type. Only <strong>ONE Sunder can be active at a time</strong>; match it to your build's damage type. The ~95% floor still leaves resist on the monster, so stack −enemy-resist, Conviction / Lower Resist, Amplify Damage and Crushing Blow to push below it.</div>
+      <div style="font-size:13.5px;line-height:1.6">Six element-piercing grand charms — one per damage type. Every Sunder can be worn at once; a second copy of the same charm only stacks its penalty. The ~95% floor still leaves resist on the monster, so stack −enemy-resist, Conviction / Lower Resist, Amplify Damage and Crushing Blow to push below it.</div>
     </section>
     <section class="gic-section">
       <div class="gic-section-title">📍 Where it drops</div>
       <div class="zd-stats" style="margin-bottom:8px">
         <div class="zd-stat"><span class="zd-sk">category</span><span class="zd-sv">Sunder Charms</span></div>
-        <div class="zd-stat"><span class="zd-sk">drop</span><span class="zd-sv">Latent — Hell-TZ Heralds of Terror</span></div>
+        <div class="zd-stat"><span class="zd-sk">drop</span><span class="zd-sv">Latent — any Terror-Zone monster, Heralds most often</span></div>
         <div class="zd-stat"><span class="zd-sk">also</span><span class="zd-sv">cube 3 Worldstone Shards → random Latent</span></div>
         <div class="zd-stat"><span class="zd-sk">MF affects?</span><span class="zd-sv">no — Herald drop (post-3.2, any MF)</span></div>
       </div>
@@ -32668,7 +32668,7 @@ const MW_SECTIONS = [
     note:"Guaranteed Hellforge rune; CS runs for uniques + runes.",
     wants:[ {n:"Lo Rune",drop:"Lo"}, {n:"Annihilus (DClone)",drop:"Annihilus"} ] },
   { icon:"❄️", label:"Act 5",        target:"Pindleskin + Baal · WSK",               boss:"baal",
-    note:"Pindle = fastest unique speed-farm; Baal = drops + XP. Hell-TZ Heralds = your Sunder source.",
+    note:"Pindle = fastest unique speed-farm; Baal = drops + XP. Any Terror-Zone monster drops a Sunder, Heralds most often.",
     wants:[ {n:"Griffon's Eye",drop:"Griffon's Eye"}, {n:"Death's Web",drop:"Death's Web"}, {n:"Tyrael's Might",drop:"Tyrael's Might"} ] },
   { icon:"🌑", label:"Uber · Charms", target:"Uber Tristram + Diablo Clone",          tab:"ancients",
     note:"The 3 organs → Hellfire Torch; SoJ sales → Diablo Clone → Annihilus.",

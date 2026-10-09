@@ -446,14 +446,21 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         card read the SHARD region map as a charm map. A sweep, not a pin: no sentence anywhere may say either again."""
         s = _src()
         self.assertGreaterEqual(s.count("Every Sunder can be worn at once"), 7, "premise: the corrected sentence is in every Sunder row")
-        one = re.findall(r"[Oo]nly (?:ONE|one|1) Sunder[^.<\"]*", s)
+        # REG-2142 - the sweep read the raw markup, so `Only <strong>ONE Sunder` on the Herald card
+        # (the rules line and the important row) never matched. Read the text. A tag in the phrase is the phrase.
+        text = re.sub(r"<[^>]+>", " ", s)
+        one = re.findall(r"[Oo]nly\s+(?:ONE|one|1)\s+Sunder[^.<\"]*", text)
         self.assertEqual(one, [], "a Sunder text says only one can be active again: %r" % one)
-        only = re.findall(r"Latent[^.<\"]{0,40}drop[s]? only from[^.<\"]*", s)
+        only = re.findall(r"Latent[^.<\"]{0,40}drop[s]? only from[^.<\"]*", text)
         self.assertEqual(only, [], "a Sunder text says Latents drop only from one source again: %r" % only)
         # REG-2131 (#231 eye on v43 cb53cefc) - the sweep above was one spelling wide: the RotW tab's Sunder lead said "Only
         # from Hell-TZ Heralds of Terror" with no "Latent ... drop" in front of it. Any "only from ... Herald", any case.
-        heralds_only = re.findall(r"(?i)\bonly from[^.<\"]{0,40}Herald[^.<\"]*", s)
+        heralds_only = re.findall(r"(?i)\bonly from[^.<\"]{0,40}Herald[^.<\"]*", text)
         self.assertEqual(heralds_only, [], "a text says Sunders come only from Heralds again: %r" % heralds_only)
+        # REG-2142 - the card's chip and drop stat named "Hell-TZ Heralds" as the source with no "only"
+        # in front, so the spelling above passed while the card still said it.
+        herald_src = re.findall(r"Hell-TZ Herald[^.<\"\n]*", text)
+        self.assertEqual(herald_src, [], "a text names Hell-TZ Heralds as the Sunder source again: %r" % herald_src)
         self.assertNotIn("farm that region's Heralds", s, "the Herald card reads the shard map as a charm map again")
 
     def test_the_herald_card_tells_the_3_2_spawn_rules(self):
@@ -728,6 +735,16 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "label:\"Act 2\",        target:\"Duriel · Tal Rasha's Chamber\",",
      "replace": "label:\"Act 2\",        target:\"Ancient Tunnels · Lost City\",",
+     "matches": 1},
+    {"why": "REG-2142 - the Sunder card's chip names Hell-TZ Heralds as the source again",
+     "file": "bible.html",
+     "find": "Latent · drops from any Terror-Zone monster, Heralds most often",
+     "replace": "Latent · drops from Hell-TZ Heralds of Terror",
+     "matches": 1},
+    {"why": "REG-2142 - the Herald rules line hides 'only one' inside a tag again, and the sweep reads the markup",
+     "file": "bible.html",
+     "find": "Every Sunder can be worn at once. A second copy of the same charm only stacks its penalty. The ~95% floor",
+     "replace": "Only <strong>ONE Sunder active at a time</strong>. The ~95% floor",
      "matches": 1},
     {"why": "REG-2126 - a Sunder row says only one can be active again (Maxroll: all at once, a copy stacks the penalty)",
      "file": "bible.html",

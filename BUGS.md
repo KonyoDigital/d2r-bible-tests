@@ -406,6 +406,19 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2142 - THE HERALD CARD STILL SAID ONE SUNDER AT A TIME, AND THE SWEEP READ THE TAGS (2026-10-09, #320)
+
+REG-2126 rewrote the seven Sunder rows. Three more sentences still said one Sunder at a time, each with
+`<strong>` between Only and ONE, so a raw-markup sweep never saw them: the Herald rules line, the
+Herald important row, and the Sunder card's what-it-does line. The same card's chip, its drop stat and
+the Pindle note still named Hell-TZ Heralds as the source, with no "only" in front, so the "only from"
+sweep passed. Maxroll, the source the card cites: every Sunder can be worn at once, a second copy of
+the same charm only stacks its penalty, and Latents drop from any Terror-Zone monster, Heralds most
+often. Those six lines now say that. The sweep reads the text and allows any whitespace where a tag
+was, and it refuses "Hell-TZ Herald" as a source. GAME_RULES.md carried the same sentence and now
+says the same thing. The 3-shard cube recipe stays, unsourced. Law: the existing sunder sweep, plus
+two red-proofs. Not rendered here.
+
 ### REG-2141 - THE HEART PRINTED THE RAW WILSON BESIDE A VERDICT DECIDED PER ATTACK (2026-10-09, #193, GrokBot ticks 416-419)
 
 A lock's state has been decided per distinct attack since 2026-09-04. The console trim still sent `score` as the raw per-attempt Wilson, and the valve diagram, the lock list, and the route list printed that figure with the raw k/n. On the live ledger, prune.reports read "Wilson 0.879" beside "wilson 0.610 >= 0.510", and miniauto.run's diagram said "0.935 >= 0.510" while 0.439 decided. The engine now publishes `attacksPassed` beside `wilsonByAttack`. The trim forwards `deciding`, `wilsonByAttack`, `attacks`, and `attacksPassed` for both locks and routes. One helper, `_hrtLockFigure`, is what all three renderers ask, and it prints the pair that decided. Law: `tv/test_the_heart_prints_the_figure_that_decided.py`. The published pair reproduces the per-attack figure through the module's own `wilson_lower`; the shipped helper, driven in node over the real trim, does the same; a row with the measured miniauto numbers (raw 0.9347, 3 of 3 attacks, 0.4385) prints 3/3 and 0.4385. The tab-strip lock chip was a fourth reader and still printed `l.score`; it now asks the same helper, and n on that chip stays the attempt count so an untested door still says untested. 5 red-proofs.
