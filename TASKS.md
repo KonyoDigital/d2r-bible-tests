@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3633** | `(this commit)` | v3633 — REG-2126..2128 - Sunder facts from their own cited source, the Herald card tells the 3.2 spawn rules, the matrix ports drawn until they differ |
+| **v3634** | `(this commit)` | v3634 — REG-2131..2133 - the RotW Sunder lead, the Herald law reads text and the port redraw is bounded, a set item codex once on calc |
+| **v3633** | `5513605c` | v3633 — REG-2126..2128 - Sunder facts from their own cited source, the Herald card tells the 3.2 spawn rules, the matrix ports drawn until they differ |
 | **v3632** | `a3034068` | v3632 — REG-2120..2125 - Colossal jewels two per Ancient and Black Cleft three shards (sourced), Izual not next to the River, a zone roster names its super-uniques, the v3631 eye on its own fixes |
 | **v3631** | `9f7642d4` | v3631 — REG-2110..2119 - slow-board pane says opening, Most Wanted agrees with its bosses, one scroll owns the bosses return, the SIM check waits, the last blind red-proof is live again, the update label, one tooltip on console item cards, key rates in five places, a closed reel leaves the stage, the rune law counts what it read |
 | **v3630** | `fcd834c8` | v3630 — REG-2108..2109 - the rune cards cube recipes come from the page own cube section and Lo to Jah carry their real levels; a blind shelf law that held every river lock shut can go red again |

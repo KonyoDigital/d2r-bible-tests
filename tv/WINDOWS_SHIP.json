@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3633",
+  "ver": "v3634",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3633: REG-2126..2128 - Sunder facts from their own cited source, the Herald card tells the 3.2 spawn rules, the matrix ports drawn until they differ",
+  "note": "v3634: REG-2131..2133 - the RotW Sunder lead, the Herald law reads text and the port redraw is bounded, a set item codex once on calc",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
