@@ -406,6 +406,26 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2136 - THE WORLDSTONE SHARDS WORE THE SUNDER CHARMS' ICON (2026-10-09, #231 eye on v43 e270c63e)
+
+SPECIAL_DROPS.sunder and SPECIAL_DROPS.worldstoneShard both carried 💠, and the material category heads and the stash rows
+(MATERIALS copies grp.icon) painted two different categories with one glyph. The shards now wear 🔷, used nowhere else in the
+page. Gate: test_no_two_material_categories_share_an_icon sweeps EVERY category's icon (and prints the denominator - it refuses
+below 10 categories read), not a pin on the one pair; red-proof restores 💠 on the shards and the law goes red.
+
+### REG-2135 - A REEL WITH NO FILM LEFT THE LAST REEL ON THE STAGE (2026-10-09, GrokBot tick 434 ACT)
+
+GrokBot: "header flips 48 / 28, body stays 48, timer frozen". The dossier's Open in Theatre first opens the theatre, which
+loads its entry reel (Session 48), then asks for the chosen one (Session 28). Session 28 has no film, and that branch of
+thLoadSession emptied the beats and returned - leaving 48's frame and 48's session line on the stage under a caption about 28,
+with the ribbon catching up to 28 only at a later repaint. Now the branch also drops the previous frame (src removed, the
+pending want/url cleared), rewrites the session line for THIS session ("session 28 of all N · no film yet"), and repaints the
+ribbon at once. Gate: AFilmlessReelLeavesNothingOfTheLastOne drives the SHIPPED thLoadSession in node over a stage still
+showing 48 and asserts no frame, a line naming 28 and not 48, and the ribbon on 28; red-proof deletes the frame-clearing line
+and the law goes red. The five other laws that cut thLoadSession all still pass (the new ribbon call is typeof-guarded), and
+test_the_shelf_opens_on_the_list's REG-1757 tamper, whose anchor spanned this branch, was re-pointed onto its head and re-proven.
+Not yet seen on his screen - GrokBot's re-look on the same dossier path is owed.
+
 ### REG-2134 - THE THEATRE HEADER WRAPPED INTO A JUMBLE AND THE CAPTION CLIMBED OVER IT (2026-10-09, #290)
 
 GrokBot reported it on ticks 419, 420, 429 and 431 ("the session-info block prints straight over THE THEATRE · EYES ON

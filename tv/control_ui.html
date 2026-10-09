@@ -17300,6 +17300,15 @@ window._lockMark = function(isOpen, px, label){
     if (!framed){
       $('th-caption').textContent = '🎞 session ' + n + ' has no film yet — nothing else was opened';
       TH.sn = n; TH.beats = []; TH.allBeats = []; TH.sessionId = j.sessionId || '';
+      /* REG-2135 (GrokBot tick 434 ACT) - AND THE STAGE SAYS SO. The dossier's "Open in Theatre" first opens the theatre,
+         which loads its entry reel (Session 48), then asks for this one; with no film this branch emptied the beats and
+         returned, leaving 48's frame and 48's session line on the stage under a caption about 28 - and the ribbon caught up
+         to 28 only at a later repaint ("header flips 48 / 28, body stays 48, timer frozen"). The previous reel's frame and
+         line go, the line names THIS session, and the ribbon repaints now. */
+      var _nf = $('th-film'); if (_nf && _nf.removeAttribute){ _nf.__want = ''; _nf.__url = ''; _nf.removeAttribute('src'); _nf.title = ''; }
+      var _ns = $('th-sess'); if (_ns){ _ns.textContent = 'session ' + n + (TH.sessions && TH.sessions.length ? ' of all ' + TH.sessions.length : '')
+        + ' · no film yet' + (TH.sessionId ? ' · id ' + String(TH.sessionId).slice(0,18) : ''); _ns.title = _ns.textContent; }
+      if (typeof thRibbon === 'function') thRibbon();
       try { thTimeline(); } catch(e){}
       return;
     }

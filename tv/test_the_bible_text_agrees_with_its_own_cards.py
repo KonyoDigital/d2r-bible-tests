@@ -478,6 +478,19 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
                     "draw ire", "draw its ire"):
             self.assertNotIn(old, text, "the Herald card teaches the pre-3.2 spawn again: %r" % old)
 
+    def test_no_two_material_categories_share_an_icon(self):
+        """REG-2136 (#231 eye on v43 e270c63e) - SPECIAL_DROPS.sunder and .worldstoneShard both carried 💠, and the category
+        heads and the stash rows (MATERIALS copies grp.icon) painted two different categories with one glyph. A sweep over
+        every category, not a pin on the one pair."""
+        from collections import Counter
+        s = _src()
+        i = s.find("const SPECIAL_DROPS"); j = s.find("\n};", i)
+        cats = re.findall(r'\n  ([a-zA-Z]+): \{\n    label: "([^"]+)",\n    icon: "([^"]+)"', s[i:j])
+        self.assertGreaterEqual(len(cats), 10, "PRINT THE DENOMINATOR: only %d categories read" % len(cats))
+        n = Counter(icon for _k, _l, icon in cats)
+        dup = sorted("%s %s" % (icon, label) for _k, label, icon in cats if n[icon] > 1)
+        self.assertEqual(dup, [], "two material categories share one icon: %r" % dup)
+
     def test_the_calc_panel_paints_a_set_items_codex_once(self):
         """REG-2133 (#231 eye on v43 a19814d9) - renderDetail's calc panel is renderAidCard(.., {context:'calc'}) followed by
         renderCodexCard(item.n); renderAidCard ALSO embedded renderCodexCard for an item whose codex lists set members, in every
@@ -671,6 +684,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "        : ((opts.context!=='calc' && typeof ITEM_CODEX!=='undefined' && ITEM_CODEX[item.n]",
      "replace": "        : ((typeof ITEM_CODEX!=='undefined' && ITEM_CODEX[item.n]",
+     "matches": 1},
+    {"why": "REG-2136 - the Worldstone Shards wear the Sunder Charms' icon again",
+     "file": "bible.html",
+     "find": "    icon: \"🔷\",   /* REG-2136",
+     "replace": "    icon: \"💠\",   /* REG-2136",
      "matches": 1},
 ]
 

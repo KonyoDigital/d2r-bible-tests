@@ -151,6 +151,40 @@ console.log(JSON.stringify({ beats: TH.beats, all: TH.allBeats, seen: SEEN, film
         self.assertEqual((out["film"], out["url"]), (None, ""), "the closed reel's frame is still on the stage: %r" % out)
 
 
+class AFilmlessReelLeavesNothingOfTheLastOne(unittest.TestCase):
+
+    def test_a_reel_with_no_film_clears_the_last_reels_frame_and_line(self):
+        """REG-2135 (GrokBot tick 434 ACT) - Session 28 (no film) opened over Session 48: the stage kept 48's frame and
+        session line under a caption about 28. Drives the SHIPPED thLoadSession's film-less branch in node."""
+        if NODE is None:
+            raise AssertionError("node is not on this machine - this gate does not skip")
+        s = _src()
+        js = """
+var EL = {};
+function $(id){ return EL[id] || (EL[id] = { id: id, hidden: false, textContent: '', title: '',
+  removeAttribute: function(k){ delete this[k]; } }); }
+var document = { body: { classList: { add: function(){}, remove: function(){} } } };
+var window = {};
+var setTimeout = function(){ return 0; }, clearTimeout = function(){};
+var TH = { open: true, sn: 48, beats: ['S48-a'], allBeats: ['S48-a'], sessionId: 's_48', sessions: [1, 2, 3], loadGen: 0 };
+var SEEN = { ribbon: 0 };
+function thRibbon(){ SEEN.ribbon = TH.sn; } function thTimeline(){} function thLit(){} function thShelf(){}
+$('th-film').src = 'S48-frame.jpg'; $('th-sess').textContent = 'session 48 of all 216 · id s_48';
+function fetch(){ return Promise.resolve({ json: function(){ return Promise.resolve({ sessionId: 's_28', beats: [{ ts: 1 }] }); } }); }
+%s
+(async function(){ await thLoadSession(28, false, 's_28');
+  console.log(JSON.stringify({ sn: TH.sn, film: $('th-film').src || null, sess: $('th-sess').textContent, ribbon: SEEN.ribbon })); })();
+""" % _cut(s, LOAD, keep_end=False)
+        r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=30)
+        self.assertEqual(r.returncode, 0, "thLoadSession did not run in node: %s" % r.stderr[-500:])
+        out = json.loads(r.stdout.strip().splitlines()[-1])
+        self.assertEqual(out["sn"], 28)
+        self.assertIsNone(out["film"], "the last reel's frame is still on the stage of a reel with no film: %r" % out)
+        self.assertIn("session 28", out["sess"], "the session line still names the last reel: %r" % out)
+        self.assertNotIn("48", out["sess"], "the session line still names the last reel: %r" % out)
+        self.assertEqual(out["ribbon"], 28, "the ribbon is left on the last reel until a later repaint: %r" % out)
+
+
 RED_PROOF = [
     {"why": "REG-2091 - the step back to the shelf leaves the loading reel free to land under the shelf",
      "file": "tv/control_ui.html",
@@ -175,6 +209,11 @@ RED_PROOF = [
     {"why": "REG-2118 - a full close leaves the closed reel's frame on the stage",
      "file": "tv/control_ui.html",
      "find": "    try { var _cf = $('th-film'); if (_cf){ _cf.__want = ''; _cf.__url = ''; _cf.removeAttribute('src'); _cf.title = ''; } } catch (e) {}\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "REG-2135 - a reel with no film leaves the last reel's frame and session line on the stage",
+     "file": "tv/control_ui.html",
+     "find": "      var _nf = $('th-film'); if (_nf && _nf.removeAttribute){ _nf.__want = ''; _nf.__url = ''; _nf.removeAttribute('src'); _nf.title = ''; }\n",
      "replace": "",
      "matches": 1},
 ]

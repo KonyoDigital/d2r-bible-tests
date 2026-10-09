@@ -329,13 +329,11 @@ RED_PROOF = [
      "file": "control_ui.html",
      "find": "    if (!framed){\n"
              "      $('th-caption').textContent = '🎞 session ' + n + ' has no film yet — nothing else was opened';\n"
-             "      TH.sn = n; TH.beats = []; TH.allBeats = []; TH.sessionId = j.sessionId || '';\n"
-             "      try { thTimeline(); } catch(e){}\n"
-             "      return;\n"
-             "    }\n",
+             "      TH.sn = n; TH.beats = []; TH.allBeats = []; TH.sessionId = j.sessionId || '';\n",
+     # REG-2135 grew this branch (it now clears the last reel's frame and line), so the tamper anchors on its head
+     # and puts the old hop to another session first - everything after that return is dead, as in the defect.
      "replace": "    if (!framed){\n"
-                "      return thLoadSession(alt2, isEntry);\n"
-                "    }\n",
+                "      return thLoadSession(alt2, isEntry);\n",
      "matches": 1},
     {"why": "REG-1757 - the dossier calls both counts frames",
      "file": "control_ui.html",

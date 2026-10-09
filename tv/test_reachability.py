@@ -230,6 +230,10 @@ EXTERNAL_SYMBOLS = {
     # a correct allowlisting. Read the label, never assume it.
     ("tv/control_ui.html", "AbortController"): "browser API — feature-detected, not ours to declare",
     ("bible.html", "ResizeObserver"): "browser API — feature-detected, not ours to declare",
+    # REG-2134 — the theatre's topline wraps, and its measured height feeds --th-top-h so the caption's max-height
+    # never runs under it. The observer is feature-detected for the same reason as bible.html's: an engine without
+    # it keeps the 80px fallback in the CSS.
+    ("tv/control_ui.html", "ResizeObserver"): "browser API — feature-detected, not ours to declare",
     # v2599 — `typeof window !== 'undefined'` is an ENVIRONMENT PROBE, never a claim that this
     # document declares `window`. bible.html:16545 reads
     # `typeof window !== 'undefined' && typeof window._gUniqueRoster === 'function'` — the second
