@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3648** | `(this commit)` | v3648 — REG-2153 - the pre-script cards name the same zones as the table. HEART: test_the_pre_script_terror_cards_name_the_zones_table |
+| **v3649** | `(this commit)` | v3649 — REG-2154 - a KAI beat that is not the session close no longer prints 0 frames swept |
+| **v3648** | `8944bf6d` | v3648 — REG-2153 - the pre-script cards name the same zones as the table. HEART: test_the_pre_script_terror_cards_name_the_zones_table |
 | **v3647** | `9984f935` | v3647 — REG-2152 - the mule measure waits until the equipment panel stops moving |
 | **v3646** | `4a959d77` | v3646 — REG-2151 - the fixture half watches whether his store was created or changed |
 | **v3645** | `fab05b3f` | v3645 — REG-2150 - a law does not write his vault lane memory |

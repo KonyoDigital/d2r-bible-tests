@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3648",
+  "ver": "v3649",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3648: REG-2153 - the pre-script cards name the same zones as the table. HEART: test_the_pre_script_terror_cards_name_the_zones_table",
+  "note": "v3649: REG-2154 - a KAI beat that is not the session close no longer prints 0 frames swept",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
