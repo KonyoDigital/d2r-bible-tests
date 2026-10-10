@@ -406,6 +406,16 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2153 - THE PRE-SCRIPT TERROR CARDS WERE A SECOND ROSTER (2026-10-10, #304)
+
+The cards inside `#tz-zones-container` are what the page shows until `renderTzZones`
+replaces them from `TZ_ZONES`. That table already says River of Flame, and that
+Izual is not there. The pre-script card still said River of Flame + Chaos approach,
+listed Izual on the river, and left out Bloody Foothills. The pre-script names and
+unique lines now follow the table, in the same order. The grail-count half of #304
+(whether a zone count includes Tyrael's Might) was not re-measured as a defect and
+stays open. Law: `test_the_pre_script_terror_cards_name_the_zones_table`. Not rendered here.
+
 ### REG-2150 - A LAW WROTE HIS VAULT LANE MEMORY (2026-10-10, #303)
 
 `_vault_lane_note_outcome` saves the lane store at the end of every one-reel sweep.

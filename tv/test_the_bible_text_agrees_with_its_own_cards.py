@@ -594,6 +594,27 @@ console.log(JSON.stringify({
         line = s[s.rfind("\n", 0, i):i]
         self.assertIn("opts.context!=='calc'", line, "the aid card embeds the codex in the calc context too - it paints twice")
 
+    def test_the_pre_script_terror_cards_name_the_zones_table(self):
+        """REG-2153 (#304). The cards inside #tz-zones-container are what the page shows before
+        renderTzZones replaces them. They still said River of Flame + Chaos approach, listed Izual
+        on that river, and omitted Bloody Foothills, while TZ_ZONES already named River of Flame
+        and said Izual is not there. One roster: the same names, in the same order, with the same
+        unique line. The grail-count half of #304 is not this law."""
+        s = _src()
+        box_i = s.find('id="tz-zones-container"')
+        box_j = s.find('id="superunique-container"', box_i)
+        self.assertTrue(0 < box_i < box_j, "the pre-script terror list moved - re-point this law")
+        box = s[box_i:box_j]
+        static = re.findall(r'<p class="tz-zone-name">([^<]*)</p>', box)
+        i = s.find("const TZ_ZONES = [")
+        block = s[i:s.find("\n];", i)]
+        live = re.findall(r'\{emoji:"[^"]*",name:"([^"]+)"', block)
+        self.assertGreaterEqual(len(live), 11, "PRINT THE DENOMINATOR: %d zones in the table" % len(live))
+        self.assertEqual(static, live, "the pre-script terror cards are not the zones table: %r" % static)
+        gold = re.findall(r"🎯 ([^<]+)</div>", box)
+        uniq = re.findall(r'unique:"((?:\\.|[^"\\])*)"', block)
+        self.assertEqual(gold, uniq, "a pre-script card names a different unique than its zone: %r" % list(zip(gold, uniq)))
+
 RED_PROOF = [
     {"why": "REG-2089 - Veil of Steel's tagline swaps its resist and defense figures again",
      "file": "bible.html",
@@ -734,7 +755,7 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "he guards the Plains of Despair, two zones back: Plains, City of the Damned, then the River.)",
      "replace": "he guards the adjacent Plains of Despair.)",
-     "matches": 1},
+     "matches": 2},
     {"why": "REG-2124 - suTzZone matches a substring of the whole roster again, so The Smith lands on River of Flame",
      "file": "bible.html",
      "find": "    if (names.some(function(n){ return word.test(n); })) return {z: TZ_ZONES[i], zi: i};\n",
@@ -804,6 +825,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "    if (r.needFn){ const st = r.needFn(); return { recipe: r, ready: st.ready, missing: st.missing }; }\n",
      "replace": "",
+     "matches": 1},
+    {"why": "REG-2153 - the pre-script River card is the Chaos approach again, not the zones table",
+     "file": "bible.html",
+     "find": "<p class=\"tz-zone-name\">River of Flame</p>",
+     "replace": "<p class=\"tz-zone-name\">River of Flame + Chaos approach</p>",
      "matches": 1},
 ]
 
