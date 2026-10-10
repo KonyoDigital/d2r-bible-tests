@@ -96,6 +96,72 @@ class ImportingASuiteIsolatesHisStores(unittest.TestCase):
         self.assertIn(".vault_autoread.json", run_gates._LIVE_STATE,
                       "a suite that writes the vault lane's memory would not be named by the live-state guard")
 
+    def test_a_law_does_not_write_his_vault_lane_memory(self):
+        """REG-2150. test_seal_named calls vault_sweep_start(force=True). The sweep thread
+        finishes in _vault_lane_note_outcome, which saves. That gate is not a console and
+        does not repoint the store, so the save created tv/.vault_autoread.json. The
+        v3628 shard blamed test_seal_named, which writes nothing of its own."""
+        got = _child(
+            "import os, sys, json, tempfile\n"
+            "sys.path.insert(0, '.')\n"
+            "import control_app as ca, frame_ref as fr\n"
+            "live = os.path.join(os.path.dirname(os.path.abspath(ca.__file__)), '.vault_autoread.json')\n"
+            "existed = os.path.isfile(live)\n"
+            "before = open(live, 'rb').read() if existed else None\n"
+            "root = tempfile.mkdtemp(prefix='vault-law-')\n"
+            "reel = os.path.join(root, 'reel_s_1500000000001_12001')\n"
+            "os.makedirs(reel)\n"
+            "ca._VAULT_JOB['incompleteWhy'] = 'fixture reason from a law'\n"
+            "ca._VAULT_JOB['error'] = None\n"
+            "ca._VAULT_JOB['notDefinitiveWhy'] = None\n"
+            "ca._VAULT_AUTOREAD_STORE['tried'] = False\n"
+            "ca._VAULT_AUTOREAD_STORE['readable'] = None\n"
+            "why = ca._vault_lane_note_outcome(reel, swept={})\n"
+            "created = (not existed) and os.path.isfile(live)\n"
+            "changed = bool(existed and os.path.isfile(live) and open(live, 'rb').read() != before)\n"
+            "if created:\n"
+            "    os.remove(live)\n"
+            "print(json.dumps({'console': bool(fr.on_console_path()), 'why': why,\n"
+            " 'created': created, 'changed': changed}))")
+        self.assertFalse(got["console"], "the child was a console, so this measured the wrong process")
+        self.assertTrue(got["why"], "the note gave no reason, so the save was never asked: %r" % got)
+        self.assertFalse(got["created"] or got["changed"],
+                         "a law wrote his vault lane memory: %r" % got)
+        world = _child(
+            "import os, sys, json, tempfile, shutil\n"
+            "sys.path.insert(0, '.')\n"
+            "root = tempfile.mkdtemp(prefix='vault-world-')\n"
+            "os.environ['TV_HIST'] = root\n"
+            "import control_app as ca\n"
+            "reel = os.path.join(root, 'reel_s_1500000000099_21500')\n"
+            "os.makedirs(reel)\n"
+            "ca._VAULT_JOB['incompleteWhy'] = 'fixture world'\n"
+            "ca._VAULT_JOB['error'] = None\n"
+            "ca._VAULT_JOB['notDefinitiveWhy'] = None\n"
+            "ca._VAULT_AUTOREAD_STORE['tried'] = False\n"
+            "ca._VAULT_AUTOREAD_STORE['readable'] = None\n"
+            "why = ca._vault_lane_note_outcome(reel, swept={})\n"
+            "store = os.path.join(root, '.vault_autoread.json')\n"
+            "live = os.path.join(os.path.dirname(os.path.abspath(ca.__file__)), '.vault_autoread.json')\n"
+            "print(json.dumps({'why': bool(why), 'in_world': os.path.isfile(store),\n"
+            " 'in_live': os.path.isfile(live)}))\n"
+            "shutil.rmtree(root, ignore_errors=True)")
+        self.assertTrue(world["why"] and world["in_world"] and not world["in_live"],
+                        "a fixture world no longer keeps its own lane memory: %r" % world)
+        import control_app as ca
+        import frame_ref as fr
+        was = fr.on_console_path()
+        live = os.path.join(os.path.dirname(os.path.abspath(ca.__file__)), ".vault_autoread.json")
+        try:
+            fr.mark_console_path(False)
+            self.assertFalse(ca._vault_autoread_write_allowed(live),
+                             "a non-console was allowed to write the live store")
+            fr.mark_console_path(True)
+            self.assertTrue(ca._vault_autoread_write_allowed(live),
+                            "the console was refused its own lane memory")
+        finally:
+            fr.mark_console_path(was)
+
     def test_importing_the_g5_suites_moves_the_stats_path(self):
         for mod, var in (("test_g5_grok_eyes", "_G5_SANDBOX"), ("test_console_fleet", "_G5_STATS_SANDBOX")):
             got = _child(
@@ -111,6 +177,16 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "REG-2150 - a law saves the vault lane into his tree again",
+        "file": "control_app.py",
+        "find": "        dest = _vault_autoread_path()\n"
+                "        if not _vault_autoread_write_allowed(dest):       # REG-2150\n"
+                "            _failed = True\n"
+                "            return False\n",
+        "replace": "        dest = _vault_autoread_path()\n",
+        "matches": 1,
+    },
     {
         "why": "REG-1281 - test_control isolates only inside setUpModule again: a harness that skips it writes his evidence",
         "file": "test_control.py",

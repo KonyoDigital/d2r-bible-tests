@@ -406,6 +406,19 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2150 - A LAW WROTE HIS VAULT LANE MEMORY (2026-10-10, #303)
+
+`_vault_lane_note_outcome` saves the lane store at the end of every one-reel sweep.
+`test_seal_named` calls `vault_sweep_start(force=True)`, which starts that sweep on a
+daemon thread. The gate is not a console and does not repoint the store, so the save
+created `tv/.vault_autoread.json`. The v3628 shard blamed `test_seal_named` (the file
+appeared during its 0.2s window). Run alone, the thread often dies before the save, so
+the gate looks innocent. Measured before the guard, in a fresh interpreter: the note
+created the file (247 bytes) while `on_console_path` was false.
+A console may still write the live file. A fixture world (TV_HIST outside this tree)
+still writes its own copy. A law that is neither does not.
+Law: `test_importing_a_suite_isolates_his_stores`. Not rendered here.
+
 ### REG-2149 - A FAILED LAW READ WAS HANDED BACK AS AN EMPTY FILE (2026-10-10, #261)
 
 v3643 wrapped the law-file read in `except Exception` and stored "". The swallow

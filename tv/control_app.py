@@ -30834,6 +30834,27 @@ def _vault_autoread_note_written():
         pass
 
 
+def _vault_autoread_write_allowed(dest):
+    """May this process write the vault lane store at dest? -> bool
+
+    REG-2150. The live file sits beside this module. A console may write it. A fixture
+    world (TV_HIST, or a path patched off this tree) may write its own copy. A law is
+    neither: test_seal_named starts a sweep, and the sweep finally calls
+    _vault_lane_note_outcome, which saves. That process is not a console and never
+    repoints the store, so the file appeared in the tree and the live-state watch
+    blamed whichever gate was running. Measured before this guard, in a fresh
+    interpreter: the note created the file while on_console_path was false.
+    """
+    import frame_ref as _fr_vault
+    if _fr_vault.on_console_path():
+        return True
+    rp = os.path.realpath(dest)
+    here = os.path.realpath(HERE)
+    if rp == here or rp.startswith(here + os.sep):
+        return False
+    return True
+
+
 def _vault_autoread_save():
     """Persist the durable half. tmp + os.replace, so a reader never sees a torn file.
 
@@ -30858,6 +30879,9 @@ def _vault_autoread_save():
         return False
     try:
         dest = _vault_autoread_path()
+        if not _vault_autoread_write_allowed(dest):       # REG-2150
+            _failed = True
+            return False
         tmp = dest + ".tmp"
         rec = {"reads": int(_VAULT_AUTOREAD.get("reads") or 0),
                "lastTs": int(_VAULT_AUTOREAD.get("lastTs") or 0),
