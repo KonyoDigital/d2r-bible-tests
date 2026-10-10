@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3644",
+  "ver": "v3645",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3644: REG-2149 - a law file that cannot be read is not stored as empty",
+  "note": "v3645: REG-2150 - a law does not write his vault lane memory",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

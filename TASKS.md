@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3644** | `(this commit)` | v3644 — REG-2149 - a law file that cannot be read is not stored as empty |
+| **v3645** | `(this commit)` | v3645 — REG-2150 - a law does not write his vault lane memory |
+| **v3644** | `2dfbd42c` | v3644 — REG-2149 - a law file that cannot be read is not stored as empty |
 | **v3643** | `80fad592` | v3643 — REG-2148 - a changed file names the laws that read it |
 | **v3642** | `69936086` | v3642 — REG-2147 - the item-card hover does not throw when the set helper is outside its scope |
 | **v3641** | `dcefa8ee` | v3641 — REG-2145 and REG-2146 - set tiles show the name the game shows, and a sunder rate names any terror-zone monster |
