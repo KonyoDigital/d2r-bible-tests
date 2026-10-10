@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3643** | `(this commit)` | v3643 — REG-2148 - a changed file names the laws that read it |
+| **v3644** | `(this commit)` | v3644 — REG-2149 - a law file that cannot be read is not stored as empty |
+| **v3643** | `80fad592` | v3643 — REG-2148 - a changed file names the laws that read it |
 | **v3642** | `69936086` | v3642 — REG-2147 - the item-card hover does not throw when the set helper is outside its scope |
 | **v3641** | `dcefa8ee` | v3641 — REG-2145 and REG-2146 - set tiles show the name the game shows, and a sunder rate names any terror-zone monster |
 | **v3640** | `ff34988e` | v3640 — REG-2144 - a size-debt file that will not parse is left as it was. HEART: test_a_size_key_is_the_size |
