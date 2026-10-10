@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3647",
+  "ver": "v3648",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3647: REG-2152 - the mule measure waits until the equipment panel stops moving",
+  "note": "v3648: REG-2153 - the pre-script cards name the same zones as the table. HEART: test_the_pre_script_terror_cards_name_the_zones_table",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
