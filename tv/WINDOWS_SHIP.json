@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3645",
+  "ver": "v3646",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3645: REG-2150 - a law does not write his vault lane memory",
+  "note": "v3646: REG-2151 - the fixture half watches whether his store was created or changed",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
