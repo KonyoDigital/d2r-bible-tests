@@ -406,6 +406,17 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2154 - A KAI BEAT THAT IS NOT THE CLOSE SAID 0 FRAMES SWEPT (2026-10-11, #277)
+
+`thCaption` treated every kai beat with no `texts` as the session close, and
+`scanned||0` turned a missing count into zero. A judge row, a grounded name, and a
+register row all drew "KAI CLOSED THE SESSION · 0 frames swept · 0 frames held text
+no eye read" while the dossier, reading the session summary, said the reel had misses.
+The close line now belongs to the beat that carries `scanned` or `missedFrames`.
+A missing count says UNKNOWN. A measured 0 still prints 0. The three run-length
+clocks on the same task (ran, sealed in, plays) are not this fix.
+Law: `test_a_kai_beat_that_is_not_the_close_does_not_say_zero_swept`. Not rendered here.
+
 ### REG-2153 - THE PRE-SCRIPT TERROR CARDS WERE A SECOND ROSTER (2026-10-10, #304)
 
 The cards inside `#tz-zones-container` are what the page shows until `renderTzZones`

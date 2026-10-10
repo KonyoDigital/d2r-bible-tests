@@ -9221,6 +9221,11 @@ GATES = [
          needs_app=False,
          why=("REG-2141 (#193, GrokBot ticks 416-419) - the heart printed the raw per-attempt Wilson "
               "while the badge decided per distinct attack; the panel now prints the figure that decided.")),
+    Gate("test_a_kai_beat_that_is_not_the_close_does_not_say_zero_swept", [sys.executable,
+         os.path.join(HERE, "test_a_kai_beat_that_is_not_the_close_does_not_say_zero_swept.py")], 30,
+         needs_app=False,
+         why=("REG-2154 (#277) - the theatre caption printed 0 frames swept on every kai beat that "
+              "was not the summary, because a missing scanned became 0.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

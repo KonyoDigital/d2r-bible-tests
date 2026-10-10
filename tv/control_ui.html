@@ -16531,15 +16531,35 @@ window._lockMark = function(isOpen, px, label){
     });
     return best;
   }
+  /* REG-2154 — the close line belongs to the summary beat, the one that carries scanned
+     or missedFrames. A judge, a grounded name, a register row, or a kai beat with neither
+     count used to fall through to `scanned||0`, so the theatre said "0 frames swept · 0 frames
+     held text" while the dossier, reading the session summary, said the reel had misses.
+     A missing count stays UNKNOWN. A measured 0 still prints 0. */
+  function _thKaiCaption(b){
+    var kk = (b && b.kai) || {};
+    if ((kk.texts || []).length){
+      var when = '';
+      try { when = ' <span style="opacity:.55">· ' + new Date(b.captureTs || b.ts).toLocaleTimeString() + '</span>'; }
+      catch (e) { when = ''; }
+      return '<span style="color:#f0c060">🧠 <b>KAI</b> · unread text on this frame: ' + esc((kk.texts || []).slice(0, 4).join(', ')) + when + '</span>';
+    }
+    if (kk.judge && (kk.judge.name || kk.judge.tier))
+      return '<span style="color:#f0c060">🔬 <b>KAI JUDGE</b> · ' + esc(kk.judge.name || kk.judge.tier) + '</span>';
+    if ((kk.grounded || []).length)
+      return '<span style="color:#f0c060">🏷 <b>KAI</b> · grail grounded: ' + esc((kk.grounded || []).slice(0, 3).join(', ')) + '</span>';
+    if (kk.register && typeof kk.register.count === 'number')
+      return '<span style="color:#f0c060">📖 <b>KAI REGISTER</b> · ' + kk.register.count + ' items witnessed</span>';
+    var sweptKnown = typeof kk.scanned === 'number';
+    var heldKnown = typeof kk.missedFrames === 'number';
+    if (!(sweptKnown || heldKnown)) return '<span style="color:#f0c060">KAI · this beat is not the session close</span>';
+    var swept = sweptKnown ? (kk.scanned + ' frames swept') : 'frames swept UNKNOWN';
+    var held = heldKnown ? (kk.missedFrames + ' frames held text no eye read') : 'frames held text UNKNOWN';
+    return '<span style="color:#f0c060">🧠 <b>KAI CLOSED THE SESSION</b> · ' + swept + ' · ' + held + '</span>';
+  }
   function thCaption(b){
     if (b && b.lane === 'kai'){
-      // v934 — 🧠 KAI beat: the closer's ledger, gold on the timeline
-      var kk = b.kai || {};
-      if ((kk.texts||[]).length)
-        return '<span style="color:#f0c060">🧠 <b>KAI</b> · unread text on this frame: ' + esc(kk.texts.slice(0,4).join(', '))
-          + ' <span style="opacity:.55">· ' + new Date(b.captureTs||b.ts).toLocaleTimeString() + '</span></span>';
-      return '<span style="color:#f0c060">🧠 <b>KAI CLOSED THE SESSION</b> · ' + (kk.scanned||0) + ' frames swept · '
-        + (kk.missedFrames||0) + ' frames held text no eye read</span>';
+      return _thKaiCaption(b);
     }
     if (b && b.lane === 'verify'){
       // v933 — 🔵 SECOND EYE beat: verdict-first caption, pinned to the frame it re-checked
