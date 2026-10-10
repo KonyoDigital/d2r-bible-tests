@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3646",
+  "ver": "v3647",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3646: REG-2151 - the fixture half watches whether his store was created or changed",
+  "note": "v3647: REG-2152 - the mule measure waits until the equipment panel stops moving",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
