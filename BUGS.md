@@ -406,6 +406,16 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2149 - A FAILED LAW READ WAS HANDED BACK AS AN EMPTY FILE (2026-10-10, #261)
+
+v3643 wrapped the law-file read in `except Exception` and stored "". The swallow
+ratchet counts that as a failed read handed back as data. heart2.py went 0 to 1
+and the agent suite went red on swallow_ratchet. The read is no longer caught.
+A file that cannot be opened fails the selector instead of looking unread.
+The import of run_gates still returns [] on failure, the same shape gates_for_tests
+already had, and that one is not a read. Census held at 67.
+Law: test_a_law_that_reads_a_changed_file_is_in_the_preflight. Not rendered here.
+
 ### REG-2148 - A LAW THAT READS A CHANGED FILE WAS NOT IN THE PREFLIGHT (2026-10-10, #261)
 
 The push proves a changed tv/test_*.py. A law that scans bible.html or control_app.py

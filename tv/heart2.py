@@ -2461,11 +2461,8 @@ def laws_that_read(paths):
         if not src_path or not os.path.isfile(src_path):
             continue
         if src_path not in text_of:
-            try:
-                with open(src_path, encoding="utf-8", errors="replace") as fh:
-                    text_of[src_path] = fh.read()
-            except Exception:
-                text_of[src_path] = ""
+            with open(src_path, encoding="utf-8", errors="replace") as fh:
+                text_of[src_path] = fh.read()
         text = text_of[src_path]
         if any(base in text for base in names):
             out.append(gname)
