@@ -2424,6 +2424,54 @@ def gates_for_tests(paths):
     return sorted(set(out))
 
 
+def laws_that_read(paths):
+    """#261 - gate names whose own test file mentions a changed file's basename. -> [name] sorted
+
+    gates_for_tests answers only a changed tv/test_*.py. A law that scans another file
+    (bible.html, control_app.py) is not in that set, so CI is the first time it runs.
+    A basename without a dot, or shorter than 8 characters, is not a file name this
+    question can ask: it would match inside unrelated words.
+    The match is a substring of the law's source, which is what a grep of that law sees.
+    """
+    try:
+        import run_gates as _rg
+    except Exception:
+        return []
+    names = []
+    for p in (paths or []):
+        base = os.path.basename(str(p))
+        if "." not in base or len(base) < 8 or not re.match(r"^[A-Za-z0-9_.-]+$", base):
+            continue
+        names.append(base)
+    if not names:
+        return []
+    safe = re.compile(r"^[A-Za-z0-9_.-]+$")
+    text_of = {}
+    out = []
+    for g in getattr(_rg, "GATES", []):
+        gname = str(getattr(g, "name", "") or "")
+        if not safe.match(gname):
+            continue
+        src_path = None
+        for part in (getattr(g, "argv", None) or []):
+            part = str(part)
+            if part.endswith(".py") and os.path.basename(part).startswith("test_"):
+                src_path = part
+                break
+        if not src_path or not os.path.isfile(src_path):
+            continue
+        if src_path not in text_of:
+            try:
+                with open(src_path, encoding="utf-8", errors="replace") as fh:
+                    text_of[src_path] = fh.read()
+            except Exception:
+                text_of[src_path] = ""
+        text = text_of[src_path]
+        if any(base in text for base in names):
+            out.append(gname)
+    return sorted(set(out))  # REG-2148 readers
+
+
 def changed_gates():
     """#242 - THE PUSH'S OWN CHANGED-LAW SET, for a pre-flight. -> (names, base | None, why | None)
 

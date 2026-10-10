@@ -406,6 +406,17 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2148 - A LAW THAT READS A CHANGED FILE WAS NOT IN THE PREFLIGHT (2026-10-10, #261)
+
+The push proves a changed tv/test_*.py. A law that scans bible.html or control_app.py
+is not that file, so the Mac never ran it and CI went red one version later (v3603,
+v3609). laws_that_read names every registered law whose own source mentions the
+changed basename. A basename without a dot, or shorter than 8 characters, selects
+nothing. gates_for_tests is unchanged: it still answers only the test files, which
+is the set the hook proves. A bible.html edit names most of the registry, so this
+selector does not replace the shard run inside the hook.
+Law: test_a_law_that_reads_a_changed_file_is_in_the_preflight. Not rendered here.
+
 ### REG-2147 - THE ITEM-CARD HARNESS EVALS THE HOVER WITHOUT THE SET HELPER (2026-10-10, #295)
 
 REG-2145 called `_setPieceShown` by bare name from the item-card hover. That

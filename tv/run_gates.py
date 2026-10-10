@@ -10287,6 +10287,14 @@ GATES = [
              "shows. data-arttip, artOr, the codex name, MP_TEXT_ALIAS and the "
              "art map stay on the index. A name the table does not index is "
              "unchanged. Two shown names for one index stay the index."),
+    Gate("test_a_law_that_reads_a_changed_file_is_in_the_preflight",
+         [sys.executable, os.path.join(HERE, "test_a_law_that_reads_a_changed_file_is_in_the_preflight.py")], 90,
+         needs_app=False,
+         why="REG-2148 - the push proves a changed test file and not a law that "
+             "scans some other changed file, so that scan goes red on CI one "
+             "version later. laws_that_read names the laws whose source mentions "
+             "the changed basename. A short name selects nothing. The hook's "
+             "own set, gates_for_tests, still answers only the test files."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
