@@ -419,6 +419,15 @@ A console may still write the live file. A fixture world (TV_HIST outside this t
 still writes its own copy. A law that is neither does not.
 Law: `test_importing_a_suite_isolates_his_stores`. Not rendered here.
 
+### REG-2152 - THE MULE LAW READ THE EQUIPMENT PANEL ONE FRAME EARLY (2026-10-10)
+
+v3645 and v3646 agent shard 2 both failed test_at_2000_the_panels_and_the_doll_are_their_measured_rects
+with mp-eq measured [0, 194, 322, 400] against the pin [0, 188, 322, 400]. Tolerance is 4.
+The law's own note records this exact 6px miss when the stash face has not reflowed, and an
+exact 188 when the law runs alone. Neither version changed the mule layout. The open now
+waits until two reads of that panel's top match. A stable 194 still fails. The pin stays 188.
+Not run on this Mac: it drives Chrome. CI is the measurement.
+
 ### REG-2151 - THE FIXTURE-WORLD HALF TREATED HIS EXISTING STORE AS A WRITE (2026-10-10, #303)
 
 v3645 lets a fixture world write its own .vault_autoread.json and refuses a

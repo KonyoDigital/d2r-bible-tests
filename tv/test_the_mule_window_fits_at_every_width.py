@@ -424,6 +424,20 @@ def _open(t, view="equip", mule=None):
         except Exception:
             pass
         time.sleep(0.25)
+    # fonts.status can already say loaded on the first look, one frame before the stash
+    # face reflows the equipment panel. v3645 and v3646 both measured mp-eq at y=194
+    # against the pin 188, which is the miss this wait was added for. Two matching
+    # reads means the panel has stopped moving. A stable 194 still fails the pin.
+    last = None
+    for _ in range(12):
+        try:
+            top = t.ev("((document.querySelector('.mp-eq')||{}).getBoundingClientRect()||{}).top")
+        except Exception:
+            top = None
+        if last is not None and top == last:
+            break
+        last = top
+        time.sleep(0.25)
 
 
 def _tile(t, k):
