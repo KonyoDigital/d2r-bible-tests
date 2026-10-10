@@ -140,14 +140,20 @@ class ImportingASuiteIsolatesHisStores(unittest.TestCase):
             "ca._VAULT_JOB['notDefinitiveWhy'] = None\n"
             "ca._VAULT_AUTOREAD_STORE['tried'] = False\n"
             "ca._VAULT_AUTOREAD_STORE['readable'] = None\n"
+            "live = os.path.join(os.path.dirname(os.path.abspath(ca.__file__)), '.vault_autoread.json')\n"
+            "existed = os.path.isfile(live)\n"
+            "before = open(live, 'rb').read() if existed else None\n"
             "why = ca._vault_lane_note_outcome(reel, swept={})\n"
             "store = os.path.join(root, '.vault_autoread.json')\n"
-            "live = os.path.join(os.path.dirname(os.path.abspath(ca.__file__)), '.vault_autoread.json')\n"
+            "created = (not existed) and os.path.isfile(live)\n"
+            "changed = bool(existed and os.path.isfile(live) and open(live, 'rb').read() != before)\n"
             "print(json.dumps({'why': bool(why), 'in_world': os.path.isfile(store),\n"
-            " 'in_live': os.path.isfile(live)}))\n"
+            " 'created': created, 'changed': changed}))\n"
             "shutil.rmtree(root, ignore_errors=True)")
-        self.assertTrue(world["why"] and world["in_world"] and not world["in_live"],
+        self.assertTrue(world["why"] and world["in_world"],
                         "a fixture world no longer keeps its own lane memory: %r" % world)
+        self.assertFalse(world["created"] or world["changed"],
+                         "a fixture world wrote his vault lane memory: %r" % world)
         import control_app as ca
         import frame_ref as fr
         was = fr.on_console_path()

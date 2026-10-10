@@ -419,6 +419,15 @@ A console may still write the live file. A fixture world (TV_HIST outside this t
 still writes its own copy. A law that is neither does not.
 Law: `test_importing_a_suite_isolates_his_stores`. Not rendered here.
 
+### REG-2151 - THE FIXTURE-WORLD HALF TREATED HIS EXISTING STORE AS A WRITE (2026-10-10, #303)
+
+v3645 lets a fixture world write its own .vault_autoread.json and refuses a
+non-console write beside the module. The new law then asked whether that live
+file exists. On his tree it already does, so the half failed without a new
+write. A clean CI checkout has no file, so the same half passed there. The
+half now records whether the live file was created or its bytes changed.
+Law: test_a_law_does_not_write_his_vault_lane_memory. Not rendered here.
+
 ### REG-2149 - A FAILED LAW READ WAS HANDED BACK AS AN EMPTY FILE (2026-10-10, #261)
 
 v3643 wrapped the law-file read in `except Exception` and stored "". The swallow
