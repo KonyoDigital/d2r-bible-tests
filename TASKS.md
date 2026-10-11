@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3659** | `(this commit)` | v3659 — REG-2164 - a watchdog count says flagged beside a full read |
+| **v3660** | `(this commit)` | v3660 — REG-2165 - the organ slice carries the watchdog word it calls |
+| **v3659** | `f5cdd792` | v3659 — REG-2164 - a watchdog count says flagged beside a full read |
 | **v3658** | `87a13ef9` | v3658 — REG-2163 - the dossier cover uses the same url as the shelf card and loads eager. A missing cover stays the placeholder. HEART: test_the_dossier_cover_is_the_shelf_picture |
 | **v3657** | `0f637b2a` | v3657 — REG-2162 - a wall time before the run start prints as the start at T+0:00.000. A missing wall stays UNKNOWN. A measured moment at the start still prints. HEART: test_the_clock_does_not_read_before_the_run_start |
 | **v3656** | `a5162c87` | v3656 — REG-2161 - the longer mode toast names film and photos. HEART: test_the_longer_mode_toast_names_film_and_photos |
