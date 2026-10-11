@@ -406,6 +406,17 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2165 - THE LEDGER SLICE CALLED A WORD IT COULD NOT SEE (2026-10-11, #252)
+
+v3659 put `_watchdogCountSay` above the shelf and called it from the ledger
+organ. The breach laws run only the organ slice, from `_EH_STATE` to
+`_ehOrganHtml`. The call threw `ReferenceError: _watchdogCountSay is not
+defined`, so a measured breach never reached its own sentence. The
+declaration now sits in that slice. A page that has `window` still exports
+it. The slice the laws run does not need `window`.
+Law: the same `test_a_watchdog_flag_is_not_missed_text`, plus the two breach
+laws that went red on v3659. Not rendered here.
+
 ### REG-2164 - THE SHELF CARD CALLED A WATCHDOG ROW A MISS (2026-10-11, #252)
 
 Session 74's card said 1 miss beside a dossier that said no missed text, a full

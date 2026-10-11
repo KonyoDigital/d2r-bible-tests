@@ -170,6 +170,10 @@ class AWatchdogFlagIsNotMissedText(unittest.TestCase):
         src = _src()
         self.assertEqual(src.count("function _watchdogCountSay(n){"), 1)
         self.assertEqual(src.count("_watchdogCountSay("), 6)
+        organ = src[src.find("var _EH_STATE = { ok: 'HEALTHY'"):src.find("function _ehOrganHtml")]
+        self.assertIn("function _watchdogCountSay(n){", organ,
+                      "the ledger laws run the organ slice alone")
+        self.assertIn("_watchdogCountSay(viol)", organ)
         for call in (
             "_watchdogCountSay(_shRs.n)",
             "_watchdogCountSay(wd.violations)",

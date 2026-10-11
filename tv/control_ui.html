@@ -12124,17 +12124,6 @@ window._lockMark = function(isOpen, px, label){
     return b.join(' · ');
   }
   window._runSealGapsSay = _runSealGapsSay;
-  function _watchdogCountSay(n){
-    /* #252 (REG-2164) - a watchdog journal row is not missed text.
-       The shelf card printed 1 miss for one watchdog row while the dossier,
-       reading kaiMissed at 0, printed no missed text, a full read.
-       The dossier seal already used this word. One count, one word.
-       A missing count and a measured 0 stay blank. */
-    n = Number(n) || 0;
-    if (!(n > 0)) return '';
-    return n + ' flagged';
-  }
-  window._watchdogCountSay = _watchdogCountSay;
   /* REG-2083 (GrokBot tick 424 K08/K09) - THE MISSED-TEXT COUNTS SAY HOW THEY RELATE. Session 29 read 'swept · 3 missed-text'
      over a MISSED TEXT list of 5 rows and 'recovered 2/5'. All three are true: the first pass missed 5 frames, a deeper pass
      named 2 of them (both Heart of the Oak), 3 are still unread - kai.missedFrames is the still-unread ledger, superRecovery
@@ -24418,6 +24407,19 @@ window._lockMark = function(isOpen, px, label){
   // RIGHT NOW" reads at a glance without decoding the corner dot's colour. Shown on the cockpit live
   // spine only (big); the retro spine sets no `state` (it shows the frame's per-organ verdict instead).
   var _EH_STATE = { ok: 'HEALTHY', warn: 'STRAINED', bad: 'DOWN', idle: 'IDLE', unknown: 'UNKNOWN' };
+  function _watchdogCountSay(n){
+    /* #252 (REG-2164) - a watchdog journal row is not missed text.
+       The shelf card printed 1 miss for one watchdog row while the dossier,
+       reading kaiMissed at 0, printed no missed text, a full read.
+       The dossier seal already used this word. One count, one word.
+       A missing count and a measured 0 stay blank.
+       The declaration sits in the organ slice. The ledger laws run that
+       slice alone, and a call they cannot see is a breach line that throws. */
+    n = Number(n) || 0;
+    if (!(n > 0)) return '';
+    return n + ' flagged';
+  }
+  if (typeof window !== 'undefined') window._watchdogCountSay = _watchdogCountSay;
   // REG-1824 — ONE question for ONE server event: was the journal walk read on this poll? The poll
   // says so in journal:{read, why}. A poll that does not carry that key still left the three marks
   // the same event always left - verdict unknown, and the walk's two counters published as null -
