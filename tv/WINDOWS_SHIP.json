@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3658",
+  "ver": "v3659",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3658: REG-2163 - the dossier cover uses the same url as the shelf card and loads eager. A missing cover stays the placeholder. HEART: test_the_dossier_cover_is_the_shelf_picture",
+  "note": "v3659: REG-2164 - a watchdog count says flagged beside a full read",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
