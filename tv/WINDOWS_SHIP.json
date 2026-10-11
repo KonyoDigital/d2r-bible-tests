@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3674",
+  "ver": "v3675",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3674: REG-2179 - one roster click paints a card over the rail",
+  "note": "v3675: REG-2180 - a pull reads the hold before it arms the relaunch banner",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

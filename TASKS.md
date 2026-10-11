@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3674** | `(this commit)` | v3674 — REG-2179 - one roster click paints a card over the rail |
+| **v3675** | `(this commit)` | v3675 — REG-2180 - a pull reads the hold before it arms the relaunch banner |
+| **v3674** | `42f6f77f` | v3674 — REG-2179 - one roster click paints a card over the rail |
 | **v3673** | `d6cf3b5e` | v3673 — REG-2178 - the roster opens under the fleet button and scrolls inside itself |
 | **v3672** | `2fad3793` | v3672 — REG-2177 - a held relaunch banner says why it waits |
 | **v3671** | `5125cdc7` | v3671 — the open law runs the scroll function with the try |
