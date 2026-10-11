@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3664** | `(this commit)` | v3664 — a mac named Konyo publishes under the Mac roster label |
+| **v3665** | `(this commit)` | v3665 — a console fetches the other rosters into its own cache |
+| **v3664** | `14fe5044` | v3664 — a mac named Konyo publishes under the Mac roster label |
 | **v3663** | `420e1b1e` | v3663 — REG-2167 - the roster receipt and its temp file stay ignored |
 | **v3662** | `53f64f85` | v3662 — REG-2166 - the roster publish keeps the owner label and stays encoding-safe. The loop stamps its tick. A path in the law is not a home path. HEART: test_a_roster_publish_stays_off_the_presence_beacon |
 | **v3661** | `bc8cf583` | v3661 — REG-2166 - Fleet 3.0 phase 1 publishes each PCs own sections on a separate route and a separate KV key. Hourly, change-only, plus one at boot. Over the daily cap the server says why and does not answer 500. An unread section stays absent. Pictures stay off the body. HEART: test_a_roster_publish_stays_off_the_presence_beacon |
