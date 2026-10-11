@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3654** | `(this commit)` | v3654 — REG-2159 - a GROK ONLY reader does not start a console sweep. Claude is the only reader that starts one. A skip is not a read and the reel stays unswept. |
+| **v3655** | `(this commit)` | v3655 — REG-2160 - the 1.6s mode flash names film and photos. HEART: test_the_mode_toast_names_film_and_photos |
+| **v3654** | `060451bd` | v3654 — REG-2159 - a GROK ONLY reader does not start a console sweep. Claude is the only reader that starts one. A skip is not a read and the reel stays unswept. |
 | **v3653** | `5f9e827c` | v3653 — REG-2158 - film and photos that differ are both named. A missing count stays UNKNOWN. A measured zero still prints. |
 | **v3652** | `4aea9556` | v3652 — REG-2157 - sealed-in is its own clock. A missing seal stays off the chip. A measured 0 prints 0m00s. It does not borrow the run or the film. |
 | **v3651** | `915dfd23` | v3651 — REG-2156 - plays is the film clock. A missing film length says UNKNOWN. A measured 0 still prints 0m00s. It does not borrow the run. sealed-in stays its own clock. |

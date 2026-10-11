@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3654",
+  "ver": "v3655",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3654: REG-2159 - a GROK ONLY reader does not start a console sweep. Claude is the only reader that starts one. A skip is not a read and the reel stays unswept.",
+  "note": "v3655: REG-2160 - the 1.6s mode flash names film and photos. HEART: test_the_mode_toast_names_film_and_photos",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
