@@ -365,6 +365,11 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         self.assertNotIn("sections", quiet)
         self.assertEqual(RP.never_published_line("Dean", "vault"),
                          "Dean has not published its vault yet")
+        self.assertIsNone(RP.cache_views({"ok": True}, rec["t"]))
+        self.assertIsNone(RP.cache_views({"ok": False, "owners": []}, rec["t"]))
+        empty = RP.cache_views({"ok": True, "owners": []}, rec["t"])
+        self.assertEqual(len(empty), 5)
+        self.assertTrue(all(row["published"] is False for row in empty))
         self.assertIsNone(RP.view_one("not-a-pc", {}, 1))
         lied = dict(mac, hash="dead")
         self.assertNotIn("sections", RP.view_one(OWNER, lied, rec["t"]))
@@ -388,6 +393,9 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         self.assertEqual(src.count("target=_roster_fetch_loop"), 1)
         fetch = src.split("def _roster_fetch_once(", 1)[1].split("def _roster_fetch_loop", 1)[0]
         self.assertEqual(fetch.count("write_cache("), 1)
+        self.assertEqual(fetch.count("cache_views("), 1)
+        self.assertEqual(fetch.count("if views is None:"), 1)
+        self.assertNotIn("view_of(got.get", fetch)
         self.assertNotIn("char_select", fetch)
         loop = src.split("def _roster_fetch_loop(", 1)[1].split("def _console_beacon_loop", 1)[0]
         self.assertEqual(loop.count('_lane_tick("_roster_fetch_loop", 300)'), 1)
@@ -464,6 +472,13 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": "        _lane_tick(\"_roster_fetch_loop\", 300)\n",
         "replace": "        _lane_tick(\"_roster_publish_loop\", 300)\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2169 - a success with no owners list replaces the cache",
+        "file": "roster_publish.py",
+        "find": "    if not isinstance(owners, list):\n        return None\n",
+        "replace": "    if not isinstance(owners, list):\n        return view_of(None, now_ms)\n",
         "matches": 1,
     },
 ]

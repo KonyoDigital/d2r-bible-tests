@@ -4717,7 +4717,11 @@ def _roster_fetch_once():
         why = got.get("why") if isinstance(got, dict) else "the roster fetch failed"
         _roster_fetch_remember(why)
         return
-    _rp.write_cache(_roster_cache_dir(), _rp.view_of(got.get("owners"), int(time.time() * 1000)))
+    views = _rp.cache_views(got, int(time.time() * 1000))
+    if views is None:
+        _roster_fetch_remember("the roster answer had no owners")
+        return
+    _rp.write_cache(_roster_cache_dir(), views)
     _roster_fetch_remember("fetched")
 
 

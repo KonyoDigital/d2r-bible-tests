@@ -416,6 +416,20 @@ def view_of(owners, now_ms):
     return [view_one(owner, by.get(owner), now_ms) for owner in OWNERS]
 
 
+def cache_views(reply, now_ms):
+    """Views to store, or None when this answer must not replace the cache.
+
+    ok true with no owners list is not "nobody has published". view_of on a
+    missing list would write that lie over the last good fetch.
+    """
+    if not isinstance(reply, dict) or reply.get("ok") is not True:
+        return None
+    owners = reply.get("owners")
+    if not isinstance(owners, list):
+        return None
+    return view_of(owners, now_ms)
+
+
 def never_published_line(owner, section):
     if owner not in OWNERS or section not in SECTIONS:
         return None

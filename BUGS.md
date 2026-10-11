@@ -415,6 +415,15 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2170 - A FETCH WITH NO OWNERS LIST REPLACED THE CACHE (2026-10-11, #39)
+
+v3665 wrote the cache whenever the fetch answered ok true. view_of on a
+missing owners list is five rows of not published. That write replaced a
+good cache with a lie. A list, including an empty one, is an answer. A
+missing list is not, and the last cache stays. The console uses that
+refusal before write_cache.
+Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
+
 ### REG-2169 - FLEET 3.0 PHASE 2 READS THE OTHER ROSTERS (2026-10-11, #39)
 
 GET /api/roster reads the five owner keys and writes nothing. A missing key
