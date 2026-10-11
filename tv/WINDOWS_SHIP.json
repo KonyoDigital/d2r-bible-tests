@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3663",
+  "ver": "v3664",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3663: REG-2167 - the roster receipt and its temp file stay ignored",
+  "note": "v3664: a mac named Konyo publishes under the Mac roster label",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
