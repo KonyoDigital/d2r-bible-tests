@@ -402,6 +402,51 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         beacon = src.split("def _console_beacon(", 1)[1].split("def _console_beacon_async", 1)[0]
         self.assertNotIn("_roster_fetch_once", beacon)
 
+    def test_the_roster_panel_is_not_a_tenth_header_door(self):
+        ui_path = os.path.join(HERE, "control_ui.html")
+        with open(ui_path, encoding="utf-8") as fh:
+            ui = fh.read()
+        start = ui.index('<nav class="head-tabs" id="head-tabs">')
+        nav = ui[start:ui.index("</nav>", start)]
+        self.assertEqual(nav.count("<button"), 9)
+        self.assertNotIn('data-tab="roster"', nav)
+        self.assertIn('id="roster-box" hidden', ui)
+        self.assertIn("window._rosterOpen", ui)
+        self.assertIn("/api/roster-cache", ui)
+        with open(APP, encoding="utf-8") as fh:
+            app = fh.read()
+        self.assertEqual(app.count('path == "/api/roster-cache"'), 1)
+        self.assertIn("roster_html(", app)
+        missing = RP.roster_html({"ok": True, "fetched": False, "owners": []})
+        self.assertIn("has not fetched a roster yet", missing)
+        self.assertNotIn("has not published", missing)
+        now = 5_000_000
+        quiet = {"owner": "Dean", "published": False}
+        page = RP.roster_html({"ok": True, "fetched": True, "now": now, "owners": [quiet]})
+        self.assertIn("Dean has not published its vault yet", page)
+        self.assertNotIn("<ul></ul>", page)
+        nasty = {"name": "<script>alert(1)</script>", "looks": "http://x/a.png"}
+        shown = {"owner": OWNER, "published": True, "corrupt": False, "t": now,
+                 "sections": {"characters": {"asOf": now, "counts": 1, "rows": [nasty]}}}
+        safe = RP.roster_html({"ok": True, "fetched": True, "now": now, "owners": [shown]})
+        self.assertNotIn("<script>", safe)
+        self.assertIn("&lt;script&gt;", safe)
+        self.assertNotIn("http://x/a.png", safe)
+        self.assertIn("has not published its vault yet", safe)
+        old = dict(shown, t=now - 2 * RP.HOUR_MS - 1)
+        stale = RP.roster_html({"ok": True, "fetched": True, "now": now, "owners": [old]})
+        self.assertIn("roster-stale", stale)
+        unknown = {"owner": OWNER, "published": True, "corrupt": False,
+                   "sections": {"characters": {"counts": 1, "rows": [{"name": "Sorceress"}]}}}
+        plain = RP.roster_html({"ok": True, "fetched": True, "now": now, "owners": [unknown]})
+        self.assertIn("age unknown", plain)
+        self.assertNotIn("0 min", plain)
+        bad = {"owner": "Dean", "published": True, "corrupt": True,
+               "sections": {"stash": {"asOf": now, "rows": [{"name": "Shako"}]}}}
+        hidden = RP.roster_html({"ok": True, "fetched": True, "now": now, "owners": [bad]})
+        self.assertIn("rows are not shown", hidden)
+        self.assertNotIn("Shako", hidden)
+
 
 RED_PROOF = [
     {
@@ -479,6 +524,27 @@ RED_PROOF = [
         "file": "roster_publish.py",
         "find": "    if not isinstance(owners, list):\n        return None\n",
         "replace": "    if not isinstance(owners, list):\n        return view_of(None, now_ms)\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2171 - a missing fetch is drawn as five empty rosters",
+        "file": "roster_publish.py",
+        "find": "    if not isinstance(payload, dict) or payload.get(\"fetched\") is not True:\n        return '<div class=\"roster-none\">this PC has not fetched a roster yet</div>'\n",
+        "replace": "    if False and (not isinstance(payload, dict) or payload.get(\"fetched\") is not True):\n        return '<div class=\"roster-none\">this PC has not fetched a roster yet</div>'\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2171 - a corrupt roster still shows its rows",
+        "file": "roster_publish.py",
+        "find": "        if row.get(\"corrupt\") is True:\n",
+        "replace": "        if False and row.get(\"corrupt\") is True:\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2171 - a row name is written into the page without escaping",
+        "file": "roster_publish.py",
+        "find": "                items.append(\"<li>%s</li>\" % html.escape(line, quote=True))\n",
+        "replace": "                items.append(\"<li>%s</li>\" % line)\n",
         "matches": 1,
     },
 ]

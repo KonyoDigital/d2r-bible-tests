@@ -12,6 +12,7 @@ itself is change-only, at most once an hour, plus one at boot when the
 body actually changed. The server, not this file, enforces the daily cap.
 """
 
+import html
 import json
 import os
 
@@ -470,3 +471,174 @@ def write_cache(directory, views):
         os.replace(tmp, path)
         written.append(name)
     return sorted(written)
+
+
+def refresh_view(view, now_ms):
+    """The stored row with ages recomputed from its clocks. A bad file is corrupt."""
+    if not isinstance(view, dict):
+        return None
+    owner = view.get("owner")
+    if owner not in OWNERS:
+        return None
+    if view.get("published") is not True:
+        return {"owner": owner, "published": False}
+    if view.get("corrupt") is True:
+        return {"owner": owner, "published": True, "corrupt": True}
+    sections = view.get("sections") if isinstance(view.get("sections"), dict) else {}
+    kept = {}
+    for name in SECTIONS:
+        sec = sections.get(name)
+        if not isinstance(sec, dict) or not sec:
+            continue
+        one = {k: sec[k] for k in sec if k != "age"}
+        one["age"] = _age_state(sec.get("asOf"), now_ms)
+        kept[name] = one
+    out = {"owner": owner, "published": True, "corrupt": False,
+           "age": _age_state(view.get("t"), now_ms)}
+    if isinstance(view.get("t"), int) and not isinstance(view.get("t"), bool):
+        out["t"] = view["t"]
+    if kept:
+        out["sections"] = kept
+    return out
+
+
+def read_cache(directory, now_ms):
+    """The files on disk. No directory means this PC has not fetched, not that the others are empty."""
+    if not isinstance(directory, str) or not os.path.isdir(directory):
+        return {"ok": True, "fetched": False, "owners": []}
+    owners = []
+    found = False
+    root = os.path.abspath(directory)
+    for owner in OWNERS:
+        name = cache_file_name(owner)
+        path = os.path.abspath(os.path.join(directory, name))
+        if os.path.dirname(path) != root or not os.path.isfile(path):
+            continue
+        found = True
+        try:
+            with open(path, encoding="utf-8") as fh:
+                view = json.load(fh)
+        except Exception:
+            owners.append({"owner": owner, "published": True, "corrupt": True})
+            continue
+        fresh = refresh_view(view, now_ms)
+        owners.append(fresh if fresh else {"owner": owner, "published": True, "corrupt": True})
+    if not found:
+        return {"ok": True, "fetched": False, "owners": []}
+    return {"ok": True, "fetched": True, "now": now_ms, "owners": owners}
+
+
+def _ago(as_of, now_ms):
+    state = _age_state(as_of, now_ms)
+    if state == "unknown":
+        return state, None
+    minutes = (now_ms - as_of) // 60000
+    if minutes < 1:
+        words = "under 1 min ago"
+    elif minutes < 120:
+        words = "%d min ago" % minutes
+    else:
+        words = "%d hr ago" % (minutes // 60)
+    return state, words
+
+
+def _show_cell(value):
+    if isinstance(value, bool) or value is None:
+        return None
+    if isinstance(value, int):
+        return str(value)
+    if not isinstance(value, str) or not value:
+        return None
+    low = value.lower()
+    if (low.startswith("http") or low.startswith("/") or low.startswith("data:")
+            or low.endswith((".png", ".jpg", ".jpeg", ".webp", ".gif"))):
+        return None
+    return value[:80]
+
+
+def _row_line(row):
+    if not isinstance(row, dict):
+        return None
+    cells = []
+    for key in ("name", "cls", "level", "title", "tier", "mule", "locker", "station", "date"):
+        cell = _show_cell(row.get(key))
+        if cell:
+            cells.append(cell)
+    if not cells:
+        return None
+    return " · ".join(cells)
+
+
+def roster_html(payload):
+    """Read-only markup. A missing fetch is not five empty rosters."""
+    if not isinstance(payload, dict) or payload.get("fetched") is not True:
+        return '<div class="roster-none">this PC has not fetched a roster yet</div>'
+    by = {}
+    for row in payload.get("owners") or []:
+        if isinstance(row, dict) and row.get("owner") in OWNERS:
+            by[row["owner"]] = row
+    parts = []
+    for owner in OWNERS:
+        row = by.get(owner)
+        who = html.escape(owner, quote=True)
+        if row is None:
+            parts.append('<section class="roster-owner"><h3>%s</h3><p>%s was not in this fetch</p></section>'
+                         % (who, who))
+            continue
+        if row.get("corrupt") is True:
+            parts.append('<section class="roster-owner"><h3>%s</h3><p>roster is corrupt and rows are not shown</p></section>'
+                         % who)
+            continue
+        if row.get("published") is not True:
+            lines = []
+            for section in SECTIONS:
+                said = never_published_line(owner, section)
+                lines.append("<li>%s</li>" % html.escape(said, quote=True))
+            parts.append('<section class="roster-owner"><h3>%s</h3><ul>%s</ul></section>'
+                         % (who, "".join(lines)))
+            continue
+        parts.append(_published_html(owner, row, payload.get("now")))
+    return "".join(parts)
+
+
+def _published_html(owner, row, now_ms):
+    who = html.escape(owner, quote=True)
+    state, words = _ago(row.get("t"), now_ms)
+    if words:
+        when = "published " + words
+    else:
+        when = "published, age unknown"
+    klass = "roster-owner"
+    if state == "stale":
+        klass += " roster-stale"
+    blocks = ['<section class="%s"><h3>%s</h3><p>%s</p>' % (klass, who, html.escape(when, quote=True))]
+    sections = row.get("sections") if isinstance(row.get("sections"), dict) else {}
+    for name in SECTIONS:
+        sec = sections.get(name)
+        if not isinstance(sec, dict):
+            said = never_published_line(owner, name)
+            blocks.append("<p>%s</p>" % html.escape(said, quote=True))
+            continue
+        sec_state, sec_words = _ago(sec.get("asOf"), now_ms)
+        label = html.escape(name, quote=True)
+        if sec_words:
+            age = "as of " + sec_words
+        else:
+            age = "age unknown"
+        sec_class = "roster-stale" if sec_state == "stale" else "roster-sec"
+        blocks.append('<div class="%s"><b>%s</b> %s' % (sec_class, label, html.escape(age, quote=True)))
+        counts = sec.get("counts")
+        if isinstance(counts, int) and not isinstance(counts, bool):
+            blocks.append(" <span>%s</span>" % html.escape(str(counts), quote=True))
+        rows = sec.get("rows") if isinstance(sec.get("rows"), list) else []
+        if rows:
+            items = []
+            for item in rows:
+                line = _row_line(item)
+                if line:
+                    items.append("<li>%s</li>" % html.escape(line, quote=True))
+            if items:
+                blocks.append("<ul>%s</ul>" % "".join(items))
+        blocks.append("</div>")
+    blocks.append("</section>")
+    return "".join(blocks)

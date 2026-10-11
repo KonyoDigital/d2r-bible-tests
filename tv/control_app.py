@@ -4675,6 +4675,12 @@ def _roster_cache_dir():
     return os.path.join(_log_root(), "roster_cache")
 
 
+def _roster_cache_payload():
+    """The local fetch cache, with ages recomputed now. No ledger is read or written."""
+    import roster_publish as _rp
+    return _rp.read_cache(_roster_cache_dir(), int(time.time() * 1000))
+
+
 def _roster_fetch_path():
     return os.path.join(_log_root(), ".tvd_roster_fetch.json")
 
@@ -44769,6 +44775,12 @@ class Handler(BaseHTTPRequestHandler):
             return
         if path == "/api/status":
             self._json(200, status_payload())
+            return
+        if path == "/api/roster-cache":
+            data = _roster_cache_payload()
+            import roster_publish as _rp
+            data["html"] = _rp.roster_html(data)
+            self._json(200, data)
             return
         if path == "/api/fleet":
             # v1496 — who is online and when each machine was last here (60s cached, read-only)

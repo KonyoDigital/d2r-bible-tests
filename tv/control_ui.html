@@ -6030,6 +6030,10 @@
   .fleet-head { font: var(--fw-bold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label);
     text-transform: uppercase; color: var(--gold-dim); display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
   .fleet-refresh { margin-left: auto; padding: 2px 7px; }
+  .roster-box { margin-top: 8px; border: 1px solid var(--edge); border-radius: 8px; padding: 7px 9px;
+    box-sizing: border-box; }
+  .roster-box[hidden] { display: none; }
+  .roster-stale { color: #e9b96e; }
   /* ── v2157 — THE FLEET TOOLTIP. Floats beside the cursor on the person's name, shows what
      that machine last reported, and NEVER invents a bar: an unknown total renders the track
      dimmed and full rather than a proportion nobody measured. [[unknown-stays-unknown]] */
@@ -8773,7 +8777,7 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
                          rule names `.signal` and `#sig-adv`, so anything still inside that drawer is hidden
                          with it. Out here it needs no rule of its own to stay visible in every view. -->
 <div class="fleet-box">
-            <div class="fleet-head">🖥 THE FLEET <button class="util-btn fleet-refresh" type="button" title="re-check who is online" onclick="window._fleetRefresh(true)">↻</button></div>
+            <div class="fleet-head">🖥 THE FLEET <button class="util-btn" type="button" id="roster-open" title="other consoles, read only" onclick="window._rosterOpen()">Roster</button><button class="util-btn fleet-refresh" type="button" title="re-check who is online" onclick="window._fleetRefresh(true)">↻</button></div>
             <div id="fleet-list"><div class="fleet-none">checking who is online…</div></div>
             <!-- v2213 — the cross-reference box. Hidden until a player is clicked; it answers
                  "what should I chase" where the hover tooltip answers "how far along is he". -->
@@ -8797,6 +8801,10 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
               <div class="fleet-head" title="the chronicle sweep on THIS console - another PC's sweep is told on its own fleet row">🧠 SWEEP · this PC <span class="swm-state" id="swm-state"></span></div>   <!-- REG-1947 — under THE FLEET a bare SWEEP read as everyone's: GrokBot set it (IDLE) against Konyo's row ("a sweep is already running") -->
               <div id="swm-body"><div class="fleet-none">no sweep running</div></div>
             </div>
+<div class="roster-box" id="roster-box" hidden>
+  <div class="fleet-head">ROSTER <span class="roster-note">read only</span></div>
+  <div id="roster-body"><div class="roster-none">this PC has not fetched a roster yet</div></div>
+</div>
         <!-- v2384 — THE STATE PANEL. Konyo, looking at what the footer tooltip had become:
              "all this information cant it be maybe somewhere better? or like more structured
              cleaner.. like the fleet when i click it open a window popup inpage.. so it can be
@@ -27337,6 +27345,20 @@ function escC(s) {
       ov.setAttribute('data-blur-probe', 'off');
     } catch (e) {}
   })();
+
+  window._rosterOpen = function () {
+    var box = document.getElementById('roster-box');
+    var body = document.getElementById('roster-body');
+    if (!box || !body) return;
+    if (!box.hasAttribute('hidden')) { box.setAttribute('hidden', ''); return; }
+    box.removeAttribute('hidden');
+    fetch('/api/roster-cache', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (data) {
+      if (data && typeof data.html === 'string') body.innerHTML = data.html;
+      else body.textContent = 'the roster answer had no page';
+    }).catch(function () {
+      body.textContent = 'the roster fetch could not be read';
+    });
+  };
 
   (function _fleetKick() {
     var go = function () { try { window._fleetRefresh(); } catch (e) {} };

@@ -415,6 +415,16 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2171 - THE ROSTER OPENS FROM THE FLEET, NOT A TENTH HEADER DOOR (2026-10-11, #39)
+
+The header strip holds nine doors and a tenth one was already measured not to
+fit the one row. The Roster button sits on the fleet and opens a hidden
+panel. The panel reads /api/roster-cache, which reads the local cache and
+writes nothing. No cache yet says this PC has not fetched. A missing section
+says that owner has not published it. A corrupt file shows no rows. A picture
+address is not drawn. The header door count stays nine. #39 stays open.
+Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
+
 ### REG-2170 - A FETCH WITH NO OWNERS LIST REPLACED THE CACHE (2026-10-11, #39)
 
 v3665 wrote the cache whenever the fetch answered ok true. view_of on a
