@@ -406,6 +406,18 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2162 - THE T+ CLOCK READ A WALL TIME BEFORE THE RUN START (2026-10-11, #252)
+
+Session 175 showed T+0:03.704 beside 7:54:39 PM while the run start was 7:54:45 PM.
+The film axis opens on the earliest frame, and a pre-roll frame is earlier than meta.t0,
+so the clock printed that earlier wall while T+ had already moved. `_clockSay` is the
+clock line. A known run start is the floor. A wall before that start is not printed:
+the clock reads T+0:00.000 and the start. A wall at the start still prints T+0:00.000
+and that time. A later wall keeps T+ from the film origin. A missing wall stays
+UNKNOWN and does not borrow the start. A missing start is not invented. The empty
+first thumbnail stays open on #252.
+Law: `test_the_clock_does_not_read_before_the_run_start`. Not rendered here.
+
 ### REG-2161 - THE LONGER MODE TOAST STILL SAID A BARE PHOTO COUNT (2026-10-11, #252)
 
 REG-2160 named film and photos on the 1.6s flash. The longer toast on that

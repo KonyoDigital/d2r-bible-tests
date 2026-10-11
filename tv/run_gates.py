@@ -9259,6 +9259,13 @@ GATES = [
          why=("REG-2161 (#252) - the longer toast on the mode click said N photos or N film "
               "stills and never named the other count. It asks _filmPhotoSay. A missing "
               "count stays UNKNOWN. A measured 0 still prints.")),
+    Gate("test_the_clock_does_not_read_before_the_run_start", [sys.executable,
+         os.path.join(HERE, "test_the_clock_does_not_read_before_the_run_start.py")], 30,
+         needs_app=False,
+         why=("REG-2162 (#252) - the T+ clock read a wall time before the run start while "
+              "T+ had already moved. A wall before the start prints as the start at "
+              "T+0:00.000. A missing wall stays UNKNOWN. A measured moment at the start "
+              "still prints.")),
     Gate("test_a_grok_only_reader_does_not_start_a_sweep", [sys.executable,
          os.path.join(HERE, "test_a_grok_only_reader_does_not_start_a_sweep.py")], 60,
          needs_app=False,

@@ -17025,24 +17025,45 @@ window._lockMark = function(isOpen, px, label){
     while (lo < hi){ var mid = (lo + hi + 1) >> 1; if (P[mid] <= p) lo = mid; else hi = mid - 1; }
     return lo;
   }
+  function _clockSay(wallTs, origin, runStart){
+    /* #252 (REG-2162) - the T+ clock read a wall time before the run start.
+       The film axis can open on a pre-roll frame, so the playhead wall sits
+       earlier than meta.t0 while T+ has already moved. A known run start is
+       the floor. A wall before that start is not printed: the clock reads
+       T+0:00.000 and the start. A wall at the start still prints T+0:00.000
+       and that time. A later wall keeps T+ from the film origin. A missing
+       wall stays UNKNOWN and does not borrow the start. A missing start is
+       not invented: T+ is measured from the film origin and the wall prints. */
+    var wall = +wallTs;
+    if (!(wall > 0)) return 'T+UNKNOWN · —';
+    var start = +runStart;
+    var org = +origin;
+    var shown = wall;
+    var relFrom = (org > 0) ? org : wall;
+    if (start > 0 && shown < start){
+      shown = start;
+      relFrom = start;
+    }
+    var rel = Math.max(0, shown - relFrom);
+    var mm = Math.floor(rel / 60000), ss = Math.floor((rel % 60000) / 1000), ms3 = ('00' + (rel % 1000)).slice(-3);
+    var wallStr = new Date(shown).toLocaleTimeString();
+    return 'T+' + mm + ':' + ('0' + ss).slice(-2) + '.' + ms3 + ' · ' + wallStr;
+  }
   function thClock(){
     var el = $('th-clock'); if (!el) return;
     var b = TH.beats[TH.i] || {};
+    var meta = TH.sessions[TH.sn - 1] || {};
     // v947.1 — REAL: clock follows the playhead wall time (time-synced to video), not just the beat stamp
-    var wallTs, rel;
+    var wallTs, origin;
     if (TH.mode === 'real' && TH.wallOrigin){
       wallTs = TH.wallOrigin + Math.max(0, Math.min(TH.Tplay || 0, TH.p || 0));
-      rel = Math.max(0, wallTs - TH.wallOrigin);
+      origin = TH.wallOrigin;
     } else {
-      var meta = TH.sessions[TH.sn - 1] || {};
-      var t0 = TH.wallOrigin || meta.t0 || (TH.beats[0] || {}).ts || 0;
-      wallTs = b.ts || t0;
-      rel = Math.max(0, (b.ts || 0) - t0);
+      origin = TH.wallOrigin || meta.t0 || (TH.beats[0] || {}).ts || 0;
+      wallTs = b.ts || origin;
     }
-    var mm = Math.floor(rel / 60000), ss = Math.floor((rel % 60000) / 1000), ms3 = ('00' + (rel % 1000)).slice(-3);
-    var wallStr = wallTs ? new Date(wallTs).toLocaleTimeString() : '—';
     var modeTag = (TH.mode === 'real') ? ' · REAL 1:1' : '';
-    el.textContent = 'T+' + mm + ':' + ('0' + ss).slice(-2) + '.' + ms3 + ' · ' + wallStr + modeTag;
+    el.textContent = _clockSay(wallTs, origin, meta.t0) + modeTag;
   }
   // v803 (Grok R7 wow #1) — ⏪ INSTANT REPLAY: sports-broadcast rewind to the moments before
   // a vault, half-speed, freeze on the find with a lower-third. Reuses P[] — zero new capture.
