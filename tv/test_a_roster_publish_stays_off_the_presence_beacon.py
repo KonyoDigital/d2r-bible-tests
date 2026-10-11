@@ -154,6 +154,20 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         self.assertIsNone(RP.owner_of("23d0486747ce4c58"))
         self.assertEqual(len(RP.OWNERS), 5)
 
+    def test_a_mac_named_konyo_is_the_mac_roster_label(self):
+        self.assertEqual(RP.owner_of("Konyo", "mac"), OWNER)
+        self.assertIsNone(RP.owner_of("Konyo", "windows"))
+        self.assertIsNone(RP.owner_of("Konyo"))
+        self.assertIsNone(RP.owner_of("Grok", "mac"))
+        self.assertIsNone(RP.owner_of("someone", "mac"))
+        self.assertEqual(RP.owner_of("Dean", "mac"), "Dean")
+        self.assertEqual(RP.owner_of("Wife PC", "windows"), "Wife PC")
+        with open(APP, encoding="utf-8") as fh:
+            src = fh.read()
+        once = src.split("def _roster_publish_once(", 1)[1].split("def _roster_publish_loop", 1)[0]
+        call = "owner = _rp.owner_of(_roster_claimed_name(), _roster_platform())"
+        self.assertEqual(once.count(call), 1)
+
     def test_change_only_hourly_and_one_boot(self):
         now = 1_000_000
         body, why = RP.due({}, OWNER, RP.sections_from({"characters": _char(1)}), now, False)
@@ -317,6 +331,20 @@ RED_PROOF = [
         "file": "functions/api/roster.js",
         "find": "    return json({ ok: false, why: QUOTA_WHY, hint: REFUSAL_HINT }, 200);\n",
         "replace": "    return json({ ok: false, why: QUOTA_WHY, hint: REFUSAL_HINT }, 500);\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2168 - a mac named Konyo is left with no roster label",
+        "file": "roster_publish.py",
+        "find": "    if name == \"Konyo\" and platform == \"mac\":\n        return \"Konyo · Mac\"\n",
+        "replace": "    return None\n    if name == \"Konyo\" and platform == \"mac\":\n        return \"Konyo · Mac\"\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2168 - the console asks for the nickname and drops the platform",
+        "file": "control_app.py",
+        "find": "    owner = _rp.owner_of(_roster_claimed_name(), _roster_platform())\n",
+        "replace": "    owner = _rp.owner_of(_roster_claimed_name())\n",
         "matches": 1,
     },
 ]

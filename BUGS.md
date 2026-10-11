@@ -415,6 +415,17 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2168 - THE MAC NICKNAME AND THE ROSTER LABEL NEVER MEET (2026-10-11, #39)
+
+The publish asks `owner_of` for the nickname alone. This install's nickname
+is the person name Konyo. The five roster labels are the longer rows, so
+`owner_of` answered nothing and the receipt said this PC has no roster label.
+Konyo on a mac is the label Konyo · Mac. The same short name on windows stays
+unlabeled, and a mac named Grok stays unlabeled. Those two were not measured,
+and a guess would write their rows under this key. The nickname file is not
+rewritten.
+Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
+
 ### REG-2167 - THE ROSTER RECEIPT WAS ONE ADD AWAY FROM THE PUBLIC REPO (2026-10-11, #39)
 
 `_roster_state_path` writes `tv/.tvd_roster.json` through `_log_root()`, the

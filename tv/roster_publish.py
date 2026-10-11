@@ -37,9 +37,18 @@ def budget():
             "ceiling": 1000, "together": presence + pcs * per}
 
 
-def owner_of(name):
+def owner_of(name, platform=None):
+    """The roster label for a name this PC already claims, or None.
+
+    A name that is already one of the five labels is that label on every
+    platform. The short name Konyo on a mac is the label Konyo · Mac.
+    Windows stays unlabeled, and so does a mac named Grok: those machines
+    are not this one, and a guess would publish them under the wrong key.
+    """
     if name in OWNERS:
         return name
+    if name == "Konyo" and platform == "mac":
+        return "Konyo · Mac"
     return None
 
 

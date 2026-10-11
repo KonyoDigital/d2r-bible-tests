@@ -4460,6 +4460,15 @@ def _roster_remember(why):
     _roster_state_save(state)
 
 
+def _roster_platform():
+    """mac or windows. A hostname is not a platform."""
+    if IS_WIN:
+        return "windows"
+    if sys.platform == "darwin":
+        return "mac"
+    return None
+
+
 def _roster_claimed_name():
     """The nickname already written on this install. Never mints an id."""
     try:
@@ -4629,7 +4638,7 @@ def _roster_publish_once(boot):
     if held:
         _roster_remember("suppressed: " + str(held)[:160])
         return
-    owner = _rp.owner_of(_roster_claimed_name())
+    owner = _rp.owner_of(_roster_claimed_name(), _roster_platform())
     if not owner:
         _roster_remember("this PC has no roster label")
         return
