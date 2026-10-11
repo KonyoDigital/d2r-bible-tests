@@ -12313,11 +12313,18 @@ window._lockMark = function(isOpen, px, label){
     var m = String((sm && sm.sessionId) || '').match(/^s_(\d{10,})_/);
     return m ? +m[1] : 0;
   }
+  function _runSpanSay(t0, t1){
+    /* #277 (REG-2155) - ran is t0 to t1. sealed-in is how long KAI took after the run
+       ended. plays is the film. A missing end is not a zero-length run. A measured
+       0 still prints 0. */
+    if (!(t0 && t1)) return null;
+    var spanS = Math.max(0, Math.round((+t1 - +t0) / 1000));
+    return Math.floor(spanS / 60) + 'm' + ('0' + (spanS % 60)).slice(-2) + 's';
+  }
   function _dossierHtml(sm){
     var n = sm.n || 1;
     var _ms0 = _shSessionMs(sm), d0 = _ms0 ? new Date(_ms0) : null;
-    var spanS = (sm.t0 && sm.t1) ? Math.max(0, Math.round((sm.t1 - sm.t0) / 1000)) : 0;
-    var dur = spanS ? (Math.floor(spanS / 60) + 'm' + ('0' + spanS % 60).slice(-2) + 's') : '—';
+    var dur = _runSpanSay(sm.t0, sm.t1);   /* #277 - missing stays UNKNOWN, a measured 0 still prints */
     var when = d0 ? (d0.toLocaleDateString() + ' · ' + d0.toLocaleTimeString()) : '—';
     var _dcov = _coverSrc(sm);   // D30 — best-find frame (money moment) → reel thumb → placeholder
     var cover = _dcov
@@ -12421,7 +12428,7 @@ window._lockMark = function(isOpen, px, label){
             ? '<div class="dsr-noteslot" id="dsr-noteslot"><span class="dsr-note">📝 ' + esc(nt.note) + '</span>'
               + '<button type="button" class="dsr-edit-btn sm" onclick="window._dossierEditNote()" title="edit note">✎</button></div>'
             : '<div class="dsr-noteslot" id="dsr-noteslot"><button type="button" class="dsr-note-add" onclick="window._dossierEditNote()">+ add a note</button></div>';
-          return title + '<div class="dsr-sub">' + esc(when) + '  ·  ran ' + esc(dur) + '</div>' + note;
+          return title + '<div class="dsr-sub">' + esc(when) + '  ·  ran ' + esc(dur == null ? 'UNKNOWN' : dur) + '</div>' + note;
         })() + '</div></div>'
       + '<div class="dsr-stats">' + stats + '</div>'
       + _dossierSinceLast(sm)   // D29 — how this run compares to the previous one (honest-absent on the first run)
@@ -12498,13 +12505,12 @@ window._lockMark = function(isOpen, px, label){
   function _dossierRecapText(sm){
     var n = sm.n || 1, nt = _sesNoteGet(sm.sessionId) || {}, L = [];
     var _ms0 = _shSessionMs(sm), d0 = _ms0 ? new Date(_ms0) : null;
-    var spanS = (sm.t0 && sm.t1) ? Math.max(0, Math.round((sm.t1 - sm.t0) / 1000)) : 0;
-    var dur = spanS ? (Math.floor(spanS / 60) + 'm' + ('0' + spanS % 60).slice(-2) + 's') : '—';
+    var dur = _runSpanSay(sm.t0, sm.t1);   /* #277 - missing stays UNKNOWN, a measured 0 still prints */
     L.push('TV DIABLO — Session Recap');
     L.push('─────────────────────────');
     L.push(nt.name ? (nt.name + '  (Session ' + n + ')') : ('Session ' + n));
     if (nt.note) L.push('Note: ' + nt.note);
-    L.push((d0 ? (d0.toLocaleDateString() + ' · ' + d0.toLocaleTimeString()) : '—') + '  ·  ran ' + dur);
+    L.push((d0 ? (d0.toLocaleDateString() + ' · ' + d0.toLocaleTimeString()) : '—') + '  ·  ran ' + (dur == null ? 'UNKNOWN' : dur));
     if ((sm.areas || []).length) L.push('Area: ' + sm.areas.join(' · '));
     L.push('');
     var reg = (sm.registered != null) ? sm.registered : ((sm.finds || []).length);
@@ -16803,7 +16809,7 @@ window._lockMark = function(isOpen, px, label){
     if (meta.t0 && meta.t1) range = ' · ' + thFmtFull(meta.t0) + ' → ' + thFmtT(meta.t1);
     else if (meta.t0) range = ' · ' + thFmtFull(meta.t0);
     var spanS = (meta.t0 && meta.t1) ? Math.max(0, Math.round((meta.t1 - meta.t0) / 1000)) : 0;
-    var spanTxt = spanS ? (Math.floor(spanS / 60) + 'm' + ('0' + (spanS % 60)).slice(-2) + 's') : '';
+    var spanSay = _runSpanSay(meta.t0, meta.t1);
     // v948.6 — counters: L/R photo index uses MODE filter; session film total always shown
     var _st = thSessionPhotoStats();
     var _pp = thPhotoPos(TH.i);
@@ -16850,7 +16856,7 @@ window._lockMark = function(isOpen, px, label){
     } catch(eT){}
     $('th-sess').textContent = 'session ' + TH.sn + ' of all ' + TH.sessions.length   /* REG-2077 - every run journaled, empty ones too */
       + range
-      + (spanTxt ? ' · ran ' + spanTxt : '')
+      + ' · ran ' + (spanSay == null ? 'UNKNOWN' : spanSay)
       + playSeg
       + photoSeg
       + (_st.allFoot ? ' · 📹 film ' + _st.allFoot : ' · reads-only')
@@ -18200,7 +18206,6 @@ window._lockMark = function(isOpen, px, label){
       }
       var n = sm.n || (i + 1);
       var _ms0 = _shSessionMs(sm), d0 = _ms0 ? new Date(_ms0) : null;
-      var spanS = (sm.t0 && sm.t1) ? Math.max(0, Math.round((sm.t1 - sm.t0) / 1000)) : 0;
       var foot = (sm.footageN || 0);
       var inLine = (sm.intakes || 0) ? ('📸 ' + sm.intakes + ' intake' + (sm.intakes > 1 ? 's' : '') + ' · ') : '';
       var footLine = foot ? (inLine + '📹 ' + foot + ' frames · full video')
@@ -18332,7 +18337,7 @@ window._lockMark = function(isOpen, px, label){
          + '<span class="shc-nf-i">' + _noFilm.icon + '</span>'
          + '<span class="shc-nf-t">' + esc(_noFilm.txt) + '</span></div>');
       var whenTxt = d0 ? (d0.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) + ' · ' + d0.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })) : '—';
-      var durTxt = spanS ? (Math.floor(spanS / 60) + 'm' + ('0' + spanS % 60).slice(-2) + 's') : '';
+      var durTxt = _runSpanSay(sm.t0, sm.t1) || '';
       /* v3091 — the two chronicle tiles must carry the QUALITY COLOUR, not lean on an emoji.
          This file's v1634 block states the law ("Every surface in this document that NAMES a
          quality or a chronicle now reads a --rar-* token") and v1635 re-gated it after four
@@ -23671,9 +23676,8 @@ window._lockMark = function(isOpen, px, label){
       var t = (HD_ALL || []).find(function(s){ return s.kaiMissed != null; });
       if (!t && (HD_ALL || []).length > 1) t = HD_ALL[1];   // fallback: the one before the live head
       if (!t){ box.hidden = true; return; }
-      var spanS = (t.t0 && t.t1) ? Math.max(0, Math.round((t.t1 - t.t0) / 1000)) : 0;
       var parts = [];
-      parts.push(spanS ? Math.floor(spanS / 60) + 'm' + ('0' + spanS % 60).slice(-2) + 's' : '—');
+      parts.push(_runSpanSay(t.t0, t.t1) || 'UNKNOWN');
       parts.push((t.reads || 0) + ' reads');
       if (t.tallies > 0) parts.push('📸 ' + t.tallies + ' tall' + (t.tallies > 1 ? 'ies' : 'y'));
       if (t.kaiMissed != null) parts.push('🧠 ' + t.kaiMissed + ' missed');

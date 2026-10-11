@@ -9226,6 +9226,11 @@ GATES = [
          needs_app=False,
          why=("REG-2154 (#277) - the theatre caption printed 0 frames swept on every kai beat that "
               "was not the summary, because a missing scanned became 0.")),
+    Gate("test_a_missing_run_length_is_not_a_dash", [sys.executable,
+         os.path.join(HERE, "test_a_missing_run_length_is_not_a_dash.py")], 30,
+         needs_app=False,
+         why=("REG-2155 (#277) - the dossier printed ran as a dash when t0 or t1 was missing, "
+              "the same mark as a zero-length run. A missing clock says UNKNOWN. A measured 0 still prints.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

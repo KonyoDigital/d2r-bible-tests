@@ -406,6 +406,18 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2155 - A MISSING RUN LENGTH WORE THE SAME DASH AS A ZERO-LENGTH RUN (2026-10-11, #277)
+
+The dossier said "ran —" beside "sealed in 10m18s", and the theatre said "plays 0m26s".
+Those are three clocks. ran is t0 to t1. sealed-in is how long KAI took after the run
+ended. plays is the film. A missing t0 or t1 took the same em dash as a measured span
+of 0, on the dossier, the recap, and the last-session digest. The theatre omitted ran
+instead, so two surfaces disagreed about whether the clock existed.
+`_runSpanSay` is the one wording. A missing end says UNKNOWN. A measured 0 prints
+0m00s. The shelf card still omits the chip when the clock is missing, and prints
+0m00s when the span was measured at zero. sealed-in and plays are not folded into it.
+Law: `test_a_missing_run_length_is_not_a_dash`. Not rendered here.
+
 ### REG-2154 - A KAI BEAT THAT IS NOT THE CLOSE SAID 0 FRAMES SWEPT (2026-10-11, #277)
 
 `thCaption` treated every kai beat with no `texts` as the session close, and
