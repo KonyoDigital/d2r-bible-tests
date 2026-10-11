@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-"""REG-2174 (#236) - a short shelf does not hide BEST RUN / STREAK to show a reel.
+"""REG-2175 (#236) - the highlight row stays, and the reel is not a one-pixel line.
 
-The highlight row is built above the cards. The opening scroll used to put the
-first card near the top, which carried that row off a short shelf. _shOpenScroll
-moves only as far as the card needs when any of the row still meets the
-viewport. A row that would leave entirely keeps the old head scroll, so the
-reel stays on screen. No row keeps that head scroll. A card already in view
-does not move.
+v3669 (REG-2174) stopped at the first pixel of the card. The row stayed and
+the reel did not. _shOpenScroll now stops at the last scroll that keeps the
+whole row inside the viewport, when that still puts the card inside. A row
+that cannot stay keeps the old head scroll, so the reel is shown. No row
+keeps that head scroll. A card already in view does not move.
 
 Drives the shipped function, cut from control_ui.html and run in node.
 The count disagreement on the same task is not this law.
@@ -71,20 +70,23 @@ def _scroll(cases):
 
 class AShortShelfKeepsTheHighlightRow(unittest.TestCase):
 
-    def test_a_row_that_still_meets_the_viewport_is_not_scrolled_away(self):
+    def test_a_row_that_still_fits_is_kept_and_the_reel_is_more_than_a_pixel(self):
         # measured furniture: highlight 197..371, card at 708, viewport 660.
-        # the old head scroll was 708 - round(660*0.18) = 589, which hid the row.
-        measured, short, partial = _scroll([
+        # the head scroll is 589 and hides the row. the one-pixel scroll is 49.
+        measured, beside, cannot = _scroll([
             [708, 660, 197, 371],
+            [680, 660, 400, 500],
             [420, 390, 20, 190],
-            [400, 390, 10, 180],
         ])
-        self.assertEqual(measured, 49)
+        self.assertEqual(measured, 197)
         self.assertNotEqual(measured, 589)
-        self.assertEqual(short, 31)
-        self.assertNotEqual(short, 350)
-        self.assertEqual(partial, 11)
-        self.assertLess(partial, 70)
+        self.assertNotEqual(measured, 49)
+        self.assertGreaterEqual(197 - measured, 0)
+        self.assertLessEqual(371 - measured, 660)
+        self.assertGreaterEqual(660 - (708 - measured), 104)
+        self.assertEqual(beside, 400)
+        self.assertGreaterEqual(660 - (680 - beside), 104)
+        self.assertEqual(cannot, 350)
 
     def test_a_card_already_in_view_does_not_move_and_a_gone_row_keeps_the_head(self):
         visible, unlaid, bare, gone = _scroll([
@@ -112,8 +114,8 @@ RED_PROOF = [
     {
         "why": "REG-2174 - a short shelf goes back to the head scroll and hides the highlight row",
         "file": "tv/control_ui.html",
-        "find": "        if (visible > 0) return minScroll;\n",
-        "replace": "        if (false) return minScroll;\n",
+        "find": "          if (headScroll > maxKeep && (top - maxKeep) < ovH) return maxKeep;\n",
+        "replace": "          if (false) return maxKeep;\n",
         "matches": 1,
     },
     {

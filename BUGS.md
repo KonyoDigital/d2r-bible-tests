@@ -415,6 +415,18 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2175 - THE SHORT-SHELF SCROLL SHOWED ONE PIXEL OF THE REEL (2026-10-11, #236)
+
+v3669 kept the highlight row by stopping at the first pixel of the card.
+On the measured shelf that is scroll 49, and the card top sits at 659 in a
+660 viewport. The hero is at least 104px, so one pixel is not a reel. The
+head scroll is 589 and it hides the row. The scroll now stops at the last
+point where the whole row is still inside, when that still puts the card
+inside. Measured, that is 197: the row is on screen and 149px of the card
+is too. A row that cannot stay keeps the head scroll. The 8-of-8 versus
+9-on-the-shelf count is not this fix. #236 stays open.
+Law: `test_a_short_shelf_keeps_the_highlight_row`. Not rendered here.
+
 ### REG-2174 - A SHORT SHELF HID THE HIGHLIGHT ROW TO SHOW THE FIRST CARD (2026-10-11, #236)
 
 The BEST RUN / STREAK row is built above the reel cards. The opening scroll

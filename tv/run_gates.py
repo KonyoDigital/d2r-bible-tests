@@ -9282,10 +9282,10 @@ GATES = [
     Gate("test_a_short_shelf_keeps_the_highlight_row", [sys.executable,
          os.path.join(HERE, "test_a_short_shelf_keeps_the_highlight_row.py")], 30,
          needs_app=False,
-         why=("REG-2174 (#236) - the opening scroll put the first card near the top and "
-              "hid the BEST RUN / STREAK row on a short shelf. It scrolls only as far as "
-              "the card needs when any of that row still meets the viewport. A row that "
-              "would be gone keeps the head scroll so the reel stays on screen. A card "
+         why=("REG-2175 (#236) - the opening scroll hid BEST RUN / STREAK, and the first "
+              "cut then showed one pixel of the reel. The scroll stops where the whole "
+              "highlight row still fits, when that still puts the card inside. A row "
+              "that cannot stay keeps the head scroll so the reel is shown. A card "
               "already in view does not move.")),
     Gate("test_a_roster_publish_stays_off_the_presence_beacon", [sys.executable,
          os.path.join(HERE, "test_a_roster_publish_stays_off_the_presence_beacon.py")], 90,
