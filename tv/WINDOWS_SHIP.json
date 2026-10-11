@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3667",
+  "ver": "v3668",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3667: the roster opens from the fleet and stays off the nine header doors",
+  "note": "v3668: chronicle and reel tallies are drawn and the roster hide keeps the hidden count",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
