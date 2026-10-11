@@ -415,6 +415,17 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2177 - A HELD RELAUNCH BANNER SAID ONLY RELAUNCH TO USE IT (2026-10-11, #266)
+
+The drift lane already publishes relaunch.may and relaunch.why on /api/status.
+armRelaunch painted "Relaunch to use it" and learned a reason only after a
+click started the waiter. A hold for the window he is using never starts that
+waiter, so the bar had no why. The banner now appends the why when may is
+false. A missing why, a blank why, and a may that is not false stay the old
+sentence. The click still does not fire by itself. The vault-first-click half
+of #266 is not this fix.
+Law: `test_a_held_relaunch_banner_says_why`.
+
 ### REG-2176 - THE SHELF OPEN LAW RAN THE CALL WITHOUT THE FUNCTION (2026-10-11)
 
 v3670 moved the open scroll into _shOpenScroll, outside the try the shelf-open

@@ -9301,6 +9301,12 @@ GATES = [
          why=("REG-2159 - GROK ONLY started the vault and chronicle sweeps because the Claude "
               "function exists, then every page timed out on grok. Those sweeps run only when "
               "Claude is the reader. A skip is not a read and the reel stays unswept.")),
+    Gate("test_a_held_relaunch_banner_says_why", [sys.executable,
+         os.path.join(HERE, "test_a_held_relaunch_banner_says_why.py")], 60,
+         needs_app=False,
+         why=("REG-2177 (#266) - the armed relaunch banner said only Relaunch to use it "
+              "while the drift lane already knew the hold. A may-false why is printed. "
+              "A missing why stays the old sentence.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

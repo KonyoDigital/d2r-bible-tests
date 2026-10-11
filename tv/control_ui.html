@@ -20315,7 +20315,7 @@ window._lockMark = function(isOpen, px, label){
   (function(){
     var bar = $('fleet-bar'), txt = $('fleet-txt'), go = $('fleet-go'), x = $('fleet-x');
     if (!bar || !txt || !go || !x) return;
-    var mutedFor = '', lastSeenLatest = '', stage = 'behind', lastPullMs = 0;
+    var mutedFor = '', lastSeenLatest = '', stage = 'behind', lastPullMs = 0, _armHold = null;
     /* v2248 — IT CHECKS AGAIN. Konyo, with his cousin on the phone: "i want deans computer and
        console automatically updating just like mine... when you ship a version it should
        reautoupdate both of us automatically."
@@ -20374,7 +20374,7 @@ window._lockMark = function(isOpen, px, label){
             var sr = await fetch(API + '/api/status');
             var sj = await sr.json();
             var dr = sj && sj.drift;
-            if (dr && dr.drift === true && dr.disk){ armRelaunch(dr.disk); return; }
+            if (dr && dr.drift === true && dr.disk){ _armHold = dr.relaunch || null; armRelaunch(dr.disk); return; }
           } catch (e){}
           bar.hidden = true; return;
         }
@@ -20487,11 +20487,23 @@ window._lockMark = function(isOpen, px, label){
       _updWaitTimer = setInterval(tick, 2500);
     }
 
+    /* #266 - the drift lane already publishes relaunch.may and relaunch.why.
+       The armed banner used to say only "Relaunch to use it", so a hold for the
+       window he is using looked like a button with no reason. A missing why
+       stays that sentence. may true is not a hold. */
+    function _relaunchBannerSay(ver, relaunch){
+      var head = (ver ? ver : 'a newer console') + ' is on disk — this window is still running the old one. Relaunch to use it.';
+      var why = '';
+      if (relaunch && relaunch.may === false) why = String(relaunch.why || '').replace(/\s+/g, ' ').trim();
+      if (!why) return head;
+      return head + ' Held: ' + why;
+    }
     function armRelaunch(ver){
+      var hold = _armHold; _armHold = null;
       stage = 'ready';
       bar.setAttribute('data-stage', 'ready');   /* #266 (K11) - the page-newer line reads this and defers to RELAUNCH NOW */
-      txt.textContent = (ver ? ver : 'a newer console') + ' is on disk — this window is still running '
-        + 'the old one. Relaunch to use it.';
+      txt.textContent = _relaunchBannerSay(ver, hold);
+      txt.title = txt.textContent;
       go.textContent = 'RELAUNCH NOW';
       go.hidden = false; go.disabled = false; bar.hidden = false;
       /* ── v2173 — SHOW THE WAIT WITHOUT MAKING HIM ASK FOR IT. ─────────────────────────────
