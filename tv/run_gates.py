@@ -9247,6 +9247,12 @@ GATES = [
          why=("REG-2158 (#252) - the theatre said film 11 beside all 20 photos and never said "
               "which count was which. Film is the film-lane stills. Photos are every framed beat. "
               "A missing count stays UNKNOWN. A measured 0 still prints when the other differs.")),
+    Gate("test_a_grok_only_reader_does_not_start_a_sweep", [sys.executable,
+         os.path.join(HERE, "test_a_grok_only_reader_does_not_start_a_sweep.py")], 60,
+         needs_app=False,
+         why=("REG-2159 - GROK ONLY started the vault and chronicle sweeps because the Claude "
+              "function exists, then every page timed out on grok. Those sweeps run only when "
+              "Claude is the reader. A skip is not a read and the reel stays unswept.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

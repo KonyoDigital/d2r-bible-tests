@@ -406,6 +406,17 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2159 - A GROK ONLY READER STARTED THE SWEEP AND THEN TIMED OUT (2026-10-11)
+
+The vault sweep and the chronicle sweep asked whether `claude_chronicle_read` exists.
+It does, on a build whose eyes switch is GROK ONLY, so the door started and every page
+went to a grok one-shot. That call times out. The sweep never banks, the lock stays
+warm, and relaunch waits on reads that will not finish. Claude is full, so the switch
+stays GROK ONLY. These sweeps now start only when the reader is Claude (claude or both).
+GROK ONLY refuses before the thread, with laneMissing, so the tick does not count a try
+and does not retire the reel. A skip writes no seal. Nothing was read.
+Law: `test_a_grok_only_reader_does_not_start_a_sweep`.
+
 ### REG-2158 - FILM AND PHOTOS SAT SIDE BY SIDE AS IF THEY WERE ONE COUNT (2026-10-11, #252)
 
 Session 74 read "film 11" beside "REAL · all 20 photos". Session 53 read 106 beside 127.

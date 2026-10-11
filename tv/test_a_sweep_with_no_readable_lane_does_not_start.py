@@ -54,10 +54,15 @@ def _drive(lanes_fn, **kw):
     -> (response, spawned). The response is None only if the door RAISED, which is itself a
     failure: a door that explodes has not refused.
     """
+    import g5_grok_eyes as _g5
     real_may, real_lanes, real_thread = SA.may, ca._chron_lanes, threading.Thread
+    real_reader = _g5.reader
     orig_job = dict(ca._CHRON_JOB)
     _StoppedThread.spawned = []
     SA.may = lambda lock: (True, "v3406: the lock is stubbed OPEN so the DOOR is under test")
+    # REG-2159 — this law is the lane list. The host's eyes switch is not a lane.
+    # GROK ONLY refuses before the list is asked, so the reader is pinned to Claude.
+    _g5.reader = lambda: "claude"
     ca._chron_lanes = lanes_fn
     threading.Thread = _StoppedThread
     try:
@@ -68,6 +73,7 @@ def _drive(lanes_fn, **kw):
         return r, len(_StoppedThread.spawned)
     finally:
         SA.may, ca._chron_lanes, threading.Thread = real_may, real_lanes, real_thread
+        _g5.reader = real_reader
         ca._CHRON_JOB.clear()
         ca._CHRON_JOB.update(orig_job)
 

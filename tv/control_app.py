@@ -21386,6 +21386,16 @@ def chronicle_autoread_tick():
             return {"ok": False, "triesUnchanged": True, "locked": True,
                     "why": "the sweep door is LOCKED on this machine, so the visit's try was NOT counted: %s"
                            % str(r.get("why") or "")[:160]}
+        # REG-2159 — GROK ONLY is the reader, not this visit. The try was stored above
+        # because the door had not answered yet. Give it back. A skip is not a read.
+        if isinstance(r, dict) and not r.get("ok") and r.get("laneMissing"):
+            if tries - 1 > 0:
+                _CHRON_AUTOREAD["tries"][str(ts)] = tries - 1
+            else:
+                _CHRON_AUTOREAD["tries"].pop(str(ts), None)
+            return {"ok": False, "triesUnchanged": True, "laneMissing": True,
+                    "why": ("the reader for this sweep is not Claude, so the visit try was "
+                            "NOT counted: %s" % str(r.get("why") or "")[:160])}
         if not (isinstance(r, dict) and r.get("ok")):
             why = (isinstance(r, dict) and r.get("why")) or str(r)
             if tries >= _CHRON_AUTOREAD_MAX_TRIES:
@@ -22131,6 +22141,11 @@ def chronicle_autoreel_tick():
                 return {"ok": False, "triesUnchanged": True, "attempt": tries, "locked": True,
                         "why": "the sweep door is LOCKED on this machine, so the try was NOT counted: %s"
                                % _rwhy}
+            # REG-2159 — the reader is GROK ONLY. The reel was not read. Do not store the try.
+            if isinstance(r, dict) and r.get("laneMissing"):
+                return {"ok": False, "triesUnchanged": True, "laneMissing": True,
+                        "why": ("the reader for this sweep is not Claude, so the try was "
+                                "NOT counted: %s" % _rwhy)}
             _CHRON_AUTOREAD["tries"][rid] = tries   # anything else might be the reel — it counts
             _chron_autoread_save()
             return {"ok": False, "triesCounted": tries, "attempt": tries,
@@ -32487,6 +32502,7 @@ _VAULT_LANE_REFUSAL = (
     "vault_retro unavailable",
     "this build cannot sweep safely",
     "vault.sweep_start is LOCKED",
+    "GROK ONLY is the reader",
 )
 
 
@@ -34604,6 +34620,28 @@ def _sweep_pick_named(dirs, reel_dir, force, rec_of, still_sealed=None):
                                  "them again")))}
 
 
+def _sweep_skipped_because_reader_is_grok():
+    """REG-2159. A console sweep runs only when Claude is the reader.
+
+    GROK ONLY sends every page to a grok one-shot. That call times out, the sweep
+    never banks, and the warm lock holds relaunch. On claude and on both, Claude
+    reads every frame, so those sweeps still start. A skip is not a read and not a
+    seal. An unreadable switch is not a skip: that is UNKNOWN, and the door below
+    still decides.
+    """
+    try:
+        import g5_grok_eyes as _g5
+        who = _g5.reader()
+    except Exception:
+        return None
+    if who != "grok":
+        return None
+    return {"ok": False, "laneMissing": True, "grokOnly": True,
+            "why": ("GROK ONLY is the reader on this PC, so this sweep does not start. "
+                    "These sweeps run only when Claude is the reader. "
+                    "Nothing was read and the reel stays unswept.")}
+
+
 def vault_sweep_start(hist_dir=None, limit=None, force=False, reel_dir=None):
     """Kick the background vault sweep. Refuses a second one — two sweeps over the same reels
     double the spend and produce two proposals that each look like the whole truth.
@@ -34662,6 +34700,12 @@ def vault_sweep_start(hist_dir=None, limit=None, force=False, reel_dir=None):
     with _VAULT_LOCK:
         if _VAULT_JOB["running"]:
             return {"ok": False, "why": "a vault sweep is already running", "state": dict(_VAULT_JOB)}
+        # REG-2159 — the lane list still names claude, because the function exists.
+        # The switch is who is asked. GROK ONLY asks grok, and grok does not finish
+        # a console sweep. Refuse before the thread exists, so nothing is sealed.
+        _skip = _sweep_skipped_because_reader_is_grok()
+        if _skip is not None:
+            return _skip
         lanes = _chron_lanes()
         if "claude" not in lanes:
             # Claude is PRIMARY. Without it there is no page for a second opinion to be about.
@@ -34692,6 +34736,15 @@ def vault_sweep_start(hist_dir=None, limit=None, force=False, reel_dir=None):
 
 def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
     try:
+        # REG-2159 — a thread that got past the door (the switch moved) still does not read.
+        _skip = _sweep_skipped_because_reader_is_grok()
+        if _skip is not None:
+            with _VAULT_LOCK:
+                _VAULT_JOB["running"] = False
+                _VAULT_JOB["phase"] = "idle"
+                _VAULT_JOB["incompleteWhy"] = _skip.get("why")
+                _VAULT_JOB["lastRefusal"] = _skip
+            return
         _vr = _vault_retro()
         import tv_diablo as _tv
         try:
@@ -38882,6 +38935,11 @@ def chronicle_sweep_start(hist_dir=None, limit=None, force=False, visit=None, re
         except Exception as _lane_e:
             return {"ok": False, "why": "the lane list could not be read (%s) — a sweep with no "
                                         "known reader does not start" % type(_lane_e).__name__}
+        # REG-2159 — claude is in the lane list whenever the function exists. GROK ONLY
+        # never asks it, and grok does not finish the sweep. Refuse before the thread.
+        _skip = _sweep_skipped_because_reader_is_grok()
+        if _skip is not None:
+            return _skip
         if not isinstance(lanes, (list, tuple)) or "claude" not in lanes:
             # Claude is PRIMARY. Without it there is no page for a second opinion to be about.
             # ⚠⚠ v3219 — AND THE REFUSAL SAYS WHICH KIND OF ABSENT. `_chron_lane_detail()` has
@@ -38961,6 +39019,14 @@ def _chron_visit_run(visit_ts):
             import g5_grok_eyes as _g5
         except Exception:
             _g5 = None
+        # REG-2159 — do not open the journal, and do not mark the visit, when the reader is grok.
+        _skip = _sweep_skipped_because_reader_is_grok()
+        if _skip is not None:
+            with _CHRON_LOCK:
+                _CHRON_JOB["running"] = False
+                _CHRON_JOB["phase"] = "idle"
+                _CHRON_JOB["lastRefusal"] = _skip
+            return
         vis = None
         _vl = chronicle_visits(limit=40)
         # REG-1824 — an unread journal is not a visit that left it (REG-1797's sibling, unswept).
@@ -39276,6 +39342,14 @@ def _chron_live_lane_pages(limit=2000):
 
 def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
     try:
+        # REG-2159 — a thread that got past the door still does not read, and does not seal.
+        _skip = _sweep_skipped_because_reader_is_grok()
+        if _skip is not None:
+            with _CHRON_LOCK:
+                _CHRON_JOB["running"] = False
+                _CHRON_JOB["phase"] = "idle"
+                _CHRON_JOB["lastRefusal"] = _skip
+            return
         import chronicle_retro as _cr
         import tv_diablo as _tv
         try:
