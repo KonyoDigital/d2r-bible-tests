@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3651",
+  "ver": "v3652",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3651: REG-2156 - plays is the film clock. A missing film length says UNKNOWN. A measured 0 still prints 0m00s. It does not borrow the run. sealed-in stays its own clock.",
+  "note": "v3652: REG-2157 - sealed-in is its own clock. A missing seal stays off the chip. A measured 0 prints 0m00s. It does not borrow the run or the film.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
