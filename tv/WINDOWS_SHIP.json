@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3676",
+  "ver": "v3677",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3676: REG-2181 - the names banked row no longer walks the printer a second time",
+  "note": "v3677: REG-2182 - the names counter stays inside _named_sessions",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
