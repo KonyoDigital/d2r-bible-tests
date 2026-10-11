@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3661",
+  "ver": "v3662",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3661: REG-2166 - Fleet 3.0 phase 1 publishes each PCs own sections on a separate route and a separate KV key. Hourly, change-only, plus one at boot. Over the daily cap the server says why and does not answer 500. An unread section stays absent. Pictures stay off the body. HEART: test_a_roster_publish_stays_off_the_presence_beacon",
+  "note": "v3662: REG-2166 - the roster publish keeps the owner label and stays encoding-safe. The loop stamps its tick. A path in the law is not a home path. HEART: test_a_roster_publish_stays_off_the_presence_beacon",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
