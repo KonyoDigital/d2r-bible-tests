@@ -12265,6 +12265,24 @@ window._lockMark = function(isOpen, px, label){
   function _coverSrc(sm){   // the best-find frame, else the reel thumb, else '' (→ placeholder)
     return _bestFindFrame(sm) || (sm.thumb ? ('/hist/' + encodeURI(sm.thumb)) : '');
   }
+  function _coverUrl(src){
+    /* #252 (REG-2163) - the dossier cover and the shelf card are one picture.
+       The shelf already asked for this frame. The dossier asked for a second
+       width, so the first open had nothing cached and painted an empty
+       thumbnail until that fetch landed. Reopen was instant. One url. */
+    if (!src) return '';
+    var u = String(src);
+    if (u.indexOf('?') >= 0) return u;
+    return u + '?w=440';
+  }
+  function _dossierCoverHtml(src){
+    /* #252 (REG-2163) - the picture he just opened is the hero, not a lazy
+       thumb below the fold. A lazy cover left the first open empty. A missing
+       cover stays the placeholder, not a broken image. */
+    var u = _coverUrl(src);
+    if (!u) return '<div class="dsr-cover dsr-cover-none">🎞</div>';
+    return '<img class="dsr-cover" src="' + u + '" alt="" loading="eager" onerror="this.src=\'/art/hd_zod_rune.png\';this.classList.add(\'dsr-cover-fb\')">';
+  }
   /** v1380.2 — a session is playable when it has real film or AI frames (not a ghost ON/OFF). */
   function thSessionPlayable(s){
     if (!s || s.stub) return false;
@@ -12382,9 +12400,7 @@ window._lockMark = function(isOpen, px, label){
     var dur = _runSpanSay(sm.t0, sm.t1);   /* #277 - missing stays UNKNOWN, a measured 0 still prints */
     var when = d0 ? (d0.toLocaleDateString() + ' · ' + d0.toLocaleTimeString()) : '—';
     var _dcov = _coverSrc(sm);   // D30 — best-find frame (money moment) → reel thumb → placeholder
-    var cover = _dcov
-      ? '<img class="dsr-cover" src="' + _dcov + '?w=420" alt="" loading="lazy" onerror="this.src=\'/art/hd_zod_rune.png\';this.classList.add(\'dsr-cover-fb\')">'
-      : '<div class="dsr-cover dsr-cover-none">🎞</div>';
+    var cover = _dossierCoverHtml(_dcov);   /* #252 (REG-2163) - same url as the shelf, eager */
     var _rs = _runSeal(sm);   /* #277 (REG-2055) - the seal no longer reads clean over gaps */
     var seal = (_rs.k === 'open') ? '<span class="dsr-seal dsr-seal-open"><span class="dss-ic">◌</span><span class="dss-lab">unsealed</span></span>'
       : (_rs.k === 'flag') ? '<span class="dsr-seal dsr-seal-flag"><span class="dss-ic">🚨</span><span class="dss-lab">' + _rs.n + ' flagged</span></span>'
@@ -18402,7 +18418,7 @@ window._lockMark = function(isOpen, px, label){
       // overlap anything and does not depend on any other chip's geometry staying put.
       // `data-fstate` stays on the hero so an outside reader can still measure the state.
       var heroOpen = _coverArt
-        ? '<div class="shc-hero" style="background-image:url(' + _coverArt + '?w=440)">'
+        ? '<div class="shc-hero" style="background-image:url(' + _coverUrl(_coverArt) + ')">'
         : '<div class="shc-hero noimg" data-fstate="' + esc(_fState || 'none') + '">';
       var noFilmLine = _coverArt ? '' :
         ('<div class="shc-nofilm shc-nf-' + _noFilm.cls + '"'

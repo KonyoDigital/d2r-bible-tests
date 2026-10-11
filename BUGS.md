@@ -406,6 +406,17 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2163 - THE DOSSIER'S FIRST OPEN PAINTED AN EMPTY THUMBNAIL (2026-10-11, #252)
+
+Session 74's dossier opened with an empty thumbnail. The picture came about 3 seconds
+later. Reopen had it at once. The shelf card had already asked for that frame at
+`?w=440`. The dossier asked again at `?w=420` and marked the image lazy, so the first
+open waited on a second fetch. `_coverUrl` is the one url. The shelf hero and the
+dossier cover both ask it. `_dossierCoverHtml` paints that url eager. A missing cover
+stays the placeholder, not a broken image. The 1-miss card line beside a full-read
+dossier was not this fix.
+Law: `test_the_dossier_cover_is_the_shelf_picture`. Not rendered here.
+
 ### REG-2162 - THE T+ CLOCK READ A WALL TIME BEFORE THE RUN START (2026-10-11, #252)
 
 Session 175 showed T+0:03.704 beside 7:54:39 PM while the run start was 7:54:45 PM.

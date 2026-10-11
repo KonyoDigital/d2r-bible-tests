@@ -9266,6 +9266,13 @@ GATES = [
               "T+ had already moved. A wall before the start prints as the start at "
               "T+0:00.000. A missing wall stays UNKNOWN. A measured moment at the start "
               "still prints.")),
+    Gate("test_the_dossier_cover_is_the_shelf_picture", [sys.executable,
+         os.path.join(HERE, "test_the_dossier_cover_is_the_shelf_picture.py")], 30,
+         needs_app=False,
+         why=("REG-2163 (#252) - the first open of a dossier painted an empty thumbnail. "
+              "The shelf had already asked for that frame at one width. The dossier asked "
+              "for a second width and marked it lazy, so the picture arrived seconds later. "
+              "One url, eager. A missing cover stays the placeholder.")),
     Gate("test_a_grok_only_reader_does_not_start_a_sweep", [sys.executable,
          os.path.join(HERE, "test_a_grok_only_reader_does_not_start_a_sweep.py")], 60,
          needs_app=False,
