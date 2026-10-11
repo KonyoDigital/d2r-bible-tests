@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3670",
+  "ver": "v3671",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3670: REG-2175 - the shelf scroll keeps the whole highlight row when the card still lands inside. A one-pixel reel is not a reel. A row that cannot stay keeps the head scroll. HEART: test_a_short_shelf_keeps_the_highlight_row",
+  "note": "v3671: the open law runs the scroll function with the try",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

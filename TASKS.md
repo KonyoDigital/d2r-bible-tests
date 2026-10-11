@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3670** | `(this commit)` | v3670 — REG-2175 - the shelf scroll keeps the whole highlight row when the card still lands inside. A one-pixel reel is not a reel. A row that cannot stay keeps the head scroll. HEART: test_a_short_shelf_keeps_the_highlight_row |
+| **v3671** | `(this commit)` | v3671 — the open law runs the scroll function with the try |
+| **v3670** | `9a8975df` | v3670 — REG-2175 - the shelf scroll keeps the whole highlight row when the card still lands inside. A one-pixel reel is not a reel. A row that cannot stay keeps the head scroll. HEART: test_a_short_shelf_keeps_the_highlight_row |
 | **v3669** | `f18929cd` | v3669 — REG-2174 - a short shelf scrolls only as far as the first card needs when the highlight row still fits. The reels stay on screen. The count disagreement on 236 stays open. HEART: test_a_short_shelf_keeps_the_highlight_row |
 | **v3668** | `66113ae8` | v3668 — chronicle and reel tallies are drawn and the roster hide keeps the hidden count |
 | **v3667** | `193e77d7` | v3667 — the roster opens from the fleet and stays off the nine header doors |
