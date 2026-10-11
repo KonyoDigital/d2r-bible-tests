@@ -446,6 +446,25 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         hidden = RP.roster_html({"ok": True, "fetched": True, "now": now, "owners": [bad]})
         self.assertIn("rows are not shown", hidden)
         self.assertNotIn("Shako", hidden)
+        tall = {"owner": "Dean", "published": True, "corrupt": False, "t": now,
+                "sections": {
+                    "characters": {"asOf": now, "counts": 1, "rows": [{"name": "Sorceress", "level": 87}]},
+                    "chronicle": {"asOf": now, "counts": {"sets": {"have": 12, "total": 40},
+                                                         "uniques": {"have": 3}}},
+                    "reels": {"asOf": now, "counts": {"reels": 4},
+                              "rows": [{"station": "TRAVEL", "date": now}]},
+                    "stash": {"asOf": now, "counts": 1,
+                              "rows": [{"name": "Shako", "provenance": "shared"}]},
+                }}
+        full = RP.roster_html({"ok": True, "fetched": True, "now": now, "owners": [tall]})
+        self.assertIn("sets 12/40", full)
+        self.assertIn("uniques 3", full)
+        self.assertNotIn("uniques 3/0", full)
+        self.assertIn("reels 4", full)
+        self.assertIn("Sorceress · 87", full)
+        self.assertIn("TRAVEL", full)
+        self.assertNotIn(str(now), full)
+        self.assertIn("shared", full)
 
 
 RED_PROOF = [
@@ -545,6 +564,20 @@ RED_PROOF = [
         "file": "roster_publish.py",
         "find": "                items.append(\"<li>%s</li>\" % html.escape(line, quote=True))\n",
         "replace": "                items.append(\"<li>%s</li>\" % line)\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2172 - a chronicle tally is dropped because it is not one integer",
+        "file": "roster_publish.py",
+        "find": "    if not isinstance(counts, dict) or not counts:\n        return None\n",
+        "replace": "    return None\n    if not isinstance(counts, dict) or not counts:\n        return None\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2172 - a reel date is printed as a raw millisecond count",
+        "file": "roster_publish.py",
+        "find": "        if key == \"date\":\n",
+        "replace": "        if False and key == \"date\":\n",
         "matches": 1,
     },
 ]

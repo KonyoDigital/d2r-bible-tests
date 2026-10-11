@@ -542,10 +542,48 @@ def _ago(as_of, now_ms):
     return state, words
 
 
-def _show_cell(value):
+def _count_text(counts):
+    """Words for a measured tally. Chronicle and reels store a dict, not one integer."""
+    if isinstance(counts, bool) or counts is None:
+        return None
+    if isinstance(counts, int):
+        return str(counts)
+    if not isinstance(counts, dict) or not counts:
+        return None
+    parts = []
+    for key, val in counts.items():
+        if not isinstance(key, str) or not key:
+            continue
+        label = key[:40]
+        if isinstance(val, bool) or val is None:
+            continue
+        if isinstance(val, int):
+            parts.append("%s %s" % (label, val))
+            continue
+        if not isinstance(val, dict):
+            continue
+        have = val.get("have")
+        if isinstance(have, bool) or not isinstance(have, int):
+            continue
+        total = val.get("total")
+        if isinstance(total, int) and not isinstance(total, bool) and total > 0:
+            parts.append("%s %s/%s" % (label, have, total))
+        else:
+            parts.append("%s %s" % (label, have))
+    if not parts:
+        return None
+    return " · ".join(parts)
+
+
+def _show_cell(value, now_ms=None, key=None):
     if isinstance(value, bool) or value is None:
         return None
     if isinstance(value, int):
+        if key == "date":
+            _state, words = _ago(value, now_ms)
+            if words:
+                return words
+            return "age unknown"
         return str(value)
     if not isinstance(value, str) or not value:
         return None
@@ -556,12 +594,12 @@ def _show_cell(value):
     return value[:80]
 
 
-def _row_line(row):
+def _row_line(row, now_ms):
     if not isinstance(row, dict):
         return None
     cells = []
-    for key in ("name", "cls", "level", "title", "tier", "mule", "locker", "station", "date"):
-        cell = _show_cell(row.get(key))
+    for key in ("name", "cls", "level", "title", "tier", "mule", "locker", "station", "date", "provenance"):
+        cell = _show_cell(row.get(key), now_ms, key)
         if cell:
             cells.append(cell)
     if not cells:
@@ -627,14 +665,14 @@ def _published_html(owner, row, now_ms):
             age = "age unknown"
         sec_class = "roster-stale" if sec_state == "stale" else "roster-sec"
         blocks.append('<div class="%s"><b>%s</b> %s' % (sec_class, label, html.escape(age, quote=True)))
-        counts = sec.get("counts")
-        if isinstance(counts, int) and not isinstance(counts, bool):
-            blocks.append(" <span>%s</span>" % html.escape(str(counts), quote=True))
+        counted = _count_text(sec.get("counts"))
+        if counted:
+            blocks.append(" <span>%s</span>" % html.escape(counted, quote=True))
         rows = sec.get("rows") if isinstance(sec.get("rows"), list) else []
         if rows:
             items = []
             for item in rows:
-                line = _row_line(item)
+                line = _row_line(item, now_ms)
                 if line:
                     items.append("<li>%s</li>" % html.escape(line, quote=True))
             if items:

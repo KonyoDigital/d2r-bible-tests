@@ -415,6 +415,14 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2172 - A DICT TALLY AND A REEL CLOCK WERE NOT DRAWN (2026-10-11, #39)
+
+Chronicle and reel counts are dicts. The panel printed a count only when it
+was one integer, so a published chronicle showed its age and no numbers.
+A reel date is a clock, and the panel printed the raw millisecond count.
+A level stays a number. A tally with no total is not drawn as n/0.
+Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
+
 ### REG-2171 - THE ROSTER OPENS FROM THE FLEET, NOT A TENTH HEADER DOOR (2026-10-11, #39)
 
 The header strip holds nine doors and a tenth one was already measured not to
