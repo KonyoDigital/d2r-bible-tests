@@ -12353,6 +12353,17 @@ window._lockMark = function(isOpen, px, label){
     if (film === photos) return ' · 📹 film ' + film + ', the same frames as the photos';
     return ' · 📹 film ' + film + ' (film-lane stills) · photos ' + photos + ' (every framed beat)';
   }
+  function _modeFlashSay(mode, film, photos, plays){
+    /* #252 (REG-2160) - the 1.6s flash by the mode pill. It said "N photos" and never
+       named the film count, so film 11 and photos 20 looked like one number that
+       had slipped. The counts are _filmPhotoSay. A missing count stays UNKNOWN.
+       A measured 0 still prints. plays is the film length already worded, or UNKNOWN. */
+    var counts = _filmPhotoSay(film, photos);
+    var play = (plays == null || plays === '') ? 'UNKNOWN' : String(plays);
+    if (mode === 'highlight') return '🎬 STORY · centered on each AI read' + counts;
+    if (mode === 'full') return '⏩ FAST · time-zipped ~' + play + counts;
+    return '⏱ REAL 1:1 · plays ' + play + counts;
+  }
   function _dossierHtml(sm){
     var n = sm.n || 1;
     var _ms0 = _shSessionMs(sm), d0 = _ms0 ? new Date(_ms0) : null;
@@ -20742,11 +20753,8 @@ window._lockMark = function(isOpen, px, label){
     var st2 = thSessionPhotoStats();
     var framedCount = st2.curPhoto, footCount = st2.curFoot, allFoot = st2.allFoot, allPhoto = st2.allPhoto;
     var _wallTxt = _playSay(TH.Tplay) || 'UNKNOWN';
-    var msg = TH.mode === 'real'
-      ? ('⏱ REAL 1:1 · ' + framedCount + ' photos · plays ' + _wallTxt)
-      : (TH.mode === 'highlight'
-        ? ('🎬 STORY · ' + framedCount + ' photos · centered on each AI read (film ' + footCount + '/' + allFoot + ') · click → REAL for all ' + allPhoto)
-        : ('⏩ FAST · all ' + framedCount + ' photos kept · time-zipped ~' + _wallTxt + ' @' + TH.speed + '×'));
+    /* #252 (REG-2160) - the 1.6s flash names film and photos. A bare photo count hid the film. */
+    var msg = _modeFlashSay(TH.mode, st2.allFoot, st2.allPhoto, _wallTxt);
     thToast(msg, this);
     if (TH.mode === 'highlight')
       toast('🎬 STORY — the AI-reader cut: walks read-to-read, each on the frame the AI read. REAL or FAST keeps all ' + allFoot + ' film stills.');

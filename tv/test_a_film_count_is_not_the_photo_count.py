@@ -90,8 +90,8 @@ class AFilmCountIsNotThePhotoCount(unittest.TestCase):
     def test_the_footer_and_the_mode_pill_ask_the_one_sentence(self):
         s = _src()
         self.assertEqual(s.count("function _filmPhotoSay(film, photos){"), 1)
-        self.assertEqual(s.count("_filmPhotoSay("), 3,
-                         "the footer and the mode pill must both ask _filmPhotoSay, and nobody else copies it")
+        self.assertEqual(s.count("_filmPhotoSay("), 4,
+                         "the footer, the mode pill, and the mode flash must ask _filmPhotoSay, and nobody else copies it")
         self.assertIn("+ _filmPhotoSay(_st.allFoot, _st.allPhoto)", s,
                       "the theatre footer prints a bare film count again")
         self.assertIn("_filmPhotoSay(st.allFoot, st.allPhoto)", s,

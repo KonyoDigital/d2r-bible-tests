@@ -406,6 +406,18 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2160 - THE MODE FLASH SAID A PHOTO COUNT AND NEVER NAMED THE FILM (2026-10-11, #252)
+
+The footer and the mode pill already ask `_filmPhotoSay`. The 1.6s flash by the
+mode pill still said "N photos" on its own. Film 11 and photos 20 then looked
+like one number that had slipped, the same defect on the flash the footer
+already stopped. `_modeFlashSay` is that flash. It asks `_filmPhotoSay` for
+REAL, FAST, and STORY. A missing count stays UNKNOWN and does not borrow the
+other. A measured 0 still prints. plays is the film length already worded, or
+UNKNOWN. The longer page toast on the same click, the empty first thumbnail,
+and a T+ clock that reads before the run start stay open on #252.
+Law: `test_the_mode_toast_names_film_and_photos`. Not rendered here.
+
 ### REG-2159 - A GROK ONLY READER STARTED THE SWEEP AND THEN TIMED OUT (2026-10-11)
 
 The vault sweep and the chronicle sweep asked whether `claude_chronicle_read` exists.

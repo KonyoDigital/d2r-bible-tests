@@ -9247,6 +9247,12 @@ GATES = [
          why=("REG-2158 (#252) - the theatre said film 11 beside all 20 photos and never said "
               "which count was which. Film is the film-lane stills. Photos are every framed beat. "
               "A missing count stays UNKNOWN. A measured 0 still prints when the other differs.")),
+    Gate("test_the_mode_toast_names_film_and_photos", [sys.executable,
+         os.path.join(HERE, "test_the_mode_toast_names_film_and_photos.py")], 30,
+         needs_app=False,
+         why=("REG-2160 (#252) - the 1.6s mode flash said N photos and never named the film "
+              "count beside it. The flash asks _filmPhotoSay. A missing count stays UNKNOWN. "
+              "A measured 0 still prints.")),
     Gate("test_a_grok_only_reader_does_not_start_a_sweep", [sys.executable,
          os.path.join(HERE, "test_a_grok_only_reader_does_not_start_a_sweep.py")], 60,
          needs_app=False,
