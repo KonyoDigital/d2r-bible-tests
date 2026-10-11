@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3662** | `(this commit)` | v3662 — REG-2166 - the roster publish keeps the owner label and stays encoding-safe. The loop stamps its tick. A path in the law is not a home path. HEART: test_a_roster_publish_stays_off_the_presence_beacon |
+| **v3663** | `(this commit)` | v3663 — REG-2167 - the roster receipt and its temp file stay ignored |
+| **v3662** | `53f64f85` | v3662 — REG-2166 - the roster publish keeps the owner label and stays encoding-safe. The loop stamps its tick. A path in the law is not a home path. HEART: test_a_roster_publish_stays_off_the_presence_beacon |
 | **v3661** | `bc8cf583` | v3661 — REG-2166 - Fleet 3.0 phase 1 publishes each PCs own sections on a separate route and a separate KV key. Hourly, change-only, plus one at boot. Over the daily cap the server says why and does not answer 500. An unread section stays absent. Pictures stay off the body. HEART: test_a_roster_publish_stays_off_the_presence_beacon |
 | **v3660** | `fd1185b2` | v3660 — REG-2165 - the organ slice carries the watchdog word it calls |
 | **v3659** | `f5cdd792` | v3659 — REG-2164 - a watchdog count says flagged beside a full read |

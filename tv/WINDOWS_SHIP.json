@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3662",
+  "ver": "v3663",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3662: REG-2166 - the roster publish keeps the owner label and stays encoding-safe. The loop stamps its tick. A path in the law is not a home path. HEART: test_a_roster_publish_stays_off_the_presence_beacon",
+  "note": "v3663: REG-2167 - the roster receipt and its temp file stay ignored",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
