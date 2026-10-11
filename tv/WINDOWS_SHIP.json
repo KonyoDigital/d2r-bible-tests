@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3668",
+  "ver": "v3669",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3668: chronicle and reel tallies are drawn and the roster hide keeps the hidden count",
+  "note": "v3669: REG-2174 - a short shelf scrolls only as far as the first card needs when the highlight row still fits. The reels stay on screen. The count disagreement on 236 stays open. HEART: test_a_short_shelf_keeps_the_highlight_row",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
