@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3675",
+  "ver": "v3676",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3675: REG-2180 - a pull reads the hold before it arms the relaunch banner",
+  "note": "v3676: REG-2181 - the names banked row no longer walks the printer a second time",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
