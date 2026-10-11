@@ -406,6 +406,20 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2158 - FILM AND PHOTOS SAT SIDE BY SIDE AS IF THEY WERE ONE COUNT (2026-10-11, #252)
+
+Session 74 read "film 11" beside "REAL · all 20 photos". Session 53 read 106 beside 127.
+Session 30 read 30 beside 46. Both numbers were true and answered different questions:
+film is the film-lane stills, photos is every beat that kept a frame. The footer printed
+the film number alone, and the mode pill printed the photo number alone, so two counts
+looked like one clock that had slipped. `_filmPhotoSay` is the one sentence. A missing
+count stays UNKNOWN and does not borrow the other. A measured 0 prints when the other
+count differs. When both are 0 the line stays "reads-only". When they match, one
+sentence says they are the same frames. When they differ, both are named. The mode
+pill asks the same sentence only when the two counts differ. The empty first thumbnail
+and a T+ clock that reads before the run start stay open on #252.
+Law: `test_a_film_count_is_not_the_photo_count`. Not rendered here.
+
 ### REG-2157 - A MEASURED SEAL OF ZERO WAS HIDDEN, AND A SHORT SEAL USED ANOTHER UNIT (2026-10-11, #277)
 
 sealed-in is how long KAI took after the run ended. ran is t0 to t1. plays is the film.

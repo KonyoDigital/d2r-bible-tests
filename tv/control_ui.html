@@ -11677,11 +11677,13 @@ window._lockMark = function(isOpen, px, label){
     // After filter, prefer current mode counts; fall back to session totals before first filter
     var n = st.curPhoto || st.allPhoto || '—';
     var f = st.curFoot || st.allFoot || 0;
+    /* #252 (REG-2158) - the pill says photos. A different film-lane count is named beside it. */
+    var _fpExtra = (st.allFoot !== st.allPhoto) ? _filmPhotoSay(st.allFoot, st.allPhoto) : '';
     if (m === 'highlight')
-      return '🎬 STORY · ' + n + ' photos · centered on each AI read';
+      return '🎬 STORY · ' + n + ' photos · centered on each AI read' + _fpExtra;
     if (m === 'full')
-      return '⏩ FAST · all ' + (st.allPhoto || n) + ' photos · time-zipped';
-    return '⏱ REAL · all ' + (st.allPhoto || n) + ' photos · 1:1 time';
+      return '⏩ FAST · all ' + (st.allPhoto || n) + ' photos · time-zipped' + _fpExtra;
+    return '⏱ REAL · all ' + (st.allPhoto || n) + ' photos · 1:1 time' + _fpExtra;
   }
   // v946.9 — photo index among framed beats (what L/R actually steps)
   function thFramedIndices(beats){
@@ -12335,6 +12337,21 @@ window._lockMark = function(isOpen, px, label){
     if (ms == null || !(+ms >= 0)) return null;
     var whole = Math.round(+ms / 1000);
     return Math.floor(whole / 60) + 'm' + ('0' + (whole % 60)).slice(-2) + 's';
+  }
+  function _filmPhotoSay(film, photos){
+    /* #252 (REG-2158) - film is the film-lane stills. photos is every beat that
+       kept a frame. Two counts. A missing one stays UNKNOWN and does not borrow
+       the other. A measured 0 still prints when the other count differs. When
+       both are 0 the line stays reads-only: there are no pictures, not two clocks.
+       When they match, one sentence. When they differ, both are named. */
+    var filmKnown = typeof film === 'number' && isFinite(film) && film >= 0;
+    var photoKnown = typeof photos === 'number' && isFinite(photos) && photos >= 0;
+    if (!filmKnown && !photoKnown) return ' · 📹 film UNKNOWN · photos UNKNOWN';
+    if (!filmKnown) return ' · 📹 film UNKNOWN · photos ' + photos + ' (every framed beat)';
+    if (!photoKnown) return ' · 📹 film ' + film + ' (film-lane stills) · photos UNKNOWN';
+    if (film === 0 && photos === 0) return ' · reads-only';
+    if (film === photos) return ' · 📹 film ' + film + ', the same frames as the photos';
+    return ' · 📹 film ' + film + ' (film-lane stills) · photos ' + photos + ' (every framed beat)';
   }
   function _dossierHtml(sm){
     var n = sm.n || 1;
@@ -16871,7 +16888,7 @@ window._lockMark = function(isOpen, px, label){
       + ' · ran ' + (spanSay == null ? 'UNKNOWN' : spanSay)
       + playSeg
       + photoSeg
-      + (_st.allFoot ? ' · 📹 film ' + _st.allFoot : ' · reads-only')
+      + _filmPhotoSay(_st.allFoot, _st.allPhoto)
       + (meta.reads != null ? ' · ' + meta.reads + ' AI reads' : '')
       + (meta.named != null ? ' · ' + meta.named + ' named' : '')
       + tallySeg

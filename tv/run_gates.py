@@ -9241,6 +9241,12 @@ GATES = [
          needs_app=False,
          why=("REG-2157 (#277) - a measured seal of 0 was dropped, so it looked like no seal. "
               "sealed-in is its own clock. A missing seal stays off the chip. A measured 0 prints 0m00s.")),
+    Gate("test_a_film_count_is_not_the_photo_count", [sys.executable,
+         os.path.join(HERE, "test_a_film_count_is_not_the_photo_count.py")], 30,
+         needs_app=False,
+         why=("REG-2158 (#252) - the theatre said film 11 beside all 20 photos and never said "
+              "which count was which. Film is the film-lane stills. Photos are every framed beat. "
+              "A missing count stays UNKNOWN. A measured 0 still prints when the other differs.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,
