@@ -406,6 +406,17 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2156 - A MISSING FILM LENGTH WORE THE RUN, OR A ZERO (2026-10-11, #277)
+
+plays is the film. ran is t0 to t1. sealed-in is how long KAI took after the run ended.
+The theatre footer, in real mode, asked `TH.Tplay || spanS * 1000 || 0`, so a missing
+film clock printed the run length, and a missing film clock with no run printed 0m00s.
+The mode line did the same with `TH.Tplay || 0`. `_playSay` is the film wording. A
+missing film says UNKNOWN. A measured 0 prints 0m00s. It does not call `_runSpanSay`.
+sealed-in is not folded into it. The axis hold (a film shorter than half a second still
+plays for 500 ms) is not this fix.
+Law: `test_a_missing_play_length_is_not_the_run`. Not rendered here.
+
 ### REG-2155 - A MISSING RUN LENGTH WORE THE SAME DASH AS A ZERO-LENGTH RUN (2026-10-11, #277)
 
 The dossier said "ran —" beside "sealed in 10m18s", and the theatre said "plays 0m26s".
