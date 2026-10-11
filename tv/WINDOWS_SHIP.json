@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3671",
+  "ver": "v3672",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3671: the open law runs the scroll function with the try",
+  "note": "v3672: REG-2177 - a held relaunch banner says why it waits",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
