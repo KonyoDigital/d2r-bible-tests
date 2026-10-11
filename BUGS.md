@@ -415,6 +415,16 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2182 - THE NAME COUNTERS LEFT THE FUNCTION THE TALLY LAW READS (2026-10-12, #243)
+
+v3676 moved the counting body to _named_sessions_read and left a thin wrapper
+as _named_sessions. The tally law parses the function named _named_sessions
+and only that function. Agent shard 2 of v3676 failed: no counter increments
+found, because the parse missed the subject. The counters are back inside
+_named_sessions. The one-reading hold stays, so the panel split still shares
+the route walk. A bare call still reads the journal every time.
+Law: `test_a_tally_cannot_be_asked_which`.
+
 ### REG-2181 - NAMES BANKED WALKED THE PRINTER TWICE (2026-10-12, #243)
 
 The row asked printer.stream() and then reel_router.route(), and route() asks

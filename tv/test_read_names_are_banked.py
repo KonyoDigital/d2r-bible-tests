@@ -117,39 +117,41 @@ class ReadNamesAreBanked(unittest.TestCase):
 
     def test_a_bare_call_reads_the_journal_every_time(self):
         import extract_gap as EG
+        import control_app as CA
         n = []
-        real = EG._named_sessions_read
-        EG._named_sessions_read = lambda: n.append(1) or ({}, "")
+        real = CA._journal_ring
+        CA._journal_ring = lambda: n.append(1) or []
         try:
             EG._named_hold(False)
             EG._named_sessions()
             EG._named_sessions()
         finally:
-            EG._named_sessions_read = real
+            CA._journal_ring = real
             EG._named_hold(False)
         self.assertEqual(n, [1, 1], "a bare call remembered a journal reading: %r" % n)
 
     def test_the_panel_split_reuses_the_reading_the_route_just_took(self):
         import extract_gap as EG
         import reel_router as RR
+        import control_app as CA
         n = []
-        real_read, real_route = EG._named_sessions_read, RR.route
+        real_ring, real_route = CA._journal_ring, RR.route
 
         def counting():
             n.append(1)
-            return {"s": {"panel": 3, "placed": [("X", "panel")]}}, ""
+            return []
 
         def route_that_reads(*a, **k):
             EG._named_sessions()
             return {"ok": True, "reels": [
                 {"reel": "r1", "station": "PRINTER", "names": 4, "sealed": False}]}
 
-        EG._named_sessions_read = counting
+        CA._journal_ring = counting
         RR.route = route_that_reads
         try:
             st, say = dict(D.CHECKS)["names banked"]()
         finally:
-            EG._named_sessions_read = real_read
+            CA._journal_ring = real_ring
             RR.route = real_route
             EG._named_hold(False)
         self.assertEqual(n, [1], "the panel split read the journal again: %r" % n)

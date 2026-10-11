@@ -165,31 +165,31 @@ def _named_hold(on):
         _NAMED_HOLD["hit"] = None
 
 
-def _named_sessions():
-    """sessionId -> how many item names its DEEP reads yielded. -> (dict, why)
-
-    While a names-banked check is armed, the route's walk and the panel split share one reading.
-    """
-    if _NAMED_HOLD["arm"] and _NAMED_HOLD["hit"] is not None:
-        return _NAMED_HOLD["hit"]
-    got = _named_sessions_read()
+def _named_keep(got):
+    """Store this answer while a names-banked check is armed, then return it."""
     if _NAMED_HOLD["arm"]:
         _NAMED_HOLD["hit"] = got
     return got
 
 
-def _named_sessions_read():
+def _named_sessions():
     """sessionId -> how many item names its DEEP reads yielded. -> (dict, why)
+
+    While a names-banked check is armed, the route's walk and the panel split share one reading.
+    The counters stay in THIS function. A helper that only the panel split called hid them from
+    the tally law, and agent shard 2 of v3676 went red on that.
 
     ⚠ DEEP LANE ONLY. tv_diablo stamps a provisional label on every OCR row ("never farmed from
     OCR alone"), so counting those would credit the reel with names nobody observed — the same
     exclusion reel_segments makes, and for the same reason.
     """
+    if _NAMED_HOLD["arm"] and _NAMED_HOLD["hit"] is not None:
+        return _NAMED_HOLD["hit"]
     try:
         import control_app as CA
         paths = [p for p in (CA._journal_ring() or []) if os.path.isfile(p)]
     except Exception as e:
-        return {}, "the journal ring could not be resolved (%s)" % str(e)[:80]
+        return _named_keep(({}, "the journal ring could not be resolved (%s)" % str(e)[:80]))
     out = {}
     for path in paths:
         try:
@@ -302,7 +302,7 @@ def _named_sessions_read():
                     out[sid] = cur
         except Exception:
             continue
-    return out, ""
+    return _named_keep((out, ""))
 
 
 def gap(reels=None, river=None):
