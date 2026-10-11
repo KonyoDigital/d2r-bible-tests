@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3650** | `(this commit)` | v3650 — REG-2155 - a missing t0 or t1 says ran UNKNOWN. A measured zero still prints 0m00s. sealed-in and plays stay their own clocks. |
+| **v3651** | `(this commit)` | v3651 — REG-2156 - plays is the film clock. A missing film length says UNKNOWN. A measured 0 still prints 0m00s. It does not borrow the run. sealed-in stays its own clock. |
+| **v3650** | `7d9030ab` | v3650 — REG-2155 - a missing t0 or t1 says ran UNKNOWN. A measured zero still prints 0m00s. sealed-in and plays stay their own clocks. |
 | **v3649** | `fc8ebb38` | v3649 — REG-2154 - a KAI beat that is not the session close no longer prints 0 frames swept |
 | **v3648** | `8944bf6d` | v3648 — REG-2153 - the pre-script cards name the same zones as the table. HEART: test_the_pre_script_terror_cards_name_the_zones_table |
 | **v3647** | `9984f935` | v3647 — REG-2152 - the mule measure waits until the equipment panel stops moving |

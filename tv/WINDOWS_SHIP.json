@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3650",
+  "ver": "v3651",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3650: REG-2155 - a missing t0 or t1 says ran UNKNOWN. A measured zero still prints 0m00s. sealed-in and plays stay their own clocks.",
+  "note": "v3651: REG-2156 - plays is the film clock. A missing film length says UNKNOWN. A measured 0 still prints 0m00s. It does not borrow the run. sealed-in stays its own clock.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
