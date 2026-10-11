@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3666** | `(this commit)` | v3666 — a fetch with no owners list does not replace the cache |
+| **v3667** | `(this commit)` | v3667 — the roster opens from the fleet and stays off the nine header doors |
+| **v3666** | `6710443d` | v3666 — a fetch with no owners list does not replace the cache |
 | **v3665** | `72304f76` | v3665 — a console fetches the other rosters into its own cache |
 | **v3664** | `14fe5044` | v3664 — a mac named Konyo publishes under the Mac roster label |
 | **v3663** | `420e1b1e` | v3663 — REG-2167 - the roster receipt and its temp file stay ignored |
