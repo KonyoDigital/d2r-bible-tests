@@ -79,6 +79,11 @@ tv/.tvd_beacon.json
 # The .tmp is the atomic-write partner (path + ".tmp" in _roster_state_save).
 tv/.tvd_roster.json
 tv/.tvd_roster.json.tmp
+# v3665 — the fetch cache and its failure receipt. Other PCs' rows live here.
+# The directory is one file per owner. The receipt is why the last fetch failed.
+tv/roster_cache
+tv/.tvd_roster_fetch.json
+tv/.tvd_roster_fetch.json.tmp
 # v3328 — the read-names feeder's LANE STATE, per-machine and rewritten every 45s.
 # Every sibling lane store is ignored (.vault_autoread.json, .second_eye.jsonl,
 # .heart2.json, .handoff_seen.json); I copied _vault_autoread_save's persistence idiom

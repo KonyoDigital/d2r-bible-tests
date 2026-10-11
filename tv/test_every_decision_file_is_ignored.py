@@ -115,6 +115,10 @@ class EveryDecisionFileIsIgnored(unittest.TestCase):
         self.assertIn("control_agent.log", names)
         rels = ["tv/" + n for n in names]
         rels.append("tv/.tvd_roster.json.tmp")  # _roster_state_save writes path + ".tmp"
+        rels.append("tv/roster_cache/Konyo__Mac.json")
+        rels.append("tv/.tvd_roster_fetch.json.tmp")
+        self.assertIn("roster_cache", names)
+        self.assertIn(".tvd_roster_fetch.json", names)
         self.assertEqual(_ignored(rels), [], "log-root files git would publish: %s" % _ignored(rels))
 
 
@@ -148,6 +152,20 @@ RED_PROOF = [
         "why": "REG-2167 - the roster receipt temp file is trackable again",
         "file": "../.gitignore",
         "find": "\ntv/.tvd_roster.json.tmp\n",
+        "replace": "\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2169 - the roster fetch cache is trackable again",
+        "file": "../.gitignore",
+        "find": "\ntv/roster_cache\n",
+        "replace": "\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2169 - the roster fetch receipt is trackable again",
+        "file": "../.gitignore",
+        "find": "\ntv/.tvd_roster_fetch.json\n",
         "replace": "\n",
         "matches": 1,
     },

@@ -13,6 +13,7 @@ body actually changed. The server, not this file, enforces the daily cap.
 """
 
 import json
+import os
 
 OWNERS = (
     "Konyo · Mac",
@@ -361,3 +362,97 @@ def apply_reply(state, sections, reply, now_ms):
     why = reply.get("why")
     state["why"] = str(why)[:200] if isinstance(why, str) and why else "refused"
     return state
+
+
+def _age_state(as_of, now_ms):
+    """current, stale, or unknown. A missing clock is unknown, never current."""
+    if isinstance(as_of, bool) or not isinstance(as_of, int):
+        return "unknown"
+    if isinstance(now_ms, bool) or not isinstance(now_ms, int):
+        return "unknown"
+    if now_ms - as_of > 2 * HOUR_MS:
+        return "stale"
+    return "current"
+
+
+def view_one(owner, row, now_ms):
+    """One owner's fetch row. A bad hash is corrupt and carries no sections."""
+    if owner not in OWNERS:
+        return None
+    if not isinstance(row, dict) or row.get("owner") != owner or row.get("published") is not True:
+        return {"owner": owner, "published": False}
+    if row.get("corrupt") is True:
+        return {"owner": owner, "published": True, "corrupt": True}
+    raw = row.get("sections") if isinstance(row.get("sections"), dict) else {}
+    kept = {}
+    for name in SECTIONS:
+        sec = raw.get(name)
+        if isinstance(sec, dict) and sec:
+            kept[name] = {k: sec[k] for k in sec if k != "age"}
+    digest = hash_of(packed(for_hash(kept)))
+    if row.get("hash") != digest:
+        return {"owner": owner, "published": True, "corrupt": True}
+    out = {"owner": owner, "published": True, "corrupt": False, "hash": digest,
+           "age": _age_state(row.get("t"), now_ms)}
+    if isinstance(row.get("t"), int) and not isinstance(row.get("t"), bool):
+        out["t"] = row["t"]
+    if kept:
+        shown = {}
+        for name, sec in kept.items():
+            one = dict(sec)
+            one["age"] = _age_state(sec.get("asOf"), now_ms)
+            shown[name] = one
+        out["sections"] = shown
+    return out
+
+
+def view_of(owners, now_ms):
+    """Every label, in label order. An owner the reply left out was not published."""
+    by = {}
+    if isinstance(owners, list):
+        for row in owners:
+            if isinstance(row, dict) and row.get("owner") in OWNERS:
+                by[row["owner"]] = row
+    return [view_one(owner, by.get(owner), now_ms) for owner in OWNERS]
+
+
+def never_published_line(owner, section):
+    if owner not in OWNERS or section not in SECTIONS:
+        return None
+    return "%s has not published its %s yet" % (owner, section)
+
+
+def cache_file_name(owner):
+    if owner not in OWNERS:
+        return None
+    return owner.replace(" · ", "__").replace(" ", "_") + ".json"
+
+
+def write_cache(directory, views):
+    """Write one file per owner inside directory. A path that escapes it is skipped."""
+    if not isinstance(directory, str) or not directory:
+        return []
+    os.makedirs(directory, exist_ok=True)
+    root = os.path.abspath(directory)
+    written = []
+    for view in views or []:
+        if not isinstance(view, dict):
+            continue
+        name = cache_file_name(view.get("owner"))
+        if not name:
+            continue
+        if view.get("published") is True and view.get("corrupt") is not True:
+            body = view
+        elif view.get("corrupt") is True:
+            body = {"owner": view.get("owner"), "published": True, "corrupt": True}
+        else:
+            body = {"owner": view.get("owner"), "published": False}
+        path = os.path.abspath(os.path.join(directory, name))
+        if os.path.dirname(path) != root:
+            continue
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(body, fh, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+        os.replace(tmp, path)
+        written.append(name)
+    return sorted(written)

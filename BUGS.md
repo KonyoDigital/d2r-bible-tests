@@ -415,6 +415,18 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2169 - FLEET 3.0 PHASE 2 READS THE OTHER ROSTERS (2026-10-11, #39)
+
+GET /api/roster reads the five owner keys and writes nothing. A missing key
+is not published, and it is not an empty section list. A stored hash that
+does not match the stored sections is corrupt, and those sections are not
+returned. The console keeps one cache file per owner under roster_cache and
+a fetch receipt beside the publish receipt. Another PC's rows stay out of
+this PC's ledgers. A section older than two publish intervals is stale. A
+clock that was not in the row is unknown. The Roster tab is still later.
+Law: `test_a_roster_publish_stays_off_the_presence_beacon`. The cache path
+is also under `test_every_decision_file_is_ignored`. Not rendered here.
+
 ### REG-2168 - THE MAC NICKNAME AND THE ROSTER LABEL NEVER MEET (2026-10-11, #39)
 
 The publish asks `owner_of` for the nickname alone. This install's nickname

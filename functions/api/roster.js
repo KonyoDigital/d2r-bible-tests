@@ -17,7 +17,8 @@
  *
  * A section that was not in this body stays as it was, or stays absent.
  * It is never stored as an empty list. Pictures and frame bytes are refused
- * and not stored. No GET, no Roster tab, no D1, no R2.
+ * and not stored. GET /api/roster reads the five owner keys and writes nothing.
+ * No Roster tab, no D1, no R2.
  */
 
 const PRESENCE_WRITES = 768;
@@ -211,4 +212,34 @@ export async function onRequestPost(context) {
     return refuse("roster would not take this publish: " + String((e && e.message) || e).slice(0, 140));
   }
   return json({ ok: true, owner: owner, stored: ["roster"], key: key }, 200);
+}
+
+export async function onRequestGet(context) {
+  const kv = context.env && context.env.TZ_HISTORY;
+  if (!kv) return refuse("roster would not take this fetch: storage unavailable");
+  const owners = [];
+  for (const owner of OWNERS) {
+    let raw = null;
+    try {
+      raw = await kv.get("roster:" + owner);
+    } catch (e) {
+      return refuse("roster would not take this fetch: " + String((e && e.message) || e).slice(0, 140));
+    }
+    let prev = null;
+    try { prev = raw ? JSON.parse(raw) : null; } catch (e) { prev = null; }
+    if (!prev || typeof prev !== "object" || prev.owner !== owner) {
+      owners.push({ owner: owner, published: false });
+      continue;
+    }
+    const sections = priorSections(prev);
+    const hash = forHash(sections);
+    if (prev.hash !== hash) {
+      owners.push({ owner: owner, published: true, corrupt: true, t: prev.t });
+      continue;
+    }
+    const row = { owner: owner, published: true, corrupt: false, t: prev.t, hash: hash };
+    if (Object.keys(sections).length) row.sections = sections;
+    owners.push(row);
+  }
+  return json({ ok: true, owners: owners }, 200);
 }

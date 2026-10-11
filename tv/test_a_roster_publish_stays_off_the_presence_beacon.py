@@ -39,7 +39,10 @@ const CFG = __CFG__;
 const store = new Map(Object.entries(CFG.seed || {}).map(([k, v]) => [k, JSON.stringify(v)]));
 const puts = [];
 const kv = {
-  async get(n) { return store.has(n) ? store.get(n) : null; },
+  async get(n) {
+    if (CFG.throwGet) throw new Error('KV get failed');
+    return store.has(n) ? store.get(n) : null;
+  },
   async put(n, v) {
     if (CFG.throwPut) throw new Error('KV put failed');
     puts.push(n);
@@ -67,15 +70,22 @@ for (let i = 0; i < CFG.bodies.length; i++) {
 }
 const records = {};
 for (const [k, raw] of store.entries()) records[k] = JSON.parse(raw);
-process.stdout.write(JSON.stringify({ replies, statuses, puts, keys: [...store.keys()], records }));
+let got = null;
+if (CFG.get) {
+  const req = new Request('https://bull-4-u.com/api/roster', { method: 'GET' });
+  const res = await mod.onRequestGet({ request: req, env: { TZ_HISTORY: kv }, waitUntil(){} });
+  got = { status: res.status, body: JSON.parse(await res.text()) };
+}
+process.stdout.write(JSON.stringify({ replies, statuses, puts, keys: [...store.keys()], records, got }));
 """
 
 
-def _post(bodies, seed=None, throw_put=False, age_between=0):
+def _post(bodies, seed=None, throw_put=False, age_between=0, get=False, throw_get=False):
     if not NODE:
         raise AssertionError("node is absent - the worker was not run")
     cfg = {"file": ROSTER_JS, "bodies": bodies, "seed": seed or {},
-           "throwPut": throw_put, "ageBetween": age_between}
+           "throwPut": throw_put, "ageBetween": age_between,
+           "get": get, "throwGet": throw_get}
     src = _HARNESS.replace("__CFG__", json.dumps(cfg))
     with tempfile.TemporaryDirectory(prefix="tvd_roster_") as d:
         path = os.path.join(d, "h.mjs")
@@ -303,6 +313,87 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
             self.assertIn(name, reads)
         self.assertNotIn("stash_read", reads)
 
+    def test_a_fetch_is_a_read_and_a_missing_pc_is_not_an_empty_vault(self):
+        got = _post([], get=True)["got"]
+        self.assertEqual(got["status"], 200)
+        self.assertIs(got["body"]["ok"], True)
+        owners = got["body"]["owners"]
+        self.assertEqual([row["owner"] for row in owners], list(RP.OWNERS))
+        for row in owners:
+            self.assertIs(row["published"], False)
+            self.assertNotIn("sections", row)
+        self.assertEqual(_post([], get=True)["puts"], [])
+        seeded = {
+            "roster:Dean": {"owner": "Dean", "t": 10, "day": "2000-01-01", "n": 1,
+                            "hash": "dead", "sections": {"characters": {
+                                "asOf": 10, "counts": 1, "rows": [{"name": "Sorceress"}]}}},
+        }
+        bad = _post([], seed=seeded, get=True)["got"]["body"]
+        dean = [row for row in bad["owners"] if row["owner"] == "Dean"][0]
+        self.assertIs(dean["corrupt"], True)
+        self.assertNotIn("sections", dean)
+        wife = [row for row in bad["owners"] if row["owner"] == "Wife PC"][0]
+        self.assertIs(wife["published"], False)
+        self.assertNotIn("sections", wife)
+        thrown = _post([], get=True, throw_get=True)["got"]
+        self.assertEqual(thrown["status"], 200)
+        self.assertIs(thrown["body"]["ok"], False)
+        self.assertIn("fetch", thrown["body"]["why"])
+
+    def test_the_posted_hash_is_the_hash_the_viewer_checks(self):
+        posted = _post([_body()], get=True)
+        self.assertEqual(posted["puts"], ["roster:" + OWNER])
+        rec = posted["records"]["roster:" + OWNER]
+        self.assertEqual(rec["hash"], RP.hash_of(RP.packed(RP.for_hash(rec["sections"]))))
+        mac = [row for row in posted["got"]["body"]["owners"] if row["owner"] == OWNER][0]
+        self.assertIs(mac["corrupt"], False)
+        self.assertIn("characters", mac["sections"])
+        self.assertNotIn("vault", mac["sections"])
+        views = RP.view_of(posted["got"]["body"]["owners"], rec["t"])
+        shown = [row for row in views if row["owner"] == OWNER][0]
+        self.assertIs(shown["corrupt"], False)
+        self.assertEqual(shown["age"], "current")
+        self.assertNotIn("vault", shown["sections"])
+        stale = RP.view_of(posted["got"]["body"]["owners"], rec["t"] + 2 * RP.HOUR_MS + 1)
+        old = [row for row in stale if row["owner"] == OWNER][0]
+        self.assertEqual(old["age"], "stale")
+        self.assertEqual(old["sections"]["characters"]["age"], "stale")
+        self.assertEqual(RP._age_state(None, rec["t"]), "unknown")
+        self.assertEqual(RP._age_state(True, rec["t"]), "unknown")
+        quiet = [row for row in views if row["owner"] == "Dean"][0]
+        self.assertIs(quiet["published"], False)
+        self.assertNotIn("sections", quiet)
+        self.assertEqual(RP.never_published_line("Dean", "vault"),
+                         "Dean has not published its vault yet")
+        self.assertIsNone(RP.view_one("not-a-pc", {}, 1))
+        lied = dict(mac, hash="dead")
+        self.assertNotIn("sections", RP.view_one(OWNER, lied, rec["t"]))
+        with tempfile.TemporaryDirectory() as d:
+            ledger = os.path.join(d, "ledger.json")
+            with open(ledger, "w", encoding="utf-8") as fh:
+                fh.write("keep")
+            names = RP.write_cache(os.path.join(d, "roster_cache"), views)
+            self.assertIn("Konyo__Mac.json", names)
+            self.assertIn("Dean.json", names)
+            with open(ledger, encoding="utf-8") as fh:
+                self.assertEqual(fh.read(), "keep")
+            with open(os.path.join(d, "roster_cache", "Dean.json"), encoding="utf-8") as fh:
+                saved = json.load(fh)
+            self.assertIs(saved["published"], False)
+            self.assertNotIn("sections", saved)
+
+    def test_the_fetch_loop_stamps_its_tick_and_stays_off_the_beacon(self):
+        with open(APP, encoding="utf-8") as fh:
+            src = fh.read()
+        self.assertEqual(src.count("target=_roster_fetch_loop"), 1)
+        fetch = src.split("def _roster_fetch_once(", 1)[1].split("def _roster_fetch_loop", 1)[0]
+        self.assertEqual(fetch.count("write_cache("), 1)
+        self.assertNotIn("char_select", fetch)
+        loop = src.split("def _roster_fetch_loop(", 1)[1].split("def _console_beacon_loop", 1)[0]
+        self.assertEqual(loop.count('_lane_tick("_roster_fetch_loop", 300)'), 1)
+        beacon = src.split("def _console_beacon(", 1)[1].split("def _console_beacon_async", 1)[0]
+        self.assertNotIn("_roster_fetch_once", beacon)
+
 
 RED_PROOF = [
     {
@@ -345,6 +436,34 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": "    owner = _rp.owner_of(_roster_claimed_name(), _roster_platform())\n",
         "replace": "    owner = _rp.owner_of(_roster_claimed_name())\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2169 - a hash mismatch is shown as that PC's rows",
+        "file": "functions/api/roster.js",
+        "find": "      owners.push({ owner: owner, published: true, corrupt: true, t: prev.t });\n",
+        "replace": "      owners.push({ owner: owner, published: true, corrupt: false, t: prev.t, hash: prev.hash, sections: sections });\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2169 - a PC that never published is stored as an empty section list",
+        "file": "functions/api/roster.js",
+        "find": "      owners.push({ owner: owner, published: false });\n",
+        "replace": "      owners.push({ owner: owner, published: false, sections: [] });\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2169 - the viewer keeps sections whose hash does not match",
+        "file": "roster_publish.py",
+        "find": "    if row.get(\"hash\") != digest:\n        return {\"owner\": owner, \"published\": True, \"corrupt\": True}\n",
+        "replace": "    if False and row.get(\"hash\") != digest:\n        return {\"owner\": owner, \"published\": True, \"corrupt\": True}\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2169 - the fetch loop stops stamping its tick",
+        "file": "control_app.py",
+        "find": "        _lane_tick(\"_roster_fetch_loop\", 300)\n",
+        "replace": "        _lane_tick(\"_roster_publish_loop\", 300)\n",
         "matches": 1,
     },
 ]

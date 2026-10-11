@@ -4671,6 +4671,67 @@ def _roster_publish_loop():
             _roster_remember(type(e).__name__)
 
 
+def _roster_cache_dir():
+    return os.path.join(_log_root(), "roster_cache")
+
+
+def _roster_fetch_path():
+    return os.path.join(_log_root(), ".tvd_roster_fetch.json")
+
+
+def _roster_fetch_remember(why):
+    try:
+        path = _roster_fetch_path()
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump({"why": str(why)[:200]}, fh, indent=2)
+        os.replace(tmp, path)
+    except Exception:
+        return None
+    return True
+
+
+def _roster_get(url):
+    try:
+        import base64 as _b64
+        req = urllib.request.Request(
+            url,
+            headers={"User-Agent": "TVD-Console/1.0",
+                     "Authorization": "Basic " + _b64.b64encode(b"app:DeanDiablo").decode()},
+            method="GET")
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            text = resp.read().decode("utf-8", "replace")
+        got = json.loads(text)
+    except Exception as e:
+        return {"ok": False, "why": type(e).__name__, "code": getattr(e, "code", None)}
+    if not isinstance(got, dict):
+        return {"ok": False, "why": "the roster answer was not a record"}
+    return got
+
+
+def _roster_fetch_once():
+    """Read every owner's roster into this PC's cache. Never a ledger write."""
+    import roster_publish as _rp
+    got = _roster_get("https://bull-4-u.com/api/roster")
+    if not isinstance(got, dict) or got.get("ok") is not True:
+        why = got.get("why") if isinstance(got, dict) else "the roster fetch failed"
+        _roster_fetch_remember(why)
+        return
+    _rp.write_cache(_roster_cache_dir(), _rp.view_of(got.get("owners"), int(time.time() * 1000)))
+    _roster_fetch_remember("fetched")
+
+
+def _roster_fetch_loop():
+    time.sleep(20)
+    while True:
+        _lane_tick("_roster_fetch_loop", 300)
+        try:
+            _roster_fetch_once()
+        except Exception as e:
+            _roster_fetch_remember(type(e).__name__)
+        time.sleep(300)
+
+
 def _console_beacon_loop():
     _boot_beacon_wait()
     _console_beacon("boot")
@@ -47769,6 +47830,7 @@ def main():
     threading.Thread(target=_bridge_prober, daemon=True, name="tvd-prober").start()   # v872
     threading.Thread(target=_console_beacon_loop, daemon=True, name="tvd-beacon").start()   # v875
     threading.Thread(target=_roster_publish_loop, daemon=True, name="tvd-roster").start()
+    threading.Thread(target=_roster_fetch_loop, daemon=True, name="tvd-roster-fetch").start()
     threading.Thread(target=_fleet_change_loop, daemon=True, name="tvd-fleet-change").start()
     t = threading.Thread(target=srv.serve_forever, daemon=True)
     t.start()
