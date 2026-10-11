@@ -4655,6 +4655,7 @@ def _roster_publish_loop():
         _roster_remember(type(e).__name__)
     while True:
         time.sleep(60)
+        _lane_tick("_roster_publish_loop", 60)
         try:
             _roster_publish_once(False)
         except Exception as e:

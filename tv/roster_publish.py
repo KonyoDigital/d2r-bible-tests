@@ -293,7 +293,7 @@ def for_hash(sections):
     return out
 
 
-def canonical(obj):
+def packed(obj):
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
@@ -316,7 +316,7 @@ def due(state, owner, sections, now_ms, boot):
         return None, "the owner is not one of the five labels"
     if not sections:
         return None, "nothing on this PC was read"
-    digest = hash_of(canonical(for_hash(sections)))
+    digest = hash_of(packed(for_hash(sections)))
     refused = state.get("refuseAt")
     if isinstance(refused, int) and not isinstance(refused, bool) and now_ms - refused < HOUR_MS:
         return None, state.get("why") or "the roster refused the last publish"
@@ -333,7 +333,7 @@ def apply_reply(state, sections, reply, now_ms):
     """What the client remembers after the server answers. A skip is not a publish."""
     state = dict(state or {})
     reply = reply if isinstance(reply, dict) else {}
-    digest = hash_of(canonical(for_hash(sections or {})))
+    digest = hash_of(packed(for_hash(sections or {})))
     stored = reply.get("stored") or []
     if reply.get("ok") is True and "roster" in stored:
         state["hash"] = digest

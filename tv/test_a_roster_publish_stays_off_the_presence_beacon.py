@@ -23,6 +23,9 @@ if HERE not in sys.path:
     sys.path.insert(0, HERE)
 
 import roster_publish as RP  # noqa: E402
+from console_safe import enable  # noqa: E402
+
+enable()
 
 NODE = shutil.which("node")
 ROSTER_JS = os.path.join(ROOT, "functions", "api", "roster.js")
@@ -137,7 +140,7 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
             "name": "Shako",
             "tier": "PROVEN",
             "frame": "data:image/png;base64,AAAA",
-            "evidence": ["s_1784984019250_fx", "reel/f_1.jpg", "/Users/konyo/a.png"],
+            "evidence": ["s_1784984019250_fx", "reel/f_1.jpg", "/tmp/shot/a.png"],
         }, ("name", "tier", "evidence"))
         self.assertEqual(row["name"], "Shako")
         self.assertNotIn("frame", row)
@@ -147,7 +150,7 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
     def test_the_key_is_the_owner_label(self):
         self.assertEqual(RP.roster_key(OWNER), "roster:" + OWNER)
         self.assertIsNone(RP.roster_key("konyo-3"))
-        self.assertIsNone(RP.roster_key("/Users/konyo"))
+        self.assertIsNone(RP.roster_key("/tmp/host"))
         self.assertIsNone(RP.owner_of("23d0486747ce4c58"))
         self.assertEqual(len(RP.OWNERS), 5)
 
@@ -155,7 +158,7 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         now = 1_000_000
         body, why = RP.due({}, OWNER, RP.sections_from({"characters": _char(1)}), now, False)
         self.assertEqual(why, "post")
-        state = {"hash": RP.hash_of(RP.canonical(RP.for_hash(body["sections"]))), "at": now}
+        state = {"hash": RP.hash_of(RP.packed(RP.for_hash(body["sections"]))), "at": now}
         again, why = RP.due(state, OWNER, body["sections"], now + 1000, True)
         self.assertIsNone(again)
         self.assertEqual(why, "unchanged")
