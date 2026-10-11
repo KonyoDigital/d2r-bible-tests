@@ -273,6 +273,15 @@ class TheShelfPublishesWhereItIsNotJustThatItIsFull(unittest.TestCase):
             "the extracted block has unbalanced braces (%d vs %d), so node cannot parse it and "
             "any verdict from it is about the extraction, not the code."
             % (blk.count("{"), blk.count("}")))
+        # v3670 moved the scroll math into _shOpenScroll, which sits OUTSIDE this
+        # try. Running the try alone throws, the catch swallows it, and scrollTop
+        # stays 0. The function has to come with the block.
+        _FN = "function _shOpenScroll(top, ovH, hiTop, hiBot){"
+        self.assertEqual(ui.count(_FN), 1, "_shOpenScroll must be the one scroll the open path calls")
+        _fs = ui.find(_FN)
+        _fe = ui.find("\n    window._shOpenOnAReel", _fs)
+        self.assertGreater(_fe, _fs, "the scroll function has no end before the open path")
+        fn = ui[_fs:_fe]
         fc = "null" if first_card_top is None else (
             "{ style:{display:''}, getBoundingClientRect:function(){ return {top:%d}; } }"
             % first_card_top)
@@ -281,6 +290,8 @@ class TheShelfPublishesWhereItIsNotJustThatItIsFull(unittest.TestCase):
             "var ov = {\n"
             "  clientHeight: %d, scrollTop: 0,\n"
             "  getBoundingClientRect: function(){ return {top: 0}; },\n"
+            # null is no highlight row. The head scroll still has to bring the card in.
+            "  querySelector: function(){ return null; },\n"
             "  querySelectorAll: function(){ return _cardList; }\n"
             "};\n"
             # ⚠ v3337 — THE BLOCK RUNS INSIDE AN IIFE, and that is load-bearing. v3289 added an
@@ -288,9 +299,9 @@ class TheShelfPublishesWhereItIsNotJustThatItIsFull(unittest.TestCase):
             # legal, so it exited the module and the console.log below never ran. The law then
             # reported "the runner printed nothing" — a harness fault wearing the clothes of a
             # finding. Containing the block means a return ends the BLOCK, not the measurement.
-            "(function(){\n%s\n})();\n"
+            "(function(){\n%s\n%s\n})();\n"
             "console.log(JSON.stringify({scrollTop: ov.scrollTop}));\n"
-            % (("[]" if first_card_top is None else "[" + fc + "]"), client_h, blk))
+            % (("[]" if first_card_top is None else "[" + fc + "]"), client_h, fn, blk))
         d = tempfile.mkdtemp(prefix="shopen_")
         self.addCleanup(shutil.rmtree, d, True)
         f = os.path.join(d, "t.js")

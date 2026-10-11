@@ -415,6 +415,17 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2176 - THE SHELF OPEN LAW RAN THE CALL WITHOUT THE FUNCTION (2026-10-11)
+
+v3670 moved the open scroll into _shOpenScroll, outside the try the shelf-open
+law extracts. The extracted try called a name node did not have, the catch
+swallowed the error, and scrollTop stayed 0. Agent shard 4 of v3670 failed on
+that reading. The law now runs the function with the try, and the fixture
+answers null for .sh-hi, so a missing highlight row still brings a below-fold
+card in. The live page already has both, so this does not change the scroll
+a person sees.
+Law: `test_the_shelf_publishes_where_it_is_not_just_that_it_is_full`.
+
 ### REG-2175 - THE SHORT-SHELF SCROLL SHOWED ONE PIXEL OF THE REEL (2026-10-11, #236)
 
 v3669 kept the highlight row by stopping at the first pixel of the card.
