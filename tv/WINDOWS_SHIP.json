@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3665",
+  "ver": "v3666",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3665: a console fetches the other rosters into its own cache",
+  "note": "v3666: a fetch with no owners list does not replace the cache",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
