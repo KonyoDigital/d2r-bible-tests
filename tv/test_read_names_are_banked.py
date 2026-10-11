@@ -55,19 +55,49 @@ RED_PROOF = [
         "replace": '_HEART2_TAMPERED_',
         "matches": 1,
     },
+    {"why": "REG-2181 - names banked walks the printer on its own again",
+     "file": "console_doctor.py",
+     "find": "    _EG._named_hold(True)\n    try:\n        try:\n            rt = _reel_route_read()\n",
+     "replace": "    _EG._named_hold(True)\n    try:\n        try:\n            _P.stream()\n            rt = _reel_route_read()\n",
+     "matches": 1},
+    {"why": "REG-2181 - the panel split reads the journal a second time",
+     "file": "extract_gap.py",
+     "find": "    if _NAMED_HOLD[\"arm\"] and _NAMED_HOLD[\"hit\"] is not None:\n        return _NAMED_HOLD[\"hit\"]\n",
+     "replace": "    if False:\n        return None\n",
+     "matches": 1},
 ]
 
 def _verdict(rows, stations, panel=110):
-    """Force the row's verdict without touching his shelf."""
+    """Force the row's verdict without touching his shelf.
+
+    The route row is what the check reads. Names and the seal ride on it, because route()
+    already copied them off the printer. A second printer.stream() is the walk this law forbids.
+    """
     import printer as P, reel_router as RR, extract_gap as EG
+    by = {}
+    for src in rows:
+        ex = ((src.get("stations") or {}).get("extract") or {})
+        by[src.get("reel")] = ex
+    joined = []
+    for s in stations:
+        row = dict(s)
+        ex = by.get(s.get("reel")) or {}
+        if "names" not in row:
+            row["names"] = ex.get("names")
+        if "sealed" not in row:
+            row["sealed"] = ex.get("sealed")
+        joined.append(row)
     rp, rr, ns = P.stream, RR.route, EG._named_sessions
-    P.stream = lambda *a, **k: {"rows": rows}
-    RR.route = lambda *a, **k: {"ok": True, "reels": stations}
+    calls = []
+    P.stream = lambda *a, **k: calls.append(1) or {"rows": rows}
+    RR.route = lambda *a, **k: {"ok": True, "reels": joined}
     EG._named_sessions = lambda *a, **k: ({"s": {"panel": panel}}, "")
     try:
-        return dict(D.CHECKS)["names banked"]()
+        out = dict(D.CHECKS)["names banked"]()
     finally:
         P.stream, RR.route, EG._named_sessions = rp, rr, ns
+    _verdict.calls = calls
+    return out
 
 
 def _row(reel, names, sealed):
@@ -79,6 +109,54 @@ class ReadNamesAreBanked(unittest.TestCase):
     def test_the_row_is_REGISTERED(self):
         self.assertIn("names banked", dict(D.CHECKS),
                       "the names-banked row is not registered, so it never runs")
+
+    def test_the_row_does_not_walk_the_printer_a_second_time(self):
+        _verdict([_row("r1", 5, False)], [{"reel": "r1", "station": "PRINTER"}])
+        self.assertEqual(_verdict.calls, [],
+                         "the row walked the printer even though the route already carries the names")
+
+    def test_a_bare_call_reads_the_journal_every_time(self):
+        import extract_gap as EG
+        n = []
+        real = EG._named_sessions_read
+        EG._named_sessions_read = lambda: n.append(1) or ({}, "")
+        try:
+            EG._named_hold(False)
+            EG._named_sessions()
+            EG._named_sessions()
+        finally:
+            EG._named_sessions_read = real
+            EG._named_hold(False)
+        self.assertEqual(n, [1, 1], "a bare call remembered a journal reading: %r" % n)
+
+    def test_the_panel_split_reuses_the_reading_the_route_just_took(self):
+        import extract_gap as EG
+        import reel_router as RR
+        n = []
+        real_read, real_route = EG._named_sessions_read, RR.route
+
+        def counting():
+            n.append(1)
+            return {"s": {"panel": 3, "placed": [("X", "panel")]}}, ""
+
+        def route_that_reads(*a, **k):
+            EG._named_sessions()
+            return {"ok": True, "reels": [
+                {"reel": "r1", "station": "PRINTER", "names": 4, "sealed": False}]}
+
+        EG._named_sessions_read = counting
+        RR.route = route_that_reads
+        try:
+            st, say = dict(D.CHECKS)["names banked"]()
+        finally:
+            EG._named_sessions_read = real_read
+            RR.route = real_route
+            EG._named_hold(False)
+        self.assertEqual(n, [1], "the panel split read the journal again: %r" % n)
+        self.assertEqual(D.MISSING, st)
+        self.assertIn("4 item name(s)", say)
+        self.assertFalse(EG._NAMED_HOLD["arm"])
+        self.assertIsNone(EG._NAMED_HOLD["hit"])
 
     # ── ⚠⚠ THE LAW ────────────────────────────────────────────────────────────────────────────
     def test_names_read_with_NO_SEAL_are_reported(self):

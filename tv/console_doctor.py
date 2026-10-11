@@ -1079,68 +1079,66 @@ def _check_read_names_are_actually_banked():
     existing witnessed machinery stays the only thing that writes.
     """
     try:
-        import printer as _P, reel_router as _RR, extract_gap as _EG
+        import extract_gap as _EG
     except Exception as exc:
-        return UNKNOWN, ("the printer/router could not be imported (%s), so whether read names are "
+        return UNKNOWN, ("the router could not be imported (%s), so whether read names are "
                          "banked is UNKNOWN" % type(exc).__name__)
+    # REG-2181 - route() already walked the printer and copied names and sealed onto each reel.
+    # Asking printer.stream() again was a second shelf walk (9.3 s cold beside a 3 s budget).
+    _EG._named_hold(True)
     try:
-        rep, rt = _P.stream(), _reel_route_read()
-    except Exception as exc:
-        return UNKNOWN, "the printer or router raised (%s) - UNKNOWN, not clean" % type(exc).__name__
-    if not isinstance(rep, dict) or not isinstance(rt, dict) or not rt.get("ok"):
-        return UNKNOWN, "the printer or router would not answer, so nothing is known about banking"
-    st = {x.get("reel"): x.get("station") for x in (rt.get("reels") or [])}
-    unsealed = sealed_blind = 0
-    reels = set()
-    for r in (rep.get("rows") or []):
-        ex = ((r.get("stations") or {}).get("extract") or {})
-        n, sld = ex.get("names"), ex.get("sealed")
-        if not isinstance(n, int) or not n:
-            continue
-        s = st.get(str(r.get("reel")))
-        if sld is False:
-            unsealed += n; reels.add(str(r.get("reel")))
-        elif s == "JOIN":
-            sealed_blind += n; reels.add(str(r.get("reel")))
-    total = unsealed + sealed_blind
-    if not total:
-        return OK, "every item name the readers produced is carried by a seal"
-    # his filter: only PANEL names can become a holding
-    panel = None
-    distinct = grail = None
-    try:
-        named, _why = _EG._named_sessions()
-        panel = sum(int((v or {}).get("panel") or 0) for v in (named or {}).values())
-        # ⚠⚠ v3374 — "96 CAN BECOME A HOLDING" WAS THE MISLEADING HALF OF A TRUE SENTENCE. The
-        # count was right and the implication was not: once v3374 made the names addressable, the
-        # 96 turned out to be 26 DISTINCT names of which only 10 resolve to any roster — five
-        # Disciple set pieces, the set's own NAME, and four uniques. The other 86 sightings are
-        # Horadric Cube x31, Tome of Town Portal x18, Tome of Identify x18, potions, charms and
-        # bare bases. His ruling reads "auto-bank the 96"; taken literally that writes 31 Horadric
-        # Cubes into his ownership. A number he acts on must not overstate the work it implies.
-        # [[label-outlived-referent]]
-        _names = [n for v in (named or {}).values()
-                  for n, t in ((v or {}).get("placed") or []) if t == "panel"]
-        distinct = len(set(_names))
-        grail = _grail_of(_names)          # None when no roster can be read — never a guess
-    except Exception:
-        panel = distinct = grail = None
-    if panel is None:
-        tail = ""
-    elif grail is None:
-        tail = (" Of the corpus's names, %d were read with a container OPEN (stash/inventory)"
-                "%s; how many are grail-relevant is UNKNOWN here — no roster could be read."
-                % (panel, "" if distinct is None else " (%d distinct)" % distinct))
-    else:
-        tail = (" Of the corpus's names, %d were read with a container OPEN (stash/inventory) — "
-                "%d distinct, of which %d resolve to a roster and can become a holding; the rest "
-                "are furniture, consumables and bare bases. Floor sightings have no cell to name."
-                % (panel, distinct, grail))
-    return MISSING, ("%d item name(s) were READ from %d reel(s) and NONE are banked: %d sit in "
-                     "sessions with NO SEAL AT ALL, and %d are under a seal that does not carry "
-                     "them. The reading already happened - the names are in the journal ring - so "
-                     "no paid read is owed here.%s"
-                     % (total, len(reels), unsealed, sealed_blind, tail))
+        try:
+            rt = _reel_route_read()
+        except Exception as exc:
+            return UNKNOWN, "the router raised (%s) - UNKNOWN, not clean" % type(exc).__name__
+        if not isinstance(rt, dict) or not rt.get("ok"):
+            return UNKNOWN, "the router would not answer, so nothing is known about banking"
+        unsealed = sealed_blind = 0
+        reels = set()
+        for r in (rt.get("reels") or []):
+            n, sld = r.get("names"), r.get("sealed")
+            if not isinstance(n, int) or not n:
+                continue
+            s = r.get("station")
+            if sld is False:
+                unsealed += n; reels.add(str(r.get("reel")))
+            elif s == "JOIN":
+                sealed_blind += n; reels.add(str(r.get("reel")))
+        total = unsealed + sealed_blind
+        if not total:
+            return OK, "every item name the readers produced is carried by a seal"
+        # his filter: only PANEL names can become a holding
+        panel = None
+        distinct = grail = None
+        try:
+            named, _why = _EG._named_sessions()
+            panel = sum(int((v or {}).get("panel") or 0) for v in (named or {}).values())
+            # v3374 - the panel count is not the number of holdings. The placed list is what
+            # can be addressed, and a name with no roster stays out of the holding figure.
+            _names = [n for v in (named or {}).values()
+                      for n, t in ((v or {}).get("placed") or []) if t == "panel"]
+            distinct = len(set(_names))
+            grail = _grail_of(_names)          # None when no roster can be read — never a guess
+        except Exception:
+            panel = distinct = grail = None
+        if panel is None:
+            tail = ""
+        elif grail is None:
+            tail = (" Of the corpus's names, %d were read with a container OPEN (stash/inventory)"
+                    "%s; how many are grail-relevant is UNKNOWN here — no roster could be read."
+                    % (panel, "" if distinct is None else " (%d distinct)" % distinct))
+        else:
+            tail = (" Of the corpus's names, %d were read with a container OPEN (stash/inventory) — "
+                    "%d distinct, of which %d resolve to a roster and can become a holding; the rest "
+                    "are furniture, consumables and bare bases. Floor sightings have no cell to name."
+                    % (panel, distinct, grail))
+        return MISSING, ("%d item name(s) were READ from %d reel(s) and NONE are banked: %d sit in "
+                         "sessions with NO SEAL AT ALL, and %d are under a seal that does not carry "
+                         "them. The reading already happened - the names are in the journal ring - so "
+                         "no paid read is owed here.%s"
+                         % (total, len(reels), unsealed, sealed_blind, tail))
+    finally:
+        _EG._named_hold(False)
 
 
 def _check_the_printer_can_reach_the_corpus():

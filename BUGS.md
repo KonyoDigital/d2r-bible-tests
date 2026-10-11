@@ -415,6 +415,18 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2181 - NAMES BANKED WALKED THE PRINTER TWICE (2026-10-12, #243)
+
+The row asked printer.stream() and then reel_router.route(), and route() asks
+printer.stream() itself. Measured on this Mac before the change: 9.34 s, and
+the sentence was 478 names on 7 reels with no seal. The route row already
+carries names and sealed, so the row now reads that and does not walk the
+printer again. The panel split reuses the journal reading that walk just took,
+and the hold is dropped when the row returns. A warm reading of the single
+walk on the same shelf was 1.06 s and the same 478 on 7 reels. A cold single
+walk was not timed from a fresh boot. The row still reports and does not bank.
+Law: `test_read_names_are_banked`.
+
 ### REG-2180 - A PULL ARMED THE RELAUNCH BANNER WITH NO HOLD (2026-10-11, #266)
 
 A successful auto-pull called armRelaunch with the version and nothing else.

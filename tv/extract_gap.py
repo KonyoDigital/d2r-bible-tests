@@ -152,7 +152,33 @@ def holding_possible(counts, names_known=True):
                    "owed." % " and ".join(bits))
 
 
+# REG-2181 - one journal reading per names-banked check. The route already walks the printer,
+# and that walk asks this function. The check then asked again for the panel split. Armed only
+# around that check: a bare call still reads the ring every time.
+_NAMED_HOLD = {"arm": False, "hit": None}
+
+
+def _named_hold(on):
+    """Remember one _named_sessions answer, or forget it. A bare call never remembers."""
+    _NAMED_HOLD["arm"] = bool(on)
+    if not on:
+        _NAMED_HOLD["hit"] = None
+
+
 def _named_sessions():
+    """sessionId -> how many item names its DEEP reads yielded. -> (dict, why)
+
+    While a names-banked check is armed, the route's walk and the panel split share one reading.
+    """
+    if _NAMED_HOLD["arm"] and _NAMED_HOLD["hit"] is not None:
+        return _NAMED_HOLD["hit"]
+    got = _named_sessions_read()
+    if _NAMED_HOLD["arm"]:
+        _NAMED_HOLD["hit"] = got
+    return got
+
+
+def _named_sessions_read():
     """sessionId -> how many item names its DEEP reads yielded. -> (dict, why)
 
     ⚠ DEEP LANE ONLY. tv_diablo stamps a provisional label on every OCR row ("never farmed from
