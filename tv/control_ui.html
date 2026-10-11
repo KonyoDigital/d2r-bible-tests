@@ -18828,6 +18828,26 @@ window._lockMark = function(isOpen, px, label){
        So the same logic runs again once the blocks above the list are real. One definition, two
        calls: the first keeps the old behaviour for the paths that never reach the second, and the
        second is the one that decides. [[stale-reading]] [[the-unjoined-end]] */
+    function _shOpenScroll(top, ovH, hiTop, hiBot){
+      /* REG-2174 (#236). The 18% head scroll put the first card near the top and
+         hid BEST RUN / STREAK on a short shelf. Scroll only as far as that card
+         needs when any of the highlight row still meets the viewport. When the
+         row would be gone, keep the head scroll so the reel is not a one-pixel
+         line under the band. No row at all keeps the head scroll. A card already
+         in view, or an unlaid-out overlay, returns null and the caller does not
+         move the scrollbar. */
+      if (!(ovH > 0) || !(top >= ovH)) return null;
+      var minScroll = Math.max(0, top - ovH + 1);
+      var headScroll = Math.max(0, top - Math.round(ovH * 0.18));
+      var row = (typeof hiBot === "number" && typeof hiTop === "number" && hiBot > hiTop) ? (hiBot - hiTop) : 0;
+      if (row > 0){
+        var visTop = hiTop - minScroll;
+        var visBot = hiBot - minScroll;
+        var visible = Math.min(visBot, ovH) - Math.max(visTop, 0);
+        if (visible > 0) return minScroll;
+      }
+      return headScroll;
+    }
     window._shOpenOnAReel = function (ov) {
       try {
         /* ⚠ v3290 — A PERSON WHO SCROLLED OWNS THE SCROLLBAR. Raised by the cross-family eye on
@@ -18846,10 +18866,19 @@ window._lockMark = function(isOpen, px, label){
         var _ovH = ov.clientHeight || 0;
         var _r0 = ov.getBoundingClientRect();
         var _top = Math.round(_firstCard.getBoundingClientRect().top - _r0.top + (ov.scrollTop || 0));
-        /* only when it is ACTUALLY below the fold, and leave a little of the head showing so the
-           filters he just used do not vanish. A shelf whose card is already visible is left alone. */
+        /* only when it is ACTUALLY below the fold. _shOpenScroll keeps the highlight
+           row when that row still meets the viewport, and still brings the card in.
+           A shelf whose card is already visible is left alone. */
         if (_ovH > 0 && _top >= _ovH){
-          ov.scrollTop = Math.max(0, _top - Math.round(_ovH * 0.18));
+          var _hiEl = ov.querySelector('.sh-hi');
+          var _hiTop = null, _hiBot = null;
+          if (_hiEl){
+            var _hb = _hiEl.getBoundingClientRect();
+            _hiTop = Math.round(_hb.top - _r0.top + (ov.scrollTop || 0));
+            _hiBot = Math.round(_hb.bottom - _r0.top + (ov.scrollTop || 0));
+          }
+          var _to = _shOpenScroll(_top, _ovH, _hiTop, _hiBot);
+          if (_to != null) ov.scrollTop = _to;
         }
         ov.__shAutoTop = Math.round(ov.scrollTop);
       } catch (e) {}

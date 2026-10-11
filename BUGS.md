@@ -415,6 +415,17 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2174 - A SHORT SHELF HID THE HIGHLIGHT ROW TO SHOW THE FIRST CARD (2026-10-11, #236)
+
+The BEST RUN / STREAK row is built above the reel cards. The opening scroll
+then jumped by `top - 18% of the viewport`, so on a short shelf the row left
+the screen. `_shOpenScroll` scrolls only as far as the first card needs when
+any of that row still meets the viewport. A row that would be gone keeps the
+old head scroll, so the reel is not buried. No highlight row keeps the head
+scroll. A card already in view does not move. The 8-of-8 versus 9-on-the-shelf
+count is not this fix. #236 stays open.
+Law: `test_a_short_shelf_keeps_the_highlight_row`. Not rendered here.
+
 ### REG-2173 - THE ROSTER HIDE RULE WAS A WEAK HIDDEN GUARD (2026-10-11, #39)
 
 .roster-box[hidden] set display none without !important. The hidden ratchet
