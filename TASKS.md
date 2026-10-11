@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3652** | `(this commit)` | v3652 — REG-2157 - sealed-in is its own clock. A missing seal stays off the chip. A measured 0 prints 0m00s. It does not borrow the run or the film. |
+| **v3653** | `(this commit)` | v3653 — REG-2158 - film and photos that differ are both named. A missing count stays UNKNOWN. A measured zero still prints. |
+| **v3652** | `4aea9556` | v3652 — REG-2157 - sealed-in is its own clock. A missing seal stays off the chip. A measured 0 prints 0m00s. It does not borrow the run or the film. |
 | **v3651** | `915dfd23` | v3651 — REG-2156 - plays is the film clock. A missing film length says UNKNOWN. A measured 0 still prints 0m00s. It does not borrow the run. sealed-in stays its own clock. |
 | **v3650** | `7d9030ab` | v3650 — REG-2155 - a missing t0 or t1 says ran UNKNOWN. A measured zero still prints 0m00s. sealed-in and plays stay their own clocks. |
 | **v3649** | `fc8ebb38` | v3649 — REG-2154 - a KAI beat that is not the session close no longer prints 0 frames swept |
