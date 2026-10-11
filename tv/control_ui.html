@@ -12124,6 +12124,17 @@ window._lockMark = function(isOpen, px, label){
     return b.join(' · ');
   }
   window._runSealGapsSay = _runSealGapsSay;
+  function _watchdogCountSay(n){
+    /* #252 (REG-2164) - a watchdog journal row is not missed text.
+       The shelf card printed 1 miss for one watchdog row while the dossier,
+       reading kaiMissed at 0, printed no missed text, a full read.
+       The dossier seal already used this word. One count, one word.
+       A missing count and a measured 0 stay blank. */
+    n = Number(n) || 0;
+    if (!(n > 0)) return '';
+    return n + ' flagged';
+  }
+  window._watchdogCountSay = _watchdogCountSay;
   /* REG-2083 (GrokBot tick 424 K08/K09) - THE MISSED-TEXT COUNTS SAY HOW THEY RELATE. Session 29 read 'swept · 3 missed-text'
      over a MISSED TEXT list of 5 rows and 'recovered 2/5'. All three are true: the first pass missed 5 frames, a deeper pass
      named 2 of them (both Heart of the Oak), 3 are still unread - kai.missedFrames is the still-unread ledger, superRecovery
@@ -12403,7 +12414,7 @@ window._lockMark = function(isOpen, px, label){
     var cover = _dossierCoverHtml(_dcov);   /* #252 (REG-2163) - same url as the shelf, eager */
     var _rs = _runSeal(sm);   /* #277 (REG-2055) - the seal no longer reads clean over gaps */
     var seal = (_rs.k === 'open') ? '<span class="dsr-seal dsr-seal-open"><span class="dss-ic">◌</span><span class="dss-lab">unsealed</span></span>'
-      : (_rs.k === 'flag') ? '<span class="dsr-seal dsr-seal-flag"><span class="dss-ic">🚨</span><span class="dss-lab">' + _rs.n + ' flagged</span></span>'
+      : (_rs.k === 'flag') ? '<span class="dsr-seal dsr-seal-flag"><span class="dss-ic">🚨</span><span class="dss-lab">' + _watchdogCountSay(_rs.n) + '</span></span>'
       : (_rs.k === 'gaps') ? '<span class="dsr-seal dsr-seal-open" title="sealed, but not a clean read: ' + esc(_runSealGapsSay(_rs)) + '"><span class="dss-ic">◐</span><span class="dss-lab">sealed with gaps</span></span>'
       : '<span class="dsr-seal dsr-seal-clean"><span class="dss-ic">🛡</span><span class="dss-lab">clean run</span></span>';
     function tile(label, val){ return '<div class="dsr-stat"><div class="dsr-sv">' + val + '</div><div class="dsr-sl">' + label + '</div></div>'; }
@@ -12594,7 +12605,7 @@ window._lockMark = function(isOpen, px, label){
     if (sm.coverage && sm.coverage.total){ var pct = Math.round((sm.coverage.read || 0) / sm.coverage.total * 100);
       L.push('Coverage ' + pct + '% (' + (sm.coverage.read || 0).toLocaleString() + ' / ' + sm.coverage.total.toLocaleString() + ' frames read)'); }
     var _rsV = _runSeal(sm);   /* #277 (REG-2055) - the same verdict as the card's seal */
-    L.push('Verdict: ' + (_rsV.k === 'flag' ? ('🚨 ' + _rsV.n + ' flagged') : _rsV.k === 'gaps' ? ('◐ sealed with gaps (' + _runSealGapsSay(_rsV) + ')')
+    L.push('Verdict: ' + (_rsV.k === 'flag' ? ('🚨 ' + _watchdogCountSay(_rsV.n)) : _rsV.k === 'gaps' ? ('◐ sealed with gaps (' + _runSealGapsSay(_rsV) + ')')
                           : _rsV.k === 'clean' ? '🛡 clean run' : '◌ unsealed'));
     var grails = (sm.finds || []).filter(function(f){ return f.tier === 'grail'; }).map(function(f){ return f.name || 'grail'; });
     var keeps = (sm.finds || []).filter(function(f){ return f.tier !== 'grail'; }).map(function(f){ return f.name; }).filter(Boolean);
@@ -18307,7 +18318,7 @@ window._lockMark = function(isOpen, px, label){
          `kaiMissed != null` rule, so Session 48 wore '🛡 clean' on its card over a dossier reading 'SEALED WITH GAPS · 8 gaps'. */
       var _shRs = _runSeal(sm);
       if (_shRs.k === 'flag'){
-        vparts.push('<span class="sh-warn">🚨 ' + _shRs.n + ' miss' + (_shRs.n > 1 ? 'es' : '') + '</span>');
+        vparts.push('<span class="sh-warn">🚨 ' + _watchdogCountSay(_shRs.n) + '</span>');
       } else if (_shRs.k === 'gaps'){
         vparts.push('<span class="sh-warn">◐ sealed with gaps · ' + _runSealGapsSay(_shRs) + '</span>');
       } else if (_shRs.k === 'clean'){
@@ -23911,7 +23922,7 @@ window._lockMark = function(isOpen, px, label){
         (function(){   /* v935.11 — watchdog verdict surfaces on home when it has something to say */
           var wd = st.watchdog;
           if (!wd || !wd.violations) return '';
-          return '<span class="hd-chip warn" title="expected-vs-happened check on the last sealed session">🚨 WATCHDOG · ' + wd.violations + ' miss' + (wd.violations > 1 ? 'es' : '') + ' last session</span>';
+          return '<span class="hd-chip warn" title="expected-vs-happened check on the last sealed session">🚨 WATCHDOG · ' + _watchdogCountSay(wd.violations) + ' last session</span>';
         })(),
         /* v929.2 — the LS stamp LIED (stale d2r_tvdOn from a past visible board while the
            off-screen engine's timers were suspended). Lamp now uses the control-side driver
@@ -24517,7 +24528,7 @@ window._lockMark = function(isOpen, px, label){
     // empty night, and that one stays clean. A breach is still a breach.
     var walkUnread = _journalUnread(st);
     var ldPulse = viol > 0 ? 'warn' : ((journalUnread || walkUnread) ? 'unknown' : 'ok');
-    var ldStat = (journalUnread ? '—' : (st.journalMB + ' MB')) + (viol ? ' <span class="eh-x">·</span> <span style="color:#ff9a7a">' + viol + ' miss</span>' : '');
+    var ldStat = (journalUnread ? '—' : (st.journalMB + ' MB')) + (viol ? ' <span class="eh-x">·</span> <span style="color:#ff9a7a">' + _watchdogCountSay(viol) + '</span>' : '');
     var ldSub = journalUnread
       ? 'the journal size was not read'
       : (sh.verdict === 'miss' ? '⚠ last session had gaps' : (viol ? viol + ' watchdog breach' : (walkUnread ? 'the journal was not read' : 'journal clean')));
