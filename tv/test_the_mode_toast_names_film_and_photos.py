@@ -113,8 +113,8 @@ RED_PROOF = [
     {
         "why": "REG-2160 - the flash prints a bare photo count and drops the film count",
         "file": "tv/control_ui.html",
-        "find": "    var counts = _filmPhotoSay(film, photos);\n",
-        "replace": "    var counts = ' · ' + photos + ' photos';\n",
+        "find": "    var counts = _filmPhotoSay(film, photos);\n    var play = (plays == null || plays === '') ? 'UNKNOWN' : String(plays);\n",
+        "replace": "    var counts = ' · ' + photos + ' photos';\n    var play = (plays == null || plays === '') ? 'UNKNOWN' : String(plays);\n",
         "matches": 1,
     },
     {

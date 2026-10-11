@@ -406,6 +406,16 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2161 - THE LONGER MODE TOAST STILL SAID A BARE PHOTO COUNT (2026-10-11, #252)
+
+REG-2160 named film and photos on the 1.6s flash. The longer toast on that
+same click still said "N photos" for REAL and FAST, and "N film stills" for
+STORY, with the other count missing. `_modePageSay` is that toast. It asks
+`_filmPhotoSay` for REAL, FAST, and STORY. A missing count stays UNKNOWN and
+does not borrow the other. A measured 0 still prints. The empty first
+thumbnail and a T+ clock that reads before the run start stay open on #252.
+Law: `test_the_longer_mode_toast_names_film_and_photos`. Not rendered here.
+
 ### REG-2160 - THE MODE FLASH SAID A PHOTO COUNT AND NEVER NAMED THE FILM (2026-10-11, #252)
 
 The footer and the mode pill already ask `_filmPhotoSay`. The 1.6s flash by the

@@ -12364,6 +12364,18 @@ window._lockMark = function(isOpen, px, label){
     if (mode === 'full') return '⏩ FAST · time-zipped ~' + play + counts;
     return '⏱ REAL 1:1 · plays ' + play + counts;
   }
+  function _modePageSay(mode, film, photos){
+    /* #252 (REG-2161) - the longer toast on the same click as the 1.6s flash.
+       It said "N photos" or "N film stills" and never named the other count.
+       The counts are _filmPhotoSay. A missing count stays UNKNOWN. A measured
+       0 still prints. */
+    var counts = _filmPhotoSay(film, photos);
+    if (mode === 'highlight')
+      return '🎬 STORY — the AI-reader cut: walks read-to-read, each on the frame the AI read.' + counts;
+    if (mode === 'full')
+      return '⏩ FAST — playback time compressed' + counts;
+    return '⏱ REAL — wall-clock 1:1 to capture' + counts;
+  }
   function _dossierHtml(sm){
     var n = sm.n || 1;
     var _ms0 = _shSessionMs(sm), d0 = _ms0 ? new Date(_ms0) : null;
@@ -20751,17 +20763,12 @@ window._lockMark = function(isOpen, px, label){
     thBuildAxis();
     thTimeline(); thPaint(); thClock();
     var st2 = thSessionPhotoStats();
-    var framedCount = st2.curPhoto, footCount = st2.curFoot, allFoot = st2.allFoot, allPhoto = st2.allPhoto;
     var _wallTxt = _playSay(TH.Tplay) || 'UNKNOWN';
     /* #252 (REG-2160) - the 1.6s flash names film and photos. A bare photo count hid the film. */
     var msg = _modeFlashSay(TH.mode, st2.allFoot, st2.allPhoto, _wallTxt);
     thToast(msg, this);
-    if (TH.mode === 'highlight')
-      toast('🎬 STORY — the AI-reader cut: walks read-to-read, each on the frame the AI read. REAL or FAST keeps all ' + allFoot + ' film stills.');
-    else if (TH.mode === 'real')
-      toast('⏱ REAL — all ' + framedCount + ' photos · wall-clock 1:1 to capture');
-    else
-      toast('⏩ FAST — same ' + framedCount + ' photos as REAL, playback time compressed');
+    /* #252 (REG-2161) - the longer toast on this same click names film and photos too. */
+    toast(_modePageSay(TH.mode, st2.allFoot, st2.allPhoto));
   };
   // v1380.2 — skip ghost/empty sessions (was landing on 0-beat stubs → black theatre)
   $('th-prev-s').onclick = function(){
