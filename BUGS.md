@@ -406,6 +406,15 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2166 - FLEET 3.0 PHASE 1 PUBLISHES ON ITS OWN ROUTE (2026-10-11, #39)
+
+Each PC publishes the sections it actually read to POST /api/roster. The KV key
+is the owner label. The presence beacon stays /api/console and still carries no
+item name. Hourly, change-only, plus one at boot. Over the daily cap the server
+says why and answers 200. An unread section stays absent. Pictures stay off the
+body. The Roster tab, the fetch cache, and the heart rows are later phases.
+Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
+
 ### REG-2165 - THE LEDGER SLICE CALLED A WORD IT COULD NOT SEE (2026-10-11, #252)
 
 v3659 put `_watchdogCountSay` above the shelf and called it from the ledger

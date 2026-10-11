@@ -4420,6 +4420,247 @@ def _boot_beacon_wait(timeout=60.0, sleep=time.sleep, clock=time.time):
     return "the window did not come up in %ds - beaconing anyway" % int(timeout)
 
 
+# Fleet 3.0 phase 1. A separate post from the presence beacon. The beacon still
+# carries no item name. This loop publishes only sections this PC actually read.
+_ROSTER_FAIL = {}
+
+
+def _roster_state_path():
+    return os.path.join(_log_root(), ".tvd_roster.json")
+
+
+def _roster_state_load():
+    try:
+        with open(_roster_state_path(), encoding="utf-8") as fh:
+            data = json.load(fh)
+    except Exception:
+        return None
+    if not isinstance(data, dict):
+        return None
+    return data
+
+
+def _roster_state_save(state):
+    try:
+        path = _roster_state_path()
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(state if isinstance(state, dict) else {}, fh, indent=2)
+        os.replace(tmp, path)
+    except Exception:
+        return None
+    return True
+
+
+def _roster_remember(why):
+    state = _roster_state_load()
+    if not isinstance(state, dict):
+        state = {}
+    state["why"] = str(why)[:200]
+    _roster_state_save(state)
+
+
+def _roster_claimed_name():
+    """The nickname already written on this install. Never mints an id."""
+    try:
+        with open(IDENTITY_PATH, encoding="utf-8") as fh:
+            data = json.load(fh)
+    except Exception:
+        return None
+    if not isinstance(data, dict):
+        return None
+    name = data.get("nickname")
+    if not isinstance(name, str):
+        return None
+    name = name.strip()
+    if not name:
+        return None
+    return name
+
+
+def _roster_reads(now_ms):
+    """Sections this PC actually read. A failed read stays out, never an empty list."""
+    import roster_publish as _rp
+    reads = {}
+    present = False
+    ledger = None
+    learned = None
+    try:
+        import char_select as _cs
+        if os.path.exists(_cs.store_path()):
+            present = True
+            ledger = _cs.load()
+            learned = _cs.learned(ledger) if ledger is not None else None
+    except Exception as e:
+        _ROSTER_FAIL["characters"] = type(e).__name__
+        present = False
+        ledger = None
+        learned = None
+    got = _rp.characters_read(present, ledger, learned, now_ms)
+    if got is not None:
+        reads["characters"] = got
+
+    rows = None
+    why = None
+    mt = None
+    try:
+        acc, why, mt = _vault_store_read(VAULT_LEDGER_PATH)
+        if why == "ok" and isinstance(acc, dict) and isinstance(acc.get("owned"), list):
+            rows = []
+            for raw in acc["owned"]:
+                if not isinstance(raw, dict):
+                    continue
+                row = {}
+                for key in ("name", "tier", "mule", "locker"):
+                    if key in raw:
+                        row[key] = raw[key]
+                looks = raw.get("looks")
+                if isinstance(looks, bool) or not isinstance(looks, int):
+                    wit = raw.get("witnesses")
+                    if isinstance(wit, list):
+                        looks = 0
+                        for w in wit:
+                            if isinstance(w, dict):
+                                looks += 1
+                    else:
+                        looks = None
+                if isinstance(looks, int) and not isinstance(looks, bool):
+                    row["looks"] = looks
+                evidence = []
+                listed = raw.get("evidence")
+                if isinstance(listed, list):
+                    evidence.extend(listed)
+                wit = raw.get("witnesses")
+                if isinstance(wit, list):
+                    for w in wit:
+                        if not isinstance(w, dict):
+                            continue
+                        sid = w.get("session")
+                        if isinstance(sid, str):
+                            evidence.append(sid)
+                if evidence:
+                    row["evidence"] = evidence
+                if row:
+                    rows.append(row)
+        else:
+            rows = None
+    except Exception as e:
+        _ROSTER_FAIL["vault"] = type(e).__name__
+        rows = None
+        why = None
+    as_of = now_ms
+    if isinstance(mt, (int, float)) and not isinstance(mt, bool) and mt > 0:
+        as_of = int(mt * 1000)
+    got = _rp.vault_read(why, rows, as_of)
+    if got is not None:
+        reads["vault"] = got
+
+    try:
+        tally = board_tally_load()
+    except Exception as e:
+        _ROSTER_FAIL["chronicle"] = type(e).__name__
+        tally = None
+    got = _rp.chronicle_read(tally, now_ms)
+    if got is not None:
+        reads["chronicle"] = got
+
+    names = None
+    stamps = None
+    stations = None
+    try:
+        names = _shelf_reel_names()
+    except Exception as e:
+        _ROSTER_FAIL["reels"] = type(e).__name__
+        names = None
+    try:
+        import river_stamp as _rs
+        last, _stamp_why = _rs.last_stamps()
+        if isinstance(last, dict):
+            stamps = {}
+            stations = {}
+            for reel, rec in last.items():
+                if not isinstance(reel, str):
+                    continue
+                if isinstance(rec, dict):
+                    station = rec.get("station")
+                elif isinstance(rec, str):
+                    station = rec
+                else:
+                    station = None
+                if not isinstance(station, str) or not station:
+                    continue
+                stamps[reel] = station
+                if station == "UNKNOWN":
+                    continue
+                stations[station] = int(stations.get(station) or 0) + 1
+    except Exception as e:
+        _ROSTER_FAIL["stations"] = type(e).__name__
+        stamps = None
+        stations = None
+    got = _rp.reels_read(names, stamps, stations, now_ms)
+    if got is not None:
+        reads["reels"] = got
+    return reads
+
+
+def _roster_post(url, body):
+    try:
+        import base64 as _b64
+        raw = json.dumps(body, ensure_ascii=False).encode("utf-8")
+        req = urllib.request.Request(
+            url, data=raw,
+            headers={"Content-Type": "application/json", "User-Agent": "TVD-Console/1.0",
+                     "Authorization": "Basic " + _b64.b64encode(b"app:DeanDiablo").decode()},
+            method="POST")
+        with urllib.request.urlopen(req, timeout=8) as resp:
+            text = resp.read().decode("utf-8", "replace")
+        got = json.loads(text)
+    except Exception as e:
+        return {"ok": False, "why": type(e).__name__, "code": getattr(e, "code", None)}
+    if not isinstance(got, dict):
+        return {"ok": False, "why": "the roster answer was not a record"}
+    return got
+
+
+def _roster_publish_once(boot):
+    """One roster publish, or a remembered reason and no post."""
+    import roster_publish as _rp
+    held = _beacon_suppressed_by()
+    if held:
+        _roster_remember("suppressed: " + str(held)[:160])
+        return
+    owner = _rp.owner_of(_roster_claimed_name())
+    if not owner:
+        _roster_remember("this PC has no roster label")
+        return
+    now_ms = int(time.time() * 1000)
+    sections = _rp.sections_from(_roster_reads(now_ms), now_ms)
+    state = _roster_state_load()
+    if not isinstance(state, dict):
+        state = {}
+    body, reason = _rp.due(state, owner, sections, now_ms, True if boot else False)
+    if body is None:
+        state["why"] = str(reason)[:200]
+        _roster_state_save(state)
+        return
+    reply = _roster_post("https://bull-4-u.com/api/roster", body)
+    _roster_state_save(_rp.apply_reply(state, sections, reply, now_ms))
+
+
+def _roster_publish_loop():
+    time.sleep(8)
+    try:
+        _roster_publish_once(True)
+    except Exception as e:
+        _roster_remember(type(e).__name__)
+    while True:
+        time.sleep(60)
+        try:
+            _roster_publish_once(False)
+        except Exception as e:
+            _roster_remember(type(e).__name__)
+
+
 def _console_beacon_loop():
     _boot_beacon_wait()
     _console_beacon("boot")
@@ -47517,6 +47758,7 @@ def main():
 
     threading.Thread(target=_bridge_prober, daemon=True, name="tvd-prober").start()   # v872
     threading.Thread(target=_console_beacon_loop, daemon=True, name="tvd-beacon").start()   # v875
+    threading.Thread(target=_roster_publish_loop, daemon=True, name="tvd-roster").start()
     threading.Thread(target=_fleet_change_loop, daemon=True, name="tvd-fleet-change").start()
     t = threading.Thread(target=srv.serve_forever, daemon=True)
     t.start()

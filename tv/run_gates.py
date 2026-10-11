@@ -9279,6 +9279,14 @@ GATES = [
          why=("REG-2164 (#252) - the shelf card said 1 miss for a watchdog row while the "
               "dossier said no missed text, a full read. A watchdog count says flagged. "
               "A missing count and a measured 0 stay blank. Missed text keeps its own word.")),
+    Gate("test_a_roster_publish_stays_off_the_presence_beacon", [sys.executable,
+         os.path.join(HERE, "test_a_roster_publish_stays_off_the_presence_beacon.py")], 90,
+         needs_app=False,
+         why=("REG-2166 (#39) - Fleet 3.0 phase 1 publishes each PCs own sections on "
+              "POST /api/roster under the owner label. Hourly, change-only, plus one at "
+              "boot. Over the daily cap the server says why and answers 200. An unread "
+              "section stays absent. Pictures stay off the body. The presence beacon "
+              "still carries no item name.")),
     Gate("test_a_grok_only_reader_does_not_start_a_sweep", [sys.executable,
          os.path.join(HERE, "test_a_grok_only_reader_does_not_start_a_sweep.py")], 60,
          needs_app=False,

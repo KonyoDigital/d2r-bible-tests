@@ -1848,6 +1848,25 @@
     "purpose": "A21c — discovers every *_roster.json catalog on disk and traces its chain (declared in bible.html → getter on window → probe asks it → total on the wire → a surface states its unit), flagging any break.",
     "territory": "ledger-profile"
   },
+  "roster_publish.py": {
+    "entryPoints": [
+      "budget",
+      "owner_of",
+      "roster_key",
+      "section_of",
+      "sections_from",
+      "characters_read",
+      "vault_read",
+      "stash_read",
+      "chronicle_read",
+      "reels_read",
+      "due",
+      "apply_reply"
+    ],
+    "gotcha": "An unread section is omitted, never an empty list. The key is the owner label. The publisher must not call install_identity, river_stamp.run, or grail_tally. The hash excludes asOf, so a fresh read of the same rows does not spend a write. Pictures stay off the body. This file is the publish only: no Roster tab, no fetch cache, no heart row.",
+    "purpose": "Builds the Fleet 3.0 phase 1 roster body for a separate route and a separate KV key, hourly and change-only.",
+    "territory": "console-ui"
+  },
   "roster_sync.py": {
     "entryPoints": [
       "is_stale",
