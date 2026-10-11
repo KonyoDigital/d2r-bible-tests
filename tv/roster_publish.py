@@ -542,6 +542,15 @@ def _ago(as_of, now_ms):
     return state, words
 
 
+def _age_words(state, words):
+    """The age phrase. A stale clock says stale. An unknown clock stays unknown."""
+    if not words:
+        return None
+    if state == "stale":
+        return words + " stale"
+    return words
+
+
 def _count_text(counts):
     """Words for a measured tally. Chronicle and reels store a dict, not one integer."""
     if isinstance(counts, bool) or counts is None:
@@ -642,8 +651,9 @@ def roster_html(payload):
 def _published_html(owner, row, now_ms):
     who = html.escape(owner, quote=True)
     state, words = _ago(row.get("t"), now_ms)
-    if words:
-        when = "published " + words
+    said = _age_words(state, words)
+    if said:
+        when = "published " + said
     else:
         when = "published, age unknown"
     klass = "roster-owner"
@@ -659,8 +669,9 @@ def _published_html(owner, row, now_ms):
             continue
         sec_state, sec_words = _ago(sec.get("asOf"), now_ms)
         label = html.escape(name, quote=True)
-        if sec_words:
-            age = "as of " + sec_words
+        sec_said = _age_words(sec_state, sec_words)
+        if sec_said:
+            age = "as of " + sec_said
         else:
             age = "age unknown"
         sec_class = "roster-stale" if sec_state == "stale" else "roster-sec"

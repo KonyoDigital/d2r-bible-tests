@@ -6030,8 +6030,10 @@
   .fleet-head { font: var(--fw-bold) var(--fs-2xs)/1 var(--mono); letter-spacing: var(--ls-label);
     text-transform: uppercase; color: var(--gold-dim); display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
   .fleet-refresh { margin-left: auto; padding: 2px 7px; }
+  /* The panel scrolls inside itself. A full vault list used to grow the rail
+     under the sticky shelf, so a click on Roster looked like nothing. */
   .roster-box { margin-top: 8px; border: 1px solid var(--edge); border-radius: 8px; padding: 7px 9px;
-    box-sizing: border-box; }
+    box-sizing: border-box; max-height: min(420px, 46vh); overflow-y: auto; }
   .roster-box[hidden] { display: none !important; }
   .roster-stale { color: #e9b96e; }
   /* ── v2157 — THE FLEET TOOLTIP. Floats beside the cursor on the person's name, shows what
@@ -8778,6 +8780,10 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
                          with it. Out here it needs no rule of its own to stay visible in every view. -->
 <div class="fleet-box">
             <div class="fleet-head">🖥 THE FLEET <button class="util-btn" type="button" id="roster-open" title="other consoles, read only" onclick="window._rosterOpen()">Roster</button><button class="util-btn fleet-refresh" type="button" title="re-check who is online" onclick="window._fleetRefresh(true)">↻</button></div>
+            <div class="roster-box" id="roster-box" hidden>
+              <div class="fleet-head">ROSTER <span class="roster-note">read only</span></div>
+              <div id="roster-body"><div class="roster-none">this PC has not fetched a roster yet</div></div>
+            </div>
             <div id="fleet-list"><div class="fleet-none">checking who is online…</div></div>
             <!-- v2213 — the cross-reference box. Hidden until a player is clicked; it answers
                  "what should I chase" where the hover tooltip answers "how far along is he". -->
@@ -8801,10 +8807,6 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
               <div class="fleet-head" title="the chronicle sweep on THIS console - another PC's sweep is told on its own fleet row">🧠 SWEEP · this PC <span class="swm-state" id="swm-state"></span></div>   <!-- REG-1947 — under THE FLEET a bare SWEEP read as everyone's: GrokBot set it (IDLE) against Konyo's row ("a sweep is already running") -->
               <div id="swm-body"><div class="fleet-none">no sweep running</div></div>
             </div>
-<div class="roster-box" id="roster-box" hidden>
-  <div class="fleet-head">ROSTER <span class="roster-note">read only</span></div>
-  <div id="roster-body"><div class="roster-none">this PC has not fetched a roster yet</div></div>
-</div>
         <!-- v2384 — THE STATE PANEL. Konyo, looking at what the footer tooltip had become:
              "all this information cant it be maybe somewhere better? or like more structured
              cleaner.. like the fleet when i click it open a window popup inpage.. so it can be
@@ -27389,14 +27391,41 @@ function escC(s) {
   })();
 
   window._rosterOpen = function () {
+    /* scrollTop, not scrollIntoView. The console is WebKit, and an options
+       bag is the part engines disagree about. The heading stays put when it
+       is already above the sticky shelf. */
+    function intoRail(node) {
+      try {
+        var sc = node.parentElement;
+        while (sc && sc !== document.body) {
+          var oy = window.getComputedStyle(sc).overflowY;
+          if ((oy === 'auto' || oy === 'scroll') && sc.scrollHeight > sc.clientHeight + 4) break;
+          sc = sc.parentElement;
+        }
+        if (!sc || sc === document.body) return;
+        var railTop = sc.getBoundingClientRect().top;
+        var boxTop = node.getBoundingClientRect().top;
+        var floor = sc.getBoundingClientRect().bottom;
+        var shelf = document.getElementById('btn-shelf');
+        if (shelf) {
+          var sh = shelf.getBoundingClientRect();
+          if (sh.height > 0 && sh.top > railTop && sh.top < floor) floor = sh.top;
+        }
+        if (boxTop >= railTop + 2 && boxTop < floor - 28) return;
+        sc.scrollTop = Math.max(0, sc.scrollTop + (boxTop - railTop) - 6);
+      } catch (e) {}
+    }
     var box = document.getElementById('roster-box');
     var body = document.getElementById('roster-body');
     if (!box || !body) return;
     if (!box.hasAttribute('hidden')) { box.setAttribute('hidden', ''); return; }
     box.removeAttribute('hidden');
+    intoRail(box);
     fetch('/api/roster-cache', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (data) {
       if (data && typeof data.html === 'string') body.innerHTML = data.html;
       else body.textContent = 'the roster answer had no page';
+      box.scrollTop = 0;
+      intoRail(box);
     }).catch(function () {
       body.textContent = 'the roster fetch could not be read';
     });

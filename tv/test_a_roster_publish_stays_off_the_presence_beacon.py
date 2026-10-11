@@ -411,6 +411,21 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         self.assertEqual(nav.count("<button"), 9)
         self.assertNotIn('data-tab="roster"', nav)
         self.assertIn('id="roster-box" hidden', ui)
+        open_at = ui.index('id="roster-open"')
+        box_at = ui.index('id="roster-box"')
+        list_at = ui.index('id="fleet-list"')
+        self.assertLess(open_at, box_at)
+        self.assertLess(box_at, list_at)
+        rule_at = ui.index(".roster-box {")
+        rule = ui[rule_at:ui.index("}", rule_at)]
+        self.assertIn("max-height:", rule)
+        self.assertIn("overflow-y: auto", rule)
+        hide_at = ui.index(".roster-box[hidden]")
+        hide = ui[hide_at:ui.index("}", hide_at)]
+        self.assertIn("display: none !important", hide)
+        fn = ui[ui.index("window._rosterOpen = function"):ui.index("(function _fleetKick")]
+        self.assertIn("scrollTop", fn)
+        self.assertNotIn("scrollIntoView(", fn)
         self.assertIn("window._rosterOpen", ui)
         self.assertIn("/api/roster-cache", ui)
         with open(APP, encoding="utf-8") as fh:
@@ -436,11 +451,23 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         old = dict(shown, t=now - 2 * RP.HOUR_MS - 1)
         stale = RP.roster_html({"ok": True, "fetched": True, "now": now, "owners": [old]})
         self.assertIn("roster-stale", stale)
+        self.assertIn(" ago stale", stale)
+        self.assertIn("as of under 1 min ago", stale)
+        self.assertNotIn("under 1 min ago stale", stale)
+        self.assertNotIn(" stale", safe)
+        old_vault = {"owner": OWNER, "published": True, "corrupt": False, "t": now,
+                     "sections": {"vault": {"asOf": now - 2 * RP.HOUR_MS - 1, "counts": 2, "rows": []}}}
+        vault_old = RP.roster_html({"ok": True, "fetched": True, "now": now, "owners": [old_vault]})
+        self.assertIn("as of 2 hr ago stale", vault_old)
+        self.assertIn("published under 1 min ago", vault_old)
+        self.assertNotIn("published under 1 min ago stale", vault_old)
+        self.assertNotIn("0 min", vault_old)
         unknown = {"owner": OWNER, "published": True, "corrupt": False,
                    "sections": {"characters": {"counts": 1, "rows": [{"name": "Sorceress"}]}}}
         plain = RP.roster_html({"ok": True, "fetched": True, "now": now, "owners": [unknown]})
         self.assertIn("age unknown", plain)
         self.assertNotIn("0 min", plain)
+        self.assertNotIn(" stale", plain)
         bad = {"owner": "Dean", "published": True, "corrupt": True,
                "sections": {"stash": {"asOf": now, "rows": [{"name": "Shako"}]}}}
         hidden = RP.roster_html({"ok": True, "fetched": True, "now": now, "owners": [bad]})
@@ -578,6 +605,20 @@ RED_PROOF = [
         "file": "roster_publish.py",
         "find": "        if key == \"date\":\n",
         "replace": "        if False and key == \"date\":\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2178 - the roster panel grows the rail instead of scrolling inside itself",
+        "file": "control_ui.html",
+        "find": " max-height: min(420px, 46vh); overflow-y: auto;",
+        "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2178 - a stale roster age loses the word",
+        "file": "roster_publish.py",
+        "find": "    if state == \"stale\":\n        return words + \" stale\"\n",
+        "replace": "    if state == \"stale\":\n        return words\n",
         "matches": 1,
     },
 ]

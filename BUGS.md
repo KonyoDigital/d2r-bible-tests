@@ -415,6 +415,16 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2178 - A ROSTER CLICK OPENED UNDER THE STICKY SHELF (2026-10-11, #323)
+
+The Roster button worked. The panel was drawn after the fleet list, the shelf
+stays stuck to the rail floor, and the open path never moved the rail. One
+click looked like nothing unless the rail was already scrolled. The wheel over
+the rail moved the main pane. The panel now sits under the fleet button, caps
+its own height, and scrolls inside itself. A stale clock says the word stale.
+A current clock and an unknown clock do not. Stash stays out of the publisher.
+Law: `test_a_roster_publish_stays_off_the_presence_beacon`.
+
 ### REG-2177 - A HELD RELAUNCH BANNER SAID ONLY RELAUNCH TO USE IT (2026-10-11, #266)
 
 The drift lane already publishes relaunch.may and relaunch.why on /api/status.
