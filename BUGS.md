@@ -415,6 +415,17 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2180 - A PULL ARMED THE RELAUNCH BANNER WITH NO HOLD (2026-10-11, #266)
+
+A successful auto-pull called armRelaunch with the version and nothing else.
+The status path is what hands relaunch.may and relaunch.why to that banner.
+look() then returned as soon as the stage was ready, so it never asked status
+again. The bar said Relaunch to use it while the window hold was already on
+/api/status. The pull now reads that hold before it arms, and a ready stage
+refreshes the sentence without arming a second time. A click still does not
+fire by itself. The vault-first-click half of #266 is not this fix.
+Law: `test_a_held_relaunch_banner_says_why`.
+
 ### REG-2179 - A ROSTER CLICK ON v3673 STILL PAINTED NO PANEL (2026-10-11, #323)
 
 GB-L looked at v3673 (comment 6113447783). One click of Roster left the fleet

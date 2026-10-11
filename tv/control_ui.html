@@ -20363,7 +20363,21 @@ window._lockMark = function(isOpen, px, label){
         // the dismissal is per-VERSION, and it never gates the pull below
         lastSeenLatest = (j && (j.latest || j.ver)) || lastSeenLatest;
         if (!j || !j.ok || !j.behind){
-          if (stage === 'ready') return;
+          if (stage === 'ready') {
+            /* #266 - a pull arms this banner before status is asked, and returning
+               here left the hold off the sentence for the rest of the session.
+               Refresh the words. Do not arm a second time and do not hide the bar. */
+            try {
+              var rr0 = await fetch(API + '/api/status');
+              var rj0 = await rr0.json();
+              var rd0 = rj0 && rj0.drift;
+              if (rd0 && rd0.drift === true && txt.textContent.indexOf('relaunching') !== 0) {
+                var say0 = _relaunchBannerSay(rd0.disk, rd0.relaunch || null);
+                if (say0 && say0 !== txt.textContent) { txt.textContent = say0; txt.title = say0; }
+              }
+            } catch (eReady) {}
+            return;
+          }
           /* v2110 — BEING UP TO DATE WITH GITHUB IS NOT THE SAME AS RUNNING WHAT IS ON DISK.
              `behind` counts commits against origin. On the machine where the tree is EDITED it is
              always 0 while the running process can be several ships stale — which is precisely
@@ -20388,7 +20402,15 @@ window._lockMark = function(isOpen, px, label){
           try {
             var pr = await fetch(API + '/api/update', { method: 'POST' });
             var pj = await pr.json();
-            if (pj && pj.ok && pj.pulled){ armRelaunch(pj.ver); return; }
+            if (pj && pj.ok && pj.pulled){
+              try {
+                var hr = await fetch(API + '/api/status');
+                var hj = await hr.json();
+                var hd = hj && hj.drift;
+                if (hd && hd.relaunch) _armHold = hd.relaunch;
+              } catch (eh) {}
+              armRelaunch(pj.ver); return;
+            }
             if (pj && pj.ok){ bar.hidden = true; return; }   // already unified after all
           } catch (e){ /* fall through to the announcement */ }
         }

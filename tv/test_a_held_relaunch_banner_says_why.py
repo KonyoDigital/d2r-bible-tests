@@ -7,6 +7,11 @@ for the window he is using looked like a button with no reason. The
 banner now appends that why when may is false. A missing why, a blank
 why, and a may that is not false stay the old sentence.
 
+A pull used to call armRelaunch with only the version. look() then returned
+while the stage was ready, so the hold on /api/status never reached the
+sentence. The pull reads that hold before it arms, and a ready stage refreshes
+the words without arming again.
+
 Drives _relaunchBannerSay, cut from control_ui.html and run in node.
 """
 import json
@@ -27,6 +32,10 @@ WHY = ("you are using the window (last touched 5s ago) - an update would wait "
        "until it has been still for 60s")
 WIRE = ("            if (dr && dr.drift === true && dr.disk)"
         "{ _armHold = dr.relaunch || null; armRelaunch(dr.disk); return; }\n")
+PULL_WIRE = ("                if (hd && hd.relaunch) _armHold = hd.relaunch;\n"
+             "              } catch (eh) {}\n"
+             "              armRelaunch(pj.ver); return;\n")
+READY_WIRE = ("                var say0 = _relaunchBannerSay(rd0.disk, rd0.relaunch || null);\n")
 
 
 def _src():
@@ -62,6 +71,21 @@ class HeldRelaunchBannerSaysWhy(unittest.TestCase):
         self.assertEqual(src.count(WIRE), 1, "the status path no longer hands drift.relaunch to the banner")
         self.assertEqual(src.count("      var hold = _armHold; _armHold = null;\n"), 1,
                          "a hold from one arm would leak into the next")
+
+    def test_the_pull_and_the_ready_stage_hand_the_hold_to_the_banner(self):
+        src = _src()
+        self.assertEqual(src.count(PULL_WIRE), 1,
+                         "a pull no longer reads the hold before it arms")
+        self.assertEqual(src.count(READY_WIRE), 1,
+                         "a ready stage no longer refreshes the hold")
+        self.assertEqual(src.count("if (stage === 'ready') return;"), 0,
+                         "a ready stage returns before it can ask status")
+        ready = src.find("if (stage === 'ready') {")
+        ask = src.find("var say0 = _relaunchBannerSay", ready)
+        back = src.find("return;", ask)
+        self.assertNotEqual(ready, -1)
+        self.assertGreater(ask, ready)
+        self.assertGreater(back, ask)
 
     @unittest.skipUnless(NODE, "no node on this machine - UNMEASURED here, not passing")
     def test_a_false_may_prints_the_why_and_anything_else_does_not(self):
@@ -105,6 +129,16 @@ RED_PROOF = [
      "file": "tv/control_ui.html",
      "find": "            if (dr && dr.drift === true && dr.disk){ _armHold = dr.relaunch || null; armRelaunch(dr.disk); return; }\n",
      "replace": "            if (dr && dr.drift === true && dr.disk){ _armHold = null; armRelaunch(dr.disk); return; }\n",
+     "matches": 1},
+    {"why": "REG-2180 - a pull arms the banner without the hold",
+     "file": "tv/control_ui.html",
+     "find": "                if (hd && hd.relaunch) _armHold = hd.relaunch;\n",
+     "replace": "                /* the pull drops the hold */\n",
+     "matches": 1},
+    {"why": "REG-2180 - a ready stage stops refreshing the hold",
+     "file": "tv/control_ui.html",
+     "find": "                var say0 = _relaunchBannerSay(rd0.disk, rd0.relaunch || null);\n",
+     "replace": "                var say0 = '';\n",
      "matches": 1},
 ]
 
