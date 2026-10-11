@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3655",
+  "ver": "v3656",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3655: REG-2160 - the 1.6s mode flash names film and photos. HEART: test_the_mode_toast_names_film_and_photos",
+  "note": "v3656: REG-2161 - the longer mode toast names film and photos. HEART: test_the_longer_mode_toast_names_film_and_photos",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
