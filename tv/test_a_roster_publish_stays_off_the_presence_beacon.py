@@ -420,10 +420,15 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         rule = ui[rule_at:ui.index("}", rule_at)]
         self.assertIn("max-height:", rule)
         self.assertIn("overflow-y: auto", rule)
+        self.assertIn("background: #0a0908", rule)
+        self.assertIn("overscroll-behavior: contain", rule)
         hide_at = ui.index(".roster-box[hidden]")
         hide = ui[hide_at:ui.index("}", hide_at)]
         self.assertIn("display: none !important", hide)
         fn = ui[ui.index("window._rosterOpen = function"):ui.index("(function _fleetKick")]
+        self.assertIn("document.body.appendChild(node)", fn)
+        self.assertIn("position = 'fixed'", fn)
+        self.assertIn("zIndex = '40'", fn)
         self.assertIn("scrollTop", fn)
         self.assertNotIn("scrollIntoView(", fn)
         self.assertIn("window._rosterOpen", ui)
@@ -619,6 +624,13 @@ RED_PROOF = [
         "file": "roster_publish.py",
         "find": "    if state == \"stale\":\n        return words + \" stale\"\n",
         "replace": "    if state == \"stale\":\n        return words\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2179 - the roster stays in the rail and opens under the shelf",
+        "file": "control_ui.html",
+        "find": "        if (node.parentNode !== document.body) document.body.appendChild(node);\n",
+        "replace": "        /* the card stays in the rail */\n",
         "matches": 1,
     },
 ]

@@ -6033,7 +6033,8 @@
   /* The panel scrolls inside itself. A full vault list used to grow the rail
      under the sticky shelf, so a click on Roster looked like nothing. */
   .roster-box { margin-top: 8px; border: 1px solid var(--edge); border-radius: 8px; padding: 7px 9px;
-    box-sizing: border-box; max-height: min(420px, 46vh); overflow-y: auto; }
+    box-sizing: border-box; max-height: min(420px, 46vh); overflow-y: auto;
+    background: #0a0908; color: var(--text, #e8dcc8); overscroll-behavior: contain; }
   .roster-box[hidden] { display: none !important; }
   .roster-stale { color: #e9b96e; }
   /* ── v2157 — THE FLEET TOOLTIP. Floats beside the cursor on the person's name, shows what
@@ -27391,28 +27392,34 @@ function escC(s) {
   })();
 
   window._rosterOpen = function () {
-    /* scrollTop, not scrollIntoView. The console is WebKit, and an options
-       bag is the part engines disagree about. The heading stays put when it
-       is already above the sticky shelf. */
-    function intoRail(node) {
+    /* Painted on the document, in viewport coordinates, above the shelf.
+       Inside the rail the card opened under the shelf, and the only new pixel
+       was a thin line. A fixed card on the body is what one click shows. */
+    function place(node) {
       try {
-        var sc = node.parentElement;
-        while (sc && sc !== document.body) {
-          var oy = window.getComputedStyle(sc).overflowY;
-          if ((oy === 'auto' || oy === 'scroll') && sc.scrollHeight > sc.clientHeight + 4) break;
-          sc = sc.parentElement;
+        var btn = document.getElementById('roster-open');
+        var rail = document.querySelector('aside.rail');
+        if (!btn) return;
+        if (node.parentNode !== document.body) document.body.appendChild(node);
+        var br = btn.getBoundingClientRect();
+        var rr = rail ? rail.getBoundingClientRect() : br;
+        var top = br.bottom + 6;
+        var room = window.innerHeight - top - 8;
+        var height = Math.min(420, room);
+        if (height < 140) {
+          height = Math.min(420, Math.floor(window.innerHeight * 0.46));
+          top = Math.max(8, br.top - height - 6);
         }
-        if (!sc || sc === document.body) return;
-        var railTop = sc.getBoundingClientRect().top;
-        var boxTop = node.getBoundingClientRect().top;
-        var floor = sc.getBoundingClientRect().bottom;
-        var shelf = document.getElementById('btn-shelf');
-        if (shelf) {
-          var sh = shelf.getBoundingClientRect();
-          if (sh.height > 0 && sh.top > railTop && sh.top < floor) floor = sh.top;
-        }
-        if (boxTop >= railTop + 2 && boxTop < floor - 28) return;
-        sc.scrollTop = Math.max(0, sc.scrollTop + (boxTop - railTop) - 6);
+        node.style.position = 'fixed';
+        node.style.left = (rr.left + 4) + 'px';
+        node.style.top = top + 'px';
+        node.style.width = Math.max(160, rr.width - 8) + 'px';
+        node.style.height = height + 'px';
+        node.style.maxHeight = height + 'px';
+        node.style.zIndex = '40';
+        node.style.overflowY = 'auto';
+        node.style.background = '#0a0908';
+        node.style.boxShadow = '0 10px 28px rgba(0,0,0,.6)';
       } catch (e) {}
     }
     var box = document.getElementById('roster-box');
@@ -27420,12 +27427,12 @@ function escC(s) {
     if (!box || !body) return;
     if (!box.hasAttribute('hidden')) { box.setAttribute('hidden', ''); return; }
     box.removeAttribute('hidden');
-    intoRail(box);
+    place(box);
     fetch('/api/roster-cache', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (data) {
       if (data && typeof data.html === 'string') body.innerHTML = data.html;
       else body.textContent = 'the roster answer had no page';
       box.scrollTop = 0;
-      intoRail(box);
+      place(box);
     }).catch(function () {
       body.textContent = 'the roster fetch could not be read';
     });

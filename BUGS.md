@@ -415,6 +415,16 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2179 - A ROSTER CLICK ON v3673 STILL PAINTED NO PANEL (2026-10-11, #323)
+
+GB-L looked at v3673 (comment 6113447783). One click of Roster left the fleet
+rows where they were. No ROSTER heading, no owners, no not-published lines.
+The new pixel was a thin line by the rail. The wheel over the rail moved the
+main pane. The card now leaves the rail and is placed fixed on the document,
+in the viewport, above the shelf, with its own scroll. A second click hides it.
+The nine header doors stay nine. Stash stays out of the publisher.
+Law: `test_a_roster_publish_stays_off_the_presence_beacon`.
+
 ### REG-2178 - A ROSTER CLICK OPENED UNDER THE STICKY SHELF (2026-10-11, #323)
 
 The Roster button worked. The panel was drawn after the fleet list, the shelf
