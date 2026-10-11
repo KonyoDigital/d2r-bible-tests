@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3649",
+  "ver": "v3650",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3649: REG-2154 - a KAI beat that is not the session close no longer prints 0 frames swept",
+  "note": "v3650: REG-2155 - a missing t0 or t1 says ran UNKNOWN. A measured zero still prints 0m00s. sealed-in and plays stay their own clocks.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
