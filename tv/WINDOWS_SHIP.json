@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3656",
+  "ver": "v3657",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3656: REG-2161 - the longer mode toast names film and photos. HEART: test_the_longer_mode_toast_names_film_and_photos",
+  "note": "v3657: REG-2162 - a wall time before the run start prints as the start at T+0:00.000. A missing wall stays UNKNOWN. A measured moment at the start still prints. HEART: test_the_clock_does_not_read_before_the_run_start",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

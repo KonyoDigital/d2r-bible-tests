@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3656** | `(this commit)` | v3656 — REG-2161 - the longer mode toast names film and photos. HEART: test_the_longer_mode_toast_names_film_and_photos |
+| **v3657** | `(this commit)` | v3657 — REG-2162 - a wall time before the run start prints as the start at T+0:00.000. A missing wall stays UNKNOWN. A measured moment at the start still prints. HEART: test_the_clock_does_not_read_before_the_run_start |
+| **v3656** | `a5162c87` | v3656 — REG-2161 - the longer mode toast names film and photos. HEART: test_the_longer_mode_toast_names_film_and_photos |
 | **v3655** | `fa5cb26e` | v3655 — REG-2160 - the 1.6s mode flash names film and photos. HEART: test_the_mode_toast_names_film_and_photos |
 | **v3654** | `060451bd` | v3654 — REG-2159 - a GROK ONLY reader does not start a console sweep. Claude is the only reader that starts one. A skip is not a read and the reel stays unswept. |
 | **v3653** | `5f9e827c` | v3653 — REG-2158 - film and photos that differ are both named. A missing count stays UNKNOWN. A measured zero still prints. |
