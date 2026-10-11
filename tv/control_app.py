@@ -7092,6 +7092,25 @@ def _seal_progress(reel_dir):
             idx_sz)
 
 
+def seal_latency_ms(closed_at, run_end_ms, cap_ms=30 * 60 * 1000):
+    """#277 (REG-2157) - sealed-in is closedAt minus the run end.
+
+    ran is t0 to t1. plays is the film. Neither number is this one.
+    A missing clock stays None. A measured 0 still returns 0.
+    A gap longer than the seal window is a later re-sweep, not a latency.
+    """
+    if isinstance(closed_at, bool) or isinstance(run_end_ms, bool):
+        return None
+    if not isinstance(closed_at, (int, float)) or not isinstance(run_end_ms, (int, float)):
+        return None
+    if not run_end_ms:
+        return None
+    dlt = int(closed_at) - int(run_end_ms)
+    if dlt < 0 or dlt > cap_ms:  # REG-2157 measured 0 still returns
+        return None
+    return dlt
+
+
 def _seal_sid_hint():
     """The session whose reel is being sealed right now: the bridge knows, then the journal's last
     row, then the newest reel_* dir. "" when unknown — a WRONG sid must never buy grace for a reel
@@ -43715,20 +43734,15 @@ class Handler(BaseHTTPRequestHandler):
                     if _mf_list:
                         _mf_list.sort(key=lambda x: x.get("ts") or 0)
                         _missed_frames = _mf_list[:24]
-                    # v1280 (D7 engine) — seal-latency: closedAt − run-end. TRUTHFUL guard: a re-swept reel's
-                    # closedAt lands hours/days after the run (a reseal, NOT a seal latency), so only emit when
-                    # the gap is plausibly a real seal (>0 and ≤30min); otherwise leave it absent (the chip hides).
-                    _ca = _rreport.get("closedAt")
-                    if isinstance(_ca, (int, float)):
-                        _rend = None
-                        if isinstance(_eframes, list) and _eframes:
-                            _rend = max((f.get("ts") or 0) for f in _eframes)
-                        if not _rend:
-                            _rend = sess[-1].get("ts")
-                        if _rend:
-                            _dlt = int(_ca) - int(_rend)
-                            if 0 < _dlt <= 30 * 60 * 1000:
-                                _seal_ms = _dlt
+                    # v1280 (D7) / REG-2157 - sealed-in is closedAt minus the run end.
+                    # A re-sweep hours later stays None. A measured 0 still emits 0.
+                    # ran and the film are not this number.
+                    _rend = None
+                    if isinstance(_eframes, list) and _eframes:
+                        _rend = max((f.get("ts") or 0) for f in _eframes)
+                    if not _rend:
+                        _rend = sess[-1].get("ts")
+                    _seal_ms = seal_latency_ms(_rreport.get("closedAt"), _rend)
                 # v1408 — deep journal names not yet in finds (retro/register gap): surface as finds
                 # so dossier "What I found" + chapters stay honest to live deep + sealed register.
                 _have_nms = set()

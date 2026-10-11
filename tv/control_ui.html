@@ -12164,10 +12164,10 @@ window._lockMark = function(isOpen, px, label){
   // ══ v1279 (SESSIONS FLAGSHIP D7 · SEAL-LATENCY CHIP) — how fast KAI sealed the reel after the run ended.
   // Consumes the engine's sm.sealMs (closeAt − last-activity); omitted until exposed (I don't have closeAt client-side). ══
   function _dossierSealLatency(sm){
-    var ms = sm.sealMs;
-    if (ms == null || ms < 0) return '';
-    var s = Math.round(ms / 1000);
-    var txt = s < 60 ? s + 's' : (Math.floor(s / 60) + 'm' + ('0' + s % 60).slice(-2) + 's');
+    /* #277 (REG-2157) - sealed-in is its own clock. A missing seal stays
+       off this chip. A measured 0 still prints. */
+    var txt = _sealSay(sm && sm.sealMs);
+    if (txt == null) return '';
     return '<span class="dsr-seal-lat" title="time from the run ending to KAI sealing the reel">🔒 sealed in ' + txt + '</span>';
   }
   // REGRET SPOTLIGHT — "you threw a KEEP": the judge later ruled a thrown item worth keeping. Consumes the
@@ -12327,6 +12327,14 @@ window._lockMark = function(isOpen, px, label){
     if (ms == null || !(ms >= 0)) return null;
     var sec = Math.round(+ms / 1000);
     return Math.floor(sec / 60) + 'm' + ('0' + (sec % 60)).slice(-2) + 's';
+  }
+  function _sealSay(ms){
+    /* #277 (REG-2157) - sealed-in is how long KAI took after the run ended.
+       ran is t0 to t1. plays is the film. A missing seal is not zero and
+       not either of those. A measured 0 prints. */
+    if (ms == null || !(+ms >= 0)) return null;
+    var whole = Math.round(+ms / 1000);
+    return Math.floor(whole / 60) + 'm' + ('0' + (whole % 60)).slice(-2) + 's';
   }
   function _dossierHtml(sm){
     var n = sm.n || 1;

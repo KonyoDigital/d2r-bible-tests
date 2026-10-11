@@ -406,6 +406,19 @@ not shown). Every finding was put to the code before anything changed:
 | non-fast intake still asks Grok first ("`_handle_diablo_api`"); g5_vision_read runs outside claude_read | no such function exists in the tree; the intake loop runs `_intake_dual_runners` in order - Claude first, Grok only as a failover when Claude's answer is an error; both g5_vision_read calls are shadow jobs on daemon threads started AFTER Claude's result is in hand, and only when the + GROK layer is on | REFUTED - but the comment above the loop still said "primary=grok then claude", a label that outlived its referent: rewritten |
 | NOT SHOWN: bible.html, control_ui.html, most of control_app.py and test_control.py | the eye's own words | a reach limit, recorded - not a clean verdict for those files |
 
+### REG-2157 - A MEASURED SEAL OF ZERO WAS HIDDEN, AND A SHORT SEAL USED ANOTHER UNIT (2026-10-11, #277)
+
+sealed-in is how long KAI took after the run ended. ran is t0 to t1. plays is the film.
+The engine kept a seal only when the gap was greater than 0, so a seal that landed on
+the same millisecond was omitted, the same as a missing clock. The chip then said
+"26s" for a 26-second seal and "10m18s" past a minute, so the three clocks did not
+even share a wording. `seal_latency_ms` is the engine clock. A missing closedAt or
+run end stays None. A measured 0 returns 0. A gap past the 30-minute seal window
+stays None, because that is a later re-sweep, not a latency. `_sealSay` is the
+wording. A missing seal stays off the chip. A measured 0 prints 0m00s. It does not
+call `_runSpanSay` or `_playSay`.
+Law: `test_a_missing_seal_latency_is_not_a_zero`. Not rendered here.
+
 ### REG-2156 - A MISSING FILM LENGTH WORE THE RUN, OR A ZERO (2026-10-11, #277)
 
 plays is the film. ran is t0 to t1. sealed-in is how long KAI took after the run ended.

@@ -9236,6 +9236,11 @@ GATES = [
          needs_app=False,
          why=("REG-2156 (#277) - the theatre printed the run length, or 0m00s, when the film "
               "clock was missing. plays is the film. A missing film says UNKNOWN. A measured 0 still prints.")),
+    Gate("test_a_missing_seal_latency_is_not_a_zero", [sys.executable,
+         os.path.join(HERE, "test_a_missing_seal_latency_is_not_a_zero.py")], 30,
+         needs_app=False,
+         why=("REG-2157 (#277) - a measured seal of 0 was dropped, so it looked like no seal. "
+              "sealed-in is its own clock. A missing seal stays off the chip. A measured 0 prints 0m00s.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,
