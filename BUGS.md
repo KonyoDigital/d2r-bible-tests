@@ -415,6 +415,14 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2173 - THE ROSTER HIDE RULE WAS A WEAK HIDDEN GUARD (2026-10-11, #39)
+
+.roster-box[hidden] set display none without !important. The hidden ratchet
+is measured at 16 and may only fall. That one rule made 17, and agent shard 1
+of v3667 failed on it. The hide is now display none !important, the same
+shape as the other guards.
+Law: `test_a_hidden_element_is_actually_hidden`. Not rendered here.
+
 ### REG-2172 - A DICT TALLY AND A REEL CLOCK WERE NOT DRAWN (2026-10-11, #39)
 
 Chronicle and reel counts are dicts. The panel printed a count only when it
