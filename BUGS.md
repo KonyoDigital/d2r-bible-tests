@@ -415,6 +415,16 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2167 - THE ROSTER RECEIPT WAS ONE ADD AWAY FROM THE PUBLIC REPO (2026-10-11, #39)
+
+`_roster_state_path` writes `tv/.tvd_roster.json` through `_log_root()`, the
+same place as the beacon receipt. The beacon file is ignored. The roster file
+was not. The console had already written it. Once a PC has a label, that file
+holds the sections it published. The ignore list now names the file and the
+`.tmp` its save writes. The decision-file law also reads every `_log_root()`
+literal, which it did not see before.
+Law: `test_every_decision_file_is_ignored`. Not rendered here.
+
 ### REG-2165 - THE LEDGER SLICE CALLED A WORD IT COULD NOT SEE (2026-10-11, #252)
 
 v3659 put `_watchdogCountSay` above the shelf and called it from the ledger

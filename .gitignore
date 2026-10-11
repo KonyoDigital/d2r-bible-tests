@@ -74,6 +74,11 @@ tv/.board_identity.json.tmp
 # failures, the IP-dependent verdict), exactly like .tvd_identity.json beside it. Committing
 # it would push one machine's beacon history onto every other machine that pulls.
 tv/.tvd_beacon.json
+# v3663 — the roster publish receipt. Same class as the beacon record above:
+# per machine, rewritten by the console, and the body can carry section names.
+# The .tmp is the atomic-write partner (path + ".tmp" in _roster_state_save).
+tv/.tvd_roster.json
+tv/.tvd_roster.json.tmp
 # v3328 — the read-names feeder's LANE STATE, per-machine and rewritten every 45s.
 # Every sibling lane store is ignored (.vault_autoread.json, .second_eye.jsonl,
 # .heart2.json, .handoff_seen.json); I copied _vault_autoread_save's persistence idiom

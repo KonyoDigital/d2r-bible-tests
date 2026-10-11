@@ -49,6 +49,15 @@ def _state_root_names():
     return sorted(set(re.findall(r'os\.path\.join\(\s*_fixture_root_for_state\(\)\s*,\s*"([^"]+)"\s*\)', src)))
 
 
+def _log_root_names():
+    """REG-2167 — every file control_app mints as os.path.join(_log_root(), "<name>").
+    The state-root reader above does not see _log_root. The roster receipt used that
+    form and sat untracked, one git add away from the public repo."""
+    with open(os.path.join(HERE, "control_app.py"), encoding="utf-8") as fh:
+        src = fh.read()
+    return sorted(set(re.findall(r'os\.path\.join\(\s*_log_root\(\)\s*,\s*"([^"]+)"\s*\)', src)))
+
+
 def _ignored(rels):
     """-> the subset of rels git's real matcher would NOT ignore, asked of a throwaway repo seeded with the tree's own
     .gitignore files (a proof sandbox is not a git work tree)."""
@@ -99,6 +108,15 @@ class EveryDecisionFileIsIgnored(unittest.TestCase):
         rels += ["tv/shadow_seals.jsonl.1"]   # its rollover, minted by os.replace(path, path + ".1")
         self.assertEqual(_ignored(rels), [], "runtime files the console mints that git would publish")
 
+    def test_every_log_root_file_is_ignored(self):
+        names = _log_root_names()
+        self.assertIn(".tvd_roster.json", names)
+        self.assertIn(".tvd_beacon.json", names)
+        self.assertIn("control_agent.log", names)
+        rels = ["tv/" + n for n in names]
+        rels.append("tv/.tvd_roster.json.tmp")  # _roster_state_save writes path + ".tmp"
+        self.assertEqual(_ignored(rels), [], "log-root files git would publish: %s" % _ignored(rels))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
@@ -116,6 +134,20 @@ RED_PROOF = [
         "why": "his answers store is trackable again - one `git add -A` publishes his rulings to a public repo",
         "file": "../.gitignore",
         "find": "\ntv/his_answers.json\n",
+        "replace": "\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2167 - the roster receipt is trackable again",
+        "file": "../.gitignore",
+        "find": "\ntv/.tvd_roster.json\n",
+        "replace": "\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2167 - the roster receipt temp file is trackable again",
+        "file": "../.gitignore",
+        "find": "\ntv/.tvd_roster.json.tmp\n",
         "replace": "\n",
         "matches": 1,
     },
