@@ -7912,8 +7912,11 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
                has owned a 'vault' tab since v2085, so this button works through the existing path. -->
           <button class="ht ht-locked" type="button" data-tab="vault"><img class="ht-i" src="/art/ui_foc_stash.png" alt="" onerror="this.remove()"> <span class="ht-lbl">Vault</span><span class="lockchip lc-tab" id="lock-vault-tab" data-state="locked" title="the vault acts on your ledger — no lock state has been read yet, so it is LOCKED">🔒</span></button>
           <!-- v3694 — the D2JSP room was on the board and this strip, the one he looks at, had no door.
-               Same path as the Vault: this button is data-tab d2jsp, and shellOpen already calls switchTab. -->
-          <button class="ht" type="button" data-tab="d2jsp" title="D2JSP"><span class="ht-emo" aria-hidden="true">💰</span> <span class="ht-lbl">D2JSP</span></button>
+               Same path as the Vault: this button is data-tab d2jsp, and shellOpen already calls switchTab.
+               v3695 — the coin glyph is not a door. Characters is the one glyph door. This door keeps
+               the word D2JSP. The ornament is the gold pile already at art/logo_gold.png. Below 1100px
+               the picture hides and the word stays, the same rule as every other labelled door. -->
+          <button class="ht" type="button" data-tab="d2jsp" title="D2JSP"><img class="ht-i" src="/art/logo_gold.png" alt="" onerror="this.remove()"> <span class="ht-lbl">D2JSP</span></button>
           <button class="ht" type="button" data-tab="tvd"><img class="ht-i" src="/art/ui_tab_tvd.png" alt="" onerror="this.remove()"> <span class="ht-lbl">TV·D</span></button>
         </nav>
       </div>

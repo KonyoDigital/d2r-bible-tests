@@ -70,9 +70,11 @@ test.describe('v1614 — game art, not emoji', () => {
         };
       }));
     // v2092 gave the Vault its own door on this strip and v2094 gave Crafts one, and v3518 his 👤 Characters
-    // door, so the strip is nine: session · forge · crafts · funi · fsets · tools · chars · vault · tvd. The count
-    // is pinned on purpose — a NEW tab must arrive with art that decodes, not with a silent onerror.
-    expect(tabs.length, 'the nine-tab strip').toBe(9);
+    // door. v3694 added D2JSP after the Vault, so the strip is ten: session · forge · crafts · funi ·
+    // fsets · tools · chars · vault · d2jsp · tvd. The count is pinned on purpose — a NEW tab must arrive
+    // with art that decodes, not with a silent onerror, and not with a second glyph. D2JSP wears
+    // art/logo_gold.png, the gold pile already in the tree. Characters stays the only glyph door.
+    expect(tabs.length, 'the ten-tab strip').toBe(10);
     for (const t of tabs) {
       if (t.tab in GLYPH_DOORS) {
         // his glyph door: no picture to decode, but never a blank chip - its glyph and its word are both there

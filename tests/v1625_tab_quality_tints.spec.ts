@@ -34,8 +34,10 @@ const BOARD = 'file://' + path.join(REPO, 'bible.html');
    three tinted + the plain rest, and which bucket each newcomer belongs in is argued there.
    2026-09-28 — NINE: v3518 added his 👤 Characters door ('chars', #245: "the character build tool gets its own tab up
    top"), between tools and vault. It is PLAIN, like tools - the game has no quality for it - so the tint maps below do
-   not change; it is measured for legibility with every other tab. v3521's CI went red on this list for that reason. */
-const TABS = ['session', 'forge', 'crafts', 'funi', 'fsets', 'tools', 'chars', 'vault', 'tvd'];
+   not change; it is measured for legibility with every other tab. v3521's CI went red on this list for that reason.
+   2026-10-12 — TEN: v3694 added D2JSP after the Vault and before TV·D. Forum gold is not a Diablo item quality,
+   so d2jsp is PLAIN, measured with the other doors, and it does not join TINTED. */
+const TABS = ['session', 'forge', 'crafts', 'funi', 'fsets', 'tools', 'chars', 'vault', 'd2jsp', 'tvd'];
 // the three tabs the GAME has a quality for -> the board token that owns that quality
 // v1628 CORRECTS THIS MAP, NOT THE APP. It said forge: '--rune' because until v1627 the console's
 // --rar-runeword WAS #ff7d3c. v1627 pulled the palette from Konyo's own _profilehd.json and a
@@ -64,9 +66,9 @@ const TINTED: Record<string, string> = { funi: '--q-unique', fsets: '--q-set', f
    funi/fsets/forge, so nothing reads it — the tab paints the base --gold-dim. Reported as a dead
    declaration, not asserted here; either way the tab is plain.)
    ⚠ crafts WAS in neither map — see the v2153 note above the TINTED map. It is TINTED now, and
-   vault remains the only newcomer that is deliberately PLAIN: a room that MAKES a quality gets
-   that quality; a room that HOLDS things does not. */
-const PLAIN = ['session', 'tools', 'tvd', 'vault'];
+   vault remains deliberately PLAIN, and so does d2jsp: a room that MAKES a quality gets that
+   quality; a room that HOLDS things, or prices them, does not. */
+const PLAIN = ['session', 'tools', 'tvd', 'vault', 'd2jsp'];
 // every quality colour the board declares — a plain tab must match NONE of them
 const QUALITIES = ['--q-unique', '--q-set', '--q-rare', '--q-magic', '--q-orange', '--rune'];
 // v1622's trap: the console's own chrome. A tint that lands here is invisible as a tint.
@@ -195,11 +197,11 @@ async function measureTabs(page: any, lit: boolean) {
 }
 
 test.describe('v1625 — the six main tabs wear the game\'s quality palette', () => {
-  test('★★ the strip is exactly the nine known tabs', async ({ page }) => {
+  test('★★ the strip is exactly the ten known tabs', async ({ page }) => {
     await console_(page);
     const got = await page.evaluate(() =>
       Array.from(document.querySelectorAll('#head-tabs .ht')).map((b: any) => b.getAttribute('data-tab')));
-    expect(got, 'the tint map above addresses these by name — a ninth would go untinted and untested').toEqual(TABS);
+    expect(got, 'the tint map above addresses these by name — a door left off this list would go untinted and untested').toEqual(TABS);
   });
 
   test('★★★ F·Uniques, F·Sets and Forge ARE the board\'s colours — read live, not restated', async ({ page }) => {
@@ -308,7 +310,7 @@ test.describe('v1625 — the six main tabs wear the game\'s quality palette', ()
     await console_(page);
     const unlit = await measureTabs(page, false);
     const lit = await measureTabs(page, true);
-    expect(unlit.length).toBe(TABS.length);   // v2092/v2094/v3518 — nine tabs × two states = eighteen chances
+    expect(unlit.length).toBe(TABS.length);   // v2092/v2094/v3518/v3694 — ten tabs × two states = twenty chances
     for (const [state, rows] of [['unlit', unlit], ['lit', lit]] as [string, any[]][]) {
       for (const t of rows) {
         expect(t.ratio,
