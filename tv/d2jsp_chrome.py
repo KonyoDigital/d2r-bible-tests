@@ -12,6 +12,7 @@ Windows has no reader here. A public page has no route. Both stay unposted.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -57,17 +58,16 @@ def _chrome_now(now_utc):
     return int((float(now_utc) + _CHROME_EPOCH) * 1000000)
 
 
-def seal_v10(password, text):
-    """The inverse of decrypt_v10, for the desk law. None when the cipher library is absent."""
+def _seal_v10_raw(password, raw):
+    """Encrypt one cookie plaintext. None when the cipher library is absent."""
     try:
         from hashlib import pbkdf2_hmac
         from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
     except Exception:
         return None
     try:
-        raw = str(text).encode("utf-8")
         pad = 16 - (len(raw) % 16)
-        block = raw + bytes([pad]) * pad
+        block = bytes(raw) + bytes([pad]) * pad
         key = pbkdf2_hmac("sha1", str(password).encode("utf-8"), b"saltysalt", 1003, 16)
         enc = Cipher(algorithms.AES(key), modes.CBC(b" " * 16)).encryptor()
         return b"v10" + enc.update(block) + enc.finalize()
@@ -75,8 +75,33 @@ def seal_v10(password, text):
         return None
 
 
-def decrypt_v10(blob, password):
-    """Open one Chrome v10 cookie. Any other prefix, or a failed open, is None."""
+def seal_v10(password, text):
+    """The inverse of decrypt_v10 for a plain value. None when the cipher library is absent."""
+    return _seal_v10_raw(password, str(text).encode("utf-8"))
+
+
+def _cookie_text(body, host=None):
+    """The cookie value inside unpadded Chrome plaintext.
+
+    Database version 24 stores SHA256(host_key) in front of the value. An older
+    cookie is the value alone. A digest that is not this host is not the value.
+    """
+    if host is not None and len(body) > 32:
+        digest = hashlib.sha256(str(host).encode("utf-8")).digest()
+        if body[:32] == digest:
+            body = body[32:]
+    text = body.decode("utf-8")
+    if not text or any(c in text for c in (";", "\r", "\n")):
+        return None
+    return text
+
+
+def decrypt_v10(blob, password, host=None):
+    """Open one Chrome v10 cookie. Any other prefix, or a failed open, is None.
+
+    host is the row host_key. Later Chrome stores bind the value to SHA256 of
+    that host. Without the host, only a plain value opens.
+    """
     if not isinstance(blob, (bytes, bytearray)) or blob[:3] != b"v10" or not password:
         return None
     try:
@@ -94,10 +119,8 @@ def decrypt_v10(blob, password):
             pad = ord(pad)
         if pad < 1 or pad > 16 or raw[-pad:] != bytes([pad]) * pad:
             return None
-        text = raw[:-pad].decode("utf-8")
+        text = _cookie_text(raw[:-pad], host)
     except Exception:
-        return None
-    if not text or any(c in text for c in (";", "\r", "\n")):
         return None
     return text
 
@@ -109,7 +132,11 @@ def cookie_header_from_rows(rows, password, now_utc=None, decrypt=None):
     dropped. decrypt defaults to decrypt_v10. -> (header or None, reason)
     reason is ok, need-login, or chrome-unread.
     """
-    open_one = decrypt or (lambda blob: decrypt_v10(blob, password))
+    def open_one(blob, host):
+        if decrypt is not None:
+            return decrypt(blob)
+        return decrypt_v10(blob, password, host)
+
     now = _chrome_now(now_utc)
     pairs = []
     saw_host = False
@@ -124,7 +151,7 @@ def cookie_header_from_rows(rows, password, now_utc=None, decrypt=None):
             exp = 0
         if exp and exp <= now:
             continue
-        value = open_one(blob)
+        value = open_one(blob, host)
         if not value:
             failed = True
             continue

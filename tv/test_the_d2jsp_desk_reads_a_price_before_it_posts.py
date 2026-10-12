@@ -555,6 +555,39 @@ process.stdout.write(JSON.stringify({
         finally:
             shutil.rmtree(folder, ignore_errors=True)
 
+    def test_a_chrome_cookie_opens_only_when_its_host_digest_matches(self):
+        import hashlib
+        import d2jsp_chrome as desk
+        host = ".d2jsp.org"
+        other = "forums.d2jsp.org"
+        prefix = hashlib.sha256(host.encode("utf-8")).digest()
+        self.assertEqual(len(prefix), 32)
+        self.assertEqual(desk._cookie_text(prefix + b"desk-session", host), "desk-session")
+        self.assertIsNone(desk._cookie_text(prefix + b"bad;value", host))
+        self.assertEqual(desk._cookie_text(b"roundtrip-value", host), "roundtrip-value")
+        password = "test-password"
+        blob = desk._seal_v10_raw(password, prefix + b"desk-session")
+        if blob is None:
+            return
+        self.assertEqual(desk.decrypt_v10(blob, password, host), "desk-session")
+        self.assertIsNone(desk.decrypt_v10(blob, password, other))
+        self.assertIsNone(desk.decrypt_v10(blob, password))
+        wrong = desk._seal_v10_raw(password, hashlib.sha256(other.encode("utf-8")).digest() + b"other-session")
+        now = 1_700_000_000
+        chrome_now = desk._chrome_now(now)
+        header, reason = desk.cookie_header_from_rows(
+            [(host, "sid", blob, chrome_now + 10**12)],
+            password, now_utc=now,
+        )
+        self.assertEqual(reason, "ok")
+        self.assertEqual(header, "sid=desk-session")
+        missed, missed_reason = desk.cookie_header_from_rows(
+            [(host, "sid", wrong, chrome_now + 10**12)],
+            password, now_utc=now,
+        )
+        self.assertIsNone(missed)
+        self.assertEqual(missed_reason, "chrome-unread")
+
 
 if __name__ == "__main__":
     unittest.main()
