@@ -165,6 +165,16 @@ process.stdout.write(JSON.stringify({
         self.assertFalse(out["srcHasPassword"])
         self.assertTrue(out["srcHasLogout"])
 
+    def test_the_bridge_button_does_not_replace_the_board(self):
+        i = self.bible.index("if (t.id === 'd2jsp-bridge')")
+        handler = self.bible[i:self.bible.index("if (t.id === 'd2jsp-tag')", i)]
+        self.assertNotIn("createObjectURL", handler)
+        self.assertNotIn(".click()", handler)
+        self.assertIn("d2jspBridgeSource()", handler)
+        self.assertIn("cannot save the file", handler)
+        self.assertIn('id="d2jsp-bridge-src"', self.bible)
+        self.assertIn('id="d2jsp-bridge">Copy the bridge</button>', self.bible)
+
 
 if __name__ == "__main__":
     unittest.main()

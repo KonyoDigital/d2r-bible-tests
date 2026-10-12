@@ -11054,6 +11054,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     #tab-d2jsp .d2jsp-art{width:72px;height:72px;flex:0 0 72px}
     #tab-d2jsp .d2jsp-art img{width:72px;height:72px;object-fit:contain}
     #tab-d2jsp .d2jsp-say{color:#e9d07a;font-size:var(--fs-body);line-height:1.45}
+    #tab-d2jsp #d2jsp-bridge-src:not([hidden]){display:block;width:100%;box-sizing:border-box;margin-top:8px;font-family:var(--mono);font-size:var(--fs-body);color:#e9d07a;background:rgba(10,9,7,.55)}
   </style>
   <div class="boss-card" id="d2jsp-card" style="--tc:#f0c060">
     <div class="boss-header">
@@ -11065,7 +11066,8 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     <div class="boss-body">
       <p class="d2jsp-say" id="d2jsp-board">Board 268, D2:R Softcore Trading, the softcore non-ladder forum.</p>
       <p class="d2jsp-say">Install the bridge once in the browser that is logged into d2jsp. Post opens that board and the bridge submits the draft.</p>
-      <button type="button" class="vault-btn" id="d2jsp-bridge">Download the bridge</button>
+      <button type="button" class="vault-btn" id="d2jsp-bridge">Copy the bridge</button>
+      <textarea id="d2jsp-bridge-src" readonly rows="12" hidden aria-label="Bridge userscript"></textarea>
       <p class="d2jsp-say" id="d2jsp-status"></p>
       <div class="vault-toolbar">
         <select id="d2jsp-pick" aria-label="Vault item to tag"></select>
@@ -11275,13 +11277,23 @@ function d2jspBridgeSource() {
     var t = ev.target;
     if (!t || !t.closest || !t.closest('#tab-d2jsp')) return;
     if (t.id === 'd2jsp-bridge') {
-      var blob = new Blob([d2jspBridgeSource()], { type: 'text/javascript' });
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = 'd2jsp_bridge.user.js';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      ev.preventDefault();
+      ev.stopPropagation();
+      var src = d2jspBridgeSource();
+      var box = document.getElementById('d2jsp-bridge-src');
+      if (box) {
+        box.hidden = false;
+        box.value = src;
+        try { box.focus(); box.select(); } catch (e0) {}
+      }
+      var told = 'This window cannot save the file. The script is below. Paste it into a new userscript in the browser that is logged into d2jsp.';
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(src).then(function(){ say('Copied. ' + told); }, function(){ say(told); });
+          return;
+        }
+      } catch (e1) {}
+      say(told);
       return;
     }
     if (t.id === 'd2jsp-tag') {
