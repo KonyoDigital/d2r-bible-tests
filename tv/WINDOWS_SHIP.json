@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3678",
+  "ver": "v3679",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3678: the roster opens their console read only. HEART: test_a_roster_publish_stays_off_the_presence_beacon",
+  "note": "v3679: a shadow room does not paint this console reels. HEART: test_a_roster_publish_stays_off_the_presence_beacon",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
