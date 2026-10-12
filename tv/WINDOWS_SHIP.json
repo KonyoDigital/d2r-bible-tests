@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3694",
+  "ver": "v3695",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3694: the console header has a D2JSP door after the Vault. The desk field is named, the card type uses a size token, and the law prints safely. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts",
+  "note": "v3695: the console door drops the coin glyph and wears the gold pile. The word stays. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
