@@ -296,16 +296,26 @@ class ARolledKeeperWearsItsRecordedBase(unittest.TestCase):
         self.assertIsNone(got.get("t"), "The Scourge resolved to %r" % got.get("t"))
 
     def test_the_vault_card_and_the_locker_ask_artOr(self):
-        i = BIBLE.find("function _magicFindCardHtml(name){")
-        card = BIBLE[i:i + 700]
+        """Each painter is read from its own anchor to the next real boundary. A count of
+        characters from the anchor is a guess about how long the function stays."""
+        start = BIBLE.find("function _magicFindCardHtml(name){")
+        end = BIBLE.find("\nfunction _mfTipHtml(name){", start)
+        self.assertEqual(BIBLE.count("function _magicFindCardHtml(name){"), 1)
+        self.assertGreater(end, start, "the magic-find card has no following function to end on")
+        card = BIBLE[start:end]
         self.assertIn("artOr(name, '◆', 'lg')", card)
         self.assertNotIn("_magicArtSrc(base || name)", card)
         self.assertNotIn("_magicArtSrc(base||n)", BIBLE)
         tip = BIBLE.find("artUrl(nm) || artUrl(r.artName)")
-        self.assertGreater(tip, 0)
-        window = BIBLE[tip:tip + 450]
-        self.assertLess(window.find("artOr(nm"), window.find("r.artSrc"),
-                        "the hover still prefers the old keyword sprite over artOr")
+        stop = BIBLE.find("if (!url && !r.desc) return;", tip)
+        self.assertEqual(BIBLE.count("artUrl(nm) || artUrl(r.artName)"), 1)
+        self.assertGreater(stop, tip, "the hover resolver has no following line to end on")
+        window = BIBLE[tip:stop]
+        art_at = window.find("artOr(nm")
+        src_at = window.find("r.artSrc")
+        self.assertGreaterEqual(art_at, 0, "the hover never asks artOr")
+        self.assertGreater(src_at, art_at,
+                           "the hover still prefers the old keyword sprite over artOr")
 
 
 # ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════
