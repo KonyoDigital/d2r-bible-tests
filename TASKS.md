@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3679** | `(this commit)` | v3679 — a shadow room does not paint this console reels. HEART: test_a_roster_publish_stays_off_the_presence_beacon |
+| **v3680** | `(this commit)` | v3680 — the visit sizes and leaves through the published shell. the bar uses a size token. the book stays off git and off a file page |
+| **v3679** | `674dc1e1` | v3679 — a shadow room does not paint this console reels. HEART: test_a_roster_publish_stays_off_the_presence_beacon |
 | **v3678** | `db5e4f6f` | v3678 — the roster opens their console read only. HEART: test_a_roster_publish_stays_off_the_presence_beacon |
 | **v3677** | `993af897` | v3677 — REG-2182 - the names counter stays inside _named_sessions |
 | **v3676** | `d6ea9a91` | v3676 — REG-2181 - the names banked row no longer walks the printer a second time |
