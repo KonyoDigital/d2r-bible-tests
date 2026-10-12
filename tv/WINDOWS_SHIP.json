@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3687",
+  "ver": "v3688",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3687: a later planner open files another copy beside the one already filed, and a vault item click keeps the floating card. HEART: test_a_planner_pick_files_where_a_reel_of_it_would_go",
+  "note": "v3688: a throw-out row keeps its full name and does not leave the vault, and the click guard is anchored at both ends. HEART: test_the_total_never_GROWS",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
