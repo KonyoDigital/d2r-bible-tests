@@ -79,12 +79,20 @@ class TestTheProofChipSaysNothingWhenNobodyAnswered(unittest.TestCase):
 
     # ── THE DENOMINATOR BESIDE IT ───────────────────────────────────────────────────────────
     def test_it_counts_the_same_population_the_total_counts(self):
-        """The header's `total` is items.length + magicItems.length."""
+        """The header total is one cell per copy plus the magic keepers."""
         chip = _between(self.src, "var P = window.VAULT_PROVEN;", "})()")
-        self.assertIn("(items || [])", chip, "the chip does not count the items list")
+        self.assertIn("(drawn || [])", chip,
+                      "the chip does not count the cells the shelf draws")
+        self.assertNotIn("(items || [])", chip,
+                         "the chip still counts names while the header total counts one cell per copy")
         self.assertIn("magicItems", chip,
-                      "the chip counts `items` alone while the total beside it counts items + "
-                      "magicItems — a numerator over one list under a denominator over two")
+                      "the chip counts the drawn cells alone while the total beside it counts "
+                      "those cells plus magicItems — a numerator over one list under a "
+                      "denominator over two")
+        self.assertEqual(
+            self.src.count("var total = drawn.length + magicItems.length;\n"), 1,
+            "the header total must stay one cell per copy plus the magic keepers, "
+            "the same population the chip counts")
 
     # ── BOUNDED, BECAUSE REG-713 WAS THREE UNBOUNDED FETCHES ON THIS PAGE ───────────────────
     def test_the_ask_cannot_hang_forever(self):
