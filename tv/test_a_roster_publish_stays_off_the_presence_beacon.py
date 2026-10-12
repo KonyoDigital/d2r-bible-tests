@@ -309,9 +309,11 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         self.assertIn("/api/roster", once)
         self.assertNotIn("/api/console", once)
         reads = src.split("def _roster_reads(", 1)[1].split("def _roster_post", 1)[0]
-        for name in ("characters_read", "vault_read", "chronicle_read", "reels_read"):
+        for name in ("characters_read", "vault_read", "chronicle_read", "reels_read", "stash_read"):
             self.assertIn(name, reads)
-        self.assertNotIn("stash_read", reads)
+        self.assertNotIn("stash_read", beacon)
+        self.assertNotIn("roster-book", beacon)
+        self.assertNotIn("d2r_charBuilds", beacon)
 
     def test_a_fetch_is_a_read_and_a_missing_pc_is_not_an_empty_vault(self):
         got = _post([], get=True)["got"]
@@ -433,6 +435,20 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         self.assertNotIn("scrollIntoView(", fn)
         self.assertIn("window._rosterOpen", ui)
         self.assertIn("/api/roster-cache", ui)
+        self.assertIn("tvd-shadow", fn)
+        self.assertIn("_shellSizePane", fn)
+        self.assertIn("read only", fn)
+        self.assertIn('id="shadow-bar"', ui)
+        self.assertNotIn('class="ht" type="button" id="shadow-leave"', ui)
+        board = open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8").read()
+        self.assertEqual(board.count("data.type !== 'tvd-shadow'"), 1)
+        self.assertIn("if (on && isLedger(k)) return;", board)
+        self.assertIn("d2r_charBuilds: builds.length ? storeOf(builds) : '{}'", board)
+        self.assertIn("switchTab('chars')", board)
+        self.assertIn("window._LP_FORKED.has(k)", board)
+        self.assertIn("shadowMap[k] = null", board)
+        self.assertIn("pending: true", fn)
+        self.assertEqual(board.count("if (on && isLedger(k)) return;"), 1)
         with open(APP, encoding="utf-8") as fh:
             app = fh.read()
         self.assertEqual(app.count('path == "/api/roster-cache"'), 1)
@@ -497,6 +513,25 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         self.assertIn("TRAVEL", full)
         self.assertNotIn(str(now), full)
         self.assertIn("shared", full)
+
+    def test_a_published_build_keeps_the_slots_the_board_draws(self):
+        book = RP.clean_book({"builds": [{
+            "name": "Hammerdin", "cls": "Paladin", "level": 92,
+            "sets": [{"name": "Set 1", "slots": {"head": {"name": "Harlequin Crest", "id": "u1"},
+                                                 "shot": {"name": "nope.png"}},
+                      "inv": [{"name": "Annihilus", "x": 0, "y": 0, "w": 1, "h": 1}]}],
+            "stash": [{"name": "Ber Rune", "x": 1, "y": 2, "w": 1, "h": 1}],
+        }], "owned": ["Shako"]})
+        self.assertEqual(book["owned"], ["Shako"])
+        sec = RP.section_of(RP.builds_read(book, 50), 50)
+        row = sec["rows"][0]
+        self.assertEqual(row["sets"][0]["slots"]["head"]["name"], "Harlequin Crest")
+        self.assertNotIn("shot", row["sets"][0]["slots"])
+        self.assertEqual(row["stash"][0]["name"], "Ber Rune")
+        cells = RP.stash_rows_of(book)
+        self.assertEqual(cells[0]["name"], "Ber Rune")
+        self.assertEqual(cells[1]["x"], 0)
+        self.assertIsNone(RP.clean_book({"builds": [{"name": "x.png"}]}))
 
 
 RED_PROOF = [

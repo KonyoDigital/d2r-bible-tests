@@ -4487,27 +4487,73 @@ def _roster_claimed_name():
     return name
 
 
+def _roster_book_path():
+    return os.path.join(_log_root(), "roster_book.json")
+
+
+def _roster_book_load():
+    """The console book this PC's board posted. None means it was not posted."""
+    try:
+        with open(_roster_book_path(), encoding="utf-8") as fh:
+            raw = json.load(fh)
+    except Exception:
+        return None
+    import roster_publish as _rp
+    return _rp.clean_book(raw)
+
+
+def _roster_book_take(body):
+    """Store a cleaned console book. Never a ledger write."""
+    import roster_publish as _rp
+    clean = _rp.clean_book(body if isinstance(body, dict) else None)
+    if clean is None:
+        return {"ok": False, "why": "the console book had no builds and no items"}
+    path = _roster_book_path()
+    tmp = path + ".tmp"
+    try:
+        with open(tmp, "w", encoding="utf-8") as fh:
+            json.dump(clean, fh, ensure_ascii=False)
+        os.replace(tmp, path)
+    except Exception as e:
+        return {"ok": False, "why": type(e).__name__}
+    return {"ok": True, "builds": len(clean.get("builds") or []),
+            "owned": len(clean.get("owned") or [])}
+
+
 def _roster_reads(now_ms):
     """Sections this PC actually read. A failed read stays out, never an empty list."""
     import roster_publish as _rp
     reads = {}
-    present = False
-    ledger = None
-    learned = None
-    try:
-        import char_select as _cs
-        if os.path.exists(_cs.store_path()):
-            present = True
-            ledger = _cs.load()
-            learned = _cs.learned(ledger) if ledger is not None else None
-    except Exception as e:
-        _ROSTER_FAIL["characters"] = type(e).__name__
+    book = _roster_book_load()
+    used_book = False
+    if isinstance(book, dict) and book.get("builds"):
+        got = _rp.builds_read(book, now_ms)
+        if got is not None:
+            reads["characters"] = got
+            used_book = True
+        stash_rows = _rp.stash_rows_of(book)
+        if stash_rows:
+            got = _rp.stash_read(stash_rows, now_ms)
+            if got is not None:
+                reads["stash"] = got
+    if not used_book:
         present = False
         ledger = None
         learned = None
-    got = _rp.characters_read(present, ledger, learned, now_ms)
-    if got is not None:
-        reads["characters"] = got
+        try:
+            import char_select as _cs
+            if os.path.exists(_cs.store_path()):
+                present = True
+                ledger = _cs.load()
+                learned = _cs.learned(ledger) if ledger is not None else None
+        except Exception as e:
+            _ROSTER_FAIL["characters"] = type(e).__name__
+            present = False
+            ledger = None
+            learned = None
+        got = _rp.characters_read(present, ledger, learned, now_ms)
+        if got is not None:
+            reads["characters"] = got
 
     rows = None
     why = None
@@ -46190,6 +46236,11 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 body = {}
 
+        if path == "/api/roster-book":
+            # The board on this PC hands its builds here. The roster route publishes
+            # them. The presence beacon does not.
+            self._json(200, _roster_book_take(body))
+            return
         if path == "/api/mini_auto":
             # ⛔⛔ v2857 — MINI(AUTOMATIC) IS GONE AND SO IS ITS HANDLER BODY. REG-823.
             # v2856 put this refusal ABOVE the original body and left the body in place,

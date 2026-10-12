@@ -6036,6 +6036,12 @@
     box-sizing: border-box; max-height: min(420px, 46vh); overflow-y: auto;
     background: #0a0908; color: var(--text, #e8dcc8); overscroll-behavior: contain; }
   .roster-box[hidden] { display: none !important; }
+  #shadow-bar { position: fixed; left: 0; right: 0; z-index: 960; display: flex; gap: 12px;
+    align-items: center; padding: 8px 12px; background: #1a1208; color: #e9b96e;
+    font: 14px/1.3 sans-serif; }
+  #shadow-bar[hidden] { display: none !important; }
+  #shadow-bar button { margin-left: auto; }
+  .roster-person { display: block; width: 100%; text-align: left; margin: 4px 0; }
   .roster-stale { color: #e9b96e; }
   /* ── v2157 — THE FLEET TOOLTIP. Floats beside the cursor on the person's name, shows what
      that machine last reported, and NEVER invents a bar: an unknown total renders the track
@@ -8785,6 +8791,7 @@ body[data-shadow="armed"] .live-bug .dot { background: transparent; box-shadow: 
               <div class="fleet-head">ROSTER <span class="roster-note">read only</span></div>
               <div id="roster-body"><div class="roster-none">this PC has not fetched a roster yet</div></div>
             </div>
+            <div id="shadow-bar" hidden><span id="shadow-who">read only</span><button type="button" id="shadow-leave" onclick="window._shadowLeave()">Leave</button></div>
             <div id="fleet-list"><div class="fleet-none">checking who is online…</div></div>
             <!-- v2213 — the cross-reference box. Hidden until a player is clicked; it answers
                  "what should I chase" where the hover tooltip answers "how far along is he". -->
@@ -22841,6 +22848,12 @@ window._lockMark = function(isOpen, px, label){
       if (window.TH && window.TH.open && b.dataset.tab !== _shellTab
           && typeof window.thClose === 'function') window.thClose();
     } catch (_tc) {}
+    if (document.body.classList.contains('shadow-on')) {
+      /* Their published board, not this PC's cockpit. Sessions and TV·D stay the board rooms. */
+      document.body.removeAttribute('data-view');
+      shellOpen(b.dataset.tab);
+      return;
+    }
     if (b.dataset.tab === 'tvd'){ document.body.removeAttribute('data-view'); shellHome(); return; }   // TV·D = the cockpit home
     if (b.dataset.tab === 'session'){ showSessions(); return; }   // v1376 — Sessions = console-native flagship hunt hub
     document.body.removeAttribute('data-view'); shellOpen(b.dataset.tab);
@@ -27450,14 +27463,113 @@ function escC(s) {
     if (!box.hasAttribute('hidden')) { box.setAttribute('hidden', ''); return; }
     box.removeAttribute('hidden');
     place(box);
+    function esc(s) {
+      return String(s).replace(/[&<>"]/g, function (c) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c];
+      });
+    }
+    if (!body.getAttribute('data-shadow')) {
+      body.setAttribute('data-shadow', '1');
+      body.addEventListener('click', function (ev) {
+        var btn = ev.target && ev.target.closest ? ev.target.closest('.roster-person') : null;
+        if (!btn) return;
+        window._shadowEnter(btn.getAttribute('data-owner') || '');
+      });
+    }
     fetch('/api/roster-cache', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (data) {
-      if (data && typeof data.html === 'string') body.innerHTML = data.html;
-      else body.textContent = 'the roster answer had no page';
+      var owners = (data && data.owners) || [];
+      if (!owners.length) body.textContent = 'the roster answer had no owners';
+      else body.innerHTML = owners.map(function (row) {
+        var name = row && row.owner ? String(row.owner) : '';
+        var age = row && row.published === true ? (row.age === 'stale' ? 'stale' : 'published') : 'not published';
+        return '<button type="button" class="roster-person" data-owner="' + esc(name) + '">' + esc(name) + ' · ' + esc(age) + '</button>';
+      }).join('');
       box.scrollTop = 0;
       place(box);
     }).catch(function () {
       body.textContent = 'the roster fetch could not be read';
     });
+  };
+
+  var _shadowGen = 0;
+  window._shadowEnter = function (owner) {
+    /* The same board pane he already opens from the header, with their book behind it.
+       The board covers his store before the pane is shown. */
+    if (!owner) return;
+    var gen = ++_shadowGen;
+    var f = document.getElementById('tvd-eng');
+    var was = document.body.classList.contains('shell-open');
+    document.body.setAttribute('data-shadow-was', was ? '1' : '0');
+    document.body.removeAttribute('data-shadow-shown');
+    var bar = document.getElementById('shadow-bar');
+    try {
+      var h = (typeof _shellHeadH === 'function') ? _shellHeadH() : 48;
+      if (bar) bar.style.top = h + 'px';
+    } catch (e) {}
+    var who = document.getElementById('shadow-who');
+    if (who) who.textContent = owner + ' · reading their console · read only';
+    var box = document.getElementById('roster-box');
+    if (box) box.setAttribute('hidden', '');
+    function reveal() {
+      if (gen !== _shadowGen || document.body.getAttribute('data-shadow-shown') === '1') return;
+      document.body.setAttribute('data-shadow-shown', '1');
+      document.body.classList.add('shell-open', 'shadow-on');
+      try { _shellSizePane(); } catch (e) {}
+      try { _shellLight('chars'); } catch (e) {}
+      if (bar) bar.removeAttribute('hidden');
+    }
+    function onReady(ev) {
+      if (!ev.data || ev.data.type !== 'tvd-shadow-ready') return;
+      if (ev.origin !== window.location.origin) return;
+      window.removeEventListener('message', onReady);
+      reveal();
+    }
+    window.addEventListener('message', onReady);
+    try {
+      f.contentWindow.postMessage({ type: 'tvd-shadow', owner: owner, pending: true, row: { owner: owner, published: false } }, window.location.origin);
+    } catch (e) {}
+    setTimeout(function () {
+      if (gen !== _shadowGen) return;
+      window.removeEventListener('message', onReady);
+      if (document.body.getAttribute('data-shadow-shown') === '1') return;
+      if (who) who.textContent = owner + ' · the board did not open · read only';
+      if (bar) bar.removeAttribute('hidden');
+    }, 4000);
+    fetch('/api/roster-cache', { cache: 'no-store' }).then(function (r) { return r.json(); }).then(function (data) {
+      if (gen !== _shadowGen) return;
+      var row = null;
+      var owners = (data && data.owners) || [];
+      for (var i = 0; i < owners.length; i++) {
+        if (owners[i] && owners[i].owner === owner) row = owners[i];
+      }
+      var say = owner + ' · published · read only';
+      if (!row || row.published !== true) say = owner + ' has not published a console · read only';
+      else if (row.age === 'stale') say = owner + ' · published, stale · read only';
+      if (who) who.textContent = say;
+      try {
+        f.contentWindow.postMessage({ type: 'tvd-shadow', owner: owner, row: row || { owner: owner, published: false } }, window.location.origin);
+      } catch (e) {}
+    }).catch(function () {
+      if (gen !== _shadowGen) return;
+      if (who) who.textContent = owner + ' · the roster fetch could not be read · read only';
+      if (bar) bar.removeAttribute('hidden');
+    });
+  };
+
+  window._shadowLeave = function () {
+    _shadowGen++;
+    document.body.classList.remove('shadow-on');
+    var bar = document.getElementById('shadow-bar');
+    if (bar) bar.setAttribute('hidden', '');
+    var f = document.getElementById('tvd-eng');
+    try {
+      f.contentWindow.postMessage({ type: 'tvd-shadow', leave: true }, window.location.origin);
+    } catch (e) {}
+    var showed = document.body.getAttribute('data-shadow-shown') === '1';
+    document.body.removeAttribute('data-shadow-shown');
+    if (showed && document.body.getAttribute('data-shadow-was') !== '1') {
+      try { _shellDemotePane(); _shellRestoreConsole(); } catch (e) {}
+    }
   };
 
   (function _fleetKick() {

@@ -29,7 +29,8 @@ DAY_CAP = 25
 
 _ROW_KEYS = ("name", "cls", "level", "title", "tier", "mule", "locker",
              "looks", "evidence", "date", "station", "provenance")
-_INT_KEYS = ("level", "looks", "date")
+_INT_KEYS = ("level", "looks", "date", "x", "y", "w", "h")
+_BUILD_SLOTS = ("head", "neck", "tors", "rarm", "larm", "rrin", "lrin", "belt", "feet", "glov")
 
 
 def budget():
@@ -169,7 +170,10 @@ def section_of(raw, now_ms=None):
     if isinstance(rows, list) and rows:
         kept = []
         for row in rows:
-            clean = _clean_row(row, allow if isinstance(allow, tuple) else None)
+            if allow == ("build",):
+                clean = clean_build(row)
+            else:
+                clean = _clean_row(row, allow if isinstance(allow, tuple) else None)
             if clean:
                 kept.append(clean)
         if kept:
@@ -215,7 +219,134 @@ def stash_read(rows, as_of):
     if isinstance(as_of, bool) or not isinstance(as_of, int) or as_of <= 0:
         return None
     return {"read": True, "asOf": as_of, "counts": len(rows), "rows": rows,
-            "allow": ("name", "provenance")}
+            "allow": ("name", "id", "mule", "x", "y", "w", "h")}
+
+
+def _gear_item(raw):
+    """One worn or stored item: a name, and the id the board renderer already uses."""
+    if not isinstance(raw, dict):
+        return None
+    name = _short_text(raw.get("name"), 80)
+    if not name:
+        return None
+    out = {"name": name}
+    ident = raw.get("id")
+    if isinstance(ident, str):
+        ident = _short_text(ident, 80)
+        if ident:
+            out["id"] = ident
+    for key in ("x", "y", "w", "h"):
+        num = raw.get(key)
+        if isinstance(num, bool) or not isinstance(num, int) or num < 0 or num > 20:
+            continue
+        out[key] = num
+    return out
+
+
+def clean_build(raw):
+    """One character build, small enough to publish and shaped for the board renderer."""
+    if not isinstance(raw, dict):
+        return None
+    name = _short_text(raw.get("name"), 80)
+    if not name:
+        return None
+    out = {"name": name}
+    cls = _short_text(raw.get("cls"), 40)
+    if cls:
+        out["cls"] = cls
+    level = raw.get("level")
+    if isinstance(level, int) and not isinstance(level, bool) and 1 <= level <= 99:
+        out["level"] = level
+    sets = []
+    for src in (raw.get("sets") or [])[:4]:
+        if not isinstance(src, dict):
+            continue
+        slots = {}
+        for slot, item in (src.get("slots") or {}).items():
+            if slot not in _BUILD_SLOTS:
+                continue
+            clean = _gear_item(item)
+            if clean:
+                slots[slot] = {k: clean[k] for k in ("id", "name") if k in clean}
+        inv = []
+        for item in (src.get("inv") or [])[:40]:
+            clean = _gear_item(item)
+            if clean:
+                inv.append(clean)
+        sets.append({"name": _short_text(src.get("name"), 40) or "Set 1", "slots": slots, "inv": inv})
+    if sets:
+        out["sets"] = sets
+    stash = []
+    for item in (raw.get("stash") or [])[:80]:
+        clean = _gear_item(item)
+        if clean:
+            stash.append(clean)
+    if stash:
+        out["stash"] = stash
+    return out
+
+
+def clean_book(raw):
+    """The console book the page hands this PC. None means there was nothing to keep."""
+    if not isinstance(raw, dict):
+        return None
+    builds = []
+    for row in (raw.get("builds") or [])[:12]:
+        clean = clean_build(row)
+        if clean:
+            builds.append(clean)
+    owned = []
+    for row in (raw.get("owned") or [])[:400]:
+        if isinstance(row, str):
+            name = _short_text(row, 80)
+        elif isinstance(row, dict):
+            name = _short_text(row.get("name"), 80)
+        else:
+            name = None
+        if name:
+            owned.append(name)
+    if not builds and not owned:
+        return None
+    return {"builds": builds, "owned": owned}
+
+
+def builds_read(book, now_ms):
+    """Character builds the console actually stored. None means the book was not read."""
+    if not isinstance(book, dict):
+        return None
+    builds = book.get("builds")
+    if not isinstance(builds, list) or not builds:
+        return None
+    return {"read": True, "asOf": now_ms, "counts": len(builds), "rows": builds, "allow": ("build",)}
+
+
+def stash_rows_of(book):
+    """Flat stash and inventory cells from a console book. The grid painter uses x, y, w, h."""
+    rows = []
+    if not isinstance(book, dict):
+        return rows
+    for build in book.get("builds") or []:
+        if not isinstance(build, dict):
+            continue
+        who = build.get("name") if isinstance(build.get("name"), str) else None
+        items = list(build.get("stash") or [])
+        for src in build.get("sets") or []:
+            if isinstance(src, dict):
+                items.extend(src.get("inv") or [])
+        for item in items:
+            if not isinstance(item, dict) or not isinstance(item.get("name"), str):
+                continue
+            row = {"name": item["name"]}
+            if isinstance(item.get("id"), str):
+                row["id"] = item["id"]
+            if who:
+                row["mule"] = who
+            for key in ("x", "y", "w", "h"):
+                num = item.get(key)
+                if isinstance(num, int) and not isinstance(num, bool):
+                    row[key] = num
+            rows.append(row)
+    return rows
 
 
 def chronicle_read(tally, now_ms):

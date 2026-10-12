@@ -58380,7 +58380,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     try { var v = JSON.parse(window.LSR.getItem('d2r_charBuilds') || '{}'); return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {}; }
     catch (e) { return {}; }
   }
-  function _cbWrite(all){ window.LSR.setItem('d2r_charBuilds', JSON.stringify(all)); }
+  function _cbWrite(all){ window.LSR.setItem('d2r_charBuilds', JSON.stringify(all)); try { if (window._tvdBookPost) window._tvdBookPost(); } catch (e) {} }
   window._cbAll = _cbAll;
   function _cbNewSet(n){ return { name: 'Set ' + n, slots: {}, inv: [], swap: {}, ws: 1 }; }
   function _cbNewBuild(name, cls, level, from){
@@ -72744,6 +72744,209 @@ window.tvStashAutoIntake = async function(tab, opts){
       setTimeout(beacon, 1500);
     }
   } catch (e) { setTimeout(beacon, 1500); }
+})();
+</script>
+<script>
+/* Shadow roster. The same board, their published book, and no write back into this PC. */
+(function () {
+  var LEDGER = {
+    d2r_charBuilds: 1, d2r_cbMain: 1, d2r_cbSel: 1, d2r_owned: 1,
+    d2r_foundLog: 1, d2r_setPieces: 1, d2r_rwMade: 1, d2r_muleAssign: 1, d2r_vaultProv: 1
+  };
+  var on = false, rawGet = null, rawSet = null, rawRemove = null, shadowMap = {};
+  function isLedger(k) {
+    if (Object.prototype.hasOwnProperty.call(LEDGER, k)) return true;
+    try {
+      if (window._LP_FORKED && window._LP_FORKED.has(k)) return true;
+      if (window._WP_FORKED && window._WP_FORKED.has(k)) return true;
+    } catch (e) {}
+    return false;
+  }
+  function arm(next) {
+    shadowMap = next || {};
+    if (!window.LSR) return;
+    if (!rawGet) {
+      rawGet = window.LSR.getItem;
+      rawSet = window.LSR.setItem;
+      rawRemove = window.LSR.removeItem;
+      window.LSR.getItem = function (k) {
+        if (on && Object.prototype.hasOwnProperty.call(shadowMap, k)) return shadowMap[k];
+        if (on && isLedger(k)) return null;
+        return rawGet.call(window.LSR, k);
+      };
+      window.LSR.setItem = function (k, v) {
+        if (on && isLedger(k)) {
+          shadowMap[k] = v == null ? null : String(v);
+          if (on && isLedger(k)) return;
+        }
+        return rawSet.call(window.LSR, k, v);
+      };
+      window.LSR.removeItem = function (k) {
+        if (on && isLedger(k)) { shadowMap[k] = null; return; }
+        return rawRemove.call(window.LSR, k);
+      };
+    }
+    on = true;
+    try { document.documentElement.classList.add('tvd-shadow'); } catch (e) {}
+  }
+  function disarm() {
+    on = false;
+    if (window.LSR && rawGet) window.LSR.getItem = rawGet;
+    if (window.LSR && rawSet) window.LSR.setItem = rawSet;
+    if (window.LSR && rawRemove) window.LSR.removeItem = rawRemove;
+    rawGet = null;
+    rawSet = null;
+    rawRemove = null;
+    try { document.documentElement.classList.remove('tvd-shadow'); } catch (e) {}
+    var note = document.getElementById('tvd-shadow-note');
+    if (note) note.remove();
+  }
+  function buildsFrom(row) {
+    var rows = row && row.sections && row.sections.characters && row.sections.characters.rows;
+    var out = [];
+    if (!Array.isArray(rows)) return out;
+    rows.forEach(function (r) { if (r && r.sets) out.push(r); });
+    return out;
+  }
+  function storeOf(builds) {
+    var all = {};
+    builds.forEach(function (b, i) {
+      all['s' + i] = {
+        name: b.name, cls: b.cls || null, level: b.level || 1,
+        sets: (b.sets || []).map(function (s, n) {
+          return { name: s.name || ('Set ' + (n + 1)), slots: s.slots || {}, inv: s.inv || [], swap: {}, ws: 1 };
+        }),
+        active: 0, notes: '', stash: b.stash || [], shared: [], from: null, at: 1
+      };
+    });
+    return JSON.stringify(all);
+  }
+  function ownedOf(row) {
+    var rows = row && row.sections && row.sections.vault && row.sections.vault.rows;
+    var names = [];
+    if (Array.isArray(rows)) rows.forEach(function (r) { if (r && typeof r.name === 'string') names.push(r.name); });
+    return JSON.stringify(names);
+  }
+  function say(text) {
+    var el = document.getElementById('tvd-shadow-note');
+    if (!el) {
+      el = document.createElement('div');
+      el.id = 'tvd-shadow-note';
+      el.setAttribute('role', 'status');
+      document.body.appendChild(el);
+    }
+    el.textContent = text;
+  }
+  function paint() {
+    try { if (typeof switchTab === 'function') switchTab('chars'); } catch (e) {}
+  }
+  function ready(owner) {
+    try { parent.postMessage({ type: 'tvd-shadow-ready', owner: owner || '' }, window.location.origin); } catch (e) {}
+  }
+  function veil() {
+    return {
+      d2r_charBuilds: '{}', d2r_cbMain: null, d2r_cbSel: null, d2r_owned: '[]',
+      d2r_foundLog: null, d2r_setPieces: null, d2r_rwMade: null,
+      d2r_muleAssign: null, d2r_vaultProv: null
+    };
+  }
+  window.addEventListener('message', function (ev) {
+    if (ev.origin !== window.location.origin) return;
+    var data = ev.data;
+    if (!data || data.type !== 'tvd-shadow') return;
+    if (data.leave) { disarm(); paint(); return; }
+    if (data.pending) {
+      arm(veil());
+      var pendingNote = document.getElementById('tvd-shadow-note');
+      if (pendingNote) pendingNote.remove();
+      paint();
+      ready(data.owner);
+      return;
+    }
+    var builds = buildsFrom(data.row);
+    arm({
+      d2r_charBuilds: builds.length ? storeOf(builds) : '{}',
+      d2r_cbMain: null, d2r_cbSel: null,
+      d2r_owned: ownedOf(data.row),
+      d2r_foundLog: null, d2r_setPieces: null, d2r_rwMade: null,
+      d2r_muleAssign: null, d2r_vaultProv: null
+    });
+    if (!builds.length) say((data.owner || 'This console') + ' has not published a character build.');
+    else { var el = document.getElementById('tvd-shadow-note'); if (el) el.remove(); }
+    paint();
+    ready(data.owner);
+  });
+  var VIEW = { _cbSetActive: 1, _cbView: 1, _cbOpenStash: 1, _cbCloseStash: 1, _cbStashTab: 1, _cbStashArea: 1, _cbStashCat: 1, _cbStashFold: 1, closeCharBuilder: 1, _charsOpen: 1 };
+  document.addEventListener('click', function (ev) {
+    if (!on) return;
+    var t = ev.target;
+    if (!t || !t.closest) return;
+    if (t.closest('.tab')) return;
+    var btn = t.closest('button, a, input, textarea, select, label');
+    if (!btn) return;
+    var code = btn.getAttribute ? (btn.getAttribute('onclick') || '') : '';
+    var ok = false;
+    Object.keys(VIEW).forEach(function (name) { if (code.indexOf(name) !== -1) ok = true; });
+    if (ok) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+  }, true);
+  document.addEventListener('keydown', function (ev) {
+    if (!on) return;
+    var t = ev.target;
+    if (!t || !t.tagName) return;
+    if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT') {
+      ev.preventDefault();
+      ev.stopPropagation();
+    }
+  }, true);
+  function gear(item) {
+    if (!item || typeof item !== 'object') return null;
+    var name = typeof item.name === 'string' ? item.name.slice(0, 80) : '';
+    if (!name) return null;
+    var out = { name: name };
+    if (typeof item.id === 'string' && item.id) out.id = item.id.slice(0, 80);
+    ['x', 'y', 'w', 'h'].forEach(function (k) {
+      if (typeof item[k] === 'number' && item[k] >= 0 && item[k] <= 20) out[k] = item[k];
+    });
+    return out;
+  }
+  window._tvdBookPost = function () {
+    if (on || !window.LSR) return;
+    var builds = [], owned = [];
+    try {
+      var all = JSON.parse(window.LSR.getItem('d2r_charBuilds') || '{}');
+      Object.keys(all || {}).slice(0, 12).forEach(function (id) {
+        var b = all[id];
+        if (!b || typeof b.name !== 'string') return;
+        var sets = (b.sets || []).slice(0, 4).map(function (s) {
+          var slots = {};
+          Object.keys((s && s.slots) || {}).forEach(function (slot) {
+            var g = gear(s.slots[slot]);
+            if (g) slots[slot] = g;
+          });
+          var inv = [];
+          ((s && s.inv) || []).slice(0, 40).forEach(function (item) { var g = gear(item); if (g) inv.push(g); });
+          return { name: s && s.name, slots: slots, inv: inv };
+        });
+        var stash = [];
+        (b.stash || []).slice(0, 80).forEach(function (item) { var g = gear(item); if (g) stash.push(g); });
+        builds.push({ name: b.name, cls: b.cls, level: b.level, sets: sets, stash: stash });
+      });
+    } catch (e) { builds = []; }
+    try {
+      var got = JSON.parse(window.LSR.getItem('d2r_owned') || '[]');
+      if (Array.isArray(got)) got.slice(0, 400).forEach(function (n) { if (typeof n === 'string') owned.push(n.slice(0, 80)); });
+    } catch (e) { owned = []; }
+    if (!builds.length && !owned.length) return;
+    try {
+      fetch('/api/roster-book', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ builds: builds, owned: owned }), cache: 'no-store'
+      }).catch(function () {});
+    } catch (e) {}
+  };
+  setTimeout(function () { try { window._tvdBookPost(); } catch (e) {} }, 4000);
 })();
 </script>
 </body>
