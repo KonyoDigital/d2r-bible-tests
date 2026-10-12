@@ -685,6 +685,79 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(out["reason"], "unread")
         self.assertNotIn("submitted", out["reason"])
 
+    def test_a_challenge_page_is_posted_through_a_scratch_chrome(self):
+        import d2jsp_chrome as desk
+        seen = {}
+
+        def transport(method, url, headers, data):
+            self.assertEqual(method, "GET")
+            self.assertEqual(url, desk.COMPOSE_URL)
+            return 200, {}, b"<title>Just a moment...</title>"
+
+        def chrome_post(subject, text, cookie):
+            seen["subject"] = subject
+            seen["text"] = text
+            self.assertIn("SECRETCOOKIE", cookie)
+            self.assertNotIn("SECRETCOOKIE", subject)
+            self.assertNotIn("SECRETCOOKIE", text)
+            return "https://forums.d2jsp.org/topic.php?t=9&f=268"
+
+        code, out = desk.d2jsp_send(
+            {"subject": "WTS Grief Phase Blade", "body": "WTS Grief Phase Blade\n30 fg", "forum": 268},
+            "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
+            cookie_get=lambda: ("sid=SECRETCOOKIE", "ok"),
+            transport=transport, open_login=lambda: True, chrome_post=chrome_post,
+        )
+        self.assertEqual(code, 200)
+        self.assertTrue(out["ok"])
+        self.assertEqual(out["reason"], "submitted")
+        self.assertEqual(seen["subject"], "WTS Grief Phase Blade")
+        self.assertIn("30 fg", seen["text"])
+        self.assertNotIn("SECRETCOOKIE", json.dumps(out))
+
+        def chrome_post_login(subject, text, cookie):
+            return "https://forums.d2jsp.org/login.php?redirect=post"
+
+        code, out = desk.d2jsp_send(
+            {"subject": "WTS Grief Phase Blade", "body": "WTS Grief Phase Blade\n30 fg", "forum": 268},
+            "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
+            cookie_get=lambda: ("sid=SECRETCOOKIE", "ok"),
+            transport=transport, open_login=lambda: False, chrome_post=chrome_post_login,
+        )
+        self.assertFalse(out["ok"])
+        self.assertEqual(out["reason"], "need-login")
+        self.assertNotIn("SECRETCOOKIE", json.dumps(out))
+
+        def chrome_post_stay(subject, text, cookie):
+            return "https://forums.d2jsp.org/post.php?mode=post&f=268"
+
+        code, out = desk.d2jsp_send(
+            {"subject": "WTS Grief Phase Blade", "body": "WTS Grief Phase Blade\n30 fg", "forum": 268},
+            "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
+            cookie_get=lambda: ("sid=SECRETCOOKIE", "ok"),
+            transport=transport, open_login=lambda: False, chrome_post=chrome_post_stay,
+        )
+        self.assertFalse(out["ok"])
+        self.assertEqual(out["reason"], "not-posted")
+
+        with open(os.path.join(os.path.dirname(desk.__file__), "d2jsp_chrome.py"), encoding="utf-8") as handle:
+            src = handle.read()
+        post_fn = src.index("def _chrome_post(")
+        post_end = src.index("def d2jsp_quote(", post_fn)
+        self.assertLess(post_end - post_fn, 4800)
+        box = src[post_fn:post_end]
+        self.assertIn("--user-data-dir=%s", box)
+        self.assertIn('textarea[name="message"]', box)
+        self.assertNotIn("9222", box)
+        door = src.index("def _send_through_chrome(")
+        door_end = src.index("def d2jsp_send(", door)
+        gate = src[door:door_end]
+        self.assertIn("_topic(landed)", gate)
+        self.assertLess(gate.index("_topic(landed)"), gate.index('"submitted"'))
+        send = src[src.index("def d2jsp_send("):]
+        self.assertIn("_send_through_chrome(", send)
+        self.assertLess(send.index("_challenge_page(raw_text)"), send.index('reason": "not-posted"'))
+
     def test_the_cookie_header_is_only_the_d2jsp_host(self):
         import d2jsp_chrome as desk
         now = 1_700_000_000

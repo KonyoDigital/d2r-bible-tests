@@ -662,6 +662,125 @@ def _chrome_search(item, cookie):
         shutil.rmtree(prof, ignore_errors=True)
 
 
+def _chrome_post(subject, text, cookie):
+    """Submit the board 268 compose form in a scratch Chrome.
+
+    Returns the URL the browser landed on. Raises OSError when that browser
+    does not finish. The cookie is not logged. His open Chrome is not the one
+    this starts.
+    """
+    import time
+    import websocket
+    prof = tempfile.mkdtemp(prefix="d2jsp-post-")
+    sock = __import__("socket").socket()
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    browser = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    proc = subprocess.Popen(
+        [browser, "--headless=new", "--disable-gpu", "--no-first-run",
+         "--no-default-browser-check", "--disable-blink-features=AutomationControlled",
+         "--remote-debugging-port=%d" % port, "--user-data-dir=%s" % prof,
+         "--remote-allow-origins=*", "--window-size=1100,800", "about:blank"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True,
+    )
+    base = "http://127.0.0.1:%d" % port
+    ws = None
+    try:
+        deadline = time.time() + 12
+        while time.time() < deadline:
+            try:
+                urllib.request.urlopen(base + "/json/version", timeout=2)
+                break
+            except Exception:
+                time.sleep(0.2)
+        else:
+            raise OSError("chrome")
+        tab = json.loads(urllib.request.urlopen(
+            urllib.request.Request(base + "/json/new?about:blank", method="PUT"),
+            timeout=10,
+        ).read().decode("utf-8", "replace"))
+        ws = websocket.create_connection(
+            tab["webSocketDebuggerUrl"], timeout=20, origin=base,
+        )
+        _cdp_call(ws, 1, "Network.enable")
+        _cdp_call(ws, 2, "Network.setUserAgentOverride", {"userAgent": chrome_user_agent()})
+        ident = 10
+        for part in str(cookie or "").split(";"):
+            if "=" not in part:
+                continue
+            name, value = part.split("=", 1)
+            name = name.strip()
+            if not name:
+                continue
+            _cdp_call(ws, ident, "Network.setCookie", {
+                "name": name,
+                "value": value,
+                "url": "https://forums.d2jsp.org/",
+                "domain": ".d2jsp.org",
+                "path": "/",
+                "secure": True,
+            })
+            ident += 1
+        _cdp_call(ws, 50, "Page.enable")
+        _cdp_call(ws, 51, "Page.navigate", {"url": COMPOSE_URL})
+        selector = json.dumps('textarea[name="message"]')
+        fill = (
+            "(function(){var box=document.querySelector(" + selector + ");"
+            "if(!box||!box.form||!box.form.subject)return 'no-form';"
+            "box.form.subject.value=" + json.dumps(str(subject or "")) + ";"
+            "box.value=" + json.dumps(str(text or "")) + ";"
+            "box.form.submit();return 'sent';})()"
+        )
+        sent = False
+        href = ""
+        deadline = time.time() + 25
+        while time.time() < deadline:
+            time.sleep(0.8)
+            try:
+                got = _cdp_call(ws, 60, "Runtime.evaluate", {
+                    "expression": "JSON.stringify({href:location.href,html:document.documentElement?document.documentElement.outerHTML:''})",
+                    "returnByValue": True,
+                }, wait=8)
+            except Exception:
+                continue
+            raw = ((got.get("result") or {}).get("result") or {}).get("value") or ""
+            try:
+                snap = json.loads(raw)
+            except Exception:
+                continue
+            href = str(snap.get("href") or "")
+            html = str(snap.get("html") or "")
+            if _topic(href) and not _challenge_page(html):
+                return href
+            if (not sent) and (not _challenge_page(html)) and ('name="message"' in html):
+                try:
+                    _cdp_call(ws, 61, "Runtime.evaluate", {
+                        "expression": fill,
+                        "returnByValue": True,
+                    }, wait=8)
+                    sent = True
+                except Exception:
+                    continue
+        if href:
+            return href
+        raise OSError("post")
+    finally:
+        if ws is not None:
+            try:
+                ws.close()
+            except Exception:
+                pass
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+        shutil.rmtree(prof, ignore_errors=True)
+
+
 def d2jsp_quote(item, origin, host, port, cookie_get=None, transport=None, node_run=None, chrome_fetch=None):
     """Read one item's fg range from the Switch Ladder search. -> (http code, dict)
 
@@ -725,7 +844,31 @@ def open_quote_login_once():
         return None
 
 
-def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_login=None):
+def _send_through_chrome(subject, text, cookie, chrome_post, open_login):
+    """One scratch-Chrome submit. A topic URL is the only submitted receipt."""
+    opener = chrome_post or _chrome_post
+    landed = None
+    try:
+        landed = opener(subject, text, cookie)
+    except OSError as stuck:
+        landed = stuck
+    if isinstance(landed, OSError) or not landed:
+        return 200, {"ok": False, "reason": "unread"}
+    landed = str(landed)
+    if _topic(landed):
+        return 200, {"ok": True, "reason": "submitted"}
+    if _on_forum(landed) and "login" in landed.lower():
+        door = open_login or _open_chrome_login
+        opened = False
+        try:
+            opened = bool(door())
+        except Exception:
+            opened = False
+        return 200, {"ok": False, "reason": "need-login", "opened": opened}
+    return 200, {"ok": False, "reason": "not-posted"}
+
+
+def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_login=None, chrome_post=None):
     """Post one desk draft. -> (http code, {ok, reason, opened?})
 
     The dict never carries the cookie, the page, or the draft.
@@ -775,6 +918,9 @@ def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_l
                 opened = False
             return 200, {"ok": False, "reason": "need-login", "opened": opened}
         return 200, {"ok": False, "reason": "form-unknown"}
+    raw_text = raw.decode("utf-8", "replace") if isinstance(raw, (bytes, bytearray)) else str(raw or "")
+    if _challenge_page(raw_text) and chrome_post is not False:
+        return _send_through_chrome(subject, text, cookie, chrome_post, open_login)
     parsed = parse_compose(raw)
     if parsed["reason"] != "ready":
         out = {"ok": False, "reason": parsed["reason"]}
@@ -809,6 +955,9 @@ def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_l
         except Exception:
             opened = False
         return 200, {"ok": False, "reason": "need-login", "opened": opened}
+    post_text = raw.decode("utf-8", "replace") if isinstance(raw, (bytes, bytearray)) else str(raw or "")
+    if _challenge_page(post_text) and chrome_post is not False:
+        return _send_through_chrome(subject, text, cookie, chrome_post, open_login)
     came_back = parse_compose(raw)
     if came_back["reason"] == "need-login":
         opener = open_login or _open_chrome_login
