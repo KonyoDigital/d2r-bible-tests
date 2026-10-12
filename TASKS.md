@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3684** | `(this commit)` | v3684 — The vault planner sheet repeated two red-proof anchors, and the parse check handed node its program on argv. HEART: test_no_law_hands_node_its_program_on_argv test_the_heart_can_see_its_own_instruments |
+| **v3685** | `(this commit)` | v3685 — A planner Phase Blade keeps its base, the shared locker is put back, and Auto-Sort files that pick. HEART: test_a_hand_added_item_stays_his |
+| **v3684** | `768efa8c` | v3684 — The vault planner sheet repeated two red-proof anchors, and the parse check handed node its program on argv. HEART: test_no_law_hands_node_its_program_on_argv test_the_heart_can_see_its_own_instruments |
 | **v3683** | `d8aa25ec` | v3683 — The vault planner search opens the character-builder picker and files a pick only when the reel route names a mule. HEART: test_a_hand_added_item_stays_his |
 | **v3682** | `ebf714b8` | v3682 — The two character counts in the vault art law were the whole rise from 44 fixed source windows to 46. Each slice now stops at the next real line. HEART: test_a_source_window_must_reach_its_subject |
 | **v3681** | `fd0484a8` | v3681 — The vault mule grid painted the missing-art mark for a magic or rare keeper. artOr now uses the recorded base HD sprite. A unique or a set with no picture of its own stays unmarked. HEART: test_the_art_resolver_folds_the_apostrophe |
