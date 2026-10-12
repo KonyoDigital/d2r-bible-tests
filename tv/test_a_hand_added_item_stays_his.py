@@ -715,7 +715,9 @@ process.stdout.write(JSON.stringify(OUT));
             s, "the shared-stash tile still opens the item page")
         dismiss = s.find("a click can re-render")
         self.assertGreater(dismiss, 0)
-        keep = s[dismiss:dismiss + 900]
+        prose = s.find("THE PROSE LANE, PURELY ADDITIVE", dismiss)
+        self.assertGreater(prose, dismiss, "the click guard has no end anchor")
+        keep = s[dismiss:prose]
         self.assertIn(".vd-item, .vm-cell, .vrg-row, .vmk-name, .to-name, .vj-chip", keep)
         self.assertIn("!t.closest('button, a, input, textarea, select')", keep)
         self.assertIn("!chip.classList.contains('vd-db')", keep)

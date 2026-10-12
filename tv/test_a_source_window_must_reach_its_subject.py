@@ -240,6 +240,13 @@ RED_PROOF = [
         'replace': '    blk = SRC[i:i + 9000]',
         'matches': 1,
     },
+    {
+        'why': 'v3688 - the vault click guard went back to a 900 character guess and the source-window count rose past 44',
+        'file': 'test_a_hand_added_item_stays_his.py',
+        'find': '        keep = s[dismiss:prose]\n',
+        'replace': '        keep = s[dismiss:dismiss + 900]\n',
+        'matches': 1,
+    },
 ]
 
 

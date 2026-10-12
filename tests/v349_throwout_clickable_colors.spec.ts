@@ -28,7 +28,10 @@ test.describe('v349 throw-out clickable + rarity colours', () => {
     expect(r.desc).toContain('4 sockets');
   });
 
-  test('throw-out rows are clickable (openDrop) and hover the FULL name', async ({ page }) => {
+  // v3688 — v349 pinned onclick=openDrop on the throw-out row. v3687 took that off every
+  // vault chip: the click keeps the floating card and stays on the vault. The pin is inverted,
+  // not dropped. The next test still calls openDrop itself, so the review card stays covered.
+  test('a throw-out row keeps the full name and stays on the vault', async ({ page }) => {
     const r = await page.evaluate(() => {
       const rows = Array.from(document.querySelectorAll('#vault-registered [data-unknown-read]'));
       const bs = rows.find((x) => (x.getAttribute('data-unknown-read') || '').startsWith('Broad Sword')) as HTMLElement | undefined;
@@ -37,7 +40,7 @@ test.describe('v349 throw-out clickable + rarity colours', () => {
         arttip: bs?.getAttribute('data-arttip') || '',
       };
     });
-    expect(r.onclick).toContain('openDrop');
+    expect(r.onclick).not.toContain('openDrop');
     expect(r.arttip).toBe('Broad Sword (4os low base)');   // full name → resolves the rich throw-out card
   });
 
