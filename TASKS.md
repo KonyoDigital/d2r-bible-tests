@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3685** | `(this commit)` | v3685 — A planner Phase Blade keeps its base, the shared locker is put back, and Auto-Sort files that pick. HEART: test_a_hand_added_item_stays_his |
+| **v3686** | `(this commit)` | v3686 — a stored base occupies its own cells on every shared page. HEART: test_the_packer_reads_the_footprint_the_tile_prints |
+| **v3685** | `15a8c539` | v3685 — A planner Phase Blade keeps its base, the shared locker is put back, and Auto-Sort files that pick. HEART: test_a_hand_added_item_stays_his |
 | **v3684** | `768efa8c` | v3684 — The vault planner sheet repeated two red-proof anchors, and the parse check handed node its program on argv. HEART: test_no_law_hands_node_its_program_on_argv test_the_heart_can_see_its_own_instruments |
 | **v3683** | `d8aa25ec` | v3683 — The vault planner search opens the character-builder picker and files a pick only when the reel route names a mule. HEART: test_a_hand_added_item_stays_his |
 | **v3682** | `ebf714b8` | v3682 — The two character counts in the vault art law were the whole rise from 44 fixed source windows to 46. Each slice now stops at the next real line. HEART: test_a_source_window_must_reach_its_subject |

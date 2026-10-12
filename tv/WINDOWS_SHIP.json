@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3685",
+  "ver": "v3686",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3685: A planner Phase Blade keeps its base, the shared locker is put back, and Auto-Sort files that pick. HEART: test_a_hand_added_item_stays_his",
+  "note": "v3686: a stored base occupies its own cells on every shared page. HEART: test_the_packer_reads_the_footprint_the_tile_prints",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
