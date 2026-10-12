@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3696** | `(this commit)` | v3696 — Copy the bridge leaves the room in place. The gold pile is in the console art map. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
+| **v3697** | `(this commit)` | v3697 — The D2JSP room lists the filed vault and posts through the Chrome login on this machine. No script is copied. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
+| **v3696** | `34143993` | v3696 — Copy the bridge leaves the room in place. The gold pile is in the console art map. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
 | **v3695** | `cbdc297f` | v3695 — the console door drops the coin glyph and wears the gold pile. The word stays. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
 | **v3694** | `2b9281e4` | v3694 — the console header has a D2JSP door after the Vault. The desk field is named, the card type uses a size token, and the law prints safely. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
 | **v3693** | `78262cc1` | v3693 — a tagged vault item posts to softcore non-ladder through the open d2jsp login, and forum gold stays unknown until a public reading. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3696",
+  "ver": "v3697",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3696: Copy the bridge leaves the room in place. The gold pile is in the console art map. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts",
+  "note": "v3697: The D2JSP room lists the filed vault and posts through the Chrome login on this machine. No script is copied. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
