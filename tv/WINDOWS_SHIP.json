@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3689",
+  "ver": "v3690",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3689: the account locker has no delete door, and a call that names it changes nothing. HEART: test_the_shared_stash_locker_cannot_be_deleted",
+  "note": "v3690: an add of a name already filed stores another copy, and the shared stash draws it. HEART: test_a_planner_pick_files_where_a_reel_of_it_would_go",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
