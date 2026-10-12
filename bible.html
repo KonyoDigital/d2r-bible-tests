@@ -72922,6 +72922,12 @@ window.tvStashAutoIntake = async function(tab, opts){
   }
   window._tvdBookPost = function () {
     if (on || !window.LSR) return;
+    /* A file:// board has no console to post to. fetch of a relative /api path
+       becomes file:///api/roster-book, and Chromium logs that even when .catch
+       swallows the rejection. http(s) is the console that stores the book. */
+    try {
+      if (location.protocol !== 'http:' && location.protocol !== 'https:') return;
+    } catch (e) { return; }
     var builds = [], owned = [];
     try {
       var all = JSON.parse(window.LSR.getItem('d2r_charBuilds') || '{}');

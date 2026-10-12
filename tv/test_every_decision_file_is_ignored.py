@@ -115,6 +115,7 @@ class EveryDecisionFileIsIgnored(unittest.TestCase):
         self.assertIn("control_agent.log", names)
         rels = ["tv/" + n for n in names]
         rels.append("tv/.tvd_roster.json.tmp")  # _roster_state_save writes path + ".tmp"
+        rels.append("tv/roster_book.json.tmp")  # _roster_book_take writes path + ".tmp"
         rels.append("tv/roster_cache/Konyo__Mac.json")
         rels.append("tv/.tvd_roster_fetch.json.tmp")
         self.assertIn("roster_cache", names)

@@ -84,6 +84,10 @@ tv/.tvd_roster.json.tmp
 tv/roster_cache
 tv/.tvd_roster_fetch.json
 tv/.tvd_roster_fetch.json.tmp
+# v3680 — the console book this PC's board posts. Builds and owned names,
+# per machine, rewritten by the console. The .tmp is the atomic-write partner.
+tv/roster_book.json
+tv/roster_book.json.tmp
 # v3328 — the read-names feeder's LANE STATE, per-machine and rewritten every 45s.
 # Every sibling lane store is ignored (.vault_autoread.json, .second_eye.jsonl,
 # .heart2.json, .handoff_seen.json); I copied _vault_autoread_save's persistence idiom

@@ -6038,7 +6038,7 @@
   .roster-box[hidden] { display: none !important; }
   #shadow-bar { position: fixed; left: 0; right: 0; z-index: 960; display: flex; gap: 12px;
     align-items: center; padding: 8px 12px; background: #1a1208; color: #e9b96e;
-    font: 14px/1.3 sans-serif; }
+    font: var(--fw-medium) var(--fs-xs)/var(--lh-snug) var(--mono); }
   #shadow-bar[hidden] { display: none !important; }
   #shadow-bar button { margin-left: auto; }
   .roster-person { display: block; width: 100%; text-align: left; margin: 4px 0; }
@@ -22782,6 +22782,13 @@ window._lockMark = function(isOpen, px, label){
   };
   window._shellHome = shellHome;
   window._shellOpen = shellOpen;
+  /* The roster shadow lives in the second script block. These five stay inside
+     this function, so that block can call them only once they are on window. */
+  window._shellHeadH = _shellHeadH;
+  window._shellSizePane = _shellSizePane;
+  window._shellDemotePane = _shellDemotePane;
+  window._shellRestoreConsole = _shellRestoreConsole;
+  window._shellLight = _shellLight;
   // ══ v1376 (SESSIONS FLAGSHIP R3) — the console-native SESSIONS view. Unlike the other pane tabs, the
   // Sessions tab does NOT open the bible iframe — the flagship hunt hub IS the console home under
   // data-view="sessions". Same shell-close mechanics as shellHome, but keyed to the Sessions context; the
@@ -22848,7 +22855,7 @@ window._lockMark = function(isOpen, px, label){
       if (window.TH && window.TH.open && b.dataset.tab !== _shellTab
           && typeof window.thClose === 'function') window.thClose();
     } catch (_tc) {}
-    if (document.body.classList.contains('shadow-on')) {
+    if (document.body.classList && document.body.classList.contains('shadow-on')) {
       /* Their published board, not this PC's cockpit. Sessions and TV·D stay the board rooms. */
       document.body.removeAttribute('data-view');
       shellOpen(b.dataset.tab);
@@ -27503,7 +27510,7 @@ function escC(s) {
     document.body.removeAttribute('data-shadow-shown');
     var bar = document.getElementById('shadow-bar');
     try {
-      var h = (typeof _shellHeadH === 'function') ? _shellHeadH() : 48;
+      var h = (typeof window._shellHeadH === 'function') ? window._shellHeadH() : 48;
       if (bar) bar.style.top = h + 'px';
     } catch (e) {}
     var who = document.getElementById('shadow-who');
@@ -27514,8 +27521,8 @@ function escC(s) {
       if (gen !== _shadowGen || document.body.getAttribute('data-shadow-shown') === '1') return;
       document.body.setAttribute('data-shadow-shown', '1');
       document.body.classList.add('shell-open', 'shadow-on');
-      try { _shellSizePane(); } catch (e) {}
-      try { _shellLight('chars'); } catch (e) {}
+      try { if (typeof window._shellSizePane === 'function') window._shellSizePane(); } catch (e) {}
+      try { if (typeof window._shellLight === 'function') window._shellLight('chars'); } catch (e) {}
       if (bar) bar.removeAttribute('hidden');
     }
     function onReady(ev) {
@@ -27568,7 +27575,10 @@ function escC(s) {
     var showed = document.body.getAttribute('data-shadow-shown') === '1';
     document.body.removeAttribute('data-shadow-shown');
     if (showed && document.body.getAttribute('data-shadow-was') !== '1') {
-      try { _shellDemotePane(); _shellRestoreConsole(); } catch (e) {}
+      try {
+        if (typeof window._shellDemotePane === 'function') window._shellDemotePane();
+        if (typeof window._shellRestoreConsole === 'function') window._shellRestoreConsole();
+      } catch (e) {}
     }
   };
 
