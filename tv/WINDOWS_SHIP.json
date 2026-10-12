@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3698",
+  "ver": "v3699",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3698: A failed Chrome read stays unread, and the request wears the installed Chrome signature. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts",
+  "note": "v3699: Quest items stay off the trade list, and a public reading fills the real price range. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
