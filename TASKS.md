@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3699** | `(this commit)` | v3699 — Quest items stay off the trade list, and a public reading fills the real price range. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
+| **v3700** | `(this commit)` | v3700 — Switch Ladder lines that name the item fill the real price range. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
+| **v3699** | `3e11f5a8` | v3699 — Quest items stay off the trade list, and a public reading fills the real price range. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
 | **v3698** | `ce6b3a6a` | v3698 — A failed Chrome read stays unread, and the request wears the installed Chrome signature. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
 | **v3697** | `c06fa94e` | v3697 — The D2JSP room lists the filed vault and posts through the Chrome login on this machine. No script is copied. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
 | **v3696** | `34143993` | v3696 — Copy the bridge leaves the room in place. The gold pile is in the console art map. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
