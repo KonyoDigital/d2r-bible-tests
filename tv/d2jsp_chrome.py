@@ -53,6 +53,24 @@ def _chrome_now(now_utc):
     return int((float(now_utc) + _CHROME_EPOCH) * 1000000)
 
 
+def seal_v10(password, text):
+    """The inverse of decrypt_v10, for the desk law. None when the cipher library is absent."""
+    try:
+        from hashlib import pbkdf2_hmac
+        from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    except Exception:
+        return None
+    try:
+        raw = str(text).encode("utf-8")
+        pad = 16 - (len(raw) % 16)
+        block = raw + bytes([pad]) * pad
+        key = pbkdf2_hmac("sha1", str(password).encode("utf-8"), b"saltysalt", 1003, 16)
+        enc = Cipher(algorithms.AES(key), modes.CBC(b" " * 16)).encryptor()
+        return b"v10" + enc.update(block) + enc.finalize()
+    except Exception:
+        return None
+
+
 def decrypt_v10(blob, password):
     """Open one Chrome v10 cookie. Any other prefix, or a failed open, is None."""
     if not isinstance(blob, (bytes, bytearray)) or blob[:3] != b"v10" or not password:
@@ -289,19 +307,45 @@ def _transport(method, url, headers, data):
         with opener.open(req, timeout=25) as resp:
             return resp.status, {k: v for k, v in resp.headers.items()}, resp.read(200000)
     except urllib.error.HTTPError as exc:
-        loc = ""
+        # None is "this header was not read". An empty page is not a receipt.
+        loc = None
         try:
-            loc = exc.headers.get("Location") or ""
+            loc = exc.headers.get("Location")
         except Exception:
-            loc = ""
-        raw = b""
+            loc = None
+        raw = None
         try:
             raw = exc.read(200000)
         except Exception:
-            raw = b""
-        return exc.code, {"Location": loc}, raw
-    except Exception:
-        return 0, {}, b""
+            raw = None
+        return exc.code, {"Location": loc or ""}, raw or b""
+
+
+def chrome_user_agent():
+    """The installed Chrome's own signature. A clearance cookie is bound to it.
+
+    When the version cannot be read, the header still names Chrome and a
+    challenge page stays unread. It is not reported as a post.
+    """
+    version = "131.0.0.0"
+    if sys.platform == "darwin":
+        try:
+            proc = subprocess.run(
+                ["defaults", "read",
+                 "/Applications/Google Chrome.app/Contents/Info.plist",
+                 "CFBundleShortVersionString"],
+                capture_output=True, timeout=5, text=True,
+            )
+        except OSError:
+            proc = None
+        if proc is not None and proc.returncode == 0:
+            got = (proc.stdout or "").strip()
+            if re.fullmatch(r"\d+(?:\.\d+){2,3}", got):
+                version = got
+    return (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36"
+    ) % version
 
 
 def _open_chrome_login():
@@ -320,7 +364,7 @@ def _open_chrome_login():
 
 def _headers(cookie):
     return {
-        "User-Agent": "Mozilla/5.0",
+        "User-Agent": chrome_user_agent(),
         "Accept": "text/html",
         "Cookie": cookie,
         "Referer": COMPOSE_URL,

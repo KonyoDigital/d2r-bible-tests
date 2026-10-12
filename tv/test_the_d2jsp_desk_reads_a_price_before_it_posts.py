@@ -276,6 +276,8 @@ process.stdout.write(JSON.stringify({
 
         def transport_ok(method, url, headers, data):
             self.assertEqual(url, desk.COMPOSE_URL)
+            self.assertIn("Chrome/", headers.get("User-Agent", ""))
+            self.assertNotEqual(headers.get("User-Agent"), "Mozilla/5.0")
             self.assertIn("sid=SECRETCOOKIE", headers.get("Cookie", ""))
             if method == "GET":
                 return 200, {}, form.encode()
@@ -306,6 +308,18 @@ process.stdout.write(JSON.stringify({
         self.assertFalse(out["ok"])
         self.assertEqual(out["reason"], "not-posted")
 
+        def transport_down(method, url, headers, data):
+            raise OSError("down")
+
+        code, out = desk.d2jsp_send(
+            {"subject": "WTS Grief Phase Blade", "body": "WTS Grief Phase Blade\n30 fg", "forum": 268},
+            "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
+            cookie_get=cookie_get, transport=transport_down, open_login=open_login,
+        )
+        self.assertFalse(out["ok"])
+        self.assertEqual(out["reason"], "unread")
+        self.assertNotIn("submitted", out["reason"])
+
     def test_the_cookie_header_is_only_the_d2jsp_host(self):
         import d2jsp_chrome as desk
         now = 1_700_000_000
@@ -327,18 +341,10 @@ process.stdout.write(JSON.stringify({
         self.assertFalse(desk.console_may_post("https://evil.example", "127.0.0.1:17772", 17772))
         self.assertTrue(desk.console_may_post(None, "127.0.0.1:17772", 17772))
 
-        try:
-            from hashlib import pbkdf2_hmac
-            from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-        except Exception:
-            return
         password = "test-password"
-        key = pbkdf2_hmac("sha1", password.encode(), b"saltysalt", 1003, 16)
-        plain = b"roundtrip-value"
-        pad = 16 - (len(plain) % 16)
-        block = plain + bytes([pad]) * pad
-        enc = Cipher(algorithms.AES(key), modes.CBC(b" " * 16)).encryptor()
-        blob = b"v10" + enc.update(block) + enc.finalize()
+        blob = desk.seal_v10(password, "roundtrip-value")
+        if blob is None:
+            return
         self.assertEqual(desk.decrypt_v10(blob, password), "roundtrip-value")
         import sqlite3
         import tempfile
