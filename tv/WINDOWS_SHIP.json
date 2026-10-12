@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3680",
+  "ver": "v3681",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3680: the visit sizes and leaves through the published shell. the bar uses a size token. the book stays off git and off a file page",
+  "note": "v3681: The vault mule grid painted the missing-art mark for a magic or rare keeper. artOr now uses the recorded base HD sprite. A unique or a set with no picture of its own stays unmarked. HEART: test_the_art_resolver_folds_the_apostrophe",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
