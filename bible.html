@@ -58399,6 +58399,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   var _cbLearned = null;   // null = never answered (UNKNOWN); {ok, chars:[...]} once the console answers
   function _cbFold(n){ return String(n || '').toLowerCase().replace(/\u2295/g, 'o').replace(/[^a-z0-9]/g, ''); }
   function _cbLearnedFetch(then){
+    if (document.documentElement.classList.contains('tvd-shadow')) return;
     try {
       if (!/^https?:$/.test(location.protocol) || typeof fetch !== 'function') return;
       fetch('/api/chars_learned', { cache: 'no-store' })
@@ -58467,6 +58468,11 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
      as before. Nothing here writes. -> {state: 'ok'|'none'|'unknown', why, ingame: [{t, ids}], mules: [{t, ids}],
      sim: [ids]}; ids in each list keep the order they were handed in (the caller's MAIN-first order). */
   function _cbSections(all, ids){
+    if (document.documentElement.classList.contains('tvd-shadow')) {
+      all = (all && typeof all === 'object') ? all : {};
+      ids = Array.isArray(ids) ? ids : Object.keys(all);
+      return { state: 'unknown', why: 'their reels stay on their console, so in-game characters are not read here', ingame: [], mules: [], sim: ids };
+    }
     all = (all && typeof all === 'object') ? all : {};
     ids = Array.isArray(ids) ? ids : Object.keys(all);
     var tpls = _cbTemplates(), state, why = '';
@@ -58501,7 +58507,10 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     return 'tier UNKNOWN';
   }
   window._cbTierSay = _cbTierSay;
-  window._cbLearnedNow = function(){ return _cbLearned; };
+  window._cbLearnedNow = function(){
+    if (document.documentElement.classList.contains('tvd-shadow')) return { ok: false, why: 'their reels stay on their console' };
+    return _cbLearned;
+  };
 
   var st = { open: false, bid: null, draft: null, view: 'equip', diff: 'hell', quests: true, sq: '',
              pick: null, stash: null, newb: null, drag: null, held: null, say: '', sayBad: false, filtOpen: false };

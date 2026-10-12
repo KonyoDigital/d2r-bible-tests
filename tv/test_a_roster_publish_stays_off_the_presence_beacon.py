@@ -446,6 +446,8 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         self.assertIn("d2r_charBuilds: builds.length ? storeOf(builds) : '{}'", board)
         self.assertIn("switchTab('chars')", board)
         self.assertIn("window._LP_FORKED.has(k)", board)
+        self.assertIn("their reels stay on their console, so in-game characters are not read here", board)
+        self.assertEqual(board.count("document.documentElement.classList.contains('tvd-shadow')"), 3)
         self.assertIn("shadowMap[k] = null", board)
         self.assertIn("pending: true", fn)
         self.assertEqual(board.count("if (on && isLedger(k)) return;"), 1)
