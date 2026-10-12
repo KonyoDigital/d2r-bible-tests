@@ -725,12 +725,16 @@ def _chrome_post(subject, text, cookie):
         _cdp_call(ws, 50, "Page.enable")
         _cdp_call(ws, 51, "Page.navigate", {"url": COMPOSE_URL})
         selector = json.dumps('textarea[name="message"]')
+        button = json.dumps('input[name="post"],button[name="post"]')
         fill = (
             "(function(){var box=document.querySelector(" + selector + ");"
             "if(!box||!box.form||!box.form.subject)return 'no-form';"
-            "box.form.subject.value=" + json.dumps(str(subject or "")) + ";"
+            "var f=box.form;f.subject.value=" + json.dumps(str(subject or "")) + ";"
             "box.value=" + json.dumps(str(text or "")) + ";"
-            "box.form.submit();return 'sent';})()"
+            "var btn=f.querySelector(" + button + ");"
+            "if(btn){btn.click();return 'clicked';}"
+            "var extra=document.createElement('input');extra.type='hidden';extra.name='post';extra.value='Post';"
+            "f.appendChild(extra);f.submit();return 'sent';})()"
         )
         sent = False
         href = ""
@@ -844,6 +848,24 @@ def open_quote_login_once():
         return None
 
 
+def _public_topic(url):
+    """A topic URL that is safe to show. Anything else is empty."""
+    if not _topic(url):
+        return ""
+    raw = str(url or "").strip()
+    if raw.startswith("/") and not raw.startswith("//"):
+        raw = "https://%s%s" % (_HOST, raw.split("#", 1)[0])
+    try:
+        parts = urllib.parse.urlparse(raw)
+    except Exception:
+        return ""
+    if parts.scheme != "https" or parts.netloc != _HOST:
+        return ""
+    if "topic.php" not in (parts.path or ""):
+        return ""
+    return urllib.parse.urlunparse(("https", _HOST, parts.path, "", parts.query, ""))
+
+
 def _send_through_chrome(subject, text, cookie, chrome_post, open_login):
     """One scratch-Chrome submit. A topic URL is the only submitted receipt."""
     opener = chrome_post or _chrome_post
@@ -855,8 +877,9 @@ def _send_through_chrome(subject, text, cookie, chrome_post, open_login):
     if isinstance(landed, OSError) or not landed:
         return 200, {"ok": False, "reason": "unread"}
     landed = str(landed)
-    if _topic(landed):
-        return 200, {"ok": True, "reason": "submitted"}
+    public = _public_topic(landed)
+    if public:
+        return 200, {"ok": True, "reason": "submitted", "topic": public}
     if _on_forum(landed) and "login" in landed.lower():
         door = open_login or _open_chrome_login
         opened = False
@@ -900,6 +923,8 @@ def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_l
             except Exception:
                 out["opened"] = False
         return 200, out
+    if transport is None and chrome_post is not False:
+        return _send_through_chrome(subject, text, cookie, chrome_post, open_login)
     fetch = transport or _transport
     try:
         status, hdrs, raw = fetch("GET", COMPOSE_URL, _headers(cookie), None)

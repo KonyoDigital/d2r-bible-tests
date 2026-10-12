@@ -364,9 +364,10 @@ window._cbShown = function(){ return { name: 'Grief', base: 'Phase Blade' }; };
         self.assertIn("title.textContent !== draft.subject", handler)
         self.assertLess(match, again_ret)
         self.assertLess(again_ret, fetch_at)
+        self.assertLess(fetch_at, handler.index("showReceipt('confirmed'"))
         draft_fn = self.bible.index("function openDraft(")
         self.assertEqual(self.bible.count("function openDraft("), 1)
-        draft_end = self.bible.index("function closeDraft(", draft_fn)
+        draft_end = self.bible.index("function showReceipt(", draft_fn)
         self.assertLess(draft_end - draft_fn, 1400)
         shown_box = self.bible[draft_fn:draft_end]
         self.assertIn("data-d2jsp-draft-view", shown_box)
@@ -711,6 +712,7 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(code, 200)
         self.assertTrue(out["ok"])
         self.assertEqual(out["reason"], "submitted")
+        self.assertEqual(out["topic"], "https://forums.d2jsp.org/topic.php?t=9&f=268")
         self.assertEqual(seen["subject"], "WTS Grief Phase Blade")
         self.assertIn("30 fg", seen["text"])
         self.assertNotIn("SECRETCOOKIE", json.dumps(out))
@@ -744,19 +746,59 @@ process.stdout.write(JSON.stringify({
             src = handle.read()
         post_fn = src.index("def _chrome_post(")
         post_end = src.index("def d2jsp_quote(", post_fn)
-        self.assertLess(post_end - post_fn, 4800)
+        self.assertLess(post_end - post_fn, 5100)
         box = src[post_fn:post_end]
         self.assertIn("--user-data-dir=%s", box)
         self.assertIn('textarea[name="message"]', box)
+        self.assertIn('input[name="post"],button[name="post"]', box)
+        self.assertIn("btn.click()", box)
         self.assertNotIn("9222", box)
         door = src.index("def _send_through_chrome(")
         door_end = src.index("def d2jsp_send(", door)
         gate = src[door:door_end]
-        self.assertIn("_topic(landed)", gate)
-        self.assertLess(gate.index("_topic(landed)"), gate.index('"submitted"'))
+        self.assertIn("_public_topic(landed)", gate)
+        self.assertLess(gate.index("_public_topic(landed)"), gate.index('"submitted"'))
+        self.assertIn('"topic": public', gate)
         send = src[src.index("def d2jsp_send("):]
         self.assertIn("_send_through_chrome(", send)
+        self.assertLess(send.index("transport is None and chrome_post is not False"), send.index('fetch("GET", COMPOSE_URL'))
         self.assertLess(send.index("_challenge_page(raw_text)"), send.index('reason": "not-posted"'))
+        receipt = self.bible.index("function showReceipt(")
+        receipt_end = self.bible.index("function closeDraft(", receipt)
+        self.assertLess(receipt_end - receipt, 1400)
+        panel = self.bible[receipt:receipt_end]
+        self.assertIn("Confirmed", panel)
+        self.assertIn("Not sent", panel)
+        self.assertIn("https://forums.d2jsp.org/topic.php", panel)
+        self.assertNotIn("window.open", panel)
+
+        def live_post(subject, text, cookie):
+            self.assertIn("SECRETCOOKIE", cookie)
+            return "https://forums.d2jsp.org/topic.php?t=44&f=268#top"
+
+        code, out = desk.d2jsp_send(
+            {"subject": "WTS Grief Phase Blade", "body": "WTS Grief Phase Blade\n30 fg", "forum": 268},
+            "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
+            cookie_get=lambda: ("sid=SECRETCOOKIE", "ok"),
+            open_login=lambda: False, chrome_post=live_post,
+        )
+        self.assertTrue(out["ok"])
+        self.assertEqual(out["reason"], "submitted")
+        self.assertEqual(out["topic"], "https://forums.d2jsp.org/topic.php?t=44&f=268")
+        self.assertNotIn("SECRETCOOKIE", json.dumps(out))
+
+        def evil_post(subject, text, cookie):
+            return "https://evil.example/topic.php?t=1"
+
+        code, out = desk.d2jsp_send(
+            {"subject": "WTS Grief Phase Blade", "body": "WTS Grief Phase Blade\n30 fg", "forum": 268},
+            "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
+            cookie_get=lambda: ("sid=SECRETCOOKIE", "ok"),
+            open_login=lambda: False, chrome_post=evil_post,
+        )
+        self.assertFalse(out["ok"])
+        self.assertEqual(out["reason"], "not-posted")
+        self.assertNotIn("topic", out)
 
     def test_the_cookie_header_is_only_the_d2jsp_host(self):
         import d2jsp_chrome as desk

@@ -11729,11 +11729,11 @@ function d2jspPriceLine(q) {
         say('The draft was shown again. Nothing was posted.');
         return;
       }
-      closeDraft();
       var host = '';
       try { host = location.hostname; } catch (eH) { host = ''; }
       if (host !== '127.0.0.1' && host !== 'localhost') {
         say('Posting runs from the console on this machine, so nothing was posted.');
+        showReceipt('missed', 'Posting runs from the console on this machine, so nothing was posted.', '');
         return;
       }
       say('Asking Chrome on this machine to post on board 268.');
@@ -11744,33 +11744,34 @@ function d2jspPriceLine(q) {
       }).then(function(r){
         return r.json().then(function(j){ return j || {}; }, function(){ return null; });
       }).then(function(j){
-        if (!j) { say('This console has not loaded the Chrome connection, so nothing was posted.'); return; }
+        if (!j) {
+          say('This console has not loaded the Chrome connection, so nothing was posted.');
+          showReceipt('missed', 'This console has not loaded the Chrome connection, so nothing was posted.', '');
+          return;
+        }
         var reason = j.reason;
         if (j.ok && reason === 'submitted') {
           say('Posted on board 268 through the Chrome login on this machine.');
+          showReceipt('confirmed', 'The board accepted this post. It is on board 268.', j.topic);
           return;
         }
+        var missed = 'The board did not confirm the post, so nothing was posted.';
         if (reason === 'need-login') {
-          say(j.opened
+          missed = j.opened
             ? 'Chrome is not logged into d2jsp. The login page is open in Chrome. Nothing was posted.'
-            : 'Chrome is not logged into d2jsp, so nothing was posted.');
-          return;
+            : 'Chrome is not logged into d2jsp, so nothing was posted.';
+        } else if (reason === 'chrome-unread') {
+          missed = 'This machine could not read the Chrome login, so nothing was posted.';
+        } else if (reason === 'wrong-board') {
+          missed = 'The page is not board 268, so nothing was posted.';
+        } else if (reason === 'no-price') {
+          missed = 'Forum gold is unknown, so this item is not posted.';
         }
-        if (reason === 'chrome-unread') {
-          say('This machine could not read the Chrome login, so nothing was posted.');
-          return;
-        }
-        if (reason === 'wrong-board') {
-          say('The page is not board 268, so nothing was posted.');
-          return;
-        }
-        if (reason === 'no-price') {
-          say('Forum gold is unknown, so this item is not posted.');
-          return;
-        }
-        say('The board did not confirm the post, so nothing was posted.');
+        say(missed);
+        showReceipt('missed', missed, '');
       }).catch(function(){
         say('This console has not loaded the Chrome connection, so nothing was posted.');
+        showReceipt('missed', 'This console has not loaded the Chrome connection, so nothing was posted.', '');
       });
       return;
     }
@@ -11822,6 +11823,21 @@ function d2jspPriceLine(q) {
       + '</div></div>';
     var back = host.querySelector('[data-d2jsp-draft-close]');
     if (back){ try { back.focus(); } catch (eFocus) {} }
+  }
+  function showReceipt(kind, detail, topic){
+    var host = draftHost();
+    var safe = '';
+    if (typeof topic === 'string' && topic.indexOf('https://forums.d2jsp.org/topic.php') === 0) safe = topic;
+    var head = kind === 'confirmed' ? 'Confirmed' : 'Not sent';
+    var link = safe
+      ? '<p class="d2jsp-say">The topic</p><p class="d2jsp-draft-subject"><a href="' + esc(safe) + '" target="_blank" rel="noopener">' + esc(safe) + '</a></p>'
+      : '';
+    host.hidden = false;
+    host.innerHTML = '<div class="d2jsp-draft-box" role="dialog" aria-modal="true" aria-label="' + esc(head) + '">'
+      + '<p class="d2jsp-draft-k" data-d2jsp-receipt>' + esc(head) + '</p>'
+      + '<p class="d2jsp-say">' + esc(detail) + '</p>'
+      + link
+      + '<div class="d2jsp-acts"><button type="button" class="vault-btn" data-d2jsp-draft-close>Back</button></div></div>';
   }
   function closeDraft(){
     var host = document.getElementById('d2jsp-draft-host');
