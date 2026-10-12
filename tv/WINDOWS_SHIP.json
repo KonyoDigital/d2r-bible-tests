@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3691",
+  "ver": "v3692",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3691: a second copy is its own rectangle on the shared stash card, and the count includes it. HEART: test_the_shared_stash_card_draws_each_copy",
+  "note": "v3692: the proof chip counts the cells the total counts. HEART: test_it_counts_the_same_population_the_total_counts",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
