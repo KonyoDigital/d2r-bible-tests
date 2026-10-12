@@ -801,6 +801,33 @@ process.stdout.write(JSON.stringify(OUT));
         self.assertIn("planner: true", opened)
         self.assertNotIn("vaultFile(", opened)
 
+    def test_the_shared_stash_card_draws_each_copy(self):
+        """The locker card draws one rectangle per copy. Shared stash does not stop at three.
+        A mule card does, the same cap the mule window packs."""
+        s = _src()
+        self.assertEqual(s.count("var drawn = _shelfDrawNames(items, m.id);\n"), 1)
+        self.assertEqual(s.count("var itemRows = drawn.map(function(n){\n"), 1)
+        self.assertEqual(s.count("var total = drawn.length + magicItems.length;\n"), 1)
+        block = _cut(s, "  function _shelfCopyCount(n, muleId){\n",
+                     "  try { window._shelfDrawNames = _shelfDrawNames; window._shelfCopyCount = _shelfCopyCount; } catch (e) {}\n")
+        if not NODE:
+            raise AssertionError("node is not on this machine — this law does not skip")
+        prog = (
+            "function copyCount(n){ return n === 'Grief' ? 2 : (n === 'Windforce' ? 5 : 1); }\n"
+            + block
+            + "process.stdout.write(JSON.stringify({\n"
+            "  shared: _shelfDrawNames(['Grief', 'Shako'], 'shared'),\n"
+            "  mule: _shelfDrawNames(['Windforce'], 'uni-weap'),\n"
+            "  one: _shelfDrawNames(['Shako'], 'shared')\n"
+            "}));\n"
+        )
+        p = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=30)
+        self.assertEqual(p.returncode, 0, (p.stderr or p.stdout)[-1500:])
+        o = json.loads(p.stdout)
+        self.assertEqual(o["shared"], ["Grief", "Grief", "Shako"])
+        self.assertEqual(o["mule"], ["Windforce", "Windforce", "Windforce"])
+        self.assertEqual(o["one"], ["Shako"])
+
 
 RED_PROOF = [
     {
@@ -920,6 +947,13 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "    if (id === 'shared') return;\n",
         "replace": "    if (false) return;\n",
+        "matches": 1,
+    },
+    {
+        "why": "the locker card must draw one rectangle per copy; without the list a second Grief stays one picture",
+        "file": "bible.html",
+        "find": "      var drawn = _shelfDrawNames(items, m.id);\n",
+        "replace": "      var drawn = items.slice();\n",
         "matches": 1,
     },
 ]

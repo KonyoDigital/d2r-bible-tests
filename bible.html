@@ -40312,6 +40312,29 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   window._vaultAskProven = _vaultAskProven;
 
+  /* One name filed twice is two rectangles on the locker card. The shared stash does not cap
+     the count. A mule card stops at the same three the mule window packs. */
+  function _shelfCopyCount(n, muleId){
+    var c = 1;
+    try { c = (typeof copyCount === 'function' ? (copyCount(n) || 1) : 1) | 0; } catch (e) { c = 1; }
+    if (!(c > 0)) c = 1;
+    if (muleId !== 'shared'){
+      var cap = 3;
+      try { if (typeof _MULE_COPY_CAP === 'number' && _MULE_COPY_CAP > 0) cap = _MULE_COPY_CAP; } catch (e2) { cap = 3; }
+      if (c > cap) c = cap;
+    }
+    return c;
+  }
+  function _shelfDrawNames(names, muleId){
+    var out = [];
+    (names || []).forEach(function(n){
+      var c = _shelfCopyCount(n, muleId);
+      for (var i = 0; i < c; i++) out.push(n);
+    });
+    return out;
+  }
+  try { window._shelfDrawNames = _shelfDrawNames; window._shelfCopyCount = _shelfCopyCount; } catch (e) {}
+
   function renderVault(){
     var dock=document.getElementById('vault-dock'), shelf=document.getElementById('vault-shelf');
     if (!dock || !shelf) return;
@@ -40551,7 +40574,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // v342.5 — the MAGIC & RARE locker also holds the magicFinds keepers (rolled-name items kept OUT
       // of grail `owned`/`assign`, so they render straight from the magicFinds map, not from byMule).
       var magicItems=(m.id==='magic-rare' && typeof magicFinds==='object' && magicFinds) ? Object.keys(magicFinds).sort() : [];
-      var total=items.length+magicItems.length;
+      var drawn = _shelfDrawNames(items, m.id);
+      var total = drawn.length + magicItems.length;
       /* ══ v2211 — THE GAUGE MEASURES CELLS AND STOPS PRETENDING ONE MULE IS ENOUGH ══════════
          It was `cap = 40` with `Math.min(100, …)`: item COUNT against the INVENTORY alone, then
          clamped. A locker holding 61 and one holding 200 painted the same bar, and the drill-down
@@ -40620,7 +40644,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // and packed into a stash-style grid, like the in-game inventory (Konyo: "1x1 unit cell based
       // … 1x1 1-8x"). Rarity tints the frame; socketed bases show their os-count / 1H-2H badge.
       var SHOWN = 8;
-      var itemRows = items.map(function(n){
+      var itemRows = drawn.map(function(n){
         var cl = (typeof _itemCells === 'function') ? _itemCells(n) : {w:1,h:2};
         var rr = (typeof _artRarity === 'function') ? _artRarity(n) : '';
         var ex = (typeof EXTRA_ITEMS !== 'undefined') ? EXTRA_ITEMS[n] : null;
@@ -40703,10 +40727,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             if (!P) return '';
             var seen = 0;
             /* ⚠ BOTH HALVES, or the chip's denominator is not the one beside it: the
-               header's `total` is items.length + magicItems.length. A numerator over one list
-               under a total over two is the "right number, wrong denominator" shape.
+               header's `total` is one cell per copy, plus the magic keepers. A numerator over
+               names under a total over copies is the "right number, wrong denominator" shape.
                [[zero-needs-a-denominator]] */
-            (items || []).forEach(function(n){ if (P[n]) seen++; });
+            (drawn || []).forEach(function(n){ if (P[n]) seen++; });
             (typeof magicItems !== 'undefined' ? (magicItems || []) : []).forEach(function(n){
               if (P[n]) seen++;
             });
