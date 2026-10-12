@@ -11054,25 +11054,18 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     #tab-d2jsp .d2jsp-art{width:72px;height:72px;flex:0 0 72px}
     #tab-d2jsp .d2jsp-art img{width:72px;height:72px;object-fit:contain}
     #tab-d2jsp .d2jsp-say{color:#e9d07a;font-size:var(--fs-body);line-height:1.45}
-    #tab-d2jsp #d2jsp-bridge-src:not([hidden]){display:block;width:100%;box-sizing:border-box;margin-top:8px;font-family:var(--mono);font-size:var(--fs-body);color:#e9d07a;background:rgba(10,9,7,.55)}
+    #tab-d2jsp input, #tab-d2jsp textarea{display:block;width:100%;box-sizing:border-box;margin-top:6px;font-family:var(--mono);font-size:var(--fs-body);color:#e9d07a;background:rgba(10,9,7,.55);border:1px solid rgba(233,208,122,.4);border-radius:6px}
   </style>
   <div class="boss-card" id="d2jsp-card" style="--tc:#f0c060">
     <div class="boss-header">
       <div class="boss-title-block">
         <p class="boss-name">D2JSP</p>
-        <p class="boss-subtitle" id="d2jsp-what">A tagged vault item posts to the softcore non-ladder board through the d2jsp login already open in this browser. This room never asks for the password. Forum gold stays unknown until a public reading returns a price, and the time of that reading is shown.</p>
+        <p class="boss-subtitle" id="d2jsp-what">A filed vault item posts to the softcore non-ladder board through the Chrome login on this machine. This room never asks for the password. Forum gold stays unknown until a public reading returns a price, and the time of that reading is shown.</p>
       </div>
     </div>
     <div class="boss-body">
       <p class="d2jsp-say" id="d2jsp-board">Board 268, D2:R Softcore Trading, the softcore non-ladder forum.</p>
-      <p class="d2jsp-say">Install the bridge once in the browser that is logged into d2jsp. Post opens that board and the bridge submits the draft.</p>
-      <button type="button" class="vault-btn" id="d2jsp-bridge">Copy the bridge</button>
-      <textarea id="d2jsp-bridge-src" readonly rows="12" hidden aria-label="Bridge userscript"></textarea>
       <p class="d2jsp-say" id="d2jsp-status"></p>
-      <div class="vault-toolbar">
-        <select id="d2jsp-pick" aria-label="Vault item to tag"></select>
-        <button type="button" class="vault-btn vault-btn-primary" id="d2jsp-tag">Tag for trade</button>
-      </div>
       <div id="d2jsp-list"></div>
     </div>
   </div>
@@ -11180,14 +11173,17 @@ function d2jspBridgeSource() {
   }
   function writeTags(list){ var s = store(); if (s) { try { s.setItem('d2r_d2jsp_tags', JSON.stringify(list)); } catch (e) {} } }
   function names(){
-    var out = [];
+    var raw = null;
     try {
-      if (typeof assign === 'object' && assign) {
-        Object.keys(assign).forEach(function(n){ if (assign[n]) out.push(n); });
-      }
-    } catch (e) {}
-    out.sort();
-    return out;
+      if (!window.LSR || !window.LSR.getItem) return null;
+      raw = window.LSR.getItem('d2r_muleAssign');
+    } catch (e) { return null; }
+    if (raw == null || raw === '') return [];
+    try {
+      var a = JSON.parse(raw);
+      if (!a || typeof a !== 'object' || Array.isArray(a)) return null;
+      return Object.keys(a).filter(function(n){ return a[n] != null && a[n] !== ''; }).sort();
+    } catch (e2) { return null; }
   }
   function esc(s){
     return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
@@ -11243,13 +11239,17 @@ function d2jspBridgeSource() {
   }
   function paint(){
     var list = document.getElementById('d2jsp-list');
-    var pick = document.getElementById('d2jsp-pick');
-    if (!list || !pick) return;
-    var have = tags();
+    if (!list) return;
     var vault = names();
-    var rest = vault.filter(function(n){ return have.indexOf(n) < 0; });
-    pick.innerHTML = rest.map(function(n){ return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('');
-    list.innerHTML = have.map(function(n){
+    if (vault == null) {
+      list.innerHTML = '<p class="d2jsp-say">The vault would not read, so this list stays empty.</p>';
+      return;
+    }
+    if (!vault.length) {
+      list.innerHTML = '<p class="d2jsp-say">Nothing is filed in the vault yet.</p>';
+      return;
+    }
+    list.innerHTML = '<p class="d2jsp-say">' + vault.length + ' filed in the vault.</p>' + vault.map(function(n){
       var q = quoted[n] || {};
       var priceLine = 'Public price unknown.';
       if (q.reason === 'read' && q.fg > 0) priceLine = 'Public middle ' + q.fg + ' fg from ' + q.n + ' prices, read ' + (q.readAt || '');
@@ -11262,65 +11262,75 @@ function d2jspBridgeSource() {
         + '<div class="d2jsp-say">' + esc(baseOf(n) || 'Base not recorded') + '</div>'
         + '<div class="d2jsp-say">' + esc(priceLine) + '</div>'
         + '<label class="d2jsp-say">Mods <textarea data-d2jsp-mods="' + esc(n) + '" rows="3">' + esc(modsOf(n)) + '</textarea></label>'
-        + '<label class="d2jsp-say">Your fg <input data-d2jsp-fg="' + esc(n) + '" value="' + esc(typedOf(n)) + '" inputmode="decimal" aria-label="Forum gold for this item"></label>'
+        + '<label class="d2jsp-say">Your fg <input data-d2jsp-fg="' + esc(n) + '" value="' + esc(typedOf(n)) + '" inputmode="decimal" autocomplete="off" aria-label="Forum gold for this item"></label>'
         + '<div class="vault-toolbar">'
+        + '<button type="button" class="vault-btn" data-d2jsp-read="' + esc(n) + '">Read the public price</button>'
         + '<button type="button" class="vault-btn vault-btn-primary" data-d2jsp-post="' + esc(n) + '"' + (send == null ? ' disabled' : '') + '>Post</button>'
-        + '<button type="button" class="vault-btn" data-d2jsp-untag="' + esc(n) + '">Untag</button>'
         + '</div></div></div>';
     }).join('');
   }
   window._d2jspShow = function(){
     paint();
-    tags().forEach(function(n){ if (!quoted[n]) ask(n); });
   };
   document.addEventListener('click', function(ev){
     var t = ev.target;
     if (!t || !t.closest || !t.closest('#tab-d2jsp')) return;
-    if (t.id === 'd2jsp-bridge') {
-      ev.preventDefault();
-      ev.stopPropagation();
-      var src = d2jspBridgeSource();
-      var box = document.getElementById('d2jsp-bridge-src');
-      if (box) {
-        box.hidden = false;
-        box.value = src;
-        try { box.focus(); box.select(); } catch (e0) {}
-      }
-      var told = 'This window cannot save the file. The script is below. Paste it into a new userscript in the browser that is logged into d2jsp.';
-      try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(src).then(function(){ say('Copied. ' + told); }, function(){ say(told); });
-          return;
-        }
-      } catch (e1) {}
-      say(told);
-      return;
-    }
-    if (t.id === 'd2jsp-tag') {
-      var pick = document.getElementById('d2jsp-pick');
-      var name = pick && pick.value;
-      if (!name) { say('No vault item is waiting to tag.'); return; }
-      var list = tags();
-      if (list.indexOf(name) < 0) list.push(name);
-      writeTags(list);
-      ask(name);
-      paint();
+    var read = t.getAttribute && t.getAttribute('data-d2jsp-read');
+    if (read) {
+      ask(read);
+      say('Reading the public price.');
       return;
     }
     var post = t.getAttribute && t.getAttribute('data-d2jsp-post');
     if (post) {
+      ev.preventDefault();
       var q = quoted[post] || {};
       var fg = d2jspPriceToSend(q.fg, typedOf(post));
       var draft = d2jspDraft(post, baseOf(post), modsOf(post), copiesOf(post), fg);
       if (!draft.ok) { say('Forum gold is unknown, so this item is not posted.'); return; }
-      window.open(d2jspPostUrl(draft), 'd2jsp-post');
-      say('The trade board is open. The bridge submits the draft only when that browser is logged into d2jsp.');
+      var host = '';
+      try { host = location.hostname; } catch (eH) { host = ''; }
+      if (host !== '127.0.0.1' && host !== 'localhost') {
+        say('Posting runs from the console on this machine, so nothing was posted.');
+        return;
+      }
+      say('Asking Chrome on this machine to post on board 268.');
+      fetch('/api/d2jsp_send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subject: draft.subject, body: draft.body, forum: draft.forum })
+      }).then(function(r){
+        return r.json().then(function(j){ return j || {}; }, function(){ return null; });
+      }).then(function(j){
+        if (!j) { say('This console has not loaded the Chrome connection, so nothing was posted.'); return; }
+        var reason = j.reason;
+        if (j.ok && reason === 'submitted') {
+          say('Posted on board 268 through the Chrome login on this machine.');
+          return;
+        }
+        if (reason === 'need-login') {
+          say(j.opened
+            ? 'Chrome is not logged into d2jsp. The login page is open in Chrome. Nothing was posted.'
+            : 'Chrome is not logged into d2jsp, so nothing was posted.');
+          return;
+        }
+        if (reason === 'chrome-unread') {
+          say('This machine could not read the Chrome login, so nothing was posted.');
+          return;
+        }
+        if (reason === 'wrong-board') {
+          say('The page is not board 268, so nothing was posted.');
+          return;
+        }
+        if (reason === 'no-price') {
+          say('Forum gold is unknown, so this item is not posted.');
+          return;
+        }
+        say('The board did not confirm the post, so nothing was posted.');
+      }).catch(function(){
+        say('This console has not loaded the Chrome connection, so nothing was posted.');
+      });
       return;
-    }
-    var un = t.getAttribute && t.getAttribute('data-d2jsp-untag');
-    if (un) {
-      writeTags(tags().filter(function(n){ return n !== un; }));
-      paint();
     }
   });
   document.addEventListener('input', function(ev){

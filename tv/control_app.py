@@ -46236,6 +46236,15 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 body = {}
 
+        if path == "/api/d2jsp_send":
+            # The D2JSP desk posts one priced draft through the Chrome login on
+            # this machine. The answer is a status word. The draft and the cookie
+            # stay out of the presence beacon and out of this response.
+            import d2jsp_chrome as _d2jsp
+            _code, _out = _d2jsp.d2jsp_send(
+                body, self.headers.get("Origin"), self.headers.get("Host"), CONTROL_PORT)
+            self._json(_code, _out)
+            return
         if path == "/api/roster-book":
             # The board on this PC hands its builds here. The roster route publishes
             # them. The presence beacon does not.

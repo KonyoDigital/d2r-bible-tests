@@ -514,6 +514,18 @@
     "purpose": "Reads a D2R character save (.d2s, format 105) byte-exact: header (name, class, level, last played), the stats block by name, the 30 skill bytes, every item with location/slot/panel/x/y, code, name, quality, unique/set/runeword names, sockets and socketed children, ethereal, ilvl, defense, durability and properties as [{stat, param, value}], plus merc/golem presence and a verify block (bytesConsumed, endsOnCorpseTag, itemCount, stoppedAt).",
     "territory": "vault"
   },
+  "d2jsp_chrome.py": {
+    "entryPoints": [
+      "d2jsp_send",
+      "parse_compose",
+      "cookie_header_from_rows",
+      "decrypt_v10",
+      "console_may_post"
+    ],
+    "gotcha": "A post is submitted only when board 268 redirects onto topic.php. A 200 page, a missing login, and a cookie that will not open are status words, never a claimed send. The cookie header is built only from hosts that are d2jsp.org. It is not stored, logged, or put in the response. The keychain is read only when this route runs, and only on the Mac Chrome store. Windows and a page that is not this console return without posting. The desk joins it at POST /api/d2jsp_send.",
+    "purpose": "Posts one priced D2JSP draft to board 268 through the Chrome login already on this machine, and says so only when the board redirects to the topic.",
+    "territory": "vault"
+  },
   "dead_field.py": {
     "entryPoints": [
       "state",
