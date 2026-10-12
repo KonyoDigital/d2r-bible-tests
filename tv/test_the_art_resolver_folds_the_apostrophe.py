@@ -160,6 +160,154 @@ class TheArtResolverFoldsTheApostrophe(unittest.TestCase):
 
 
 
+class ARolledKeeperWearsItsRecordedBase(unittest.TestCase):
+    """The vault cell asked artOr for the rolled name. That name is not an art key, so the cell
+    painted the missing-art mark. The picture of a magic, rare, crafted or plain item is its
+    recorded base. A unique or a set is not handed a base picture."""
+
+    def _paint(self, names, finds, extras):
+        i = BIBLE.find("function artOr(name, fallbackHtml, size){")
+        j = BIBLE.find("window.artOr = artOr;", i)
+        if i < 0 or j < 0 or j < i:
+            raise AssertionError("artOr is gone from bible.html")
+        body = BIBLE[i:j]
+        if "function artUrl" in body:
+            raise AssertionError("the artOr slice includes artUrl, so a stub of artUrl would be overwritten")
+        js = (
+            "var magicFinds = %s;\nvar EXTRA_ITEMS = %s;\n"
+            "var ART = {'Grand Charm':'art/hd_charm_large.png','Small Charm':'art/hd_charm_small.png',"
+            "'Falchion':'art/hd_falchion.png','Circlet':'art/hd_circlet.png','Flail':'art/hd_flail.png',"
+            "'Shako':'art/hd_shako.png'};\n"
+            "function artUrl(name){ return Object.prototype.hasOwnProperty.call(ART, name) ? ART[name] : null; }\n"
+            "function _artSlotClean(n){ return String(n == null ? '' : n).replace(/\\s*\\([^)]*\\)\\s*$/, '').trim(); }\n"
+            "function _artRarity(){ return ''; }\n"
+            "function _d2artEsc(s){ return String(s); }\n"
+            "%s\n"
+            "var out = {};\n"
+            "(%s).forEach(function(n){ out[n] = artOr(n, '\\u25c6', 'sm'); });\n"
+            "console.log(JSON.stringify(out));\n"
+        ) % (json.dumps(finds), json.dumps(extras), body, json.dumps(names))
+        p = os.path.join(os.environ.get("TMPDIR", "/tmp"), "art_or_base_probe.js")
+        io.open(p, "w", encoding="utf-8").write(js)
+        try:
+            r = subprocess.run(["node", p], capture_output=True, text=True, timeout=30)
+        except FileNotFoundError:
+            return None
+        if r.returncode != 0:
+            raise AssertionError("the shipped artOr would not run: %s" % (r.stderr or "")[-500:])
+        return json.loads((r.stdout or "").strip().split("\n")[-1])
+
+    def test_a_recorded_base_paints_its_hd_sprite(self):
+        finds = {
+            "Keeper Grand Charm": {"q": "magic", "base": "Grand Charm"},
+            "Keeper Small Charm": {"q": "magic", "base": "Small Charm"},
+            "Keeper Falchion": {"q": "rare", "base": "Falchion"},
+            "Keeper Circlet": {"q": "rare", "base": "Circlet"},
+        }
+        got = self._paint(list(finds), finds, {})
+        if got is None:
+            self.skipTest("node unavailable — a skip is NOT a pass")
+        expect = {
+            "Keeper Grand Charm": "art/hd_charm_large.png",
+            "Keeper Small Charm": "art/hd_charm_small.png",
+            "Keeper Falchion": "art/hd_falchion.png",
+            "Keeper Circlet": "art/hd_circlet.png",
+        }
+        for name, src in expect.items():
+            self.assertIn('src="%s"' % src, got[name], "%s did not paint %s: %s" % (name, src, got[name]))
+            self.assertNotIn('d2art-wrap sm d2art-failed', got[name])
+            self.assertNotIn("logo_charm", got[name])
+            self.assertNotIn("base_circlet", got[name])
+            self.assertNotIn("base_crystalsword", got[name])
+
+    def test_a_catalogue_magic_row_paints_its_base(self):
+        extras = {"Small Charm of Vita (20 Life)": {"rarity": "magic", "base": "Small Charm"}}
+        got = self._paint(["Small Charm of Vita (20 Life)"], {}, extras)
+        if got is None:
+            self.skipTest("node unavailable — a skip is NOT a pass")
+        html = got["Small Charm of Vita (20 Life)"]
+        self.assertIn('src="art/hd_charm_small.png"', html, html)
+        self.assertNotIn('d2art-wrap sm d2art-failed', html)
+
+    def test_a_unique_with_no_picture_is_not_given_its_base(self):
+        extras = {"The Scourge": {"rarity": "unique", "base": "Flail"}}
+        finds = {"The Scourge": {"q": "unique", "base": "Flail"}}
+        got = self._paint(["The Scourge"], finds, extras)
+        if got is None:
+            self.skipTest("node unavailable — a skip is NOT a pass")
+        html = got["The Scourge"]
+        self.assertIn("d2art-failed", html, html)
+        self.assertNotIn("flail", html.lower())
+        self.assertNotIn("src=", html)
+
+    def test_a_name_that_already_has_art_is_not_replaced_by_its_base(self):
+        finds = {"Shako": {"q": "magic", "base": "Grand Charm"}}
+        got = self._paint(["Shako"], finds, {})
+        if got is None:
+            self.skipTest("node unavailable — a skip is NOT a pass")
+        html = got["Shako"]
+        self.assertIn('src="art/hd_shako.png"', html, html)
+        self.assertNotIn("hd_charm_large", html)
+
+    def test_a_base_that_is_not_an_art_key_stays_unmarked(self):
+        finds = {"Odd Keeper": {"q": "rare", "base": "Not A Base"}}
+        got = self._paint(["Odd Keeper"], finds, {})
+        if got is None:
+            self.skipTest("node unavailable — a skip is NOT a pass")
+        html = got["Odd Keeper"]
+        self.assertIn("d2art-failed", html, html)
+        self.assertNotIn("src=", html)
+
+    def test_the_bases_the_vault_asks_for_are_the_hd_files(self):
+        """artOr asks artUrl. These are the pictures artUrl returns for those bases once the
+        later HD assign has run, and the files are on disk."""
+        i = BIBLE.find("const D2IO_ART = {")
+        j = BIBLE.find("window.artUrl = artUrl;")
+        hd = BIBLE.find('try { Object.assign(D2IO_ART, {"Aegis":')
+        if i < 0 or j < 0 or hd < 0:
+            raise AssertionError("the art table, artUrl, or the HD assign moved")
+        hd_line = BIBLE[hd:BIBLE.find("\n", hd)]
+        charm = BIBLE.find("D2IO_ART['Small Charm'] = 'art/hd_charm_small.png';")
+        grand = BIBLE.find("D2IO_ART['Grand Charm'] = 'art/hd_charm_large.png';", charm)
+        if charm < 0 or grand < 0:
+            raise AssertionError("the charm base assigns moved")
+        charm_block = BIBLE[charm:BIBLE.find("\n", grand)]
+        js = ("var window = {};\n" + BIBLE[i:j] + "\n" + hd_line + "\n" + charm_block
+              + "\nconsole.log(JSON.stringify({c:artUrl('Circlet'),f:artUrl('Falchion'),"
+              "g:artUrl('Grand Charm'),s:artUrl('Small Charm'),t:artUrl('The Scourge')||null}));")
+        p = os.path.join(os.environ.get("TMPDIR", "/tmp"), "art_url_base_probe.js")
+        io.open(p, "w", encoding="utf-8").write(js)
+        try:
+            r = subprocess.run(["node", p], capture_output=True, text=True, timeout=90)
+        except FileNotFoundError:
+            self.skipTest("node unavailable — a skip is NOT a pass")
+        if r.returncode != 0:
+            raise AssertionError("the shipped art table would not run: %s" % (r.stderr or "")[-500:])
+        got = json.loads((r.stdout or "").strip().split("\n")[-1])
+        expect = {
+            "c": "art/hd_circlet.png",
+            "f": "art/hd_falchion.png",
+            "g": "art/hd_charm_large.png",
+            "s": "art/hd_charm_small.png",
+        }
+        for key, src in expect.items():
+            self.assertEqual(src, got.get(key), "%s resolved to %r" % (key, got.get(key)))
+            self.assertTrue(os.path.isfile(os.path.join(REPO, src)), src + " is not on disk")
+        self.assertIsNone(got.get("t"), "The Scourge resolved to %r" % got.get("t"))
+
+    def test_the_vault_card_and_the_locker_ask_artOr(self):
+        i = BIBLE.find("function _magicFindCardHtml(name){")
+        card = BIBLE[i:i + 700]
+        self.assertIn("artOr(name, '◆', 'lg')", card)
+        self.assertNotIn("_magicArtSrc(base || name)", card)
+        self.assertNotIn("_magicArtSrc(base||n)", BIBLE)
+        tip = BIBLE.find("artUrl(nm) || artUrl(r.artName)")
+        self.assertGreater(tip, 0)
+        window = BIBLE[tip:tip + 450]
+        self.assertLess(window.find("artOr(nm"), window.find("r.artSrc"),
+                        "the hover still prefers the old keyword sprite over artOr")
+
+
 # ══ THE EXECUTABLE RED-PROOF ═════════════════════════════════════════════════
 # PROPOSED by tv/heart2_candidates.py — derived from this gate's OWN assertions and
 # measured against the target file (each anchor occurs exactly once). Review it: the
@@ -177,6 +325,13 @@ RED_PROOF = [
         "file": 'bible.html',
         "find": 'function artUrl(name){',
         "replace": '_HEART2_TAMPERED_',
+        "matches": 1,
+    },
+    {
+        "why": 'disabling the recorded-base assign leaves a rolled keeper on the missing-art mark',
+        "file": 'bible.html',
+        "find": 'if (_bu) u = _bu;',
+        "replace": 'if (false) u = _bu;',
         "matches": 1,
     },
 ]

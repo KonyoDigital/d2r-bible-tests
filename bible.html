@@ -13078,8 +13078,7 @@ function _magicFindCardHtml(name){
   var q = (typeof _mfQual === 'function') ? _mfQual(name) : 'magic';
   var base = (typeof _mfBase === 'function') ? _mfBase(name) : '';
   var col = q === 'rare' ? 'var(--q-rare)' : (q === 'crafted' ? 'var(--q-orange)' : 'var(--q-magic)');
-  var src = (typeof _magicArtSrc === 'function') ? _magicArtSrc(base || name) : null;
-  var artHtml = src ? '<span class="d2art-wrap lg" role="img" aria-label="'+_d2artEsc(name)+'"><img class="d2art-img" src="'+src+'" alt=""></span>'
+  var artHtml = (typeof artOr === 'function') ? artOr(name, '◆', 'lg')
     : '<span style="font-size:34px;line-height:1;color:'+col+';text-shadow:0 0 10px currentColor">◆</span>';
   var blurb = q === 'magic' ? 'A <b>magic</b> item — 1–2 rolled affixes. Keep it for the affix(es) + any open sockets (gemming).'
     : q === 'crafted' ? 'A <b>crafted</b> item — guaranteed mods + rolled affixes. Judge it by the mods on the actual item.'
@@ -18836,6 +18835,30 @@ function artOr(name, fallbackHtml, size){
   var _raw = artUrl(name);
   var _cu = artUrl(_clean) || artUrl(_cleanP);
   var u = (_raw && /\/base_/.test(_raw) && _cu && !/\/base_/.test(_cu)) ? _cu : (_raw || _cu);
+  /* A magic, rare, crafted or plain item is drawn as its base. The rolled name is not an art key,
+     which is why a vault cell of one painted the missing-art mark. The base is the one the keeper
+     recorded, or the catalogue row — never a word guessed out of the name. A unique or a set is
+     not given a base picture: when its own picture is missing, the mark stays. */
+  if (!u){
+    var _rolledBase = '';
+    var _keeper = (typeof magicFinds !== 'undefined' && magicFinds) ? magicFinds[name] : null;
+    var _keeperBlocks = false;
+    if (_keeper && typeof _keeper === 'object'){
+      var _kq = String(_keeper.q || 'magic').toLowerCase();
+      if (_kq === 'unique' || _kq === 'set') _keeperBlocks = true;
+      else if (_keeper.base && (_kq === 'magic' || _kq === 'rare' || _kq === 'crafted' || _kq === 'basic')) _rolledBase = String(_keeper.base);
+    }
+    if (!_rolledBase && !_keeperBlocks && typeof EXTRA_ITEMS !== 'undefined' && EXTRA_ITEMS && EXTRA_ITEMS[name]){
+      var _ex = EXTRA_ITEMS[name];
+      var _er = String((_ex && _ex.rarity) || '').toLowerCase();
+      var _eb = (_ex && _ex.base) ? String(_ex.base) : '';
+      if (_eb && _eb !== String(name) && (_er === 'magic' || _er === 'rare' || _er === 'crafted' || _er === 'basic')) _rolledBase = _eb;
+    }
+    if (_rolledBase && _rolledBase !== String(name) && _rolledBase !== _clean && _rolledBase !== _cleanP){
+      var _bu = artUrl(_rolledBase);
+      if (_bu) u = _bu;
+    }
+  }
   var _rc = _artRarity(name); var _rcls = _rc ? ' d2art-r-' + _rc : '';
   if (!u) return `<span class="d2art-wrap ${size||'lg'}${_rcls} d2art-failed" role="img" aria-label="${_d2artEsc(name)}"><span class="d2art-fallback">${fallbackHtml||''}</span></span>`;
   // alt="" → the art is decorative (the item name is always rendered adjacent); this stops
@@ -31364,7 +31387,11 @@ window._jewelTipHtml = _jewelTipHtml;
       // wears the host base's sprite, so a Strength chip on a Scissors Katar card shows the claw.
       var _ctx = el.getAttribute && el.getAttribute('data-arttip-ctx');
       var url = (typeof artUrl==='function') ? ((_ctx && artUrl(_ctx)) || artUrl(nm) || artUrl(r.artName)) : '';
-      if (!url && r.artSrc) url = r.artSrc;   // v345 — rolled-name keeper base sprite
+      if (!url && typeof artOr === 'function'){
+        var _om = /src="([^"]+)"/.exec(artOr(nm, '', 'sm') || '');
+        if (_om) url = _om[1];
+      }
+      if (!url && r.artSrc) url = r.artSrc;   // v345 — last resort, only when the recorded base has no sprite
       if (!url && !r.desc) return;
       cur = el; _artHold(el);
       img.src = url || ''; img.style.display = url ? '' : 'none';
@@ -40527,16 +40554,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           + _lockTag
           + '<button class="vm-unassign vm-cell-x" onclick="event.stopPropagation();window.vaultUnassign(\'' + jsArg(n) + '\', { unlock: !!event.shiftKey })" title="' + esc(_xTitle) + '">✕</button></div>';
       });
-      // v342.5 — append the Magic & Rare keepers as their own coloured cells (no art/openDrop — they're
-      // rolled-name items with no grail card; ✕ here = throw-out from magicFinds).
+      // v342.5 — append the Magic & Rare keepers as their own coloured cells. The picture is art(),
+      // which asks artOr for the recorded base. ✕ here = throw-out from magicFinds.
       if (magicItems.length){
         var _mqcol={magic:'var(--q-magic)',rare:'var(--q-rare)',crafted:'var(--q-orange)'};
         itemRows = itemRows.concat(magicItems.map(function(n){
           var q=_mfQual(n), col=_mqcol[q]||_mqcol.magic, base=_mfBase(n);
-          var src=(typeof _magicArtSrc==='function')?_magicArtSrc(base||n):null;
-          var artHtml = src
-            ? '<span class="vm-cell-art d2art-wrap lg d2art-r-'+(q==='magic'?'magic':q==='rare'?'rare':'rw')+'" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+src+'" alt="" loading="lazy"></span>'
-            : '<span class="vm-cell-art vmc-gemfallback" style="color:'+col+'">◆</span>';
+          var artHtml = '<span class="vm-cell-art">' + ((typeof art === 'function') ? art(n, '◆', 'lg') : '<span class="vmc-gemfallback" style="color:'+col+'">◆</span>') + '</span>';
           return '<div class="vm-cell vmc-magicfind" style="grid-column:span 2;grid-row:span 1;border-color:'+col+';cursor:pointer" data-magic-find="'+esc(n)+'" data-arttip="'+esc(n)+'" title="'+esc(n)+(base?' · '+esc(base):'')+' ('+q+')" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'
             + artHtml
             + '<span class="vm-item-name vm-cell-name" data-arttip="'+esc(n)+'" style="color:'+col+'">'+esc(n)+'</span>'
