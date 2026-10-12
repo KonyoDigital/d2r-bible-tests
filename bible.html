@@ -31498,7 +31498,16 @@ window._jewelTipHtml = _jewelTipHtml;
     try { window.ARTTIP_SEL = ARTTIP_SEL; } catch(e){}
     // v169 fix: a click can re-render / hide the hovered element, leaving the tip
     // orphaned and chasing the cursor. A click dismisses it outright.
-    document.addEventListener('click', function(){ if (cur){ cur=null; tip.classList.remove('on'); } }, true);
+    // A vault item is the exception: the click keeps the floating card and stays on the vault.
+    // A button inside the item (throw-out, unlock) still dismisses, and a database tile still opens its editor.
+    document.addEventListener('click', function(e){
+      var t = e.target;
+      if (t && t.closest){
+        var chip = t.closest('.vd-item, .vm-cell, .vrg-row, .vmk-name, .to-name, .vj-chip');
+        if (chip && !chip.classList.contains('vd-db') && !t.closest('button, a, input, textarea, select')) return;
+      }
+      if (cur){ cur=null; tip.classList.remove('on'); }
+    }, true);
     /* ══ v2109 — THE PROSE LANE, PURELY ADDITIVE ═══════════════════════════════════════════════
        Not one line of the driver above changes. It is scarred code (v654's compact-anchor rule,
        v171's orphan-scroll fix, v441's orb mirror) and the native `title=` box is a separate
@@ -39492,7 +39501,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var rows=names.map(function(n){
       var have=copyCount(n), want=multiKeep[n], s=(typeof _qStyle==='function'?_qStyle(n,'unique'):'');
       return '<div class="vmk-row" data-mk="'+esc(n)+'">'+art(n)
-        +'<span class="vmk-name" data-arttip="'+esc(n)+'"'+s+' onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+esc(n)+'</span>'
+        +'<span class="vmk-name" data-arttip="'+esc(n)+'"'+s+'>'+esc(n)+'</span>'
         +'<span class="vmk-grp"><span class="vmk-grp-lbl">have</span><button class="vmk-step" aria-label="one fewer copy of '+_d2artEsc(n)+' owned" onclick="window.vaultCopyAdjust(\''+jsArg(n)+'\',-1)"'+(have<=0?' disabled':'')+'>−</button><span class="vmk-num'+(have>=want?' vmk-have-full':'')+'">'+have+'</span><button class="vmk-step" aria-label="one more copy of '+_d2artEsc(n)+' owned" onclick="window.vaultCopyAdjust(\''+jsArg(n)+'\',1)"'+(have>=want?' disabled':'')+'>+</button></span>'
         +'<span class="vmk-grp"><span class="vmk-grp-lbl">want</span><button class="vmk-step" aria-label="want one fewer '+_d2artEsc(n)+'" onclick="window.vaultTargetBump(\''+jsArg(n)+'\',-1)">−</button><span class="vmk-num">'+want+'</span><button class="vmk-step" aria-label="want one more '+_d2artEsc(n)+'" onclick="window.vaultTargetBump(\''+jsArg(n)+'\',1)">+</button></span>'
         +'<button class="vmk-rm" onclick="window.vaultMultiKeepRemove(\''+jsArg(n)+'\')" title="remove from multi-copy keepers (back to single)">✕</button></div>';
@@ -39554,7 +39563,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // v351 — trade-value tier badge (maxroll/DarkHumility): instantly see if an owned item is High … Trash.
       var _vt=(typeof _itemValue==='function')?_itemValue(n):'';
       var _vb=_vt?'<span class="vrg-val vrg-val-'+_vt+'" title="trade value: '+((_VAL_LABEL&&_VAL_LABEL[_vt])||_vt)+' (maxroll tier list)">'+((_VAL_LABEL&&_VAL_LABEL[_vt])||_vt)+'</span>':'';
-      return '<div class="vrg-row" data-vault-item="'+esc(n)+'" data-arttip="'+esc(n)+'" style="cursor:pointer" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+art(n)
+      return '<div class="vrg-row" data-vault-item="'+esc(n)+'" data-arttip="'+esc(n)+'" style="cursor:pointer">'+art(n)
         +'<span class="vrg-name"'+s+'>'+esc(n)+'</span>'+_badge+_vb+tag
         +'<button class="vrg-rcpt" data-rcpt="'+esc(n)+'" title="why is this here? — show the frame that witnessed it">\u25c9</button>'
         +'<button class="vrg-x" onclick="event.stopPropagation();window.vaultUnown(\''+jsArg(n)+'\')" title="throw out — remove from ✓ owned (AI misread / junk)">✕</button></div>';
@@ -39672,7 +39681,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if(findNames.length) cols.push(_col('vrg-gh-magic','🔮 Magic &amp; Rare',findNames.length, findNames.map(function(n){
         var q=_mfQual(n), col=_qcol[q]||_qcol.magic, _src=(typeof _magicArtSrc==='function')?_magicArtSrc(_mfBase(n)||n):null;
         var _icon=_src?'<span class="d2art-wrap sm" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+_src+'" alt="" loading="lazy"></span>':'<span class="vrg-mdot" style="background:'+col+'"></span>';
-        return '<div class="vrg-row" data-magic-find="'+esc(n)+'" data-arttip="'+esc(n)+'" style="cursor:pointer" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+_icon
+        return '<div class="vrg-row" data-magic-find="'+esc(n)+'" data-arttip="'+esc(n)+'" style="cursor:pointer">'+_icon
           +'<span class="vrg-name" style="color:'+col+'" data-arttip="'+esc(n)+'">'+esc(n)+'</span>'
           +'<span class="vrg-tag" style="color:'+col+'">'+q+'</span>'
           +'<button class="vrg-x" onclick="event.stopPropagation();window.vaultThrowFind(\''+jsArg(n)+'\')" title="throw out — remove from Magic &amp; Rare">✕</button></div>';
@@ -39684,9 +39693,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var _clean=String(n).replace(/\s*\((?:[?\d]+os\s+)?low base\)\s*$/i,'').replace(/\s*\((?:rare|magic|crafted)\)\s*$/i,'').trim();
         var _src=(typeof artUrl==='function'?artUrl(_clean):'')||(typeof _magicArtSrc==='function'?_magicArtSrc(_clean):'')||'';
         var _icon=_src?'<span class="d2art-wrap sm" role="img" aria-label="'+esc(_clean)+'"><img class="d2art-img" src="'+_src+'" alt="" loading="lazy"></span>':'<span class="vrg-mdot" style="background:#9aa6b2"></span>';
-        // v349 — data-arttip uses the FULL name (resolves to the rich throw-out card); whole row is
-        // clickable → opens the review card, like every other section.
-        return '<div class="vrg-row" data-unknown-read="'+esc(n)+'" data-arttip="'+esc(n)+'" title="'+esc(n)+'" style="cursor:pointer" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+_icon
+        // v349 — data-arttip uses the FULL name. The row keeps the floating card. It does not leave the vault.
+        return '<div class="vrg-row" data-unknown-read="'+esc(n)+'" data-arttip="'+esc(n)+'" title="'+esc(n)+'" style="cursor:pointer">'+_icon
           +'<span class="vrg-name" style="color:#aeb8c4" data-arttip="'+esc(n)+'">'+esc(n)+'</span>'
           +'<button class="vrg-keep" onclick="event.stopPropagation();window.vaultKeepUnknown(\''+jsArg(n)+'\')" title="keep — move to 🔮 Magic &amp; Rare">🔮</button>'
           +'<button class="vrg-x" onclick="event.stopPropagation();window.vaultDismissUnknown(\''+jsArg(n)+'\')" title="dismiss — discard this read">✕</button></div>';
@@ -39898,7 +39906,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return '<div class="to-card">'
         + shotH
         + '<div class="to-body">'
-        +   '<div class="to-top">'+artH+'<span class="to-name" data-arttip="'+esc(n)+'" style="cursor:pointer" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+nm+'</span>'+(sock?'<span class="to-sock">🔩 '+sock[1]+'os</span>':'')+((typeof copyCount==='function'&&copyCount(n)>1)?'<span class="to-sock" style="border-color:rgba(240,192,96,.5);color:#f0c060" title="you have '+copyCount(n)+' of these — separate screenshots, each a distinct item">×'+copyCount(n)+'</span>':'')+'</div>'
+        +   '<div class="to-top">'+artH+'<span class="to-name" data-arttip="'+esc(n)+'" style="cursor:pointer">'+nm+'</span>'+(sock?'<span class="to-sock">🔩 '+sock[1]+'os</span>':'')+((typeof copyCount==='function'&&copyCount(n)>1)?'<span class="to-sock" style="border-color:rgba(240,192,96,.5);color:#f0c060" title="you have '+copyCount(n)+' of these — separate screenshots, each a distinct item">×'+copyCount(n)+'</span>':'')+'</div>'
         +   '<div class="to-why">'+why+'</div>'+rwl+_setter
         +   '<div class="to-acts"><button class="vrg-keep" onclick="window.vaultKeepUnknown(\''+jsArg(n)+'\')" title="keep — move to 🔮 Magic &amp; Rare">🔮 keep</button>'
         +     '<button class="vrg-x" onclick="window.vaultDismissUnknown(\''+jsArg(n)+'\')" title="dismiss — discard this read">✕ dismiss</button></div>'
@@ -39997,7 +40005,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return '<div class="to-card">'
         + shotH
         + '<div class="to-body">'
-        +   '<div class="to-top">'+artH+'<span class="to-name" data-arttip="'+esc(n)+'" style="cursor:pointer" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'+nm+'</span>'+sockBadge+ethBadge+muleTag+((typeof copyCount==='function'&&copyCount(n)>1)?'<span class="to-sock" style="border-color:rgba(240,192,96,.5);color:#f0c060" title="you have '+copyCount(n)+' of these">×'+copyCount(n)+'</span>':'')+'</div>'
+        +   '<div class="to-top">'+artH+'<span class="to-name" data-arttip="'+esc(n)+'" style="cursor:pointer">'+nm+'</span>'+sockBadge+ethBadge+muleTag+((typeof copyCount==='function'&&copyCount(n)>1)?'<span class="to-sock" style="border-color:rgba(240,192,96,.5);color:#f0c060" title="you have '+copyCount(n)+' of these">×'+copyCount(n)+'</span>':'')+'</div>'
         +   tierH+'<div class="to-why">'+why+'</div>'+rwl+fixRow
         + '</div></div>';
     };
@@ -40639,8 +40647,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          A flag nobody consults is not honesty, it is a comment. [[the-unjoined-end]] */
         return '<div class="vm-cell' + (rr ? ' vmc-' + rr : '') + (cl.approx ? ' vmc-approx' : '') + _lockCls + '" style="grid-column:span ' + cl.w + ';grid-row:span ' + cl.h + '"'
           + ' data-vault-item="' + esc(n) + '" data-arttip="' + esc(n) + '" title="' + esc(n) + (_cc>1?' ×'+_cc:'')
-          + (cl.approx ? ' — size not established: no footprint rule matches this base, so it is drawn at the default 1x2. Set names (\'Tal Rasha set (any piece)\') are not items and have no single size.' : ' — ' + cl.w + '×' + cl.h + ' = ' + (cl.w*cl.h) + ' cell' + (cl.w*cl.h===1?'':'s')) + '"'
-          + ' onclick="window.openDrop&&window.openDrop(\'' + jsArg(n) + '\')">'
+          + (cl.approx ? ' — size not established: no footprint rule matches this base, so it is drawn at the default 1x2. Set names (\'Tal Rasha set (any piece)\') are not items and have no single size.' : ' — ' + cl.w + '×' + cl.h + ' = ' + (cl.w*cl.h) + ' cell' + (cl.w*cl.h===1?'':'s')) + '">'
           + '<span class="vm-cell-art">' + (((typeof artUrl==='function'&&artUrl(n)) || typeof _magicArtSrc!=='function' || !_magicArtSrc(n)) ? art(n, '◆', 'lg') : '<span class="d2art-wrap lg" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+_magicArtSrc(n)+'" alt="" loading="lazy"></span>') + '</span>' + osTag + _cntTag
           + '<span class="vm-item-name vm-cell-name"' + (typeof _qStyle === 'function' ? _qStyle(n, 'unique') : '') + '>' + esc(n) + '</span>'
           + (typeof window._vaultEvidenceChip === 'function' ? window._vaultEvidenceChip(n, 'vm-cell-ev') : '')
@@ -40654,7 +40661,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         itemRows = itemRows.concat(magicItems.map(function(n){
           var q=_mfQual(n), col=_mqcol[q]||_mqcol.magic, base=_mfBase(n);
           var artHtml = '<span class="vm-cell-art">' + ((typeof art === 'function') ? art(n, '◆', 'lg') : '<span class="vmc-gemfallback" style="color:'+col+'">◆</span>') + '</span>';
-          return '<div class="vm-cell vmc-magicfind" style="grid-column:span 2;grid-row:span 1;border-color:'+col+';cursor:pointer" data-magic-find="'+esc(n)+'" data-arttip="'+esc(n)+'" title="'+esc(n)+(base?' · '+esc(base):'')+' ('+q+')" onclick="window.openDrop&&window.openDrop(\''+jsArg(n)+'\')">'
+          return '<div class="vm-cell vmc-magicfind" style="grid-column:span 2;grid-row:span 1;border-color:'+col+';cursor:pointer" data-magic-find="'+esc(n)+'" data-arttip="'+esc(n)+'" title="'+esc(n)+(base?' · '+esc(base):'')+' ('+q+')">'
             + artHtml
             + '<span class="vm-item-name vm-cell-name" data-arttip="'+esc(n)+'" style="color:'+col+'">'+esc(n)+'</span>'
             + (typeof window._vaultEvidenceChip === 'function' ? window._vaultEvidenceChip(n, 'vm-cell-ev') : '')
@@ -43139,8 +43146,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      names the shared locker. When that locker is missing it is put back, then the pick is filed. A runeword
      keeps the base he chose and the rolls he typed, so the vault card is that item. A composed name that changes on the SAME pick in this
      open (a rare re-roll, a magic affix) moves the record this open created. A name that was already his
-     is left where it was. */
+     stays where it was on this open. A later open of that same name files another copy beside it. */
   var _vpMade = null;
+  var _vpCopySeen = {};
+  var _vpCopyBump = null;
   var VP_WHERE = 'the Vault planner — your search filed it where a reel of it would go';
   function _vpMods(entry){
     var out = [];
@@ -43258,9 +43267,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var sayF = (filed && filed.ok) ? (nm + ' filed to ' + muleName + (why ? (' — ' + why) : '')) : ((filed && filed.why) || (nm + ' was not filed'));
     return { ok: !!(filed && filed.ok !== false), filed: !!(filed && (filed.mode === 'filed' || filed.mode === 'confirmed')), mode: filed && filed.mode, mule: id, why: sayF };
   }
+  function _vpCopyUndo(token){
+    var b = _vpCopyBump;
+    if (!b || !token || b.token !== token) return;
+    _vpCopyBump = null;
+    if (typeof copies !== 'undefined' && copies){
+      if (b.prev > 1) copies[b.name] = b.prev;
+      else delete copies[b.name];
+    }
+    if (b.prevSeen) _vpCopySeen[b.name] = b.prevSeen;
+    else delete _vpCopySeen[b.name];
+  }
   window.vaultPlannerFile = function(entry, token){
     if (!entry){
-      if (_vpMade && token && _vpMade.token === token) _vpDrop();
+      if (_vpMade && token && _vpMade.token === token){ _vpCopyUndo(token); _vpDrop(); }
       return { ok: true, mode: 'cleared', filed: false, why: 'the pick was cleared' };
     }
     var it = null, shown = null;
@@ -43268,6 +43288,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { shown = (typeof window._cbShown === 'function') ? window._cbShown(entry, it) : null; } catch (e2) { shown = null; }
     var nm = shown ? String(shown.name || '').trim() : '';
     if (!nm) return { ok: false, filed: false, why: 'that pick has no name — nothing was filed' };
+    if (_vpMade && _vpMade.token === token && _vpMade.name && _vpMade.name !== nm) _vpCopyUndo(token);
     if (_vpMade && _vpMade.token === token && _vpMade.id === entry.id && _vpMade.name !== nm && _vpMade.fresh) _vpDrop();
     var q = shown.q;
     var magicQ = (q === 'm') ? 'magic' : (q === 'rare') ? 'rare' : (q === 'c') ? 'crafted' : '';
@@ -43302,6 +43323,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     if (kind === 'runeword') _vpRemember(nm, entry, shown, baseName);
     var routed = _vpRoute(nm);
+    if (routed && (routed.filed || routed.mode === 'already') && token){
+      if (routed.mode === 'already' && assign[nm] != null && _vpCopySeen[nm] && _vpCopySeen[nm] !== token){
+        if (typeof copies !== 'undefined' && copies){
+          var prevN = (typeof copyCount === 'function') ? (copyCount(nm) || 1) : ((copies[nm] > 0) ? copies[nm] : 1);
+          prevN = prevN | 0;
+          if (!(prevN > 0)) prevN = 1;
+          copies[nm] = prevN + 1;
+          _vpCopyBump = { name: nm, token: token, prev: prevN, prevSeen: _vpCopySeen[nm] };
+          routed = { ok: true, filed: true, mode: 'copy', mule: assign[nm],
+            why: nm + ' — copy ' + copies[nm] + ' filed to ' + assign[nm] };
+        }
+      }
+      _vpCopySeen[nm] = token;
+    }
     var kept = routed && (routed.filed || routed.mode === 'already');
     if (!kept && magicQ && !beforeMagic && magicFinds && magicFinds[nm]){
       delete magicFinds[nm];
@@ -44743,7 +44778,7 @@ window.vaultAutoAssign = function(){
         + (_mv ? ' data-key="' + esc(p.key) + '" data-x="' + p.x + '" data-y="' + p.y + '" data-w="' + p.w + '" data-h="' + p.h + '" data-fk="it-' + opt.area + '-' + p.x + '-' + p.y + '"'
                + ' tabindex="0" role="button" aria-roledescription="movable item" aria-label="' + _say + '. Enter picks it up, arrow keys move it, Enter drops, Escape cancels'
                + (p.manual || p.bad ? ', U unlocks' : '') + '"' : '')
-        + ' onclick="window.openDrop&&window.openDrop(\''+jsArg(p.n)+'\')">'+art(p.n,'◆', p.w>1&&p.h>1?'':'sm')
+        + '>'+art(p.n,'◆', p.w>1&&p.h>1?'':'sm')
         + (typeof window._vaultEvidenceBtn === 'function' ? window._vaultEvidenceBtn(p.n) : '')
         + (_mv && (p.manual || p.bad) ? '<button type="button" class="vd-unlock" tabindex="-1" data-unlock="' + esc(p.key) + '" title="unlock — back to auto-pack (right-click the item does the same)" aria-label="unlock ' + esc(p.n) + ' — back to auto-pack">' + (p.bad ? '⚠' : '🔒') + '</button>' : '')
         + '</div>';
@@ -44819,9 +44854,25 @@ window.vaultAutoAssign = function(){
   /* #264 — what the shared stash holds, and how ONE tab of it packs: the window draws it and the vault finder (_vaultWhereIs)
      names a cell from it, so the two can never disagree about where an item sits */
   function _sharedNames(){ try { return Object.keys(assign).filter(function(n){ return assign[n] === 'shared'; }).sort(); } catch(e){ return []; } }
+  function _sharedCopyCount(n){
+    var c = 1;
+    try { c = (typeof copyCount === 'function' ? (copyCount(n) || 1) : 1) | 0; } catch (e) { c = 1; }
+    return c > 0 ? c : 1;
+  }
+  function _sharedCopyTotal(names){
+    var n = 0;
+    (names || []).forEach(function(nm){ n += _sharedCopyCount(nm); });
+    return n;
+  }
   function _sharedPack(items){
-    var sized = (items || []).map(function(n){ var s = vaultSize(n); return { n: n, w: s[0], h: s[1], area: s[0] * s[1] }; })
-                             .sort(function(a, b){ return b.area - a.area || b.h - a.h; });
+    var sized = [];
+    (items || []).forEach(function(n){
+      var s = vaultSize(n);
+      var cc = _sharedCopyCount(n);
+      var area = s[0] * s[1];
+      for (var i = 0; i < cc; i++) sized.push({ n: n, w: s[0], h: s[1], area: area });
+    });
+    sized.sort(function(a, b){ return b.area - a.area || b.h - a.h; });
     return packGrid(sized, 10, 10);
   }
   try { window._sharedNames = _sharedNames; window._sharedPack = _sharedPack; } catch(e){}
@@ -44836,7 +44887,8 @@ window.vaultAutoAssign = function(){
     var slotName = function(p){ return 'col ' + (p.x + 1) + ' · row ' + (p.y + 1); };
     var tabs = pages.map(function(p, i){ return '<div class="vd-tab' + (i === _sharedPage ? ' vt-on' : '') + '" onclick="window._sharedSetPage(' + i + ')">' + p.icon + ' ' + p.label + '</div>'; }).join('');
     var list = packed.placed.map(function(p){ return '<div>' + esc(p.n) + ' → <span class="vl-slot">' + esc(pg.label.toUpperCase()) + ' ' + slotName(p) + '</span></div>'; }).join('');
-    var totalAll = names.length;
+    var pageN = _sharedCopyTotal(pg.items);
+    var totalAll = _sharedCopyTotal(names);
     box.hidden = false; box.scrollTop = 0;
     box.innerHTML = '<div class="vd-head"><span class="vd-icon">📦</span><span class="vd-name">SHARED STASH</span>'
       + '<span class="vd-sub" style="margin:0 14px 0 6px">' + totalAll + ' never-muled item' + (totalAll === 1 ? '' : 's') + ' · auto-assorted across the 5 shared tabs</span>'
@@ -44846,7 +44898,7 @@ window.vaultAutoAssign = function(){
       +     '<div class="vd-tabs">' + tabs + '</div>'
       +     gridHtml(packed.placed, 10, 10, cell).replace(/class="vd-cell"/g, 'class="vd-cell vd-red"')
       +     '<div class="vd-pagebar"><span class="vp-arrow" style="cursor:pointer" onclick="window._sharedSetPage(' + ((_sharedPage + 4) % 5) + ')">◄</span><span>' + pg.icon + ' ' + pg.label + ' · Page ' + (_sharedPage + 1) + ' / 5</span><span class="vp-arrow" style="cursor:pointer" onclick="window._sharedSetPage(' + ((_sharedPage + 1) % 5) + ')">►</span></div>'
-      +     '<div class="vd-goldbox">' + pg.icon + ' ' + pg.items.length + ' on this page · ' + totalAll + ' total</div>'
+      +     '<div class="vd-goldbox">' + pg.icon + ' ' + pageN + ' on this page · ' + totalAll + ' total</div>'
       +   '</div>'
       + '</div>'
       + (packed.left.length ? '<div class="vd-overflow">⚠ <strong>' + packed.left.length + ' item' + (packed.left.length === 1 ? '' : 's') + ' overflow this page</strong> — D2R shared tabs hold 100 slots; this is the 10×10 preview: ' + packed.left.map(function(i){ return esc(i.n); }).join(' · ') + '</div>' : '')
@@ -47232,7 +47284,7 @@ window.vaultAutoAssign = function(){
     var d = _mpDrag;
     if (!d || e.pointerId !== d.id) return;
     _mpDrag = null;
-    if (!d.on) return;                        // a press and release in place is a click: the item's card opens as always
+    if (!d.on) return;                        // a press and release in place stays a click: the floating card stays, the vault stays
     _mpDragEndAt = Date.now();
     _mpTrack(d, e.clientX, e.clientY);        // judged where it was let go
     var t = d.target;
@@ -47820,7 +47872,7 @@ function renderJournal(){
         var r = (typeof _artRarity === 'function') ? _artRarity(n) : '';
         var col = Q[r] || 'var(--gold-bright,#f0c060)';
         var logo = (typeof nameLogo === 'function') ? nameLogo(n) : '';
-        return '<span class="vj-chip" data-arttip="' + esc(n) + '" style="color:' + col + '" onclick="window.openDrop&&window.openDrop(\'' + jsArg(n) + '\')" title="open ' + esc(n) + '">' + logo + esc(n) + '</span>';
+        return '<span class="vj-chip" data-arttip="' + esc(n) + '" style="color:' + col + '" title="' + esc(n) + '">' + logo + esc(n) + '</span>';
       }).join('');
       // v342.23 — persistent per-screenshot breakdown (collapsible), reconstructed from the stored pf
       var pfHtml = '';

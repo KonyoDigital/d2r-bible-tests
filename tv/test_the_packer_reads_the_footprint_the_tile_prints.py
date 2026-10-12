@@ -211,6 +211,56 @@ console.log(JSON.stringify(OUT));
                                  " ? _itemCells(n) : null; return !!(c && c.approx); }).length;"), 1,
                          "the chip's guessed-size count is no longer asked of _itemCells")
 
+    def test_two_copies_pack_as_two_rectangles_and_a_tile_click_stays(self):
+        """Two Griefs on a stored Phase Blade are two 2x3 tiles. One name is one tile.
+        The shared-stash tile HTML does not call openDrop. The gold box counts the copies."""
+        s = _src()
+        pack = _cut(s, "  function packGrid(items, gw, gh, occ){\n",
+                    "  try { window._sharedNames = _sharedNames; window._sharedPack = _sharedPack; } catch(e){}\n")
+        prelude = _planner('{ Grief: { base: "7cr", q: "r", baseName: "Phase Blade", id: "grief" } }')
+        tail = pack + """
+function esc(v){ return String(v == null ? '' : v); }
+function jsArg(v){ return String(v).replace(/\\\\/g, '\\\\\\\\').replace(/'/g, "\\\\'"); }
+function art(){ return '<i class="d2art-wrap"></i>'; }
+window._gridFault = function(){ return { fault: false, used: 0, cap: 100, oob: 0, over: 0 }; };
+var copies = { Grief: 2 };
+function copyCount(n){ var c = copies[n]; return (c && c > 0) ? c : 1; }
+function take(list){
+  var over = 0, used = 0, seen = {};
+  list.forEach(function(it){
+    used += it.w * it.h;
+    for (var x = 0; x < it.w; x++) for (var y = 0; y < it.h; y++){
+      var k = (it.x + x) + ',' + (it.y + y);
+      if (seen[k]) over++; else seen[k] = 1;
+    }
+  });
+  return { n: list.length, over: over, used: used,
+           tiles: list.map(function(it){ return [it.n, it.w, it.h]; }) };
+}
+var two = _sharedPack(['Grief']);
+copies = { Spirit: 1 };
+var one = _sharedPack(['Spirit']);
+var html = gridHtml([{ n: 'Grief', x: 0, y: 0, w: 2, h: 3 }], 10, 10, 46);
+copies = { Grief: 2 };
+var total = (typeof _sharedCopyTotal === 'function') ? _sharedCopyTotal(['Grief']) : null;
+console.log(JSON.stringify({ two: take(two.placed), twoLeft: two.left.length, one: take(one.placed),
+  openDrop: html.indexOf('openDrop') >= 0, tile: html.indexOf('vd-item') >= 0, total: total }));
+"""
+        got = _node(prelude, tail)
+        self.assertEqual(got["two"]["n"], 2, got["two"])
+        self.assertEqual(got["two"]["tiles"], [["Grief", 2, 3], ["Grief", 2, 3]], got["two"])
+        self.assertEqual(got["two"]["used"], 12, got["two"])
+        self.assertEqual(got["two"]["over"], 0, got["two"])
+        self.assertEqual(got["twoLeft"], 0, got)
+        self.assertEqual(got["one"]["n"], 1, got["one"])
+        self.assertEqual(got["one"]["tiles"], [["Spirit", 1, 2]], got["one"])
+        self.assertFalse(got["openDrop"], "the shared-stash tile still opens the item page")
+        self.assertTrue(got["tile"], got)
+        self.assertEqual(got["total"], 2, got)
+        self.assertIn("_sharedCopyTotal(pg.items)", s)
+        self.assertIn("_sharedCopyTotal(names)", s)
+        self.assertNotIn("pg.items.length + ' on this page'", s)
+
 
 RED_PROOF = [
     {"why": "REG-2051 - a runeword falls to the default again although its base settles its size (Enigma 1x2)",
@@ -242,6 +292,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "(_approxN ? ' (' + _approxN + ' of unknown size, counted at the default 1x2)' : '')",
      "replace": "''",
+     "matches": 1},
+    {"why": "two copies of one name pack as one tile again",
+     "file": "bible.html",
+     "find": "      for (var i = 0; i < cc; i++) sized.push({ n: n, w: s[0], h: s[1], area: area });\n",
+     "replace": "      for (var i = 0; i < 1; i++) sized.push({ n: n, w: s[0], h: s[1], area: area });\n",
      "matches": 1},
 ]
 

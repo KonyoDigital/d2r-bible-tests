@@ -472,7 +472,8 @@ class AHandAddedItemStaysHis(unittest.TestCase):
         s = _src()
         block = _cut(s, "  /* ⟦VAULT PLANNER FILE BEGIN⟧ */\n", "  /* ⟦VAULT PLANNER FILE END⟧ */\n")
         prog = r"""
-var window = globalThis, CALLS = [], SAID = [], magicFinds = {}, assign = {}, owned = new Set();
+var window = globalThis, CALLS = [], SAID = [], magicFinds = {}, assign = {}, owned = new Set(), copies = {};
+function copyCount(n){ var c = copies && copies[n]; return (c && c > 0) ? c : (owned.has(n) ? 1 : 0); }
 function status(m){ SAID.push(String(m)); }
 function renderVault(){ CALLS.push('render'); }
 function persistOwned(){ CALLS.push('persist'); }
@@ -521,6 +522,8 @@ var WHERE = 'the Vault planner — your search filed it where a reel of it would
 ROUTES['Harlequin Crest'] = { id: 'uni-armor', why: 'armor slot' };
 var u1 = window.vaultPlannerFile({ id: 'shako', _name: 'Harlequin Crest', _q: 'u' }, 't-u');
 var u2 = window.vaultPlannerFile({ id: 'shako', _name: 'Harlequin Crest', _q: 'u' }, 't-u');
+var crestSame = copies['Harlequin Crest'] || 0;
+var crestAgain = window.vaultPlannerFile({ id: 'shako', _name: 'Harlequin Crest', _q: 'u' }, 't-u2');
 ROUTES['Shimmering Grand Charm of Vita'] = { id: 'magic-rare', why: 'registered in Magic and Rare' };
 var m1 = window.vaultPlannerFile({ id: 'charm', base: 'cm', _name: 'Shimmering Grand Charm of Vita', _q: 'm', affixes: [{ id: 'vita' }] }, 't-m');
 var m2 = window.vaultPlannerFile({ id: 'charm', base: 'cm', _name: 'Shimmering Grand Charm of Vita', _q: 'm', affixes: [{ id: 'vita' }] }, 't-m');
@@ -553,6 +556,8 @@ assign['Stone of Jordan'] = 'uni-small';
 owned.add('Stone of Jordan');
 ROUTES['Stone of Jordan'] = { id: 'uni-armor', why: 'armor slot' };
 var already = window.vaultPlannerFile({ id: 'soj', _name: 'Stone of Jordan', _q: 'u' }, 't-soj');
+var sojSame = copies['Stone of Jordan'] || 0;
+var sojTwo = window.vaultPlannerFile({ id: 'soj', _name: 'Stone of Jordan', _q: 'u' }, 't-soj2');
 ROUTES['Clear Charm'] = { id: 'magic-rare', why: 'registered in Magic and Rare' };
 window.vaultPlannerFile({ id: 'clr', base: 'cm', _name: 'Clear Charm', _q: 'm' }, 'clr');
 var cleared = window.vaultPlannerFile(null, 'clr');
@@ -566,6 +571,15 @@ window._vaultEnsureSharedLocker = function(){ CALLS.push('ensure-shared'); SHARE
 var griefYes = window.vaultPlannerFile({ id: 'grief', base: '7cr', _name: 'Grief', _q: 'r', affixes: [{ id: 'ias', rolls: { a: 31 } }], rolls: { ias: 31 } }, 't-g2');
 ROUTES['Grief Bare'] = { id: 'shared', why: 'war gear: flat damage war weapon - in the shared stash, where every character can reach it' };
 var griefBare = window.vaultPlannerFile({ id: 'griefb', _name: 'Grief Bare', _q: 'r' }, 't-gb');
+var griefTwo = window.vaultPlannerFile({ id: 'grief', base: '7cr', _name: 'Grief', _q: 'r', affixes: [{ id: 'ias', rolls: { a: 31 } }], rolls: { ias: 31 } }, 't-g3');
+var griefSame = window.vaultPlannerFile({ id: 'grief', base: '7cr', _name: 'Grief', _q: 'r', affixes: [{ id: 'ias', rolls: { a: 31 } }], rolls: { ias: 31 } }, 't-g3');
+var griefCopies = copies['Grief'] || 0;
+ROUTES['Swap Helm'] = { id: 'uni-armor', why: 'armor slot' };
+var swapped = window.vaultPlannerFile({ id: 'swap', _name: 'Swap Helm', _q: 'u' }, 't-g3');
+var griefAfterSwap = copies['Grief'] || 0;
+var griefStill = assign['Grief'] || null;
+var griefOwned = owned.has('Grief');
+var griefThree = window.vaultPlannerFile({ id: 'grief', base: '7cr', _name: 'Grief', _q: 'r', affixes: [{ id: 'ias', rolls: { a: 31 } }], rolls: { ias: 31 } }, 't-g4');
 var OUT = {
   u1: u1, u2: u2, uFiles: files('Harlequin Crest'), ownedU: owned.has('Harlequin Crest'),
   m1: m1, m2: m2, mf: magicFinds['Shimmering Grand Charm of Vita'] || null, mFiles: files('Shimmering Grand Charm of Vita'),
@@ -585,6 +599,11 @@ var OUT = {
   clearedG: clearedG, griefGone: griefGone, griefYes: griefYes, griefFiles: files('Grief'),
   griefBare: griefBare, bareRec: window._vpMadeOf('Grief Bare'), bareBase: window._vpMadeBase('Grief Bare'),
   ensured: CALLS.filter(function(c){ return c === 'ensure-shared'; }),
+  crestSame: crestSame, crestAgain: crestAgain, crestCopies: copies['Harlequin Crest'] || 0,
+  sojSame: sojSame, sojTwo: sojTwo, sojCopies: copies['Stone of Jordan'] || 0,
+  griefTwo: griefTwo, griefSame: griefSame, griefCopies: griefCopies,
+  swapped: swapped, griefAfterSwap: griefAfterSwap, griefStill: griefStill, griefOwned: griefOwned,
+  griefThree: griefThree, griefEnd: copies['Grief'] || 0,
   where: WHERE
 };
 process.stdout.write(JSON.stringify(OUT));
@@ -655,6 +674,52 @@ process.stdout.write(JSON.stringify(OUT));
         self.assertTrue(o["griefBare"]["filed"], o["griefBare"])
         self.assertIsNone(o["bareRec"], "a runeword with no chosen base was given one")
         self.assertEqual(o["bareBase"], "")
+        self.assertEqual(o["crestSame"], 0, "a second look at the same open counted a new copy")
+        self.assertEqual(o["crestAgain"]["mode"], "copy", o["crestAgain"])
+        self.assertEqual(o["crestCopies"], 2, o["crestAgain"])
+        self.assertEqual(len(o["uFiles"]), 1, "a second copy rewrote the filing")
+        self.assertEqual(o["sojSame"], 0, "opening a pick that was already filed counted a new copy")
+        self.assertEqual(o["sojTwo"]["mode"], "copy", o["sojTwo"])
+        self.assertEqual(o["sojCopies"], 2)
+        self.assertEqual(o["sojFiles"], [])
+        self.assertEqual(o["sojHome"], "uni-small")
+        self.assertEqual(o["griefTwo"]["mode"], "copy", o["griefTwo"])
+        self.assertTrue(o["griefTwo"]["filed"], o["griefTwo"])
+        self.assertEqual(o["griefTwo"]["mule"], "shared")
+        self.assertIn("copy 2", o["griefTwo"]["why"])
+        self.assertIn("filed to", o["griefTwo"]["why"], "the Saved plate lights only when the sentence says filed to")
+        self.assertEqual(o["griefSame"]["mode"], "already", "saving the same open again counted a third copy")
+        self.assertEqual(o["griefCopies"], 2)
+        self.assertEqual(len(o["griefFiles"]), 1, "the second Grief rewrote the filing")
+        self.assertEqual(o["griefAfterSwap"], 0, "leaving that open left the extra Grief behind")
+        self.assertEqual(o["griefStill"], "shared", "leaving that open unfiled the first Grief")
+        self.assertTrue(o["griefOwned"])
+        self.assertTrue(o["swapped"]["filed"], o["swapped"])
+        self.assertEqual(o["swapped"]["mule"], "uni-armor")
+        self.assertEqual(o["griefThree"]["mode"], "copy", o["griefThree"])
+        self.assertEqual(o["griefEnd"], 2)
+
+    def test_a_vault_item_click_keeps_the_floating_card(self):
+        """A locker cell, a shared-stash tile, and the other vault item chips stay on the vault.
+        The floating card is the click. The runeword page is not."""
+        s = _src()
+        a = s.find("function renderMultiKeep(){")
+        b = s.find("\nfunction renderJournal(){")
+        self.assertGreater(a, 0)
+        self.assertGreater(b, a)
+        self.assertNotIn("window.openDrop", s[a:b], "a vault item click still leaves the vault")
+        journal = s[b:s.find("\n  function persistOwned(){", b)]
+        self.assertNotIn("window.openDrop", journal, "a journal chip still leaves the vault")
+        self.assertNotIn(
+            "onclick=\"window.openDrop&&window.openDrop('\"+jsArg(p.n)+\"')\"",
+            s, "the shared-stash tile still opens the item page")
+        dismiss = s.find("a click can re-render")
+        self.assertGreater(dismiss, 0)
+        keep = s[dismiss:dismiss + 900]
+        self.assertIn(".vd-item, .vm-cell, .vrg-row, .vmk-name, .to-name, .vj-chip", keep)
+        self.assertIn("!t.closest('button, a, input, textarea, select')", keep)
+        self.assertIn("!chip.classList.contains('vd-db')", keep)
+        self.assertNotIn("the item's card opens as always", s)
 
     def test_the_planner_card_and_the_sort_click_meet_the_stored_base(self):
         """The hover prefers the stored Phase Blade, and his Auto-Sort click can file that pick.
@@ -782,6 +847,20 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "    var filed = window.vaultFile(nm, { by: 'hand', at: at, where: VP_WHERE }, { mule: id });\n",
         "replace": "    var filed = { ok: true, mode: 'skipped' };\n",
+        "matches": 1,
+    },
+    {
+        "why": "a later open of a filed name must count another copy; without the token check the second Grief stays one",
+        "file": "bible.html",
+        "find": "      if (routed.mode === 'already' && assign[nm] != null && _vpCopySeen[nm] && _vpCopySeen[nm] !== token){\n",
+        "replace": "      if (false && routed.mode === 'already' && assign[nm] != null && _vpCopySeen[nm] && _vpCopySeen[nm] !== token){\n",
+        "matches": 1,
+    },
+    {
+        "why": "a vault item click must keep the floating card; dropping the keep returns the page route",
+        "file": "bible.html",
+        "find": "        if (chip && !chip.classList.contains('vd-db') && !t.closest('button, a, input, textarea, select')) return;\n",
+        "replace": "        if (false) return;\n",
         "matches": 1,
     },
 ]
