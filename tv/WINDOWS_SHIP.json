@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3677",
+  "ver": "v3678",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3677: REG-2182 - the names counter stays inside _named_sessions",
+  "note": "v3678: the roster opens their console read only. HEART: test_a_roster_publish_stays_off_the_presence_beacon",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
