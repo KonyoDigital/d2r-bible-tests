@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3693",
+  "ver": "v3694",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3693: a tagged vault item posts to softcore non-ladder through the open d2jsp login, and forum gold stays unknown until a public reading. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts",
+  "note": "v3694: the console header has a D2JSP door after the Vault. The desk field is named, the card type uses a size token, and the law prints safely. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
