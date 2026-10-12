@@ -43328,7 +43328,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (kind === 'runeword') _vpRemember(nm, entry, shown, baseName);
     var routed = _vpRoute(nm);
     if (routed && (routed.filed || routed.mode === 'already') && token){
-      if (routed.mode === 'already' && assign[nm] != null && _vpCopySeen[nm] && _vpCopySeen[nm] !== token){
+      if (routed.mode === 'already' && assign[nm] != null && _vpCopySeen[nm] !== token){
         if (typeof copies !== 'undefined' && copies){
           var prevN = (typeof copyCount === 'function') ? (copyCount(nm) || 1) : ((copies[nm] > 0) ? copies[nm] : 1);
           prevN = prevN | 0;
@@ -43351,6 +43351,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { persistOwned(); } catch (e8) {}
     try { saveA(); } catch (e9) {}
     try { renderVault(); } catch (e10) {}
+    try { if (typeof refreshOpenCard === 'function') refreshOpenCard(); } catch (e12) {}
     if (routed && routed.why){ try { status(routed.why); } catch (e11) {} }
     return routed || { ok: false, filed: false, why: nm + ' was not filed' };
   };

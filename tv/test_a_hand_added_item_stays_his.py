@@ -25,8 +25,9 @@ hand." under a list nothing else read. This law drives the SHIPPED door end to e
     a magic / rare / crafted piece through magicFinds with the real base and the mod lines. Throw-out, keep-on-MAIN,
     a rune answered as the shared stash with no locker id, a name nothing knows, and a white base stay unfiled.
     War gear names the shared locker and is filed there; a missing locker is the same SHARED STASH the load migration
-    adds, put back, then the pick is filed. A runeword keeps the base he chose. The old door still does not file, and the
-    migration still does not file a row he typed before.
+    adds, put back, then the pick is filed. A runeword keeps the base he chose. A new open of a name already filed
+    stores another copy and asks the open locker to draw again. The same open does not. The old door still does not
+    file, and the migration still does not file a row he typed before.
 
 Drives the shipped ⟦OWNED PROV⟧ door, _vaultKeeps, _vaultResolveName and the ⟦VAULT HAND⟧ block in node, the program
 on stdin. A missing node raises — this law does not skip. RED_PROOF below.
@@ -466,7 +467,8 @@ class AHandAddedItemStaysHis(unittest.TestCase):
         self.assertEqual(p.returncode, 0, p.stderr[-1500:])
 
     def test_a_planner_pick_files_where_a_reel_of_it_would_go(self):
-        """A manual pick takes the reel road. A mule answer files it. Every other answer is said and left alone."""
+        """A manual pick takes the reel road. A mule answer files it. Every other answer is said and left alone.
+        A new open of a name already filed stores the next copy and asks the open locker to draw it."""
         if not NODE:
             raise AssertionError("node is not on this machine — this law does not skip")
         s = _src()
@@ -476,6 +478,7 @@ var window = globalThis, CALLS = [], SAID = [], magicFinds = {}, assign = {}, ow
 function copyCount(n){ var c = copies && copies[n]; return (c && c > 0) ? c : (owned.has(n) ? 1 : 0); }
 function status(m){ SAID.push(String(m)); }
 function renderVault(){ CALLS.push('render'); }
+function refreshOpenCard(){ CALLS.push('refresh'); }
 function persistOwned(){ CALLS.push('persist'); }
 function saveA(){ CALLS.push('save'); }
 var SHARED_ON = false;
@@ -604,6 +607,7 @@ var OUT = {
   griefTwo: griefTwo, griefSame: griefSame, griefCopies: griefCopies,
   swapped: swapped, griefAfterSwap: griefAfterSwap, griefStill: griefStill, griefOwned: griefOwned,
   griefThree: griefThree, griefEnd: copies['Grief'] || 0,
+  refreshed: CALLS.filter(function(c){ return c === 'refresh'; }).length,
   where: WHERE
 };
 process.stdout.write(JSON.stringify(OUT));
@@ -649,7 +653,9 @@ process.stdout.write(JSON.stringify(OUT));
         self.assertIsNotNone(o["delta"])
         self.assertEqual(o["epsilon"]["q"], "magic", "a later search removed a pick from an earlier one")
         self.assertEqual(o["epsilonTwo"]["q"], "magic")
-        self.assertEqual(o["already"]["mode"], "already")
+        self.assertEqual(o["already"]["mode"], "copy", o["already"])
+        self.assertIn("copy 2", o["already"]["why"])
+        self.assertIn("filed to", o["already"]["why"])
         self.assertEqual(o["sojFiles"], [])
         self.assertEqual(o["sojHome"], "uni-small")
         self.assertEqual(o["cleared"]["mode"], "cleared")
@@ -678,11 +684,13 @@ process.stdout.write(JSON.stringify(OUT));
         self.assertEqual(o["crestAgain"]["mode"], "copy", o["crestAgain"])
         self.assertEqual(o["crestCopies"], 2, o["crestAgain"])
         self.assertEqual(len(o["uFiles"]), 1, "a second copy rewrote the filing")
-        self.assertEqual(o["sojSame"], 0, "opening a pick that was already filed counted a new copy")
+        self.assertEqual(o["sojSame"], 2, "the first add of a name already filed left the count at one")
         self.assertEqual(o["sojTwo"]["mode"], "copy", o["sojTwo"])
-        self.assertEqual(o["sojCopies"], 2)
+        self.assertIn("copy 3", o["sojTwo"]["why"])
+        self.assertEqual(o["sojCopies"], 3)
         self.assertEqual(o["sojFiles"], [])
         self.assertEqual(o["sojHome"], "uni-small")
+        self.assertGreater(o["refreshed"], 0, "the open locker was not asked to draw the new copy")
         self.assertEqual(o["griefTwo"]["mode"], "copy", o["griefTwo"])
         self.assertTrue(o["griefTwo"]["filed"], o["griefTwo"])
         self.assertEqual(o["griefTwo"]["mule"], "shared")
@@ -894,10 +902,10 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "a later open of a filed name must count another copy; without the token check the second Grief stays one",
+        "why": "the first add of a name already filed must count another copy; without the check a new open leaves the second Grief at one",
         "file": "bible.html",
-        "find": "      if (routed.mode === 'already' && assign[nm] != null && _vpCopySeen[nm] && _vpCopySeen[nm] !== token){\n",
-        "replace": "      if (false && routed.mode === 'already' && assign[nm] != null && _vpCopySeen[nm] && _vpCopySeen[nm] !== token){\n",
+        "find": "      if (routed.mode === 'already' && assign[nm] != null && _vpCopySeen[nm] !== token){\n",
+        "replace": "      if (false && routed.mode === 'already' && assign[nm] != null && _vpCopySeen[nm] !== token){\n",
         "matches": 1,
     },
     {
