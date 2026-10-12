@@ -1112,9 +1112,10 @@ async function j10_headerGeometry(page) {
     if (r.clipped) bad.push(`${w}px clips the strip`);
     if (r.silent) bad.push(`${w}px has overflow-x:${'auto'} with no scrollbar — a tab can vanish silently`);
     if (r.offscreen) bad.push(`${w}px pushes ${r.offscreen} tab(s) out of reach`);
-    // 2026-09-27 — 8 -> 9: his ruling added the 👤 Characters door (v3518, "yea do it"). A NEW tab must move
+    // 2026-09-27 — 8 -> 9: his ruling added the 👤 Characters door (v3518, "yea do it").
+    // 2026-10-12 — 9 -> 10: D2JSP is a door on this strip, after the Vault. A NEW tab must move
     // this number on purpose; a tab that silently leaves the DOM still reads short here.
-    if (r.tabs !== 9) bad.push(`${w}px shows ${r.tabs} tabs, not 9`);
+    if (r.tabs !== 10) bad.push(`${w}px shows ${r.tabs} tabs, not 10`);
     // the icon yield is a DESIGN line, not an accident: they hold to 1120; below 1100 the LABELLED tabs drop
     // their art, while an icon-only chip (Tools) keeps its picture, because its picture is the tab (v3519)
     if (w >= 1120 && !r.icons) bad.push(`${w}px lost its tab art above the 1100px yield`);

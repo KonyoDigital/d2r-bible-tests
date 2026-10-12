@@ -410,8 +410,9 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
             ui = fh.read()
         start = ui.index('<nav class="head-tabs" id="head-tabs">')
         nav = ui[start:ui.index("</nav>", start)]
-        self.assertEqual(nav.count("<button"), 9)
+        self.assertEqual(nav.count("<button"), 10)
         self.assertNotIn('data-tab="roster"', nav)
+        self.assertEqual(nav.count('data-tab="d2jsp"'), 1)
         self.assertIn('id="roster-box" hidden', ui)
         open_at = ui.index('id="roster-open"')
         box_at = ui.index('id="roster-box"')

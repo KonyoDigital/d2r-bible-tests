@@ -14,9 +14,15 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+from console_safe import enable
+enable()
+
 ROOT = os.path.dirname(HERE)
 BIBLE = os.path.join(ROOT, "bible.html")
 QUOTE = os.path.join(ROOT, "functions", "api", "d2jsp_quote.js")
@@ -54,7 +60,7 @@ class TheD2jspDeskReadsAPriceBeforeItPosts(unittest.TestCase):
         cls.desk = _between(cls.bible, "/* ⟦D2JSP DESK BEGIN⟧ */\n", "\n/* ⟦D2JSP DESK END⟧ */")
         cls.parser = _between(cls.quote, "/* ⟦D2JSP QUOTE BEGIN⟧ */\n", "\n/* ⟦D2JSP QUOTE END⟧ */")
 
-    def test_the_room_is_a_workshop_tab_and_not_a_console_door(self):
+    def test_the_room_is_a_workshop_tab_and_a_console_door(self):
         ws = _between(self.bible, '<div class="tabs-workshop"', "</div>")
         order = __import__("re").findall(r'data-tab="([a-z0-9]+)"', ws)
         self.assertEqual(order.index("vault") + 1, order.index("d2jsp"), order)
@@ -67,7 +73,10 @@ class TheD2jspDeskReadsAPriceBeforeItPosts(unittest.TestCase):
         self.assertNotIn('type="password"', pane)
         nav_at = self.ui.index('id="head-tabs"')
         nav = self.ui[nav_at:self.ui.index("</nav>", nav_at)]
-        self.assertNotIn("d2jsp", nav)
+        self.assertEqual(nav.count('data-tab="d2jsp"'), 1)
+        self.assertIn('class="ht-lbl">D2JSP</span>', nav)
+        self.assertLess(nav.index('data-tab="vault"'), nav.index('data-tab="d2jsp"'))
+        self.assertLess(nav.index('data-tab="d2jsp"'), nav.index('data-tab="tvd"'))
         self.assertNotIn("d2jsp", _read(BEACON))
 
     def test_a_public_reading_with_no_price_stays_unknown(self):

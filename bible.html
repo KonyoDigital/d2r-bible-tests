@@ -11053,7 +11053,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     #tab-d2jsp .d2jsp-card{display:flex;gap:12px;align-items:flex-start;border:1px solid rgba(233,208,122,.4);border-radius:8px;padding:10px;margin:8px 0;background:rgba(10,9,7,.55)}
     #tab-d2jsp .d2jsp-art{width:72px;height:72px;flex:0 0 72px}
     #tab-d2jsp .d2jsp-art img{width:72px;height:72px;object-fit:contain}
-    #tab-d2jsp .d2jsp-say{color:#e9d07a;font-size:13px;line-height:1.45}
+    #tab-d2jsp .d2jsp-say{color:#e9d07a;font-size:var(--fs-body);line-height:1.45}
   </style>
   <div class="boss-card" id="d2jsp-card" style="--tc:#f0c060">
     <div class="boss-header">
@@ -11260,7 +11260,7 @@ function d2jspBridgeSource() {
         + '<div class="d2jsp-say">' + esc(baseOf(n) || 'Base not recorded') + '</div>'
         + '<div class="d2jsp-say">' + esc(priceLine) + '</div>'
         + '<label class="d2jsp-say">Mods <textarea data-d2jsp-mods="' + esc(n) + '" rows="3">' + esc(modsOf(n)) + '</textarea></label>'
-        + '<label class="d2jsp-say">Your fg <input data-d2jsp-fg="' + esc(n) + '" value="' + esc(typedOf(n)) + '" inputmode="decimal"></label>'
+        + '<label class="d2jsp-say">Your fg <input data-d2jsp-fg="' + esc(n) + '" value="' + esc(typedOf(n)) + '" inputmode="decimal" aria-label="Forum gold for this item"></label>'
         + '<div class="vault-toolbar">'
         + '<button type="button" class="vault-btn vault-btn-primary" data-d2jsp-post="' + esc(n) + '"' + (send == null ? ' disabled' : '') + '>Post</button>'
         + '<button type="button" class="vault-btn" data-d2jsp-untag="' + esc(n) + '">Untag</button>'

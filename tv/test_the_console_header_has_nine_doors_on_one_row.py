@@ -3,14 +3,14 @@
 
 The heart audit (verified list, rank 23): "J10 lives outside heart2's census, and the gate's why still says '15 cases,
 25 red-proofs'." heart2 classifies python gates only, and tv/demo_console.mjs's J10 measures the header strip against
-the live console (:17772 on his Mac, the demo on CI) — so the nine doors and the no-silent-scroll rule had no law in
+the live console (:17772 on his Mac, the demo on CI) — so the doors and the no-silent-scroll rule had no law in
 tv/test_*.py, and no RED_PROOF anywhere could say whether a missing door would be seen.
 
 WHAT THIS LAW DRIVES, over the console page (tv/control_ui.html) and the DOM gate (tv/demo_console.mjs) as they are:
-  · THE NINE DOORS, IN ORDER: the #head-tabs strip holds exactly nine `.ht` buttons — session · forge · crafts · funi ·
-    fsets · tools · chars · vault · tvd — each with a data-tab and a label (.ht-lbl); the 👤 Characters door sits
-    between Tools and the Vault (his 2026-09-27 ruling, v3518). HTML comments are stripped first: the strip's own
-    comments name tabs in prose.
+  · THE TEN DOORS, IN ORDER: the #head-tabs strip holds exactly ten `.ht` buttons — session · forge · crafts · funi ·
+    fsets · tools · chars · vault · d2jsp · tvd — each with a data-tab and a label (.ht-lbl); the 👤 Characters door sits
+    between Tools and the Vault (his 2026-09-27 ruling, v3518), and D2JSP sits after the Vault (v3694). HTML comments
+    are stripped first: the strip's own comments name tabs in prose.
   · TWO SOURCES MUST AGREE: J10's constant (`if (r.tabs !== N)`) is read out of demo_console.mjs and must equal the
     markup's count. A new tab must move both on purpose; a tab that silently leaves the DOM reads short in both.
   · NO SILENT OVERFLOW: J10's `silent` rule (#66) — `overflow-x: auto|scroll` with `scrollbar-width: none` on
@@ -34,7 +34,7 @@ from console_safe import enable; enable()
 UI = os.path.join(HERE, "control_ui.html")
 DEMO = os.path.join(HERE, "demo_console.mjs")
 NAV_START = '<nav class="head-tabs" id="head-tabs">'
-DOORS = ["session", "forge", "crafts", "funi", "fsets", "tools", "chars", "vault", "tvd"]
+DOORS = ["session", "forge", "crafts", "funi", "fsets", "tools", "chars", "vault", "d2jsp", "tvd"]
 
 
 def _read(path):
@@ -124,6 +124,7 @@ class TheConsoleHeaderHasNineDoorsOnOneRow(unittest.TestCase):
         self.assertTrue(all(d[1] for d in doors), "a door has no .ht-lbl label: %r" % [d for d in doors if not d[1]])
         self.assertEqual(DOORS.index("tools") + 1, DOORS.index("chars"), "👤 Characters does not follow Tools")
         self.assertEqual(DOORS.index("chars") + 1, DOORS.index("vault"), "the Vault does not follow 👤 Characters")
+        self.assertEqual(DOORS.index("vault") + 1, DOORS.index("d2jsp"), "D2JSP does not follow the Vault")
 
     def test_the_dom_gate_and_the_markup_agree_on_the_count(self):
         self.assertEqual(len(doors_of(strip_of())), j10_tab_count(),
@@ -181,10 +182,10 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "#41 rank 23 - J10 is told to expect eight tabs while the strip holds nine: the two sources part",
+        "why": "#41 rank 23 - J10 is told to expect nine tabs while the strip holds ten: the two sources part",
         "file": "demo_console.mjs",
-        "find": "if (r.tabs !== 9) bad.push(",
-        "replace": "if (r.tabs !== 8) bad.push(",
+        "find": "if (r.tabs !== 10) bad.push(",
+        "replace": "if (r.tabs !== 9) bad.push(",
         "matches": 1,
     },
 ]

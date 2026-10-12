@@ -17,7 +17,7 @@ string Chrome evaluates - run in node over a stub console + board (the console's
   · the runnable sabotage: with #tab-chars collapsed to 0x0 (what a CSS rule hiding the pane in app context does) it
     returns false; and as a BASELINE the same collapse on #tab-vault (routed since v2092) returns false too, so the
     stub is proven to carry a collapse at all;
-  · the target's why counts what ROUTING counts ("Seven tabs" for seven), so the label cannot outlive the list.
+  · the target's why counts what ROUTING counts ("Eight tabs" for eight), so the label cannot outlive the list.
 ⚠ WHAT IT CANNOT SEE: pixels. Whether the real #tab-chars paints on his console is the gate's own job, on Chrome, on
 GitHub (browser suites never run on his Mac - [[test-venue]]); this proves the gate would notice if it did not.
 RED_PROOF below: every sabotage turns this law red for its own reason.
@@ -61,7 +61,7 @@ var boardDoc = {
 var document = {
   body: { dataset: {} },
   getElementById: function(id){ return id === 'tvd-eng' ? { contentWindow: { document: boardDoc } } : null; },
-  querySelector: function(sel){ var m = /^#head-tabs \.ht\[data-tab="([a-z]+)"\]$/.exec(sel); if (!m) return null; var t = m[1];
+  querySelector: function(sel){ var m = /^#head-tabs \.ht\[data-tab="([a-z0-9]+)"\]$/.exec(sel); if (!m) return null; var t = m[1];
     if (DOORS.indexOf(t) < 0) return null;
     return { click: function(){ CLICKED.push(t); document.body.dataset.shellTab = t; if (NATIVE[t]) DEMOTED = true; else { ACTIVE = t; DEMOTED = false; } } }; },
   querySelectorAll: function(sel){ if (sel !== '#head-tabs .ht') return [];
@@ -80,7 +80,7 @@ def _doors():
         ui = fh.read()
     i = ui.index('id="head-tabs"')
     nav = ui[i:ui.index("</nav>", i)]
-    return re.findall(r'<button class="ht[^"]*"[^>]*data-tab="([a-z]+)"', nav)
+    return re.findall(r'<button class="ht[^"]*"[^>]*data-tab="([a-z0-9]+)"', nav)
 
 
 def _drive(collapsed=()):
@@ -141,15 +141,15 @@ RED_PROOF = [
     {
         "why": "#41 rank 14 - the Characters door leaves ROUTING again (no gate proves #tab-chars paints)",
         "file": "render_check.py",
-        "find": '            var ROUTING = ["forge","crafts","funi","fsets","tools","chars","vault"];\n',
-        "replace": '            var ROUTING = ["forge","crafts","funi","fsets","tools","vault"];\n',
+        "find": '            var ROUTING = ["forge","crafts","funi","fsets","tools","chars","vault","d2jsp"];\n',
+        "replace": '            var ROUTING = ["forge","crafts","funi","fsets","tools","chars","vault"];\n',
         "matches": 1,
     },
     {
-        "why": "#41 rank 14 - the why says Six tabs over a seven-door list",
+        "why": "#41 rank 14 - the why says Seven tabs over an eight-door list",
         "file": "render_check.py",
-        "find": '        "why": ("Seven tabs in the console header ROUTE THE BOARD and must PAINT what they route "\n',
-        "replace": '        "why": ("Six tabs in the console header ROUTE THE BOARD and must PAINT what they route "\n',
+        "find": '        "why": ("Eight tabs in the console header ROUTE THE BOARD and must PAINT what they route "\n',
+        "replace": '        "why": ("Seven tabs in the console header ROUTE THE BOARD and must PAINT what they route "\n',
         "matches": 1,
     },
     {

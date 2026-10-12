@@ -55,7 +55,9 @@ export const ENDGAME_RELICS_TOTAL = 15;
 // #245 — 19 → 20: 👤 Characters joined the workshop, right before the Vault (the manual side beside the
 //   automated one). Measured in headless Chrome: the workshop row reads session · tools · forge · crafts ·
 //   funi · fsets · chars · vault · tvd.
-export const NAV_TABS_TOTAL = 20;   // v710.4 +📺 TV·D · v2085 +🎒 Vault · v2094 +⚗️ Crafts · #245 +👤 Characters
+// v3693 — 20 → 21: D2JSP joined the workshop, right after the Vault. The console header door is a
+//   separate strip and is not part of this count.
+export const NAV_TABS_TOTAL = 21;   // v710.4 +📺 TV·D · v2085 +🎒 Vault · v2094 +⚗️ Crafts · #245 +👤 Characters · v3693 + D2JSP
 
 // Horadric cube recipe browser rows (v177).
 export const HORADRIC_RECIPES_TOTAL = 36;

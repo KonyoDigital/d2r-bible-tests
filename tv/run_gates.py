@@ -8745,10 +8745,10 @@ GATES = [
     Gate("test_the_console_header_has_nine_doors_on_one_row",
          [sys.executable, os.path.join(HERE, "test_the_console_header_has_nine_doors_on_one_row.py")], 60,
          needs_app=False,
-         why="#41 rank 23 (REG-1537, 2026-09-29) — J10's nine doors and its no-silent-scroll rule as a python law the "
+         why="#41 rank 23 (REG-1537, 2026-09-29) — J10's ten doors and its no-silent-scroll rule as a python law the "
              "heart can count. J10 (demo_console.mjs) measures the header strip against the live console only and "
-             "heart2 classifies python gates alone, so a missing door had no RED_PROOF anywhere. The strip's nine .ht "
-             "buttons — session forge crafts funi fsets tools chars vault tvd — each with a label, 👤 Characters between "
+             "heart2 classifies python gates alone, so a missing door had no RED_PROOF anywhere. The strip's ten .ht "
+             "buttons — session forge crafts funi fsets tools chars vault d2jsp tvd — each with a label, 👤 Characters between "
              "Tools and the Vault (his 2026-09-27 ruling), HTML comments stripped (the nav's own comment names tabs in "
              "prose); J10's `if (r.tabs !== N)` constant is read out of the mjs and must equal the markup's count (two "
              "sources); the base-level .head-tabs declarations are folded in source order (last wins, @media rules "
