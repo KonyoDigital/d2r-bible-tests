@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3686",
+  "ver": "v3687",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3686: a stored base occupies its own cells on every shared page. HEART: test_the_packer_reads_the_footprint_the_tile_prints",
+  "note": "v3687: a later planner open files another copy beside the one already filed, and a vault item click keeps the floating card. HEART: test_a_planner_pick_files_where_a_reel_of_it_would_go",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
