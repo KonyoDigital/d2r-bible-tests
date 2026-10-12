@@ -966,6 +966,11 @@ GATES = [
              "vault_population decomposes it: 222 owned = 172 non-set-pieces + 50 that ALSO sit "
              "in d2r_setPieces, and 49 filed nowhere is what fills the dock. 172 is exactly his "
              "pre-wipe owned. Read-only, pinned by a law"),
+    Gate("test_d2jsp_desk", [sys.executable,
+                            os.path.join(HERE, "test_the_d2jsp_desk_reads_a_price_before_it_posts.py")], 60,
+         why="v3693 — the D2JSP room is its own workshop tab after the Vault, not a console header door. "
+             "A post carries forum gold only when a public reading or his own number produced it, and the "
+             "bridge submits only on board 268 while that browser is logged in."),
     Gate("test_proof_chip", [sys.executable,
                              os.path.join(HERE, "test_the_proof_chip_says_nothing_when_nobody_answered.py")], 60,
          why="REG-1052 — the vault now MARKS how many of a locker's items the ledger can prove, "

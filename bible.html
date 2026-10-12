@@ -5241,6 +5241,7 @@ try {
     <button class="tab" data-tab="fsets">🧩 Sets</button>
     <button class="tab" data-tab="chars">👤 Characters</button><!-- #245 — Konyo: "i want a separate section for the character MAIN character and builds ... just like the mules have their designated areas", asked where: "Its own top tab". The MANUAL side, right before the Vault (the automated side) so the two sit together and stay two rooms. -->
     <button class="tab" data-tab="vault">🎒 Vault</button><!-- v2084 — Konyo: "the VAULT MANAGER it needs a MAIN TAB of its own inbetween tools and TV-D tab on top". After the forge cluster so those three rooms stay adjacent. -->
+    <button class="tab" data-tab="d2jsp">💰 D2JSP</button><!-- v3693 — his own trade room, beside the Vault, not a console header door. -->
     <button class="tab" data-tab="tvd">📺 TV·D</button><!-- v914 (Konyo: 'yes I want it on the website too') — the live view is a first-class site tab again; app-ctx keeps it in the console header instead -->
    </div>
   </div>
@@ -6095,6 +6096,7 @@ body.app-ctx .tabs .tab[data-tab="tools"]{opacity:.62;flex:0 1 auto !important;f
 body.app-ctx .tabs .tab[data-tab="session"],body.app-ctx .tabs .tab[data-tab="tools"],
 body.app-ctx .tabs .tab[data-tab="forge"],body.app-ctx .tabs .tab[data-tab="funi"],
 body.app-ctx .tabs .tab[data-tab="vault"],
+body.app-ctx .tabs .tab[data-tab="d2jsp"],
 /* #245 — the Characters room joins the re-show list, or it is built, renders and has no button in app context. */
 body.app-ctx .tabs .tab[data-tab="chars"],
 /* v2094 — crafts joins the app-context re-show list. Without this the tab is built and the
@@ -11046,6 +11048,298 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
      literally always breathing"). Mission-control shell: a live screen bezel that breathes with
      the agent's real half-second heartbeat, meters, and the mono signal feed. The session-tab
      card stays as the compact twin — one shared engine renders both. -->
+<div class="tab-content" id="tab-d2jsp">
+  <style>
+    #tab-d2jsp .d2jsp-card{display:flex;gap:12px;align-items:flex-start;border:1px solid rgba(233,208,122,.4);border-radius:8px;padding:10px;margin:8px 0;background:rgba(10,9,7,.55)}
+    #tab-d2jsp .d2jsp-art{width:72px;height:72px;flex:0 0 72px}
+    #tab-d2jsp .d2jsp-art img{width:72px;height:72px;object-fit:contain}
+    #tab-d2jsp .d2jsp-say{color:#e9d07a;font-size:13px;line-height:1.45}
+  </style>
+  <div class="boss-card" id="d2jsp-card" style="--tc:#f0c060">
+    <div class="boss-header">
+      <div class="boss-title-block">
+        <p class="boss-name">D2JSP</p>
+        <p class="boss-subtitle" id="d2jsp-what">A tagged vault item posts to the softcore non-ladder board through the d2jsp login already open in this browser. This room never asks for the password. Forum gold stays unknown until a public reading returns a price, and the time of that reading is shown.</p>
+      </div>
+    </div>
+    <div class="boss-body">
+      <p class="d2jsp-say" id="d2jsp-board">Board 268, D2:R Softcore Trading, the softcore non-ladder forum.</p>
+      <p class="d2jsp-say">Install the bridge once in the browser that is logged into d2jsp. Post opens that board and the bridge submits the draft.</p>
+      <button type="button" class="vault-btn" id="d2jsp-bridge">Download the bridge</button>
+      <p class="d2jsp-say" id="d2jsp-status"></p>
+      <div class="vault-toolbar">
+        <select id="d2jsp-pick" aria-label="Vault item to tag"></select>
+        <button type="button" class="vault-btn vault-btn-primary" id="d2jsp-tag">Tag for trade</button>
+      </div>
+      <div id="d2jsp-list"></div>
+    </div>
+  </div>
+</div>
+<script>
+/* ⟦D2JSP DESK BEGIN⟧ */
+var D2JSP_BOARD = 268;
+function d2jspPriceToSend(quoted, typed) {
+  var t = String(typed == null ? '' : typed).trim();
+  if (t !== '') {
+    if (!/^\d+(?:\.\d+)?$/.test(t)) return null;
+    var n = Number(t);
+    return (n > 0) ? n : null;
+  }
+  var q = Number(quoted);
+  return (q > 0) ? q : null;
+}
+function d2jspDraft(name, base, mods, copies, fg) {
+  var price = (typeof fg === 'number') ? fg : Number(fg);
+  if (!(price > 0)) return { ok: false, reason: 'no price' };
+  var nm = String(name || '').trim();
+  if (!nm) return { ok: false, reason: 'no item' };
+  var b = String(base || '').trim();
+  var subject = 'WTS ' + nm + (b ? (' ' + b) : '');
+  var lines = [subject];
+  var mod = String(mods || '').trim();
+  if (mod) lines.push(mod);
+  var c = copies | 0;
+  if (c > 1) lines.push('copies: ' + c);
+  lines.push(price + ' fg');
+  return { ok: true, subject: subject, body: lines.join('\n'), forum: D2JSP_BOARD };
+}
+function d2jspPostUrl(draft) {
+  var payload = { subject: draft.subject, body: draft.body, forum: draft.forum };
+  return 'https://forums.d2jsp.org/post.php?mode=post&f=' + draft.forum + '#d2r=' + encodeURIComponent(JSON.stringify(payload));
+}
+function d2jspBridgeAct(doc, loc, opener) {
+  var h = (loc && loc.hash) || '';
+  if (h.indexOf('#d2r=') !== 0) return 'ignore';
+  var draft;
+  try { draft = JSON.parse(decodeURIComponent(h.slice(5))); }
+  catch (e) { return 'bad-draft'; }
+  var f = '';
+  try { f = new URLSearchParams(loc.search || '').get('f') || ''; }
+  catch (e2) { f = ''; }
+  if (String(draft.forum) !== String(f)) return 'wrong-board';
+  var subject = doc.querySelector('input[name="subject"]');
+  var message = doc.querySelector('textarea[name="message"]');
+  if (!subject || !message) return 'form-unknown';
+  var logged = !!doc.querySelector('a[href*="mode=logout"]');
+  if (!logged) return 'need-login';
+  subject.value = String(draft.subject || '');
+  message.value = String(draft.body || '');
+  var btn = doc.querySelector('input[name="post"], button[name="post"]');
+  if (!btn) return 'form-unknown';
+  btn.click();
+  return 'submitted';
+}
+function d2jspBridgeSource() {
+  return [
+    '// ==UserScript==',
+    '// @name         D2R desk bridge',
+    '// @namespace    https://bull-4-u.com/d2r/',
+    '// @version      1',
+    '// @match        https://forums.d2jsp.org/post.php*',
+    '// @grant        none',
+    '// ==/UserScript==',
+    '(function(){',
+    d2jspBridgeAct.toString(),
+    '  var status = d2jspBridgeAct(document, location, window.opener);',
+    '  if (status && status !== "ignore" && window.opener) {',
+    '    try { window.opener.postMessage({d2jsp: status}, "*"); } catch (e) {}',
+    '  }',
+    '})();',
+    ''
+  ].join('\n');
+}
+/* ⟦D2JSP DESK END⟧ */
+(function(){
+  var quoted = {};
+  function store(){
+    try { if (typeof LS !== 'undefined' && LS && LS.getItem) return LS; } catch (e) {}
+    try { return localStorage; } catch (e2) { return null; }
+  }
+  function readMap(key){
+    var s = store();
+    if (!s) return {};
+    try {
+      var v = JSON.parse(s.getItem(key) || 'null');
+      return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
+    } catch (e) { return {}; }
+  }
+  function writeMap(key, v){
+    var s = store();
+    if (!s) return;
+    try { s.setItem(key, JSON.stringify(v)); } catch (e) {}
+  }
+  function tags(){
+    var s = store();
+    if (!s) return [];
+    try {
+      var v = JSON.parse(s.getItem('d2r_d2jsp_tags') || '[]');
+      return Array.isArray(v) ? v.filter(function(n){ return typeof n === 'string' && n; }) : [];
+    } catch (e) { return []; }
+  }
+  function writeTags(list){ var s = store(); if (s) { try { s.setItem('d2r_d2jsp_tags', JSON.stringify(list)); } catch (e) {} } }
+  function names(){
+    var out = [];
+    try {
+      if (typeof assign === 'object' && assign) {
+        Object.keys(assign).forEach(function(n){ if (assign[n]) out.push(n); });
+      }
+    } catch (e) {}
+    out.sort();
+    return out;
+  }
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];
+    });
+  }
+  function baseOf(name){
+    try { if (typeof window._vpMadeBase === 'function') return String(window._vpMadeBase(name) || ''); } catch (e) {}
+    return '';
+  }
+  function copiesOf(name){
+    try { if (typeof copyCount === 'function') return (copyCount(name) || 1) | 0; } catch (e) {}
+    return 1;
+  }
+  function modsOf(name){
+    var saved = readMap('d2r_d2jsp_mods')[name];
+    if (typeof saved === 'string') return saved;
+    try {
+      var rec = window._vpMadeOf && window._vpMadeOf(name);
+      if (rec && Array.isArray(rec.rolls)) return rec.rolls.map(function(x){ return String(x); }).join('\n');
+    } catch (e) {}
+    return '';
+  }
+  function typedOf(name){
+    var v = readMap('d2r_d2jsp_fg')[name];
+    return (v == null) ? '' : String(v);
+  }
+  function say(text){
+    var el = document.getElementById('d2jsp-status');
+    if (el) el.textContent = text;
+  }
+  function ask(name){
+    var paths = ['/d2r/api/d2jsp_quote?item=', '/api/d2jsp_quote?item='];
+    var i = 0;
+    function step(){
+      if (i >= paths.length) {
+        quoted[name] = { fg: null, readAt: new Date().toISOString(), reason: 'unread' };
+        paint();
+        return;
+      }
+      var path = paths[i++];
+      fetch(path + encodeURIComponent(name)).then(function(r){ return r.json(); }).then(function(j){
+        if (!j || j.reason === 'unread' || j.fg == null && j.reason !== 'no prices' && j.reason !== 'read') {
+          if (j && (j.reason === 'no prices' || j.reason === 'read')) { quoted[name] = j; paint(); return; }
+          step();
+          return;
+        }
+        quoted[name] = j;
+        paint();
+      }).catch(function(){ step(); });
+    }
+    step();
+  }
+  function paint(){
+    var list = document.getElementById('d2jsp-list');
+    var pick = document.getElementById('d2jsp-pick');
+    if (!list || !pick) return;
+    var have = tags();
+    var vault = names();
+    var rest = vault.filter(function(n){ return have.indexOf(n) < 0; });
+    pick.innerHTML = rest.map(function(n){ return '<option value="' + esc(n) + '">' + esc(n) + '</option>'; }).join('');
+    list.innerHTML = have.map(function(n){
+      var q = quoted[n] || {};
+      var priceLine = 'Public price unknown.';
+      if (q.reason === 'read' && q.fg > 0) priceLine = 'Public middle ' + q.fg + ' fg from ' + q.n + ' prices, read ' + (q.readAt || '');
+      else if (q.readAt) priceLine = 'Public price unknown. The reading at ' + q.readAt + ' returned no fg number.';
+      var art = (typeof artOr === 'function') ? artOr(n, '<span>◆</span>', 'lg') : '';
+      var send = d2jspPriceToSend(q.fg, typedOf(n));
+      return '<div class="d2jsp-card" data-d2jsp-item="' + esc(n) + '">'
+        + '<div class="d2jsp-art">' + art + '</div>'
+        + '<div><div class="boss-name">' + esc(n) + '</div>'
+        + '<div class="d2jsp-say">' + esc(baseOf(n) || 'Base not recorded') + '</div>'
+        + '<div class="d2jsp-say">' + esc(priceLine) + '</div>'
+        + '<label class="d2jsp-say">Mods <textarea data-d2jsp-mods="' + esc(n) + '" rows="3">' + esc(modsOf(n)) + '</textarea></label>'
+        + '<label class="d2jsp-say">Your fg <input data-d2jsp-fg="' + esc(n) + '" value="' + esc(typedOf(n)) + '" inputmode="decimal"></label>'
+        + '<div class="vault-toolbar">'
+        + '<button type="button" class="vault-btn vault-btn-primary" data-d2jsp-post="' + esc(n) + '"' + (send == null ? ' disabled' : '') + '>Post</button>'
+        + '<button type="button" class="vault-btn" data-d2jsp-untag="' + esc(n) + '">Untag</button>'
+        + '</div></div></div>';
+    }).join('');
+  }
+  window._d2jspShow = function(){
+    paint();
+    tags().forEach(function(n){ if (!quoted[n]) ask(n); });
+  };
+  document.addEventListener('click', function(ev){
+    var t = ev.target;
+    if (!t || !t.closest || !t.closest('#tab-d2jsp')) return;
+    if (t.id === 'd2jsp-bridge') {
+      var blob = new Blob([d2jspBridgeSource()], { type: 'text/javascript' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'd2jsp_bridge.user.js';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      return;
+    }
+    if (t.id === 'd2jsp-tag') {
+      var pick = document.getElementById('d2jsp-pick');
+      var name = pick && pick.value;
+      if (!name) { say('No vault item is waiting to tag.'); return; }
+      var list = tags();
+      if (list.indexOf(name) < 0) list.push(name);
+      writeTags(list);
+      ask(name);
+      paint();
+      return;
+    }
+    var post = t.getAttribute && t.getAttribute('data-d2jsp-post');
+    if (post) {
+      var q = quoted[post] || {};
+      var fg = d2jspPriceToSend(q.fg, typedOf(post));
+      var draft = d2jspDraft(post, baseOf(post), modsOf(post), copiesOf(post), fg);
+      if (!draft.ok) { say('Forum gold is unknown, so this item is not posted.'); return; }
+      window.open(d2jspPostUrl(draft), 'd2jsp-post');
+      say('The trade board is open. The bridge submits the draft only when that browser is logged into d2jsp.');
+      return;
+    }
+    var un = t.getAttribute && t.getAttribute('data-d2jsp-untag');
+    if (un) {
+      writeTags(tags().filter(function(n){ return n !== un; }));
+      paint();
+    }
+  });
+  document.addEventListener('input', function(ev){
+    var t = ev.target;
+    if (!t || !t.getAttribute) return;
+    var mn = t.getAttribute('data-d2jsp-mods');
+    if (mn) {
+      var mods = readMap('d2r_d2jsp_mods');
+      mods[mn] = t.value;
+      writeMap('d2r_d2jsp_mods', mods);
+    }
+    var fn = t.getAttribute('data-d2jsp-fg');
+    if (fn) {
+      var fgs = readMap('d2r_d2jsp_fg');
+      fgs[fn] = t.value;
+      writeMap('d2r_d2jsp_fg', fgs);
+      var card = t.closest && t.closest('.d2jsp-card');
+      var btn = card && card.querySelector('[data-d2jsp-post]');
+      if (btn) btn.disabled = d2jspPriceToSend((quoted[fn] || {}).fg, t.value) == null;
+    }
+  });
+  window.addEventListener('message', function(ev){
+    if (!ev || ev.origin !== 'https://forums.d2jsp.org') return;
+    var data = ev.data || {};
+    if (data.d2jsp === 'submitted') say('The bridge submitted the form in the d2jsp window.');
+    else if (data.d2jsp === 'need-login') say('That browser is not logged into d2jsp, so nothing was posted.');
+    else if (data.d2jsp === 'form-unknown') say('The d2jsp form was not the one the bridge knows, so nothing was posted.');
+    else if (data.d2jsp === 'wrong-board') say('The open page is not board 268, so nothing was posted.');
+  });
+})();
+</script>
 <div class="tab-content" id="tab-vault">
   <!-- v2084 — THE VAULT IS A ROOM, NOT A CARD IN A DRAWER. It was a collapsed boss-card
        inside Tools, opened by clicking a header, sharing that tab with sixteen others —
@@ -32102,6 +32396,7 @@ function switchTab(name) {
   if (name === "tools" && typeof window.refreshLootFilterCount === "function") window.refreshLootFilterCount();   // v535 — live loot-filter base count
   if (name === "tools" && typeof window.renderSmartInsights === "function") window.renderSmartInsights();          // v543 — smart Chronicle insights
   if (name === "session" && typeof window.renderSessionCockpit === "function") window.renderSessionCockpit();      // v686 — cockpit recomputes on every open (same doctrine as the Forge)
+  if (name === "d2jsp" && typeof window._d2jspShow === "function") window._d2jspShow();
   if (name === "main" && typeof window._mainPeeks === "function") setTimeout(window._mainPeeks, 600);              // v693 🏓R3 — closed-row peeks refresh after the async boards paint
   // v693.1 🏓R4 — the Binds verdict opens itself ONCE per session (the tab's whole answer); every
   // other lore drawer stays collapsed. sessionStorage: per-tab-session, never persisted state.

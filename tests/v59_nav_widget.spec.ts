@@ -62,7 +62,8 @@ test.describe('v59 nav compass widget', () => {
     // craft room stop sharing one door. Both land in .tabs-workshop, and the compass builds its
     // chips FROM .tabs (chipsMatchTabs above asserts that sync), so it picked both up on its own.
     // #245: a 20th — "chars" (👤 Characters, his own builds, the manual side right before the Vault).
-    expect(r.chipNames.length).toBe(20);   // … · v710.4 + 📺 TV·D · v2085 + 🎒 Vault · v2094 + ⚗️ Crafts · #245 + 👤 Characters
+    // v3693: a 21st — "d2jsp", its own workshop tab after the Vault.
+    expect(r.chipNames.length).toBe(21);   // … · v710.4 + 📺 TV·D · v2085 + 🎒 Vault · v2094 + ⚗️ Crafts · #245 + 👤 Characters · v3693 + 💰 D2JSP
     expect(r.hasBackToTop).toBe(true);
     expect(r.firstChipKeepsIcon).toBe(true);
     expect(r.noUndef).toBe(true);
