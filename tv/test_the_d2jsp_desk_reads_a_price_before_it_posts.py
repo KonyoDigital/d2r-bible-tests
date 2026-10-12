@@ -203,6 +203,121 @@ process.stdout.write(JSON.stringify({
         self.assertFalse(out["srcHasPassword"])
         self.assertTrue(out["srcHasLogout"])
 
+    def test_a_post_is_one_line_per_mod_from_the_builder_list(self):
+        if NODE is None:
+            self.skipTest("node is not on this machine")
+        pane = _between(self.bible, 'id="tab-d2jsp"', 'id="tab-vault"')
+        self.assertIn('id="d2jsp-add"', pane)
+        self.assertIn(">Add an item</button>", pane)
+        script = pane.split("<script>", 1)[1].split("</script>", 1)[0]
+        lines_at = script.index("function gearLines(")
+        shown_at = script.index("function shownOf(", lines_at)
+        lines_fn = script[lines_at:shown_at]
+        self.assertLess(shown_at - lines_at, 2200)
+        self.assertIn("_cbLineHtml", lines_fn)
+        self.assertIn("_cbAfText", lines_fn)
+        self.assertIn("Ethereal", lines_fn)
+        file_at = script.index("function fileGear(")
+        open_at = script.index("window._d2jspPlannerOpen = function", file_at)
+        filed = script[file_at:open_at]
+        self.assertLess(open_at - file_at, 1800)
+        self.assertIn("d2r_d2jsp_gear", script[script.index("function gearMap("):lines_at])
+        self.assertIn("d2jspIsQuest", filed)
+        self.assertNotIn("vaultPlannerFile", filed)
+        click_at = script.index("document.addEventListener('click'", open_at)
+        opener = script[open_at:click_at]
+        self.assertLess(click_at - open_at, 2800)
+        self.assertIn("_cbHostOpen", opener)
+        self.assertIn("desk: 'd2jsp'", opener)
+        self.assertNotIn("vaultPlannerFile", opener)
+        self.assertNotIn("vaultHandAdd", opener)
+        self.assertNotIn("d2r_charBuilds", opener)
+        card_at = script.index("function cardHtml(")
+        cards_at = script.index("function currentCards(", card_at)
+        card = script[card_at:cards_at]
+        self.assertLess(cards_at - card_at, 2200)
+        self.assertIn("data-d2jsp-options", card)
+        self.assertIn("data-d2jsp-draft", card)
+        self.assertNotIn("<textarea", card)
+        host = self.bible.index("var foot = (st.host.planner)")
+        placed = self.bible.index("window._cbHostPlaced", host)
+        self.assertLess(placed - host, 600)
+        self.assertIn("st.host.desk === 'd2jsp'", self.bible[host:placed])
+        self.assertIn("window._d2jspPlateHtml", self.bible[host:placed])
+        note = self.bible.index("The same item list and the same mod list as the character builder.")
+        pick = self.bible.rindex("function _cbPickHtml", 0, note)
+        filt = self.bible.index("function _cbFiltOpts", note)
+        self.assertLess(note - pick, 8000)
+        self.assertLess(filt - note, 1600)
+        self.assertIn("window._d2jspPlannerOn = true", opener)
+        self.assertEqual(self.bible.count("window._d2jspPlannerOn"), 5)
+        self.assertEqual(self.bible.count("!window._d2jspPlannerOn"), 2)
+        modal_at = self.bible.index("function _cbModal(){")
+        self.assertEqual(self.bible.count("function _cbModal(){"), 1)
+        modal_end = self.bible.index("window._cbModal = _cbModal;", modal_at)
+        self.assertLess(modal_end - modal_at, 1400)
+        modal = self.bible[modal_at:modal_end]
+        self.assertEqual(modal.count("st.host.desk === 'd2jsp'"), 2)
+        self.assertIn("getElementById('d2jsp-planner-host')", modal)
+        self.assertIn("st.host && (st.host.planner || st.host.desk === 'd2jsp')", modal)
+        rel = modal.index("m.style.position = 'relative'")
+        back = modal.index("return;", rel)
+        place = modal.index("_cbPlace(m)")
+        self.assertLess(rel, back)
+        self.assertLess(back, place)
+        self.assertNotIn("vaultPlannerFile", modal)
+        placed_at = self.bible.index("window._cbHostPlaced = function(){")
+        placed_end = self.bible.index("window._cbHostEsc = function(){", placed_at)
+        self.assertLess(placed_end - placed_at, 500)
+        placed_fn = self.bible[placed_at:placed_end]
+        self.assertLess(placed_fn.index("st.host.desk === 'd2jsp'"), placed_fn.index("_cbPlace(m)"))
+        open_b = self.bible.index("window.openCharBuilder = function(buildId){")
+        open_end = self.bible.index("st.open = true", open_b)
+        self.assertLess(open_end - open_b, 2000)
+        opened = self.bible[open_b:open_end]
+        self.assertLess(opened.index("window._d2jspPlannerClose"), opened.index("window._mpPick"))
+        body = r"""
+var lines = window._d2jspGearLines({
+  id: 'grief', eth: true, rolls: {},
+  affixes: [{ id: 'vita', rolls: {} }]
+});
+var draft = d2jspDraft('Grief', 'Phase Blade', lines.join('\n'), 1, 30);
+var blocked = d2jspDraft('Grief', 'Phase Blade', lines.join('\n'), 1, 0);
+var quest = (typeof d2jspIsQuest === 'function') && d2jspIsQuest('Horadric Cube');
+process.stdout.write(JSON.stringify({lines: lines, draft: draft, blocked: blocked, quest: quest}));
+"""
+        stubs = r"""
+var document = {
+  documentElement: { classList: { contains: function(){ return false; } } },
+  getElementById: function(){ return null; },
+  addEventListener: function(){},
+  createElement: function(){ return { style: {}, hidden: true, querySelector: function(){ return null; }, setAttribute: function(){} }; },
+  body: { appendChild: function(){} }
+};
+var localStorage = { _m: {}, getItem: function(k){ return this._m[k] || null; }, setItem: function(k, v){ this._m[k] = String(v); } };
+var location = { hostname: '127.0.0.1' };
+var window = { addEventListener: function(){}, LSR: null };
+window._cbItem = function(id){
+  if (id !== 'grief') return null;
+  return ['grief', 'Grief', 'u', 'pblade', 0, 0, [[0, [[340, 400, 'ed']], 0, 'ed%']]];
+};
+window._cbLineHtml = function(){ return '+340-400% Enhanced Damage'; };
+window._cbAf = function(id){ return id === 'vita' ? ['vita'] : null; };
+window._cbAfText = function(){ return '+36-40 to Life'; };
+window._cbShown = function(){ return { name: 'Grief', base: 'Phase Blade' }; };
+"""
+        out = json.loads(_node(stubs + script, body))
+        self.assertEqual(out["lines"], ["+340-400% Enhanced Damage", "+36-40 to Life", "Ethereal"])
+        self.assertEqual(out["draft"]["subject"], "WTS Grief Phase Blade")
+        self.assertEqual(
+            out["draft"]["body"].split("\n"),
+            ["WTS Grief Phase Blade", "+340-400% Enhanced Damage", "+36-40 to Life", "Ethereal", "30 fg"],
+        )
+        self.assertEqual(out["draft"]["forum"], 268)
+        self.assertFalse(out["blocked"]["ok"])
+        self.assertEqual(out["blocked"]["reason"], "no price")
+        self.assertTrue(out["quest"])
+
     def test_the_room_lists_the_vault_and_posts_through_chrome(self):
         pane = _between(self.bible, 'id="tab-d2jsp"', 'id="tab-vault"')
         self.assertNotIn("Copy the bridge", pane)

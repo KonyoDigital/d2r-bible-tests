@@ -11062,8 +11062,19 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     #tab-d2jsp .d2jsp-say{color:#e9d07a;font-size:var(--fs-body);line-height:1.45}
     #tab-d2jsp .d2jsp-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(8em,11em) auto;gap:8px;align-items:end}
     #tab-d2jsp .d2jsp-fields .vault-btn{margin-top:6px}
+    #tab-d2jsp .d2jsp-acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+    #tab-d2jsp .d2jsp-draft{white-space:pre-wrap;margin:8px 0;font-family:var(--mono);font-size:var(--fs-body);color:#f6e7c2;line-height:1.45}
+    #tab-d2jsp #d2jsp-add{margin:8px 0}
     #tab-d2jsp input, #tab-d2jsp textarea{display:block;width:100%;box-sizing:border-box;margin-top:6px;font-family:var(--mono);font-size:var(--fs-body);color:#e9d07a;background:rgba(10,9,7,.55);border:1px solid rgba(233,208,122,.4);border-radius:6px}
     @media(max-width:700px){#tab-d2jsp .d2jsp-fields{grid-template-columns:minmax(0,1fr)}}
+    #d2jsp-planner-host[hidden]{display:none !important}
+    #d2jsp-planner-host{position:fixed;inset:0;z-index:100000;background:rgba(6,4,2,.78);display:flex;align-items:flex-start;justify-content:center;padding:36px 16px 24px;overflow:auto}
+    #d2jsp-planner-host .cb-modal{position:relative;left:auto;top:auto;width:min(1040px,calc(100% - 24px));height:min(88vh,940px);max-height:88vh;flex:none;border:1px solid rgba(212,168,71,.55);box-shadow:0 28px 80px rgba(0,0,0,.82),0 0 0 1px rgba(240,192,96,.22),0 0 42px rgba(212,168,71,.12)}
+    #d2jsp-planner-host .cb-mh{background:linear-gradient(180deg,rgba(54,40,16,.95),rgba(12,9,5,.98));border-bottom:1px solid rgba(212,168,71,.5)}
+    #d2jsp-planner-host .vp-plate{flex:none;display:flex;align-items:center;gap:16px;padding:14px 16px;border-top:1px solid rgba(212,168,71,.62);background:linear-gradient(180deg,rgba(48,34,12,.98),rgba(14,10,4,.99))}
+    #d2jsp-planner-host .vp-plate-k{flex:none;font-family:var(--serif-display,Cinzel,serif);font-size:var(--fs-body);letter-spacing:.14em;text-transform:uppercase;color:#f0d78c;max-width:220px}
+    #d2jsp-planner-host .vp-plate-say{flex:1;min-width:0;font-family:var(--serif-text,Georgia,serif);font-size:var(--fs-title);line-height:1.35;color:#f6e7c2}
+    #d2jsp-planner-host .vp-plate-done{flex:none;font-family:var(--serif-display,Cinzel,serif);letter-spacing:.14em;text-transform:uppercase;font-size:var(--fs-title);font-weight:var(--fw-semibold);padding:10px 18px;border-radius:4px;border:1px solid rgba(240,192,96,.85);background:linear-gradient(180deg,#f0d78c,#a07828);color:#1a1208;cursor:pointer}
   </style>
   <div class="boss-card" id="d2jsp-card" style="--tc:#f0c060">
     <div class="boss-header">
@@ -11076,6 +11087,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       <p class="d2jsp-say" id="d2jsp-board">Board 268, D2:R Softcore Trading, the softcore non-ladder forum.</p>
       <p class="d2jsp-say">This room never asks for the password. Forum gold stays unknown until a public reading returns a number, and the time of that reading is shown.</p>
       <input id="d2jsp-find" type="search" placeholder="Find a filed item" aria-label="Find a filed item" autocomplete="off" spellcheck="false">
+      <button type="button" class="vault-btn" id="d2jsp-add">Add an item</button>
       <p class="d2jsp-say" id="d2jsp-status"></p>
       <div id="d2jsp-list" class="d2jsp-scroll"></div>
     </div>
@@ -11102,8 +11114,10 @@ function d2jspDraft(name, base, mods, copies, fg) {
   var b = String(base || '').trim();
   var subject = 'WTS ' + nm + (b ? (' ' + b) : '');
   var lines = [subject];
-  var mod = String(mods || '').trim();
-  if (mod) lines.push(mod);
+  String(mods || '').split('\n').forEach(function(row){
+    var t = String(row || '').trim();
+    if (t) lines.push(t);
+  });
   var c = copies | 0;
   if (c > 1) lines.push('copies: ' + c);
   lines.push(price + ' fg');
@@ -11277,6 +11291,11 @@ function d2jspPriceLine(q) {
     });
   }
   function baseOf(name){
+    var rec = gearMap()[name];
+    if (rec && rec.entry) {
+      var sh = shownOf(rec.entry);
+      if (sh.name) return sh.base || '';
+    }
     try { if (typeof window._vpMadeBase === 'function') return String(window._vpMadeBase(name) || ''); } catch (e) {}
     return '';
   }
@@ -11285,11 +11304,13 @@ function d2jspPriceLine(q) {
     return 1;
   }
   function modsOf(name){
+    var rec = gearMap()[name];
+    if (rec && rec.entry) return gearLines(rec.entry).join('\n');
     var saved = readMap('d2r_d2jsp_mods')[name];
     if (typeof saved === 'string') return saved;
     try {
-      var rec = window._vpMadeOf && window._vpMadeOf(name);
-      if (rec && Array.isArray(rec.rolls)) return rec.rolls.map(function(x){ return String(x); }).join('\n');
+      var made = window._vpMadeOf && window._vpMadeOf(name);
+      if (made && Array.isArray(made.rolls)) return made.rolls.map(function(x){ return String(x); }).join('\n');
     } catch (e) {}
     return '';
   }
@@ -11297,6 +11318,58 @@ function d2jspPriceLine(q) {
     var v = readMap('d2r_d2jsp_fg')[name];
     return (v == null) ? '' : String(v);
   }
+  /* ⟦D2JSP GEAR BEGIN⟧ */
+  function gearMap(){
+    return readMap('d2r_d2jsp_gear');
+  }
+  function writeGear(v){ writeMap('d2r_d2jsp_gear', v); }
+  function plainLine(html){
+    return String(html == null ? '' : html)
+      .replace(/<[^>]+>/g, '')
+      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+      .replace(/\s+/g, ' ').trim();
+  }
+  function gearLines(entry){
+    var out = [];
+    if (!entry) return out;
+    var it = null;
+    try { it = (typeof window._cbItem === 'function') ? window._cbItem(entry.id) : null; } catch (eIt) { it = null; }
+    var rolls = entry.rolls || {};
+    ((it && it[6]) || []).forEach(function(l){
+      if (!l || l[2] === 3) return;
+      var t = '';
+      try { t = (typeof window._cbLineHtml === 'function') ? window._cbLineHtml(l, rolls, null, 'text') : ''; } catch (eLn) { t = ''; }
+      t = plainLine(t);
+      if (t) out.push(t);
+    });
+    (entry.affixes || []).forEach(function(x){
+      var a = null, t = '';
+      try { a = (typeof window._cbAf === 'function') ? window._cbAf(x && x.id) : null; } catch (eAf) { a = null; }
+      try { t = (a && typeof window._cbAfText === 'function') ? window._cbAfText(a, (x && x.rolls) || {}, null, 'text') : ''; } catch (eTx) { t = ''; }
+      t = plainLine(t);
+      if (t) out.push(t);
+    });
+    if (entry.eth) out.push('Ethereal');
+    return out;
+  }
+  window._d2jspGearLines = gearLines;
+  function shownOf(entry){
+    var it = null, shown = null;
+    try { it = (typeof window._cbItem === 'function') ? window._cbItem(entry && entry.id) : null; } catch (eIt2) { it = null; }
+    try { shown = (entry && typeof window._cbShown === 'function') ? window._cbShown(entry, it) : null; } catch (eSh) { shown = null; }
+    var nm = shown ? String(shown.name || '').trim() : '';
+    var base = shown ? String(shown.base || '').trim() : '';
+    if (base && nm && nm.toLowerCase().indexOf(base.toLowerCase()) >= 0) base = '';
+    return { name: nm, base: base };
+  }
+  function gearSig(){
+    var map = gearMap();
+    return Object.keys(map).sort().map(function(k){
+      var e = map[k] && map[k].entry;
+      return k + ':' + (e ? gearLines(e).join('|') : '');
+    }).join('\n');
+  }
+  /* ⟦D2JSP GEAR END⟧ */
   function say(text){
     var el = document.getElementById('d2jsp-status');
     if (el) el.textContent = text;
@@ -11310,6 +11383,16 @@ function d2jspPriceLine(q) {
     var el = document.getElementById('d2jsp-find');
     return el ? String(el.value || '').replace(/\s+/g, ' ').trim().toLowerCase() : '';
   }
+  function listedNames(){
+    var trade = tradeNames();
+    var extra = Object.keys(gearMap()).filter(function(n){ return n && !d2jspIsQuest(n); });
+    if (trade == null && !extra.length) return null;
+    var seen = {}, out = [];
+    (trade || []).forEach(function(n){ if (!seen[n]) { seen[n] = 1; out.push(n); } });
+    extra.forEach(function(n){ if (!seen[n]) { seen[n] = 1; out.push(n); } });
+    out.sort();
+    return out;
+  }
   function priceText(n){
     if (quoted[n]) return d2jspPriceLine(quoted[n]);
     if (reading) return 'Reading the public price.';
@@ -11318,15 +11401,27 @@ function d2jspPriceLine(q) {
   function cardHtml(n){
     var art = (typeof artOr === 'function') ? artOr(n, '<span>◆</span>', 'lg') : '';
     var base = baseOf(n);
+    var mods = modsOf(n);
     var send = d2jspPriceToSend((quoted[n] || {}).fg, typedOf(n));
+    var draft = d2jspDraft(n, base, mods, copiesOf(n), send);
+    var postText = draft.ok ? draft.body : mods;
+    var vaultNames = names();
+    var onVault = !!(vaultNames && vaultNames.indexOf(n) >= 0);
+    var remove = (gearMap()[n] && !onVault)
+      ? '<button type="button" class="vault-btn" data-d2jsp-remove="' + esc(n) + '">Remove from this list</button>'
+      : '';
+    var hint = mods.trim() ? '' : '<div class="d2jsp-say">No mods yet. Options opens the same mod list the character builder uses.</div>';
     return '<div class="d2jsp-card" data-d2jsp-item="' + esc(n) + '">'
       + '<div class="d2jsp-art">' + art + '</div>'
       + '<div class="d2jsp-main">'
       + '<div class="boss-name">' + esc(n) + '</div>'
       + '<div class="d2jsp-say" data-d2jsp-base>' + esc(base || 'Base not recorded') + '</div>'
+      + hint
+      + '<pre class="d2jsp-draft" data-d2jsp-draft' + (postText ? '' : ' hidden') + '>' + esc(postText) + '</pre>'
+      + '<div class="d2jsp-say" data-d2jsp-wait' + (draft.ok ? ' hidden' : '') + '>The post waits for a price.</div>'
       + '<div class="d2jsp-say" data-d2jsp-price>' + esc(priceText(n)) + '</div>'
       + '<div class="d2jsp-fields">'
-      + '<label class="d2jsp-say">Mods<textarea data-d2jsp-mods="' + esc(n) + '" rows="2">' + esc(modsOf(n)) + '</textarea></label>'
+      + '<div class="d2jsp-acts"><button type="button" class="vault-btn" data-d2jsp-options="' + esc(n) + '">Options</button>' + remove + '</div>'
       + '<label class="d2jsp-say">Your fg<input data-d2jsp-fg="' + esc(n) + '" value="' + esc(typedOf(n)) + '" inputmode="decimal" autocomplete="off" aria-label="Forum gold for this item"></label>'
       + '<button type="button" class="vault-btn vault-btn-primary" data-d2jsp-post="' + esc(n) + '"' + (send == null ? ' disabled' : '') + '>Post</button>'
       + '</div></div></div>';
@@ -11349,8 +11444,14 @@ function d2jspPriceLine(q) {
       var n = card && card.getAttribute('data-d2jsp-item');
       if (!n) continue;
       nodes[i].textContent = priceText(n);
+      var send = d2jspPriceToSend((quoted[n] || {}).fg, typedOf(n));
       var btn = card.querySelector('[data-d2jsp-post]');
-      if (btn) btn.disabled = d2jspPriceToSend((quoted[n] || {}).fg, typedOf(n)) == null;
+      if (btn) btn.disabled = send == null;
+      var pre = card.querySelector('[data-d2jsp-draft]');
+      var draft = d2jspDraft(n, baseOf(n), modsOf(n), copiesOf(n), send);
+      if (pre) { pre.textContent = draft.ok ? draft.body : modsOf(n); pre.hidden = !pre.textContent; }
+      var wait = card.querySelector('[data-d2jsp-wait]');
+      if (wait) wait.hidden = !!draft.ok;
     }
   }
   function applyFind(){
@@ -11360,7 +11461,8 @@ function d2jspPriceLine(q) {
     for (var i = 0; i < cards.length; i++) {
       var name = cards[i].getAttribute('data-d2jsp-item') || '';
       var baseEl = cards[i].querySelector('[data-d2jsp-base]');
-      var hay = (name + ' ' + (baseEl ? baseEl.textContent : '')).toLowerCase();
+      var draftEl = cards[i].querySelector('[data-d2jsp-draft]');
+      var hay = (name + ' ' + (baseEl ? baseEl.textContent : '') + ' ' + (draftEl ? draftEl.textContent : '')).toLowerCase();
       var on = !q || hay.indexOf(q) >= 0;
       cards[i].hidden = !on;
       if (on) shown++;
@@ -11376,24 +11478,26 @@ function d2jspPriceLine(q) {
     if (!list) return;
     var vault = names();
     var trade = tradeNames();
-    if (vault == null) {
+    var rows = listedNames();
+    var sig = gearSig();
+    if (rows == null) {
       list.innerHTML = '<p class="d2jsp-say" id="d2jsp-count">The vault would not read, so this list stays empty.</p>';
       return;
     }
-    if (!vault.length) {
-      list.innerHTML = '<p class="d2jsp-say" id="d2jsp-count">Nothing is filed in the vault yet.</p>';
+    if (!rows.length) {
+      var why = (vault && vault.length && trade && !trade.length)
+        ? 'Nothing here is a trade item. Quest items stay off this list.'
+        : 'Nothing is filed for trade yet. Add an item from the same list the character builder uses. Quest items stay off this list.';
+      list.innerHTML = '<p class="d2jsp-say" id="d2jsp-count">' + why + '</p>';
       return;
     }
-    if (!trade.length) {
-      list.innerHTML = '<p class="d2jsp-say" id="d2jsp-count">Nothing here is a trade item. Quest items stay off this list.</p>';
-      return;
-    }
-    if (sameSet(currentCards(), trade)) {
+    if (sameSet(currentCards(), rows) && list.getAttribute('data-d2jsp-sig') === sig) {
       paintPrices();
       applyFind();
       return;
     }
-    list.innerHTML = '<p class="d2jsp-say" id="d2jsp-count"></p>' + trade.map(cardHtml).join('');
+    list.setAttribute('data-d2jsp-sig', sig);
+    list.innerHTML = '<p class="d2jsp-say" id="d2jsp-count"></p>' + rows.map(cardHtml).join('');
     applyFind();
   }
   function ask(name, done){
@@ -11421,7 +11525,7 @@ function d2jspPriceLine(q) {
     step();
   }
   function refreshQuotes(){
-    var trade = tradeNames();
+    var trade = listedNames();
     if (!trade || !trade.length) return;
     reading = true;
     paintPrices();
@@ -11454,9 +11558,147 @@ function d2jspPriceLine(q) {
     paint();
     refreshQuotes();
   };
+  var held = null;
+  var editing = '';
+  function plannerHost(){
+    var host = document.getElementById('d2jsp-planner-host');
+    if (!host){
+      host = document.createElement('div');
+      host.id = 'd2jsp-planner-host';
+      host.hidden = true;
+      if (document.body) document.body.appendChild(host);
+    }
+    return host;
+  }
+  window._d2jspPlateHtml = function(sayText){
+    var s = String(sayText || '');
+    var saved = / is on the trade list$/.test(s);
+    return '<div class="vp-plate' + (saved ? '' : ' vp-plate-wait') + '" role="status">'
+      + '<div class="vp-plate-k">' + (saved ? 'On the trade list' : 'Not on the trade list yet') + '</div>'
+      + '<div class="vp-plate-say">' + esc(s || 'Choose the item, then add its mods. The post uses these lines.') + '</div>'
+      + '<button type="button" class="vp-plate-done" onclick="window._d2jspPlannerClose&&window._d2jspPlannerClose()">Done</button>'
+      + '</div>';
+  };
+  window._d2jspPlannerOn = false;
+  window._d2jspPlannerPaint = function(){
+    var host = plannerHost();
+    host.hidden = false;
+    host.innerHTML = (typeof window._cbHostHtml === 'function') ? window._cbHostHtml({ html: '', n: 0, total: 0 }) : '';
+    var m = host.querySelector('.cb-modal');
+    if (m){
+      m.style.position = 'relative';
+      m.style.left = '';
+      m.style.top = '';
+      m.style.width = '';
+      m.style.height = '';
+      m.style.maxHeight = '';
+    }
+    paint();
+    return true;
+  };
+  window._d2jspPlannerClose = function(){
+    window._d2jspPlannerOn = false;
+    try { if (window._cbHostClose) window._cbHostClose(); } catch (eClose) {}
+    held = null;
+    editing = '';
+    var host = document.getElementById('d2jsp-planner-host');
+    if (host){ host.hidden = true; host.innerHTML = ''; }
+    paint();
+    return true;
+  };
+  function fileGear(entry){
+    if (!entry){
+      if (editing){
+        var map0 = gearMap();
+        if (Object.prototype.hasOwnProperty.call(map0, editing)){
+          delete map0[editing];
+          writeGear(map0);
+        }
+      }
+      held = null;
+      return { ok: true, why: 'the pick was cleared' };
+    }
+    var sh = shownOf(entry);
+    if (!sh.name) return { ok: false, why: 'that pick has no name, so nothing was added' };
+    if (d2jspIsQuest(sh.name)) return { ok: false, why: sh.name + ' is a quest item, so it stays off this list' };
+    var map = gearMap();
+    var copy = null;
+    try { copy = JSON.parse(JSON.stringify(entry)); } catch (eCopy) { copy = null; }
+    if (!copy) return { ok: false, why: 'that pick could not be kept' };
+    if (editing && editing !== sh.name && Object.prototype.hasOwnProperty.call(map, editing)) delete map[editing];
+    map[sh.name] = { entry: copy };
+    writeGear(map);
+    held = copy;
+    editing = sh.name;
+    if (!quoted[sh.name]) ask(sh.name);
+    return { ok: true, why: sh.name + ' is on the trade list' };
+  }
+  window._d2jspPlannerOpen = function(name){
+    var root = document.documentElement;
+    if (root && root.classList && root.classList.contains('cb-lock')){
+      say('The character builder is open. Close it before adding an item here.');
+      return { ok: false, refused: 'builder-open' };
+    }
+    if (window._vaultPlannerOn){
+      say('The vault planner is open. Close it before adding an item here.');
+      return { ok: false, refused: 'vault-planner' };
+    }
+    if (typeof window._cbHostOn === 'function' && window._cbHostOn()){
+      say('An item list is already open. Close it before adding an item here.');
+      return { ok: false, refused: 'picker-open' };
+    }
+    if (typeof window._cbHostOpen !== 'function'){
+      say('The character builder list is not on this page, so nothing was added.');
+      return { ok: false, why: 'no builder' };
+    }
+    var rec = name ? gearMap()[name] : null;
+    try { held = (rec && rec.entry) ? JSON.parse(JSON.stringify(rec.entry)) : null; } catch (eHeld) { held = null; }
+    editing = name || '';
+    var ctx = {
+      kind: 'inv', cell: [0, 0], mule: 'the trade list', where: 'a trade filing', desk: 'd2jsp',
+      fits: function(){ return true; },
+      cur: function(){ return held; },
+      write: function(entry){
+        var r = fileGear(entry);
+        ctx.say = (r && r.why) || '';
+        if (ctx.say) say(ctx.say);
+        return { ok: !!(r && r.ok), why: ctx.say || 'not saved' };
+      },
+      render: function(){ window._d2jspPlannerPaint(); },
+      close: function(){ window._d2jspPlannerClose(); }
+    };
+    if (!window._cbHostOpen(ctx)){
+      say(window._cbHostRefusedWhy || 'The item list could not open.');
+      return { ok: false, refused: 'refused' };
+    }
+    window._d2jspPlannerOn = true;
+    window._d2jspPlannerPaint();
+    var box0 = plannerHost().querySelector('#cb-pick-q');
+    if (box0){ try { box0.focus(); } catch (eFocus) {} }
+    return { ok: true, mode: 'open' };
+  };
   document.addEventListener('click', function(ev){
     var t = ev.target;
     if (!t || !t.closest || !t.closest('#tab-d2jsp')) return;
+    if (t.closest('#d2jsp-add')) { ev.preventDefault(); window._d2jspPlannerOpen(''); return; }
+    var opt = t.closest('[data-d2jsp-options]');
+    if (opt) { ev.preventDefault(); window._d2jspPlannerOpen(opt.getAttribute('data-d2jsp-options') || ''); return; }
+    var rm = t.closest('[data-d2jsp-remove]');
+    if (rm) {
+      ev.preventDefault();
+      var rn = rm.getAttribute('data-d2jsp-remove') || '';
+      var vaultNames = names();
+      if (vaultNames && vaultNames.indexOf(rn) >= 0) {
+        say(rn + ' stays on this list, because the vault still files it.');
+        return;
+      }
+      var map = gearMap();
+      delete map[rn];
+      writeGear(map);
+      paint();
+      say(rn + ' was removed from this list.');
+      return;
+    }
     var post = t.getAttribute && t.getAttribute('data-d2jsp-post');
     if (post) {
       ev.preventDefault();
@@ -11524,11 +11766,19 @@ function d2jspPriceLine(q) {
       var fgs = readMap('d2r_d2jsp_fg');
       fgs[fn] = t.value;
       writeMap('d2r_d2jsp_fg', fgs);
-      var card = t.closest && t.closest('.d2jsp-card');
-      var btn = card && card.querySelector('[data-d2jsp-post]');
-      if (btn) btn.disabled = d2jspPriceToSend((quoted[fn] || {}).fg, t.value) == null;
+      paintPrices();
     }
   });
+  /* ⟦D2JSP PLANNER ESC BEGIN⟧ */
+  document.addEventListener('keydown', function(e){
+    var host = document.getElementById('d2jsp-planner-host');
+    if (!e || e.key !== 'Escape' || !host || host.hidden) return;
+    if (e.preventDefault) e.preventDefault();
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+    if (window._cbHostEsc && window._cbHostEsc()) return;
+    window._d2jspPlannerClose();
+  }, true);
+  /* ⟦D2JSP PLANNER ESC END⟧ */
   window.addEventListener('message', function(ev){
     if (!ev || ev.origin !== 'https://forums.d2jsp.org') return;
     var data = ev.data || {};
@@ -47298,7 +47548,7 @@ window.vaultAutoAssign = function(){
         + '<div class="mp-pick-f">' + (_mpPickErr ? '<div class="mp-pick-err">⚠ ' + esc(_mpPickErr) + '</div>' : '')
         +   (_left ? '<b>Left out: ' + _left + '</b> of ' + names.length + ' — ' + _why.join(' · ') : 'Nothing in this locker was left out.')
         + '</div></div>';
-      if (_hosted){
+      if (_hosted && !window._d2jspPlannerOn){
         if (!(typeof window._cbHostOn === 'function' && window._cbHostOn(_ps))) _mpHostSync();
         _hostHtml = window._cbHostHtml({ html: pick, n: _mpPickList.length, total: names.length }) || '';
         if (_hostHtml) pick = '';
@@ -47306,7 +47556,7 @@ window.vaultAutoAssign = function(){
     }
     /* #174 v-B5 — AN INVENTORY CELL OPENS THE SAME PICKER, drawn in the same place (the window's own render carries it,
        so its unit and type scale reach it). It has no "In this locker" tab: the locker's rows are already in the grids. */
-    if (_mpInvAt && !_mpPickAt && typeof window._cbHostHtml === 'function'){
+    if (_mpInvAt && !_mpPickAt && typeof window._cbHostHtml === 'function' && !window._d2jspPlannerOn){
       if (!(typeof window._cbHostOn === 'function' && window._cbHostOn('inv'))) _mpHostSync();
       _hostHtml = window._cbHostHtml(null) || '';
     }
@@ -60840,7 +61090,12 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     else { m.style.height = Math.round(H) + 'px'; m.style.maxHeight = ''; }
   }
   function _cbModal(){
-    var m = document.getElementById('cb-modal');
+    var m = null;
+    if (st.host && st.host.desk === 'd2jsp'){
+      var desk = document.getElementById('d2jsp-planner-host');
+      if (desk) m = desk.querySelector('.cb-modal');
+    }
+    if (!m) m = document.getElementById('cb-modal');
     if (!m){ if (st.pick && st.pick.host === 'mule' && st.host) st.host.render(); return; }   // #174 v-B4: the host re-draws it
     window.d2Tip.hide();
     if (!st.pick && !st.stash && !st.newb){ m.hidden = true; m.innerHTML = ''; return; }
@@ -60849,7 +61104,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     else if (st.stash) m.innerHTML = _cbStashHtml();
     else m.innerHTML = _cbPickHtml();
     m.setAttribute('aria-label', st.newb ? 'new build' : (st.stash ? 'stash' : 'choose an item'));
-    if (st.host && st.host.planner){
+    if (st.host && (st.host.planner || st.host.desk === 'd2jsp')){
       m.style.position = 'relative';
       m.style.left = '';
       m.style.top = '';
@@ -61027,6 +61282,8 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     /* #174 v-B5 — the mule's inventory says which cell, what is listed there, and that a pick lands on that cell or not at all */
     if (slot === CB_MINV && st.host && st.host.planner)
       say = '<div class="cb-note">Search the planner, choose a quality and mods. A pick is filed where a reel of the same item would go.</div>';
+    else if (slot === CB_MINV && st.host && st.host.desk === 'd2jsp')
+      say = '<div class="cb-note">The same item list and the same mod list as the character builder. A pick stays on this trade list. It is not written into a build or a locker.</div>';
     else if (slot === CB_MINV && p.cell) say = '<div class="cb-note">for ' + esc((st.host && st.host.where) || ('inventory cell ' + (p.cell[0] + 1) + ',' + (p.cell[1] + 1)))
       + ' of ' + esc((st.host && st.host.mule) || 'this mule') + ' — charms, jewels, rings and amulets are always listed; every other item is listed when its size fits here.'
       + ' A pick lands with its top-left on this cell, or is refused and says why — never moved to another cell, never into a build</div>';
@@ -62056,6 +62313,10 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
        builder's own picker state was gone and two #cb-modal owners were live at once. The builder is not focus-trapped,
        so a keyboard reaches the mule window behind it. While the builder is open the host door refuses and says why. */
     if (document.documentElement.classList.contains('cb-lock')){ window._cbHostRefusedWhy = CB_HOST_BUSY_WHY; return false; }
+    if (st.host && st.host.desk === 'd2jsp' && !(ctx && ctx.desk === 'd2jsp')){
+      window._cbHostRefusedWhy = 'the trade list is choosing an item. Close it before opening another list.';
+      return false;
+    }
     window._cbHostRefusedWhy = '';
     _cbDb();
     st.host = ctx; st.hostErr = ''; st.filtOpen = false; st.modOpen = false; st.modQ = ''; st.modSay = ''; st.modBad = false;
@@ -62087,12 +62348,15 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var p = st.pick; if (!p || p.host !== 'mule' || !st.host) return '';
     st.host.locker = locker || { html: '', n: 0, total: 0 };
     if (p.tab === 'auto') p.tab = (st.host.locker.n > 0) ? 'locker' : 'select';
-    var foot = (st.host.planner) ? _vpPlateHtml(st.host.say) : '';
+    var foot = (st.host.planner) ? _vpPlateHtml(st.host.say)
+      : (st.host.desk === 'd2jsp' && typeof window._d2jspPlateHtml === 'function') ? window._d2jspPlateHtml(st.host.say)
+      : '';
     return '<div class="cb-modal cb-host" id="cb-modal" role="dialog" aria-modal="true" aria-label="choose the ' + esc(p.kind === 'inv' ? 'item for ' + (st.host.where || 'this inventory cell') : (CB_SLOT_SAY[p.slot] || p.slot))
       + ' for ' + esc(st.host.mule || 'this mule') + ' (Esc closes)">' + _cbPickHtml() + foot + '</div>';
   };
   window._cbHostPlaced = function(){
     if (!(st.pick && st.pick.host === 'mule' && st.host)) return;
+    if (st.host.desk === 'd2jsp') return;
     var m = document.getElementById('cb-modal'); if (!m) return;
     _cbPlace(m);
     if (st.modOpen) _cbFitAddList();
@@ -62349,6 +62613,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
        host's #cb-modal; opening the builder over it made TWO #cb-modal elements, getElementById found the mule's, and
        the builder's picks were drawn into it under the overlay. Close the mule's picker FIRST (the mule window's own
        close re-renders it without the modal and releases the host) - one picker on screen, always. */
+    try { if (typeof window._d2jspPlannerClose === 'function') window._d2jspPlannerClose(); } catch (e) {}
     try { if (window._vaultPlannerOn && window.vaultPlannerClose) window.vaultPlannerClose(); } catch (e) {}
     try { if (st.pick && st.pick.host === 'mule' && typeof window._mpPick === 'function') window._mpPick(null); } catch (e) {}
     try { window._cbHostClose(); } catch (e) {}
