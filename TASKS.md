@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3690** | `(this commit)` | v3690 — an add of a name already filed stores another copy, and the shared stash draws it. HEART: test_a_planner_pick_files_where_a_reel_of_it_would_go |
+| **v3691** | `(this commit)` | v3691 — a second copy is its own rectangle on the shared stash card, and the count includes it. HEART: test_the_shared_stash_card_draws_each_copy |
+| **v3690** | `78ba21a4` | v3690 — an add of a name already filed stores another copy, and the shared stash draws it. HEART: test_a_planner_pick_files_where_a_reel_of_it_would_go |
 | **v3689** | `734828d8` | v3689 — the account locker has no delete door, and a call that names it changes nothing. HEART: test_the_shared_stash_locker_cannot_be_deleted |
 | **v3688** | `e3ba39d8` | v3688 — a throw-out row keeps its full name and does not leave the vault, and the click guard is anchored at both ends. HEART: test_the_total_never_GROWS |
 | **v3687** | `8a7f4e5f` | v3687 — a later planner open files another copy beside the one already filed, and a vault item click keeps the floating card. HEART: test_a_planner_pick_files_where_a_reel_of_it_would_go |

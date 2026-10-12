@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3690",
+  "ver": "v3691",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3690: an add of a name already filed stores another copy, and the shared stash draws it. HEART: test_a_planner_pick_files_where_a_reel_of_it_would_go",
+  "note": "v3691: a second copy is its own rectangle on the shared stash card, and the count includes it. HEART: test_the_shared_stash_card_draws_each_copy",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
