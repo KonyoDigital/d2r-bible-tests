@@ -460,7 +460,7 @@ class AHandAddedItemStaysHis(unittest.TestCase):
         if not NODE:
             raise AssertionError("node is not on this machine — this law does not skip")
         prog = "new Function(%s); new Function(%s);" % (json.dumps(opened), json.dumps(filed))
-        p = subprocess.run([NODE, "-e", prog], capture_output=True, text=True, timeout=30)
+        p = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=30)
         self.assertEqual(p.returncode, 0, p.stderr[-1500:])
 
     def test_a_planner_pick_files_where_a_reel_of_it_would_go(self):

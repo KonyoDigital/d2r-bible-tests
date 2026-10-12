@@ -60099,7 +60099,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       m.style.width = '';
       m.style.height = '';
       m.style.maxHeight = '';
-      if (st.modOpen && st.pick) _cbFitAddList();
+      if (st.modOpen && st.pick){ _cbFitAddList(); }
       return;
     }
     _cbPlace(m);
@@ -61422,7 +61422,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     if (!e || e.key !== 'Escape' || !window._vaultPlannerOn) return;
     if (e.preventDefault) e.preventDefault();
     if (e.stopImmediatePropagation) e.stopImmediatePropagation();
-    if (typeof window._cbHostEsc === 'function' && window._cbHostEsc()) return;
+    if (window._cbHostEsc && window._cbHostEsc()) return;
     window.vaultPlannerClose();
   }, true);
   /* ⟦VAULT PLANNER OPEN END⟧ */
