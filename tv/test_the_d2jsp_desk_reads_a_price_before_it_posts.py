@@ -98,7 +98,16 @@ var none = d2jspRead('Just a moment...', 'Grief', '2026-10-12T20:00:00.000Z');
 var empty = d2jspRead(page, 'Grief', '2026-10-12T20:00:00.000Z');
 var hit = d2jspRead('Grief Phase Blade 10 fg\n\nGrief 50 fg\n\nGrief 30 fg\n\nShako 200 fg', 'Grief', '2026-10-12T20:01:00.000Z');
 var one = d2jspRead('Grief 40 fg', 'Grief', '2026-10-12T20:02:00.000Z');
-process.stdout.write(JSON.stringify({prices: prices, none: none, empty: empty, hit: hit, one: one}));
+var gheeds = d2jspRead([
+  "Gheeds Fortune gc 106/35/13 - 20fg",
+  "Gheeds Fortune gc 108/31/12 - 15fg",
+  "Pcomb plain - 10fg x 1",
+  "35MF gheeds",
+  "Gheed's Fortune 10 fg",
+  "Summon Skill Necro + 26 life - 25fg"
+].join("\n"), "Gheed's Fortune", '2026-10-12T20:03:00.000Z');
+var wall = d2jspRead('You do not have permission to use this feature.', "Gheed's Fortune", '2026-10-12T20:04:00.000Z');
+process.stdout.write(JSON.stringify({prices: prices, none: none, empty: empty, hit: hit, one: one, gheeds: gheeds, wall: wall}));
 """
         out = json.loads(_node("var BOARD = 268;\n" + self.parser, body))
         self.assertEqual(out["prices"], [])
@@ -120,6 +129,15 @@ process.stdout.write(JSON.stringify({prices: prices, none: none, empty: empty, h
         self.assertIsNone(out["empty"]["high"])
         self.assertIsNone(out["none"]["low"])
         self.assertIsNone(out["none"]["high"])
+        self.assertEqual(out["hit"]["board"], 243)
+        self.assertEqual(out["gheeds"]["fg"], 15)
+        self.assertEqual(out["gheeds"]["n"], 3)
+        self.assertEqual(out["gheeds"]["low"], 10)
+        self.assertEqual(out["gheeds"]["high"], 20)
+        self.assertEqual(out["gheeds"]["reason"], "read")
+        self.assertIsNone(out["wall"]["fg"])
+        self.assertEqual(out["wall"]["reason"], "need-login")
+        self.assertEqual(out["wall"]["n"], 0)
 
     def test_a_post_waits_for_a_price_and_the_open_login(self):
         if NODE is None:
@@ -228,6 +246,12 @@ process.stdout.write(JSON.stringify({
         block = app[route:nxt]
         self.assertIn("import d2jsp_chrome as _d2jsp", block)
         self.assertIn("_d2jsp.d2jsp_send(", block)
+        self.assertEqual(app.count('if path == "/api/d2jsp_quote":'), 1)
+        quote_route = app.index('if path == "/api/d2jsp_quote":')
+        quote_next = app.index('if path in ("/", "/index.html", "/ui"):', quote_route)
+        qblock = app[quote_route:quote_next]
+        self.assertIn("import d2jsp_chrome as _d2jsp", qblock)
+        self.assertIn("_d2jsp.d2jsp_quote(", qblock)
         self.assertNotIn("d2jsp", _read(BEACON))
 
     def test_a_quest_item_is_not_a_trade_and_the_range_is_the_reading(self):
@@ -253,6 +277,7 @@ var one = d2jspPriceLine({reason:'read', fg:40, n:1, low:40, high:40, readAt:'20
 var same = d2jspPriceLine({reason:'read', fg:15, n:4, low:15, high:15, readAt:'2026-10-12T20:03:00.000Z'});
 var none = d2jspPriceLine({reason:'no prices', fg:null, n:0, low:null, high:null, readAt:'2026-10-12T20:04:00.000Z'});
 var blank = d2jspPriceLine(null);
+var login = d2jspPriceLine({reason:'need-login', fg:null, n:0, low:null, high:null, readAt:'2026-10-12T20:05:00.000Z'});
 process.stdout.write(JSON.stringify({
   list: D2JSP_QUEST,
   cube: d2jspIsQuest('Horadric Cube'),
@@ -264,7 +289,7 @@ process.stdout.write(JSON.stringify({
   baal: d2jspIsQuest("Baal's Eye"),
   token: d2jspIsQuest('Token of Absolution'),
   keys: d2jspIsQuest('Keys'),
-  line: line, one: one, same: same, none: none, blank: blank
+  line: line, one: one, same: same, none: none, blank: blank, login: login
 }));
 """
         out = json.loads(_node(self.desk, body))
@@ -287,6 +312,71 @@ process.stdout.write(JSON.stringify({
         self.assertIn("15 fg", out["same"])
         self.assertIn("returned no fg number", out["none"])
         self.assertEqual(out["blank"], "Public price unknown.")
+        self.assertIn("Chrome login", out["login"])
+        self.assertNotIn("fg,", out["login"])
+
+    def test_a_logged_in_search_prices_only_the_lines_that_name_the_item(self):
+        import d2jsp_chrome as desk
+        calls = {"urls": [], "cookie": 0}
+
+        def cookie_get():
+            calls["cookie"] += 1
+            return "sid=SECRETCOOKIE", "ok"
+
+        def no_cookie():
+            calls["cookie"] += 1
+            return None, "need-login"
+
+        page = "\n".join([
+            "Gheeds Fortune gc 106/35/13 - 20fg",
+            "Gheeds Fortune gc 108/31/12 - 15fg",
+            "Pcomb plain - 10fg x 1",
+            "35MF gheeds",
+            "Gheed's Fortune 10 fg",
+            "Summon Skill Necro + 26 life - 25fg",
+        ])
+
+        def transport(method, url, headers, data):
+            calls["urls"].append(url)
+            self.assertNotIn("SECRETCOOKIE", url)
+            self.assertEqual(headers.get("Cookie"), "sid=SECRETCOOKIE")
+            return 200, {}, page.encode("utf-8")
+
+        code, out = desk.d2jsp_quote(
+            "Gheed's Fortune", "http://evil.example", "evil.example", 17772,
+            cookie_get=cookie_get, transport=transport,
+        )
+        self.assertEqual(code, 403)
+        self.assertEqual(out["reason"], "origin")
+        self.assertIsNone(out["fg"])
+        self.assertEqual(calls["cookie"], 0)
+        self.assertEqual(calls["urls"], [])
+
+        code, out = desk.d2jsp_quote(
+            "Gheed's Fortune", "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
+            cookie_get=no_cookie, transport=transport,
+        )
+        self.assertEqual(out["reason"], "need-login")
+        self.assertIsNone(out["fg"])
+        self.assertEqual(calls["urls"], [])
+        self.assertNotIn("SECRETCOOKIE", json.dumps(out))
+
+        code, out = desk.d2jsp_quote(
+            "Gheed's Fortune", "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
+            cookie_get=cookie_get, transport=transport,
+        )
+        self.assertEqual(code, 200)
+        self.assertEqual(out["reason"], "read")
+        self.assertEqual(out["fg"], 15)
+        self.assertEqual(out["low"], 10)
+        self.assertEqual(out["high"], 20)
+        self.assertEqual(out["n"], 3)
+        self.assertEqual(out["board"], 243)
+        self.assertEqual(len(calls["urls"]), 1)
+        self.assertIn("Gheeds%20Fortune", calls["urls"][0])
+        self.assertIn("fid%5B%5D=243", calls["urls"][0])
+        self.assertNotIn("SECRETCOOKIE", json.dumps(out))
+        self.assertNotIn("Gheeds Fortune gc", json.dumps(out))
 
     def test_chrome_posts_only_a_priced_board_268_draft_from_this_console(self):
         import d2jsp_chrome as desk

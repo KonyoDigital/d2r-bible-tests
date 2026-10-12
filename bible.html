@@ -11222,6 +11222,7 @@ function d2jspPriceLine(q) {
     var n = q.n > 0 ? q.n : 1;
     return 'Public price ' + q.fg + ' fg, from ' + n + ' ' + (n === 1 ? 'price' : 'prices') + when + '.';
   }
+  if (q.reason === 'need-login') return 'Public price unknown. The forum search needs the Chrome login on this machine.';
   if (q.readAt) return 'Public price unknown. The reading at ' + q.readAt + ' returned no fg number.';
   return 'Public price unknown.';
 }
@@ -11398,7 +11399,7 @@ function d2jspPriceLine(q) {
   function ask(name, done){
     if (pending[name]) { if (done) done(); return; }
     pending[name] = 1;
-    var paths = ['/d2r/api/d2jsp_quote?item=', '/api/d2jsp_quote?item='];
+    var paths = ['/api/d2jsp_quote?item=', '/d2r/api/d2jsp_quote?item='];
     var i = 0;
     function finish(j){
       pending[name] = 0;
@@ -11413,7 +11414,7 @@ function d2jspPriceLine(q) {
       }
       var path = paths[i++];
       fetch(path + encodeURIComponent(name)).then(function(r){ return r.json(); }).then(function(j){
-        if (j && (j.reason === 'no prices' || j.reason === 'read')) { finish(j); return; }
+        if (j && (j.reason === 'no prices' || j.reason === 'read' || j.reason === 'need-login')) { finish(j); return; }
         step();
       }).catch(function(){ step(); });
     }

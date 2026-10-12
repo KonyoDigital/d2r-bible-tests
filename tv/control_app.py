@@ -44804,6 +44804,21 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?", 1)[0]
+        if path == "/api/d2jsp_quote":
+            # The trade desk reads one item's forum-gold range through the Chrome
+            # login on this machine. The answer is the reading. The page and the
+            # cookie stay out of it.
+            import d2jsp_chrome as _d2jsp
+            from urllib.parse import parse_qs, urlparse
+            _item = (parse_qs(urlparse(self.path).query).get("item") or [""])[0]
+            _code, _out = _d2jsp.d2jsp_quote(
+                _item, self.headers.get("Origin"), self.headers.get("Host"), CONTROL_PORT)
+            if _out.get("reason") == "need-login":
+                _opened = _d2jsp.open_quote_login_once()
+                if _opened:
+                    _out["opened"] = True
+            self._json(_code, _out)
+            return
         if path in ("/", "/index.html", "/ui"):
             body = _read_ui()
             self.send_response(200)

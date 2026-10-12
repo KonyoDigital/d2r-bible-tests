@@ -12,18 +12,22 @@ Windows has no reader here. A public page has no route. Both stay unposted.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
+import shutil
 import sqlite3
 import subprocess
 import sys
 import tempfile
+import threading
 import urllib.error
 import urllib.parse
 import urllib.request
 from html.parser import HTMLParser
 
 BOARD = 268
+QUOTE_BOARD = 243
 COMPOSE_URL = "https://forums.d2jsp.org/post.php?mode=post&f=268"
 LOGIN_URL = "https://forums.d2jsp.org/login.php"
 _HOST = "forums.d2jsp.org"
@@ -370,6 +374,179 @@ def _headers(cookie):
         "Cookie": cookie,
         "Referer": COMPOSE_URL,
     }
+
+
+_QUOTE_JS = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "functions", "api", "d2jsp_quote.js",
+)
+quote_login_opened = False
+_quote_login_lock = threading.Lock()
+
+
+def _quote_unknown(item, read_at, reason):
+    return {
+        "item": str(item or ""),
+        "fg": None,
+        "low": None,
+        "high": None,
+        "n": 0,
+        "readAt": read_at,
+        "reason": reason,
+        "board": QUOTE_BOARD,
+    }
+
+
+def _read_quote_parser():
+    with open(_QUOTE_JS, encoding="utf-8") as fh:
+        src = fh.read()
+    mark = "/* ⟦D2JSP QUOTE BEGIN⟧ */\n"
+    start = src.index(mark) + len(mark)
+    end = src.index("\n/* ⟦D2JSP QUOTE END⟧ */", start)
+    return src[start:end]
+
+
+def _public_fields(parsed, item, read_at):
+    if not isinstance(parsed, dict):
+        return _quote_unknown(item, read_at, "unread")
+    reason = parsed.get("reason")
+    if reason not in ("read", "no prices", "need-login", "unread"):
+        reason = "unread"
+    fg = None
+    low = None
+    high = None
+    n = 0
+    if reason == "read":
+        try:
+            fg = float(parsed.get("fg"))
+        except (TypeError, ValueError):
+            return _quote_unknown(item, read_at, "unread")
+        if fg <= 0:
+            return _quote_unknown(item, read_at, "unread")
+        if fg == int(fg):
+            fg = int(fg)
+        low = parsed.get("low")
+        high = parsed.get("high")
+        try:
+            n = int(parsed.get("n"))
+        except (TypeError, ValueError):
+            return _quote_unknown(item, read_at, "unread")
+    return {
+        "item": str(item or ""),
+        "fg": fg,
+        "low": low,
+        "high": high,
+        "n": n,
+        "readAt": parsed.get("readAt") or read_at,
+        "reason": reason,
+        "board": QUOTE_BOARD,
+    }
+
+
+def parse_public_quote(html, item, read_at, node_run=None):
+    """Run the quote parser in functions/api/d2jsp_quote.js. No number is filled in here."""
+    if node_run is None:
+        node = shutil.which("node")
+        if not node:
+            return _quote_unknown(item, read_at, "unread")
+
+        def node_run(prog, page):
+            return subprocess.run(
+                [node, "-e", prog],
+                input=page,
+                capture_output=True,
+                timeout=20,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+    try:
+        parser = _read_quote_parser()
+    except (OSError, ValueError):
+        return _quote_unknown(item, read_at, "unread")
+    prog = (
+        parser
+        + "\nprocess.stdout.write(JSON.stringify(d2jspRead("
+        + "require('fs').readFileSync(0,'utf8'),"
+        + json.dumps(str(item or "")) + ","
+        + json.dumps(str(read_at or ""))
+        + ")));\n"
+    )
+    try:
+        proc = node_run(prog, str(html or ""))
+    except OSError:
+        return _quote_unknown(item, read_at, "unread")
+    if getattr(proc, "returncode", 1) != 0:
+        return _quote_unknown(item, read_at, "unread")
+    try:
+        parsed = json.loads(getattr(proc, "stdout", "") or "")
+    except (TypeError, ValueError):
+        return _quote_unknown(item, read_at, "unread")
+    return _public_fields(parsed, item, read_at)
+
+
+def _search_url(item):
+    keywords = re.sub(r"['’ʼ`]", "", str(item or ""))
+    return (
+        "https://forums.d2jsp.org/search.php?sr=posts&search_keywords="
+        + urllib.parse.quote(keywords)
+        + "&fid%5B%5D="
+        + str(QUOTE_BOARD)
+    )
+
+
+def d2jsp_quote(item, origin, host, port, cookie_get=None, transport=None, node_run=None):
+    """Read one item's fg range from the Switch Ladder search. -> (http code, dict)
+
+    The dict is the reading. It never carries the cookie or the page.
+    No login, a challenge page, or no fg on a line that names the item stays unknown.
+    """
+    import datetime
+    read_at = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
+    item = str(item or "").strip()[:80]
+    if not console_may_post(origin, host, port):
+        return 403, _quote_unknown(item, read_at, "origin")
+    if not item:
+        return 200, _quote_unknown(item, read_at, "no item")
+    get_cookie = cookie_get or live_cookie_header
+    try:
+        cookie, cookie_reason = get_cookie()
+    except Exception:
+        cookie, cookie_reason = None, "chrome-unread"
+    if not cookie:
+        return 200, _quote_unknown(item, read_at, cookie_reason or "need-login")
+    fetch = transport or _transport
+    headers = _headers(cookie)
+    headers["Referer"] = "https://forums.d2jsp.org/forum.php?f=%d" % QUOTE_BOARD
+    try:
+        status, hdrs, raw = fetch("GET", _search_url(item), headers, None)
+    except Exception:
+        return 200, _quote_unknown(item, read_at, "unread")
+    if status in (301, 302, 303, 307, 308):
+        loc = ""
+        if isinstance(hdrs, dict):
+            loc = hdrs.get("Location") or hdrs.get("location") or ""
+        if "login" in str(loc).lower():
+            return 200, _quote_unknown(item, read_at, "need-login")
+        return 200, _quote_unknown(item, read_at, "unread")
+    if isinstance(raw, (bytes, bytearray)):
+        page = raw.decode("utf-8", "replace")
+    else:
+        page = str(raw or "")
+    return 200, parse_public_quote(page, item, read_at, node_run=node_run)
+
+
+def open_quote_login_once():
+    """Open the Chrome login at most once per process. The price stays unknown either way."""
+    global quote_login_opened
+    with _quote_login_lock:
+        if quote_login_opened:
+            return False
+        quote_login_opened = True
+    try:
+        return bool(_open_chrome_login())
+    except Exception:
+        return None
 
 
 def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_login=None):
