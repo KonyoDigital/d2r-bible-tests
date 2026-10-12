@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3681",
+  "ver": "v3682",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3681: The vault mule grid painted the missing-art mark for a magic or rare keeper. artOr now uses the recorded base HD sprite. A unique or a set with no picture of its own stays unmarked. HEART: test_the_art_resolver_folds_the_apostrophe",
+  "note": "v3682: The two character counts in the vault art law were the whole rise from 44 fixed source windows to 46. Each slice now stops at the next real line. HEART: test_a_source_window_must_reach_its_subject",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
