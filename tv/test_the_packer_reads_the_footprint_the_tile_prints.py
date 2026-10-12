@@ -45,32 +45,61 @@ def _cut(s, start, end):
     return s[i:s.index(end, i) + len(end)]
 
 
-def _sizes(names):
+def _program(prelude, tail):
     if NODE is None:
         raise AssertionError("node is not on this machine - this gate does not skip")
     s = _src()
-    js = """
+    body = """
 var EXTRA_ITEMS = { "Odd Trophy": { base: "Mystery Base", cells: { w: 2, h: 4 } } };
 var ITEM_CODEX = { "Rainbow Facet": { rarity: "unique", base: "Jewels" }, "Bartuc's Cut-Throat": { base: "Greater Talons" },
                    "Shaftstop": { base: "Mesh Armor" }, "Nosferatu's Coil": { base: "Vampirefang Belt" } };
 var ITEM_TIP = {};
 var RUNEWORD_TIP = { "Enigma": { t: "Runeword", b: "3 socket Body Armor" }, "Spirit": { t: "Runeword", b: "4 socket Swords or Shields" },
-                     "Hand of Justice": { t: "Runeword", b: "4 socket Weapons" }, "Delirium": { t: "Runeword", b: "3 socket Helms" } };
+                     "Hand of Justice": { t: "Runeword", b: "4 socket Weapons" }, "Delirium": { t: "Runeword", b: "3 socket Helms" },
+                     "Grief": { t: "Runeword", b: "5 socket Axes Swords" } };
 function findRuneword(n){ return RUNEWORD_TIP[n] ? n : null; }
 var SET_SLOTS = { "Tal Rasha's Guardianship": "armor", "Tal Rasha's Horadric Crest": "helm", "Tal Rasha's Adjudication": "amulet",
                   "Cathan's Mesh": "chainmail", "Cow King's Horns": "war bonnet", "Cathan's Rule": "rod" };
 function findSetPiece(n){ return SET_SLOTS[n] ? { slot: SET_SLOTS[n] } : null; }
 %s
 %s
-var OUT = {};
-%s.forEach(function(n){ var c = _itemCells(n); OUT[n] = { pack: vaultSize(n), tile: [c.w, c.h], approx: !!c.approx }; });
-console.log(JSON.stringify(OUT));
-""" % (_cut(s, CELLS_START, CELLS_END), _cut(s, SIZE_START, SIZE_END), json.dumps(names))
+""" % (_cut(s, CELLS_START, CELLS_END), _cut(s, SIZE_START, SIZE_END))
+    return prelude + body + tail
+
+
+def _node(prelude, tail):
     # the program goes in on STDIN - a law never hands node its program on argv
-    r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=30)
+    r = subprocess.run([NODE, "-"], input=_program(prelude, tail), capture_output=True, text=True, timeout=30)
     if r.returncode != 0:
         raise AssertionError("the cut functions did not run in node: %s" % r.stderr[-400:])
     return json.loads(r.stdout.strip().splitlines()[-1])
+
+
+def _sizes(names, prelude=""):
+    tail = """
+var OUT = {};
+%s.forEach(function(n){ var c = _itemCells(n); OUT[n] = { pack: vaultSize(n), tile: [c.w, c.h], approx: !!c.approx }; });
+console.log(JSON.stringify(OUT));
+""" % json.dumps(names)
+    return _node(prelude, tail)
+
+
+def _planner(rec_js):
+    """A stub of the planner record and the game footprint. The size comes back only for a code this map holds."""
+    return """
+var REC = %s;
+var FOOT = { '7cr': [2, 3], '7gd': [2, 4] };
+var window = {
+  _vpMadeOf: function(n){
+    var r = REC[n];
+    return r ? { base: r.base, q: r.q, baseName: r.baseName, id: r.id } : null;
+  },
+  _cbFoot: function(e){
+    var f = e && FOOT[e.base];
+    return f ? [f[0], f[1]] : null;
+  }
+};
+""" % rec_js
 
 
 class ThePackerReadsTheFootprintTheTilePrints(unittest.TestCase):
@@ -102,6 +131,65 @@ class ThePackerReadsTheFootprintTheTilePrints(unittest.TestCase):
                         "a runeword was sized by a keyword in its NAME (Hand -> gloves): %r" % got["Hand of Justice"])
         for n in got:
             self.assertEqual(got[n]["pack"], got[n]["tile"], n)
+
+    def test_a_runeword_with_no_stored_base_stays_a_guess(self):
+        """Grief's tip names axes and swords. With no planner base, that is still a guess, and a
+        Phase Blade is not invented from the word."""
+        got = _sizes(["Grief"])["Grief"]
+        self.assertTrue(got["approx"], "Grief with no planner base was given a size: %r" % got)
+        self.assertEqual(got["pack"], [1, 2], got)
+        self.assertEqual(got["pack"], got["tile"], got)
+
+    def test_a_stored_phase_blade_occupies_six_cells_and_the_packer_agrees(self):
+        """The shared stash asks vaultSize, which asks _itemCells. A stored Phase Blade (code 7cr)
+        is 2 wide by 3 tall. That is the 6 cells. Every other page uses the same packer."""
+        prelude = _planner(
+            '{ Grief: { base: "7cr", q: "r", baseName: "Phase Blade", id: "grief" },'
+            ' "Odd Trophy": { base: "7cr", q: "r", baseName: "Phase Blade", id: "odd" } }')
+        got = _sizes(["Grief", "Spirit", "Hand of Justice", "Enigma", "Delirium", "Odd Trophy"], prelude)
+        g = got["Grief"]
+        self.assertEqual(g["tile"], [2, 3], "a stored Phase Blade was not 2 wide by 3 tall: %r" % g)
+        self.assertFalse(g["approx"], "a measured footprint was marked as a guess: %r" % g)
+        self.assertEqual(g["pack"], g["tile"], g)
+        self.assertEqual(g["tile"][0] * g["tile"][1], 6, g)
+        self.assertTrue(got["Spirit"]["approx"], "Spirit was given a size with no stored base: %r" % got["Spirit"])
+        self.assertTrue(got["Hand of Justice"]["approx"], got["Hand of Justice"])
+        self.assertEqual((got["Enigma"]["tile"], got["Enigma"]["approx"]), ([2, 3], False), got["Enigma"])
+        self.assertEqual((got["Delirium"]["tile"], got["Delirium"]["approx"]), ([2, 2], False), got["Delirium"])
+        self.assertEqual((got["Odd Trophy"]["tile"], got["Odd Trophy"]["approx"]), ([2, 4], False),
+                         "an explicit cell size lost to the planner base: %r" % got["Odd Trophy"])
+        bare = _sizes(["Grief"], _planner("{}"))
+        self.assertTrue(bare["Grief"]["approx"],
+                        "Grief was sized from the word while the game table sat unused: %r" % bare["Grief"])
+        self.assertEqual(bare["Grief"]["pack"], [1, 2], bare["Grief"])
+
+    def test_a_changed_base_does_not_keep_the_old_rectangle(self):
+        """The first answer is cached. A different stored code, a cleared record, and a code the
+        table does not size must each be asked again. A missing measurement stays a guess."""
+        tail = """
+var OUT = {};
+function snap(k){
+  var c = _itemCells('Grief');
+  OUT[k] = { pack: vaultSize('Grief'), tile: [c.w, c.h], approx: !!c.approx };
+}
+snap('phase');
+REC.Grief = { base: '7gd', q: 'r', baseName: 'Colossus Blade', id: 'grief' };
+snap('colossus');
+delete REC.Grief;
+snap('cleared');
+REC.Grief = { base: 'missing', q: 'r', baseName: 'Nope', id: 'grief' };
+snap('unknown');
+console.log(JSON.stringify(OUT));
+"""
+        got = _node(_planner('{ Grief: { base: "7cr", q: "r", baseName: "Phase Blade", id: "grief" } }'), tail)
+        self.assertEqual((got["phase"]["tile"], got["phase"]["approx"], got["phase"]["pack"]),
+                         ([2, 3], False, [2, 3]), got["phase"])
+        self.assertEqual((got["colossus"]["tile"], got["colossus"]["approx"], got["colossus"]["pack"]),
+                         ([2, 4], False, [2, 4]), got["colossus"])
+        self.assertEqual((got["cleared"]["tile"], got["cleared"]["approx"]), ([1, 2], True), got["cleared"])
+        self.assertEqual(got["cleared"]["pack"], got["cleared"]["tile"], got["cleared"])
+        self.assertTrue(got["unknown"]["approx"], "a base the table does not size was still drawn: %r" % got["unknown"])
+        self.assertEqual(got["unknown"]["tile"], [1, 2], got["unknown"])
 
     def test_a_set_piece_is_sized_by_its_slot(self):
         """REG-2068 - set pieces carry no codex base; REG-2051 dropped the slot lookup the old packer had, so Tal Rasha's

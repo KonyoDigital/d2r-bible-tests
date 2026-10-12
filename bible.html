@@ -18690,7 +18690,18 @@ window._artRarity = _artRarity;
 var _ITEM_CELLS_CACHE = {};
 function _itemCells(name){
   if (!name) return {w:1,h:2};
-  if (Object.prototype.hasOwnProperty.call(_ITEM_CELLS_CACHE, name)) return _ITEM_CELLS_CACHE[name];
+  /* v3686 — A PLANNER PICK STORES THE CATALOGUE BASE. The cache key includes that code, so a later
+     Phase Blade and an earlier guess for the same name cannot answer for each other. No record
+     keeps today's key. The name is never read as a base. */
+  var _storedBase = '';
+  try {
+    if (typeof window !== 'undefined' && window && typeof window._vpMadeOf === 'function'){
+      var _rec0 = window._vpMadeOf(name);
+      if (_rec0 && _rec0.base) _storedBase = String(_rec0.base);
+    }
+  } catch (e0) {}
+  var _ck = _storedBase ? (name + '\n' + _storedBase) : name;
+  if (Object.prototype.hasOwnProperty.call(_ITEM_CELLS_CACHE, _ck)) return _ITEM_CELLS_CACHE[_ck];
   // ⚠ THE DEFAULT IS A GUESS AND MUST SAY SO. It used to be indistinguishable from a resolved
   // footprint, so 71 bases rendered at a confident 1x2 that nobody had established. `approx` lets a
   // surface show it as unknown rather than draw it as fact. [[unknown-stays-unknown]]
@@ -18711,6 +18722,19 @@ function _itemCells(name){
          that lookup, so Tal Rasha's Guardianship packed and printed as a guessed 1x2 (Routine I red on v3623, v203). */
       if (!base){
         try { var _spz = (typeof findSetPiece === 'function') ? findSetPiece(name) : null; if (_spz && _spz.slot) base = String(_spz.slot); } catch(e){}
+      }
+      /* v3686 — THE STORED BASE IS THE GAME FOOTPRINT (window._cbFoot, invwidth x invheight). Grief's tip
+         names axes and swords, so the class guess below stays a 1x2 that says so. A Phase Blade on record
+         is code 7cr: 2 wide by 3 tall, 6 cells. An explicit EXTRA_ITEMS.cells above still wins. No record,
+         or a base the table does not size, falls through. Never invent a base from the word. */
+      if (_storedBase && typeof window !== 'undefined' && window && typeof window._cbFoot === 'function'){
+        try {
+          var _foot = window._cbFoot({ base: _storedBase });
+          if (_foot && _foot[0] >= 1 && _foot[1] >= 1){
+            cells = { w: _foot[0] | 0, h: _foot[1] | 0 };
+            _ITEM_CELLS_CACHE[_ck] = cells; return cells;
+          }
+        } catch (eFoot) {}
       }
       /* #275 (GrokBot tick 418, K14) - A RUNEWORD IS SIZED BY ITS BASE, NEVER BY ITS NAME. Enigma has no codex row, so it
          fell to the default 1x2 (its tile admitted the size was a guess) although every Enigma is body armour (2x3) - and a runeword
@@ -37300,26 +37324,26 @@ body{
 .vault-find-input{flex:1;background:transparent;border:none;outline:none;color:var(--text,#e8dcc8);font-family:var(--serif-text,Georgia,serif);font-size:14px;letter-spacing:.2px}
 .vault-find-input::placeholder{color:rgba(240,192,96,.42);font-style:italic}
 /* the two vault bars are different jobs: gold adds an item from the planner, steel finds one already on a mule */
-.vault-find-k{flex:none;font-family:var(--serif-display,Cinzel,serif);font-size:11px;letter-spacing:.16em;text-transform:uppercase;line-height:1.15;padding:4px 8px;border-radius:4px;border:1px solid transparent}
+.vault-find-k{flex:none;font-family:var(--serif-display,Cinzel,serif);font-size:var(--fs-meta);letter-spacing:.16em;text-transform:uppercase;line-height:1.15;padding:4px 8px;border-radius:4px;border:1px solid transparent}
 .vault-planner-find{margin-top:8px;border-color:rgba(212,168,71,.72);background:linear-gradient(180deg,rgba(72,52,18,.78),rgba(16,11,5,.82));box-shadow:inset 0 0 0 1px rgba(240,192,96,.16),0 0 22px rgba(212,168,71,.14)}
 .vault-planner-find .vault-find-k{color:#1a1208;background:linear-gradient(180deg,#f0d78c,#a07828);border-color:rgba(240,192,96,.85)}
-.vault-planner-find .vault-find-input{font-family:var(--serif-display,Cinzel,serif);font-size:15px;letter-spacing:.04em;color:#f6e7c2}
+.vault-planner-find .vault-find-input{font-family:var(--serif-display,Cinzel,serif);font-size:var(--fs-title);letter-spacing:.04em;color:#f6e7c2}
 .vault-planner-find .vault-find-input::placeholder{color:rgba(240,192,96,.78);font-style:normal;letter-spacing:.05em}
 .vault-find-mule{border-color:rgba(168,186,204,.42);background:linear-gradient(180deg,rgba(28,36,46,.72),rgba(8,10,14,.78));box-shadow:inset 0 0 0 1px rgba(186,204,220,.1)}
 .vault-find-mule:focus-within{border-color:#c5d4e4;box-shadow:0 0 0 1px rgba(186,204,220,.28),0 0 18px rgba(140,170,200,.12)}
 .vault-find-mule .vault-find-k{color:#d5e2ee;background:linear-gradient(180deg,rgba(70,86,102,.9),rgba(28,36,46,.95));border-color:rgba(186,204,220,.45)}
-.vault-find-mule .vault-find-input{font-family:var(--serif-text,Georgia,serif);font-size:15px;letter-spacing:.02em;color:#e7eef5}
+.vault-find-mule .vault-find-input{font-family:var(--serif-text,Georgia,serif);font-size:var(--fs-title);letter-spacing:.02em;color:#e7eef5}
 .vault-find-mule .vault-find-input::placeholder{color:rgba(186,204,220,.78);font-style:normal}
 #vault-planner-host[hidden]{display:none !important}
 #vault-planner-host{position:fixed;inset:0;z-index:100000;background:rgba(6,4,2,.78);display:flex;align-items:flex-start;justify-content:center;padding:36px 16px 24px;overflow:auto}
 #vault-planner-host .cb-modal{position:relative;left:auto;top:auto;width:min(1040px,calc(100% - 24px));height:min(88vh,940px);max-height:88vh;flex:none;border:1px solid rgba(212,168,71,.55);box-shadow:0 28px 80px rgba(0,0,0,.82),0 0 0 1px rgba(240,192,96,.22),0 0 42px rgba(212,168,71,.12)}
 #vault-planner-host .cb-mh{background:linear-gradient(180deg,rgba(54,40,16,.95),rgba(12,9,5,.98));border-bottom:1px solid rgba(212,168,71,.5)}
-#vault-planner-host .cb-tab{padding:0 22px;min-height:52px;font-family:var(--serif-display,Cinzel,serif);font-size:14px;letter-spacing:.16em;text-transform:uppercase}
+#vault-planner-host .cb-tab{padding:0 22px;min-height:52px;font-family:var(--serif-display,Cinzel,serif);font-size:var(--fs-title);letter-spacing:.16em;text-transform:uppercase}
 #vault-planner-host .cb-tab.cb-on{color:var(--gold-bright,#f0c060);background:rgba(20,14,6,.96);box-shadow:inset 0 -3px 0 #f0c060}
 #vault-planner-host .vp-plate{flex:none;display:flex;align-items:center;gap:16px;padding:14px 16px;border-top:1px solid rgba(212,168,71,.62);background:linear-gradient(180deg,rgba(48,34,12,.98),rgba(14,10,4,.99))}
-#vault-planner-host .vp-plate-k{flex:none;font-family:var(--serif-display,Cinzel,serif);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#f0d78c;max-width:220px}
-#vault-planner-host .vp-plate-say{flex:1;min-width:0;font-family:var(--serif-text,Georgia,serif);font-size:16px;line-height:1.35;color:#f6e7c2}
-#vault-planner-host .vp-plate-done{flex:none;font-family:var(--serif-display,Cinzel,serif);letter-spacing:.14em;text-transform:uppercase;font-size:14px;font-weight:700;padding:10px 18px;border-radius:4px;border:1px solid rgba(240,192,96,.85);background:linear-gradient(180deg,#f0d78c,#a07828);color:#1a1208;cursor:pointer}
+#vault-planner-host .vp-plate-k{flex:none;font-family:var(--serif-display,Cinzel,serif);font-size:var(--fs-body);letter-spacing:.14em;text-transform:uppercase;color:#f0d78c;max-width:220px}
+#vault-planner-host .vp-plate-say{flex:1;min-width:0;font-family:var(--serif-text,Georgia,serif);font-size:var(--fs-title);line-height:1.35;color:#f6e7c2}
+#vault-planner-host .vp-plate-done{flex:none;font-family:var(--serif-display,Cinzel,serif);letter-spacing:.14em;text-transform:uppercase;font-size:var(--fs-title);font-weight:var(--fw-semibold);padding:10px 18px;border-radius:4px;border:1px solid rgba(240,192,96,.85);background:linear-gradient(180deg,#f0d78c,#a07828);color:#1a1208;cursor:pointer}
 #vault-planner-host .vp-plate-done:hover{filter:brightness(1.06)}
 #vault-planner-host .vp-plate-wait{border-top-color:rgba(168,186,204,.4);background:linear-gradient(180deg,rgba(24,30,38,.98),rgba(8,10,14,.99))}
 #vault-planner-host .vp-plate-wait .vp-plate-k{color:#d5e2ee}
