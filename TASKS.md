@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3692** | `(this commit)` | v3692 — the proof chip counts the cells the total counts. HEART: test_it_counts_the_same_population_the_total_counts |
+| **v3693** | `(this commit)` | v3693 — a tagged vault item posts to softcore non-ladder through the open d2jsp login, and forum gold stays unknown until a public reading. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
+| **v3692** | `56ce6b40` | v3692 — the proof chip counts the cells the total counts. HEART: test_it_counts_the_same_population_the_total_counts |
 | **v3691** | `a86de669` | v3691 — a second copy is its own rectangle on the shared stash card, and the count includes it. HEART: test_the_shared_stash_card_draws_each_copy |
 | **v3690** | `78ba21a4` | v3690 — an add of a name already filed stores another copy, and the shared stash draws it. HEART: test_a_planner_pick_files_where_a_reel_of_it_would_go |
 | **v3689** | `734828d8` | v3689 — the account locker has no delete door, and a call that names it changes nothing. HEART: test_the_shared_stash_locker_cannot_be_deleted |

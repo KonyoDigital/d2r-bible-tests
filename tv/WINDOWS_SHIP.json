@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3692",
+  "ver": "v3693",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3692: the proof chip counts the cells the total counts. HEART: test_it_counts_the_same_population_the_total_counts",
+  "note": "v3693: a tagged vault item posts to softcore non-ladder through the open d2jsp login, and forum gold stays unknown until a public reading. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
