@@ -20,6 +20,11 @@ hand." under a list nothing else read. This law drives the SHIPPED door end to e
     over, and the migration runs once a page.
   · THE JOINS: renderVault asks the migration before it reads the pool; ownedPool filters by _vaultKeeps; the door
     names no mule and writes no store of its own; the side list's section is gone from the page.
+  · THE PLANNER SEARCH is a second door, outside that block. It opens the character-builder picker (search, quality,
+    mods) and files a pick only when suggestMule names a mule on this board: a catalogue piece through vaultHandAdd,
+    a magic / rare / crafted piece through magicFinds with the real base and the mod lines. Throw-out, keep-on-MAIN,
+    the shared stash, a name nothing knows, and a white base stay unfiled. The old door still does not file, and the
+    migration still does not file a row he typed before.
 
 Drives the shipped ⟦OWNED PROV⟧ door, _vaultKeeps, _vaultResolveName and the ⟦VAULT HAND⟧ block in node, the program
 on stdin. A missing node raises — this law does not skip. RED_PROOF below.
@@ -426,6 +431,190 @@ class AHandAddedItemStaysHis(unittest.TestCase):
         self.assertEqual(cat["asked"]["host"], "hand")
         self.assertEqual(cat["asked"]["slot"], "minv")
 
+    def test_the_planner_search_opens_the_picker_and_the_hand_door_still_does_not_file(self):
+        """The vault search is the character-builder picker. The old + Add an item door still files nothing."""
+        s = _src()
+        self.assertEqual(s.count('id="vault-planner-q"'), 1)
+        self.assertEqual(s.count('onclick="window.vaultHandOpen()"'), 1)
+        add_at = s.find('id="vault-planner-q"')
+        find_at = s.find('id="vault-find-input"')
+        self.assertGreater(add_at, 0)
+        self.assertIn('id="tab-vault"', s[:add_at])
+        self.assertLess(add_at, find_at, "the add search was put after the finder, or the finder is gone")
+        self.assertIn("window.vaultPlannerOpen(this.value)", s)
+        self.assertIn("window.vaultFind&&window.vaultFind(this.value)", s)
+        opened = _cut(s, "  /* ⟦VAULT PLANNER OPEN BEGIN⟧ */\n", "  /* ⟦VAULT PLANNER OPEN END⟧ */\n")
+        filed = _cut(s, "  /* ⟦VAULT PLANNER FILE BEGIN⟧ */\n", "  /* ⟦VAULT PLANNER FILE END⟧ */\n")
+        self.assertEqual(opened.count("window._cbHostOpen("), 1)
+        self.assertIn("kind: 'inv'", opened)
+        self.assertIn("planner: true", opened)
+        self.assertIn("fits: function(){ return true; }", opened)
+        self.assertIn("window.vaultPlannerFile(entry, token)", opened)
+        self.assertLess(s.find("  /* ⟦VAULT HAND END⟧ */\n"), s.find("  /* ⟦VAULT PLANNER FILE BEGIN⟧ */\n"))
+        where = "the Vault planner — your search filed it where a reel of it would go"
+        self.assertEqual(s.count(where), 1, "the reel-route witness is missing or was copied into a second door")
+        hand = _cut(s, HAND_A, HAND_B)
+        self.assertNotIn(where, hand)
+        self.assertNotIn("vaultFile(", code_only(hand))
+        self.assertNotIn("vaultPlannerFile", hand)
+        if not NODE:
+            raise AssertionError("node is not on this machine — this law does not skip")
+        prog = "new Function(%s); new Function(%s);" % (json.dumps(opened), json.dumps(filed))
+        p = subprocess.run([NODE, "-e", prog], capture_output=True, text=True, timeout=30)
+        self.assertEqual(p.returncode, 0, p.stderr[-1500:])
+
+    def test_a_planner_pick_files_where_a_reel_of_it_would_go(self):
+        """A manual pick takes the reel road. A mule answer files it. Every other answer is said and left alone."""
+        if not NODE:
+            raise AssertionError("node is not on this machine — this law does not skip")
+        s = _src()
+        block = _cut(s, "  /* ⟦VAULT PLANNER FILE BEGIN⟧ */\n", "  /* ⟦VAULT PLANNER FILE END⟧ */\n")
+        prog = r"""
+var window = globalThis, CALLS = [], SAID = [], magicFinds = {}, assign = {}, owned = new Set();
+function status(m){ SAID.push(String(m)); }
+function renderVault(){ CALLS.push('render'); }
+function persistOwned(){ CALLS.push('persist'); }
+function saveA(){ CALLS.push('save'); }
+function muleById(id){
+  var names = { 'uni-armor': 'UNI-ARMOR', 'magic-rare': 'MAGIC & RARE' };
+  return names[id] ? { id: id, name: names[id] } : null;
+}
+function isSharedStash(nm){ return nm === 'El Rune'; }
+function _vaultKeeps(nm){ return nm === 'Monarch'; }
+function suggestMule(nm){
+  var rec = magicFinds[nm];
+  CALLS.push('route:' + nm + ':' + ((rec && rec.q) || '') + ':' + ((rec && rec.base) || '') + ':' + ((rec && rec.mods) ? rec.mods.join('|') : ''));
+  return Object.prototype.hasOwnProperty.call(ROUTES, nm) ? ROUTES[nm] : { id: null, unsorted: true, why: 'nothing on the board recognises this name' };
+}
+var LS = { setItem: function(k){ CALLS.push('ls:' + k); } };
+var ROUTES = {};
+window.vaultHandAdd = function(nm, at, opts){
+  CALLS.push('own:' + nm + ':' + ((opts && opts.kind) || ''));
+  if (!owned.has(nm)) owned.add(nm);
+  return { ok: true, mode: 'added', name: nm };
+};
+window.vaultFile = function(nm, wit, opts){
+  CALLS.push('file:' + nm + ':' + opts.mule + ':' + wit.where);
+  assign[nm] = opts.mule;
+  if (!owned.has(nm)) owned.add(nm);
+  return { ok: true, mode: 'filed', mule: opts.mule };
+};
+window.vaultUnassign = function(nm){ CALLS.push('unfile:' + nm); delete assign[nm]; return { ok: true }; };
+window._cbItem = function(id){ return { id: id }; };
+window._cbShown = function(e, it){
+  return { name: e._name, q: e._q, base: e._base || '' };
+};
+window._cbDb = function(){ return { b: { cm: ['Grand Charm'], mon: ['Monarch'] } }; };
+window._cbAf = function(id){ return id === 'vita' ? { _text: '+36 to Life' } : null; };
+window._cbAfText = function(a){ return a._text || ''; };
+""" + block + r"""
+function files(nm){ return CALLS.filter(function(c){ return c.indexOf('file:' + nm + ':') === 0; }); }
+var WHERE = 'the Vault planner — your search filed it where a reel of it would go';
+ROUTES['Harlequin Crest'] = { id: 'uni-armor', why: 'armor slot' };
+var u1 = window.vaultPlannerFile({ id: 'shako', _name: 'Harlequin Crest', _q: 'u' }, 't-u');
+var u2 = window.vaultPlannerFile({ id: 'shako', _name: 'Harlequin Crest', _q: 'u' }, 't-u');
+ROUTES['Shimmering Grand Charm of Vita'] = { id: 'magic-rare', why: 'registered in Magic and Rare' };
+var m1 = window.vaultPlannerFile({ id: 'charm', base: 'cm', _name: 'Shimmering Grand Charm of Vita', _q: 'm', affixes: [{ id: 'vita' }] }, 't-m');
+var m2 = window.vaultPlannerFile({ id: 'charm', base: 'cm', _name: 'Shimmering Grand Charm of Vita', _q: 'm', affixes: [{ id: 'vita' }] }, 't-m');
+ROUTES['Junk Charm'] = { id: '__throwout', why: 'the planner would vendor it' };
+var toss = window.vaultPlannerFile({ id: 'junk', base: 'cm', _name: 'Junk Charm', _q: 'm' }, 't-toss');
+ROUTES['Keep Helm'] = { id: '__keep', why: 'your MAIN wears it' };
+var keep = window.vaultPlannerFile({ id: 'keep', _name: 'Keep Helm', _q: 'u' }, 't-keep');
+ROUTES['El Rune'] = null;
+var shared = window.vaultPlannerFile({ id: 'el', _name: 'El Rune', _q: 'u' }, 't-el');
+ROUTES['Bone Visor'] = { id: null, unsorted: true, why: 'nothing on the board recognises this name' };
+var loose = window.vaultPlannerFile({ id: 'bone', _name: 'Bone Visor', _q: 'u' }, 't-bone');
+var white = window.vaultPlannerFile({ id: 'amu', _name: 'Amulet', _q: 'b' }, 't-white');
+ROUTES['Monarch'] = { id: 'uni-armor', why: 'armor slot' };
+var base = window.vaultPlannerFile({ id: 'mon', base: 'mon', _name: 'Monarch', _q: 'b' }, 't-mon');
+ROUTES['Alpha Charm'] = { id: 'magic-rare', why: 'registered in Magic and Rare' };
+ROUTES['Beta Charm'] = { id: 'magic-rare', why: 'registered in Magic and Rare' };
+window.vaultPlannerFile({ id: 'cm', base: 'cm', _name: 'Alpha Charm', _q: 'm' }, 'same');
+var moved = window.vaultPlannerFile({ id: 'cm', base: 'cm', _name: 'Beta Charm', _q: 'm' }, 'same');
+var snap = { alpha: magicFinds['Alpha Charm'] || null, alphaHome: assign['Alpha Charm'] || null,
+             beta: magicFinds['Beta Charm'] || null, betaHome: assign['Beta Charm'] || null };
+ROUTES['Gamma Charm'] = { id: 'magic-rare', why: 'registered in Magic and Rare' };
+ROUTES['Delta Charm'] = { id: 'magic-rare', why: 'registered in Magic and Rare' };
+window.vaultPlannerFile({ id: 'g', base: 'cm', _name: 'Gamma Charm', _q: 'm' }, 'both');
+window.vaultPlannerFile({ id: 'd', base: 'cm', _name: 'Delta Charm', _q: 'm' }, 'both');
+ROUTES['Epsilon Charm'] = { id: 'magic-rare', why: 'registered in Magic and Rare' };
+ROUTES['Epsilon Two'] = { id: 'magic-rare', why: 'registered in Magic and Rare' };
+window.vaultPlannerFile({ id: 'eps', base: 'cm', _name: 'Epsilon Charm', _q: 'm' }, 'tok-a');
+window.vaultPlannerFile({ id: 'eps', base: 'cm', _name: 'Epsilon Two', _q: 'm' }, 'tok-b');
+assign['Stone of Jordan'] = 'uni-small';
+owned.add('Stone of Jordan');
+ROUTES['Stone of Jordan'] = { id: 'uni-armor', why: 'armor slot' };
+var already = window.vaultPlannerFile({ id: 'soj', _name: 'Stone of Jordan', _q: 'u' }, 't-soj');
+ROUTES['Clear Charm'] = { id: 'magic-rare', why: 'registered in Magic and Rare' };
+window.vaultPlannerFile({ id: 'clr', base: 'cm', _name: 'Clear Charm', _q: 'm' }, 'clr');
+var cleared = window.vaultPlannerFile(null, 'clr');
+var OUT = {
+  u1: u1, u2: u2, uFiles: files('Harlequin Crest'), ownedU: owned.has('Harlequin Crest'),
+  m1: m1, m2: m2, mf: magicFinds['Shimmering Grand Charm of Vita'] || null, mFiles: files('Shimmering Grand Charm of Vita'),
+  routeM: CALLS.filter(function(c){ return c.indexOf('route:Shimmering Grand Charm of Vita:') === 0; })[0] || '',
+  toss: toss, tossMf: magicFinds['Junk Charm'] || null, tossFiles: files('Junk Charm'),
+  keep: keep, keepFiles: files('Keep Helm'),
+  shared: shared, sharedFiles: files('El Rune'),
+  loose: loose, looseFiles: files('Bone Visor'),
+  white: white, whiteOwn: CALLS.filter(function(c){ return c.indexOf('own:Amulet:') === 0; }), whiteFiles: files('Amulet'),
+  base: base, baseOwn: CALLS.filter(function(c){ return c === 'own:Monarch:'; }), baseFiles: files('Monarch'),
+  moved: moved, alpha: snap.alpha, alphaHome: snap.alphaHome, beta: snap.beta, betaHome: snap.betaHome,
+  gamma: magicFinds['Gamma Charm'] || null, delta: magicFinds['Delta Charm'] || null,
+  epsilon: magicFinds['Epsilon Charm'] || null, epsilonTwo: magicFinds['Epsilon Two'] || null,
+  already: already, sojFiles: files('Stone of Jordan'), sojHome: assign['Stone of Jordan'] || null,
+  cleared: cleared, clearMf: magicFinds['Clear Charm'] || null, clearHome: assign['Clear Charm'] || null,
+  where: WHERE
+};
+process.stdout.write(JSON.stringify(OUT));
+"""
+        p = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=30)
+        self.assertEqual(p.returncode, 0, (p.stderr or p.stdout)[-2000:])
+        o = json.loads(p.stdout)
+        self.assertTrue(o["u1"]["filed"], o["u1"])
+        self.assertEqual(o["u1"]["mule"], "uni-armor")
+        self.assertIn(o["where"], o["uFiles"][0])
+        self.assertEqual(o["u2"]["mode"], "already")
+        self.assertEqual(len(o["uFiles"]), 1, "a second look at the same pick rewrote the filing")
+        self.assertTrue(o["ownedU"])
+        self.assertEqual(o["mf"]["q"], "magic")
+        self.assertEqual(o["mf"]["base"], "Grand Charm", "the magic record stored the shown name instead of the base")
+        self.assertEqual(o["mf"]["mods"], ["+36 to Life"])
+        self.assertIn(":magic:Grand Charm:+36 to Life", o["routeM"])
+        self.assertLess(o["routeM"].find("route:"), 1)
+        self.assertTrue(o["m1"]["filed"], o["m1"])
+        self.assertEqual(o["m2"]["mode"], "already")
+        self.assertEqual(len(o["mFiles"]), 1)
+        self.assertIn("throw-out", o["toss"]["why"])
+        self.assertFalse(o["toss"]["filed"])
+        self.assertIsNone(o["tossMf"], "a throw-out pick was left in Magic and Rare")
+        self.assertEqual(o["tossFiles"], [])
+        self.assertIn("MAIN", o["keep"]["why"])
+        self.assertEqual(o["keepFiles"], [])
+        self.assertIn("shared stash", o["shared"]["why"])
+        self.assertEqual(o["sharedFiles"], [])
+        self.assertIn("nothing on the board recognises this name", o["loose"]["why"])
+        self.assertEqual(o["looseFiles"], [])
+        self.assertIn("white, superior or low base", o["white"]["why"])
+        self.assertEqual(o["whiteOwn"], [])
+        self.assertEqual(o["whiteFiles"], [])
+        self.assertEqual(o["baseOwn"], ["own:Monarch:"])
+        self.assertTrue(o["base"]["filed"], o["base"])
+        self.assertIsNone(o["alpha"], "the old composed name was left beside the new one")
+        self.assertIsNone(o["alphaHome"])
+        self.assertEqual(o["beta"]["q"], "magic")
+        self.assertEqual(o["betaHome"], "magic-rare")
+        self.assertTrue(o["moved"]["filed"], o["moved"])
+        self.assertIsNotNone(o["gamma"], "a second pick in the same search was removed")
+        self.assertIsNotNone(o["delta"])
+        self.assertEqual(o["epsilon"]["q"], "magic", "a later search removed a pick from an earlier one")
+        self.assertEqual(o["epsilonTwo"]["q"], "magic")
+        self.assertEqual(o["already"]["mode"], "already")
+        self.assertEqual(o["sojFiles"], [])
+        self.assertEqual(o["sojHome"], "uni-small")
+        self.assertEqual(o["cleared"]["mode"], "cleared")
+        self.assertIsNone(o["clearMf"])
+        self.assertIsNone(o["clearHome"])
+
 
 RED_PROOF = [
     {
@@ -517,6 +706,13 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "    try { if (typeof window._vaultHandMigrate === 'function') window._vaultHandMigrate(); } catch (eH) {}\n",
         "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "a planner pick must be filed by the reel door; skipping that call leaves the catalogue pick unfiled",
+        "file": "bible.html",
+        "find": "    var filed = window.vaultFile(nm, { by: 'hand', at: at, where: VP_WHERE }, { mule: id });\n",
+        "replace": "    var filed = { ok: true, mode: 'skipped' };\n",
         "matches": 1,
     },
 ]

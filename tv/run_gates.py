@@ -9554,7 +9554,8 @@ GATES = [
          needs_app=False,
          why=("#234 step 4 / REG-1821 - + Add an item files the pick through the owned door (source hand, receipt in "
              "d2r_vaultProv) so it reaches owned, the dock, a mule and the grail; names the vault does not draw are not offered; "
-             "the old d2r_vaultHand rows come home once and the key goes only when every row landed.")
+             "the old d2r_vaultHand rows come home once and the key goes only when every row landed. "
+             "The vault planner search opens the character-builder picker and files a pick only when the reel route names a mule.")
          ),
     Gate("test_the_vault_proposes_a_home_and_does_not_move", [sys.executable,
          os.path.join(HERE, "test_the_vault_proposes_a_home_and_does_not_move.py")], 90,

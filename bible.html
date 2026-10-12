@@ -11110,6 +11110,11 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
            could point at the same number. Filled by renderVault from the SAME pools it draws from,
            so the parts cannot drift from the whole. -->
       <div id="vault-pop" class="vault-pop"></div>
+      <div class="vault-find vault-planner-find">
+        <span class="vault-find-ic" aria-hidden="true">＋</span>
+        <input id="vault-planner-q" class="vault-find-input" aria-label="add an item from the planner" type="search" autocomplete="off" spellcheck="false" placeholder="Add from the planner — search, quality and mods. A pick files where a reel of it would go" onfocus="window.vaultPlannerOpen(this.value)" oninput="window.vaultPlannerOpen(this.value)">
+        <button class="vault-find-x" type="button" title="close the planner" onclick="window.vaultPlannerClose&&window.vaultPlannerClose()">✕</button>
+      </div>
       <div class="vault-find">
         <span class="vault-find-ic">🔎</span>
         <input id="vault-find-input" class="vault-find-input" aria-label="find an item across your mules" type="text" autocomplete="off" spellcheck="false" placeholder="Find an item across your mules — which alt is it on?" oninput="window.vaultFind&&window.vaultFind(this.value)" onkeydown="if(event.key==='Escape'){this.value='';window.vaultFind('')}">
@@ -37262,6 +37267,10 @@ body{
 .vault-find-ic{font-size:var(--fs-title);opacity:.8}
 .vault-find-input{flex:1;background:transparent;border:none;outline:none;color:var(--text,#e8dcc8);font-family:var(--serif-text,Georgia,serif);font-size:14px;letter-spacing:.2px}
 .vault-find-input::placeholder{color:rgba(240,192,96,.42);font-style:italic}
+.vault-planner-find{margin-top:8px;border-color:rgba(127,212,255,.4)}
+#vault-planner-host[hidden]{display:none !important}
+#vault-planner-host{position:fixed;inset:0;z-index:100000;background:rgba(6,4,2,.72);display:flex;align-items:flex-start;justify-content:center;padding:48px 16px 24px;overflow:auto}
+#vault-planner-host .cb-modal{position:relative;left:auto;top:auto;width:min(960px,100%);height:min(82vh,880px);max-height:82vh;flex:none}
 .vault-find-x{background:transparent;border:none;color:var(--text-dim);cursor:pointer;font-size:var(--fs-body);padding:2px 6px;border-radius:6px;transition:color .12s,background .12s}
 .vault-find-x:hover{color:var(--gold-bright,#f0c060);background:rgba(240,192,96,.08)}
 .vault-find-results{margin:0 0 12px;border:1px solid rgba(212,168,71,.28);border-radius:11px;overflow:hidden;background:rgba(8,6,3,.55)}
@@ -43036,6 +43045,135 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     _aicItem={ name:'', base:'', q:'rare', mods:[] }; _aicSave(); renderAIItemChecker();
   };
+  /* ⟦VAULT PLANNER FILE BEGIN⟧ */
+  /* A pick from the Vault planner search. The character builder owns the list, the quality and the mods.
+     This is the road a reel already walks: a unique, a set piece, a runeword or a base the vault draws is
+     owned through vaultHandAdd; a magic, rare or crafted pick is written to magicFinds with its real base
+     and its mod lines, the way the AI checker keeps one. suggestMule then decides. A filing happens only
+     when that answer is a mule on this board. Throw-out, keep-on-MAIN, the shared stash and a name nothing
+     knows stay unfiled, and the sentence says which. A composed name that changes on the SAME pick in this
+     open (a rare re-roll, a magic affix) moves the record this open created. A name that was already his
+     is left where it was. */
+  var _vpMade = null;
+  var VP_WHERE = 'the Vault planner — your search filed it where a reel of it would go';
+  function _vpMods(entry){
+    var out = [];
+    ((entry && entry.affixes) || []).forEach(function(x){
+      var a = null, t = '';
+      try { a = (typeof window._cbAf === 'function') ? window._cbAf(x && x.id) : null; } catch (e) { a = null; }
+      try { t = (a && typeof window._cbAfText === 'function') ? window._cbAfText(a, (x && x.rolls) || {}, null, 'text') : ''; } catch (e2) { t = ''; }
+      t = String(t || '').replace(/<[^>]+>/g, '').trim();
+      if (t) out.push(t);
+    });
+    return out;
+  }
+  function _vpBase(entry, shown){
+    try {
+      var db = (typeof window._cbDb === 'function') ? window._cbDb() : null;
+      var row = db && entry && entry.base && db.b[entry.base];
+      if (row && row[0]) return String(row[0]);
+    } catch (e) {}
+    return (shown && shown.base) ? String(shown.base) : '';
+  }
+  function _vpDrop(){
+    var m = _vpMade;
+    _vpMade = null;
+    if (!m || !m.fresh || !m.name) return;
+    var nm = m.name;
+    if (m.magic && typeof magicFinds !== 'undefined' && magicFinds && magicFinds[nm]){
+      delete magicFinds[nm];
+      try { LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch (e) {}
+    }
+    if (typeof owned !== 'undefined' && owned && owned.has && owned.has(nm)){
+      owned.delete(nm);
+      try { persistOwned(); } catch (e2) {}
+    }
+    if (assign[nm] != null && typeof window.vaultUnassign === 'function') window.vaultUnassign(nm);
+  }
+  function _vpRoute(nm){
+    var sg, asked = false;
+    try { sg = suggestMule(nm); asked = true; } catch (e) { sg = null; }
+    if (!asked) return { ok: false, filed: false, why: nm + ' — the router could not be asked, so nothing was filed' };
+    if (sg == null){
+      var shared = false;
+      try { shared = (typeof isSharedStash === 'function') && isSharedStash(nm); } catch (e2) { shared = false; }
+      return { ok: true, filed: false, why: shared
+        ? (nm + ' stays unfiled — it belongs in the shared stash, and there is no mule for it')
+        : (nm + ' stays unfiled — nothing in the routing universe named a drawer for it') };
+    }
+    var id = sg.id, why = sg.why ? String(sg.why) : '';
+    if (sg.unsorted || id === '__throwout' || id === '__keep' || id == null || !muleById(id)){
+      var say = sg.unsorted ? why
+        : (id === '__throwout') ? ('throw-out advice — ' + why)
+        : (id === '__keep') ? ('stays with your MAIN, not a mule — ' + why)
+        : (id == null ? (why || 'no mule was named') : ('no mule on this board has id ' + id));
+      return { ok: true, filed: false, why: nm + ' stays unfiled — ' + say };
+    }
+    if (assign[nm] != null) return { ok: true, filed: false, mode: 'already', mule: assign[nm], why: nm + ' is already filed' };
+    var at = new Date().toISOString();
+    var filed = window.vaultFile(nm, { by: 'hand', at: at, where: VP_WHERE }, { mule: id });
+    var home = muleById(id);
+    var muleName = home && home.name ? home.name : id;
+    var sayF = (filed && filed.ok) ? (nm + ' filed to ' + muleName + (why ? (' — ' + why) : '')) : ((filed && filed.why) || (nm + ' was not filed'));
+    return { ok: !!(filed && filed.ok !== false), filed: !!(filed && (filed.mode === 'filed' || filed.mode === 'confirmed')), mode: filed && filed.mode, mule: id, why: sayF };
+  }
+  window.vaultPlannerFile = function(entry, token){
+    if (!entry){
+      if (_vpMade && token && _vpMade.token === token) _vpDrop();
+      return { ok: true, mode: 'cleared', filed: false, why: 'the pick was cleared' };
+    }
+    var it = null, shown = null;
+    try { it = (typeof window._cbItem === 'function') ? window._cbItem(entry.id) : null; } catch (e) { it = null; }
+    try { shown = (typeof window._cbShown === 'function') ? window._cbShown(entry, it) : null; } catch (e2) { shown = null; }
+    var nm = shown ? String(shown.name || '').trim() : '';
+    if (!nm) return { ok: false, filed: false, why: 'that pick has no name — nothing was filed' };
+    if (_vpMade && _vpMade.token === token && _vpMade.id === entry.id && _vpMade.name !== nm && _vpMade.fresh) _vpDrop();
+    var q = shown.q;
+    var magicQ = (q === 'm') ? 'magic' : (q === 'rare') ? 'rare' : (q === 'c') ? 'crafted' : '';
+    var kind = (q === 'u') ? 'unique' : (q === 's') ? 'set' : (q === 'r') ? 'runeword' : null;
+    var baseName = _vpBase(entry, shown);
+    var mods = _vpMods(entry);
+    var keepFresh = !!(_vpMade && _vpMade.token === token && _vpMade.id === entry.id && _vpMade.name === nm && _vpMade.fresh);
+    var beforeOwned = (typeof owned !== 'undefined' && owned && owned.has) ? owned.has(nm) : false;
+    var beforeMagic = !!(typeof magicFinds !== 'undefined' && magicFinds && magicFinds[nm]);
+    var beforeAssign = assign[nm];
+    if (magicQ){
+      if (typeof magicFinds === 'undefined' || !magicFinds){
+        var whyM = 'Magic and Rare is not on this page — nothing was filed';
+        try { status(whyM); } catch (e3) {}
+        return { ok: false, filed: false, why: whyM };
+      }
+      magicFinds[nm] = { q: magicQ, base: baseName, mods: mods };
+      try { LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch (e4) {}
+    } else if (kind || (typeof _vaultKeeps === 'function' && _vaultKeeps(nm))){
+      var add = (typeof window.vaultHandAdd === 'function')
+        ? window.vaultHandAdd(nm, new Date().toISOString(), { kind: kind, by: 'the Vault planner', where: 'the Vault planner' })
+        : null;
+      if (!add || add.ok === false){
+        var whyA = (add && add.why) || (nm + ' was not added');
+        try { status(whyA); } catch (e5) {}
+        return { ok: false, filed: false, why: whyA };
+      }
+    } else {
+      var whyB = nm + ' stays unfiled — a white, superior or low base is not given a mule from its name';
+      try { status(whyB); } catch (e6) {}
+      return { ok: true, filed: false, why: whyB };
+    }
+    var routed = _vpRoute(nm);
+    var kept = routed && (routed.filed || routed.mode === 'already');
+    if (!kept && magicQ && !beforeMagic && magicFinds && magicFinds[nm]){
+      delete magicFinds[nm];
+      try { LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch (e7) {}
+    }
+    var introduced = keepFresh || (!beforeOwned && !beforeMagic && beforeAssign == null);
+    _vpMade = { token: token, id: entry.id, name: nm, fresh: !!(introduced && (kept || !magicQ)), magic: !!(magicQ && kept) };
+    try { persistOwned(); } catch (e8) {}
+    try { saveA(); } catch (e9) {}
+    try { renderVault(); } catch (e10) {}
+    if (routed && routed.why){ try { status(routed.why); } catch (e11) {} }
+    return routed || { ok: false, filed: false, why: nm + ' was not filed' };
+  };
+  /* ⟦VAULT PLANNER FILE END⟧ */
   function _aicMsg(html, show){ var el=document.getElementById('aic-msg'); if(el){ el.innerHTML=html; el.style.display=(show===false?'none':'block'); } try{ status(String(html).replace(/<[^>]+>/g,'')); }catch(e){} }
   // v948.1 — TV engine / control console always use same-origin /api/intake → control's
   // intake_local.mjs subscription lane (claude CLI). Never burn ANTHROPIC_API_KEY tokens for
@@ -59954,6 +60092,16 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     else if (st.stash) m.innerHTML = _cbStashHtml();
     else m.innerHTML = _cbPickHtml();
     m.setAttribute('aria-label', st.newb ? 'new build' : (st.stash ? 'stash' : 'choose an item'));
+    if (st.host && st.host.planner){
+      m.style.position = 'relative';
+      m.style.left = '';
+      m.style.top = '';
+      m.style.width = '';
+      m.style.height = '';
+      m.style.maxHeight = '';
+      if (st.modOpen && st.pick) _cbFitAddList();
+      return;
+    }
     _cbPlace(m);
     if (st.modOpen && st.pick) _cbFitAddList();
   }
@@ -60101,6 +60249,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       + '<button type="button" class="cb-x" onclick="window._cbClosePick()" aria-label="close (Esc)">✕</button></div>';
     /* the mule host's refusal (a MAIN lock, a cell the item does not fit) is said on every tab it can happen on */
     var err = (host && st.hostErr) ? '<div class="cb-note cb-host-err" role="alert">⚠ ' + esc(st.hostErr) + '</div>' : '';
+    if (host && st.host && st.host.planner && st.host.say) err += '<div class="cb-note" role="status">' + esc(st.host.say) + '</div>';
     if (p.tab === 'locker' && host) return head + '<div class="cb-mb cb-mb-locker">' + ((st.host && st.host.locker && st.host.locker.html) || '') + '</div>';
     if (p.tab === 'base' && rwIt) return head + err + _cbBaseTabHtml(rwIt, slot);
     if (p.tab === 'quality' && pend) return head + err + _cbQualityHtml(pend, slot);
@@ -60119,7 +60268,9 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var say = (slot === 'inv' && p.cell) ? '<div class="cb-note">for inventory cell ' + (p.cell[0] + 1) + ',' + (p.cell[1] + 1) + ' — a pick lands there if its size fits</div>'
       : '<div class="cb-note">' + esc(CB_SLOT_SAY[slot] || '') + ' · the entire item database for this slot' + (host ? ' · a pick goes on ' + esc((st.host && st.host.mule) || 'this mule') + '’s doll, never into a build' : '') + '</div>';
     /* #174 v-B5 — the mule's inventory says which cell, what is listed there, and that a pick lands on that cell or not at all */
-    if (slot === CB_MINV && p.cell) say = '<div class="cb-note">for ' + esc((st.host && st.host.where) || ('inventory cell ' + (p.cell[0] + 1) + ',' + (p.cell[1] + 1)))
+    if (slot === CB_MINV && st.host && st.host.planner)
+      say = '<div class="cb-note">Search the planner, choose a quality and mods. A pick is filed where a reel of the same item would go.</div>';
+    else if (slot === CB_MINV && p.cell) say = '<div class="cb-note">for ' + esc((st.host && st.host.where) || ('inventory cell ' + (p.cell[0] + 1) + ',' + (p.cell[1] + 1)))
       + ' of ' + esc((st.host && st.host.mule) || 'this mule') + ' — charms, jewels, rings and amulets are always listed; every other item is listed when its size fits here.'
       + ' A pick lands with its top-left on this cell, or is refused and says why — never moved to another cell, never into a build</div>';
     return head + '<div class="cb-mb">' + rail + '<div class="cb-pane">' + err + say
@@ -61187,6 +61338,94 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     if (st.modOpen){ window._cbModOpen(false); return true; }
     return false;
   };
+  /* ⟦VAULT PLANNER OPEN BEGIN⟧ */
+  function _vpStatus(msg){
+    try { var el = document.getElementById('vault-status'); if (el) el.textContent = msg; } catch (e) {}
+  }
+  window._vaultPlannerOn = false;
+  window.vaultPlannerPaint = function(){
+    var host = document.getElementById('vault-planner-host');
+    if (!host){
+      host = document.createElement('div');
+      host.id = 'vault-planner-host';
+      if (document.body) document.body.appendChild(host);
+    }
+    host.hidden = false;
+    host.innerHTML = (typeof window._cbHostHtml === 'function') ? window._cbHostHtml({ html: '', n: 0, total: 0 }) : '';
+    var m = document.getElementById('cb-modal');
+    if (m){
+      m.style.position = 'relative';
+      m.style.left = '';
+      m.style.top = '';
+      m.style.width = '';
+      m.style.height = '';
+      m.style.maxHeight = '';
+    }
+    return true;
+  };
+  window.vaultPlannerClose = function(){
+    window._vaultPlannerOn = false;
+    try { if (window._cbHostClose) window._cbHostClose(); } catch (e) {}
+    var host = document.getElementById('vault-planner-host');
+    if (host){ host.hidden = true; host.innerHTML = ''; }
+    return true;
+  };
+  window.vaultPlannerOpen = function(q){
+    q = String(q == null ? '' : q);
+    var root = document.documentElement;
+    if (root && root.classList && root.classList.contains('cb-lock')){
+      var whyB = 'the Character Builder is open — close it before adding an item from the vault';
+      _vpStatus(whyB);
+      return { ok: false, refused: 'builder-open', why: whyB };
+    }
+    if (window._vaultPlannerOn && typeof window._cbHostOn === 'function' && window._cbHostOn()){
+      if (typeof window._cbPickSearch === 'function') window._cbPickSearch(q);
+      var box = document.getElementById('cb-pick-q');
+      if (box && box.value !== q) box.value = q;
+      return { ok: true, mode: 'search' };
+    }
+    if (typeof window._cbHostOn === 'function' && window._cbHostOn()){
+      var whyM = 'a mule picker is open — close it before adding from the vault';
+      _vpStatus(whyM);
+      return { ok: false, refused: 'mule-picker', why: whyM };
+    }
+    if (typeof window._cbHostOpen !== 'function' || typeof window.vaultPlannerFile !== 'function')
+      return { ok: false, why: 'the planner is not on this page' };
+    var held = null;
+    var token = 'vp-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    var ctx = {
+      kind: 'inv', cell: [0, 0], mule: 'the Vault', where: 'a manual add', planner: true,
+      fits: function(){ return true; },
+      cur: function(){ return held; },
+      write: function(entry){
+        held = entry;
+        var r = window.vaultPlannerFile(entry, token);
+        ctx.say = (r && r.why) || '';
+        return { ok: !r || r.ok !== false, why: ctx.say || 'not saved' };
+      },
+      render: function(){ window.vaultPlannerPaint(); },
+      close: function(){ window.vaultPlannerClose(); }
+    };
+    if (!window._cbHostOpen(ctx)){
+      var whyR = window._cbHostRefusedWhy || 'the planner could not open';
+      _vpStatus(whyR);
+      return { ok: false, refused: 'refused', why: whyR };
+    }
+    window._vaultPlannerOn = true;
+    if (q && typeof window._cbPickSearch === 'function') window._cbPickSearch(q);
+    window.vaultPlannerPaint();
+    var box0 = document.getElementById('cb-pick-q');
+    if (box0){ box0.value = q; try { box0.focus(); } catch (e4) {} }
+    return { ok: true, mode: 'open' };
+  };
+  document.addEventListener('keydown', function(e){
+    if (!e || e.key !== 'Escape' || !window._vaultPlannerOn) return;
+    if (e.preventDefault) e.preventDefault();
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+    if (typeof window._cbHostEsc === 'function' && window._cbHostEsc()) return;
+    window.vaultPlannerClose();
+  }, true);
+  /* ⟦VAULT PLANNER OPEN END⟧ */
   /* stash */
   window._cbOpenStash = function(){ st.pick = st.newb = null; st.stash = { tab: 'stash', area: 'personal', cat: 0, q: '', filt: '', say: '' }; _cbRender(); };
   window._cbCloseStash = function(){ st.stash = null; window.d2Tip.hide(); _cbRender(); try { var b = document.getElementById('cb-stash-btn'); if (b) b.focus(); } catch (e) {} };
@@ -61343,6 +61582,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
        host's #cb-modal; opening the builder over it made TWO #cb-modal elements, getElementById found the mule's, and
        the builder's picks were drawn into it under the overlay. Close the mule's picker FIRST (the mule window's own
        close re-renders it without the modal and releases the host) - one picker on screen, always. */
+    try { if (window._vaultPlannerOn && window.vaultPlannerClose) window.vaultPlannerClose(); } catch (e) {}
     try { if (st.pick && st.pick.host === 'mule' && typeof window._mpPick === 'function') window._mpPick(null); } catch (e) {}
     try { window._cbHostClose(); } catch (e) {}
     var box = _cbWin();
