@@ -337,10 +337,14 @@ process.stdout.write(JSON.stringify({
         ])
 
         def transport(method, url, headers, data):
-            calls["urls"].append(url)
+            calls["urls"].append((method, url, data))
             self.assertNotIn("SECRETCOOKIE", url)
+            self.assertNotIn("SECRETCOOKIE", data.decode("utf-8") if isinstance(data, bytes) else str(data or ""))
             self.assertEqual(headers.get("Cookie"), "sid=SECRETCOOKIE")
             return 200, {}, page.encode("utf-8")
+
+        def chrome_fetch(item_name, cookie):
+            raise AssertionError("a priced page does not need a second browser")
 
         code, out = desk.d2jsp_quote(
             "Gheed's Fortune", "http://evil.example", "evil.example", 17772,
@@ -363,7 +367,7 @@ process.stdout.write(JSON.stringify({
 
         code, out = desk.d2jsp_quote(
             "Gheed's Fortune", "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
-            cookie_get=cookie_get, transport=transport,
+            cookie_get=cookie_get, transport=transport, chrome_fetch=chrome_fetch,
         )
         self.assertEqual(code, 200)
         self.assertEqual(out["reason"], "read")
@@ -373,10 +377,49 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(out["n"], 3)
         self.assertEqual(out["board"], 243)
         self.assertEqual(len(calls["urls"]), 1)
-        self.assertIn("Gheeds%20Fortune", calls["urls"][0])
-        self.assertIn("fid%5B%5D=243", calls["urls"][0])
+        self.assertEqual(calls["urls"][0][0], "POST")
+        self.assertIn("search.php?c=7&f=243&t=0", calls["urls"][0][1])
+        self.assertIn(b"stext=Gheeds+Fortune", calls["urls"][0][2])
         self.assertNotIn("SECRETCOOKIE", json.dumps(out))
         self.assertNotIn("Gheeds Fortune gc", json.dumps(out))
+
+    def test_a_challenge_page_is_read_through_a_scratch_chrome(self):
+        import d2jsp_chrome as desk
+        page = "\n".join([
+            "Gheeds Fortune gc 106/35/13 - 20fg",
+            "Gheeds Fortune gc 108/31/12 - 15fg",
+            "Pcomb plain - 10fg x 1",
+            "35MF gheeds",
+            "Gheed's Fortune 10 fg",
+            "Summon Skill Necro + 26 life - 25fg",
+        ])
+        seen = []
+
+        def transport(method, url, headers, data):
+            self.assertEqual(method, "POST")
+            self.assertIn("search.php?c=7&f=243", url)
+            return 403, {}, b"<title>Just a moment...</title>"
+
+        def chrome_fetch(item_name, cookie):
+            seen.append(item_name)
+            self.assertIn("SECRETCOOKIE", cookie)
+            self.assertNotIn("SECRETCOOKIE", item_name)
+            return page
+
+        code, out = desk.d2jsp_quote(
+            "Gheed's Fortune", "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
+            cookie_get=lambda: ("sid=SECRETCOOKIE", "ok"),
+            transport=transport, chrome_fetch=chrome_fetch,
+        )
+        self.assertEqual(code, 200)
+        self.assertEqual(seen, ["Gheed's Fortune"])
+        self.assertEqual(out["reason"], "read")
+        self.assertEqual(out["fg"], 15)
+        self.assertEqual(out["low"], 10)
+        self.assertEqual(out["high"], 20)
+        self.assertEqual(out["n"], 3)
+        self.assertEqual(out["board"], 243)
+        self.assertNotIn("SECRETCOOKIE", json.dumps(out))
 
     def test_chrome_posts_only_a_priced_board_268_draft_from_this_console(self):
         import d2jsp_chrome as desk

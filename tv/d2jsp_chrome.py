@@ -17,6 +17,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import sqlite3
 import subprocess
 import sys
@@ -512,17 +513,156 @@ def parse_public_quote(html, item, read_at, node_run=None):
     return _public_fields(parsed, item, read_at)
 
 
+def _search_keywords(item):
+    return re.sub(r"['’ʼ`]", "", str(item or ""))
+
+
 def _search_url(item):
-    keywords = re.sub(r"['’ʼ`]", "", str(item or ""))
-    return (
-        "https://forums.d2jsp.org/search.php?sr=posts&search_keywords="
-        + urllib.parse.quote(keywords)
-        + "&fid%5B%5D="
-        + str(QUOTE_BOARD)
+    """The forum's own post search for the Switch Ladder board."""
+    return "https://forums.d2jsp.org/search.php?c=7&f=%d&t=0" % QUOTE_BOARD
+
+
+def _search_body(item):
+    return urllib.parse.urlencode({"stext": _search_keywords(item)}).encode("utf-8")
+
+
+def _challenge_page(page):
+    text = str(page or "")
+    if not text.strip():
+        return True
+    if re.search(r"Just a moment", text, re.I):
+        return True
+    return "cf-browser-verification" in text
+
+
+def _cdp_call(ws, ident, method, params=None, wait=15):
+    ws.send(json.dumps({"id": ident, "method": method, "params": params or {}}))
+    end = time_now() + wait
+    while time_now() < end:
+        msg = json.loads(ws.recv())
+        if msg.get("id") == ident:
+            return msg
+    raise OSError(method)
+
+
+def time_now():
+    import time
+    return time.time()
+
+
+def _chrome_search(item, cookie):
+    """Load the Switch Ladder search in a scratch Chrome. The cookie is not logged.
+
+    The forum answers a scripted request with a challenge page. A separate Chrome,
+    on its own profile and its own port, can submit the board's own search form.
+    His open Chrome is not the one this starts. Raises OSError when that load fails.
+    """
+    import time
+    import websocket
+    keywords = _search_keywords(item)
+    prof = tempfile.mkdtemp(prefix="d2jsp-quote-")
+    sock = __import__("socket").socket()
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    browser = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    proc = subprocess.Popen(
+        [browser, "--headless=new", "--disable-gpu", "--no-first-run",
+         "--no-default-browser-check", "--disable-blink-features=AutomationControlled",
+         "--remote-debugging-port=%d" % port, "--user-data-dir=%s" % prof,
+         "--remote-allow-origins=*", "--window-size=1100,800", "about:blank"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True,
     )
+    base = "http://127.0.0.1:%d" % port
+    ws = None
+    try:
+        deadline = time.time() + 12
+        while time.time() < deadline:
+            try:
+                urllib.request.urlopen(base + "/json/version", timeout=2)
+                break
+            except Exception:
+                time.sleep(0.2)
+        else:
+            raise OSError("chrome")
+        tab = json.loads(urllib.request.urlopen(
+            urllib.request.Request(base + "/json/new?about:blank", method="PUT"),
+            timeout=10,
+        ).read().decode("utf-8", "replace"))
+        ws = websocket.create_connection(
+            tab["webSocketDebuggerUrl"], timeout=20, origin=base,
+        )
+        _cdp_call(ws, 1, "Network.enable")
+        _cdp_call(ws, 2, "Network.setUserAgentOverride", {"userAgent": chrome_user_agent()})
+        ident = 10
+        for part in str(cookie or "").split(";"):
+            if "=" not in part:
+                continue
+            name, value = part.split("=", 1)
+            name = name.strip()
+            if not name:
+                continue
+            _cdp_call(ws, ident, "Network.setCookie", {
+                "name": name,
+                "value": value,
+                "url": "https://forums.d2jsp.org/",
+                "domain": ".d2jsp.org",
+                "path": "/",
+                "secure": True,
+            })
+            ident += 1
+        _cdp_call(ws, 50, "Page.enable")
+        _cdp_call(ws, 51, "Page.navigate", {
+            "url": "https://forums.d2jsp.org/forum.php?f=%d" % QUOTE_BOARD,
+        })
+        submit = (
+            "(function(){var f=document.querySelector('form[action*=\"search.php\"]');"
+            "if(!f||!f.stext)return 'no-form';f.stext.value=%s;f.submit();return 'sent';})()"
+        ) % json.dumps(keywords)
+        sent = False
+        html = ""
+        deadline = time.time() + 20
+        while time.time() < deadline:
+            time.sleep(0.8)
+            try:
+                got = _cdp_call(ws, 60, "Runtime.evaluate", {
+                    "expression": "document.documentElement.outerHTML",
+                    "returnByValue": True,
+                }, wait=8)
+            except Exception:
+                continue
+            html = ((got.get("result") or {}).get("result") or {}).get("value") or ""
+            if not sent and "search.php" in html and "stext" in html:
+                try:
+                    _cdp_call(ws, 61, "Runtime.evaluate", {
+                        "expression": submit,
+                        "returnByValue": True,
+                    }, wait=8)
+                    sent = True
+                except Exception:
+                    continue
+            if sent and "Search Results" in html and not _challenge_page(html):
+                return html
+        if sent and html and not _challenge_page(html):
+            return html
+        raise OSError("search")
+    finally:
+        if ws is not None:
+            try:
+                ws.close()
+            except Exception:
+                pass
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+        shutil.rmtree(prof, ignore_errors=True)
 
 
-def d2jsp_quote(item, origin, host, port, cookie_get=None, transport=None, node_run=None):
+def d2jsp_quote(item, origin, host, port, cookie_get=None, transport=None, node_run=None, chrome_fetch=None):
     """Read one item's fg range from the Switch Ladder search. -> (http code, dict)
 
     The dict is the reading. It never carries the cookie or the page.
@@ -545,8 +685,9 @@ def d2jsp_quote(item, origin, host, port, cookie_get=None, transport=None, node_
     fetch = transport or _transport
     headers = _headers(cookie)
     headers["Referer"] = "https://forums.d2jsp.org/forum.php?f=%d" % QUOTE_BOARD
+    headers["Content-Type"] = "application/x-www-form-urlencoded"
     try:
-        status, hdrs, raw = fetch("GET", _search_url(item), headers, None)
+        status, hdrs, raw = fetch("POST", _search_url(item), headers, _search_body(item))
     except Exception:
         return 200, _quote_unknown(item, read_at, "unread")
     if status in (301, 302, 303, 307, 308):
@@ -560,6 +701,14 @@ def d2jsp_quote(item, origin, host, port, cookie_get=None, transport=None, node_
         page = raw.decode("utf-8", "replace")
     else:
         page = str(raw or "")
+    if _challenge_page(page) and chrome_fetch is not False:
+        opener = chrome_fetch or _chrome_search
+        try:
+            opened = opener(item, cookie)
+        except Exception:
+            opened = page
+        if isinstance(opened, str) and opened and not _challenge_page(opened):
+            page = opened
     return 200, parse_public_quote(page, item, read_at, node_run=node_run)
 
 
