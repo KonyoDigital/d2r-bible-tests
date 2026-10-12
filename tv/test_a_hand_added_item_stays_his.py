@@ -23,7 +23,9 @@ hand." under a list nothing else read. This law drives the SHIPPED door end to e
   · THE PLANNER SEARCH is a second door, outside that block. It opens the character-builder picker (search, quality,
     mods) and files a pick only when suggestMule names a mule on this board: a catalogue piece through vaultHandAdd,
     a magic / rare / crafted piece through magicFinds with the real base and the mod lines. Throw-out, keep-on-MAIN,
-    the shared stash, a name nothing knows, and a white base stay unfiled. The old door still does not file, and the
+    a rune answered as the shared stash with no locker id, a name nothing knows, and a white base stay unfiled.
+    War gear names the shared locker and is filed there; a missing locker is the same SHARED STASH the load migration
+    adds, put back, then the pick is filed. A runeword keeps the base he chose. The old door still does not file, and the
     migration still does not file a row he typed before.
 
 Drives the shipped ⟦OWNED PROV⟧ door, _vaultKeeps, _vaultResolveName and the ⟦VAULT HAND⟧ block in node, the program
@@ -475,8 +477,10 @@ function status(m){ SAID.push(String(m)); }
 function renderVault(){ CALLS.push('render'); }
 function persistOwned(){ CALLS.push('persist'); }
 function saveA(){ CALLS.push('save'); }
+var SHARED_ON = false;
 function muleById(id){
   var names = { 'uni-armor': 'UNI-ARMOR', 'magic-rare': 'MAGIC & RARE' };
+  if (id === 'shared' && SHARED_ON) return { id: id, name: 'SHARED STASH' };
   return names[id] ? { id: id, name: names[id] } : null;
 }
 function isSharedStash(nm){ return nm === 'El Rune'; }
@@ -486,7 +490,11 @@ function suggestMule(nm){
   CALLS.push('route:' + nm + ':' + ((rec && rec.q) || '') + ':' + ((rec && rec.base) || '') + ':' + ((rec && rec.mods) ? rec.mods.join('|') : ''));
   return Object.prototype.hasOwnProperty.call(ROUTES, nm) ? ROUTES[nm] : { id: null, unsorted: true, why: 'nothing on the board recognises this name' };
 }
-var LS = { setItem: function(k){ CALLS.push('ls:' + k); } };
+var MADESTORE = {};
+var LS = {
+  getItem: function(k){ return Object.prototype.hasOwnProperty.call(MADESTORE, k) ? MADESTORE[k] : null; },
+  setItem: function(k, v){ CALLS.push('ls:' + k); MADESTORE[k] = String(v); }
+};
 var ROUTES = {};
 window.vaultHandAdd = function(nm, at, opts){
   CALLS.push('own:' + nm + ':' + ((opts && opts.kind) || ''));
@@ -504,7 +512,7 @@ window._cbItem = function(id){ return { id: id }; };
 window._cbShown = function(e, it){
   return { name: e._name, q: e._q, base: e._base || '' };
 };
-window._cbDb = function(){ return { b: { cm: ['Grand Charm'], mon: ['Monarch'] } }; };
+window._cbDb = function(){ return { b: { cm: ['Grand Charm'], mon: ['Monarch'], '7cr': ['Phase Blade'] } }; };
 window._cbAf = function(id){ return id === 'vita' ? { _text: '+36 to Life' } : null; };
 window._cbAfText = function(a){ return a._text || ''; };
 """ + block + r"""
@@ -548,6 +556,16 @@ var already = window.vaultPlannerFile({ id: 'soj', _name: 'Stone of Jordan', _q:
 ROUTES['Clear Charm'] = { id: 'magic-rare', why: 'registered in Magic and Rare' };
 window.vaultPlannerFile({ id: 'clr', base: 'cm', _name: 'Clear Charm', _q: 'm' }, 'clr');
 var cleared = window.vaultPlannerFile(null, 'clr');
+ROUTES['Grief'] = { id: 'shared', why: 'war gear: flat damage war weapon - in the shared stash, where every character can reach it' };
+var griefNo = window.vaultPlannerFile({ id: 'grief', base: '7cr', _name: 'Grief', _q: 'r', affixes: [{ id: 'ias', rolls: { a: 31 } }], rolls: { ias: 31 } }, 't-g1');
+var griefRec = window._vpMadeOf('Grief');
+var griefBase = window._vpMadeBase('Grief');
+var clearedG = window.vaultPlannerFile(null, 't-g1');
+var griefGone = window._vpMadeOf('Grief');
+window._vaultEnsureSharedLocker = function(){ CALLS.push('ensure-shared'); SHARED_ON = true; return { id: 'shared', name: 'SHARED STASH' }; };
+var griefYes = window.vaultPlannerFile({ id: 'grief', base: '7cr', _name: 'Grief', _q: 'r', affixes: [{ id: 'ias', rolls: { a: 31 } }], rolls: { ias: 31 } }, 't-g2');
+ROUTES['Grief Bare'] = { id: 'shared', why: 'war gear: flat damage war weapon - in the shared stash, where every character can reach it' };
+var griefBare = window.vaultPlannerFile({ id: 'griefb', _name: 'Grief Bare', _q: 'r' }, 't-gb');
 var OUT = {
   u1: u1, u2: u2, uFiles: files('Harlequin Crest'), ownedU: owned.has('Harlequin Crest'),
   m1: m1, m2: m2, mf: magicFinds['Shimmering Grand Charm of Vita'] || null, mFiles: files('Shimmering Grand Charm of Vita'),
@@ -563,6 +581,10 @@ var OUT = {
   epsilon: magicFinds['Epsilon Charm'] || null, epsilonTwo: magicFinds['Epsilon Two'] || null,
   already: already, sojFiles: files('Stone of Jordan'), sojHome: assign['Stone of Jordan'] || null,
   cleared: cleared, clearMf: magicFinds['Clear Charm'] || null, clearHome: assign['Clear Charm'] || null,
+  griefNo: griefNo, griefRec: griefRec, griefBase: griefBase, griefMf: magicFinds['Grief'] || null,
+  clearedG: clearedG, griefGone: griefGone, griefYes: griefYes, griefFiles: files('Grief'),
+  griefBare: griefBare, bareRec: window._vpMadeOf('Grief Bare'), bareBase: window._vpMadeBase('Grief Bare'),
+  ensured: CALLS.filter(function(c){ return c === 'ensure-shared'; }),
   where: WHERE
 };
 process.stdout.write(JSON.stringify(OUT));
@@ -614,6 +636,53 @@ process.stdout.write(JSON.stringify(OUT));
         self.assertEqual(o["cleared"]["mode"], "cleared")
         self.assertIsNone(o["clearMf"])
         self.assertIsNone(o["clearHome"])
+        self.assertFalse(o["griefNo"]["filed"], o["griefNo"])
+        self.assertIn("no mule on this board has id shared", o["griefNo"]["why"])
+        self.assertEqual(o["griefRec"]["base"], "7cr")
+        self.assertEqual(o["griefRec"]["baseName"], "Phase Blade")
+        self.assertEqual(o["griefRec"]["q"], "r")
+        self.assertEqual(o["griefRec"]["affixes"][0]["rolls"]["a"], 31)
+        self.assertEqual(o["griefBase"], "Phase Blade")
+        self.assertIsNone(o["griefMf"], "a runeword was stored as a magic find")
+        self.assertEqual(o["clearedG"]["mode"], "cleared")
+        self.assertIsNone(o["griefGone"], "clearing the pick left the Phase Blade record behind")
+        self.assertTrue(o["griefYes"]["filed"], o["griefYes"])
+        self.assertEqual(o["griefYes"]["mule"], "shared")
+        self.assertIn("SHARED STASH", o["griefYes"]["why"])
+        self.assertEqual(o["ensured"], ["ensure-shared"])
+        self.assertEqual(len(o["griefFiles"]), 1)
+        self.assertIn(o["where"], o["griefFiles"][0])
+        self.assertTrue(o["griefBare"]["filed"], o["griefBare"])
+        self.assertIsNone(o["bareRec"], "a runeword with no chosen base was given one")
+        self.assertEqual(o["bareBase"], "")
+
+    def test_the_planner_card_and_the_sort_click_meet_the_stored_base(self):
+        """The hover prefers the stored Phase Blade, and his Auto-Sort click can file that pick.
+        The picture gate stays the one line it was, so a found-ever receipt with no picture still stops."""
+        s = _src()
+        self.assertEqual(s.count("      if (!_hasPicture(row)){ out.noPicture.push(name); return; }\n"), 1)
+        pic = s.find("      if (!_hasPicture(row)){ out.noPicture.push(name); return; }\n")
+        hand = s.find("  function _plannerHandRow(name, row){")
+        self.assertGreater(hand, 0)
+        self.assertLess(hand, pic, "the planner-hand branch was placed after the picture gate")
+        self.assertEqual(s.count("    var filed = window.vaultFile(nm, { by: 'hand', at: at, where: VP_WHERE }, { mule: id });\n"), 1)
+        self.assertIn('"d2r_plannerMade"', s[s.find("window._LP_FORKED"):s.find("window._WP_FORKED")])
+        self.assertEqual(s.count("var sh={id:'shared', name:'SHARED STASH', icon:'📦', note:SHARED_NOTE};"), 1)
+        self.assertIn("Add an item", s)
+        self.assertIn("Find on a mule", s)
+        self.assertIn("Saved into the vault", s)
+        self.assertLess(s.find('id="vault-planner-q"'), s.find('id="vault-find-input"'))
+        tip = s.find("function _arttipResolve(nm){")
+        built = s.find("_plannerBuiltTip(nm)", tip)
+        word = s.find("findRuneword(nm)", tip)
+        self.assertGreater(built, tip)
+        self.assertLess(built, word, "the catalogue runeword card still wins over the stored base")
+        self.assertEqual(s.count("artUrl(nm) || artUrl(r.artName)"), 1)
+        self.assertIn("r.builtBase && artUrl(r.artName)", s)
+        self.assertIn("window._vpMadeBase", s)
+        opened = _cut(s, "  /* ⟦VAULT PLANNER OPEN BEGIN⟧ */\n", "  /* ⟦VAULT PLANNER OPEN END⟧ */\n")
+        self.assertIn("planner: true", opened)
+        self.assertNotIn("vaultFile(", opened)
 
 
 RED_PROOF = [

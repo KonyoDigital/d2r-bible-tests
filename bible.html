@@ -4326,7 +4326,7 @@ window._LP_FORKED = new Set([
      A guard that reads source fails on its own reach before it fails on the code, and the tell was
      there both times: the names were provably present in the parsed blob while absent from the
      parsed names. [[source-reading-guard]] [[d2r-curly-apostrophe-class]] */
-  "d2r_vaultBackfill_v2200", "d2r_vaultBackfillUndo_v2205", "d2r_vaultEvidenceRestore_v2207","d2r_owned", "d2r_tvExtraItems", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_mulePos", "d2r_muleRoster", "d2r_muleEquip", "d2r_vaultRerouteDone", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiArt", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_setFarm", "d2r_craftReady", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge; v1570 d2r_setFarm = the same bridge for the SETS chronicle, forked for the same reason — a hunt list is per-account state */
+  "d2r_vaultBackfill_v2200", "d2r_vaultBackfillUndo_v2205", "d2r_vaultEvidenceRestore_v2207","d2r_owned", "d2r_tvExtraItems", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_plannerMade", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_mulePos", "d2r_muleRoster", "d2r_muleEquip", "d2r_vaultRerouteDone", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiArt", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_setFarm", "d2r_craftReady", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge; v1570 d2r_setFarm = the same bridge for the SETS chronicle, forked for the same reason — a hunt list is per-account state */
 // v665 — the WINDOWS fork set (Konyo: "make it the same and identical… structured the same").
 // v663 forked EVERY d2r_* key, which also forked UI PREFERENCES (active tab, dock, boss sorts,
 // grail-wall state…) — so the cousin shell rendered structurally different. Doctrine restored to
@@ -11111,13 +11111,13 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
            so the parts cannot drift from the whole. -->
       <div id="vault-pop" class="vault-pop"></div>
       <div class="vault-find vault-planner-find">
-        <span class="vault-find-ic" aria-hidden="true">＋</span>
-        <input id="vault-planner-q" class="vault-find-input" aria-label="add an item from the planner" type="search" autocomplete="off" spellcheck="false" placeholder="Add from the planner — search, quality and mods. A pick files where a reel of it would go" onfocus="window.vaultPlannerOpen(this.value)" oninput="window.vaultPlannerOpen(this.value)">
+        <span class="vault-find-k">Add an item</span>
+        <input id="vault-planner-q" class="vault-find-input" aria-label="add an item from the planner" type="search" autocomplete="off" spellcheck="false" placeholder="Search the planner. Choose the base and the rolls. A pick files into its locker." onfocus="window.vaultPlannerOpen(this.value)" oninput="window.vaultPlannerOpen(this.value)">
         <button class="vault-find-x" type="button" title="close the planner" onclick="window.vaultPlannerClose&&window.vaultPlannerClose()">✕</button>
       </div>
-      <div class="vault-find">
-        <span class="vault-find-ic">🔎</span>
-        <input id="vault-find-input" class="vault-find-input" aria-label="find an item across your mules" type="text" autocomplete="off" spellcheck="false" placeholder="Find an item across your mules — which alt is it on?" oninput="window.vaultFind&&window.vaultFind(this.value)" onkeydown="if(event.key==='Escape'){this.value='';window.vaultFind('')}">
+      <div class="vault-find vault-find-mule">
+        <span class="vault-find-k">Find on a mule</span>
+        <input id="vault-find-input" class="vault-find-input" aria-label="find an item across your mules" type="text" autocomplete="off" spellcheck="false" placeholder="Which mule holds it?" oninput="window.vaultFind&&window.vaultFind(this.value)" onkeydown="if(event.key==='Escape'){this.value='';window.vaultFind('')}">
         <button class="vault-find-x" type="button" title="clear" onclick="var i=document.getElementById('vault-find-input');i.value='';window.vaultFind('');i.focus()">✕</button>
       </div>
       <div id="vault-find-results" class="vault-find-results" hidden></div>
@@ -18863,6 +18863,15 @@ function artOr(name, fallbackHtml, size){
       var _bu = artUrl(_rolledBase);
       if (_bu) u = _bu;
     }
+  }
+  /* a planner runeword wears the base he chose (Phase Blade), not the catalogue picture of the word */
+  var _builtBase = '';
+  try {
+    if (typeof window !== 'undefined' && window && typeof window._vpMadeBase === 'function') _builtBase = String(window._vpMadeBase(name) || '');
+  } catch (eBuilt) { _builtBase = ''; }
+  if (_builtBase && _builtBase !== String(name) && _builtBase !== _clean && _builtBase !== _cleanP){
+    var _builtUrl = artUrl(_builtBase);
+    if (_builtUrl) u = _builtUrl;
   }
   var _rc = _artRarity(name); var _rcls = _rc ? ' d2art-r-' + _rc : '';
   if (!u) return `<span class="d2art-wrap ${size||'lg'}${_rcls} d2art-failed" role="img" aria-label="${_d2artEsc(name)}"><span class="d2art-fallback">${fallbackHtml||''}</span></span>`;
@@ -30949,7 +30958,30 @@ function _setPieceTipHtml(sp){
     + '<div class="att-core">One of '+(sp.set.pieces?sp.set.pieces.length:'the')+' pieces. Collect the full set to light up its set bonus (tracked in Tools → Item Set Tracker).</div>'
     + '<div class="att-meta" style="opacity:.65">Full per-piece affixes for this one aren’t in the card DB yet.</div>';
 }
+/* a runeword he built in the vault planner already has its base and its rolls on this page.
+   The catalogue card (ranges, "5 socket Axes Swords") is the word with no base chosen. */
+function _plannerBuiltTip(nm){
+  var rec = null;
+  try {
+    if (typeof window === 'undefined' || !window || typeof window._vpMadeOf !== 'function') return null;
+    rec = window._vpMadeOf(nm);
+  } catch (e) { return null; }
+  if (!rec || !rec.base || !rec.id || rec.q !== 'r') return null;
+  if (typeof window._cbItem !== 'function' || typeof window._cbTipEntry !== 'function' || typeof window.d2Tip !== 'function') return null;
+  var it = null, tip = null, html = '';
+  try { it = window._cbItem(rec.id); } catch (e2) { it = null; }
+  if (!it) return null;
+  try {
+    tip = window._cbTipEntry({ id: rec.id, base: rec.base, q: rec.q, affixes: rec.affixes || [], eth: !!rec.eth, sockets: rec.sockets, rolls: rec.rolls || null }, it, null, null, null);
+  } catch (e3) { return null; }
+  if (!tip || tip.baseUnknown || !tip.base || tip.base === tip.name) return null;
+  try { html = window.d2Tip(tip); } catch (e4) { return null; }
+  if (!html) return null;
+  return { artName: tip.base, desc: html, rich: true, builtBase: true };
+}
 function _arttipResolve(nm){
+  var _builtTip = _plannerBuiltTip(nm);
+  if (_builtTip) return _builtTip;
   var t = SUNDER_TIP[nm] || (_SUN_BASES[nm] ? SUNDER_TIP[_SUN_BASES[nm]] : null);
   if (t) return { artName: t.base, desc: _sunTipHtml(t), rich: true };
   if (typeof ITEM_TIP !== 'undefined' && ITEM_TIP[nm]) return { artName: nm, desc: _itemTipHtml(ITEM_TIP[nm]), rich: true };
@@ -31391,7 +31423,7 @@ window._jewelTipHtml = _jewelTipHtml;
       // base's card carries data-arttip-ctx="<that base>": the hover keeps the runeword's STATS but
       // wears the host base's sprite, so a Strength chip on a Scissors Katar card shows the claw.
       var _ctx = el.getAttribute && el.getAttribute('data-arttip-ctx');
-      var url = (typeof artUrl==='function') ? ((_ctx && artUrl(_ctx)) || artUrl(nm) || artUrl(r.artName)) : '';
+      var url = (typeof artUrl==='function') ? ((_ctx && artUrl(_ctx)) || (r.builtBase && artUrl(r.artName)) || artUrl(nm) || artUrl(r.artName)) : '';
       if (!url && typeof artOr === 'function'){
         var _om = /src="([^"]+)"/.exec(artOr(nm, '', 'sm') || '');
         if (_om) url = _om[1];
@@ -37267,10 +37299,30 @@ body{
 .vault-find-ic{font-size:var(--fs-title);opacity:.8}
 .vault-find-input{flex:1;background:transparent;border:none;outline:none;color:var(--text,#e8dcc8);font-family:var(--serif-text,Georgia,serif);font-size:14px;letter-spacing:.2px}
 .vault-find-input::placeholder{color:rgba(240,192,96,.42);font-style:italic}
-.vault-planner-find{margin-top:8px;border-color:rgba(127,212,255,.4)}
+/* the two vault bars are different jobs: gold adds an item from the planner, steel finds one already on a mule */
+.vault-find-k{flex:none;font-family:var(--serif-display,Cinzel,serif);font-size:11px;letter-spacing:.16em;text-transform:uppercase;line-height:1.15;padding:4px 8px;border-radius:4px;border:1px solid transparent}
+.vault-planner-find{margin-top:8px;border-color:rgba(212,168,71,.72);background:linear-gradient(180deg,rgba(72,52,18,.78),rgba(16,11,5,.82));box-shadow:inset 0 0 0 1px rgba(240,192,96,.16),0 0 22px rgba(212,168,71,.14)}
+.vault-planner-find .vault-find-k{color:#1a1208;background:linear-gradient(180deg,#f0d78c,#a07828);border-color:rgba(240,192,96,.85)}
+.vault-planner-find .vault-find-input{font-family:var(--serif-display,Cinzel,serif);font-size:15px;letter-spacing:.04em;color:#f6e7c2}
+.vault-planner-find .vault-find-input::placeholder{color:rgba(240,192,96,.78);font-style:normal;letter-spacing:.05em}
+.vault-find-mule{border-color:rgba(168,186,204,.42);background:linear-gradient(180deg,rgba(28,36,46,.72),rgba(8,10,14,.78));box-shadow:inset 0 0 0 1px rgba(186,204,220,.1)}
+.vault-find-mule:focus-within{border-color:#c5d4e4;box-shadow:0 0 0 1px rgba(186,204,220,.28),0 0 18px rgba(140,170,200,.12)}
+.vault-find-mule .vault-find-k{color:#d5e2ee;background:linear-gradient(180deg,rgba(70,86,102,.9),rgba(28,36,46,.95));border-color:rgba(186,204,220,.45)}
+.vault-find-mule .vault-find-input{font-family:var(--serif-text,Georgia,serif);font-size:15px;letter-spacing:.02em;color:#e7eef5}
+.vault-find-mule .vault-find-input::placeholder{color:rgba(186,204,220,.78);font-style:normal}
 #vault-planner-host[hidden]{display:none !important}
-#vault-planner-host{position:fixed;inset:0;z-index:100000;background:rgba(6,4,2,.72);display:flex;align-items:flex-start;justify-content:center;padding:48px 16px 24px;overflow:auto}
-#vault-planner-host .cb-modal{position:relative;left:auto;top:auto;width:min(960px,100%);height:min(82vh,880px);max-height:82vh;flex:none}
+#vault-planner-host{position:fixed;inset:0;z-index:100000;background:rgba(6,4,2,.78);display:flex;align-items:flex-start;justify-content:center;padding:36px 16px 24px;overflow:auto}
+#vault-planner-host .cb-modal{position:relative;left:auto;top:auto;width:min(1040px,calc(100% - 24px));height:min(88vh,940px);max-height:88vh;flex:none;border:1px solid rgba(212,168,71,.55);box-shadow:0 28px 80px rgba(0,0,0,.82),0 0 0 1px rgba(240,192,96,.22),0 0 42px rgba(212,168,71,.12)}
+#vault-planner-host .cb-mh{background:linear-gradient(180deg,rgba(54,40,16,.95),rgba(12,9,5,.98));border-bottom:1px solid rgba(212,168,71,.5)}
+#vault-planner-host .cb-tab{padding:0 22px;min-height:52px;font-family:var(--serif-display,Cinzel,serif);font-size:14px;letter-spacing:.16em;text-transform:uppercase}
+#vault-planner-host .cb-tab.cb-on{color:var(--gold-bright,#f0c060);background:rgba(20,14,6,.96);box-shadow:inset 0 -3px 0 #f0c060}
+#vault-planner-host .vp-plate{flex:none;display:flex;align-items:center;gap:16px;padding:14px 16px;border-top:1px solid rgba(212,168,71,.62);background:linear-gradient(180deg,rgba(48,34,12,.98),rgba(14,10,4,.99))}
+#vault-planner-host .vp-plate-k{flex:none;font-family:var(--serif-display,Cinzel,serif);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:#f0d78c;max-width:220px}
+#vault-planner-host .vp-plate-say{flex:1;min-width:0;font-family:var(--serif-text,Georgia,serif);font-size:16px;line-height:1.35;color:#f6e7c2}
+#vault-planner-host .vp-plate-done{flex:none;font-family:var(--serif-display,Cinzel,serif);letter-spacing:.14em;text-transform:uppercase;font-size:14px;font-weight:700;padding:10px 18px;border-radius:4px;border:1px solid rgba(240,192,96,.85);background:linear-gradient(180deg,#f0d78c,#a07828);color:#1a1208;cursor:pointer}
+#vault-planner-host .vp-plate-done:hover{filter:brightness(1.06)}
+#vault-planner-host .vp-plate-wait{border-top-color:rgba(168,186,204,.4);background:linear-gradient(180deg,rgba(24,30,38,.98),rgba(8,10,14,.99))}
+#vault-planner-host .vp-plate-wait .vp-plate-k{color:#d5e2ee}
 .vault-find-x{background:transparent;border:none;color:var(--text-dim);cursor:pointer;font-size:var(--fs-body);padding:2px 6px;border-radius:6px;transition:color .12s,background .12s}
 .vault-find-x:hover{color:var(--gold-bright,#f0c060);background:rgba(240,192,96,.08)}
 .vault-find-results{margin:0 0 12px;border:1px solid rgba(212,168,71,.28);border-radius:11px;overflow:hidden;background:rgba(8,6,3,.55)}
@@ -38554,6 +38606,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window._muleStoreUnread = function(k){ return _muleUnread[k || AK] || null; };
   var roster = load(RK, null) || DEFAULT_ROSTER.map(function(m){ return Object.assign({}, m); });
   var assign = load(AK, {});
+  /* the SHARED STASH locker, one shape. Load adds it when a saved roster lacks it. A later
+     miss (he deleted the locker, or a save never held it) asks the same function again, so a
+     war-gear pick still has the id the router already named. */
+  function _vaultEnsureSharedLocker(){
+    var cur = roster.find(function(m){ return m.id==='shared'; });
+    if (cur) return cur;
+    var sh={id:'shared', name:'SHARED STASH', icon:'📦', note:SHARED_NOTE};
+    var mi=roster.findIndex(function(m){ return m.id==='magic-rare'; });
+    if (mi>=0) roster.splice(mi+1, 0, sh); else roster.push(sh);
+    try{ _guardedSet(RK, JSON.stringify(roster)); }catch(e){}
+    return roster.find(function(m){ return m.id==='shared'; });
+  }
+  try { window._vaultEnsureSharedLocker = _vaultEnsureSharedLocker; } catch(e){}
   // v230 migration: runes / essences / Worldstone shards / statues live in RoW's
   // infinite shared stash, so the RUNES-HIGH + MATS lockers are retired. Strip them
   // from any roster saved before this version and drop every assignment that pointed
@@ -38595,12 +38660,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       try{ _guardedSet(RK, JSON.stringify(roster)); }catch(e){}
     }
     // v360 — ensure the SHARED STASH locker exists on rosters saved before it (holds the never-muled items)
-    if (!roster.some(function(m){ return m.id==='shared'; })){
-      var sh={id:'shared', name:'SHARED STASH', icon:'📦', note:SHARED_NOTE};
-      var mi=roster.findIndex(function(m){ return m.id==='magic-rare'; });
-      if (mi>=0) roster.splice(mi+1, 0, sh); else roster.push(sh);
-      try{ _guardedSet(RK, JSON.stringify(roster)); }catch(e){}
-    }
+    if (!roster.some(function(m){ return m.id==='shared'; })) _vaultEnsureSharedLocker();
     // #264 — a roster saved with a retired note gets the current one (only that exact text: a note he edited stays his)
     var _retired = false;
     roster.forEach(function(m){ var r = RETIRED_NOTES[m.id]; if (r && m.note === r[0]){ m.note = r[1]; _retired = true; } });
@@ -43050,8 +43110,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      This is the road a reel already walks: a unique, a set piece, a runeword or a base the vault draws is
      owned through vaultHandAdd; a magic, rare or crafted pick is written to magicFinds with its real base
      and its mod lines, the way the AI checker keeps one. suggestMule then decides. A filing happens only
-     when that answer is a mule on this board. Throw-out, keep-on-MAIN, the shared stash and a name nothing
-     knows stay unfiled, and the sentence says which. A composed name that changes on the SAME pick in this
+     when that answer is a mule on this board. Throw-out, keep-on-MAIN, a rune whose answer is the shared
+     stash with no locker id, and a name nothing knows stay unfiled, and the sentence says which. War gear
+     names the shared locker. When that locker is missing it is put back, then the pick is filed. A runeword
+     keeps the base he chose and the rolls he typed, so the vault card is that item. A composed name that changes on the SAME pick in this
      open (a rare re-roll, a magic affix) moves the record this open created. A name that was already his
      is left where it was. */
   var _vpMade = null;
@@ -43075,6 +43137,56 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     } catch (e) {}
     return (shown && shown.base) ? String(shown.base) : '';
   }
+  var VP_MADE_KEY = 'd2r_plannerMade';
+  function _vpMadeRead(){
+    var raw = null;
+    try { raw = LS.getItem(VP_MADE_KEY); } catch (e) { return null; }
+    if (raw == null || raw === '') return {};
+    try {
+      var v = JSON.parse(raw);
+      return (v && typeof v === 'object' && !Array.isArray(v)) ? v : null;
+    } catch (e2) { return null; }
+  }
+  function _vpMadeWrite(map){
+    try { LS.setItem(VP_MADE_KEY, JSON.stringify(map)); } catch (e) {}
+  }
+  function _vpRemember(nm, entry, shown, baseName){
+    if (!nm || !entry || !entry.base) return;
+    var named = baseName ? String(baseName) : '';
+    if (!named || named === nm) return;
+    var map = _vpMadeRead();
+    if (!map) return;
+    map[nm] = {
+      id: entry.id, base: String(entry.base), baseName: named,
+      q: (shown && shown.q) || 'r', affixes: entry.affixes || [],
+      eth: !!entry.eth, sockets: entry.sockets == null ? 0 : (entry.sockets | 0),
+      rolls: entry.rolls || null
+    };
+    _vpMadeWrite(map);
+  }
+  function _vpForget(nm){
+    if (!nm) return;
+    var map = _vpMadeRead();
+    if (!map || !Object.prototype.hasOwnProperty.call(map, nm)) return;
+    delete map[nm];
+    _vpMadeWrite(map);
+  }
+  window._vpMadeOf = function(nm){
+    var map = _vpMadeRead();
+    if (!map) return null;
+    var rec = map[String(nm || '')];
+    if (!rec || !rec.base || !rec.id || rec.q !== 'r') return null;
+    return rec;
+  };
+  window._vpMadeBase = function(nm){
+    var rec = window._vpMadeOf(nm);
+    if (!rec) return '';
+    var named = rec.baseName ? String(rec.baseName) : '';
+    if (named && named !== String(nm || '')) return named;
+    var fromDb = _vpBase({ base: rec.base }, null);
+    if (fromDb && fromDb !== String(nm || '')) return fromDb;
+    return '';
+  };
   function _vpDrop(){
     var m = _vpMade;
     _vpMade = null;
@@ -43089,6 +43201,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       try { persistOwned(); } catch (e2) {}
     }
     if (assign[nm] != null && typeof window.vaultUnassign === 'function') window.vaultUnassign(nm);
+    _vpForget(nm);
   }
   function _vpRoute(nm){
     var sg, asked = false;
@@ -43102,7 +43215,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         : (nm + ' stays unfiled — nothing in the routing universe named a drawer for it') };
     }
     var id = sg.id, why = sg.why ? String(sg.why) : '';
-    if (sg.unsorted || id === '__throwout' || id === '__keep' || id == null || !muleById(id)){
+    var home = null;
+    try { home = muleById(id); } catch (eH) { home = null; }
+    if (id === 'shared' && !home && typeof window._vaultEnsureSharedLocker === 'function'){
+      try { home = window._vaultEnsureSharedLocker() || muleById(id); } catch (eS) { home = null; }
+    }
+    if (sg.unsorted || id === '__throwout' || id === '__keep' || id == null || !home){
       var say = sg.unsorted ? why
         : (id === '__throwout') ? ('throw-out advice — ' + why)
         : (id === '__keep') ? ('stays with your MAIN, not a mule — ' + why)
@@ -43112,7 +43230,6 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (assign[nm] != null) return { ok: true, filed: false, mode: 'already', mule: assign[nm], why: nm + ' is already filed' };
     var at = new Date().toISOString();
     var filed = window.vaultFile(nm, { by: 'hand', at: at, where: VP_WHERE }, { mule: id });
-    var home = muleById(id);
     var muleName = home && home.name ? home.name : id;
     var sayF = (filed && filed.ok) ? (nm + ' filed to ' + muleName + (why ? (' — ' + why) : '')) : ((filed && filed.why) || (nm + ' was not filed'));
     return { ok: !!(filed && filed.ok !== false), filed: !!(filed && (filed.mode === 'filed' || filed.mode === 'confirmed')), mode: filed && filed.mode, mule: id, why: sayF };
@@ -43159,6 +43276,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       try { status(whyB); } catch (e6) {}
       return { ok: true, filed: false, why: whyB };
     }
+    if (kind === 'runeword') _vpRemember(nm, entry, shown, baseName);
     var routed = _vpRoute(nm);
     var kept = routed && (routed.filed || routed.mode === 'already');
     if (!kept && magicQ && !beforeMagic && magicFinds && magicFinds[nm]){
@@ -44233,6 +44351,29 @@ window.vaultAutoAssign = function(){
     return (loc && _WIT_MAIN[loc]) ? loc : null;
   };
   var _AUTOSORT_LEFT_SAY = { throwout: 'discard suggestion', keep: 'keep-on-MAIN', shared: 'shared-stash-only', stays: 'locked', unknown: 'with no answer' };
+  /* a planner pick is his hand. The click may file it without a reel picture. A found-ever
+     receipt with no picture is not this, and still stops on the picture gate below. */
+  function _plannerHandRow(name, row){
+    var blob = '';
+    try {
+      blob = String((row && row.where) || '') + '\n' + String((row && row.by) || '')
+        + '\n' + String((row && row.ownedBy && (row.ownedBy.where || row.ownedBy.by)) || '');
+    } catch (e) { blob = ''; }
+    if (blob.indexOf('the Vault planner') >= 0) return true;
+    try { if (typeof window._vpMadeOf === 'function' && window._vpMadeOf(name)) return true; } catch (e2) {}
+    return false;
+  }
+  function _plannerPropose(name){
+    var pg = null;
+    try { pg = window.vaultPropose(name); } catch (e) { pg = null; }
+    if (pg && pg.ok === true && pg.kind === 'mule') return pg;
+    var sg = null;
+    try { sg = (typeof suggestMule === 'function') ? suggestMule(name) : null; } catch (e2) { sg = null; }
+    if (!(sg && sg.id === 'shared' && typeof window._vaultEnsureSharedLocker === 'function')) return pg;
+    try { window._vaultEnsureSharedLocker(); } catch (e3) {}
+    try { pg = window.vaultPropose(name); } catch (e4) {}
+    return pg;
+  }
   window.vaultAutoSortByHand = function(){
     var first = window.vaultAutoAssign();          /* its own rule first: re-file what already carries a witness */
     if (first && first.refused) return first;      /* an unreadable mule map is UNKNOWN - nothing is filed over it */
@@ -44240,6 +44381,22 @@ window.vaultAutoAssign = function(){
     var out = { filed: 0, main: [], noPicture: [], left: {}, refused: [], rows: [] };
     (window._vaultDockNames() || []).forEach(function(name){
       var row = pv[name] || null;
+      if (_plannerHandRow(name, row)){
+        var lastH = _newestPlacedLoc(row);
+        if (!(lastH && _WIT_MAIN[lastH])){
+          var pgH = _plannerPropose(name);
+          if (pgH && pgH.ok === true && pgH.kind === 'mule'){
+            var rH = window.vaultFile(name, { by: 'hand', at: at, where: 'Auto-Sort to Mules - your click filed it where the planner says' }, { mule: pgH.id });
+            if (rH && rH.ok && (rH.mode === 'filed' || rH.mode === 'confirmed')){
+              out.filed++; out.rows.push({ name: name, mule: pgH.id });
+              try { if (typeof window.kaiChronicleRecord === 'function')
+                window.kaiChronicleRecord({ name: name, status: 'muled', store: 'assign', ledger: 'vault', why: pgH.why || '',
+                                            target: pgH.id, source: 'auto-sort (his click)', _bump: true }); } catch(eH){}
+            } else out.refused.push({ name: name, why: (rH && rH.why) || 'the door refused it' });
+            return;
+          }
+        }
+      }
       if (!_hasPicture(row)){ out.noPicture.push(name); return; }
       var lastLoc = _newestPlacedLoc(row);
       if (lastLoc && _WIT_MAIN[lastLoc]){ out.main.push(name); return; }
@@ -60249,7 +60406,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
       + '<button type="button" class="cb-x" onclick="window._cbClosePick()" aria-label="close (Esc)">✕</button></div>';
     /* the mule host's refusal (a MAIN lock, a cell the item does not fit) is said on every tab it can happen on */
     var err = (host && st.hostErr) ? '<div class="cb-note cb-host-err" role="alert">⚠ ' + esc(st.hostErr) + '</div>' : '';
-    if (host && st.host && st.host.planner && st.host.say) err += '<div class="cb-note" role="status">' + esc(st.host.say) + '</div>';
+    /* the planner says where the pick went in the plate under the sheet, not in this line */
     if (p.tab === 'locker' && host) return head + '<div class="cb-mb cb-mb-locker">' + ((st.host && st.host.locker && st.host.locker.html) || '') + '</div>';
     if (p.tab === 'base' && rwIt) return head + err + _cbBaseTabHtml(rwIt, slot);
     if (p.tab === 'quality' && pend) return head + err + _cbQualityHtml(pend, slot);
@@ -61317,12 +61474,22 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   /* the modal's markup, drawn inside the mule window's own render (so its unit and type scale reach it). `locker` is what
      the mule window listed for this slot: {html, n (it offers), total (the locker holds)} - the tab in front is chosen
      here, once: the locker's list when it offers anything, the whole database when it offers nothing */
+  function _vpPlateHtml(say){
+    var s = String(say || '');
+    var saved = /filed to|already filed/.test(s);
+    return '<div class="vp-plate' + (saved ? ' vp-plate-saved' : ' vp-plate-wait') + '" role="status">'
+      + '<div class="vp-plate-k">' + (saved ? 'Saved into the vault' : 'Not in a locker yet') + '</div>'
+      + '<div class="vp-plate-say">' + esc(s || 'Search, choose the base and the rolls. The vault files the pick when the route has a locker.') + '</div>'
+      + '<button type="button" class="vp-plate-done" onclick="window.vaultPlannerClose&&window.vaultPlannerClose()">Done</button>'
+      + '</div>';
+  }
   window._cbHostHtml = function(locker){
     var p = st.pick; if (!p || p.host !== 'mule' || !st.host) return '';
     st.host.locker = locker || { html: '', n: 0, total: 0 };
     if (p.tab === 'auto') p.tab = (st.host.locker.n > 0) ? 'locker' : 'select';
+    var foot = (st.host.planner) ? _vpPlateHtml(st.host.say) : '';
     return '<div class="cb-modal cb-host" id="cb-modal" role="dialog" aria-modal="true" aria-label="choose the ' + esc(p.kind === 'inv' ? 'item for ' + (st.host.where || 'this inventory cell') : (CB_SLOT_SAY[p.slot] || p.slot))
-      + ' for ' + esc(st.host.mule || 'this mule') + ' (Esc closes)">' + _cbPickHtml() + '</div>';
+      + ' for ' + esc(st.host.mule || 'this mule') + ' (Esc closes)">' + _cbPickHtml() + foot + '</div>';
   };
   window._cbHostPlaced = function(){
     if (!(st.pick && st.pick.host === 'mule' && st.host)) return;
