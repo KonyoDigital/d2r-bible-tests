@@ -11075,6 +11075,11 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     #d2jsp-planner-host .vp-plate-k{flex:none;font-family:var(--serif-display,Cinzel,serif);font-size:var(--fs-body);letter-spacing:.14em;text-transform:uppercase;color:#f0d78c;max-width:220px}
     #d2jsp-planner-host .vp-plate-say{flex:1;min-width:0;font-family:var(--serif-text,Georgia,serif);font-size:var(--fs-title);line-height:1.35;color:#f6e7c2}
     #d2jsp-planner-host .vp-plate-done{flex:none;font-family:var(--serif-display,Cinzel,serif);letter-spacing:.14em;text-transform:uppercase;font-size:var(--fs-title);font-weight:var(--fw-semibold);padding:10px 18px;border-radius:4px;border:1px solid rgba(240,192,96,.85);background:linear-gradient(180deg,#f0d78c,#a07828);color:#1a1208;cursor:pointer}
+    #d2jsp-draft-host[hidden]{display:none !important}
+    #d2jsp-draft-host{position:fixed;inset:0;z-index:100001;background:rgba(6,4,2,.78);display:flex;align-items:flex-start;justify-content:center;padding:48px 16px 24px;overflow:auto}
+    #d2jsp-draft-host .d2jsp-draft-box{width:min(640px,100%);background:rgba(12,9,5,.98);border:1px solid rgba(212,168,71,.55);border-radius:8px;padding:16px 18px 18px;box-shadow:0 28px 80px rgba(0,0,0,.82)}
+    #d2jsp-draft-host .d2jsp-draft-k{font-family:var(--serif-display,Cinzel,serif);letter-spacing:.14em;text-transform:uppercase;color:#f0d78c;margin:0 0 8px}
+    #d2jsp-draft-host .d2jsp-draft-subject{font-size:var(--fs-title);color:#f6e7c2;margin:4px 0 12px}
   </style>
   <div class="boss-card" id="d2jsp-card" style="--tc:#f0c060">
     <div class="boss-header">
@@ -11699,13 +11704,32 @@ function d2jspPriceLine(q) {
       say(rn + ' was removed from this list.');
       return;
     }
+    if (t.closest && (t.closest('[data-d2jsp-draft-close]') || t.id === 'd2jsp-draft-host')) {
+      ev.preventDefault();
+      closeDraft();
+      say('The draft was closed. Nothing was posted.');
+      return;
+    }
     var post = t.getAttribute && t.getAttribute('data-d2jsp-post');
     if (post) {
       ev.preventDefault();
       var q = quoted[post] || {};
       var fg = d2jspPriceToSend(q.fg, typedOf(post));
       var draft = d2jspDraft(post, baseOf(post), modsOf(post), copiesOf(post), fg);
-      if (!draft.ok) { say('Forum gold is unknown, so this item is not posted.'); return; }
+      if (!draft.ok) { say('Forum gold is unknown, so this item is not posted.'); closeDraft(); return; }
+      if (t.getAttribute('data-d2jsp-send') !== '1') {
+        openDraft(post, draft);
+        say('This is a draft of the post. Nothing was posted.');
+        return;
+      }
+      var shown = document.querySelector('#d2jsp-draft-host [data-d2jsp-draft-view]');
+      var title = document.querySelector('#d2jsp-draft-host [data-d2jsp-draft-subject]');
+      if (!shown || shown.textContent !== draft.body || !title || title.textContent !== draft.subject) {
+        openDraft(post, draft);
+        say('The draft was shown again. Nothing was posted.');
+        return;
+      }
+      closeDraft();
       var host = '';
       try { host = location.hostname; } catch (eH) { host = ''; }
       if (host !== '127.0.0.1' && host !== 'localhost') {
@@ -11769,6 +11793,40 @@ function d2jspPriceLine(q) {
       paintPrices();
     }
   });
+  function draftHost(){
+    var host = document.getElementById('d2jsp-draft-host');
+    if (!host){
+      host = document.createElement('div');
+      host.id = 'd2jsp-draft-host';
+      host.hidden = true;
+      var card = document.getElementById('d2jsp-card') || document.getElementById('tab-d2jsp');
+      if (card) card.appendChild(host);
+      else if (document.body) document.body.appendChild(host);
+    }
+    return host;
+  }
+  function openDraft(name, draft){
+    var host = draftHost();
+    host.hidden = false;
+    host.innerHTML = '<div class="d2jsp-draft-box" role="dialog" aria-modal="true" aria-label="Draft post">'
+      + '<p class="d2jsp-draft-k">Draft</p>'
+      + '<p class="d2jsp-say">This is a demonstration of the post. Nothing was posted.</p>'
+      + '<p class="d2jsp-say">Board ' + esc(draft.forum) + '.</p>'
+      + '<p class="d2jsp-say">Subject</p>'
+      + '<p class="d2jsp-draft-subject" data-d2jsp-draft-subject>' + esc(draft.subject) + '</p>'
+      + '<p class="d2jsp-say">Post</p>'
+      + '<pre class="d2jsp-draft" data-d2jsp-draft-view>' + esc(draft.body) + '</pre>'
+      + '<div class="d2jsp-acts">'
+      + '<button type="button" class="vault-btn" data-d2jsp-draft-close>Back</button>'
+      + '<button type="button" class="vault-btn vault-btn-primary" data-d2jsp-post="' + esc(name) + '" data-d2jsp-send="1">Post this draft</button>'
+      + '</div></div>';
+    var back = host.querySelector('[data-d2jsp-draft-close]');
+    if (back){ try { back.focus(); } catch (eFocus) {} }
+  }
+  function closeDraft(){
+    var host = document.getElementById('d2jsp-draft-host');
+    if (host){ host.hidden = true; host.innerHTML = ''; }
+  }
   /* ⟦D2JSP PLANNER ESC BEGIN⟧ */
   document.addEventListener('keydown', function(e){
     var host = document.getElementById('d2jsp-planner-host');
@@ -11777,6 +11835,14 @@ function d2jspPriceLine(q) {
     if (e.stopImmediatePropagation) e.stopImmediatePropagation();
     if (window._cbHostEsc && window._cbHostEsc()) return;
     window._d2jspPlannerClose();
+  }, true);
+  document.addEventListener('keydown', function(e){
+    var host = document.getElementById('d2jsp-draft-host');
+    if (!e || e.key !== 'Escape' || !host || host.hidden) return;
+    if (e.preventDefault) e.preventDefault();
+    if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+    closeDraft();
+    say('The draft was closed. Nothing was posted.');
   }, true);
   /* ⟦D2JSP PLANNER ESC END⟧ */
   window.addEventListener('message', function(ev){
