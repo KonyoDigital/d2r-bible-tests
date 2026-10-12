@@ -38108,6 +38108,7 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
 .vault-mule.vm-shared .vm-name{font-size:var(--fs-title);letter-spacing:var(--ls-wide);color:#aee4ff;text-shadow:0 1px 2px rgba(0,0,0,.8),0 0 12px rgba(127,212,255,.4)}
 .vault-mule.vm-shared .vm-name::after{content:" · shared by all characters";font-size:9.5px;letter-spacing:var(--ls-snug);opacity:.6;font-weight:var(--fw-medium)}
 .vault-mule.vm-shared .vm-count{color:#0b1118;background:#7fd4ff;border:none}
+.vault-mule.vm-shared .vm-lock{font-size:var(--fs-meta);line-height:1;cursor:help;color:#aee4ff;flex:0 0 auto}
 .vault-mule.vm-shared .vm-body{min-height:96px}
 .vault-mule.vm-shared:hover{border-color:rgba(127,212,255,.8);box-shadow:inset 0 0 0 1px rgba(127,212,255,.28),0 10px 32px rgba(0,0,0,.55),0 0 40px rgba(127,212,255,.22);transform:translateY(-2px)}
 /* mule ID card — FULLSCREEN in-game replica (v214, calibrated to Konyo's RotW shots) */
@@ -38639,9 +38640,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window._muleStoreUnread = function(k){ return _muleUnread[k || AK] || null; };
   var roster = load(RK, null) || DEFAULT_ROSTER.map(function(m){ return Object.assign({}, m); });
   var assign = load(AK, {});
-  /* the SHARED STASH locker, one shape. Load adds it when a saved roster lacks it. A later
-     miss (he deleted the locker, or a save never held it) asks the same function again, so a
-     war-gear pick still has the id the router already named. */
+  /* the SHARED STASH locker, one shape. Load adds it when a saved roster lacks it.
+     The delete door does not offer it: it is the account locker, and its items stay filed.
+     A saved roster that never held it still asks this function, so a war-gear pick has the id. */
   function _vaultEnsureSharedLocker(){
     var cur = roster.find(function(m){ return m.id==='shared'; });
     if (cur) return cur;
@@ -40715,7 +40716,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
               + 'The rest are here because they are in your owned list or you filed them — which '
               + 'is not the same claim. Nothing is hidden by this chip.">⚖ ' + seen + '</span>';
           })()
-        + '<span class="vm-tools"><button class="vm-tool" onclick="event.stopPropagation();window.vaultRenameMule(\''+jsArg(m.id)+'\')" title="rename">✏️</button><button class="vm-tool" onclick="event.stopPropagation();window.vaultDeleteMule(\''+jsArg(m.id)+'\')" title="delete">🗑</button></span>'
+        + (m.id==='shared' ? '<span class="vm-lock" role="img" aria-label="locked" title="SHARED STASH stays. It cannot be deleted, and its items do not return to the dock.">🔒</span>' : '')
+        + '<span class="vm-tools"><button class="vm-tool" onclick="event.stopPropagation();window.vaultRenameMule(\''+jsArg(m.id)+'\')" title="rename">✏️</button>'
+        + (m.id==='shared' ? '' : '<button class="vm-tool" onclick="event.stopPropagation();window.vaultDeleteMule(\''+jsArg(m.id)+'\')" title="delete">🗑</button>')
+        + '</span>'
         + '</div>'
         + '<div class="vm-gauge" title="'
              + (!_known ? 'UNKNOWN — the packer could not be asked, so this bar is not a reading'
@@ -44612,6 +44616,7 @@ window.vaultAutoAssign = function(){
     m.name=name.toUpperCase().slice(0,15); saveR(); renderVault();
   };
   window.vaultDeleteMule = async function(id){
+    if (id === 'shared') return;
     var m=muleById(id); if(!m) return;
     if (!(await uiConfirm('Delete locker '+m.name+'? Its items return to the unsorted dock.'))) return;
     roster=roster.filter(function(x){return x.id!==id;});

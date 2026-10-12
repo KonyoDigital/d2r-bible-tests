@@ -723,6 +723,48 @@ process.stdout.write(JSON.stringify(OUT));
         self.assertIn("!chip.classList.contains('vd-db')", keep)
         self.assertNotIn("the item's card opens as always", s)
 
+    def test_the_shared_stash_locker_cannot_be_deleted(self):
+        """SHARED STASH is the account locker. The shelf offers no delete, and the door
+        returns before the confirm, so a call that names it leaves the items filed."""
+        s = _src()
+        self.assertIn('class="vm-lock"', s)
+        self.assertIn(
+            "SHARED STASH stays. It cannot be deleted, and its items do not return to the dock.",
+            s)
+        self.assertIn(
+            "m.id==='shared' ? '' : '<button class=\"vm-tool\" onclick=\"event.stopPropagation();window.vaultDeleteMule(",
+            s)
+        fn = _cut(s, "  window.vaultDeleteMule = async function(id){\n",
+                  "  window.vaultReset = async function(){\n")
+        prog = (
+            "var window = globalThis;\n"
+            "var roster = [{id:'shared', name:'SHARED STASH'}, {id:'wip', name:'WIP'}];\n"
+            "var assign = { Grief: 'shared', Shako: 'wip' };\n"
+            "function muleById(id){ return roster.find(function(m){ return m.id===id; }); }\n"
+            "var asked = [];\n"
+            "function uiConfirm(msg){ asked.push(msg); return Promise.resolve(true); }\n"
+            "function saveR(){}\nfunction saveA(){}\nfunction renderVault(){}\n"
+            "function _provAll(){ return {}; }\nfunction _provWrite(){}\n"
+            + fn
+            + "Promise.resolve().then(function(){ return window.vaultDeleteMule('shared'); })"
+            ".then(function(){ return window.vaultDeleteMule('wip'); })"
+            ".then(function(){ process.stdout.write(JSON.stringify({"
+            " ids: roster.map(function(m){ return m.id; }),"
+            " grief: assign.Grief || null,"
+            " shako: Object.prototype.hasOwnProperty.call(assign,'Shako') ? assign.Shako : null,"
+            " asked: asked })); });\n"
+        )
+        if not NODE:
+            raise AssertionError("node is not on this machine — this law does not skip")
+        p = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=30)
+        self.assertEqual(p.returncode, 0, (p.stderr or p.stdout)[-1500:])
+        o = json.loads(p.stdout)
+        self.assertIn("shared", o["ids"])
+        self.assertNotIn("wip", o["ids"], "a real mule delete stopped working")
+        self.assertEqual(o["grief"], "shared")
+        self.assertIsNone(o["shako"])
+        self.assertEqual(o["asked"], ["Delete locker WIP? Its items return to the unsorted dock."])
+
     def test_the_planner_card_and_the_sort_click_meet_the_stored_base(self):
         """The hover prefers the stored Phase Blade, and his Auto-Sort click can file that pick.
         The picture gate stays the one line it was, so a found-ever receipt with no picture still stops."""
@@ -863,6 +905,13 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "        if (chip && !chip.classList.contains('vd-db') && !t.closest('button, a, input, textarea, select')) return;\n",
         "replace": "        if (false) return;\n",
+        "matches": 1,
+    },
+    {
+        "why": "the shared stash locker must refuse a delete; without the guard its items return to the dock",
+        "file": "bible.html",
+        "find": "    if (id === 'shared') return;\n",
+        "replace": "    if (false) return;\n",
         "matches": 1,
     },
 ]
