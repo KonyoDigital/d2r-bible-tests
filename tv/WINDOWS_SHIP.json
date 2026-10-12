@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3683",
+  "ver": "v3684",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3683: The vault planner search opens the character-builder picker and files a pick only when the reel route names a mule. HEART: test_a_hand_added_item_stays_his",
+  "note": "v3684: The vault planner sheet repeated two red-proof anchors, and the parse check handed node its program on argv. HEART: test_no_law_hands_node_its_program_on_argv test_the_heart_can_see_its_own_instruments",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
