@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3703** | `(this commit)` | v3703 — The trade desk adds an item and its mods from the character builder list. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
+| **v3704** | `(this commit)` | v3704 — The trade desk shows the post before it sends. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
+| **v3703** | `eb44ebbc` | v3703 — The trade desk adds an item and its mods from the character builder list. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
 | **v3702** | `a5e2aacc` | v3702 — The Switch Ladder search uses the board form and a scratch Chrome. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
 | **v3701** | `8b0635ac` | v3701 — A Chrome cookie opens when its host digest matches. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
 | **v3700** | `7a9170a1` | v3700 — Switch Ladder lines that name the item fill the real price range. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
