@@ -335,6 +335,7 @@ def chrome_user_agent():
                  "/Applications/Google Chrome.app/Contents/Info.plist",
                  "CFBundleShortVersionString"],
                 capture_output=True, timeout=5, text=True,
+                encoding="utf-8", errors="replace",
             )
         except OSError:
             proc = None

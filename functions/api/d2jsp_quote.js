@@ -55,9 +55,18 @@ function d2jspMedian(nums) {
   return Math.round((s[mid - 1] + s[mid]) / 2);
 }
 
+function d2jspSpan(nums) {
+  if (!nums || !nums.length) return { low: null, high: null };
+  var s = nums.slice().sort(function (a, b) { return a - b; });
+  return { low: s[0], high: s[s.length - 1] };
+}
+
 function d2jspRead(html, item, readAt) {
   var text = String(html || '');
-  var base = { item: String(item || ''), fg: null, n: 0, readAt: readAt, reason: 'unread', board: BOARD };
+  var base = {
+    item: String(item || ''), fg: null, low: null, high: null,
+    n: 0, readAt: readAt, reason: 'unread', board: BOARD
+  };
   if (!text || /Just a moment/i.test(text) || /cf-browser-verification/i.test(text)) return base;
   var nums = d2jspPrices(text, item);
   var fg = d2jspMedian(nums);
@@ -65,7 +74,11 @@ function d2jspRead(html, item, readAt) {
     base.reason = 'no prices';
     return base;
   }
-  return { item: String(item || ''), fg: fg, n: nums.length, readAt: readAt, reason: 'read', board: BOARD };
+  var span = d2jspSpan(nums);
+  return {
+    item: String(item || ''), fg: fg, low: span.low, high: span.high,
+    n: nums.length, readAt: readAt, reason: 'read', board: BOARD
+  };
 }
 /* ⟦D2JSP QUOTE END⟧ */
 

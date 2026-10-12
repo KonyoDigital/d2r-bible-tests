@@ -29,6 +29,15 @@ QUOTE = os.path.join(ROOT, "functions", "api", "d2jsp_quote.js")
 UI = os.path.join(HERE, "control_ui.html")
 BEACON = os.path.join(ROOT, "functions", "api", "console.js")
 NODE = shutil.which("node")
+# Story quest codes in tv/item_tables.json. Pandemonium keys, organs, essences
+# and the token are the trade, so they are not in this tuple.
+QUEST_CODES = (
+    "ass", "bbb", "bkd", "bks", "box", "d33", "g33", "g34",
+    "hdm", "hfh", "hst", "ibk", "ice", "j34", "key", "leg",
+    "luv", "msf", "mss", "qbr", "qey", "qhr", "qf1", "qf2",
+    "std", "tbk", "tr1", "tr2", "vip", "xyz",
+)
+QUEST_EXTRA = ("keys", "wirts leg", "tome")
 
 
 def _read(path):
@@ -88,7 +97,8 @@ var prices = d2jspPrices(page, 'Grief');
 var none = d2jspRead('Just a moment...', 'Grief', '2026-10-12T20:00:00.000Z');
 var empty = d2jspRead(page, 'Grief', '2026-10-12T20:00:00.000Z');
 var hit = d2jspRead('Grief Phase Blade 10 fg\n\nGrief 50 fg\n\nGrief 30 fg\n\nShako 200 fg', 'Grief', '2026-10-12T20:01:00.000Z');
-process.stdout.write(JSON.stringify({prices: prices, none: none, empty: empty, hit: hit}));
+var one = d2jspRead('Grief 40 fg', 'Grief', '2026-10-12T20:02:00.000Z');
+process.stdout.write(JSON.stringify({prices: prices, none: none, empty: empty, hit: hit, one: one}));
 """
         out = json.loads(_node("var BOARD = 268;\n" + self.parser, body))
         self.assertEqual(out["prices"], [])
@@ -99,7 +109,17 @@ process.stdout.write(JSON.stringify({prices: prices, none: none, empty: empty, h
         self.assertEqual(out["empty"]["reason"], "no prices")
         self.assertEqual(out["hit"]["fg"], 30)
         self.assertEqual(out["hit"]["n"], 3)
+        self.assertEqual(out["hit"]["low"], 10)
+        self.assertEqual(out["hit"]["high"], 50)
         self.assertEqual(out["hit"]["reason"], "read")
+        self.assertEqual(out["one"]["fg"], 40)
+        self.assertEqual(out["one"]["n"], 1)
+        self.assertEqual(out["one"]["low"], 40)
+        self.assertEqual(out["one"]["high"], 40)
+        self.assertIsNone(out["empty"]["low"])
+        self.assertIsNone(out["empty"]["high"])
+        self.assertIsNone(out["none"]["low"])
+        self.assertIsNone(out["none"]["high"])
 
     def test_a_post_waits_for_a_price_and_the_open_login(self):
         if NODE is None:
@@ -174,10 +194,25 @@ process.stdout.write(JSON.stringify({
         self.assertNotIn("Tag for trade", pane)
         room = pane.split("<script>", 1)[0]
         self.assertNotIn("<textarea", room)
+        self.assertEqual(room.count('id="d2jsp-find"'), 1)
+        self.assertIn('class="d2jsp-scroll"', room)
+        self.assertNotIn("Read the public price", pane)
+        self.assertNotIn("data-d2jsp-read", pane)
         end = self.bible.index("/* ⟦D2JSP DESK END⟧ */")
         names = self.bible.index("function names(){", end)
-        self.assertIn("d2r_muleAssign", self.bible[names:names + 700])
-        self.assertNotIn("typeof assign", self.bible[names:names + 700])
+        esc_at = self.bible.index("function esc(s){", names)
+        self.assertLess(esc_at - names, 1200)
+        names_body = self.bible[names:esc_at]
+        self.assertIn("d2r_muleAssign", names_body)
+        self.assertNotIn("typeof assign", names_body)
+        trade = self.bible.index("function tradeNames(){", end)
+        find_q = self.bible.index("function findQuery(){", trade)
+        self.assertIn("d2jspIsQuest", self.bible[trade:find_q])
+        paint = self.bible.index("function paint(){", end)
+        show = self.bible.index("window._d2jspShow = function(){", paint)
+        self.assertIn("trade = tradeNames()", self.bible[paint:show])
+        show_end = self.bible.index("};", show)
+        self.assertIn("refreshQuotes()", self.bible[show:show_end])
         post = self.bible.index("t.getAttribute('data-d2jsp-post')")
         handler = self.bible[post:self.bible.index("document.addEventListener('input'", post)]
         self.assertIn("/api/d2jsp_send", handler)
@@ -187,9 +222,71 @@ process.stdout.write(JSON.stringify({
         self.assertNotIn("d2jspBridgeSource()", handler)
         self.assertIn("nothing was posted", handler)
         app = _read(os.path.join(HERE, "control_app.py"))
-        route = app.index('if path == "/api/d2jsp_send"')
-        self.assertIn("d2jsp_chrome", app[route:route + 500])
+        self.assertEqual(app.count('if path == "/api/d2jsp_send":'), 1)
+        route = app.index('if path == "/api/d2jsp_send":')
+        nxt = app.index('if path == "/api/roster-book":', route)
+        block = app[route:nxt]
+        self.assertIn("import d2jsp_chrome as _d2jsp", block)
+        self.assertIn("_d2jsp.d2jsp_send(", block)
         self.assertNotIn("d2jsp", _read(BEACON))
+
+    def test_a_quest_item_is_not_a_trade_and_the_range_is_the_reading(self):
+        if NODE is None:
+            self.skipTest("node is not on this machine")
+        with open(os.path.join(ROOT, "tv", "item_tables.json"), encoding="utf-8") as fh:
+            tables = json.load(fh)
+        names = set()
+        for code in QUEST_CODES:
+            names.add(tables["items"][code]["name"])
+        for row in tables["uniques"].values():
+            if isinstance(row, dict) and row.get("code") in QUEST_CODES and row.get("name"):
+                names.add(row["name"])
+
+        def fold(text):
+            return " ".join(str(text).replace("\u2019", "'").replace("\u2018", "'").lower().split())
+
+        expected = {fold(n) for n in names}
+        expected.update(QUEST_EXTRA)
+        body = r"""
+var line = d2jspPriceLine({reason:'read', fg:30, n:3, low:10, high:50, readAt:'2026-10-12T20:01:00.000Z'});
+var one = d2jspPriceLine({reason:'read', fg:40, n:1, low:40, high:40, readAt:'2026-10-12T20:02:00.000Z'});
+var same = d2jspPriceLine({reason:'read', fg:15, n:4, low:15, high:15, readAt:'2026-10-12T20:03:00.000Z'});
+var none = d2jspPriceLine({reason:'no prices', fg:null, n:0, low:null, high:null, readAt:'2026-10-12T20:04:00.000Z'});
+var blank = d2jspPriceLine(null);
+process.stdout.write(JSON.stringify({
+  list: D2JSP_QUEST,
+  cube: d2jspIsQuest('Horadric Cube'),
+  stack: d2jspIsQuest('2x Horadric Cube'),
+  terror: d2jspIsQuest('Key of Terror'),
+  black: d2jspIsQuest('Blackhand Key'),
+  gheed: d2jspIsQuest("Gheed's Fortune"),
+  eye: d2jspIsQuest("Khalim's Eye"),
+  baal: d2jspIsQuest("Baal's Eye"),
+  token: d2jspIsQuest('Token of Absolution'),
+  keys: d2jspIsQuest('Keys'),
+  line: line, one: one, same: same, none: none, blank: blank
+}));
+"""
+        out = json.loads(_node(self.desk, body))
+        self.assertEqual(set(out["list"]), expected)
+        self.assertTrue(out["cube"])
+        self.assertTrue(out["stack"])
+        self.assertTrue(out["eye"])
+        self.assertTrue(out["keys"])
+        self.assertFalse(out["terror"])
+        self.assertFalse(out["black"])
+        self.assertFalse(out["gheed"])
+        self.assertFalse(out["baal"])
+        self.assertFalse(out["token"])
+        self.assertIn("10", out["line"])
+        self.assertIn("50", out["line"])
+        self.assertIn("30", out["line"])
+        self.assertNotIn("\u2013", out["one"])
+        self.assertIn("40 fg", out["one"])
+        self.assertNotIn("\u2013", out["same"])
+        self.assertIn("15 fg", out["same"])
+        self.assertIn("returned no fg number", out["none"])
+        self.assertEqual(out["blank"], "Public price unknown.")
 
     def test_chrome_posts_only_a_priced_board_268_draft_from_this_console(self):
         import d2jsp_chrome as desk

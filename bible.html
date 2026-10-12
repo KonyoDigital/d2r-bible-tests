@@ -11050,23 +11050,34 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
      card stays as the compact twin — one shared engine renders both. -->
 <div class="tab-content" id="tab-d2jsp">
   <style>
-    #tab-d2jsp .d2jsp-card{display:flex;gap:12px;align-items:flex-start;border:1px solid rgba(233,208,122,.4);border-radius:8px;padding:10px;margin:8px 0;background:rgba(10,9,7,.55)}
-    #tab-d2jsp .d2jsp-art{width:72px;height:72px;flex:0 0 72px}
-    #tab-d2jsp .d2jsp-art img{width:72px;height:72px;object-fit:contain}
+    #tab-d2jsp .boss-subtitle{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+    #tab-d2jsp .d2jsp-scroll{max-height:calc(100vh - var(--chrome-top, 8rem) - 14rem);overflow-y:auto;scrollbar-width:thin;scrollbar-color:var(--gold-dim) var(--bg);padding:2px 8px 8px 0}
+    #tab-d2jsp .d2jsp-scroll::-webkit-scrollbar{width:10px}
+    #tab-d2jsp .d2jsp-scroll::-webkit-scrollbar-track{background:var(--bg)}
+    #tab-d2jsp .d2jsp-scroll::-webkit-scrollbar-thumb{background:var(--gold-dim);border-radius:8px}
+    #tab-d2jsp .d2jsp-card{display:grid;grid-template-columns:56px minmax(0,1fr);gap:10px;align-items:start;border:1px solid rgba(233,208,122,.4);border-radius:8px;padding:10px;margin:8px 0;background:rgba(10,9,7,.55)}
+    #tab-d2jsp .d2jsp-card[hidden]{display:none}
+    #tab-d2jsp .d2jsp-art{width:56px;height:56px}
+    #tab-d2jsp .d2jsp-art img{width:56px;height:56px;object-fit:contain}
     #tab-d2jsp .d2jsp-say{color:#e9d07a;font-size:var(--fs-body);line-height:1.45}
+    #tab-d2jsp .d2jsp-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(8em,11em) auto;gap:8px;align-items:end}
+    #tab-d2jsp .d2jsp-fields .vault-btn{margin-top:6px}
     #tab-d2jsp input, #tab-d2jsp textarea{display:block;width:100%;box-sizing:border-box;margin-top:6px;font-family:var(--mono);font-size:var(--fs-body);color:#e9d07a;background:rgba(10,9,7,.55);border:1px solid rgba(233,208,122,.4);border-radius:6px}
+    @media(max-width:700px){#tab-d2jsp .d2jsp-fields{grid-template-columns:minmax(0,1fr)}}
   </style>
   <div class="boss-card" id="d2jsp-card" style="--tc:#f0c060">
     <div class="boss-header">
       <div class="boss-title-block">
         <p class="boss-name">D2JSP</p>
-        <p class="boss-subtitle" id="d2jsp-what">A filed vault item posts to the softcore non-ladder board through the Chrome login on this machine. This room never asks for the password. Forum gold stays unknown until a public reading returns a price, and the time of that reading is shown.</p>
+        <p class="boss-subtitle" id="d2jsp-what">Trade filings. Quest items stay off this list.</p>
       </div>
     </div>
     <div class="boss-body">
       <p class="d2jsp-say" id="d2jsp-board">Board 268, D2:R Softcore Trading, the softcore non-ladder forum.</p>
+      <p class="d2jsp-say">This room never asks for the password. Forum gold stays unknown until a public reading returns a number, and the time of that reading is shown.</p>
+      <input id="d2jsp-find" type="search" placeholder="Find a filed item" aria-label="Find a filed item" autocomplete="off" spellcheck="false">
       <p class="d2jsp-say" id="d2jsp-status"></p>
-      <div id="d2jsp-list"></div>
+      <div id="d2jsp-list" class="d2jsp-scroll"></div>
     </div>
   </div>
 </div>
@@ -11143,9 +11154,83 @@ function d2jspBridgeSource() {
     ''
   ].join('\n');
 }
+/* Story quest items, folded the way the furniture law folds a name. The names are the
+   item table's own for those codes, plus keys / wirts leg / tome so a stack still matches
+   when the page's furniture function has not run. Key of Terror stays a trade. */
+var D2JSP_QUEST = [
+    "a jade figurine",
+    "amulet of the viper",
+    "book of skill",
+    "decoy gidbinn",
+    "hell forge hammer",
+    "horadric cube",
+    "horadric malus",
+    "horadric scroll",
+    "horadric staff",
+    "key",
+    "key to the cairn stones",
+    "keys",
+    "khalim's brain",
+    "khalim's eye",
+    "khalim's flail",
+    "khalim's heart",
+    "khalim's will",
+    "lam esen's tome",
+    "malah's potion",
+    "mephisto's soulstone",
+    "potion of life",
+    "scroll of inifuss",
+    "scroll of resistance",
+    "shaft of the horadric staff",
+    "staff of kings",
+    "standard of heroes",
+    "the black tower key",
+    "the gidbinn",
+    "the golden bird",
+    "tome",
+    "tome of identify",
+    "tome of town portal",
+    "top of the horadric staff",
+    "wirt's leg",
+    "wirts leg"
+];
+function d2jspFold(name) {
+  return String(name == null ? '' : name).replace(/[‘’ʼ`]/g, "'").toLowerCase().split(/\s+/).join(' ').trim();
+}
+function d2jspQuestBare(name) {
+  var low = d2jspFold(name);
+  return low.replace(/^[0-9][0-9,.]*\s*(?:x\s*)?/, '').replace(/\s*(?:\(\s*[0-9][0-9,.]*\s*\)|x\s*[0-9][0-9,.]*)$/, '');
+}
+function d2jspIsQuest(name) {
+  var bare = d2jspQuestBare(name);
+  if (!bare) return false;
+  if (D2JSP_QUEST.indexOf(bare) >= 0) return true;
+  try {
+    if (typeof window !== 'undefined' && window._furnitureLocked && window._furnitureLocked(name)) return true;
+  } catch (eQ) {}
+  return false;
+}
+function d2jspPriceLine(q) {
+  q = q || {};
+  if (q.reason === 'read' && Number(q.fg) > 0) {
+    var when = q.readAt ? (', read ' + q.readAt) : '';
+    var low = Number(q.low);
+    var high = Number(q.high);
+    if (q.n > 1 && low > 0 && high > 0 && low !== high) {
+      return 'Public range ' + low + '\u2013' + high + ' fg, middle ' + q.fg + ', from ' + q.n + ' prices' + when + '.';
+    }
+    var n = q.n > 0 ? q.n : 1;
+    return 'Public price ' + q.fg + ' fg, from ' + n + ' ' + (n === 1 ? 'price' : 'prices') + when + '.';
+  }
+  if (q.readAt) return 'Public price unknown. The reading at ' + q.readAt + ' returned no fg number.';
+  return 'Public price unknown.';
+}
 /* ⟦D2JSP DESK END⟧ */
 (function(){
   var quoted = {};
+  var pending = {};
+  var reading = false;
+  var flight = 0;
   function store(){
     try { if (typeof LS !== 'undefined' && LS && LS.getItem) return LS; } catch (e) {}
     try { return localStorage; } catch (e2) { return null; }
@@ -11215,72 +11300,162 @@ function d2jspBridgeSource() {
     var el = document.getElementById('d2jsp-status');
     if (el) el.textContent = text;
   }
-  function ask(name){
-    var paths = ['/d2r/api/d2jsp_quote?item=', '/api/d2jsp_quote?item='];
-    var i = 0;
-    function step(){
-      if (i >= paths.length) {
-        quoted[name] = { fg: null, readAt: new Date().toISOString(), reason: 'unread' };
-        paint();
-        return;
-      }
-      var path = paths[i++];
-      fetch(path + encodeURIComponent(name)).then(function(r){ return r.json(); }).then(function(j){
-        if (!j || j.reason === 'unread' || j.fg == null && j.reason !== 'no prices' && j.reason !== 'read') {
-          if (j && (j.reason === 'no prices' || j.reason === 'read')) { quoted[name] = j; paint(); return; }
-          step();
-          return;
-        }
-        quoted[name] = j;
-        paint();
-      }).catch(function(){ step(); });
+  function tradeNames(){
+    var vault = names();
+    if (vault == null) return null;
+    return vault.filter(function(n){ return !d2jspIsQuest(n); });
+  }
+  function findQuery(){
+    var el = document.getElementById('d2jsp-find');
+    return el ? String(el.value || '').replace(/\s+/g, ' ').trim().toLowerCase() : '';
+  }
+  function priceText(n){
+    if (quoted[n]) return d2jspPriceLine(quoted[n]);
+    if (reading) return 'Reading the public price.';
+    return 'Public price unknown.';
+  }
+  function cardHtml(n){
+    var art = (typeof artOr === 'function') ? artOr(n, '<span>◆</span>', 'lg') : '';
+    var base = baseOf(n);
+    var send = d2jspPriceToSend((quoted[n] || {}).fg, typedOf(n));
+    return '<div class="d2jsp-card" data-d2jsp-item="' + esc(n) + '">'
+      + '<div class="d2jsp-art">' + art + '</div>'
+      + '<div class="d2jsp-main">'
+      + '<div class="boss-name">' + esc(n) + '</div>'
+      + '<div class="d2jsp-say" data-d2jsp-base>' + esc(base || 'Base not recorded') + '</div>'
+      + '<div class="d2jsp-say" data-d2jsp-price>' + esc(priceText(n)) + '</div>'
+      + '<div class="d2jsp-fields">'
+      + '<label class="d2jsp-say">Mods<textarea data-d2jsp-mods="' + esc(n) + '" rows="2">' + esc(modsOf(n)) + '</textarea></label>'
+      + '<label class="d2jsp-say">Your fg<input data-d2jsp-fg="' + esc(n) + '" value="' + esc(typedOf(n)) + '" inputmode="decimal" autocomplete="off" aria-label="Forum gold for this item"></label>'
+      + '<button type="button" class="vault-btn vault-btn-primary" data-d2jsp-post="' + esc(n) + '"' + (send == null ? ' disabled' : '') + '>Post</button>'
+      + '</div></div></div>';
+  }
+  function currentCards(){
+    var cards = document.querySelectorAll('#d2jsp-list .d2jsp-card');
+    var out = [];
+    for (var i = 0; i < cards.length; i++) out.push(cards[i].getAttribute('data-d2jsp-item'));
+    return out;
+  }
+  function sameSet(a, b){
+    if (!a || !b || a.length !== b.length) return false;
+    for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  }
+  function paintPrices(){
+    var nodes = document.querySelectorAll('#d2jsp-list [data-d2jsp-price]');
+    for (var i = 0; i < nodes.length; i++) {
+      var card = nodes[i].closest && nodes[i].closest('.d2jsp-card');
+      var n = card && card.getAttribute('data-d2jsp-item');
+      if (!n) continue;
+      nodes[i].textContent = priceText(n);
+      var btn = card.querySelector('[data-d2jsp-post]');
+      if (btn) btn.disabled = d2jspPriceToSend((quoted[n] || {}).fg, typedOf(n)) == null;
     }
-    step();
+  }
+  function applyFind(){
+    var q = findQuery();
+    var cards = document.querySelectorAll('#d2jsp-list .d2jsp-card');
+    var shown = 0;
+    for (var i = 0; i < cards.length; i++) {
+      var name = cards[i].getAttribute('data-d2jsp-item') || '';
+      var baseEl = cards[i].querySelector('[data-d2jsp-base]');
+      var hay = (name + ' ' + (baseEl ? baseEl.textContent : '')).toLowerCase();
+      var on = !q || hay.indexOf(q) >= 0;
+      cards[i].hidden = !on;
+      if (on) shown++;
+    }
+    var note = document.getElementById('d2jsp-count');
+    if (!note || !cards.length) return;
+    if (q && !shown) note.textContent = 'No filed item matches that search.';
+    else if (q) note.textContent = shown + (shown === 1 ? ' match.' : ' matches.');
+    else note.textContent = cards.length + ' filed for trade. Quest items stay off this list.';
   }
   function paint(){
     var list = document.getElementById('d2jsp-list');
     if (!list) return;
     var vault = names();
+    var trade = tradeNames();
     if (vault == null) {
-      list.innerHTML = '<p class="d2jsp-say">The vault would not read, so this list stays empty.</p>';
+      list.innerHTML = '<p class="d2jsp-say" id="d2jsp-count">The vault would not read, so this list stays empty.</p>';
       return;
     }
     if (!vault.length) {
-      list.innerHTML = '<p class="d2jsp-say">Nothing is filed in the vault yet.</p>';
+      list.innerHTML = '<p class="d2jsp-say" id="d2jsp-count">Nothing is filed in the vault yet.</p>';
       return;
     }
-    list.innerHTML = '<p class="d2jsp-say">' + vault.length + ' filed in the vault.</p>' + vault.map(function(n){
-      var q = quoted[n] || {};
-      var priceLine = 'Public price unknown.';
-      if (q.reason === 'read' && q.fg > 0) priceLine = 'Public middle ' + q.fg + ' fg from ' + q.n + ' prices, read ' + (q.readAt || '');
-      else if (q.readAt) priceLine = 'Public price unknown. The reading at ' + q.readAt + ' returned no fg number.';
-      var art = (typeof artOr === 'function') ? artOr(n, '<span>◆</span>', 'lg') : '';
-      var send = d2jspPriceToSend(q.fg, typedOf(n));
-      return '<div class="d2jsp-card" data-d2jsp-item="' + esc(n) + '">'
-        + '<div class="d2jsp-art">' + art + '</div>'
-        + '<div><div class="boss-name">' + esc(n) + '</div>'
-        + '<div class="d2jsp-say">' + esc(baseOf(n) || 'Base not recorded') + '</div>'
-        + '<div class="d2jsp-say">' + esc(priceLine) + '</div>'
-        + '<label class="d2jsp-say">Mods <textarea data-d2jsp-mods="' + esc(n) + '" rows="3">' + esc(modsOf(n)) + '</textarea></label>'
-        + '<label class="d2jsp-say">Your fg <input data-d2jsp-fg="' + esc(n) + '" value="' + esc(typedOf(n)) + '" inputmode="decimal" autocomplete="off" aria-label="Forum gold for this item"></label>'
-        + '<div class="vault-toolbar">'
-        + '<button type="button" class="vault-btn" data-d2jsp-read="' + esc(n) + '">Read the public price</button>'
-        + '<button type="button" class="vault-btn vault-btn-primary" data-d2jsp-post="' + esc(n) + '"' + (send == null ? ' disabled' : '') + '>Post</button>'
-        + '</div></div></div>';
-    }).join('');
+    if (!trade.length) {
+      list.innerHTML = '<p class="d2jsp-say" id="d2jsp-count">Nothing here is a trade item. Quest items stay off this list.</p>';
+      return;
+    }
+    if (sameSet(currentCards(), trade)) {
+      paintPrices();
+      applyFind();
+      return;
+    }
+    list.innerHTML = '<p class="d2jsp-say" id="d2jsp-count"></p>' + trade.map(cardHtml).join('');
+    applyFind();
+  }
+  function ask(name, done){
+    if (pending[name]) { if (done) done(); return; }
+    pending[name] = 1;
+    var paths = ['/d2r/api/d2jsp_quote?item=', '/api/d2jsp_quote?item='];
+    var i = 0;
+    function finish(j){
+      pending[name] = 0;
+      if (j) quoted[name] = j;
+      paintPrices();
+      if (done) done();
+    }
+    function step(){
+      if (i >= paths.length) {
+        finish({ fg: null, low: null, high: null, n: 0, readAt: new Date().toISOString(), reason: 'unread' });
+        return;
+      }
+      var path = paths[i++];
+      fetch(path + encodeURIComponent(name)).then(function(r){ return r.json(); }).then(function(j){
+        if (j && (j.reason === 'no prices' || j.reason === 'read')) { finish(j); return; }
+        step();
+      }).catch(function(){ step(); });
+    }
+    step();
+  }
+  function refreshQuotes(){
+    var trade = tradeNames();
+    if (!trade || !trade.length) return;
+    reading = true;
+    paintPrices();
+    var st = document.getElementById('d2jsp-status');
+    if (st && !st.textContent) say('Reading the public prices.');
+    var i = 0;
+    var live = 0;
+    var generation = ++flight;
+    function pump(){
+      if (generation !== flight) return;
+      while (live < 4 && i < trade.length) {
+        live++;
+        ask(trade[i++], function(){
+          live--;
+          if (i >= trade.length && live === 0) {
+            if (generation === flight) {
+              reading = false;
+              var now = document.getElementById('d2jsp-status');
+              if (now && now.textContent === 'Reading the public prices.') say('');
+            }
+            return;
+          }
+          pump();
+        });
+      }
+    }
+    pump();
   }
   window._d2jspShow = function(){
     paint();
+    refreshQuotes();
   };
   document.addEventListener('click', function(ev){
     var t = ev.target;
     if (!t || !t.closest || !t.closest('#tab-d2jsp')) return;
-    var read = t.getAttribute && t.getAttribute('data-d2jsp-read');
-    if (read) {
-      ask(read);
-      say('Reading the public price.');
-      return;
-    }
     var post = t.getAttribute && t.getAttribute('data-d2jsp-post');
     if (post) {
       ev.preventDefault();
@@ -11336,6 +11511,7 @@ function d2jspBridgeSource() {
   document.addEventListener('input', function(ev){
     var t = ev.target;
     if (!t || !t.getAttribute) return;
+    if (t.id === 'd2jsp-find') { applyFind(); return; }
     var mn = t.getAttribute('data-d2jsp-mods');
     if (mn) {
       var mods = readMap('d2r_d2jsp_mods');
