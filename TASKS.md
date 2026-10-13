@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3709** | `(this commit)` | v3709 — HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
+| **v3710** | `(this commit)` | v3710 — HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
+| **v3709** | `a28a51b5` | v3709 — HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
 | **v3708** | `d9a2f6ca` | v3708 — HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
 | **v3707** | `0a032fd3` | v3707 — HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
 | **v3706** | `2ba152ef` | v3706 — The trade desk keeps a confirmation when the board returns a topic. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
