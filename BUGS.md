@@ -415,6 +415,22 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2194 - FIND WAS A BARE SUBSTRING MATCH: ABBREVIATIONS MISSED, DOOMBRINGER RANKED BESIDE DOOM (2026-10-14, #264)
+
+**Found** by GrokBot's batch K controls pass on his live board: FIND 'soj'/'cta'/'hoto'/'coh'/'botd'/'wf'/'tgods'
+returned 0 (community short names weren't known), and a bare `indexOf` + alphabetical sort ranked 'Doombringer'
+beside 'Doom' for query 'doom' and put 'Talons'/'Metalgrid' ahead of 'Tal Rasha' for 'tal'.
+
+**Fix (bible.html, vaultFind):** `_vaultFindMatches(pool, q)` - a PURE matcher - expands a known abbreviation
+(`_VF_ALIAS`: soj->Stone of Jordan, cta->Call to Arms, hoto->Heart of the Oak, coh, botd, wf, tgods), folds
+apostrophes (`_vfNorm`, so 'tgods' reaches the catalogue's curly 'Thundergod's Vigor'), and ranks exact ->
+prefix -> whole-word -> substring, alphabetical within a rank.
+
+**Law:** `tv/test_the_vault_find_ranks_matches.py` (5), the matcher cut from bible.html and run in node: an
+abbreviation resolves, it folds the apostrophe, an exact match beats a longer substring, a prefix beats a
+mid-word substring, a blank query is empty. Seen RED by ignoring the alias (soj -> []) and by sorting
+alphabetically only (Tal Rasha no longer first). Registered in run_gates. Held v3720 batch.
+
 ### REG-2193 - A MAGIC/RARE VAULT CELL DREW A FLAT 2x1, IGNORING THE ITEM'S REAL FOOTPRINT (2026-10-13, #264)
 
 **Found** by GrokBot's live look at his board (batches E/F, gh #230): a rare Jewel, Ring and Small Charm were

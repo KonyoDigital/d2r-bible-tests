@@ -9039,6 +9039,13 @@ GATES = [
          why=("REG-2051 (#275, GrokBot 416-417) - UNI-WEAPONS '3 items · 12 cells' over three 'default 1x2' tiles: the "
               "packer kept its own footprint table (unknown -> 2x2) beside the tile's _itemCells (unknown -> 1x2).")
          ),
+    Gate("test_the_vault_find_ranks_matches", [sys.executable,
+         os.path.join(HERE, "test_the_vault_find_ranks_matches.py")], 30,
+         needs_app=False,
+         why=("REG-2194 (GrokBot batch K) - FIND gave 0 hits for community abbreviations (soj/cta/hoto) and a bare "
+              "substring+alpha sort ranked Doombringer beside Doom and Talons/Metalgrid ahead of Tal Rasha; now an "
+              "alias + apostrophe fold + exact/prefix/word ranking.")
+         ),
     Gate("test_furniture_filed_in_a_mule_is_an_integrity_finding", [sys.executable,
          os.path.join(HERE, "test_furniture_filed_in_a_mule_is_an_integrity_finding.py")], 30,
          needs_app=False,

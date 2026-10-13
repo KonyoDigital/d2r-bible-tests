@@ -40841,6 +40841,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function status(msg, ms){ var el=document.getElementById('vault-status'); if(el){ el.textContent=msg; setTimeout(function(){ if(el.textContent===msg) el.textContent=''; }, ms || 4200); } }   /* 2026-09-27 — `ms`: the vault reset's receipt line names every store it cleared and kept; 4.2s is too short to read it */
   // v236 — vault item finder: type a name → which alt (mule) holds it. Searches
   // everything you've ✓ owned + vaulted; click a hit to open that mule's card.
+  /* REG-2194 — FIND search quality (GrokBot batch K): community short names (soj/cta/hoto…) were 0 hits,
+     and a bare substring+alpha sort ranked Doombringer beside Doom and Talons/Metalgrid for 'tal'. Now an
+     alias expands the abbreviation, apostrophes fold (so 'tgods' reaches Thundergod’s Vigor), and matches
+     rank exact → prefix → whole-word → substring, alphabetical within a rank. Pure, node-tested. */
+  var _VF_ALIAS = { soj:'stone of jordan', cta:'call to arms', hoto:'heart of the oak', coh:'chains of honor',
+                    botd:'breath of the dying', wf:'windforce', tgods:"thundergod's vigor" };
+  function _vfNorm(x){ return String(x==null?'':x).toLowerCase().replace(/[\u2018\u2019\u02bc\u00b4`]/g, "'"); }
+  function _vaultFindMatches(pool, q){
+    var qn = _vfNorm(q).trim(); if (!qn) return [];
+    var qa = _VF_ALIAS[qn] || qn;
+    var reWord = new RegExp('\\b' + qa.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b');
+    function score(n){ var ln=_vfNorm(n); if(ln===qa) return 0; if(ln.indexOf(qa)===0) return 1; if(reWord.test(ln)) return 2; return 3; }
+    return pool.filter(function(n){ return _vfNorm(n).indexOf(qa) !== -1; })
+               .sort(function(a,b){ var sa=score(a), sb=score(b); return sa!==sb ? sa-sb : a.localeCompare(b); });
+  }
+  window._vaultFindMatches = _vaultFindMatches;
   window.vaultFind = function(q){
     var res = document.getElementById('vault-find-results');
     if (!res) return;
@@ -40856,7 +40872,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         pool.sort();
       }
     } catch (eFind) {}
-    var matches = pool.filter(function(n){ return n.toLowerCase().indexOf(q) !== -1; }).sort();
+    var matches = _vaultFindMatches(pool, q);   // REG-2194 - alias + apostrophe fold + exact/prefix/word rank
     res.hidden = false;
     if (!matches.length){
       res.innerHTML = '<div class="vfr-empty">no vaulted item matches "<b>'+esc(q)+'</b>" — only items you’ve ✓ owned show here</div>';
