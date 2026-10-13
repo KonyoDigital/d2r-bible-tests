@@ -764,6 +764,47 @@ def time_now():
     return time.time()
 
 
+_SCRATCH_PREFIXES = ("d2jsp-quote-", "d2jsp-post-")
+_SCRATCH_STALE_S = 300  # 5 min — far beyond a normal op (<30s), so an in-flight profile is never swept
+
+
+def _sweep_stale_scratch(now=None, tmp=None):
+    """REG-2190 — SWEEP SCRATCH CHROMES A CRASHED CONSOLE LEFT HOLDING HIS COOKIES. -> count removed.
+
+    Each op mkdtemps a d2jsp-quote-* / d2jsp-post-* profile and cleans it in its `finally`. But a
+    console killed mid-op (kill -9, a relaunch) never reaches that finally, so the headless Chrome —
+    which holds his decrypted d2jsp session — keeps running and its profile stays on disk, and
+    nothing came back for them (process-port-discipline: everything I start, I own until it is dead).
+    This runs at the top of each op: it removes any d2jsp scratch profile older than _SCRATCH_STALE_S
+    (seconds-old in-flight ones are left alone) and SIGKILLs a Chrome still holding one — matched by
+    its exact --user-data-dir, never by name, so his real Chrome can never be a target."""
+    import glob as _glob
+    import time as _time
+    now = _time.time() if now is None else now
+    root = tmp if tmp is not None else tempfile.gettempdir()
+    removed = 0
+    for pref in _SCRATCH_PREFIXES:
+        for d in _glob.glob(os.path.join(root, pref + "*")):
+            try:
+                if now - os.path.getmtime(d) < _SCRATCH_STALE_S:
+                    continue
+            except OSError:
+                continue
+            try:
+                _out = subprocess.run(["pgrep", "-f", "--user-data-dir=" + d],
+                                      capture_output=True, text=True, timeout=5).stdout
+                for _pid in _out.split():
+                    try:
+                        os.kill(int(_pid), signal.SIGKILL)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+            shutil.rmtree(d, ignore_errors=True)
+            removed += 1
+    return removed
+
+
 def _chrome_search(item, cookie):
     """Load the Switch Ladder search in a scratch Chrome. The cookie is not logged.
 
@@ -774,6 +815,7 @@ def _chrome_search(item, cookie):
     import time
     import websocket
     keywords = _search_keywords(item)
+    _sweep_stale_scratch()
     prof = tempfile.mkdtemp(prefix="d2jsp-quote-")
     sock = __import__("socket").socket()
     sock.bind(("127.0.0.1", 0))
@@ -887,6 +929,7 @@ def _chrome_edit(topic, subject, text, cookie):
     """
     import time
     import websocket
+    _sweep_stale_scratch()
     prof = tempfile.mkdtemp(prefix="d2jsp-post-")
     sock = __import__("socket").socket()
     sock.bind(("127.0.0.1", 0))
@@ -1061,6 +1104,7 @@ def _chrome_post(subject, text, cookie, forum=None):
     """
     import time
     import websocket
+    _sweep_stale_scratch()
     prof = tempfile.mkdtemp(prefix="d2jsp-post-")
     sock = __import__("socket").socket()
     sock.bind(("127.0.0.1", 0))

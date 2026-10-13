@@ -1261,6 +1261,22 @@ process.stdout.write(JSON.stringify({
         self.assertTrue(desk.console_may_post(None, "127.0.0.1:17772", 17772, "same-origin"))
         self.assertTrue(desk.console_may_post(None, "127.0.0.1:17772", 17772, "none"))
 
+        # REG-2190 — a scratch profile older than the stale bound is swept; a fresh one (an op in
+        # flight) is left alone. No Chrome is planted, so nothing is killed; this tests the age gate.
+        import tempfile as _tf, time as _tm, shutil as _sh
+        _root = _tf.mkdtemp(prefix="sweep-test-")
+        try:
+            _old = os.path.join(_root, "d2jsp-quote-OLD"); os.makedirs(_old)
+            _young = os.path.join(_root, "d2jsp-post-NEW"); os.makedirs(_young)
+            _now = _tm.time() + desk._SCRATCH_STALE_S + 10
+            os.utime(_young, (_now, _now))
+            _removed = desk._sweep_stale_scratch(now=_now, tmp=_root)
+            self.assertFalse(os.path.isdir(_old), "a stale scratch profile was not swept")
+            self.assertTrue(os.path.isdir(_young), "a fresh (in-flight) scratch profile was swept")
+            self.assertEqual(_removed, 1)
+        finally:
+            _sh.rmtree(_root, ignore_errors=True)
+
         password = "test-password"
         blob = desk.seal_v10(password, "roundtrip-value")
         if blob is None:

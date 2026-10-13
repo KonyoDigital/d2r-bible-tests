@@ -415,6 +415,20 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2190 - SCRATCH CHROMES HELD HIS D2JSP SESSION AFTER A CRASHED CONSOLE (2026-10-13, security hygiene)
+
+Each d2jsp read/post mkdtemps a d2jsp-quote-* / d2jsp-post-* profile and launches a headless Chrome
+with his decrypted d2jsp cookies in it, cleaning both in the op's `finally`. A console killed mid-op
+(kill -9, a relaunch, the stuck-sweep restart) never reaches that finally, so the Chrome keeps
+running with his session and the profile stays in $TMPDIR, and nothing came back for them — up to a
+few orphaned Chromes per crash, each holding his cookies and a DevTools port. Found by the
+cross-family review of v3693-v3712. Each op now calls _sweep_stale_scratch() first: it removes any
+d2jsp scratch profile older than 5 min (an in-flight one, seconds old, is never touched) and SIGKILLs
+a Chrome still holding one — matched by its exact --user-data-dir, never by a name pattern, so his
+real Chrome can never be a target (process-port-discipline). Law: a stale profile is swept and a
+fresh one is kept, seen RED with the age gate removed.
+Law: `test_the_d2jsp_desk_reads_a_price_before_it_posts` (test_the_cookie_header_is_only_the_d2jsp_host).
+
 ### REG-2189 - THE PRE-FLIGHT NEVER RAN THE LAWS THAT SCAN A CHANGED FILE (2026-10-13)
 
 changed_gates() (heart2 --changed) returned gates_for_tests() alone — the laws whose own file is a
