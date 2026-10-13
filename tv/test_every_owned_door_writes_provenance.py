@@ -92,7 +92,7 @@ def _origin_line(s=None):
     return line + "\n"
 SORT_FROM = "    var _pvS = _provAll();\n"
 SORT_TO = "    /* the throw-out ADVICE is still computed for the dock"
-W6_FROM = "    var _pvW6 = _provAll();\n"
+W6_FROM = "    var _pvLive = _provAll();\n"
 W6_TO = "    // v360 — shared-stash items"
 WIT_FROM = "  function _provAsWitness(row){\n"
 #: 2026-10-08 (REG-2022, his #267 ruling) - the cut runs to the end of the receipt's stash gatherer, which the sorter now asks,

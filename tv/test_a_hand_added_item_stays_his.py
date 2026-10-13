@@ -502,6 +502,11 @@ var LS = {
   setItem: function(k, v){ CALLS.push('ls:' + k); MADESTORE[k] = String(v); }
 };
 var ROUTES = {};
+window._ownedAdd = function(nm, rec){
+  CALLS.push('door:' + nm + ':' + ((rec && rec.source) || ''));
+  if (!owned.has(nm)) owned.add(nm);
+  return { added: true, prov: { ok: true } };
+};
 window.vaultHandAdd = function(nm, at, opts){
   CALLS.push('own:' + nm + ':' + ((opts && opts.kind) || ''));
   if (!owned.has(nm)) owned.add(nm);

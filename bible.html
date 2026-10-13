@@ -44837,11 +44837,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        so the count moves. Do not write assign. */
     if (id === 'magic-rare' && typeof magicFinds !== 'undefined' && magicFinds && magicFinds[nm]){
       try {
-        if (typeof owned !== 'undefined' && owned && owned.has && !owned.has(nm)){
-          if (typeof window._ownedAdd === 'function')
-            window._ownedAdd(nm, { source: 'hand', by: 'the Vault planner', where: VP_WHERE });
-          else owned.add(nm);
-        }
+        if (typeof owned !== 'undefined' && owned && owned.has && !owned.has(nm)
+            && typeof window._ownedAdd === 'function')
+          window._ownedAdd(nm, { source: 'hand', by: 'the Vault planner', where: VP_WHERE });
       } catch (eMh) {}
       var muleNameM = home && home.name ? home.name : id;
       return { ok: true, filed: true, mode: 'filed', mule: id, magicHome: true,

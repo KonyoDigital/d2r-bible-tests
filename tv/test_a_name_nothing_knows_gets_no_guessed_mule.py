@@ -75,8 +75,8 @@ class ANameNothingKnowsGetsNoGuessedMule(unittest.TestCase):
 
     def test_a_name_he_registered_in_magic_and_rare_is_known_to_the_board(self):
         """REG-2093 (CI Routine I on v3624, v466:55) - the AI Item Checker's 'Mule it' registers HIS name ('Caster Wonder',
-        a rare Crystal Sword) in magicFinds and then asks the router; REG-2080 answered 'nothing on the board recognises
-        this name' and the keeper was never filed. The register is the board's - it is asked before Unsorted."""
+        a rare Crystal Sword) in magicFinds. The router still knows that register, so any later ask files MAGIC & RARE
+        instead of Unsorted. The checker itself does not ask: a mule-map filing beside the register is the second store."""
         s, body = _router()
         self.assertEqual(body.count(MAGIC_RARE), 1, "the router no longer asks his Magic & Rare register")
         self.assertLess(body.index(MAGIC_RARE), body.index(UNKNOWN),
@@ -85,9 +85,12 @@ class ANameNothingKnowsGetsNoGuessedMule(unittest.TestCase):
         tail = body[j:body.index("    } catch(eMf){}", j)]   # the branch's own try block, never a byte count
         self.assertIn("return {id:'magic-rare', why:'registered in Magic & Rare (", tail,
                       "his registered find is not sent to MAGIC & RARE")
-        self.assertEqual((s.count(AIC_WRITE), s.count(AIC_ASK)), (1, 1), "premise: the checker's write and its ask")
-        self.assertLess(s.index(AIC_WRITE), s.index(AIC_ASK),
-                        "the checker asks the router before it has registered the find - the router cannot know it")
+        self.assertEqual(s.count(AIC_WRITE), 1, "the checker no longer writes the Magic & Rare register")
+        self.assertEqual(s.count(AIC_ASK), 0, "Mule it wrote the mule map beside Magic & Rare")
+        own = "window._ownedAdd(nm, { source: 'hand', by: 'the AI Item Checker', where: 'the AI Item Checker (keep)' });"
+        self.assertEqual(s.count(own), 1, "a kept checker item was not counted as owned")
+        self.assertLess(s.index(AIC_WRITE), s.index(own),
+                        "the checker counts the item before the register write")
 
     def test_a_tv_stubs_placeholder_base_is_not_a_base(self):
         """REG-2096 (GrokBot tick 427, #294) - on his PC 'Bone Visor' is a TV vault stub, minted {base: its own name,
@@ -115,6 +118,12 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "      if (typeof magicFinds !== 'undefined' && magicFinds && magicFinds[name] && muleById('magic-rare')){\n",
      "replace": "      if (false){\n",
+     "matches": 1},
+    {"why": "the checker files Magic & Rare onto a mule as well",
+     "file": "bible.html",
+     "find": "    /* The checker record is the Magic & Rare home. Filing it onto a mule as well is the second store. */\n",
+     "replace": "    try { var sg=suggestMule(nm); if(sg && sg.id!=='__throwout' && muleById(sg.id) && !assign[nm])\n"
+                "            window.vaultFile(nm, { by: 'hand', at: new Date().toISOString(), where: 'the AI Item Checker (keep)' }, { mule: sg.id }); } catch(e){}\n",
      "matches": 1},
     {"why": "REG-2096 - a TV stub's placeholder base keeps Bone Visor out of Unsorted again",
      "file": "bible.html",

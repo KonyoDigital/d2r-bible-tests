@@ -52,21 +52,24 @@ test.describe('v466 AI Item Checker', () => {
     expect(v.score).toBe(6);
   });
 
-  test('Mule it → registers to Magic & Rare, assigns a mule, clears the draft', async ({ page }) => {
+  test('Mule it → registers to Magic & Rare, counts as owned, clears the draft', async ({ page }) => {
     const r = await page.evaluate(() => {
       const w = window as any;
       w._aicSetDraft({ name: 'Caster Wonder', base: 'Crystal Sword', q: 'rare', mods: ['+2 to All Skills', '+40% Faster Cast Rate'] });
       w.aicMule();
       const mf = JSON.parse(localStorage.getItem('d2r_magicFinds') || '{}');
       const assign = JSON.parse(localStorage.getItem('d2r_muleAssign') || '{}');
+      const ownedList = JSON.parse(localStorage.getItem('d2r_owned') || '[]');
       return { registered: !!mf['Caster Wonder'], q: mf['Caster Wonder'] && mf['Caster Wonder'].q,
-               mods: mf['Caster Wonder'] && mf['Caster Wonder'].mods.length, mule: assign['Caster Wonder'],
+               mods: mf['Caster Wonder'] && mf['Caster Wonder'].mods.length, mule: assign['Caster Wonder'] || null,
+               owned: Array.isArray(ownedList) && ownedList.indexOf('Caster Wonder') >= 0,
                draftCleared: w._aicGetDraft().base === '' && w._aicGetDraft().mods.length === 0 };
     });
     expect(r.registered).toBe(true);
     expect(r.q).toBe('rare');
     expect(r.mods).toBe(2);
-    expect(r.mule).toBeTruthy();       // auto-assigned to a mule
+    expect(r.owned).toBe(true);
+    expect(r.mule).toBeFalsy();        // Magic & Rare is the register, not a second mule filing
     expect(r.draftCleared).toBe(true);
   });
 

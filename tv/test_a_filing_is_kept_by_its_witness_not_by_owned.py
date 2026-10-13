@@ -35,7 +35,7 @@ except Exception:
 
 NODE = shutil.which("node")
 BIBLE = os.path.join(ROOT, "bible.html")
-START = "    var _pvW6 = _provAll();\n"
+START = "    var _pvLive = _provAll();\n"
 END = "    // v360 — shared-stash items"
 
 
