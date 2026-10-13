@@ -866,6 +866,34 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(s.count("artUrl(nm) || artUrl(r.artName)"), 1)
         self.assertIn("r.builtBase && artUrl(r.artName)", s)
         self.assertIn("window._vpMadeBase", s)
+        hand_fn = _cut(s, "  function _plannerHandRow(name, row){\n", "  function _plannerPropose(name){\n")
+        self.assertIn("blob.indexOf('+ Add an item')", hand_fn)
+        self.assertNotIn("row.source === 'hand'", hand_fn)
+        if not NODE:
+            raise AssertionError("node is not on this machine — this law does not skip")
+        prog = (
+            "var window = globalThis;\n"
+            "window._vpMadeOf = function(){ return null; };\n"
+            + hand_fn
+            + "process.stdout.write(JSON.stringify({\n"
+            "  add: _plannerHandRow('Titan', { source: 'hand', by: '+ Add an item', where: 'the Vault (+ Add an item)', looks: [] }),\n"
+            "  plan: _plannerHandRow('Spirit', { by: 'the Vault planner', where: 'the Vault planner' }),\n"
+            "  ownedBy: _plannerHandRow('Grief', { kind: 'filing', ownedBy: { by: '+ Add an item', where: 'the Vault (+ Add an item)' } }),\n"
+            "  receipt: _plannerHandRow('Insight', { kind: 'owned', source: 'kai-register', by: 'law', where: '', looks: [] }),\n"
+            "  forge: _plannerHandRow('Monarch', { source: 'hand', by: 'forge base restore', where: 'un-marking Spirit gave its base back', looks: [] })\n"
+            "}));\n"
+        )
+        p = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=30)
+        self.assertEqual(p.returncode, 0, (p.stderr or p.stdout)[-1500:])
+        o = json.loads(p.stdout)
+        self.assertTrue(o["add"], "a catalog add was treated as a sighting with no picture")
+        self.assertTrue(o["plan"])
+        self.assertTrue(o["ownedBy"])
+        self.assertFalse(o["receipt"], "a found-ever receipt with no picture passed the hand gate")
+        self.assertFalse(o["forge"], "a forge restore passed the catalog-hand gate")
+        self.assertIn("html{overflow-x:clip;overflow-y:auto}", s)
+        self.assertIn("setTimeout(draw, 0)", s)
+        self.assertIn("setTimeout(paint, 0)", s)
         opened = _cut(s, "  /* ⟦VAULT PLANNER OPEN BEGIN⟧ */\n", "  /* ⟦VAULT PLANNER OPEN END⟧ */\n")
         self.assertIn("planner: true", opened)
         self.assertNotIn("vaultFile(", opened)

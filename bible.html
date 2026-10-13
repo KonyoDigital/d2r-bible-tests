@@ -41916,7 +41916,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             } else if (_keys.length){
               _why = '<span class="vdb-why" title="What the sorter suggests for the items still '
                    + 'in the dock.">' + _keys.slice(0, 3).map(function(k){
-                       return _h[k] + ' \u00d7 ' + (k === '__throwout' ? 'discard' : k);
+                       var label = (k === '__throwout') ? 'discard'
+                         : (k === '__keep') ? 'keep on MAIN'
+                         : ((muleById(k) && muleById(k).name) || k);
+                       return _h[k] + ' \u00d7 ' + label;
                      }).join(' \u00b7 ') + '</span>';
             }
           }
@@ -41935,7 +41938,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                                                  : 'These look like a chronicle page')
                  + '</span></button>')
               : '')
-          +'<button class="vault-resort-btn" onclick="window.vaultAutoSortByHand()" title="Auto-Sort: file every loose item you have a picture of into the mule the planner names (war gear into the shared stash). What your MAIN wears or carries, discards and items with no picture stay here, and the status line says how many of each.">'
+          +'<button class="vault-resort-btn" onclick="window.vaultAutoSortByHand()" title="Auto-Sort: file every loose catalog add, and every loose item you have a picture of, into the mule the planner names (war gear into the shared stash). A sighting with no picture, what your MAIN wears, and discards stay here. The status line names each item that moved and where it went.">'
           +'<span class="vrb-wand">🪄</span><span>Auto-Sort to Mules</span><span class="vrb-go">→</span></button>'
           +'</span>';
       } else { dbar.hidden=true; dbar.innerHTML=''; }
@@ -45859,8 +45862,9 @@ window.vaultAutoAssign = function(){
     return (loc && _WIT_MAIN[loc]) ? loc : null;
   };
   var _AUTOSORT_LEFT_SAY = { throwout: 'discard suggestion', keep: 'keep-on-MAIN', shared: 'shared-stash-only', stays: 'locked', unknown: 'with no answer' };
-  /* a planner pick is his hand. The click may file it without a reel picture. A found-ever
-     receipt with no picture is not this, and still stops on the picture gate below. */
+  /* a planner pick, and a + Add an item pick, are his hand. The click may file either without
+     a reel picture. A found-ever receipt with no picture is not this, and still stops on the
+     picture gate below. A forge restore or an audit rewrite is also source hand, and is not this. */
   function _plannerHandRow(name, row){
     var blob = '';
     try {
@@ -45868,6 +45872,7 @@ window.vaultAutoAssign = function(){
         + '\n' + String((row && row.ownedBy && (row.ownedBy.where || row.ownedBy.by)) || '');
     } catch (e) { blob = ''; }
     if (blob.indexOf('the Vault planner') >= 0) return true;
+    if (blob.indexOf('+ Add an item') >= 0) return true;
     try { if (typeof window._vpMadeOf === 'function' && window._vpMadeOf(name)) return true; } catch (e2) {}
     return false;
   }
@@ -45942,9 +45947,22 @@ window.vaultAutoAssign = function(){
         if (mv && mv.ok) out.moved.push({ name: f.item, to: f.to }); else out.refused.push({ name: f.item, why: (mv && mv.why) || 'the move was refused' });
       });
     } catch(eM){}
-    saveA(); renderVault();
-    var bits = ['🪄 filed ' + (out.filed + ((first && first.filed) || 0)) + ' into their mules'];
-    if (out.moved.length) bits.push('moved ' + out.moved.length + ' to where they belong now');
+    saveA();
+    var named = out.rows.map(function(r){
+      var home = r.mule;
+      try { home = _vHomeName(r.mule) || r.mule; } catch (eN) { home = r.mule; }
+      return r.name + ' → ' + home;
+    });
+    var movedNamed = (out.moved || []).map(function(r){
+      var home = r.to;
+      try { home = _vHomeName(r.to) || r.to; } catch (eMv) { home = r.to; }
+      return r.name + ' → ' + home;
+    });
+    var bits = [named.length
+      ? ('🪄 filed ' + named.join(', '))
+      : ('🪄 filed ' + (out.filed + ((first && first.filed) || 0)) + ' into their mules')];
+    if (named.length && first && first.filed) bits.push(first.filed + ' more already had a witness');
+    if (movedNamed.length) bits.push('moved ' + movedNamed.join(', '));
     if (out.unfiled.length) bits.push('took ' + out.unfiled.length + ' out of the mules - furniture your MAIN carries, never a mule item');
     if (out.keptHand.length) bits.push(out.keptHand.length + ' stay where your hand put them');
     if (out.main.length) bits.push(out.main.length + ' stay with your MAIN (worn or carried when last seen)');
@@ -45954,6 +45972,11 @@ window.vaultAutoAssign = function(){
     if (out.refused.length) bits.push(out.refused.length + ' refused by the door');
     status(bits.join(' · '), 9000);
     out.first = first;
+    /* The filing is already saved. Drawing every locker on this same click is why Close and
+       Auto-Sort take tens of seconds to register. The status is up; the lockers paint next. */
+    var paint = function(){ try { renderVault(); } catch (eR) {} };
+    if (typeof setTimeout === 'function') setTimeout(paint, 0);
+    else paint();
     return out;
   };
   // v327: nuke the unsorted dock — removes every UNSORTED item from ✓ owned. Items already filed
@@ -58464,8 +58487,10 @@ body.app-ctx #routine-status-bar, body.app-ctx #routine-status-summary{display:n
    overhangs by one scrollbar-width on classic-scrollbar platforms (Windows CI), so the clip is what
    keeps that overhang from producing a horizontal scroll. The legacy 337px .tvb-bigswitch offender
    (see its rule below) is fixed at SOURCE, but do NOT remove this clip unless the vw math is swapped
-   for a visualViewport-derived --vw (scrollbar-excluded) first. */
-html{overflow-x:clip}
+   for a visualViewport-derived --vw (scrollbar-excluded) first.
+   overflow-y stays auto beside the clip: on the console WebKit a lone clip was swallowing the wheel,
+   so the Vault page could not move and the Integrity Fix button sat under the fold. */
+html{overflow-x:clip;overflow-y:auto}
 .tvn-stage{margin:14px 0 26px;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw);border-radius:0;overflow:hidden;position:relative;padding:0;
   background:radial-gradient(120% 160% at 12% 0%,rgba(240,192,96,.08),transparent 44%),radial-gradient(90% 140% at 100% 100%,rgba(0,0,0,.55),transparent 55%),linear-gradient(180deg,#14110c 0%,#0a0907 55%,#070605 100%);
   border:1px solid rgba(240,192,96,.22);border-left:0;border-right:0;
@@ -63077,11 +63102,17 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     if (host){ host.hidden = true; host.innerHTML = ''; }
     if (window._vaultPlannerDirty){
       window._vaultPlannerDirty = false;
-      try {
-        if (typeof renderVault === 'function') renderVault();
-        else if (typeof window.renderVault === 'function') window.renderVault();
-      } catch (e2) {}
-      try { if (typeof refreshOpenCard === 'function') refreshOpenCard(); } catch (e3) {}
+      var draw = function(){
+        try {
+          if (typeof renderVault === 'function') renderVault();
+          else if (typeof window.renderVault === 'function') window.renderVault();
+        } catch (e2) {}
+        try { if (typeof refreshOpenCard === 'function') refreshOpenCard(); } catch (e3) {}
+      };
+      /* The host is already gone. A redraw on this same click is why Close takes tens of
+         seconds to register. The lockers paint on the next turn. */
+      if (typeof setTimeout === 'function') setTimeout(draw, 0);
+      else draw();
     }
     return true;
   };
