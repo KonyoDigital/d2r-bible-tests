@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3719",
+  "ver": "v3720",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3719: REG-2184 the Integrity fix keeps the home · REG-2185 a planner pick never writes over a record he has · REG-2186 a shadow visit writes nothing into this PC",
+  "note": "v3720: REG-2191 a curly Gheeds stays a keeper · REG-2193 magic cell real footprint · REG-2194 FIND abbreviations and ranking · REG-2195 core lockers not deletable · REG-2192 self-prove yields to a sweep",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
