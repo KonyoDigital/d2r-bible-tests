@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3712** | `(this commit)` | v3712 — HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
+| **v3713** | `(this commit)` | v3713 — HEART: test_a_hand_added_item_stays_his. A planner add saves and draws once when the planner closes. One forge scan serves the whole vault draw. A planner filing writes the routing ledger. The login lamp uses the weight and size tokens. |
+| **v3712** | `eb8d0988` | v3712 — HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
 | **v3711** | `b04ed48f` | v3711 — HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
 | **v3710** | `f92aff2a` | v3710 — HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
 | **v3709** | `a28a51b5` | v3709 — HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
