@@ -11250,6 +11250,7 @@ function d2jspPriceLine(q) {
   var quoted = {};
   var pending = {};
   var reading = false;
+  var posting = false;
   var flight = 0;
   function store(){
     try { if (typeof LS !== 'undefined' && LS && LS.getItem) return LS; } catch (e) {}
@@ -11706,8 +11707,11 @@ function d2jspPriceLine(q) {
     }
     if (t.closest && (t.closest('[data-d2jsp-draft-close]') || t.id === 'd2jsp-draft-host')) {
       ev.preventDefault();
+      var midSend = posting;
       closeDraft();
-      say('The draft was closed. Nothing was posted.');
+      say(midSend
+        ? 'The panel was closed. The board has not confirmed a topic.'
+        : 'The draft was closed. Nothing was posted.');
       return;
     }
     var post = t.getAttribute && t.getAttribute('data-d2jsp-post');
@@ -11736,7 +11740,15 @@ function d2jspPriceLine(q) {
         showReceipt('missed', 'Posting runs from the console on this machine, so nothing was posted.', '');
         return;
       }
+      if (posting) {
+        showPosting();
+        say('A post is already in progress.');
+        return;
+      }
+      posting = true;
+      showPosting();
       say('Asking Chrome on this machine to post on board 268.');
+      function settle(){ posting = false; }
       fetch('/api/d2jsp_send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -11744,6 +11756,7 @@ function d2jspPriceLine(q) {
       }).then(function(r){
         return r.json().then(function(j){ return j || {}; }, function(){ return null; });
       }).then(function(j){
+        settle();
         if (!j) {
           say('This console has not loaded the Chrome connection, so nothing was posted.');
           showReceipt('missed', 'This console has not loaded the Chrome connection, so nothing was posted.', '');
@@ -11772,6 +11785,7 @@ function d2jspPriceLine(q) {
         say(missed);
         showReceipt('missed', missed, '');
       }).catch(function(){
+        settle();
         say('This console has not loaded the Chrome connection, so nothing was posted.');
         showReceipt('missed', 'This console has not loaded the Chrome connection, so nothing was posted.', '');
       });
@@ -11845,6 +11859,15 @@ function d2jspPriceLine(q) {
     var host = document.getElementById('d2jsp-draft-host');
     if (host){ host.hidden = true; host.innerHTML = ''; }
   }
+  function showPosting(){
+    var host = draftHost();
+    host.hidden = false;
+    host.innerHTML = '<div class="d2jsp-draft-box" role="dialog" aria-modal="true" aria-label="Posting">'
+      + '<p class="d2jsp-draft-k">Posting</p>'
+      + '<p class="d2jsp-say">Asking Chrome on this machine to post on board 268.</p>'
+      + '<p class="d2jsp-say">Back hides this panel. It does not cancel the post.</p>'
+      + '<div class="d2jsp-acts"><button type="button" class="vault-btn" data-d2jsp-draft-close>Back</button></div></div>';
+  }
   /* ⟦D2JSP PLANNER ESC BEGIN⟧ */
   document.addEventListener('keydown', function(e){
     var host = document.getElementById('d2jsp-planner-host');
@@ -11859,8 +11882,11 @@ function d2jspPriceLine(q) {
     if (!e || e.key !== 'Escape' || !host || host.hidden) return;
     if (e.preventDefault) e.preventDefault();
     if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+    var midSend = posting;
     closeDraft();
-    say('The draft was closed. Nothing was posted.');
+    say(midSend
+      ? 'The panel was closed. The board has not confirmed a topic.'
+      : 'The draft was closed. Nothing was posted.');
   }, true);
   /* ⟦D2JSP PLANNER ESC END⟧ */
   window.addEventListener('message', function(ev){
