@@ -776,6 +776,78 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(o["covered"], ["Monarch"], o)
         self.assertTrue(o["same"], o)
 
+    def test_one_draw_reads_the_witness_store_once(self):
+        """Forty evidence reads during one vault draw hit the witness store once.
+        A write during that draw is the next read. A click outside a draw reads again."""
+        if not NODE:
+            raise AssertionError("node is not on this machine — this law does not skip")
+        s = _src()
+        self.assertEqual(s.count("window._provHeld = true;"), 1)
+        self.assertEqual(s.count("window._provHeld = false;"), 1)
+        block = _cut(s, "  function _witnessRaw(){\n", "  function _provDrop(names){\n")
+        prog = (
+            "var window = globalThis, reads = 0;\n"
+            "var PROV_KEY = 'd2r_vaultProv';\n"
+            "var RAW = '{\"Spirit\":{\"kind\":\"filing\",\"locked\":true}}';\n"
+            "window.LSR = { getItem: function(){ reads++; return RAW; },"
+            " setItem: function(k, v){ RAW = String(v); } };\n"
+            + block
+            + "window._provHeld = true;\n"
+            "window._provHoldSeen = false;\n"
+            "var n = 0;\n"
+            "for (var i = 0; i < 40; i++) { if (_provAll().Spirit && _provAll().Spirit.locked) n++; }\n"
+            "var during = reads;\n"
+            "_provWrite({ Spirit: { kind: 'filing', locked: false }, Monarch: { kind: 'filing' } });\n"
+            "var afterWrite = reads;\n"
+            "var row = _provAll();\n"
+            "window._provHeld = false;\n"
+            "window._provHoldSeen = false;\n"
+            "window._provObjReady = false;\n"
+            "_provAll();\n"
+            "process.stdout.write(JSON.stringify({ during: during, afterWrite: afterWrite,"
+            " n: n, monarch: !!row.Monarch, locked: row.Spirit.locked, after: reads }));\n"
+        )
+        p = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=30)
+        self.assertEqual(p.returncode, 0, (p.stderr or p.stdout)[-2000:])
+        o = json.loads(p.stdout)
+        self.assertEqual(o["during"], 1, o)
+        self.assertEqual(o["afterWrite"], 1, o)
+        self.assertEqual(o["n"], 40, o)
+        self.assertTrue(o["monarch"], o)
+        self.assertFalse(o["locked"], o)
+        self.assertEqual(o["after"], 2, o)
+
+    def test_a_long_review_builds_only_the_open_cards(self):
+        """A review of 40 names builds the first screen. The rest wait for the closed details."""
+        if not NODE:
+            raise AssertionError("node is not on this machine — this law does not skip")
+        s = _src()
+        self.assertNotIn("names.map(cardFor)", s)
+        self.assertNotIn("_otherN.map(cardFor)", s)
+        self.assertNotIn("_loSetN.map(cardFor)", s)
+        self.assertEqual(s.count("var VAULT_REVIEW_OPEN = 12;\n"), 1)
+        block = _cut(s, "  var VAULT_REVIEW_OPEN = 12;\n", "  function renderThrowoutReview(){\n")
+        prog = (
+            block
+            + "var names = [];\n"
+            "for (var i = 0; i < 40; i++) names.push('Base ' + i);\n"
+            "var sl = _reviewSlice(names);\n"
+            "var built = 0;\n"
+            "function cardFor(){ built++; return '<div class=\"to-card\"></div>'; }\n"
+            "sl.open.forEach(cardFor);\n"
+            "process.stdout.write(JSON.stringify({ open: sl.open.length, rest: sl.rest.length, built: built,"
+            " first: sl.open[0], lastOpen: sl.open[11], firstRest: sl.rest[0] }));\n"
+        )
+        p = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=30)
+        self.assertEqual(p.returncode, 0, (p.stderr or p.stdout)[-2000:])
+        o = json.loads(p.stdout)
+        self.assertEqual(o["open"], 12, o)
+        self.assertEqual(o["rest"], 28, o)
+        self.assertEqual(o["built"], 12, o)
+        self.assertEqual(o["first"], "Base 0", o)
+        self.assertEqual(o["lastOpen"], "Base 11", o)
+        self.assertEqual(o["firstRest"], "Base 12", o)
+
     def test_a_vault_item_click_keeps_the_floating_card(self):
         """A locker cell, a shared-stash tile, and the other vault item chips stay on the vault.
         The floating card is the click. The runeword page is not."""

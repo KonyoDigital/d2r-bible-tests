@@ -14657,24 +14657,32 @@ var _AURIC_SHIELD = /\b(?:targe|rondache|heraldic shield|aerin shield|crown shie
 // Cudgel > Barbed Club > Truncheon > Tyrant Club. Wirt's Leg is a club too but is a quest item and
 // never a runeword host. These are classed 'mace' in this file, which is why they need naming.
 var _CLUB_BASE = /^\s*(?:club|spiked club|cudgel|barbed club|truncheon|tyrant club)\s*$/i;
+var _baseRwMemo = Object.create(null);
+function _baseRwKeep(key, arr){
+  _baseRwMemo[key] = arr;
+  return arr.slice();
+}
 function _baseRunewords(name){
   if (typeof RUNEWORD_TIP === 'undefined') return [];
   // v585 — normalize FIRST: strip quality prefixes + any "(…)" label suffix, so "Tiara (Larzuk base)" /
   // "Superior Coronet (2os)" hit the guards below exactly like their bare names (Konyo's Tiara card was
   // recommending helm runewords because the suffixed label slipped past the circlet guard).
   name = String(name||'').replace(/\s*\([^)]*\)\s*$/,'').replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i,'').trim();
+  var _rwKey = name.toLowerCase();
+  var _rwHit = _baseRwMemo[_rwKey];
+  if (_rwHit) return _rwHit.slice();
   // D2R does NOT allow runewords in circlets (Circlet/Coronet/Tiara/Diadem). They are classed as 'helm'
   // for slot/craft/mule purposes, but they socket gems/jewels ONLY — never runewords. No runeword in the
   // data is flagged for a circlet base, so excluding the whole class drops nothing intended (verified;
   // Konyo-confirmed for base-game + RotW). Without this guard the helm-class made Tiara host helm runewords.
-  if (/^\s*(?:Circlet|Coronet|Tiara|Diadem)\s*$/i.test(name)) return [];
-  var cats = _baseCats(name); if (!Object.keys(cats).length) return [];
+  if (/^\s*(?:Circlet|Coronet|Tiara|Diadem)\s*$/i.test(name)) return _baseRwKeep(_rwKey, []);
+  var cats = _baseCats(name); if (!Object.keys(cats).length) return _baseRwKeep(_rwKey, []);
   // Throwing weapons + javelins CANNOT be socketed in D2R → host NO runewords. Javelins carry the
   // 'javelin' category; throwing axes/knives are a melee-TYPE (axe/dagger/…) flagged 'weapon' but WITHOUT
   // the 'melee weapon' or 'missile weapon' scope (a true melee axe has 'melee weapon'; a bow has 'missile
   // weapon'). Verified exact: catches 18 javelins + 12 throwing axes/knives, zero melee false-positives.
   var _wt = cats['axe']||cats['dagger']||cats['sword']||cats['mace']||cats['hammer']||cats['polearm']||cats['spear']||cats['scepter']||cats['staff']||cats['wand']||cats['katar'];
-  if (cats['javelin'] || (_wt && cats['weapon'] && !cats['melee weapon'] && !cats['missile weapon'])) return [];
+  if (cats['javelin'] || (_wt && cats['weapon'] && !cats['melee weapon'] && !cats['missile weapon'])) return _baseRwKeep(_rwKey, []);
   var out = [];
   // v377 — PRECISE base-type → runeword matching (was a substring bug: a melee item carries the generic
   // category "weapon", and the old code did "missile weapons".indexOf("weapon")>=0 → true, so EVERY melee
@@ -14740,7 +14748,7 @@ function _baseRunewords(name){
     if (hit) out.push({ n: rw, s: s });
   }
   out.sort(function(a, b){ return a.s - b.s || a.n.localeCompare(b.n); });
-  return out;
+  return _baseRwKeep(_rwKey, out);
 }
 window._baseRunewords = _baseRunewords;
 // v630 — how many base TYPES can host this word? (memoized inverse of _baseRunewords over BASE_DB).
@@ -14808,7 +14816,18 @@ function _baseUnmadeRunewords(base, knownSockets){
   clean = clean.replace(/^(?:Superior|Ethereal|Eth|Cracked|Crude|Damaged|Low Quality)\s+/i, '').trim();
   var rws = (typeof _baseRunewords === 'function') ? _baseRunewords(clean) : [];
   if (!rws.length) return [];
-  var made = {}; try { made = JSON.parse(window.LSR.getItem('d2r_rwMade')||'{}'); } catch(e){}
+  var made = {};
+  try {
+    if (window._rwMadeHeld === true) {
+      if (window._rwMadeSeen !== true) {
+        window._rwMadeSeen = true;
+        window._rwMadeObj = JSON.parse(window.LSR.getItem('d2r_rwMade')||'{}');
+      }
+      made = window._rwMadeObj;
+    } else {
+      made = JSON.parse(window.LSR.getItem('d2r_rwMade')||'{}');
+    }
+  } catch(e){ made = {}; if (window._rwMadeHeld === true){ window._rwMadeSeen = true; window._rwMadeObj = {}; } }
   var ks = parseInt(knownSockets, 10) || 0;
   // v563.1 — unsocketed cap via _keepSocketCeil (gear only; weapon maxes are understated — see _isRunewordBase)
   var baseMax = (typeof _keepSocketCeil === 'function') ? _keepSocketCeil(clean) : 0;
@@ -38915,7 +38934,8 @@ body{
   .vault-resort-btn{animation:vrbPulse 2.6s ease-in-out infinite}
   @keyframes vrbPulse{0%,100%{box-shadow:0 2px 10px rgba(0,0,0,.4),0 0 14px rgba(240,192,96,.2),inset 0 1px 0 rgba(255,255,255,.45)}50%{box-shadow:0 2px 10px rgba(0,0,0,.4),0 0 26px rgba(240,192,96,.45),inset 0 1px 0 rgba(255,255,255,.45)}}
 }
-.vault-chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface-2,#241c12);border:1px solid var(--border,#3a2f1e);border-radius:999px;padding:4px 11px 4px 5px;font-size:12px;cursor:grab;user-select:none;transition:all .16s var(--ease-out,ease)}
+.vault-chip{display:inline-flex;align-items:center;gap:6px;background:var(--surface-2,#241c12);border:1px solid var(--border,#3a2f1e);border-radius:999px;padding:4px 11px 4px 5px;font-size:12px;cursor:grab;-webkit-user-select:none;user-select:none;transition:all .16s var(--ease-out,ease)}
+.vault-chip img{-webkit-user-drag:none}
 .vault-chip:hover{border-color:rgba(240,192,96,.55);box-shadow:0 0 14px rgba(212,168,71,.14);transform:translateY(-1px)}
 /* v239: rarity-tint the vault chips (border + name) */
 .vault-chip.vc-r-unique{border-color:rgba(212,168,71,.5)}
@@ -41182,6 +41202,27 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           ? '<div class="vt-sub">+ ' + (rows.length - shown.length) + ' more</div>' : '');
   };
 
+  var VAULT_REVIEW_OPEN = 12;
+  function _reviewSlice(names){
+    var list = Array.isArray(names) ? names : [];
+    var n = VAULT_REVIEW_OPEN;
+    if (!(n >= 1)) n = list.length;
+    return { open: list.slice(0, n), rest: list.slice(n) };
+  }
+  function _reviewRestWire(det, names, cardFor){
+    if (!det || !names || !names.length) return;
+    det._reviewNames = names;
+    det._reviewCard = cardFor;
+    det.addEventListener('toggle', function(){
+      if (!det.open || det._reviewFilled) return;
+      var grid = det.querySelector('.to-grid');
+      if (!grid) return;
+      grid.innerHTML = det._reviewNames.map(det._reviewCard).join('');
+      det._reviewFilled = true;
+      try { if (window._vHydrateShots) window._vHydrateShots(grid); } catch (eH) {}
+    });
+  }
+
   function renderThrowoutReview(){
     var el=document.getElementById('vault-throwout'); if(!el) return;
     // v396.2 — RESCUE any RUNEWORD that's sitting in the throw-out pile from an OLD read (before runewords
@@ -41313,10 +41354,19 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // ONE sub-header so the review reads as the few items that actually need a decision, not a wall of sets.
     var _loSetN=[], _otherN=[];
     names.forEach(function(n){ var _c=(typeof _throwClean==='function')?_throwClean(n):n; if((typeof findSetPiece==='function')&&findSetPiece(_c)) _loSetN.push(n); else _otherN.push(n); });
-    var cards=_otherN.map(cardFor).join('');
-    var _loBlock=_loSetN.length?('<details class="to-subgroup"><summary class="to-subsum">🧩 Low set pieces — tracked for chronicle, safe to sell/throw <span class="to-ct">'+_loSetN.length+'</span><span class="to-chev">▾</span></summary><div class="to-grid">'+_loSetN.map(cardFor).join('')+'</div></details>'):'';
+    var _oSlice = _reviewSlice(_otherN);
+    var cards = _oSlice.open.map(cardFor).join('');
+    var _oRest = _oSlice.rest.length
+      ? '<details class="to-rest"><summary class="to-subsum">The rest of this review <span class="to-ct">'+_oSlice.rest.length+'</span><span class="to-chev">\u25be</span></summary><div class="to-grid"></div></details>'
+      : '';
+    var _loBlock=_loSetN.length?('<details class="to-subgroup to-rest"><summary class="to-subsum">🧩 Low set pieces — tracked for chronicle, safe to sell/throw <span class="to-ct">'+_loSetN.length+'</span><span class="to-chev">▾</span></summary><div class="to-grid"></div></details>'):'';
     el.innerHTML='<details class="to-det" open><summary class="to-sum"><span class="to-emblem">🗑</span><span class="to-hd"><span class="to-hd-top"><span class="to-st">Throw-Out Review</span><span class="to-ct">'+names.length+'</span></span><span class="to-subt">what you’re discarding — each read shown with the screenshot it came from</span></span><span class="to-rule"></span><span class="to-chev">▾</span></summary>'
-      + (cards?'<div class="to-grid">'+cards+'</div>':'')+_loBlock+'</details>';
+      + (cards?'<div class="to-grid">'+cards+'</div>':'')+_oRest+_loBlock+'</details>';
+    var _restDets = el.querySelectorAll('details.to-rest');
+    var _restLists = [];
+    if (_oSlice.rest.length) _restLists.push(_oSlice.rest);
+    if (_loSetN.length) _restLists.push(_loSetN);
+    for (var _ri = 0; _ri < _restDets.length && _ri < _restLists.length; _ri++) _reviewRestWire(_restDets[_ri], _restLists[_ri], cardFor);
     try { window._vHydrateShots(el); } catch(e){}   // v571 — pull pruned shots back from the linked folder
   }
   // v455 — SOCKETED / LARZUK REVIEW: the EXACT runeword tool from the throw-out review (_baseRWLine), now for the
@@ -41406,9 +41456,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         +   tierH+'<div class="to-why">'+why+'</div>'+rwl+fixRow
         + '</div></div>';
     };
-    var cards=names.map(cardFor).join('');
+    var _sSlice = _reviewSlice(names);
+    var cards = _sSlice.open.map(cardFor).join('');
+    var _sRest = _sSlice.rest.length
+      ? '<details class="to-rest"><summary class="to-subsum">The rest of this review <span class="to-ct">'+_sSlice.rest.length+'</span><span class="to-chev">\u25be</span></summary><div class="to-grid"></div></details>'
+      : '';
     el.innerHTML='<details class="to-det" open><summary class="to-sum"><span class="to-emblem">🔩</span><span class="to-hd"><span class="to-hd-top"><span class="to-st">Socketed &amp; Larzuk Review</span><span class="to-ct">'+names.length+'</span></span><span class="to-subt">muled socketed / Larzuk bases — what runewords each can still make (✓ created cancelled out)</span></span><span class="to-rule"></span><span class="to-chev">▾</span></summary>'
-      + '<div class="to-grid">'+cards+'</div></details>';
+      + '<div class="to-grid">'+cards+'</div>'+_sRest+'</details>';
+    if (_sSlice.rest.length) _reviewRestWire(el.querySelector('details.to-rest'), _sSlice.rest, cardFor);
     try { window._vHydrateShots(el); } catch(e){}   // v571 — pull pruned shots back from the linked folder
   }
   // v571 — swap "no shot" placeholders for the ORIGINAL screenshot file from the linked folder (object URL,
@@ -41735,11 +41790,36 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var dock=document.getElementById('vault-dock'), shelf=document.getElementById('vault-shelf');
     if (!dock || !shelf) return;
     window._spareDepth = (window._spareDepth || 0) + 1;
-    if (window._spareDepth === 1) window._sparePass = (window._sparePassGen = (window._sparePassGen || 0) + 1);
+    if (window._spareDepth === 1) {
+      window._sparePass = (window._sparePassGen = (window._sparePassGen || 0) + 1);
+      window._provHeld = true;
+      window._provHoldSeen = false;
+      window._provHoldErr = false;
+      window._provRawHold = undefined;
+      window._provObjHold = undefined;
+      window._provObjRaw = undefined;
+      window._provObjReady = false;
+      window._rwMadeHeld = true;
+      window._rwMadeSeen = false;
+      window._rwMadeObj = undefined;
+    }
     try { renderVaultDraw(); }
     finally {
       window._spareDepth = (window._spareDepth || 1) - 1;
-      if (window._spareDepth <= 0){ window._spareDepth = 0; window._sparePass = 0; }
+      if (window._spareDepth <= 0){
+        window._spareDepth = 0;
+        window._sparePass = 0;
+        window._provHeld = false;
+        window._provHoldSeen = false;
+        window._provHoldErr = false;
+        window._provRawHold = undefined;
+        window._provObjHold = undefined;
+        window._provObjRaw = undefined;
+        window._provObjReady = false;
+        window._rwMadeHeld = false;
+        window._rwMadeSeen = false;
+        window._rwMadeObj = undefined;
+      }
     }
   }
   function renderVaultDraw(){
@@ -41917,8 +41997,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
               _why = '<span class="vdb-why" title="What the sorter suggests for the items still '
                    + 'in the dock.">' + _keys.slice(0, 3).map(function(k){
                        var label = (k === '__throwout') ? 'discard'
-                         : (k === '__keep') ? 'keep on MAIN'
-                         : ((muleById(k) && muleById(k).name) || k);
+                         : (k === '__keep') ? 'keep on MAIN' : k;
+                       if (k !== '__throwout' && k !== '__keep') {
+                         try {
+                           if (typeof muleById === 'function') {
+                             var _mu = muleById(k);
+                             if (_mu && _mu.name) label = _mu.name;
+                           }
+                         } catch (eLab) {}
+                       }
                        return _h[k] + ' \u00d7 ' + label;
                      }).join(' \u00b7 ') + '</span>';
             }
@@ -42271,14 +42358,54 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   /* where a thing he KEEPS can be seen, and where his MAIN carries it — two lists, never one */
   var _WIT_STASH = { stash: 1, mule: 1, locker: 1, tomb: 1, tombs: 1 };
   var _WIT_MAIN = { equipment: 1, equipped: 1, inventory: 1, belt: 1, cube: 1 };
+  function _witnessRaw(){
+    if (window._provHeld === true) {
+      if (window._provHoldSeen !== true) {
+        window._provHoldSeen = true;
+        window._provHoldErr = false;
+        try { window._provRawHold = window.LSR.getItem(PROV_KEY); }
+        catch (eHold) { window._provHoldErr = true; window._provRawHold = undefined; }
+      }
+      if (window._provHoldErr) {
+        var err = new Error('the witness store could not be read');
+        err._provUnread = true;
+        throw err;
+      }
+      return window._provRawHold;
+    }
+    return window.LSR.getItem(PROV_KEY);
+  }
   function _provAll(){
     try {
-      var v = JSON.parse(window.LSR.getItem(PROV_KEY) || '{}');
-      return (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
+      var raw = _witnessRaw();
+      if (window._provHeld === true && window._provObjReady === true && window._provObjRaw === raw) return window._provObjHold;
+      var v = JSON.parse(raw || '{}');
+      v = (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
+      if (window._provHeld === true) {
+        window._provObjHold = v;
+        window._provObjRaw = raw;
+        window._provObjReady = true;
+      }
+      return v;
     } catch (e) { return {}; }
   }
   function _provWrite(all){
-    window.LSR.setItem(PROV_KEY, JSON.stringify(all));
+    var raw = JSON.stringify(all);
+    window.LSR.setItem(PROV_KEY, raw);
+    if (window._provHeld === true) {
+      window._provHoldSeen = true;
+      window._provHoldErr = false;
+      window._provRawHold = raw;
+      window._provObjHold = (all && typeof all === 'object' && !Array.isArray(all)) ? all : {};
+      window._provObjRaw = raw;
+      window._provObjReady = true;
+    }
+    try {
+      if (typeof _hlMemo === 'object' && _hlMemo) {
+        _hlMemo.raw = raw;
+        _hlMemo.all = (all && typeof all === 'object' && !Array.isArray(all)) ? all : null;
+      }
+    } catch (eM) {}
     /* #51 — a witness row can carry a rarity the name colour resolver (_artRarity) reads; its cache is per name and
        would keep a pre-filing '' for ever, so a write here empties it. A store write is rare; a repaint is cheap. */
     try { if (typeof _ARTRARITY_CACHE === 'object' && _ARTRARITY_CACHE) Object.keys(_ARTRARITY_CACHE).forEach(function(k){ delete _ARTRARITY_CACHE[k]; }); } catch (e) {}
@@ -42336,7 +42463,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var nm = String(name == null ? '' : name).trim();
     if (!nm) return null;
     var raw = null;
-    try { raw = window.LSR.getItem(PROV_KEY); }
+    try { raw = _witnessRaw(); }
     catch (e) { return { unknown: true, why: 'the witness store (' + PROV_KEY + ') could not be read, so whether ' + nm + ' is locked is UNKNOWN — nothing hardened moves until it can be read' }; }
     if (raw == null || raw === '') return null;      /* no store = no rows, a measured nothing */
     var all = _hlParse(raw);                         /* #98 (P9) — parsed once per change of the store, not per cell */
@@ -42372,7 +42499,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      as 🔒 ? and never releases. */
   function _hardLockCensus(){
     var raw = null;
-    try { raw = window.LSR.getItem(PROV_KEY); }
+    try { raw = _witnessRaw(); }
     catch (e) { return { unknown: true, why: 'the witness store could not be read - how many filings are locked is UNKNOWN, and nothing hardened moves until it can be read' }; }
     if (raw == null || raw === '') return { locked: 0, released: 0 };
     var all = _hlParse(raw);
@@ -48910,6 +49037,10 @@ window.vaultAutoAssign = function(){
   };
 
   // ── drag & drop + click-assign (delegated) ──
+  document.addEventListener('selectstart', function(e){
+    var chip=e.target&&e.target.closest&&e.target.closest('.vault-chip');
+    if (chip) e.preventDefault();
+  });
   document.addEventListener('dragstart', function(e){
     var chip=e.target&&e.target.closest&&e.target.closest('.vault-chip');
     if (chip){ e.dataTransfer.setData('text/vault-item', chip.dataset.vaultItem); e.dataTransfer.effectAllowed='move'; }

@@ -65,7 +65,7 @@ LINES = (
     "  var JOURNAL_KEY='d2r_intakeLog';",
     "  var FOLDER_DB='d2r_vault_fs', FOLDER_KEY='shotdir', SEEN_KEY='d2r_intakeSeen';",
 )
-PROV_FROM = "  function _provAll(){\n"
+PROV_FROM = "  function _witnessRaw(){\n"
 PROV_TO = "  /* a filing taken OUT takes its witness row with it"
 
 #: what a reset may clear, by his ruling — pinned here, not read back from the thing under test
