@@ -415,6 +415,25 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2193 - A MAGIC/RARE VAULT CELL DREW A FLAT 2x1, IGNORING THE ITEM'S REAL FOOTPRINT (2026-10-13, #264)
+
+**Found** by GrokBot's live look at his board (batches E/F, gh #230): a rare Jewel, Ring and Small Charm were
+drawn 2x1 and a Grand Charm 2x1, when their real D2 footprints are 1x1 / 1x1 / 1x1 / 1x3. The main catalogue
+cell sizes from `_itemCells(n)` (which prefers the game-truth `_cbFoot` base dims), but the MAGIC & RARE cell
+(keepers + magicFinds coloured tiles) hardcoded `grid-column:span 2;grid-row:span 1`, so every magic/rare item
+took a flat 2x1 regardless of its base. [[copy-drift]] - the "ONE FOOTPRINT" sweep (REG-2051) unified the
+packer, the chip and the main cell but MISSED this render path. A wrong footprint also breaks the Tetris-fit
+his mule-balance rule depends on (a 1x1 jewel eating 2 cells).
+
+**Fix (bible.html):** the magic/rare cell computes `_mf = _itemCells(base || n)` - the SAME source the catalogue
+cell uses - and spans `grid-column:span _mf.w; grid-row:span _mf.h`, with the `vmc-approx` marker when the base
+is unresolved, exactly like the main cell. One footprint source for both.
+
+**Law:** `tv/test_the_packer_reads_the_footprint_the_tile_prints.py::test_a_magic_or_rare_cell_is_sized_by_its_base_not_a_flat_2x1`
+- _itemCells gives Jewel/Ring/Small Charm 1x1, Grand Charm 1x3, Large Charm 1x2; and the magic cell is wired to
+that source, not a flat 2x1. Seen RED by reverting the span to the hardcode. Held in the v3720 worktree batch
+(bible.html -> ships after the installer lands and D2R is not running). Visual confirm owed to GrokBot.
+
 ### REG-2191 - A CURLY APOSTROPHE DREW GHEED’S FORTUNE NOWHERE WHILE FIND SAID IT STAYS WITH MAIN (2026-10-13, #264)
 
 **Found** sweeping the mule / keeper logic for #264. The catalogue stores the name with a CURLY apostrophe -

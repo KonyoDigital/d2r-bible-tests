@@ -42212,8 +42212,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var _mqcol={magic:'var(--q-magic)',rare:'var(--q-rare)',crafted:'var(--q-orange)'};
         itemRows = itemRows.concat(magicItems.map(function(n){
           var q=_mfQual(n), col=_mqcol[q]||_mqcol.magic, base=_mfBase(n);
+          // REG-2193 - a magic/rare item is sized by its BASE's footprint, not a flat 2x1: a rare Jewel is
+          // 1x1 and a Grand Charm 1x3, the SAME source (_itemCells) the catalogue cells use, so the
+          // Tetris-fit counts real cells. [[copy-drift]] - the ONE FOOTPRINT sweep (REG-2051) missed this path.
+          var _mf = (typeof _itemCells === 'function') ? _itemCells(base || n) : {w:2,h:1};
           var artHtml = '<span class="vm-cell-art">' + ((typeof art === 'function') ? art(n, '◆', 'lg') : '<span class="vmc-gemfallback" style="color:'+col+'">◆</span>') + '</span>';
-          return '<div class="vm-cell vmc-magicfind" style="grid-column:span 2;grid-row:span 1;border-color:'+col+';cursor:pointer" data-magic-find="'+esc(n)+'" data-arttip="'+esc(n)+'" title="'+esc(n)+(base?' · '+esc(base):'')+' ('+q+')">'
+          return '<div class="vm-cell vmc-magicfind'+(_mf.approx?' vmc-approx':'')+'" style="grid-column:span '+_mf.w+';grid-row:span '+_mf.h+';border-color:'+col+';cursor:pointer" data-magic-find="'+esc(n)+'" data-arttip="'+esc(n)+'" title="'+esc(n)+(base?' · '+esc(base):'')+' ('+q+')">'
             + artHtml
             + '<span class="vm-item-name vm-cell-name" data-arttip="'+esc(n)+'" style="color:'+col+'">'+esc(n)+'</span>'
             + (typeof window._vaultEvidenceChip === 'function' ? window._vaultEvidenceChip(n, 'vm-cell-ev') : '')

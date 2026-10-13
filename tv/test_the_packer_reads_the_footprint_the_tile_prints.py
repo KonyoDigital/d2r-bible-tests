@@ -113,6 +113,25 @@ class ThePackerReadsTheFootprintTheTilePrints(unittest.TestCase):
             self.assertEqual(got[n]["pack"], got[n]["tile"],
                              "%s: the packer packs %r while its tile prints %r" % (n, got[n]["pack"], got[n]["tile"]))
 
+    def test_a_magic_or_rare_cell_is_sized_by_its_base_not_a_flat_2x1(self):
+        """REG-2193 — the MAGIC & RARE locker cell hardcoded `grid-column:span 2;grid-row:span 1`, so a rare
+        Jewel, Ring or Small Charm drew 2x1 and a Grand Charm 2x1 instead of their real 1x1 / 1x3 (GrokBot saw
+        it on his live board). The cell now sizes from the SAME _itemCells the catalogue cells use — one
+        footprint source — so the Tetris-fit counts real cells. [[copy-drift]] (REG-2051 missed this path)."""
+        got = _sizes(["Jewel", "Ring", "Small Charm", "Grand Charm", "Large Charm"])
+        self.assertEqual(got["Jewel"]["tile"], [1, 1])
+        self.assertEqual(got["Ring"]["tile"], [1, 1])
+        self.assertEqual(got["Small Charm"]["tile"], [1, 1])
+        self.assertEqual(got["Grand Charm"]["tile"], [1, 3])
+        self.assertEqual(got["Large Charm"]["tile"], [1, 2])
+        src = _src()
+        self.assertIn("var _mf = (typeof _itemCells === 'function') ? _itemCells(base || n)", src,
+                      "the magic/rare cell must size from _itemCells (REG-2193)")
+        self.assertIn("grid-column:span '+_mf.w+';grid-row:span '+_mf.h+'", src,
+                      "the magic/rare cell must span its real footprint (REG-2193)")
+        self.assertNotIn("grid-column:span 2;grid-row:span 1;border-color:", src,
+                         "the magic/rare cell must not hardcode a 2x1 span (REG-2193)")
+
     def test_an_unknown_base_packs_at_the_default_the_tile_names(self):
         got = _sizes(["Some Unheard-Of Thing"])["Some Unheard-Of Thing"]
         self.assertTrue(got["approx"], "premise: an unheard-of base is a guessed size")
