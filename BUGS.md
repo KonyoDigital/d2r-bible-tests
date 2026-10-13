@@ -415,6 +415,22 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2195 - EVERY CORE LOCKER HAD A DELETE BUTTON; A MIS-CLICK DROPPED HIS TAXONOMY (2026-10-14, #264)
+
+**Found** by GrokBot's batch K controls pass: every mule card (not just ones he added) carried a 🗑 delete
+button, "easy to hit by mistake." Deleting a core locker (UNI-WEAPONS, MAGIC & RARE, …) removes it from the
+roster and sends its items to the unsorted dock - a destructive mis-click on his fixed taxonomy.
+
+**Fix (bible.html):** `_vmAddedMule(m)` - a mule is deletable only if HE added it (vaultAddMule now stamps
+`added:true`; older added mules are known by the mint-id shape `'m'+base36 time`, which no core id has - the
+only m-starter, 'magic-rare', has a hyphen). The 🗑 renders only for an added mule, AND `window.vaultDeleteMule`
+refuses a core locker outright (`if (!_vmAddedMule(m)) return;`). SHARED STASH stays undeletable as before.
+
+**Law:** `tv/test_the_core_lockers_are_not_deletable.py` (3) - the pure `_vmAddedMule` in node (11 core ids read
+not-deletable; a mint-id + the added:true flag read deletable) + a source guard that BOTH the button and the
+door gate on it. Seen RED by making the check return true and by reverting the door guard. Registered in
+run_gates. Held v3720 batch.
+
 ### REG-2194 - FIND WAS A BARE SUBSTRING MATCH: ABBREVIATIONS MISSED, DOOMBRINGER RANKED BESIDE DOOM (2026-10-14, #264)
 
 **Found** by GrokBot's batch K controls pass on his live board: FIND 'soj'/'cta'/'hoto'/'coh'/'botd'/'wf'/'tgods'

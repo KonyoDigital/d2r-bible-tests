@@ -9046,6 +9046,13 @@ GATES = [
               "substring+alpha sort ranked Doombringer beside Doom and Talons/Metalgrid ahead of Tal Rasha; now an "
               "alias + apostrophe fold + exact/prefix/word ranking.")
          ),
+    Gate("test_the_core_lockers_are_not_deletable", [sys.executable,
+         os.path.join(HERE, "test_the_core_lockers_are_not_deletable.py")], 30,
+         needs_app=False,
+         why=("REG-2195 (GrokBot batch K) - every core locker carried a delete button ('easy to hit by mistake'); "
+              "a mis-click dropped part of his taxonomy. Now only a mule he added is deletable, and the door refuses "
+              "a core locker.")
+         ),
     Gate("test_furniture_filed_in_a_mule_is_an_integrity_finding", [sys.executable,
          os.path.join(HERE, "test_furniture_filed_in_a_mule_is_an_integrity_finding.py")], 30,
          needs_app=False,

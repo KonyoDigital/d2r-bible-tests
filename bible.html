@@ -42289,7 +42289,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           })()
         + (m.id==='shared' ? '<span class="vm-lock" role="img" aria-label="locked" title="SHARED STASH stays. It cannot be deleted, and its items do not return to the dock.">🔒</span>' : '')
         + '<span class="vm-tools"><button class="vm-tool" onclick="event.stopPropagation();window.vaultRenameMule(\''+jsArg(m.id)+'\')" title="rename">✏️</button>'
-        + (m.id==='shared' ? '' : '<button class="vm-tool" onclick="event.stopPropagation();window.vaultDeleteMule(\''+jsArg(m.id)+'\')" title="delete">🗑</button>')
+        + (_vmAddedMule(m) ? '<button class="vm-tool" onclick="event.stopPropagation();window.vaultDeleteMule(\''+jsArg(m.id)+'\')" title="delete this mule you added">🗑</button>' : '')
         + '</span>'
         + '</div>'
         + '<div class="vm-gauge" title="'
@@ -46307,16 +46307,22 @@ window.vaultAutoAssign = function(){
     var name=prompt('New mule name (this IS your in-game character name — make it say what it holds):','UNI-WEAP-2');
     if (!name) return;
     var id='m'+Date.now().toString(36);
-    roster.push({id:id, name:name.toUpperCase().slice(0,15), icon:'📦', note:''}); saveR(); renderVault();
+    roster.push({id:id, name:name.toUpperCase().slice(0,15), icon:'📦', note:'', added:true}); saveR(); renderVault();   // REG-2195 - added mules are deletable; core lockers are not
   };
   window.vaultRenameMule = function(id){
     var m=muleById(id); if(!m) return;
     var name=prompt('Rename mule:', m.name); if(!name) return;
     m.name=name.toUpperCase().slice(0,15); saveR(); renderVault();
   };
+  // REG-2195 (GrokBot batch K) — only a mule HE added can be deleted. A core locker (uni-weap, magic-rare, …)
+  // has no delete button and this door refuses it, so a mis-click can never drop his taxonomy. Added mules
+  // carry added:true (vaultAddMule); older ones are known by their mint-id shape ('m'+base36 time), which no
+  // core id has (the only m-starter, 'magic-rare', has a hyphen).
+  function _vmAddedMule(m){ return !!(m && (m.added || /^m[0-9a-z]{6,}$/.test(String(m.id)))); }
   window.vaultDeleteMule = async function(id){
     if (id === 'shared') return;
     var m=muleById(id); if(!m) return;
+    if (!_vmAddedMule(m)) return;   // REG-2195 - a core locker is never deletable
     if (!(await uiConfirm('Delete locker '+m.name+'? Its items return to the unsorted dock.'))) return;
     roster=roster.filter(function(x){return x.id!==id;});
     Object.keys(assign).forEach(function(n){ if(assign[n]===id) delete assign[n]; });
