@@ -415,6 +415,22 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2183 - THE WINDOWS INSTALLER COULD NEVER MOVE A CHANGED TREE (2026-10-13, #164)
+
+Dean's PC sat on v3577, 1,063 behind, and the ALT on v3668, 105 behind, both
+refused as "local tracked edits". The installer copies the update's
+launcher_pull.py into %TEMP% and runs it there, and the rule asks self_prove
+whether a changed file is the console's own record. From %TEMP% that import
+failed, so every changed tree answered exit 1 "could not tell" and the
+installer could never update it. Measured on the ALT over SSH. The installer
+now extracts the update's self_prove.py into the same temp folder. When a
+tree really has leftover edits (exit 2) - the ALT's was a draft of v3668 that
+shipped later in another form - the installer lists them, saves every file
+plus a patch and the old HEAD to ~/d2r_update_backups/<time>, asks Y/n, then
+puts the copy on the update. Exit 1 still resets nothing. Gitignored stores
+are never touched. Proven on the ALT: v3668 to v3718, 11 files saved, clean.
+Law: `test_a_landed_update_is_not_an_edit` (TheInstallerRunsTheRuleBesideSelfProve).
+
 ### REG-2182 - THE NAME COUNTERS LEFT THE FUNCTION THE TALLY LAW READS (2026-10-12, #243)
 
 v3676 moved the counting body to _named_sessions_read and left a thin wrapper

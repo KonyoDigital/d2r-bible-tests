@@ -932,6 +932,68 @@ class TheLauncherUsesTheSameRule(unittest.TestCase):
                             "%s records HEAD after the reset" % name.split("(")[0])
 
 
+class TheInstallerRunsTheRuleBesideSelfProve(unittest.TestCase):
+    """REG-2183 - THE WINDOWS INSTALLER COULD NEVER MOVE A CHANGED TREE, AND NOW IT CAN.
+
+    Measured 2026-10-13 on the ALT over SSH: the installer copies the update's launcher_pull.py into %TEMP% and
+    runs it there. The rule asks self_prove whether a changed file is the console's own record, and that import
+    failed from %TEMP% - so EVERY changed tree answered exit 1 "could not tell", and the installer could never
+    update Dean (v3577, 1,063 behind) or the ALT (v3668). The installer now extracts the update's self_prove.py
+    into the same temp folder. And when a tree really has leftover edits (exit 2), it saves them and asks before
+    putting the copy on the update - while exit 1 still resets nothing.
+    [[the-unjoined-end]] [[unknown-stays-unknown]]"""
+
+    def _src(self):
+        with open(os.path.join(HERE, "install-tvd.ps1"), encoding="utf-8-sig") as fh:
+            raw = fh.read()
+        # grade the CODE, never the prose: a PowerShell comment line can quote any of these anchors
+        return "\n".join(ln for ln in raw.splitlines() if not ln.lstrip().startswith("#"))
+
+    def _own_record_from(self, with_self_prove):
+        import shutil, subprocess, tempfile
+        d = tempfile.mkdtemp(prefix="lp-alone-")
+        try:
+            shutil.copy(os.path.join(HERE, "launcher_pull.py"), d)
+            if with_self_prove:
+                shutil.copy(os.path.join(HERE, "self_prove.py"), d)
+            env = dict(os.environ)
+            env.pop("PYTHONPATH", None)   # the rule must find self_prove ONLY beside it, exactly as the installer runs it
+            code = ("import launcher_pull as L; "
+                    "print(repr(L._own_record(' M', 'tv/.status_worst.json')))")
+            out = subprocess.run([sys.executable, "-c", code], cwd=d, env=env,
+                                 capture_output=True, text=True, timeout=60)
+            return out.stdout.strip()
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+
+    def test_the_rule_alone_cannot_answer_and_beside_self_prove_it_can(self):
+        # BASELINE first: alone in a folder the rule must NOT be able to tell - otherwise this case measures nothing
+        self.assertEqual(self._own_record_from(False), "None",
+                         "launcher_pull alone answered the own-record question - the hazard this guards is gone or "
+                         "PYTHONPATH leaked tv/ into the subprocess, so the case below cannot discriminate")
+        self.assertEqual(self._own_record_from(True), "True",
+                         "beside self_prove the rule still could not answer - the installer's fix does not work")
+
+    def test_the_installer_puts_self_prove_beside_the_rule(self):
+        code = self._src()
+        self.assertEqual(code.count("origin/main:tv/self_prove.py"), 1,
+                         "the installer no longer extracts the update's self_prove.py - every changed tree reads "
+                         "'could not tell' again")
+        self.assertIn("Join-Path $tmpDir 'self_prove.py'", code,
+                      "self_prove.py is not written into the rule's own temp folder")
+        self.assertIn("Join-Path $tmpDir 'launcher_pull.py'", code,
+                      "the rule is no longer run from the folder that holds self_prove.py")
+
+    def test_only_local_work_reaches_save_and_update(self):
+        code = self._src()
+        self.assertEqual(code.count("if ($applyRc -eq 2) {"), 1,
+                         "save-and-update must be gated on exit 2 (local work) ONLY - exit 1 means the rule could "
+                         "not tell, and an unknown must never reset anything")
+        i = code.index("if ($applyRc -eq 2) {")
+        self.assertIn("Save-And-Update $applyWhy", code[i:i + 200],
+                      "the exit-2 branch no longer saves before it updates")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
 
@@ -1047,6 +1109,27 @@ RED_PROOF = [
         "find": "  Say \"updating the bible repo...\"\n",
         "replace": "  Say \"updating the bible repo...\"\n"
                    "  git -C $repoDir pull --ff-only 2>&1 | Out-Null\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2183: the installer stops extracting self_prove.py, so the rule runs alone in %TEMP% and every changed tree reads 'could not tell'",
+        "file": "tv/install-tvd.ps1",
+        "find": "show `\"origin/main:tv/self_prove.py`\"",
+        "replace": "show `\"origin/main:tv/launcher_pull.py`\"",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2183: the rule is run from a bare temp file again, away from the folder that holds self_prove.py",
+        "file": "tv/install-tvd.ps1",
+        "find": "    $tmp = Join-Path $tmpDir 'launcher_pull.py'\n",
+        "replace": "    $tmp = Join-Path $env:TEMP 'launcher_pull.py'\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2183: save-and-update fires on ANY refusal, so an exit 1 (the rule could not tell) resets his copy",
+        "file": "tv/install-tvd.ps1",
+        "find": "          if ($applyRc -eq 2) {\n",
+        "replace": "          if ($applyRc -ne 0) {\n",
         "matches": 1,
     },
 ]

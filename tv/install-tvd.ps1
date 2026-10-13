@@ -145,6 +145,109 @@ try {
 }
 
 # -- bible repo FIRST (so Desktop shortcut always lands even if Claude install flakes) --
+# REG-2183 - A COPY THE UPDATE RULE CALLS "LOCAL WORK" NEVER UPDATES AGAIN. Measured 2026-10-13: Dean's PC sat on v3577,
+# 1,063 behind, and the ALT on v3668, 105 behind, both refused as "local tracked edits". On the ALT the edits were a
+# DRAFT of v3668 written into the tree at 20:43 on 10-11 that shipped later in another form - nobody's work, and no
+# shipped blob matches it, so no automatic rule can call it the update. This is the one door out, and it is HIS
+# (or Dean's) Enter key: name the files, save every one of them plus a patch and the old HEAD, then put the copy on
+# the update. Only tracked files move; gitignored stores (his ledgers, reels, the vault) are never touched, and an
+# untracked file the update would land on is saved first. TVD_UPDATE_ANYWAY=1 answers the question without a prompt.
+function Save-And-Update([string]$why) {
+  # Windows PowerShell 5.1 turns a native command's stderr into a terminating error under 'Stop', and autocrlf=true
+  # makes git print "LF will be replaced by CRLF" warnings there - so every git call here runs under 'Continue',
+  # and the one thing that must fail closed (saving his copy) throws on purpose with -ErrorAction Stop.
+  $oldEap2 = $ErrorActionPreference
+  $ErrorActionPreference = 'Continue'
+  try {
+    return (Save-And-Update-Inner $why)
+  } finally {
+    $ErrorActionPreference = $oldEap2
+  }
+}
+
+function Save-And-Update-Inner([string]$why) {
+  Warn $why
+  $rows = @(& git --no-pager -C $repoDir status --porcelain --untracked-files=no 2>$null | Where-Object { $_ })
+  if ($LASTEXITCODE -ne 0) {
+    Warn "git could not say what differs - nothing was changed"
+    return $false
+  }
+  if ($rows.Count -eq 0) {
+    Warn "nothing local differs, so there is nothing to save - the update was not applied"
+    return $false
+  }
+  Say "This copy has files that differ from the update:"
+  foreach ($r in ($rows | Select-Object -First 12)) { Write-Host ("      " + $r) }
+  if ($rows.Count -gt 12) { Write-Host ("      ... and {0} more" -f ($rows.Count - 12)) }
+  $go = [string]$env:TVD_UPDATE_ANYWAY
+  if ($go -ne '1' -and $go -ne '0') {
+    $ans = [string](Read-Host "TV DIABLO  Save a copy of them and update anyway? [Y/n]")
+    if (($ans.Trim() -eq '') -or ($ans.Trim() -match '^[Yy]')) { $go = '1' } else { $go = '0' }
+  }
+  if ($go -ne '1') {
+    Warn "left exactly as it is - nothing was changed"
+    return $false
+  }
+  $stamp = Get-Date -Format 'yyyyMMdd-HHmmss'
+  $bk = Join-Path (Join-Path $HOME 'd2r_update_backups') $stamp
+  $saved = 0
+  $inWay = 0
+  try {
+    New-Item -ItemType Directory -Force -Path (Join-Path $bk 'files') -ErrorAction Stop | Out-Null
+    $head = [string](& git --no-pager -C $repoDir rev-parse HEAD 2>$null)
+    Set-Content -LiteralPath (Join-Path $bk 'HEAD.txt') -Value $head -Encoding ascii -ErrorAction Stop
+    # --output, never `>`: Windows PowerShell 5.1 redirects as UTF-16 and would corrupt the patch
+    & git --no-pager -C $repoDir diff --binary ("--output=" + (Join-Path $bk 'changes.patch')) 2>$null
+    foreach ($r in $rows) {
+      $rel = ([string]$r).Substring(3).Trim().Trim('"')
+      if ($rel -match ' -> ') { $rel = ($rel -split ' -> ')[-1].Trim().Trim('"') }
+      $src = Join-Path $repoDir $rel
+      if (Test-Path -LiteralPath $src -PathType Leaf) {
+        $dst = Join-Path (Join-Path $bk 'files') $rel
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $dst) -ErrorAction Stop | Out-Null
+        Copy-Item -LiteralPath $src -Destination $dst -Force -ErrorAction Stop
+        $saved++
+      }
+    }
+    # an untracked file sitting where the update lands a tracked one would be overwritten by the reset - save it too
+    $tracked = New-Object 'System.Collections.Generic.HashSet[string]'
+    foreach ($p in @(& git --no-pager -C $repoDir ls-tree -r --name-only HEAD 2>$null)) { [void]$tracked.Add([string]$p) }
+    $incoming = @(& git --no-pager -C $repoDir ls-tree -r --name-only origin/main 2>$null)
+    if ($incoming.Count -eq 0) { throw "the update's file list could not be read" }
+    foreach ($p in $incoming) {
+      $p = [string]$p
+      if ($tracked.Contains($p)) { continue }
+      $src = Join-Path $repoDir $p
+      if (Test-Path -LiteralPath $src -PathType Leaf) {
+        $dst = Join-Path (Join-Path $bk 'untracked') $p
+        New-Item -ItemType Directory -Force -Path (Split-Path -Parent $dst) -ErrorAction Stop | Out-Null
+        Copy-Item -LiteralPath $src -Destination $dst -Force -ErrorAction Stop
+        $inWay++
+      }
+    }
+  } catch {
+    # a copy that was not saved is a copy the reset would destroy - nothing moves
+    Warn ("could not save a copy ({0}) - nothing was changed" -f $_.Exception.Message)
+    return $false
+  }
+  $rstErr = Join-Path $env:TEMP ("tvd-reset-" + [guid]::NewGuid().ToString("n") + ".txt")
+  & git --no-pager -C $repoDir reset --hard origin/main --quiet 2>$rstErr
+  $rstRc = $LASTEXITCODE
+  if ($rstRc -ne 0) {
+    $why2 = ""
+    if (Test-Path -LiteralPath $rstErr) { $why2 = [string](Get-Content -LiteralPath $rstErr -Raw -ErrorAction SilentlyContinue) }
+    Remove-Item -LiteralPath $rstErr -Force -ErrorAction SilentlyContinue
+    if (-not $why2) { $why2 = "git reset exited $rstRc" }
+    Warn ("the update could not be put in place: {0} (your files are saved in {1})" -f (($why2 -replace '\s+', ' ').Trim()), $bk)
+    return $false
+  }
+  Remove-Item -LiteralPath $rstErr -Force -ErrorAction SilentlyContinue
+  Ok ("bible repo is on the update - the {0} file(s) that differed are saved in {1}" -f $saved, $bk)
+  if ($inWay -gt 0) { Ok ("{0} untracked file(s) the update replaced are saved there too" -f $inWay) }
+  return $true
+}
+
+$script:TvdUpdated = $false
 if (Test-Path (Join-Path $repoDir '.git')) {
   Say "updating the bible repo..."
   # This script is fetched fresh. The tree on disk may be an older build, so
@@ -173,7 +276,13 @@ if (Test-Path (Join-Path $repoDir '.git')) {
     Warn ("could not fetch the update: {0}" -f $why)
   } else {
     Remove-Item -LiteralPath $fetchErr -Force -ErrorAction SilentlyContinue
-    $tmp = Join-Path $env:TEMP ("tvd-launcher-pull-" + [guid]::NewGuid().ToString("n") + ".py")
+    # REG-2183 - the rule runs from a temp FOLDER holding the update's own launcher_pull.py AND self_prove.py. It
+    # asks self_prove whether a changed file is the console's own record; run alone from %TEMP% that import failed,
+    # so every changed tree answered "could not tell" (exit 1) and the installer could never move it - measured on
+    # the ALT 2026-10-13. Python puts the script's own folder first on sys.path, so the update's copy is the one used.
+    $tmpDir = Join-Path $env:TEMP ("tvd-launcher-pull-" + [guid]::NewGuid().ToString("n"))
+    New-Item -ItemType Directory -Force -Path $tmpDir | Out-Null
+    $tmp = Join-Path $tmpDir 'launcher_pull.py'
     $utf8 = New-Object System.Text.UTF8Encoding $false
     $p = New-Object System.Diagnostics.Process
     $p.StartInfo.FileName = "git"
@@ -197,6 +306,20 @@ if (Test-Path (Join-Path $repoDir '.git')) {
     } else {
       try {
         [System.IO.File]::WriteAllBytes($tmp, $raw.ToArray())
+        $spOut = Join-Path $tmpDir 'self_prove.py'
+        $q = New-Object System.Diagnostics.Process
+        $q.StartInfo.FileName = "git"
+        $q.StartInfo.Arguments = "--no-pager -C `"$repoDir`" show `"origin/main:tv/self_prove.py`""
+        $q.StartInfo.UseShellExecute = $false
+        $q.StartInfo.RedirectStandardOutput = $true
+        $q.StartInfo.RedirectStandardError = $true
+        $q.StartInfo.CreateNoWindow = $true
+        [void]$q.Start()
+        $spRaw = New-Object System.IO.MemoryStream
+        $q.StandardOutput.BaseStream.CopyTo($spRaw)
+        [void]$q.StandardError.ReadToEnd()
+        $q.WaitForExit()
+        if ($q.ExitCode -eq 0) { [System.IO.File]::WriteAllBytes($spOut, $spRaw.ToArray()) }
         $ErrorActionPreference = 'Continue'
         if ($py -eq 'py') {
           $applyOut = & py -3 $tmp --repo $repoDir --apply 2>&1
@@ -228,15 +351,21 @@ if (Test-Path (Join-Path $repoDir '.git')) {
           } else {
             Remove-Item -LiteralPath $ffErr -Force -ErrorAction SilentlyContinue
             Ok "bible repo is on the update"
+            $script:TvdUpdated = $true
           }
         } else {
           if (-not $applyWhy) { $applyWhy = "the update was refused and gave no reason (exit $applyRc)" }
-          Warn $applyWhy
+          if ($applyRc -eq 2) {
+            # exit 2 = the rule protected local work; exit 1 = it could not tell, which never resets anything
+            $script:TvdUpdated = [bool](Save-And-Update $applyWhy)
+          } else {
+            Warn $applyWhy
+          }
         }
       } catch {
         Warn ("the update could not be applied: {0}" -f $_.Exception.Message)
       } finally {
-        Remove-Item -LiteralPath $tmp -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $tmpDir -Recurse -Force -ErrorAction SilentlyContinue
         $ErrorActionPreference = $oldEap
       }
     }
@@ -467,6 +596,16 @@ try {
   }
 } catch {}
 
+# REG-2183 - after an update the app is opened for him: the launcher sees the running console is older than the
+# disk and swaps it (launcher_decide REPLACE). Never from an SSH session - that would boot it on no desktop.
+if ($script:TvdUpdated -and -not $env:SSH_CONNECTION -and -not $env:TVD_NO_START) {
+  try {
+    Start-Process -FilePath $lnkPath
+    Ok "opening TV DIABLO on the update"
+  } catch {
+    Warn ("could not open TV DIABLO ({0}) - double-click it on the Desktop" -f $_.Exception.Message)
+  }
+}
 Say "DONE. Double-click TV DIABLO on your Desktop (or Start Menu)."
 Say "Native app window (not Chrome)  -  ON / OFF / STOP / RESTART / SIM  -  one window."
 if (-not $claudeOk) {
