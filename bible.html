@@ -11055,12 +11055,14 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     #tab-d2jsp .d2jsp-scroll::-webkit-scrollbar{width:10px}
     #tab-d2jsp .d2jsp-scroll::-webkit-scrollbar-track{background:var(--bg)}
     #tab-d2jsp .d2jsp-scroll::-webkit-scrollbar-thumb{background:var(--gold-dim);border-radius:8px}
-    #tab-d2jsp .d2jsp-card{display:grid;grid-template-columns:56px minmax(0,1fr);gap:10px;align-items:start;border:1px solid rgba(233,208,122,.4);border-radius:8px;padding:10px;margin:8px 0;background:rgba(10,9,7,.55)}
+    #tab-d2jsp .d2jsp-card{display:grid;grid-template-columns:auto minmax(0,1fr);gap:10px;align-items:start;border:1px solid rgba(233,208,122,.4);border-radius:8px;padding:10px;margin:8px 0;background:rgba(10,9,7,.55)}
     #tab-d2jsp .d2jsp-card[hidden]{display:none}
     #tab-d2jsp .d2jsp-card[data-sold="1"]{border-color:rgba(160,160,160,.55)}
     #tab-d2jsp .d2jsp-card[data-sold="1"] .boss-name{text-decoration:line-through}
     #tab-d2jsp .d2jsp-art{width:56px;height:56px}
     #tab-d2jsp .d2jsp-art img{width:56px;height:56px;object-fit:contain}
+    #tab-d2jsp .d2jsp-art:has(.d2jsp-shot){width:168px;height:126px}
+    #tab-d2jsp .d2jsp-art img.d2jsp-shot, #tab-d2jsp .d2jsp-art .d2jsp-shot{width:160px;height:112px;object-fit:contain;background:#120e08;display:block;cursor:pointer}
     #tab-d2jsp .d2jsp-say{color:#e9d07a;font-size:var(--fs-body);line-height:1.45}
     #tab-d2jsp .d2jsp-fields{display:grid;grid-template-columns:minmax(0,1fr) minmax(8em,11em) auto;gap:8px;align-items:end}
     #tab-d2jsp .d2jsp-fields .vault-btn{margin-top:6px}
@@ -11068,7 +11070,11 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     #tab-d2jsp .d2jsp-draft{white-space:pre-wrap;margin:8px 0;font-family:var(--mono);font-size:var(--fs-body);color:#f6e7c2;line-height:1.45}
     #tab-d2jsp #d2jsp-add, #tab-d2jsp #d2jsp-shop{margin:8px 8px 8px 0}
     #tab-d2jsp input, #tab-d2jsp textarea{display:block;width:100%;box-sizing:border-box;margin-top:6px;font-family:var(--mono);font-size:var(--fs-body);color:#e9d07a;background:rgba(10,9,7,.55);border:1px solid rgba(233,208,122,.4);border-radius:6px}
-    @media(max-width:700px){#tab-d2jsp .d2jsp-fields{grid-template-columns:minmax(0,1fr)}}
+    @media(max-width:700px){
+      #tab-d2jsp .d2jsp-fields{grid-template-columns:minmax(0,1fr)}
+      #d2jsp-draft-host .d2jsp-shot-row{grid-template-columns:minmax(0,1fr)}
+      #tab-d2jsp .d2jsp-art:has(.d2jsp-shot), #tab-d2jsp .d2jsp-art img.d2jsp-shot, #tab-d2jsp .d2jsp-art .d2jsp-shot, #d2jsp-draft-host .d2jsp-shot{width:100%;height:auto;max-height:220px}
+    }
     #d2jsp-planner-host[hidden]{display:none !important}
     #d2jsp-planner-host{position:fixed;inset:0;z-index:100000;background:rgba(6,4,2,.78);display:flex;align-items:flex-start;justify-content:center;padding:36px 16px 24px;overflow:auto}
     #d2jsp-planner-host .cb-modal{position:relative;left:auto;top:auto;width:min(1040px,calc(100% - 24px));height:min(88vh,940px);max-height:88vh;flex:none;border:1px solid rgba(212,168,71,.55);box-shadow:0 28px 80px rgba(0,0,0,.82),0 0 0 1px rgba(240,192,96,.22),0 0 42px rgba(212,168,71,.12)}
@@ -11079,7 +11085,10 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     #d2jsp-planner-host .vp-plate-done{flex:none;font-family:var(--serif-display,Cinzel,serif);letter-spacing:.14em;text-transform:uppercase;font-size:var(--fs-title);font-weight:var(--fw-semibold);padding:10px 18px;border-radius:4px;border:1px solid rgba(240,192,96,.85);background:linear-gradient(180deg,#f0d78c,#a07828);color:#1a1208;cursor:pointer}
     #d2jsp-draft-host[hidden]{display:none !important}
     #d2jsp-draft-host{position:fixed;inset:0;z-index:100001;background:rgba(6,4,2,.78);display:flex;align-items:flex-start;justify-content:center;padding:48px 16px 24px;overflow:auto}
-    #d2jsp-draft-host .d2jsp-draft-box{width:min(640px,100%);background:rgba(12,9,5,.98);border:1px solid rgba(212,168,71,.55);border-radius:8px;padding:16px 18px 18px;box-shadow:0 28px 80px rgba(0,0,0,.82)}
+    #d2jsp-draft-host .d2jsp-draft-box{width:min(880px,100%);background:rgba(12,9,5,.98);border:1px solid rgba(212,168,71,.55);border-radius:8px;padding:16px 18px 18px;box-shadow:0 28px 80px rgba(0,0,0,.82)}
+    #d2jsp-draft-host .d2jsp-shot-row{display:grid;grid-template-columns:168px minmax(0,1fr);gap:12px;align-items:start;margin:0 0 14px}
+    #d2jsp-draft-host .d2jsp-shot-row .d2jsp-draft{margin:0}
+    #d2jsp-draft-host .d2jsp-shot{width:160px;height:112px;object-fit:contain;background:#120e08;display:block;cursor:pointer}
     #d2jsp-draft-host .d2jsp-draft-k{font-family:var(--serif-display,Cinzel,serif);letter-spacing:.14em;text-transform:uppercase;color:#f0d78c;margin:0 0 8px}
     #d2jsp-draft-host .d2jsp-draft-subject{font-size:var(--fs-title);color:#f6e7c2;margin:4px 0 12px}
   </style>
@@ -11140,7 +11149,7 @@ function d2jspDraft(name, base, mods, copies, fg) {
   var c = copies | 0;
   if (c > 1) lines.push('copies: ' + c);
   lines.push(price + ' fg');
-  return { ok: true, subject: subject, body: lines.join('\n'), forum: D2JSP_BOARD };
+  return { ok: true, subject: subject, body: lines.join('\n'), forum: D2JSP_BOARD, name: nm };
 }
 function d2jspItemBlock(name, base, mods, copies, fg, sold) {
   var one = d2jspDraft(name, base, sold ? '' : mods, copies, fg);
@@ -11152,7 +11161,7 @@ function d2jspItemBlock(name, base, mods, copies, fg, sold) {
   if (c > 1) lines.push('copies: ' + c);
   var parts = String(one.body || '').split('\n');
   lines.push(parts[parts.length - 1]);
-  return { ok: true, subject: one.subject, body: lines.join('\n'), forum: one.forum, sold: true };
+  return { ok: true, subject: one.subject, body: lines.join('\n'), forum: one.forum, sold: true, name: nm };
 }
 function d2jspShopDraft(items) {
   var sale = [], gone = [], list = items || [];
@@ -11163,13 +11172,82 @@ function d2jspShopDraft(items) {
     (it.sold ? gone : sale).push(block);
   }
   if (!sale.length && !gone.length) return { ok: false, reason: 'no price' };
+  function pack(block){ return { name: block.name, body: block.body }; }
   if (sale.length === 1 && !gone.length) {
-    return { ok: true, subject: sale[0].subject, body: sale[0].body, forum: sale[0].forum, shop: true };
+    var only = sale[0];
+    return { ok: true, subject: only.subject, body: only.body, forum: only.forum, shop: true, name: only.name, blocks: [pack(only)] };
   }
+  var parts = sale.concat(gone);
   var n = sale.length;
   var subject = 'Selling ' + n + (n === 1 ? ' item' : ' items');
-  var body = sale.concat(gone).map(function(block){ return block.body; }).join('\n\n');
-  return { ok: true, subject: subject, body: body, forum: D2JSP_BOARD, shop: true };
+  var body = parts.map(function(block){ return block.body; }).join('\n\n');
+  return { ok: true, subject: subject, body: body, forum: D2JSP_BOARD, shop: true, blocks: parts.map(pack) };
+}
+function d2jspShotKey(name) {
+  return String(name || '')
+    .replace(/[\u2019\u2018]/g, "'")
+    .replace(/\s*\([^)]*\)\s*$/, '')
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+function d2jspNamesFrame(frame, want, key) {
+  var lists = [frame.nw, frame.own, frame.mf, frame.unr];
+  for (var a = 0; a < lists.length; a++) {
+    var arr = lists[a] || [];
+    for (var b = 0; b < arr.length; b++) {
+      var u = String(arr[b] == null ? '' : arr[b]);
+      if (u === want || d2jspShotKey(u) === key) return true;
+    }
+  }
+  return false;
+}
+function d2jspShotFile(frame) {
+  var ff = String((frame && (frame.ff || frame.f)) || '');
+  if (!ff || /[\\/\u0000]/.test(ff) || ff.indexOf('..') >= 0) return '';
+  return ff;
+}
+/* The reel records which screenshot named the item. Newest session is first.
+   A thumb is kept only when it is a data image. A filename stays a single file
+   name, so a machine path never becomes the picture. No frame that names the
+   item means no screenshot. */
+function d2jspShotOf(name, log) {
+  var want = String(name || '').trim();
+  var key = d2jspShotKey(want);
+  if (!want || !key || !Array.isArray(log)) return null;
+  var hit = null;
+  for (var i = 0; i < log.length; i++) {
+    var pf = (log[i] && log[i].pf) || [];
+    for (var j = 0; j < pf.length; j++) {
+      var frame = pf[j] || {};
+      if (!d2jspNamesFrame(frame, want, key)) continue;
+      var th = String(frame.th || '');
+      if (th.indexOf('data:image/') !== 0) th = '';
+      var ff = d2jspShotFile(frame);
+      if (!th && !ff) continue;
+      var rec = { th: th, ff: ff };
+      if (!hit || (!hit.th && rec.th)) hit = rec;
+    }
+  }
+  return hit;
+}
+function d2jspPostPairs(draft, log) {
+  var body = String((draft && draft.body) || '');
+  var blocks = (draft && Array.isArray(draft.blocks) && draft.blocks.length)
+    ? draft.blocks
+    : [{ name: String((draft && draft.name) || ''), body: body }];
+  var joined = '';
+  for (var i = 0; i < blocks.length; i++) {
+    joined += (i ? '\n\n' : '') + String((blocks[i] && blocks[i].body) || '');
+  }
+  if (joined !== body) return { ok: false, body: body, rows: [] };
+  var rows = [];
+  for (var k = 0; k < blocks.length; k++) {
+    var block = blocks[k] || {};
+    var item = String(block.name || '');
+    rows.push({ name: item, body: String(block.body || ''), shot: d2jspShotOf(item, log) });
+  }
+  return { ok: true, body: body, rows: rows };
 }
 function d2jspPostUrl(draft) {
   var payload = { subject: draft.subject, body: draft.body, forum: draft.forum };
@@ -11478,7 +11556,7 @@ function d2jspPriceLine(q) {
     return 'Public price unknown.';
   }
   function cardHtml(n){
-    var art = (typeof artOr === 'function') ? artOr(n, '<span>◆</span>', 'lg') : '';
+    var art = d2jspArt(n);
     var base = baseOf(n);
     var mods = modsOf(n);
     var send = d2jspPriceToSend((quoted[n] || {}).fg, typedOf(n));
@@ -11584,6 +11662,14 @@ function d2jspPriceLine(q) {
     }
     list.setAttribute('data-d2jsp-sig', sig);
     list.innerHTML = '<p class="d2jsp-say" id="d2jsp-count"></p>' + rows.map(cardHtml).join('');
+    try { if (window._vHydrateShots) window._vHydrateShots(list); } catch (eHydrate) {}
+    var shots = list.querySelectorAll('img.d2jsp-shot');
+    for (var s = 0; s < shots.length; s++) {
+      shots[s].addEventListener('click', function(ev){
+        if (ev && ev.stopPropagation) ev.stopPropagation();
+        if (window._shotLightbox) window._shotLightbox(this.getAttribute('data-shot') || '', this.src);
+      });
+    }
     applyFind();
   }
   function ask(name, done){
@@ -11951,6 +12037,111 @@ function d2jspPriceLine(q) {
     }
     return host;
   }
+  function d2jspShotRead(name) {
+    var raw = '';
+    try {
+      raw = (window.LSR && window.LSR.getItem) ? (window.LSR.getItem('d2r_intakeLog') || '') : '';
+    } catch (eRead) { raw = ''; }
+    var log = null;
+    try { log = JSON.parse(raw || '[]'); } catch (eParse) { log = null; }
+    if (!Array.isArray(log)) return null;
+    return d2jspShotOf(name, log);
+  }
+  function d2jspArt(n) {
+    var shot = d2jspShotRead(n);
+    var art = (typeof artOr === 'function') ? artOr(n, '<span>◆</span>', 'lg') : '';
+    if (shot && shot.th) {
+      return '<img class="d2jsp-shot" alt="" src="' + esc(shot.th) + '"'
+        + (shot.ff ? (' data-shot="' + esc(shot.ff) + '"') : '')
+        + '>';
+    }
+    if (shot && shot.ff) {
+      var src = (typeof artUrl === 'function') ? (artUrl(n) || '') : '';
+      return '<div class="to-shot to-noshot d2jsp-shot" data-ffsrc="' + esc(shot.ff) + '"'
+        + (src ? (' data-artfb="' + esc(src) + '"') : '')
+        + ' title="The screenshot is in the linked folder."></div>';
+    }
+    return art;
+  }
+  function d2jspShotCell(name, shot) {
+    var cell = document.createElement('div');
+    cell.className = 'd2jsp-shot-cell';
+    if (shot && shot.th) {
+      var img = document.createElement('img');
+      img.className = 'd2jsp-shot';
+      img.alt = '';
+      img.src = shot.th;
+      if (shot.ff) img.setAttribute('data-shot', shot.ff);
+      img.addEventListener('click', function(ev){
+        if (ev && ev.stopPropagation) ev.stopPropagation();
+        if (window._shotLightbox) window._shotLightbox(img.getAttribute('data-shot') || '', img.src);
+      });
+      cell.appendChild(img);
+      return cell;
+    }
+    if (shot && shot.ff) {
+      var ph = document.createElement('div');
+      ph.className = 'to-shot to-noshot d2jsp-shot';
+      ph.setAttribute('data-ffsrc', shot.ff);
+      ph.title = 'The screenshot is in the linked folder.';
+      var src = (typeof artUrl === 'function') ? (artUrl(name) || '') : '';
+      if (src) ph.setAttribute('data-artfb', src);
+      cell.appendChild(ph);
+      return cell;
+    }
+    var hold = document.createElement('div');
+    hold.className = 'd2jsp-art';
+    hold.title = 'No screenshot names this item. This is its in-game art.';
+    if (typeof artOr === 'function') hold.innerHTML = artOr(name, '<span>◆</span>', 'lg');
+    cell.appendChild(hold);
+    return cell;
+  }
+  function d2jspMountShots(host, draft) {
+    if (!host || !draft || !draft.body) return;
+    var view = host.querySelector('[data-d2jsp-draft-view]');
+    if (!view) return;
+    var log = [];
+    try {
+      var raw = (window.LSR && window.LSR.getItem) ? (window.LSR.getItem('d2r_intakeLog') || '') : '[]';
+      log = JSON.parse(raw || '[]');
+    } catch (eLog) { log = []; }
+    if (!Array.isArray(log)) log = [];
+    var pairs = d2jspPostPairs(draft, log);
+    var old = host.querySelector('[data-d2jsp-pairs]');
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+    var note = host.querySelector('[data-d2jsp-shot-note]');
+    if (note && note.parentNode) note.parentNode.removeChild(note);
+    view.hidden = false;
+    if (!pairs.ok) return;
+    var box = view.parentNode;
+    if (!box) return;
+    var wrap = document.createElement('div');
+    wrap.setAttribute('data-d2jsp-pairs', '1');
+    for (var i = 0; i < pairs.rows.length; i++) {
+      var row = pairs.rows[i];
+      var line = document.createElement('div');
+      line.className = 'd2jsp-shot-row';
+      line.appendChild(d2jspShotCell(row.name, row.shot));
+      var pre = document.createElement('pre');
+      pre.className = 'd2jsp-draft';
+      pre.textContent = row.body;
+      line.appendChild(pre);
+      wrap.appendChild(line);
+    }
+    var shown = '';
+    var pres = wrap.querySelectorAll('pre');
+    for (var p = 0; p < pres.length; p++) shown += (p ? '\n\n' : '') + pres[p].textContent;
+    if (shown !== String(draft.body) || view.textContent !== String(draft.body)) return;
+    var say = document.createElement('p');
+    say.className = 'd2jsp-say';
+    say.setAttribute('data-d2jsp-shot-note', '1');
+    say.textContent = 'The picture stays beside the item on this screen. The board receives the text.';
+    box.insertBefore(say, view);
+    box.insertBefore(wrap, view);
+    view.hidden = true;
+    try { if (window._vHydrateShots) window._vHydrateShots(wrap); } catch (eHydrate) {}
+  }
+  window._d2jspMountShots = d2jspMountShots;
   function openDraft(name, draft){
     var host = draftHost();
     host.hidden = false;
@@ -11972,6 +12163,7 @@ function d2jspPriceLine(q) {
       + '</div></div>';
     var back = host.querySelector('[data-d2jsp-draft-close]');
     if (back){ try { back.focus(); } catch (eFocus) {} }
+    d2jspMountShots(host, draft);
   }
   function showReceipt(kind, detail, topic){
     var host = draftHost();

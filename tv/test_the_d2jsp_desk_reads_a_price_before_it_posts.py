@@ -390,6 +390,182 @@ window._cbShown = function(){ return { name: 'Grief', base: 'Phase Blade' }; };
         self.assertEqual(out["shopGone"]["body"], "SOLD Grief Phase Blade\n30 fg")
         self.assertNotIn("SHOULD NOT APPEAR", out["shopGone"]["body"])
 
+    def test_a_post_shows_the_screenshot_that_named_the_item(self):
+        if NODE is None:
+            self.skipTest("node is not on this machine")
+        pane = _between(self.bible, 'id="tab-d2jsp"', 'id="tab-vault"')
+        script = pane.split("<script>", 1)[1].split("</script>", 1)[0]
+        card_at = script.index("function cardHtml(")
+        cards_at = script.index("function currentCards(", card_at)
+        self.assertLess(cards_at - card_at, 2200)
+        self.assertIn("d2jspArt(n)", script[card_at:cards_at])
+        draft_fn = self.bible.index("function openDraft(")
+        draft_end = self.bible.index("function showReceipt(", draft_fn)
+        self.assertLess(draft_end - draft_fn, 1400)
+        shown_box = self.bible[draft_fn:draft_end]
+        self.assertIn("d2jspMountShots(host, draft)", shown_box)
+        read_at = self.bible.index("function d2jspShotRead(")
+        read_end = self.bible.index("function d2jspArt(", read_at)
+        reader = self.bible[read_at:read_end]
+        self.assertIn("getItem('d2r_intakeLog')", reader)
+        self.assertNotIn("setItem", reader)
+        mount_at = self.bible.index("function d2jspMountShots(")
+        mount_end = self.bible.index("function openDraft(", mount_at)
+        mount = self.bible[mount_at:mount_end]
+        self.assertLess(mount.index("shown !== String(draft.body)"), mount.index("view.hidden = true"))
+        self.assertIn("pre.textContent = row.body", mount)
+        self.assertIn("d2jspPostPairs(draft, log)", mount)
+        self.assertIn("d2jspShotCell(row.name, row.shot)", mount)
+        paint_at = script.index("function paint(){")
+        show_at = script.index("window._d2jspShow = function(){", paint_at)
+        self.assertIn("_vHydrateShots(list)", script[paint_at:show_at])
+        self.assertNotIn("draft.blocks", self.bible[self.bible.index("function postDraft("):self.bible.index("window.addEventListener('message'", self.bible.index("function postDraft("))])
+        self.assertNotIn("d2r_intakeLog", _read(BEACON))
+        body = r"""
+var log = [
+  { items: ['Grief'], pf: [{ nw: ['Shako'], th: 'data:image/gif;base64,QQQQ', ff: 'shako.png' }] },
+  { pf: [{ nw: ['Grief'], th: 'data:image/gif;base64,AAAA', ff: 'grief.png' }] },
+  { pf: [{ unr: ['Blade Bow (4os low base)'], th: 'data:image/gif;base64,BBBB', ff: 'bow.png' }] },
+  { pf: [{ nw: ["Guardian's Thunder"], th: 'javascript:alert(1)', ff: 'C:/secret/thunder.png' }] },
+  { pf: [{ mf: ['Guardian\u2019s Thunder'], th: 'data:image/png;base64,CCCC', ff: 'thunder.png' }] },
+  { pf: [{ own: ['Tarnhelm'], th: 'javascript:alert(1)', ff: 'tarn.png' }] },
+  { pf: [{ nw: ['Grief'], ff: 'newer-grief.png' }, { nw: ['Grief'], th: 'data:image/gif;base64,OLD', ff: 'old-grief.png' }] }
+];
+var griefOnly = [
+  { pf: [{ nw: ['Grief'], ff: 'newer-grief.png' }] },
+  { pf: [{ nw: ['Grief'], th: 'data:image/gif;base64,OLD', ff: 'old-grief.png' }] }
+];
+var shop = d2jspShopDraft([
+  {name:'Grief', base:'Phase Blade', mods:'+340-400% Enhanced Damage', copies:1, fg:30, sold:false},
+  {name:"Guardian's Thunder", base:'Colossal Jewel', mods:'Adds 1-75 lightning damage', copies:1, fg:1100, sold:false}
+]);
+var pairs = d2jspPostPairs(shop, log);
+var bow = d2jspShotOf('Blade Bow', log);
+var tarn = d2jspShotOf('Tarnhelm', log);
+var none = d2jspShotOf('Grief', []);
+var missing = d2jspShotOf('Grief', null);
+var listed = d2jspShotOf('Grief', log.slice(0, 1));
+var older = d2jspShotOf('Grief', griefOnly);
+var bad = d2jspPostPairs({ body: 'Selling Grief Phase Blade\n30 fg', blocks: [{ name: 'Shako', body: 'SOLD Shako\n10 fg' }] }, log);
+var one = d2jspDraft('Grief', 'Phase Blade', '+340-400% Enhanced Damage', 1, 30);
+var onePairs = d2jspPostPairs(one, log);
+function El(tag) {
+  this.tag = tag; this.childNodes = []; this.hidden = false; this.attrs = {}; this.src = '';
+}
+El.prototype.setAttribute = function(k, v){ this.attrs[k] = String(v); };
+El.prototype.getAttribute = function(k){ return Object.prototype.hasOwnProperty.call(this.attrs, k) ? this.attrs[k] : null; };
+El.prototype.addEventListener = function(){};
+El.prototype.appendChild = function(ch){ ch.parentNode = this; this.childNodes.push(ch); return ch; };
+El.prototype.insertBefore = function(ch, ref){
+  ch.parentNode = this;
+  var i = this.childNodes.indexOf(ref);
+  if (i < 0) this.childNodes.push(ch); else this.childNodes.splice(i, 0, ch);
+  return ch;
+};
+El.prototype.removeChild = function(ch){
+  var i = this.childNodes.indexOf(ch);
+  if (i >= 0) this.childNodes.splice(i, 1);
+  ch.parentNode = null;
+};
+El.prototype.querySelectorAll = function(sel){
+  var out = [], wantAttr = '', wantTag = '';
+  if (sel.charAt(0) === '[') wantAttr = sel.slice(1, -1); else wantTag = sel;
+  function walk(node){
+    if (wantAttr && node.attrs && Object.prototype.hasOwnProperty.call(node.attrs, wantAttr)) out.push(node);
+    if (wantTag && node.tag === wantTag) out.push(node);
+    (node.childNodes || []).forEach(walk);
+  }
+  walk(this);
+  return out;
+};
+El.prototype.querySelector = function(sel){ return this.querySelectorAll(sel)[0] || null; };
+Object.defineProperty(El.prototype, 'textContent', {
+  get: function(){
+    if (this.childNodes && this.childNodes.length) {
+      return this.childNodes.map(function(ch){ return ch.textContent; }).join('');
+    }
+    return this._text || '';
+  },
+  set: function(v){ this._text = String(v == null ? '' : v); this.childNodes = []; }
+});
+document.createElement = function(tag){ return new El(tag); };
+window.LSR = { getItem: function(k){ return k === 'd2r_intakeLog' ? JSON.stringify(log) : null; } };
+var host = new El('div');
+var view = new El('pre');
+view.setAttribute('data-d2jsp-draft-view', '');
+view.textContent = shop.body;
+host.appendChild(view);
+window._d2jspMountShots(host, shop);
+var pres = host.querySelectorAll('pre').filter(function(node){ return node !== view; });
+var srcs = [];
+function walkImg(node){
+  if (node.tag === 'img') srcs.push(node.src);
+  (node.childNodes || []).forEach(walkImg);
+}
+walkImg(host);
+var host2 = new El('div');
+var view2 = new El('pre');
+view2.setAttribute('data-d2jsp-draft-view', '');
+view2.textContent = 'Selling Grief Phase Blade\n30 fg';
+host2.appendChild(view2);
+window._d2jspMountShots(host2, { body: view2.textContent, blocks: [{ name: 'Shako', body: 'SOLD Shako\n10 fg' }] });
+process.stdout.write(JSON.stringify({
+  shop: shop, pairs: pairs, bow: bow, tarn: tarn, none: none, missing: missing,
+  listed: listed, older: older, bad: bad, one: one, onePairs: onePairs,
+  mounted: {
+    hidden: view.hidden, view: view.textContent, shown: pres.map(function(node){ return node.textContent; }),
+    srcs: srcs, badHidden: view2.hidden, badPairs: !!host2.querySelector('[data-d2jsp-pairs]')
+  }
+}));
+"""
+        stubs = r"""
+var document = {
+  documentElement: { classList: { contains: function(){ return false; } } },
+  getElementById: function(){ return null; },
+  addEventListener: function(){},
+  createElement: function(){ return { style: {}, hidden: true, querySelector: function(){ return null; }, setAttribute: function(){} }; },
+  body: { appendChild: function(){} }
+};
+var localStorage = { _m: {}, getItem: function(k){ return this._m[k] || null; }, setItem: function(k, v){ this._m[k] = String(v); } };
+var location = { hostname: '127.0.0.1' };
+var window = { addEventListener: function(){}, LSR: null };
+"""
+        out = json.loads(_node(stubs + script, body))
+        self.assertEqual(out["shop"]["blocks"][0]["name"], "Grief")
+        self.assertEqual(out["shop"]["blocks"][1]["name"], "Guardian's Thunder")
+        self.assertEqual(
+            "\n\n".join(block["body"] for block in out["shop"]["blocks"]),
+            out["shop"]["body"],
+        )
+        self.assertNotIn("data:image", out["shop"]["body"])
+        self.assertNotIn("shako.png", out["shop"]["body"])
+        self.assertTrue(out["pairs"]["ok"])
+        self.assertEqual(out["pairs"]["rows"][0]["shot"]["th"], "data:image/gif;base64,AAAA")
+        self.assertEqual(out["pairs"]["rows"][0]["shot"]["ff"], "grief.png")
+        self.assertEqual(out["pairs"]["rows"][1]["shot"]["th"], "data:image/png;base64,CCCC")
+        self.assertEqual(out["pairs"]["rows"][1]["shot"]["ff"], "thunder.png")
+        self.assertEqual(out["bow"]["th"], "data:image/gif;base64,BBBB")
+        self.assertEqual(out["tarn"]["th"], "")
+        self.assertEqual(out["tarn"]["ff"], "tarn.png")
+        self.assertIsNone(out["none"])
+        self.assertIsNone(out["missing"])
+        self.assertIsNone(out["listed"])
+        self.assertEqual(out["older"]["th"], "data:image/gif;base64,OLD")
+        self.assertEqual(out["older"]["ff"], "old-grief.png")
+        self.assertFalse(out["bad"]["ok"])
+        self.assertEqual(out["bad"]["rows"], [])
+        self.assertEqual(out["onePairs"]["rows"][0]["name"], "Grief")
+        self.assertEqual(out["onePairs"]["rows"][0]["body"], out["one"]["body"])
+        self.assertEqual(out["onePairs"]["rows"][0]["shot"]["ff"], "grief.png")
+        mounted = out["mounted"]
+        self.assertTrue(mounted["hidden"])
+        self.assertEqual(mounted["view"], out["shop"]["body"])
+        self.assertEqual("\n\n".join(mounted["shown"]), out["shop"]["body"])
+        self.assertEqual(mounted["srcs"], ["data:image/gif;base64,AAAA", "data:image/png;base64,CCCC"])
+        self.assertNotIn("data:image/gif;base64,QQQQ", mounted["srcs"])
+        self.assertFalse(mounted["badHidden"])
+        self.assertFalse(mounted["badPairs"])
+
     def test_the_room_lists_the_vault_and_posts_through_chrome(self):
         pane = _between(self.bible, 'id="tab-d2jsp"', 'id="tab-vault"')
         self.assertNotIn("Copy the bridge", pane)
