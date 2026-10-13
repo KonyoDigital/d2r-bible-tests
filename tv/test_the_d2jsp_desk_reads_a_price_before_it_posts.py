@@ -772,6 +772,7 @@ process.stdout.write(JSON.stringify({
         self.assertIn("subject.length>50", box)
         self.assertIn("sItalic", box)
         self.assertIn("btn.click()", box)
+        self.assertIn("_chrome_bin()", box)
         self.assertNotIn('textarea[name="message"]', box)
         self.assertNotIn("mode=post", box)
         self.assertNotIn("form.submit", box)
@@ -903,6 +904,68 @@ process.stdout.write(JSON.stringify({
         )
         self.assertIsNone(missed)
         self.assertEqual(missed_reason, "chrome-unread")
+
+    def test_a_linux_chrome_cookie_opens_with_one_round(self):
+        import sqlite3
+        import tempfile
+        import d2jsp_chrome as desk
+        now = 1_700_000_000
+        chrome_now = desk._chrome_now(now)
+        blob = desk._seal_v10_raw("peanuts", b"desk-session", rounds=1)
+        if blob is None:
+            return
+        self.assertEqual(desk.decrypt_v10(blob, "peanuts", rounds=1), "desk-session")
+        self.assertIsNone(desk.decrypt_v10(blob, "peanuts"))
+        self.assertIn("X11; Linux x86_64", desk.chrome_user_agent(platform="linux", version="120.0.0.0"))
+        self.assertIn("Macintosh", desk.chrome_user_agent(platform="darwin", version="120.0.0.0"))
+        self.assertEqual(
+            desk._chrome_bin(platform="linux", which=lambda name: "/usr/bin/google-chrome" if name == "google-chrome" else None),
+            "/usr/bin/google-chrome",
+        )
+        self.assertIsNone(desk._chrome_bin(platform="linux", which=lambda name: None))
+
+        class _Proc(object):
+            def __init__(self, code, out):
+                self.returncode = code
+                self.stdout = out
+
+        words = desk._linux_chrome_passwords(
+            run=lambda *args, **kwargs: _Proc(0, b"keyring-secret\n"),
+            tool="/usr/bin/secret-tool",
+        )
+        self.assertEqual(words[0], "keyring-secret")
+        self.assertEqual(words[-1], "peanuts")
+        only = desk._linux_chrome_passwords(
+            run=lambda *args, **kwargs: _Proc(1, b""),
+            tool="/usr/bin/secret-tool",
+        )
+        self.assertEqual(only, ["peanuts"])
+        live = desk.live_cookie_header
+        self.assertIn("linux", live.__code__.co_consts)
+
+        folder = tempfile.mkdtemp(prefix="d2jsp-linux-")
+        db = os.path.join(folder, "Cookies")
+        try:
+            con = sqlite3.connect(db)
+            con.execute("create table cookies (host_key text, name text, encrypted_value blob, expires_utc integer)")
+            con.execute(
+                "insert into cookies values (?,?,?,?)",
+                (".d2jsp.org", "sid", blob, chrome_now + 10**12),
+            )
+            con.commit()
+            con.close()
+            header, reason = desk._linux_cookie_header(
+                now_utc=now, paths=[db], passwords=["nope", "peanuts"],
+            )
+            self.assertEqual(reason, "ok")
+            self.assertEqual(header, "sid=desk-session")
+            missed, missed_reason = desk._linux_cookie_header(
+                now_utc=now, paths=[db], passwords=["nope"],
+            )
+            self.assertIsNone(missed)
+            self.assertEqual(missed_reason, "chrome-unread")
+        finally:
+            shutil.rmtree(folder, ignore_errors=True)
 
 
 if __name__ == "__main__":

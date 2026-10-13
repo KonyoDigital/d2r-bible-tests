@@ -8,7 +8,8 @@ The cookie is not stored, not logged, and not returned. A missing login, an
 unreadable cookie, or a form this desk does not know returns a status word
 and does not claim a post.
 
-Windows has no reader here. A public page has no route. Both stay unposted.
+Windows has no reader here. A public page has no route. Those stay unposted.
+Linux reads the Chrome profile on that machine.
 """
 from __future__ import annotations
 
@@ -59,8 +60,11 @@ def _chrome_now(now_utc):
     return int((float(now_utc) + _CHROME_EPOCH) * 1000000)
 
 
-def _seal_v10_raw(password, raw):
-    """Encrypt one cookie plaintext. None when the cipher library is absent."""
+def _seal_v10_raw(password, raw, rounds=1003):
+    """Encrypt one cookie plaintext. None when the cipher library is absent.
+
+    Mac Chrome derives the key with 1003 rounds. Linux Chrome uses 1 round.
+    """
     try:
         from hashlib import pbkdf2_hmac
         from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
@@ -69,7 +73,7 @@ def _seal_v10_raw(password, raw):
     try:
         pad = 16 - (len(raw) % 16)
         block = bytes(raw) + bytes([pad]) * pad
-        key = pbkdf2_hmac("sha1", str(password).encode("utf-8"), b"saltysalt", 1003, 16)
+        key = pbkdf2_hmac("sha1", str(password).encode("utf-8"), b"saltysalt", int(rounds), 16)
         enc = Cipher(algorithms.AES(key), modes.CBC(b" " * 16)).encryptor()
         return b"v10" + enc.update(block) + enc.finalize()
     except Exception:
@@ -97,11 +101,12 @@ def _cookie_text(body, host=None):
     return text
 
 
-def decrypt_v10(blob, password, host=None):
+def decrypt_v10(blob, password, host=None, rounds=1003):
     """Open one Chrome v10 cookie. Any other prefix, or a failed open, is None.
 
     host is the row host_key. Later Chrome stores bind the value to SHA256 of
-    that host. Without the host, only a plain value opens.
+    that host. Without the host, only a plain value opens. rounds is 1003 on
+    Mac Chrome and 1 on Linux Chrome.
     """
     if not isinstance(blob, (bytes, bytearray)) or blob[:3] != b"v10" or not password:
         return None
@@ -111,7 +116,7 @@ def decrypt_v10(blob, password, host=None):
     except Exception:
         return None
     try:
-        key = pbkdf2_hmac("sha1", str(password).encode("utf-8"), b"saltysalt", 1003, 16)
+        key = pbkdf2_hmac("sha1", str(password).encode("utf-8"), b"saltysalt", int(rounds), 16)
         cipher = Cipher(algorithms.AES(key), modes.CBC(b" " * 16))
         dec = cipher.decryptor()
         raw = dec.update(bytes(blob[3:])) + dec.finalize()
@@ -126,7 +131,7 @@ def decrypt_v10(blob, password, host=None):
     return text
 
 
-def cookie_header_from_rows(rows, password, now_utc=None, decrypt=None):
+def cookie_header_from_rows(rows, password, now_utc=None, decrypt=None, rounds=1003):
     """Build a Cookie header from rows whose host is d2jsp. Other hosts are ignored.
 
     rows are (host_key, name, encrypted_value, expires_utc). An expired row is
@@ -136,7 +141,7 @@ def cookie_header_from_rows(rows, password, now_utc=None, decrypt=None):
     def open_one(blob, host):
         if decrypt is not None:
             return decrypt(blob)
-        return decrypt_v10(blob, password, host)
+        return decrypt_v10(blob, password, host, rounds=rounds)
 
     now = _chrome_now(now_utc)
     pairs = []
@@ -204,10 +209,93 @@ def _read_rows(db_path):
     return rows
 
 
-def live_cookie_header(now_utc=None):
-    """The d2jsp cookie header from this Mac's Chrome, or a reason it could not be read."""
-    if sys.platform != "darwin":
+def _linux_cookie_dbs():
+    """Cookie databases under the Linux Chrome and Chromium profiles. Default first."""
+    home = os.path.expanduser("~")
+    roots = (
+        os.path.join(home, ".config", "google-chrome"),
+        os.path.join(home, ".config", "chromium"),
+    )
+    found = []
+    for root in roots:
+        if not os.path.isdir(root):
+            continue
+        try:
+            names = list(os.listdir(root))
+        except OSError:
+            continue
+        names.sort(key=lambda name: (name != "Default", name))
+        for name in names:
+            base = os.path.join(root, name)
+            for rel in ("Cookies", os.path.join("Network", "Cookies")):
+                path = os.path.join(base, rel)
+                if os.path.isfile(path):
+                    found.append(path)
+                    break
+    return found
+
+
+def _linux_chrome_passwords(run=None, tool=None):
+    """Keyring secrets for Chrome, then Chrome's own published fallback.
+
+    The fallback word is the one Chromium uses when the keyring has no secret.
+    It is not a password this desk chooses. Nothing returned here is logged.
+    """
+    found = []
+    if tool is None:
+        tool = shutil.which("secret-tool")
+    if tool:
+        runner = run or subprocess.run
+        for app in ("chrome", "chromium"):
+            try:
+                proc = runner(
+                    [tool, "lookup", "application", app],
+                    capture_output=True, timeout=8,
+                )
+            except (OSError, subprocess.TimeoutExpired):
+                continue
+            if getattr(proc, "returncode", 1) != 0:
+                continue
+            text = (getattr(proc, "stdout", b"") or b"").decode("utf-8", "replace").strip("\n")
+            if text and text not in found:
+                found.append(text)
+    if "peanuts" not in found:
+        found.append("peanuts")
+    return found
+
+
+def _linux_cookie_header(now_utc=None, paths=None, passwords=None):
+    """A d2jsp cookie header from a Linux Chrome profile, or a reason."""
+    stores = _linux_cookie_dbs() if paths is None else list(paths)
+    if not stores:
         return None, "chrome-unread"
+    secrets = _linux_chrome_passwords() if passwords is None else list(passwords)
+    saw_fail = False
+    saw_rows = False
+    for path in stores:
+        try:
+            rows = _read_rows(path)
+        except (OSError, sqlite3.Error):
+            continue
+        if rows:
+            saw_rows = True
+        for password in secrets:
+            header, reason = cookie_header_from_rows(
+                rows, password, now_utc=now_utc, rounds=1,
+            )
+            if header:
+                return header, "ok"
+            if reason == "chrome-unread":
+                saw_fail = True
+    if saw_fail:
+        return None, "chrome-unread"
+    if saw_rows:
+        return None, "need-login"
+    return None, "chrome-unread"
+
+
+def _mac_cookie_header(now_utc=None):
+    """The d2jsp cookie header from this Mac's Chrome, or a reason it could not be read."""
     path = _cookie_db_path()
     if not path:
         return None, "chrome-unread"
@@ -228,6 +316,15 @@ def live_cookie_header(now_utc=None):
     except Exception:
         return None, "chrome-unread"
     return cookie_header_from_rows(rows, password, now_utc=now_utc)
+
+
+def live_cookie_header(now_utc=None):
+    """The d2jsp cookie header from this machine's Chrome, or a reason it could not be read."""
+    if sys.platform == "darwin":
+        return _mac_cookie_header(now_utc)
+    if sys.platform.startswith("linux"):
+        return _linux_cookie_header(now_utc)
+    return None, "chrome-unread"
 
 
 class _Compose(HTMLParser):
@@ -353,32 +450,71 @@ def _transport(method, url, headers, data):
         return exc.code, {"Location": loc or ""}, raw or b""
 
 
-def chrome_user_agent():
+def _chrome_bin(platform=None, which=None):
+    """The Chrome executable on this machine. None when it is not installed."""
+    plat = sys.platform if platform is None else platform
+    if plat == "darwin":
+        path = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+        if os.path.isfile(path):
+            return path
+        return None
+    if str(plat).startswith("linux"):
+        look = which or shutil.which
+        for name in ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser"):
+            found = look(name)
+            if found:
+                return found
+    return None
+
+
+def chrome_user_agent(platform=None, version=None):
     """The installed Chrome's own signature. A clearance cookie is bound to it.
 
     When the version cannot be read, the header still names Chrome and a
-    challenge page stays unread. It is not reported as a post.
+    challenge page stays unread. It is not reported as a post. Mac and Linux
+    name themselves, because a cookie from one does not travel as the other.
     """
-    version = "131.0.0.0"
-    if sys.platform == "darwin":
-        try:
-            proc = subprocess.run(
-                ["defaults", "read",
-                 "/Applications/Google Chrome.app/Contents/Info.plist",
-                 "CFBundleShortVersionString"],
-                capture_output=True, timeout=5, text=True,
-                encoding="utf-8", errors="replace",
-            )
-        except OSError:
-            proc = None
-        if proc is not None and proc.returncode == 0:
-            got = (proc.stdout or "").strip()
-            if re.fullmatch(r"\d+(?:\.\d+){2,3}", got):
-                version = got
+    plat = sys.platform if platform is None else platform
+    if version is None:
+        version = "131.0.0.0"
+        if plat == "darwin" and plat == sys.platform:
+            try:
+                proc = subprocess.run(
+                    ["defaults", "read",
+                     "/Applications/Google Chrome.app/Contents/Info.plist",
+                     "CFBundleShortVersionString"],
+                    capture_output=True, timeout=5, text=True,
+                    encoding="utf-8", errors="replace",
+                )
+            except OSError:
+                proc = None
+            if proc is not None and proc.returncode == 0:
+                got = (proc.stdout or "").strip()
+                if re.fullmatch(r"\d+(?:\.\d+){2,3}", got):
+                    version = got
+        elif str(plat).startswith("linux") and plat == sys.platform:
+            binary = _chrome_bin(platform=plat)
+            if binary:
+                try:
+                    proc = subprocess.run(
+                        [binary, "--version"],
+                        capture_output=True, timeout=5, text=True,
+                        encoding="utf-8", errors="replace",
+                    )
+                except OSError:
+                    proc = None
+                if proc is not None and proc.returncode == 0:
+                    got = (proc.stdout or "").strip().rsplit(" ", 1)[-1]
+                    if re.fullmatch(r"\d+(?:\.\d+){2,3}", got):
+                        version = got
+    if str(plat).startswith("linux"):
+        system = "X11; Linux x86_64"
+    else:
+        system = "Macintosh; Intel Mac OS X 10_15_7"
     return (
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "Mozilla/5.0 (%s) "
         "AppleWebKit/537.36 (KHTML, like Gecko) Chrome/%s Safari/537.36"
-    ) % version
+    ) % (system, version)
 
 
 def _open_chrome_login():
@@ -565,7 +701,9 @@ def _chrome_search(item, cookie):
     sock.bind(("127.0.0.1", 0))
     port = sock.getsockname()[1]
     sock.close()
-    browser = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    browser = _chrome_bin()
+    if not browser:
+        raise OSError("chrome")
     proc = subprocess.Popen(
         [browser, "--headless=new", "--disable-gpu", "--no-first-run",
          "--no-default-browser-check", "--disable-blink-features=AutomationControlled",
@@ -680,7 +818,9 @@ def _chrome_post(subject, text, cookie):
     sock.bind(("127.0.0.1", 0))
     port = sock.getsockname()[1]
     sock.close()
-    browser = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    browser = _chrome_bin()
+    if not browser:
+        raise OSError("chrome")
     proc = subprocess.Popen(
         [browser, "--headless=new", "--disable-gpu", "--no-first-run",
          "--no-default-browser-check", "--disable-blink-features=AutomationControlled",
