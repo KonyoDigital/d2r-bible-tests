@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3711** | `(this commit)` | v3711 — HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
+| **v3712** | `(this commit)` | v3712 — HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
+| **v3711** | `b04ed48f` | v3711 — HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
 | **v3710** | `f92aff2a` | v3710 — HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
 | **v3709** | `a28a51b5` | v3709 — HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
 | **v3708** | `d9a2f6ca` | v3708 — HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
