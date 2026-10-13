@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3715** | `(this commit)` | v3715 — HEART: tv/test_a_hand_added_item_stays_his. One vault draw reads the witness store once and builds only the open review cards. |
+| **v3716** | `(this commit)` | v3716 — One add owns one resolved name. A magic or rare save stays in Magic and Rare and is not also filed on the mule map. A vault paint keeps an owned receipt. HEART: tv/test_a_hand_added_item_stays_his |
+| **v3715** | `e04b0cbb` | v3715 — HEART: tv/test_a_hand_added_item_stays_his. One vault draw reads the witness store once and builds only the open review cards. |
 | **v3714** | `ee1427b8` | v3714 — HEART: test_a_hand_added_item_stays_his. A catalog add files on Auto-Sort without a reel picture. The status names each item and its mule. Closing the picker paints before the vault redraws. The page keeps a vertical scroll. |
 | **v3713** | `9b8c92fc` | v3713 — HEART: test_a_hand_added_item_stays_his. A planner add saves and draws once when the planner closes. One forge scan serves the whole vault draw. A planner filing writes the routing ledger. The login lamp uses the weight and size tokens. |
 | **v3712** | `eb8d0988` | v3712 — HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |

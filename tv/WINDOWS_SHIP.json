@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3715",
+  "ver": "v3716",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3715: HEART: tv/test_a_hand_added_item_stays_his. One vault draw reads the witness store once and builds only the open review cards.",
+  "note": "v3716: One add owns one resolved name. A magic or rare save stays in Magic and Rare and is not also filed on the mule map. A vault paint keeps an owned receipt. HEART: tv/test_a_hand_added_item_stays_his",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
