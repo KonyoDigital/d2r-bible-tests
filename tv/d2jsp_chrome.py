@@ -802,6 +802,176 @@ def _chrome_search(item, cookie):
         shutil.rmtree(prof, ignore_errors=True)
 
 
+def _chrome_edit(topic, subject, text, cookie):
+    """Replace the saved topic through its own Edit link.
+
+    The link has to say Edit and open post.php. Anything else returns no-edit
+    and does not start a new trade. A title longer than 50 characters is not
+    sent. The cookie is not logged. His open Chrome is not the one this starts.
+    """
+    import time
+    import websocket
+    prof = tempfile.mkdtemp(prefix="d2jsp-post-")
+    sock = __import__("socket").socket()
+    sock.bind(("127.0.0.1", 0))
+    port = sock.getsockname()[1]
+    sock.close()
+    browser = _chrome_bin()
+    if not browser:
+        raise OSError("chrome")
+    proc = subprocess.Popen(
+        [browser, "--headless=new", "--disable-gpu", "--no-first-run",
+         "--no-default-browser-check", "--disable-blink-features=AutomationControlled",
+         "--remote-debugging-port=%d" % port, "--user-data-dir=%s" % prof,
+         "--remote-allow-origins=*", "--window-size=1100,800", "about:blank"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True,
+    )
+    base = "http://127.0.0.1:%d" % port
+    ws = None
+    try:
+        deadline = time.time() + 12
+        while time.time() < deadline:
+            try:
+                urllib.request.urlopen(base + "/json/version", timeout=2)
+                break
+            except Exception:
+                time.sleep(0.2)
+        else:
+            raise OSError("chrome")
+        tab = json.loads(urllib.request.urlopen(
+            urllib.request.Request(base + "/json/new?about:blank", method="PUT"),
+            timeout=10,
+        ).read().decode("utf-8", "replace"))
+        ws = websocket.create_connection(
+            tab["webSocketDebuggerUrl"], timeout=20, origin=base,
+        )
+        _cdp_call(ws, 1, "Network.enable")
+        _cdp_call(ws, 2, "Network.setUserAgentOverride", {"userAgent": chrome_user_agent()})
+        ident = 10
+        for part in str(cookie or "").split(";"):
+            if "=" not in part:
+                continue
+            name, value = part.split("=", 1)
+            name = name.strip()
+            if not name:
+                continue
+            _cdp_call(ws, ident, "Network.setCookie", {
+                "name": name,
+                "value": value,
+                "url": "https://forums.d2jsp.org/",
+                "domain": ".d2jsp.org",
+                "path": "/",
+                "secure": True,
+            })
+            ident += 1
+        _cdp_call(ws, 50, "Page.enable")
+        _cdp_call(ws, 51, "Page.navigate", {"url": str(topic or "")})
+        open_edit = (
+            "(function(){var as=document.querySelectorAll('a');"
+            "for(var i=0;i<as.length;i++){"
+            "var label=(as[i].textContent||'').replace(/\\s+/g,' ').trim();"
+            "if(label!=='Edit')continue;"
+            "var href=as[i].href||'';"
+            "if(href.indexOf('/post.php')<0)continue;"
+            "location.href=href;return 'opened';}"
+            "return 'no-edit';})()"
+        )
+        fill = (
+            "(function(){var box=document.querySelector("
+            + json.dumps('textarea[name="Post"]') + ");"
+            "var title=document.querySelector("
+            + json.dumps('input[name="ttitle"]') + ");"
+            "if(!box||!title||!box.form)return 'no-form';"
+            "var subject=" + json.dumps(str(subject or "")) + ";"
+            "if(subject.length>50)return 'title';"
+            "title.value=subject;box.value=" + json.dumps(str(text or "")) + ";"
+            "var picked=false;var labs=document.querySelectorAll('label');"
+            "for(var i=0;i<labs.length;i++){"
+            "if((labs[i].textContent||'').indexOf('Selling Item')<0)continue;"
+            "var input=document.getElementById(labs[i].htmlFor||'');"
+            "if(input&&input.name==='sType'){input.checked=true;picked=true;}}"
+            "if(!picked)return 'no-sell';"
+            "var paid=['sItalic','sBold','sRed'];"
+            "for(var p=0;p<paid.length;p++){"
+            "var extra=box.form.querySelector('input[name=\"'+paid[p]+'\"]');"
+            "if(extra)extra.checked=false;}"
+            "var btn=box.form.querySelector("
+            + json.dumps('input[name="submit"]') + ");"
+            "if(!btn)return 'no-submit';"
+            "btn.click();return 'clicked';})()"
+        )
+        opened = False
+        sent = False
+        href = ""
+        saw_page = False
+        deadline = time.time() + 25
+        while time.time() < deadline:
+            time.sleep(0.8)
+            try:
+                got = _cdp_call(ws, 60, "Runtime.evaluate", {
+                    "expression": "JSON.stringify({href:location.href,html:document.documentElement?document.documentElement.outerHTML:''})",
+                    "returnByValue": True,
+                }, wait=8)
+            except Exception:
+                continue
+            raw = ((got.get("result") or {}).get("result") or {}).get("value") or ""
+            try:
+                snap = json.loads(raw)
+            except Exception:
+                continue
+            href = str(snap.get("href") or "")
+            html = str(snap.get("html") or "")
+            if href and _on_forum(href) and "login" in href.lower():
+                return href
+            if html and not _challenge_page(html):
+                saw_page = True
+            if sent and _topic(href) and not _challenge_page(html):
+                return href
+            if (not opened) and saw_page:
+                try:
+                    opened_msg = _cdp_call(ws, 61, "Runtime.evaluate", {
+                        "expression": open_edit,
+                        "returnByValue": True,
+                    }, wait=8)
+                    opened_word = ((opened_msg.get("result") or {}).get("result") or {}).get("value") or ""
+                    if opened_word == "opened":
+                        opened = True
+                except Exception:
+                    continue
+            if opened and (not sent) and (not _challenge_page(html)) and ('name="Post"' in html):
+                try:
+                    filled = _cdp_call(ws, 62, "Runtime.evaluate", {
+                        "expression": fill,
+                        "returnByValue": True,
+                    }, wait=8)
+                    word = ((filled.get("result") or {}).get("result") or {}).get("value") or ""
+                    if word == "title":
+                        return href
+                    if word == "clicked":
+                        sent = True
+                except Exception:
+                    continue
+        if sent and href:
+            return href
+        if saw_page:
+            return "no-edit"
+        raise OSError("post")
+    finally:
+        if ws is not None:
+            try:
+                ws.close()
+            except Exception:
+                pass
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        except Exception:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+        shutil.rmtree(prof, ignore_errors=True)
+
+
 def _chrome_post(subject, text, cookie):
     """Submit a board 268 trade from the forum's own New Trade link.
 
@@ -1052,6 +1222,33 @@ def _public_topic(url):
     return urllib.parse.urlunparse(("https", _HOST, parts.path, "", parts.query, ""))
 
 
+def _send_edit(subject, text, cookie, topic, edit_post, open_login):
+    """Update one saved topic. A missing Edit door does not start a new trade."""
+    opener = edit_post or _chrome_edit
+    landed = None
+    try:
+        landed = opener(topic, subject, text, cookie)
+    except OSError as stuck:
+        landed = stuck
+    if isinstance(landed, OSError) or not landed or landed == "no-edit":
+        if landed == "no-edit":
+            return 200, {"ok": False, "reason": "not-posted"}
+        return 200, {"ok": False, "reason": "unread"}
+    landed = str(landed)
+    public = _public_topic(landed)
+    if public:
+        return 200, {"ok": True, "reason": "submitted", "topic": public}
+    if _on_forum(landed) and "login" in landed.lower():
+        door = open_login or _open_chrome_login
+        opened = False
+        try:
+            opened = bool(door())
+        except Exception:
+            opened = False
+        return 200, {"ok": False, "reason": "need-login", "opened": opened}
+    return 200, {"ok": False, "reason": "not-posted"}
+
+
 def _send_through_chrome(subject, text, cookie, chrome_post, open_login):
     """One scratch-Chrome submit. A topic URL is the only submitted receipt."""
     opener = chrome_post or _chrome_post
@@ -1077,7 +1274,7 @@ def _send_through_chrome(subject, text, cookie, chrome_post, open_login):
     return 200, {"ok": False, "reason": "not-posted"}
 
 
-def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_login=None, chrome_post=None):
+def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_login=None, chrome_post=None, edit_post=None):
     """Post one desk draft. -> (http code, {ok, reason, opened?})
 
     The dict never carries the cookie, the page, or the draft.
@@ -1093,6 +1290,8 @@ def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_l
         return 200, {"ok": False, "reason": "wrong-board"}
     subject = str(body.get("subject") or "").strip()
     text = str(body.get("body") or "").strip()
+    if len(text) > 4000:
+        return 200, {"ok": False, "reason": "long"}
     if not _priced(subject, text):
         return 200, {"ok": False, "reason": "no-price"}
     if len(subject) > 50:
@@ -1111,6 +1310,12 @@ def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_l
             except Exception:
                 out["opened"] = False
         return 200, out
+    topic = _public_topic(str(body.get("topic") or ""))
+    if topic:
+        opener = edit_post
+        if opener is None and chrome_post is False:
+            opener = lambda *args: "no-edit"
+        return _send_edit(subject, text, cookie, topic, opener, open_login)
     if transport is None and chrome_post is not False:
         return _send_through_chrome(subject, text, cookie, chrome_post, open_login)
     fetch = transport or _transport

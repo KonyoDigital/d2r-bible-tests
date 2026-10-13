@@ -11057,6 +11057,8 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     #tab-d2jsp .d2jsp-scroll::-webkit-scrollbar-thumb{background:var(--gold-dim);border-radius:8px}
     #tab-d2jsp .d2jsp-card{display:grid;grid-template-columns:56px minmax(0,1fr);gap:10px;align-items:start;border:1px solid rgba(233,208,122,.4);border-radius:8px;padding:10px;margin:8px 0;background:rgba(10,9,7,.55)}
     #tab-d2jsp .d2jsp-card[hidden]{display:none}
+    #tab-d2jsp .d2jsp-card[data-sold="1"]{border-color:rgba(160,160,160,.55)}
+    #tab-d2jsp .d2jsp-card[data-sold="1"] .boss-name{text-decoration:line-through}
     #tab-d2jsp .d2jsp-art{width:56px;height:56px}
     #tab-d2jsp .d2jsp-art img{width:56px;height:56px;object-fit:contain}
     #tab-d2jsp .d2jsp-say{color:#e9d07a;font-size:var(--fs-body);line-height:1.45}
@@ -11064,7 +11066,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     #tab-d2jsp .d2jsp-fields .vault-btn{margin-top:6px}
     #tab-d2jsp .d2jsp-acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
     #tab-d2jsp .d2jsp-draft{white-space:pre-wrap;margin:8px 0;font-family:var(--mono);font-size:var(--fs-body);color:#f6e7c2;line-height:1.45}
-    #tab-d2jsp #d2jsp-add{margin:8px 0}
+    #tab-d2jsp #d2jsp-add, #tab-d2jsp #d2jsp-shop{margin:8px 8px 8px 0}
     #tab-d2jsp input, #tab-d2jsp textarea{display:block;width:100%;box-sizing:border-box;margin-top:6px;font-family:var(--mono);font-size:var(--fs-body);color:#e9d07a;background:rgba(10,9,7,.55);border:1px solid rgba(233,208,122,.4);border-radius:6px}
     @media(max-width:700px){#tab-d2jsp .d2jsp-fields{grid-template-columns:minmax(0,1fr)}}
     #d2jsp-planner-host[hidden]{display:none !important}
@@ -11093,6 +11095,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
       <p class="d2jsp-say">This room never asks for the password. Forum gold stays unknown until a public reading returns a number, and the time of that reading is shown.</p>
       <input id="d2jsp-find" type="search" placeholder="Find a filed item" aria-label="Find a filed item" autocomplete="off" spellcheck="false">
       <button type="button" class="vault-btn" id="d2jsp-add">Add an item</button>
+      <button type="button" class="vault-btn" id="d2jsp-shop" data-d2jsp-shop="1">Post the list</button>
       <p class="d2jsp-say" id="d2jsp-status"></p>
       <div id="d2jsp-list" class="d2jsp-scroll"></div>
     </div>
@@ -11138,6 +11141,35 @@ function d2jspDraft(name, base, mods, copies, fg) {
   if (c > 1) lines.push('copies: ' + c);
   lines.push(price + ' fg');
   return { ok: true, subject: subject, body: lines.join('\n'), forum: D2JSP_BOARD };
+}
+function d2jspItemBlock(name, base, mods, copies, fg, sold) {
+  var one = d2jspDraft(name, base, sold ? '' : mods, copies, fg);
+  if (!one.ok || !sold) return one;
+  var nm = String(name || '').trim();
+  var b = String(base || '').trim();
+  var lines = ['SOLD ' + nm + (b ? (' ' + b) : '')];
+  var c = copies | 0;
+  if (c > 1) lines.push('copies: ' + c);
+  var parts = String(one.body || '').split('\n');
+  lines.push(parts[parts.length - 1]);
+  return { ok: true, subject: one.subject, body: lines.join('\n'), forum: one.forum, sold: true };
+}
+function d2jspShopDraft(items) {
+  var sale = [], gone = [], list = items || [];
+  for (var i = 0; i < list.length; i++) {
+    var it = list[i] || {};
+    var block = d2jspItemBlock(it.name, it.base, it.mods, it.copies, it.fg, !!it.sold);
+    if (!block.ok) continue;
+    (it.sold ? gone : sale).push(block);
+  }
+  if (!sale.length && !gone.length) return { ok: false, reason: 'no price' };
+  if (sale.length === 1 && !gone.length) {
+    return { ok: true, subject: sale[0].subject, body: sale[0].body, forum: sale[0].forum, shop: true };
+  }
+  var n = sale.length;
+  var subject = 'Selling ' + n + (n === 1 ? ' item' : ' items');
+  var body = sale.concat(gone).map(function(block){ return block.body; }).join('\n\n');
+  return { ok: true, subject: subject, body: body, forum: D2JSP_BOARD, shop: true };
 }
 function d2jspPostUrl(draft) {
   var payload = { subject: draft.subject, body: draft.body, forum: draft.forum };
@@ -11335,6 +11367,42 @@ function d2jspPriceLine(q) {
     var v = readMap('d2r_d2jsp_fg')[name];
     return (v == null) ? '' : String(v);
   }
+  function soldOf(name){
+    var v = readMap('d2r_d2jsp_sold')[name];
+    return v === 1 || v === true;
+  }
+  function topicUrl(){
+    var s = store();
+    if (!s) return '';
+    try {
+      var v = String(s.getItem('d2r_d2jsp_topic') || '');
+      return v.indexOf('https://forums.d2jsp.org/topic.php') === 0 ? v : '';
+    } catch (eTopic) { return ''; }
+  }
+  function writeTopic(url){
+    var s = store();
+    if (!s) return;
+    try {
+      if (url && String(url).indexOf('https://forums.d2jsp.org/topic.php') === 0) s.setItem('d2r_d2jsp_topic', String(url));
+    } catch (eWrite) {}
+  }
+  function shopDraftNow(){
+    var rows = listedNames() || [];
+    var items = [];
+    for (var i = 0; i < rows.length; i++) {
+      var n = rows[i];
+      items.push({
+        name: n, base: baseOf(n), mods: modsOf(n), copies: copiesOf(n),
+        fg: d2jspPriceToSend((quoted[n] || {}).fg, typedOf(n)), sold: soldOf(n)
+      });
+    }
+    var draft = d2jspShopDraft(items);
+    if (draft.ok) {
+      var saved = topicUrl();
+      if (saved) draft.topic = saved;
+    }
+    return draft;
+  }
   /* ⟦D2JSP GEAR BEGIN⟧ */
   function gearMap(){
     return readMap('d2r_d2jsp_gear');
@@ -11414,7 +11482,8 @@ function d2jspPriceLine(q) {
     var base = baseOf(n);
     var mods = modsOf(n);
     var send = d2jspPriceToSend((quoted[n] || {}).fg, typedOf(n));
-    var draft = d2jspDraft(n, base, mods, copiesOf(n), send);
+    var sold = soldOf(n);
+    var draft = d2jspItemBlock(n, base, mods, copiesOf(n), send, sold);
     var postText = draft.ok ? draft.body : mods;
     var vaultNames = names();
     var onVault = !!(vaultNames && vaultNames.indexOf(n) >= 0);
@@ -11422,7 +11491,8 @@ function d2jspPriceLine(q) {
       ? '<button type="button" class="vault-btn" data-d2jsp-remove="' + esc(n) + '">Remove from this list</button>'
       : '';
     var hint = mods.trim() ? '' : '<div class="d2jsp-say">No mods yet. Options opens the same mod list the character builder uses.</div>';
-    return '<div class="d2jsp-card" data-d2jsp-item="' + esc(n) + '">'
+    var mark = '<button type="button" class="vault-btn" data-d2jsp-sold="' + esc(n) + '">' + (sold ? 'For sale' : 'Mark sold') + '</button>';
+    return '<div class="d2jsp-card" data-d2jsp-item="' + esc(n) + '"' + (sold ? ' data-sold="1"' : '') + '>'
       + '<div class="d2jsp-art">' + art + '</div>'
       + '<div class="d2jsp-main">'
       + '<div class="boss-name">' + esc(n) + '</div>'
@@ -11432,9 +11502,9 @@ function d2jspPriceLine(q) {
       + '<div class="d2jsp-say" data-d2jsp-wait' + (draft.ok ? ' hidden' : '') + '>The post waits for a price.</div>'
       + '<div class="d2jsp-say" data-d2jsp-price>' + esc(priceText(n)) + '</div>'
       + '<div class="d2jsp-fields">'
-      + '<div class="d2jsp-acts"><button type="button" class="vault-btn" data-d2jsp-options="' + esc(n) + '">Options</button>' + remove + '</div>'
+      + '<div class="d2jsp-acts"><button type="button" class="vault-btn" data-d2jsp-options="' + esc(n) + '">Options</button>' + mark + remove + '</div>'
       + '<label class="d2jsp-say">Your fg<input data-d2jsp-fg="' + esc(n) + '" value="' + esc(typedOf(n)) + '" inputmode="decimal" autocomplete="off" aria-label="Forum gold for this item"></label>'
-      + '<button type="button" class="vault-btn vault-btn-primary" data-d2jsp-post="' + esc(n) + '"' + (send == null ? ' disabled' : '') + '>Post</button>'
+      + '<button type="button" class="vault-btn vault-btn-primary" data-d2jsp-post="' + esc(n) + '"' + ((send == null || sold) ? ' disabled' : '') + '>Post</button>'
       + '</div></div></div>';
   }
   function currentCards(){
@@ -11456,10 +11526,15 @@ function d2jspPriceLine(q) {
       if (!n) continue;
       nodes[i].textContent = priceText(n);
       var send = d2jspPriceToSend((quoted[n] || {}).fg, typedOf(n));
+      var sold = soldOf(n);
       var btn = card.querySelector('[data-d2jsp-post]');
-      if (btn) btn.disabled = send == null;
+      if (btn) btn.disabled = send == null || sold;
+      var mark = card.querySelector('[data-d2jsp-sold]');
+      if (mark) mark.textContent = sold ? 'For sale' : 'Mark sold';
+      if (sold) card.setAttribute('data-sold', '1');
+      else card.removeAttribute('data-sold');
       var pre = card.querySelector('[data-d2jsp-draft]');
-      var draft = d2jspDraft(n, baseOf(n), modsOf(n), copiesOf(n), send);
+      var draft = d2jspItemBlock(n, baseOf(n), modsOf(n), copiesOf(n), send, sold);
       if (pre) { pre.textContent = draft.ok ? draft.body : modsOf(n); pre.hidden = !pre.textContent; }
       var wait = card.querySelector('[data-d2jsp-wait]');
       if (wait) wait.hidden = !!draft.ok;
@@ -11706,6 +11781,8 @@ function d2jspPriceLine(q) {
       var map = gearMap();
       delete map[rn];
       writeGear(map);
+      var soldMap = readMap('d2r_d2jsp_sold');
+      if (soldMap[rn]) { delete soldMap[rn]; writeMap('d2r_d2jsp_sold', soldMap); }
       paint();
       say(rn + ' was removed from this list.');
       return;
@@ -11719,9 +11796,54 @@ function d2jspPriceLine(q) {
         : 'The draft was closed. Nothing was posted.');
       return;
     }
+    var soldBtn = t.closest && t.closest('[data-d2jsp-sold]');
+    if (soldBtn) {
+      ev.preventDefault();
+      var sn = soldBtn.getAttribute('data-d2jsp-sold') || '';
+      if (!sn) return;
+      var sm = readMap('d2r_d2jsp_sold');
+      if (sm[sn]) delete sm[sn];
+      else sm[sn] = 1;
+      writeMap('d2r_d2jsp_sold', sm);
+      paintPrices();
+      say(sm[sn]
+        ? (sn + ' is marked sold. Post the list to publish that update.')
+        : (sn + ' is for sale again. Post the list to publish that update.'));
+      return;
+    }
+    var shopBtn = t.closest && t.closest('[data-d2jsp-shop]');
+    if (shopBtn) {
+      ev.preventDefault();
+      var shopDraft = shopDraftNow();
+      if (!shopDraft.ok) {
+        say('Forum gold is unknown, so this list is not posted.');
+        closeDraft();
+        return;
+      }
+      if (shopBtn.getAttribute('data-d2jsp-send') !== '1' || shopDraft.body.length > 4000) {
+        openDraft('', shopDraft);
+        say(shopDraft.body.length > 4000
+          ? 'The post is longer than the board accepts, so nothing was posted.'
+          : 'This is a draft of the list. Nothing was posted.');
+        return;
+      }
+      var shopShown = document.querySelector('#d2jsp-draft-host [data-d2jsp-draft-view]');
+      var shopTitle = document.querySelector('#d2jsp-draft-host [data-d2jsp-draft-subject]');
+      if (!shopShown || shopShown.textContent !== shopDraft.body || !shopTitle || shopTitle.textContent !== shopDraft.subject) {
+        openDraft('', shopDraft);
+        say('The draft was shown again. Nothing was posted.');
+        return;
+      }
+      postDraft(shopDraft);
+      return;
+    }
     var post = t.getAttribute && t.getAttribute('data-d2jsp-post');
     if (post) {
       ev.preventDefault();
+      if (soldOf(post)) {
+        say(post + ' is marked sold. Post the list to publish that update.');
+        return;
+      }
       var q = quoted[post] || {};
       var fg = d2jspPriceToSend(q.fg, typedOf(post));
       var draft = d2jspDraft(post, baseOf(post), modsOf(post), copiesOf(post), fg);
@@ -11786,6 +11908,8 @@ function d2jspPriceLine(q) {
           missed = 'Forum gold is unknown, so this item is not posted.';
         } else if (reason === 'title') {
           missed = 'The board title holds 50 characters, so nothing was posted.';
+        } else if (reason === 'long') {
+          missed = 'The post is longer than the board accepts, so nothing was posted.';
         }
         say(missed);
         showReceipt('missed', missed, '');
@@ -11833,6 +11957,8 @@ function d2jspPriceLine(q) {
     host.innerHTML = '<div class="d2jsp-draft-box" role="dialog" aria-modal="true" aria-label="Draft post">'
       + '<p class="d2jsp-draft-k">Draft</p>'
       + '<p class="d2jsp-say">This is a demonstration of the post. Nothing was posted.</p>'
+      + (draft.shop ? '<p class="d2jsp-say">Each item is one block. Sold items follow, marked SOLD.</p>' : '')
+      + (draft.topic ? '<p class="d2jsp-say">This updates the topic already posted.</p>' : '')
       + '<p class="d2jsp-say">Board ' + esc(draft.forum) + '.</p>'
       + '<p class="d2jsp-say">Subject</p>'
       + '<p class="d2jsp-draft-subject" data-d2jsp-draft-subject>' + esc(draft.subject) + '</p>'
@@ -11840,7 +11966,9 @@ function d2jspPriceLine(q) {
       + '<pre class="d2jsp-draft" data-d2jsp-draft-view>' + esc(draft.body) + '</pre>'
       + '<div class="d2jsp-acts">'
       + '<button type="button" class="vault-btn" data-d2jsp-draft-close>Back</button>'
-      + '<button type="button" class="vault-btn vault-btn-primary" data-d2jsp-post="' + esc(name) + '" data-d2jsp-send="1">Post this draft</button>'
+      + '<button type="button" class="vault-btn vault-btn-primary" '
+      + (draft.shop ? 'data-d2jsp-shop="1"' : ('data-d2jsp-post="' + esc(name) + '"'))
+      + ' data-d2jsp-send="1">Post this draft</button>'
       + '</div></div>';
     var back = host.querySelector('[data-d2jsp-draft-close]');
     if (back){ try { back.focus(); } catch (eFocus) {} }
@@ -11894,6 +12022,71 @@ function d2jspPriceLine(q) {
       : 'The draft was closed. Nothing was posted.');
   }, true);
   /* ⟦D2JSP PLANNER ESC END⟧ */
+  function postDraft(draft){
+    var hostName = '';
+    try { hostName = location.hostname; } catch (eH2) { hostName = ''; }
+    if (hostName !== '127.0.0.1' && hostName !== 'localhost') {
+      say('Posting runs from the console on this machine, so nothing was posted.');
+      showReceipt('missed', 'Posting runs from the console on this machine, so nothing was posted.', '');
+      return;
+    }
+    if (posting) {
+      showPosting();
+      say('A post is already in progress.');
+      return;
+    }
+    posting = true;
+    showPosting();
+    say('Asking Chrome on this machine to post on board 268.');
+    var payload = { subject: draft.subject, body: draft.body, forum: draft.forum };
+    if (draft.topic) payload.topic = draft.topic;
+    function settle(){ posting = false; }
+    fetch('/api/d2jsp_send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function(r){
+      return r.json().then(function(j){ return j || {}; }, function(){ return null; });
+    }).then(function(j){
+      settle();
+      if (!j) {
+        say('This console has not loaded the Chrome connection, so nothing was posted.');
+        showReceipt('missed', 'This console has not loaded the Chrome connection, so nothing was posted.', '');
+        return;
+      }
+      var reason = j.reason;
+      if (j.ok && reason === 'submitted') {
+        if (draft.shop && j.topic) writeTopic(j.topic);
+        say('Posted on board 268 through the Chrome login on this machine.');
+        showReceipt('confirmed', 'The board accepted this post. It is on board 268.', j.topic);
+        return;
+      }
+      var missed = 'The board did not confirm the post, so nothing was posted.';
+      if (reason === 'need-login') {
+        missed = j.opened
+          ? 'Chrome is not logged into d2jsp. The login page is open in Chrome. Nothing was posted.'
+          : 'Chrome is not logged into d2jsp, so nothing was posted.';
+      } else if (reason === 'chrome-unread') {
+        missed = 'This machine could not read the Chrome login, so nothing was posted.';
+      } else if (reason === 'wrong-board') {
+        missed = 'The page is not board 268, so nothing was posted.';
+      } else if (reason === 'no-price') {
+        missed = 'Forum gold is unknown, so this item is not posted.';
+      } else if (reason === 'title') {
+        missed = 'The board title holds 50 characters, so nothing was posted.';
+      } else if (reason === 'long') {
+        missed = 'The post is longer than the board accepts, so nothing was posted.';
+      } else if (reason === 'not-posted' && payload.topic) {
+        missed = 'The saved topic could not be updated, so nothing new was posted.';
+      }
+      say(missed);
+      showReceipt('missed', missed, '');
+    }).catch(function(){
+      settle();
+      say('This console has not loaded the Chrome connection, so nothing was posted.');
+      showReceipt('missed', 'This console has not loaded the Chrome connection, so nothing was posted.', '');
+    });
+  }
   window.addEventListener('message', function(ev){
     if (!ev || ev.origin !== 'https://forums.d2jsp.org') return;
     var data = ev.data || {};

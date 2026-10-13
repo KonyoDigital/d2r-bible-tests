@@ -209,6 +209,8 @@ process.stdout.write(JSON.stringify({
         pane = _between(self.bible, 'id="tab-d2jsp"', 'id="tab-vault"')
         self.assertIn('id="d2jsp-add"', pane)
         self.assertIn(">Add an item</button>", pane)
+        self.assertIn('id="d2jsp-shop"', pane)
+        self.assertIn(">Post the list</button>", pane)
         script = pane.split("<script>", 1)[1].split("</script>", 1)[0]
         lines_at = script.index("function gearLines(")
         shown_at = script.index("function shownOf(", lines_at)
@@ -238,6 +240,7 @@ process.stdout.write(JSON.stringify({
         self.assertLess(cards_at - card_at, 2200)
         self.assertIn("data-d2jsp-options", card)
         self.assertIn("data-d2jsp-draft", card)
+        self.assertIn("data-d2jsp-sold", card)
         self.assertNotIn("<textarea", card)
         host = self.bible.index("var foot = (st.host.planner)")
         placed = self.bible.index("window._cbHostPlaced", host)
@@ -288,7 +291,22 @@ var sale = d2jspDraft("Guardian's Thunder", 'Colossal Jewel',
   thunder.join('\n') + '\nan effect the game&#39;s tables name Gethit-skill but do not describe\n+10% to Lightning Skill Damage',
   1, 1100);
 var quest = (typeof d2jspIsQuest === 'function') && d2jspIsQuest('Horadric Cube');
-process.stdout.write(JSON.stringify({lines: lines, draft: draft, blocked: blocked, thunder: thunder, sale: sale, quest: quest}));
+var shopOne = d2jspShopDraft([{name:'Grief', base:'Phase Blade', mods: lines.join('\n'), copies:1, fg:30, sold:false}]);
+var shopTwo = d2jspShopDraft([
+  {name:'Grief', base:'Phase Blade', mods:'+340-400% Enhanced Damage\nEthereal', copies:1, fg:30, sold:false},
+  {name:"Guardian's Thunder", base:'Colossal Jewel', mods: thunder.join('\n') + '\nan effect the game&#39;s tables name Gethit-skill but do not describe', copies:1, fg:1100, sold:false}
+]);
+var shopSold = d2jspShopDraft([
+  {name:'Grief', base:'Phase Blade', mods:'+340-400% Enhanced Damage', copies:1, fg:30, sold:false},
+  {name:"Guardian's Thunder", base:'Colossal Jewel', mods:'Adds 1-75 lightning damage', copies:2, fg:1100, sold:true}
+]);
+var shopSkip = d2jspShopDraft([
+  {name:'Grief', base:'Phase Blade', mods:'+340-400% Enhanced Damage', copies:1, fg:30, sold:false},
+  {name:'Shako', base:'', mods:'no price here', copies:1, fg:'', sold:false}
+]);
+var shopBlank = d2jspShopDraft([{name:'Grief', base:'Phase Blade', mods:'x', copies:1, fg:null, sold:false}]);
+var shopGone = d2jspShopDraft([{name:'Grief', base:'Phase Blade', mods:'SHOULD NOT APPEAR', copies:1, fg:30, sold:true}]);
+process.stdout.write(JSON.stringify({lines: lines, draft: draft, blocked: blocked, thunder: thunder, sale: sale, quest: quest, shopOne: shopOne, shopTwo: shopTwo, shopSold: shopSold, shopSkip: shopSkip, shopBlank: shopBlank, shopGone: shopGone}));
 """
         stubs = r"""
 var document = {
@@ -343,6 +361,34 @@ window._cbShown = function(){ return { name: 'Grief', base: 'Phase Blade' }; };
         self.assertFalse(out["blocked"]["ok"])
         self.assertEqual(out["blocked"]["reason"], "no price")
         self.assertTrue(out["quest"])
+        self.assertEqual(out["shopOne"]["subject"], out["draft"]["subject"])
+        self.assertEqual(out["shopOne"]["body"], out["draft"]["body"])
+        self.assertEqual(out["shopTwo"]["subject"], "Selling 2 items")
+        self.assertEqual(
+            out["shopTwo"]["body"].split("\n\n"),
+            [
+                "Selling Grief Phase Blade\n+340-400% Enhanced Damage\nEthereal\n30 fg",
+                "Selling Guardian's Thunder Colossal Jewel\nAdds 1-75 lightning damage\n1100 fg",
+            ],
+        )
+        self.assertNotIn("but do not describe", out["shopTwo"]["body"])
+        self.assertNotIn("&#39;", out["shopTwo"]["body"])
+        self.assertEqual(out["shopSold"]["subject"], "Selling 1 item")
+        self.assertEqual(
+            out["shopSold"]["body"].split("\n\n"),
+            [
+                "Selling Grief Phase Blade\n+340-400% Enhanced Damage\n30 fg",
+                "SOLD Guardian's Thunder Colossal Jewel\ncopies: 2\n1100 fg",
+            ],
+        )
+        self.assertNotIn("Adds 1-75 lightning damage", out["shopSold"]["body"])
+        self.assertEqual(out["shopSkip"]["subject"], "Selling Grief Phase Blade")
+        self.assertNotIn("Shako", out["shopSkip"]["body"])
+        self.assertFalse(out["shopBlank"]["ok"])
+        self.assertEqual(out["shopBlank"]["reason"], "no price")
+        self.assertEqual(out["shopGone"]["subject"], "Selling 0 items")
+        self.assertEqual(out["shopGone"]["body"], "SOLD Grief Phase Blade\n30 fg")
+        self.assertNotIn("SHOULD NOT APPEAR", out["shopGone"]["body"])
 
     def test_the_room_lists_the_vault_and_posts_through_chrome(self):
         pane = _between(self.bible, 'id="tab-d2jsp"', 'id="tab-vault"')
@@ -873,6 +919,118 @@ process.stdout.write(JSON.stringify({
         self.assertFalse(out["ok"])
         self.assertEqual(out["reason"], "not-posted")
         self.assertNotIn("topic", out)
+
+    def test_a_shop_list_updates_the_saved_topic_and_does_not_start_another(self):
+        import d2jsp_chrome as desk
+        shop = (
+            "Selling Grief Phase Blade\n+damage\n30 fg\n\n"
+            "SOLD Guardian's Thunder Colossal Jewel\n1100 fg"
+        )
+        self.assertTrue(desk._priced("Selling 1 item", shop))
+        self.assertFalse(desk._priced("ISO list", shop))
+        calls = {"cookie": 0, "new": 0, "edit": 0}
+
+        def cookie_get():
+            calls["cookie"] += 1
+            return "sid=SECRETCOOKIE", "ok"
+
+        long_body = "Selling Grief Phase Blade\n" + ("+1 to life\n" * 500) + "30 fg"
+        self.assertGreater(len(long_body), 4000)
+        code, out = desk.d2jsp_send(
+            {"subject": "Selling 1 item", "body": long_body, "forum": 268},
+            "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
+            cookie_get=cookie_get, open_login=lambda: False,
+        )
+        self.assertEqual(code, 200)
+        self.assertEqual(out["reason"], "long")
+        self.assertEqual(calls["cookie"], 0)
+
+        def new_trade(subject, text, cookie):
+            calls["new"] += 1
+            raise AssertionError("an update must not start a new trade")
+
+        def no_edit(topic, subject, text, cookie):
+            calls["edit"] += 1
+            self.assertEqual(topic, "https://forums.d2jsp.org/topic.php?t=9&f=268")
+            self.assertIn("SECRETCOOKIE", cookie)
+            self.assertNotIn("SECRETCOOKIE", subject)
+            self.assertNotIn("SECRETCOOKIE", text)
+            self.assertIn("SOLD Guardian's Thunder", text)
+            return "no-edit"
+
+        code, out = desk.d2jsp_send(
+            {"subject": "Selling 1 item", "body": shop, "forum": 268,
+             "topic": "https://forums.d2jsp.org/topic.php?t=9&f=268"},
+            "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
+            cookie_get=cookie_get, open_login=lambda: False,
+            chrome_post=new_trade, edit_post=no_edit,
+        )
+        self.assertFalse(out["ok"])
+        self.assertEqual(out["reason"], "not-posted")
+        self.assertEqual(calls["new"], 0)
+        self.assertEqual(calls["edit"], 1)
+        self.assertNotIn("topic", out)
+        self.assertNotIn("SECRETCOOKIE", json.dumps(out))
+
+        def edit_ok(topic, subject, text, cookie):
+            calls["edit"] += 1
+            return "https://forums.d2jsp.org/topic.php?t=9&f=268#top"
+
+        code, out = desk.d2jsp_send(
+            {"subject": "Selling 1 item", "body": shop, "forum": 268,
+             "topic": "https://forums.d2jsp.org/topic.php?t=9&f=268"},
+            "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
+            cookie_get=cookie_get, open_login=lambda: False,
+            chrome_post=new_trade, edit_post=edit_ok,
+        )
+        self.assertTrue(out["ok"])
+        self.assertEqual(out["reason"], "submitted")
+        self.assertEqual(out["topic"], "https://forums.d2jsp.org/topic.php?t=9&f=268")
+        self.assertEqual(calls["new"], 0)
+
+        def foreign_edit(topic, subject, text, cookie):
+            raise AssertionError("a foreign topic must not be edited")
+
+        def new_ok(subject, text, cookie):
+            calls["new"] += 1
+            return "https://forums.d2jsp.org/topic.php?t=9&f=268"
+
+        code, out = desk.d2jsp_send(
+            {"subject": "Selling 1 item", "body": shop, "forum": 268,
+             "topic": "https://evil.example/topic.php?t=1"},
+            "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
+            cookie_get=cookie_get, open_login=lambda: False,
+            chrome_post=new_ok, edit_post=foreign_edit,
+        )
+        self.assertTrue(out["ok"])
+        self.assertEqual(calls["new"], 1)
+        self.assertEqual(out["topic"], "https://forums.d2jsp.org/topic.php?t=9&f=268")
+
+        with open(os.path.join(os.path.dirname(desk.__file__), "d2jsp_chrome.py"), encoding="utf-8") as handle:
+            src = handle.read()
+        edit_at = src.index("def _chrome_edit(")
+        post_at = src.index("def _chrome_post(", edit_at)
+        edit = src[edit_at:post_at]
+        self.assertIn("label!=='Edit'", edit)
+        self.assertIn("/post.php", edit)
+        self.assertIn('textarea[name="Post"]', edit)
+        self.assertIn('input[name="ttitle"]', edit)
+        self.assertIn('input[name="submit"]', edit)
+        self.assertIn("Selling Item", edit)
+        self.assertIn("btn.click()", edit)
+        self.assertNotIn("New Trade", edit)
+        self.assertNotIn("mode=post", edit)
+        self.assertNotIn("form.submit", edit)
+        self.assertNotIn("9222", edit)
+        send = src[src.index("def d2jsp_send("):]
+        self.assertLess(
+            send.index('_public_topic(str(body.get("topic")'),
+            send.index("transport is None and chrome_post is not False"),
+        )
+        self.assertLess(send.index("_challenge_page(raw_text)"), send.index('reason": "not-posted"'))
+        post_fn = src.index("def _chrome_post(")
+        post_end = src.index("def d2jsp_quote(", post_fn)
+        self.assertLess(post_end - post_fn, 7200)
 
     def test_the_cookie_header_is_only_the_d2jsp_host(self):
         import d2jsp_chrome as desk
