@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3713",
+  "ver": "v3714",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3713: HEART: test_a_hand_added_item_stays_his. A planner add saves and draws once when the planner closes. One forge scan serves the whole vault draw. A planner filing writes the routing ledger. The login lamp uses the weight and size tokens.",
+  "note": "v3714: HEART: test_a_hand_added_item_stays_his. A catalog add files on Auto-Sort without a reel picture. The status names each item and its mule. Closing the picker paints before the vault redraws. The page keeps a vertical scroll.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
