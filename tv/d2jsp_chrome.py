@@ -40,11 +40,26 @@ _PRICE_LINE = re.compile(r"^\d+(?:\.\d+)? fg$")
 _CHROME_EPOCH = 11644473600  # seconds from 1601-01-01 to 1970-01-01
 
 
-def console_may_post(origin, host, port):
-    """True only for this console's own page. A foreign Origin never may."""
+def console_may_post(origin, host, port, sec_fetch_site=None):
+    """True only for this console's own page. A foreign Origin never may, and a cross-site request
+    with NO Origin never may either.
+
+    REG-2188 — A NO-ORIGIN GET WAS TRUSTED ON HOST ALONE. A browser sends no Origin on a cross-site
+    <img>, iframe or window.open GET, but it DOES send the target's Host — so any page he visited
+    could reach /api/d2jsp_login and /api/d2jsp_quote (read the keychain, decrypt his cookies, start
+    a scratch Chrome, pull his real Chrome to the login page). It could not read the reply, but the
+    side effects fired. Sec-Fetch-Site is sent by the browser and cannot be forged by the page: a
+    cross-site embed is `cross-site`, a page on another local port is `same-site`, the console's own
+    fetch is `same-origin`, and a user typing the URL is `none`. So a no-Origin request is refused
+    when it is EXPLICITLY cross-site or same-site, and still allowed when the header is same-origin,
+    none or absent — the console's own request is never broken, even on a client that omits it.
+    POST is already safe (browsers always send Origin on POST); the arg defaults to None there.
+    [[the-unjoined-end]] [[unknown-stays-unknown]]"""
     allowed = {"http://127.0.0.1:%d" % port, "http://localhost:%d" % port}
     if origin:
         return origin in allowed
+    if str(sec_fetch_site or "").strip().lower() in {"cross-site", "same-site"}:
+        return False
     bare = (host or "").split(",")[0].strip()
     return bare in {"127.0.0.1:%d" % port, "localhost:%d" % port}
 
@@ -1203,7 +1218,7 @@ def _chrome_post(subject, text, cookie, forum=None):
         shutil.rmtree(prof, ignore_errors=True)
 
 
-def d2jsp_quote(item, origin, host, port, cookie_get=None, transport=None, node_run=None, chrome_fetch=None):
+def d2jsp_quote(item, origin, host, port, cookie_get=None, transport=None, node_run=None, chrome_fetch=None, sec_fetch_site=None):
     """Read one item's fg range from the Switch Ladder search. -> (http code, dict)
 
     The dict is the reading. It never carries the cookie or the page.
@@ -1212,7 +1227,7 @@ def d2jsp_quote(item, origin, host, port, cookie_get=None, transport=None, node_
     import datetime
     read_at = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.%f")[:-3] + "Z"
     item = str(item or "").strip()[:80]
-    if not console_may_post(origin, host, port):
+    if not console_may_post(origin, host, port, sec_fetch_site):
         return 403, _quote_unknown(item, read_at, "origin")
     if not item:
         return 200, _quote_unknown(item, read_at, "no item")
@@ -1370,12 +1385,12 @@ def _send_through_chrome(subject, text, cookie, chrome_post, open_login, forum=N
     return 200, {"ok": False, "reason": "not-posted"}
 
 
-def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_login=None, chrome_post=None, edit_post=None):
+def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_login=None, chrome_post=None, edit_post=None, sec_fetch_site=None):
     """Post one desk draft. -> (http code, {ok, reason, opened?})
 
     The dict never carries the cookie, the page, or the draft.
     """
-    if not console_may_post(origin, host, port):
+    if not console_may_post(origin, host, port, sec_fetch_site):
         return 403, {"ok": False, "reason": "origin"}
     body = body if isinstance(body, dict) else {}
     try:

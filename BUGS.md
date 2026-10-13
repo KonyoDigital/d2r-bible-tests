@@ -415,6 +415,22 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2188 - A NO-ORIGIN GET REACHED THE D2JSP ROUTES ON HOST ALONE (2026-10-13, security)
+
+console_may_post trusted a request with no Origin header as long as its Host was the console's.
+A browser sends NO Origin on a cross-site <img>, iframe or window.open GET, but it DOES send the
+target's Host — so any page he visited (always in Safari; in Chrome unless its local-network prompt
+intervenes) could reach GET /api/d2jsp_login and /api/d2jsp_quote and make the console read the
+Chrome Safe Storage keychain secret, copy and decrypt his cookies, start a scratch Chrome, and once
+per process pull his real Chrome to the d2jsp login page. It could not read the reply, so nothing
+leaked out, but every side effect fired. Found by the cross-family review of v3693-v3712. The fix
+reads Sec-Fetch-Site, which the browser sets and the page cannot forge: a no-Origin request that is
+explicitly cross-site or same-site is refused, while same-origin, none or an absent header still
+passes, so the console's own request is never broken. POST was already safe (browsers always send
+Origin on POST). The law pinned the old no-Origin-is-fine behaviour as correct; it now also asserts
+a cross-site no-Origin request is refused, seen RED with the check removed.
+Law: `test_the_d2jsp_desk_reads_a_price_before_it_posts` (test_the_cookie_header_is_only_the_d2jsp_host).
+
 ### REG-2187 - THE TENTH HEADER DOOR WRAPPED THE TAB STRIP (2026-10-13, console)
 
 v3694 added the D2JSP door, making TEN header doors. Console-demos J10 had never run

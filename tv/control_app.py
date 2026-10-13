@@ -44808,7 +44808,8 @@ class Handler(BaseHTTPRequestHandler):
             # This machine's own d2jsp sign-in. The cookie stays on this machine.
             import d2jsp_chrome as _d2jsp
             if not _d2jsp.console_may_post(
-                    self.headers.get("Origin"), self.headers.get("Host"), CONTROL_PORT):
+                    self.headers.get("Origin"), self.headers.get("Host"), CONTROL_PORT,
+                    self.headers.get("Sec-Fetch-Site")):
                 self._json(403, {"ok": False, "reason": "local"})
                 return
             self._json(200, _d2jsp.d2jsp_login_status())
@@ -44821,7 +44822,8 @@ class Handler(BaseHTTPRequestHandler):
             from urllib.parse import parse_qs, urlparse
             _item = (parse_qs(urlparse(self.path).query).get("item") or [""])[0]
             _code, _out = _d2jsp.d2jsp_quote(
-                _item, self.headers.get("Origin"), self.headers.get("Host"), CONTROL_PORT)
+                _item, self.headers.get("Origin"), self.headers.get("Host"), CONTROL_PORT,
+                sec_fetch_site=self.headers.get("Sec-Fetch-Site"))
             if _out.get("reason") == "need-login":
                 _opened = _d2jsp.open_quote_login_once()
                 if _opened:
@@ -46264,7 +46266,8 @@ class Handler(BaseHTTPRequestHandler):
             # A click on the lamp opens the login in this machine's Chrome.
             import d2jsp_chrome as _d2jsp
             if not _d2jsp.console_may_post(
-                    self.headers.get("Origin"), self.headers.get("Host"), CONTROL_PORT):
+                    self.headers.get("Origin"), self.headers.get("Host"), CONTROL_PORT,
+                    self.headers.get("Sec-Fetch-Site")):
                 self._json(403, {"ok": False, "reason": "local"})
                 return
             self._json(200, _d2jsp.open_d2jsp_login())
@@ -46275,7 +46278,8 @@ class Handler(BaseHTTPRequestHandler):
             # stay out of the presence beacon and out of this response.
             import d2jsp_chrome as _d2jsp
             _code, _out = _d2jsp.d2jsp_send(
-                body, self.headers.get("Origin"), self.headers.get("Host"), CONTROL_PORT)
+                body, self.headers.get("Origin"), self.headers.get("Host"), CONTROL_PORT,
+                sec_fetch_site=self.headers.get("Sec-Fetch-Site"))
             self._json(_code, _out)
             return
         if path == "/api/roster-book":

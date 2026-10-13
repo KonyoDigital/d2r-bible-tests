@@ -1253,6 +1253,13 @@ process.stdout.write(JSON.stringify({
         self.assertIsNone(desk.decrypt_v10(b"v20not-this-format", "pw"))
         self.assertFalse(desk.console_may_post("https://evil.example", "127.0.0.1:17772", 17772))
         self.assertTrue(desk.console_may_post(None, "127.0.0.1:17772", 17772))
+        # REG-2188 — a cross-site request carries no Origin but a browser-set Sec-Fetch-Site the page
+        # cannot forge. A no-Origin GET from a page he visited (cross-site / same-site) is refused;
+        # the console's own request (same-origin, none, or a client that omits the header) still passes.
+        self.assertFalse(desk.console_may_post(None, "127.0.0.1:17772", 17772, "cross-site"))
+        self.assertFalse(desk.console_may_post(None, "127.0.0.1:17772", 17772, "same-site"))
+        self.assertTrue(desk.console_may_post(None, "127.0.0.1:17772", 17772, "same-origin"))
+        self.assertTrue(desk.console_may_post(None, "127.0.0.1:17772", 17772, "none"))
 
         password = "test-password"
         blob = desk.seal_v10(password, "roundtrip-value")
