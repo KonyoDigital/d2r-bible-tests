@@ -40812,6 +40812,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try{
       if (typeof ITEMS==='undefined' || typeof n !== 'string' || !n) return false;
       if (isAggregate(n)) return false;
+      // Annihilus, Hellfire Torch and Gheed's Fortune are drawn. They stay with MAIN; they are not a mule.
+      if (typeof KEEP_IN_INVENTORY !== 'undefined' && KEEP_IN_INVENTORY.test(n)) return true;
       // v324: EXTRA_ITEMS (socketed bases + reference finds) are real owned items too — they MUST
       // survive ownedPool or renderVault prunes their mule assignment every render (the bug behind
       // "socketed items don't stick to a mule"). Shared-stash items (runes/essences/statues) stay out.
@@ -40841,6 +40843,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     q = String(q||'').trim().toLowerCase();
     if (!q){ res.hidden = true; res.innerHTML = ''; return; }
     var pool = ownedPool();
+    // A name registered in Magic & Rare is found here. It stays out of ownedPool, so the registered panel does not count it twice.
+    try {
+      if (typeof magicFinds !== 'undefined' && magicFinds) {
+        Object.keys(magicFinds).forEach(function(n){
+          if (typeof n === 'string' && n && pool.indexOf(n) < 0 && !isAggregate(n) && !(typeof isSharedStash === 'function' && isSharedStash(n))) pool.push(n);
+        });
+        pool.sort();
+      }
+    } catch (eFind) {}
     var matches = pool.filter(function(n){ return n.toLowerCase().indexOf(q) !== -1; }).sort();
     res.hidden = false;
     if (!matches.length){
@@ -46855,6 +46866,8 @@ window.vaultAutoAssign = function(){
       var wm = muleById(pg.id);
       return { kind: 'would', mule: pg.id, muleName: wm ? ((wm.icon ? wm.icon + ' ' : '') + wm.name) : pg.home, cell: null, why: pg.why };
     }
+    if (pg && pg.ok === true && pg.kind === 'keep')
+      return { kind: 'main', mule: null, muleName: null, cell: null, why: pg.why || 'keep in your inventory' };
     return { kind: 'dock', mule: null, muleName: null, cell: null, why: (pg && pg.why) || 'no answer from the router' };
   }
   window._vaultWhereIs = _vaultWhereIs;

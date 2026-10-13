@@ -59,6 +59,7 @@ NODE = os.environ.get("NODE") or shutil.which("node")
 
 HAND_A, HAND_B = "  /* ⟦VAULT HAND BEGIN⟧ */\n", "  /* ⟦VAULT HAND END⟧ */\n"
 KEEPS_A, KEEPS_B = "  function _vaultKeeps(n){\n", "  function ownedPool(){\n"
+KEEP_A, KEEP_B = "  var KEEP_IN_INVENTORY = /^(Annihilus|Hellfire Torch|Gheed's Fortune)$/i;\n", "  /* ══ #264"
 RESOLVE_A, RESOLVE_B = "  window._vaultResolveName = function(name){\n", "  window.tvVaultRegister = function(name, witness){\n"
 SHARED_A, SHARED_B = "  var SHARED_STASH_RE = ", "  try { window.isSharedStash = isSharedStash; }"
 AGG = "  function isAggregate(n){ return /\\((any piece|any|set)\\)\\s*$/i.test(n); }\n"
@@ -91,6 +92,7 @@ window.findSetPiece = function(){ return null; };
 %(region)s
 %(shared)s
 %(agg)s
+%(keep)s
 %(keeps)s
 %(resolve)s
 %(hand)s
@@ -131,6 +133,7 @@ def _node(body):
     s = _src()
     prog = HARNESS % {"lanes": OWN._lanes(s), "region": OWN.owned_prov_region(s), "shared": _cut(s, SHARED_A, SHARED_B),
                       "agg": AGG if s.count(AGG) == 1 else "/* isAggregate MISSING */",
+                      "keep": _cut(s, KEEP_A, KEEP_B),
                       "keeps": _cut(s, KEEPS_A, KEEPS_B), "resolve": _cut(s, RESOLVE_A, RESOLVE_B),
                       "hand": _cut(s, HAND_A, HAND_B), "body": body}
     p = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=60)
@@ -1118,6 +1121,100 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(o["shared"], ["Grief", "Grief", "Shako"])
         self.assertEqual(o["mule"], ["Windforce", "Windforce", "Windforce"])
         self.assertEqual(o["one"], ["Shako"])
+
+    def test_the_three_keepers_are_drawn_and_stay_off_the_mule_map(self):
+        """Annihilus, Hellfire Torch and Gheed's Fortune are drawn. A magic charm is not, so the registered panel cannot count it twice."""
+        s = _src()
+        keeps = code_only(_cut(s, KEEPS_A, KEEPS_B))
+        self.assertEqual(keeps.count("KEEP_IN_INVENTORY.test(n)"), 1)
+        self.assertNotIn("magicFinds", keeps)
+        out = _node(r"""
+          OUT.torch = window.vaultHandAdd('Hellfire Torch', '2026-10-13T12:00:00.000Z');
+          OUT.anni = window.vaultHandAdd('Annihilus', '2026-10-13T12:00:00.000Z');
+          OUT.gheed = window.vaultHandAdd("Gheed's Fortune", '2026-10-13T12:00:00.000Z');
+          OUT.owned = Array.from(owned).sort();
+          OUT.keys = Object.keys(STORE).sort();
+          var magicFinds = { 'Shimmering Grand Charm of Vita': { q: 'magic', base: 'Grand Charm', mods: ['+20 to Life'] } };
+          OUT.charm = _vaultKeeps('Shimmering Grand Charm of Vita');
+          OUT.plain = _vaultKeeps('Grand Charm');
+          OUT.base = _vaultKeeps('Amulet');
+          OUT.enigma = _vaultKeeps('Enigma');
+          OUT.shako = _vaultKeeps('Harlequin Crest (Shako)');
+        """)
+        self.assertEqual(out["torch"]["mode"], "added", out["torch"])
+        self.assertEqual(out["anni"]["mode"], "added", out["anni"])
+        self.assertEqual(out["gheed"]["mode"], "added", out["gheed"])
+        self.assertEqual(out["torch"]["name"], "Hellfire Torch")
+        self.assertEqual(out["gheed"]["name"], "Gheed's Fortune")
+        self.assertEqual(out["owned"], ["Annihilus", "Gheed's Fortune", "Hellfire Torch"])
+        self.assertNotIn("d2r_muleAssign", out["keys"])
+        self.assertFalse(out["charm"], "a magic charm passed the draw rule and would be counted twice")
+        self.assertFalse(out["plain"])
+        self.assertFalse(out["base"])
+        self.assertTrue(out["enigma"])
+        self.assertTrue(out["shako"])
+
+    def test_a_registered_charm_is_found_and_a_keeper_says_main(self):
+        """FIND searches Magic & Rare. A keep proposal says MAIN and does not open a mule."""
+        s = _src()
+        find = _cut(s, "  window.vaultFind = function(q){\n", "  // ── render ──\n")
+        where = _cut(s, "  function _vaultWhereIs(n){\n", "  window._vaultWhereIs = _vaultWhereIs;\n", keep_b=True)
+        self.assertEqual(find.count("Object.keys(magicFinds)"), 1)
+        self.assertEqual(find.count("return n.toLowerCase().indexOf(q) !== -1;"), 1)
+        self.assertEqual(where.count("pg.kind === 'keep'"), 1)
+        self.assertEqual(where.count("mid = 'magic-rare'"), 1)
+        if not NODE:
+            raise AssertionError("node is not on this machine — this law does not skip")
+        prog = (
+            "var window = globalThis, assign = {};\n"
+            "function isAggregate(n){ return /\\((any piece|any|set)\\)\\s*$/i.test(n); }\n"
+            "function isSharedStash(n){ return n === 'Ist'; }\n"
+            "function ownedPool(){ return ['Harlequin Crest (Shako)']; }\n"
+            "function art(){ return ''; }\n"
+            "function esc(t){ return String(t); }\n"
+            "function jsArg(t){ return String(t); }\n"
+            "function muleById(){ return null; }\n"
+            "var box = { hidden: true, innerHTML: '' };\n"
+            "var document = { getElementById: function(id){ return id === 'vault-find-results' ? box : null; } };\n"
+            "var magicFinds = {\n"
+            "  'Shimmering Grand Charm of Vita': { q: 'magic' },\n"
+            "  'Harlequin Crest (Shako)': { q: 'magic' },\n"
+            "  'Tal Rasha\\'s (set)': { q: 'set' },\n"
+            "  'Ist': { q: 'rune' }\n"
+            "};\n"
+            "window._vaultInMagicRare = function(n){ return n === 'Shimmering Grand Charm of Vita'; };\n"
+            "window._vaultLastSeenOnMain = function(){ return null; };\n"
+            "window.vaultPropose = function(nm){\n"
+            "  if (nm === 'Hellfire Torch') return { ok: true, moved: false, kind: 'keep', id: '__keep', why: 'keep in your inventory — only works on the character you are actively playing' };\n"
+            "  if (nm === 'Enigma') return { ok: true, kind: 'mule', id: 'shared', home: 'SHARED STASH', why: 'war gear' };\n"
+            "  return { ok: false };\n"
+            "};\n"
+            + where + "\n" + find + "\n"
+            "window.vaultFind('charm'); var charm = box.innerHTML;\n"
+            "window.vaultFind('shako'); var shako = box.innerHTML;\n"
+            "window.vaultFind('tal'); var tal = box.innerHTML;\n"
+            "window.vaultFind('ist'); var ist = box.innerHTML;\n"
+            "process.stdout.write(JSON.stringify({\n"
+            "  charm: charm, shako: shako, tal: tal, ist: ist,\n"
+            "  torch: _vaultWhereIs('Hellfire Torch'),\n"
+            "  enigma: _vaultWhereIs('Enigma'),\n"
+            "  dock: _vaultWhereIs('Amulet')\n"
+            "}));\n"
+        )
+        p = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=30)
+        self.assertEqual(p.returncode, 0, (p.stderr or p.stdout)[-1500:])
+        o = json.loads(p.stdout)
+        self.assertIn("Shimmering Grand Charm of Vita", o["charm"])
+        self.assertIn("1 match", o["charm"])
+        self.assertIn("1 match", o["shako"])
+        self.assertNotIn("Tal Rasha", o["tal"])
+        self.assertIn("no vaulted item matches", o["ist"])
+        self.assertEqual(o["torch"]["kind"], "main")
+        self.assertIsNone(o["torch"]["mule"])
+        self.assertIn("keep in your inventory", o["torch"]["why"])
+        self.assertEqual(o["enigma"]["kind"], "would")
+        self.assertEqual(o["enigma"]["mule"], "shared")
+        self.assertEqual(o["dock"]["kind"], "dock")
 
 
 RED_PROOF = [
