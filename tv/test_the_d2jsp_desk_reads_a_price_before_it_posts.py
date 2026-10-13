@@ -237,10 +237,15 @@ process.stdout.write(JSON.stringify({
         card_at = script.index("function cardHtml(")
         cards_at = script.index("function currentCards(", card_at)
         card = script[card_at:cards_at]
-        self.assertLess(cards_at - card_at, 2200)
+        self.assertLess(cards_at - card_at, 2400)
         self.assertIn("data-d2jsp-options", card)
+        self.assertIn("Opens a draft. Nothing is posted until Post this draft.", card)
+        self.assertIn("This filing has no mods recorded.", card)
         self.assertIn("data-d2jsp-draft", card)
         self.assertIn("data-d2jsp-sold", card)
+        self.assertIn('data-d2jsp-remove="', card)
+        self.assertIn("Remove from this list", card)
+        self.assertNotIn("stays on this list, because the vault still files it.", card)
         self.assertNotIn("<textarea", card)
         host = self.bible.index("var foot = (st.host.planner)")
         placed = self.bible.index("window._cbHostPlaced", host)
@@ -397,7 +402,7 @@ window._cbShown = function(){ return { name: 'Grief', base: 'Phase Blade' }; };
         script = pane.split("<script>", 1)[1].split("</script>", 1)[0]
         card_at = script.index("function cardHtml(")
         cards_at = script.index("function currentCards(", card_at)
-        self.assertLess(cards_at - card_at, 2200)
+        self.assertLess(cards_at - card_at, 2400)
         self.assertIn("d2jspArt(n)", script[card_at:cards_at])
         draft_fn = self.bible.index("function openDraft(")
         draft_end = self.bible.index("function showReceipt(", draft_fn)
@@ -416,6 +421,14 @@ window._cbShown = function(){ return { name: 'Grief', base: 'Phase Blade' }; };
         self.assertIn("pre.textContent = row.body", mount)
         self.assertIn("d2jspPostPairs(draft, log)", mount)
         self.assertIn("d2jspShotCell(row.name, row.shot)", mount)
+        self.assertLess(mount.index("line.appendChild(pre)"), mount.index("line.appendChild(d2jspShotCell"))
+        wide_col = self.bible.index("grid-template-columns:minmax(0,1fr) 220px")
+        narrow_col = self.bible.index("grid-template-columns:minmax(0,1fr) 112px", wide_col)
+        self.assertLess(wide_col, narrow_col)
+        self.assertNotIn("grid-template-columns:168px minmax(0,1fr)", self.bible)
+        cell_rule = self.bible[self.bible.index("#d2jsp-draft-host .d2jsp-shot-cell{"):self.bible.index("#d2jsp-draft-host .d2jsp-shot-cell >")]
+        self.assertNotIn("min-height", cell_rule)
+        self.assertIn("object-fit:cover", self.bible[wide_col:narrow_col])
         paint_at = script.index("function paint(){")
         show_at = script.index("window._d2jspShow = function(){", paint_at)
         self.assertIn("_vHydrateShots(list)", script[paint_at:show_at])
@@ -503,6 +516,14 @@ function walkImg(node){
   (node.childNodes || []).forEach(walkImg);
 }
 walkImg(host);
+var rowOrder = [];
+function walkRows(node){
+  if (node.className === 'd2jsp-shot-row') {
+    rowOrder.push((node.childNodes || []).map(function(ch){ return ch.tag; }));
+  }
+  (node.childNodes || []).forEach(walkRows);
+}
+walkRows(host);
 var host2 = new El('div');
 var view2 = new El('pre');
 view2.setAttribute('data-d2jsp-draft-view', '');
@@ -514,7 +535,7 @@ process.stdout.write(JSON.stringify({
   listed: listed, older: older, bad: bad, one: one, onePairs: onePairs,
   mounted: {
     hidden: view.hidden, view: view.textContent, shown: pres.map(function(node){ return node.textContent; }),
-    srcs: srcs, badHidden: view2.hidden, badPairs: !!host2.querySelector('[data-d2jsp-pairs]')
+    srcs: srcs, rows: rowOrder, badHidden: view2.hidden, badPairs: !!host2.querySelector('[data-d2jsp-pairs]')
   }
 }));
 """
@@ -562,6 +583,7 @@ var window = { addEventListener: function(){}, LSR: null };
         self.assertEqual(mounted["view"], out["shop"]["body"])
         self.assertEqual("\n\n".join(mounted["shown"]), out["shop"]["body"])
         self.assertEqual(mounted["srcs"], ["data:image/gif;base64,AAAA", "data:image/png;base64,CCCC"])
+        self.assertEqual(mounted["rows"], [["pre", "div"], ["pre", "div"]])
         self.assertNotIn("data:image/gif;base64,QQQQ", mounted["srcs"])
         self.assertFalse(mounted["badHidden"])
         self.assertFalse(mounted["badPairs"])
@@ -627,7 +649,10 @@ var window = { addEventListener: function(){}, LSR: null };
         posting_fn = self.bible.index("function showPosting(")
         self.assertEqual(self.bible.count("function showPosting("), 1)
         posting_box = self.bible[posting_fn:self.bible.index("/* ⟦D2JSP PLANNER ESC BEGIN⟧", posting_fn)]
-        self.assertIn("Asking Chrome on this machine to post on board 268.", posting_box)
+        self.assertIn("d2jspBoardSay('ask')", posting_box)
+        self.assertIn("Asking Chrome on this machine to post on board ", self.desk)
+        self.assertIn("D2:R RotW Softcore Ladder Trading", self.desk)
+        self.assertNotIn("non-ladder forum", self.bible)
         self.assertIn("data-d2jsp-draft-close", posting_box)
         self.assertNotIn("data-d2jsp-send", posting_box)
         self.assertNotIn("/api/d2jsp_send", posting_box)
@@ -850,7 +875,7 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(calls["open"], 0)
 
         code, out = desk.d2jsp_send(
-            {"subject": "WTS Grief", "body": "WTS Grief\n30 fg", "forum": 271},
+            {"subject": "WTS Grief", "body": "WTS Grief\n30 fg", "forum": 243},
             "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
             cookie_get=cookie_get, open_login=open_login,
         )
@@ -1351,6 +1376,323 @@ process.stdout.write(JSON.stringify({
         finally:
             shutil.rmtree(folder, ignore_errors=True)
 
+    def test_a_console_signs_into_d2jsp_with_its_own_chrome(self):
+        pane = _between(self.bible, 'id="tab-d2jsp"', 'id="tab-vault"')
+        self.assertIn('id="d2jsp-lamp"', pane)
+        self.assertNotIn('type="password"', pane)
+        show = self.bible.index("window._d2jspShow = function(){")
+        show_end = self.bible.index("};", show)
+        self.assertIn("d2jspLamp();", self.bible[show:show_end])
+        lamp_fn = self.bible.index("function d2jspLamp(")
+        self.assertLess(self.bible.index("/* ⟦D2JSP PLANNER ESC END⟧ */"), lamp_fn)
+        self.assertLess(lamp_fn, self.bible.index("function postDraft("))
+        self.assertIn("/api/d2jsp_login", self.bible[lamp_fn:self.bible.index("function postDraft(")])
+        app = _read(os.path.join(HERE, "control_app.py"))
+        self.assertEqual(app.count('if path == "/api/d2jsp_login":'), 2)
+        self.assertLess(app.index('if path == "/api/d2jsp_login":'), app.index('if path == "/api/d2jsp_quote":'))
+        send_at = app.index('if path == "/api/d2jsp_send":')
+        self.assertLess(app.rindex('if path == "/api/d2jsp_login":'), send_at)
+        import d2jsp_chrome as desk
+        saved = desk.live_cookie_header
+        try:
+            desk.live_cookie_header = lambda now_utc=None: ("sid=SECRET", "ok")
+            on = desk.d2jsp_login_status()
+            self.assertEqual(on["state"], "on")
+            self.assertNotIn("SECRET", json.dumps(on))
+            self.assertNotIn("cookie", on)
+            desk.live_cookie_header = lambda now_utc=None: (None, "need-login")
+            off = desk.d2jsp_login_status()
+            self.assertEqual(off["state"], "off")
+            self.assertTrue(off["needsLogin"])
+            desk.live_cookie_header = lambda now_utc=None: (None, "chrome-unread")
+            unknown = desk.d2jsp_login_status()
+            self.assertEqual(unknown["state"], "unknown")
+        finally:
+            desk.live_cookie_header = saved
+        seen = []
 
-if __name__ == "__main__":
-    unittest.main()
+        def run(argv, capture_output=False, timeout=0):
+            seen.append(list(argv))
+            return type("P", (), {"returncode": 0})()
+
+        which = lambda name: "/usr/bin/google-chrome" if name == "google-chrome" else None
+        self.assertTrue(desk._open_chrome_login(platform="linux", run=run, which=which))
+        self.assertEqual(seen[-1][0], "/usr/bin/google-chrome")
+        self.assertIn(desk.LOGIN_URL, seen[-1])
+        self.assertNotIn("--user-data-dir", seen[-1])
+        self.assertNotIn("--remote-debugging-port", seen[-1])
+        self.assertTrue(all("9222" not in part for part in seen[-1]))
+        self.assertFalse(desk._open_chrome_login(platform="linux", run=run, which=lambda name: None))
+        self.assertTrue(desk._open_chrome_login(platform="darwin", run=run))
+        self.assertEqual(seen[-1][:3], ["open", "-a", "Google Chrome"])
+        before = len(seen)
+        self.assertFalse(desk._open_chrome_login(platform="win32", run=run))
+        self.assertEqual(len(seen), before)
+        saved_open = desk._open_chrome_login
+        try:
+            desk._open_chrome_login = lambda: False
+            shut = desk.open_d2jsp_login()
+            self.assertFalse(shut["opened"])
+            self.assertNotIn("cookie", shut)
+        finally:
+            desk._open_chrome_login = saved_open
+        self.assertNotIn("d2jsp", _read(BEACON))
+
+    def test_a_vault_filing_can_be_removed_from_the_trade_list(self):
+        if NODE is None:
+            self.skipTest("node is not on this machine")
+        pane = _between(self.bible, 'id="tab-d2jsp"', 'id="tab-vault"')
+        script = pane.split("<script>", 1)[1].split("</script>", 1)[0]
+        self.assertNotIn("stays on this list, because the vault still files it.", pane)
+        rm = script.index("var rm = t.closest('[data-d2jsp-remove]')")
+        rm_end = script.index("t.closest('[data-d2jsp-draft-close]')", rm)
+        removed = script[rm:rm_end]
+        self.assertIn("d2r_d2jsp_hide", removed)
+        self.assertNotIn("d2r_muleAssign", removed)
+        self.assertNotIn("vaultPlannerFile", removed)
+        self.assertNotIn("/api/d2jsp_send", removed)
+        hide_fn = script.index("function hiddenOf(")
+        topic_fn = script.index("function topicUrl(", hide_fn)
+        self.assertLess(topic_fn - hide_fn, 400)
+        self.assertIn("d2r_d2jsp_hide", script[hide_fn:topic_fn])
+        listed = script.index("function listedNames()")
+        price = script.index("function priceText(", listed)
+        self.assertIn("hiddenOf(", script[listed:price])
+        file_at = script.index("function fileGear(")
+        open_at = script.index("window._d2jspPlannerOpen = function", file_at)
+        self.assertLess(open_at - file_at, 1800)
+        filed = script[file_at:open_at]
+        self.assertLess(filed.index("d2jspIsQuest"), filed.index("d2r_d2jsp_hide"))
+        self.assertNotIn("vaultPlannerFile", filed)
+        self.assertNotIn("d2jsp", _read(BEACON))
+        stubs = r"""
+var clicks = [];
+var store = {
+  'd2r_d2jsp_gear': JSON.stringify({"Guardian's Thunder": { entry: { id: 'thunder', rolls: {}, affixes: [] } }}),
+  'd2r_d2jsp_sold': JSON.stringify({"Gheed's Fortune": 1, "Guardian's Thunder": 1}),
+  'd2r_d2jsp_fg': JSON.stringify({"Gheed's Fortune": "15"})
+};
+var mule = JSON.stringify({"Gheed's Fortune":"m1","Horadric Cube":"m1"});
+var muleWrites = 0;
+var list = {
+  innerHTML: '',
+  attrs: {},
+  getAttribute: function(k){ return this.attrs[k] || null; },
+  setAttribute: function(k, v){ this.attrs[k] = v; },
+  querySelectorAll: function(){ return []; }
+};
+var statusEl = { textContent: '' };
+var lamp = {
+  title: '',
+  attrs: {},
+  setAttribute: function(k, v){ this.attrs[k] = v; },
+  getAttribute: function(k){ return this.attrs[k] || null; },
+  removeAttribute: function(k){ delete this.attrs[k]; }
+};
+var document = {
+  documentElement: { classList: { contains: function(){ return false; } } },
+  getElementById: function(id){
+    if (id === 'd2jsp-list') return list;
+    if (id === 'd2jsp-status') return statusEl;
+    if (id === 'd2jsp-lamp') return lamp;
+    return null;
+  },
+  addEventListener: function(type, fn){ if (type === 'click') clicks.push(fn); },
+  createElement: function(){
+    return { style: {}, hidden: true, innerHTML: '', querySelector: function(){ return null; }, querySelectorAll: function(){ return []; }, setAttribute: function(){}, appendChild: function(){} };
+  },
+  body: { appendChild: function(){} },
+  querySelectorAll: function(){ return []; }
+};
+var localStorage = {
+  getItem: function(k){ return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
+  setItem: function(k, v){ store[k] = String(v); }
+};
+function fetch(){
+  return Promise.resolve({ json: function(){ return Promise.resolve({ state: 'unknown', why: 'unread' }); } });
+}
+var window = {
+  addEventListener: function(){},
+  LSR: {
+    getItem: function(k){ return k === 'd2r_muleAssign' ? mule : null; },
+    setItem: function(){ muleWrites++; }
+  },
+  _cbHostOn: function(){ return false; },
+  _cbHostOpen: function(ctx){ window._host = ctx; return true; },
+  _cbItem: function(){ return null; },
+  _cbShown: function(entry){
+    if (entry && entry.id === 'cube') return { name: 'Horadric Cube', base: '' };
+    return { name: "Gheed's Fortune", base: '' };
+  },
+  _cbLineHtml: function(){ return ''; }
+};
+"""
+        body = r"""
+function removes(html){ return (String(html).match(/data-d2jsp-remove=/g) || []).length; }
+function clickRemove(name){
+  var btn = {
+    getAttribute: function(k){ return k === 'data-d2jsp-remove' ? name : ''; },
+    closest: function(sel){
+      if (sel === '#tab-d2jsp' || sel === '[data-d2jsp-remove]') return btn;
+      return null;
+    }
+  };
+  clicks[0]({ target: btn, preventDefault: function(){} });
+}
+window._d2jspShow();
+var opened = list.innerHTML;
+clickRemove("Gheed's Fortune");
+var after = list.innerHTML;
+var said = statusEl.textContent;
+var hide = JSON.parse(store['d2r_d2jsp_hide'] || '{}');
+var sold = JSON.parse(store['d2r_d2jsp_sold'] || '{}');
+var gear = JSON.parse(store['d2r_d2jsp_gear'] || '{}');
+var fg = JSON.parse(store['d2r_d2jsp_fg'] || '{}');
+window._d2jspShow();
+var again = list.innerHTML;
+clickRemove('');
+var blankHide = JSON.parse(store['d2r_d2jsp_hide'] || '{}');
+window._d2jspPlannerOpen('');
+var quest = window._host.write({ id: 'cube' });
+window._d2jspShow();
+var afterQuest = list.innerHTML;
+window._d2jspPlannerOpen('');
+var added = window._host.write({ id: 'gheed', rolls: {}, affixes: [] });
+window._host.render();
+var back = list.innerHTML;
+var hideBack = JSON.parse(store['d2r_d2jsp_hide'] || '{}');
+clickRemove("Guardian's Thunder");
+var manual = list.innerHTML;
+var gearGone = JSON.parse(store['d2r_d2jsp_gear'] || '{}');
+var hideManual = JSON.parse(store['d2r_d2jsp_hide'] || '{}');
+process.stdout.write(JSON.stringify({
+  listeners: clicks.length,
+  openedHasGheed: opened.indexOf("Gheed's Fortune") >= 0,
+  openedHasThunder: opened.indexOf("Guardian's Thunder") >= 0,
+  openedHasCube: opened.indexOf('Horadric Cube') >= 0,
+  openedRemoves: removes(opened),
+  afterHasGheed: after.indexOf("Gheed's Fortune") >= 0,
+  afterHasThunder: after.indexOf("Guardian's Thunder") >= 0,
+  afterRemoves: removes(after),
+  said: said,
+  hideGheed: hide["Gheed's Fortune"] || 0,
+  soldGheed: sold["Gheed's Fortune"] || 0,
+  soldThunder: sold["Guardian's Thunder"] || 0,
+  gearThunder: gear["Guardian's Thunder"] ? 1 : 0,
+  fgGheed: fg["Gheed's Fortune"] || '',
+  muleWrites: muleWrites,
+  muleSame: mule === JSON.stringify({"Gheed's Fortune":"m1","Horadric Cube":"m1"}),
+  vaultStored: Object.prototype.hasOwnProperty.call(store, 'd2r_muleAssign'),
+  againHasGheed: again.indexOf("Gheed's Fortune") >= 0,
+  againHasThunder: again.indexOf("Guardian's Thunder") >= 0,
+  blankHide: blankHide[""] || 0,
+  questOk: !!(quest && quest.ok),
+  afterQuestHasCube: afterQuest.indexOf('Horadric Cube') >= 0,
+  afterQuestHasGheed: afterQuest.indexOf("Gheed's Fortune") >= 0,
+  addedOk: !!(added && added.ok),
+  backHasGheed: back.indexOf("Gheed's Fortune") >= 0,
+  backHasThunder: back.indexOf("Guardian's Thunder") >= 0,
+  backRemoves: removes(back),
+  hideBack: hideBack["Gheed's Fortune"] || 0,
+  manualHasGheed: manual.indexOf("Gheed's Fortune") >= 0,
+  manualHasThunder: manual.indexOf("Guardian's Thunder") >= 0,
+  gearAfter: gearGone["Guardian's Thunder"] ? 1 : 0,
+  hideThunder: hideManual["Guardian's Thunder"] || 0
+}));
+"""
+        out = json.loads(_node(stubs + script, body))
+        self.assertEqual(out["listeners"], 1)
+        self.assertTrue(out["openedHasGheed"])
+        self.assertTrue(out["openedHasThunder"])
+        self.assertFalse(out["openedHasCube"])
+        self.assertEqual(out["openedRemoves"], 2)
+        self.assertFalse(out["afterHasGheed"])
+        self.assertTrue(out["afterHasThunder"])
+        self.assertEqual(out["afterRemoves"], 1)
+        self.assertEqual(out["said"], "Gheed's Fortune was removed from this list.")
+        self.assertEqual(out["hideGheed"], 1)
+        self.assertEqual(out["soldGheed"], 0)
+        self.assertEqual(out["soldThunder"], 1)
+        self.assertEqual(out["gearThunder"], 1)
+        self.assertEqual(out["fgGheed"], "15")
+        self.assertEqual(out["muleWrites"], 0)
+        self.assertTrue(out["muleSame"])
+        self.assertFalse(out["vaultStored"])
+        self.assertFalse(out["againHasGheed"])
+        self.assertTrue(out["againHasThunder"])
+        self.assertEqual(out["blankHide"], 0)
+        self.assertFalse(out["questOk"])
+        self.assertFalse(out["afterQuestHasCube"])
+        self.assertFalse(out["afterQuestHasGheed"])
+        self.assertTrue(out["addedOk"])
+        self.assertTrue(out["backHasGheed"])
+        self.assertTrue(out["backHasThunder"])
+        self.assertEqual(out["backRemoves"], 2)
+        self.assertEqual(out["hideBack"], 0)
+        self.assertTrue(out["manualHasGheed"])
+        self.assertFalse(out["manualHasThunder"])
+        self.assertEqual(out["gearAfter"], 0)
+        self.assertEqual(out["hideThunder"], 1)
+
+    def test_a_ladder_console_names_board_271_and_a_digit_stays_in_the_price_box(self):
+        if NODE is None:
+            self.skipTest("node is not on this machine")
+        import d2jsp_chrome as desk
+        edited = []
+
+        def edit_post(topic, subject, text, cookie):
+            edited.append(topic)
+            return topic
+
+        def chrome_post(subject, text, cookie):
+            return "https://forums.d2jsp.org/topic.php?t=2&f=271"
+
+        code, out = desk.d2jsp_send(
+            {"subject": "Selling Grief", "body": "Selling Grief\n30 fg", "forum": 271,
+             "topic": "https://forums.d2jsp.org/topic.php?t=9&f=268"},
+            "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
+            cookie_get=lambda: ("sid=SECRETCOOKIE", "ok"),
+            chrome_post=chrome_post, edit_post=edit_post,
+        )
+        self.assertEqual(code, 200)
+        self.assertTrue(out["ok"])
+        self.assertEqual(out["reason"], "submitted")
+        self.assertIn("f=271", out["topic"])
+        self.assertEqual(edited, [])
+
+        code, out = desk.d2jsp_send(
+            {"subject": "Selling Grief", "body": "Selling Grief\n30 fg", "forum": 243},
+            "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
+            cookie_get=lambda: ("sid=SECRETCOOKIE", "ok"),
+            chrome_post=chrome_post,
+        )
+        self.assertEqual(out["reason"], "wrong-board")
+
+        body = r"""
+var main = d2jspBoard();
+var mainSay = d2jspBoardSay();
+var mainDraft = d2jspDraft('Gheed\'s Fortune', 'Grand Charm', '', 1, 15);
+window = { D2R_PROFILE: 'ladder' };
+var ladder = d2jspBoard();
+var ladderSay = d2jspBoardSay('ask');
+var ladderDraft = d2jspDraft('Gheed\'s Fortune', 'Grand Charm', '', 1, 15);
+var saved268 = 'https://forums.d2jsp.org/topic.php?t=9&f=268';
+process.stdout.write(JSON.stringify({
+  main: main, mainSay: mainSay, mainForum: mainDraft.forum,
+  ladder: ladder, ladderSay: ladderSay, ladderForum: ladderDraft.forum
+}));
+"""
+        got = json.loads(_node(self.desk, body))
+        self.assertEqual(got["main"], 268)
+        self.assertEqual(got["mainForum"], 268)
+        self.assertIn("Board 268, D2:R RotW Softcore Trading.", got["mainSay"])
+        self.assertEqual(got["ladder"], 271)
+        self.assertEqual(got["ladderForum"], 271)
+        self.assertEqual(got["ladderSay"], "Asking Chrome on this machine to post on board 271.")
+        keys = self.bible.index("document.addEventListener('keydown', e => {")
+        guard = self.bible[keys:self.bible.index("const key = e.shiftKey", keys)]
+        self.assertIn("e.target && e.target.tagName", guard)
+        self.assertIn("[data-d2jsp-fg]", guard)
+        self.assertIn("pointerdown", self.bible[self.bible.rindex("document.addEventListener('pointerdown'", 0, keys):keys])
+        self.assertIn("function catalogBase(", self.bible)
+        self.assertIn("_cbItemsNamed", self.bible[self.bible.index("function catalogBase("):self.bible.index("function baseOf(", self.bible.index("function catalogBase("))])

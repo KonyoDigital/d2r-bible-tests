@@ -5261,10 +5261,25 @@ try {
   var full  = el.getAttribute('data-ph-full')  || el.placeholder;
   var brief = el.getAttribute('data-ph-short') || full;
   var mq = window.matchMedia('(max-width: 640px)');
-  function apply(){ try { el.placeholder = mq.matches ? brief : full; } catch(e){} }
+  function fits(text){
+    if (!el.clientWidth) return true;
+    var probe = document.createElement('span');
+    var cs = window.getComputedStyle ? getComputedStyle(el) : null;
+    probe.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;white-space:nowrap';
+    if (cs) { probe.style.font = cs.font; probe.style.letterSpacing = cs.letterSpacing; }
+    probe.textContent = text;
+    document.body.appendChild(probe);
+    var width = probe.getBoundingClientRect().width;
+    probe.remove();
+    return width <= el.clientWidth;
+  }
+  function apply(){
+    try { el.placeholder = (mq.matches || !fits(full)) ? brief : full; } catch(e){}
+  }
   apply();
   if (mq.addEventListener) mq.addEventListener('change', apply);
   else if (mq.addListener)  mq.addListener(apply);
+  window.addEventListener('resize', apply);
 })();
 </script>
     <div id="gsearch-scrim" hidden onclick="try{var b=document.getElementById('gsearch-results');b.hidden=true;b.innerHTML='';this.hidden=true;document.getElementById('gsearch-input').blur();}catch(e){}"></div><!-- v696 P1: search owns focus — click-away closes -->
@@ -11069,11 +11084,16 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     #tab-d2jsp .d2jsp-acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
     #tab-d2jsp .d2jsp-draft{white-space:pre-wrap;margin:8px 0;font-family:var(--mono);font-size:var(--fs-body);color:#f6e7c2;line-height:1.45}
     #tab-d2jsp #d2jsp-add, #tab-d2jsp #d2jsp-shop{margin:8px 8px 8px 0}
+    #d2jsp-lamp{display:inline-flex;align-items:center;gap:6px;margin-left:auto;padding:2px 8px 2px 6px;border-radius:999px;border:1px solid rgba(140,122,104,.45);background:rgba(0,0,0,.25);color:#b5a48a;font:600 11px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.06em;cursor:pointer}
+    #d2jsp-lamp i{width:7px;height:7px;border-radius:50%;background:#1d1813;box-shadow:inset 0 0 0 1px rgba(140,122,104,.5);font-style:normal}
+    #d2jsp-lamp[data-lamp="on"]{color:#8fe6a0;border-color:rgba(143,230,160,.55)}
+    #d2jsp-lamp[data-lamp="on"] i{background:#8fe6a0;box-shadow:0 0 6px rgba(143,230,160,.9)}
+    #d2jsp-lamp[data-lamp="off"][data-fault="1"]{color:#e88a7a;border-color:rgba(232,138,122,.6)}
+    #d2jsp-lamp[data-lamp="off"][data-fault="1"] i{background:transparent;box-shadow:inset 0 0 0 1.5px #e88a7a}
     #tab-d2jsp input, #tab-d2jsp textarea{display:block;width:100%;box-sizing:border-box;margin-top:6px;font-family:var(--mono);font-size:var(--fs-body);color:#e9d07a;background:rgba(10,9,7,.55);border:1px solid rgba(233,208,122,.4);border-radius:6px}
     @media(max-width:700px){
       #tab-d2jsp .d2jsp-fields{grid-template-columns:minmax(0,1fr)}
-      #d2jsp-draft-host .d2jsp-shot-row{grid-template-columns:minmax(0,1fr)}
-      #tab-d2jsp .d2jsp-art:has(.d2jsp-shot), #tab-d2jsp .d2jsp-art img.d2jsp-shot, #tab-d2jsp .d2jsp-art .d2jsp-shot, #d2jsp-draft-host .d2jsp-shot{width:100%;height:auto;max-height:220px}
+      #tab-d2jsp .d2jsp-art:has(.d2jsp-shot), #tab-d2jsp .d2jsp-art img.d2jsp-shot, #tab-d2jsp .d2jsp-art .d2jsp-shot{width:100%;height:auto;max-height:220px}
     }
     #d2jsp-planner-host[hidden]{display:none !important}
     #d2jsp-planner-host{position:fixed;inset:0;z-index:100000;background:rgba(6,4,2,.78);display:flex;align-items:flex-start;justify-content:center;padding:36px 16px 24px;overflow:auto}
@@ -11086,9 +11106,15 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     #d2jsp-draft-host[hidden]{display:none !important}
     #d2jsp-draft-host{position:fixed;inset:0;z-index:100001;background:rgba(6,4,2,.78);display:flex;align-items:flex-start;justify-content:center;padding:48px 16px 24px;overflow:auto}
     #d2jsp-draft-host .d2jsp-draft-box{width:min(880px,100%);background:rgba(12,9,5,.98);border:1px solid rgba(212,168,71,.55);border-radius:8px;padding:16px 18px 18px;box-shadow:0 28px 80px rgba(0,0,0,.82)}
-    #d2jsp-draft-host .d2jsp-shot-row{display:grid;grid-template-columns:168px minmax(0,1fr);gap:12px;align-items:start;margin:0 0 14px}
-    #d2jsp-draft-host .d2jsp-shot-row .d2jsp-draft{margin:0}
-    #d2jsp-draft-host .d2jsp-shot{width:160px;height:112px;object-fit:contain;background:#120e08;display:block;cursor:pointer}
+    #d2jsp-draft-host .d2jsp-shot-row{display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:16px;align-items:stretch;margin:0 0 18px;min-width:0}
+    #d2jsp-draft-host .d2jsp-shot-row .d2jsp-draft{margin:0;align-self:stretch;min-width:0;overflow-wrap:anywhere;white-space:pre-wrap}
+    #d2jsp-draft-host .d2jsp-shot-cell{position:relative;min-width:0;background:#120e08;overflow:hidden}
+    #d2jsp-draft-host .d2jsp-shot-cell > .d2jsp-shot,
+    #d2jsp-draft-host .d2jsp-shot-cell > .d2jsp-art{position:absolute;inset:0;width:100%;height:100%;max-width:100%;object-fit:cover;object-position:center center;display:block;cursor:pointer}
+    @media(max-width:700px){
+      #d2jsp-draft-host .d2jsp-shot-row{grid-template-columns:minmax(0,1fr) 112px;gap:10px}
+    }
+    #d2jsp-draft-host [data-d2jsp-draft-view][hidden]{display:none !important}
     #d2jsp-draft-host .d2jsp-draft-k{font-family:var(--serif-display,Cinzel,serif);letter-spacing:.14em;text-transform:uppercase;color:#f0d78c;margin:0 0 8px}
     #d2jsp-draft-host .d2jsp-draft-subject{font-size:var(--fs-title);color:#f6e7c2;margin:4px 0 12px}
   </style>
@@ -11098,9 +11124,10 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
         <p class="boss-name">D2JSP</p>
         <p class="boss-subtitle" id="d2jsp-what">Trade filings. Quest items stay off this list.</p>
       </div>
+      <button type="button" class="d2jsp-lamp" id="d2jsp-lamp" data-lamp="unknown" title="D2JSP sign-in on this machine"><i></i>D2JSP</button>
     </div>
     <div class="boss-body">
-      <p class="d2jsp-say" id="d2jsp-board">Board 268, D2:R Softcore Trading, the softcore non-ladder forum.</p>
+      <p class="d2jsp-say" id="d2jsp-board">Board 268, D2:R RotW Softcore Trading.</p>
       <p class="d2jsp-say">This room never asks for the password. Forum gold stays unknown until a public reading returns a number, and the time of that reading is shown.</p>
       <input id="d2jsp-find" type="search" placeholder="Find a filed item" aria-label="Find a filed item" autocomplete="off" spellcheck="false">
       <button type="button" class="vault-btn" id="d2jsp-add">Add an item</button>
@@ -11113,6 +11140,23 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 <script>
 /* ⟦D2JSP DESK BEGIN⟧ */
 var D2JSP_BOARD = 268;
+var D2JSP_LADDER_BOARD = 271;
+function d2jspBoard(){
+  var profile = '';
+  try { profile = (typeof window !== 'undefined' && window.D2R_PROFILE) ? String(window.D2R_PROFILE) : ''; } catch (eBoard) { profile = ''; }
+  return profile === 'ladder' ? D2JSP_LADDER_BOARD : D2JSP_BOARD;
+}
+function d2jspBoardName(){
+  return d2jspBoard() === D2JSP_LADDER_BOARD ? 'D2:R RotW Softcore Ladder Trading' : 'D2:R RotW Softcore Trading';
+}
+function d2jspBoardSay(kind){
+  var n = d2jspBoard();
+  if (kind === 'ask') return 'Asking Chrome on this machine to post on board ' + n + '.';
+  if (kind === 'posted') return 'Posted on board ' + n + ' through the Chrome login on this machine.';
+  if (kind === 'accepted') return 'The board accepted this post. It is on board ' + n + '.';
+  if (kind === 'wrong') return 'The page is not board ' + n + ', so nothing was posted.';
+  return 'Board ' + n + ', ' + d2jspBoardName() + '.';
+}
 function d2jspPriceToSend(quoted, typed) {
   var t = String(typed == null ? '' : typed).trim();
   if (t !== '') {
@@ -11149,7 +11193,7 @@ function d2jspDraft(name, base, mods, copies, fg) {
   var c = copies | 0;
   if (c > 1) lines.push('copies: ' + c);
   lines.push(price + ' fg');
-  return { ok: true, subject: subject, body: lines.join('\n'), forum: D2JSP_BOARD, name: nm };
+  return { ok: true, subject: subject, body: lines.join('\n'), forum: d2jspBoard(), name: nm };
 }
 function d2jspItemBlock(name, base, mods, copies, fg, sold) {
   var one = d2jspDraft(name, base, sold ? '' : mods, copies, fg);
@@ -11181,7 +11225,7 @@ function d2jspShopDraft(items) {
   var n = sale.length;
   var subject = 'Selling ' + n + (n === 1 ? ' item' : ' items');
   var body = parts.map(function(block){ return block.body; }).join('\n\n');
-  return { ok: true, subject: subject, body: body, forum: D2JSP_BOARD, shop: true, blocks: parts.map(pack) };
+  return { ok: true, subject: subject, body: body, forum: d2jspBoard(), shop: true, blocks: parts.map(pack) };
 }
 function d2jspShotKey(name) {
   return String(name || '')
@@ -11417,14 +11461,33 @@ function d2jspPriceLine(q) {
       return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'})[c];
     });
   }
+  function catalogBase(name){
+    try {
+      if (typeof window._cbItemsNamed !== 'function' || typeof window._cbDb !== 'function') return '';
+      var hits = window._cbItemsNamed(name);
+      if (!hits || hits.length !== 1) return '';
+      var code = hits[0][3];
+      var d = window._cbDb();
+      var row = d && d.b && d.b[code];
+      var label = row && row[0] ? String(row[0]) : '';
+      var shown = hits[0][1] ? String(hits[0][1]) : '';
+      if (!label || (shown && label.toLowerCase() === shown.toLowerCase())) return '';
+      return label;
+    } catch (eCat) { return ''; }
+  }
   function baseOf(name){
     var rec = gearMap()[name];
     if (rec && rec.entry) {
       var sh = shownOf(rec.entry);
-      if (sh.name) return sh.base || '';
+      if (sh.name && sh.base) return sh.base;
     }
-    try { if (typeof window._vpMadeBase === 'function') return String(window._vpMadeBase(name) || ''); } catch (e) {}
-    return '';
+    try {
+      if (typeof window._vpMadeBase === 'function') {
+        var made = String(window._vpMadeBase(name) || '');
+        if (made) return made;
+      }
+    } catch (e) {}
+    return catalogBase(name);
   }
   function copiesOf(name){
     try { if (typeof copyCount === 'function') return (copyCount(name) || 1) | 0; } catch (e) {}
@@ -11449,12 +11512,21 @@ function d2jspPriceLine(q) {
     var v = readMap('d2r_d2jsp_sold')[name];
     return v === 1 || v === true;
   }
+  function hiddenOf(name){
+    var v = readMap('d2r_d2jsp_hide')[name];
+    return v === 1 || v === true;
+  }
   function topicUrl(){
     var s = store();
     if (!s) return '';
     try {
       var v = String(s.getItem('d2r_d2jsp_topic') || '');
-      return v.indexOf('https://forums.d2jsp.org/topic.php') === 0 ? v : '';
+      if (v.indexOf('https://forums.d2jsp.org/topic.php') !== 0) return '';
+      var board = d2jspBoard();
+      var found = /[?&]f=(\d+)/.exec(v);
+      var on = found ? (Number(found[1]) | 0) : 0;
+      if (on) return on === board ? v : '';
+      return board === 268 ? v : '';
     } catch (eTopic) { return ''; }
   }
   function writeTopic(url){
@@ -11545,8 +11617,8 @@ function d2jspPriceLine(q) {
     var extra = Object.keys(gearMap()).filter(function(n){ return n && !d2jspIsQuest(n); });
     if (trade == null && !extra.length) return null;
     var seen = {}, out = [];
-    (trade || []).forEach(function(n){ if (!seen[n]) { seen[n] = 1; out.push(n); } });
-    extra.forEach(function(n){ if (!seen[n]) { seen[n] = 1; out.push(n); } });
+    (trade || []).forEach(function(n){ if (!seen[n] && !hiddenOf(n)) { seen[n] = 1; out.push(n); } });
+    extra.forEach(function(n){ if (!seen[n] && !hiddenOf(n)) { seen[n] = 1; out.push(n); } });
     out.sort();
     return out;
   }
@@ -11563,17 +11635,15 @@ function d2jspPriceLine(q) {
     var sold = soldOf(n);
     var draft = d2jspItemBlock(n, base, mods, copiesOf(n), send, sold);
     var postText = draft.ok ? draft.body : mods;
-    var vaultNames = names();
-    var onVault = !!(vaultNames && vaultNames.indexOf(n) >= 0);
-    var remove = (gearMap()[n] && !onVault)
-      ? '<button type="button" class="vault-btn" data-d2jsp-remove="' + esc(n) + '">Remove from this list</button>'
-      : '';
-    var hint = mods.trim() ? '' : '<div class="d2jsp-say">No mods yet. Options opens the same mod list the character builder uses.</div>';
+    var remove = '<button type="button" class="vault-btn" data-d2jsp-remove="' + esc(n) + '">Remove from this list</button>';
+    var recorded = !!(gearMap()[n] && gearMap()[n].entry) || typeof readMap('d2r_d2jsp_mods')[n] === 'string';
+    var hint = mods.trim() ? '' : '<div class="d2jsp-say">' + (recorded ? 'No mods yet. ' : 'This filing has no mods recorded. ') + 'Options opens the same mod list the character builder uses.</div>';
     var mark = '<button type="button" class="vault-btn" data-d2jsp-sold="' + esc(n) + '">' + (sold ? 'For sale' : 'Mark sold') + '</button>';
+    var tip = 'Opens a draft. Nothing is posted until Post this draft.';
     return '<div class="d2jsp-card" data-d2jsp-item="' + esc(n) + '"' + (sold ? ' data-sold="1"' : '') + '>'
       + '<div class="d2jsp-art">' + art + '</div>'
       + '<div class="d2jsp-main">'
-      + '<div class="boss-name">' + esc(n) + '</div>'
+      + '<div class="boss-name" title="' + esc(tip) + '">' + esc(n) + '</div>'
       + '<div class="d2jsp-say" data-d2jsp-base>' + esc(base || 'Base not recorded') + '</div>'
       + hint
       + '<pre class="d2jsp-draft" data-d2jsp-draft' + (postText ? '' : ' hidden') + '>' + esc(postText) + '</pre>'
@@ -11582,7 +11652,7 @@ function d2jspPriceLine(q) {
       + '<div class="d2jsp-fields">'
       + '<div class="d2jsp-acts"><button type="button" class="vault-btn" data-d2jsp-options="' + esc(n) + '">Options</button>' + mark + remove + '</div>'
       + '<label class="d2jsp-say">Your fg<input data-d2jsp-fg="' + esc(n) + '" value="' + esc(typedOf(n)) + '" inputmode="decimal" autocomplete="off" aria-label="Forum gold for this item"></label>'
-      + '<button type="button" class="vault-btn vault-btn-primary" data-d2jsp-post="' + esc(n) + '"' + ((send == null || sold) ? ' disabled' : '') + '>Post</button>'
+      + '<button type="button" class="vault-btn vault-btn-primary" title="' + esc(tip) + '" data-d2jsp-post="' + esc(n) + '"' + ((send == null || sold) ? ' disabled' : '') + '>Post</button>'
       + '</div></div></div>';
   }
   function currentCards(){
@@ -11727,8 +11797,11 @@ function d2jspPriceLine(q) {
     pump();
   }
   window._d2jspShow = function(){
+    var boardLine = document.getElementById('d2jsp-board');
+    if (boardLine) boardLine.textContent = d2jspBoardSay();
     paint();
     refreshQuotes();
+    d2jspLamp();
   };
   var held = null;
   var editing = '';
@@ -11800,6 +11873,8 @@ function d2jspPriceLine(q) {
     if (editing && editing !== sh.name && Object.prototype.hasOwnProperty.call(map, editing)) delete map[editing];
     map[sh.name] = { entry: copy };
     writeGear(map);
+    var hidden = readMap('d2r_d2jsp_hide');
+    if (hidden[sh.name]) { delete hidden[sh.name]; writeMap('d2r_d2jsp_hide', hidden); }
     held = copy;
     editing = sh.name;
     if (!quoted[sh.name]) ask(sh.name);
@@ -11852,6 +11927,7 @@ function d2jspPriceLine(q) {
   document.addEventListener('click', function(ev){
     var t = ev.target;
     if (!t || !t.closest || !t.closest('#tab-d2jsp')) return;
+    if (t.closest('#d2jsp-lamp')) { ev.preventDefault(); d2jspLamp(true); return; }
     if (t.closest('#d2jsp-add')) { ev.preventDefault(); window._d2jspPlannerOpen(''); return; }
     var opt = t.closest('[data-d2jsp-options]');
     if (opt) { ev.preventDefault(); window._d2jspPlannerOpen(opt.getAttribute('data-d2jsp-options') || ''); return; }
@@ -11859,14 +11935,12 @@ function d2jspPriceLine(q) {
     if (rm) {
       ev.preventDefault();
       var rn = rm.getAttribute('data-d2jsp-remove') || '';
-      var vaultNames = names();
-      if (vaultNames && vaultNames.indexOf(rn) >= 0) {
-        say(rn + ' stays on this list, because the vault still files it.');
-        return;
-      }
+      if (!rn) return;
+      var hideMap = readMap('d2r_d2jsp_hide');
+      hideMap[rn] = 1;
+      writeMap('d2r_d2jsp_hide', hideMap);
       var map = gearMap();
-      delete map[rn];
-      writeGear(map);
+      if (map[rn]) { delete map[rn]; writeGear(map); }
       var soldMap = readMap('d2r_d2jsp_sold');
       if (soldMap[rn]) { delete soldMap[rn]; writeMap('d2r_d2jsp_sold', soldMap); }
       paint();
@@ -11960,7 +12034,7 @@ function d2jspPriceLine(q) {
       }
       posting = true;
       showPosting();
-      say('Asking Chrome on this machine to post on board 268.');
+      say(d2jspBoardSay('ask'));
       function settle(){ posting = false; }
       fetch('/api/d2jsp_send', {
         method: 'POST',
@@ -11977,8 +12051,8 @@ function d2jspPriceLine(q) {
         }
         var reason = j.reason;
         if (j.ok && reason === 'submitted') {
-          say('Posted on board 268 through the Chrome login on this machine.');
-          showReceipt('confirmed', 'The board accepted this post. It is on board 268.', j.topic);
+          say(d2jspBoardSay('posted'));
+          showReceipt('confirmed', d2jspBoardSay('accepted'), j.topic);
           return;
         }
         var missed = 'The board did not confirm the post, so nothing was posted.';
@@ -11989,7 +12063,7 @@ function d2jspPriceLine(q) {
         } else if (reason === 'chrome-unread') {
           missed = 'This machine could not read the Chrome login, so nothing was posted.';
         } else if (reason === 'wrong-board') {
-          missed = 'The page is not board 268, so nothing was posted.';
+          missed = d2jspBoardSay('wrong');
         } else if (reason === 'no-price') {
           missed = 'Forum gold is unknown, so this item is not posted.';
         } else if (reason === 'title') {
@@ -11997,6 +12071,7 @@ function d2jspPriceLine(q) {
         } else if (reason === 'long') {
           missed = 'The post is longer than the board accepts, so nothing was posted.';
         }
+        d2jspLamp();
         say(missed);
         showReceipt('missed', missed, '');
       }).catch(function(){
@@ -12121,11 +12196,11 @@ function d2jspPriceLine(q) {
       var row = pairs.rows[i];
       var line = document.createElement('div');
       line.className = 'd2jsp-shot-row';
-      line.appendChild(d2jspShotCell(row.name, row.shot));
       var pre = document.createElement('pre');
       pre.className = 'd2jsp-draft';
       pre.textContent = row.body;
       line.appendChild(pre);
+      line.appendChild(d2jspShotCell(row.name, row.shot));
       wrap.appendChild(line);
     }
     var shown = '';
@@ -12135,7 +12210,7 @@ function d2jspPriceLine(q) {
     var say = document.createElement('p');
     say.className = 'd2jsp-say';
     say.setAttribute('data-d2jsp-shot-note', '1');
-    say.textContent = 'The picture stays beside the item on this screen. The board receives the text.';
+    say.textContent = 'The picture sits on the right of each item. The board receives the text.';
     box.insertBefore(say, view);
     box.insertBefore(wrap, view);
     view.hidden = true;
@@ -12189,7 +12264,7 @@ function d2jspPriceLine(q) {
     host.hidden = false;
     host.innerHTML = '<div class="d2jsp-draft-box" role="dialog" aria-modal="true" aria-label="Posting">'
       + '<p class="d2jsp-draft-k">Posting</p>'
-      + '<p class="d2jsp-say">Asking Chrome on this machine to post on board 268.</p>'
+      + '<p class="d2jsp-say">' + esc(d2jspBoardSay('ask')) + '</p>'
       + '<p class="d2jsp-say">Back hides this panel. It does not cancel the post.</p>'
       + '<div class="d2jsp-acts"><button type="button" class="vault-btn" data-d2jsp-draft-close>Back</button></div></div>';
   }
@@ -12214,6 +12289,57 @@ function d2jspPriceLine(q) {
       : 'The draft was closed. Nothing was posted.');
   }, true);
   /* ⟦D2JSP PLANNER ESC END⟧ */
+  function d2jspLamp(signIn){
+    var lamp = document.getElementById('d2jsp-lamp');
+    var hostName = '';
+    try { hostName = location.hostname; } catch (eLamp) { hostName = ''; }
+    if (!lamp) return;
+    if (hostName !== '127.0.0.1' && hostName !== 'localhost') {
+      lamp.setAttribute('data-lamp', 'unknown');
+      lamp.title = 'D2JSP sign-in is read on the console of this machine.';
+      return;
+    }
+    if (signIn) {
+      if (lamp.getAttribute('data-lamp') === 'on') {
+        say('This machine is already signed into d2jsp.');
+        return;
+      }
+      lamp.setAttribute('data-busy', '1');
+      fetch('/api/d2jsp_login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}'
+      }).then(function(r){
+        return r.json().then(function(j){ return j || {}; }, function(){ return null; });
+      }).then(function(j){
+        lamp.removeAttribute('data-busy');
+        say((j && j.why) || 'This machine could not open the d2jsp login.');
+        d2jspLamp();
+      }).catch(function(){
+        lamp.removeAttribute('data-busy');
+        say('This machine could not open the d2jsp login.');
+      });
+      return;
+    }
+    fetch('/api/d2jsp_login').then(function(r){
+      return r.json().then(function(j){ return j || {}; }, function(){ return null; });
+    }).then(function(j){
+      lamp.removeAttribute('data-busy');
+      if (!j || !j.state) {
+        lamp.setAttribute('data-lamp', 'unknown');
+        lamp.title = 'This machine could not read the Chrome login.';
+        return;
+      }
+      lamp.setAttribute('data-lamp', j.state === 'on' || j.state === 'off' ? j.state : 'unknown');
+      if (j.state === 'off') lamp.setAttribute('data-fault', '1');
+      else lamp.removeAttribute('data-fault');
+      lamp.title = j.why || 'D2JSP sign-in on this machine.';
+    }).catch(function(){
+      lamp.removeAttribute('data-busy');
+      lamp.setAttribute('data-lamp', 'unknown');
+      lamp.title = 'This machine could not read the Chrome login.';
+    });
+  }
   function postDraft(draft){
     var hostName = '';
     try { hostName = location.hostname; } catch (eH2) { hostName = ''; }
@@ -12229,7 +12355,7 @@ function d2jspPriceLine(q) {
     }
     posting = true;
     showPosting();
-    say('Asking Chrome on this machine to post on board 268.');
+    say(d2jspBoardSay('ask'));
     var payload = { subject: draft.subject, body: draft.body, forum: draft.forum };
     if (draft.topic) payload.topic = draft.topic;
     function settle(){ posting = false; }
@@ -12249,8 +12375,8 @@ function d2jspPriceLine(q) {
       var reason = j.reason;
       if (j.ok && reason === 'submitted') {
         if (draft.shop && j.topic) writeTopic(j.topic);
-        say('Posted on board 268 through the Chrome login on this machine.');
-        showReceipt('confirmed', 'The board accepted this post. It is on board 268.', j.topic);
+        say(d2jspBoardSay('posted'));
+        showReceipt('confirmed', d2jspBoardSay('accepted'), j.topic);
         return;
       }
       var missed = 'The board did not confirm the post, so nothing was posted.';
@@ -12261,7 +12387,7 @@ function d2jspPriceLine(q) {
       } else if (reason === 'chrome-unread') {
         missed = 'This machine could not read the Chrome login, so nothing was posted.';
       } else if (reason === 'wrong-board') {
-        missed = 'The page is not board 268, so nothing was posted.';
+        missed = d2jspBoardSay('wrong');
       } else if (reason === 'no-price') {
         missed = 'Forum gold is unknown, so this item is not posted.';
       } else if (reason === 'title') {
@@ -12271,6 +12397,7 @@ function d2jspPriceLine(q) {
       } else if (reason === 'not-posted' && payload.topic) {
         missed = 'The saved topic could not be updated, so nothing new was posted.';
       }
+      d2jspLamp();
       say(missed);
       showReceipt('missed', missed, '');
     }).catch(function(){
@@ -12285,7 +12412,7 @@ function d2jspPriceLine(q) {
     if (data.d2jsp === 'submitted') say('The bridge submitted the form in the d2jsp window.');
     else if (data.d2jsp === 'need-login') say('That browser is not logged into d2jsp, so nothing was posted.');
     else if (data.d2jsp === 'form-unknown') say('The d2jsp form was not the one the bridge knows, so nothing was posted.');
-    else if (data.d2jsp === 'wrong-board') say('The open page is not board 268, so nothing was posted.');
+    else if (data.d2jsp === 'wrong-board') say(d2jspBoardSay('wrong'));
   });
 })();
 </script>
@@ -25279,9 +25406,29 @@ const KBD_SHORTCUTS = [
   }},
 ];
 
+document.addEventListener('pointerdown', e => {
+  // A click on the forum-gold box has to focus it before the next digit arrives.
+  // The shortcut listener below reads the focused field. A click that misses the
+  // caret leaves the digit free to change tabs.
+  const t = e.target;
+  if (!t || !t.closest) return;
+  let input = (t.matches && t.matches('[data-d2jsp-fg]')) ? t : null;
+  if (!input) {
+    const label = t.closest('label');
+    if (label) input = label.querySelector('[data-d2jsp-fg]');
+  }
+  if (!input || document.activeElement === input) return;
+  try { input.focus(); } catch (err) {}
+}, true);
+
 document.addEventListener('keydown', e => {
-  // Don't fire in input fields
-  if (['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) return;
+  // Don't fire in input fields. The target is checked as well as the focused
+  // element: a price box that has the event but has not yet become activeElement
+  // was sending its digit to a tab.
+  const targetTag = e.target && e.target.tagName;
+  const activeTag = document.activeElement && document.activeElement.tagName;
+  if (['INPUT','TEXTAREA','SELECT'].includes(targetTag) || ['INPUT','TEXTAREA','SELECT'].includes(activeTag)) return;
+  if (e.target && (e.target.isContentEditable || (e.target.closest && e.target.closest('[data-d2jsp-fg]')))) return;
   // Don't fire when modifier keys (except Shift+number) are pressed
   if (e.metaKey || e.ctrlKey || e.altKey) return;
 
@@ -65229,6 +65376,14 @@ body.app-ctx.cousin-shell #v687-build-badge{top:calc(40px + var(--claim-h,0px))}
   border-color:rgba(240,192,96,.5);color:var(--gold-bright,#f0c060)}
 .v687-btn.ghost{background:transparent}
 @media (max-width:720px){#v687-build-badge{display:none}}
+/* The console hides the bible tab row, so the fixed build badge (left, 180px)
+   and the profile pill (right) land on the search. The tab row already keeps
+   a gutter for both. The search needs the same clearance, or the badge covers
+   the field and the placeholder ends mid-word. Below 721px the badge is hidden. */
+@media (min-width:721px){
+  body.app-ctx.engine-driven .gsearch-wrap{margin-left:196px}
+}
+body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){

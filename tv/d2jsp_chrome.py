@@ -30,6 +30,8 @@ import urllib.request
 from html.parser import HTMLParser
 
 BOARD = 268
+LADDER_BOARD = 271
+POST_BOARDS = (BOARD, LADDER_BOARD)
 QUOTE_BOARD = 243
 COMPOSE_URL = "https://forums.d2jsp.org/post.php?mode=post&f=268"
 LOGIN_URL = "https://forums.d2jsp.org/login.php"
@@ -327,6 +329,36 @@ def live_cookie_header(now_utc=None):
     return None, "chrome-unread"
 
 
+def d2jsp_login_status(now_utc=None):
+    """Whether this machine's own Chrome is signed into d2jsp.
+
+    The cookie header is read and dropped. It is not returned, logged, or stored.
+    Another console reads the Chrome of the person at that computer.
+    """
+    _header, reason = live_cookie_header(now_utc)
+    if reason == "ok":
+        return {
+            "ok": True,
+            "state": "on",
+            "kind": "on",
+            "why": "Signed into d2jsp through the Chrome login on this machine.",
+        }
+    if reason == "need-login":
+        return {
+            "ok": True,
+            "state": "off",
+            "kind": "signed-out",
+            "needsLogin": True,
+            "why": "This machine is not signed into d2jsp. Click the lamp to sign in.",
+        }
+    return {
+        "ok": True,
+        "state": "unknown",
+        "kind": "unread",
+        "why": "This machine could not read the Chrome login.",
+    }
+
+
 class _Compose(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -519,18 +551,47 @@ def chrome_user_agent(platform=None, version=None):
     ) % (system, version)
 
 
-def _open_chrome_login():
-    """Open the fixed login page in the Chrome that is already running. Nothing from the draft is in the URL."""
-    if sys.platform != "darwin":
+def _open_chrome_login(platform=None, run=None, which=None):
+    """Open the forum login in this machine's own Chrome.
+
+    Nothing from a draft is in the URL. The page opens in the Chrome this
+    console already reads, not a debug port and not another computer's login.
+    """
+    plat = sys.platform if platform is None else platform
+    runner = run or subprocess.run
+    if plat == "darwin":
+        argv = ["open", "-a", "Google Chrome", LOGIN_URL]
+    elif str(plat).startswith("linux"):
+        binary = _chrome_bin(platform=plat, which=which)
+        if not binary:
+            return False
+        argv = [binary, "--no-first-run", LOGIN_URL]
+    else:
         return False
     try:
-        proc = subprocess.run(
-            ["open", "-a", "Google Chrome", LOGIN_URL],
-            capture_output=True, timeout=5,
-        )
-        return proc.returncode == 0
+        proc = runner(argv, capture_output=True, timeout=5)
+        return getattr(proc, "returncode", 1) == 0
     except Exception:
         return False
+
+
+def open_d2jsp_login():
+    """Open this machine's d2jsp login. The answer says whether the page opened."""
+    try:
+        opened = bool(_open_chrome_login())
+    except Exception:
+        opened = False
+    if opened:
+        return {
+            "ok": True,
+            "opened": True,
+            "why": "The d2jsp login is open in Chrome on this machine.",
+        }
+    return {
+        "ok": False,
+        "opened": False,
+        "why": "This machine could not open the d2jsp login.",
+    }
 
 
 def _headers(cookie):
@@ -972,7 +1033,7 @@ def _chrome_edit(topic, subject, text, cookie):
         shutil.rmtree(prof, ignore_errors=True)
 
 
-def _chrome_post(subject, text, cookie):
+def _chrome_post(subject, text, cookie, forum=None):
     """Submit a board 268 trade from the forum's own New Trade link.
 
     The trading board does not open on the old compose address. That address
@@ -1038,9 +1099,10 @@ def _chrome_post(subject, text, cookie):
                 "secure": True,
             })
             ident += 1
+        board = _post_board(forum) or BOARD
         _cdp_call(ws, 50, "Page.enable")
         _cdp_call(ws, 51, "Page.navigate", {
-            "url": "https://forums.d2jsp.org/forum.php?f=%d" % BOARD,
+            "url": "https://forums.d2jsp.org/forum.php?f=%d" % board,
         })
         open_trade = (
             "(function(){var as=document.querySelectorAll('a');"
@@ -1204,6 +1266,36 @@ def open_quote_login_once():
         return None
 
 
+def _post_board(forum):
+    """268 is RotW softcore. 271 is RotW softcore ladder. Anything else is refused."""
+    try:
+        n = int(forum)
+    except (TypeError, ValueError):
+        return None
+    return n if n in POST_BOARDS else None
+
+
+def _topic_on_board(url, forum):
+    """A saved topic is edited only when it is the board this post is for.
+
+    A topic with no f= belongs to board 268, which is the only board a post
+    could have saved before the ladder board existed. A 268 topic is not
+    edited as a 271 trade.
+    """
+    public = _public_topic(url)
+    if not public:
+        return False
+    try:
+        query = urllib.parse.parse_qs(urllib.parse.urlparse(public).query)
+        raw = (query.get("f") or [None])[0]
+        found = int(raw) if raw is not None else None
+    except (TypeError, ValueError):
+        found = None
+    if found is None:
+        return int(forum) == BOARD
+    return found == int(forum)
+
+
 def _public_topic(url):
     """A topic URL that is safe to show. Anything else is empty."""
     if not _topic(url):
@@ -1249,12 +1341,16 @@ def _send_edit(subject, text, cookie, topic, edit_post, open_login):
     return 200, {"ok": False, "reason": "not-posted"}
 
 
-def _send_through_chrome(subject, text, cookie, chrome_post, open_login):
+def _send_through_chrome(subject, text, cookie, chrome_post, open_login, forum=None):
     """One scratch-Chrome submit. A topic URL is the only submitted receipt."""
     opener = chrome_post or _chrome_post
+    board = _post_board(forum) or BOARD
     landed = None
     try:
-        landed = opener(subject, text, cookie)
+        if opener is _chrome_post:
+            landed = opener(subject, text, cookie, board)
+        else:
+            landed = opener(subject, text, cookie)
     except OSError as stuck:
         landed = stuck
     if isinstance(landed, OSError) or not landed:
@@ -1286,7 +1382,7 @@ def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_l
         forum = int(body.get("forum"))
     except (TypeError, ValueError):
         forum = 0
-    if forum != BOARD:
+    if _post_board(forum) is None:
         return 200, {"ok": False, "reason": "wrong-board"}
     subject = str(body.get("subject") or "").strip()
     text = str(body.get("body") or "").strip()
@@ -1311,13 +1407,15 @@ def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_l
                 out["opened"] = False
         return 200, out
     topic = _public_topic(str(body.get("topic") or ""))
+    if topic and not _topic_on_board(topic, forum):
+        topic = ""
     if topic:
         opener = edit_post
         if opener is None and chrome_post is False:
             opener = lambda *args: "no-edit"
         return _send_edit(subject, text, cookie, topic, opener, open_login)
     if transport is None and chrome_post is not False:
-        return _send_through_chrome(subject, text, cookie, chrome_post, open_login)
+        return _send_through_chrome(subject, text, cookie, chrome_post, open_login, forum)
     fetch = transport or _transport
     try:
         status, hdrs, raw = fetch("GET", COMPOSE_URL, _headers(cookie), None)
@@ -1338,7 +1436,7 @@ def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_l
         return 200, {"ok": False, "reason": "form-unknown"}
     raw_text = raw.decode("utf-8", "replace") if isinstance(raw, (bytes, bytearray)) else str(raw or "")
     if _challenge_page(raw_text) and chrome_post is not False:
-        return _send_through_chrome(subject, text, cookie, chrome_post, open_login)
+        return _send_through_chrome(subject, text, cookie, chrome_post, open_login, forum)
     parsed = parse_compose(raw)
     if parsed["reason"] != "ready":
         out = {"ok": False, "reason": parsed["reason"]}
@@ -1375,7 +1473,7 @@ def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_l
         return 200, {"ok": False, "reason": "need-login", "opened": opened}
     post_text = raw.decode("utf-8", "replace") if isinstance(raw, (bytes, bytearray)) else str(raw or "")
     if _challenge_page(post_text) and chrome_post is not False:
-        return _send_through_chrome(subject, text, cookie, chrome_post, open_login)
+        return _send_through_chrome(subject, text, cookie, chrome_post, open_login, forum)
     came_back = parse_compose(raw)
     if came_back["reason"] == "need-login":
         opener = open_login or _open_chrome_login

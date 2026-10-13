@@ -44804,6 +44804,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         path = self.path.split("?", 1)[0]
+        if path == "/api/d2jsp_login":
+            # This machine's own d2jsp sign-in. The cookie stays on this machine.
+            import d2jsp_chrome as _d2jsp
+            if not _d2jsp.console_may_post(
+                    self.headers.get("Origin"), self.headers.get("Host"), CONTROL_PORT):
+                self._json(403, {"ok": False, "reason": "local"})
+                return
+            self._json(200, _d2jsp.d2jsp_login_status())
+            return
         if path == "/api/d2jsp_quote":
             # The trade desk reads one item's forum-gold range through the Chrome
             # login on this machine. The answer is the reading. The page and the
@@ -46251,6 +46260,15 @@ class Handler(BaseHTTPRequestHandler):
             except Exception:
                 body = {}
 
+        if path == "/api/d2jsp_login":
+            # A click on the lamp opens the login in this machine's Chrome.
+            import d2jsp_chrome as _d2jsp
+            if not _d2jsp.console_may_post(
+                    self.headers.get("Origin"), self.headers.get("Host"), CONTROL_PORT):
+                self._json(403, {"ok": False, "reason": "local"})
+                return
+            self._json(200, _d2jsp.open_d2jsp_login())
+            return
         if path == "/api/d2jsp_send":
             # The D2JSP desk posts one priced draft through the Chrome login on
             # this machine. The answer is a status word. The draft and the cookie
