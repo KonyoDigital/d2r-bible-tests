@@ -75019,15 +75019,20 @@ window.tvStashAutoIntake = async function(tab, opts){
         if (on && isLedger(k)) return null;
         return rawGet.call(window.LSR, k);
       };
+      /* REG-2186 - A VISIT WRITES NOTHING INTO THIS PC, whatever the key. The veil used to catch only the ledger keys,
+         while the board's own timers kept running and writing every OTHER key straight into his real store: every 45 s
+         kaiChronicleSync read their vault and trimmed HIS d2r_chronicleInbox (finds he had not ticked, gone for good),
+         and _chronAutoAdopt stamped d2r_chronAdopted for real while its foundLog went into the shadow copy, so a sweep
+         that landed during a visit was marked done and never applied. Every one of them writes through window.LSR, so
+         the door is the place to stop them all: while a visit is on, EVERY write goes into the shadow map, which Leave
+         throws away. Reads of a key written during the visit come back from that map, so the visit stays consistent;
+         a key the visit never wrote still reads his own value. [[the-unjoined-end]] */
       window.LSR.setItem = function (k, v) {
-        if (on && isLedger(k)) {
-          shadowMap[k] = v == null ? null : String(v);
-          if (on && isLedger(k)) return;
-        }
+        if (on) { shadowMap[k] = v == null ? null : String(v); return; }
         return rawSet.call(window.LSR, k, v);
       };
       window.LSR.removeItem = function (k) {
-        if (on && isLedger(k)) { shadowMap[k] = null; return; }
+        if (on) { shadowMap[k] = null; return; }
         return rawRemove.call(window.LSR, k);
       };
     }

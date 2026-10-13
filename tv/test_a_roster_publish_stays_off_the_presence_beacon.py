@@ -443,7 +443,7 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         self.assertNotIn('class="ht" type="button" id="shadow-leave"', ui)
         board = open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8").read()
         self.assertEqual(board.count("data.type !== 'tvd-shadow'"), 1)
-        self.assertIn("if (on && isLedger(k)) return;", board)
+        self.assertIn("if (on) { shadowMap[k] = v == null ? null : String(v); return; }", board)
         self.assertIn("d2r_charBuilds: builds.length ? storeOf(builds) : '{}'", board)
         self.assertIn("switchTab('chars')", board)
         self.assertIn("window._LP_FORKED.has(k)", board)
@@ -451,7 +451,7 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         self.assertEqual(board.count("document.documentElement.classList.contains('tvd-shadow')"), 3)
         self.assertIn("shadowMap[k] = null", board)
         self.assertIn("pending: true", fn)
-        self.assertEqual(board.count("if (on && isLedger(k)) return;"), 1)
+        self.assertEqual(board.count("if (on) { shadowMap[k] = v == null ? null : String(v); return; }"), 1)
         with open(APP, encoding="utf-8") as fh:
             app = fh.read()
         self.assertEqual(app.count('path == "/api/roster-cache"'), 1)
@@ -536,6 +536,72 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         self.assertEqual(cells[1]["x"], 0)
         self.assertIsNone(RP.clean_book({"builds": [{"name": "x.png"}]}))
 
+
+class AShadowVisitWritesNothingIntoThisPC(unittest.TestCase):
+    """REG-2186 - a visit to another PC's console must leave NOTHING in this PC's store.
+
+    The checks above only grepped the veil's text and pinned its 'tvd-shadow' count - they stayed green with every
+    write leaking (the cross-family review of v3678 made isLedger always false and nothing went red). This runs the
+    SHIPPED veil (arm / disarm and its window.LSR wrapper, cut from bible.html) in node against a stand-in store and
+    writes, during a visit, exactly the keys that leaked: his chronicle inbox trimmed by kaiChronicleSync, the sweep
+    stamp _chronAutoAdopt sets, a ledger key, and a removal. After Leave his store must read as it did before."""
+
+    def _cut(self, s, a, b):
+        if s.count(a) != 1:
+            raise AssertionError("anchor %r matched %d times - re-point this law" % (a[:40], s.count(a)))
+        i = s.index(a)
+        return s[i:s.index(b, i)]
+
+    def _visit(self):
+        if not NODE:
+            raise AssertionError("node is not on this machine - this law does not skip")
+        board = open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8").read()
+        veil = self._cut(board, "  var LEDGER = {\n", "  function buildsFrom(row) {\n")
+        prog = r"""
+var REAL = { d2r_chronicleInbox: JSON.stringify(['Harlequin Crest', 'Ber Rune']), d2r_chronAdopted: 'before-visit',
+             d2r_activeTab: 'vault' };
+var window = { _LP_FORKED: new Set(), _WP_FORKED: new Set(),
+  LSR: { getItem: function(k){ return Object.prototype.hasOwnProperty.call(REAL, k) ? REAL[k] : null; },
+         setItem: function(k, v){ REAL[k] = String(v); },
+         removeItem: function(k){ delete REAL[k]; } } };
+var document = { documentElement: { classList: { add: function(){}, remove: function(){}, contains: function(){ return false; } } },
+                 getElementById: function(){ return null; } };
+var paint = function(){};
+""" + veil + r"""
+arm({ d2r_owned: JSON.stringify(['Harlequin Crest']) });
+// what the board's own timers did during a visit:
+window.LSR.setItem('d2r_chronicleInbox', JSON.stringify(['Ber Rune']));   // kaiChronicleSync trims his inbox
+window.LSR.setItem('d2r_chronAdopted', 'sweep-123');                        // _chronAutoAdopt stamps the sweep done
+window.LSR.setItem('d2r_foundLog', JSON.stringify({ x: 1 }));             // a ledger write
+window.LSR.removeItem('d2r_activeTab');                                    // a removal
+var during = window.LSR.getItem('d2r_chronicleInbox');
+disarm();
+console.log(JSON.stringify({ real: REAL, during: during }));
+"""
+        r = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            raise AssertionError("the cut veil did not run in node: %s" % r.stderr[-700:])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    def test_a_visit_leaves_his_inbox_alone(self):
+        out = self._visit()
+        self.assertEqual(json.loads(out["real"]["d2r_chronicleInbox"]), ["Harlequin Crest", "Ber Rune"],
+                         "a visit trimmed his chronicle inbox - a find he had not ticked is gone for good")
+
+    def test_a_sweep_during_a_visit_is_not_marked_done(self):
+        out = self._visit()
+        self.assertEqual(out["real"]["d2r_chronAdopted"], "before-visit",
+                         "a sweep that landed during a visit was stamped done for real - it will never be applied")
+
+    def test_no_key_of_his_is_written_or_removed(self):
+        out = self._visit()
+        self.assertNotIn("d2r_foundLog", out["real"], "a ledger write during the visit reached his store")
+        self.assertEqual(out["real"].get("d2r_activeTab"), "vault", "a removal during the visit reached his store")
+
+    def test_the_visit_still_reads_back_what_it_wrote(self):
+        # the veil must keep the visit consistent: a key written during it reads back from the shadow map
+        out = self._visit()
+        self.assertEqual(json.loads(out["during"]), ["Ber Rune"], "the visit could not read back its own write")
 
 RED_PROOF = [
     {
@@ -671,6 +737,16 @@ RED_PROOF = [
         "replace": "        /* the card stays in the rail */\n",
         "matches": 1,
     },
+    {"why": "REG-2186: the veil catches only ledger keys again, so a visit writes his inbox and the sweep stamp into his store",
+     "file": "bible.html",
+     "find": "        if (on) { shadowMap[k] = v == null ? null : String(v); return; }\n",
+     "replace": "        if (on && isLedger(k)) { shadowMap[k] = v == null ? null : String(v); return; }\n",
+     "matches": 1},
+    {"why": "REG-2186: a removal during a visit reaches his store again for any key that is not a ledger key",
+     "file": "bible.html",
+     "find": "        if (on) { shadowMap[k] = null; return; }\n",
+     "replace": "        if (on && isLedger(k)) { shadowMap[k] = null; return; }\n",
+     "matches": 1},
 ]
 
 

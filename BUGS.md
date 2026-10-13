@@ -415,6 +415,24 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2186 - A SHADOW VISIT WROTE INTO HIS OWN STORE (2026-10-13, #323)
+
+Visiting another PC's console is meant to write nothing back into this PC. The
+veil caught only ledger keys, while the board's own timers kept running and
+wrote every other key straight into his real store. Every 45 s kaiChronicleSync
+read the other PC's vault and trimmed his d2r_chronicleInbox, so a find he had
+not ticked was gone for good. And _chronAutoAdopt stamped d2r_chronAdopted for
+real while its foundLog went into the shadow copy that Leave throws away, so a
+sweep that landed during a visit was marked done and never applied. Found by the
+cross-family review of v3678 and reproduced in node. All three writers go
+through window.LSR, so the fix is at that one door: while a visit is on, every
+write and removal goes into the shadow map, whatever the key. Reads of a key
+written during the visit come back from that map; a key it never wrote still
+reads his own value. The old guard only grepped the veil's text and pinned a
+count of 3, and stayed green with every write leaking. It is now a behavioral
+law that runs the shipped veil in node and checks his store after Leave.
+Law: `test_a_roster_publish_stays_off_the_presence_beacon` (AShadowVisitWritesNothingIntoThisPC, 4 cases, 2 red-proofs).
+
 ### REG-2185 - A PLANNER PICK WROTE OVER A RECORD HE ALREADY HAD (2026-10-13, #264)
 
 Two writes in the Vault planner replaced a record that existed before the pick.
