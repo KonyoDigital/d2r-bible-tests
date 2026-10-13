@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3718",
+  "ver": "v3719",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3718: Annihilus, Hellfire Torch and Gheeds Fortune are drawn and stay with MAIN. A charm registered in Magic and Rare is found. HEART: tv/test_a_hand_added_item_stays_his.py",
+  "note": "v3719: REG-2184 the Integrity fix keeps the home · REG-2185 a planner pick never writes over a record he has · REG-2186 a shadow visit writes nothing into this PC",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

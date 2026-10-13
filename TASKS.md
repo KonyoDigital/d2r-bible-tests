@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3718** | `(this commit)` | v3718 — Annihilus, Hellfire Torch and Gheeds Fortune are drawn and stay with MAIN. A charm registered in Magic and Rare is found. HEART: tv/test_a_hand_added_item_stays_his.py |
+| **v3719** | `(this commit)` | v3719 — REG-2184 the Integrity fix keeps the home · REG-2185 a planner pick never writes over a record he has · REG-2186 a shadow visit writes nothing into this PC |
+| **v3718** | `6b9e559b` | v3718 — Annihilus, Hellfire Torch and Gheeds Fortune are drawn and stay with MAIN. A charm registered in Magic and Rare is found. HEART: tv/test_a_hand_added_item_stays_his.py |
 | **v3717** | `e85191f0` | v3717 — The witness prune is cut from the copy that leaves a receipt in the held store. Mule it keeps Magic and Rare as the register and does not write a second mule filing. HEART: tv/test_a_name_nothing_knows_gets_no_guessed_mule |
 | **v3716** | `7ff035c5` | v3716 — One add owns one resolved name. A magic or rare save stays in Magic and Rare and is not also filed on the mule map. A vault paint keeps an owned receipt. HEART: tv/test_a_hand_added_item_stays_his |
 | **v3715** | `e04b0cbb` | v3715 — HEART: tv/test_a_hand_added_item_stays_his. One vault draw reads the witness store once and builds only the open review cards. |
