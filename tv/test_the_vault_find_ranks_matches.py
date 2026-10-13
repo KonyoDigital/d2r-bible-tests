@@ -14,6 +14,13 @@ import subprocess
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+import sys as _sys
+_sys.path.insert(0, HERE)
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
 BIBLE = os.path.join(HERE, "..", "bible.html")
 NODE = os.environ.get("NODE") or shutil.which("node")
 
