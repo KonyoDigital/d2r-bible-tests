@@ -438,6 +438,22 @@ it run; his game still yields; an unreadable sweep state never wedges the prover
 widened judge. Seen RED two ways: neuter the sweep check → the sweep case fails; revert a call site → the
 two-site count drops to 1. Takes effect on RELAUNCH (the console runs control_app from the working tree); does
 not fix an already-stuck sweep - for that, drop baseline CPU (close the stray grok TTY, quit Battle.net).
+### REG-2196 - TWO CI REDS GROK CAUGHT IN v3719: A CHILD READ IN THE LOCALE, AND A 45TH FIXED WINDOW (2026-10-14)
+
+**Found** by the Grok CLI second eye (restored 1.0.52) reviewing v3719 on #231, confirmed by the agent-suite run
+numbers: shard 1 red on `test_no_production_module_reads_a_child_in_the_locale_encoding`, shard 4 red on
+`test_a_source_window_must_reach_its_subject` (45 > 44).
+
+**Fix:**
+- `tv/d2jsp_chrome.py:794` (REG-2190's scratch sweep) ran `pgrep -f` with `text=True` and no `encoding`, so on a
+  cp1255 console it decodes the child's bytes in the locale. Now `encoding="utf-8", errors="replace"`.
+- `tv/test_a_landed_update_is_not_an_edit.py` (REG-2183's law) checked the exit-2 branch with a fixed
+  `code[i:i + 200]` window - the 45th such window, one over the ratchet's ceiling of 44. Now bounded to the
+  branch's own `} else` (content, not a byte count), per Grok's note.
+
+**Guards:** the two laws were already RED on origin and are GREEN now (47 pass) - they ARE the guards (the
+encoding law flags the module; the ratchet counts the windows). No new sabotage needed.
+
 ### REG-2195 - EVERY CORE LOCKER HAD A DELETE BUTTON; A MIS-CLICK DROPPED HIS TAXONOMY (2026-10-14, #264)
 
 **Found** by GrokBot's batch K controls pass: every mule card (not just ones he added) carried a 🗑 delete

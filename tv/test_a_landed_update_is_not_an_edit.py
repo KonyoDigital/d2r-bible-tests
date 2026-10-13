@@ -990,7 +990,10 @@ class TheInstallerRunsTheRuleBesideSelfProve(unittest.TestCase):
                          "save-and-update must be gated on exit 2 (local work) ONLY - exit 1 means the rule could "
                          "not tell, and an unknown must never reset anything")
         i = code.index("if ($applyRc -eq 2) {")
-        self.assertIn("Save-And-Update $applyWhy", code[i:i + 200],
+        # REG-2196 (Grok second-eye) - bound to the branch's own } else, not a fixed i+200 window (the 45th
+        # fixed-size window tripped test_a_source_window_must_reach_its_subject's ceiling of 44).
+        _branch = code[i:code.index("} else", i)]
+        self.assertIn("Save-And-Update $applyWhy", _branch,
                       "the exit-2 branch no longer saves before it updates")
 
 

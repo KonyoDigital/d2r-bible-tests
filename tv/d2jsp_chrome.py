@@ -792,7 +792,7 @@ def _sweep_stale_scratch(now=None, tmp=None):
                 continue
             try:
                 _out = subprocess.run(["pgrep", "-f", "--user-data-dir=" + d],
-                                      capture_output=True, text=True, timeout=5).stdout
+                                      capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=5).stdout   # REG-2196 (Grok second-eye) - utf-8, never the locale
                 for _pid in _out.split():
                     try:
                         os.kill(int(_pid), signal.SIGKILL)
