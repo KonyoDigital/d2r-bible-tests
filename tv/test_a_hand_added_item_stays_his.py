@@ -512,6 +512,11 @@ window.vaultFile = function(nm, wit, opts){
   return { ok: true, mode: 'filed', mule: opts.mule };
 };
 window.vaultUnassign = function(nm){ CALLS.push('unfile:' + nm); delete assign[nm]; return { ok: true }; };
+var LEDGER = [];
+window.kaiChronicleRecord = function(row){
+  LEDGER.push(row.name + '|' + row.status + '|' + (row.target || '') + '|' + row.why);
+  return row;
+};
 window._cbItem = function(id){ return { id: id }; };
 window._cbShown = function(e, it){
   return { name: e._name, q: e._q, base: e._base || '' };
@@ -583,6 +588,13 @@ var griefAfterSwap = copies['Grief'] || 0;
 var griefStill = assign['Grief'] || null;
 var griefOwned = owned.has('Grief');
 var griefThree = window.vaultPlannerFile({ id: 'grief', base: '7cr', _name: 'Grief', _q: 'r', affixes: [{ id: 'ias', rolls: { a: 31 } }], rolls: { ias: 31 } }, 't-g4');
+ROUTES['Defer Helm'] = { id: 'uni-armor', why: 'armor slot' };
+window._vaultPlannerOn = true;
+var rendersBefore = CALLS.filter(function(c){ return c === 'render'; }).length;
+var deferred = window.vaultPlannerFile({ id: 'def', _name: 'Defer Helm', _q: 'u' }, 'defer');
+var rendersDuring = CALLS.filter(function(c){ return c === 'render'; }).length;
+var dirty = window._vaultPlannerDirty === true;
+window._vaultPlannerOn = false;
 var OUT = {
   u1: u1, u2: u2, uFiles: files('Harlequin Crest'), ownedU: owned.has('Harlequin Crest'),
   m1: m1, m2: m2, mf: magicFinds['Shimmering Grand Charm of Vita'] || null, mFiles: files('Shimmering Grand Charm of Vita'),
@@ -608,7 +620,10 @@ var OUT = {
   swapped: swapped, griefAfterSwap: griefAfterSwap, griefStill: griefStill, griefOwned: griefOwned,
   griefThree: griefThree, griefEnd: copies['Grief'] || 0,
   refreshed: CALLS.filter(function(c){ return c === 'refresh'; }).length,
-  where: WHERE
+  where: WHERE,
+  ledger: LEDGER,
+  deferred: deferred, deferHome: assign['Defer Helm'] || null,
+  rendersBefore: rendersBefore, rendersDuring: rendersDuring, dirty: dirty
 };
 process.stdout.write(JSON.stringify(OUT));
 """
@@ -706,6 +721,60 @@ process.stdout.write(JSON.stringify(OUT));
         self.assertEqual(o["swapped"]["mule"], "uni-armor")
         self.assertEqual(o["griefThree"]["mode"], "copy", o["griefThree"])
         self.assertEqual(o["griefEnd"], 2)
+        filed_why = "|filed-by-hand|%s|you filed it from the vault planner"
+        self.assertEqual(o["ledger"].count("Harlequin Crest" + filed_why % "uni-armor"), 1, o["ledger"])
+        self.assertEqual(o["ledger"].count("Shimmering Grand Charm of Vita" + filed_why % "magic-rare"), 1, o["ledger"])
+        self.assertEqual(o["ledger"].count("Grief" + filed_why % "shared"), 1, o["ledger"])
+        self.assertEqual(o["ledger"].count("Monarch" + filed_why % "uni-armor"), 1, o["ledger"])
+        self.assertFalse(any(row.startswith("Junk Charm|") for row in o["ledger"]), o["ledger"])
+        self.assertFalse(any(row.startswith("Amulet|") for row in o["ledger"]), o["ledger"])
+        self.assertTrue(o["deferred"]["filed"], o["deferred"])
+        self.assertEqual(o["deferHome"], "uni-armor")
+        self.assertEqual(o["rendersDuring"], o["rendersBefore"], "a planner roll redrew the vault")
+        self.assertTrue(o["dirty"], "closing the planner would have nothing to draw")
+        self.assertEqual(o["ledger"].count("Defer Helm" + filed_why % "uni-armor"), 1, o["ledger"])
+
+    def test_a_slow_forge_scan_serves_the_whole_draw(self):
+        """A forge scan slower than the 400ms memo used to expire before it was stored, so every
+        later base ran the scan again. One draw shares one scan, and the memo is counted from
+        when the scan finished."""
+        if not NODE:
+            raise AssertionError("node is not on this machine — this law does not skip")
+        block = _cut(_src(), "var _spareScanCache = null, _spareScanAt = 0, _spareScanPass = 0;\n",
+                     "window._spareBaseInfo = _spareBaseInfo;\n", keep_b=True)
+        prog = r"""
+var window = globalThis, calls = 0;
+window.forgeScan = function(){
+  calls++;
+  var t = Date.now();
+  while (Date.now() - t < 450) {}
+  return { now: [{ rw: 'Spirit', base: { name: 'Monarch' }, baseOver: false }], pipeline: [], onestep: [] };
+};
+""" + block + r"""
+window._sparePass = 7;
+var a = window._spareBaseInfo('Sacred Targe', [{ n: 'Spirit' }]);
+var b = window._spareBaseInfo('Akaran Targe', [{ n: 'Spirit' }]);
+var during = calls;
+window._sparePass = 0;
+var c = window._spareBaseInfo('Royal Shield', [{ n: 'Spirit' }]);
+var after = calls;
+var t = Date.now();
+while (Date.now() - t < 450) {}
+window._spareBaseInfo('Sacred Targe', [{ n: 'Spirit' }]);
+process.stdout.write(JSON.stringify({
+  during: during, after: after, later: calls,
+  covered: (a.covered && a.covered.Spirit) || [],
+  same: JSON.stringify(a.covered) === JSON.stringify(b.covered)
+}));
+"""
+        p = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=30)
+        self.assertEqual(p.returncode, 0, (p.stderr or p.stdout)[-2000:])
+        o = json.loads(p.stdout)
+        self.assertEqual(o["during"], 1, "one draw ran the scan once per base: %s" % o)
+        self.assertEqual(o["after"], 1, "a finished scan was already expired: %s" % o)
+        self.assertEqual(o["later"], 2, "the memo never expired: %s" % o)
+        self.assertEqual(o["covered"], ["Monarch"], o)
+        self.assertTrue(o["same"], o)
 
     def test_a_vault_item_click_keeps_the_floating_card(self):
         """A locker cell, a shared-stash tile, and the other vault item chips stay on the vault.

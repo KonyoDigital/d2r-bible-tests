@@ -11084,7 +11084,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
     #tab-d2jsp .d2jsp-acts{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
     #tab-d2jsp .d2jsp-draft{white-space:pre-wrap;margin:8px 0;font-family:var(--mono);font-size:var(--fs-body);color:#f6e7c2;line-height:1.45}
     #tab-d2jsp #d2jsp-add, #tab-d2jsp #d2jsp-shop{margin:8px 8px 8px 0}
-    #d2jsp-lamp{display:inline-flex;align-items:center;gap:6px;margin-left:auto;padding:2px 8px 2px 6px;border-radius:999px;border:1px solid rgba(140,122,104,.45);background:rgba(0,0,0,.25);color:#b5a48a;font:600 11px/1.3 ui-monospace,Menlo,monospace;letter-spacing:.06em;cursor:pointer}
+    #d2jsp-lamp{display:inline-flex;align-items:center;gap:6px;margin-left:auto;padding:2px 8px 2px 6px;border-radius:999px;border:1px solid rgba(140,122,104,.45);background:rgba(0,0,0,.25);color:#b5a48a;font-family:ui-monospace,Menlo,monospace;font-weight:var(--fw-medium);font-size:var(--fs-meta);line-height:1.3;letter-spacing:.06em;cursor:pointer}
     #d2jsp-lamp i{width:7px;height:7px;border-radius:50%;background:#1d1813;box-shadow:inset 0 0 0 1px rgba(140,122,104,.5);font-style:normal}
     #d2jsp-lamp[data-lamp="on"]{color:#8fe6a0;border-color:rgba(143,230,160,.55)}
     #d2jsp-lamp[data-lamp="on"] i{background:#8fe6a0;box-shadow:0 0 6px rgba(143,230,160,.9)}
@@ -14900,12 +14900,17 @@ window._bisSortFor = function(base, words){
 // the vault stops KEEPING fresh copies of them too. Self-exclusion by registered label: the owned base
 // that IS the coverage never counts as its own spare (re-routing it keeps it; only extra copies flag).
 // Returns { covered: {rw:[labels…]}, uncovered:[rw…] } for the given _baseUnmadeRunewords list.
-var _spareScanCache = null, _spareScanAt = 0;
+var _spareScanCache = null, _spareScanAt = 0, _spareScanPass = 0;
 function _spareBaseInfo(name, unmade){
   var covered = {}, uncovered = [];
   try {
     var now = Date.now();
-    if (!_spareScanCache || (now - _spareScanAt) > 400){   // short memo: renderers call this once per card
+    var pass = window._sparePass || 0;
+    /* One vault draw shares one scan. Outside a draw the memo lasts 400ms from when the scan
+       FINISHED: stamping the start meant a scan slower than 400ms was already expired, and the
+       next base ran the whole scan again. */
+    var samePass = !!(pass && _spareScanCache && _spareScanPass === pass);
+    if (!samePass && (!_spareScanCache || (now - _spareScanAt) > 400)){
       var sc = (typeof window.forgeScan === 'function') ? window.forgeScan() : null;
       var map = {};
       if (sc){
@@ -14915,7 +14920,7 @@ function _spareBaseInfo(name, unmade){
         [].concat(sc.now||[], sc.pipeline||[]).forEach(function(t){ if (t && t.base && t.base.name && !t.baseOver) (map[t.rw]=map[t.rw]||[]).push({ l: t.base.name, m: !!t.mercOwn }); });
         (sc.onestep||[]).forEach(function(t){ if (t && t.base && t.base.name && t.sub!=='base' && !t.baseOver) (map[t.rw]=map[t.rw]||[]).push({ l: t.base.name, m: !!t.mercOwn }); });
       }
-      _spareScanCache = map; _spareScanAt = now;
+      _spareScanCache = map; _spareScanAt = Date.now(); _spareScanPass = pass;
     }
     var self = String(name||'');
     // v582 — a MERC-RESCUED coverage (2H compromise) never spares a HAND-CORRECT candidate: Konyo's 1H
@@ -41729,6 +41734,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function renderVault(){
     var dock=document.getElementById('vault-dock'), shelf=document.getElementById('vault-shelf');
     if (!dock || !shelf) return;
+    window._spareDepth = (window._spareDepth || 0) + 1;
+    if (window._spareDepth === 1) window._sparePass = (window._sparePassGen = (window._sparePassGen || 0) + 1);
+    try { renderVaultDraw(); }
+    finally {
+      window._spareDepth = (window._spareDepth || 1) - 1;
+      if (window._spareDepth <= 0){ window._spareDepth = 0; window._sparePass = 0; }
+    }
+  }
+  function renderVaultDraw(){
+    var dock=document.getElementById('vault-dock'), shelf=document.getElementById('vault-shelf');
+    if (!dock || !shelf) return;
     _vaultAskProven(function(){ try { renderVault(); } catch (e) {} });
     // v1251 — SELF-HEAL: a forged RUNEWORD must never sit in the Magic & Rare keeper track (magicFinds).
     // The aic-judge "keep" path used to dump runewords (Call to Arms, Spirit…) into magicFinds, so the
@@ -44763,10 +44779,23 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     var introduced = keepFresh || (!beforeOwned && !beforeMagic && beforeAssign == null);
     _vpMade = { token: token, id: entry.id, name: nm, fresh: !!(introduced && (kept || !magicQ)), magic: !!(magicQ && kept) };
+    if (routed && (routed.mode === 'filed' || routed.mode === 'confirmed') && typeof window.kaiChronicleRecord === 'function'){
+      try {
+        window.kaiChronicleRecord({ name: nm, status: 'filed-by-hand', store: 'assign', ledger: 'vault',
+          target: routed.mule || '', source: 'by-hand',
+          why: 'you filed it from the vault planner', _bump: true });
+      } catch (eL) {}
+    }
     try { persistOwned(); } catch (e8) {}
     try { saveA(); } catch (e9) {}
-    try { renderVault(); } catch (e10) {}
-    try { if (typeof refreshOpenCard === 'function') refreshOpenCard(); } catch (e12) {}
+    /* The planner covers the vault. Drawing every locker on each roll is the stall he feels.
+       The filing is already saved. One draw happens when the planner closes. */
+    if (window._vaultPlannerOn){
+      window._vaultPlannerDirty = true;
+    } else {
+      try { renderVault(); } catch (e10) {}
+      try { if (typeof refreshOpenCard === 'function') refreshOpenCard(); } catch (e12) {}
+    }
     if (routed && routed.why){ try { status(routed.why); } catch (e11) {} }
     return routed || { ok: false, filed: false, why: nm + ' was not filed' };
   };
@@ -63046,6 +63075,14 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     try { if (window._cbHostClose) window._cbHostClose(); } catch (e) {}
     var host = document.getElementById('vault-planner-host');
     if (host){ host.hidden = true; host.innerHTML = ''; }
+    if (window._vaultPlannerDirty){
+      window._vaultPlannerDirty = false;
+      try {
+        if (typeof renderVault === 'function') renderVault();
+        else if (typeof window.renderVault === 'function') window.renderVault();
+      } catch (e2) {}
+      try { if (typeof refreshOpenCard === 'function') refreshOpenCard(); } catch (e3) {}
+    }
     return true;
   };
   window.vaultPlannerOpen = function(q){
