@@ -415,6 +415,20 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2189 - THE PRE-FLIGHT NEVER RAN THE LAWS THAT SCAN A CHANGED FILE (2026-10-13)
+
+changed_gates() (heart2 --changed) returned gates_for_tests() alone — the laws whose own file is a
+changed tv/test_*.py. laws_that_read(), written for exactly this, names the laws whose source SCANS
+a changed file like bible.html or control_app.py, and nothing ever called it: run_gates mentioned
+it only in a comment. So a push that changed only bible.html got an EMPTY pre-flight and every law
+that scans the page ran for the first time on CI — the very thing REG-2148 said it had fixed, left
+unjoined. Found by the cross-family review of v3638-v3653. changed_gates now returns
+_gates_for_changed(all_changed), which merges gates_for_tests(changed tests) with
+laws_that_read(changed non-tests). Measured: a bible.html change now pre-flights 216 scanning laws
+(was 0). The law tested the function's output, never the pre-flight; it now also asserts
+_gates_for_changed([bible.html]) carries every reader-law, seen RED with the merge removed.
+Law: `test_a_law_that_reads_a_changed_file_is_in_the_preflight`.
+
 ### REG-2188 - A NO-ORIGIN GET REACHED THE D2JSP ROUTES ON HOST ALONE (2026-10-13, security)
 
 console_may_post trusted a request with no Origin header as long as its Host was the console's.

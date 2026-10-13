@@ -42,6 +42,20 @@ class ALawThatReadsAChangedFileIsInThePreflight(unittest.TestCase):
         self.assertEqual(hook, [SET_TILE])
 
 
+    def test_the_preflight_merges_the_reader_laws_not_only_the_changed_tests(self):
+        # REG-2189 - changed_gates returned gates_for_tests() alone, so a bible.html-only push
+        # pre-flighted NOTHING and its scanning laws first ran on CI. _gates_for_changed is what
+        # changed_gates returns; it must carry every law that reads a changed non-test file.
+        readers = set(heart2.laws_that_read(["bible.html"]))
+        self.assertTrue(readers, "no law reads bible.html - the premise is gone")
+        pre = set(heart2._gates_for_changed(["bible.html"]))
+        self.assertTrue(readers <= pre, "the pre-flight dropped the laws that scan bible.html")
+        # a changed test file still brings its own gate, and a non-test change does not erase it
+        both = set(heart2._gates_for_changed(["bible.html", "tv/" + SET_TILE + ".py"]))
+        self.assertIn(SET_TILE, both)
+        self.assertTrue(readers <= both)
+
+
 if __name__ == "__main__":
     unittest.main()
 
@@ -51,5 +65,10 @@ RED_PROOF = [
      "file": "heart2.py",
      "find": "    return sorted(set(out))  # REG-2148 readers\n",
      "replace": "    return []  # REG-2148 readers\n",
+     "matches": 1},
+    {"why": "REG-2189 - the pre-flight drops the reader-laws merge, so a bible.html push pre-flights no scanning law",
+     "file": "heart2.py",
+     "find": "    return sorted(set(gates_for_tests(live)) | set(laws_that_read(non_test)))",
+     "replace": "    return sorted(set(gates_for_tests(live)))",
      "matches": 1},
 ]

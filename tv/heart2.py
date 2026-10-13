@@ -2485,9 +2485,23 @@ def changed_gates():
     ok, out = _git("diff", "--name-only", rng)
     if not ok:
         return [], base, "git diff --name-only %s could not be read - UNKNOWN" % rng
-    files = [l.strip() for l in out.splitlines() if re.match(r"^tv/test_.*\.py$", l.strip())]
-    live = [f for f in files if os.path.isfile(os.path.join(REPO, f))]
-    return gates_for_tests(live), base, None
+    changed = [l.strip() for l in out.splitlines() if l.strip()]
+    return _gates_for_changed(changed), base, None
+
+
+def _gates_for_changed(changed):
+    """REG-2189 - THE PRE-FLIGHT NOW INCLUDES THE LAWS THAT SCAN A CHANGED NON-TEST FILE. -> [name] sorted
+
+    gates_for_tests answers only a changed tv/test_*.py. laws_that_read answers the laws whose own
+    source scans a changed file like bible.html or control_app.py. Both existed; nothing joined the
+    second to this set, so a push that changed only bible.html got an EMPTY pre-flight and its
+    scanning laws ran first on CI (REG-2148's own defect, left unjoined). This merges the two, which
+    is the whole reason laws_that_read was written. Pure: given the changed list, no git, no disk read
+    beyond gates_for_tests' own existence check. [[the-unjoined-end]]"""
+    test_files = [f for f in changed if re.match(r"^tv/test_.*\.py$", str(f).strip())]
+    live = [f for f in test_files if os.path.isfile(os.path.join(REPO, f))]
+    non_test = [f for f in changed if f not in test_files]
+    return sorted(set(gates_for_tests(live)) | set(laws_that_read(non_test)))
 
 
 def _push_facts(have, say):
