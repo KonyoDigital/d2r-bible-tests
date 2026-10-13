@@ -1108,7 +1108,16 @@ async function j10_headerGeometry(page) {
     });
     if (r.err) { record(name, false, `${w}px — ${r.err}`); return; }
     seen.push(`${w}:${r.rows}r${r.icons ? '+i' : ''}`);
-    if (r.rows !== 1) bad.push(`${w}px wraps to ${r.rows} rows`);
+    // REG-2187 — THE TENTH DOOR MOVES THE ONE-ROW LINE. v3694's D2JSP made TEN doors. Measured on
+    // the isolated console: ten icon+word tabs need ~1606px and could not fit one row at 1120/1200,
+    // and v1614 forbids the other way out ("the WORD is the tab ... No label is ever hidden at any
+    // width"). So the ornament now yields at 1280 (ten WORD tabs are ~604px and hold ONE row from
+    // 1000 up — the widths he opens the console at). Below 1000 ten words no longer fit ~546px and
+    // the strip wraps to a SECOND row rather than hide a word — the v2093 safety net — so a second
+    // row is allowed there, while clip / silent-scroll / offscreen stay forbidden at every width
+    // (a door must never vanish). A THIRD row is still a defect.
+    if (r.rows !== 1 && w >= 1000) bad.push(`${w}px wraps to ${r.rows} rows`);
+    if (r.rows > 2) bad.push(`${w}px wraps to ${r.rows} rows (two is the floor the safety net allows)`);
     if (r.clipped) bad.push(`${w}px clips the strip`);
     if (r.silent) bad.push(`${w}px has overflow-x:${'auto'} with no scrollbar — a tab can vanish silently`);
     if (r.offscreen) bad.push(`${w}px pushes ${r.offscreen} tab(s) out of reach`);
@@ -1118,7 +1127,7 @@ async function j10_headerGeometry(page) {
     if (r.tabs !== 10) bad.push(`${w}px shows ${r.tabs} tabs, not 10`);
     // the icon yield is a DESIGN line, not an accident: they hold to 1120; below 1100 the LABELLED tabs drop
     // their art, while an icon-only chip (Tools) keeps its picture, because its picture is the tab (v3519)
-    if (w >= 1120 && !r.icons) bad.push(`${w}px lost its tab art above the 1100px yield`);
+    if (w > 1280 && !r.icons) bad.push(`${w}px lost its tab art above the 1280px yield`);
   }
   await page.setViewportSize({ width: 1440, height: 900 });
   record(name, bad.length === 0, bad.length ? bad.join(' · ') : `one row at ${seen.join(' ')}`);

@@ -415,6 +415,23 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2187 - THE TENTH HEADER DOOR WRAPPED THE TAB STRIP (2026-10-13, console)
+
+v3694 added the D2JSP door, making TEN header doors. Console-demos J10 had never run
+across the Grok week (every push used --no-verify), so it went unseen: ten icon+word
+tabs need ~1606px and wrapped to a second row at 1120 and 1200, and to three at 900.
+v1614's ruling forbids the usual narrow-width fix — "the WORD is the tab, the picture is
+the ornament ... No label is ever hidden at any width" — so the icons cannot be the ones
+to stay while the word goes. Measured on an isolated console: the ornament now yields at
+1280 instead of 1100, so ten WORD tabs (~604px) hold ONE row from 1000 up — the widths he
+opens the console at. Below 1000 ten words no longer fit ~546px, and the strip wraps to a
+SECOND row rather than hide a word (the v2093 safety net). J10 moves with the product: one
+row required at >=1000, a second row allowed below, a third still a defect, and clip /
+silent-scroll / offscreen forbidden at every width so a door can never vanish. The icon
+yield assertion moves to >1280 to match. Verified: J10 red on the broken strip, green on
+the fix; header looked at 1120 (one clean row) and 900 (two rows, every word present).
+Gate: `tv/demo_console.mjs` J10 HEADER GEOMETRY.
+
 ### REG-2186 - A SHADOW VISIT WROTE INTO HIS OWN STORE (2026-10-13, #323)
 
 Visiting another PC's console is meant to write nothing back into this PC. The

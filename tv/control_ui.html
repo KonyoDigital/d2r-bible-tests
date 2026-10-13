@@ -7728,12 +7728,17 @@
     .head-tabs .ht[data-tab="tvd"] { padding: 7px 4px; font-size: var(--fs-2xs); }
     .head-tabs .ht.ht-icon { padding-left: 4px; padding-right: 4px; }
   }
-  /* ── and ONLY below his window does the ornament finally yield ────────────────────────────────
-     Under ~1100 there is no arrangement of icon, label and padding that fits eight tabs on one
+  /* ── and below his window the ornament yields so the WORD always survives ─────────────────────
+     Under ~1100 there was no arrangement of icon, label and padding that fits EIGHT tabs on one
      line — measured, not assumed: the tightest legible config still needs ~729px and the strip has
      593. v1614 already ruled which half goes: "the WORD is the tab, the picture is the ornament,
-     and the tab must survive without it." No label is ever hidden at any width. ─────────────── */
-  @media (max-width: 1100px) {
+     and the tab must survive without it." No label is ever hidden at any width.
+     ⚠ REG-2187 — THE YIELD MOVED UP WITH THE TENTH DOOR. v3694's D2JSP door made TEN. Measured on
+     the isolated console: ten icon+word tabs need ~1606px and overflow by 787px at 1200 and 721px
+     at 1120, so they wrapped to a second row (demo J10) — and the icons could not stay, because the
+     ruling forbids hiding the word instead. So the ornament now yields at 1280 rather than 1100:
+     ten WORD tabs are ~604px and fit the strip from 1000 up. The word never goes. ─────────────── */
+  @media (max-width: 1280px) {
     .head-tabs .ht .ht-i { display: none; }
     /* 2026-09-27 — EXCEPT an icon-only chip: its picture IS the tab (like the 👤 glyph), so it keeps
        it here. v3518 made Tools icon-only and this rule left it an EMPTY chip below 1100; showing its
