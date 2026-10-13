@@ -415,6 +415,28 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2191 - A CURLY APOSTROPHE DREW GHEED’S FORTUNE NOWHERE WHILE FIND SAID IT STAYS WITH MAIN (2026-10-13, #264)
+
+**Found** sweeping the mule / keeper logic for #264. The catalogue stores the name with a CURLY apostrophe -
+`Gheed’s Fortune` (U+2019) - but `KEEP_IN_INVENTORY = /^(…|Gheed's Fortune)$/i` used a STRAIGHT quote, so it
+matched its own canonical name NOWHERE: `_vaultKeeps` returned false, the item fell out of `ownedPool`, and it
+was drawn on no mule and in no keep advisory - while `suggestMule`'s router (which also tested the raw name)
+answered `__keep`, so FIND still said it “stays with your MAIN” about an item the vault drew nowhere. The two
+keeper deciders disagreed by apostrophe variant - [[the-unjoined-end]], a keeper split in two - and a bare
+`Gheeds` (the spelling in v3718's build note) failed the same way.
+
+**Fix (bible.html):** one simple regex `/^(Annihilus|Hellfire Torch|Gheed'?s Fortune)$/i` (apostrophe optional)
+and one `_keepName(n)` helper beside it that folds every apostrophe variant (U+2018/2019/02BC/00B4/0060) to a
+straight `'` and trims. BOTH keeper deciders - the `suggestMule` router and `_vaultKeeps` - now test
+`KEEP_IN_INVENTORY.test(_keepName(name))`, so a curly, a left-curly, a straight, a bare `Gheeds` and a padded
+form answer the SAME at both sites, and a near-miss (`Gheed’s Fortuna`) still does not.
+
+**Law:** `tv/test_a_hand_added_item_stays_his.py::test_a_curly_or_apostropheless_keeper_still_draws` - drives
+`_vaultKeeps` in node over seven spellings, plus a source guard that BOTH deciders fold via `_keepName`
+(count == 2). Seen RED two ways: strip the fold -> the curly case fails; un-join the router -> the two-site
+count drops to 1. KEEP_A and the stale `.test(n)` assertion in the existing keeper law were updated to the
+folded spelling (a new call breaks every harness that cut the caller).
+
 ### REG-2190 - SCRATCH CHROMES HELD HIS D2JSP SESSION AFTER A CRASHED CONSOLE (2026-10-13, security hygiene)
 
 Each d2jsp read/post mkdtemps a d2jsp-quote-* / d2jsp-post-* profile and launches a headless Chrome
