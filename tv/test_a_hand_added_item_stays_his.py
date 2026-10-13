@@ -22,7 +22,9 @@ hand." under a list nothing else read. This law drives the SHIPPED door end to e
     names no mule and writes no store of its own; the side list's section is gone from the page.
   · THE PLANNER SEARCH is a second door, outside that block. It opens the character-builder picker (search, quality,
     mods) and files a pick only when suggestMule names a mule on this board: a catalogue piece through vaultHandAdd,
-    a magic / rare / crafted piece through magicFinds with the real base and the mod lines. Throw-out, keep-on-MAIN,
+    a magic / rare / crafted piece through magicFinds with the real base and the mod lines, owned so the
+    count moves, and not also written into the mule map. A set or unique pick is owned and filed under
+    the one name the hand door resolves, never the shown name beside that key. Throw-out, keep-on-MAIN,
     a rune answered as the shared stash with no locker id, a name nothing knows, and a white base stay unfiled.
     War gear names the shared locker and is filed there; a missing locker is the same SHARED STASH the load migration
     adds, put back, then the pick is filed. A runeword keeps the base he chose. A new open of a name already filed
@@ -598,6 +600,7 @@ window._vaultPlannerOn = false;
 var OUT = {
   u1: u1, u2: u2, uFiles: files('Harlequin Crest'), ownedU: owned.has('Harlequin Crest'),
   m1: m1, m2: m2, mf: magicFinds['Shimmering Grand Charm of Vita'] || null, mFiles: files('Shimmering Grand Charm of Vita'),
+  ownedM: owned.has('Shimmering Grand Charm of Vita'), mAssign: assign['Shimmering Grand Charm of Vita'] || null,
   routeM: CALLS.filter(function(c){ return c.indexOf('route:Shimmering Grand Charm of Vita:') === 0; })[0] || '',
   toss: toss, tossMf: magicFinds['Junk Charm'] || null, tossFiles: files('Junk Charm'),
   keep: keep, keepFiles: files('Keep Helm'),
@@ -642,8 +645,11 @@ process.stdout.write(JSON.stringify(OUT));
         self.assertIn(":magic:Grand Charm:+36 to Life", o["routeM"])
         self.assertLess(o["routeM"].find("route:"), 1)
         self.assertTrue(o["m1"]["filed"], o["m1"])
+        self.assertIn("MAGIC & RARE", o["m1"]["why"])
+        self.assertTrue(o["ownedM"], "a magic save did not count as owned")
+        self.assertIsNone(o["mAssign"], "a magic save also wrote the mule map")
         self.assertEqual(o["m2"]["mode"], "already")
-        self.assertEqual(len(o["mFiles"]), 1)
+        self.assertEqual(len(o["mFiles"]), 0, "a magic save filed the mule map")
         self.assertIn("throw-out", o["toss"]["why"])
         self.assertFalse(o["toss"]["filed"])
         self.assertIsNone(o["tossMf"], "a throw-out pick was left in Magic and Rare")
@@ -662,7 +668,7 @@ process.stdout.write(JSON.stringify(OUT));
         self.assertIsNone(o["alpha"], "the old composed name was left beside the new one")
         self.assertIsNone(o["alphaHome"])
         self.assertEqual(o["beta"]["q"], "magic")
-        self.assertEqual(o["betaHome"], "magic-rare")
+        self.assertIsNone(o["betaHome"], "the replacement charm was also filed on the mule map")
         self.assertTrue(o["moved"]["filed"], o["moved"])
         self.assertIsNotNone(o["gamma"], "a second pick in the same search was removed")
         self.assertIsNotNone(o["delta"])
@@ -723,7 +729,7 @@ process.stdout.write(JSON.stringify(OUT));
         self.assertEqual(o["griefEnd"], 2)
         filed_why = "|filed-by-hand|%s|you filed it from the vault planner"
         self.assertEqual(o["ledger"].count("Harlequin Crest" + filed_why % "uni-armor"), 1, o["ledger"])
-        self.assertEqual(o["ledger"].count("Shimmering Grand Charm of Vita" + filed_why % "magic-rare"), 1, o["ledger"])
+        self.assertEqual(o["ledger"].count("Shimmering Grand Charm of Vita" + filed_why % "magic-rare"), 0, o["ledger"])
         self.assertEqual(o["ledger"].count("Grief" + filed_why % "shared"), 1, o["ledger"])
         self.assertEqual(o["ledger"].count("Monarch" + filed_why % "uni-armor"), 1, o["ledger"])
         self.assertFalse(any(row.startswith("Junk Charm|") for row in o["ledger"]), o["ledger"])
@@ -733,6 +739,77 @@ process.stdout.write(JSON.stringify(OUT));
         self.assertEqual(o["rendersDuring"], o["rendersBefore"], "a planner roll redrew the vault")
         self.assertTrue(o["dirty"], "closing the planner would have nothing to draw")
         self.assertEqual(o["ledger"].count("Defer Helm" + filed_why % "uni-armor"), 1, o["ledger"])
+
+    def test_one_set_add_owns_the_resolved_piece_and_files_only_that(self):
+        """One set add used to own the slot key and file the bare name. Elad deleted the Unsorted
+        copy and the mule copy stayed. The hand door's name is the only record."""
+        if not NODE:
+            raise AssertionError("node is not on this machine — this law does not skip")
+        block = _cut(_src(), "  /* ⟦VAULT PLANNER FILE BEGIN⟧ */\n", "  /* ⟦VAULT PLANNER FILE END⟧ */\n")
+        prog = r"""
+var window = globalThis, CALLS = [], magicFinds = {}, assign = {}, owned = new Set(), copies = {};
+function copyCount(n){ var c = copies && copies[n]; return (c && c > 0) ? c : (owned.has(n) ? 1 : 0); }
+function status(){}
+function renderVault(){}
+function refreshOpenCard(){}
+function persistOwned(){}
+function saveA(){}
+function muleById(id){ return id === 'sets-rest' ? { id: id, name: 'SETS-REST' } : null; }
+function suggestMule(nm){
+  return { id: 'sets-rest', why: 'set piece: Aldur' };
+}
+window._vaultResolveName = function(nm){
+  if (nm === "Aldur's Deception") return "Aldur's Deception (armor)";
+  if (nm === "Tal Rasha's Horadric Crest") return "Tal Rasha's Horadric Crest (helm)";
+  return nm;
+};
+window.vaultHandAdd = function(nm){
+  var resolved = window._vaultResolveName(nm);
+  CALLS.push('own:' + resolved);
+  if (!owned.has(resolved)) owned.add(resolved);
+  return { ok: true, mode: 'added', name: resolved };
+};
+window.vaultFile = function(nm, wit, opts){
+  CALLS.push('file:' + nm + ':' + opts.mule);
+  assign[nm] = opts.mule;
+  if (!owned.has(nm)) owned.add(nm);
+  return { ok: true, mode: 'filed', mule: opts.mule };
+};
+window._cbItem = function(id){ return { id: id }; };
+window._cbShown = function(e){ return { name: e._name, q: e._q, base: '' }; };
+""" + block + r"""
+var a1 = window.vaultPlannerFile({ id: 'aldur', _name: "Aldur's Deception", _q: 's' }, 't-set');
+var a2 = window.vaultPlannerFile({ id: 'aldur', _name: "Aldur's Deception", _q: 's' }, 't-set');
+var t1 = window.vaultPlannerFile({ id: 'tal', _name: "Tal Rasha's Horadric Crest", _q: 's' }, 't-tal');
+var OUT = {
+  a1: a1, a2: a2, t1: t1,
+  owned: Array.from(owned),
+  assign: assign,
+  owns: CALLS.filter(function(c){ return c.indexOf('own:') === 0; }),
+  files: CALLS.filter(function(c){ return c.indexOf('file:') === 0; })
+};
+process.stdout.write(JSON.stringify(OUT));
+"""
+        p = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=30)
+        self.assertEqual(p.returncode, 0, (p.stderr or p.stdout)[-2000:])
+        o = json.loads(p.stdout)
+        armor = "Aldur's Deception (armor)"
+        bare = "Aldur's Deception"
+        helm = "Tal Rasha's Horadric Crest (helm)"
+        crest = "Tal Rasha's Horadric Crest"
+        self.assertEqual(o["a1"]["mule"], "sets-rest", o["a1"])
+        self.assertTrue(o["a1"]["filed"], o["a1"])
+        self.assertIn("SETS-REST", o["a1"]["why"])
+        self.assertEqual(o["a2"]["mode"], "already", o["a2"])
+        self.assertEqual(o["owned"], [armor, helm], o["owned"])
+        self.assertEqual(o["assign"], {armor: "sets-rest", helm: "sets-rest"}, o["assign"])
+        self.assertNotIn(bare, o["owned"])
+        self.assertNotIn(crest, o["owned"])
+        self.assertNotIn(bare, o["assign"])
+        self.assertNotIn(crest, o["assign"])
+        self.assertEqual(o["owns"], ["own:" + armor, "own:" + armor, "own:" + helm], o["owns"])
+        self.assertEqual(o["files"], ["file:" + armor + ":sets-rest", "file:" + helm + ":sets-rest"], o["files"])
+        self.assertTrue(o["t1"]["filed"], o["t1"])
 
     def test_a_slow_forge_scan_serves_the_whole_draw(self):
         """A forge scan slower than the 400ms memo used to expire before it was stored, so every

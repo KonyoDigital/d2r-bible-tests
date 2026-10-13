@@ -44691,8 +44691,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
       magicFinds[nm]=_rec;
     } catch(e){}
-    try { var sg=suggestMule(nm); if(sg && sg.id!=='__throwout' && muleById(sg.id) && !assign[nm])
-            window.vaultFile(nm, { by: 'hand', at: new Date().toISOString(), where: 'the AI Item Checker (keep)' }, { mule: sg.id }); } catch(e){}
+    /* The checker record is the Magic & Rare home. Filing it onto a mule as well is the second store. */
+    try {
+      if (typeof owned !== 'undefined' && owned && !owned.has(nm) && typeof window._ownedAdd === 'function')
+        window._ownedAdd(nm, { source: 'hand', by: 'the AI Item Checker', where: 'the AI Item Checker (keep)' });
+    } catch (eOwn) {}
     try { LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch(e){}
     persistOwned(); saveA(); renderVault(); refreshOpenCard();
     var mu=(assign[nm]&&muleById(assign[nm]))?(' → '+muleById(assign[nm]).name):'';
@@ -44829,6 +44832,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         : (id == null ? (why || 'no mule was named') : ('no mule on this board has id ' + id));
       return { ok: true, filed: false, why: nm + ' stays unfiled — ' + say };
     }
+    /* Magic & Rare is the magicFinds record. The locker draws that list, and
+       Integrity calls a mule-map filing beside it double-filed. Own the name
+       so the count moves. Do not write assign. */
+    if (id === 'magic-rare' && typeof magicFinds !== 'undefined' && magicFinds && magicFinds[nm]){
+      try {
+        if (typeof owned !== 'undefined' && owned && owned.has && !owned.has(nm)){
+          if (typeof window._ownedAdd === 'function')
+            window._ownedAdd(nm, { source: 'hand', by: 'the Vault planner', where: VP_WHERE });
+          else owned.add(nm);
+        }
+      } catch (eMh) {}
+      var muleNameM = home && home.name ? home.name : id;
+      return { ok: true, filed: true, mode: 'filed', mule: id, magicHome: true,
+               why: nm + ' filed to ' + muleNameM + (why ? (' — ' + why) : '') };
+    }
     if (assign[nm] != null) return { ok: true, filed: false, mode: 'already', mule: assign[nm], why: nm + ' is already filed' };
     var at = new Date().toISOString();
     var filed = window.vaultFile(nm, { by: 'hand', at: at, where: VP_WHERE }, { mule: id });
@@ -44857,11 +44875,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { shown = (typeof window._cbShown === 'function') ? window._cbShown(entry, it) : null; } catch (e2) { shown = null; }
     var nm = shown ? String(shown.name || '').trim() : '';
     if (!nm) return { ok: false, filed: false, why: 'that pick has no name — nothing was filed' };
-    if (_vpMade && _vpMade.token === token && _vpMade.name && _vpMade.name !== nm) _vpCopyUndo(token);
-    if (_vpMade && _vpMade.token === token && _vpMade.id === entry.id && _vpMade.name !== nm && _vpMade.fresh) _vpDrop();
     var q = shown.q;
     var magicQ = (q === 'm') ? 'magic' : (q === 'rare') ? 'rare' : (q === 'c') ? 'crafted' : '';
     var kind = (q === 'u') ? 'unique' : (q === 's') ? 'set' : (q === 'r') ? 'runeword' : null;
+    /* One add is one name. The hand door files a set piece under its slot key
+       (Tal Rasha's Horadric Crest (helm)). Routing the shown name beside that
+       key owned both, one filed and one left in Unsorted. Resolve first, then
+       own and file that one name. A magic name stays the composed string. */
+    if (!magicQ && (kind || (typeof _vaultKeeps === 'function' && _vaultKeeps(nm)))
+        && typeof window._vaultResolveName === 'function'){
+      try {
+        var _resolved = String(window._vaultResolveName(nm) || '');
+        if (_resolved) nm = _resolved;
+      } catch (eRes) {}
+    }
+    if (_vpMade && _vpMade.token === token && _vpMade.name && _vpMade.name !== nm) _vpCopyUndo(token);
+    if (_vpMade && _vpMade.token === token && _vpMade.id === entry.id && _vpMade.name !== nm && _vpMade.fresh) _vpDrop();
     var baseName = _vpBase(entry, shown);
     var mods = _vpMods(entry);
     var keepFresh = !!(_vpMade && _vpMade.token === token && _vpMade.id === entry.id && _vpMade.name === nm && _vpMade.fresh);
@@ -44892,6 +44921,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     if (kind === 'runeword') _vpRemember(nm, entry, shown, baseName);
     var routed = _vpRoute(nm);
+    if (routed && routed.magicHome && beforeMagic)
+      routed = { ok: true, filed: false, mode: 'already', mule: routed.mule, why: nm + ' is already filed' };
     if (routed && (routed.filed || routed.mode === 'already') && token){
       if (routed.mode === 'already' && assign[nm] != null && _vpCopySeen[nm] !== token){
         if (typeof copies !== 'undefined' && copies){
@@ -44913,7 +44944,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     var introduced = keepFresh || (!beforeOwned && !beforeMagic && beforeAssign == null);
     _vpMade = { token: token, id: entry.id, name: nm, fresh: !!(introduced && (kept || !magicQ)), magic: !!(magicQ && kept) };
-    if (routed && (routed.mode === 'filed' || routed.mode === 'confirmed') && typeof window.kaiChronicleRecord === 'function'){
+    if (routed && (routed.mode === 'filed' || routed.mode === 'confirmed') && assign[nm] != null && typeof window.kaiChronicleRecord === 'function'){
       try {
         window.kaiChronicleRecord({ name: nm, status: 'filed-by-hand', store: 'assign', ledger: 'vault',
           target: routed.mule || '', source: 'by-hand',
@@ -45395,7 +45426,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
             var _jw = { lane: meta.loc || '', by: 'aic-judge',
                         sessions: [{ session: meta.sid || meta.sessionId || '', frame: meta.frameId || '',
                                      conf: (typeof meta.conf === 'number') ? meta.conf : null }] };
-            if (sg && !assign[nm] && (sg.id === '__throwout' || sg.id === '__keep' || (typeof muleById === 'function' && muleById(sg.id)))){
+            var _mfHome = (typeof magicFinds === 'object' && magicFinds && magicFinds[nm]) ? magicFinds[nm] : null;
+            var _mfQ = _mfHome && (_mfHome.q === 'magic' || _mfHome.q === 'rare' || _mfHome.q === 'crafted');
+            if (_mfQ){
+              try {
+                if (typeof owned !== 'undefined' && owned && !owned.has(nm) && typeof window._ownedAdd === 'function')
+                  window._ownedAdd(nm, { source: 'aic-judge', by: 'aicJudgeApply (keep)', where: 'Magic & Rare' });
+              } catch (eMfOwn) {}
+              out.mule = 'magic-rare';
+            } else if (sg && !assign[nm] && (sg.id === '__throwout' || sg.id === '__keep' || (typeof muleById === 'function' && muleById(sg.id)))){
               var _jf = window.vaultFile(nm, _jw, { mule: sg.id });
               if (_jf && _jf.ok) out.mule = _jf.mule;
               else out.vaultRefused = (_jf && _jf.why) || 'the vault door refused it';
@@ -50023,14 +50062,14 @@ function renderJournal(){
             if (/small\s*charm/.test(_scb) && typeof _smallCharmKeep === 'function'){
               var _sk = _smallCharmKeep(_mods);
               if (_sk && !_sk.keep){ if (unrec.indexOf(nm) < 0) unrec.push(nm); fRec.unr.push(nm); try { unknownReads.add(nm); } catch(e){} return; }   // junk → throw-out
-              if (_sk && _sk.keep && !assign[nm]) window.vaultFile(nm, _intakeWitness(fname), { mule: 'uni-small' });   // valuable → mule to UNI-SMALL (#246: through the door)
+              /* a kept small charm is the Magic & Rare record written below, not a second uni-small filing */
             } else if (typeof _jewelryKeep === 'function'){
               // v416 — TOP-TIER gate for rolled-name rings · amulets · jewels · large/grand charms. A junk
               // rare ring (Blood Grip: +AR/+energy/sliver of res) gets THROWN OUT, not muled — only a roll
               // that rivals SoJ/Raven (dual leech · FCR · +skills · loaded res/stat cluster · skiller) is kept.
               var _jk = _jewelryKeep(_mods, f.base);
               if (_jk && !_jk.keep){ if (unrec.indexOf(nm) < 0) unrec.push(nm); fRec.unr.push(nm); try { unknownReads.add(nm); } catch(e){} return; }   // junk jewelry → throw-out
-              if (_jk && _jk.keep && !assign[nm]) window.vaultFile(nm, _intakeWitness(fname), { mule: 'magic-rare' });   // top-tier → MAGIC & RARE locker (#246: through the door)
+              /* a kept jewel, ring, amulet or charm is the Magic & Rare record written below */
             }
           } catch(e){}
           /* v1935 — AND THE OTHER DOOR, WHICH HAD BETTER PROVENANCE ALL ALONG.
@@ -50049,6 +50088,10 @@ function renderJournal(){
             // fill mods if we didn't have them yet (a later/cleaner read of the same item)
             if (_mods.length && !(magicFinds[nm].mods && magicFinds[nm].mods.length)) magicFinds[nm].mods = _mods;
           }
+          try {
+            if (typeof owned !== 'undefined' && owned && owned.has && !owned.has(nm) && typeof window._ownedAdd === 'function')
+              window._ownedAdd(nm, { source: 'intake-read', by: 'a magic or rare find', where: 'the photo intake' });
+          } catch (eOwnF) {}
           fRec.mf.push(nm);
         });
         // v395 — record which reads are ETHEREAL (Cannot be Repaired). Match against the canonical name the
