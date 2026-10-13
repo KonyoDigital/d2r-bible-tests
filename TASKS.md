@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3717** | `(this commit)` | v3717 — The witness prune is cut from the copy that leaves a receipt in the held store. Mule it keeps Magic and Rare as the register and does not write a second mule filing. HEART: tv/test_a_name_nothing_knows_gets_no_guessed_mule |
+| **v3718** | `(this commit)` | v3718 — Annihilus, Hellfire Torch and Gheeds Fortune are drawn and stay with MAIN. A charm registered in Magic and Rare is found. HEART: tv/test_a_hand_added_item_stays_his.py |
+| **v3717** | `e85191f0` | v3717 — The witness prune is cut from the copy that leaves a receipt in the held store. Mule it keeps Magic and Rare as the register and does not write a second mule filing. HEART: tv/test_a_name_nothing_knows_gets_no_guessed_mule |
 | **v3716** | `7ff035c5` | v3716 — One add owns one resolved name. A magic or rare save stays in Magic and Rare and is not also filed on the mule map. A vault paint keeps an owned receipt. HEART: tv/test_a_hand_added_item_stays_his |
 | **v3715** | `e04b0cbb` | v3715 — HEART: tv/test_a_hand_added_item_stays_his. One vault draw reads the witness store once and builds only the open review cards. |
 | **v3714** | `ee1427b8` | v3714 — HEART: test_a_hand_added_item_stays_his. A catalog add files on Auto-Sort without a reel picture. The status names each item and its mule. Closing the picker paints before the vault redraws. The page keeps a vertical scroll. |

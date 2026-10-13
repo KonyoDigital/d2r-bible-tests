@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3717",
+  "ver": "v3718",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3717: The witness prune is cut from the copy that leaves a receipt in the held store. Mule it keeps Magic and Rare as the register and does not write a second mule filing. HEART: tv/test_a_name_nothing_knows_gets_no_guessed_mule",
+  "note": "v3718: Annihilus, Hellfire Torch and Gheeds Fortune are drawn and stay with MAIN. A charm registered in Magic and Rare is found. HEART: tv/test_a_hand_added_item_stays_his.py",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
