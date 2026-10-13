@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3706** | `(this commit)` | v3706 — The trade desk keeps a confirmation when the board returns a topic. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
+| **v3707** | `(this commit)` | v3707 — HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
+| **v3706** | `2ba152ef` | v3706 — The trade desk keeps a confirmation when the board returns a topic. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
 | **v3705** | `f8a2c61c` | v3705 — The trade desk submits a draft through the separate Chrome. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
 | **v3704** | `fde90951` | v3704 — The trade desk shows the post before it sends. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |
 | **v3703** | `eb44ebbc` | v3703 — The trade desk adds an item and its mods from the character builder list. HEART: test_the_d2jsp_desk_reads_a_price_before_it_posts |

@@ -63,7 +63,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3706"   # a confirmed post names its topic
+VERSION = "v3707"   # a trade post uses the New Trade form
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
