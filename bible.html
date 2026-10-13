@@ -40158,7 +40158,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   // playing — a mule/alt can't use them. The "Don't mule to your alt" advisory flags them, so the auto-assign
   // MUST match that and never route them to a mule. {id:'__keep'} → muleById() can't resolve it → the item is
   // still registered/owned + shown in the keep advisory, but it is NOT assigned to any mule.
-  var KEEP_IN_INVENTORY = /^(Annihilus|Hellfire Torch|Gheed's Fortune)$/i;
+  var KEEP_IN_INVENTORY = /^(Annihilus|Hellfire Torch|Gheed'?s Fortune)$/i;   // REG-2191 - apostrophe optional
+  // REG-2191 - fold every apostrophe variant to a straight one before testing, so the catalogue's own curly
+  // “Gheed’s Fortune”, a hand-typed straight one, or a bare “Gheeds” all answer the SAME at both callers
+  // (suggestMule and _vaultKeeps). A split here draws a keeper NOWHERE while FIND still says it stays with MAIN.
+  function _keepName(n){ return String(n || '').replace(/[\u2018\u2019\u02BC\u00B4\u0060]/g, "'").trim(); }
   /* ══ #264 (2026-10-07) — THE WAR CLOSET: SWAP GEAR LIVES IN THE SHARED STASH, NOT ON A MULE ══════════════════
      His words: "items that are rare or war items/like for ubers switching gears and stuff should stay in the SHARED/MAIN
      within those 5 pages also organized" · "like dwarf star rings raven frosts.. thundergods.. all kinds of different
@@ -40398,7 +40402,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         }
       }
     } catch(e){}
-    if (KEEP_IN_INVENTORY.test(String(name||'').trim())) return {id:'__keep', why:'keep in your inventory — only works on the character you are actively playing'};
+    if (KEEP_IN_INVENTORY.test(_keepName(name))) return {id:'__keep', why:'keep in your inventory — only works on the character you are actively playing'};
     /* #211 — STANDING KIT RIDES ON HIS CHARACTER. MEASURED: suggestMule('Horadric Cube') -> uni-weap, and GrokBot saw "Tome of
        Identify ⚠ filed in UNI-WEAPONS". The board's ONE furniture list (the §29 law, _FURNITURE_WORDS / _FURNITURE_WHOLE,
        pinned to inventory_law) already names them; asked here on the EXACT name only - the list's bare 'tome' word would
@@ -40813,7 +40817,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (typeof ITEMS==='undefined' || typeof n !== 'string' || !n) return false;
       if (isAggregate(n)) return false;
       // Annihilus, Hellfire Torch and Gheed's Fortune are drawn. They stay with MAIN; they are not a mule.
-      if (typeof KEEP_IN_INVENTORY !== 'undefined' && KEEP_IN_INVENTORY.test(n)) return true;
+      if (typeof KEEP_IN_INVENTORY !== 'undefined' && KEEP_IN_INVENTORY.test(_keepName(n))) return true;
       // v324: EXTRA_ITEMS (socketed bases + reference finds) are real owned items too — they MUST
       // survive ownedPool or renderVault prunes their mule assignment every render (the bug behind
       // "socketed items don't stick to a mule"). Shared-stash items (runes/essences/statues) stay out.
@@ -40837,6 +40841,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function status(msg, ms){ var el=document.getElementById('vault-status'); if(el){ el.textContent=msg; setTimeout(function(){ if(el.textContent===msg) el.textContent=''; }, ms || 4200); } }   /* 2026-09-27 — `ms`: the vault reset's receipt line names every store it cleared and kept; 4.2s is too short to read it */
   // v236 — vault item finder: type a name → which alt (mule) holds it. Searches
   // everything you've ✓ owned + vaulted; click a hit to open that mule's card.
+  /* REG-2194 — FIND search quality (GrokBot batch K): community short names (soj/cta/hoto…) were 0 hits,
+     and a bare substring+alpha sort ranked Doombringer beside Doom and Talons/Metalgrid for 'tal'. Now an
+     alias expands the abbreviation, apostrophes fold (so 'tgods' reaches Thundergod’s Vigor), and matches
+     rank exact → prefix → whole-word → substring, alphabetical within a rank. Pure, node-tested. */
+  var _VF_ALIAS = { soj:'stone of jordan', cta:'call to arms', hoto:'heart of the oak', coh:'chains of honor',
+                    botd:'breath of the dying', wf:'windforce', tgods:"thundergod's vigor" };
+  function _vfNorm(x){ return String(x==null?'':x).toLowerCase().replace(/[\u2018\u2019\u02bc\u00b4`]/g, "'"); }
+  function _vaultFindMatches(pool, q){
+    var qn = _vfNorm(q).trim(); if (!qn) return [];
+    var qa = _VF_ALIAS[qn] || qn;
+    var reWord = new RegExp('\\b' + qa.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b');
+    function score(n){ var ln=_vfNorm(n); if(ln===qa) return 0; if(ln.indexOf(qa)===0) return 1; if(reWord.test(ln)) return 2; return 3; }
+    return pool.filter(function(n){ return _vfNorm(n).indexOf(qa) !== -1; })
+               .sort(function(a,b){ var sa=score(a), sb=score(b); return sa!==sb ? sa-sb : a.localeCompare(b); });
+  }
+  window._vaultFindMatches = _vaultFindMatches;
   window.vaultFind = function(q){
     var res = document.getElementById('vault-find-results');
     if (!res) return;
@@ -40852,7 +40872,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         pool.sort();
       }
     } catch (eFind) {}
-    var matches = pool.filter(function(n){ return n.toLowerCase().indexOf(q) !== -1; }).sort();
+    var matches = _vaultFindMatches(pool, q);   // REG-2194 - alias + apostrophe fold + exact/prefix/word rank
     res.hidden = false;
     if (!matches.length){
       res.innerHTML = '<div class="vfr-empty">no vaulted item matches "<b>'+esc(q)+'</b>" — only items you’ve ✓ owned show here</div>';
@@ -42208,8 +42228,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var _mqcol={magic:'var(--q-magic)',rare:'var(--q-rare)',crafted:'var(--q-orange)'};
         itemRows = itemRows.concat(magicItems.map(function(n){
           var q=_mfQual(n), col=_mqcol[q]||_mqcol.magic, base=_mfBase(n);
+          // REG-2193 - a magic/rare item is sized by its BASE's footprint, not a flat 2x1: a rare Jewel is
+          // 1x1 and a Grand Charm 1x3, the SAME source (_itemCells) the catalogue cells use, so the
+          // Tetris-fit counts real cells. [[copy-drift]] - the ONE FOOTPRINT sweep (REG-2051) missed this path.
+          var _mf = (typeof _itemCells === 'function') ? _itemCells(base || n) : {w:2,h:1};
           var artHtml = '<span class="vm-cell-art">' + ((typeof art === 'function') ? art(n, '◆', 'lg') : '<span class="vmc-gemfallback" style="color:'+col+'">◆</span>') + '</span>';
-          return '<div class="vm-cell vmc-magicfind" style="grid-column:span 2;grid-row:span 1;border-color:'+col+';cursor:pointer" data-magic-find="'+esc(n)+'" data-arttip="'+esc(n)+'" title="'+esc(n)+(base?' · '+esc(base):'')+' ('+q+')">'
+          return '<div class="vm-cell vmc-magicfind'+(_mf.approx?' vmc-approx':'')+'" style="grid-column:span '+_mf.w+';grid-row:span '+_mf.h+';border-color:'+col+';cursor:pointer" data-magic-find="'+esc(n)+'" data-arttip="'+esc(n)+'" title="'+esc(n)+(base?' · '+esc(base):'')+' ('+q+')">'
             + artHtml
             + '<span class="vm-item-name vm-cell-name" data-arttip="'+esc(n)+'" style="color:'+col+'">'+esc(n)+'</span>'
             + (typeof window._vaultEvidenceChip === 'function' ? window._vaultEvidenceChip(n, 'vm-cell-ev') : '')
@@ -42265,7 +42289,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           })()
         + (m.id==='shared' ? '<span class="vm-lock" role="img" aria-label="locked" title="SHARED STASH stays. It cannot be deleted, and its items do not return to the dock.">🔒</span>' : '')
         + '<span class="vm-tools"><button class="vm-tool" onclick="event.stopPropagation();window.vaultRenameMule(\''+jsArg(m.id)+'\')" title="rename">✏️</button>'
-        + (m.id==='shared' ? '' : '<button class="vm-tool" onclick="event.stopPropagation();window.vaultDeleteMule(\''+jsArg(m.id)+'\')" title="delete">🗑</button>')
+        + (_vmAddedMule(m) ? '<button class="vm-tool" onclick="event.stopPropagation();window.vaultDeleteMule(\''+jsArg(m.id)+'\')" title="delete this mule you added">🗑</button>' : '')
         + '</span>'
         + '</div>'
         + '<div class="vm-gauge" title="'
@@ -46283,16 +46307,22 @@ window.vaultAutoAssign = function(){
     var name=prompt('New mule name (this IS your in-game character name — make it say what it holds):','UNI-WEAP-2');
     if (!name) return;
     var id='m'+Date.now().toString(36);
-    roster.push({id:id, name:name.toUpperCase().slice(0,15), icon:'📦', note:''}); saveR(); renderVault();
+    roster.push({id:id, name:name.toUpperCase().slice(0,15), icon:'📦', note:'', added:true}); saveR(); renderVault();   // REG-2195 - added mules are deletable; core lockers are not
   };
   window.vaultRenameMule = function(id){
     var m=muleById(id); if(!m) return;
     var name=prompt('Rename mule:', m.name); if(!name) return;
     m.name=name.toUpperCase().slice(0,15); saveR(); renderVault();
   };
+  // REG-2195 (GrokBot batch K) — only a mule HE added can be deleted. A core locker (uni-weap, magic-rare, …)
+  // has no delete button and this door refuses it, so a mis-click can never drop his taxonomy. Added mules
+  // carry added:true (vaultAddMule); older ones are known by their mint-id shape ('m'+base36 time), which no
+  // core id has (the only m-starter, 'magic-rare', has a hyphen).
+  function _vmAddedMule(m){ return !!(m && (m.added || /^m[0-9a-z]{6,}$/.test(String(m.id)))); }
   window.vaultDeleteMule = async function(id){
     if (id === 'shared') return;
     var m=muleById(id); if(!m) return;
+    if (!_vmAddedMule(m)) return;   // REG-2195 - a core locker is never deletable
     if (!(await uiConfirm('Delete locker '+m.name+'? Its items return to the unsorted dock.'))) return;
     roster=roster.filter(function(x){return x.id!==id;});
     Object.keys(assign).forEach(function(n){ if(assign[n]===id) delete assign[n]; });

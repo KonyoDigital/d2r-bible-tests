@@ -59,7 +59,7 @@ NODE = os.environ.get("NODE") or shutil.which("node")
 
 HAND_A, HAND_B = "  /* ⟦VAULT HAND BEGIN⟧ */\n", "  /* ⟦VAULT HAND END⟧ */\n"
 KEEPS_A, KEEPS_B = "  function _vaultKeeps(n){\n", "  function ownedPool(){\n"
-KEEP_A, KEEP_B = "  var KEEP_IN_INVENTORY = /^(Annihilus|Hellfire Torch|Gheed's Fortune)$/i;\n", "  /* ══ #264"
+KEEP_A, KEEP_B = "  var KEEP_IN_INVENTORY = /^(Annihilus|Hellfire Torch|Gheed'?s Fortune)$/i;", "  /* ══ #264"
 RESOLVE_A, RESOLVE_B = "  window._vaultResolveName = function(name){\n", "  window.tvVaultRegister = function(name, witness){\n"
 SHARED_A, SHARED_B = "  var SHARED_STASH_RE = ", "  try { window.isSharedStash = isSharedStash; }"
 AGG = "  function isAggregate(n){ return /\\((any piece|any|set)\\)\\s*$/i.test(n); }\n"
@@ -1126,7 +1126,7 @@ process.stdout.write(JSON.stringify({
         """Annihilus, Hellfire Torch and Gheed's Fortune are drawn. A magic charm is not, so the registered panel cannot count it twice."""
         s = _src()
         keeps = code_only(_cut(s, KEEPS_A, KEEPS_B))
-        self.assertEqual(keeps.count("KEEP_IN_INVENTORY.test(n)"), 1)
+        self.assertEqual(keeps.count("KEEP_IN_INVENTORY.test(_keepName(n))"), 1)
         self.assertNotIn("magicFinds", keeps)
         out = _node(r"""
           OUT.torch = window.vaultHandAdd('Hellfire Torch', '2026-10-13T12:00:00.000Z');
@@ -1153,6 +1153,35 @@ process.stdout.write(JSON.stringify({
         self.assertFalse(out["base"])
         self.assertTrue(out["enigma"])
         self.assertTrue(out["shako"])
+
+    def test_a_curly_or_apostropheless_keeper_still_draws(self):
+        """REG-2191 — the catalogue stores "Gheed’s Fortune" with a CURLY apostrophe, so the straight-quote
+        KEEP_IN_INVENTORY regex matched its own canonical name NOWHERE: _vaultKeeps said false, the item fell
+        out of ownedPool and was drawn on no mule and in no keep advisory, while FIND still said it "stays with
+        your MAIN". Both keeper deciders (suggestMule's router and _vaultKeeps) now fold every apostrophe
+        variant to a straight one through _keepName before testing, so a curly, a left-curly, a straight, a
+        bare "Gheeds" and the padded form all answer the SAME — and a near-miss name still does not."""
+        s = _src()
+        # Both keeper-deciders fold the name the SAME way. A split here is the bug: the router files it __keep
+        # while _vaultKeeps drops it from the pool, so it is drawn nowhere. Pin that BOTH call _keepName.
+        self.assertEqual(code_only(s).count("KEEP_IN_INVENTORY.test(_keepName("), 2,
+                         "both the router and _vaultKeeps must fold the name through _keepName (REG-2191)")
+        out = _node(r"""
+          OUT.curly    = _vaultKeeps('Gheed’s Fortune');
+          OUT.left     = _vaultKeeps('Gheed‘s Fortune');
+          OUT.straight = _vaultKeeps("Gheed's Fortune");
+          OUT.noApos   = _vaultKeeps('Gheeds Fortune');
+          OUT.padded   = _vaultKeeps('  Gheed’s Fortune  ');
+          OUT.near     = _vaultKeeps('Gheed’s Fortuna');
+          OUT.other    = _vaultKeeps('Random Rare Ring');
+        """)
+        self.assertTrue(out["curly"], "the catalogue's own curly Gheed’s Fortune must be a keeper (REG-2191)")
+        self.assertTrue(out["left"])
+        self.assertTrue(out["straight"])
+        self.assertTrue(out["noApos"], "a bare 'Gheeds Fortune' must be a keeper (REG-2191)")
+        self.assertTrue(out["padded"])
+        self.assertFalse(out["near"], "a near-miss name must NOT be folded into a keeper")
+        self.assertFalse(out["other"])
 
     def test_a_registered_charm_is_found_and_a_keeper_says_main(self):
         """FIND searches Magic & Rare. A keep proposal says MAIN and does not open a mule."""

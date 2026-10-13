@@ -438,6 +438,78 @@ it run; his game still yields; an unreadable sweep state never wedges the prover
 widened judge. Seen RED two ways: neuter the sweep check → the sweep case fails; revert a call site → the
 two-site count drops to 1. Takes effect on RELAUNCH (the console runs control_app from the working tree); does
 not fix an already-stuck sweep - for that, drop baseline CPU (close the stray grok TTY, quit Battle.net).
+### REG-2195 - EVERY CORE LOCKER HAD A DELETE BUTTON; A MIS-CLICK DROPPED HIS TAXONOMY (2026-10-14, #264)
+
+**Found** by GrokBot's batch K controls pass: every mule card (not just ones he added) carried a 🗑 delete
+button, "easy to hit by mistake." Deleting a core locker (UNI-WEAPONS, MAGIC & RARE, …) removes it from the
+roster and sends its items to the unsorted dock - a destructive mis-click on his fixed taxonomy.
+
+**Fix (bible.html):** `_vmAddedMule(m)` - a mule is deletable only if HE added it (vaultAddMule now stamps
+`added:true`; older added mules are known by the mint-id shape `'m'+base36 time`, which no core id has - the
+only m-starter, 'magic-rare', has a hyphen). The 🗑 renders only for an added mule, AND `window.vaultDeleteMule`
+refuses a core locker outright (`if (!_vmAddedMule(m)) return;`). SHARED STASH stays undeletable as before.
+
+**Law:** `tv/test_the_core_lockers_are_not_deletable.py` (3) - the pure `_vmAddedMule` in node (11 core ids read
+not-deletable; a mint-id + the added:true flag read deletable) + a source guard that BOTH the button and the
+door gate on it. Seen RED by making the check return true and by reverting the door guard. Registered in
+run_gates. Held v3720 batch.
+
+### REG-2194 - FIND WAS A BARE SUBSTRING MATCH: ABBREVIATIONS MISSED, DOOMBRINGER RANKED BESIDE DOOM (2026-10-14, #264)
+
+**Found** by GrokBot's batch K controls pass on his live board: FIND 'soj'/'cta'/'hoto'/'coh'/'botd'/'wf'/'tgods'
+returned 0 (community short names weren't known), and a bare `indexOf` + alphabetical sort ranked 'Doombringer'
+beside 'Doom' for query 'doom' and put 'Talons'/'Metalgrid' ahead of 'Tal Rasha' for 'tal'.
+
+**Fix (bible.html, vaultFind):** `_vaultFindMatches(pool, q)` - a PURE matcher - expands a known abbreviation
+(`_VF_ALIAS`: soj->Stone of Jordan, cta->Call to Arms, hoto->Heart of the Oak, coh, botd, wf, tgods), folds
+apostrophes (`_vfNorm`, so 'tgods' reaches the catalogue's curly 'Thundergod's Vigor'), and ranks exact ->
+prefix -> whole-word -> substring, alphabetical within a rank.
+
+**Law:** `tv/test_the_vault_find_ranks_matches.py` (5), the matcher cut from bible.html and run in node: an
+abbreviation resolves, it folds the apostrophe, an exact match beats a longer substring, a prefix beats a
+mid-word substring, a blank query is empty. Seen RED by ignoring the alias (soj -> []) and by sorting
+alphabetically only (Tal Rasha no longer first). Registered in run_gates. Held v3720 batch.
+
+### REG-2193 - A MAGIC/RARE VAULT CELL DREW A FLAT 2x1, IGNORING THE ITEM'S REAL FOOTPRINT (2026-10-13, #264)
+
+**Found** by GrokBot's live look at his board (batches E/F, gh #230): a rare Jewel, Ring and Small Charm were
+drawn 2x1 and a Grand Charm 2x1, when their real D2 footprints are 1x1 / 1x1 / 1x1 / 1x3. The main catalogue
+cell sizes from `_itemCells(n)` (which prefers the game-truth `_cbFoot` base dims), but the MAGIC & RARE cell
+(keepers + magicFinds coloured tiles) hardcoded `grid-column:span 2;grid-row:span 1`, so every magic/rare item
+took a flat 2x1 regardless of its base. [[copy-drift]] - the "ONE FOOTPRINT" sweep (REG-2051) unified the
+packer, the chip and the main cell but MISSED this render path. A wrong footprint also breaks the Tetris-fit
+his mule-balance rule depends on (a 1x1 jewel eating 2 cells).
+
+**Fix (bible.html):** the magic/rare cell computes `_mf = _itemCells(base || n)` - the SAME source the catalogue
+cell uses - and spans `grid-column:span _mf.w; grid-row:span _mf.h`, with the `vmc-approx` marker when the base
+is unresolved, exactly like the main cell. One footprint source for both.
+
+**Law:** `tv/test_the_packer_reads_the_footprint_the_tile_prints.py::test_a_magic_or_rare_cell_is_sized_by_its_base_not_a_flat_2x1`
+- _itemCells gives Jewel/Ring/Small Charm 1x1, Grand Charm 1x3, Large Charm 1x2; and the magic cell is wired to
+that source, not a flat 2x1. Seen RED by reverting the span to the hardcode. Held in the v3720 worktree batch
+(bible.html -> ships after the installer lands and D2R is not running). Visual confirm owed to GrokBot.
+
+### REG-2191 - A CURLY APOSTROPHE DREW GHEED’S FORTUNE NOWHERE WHILE FIND SAID IT STAYS WITH MAIN (2026-10-13, #264)
+
+**Found** sweeping the mule / keeper logic for #264. The catalogue stores the name with a CURLY apostrophe -
+`Gheed’s Fortune` (U+2019) - but `KEEP_IN_INVENTORY = /^(…|Gheed's Fortune)$/i` used a STRAIGHT quote, so it
+matched its own canonical name NOWHERE: `_vaultKeeps` returned false, the item fell out of `ownedPool`, and it
+was drawn on no mule and in no keep advisory - while `suggestMule`'s router (which also tested the raw name)
+answered `__keep`, so FIND still said it “stays with your MAIN” about an item the vault drew nowhere. The two
+keeper deciders disagreed by apostrophe variant - [[the-unjoined-end]], a keeper split in two - and a bare
+`Gheeds` (the spelling in v3718's build note) failed the same way.
+
+**Fix (bible.html):** one simple regex `/^(Annihilus|Hellfire Torch|Gheed'?s Fortune)$/i` (apostrophe optional)
+and one `_keepName(n)` helper beside it that folds every apostrophe variant (U+2018/2019/02BC/00B4/0060) to a
+straight `'` and trims. BOTH keeper deciders - the `suggestMule` router and `_vaultKeeps` - now test
+`KEEP_IN_INVENTORY.test(_keepName(name))`, so a curly, a left-curly, a straight, a bare `Gheeds` and a padded
+form answer the SAME at both sites, and a near-miss (`Gheed’s Fortuna`) still does not.
+
+**Law:** `tv/test_a_hand_added_item_stays_his.py::test_a_curly_or_apostropheless_keeper_still_draws` - drives
+`_vaultKeeps` in node over seven spellings, plus a source guard that BOTH deciders fold via `_keepName`
+(count == 2). Seen RED two ways: strip the fold -> the curly case fails; un-join the router -> the two-site
+count drops to 1. KEEP_A and the stale `.test(n)` assertion in the existing keeper law were updated to the
+folded spelling (a new call breaks every harness that cut the caller).
 
 ### REG-2190 - SCRATCH CHROMES HELD HIS D2JSP SESSION AFTER A CRASHED CONSOLE (2026-10-13, security hygiene)
 
