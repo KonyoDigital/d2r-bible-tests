@@ -415,6 +415,22 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2184 - THE INTEGRITY FIX DELETED THE WRONG COPY OF A DOUBLE-FILED ITEM (2026-10-13, #264)
+
+The vault audit's Fix for a "double-filed" row kept the mule filing and deleted
+the Magic & Rare record (keep beats magic). For a magic, rare or crafted item
+that record is its one home since v3716 and the only copy holding its base,
+mods and checker verdict. The next audit then unfiled the leftover mule copy
+as a guessed home and the next load dropped it from owned, so the item was
+drawn nowhere. One "Fix all" did this to all nine of his double-filed rows.
+Found by the cross-family review of v3713-v3718 and reproduced in node with the
+shipped _vaultAudit and _vaultAuditApply. The fix decides by what the item is:
+a catalogue item (unique or set piece) keeps its mule filing and the stray
+Magic & Rare copy goes; a magic/rare/crafted item keeps its Magic & Rare
+record and the mule filing goes through vaultUnassign, the door that refuses
+a HARDENED row.
+Law: `test_furniture_filed_in_a_mule_is_an_integrity_finding` (3 cases, 3 red-proofs).
+
 ### REG-2183 - THE WINDOWS INSTALLER COULD NEVER MOVE A CHANGED TREE (2026-10-13, #164)
 
 Dean's PC sat on v3577, 1,063 behind, and the ALT on v3668, 105 behind, both

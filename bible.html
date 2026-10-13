@@ -41663,7 +41663,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var g=String(f.store).split('+');
         // keep the highest-priority store (keep > magic > throw); drop the item from the lower one(s)
         if (g.indexOf('throw')>=0) { try{ unknownReads.delete(f.item); }catch(e){} }
-        if (g.indexOf('magic')>=0 && g.indexOf('keep')>=0) { if(magicFinds) delete magicFinds[f.item]; }
+        if (g.indexOf('magic')>=0 && g.indexOf('keep')>=0) {
+          /* REG-2184 - WHICH COPY GOES DEPENDS ON WHAT THE ITEM IS, never on a fixed store order. A catalogue item (a
+             unique or a set piece) keeps its mule filing and the stray Magic & Rare copy goes. A magic, rare or crafted
+             item keeps its Magic & Rare record - its one home since v3716, and the only copy that holds its base, mods
+             and checker verdict - and the mule filing goes, through vaultUnassign (the door that refuses a HARDENED row).
+             The old rule (keep beats magic) deleted that record and left a mule filing nothing could vouch for: the next
+             audit unfiled it as a guessed home and the next load dropped it from owned. One "Fix all" did that to all
+             nine of his double-filed rows - drawn nowhere. [[unknown-stays-unknown]] */
+          var _cat = _vaIsGrailUni(f.item) || !!(typeof findSetPiece === 'function' && findSetPiece(f.item));
+          if (_cat) { if(magicFinds) delete magicFinds[f.item]; }
+          else { var _du0 = window.vaultUnassign(f.item); if (!_du0 || !_du0.ok) return false; }
+        }
       }
       else if (f.kind==='wrongly-thrown'){
         try{ unknownReads.delete(f.item); }catch(e){}

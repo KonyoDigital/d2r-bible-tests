@@ -51,7 +51,7 @@ def _cut(s, pair):
     return s[i:j + len(end)]
 
 
-def _run(assign, apply_kinds=(), route=None):
+def _run(assign, apply_kinds=(), route=None, magic=None, uniques=(), sets=()):
     if NODE is None:
         raise AssertionError("node is not on this machine - this gate does not skip")
     s = _src()
@@ -62,11 +62,13 @@ var MULES = { "uni-weap": "UNI-WEAPONS", "uni-armor": "UNI-ARMOR", "shared": "SH
 function muleById(id){ return MULES[id] ? { id: id, name: MULES[id] } : null; }
 var ROUTE = %s;
 function suggestMule(n){ return ROUTE[n] || { id: "uni-weap", why: "stub" }; }
-var assign = %s, owned = new Set(Object.keys(assign)), magicFinds = {}, unknownReads = new Set();
+var assign = %s, owned = new Set(Object.keys(assign)), magicFinds = %s, unknownReads = new Set();
+var UNIS = %s, SETS = %s;
+function findSetPiece(n){ return SETS.indexOf(n) >= 0 ? { name: n } : null; }
 function _muleName(id){ var m = muleById(id); return m ? m.name : id; }
 function _vaStoreLabel(k){ return k; }
 function _vaIsRW(n){ return false; }
-function _vaIsGrailUni(n){ return false; }
+function _vaIsGrailUni(n){ return UNIS.indexOf(n) >= 0; }
 function _mfChecker(n){ return null; }
 function _vaG3Filled(){ return {}; }
 function _vaProvenance(n){ return ''; }
@@ -77,8 +79,9 @@ window.vaultFile = function(n, w, o){ FILED.push([n, o && o.mule]); return { ok:
 var r = _vaultAudit(), applied = [];
 r.findings.forEach(function(f){ if (%s.indexOf(f.kind) >= 0) applied.push([f.kind, f.item, _vaultAuditApply(f)]); });
 console.log(JSON.stringify({ findings: r.findings.map(function(f){ return [f.kind, f.item, f.fixable, f.to]; }),
-                             applied: applied, unassigned: UNASSIGNED, filed: FILED, left: assign }));
-""" % (_cut(s, FURN), json.dumps(route or {}), json.dumps(assign), _cut(s, AUDIT), _cut(s, APPLY), json.dumps(list(apply_kinds)))
+                             applied: applied, unassigned: UNASSIGNED, filed: FILED, left: assign, magic: magicFinds }));
+""" % (_cut(s, FURN), json.dumps(route or {}), json.dumps(assign), json.dumps(magic or {}), json.dumps(list(uniques)),
+       json.dumps(list(sets)), _cut(s, AUDIT), _cut(s, APPLY), json.dumps(list(apply_kinds)))
     # the program goes in on STDIN - a law never hands node its program on argv
     r = subprocess.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=30)
     if r.returncode != 0:
@@ -132,6 +135,32 @@ class FurnitureFiledInAMuleIsAnIntegrityFinding(unittest.TestCase):
         self.assertEqual([f for f in out["findings"] if f[0] == "guessed-home"], [], "the shared stash was called a guess")
 
 
+    def test_a_double_filed_magic_item_keeps_its_magic_and_rare_record(self):
+        # REG-2184 - the Fix kept the mule filing and deleted his Magic & Rare record (base, mods, verdict); the next
+        # audit then unfiled the mule copy as a guessed home and the item was drawn nowhere
+        out = _run({"Caster Wonder": "uni-weap"}, apply_kinds=("dupe",),
+                   magic={"Caster Wonder": {"q": "r", "base": "Grand Charm", "mods": ["+17 to Life"]}})
+        self.assertIn(["dupe", "Caster Wonder", True, None], out["findings"], "the double filing was not found")
+        self.assertIn("Caster Wonder", out["magic"],
+                      "the Fix deleted his Magic & Rare record - the only copy with its base, mods and verdict")
+        self.assertEqual(out["magic"]["Caster Wonder"].get("base"), "Grand Charm", "the record survived but lost its base")
+        self.assertEqual(out["unassigned"], ["Caster Wonder"], "the redundant mule filing was not removed through vaultUnassign")
+        self.assertNotIn("Caster Wonder", out["left"], "the mule filing is still there beside the Magic & Rare record")
+
+    def test_a_double_filed_catalogue_unique_keeps_its_mule_filing(self):
+        # a unique that leaked into Magic & Rare is the opposite case: its home is the mule, the Magic & Rare copy is stray
+        out = _run({"Harlequin Crest": "uni-armor"}, apply_kinds=("dupe",),
+                   magic={"Harlequin Crest": {"q": "u"}}, uniques=("Harlequin Crest",))
+        self.assertNotIn("Harlequin Crest", out["magic"], "the stray Magic & Rare copy of a unique was kept")
+        self.assertEqual(out["left"].get("Harlequin Crest"), "uni-armor", "the unique lost its mule filing")
+        self.assertEqual(out["unassigned"], [], "a unique's mule filing was unassigned")
+
+    def test_a_double_filed_set_piece_keeps_its_mule_filing(self):
+        out = _run({"Tal Rasha's Horadric Crest": "uni-armor"}, apply_kinds=("dupe",),
+                   magic={"Tal Rasha's Horadric Crest": {"q": "s"}}, sets=("Tal Rasha's Horadric Crest",))
+        self.assertNotIn("Tal Rasha's Horadric Crest", out["magic"], "the stray Magic & Rare copy of a set piece was kept")
+        self.assertEqual(out["left"].get("Tal Rasha's Horadric Crest"), "uni-armor", "the set piece lost its mule filing")
+
 RED_PROOF = [
     {"why": "REG-2052 - furniture filed in a mule is no finding again",
      "file": "bible.html",
@@ -157,6 +186,21 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "      if (sg.unsorted && assign[n] !== 'shared' && assign[n] !== '__throwout' && muleById(assign[n])){\n",
      "replace": "      if (false){\n",
+     "matches": 1},
+    {"why": "REG-2184: the Fix goes back to keep-beats-magic and deletes a magic item's Magic & Rare record",
+     "file": "bible.html",
+     "find": "          if (_cat) { if(magicFinds) delete magicFinds[f.item]; }\n          else { var _du0 = window.vaultUnassign(f.item); if (!_du0 || !_du0.ok) return false; }\n",
+     "replace": "          if(magicFinds) delete magicFinds[f.item];\n",
+     "matches": 1},
+    {"why": "REG-2184: every double-filed item is treated as magic, so a unique loses its mule filing",
+     "file": "bible.html",
+     "find": "          var _cat = _vaIsGrailUni(f.item) || !!(typeof findSetPiece === 'function' && findSetPiece(f.item));\n",
+     "replace": "          var _cat = false;\n",
+     "matches": 1},
+    {"why": "REG-2184: the catalogue check forgets set pieces, so a set piece loses its mule filing",
+     "file": "bible.html",
+     "find": "          var _cat = _vaIsGrailUni(f.item) || !!(typeof findSetPiece === 'function' && findSetPiece(f.item));\n",
+     "replace": "          var _cat = _vaIsGrailUni(f.item);\n",
      "matches": 1},
 ]
 
