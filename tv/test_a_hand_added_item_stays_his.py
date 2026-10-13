@@ -1217,6 +1217,77 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(o["dock"]["kind"], "dock")
 
 
+class APlannerPickNeverOverwritesWhatHeHas(unittest.TestCase):
+    """REG-2185 - a planner pick over a name he already holds must not write over that record.
+
+    The cross-family review of v3683/v3685 reproduced both in node at HEAD: a magic pick on a name already in Magic & Rare
+    replaced the record with { q, base, mods } (its reel receipt, checker verdict and his mods gone), and a second Grief on
+    a Berserker Axe wrote over the first Grief's Phase Blade / IAS / sockets in d2r_plannerMade. The older planner case
+    above picks the same item twice with the SAME token - a re-roll of its own fresh pick - so it never reached a record
+    that existed before the pick, and stayed green over both. These two do: the record is there FIRST, the pick comes with
+    a NEW token."""
+
+    def _run(self, scenario):
+        if not NODE:
+            raise AssertionError("node is not on this machine - this law does not skip")
+        s = _src()
+        block = _cut(s, "  /* ⟦VAULT PLANNER FILE BEGIN⟧ */\n", "  /* ⟦VAULT PLANNER FILE END⟧ */\n")
+        prog = r"""
+var window = globalThis, CALLS = [], SAID = [], magicFinds = {}, assign = {}, owned = new Set(), copies = {};
+function copyCount(n){ var c = copies && copies[n]; return (c && c > 0) ? c : (owned.has(n) ? 1 : 0); }
+function status(m){ SAID.push(String(m)); }
+function renderVault(){} function refreshOpenCard(){} function persistOwned(){} function saveA(){}
+function muleById(id){ var n = { 'uni-armor': 'UNI-ARMOR', 'magic-rare': 'MAGIC & RARE', 'shared': 'SHARED STASH' }; return n[id] ? { id: id, name: n[id] } : null; }
+function isSharedStash(nm){ return false; }
+function _vaultKeeps(nm){ return false; }
+var ROUTES = {};
+function suggestMule(nm){ return Object.prototype.hasOwnProperty.call(ROUTES, nm) ? ROUTES[nm] : { id: null, unsorted: true, why: 'stub' }; }
+var MADESTORE = {};
+var LS = { getItem: function(k){ return Object.prototype.hasOwnProperty.call(MADESTORE, k) ? MADESTORE[k] : null; },
+           setItem: function(k, v){ MADESTORE[k] = String(v); } };
+window._ownedAdd = function(nm){ if (!owned.has(nm)) owned.add(nm); return { added: true, prov: { ok: true } }; };
+window.vaultHandAdd = function(nm){ if (!owned.has(nm)) owned.add(nm); return { ok: true, mode: 'added', name: nm }; };
+window.vaultFile = function(nm, wit, opts){ assign[nm] = opts.mule; if (!owned.has(nm)) owned.add(nm); return { ok: true, mode: 'filed', mule: opts.mule }; };
+window.vaultUnassign = function(nm){ delete assign[nm]; return { ok: true }; };
+window.kaiChronicleRecord = function(row){ return row; };
+window._cbItem = function(id){ return { id: id }; };
+window._cbShown = function(e){ return { name: e._name, q: e._q, base: e._base || '' }; };
+window._cbDb = function(){ return { b: { cm: ['Small Charm'], '7cr': ['Phase Blade'], '7wa': ['Berserker Axe'] } }; };
+window._cbAf = function(id){ return id === 'vita' ? { _text: '+17 to Life' } : null; };
+window._cbAfText = function(a){ return a._text || ''; };
+""" + block + "\n" + scenario
+        r = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=30)
+        if r.returncode != 0:
+            raise AssertionError("the cut planner did not run in node: %s" % r.stderr[-700:])
+        return json.loads(r.stdout.strip().splitlines()[-1])
+
+    def test_a_magic_pick_keeps_the_record_he_already_has(self):
+        out = self._run(r"""
+ROUTES['Small Charm of Vita'] = { id: 'magic-rare', why: 'registered in Magic and Rare' };
+magicFinds['Small Charm of Vita'] = { q: 'magic', base: 'Small Charm', mods: ['+17 to Life'], frameId: 'f123',
+  sessionId: 's9', shotFile: 'shot_0042.png', checked: true, verdict: 'keep', score: 7 };
+owned.add('Small Charm of Vita');
+window.vaultPlannerFile({ id: 'charm', base: 'cm', _name: 'Small Charm of Vita', _q: 'm', affixes: [{ id: 'vita' }] }, 't-new');
+console.log(JSON.stringify(magicFinds['Small Charm of Vita']));
+""")
+        self.assertEqual(out.get("frameId"), "f123", "the pick wiped the reel receipt (frameId)")
+        self.assertEqual(out.get("shotFile"), "shot_0042.png", "the pick wiped the screenshot the record was read from")
+        self.assertEqual(out.get("verdict"), "keep", "the pick wiped the checker verdict")
+        self.assertEqual(out.get("score"), 7, "the pick wiped the checker score")
+
+    def test_a_second_runeword_keeps_the_first_ones_build(self):
+        out = self._run(r"""
+MADESTORE['d2r_plannerMade'] = JSON.stringify({ Grief: { id: 'grief', base: '7cr', baseName: 'Phase Blade', q: 'r',
+  affixes: [{ id: 'ias40' }], eth: false, sockets: 5, rolls: null } });
+assign['Grief'] = 'shared'; owned.add('Grief');
+window.vaultPlannerFile({ id: 'grief', base: '7wa', _name: 'Grief', _q: 'r', affixes: [] }, 't-g2');
+console.log(MADESTORE['d2r_plannerMade']);
+""")
+        g = out.get("Grief") or {}
+        self.assertEqual(g.get("baseName"), "Phase Blade", "the second Grief wrote over the first one's base")
+        self.assertEqual(g.get("sockets"), 5, "the second Grief wrote over the first one's sockets")
+        self.assertEqual(g.get("affixes"), [{"id": "ias40"}], "the second Grief wrote over the first one's affixes")
+
 RED_PROOF = [
     {
         "why": "REG-1866 - a filing that carries his hand as ownedBy is landed on every pass; without it the next load counts it left",
@@ -1344,6 +1415,16 @@ RED_PROOF = [
         "replace": "      var drawn = items.slice();\n",
         "matches": 1,
     },
+    {"why": "REG-2185: a magic planner pick writes over the record he already has and wipes its receipt and verdict",
+     "file": "bible.html",
+     "find": "      var _mfHad = (beforeMagic && !keepFresh && magicFinds[nm] && typeof magicFinds[nm] === 'object') ? magicFinds[nm] : null;\n      if (_mfHad){\n        if (!_mfHad.q) _mfHad.q = magicQ;\n        if (!_mfHad.base && baseName) _mfHad.base = baseName;\n        if ((!_mfHad.mods || !_mfHad.mods.length) && mods && mods.length) _mfHad.mods = mods;\n      } else {\n        magicFinds[nm] = { q: magicQ, base: baseName, mods: mods };\n      }\n",
+     "replace": "      magicFinds[nm] = { q: magicQ, base: baseName, mods: mods };\n",
+     "matches": 1},
+    {"why": "REG-2185: a second runeword of the same name writes over the first one's base, sockets and affixes",
+     "file": "bible.html",
+     "find": '    if (Object.prototype.hasOwnProperty.call(map, nm) && !mayReplace) return;\n',
+     "replace": "",
+     "matches": 1},
 ]
 
 

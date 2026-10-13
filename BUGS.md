@@ -415,6 +415,25 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2185 - A PLANNER PICK WROTE OVER A RECORD HE ALREADY HAD (2026-10-13, #264)
+
+Two writes in the Vault planner replaced a record that existed before the pick.
+A magic, rare or crafted pick on a name already in Magic & Rare set the record
+to { q, base, mods }, wiping its reel receipt (frameId, sessionId, at, shotFile),
+its checker verdict and score, and his mods - a second "Small Charm of Vita" has
+the same name, so it was easy to hit. And d2r_plannerMade holds one record per
+name, so a second Grief on a Berserker Axe wrote over the first Grief's Phase
+Blade, IAS and sockets. The reel intake refuses and the checker reconciles; only
+the planner overwrote. Found by the cross-family review of v3683/v3685 and
+reproduced in node. The older planner case picked the same item twice with the
+same token (a re-roll of its own fresh pick) so it never met a pre-existing
+record and stayed green over both. Now only a record this same pick made (he is
+re-rolling it) is replaced; an existing record keeps everything and only gains a
+field it lacks. A clear cannot reach it: a pick over an existing record is never
+fresh, so _vpDrop leaves it alone. Storing every copy apart is still owed (art
+and tooltips read by name).
+Law: `test_a_hand_added_item_stays_his` (APlannerPickNeverOverwritesWhatHeHas, 2 cases, 2 red-proofs).
+
 ### REG-2184 - THE INTEGRITY FIX DELETED THE WRONG COPY OF A DOUBLE-FILED ITEM (2026-10-13, #264)
 
 The vault audit's Fix for a "double-filed" row kept the mule filing and deleted

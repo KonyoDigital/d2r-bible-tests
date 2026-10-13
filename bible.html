@@ -44777,12 +44777,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function _vpMadeWrite(map){
     try { LS.setItem(VP_MADE_KEY, JSON.stringify(map)); } catch (e) {}
   }
-  function _vpRemember(nm, entry, shown, baseName){
+  function _vpRemember(nm, entry, shown, baseName, mayReplace){
     if (!nm || !entry || !entry.base) return;
     var named = baseName ? String(baseName) : '';
     if (!named || named === nm) return;
     var map = _vpMadeRead();
     if (!map) return;
+    /* REG-2185 - one record per name, so a SECOND copy (another Grief on another base) must not write over the first:
+       that wiped his first Grief's Phase Blade, IAS and sockets. Only the record this same pick made (he is re-rolling
+       it) may be replaced. Keeping every copy apart is the larger change still owed (art and tooltips read by name). */
+    if (Object.prototype.hasOwnProperty.call(map, nm) && !mayReplace) return;
     map[nm] = {
       id: entry.id, base: String(entry.base), baseName: named,
       q: (shown && shown.q) || 'r', affixes: entry.affixes || [],
@@ -44923,7 +44927,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         try { status(whyM); } catch (e3) {}
         return { ok: false, filed: false, why: whyM };
       }
-      magicFinds[nm] = { q: magicQ, base: baseName, mods: mods };
+      /* REG-2185 - A SECOND COPY NEVER WRITES OVER THE RECORD HE ALREADY HAS. The reel intake refuses and the checker
+         reconciles; the planner wrote { q, base, mods } over an existing record and wiped its reel receipt (frameId,
+         sessionId, at, shotFile), its checker verdict and score, and his mods - and a second "Small Charm of Vita" has
+         the same name, so it was easy to hit. Only a record this same pick made a moment ago (keepFresh - he is
+         re-rolling it) is replaced; an existing one keeps everything and only gains a field it lacks. A clear cannot
+         reach it either: a pick over an existing record is never `fresh`, so _vpDrop leaves it alone. */
+      var _mfHad = (beforeMagic && !keepFresh && magicFinds[nm] && typeof magicFinds[nm] === 'object') ? magicFinds[nm] : null;
+      if (_mfHad){
+        if (!_mfHad.q) _mfHad.q = magicQ;
+        if (!_mfHad.base && baseName) _mfHad.base = baseName;
+        if ((!_mfHad.mods || !_mfHad.mods.length) && mods && mods.length) _mfHad.mods = mods;
+      } else {
+        magicFinds[nm] = { q: magicQ, base: baseName, mods: mods };
+      }
       try { LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch (e4) {}
     } else if (kind || (typeof _vaultKeeps === 'function' && _vaultKeeps(nm))){
       var add = (typeof window.vaultHandAdd === 'function')
@@ -44939,7 +44956,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       try { status(whyB); } catch (e6) {}
       return { ok: true, filed: false, why: whyB };
     }
-    if (kind === 'runeword') _vpRemember(nm, entry, shown, baseName);
+    if (kind === 'runeword') _vpRemember(nm, entry, shown, baseName, keepFresh);
     var routed = _vpRoute(nm);
     if (routed && routed.magicHome && beforeMagic)
       routed = { ok: true, filed: false, mode: 'already', mule: routed.mule, why: nm + ' is already filed' };
