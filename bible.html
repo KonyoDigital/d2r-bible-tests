@@ -41874,8 +41874,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        left the pool goes, as before. An unwitnessed filing still in the pool is not deleted here — the fresh
        vault is his ruling, backed up first — but it is tagged NO WITNESS on its tile and counted by the
        doctor's 'vault provenance' row. [[unknown-stays-unknown]] */
-    var _pvW6 = _provAll();
-    Object.keys(_pvW6).forEach(function(k){ if (_pvW6[k] && _pvW6[k].kind === 'owned') delete _pvW6[k]; });   /* a receipt keeps no filing */
+    var _pvLive = _provAll();
+    var _pvW6 = {};
+    Object.keys(_pvLive).forEach(function(k){
+      if (_pvLive[k] && _pvLive[k].kind === 'owned') return;   /* a receipt keeps no filing */
+      _pvW6[k] = _pvLive[k];
+    });
     Object.keys(assign).forEach(function(n){
       if (assign[n]!=='__keep' && !muleById(assign[n])) { delete assign[n]; return; }
       if (pool.indexOf(n) >= 0) return;

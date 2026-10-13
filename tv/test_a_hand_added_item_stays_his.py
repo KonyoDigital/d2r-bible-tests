@@ -817,6 +817,46 @@ process.stdout.write(JSON.stringify({
         self.assertFalse(o["locked"], o)
         self.assertEqual(o["after"], 2, o)
 
+    def test_a_draw_filter_keeps_the_owned_receipt(self):
+        """The prune ignores an owned receipt. The same draw still reads that receipt afterwards.
+        Measured on v3715: the filter deleted the receipt from the held store, and the chip line went blank."""
+        if not NODE:
+            raise AssertionError("node is not on this machine — this law does not skip")
+        s = _src()
+        live = "    var _pvLive = _provAll();\n"
+        self.assertEqual(s.count(live), 1)
+        chip = "window._vaultEvidenceChip(n, 'vc-ev')"
+        self.assertGreater(s.index(chip), s.index(live))
+        block = _cut(s, "  function _witnessRaw(){\n", "  function _provDrop(names){\n")
+        filt = _cut(s, live, "    Object.keys(assign).forEach(function(n){\n")
+        prog = (
+            "var window = globalThis, reads = 0;\n"
+            "var PROV_KEY = 'd2r_vaultProv';\n"
+            "var RAW = '{\"Spirit\":{\"kind\":\"filing\",\"locked\":true},"
+            "\"Monarch\":{\"kind\":\"owned\",\"source\":\"hand\",\"by\":\"+ Add an item\"}}';\n"
+            "window.LSR = { getItem: function(){ reads++; return RAW; },"
+            " setItem: function(k, v){ RAW = String(v); } };\n"
+            + block
+            + "window._provHeld = true;\n"
+            "window._provHoldSeen = false;\n"
+            + filt
+            + "var after = _provAll();\n"
+            "var line = after.Monarch ? (after.Monarch.source + ' kept') : '';\n"
+            "process.stdout.write(JSON.stringify({ reads: reads, monarch: !!after.Monarch, line: line,"
+            " spiritInPrune: Object.prototype.hasOwnProperty.call(_pvW6, 'Spirit'),"
+            " monarchInPrune: Object.prototype.hasOwnProperty.call(_pvW6, 'Monarch'),"
+            " locked: !!after.Spirit && after.Spirit.locked === true }));\n"
+        )
+        p = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=30)
+        self.assertEqual(p.returncode, 0, (p.stderr or p.stdout)[-2000:])
+        o = json.loads(p.stdout)
+        self.assertEqual(o["reads"], 1, o)
+        self.assertTrue(o["monarch"], o)
+        self.assertEqual(o["line"], "hand kept", o)
+        self.assertTrue(o["spiritInPrune"], o)
+        self.assertFalse(o["monarchInPrune"], o)
+        self.assertTrue(o["locked"], o)
+
     def test_a_long_review_builds_only_the_open_cards(self):
         """A review of 40 names builds the first screen. The rest wait for the closed details."""
         if not NODE:
