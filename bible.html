@@ -11111,16 +11111,27 @@ function d2jspPriceToSend(quoted, typed) {
   var q = Number(quoted);
   return (q > 0) ? q : null;
 }
+function d2jspPostLine(row) {
+  var t = String(row == null ? '' : row)
+    .replace(/<[^>]+>/g, '')
+    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
+    .replace(/&#39;|&apos;/g, "'")
+    .replace(/\s+/g, ' ').trim();
+  if (!t) return '';
+  /* The character builder still shows a code the tables name and do not describe. A sale leaves that sentence out. */
+  if (/^an effect the game's tables name .+ but do not describe$/.test(t)) return '';
+  return t;
+}
 function d2jspDraft(name, base, mods, copies, fg) {
   var price = (typeof fg === 'number') ? fg : Number(fg);
   if (!(price > 0)) return { ok: false, reason: 'no price' };
   var nm = String(name || '').trim();
   if (!nm) return { ok: false, reason: 'no item' };
   var b = String(base || '').trim();
-  var subject = 'WTS ' + nm + (b ? (' ' + b) : '');
+  var subject = 'Selling ' + nm + (b ? (' ' + b) : '');
   var lines = [subject];
   String(mods || '').split('\n').forEach(function(row){
-    var t = String(row || '').trim();
+    var t = d2jspPostLine(row);
     if (t) lines.push(t);
   });
   var c = copies | 0;
@@ -11329,12 +11340,6 @@ function d2jspPriceLine(q) {
     return readMap('d2r_d2jsp_gear');
   }
   function writeGear(v){ writeMap('d2r_d2jsp_gear', v); }
-  function plainLine(html){
-    return String(html == null ? '' : html)
-      .replace(/<[^>]+>/g, '')
-      .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"')
-      .replace(/\s+/g, ' ').trim();
-  }
   function gearLines(entry){
     var out = [];
     if (!entry) return out;
@@ -11345,14 +11350,14 @@ function d2jspPriceLine(q) {
       if (!l || l[2] === 3) return;
       var t = '';
       try { t = (typeof window._cbLineHtml === 'function') ? window._cbLineHtml(l, rolls, null, 'text') : ''; } catch (eLn) { t = ''; }
-      t = plainLine(t);
+      t = d2jspPostLine(t);
       if (t) out.push(t);
     });
     (entry.affixes || []).forEach(function(x){
       var a = null, t = '';
       try { a = (typeof window._cbAf === 'function') ? window._cbAf(x && x.id) : null; } catch (eAf) { a = null; }
       try { t = (a && typeof window._cbAfText === 'function') ? window._cbAfText(a, (x && x.rolls) || {}, null, 'text') : ''; } catch (eTx) { t = ''; }
-      t = plainLine(t);
+      t = d2jspPostLine(t);
       if (t) out.push(t);
     });
     if (entry.eth) out.push('Ethereal');

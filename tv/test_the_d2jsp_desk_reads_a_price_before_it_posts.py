@@ -283,8 +283,12 @@ var lines = window._d2jspGearLines({
 });
 var draft = d2jspDraft('Grief', 'Phase Blade', lines.join('\n'), 1, 30);
 var blocked = d2jspDraft('Grief', 'Phase Blade', lines.join('\n'), 1, 0);
+var thunder = window._d2jspGearLines({ id: 'thunder', eth: false, rolls: {}, affixes: [] });
+var sale = d2jspDraft("Guardian's Thunder", 'Colossal Jewel',
+  thunder.join('\n') + '\nan effect the game&#39;s tables name Gethit-skill but do not describe\n+10% to Lightning Skill Damage',
+  1, 1100);
 var quest = (typeof d2jspIsQuest === 'function') && d2jspIsQuest('Horadric Cube');
-process.stdout.write(JSON.stringify({lines: lines, draft: draft, blocked: blocked, quest: quest}));
+process.stdout.write(JSON.stringify({lines: lines, draft: draft, blocked: blocked, thunder: thunder, sale: sale, quest: quest}));
 """
         stubs = r"""
 var document = {
@@ -298,21 +302,43 @@ var localStorage = { _m: {}, getItem: function(k){ return this._m[k] || null; },
 var location = { hostname: '127.0.0.1' };
 var window = { addEventListener: function(){}, LSR: null };
 window._cbItem = function(id){
-  if (id !== 'grief') return null;
-  return ['grief', 'Grief', 'u', 'pblade', 0, 0, [[0, [[340, 400, 'ed']], 0, 'ed%']]];
+  if (id === 'grief') return ['grief', 'Grief', 'u', 'pblade', 0, 0, [[0, [[340, 400, 'ed']], 0, 'ed%']]];
+  if (id === 'thunder') return ['thunder', "Guardian's Thunder", 'u', 'cjw', 75, 0, [
+    [13, [[1, 75, 'ltng']], 0, 'dmg-ltng'],
+    [0, [], 0, 2, 'Gethit-skill']
+  ]];
+  return null;
 };
-window._cbLineHtml = function(){ return '+340-400% Enhanced Damage'; };
+window._cbLineHtml = function(line){
+  if (line && line[4] === 'Gethit-skill') return 'an effect the game&#39;s tables name Gethit-skill but do not describe';
+  if (line && line[3] === 'dmg-ltng') return 'Adds 1-75 lightning damage';
+  return '+340-400% Enhanced Damage';
+};
 window._cbAf = function(id){ return id === 'vita' ? ['vita'] : null; };
 window._cbAfText = function(){ return '+36-40 to Life'; };
 window._cbShown = function(){ return { name: 'Grief', base: 'Phase Blade' }; };
 """
         out = json.loads(_node(stubs + script, body))
         self.assertEqual(out["lines"], ["+340-400% Enhanced Damage", "+36-40 to Life", "Ethereal"])
-        self.assertEqual(out["draft"]["subject"], "WTS Grief Phase Blade")
+        self.assertEqual(out["draft"]["subject"], "Selling Grief Phase Blade")
         self.assertEqual(
             out["draft"]["body"].split("\n"),
-            ["WTS Grief Phase Blade", "+340-400% Enhanced Damage", "+36-40 to Life", "Ethereal", "30 fg"],
+            ["Selling Grief Phase Blade", "+340-400% Enhanced Damage", "+36-40 to Life", "Ethereal", "30 fg"],
         )
+        self.assertEqual(out["thunder"], ["Adds 1-75 lightning damage"])
+        self.assertEqual(out["sale"]["subject"], "Selling Guardian's Thunder Colossal Jewel")
+        self.assertEqual(
+            out["sale"]["body"].split("\n"),
+            [
+                "Selling Guardian's Thunder Colossal Jewel",
+                "Adds 1-75 lightning damage",
+                "+10% to Lightning Skill Damage",
+                "1100 fg",
+            ],
+        )
+        self.assertNotIn("but do not describe", out["sale"]["body"])
+        self.assertNotIn("Gethit-skill", out["sale"]["body"])
+        self.assertNotIn("&#39;", out["sale"]["body"])
         self.assertEqual(out["draft"]["forum"], 268)
         self.assertFalse(out["blocked"]["ok"])
         self.assertEqual(out["blocked"]["reason"], "no price")
@@ -617,6 +643,14 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(out["reason"], "no-price")
         self.assertEqual(calls["cookie"], 0)
 
+        code, out = desk.d2jsp_send(
+            {"subject": "ISO Grief", "body": "ISO Grief\n30 fg", "forum": 268},
+            None, "127.0.0.1:17772", 17772,
+            cookie_get=cookie_get, open_login=open_login,
+        )
+        self.assertEqual(out["reason"], "no-price")
+        self.assertEqual(calls["cookie"], 0)
+
         def refuse_chrome(subject, text, cookie):
             raise AssertionError("a title past 50 characters must not open Chrome")
 
@@ -681,14 +715,14 @@ process.stdout.write(JSON.stringify({
             return 302, {"Location": "https://forums.d2jsp.org/topic.php?t=9&f=268"}, b""
 
         code, out = desk.d2jsp_send(
-            {"subject": "WTS Grief Phase Blade", "body": "WTS Grief Phase Blade\n+damage\n30 fg", "forum": 268},
+            {"subject": "Selling Grief Phase Blade", "body": "Selling Grief Phase Blade\n+damage\n30 fg", "forum": 268},
             "http://localhost:17772", "localhost:17772", 17772,
             cookie_get=cookie_get, transport=transport_ok, open_login=open_login,
         )
         self.assertTrue(out["ok"])
         self.assertEqual(out["reason"], "submitted")
         self.assertIn("form_token=abc", posted["body"])
-        self.assertIn("subject=WTS", posted["body"])
+        self.assertIn("subject=Selling", posted["body"])
         self.assertIn("30+fg", posted["body"])
         self.assertNotIn("SECRETCOOKIE", json.dumps(out))
         self.assertEqual(calls["open"], 2)

@@ -388,7 +388,9 @@ def parse_compose(html):
 
 
 def _priced(subject, body):
-    if not str(subject or "").startswith("WTS "):
+    # A sale says Selling. WTS remains a sale from a page that has not reloaded.
+    head = str(subject or "")
+    if not (head.startswith("Selling ") or head.startswith("WTS ")):
         return False
     if len(subject) > 140 or len(body) > 4000:
         return False
