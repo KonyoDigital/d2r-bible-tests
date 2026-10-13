@@ -415,6 +415,30 @@ says why and answers 200. An unread section stays absent. Pictures stay off the
 body. The Roster tab, the fetch cache, and the heart rows are later phases.
 Law: `test_a_roster_publish_stays_off_the_presence_beacon`. Not rendered here.
 
+### REG-2192 - A BACKGROUND HEART PROOF STARVED A 0%-STUCK CHRONICLE SWEEP (2026-10-13, console)
+
+**Found** on his live console: the chronicle sweep sat at 0% for 3:20+ ("river stuck · locks shut" on every
+fleet row). NOT lock-blocked - it held a fresh .sweep.lock and the OCR worker was at 80%, so the reader was
+WORKING but starved. `_self_prove_tick` had auto-started `heart2 --prove` (census stale, not playing - REG-1905's
+"prove anyway under sustained busy"), and that proof's test workers pinned 95% CPU × 3 for 35 minutes while the
+sweep waited for an idle window that never came. The self-prove is designed to run "below everything he does" and
+yields to his GAME in 10 s (REG-1624), but a SWEEP - work he started and is watching - was not one of the things
+it stood aside for.
+
+**Fix (tv/control_app.py):** `_a_sweep_is_reading()` reads the LIVE `chronicle_sweep_state().get("running")`,
+never the .sweep.lock file (a stale lock must not wedge the prover off, [[unknown-stays-unknown]]; a read that
+raises reads as NOT sweeping, so a failure can only let the proof run). `_sp_yield_here()` is the play judge
+widened: True when he is PLAYING or a sweep is READING. Both the self-prove tick (start gate) and the 10 s guard
+now pass it, so a new proof does not start while a sweep reads and a running one yields within 10 s - the same
+game-yield path, now covering the sweep. REG-1905's start-anyway under genuine non-sweep busy is untouched: a
+sweep only DELAYS the proof; between sweeps it still proves. Status names the real reason, not "playing".
+
+**Law:** `tv/test_control.py::TheSelfProveYieldsToASweep` (5) - a running sweep makes the judge yield; idle lets
+it run; his game still yields; an unreadable sweep state never wedges the prover; both call sites pass the
+widened judge. Seen RED two ways: neuter the sweep check → the sweep case fails; revert a call site → the
+two-site count drops to 1. Takes effect on RELAUNCH (the console runs control_app from the working tree); does
+not fix an already-stuck sweep - for that, drop baseline CPU (close the stray grok TTY, quit Battle.net).
+
 ### REG-2190 - SCRATCH CHROMES HELD HIS D2JSP SESSION AFTER A CRASHED CONSOLE (2026-10-13, security hygiene)
 
 Each d2jsp read/post mkdtemps a d2jsp-quote-* / d2jsp-post-* profile and launches a headless Chrome

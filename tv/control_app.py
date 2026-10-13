@@ -19997,6 +19997,32 @@ def _self_prove_free_view(r, owed="a proof is owed and memory is short"):
         return dict(r, viewRelease="the view-release check raised %s" % type(e).__name__) if isinstance(r, dict) else r
 
 
+def _a_sweep_is_reading():
+    """REG-2192 — is a chronicle sweep actively reading his reels right now? Reads the LIVE sweep job
+    (chronicle_sweep_state), never the .sweep.lock file: a stale lock must not wedge the prover off for
+    ever ([[unknown-stays-unknown]]). Never raises - a failed read reads as NOT sweeping, so the only
+    thing a failure can do is let the proof run, never freeze it off."""
+    try:
+        return bool(chronicle_sweep_state().get("running"))
+    except Exception:
+        return False
+
+
+def _sp_yield_here():
+    """REG-2192 — the self-prove's stand-aside judge, widened: True when he is PLAYING or a chronicle
+    SWEEP is reading. The self-prove already runs below everything he does and yields to his game in 10 s
+    (REG-1624); a sweep is work he started, so the proof stands aside for it the same way. MEASURED
+    2026-10-13: a 35-minute `heart2 --prove` pinned the cores a 0%-stuck sweep was waiting for. REG-1905's
+    start-anyway under genuine (non-sweep) busy is untouched - a sweep only DELAYS the proof, between
+    sweeps it still proves. A new proof does not start while either is true; a running one yields in 10 s."""
+    try:
+        if _a_sweep_is_reading():
+            return True
+    except Exception:
+        pass
+    return _sp_playing_here()
+
+
 def _self_prove_tick():
     """#50 (REG-1447) — one pass of `self_prove.tick`. Never raises; the rescue loop must keep going.
 
@@ -20006,9 +20032,11 @@ def _self_prove_tick():
     does: there the pre-push gate is the prover."""
     try:
         import self_prove as _sp
-        r = _sp.tick(busy=_cpu_busy_pct, playing=_sp_playing_here)     # REG-1666 - the game on his screen
+        r = _sp.tick(busy=_cpu_busy_pct, playing=_sp_yield_here)     # REG-1666 game · REG-2192 a sweep too
         r = dict(r, gameOnScreen=shadow_game_detail())
         r = _self_prove_free_view(r)     # REG-1957 - memory is the only block: free the view of an idle PC
+        if _a_sweep_is_reading() and not _sp_playing_here():   # REG-2192 - name the real reason, not "playing"
+            r = dict(r, standAside="a sweep is reading his reels - the proof waits for it (REG-2192)")
     except Exception as e:
         r = {"on": None, "worked": None, "lastTs": None, "owed": None, "key": "raised",
              "say": "the self-prove tick raised %s" % type(e).__name__}
@@ -20042,9 +20070,11 @@ def _self_prove_guard():
     try:
         import self_prove as _sp
         # REG-1628 — the same load probe as the tick, or no next slice starts; REG-1666 — and the same play judge
-        r = _sp.guard(busy=_cpu_busy_pct, playing=_sp_playing_here)
+        r = _sp.guard(busy=_cpu_busy_pct, playing=_sp_yield_here)   # REG-2192 - yield to a sweep, not only his game
         if r:
             r = dict(r, gameOnScreen=shadow_game_detail())
+            if _a_sweep_is_reading() and not _sp_playing_here():
+                r = dict(r, standAside="a sweep is reading his reels - the proof waits for it (REG-2192)")
     except Exception as e:
         r = {"on": None, "worked": None, "lastTs": None, "owed": None, "key": "raised",
              "say": "the self-prove guard raised %s" % type(e).__name__}

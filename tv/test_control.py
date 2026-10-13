@@ -47161,5 +47161,57 @@ RED_PROOF = [
     },
 ]
 
+class TheSelfProveYieldsToASweep(unittest.TestCase):
+    """REG-2192 — the console's self-prove stands aside for an ACTIVE chronicle sweep, the same way it
+    yields to his game (REG-1624). MEASURED 2026-10-13: a 35-min `heart2 --prove` pinned the cores a
+    0%-stuck sweep was waiting for, so the reel read sat at 0% while the background proof ran. Both the
+    tick (start gate) and the guard (10 s stand-aside) now read a judge that is True while a sweep reads.
+    A stale .sweep.lock must never wedge the prover: the judge reads the LIVE chronicle_sweep_state, and
+    a read that raises reads as NOT sweeping ([[unknown-stays-unknown]]) so a failure can only let the
+    proof run, never freeze it off. REG-1905's start-anyway under genuine non-sweep busy is untouched."""
+
+    def setUp(self):
+        self._cs = ca.chronicle_sweep_state
+        self._pl = ca._sp_playing_here
+
+    def tearDown(self):
+        ca.chronicle_sweep_state = self._cs
+        ca._sp_playing_here = self._pl
+
+    def test_a_running_sweep_makes_the_proof_stand_aside(self):
+        ca._sp_playing_here = lambda: False
+        ca.chronicle_sweep_state = lambda: {"running": True}
+        self.assertTrue(ca._a_sweep_is_reading())
+        self.assertTrue(ca._sp_yield_here(), "a running sweep must make the self-prove yield (REG-2192)")
+
+    def test_idle_lets_the_proof_run(self):
+        ca._sp_playing_here = lambda: False
+        ca.chronicle_sweep_state = lambda: {"running": False}
+        self.assertFalse(ca._a_sweep_is_reading())
+        self.assertFalse(ca._sp_yield_here())
+
+    def test_playing_with_no_sweep_still_yields(self):
+        ca._sp_playing_here = lambda: True
+        ca.chronicle_sweep_state = lambda: {"running": False}
+        self.assertTrue(ca._sp_yield_here())
+
+    def test_an_unreadable_sweep_state_never_wedges_the_prover(self):
+        def boom():
+            raise RuntimeError("ps timed out")
+        ca.chronicle_sweep_state = boom
+        ca._sp_playing_here = lambda: False
+        self.assertFalse(ca._a_sweep_is_reading(),
+                         "UNKNOWN sweep state must read as NOT sweeping, so a failed read lets the proof run")
+        self.assertFalse(ca._sp_yield_here())
+
+    def test_both_self_prove_call_sites_use_the_widened_judge(self):
+        src = io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read()
+        self.assertEqual(src.count("playing=_sp_yield_here"), 2,
+                         "both _sp.tick and _sp.guard must pass the sweep-aware judge (REG-2192)")
+        self.assertNotIn("_sp.tick(busy=_cpu_busy_pct, playing=_sp_playing_here)", src)
+        self.assertNotIn("_sp.guard(busy=_cpu_busy_pct, playing=_sp_playing_here)", src)
+        self.assertIn('chronicle_sweep_state().get("running")', src)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=1)
