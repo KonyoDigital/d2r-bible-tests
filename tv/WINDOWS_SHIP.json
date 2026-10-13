@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3714",
+  "ver": "v3715",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3714: HEART: test_a_hand_added_item_stays_his. A catalog add files on Auto-Sort without a reel picture. The status names each item and its mule. Closing the picker paints before the vault redraws. The page keeps a vertical scroll.",
+  "note": "v3715: HEART: tv/test_a_hand_added_item_stays_his. One vault draw reads the witness store once and builds only the open review cards.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
