@@ -11766,6 +11766,8 @@ function d2jspPriceLine(q) {
           missed = 'The page is not board 268, so nothing was posted.';
         } else if (reason === 'no-price') {
           missed = 'Forum gold is unknown, so this item is not posted.';
+        } else if (reason === 'title') {
+          missed = 'The board title holds 50 characters, so nothing was posted.';
         }
         say(missed);
         showReceipt('missed', missed, '');

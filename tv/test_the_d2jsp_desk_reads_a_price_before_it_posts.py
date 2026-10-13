@@ -354,6 +354,8 @@ window._cbShown = function(){ return { name: 'Grief', base: 'Phase Blade' }; };
         self.assertNotIn("clipboard", handler)
         self.assertNotIn("d2jspBridgeSource()", handler)
         self.assertIn("nothing was posted", handler)
+        self.assertIn("reason === 'title'", handler)
+        self.assertIn("The board title holds 50 characters, so nothing was posted.", handler)
         gate = handler.index("t.getAttribute('data-d2jsp-send') !== '1'")
         preview_ret = handler.index("return;", gate)
         match = handler.index("shown.textContent !== draft.body")
@@ -599,6 +601,18 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(out["reason"], "no-price")
         self.assertEqual(calls["cookie"], 0)
 
+        def refuse_chrome(subject, text, cookie):
+            raise AssertionError("a title past 50 characters must not open Chrome")
+
+        code, out = desk.d2jsp_send(
+            {"subject": "WTS " + ("A" * 47), "body": "WTS\n30 fg", "forum": 268},
+            "http://127.0.0.1:17772", "127.0.0.1:17772", 17772,
+            cookie_get=cookie_get, open_login=open_login, chrome_post=refuse_chrome,
+        )
+        self.assertFalse(out["ok"])
+        self.assertEqual(out["reason"], "title")
+        self.assertEqual(len("WTS " + ("A" * 47)), 51)
+
         logged_out = "<p>You are not currently logged in.</p>"
         def transport(method, url, headers, data):
             calls["urls"].append((method, url))
@@ -746,12 +760,21 @@ process.stdout.write(JSON.stringify({
             src = handle.read()
         post_fn = src.index("def _chrome_post(")
         post_end = src.index("def d2jsp_quote(", post_fn)
-        self.assertLess(post_end - post_fn, 5100)
+        self.assertLess(post_end - post_fn, 7200)
         box = src[post_fn:post_end]
         self.assertIn("--user-data-dir=%s", box)
-        self.assertIn('textarea[name="message"]', box)
-        self.assertIn('input[name="post"],button[name="post"]', box)
+        self.assertIn("forum.php?f=", box)
+        self.assertIn("New Trade", box)
+        self.assertIn('textarea[name="Post"]', box)
+        self.assertIn('input[name="ttitle"]', box)
+        self.assertIn('input[name="submit"]', box)
+        self.assertIn("Selling Item", box)
+        self.assertIn("subject.length>50", box)
+        self.assertIn("sItalic", box)
         self.assertIn("btn.click()", box)
+        self.assertNotIn('textarea[name="message"]', box)
+        self.assertNotIn("mode=post", box)
+        self.assertNotIn("form.submit", box)
         self.assertNotIn("9222", box)
         door = src.index("def _send_through_chrome(")
         door_end = src.index("def d2jsp_send(", door)

@@ -663,8 +663,12 @@ def _chrome_search(item, cookie):
 
 
 def _chrome_post(subject, text, cookie):
-    """Submit the board 268 compose form in a scratch Chrome.
+    """Submit a board 268 trade from the forum's own New Trade link.
 
+    The trading board does not open on the old compose address. That address
+    answers Invalid Action. The form that does open names the title ttitle, the
+    message Post, and the button submit. A title longer than 50 characters
+    is the board's own limit, and this function does not send it.
     Returns the URL the browser landed on. Raises OSError when that browser
     does not finish. The cookie is not logged. His open Chrome is not the one
     this starts.
@@ -723,19 +727,44 @@ def _chrome_post(subject, text, cookie):
             })
             ident += 1
         _cdp_call(ws, 50, "Page.enable")
-        _cdp_call(ws, 51, "Page.navigate", {"url": COMPOSE_URL})
-        selector = json.dumps('textarea[name="message"]')
-        button = json.dumps('input[name="post"],button[name="post"]')
-        fill = (
-            "(function(){var box=document.querySelector(" + selector + ");"
-            "if(!box||!box.form||!box.form.subject)return 'no-form';"
-            "var f=box.form;f.subject.value=" + json.dumps(str(subject or "")) + ";"
-            "box.value=" + json.dumps(str(text or "")) + ";"
-            "var btn=f.querySelector(" + button + ");"
-            "if(btn){btn.click();return 'clicked';}"
-            "var extra=document.createElement('input');extra.type='hidden';extra.name='post';extra.value='Post';"
-            "f.appendChild(extra);f.submit();return 'sent';})()"
+        _cdp_call(ws, 51, "Page.navigate", {
+            "url": "https://forums.d2jsp.org/forum.php?f=%d" % BOARD,
+        })
+        open_trade = (
+            "(function(){var as=document.querySelectorAll('a');"
+            "for(var i=0;i<as.length;i++){"
+            "var label=(as[i].textContent||'').replace(/\\s+/g,' ').trim();"
+            "if(label!=='New Trade')continue;"
+            "var href=as[i].href||'';"
+            "if(href.indexOf('/post.php')<0)continue;"
+            "location.href=href;return 'opened';}"
+            "return 'no-trade';})()"
         )
+        fill = (
+            "(function(){var box=document.querySelector("
+            + json.dumps('textarea[name="Post"]') + ");"
+            "var title=document.querySelector("
+            + json.dumps('input[name="ttitle"]') + ");"
+            "if(!box||!title||!box.form)return 'no-form';"
+            "var subject=" + json.dumps(str(subject or "")) + ";"
+            "if(subject.length>50)return 'title';"
+            "title.value=subject;box.value=" + json.dumps(str(text or "")) + ";"
+            "var picked=false;var labs=document.querySelectorAll('label');"
+            "for(var i=0;i<labs.length;i++){"
+            "if((labs[i].textContent||'').indexOf('Selling Item')<0)continue;"
+            "var input=document.getElementById(labs[i].htmlFor||'');"
+            "if(input&&input.name==='sType'){input.checked=true;picked=true;}}"
+            "if(!picked)return 'no-sell';"
+            "var paid=['sItalic','sBold','sRed'];"
+            "for(var p=0;p<paid.length;p++){"
+            "var extra=box.form.querySelector('input[name=\"'+paid[p]+'\"]');"
+            "if(extra)extra.checked=false;}"
+            "var btn=box.form.querySelector("
+            + json.dumps('input[name="submit"]') + ");"
+            "if(!btn)return 'no-submit';"
+            "btn.click();return 'clicked';})()"
+        )
+        opened = False
         sent = False
         href = ""
         deadline = time.time() + 25
@@ -757,13 +786,28 @@ def _chrome_post(subject, text, cookie):
             html = str(snap.get("html") or "")
             if _topic(href) and not _challenge_page(html):
                 return href
-            if (not sent) and (not _challenge_page(html)) and ('name="message"' in html):
+            if (not opened) and (not _challenge_page(html)) and ("New Trade" in html):
                 try:
-                    _cdp_call(ws, 61, "Runtime.evaluate", {
+                    opened_msg = _cdp_call(ws, 61, "Runtime.evaluate", {
+                        "expression": open_trade,
+                        "returnByValue": True,
+                    }, wait=8)
+                    opened_word = ((opened_msg.get("result") or {}).get("result") or {}).get("value") or ""
+                    if opened_word == "opened":
+                        opened = True
+                except Exception:
+                    continue
+            if opened and (not sent) and (not _challenge_page(html)) and ('name="Post"' in html):
+                try:
+                    filled = _cdp_call(ws, 62, "Runtime.evaluate", {
                         "expression": fill,
                         "returnByValue": True,
                     }, wait=8)
-                    sent = True
+                    word = ((filled.get("result") or {}).get("result") or {}).get("value") or ""
+                    if word == "title":
+                        return href
+                    if word == "clicked":
+                        sent = True
                 except Exception:
                     continue
         if href:
@@ -909,6 +953,8 @@ def d2jsp_send(body, origin, host, port, cookie_get=None, transport=None, open_l
     text = str(body.get("body") or "").strip()
     if not _priced(subject, text):
         return 200, {"ok": False, "reason": "no-price"}
+    if len(subject) > 50:
+        return 200, {"ok": False, "reason": "title"}
     get_cookie = cookie_get or live_cookie_header
     try:
         cookie, cookie_reason = get_cookie()
