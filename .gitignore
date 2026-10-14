@@ -419,3 +419,7 @@ tv/.relaunch_receipt.json.tmp
 tv/.ledger_drops.json
 tv/.ledger_drops.json.tmp
 tv/.ledger_drops.json.unreadable-*
+# REG-2197's second eye: both are per-machine runtime state, never source — read_pictures.jsonl is
+# this console's picture-refusal log (frame + session ids), triage_backlog.json its survey mark.
+tv/read_pictures.jsonl
+tv/triage_backlog.json
