@@ -12524,6 +12524,8 @@ function d2jspPriceLine(q) {
            here and CSS-welded into ONE panel (Konyo: "combine these as 1 unit view engine CRM"). The Throw-Out
            Review stays its own standalone section BELOW the unit (Konyo: "the throw-out section don't touch it"). -->
       <div id="vault-registered" class="vault-registered" hidden></div>
+      <!-- gh#235 (v3724) — advanced shared/war-stash checkmark panel; renderShareSettings() fills it, hidden when empty -->
+      <div id="vault-share-settings" class="vault-share-settings" hidden></div>
       <!-- AI-intake report = the LAST-SCAN DELTA strip of the unified engine -->
       <div id="vault-intake-report" hidden style="margin:14px 0 0;padding:10px 13px;border:1px solid rgba(127,212,255,.4);border-radius:10px;background:rgba(127,212,255,.05);font-size:12.5px;line-height:1.55"></div>
       <!-- Recently-registered intake history = the bottom zone of the unified engine -->
@@ -39004,6 +39006,20 @@ body{
 .vault-registered{margin:0 0 14px;width:100%}
 /* v366 — dedicated Throw-Out Review gallery: screenshot-synced cards for discarded reads */
 .vault-throwout{margin:0 0 14px;width:100%}
+/* gh#235 (v3724) — advanced shared/war-stash checkmark panel */
+.vault-share-settings{margin:14px 0 12px;width:100%;border:1px solid var(--border);border-radius:10px;background:rgba(127,212,255,.03);overflow:hidden}
+.vss-head{display:flex;align-items:center;gap:8px;padding:10px 13px;cursor:pointer;user-select:none;font-size:var(--fs-body)}
+.vss-head:hover{background:rgba(127,212,255,.06)}
+.vss-caret{width:12px;color:var(--gold-dim,#9aa7b8)}
+.vss-title{color:#7fd4ff;font-weight:var(--fw-bold)}
+.vss-count{margin-left:auto;color:var(--gold-dim,#9aa7b8);font-size:var(--fs-meta);font-family:ui-monospace,monospace}
+.vss-body{padding:4px 13px 12px;border-top:1px solid var(--border);max-height:360px;overflow-y:auto}
+.vss-note{color:var(--text-dim,#9aa7b8);font-size:var(--fs-meta);line-height:var(--lh-normal,1.5);margin:8px 0 10px}
+.vss-row{display:flex;align-items:center;gap:9px;padding:4px 0;font-size:var(--fs-body);line-height:var(--lh-snug,1.35);cursor:pointer}
+.vss-row input{flex:0 0 auto;cursor:pointer}
+.vss-name{flex:0 0 auto;min-width:160px;color:#e8d8b8}
+.vss-row:not(.vss-on) .vss-name{color:var(--text-dim,#9aa7b8);text-decoration:line-through;opacity:.7}
+.vss-why{color:var(--gold-dim,#9aa7b8);font-size:var(--fs-micro);font-family:ui-monospace,monospace}
 /* v2342 — the throw-out SUGGESTION list. Its own classes because it is not the unknownReads
    panel: these are names the reader resolved perfectly well and the planner judged not worth
    keeping, so they carry a name and a reason rather than a screenshot. Weights go through the
@@ -40266,7 +40282,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (!want || want === 'auto' || want === def) delete m[k];
       else m[k] = (want === 'shared') ? 'shared' : 'mule';
       localStorage.setItem('d2r_vaultShareOverride', JSON.stringify(m));
-      return m[k] || def;
+      /* gh#235 — report the ACTUAL effective route, not the stored override. A keeper (__keep) or
+         standing-kit item wins above _ov, so a keeper "forced" to shared must report 'mule', never a
+         false 'shared' (a second-eye catch on v3723). */
+      try { var _r = suggestMule(name); return (_r && _r.id === 'shared') ? 'shared' : 'mule'; }
+      catch(e2){ return m[k] || def; }
     } catch(e){ return _shareDefault(name); }
   }
   try { window._shareOverride = _shareOverride; window._shareDefault = _shareDefault; window._setShareOverride = _setShareOverride; } catch(e){}
@@ -40427,7 +40447,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                Safe because the repair is EXACT: a byte fold, not a guess. The fuzzy roster fold
                below deliberately keeps the `&& _fs.id` form — a guessed name may not speak for an
                item confidently enough to suppress its filing. */
-            var _as = suggestMule(_ap);
+            var _as = suggestMule(_ap, opts);   // gh#235 — carry opts (ignoreShareOverride) through the fold hop
             /* REG-2080 - EXCEPT 'Unsorted'. The repaired bytes can be the ones NO catalogue holds: 'Rare Jewel (15 IAS / −15 Req)'
                is an EXTRA_ITEMS key with U+2212, and the hyphen fold asked about a name nothing knows. Unsorted from the
                repair is not a verdict on the original; ask the original bytes. */
@@ -40446,7 +40466,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           if (_fc && String(_fc) !== String(name)){
             _sugFolding = true;                       // one hop only; the fold target is on the roster
             try {
-              var _fs = suggestMule(String(_fc));
+              var _fs = suggestMule(String(_fc), opts);   // gh#235 — carry opts through the fuzzy fold hop too
               /* REG-1913 — THE PLANNER'S OWN NAME IS NOT A MISREAD. "+ Add an item" files a pick under the planner's
                  display name, "Harlequin Crest (Shako)": the item, then its base in brackets. The fold lands it on
                  "Harlequin Crest" correctly, and this said "filed as a misread of" - telling him his own pick was a bad
@@ -41975,6 +41995,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var pool=poolAll.filter(function(n){ return !isSharedStash(n); });
     renderMultiKeep();
     renderVaultRegistered();
+    try { renderShareSettings(); } catch(e){}   // gh#235 (v3724) — the advanced shared/war-stash checkmark panel
     renderThrowoutReview();
     renderSocketedReview();   // v455 — runeword tool for the muled socketed/Larzuk bases (same _baseRWLine engine)
     // prune assignments of items no longer owned or mules deleted (v409 — but KEEP the '__keep' sentinel:
@@ -46664,6 +46685,71 @@ window.vaultAutoAssign = function(){
     return packGrid(sized, 10, 10);
   }
   try { window._sharedNames = _sharedNames; window._sharedPack = _sharedPack; } catch(e){}
+  /* ══ gh#235 (v3724) — THE ADVANCED SHARED / WAR-STASH PANEL (the UI half of the v3723 engine) ══
+     His ask: "a list within the console like advanced setting for vault.. so i can checkmark what
+     should or should not be in the shared/war stash ... like war traveler.. eventually i dont want
+     it there and might mule it.. so if i uncheck it it can remove it from the shared and mule it".
+     A checkmark list of what the rules keep in the shared stash. Tick forces it in; untick removes
+     it and files it to its mule (both via _setShareOverride + a his-click vaultFile re-home). Keepers
+     (Anni / Torch / Gheed's) are never listed — they live on MAIN, not a shared stash. Collapsed by
+     default so it stays an "advanced" drawer. */
+  var _shareSettingsOpen = false;
+  window._shareSettingsToggleOpen = function(){ _shareSettingsOpen = !_shareSettingsOpen; try { renderShareSettings(); } catch(e){} };
+  window._shareSettingsSetOpen = function(v){ _shareSettingsOpen = !!v; try { renderShareSettings(); } catch(e){} };   // idempotent (render harness)
+  function _shareWhy(n){ try { var s = suggestMule(n, {ignoreShareOverride:true}); return (s && s.why) || ''; } catch(e){ return ''; } }
+  function renderShareSettings(){
+    var box = document.getElementById('vault-share-settings');
+    if (!box) return;
+    var rows = [], owned = [];
+    try { owned = ownedPool(); } catch(e){ owned = []; }
+    owned.forEach(function(n){
+      try {
+        if (isSharedStash(n)) return;
+        if (typeof KEEP_IN_INVENTORY !== 'undefined' && KEEP_IN_INVENTORY.test(_keepName(n))) return;   // keepers can't share
+        var def = _shareDefault(n);                        // 'shared' if the rules keep it in the shared stash
+        var eff = (suggestMule(n) || {}).id === 'shared';  // where it actually routes now (override applied)
+        var ov = _shareOverride(n);
+        if (eff) rows.push({ n:n, on:true,  why:_shareWhy(n) });
+        else if (ov === 'mule' && def === 'shared') rows.push({ n:n, on:false, why:'you removed it — files to its mule' });
+      } catch(e){}
+    });
+    if (!rows.length){ box.hidden = true; box.innerHTML = ''; return; }
+    rows.sort(function(a,b){ return (b.on?1:0)-(a.on?1:0) || a.n.localeCompare(b.n); });
+    var slots = 0; try { slots = _sharedCopyTotal(_sharedNames()); } catch(e){}
+    var onN = rows.filter(function(r){ return r.on; }).length;
+    box.hidden = false;
+    var head = '<div class="vss-head" onclick="window._shareSettingsToggleOpen()" role="button" tabindex="0">'
+      + '<span class="vss-caret">' + (_shareSettingsOpen ? '▾' : '▸') + '</span>'
+      + '<span class="vss-title">⚙ Shared / war stash — what lives here</span>'
+      + '<span class="vss-count">' + onN + ' item' + (onN === 1 ? '' : 's') + ' · ' + slots + '/500 slots</span></div>';
+    var body = '';
+    if (_shareSettingsOpen){
+      body = '<div class="vss-body"><div class="vss-note">Tick to keep an item in the shared stash every character can reach; '
+        + 'untick to mule it. Your choice is saved only where it differs from the default.</div>'
+        + rows.map(function(r){
+            return '<label class="vss-row' + (r.on ? ' vss-on' : '') + '">'
+              + '<input type="checkbox" ' + (r.on ? 'checked' : '') + ' onchange="window.vaultShareToggle(' + JSON.stringify(r.n) + ', this.checked)">'
+              + '<span class="vss-name">' + esc(r.n) + '</span>'
+              + '<span class="vss-why">' + esc(r.why || '') + '</span></label>';
+          }).join('') + '</div>';
+    }
+    box.innerHTML = head + body;
+  }
+  try { window.renderShareSettings = renderShareSettings; } catch(e){}
+  window.vaultShareToggle = function(name, want){
+    try {
+      _setShareOverride(name, want ? 'shared' : 'mule');
+      var target = want ? 'shared' : ((suggestMule(name) || {}).id);
+      var ok = (target === 'shared') || (typeof _vHomeOk === 'function' ? _vHomeOk(target) : (target && String(target).indexOf('__') !== 0));
+      if (ok){
+        var w = { by:'hand', at: Date.now(), where:'Shared-stash switch — your click' };
+        var filed = (typeof assign !== 'undefined' && assign[name] != null);
+        var r = filed ? window.vaultFile(name, w, { move:true, mule:target }) : window.vaultFile(name, w, { mule:target });
+        if (r && !r.ok){ var st = document.getElementById('vault-status'); if (st) st.textContent = esc(name) + ': ' + (r.why || r.refused || 'not moved'); }
+      }
+    } catch(e){}
+    try { renderVault(); } catch(e){}
+  };
   function _renderSharedStash(box){
     // v364 — SHARED holds items ASSIGNED here (auto-sorted by value during intake, or dragged manually).
     var names = _sharedNames();
@@ -65780,7 +65866,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3723', name:'v3723 - shared/war-stash switch (engine)', date:'2026-10-14', note:'REG-2211 per-item shared/war-stash override ENGINE + guard (gh#235). REG-2210 (low-tier throw-out) DECOUPLED/parked for its own test reckoning. HEART: the override store d2r_vaultShareOverride has no writer until the v3724 checkmark panel; its corroborator (effective route vs rule-default+override) lands WITH that panel (heart-first: no corroborator for a dormant lane).' };
+  window.D2R_BUILD = { id:'v3724', name:'v3724 - shared war-stash checkmark panel', date:'2026-10-14', note:'REG-2212 the advanced shared/war-stash checkmark panel (gh#235) - the UI half of the v3723 override engine, plus two second-eye engine fixes: the fold hops pass opts, and _setShareOverride reports the real effective route. HEART: supervised by the render_check vault-share-settings target (visual, green at 6 widths, PNG looked at), the v3724 and v3723 Playwright guards (functional), and the honest-return engine fix. A runtime vault-audit corroborator that flags a stored override suggestMule does not honor is a named small fast-follow. A different-family VISUAL eye is owed - Grok MCP out of credits, GrokBot on the live screen post-publish.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

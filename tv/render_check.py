@@ -853,6 +853,31 @@ TARGETS = {
             return !!(r.width>0 && r.height>0 && s.querySelector('.vault-org-row[data-name]')); })()""",
         "sel": "#vault-organize",
     },
+    # gh#235 (v3724) — the advanced shared/war-stash checkmark panel. renderShareSettings() lists the
+    # owned items the rules keep in the shared stash (war-gear + high/vhigh), each a toggle; it is hidden
+    # when empty, so seed shared candidates, open the drawer, and prove the rows painted from the rect.
+    "vault-share-settings": {
+        "why": "the advanced shared/war-stash checkmark panel (gh#235) — owned shared candidates, each a toggle",
+        "seed": """(function(){
+            localStorage.setItem('d2r_ownerClaim','*');
+            ['War Traveler','Enigma','Griffon\\'s Eye','Raven Frost','Arachnid Mesh',
+             'The Stone of Jordan','Call to Arms'].forEach(function(n){
+                try{ window.tvVaultRegister(n); }catch(e){} });
+            return 1; })()""",
+        "activate": """(function(){
+            var el=[].slice.call(document.querySelectorAll('.tab,[data-tab]')).filter(function(x){
+              return /vault/i.test((x.getAttribute&&x.getAttribute('data-tab'))||x.textContent||'');})[0];
+            var on=[].slice.call(document.querySelectorAll('#head-tabs .ht.active,[data-tab].active')).some(function(x){
+              return /vault/i.test(x.getAttribute('data-tab')||''); });
+            if(el && !on) el.click();
+            try{ window.renderVault && window.renderVault(); }catch(e){}
+            try{ window._shareSettingsSetOpen && window._shareSettingsSetOpen(true); }catch(e){}
+            var s=document.getElementById('vault-share-settings');
+            if(!s || s.hidden) return false;
+            var r=s.getBoundingClientRect();
+            return !!(r.width>0 && r.height>0 && s.querySelector('.vss-row input')); })()""",
+        "sel": "#vault-share-settings",
+    },
     # ⚠ v2440 — A `locks` TARGET WAS WRITTEN AND WITHDRAWN, AND SAYING SO IS THE POINT.
     # The vault lock chip (#lock-vault, added v2438) has NO TARGET here, so it is UNMEASURED — and
     # in a green run unmeasured reads exactly like clean. That is a real gap, named rather than

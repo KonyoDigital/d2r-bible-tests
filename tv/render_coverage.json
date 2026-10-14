@@ -222,6 +222,14 @@
       "1440x1000": 5,
       "901x900": 5,
       "375x800": 5
+    },
+    "vault-share-settings": {
+      "1120x628": 1,
+      "1120x900": 1,
+      "1280x720": 1,
+      "1440x1000": 1,
+      "375x800": 1,
+      "901x900": 1
     }
   },
   "nodes": {
@@ -3837,6 +3845,26 @@
       ],
       "1440x1000": [
         "span.fbe-say|waiting for it to finish"
+      ]
+    },
+    "vault-share-settings": {
+      "1120x628": [
+        "div.vault-share-settings|▾⚙ Shared / war stash — what lives here9"
+      ],
+      "1120x900": [
+        "div.vault-share-settings|▾⚙ Shared / war stash — what lives here9"
+      ],
+      "1280x720": [
+        "div.vault-share-settings|▾⚙ Shared / war stash — what lives here9"
+      ],
+      "1440x1000": [
+        "div.vault-share-settings|▾⚙ Shared / war stash — what lives here9"
+      ],
+      "375x800": [
+        "div.vault-share-settings|▾⚙ Shared / war stash — what lives here9"
+      ],
+      "901x900": [
+        "div.vault-share-settings|▾⚙ Shared / war stash — what lives here9"
       ]
     }
   }

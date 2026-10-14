@@ -7,6 +7,25 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2212 - THE ADVANCED SHARED/WAR-STASH CHECKMARK PANEL (2026-10-14, gh#235, v3724)
+
+His ask: "a list within the console like advanced setting for vault.. so i can checkmark what should
+or should not be in the shared/war stash ... like war traveler.. eventually i dont want it there and
+might mule it.. so if i uncheck it it can remove it from the shared and mule it." The v3723 ENGINE
+(REG-2211) shipped the override store with no UI; this is the visible half. **New (bible.html):**
+`renderShareSettings()` (a `#vault-share-settings` drawer under the REGISTERED unit) lists every OWNED
+item the rules keep in the shared stash — war-gear (`warGearRole`) + high/vhigh (`_itemValue`) — each a
+checkbox with its reason; keepers (`KEEP_IN_INVENTORY`) are never listed (they live on MAIN). A tick forces
+it in; an untick writes `_setShareOverride(name,'mule')` and re-homes it to its slot mule via a his-click
+`vaultFile` move. Collapsible, hidden when empty. **Two second-eye engine fixes rode along:** the two
+suggestMule fold hops now pass `opts` (so `ignoreShareOverride` survives a folded name), and
+`_setShareOverride` reports the ACTUAL effective route (a keeper "forced" to shared reports `mule`, not a
+false `shared`). **Covered by:** render_check target `vault-share-settings` (green at 6 widths, 0
+clipped/covered, looked at the PNG); guards `tests/v3724_vault_share_panel.spec.ts` (lists candidates,
+excludes keepers + med items, untick→override) + `tests/v3723_vault_share_override.spec.ts` (the engine).
+⚠ A different-FAMILY visual eye is OWED — Grok MCP vision was out of credits; GrokBot to look on the live
+screen after publish. [[grok-second-eye]]
+
 ### REG-2211 - A PER-ITEM SHARED/WAR-STASH SWITCH THE RULES DO NOT OVERRIDE (2026-10-14, gh#235)
 
 His ask: "a list within the console like advanced setting for vault.. so i can checkmark what should or

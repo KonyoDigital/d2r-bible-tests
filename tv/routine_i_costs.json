@@ -2,8 +2,8 @@
 "source": "Playwright blob reports from run 37139166700 (sha 57100324), chromium project, sum of every attempt duration + v3723_vault_share_override.spec.ts added by hand (estimate, pending next snapshot)",
 "run": "37139166700",
 "sha": "57100324f8a74721cdcf94807ccbf4f9e3733a36",
-"files": "453",
-"totalSeconds": "11739.4",
+"files": "454",
+"totalSeconds": "11747.4",
 "costs": {
 "tests/00_convergence_lock.spec.ts": 0.1,
 "tests/00_diagnostic.spec.ts": 51.8,
@@ -457,6 +457,7 @@
 "tests/v920_shutter.spec.ts": 12.0,
 "tests/v921_robot_burst.spec.ts": 5.9,
 "tests/v949_chronicle_sync.spec.ts": 16.8,
-"tests/v3723_vault_share_override.spec.ts": 10.0
+"tests/v3723_vault_share_override.spec.ts": 10.0,
+"tests/v3724_vault_share_panel.spec.ts": 8.0
 }
 }
