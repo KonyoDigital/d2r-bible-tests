@@ -7,6 +7,25 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2213 - THE SHARED/WAR-STASH CHECKBOX HANDLER WAS DEAD ON THE LIVE SITE (2026-10-14, gh#235, v3725)
+
+The REG-2212 panel rendered each row's checkbox with
+`onchange="window.vaultShareToggle(' + JSON.stringify(r.n) + ', this.checked)"`. `JSON.stringify`
+emits DOUBLE quotes, and they sat inside a DOUBLE-quoted HTML attribute — so the browser ended the
+`onchange` value at the first `"` after `vaultShareToggle(`, leaving a truncated, dead call. The
+checkbox drew, took a click, and did NOTHING: no override written, nothing re-homed. The feature he
+asked for (uncheck War Traveler → mule it) was invisible-broken on the published page. **Why the
+v3724 guard missed it:** `tests/v3724_vault_share_panel.spec.ts` called `w.vaultShareToggle(name,false)`
+DIRECTLY — it exercised the function, never the rendered attribute, so a dead handler read as green.
+**Fix (bible.html ~46731):** wrap the arg in the page's own `esc()` → `esc(JSON.stringify(r.n))`,
+which entity-encodes the quotes to `&quot;` so they survive inside the double-quoted attribute and
+the browser decodes them back to a valid call. Panel appearance is UNCHANGED (render_check
+`vault-share-settings` still green). **New guard:** `tests/v3725_vault_share_checkbox_fires.spec.ts`
+drives a REAL `.uncheck()` (a trusted change event, exactly the user's action) and asserts
+`_shareOverride('War Traveler')==='mule'` and that the route leaves `shared`; it goes RED on the
+pre-fix bytes (esc absent → truncated attribute → no call → no override). Seen RED/green via the CDP
+harness (scratchpad/cdp_checkbox.py). [[a-law-goes-blind-without-being-edited]]
+
 ### REG-2212 - THE ADVANCED SHARED/WAR-STASH CHECKMARK PANEL (2026-10-14, gh#235, v3724)
 
 His ask: "a list within the console like advanced setting for vault.. so i can checkmark what should

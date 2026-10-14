@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3724",
+  "ver": "v3725",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3724: REG-2212 the advanced shared/war-stash checkmark panel (gh#235) - the UI half of the v3723 override engine, plus two second-eye engine fixes: the fold hops pass opts, and _setShareOverride reports the real effective route. HEART: supervised by the render_check vault-share-settings target (visual, green at 6 widths, PNG looked at), the v3724 and v3723 Playwright guards (functional), and the honest-return engine fix. A runtime vault-audit corroborator that flags a stored override suggestMule does not honor is a named small fast-follow. A different-family VISUAL eye is owed - Grok MCP out of credits, GrokBot on the live screen post-publish.",
+  "note": "v3725: the share panel onchange was cut short by the quotes JSON.stringify emits, so the checkbox was a dead handler on the live site; wrap the arg in esc so the quotes survive the double-quoted attribute and a real click writes the mule override. HEART: the render_check vault-share-settings target and the new v3725 click spec already watch this surface; a one-line attribute escape needs no new watcher.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
