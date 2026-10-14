@@ -20130,6 +20130,34 @@ function _itemCells(name){
           }
         } catch (eFoot) {}
       }
+      /* REG-2206 (GrokBot batch T, #230) - A UNIQUE OR SET PIECE IS SIZED BY ITS FIXED BASE, from the
+         game's own inventory dims (window._cbFoot = the CB_DB base's invwidth x invheight), never by
+         matching keywords in its NAME. The keyword table below GUESSES, and it guessed wrong for a dozen
+         owned uniques that carry no stored base (The Oculus drawn 2x2 not 1x3, Death Cleaver 2x4 not 2x3,
+         Bonehew 1x3 not 2x4, Schaefer's Hammer 1x3 not 2x3, ...). A unique's base is FIXED, so the game
+         footprint is authoritative. A RUNEWORD (it[2]==='r') is EXCLUDED on purpose: its base varies, so
+         its size comes from the stored base above, or the runeword-CLASS rule below, never pinned to one
+         base here. */
+      if (!_storedBase && typeof window !== 'undefined' && window
+          && typeof window._cbDb === 'function' && typeof window._cbFoot === 'function'){
+        try {
+          var _cdbU = window._cbDb(), _uHit = null, _uIt = (_cdbU && _cdbU.it) || [];
+          for (var _uI = 0; _uI < _uIt.length && !_uHit; _uI++){
+            var _uR = _uIt[_uI];
+            if (_uR && _uR[1] === name && (_uR[2] === 'u' || _uR[2] === 's')) _uHit = _uR;
+          }
+          if (_uHit && typeof window._cbBasesOf === 'function'){
+            var _uBs = window._cbBasesOf(_uHit), _uCode = _uBs && _uBs[0];
+            if (_uCode){
+              var _uFoot = window._cbFoot({ base: _uCode });
+              if (_uFoot && _uFoot[0] >= 1 && _uFoot[1] >= 1){
+                cells = { w: _uFoot[0] | 0, h: _uFoot[1] | 0 };
+                _ITEM_CELLS_CACHE[_ck] = cells; return cells;
+              }
+            }
+          }
+        } catch (eUni) {}
+      }
       /* #275 (GrokBot tick 418, K14) - A RUNEWORD IS SIZED BY ITS BASE, NEVER BY ITS NAME. Enigma has no codex row, so it
          fell to the default 1x2 (its tile admitted the size was a guess) although every Enigma is body armour (2x3) - and a runeword
          name matched as a base keyword lies outright ("Hand of Justice" read as gloves). Its tip names the base CLASS;

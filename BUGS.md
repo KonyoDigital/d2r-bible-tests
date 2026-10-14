@@ -7,6 +7,38 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2206 - A UNIQUE'S VAULT FOOTPRINT WAS GUESSED FROM ITS NAME, NOT ITS FIXED BASE (2026-10-14, GrokBot batch T #230)
+
+GrokBot's live-board footprint audit of SHARED STASH + UNI-WEAPONS found ~12 owned uniques drawn at
+the wrong grid size: The Oculus 2x2 (true 1x3), Bonehew 1x3 (2x4), Death Cleaver 2x4 (2x3),
+Schaefer's Hammer 1x3 (2x3), Arioc's Needle 1x4 (2x4), Bartuc's 2x3 (1x3), Jade Talon 2x3 (1x3),
+Titan's Revenge 1x2 (1x3), Warshrike 2x2 (1x2), Wizardspike 1x3 (1x2). `_itemCells` (bible.html:~20085)
+resolved an owned unique that carries NO stored base by matching keywords in its name against a flat
+size table, and the table is wrong for a dozen bases (e.g. Berserker Axe sat in the 2x4 two-hander
+branch though it is 2x3). Reproduced in headless Chrome: every current value matched GrokBot's wrong
+"app size" EXACTLY (deterministic, not a vision artifact). A unique's base is FIXED, so the game's own
+footprint is authoritative — GrokBot's ACT: "build the size from the base item type, not per-item
+guesses." **Fix (bible.html):** a tier before the runeword/keyword heuristics resolves the name to its
+CB_DB record (`_cbDb().it`, exact name, `it[2]` 'u' or 's' only) and sizes it by `_cbFoot` of its base
+(the game's invwidth x invheight). A RUNEWORD (`it[2]==='r'`) is EXCLUDED: its base varies, so it keeps
+the stored-base path or the honest runeword-CLASS approx, never pinned to one base. Measured after the
+fix: 10/10 of the mis-sized uniques now draw true D2; 0 regressions on the SAW uniques, the three named
+charms, or the runewords (Grief stays an honest 1x2~ guess without a stored base). **Law:**
+`tests/v3721_unique_footprint_from_base.spec.ts` — pins the mechanism (a unique's cells == its base's
+`_cbFoot`), the ten true-D2 sizes, and the runeword exclusion (a baseless Grief stays `approx`). Seen
+RED by construction: the pre-fix resolver returned every wrong value above. ⚠ One still open: Astreon's
+Iron Ward resolves to 2x3 from its CB_DB base while GrokBot read 1x3 on screen — a base-DATA
+disagreement (CB_DB base vs the game), flagged to #230, not a resolver-logic bug.
+GrokBot batch U (71 more tiles) then listed 18 more mis-sizes: measured against the FIXED resolver,
+13 of 18 are already corrected by this base-derived tier (same class). The rest are base-DATA
+disputes, NOT resolver logic, and GrokBot's readings are self-inconsistent, so they are flagged not
+applied: Stormshield (Monarch) resolves 2x3 — which batch T itself called correct (SAW 2x3) before
+batch U called it 2x4; Kuko Shakaku (Cedar Bow) resolves 2x4 (bows are 2x4) vs GrokBot 2x3; Gerke's
+(Pavise) resolves 2x3 vs GrokBot 2x4. The authority for a base's footprint is the game's own
+invwidth x invheight (what `_cbFoot` reads), never a vision transcription (grok-second-eye: a
+low-precision reporter of sizes). If a CB_DB base dim is genuinely wrong that is a data-extraction
+fix, confirmed against the game, not GrokBot's say-so.
+
 ### REG-2205 - THE ROSTER STATIONS COUNT INCLUDED GONE REELS (2026-10-14, #99)
 
 reels_read set counts.stations from the summed station_counts, built upstream from EVERY river
