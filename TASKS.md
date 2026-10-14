@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3720** | `(this commit)` | v3720 — REG-2191 a curly Gheeds stays a keeper · REG-2193 magic cell real footprint · REG-2194 FIND abbreviations and ranking · REG-2195 core lockers not deletable · REG-2192 self-prove yields to a sweep |
+| **v3721** | `(this commit)` | v3721 — REG-2206 unique/set footprint from fixed base (GrokBot batch T) + REG-2207 keeper charms stay out of the deletable dock (#109 E5) |
+| **v3720** | `f1e350cb` | v3720 — REG-2191 a curly Gheeds stays a keeper · REG-2193 magic cell real footprint · REG-2194 FIND abbreviations and ranking · REG-2195 core lockers not deletable · REG-2192 self-prove yields to a sweep |
 | **v3719** | `5788a57c` | v3719 — REG-2184 the Integrity fix keeps the home · REG-2185 a planner pick never writes over a record he has · REG-2186 a shadow visit writes nothing into this PC |
 | **v3718** | `6b9e559b` | v3718 — Annihilus, Hellfire Torch and Gheeds Fortune are drawn and stay with MAIN. A charm registered in Magic and Rare is found. HEART: tv/test_a_hand_added_item_stays_his.py |
 | **v3717** | `e85191f0` | v3717 — The witness prune is cut from the copy that leaves a receipt in the held store. Mule it keeps Magic and Rare as the register and does not write a second mule filing. HEART: tv/test_a_name_nothing_knows_gets_no_guessed_mule |
