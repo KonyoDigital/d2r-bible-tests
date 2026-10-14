@@ -121,6 +121,15 @@ class AReceiptCanActuallyBeOpened(unittest.TestCase):
         if not os.path.isfile(os.path.join(he.HERE, "chron_evidence.json")):
             self.skipTest("UNMEASURED: no evidence bank on this host (tv/chron_evidence.json is his "
                           "live data) — the fixture case above judges the resolver here")
+        # ⚠ #123 — the bank is a small json safe_copy and CI carry, but frames/hist is his 5.8 GB of
+        # footage they strip. A venue with the bank but NO frames reads 0 for the ABSENT footage, not
+        # the dead-address this case guards — the exact false already-red that refused the prove
+        # sandbox. frames absent is UNMEASURED here, same as the bank absent; the fixture case above
+        # (its own bank + frames in a tempdir) carries both this resolver AND its RED_PROOF on a
+        # clean runner.
+        if not os.path.isdir(os.path.join(he.HERE, "frames", "hist")):
+            self.skipTest("UNMEASURED: the bank is here but frames/hist is not (a frames-stripped "
+                          "venue — the prove sandbox / CI) — the fixture case above judges the resolver")
         got, tested = he._receipts_resolve()
         print("   receipts resolve: %d of %d" % (got, tested))
         self.assertGreater(tested, 0,
