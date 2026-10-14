@@ -29,7 +29,7 @@ inside the viewport (`(top - keep) < ovH`) — which, on a SHORT shelf, left the
 SLIVER to preserve the row. Reproduced in node at HEAD with the law's own furniture (card top 708,
 highlight 197..371): ovH 660 → 149px (ok), but ovH 600 → 89px, 560 → 49px, 530 → 19px, 515 → 4px —
 the REG-2175 sliver returned. **Fix (tv/control_ui.html):** keep the row only when the clamp still
-leaves the card ≥ 104px (the shelf's own minimum, control_ui.html:1959) — `(top - keep) <= ovH - 104`;
+leaves the card ≥ 104px (the shelf card's own minimum — `.shc-hero`'s `clamp(104px,13vh,140px)`, NOT the coincidental 104 in the v2772 lane-basis comment, a #231 catch) — `(top - keep) <= ovH - 104`;
 otherwise the head scroll (which shows ~82% of the shelf) wins over a sliver. Measured after: ovH 660
 unchanged (149px, row kept), 600/560/530/515 → 492/459/435/422px (card shown, no sliver). **Law:**
 `tv/test_a_short_shelf_keeps_the_highlight_row.py::test_a_short_shelf_shows_the_card_not_a_sliver`
