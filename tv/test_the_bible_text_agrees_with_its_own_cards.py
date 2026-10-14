@@ -448,7 +448,11 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         self.assertGreaterEqual(s.count("Every Sunder can be worn at once"), 7, "premise: the corrected sentence is in every Sunder row")
         # REG-2142 - the sweep read the raw markup, so `Only <strong>ONE Sunder` on the Herald card
         # (the rules line and the important row) never matched. Read the text. A tag in the phrase is the phrase.
-        text = re.sub(r"<[^>]+>", " ", s)
+        # REG-2126/2142 want a tag INSIDE a phrase gone so `Only <strong>ONE Sunder` reads as text.
+        # ⚠ `<[^>]+>` over the whole file swallowed every JS `<` to the next `>` (1.32M chars, incl.
+        # multi-line spans), blinding this sweep on ~9% of bible.html. A tag is NAME-LED and holds no
+        # `<`/`>`, so this strips <strong>, </div>, <span class="x"> but leaves `a < b` and `i<len`.
+        text = re.sub(r"</?[a-zA-Z][a-zA-Z0-9]*\b[^<>]*>", " ", s)
         one = re.findall(r"[Oo]nly\s+(?:ONE|one|1)\s+Sunder[^.<\"]*", text)
         self.assertEqual(one, [], "a Sunder text says only one can be active again: %r" % one)
         only = re.findall(r"Latent[^.<\"]{0,40}drop[s]? only from[^.<\"]*", text)
@@ -471,6 +475,24 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         sourced = "Latent drops from any Terror-Zone monster, Heralds most often"
         self.assertEqual(rates, [sourced] * 6,
                          "a Sunder rate does not say where a Latent drops: %r" % rates)
+
+    def test_the_sunder_tag_strip_is_name_led_not_whole_file(self):
+        """REG-2198 (#90) — the Sunder sweep's tag strip must be NAME-LED. Stripping `<`-to-`>` over
+        the whole file made every JS less-than swallow to the next `>` (1.32M chars at HEAD, 436+
+        spans), blinding the sweep on ~9% of bible.html. A tag holds no `<`/`>`, so an inline tag is
+        removed while `a < b` and `i<len` survive. Guards the strip against reverting to the blind
+        whole-file form — a defect that stays green, so nothing else catches it."""
+        src = io.open(__file__, encoding="utf-8").read()
+        i = src.index("def test_no_sunder_text_says_what_its_own_source_refutes")
+        body = src[i:src.index("\n    def ", i)]
+        self.assertIn("</?[a-zA-Z][a-zA-Z0-9]*", body, "the name-led tag strip is gone (#90)")
+        self.assertEqual(body.count('re.sub(r"<[^>]+>"'), 0,
+                         "the blind whole-file tag strip is back — a JS `<` swallows to the next `>` (#90)")
+        # behavioural: a phrase after a JS `<` survives, and a real inline tag is still removed
+        keep = re.sub(r"</?[a-zA-Z][a-zA-Z0-9]*\b[^<>]*>", " ",
+                      "if (a < b) note='Only ONE Sunder'; <strong>x</strong>")
+        self.assertIn("Only ONE Sunder", keep, "a JS `<` swallowed the text after it — the sweep is blind")
+        self.assertNotIn("<strong>", keep, "a real inline tag must still be stripped so a split phrase reads")
 
     def test_the_herald_card_tells_the_3_2_spawn_rules(self):
         """REG-2127 (#231 eye on v43 06ad2cd2) - Patch 3.2 / Ladder Season 14: "Heralds now spawn when you kill any monster in a
@@ -616,6 +638,11 @@ console.log(JSON.stringify({
         self.assertEqual(gold, uniq, "a pre-script card names a different unique than its zone: %r" % list(zip(gold, uniq)))
 
 RED_PROOF = [
+    {"why": "REG-2198 (#90) - the Sunder tag strip reverts to the blind whole-file form that swallows a JS `<` to the next `>`, blinding the sweep on ~9% of bible.html",
+     "file": "tv/test_the_bible_text_agrees_with_its_own_cards.py",
+     "find": '        text = re.sub(r"</?[a-zA-Z][a-zA-Z0-9]*\\b[^<>]*>", " ", s)\n',
+     "replace": '        text = re.sub(r"<[^>]+>", " ", s)\n',
+     "matches": 1},
     {"why": "REG-2089 - Veil of Steel's tagline swaps its resist and defense figures again",
      "file": "bible.html",
      "find": '"Veil of Steel":"+50 all res · +60% ED · +140 defense',

@@ -46315,6 +46315,16 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/roster-book":
             # The board on this PC hands its builds here. The roster route publishes
             # them. The presence beacon does not.
+            # REG-2199 (#116) — the SAME origin gate as the d2jsp doors. do_POST parses the body as
+            # JSON whatever the Content-Type, so without this a no-cors text/plain POST from any tab
+            # in his browser could replace roster_book.json and publish builds + stash cells under
+            # his name (the roster Basic credential is in this PUBLIC repo).
+            import d2jsp_chrome as _d2jsp
+            if not _d2jsp.console_may_post(
+                    self.headers.get("Origin"), self.headers.get("Host"), CONTROL_PORT,
+                    self.headers.get("Sec-Fetch-Site")):
+                self._json(403, {"ok": False, "reason": "local"})
+                return
             self._json(200, _roster_book_take(body))
             return
         if path == "/api/mini_auto":

@@ -603,7 +603,26 @@ console.log(JSON.stringify({ real: REAL, during: during }));
         out = self._visit()
         self.assertEqual(json.loads(out["during"]), ["Ber Rune"], "the visit could not read back its own write")
 
+    def test_the_roster_book_door_is_origin_gated(self):
+        """REG-2199 (#116) — do_POST parses the body as JSON whatever the Content-Type, so without an
+        origin gate a no-cors text/plain POST from any tab in his browser replaces roster_book.json
+        and publishes his builds + stash cells under his name (the roster Basic credential is in this
+        PUBLIC repo). /api/roster-book must pass the SAME console_may_post gate as the d2jsp doors,
+        BEFORE it takes the body."""
+        src = open(APP, encoding="utf-8").read()
+        i = src.index('if path == "/api/roster-book":')
+        door = src[i:src.index('if path == "/api/', i + 30)]
+        self.assertIn("console_may_post(", door,
+                      "/api/roster-book takes the body with no origin gate — a cross-site POST publishes under his name (#116)")
+        self.assertLess(door.index("console_may_post("), door.index("_roster_book_take("),
+                        "the origin gate must run BEFORE the body is taken (#116)")
+
 RED_PROOF = [
+    {"why": "REG-2199 (#116): the roster-book door drops its origin gate, so a cross-site no-cors POST publishes his builds and stash cells under his name again",
+     "file": "control_app.py",
+     "find": "            import d2jsp_chrome as _d2jsp\n            if not _d2jsp.console_may_post(\n                    self.headers.get(\"Origin\"), self.headers.get(\"Host\"), CONTROL_PORT,\n                    self.headers.get(\"Sec-Fetch-Site\")):\n                self._json(403, {\"ok\": False, \"reason\": \"local\"})\n                return\n            self._json(200, _roster_book_take(body))\n",
+     "replace": "            self._json(200, _roster_book_take(body))\n",
+     "matches": 1},
     {
         "why": "REG-2166 - an unread section is stored as an empty list",
         "file": "roster_publish.py",

@@ -7,6 +7,29 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2199 - POST /api/roster-book HAD NO ORIGIN CHECK (2026-10-14, #116, security)
+
+do_POST parses the body as JSON whatever the Content-Type, and `/api/roster-book` took it with no
+origin gate while its d2jsp neighbours all call `console_may_post`. So a no-cors text/plain POST
+from any tab in his browser could replace roster_book.json and publish his builds + stash cells
+(mule names, x/y) under his name — and the roster Basic credential (app:DeanDiablo) sits in this
+PUBLIC repo. The route now passes the SAME console_may_post gate (Origin / Host / Sec-Fetch-Site)
+and 403s a cross-site request BEFORE `_roster_book_take`. Law:
+`test_a_roster_publish_stays_off_the_presence_beacon` (test_the_roster_book_door_is_origin_gated +
+a red-proof that drops the gate, seen RED).
+
+### REG-2198 - THE SUNDER-TEXT LAW WAS BLIND ON ~9% OF bible.html (2026-10-14, #90)
+
+`test_no_sunder_text_says_what_its_own_source_refutes` stripped tags with `re.sub(r"<[^>]+>", " ")`
+over the WHOLE file, so every JS less-than swallowed to the next `>` — 436+ spans, 1.32M of
+8.38M chars, incl. multi-line code like `< _probe.length; _i++) {`. A Sunder-refuting sentence
+inside a swallowed span would never be matched, so the sweep went blind on ~9% of the page and
+read clean regardless. The strip is now NAME-LED (`</?[a-zA-Z][a-zA-Z0-9]*\b[^<>]*>`): a tag holds
+no `<`/`>`, so an inline tag like `<strong>` is still removed (a split phrase reads as text) while
+`a < b` and `i<len` survive (572K stripped, no JS prose eaten). No hidden phrase was exposed — the
+Sunder text is genuinely clean, it was just under-read. Law: the same law + a new guard
+`test_the_sunder_tag_strip_is_name_led_not_whole_file` and a red-proof reverting the regex (RED).
+
 ### REG-2197 - THE SECOND-EYE DRAIN SWALLOWED A LOOK'S BODY INTO ITS model FIELD, SO 11 ROWS HAD NO FAMILY (2026-10-14, #182)
 
 The #231 drain's `parse_comment` captured each `field: value` up to the next KNOWN field, DOTALL.
