@@ -4621,7 +4621,6 @@ def _roster_reads(now_ms):
 
     names = None
     stamps = None
-    stations = None
     try:
         names = _shelf_reel_names()
     except Exception as e:
@@ -4632,7 +4631,6 @@ def _roster_reads(now_ms):
         last, _stamp_why = _rs.last_stamps()
         if isinstance(last, dict):
             stamps = {}
-            stations = {}
             for reel, rec in last.items():
                 if not isinstance(reel, str):
                     continue
@@ -4645,14 +4643,14 @@ def _roster_reads(now_ms):
                 if not isinstance(station, str) or not station:
                     continue
                 stamps[reel] = station
-                if station == "UNKNOWN":
-                    continue
-                stations[station] = int(stations.get(station) or 0) + 1
     except Exception as e:
         _ROSTER_FAIL["stations"] = type(e).__name__
         stamps = None
-        stations = None
-    got = _rp.reels_read(names, stamps, stations, now_ms)
+    # REG-2205 follow-up (#99) — reels_read computes its station total from the live `named`∩`stamps`
+    # set, never from a prebuilt per-station tally (a river stamp outlives its reel). The old upstream
+    # `stations` count was passed and ignored ("kept for the caller's contract"); drop the dead build
+    # and pass None. reels_read's signature is unchanged, so the test contract still holds.
+    got = _rp.reels_read(names, stamps, None, now_ms)
     if got is not None:
         reads["reels"] = got
     return reads
