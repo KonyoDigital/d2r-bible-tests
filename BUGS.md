@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2202 - A FLAKY PUSH GATE: THE BACKUP-LOOP DOCTOR CHECK WAS IN THE CHEAP SUBSET (2026-10-14, #124)
+
+`_check_the_backup_loop_is_actually_WRITING` GETs /api/status, measured 11.6s COLD (0.26s warm),
+and sat in the CHEAP doctor subset the eagle runs at every console boot and the push gate times. A
+cold call hit ~15s and tripped the pathological ceiling (BUDGET_MS*5), flapping the gate. Moved to
+PERIODIC — NOT SLOW: a backup loop that fails silently is the "backed up nothing for 18 days" scar,
+so it must keep running unattended, just hourly rather than on the 10-minute cheap timer; the 15s
+_get timeout stays. Validated by the existing `test_the_cheap_subset_is_actually_CHEAP` (timing, by
+its own design "pin the law not the membership") and `test_a_check_moved_to_SLOW_is_still_RUN_somewhere`
+(the moved check still runs in the periodic tick) — both green. No new guard: the timing gate is the
+law and it was red-proven in its own history (it caught `sweep would find` at 16,585 ms).
+
 ### REG-2201 - A FUTURE CHRONICLE TIMESTAMP READ AS FRESH, NOT UNKNOWN (2026-10-14, #99)
 
 `_age_state` (roster_publish.py) and `_ago` scored `now_ms - as_of`, so a reading stamped AHEAD of

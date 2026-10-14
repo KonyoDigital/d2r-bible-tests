@@ -10659,7 +10659,13 @@ PERIODIC = ("engines corroborate", "sweep would find", "swallowed reads",
             # #54 — it parses the whole journal ring (his live file plus five rotated
             # generations) to count sealed reels the ledger owes, and the ledger only moves at
             # a SEAL. A reel seals once an hour; an hourly look loses nothing.
-            "equipped ledger files every seal")
+            "equipped ledger files every seal",
+            # REG-2202 (#124) — this GETs /api/status, which is 11.6s COLD (0.26s warm), so a cold
+            # call tripped the cheap subset's pathological ceiling (BUDGET_MS*5) and flapped the
+            # push gate. PERIODIC, not SLOW: a backup loop that fails silently is the "backed up
+            # nothing for 18 days" scar, so it MUST keep running unattended — just hourly, off the
+            # ten-minute cheap timer. The 15s _get timeout stays; it just no longer races the budget.
+            "backup loop")
 PERIODIC_EVERY = 6      # eagle ticks. The eagle sleeps ~10 min, so this is roughly hourly.
 
 
