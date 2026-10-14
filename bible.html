@@ -11417,6 +11417,17 @@ function d2jspPriceLine(q) {
   var reading = false;
   var posting = false;
   var flight = 0;
+  /* A stored reading is reused for this long. Opening the room again inside
+     the window does not ask d2jsp for that name. Past the window it is asked
+     again. A caller that passes force still asks. */
+  var D2JSP_QUOTE_TTL_MS = 15 * 60 * 1000;
+  function quoteFresh(name){
+    var q = quoted[name];
+    if (!q || typeof q !== 'object') return false;
+    var ts = q._ts;
+    if (typeof ts !== 'number' || !(ts > 0)) return false;
+    return (Date.now() - ts) < D2JSP_QUOTE_TTL_MS;
+  }
   function store(){
     try { if (typeof LS !== 'undefined' && LS && LS.getItem) return LS; } catch (e) {}
     try { return localStorage; } catch (e2) { return null; }
@@ -11742,14 +11753,18 @@ function d2jspPriceLine(q) {
     }
     applyFind();
   }
-  function ask(name, done){
+  function ask(name, done, force){
+    if (!force && quoteFresh(name)) { if (done) done(); return; }
     if (pending[name]) { if (done) done(); return; }
     pending[name] = 1;
     var paths = ['/api/d2jsp_quote?item=', '/d2r/api/d2jsp_quote?item='];
     var i = 0;
     function finish(j){
       pending[name] = 0;
-      if (j) quoted[name] = j;
+      if (j) {
+        quoted[name] = j;
+        quoted[name]._ts = Date.now();
+      }
       paintPrices();
       if (done) done();
     }
@@ -11766,7 +11781,7 @@ function d2jspPriceLine(q) {
     }
     step();
   }
-  function refreshQuotes(){
+  function refreshQuotes(force){
     var trade = listedNames();
     if (!trade || !trade.length) return;
     reading = true;
@@ -11776,23 +11791,28 @@ function d2jspPriceLine(q) {
     var i = 0;
     var live = 0;
     var generation = ++flight;
+    function quiet(){
+      if (generation !== flight) return;
+      reading = false;
+      var now = document.getElementById('d2jsp-status');
+      if (now && now.textContent === 'Reading the public prices.') say('');
+    }
     function pump(){
       if (generation !== flight) return;
       while (live < 4 && i < trade.length) {
+        var name = trade[i++];
+        if (!force && quoteFresh(name)) continue;
         live++;
-        ask(trade[i++], function(){
+        ask(name, function(){
           live--;
           if (i >= trade.length && live === 0) {
-            if (generation === flight) {
-              reading = false;
-              var now = document.getElementById('d2jsp-status');
-              if (now && now.textContent === 'Reading the public prices.') say('');
-            }
+            quiet();
             return;
           }
           pump();
-        });
+        }, !!force);
       }
+      if (i >= trade.length && live === 0) quiet();
     }
     pump();
   }
@@ -11877,7 +11897,7 @@ function d2jspPriceLine(q) {
     if (hidden[sh.name]) { delete hidden[sh.name]; writeMap('d2r_d2jsp_hide', hidden); }
     held = copy;
     editing = sh.name;
-    if (!quoted[sh.name]) ask(sh.name);
+    ask(sh.name);
     return { ok: true, why: sh.name + ' is on the trade list' };
   }
   window._d2jspPlannerOpen = function(name){
@@ -65892,7 +65912,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3727', name:'v3727 - sunder shard counts agree across surfaces', date:'2026-10-15', note:'the Renewed Sunder recipe disagreed across the blurb, recipes, renewal tool, Herald table and zone map on the per-charm shard count; reconciled every surface to the Maxroll cube list (five charms one shard, Black Cleft three) and added a NODE consistency guard, plus the routine_i_costs shard-balance fix. HEART: the content is watched by the new per-charm-shard-count consistency guard and the existing bible-text-agrees-with-cards law; no new watcher needed.' };
+  window.D2R_BUILD = { id:'v3728', name:'v3728 - d2jsp room reuses a fresh quote', date:'2026-10-15', note:'opening the d2jsp room re-asked every filed name on every visit, even one already cached; a 15 minute TTL plus quoteFresh skips a fresh reading and re-asks a stale one, a forced refresh still asks, the quote shape is kept. HEART: watched by the new node guard test_a_fresh_d2jsp_quote_is_not_asked_again and the existing d2jsp specs; a client cache TTL needs no new watcher.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

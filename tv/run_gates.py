@@ -9335,6 +9335,15 @@ GATES = [
          why=("REG-2177 (#266) - the armed relaunch banner said only Relaunch to use it "
               "while the drift lane already knew the hold. A may-false why is printed. "
               "A missing why stays the old sentence.")),
+    Gate("test_a_fresh_d2jsp_quote_is_not_asked_again", [sys.executable,
+         os.path.join(HERE, "test_a_fresh_d2jsp_quote_is_not_asked_again.py")], 60,
+         needs_app=False,
+         why=("#107 - opening the d2jsp room asked for every filed name on every visit, "
+              "including a name whose public reading was already cached. A reading younger "
+              "than D2JSP_QUOTE_TTL_MS is reused and not fetched. A reading at least that "
+              "old is asked again. ask(name, done, true) and refreshQuotes(true) still ask. "
+              "The cache stamp is _ts. The price line and the fg that would be sent stay "
+              "the same.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,

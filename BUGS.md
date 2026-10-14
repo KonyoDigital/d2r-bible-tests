@@ -7,6 +7,23 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2216 - THE D2JSP ROOM RE-ASKED EVERY FILED NAME ON EVERY VISIT (2026-10-15, #107, v3728)
+
+Opening the d2jsp room ran `refreshQuotes()` which asked d2jsp for EVERY filed name every time — even a
+name whose public reading was already cached — because the quote cache `quoted{}` had no freshness notion
+(`ask()` only skipped an in-flight `pending[name]`, and the planner-open path skipped only on `!quoted[name]`,
+never on staleness). Each visit hammered the d2jsp lookup for prices it already had. **Fix (bible.html ~11417,
+client-side only):** a named TTL `D2JSP_QUOTE_TTL_MS = 15 min`, `quoteFresh(name)` (cached object + numeric
+`_ts` + within TTL), `ask()` gains a `force` arg and returns early when `!force && quoteFresh(name)`,
+`finish()` stamps `quoted[name]._ts = Date.now()` on cache (quote SHAPE preserved — readers use `.fg` etc.),
+and `refreshQuotes(force)` skips fresh names in its pump loop (with the all-skipped completion handled by a
+new `quiet()` helper so `reading` never stays stuck). A forced refresh (`ask(name,done,true)` /
+`refreshQuotes(true)`) still asks. The d2jsp DESK (cookie-decrypt + POST) is untouched — HIS-CALL.
+**Coded by Grok CLI; Claude eagle-eyed + RED-proved the guard independently** (ran it on HEAD:bible.html ->
+FAILED (failures=2); green on the fix). **Guard:** `tv/test_a_fresh_d2jsp_quote_is_not_asked_again.py`
+(registered in run_gates.py; a source-shape test + a NODE behavioral test — second ask in TTL skipped, stale
+re-asked). Not a spec, so no routine_i_costs entry needed.
+
 ### REG-2215 - SUNDER / WORLDSTONE-SHARD CONTENT DISAGREED ACROSS SURFACES (2026-10-15, #69, v3727)
 
 The Renewed-Sunder recipe (Latent + Perfect Gem + Rune + matching Worldstone Shard) was stated

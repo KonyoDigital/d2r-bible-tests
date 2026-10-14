@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3727",
+  "ver": "v3728",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3727: the Renewed Sunder recipe disagreed across the blurb, recipes, renewal tool, Herald table and zone map on the per-charm shard count; reconciled every surface to the Maxroll cube list (five charms one shard, Black Cleft three) and added a NODE consistency guard, plus the routine_i_costs shard-balance fix. HEART: the content is watched by the new per-charm-shard-count consistency guard and the existing bible-text-agrees-with-cards law; no new watcher needed.",
+  "note": "v3728: opening the d2jsp room re-asked every filed name on every visit, even one already cached; a 15 minute TTL plus quoteFresh skips a fresh reading and re-asks a stale one, a forced refresh still asks, the quote shape is kept. HEART: watched by the new node guard test_a_fresh_d2jsp_quote_is_not_asked_again and the existing d2jsp specs; a client cache TTL needs no new watcher.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
