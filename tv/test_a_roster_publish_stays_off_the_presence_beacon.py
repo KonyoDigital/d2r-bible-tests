@@ -152,6 +152,18 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
         self.assertEqual(empty, {"asOf": 1000, "counts": 0})
         self.assertNotIn("rows", empty)
 
+    def test_reels_stations_count_only_live_shelf_reels(self):
+        """REG-2205 (#99) — a river stamp survives a reel's deletion, so a station count built from
+        every stamp counted GONE reels (measured 198 vs 67 live). reels_read counts a station only
+        for a reel still on the shelf it was handed, and skips an UNKNOWN stamp."""
+        names = ["reel_a", "reel_b"]                       # the live shelf
+        stamps = {"reel_a": "PRINTER", "reel_b": "UNKNOWN",   # b is live but UNKNOWN — not a station
+                  "reel_gone": "PRINTER", "reel_also_gone": "RIVER"}  # stamps linger past deletion
+        got = RP.reels_read(names, stamps, {"PRINTER": 3, "RIVER": 1}, 1000)
+        self.assertEqual(got["counts"]["reels"], 2)
+        self.assertEqual(got["counts"]["stations"], 1,
+                         "a gone reel's lingering stamp or an UNKNOWN was counted as a live station (#99)")
+
     def test_pictures_and_frame_bytes_stay_off_the_row(self):
         row = RP._clean_row({
             "name": "Shako",
@@ -651,6 +663,11 @@ console.log(JSON.stringify({ real: REAL, during: during }));
         self.assertEqual(RP._age_state(now - 3 * 3600 * 1000, now), "stale")
 
 RED_PROOF = [
+    {"why": "REG-2205 (#99): reels_read counts stations over EVERY stamp again, so a gone reel's lingering river stamp is counted as a live station",
+     "file": "roster_publish.py",
+     "find": "        for reel in named:\n",
+     "replace": "        for reel in list(stamps):\n",
+     "matches": 1},
     {"why": "REG-2204 (#99): the beacon's tally shaper drops its non-number guard, so an item name (NaN) crosses the counts-only boundary instead of being nulled",
      "file": "functions/api/console.js",
      "find": "        if (!Number.isFinite(have) || have < 0) return null;\n",

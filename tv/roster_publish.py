@@ -418,15 +418,19 @@ def reels_read(names, stamps, station_counts, now_ms):
         if row:
             rows.append(row)
     counts = {"reels": len(named)}
-    if isinstance(station_counts, dict):
-        total, ok = 0, True
-        for value in station_counts.values():
-            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-                ok = False
-                break
-            total += value
-        if ok:
-            counts["stations"] = total
+    # REG-2205 (#99) — a river stamp survives the reel's deletion, so station_counts (built upstream
+    # from EVERY stamp) counted GONE reels: measured 198 stamps against 67 live reels. Count a station
+    # only for a reel still on the shelf (named), resolved through the same stamps map the rows use.
+    # station_counts is kept for the caller's contract but no longer the total. [[stale-reading]]
+    if isinstance(stamps, dict):
+        live = 0
+        for reel in named:
+            st = stamps.get(reel)
+            if st is None and reel.startswith("reel_"):
+                st = stamps.get(reel[len("reel_"):])
+            if isinstance(st, str) and st and st != "UNKNOWN":
+                live += 1
+        counts["stations"] = live
     return {"read": True, "asOf": now_ms, "counts": counts, "rows": rows,
             "allow": ("date", "station")}
 

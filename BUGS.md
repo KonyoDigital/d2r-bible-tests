@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2205 - THE ROSTER STATIONS COUNT INCLUDED GONE REELS (2026-10-14, #99)
+
+reels_read set counts.stations from the summed station_counts, built upstream from EVERY river
+stamp — and a stamp survives the reel's deletion, so it counted reels no longer on the shelf
+(measured 198 stamps against 67 live reels). It now counts a station only for a reel still on the
+shelf it was handed (names), resolved through the same stamps map the rows use, and skips an
+UNKNOWN stamp. [[stale-reading]] Law: `test_reels_stations_count_only_live_shelf_reels` (red-proof
+counts over every stamp again, seen RED). Note: control_app._roster_reads still builds the now-unused
+station_counts dict; a harmless dead computation to drop in a future control_app batch.
+
 ### REG-2204 - THE "BEACON CARRIES NO ITEM NAMES" LAW GREPPED A COMMENT (2026-10-14, #99)
 
 `test_the_console_posts_roster_on_its_own_route` asserted the sentence "No item names ever cross
