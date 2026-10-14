@@ -350,8 +350,15 @@ def stash_rows_of(book):
 
 
 def chronicle_read(tally, now_ms):
-    """Counts only, and only from a tally that says it was read. No name list."""
-    if not isinstance(tally, dict) or tally.get("ok") is not True:
+    """Counts only, from a tally that did not fail. No name list.
+
+    REG-2200 (#94): this REQUIRED ok:true, but a banked board_tally.json (written by
+    board_tally_merge, read via board_tally_load) carries the owner's sets/uniques/runewords with
+    NO 'ok' key — so every PC's chronicle came back None and NO PC ever published its progress. A
+    failed read (`{ok: False, why: ...}`) still has no counts and is refused below; an explicit
+    ok:False is refused here. The counts themselves are the read; a missing 'ok' is not a failure.
+    """
+    if not isinstance(tally, dict) or tally.get("ok") is False:
         return None
     counts = {}
     for key in ("sets", "uniques", "runewords"):
@@ -497,10 +504,15 @@ def apply_reply(state, sections, reply, now_ms):
 
 
 def _age_state(as_of, now_ms):
-    """current, stale, or unknown. A missing clock is unknown, never current."""
+    """current, stale, or unknown. A missing clock is unknown, never current — and so is a FUTURE
+    clock: REG-2201 (#99) a reading stamped ahead of now (skew) scored `now - as_of` negative, so it
+    read 'current' / 'under 1 min ago' in _ago instead of being owned as unknown. [[stale-reading]]"""
     if isinstance(as_of, bool) or not isinstance(as_of, int):
         return "unknown"
     if isinstance(now_ms, bool) or not isinstance(now_ms, int):
+        return "unknown"
+    # stamped in the FUTURE beyond a minute of skew is a bad clock, not a fresh reading
+    if as_of - now_ms > 60000:
         return "unknown"
     if now_ms - as_of > 2 * HOUR_MS:
         return "stale"

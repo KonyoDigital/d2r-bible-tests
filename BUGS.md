@@ -7,6 +7,28 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2201 - A FUTURE CHRONICLE TIMESTAMP READ AS FRESH, NOT UNKNOWN (2026-10-14, #99)
+
+`_age_state` (roster_publish.py) and `_ago` scored `now_ms - as_of`, so a reading stamped AHEAD of
+now (clock skew between PCs) went negative and read "current" / "under 1 min ago" instead of being
+owned as unknown. A future clock beyond a minute of skew is now `unknown`; minor skew stays current;
+stale and fresh are unchanged. [[stale-reading]] Law:
+`test_a_roster_publish_stays_off_the_presence_beacon::test_a_future_timestamp_is_unknown_not_fresh`
+(red-proof drops the future check, seen RED). The rest of #99 (stale-after-2h, _ROSTER_FAIL read
+nowhere, stations counting gone reels, KV cap, fetch loop, the 1.4MB parse) stay open as their own
+defects.
+
+### REG-2200 - NO PC EVER PUBLISHED ITS CHRONICLE (2026-10-14, #94)
+
+`roster_publish.chronicle_read` required `tally.get("ok") is True`, but a banked board_tally.json
+(written by board_tally_merge, read via board_tally_load) carries the owner's sets/uniques/runewords
+as `{have,total}` at the TOP LEVEL with no `ok` key — so chronicle_read returned None for every PC
+and no chronicle count ever reached the roster. [[the-unjoined-end]] The gate now only REFUSES an
+explicit `ok:False` (a failed read, which has no counts anyway); a tally with real counts and no
+`ok` publishes. Verified: the real board_tally now yields sets/uniques/runewords, `{ok:False}` still
+None, `{ok:True}` still works. Law: `test_a_banked_board_tally_without_ok_still_publishes`
+(red-proof reverts to `ok is not True`, seen RED).
+
 ### REG-2199 - POST /api/roster-book HAD NO ORIGIN CHECK (2026-10-14, #116, security)
 
 do_POST parses the body as JSON whatever the Content-Type, and `/api/roster-book` took it with no

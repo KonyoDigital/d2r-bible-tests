@@ -617,7 +617,41 @@ console.log(JSON.stringify({ real: REAL, during: during }));
         self.assertLess(door.index("console_may_post("), door.index("_roster_book_take("),
                         "the origin gate must run BEFORE the body is taken (#116)")
 
+    def test_a_banked_board_tally_without_ok_still_publishes(self):
+        """REG-2200 (#94) — a banked board_tally.json carries the owner's sets/uniques/runewords with
+        NO 'ok' key (board_tally_merge never writes one), so requiring ok:true meant chronicle_read
+        returned None for every PC and no chronicle ever reached the roster. A tally with real counts
+        publishes; only an explicit ok:False (a failed read, no counts) is refused."""
+        board = {"sets": {"have": 117, "total": 135}, "uniques": {"have": 266, "total": 403},
+                 "runewords": {"have": 40, "total": 99}, "ownerId": "abc", "at": 1790000000000}
+        got = RP.chronicle_read(board, 1790000000001)
+        self.assertIsNotNone(got, "a banked board_tally with no 'ok' did not publish — no PC's chronicle reaches the roster (#94)")
+        self.assertEqual(got["counts"]["sets"], {"have": 117, "total": 135})
+        self.assertIsNone(RP.chronicle_read({"ok": False, "why": "not read"}, 1000),
+                          "a failed read (ok:False, no counts) must still be refused")
+
+    def test_a_future_timestamp_is_unknown_not_fresh(self):
+        """REG-2201 (#99) — a reading stamped AHEAD of now (clock skew) scored `now - as_of` negative,
+        so _age_state read 'current' and _ago 'under 1 min ago'. A future clock is unknown, never
+        fresh; minor skew (under a minute) is still current."""
+        now = 1790000000000
+        self.assertEqual(RP._age_state(now + 120000, now), "unknown", "a 2-min-future clock read as fresh (#99)")
+        self.assertEqual(RP._ago(now + 120000, now), ("unknown", None), "_ago called a future clock 'under 1 min ago' (#99)")
+        self.assertEqual(RP._age_state(now + 30000, now), "current", "a 30-s skew should still be current")
+        self.assertEqual(RP._age_state(now - 300000, now), "current")
+        self.assertEqual(RP._age_state(now - 3 * 3600 * 1000, now), "stale")
+
 RED_PROOF = [
+    {"why": "REG-2201 (#99): _age_state drops its future-clock check, so a reading stamped ahead of now reads 'current' / 'under 1 min ago' again",
+     "file": "roster_publish.py",
+     "find": "    if as_of - now_ms > 60000:\n        return \"unknown\"\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "REG-2200 (#94): chronicle_read requires ok:true again, so a banked board_tally (no 'ok') never publishes — no PC's chronicle reaches the roster",
+     "file": "roster_publish.py",
+     "find": "    if not isinstance(tally, dict) or tally.get(\"ok\") is False:\n",
+     "replace": "    if not isinstance(tally, dict) or tally.get(\"ok\") is not True:\n",
+     "matches": 1},
     {"why": "REG-2199 (#116): the roster-book door drops its origin gate, so a cross-site no-cors POST publishes his builds and stash cells under his name again",
      "file": "control_app.py",
      "find": "            import d2jsp_chrome as _d2jsp\n            if not _d2jsp.console_may_post(\n                    self.headers.get(\"Origin\"), self.headers.get(\"Host\"), CONTROL_PORT,\n                    self.headers.get(\"Sec-Fetch-Site\")):\n                self._json(403, {\"ok\": False, \"reason\": \"local\"})\n                return\n            self._json(200, _roster_book_take(body))\n",
