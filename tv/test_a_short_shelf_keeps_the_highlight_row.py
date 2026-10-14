@@ -109,13 +109,33 @@ class AShortShelfKeepsTheHighlightRow(unittest.TestCase):
         self.assertIn("var _to = _shOpenScroll(_top, _ovH, _hiTop, _hiBot);", s)
         self.assertIn("if (_ovH > 0 && _top >= _ovH){", s)
 
+    def test_a_short_shelf_shows_the_card_not_a_sliver(self):
+        # #98 (REG-2175 returns) — the SAME card/row as the 660 case, on SHORTER shelves. Keeping the
+        # row clamped the reel card to 89/49/19/4 px at HEAD (measured, ovH 600/560/530/515). The fix
+        # keeps the row only while the card still shows >= 104 px (the shelf minimum), else it drops the
+        # row for the head scroll (~82% of the shelf). Card visible = ovH - (top - scroll).
+        ovhs = [600, 560, 530, 515]
+        scrolls = _scroll([[708, h, 197, 371] for h in ovhs])
+        for scroll, ovH in zip(scrolls, ovhs):
+            self.assertIsNotNone(scroll, "a below-fold card on a short shelf returned null (ovH=%d)" % ovH)
+            card = ovH - (708 - scroll)
+            self.assertGreaterEqual(card, 104,
+                "ovH=%d clamped the reel to a %dpx sliver — keep the card over the row on a short shelf" % (ovH, card))
+
 
 RED_PROOF = [
     {
         "why": "REG-2174 - a short shelf goes back to the head scroll and hides the highlight row",
         "file": "tv/control_ui.html",
-        "find": "          if (headScroll > maxKeep && (top - maxKeep) < ovH) return maxKeep;\n",
+        "find": "          if (headScroll > maxKeep && (top - maxKeep) <= ovH - 104) return maxKeep;\n",
         "replace": "          if (false) return maxKeep;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#98 (REG-2175 returns) - weakening the 104px floor back to any-pixel-inside clamps the card to a sliver",
+        "file": "tv/control_ui.html",
+        "find": "          if (headScroll > maxKeep && (top - maxKeep) <= ovH - 104) return maxKeep;\n",
+        "replace": "          if (headScroll > maxKeep && (top - maxKeep) < ovH) return maxKeep;\n",
         "matches": 1,
     },
     {

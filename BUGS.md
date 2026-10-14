@@ -7,6 +7,22 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2208 - A SHORT SHELF CLAMPED THE OPENED REEL CARD TO A SLIVER TO KEEP THE HIGHLIGHT ROW (2026-10-14, #98)
+
+`_shOpenScroll` (tv/control_ui.html) scrolls an opened reel card into view and tries to keep the
+highlight row visible. It clamped the scroll to `maxKeep`/`minKeep` whenever the card's TOP was merely
+inside the viewport (`(top - keep) < ovH`) — which, on a SHORT shelf, left the reel card as a 4-89px
+SLIVER to preserve the row. Reproduced in node at HEAD with the law's own furniture (card top 708,
+highlight 197..371): ovH 660 → 149px (ok), but ovH 600 → 89px, 560 → 49px, 530 → 19px, 515 → 4px —
+the REG-2175 sliver returned. **Fix (tv/control_ui.html):** keep the row only when the clamp still
+leaves the card ≥ 104px (the shelf's own minimum, control_ui.html:1959) — `(top - keep) <= ovH - 104`;
+otherwise the head scroll (which shows ~82% of the shelf) wins over a sliver. Measured after: ovH 660
+unchanged (149px, row kept), 600/560/530/515 → 492/459/435/422px (card shown, no sliver). **Law:**
+`tv/test_a_short_shelf_keeps_the_highlight_row.py::test_a_short_shelf_shows_the_card_not_a_sliver`
+drives the real function in node at all four short ovH and asserts the card ≥ 104px. Seen RED: the
+HEAD repro slivered every one; the #98 red-proof reverts the floor to `< ovH` and re-slivers. The
+REG-2174 red-proof was re-anchored to the new line (an edit orphans other laws' red-proofs).
+
 ### REG-2207 - THE THREE KEEPER CHARMS SAT LOOSE IN THE DOCK, SO "DELETE UNSORTED" REMOVED THEM FROM OWNED (2026-10-14, #109 E#5)
 
 Annihilus, Hellfire Torch and Gheed's Fortune route to `__keep` (suggestMule) — they only work in the

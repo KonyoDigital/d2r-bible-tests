@@ -18865,8 +18865,13 @@ window._lockMark = function(isOpen, px, label){
         var minKeep = Math.max(0, hiBot - ovH);
         if (maxKeep >= minKeep){
           if (headScroll >= minKeep && headScroll <= maxKeep) return headScroll;
-          if (headScroll > maxKeep && (top - maxKeep) < ovH) return maxKeep;
-          if (headScroll < minKeep && (top - minKeep) < ovH) return minKeep;
+          /* REG-2175 returns (#98): keep the highlight row ONLY when the clamp still leaves the reel
+             card at least 104px tall (the shelf's own minimum, control_ui.html:1959). The old test —
+             card top merely inside the viewport ((top-keep) < ovH) — let a short shelf clamp the card
+             to a 4-89px SLIVER to save the row. When the row cannot be kept without slivering the card,
+             the head scroll (which shows ~82% of the shelf) wins over the row. */
+          if (headScroll > maxKeep && (top - maxKeep) <= ovH - 104) return maxKeep;
+          if (headScroll < minKeep && (top - minKeep) <= ovH - 104) return minKeep;
         }
       }
       return headScroll;
