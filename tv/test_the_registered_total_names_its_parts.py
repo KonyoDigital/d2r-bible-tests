@@ -61,6 +61,11 @@ var stub = {
   assign: (function(){ var a = {}; MULED.forEach(function(n){ a[n] = 'm1'; }); return a; })(),
   muleById: function(id){ return id === 'm1' ? {name: 'Mule One'} : null; },
   _dedupCanon: function(a){ return a; }, esc: function(s){ return String(s); }, jsArg: function(s){ return String(s); },
+  /* REG-2207 — renderVaultRegistered now counts a KEEP_IN_INVENTORY name as kept even with no __keep assignment,
+     so the cut renderer references these two; a real regex (not the Proxy's no-op stub, which has no .test) and the
+     fold keep it RUNNABLE. None of the test's items are keepers, so the kept branch stays false and the counts hold. */
+  KEEP_IN_INVENTORY: /^(Annihilus|Hellfire Torch|Gheed'?s Fortune)$/i,
+  _keepName: function(n){ return String(n == null ? '' : n).replace(/[‘’ʼ´`]/g, "'").trim(); },
   art: function(){ return ''; }, copyCount: function(){ return 1; }, multiTarget: function(){ return 1; },
   _VAL_LABEL: {}, Array: Array, Object: Object, String: String, Number: Number, Math: Math, JSON: JSON,
   Set: Set, encodeURIComponent: encodeURIComponent, location: {protocol: 'http:'}

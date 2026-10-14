@@ -47,6 +47,14 @@ test.describe('v203 the vault', () => {
          a filed item lives in its locker as a .vm-cell. Both are "the vault can show you this". */
       cellNames: [...document.querySelectorAll('.vm-cell')]
         .map((c) => (c.textContent || '').replace(/[◆✕]/g, '').trim()),
+      /* REG-2207 — a KEEP-IN-INVENTORY charm (Annihilus / Hellfire Torch / Gheed's Fortune) is kept on
+         MAIN and never filed to a mule, so since v3721 it is NOT a dock chip and has no locker cell — it
+         is shown in the "Don't mule to your alt" keep advisory as a .vk-chip. That IS the vault showing it.
+         Before v3721 it sat loose in the dock where "Delete unsorted" could remove it from owned (data loss),
+         so counting the dock alone would now mis-read the FIX as an item gone missing. The premise expired
+         again — assert the fear (never nowhere), not the arrangement. */
+      keepNames: [...document.querySelectorAll('.vk-chip')]
+        .map((c) => (c.textContent || '').replace(/[◆✕×]/g, '').replace(/\s*\d+\s*$/, '').trim()),
     }));
     // v230: runes/essences/shards/statues → shared stash (RUNES-HIGH + MATS removed, 10→8).
     // v342: + MAGIC & RARE (8→9). v360: + SHARED STASH locker for the never-muled items (9→10).
@@ -76,7 +84,7 @@ test.describe('v203 the vault', () => {
        the vault can SHOW him — the dock if unfiled, its locker if filed — and never nowhere. That
        is what "an item vanished" would break, and it cannot be moved by which lane filed it first. */
     const expected = OWNED.filter((n) => n !== 'Tal Rasha set (any piece)').sort();
-    const anywhere = new Set([...r.chipNames, ...r.cellNames]);
+    const anywhere = new Set([...r.chipNames, ...r.cellNames, ...r.keepNames]);  // REG-2207: a keeper is shown in the keep advisory
     const unreachable = expected.filter((n) => !anywhere.has(n));
     expect(unreachable,
       `owned but nowhere in the vault — not a dock chip and not in any locker: ${JSON.stringify(unreachable)}`)

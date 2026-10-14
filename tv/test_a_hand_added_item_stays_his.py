@@ -1170,8 +1170,15 @@ process.stdout.write(JSON.stringify({
         s = _src()
         # Both keeper-deciders fold the name the SAME way. A split here is the bug: the router files it __keep
         # while _vaultKeeps drops it from the pool, so it is drawn nowhere. Pin that BOTH call _keepName.
-        self.assertEqual(code_only(s).count("KEEP_IN_INVENTORY.test(_keepName("), 2,
-                         "both the router and _vaultKeeps must fold the name through _keepName (REG-2191)")
+        # REG-2191 pins the LAW, not a count: EVERY KEEP_IN_INVENTORY.test must fold through _keepName — a raw-name
+        # compare is the split that drew a curly keeper nowhere. REG-2207 added two more folders (_dockNames and
+        # renderVaultRegistered), so the number grew from 2 to 4; the invariant that holds at any count is that no
+        # .test compares a RAW name, plus at least the two deciders (router + _vaultKeeps) fold.
+        _co = code_only(s)
+        self.assertEqual(_co.count("KEEP_IN_INVENTORY.test("), _co.count("KEEP_IN_INVENTORY.test(_keepName("),
+                         "every KEEP_IN_INVENTORY.test must fold through _keepName — a raw-name compare is the REG-2191 split")
+        self.assertGreaterEqual(_co.count("KEEP_IN_INVENTORY.test(_keepName("), 2,
+                                "at least the router and _vaultKeeps must fold the name through _keepName (REG-2191)")
         out = _node(r"""
           OUT.curly    = _vaultKeeps('Gheed’s Fortune');
           OUT.left     = _vaultKeeps('Gheed‘s Fortune');
