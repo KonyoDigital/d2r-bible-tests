@@ -7,6 +7,22 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2217 - THE PAGE <title> / <meta d2r-build> WAS FROZEN AT v710.1 SINCE JULY (2026-10-15, v3729)
+
+The browser tab read "Konyo's D2R Farming Bible v710.1 · TV DIABLO" and `<meta name="d2r-build">` /
+`d2r-build-date` / `d2r-build-note` all held v710.1 (2026-07-15) for ~3000 versions, while
+`window.D2R_BUILD.id` (and the runtime footer that reads it) moved every ship. `tv/bump_version.py`
+stamped the JS `D2R_BUILD` but never the HTML head, so the head never moved — a wrong version on the tab
+and in the page meta/SEO. Found by Claude while verifying the live deploy of v3728. **Fix (bump_version.py):**
+a new `_rewrite_head_stamps(html, ver, today, note)` runs in `bump()` right after the D2R_BUILD rewrite and
+before the parse check — it moves ONLY the version token inside the existing `<title>` (keeping its words) and
+rewrites the three d2r-build metas, each pattern matched EXACTLY once (0 or 2+ refuses the bump, writing
+nothing); `_attr_text()` escapes the note (&/"/<) for the attribute and refuses a newline. The current head
+was corrected to v3728 in the same change. **Coded by Grok CLI; Claude eagle-eyed + verified:** existing bump
+tests pass, the new guard RED-proved (red on the v710.1 head vs D2R_BUILD v3728, green on the fix), and the
+v3729 bump itself stamps the head to v3729 (end-to-end). **Guard:** `tv/test_the_head_stamp_matches_the_build.py`
+(registered; asserts the title + meta version tokens + date equal window.D2R_BUILD). Not a spec, no cost entry.
+
 ### REG-2216 - THE D2JSP ROOM RE-ASKED EVERY FILED NAME ON EVERY VISIT (2026-10-15, #107, v3728)
 
 Opening the d2jsp room ran `refreshQuotes()` which asked d2jsp for EVERY filed name every time — even a

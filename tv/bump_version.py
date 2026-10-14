@@ -9,6 +9,10 @@ miss one, and a half-bumped tree is not cosmetic — `test_button_matrix` compar
 version to the ship manifest, so a missed stamp surfaces as "the running app is a different build
 than the tree you are testing" and sends the next person hunting a phantom.
 
+The same bible.html write also moves the <title> version token and the d2r-build,
+d2r-build-date and d2r-build-note metas. Those tags are not a fifth file. Left alone,
+the browser tab and the raw page keep an old version while window.D2R_BUILD moves.
+
 The board note is a SINGLE-QUOTED JS literal. Writing one by hand during v1478 put an apostrophe in
 "someone else's chronicle", which terminated the string early and threw a SyntaxError that blanks
 the entire 37k-line page. The syntax gate caught it — but the right place to stop that class is
@@ -214,6 +218,65 @@ def _heart_gate(note, repo=None):
         % (", ".join(surf), " / ".join(w.split("/")[-1] for w in WATCHERS)))
 
 
+_HEAD_VER = re.compile(r"v\d+(?:\.\d+)*")
+
+
+def _attr_text(note):
+    """Put the build note in a double-quoted meta attribute without breaking it.
+
+    D2R_BUILD.note is a single-quoted JS literal: an apostrophe is already refused, and a
+    double quote is legal there. The same quote ends content="...". An ampersand or a
+    left angle bracket would rewrite the attribute. The JS note is stored unchanged.
+    """
+    if "\n" in note or "\r" in note:
+        raise SystemExit(
+            "the note spans a line, so the d2r-build-note attribute would break — nothing written")
+    safe = note.replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;")
+    if '"' in safe or "\n" in safe or "\r" in safe:
+        raise SystemExit("the d2r-build-note attribute would still break — nothing written")
+    return safe
+
+
+def _rewrite_head_stamps(html, ver, today, note):
+    """Move the <title> version token and the three d2r-build metas. Each pattern once.
+
+    Only the version token inside the existing title moves. The words around it stay.
+    A missing tag, or a second one, refuses the bump before anything is written.
+    """
+    note_attr = _attr_text(note)
+
+    def title_repl(m):
+        body = m.group(1)
+        versions = _HEAD_VER.findall(body)
+        if len(versions) != 1:
+            raise SystemExit(
+                "the title holds %d version tokens — nothing written" % len(versions))
+        return "<title>" + body.replace(versions[0], ver, 1) + "</title>"
+
+    title_pat = re.compile(r"<title>([^<]*)</title>")
+    titles = list(title_pat.finditer(html))
+    if len(titles) != 1:
+        raise SystemExit("the title matched %d times — nothing written" % len(titles))
+    html = title_pat.sub(title_repl, html, count=1)
+
+    def put(content):
+        def repl(m):
+            return m.group(1) + content + m.group(2)
+        return repl
+
+    specs = (
+        (re.compile(r'(<meta name="d2r-build" content=")[^"]*(">)'), ver, "d2r-build"),
+        (re.compile(r'(<meta name="d2r-build-date" content=")[^"]*(">)'), today, "d2r-build-date"),
+        (re.compile(r'(<meta name="d2r-build-note" content=")[^"]*(">)'), note_attr, "d2r-build-note"),
+    )
+    for pat, content, label in specs:
+        found = list(pat.finditer(html))
+        if len(found) != 1:
+            raise SystemExit("%s matched %d times — nothing written" % (label, len(found)))
+        html = pat.sub(put(content), html, count=1)
+    return html
+
+
 def bump(ver, name, note, repo=None):
     # ⚠⚠ v3330 (#72) — DO NOT BANK A VERSION INTO A TREE SOMEONE IS GRADING.
     #
@@ -320,6 +383,10 @@ def bump(ver, name, note, repo=None):
     # single-quoted JS string literal; the guards above refuse an apostrophe and a callable CSS
     # token, which are the two that have bitten, but neither is a parser. This is.
     _new_page = s[:a] + new_line + s[b:]
+    # The head is a second copy of this same stamp. Replace the version token in the
+    # existing title, and the three metas, before the parse check. A miss refuses
+    # here, so nothing is written.
+    _new_page = _rewrite_head_stamps(_new_page, ver, today, note)
     _page_problem = _parses_as_page(_new_page)
     if _page_problem:
         raise SystemExit("the bible.html this bump would write does not parse — NOTHING WRITTEN."

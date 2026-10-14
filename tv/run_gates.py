@@ -9344,6 +9344,12 @@ GATES = [
               "old is asked again. ask(name, done, true) and refreshQuotes(true) still ask. "
               "The cache stamp is _ts. The price line and the fg that would be sent stay "
               "the same.")),
+    Gate("test_the_head_stamp_matches_the_build", [sys.executable,
+         os.path.join(HERE, "test_the_head_stamp_matches_the_build.py")], 60,
+         needs_app=False,
+         why=("The browser tab title and the d2r-build meta stayed at v710.1 while "
+              "window.D2R_BUILD.id moved. Both version tokens, and the build date, "
+              "must equal that object.")),
     Gate("test_standing_kit_never_files_to_a_mule", [sys.executable,
          os.path.join(HERE, "test_standing_kit_never_files_to_a_mule.py")], 90,
          needs_app=False,
