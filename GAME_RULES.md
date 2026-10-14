@@ -86,7 +86,7 @@ Drop from any Terror-Zone monster, Heralds most often. Every Sunder can be worn 
 | Cold Rupture | cold | Frozen Orb/Blizzard sorc | + Perf Sapphire + Lum + Eastern shard |
 | Flame Rift | fire | Fireball/Meteor sorc | + Perf Ruby + Io + Deep shard |
 | Rotting Fissure | poison | Poison Necromancer | + Perf Emerald + Ko + Western shard |
-Renewed recipe (per charm): Latent Sunder + Perfect Gem + Rune + matching Worldstone Shard(s).
+Renewed recipe (per charm): Latent Sunder + Perfect Gem + Rune + that charm's shard count. Five charms take one named shard, and Black Cleft takes three: Southern + Deep + Northern. Source: Maxroll.
 
 ### Worldstone Shards (upgrade a Latent → Renewed Sunder; MF does NOT affect, ~1:500-1500)
 Western=Act1 zones, Eastern=Act2, Southern=Act3, Deep=Act4, Northern=Act5.

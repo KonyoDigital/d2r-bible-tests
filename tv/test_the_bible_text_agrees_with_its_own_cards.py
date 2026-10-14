@@ -398,6 +398,116 @@ class TheBibleTextAgreesWithItsOwnCards(unittest.TestCase):
         self.assertIn("three Worldstone Shards (Southern + Deep + Northern)", cleft, "Black Cleft's own recipe lost its three shards")
         self.assertNotIn("Each shard upgrades a specific", shard, "the shard blurb gives every shard one charm again")
 
+    def test_every_surface_states_the_same_per_charm_shard_count(self):
+        """The Renewed upgrade is one fact, restated on the blurb, both recipe strings, the renewal tool,
+        the Herald table, the crystal outcomes and the zone-chip map. Maxroll's cube list (sundered charms,
+        page updated 2026-05-22): five charms take one named shard and Black Cleft takes Southern + Deep + Northern.
+        A surface that names a different count goes red. The cube-3-shards Latent line is not on that list; this
+        law does not bless it."""
+        import json as _json
+        import subprocess as _sp
+        from cb_node_harness import NODE
+        if NODE is None:
+            raise AssertionError("node is not on this machine - this gate does not skip")
+        s = _src()
+        expected = {
+            "Rotting Fissure": ["Western"],
+            "Cold Rupture": ["Eastern"],
+            "Crack of the Heavens": ["Southern"],
+            "Flame Rift": ["Deep"],
+            "Bone Break": ["Northern"],
+            "Black Cleft": ["Southern", "Deep", "Northern"],
+        }
+
+        def block(start, end):
+            i = s.find(start)
+            self.assertGreater(i, 0, "%r is gone - re-point this law" % start)
+            self.assertEqual(s.find(start, i + 1), -1, "%r is not unique - re-point this law" % start)
+            j = s.find(end, i)
+            self.assertGreater(j, i, "%r lost its end %r" % (start, end))
+            return s[i:j + len(end)]
+
+        js = """
+var window = {};
+%s
+%s
+%s
+%s
+%s
+var renewedRow = MATERIAL_RECIPES.filter(function(r){ return r.n.indexOf('Renewed Sunder') === 0; })[0];
+console.log(JSON.stringify({
+  needs: RENEWED_SUNDER_NEEDS,
+  recipes: SUNDER_RECIPES.map(function(x){ return { n: x.n, shards: x.shards }; }),
+  outcomes: SHARD_OUTCOMES.map(function(o){ return { n: o.n, sunder: o.sunder, also: o.also || '' }; }),
+  renewed: SHARD_RENEWED,
+  sunderRecipe: SPECIAL_DROPS.sunder.recipe,
+  blurb: SPECIAL_DROPS.worldstoneShard.blurb,
+  shardRecipe: SPECIAL_DROPS.worldstoneShard.recipe,
+  makes: renewedRow.makes,
+  note: renewedRow.note,
+  herald: _HERALD_SUNDERS.map(function(h){ return { n: h.n, rec: h.rec }; })
+}));
+%s
+""" % (block("const SPECIAL_DROPS = {", "\n};"),
+       block("const RENEWED_SUNDER_NEEDS = {", "window.SHARD_OUTCOMES = SHARD_OUTCOMES;\n"),
+       block("const SHARD_RENEWED = {", "};\n"),
+       block("const SUNDER_RECIPES = [", "window.SUNDER_RECIPES = SUNDER_RECIPES;\n"),
+       block("const _HERALD_SUNDERS = [", "];\n"),
+       block("function renderShardCrystal(){", "window.renderShardCrystal = renderShardCrystal;\n"))
+        # the crystal function is parsed, not called: a broken quote in its row template fails here
+        r = _sp.run([NODE, "-"], input=js, capture_output=True, text=True, timeout=30)
+        self.assertEqual(r.returncode, 0, r.stderr[-800:])
+        out = _json.loads(r.stdout.strip().splitlines()[-1])
+        self.assertEqual({c: nd["shards"] for c, nd in out["needs"].items()}, expected)
+        singles = {regions[0]: charm for charm, regions in expected.items() if charm != "Black Cleft"}
+        cleft = expected["Black Cleft"]
+        for row in out["recipes"]:
+            got = [re.sub(r"^Worldstone Shard \((.*)\)$", r"\1", x) for x in row["shards"]]
+            self.assertEqual(got, expected[row["n"]], "%s renewal tool shards drifted: %r" % (row["n"], got))
+        for row in out["herald"]:
+            parts = row["rec"].split(" + ")
+            shards = [re.sub(r" Shards?$", "", x) for x in parts[3:]]
+            self.assertEqual(shards, expected[row["n"]], "%s Herald recipe drifted: %r" % (row["n"], row["rec"]))
+        seen = set()
+        for o in out["outcomes"]:
+            region = re.search(r"\(([^)]+)\)$", o["n"]).group(1)
+            seen.add(region)
+            self.assertEqual(o["sunder"], singles[region], "%s crystal names the wrong charm" % region)
+            if region in cleft:
+                self.assertEqual(o["also"], "Black Cleft", "%s crystal hides Black Cleft's three" % region)
+                self.assertIn("one of three for Black Cleft", out["renewed"][region])
+            else:
+                self.assertEqual(o["also"], "", "%s crystal grew a second charm" % region)
+                self.assertNotIn("Black Cleft", out["renewed"][region])
+            self.assertIn(singles[region], out["renewed"][region])
+        self.assertEqual(seen, set(singles))
+        blurb, sunder_recipe, shard_recipe = out["blurb"], out["sunderRecipe"], out["shardRecipe"]
+        self.assertIn("MF does NOT affect shard rate", blurb)
+        self.assertIn("Five charms take one named shard, and Black Cleft takes three: Southern + Deep + Northern", blurb)
+        for region, charm in singles.items():
+            if region in cleft:
+                self.assertIn("%s is the one shard for %s and one of three for Black Cleft." % (region, charm), blurb)
+            else:
+                self.assertIn("%s is the one shard for %s." % (region, charm), blurb)
+            self.assertIn("%s %s" % (charm, region), sunder_recipe)
+            self.assertIn("%s %s" % (charm, region), shard_recipe)
+        self.assertIn("; Black Cleft takes three (Southern + Deep + Northern). Source: Maxroll.", sunder_recipe)
+        self.assertEqual(s.count("; Black Cleft takes three (Southern + Deep + Northern). Source: Maxroll."), 1)
+        self.assertIn("Black Cleft takes three: Southern + Deep + Northern", shard_recipe)
+        self.assertIn("Five charms take one named shard, and Black Cleft takes three: Southern + Deep + Northern", out["makes"])
+        self.assertIn("Five charms take one named shard, and Black Cleft takes three: Southern + Deep + Northern", out["note"])
+        for phrase in ("one Worldstone Shard", "matching Worldstone Shard", "matching-region shard", "matching shard"):
+            self.assertNotIn(phrase, s, "a surface tells one shard for every charm again: %r" % phrase)
+        clause = "Five charms take one named shard, and Black Cleft takes three: Southern + Deep + Northern"
+        self.assertGreaterEqual(len(re.findall(re.escape(clause), s, flags=re.I)), 14,
+                                "a rendered Renewed sentence dropped the shared shard count")
+        for n, line in enumerate(s.splitlines(), 1):
+            if "shard count" in line and "D2R_BUILD" not in line:   # the build-stamp note is metadata, not a rendered surface
+                self.assertIn("Black Cleft takes three", line, "line %d states a shard count and skips Black Cleft" % n)
+        rules = os.path.join(os.path.dirname(HERE), "GAME_RULES.md")
+        with io.open(rules, encoding="utf-8") as f:
+            self.assertIn(clause, f.read(), "GAME_RULES states a different Renewed shard count")
+
     def test_izual_is_not_next_door_to_the_river(self):
         """REG-2121 (#231 eye on v43 0136a656) - the River of Flame card said Izual 'guards the adjacent Plains of Despair'.
         Act 4 runs Outer Steppes, Plains of Despair, City of the Damned, River of Flame: the Plains are two zones back."""
@@ -777,6 +887,11 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "; Black Cleft takes three (Southern + Deep + Northern). Source: Maxroll.",
      "replace": ". Source: Maxroll.",
+     "matches": 1},
+    {"why": "the shard blurb gives Western to Bone Break, so the per-charm count no longer matches the recipe table",
+     "file": "bible.html",
+     "find": "Western is the one shard for Rotting Fissure.",
+     "replace": "Western is the one shard for Bone Break.",
      "matches": 1},
     {"why": "REG-2121 - the River card calls the Plains of Despair adjacent again",
      "file": "bible.html",

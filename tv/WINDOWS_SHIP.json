@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3726",
+  "ver": "v3727",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3726: a per-item share override was dropped for dashed and planner-label names because suggestMule folded the name and recursed before reading the override; read the outer override at the top and thread force-in and force-out through the hops, and hoist keepers and standing-kit above it. HEART: engine fix watched by the new v3726 folds spec and the render_check vault-share-settings target; no new watcher needed.",
+  "note": "v3727: the Renewed Sunder recipe disagreed across the blurb, recipes, renewal tool, Herald table and zone map on the per-charm shard count; reconciled every surface to the Maxroll cube list (five charms one shard, Black Cleft three) and added a NODE consistency guard, plus the routine_i_costs shard-balance fix. HEART: the content is watched by the new per-charm-shard-count consistency guard and the existing bible-text-agrees-with-cards law; no new watcher needed.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

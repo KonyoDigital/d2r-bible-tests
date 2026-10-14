@@ -7,6 +7,22 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2215 - SUNDER / WORLDSTONE-SHARD CONTENT DISAGREED ACROSS SURFACES (2026-10-15, #69, v3727)
+
+The Renewed-Sunder recipe (Latent + Perfect Gem + Rune + matching Worldstone Shard) was stated
+inconsistently across bible.html surfaces — the worldstoneShard blurb, both recipe strings, the renewal
+tool, the Herald table, the crystal outcomes and the zone-chip map disagreed on the per-charm shard count.
+**Fix (bible.html + GAME_RULES.md):** reconciled every surface to the Maxroll cube list (sundered charms,
+page updated 2026-05-22): five charms take one named shard each (Rotting Fissure=Western, Cold Rupture=
+Eastern, Crack of the Heavens=Southern, Flame Rift=Deep, Bone Break=Northern) and Black Cleft takes three
+(Southern + Deep + Northern). The "cube 3 Worldstone Shards -> random Latent" line is unchanged.
+**Coded by Grok CLI; Claude eagle-eyed + RED-proved the guard independently** (ran it against HEAD:bible.html
+-> FAILED "Southern crystal hides Black Cleft's three"; green on the fix). **Guard:**
+`test_the_bible_text_agrees_with_its_own_cards.py::test_every_surface_states_the_same_per_charm_shard_count`
+(NODE harness, compares every surface's data object to the canonical mapping). Ships with the
+routine_i_costs.json shard-balance fix (v3725=9.0/v3726=13.0 spec costs; REG-1753 class — a new spec with no
+cost entry inflated the Routine-I shard spread to 43.5>30, now 19.6).
+
 ### REG-2214 - A SHARE OVERRIDE WAS DROPPED FOR DASHED / PLANNER-LABEL ITEM NAMES (2026-10-15, gh#235, v3726)
 
 The v3723 per-item share override (`_setShareOverride` → `d2r_vaultShareOverride`, keyed by `_keepName(name)`,
