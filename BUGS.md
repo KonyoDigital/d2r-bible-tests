@@ -7,6 +7,24 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2207 - THE THREE KEEPER CHARMS SAT LOOSE IN THE DOCK, SO "DELETE UNSORTED" REMOVED THEM FROM OWNED (2026-10-14, #109 E#5)
+
+Annihilus, Hellfire Torch and Gheed's Fortune route to `__keep` (suggestMule) — they only work in the
+inventory of the character being played, so no mule holds them. But nothing writes them a stored
+`__keep` assignment, so with `assign[n] == null` they fell into `_dockNames()` — the ONE list the dock
+display, Auto-Sort AND "Delete unsorted" all read (bible.html:43740). "Delete unsorted" then passed them
+to `vaultRemove`, stripping three grail keepers from `d2r_owned` on a single click (data loss). Reproduced
+in headless Chrome: owning the three, `_vaultDockNames()` returned `[Annihilus, Gheed's Fortune, Hellfire
+Torch]`, each `assign=None`, each `suggestMule=__keep`. REG-2191 made them DRAW as keepers (the "Don't mule"
+advisory) but never kept them OUT of the loose dock — the-unjoined-end, a keeper recognised in one reader
+and not the other. **Fix (bible.html, read-side, no store mutation):** `_dockNames()` now excludes any
+`KEEP_IN_INVENTORY.test(_keepName(n))` name (the same identity rule REG-2191 established, apostrophe-folded),
+and `renderVaultRegistered` counts such a name as `kept` rather than `loose` even without a stored `__keep`.
+A keeper is handled by NAME, not by a filing. Measured after the fix: the dock is empty, all three excluded,
+0 regressions. **Law:** `tests/v3721_keepers_stay_out_of_the_dock.spec.ts` — owns the three (curly Gheed's),
+asserts each routes to `__keep` and NONE is in `_vaultDockNames()`. Seen RED by construction: the pre-fix
+dock held all three.
+
 ### REG-2206 - A UNIQUE'S VAULT FOOTPRINT WAS GUESSED FROM ITS NAME, NOT ITS FIXED BASE (2026-10-14, GrokBot batch T #230)
 
 GrokBot's live-board footprint audit of SHARED STASH + UNI-WEAPONS found ~12 owned uniques drawn at

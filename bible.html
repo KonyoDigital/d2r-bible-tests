@@ -41015,7 +41015,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          "kept" is where they belong, not "nobody has filed this yet".
          v409 already made '__keep' first-class, and renderVault:35142 guards it from the prune for
          exactly this reason. This reader simply never learned it. [[unknown-stays-unknown]] */
-      if(assign[n]==='__keep'){ kept.push(n); return; }
+      /* REG-2207 (#109 E#5) — a keep-in-inventory charm is kept by IDENTITY even with no stored __keep assignment,
+         so it reads here as kept (not loose/unsorted), matching _dockNames which now excludes it. */
+      if(assign[n]==='__keep' || (typeof KEEP_IN_INVENTORY !== 'undefined' && typeof _keepName === 'function' && KEEP_IN_INVENTORY.test(_keepName(n)))){ kept.push(n); return; }
       var m=assign[n]?muleById(assign[n]):null;
       if(m) muled.push([n,m]); else loose.push(n);
     });
@@ -43744,7 +43746,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       catch (e) { car = null; }
       var carSet = {};
       (car || []).forEach(function(c){ if (c && c.name) carSet[c.name] = 1; });
-      return ownedPool().filter(function(n){ return assign[n] == null && !isSharedStash(n) && !_inMagicRare(n) && !carSet[n]; });
+      /* REG-2207 (#109 E#5) — A KEEP-IN-INVENTORY CHARM IS NOT LOOSE, IT IS HANDLED BY IDENTITY. Annihilus,
+         Hellfire Torch and Gheed's Fortune route to __keep (suggestMule) and only ever work in the inventory of
+         the character being played, so a mule cannot hold them — yet with no stored assignment they fell into this
+         ONE dock list, which the dock display, Auto-Sort AND "Delete unsorted" all read. "Delete unsorted" then
+         removed them from `owned` (data loss: three grail keepers gone on one click). They are keepers by NAME, not
+         by a filing, so exclude them here the same way renderVaultRegistered now counts them as kept. */
+      return ownedPool().filter(function(n){ return assign[n] == null && !isSharedStash(n) && !_inMagicRare(n) && !carSet[n]
+        && !(typeof KEEP_IN_INVENTORY !== 'undefined' && typeof _keepName === 'function' && KEEP_IN_INVENTORY.test(_keepName(n))); });
     } catch (e) { return []; }
   }
   window._vaultInMagicRare = _inMagicRare;
