@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2204 - THE "BEACON CARRIES NO ITEM NAMES" LAW GREPPED A COMMENT (2026-10-14, #99)
+
+`test_the_console_posts_roster_on_its_own_route` asserted the sentence "No item names ever cross
+this boundary" was present in functions/api/console.js — but that is a `//` COMMENT on line 229, not
+the code. The invariant is ENFORCED by the tally shaper: each count is `Number(p.have)` and a
+non-number (an item name → NaN) is dropped by `if (!Number.isFinite(have) || have < 0) return null`,
+so only have/total cross. The comment could stay while the shaping was torn out and the law would
+pass (source-reading-guard §4b). Re-anchored to the coercion + the non-number drop; the `roster:`
+absence check stays. Red-proof drops the non-number guard (a NaN would cross), seen RED. (#99's
+other sub-items — stations count, _ROSTER_FAIL surface, KV cap, the 1.4MB parse — stay open.)
+
 ### REG-2203 - A SUPPRESSED CONSOLE FETCHED THE LIVE ROSTER EVERY 5 MIN (2026-10-14, #99)
 
 `_roster_fetch_once` GET bull-4-u.com/api/roster with no `_beacon_suppressed_by()` guard, while its

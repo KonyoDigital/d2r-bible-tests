@@ -124,7 +124,14 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
                      "const ROSTER_CAP = 25;", "const KV_WRITES = 1000;"):
             self.assertIn(line, js)
         console = open(CONSOLE_JS, encoding="utf-8").read()
-        self.assertIn("No item names ever cross this boundary", console)
+        # REG-2204 (#99) — the invariant is ENFORCED by the tally SHAPER, not the comment that
+        # describes it: each count is coerced with Number() and a non-number (an item name → NaN) is
+        # dropped, so only have/total cross. Anchor on that code — the comment could stay while the
+        # shaping was torn out (source-reading-guard §4b).
+        self.assertIn("const have = Number(p.have);", console,
+                      "the tally stopped coercing have to a Number — an item name could cross")
+        self.assertIn("if (!Number.isFinite(have) || have < 0) return null;", console,
+                      "the tally stopped dropping a non-number (an item name becomes NaN) — it could cross")
         self.assertNotIn("roster:", console)
 
     def test_an_unread_section_stays_absent(self):
@@ -644,6 +651,11 @@ console.log(JSON.stringify({ real: REAL, during: during }));
         self.assertEqual(RP._age_state(now - 3 * 3600 * 1000, now), "stale")
 
 RED_PROOF = [
+    {"why": "REG-2204 (#99): the beacon's tally shaper drops its non-number guard, so an item name (NaN) crosses the counts-only boundary instead of being nulled",
+     "file": "functions/api/console.js",
+     "find": "        if (!Number.isFinite(have) || have < 0) return null;\n",
+     "replace": "        if (have < 0) return null;\n",
+     "matches": 1},
     {"why": "REG-2203 (#99): _roster_fetch_once drops its beacon-suppression guard, so a suppressed console (CI, harness, scratch) fetches the live site every 5 min",
      "file": "control_app.py",
      "find": "    held = _beacon_suppressed_by()\n    if held:\n        _roster_fetch_remember(\"suppressed: \" + str(held)[:160])\n        return\n",
