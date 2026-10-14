@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3725",
+  "ver": "v3726",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3725: the share panel onchange was cut short by the quotes JSON.stringify emits, so the checkbox was a dead handler on the live site; wrap the arg in esc so the quotes survive the double-quoted attribute and a real click writes the mule override. HEART: the render_check vault-share-settings target and the new v3725 click spec already watch this surface; a one-line attribute escape needs no new watcher.",
+  "note": "v3726: a per-item share override was dropped for dashed and planner-label names because suggestMule folded the name and recursed before reading the override; read the outer override at the top and thread force-in and force-out through the hops, and hoist keepers and standing-kit above it. HEART: engine fix watched by the new v3726 folds spec and the render_check vault-share-settings target; no new watcher needed.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

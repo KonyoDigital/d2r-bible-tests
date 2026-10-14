@@ -40391,6 +40391,35 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
 
   function suggestMule(name, opts){
     if (isSharedStash(name)) return null;
+    /* The fold hops below recurse on the folded spelling and return before the
+       override further down is read, so a setting stored under this name was
+       dropped. Honor it here and carry force-in / force-out through the hop.
+       Keepers and standing kit still win above it. ignoreShareOverride leaves
+       _shareDefault on the rules alone; this does not call it, so it does not recurse. */
+    var _keepHome = function(nm){
+      if (KEEP_IN_INVENTORY.test(_keepName(nm))) return {id:'__keep', why:'keep in your inventory — only works on the character you are actively playing'};
+      try {
+        var _kitF = String(nm || '').replace(/[‘’ʼ`]/g, "'").toLowerCase().replace(/\s+/g, ' ').trim();
+        var _kitL = (window._FURNITURE_WORDS || []).filter(function(w){ return w !== 'tome'; }).concat(window._FURNITURE_WHOLE || []);
+        if (_kitF && _kitL.indexOf(_kitF) >= 0)
+          return {id:'__keep', why:'standing kit — the Cube, your tomes, Wirt’s Leg and keys stay with your character, never a mule'};
+      } catch(eK){}
+      return null;
+    };
+    var _keptTop = _keepHome(name);
+    if (_keptTop) return _keptTop;
+    var _ignoreOv = !!(opts && opts.ignoreShareOverride);
+    var _ovTop = _ignoreOv ? null
+      : (opts && opts._shareForceOut) ? 'mule'
+      : (opts && opts._shareForceIn) ? 'shared'
+      : (typeof _shareOverride === 'function' ? _shareOverride(name) : null);
+    var _hopOpts = opts;
+    if (!_ignoreOv && (_ovTop === 'shared' || _ovTop === 'mule')) {
+      _hopOpts = {};
+      if (opts) { for (var _hk in opts) if (Object.prototype.hasOwnProperty.call(opts, _hk)) _hopOpts[_hk] = opts[_hk]; }
+      if (_ovTop === 'mule') _hopOpts._shareForceOut = true;
+      else _hopOpts._shareForceIn = true;
+    }
     /* v1958 \u2014 ROUTE A MISREAD BY THE ITEM IT IS A MISREAD OF.
        MEASURED, not suspected: tvVaultRegister('Battlecage') filed to UNI-WEAPONS, and Rattlecage
        is a Cuirass. tvVaultRegister('Naglring') filed to UNI-WEAPONS, and Nagelring is a ring. Both
@@ -40447,7 +40476,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                Safe because the repair is EXACT: a byte fold, not a guess. The fuzzy roster fold
                below deliberately keeps the `&& _fs.id` form — a guessed name may not speak for an
                item confidently enough to suppress its filing. */
-            var _as = suggestMule(_ap, opts);   // gh#235 — carry opts (ignoreShareOverride) through the fold hop
+            var _as = suggestMule(_ap, _hopOpts);   // gh#235 — carry opts (ignoreShareOverride) through the fold hop
             /* REG-2080 - EXCEPT 'Unsorted'. The repaired bytes can be the ones NO catalogue holds: 'Rare Jewel (15 IAS / −15 Req)'
                is an EXTRA_ITEMS key with U+2212, and the hyphen fold asked about a name nothing knows. Unsorted from the
                repair is not a verdict on the original; ask the original bytes. */
@@ -40466,7 +40495,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           if (_fc && String(_fc) !== String(name)){
             _sugFolding = true;                       // one hop only; the fold target is on the roster
             try {
-              var _fs = suggestMule(String(_fc), opts);   // gh#235 — carry opts through the fuzzy fold hop too
+              var _fs = suggestMule(String(_fc), _hopOpts);   // gh#235 — carry opts through the fuzzy fold hop too
               /* REG-1913 — THE PLANNER'S OWN NAME IS NOT A MISREAD. "+ Add an item" files a pick under the planner's
                  display name, "Harlequin Crest (Shako)": the item, then its base in brackets. The fold lands it on
                  "Harlequin Crest" correctly, and this said "filed as a misread of" - telling him his own pick was a bad
@@ -40483,23 +40512,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         }
       }
     } catch(e){}
-    if (KEEP_IN_INVENTORY.test(_keepName(name))) return {id:'__keep', why:'keep in your inventory — only works on the character you are actively playing'};
     /* #211 — STANDING KIT RIDES ON HIS CHARACTER. MEASURED: suggestMule('Horadric Cube') -> uni-weap, and GrokBot saw "Tome of
        Identify ⚠ filed in UNI-WEAPONS". The board's ONE furniture list (the §29 law, _FURNITURE_WORDS / _FURNITURE_WHOLE,
        pinned to inventory_law) already names them; asked here on the EXACT name only - the list's bare 'tome' word would
        also match a real off-hand, so it is left to the lock that already uses it. */
-    try {
-      var _kitF = String(name || '').replace(/[‘’ʼ`]/g, "'").toLowerCase().replace(/\s+/g, ' ').trim();
-      var _kitL = (window._FURNITURE_WORDS || []).filter(function(w){ return w !== 'tome'; }).concat(window._FURNITURE_WHOLE || []);
-      if (_kitF && _kitL.indexOf(_kitF) >= 0)
-        return {id:'__keep', why:'standing kit — the Cube, your tomes, Wirt’s Leg and keys stay with your character, never a mule'};
-    } catch(eK){}
+    var _kept = _keepHome(name);
+    if (_kept) return _kept;
     /* gh#235 — his per-item shared switch (store/helpers defined above). Checked ('shared') beats the
        set/runeword/trade rules below so he can force anything in; keepers above still win (a charm
        cannot be forced to a stash it cannot use). Unchecked ('mule') makes the two shared branches
        below fall through to the item's normal mule / throw-out home. ignoreShareOverride lets
        _shareDefault ask the rules override-free, so it never recurses. */
     var _ov = (opts && opts.ignoreShareOverride) ? null
+              : (opts && opts._shareForceOut) ? 'mule'
+              : (opts && opts._shareForceIn) ? 'shared'
               : (typeof _shareOverride === 'function' ? _shareOverride(name) : null);
     if (_ov === 'shared') return {id:'shared', why:'your setting — kept in the shared stash'};
     /* #264 — war / swap gear goes to the SHARED stash every character can reach, ahead of the set, runeword and unique
@@ -65866,7 +65892,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3725', name:'v3725 - war stash checkbox fires', date:'2026-10-14', note:'the share panel onchange was cut short by the quotes JSON.stringify emits, so the checkbox was a dead handler on the live site; wrap the arg in esc so the quotes survive the double-quoted attribute and a real click writes the mule override. HEART: the render_check vault-share-settings target and the new v3725 click spec already watch this surface; a one-line attribute escape needs no new watcher.' };
+  window.D2R_BUILD = { id:'v3726', name:'v3726 - share override honored when a name folds', date:'2026-10-15', note:'a per-item share override was dropped for dashed and planner-label names because suggestMule folded the name and recursed before reading the override; read the outer override at the top and thread force-in and force-out through the hops, and hoist keepers and standing-kit above it. HEART: engine fix watched by the new v3726 folds spec and the render_check vault-share-settings target; no new watcher needed.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

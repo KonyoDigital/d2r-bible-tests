@@ -7,6 +7,26 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2214 - A SHARE OVERRIDE WAS DROPPED FOR DASHED / PLANNER-LABEL ITEM NAMES (2026-10-15, gh#235, v3726)
+
+The v3723 per-item share override (`_setShareOverride` → `d2r_vaultShareOverride`, keyed by `_keepName(name)`,
+which straightens apostrophes only) was SILENTLY IGNORED by `suggestMule`'s two fold hops for any name that
+folds: the byte fold (U+2013/U+2014/U+2212 → hyphen, ~40450) and the fuzzy/planner fold ("Harlequin Crest
+(Shako)" → "Harlequin Crest", ~40469) each RECURSE on the inner spelling and RETURN before the outer name's
+`_ov` is read (~40502). The inner call reads `_shareOverride(innerName)` — a different key — so the override
+was not seen and the item took its default (high-trade/war → shared). Found by the #231 Grok monitor AND the
+v3724 cold second-eye look (both named "the fold-key split"). **Fix (bible.html ~40391, engine only):** read
+the OUTER name's override at the TOP of suggestMule and thread force-in/force-out through the hop via
+`opts._shareForceIn`/`_shareForceOut`, so the recursion applies the outer name's setting; and HOIST the keeper
+(`KEEP_IN_INVENTORY`) + standing-kit (`_FURNITURE_*`) checks above everything (`_keepHome`) so a keeper/charm
+still wins over a force-in. `_shareDefault` stays override-free (no recursion). Preserves the byte-fold
+Sunder-charm null=shared return + REG-2080 Unsorted exception + the REG-1913 planner "filed as" message.
+**Coded by Grok CLI (coder seat); Claude eagle-eyed + CDP-verified RED/green independently** against the
+shipped-v3725 bytes: planner-label force-mule after=uni-weap (fix) vs shared (bug); force-in after=shared (fix)
+vs uni-armor (bug); Annihilus/Horadric Cube stay __keep both ways. **Guard:**
+`tests/v3726_vault_share_override_folds.spec.ts` (5 cases, synchronous evaluates — no async-render race per
+[[a-playwright-spec-races-an-async-rerender]]). [[the-unjoined-end]]
+
 ### REG-2213 - THE SHARED/WAR-STASH CHECKBOX HANDLER WAS DEAD ON THE LIVE SITE (2026-10-14, gh#235, v3725)
 
 The REG-2212 panel rendered each row's checkbox with
