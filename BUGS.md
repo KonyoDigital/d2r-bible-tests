@@ -7,6 +7,24 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2211 - A PER-ITEM SHARED/WAR-STASH SWITCH THE RULES DO NOT OVERRIDE (2026-10-14, gh#235)
+
+His ask: "a list within the console like advanced setting for vault.. so i can checkmark what should or
+should not be in the shared/war stash ... like war traveler.. eventually i dont want it there and might
+mule it.. so if i uncheck it it can remove it from the shared and mule it automatically". The war-gear
+(`warGearRole`) and high/vhigh-trade (`_itemValue`) rules in `suggestMule` are the DEFAULT; before this
+there was no way for him to keep ONE item out of (or into) the shared stash. **Fix (bible.html ~40460):**
+a `d2r_vaultShareOverride` store with `_shareOverride(name)` → 'shared' | 'mule' | null, `_shareDefault(name)`
+(the rules asked override-free via `suggestMule(name,{ignoreShareOverride:true})`, so it cannot recurse), and
+`_setShareOverride(name,want)` which persists an override ONLY when it DIFFERS from the rule default — so
+retuning the tiers still flows through to items he never touched. `suggestMule` gained `opts`; an early
+`_ov==='shared'` forces the shared stash (keepers still win above it), and the war-gear and high/vhigh
+branches gained `&& _ov !== 'mule'` so an unchecked item falls through to its normal mule. This ships the
+ENGINE; the checkmark panel (gh#235, v3724) is the UI half. **Law:** `tests/v3723_vault_share_override.spec.ts`
+(4 cases) pins the law through `_shareDefault` so it survives tier retuning. Seen RED via the CDP harness
+(scratchpad/share_override_probe.py): with the `_ov !== 'mule'` gate removed, unchecking War Traveler leaves
+it `shared`. Probe-verified: War Traveler default shared → uncheck → uni-armor; Andariel's Visage force → shared.
+
 ### REG-2209 - THE THEATRE T+ CLOCK JUMPED BY THE PRE-ROLL LENGTH AT THE RUN START (2026-10-14, #96)
 
 `_clockSay` (tv/control_ui.html) floored a wall-time before the run start to T+0:00, but measured a wall

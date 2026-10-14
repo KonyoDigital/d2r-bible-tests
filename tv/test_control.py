@@ -26986,7 +26986,7 @@ class TestV2124FilingAnItemDoesNotChangeWhereItBelongs(unittest.TestCase):
     def setUp(self):
         with io.open(os.path.join(os.path.dirname(HERE), "bible.html"), encoding="utf-8") as fh:
             board = fh.read()
-        self.body = _between(self, board, "function suggestMule(name){", "window.suggestMule",
+        self.body = _between(self, board, "function suggestMule(", "window.suggestMule",
                              what="suggestMule")
         self.code = re.sub(r"/\*.*?\*/", " ", self.body, flags=re.S)
         self.code = re.sub(r"(?m)^\s*//.*$", "", self.code)

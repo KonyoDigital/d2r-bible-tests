@@ -196,7 +196,7 @@ class HisAutoSortClickFillsTheMules(unittest.TestCase):
 RED_PROOF = [
     {"why": "REG-2019 - war gear routes to its runeword / unique mule again, a character switch away",
      "file": "bible.html",
-     "find": "    if (_war) return {id:'shared', why:'war gear: ' + _war + ' - in the shared stash, where every character can reach it'};\n",
+     "find": "    if (_war && _ov !== 'mule') return {id:'shared', why:'war gear: ' + _war + ' - in the shared stash, where every character can reach it'};\n",
      "replace": "",
      "matches": 1},
     {"why": "REG-2019 - the shared stash piles everything on its first tab again",

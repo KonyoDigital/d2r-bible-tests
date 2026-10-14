@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3722",
+  "ver": "v3723",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3722: REG-2208 a short shelf no longer slivers the opened reel card + REG-2209 the Theatre T+ clock no longer jumps by the pre-roll at the run start. HEART: each fix adds a law seen RED (the short-shelf sliver, the pre-roll clock jump) and re-anchors the sibling red-proof an edit orphaned.",
+  "note": "v3723: REG-2211 per-item shared/war-stash override ENGINE + guard (gh#235). REG-2210 (low-tier throw-out) DECOUPLED/parked for its own test reckoning. HEART: the override store d2r_vaultShareOverride has no writer until the v3724 checkmark panel; its corroborator (effective route vs rule-default+override) lands WITH that panel (heart-first: no corroborator for a dormant lane).",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

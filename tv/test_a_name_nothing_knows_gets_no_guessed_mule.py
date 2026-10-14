@@ -32,7 +32,7 @@ from console_safe import enable as _console_safe_enable  # noqa: E402
 _console_safe_enable()
 
 PAGE = os.path.join(os.path.dirname(HERE), "bible.html")
-START = "  function suggestMule(name){\n"
+START = "  function suggestMule(name, opts){\n"
 UNKNOWN = "    if (!base && !it && !itip && !_exIsCatalogue)\n      return {id:null, unsorted:true, why:"
 ARMOR = "    if (ARMOR_RE.test(probe))   return {id:'uni-armor', why:'armor slot — base: '+(base||'name match')};\n"
 PARK = "    return {id:'uni-weap', why: base ? 'weapon — base: '+base\n"

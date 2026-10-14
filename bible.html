@@ -40237,6 +40237,39 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   /* -> the role words, or null (not war gear) */
   function warGearRole(n){ var k = _warKey(n); return (k && Object.prototype.hasOwnProperty.call(WAR_GEAR, k)) ? WAR_GEAR[k] : null; }
   try { window.vaultWarGearRole = warGearRole; } catch(e){}
+  /* ══ #264 / gh#235 (2026-10-14) — HIS PER-ITEM SHARED-STASH SWITCH ════════════════════════════
+     His ask: "a list within the console like advanced setting for vault.. so i can checkmark what
+     should or should not be in the shared/war stash ... like war traveler.. eventually i dont want
+     it there and might mule it.. so if i uncheck it it can remove it from the shared and mule it".
+     The war-gear and high/vhigh-trade rules in suggestMule are the DEFAULT checkmark state; this
+     store lets him override ONE item. We persist an override ONLY when it DIFFERS from the rule
+     default, so retuning the rules still flows through to items he never touched. [[the-unjoined-end]] */
+  function _shareOvMap(){
+    try {
+      if (!window.__shareOvCache) window.__shareOvCache =
+        JSON.parse(localStorage.getItem('d2r_vaultShareOverride') || '{}') || {};
+      return window.__shareOvCache;
+    } catch(e){ return {}; }
+  }
+  /* -> 'shared' (force into the shared stash) · 'mule' (force out) · null (follow the rules) */
+  function _shareOverride(name){ var v = _shareOvMap()[_keepName(name)]; return (v === 'shared' || v === 'mule') ? v : null; }
+  /* what the RULES alone say — asked override-free so it cannot recurse into the override */
+  function _shareDefault(name){
+    try { var r = suggestMule(name, {ignoreShareOverride:true}); return (r && r.id === 'shared') ? 'shared' : 'mule'; }
+    catch(e){ return 'mule'; }
+  }
+  /* the UI toggle: want = 'shared' | 'mule' | 'auto'. Stores only when it DIFFERS from the rule
+     default; 'auto' or a want equal to the default clears the key. Returns the effective state. */
+  function _setShareOverride(name, want){
+    try {
+      var m = _shareOvMap(), k = _keepName(name), def = _shareDefault(name);
+      if (!want || want === 'auto' || want === def) delete m[k];
+      else m[k] = (want === 'shared') ? 'shared' : 'mule';
+      localStorage.setItem('d2r_vaultShareOverride', JSON.stringify(m));
+      return m[k] || def;
+    } catch(e){ return _shareDefault(name); }
+  }
+  try { window._shareOverride = _shareOverride; window._shareDefault = _shareDefault; window._setShareOverride = _setShareOverride; } catch(e){}
   var _sugFolding = false;   // v1958 re-entry guard, see below
   /* ══ v2198 — THE ROUTING UNIVERSE IS ITEM_REGISTRY (547), NOT THE CALCULATOR'S ITEMS (320) ══
      Konyo, measuring his own empty Vault Manager: "everywhere and anything that uses the items to
@@ -40336,7 +40369,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     } catch(e){ return { registry: 0, calculator: 0 }; }
   };
 
-  function suggestMule(name){
+  function suggestMule(name, opts){
     if (isSharedStash(name)) return null;
     /* v1958 \u2014 ROUTE A MISREAD BY THE ITEM IT IS A MISREAD OF.
        MEASURED, not suspected: tvVaultRegister('Battlecage') filed to UNI-WEAPONS, and Rattlecage
@@ -40441,10 +40474,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (_kitF && _kitL.indexOf(_kitF) >= 0)
         return {id:'__keep', why:'standing kit — the Cube, your tomes, Wirt’s Leg and keys stay with your character, never a mule'};
     } catch(eK){}
+    /* gh#235 — his per-item shared switch (store/helpers defined above). Checked ('shared') beats the
+       set/runeword/trade rules below so he can force anything in; keepers above still win (a charm
+       cannot be forced to a stash it cannot use). Unchecked ('mule') makes the two shared branches
+       below fall through to the item's normal mule / throw-out home. ignoreShareOverride lets
+       _shareDefault ask the rules override-free, so it never recurses. */
+    var _ov = (opts && opts.ignoreShareOverride) ? null
+              : (typeof _shareOverride === 'function' ? _shareOverride(name) : null);
+    if (_ov === 'shared') return {id:'shared', why:'your setting — kept in the shared stash'};
     /* #264 — war / swap gear goes to the SHARED stash every character can reach, ahead of the set, runeword and unique
        drawers (sets are not on the list, and KEEP_IN_INVENTORY above wins) */
     var _war = warGearRole(name);
-    if (_war) return {id:'shared', why:'war gear: ' + _war + ' - in the shared stash, where every character can reach it'};
+    if (_war && _ov !== 'mule') return {id:'shared', why:'war gear: ' + _war + ' - in the shared stash, where every character can reach it'};
     // v394 — KEEP only the genuinely good sets; the low/junk partial sets (Sigon's, Sander's, Hsarus',
     // Cleglaw's, Iratha's, Angelic, Arctic, Cathan's, Death's, Vidala's, Berserker's, Milabrega's, Isenhart's,
     // Civerb's, Infernal, Bul-Kathos, Cow King's, Tancred's…) are NOT worth muling — Konyo: identify them for
@@ -40530,7 +40571,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // trade value, from the maxroll tier data) route to SHARED — accessible by every character, trade-ready —
     // simultaneously with the rest going to their mule by slot. Runes/gems/materials are NOT here (own planners).
     var _tv = (typeof _itemValue === 'function') ? _itemValue(name) : '';
-    if (_tv === 'high' || _tv === 'vhigh') return {id:'shared', why:'high trade value — keep close in the shared stash'};
+    if ((_tv === 'high' || _tv === 'vhigh') && _ov !== 'mule') return {id:'shared', why:'high trade value — keep close in the shared stash'};
     /* ══ v2200 — THE OTHER DIRECTION, WHICH WAS NEVER WIRED ═════════════════════════════════
        Konyo: "the throwout need to be maybe be updated the database itself that way it knows to
        throwout from the start more then 88+ im pretty sure.. lots of items are garbage including
@@ -65739,7 +65780,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3722', name:'v3722 - shelf-sliver-clock-jump', date:'2026-10-14', note:'REG-2208 a short shelf no longer slivers the opened reel card + REG-2209 the Theatre T+ clock no longer jumps by the pre-roll at the run start. HEART: each fix adds a law seen RED (the short-shelf sliver, the pre-roll clock jump) and re-anchors the sibling red-proof an edit orphaned.' };
+  window.D2R_BUILD = { id:'v3723', name:'v3723 - shared/war-stash switch (engine)', date:'2026-10-14', note:'REG-2211 per-item shared/war-stash override ENGINE + guard (gh#235). REG-2210 (low-tier throw-out) DECOUPLED/parked for its own test reckoning. HEART: the override store d2r_vaultShareOverride has no writer until the v3724 checkmark panel; its corroborator (effective route vs rule-default+override) lands WITH that panel (heart-first: no corroborator for a dormant lane).' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
