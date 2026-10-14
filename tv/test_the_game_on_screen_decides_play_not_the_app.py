@@ -369,25 +369,25 @@ class TheLaneAsksThroughTheJudge(unittest.TestCase):
 
     def test_the_tick_asks_the_judge(self):
         got = self._captured("tick", ca._self_prove_tick)
-        self.assertIs(got.get("playing"), ca._sp_playing_here,
-                      "the ten-minute tick asks the process alone - Boosteroid open reads as playing again")
+        self.assertIs(got.get("playing"), ca._sp_yield_here,
+                      "the ten-minute tick must hand the yield judge (his game OR a sweep reading, REG-2192), not the process alone")
         self.assertIn("gameOnScreen", ca._SELF_PROVE, "the lane's status does not say what the screen showed")
 
     def test_the_guard_asks_the_judge(self):
         got = self._captured("guard", ca._self_prove_guard)
-        self.assertIs(got.get("playing"), ca._sp_playing_here,
-                      "the ten-second stand-aside asks the process alone - it and the tick disagree")
+        self.assertIs(got.get("playing"), ca._sp_yield_here,
+                      "the ten-second stand-aside must hand the yield judge (REG-2192), not the process alone - it and the tick disagree")
 
 
 RED_PROOF = [
     {"why": "REG-1666 - the ten-minute tick asks the process alone: Boosteroid open on its launcher reads as playing",
      "file": "control_app.py",
-     "find": "        r = _sp.tick(busy=_cpu_busy_pct, playing=_sp_playing_here)     # REG-1666 - the game on his screen\n",
+     "find": "        r = _sp.tick(busy=_cpu_busy_pct, playing=_sp_yield_here)     # REG-1666 game · REG-2192 a sweep too\n",
      "replace": "        r = _sp.tick(busy=_cpu_busy_pct)\n",
      "matches": 1},
     {"why": "REG-1666 - the ten-second stand-aside asks the process alone, so it and the tick disagree",
      "file": "control_app.py",
-     "find": "        r = _sp.guard(busy=_cpu_busy_pct, playing=_sp_playing_here)\n",
+     "find": "        r = _sp.guard(busy=_cpu_busy_pct, playing=_sp_yield_here)   # REG-2192 - yield to a sweep, not only his game\n",
      "replace": "        r = _sp.guard(busy=_cpu_busy_pct)\n",
      "matches": 1},
     {"why": "REG-1666 - a stale look is trusted: a dead watch keeps saying 'not on screen' while he plays",
