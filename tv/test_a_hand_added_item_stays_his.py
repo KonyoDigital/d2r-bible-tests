@@ -1006,20 +1006,26 @@ process.stdout.write(JSON.stringify({
             "SHARED STASH stays. It cannot be deleted, and its items do not return to the dock.",
             s)
         self.assertIn(
-            "m.id==='shared' ? '' : '<button class=\"vm-tool\" onclick=\"event.stopPropagation();window.vaultDeleteMule(",
-            s)
+            "(_vmAddedMule(m) ? '<button class=\"vm-tool\" onclick=\"event.stopPropagation();window.vaultDeleteMule(",
+            s)  # REG-2195 — the shelf offers delete only for a mule he added
+        added = _cut(s, "  function _vmAddedMule(m){", "  window.vaultDeleteMule = async function(id){\n")
         fn = _cut(s, "  window.vaultDeleteMule = async function(id){\n",
                   "  window.vaultReset = async function(){\n")
         prog = (
             "var window = globalThis;\n"
-            "var roster = [{id:'shared', name:'SHARED STASH'}, {id:'wip', name:'WIP'}];\n"
+            # REG-2195 — a deletable mule is one he ADDED (added:true / mint id). WIP is the deletable
+            # stand-in. SHARED also carries added:true ON PURPOSE: it isolates the `id==='shared'` early
+            # return as the SOLE thing refusing it, so the RED_PROOF that removes that line can go red —
+            # without added:true the `!_vmAddedMule` guard masks the shared guard and the proof is BLIND.
+            # It proves a stronger law too: shared is refused even if it looked like an added mule.
+            "var roster = [{id:'shared', name:'SHARED STASH', added:true}, {id:'wip', name:'WIP', added:true}];\n"
             "var assign = { Grief: 'shared', Shako: 'wip' };\n"
             "function muleById(id){ return roster.find(function(m){ return m.id===id; }); }\n"
             "var asked = [];\n"
             "function uiConfirm(msg){ asked.push(msg); return Promise.resolve(true); }\n"
             "function saveR(){}\nfunction saveA(){}\nfunction renderVault(){}\n"
             "function _provAll(){ return {}; }\nfunction _provWrite(){}\n"
-            + fn
+            + added + fn
             + "Promise.resolve().then(function(){ return window.vaultDeleteMule('shared'); })"
             ".then(function(){ return window.vaultDeleteMule('wip'); })"
             ".then(function(){ process.stdout.write(JSON.stringify({"
@@ -1188,8 +1194,9 @@ process.stdout.write(JSON.stringify({
         s = _src()
         find = _cut(s, "  window.vaultFind = function(q){\n", "  // ── render ──\n")
         where = _cut(s, "  function _vaultWhereIs(n){\n", "  window._vaultWhereIs = _vaultWhereIs;\n", keep_b=True)
+        matcher = _cut(s, "  var _VF_ALIAS = { soj:'stone of jordan',", "  window._vaultFindMatches = _vaultFindMatches;\n", keep_b=True)
         self.assertEqual(find.count("Object.keys(magicFinds)"), 1)
-        self.assertEqual(find.count("return n.toLowerCase().indexOf(q) !== -1;"), 1)
+        self.assertEqual(find.count("_vaultFindMatches(pool, q)"), 1)  # REG-2194 — FIND delegates to the ranked matcher
         self.assertEqual(where.count("pg.kind === 'keep'"), 1)
         self.assertEqual(where.count("mid = 'magic-rare'"), 1)
         if not NODE:
@@ -1218,7 +1225,7 @@ process.stdout.write(JSON.stringify({
             "  if (nm === 'Enigma') return { ok: true, kind: 'mule', id: 'shared', home: 'SHARED STASH', why: 'war gear' };\n"
             "  return { ok: false };\n"
             "};\n"
-            + where + "\n" + find + "\n"
+            + matcher + "\n" + where + "\n" + find + "\n"
             "window.vaultFind('charm'); var charm = box.innerHTML;\n"
             "window.vaultFind('shako'); var shako = box.innerHTML;\n"
             "window.vaultFind('tal'); var tal = box.innerHTML;\n"
