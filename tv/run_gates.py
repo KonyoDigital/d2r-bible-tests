@@ -7847,6 +7847,15 @@ GATES = [
              "is the load-bearing half: his real tooltip is 33.4% of the frame, the impostor "
              "2.8%. These cases pin the growth, the refusals, and that a located-but-unjudged "
              "tooltip counts in NEITHER side of the Wilson ledger."),
+    Gate("test_a_1440_tooltip_joins_the_panel",
+         [sys.executable, os.path.join(HERE, "test_a_1440_tooltip_joins_the_panel.py")], 120,
+         why="TASK 54 — a KAI judge row filed names_loc None because the 8% tooltip floor, "
+             "measured at 2560x1665, refused a legible tooltip at 1440x936 (one or two tiles, "
+             "2.8–5.6%), and _kai_compile_register never joined the rect to a panel. The floor "
+             "scales with the capture so that cluster is admitted and the calibration-size HUD "
+             "stays refused. Left panel writes 'stash', right panel writes 'on him' (inventory, "
+             "slot unknown), a missing or evenly-split rect stays None, and a place the row "
+             "already stated is kept. Driven on a fixture through locate() and the compile."),
     Gate("test_retro_gate", [sys.executable, os.path.join(HERE, "test_retro_gate.py")], 60,
          why="v2320 — THE RETRO ACCURACY GATE. A focused MINI bypasses the witness rule because he AIMED it, which removes the lane's only accuracy mechanism; this replaces it on the FIRST look by grading every read on WHAT it named, WHERE it placed it and HOW it read it. It also resolves a garble that shares a frame with a clean name to that name, and separates stat lines from item names — both proven on his own 2026-08-30 frames."),
     Gate("test_slot_identity", [sys.executable, os.path.join(HERE, "test_slot_identity.py")], 60,

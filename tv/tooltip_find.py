@@ -31,7 +31,69 @@ import os
 DEFAULT_COLS = 6
 DEFAULT_ROWS = 6
 _MIN_LINE_CHARS = 3
-_MIN_AREA_FRAC = 0.08   # far below his real 33%, far above the 2.8% HUD impostor
+# The floor MEASURED at 2560x1665: a real tooltip is 33% of that frame, the HUD
+# impostor is 2.8%, and 8% sits between them. It is the floor at THAT capture.
+# area_floor() scales it. A fixed 8% refused 4 of 4 Session-1 frames at 1440x936,
+# where the same tooltip is one or two tiles (2.8% or 5.6%).
+_CAL_W, _CAL_H = 2560, 1665
+_MIN_AREA_FRAC = 0.08
+
+
+def area_floor(width, height):
+    """Fraction of the frame a text cluster must cover before it is a tooltip.
+
+    Scales with the capture's area against 2560x1665, where the floor is 8%.
+    At 1440x936 that is ~2.5%, under the one-tile tooltip (2.8%) and over a
+    half-tile speck. It never rises above 8%: a larger capture does not demand
+    a bigger fraction. A cluster under half a tile of the 6x6 sweep is noise
+    at every size.
+    """
+    try:
+        w, h = int(width), int(height)
+    except (TypeError, ValueError):
+        return _MIN_AREA_FRAC
+    if w <= 0 or h <= 0:
+        return _MIN_AREA_FRAC
+    floor = _MIN_AREA_FRAC * (float(w * h) / float(_CAL_W * _CAL_H))
+    if floor > _MIN_AREA_FRAC:
+        floor = _MIN_AREA_FRAC
+    noise = 0.5 / float(DEFAULT_COLS * DEFAULT_ROWS)
+    if floor < noise:
+        floor = noise
+    return floor
+
+
+def place_of(rect, frame_w, frame_h=None):
+    """Which panel this tooltip rect sits on. -> 'stash' | 'on him' | None
+
+    The two panels he opens together split at the frame's midline: the stash
+    on the left, the paper doll and the inventory on the right. A tooltip draws
+    above or below its slot, so the right panel cannot say worn from carried.
+    'on him' is that place, and the slot stays unknown. A rect that is missing,
+    or that covers both sides equally, is None — never a guess.
+    """
+    if not rect or frame_w is None:
+        return None
+    try:
+        x, w, W = float(rect[0]), float(rect[2]), float(frame_w)
+    except (TypeError, ValueError, IndexError):
+        return None
+    if frame_h is not None:
+        try:
+            if float(frame_h) <= 0:
+                return None
+        except (TypeError, ValueError):
+            return None
+    if w <= 0 or W <= 0:
+        return None
+    mid = W / 2.0
+    left = max(0.0, min(x + w, mid) - max(x, 0.0))
+    right = max(0.0, min(x + w, W) - max(x, mid))
+    if left > right and left > 0:
+        return "stash"
+    if right > left and right > 0:
+        return "on him"
+    return None
 
 
 def _ocr():
@@ -141,13 +203,16 @@ def locate(frame_path, cols=DEFAULT_COLS, rows=DEFAULT_ROWS, tmp_dir=None, reade
     #     the HUD false positive          490 x  318  =   2.8% of the frame
     # A tooltip carries a name, a base, and six to twelve stat lines; it cannot be small. So the
     # floor sits far below the real one and far above the impostor, and anything between them is
-    # refused rather than guessed. [[feedback-threshold-above-the-ceiling]] — the inverse: a
-    # threshold nothing can fall between is the one worth having.
+    # refused rather than guessed. That 8% is the floor at 2560x1665. area_floor() scales it
+    # with the capture, so a one-tile tooltip at 1440x936 (2.8% of that frame) is admitted
+    # and this HUD box, at the size it was measured, is still refused.
+    # [[feedback-threshold-above-the-ceiling]] [[pixel-constants-at-one-capture-size]]
     frac = float(rect[2] * rect[3]) / float(max(1, W * H))
-    if frac < _MIN_AREA_FRAC:
-        return None, ("the densest text is only %.1f%% of the frame (floor %.0f%%) — that is game "
+    floor = area_floor(W, H)
+    if frac < floor:
+        return None, ("the densest text is only %.1f%% of the frame (floor %.1f%% at %dx%d) — that is game "
                       "chrome, not a tooltip. Measured: his real tooltip covers 33%%, the top-right "
-                      "HUD box covers 2.8%%." % (frac * 100, _MIN_AREA_FRAC * 100))
+                      "HUD box covers 2.8%%." % (frac * 100, floor * 100, W, H))
     return rect, None
 
 

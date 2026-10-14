@@ -11602,13 +11602,119 @@ def _kai_sighting_leaves(loc, scene):
     return s in ("loot", "vendor", "trade")
 
 
+def _kai_frame_file(row):
+    """The frame file for a kai row, or None.
+
+    An explicit framePath/frame wins. Otherwise the row's frameId is tried as the
+    one or two paths the shelf already uses (reel_<sid>/f_<ms>.jpg and the bare
+    spelling). A miss is None. This does not walk the shelf.
+    """
+    if not isinstance(row, dict):
+        return None
+    for key in ("framePath", "frame"):
+        p = row.get(key)
+        if isinstance(p, str) and p and os.path.isfile(p):
+            return p
+    fid = str(row.get("frameId") or "").strip()
+    if not fid:
+        return None
+    try:
+        for p in _hist_frame_paths(fid):
+            if p and os.path.isfile(p):
+                return p
+    except Exception:
+        pass
+    try:
+        import equipped_ledger as _el
+        p = _el.frame_path(HIST_DIR, row.get("sessionId"), fid.split("/")[-1])
+        if p and os.path.isfile(p):
+            return p
+    except Exception:
+        pass
+    return None
+
+
+def _kai_tooltip_place(row):
+    """The panel a kai row's tooltip sits on. -> 'stash' | 'on him' | None
+
+    A rect already on the row is used. Otherwise the row's own frame file is
+    located (tooltip_find.locate). Left panel = stash. Right panel = 'on him'
+    (inventory, slot unknown). Not located, or split evenly across the midline,
+    is None.
+    """
+    if not isinstance(row, dict):
+        return None
+    rect = row.get("tooltipRect")
+    fw, fh = row.get("frameW"), row.get("frameH")
+    if rect is None:
+        path = _kai_frame_file(row)
+        if not path:
+            return None
+        try:
+            import tooltip_find as _tf
+            reader = row.get("tooltipReader")
+            rect, _why = _tf.locate(path, reader=reader if callable(reader) else None)
+            if rect is not None and not (fw and fh):
+                from PIL import Image
+                im = Image.open(path)
+                try:
+                    fw, fh = im.size
+                finally:
+                    im.close()
+        except Exception:
+            return None
+    if not rect or not fw or not fh:
+        return None
+    try:
+        import tooltip_find as _tf
+        return _tf.place_of(rect, fw, fh)
+    except Exception:
+        return None
+
+
+def _kai_stamp_tooltip_loc(row):
+    """Write names_loc on a kai row from the tooltip's panel.
+
+    The judge name and any grounded names share the one tooltip. A place the
+    row already stated is kept. Not located writes nothing.
+    """
+    if not isinstance(row, dict) or row.get("lane") != "kai":
+        return
+    k = row.get("kai")
+    if not isinstance(k, dict):
+        return
+    names = []
+    j = k.get("judge")
+    if isinstance(j, dict) and j.get("name"):
+        names.append(j.get("name"))
+    for gm in (k.get("grounded") or []):
+        if gm:
+            names.append(gm)
+    if not names:
+        return
+    loc = _kai_tooltip_place(row)
+    if not loc:
+        return
+    nl = row.get("names_loc")
+    if not isinstance(nl, dict):
+        nl = {}
+    wrote = False
+    for n in names:
+        if n and not nl.get(n):
+            nl[str(n)] = loc
+            wrote = True
+    if wrote:
+        row["names_loc"] = nl
+
+
 def _kai_compile_register(sess_rows):
     """v943 — the session's REGISTERABLE ITEMS: union of every deep-read name and every
     KAI judge verdict tiered grail/keep/border, filtered to real DB items (_kai_fullnames)
     minus anchors + noise. One record per unique name, earliest sighting wins.
     Record: {name, firstSeenTs, frameId, loc, tier, scene} + the best HOLDING sighting (heldLoc/heldScene/heldFrame/
     heldTs) + H3 the LATEST sighting that places the item (latestLoc/latestScene/latestFrame/latestTs), each one
-    tuple from one frame. Pure — no side effects."""
+    tuple from one frame. A kai row is the one write: its tooltip rect is joined to a panel and
+    names_loc is filled in (left = stash, right = 'on him', not located = left unset)."""
     fulln = _kai_fullnames()
     reg = {}   # name.lower() -> record
     # H1 — the board's holding lanes, asked once per compile (None = UNKNOWN: nothing is promoted as held)
@@ -11777,6 +11883,10 @@ def _kai_compile_register(sess_rows):
     for r in sess_rows:
         ts = int(r.get("ts") or r.get("captureTs") or 0)
         fid = str(r.get("frameId") or "")
+        # The judge row is a tooltip parse and carries no place. Join the rect to
+        # the panel BEFORE names_loc is read, or the register keeps loc None.
+        if isinstance(r, dict) and r.get("lane") == "kai":
+            _kai_stamp_tooltip_loc(r)
         nl = r.get("names_loc") if isinstance(r.get("names_loc"), dict) else {}
         if r.get("lane") == "deep":
             # v948 — prefer names_new (session sticky); fall back to full names for old journals

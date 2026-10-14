@@ -84,13 +84,18 @@ class TestItFindsTheDenseTextRegion(unittest.TestCase):
         self.assertIn("below the", why)
 
     def test_a_SMALL_dense_box_is_refused_as_game_chrome(self):
-        """The HUD false positive: one tile of dense text in a corner. Real tooltips are big."""
+        """The HUD false positive, at the capture it was measured on (2560x1665).
+
+        One corner tile there is 6.25% of a 4x4 sweep, under the 8% floor. At
+        1440x936 a tile that small can be the tooltip; that case is a different law.
+        """
         import tempfile
         grid = [[0, 0, 0, 0],
                 [0, 0, 0, 0],
                 [0, 0, 0, 0],
                 [0, 0, 0, 40]]
-        rect, why = TF.locate(_frame(tempfile.mkdtemp()), cols=4, rows=4, reader=_fake(grid))
+        rect, why = TF.locate(_frame(tempfile.mkdtemp(), w=2560, h=1665), cols=4, rows=4,
+                              reader=_fake(grid))
         self.assertIsNone(rect, "a single corner tile was accepted as a tooltip")
         self.assertIn("chrome", why)
         self.assertIn("33", why, "the refusal does not cite the measurement it is based on")
