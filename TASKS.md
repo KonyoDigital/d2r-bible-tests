@@ -1740,7 +1740,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3721** | `(this commit)` | v3721 — REG-2206 unique/set footprint from fixed base (GrokBot batch T) + REG-2207 keeper charms stay out of the deletable dock (#109 E5) |
+| **v3722** | `(this commit)` | v3722 — REG-2208 a short shelf no longer slivers the opened reel card + REG-2209 the Theatre T+ clock no longer jumps by the pre-roll at the run start. HEART: each fix adds a law seen RED (the short-shelf sliver, the pre-roll clock jump) and re-anchors the sibling red-proof an edit orphaned. |
+| **v3721** | `b9d35e8a` | v3721 — REG-2206 unique/set footprint from fixed base (GrokBot batch T) + REG-2207 keeper charms stay out of the deletable dock (#109 E5) |
 | **v3720** | `f1e350cb` | v3720 — REG-2191 a curly Gheeds stays a keeper · REG-2193 magic cell real footprint · REG-2194 FIND abbreviations and ranking · REG-2195 core lockers not deletable · REG-2192 self-prove yields to a sweep |
 | **v3719** | `5788a57c` | v3719 — REG-2184 the Integrity fix keeps the home · REG-2185 a planner pick never writes over a record he has · REG-2186 a shadow visit writes nothing into this PC |
 | **v3718** | `6b9e559b` | v3718 — Annihilus, Hellfire Torch and Gheeds Fortune are drawn and stay with MAIN. A charm registered in Magic and Rare is found. HEART: tv/test_a_hand_added_item_stays_his.py |
