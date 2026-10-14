@@ -394,6 +394,8 @@ class RosterPublishStaysOffTheBeacon(unittest.TestCase):
             src = fh.read()
         self.assertEqual(src.count("target=_roster_fetch_loop"), 1)
         fetch = src.split("def _roster_fetch_once(", 1)[1].split("def _roster_fetch_loop", 1)[0]
+        self.assertIn("_beacon_suppressed_by()", fetch,
+                      "REG-2203 (#99): a suppressed console (CI, harness, scratch) must not fetch the live site every 5 min — the same guard _roster_publish_once keeps")
         self.assertEqual(fetch.count("write_cache("), 1)
         self.assertEqual(fetch.count("cache_views("), 1)
         self.assertEqual(fetch.count("if views is None:"), 1)
@@ -642,6 +644,11 @@ console.log(JSON.stringify({ real: REAL, during: during }));
         self.assertEqual(RP._age_state(now - 3 * 3600 * 1000, now), "stale")
 
 RED_PROOF = [
+    {"why": "REG-2203 (#99): _roster_fetch_once drops its beacon-suppression guard, so a suppressed console (CI, harness, scratch) fetches the live site every 5 min",
+     "file": "control_app.py",
+     "find": "    held = _beacon_suppressed_by()\n    if held:\n        _roster_fetch_remember(\"suppressed: \" + str(held)[:160])\n        return\n",
+     "replace": "",
+     "matches": 1},
     {"why": "REG-2201 (#99): _age_state drops its future-clock check, so a reading stamped ahead of now reads 'current' / 'under 1 min ago' again",
      "file": "roster_publish.py",
      "find": "    if as_of - now_ms > 60000:\n        return \"unknown\"\n",

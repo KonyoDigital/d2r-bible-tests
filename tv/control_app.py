@@ -4764,6 +4764,13 @@ def _roster_get(url):
 def _roster_fetch_once():
     """Read every owner's roster into this PC's cache. Never a ledger write."""
     import roster_publish as _rp
+    # REG-2203 (#99) — a suppressed console (CI, a harness, a scratch console) must not reach the
+    # live site every five minutes, the same guard _roster_publish_once keeps. Beacon suppression
+    # is the one switch that says "this is not one of his consoles"; both doors honour it.
+    held = _beacon_suppressed_by()
+    if held:
+        _roster_fetch_remember("suppressed: " + str(held)[:160])
+        return
     got = _roster_get("https://bull-4-u.com/api/roster")
     if not isinstance(got, dict) or got.get("ok") is not True:
         why = got.get("why") if isinstance(got, dict) else "the roster fetch failed"

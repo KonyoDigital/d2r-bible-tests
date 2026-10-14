@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2203 - A SUPPRESSED CONSOLE FETCHED THE LIVE ROSTER EVERY 5 MIN (2026-10-14, #99)
+
+`_roster_fetch_once` GET bull-4-u.com/api/roster with no `_beacon_suppressed_by()` guard, while its
+sibling `_roster_publish_once` has always had one. So a CI runner, a test harness, or a scratch
+console — every world beacon-suppression marks as "not one of his" — hit the live site on the 300 s
+fetch loop. Added the same guard: a suppressed console remembers "suppressed: <why>" and never
+fetches. [[test-venue]] Law: `test_the_fetch_loop_stamps_its_tick_and_stays_off_the_beacon`
+(red-proof drops the guard, seen RED).
+
 ### REG-2202 - A FLAKY PUSH GATE: THE BACKUP-LOOP DOCTOR CHECK WAS IN THE CHEAP SUBSET (2026-10-14, #124)
 
 `_check_the_backup_loop_is_actually_WRITING` GETs /api/status, measured 11.6s COLD (0.26s warm),
