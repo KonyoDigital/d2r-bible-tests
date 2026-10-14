@@ -65,6 +65,12 @@ _MARKER = "SECOND-EYE"
 #: that names the failing scenario.
 _FIELDS = ("version", "sha", "verdict", "model", "chars", "reach", "not shown", "findings")
 
+#: single-VALUE fields: one line, never the look body that follows. An unlisted line between one
+#: of these and the next known field (e.g. `range:` under `model:`) used to make the DOTALL capture
+#: below swallow the whole comment, so family_of saw a sentence naming two families and returned
+#: None — the #182 corroboration hole. reach / not shown / findings stay multi-line on purpose.
+_SINGLE_LINE = ("version", "sha", "verdict", "model")
+
 
 def parse_comment(body):
     """One SECOND-EYE comment -> dict, or None when it is not one. Never raises.
@@ -82,7 +88,12 @@ def parse_comment(body):
         others = "|".join(re.escape(f) for f in _FIELDS if f != name)
         m = re.search(r"^%s:[ \t]*(.*?)(?=^(?:%s):|\Z)" % (re.escape(name), others),
                       text, re.MULTILINE | re.DOTALL)
-        out[name] = (m.group(1).strip() or None) if m else None
+        val = m.group(1).strip() if m else None
+        if val and name in _SINGLE_LINE:
+            val = val.splitlines()[0].strip()           # one line, never the body that follows
+        if val and name == "model":
+            val = val.split("(")[0].strip()             # a model id has no "("; drop a trailing note
+        out[name] = val or None
     if not out.get("version"):
         return None                       # a look that cannot name its version cannot be filed
     return out

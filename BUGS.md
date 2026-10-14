@@ -7,6 +7,23 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2197 - THE SECOND-EYE DRAIN SWALLOWED A LOOK'S BODY INTO ITS model FIELD, SO 11 ROWS HAD NO FAMILY (2026-10-14, #182)
+
+The #231 drain's `parse_comment` captured each `field: value` up to the next KNOWN field, DOTALL.
+A monitor look writes `range:` and its body under `model:`, and `range` is not a known field, so
+`model` swallowed the whole look — `grok-4.7\nrange: …\nCo-authored by Claude. …`. `family_of`
+then saw a sentence naming TWO families (grok in the body, claude in the by-line) and returned
+None by the anti-laundering rule, so 11 drained #231 rows carried `family: None` and `agreement()`
+could not tell a cross-family corroboration from the same eye asked twice (the #182 hole). It was
+ALREADY RED untampered in the prove sandbox and refused the v3720 push; hidden until now because
+the Grok week shipped v3638→v3718 with `--no-verify`. Fix: single-VALUE fields
+(version/sha/verdict/model) take ONE line, and a model id drops a trailing `(cross-family …)` note;
+reach/not shown/findings stay multi-line. The 11 stored rows were repaired in place from each
+model's clean leading id (2 claude → anthropic, 9 grok-4.7 → xai), re-derivable from the comment,
+ledger backed up first. Law: `test_a_look_on_github_is_not_a_look_in_the_ledger`
+(a new guard _REAL could not catch — its `model:` is followed by a known field — plus 2 red-proofs,
+both seen RED).
+
 ### REG-1550 - THE CHILD SUPERVISOR WOULD HAVE ENDED THE CONSOLE'S OWN LIVE WORKERS, AND FOUR MORE ROADS TO A KILL IT COULD NOT PROVE WAS OURS (2026-09-30)
 
 **Found** verifying #83 (REG-1515) before it landed, by driving `child_guard.classify_unrecorded` - pure, it kills

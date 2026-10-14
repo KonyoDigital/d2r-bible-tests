@@ -60,6 +60,29 @@ class AGitHubLookBecomesALedgerRow(unittest.TestCase):
         self.assertIn("registry maximum", got["findings"],
                       "a multi-line findings block was truncated: %r" % (got["findings"],))
 
+    def test_the_model_line_does_not_swallow_the_body_that_follows(self):
+        """#182 — a monitor look puts `range:` and its body under `model:`, and `range` is not a
+        known field, so the DOTALL capture used to swallow the whole look into `model`; family_of
+        then saw a sentence naming two families and returned None (11 drained rows had no family).
+        The model is ONE line, and its id drops a trailing cross-family note. _REAL cannot catch
+        this — its `model:` is followed immediately by `chars:`, a known field."""
+        grok = ("SECOND-EYE\nversion: v9\nsha: abc\nverdict: clean\n"
+                "model: grok-4.7\nrange: this commit only. Co-authored by Claude.\n\n"
+                "findings: none.\n")
+        got = D.parse_comment(grok)
+        self.assertEqual(got["model"], "grok-4.7",
+                         "the model line swallowed the body that follows it: %r" % (got["model"],))
+        self.assertEqual(L.family_of(got["model"]), "xai")
+        self.assertEqual(got["findings"], "none.",
+                         "the single-line fix must not truncate a multi-line findings block")
+        cf = ("SECOND-EYE\nversion: v9\nsha: abc\nverdict: clean\n"
+              "model: claude (cross-family: the author seat was Grok CLI)\nrange: one commit.\n\n"
+              "findings: none.\n")
+        gc = D.parse_comment(cf)
+        self.assertEqual(gc["model"], "claude",
+                         "a cross-family note stayed on the model id: %r" % (gc["model"],))
+        self.assertEqual(L.family_of(gc["model"]), "anthropic")
+
     def test_a_comment_that_is_not_a_look_is_not_a_look(self):
         self.assertIsNone(D.parse_comment("just a normal comment about the weather"))
         self.assertIsNone(D.parse_comment(""))
@@ -351,6 +374,20 @@ if __name__ == "__main__":
 
 
 RED_PROOF = [
+    {
+        "why": "#182 — the model line swallows the body again: a single-value field DOTALL-captures past its own line, so family_of sees two families (grok in the body, claude in 'Co-authored by') and returns None",
+        "file": "tv/second_eye_drain.py",
+        "find": "        if val and name in _SINGLE_LINE:\n            val = val.splitlines()[0].strip()           # one line, never the body that follows\n",
+        "replace": "        if val and name in _SINGLE_LINE and False:\n            val = val.splitlines()[0].strip()           # one line, never the body that follows\n",
+        "matches": 1,
+    },
+    {
+        "why": "#182 — a cross-family model id keeps its '(note)', so 'claude (cross-family: … Grok …)' reads as two families and resolves to None",
+        "file": "tv/second_eye_drain.py",
+        "find": "        if val and name == \"model\":\n            val = val.split(\"(\")[0].strip()             # a model id has no \"(\"; drop a trailing note\n",
+        "replace": "        if val and name == \"model\" and False:\n            val = val.split(\"(\")[0].strip()             # a model id has no \"(\"; drop a trailing note\n",
+        "matches": 1,
+    },
     {
         "why": "v3553 - the drain keeps no words of a clean look again (findings only)",
         "file": "tv/second_eye_drain.py",
