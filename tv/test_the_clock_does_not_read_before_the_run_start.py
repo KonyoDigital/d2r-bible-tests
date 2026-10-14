@@ -94,6 +94,20 @@ class TheClockDoesNotReadBeforeTheRunStart(unittest.TestCase):
         self.assertTrue(no_start.startswith("T+0:03.704 · "), no_start)
         self.assertNotEqual(no_start, early)
 
+    def test_a_pre_roll_origin_does_not_jump_T_plus_at_the_start(self):
+        # #96 — the film axis opens 10s before the run start (a pre-roll frame), so origin < start AND
+        # the wall is AT/AFTER the start. The old law only tested origin==start, so it was blind to the
+        # jump: at HEAD T+ read 0:00 on the pre-roll frame then 0:10 the instant the run began. T+ must
+        # be measured from the run start and climb from 0 there.
+        start = 1750000000000
+        origin = start - 10000
+        at_start, after = _say([
+            [start, origin, start],
+            [start + 5000, origin, start],
+        ])
+        self.assertTrue(at_start.startswith("T+0:00.000 · "), at_start)
+        self.assertTrue(after.startswith("T+0:05.000 · "), after)
+
     def test_the_theatre_clock_asks_the_one_sentence(self):
         s = _src()
         self.assertEqual(s.count("function _clockSay(wallTs, origin, runStart){"), 1)
@@ -116,6 +130,13 @@ RED_PROOF = [
         "file": "tv/control_ui.html",
         "find": "    el.textContent = _clockSay(wallTs, origin, meta.t0) + modeTag;\n",
         "replace": "    el.textContent = 'T+0:03.704 · ' + new Date(wallTs).toLocaleTimeString() + modeTag;\n",
+        "matches": 1,
+    },
+    {
+        "why": "#96 (REG-2162 returns) - a pre-roll film origin jumps T+ by the pre-roll length at the start",
+        "file": "tv/control_ui.html",
+        "find": "    var relFrom = (start > 0) ? start : ((org > 0) ? org : wall);\n",
+        "replace": "    var relFrom = (org > 0) ? org : wall;\n",
         "matches": 1,
     },
 ]

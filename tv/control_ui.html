@@ -17077,15 +17077,20 @@ window._lockMark = function(isOpen, px, label){
        earlier than meta.t0 while T+ has already moved. A known run start is
        the floor. A wall before that start is not printed: the clock reads
        T+0:00.000 and the start. A wall at the start still prints T+0:00.000
-       and that time. A later wall keeps T+ from the film origin. A missing
-       wall stays UNKNOWN and does not borrow the start. A missing start is
-       not invented: T+ is measured from the film origin and the wall prints. */
+       and that time. A later wall measures T+ from the RUN START, so a pre-roll
+       film origin cannot jump T+ at the start (#96). A missing wall stays UNKNOWN
+       and does not borrow the start. A missing start is not invented: only then is
+       T+ measured from the film origin, and the wall prints. */
     var wall = +wallTs;
     if (!(wall > 0)) return 'T+UNKNOWN · —';
     var start = +runStart;
     var org = +origin;
     var shown = wall;
-    var relFrom = (org > 0) ? org : wall;
+    /* #96 (REG-2162 returns) — T+ is measured from the RUN START when one is known, so a pre-roll
+       film origin (org < start) cannot make T+ jump by the pre-roll length AT the start: it read
+       T+0:00 on the pre-roll frame and then T+0:10 the instant the run began. The film origin is the
+       T+0 reference only when NO run start is known. */
+    var relFrom = (start > 0) ? start : ((org > 0) ? org : wall);
     if (start > 0 && shown < start){
       shown = start;
       relFrom = start;

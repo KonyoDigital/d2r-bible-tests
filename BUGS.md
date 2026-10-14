@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2209 - THE THEATRE T+ CLOCK JUMPED BY THE PRE-ROLL LENGTH AT THE RUN START (2026-10-14, #96)
+
+`_clockSay` (tv/control_ui.html) floored a wall-time before the run start to T+0:00, but measured a wall
+AT or after the start from the FILM ORIGIN (`relFrom = org`). When the film axis opens on a pre-roll
+frame (origin < start), the clock read T+0:00.000 on the pre-roll frame and then JUMPED to T+0:10.000
+the instant the run began (Session 175 ≈ T+0:09.7). Reproduced in node (origin = start − 10s): pre-roll
+T+0:00, AT start T+0:10 (jump), start+5s T+0:15. The existing law was BLIND — every case used
+origin==start, never the pre-roll scenario. **Fix (tv/control_ui.html):** T+ is measured from the RUN
+START when one is known (`relFrom = (start > 0) ? start : ((org > 0) ? org : wall)`); the film origin is
+the T+0 reference only when no start is known. After: pre-roll 0:00, AT start 0:00 (no jump), start+5s
+0:05. **Law:** `test_the_clock_does_not_read_before_the_run_start.py::test_a_pre_roll_origin_does_not_jump_T_plus_at_the_start`
+drives the shipped function with origin < start and asserts 0:00 at the start, 0:05 after. Seen RED by
+the HEAD repro; the #96 red-proof reverts `relFrom` to the film origin and the jump returns.
+
 ### REG-2208 - A SHORT SHELF CLAMPED THE OPENED REEL CARD TO A SLIVER TO KEEP THE HIGHLIGHT ROW (2026-10-14, #98)
 
 `_shOpenScroll` (tv/control_ui.html) scrolls an opened reel card into view and tries to keep the
