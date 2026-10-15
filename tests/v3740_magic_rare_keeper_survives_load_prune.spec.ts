@@ -24,7 +24,7 @@ import { test, expect } from '@playwright/test';
 
 const KEEPER_RARE  = 'Blood Scarab';                   // a rolled rare jewel — no catalogue knows it (grep: 0 in bible.html)
 const KEEPER_MAGIC = 'Shimmering Small Charm of Vita'; // a rolled magic charm — no catalogue knows it
-const CONTROL      = 'Stone of Jordan';                // a real grail unique — must survive the prune
+const CONTROL      = 'The Stone of Jordan';            // a real grail unique (catalogue keys it WITH "The") — must survive the prune
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(({ kr, km, ctrl }) => {

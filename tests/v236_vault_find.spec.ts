@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 
 // v236 — vault item finder. A search box in the vault: type an item name → which
 // alt (mule) holds it. Searches everything ✓ owned; a hit shows the item + its
-// mule (or "unsorted"), and clicking opens that mule's ID card.
+// mule (or "unsorted"). #79 — a hit NAMES its mule and the click stays on the vault (it opens nothing).
 
 const URL = 'file://' + process.cwd() + '/bible.html';
 
@@ -33,7 +33,7 @@ test.describe('v236 vault finder', () => {
     expect(r.fn).toBe('function');
   });
 
-  test('typing a name finds the item + names its mule; click opens that mule card', async ({ page }) => {
+  test('typing a name finds the item + names its mule; the click stays on the vault (#79)', async ({ page }) => {
     const r = await page.evaluate(() => {
       (window as any).vaultFind('wind');
       const row = document.querySelector('#vault-find-results .vfr-row');
@@ -52,8 +52,9 @@ test.describe('v236 vault finder', () => {
     expect(r.rows).toBe(1);
     expect(r.name).toBe('Windforce');
     expect(r.mule).toContain('UNI-WEAPONS');
-    expect(r.cardOpen).toBe(true);
-    expect(r.cardName).toContain('UNI-WEAPONS');
+    // #79 — the FIND row no longer ROUTES: it names the mule inline (asserted above) and the click keeps him
+    // on the vault (the floating HD card opens on the art hover and stays). Clicking opens NO mule card.
+    expect(r.cardOpen, 'a FIND-row click stays on the vault - no mule card opens (#79)').toBe(false);
   });
 
   test('an owned-but-unassigned item shows as "unsorted"; no match shows an empty note', async ({ page }) => {

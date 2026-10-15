@@ -137,9 +137,18 @@ def density(frame_path, cols=DEFAULT_COLS, rows=DEFAULT_ROWS, tmp_dir=None, read
     tmp = os.path.join(tmp_dir or os.path.dirname(os.path.abspath(frame_path)),
                        ".tooltip_tile.jpg")
     try:
-        im = Image.open(frame_path).convert("RGB")
+        # ⚠ A CONTEXT MANAGER releases the source file handle BEFORE the tile loop runs.
+        # Image.open(...).convert() left the JPEG open until GC, and a re-sweep on Windows then
+        # hit a sharing-violation on the same file. [[the-unjoined-end]]
+        with Image.open(frame_path) as _src:
+            im = _src.convert("RGB")
     except Exception as e:
-        return None, "the frame could not be opened: %s" % str(e)[:60]
+        # ⚠ A CORRUPT / LOCKED / UNREADABLE frame is a READ FAILURE, not a measured miss, so it
+        # RAISES rather than returning (None, why): returning read as "looked, no tooltip here" and
+        # the caller cached ('measured', None). That is the unknown-vs-measured gap v3730 set out to
+        # close, and LocateFailed is the signal _kai_tooltip_place and still_runs already treat as
+        # unknown. [[unknown-stays-unknown]]
+        raise LocateFailed("the frame could not be opened: %s" % str(e)[:60]) from e
     W, H = im.size
     grid = []
     try:
@@ -161,6 +170,12 @@ def density(frame_path, cols=DEFAULT_COLS, rows=DEFAULT_ROWS, tmp_dir=None, read
     finally:
         try:
             os.remove(tmp)
+        except Exception:
+            pass
+        # ⚠ CLOSE THE CONVERTED RGB FRAME even when a tile threw -- a reader exception used to hold
+        # `im` (the whole decoded frame) until GC.
+        try:
+            im.close()
         except Exception:
             pass
     return {"grid": grid, "size": (W, H), "cols": cols, "rows": rows}, None
@@ -345,7 +360,11 @@ def main(argv=None):
     if not argv:
         print("usage: tooltip_find.py <frame.jpg>")
         return 2
-    rect, why = locate(argv[0])
+    try:
+        rect, why = locate(argv[0])
+    except LocateFailed as e:
+        # The CLI reports the failure instead of crashing now that an unreadable frame raises.
+        rect, why = None, e.why
     print("── TOOLTIP ──")
     print("  frame : %s" % argv[0])
     if rect:

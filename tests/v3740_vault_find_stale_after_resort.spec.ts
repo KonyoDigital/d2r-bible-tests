@@ -25,7 +25,7 @@ async function openVault(page: any) {
 }
 
 test.describe('REG-2230 vault FIND freshness + click target', () => {
-  test('a shared-stash FIND row opens the TAB the item is on, not always Weapons', async ({ page }) => {
+  test('a shared-stash FIND row knows the item tab but the click stays on the vault (#79)', async ({ page }) => {
     await page.addInitScript(() => {
       // v681 — a fresh profile skips the grail floor + owner cleanse so a seeded owned item survives reload.
       localStorage.setItem('d2r_rwProfile', 'fresh');
@@ -52,9 +52,10 @@ test.describe('REG-2230 vault FIND freshness + click target', () => {
     expect(r.had, 'the finder must list the owned shared-stash item').toBe(true);
     // a meaningful test needs an item that is NOT on the Weapons tab (index 0) — a belt is tab 2
     expect(r.expectedTab, 'Arachnid Mesh must file to a non-weapons shared tab').toBeGreaterThan(0);
-    expect(r.cardOpen, 'clicking the row opens the shared stash card').toBe(true);
-    // GREEN: the card is on the item's real tab. RED (openMuleCard on default _sharedPage=0): Page 1 / 5.
-    expect(r.pagebar).toContain('Page ' + (r.expectedTab + 1) + ' / 5');
+    // #79 — the packer/finder still AGREE on the tab (expectedTab, asserted above), but the click no longer
+    // opens the shared stash page: it stays on the vault (his "page trap" is gone). The floating HD card is
+    // the finder-row affordance now, covered by tests/v3741_vault_find_row_stays_on_vault.spec.ts.
+    expect(r.cardOpen, 'a FIND-row click opens no shared stash page - it stays on the vault (#79)').toBe(false);
   });
 
   test('FIND refreshes after a re-sort/move instead of showing the stale locker', async ({ page }) => {

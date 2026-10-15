@@ -3731,6 +3731,29 @@ def accept_handed_stores(body, who):
         clean[k] = [str(x)[:200] for x in v if isinstance(x, str)]
     if not clean:
         return 0, (why or "no readable store in that hand-over")
+    # ⚠⚠ REG-2234 (#110) — ONE WORLD MUST NOT OVERWRITE ANOTHER'S BANKED STORES.
+    # The COUNTS sibling learned this on his machine 2026-08-28 (board_tally_merge: "a second page
+    # in a different world ... posted 117/266 and REPLACED his 120/280") and banks PER WORLD,
+    # publishing only the owner's. This store half, added in the SAME v3379, kept a single global
+    # slot keyed by nothing — so a guest tab, another PC, or a raw 60 s POST replaces his banked
+    # vault here and board_mask then publishes the stranger's items as HIS d2r_owned, until his own
+    # board re-posts ~60 s later. A hand-over from a DIFFERENT world than the one already on record
+    # may REPLACE it only when it is this board's own owner (board_own_route_id — the SAME source the
+    # tally publish trusts, NOT the prefix, which 2026-08-28 proved was a coincidence). When the
+    # owner cannot be established (no WebKit store, e.g. Windows) the world on record stands, so a
+    # stranger can never flip it; same-world updates (incl. a main<->ladder switch, same install id)
+    # and the first write are untouched. [[copy-drift]] [[the-unjoined-end]] [[unknown-stays-unknown]]
+    _prior = board_stores_load()
+    if isinstance(_prior, dict) and isinstance(_prior.get("stores"), dict) and _prior["stores"]:
+        _pw = _prior.get("route") if isinstance(_prior.get("route"), dict) else _prior.get("who")
+        _prior_key = _route_key(_pw if isinstance(_pw, dict) else {})
+        _in_key = _route_key(who)
+        if _prior_key and _in_key and _prior_key != _in_key:
+            _own = board_own_route_id()
+            if not (_own and str((who or {}).get("id") or "") == _own):
+                return 0, ("that hand-over is from a different world (%s) than the one this console "
+                           "banked (%s); the stores belong to this board's owner and are kept until "
+                           "the owner itself re-posts" % (_in_key, _prior_key))
     board_stores_save({"v": 1, "who": who, "route": who, "stores": clean,
                        "storeWhy": (body.get("storeWhy")
                                     if isinstance(body.get("storeWhy"), dict) else {}),
@@ -11669,7 +11692,16 @@ def _kai_tooltip_place(row, cache=None):
         path = _kai_frame_file(row)
         if not path:
             return None
-        hit = cache.get(path) if isinstance(cache, dict) else None
+        # ⚠ THE CACHE KEY IS (path, reader), NOT the path alone. Two kai rows can share one frame
+        # but carry different tooltipReaders; keying on the path served one reader's rect (or its
+        # unknown verdict) to the other -- a fake hit or a skipped real read. The reader object is
+        # part of the key, so the same reader stays one locate per frame and different readers each
+        # read. (tooltipReader is the documented injection seam; in production it is None, so this
+        # is one entry per frame exactly as before.)
+        reader = row.get("tooltipReader")
+        reader = reader if callable(reader) else None
+        ck = (path, reader)
+        hit = cache.get(ck) if isinstance(cache, dict) else None
         if hit is not None:
             if hit[0] == "unknown":
                 return TooltipLocUnknown(hit[1])
@@ -11679,8 +11711,7 @@ def _kai_tooltip_place(row, cache=None):
         else:
             try:
                 import tooltip_find as _tf
-                reader = row.get("tooltipReader")
-                rect, _why = _tf.locate(path, reader=reader if callable(reader) else None)
+                rect, _why = _tf.locate(path, reader=reader)
                 if rect is not None and not (fw and fh):
                     from PIL import Image
                     im = Image.open(path)
@@ -11689,12 +11720,12 @@ def _kai_tooltip_place(row, cache=None):
                     finally:
                         im.close()
                 if isinstance(cache, dict):
-                    cache[path] = ("measured", rect, fw, fh)
+                    cache[ck] = ("measured", rect, fw, fh)
             except Exception as e:
                 why = getattr(e, "why", None) or ("locate failed: %s" % type(e).__name__)
                 why = str(why)[:160]
                 if isinstance(cache, dict):
-                    cache[path] = ("unknown", why, None, None)
+                    cache[ck] = ("unknown", why, None, None)
                 return TooltipLocUnknown(why)
     if not rect or not fw or not fh:
         return None
@@ -41828,7 +41859,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3740",
+        "ver": "v3741",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

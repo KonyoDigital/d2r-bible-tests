@@ -3745,6 +3745,26 @@ _PROBE = r"""(function(sel, OK_TRUNC){
          already use; this branch simply was not asking it. [[regression-guard]] */
       if (inert(c)) return;
       var cr = c.getBoundingClientRect();
+      /* ⚠ REG-2237 (#318 / #70) — A LEAF CRUSHED TO ~0px WIDE SHOWS NO INK AND NO ELLIPSIS, AND
+         EVERY BRANCH ABOVE MISSES IT. REG-2115 (#315): the update bar's wait label laid out at 0px
+         and `update-wait` reported `clipped 0`. The self branch demands `c.clientWidth>0`, so a box
+         squeezed to nothing is never judged; the ancestor walk below returns the instant `cr.width<1`.
+         REG-2115 closed it for that ONE label by making it its own target — a target's OWN zero-size
+         `sel` node is a refusal — and every OTHER target kept the blind spot: a descendant label the
+         clip scan walks is still skipped. A LEAF with real text and a real line box whose WIDTH is
+         under 2px, inside a painted parent, is crushed: its words are destroyed exactly as a hard
+         clip destroys them, and no `title` is one hover away from a 0px-wide strip.
+         ⚠ height>=4 SEPARATES A WIDTH-CRUSH FROM A BOTH-AXES CLAMP. An sr-only label (.ht-lbl /
+         .rs-name / .mat-name — width:1px height:1px clip:rect(0 0 0 0)) is hidden ON PURPOSE and is
+         1px TALL; the smallest real line in this tree is 13px (--fs-2xs), so a genuine crush clears
+         4 and the clamp never does. inert() cannot tell them apart — clip-hiding sets no
+         display/visibility/opacity/pointer-events. The finding rides the shared flag()/`clipped`
+         counter, so the declared per-width floors and OK_TRUNC already judge it.
+         [[visual-regression-detector]] [[regression-guard]] [[unknown-stays-unknown]] */
+      if (cr.width < 2 && cr.height >= 4) {
+        var _crp = c.parentElement, _crpr = _crp ? _crp.getBoundingClientRect() : null;
+        if (_crpr && _crpr.width >= 2 && _crpr.height >= 2) { flag('crushed'); return; }
+      }
       if (cr.width<1 || cr.height<1) return;
       /* ⚠ A FIXED ELEMENT IS NOT CLIPPED BY AN ORDINARY OVERFLOW ANCESTOR, AND THIS PROBE DID
          NOT KNOW THAT. Measured 2026-09-01 on the state panel: 31 elements reported "cut by rail"

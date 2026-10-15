@@ -379,6 +379,18 @@ except Exception:
   # BLUEPRINT.md here would dirty the tree it is grading AND leave the stale file inside the commit
   # actually being pushed. Refuse, let a human run the generator, push again. Same shape as the
   # second-eye gate above. [[d2r-push-grades-the-working-tree]]
+  # REG-2235 (#120) - THE BLUEPRINT AND HEART GATES STARVE WHEN HE IS GAMING, NOT WHEN THE CODE IS WRONG. Both
+  # --check runs REGENERATE their map in memory (blueprint walks the tree AST, heart maps every instrument) and
+  # diff it, so wall time tracks CPU contention: MEASURED 2026-10-13 blueprint --check exited 0 in 115s under D2R
+  # load (1-min load 17-29) and the fixed 60s bound killed it and reported a BUSY machine as a stale map. Heart is
+  # the identical 60s back-to-back sibling, so a blueprint-only fix would still refuse at heart (the push is only
+  # unblocked when BOTH get the grace). Same grace the render gate uses (REG-1995): GATE_LOAD_GRACE gives a gate
+  # busy AT ITS DEADLINE (1-min load > 5) ONE load-measured extension to base x load/5, capped 2.5x (60s -> up to
+  # 150s, covering the measured 115s). QUIET at the deadline is still a kill at 60s - the hang detector is
+  # untouched, so this does NOT weaken the gate. No up-front GATE_SCALE: neither gate has render_check internal
+  # cost model to scale, and widening the quiet-machine kill is the one thing the deadline grace exists to avoid.
+  # Released by the unset after the heart gate below, so no later gate inherits it. [[regression-guard]]
+  export GATE_LOAD_GRACE=1
   if ! gate_run "blueprint" "python3 tv/blueprint.py --check" 60 -- \
        python3 "$REPO/tv/blueprint.py" --check; then
     echo "pre-push: [$(_pp_el)] ❌ BLUEPRINT.md no longer matches the code."
@@ -403,6 +415,7 @@ except Exception:
     exit 1
   fi
   echo "pre-push: [$(_pp_el)] ✅ the heart map matches the code."
+  unset GATE_LOAD_GRACE   # REG-2235 (#120) - release the deadline grace so no later gate inherits it
   # ⚠ KNOWN AND DELIBERATE LIMIT: a batched push crossing several version stamps is judged on the
   # BOUNDARY version only — the one that was actually live and therefore actually lookable. The
   # intermediate stamps never shipped on their own, so nothing ever displayed them to a second eye.

@@ -475,6 +475,8 @@
 "tests/v3740_vault_find_stale_after_resort.spec.ts": 8.0,
 "tests/v3740_fullscreen_dupes_spare_section.spec.ts": 8.0,
 "tests/v3740_ledger_cap_keeps_freshest_row.spec.ts": 8.0,
-"tests/v3740_magic_rare_keeper_survives_load_prune.spec.ts": 8.0
+"tests/v3740_magic_rare_keeper_survives_load_prune.spec.ts": 8.0,
+"tests/v3741_vault_find_row_stays_on_vault.spec.ts": 0.25,
+"tests/v3741_sunder_from_names_the_sourced_drop.spec.ts": 2.0
 }
 }

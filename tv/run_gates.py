@@ -7856,6 +7856,18 @@ GATES = [
              "stays refused. Left panel writes 'stash', right panel writes 'on him' (inventory, "
              "slot unknown), a missing or evenly-split rect stays None, and a place the row "
              "already stated is kept. Driven on a fixture through locate() and the compile."),
+    Gate("test_tooltip_read_failures",
+         [sys.executable, os.path.join(HERE, "test_tooltip_read_failures.py")], 90,
+         why="REG-2236 -- v3730 / REG-2218 FOLLOW-UPS on the tooltip backend, each a way the "
+             "unknown-vs-measured line could be crossed in silence. (1) a corrupt / locked / "
+             "unreadable frame is a READ FAILURE: density RAISES LocateFailed instead of returning "
+             "(None, why), so _kai_tooltip_place files tooltip_loc_unknown rather than caching "
+             "('measured', None) -- the exact gap v3730 set out to close -- while a missing frame "
+             "and a frame with no text stay the graceful refusals they were. (2) the source frame "
+             "handle is released through a context manager, so a re-sweep cannot hit a "
+             "sharing-violation on the same JPEG on Windows. (3) the per-frame locate cache keys on "
+             "(path, reader), so two kai rows sharing a frame with different tooltipReaders no "
+             "longer conflate into a fake hit or a skipped read."),
     Gate("test_retro_gate", [sys.executable, os.path.join(HERE, "test_retro_gate.py")], 60,
          why="v2320 — THE RETRO ACCURACY GATE. A focused MINI bypasses the witness rule because he AIMED it, which removes the lane's only accuracy mechanism; this replaces it on the FIRST look by grading every read on WHAT it named, WHERE it placed it and HOW it read it. It also resolves a garble that shares a frame with a clean name to that name, and separates stat lines from item names — both proven on his own 2026-08-30 frames."),
     Gate("test_slot_identity", [sys.executable, os.path.join(HERE, "test_slot_identity.py")], 60,
@@ -8903,6 +8915,30 @@ GATES = [
          why=("REG-1995 - load that arrives after the render starts (GrokBot began a tick 2 min in) was not covered by "
               "REG-1993; a gate marked GATE_LOAD_GRACE gets one load-measured extension at its deadline, and a quiet "
               "deadline is still a kill.")
+         ),
+    Gate("test_the_blueprint_gate_gets_the_deadline_grace", [sys.executable,
+         os.path.join(HERE, "test_the_blueprint_gate_gets_the_deadline_grace.py")], 60,
+         needs_app=False,
+         why=("REG-2235 (#120) - blueprint.py --check and heart_map.py --check regenerate a map and diff it, so "
+              "their wall time tracks CPU load, not the code: measured 2026-10-13 blueprint --check exited 0 in 115 s "
+              "under D2R load (1-min load 17-29) and the fixed 60 s bound killed it and called a busy machine a stale "
+              "map. Both back-to-back 60 s gates now carry GATE_LOAD_GRACE (the render gate REG-1995 mechanism): busy "
+              "at the deadline buys one load-measured extension (up to 150 s), quiet at the deadline is still a kill "
+              "at 60 s. This guard pins that both gates sit inside one grace region released before the next gate, "
+              "and nothing wider is marked.")
+         ),
+    Gate("test_a_crushed_label_is_not_a_clean_render", [sys.executable,
+         os.path.join(HERE, "test_a_crushed_label_is_not_a_clean_render.py")], 60,
+         needs_app=False,
+         why=("REG-2237 (#70) - render_check's clip scan could not SEE a text child crushed to 0px wide (an "
+              "ellipsis/overflow defect it missed while reporting CLIPPED=none). This guard pins the new "
+              "zero-width visible-text-child detection, proven RED against a planted 0px label.")
+         ),
+    Gate("test_a_foreign_world_does_not_overwrite_banked_stores", [sys.executable,
+         os.path.join(HERE, "test_a_foreign_world_does_not_overwrite_banked_stores.py")], 60,
+         needs_app=False,
+         why=("REG-2234 (#110) - shadow MEDs: a foreign/guest world read must not overwrite his banked stores. "
+              "This guard pins that the write is gated on the owner world.")
          ),
     Gate("test_the_render_bound_moves_with_the_load", [sys.executable,
          os.path.join(HERE, "test_the_render_bound_moves_with_the_load.py")], 60,
