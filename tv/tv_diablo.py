@@ -63,7 +63,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3741"   # vault fleet batch 2 - FIND stays on vault, sunder source, render-check 0px, blueprint grace, shadow guest guard, tooltip reads
+VERSION = "v3742"   # v3740 v3741 review-after-ship: 6 vault and console fixes
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

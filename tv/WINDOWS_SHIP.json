@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3741",
+  "ver": "v3742",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3741: Ultracode fleet 2, 6 fixes. REG-2234 (#110) a foreign/guest world read does not overwrite his banked stores. REG-2235 (#120) the blueprint pre-push gate gets the load-grace deadline so a busy machine is not called a stale map. REG-2236 (#129) tooltip read-failure handling (3 cross-family findings). REG-2237 (#70) render_check sees a text child crushed to 0px wide. REG-2238 (#79) the vault FIND row stays on the vault (no router, the floating HD card stays), superseding the click-open half of REG-2230; the two shipped FIND specs are reconciled. REG-2239 (#93) a Sunder row names the sourced drop not a generic rate. Also fixes the v3740 magic-rare spec control name (The Stone of Jordan). HEART: guarded by the new tests/v3741_ specs and tv/test_ suites on Routine I and the gate set; 4 new suites registered in run_gates.py; backend watchers added where noted.",
+  "note": "v3742: Review-after-ship batch on v3740 and v3741 (REG-2240; board #108 #11 #134 #137 #14 #44): planner copy-undo is now scoped to the bumped name not just the token, so a re-roll of a later pick can no longer revert the first picks copy; the set-dupe migration stamps itself done only after a CONFIRMED owned-persist, so a failed write retries instead of stranding a stray under a done-stamp; a fullscreen dupes window holding only shared spare copies no longer also says empty locker; the shared-tab overflow note tells the truth (a shared tab is 100 cells with no auto-spill) instead of calling it a 10x10 preview; the floating item card tracks its item through a mouse-less wheel or keyboard scroll; and leaving the theatre dismisses the floating item tooltip it spawned. HEART: each fix ships a RED-first guard — five Routine-I spec.ts plus the node gate test_a_closed_theatre_dismisses_the_item_tooltip, and the REG-2231 red-proof in test_the_mule_inventory is re-anchored to the new guard line.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

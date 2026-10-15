@@ -7,6 +7,33 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2240 - v3740/v3741 REVIEW-AFTER-SHIP: 6 VAULT & CONSOLE FIXES (2026-10-15, #108/#11/#134/#137/#14/#44, v3742)
+
+Review-after-ship on v3740/v3741 (one cross-family look + the board retest cluster), six fixes shipped as v3742:
+1. **#108 planner copy-undo reverted the wrong pick.** `_vpCopyUndo` keyed only on the token; a re-roll or clear
+   of a LATER pick (whose bump still sat on the FIRST pick) wrongly dropped the first copy. Now scoped to the
+   bumped name — both callers pass `_vpMade.name`; the legitimate self-undo still fires.
+2. **#11 set-dupe migration stamped itself done before the write landed.** `_vaultDedupeOldSetRows` wrote the
+   `d2r_setDupeMigrate_v2227` stamp and folded copy counts BEFORE `vaultRemove`, whose `persistOwned` swallows a
+   quota/private throw — so a failed owned-write stranded the stray under a done-stamp. Now an in-memory
+   `_vaultDedupeBusy` flag guards the re-render re-entrancy, the remove runs first, owned is re-persisted
+   UNSWALLOWED to confirm, and only a confirmed remove stamps + folds.
+3. **#134 fullscreen dupes window said "empty locker" while showing spare cells.** An only-spares dupes window
+   painted the placeholder; `_spareHtml` is now hoisted above the notes section and suppresses it (mirrors the
+   v3739 shelf fix). The REG-2231 red-proof in `test_the_mule_inventory_takes_items_like_the_doll.py` is re-anchored.
+4. **#137 shared-tab overflow note was self-contradictory.** It called a full 10x10 tab "the 10x10 preview", as if
+   a larger tab sat behind it. `_sharedOverflowNote` (pure, exported) now says the tab is 100 cells with no
+   auto-spill, names the items, and asks to free a slot. Does NOT relocate items (routing is his ruling).
+5. **#14 floating item card froze on a mouse-less scroll.** `#arttip` was re-glued only on mouse events, so a
+   wheel/PageDown/End scroll on his WebKit console left it stranded. The capture-phase scroll handler now re-runs
+   `move()` for a still-connected anchor; v171 (never blank a valid card) holds.
+6. **#44 leaving the theatre stranded the item tooltip.** `#itip` lives on `document.body` outside `#theatre`, so
+   the stage teardown never hid it; `thClose` now dismisses it as it already dismisses the drawer, shelf and coach.
+
+HEART: five Routine-I `v3742_*.spec.ts` guards (RED-first) plus the node gate
+`test_a_closed_theatre_dismisses_the_item_tooltip` (registered in run_gates.py). The bible.html data-source for
+item FOOTPRINTS (#8) was also hardcoded into BLUEPRINT.md via blueprint.py (the 28GB D2R CASC store + extractor).
+
 ### REG-2218 - #54 TOOLTIP-JOIN HARDENING: 3 CROSS-FAMILY FINDINGS (2026-10-15, #54, v3730)
 
 Three real findings the v3725 cross-family (Grok) second-eye raised on the shipped #54 tooltip join, fixed:

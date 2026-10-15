@@ -17788,6 +17788,14 @@ window._lockMark = function(isOpen, px, label){
        shelf overlay hanging over a closed theatre. [[sweep-dont-ask]] */
     try { var _sv = $('th-shelfov'); if (_sv) _sv.hidden = true; } catch(e){}
     try { var _c = $('th-coach'); if (_c) _c.hidden = true; } catch(e){}
+    /* REG-2240 (#44, GrokBot tick 371) — THE FLOATING ITEM TOOLTIP IS A LAYER TOO. #itip lives on
+       document.body at z-index 9999, OUTSIDE #theatre (thOpen already notes "tooltips live outside
+       #theatre at a higher z-index"), so hiding the stage never hides it. A reel's read card carries
+       [data-itip] items (Trang-Oul's Wing among them); one hovered as the theatre is torn down — and
+       the ✕ drops him to Sessions — left its HD-art card stranded over the new view. Teardown owns
+       every other layer it opened (the ⋯ drawer, the shelf, the coach); it owns this one too, rather
+       than leaning on the pointer/Esc handlers a driven close can bypass. [[the-unjoined-end]] */
+    try { if (window._itemTip) window._itemTip.hide(); } catch(e){}
     /* REG-2118 (#317) - A CLOSED THEATRE HOLDS NO REEL. thCinema(false) below repaints the stage from TH.beats, so a full
        close painted the closed reel's frame back onto the hidden stage, and the next shelf door opened over it ("opening
        the shelf…" in front of Session 53's frame). The reel is dropped first; the next open loads its own. */

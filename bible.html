@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3741 · TV DIABLO</title>
-<meta name="d2r-build" content="v3741">
+  <title>Konyo's D2R Farming Bible v3742 · TV DIABLO</title>
+<meta name="d2r-build" content="v3742">
 <meta name="d2r-build-date" content="2026-10-15">
-<meta name="d2r-build-note" content="Ultracode fleet 2, 6 fixes. REG-2234 (#110) a foreign/guest world read does not overwrite his banked stores. REG-2235 (#120) the blueprint pre-push gate gets the load-grace deadline so a busy machine is not called a stale map. REG-2236 (#129) tooltip read-failure handling (3 cross-family findings). REG-2237 (#70) render_check sees a text child crushed to 0px wide. REG-2238 (#79) the vault FIND row stays on the vault (no router, the floating HD card stays), superseding the click-open half of REG-2230; the two shipped FIND specs are reconciled. REG-2239 (#93) a Sunder row names the sourced drop not a generic rate. Also fixes the v3740 magic-rare spec control name (The Stone of Jordan). HEART: guarded by the new tests/v3741_ specs and tv/test_ suites on Routine I and the gate set; 4 new suites registered in run_gates.py; backend watchers added where noted.">
+<meta name="d2r-build-note" content="Review-after-ship batch on v3740 and v3741 (REG-2240; board #108 #11 #134 #137 #14 #44): planner copy-undo is now scoped to the bumped name not just the token, so a re-roll of a later pick can no longer revert the first picks copy; the set-dupe migration stamps itself done only after a CONFIRMED owned-persist, so a failed write retries instead of stranding a stray under a done-stamp; a fullscreen dupes window holding only shared spare copies no longer also says empty locker; the shared-tab overflow note tells the truth (a shared tab is 100 cells with no auto-spill) instead of calling it a 10x10 preview; the floating item card tracks its item through a mouse-less wheel or keyboard scroll; and leaving the theatre dismisses the floating item tooltip it spawned. HEART: each fix ships a RED-first guard — five Routine-I spec.ts plus the node gate test_a_closed_theatre_dismisses_the_item_tooltip, and the REG-2231 red-proof in test_the_mule_inventory is re-anchored to the new guard line.">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -33127,7 +33127,12 @@ window._jewelTipHtml = _jewelTipHtml;
     // mirroring the mousemove guard. A benign smooth-scroll (scroll-behavior:smooth
     // scrollIntoView fires a stream of scroll events) no longer suppresses the popup
     // while the hovered element is still on-screen, which previously blanked it.
-    window.addEventListener('scroll', function(){ if (cur && (!cur.isConnected || cur.offsetParent===null)){ cur=null; tip.classList.remove('on'); } }, true);
+    // v3742 — AND a still-connected anchor that merely SCROLLED is re-glued, not left behind.
+    // v643 glues the card to the item's rect; the only things that re-checked that rect were MOUSE
+    // events, so on the console WebKit a wheel / PageDown / End scroll (which fires no mouse event)
+    // left the card frozen at its old SCREEN position while the item slid away under it. Re-running
+    // move() for a still-visible anchor tracks the item; v171 holds — the card follows, never blanks.
+    window.addEventListener('scroll', function(){ if (!cur) return; if (!cur.isConnected || cur.offsetParent===null){ cur=null; tip.classList.remove('on'); } else if (tip.classList.contains('on')){ var _r=cur.getBoundingClientRect(); if (_r && (_r.width||_r.height)) move(); } }, true);
     // v441 — the bottom-right ORB MIRRORS the hovered item's HD art (Konyo: "the floating orb should
     // replicate the floating image for that individual item — not a glove emoji"). When the arttip is showing
     // an item image, the gold nav-FAB morphs into that exact HD art; it snaps back to the compass on mouse-out.
@@ -44704,6 +44709,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      world (the stamp forks like d2r_owned, v2224), set BEFORE the removal re-renders so the re-entrant
      pass is a no-op and a later undo of the batch is never re-applied. [[the-unjoined-end]] [[unknown-stays-unknown]] */
   window._vaultDedupeOldSetRows = function(){
+    /* REG-2240 (#11) — re-entrancy is held off by an IN-MEMORY flag, not by the persisted stamp.
+       vaultRemove (below) re-renders the vault, which re-enters this function; the stamp used to be
+       what made that pass a no-op, which forced it to be written BEFORE the remove — so a persist that
+       quietly failed left the strays stranded under a stamp that said "done". This flag blocks the
+       re-entrant pass without touching storage, so the stamp can wait for a CONFIRMED remove. It is
+       checked before the try so a re-entrant early return never reaches the finally that clears it. */
+    if (window._vaultDedupeBusy) return { ran: false, why: 're-entrant render pass' };
     try {
       if (typeof window.LSR === 'undefined') return { ran: false, why: 'LSR not on this page' };
       if (window.LSR.getItem('d2r_setDupeMigrate_v2227')) return { ran: false, why: 'already run on this world' };
@@ -44727,28 +44739,43 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var twin = filedPiece[sp.piece];
         if (twin && twin !== L){ dupes.push(L); twinOf[L] = twin; }
       });
-      /* stamp BEFORE vaultRemove: it re-renders, which re-enters here, and the stamp makes that pass a
-         no-op — and it stamps even on an empty run, so a later undo of this batch is never redone */
-      try { window.LSR.setItem('d2r_setDupeMigrate_v2227', String(Date.now())); } catch (e) {}
-      if (!dupes.length) return { ran: true, removed: 0 };
-      /* never lose a copy count — fold the stray's onto the survivor it keeps (max, never undercount) */
+      /* REG-2240 (#11) — NOTHING OWED: stamp the empty run (so a later undo of this batch is never
+         redone) and stop — there is no remove to confirm. */
+      if (!dupes.length){ try { window.LSR.setItem('d2r_setDupeMigrate_v2227', String(Date.now())); } catch (e) {} return { ran: true, removed: 0 }; }
+      /* REG-2240 (#11) — REMOVE FIRST, STAMP ONLY ON A CONFIRMED REMOVE. The re-entrant render is held
+         off by the in-memory _vaultDedupeBusy flag, so the stamp no longer has to go first. vaultRemove
+         persists owned through persistOwned — but persistOwned SWALLOWS a quota/private throw, so its
+         "removed" return is not proof the write stuck. */
+      window._vaultDedupeBusy = true;
+      var r = window.vaultRemove(dupes, { lane: 'set-dupe-migration', quiet: true,
+        why: 'old double-filed set piece — the stray Unsorted copy of a piece already filed in its mule (REG-2229, #11)' });
+      var removedNames = (r && r.removed) ? r.removed : [];
+      if (!removedNames.length) return { ran: true, removed: 0 };   /* nothing was held to remove — leave UNstamped; a retry is a harmless no-op */
+      /* CONFIRM the removal reached storage BEFORE anything is stamped or folded: re-persist owned
+         UNSWALLOWED. A throw here means the strays are still on disk, so leave the world UNstamped and
+         the copy counts UNfolded — the next reload migrates again instead of stranding a stamped row. */
+      try { window.LSR.setItem('d2r_owned', JSON.stringify(Array.from(owned))); }
+      catch (eP) { return { ran: true, removed: removedNames.length, names: removedNames, stamped: false, why: 'removal did not reach storage — left unstamped to retry' }; }
+      /* removal is on disk — NOW fold each REMOVED stray's copy count onto the survivor it keeps (max,
+         never undercount). A failure past this point can only drift a copy count, never strand a row. */
       try {
         if (typeof copies !== 'undefined' && copies){
           var _cCh = false;
-          dupes.forEach(function(L){
+          removedNames.forEach(function(L){
             if (copies[L] != null){
               var t = twinOf[L];
-              copies[t] = Math.max((copies[t] != null ? copies[t] : 1), copies[L]);
+              if (t != null) copies[t] = Math.max((copies[t] != null ? copies[t] : 1), copies[L]);
               delete copies[L]; _cCh = true;
             }
           });
           if (_cCh && typeof LS !== 'undefined' && LS.setItem) LS.setItem('d2r_copies', JSON.stringify(copies));
         }
       } catch (e) {}
-      var r = window.vaultRemove(dupes, { lane: 'set-dupe-migration', quiet: true,
-        why: 'old double-filed set piece — the stray Unsorted copy of a piece already filed in its mule (REG-2229, #11)' });
-      return { ran: true, removed: (r && r.removed) ? r.removed.length : 0, names: (r && r.removed) || [] };
+      /* stamp ONLY now — after a CONFIRMED remove (once per world, never re-applied over a later undo) */
+      try { window.LSR.setItem('d2r_setDupeMigrate_v2227', String(Date.now())); } catch (e) {}
+      return { ran: true, removed: removedNames.length, names: removedNames };
     } catch (e) { return { ran: false, why: String((e && e.message) || e) }; }
+    finally { window._vaultDedupeBusy = false; }
   };
 
   /* The reverse of exactly one batch — and ONLY of what that batch removed. */
@@ -45200,9 +45227,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var sayF = (filed && filed.ok) ? (nm + ' filed to ' + muleName + (why ? (' — ' + why) : '')) : ((filed && filed.why) || (nm + ' was not filed'));
     return { ok: !!(filed && filed.ok !== false), filed: !!(filed && (filed.mode === 'filed' || filed.mode === 'confirmed')), mode: filed && filed.mode, mule: id, why: sayF };
   }
-  function _vpCopyUndo(token){
+  function _vpCopyUndo(token, name){
     var b = _vpCopyBump;
     if (!b || !token || b.token !== token) return;
+    // REG-2240 (#108) — only undo the bump THIS pick made. The token/id check alone let a later pick
+    // (bump still sitting on the FIRST pick) revert the earlier copy on a re-roll or a clear of the second.
+    if (name != null && b.name !== name) return;
     _vpCopyBump = null;
     if (typeof copies !== 'undefined' && copies){
       if (b.prev > 1) copies[b.name] = b.prev;
@@ -45213,7 +45243,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   window.vaultPlannerFile = function(entry, token){
     if (!entry){
-      if (_vpMade && token && _vpMade.token === token){ _vpCopyUndo(token); _vpDrop(); }
+      if (_vpMade && token && _vpMade.token === token){ _vpCopyUndo(token, _vpMade.name); _vpDrop(); }
       return { ok: true, mode: 'cleared', filed: false, why: 'the pick was cleared' };
     }
     var it = null, shown = null;
@@ -45245,7 +45275,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (_resolved) nm = _resolved;
       } catch (eRes) {}
     }
-    if (_vpMade && _vpMade.token === token && _vpMade.id === entry.id && _vpMade.name && _vpMade.name !== nm) _vpCopyUndo(token);
+    if (_vpMade && _vpMade.token === token && _vpMade.id === entry.id && _vpMade.name && _vpMade.name !== nm) _vpCopyUndo(token, _vpMade.name);
     if (_vpMade && _vpMade.token === token && _vpMade.id === entry.id && _vpMade.name !== nm && _vpMade.fresh) _vpDrop();
     var baseName = _vpBase(entry, shown);
     var mods = _vpMods(entry);
@@ -47037,6 +47067,21 @@ window.vaultAutoAssign = function(){
     } catch(e){}
     try { renderVault(); } catch(e){}
   };
+  /* REG-2240 (#137) — HONEST SHARED-TAB OVERFLOW. A shared stash tab IS 10×10 = 100 cells, the same size as
+     the in-game tab, so an item that overflows the preview overflows the real tab too — there is no larger
+     "100-slot" tab behind it, and the 5 tabs are fixed and laid out by slot with no auto-spill to another tab
+     or a mule. The old note said "this is the 10×10 preview", which read as if the real stash were bigger and
+     the overflow were only a drawing limit; it is not. Pure + exported so a guard can reach it (the note lived
+     inline where no test could). Returns '' when nothing overflows. [[the-unjoined-end]] [[unknown-stays-unknown]] */
+  function _sharedOverflowNote(left){
+    if (!left || !left.length) return '';
+    var names = left.map(function(i){ return esc(i.n); }).join(' · ');
+    return '<div class="vd-overflow" role="status">⚠ <strong>' + left.length + ' item' + (left.length === 1 ? '' : 's')
+      + ' will not fit on this shared tab</strong> — a shared tab is 10×10 = 100 cells and this one is full. '
+      + 'The shared stash is 5 fixed tabs with no overflow spill, so free a slot (mule or trade one) '
+      + 'or these stay off it: ' + names + '</div>';
+  }
+  try { window._sharedOverflowNote = _sharedOverflowNote; } catch(e){}
   function _renderSharedStash(box){
     // v364 — SHARED holds items ASSIGNED here (auto-sorted by value during intake, or dragged manually).
     var names = _sharedNames();
@@ -47062,7 +47107,7 @@ window.vaultAutoAssign = function(){
       +     '<div class="vd-goldbox">' + pg.icon + ' ' + pageN + ' on this page · ' + totalAll + ' total</div>'
       +   '</div>'
       + '</div>'
-      + (packed.left.length ? '<div class="vd-overflow">⚠ <strong>' + packed.left.length + ' item' + (packed.left.length === 1 ? '' : 's') + ' overflow this page</strong> — D2R shared tabs hold 100 slots; this is the 10×10 preview: ' + packed.left.map(function(i){ return esc(i.n); }).join(' · ') + '</div>' : '')
+      + _sharedOverflowNote(packed.left)
       + (pg.items.length ? '<div class="vd-list">' + list + '</div>'
          : '<div class="vm-empty" style="padding:8px 2px">' + (_sharedPage === 4 ? '📦 spare tab — room for fresh loot while hunting (an item whose slot is not on record is laid here too)' : 'nothing on this tab yet') + '</div>');
   }
@@ -49048,6 +49093,14 @@ window.vaultAutoAssign = function(){
       +   gridHtml(_stabPlaced, MULE_STASH_W, MULE_STASH_H, _cellSide, _gOpt(_mpStab)).replace(/class="vd-cell"/g, 'class="vd-cell vd-red"')
       +   '<div class="vd-pagebar">' + _muleArrows + '</div>'
       + '</div></section>';
+    /* REG-2231 (#134, v3740) · REG-2240 (#134 fullscreen follow-up, review-after-ship on v3740) — the fullscreen
+       DUPES window SHOWS the shared overflow (3rd+ copies) as display-only "spare" cells, mirroring the shelf card
+       (v3738). Computed HERE, ABOVE the notes section, so an only-spares dupes window (nothing filed, only shared
+       spare copies to show) suppresses the "empty locker" note and its dimmed vm-empty class the same way the shelf
+       does (v3739). [[copy-drift]] _vaultSharedOverflowHtml is the ONE renderer; the ternary short-circuits to '' for
+       every non-dupes locker. Self-contained: the _muleLoad packer is untouched, copies stay homed in 'shared',
+       nothing is re-filed, and the registered ×N stays the truth. */
+    var _spareHtml = (muleId === 'dupes' && typeof _vaultSharedOverflowHtml === 'function') ? _vaultSharedOverflowHtml() : '';
     var left = '<div class="mp-left">' + (_eqBig ? sideStash : eqPanel(false)) + prose + '</div>';
     var centre = '<div class="mp-centre">'
       + '<section class="mp-p mp-cp"><div class="mp-ctabs" role="tablist" aria-label="what is in front">'+ctab('equip','Equipment')+ctab('stash','Stash')+ctab('tree','Skill tree')+ctab('calc','Calculations')+'</div>'
@@ -49081,7 +49134,7 @@ window.vaultAutoAssign = function(){
               + ' — not drawn; ' + (n === 1 ? 'its record is' : 'their records are') + ' kept until you remove ' + (n === 1 ? 'it' : 'them') + ': '
               + cf.map(function(c){ return '<b>' + esc(c.n) + '</b> (' + ((c.w && c.h) ? c.w + '×' + c.h : 'size UNKNOWN') + ', wanted ' + esc(c.spot) + ') — ' + esc(c.why)
                 + ' <button type="button" class="mp-btn" data-fk="dbx-' + esc(c.key) + '" onclick="window._mpInvRemoveKey(\'' + jsArg(String(c.key).replace(/^db:/, '')) + '\')">remove</button>'; }).join(' · ') + '</div>'; })((_load.conflicts || []).filter(function(c){ return c.db; })) : '')
-      +   ((names.length || (_load.dbPlaced | 0)) ? '' : '<div class="vm-empty" style="padding:0 0 8px">empty locker — assign items on the vault shelf, then this window shows exactly where each one sits</div>')
+      +   ((names.length || (_load.dbPlaced | 0) || _spareHtml) ? '' : '<div class="vm-empty" style="padding:0 0 8px">empty locker — assign items on the vault shelf, then this window shows exactly where each one sits</div>')
       /* #174 v-B — the note is an EDITOR over the locker's own field (d2r_muleRoster), saved on Enter or blur
          through the routed store; a draft he has not saved yet survives a re-render underneath him */
       +   '<textarea class="mp-note-ed" data-fk="note" rows="4" spellcheck="false"'
@@ -49142,10 +49195,6 @@ window.vaultAutoAssign = function(){
       }
     }
     var _anim = _mpAnim; _mpAnim = false;   // #174 R1 — only the render right after a swap fades
-    /* REG-2231 (#134, v3740) — the fullscreen DUPES window SHOWS the shared overflow (3rd+ copies) as display-only
-       "spare" cells too, mirroring the shelf card (v3738). Self-contained: the _muleLoad packer is untouched, the
-       copies stay homed in 'shared', nothing is re-filed, and the registered ×N stays the truth. */
-    var _spareHtml = (muleId === 'dupes' && typeof _vaultSharedOverflowHtml === 'function') ? _vaultSharedOverflowHtml() : '';
     box.innerHTML = '<div class="mp'+(sc.stack?' mp-stack':'')+(_anim?' mp-anim':'')+'" style="--u:'+k.toFixed(4)+'px;--kf:'+Math.min(1, k).toFixed(4)+'" data-k="'+k.toFixed(4)+'" data-sig="'+sc.sig+'">'
       + '<div class="mp-main">' + head + buildSet + '<div class="mp-lc">' + left + centre + '</div>' + _spareHtml + '</div>'
       + right + _hostHtml
@@ -66157,7 +66206,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3741', name:'v3741 - vault fleet batch 2 - FIND stays on vault, sunder source, render-check 0px, blueprint grace, shadow guest guard, tooltip reads', date:'2026-10-15', note:'Ultracode fleet 2, 6 fixes. REG-2234 (#110) a foreign/guest world read does not overwrite his banked stores. REG-2235 (#120) the blueprint pre-push gate gets the load-grace deadline so a busy machine is not called a stale map. REG-2236 (#129) tooltip read-failure handling (3 cross-family findings). REG-2237 (#70) render_check sees a text child crushed to 0px wide. REG-2238 (#79) the vault FIND row stays on the vault (no router, the floating HD card stays), superseding the click-open half of REG-2230; the two shipped FIND specs are reconciled. REG-2239 (#93) a Sunder row names the sourced drop not a generic rate. Also fixes the v3740 magic-rare spec control name (The Stone of Jordan). HEART: guarded by the new tests/v3741_ specs and tv/test_ suites on Routine I and the gate set; 4 new suites registered in run_gates.py; backend watchers added where noted.' };
+  window.D2R_BUILD = { id:'v3742', name:'v3742 - v3740 v3741 review-after-ship: 6 vault and console fixes', date:'2026-10-15', note:'Review-after-ship batch on v3740 and v3741 (REG-2240; board #108 #11 #134 #137 #14 #44): planner copy-undo is now scoped to the bumped name not just the token, so a re-roll of a later pick can no longer revert the first picks copy; the set-dupe migration stamps itself done only after a CONFIRMED owned-persist, so a failed write retries instead of stranding a stray under a done-stamp; a fullscreen dupes window holding only shared spare copies no longer also says empty locker; the shared-tab overflow note tells the truth (a shared tab is 100 cells with no auto-spill) instead of calling it a 10x10 preview; the floating item card tracks its item through a mouse-less wheel or keyboard scroll; and leaving the theatre dismisses the floating item tooltip it spawned. HEART: each fix ships a RED-first guard — five Routine-I spec.ts plus the node gate test_a_closed_theatre_dismisses_the_item_tooltip, and the REG-2231 red-proof in test_the_mule_inventory is re-anchored to the new guard line.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

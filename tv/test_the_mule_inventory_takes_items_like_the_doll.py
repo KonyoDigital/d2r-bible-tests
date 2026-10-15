@@ -607,7 +607,7 @@ RED_PROOF = [
     {
         "why": "2026-09-27 - charms placed from the database read as an empty locker because the name was not filed",
         "file": "bible.html",
-        "find": "      +   ((names.length || (_load.dbPlaced | 0)) ? '' : '<div class=\"vm-empty\" style=\"padding:0 0 8px\">empty locker — assign items on the vault shelf, then this window shows exactly where each one sits</div>')\n",
+        "find": "      +   ((names.length || (_load.dbPlaced | 0) || _spareHtml) ? '' : '<div class=\"vm-empty\" style=\"padding:0 0 8px\">empty locker — assign items on the vault shelf, then this window shows exactly where each one sits</div>')\n",
         "replace": "      +   (names.length ? '' : '<div class=\"vm-empty\" style=\"padding:0 0 8px\">empty locker — assign items on the vault shelf, then this window shows exactly where each one sits</div>')\n",
         "matches": 1,
     },

@@ -5960,6 +5960,13 @@ GATES = [
              "non-Sessions view while open, and the seat's 'dark glass' over the Vault was its film stage. The "
              "shipped header-tab guard runs in node: a different tab closes it, the same tab or a closed theatre "
              "calls nothing; thClose is exported. The browser half is in v877."),
+    Gate("test_a_closed_theatre_dismisses_the_item_tooltip",
+         [sys.executable, os.path.join(HERE, "test_a_closed_theatre_dismisses_the_item_tooltip.py")], 60,
+         why="REG-2240 (#44, GrokBot tick 371) - #itip lives on document.body at z-index 9999, OUTSIDE #theatre, so "
+             "hiding the stage never hid it; a reel read-card [data-itip] item (Trang-Oul's Wing) hovered as the "
+             "theatre was torn down stranded its HD-art card over Sessions when the x dropped him there. thClose now "
+             "dismisses the floating tooltip it spawned, as it already dismisses the drawer, shelf and coach. Driven "
+             "in node on the shipped thClose cut; the publish seam window._itemTip is pinned."),
     Gate("test_the_theatre_never_waits_on_the_fixture_scan",
          [sys.executable, os.path.join(HERE, "test_the_theatre_never_waits_on_the_fixture_scan.py")], 120,
          why="REG-1284 (#165) - the theatre ran frame_authority's test-file scan inside /api/sessions; cold (a fresh "
