@@ -31,6 +31,7 @@ test('the DUPES locker shows overflow copies (>2) of a shared item as spare cell
       ravenOverflow: W._vaultSharedOverflowCells('Raven Frost'), // 2-2 = 0
       names: W._vaultSharedOverflowNames(),
     };
+    W.VAULT_PROVEN = { 'Grief': true };   // so the ⚖ proof chip renders and we can check its numerator
     W.renderVault();
     const dupes = document.querySelector('[data-vault-mule="dupes"]');
     const spareCells = dupes ? dupes.querySelectorAll('.vm-spare-sec .vmc-spare').length : -1;
@@ -38,7 +39,15 @@ test('the DUPES locker shows overflow copies (>2) of a shared item as spare cell
       ? Array.from(dupes.querySelectorAll('.vm-spare-sec .vmc-spare'))
           .filter((c: any) => (c.getAttribute('data-arttip') || '').indexOf('Grief') >= 0).length
       : -1;
-    return { logic, spareCells, griefCells, dupesPresent: !!dupes };
+    // REG-2226 follow-up: a dupes locker with ONLY overflow (nothing filed to it) is NOT empty
+    const saysEmpty = dupes ? /empty locker/i.test(dupes.textContent || '') : true;
+    const isDimmed = dupes ? dupes.classList.contains('vm-empty') : true;
+    // the ⚖ proof chip: a proven overflow name must count in BOTH numerator and denominator
+    const provEl = dupes ? dupes.querySelector('.vm-proven') : null;
+    // the chip's visible text is "⚖ <seen>"; the "of <denominator>" lives in its title attribute
+    const provSeen = provEl ? String(provEl.textContent || '').replace(/[^0-9]/g, '') : '';
+    const provTitle = provEl ? String(provEl.getAttribute('title') || '') : '';
+    return { logic, spareCells, griefCells, dupesPresent: !!dupes, saysEmpty, isDimmed, provSeen, provTitle };
   });
 
   // the overflow LOGIC: 7 copies → 3 spare cells (capped), 2 copies → 0
@@ -50,4 +59,10 @@ test('the DUPES locker shows overflow copies (>2) of a shared item as spare cell
   expect(r.dupesPresent).toBe(true);
   expect(r.spareCells).toBe(3);
   expect(r.griefCells).toBe(3);
+  // REG-2226 follow-up (v3739): a dupes card that holds only spare-overflow is NOT "empty locker" / dimmed
+  expect(r.saysEmpty).toBe(false);
+  expect(r.isDimmed).toBe(false);
+  // ...and the proven chip counts the proven overflow name in its numerator (1), not "0 of 1"
+  expect(r.provSeen).toBe('1');            // "⚖ 1", not "⚖ 0"
+  expect(r.provTitle).toContain('1 of 1'); // numerator and denominator agree
 });

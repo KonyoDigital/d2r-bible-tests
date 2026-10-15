@@ -63,7 +63,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3738"   # the dupes locker shows overflow copies of shared items as spare cells
+VERSION = "v3739"   # the dupes spare section does not read as an empty locker and counts in the proof chip
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 
