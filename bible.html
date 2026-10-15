@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3743 · TV DIABLO</title>
-<meta name="d2r-build" content="v3743">
-<meta name="d2r-build-date" content="2026-10-15">
-<meta name="d2r-build-note" content="Three now-ruled vault fixes (REG-2241/2242/2243). KEEPER CHARMS (his 2026-10-15 ruling torches and anni stay in shared, gheeds gets muled): Hellfire Torch and Annihilus now route to the SHARED stash and Gheeds Fortune falls through to its grand-charm mule, so the three iconic charms no longer all park on MAIN; the Hellfire Torch survival marker is kept so it is never pruned, and his per-item share switch can reach them. MERC GEAR: a MERC_GEAR rule in suggestMule routes mercenary-worn gear to SHARED (seeded with Guillaume Face, Andariel Visage, Mara Kaleidoscope plus five canonical merc uniques), after the keeper and share-override checks and before the category branch, respecting a forced mule override. SET-DUPE HARDENING: the copy-count fold is confirmed on disk before the once-per-world stamp; a failed copies write leaves the world unstamped and restores the removed strays so the next reload re-runs the migration. HEART: each fix ships a RED-first guard (three v3743 Routine-I spec.ts), and the v1814 base-routing spec is re-anchored so a slot-pair migration does not drag merc gear out to shared.">
+  <title>Konyo's D2R Farming Bible v3744 · TV DIABLO</title>
+<meta name="d2r-build" content="v3744">
+<meta name="d2r-build-date" content="2026-10-16">
+<meta name="d2r-build-note" content="Three backlog items (REG-2245/2247/2244). VAULT FIRST CLICK (#53, REG-2245): the fullscreen mule window is a body-level fixed overlay that switchTab never closed, so openMuleId and box.hidden survived a tab change and the next Vault open showed the stale SHARED card instead of the body (GrokBot tick 409). vaultCloseCard gains a silent arg; a switchTab wrapper closes any open card the instant the active tab changes; a hashchange listener closes it on Back and deep-links. ROSTER PUBLISHES THE STASH (#74, REG-2247, his 10-15 ruling): the roster only derived a stash from per-build cells (empty in his book), so his flat owned list never published; stash_rows_of now also yields the owned names and the stash read is lifted out of the characters branch into its own first-class section, same shape as vault. TOOLTIP WIRING GUARD (#42, REG-2244): the native-title suppression already shipped (REG-2116) but its only law called show directly and could never cover the real hover delegate; a new spec dispatches a real mousemove over a titled data-itip node and asserts both native titles are neutralised while the card is up and restored after. Also closed two already-shipped siblings: the #42 console half (REG-2116) and the #107 d2jsp price cache (REG-2216). HEART: three v3744 Routine-I spec.ts, RED-first; the roster spec drives the real python body-builder.">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -49300,7 +49300,7 @@ window.vaultAutoAssign = function(){
       }
     }
   };
-  window.vaultCloseCard = function(){
+  window.vaultCloseCard = function(silent){
     try { _mpNoteFlush(); } catch (e) {}     // #174 v-B — closing never drops a note he was typing
     _mpInvAt = null;                                        // #174 v-B5 — the inventory's picker goes with the window
     _mpPickAt = null; _mpPickErr = ''; _mpHostSync();
@@ -49312,7 +49312,7 @@ window.vaultAutoAssign = function(){
     document.documentElement.classList.remove('vd-lock');
     openMuleId=null;
     // v235: route back to where the card was opened from (Tools/vault), not TZ zones.
-    if (_muleReturnTab && window.switchTab) { try { window.switchTab(_muleReturnTab); } catch(e){} }
+    if (silent !== true && _muleReturnTab && window.switchTab) { try { window.switchTab(_muleReturnTab); } catch(e){} }
   };
   document.addEventListener('keydown', function(e){
     if (e.key==='Escape' && openMuleId){ window.vaultCloseCard(); }
@@ -49711,6 +49711,36 @@ window.vaultAutoAssign = function(){
     var box=document.getElementById('vault-detail');
     if (openMuleId && box && !box.hidden && muleById(openMuleId)) window.openMuleCard(openMuleId);
   }
+  /* REG-2245 — THE MULE WINDOW MUST NOT OUTLIVE ITS TAB. #vault-detail is a body-level fixed
+     overlay (.vd-fs, inset:0, z-index 99997) that openMuleCard appends to <body> and never moves
+     back; a tab switch left `openMuleId` set and `box.hidden=false`, so the fullscreen card stayed
+     stuck over whatever tab you landed on, and the next renderVault's refreshOpenCard kept
+     repainting it. The console's shellOpen routes the board through switchTab (REG-1946), so once
+     the SHARED card had been opened, routing the board back to the Vault showed that stuck card
+     instead of the body — GrokBot #230 tick 409 (v3614): "vault first click opened SHARED STASH,
+     not the Vault body". Close the card the instant the active tab changes (and on a hash route /
+     browser Back), so openMuleId can no longer survive across a tab open. The close is SILENT (no
+     route-back — the switch is already taking us to `name`) and guarded by `openMuleId != null`,
+     so vaultCloseCard's own route-back (which nulls openMuleId first) and any re-entry are no-ops:
+     no recursion. [[the-unjoined-end]] */
+  (function(){
+    var _preCardSwitch = window.switchTab;
+    window.switchTab = function(name){
+      try {
+        if (openMuleId != null && typeof window.vaultCloseCard === 'function'){
+          var _at = document.querySelector('.tab.active');
+          var _cur = (_at && _at.getAttribute) ? _at.getAttribute('data-tab') : null;
+          if (name !== _cur) window.vaultCloseCard(true);
+        }
+      } catch (e) {}
+      return (typeof _preCardSwitch === 'function') ? _preCardSwitch.apply(this, arguments) : undefined;
+    };
+    /* browser Back / Forward and #deep-links route through _v39_routeFromHash, which calls the base
+       switchTab directly (bypassing the wrapper above), so close the open card on that path too. */
+    window.addEventListener('hashchange', function(){
+      try { if (openMuleId != null && typeof window.vaultCloseCard === 'function') window.vaultCloseCard(true); } catch (e) {}
+    });
+  })();
   window.vaultSize = vaultSize;
   window.vaultSuggest = suggestMule;
   window.renderVault = renderVault;
@@ -66284,7 +66314,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3743', name:'v3743 - keeper-charm and merc-gear routing plus set-dupe copies hardening', date:'2026-10-15', note:'Three now-ruled vault fixes (REG-2241/2242/2243). KEEPER CHARMS (his 2026-10-15 ruling torches and anni stay in shared, gheeds gets muled): Hellfire Torch and Annihilus now route to the SHARED stash and Gheeds Fortune falls through to its grand-charm mule, so the three iconic charms no longer all park on MAIN; the Hellfire Torch survival marker is kept so it is never pruned, and his per-item share switch can reach them. MERC GEAR: a MERC_GEAR rule in suggestMule routes mercenary-worn gear to SHARED (seeded with Guillaume Face, Andariel Visage, Mara Kaleidoscope plus five canonical merc uniques), after the keeper and share-override checks and before the category branch, respecting a forced mule override. SET-DUPE HARDENING: the copy-count fold is confirmed on disk before the once-per-world stamp; a failed copies write leaves the world unstamped and restores the removed strays so the next reload re-runs the migration. HEART: each fix ships a RED-first guard (three v3743 Routine-I spec.ts), and the v1814 base-routing spec is re-anchored so a slot-pair migration does not drag merc gear out to shared.' };
+  window.D2R_BUILD = { id:'v3744', name:'v3744 - vault card closes on tab switch, roster publishes stash, tooltip wiring guard', date:'2026-10-16', note:'Three backlog items (REG-2245/2247/2244). VAULT FIRST CLICK (#53, REG-2245): the fullscreen mule window is a body-level fixed overlay that switchTab never closed, so openMuleId and box.hidden survived a tab change and the next Vault open showed the stale SHARED card instead of the body (GrokBot tick 409). vaultCloseCard gains a silent arg; a switchTab wrapper closes any open card the instant the active tab changes; a hashchange listener closes it on Back and deep-links. ROSTER PUBLISHES THE STASH (#74, REG-2247, his 10-15 ruling): the roster only derived a stash from per-build cells (empty in his book), so his flat owned list never published; stash_rows_of now also yields the owned names and the stash read is lifted out of the characters branch into its own first-class section, same shape as vault. TOOLTIP WIRING GUARD (#42, REG-2244): the native-title suppression already shipped (REG-2116) but its only law called show directly and could never cover the real hover delegate; a new spec dispatches a real mousemove over a titled data-itip node and asserts both native titles are neutralised while the card is up and restored after. Also closed two already-shipped siblings: the #42 console half (REG-2116) and the #107 d2jsp price cache (REG-2216). HEART: three v3744 Routine-I spec.ts, RED-first; the roster spec drives the real python body-builder.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

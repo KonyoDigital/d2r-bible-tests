@@ -346,6 +346,14 @@ def stash_rows_of(book):
                 if isinstance(num, int) and not isinstance(num, bool):
                     row[key] = num
             rows.append(row)
+    # REG-2247 (#74) - HIS 10-15 ruling: publish the stash on the roster too. His owned items (the
+    # book's flat `owned` list, what the board already posts) are his stash contents, so a PC with no
+    # per-build stash cells still publishes a stash the roster room can draw, same shape as the vault
+    # section. A bare name is a valid stash row (the stash allow-list keeps name/id/mule/cell).
+    for item in book.get("owned") or []:
+        name = item if isinstance(item, str) else (item.get("name") if isinstance(item, dict) else None)
+        if isinstance(name, str) and name:
+            rows.append({"name": name})
     return rows
 
 

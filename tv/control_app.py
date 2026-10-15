@@ -4554,6 +4554,10 @@ def _roster_reads(now_ms):
         if got is not None:
             reads["characters"] = got
             used_book = True
+    # REG-2247 (#74) - the stash is a first-class per-PC section, not a rider on the characters read:
+    # a book with items but no publishable builds must still publish its stash. Read it for ANY
+    # stored book, independent of the builds branch above.
+    if isinstance(book, dict):
         stash_rows = _rp.stash_rows_of(book)
         if stash_rows:
             got = _rp.stash_read(stash_rows, now_ms)
@@ -41859,7 +41863,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3743",
+        "ver": "v3744",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

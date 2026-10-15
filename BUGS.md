@@ -7,6 +7,30 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2245/2247/2244 - VAULT-CARD TAB LEAK, ROSTER STASH, TOOLTIP WIRING GUARD (2026-10-16, #53/#74/#42, v3744)
+
+Stale-backlog batch (two of the four turned out already-shipped — see closes):
+- **REG-2245 (#53 vault first click stays open):** `#vault-detail` is a body-level fixed overlay (.vd-fs) that
+  `openMuleCard` appends to <body> and only `vaultCloseCard` (✕/Esc) ever hides. `switchTab` never touched it, so
+  `openMuleId` + `box.hidden=false` survived a tab change and the next Vault open painted the stale SHARED card over
+  the body (GrokBot tick 409). Fix: `vaultCloseCard` gains a `silent` arg; a `switchTab` wrapper closes any open card
+  the instant the active tab changes (guarded by `openMuleId!=null`, no recursion); a `hashchange` listener closes on
+  Back/deep-links. JS logic only.
+- **REG-2247 (#74 roster publishes the stash, his 10-15 ruling):** the roster only derived a stash from per-build
+  stash/inv cells (empty in his book), so his flat `owned` list never published. `roster_publish.stash_rows_of` now
+  also yields the book's `owned` names, and `control_app._roster_reads` lifts the stash read out of the `builds`
+  branch into its own section — stash is now a first-class per-PC section, same shape as vault. RED→GREEN verified.
+- **REG-2244 (#42 tooltip wiring guard):** native-title suppression already shipped (REG-2116/v3631 — `_holdItem`
+  borrows+restores titles). Its only law called `show()` directly and could never cover the real hover delegate, so a
+  new spec dispatches a real bubbling mousemove over a titled `[data-itip]` node and asserts both native titles are
+  neutralised while #itip is up and restored after (green at HEAD, red if `_holdItem` reverts).
+
+CLOSED as already-shipped (stale task text): #42 console half (REG-2116/v3631) and #107 d2jsp price cache
+(REG-2216/v3728 — TTL cache keyed by name, force-refresh, guarded by test_a_fresh_d2jsp_quote_is_not_asked_again).
+
+HEART: three v3744 Routine-I spec.ts (RED-first); the roster spec drives the REAL python body-builder via execFileSync.
+Pre-flight: js-syntax + py_compile(control_app, roster_publish) + 4 roster suites green + the 1,895-anchor census.
+
 ### REG-2241/2242/2243 - KEEPER-CHARM + MERC-GEAR ROUTING, SET-DUPE COPIES HARDENING (2026-10-15, #135/#7/#11, v3743)
 
 Three now-ruled vault fixes:
