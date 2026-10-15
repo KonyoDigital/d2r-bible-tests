@@ -100,6 +100,36 @@ class TestItFindsTheDenseTextRegion(unittest.TestCase):
         self.assertIn("chrome", why)
         self.assertIn("33", why, "the refusal does not cite the measurement it is based on")
 
+    def test_a_4x4_sweep_on_a_small_capture_refuses_under_half_its_own_tile(self):
+        """The noise clamp is half a tile of the sweep locate was called with.
+
+        A 7x7 frame tiled 4x4 leaves the origin tile at 1x1, 1/49 of the frame
+        (~2.0%). Half of one 4x4 tile is 0.5/16 (~3.1%). Half of one default
+        6x6 tile is 0.5/36 (~1.4%). The clamp used to be that 6x6 number no
+        matter which sweep was asked, so this cluster was admitted. The 4x4
+        HUD test above never sees it: at 2560x1665 the 8% floor already
+        refuses a full tile.
+        """
+        import tempfile
+        w, h, cols, rows = 7, 7, 4, 4
+        tile_w = (1 * w // cols) - 0
+        tile_h = (1 * h // rows) - 0
+        frac = float(tile_w * tile_h) / float(w * h)
+        self.assertLess(frac, 0.5 / float(cols * rows),
+                        "this fixture is not under half a tile of the 4x4 sweep")
+        self.assertGreater(frac, 0.5 / float(TF.DEFAULT_COLS * TF.DEFAULT_ROWS),
+                           "the default 6x6 clamp would already refuse this, so the "
+                           "test would stay green without the fix")
+        grid = [[0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0],
+                [0, 0, 0, 0]]
+        grid[0][0] = 40
+        rect, why = TF.locate(_frame(tempfile.mkdtemp(), w=w, h=h), cols=cols, rows=rows,
+                              reader=_fake(grid))
+        self.assertIsNone(rect, "a cluster under half a 4x4 tile was accepted: %r" % (rect,))
+        self.assertIn("chrome", why or "")
+
     def test_a_LARGE_dense_region_is_accepted(self):
         import tempfile
         grid = [[0, 0, 0, 0],

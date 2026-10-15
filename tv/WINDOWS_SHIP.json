@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3729",
+  "ver": "v3730",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3729: the page title and the d2r-build metas were frozen at v710.1 while the build stamp moved every ship; bump now rewrites the title version token and the three metas too. HEART: watched by the new head-stamp guard test_the_head_stamp_matches_the_build; stamping the head needs no new watcher.",
+  "note": "v3730: the tooltip join had three cross-family findings: the area_floor noise clamp ignored the actual sweep, _kai_compile_register conflated a read failure with not-on-a-panel and re-OCRed per row, and place_of had no straddling test. area_floor scales the clamp by the real cols and rows, a TooltipLocUnknown sentinel keeps a read failure apart from a measured miss and a per-frame cache locates each frame once, and place_of documents the majority rule with a straddling case. HEART: watched by the extended tooltip guards test_tooltip_find and test_a_1440_tooltip_joins_the_panel; backend read hardening needs no new watcher.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

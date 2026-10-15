@@ -3,7 +3,7 @@
   "counts": {
     "handlers": 4672,
     "ok": 478,
-    "rank1": 67,
+    "rank1": 66,
     "rank2": 1629,
     "rank3": 2498,
     "unparsed": 0
@@ -32,7 +32,7 @@
     "tv/test_control.py": 1,
     "tv/test_roundtrip_sim.py": 1,
     "tv/test_the_board_hands_its_stores_over.py": 1,
-    "tv/tooltip_find.py": 2,
+    "tv/tooltip_find.py": 1,
     "tv/tv_diablo.py": 11,
     "tv/vault_retro.py": 1
   }

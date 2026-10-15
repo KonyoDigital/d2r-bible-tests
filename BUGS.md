@@ -7,6 +7,26 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2218 - #54 TOOLTIP-JOIN HARDENING: 3 CROSS-FAMILY FINDINGS (2026-10-15, #54, v3730)
+
+Three real findings the v3725 cross-family (Grok) second-eye raised on the shipped #54 tooltip join, fixed:
+1. **`area_floor` noise clamp ignored the actual sweep.** `tv/tooltip_find.py area_floor(w,h)` scaled the 8%
+   floor by capture area but hard-wired the noise clamp to half a tile of the DEFAULT 6x6 sweep (0.5/36), so
+   `locate(cols=4,rows=4)` on a small capture admitted a cluster smaller than half its own 4x4 tile. Fix: added
+   `cols`/`rows` params; `noise = 0.5/(c*r)` uses the ACTUAL sweep (defaults to 6x6 when omitted).
+2. **`_kai_compile_register` conflated a read FAILURE with "not on a panel" + re-OCR'd per row.** On a row with
+   no tooltipRect it called `locate()` once per kai row, and `except Exception: return None` made an IO/reader
+   failure indistinguishable from a measured not-located ([[unknown-stays-unknown]]). Fix (tv/control_app.py):
+   `tooltip_find.LocateFailed` at the source + a `TooltipLocUnknown` sentinel (bool False so `if loc` still files
+   nothing, but the TYPE separates failure from miss) that `_kai_stamp_tooltip_loc` skips; and a per-frame cache
+   `_tip_by_frame` passed through `_kai_compile_register` so each frame is located ONCE, reused across its rows.
+3. **`place_of` majority rule had no straddling-rect test.** A rect grazing past the midline is called wholly
+   on the majority side (the documented contract — only an even split is None). Fix: documented it + added a
+   straddling-rect case to the guard.
+**Coded by Grok CLI; Claude eagle-eyed + verified:** 2 tooltip guards green, test_control OK (2286 tests),
+diff reviewed (cache+sentinel wired). **Guards:** `tv/test_tooltip_find.py` + `tv/test_a_1440_tooltip_joins_the_panel.py`
+(extended). Not specs, no routine_i_costs entry.
+
 ### REG-2217 - THE PAGE <title> / <meta d2r-build> WAS FROZEN AT v710.1 SINCE JULY (2026-10-15, v3729)
 
 The browser tab read "Konyo's D2R Farming Bible v710.1 · TV DIABLO" and `<meta name="d2r-build">` /

@@ -9,7 +9,9 @@ cluster is admitted, and the calibration-size HUD stays refused.
 
 The compile then joins the rect to a panel and writes names_loc on the kai row:
 the left panel is the stash, the right panel is 'on him' (inventory, slot
-unknown), and a tooltip that was not located stays None.
+unknown), and a tooltip that was not located stays None. A read that
+failed is not that miss: it is recorded unknown and files no panel. A rect
+that only crosses the midline belongs to the side that holds more of it.
 """
 import os
 import sys
@@ -126,6 +128,22 @@ class TestTheCompileJoinsTheRectToThePanel(unittest.TestCase):
         })
         self.assertEqual(_loc(kept), ("equipped", "equipped"))
 
+    def test_a_rect_that_only_grazes_the_midline_is_the_side_that_holds_more(self):
+        """place_of's contract: only an even split is None. A graze is the majority.
+
+        1440 wide, midline at 720. The even case above is 200px against 200px.
+        These two cross the line by 10px and the rest stays on one side.
+        """
+        # 520px on the left, 10px past the line.
+        self.assertEqual(TF.place_of((200, 100, 530, 300), 1440, 936), "stash")
+        left = _kai({"tooltipRect": (200, 100, 530, 300), "frameW": 1440, "frameH": 936})
+        self.assertEqual(_loc(left), ("stash", "stash"))
+
+        # 10px on the left, 390px on the right.
+        self.assertEqual(TF.place_of((710, 80, 400, 280), 1440, 936), "on him")
+        right = _kai({"tooltipRect": (710, 80, 400, 280), "frameW": 1440, "frameH": 936})
+        self.assertEqual(_loc(right), ("on him", "on him"))
+
     def test_the_compile_locates_the_frame_it_was_handed(self):
         # The real locate(), on the 1440 fixture, through the real compile.
         # One tile on the right: under 8% of the frame, and on him.
@@ -135,6 +153,71 @@ class TestTheCompileJoinsTheRectToThePanel(unittest.TestCase):
             "tooltipReader": _fake(_grid(6, 6, {(1, 4): 8})),
         })
         self.assertEqual(_loc(row), ("on him", "on him"))
+
+
+class TestAFailedReadIsUnknownAndTheFrameIsReadOnce(unittest.TestCase):
+    """A locate that throws is not 'not on a panel', and one frame is read once."""
+
+    def test_a_reader_failure_is_unknown_and_files_no_panel(self):
+        calls = {"n": 0}
+
+        def boom(_path):
+            calls["n"] += 1
+            raise OSError("reader down")
+
+        frame = _frame(1440, 936)
+        rows = []
+        for i in range(2):
+            rows.append(_kai({
+                "framePath": frame,
+                "frameId": "f_%d" % i,
+                "ts": 100 + i,
+                "captureTs": 100 + i,
+                "tooltipReader": boom,
+            }))
+        reg = {r["name"]: r for r in ca._kai_compile_register(rows)}
+        filed = (reg.get("Windforce") or {}).get("loc")
+        self.assertNotIn(filed, ("stash", "on him"),
+                         "a reader failure was filed as a panel: %r" % (filed,))
+        for row in rows:
+            self.assertNotIn("Windforce", row.get("names_loc") or {})
+            self.assertTrue(row.get("tooltip_loc_unknown"),
+                            "a reader failure is indistinguishable from a measured miss")
+            self.assertNotIn(row.get("tooltip_loc_unknown"), ("stash", "on him"))
+        # The throw aborts the sweep, and the second row reuses that failure.
+        self.assertEqual(calls["n"], 1, "the same frame was read again after it had already failed")
+
+    def test_the_same_frame_is_located_once_for_every_row_on_it(self):
+        calls = {"n": 0}
+
+        def read(_path):
+            calls["n"] += 1
+            return {"lines": ["a line of text"] * 8}
+
+        frame = _frame(1440, 936)
+        rows = []
+        for i in range(3):
+            rows.append(_kai({
+                "framePath": frame,
+                "frameId": "f_%d" % i,
+                "ts": 100 + i,
+                "captureTs": 100 + i,
+                "tooltipReader": read,
+            }))
+        ca._kai_compile_register(rows)
+        one_sweep = TF.DEFAULT_COLS * TF.DEFAULT_ROWS
+        self.assertEqual(calls["n"], one_sweep,
+                         "one frame was OCR'd %d times across %d rows (one sweep is %d)"
+                         % (calls["n"], len(rows), one_sweep))
+
+    def test_a_frame_with_no_tooltip_is_a_measured_miss_not_unknown(self):
+        def read(_path):
+            return {"lines": []}
+
+        frame = _frame(1440, 936)
+        row = _kai({"framePath": frame, "tooltipReader": read})
+        self.assertEqual(_loc(row), (None, None))
+        self.assertNotIn("tooltip_loc_unknown", row)
 
 
 if __name__ == "__main__":

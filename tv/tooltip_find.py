@@ -39,14 +39,15 @@ _CAL_W, _CAL_H = 2560, 1665
 _MIN_AREA_FRAC = 0.08
 
 
-def area_floor(width, height):
+def area_floor(width, height, cols=None, rows=None):
     """Fraction of the frame a text cluster must cover before it is a tooltip.
 
     Scales with the capture's area against 2560x1665, where the floor is 8%.
     At 1440x936 that is ~2.5%, under the one-tile tooltip (2.8%) and over a
     half-tile speck. It never rises above 8%: a larger capture does not demand
-    a bigger fraction. A cluster under half a tile of the 6x6 sweep is noise
-    at every size.
+    a bigger fraction. A cluster under half a tile of THIS sweep is noise at
+    every size. cols and rows are the sweep locate was called with; omitted,
+    they are the default 6x6.
     """
     try:
         w, h = int(width), int(height)
@@ -54,10 +55,17 @@ def area_floor(width, height):
         return _MIN_AREA_FRAC
     if w <= 0 or h <= 0:
         return _MIN_AREA_FRAC
+    try:
+        c = int(DEFAULT_COLS if cols is None else cols)
+        r = int(DEFAULT_ROWS if rows is None else rows)
+    except (TypeError, ValueError):
+        c, r = DEFAULT_COLS, DEFAULT_ROWS
+    if c <= 0 or r <= 0:
+        c, r = DEFAULT_COLS, DEFAULT_ROWS
     floor = _MIN_AREA_FRAC * (float(w * h) / float(_CAL_W * _CAL_H))
     if floor > _MIN_AREA_FRAC:
         floor = _MIN_AREA_FRAC
-    noise = 0.5 / float(DEFAULT_COLS * DEFAULT_ROWS)
+    noise = 0.5 / float(c * r)
     if floor < noise:
         floor = noise
     return floor
@@ -70,7 +78,8 @@ def place_of(rect, frame_w, frame_h=None):
     on the left, the paper doll and the inventory on the right. A tooltip draws
     above or below its slot, so the right panel cannot say worn from carried.
     'on him' is that place, and the slot stays unknown. A rect that is missing,
-    or that covers both sides equally, is None — never a guess.
+    or that covers both sides equally, is None — never a guess. A rect that
+    only crosses the midline belongs to the side that holds more of it.
     """
     if not rect or frame_w is None:
         return None
@@ -94,6 +103,14 @@ def place_of(rect, frame_w, frame_h=None):
     if right > left and right > 0:
         return "on him"
     return None
+
+
+class LocateFailed(Exception):
+    """The frame could not be read. Not a measurement that no tooltip is there."""
+
+    def __init__(self, why):
+        self.why = str(why or "the reader failed")[:160]
+        Exception.__init__(self, self.why)
 
 
 def _ocr():
@@ -125,23 +142,27 @@ def density(frame_path, cols=DEFAULT_COLS, rows=DEFAULT_ROWS, tmp_dir=None, read
         return None, "the frame could not be opened: %s" % str(e)[:60]
     W, H = im.size
     grid = []
-    for r in range(rows):
-        row = []
-        for c in range(cols):
-            box = (c * W // cols, r * H // rows, (c + 1) * W // cols, (r + 1) * H // rows)
-            try:
-                im.crop(box).save(tmp, "JPEG", quality=80)
-                j = rd(tmp) or {}
-                n = len([l for l in (j.get("lines") or [])
-                         if len(str(l).strip()) >= _MIN_LINE_CHARS])
-            except Exception:
-                n = 0
-            row.append(n)
-        grid.append(row)
     try:
-        os.remove(tmp)
-    except Exception:
-        pass
+        for r in range(rows):
+            row = []
+            for c in range(cols):
+                box = (c * W // cols, r * H // rows, (c + 1) * W // cols, (r + 1) * H // rows)
+                try:
+                    im.crop(box).save(tmp, "JPEG", quality=80)
+                    j = rd(tmp) or {}
+                    n = len([l for l in (j.get("lines") or [])
+                             if len(str(l).strip()) >= _MIN_LINE_CHARS])
+                except Exception as e:
+                    # Zero here is a verdict: locate would say the frame had no
+                    # tooltip. A tile that threw was not measured.
+                    raise LocateFailed("the tile could not be read: %s" % type(e).__name__) from e
+                row.append(n)
+            grid.append(row)
+    finally:
+        try:
+            os.remove(tmp)
+        except Exception:
+            pass
     return {"grid": grid, "size": (W, H), "cols": cols, "rows": rows}, None
 
 
@@ -159,6 +180,9 @@ def locate(frame_path, cols=DEFAULT_COLS, rows=DEFAULT_ROWS, tmp_dir=None, reade
     ⚠ IT REFUSES RATHER THAN GUESSING. Below `min_lines` of text in the whole frame there is no
     tooltip to find — he was not hovering — and returning a rectangle anyway would hand the crop
     path a picture of the floor. An empty frame and an unhovered one are the same honest answer.
+
+    A reader or a tile that throws raises LocateFailed. That is not this refusal: the frame was
+    not measured, so the caller must not record it as "no tooltip".
     """
     d, why = density(frame_path, cols=cols, rows=rows, tmp_dir=tmp_dir, reader=reader)
     if not d:
@@ -204,11 +228,12 @@ def locate(frame_path, cols=DEFAULT_COLS, rows=DEFAULT_ROWS, tmp_dir=None, reade
     # A tooltip carries a name, a base, and six to twelve stat lines; it cannot be small. So the
     # floor sits far below the real one and far above the impostor, and anything between them is
     # refused rather than guessed. That 8% is the floor at 2560x1665. area_floor() scales it
-    # with the capture, so a one-tile tooltip at 1440x936 (2.8% of that frame) is admitted
+    # with the capture, and its noise clamp is half a tile of THIS sweep, not of the default
+    # 6x6. A one-tile tooltip at 1440x936 (2.8% of that frame) is admitted
     # and this HUD box, at the size it was measured, is still refused.
     # [[feedback-threshold-above-the-ceiling]] [[pixel-constants-at-one-capture-size]]
     frac = float(rect[2] * rect[3]) / float(max(1, W * H))
-    floor = area_floor(W, H)
+    floor = area_floor(W, H, cols, rows)
     if frac < floor:
         return None, ("the densest text is only %.1f%% of the frame (floor %.1f%% at %dx%d) — that is game "
                       "chrome, not a tooltip. Measured: his real tooltip covers 33%%, the top-right "

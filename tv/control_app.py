@@ -11634,13 +11634,32 @@ def _kai_frame_file(row):
     return None
 
 
-def _kai_tooltip_place(row):
-    """The panel a kai row's tooltip sits on. -> 'stash' | 'on him' | None
+class TooltipLocUnknown(object):
+    """A tooltip locate that failed. Not a panel, and not a measured miss.
 
-    A rect already on the row is used. Otherwise the row's own frame file is
-    located (tooltip_find.locate). Left panel = stash. Right panel = 'on him'
-    (inventory, slot unknown). Not located, or split evenly across the midline,
-    is None.
+    None means the frame was read and the tooltip is not on a panel. This
+    means the read did not happen. Bool is false so a caller that only asks
+    `if loc` still files nothing; the type is what keeps the two apart.
+    """
+
+    def __init__(self, why):
+        self.why = str(why or "locate failed")[:160]
+
+    def __bool__(self):
+        return False
+
+
+def _kai_tooltip_place(row, cache=None):
+    """The panel a kai row's tooltip sits on.
+
+    -> 'stash' | 'on him' | None | TooltipLocUnknown
+
+    A rect already on the row is used. Otherwise the row's frame is located
+    once per path (`cache`, owned by one compile) and reused for every row
+    on that frame. Left panel = stash. Right panel = 'on him' (inventory,
+    slot unknown). None: the frame was read and the tooltip is not on a
+    panel (missing, under the floor, or split evenly). TooltipLocUnknown:
+    the read failed. Those two are not the same answer.
     """
     if not isinstance(row, dict):
         return None
@@ -11650,33 +11669,48 @@ def _kai_tooltip_place(row):
         path = _kai_frame_file(row)
         if not path:
             return None
-        try:
-            import tooltip_find as _tf
-            reader = row.get("tooltipReader")
-            rect, _why = _tf.locate(path, reader=reader if callable(reader) else None)
-            if rect is not None and not (fw and fh):
-                from PIL import Image
-                im = Image.open(path)
-                try:
-                    fw, fh = im.size
-                finally:
-                    im.close()
-        except Exception:
-            return None
+        hit = cache.get(path) if isinstance(cache, dict) else None
+        if hit is not None:
+            if hit[0] == "unknown":
+                return TooltipLocUnknown(hit[1])
+            rect = hit[1]
+            if not (fw and fh):
+                fw, fh = hit[2], hit[3]
+        else:
+            try:
+                import tooltip_find as _tf
+                reader = row.get("tooltipReader")
+                rect, _why = _tf.locate(path, reader=reader if callable(reader) else None)
+                if rect is not None and not (fw and fh):
+                    from PIL import Image
+                    im = Image.open(path)
+                    try:
+                        fw, fh = im.size
+                    finally:
+                        im.close()
+                if isinstance(cache, dict):
+                    cache[path] = ("measured", rect, fw, fh)
+            except Exception as e:
+                why = getattr(e, "why", None) or ("locate failed: %s" % type(e).__name__)
+                why = str(why)[:160]
+                if isinstance(cache, dict):
+                    cache[path] = ("unknown", why, None, None)
+                return TooltipLocUnknown(why)
     if not rect or not fw or not fh:
         return None
     try:
         import tooltip_find as _tf
         return _tf.place_of(rect, fw, fh)
-    except Exception:
-        return None
+    except Exception as e:
+        return TooltipLocUnknown("locate failed: %s" % type(e).__name__)
 
 
-def _kai_stamp_tooltip_loc(row):
+def _kai_stamp_tooltip_loc(row, cache=None):
     """Write names_loc on a kai row from the tooltip's panel.
 
     The judge name and any grounded names share the one tooltip. A place the
-    row already stated is kept. Not located writes nothing.
+    row already stated is kept. A measured miss writes nothing. A failed
+    read records tooltip_loc_unknown and writes no panel.
     """
     if not isinstance(row, dict) or row.get("lane") != "kai":
         return
@@ -11692,7 +11726,10 @@ def _kai_stamp_tooltip_loc(row):
             names.append(gm)
     if not names:
         return
-    loc = _kai_tooltip_place(row)
+    loc = _kai_tooltip_place(row, cache)
+    if isinstance(loc, TooltipLocUnknown):
+        row["tooltip_loc_unknown"] = loc.why
+        return
     if not loc:
         return
     nl = row.get("names_loc")
@@ -11714,7 +11751,8 @@ def _kai_compile_register(sess_rows):
     Record: {name, firstSeenTs, frameId, loc, tier, scene} + the best HOLDING sighting (heldLoc/heldScene/heldFrame/
     heldTs) + H3 the LATEST sighting that places the item (latestLoc/latestScene/latestFrame/latestTs), each one
     tuple from one frame. A kai row is the one write: its tooltip rect is joined to a panel and
-    names_loc is filled in (left = stash, right = 'on him', not located = left unset)."""
+    names_loc is filled in (left = stash, right = 'on him', not located = left unset). A failed
+    read records tooltip_loc_unknown and files no panel."""
     fulln = _kai_fullnames()
     reg = {}   # name.lower() -> record
     # H1 — the board's holding lanes, asked once per compile (None = UNKNOWN: nothing is promoted as held)
@@ -11880,13 +11918,17 @@ def _kai_compile_register(sess_rows):
         except Exception:
             return None
 
+    # One locate per frame path. Each kai row with no rect used to OCR that
+    # frame again, and a reader that threw came back as None — the same
+    # answer as "read, and not on a panel".
+    _tip_by_frame = {}
     for r in sess_rows:
         ts = int(r.get("ts") or r.get("captureTs") or 0)
         fid = str(r.get("frameId") or "")
         # The judge row is a tooltip parse and carries no place. Join the rect to
         # the panel BEFORE names_loc is read, or the register keeps loc None.
         if isinstance(r, dict) and r.get("lane") == "kai":
-            _kai_stamp_tooltip_loc(r)
+            _kai_stamp_tooltip_loc(r, _tip_by_frame)
         nl = r.get("names_loc") if isinstance(r.get("names_loc"), dict) else {}
         if r.get("lane") == "deep":
             # v948 — prefer names_new (session sticky); fall back to full names for old journals
@@ -41786,7 +41828,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3729",
+        "ver": "v3730",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
