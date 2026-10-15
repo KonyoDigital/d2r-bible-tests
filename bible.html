@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3739 · TV DIABLO</title>
-<meta name="d2r-build" content="v3739">
+  <title>Konyo's D2R Farming Bible v3740 · TV DIABLO</title>
+<meta name="d2r-build" content="v3740">
 <meta name="d2r-build-date" content="2026-10-15">
-<meta name="d2r-build-note" content="REG-2226 follow-up (review-after-ship on v3738): (1) a DUPES locker with only spare-overflow cells and nothing filed to it painted as vm-empty plus empty-locker text underneath the spares - now a non-empty overflow suppresses both. (2) the proof chip numerator walked only drawn plus magicItems while _itemN added overflow names, so a proven spare read zero of one; the numerator now walks _ovNames too. _ovNames hoisted so the render and the chip share it. HEART: guarded by the extended tests/v3738_dupes_overflow_cells.spec.ts on Routine I; backend needs no new watcher.">
+<meta name="d2r-build-note" content="Ultracode fleet batch, 7 fixes. REG-2227 planner copy-undo guard (#108). REG-2228 planner settles a kind-ambiguous add to one record (#109). REG-2229 de-dupe set pieces stuck in both dock and set mule (#11). REG-2230 FIND refreshes on re-sort and a shared row opens its real locker (#12). REG-2231 the fullscreen dupes window shows shared spare copies, mirroring the shelf (#134). REG-2232 ledger cap keeps the freshest row not the oldest (#16). REG-2233 a magic/rare keeper in owned survives the load prune (#75). Display/logic fixes on the heart chassis, copies stay homed, no data touched. HEART: guarded by the seven tests/v3740_ specs on Routine I; backend needs no new watcher.">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -4326,7 +4326,7 @@ window._LP_FORKED = new Set([
      A guard that reads source fails on its own reach before it fails on the code, and the tell was
      there both times: the names were provably present in the parsed blob while absent from the
      parsed names. [[source-reading-guard]] [[d2r-curly-apostrophe-class]] */
-  "d2r_vaultBackfill_v2200", "d2r_vaultBackfillUndo_v2205", "d2r_vaultEvidenceRestore_v2207","d2r_owned", "d2r_tvExtraItems", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_plannerMade", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_mulePos", "d2r_muleRoster", "d2r_muleEquip", "d2r_vaultRerouteDone", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiArt", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_setFarm", "d2r_craftReady", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge; v1570 d2r_setFarm = the same bridge for the SETS chronicle, forked for the same reason — a hunt list is per-account state */
+  "d2r_vaultBackfill_v2200", "d2r_vaultBackfillUndo_v2205", "d2r_vaultEvidenceRestore_v2207","d2r_setDupeMigrate_v2227","d2r_owned", "d2r_tvExtraItems", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_plannerMade", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_mulePos", "d2r_muleRoster", "d2r_muleEquip", "d2r_vaultRerouteDone", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiArt", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_setFarm", "d2r_craftReady", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge; v1570 d2r_setFarm = the same bridge for the SETS chronicle, forked for the same reason — a hunt list is per-account state */
 // v665 — the WINDOWS fork set (Konyo: "make it the same and identical… structured the same").
 // v663 forked EVERY d2r_* key, which also forked UI PREFERENCES (active tab, dock, boss sorts,
 // grail-wall state…) — so the cousin shell rendered structurally different. Doctrine restored to
@@ -24818,6 +24818,15 @@ window.renderHighValueFinds = renderHighValueFinds;
      tree (TV extras are covered by _EXTRA_ITEM_SET, socket bases by _SOCKET_KEEP). It is here
      because the store exists and was not consulted, not because a row is dying today. */
   var _maKeep = _safeJsonParse(LS.getItem('d2r_muleAssign'), {}) || {};
+  /* #75 (REG-2233, GrokBot top priority) — AND A NAME HE KEPT IN MAGIC & RARE IS A NAME HE OWNS.
+     aicMule (the AI Item Checker keep), the planner magic/rare pick and aicJudgeApply each write
+     magicFinds[name] AND owned.add(name) ("own the name so the count moves", :45085) but, by the
+     v3716 one-home doctrine, never a mule filing — so _maKeep is empty for them. Every clause of the
+     prune below asks a grail/base catalogue or the mule map; none asked the Magic & Rare register,
+     the keeper's OWN home, so a charm / jewel he registered survived one load and was rebuilt away
+     on the next — the silent drop the note above (:24904) calls "the failure mode". Consult it here,
+     the same way _maKeep reads the mule map; it only ADMITS more, never drops more. [[the-unjoined-end]] */
+  var _maMagic = (typeof magicFinds === 'object' && magicFinds) ? magicFinds : {};
   /* ══ v2205 (#48) — A SET PIECE IN `owned` WAS DELETED ON EVERY SINGLE LOAD ══════════════════
      MEASURED, with every migration stamped so none could interfere:
          wrote   ["Laying of Hands (bramble mitts)", "Waterwalk", "Nagelring"]
@@ -24914,7 +24923,7 @@ window.renderHighValueFinds = renderHighValueFinds;
     }
     return _CATALOGUE_NORM[_norm(n)] || false;
   };
-  owned = new Set([...owned].filter(n => typeof n === 'string' && n && (ITEM_REGISTRY[n] || _UNI_EXTRA[n] || _GRAIL_SEED[n] || _EXTRA_ITEM_SET.has(_norm(n)) || _ROSTER_NORM[_norm(n)] || _maKeep[n] || _SHARED_KEEP.test(n) || _SOCKET_KEEP.test(n) || _isSetPieceName(n) || window.d2rCatalogueKnows(n))));   // v659 — chronicle-seeded uniques + extras survive the prune · v2128 — + his own mule filing · v2208 — + runewords and sunder charms
+  owned = new Set([...owned].filter(n => typeof n === 'string' && n && (ITEM_REGISTRY[n] || _UNI_EXTRA[n] || _GRAIL_SEED[n] || _EXTRA_ITEM_SET.has(_norm(n)) || _ROSTER_NORM[_norm(n)] || _maKeep[n] || _maMagic[n] || _SHARED_KEEP.test(n) || _SOCKET_KEEP.test(n) || _isSetPieceName(n) || window.d2rCatalogueKnows(n))));   // v659 — chronicle-seeded uniques + extras survive the prune · v2128 — + his own mule filing · v2208 — + runewords and sunder charms
   if (wishlist.size !== beforeWish || owned.size !== beforeOwned) {
     const wDrift = beforeWish - wishlist.size;
     const oDrift = beforeOwned - owned.size;
@@ -41027,12 +41036,40 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         : (w.kind === 'dock') ? '<span class="vfr-arrow">→</span><span style="color:var(--text-dim)" title="'+esc(w.why)+'">unsorted · in the dock — '+esc(String(w.why).split(' — ')[0].slice(0, 48))+'</span>'
         : '<span class="vfr-arrow">→</span><span class="vfr-mule">'+esc(w.muleName)+'</span>'
           + (w.cell ? '<span class="vfr-cell"> · '+esc(w.cell)+'</span>' : '<span class="vfr-cell"> · cell UNKNOWN</span>');
-      var click = mid ? ' onclick="window.openMuleCard&&window.openMuleCard(\''+jsArg(mid)+'\')"' : '';
+      /* #12 (REG-2230) — a shared-stash row must open the TAB the item actually sits on, not whatever page
+         the shared card was last left on. _sharedPage defaults to 0 (Weapons) and openMuleCard('shared')
+         never changes it, which is why EVERY shared row read "opens Shared Stash > Weapons". _sharedTabOf is
+         the SAME function _sharedStashPages files by, so the click lands on the exact tab the item is packed
+         on; _sharedSetPage sets that page AND opens the card. Mule rows keep opening their ID card as before. */
+      var click;
+      if (mid === 'shared'){
+        var _vfTab = 0;
+        try { _vfTab = (typeof window._sharedTabOf === 'function') ? (window._sharedTabOf(n).tab | 0) : 0; } catch (eVT) { _vfTab = 0; }
+        click = ' onclick="window._sharedSetPage&&window._sharedSetPage('+_vfTab+')"';
+      } else {
+        click = mid ? ' onclick="window.openMuleCard&&window.openMuleCard(\''+jsArg(mid)+'\')"' : '';
+      }
       return '<div class="vfr-row"'+click+' title="'+(mid?(w.kind==='would'?'open the mule it would go to':'open this mule’s ID card'):'not in a mule — see why beside it')+'">'
         + art(n) + '<span class="vfr-name"'+(typeof _qStyle==='function'?_qStyle(n,'unique'):'')+'>'+esc(n)+'</span><span class="vfr-loc">'+loc+'</span></div>';
     }).join('');
     /* the #231 eye on v3617 — a row his MAIN wears or the dock holds has no mule to open, so the header says which rows open */
     res.innerHTML = '<div class="vfr-head">'+matches.length+' match'+(matches.length===1?'':'es')+(matches.length>30?' · showing 30':'')+' — click a row with a mule to open it</div>' + rows;
+  };
+  /* #12 (REG-2230) — FIND went STALE after a re-sort. vaultFind re-ran ONLY on type / clear (the input
+     events), so after Auto-Sort, a drag, an unfile or any redraw the rows kept the location AND the onclick
+     target baked in at the moment they were typed, each pointing at where the item USED to be. This re-runs
+     the live query against the current model, and it is called from the one hub every re-sort funnels
+     through (renderVault), so no call site can forget it. It repaints only a find already on screen (a
+     non-empty query with its panel open), reads the input CURRENT value, and never re-renders the vault
+     (vaultFind is a pure read + paint), so it cannot recurse through renderVault. [[the-unjoined-end]] */
+  window._vaultFindRefresh = function(){
+    try {
+      var inp = document.getElementById('vault-find-input');
+      var res = document.getElementById('vault-find-results');
+      if (!inp || !res || res.hidden) return;
+      var q = (inp.value || '').trim();
+      if (q && typeof window.vaultFind === 'function') window.vaultFind(q);
+    } catch (e) {}
   };
 
   // ── render ──
@@ -42011,6 +42048,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         window._rwMadeObj = undefined;
       }
     }
+    /* #12 (REG-2230) — the OUTERMOST vault render has settled (spare depth back to 0): refresh the open
+       finder so a re-sort / move / unfile repaints its rows with live locations and live click targets. */
+    if ((window._spareDepth || 0) <= 0){ try { window._vaultFindRefresh && window._vaultFindRefresh(); } catch (eVF) {} }
   }
   function renderVaultDraw(){
     var dock=document.getElementById('vault-dock'), shelf=document.getElementById('vault-shelf');
@@ -42045,6 +42085,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { renderVaultAudit(); } catch(e){}   // v1282 — 🔍 integrity checker banner (hidden when clean)
     /* #146 (REG-1821) — the second hand list's rows come home through the owned door, once, before the pool is read */
     try { if (typeof window._vaultHandMigrate === 'function') window._vaultHandMigrate(); } catch (eH) {}
+    /* REG-2229 (#11) — the OLD set-piece double-rows (owned in BOTH the dock AND the set mule) are
+       de-duped here, once per world, right after the hand list comes home and before the pool is read */
+    try { if (typeof window._vaultDedupeOldSetRows === 'function') window._vaultDedupeOldSetRows(); } catch (eD) {}
     try { if (typeof window._vaultHandLeftPaint === 'function') window._vaultHandLeftPaint(); } catch (eL) {}
     var poolAll=ownedPool();
     // account-shared-stash items (runes/essences/shards/statues) are recorded but NEVER muled —
@@ -44651,6 +44694,68 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
              ts: batch ? batch.ts : null, batch: batch };
   };
 
+  /* ══ REG-2229 (#11) — THE OLD SET-PIECE DOUBLE-ROWS COME HOME, ONCE ═══════════════════════
+     Before v3716 the hand door filed a set piece under its slot key ("Tal Rasha's Horadric Crest
+     (helm)") while the planner owned the SHOWN name beside it (bible.html:45127), so `owned` carried
+     BOTH: one filed in the set mule, one left loose in the Unsorted dock — which is how a FILED set
+     piece still shows as unsorted (the dock is assign==null, the mule is assign==='sets-…', two keys
+     for one piece). v3716 resolves first then owns+files ONE name, so no NEW add double-files — but
+     the rows written before it were never migrated, and his helms (Tal Rasha, Immortal King, Natalya,
+     +1) still showed in the dock AND their set mule. This runs the migration those rows were owed: a
+     loose owned set piece whose SAME canonical piece (findSetPiece().piece) is already filed in a real
+     mule is the stray shown-name copy. It leaves through vaultRemove — the dated, journalled, undoable
+     door — so his testimony is kept: the FILED copy and its witness row stay, the Sets chronicle
+     (d2r_setPieces) is untouched, and a copy count folds onto the survivor so none is lost. ONCE per
+     world (the stamp forks like d2r_owned, v2224), set BEFORE the removal re-renders so the re-entrant
+     pass is a no-op and a later undo of the batch is never re-applied. [[the-unjoined-end]] [[unknown-stays-unknown]] */
+  window._vaultDedupeOldSetRows = function(){
+    try {
+      if (typeof window.LSR === 'undefined') return { ran: false, why: 'LSR not on this page' };
+      if (window.LSR.getItem('d2r_setDupeMigrate_v2227')) return { ran: false, why: 'already run on this world' };
+      if (typeof findSetPiece !== 'function' || typeof window.vaultRemove !== 'function'
+          || typeof owned === 'undefined' || typeof assign === 'undefined') return { ran: false, why: 'the vault is not ready yet' };
+      /* every set piece ALREADY FILED in a real locker, keyed by its canonical piece identity */
+      var filedPiece = {};
+      Object.keys(assign).forEach(function(F){
+        var a = assign[F];
+        if (a == null || a === '__throwout' || a === '__keep') return;
+        if (typeof muleById === 'function' && !muleById(a)) return;   /* a real locker (the set mule, etc.) only */
+        var sp = null; try { sp = findSetPiece(F); } catch (e) { sp = null; }
+        if (sp && sp.piece && !filedPiece[sp.piece]) filedPiece[sp.piece] = F;
+      });
+      /* a LOOSE owned set piece whose SAME piece is filed under a DIFFERENT key is the stray dock copy */
+      var dupes = [], twinOf = {};
+      owned.forEach(function(L){
+        if (assign[L] != null) return;                          /* not loose — already has a home */
+        var sp = null; try { sp = findSetPiece(L); } catch (e) { sp = null; }
+        if (!sp || !sp.piece) return;                           /* set pieces only — the slot-suffix class */
+        var twin = filedPiece[sp.piece];
+        if (twin && twin !== L){ dupes.push(L); twinOf[L] = twin; }
+      });
+      /* stamp BEFORE vaultRemove: it re-renders, which re-enters here, and the stamp makes that pass a
+         no-op — and it stamps even on an empty run, so a later undo of this batch is never redone */
+      try { window.LSR.setItem('d2r_setDupeMigrate_v2227', String(Date.now())); } catch (e) {}
+      if (!dupes.length) return { ran: true, removed: 0 };
+      /* never lose a copy count — fold the stray's onto the survivor it keeps (max, never undercount) */
+      try {
+        if (typeof copies !== 'undefined' && copies){
+          var _cCh = false;
+          dupes.forEach(function(L){
+            if (copies[L] != null){
+              var t = twinOf[L];
+              copies[t] = Math.max((copies[t] != null ? copies[t] : 1), copies[L]);
+              delete copies[L]; _cCh = true;
+            }
+          });
+          if (_cCh && typeof LS !== 'undefined' && LS.setItem) LS.setItem('d2r_copies', JSON.stringify(copies));
+        }
+      } catch (e) {}
+      var r = window.vaultRemove(dupes, { lane: 'set-dupe-migration', quiet: true,
+        why: 'old double-filed set piece — the stray Unsorted copy of a piece already filed in its mule (REG-2229, #11)' });
+      return { ran: true, removed: (r && r.removed) ? r.removed.length : 0, names: (r && r.removed) || [] };
+    } catch (e) { return { ran: false, why: String((e && e.message) || e) }; }
+  };
+
   /* The reverse of exactly one batch — and ONLY of what that batch removed. */
   window.vaultRestoreLast = function(){
     var log = _vrRead();
@@ -45131,11 +45236,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!magicQ && (kind || (typeof _vaultKeeps === 'function' && _vaultKeeps(nm)))
         && typeof window._vaultResolveName === 'function'){
       try {
+        // v3740 (REG-2228, #109) — settle a kind-ambiguous name by this pick's kind BEFORE resolving,
+        // as tvVaultRegister already does. In Reign of the Warlock "Crescent Moon" is BOTH a runeword
+        // and the unique amulet "Crescent Moon (amulet)". _vaultResolveName punts on a _vaultDistinctName
+        // and leaves the bare name, so vaultHandAdd owned the kind-settled amulet while _vpRoute below
+        // filed the bare "Crescent Moon" to the runewords mule — one add, two records. Settling here
+        // makes nm equal the name vaultHandAdd commits, so add, route and _vpMade all speak one name.
+        if (kind && typeof window._vaultNameAmbiguity === 'function'){
+          var _amb = window._vaultNameAmbiguity(nm, { kind: kind });
+          if (_amb && _amb.settled) nm = String(_amb.settled);
+        }
         var _resolved = String(window._vaultResolveName(nm) || '');
         if (_resolved) nm = _resolved;
       } catch (eRes) {}
     }
-    if (_vpMade && _vpMade.token === token && _vpMade.name && _vpMade.name !== nm) _vpCopyUndo(token);
+    if (_vpMade && _vpMade.token === token && _vpMade.id === entry.id && _vpMade.name && _vpMade.name !== nm) _vpCopyUndo(token);
     if (_vpMade && _vpMade.token === token && _vpMade.id === entry.id && _vpMade.name !== nm && _vpMade.fresh) _vpDrop();
     var baseName = _vpBase(entry, shown);
     var mods = _vpMods(entry);
@@ -46827,7 +46942,29 @@ window.vaultAutoAssign = function(){
     try { (_sharedNames() || []).forEach(function(n){ if (_vaultSharedOverflowCells(n) > 0) out.push(n); }); } catch(e){}
     return out.sort();
   }
-  try { window._vaultSharedOverflowCells = _vaultSharedOverflowCells; window._vaultSharedOverflowNames = _vaultSharedOverflowNames; } catch(e){}
+  /* REG-2231 (#134 fullscreen follow-up, v3740) [[copy-drift]] — ONE renderer for the "spare copies — trade
+     stock" cells, used by BOTH the shelf dupes CARD (v3738, ~line 42288) and the FULLSCREEN dupes window, so the
+     two surfaces draw the same markup. Returns '' when there is no shared overflow. Display-only: the copies are
+     homed in 'shared' (not re-filed), each cell carries no ✕, and the true total is the registered ×N. Callers
+     gate on the DUPES locker before calling; the cell strings are byte-identical to v3738, so routing the shelf
+     through this later is a pure no-op. */
+  function _vaultSharedOverflowHtml(){
+    var _ovNames = _vaultSharedOverflowNames();
+    if (!_ovNames.length) return '';
+    var _ovCells = [];
+    _ovNames.forEach(function(n){
+      var _ocl = (typeof _itemCells === 'function') ? _itemCells(n) : { w: 1, h: 2 };
+      var _ok = _vaultSharedOverflowCells(n), _otot = (typeof copyCount === 'function') ? copyCount(n) : 1;
+      for (var _oi = 0; _oi < _ok; _oi++){
+        _ovCells.push('<div class="vm-cell vmc-spare" style="grid-column:span ' + _ocl.w + ';grid-row:span ' + _ocl.h + '" data-arttip="' + esc(n) + '" title="' + esc(n) + ' — spare copy ' + (_oi + _SHARED_COPY_CAP + 1) + ' of ' + _otot + ' · trade stock: the shared stash keeps 2, the rest are held here (thrown out never)">'
+          + ((typeof art === 'function') ? art(n, '◆', 'lg') : '')
+          + '<span class="vm-item-name vm-cell-name" data-arttip="' + esc(n) + '">' + esc(n) + '</span></div>');
+      }
+    });
+    if (!_ovCells.length) return '';
+    return '<div class="vm-spare-sec"><div class="vm-spare-head">♻️ spare copies — trade stock (' + _ovCells.length + ' cell' + (_ovCells.length === 1 ? '' : 's') + ')</div><div class="vm-grid vm-grid-spare">' + _ovCells.join('') + '</div></div>';
+  }
+  try { window._vaultSharedOverflowCells = _vaultSharedOverflowCells; window._vaultSharedOverflowNames = _vaultSharedOverflowNames; window._vaultSharedOverflowHtml = _vaultSharedOverflowHtml; } catch(e){}
   function _sharedPack(items){
     var sized = [];
     (items || []).forEach(function(n){
@@ -49010,8 +49147,12 @@ window.vaultAutoAssign = function(){
       }
     }
     var _anim = _mpAnim; _mpAnim = false;   // #174 R1 — only the render right after a swap fades
+    /* REG-2231 (#134, v3740) — the fullscreen DUPES window SHOWS the shared overflow (3rd+ copies) as display-only
+       "spare" cells too, mirroring the shelf card (v3738). Self-contained: the _muleLoad packer is untouched, the
+       copies stay homed in 'shared', nothing is re-filed, and the registered ×N stays the truth. */
+    var _spareHtml = (muleId === 'dupes' && typeof _vaultSharedOverflowHtml === 'function') ? _vaultSharedOverflowHtml() : '';
     box.innerHTML = '<div class="mp'+(sc.stack?' mp-stack':'')+(_anim?' mp-anim':'')+'" style="--u:'+k.toFixed(4)+'px;--kf:'+Math.min(1, k).toFixed(4)+'" data-k="'+k.toFixed(4)+'" data-sig="'+sc.sig+'">'
-      + '<div class="mp-main">' + head + buildSet + '<div class="mp-lc">' + left + centre + '</div></div>'
+      + '<div class="mp-main">' + head + buildSet + '<div class="mp-lc">' + left + centre + '</div>' + _spareHtml + '</div>'
       + right + _hostHtml
       + '</div>';
     box.scrollTop = _keep ? _keep.top : 0;
@@ -66021,7 +66162,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3739', name:'v3739 - the dupes spare section does not read as an empty locker and counts in the proof chip', date:'2026-10-15', note:'REG-2226 follow-up (review-after-ship on v3738): (1) a DUPES locker with only spare-overflow cells and nothing filed to it painted as vm-empty plus empty-locker text underneath the spares - now a non-empty overflow suppresses both. (2) the proof chip numerator walked only drawn plus magicItems while _itemN added overflow names, so a proven spare read zero of one; the numerator now walks _ovNames too. _ovNames hoisted so the render and the chip share it. HEART: guarded by the extended tests/v3738_dupes_overflow_cells.spec.ts on Routine I; backend needs no new watcher.' };
+  window.D2R_BUILD = { id:'v3740', name:'v3740 - vault fleet batch - fullscreen dupes, FIND, ledger, magic-rare, planner, set-dupes', date:'2026-10-15', note:'Ultracode fleet batch, 7 fixes. REG-2227 planner copy-undo guard (#108). REG-2228 planner settles a kind-ambiguous add to one record (#109). REG-2229 de-dupe set pieces stuck in both dock and set mule (#11). REG-2230 FIND refreshes on re-sort and a shared row opens its real locker (#12). REG-2231 the fullscreen dupes window shows shared spare copies, mirroring the shelf (#134). REG-2232 ledger cap keeps the freshest row not the oldest (#16). REG-2233 a magic/rare keeper in owned survives the load prune (#75). Display/logic fixes on the heart chassis, copies stay homed, no data touched. HEART: guarded by the seven tests/v3740_ specs on Routine I; backend needs no new watcher.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -66432,7 +66573,18 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
       next.status = prev.status;
       next.vaultStatus = row.status;
     }
-    if (ix >= 0) log[ix] = next; else log.push(next);
+    /* REG-2232 (#16) — A RE-READ ROW MUST MOVE TO THE TAIL, OR THE CAP EVICTS THE FRESHEST.
+       _chLogSave trims to the last 400 rows BY ARRAY POSITION, but this upsert stamped a fresh
+       lastTs on a touched row and left it at its first-insertion index (log[ix] = next). The one
+       panel he reads, renderRoutingLedger, orders newest-first BY lastTs — so the two orderings
+       agreed until a row was re-read, then disagreed for exactly the rows worth keeping: a name he
+       keeps seeing (a re-read Spirit) carried a fresh lastTs at a low index and was sliced off the
+       front by a single new registration, while staler rows survived. REG-312 made the subtitle
+       admit "the oldest decisions drop"; this makes that honest again, because array position now
+       tracks last-touch and .slice(-400) keeps the 400 the panel treats as newest. The cap itself
+       is unchanged — 400 is his number. [[the-unjoined-end]] [[unknown-stays-unknown]] */
+    if (ix >= 0) log.splice(ix, 1);
+    log.push(next);
     _chLogSave(log);
     return next;
   }

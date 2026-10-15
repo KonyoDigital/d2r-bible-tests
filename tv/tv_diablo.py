@@ -63,7 +63,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3739"   # the dupes spare section does not read as an empty locker and counts in the proof chip
+VERSION = "v3740"   # vault fleet batch - fullscreen dupes, FIND, ledger, magic-rare, planner, set-dupes
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3739",
+  "ver": "v3740",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3739: REG-2226 follow-up (review-after-ship on v3738): (1) a DUPES locker with only spare-overflow cells and nothing filed to it painted as vm-empty plus empty-locker text underneath the spares - now a non-empty overflow suppresses both. (2) the proof chip numerator walked only drawn plus magicItems while _itemN added overflow names, so a proven spare read zero of one; the numerator now walks _ovNames too. _ovNames hoisted so the render and the chip share it. HEART: guarded by the extended tests/v3738_dupes_overflow_cells.spec.ts on Routine I; backend needs no new watcher.",
+  "note": "v3740: Ultracode fleet batch, 7 fixes. REG-2227 planner copy-undo guard (#108). REG-2228 planner settles a kind-ambiguous add to one record (#109). REG-2229 de-dupe set pieces stuck in both dock and set mule (#11). REG-2230 FIND refreshes on re-sort and a shared row opens its real locker (#12). REG-2231 the fullscreen dupes window shows shared spare copies, mirroring the shelf (#134). REG-2232 ledger cap keeps the freshest row not the oldest (#16). REG-2233 a magic/rare keeper in owned survives the load prune (#75). Display/logic fixes on the heart chassis, copies stay homed, no data touched. HEART: guarded by the seven tests/v3740_ specs on Routine I; backend needs no new watcher.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

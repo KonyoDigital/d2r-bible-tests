@@ -468,6 +468,13 @@
 "tests/v3735_auto_sort_skips_chronicle_only.spec.ts": 7.0,
 "tests/v3736_locker_count_is_items_not_copies.spec.ts": 8.0,
 "tests/v3737_shelf_shared_card_caps_copies.spec.ts": 7.0,
-"tests/v3738_dupes_overflow_cells.spec.ts": 8.0
+"tests/v3738_dupes_overflow_cells.spec.ts": 8.0,
+"tests/v3740_planner_copy_survives_second_pick.spec.ts": 8.0,
+"tests/v3740_planner_add_one_record_kind_ambiguous.spec.ts": 8.0,
+"tests/v3740_old_set_dupes_dock_and_mule.spec.ts": 8.0,
+"tests/v3740_vault_find_stale_after_resort.spec.ts": 8.0,
+"tests/v3740_fullscreen_dupes_spare_section.spec.ts": 8.0,
+"tests/v3740_ledger_cap_keeps_freshest_row.spec.ts": 8.0,
+"tests/v3740_magic_rare_keeper_survives_load_prune.spec.ts": 8.0
 }
 }
