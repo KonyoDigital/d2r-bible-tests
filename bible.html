@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3744 · TV DIABLO</title>
-<meta name="d2r-build" content="v3744">
+  <title>Konyo's D2R Farming Bible v3745 · TV DIABLO</title>
+<meta name="d2r-build" content="v3745">
 <meta name="d2r-build-date" content="2026-10-16">
-<meta name="d2r-build-note" content="Three backlog items (REG-2245/2247/2244). VAULT FIRST CLICK (#53, REG-2245): the fullscreen mule window is a body-level fixed overlay that switchTab never closed, so openMuleId and box.hidden survived a tab change and the next Vault open showed the stale SHARED card instead of the body (GrokBot tick 409). vaultCloseCard gains a silent arg; a switchTab wrapper closes any open card the instant the active tab changes; a hashchange listener closes it on Back and deep-links. ROSTER PUBLISHES THE STASH (#74, REG-2247, his 10-15 ruling): the roster only derived a stash from per-build cells (empty in his book), so his flat owned list never published; stash_rows_of now also yields the owned names and the stash read is lifted out of the characters branch into its own first-class section, same shape as vault. TOOLTIP WIRING GUARD (#42, REG-2244): the native-title suppression already shipped (REG-2116) but its only law called show directly and could never cover the real hover delegate; a new spec dispatches a real mousemove over a titled data-itip node and asserts both native titles are neutralised while the card is up and restored after. Also closed two already-shipped siblings: the #42 console half (REG-2116) and the #107 d2jsp price cache (REG-2216). HEART: three v3744 Routine-I spec.ts, RED-first; the roster spec drives the real python body-builder.">
+<meta name="d2r-build-note" content="Parallel-sprint batch, six fixes (REG-2248..2253). #8 FOOTPRINT JOIN: _itemCells resolves a codex base NAME to its CB_DB CODE off the same table _cbFoot reads, so a magic/rare/base item on a known base draws the real game footprint instead of the 1x2 approx; genuinely-unknown names keep approx. #74b ROSTER DEDUPE: stash_rows_of records a seen set so the flat owned pass cannot double-publish an item the book carries in both the structured stash and owned. #6 PERFECT-BASE AUTO-MULE: a socketable base at or within one of its _cbMaxSock max, or an elite ethereal base, is registered and routed to the socketed mule; a plain unsocketed white stays unfiled. #7 AFFIX PERFECTION-KEEP: the AI checker lifts the verdict to KEEP when a coveted magic or rare affix rolled at or above 85 percent of its max, read live from the CB_DB affix table, never a hardcoded list. #45 CONSOLE TOOLTIP: the element-anchored tip re-glues to its host on scroll and clears when the pointer leaves the host, so it no longer hangs at a stale rect inside the scrolled shelf. #58 SHELF CARD: opening the shelf covers the stage synchronously before the sessions fetch, so a fast reopen never flashes an empty Session 1 Theatre. HEART: six RED-first Routine-I spec.ts; pre-flight js-syntax plus the 1895-anchor red-proof census plus the roster suites. FIND-nav blocked, needs the live console.">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -20179,6 +20179,42 @@ function _itemCells(name){
             }
           }
         } catch (eUni) {}
+      }
+      /* REG-2248 (GrokBot #230, v3743 locker retest: items still drew "(sizes approximated)") - A
+         CODEX-RESOLVED BASE IS STILL THE GAME FOOTPRINT. The _storedBase lookup above reaches _cbFoot
+         only for a planner record; a freshly-added magic / rare / base item has no stored base, so the
+         base resolved above from the codex (ITEM_CODEX.base / ITEM_TIP.b / EXTRA_ITEMS.base / the
+         set-piece slot) never reached _cbFoot and fell to the keyword guesses or the approx default -
+         drawn 1x2 though CB_DB knows the base. _cbFoot keys the base CODE (d.b); the codex base is a
+         NAME, so it is resolved to its CB_DB code off the SAME table _cbFoot reads (zero drift) and
+         sized. A RUNEWORD is excluded on purpose (its base varies - as the unique tier above also
+         keeps). A base CB_DB cannot size, or a set-piece slot (not a base name), finds no code and
+         falls through, so a genuinely unknown name keeps approx:true. Never invents a base from the
+         word. [[unknown-stays-unknown]] */
+      if (base && (typeof findRuneword !== 'function' || !findRuneword(name))
+          && typeof window !== 'undefined' && window
+          && typeof window._cbDb === 'function' && typeof window._cbFoot === 'function'){
+        try {
+          var _cdbB = window._cbDb();
+          if (_cdbB && _cdbB.b){
+            if (!_cdbB._baseByName){
+              var _bbn = {}, _bKeys = Object.keys(_cdbB.b);
+              for (var _bKi = 0; _bKi < _bKeys.length; _bKi++){
+                var _bRow = _cdbB.b[_bKeys[_bKi]];
+                if (_bRow && _bRow[0]){ var _bLc = String(_bRow[0]).toLowerCase(); if (!_bbn[_bLc]) _bbn[_bLc] = _bKeys[_bKi]; }
+              }
+              _cdbB._baseByName = _bbn;
+            }
+            var _bCode = _cdbB._baseByName[String(base).toLowerCase()];
+            if (_bCode){
+              var _bFoot = window._cbFoot({ base: _bCode });
+              if (_bFoot && _bFoot[0] >= 1 && _bFoot[1] >= 1){
+                cells = { w: _bFoot[0] | 0, h: _bFoot[1] | 0 };
+                _ITEM_CELLS_CACHE[_ck] = cells; return cells;
+              }
+            }
+          }
+        } catch (eBaseFoot) {}
       }
       /* #275 (GrokBot tick 418, K14) - A RUNEWORD IS SIZED BY ITS BASE, NEVER BY ITS NAME. Enigma has no codex row, so it
          fell to the default 1x2 (its tile admitted the size was a guess) although every Enigma is body armour (2x3) - and a runeword
@@ -45018,6 +45054,82 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     {re:/attack rating|to (minimum|maximum) damage|adds \d+\s*[-–]\s*\d+/i, w:1, label:'Damage / AR'},
   ];
   function _aicScoreAffix(s){ s=String(s||''); var best=null; for(var i=0;i<_AIC_W.length;i++){ if(_AIC_W[i].re.test(s)){ if(!best || _AIC_W[i].w>best.w) best=_AIC_W[i]; } } return best; }
+  // ─────────────────────────────────────────────────────────────────────────────────────────────
+  // v3746 (REG-2251) — AFFIX PERFECTION-KEEP. His 2026-10-15 law (AUTO_MULE_AFFIX_KEEPLIST.md): a magic/
+  // rare item is muled when a COVETED affix rolls NEAR ITS MAX — roll >= 0.85x max, top-tier (S) a touch
+  // looser at 0.80 — however low the plain affix-weight score. The coveted SET is his curated reference
+  // (affix NAME + the stat it rolls + a value tier); the MAX is READ FROM DATA, the CB_DB affix table
+  // already on this page (window._cbDb().af — the rows the generator writes from the RotW install's
+  // magicprefix / magicsuffix), never a hand-typed number, so every roll is judged against the game's own
+  // band (of the Whale life -> 100, Cruel ED -> 300, Jeweler's sockets -> 4, of the Lamprey leech -> 12 ...).
+  // Sockets = Jeweler's (the 4os JMoD base); Mechanic's (1-2) is NOT coveted. An affix whose max the data
+  // cannot give — a skill-tab's many per-tree names, a name this install does not carry — stays UNKNOWN
+  // and is NOT judged here; the weight floor above still covers it. [[unknown-stays-unknown]]
+  var _AIC_COVETED = [
+    { key:'sockets', tier:'S', names:["jeweler's"],                          stat:/(?:^|[^0-9])(\d+)\s*socket|socketed[^0-9]*(\d+)|\((\d+)\s*os\)/i },
+    { key:'ed',      tier:'S', names:['cruel'],                              stat:/(\d+)\s*%\s*(?:enhanced damage|\bed\b)/i },
+    { key:'life',    tier:'S', names:['of the whale','of vita'],             stat:/\+?\s*(\d+)\s+(?:to )?(?:maximum )?life\b/i },
+    { key:'leech',   tier:'S', names:['of the lamprey','of the vampire'],    stat:/(\d+)\s*%?\s*(?:life|mana)\s*(?:stolen|leech)/i },
+    { key:'allres',  tier:'A', names:['prismatic','shimmering'],             stat:/\+?\s*(\d+)\s+(?:to )?all res/i },
+    { key:'str',     tier:'A', names:['of the titan','of atlus','of atlas'], stat:/\+?\s*(\d+)\s+to strength\b/i },
+    { key:'dex',     tier:'A', names:['of nirvana','of perfection'],         stat:/\+?\s*(\d+)\s+to dexterity\b/i },
+    { key:'ias',     tier:'A', names:['of alacrity','of fervor'],            stat:/(\d+)\s*%?\s*(?:increased attack speed|\bias\b)/i },
+    { key:'fcr',     tier:'A', names:['of the magus'],                       stat:/(\d+)\s*%?\s*(?:faster cast rate|\bfcr\b)/i },
+    { key:'block',   tier:'A', names:['of deflecting'],                      stat:/(\d+)\s*%\s*(?:increased )?(?:chance (?:to|of) block)/i },
+    { key:'skilltab',tier:'S', names:[],                                     stat:/\+\s*(\d+)\s+to\s+(?!all\b)[a-z' ]*\bskills?\b/i }
+  ];
+  /* the CB_DB affix rows (by display name) behind a coveted entry — the one place the max is read FROM DATA */
+  function _aicCovRows(names){
+    var d; try { d = (typeof window._cbDb==='function') ? window._cbDb() : null; } catch(e){ d=null; }
+    if (!d || !d.af || !names || !names.length) return [];
+    var want={}; names.forEach(function(n){ want[String(n).toLowerCase().replace(/’/g,"'")]=1; });
+    return d.af.filter(function(a){ return want[String(a&&a[2]||'').toLowerCase().replace(/’/g,"'")]; });
+  }
+  /* every [lo,hi] roll band a coveted entry can roll, from its CB_DB af rows' line ranges (a[11][k][1]) */
+  function _aicCovBands(entry){
+    var out=[];
+    _aicCovRows(entry.names).forEach(function(a){
+      (a[11]||[]).forEach(function(l){ (l[1]||[]).forEach(function(r){
+        if (r && typeof r[0]==='number' && typeof r[1]==='number') out.push([Math.min(r[0],r[1]), Math.max(r[0],r[1])]);
+      }); });
+    });
+    return out;
+  }
+  /* the max a coveted roll is judged against: the band the roll sits in (pins the exact affix/band — of Vita
+     40 vs of the Whale 100), else the best the affix can roll. null = the data gives no band (UNKNOWN). */
+  function _aicCovMax(entry, roll){
+    var band=null, global=null;
+    _aicCovBands(entry).forEach(function(b){
+      if (global==null || b[1]>global) global=b[1];
+      if (roll!=null && roll>=b[0] && roll<=b[1] && (band==null || b[1]<band)) band=b[1];
+    });
+    var m = (band!=null) ? band : global;
+    return (typeof m==='number' && m>0) ? m : null;
+  }
+  /* his PERFECTION-KEEP law over an item's mods: keep when ANY coveted affix is near its data max. Returns
+     {keep, best:{key,tier,roll,max,pct}, hits:[...]} and touches nothing else. */
+  function _aicPerfectKeep(it){
+    it = it || {};
+    var mods=(it.mods||[]).map(function(m){ return String(m||'').trim(); }).filter(Boolean);
+    var hits=[], best=null;
+    _AIC_COVETED.forEach(function(entry){
+      var roll=null, mm, g;
+      for (var i=0;i<mods.length && roll==null;i++){
+        mm=mods[i].match(entry.stat);
+        if (mm){ for (g=1; g<mm.length; g++){ if (mm[g]!=null){ roll=+mm[g]; break; } } }
+      }
+      if (roll==null || !isFinite(roll)) return;
+      var max=_aicCovMax(entry, roll);
+      if (max==null) return;                 // CB_DB has no max for this affix -> UNKNOWN, not judged
+      if (roll > max*1.05) return;           // a roll past the affix's band is not this affix (unique/craft/mislabel)
+      var pct=roll/max, thr=(entry.tier==='S')?0.80:0.85, keep=pct>=thr;
+      var rec={ key:entry.key, tier:entry.tier, roll:roll, max:max, pct:pct, keep:keep };
+      hits.push(rec);
+      if (keep && (best==null || pct>best.pct)) best=rec;
+    });
+    return { keep: !!best, best:best, hits:hits };
+  }
+  window._aicPerfectKeep = _aicPerfectKeep;   // exposed for tests
   function _aicBench(base){
     var c=(typeof _baseCats==='function')?_baseCats(base):{};
     if(c['body armor']) return 'Enigma / Fortitude / Chains of Honor / Treachery';
@@ -45044,7 +45156,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     // v542 — cube tier-upgrade KEEPS affixes for RARE only (game-file cubemain.txt: unique/rare/set). Magic &
     // crafted items CANNOT be tier-upgraded, so this note is gated to rare (was wrongly shown for magic/crafted).
     if(it.q==='rare' && (bt==='normal'||bt==='exceptional')) ctx.push('⬆ <b>Rare</b> '+bt+' base — you CAN cube-up its tier and it KEEPS the affixes (weapon: Sapphire line · armor: Amethyst line). Never adds sockets / runeword ability.');
-    return { tier:tier, score:score, breakdown:bk, ctx:ctx };
+    // v3746 (REG-2251) — PERFECTION-KEEP overrides a low weight score: a coveted affix rolled near its
+    // DATA max is a keeper regardless. Lifts the TIER to 'keep' (never the score — the breakdown still
+    // sums to what it sums to) and says why, transparently, in the context lines.
+    var _pk=null; try { _pk=_aicPerfectKeep(it); } catch(e){ _pk=null; }
+    if (_pk && _pk.keep && _pk.best){
+      tier='keep';
+      ctx.push('💎 <b>Perfection keep</b> — your <b>'+esc(_pk.best.key)+'</b> rolled '+_pk.best.roll+'/'+_pk.best.max+' (<b>'+Math.round(_pk.best.pct*100)+'%</b> of its max in the game\'s affix tables, tier '+_pk.best.tier+'). A coveted affix within ~15% of max is muled however the rest rolls.');
+    }
+    return { tier:tier, score:score, breakdown:bk, ctx:ctx, perfect:_pk };
   }
   window._aicVerdict = _aicVerdict;   // exposed for tests
   function _aicVerdictHtml(){
@@ -45318,6 +45438,42 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (b.prevSeen) _vpCopySeen[b.name] = b.prevSeen;
     else delete _vpCopySeen[b.name];
   }
+  /* REG-2250 — HIS 2026-10-13 RULING. GrokBot #6197028243 confirmed the gap LIVE: a 4os Archon Plate
+     and an eth Berserker Axe were REFUSED here as a white / superior / low base. His rule: a PERFECT
+     socketable base is a keeper, routed to its type mule, not left unfiled / vendored. The signal is
+     read from CB_DB, never memory: the pick's ACTUAL sockets are AT, or within one of, window._cbMaxSock
+     for the base at its ilvl, OR it is an ELITE (tier 2) ETHEREAL base. Gated by window._isRunewordBase
+     (the file's single source of truth for "worth keeping for a runeword / craft"), so white circlets /
+     orbs / throwables stay OUT — his "only rare circlets" ruling and the v524 non-runeword-base vendor
+     rule, exactly as suggestMule's own white-base branch. A plain unsocketed, non-eth base returns null,
+     so the planner leaves it unfiled (his "plain unsocketed whites can stay unfiled" — an innate-skill
+     class base with no sockets is still a plain white). No threshold beyond max / near-max sockets is
+     invented; the elite-ethereal flag is the one bonus signal. Returns the SOCKETED-base keeper LABEL to
+     file under, so _ensureSocketBaseEntry registers it and it survives ownedPool / renderVault (the v324
+     rule), or null. [[unknown-stays-unknown]] [[regression-guard]] */
+  function _cbPerfectBaseMule(entry){
+    try {
+      if (!entry || entry.base == null) return null;
+      var d = (typeof window._cbDb === 'function') ? window._cbDb() : null;
+      var b = d && d.b && d.b[entry.base];
+      if (!b) return null;                                     // base not on record — UNKNOWN, never guessed
+      var ilvl = (entry.ilvl == null) ? 99 : (entry.ilvl | 0);
+      var max = (typeof window._cbMaxSock === 'function') ? window._cbMaxSock(entry.base, ilvl) : 0;
+      if (max <= 0) return null;                               // a type that takes no sockets is not a perfect-base keeper
+      if (typeof window._isRunewordBase === 'function' && !window._isRunewordBase(b[0])) return null;
+      var sock = (entry.sockets == null) ? 0 : (entry.sockets | 0);
+      var nearMax = (sock >= 1 && sock >= max - 1);            // AT max, or within one of it
+      var ethElite = (!!entry.eth && (b[2] | 0) >= 2);         // elite (tier 2) ethereal — the one bonus signal
+      var why;
+      if (nearMax) why = b[0] + ' at ' + sock + ' of ' + max + ' sockets — a perfect socketable base is a keeper, not vendor';
+      else if (ethElite) why = 'ethereal elite ' + b[0] + ' — a perfect base is a keeper, not vendor';
+      else return null;
+      var pre = (!!entry.eth) ? 'Eth ' : (entry.q === 'sup' ? 'Superior ' : '');
+      var label = pre + b[0] + ' (' + (sock >= 1 ? (sock + 'os') : 'Larzuk base') + ')';
+      return { name: label, why: why };
+    } catch (e) { return null; }
+  }
+  window._cbPerfectBaseMule = _cbPerfectBaseMule;
   window.vaultPlannerFile = function(entry, token){
     if (!entry){
       if (_vpMade && token && _vpMade.token === token){ _vpCopyUndo(token, _vpMade.name); _vpDrop(); }
@@ -45391,6 +45547,26 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         return { ok: false, filed: false, why: whyA };
       }
     } else {
+      /* REG-2250 — HIS 2026-10-13 RULING (GrokBot #6197028243 confirmed the gap live: a 4os Archon Plate
+         and an eth Berserker Axe were REFUSED here as a white / superior / low base). Before the
+         stays-unfiled verdict, ask whether THIS pick is a PERFECT socketable base — its actual sockets
+         at / within one of CB_DB's _cbMaxSock, or an elite ethereal base. If so it is a keeper: register
+         it as the socketed base it is (so ownedPool / renderVault keep it — the v324 rule) and route it
+         through the SAME door every socketed base uses (→ the SOCKETED base mule). The white / superior
+         sentence below still stands for an ACTUAL plain base. [[unknown-stays-unknown]] */
+      var _pb = null;
+      try { _pb = (typeof window._cbPerfectBaseMule === 'function') ? window._cbPerfectBaseMule(entry) : null; } catch (ePb) { _pb = null; }
+      if (_pb && _pb.name){
+        try { if (typeof window._ensureSocketBaseEntry === 'function') window._ensureSocketBaseEntry(_pb.name); } catch (eEn) {}
+        var _pbWasOwned = !!(typeof owned !== 'undefined' && owned && owned.has && owned.has(_pb.name));
+        var _pbWasAssigned = assign[_pb.name] != null;
+        var _pbRouted = _vpRoute(_pb.name);
+        if (_pbRouted && (_pbRouted.filed || _pbRouted.mode === 'already')){
+          try { status(_pbRouted.why); } catch (ePs) {}
+          _vpMade = { token: token, id: entry.id, name: _pb.name, fresh: !!(!_pbWasOwned && !_pbWasAssigned && _pbRouted.filed), magic: false };
+          return _pbRouted;
+        }
+      }
       var whyB = nm + ' stays unfiled — a white, superior or low base is not given a mule from its name';
       try { status(whyB); } catch (e6) {}
       return { ok: true, filed: false, why: whyB };
@@ -66314,7 +66490,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3744', name:'v3744 - vault card closes on tab switch, roster publishes stash, tooltip wiring guard', date:'2026-10-16', note:'Three backlog items (REG-2245/2247/2244). VAULT FIRST CLICK (#53, REG-2245): the fullscreen mule window is a body-level fixed overlay that switchTab never closed, so openMuleId and box.hidden survived a tab change and the next Vault open showed the stale SHARED card instead of the body (GrokBot tick 409). vaultCloseCard gains a silent arg; a switchTab wrapper closes any open card the instant the active tab changes; a hashchange listener closes it on Back and deep-links. ROSTER PUBLISHES THE STASH (#74, REG-2247, his 10-15 ruling): the roster only derived a stash from per-build cells (empty in his book), so his flat owned list never published; stash_rows_of now also yields the owned names and the stash read is lifted out of the characters branch into its own first-class section, same shape as vault. TOOLTIP WIRING GUARD (#42, REG-2244): the native-title suppression already shipped (REG-2116) but its only law called show directly and could never cover the real hover delegate; a new spec dispatches a real mousemove over a titled data-itip node and asserts both native titles are neutralised while the card is up and restored after. Also closed two already-shipped siblings: the #42 console half (REG-2116) and the #107 d2jsp price cache (REG-2216). HEART: three v3744 Routine-I spec.ts, RED-first; the roster spec drives the real python body-builder.' };
+  window.D2R_BUILD = { id:'v3745', name:'v3745 - footprint join, roster dedupe, perfect-base and affix auto-mule, tooltip and shelf fixes', date:'2026-10-16', note:'Parallel-sprint batch, six fixes (REG-2248..2253). #8 FOOTPRINT JOIN: _itemCells resolves a codex base NAME to its CB_DB CODE off the same table _cbFoot reads, so a magic/rare/base item on a known base draws the real game footprint instead of the 1x2 approx; genuinely-unknown names keep approx. #74b ROSTER DEDUPE: stash_rows_of records a seen set so the flat owned pass cannot double-publish an item the book carries in both the structured stash and owned. #6 PERFECT-BASE AUTO-MULE: a socketable base at or within one of its _cbMaxSock max, or an elite ethereal base, is registered and routed to the socketed mule; a plain unsocketed white stays unfiled. #7 AFFIX PERFECTION-KEEP: the AI checker lifts the verdict to KEEP when a coveted magic or rare affix rolled at or above 85 percent of its max, read live from the CB_DB affix table, never a hardcoded list. #45 CONSOLE TOOLTIP: the element-anchored tip re-glues to its host on scroll and clears when the pointer leaves the host, so it no longer hangs at a stale rect inside the scrolled shelf. #58 SHELF CARD: opening the shelf covers the stage synchronously before the sessions fetch, so a fast reopen never flashes an empty Session 1 Theatre. HEART: six RED-first Routine-I spec.ts; pre-flight js-syntax plus the 1895-anchor red-proof census plus the roster suites. FIND-nav blocked, needs the live console.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

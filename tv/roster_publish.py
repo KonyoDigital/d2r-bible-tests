@@ -325,6 +325,11 @@ def stash_rows_of(book):
     rows = []
     if not isinstance(book, dict):
         return rows
+    # REG-2249 (#74b): names already published as a structured-stash row, so the flat `owned` pass
+    # below cannot double-publish an item the book carries in BOTH places. This file folds neither
+    # apostrophe nor case anywhere it matches names, and stash + owned names both arrive raw from the
+    # same board pipeline, so the match is exact-string — the same text the rows already store.
+    seen = set()
     for build in book.get("builds") or []:
         if not isinstance(build, dict):
             continue
@@ -346,13 +351,19 @@ def stash_rows_of(book):
                 if isinstance(num, int) and not isinstance(num, bool):
                     row[key] = num
             rows.append(row)
+            seen.add(item["name"])
     # REG-2247 (#74) - HIS 10-15 ruling: publish the stash on the roster too. His owned items (the
     # book's flat `owned` list, what the board already posts) are his stash contents, so a PC with no
     # per-build stash cells still publishes a stash the roster room can draw, same shape as the vault
     # section. A bare name is a valid stash row (the stash allow-list keeps name/id/mule/cell).
+    # REG-2249 (#74b): an item the book carries in BOTH the structured stash and `owned` is ONE
+    # physical item seen two ways, so skip an owned name a structured-stash row already published
+    # (`seen`) — without it the roster drew two rows for one item. Two copies in `owned` alone stay
+    # two rows (two physical items), and two mules holding the same item stay two rows (pass above
+    # never dedupes against itself).
     for item in book.get("owned") or []:
         name = item if isinstance(item, str) else (item.get("name") if isinstance(item, dict) else None)
-        if isinstance(name, str) and name:
+        if isinstance(name, str) and name and name not in seen:
             rows.append({"name": name})
     return rows
 

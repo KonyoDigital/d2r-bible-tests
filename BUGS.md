@@ -7,6 +7,29 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2248..2253 - FOOTPRINT JOIN, ROSTER DEDUPE, PERFECT-BASE + AFFIX AUTO-MULE, TOOLTIP, SHELF (2026-10-16, #8/#74/#6/#7/#45/#58, v3745)
+
+Parallel-sprint batch (Claude fleets; Grok CLI coder trial on #55 failed both modes - see GROK_CODER_LEARNING):
+- **REG-2248 (#8 footprint join, reopened):** `_itemCells` only reached `_cbFoot` via a stored base CODE; a freshly-added
+  magic/rare/base item carried a codex base NAME, never routed to `_cbFoot`, so it drew the {1,2,approx} default even though
+  CB_DB knew it (GrokBot live: "(sizes approximated)"). Fix resolves the base NAME -> CB_DB CODE off the same `d.b` table
+  (memoized `d._baseByName`) then `_cbFoot(code)`; unknown names + runewords keep approx. the-unjoined-end closed.
+- **REG-2249 (#74b roster dedupe, v3744 second-eye residual):** `stash_rows_of` now records a `seen` set so the flat `owned`
+  pass cannot double-publish an item the book carries in BOTH the structured stash and owned.
+- **REG-2250 (#6 perfect-base auto-mule, his 10-13 ruling):** a socketable base at/within one of `_cbMaxSock` max, or an
+  elite ethereal base, is registered (`_ensureSocketBaseEntry`) and routed to the socketed mule in `vaultPlannerFile` (where
+  the entry carries sockets/eth/base/ilvl); a plain unsocketed white stays unfiled. GrokBot's refused Archon-4os/eth-Berserker case.
+- **REG-2251 (#7 affix perfection-keep, his 10-15 spec):** `_aicVerdict` lifts to KEEP when a coveted magic/rare affix rolled
+  >= 85% of its max, read LIVE from the CB_DB affix table (affixes.json is scratchpad-only, not deployed) - not a hardcoded
+  list; unknown-max affixes stay UNKNOWN (weight floor still covers skillers). his 10-15% threshold.
+- **REG-2252 (#45 console tooltip):** `_itemTip` re-glues the element-anchored tip to its host on scroll and clears on
+  pointer-leave, so it no longer hangs at a stale rect inside the scrolled shelf (mirrors the v3742 arttip fix).
+- **REG-2253 (#58 shelf card):** `thOpen` covers the stage synchronously before the /api/sessions await, so a fast reopen
+  never flashes an empty "Session 1" Theatre; the shelf card goes straight to the River.
+
+HEART: six RED-first `v374x_*.spec.ts` (Routine I). Pre-flight: js-syntax + py_compile(roster_publish) + 4 roster suites +
+the 1,895-anchor red-proof census. BLOCKED: #137 FIND-nav (needs the live console); #55 (Grok failed, Claude next).
+
 ### REG-2245/2247/2244 - VAULT-CARD TAB LEAK, ROSTER STASH, TOOLTIP WIRING GUARD (2026-10-16, #53/#74/#42, v3744)
 
 Stale-backlog batch (two of the four turned out already-shipped — see closes):

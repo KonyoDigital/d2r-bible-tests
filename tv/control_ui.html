@@ -9863,6 +9863,36 @@ window._lockMark = function(isOpen, px, label){
         cur = null;
         this.release();
       },
+      /* v3746 (REG-2252) — THE NODE THIS TIP IS CURRENTLY GLUED TO, for the pointer-leave guard.
+         sayHost holds it for BOTH lanes: say() sets it for the prose/row tip, and show()->_holdItem()
+         sets it to the item node for the rich card (it borrows that node's title the same way). A
+         focus-opened card borrows nothing (release()), so sayHost is null there — correct, since a
+         pointer-leave is meaningless for a keyboard focus. */
+      hostNode: function(){ return sayHost; },
+      /* ⚠ v3746 (REG-2252) — A SCROLL RE-GLUES THE ANCHORED TIP; IT DOES NOT BLANK IT.
+         The prose/row tip is ELEMENT-ANCHORED (anchor() positions from node.getBoundingClientRect()
+         at show time). When its host is a chip/row INSIDE the scrolled shelf overlay — the River
+         gallery's TRIAGE/SEAL chips, a fleet row, a held-film thumb — a wheel / PageDown / End scroll
+         fires 'scroll' but NO mouse event, so the old rect went stale and the bubble hung far from its
+         anchor (GrokBot ticks 400/402/404/407/435: BEST COVERAGE ~330px below its chip, the
+         Shadow-reader tip painted over WHAT I FOUND after a rail scroll). Re-anchor a still-connected
+         host to its CURRENT rect so the tip tracks the anchor; clear it when the host is gone. This is
+         the exact mirror of bible.html's arttip re-glue (v3742 REG-2240, bible.html:33135) — the item
+         CARD there is element-glued and re-glues, while here it is the prose/row lane that is.
+         The console item card, by contrast, FOLLOWS THE CURSOR by design (v643 — "it looks like
+         randomly opening windows"); a mouse-less scroll cannot know what is under a stationary
+         pointer, so the card hides, exactly as it always has on scroll. [[copy-drift]] [[the-unjoined-end]] */
+      reglue: function(){
+        if (!sayHost || !el) return this.hide();
+        if (el.classList.contains('tip-say')){
+          if (!sayHost.isConnected || sayHost.offsetParent === null) return this.hide();
+          var r = sayHost.getBoundingClientRect();
+          if (!r || (!r.width && !r.height)) return this.hide();
+          this.anchor(sayHost);
+          return;
+        }
+        this.hide();   // the item card follows the cursor — a mouse-less scroll cannot re-target it
+      },
       /* ELEMENT-ANCHORED, not cursor-following. The item card follows the cursor; a bubble with a
          beak must not — bible.html's v643 scar is exactly this ("it looks like randomly opening
          windows"), and the beak is what makes the tip mean THAT control. */
@@ -9983,7 +10013,23 @@ window._lockMark = function(isOpen, px, label){
         if (hint && !hint.matches('iframe,html,body')) _itemTip.say(hint, true);
       });
       document.addEventListener('focusout', function(){ _itemTip.hide(); });
-      document.addEventListener('scroll', function(){ _itemTip.hide(); }, true);
+      /* v3746 (REG-2252) — re-glue the anchored tip to its host's current rect on scroll instead of
+         blanking it; the item card (cursor-following) still hides. See _itemTip.reglue(). */
+      document.addEventListener('scroll', function(){ _itemTip.reglue(); }, true);
+      /* v3746 (REG-2252) — AND CLEAR THE TIP WHEN THE POINTER LEAVES ITS HOST, WITH NO FURTHER MOVE.
+         The exits above are all about the POINTER's position via mousemove, or the WINDOW (scroll,
+         blur, Escape, click). None fires when the pointer simply leaves the host onto bare chrome
+         while the mouse then stays put — so a tip outlived the pointer on the TV-D HISTORY strip and
+         a Wife-PC row tip painted over the rows beside it (GrokBot ticks 383/400/407). A delegated
+         mouseout on the tracked node (its related target no longer inside the host) dismisses it,
+         mirroring bible.html's arttip mouseout (bible.html:33111). [[the-unjoined-end]] */
+      document.addEventListener('mouseout', function(e){
+        var host = _itemTip.hostNode(); if (!host) return;
+        var to = e.relatedTarget;
+        if (to && host.contains && host.contains(to)) return;   // moved between the host's own children
+        var from = e.target;
+        if (from === host || (host.contains && host.contains(from))) _itemTip.hide();
+      });
       window.addEventListener('blur', function(){ _itemTip.hide(); });
       document.addEventListener('keydown', function(e){ if (e.key === 'Escape') _itemTip.hide(); });
       /* ══ v3305 (#34) — A CLICK DISMISSES THE BUBBLE. THE BOARD HAS HAD THIS; THE CONSOLE NEVER DID.
@@ -17649,6 +17695,31 @@ window._lockMark = function(isOpen, px, label){
     document.body.classList.add('theatre-open');
     try { $('th-caption').textContent = _shelfDoor ? 'opening the shelf…' : '🎞 loading the reel…'; } catch (e) {}
     try { thRibbon(_shelfDoor); thCoachOnce(); } catch (e) {}   // v940.5 — banner + one-time keyboard hint · REG-2076 the door says the shelf
+    /* ══ REG-2253 (#58) — THE SHELF DOOR SHOWS THE RIVER FROM FRAME ONE, NO EMPTY THEATRE ═════
+       v859 opens the black stage BEFORE the network on purpose, and for a REEL that is right — the
+       film is on its way to that stage. But the SHELF door is not opening a reel: the gallery lives
+       in #th-shelfov, a near-opaque overlay ON TOP of the stage. Until now that overlay was unhidden
+       only by the btn-shelf handler's thShelf(true), which runs AFTER `await thOpen()` resolves — so
+       the bare black stage ("THEATRE · SESSION 1 · PAST REPLAY") sat visible for the whole
+       /api/sessions wait (up to the 8s cap), and on a fast reopen (GrokBot #6201414317: 8 tries,
+       1.5–6s apart) that empty Theatre is what he saw.
+       So cover the stage with the shelf's OWN surface in the SAME synchronous tick the shell opens,
+       before any await — the browser then never paints an empty-Theatre frame. A LIGHTWEIGHT cover
+       on purpose: it only unhides the opaque overlay and names the state. It does NOT call thShelf(),
+       which rebuilds ov.innerHTML and kicks the async lane load — the handler ALREADY calls
+       thShelf(true) once after the open, and a second builder here would race it and wipe the lanes
+       it loads (render_check v3122/v3124). The single real build stays the handler's.
+       [[the-unjoined-end]] [[a-playwright-spec-races-an-async-rerender]] */
+    if (_shelfDoor) {
+      try {
+        var _doorOv = $('th-shelfov');
+        if (_doorOv) {
+          _doorOv.hidden = false;
+          _doorOv.innerHTML = '<div class="sh-head">🎞 THE SHELF</div>'
+            + '<div class="sh-empty-hero"><div class="she-lead">opening the shelf…</div></div>';
+        }
+      } catch (e) {}
+    }
     thLit();
     /* ══ v2228 — A STAGE THAT CANNOT LOAD ITS REEL MUST NOT SIT BLACK FOREVER ═══════════════
        HIS REPORT, 2026-08-28, with two screenshots: "the console has this bug thats its black
