@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3732",
+  "ver": "v3733",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3732: the evidence show-the-frame proof opened frame missing though the reel was known. a banked frame lives one directory down under its reel, but _vaultLookSrc built a path for only one of the three ways a look stores its frame: a reel-relative form was refused by the slash guard, and a bare ms with the reel in session got no f prefix and no jpg. now all three resolve. REG-2220. HEART: guarded by tests/v3732_vault_proof_frame_resolves.spec.ts on Routine I; backend needs no new watcher.",
+  "note": "v3733: the console state panel change arrow on an answered question did nothing - d2rOpenAsk un-collapsed the inbox but queried it before rendering, so the answered row was not in the dom and the button read as dead. it now renders the inbox first, so the answered question is found and the per-row change button can re-answer it. REG-2221. HEART: guarded by tests/v3733_shadow_gate_change_reopens.spec.ts on Routine I; backend needs no new watcher.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
