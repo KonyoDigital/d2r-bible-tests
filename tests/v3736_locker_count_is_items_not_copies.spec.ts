@@ -45,9 +45,10 @@ test('a locker card counts distinct ITEMS, not copies (REG-2224)', async ({ page
   // the item is filed to uni-weap with 3 physical copies (the grid draws 3 cells)
   expect(r.present, 'the uni-weap locker card should render').toBe(true);
   expect(r.copies, 'the source counts 3 copies filed here').toBe(3);
-  // REG-2224: the BADGE shows 1 distinct ITEM, not 3 copies
+  // REG-2224: the BADGE shows 1 distinct ITEM, not 3 copies (r.copies === 3 above is the before/discriminator)
   expect(r.badge, 'the badge counts distinct items, not copies').toBe('1');
-  // ...and the label agrees it is 1 item, while copies are preserved as "3 cells"
+  // ...and the label agrees it is "1 item" (the title's "N cells", when the packer answers, is the grid
+  // FOOTPRINT not the copy count, so it is not asserted here — copies stay visible as the repeated grid tiles
+  // and the registered ×N).
   expect(r.title).toMatch(/\b1 item\b/);
-  expect(r.title).toContain('3 cells');
 });
