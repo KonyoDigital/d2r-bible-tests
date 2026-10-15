@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3731",
+  "ver": "v3732",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3731: the auto-sort filed only mule routes, so war gear and high-trade keepers that belong in the shared stash fell to left-for-you and never moved however many times he pressed Auto-Sort. a name-certain shared route now files into the shared stash from its name with a by-hand witness, no stash-frame picture needed. MAIN still wins. REG-2219. HEART: guarded by tests/v3731_war_gear_auto_sorts_to_shared.spec.ts on Routine I; the backend routing needs no new watcher.",
+  "note": "v3732: the evidence show-the-frame proof opened frame missing though the reel was known. a banked frame lives one directory down under its reel, but _vaultLookSrc built a path for only one of the three ways a look stores its frame: a reel-relative form was refused by the slash guard, and a bare ms with the reel in session got no f prefix and no jpg. now all three resolve. REG-2220. HEART: guarded by tests/v3732_vault_proof_frame_resolves.spec.ts on Routine I; backend needs no new watcher.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

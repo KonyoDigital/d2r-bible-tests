@@ -461,6 +461,7 @@
 "tests/v3724_vault_share_panel.spec.ts": 8.0,
 "tests/v3725_vault_share_checkbox_fires.spec.ts": 9.0,
 "tests/v3726_vault_share_override_folds.spec.ts": 13.0,
-"tests/v3731_war_gear_auto_sorts_to_shared.spec.ts": 9.0
+"tests/v3731_war_gear_auto_sorts_to_shared.spec.ts": 9.0,
+"tests/v3732_vault_proof_frame_resolves.spec.ts": 8.0
 }
 }
