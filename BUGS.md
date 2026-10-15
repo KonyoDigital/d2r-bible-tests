@@ -7,6 +7,24 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2256 - SELF-UPDATE RELAUNCH OPENS MINIMIZED, DOES NOT STEAL FOCUS FROM HIS GAME (2026-10-16, his request, v3746)
+
+His ask: a self-update relaunch should not alt-tab him off his game - "maybe it can open automatically minimized". The
+machinery EXISTED (`TV_QUIET_RELAUNCH` crosses os.execv -> `_control_window_kwargs` -> `minimized=True, focus=False`,
+wired for the shadow-reel relaunch), but `quiet_relaunch_reason` was only quiet when the console was tracked as
+BACKGROUND (`_BACKGROUND["on"]`). While he plays, the console sits fullscreen BEHIND the game with background False, so
+the self-update relaunch (`_drift_loop`) - and the rescue/green-light execs - opened fullscreen and pulled focus.
+FIX (2 edits, control_app.py): `quiet_relaunch_reason(where=...)` is quiet for the 3 AUTOMATIC os.execv sites
+(`_drift_loop`, `_exec_relaunch_now`, `_exec_relaunch_soon`) regardless of background; `_before_exec` passes its `where`.
+`/api/relaunch` (the foreground button he clicks) + a fresh Desktop launch (no `where`) stay NORMAL/focused. REUSES the
+existing TV_QUIET_RELAUNCH signal (no parallel env var - avoids copy-drift). CROSS-PLATFORM: the flag crosses os.execv on
+both his Mac and Dean's Windows PC via the shared `_before_exec` choke (os.execv spawns a new pid on Windows -
+win_relaunch.py handles that; the env still crosses).
+
+HEART: RED-first `tv/test_v3746_relaunch_opens_minimized.py` (7 tests, registered in run_gates.py), RED on the current
+tree (3-arg calls error on the 2-arg fn), GREEN on the patch. ⚠ macOS: a Cocoa window created minimized MAY still briefly
+activate - GrokBot MUST verify live on his screen (and Dean's PC) that the auto-relaunch does not pull focus from D2R.
+
 ### REG-2248..2253 - FOOTPRINT JOIN, ROSTER DEDUPE, PERFECT-BASE + AFFIX AUTO-MULE, TOOLTIP, SHELF (2026-10-16, #8/#74/#6/#7/#45/#58, v3745)
 
 Parallel-sprint batch (Claude fleets; Grok CLI coder trial on #55 failed both modes - see GROK_CODER_LEARNING):

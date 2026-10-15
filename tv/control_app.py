@@ -6992,16 +6992,28 @@ def _on_console_window_closing():
     return False
 
 
-def quiet_relaunch_reason(already=None, background=None):
+def quiet_relaunch_reason(already=None, background=None, where=None):
     """Why the NEXT image should open minimized and unfocused, or None. -> str | None. Pure.
 
     An earlier reason (the shadow-reel relaunch sets its own) is kept; a backgrounded console adds one of its
-    own, so an update that lands while the window is down never pops it up over his game."""
+    own, so an update that lands while the window is down never pops it up over his game.
+
+    v3746 (REG-2256) - an AUTOMATIC relaunch is quiet REGARDLESS of background. The self-update (_drift_loop
+    sees a newer build on disk) and the rescue / green-light execs replace this process by themselves, so the
+    new window must never open fullscreen and pull focus off his game. Measured gap: while he plays, the
+    console is usually fullscreen BEHIND the game and _BACKGROUND["on"] is False, so the old rule (quiet only
+    when backgrounded) let a self-update alt-tab him out. His words: "relaunch the console after it updates and
+    relaunches itself instead of alt-tabbing me from my game or something im doing ... maybe it can open
+    automatically minimized". A MANUAL relaunch (/api/relaunch, or a fresh Desktop launch) passes no auto
+    `where`, so it opens normally - he asked for it and wants the window."""
     if already:
         return already
     bg = background or {}
     if bg.get("on"):
         return "the console was in the background (%s) - an update keeps it there" % (bg.get("by") or "?")
+    # The os.execv sites that fire on their own (see _before_exec's where). /api/relaunch is NOT one of them.
+    if where in ("_drift_loop", "_exec_relaunch_now", "_exec_relaunch_soon"):
+        return "an automatic relaunch (%s) opens minimized so it never pulls focus from his game" % where
     return None
 
 
@@ -19910,7 +19922,7 @@ def _before_exec(where):
         _wr.boot_log("relaunch-exec", where=where)
     except Exception:
         pass
-    _q = quiet_relaunch_reason(os.environ.get("TV_QUIET_RELAUNCH"), _BACKGROUND)
+    _q = quiet_relaunch_reason(os.environ.get("TV_QUIET_RELAUNCH"), _BACKGROUND, where)
     if _q:
         os.environ["TV_QUIET_RELAUNCH"] = _q
     hidden_relaunch_env(_BACKGROUND, os.environ, sys.argv)
@@ -41863,7 +41875,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3745",
+        "ver": "v3746",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

@@ -63,7 +63,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3745"   # footprint join, roster dedupe, perfect-base and affix auto-mule, tooltip and shelf fixes
+VERSION = "v3746"   # self-update relaunch opens minimized, does not steal focus from his game
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

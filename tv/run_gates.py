@@ -463,6 +463,20 @@ GATES = [
              "v1460's dead-icon scar is answered by a built way back: both launchers ask it forward and replace "
              "it only when it does not answer. Driven with a fake window; the macOS fullscreen bit is read from "
              "the window (frame and flag both lied, measured); the first beacon waits for the window (REG-1434)."),
+    Gate("test_v3746_relaunch_opens_minimized", [sys.executable,
+         os.path.join(HERE, "test_v3746_relaunch_opens_minimized.py")], 60,
+         why="v3746 (REG-2256) - his words: 'relaunch the console after it updates and relaunches itself "
+             "instead of alt-tabbing me from my game or something im doing ... maybe it can open automatically "
+             "minimized'. The minimized+unfocused machinery already existed (TV_QUIET_RELAUNCH -> "
+             "_control_window_kwargs minimized=True, focus=False), wired for the shadow-reel relaunch and a "
+             "console tracked as background. THE GAP: while he plays, the console is usually fullscreen BEHIND "
+             "the game and _BACKGROUND['on'] is False, so a self-update relaunch (_drift_loop) - or a rescue / "
+             "green-light exec - was NOT quiet and opened fullscreen, pulling focus off D2R. quiet_relaunch_reason "
+             "now takes the os.execv site (which _before_exec already knows) and is quiet for an AUTOMATIC "
+             "relaunch regardless of background; a MANUAL relaunch (/api/relaunch clicked from the foreground, "
+             "or a fresh Desktop launch with no site) stays normal and focused. Trace-level - the live "
+             "no-focus-steal check is GrokBot's on his screen. AST-joins _before_exec to the decision so the two "
+             "halves cannot drift; RED_PROOF reverts each half."),
     Gate("test_quit_attribution", [sys.executable,
                                    os.path.join(HERE, "test_a_quit_names_who_asked.py")], 60,
          why="REG-1071 - Grok Bot drove the native seat and his console DIED from a vault mule "
