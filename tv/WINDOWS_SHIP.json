@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3733",
+  "ver": "v3734",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3733: the console state panel change arrow on an answered question did nothing - d2rOpenAsk un-collapsed the inbox but queried it before rendering, so the answered row was not in the dom and the button read as dead. it now renders the inbox first, so the answered question is found and the per-row change button can re-answer it. REG-2221. HEART: guarded by tests/v3733_shadow_gate_change_reopens.spec.ts on Routine I; backend needs no new watcher.",
+  "note": "v3734: his rule - the shared stash keeps at most 2 copies of a name; a 3rd+ copy is trade-stock, not a 3rd shared cell. _sharedPack drew copyCount cells so a 7-copy item made 7 shared cells. _sharedCappedCopies caps the cells and the count together so they cannot disagree; ownership is unchanged and the overflow renders as duplicates-mule cells in the follow-up. REG-2222. HEART: guarded by tests/v3734_shared_stash_caps_copies.spec.ts on Routine I; backend needs no new watcher.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

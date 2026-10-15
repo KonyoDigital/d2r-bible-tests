@@ -463,6 +463,7 @@
 "tests/v3726_vault_share_override_folds.spec.ts": 13.0,
 "tests/v3731_war_gear_auto_sorts_to_shared.spec.ts": 9.0,
 "tests/v3732_vault_proof_frame_resolves.spec.ts": 8.0,
-"tests/v3733_shadow_gate_change_reopens.spec.ts": 7.0
+"tests/v3733_shadow_gate_change_reopens.spec.ts": 7.0,
+"tests/v3734_shared_stash_caps_copies.spec.ts": 8.0
 }
 }
