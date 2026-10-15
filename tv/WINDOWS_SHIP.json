@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3730",
+  "ver": "v3731",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3730: the tooltip join had three cross-family findings: the area_floor noise clamp ignored the actual sweep, _kai_compile_register conflated a read failure with not-on-a-panel and re-OCRed per row, and place_of had no straddling test. area_floor scales the clamp by the real cols and rows, a TooltipLocUnknown sentinel keeps a read failure apart from a measured miss and a per-frame cache locates each frame once, and place_of documents the majority rule with a straddling case. HEART: watched by the extended tooltip guards test_tooltip_find and test_a_1440_tooltip_joins_the_panel; backend read hardening needs no new watcher.",
+  "note": "v3731: the auto-sort filed only mule routes, so war gear and high-trade keepers that belong in the shared stash fell to left-for-you and never moved however many times he pressed Auto-Sort. a name-certain shared route now files into the shared stash from its name with a by-hand witness, no stash-frame picture needed. MAIN still wins. REG-2219. HEART: guarded by tests/v3731_war_gear_auto_sorts_to_shared.spec.ts on Routine I; the backend routing needs no new watcher.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

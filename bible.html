@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3730 · TV DIABLO</title>
-<meta name="d2r-build" content="v3730">
+  <title>Konyo's D2R Farming Bible v3731 · TV DIABLO</title>
+<meta name="d2r-build" content="v3731">
 <meta name="d2r-build-date" content="2026-10-15">
-<meta name="d2r-build-note" content="the tooltip join had three cross-family findings: the area_floor noise clamp ignored the actual sweep, _kai_compile_register conflated a read failure with not-on-a-panel and re-OCRed per row, and place_of had no straddling test. area_floor scales the clamp by the real cols and rows, a TooltipLocUnknown sentinel keeps a read failure apart from a measured miss and a per-frame cache locates each frame once, and place_of documents the majority rule with a straddling case. HEART: watched by the extended tooltip guards test_tooltip_find and test_a_1440_tooltip_joins_the_panel; backend read hardening needs no new watcher.">
+<meta name="d2r-build-note" content="the auto-sort filed only mule routes, so war gear and high-trade keepers that belong in the shared stash fell to left-for-you and never moved however many times he pressed Auto-Sort. a name-certain shared route now files into the shared stash from its name with a by-hand witness, no stash-frame picture needed. MAIN still wins. REG-2219. HEART: guarded by tests/v3731_war_gear_auto_sorts_to_shared.spec.ts on Routine I; the backend routing needs no new watcher.">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -46286,11 +46286,27 @@ window.vaultAutoAssign = function(){
           }
         }
       }
-      if (!_hasPicture(row)){ out.noPicture.push(name); return; }
+      /* REG-2219 — THE DOCK STRANDED SHARED-STASH GEAR. The loop filed only kind:'mule', so war gear and
+         high-trade keepers (suggestMule routes them to the shared stash) fell to "left for you" and never moved
+         however many times he pressed Auto-Sort. A name-certain SHARED route files into the shared stash FROM
+         ITS NAME - it does not need a stash-frame picture the way a mule CELL does, because the name IS the
+         identity the war rule routes on. MAIN still wins (a piece his MAIN wears is never filed to any stash). */
       var lastLoc = _newestPlacedLoc(row);
       if (lastLoc && _WIT_MAIN[lastLoc]){ out.main.push(name); return; }
       var pg = null;
       try { pg = window.vaultPropose(name); } catch(e){ pg = null; }
+      if (pg && pg.ok === true && (pg.kind === 'shared' || pg.id === 'shared')){
+        var rS = window.vaultFile(name, { by: 'hand', at: at, where: 'Auto-Sort - war/trade gear kept in the shared stash' }, { mule: 'shared' });
+        if (rS && rS.ok && (rS.mode === 'filed' || rS.mode === 'confirmed')){
+          out.filed++; out.rows.push({ name: name, mule: 'shared' });
+          try { if (typeof window.kaiChronicleRecord === 'function')
+            window.kaiChronicleRecord({ name: name, status: 'muled', store: 'assign', ledger: 'vault', why: (pg.why || ''),
+                                        target: 'shared', source: 'auto-sort (his click)', _bump: true }); } catch(e){}
+        } else out.refused.push({ name: name, why: (rS && rS.why) || 'the door refused it' });
+        return;
+      }
+      /* a MULE placement still needs a stash-frame picture - proof the physical copy exists before it takes a mule cell */
+      if (!_hasPicture(row)){ out.noPicture.push(name); return; }
       if (!pg || pg.ok !== true || pg.kind !== 'mule'){
         var k = (pg && pg.ok === true) ? pg.kind : 'unknown';
         out.left[k] = (out.left[k] || 0) + 1; return;
@@ -65912,7 +65928,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3730', name:'v3730 - tooltip join hardening three fixes', date:'2026-10-15', note:'the tooltip join had three cross-family findings: the area_floor noise clamp ignored the actual sweep, _kai_compile_register conflated a read failure with not-on-a-panel and re-OCRed per row, and place_of had no straddling test. area_floor scales the clamp by the real cols and rows, a TooltipLocUnknown sentinel keeps a read failure apart from a measured miss and a per-frame cache locates each frame once, and place_of documents the majority rule with a straddling case. HEART: watched by the extended tooltip guards test_tooltip_find and test_a_1440_tooltip_joins_the_panel; backend read hardening needs no new watcher.' };
+  window.D2R_BUILD = { id:'v3731', name:'v3731 - war gear auto-sorts to the shared stash', date:'2026-10-15', note:'the auto-sort filed only mule routes, so war gear and high-trade keepers that belong in the shared stash fell to left-for-you and never moved however many times he pressed Auto-Sort. a name-certain shared route now files into the shared stash from its name with a by-hand witness, no stash-frame picture needed. MAIN still wins. REG-2219. HEART: guarded by tests/v3731_war_gear_auto_sorts_to_shared.spec.ts on Routine I; the backend routing needs no new watcher.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
