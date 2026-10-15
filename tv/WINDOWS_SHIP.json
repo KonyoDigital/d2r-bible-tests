@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3742",
+  "ver": "v3743",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3742: Review-after-ship batch on v3740 and v3741 (REG-2240; board #108 #11 #134 #137 #14 #44): planner copy-undo is now scoped to the bumped name not just the token, so a re-roll of a later pick can no longer revert the first picks copy; the set-dupe migration stamps itself done only after a CONFIRMED owned-persist, so a failed write retries instead of stranding a stray under a done-stamp; a fullscreen dupes window holding only shared spare copies no longer also says empty locker; the shared-tab overflow note tells the truth (a shared tab is 100 cells with no auto-spill) instead of calling it a 10x10 preview; the floating item card tracks its item through a mouse-less wheel or keyboard scroll; and leaving the theatre dismisses the floating item tooltip it spawned. HEART: each fix ships a RED-first guard — five Routine-I spec.ts plus the node gate test_a_closed_theatre_dismisses_the_item_tooltip, and the REG-2231 red-proof in test_the_mule_inventory is re-anchored to the new guard line.",
+  "note": "v3743: Three now-ruled vault fixes (REG-2241/2242/2243). KEEPER CHARMS (his 2026-10-15 ruling torches and anni stay in shared, gheeds gets muled): Hellfire Torch and Annihilus now route to the SHARED stash and Gheeds Fortune falls through to its grand-charm mule, so the three iconic charms no longer all park on MAIN; the Hellfire Torch survival marker is kept so it is never pruned, and his per-item share switch can reach them. MERC GEAR: a MERC_GEAR rule in suggestMule routes mercenary-worn gear to SHARED (seeded with Guillaume Face, Andariel Visage, Mara Kaleidoscope plus five canonical merc uniques), after the keeper and share-override checks and before the category branch, respecting a forced mule override. SET-DUPE HARDENING: the copy-count fold is confirmed on disk before the once-per-world stamp; a failed copies write leaves the world unstamped and restores the removed strays so the next reload re-runs the migration. HEART: each fix ships a RED-first guard (three v3743 Routine-I spec.ts), and the v1814 base-routing spec is re-anchored so a slot-pair migration does not drag merc gear out to shared.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -7,6 +7,31 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2241/2242/2243 - KEEPER-CHARM + MERC-GEAR ROUTING, SET-DUPE COPIES HARDENING (2026-10-15, #135/#7/#11, v3743)
+
+Three now-ruled vault fixes:
+- **REG-2241 (#135 keeper charms, his ruling "torches and anni stay in shared. gheeds gets muled"):** the three iconic
+  charms all routed to `__keep` (MAIN). Now `_keepHome` no longer parks them: Annihilus + Hellfire Torch get an explicit
+  SHARED branch (honouring his per-item `_ov` switch), and Gheed's Fortune falls through to its grand-charm mule
+  (uni-small). `KEEP_IN_INVENTORY` is kept ONLY as the survival marker at `_vaultKeeps`/`_dockNames` because Hellfire
+  Torch is in no boss dropTable (not in ITEMS) — dropping it there would prune it (REG-2207 data-loss class). The share
+  panel stops hiding Anni/Torch; the Registered triage categorises by filed home. JS logic only, no red-proof re-anchor.
+  ⚠ SIBLING LEFT FOR HIS WORDING: `renderVaultKeep`'s "keep in your inventory" advisory card still lists Gheed's (card
+  text; reads as a don't-mule-to-your-ALT-account axis, not vault-parking) — reword is his call.
+- **REG-2242 (#135 merc gear → shared):** a `MERC_GEAR` rule in `suggestMule` routes mercenary-worn gear to SHARED, after
+  the keeper + share-override checks and before the category branch, respecting a forced 'mule' override, no recursion.
+  Seeded with the 3 he named (Guillaume's Face, Andariel's Visage, Mara's Kaleidoscope) + 5 canonical merc uniques
+  (Vampire Gaze, Crown of Thieves, Stealskull, Highlord's Wrath, The Reaper's Toll); extensible dict, panel-adjustable.
+  Re-anchors tests/v1814 (its Andariel's flagship moves to Homunculus) so a slot-pair migration proves it does not drag
+  merc gear out to shared.
+- **REG-2243 (#11 set-dupe copies-write hardening, second-eye MED on v3742):** `_vaultDedupeOldSetRows` now CONFIRMS the
+  d2r_copies fold reached disk before the once-per-world stamp. On a copies-write throw it leaves the world UNstamped,
+  does not delete the in-memory stray count, and restores the already-removed strays to owned so the next reload re-runs
+  the whole migration. RED-first guard added.
+
+HEART: three v3743 Routine-I spec.ts (keeper_charms_route_as_ruled, merc_gear_routes_to_shared,
+set_dupe_copies_fold_confirmed_before_stamp), all RED-first; pre-flight = js-syntax + the 1,895-anchor red-proof census.
+
 ### REG-2240 - v3740/v3741 REVIEW-AFTER-SHIP: 6 VAULT & CONSOLE FIXES (2026-10-15, #108/#11/#134/#137/#14/#44, v3742)
 
 Review-after-ship on v3740/v3741 (one cross-family look + the board retest cluster), six fixes shipped as v3742:

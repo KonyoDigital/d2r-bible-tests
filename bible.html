@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3742 · TV DIABLO</title>
-<meta name="d2r-build" content="v3742">
+  <title>Konyo's D2R Farming Bible v3743 · TV DIABLO</title>
+<meta name="d2r-build" content="v3743">
 <meta name="d2r-build-date" content="2026-10-15">
-<meta name="d2r-build-note" content="Review-after-ship batch on v3740 and v3741 (REG-2240; board #108 #11 #134 #137 #14 #44): planner copy-undo is now scoped to the bumped name not just the token, so a re-roll of a later pick can no longer revert the first picks copy; the set-dupe migration stamps itself done only after a CONFIRMED owned-persist, so a failed write retries instead of stranding a stray under a done-stamp; a fullscreen dupes window holding only shared spare copies no longer also says empty locker; the shared-tab overflow note tells the truth (a shared tab is 100 cells with no auto-spill) instead of calling it a 10x10 preview; the floating item card tracks its item through a mouse-less wheel or keyboard scroll; and leaving the theatre dismisses the floating item tooltip it spawned. HEART: each fix ships a RED-first guard — five Routine-I spec.ts plus the node gate test_a_closed_theatre_dismisses_the_item_tooltip, and the REG-2231 red-proof in test_the_mule_inventory is re-anchored to the new guard line.">
+<meta name="d2r-build-note" content="Three now-ruled vault fixes (REG-2241/2242/2243). KEEPER CHARMS (his 2026-10-15 ruling torches and anni stay in shared, gheeds gets muled): Hellfire Torch and Annihilus now route to the SHARED stash and Gheeds Fortune falls through to its grand-charm mule, so the three iconic charms no longer all park on MAIN; the Hellfire Torch survival marker is kept so it is never pruned, and his per-item share switch can reach them. MERC GEAR: a MERC_GEAR rule in suggestMule routes mercenary-worn gear to SHARED (seeded with Guillaume Face, Andariel Visage, Mara Kaleidoscope plus five canonical merc uniques), after the keeper and share-override checks and before the category branch, respecting a forced mule override. SET-DUPE HARDENING: the copy-count fold is confirmed on disk before the once-per-world stamp; a failed copies write leaves the world unstamped and restores the removed strays so the next reload re-runs the migration. HEART: each fix ships a RED-first guard (three v3743 Routine-I spec.ts), and the v1814 base-routing spec is re-anchored so a slot-pair migration does not drag merc gear out to shared.">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -40235,11 +40235,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   var SHARED_STASH_RE = /\brunes?\b(?!\s+[a-z])|\b(essence|worldstone shard|colossal ancient statue|cold rupture|flame rift|crack of the heavens|rotting fissure|bone break|black cleft)\b|^(talic's anguish|korlic's pain|madawc's ire|bul-kathos' nightmare|worusk's end)$/i;
   function isSharedStash(n){ return SHARED_STASH_RE.test(String(n||'')); }
   try { window.isSharedStash = isSharedStash; } catch(e){}   // v425 — expose for the vault audit (null route = shared, not a bug)
-  // v409 — NEVER-MULE keepers: Annihilus, Hellfire Torch, Gheed's Fortune (the 6 Sunder charms are already
-  // caught by isSharedStash). These uniques ONLY function in the inventory of the character you're actively
-  // playing — a mule/alt can't use them. The "Don't mule to your alt" advisory flags them, so the auto-assign
-  // MUST match that and never route them to a mule. {id:'__keep'} → muleById() can't resolve it → the item is
-  // still registered/owned + shown in the keep advisory, but it is NOT assigned to any mule.
+  // v409 / REG-2241 — the three iconic charms (Annihilus, Hellfire Torch, Gheed's Fortune; the 6 Sunder
+  // charms are caught by isSharedStash). His ruling 2026-10-15: "torches and anni stay in shared. gheeds gets
+  // muled." — so routing NO LONGER sends them to __keep (see suggestMule: Anni & Torch → the shared stash,
+  // Gheed's → its charm mule, and his per-item switch wins above that). This regex is now ONLY the owned
+  // grail-charm SURVIVAL marker: _vaultKeeps keeps them in ownedPool (Hellfire Torch is in no boss drop
+  // table, so nothing else would) and _dockNames keeps them off the "Delete unsorted" list (REG-2207).
   var KEEP_IN_INVENTORY = /^(Annihilus|Hellfire Torch|Gheed'?s Fortune)$/i;   // REG-2191 - apostrophe optional
   // REG-2191 - fold every apostrophe variant to a straight one before testing, so the catalogue's own curly
   // “Gheed’s Fortune”, a hand-typed straight one, or a bare “Gheeds” all answer the SAME at both callers
@@ -40291,6 +40292,38 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   /* -> the role words, or null (not war gear) */
   function warGearRole(n){ var k = _warKey(n); return (k && Object.prototype.hasOwnProperty.call(WAR_GEAR, k)) ? WAR_GEAR[k] : null; }
   try { window.vaultWarGearRole = warGearRole; } catch(e){}
+  /* ══ REG-2242 (#76, 2026-10-15) — MERCENARY GEAR LIVES IN THE SHARED STASH ═══════════════════════
+     His ruling: "mercenary gear like gullaume and andriels and maras are types of items that i want
+     in the sahred". A mercenary's gear is worn by a hireling every character can summon, so it
+     belongs in the one stash every character reaches — not stranded on a single mule.
+
+     THE SEED IS CONSERVATIVE AND EXTENSIBLE. The three he NAMED come first, then the canonical
+     merc-worn uniques that are near-exclusively hireling gear. Each one is forceable OFF via the
+     share panel (a 'mule' override wins below), so widening or trimming this list is a tick, not an
+     edit — add a name here (lowercase, STRAIGHT apostrophe; _warKey folds curly ones) to seed it.
+
+     ⚠ TAL RASHA'S HORADRIC CREST IS DELIBERATELY NOT HERE. It is a Tal Rasha set piece (a MAJOR,
+     kept set), and routing a kept set's piece to the shared stash SPLITS the set — the one thing the
+     set branch below refuses to do, and test_a_restored_set_piece_travels_as_a_set pins it as a set.
+     If he wants it shared he ticks it in (the override is read ABOVE the set branch); the DEFAULT
+     must not split his set for him. Guillaume's Face is an Orphan's Call piece, but he NAMED it and
+     Orphan's Call is a discard-tier set nobody completes, so seeding it is his call. [[d2r-ladder-doctrine]] */
+  var MERC_GEAR = {
+    // the three he named
+    "guillaume's face":    'merc helm - crushing blow / deadly strike on a hireling',
+    "andariel's visage":   'merc helm - IAS + poison, the classic Act 2 merc face',
+    "mara's kaleidoscope": 'merc amulet - all-resist + skills, swapped across characters and their mercs',
+    // canonical merc-worn uniques (near-exclusively hireling gear) — untick any via the share panel
+    "vampire gaze":        'merc helm - damage reduction + dual leech',
+    "crown of thieves":    'merc helm - life leech + gold/MF, an Act 2 merc helm',
+    "stealskull":          'merc helm - leech + faster hit recovery / MF',
+    "highlord's wrath":    'merc amulet - +1 skills, attack speed, deadly strike',
+    "the reaper's toll":   'merc weapon - Decrepify on strike, the Act 2 merc polearm'
+  };
+  /* -> the merc role words, or null. Reuses _warKey so the case / paren / apostrophe fold is
+     defined ONCE; an OCR curly apostrophe folds to the straight key, exactly like war gear. */
+  function mercGearRole(n){ var k = _warKey(n); return (k && Object.prototype.hasOwnProperty.call(MERC_GEAR, k)) ? MERC_GEAR[k] : null; }
+  try { window.vaultMercGearRole = mercGearRole; } catch(e){}
   /* ══ #264 / gh#235 (2026-10-14) — HIS PER-ITEM SHARED-STASH SWITCH ════════════════════════════
      His ask: "a list within the console like advanced setting for vault.. so i can checkmark what
      should or should not be in the shared/war stash ... like war traveler.. eventually i dont want
@@ -40435,7 +40468,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        Keepers and standing kit still win above it. ignoreShareOverride leaves
        _shareDefault on the rules alone; this does not call it, so it does not recurse. */
     var _keepHome = function(nm){
-      if (KEEP_IN_INVENTORY.test(_keepName(nm))) return {id:'__keep', why:'keep in your inventory — only works on the character you are actively playing'};
+      /* REG-2241 (his ruling 2026-10-15) — Annihilus / Hellfire Torch / Gheed's Fortune no longer park on MAIN as __keep; they route below (Anni & Torch → shared stash, Gheed's → its charm mule). KEEP_IN_INVENTORY stays only as the owned grail-charm SURVIVAL marker (_vaultKeeps, _dockNames). Standing kit still keeps below. */
       try {
         var _kitF = String(nm || '').replace(/[‘’ʼ`]/g, "'").toLowerCase().replace(/\s+/g, ' ').trim();
         var _kitL = (window._FURNITURE_WORDS || []).filter(function(w){ return w !== 'tome'; }).concat(window._FURNITURE_WHOLE || []);
@@ -40566,10 +40599,24 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
               : (opts && opts._shareForceIn) ? 'shared'
               : (typeof _shareOverride === 'function' ? _shareOverride(name) : null);
     if (_ov === 'shared') return {id:'shared', why:'your setting — kept in the shared stash'};
+    /* REG-2241 — HIS RULING 2026-10-15 (verbatim): "torches and anni stay in shared. gheeds gets muled."
+       Annihilus and the Hellfire Torch ride in the SHARED stash every character can reach — they USED to
+       park on MAIN (__keep). Gheed's Fortune is deliberately NOT here: it falls through to its grand-charm
+       mule (uni-small) below. His per-item switch still wins — a forced 'shared' returned just above, and a
+       forced 'mule' (_ov) drops through to that charm mule. [[regression-guard]] [[unknown-stays-unknown]] */
+    if (_ov !== 'mule' && /^(Annihilus|Hellfire Torch)$/i.test(_keepName(name)))
+      return {id:'shared', why:'keep close in the shared stash — every character can reach it (his 2026-10-15 ruling)'};
     /* #264 — war / swap gear goes to the SHARED stash every character can reach, ahead of the set, runeword and unique
        drawers (sets are not on the list, and KEEP_IN_INVENTORY above wins) */
     var _war = warGearRole(name);
     if (_war && _ov !== 'mule') return {id:'shared', why:'war gear: ' + _war + ' - in the shared stash, where every character can reach it'};
+    /* REG-2242 — MERCENARY GEAR to the shared stash, on the same footing as war gear: ahead of the
+       set / runeword / unique drawers below, behind the keeper + override checks above. A forced
+       'mule' (_ov) still wins, so he can untick any merc item and send it to its slot mule. This does
+       NOT call _shareDefault, so it cannot recurse; and because _shareDefault asks with
+       ignoreShareOverride (_ov === null), the share panel reads these as TICKED by default. */
+    var _merc = mercGearRole(name);
+    if (_merc && _ov !== 'mule') return {id:'shared', why:'mercenary gear: ' + _merc + ' - in the shared stash, where every character can reach it'};
     // v394 — KEEP only the genuinely good sets; the low/junk partial sets (Sigon's, Sander's, Hsarus',
     // Cleglaw's, Iratha's, Angelic, Arctic, Cathan's, Death's, Vidala's, Berserker's, Milabrega's, Isenhart's,
     // Civerb's, Infernal, Bul-Kathos, Cow King's, Tancred's…) are NOT worth muling — Konyo: identify them for
@@ -41165,9 +41212,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          exactly this reason. This reader simply never learned it. [[unknown-stays-unknown]] */
       /* REG-2207 (#109 E#5) — a keep-in-inventory charm is kept by IDENTITY even with no stored __keep assignment,
          so it reads here as kept (not loose/unsorted), matching _dockNames which now excludes it. */
-      if(assign[n]==='__keep' || (typeof KEEP_IN_INVENTORY !== 'undefined' && typeof _keepName === 'function' && KEEP_IN_INVENTORY.test(_keepName(n)))){ kept.push(n); return; }
+      if(assign[n]==='__keep'){ kept.push(n); return; }
       var m=assign[n]?muleById(assign[n]):null;
-      if(m) muled.push([n,m]); else loose.push(n);
+      if(m){ muled.push([n,m]); return; }
+      /* REG-2241 — an owned keeper charm with NO filing YET is still not loose: handled by identity, exactly as
+         _dockNames excludes it (holds the v2402 / REG-2207 invariant that this reader and the dock agree on what
+         is loose). Once Auto-Sort files it — Anni/Torch → shared, Gheed's → its charm mule (his 2026-10-15 ruling) —
+         the muled branch above draws it under that home instead of here. */
+      if(typeof KEEP_IN_INVENTORY !== 'undefined' && typeof _keepName === 'function' && KEEP_IN_INVENTORY.test(_keepName(n))){ kept.push(n); return; }
+      loose.push(n);
     });
     /* ⚠ v2402 — AND WHAT THE FILTER ABOVE THREW AWAY. `all` keeps a name only if it is shared
        stash or resolves in ownedPool; anything else is dropped with no trace, so an item he has
@@ -44756,21 +44809,45 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          the copy counts UNfolded — the next reload migrates again instead of stranding a stamped row. */
       try { window.LSR.setItem('d2r_owned', JSON.stringify(Array.from(owned))); }
       catch (eP) { return { ran: true, removed: removedNames.length, names: removedNames, stamped: false, why: 'removal did not reach storage — left unstamped to retry' }; }
-      /* removal is on disk — NOW fold each REMOVED stray's copy count onto the survivor it keeps (max,
-         never undercount). A failure past this point can only drift a copy count, never strand a row. */
-      try {
-        if (typeof copies !== 'undefined' && copies){
-          var _cCh = false;
+      /* REG-2243 (#11, v3743) — removal is on disk; NOW fold each REMOVED stray's copy count onto the
+         survivor it keeps (max, never undercount), and CONFIRM that fold reached storage UNSWALLOWED
+         before stamping — the same shape as the owned-confirm above. The folded map is built in a
+         CANDIDATE and the live in-memory copies is touched only AFTER the write STICKS, so a throw never
+         leaves a half-folded count (the stray count is not deleted in memory). On a throw the removal is
+         already confirmed on disk (vaultRemove's persistOwned plus the owned-confirm above), so leaving
+         the world UNstamped is not enough on its own — the loose-stray migration keys off strays that are
+         now gone, so a reload could not re-derive this fold. So put the removed strays BACK into owned
+         (re-persisted) and return UNstamped: the next reload re-runs the WHOLE migration (remove + fold)
+         cleanly instead of stranding an undercounted survivor under a done-stamp. [[the-unjoined-end]] */
+      if (typeof copies !== 'undefined' && copies && typeof LS !== 'undefined' && LS.setItem){
+        var _next = {}, _cCh = false;
+        Object.keys(copies).forEach(function(k){ _next[k] = copies[k]; });   /* candidate — the live object is folded only after the write sticks */
+        removedNames.forEach(function(L){
+          if (_next[L] != null){
+            var t = twinOf[L];
+            if (t != null) _next[t] = Math.max((_next[t] != null ? _next[t] : 1), _next[L]);
+            delete _next[L]; _cCh = true;
+          }
+        });
+        if (_cCh){
+          try { LS.setItem('d2r_copies', JSON.stringify(_next)); }
+          catch (eC) {
+            /* the fold did not reach disk and the strays are already removed — restore them so a healthy
+               reload re-runs the migration, and return UNstamped. Live copies is left as-is (stray kept). */
+            removedNames.forEach(function(L){ try { owned.add(L); } catch (e2) {} });
+            try { window.LSR.setItem('d2r_owned', JSON.stringify(Array.from(owned))); } catch (e3) {}
+            return { ran: true, removed: removedNames.length, names: removedNames, stamped: false, why: 'copy-count fold did not reach storage — strays restored to owned, left unstamped to retry' };
+          }
+          /* write stuck — reconcile the LIVE copies object in place to exactly what reached disk */
           removedNames.forEach(function(L){
             if (copies[L] != null){
               var t = twinOf[L];
               if (t != null) copies[t] = Math.max((copies[t] != null ? copies[t] : 1), copies[L]);
-              delete copies[L]; _cCh = true;
+              delete copies[L];
             }
           });
-          if (_cCh && typeof LS !== 'undefined' && LS.setItem) LS.setItem('d2r_copies', JSON.stringify(copies));
         }
-      } catch (e) {}
+      }
       /* stamp ONLY now — after a CONFIRMED remove (once per world, never re-applied over a later undo) */
       try { window.LSR.setItem('d2r_setDupeMigrate_v2227', String(Date.now())); } catch (e) {}
       return { ran: true, removed: removedNames.length, names: removedNames };
@@ -47007,8 +47084,9 @@ window.vaultAutoAssign = function(){
      should or should not be in the shared/war stash ... like war traveler.. eventually i dont want
      it there and might mule it.. so if i uncheck it it can remove it from the shared and mule it".
      A checkmark list of what the rules keep in the shared stash. Tick forces it in; untick removes
-     it and files it to its mule (both via _setShareOverride + a his-click vaultFile re-home). Keepers
-     (Anni / Torch / Gheed's) are never listed — they live on MAIN, not a shared stash. Collapsed by
+     it and files it to its mule (both via _setShareOverride + a his-click vaultFile re-home). REG-2241
+     (2026-10-15): Anni & Torch now DO appear here — they route to the shared stash and are his to toggle;
+     Gheed's defaults to a mule, so it shows only if he forces it in. Collapsed by
      default so it stays an "advanced" drawer. */
   var _shareSettingsOpen = false;
   window._shareSettingsToggleOpen = function(){ _shareSettingsOpen = !_shareSettingsOpen; try { renderShareSettings(); } catch(e){} };
@@ -47022,7 +47100,7 @@ window.vaultAutoAssign = function(){
     owned.forEach(function(n){
       try {
         if (isSharedStash(n)) return;
-        if (typeof KEEP_IN_INVENTORY !== 'undefined' && KEEP_IN_INVENTORY.test(_keepName(n))) return;   // keepers can't share
+        /* REG-2241 — Anni/Torch are NO LONGER hidden here: his 2026-10-15 ruling routes them to the SHARED stash, so they belong in this toggle list (tick = shared, untick = mule). Gheed's defaults to a mule, so it appears only if he forces it in. KEEP_IN_INVENTORY is no longer a "can't share" set. */
         var def = _shareDefault(n);                        // 'shared' if the rules keep it in the shared stash
         var eff = (suggestMule(n) || {}).id === 'shared';  // where it actually routes now (override applied)
         var ov = _shareOverride(n);
@@ -66206,7 +66284,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3742', name:'v3742 - v3740 v3741 review-after-ship: 6 vault and console fixes', date:'2026-10-15', note:'Review-after-ship batch on v3740 and v3741 (REG-2240; board #108 #11 #134 #137 #14 #44): planner copy-undo is now scoped to the bumped name not just the token, so a re-roll of a later pick can no longer revert the first picks copy; the set-dupe migration stamps itself done only after a CONFIRMED owned-persist, so a failed write retries instead of stranding a stray under a done-stamp; a fullscreen dupes window holding only shared spare copies no longer also says empty locker; the shared-tab overflow note tells the truth (a shared tab is 100 cells with no auto-spill) instead of calling it a 10x10 preview; the floating item card tracks its item through a mouse-less wheel or keyboard scroll; and leaving the theatre dismisses the floating item tooltip it spawned. HEART: each fix ships a RED-first guard — five Routine-I spec.ts plus the node gate test_a_closed_theatre_dismisses_the_item_tooltip, and the REG-2231 red-proof in test_the_mule_inventory is re-anchored to the new guard line.' };
+  window.D2R_BUILD = { id:'v3743', name:'v3743 - keeper-charm and merc-gear routing plus set-dupe copies hardening', date:'2026-10-15', note:'Three now-ruled vault fixes (REG-2241/2242/2243). KEEPER CHARMS (his 2026-10-15 ruling torches and anni stay in shared, gheeds gets muled): Hellfire Torch and Annihilus now route to the SHARED stash and Gheeds Fortune falls through to its grand-charm mule, so the three iconic charms no longer all park on MAIN; the Hellfire Torch survival marker is kept so it is never pruned, and his per-item share switch can reach them. MERC GEAR: a MERC_GEAR rule in suggestMule routes mercenary-worn gear to SHARED (seeded with Guillaume Face, Andariel Visage, Mara Kaleidoscope plus five canonical merc uniques), after the keeper and share-override checks and before the category branch, respecting a forced mule override. SET-DUPE HARDENING: the copy-count fold is confirmed on disk before the once-per-world stamp; a failed copies write leaves the world unstamped and restores the removed strays so the next reload re-runs the migration. HEART: each fix ships a RED-first guard (three v3743 Routine-I spec.ts), and the v1814 base-routing spec is re-anchored so a slot-pair migration does not drag merc gear out to shared.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

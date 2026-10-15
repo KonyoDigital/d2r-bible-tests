@@ -63,7 +63,7 @@ if sys.platform == "win32":
         except Exception:
             pass
 
-VERSION = "v3742"   # v3740 v3741 review-after-ship: 6 vault and console fixes
+VERSION = "v3743"   # keeper-charm and merc-gear routing plus set-dupe copies hardening
 HERE   = os.path.dirname(os.path.abspath(__file__))
 FRAMES = os.environ.get("TV_FRAMES_DIR") or os.path.join(HERE, "frames")   # v752 — replay feeds its own watch dir
 

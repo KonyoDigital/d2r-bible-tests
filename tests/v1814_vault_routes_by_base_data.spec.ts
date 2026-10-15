@@ -31,7 +31,9 @@ import * as path from 'path';
 const FILE = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 const ARMOUR_IN_WEAPONS = [
-  "Andariel's Visage", "Ormus' Robes", "Arkaine's Valor",
+  // REG-2242 — Andariel's Visage now routes to the SHARED stash (mercenary gear), so it is no longer a
+  // UNI-ARMOR example here; the armour-word-less law still holds on the rest and on the roster sweep.
+  "Ormus' Robes", "Arkaine's Valor",
   'Homunculus', 'Boneflame', 'Darkforce Spawn', "Head Hunter's Glory",
 ];
 const WEAPONS_IN_ARMOUR = ["Astreon's Iron Ward", 'The Vile Husk', 'Widowmaker'];
@@ -193,7 +195,10 @@ test('v1814 — the migration repairs old assignments WITHOUT touching his own c
   const a = await page.evaluate(() => {
     try { return JSON.parse(localStorage.getItem('d2r_muleAssign') || '{}'); } catch (e) { return {}; }
   });
-  expect(a["Andariel's Visage"]).toBe('uni-armor');
+  // REG-2242 — Andariel's Visage is MERCENARY GEAR now (suggestMule -> 'shared'). The migration only
+  // swaps WITHIN the uni-weap/uni-armor pair and never drags an item OUT to the shared stash, so a
+  // copy he pinned to uni-weap is left where it was; Homunculus (below) is the armour-repair example.
+  expect(a["Andariel's Visage"], 'the slot-pair migration must not pull merc gear out to shared').toBe('uni-weap');
   expect(a['Homunculus']).toBe('uni-armor');
   expect(a["Astreon's Iron Ward"]).toBe('uni-weap');
   expect(a['Blackhand Key']).toBe('uni-weap');
@@ -231,7 +236,7 @@ test('v1816 — the repair runs ONCE, and after it his hand wins', async ({ page
         'Blackhand Key', 'Shaftstop', "Titan's Revenge", "Nord's Tenderizer"
       ]));
       localStorage.setItem('d2r_muleAssign', JSON.stringify({
-          "Andariel's Visage": 'uni-weap',   // mis-filed → the one-time repair must move it
+          'Homunculus': 'uni-weap',   // REG-2242 — was Andariel's Visage (now merc gear → shared); a mis-filed shield the one-time repair must move
           'Blackhand Key': 'uni-weap',       // correct → untouched
         }));
         localStorage.setItem('__seeded', '1');
@@ -248,13 +253,13 @@ test('v1816 — the repair runs ONCE, and after it his hand wins', async ({ page
   await page.waitForFunction(() => {
     try { return !!(window as any).LSR.getItem('d2r_vaultRerouteDone'); } catch (e) { return false; }
   }, null, { timeout: 20000 });
-  expect((await assign())["Andariel's Visage"], 'the one-time repair should have moved it').toBe('uni-armor');
+  expect((await assign())['Homunculus'], 'the one-time repair should have moved it').toBe('uni-armor');
 
   // HIS HAND: deliberately put it back in the weapons locker
   await page.evaluate(() => {
     const w = window as any;
     const a = JSON.parse(w.LSR.getItem('d2r_muleAssign') || '{}');
-    a["Andariel's Visage"] = 'uni-weap';
+    a['Homunculus'] = 'uni-weap';
     w.LSR.setItem('d2r_muleAssign', JSON.stringify(a));
   });
 
@@ -262,7 +267,7 @@ test('v1816 — the repair runs ONCE, and after it his hand wins', async ({ page
   await page.waitForFunction(() => typeof (window as any).suggestMule === 'function', null, { timeout: 20000 });
   await page.waitForTimeout(1500);
 
-  expect((await assign())["Andariel's Visage"],
+  expect((await assign())['Homunculus'],
     'the migration ran a second time and overruled a placement he made by hand').toBe('uni-weap');
 });
 
@@ -309,7 +314,7 @@ test('v1817 — a failed write must not stamp the repair as done', async ({ page
         'Blackhand Key', 'Shaftstop', "Titan's Revenge", "Nord's Tenderizer"
       ]));
       localStorage.setItem('d2r_muleAssign', JSON.stringify({
-          "Andariel's Visage": 'uni-weap',
+          'Homunculus': 'uni-weap',
           'Blackhand Key': 'uni-weap',
         }));
         localStorage.setItem('__seeded', '1');
@@ -361,6 +366,6 @@ test('v1817 — a failed write must not stamp the repair as done', async ({ page
   const a = await page.evaluate(() => {
     try { return JSON.parse((window as any).LSR.getItem('d2r_muleAssign') || '{}'); } catch (e) { return {}; }
   });
-  expect(a["Andariel's Visage"], 'the retry must actually repair').toBe('uni-armor');
+  expect(a['Homunculus'], 'the retry must actually repair').toBe('uni-armor');
   expect(a['Blackhand Key'], 'and leave the correct one alone').toBe('uni-weap');
 });
