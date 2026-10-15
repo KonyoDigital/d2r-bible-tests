@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3737 · TV DIABLO</title>
-<meta name="d2r-build" content="v3737">
+  <title>Konyo's D2R Farming Bible v3738 · TV DIABLO</title>
+<meta name="d2r-build" content="v3738">
 <meta name="d2r-build-date" content="2026-10-15">
-<meta name="d2r-build-note" content="REG-2225: the shelf shared-stash card draws one cell per copy (drawn.map over _shelfDrawNames); v3734 capped the FULLSCREEN shared view (_sharedPack) at 2 but left _shelfCopyCount uncapped for shared, so a 7-copy item showed 7 shelf tiles while the fullscreen showed 2. _shelfCopyCount now caps shared at _SHARED_COPY_CAP and other lockers at _MULE_COPY_CAP, so both surfaces agree. Also corrected the v3736 comment (the title N cells is grid footprint, not copies). HEART: guarded by tests/v3737_shelf_shared_card_caps_copies.spec.ts on Routine I; backend needs no new watcher.">
+<meta name="d2r-build-note" content="REG-2226 (#134 E half-2): his rule E - the shared stash keeps 2 copies, the 3rd+ is trade-stock held in GRAIL-DUPES, thrown out never. v3734/v3737 capped the shared view at 2; this SHOWS the overflow in the DUPES locker as display-only spare cells (min(copies-2, _MULE_COPY_CAP)). The item stays homed in shared (not re-filed), so the spare cells carry no X; the true total is the registered xN. No double-count: shared draws 2, dupes draws the next ones. HEART: guarded by tests/v3738_dupes_overflow_cells.spec.ts on Routine I; backend needs no new watcher.">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -39560,6 +39560,10 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
 .vm-cell.vmc-rare{border-color:rgba(255,255,100,.5);box-shadow:inset 0 0 9px rgba(255,255,100,.12)}
 .vm-cell.vmc-rw,.vm-cell.vmc-rune,.vm-cell.vmc-crafted{border-color:rgba(255,168,0,.55);box-shadow:inset 0 0 9px rgba(255,168,0,.14)}
 .vm-cell.vmc-basic{border-color:rgba(210,210,210,.4)}
+/* REG-2226 (#134) — the DUPES locker's display-only overflow ("spare copies — trade stock") */
+.vm-spare-sec{margin-top:8px;padding-top:7px;border-top:1px dashed rgba(159,212,255,.26)}
+.vm-spare-head{font-size:var(--fs-micro);font-weight:var(--fw-semibold);color:#9fd4ff;opacity:.85;margin-bottom:4px}
+.vm-cell.vmc-spare{border-style:dashed;border-color:rgba(159,212,255,.42);opacity:.82;cursor:default}
 .vm-more[open] .vm-grid{margin-top:6px}
 /* ═══ v322 vault polish — per-locker RARITY ACCENT (the Crafted-Workshop-grade colour identity) ═══
    one --acc rgb triplet per locker tints the plate, top stripe, name, count pill, gauge + hover glow.
@@ -42271,6 +42275,29 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          numerator. `cells` here is the grid FOOTPRINT (_ld.cells — a weapon ×3 is ~24 cells, not 3), the
          title's "N cells"; copies stay visible as the repeated grid tiles and the registered ×N. */
       var _itemN = (new Set(drawn)).size + magicItems.length;
+      /* REG-2226 (#134 E half-2) — the DUPES locker also SHOWS the overflow copies (3rd+) of shared items as
+         display-only "spare" cells: his rule E keeps 2 in the shared stash and holds the rest here as trade
+         stock, thrown out never. These items are homed in 'shared' (not re-filed), so the spare cells carry no
+         ✕ — they are a view of copies[], and the true total is the registered ×N. No double-count: shared draws
+         2, this draws the next ones. */
+      var _ovHtml = '';
+      if (m.id === 'dupes'){
+        var _ovNames = _vaultSharedOverflowNames();
+        if (_ovNames.length){
+          _itemN += _ovNames.length;
+          var _ovCells = [];
+          _ovNames.forEach(function(n){
+            var _ocl = (typeof _itemCells === 'function') ? _itemCells(n) : { w: 1, h: 2 };
+            var _ok = _vaultSharedOverflowCells(n), _otot = (typeof copyCount === 'function') ? copyCount(n) : 1;
+            for (var _oi = 0; _oi < _ok; _oi++){
+              _ovCells.push('<div class="vm-cell vmc-spare" style="grid-column:span ' + _ocl.w + ';grid-row:span ' + _ocl.h + '" data-arttip="' + esc(n) + '" title="' + esc(n) + ' — spare copy ' + (_oi + _SHARED_COPY_CAP + 1) + ' of ' + _otot + ' · trade stock: the shared stash keeps 2, the rest are held here (thrown out never)">'
+                + ((typeof art === 'function') ? art(n, '◆', 'lg') : '')
+                + '<span class="vm-item-name vm-cell-name" data-arttip="' + esc(n) + '">' + esc(n) + '</span></div>');
+            }
+          });
+          if (_ovCells.length) _ovHtml = '<div class="vm-spare-sec"><div class="vm-spare-head">♻️ spare copies — trade stock (' + _ovCells.length + ' cell' + (_ovCells.length === 1 ? '' : 's') + ')</div><div class="vm-grid vm-grid-spare">' + _ovCells.join('') + '</div></div>';
+        }
+      }
       /* ══ v2211 — THE GAUGE MEASURES CELLS AND STOPS PRETENDING ONE MULE IS ENOUGH ══════════
          It was `cap = 40` with `Math.min(100, …)`: item COUNT against the INVENTORY alone, then
          clamped. A locker holding 61 and one holding 200 painted the same bar, and the drill-down
@@ -42462,6 +42489,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         + '<div class="vm-body">'
         + setRows
         + itemsHtml
+        + _ovHtml
         + '</div>' + linked + '</div>';
     }).join('');
   }
@@ -46782,6 +46810,23 @@ window.vaultAutoAssign = function(){
     (names || []).forEach(function(nm){ n += _sharedCappedCopies(nm); });
     return n;
   }
+  /* REG-2226 (#134 E half-2) — his rule E: the shared stash keeps 2 copies; the 3rd+ is trade-stock held in
+     GRAIL-DUPES, thrown out NEVER. The copies already live in copies[]; these name the OVERFLOW so the dupes
+     locker can SHOW it (display-only — the item's home stays 'shared', nothing is re-filed, no double-count:
+     shared draws 2, dupes draws the next ones). Capped at the mule display cap like every locker; the true
+     total is always the registered ×N. */
+  function _vaultSharedOverflowCells(n){
+    var over = _sharedCopyCount(n) - _SHARED_COPY_CAP;
+    if (!(over > 0)) return 0;
+    var cap = (typeof _MULE_COPY_CAP === 'number' && _MULE_COPY_CAP > 0) ? _MULE_COPY_CAP : 3;
+    return Math.min(over, cap);
+  }
+  function _vaultSharedOverflowNames(){
+    var out = [];
+    try { (_sharedNames() || []).forEach(function(n){ if (_vaultSharedOverflowCells(n) > 0) out.push(n); }); } catch(e){}
+    return out.sort();
+  }
+  try { window._vaultSharedOverflowCells = _vaultSharedOverflowCells; window._vaultSharedOverflowNames = _vaultSharedOverflowNames; } catch(e){}
   function _sharedPack(items){
     var sized = [];
     (items || []).forEach(function(n){
@@ -65975,7 +66020,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3737', name:'v3737 - the shelf shared card caps copies at two like the fullscreen', date:'2026-10-15', note:'REG-2225: the shelf shared-stash card draws one cell per copy (drawn.map over _shelfDrawNames); v3734 capped the FULLSCREEN shared view (_sharedPack) at 2 but left _shelfCopyCount uncapped for shared, so a 7-copy item showed 7 shelf tiles while the fullscreen showed 2. _shelfCopyCount now caps shared at _SHARED_COPY_CAP and other lockers at _MULE_COPY_CAP, so both surfaces agree. Also corrected the v3736 comment (the title N cells is grid footprint, not copies). HEART: guarded by tests/v3737_shelf_shared_card_caps_copies.spec.ts on Routine I; backend needs no new watcher.' };
+  window.D2R_BUILD = { id:'v3738', name:'v3738 - the dupes locker shows overflow copies of shared items as spare cells', date:'2026-10-15', note:'REG-2226 (#134 E half-2): his rule E - the shared stash keeps 2 copies, the 3rd+ is trade-stock held in GRAIL-DUPES, thrown out never. v3734/v3737 capped the shared view at 2; this SHOWS the overflow in the DUPES locker as display-only spare cells (min(copies-2, _MULE_COPY_CAP)). The item stays homed in shared (not re-filed), so the spare cells carry no X; the true total is the registered xN. No double-count: shared draws 2, dupes draws the next ones. HEART: guarded by tests/v3738_dupes_overflow_cells.spec.ts on Routine I; backend needs no new watcher.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

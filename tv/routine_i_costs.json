@@ -467,6 +467,7 @@
 "tests/v3734_shared_stash_caps_copies.spec.ts": 8.0,
 "tests/v3735_auto_sort_skips_chronicle_only.spec.ts": 7.0,
 "tests/v3736_locker_count_is_items_not_copies.spec.ts": 8.0,
-"tests/v3737_shelf_shared_card_caps_copies.spec.ts": 7.0
+"tests/v3737_shelf_shared_card_caps_copies.spec.ts": 7.0,
+"tests/v3738_dupes_overflow_cells.spec.ts": 8.0
 }
 }

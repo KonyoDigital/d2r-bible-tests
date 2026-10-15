@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3737",
+  "ver": "v3738",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3737: REG-2225: the shelf shared-stash card draws one cell per copy (drawn.map over _shelfDrawNames); v3734 capped the FULLSCREEN shared view (_sharedPack) at 2 but left _shelfCopyCount uncapped for shared, so a 7-copy item showed 7 shelf tiles while the fullscreen showed 2. _shelfCopyCount now caps shared at _SHARED_COPY_CAP and other lockers at _MULE_COPY_CAP, so both surfaces agree. Also corrected the v3736 comment (the title N cells is grid footprint, not copies). HEART: guarded by tests/v3737_shelf_shared_card_caps_copies.spec.ts on Routine I; backend needs no new watcher.",
+  "note": "v3738: REG-2226 (#134 E half-2): his rule E - the shared stash keeps 2 copies, the 3rd+ is trade-stock held in GRAIL-DUPES, thrown out never. v3734/v3737 capped the shared view at 2; this SHOWS the overflow in the DUPES locker as display-only spare cells (min(copies-2, _MULE_COPY_CAP)). The item stays homed in shared (not re-filed), so the spare cells carry no X; the true total is the registered xN. No double-count: shared draws 2, dupes draws the next ones. HEART: guarded by tests/v3738_dupes_overflow_cells.spec.ts on Routine I; backend needs no new watcher.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
