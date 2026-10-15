@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3735",
+  "ver": "v3736",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3735: REG-2223 (#131 review-after-ship on REG-2219): Auto-Sort filed a name to the shared stash from the war rule before asking if he HOLDS it, so a chronicle-only found-ever tick landed as a held spare (testimony not state, d2r-bible section 6). _isChronicleOnlyRow blocks the shared filing when every look is chronicle and it is not his hand; it falls to no-picture, the same gate a mule cell already stops on. A frameless holding (REG-2219 name-only war gear, looks empty) still files. HEART: guarded by tests/v3735_auto_sort_skips_chronicle_only.spec.ts on Routine I, which also pins the no-regression case; backend needs no new watcher.",
+  "note": "v3736: REG-2224 (#10 count-sync, GrokBot #230 cards count cells not items, 329 vs 220): the mule-card badge showed total which is COPIES (the grid draws a cell per copy) but labeled item(s), while the Registered header counts names. _itemN = distinct names + magic keepers now feeds the badge, its item(s) label and the proven denominator; the proven numerator dedups to names; cells (copies) stays the title N cells so duplicates are never hidden. HEART: guarded by tests/v3736_locker_count_is_items_not_copies.spec.ts on Routine I; backend needs no new watcher.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
