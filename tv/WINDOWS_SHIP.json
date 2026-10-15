@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3736",
+  "ver": "v3737",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3736: REG-2224 (#10 count-sync, GrokBot #230 cards count cells not items, 329 vs 220): the mule-card badge showed total which is COPIES (the grid draws a cell per copy) but labeled item(s), while the Registered header counts names. _itemN = distinct names + magic keepers now feeds the badge, its item(s) label and the proven denominator; the proven numerator dedups to names; cells (copies) stays the title N cells so duplicates are never hidden. HEART: guarded by tests/v3736_locker_count_is_items_not_copies.spec.ts on Routine I; backend needs no new watcher.",
+  "note": "v3737: REG-2225: the shelf shared-stash card draws one cell per copy (drawn.map over _shelfDrawNames); v3734 capped the FULLSCREEN shared view (_sharedPack) at 2 but left _shelfCopyCount uncapped for shared, so a 7-copy item showed 7 shelf tiles while the fullscreen showed 2. _shelfCopyCount now caps shared at _SHARED_COPY_CAP and other lockers at _MULE_COPY_CAP, so both surfaces agree. Also corrected the v3736 comment (the title N cells is grid footprint, not copies). HEART: guarded by tests/v3737_shelf_shared_card_caps_copies.spec.ts on Routine I; backend needs no new watcher.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

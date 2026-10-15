@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3736 · TV DIABLO</title>
-<meta name="d2r-build" content="v3736">
+  <title>Konyo's D2R Farming Bible v3737 · TV DIABLO</title>
+<meta name="d2r-build" content="v3737">
 <meta name="d2r-build-date" content="2026-10-15">
-<meta name="d2r-build-note" content="REG-2224 (#10 count-sync, GrokBot #230 cards count cells not items, 329 vs 220): the mule-card badge showed total which is COPIES (the grid draws a cell per copy) but labeled item(s), while the Registered header counts names. _itemN = distinct names + magic keepers now feeds the badge, its item(s) label and the proven denominator; the proven numerator dedups to names; cells (copies) stays the title N cells so duplicates are never hidden. HEART: guarded by tests/v3736_locker_count_is_items_not_copies.spec.ts on Routine I; backend needs no new watcher.">
+<meta name="d2r-build-note" content="REG-2225: the shelf shared-stash card draws one cell per copy (drawn.map over _shelfDrawNames); v3734 capped the FULLSCREEN shared view (_sharedPack) at 2 but left _shelfCopyCount uncapped for shared, so a 7-copy item showed 7 shelf tiles while the fullscreen showed 2. _shelfCopyCount now caps shared at _SHARED_COPY_CAP and other lockers at _MULE_COPY_CAP, so both surfaces agree. Also corrected the v3736 comment (the title N cells is grid footprint, not copies). HEART: guarded by tests/v3737_shelf_shared_card_caps_copies.spec.ts on Routine I; backend needs no new watcher.">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -41948,11 +41948,18 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var c = 1;
     try { c = (typeof copyCount === 'function' ? (copyCount(n) || 1) : 1) | 0; } catch (e) { c = 1; }
     if (!(c > 0)) c = 1;
-    if (muleId !== 'shared'){
-      var cap = 3;
-      try { if (typeof _MULE_COPY_CAP === 'number' && _MULE_COPY_CAP > 0) cap = _MULE_COPY_CAP; } catch (e2) { cap = 3; }
-      if (c > cap) c = cap;
+    /* REG-2225 — the shelf locker card draws one cell per copy (drawn.map). v3734 capped the FULLSCREEN
+       shared view (_sharedPack/_sharedCappedCopies) at _SHARED_COPY_CAP but left THIS path uncapped for
+       'shared', so the shelf shared card still drew copyCount cells (a 7-copy item = 7 tiles) while the
+       fullscreen showed 2. Cap both now: 'shared' at _SHARED_COPY_CAP (2), every other locker at the mule cap. */
+    var cap = 3;
+    if (muleId === 'shared'){
+      cap = 2;
+      try { if (typeof _SHARED_COPY_CAP === 'number' && _SHARED_COPY_CAP > 0) cap = _SHARED_COPY_CAP; } catch (e2) {}
+    } else {
+      try { if (typeof _MULE_COPY_CAP === 'number' && _MULE_COPY_CAP > 0) cap = _MULE_COPY_CAP; } catch (e2) {}
     }
+    if (c > cap) c = cap;
     return c;
   }
   function _shelfDrawNames(names, muleId){
@@ -42261,7 +42268,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          `drawn` are ONE ENTRY PER COPY (the grid draws a cell per copy, _shelfDrawNames expands copyCount),
          so `total` is COPIES. The badge and its "item(s)" label and the ⚖ proven denominator must be DISTINCT
          ITEMS, to agree with the Registered header (which counts names) and with the chip's name-based
-         numerator. `cells` (copies) stays the cell math and the title's "N cells". */
+         numerator. `cells` here is the grid FOOTPRINT (_ld.cells — a weapon ×3 is ~24 cells, not 3), the
+         title's "N cells"; copies stay visible as the repeated grid tiles and the registered ×N. */
       var _itemN = (new Set(drawn)).size + magicItems.length;
       /* ══ v2211 — THE GAUGE MEASURES CELLS AND STOPS PRETENDING ONE MULE IS ENOUGH ══════════
          It was `cap = 40` with `Math.min(100, …)`: item COUNT against the INVENTORY alone, then
@@ -65967,7 +65975,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3736', name:'v3736 - a locker card counts distinct items not copies', date:'2026-10-15', note:'REG-2224 (#10 count-sync, GrokBot #230 cards count cells not items, 329 vs 220): the mule-card badge showed total which is COPIES (the grid draws a cell per copy) but labeled item(s), while the Registered header counts names. _itemN = distinct names + magic keepers now feeds the badge, its item(s) label and the proven denominator; the proven numerator dedups to names; cells (copies) stays the title N cells so duplicates are never hidden. HEART: guarded by tests/v3736_locker_count_is_items_not_copies.spec.ts on Routine I; backend needs no new watcher.' };
+  window.D2R_BUILD = { id:'v3737', name:'v3737 - the shelf shared card caps copies at two like the fullscreen', date:'2026-10-15', note:'REG-2225: the shelf shared-stash card draws one cell per copy (drawn.map over _shelfDrawNames); v3734 capped the FULLSCREEN shared view (_sharedPack) at 2 but left _shelfCopyCount uncapped for shared, so a 7-copy item showed 7 shelf tiles while the fullscreen showed 2. _shelfCopyCount now caps shared at _SHARED_COPY_CAP and other lockers at _MULE_COPY_CAP, so both surfaces agree. Also corrected the v3736 comment (the title N cells is grid footprint, not copies). HEART: guarded by tests/v3737_shelf_shared_card_caps_copies.spec.ts on Routine I; backend needs no new watcher.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
