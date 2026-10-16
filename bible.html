@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3747 · TV DIABLO</title>
-<meta name="d2r-build" content="v3747">
+  <title>Konyo's D2R Farming Bible v3748 · TV DIABLO</title>
+<meta name="d2r-build" content="v3748">
 <meta name="d2r-build-date" content="2026-10-16">
-<meta name="d2r-build-note" content="HEART: #76 phase-1 one-record model derives the vault header (REG-2257) plus keepInv fix and a RED-proven parity guard">
+<meta name="d2r-build-note" content="HEART: #76 records model UNKNOWN propagation (REG-2258) and #68 super-unique TZ ceiling TC85 to TC87 across 7 cards (REG-2259)">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -17227,20 +17227,20 @@ const TZ_CROSSLINKS = [
 // cross-link each one to the TZ_ZONES entry it appears in — no hardcoded join,
 // so the two lists never drift. No per-kill odds fabricated.
 const SUPER_UNIQUES = [
-  {emoji:"🪓",name:"Shenk the Overseer",act:"Act 5 · Bloody Foothills",mlvl:80,immune:"random (Hell)",dclone:true,tzMatch:"Shenk",role:"end-of-zone overseer with a huge minion pack",drops:"Sits at the top of Bloody Foothills with a large enslaved pack — lots of bodies = lots of drops in one spot. Terror lifts the Foothills to mlvl 96 / TC85. A classic DClone spawn-camp."},
-  {emoji:"⚡",name:"Eldritch the Rectifier",act:"Act 5 · Frigid Highlands",mlvl:80,immune:"random (Hell)",dclone:true,tzMatch:"Eldritch",role:"instant kill right on the Frigid Highlands waypoint",drops:"Spawns at the Frigid Highlands WP — zero walk, the fastest super-unique tag in the game. Pairs with Shenk (Bloody Foothills) and a Pindleskin run on the same Act 5 ascent. Terror → mlvl 96 / TC85."},
-  {emoji:"❄️",name:"Frozenstein",act:"Act 5 · Frozen River",mlvl:82,immune:"Cold",dclone:false,tzMatch:"Frozenstein",role:"cold-immune boss of the Anya quest river",drops:"Guards the Frozen River (Anya quest). Cold-immune, so bring a second damage type. Terror → mlvl 96 / TC85 (the Crystalline Passage + Frozen River TZ)."},
+  {emoji:"🪓",name:"Shenk the Overseer",act:"Act 5 · Bloody Foothills",mlvl:80,immune:"random (Hell)",dclone:true,tzMatch:"Shenk",role:"end-of-zone overseer with a huge minion pack",drops:"Sits at the top of Bloody Foothills with a large enslaved pack — lots of bodies = lots of drops in one spot. Terror lifts the Foothills to mlvl 96 / TC87. A classic DClone spawn-camp."},
+  {emoji:"⚡",name:"Eldritch the Rectifier",act:"Act 5 · Frigid Highlands",mlvl:80,immune:"random (Hell)",dclone:true,tzMatch:"Eldritch",role:"instant kill right on the Frigid Highlands waypoint",drops:"Spawns at the Frigid Highlands WP — zero walk, the fastest super-unique tag in the game. Pairs with Shenk (Bloody Foothills) and a Pindleskin run on the same Act 5 ascent. Terror → mlvl 96 / TC87."},
+  {emoji:"❄️",name:"Frozenstein",act:"Act 5 · Frozen River",mlvl:82,immune:"Cold",dclone:false,tzMatch:"Frozenstein",role:"cold-immune boss of the Anya quest river",drops:"Guards the Frozen River (Anya quest). Cold-immune, so bring a second damage type. Terror → mlvl 96 / TC87 (the Crystalline Passage + Frozen River TZ)."},
   {emoji:"🩸",name:"Pindleskin",act:"Act 5 · Nihlathak's Temple",mlvl:86,immune:"random (Hell)",dclone:true,tzMatch:"Pindleskin",role:"mlvl 86 — the highest easily-farmed monster in the game",drops:"The single best fast elite-unique farm: mlvl 86 reaches the TC84/TC85 unique pool every kill, and Anya's red portal drops you next to him for instant repeat runs. Not on the TZ rotation list — you run him on demand, terror or not. Prime DClone camp."},
   {emoji:"🔮",name:"The Summoner",act:"Act 2 · Arcane Sanctuary",mlvl:83,immune:"random (Hell)",dclone:false,tzMatch:"Summoner",role:"holds the Key of Hate on Hell",drops:"On Hell he drops the 🔑 Key of Hate (1 of 3 for Uber Tristram). Dense ghost/lasher packs around him. Terror → mlvl 96 / TC85."},
   {emoji:"🗝️",name:"Nihlathak",act:"Act 5 · Halls of Vaught",mlvl:85,immune:"random (Hell)",dclone:false,tzMatch:"Nihlathak",role:"~10% Key of Destruction on Hell",drops:"Drops the 🔑 Key of Destruction (~10% on Hell) plus a real unique pool — he's also a tracked boss with a full drop table. Terror → mlvl 96 / TC87 (the Halls TZ)."},
   {emoji:"🔨",name:"Hephasto the Armorer",act:"Act 4 · River of Flame",mlvl:83,immune:"Fire",dclone:false,tzMatch:"Hephasto",role:"guards the Hellforge",drops:"The Hellforge smith — fire-immune, drops superior items, and his zone (River of Flame) terrors to mlvl 96 / TC87, the same elite ceiling as WSK. Hellforge rune-quest reward lives here too.",pool:{tcMax:87,mlvl:96,src:"River of Flame (terrored) → mlvl 96 / TC87 — the same elite ceiling as WSK"},auraGrid:{mlvl:96},bindTier:"BiS damage · the Fanaticism reroll target",bind:"<p style='margin:0 0 8px;font-style:italic;color:var(--text)'>The best <em>damage</em> bind a Warlock can self-supply — the Hellforge smith fights <strong>solo</strong>, so it is a clean 1-on-1 bind with no minion pack to clear first.</p><ul style='margin:0;padding-left:18px;line-height:1.6'><li><strong style='color:var(--best)'>Always Aura Enchanted</strong> — he <em>always</em> spawns already carrying a random runtime aura, so binding him always keeps one.</li><li><strong style='color:var(--gold-bright)'>⭐ Best roll: Fanaticism.</strong> His aura is random per spawn, so <strong>save &amp; exit / re-make until he carries Fanaticism</strong> (Conviction for a fire build), then bind — once bound the aura is locked in. A permanent personal Fanaticism (attack speed + a big % damage boost) is the single largest DPS multiplier a Warlock can give itself, and it buffs your merc too.</li><li>Bound-aura level = <code>floor(mlvl &divide; 8)</code>; bind him in a <strong>Terror Zone (mlvl 96)</strong> for aura level 12, the cap.</li></ul><div style='margin-top:9px;color:var(--hell)'><strong>Watch-outs:</strong> Super-Unique tier needs <strong>20 hard points</strong>. He is <strong>Fire Immune</strong> — chip him with a non-fire damage type or a sunder to reach the bind HP threshold (historically &lt;40%; the 3.2 per-demon cap is unpublished).</div>"},
   {emoji:"😈",name:"Izual",act:"Act 4 · Plains of Despair",mlvl:81,immune:"Cold",dclone:false,tzMatch:"Izual",role:"guaranteed first-kill drop",drops:"Quest boss in the Plains of Despair — cold-immune, drops a guaranteed item the first time per character and decent uniques after."},
-  {emoji:"🪶",name:"Witch Doctor Endugu",act:"Act 3 · Flayer Dungeon L3",mlvl:83,immune:"Poison",dclone:false,tzMatch:"Endugu",role:"holds the Gidbinn",drops:"Poison-themed witch doctor guarding the Gidbinn. Flayer Dungeon L3 terrors to mlvl 96 / TC85 — same ceiling as Pit Hell TZ."},
-  {emoji:"🕷️",name:"Sszark the Burning",act:"Act 3 · Spider Cavern",mlvl:81,immune:"Fire",dclone:false,tzMatch:"Sszark",role:"fire-enchanted spider boss",drops:"Fire-enchanted boss of the Spider Cavern. Terror → mlvl 96 / TC85, but the sparse outdoor approach makes it a B-tier rotation pick."},
-  {emoji:"🏹",name:"Blood Raven",act:"Act 1 · Burial Grounds",mlvl:74,immune:"none",dclone:false,tzMatch:"Blood Raven",role:"fire-arrow quest archer",drops:"The Sisters' Burial Grounds quest archer. Her quest can be restarted for repeat kills. Burial Grounds terrors to mlvl 96 / TC85."},
+  {emoji:"🪶",name:"Witch Doctor Endugu",act:"Act 3 · Flayer Dungeon L3",mlvl:83,immune:"Poison",dclone:false,tzMatch:"Endugu",role:"holds the Gidbinn",drops:"Poison-themed witch doctor guarding the Gidbinn. Flayer Dungeon L3 terrors to mlvl 96 / TC87 — same ceiling as Pit Hell TZ."},
+  {emoji:"🕷️",name:"Sszark the Burning",act:"Act 3 · Spider Cavern",mlvl:81,immune:"Fire",dclone:false,tzMatch:"Sszark",role:"fire-enchanted spider boss",drops:"Fire-enchanted boss of the Spider Cavern. Terror → mlvl 96 / TC87, but the sparse outdoor approach makes it a B-tier rotation pick."},
+  {emoji:"🏹",name:"Blood Raven",act:"Act 1 · Burial Grounds",mlvl:74,immune:"none",dclone:false,tzMatch:"Blood Raven",role:"fire-arrow quest archer",drops:"The Sisters' Burial Grounds quest archer. Her quest can be restarted for repeat kills. Burial Grounds terrors to mlvl 96 / TC87."},
   {emoji:"🥶",name:"Coldcrow",act:"Act 1 · Cave Level 1",mlvl:74,immune:"Cold",dclone:false,tzMatch:"Coldcrow",role:"cold-themed rogue archer",drops:"Cold archer in the Cold Plains cave — leans toward cold-themed uniques. Coded a Demon, so she's also Bind-eligible (Echo Warlock)."},
   {emoji:"⚔️",name:"The Smith",act:"Act 1 · Barracks",mlvl:79,immune:"none",dclone:false,tzMatch:"Smith",role:"holds the Horadric Malus",drops:"Barracks boss guarding the Horadric Malus (imbue quest). Appears in the Tristram TZ super-unique pack at mlvl 96 / TC85.",pool:{tcMax:85,mlvl:96,src:"Tristram Terror Zone super-unique pack → mlvl 96 / TC85"},auraGrid:{mlvl:96,fixedOnly:true,fixed:{name:"Holy Fire",glyph:"🔥",div:6,cap:17,fx:"Pulses fire damage in an aura around your bound demon. It is the Smith's FIXED aura — you never reroll it, so this is the most reliable aura bind in the game for a fire build."}},bindTier:"A-Tier · the fixed-aura fire bind",bind:"<p style='margin:0 0 8px;font-style:italic;color:var(--text)'>The third fully-sourced Warlock bind target (with Lister &amp; Hephasto), and the most <strong>predictable</strong> one — his aura never changes, so there is <strong>no reroll lottery</strong>.</p><ul style='margin:0;padding-left:18px;line-height:1.6'><li><strong style='color:var(--best)'>Fixed Lvl-16 Holy Fire aura</strong> (at mlvl 96) — a permanent fire-pulse around your pet pack. No save &amp; exit grind: bind him once and the aura is locked in.</li><li><strong style='color:var(--gold-bright)'>No immunity</strong> — unlike Fire-Immune Hephasto, the Smith has no resist to chip through, so a Warlock can solo the bind with any damage type.</li><li>Two easy spawns: his native <strong>Act 1 Barracks</strong> (Horadric Malus quest), or the <strong>Tristram Terror Zone</strong> super-unique pack where he reaches mlvl 96 / TC85 (Holy Fire level 16).</li></ul><div style='margin-top:9px;color:var(--hell)'><strong>Watch-outs:</strong> Super-Unique tier needs <strong>20 hard points</strong>. Holy Fire is a defensive/fire-splash aura, NOT a damage multiplier — for raw DPS, Fanaticism off Lister or Hephasto wins; the Smith is the budget/known-quantity pick.</div>"},
-  {emoji:"👑",name:"Griswold",act:"Act 1 · Tristram",mlvl:76,immune:"none",dclone:false,tzMatch:"Griswold",role:"can drop Griswold's set pieces",drops:"Cain's old blacksmith, now undead in Tristram. One of the few in-game sources of the Griswold's Legacy (Paladin) set. Tristram terrors to mlvl 96 / TC85."},
+  {emoji:"👑",name:"Griswold",act:"Act 1 · Tristram",mlvl:76,immune:"none",dclone:false,tzMatch:"Griswold",role:"can drop Griswold's set pieces",drops:"Cain's old blacksmith, now undead in Tristram. One of the few in-game sources of the Griswold's Legacy (Paladin) set. Tristram terrors to mlvl 96 / TC87."},
   {emoji:"💀",name:"Bone Ash",act:"Act 1 · Cathedral",mlvl:79,immune:"random (Hell)",dclone:false,tzMatch:"Bone Ash",role:"lightning-casting skeleton mage boss",drops:"Lightning caster outside the Catacombs. Appears in the Burial Grounds-adjacent TZ pulls; Cathedral terrors to mlvl 96 / TC85."},
   {emoji:"🔥",name:"Rakanishu",act:"Act 1 · Stony Field",mlvl:76,immune:"Lightning",dclone:true,tzMatch:"Rakanishu",role:"lightning-enchanted fallen, classic DClone camp",drops:"Lightning-enchanted fallen on the Stony Field cairn. Fast early-game tag and a textbook DClone spawn-camp target."},
   {emoji:"🧙",name:"Bishibosh",act:"Act 1 · Cold Plains",mlvl:74,immune:"Fire",dclone:true,tzMatch:"Bishibosh",role:"fire-enchanted shaman, classic DClone camp",drops:"Fire-enchanted fallen shaman in the Cold Plains. Low level, but the most accessible DClone spawn-camp super-unique in the game."},
@@ -47693,7 +47693,7 @@ window.vaultAutoAssign = function(){
      [[heart-first]] the corroborator is built WITH the model, not after. [[unknown-stays-unknown]] a
      name whose home cannot be resolved is `orphan`, never silently folded into `filed`. */
   function _vaultRecords(){
-    var out = { records: [], index: {}, byKind: {}, orphans: [], carUnknown: false, ok: true };
+    var out = { records: [], index: {}, byKind: {}, orphans: [], carUnknown: false, dockUnknown: false, ok: true };
     try {
       if (typeof ownedPool !== 'function' || typeof assign === 'undefined') { out.ok = false; return out; }
       var poolAll = ownedPool();                                   // distinct kept names (the header's `owned`)
@@ -47705,7 +47705,10 @@ window.vaultAutoAssign = function(){
         else _c.forEach(function(c){ if (c && c.name) carriedSet[c.name] = 1; });
       } catch(e){ out.carUnknown = true; }
       var looseSet = {};
-      try { (typeof _dockNames === 'function' ? _dockNames() : []).forEach(function(n){ looseSet[n] = 1; }); } catch(e){}
+      try {
+        if (typeof _dockNames !== 'function') out.dockUnknown = true;   // the dock list could not be read -> loose is UNKNOWN, not 0
+        else _dockNames().forEach(function(n){ looseSet[n] = 1; });
+      } catch(e){ out.dockUnknown = true; }
       poolAll.forEach(function(name){
         // classify this NAME to ONE location-kind, in the header's own priority order, but resolve "filed" FOR REAL
         var kind, mid = assign[name];
@@ -47732,21 +47735,28 @@ window.vaultAutoAssign = function(){
   }
   window._vaultRecords = _vaultRecords;
 
-  /* The header's five numbers DERIVED FROM records (distinct names per kind), for the parity guard.
-     owned = distinct names · copies = total records (the #137 copy sub-count). The live header lumps
-     __keep into "filed" (its subtraction cannot see it), so `filed` here = filed + keep; `orphans` is
-     the gap the subtraction hides — on consistent data orphans==0 and filed==live, on his data a nonzero
-     orphans count is the "dock/mules disagree" divergence (reported, never averaged away). */
+  /* The header's numbers DERIVED FROM records (distinct names per kind), for the parity guard.
+     owned = distinct names · copies = total records (the #137 copy sub-count).
+     ⚠ `filed` is the CORRECTED mule-filed count (filed + __keep). It EXCLUDES keepInv + orphan, which the
+        live subtraction (pool - loose - carried) over-counts as "filed to mules". On consistent data
+        (keepInv + orphan = 0) it equals the live figure — which is what the parity spec asserts; phase 2
+        shows this corrected (lower) number by design: a kept charm / a homeless name is NOT filed to a mule.
+     ⚠ carried OR dock UNKNOWN: a misread carried/dock name lands in the wrong bucket, so loose/filed/orphans
+        are not trustworthy — report null (UNKNOWN), exactly as the live #vault-pop does when the mule map
+        will not read. A count is never guessed over an unreadable source. [[unknown-stays-unknown]]
+     (REG-2258, v3748 — the v3747 cross-family review found the two UNKNOWN leaks + the filed nuance.) */
   function _vaultRecordsHeader(){
     var r = _vaultRecords(); if (!r.ok) return null; var k = r.byKind;
+    var unk = r.carUnknown || r.dockUnknown;
     return {
-      owned:   Object.keys(r.index).length,
-      copies:  r.records.length,
-      shared:  (k.sharedStash || 0),
-      carried: r.carUnknown ? null : (k.carried || 0),
-      loose:   (k.loose || 0),
-      filed:   (k.filed || 0) + (k.keep || 0),
-      orphans: r.orphans.length
+      owned:    Object.keys(r.index).length,
+      copies:   r.records.length,
+      shared:   (k.sharedStash || 0),
+      carried:  r.carUnknown ? null : (k.carried || 0),
+      loose:    unk ? null : (k.loose || 0),
+      filed:    unk ? null : ((k.filed || 0) + (k.keep || 0)),
+      keepInv:  (k.keepInv || 0),
+      orphans:  r.dockUnknown ? null : r.orphans.length
     };
   }
   window._vaultRecordsHeader = _vaultRecordsHeader;
@@ -66561,7 +66571,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3747', name:'v3747 - records-model', date:'2026-10-16', note:'HEART: #76 phase-1 one-record model derives the vault header (REG-2257) plus keepInv fix and a RED-proven parity guard' };
+  window.D2R_BUILD = { id:'v3748', name:'v3748 - records-tz', date:'2026-10-16', note:'HEART: #76 records model UNKNOWN propagation (REG-2258) and #68 super-unique TZ ceiling TC85 to TC87 across 7 cards (REG-2259)' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

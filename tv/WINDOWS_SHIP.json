@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3747",
+  "ver": "v3748",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3747: HEART: #76 phase-1 one-record model derives the vault header (REG-2257) plus keepInv fix and a RED-proven parity guard",
+  "note": "v3748: HEART: #76 records model UNKNOWN propagation (REG-2258) and #68 super-unique TZ ceiling TC85 to TC87 across 7 cards (REG-2259)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

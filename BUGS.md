@@ -51448,3 +51448,14 @@ else"*.
 
 ⚠ **IT STILL REFUSES NOTHING AND KILLS NOTHING**, and a proof pins that: the fold runs at seal
 (v2071), so pre-empting a rolling reel orphans its frames.
+
+## REG-2258 — #76 one-record model: UNKNOWN must propagate (v3748)
+The v3747 cross-family review found _vaultRecordsHeader reported numeric loose/filed/orphans even when
+_carriedNames or _dockNames failed — a misread name landing in the wrong bucket read as a measured count.
+Fixed: a dockUnknown flag; filed/loose/orphans return null (UNKNOWN) when carUnknown||dockUnknown, matching
+the live #vault-pop. Guard: tests/v3747_one_record_header_parity.spec.ts (the consistent-data parity).
+
+## REG-2259 — super-unique cards named TC85 where the zone cards say TC87 (#68, v3748)
+Seven super-unique cards (Shenk/Eldritch/Frozenstein/Endugu/Sszark/Blood Raven/Griswold) said "mlvl 96 / TC85"
+while every one resolves to a TZ zone the zone cards already show at tcMax 87 (TC87). Stale card text, not a
+data choice. Corrected the 7 strings to TC87. Guard: tests/v3748_su_card_tz_ceiling_matches_zone.spec.ts.
