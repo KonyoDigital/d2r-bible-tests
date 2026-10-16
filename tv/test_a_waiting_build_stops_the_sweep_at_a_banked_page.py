@@ -175,8 +175,10 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2039 - a status read stops the sweep",
      "file": "control_app.py",
-     "find": "        if (detail or {}).get(\"blocker\") != \"work\":\n            return False\n",
-     "replace": "        if False:\n            return False\n",
+     # #130 added _vault_ask_stop_for_relaunch, a line-for-line sibling of this chron guard, so the bare
+     # `if (detail...)` now matches TWICE — re-anchored to the chron docstring tail that is unique to it.
+     "find": "    Asked only by the two callers that relaunch next (the drift loop, a held relaunch) - never by a status read.\n    \"\"\"\n    try:\n        if (detail or {}).get(\"blocker\") != \"work\":\n            return False\n",
+     "replace": "    Asked only by the two callers that relaunch next (the drift loop, a held relaunch) - never by a status read.\n    \"\"\"\n    try:\n        if False:\n            return False\n",
      "matches": 1},
 ]
 

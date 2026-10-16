@@ -169,8 +169,10 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-1649 - a start keeps the last run's reason: a clean run can be blamed for an old one",
      "file": "control_app.py",
-     "find": "                           \"notDefinitiveWhy\": None, \"incompleteWhy\": None})\n",
-     "replace": "                           })\n",
+     # #130 added "stopAsk": None to the _VAULT_JOB reset, so these two keys no longer close the dict
+     # (trailing comma now) — re-anchored to the current line; the tamper still drops them from the reset.
+     "find": "                           \"notDefinitiveWhy\": None, \"incompleteWhy\": None,\n",
+     "replace": "",
      "matches": 1},
     {"why": "REG-1649 - a reel the run sealed is still handed a failure reason",
      "file": "control_app.py",

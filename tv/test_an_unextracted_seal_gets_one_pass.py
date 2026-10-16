@@ -462,8 +462,8 @@ RED_PROOF = [
     {
         "why": "a restart forgets the solo pass and buys the same reel again",
         "file": "control_app.py",
-        "find": "        for k in (\"retired\", \"tries\", \"lastWhy\", \"reextract\", \"rejudged\"):\n",   # REG-1663 re-anchor
-        "replace": "        for k in (\"retired\", \"tries\", \"lastWhy\", \"rejudged\"):\n",
+        "find": "        for k in (\"retired\", \"tries\", \"lastWhy\", \"reextract\", \"rejudged\", \"resume\"):   # #130 — resume added\n",   # REG-1663 re-anchor; #130 appended "resume" to the cleared set
+        "replace": "        for k in (\"retired\", \"tries\", \"lastWhy\", \"rejudged\", \"resume\"):   # #130 — resume added\n",
         "matches": 1,
     },
     {
