@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3754 · TV DIABLO</title>
-<meta name="d2r-build" content="v3754">
+  <title>Konyo's D2R Farming Bible v3755 · TV DIABLO</title>
+<meta name="d2r-build" content="v3755">
 <meta name="d2r-build-date" content="2026-10-16">
-<meta name="d2r-build-note" content="#76 INC-1 — the vault header JOINS the one-record corroborator: _vaultRecordsHeader (the v3747/v3748 view, unconsumed until now) resolves each owned name true home, and the header surfaces its orphan count READ-ONLY — a name the subtraction counts as filed but that resolves to no real mule = symptom a, unsorted and the mules disagree; UNKNOWN when the mule map would not read, nothing when they agree. No store write, no re-route. HEART: the orphan line IS the corroborator surfaced (_vaultRecords resolves each name true home; a no-home name is the disagreement), watched by tv/test_v3754_header_surfaces_orphans.py (green + RED-proven) and the records-model parity spec tests/v3747_one_record_header_parity.spec.ts; read-only, no new store or lane to add a watcher for. Positive firing verified by GrokBot on his real board (retro).">
+<meta name="d2r-build-note" content="#76 INC (v3755) — vault locker/card LABELING. A mule locker headline showed physical COPIES labelled Items while the shelf card showed distinct NAMES, so card 30 vs locker 49 read as a contradiction when they count different things. Pure relabel (openMuleCard 8 sites + the shared-stash window): the locker now shows the distinct-name count as items (matching the shelf card) with physical copies as a separate labelled figure — e.g. 30 items · 49 copies across 2 mules. READ-ONLY: no store write, no records dependency (names.length + _physN already in scope). Fixes GrokBot card/locker mismatch across 6 lockers. The copy INFLATION itself stays recount-based (no save data to auto-deflate; the console design is set-the-real-count) — this makes it visible. HEART: guarded by tests/v3755_locker_labels_names_and_copies.spec.ts (RED-first, CI per test-venue — not his Mac); no new store/lane/surface to watch, so no watcher added. CDP-verified the card renders items=names with copies shown separately.">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -47572,7 +47572,7 @@ window.vaultAutoAssign = function(){
     var totalAll = _sharedCopyTotal(names);
     box.hidden = false; box.scrollTop = 0;
     box.innerHTML = '<div class="vd-head"><span class="vd-icon">📦</span><span class="vd-name">SHARED STASH</span>'
-      + '<span class="vd-sub" style="margin:0 14px 0 6px">' + totalAll + ' never-muled item' + (totalAll === 1 ? '' : 's') + ' · auto-assorted across the 5 shared tabs</span>'
+      + '<span class="vd-sub" style="margin:0 14px 0 6px">' + names.length + ' never-muled item' + (names.length === 1 ? '' : 's') + (totalAll > names.length ? (' · ' + totalAll + ' copies') : '') + ' · auto-assorted across the 5 shared tabs</span>'
       + '<button class="vd-close" onclick="window.vaultCloseCard()">✕ close (Esc)</button></div>'
       + '<div class="vd-game-row">'
       +   '<div class="vd-panel" style="margin:0 auto"><div class="vd-panel-title">Shared Stash</div>'
@@ -49355,6 +49355,7 @@ window.vaultAutoAssign = function(){
     // #174 v-B2 — with this locker's id, so his hand-placed spots are laid first (the shelf card passes the same id)
     var _load = _muleLoad(names, _mpWornFor(muleId, _eqAll), muleId);
     var sized = _load.sized, _physN = _load.phys, _mules = _load.mules, _rem = _load.rem;
+    var _namesN = names.length;   /* #76 INC (v3755) — distinct-NAME count (= the shelf card badge, _muleNamesFor is the card's own list); _physN is CAPPED PHYSICAL COPIES. Both were labelled "Items", so card "30" vs locker "49" read as a contradiction when they count different things. Pure relabel below — no store write, no records dependency. */
     _muleTotalPages = _mules.length || 1;
     if (_mulePage >= _muleTotalPages) _mulePage = _muleTotalPages - 1;
     if (_mulePage < 0) _mulePage = 0;
@@ -49411,9 +49412,9 @@ window.vaultAutoAssign = function(){
       + '<div class="mp-top-l">'
       +   '<div class="mp-row">'
       +     '<div class="mp-box mp-id" title="a storage locker — not a character"><span class="vd-icon">'+esc(m.icon||'📦')+'</span><span class="vd-name">'+esc(m.name)+_muleLabel+'</span></div>'
-      +     '<div class="mp-box mp-lvl"><span class="mp-box-k">Items</span><span class="mp-box-v">'+_physN+'</span></div>'
+      +     '<div class="mp-box mp-lvl"><span class="mp-box-k">Items</span><span class="mp-box-v" title="'+_namesN+' distinct items · '+_physN+' physical copies">'+_namesN+'</span></div>'
       +   '</div>'
-      +   '<div class="mp-row"><div class="mp-box mp-subbox"><span class="vd-sub">'+_physN+' item'+(_physN===1?'':'s')+' total'+(_muleTotalPages>1?(' across '+_muleTotalPages+' mules · '+_onMuleN+' on this one'):'')+' · pack in-game EXACTLY like this (sizes approximated)</span></div></div>'
+      +   '<div class="mp-row"><div class="mp-box mp-subbox"><span class="vd-sub">'+_namesN+' item'+(_namesN===1?'':'s')+' total'+(_physN>_namesN?(' · '+_physN+' copies'):'')+(_muleTotalPages>1?(' across '+_muleTotalPages+' mules · '+_onMuleN+' copies on this one'):'')+' · pack in-game EXACTLY like this (sizes approximated)</span></div></div>'
       + '</div>'
       + '<div class="mp-top-r">'
       +   '<div class="mp-row"><button class="mp-btn" disabled title="a .d2s import turns this mule into a character (class, level, stats, doll) — it arrives in v-C">⇪ Import .d2s</button></div>'
@@ -49600,9 +49601,10 @@ window.vaultAutoAssign = function(){
     };
     var _noteSaid = (_mpNoteSaid && _mpNoteSaid.id === muleId) ? _mpNoteSaid : null;
     var calc = '<table class="mp-calc"><tbody>'
-      + '<tr><td>Items in this locker</td><td>'+_physN+'</td></tr>'
+      + '<tr><td>Items in this locker</td><td>'+_namesN+'</td></tr>'
+      + '<tr><td>Copies (physical)</td><td>'+_physN+'</td></tr>'
       + '<tr><td>Mules they fill ('+MULE_CAP+' cells each)</td><td>'+_muleTotalPages+'</td></tr>'
-      + '<tr title="its five stash tabs + its inventory + what its doll wears — the total the line under the stash adds up to"><td>Items on Mule '+(_mulePage+1)+'</td><td>'+_onMuleN+'</td></tr>'
+      + '<tr title="its five stash tabs + its inventory + what its doll wears — the total the line under the stash adds up to"><td>Copies on Mule '+(_mulePage+1)+'</td><td>'+_onMuleN+'</td></tr>'
       + '<tr><td>Cells placed / capacity</td><td>'+_load.placedCells+' / '+(_load.capCells*_muleTotalPages)+'</td></tr>'
       + '<tr title="how much of the last mule’s '+MULE_CAP+'-cell grid (Personal stash + inventory) is used — worn gear is on the doll, not in the grid, so it frees cells"><td>Last mule’s grid</td><td>'+(_load.roomLeft ? (_load.lastPct+'% full') : ('FULL for a '+_load.biggest.w+'×'+_load.biggest.h))+'</td></tr>'
       + '<tr><td>Placed by hand (locked)</td><td>'+(_load.handPlaced || 0)+'</td></tr>'
@@ -49674,7 +49676,7 @@ window.vaultAutoAssign = function(){
       +   '<div class="mp-view mp-v-calc"'+(_mpView==='calc'?'':' hidden')+'>'+calc+'</div>'
       + '</section>'
       + '<section class="mp-p mp-notes">'+H('Notes', '<span class="mp-note-st'+(_noteSaid ? (_noteSaid.ok ? ' ok' : ' err') : '')+'">'+(_noteSaid ? esc(_noteSaid.t) : 'Enter saves · Shift+Enter new line')+'</span>')+'<div class="mp-notes-b">'
-      +   (_muleTotalPages > 1 ? '<div class="vd-overflow" style="border-color:rgba(240,192,96,.5);color:#f0c060">📦 <strong>'+esc(m.name)+'</strong> holds <strong>'+_physN+'</strong> items — too many for one character, so they fill <strong>'+_muleTotalPages+' mules</strong> ('+MULE_CAP+' cells each). Use the Mule tabs above, or ← →, to step through Mule 1…'+_muleTotalPages+'.</div>' : '')
+      +   (_muleTotalPages > 1 ? '<div class="vd-overflow" style="border-color:rgba(240,192,96,.5);color:#f0c060">📦 <strong>'+esc(m.name)+'</strong> holds <strong>'+_namesN+'</strong> items (<strong>'+_physN+'</strong> copies) — too many for one character, so they fill <strong>'+_muleTotalPages+' mules</strong> ('+MULE_CAP+' cells each). Use the Mule tabs above, or ← →, to step through Mule 1…'+_muleTotalPages+'.</div>' : '')
       +   (inv.left.length ? '<div class="vd-overflow">⚠ <strong>'+inv.left.length+' item'+(inv.left.length===1?'':'s')+'</strong> exceed even '+_muleTotalPages+' mules (cap reached) — split this category further.</div>' : '')
       /* #174 v-B2 — A HAND-PLACED SPOT THAT NO LONGER FITS IS SAID, NEVER SILENTLY MOVED. The packer placed the item
          for now and marked it on the grid; his spot stays in the store until he places it again or unlocks it. */
@@ -49721,9 +49723,10 @@ window.vaultAutoAssign = function(){
       +   '<div class="mp-bind-r"><span>Character</span>' + _bind.btn + '</div>'
       + '</div>' + _bind.list + '</section>'
       + '<section class="mp-p mp-show">'+H('Summary')+'<div class="mp-kv">'
-      +   '<div><span>Items</span><span>'+_physN+'</span></div>'
+      +   '<div><span>Items</span><span>'+_namesN+'</span></div>'
+      +   '<div><span>Copies</span><span>'+_physN+'</span></div>'
       +   '<div><span>Mules</span><span>'+_muleTotalPages+'</span></div>'
-      +   '<div title="its five stash tabs + its inventory + what its doll wears — the same total as the line under the stash"><span>On Mule '+(_mulePage+1)+'</span><span>'+_onMuleN+'</span></div>'
+      +   '<div title="its five stash tabs + its inventory + what its doll wears — the same total as the line under the stash"><span>Copies on Mule '+(_mulePage+1)+'</span><span>'+_onMuleN+'</span></div>'
       +   '<div title="how much of the last mule’s '+MULE_CAP+'-cell grid (Personal stash + inventory) is used — worn gear is on the doll, not in the grid"><span>Last mule’s grid</span><span>'+(_load.roomLeft ? (_load.lastPct+'%') : 'FULL')+'</span></div>'
       + '</div></section>'
       + '<section class="mp-p mp-stats">'+H('Stats', '<button class="mp-btn" disabled title="quest rewards (resistances, skill and stat points) belong to a character — UNKNOWN for a locker">! Quests</button>')
@@ -66798,7 +66801,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3754', name:'v3754 - 76-inc1-header-orphan-corroborator', date:'2026-10-16', note:'#76 INC-1 — the vault header JOINS the one-record corroborator: _vaultRecordsHeader (the v3747/v3748 view, unconsumed until now) resolves each owned name true home, and the header surfaces its orphan count READ-ONLY — a name the subtraction counts as filed but that resolves to no real mule = symptom a, unsorted and the mules disagree; UNKNOWN when the mule map would not read, nothing when they agree. No store write, no re-route. HEART: the orphan line IS the corroborator surfaced (_vaultRecords resolves each name true home; a no-home name is the disagreement), watched by tv/test_v3754_header_surfaces_orphans.py (green + RED-proven) and the records-model parity spec tests/v3747_one_record_header_parity.spec.ts; read-only, no new store or lane to add a watcher for. Positive firing verified by GrokBot on his real board (retro).' };
+  window.D2R_BUILD = { id:'v3755', name:'v3755 - 76-locker-label-names-vs-copies', date:'2026-10-16', note:'#76 INC (v3755) — vault locker/card LABELING. A mule locker headline showed physical COPIES labelled Items while the shelf card showed distinct NAMES, so card 30 vs locker 49 read as a contradiction when they count different things. Pure relabel (openMuleCard 8 sites + the shared-stash window): the locker now shows the distinct-name count as items (matching the shelf card) with physical copies as a separate labelled figure — e.g. 30 items · 49 copies across 2 mules. READ-ONLY: no store write, no records dependency (names.length + _physN already in scope). Fixes GrokBot card/locker mismatch across 6 lockers. The copy INFLATION itself stays recount-based (no save data to auto-deflate; the console design is set-the-real-count) — this makes it visible. HEART: guarded by tests/v3755_locker_labels_names_and_copies.spec.ts (RED-first, CI per test-venue — not his Mac); no new store/lane/surface to watch, so no watcher added. CDP-verified the card renders items=names with copies shown separately.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

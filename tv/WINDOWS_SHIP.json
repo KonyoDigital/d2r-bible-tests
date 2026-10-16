@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3754",
+  "ver": "v3755",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3754: #76 INC-1 — the vault header JOINS the one-record corroborator: _vaultRecordsHeader (the v3747/v3748 view, unconsumed until now) resolves each owned name true home, and the header surfaces its orphan count READ-ONLY — a name the subtraction counts as filed but that resolves to no real mule = symptom a, unsorted and the mules disagree; UNKNOWN when the mule map would not read, nothing when they agree. No store write, no re-route. HEART: the orphan line IS the corroborator surfaced (_vaultRecords resolves each name true home; a no-home name is the disagreement), watched by tv/test_v3754_header_surfaces_orphans.py (green + RED-proven) and the records-model parity spec tests/v3747_one_record_header_parity.spec.ts; read-only, no new store or lane to add a watcher for. Positive firing verified by GrokBot on his real board (retro).",
+  "note": "v3755: #76 INC (v3755) — vault locker/card LABELING. A mule locker headline showed physical COPIES labelled Items while the shelf card showed distinct NAMES, so card 30 vs locker 49 read as a contradiction when they count different things. Pure relabel (openMuleCard 8 sites + the shared-stash window): the locker now shows the distinct-name count as items (matching the shelf card) with physical copies as a separate labelled figure — e.g. 30 items · 49 copies across 2 mules. READ-ONLY: no store write, no records dependency (names.length + _physN already in scope). Fixes GrokBot card/locker mismatch across 6 lockers. The copy INFLATION itself stays recount-based (no save data to auto-deflate; the console design is set-the-real-count) — this makes it visible. HEART: guarded by tests/v3755_locker_labels_names_and_copies.spec.ts (RED-first, CI per test-venue — not his Mac); no new store/lane/surface to watch, so no watcher added. CDP-verified the card renders items=names with copies shown separately.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
