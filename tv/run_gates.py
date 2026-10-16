@@ -7999,6 +7999,13 @@ GATES = [
              "being thrown away. Also pins the ONE KEY — at most one lane is ever "
              "unlocked, and a frame claiming both a stash panel and a chronicle tab "
              "unlocks nothing."),
+    Gate("test_the_river_watchdog_clears_a_hung_sweep",
+         [sys.executable, os.path.join(HERE, "test_the_river_watchdog_clears_a_hung_sweep.py")], 90,
+         why="RIVER WATCHDOG - a vault sweep that HANGS in its measure phase never releases "
+             "_VAULT_JOB['running'] (the finally in _vault_sweep_run does not clear it), so every 45s tick "
+             "refuses 'a sweep is already running' and the river stalls on EVERY PC (live 2026-10-17: "
+             "owed=14, lastTick busy). _vault_sweep_hang_check on the 10s rescue loop clears a guard stalled "
+             "past the no-progress deadline + quarantines the reel so the lane recovers on its own."),
     Gate("chronicle-doctor", [sys.executable, os.path.join(HERE, "chronicle_doctor.py")], 120,
          why="the arc is wired on THIS machine — lanes, footage, board build"),
     Gate("test_stash_eye_aspect", [sys.executable, os.path.join(HERE, "test_stash_eye_aspect.py")], 120,

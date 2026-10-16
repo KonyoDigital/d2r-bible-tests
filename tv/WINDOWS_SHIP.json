@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3757",
+  "ver": "v3758",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3757: #76 INC-2 FIND and GRAIL-DUPES re-expressed through the one-record model read-only proven at parity with the live view and fidelity to copies INC-3 gated for the persisted per-copy store. HEART: pure read-only derivations watched by the parity GATE test_v3757 (no autonomous lane or surface to go dark a records-model drift turns that gate red) inert in production until INC-3 consumes them",
+  "note": "v3758: RIVER WATCHDOG a vault sweep that HANGS in its measure phase never releases its running guard so every 45s tick refuses busy and the river stalls on every PC (owed climbs); _vault_sweep_hang_check on the 10s rescue loop clears a guard stalled past the no-progress deadline and quarantines the reel so the lane recovers on its own. HEART: this IS the watchdog, a new heart instrument on the rescue lane, guarded by test_the_river_watchdog_clears_a_hung_sweep (RED-proven); the root per-operation deadline inside vault_retro is an owed follow-up",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

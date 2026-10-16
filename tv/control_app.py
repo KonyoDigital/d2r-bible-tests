@@ -20391,6 +20391,8 @@ def _console_rescue_loop():
             if (_SELF_PROBE["tick"] >= CHILD_GUARD_FIRST_TICK
                     and (_SELF_PROBE["tick"] - CHILD_GUARD_FIRST_TICK) % CHILD_GUARD_EVERY_TICKS == 0):
                 _child_guard_tick()         # #83 — end the unrecorded children of known roles, and dead parents' children
+            _vault_sweep_hang_check()       # RIVER WATCHDOG — a vault sweep whose guard a HANG left set is cleared here
+                                            # (no-progress deadline) so the lane recovers instead of stalling every tick
             # ⚠⚠ v2632 — ASK THE PIXELS BEFORE THE WINDOW-HANDLE GATE, BECAUSE THEY DO NOT NEED IT.
             # v2627 put the pixel check after `if win is None: continue`, and MEASURED ON HIS LIVE
             # CONSOLE it never ran once: the rescue loop was stamping every 10s (tick age 2.2s)
@@ -28700,6 +28702,22 @@ _VAULT_LOCK = threading.Lock()
 _VAULT_JOB = {"running": False, "startedTs": 0, "phase": "idle", "reelsDone": 0, "reelsTotal": 0,
               "classified": 0, "pagesRead": 0, "result": None, "error": None, "lanes": []}
 
+# ── RIVER WATCHDOG (no-progress deadline on a hung vault sweep) ────────────────────────────────────
+# THE BUG this exists for: _vault_sweep_run releases _VAULT_JOB["running"] only on a RETURN or RAISE
+# from the synchronous _vr.sweep() — its `finally` does NOT clear running. A sweep that HANGS in its
+# measure phase (a frame that never settles, a hung tooltip locate, a read that never returns) leaves
+# running=True forever, so every 45s tick hits the "a sweep is already running" branch and reads
+# nothing — the river stalls on EVERY PC (owed climbs, "river stuck locks shut"). Live 2026-10-17 on
+# his console: owed=14, lastTick busy. The measure phase has no per-frame/per-call deadline (that root
+# fix is owed in vault_retro.py); this clears the GUARD so the lane recovers on its own and quarantines
+# the reel that hung so the next sweep skips it (reused via the tick's existing `retired` skip).
+_VAULT_SWEEP_HANG_DEADLINE_S = int(os.environ.get("TV_VAULT_HANG_DEADLINE_S") or 240)
+_VAULT_SWEEP_PROGRESS = {}   # {sig, ts} — last forward-progress snapshot, owned by _vault_sweep_hang_check
+# in-memory quarantine of reels that HUNG the measurer — the tick's picker skips these so the next sweep does
+# not re-hang on the same reel. Deliberately NOT persisted: on relaunch the reel is retried fresh (a transient
+# hang is not lost forever); if it hangs again it is re-quarantined after one deadline. [[unknown-stays-unknown]]
+_VAULT_SWEEP_QUARANTINE = {}   # {rid: {at, why, runReel}}
+
 
 def _vault_ask_stop_for_relaunch(detail=None):
     """#130 — a build is waiting and a VAULT sweep in this process is what holds it. -> bool (asked?)
@@ -31100,6 +31118,62 @@ def vault_sweep_state():
                      "why": "the estimate could not be computed: %s" % str(_e)[:70],
                      "say": "reading"}
     return st
+
+
+def _vault_sweep_hang_check():
+    """RIVER WATCHDOG — clear a vault sweep whose guard a HANG left set, and quarantine the reel.
+
+    Called on the 10 s rescue tick (the only in-process place that can see _VAULT_JOB["running"]). A sweep
+    that makes forward progress (startedTs/phase/runReelsDone/classified/pagesRead/runReel change) resets the
+    clock; one that makes NONE for _VAULT_SWEEP_HANG_DEADLINE_S is declared hung — running is cleared under
+    _VAULT_LOCK, the sweep lock is released so a relaunch is no longer held, and the stuck reel is retired via
+    the tick's existing `retired` skip so the NEXT sweep does not re-hang on it. -> True if it cleared one.
+    [[heart-first]] [[the-unjoined-end]] [[unknown-stays-unknown]]"""
+    try:
+        with _VAULT_LOCK:
+            st = dict(_VAULT_JOB)
+        if not st.get("running"):
+            _VAULT_SWEEP_PROGRESS.clear()
+            return False
+        sig = (st.get("startedTs"), st.get("phase"), st.get("runReelsDone"),
+               st.get("classified"), st.get("pagesRead"), st.get("runReel"))
+        now = time.time()
+        if _VAULT_SWEEP_PROGRESS.get("sig") != sig:            # forward progress (or first sighting) — reset the clock
+            _VAULT_SWEEP_PROGRESS["sig"] = sig
+            _VAULT_SWEEP_PROGRESS["ts"] = now
+            return False
+        stalled = now - _VAULT_SWEEP_PROGRESS.get("ts", now)
+        if stalled < _VAULT_SWEEP_HANG_DEADLINE_S:
+            return False
+        # no forward progress past the deadline -> hung. Clear the guard (the finally in _vault_sweep_run
+        # never does on a hang) and quarantine the reel it was on.
+        rdir = st.get("runReelDir")
+        rid = os.path.basename(str(rdir)) if rdir else None
+        held = int(now - (st.get("startedTs", 0) / 1000.0))
+        cleared = False
+        with _VAULT_LOCK:
+            if _VAULT_JOB.get("running"):
+                _VAULT_JOB.update({"running": False, "phase": "hung",
+                                   "error": ("river watchdog: no progress for %ds (held %ds) in phase %r on %r "
+                                             "- guard cleared" % (int(stalled), held, st.get("phase"), st.get("runReel")))})
+                cleared = True
+        if not cleared:
+            return False
+        if rid:
+            _VAULT_SWEEP_QUARANTINE[rid] = {"at": int(now * 1000), "runReel": st.get("runReel"),
+                                            "why": "measure-phase HANG - the river watchdog cleared the stuck guard "
+                                                   "and quarantined this reel so the lane reads the rest"}
+        try:
+            _sweep_lock_release()
+        except Exception:
+            pass
+        print("  ⚠ river watchdog: cleared a HUNG vault sweep (held %ds, phase %r, no progress for %ds) "
+              "and quarantined reel %r - the lane can read again"
+              % (held, st.get("phase"), int(stalled), rid), flush=True)
+        _VAULT_SWEEP_PROGRESS.clear()
+        return True
+    except Exception:
+        return False
 
 
 # ══ v2223 — THE VAULT LANE GETS A WATCHDOG. IT NEVER HAD ONE. ═══════════════════════════════════
@@ -33540,6 +33614,10 @@ def vault_autoreel_tick():
                 pass
         if rid in _VAULT_AUTOREAD["retired"]:
             continue
+        if rid in _VAULT_SWEEP_QUARANTINE:
+            # river watchdog quarantined this reel after it HUNG the measurer; skip it so the lane reads
+            # the rest instead of re-hanging on the same reel (cleared on relaunch — a transient hang retries)
+            continue
         if _reel_is_growing(str(d)):
             _VAULT_AUTOREAD["skipped"][rid] = "still growing — not final yet"
             continue
@@ -35389,7 +35467,11 @@ def vault_sweep_start(hist_dir=None, limit=None, force=False, reel_dir=None):
                            # into the next one, which may seal cleanly
                            "notDefinitiveWhy": None, "incompleteWhy": None,
                            # #130 — a fresh run must not inherit a previous run's stop request
-                           "stopAsk": None})
+                           "stopAsk": None,
+                           # river watchdog — the reel this sweep targets, so a HANG that never
+                           # releases the guard can be quarantined by the key the tick's picker uses
+                           # (basename). runReel (the name) is set later per reel by _on_reel.
+                           "runReelDir": (str(reel_dir) if reel_dir else None), "runReel": None})
     threading.Thread(target=_vault_sweep_run, args=(hist_dir, limit, force, reel_dir),
                      daemon=True, name="tvd-vault-sweep").start()
     return {"ok": True, "started": True, "lanes": lanes}
@@ -42002,7 +42084,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3757",
+        "ver": "v3758",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

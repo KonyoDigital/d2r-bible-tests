@@ -7,6 +7,27 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2271 - A HUNG VAULT SWEEP NEVER RELEASES ITS GUARD, STALLING THE RIVER ON EVERY PC (river watchdog, v3758)
+
+Live 2026-10-17 on his console: `vaultAutoread {owed:14, lastTick:{kind:busy, why:"a vault sweep is already
+running"}}`, the sweep "measuring reel_s_179136720993…" at 0% for minutes (wall clock running = fabricated). ROOT:
+`_vault_sweep_run` (control_app.py) releases `_VAULT_JOB["running"]` only when the synchronous `_vr.sweep()` RETURNS
+or RAISES — its `finally` does NOT clear `running`. A sweep that HANGS in its measure phase (a frame that never
+settles, a hung tooltip locate, a read that never returns — there is no per-frame/per-call deadline in
+vault_retro.py) leaves `running=True` forever, so every 45s tick hits the busy branch, reads nothing, and `owed`
+climbs — the river stalls on Mac, GrokBot, and the ALT alike ("river stuck locks shut"). A relaunch clears it (fresh
+process drops the stale guard) but it RECURS — he has hit it repeatedly. FIX: `_vault_sweep_hang_check()` on the
+existing 10s `_console_rescue_loop` — a sweep that makes NO forward progress (the
+startedTs/phase/runReelsDone/classified/pagesRead/runReel snapshot is unchanged) for `_VAULT_SWEEP_HANG_DEADLINE_S`
+(240s) is declared hung: `running` cleared under `_VAULT_LOCK`, the sweep lock released (so a relaunch is no longer
+held), and the reel added to an in-memory `_VAULT_SWEEP_QUARANTINE` the tick's picker skips — NOT persisted, so a
+transient hang is retried after relaunch rather than lost forever. GUARD:
+`test_the_river_watchdog_clears_a_hung_sweep.py` (hung→cleared+quarantined · progressing→left running · advanced→clock
+resets · not-running→no-op), RED-proven by flipping the guard-clear to `running:True`. ⚠ OWED FOLLOW-UPS: (1) the
+ROOT per-operation deadline inside vault_retro.py's measure loop, so the hang is bounded at the source and no daemon
+thread leaks; (2) the CHRONICLE sibling (`_CHRON_JOB`, chronicle_autoread) has the identical release-bypass pattern —
+extend the same watchdog to it.
+
 ### REG-2270 - RECORDS-FAILED ORPHAN COUNT RENDERED SILENT (FALSE-AGREE) INSTEAD OF UNKNOWN (#76, #231 eye on v3756, v3757)
 
 Found by the Grok CLI second-eye on v3756 (run as the v3757 push prerequisite — v3756 shipped during the Grok
