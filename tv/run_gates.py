@@ -8037,6 +8037,18 @@ GATES = [
              "no-index reel that read NOTHING — footage lost until a full `force` re-run. The "
              "tests EXECUTE the shipped loop out of control_app.py rather than copying it, so a "
              "widened predicate turns them red instead of quietly passing"),
+    Gate("test_vault_resume_seal", [sys.executable, os.path.join(HERE, "test_vault_resume_seal.py")], 120,
+         why="#130 — a console self-update (os.execv) used to KILL a vault sweep mid-reel and bank "
+             "NOTHING (merge was end-only), so the next pass re-read the reel from 0%, re-paying "
+             "every classified frame. The sweep now checkpoints its accumulators and the next pass "
+             "SEEDS them and SKIPS the banked frames. It cannot grade incrementally like the "
+             "chronicle (merge_vault is merge-max on GRADED rows and one reel is one session that "
+             "cannot ground alone), so it preserves evidence and grades ONCE at the end. These tests "
+             "drive the SHIPPED vault_retro.sweep on a synthetic fixture reel (never his footage, "
+             "never his stores) and assert an uninterrupted and a RESUMED sweep produce the IDENTICAL "
+             "proposal (same owned/unsure/held, same witnesses) while the resume reads STRICTLY FEWER "
+             "pages — a skip that re-read everything fails the read count, a seed that dropped or "
+             "doubled a banked sighting fails the identity"),
     Gate("test_import_bound_paths",
          [sys.executable, os.path.join(HERE, "test_import_bound_paths.py")], 120,
          why="v1925 — the registry of which env redirects a fixture can still make AFTER import. "

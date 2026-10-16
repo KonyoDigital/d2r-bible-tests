@@ -25663,6 +25663,12 @@ def _drift_loop():
                 announced = st.get("disk")
             _dd = {}
             ok, why = drift_may_relaunch(detail=_dd)
+            # #130 — both sweeps are asked, with NO short-circuit between them: a waiting build can be
+            # held by either a vault OR a chronicle sweep, and stopping one must not leave the other
+            # reading. The vault is asked first only because its reads are the dearer ones.
+            if not ok and _vault_ask_stop_for_relaunch(_dd):     # #130 - a build waits on a VAULT sweep
+                why = (str(why) + " - asked the vault sweep to stop at its next banked read; nothing read is lost "
+                       "and the reel resumes after the relaunch")
             if not ok and _chron_ask_stop_for_relaunch(_dd):     # REG-2039 (#239) - a build waits on a chronicle sweep
                 why = (str(why) + " - asked it to stop at its next banked page; nothing read is lost and the reel "
                        "resumes after the relaunch")
@@ -28695,6 +28701,32 @@ _VAULT_JOB = {"running": False, "startedTs": 0, "phase": "idle", "reelsDone": 0,
               "classified": 0, "pagesRead": 0, "result": None, "error": None, "lanes": []}
 
 
+def _vault_ask_stop_for_relaunch(detail=None):
+    """#130 — a build is waiting and a VAULT sweep in this process is what holds it. -> bool (asked?)
+
+    The sibling of _chron_ask_stop_for_relaunch (REG-2039). A vault sweep reads a big sealed reel
+    frame-by-frame; a self-update relaunch (os.execv in the drift loop) used to KILL it mid-reel and
+    bank nothing, so the whole reel was re-read next time (recon: "a relaunch killed a paid vault
+    sweep four minutes in, losing 24 classified frames and banking nothing"). Now it is asked to stop
+    at its NEXT banked read: the checkpoint has put the reads it paid for on disk, it leaves the reel
+    UNSEALED with those frames on record, and the reel's next pass pays only for the frames it had not
+    reached. Asked only by the caller that relaunches next (the drift loop), never by a status read —
+    blocker=="work" is the one case that is a build waiting, exactly as the chronicle sibling gates."""
+    try:
+        if (detail or {}).get("blocker") != "work":
+            return False
+        with _VAULT_LOCK:
+            if not _VAULT_JOB.get("running"):
+                return False
+            if not _VAULT_JOB.get("stopAsk"):
+                _VAULT_JOB["stopAsk"] = int(time.time() * 1000)
+                print("  ⟲ a build is waiting: asked the vault sweep to stop at its next banked "
+                      "read (nothing read is lost; the reel resumes after the relaunch)", flush=True)
+        return True
+    except Exception:
+        return False
+
+
 def _vault_retro():
     """Import the reader module, or say exactly which piece is missing. Never a stub that
     pretends to read — an invented count in the vault is an item he throws away."""
@@ -31100,7 +31132,12 @@ _VAULT_AUTOREAD = {"tries": {}, "skipped": {}, "reads": 0, "lastTs": 0, "retired
                    # extraction, and a second pass on the same reader is the 3052-resweep loop.
                    "reextract": {},
                    # v3542 REG-1663 — reels whose blind retirement was re-judged (rid -> ms). ONCE per reel, ever.
-                   "rejudged": {}}
+                   "rejudged": {},
+                   # #130 — a stopped vault sweep's banked reads, per reel, so the next pass RESUMES
+                   # from them instead of re-reading from 0%. { sid: {"frames": [...], "state": {...},
+                   # "promptVer", "agentVer", "ts"} }. Written by the sweep's checkpoint, CLEARED when
+                   # a reel completes, ignored when stale. The sibling of chron_autoread["resume"].
+                   "resume": {}}
 
 #: ⚠⚠⚠ v2901 (#60) — WHAT THE LANE LEARNS MUST SURVIVE THE PROCESS. MEASURED 2026-09-10: the dict
 #: above had **14 write sites and ZERO persistence sites** — no save, no load, no json anywhere.
@@ -31436,7 +31473,7 @@ def _vault_autoread_load():
         for k in ("reads", "lastTs"):
             if isinstance(d.get(k), int):
                 _VAULT_AUTOREAD[k] = d[k]
-        for k in ("retired", "tries", "lastWhy", "reextract", "rejudged"):
+        for k in ("retired", "tries", "lastWhy", "reextract", "rejudged", "resume"):   # #130 — resume added
             if isinstance(d.get(k), dict):
                 _VAULT_AUTOREAD[k] = dict(d[k])
         if isinstance(d.get("latticeTried"), dict):
@@ -31526,6 +31563,7 @@ def _vault_autoread_save():
                "lastWhy": _VAULT_AUTOREAD.get("lastWhy") or {},
                "reextract": _VAULT_AUTOREAD.get("reextract") or {},
                "rejudged": _VAULT_AUTOREAD.get("rejudged") or {},      # REG-1663
+               "resume": _VAULT_AUTOREAD.get("resume") or {},          # #130 — a stopped pass's banked reads
                "latticeTried": _VAULT_AUTOREAD.get("latticeTried") or {},
                "joinQueued": _VAULT_AUTOREAD.get("joinQueued") or {},
                "joinTried": _VAULT_AUTOREAD.get("joinTried") or {},
@@ -31544,6 +31582,25 @@ def _vault_autoread_save():
         if not locals().get("_failed"):
             _vault_autoread_note_written()          # REG-1750
 
+
+def _vault_resume():
+    """#130 — what a stopped vault pass banked, per reel, so the next pass resumes. -> {sid: record}
+
+    The sibling of `_chron_resume`. Lazily loaded through `_vault_autoread_load` (which, after #130,
+    restores the "resume" key). An UNREADABLE store answers {} and is NOT cached, exactly as the
+    chronicle's does: a wrong {} here reads as "nothing was banked" and makes the next pass re-read
+    (and re-pay for) frames a stop already banked, so UNKNOWN must travel. [[unknown-stays-unknown]]
+
+    Callers MUTATE the returned dict (resume[sid] = ... / resume.pop(sid)) and then call
+    `_vault_autoread_save()` — the same contract `_chron_resume` + `_chron_autoread_save` run on."""
+    _r = _vault_autoread_load()
+    if _r is None:
+        return {}                                   # unreadable — do not cache a {} that reads as "none"
+    _res = _VAULT_AUTOREAD.get("resume")
+    if not isinstance(_res, dict):
+        _res = {}
+        _VAULT_AUTOREAD["resume"] = _res
+    return _res
 
 
 def _seal_extracted(rows, examined_empty=False):
@@ -35330,7 +35387,9 @@ def vault_sweep_start(hist_dir=None, limit=None, force=False, reel_dir=None):
                            "result": None, "error": None, "lanes": lanes,
                            # REG-1649 — a reason belongs to the run that found it; never carried
                            # into the next one, which may seal cleanly
-                           "notDefinitiveWhy": None, "incompleteWhy": None})
+                           "notDefinitiveWhy": None, "incompleteWhy": None,
+                           # #130 — a fresh run must not inherit a previous run's stop request
+                           "stopAsk": None})
     threading.Thread(target=_vault_sweep_run, args=(hist_dir, limit, force, reel_dir),
                      daemon=True, name="tvd-vault-sweep").start()
     return {"ok": True, "started": True, "lanes": lanes}
@@ -35888,9 +35947,77 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
             except Exception:
                 pass
 
-        prop = _vr.sweep(dirs, sig=_vr.DEFAULT_SIG, classify=_classify, reader=_reader, limit=limit,
-                         panel_gate=stash_screen_open_cached, prior_seen=_prior_seen,
-                         on_reel=_on_reel)
+        # ══ #130 — RESUME-SEAL: read what a stopped pass banked for the reel(s) about to be swept,
+        # and give the sweep a checkpoint that persists its accumulators + answers "should I stop?".
+        # Staleness: a resume from a DIFFERENT reader (vault prompt OR agent version) is DROPPED, so a
+        # reader change reopens the reel fresh — the same rule _vault_still_sealed runs on. [[stale-reading]]
+        _vpv = str(getattr(_tv, "VAULT_PROMPT_VER", "") or "")
+        _vav = str(getattr(_tv, "VERSION", "") or "")
+        _resume_store = _vault_resume()
+        _resume_rec = None
+        if _resume_store:
+            for _d in dirs:
+                try:
+                    _ridx = _vr._load_index(_d)
+                    _rsid = str((_ridx or {}).get("sessionId")
+                                or os.path.basename(os.path.normpath(str(_d))))
+                except Exception:
+                    _rsid = os.path.basename(os.path.normpath(str(_d)))
+                _rec = _resume_store.get(_rsid)
+                if not isinstance(_rec, dict):
+                    continue
+                if str(_rec.get("promptVer") or "") != _vpv or str(_rec.get("agentVer") or "") != _vav:
+                    continue           # a stopped pass under an older reader — reopen the reel from 0
+                _resume_rec = _rec     # single-reel in production (limit=1) — the one owed reel
+                print("   ▶ resuming %s from %d frame(s) a stopped pass banked"
+                      % (_rsid, len(_rec.get("frames") or [])), flush=True)
+                break
+
+        def _on_checkpoint(_sid, _frames, _state):
+            # #130 — persist the sweep's live accumulators so even a HARD kill (not only a graceful
+            # stop) resumes, then answer whether a waiting build asked it to stop. Never fatal: a
+            # failed persist must not end a sweep that is otherwise reading his footage.
+            try:
+                _rs = _vault_resume()
+                _rs[str(_sid)] = {"frames": list(_frames or []), "state": _state,
+                                  "promptVer": _vpv, "agentVer": _vav,
+                                  "ts": int(time.time() * 1000)}
+                _vault_autoread_save()
+            except Exception as _pe:
+                print("   ⚠ vault checkpoint could not persist the resume record (%s)"
+                      % str(_pe)[:80], flush=True)
+            with _VAULT_LOCK:
+                return bool(_VAULT_JOB.get("stopAsk"))
+
+        try:
+            prop = _vr.sweep(dirs, sig=_vr.DEFAULT_SIG, classify=_classify, reader=_reader, limit=limit,
+                             panel_gate=stash_screen_open_cached, prior_seen=_prior_seen,
+                             on_reel=_on_reel, resume=_resume_rec, on_checkpoint=_on_checkpoint)
+        except _vr.VaultSweepStopped as _stop:
+            # #130 — a waiting build asked, and the sweep stopped at a banked read. NOT an error: the
+            # checkpoint already wrote the resume record, NOTHING is sealed (the reel still owes its
+            # unread frames), and the `finally` below RELEASES THE LOCK — which is what lets the
+            # relaunch through. The sibling of the chronicle's _ChronSweepStopped catch (REG-2039).
+            with _VAULT_LOCK:
+                _VAULT_JOB.update({"running": False, "phase": "stopped",
+                                   "stopped": str(_stop)[:300], "stopAsk": None})
+            print("   ⏸ vault sweep %s" % _stop, flush=True)
+            return
+        # #130 — the sweep RETURNED (it was not stopped), so every reel it examined is complete and
+        # its resume record is spent. Clearing it stops the NEXT pass skipping frames of a reel that
+        # is now sealed/read in full. A SEALED reel never carries a resume entry. [[copy-drift]]
+        try:
+            _rs = _vault_resume()
+            _cleared = False
+            for _done in (prop.get("sessionsExamined") or []):
+                if str(_done) in _rs:
+                    _rs.pop(str(_done), None)
+                    _cleared = True
+            if _cleared:
+                _vault_autoread_save()
+        except Exception as _cce:
+            print("   ⚠ vault: could not clear a completed reel's resume record (%s)"
+                  % str(_cce)[:80], flush=True)
         # ⚠⚠ v3078 — A FAILED CALL IS NOT A PROPERTY OF THE FILM, AND IT MUST SAY SO OUT LOUD.
         # `sweep()` only ever sees None from `_classify` and writes "could not be classified —
         # held rather than guessed onto a shelf", which reads as a verdict about the footage. When
@@ -41875,7 +42002,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3748",
+        "ver": "v3749",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

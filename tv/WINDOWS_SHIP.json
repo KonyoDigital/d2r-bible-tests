@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3748",
+  "ver": "v3749",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3748: HEART: #76 records model UNKNOWN propagation (REG-2258) and #68 super-unique TZ ceiling TC85 to TC87 across 7 cards (REG-2259)",
+  "note": "v3749: HEART: #130 vault sweep resume-seal (REG-2266) - a relaunch stops the sweep at a banked run, records the frames read, resumes without re-paying; seals stay all-or-nothing; fixture-verified",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

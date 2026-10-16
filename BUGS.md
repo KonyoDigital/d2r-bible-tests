@@ -51459,3 +51459,15 @@ the live #vault-pop. Guard: tests/v3747_one_record_header_parity.spec.ts (the co
 Seven super-unique cards (Shenk/Eldritch/Frozenstein/Endugu/Sszark/Blood Raven/Griswold) said "mlvl 96 / TC85"
 while every one resolves to a TZ zone the zone cards already show at tcMax 87 (TC87). Stale card text, not a
 data choice. Corrected the 7 strings to TC87. Guard: tests/v3748_su_card_tz_ceiling_matches_zone.spec.ts.
+
+## REG-2266 — vault sweep resume-seal (#130, v3749)
+A console self-update (os.execv in _drift_loop) killed a paid vault sweep mid-reel, banking nothing and
+re-reading the big reel from 0% on restart (24 classified frames lost, measured). His ruling: it stops and
+resumes. Port of the chronicle REG-2039 chassis: a build waiting on the vault sweep asks it to stop
+(_vault_ask_stop_for_relaunch, wired in _drift_loop); the sweep banks what it read into a resume record in
+.vault_autoread.json (frames read + the serialized accumulators), raises VaultSweepStopped, the lock releases
+and the relaunch proceeds; the next pass seeds the accumulators, SKIPS the read frames (no re-pay), and grades
+ONCE at the end — identical proposal to an uninterrupted sweep. Seals stay all-or-nothing (a stopped sweep
+returns before the seal; the resume store is separate from vault_swept.json). Staleness: a resume from an old
+promptVer/agentVer is dropped. Guard: tv/test_vault_resume_seal.py (interrupt+resume == uninterrupted, grounds
+to owned, reads strictly fewer pages; RED without the fix, sabotage-caught). GrokBot verifies on his live board.

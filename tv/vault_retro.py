@@ -1476,9 +1476,105 @@ def _base_joined_keys(norm):
     return out
 
 
+# ══ #130 — RESUME-SEAL: carry a stopped sweep's accumulators across a relaunch ═══════════════════
+# Mirrors the chronicle's REG-2039 stop/resume, but the vault CANNOT bank incrementally the way the
+# chronicle does. merge_vault is MERGE-MAX on GRADED owned rows (law 1), and a single reel is one
+# session that cannot ground alone (law 2 needs KEEP_MIN_WITNESSES distinct sessions, weighed once).
+# Grading a half-read reel and merging it would SPLIT its witnesses — a later read of the rest could
+# never raise a count already banked low. So instead of merging partial evidence, a stopped vault
+# sweep PRESERVES its in-progress accumulators; the control side writes them to the resume store; the
+# next pass SEEDS them and SKIPS the frames already read, then grades ONCE, at the end — exactly as
+# an uninterrupted sweep does, so the proposal is identical to one that was never interrupted.
+_RESUME_FS = "\x1f"     # the unit separator joining (name, lane) into one JSON-string key
+
+
+class VaultSweepStopped(Exception):
+    """Raised inside sweep() when on_checkpoint returns True — a waiting build asked the sweep to
+    stop at its next banked read. The reads it has paid for are on record (the checkpoint persisted
+    them); the reel is NOT sealed (it still owes its unread frames) and resumes after the relaunch.
+    The caller catches this and stops cleanly, which is what releases the lock the relaunch waits on.
+    The sibling of _ChronSweepStopped (control_app, REG-2039)."""
+
+
+def _ser_ev(ev_map):
+    """{(name, lane): [sighting...]}  ->  {"name\x1flane": [sighting...]}  — a JSON-safe rekey.
+
+    The sighting dicts are referenced, not copied: a sighting is built once (sweep's page loop) and
+    never mutated afterward, so this is safe and cheap even firing every few reads on a big reel."""
+    out = {}
+    for (name, lane), sights in (ev_map or {}).items():
+        out["%s%s%s" % (name, _RESUME_FS, lane)] = list(sights or [])
+    return out
+
+
+def _deser_ev(d):
+    """The inverse of _ser_ev. lane is the LAST field (it never carries the separator)."""
+    out = {}
+    for k, sights in (d or {}).items():
+        if _RESUME_FS in k:
+            name, lane = k.rsplit(_RESUME_FS, 1)
+        else:
+            name, lane = k, ""
+        out[(name, lane)] = list(sights or [])
+    return out
+
+
+def _ser_state(evidence, throw_flags, unsure, held, folded_names,
+               frames_seen, classified, pages_read, skipped, answered, rescued, trusted,
+               sessions_seen, sessions_read, sessions_examined):
+    """A JSON-safe snapshot of EVERY sweep accumulator, so a stopped pass loses nothing. The counts a
+    RESUME re-derives by re-walking the reel (sessionsSeen/framesSeen/sessionsExamined and the
+    classify-stage counters) are carried here for inspection; _deser_state names which a resume
+    actually re-seeds."""
+    return {
+        "evidence": _ser_ev(evidence),
+        "throw_flags": _ser_ev(throw_flags),
+        "unsure": list(unsure or []),
+        "held": list(held or []),
+        "folded_names": dict(folded_names or {}),
+        "frames_seen": int(frames_seen or 0),
+        "classified": int(classified or 0),
+        "pages_read": int(pages_read or 0),
+        "skipped": int(skipped or 0),
+        "answered": int(answered or 0),
+        "rescued": int(rescued or 0),
+        "trusted": int(trusted or 0),
+        "sessions_seen": int(sessions_seen or 0),
+        "sessions_read": list(sessions_read or []),
+        "sessions_examined": list(sessions_examined or []),
+    }
+
+
+def _deser_state(st):
+    """A serialized snapshot -> the accumulators a resume SEEDS. Only the evidence-bearing piles and
+    the counters a re-walk would otherwise lose are restored:
+
+      * evidence / throw_flags / folded_names / unsure / held — what the reads already PAID FOR. A
+        re-walk SKIPS those frames, so none of this can be re-derived; it must be carried or it is
+        lost.
+      * pages_read / sessions_read — likewise bank what the skipped reads earned.
+
+    The per-reel counters (sessionsSeen/framesSeen/sessionsExamined) and the classify-stage counters
+    (classified/answered/rescued/trusted/skipped) are DELIBERATELY NOT returned: the resume re-walks
+    the reel, re-running the classify stage for every run (the chronicle does the same — "the run
+    still classifies, a few cheap calls"), so those counts rebuild themselves and seeding them would
+    double-count against the re-walk. [[unknown-stays-unknown]]"""
+    st = st or {}
+    return {
+        "evidence": _deser_ev(st.get("evidence")),
+        "throw_flags": _deser_ev(st.get("throw_flags")),
+        "unsure": list(st.get("unsure") or []),
+        "held": list(st.get("held") or []),
+        "folded_names": dict(st.get("folded_names") or {}),
+        "pages_read": int(st.get("pages_read") or 0),
+        "sessions_read": list(st.get("sessions_read") or []),
+    }
+
+
 def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=None,
           on_reel=None,
-          panel_gate=None, prior_seen=None):
+          panel_gate=None, prior_seen=None,
+          resume=None, on_checkpoint=None, checkpoint_every=4):
     """THE VAULT RETRO SWEEP: sealed reels in, a PROPOSAL of what he owns out. Writes nothing.
 
     hist_dirs: sealed reel directories, newest-first (mini/stash reels are re-ordered to the front).
@@ -1528,6 +1624,67 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
 
     _fold = _name_folder(resolve)
     folded_names = {}
+    # ══ #130 — RESUME-SEAL: seed a stopped pass's accumulators, then SKIP the frames it banked. ══
+    # SEEDED: evidence, throw_flags, unsure, held, folded_names and the two read counters
+    # (pages_read, sessions_read) — everything a read EARNED, which a resume's re-walk skips and so
+    # cannot re-derive. The per-reel and classify-stage counts rebuild themselves on the re-walk (see
+    # _deser_state). A resume that fails to seed drops banked reads; one that fails to skip re-pays
+    # them — the guard (test_vault_resume_seal) asserts against both. [[the-unjoined-end]]
+    # ⚠ A re-walked reel re-runs its classify stage and its blank/unclassifiable RUNS, so on a resume
+    # those runs may re-count `classified`/`skipped` and re-note `held` — DIAGNOSTICS only; the
+    # evidence it grounds and the seal it earns are untouched. Reads are never re-paid.
+    _resume_frames = set()
+    if resume and isinstance(resume, dict):
+        _resume_frames = set(resume.get("frames") or [])
+        _st = resume.get("state")
+        if _st:
+            try:
+                _seed = _deser_state(_st)
+                evidence = _seed["evidence"]
+                throw_flags = _seed["throw_flags"]
+                unsure = _seed["unsure"]
+                held = _seed["held"]
+                folded_names = _seed["folded_names"]
+                pages_read = _seed["pages_read"]
+                sessions_read = _seed["sessions_read"]
+            except Exception as _rde:
+                # a resume record that will not deserialize is UNKNOWN, never a licence to seal a
+                # half-read reel: fall back to reading it in full — the frames are re-paid, nothing is
+                # lost or corrupted. [[unknown-stays-unknown]]
+                print("   ⚠ vault resume state would not seed (%s) — the reel is read from "
+                      "the start" % str(_rde)[:80], flush=True)
+                _resume_frames = set()
+    # frames read (reader-called) so far: the prior pass's banked set plus this pass's reads. A
+    # checkpoint records this; the next resume skips it.
+    _read_frames = set(_resume_frames)
+    _reads_this_pass = [0]
+
+    def _maybe_checkpoint(_sid):
+        """Every checkpoint_every NEW reads, hand the control side a snapshot to persist and ask
+        whether a waiting build wants the sweep to stop. A FAILED checkpoint never ends a working
+        sweep; a True answer raises VaultSweepStopped, which the caller turns into a clean,
+        lock-releasing halt. The accumulators are read as closure free-variables, so it always sees
+        their live values."""
+        if on_checkpoint is None:
+            return
+        _reads_this_pass[0] += 1
+        if checkpoint_every and (_reads_this_pass[0] % checkpoint_every) != 0:
+            return
+        try:
+            _stop = on_checkpoint(_sid, sorted(_read_frames),
+                                  _ser_state(evidence, throw_flags, unsure, held, folded_names,
+                                             frames_seen, classified, pages_read, skipped,
+                                             answered, rescued, trusted, sessions_seen,
+                                             sessions_read, sessions_examined))
+        except Exception as _ce:
+            print("   ⚠ vault checkpoint failed (%s) — the sweep continues uninterrupted"
+                  % str(_ce)[:80], flush=True)
+            return
+        if _stop:
+            raise VaultSweepStopped(
+                "stopped at a banked read for a waiting build: %d read(s) banked this pass; the reel "
+                "resumes from the frames already read after the relaunch" % _reads_this_pass[0])
+
     for _reel_i, reel_dir in enumerate(dirs):
         # ── v3180 — THE ONLY PLACE THAT KNOWS A REEL HAS STARTED ────────────────────────────
         # Added for the sweep meter. This loop is the sweep's unit of work ("PAY FOR RUNS, NOT
@@ -1802,10 +1959,16 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
             _prev_page = None
             _crop_root = os.path.join(os.path.dirname(reel_dir), CROP_DIR)
             for name in _pages:
+                if name in _resume_frames:
+                    # #130 — banked by an earlier stopped pass; its sighting is already seeded. Skip
+                    # the paid read, but keep the crop-diff anchor moving across the resume boundary.
+                    _prev_page = name
+                    continue
                 path = os.path.join(reel_dir, name)
                 _crop_rel, _crop_why = _crop_for(reel_dir, name, _prev_page, _crop_root)
                 _prev_page = name
                 resp = reader(path, surface)
+                _read_frames.add(name)   # #130 — the reader was called (paid); never re-read on a resume
                 if not isinstance(resp, dict) or resp.get("note"):
                     skipped += 1
                     held.append({"name": None,
@@ -1856,6 +2019,9 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
                     evidence.setdefault(key, []).append(sight)
                     if item["throwOut"]:
                         throw_flags.setdefault(key, []).append(dict(sight, why=item["throwWhy"]))
+                # #130 — a read is banked; offer a checkpoint (stop here if a build waits). AFTER the
+                # sighting is in `evidence`, so a stop never records a frame whose read it did not keep.
+                _maybe_checkpoint(sid)
         if read_this_reel:
             sessions_read.append(sid)
 
