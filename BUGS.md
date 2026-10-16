@@ -7,6 +7,19 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2268 - ORPHAN CORROBORATOR DROPPED WHEN CARRIED IS UNKNOWN (#76, review-after-ship on v3755, v3756)
+
+The #231 cross-family eye on v3755 found a real Medium defect in INC-1 (v3754): in `_vaultPopHtml`, the
+`p.carried === null` early return fired BEFORE the orphan lines, so when the mule map read (filed a number) but
+the carried strip did not (`_carUnknown` true) and `_vaultRecordsHeader().orphans > 0`, the header showed a
+confident filed count + "carried UNKNOWN" but NEVER the "unsorted and the mules disagree" line — the orphan was
+silently dropped. The orphans derive from `_vaultRecordsHeader` (dock + mule map), independent of the carried
+strip, so they must surface regardless of carried. FIX: moved the SINGLE orphan check ABOVE the carried-UNKNOWN
+early return (right after the filed count), so it fires in EVERY path — no duplication (the two-line attempt
+collided in the red-proof: the 4-space anchor was a substring of the 6-space one). GUARD:
+tv/test_v3754_header_surfaces_orphans.py now carries the `carriedUnkOrph` / `carriedUnkUnk` cases, and the
+single red-proof on the orphan line stays PROVEN. [[review-after-ship]] [[the-unjoined-end]]
+
 ### REG-2267 - PLANNER SWAP LEFT A PHANTOM EXTRA COPY (the #76 copy-inflation class, in the planner) (2026-10-16, v3753)
 
 Surfaced by the v3753 push gate: `test_a_planner_pick_files_where_a_reel_of_it_would_go` was RED untampered

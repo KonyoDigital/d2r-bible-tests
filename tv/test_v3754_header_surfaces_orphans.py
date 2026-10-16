@@ -60,7 +60,9 @@ var out = {
   zero:      window._vaultPopHtml(with_({ orphans:0 })),
   absent:    window._vaultPopHtml(with_({})),
   unknown:   window._vaultPopHtml(with_({ orphans:null })),
-  mapUnread: window._vaultPopHtml({ owned:10, filed:null })
+  mapUnread: window._vaultPopHtml({ owned:10, filed:null }),
+  carriedUnkOrph: window._vaultPopHtml(with_({ carried:null, orphans:2 })),
+  carriedUnkUnk:  window._vaultPopHtml(with_({ carried:null, orphans:null }))
 };
 process.stdout.write(JSON.stringify(out));
 """
@@ -80,6 +82,12 @@ process.stdout.write(JSON.stringify(out));
         # the mule map unread short-circuits before any orphan claim
         self.assertNotIn("disagree", o["mapUnread"], "mule map unread -> no orphan claim")
         self.assertNotIn("agreement", o["mapUnread"])
+        # v3756 / REG-2268 (the #231 eye on v3755): orphans must surface even when CARRIED is UNKNOWN. The orphan
+        # check now sits ABOVE the carried-null early return, derived from _vaultRecordsHeader (dock+mule map), not
+        # the carried strip — so a readable mule map + an unread carried strip still shows the disagreement.
+        self.assertIn("disagree", o["carriedUnkOrph"], "orphans must surface even when carried is UNKNOWN (was dropped pre-v3756)")
+        self.assertIn("UNKNOWN", o["carriedUnkUnk"], "orphans null + carried UNKNOWN -> agreement UNKNOWN, never dropped")
+        self.assertIn("agreement", o["carriedUnkUnk"])
 
 
 RED_PROOF = [

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3755",
+  "ver": "v3756",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3755: #76 INC (v3755) — vault locker/card LABELING. A mule locker headline showed physical COPIES labelled Items while the shelf card showed distinct NAMES, so card 30 vs locker 49 read as a contradiction when they count different things. Pure relabel (openMuleCard 8 sites + the shared-stash window): the locker now shows the distinct-name count as items (matching the shelf card) with physical copies as a separate labelled figure — e.g. 30 items · 49 copies across 2 mules. READ-ONLY: no store write, no records dependency (names.length + _physN already in scope). Fixes GrokBot card/locker mismatch across 6 lockers. The copy INFLATION itself stays recount-based (no save data to auto-deflate; the console design is set-the-real-count) — this makes it visible. HEART: guarded by tests/v3755_locker_labels_names_and_copies.spec.ts (RED-first, CI per test-venue — not his Mac); no new store/lane/surface to watch, so no watcher added. CDP-verified the card renders items=names with copies shown separately.",
+  "note": "v3756: #76 v3756 (REG-2268, review-after-ship — the #231 eye on v3755). INC-1 orphan corroborator was DROPPED when the carried strip was UNKNOWN: _vaultPopHtml returned on carried===null BEFORE the orphan lines, so a readable mule map + an unread carried strip + orphans>0 showed filed and carried UNKNOWN but never the disagreement line. The orphans derive from _vaultRecordsHeader (dock + mule map), independent of the carried strip. FIX: moved the single orphan check ABOVE the carried-UNKNOWN early return so it fires in every path. Read-only, no store write. HEART: guarded by tv/test_v3754_header_surfaces_orphans.py with new carriedUnkOrph / carriedUnkUnk cases (RED-first; the single red-proof on the orphan line stays PROVEN); no new surface or store to watch. Node-verified all 5 paths (normal, carried-UNKNOWN, orphans-null, zero, map-unread).",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
