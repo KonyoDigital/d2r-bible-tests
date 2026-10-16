@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3752",
+  "ver": "v3753",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3752: #76 phase 3 - folds a set piece stored under two name-forms (bare + slotted) into ONE canonical name, carrying the copy count by MAX (never clamped, summed or reduced - he may own 2+, a stashed spare is invisible to the console, so the true count is his via the multi-keep recount control). The two re-read copy-bumps (processFile + _vpCopySeen) now skip a presence set piece so it stops auto-inflating; genuine multiples ride the keep-target. Apostrophe-robust canon (_spNorm). .d2s import stays a separate addon. HEART: tests/v3752_set_piece_copies_reconcile.spec.ts (RED-first); CDP-verified 4 cases on the real page. Konyo: do not cut to one; reconcile against real data, he recounts.",
+  "note": "v3753: #76 phase 4 - v3752 folded set-piece name-forms (bare+slotted) into ONE by MAX copies (never clamps), but a cross-family review found the RECOUNT control keyed the BARE grail name while the vault keys SLOTTED, and the persist/undo was unsafe. v3753: the recount UI (vaultMultiKeepAdd + steppers + renderMultiKeep) canonicalizes to the slotted ledger key, lets an inflated count walk DOWN, and surfaces an owned inflated set piece with no target; the reconcile re-persists d2r_owned UNSWALLOWED before stamping (REG-2243), sweeps a dead bare copies key from a prior split (never raising the keeper), and an undo re-arms the one-time stamp. .d2s import stays a separate addon. HEART: tests/v3753_set_piece_recount_and_sweep.spec.ts + v3752_set_piece_copies_reconcile.spec.ts (RED-first); CDP-verified recount walks 3->2 + dead-key sweep on the real page. Konyo: do not cut to one; reconcile against real data, he recounts.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

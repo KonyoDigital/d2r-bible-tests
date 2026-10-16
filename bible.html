@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3752 · TV DIABLO</title>
-<meta name="d2r-build" content="v3752">
+  <title>Konyo's D2R Farming Bible v3753 · TV DIABLO</title>
+<meta name="d2r-build" content="v3753">
 <meta name="d2r-build-date" content="2026-10-16">
-<meta name="d2r-build-note" content="#76 phase 3 - folds a set piece stored under two name-forms (bare + slotted) into ONE canonical name, carrying the copy count by MAX (never clamped, summed or reduced - he may own 2+, a stashed spare is invisible to the console, so the true count is his via the multi-keep recount control). The two re-read copy-bumps (processFile + _vpCopySeen) now skip a presence set piece so it stops auto-inflating; genuine multiples ride the keep-target. Apostrophe-robust canon (_spNorm). .d2s import stays a separate addon. HEART: tests/v3752_set_piece_copies_reconcile.spec.ts (RED-first); CDP-verified 4 cases on the real page. Konyo: do not cut to one; reconcile against real data, he recounts.">
+<meta name="d2r-build-note" content="#76 phase 4 - v3752 folded set-piece name-forms (bare+slotted) into ONE by MAX copies (never clamps), but a cross-family review found the RECOUNT control keyed the BARE grail name while the vault keys SLOTTED, and the persist/undo was unsafe. v3753: the recount UI (vaultMultiKeepAdd + steppers + renderMultiKeep) canonicalizes to the slotted ledger key, lets an inflated count walk DOWN, and surfaces an owned inflated set piece with no target; the reconcile re-persists d2r_owned UNSWALLOWED before stamping (REG-2243), sweeps a dead bare copies key from a prior split (never raising the keeper), and an undo re-arms the one-time stamp. .d2s import stays a separate addon. HEART: tests/v3753_set_piece_recount_and_sweep.spec.ts + v3752_set_piece_copies_reconcile.spec.ts (RED-first); CDP-verified recount walks 3->2 + dead-key sweep on the real page. Konyo: do not cut to one; reconcile against real data, he recounts.">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -22244,7 +22244,7 @@ try {
      removal door (lane 'set-piece-reconcile' — dated, listed, undoable with vaultRestoreLast()). One-time per world
      (d2r_setPieceReconcile stamp). His call 2026-10-16 ("reconcile the data once"). UNKNOWN never acts.
      [[the-unjoined-end]] [[unknown-stays-unknown]] */
-  var _SPR_KEY = 'd2r_setPieceReconcile', _SPR_VER = 2;   /* v3752 #76 — bumped 1->2 so the collapse re-runs on a board v3751 already stamped (v3751 folded names but left d2r_copies inflated) */
+  var _SPR_KEY = 'd2r_setPieceReconcile', _SPR_VER = 3;   /* #76 — 1->3: v3751 folded names only; v3752 folded pairs but left lone-slotted dead copies keys + an unconfirmed owned write; v3753 sweeps dead keys, confirms the owned write before stamping, and re-arms on undo */
   window._setPieceReconcile = function(opts){
     opts = opts || {};
     var done = _bfJson(_SPR_KEY, null);
@@ -22275,6 +22275,15 @@ try {
       catch (eR) { return { ran: false, why: 'the removal door threw (' + String(eR && eR.message || eR) + ') — nothing stamped; it asks again next load' }; }
     }
     var removed = (vr && vr.removed) || [];
+    /* #76 v3753 (REG-2243 owned-confirm, defect #2) — vaultRemove persists owned through persistOwned, which
+       SWALLOWS a quota/private throw, so `removed` is not proof the name-fold reached disk. Re-persist d2r_owned
+       UNSWALLOWED now: a throw means the bare is still on disk, so leave d2r_copies untouched + the world
+       UNstamped and return — next load re-derives and re-folds the whole pair. Mirrors _vaultDedupeOldSetRows. */
+    if (removed.length){
+      try { window.LSR.setItem('d2r_owned', JSON.stringify(Array.from(owned))); }
+      catch (eOP){ removed.forEach(function(L){ try { owned.add(L); } catch (e2) {} });
+        return { ran: true, folded: [], stamped: false, why: 'the name-fold did not reach storage — left unstamped to retry' }; }
+    }
     /* #76 phase 3 (v3752) — FOLD THE COPY COUNT ACROSS NAME-FORMS, NEVER CLAMP. The name-fold removes the
        bare form; vaultRemove does not touch d2r_copies, so carry the removed bare's count onto its canonical
        keeper by MAX — the two forms are the SAME physical item under two names, so the combined count is the
@@ -22287,7 +22296,7 @@ try {
        reload re-runs the whole fold rather than stranding a half-applied removal under a done-stamp). The
        MAX fold loses no count, so an undo via vaultRestoreLast (names) needs no copy restore; priors ride in
        the receipt regardless. [[unknown-stays-unknown]] [[manual-tally-is-witness]] */
-    var copiesFolded = [], copiesPrior = {}, copiesStuck = true;
+    var copiesFolded = [], copiesPrior = {}, copiesStuck = true, copiesDeadKeys = [];
     try {
       if (typeof copies !== 'undefined' && copies && window.LSR && window.LSR.setItem){
         var _nextC = {}, _chg = false;
@@ -22302,6 +22311,28 @@ try {
           if (merged > 1 && _nextC[keep] !== merged){ copiesPrior[keep] = (_nextC[keep] != null ? _nextC[keep] : null); _nextC[keep] = merged; _chg = true; }
           copiesFolded.push(bare);
         });
+        /* #76 v3753 phase 4 (defect #1) — SWEEP dead bare-form copies debris left by a PRIOR version's name-fold:
+           a copies key that is NOT owned, whose _vfCanon differs (a known set-piece non-canonical form), and whose
+           canonical twin IS a different owned key. Drop the orphan; NEVER raise the keeper (the abandoned count is
+           stale debris, not a real signal — the keeper's count is his to recount). SCOPED on purpose: a blanket
+           un-owned purge is UNSAFE because vaultUnown leaves copies behind by design (un-ticked spares). */
+        try {
+          var _ownCanon = {};
+          Array.from(owned).forEach(function(o){ try { var _oc = window._vfCanon(o); if (_oc) _ownCanon[_oc] = o; } catch (e) {} });
+          Object.keys(_nextC).forEach(function(k){
+            if (owned.has(k)) return;
+            var _kc; try { _kc = window._vfCanon(k); } catch (e) { return; }
+            if (!_kc || _kc === k) return;
+            var _keeper = _ownCanon[_kc];
+            if (!_keeper || _keeper === k) return;
+            /* #76 v3753 — carry the bare key's count onto the owned keeper by MAX BEFORE dropping it. The count
+               may be a REAL number parked on the wrong key-form (an old recount), not just debris, so MOVE it
+               (never lose it) and let him recount down; a dropped-and-not-folded count was data loss. */
+            var _dk = (_nextC[k] > 0) ? _nextC[k] : 1, _kk = (_nextC[_keeper] > 0) ? _nextC[_keeper] : 1, _mm = (_dk > _kk) ? _dk : _kk;
+            if (_mm > 1 && _nextC[_keeper] !== _mm){ if (copiesPrior[_keeper] === undefined) copiesPrior[_keeper] = (_nextC[_keeper] != null ? _nextC[_keeper] : null); _nextC[_keeper] = _mm; }
+            copiesPrior[k] = _nextC[k]; delete _nextC[k]; _chg = true; copiesDeadKeys.push(k);
+          });
+        } catch (eSweep) {}
         if (_chg){
           try { window.LSR.setItem('d2r_copies', JSON.stringify(_nextC)); }
           catch (eCW) {
@@ -22309,17 +22340,14 @@ try {
             removed.forEach(function(L){ try { owned.add(L); } catch (e2) {} });   /* put them back so a healthy reload re-runs the whole fold */
             try { window.LSR.setItem('d2r_owned', JSON.stringify(Array.from(owned))); } catch (e3) {}
           }
-          if (copiesStuck){                                       /* write stuck — reconcile the live copies object to exactly what landed */
-            pairs.forEach(function(p){
-              if (removed.indexOf(p.remove) < 0) return;
-              if (copies[p.remove] != null) delete copies[p.remove];
-              if (_nextC[p.keep] != null) copies[p.keep] = _nextC[p.keep]; else if (copies[p.keep] != null && copiesPrior[p.keep] !== undefined) delete copies[p.keep];
-            });
+          if (copiesStuck){                                       /* write stuck — sync the live copies object to EXACTLY what landed (pairs folded, dead keys swept, keepers raised by max) */
+            Object.keys(copies).forEach(function(k){ if (!(k in _nextC)) { try { delete copies[k]; } catch (e) {} } });
+            Object.keys(_nextC).forEach(function(k){ copies[k] = _nextC[k]; });
           }
         }
       }
     } catch (eFold) { copiesStuck = false; }
-    var rc = { ver: _SPR_VER, ts: Date.now(), at: _iso(Date.now()), world: _hereWorld(), pairs: pairs, removed: removed, spared: spared, copiesFolded: copiesFolded, copiesPrior: copiesPrior, batchTs: (vr && vr.ts) || null };
+    var rc = { ver: _SPR_VER, ts: Date.now(), at: _iso(Date.now()), world: _hereWorld(), pairs: pairs, removed: removed, spared: spared, copiesFolded: copiesFolded, copiesDeadKeys: copiesDeadKeys, copiesPrior: copiesPrior, batchTs: (vr && vr.ts) || null };
     /* stamp ONLY after the copies fold CONFIRMED on disk — a failed write restored the names above and must
        not earn a done-stamp (REG-2243 shape). No clamp means nothing is destroyed even if this never stamps. */
     if (copiesStuck){
@@ -22327,6 +22355,7 @@ try {
     }
     try { console.info('[vault] set-piece reconcile: folded ' + removed.length + ' duplicate name-form(s)'
                        + (copiesFolded.length ? (', merged copy-counts by max') : '')
+                       + (copiesDeadKeys.length ? (', swept ' + copiesDeadKeys.length + ' dead key(s)') : '')
                        + (spared.length ? (', spared ' + spared.length) : '')
                        + (copiesStuck ? '' : ' — copies write FAILED, names restored, left unstamped to retry')
                        + ' (journaled — undo: vaultRestoreLast(); the count is yours to recount)'); } catch (eC) {}
@@ -41363,24 +41392,31 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   function renderMultiKeep(){
     var el=document.getElementById('vault-multikeep'); if(!el) return;
-    var names=Object.keys(multiKeep||{}).filter(function(n){ return multiKeep[n]>1; }).sort();
+    var names=Object.keys(multiKeep||{}).filter(function(n){ return multiKeep[n]>1; });
+    /* #76 v3753 — also surface an owned SET PIECE whose copy count is inflated (copyCount>1) even with NO
+       keep-target, so he can walk a phantom-inflated count DOWN to his true number without typing a name the
+       grail resolver would reject. Canonicalize to the slotted ledger key (what owned/copies use) and dedupe. */
+    try { Array.from(owned).forEach(function(o){ var c=(window._vfCanon?window._vfCanon(o):o)||o; if(window._vfIsSetPiece && window._vfIsSetPiece(c) && copyCount(c)>1 && names.indexOf(c)<0) names.push(c); }); } catch(e){}
+    names=names.filter(function(n,i){ return names.indexOf(n)===i; }).sort();
     el.hidden=false;
     var rows=names.map(function(n){
-      var have=copyCount(n), want=multiKeep[n], s=(typeof _qStyle==='function'?_qStyle(n,'unique'):'');
+      var tgt=(multiKeep[n]>1), want=tgt?multiKeep[n]:multiTarget(n), have=copyCount(n), s=(typeof _qStyle==='function'?_qStyle(n,'unique'):'');
       return '<div class="vmk-row" data-mk="'+esc(n)+'">'+art(n)
         +'<span class="vmk-name" data-arttip="'+esc(n)+'"'+s+'>'+esc(n)+'</span>'
         +'<span class="vmk-grp"><span class="vmk-grp-lbl">have</span><button class="vmk-step" aria-label="one fewer copy of '+_d2artEsc(n)+' owned" onclick="window.vaultCopyAdjust(\''+jsArg(n)+'\',-1)"'+(have<=0?' disabled':'')+'>−</button><span class="vmk-num'+(have>=want?' vmk-have-full':'')+'">'+have+'</span><button class="vmk-step" aria-label="one more copy of '+_d2artEsc(n)+' owned" onclick="window.vaultCopyAdjust(\''+jsArg(n)+'\',1)"'+(have>=want?' disabled':'')+'>+</button></span>'
-        +'<span class="vmk-grp"><span class="vmk-grp-lbl">want</span><button class="vmk-step" aria-label="want one fewer '+_d2artEsc(n)+'" onclick="window.vaultTargetBump(\''+jsArg(n)+'\',-1)">−</button><span class="vmk-num">'+want+'</span><button class="vmk-step" aria-label="want one more '+_d2artEsc(n)+'" onclick="window.vaultTargetBump(\''+jsArg(n)+'\',1)">+</button></span>'
-        +'<button class="vmk-rm" onclick="window.vaultMultiKeepRemove(\''+jsArg(n)+'\')" title="remove from multi-copy keepers (back to single)">✕</button></div>';
+        +(tgt
+          ? '<span class="vmk-grp"><span class="vmk-grp-lbl">want</span><button class="vmk-step" aria-label="want one fewer '+_d2artEsc(n)+'" onclick="window.vaultTargetBump(\''+jsArg(n)+'\',-1)">−</button><span class="vmk-num">'+want+'</span><button class="vmk-step" aria-label="want one more '+_d2artEsc(n)+'" onclick="window.vaultTargetBump(\''+jsArg(n)+'\',1)">+</button></span>'
+          : '<span class="vmk-grp vmk-notarget" title="an inflated count with no keep-target — walk HAVE down to your true number, or ✕ to reset to one"><span class="vmk-grp-lbl">want</span><span class="vmk-num">—</span></span>')
+        +'<button class="vmk-rm" onclick="window.vaultMultiKeepRemove(\''+jsArg(n)+'\')" title="'+(tgt?'remove from multi-copy keepers (back to single)':'reset this inflated count to one')+'">✕</button></div>';
     }).join('');
     el.innerHTML='<details class="vmk-det"><summary class="vmk-sum to-sum"><span class="to-emblem">📦</span><span class="to-hd"><span class="to-hd-top"><span class="to-st">Multi-copy Keepers</span></span><span class="to-subt">staples you want several of — targets editable; a re-read under target is kept as a spare, not a discard</span></span><span class="to-rule"></span><span class="to-chev">▾</span></summary><div class="vmk-body">'
       +(rows||'<div style="padding:8px 4px;color:#8a9aa8;font-size:12px">No multi-copy items yet — add one below.</div>')
       +'<div class="vmk-add"><input id="vmk-add-input" aria-label="add an item to collect spares of" type="text" autocomplete="off" placeholder="Add an item to collect spares of (e.g. Gore Rider)" onkeydown="if(event.key===\'Enter\')window.vaultMultiKeepAdd()"><button onclick="window.vaultMultiKeepAdd()">+ Add</button></div></div></details>';
   }
-  window.vaultCopyAdjust=function(n,d){ var want=multiTarget(n), nv=Math.max(0,Math.min(want,copyCount(n)+d)); if(nv<=1){ delete copies[n]; } else { copies[n]=nv; } try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };
-  window.vaultTargetBump=function(n,d){ var nt=multiTarget(n)+d; if(nt<2){ window.vaultMultiKeepRemove(n); return; } multiKeep[n]=nt; if(copies[n]&&copies[n]>nt) copies[n]=nt; try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };
-  window.vaultMultiKeepRemove=function(n){ delete multiKeep[n]; delete copies[n]; try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };
-  window.vaultMultiKeepAdd=function(){ var inp=document.getElementById('vmk-add-input'); if(!inp) return; var raw=(inp.value||'').trim(); if(!raw) return; var n=_resolveGrailName(raw); if(!n){ status('“'+raw+'” isn’t a chronicle item — check the spelling'); return; } if(multiKeep[n]>1){ status(n+' is already a multi-copy keeper'); } else { multiKeep[n]=2; } inp.value=''; try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };
+  window.vaultCopyAdjust=function(n,d){ n=(window._vfCanon?window._vfCanon(n):n)||n; var want=multiTarget(n), cap=Math.max(want,copyCount(n)), nv=Math.max(0,Math.min(cap,copyCount(n)+d)); if(nv<=1){ delete copies[n]; } else { copies[n]=nv; } try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };   /* #76 v3753 — canonicalize to the slotted ledger key; cap at max(want,have) so an inflated count walks DOWN one step toward his true count instead of snapping */
+  window.vaultTargetBump=function(n,d){ n=(window._vfCanon?window._vfCanon(n):n)||n; var nt=multiTarget(n)+d; if(nt<2){ window.vaultMultiKeepRemove(n); return; } multiKeep[n]=nt; if(copies[n]&&copies[n]>nt) copies[n]=nt; try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };
+  window.vaultMultiKeepRemove=function(n){ n=(window._vfCanon?window._vfCanon(n):n)||n; delete multiKeep[n]; delete copies[n]; try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };
+  window.vaultMultiKeepAdd=function(){ var inp=document.getElementById('vmk-add-input'); if(!inp) return; var raw=(inp.value||'').trim(); if(!raw) return; var n=_resolveGrailName(raw); if(!n){ try{ if(window._vfCanon && window._vfIsSetPiece){ var _crMk=window._vfCanon(raw); if(_crMk && window._vfIsSetPiece(_crMk)) n=_crMk; } }catch(eRm){} }   /* #76 v3753 — a SET PIECE ("Natalya's Totem") is not in the grail vocab, so _resolveGrailName rejects it; fall back to the set-piece canon so he can collect/recount a set piece by name */ if(!n){ status('“'+raw+'” isn’t a chronicle item — check the spelling'); return; } try{ if(window._vfCanon){ var _cnMk=window._vfCanon(n); if(_cnMk) n=_cnMk; } }catch(eMk){}   /* #76 v3753 — the recount box resolves a BARE chronicle name; fold to the SLOTTED ledger key the vault owns set pieces under, or the stepper touches a dead key */ if(multiKeep[n]>1){ status(n+' is already a multi-copy keeper'); } else { multiKeep[n]=2; } inp.value=''; try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };
   // scrollable "Registered" triage panel — every ✓owned item tagged muled / unsorted / not-muled
   // (account-shared stash), each with a ✕ throw-out, so the AI read is observable and the intake
   // count reconciles (Konyo: "scrollbar for registered · muled / not muled · throw out").
@@ -45084,6 +45120,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       back.push(nm);
     });
     _vrWrite(log);
+    /* #76 v3753 (defect #3) — undoing the SET-PIECE RECONCILE batch must un-arm ITS stamp, or the migration
+       reads "done" while its removal was just reversed: next load sees the stamp, never re-folds, and the
+       duplicate the user restored becomes a permanent split. Clear ONLY this migration's gate so the reconcile
+       re-derives + re-folds next load (idempotent: the MAX fold over re-derived pairs loses no count). SCOPED
+       to set-piece-reconcile ONLY — clearing a SIBLING's stamp (seed-cleanse / set-dupe-migration) would make
+       that migration RE-APPLY next load and undo the undo (Grok v3753 #3), so those undos stay durable. */
+    try {
+      if (last && last.lane === 'set-piece-reconcile' && window.LSR && window.LSR.removeItem) window.LSR.removeItem('d2r_setPieceReconcile');
+    } catch (eMig) {}
     persistOwned(); saveA(); renderVault(); refreshOpenCard();
     window._repaintOwned();
     status('↩ restored ' + back.length + ' of ' + (last.names || []).length
@@ -45736,12 +45781,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (routed && routed.magicHome && beforeMagic)
       routed = { ok: true, filed: false, mode: 'already', mule: routed.mule, why: nm + ' is already filed' };
     if (routed && (routed.filed || routed.mode === 'already') && token){
-      if (routed.mode === 'already' && assign[nm] != null && _vpCopySeen[nm] !== token && !(window._vfIsSetPiece && window._vfIsSetPiece(nm))){
-        /* v3752 #76 — a presence-only SET PIECE (owned 0-or-1) re-filed under a new session token is the
-           SAME helm, not a 2nd copy: never climb its count here (the other re-read inflator is at the
-           processFile path). _vpCopySeen is still marked below so the session is recorded; only the bump
-           is skipped. Genuine multiples a player keeps come via a hand copy-add, not a re-file. */
-        if (typeof copies !== 'undefined' && copies){
+      if (routed.mode === 'already' && assign[nm] != null && _vpCopySeen[nm] !== token){
+        /* v3752/v3753 #76 — a presence-only SET PIECE (owned 0-or-1) re-filed under a new session token is the
+           SAME helm, not a 2nd copy: skip the copy-bump for it (the processFile path has the sibling guard).
+           The skip is a NESTED condition so the line above stays byte-identical to its red-proof anchor
+           (test_a_hand_added_item_stays_his[14]) — a presence set piece and a runeword like Grief both route
+           here, and only the set piece is skipped. _vpCopySeen is still marked below. */
+        if (typeof copies !== 'undefined' && copies && !(window._vfIsSetPiece && window._vfIsSetPiece(nm))){
           var prevN = (typeof copyCount === 'function') ? (copyCount(nm) || 1) : ((copies[nm] > 0) ? copies[nm] : 1);
           prevN = prevN | 0;
           if (!(prevN > 0)) prevN = 1;
@@ -66741,7 +66787,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3752', name:'v3752 - set-piece reconcile: name-fold, never clamp', date:'2026-10-16', note:'#76 phase 3 - folds a set piece stored under two name-forms (bare + slotted) into ONE canonical name, carrying the copy count by MAX (never clamped, summed or reduced - he may own 2+, a stashed spare is invisible to the console, so the true count is his via the multi-keep recount control). The two re-read copy-bumps (processFile + _vpCopySeen) now skip a presence set piece so it stops auto-inflating; genuine multiples ride the keep-target. Apostrophe-robust canon (_spNorm). .d2s import stays a separate addon. HEART: tests/v3752_set_piece_copies_reconcile.spec.ts (RED-first); CDP-verified 4 cases on the real page. Konyo: do not cut to one; reconcile against real data, he recounts.' };
+  window.D2R_BUILD = { id:'v3753', name:'v3753 - set-piece recount wired + persist/undo hardened', date:'2026-10-16', note:'#76 phase 4 - v3752 folded set-piece name-forms (bare+slotted) into ONE by MAX copies (never clamps), but a cross-family review found the RECOUNT control keyed the BARE grail name while the vault keys SLOTTED, and the persist/undo was unsafe. v3753: the recount UI (vaultMultiKeepAdd + steppers + renderMultiKeep) canonicalizes to the slotted ledger key, lets an inflated count walk DOWN, and surfaces an owned inflated set piece with no target; the reconcile re-persists d2r_owned UNSWALLOWED before stamping (REG-2243), sweeps a dead bare copies key from a prior split (never raising the keeper), and an undo re-arms the one-time stamp. .d2s import stays a separate addon. HEART: tests/v3753_set_piece_recount_and_sweep.spec.ts + v3752_set_piece_copies_reconcile.spec.ts (RED-first); CDP-verified recount walks 3->2 + dead-key sweep on the real page. Konyo: do not cut to one; reconcile against real data, he recounts.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
