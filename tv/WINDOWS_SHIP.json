@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3749",
+  "ver": "v3750",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3749: HEART: #130 vault sweep resume-seal (REG-2266) - a relaunch stops the sweep at a banked run, records the frames read, resumes without re-paying; seals stay all-or-nothing; fixture-verified",
+  "note": "v3750: #76 slice 3 - FIND showed a set piece stored under TWO name-forms (bare plus slotted, the Natalya Odium helm) as TWO rows; GrokBot confirmed on his board it is ONE item under two name strings, not two copies. vaultFind now canonicalizes a bare set-piece name to its roster slotted form (__allSets plus _etherNorm, scoped to known set pieces so a unique or rune is never folded) and dedups on that key, preferring the slotted form he owns. READ-ONLY: no store written, his data untouched. HEART: guarded by tests/v3750_find_dedups_set_piece_name_forms.spec.ts (RED-first - _vfCanon collapses both forms, FIND shows ONE Totem row); CDP smoke on the real page goes 5 to 4 rows with the Totem as the slotted form. Backend needs no new watcher - a read-time display dedup. GrokBot verifies on his board after.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
