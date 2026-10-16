@@ -7,6 +7,22 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2267 - PLANNER SWAP LEFT A PHANTOM EXTRA COPY (the #76 copy-inflation class, in the planner) (2026-10-16, v3753)
+
+Surfaced by the v3753 push gate: `test_a_planner_pick_files_where_a_reel_of_it_would_go` was RED untampered
+(`griefAfterSwap: 2 != 0` at :731). PRE-EXISTING — RED on the clean v3751 tree, and `#76` does not touch the
+planner swap path, so not introduced by the set-piece work; it entered during the Grok `--no-verify` week and the
+v3753 gate is the first gated push to catch it. The defect: `vaultPlannerFile`'s copy-undo at `bible.html:45716`
+only fired on a same-id RE-ROLL (`_vpMade.id === entry.id`), so SWAPPING a planner slot's pick to a DIFFERENT
+item (different id, same token) stranded the previous pick's extra copy — a `copies[]` count with no item behind
+it, which is exactly the #76 defect class (drop copies with no real item). FIX: drop the `_vpMade.id === entry.id`
+clause; a token changing its pick — re-roll OR swap — undoes the copy it contributed under the old name.
+`_vpCopyUndo`'s REG-2240 name-check (`b.name !== name → return`) + the token-check still scope the undo to the
+previous pick's own bump, so the "a later pick must not revert an earlier copy" protection is untouched. Traced
+every token-reuse case in the guard (Alpha→Beta same-id: unchanged; Gamma→Delta diff-id: no matching bump, no-op;
+Grief swap: the one behavioural change, 2→0). GUARD: the same test (now 26/26 green); baseline proven RED by
+restoring the id-check (`griefAfterSwap 2 != 0`), GREEN with the fix.
+
 ### REG-2256 - SELF-UPDATE RELAUNCH OPENS MINIMIZED, DOES NOT STEAL FOCUS FROM HIS GAME (2026-10-16, his request, v3746)
 
 His ask: a self-update relaunch should not alt-tab him off his game - "maybe it can open automatically minimized". The

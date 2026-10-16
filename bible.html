@@ -45713,7 +45713,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (_resolved) nm = _resolved;
       } catch (eRes) {}
     }
-    if (_vpMade && _vpMade.token === token && _vpMade.id === entry.id && _vpMade.name && _vpMade.name !== nm) _vpCopyUndo(token, _vpMade.name);
+    if (_vpMade && _vpMade.token === token && _vpMade.name && _vpMade.name !== nm) _vpCopyUndo(token, _vpMade.name);   /* #76 v3753 (REG-2267) — a SWAP (same planner slot/token, a DIFFERENT pick) must also drop the swapped-away pick's phantom extra copy, not only a same-id re-roll; the id check stranded it, leaving a copy with no item behind it — the #76 defect class. _vpCopyUndo's REG-2240 name-check + token-check still scope the undo to the previous pick's own bump. Guard: test_a_planner_pick_files_where_a_reel_of_it_would_go (griefAfterSwap). */
     if (_vpMade && _vpMade.token === token && _vpMade.id === entry.id && _vpMade.name !== nm && _vpMade.fresh) _vpDrop();
     var baseName = _vpBase(entry, shown);
     var mods = _vpMods(entry);
