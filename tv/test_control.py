@@ -5348,11 +5348,15 @@ class TestV2306TheExaminedEmptySealActuallyLands(unittest.TestCase):
 
     def test_the_seal_branch_reads_sessionsExamined_FIRST(self):
         src = _code_only(io.open(os.path.join(HERE, "control_app.py"), encoding="utf-8").read())
-        i = src.find('sessionsExamined')
-        self.assertGreater(i, -1, "control_app no longer prefers the examined list")
-        seg = src[max(0, i - 400):i]
-        self.assertIn("_examined_and_empty", seg,
-                      "sessionsExamined must be consumed by the examined-and-empty branch — that "
+        # #130 added a resume clear-loop that also reads sessionsExamined, so the FIRST occurrence is
+        # no longer the seal branch — anchor on the examined-and-empty branch itself and prove IT is
+        # the consumer (not a fall-back to sessionsRead alone, the v2306 bug). Compress whitespace so
+        # _code_only's blanked comment lines don't push the consume site out of the window.
+        j = src.find('elif _examined_and_empty(')
+        self.assertGreater(j, -1, "control_app no longer has the examined-and-empty seal branch")
+        seg = "\n".join(l for l in src[j:].split("\n") if l.strip())[:600]
+        self.assertIn("sessionsExamined", seg,
+                      "the examined-and-empty branch must consume sessionsExamined — that "
                       "is the only branch whose whole meaning is 'nothing was read here'")
 
 class TestV2314TwoDeletersTwoQuestions(unittest.TestCase):
@@ -17082,7 +17086,9 @@ class TestTheVaultTemplateGate(unittest.TestCase):
         import control_app as ca
         src = open(ca.__file__, encoding="utf-8").read()
         # v1892 — bounded by the function's real end, not 900 bytes of habit
-        body = _between(self, src, "def _reader(p, surface):", "\n        prop = _vr.sweep(",
+        # #130 wrapped the sweep call in a try: for VaultSweepStopped, so prop = _vr.sweep( is now
+        # indented 12 spaces, not 8 — re-anchored to the current indent (same end-of-reader-body slice).
+        body = _between(self, src, "def _reader(p, surface):", "\n            prop = _vr.sweep(",
                         min_len=200, what="the vault reader")
         self.assertIn("stash_screen_open(", body,
                       "a declared-focus reel still reads every frame as ownership, gate or no gate")
