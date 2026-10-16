@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3746 · TV DIABLO</title>
-<meta name="d2r-build" content="v3746">
+  <title>Konyo's D2R Farming Bible v3747 · TV DIABLO</title>
+<meta name="d2r-build" content="v3747">
 <meta name="d2r-build-date" content="2026-10-16">
-<meta name="d2r-build-note" content="The console self-update relaunch no longer steals focus from his game (his request). The open-minimized machinery already existed - TV_QUIET_RELAUNCH crosses os.execv and _control_window_kwargs turns it into minimized plus focus False (wired for the shadow-reel relaunch) - but quiet_relaunch_reason was only quiet when the console was tracked as BACKGROUND. While he plays, the console sits fullscreen BEHIND the game with background False, so a self-update relaunch opened fullscreen and stole focus. quiet_relaunch_reason now takes a where arg and is quiet for the three AUTOMATIC os.execv sites (_drift_loop self-update, _exec_relaunch_now green-light, _exec_relaunch_soon rescue) regardless of background; _before_exec passes its own where through. A MANUAL relaunch (api relaunch - the button he clicks from the foreground) and a fresh Desktop launch stay NORMAL and focused. Cross-platform: the flag crosses os.execv on both his Mac and Deans Windows PC via the shared _before_exec choke. HEART: RED-first gate test_v3746_relaunch_opens_minimized registered in run_gates.py (7 tests, RED on current tree, GREEN on the patch). After ship: GrokBot verifies on his live screen (and Deans PC) that an auto-relaunch does not pull focus from D2R.">
+<meta name="d2r-build-note" content="HEART: #76 phase-1 one-record model derives the vault header (REG-2257) plus keepInv fix and a RED-proven parity guard">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -47680,6 +47680,77 @@ window.vaultAutoAssign = function(){
   }
   window._vaultWhereIs = _vaultWhereIs;
 
+  /* ══ #76 PHASE 1 (slice 1, 2026-10-16) — THE ONE-RECORD INTERMEDIATE MODEL · DERIVED, READ-ONLY ══
+     His spec: "one record per item with one location field; counts/badges/FIND/Integrity all derived
+     from that record." This is the FOUNDATION: one record per PHYSICAL COPY, rebuilt on demand from the
+     already-FORKED name-homed stores (owned/copies/assign) — so it inherits the Ladder/Main fork FOR FREE,
+     writes NO new store, touches NO data. It replaces no view yet (phase 2 flips the source of truth).
+     Its job NOW: (1) be a faithful intermediate rep whose header numbers byte-match the live view on
+     consistent data (the parity guard), and (2) CORROBORATE — the live header derives "filed to mules"
+     by SUBTRACTION (pool - loose - carried), which blindly assumes every leftover name has a real mule;
+     this resolves each name's ACTUAL home, so a name the header counts as "filed" that resolves to NO
+     real mule surfaces as an `orphan` = his reported "unsorted dock and mules disagree" bug, MEASURED.
+     [[heart-first]] the corroborator is built WITH the model, not after. [[unknown-stays-unknown]] a
+     name whose home cannot be resolved is `orphan`, never silently folded into `filed`. */
+  function _vaultRecords(){
+    var out = { records: [], index: {}, byKind: {}, orphans: [], carUnknown: false, ok: true };
+    try {
+      if (typeof ownedPool !== 'function' || typeof assign === 'undefined') { out.ok = false; return out; }
+      var poolAll = ownedPool();                                   // distinct kept names (the header's `owned`)
+      var carriedSet = {};
+      try {
+        var _c = (typeof window._carriedNames === 'function')
+          ? window._carriedNames(function(n){ return assign[n] != null; }) : null;
+        if (_c === null) out.carUnknown = true;                    // the mule map would not read — UNKNOWN, never 0
+        else _c.forEach(function(c){ if (c && c.name) carriedSet[c.name] = 1; });
+      } catch(e){ out.carUnknown = true; }
+      var looseSet = {};
+      try { (typeof _dockNames === 'function' ? _dockNames() : []).forEach(function(n){ looseSet[n] = 1; }); } catch(e){}
+      poolAll.forEach(function(name){
+        // classify this NAME to ONE location-kind, in the header's own priority order, but resolve "filed" FOR REAL
+        var kind, mid = assign[name];
+        if (typeof isSharedStash === 'function' && isSharedStash(name)) kind = 'sharedStash';
+        else if (carriedSet[name]) kind = 'carried';
+        else if (looseSet[name]) kind = 'loose';
+        else if (mid === '__keep') kind = 'keep';                  // standing kit kept with MAIN — a legit non-mule home
+        else if (mid != null && mid !== '__throwout' && typeof muleById === 'function' && muleById(mid)) kind = 'filed';
+        else if (typeof KEEP_IN_INVENTORY !== 'undefined' && typeof _keepName === 'function' && KEEP_IN_INVENTORY.test(_keepName(name)))
+          kind = 'keepInv';                                        // Anni/Torch/Gheed's drawn with MAIN — a kept charm with no mule is NOT an orphan
+        else { kind = 'orphan'; out.orphans.push({ name: name, assign: (mid == null ? null : String(mid)) }); }
+        var cc = (typeof copyCount === 'function') ? copyCount(name) : 1; if (!(cc >= 1)) cc = 1;
+        var ids = [];
+        for (var i = 0; i < cc; i++){
+          var recId = name + '#' + i;
+          out.records.push({ recId: recId, name: name, copyIx: i, kind: kind, mule: (kind === 'filed' ? mid : null) });
+          ids.push(recId);
+        }
+        out.index[name] = ids;
+        out.byKind[kind] = (out.byKind[kind] || 0) + 1;            // DISTINCT NAMES per kind
+      });
+    } catch(e){ out.ok = false; }
+    return out;
+  }
+  window._vaultRecords = _vaultRecords;
+
+  /* The header's five numbers DERIVED FROM records (distinct names per kind), for the parity guard.
+     owned = distinct names · copies = total records (the #137 copy sub-count). The live header lumps
+     __keep into "filed" (its subtraction cannot see it), so `filed` here = filed + keep; `orphans` is
+     the gap the subtraction hides — on consistent data orphans==0 and filed==live, on his data a nonzero
+     orphans count is the "dock/mules disagree" divergence (reported, never averaged away). */
+  function _vaultRecordsHeader(){
+    var r = _vaultRecords(); if (!r.ok) return null; var k = r.byKind;
+    return {
+      owned:   Object.keys(r.index).length,
+      copies:  r.records.length,
+      shared:  (k.sharedStash || 0),
+      carried: r.carUnknown ? null : (k.carried || 0),
+      loose:   (k.loose || 0),
+      filed:   (k.filed || 0) + (k.keep || 0),
+      orphans: r.orphans.length
+    };
+  }
+  window._vaultRecordsHeader = _vaultRecordsHeader;
+
   /* ══ #174 v-B — THE DOLL EQUIPS FROM ITS OWN LOCKER, AND EVERY STAT SAYS WHERE ITS NUMBER CAME FROM.
      His words: click a slot and pick from this mule's items; hover is the board's own item card; the stats
      are computed from what is worn. SPEC §6 decides how honest each number is allowed to be:
@@ -66490,7 +66561,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3746', name:'v3746 - self-update relaunch opens minimized, does not steal focus from his game', date:'2026-10-16', note:'The console self-update relaunch no longer steals focus from his game (his request). The open-minimized machinery already existed - TV_QUIET_RELAUNCH crosses os.execv and _control_window_kwargs turns it into minimized plus focus False (wired for the shadow-reel relaunch) - but quiet_relaunch_reason was only quiet when the console was tracked as BACKGROUND. While he plays, the console sits fullscreen BEHIND the game with background False, so a self-update relaunch opened fullscreen and stole focus. quiet_relaunch_reason now takes a where arg and is quiet for the three AUTOMATIC os.execv sites (_drift_loop self-update, _exec_relaunch_now green-light, _exec_relaunch_soon rescue) regardless of background; _before_exec passes its own where through. A MANUAL relaunch (api relaunch - the button he clicks from the foreground) and a fresh Desktop launch stay NORMAL and focused. Cross-platform: the flag crosses os.execv on both his Mac and Deans Windows PC via the shared _before_exec choke. HEART: RED-first gate test_v3746_relaunch_opens_minimized registered in run_gates.py (7 tests, RED on current tree, GREEN on the patch). After ship: GrokBot verifies on his live screen (and Deans PC) that an auto-relaunch does not pull focus from D2R.' };
+  window.D2R_BUILD = { id:'v3747', name:'v3747 - records-model', date:'2026-10-16', note:'HEART: #76 phase-1 one-record model derives the vault header (REG-2257) plus keepInv fix and a RED-proven parity guard' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

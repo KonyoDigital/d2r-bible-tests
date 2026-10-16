@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3746",
+  "ver": "v3747",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3746: The console self-update relaunch no longer steals focus from his game (his request). The open-minimized machinery already existed - TV_QUIET_RELAUNCH crosses os.execv and _control_window_kwargs turns it into minimized plus focus False (wired for the shadow-reel relaunch) - but quiet_relaunch_reason was only quiet when the console was tracked as BACKGROUND. While he plays, the console sits fullscreen BEHIND the game with background False, so a self-update relaunch opened fullscreen and stole focus. quiet_relaunch_reason now takes a where arg and is quiet for the three AUTOMATIC os.execv sites (_drift_loop self-update, _exec_relaunch_now green-light, _exec_relaunch_soon rescue) regardless of background; _before_exec passes its own where through. A MANUAL relaunch (api relaunch - the button he clicks from the foreground) and a fresh Desktop launch stay NORMAL and focused. Cross-platform: the flag crosses os.execv on both his Mac and Deans Windows PC via the shared _before_exec choke. HEART: RED-first gate test_v3746_relaunch_opens_minimized registered in run_gates.py (7 tests, RED on current tree, GREEN on the patch). After ship: GrokBot verifies on his live screen (and Deans PC) that an auto-relaunch does not pull focus from D2R.",
+  "note": "v3747: HEART: #76 phase-1 one-record model derives the vault header (REG-2257) plus keepInv fix and a RED-proven parity guard",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
