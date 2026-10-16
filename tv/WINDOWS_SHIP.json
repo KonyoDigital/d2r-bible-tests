@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3756",
+  "ver": "v3757",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3756: #76 v3756 (REG-2268, review-after-ship — the #231 eye on v3755). INC-1 orphan corroborator was DROPPED when the carried strip was UNKNOWN: _vaultPopHtml returned on carried===null BEFORE the orphan lines, so a readable mule map + an unread carried strip + orphans>0 showed filed and carried UNKNOWN but never the disagreement line. The orphans derive from _vaultRecordsHeader (dock + mule map), independent of the carried strip. FIX: moved the single orphan check ABOVE the carried-UNKNOWN early return so it fires in every path. Read-only, no store write. HEART: guarded by tv/test_v3754_header_surfaces_orphans.py with new carriedUnkOrph / carriedUnkUnk cases (RED-first; the single red-proof on the orphan line stays PROVEN); no new surface or store to watch. Node-verified all 5 paths (normal, carried-UNKNOWN, orphans-null, zero, map-unread).",
+  "note": "v3757: #76 INC-2 FIND and GRAIL-DUPES re-expressed through the one-record model read-only proven at parity with the live view and fidelity to copies INC-3 gated for the persisted per-copy store. HEART: pure read-only derivations watched by the parity GATE test_v3757 (no autonomous lane or surface to go dark a records-model drift turns that gate red) inert in production until INC-3 consumes them",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

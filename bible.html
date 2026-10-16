@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3756 · TV DIABLO</title>
-<meta name="d2r-build" content="v3756">
-<meta name="d2r-build-date" content="2026-10-16">
-<meta name="d2r-build-note" content="#76 v3756 (REG-2268, review-after-ship — the #231 eye on v3755). INC-1 orphan corroborator was DROPPED when the carried strip was UNKNOWN: _vaultPopHtml returned on carried===null BEFORE the orphan lines, so a readable mule map + an unread carried strip + orphans>0 showed filed and carried UNKNOWN but never the disagreement line. The orphans derive from _vaultRecordsHeader (dock + mule map), independent of the carried strip. FIX: moved the single orphan check ABOVE the carried-UNKNOWN early return so it fires in every path. Read-only, no store write. HEART: guarded by tv/test_v3754_header_surfaces_orphans.py with new carriedUnkOrph / carriedUnkUnk cases (RED-first; the single red-proof on the orphan line stays PROVEN); no new surface or store to watch. Node-verified all 5 paths (normal, carried-UNKNOWN, orphans-null, zero, map-unread).">
+  <title>Konyo's D2R Farming Bible v3757 · TV DIABLO</title>
+<meta name="d2r-build" content="v3757">
+<meta name="d2r-build-date" content="2026-10-17">
+<meta name="d2r-build-note" content="#76 INC-2 FIND and GRAIL-DUPES re-expressed through the one-record model read-only proven at parity with the live view and fidelity to copies INC-3 gated for the persisted per-copy store. HEART: pure read-only derivations watched by the parity GATE test_v3757 (no autonomous lane or surface to go dark a records-model drift turns that gate red) inert in production until INC-3 consumes them">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -47983,6 +47983,46 @@ window.vaultAutoAssign = function(){
   }
   window._vaultRecordsHeader = _vaultRecordsHeader;
 
+  /* ══ #76 INC-2 (v3757) — FIND + GRAIL-DUPES re-expressed through the ONE-RECORD model, read-only.
+     The design's PHASE 1 (ONE_RECORD_DESIGN): derive the views from records and prove byte-parity with the
+     live direct-from-store path, so INC-3 (gated, his confirm) can swap the records SOURCE to a persisted
+     per-copy store and the live views flip to these with no behaviour change. NOTHING is stored; these read
+     _vaultRecords() (itself forked-for-free from owned/copies/assign). Consumed NOW by the parity guards
+     (tv/test_v3757_records_find_and_overflow_parity.py); consumed by the live FIND/dupes views in INC-3.
+     The guards are NOT vacuous: records.index[n].length is built from copyCount in _vaultRecords, and
+     record.mule from assign — so a parity miss means the RECORDS MODEL drifted from the stores it mirrors
+     (a wrong copy-count or a mis-homed record), which is exactly what must hold before INC-3 swaps the source.
+     [[the-unjoined-end]] [[unknown-stays-unknown]] */
+  function _vaultRecordsFind(name){
+    // the mule a name resolves to, VIA the one-record model — parity target: _vaultWhereIs(name).mule for a
+    // FILED name (both read assign[name] -> muleById). null = not filed (shared/loose/carried/orphan/keep);
+    // undefined = the record model would not read (never a false home). [[unknown-stays-unknown]]
+    try {
+      var r = _vaultRecords(); if (!r || !r.ok) return undefined;
+      var ids = r.index[name]; if (!ids || !ids.length) return null;   // not an owned/kept name
+      var rec = null;
+      for (var i = 0; i < r.records.length; i++){ if (r.records[i].name === name){ rec = r.records[i]; break; } }
+      return rec ? (rec.kind === 'filed' ? rec.mule : null) : null;
+    } catch(e){ return undefined; }
+  }
+  window._vaultRecordsFind = _vaultRecordsFind;
+  function _vaultRecordsOverflow(){
+    // GRAIL-DUPES trade-stock overflow VIA the one-record copy model — parity target: _vaultSharedOverflowNames().
+    // shared membership stays assign==='shared' (the live view's own notion), the copy COUNT comes from the
+    // records index (index[n].length === copyCount(n) by construction in _vaultRecords) so a miss = a record
+    // miscount. Rule E: a shared name with more records than _SHARED_COPY_CAP has overflow (the 3rd+ copies).
+    var out = [];
+    try {
+      var r = _vaultRecords(); if (!r || !r.ok) return out;
+      (_sharedNames() || []).forEach(function(n){
+        var ids = r.index[n] || [];
+        if (ids.length - _SHARED_COPY_CAP > 0) out.push(n);
+      });
+    } catch(e){}
+    return out.sort();
+  }
+  window._vaultRecordsOverflow = _vaultRecordsOverflow;
+
   /* ══ #174 v-B — THE DOLL EQUIPS FROM ITS OWN LOCKER, AND EVERY STAT SAYS WHERE ITS NUMBER CAME FROM.
      His words: click a slot and pick from this mule's items; hover is the board's own item card; the stats
      are computed from what is worn. SPEC §6 decides how honest each number is allowed to be:
@@ -66802,7 +66842,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3756', name:'v3756 - 76-orphan-surfaces-when-carried-unknown', date:'2026-10-16', note:'#76 v3756 (REG-2268, review-after-ship — the #231 eye on v3755). INC-1 orphan corroborator was DROPPED when the carried strip was UNKNOWN: _vaultPopHtml returned on carried===null BEFORE the orphan lines, so a readable mule map + an unread carried strip + orphans>0 showed filed and carried UNKNOWN but never the disagreement line. The orphans derive from _vaultRecordsHeader (dock + mule map), independent of the carried strip. FIX: moved the single orphan check ABOVE the carried-UNKNOWN early return so it fires in every path. Read-only, no store write. HEART: guarded by tv/test_v3754_header_surfaces_orphans.py with new carriedUnkOrph / carriedUnkUnk cases (RED-first; the single red-proof on the orphan line stays PROVEN); no new surface or store to watch. Node-verified all 5 paths (normal, carried-UNKNOWN, orphans-null, zero, map-unread).' };
+  window.D2R_BUILD = { id:'v3757', name:'v3757 - 76-inc2-records-find-overflow-parity', date:'2026-10-17', note:'#76 INC-2 FIND and GRAIL-DUPES re-expressed through the one-record model read-only proven at parity with the live view and fidelity to copies INC-3 gated for the persisted per-copy store. HEART: pure read-only derivations watched by the parity GATE test_v3757 (no autonomous lane or surface to go dark a records-model drift turns that gate red) inert in production until INC-3 consumes them' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

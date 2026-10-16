@@ -9676,6 +9676,14 @@ GATES = [
              "'unsorted and the mules disagree') read-only: a number when real, UNKNOWN when the mule map would not read, "
              "nothing when they agree. First consumer of _vaultRecordsHeader (v3747/v3748, REG-2257/2258).")
          ),
+    Gate("test_v3757_records_find_and_overflow_parity", [sys.executable,
+         os.path.join(HERE, "test_v3757_records_find_and_overflow_parity.py")], 60,
+         needs_app=False,
+         why=("#76 INC-2 / v3757 - FIND + GRAIL-DUPES re-expressed through the one-record model (_vaultRecordsFind / "
+             "_vaultRecordsOverflow), proven at PARITY with the live _vaultSharedOverflowNames + the assign[name] home a "
+             "FILED name resolves to, and FIDELITY that the record index carries copyCount(name) records per name. "
+             "Read-only PHASE-1 scaffold; INC-3 (gated, his confirm) swaps the records source to a persisted per-copy store.")
+         ),
     Gate("test_the_vault_proposes_a_home_and_does_not_move", [sys.executable,
          os.path.join(HERE, "test_the_vault_proposes_a_home_and_does_not_move.py")], 90,
          needs_app=False,
