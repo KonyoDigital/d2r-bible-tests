@@ -41092,7 +41092,6 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     return pool.filter(function(n){ return _vfNorm(n).indexOf(qa) !== -1; })
                .sort(function(a,b){ var sa=score(a), sb=score(b); return sa!==sb ? sa-sb : a.localeCompare(b); });
   }
-  window._vaultFindMatches = _vaultFindMatches;
   /* #76 — a set piece stored under TWO name-forms (bare "Natalya's Totem" + slotted "Natalya's Totem (helm)")
      showed as TWO FIND rows (GrokBot #230 6212587204; the Natalya's Odium set has ONE Totem, the helm). The
      roster (__allSets) carries the canonical slotted form; _etherNorm strips any trailing slot/base "(...)".
@@ -41121,6 +41120,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     } catch (eC) { return name; }
   }
   try { window._vfCanon = _vfCanon; } catch(e){}   /* #76 — exposed so the dedup guard can assert canonicalization without the DOM */
+  window._vaultFindMatches = _vaultFindMatches;
   window.vaultFind = function(q){
     var res = document.getElementById('vault-find-results');
     if (!res) return;
