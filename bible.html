@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3750 · TV DIABLO</title>
-<meta name="d2r-build" content="v3750">
+  <title>Konyo's D2R Farming Bible v3751 · TV DIABLO</title>
+<meta name="d2r-build" content="v3751">
 <meta name="d2r-build-date" content="2026-10-16">
-<meta name="d2r-build-note" content="#76 slice 3 - FIND showed a set piece stored under TWO name-forms (bare plus slotted, the Natalya Odium helm) as TWO rows; GrokBot confirmed on his board it is ONE item under two name strings, not two copies. vaultFind now canonicalizes a bare set-piece name to its roster slotted form (__allSets plus _etherNorm, scoped to known set pieces so a unique or rune is never folded) and dedups on that key, preferring the slotted form he owns. READ-ONLY: no store written, his data untouched. HEART: guarded by tests/v3750_find_dedups_set_piece_name_forms.spec.ts (RED-first - _vfCanon collapses both forms, FIND shows ONE Totem row); CDP smoke on the real page goes 5 to 4 rows with the Totem as the slotted form. Backend needs no new watcher - a read-time display dedup. GrokBot verifies on his board after.">
+<meta name="d2r-build-note" content="#76 phase 2 - set-piece name reconcile: a one-time journaled migration folds a set piece stored under two name-forms (bare plus slotted roster name) into ONE, fixing the inflated count and delete-leaves-in-mule at the source. Keeps the CANONICAL slotted name, removes the bare, ONLY when no filing is lost (keeper filed or leaving form loose); SPARES the reversed case because a dropped filing is data loss. Reuses the _seedCleanse load trigger; stamp d2r_setPieceReconcile; undo vaultRestoreLast. HEART: guarded by tests/v3751_set_piece_name_reconcile.spec.ts (RED-first - fold, spare-no-data-loss, no-op); CDP-verified 3 cases on the real page. His call: reconcile the data once. GrokBot confirms on his board after.">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -4300,6 +4300,10 @@ window._LP_FORKED = new Set([
   /* H1 (review of bd976210) - the seed cleanse stamp records WHETHER A REMOVAL RAN over d2r_owned, which is in this set,
      so it forks exactly as the store it cleanses (the v2224 rule below). One world running it never silences another. */
   "d2r_seedCleanse",
+  /* #76 phase 2 (v3751) - the set-piece reconcile stamp records WHETHER THE FOLD RAN over d2r_owned and
+     d2r_muleAssign, both in this set, so it forks exactly as they do (the v2224 rule below). Bare, one world
+     running the reconcile would silence it for every other world, leaving the dup in a sibling world unfolded. */
+  "d2r_setPieceReconcile",
   /* ══ v2224 — A MIGRATION STAMP MUST FORK EXACTLY AS THE STORE IT MIGRATES ═══════════════════
      test_store_isolation caught these three, and it caught MY OWN work from this session. All
      three gate one-shot repairs of d2r_owned, and d2r_owned is in this very Set, so it is
@@ -22220,6 +22224,7 @@ try {
             ? (window._mainLocksReachable() ? (window.MAIN_LOCKS ? 'answered' : 'unanswered') : 'absent — no console on this page')
             : 'UNKNOWN';
           try { window._seedCleanse(Object.assign({}, opts, { mainLedger: ml })); } catch (e) {}
+          try { window._setPieceReconcile({}); } catch (e) {}   /* #76 — fold any set-piece name-form duplicate, after the seed cleanse */
         };
         Promise.resolve(p).then(run, run);
       };
@@ -22228,6 +22233,53 @@ try {
       else window.addEventListener('load', arm, { once: true });
       return true;
     } catch (e) { return false; }
+  };
+
+  /* ══ #76 — SET-PIECE NAME RECONCILE: ONE-TIME, JOURNALED, FOLDS A DUPLICATE NAME-FORM INTO ITS CANONICAL ════════
+     A set piece stored under TWO name-forms — a bare "Natalya's Totem" beside the slotted roster "Natalya's Totem
+     (helm)" — counts twice, showed twice in FIND (v3750 deduped the DISPLAY only), and makes "Delete unsorted" leave
+     the other form filed in the mule. This folds the two into ONE: keep the CANONICAL slotted name (window._vfCanon,
+     scoped to KNOWN set pieces so a unique/rune is never folded), carry the real placement to it (if the form being
+     removed was filed and the keeper was not, the filing follows), and remove the non-canonical form through the
+     removal door (lane 'set-piece-reconcile' — dated, listed, undoable with vaultRestoreLast()). One-time per world
+     (d2r_setPieceReconcile stamp). His call 2026-10-16 ("reconcile the data once"). UNKNOWN never acts.
+     [[the-unjoined-end]] [[unknown-stays-unknown]] */
+  var _SPR_KEY = 'd2r_setPieceReconcile', _SPR_VER = 1;
+  window._setPieceReconcile = function(opts){
+    opts = opts || {};
+    var done = _bfJson(_SPR_KEY, null);
+    if (done === undefined) return { ran: false, why: 'the reconcile stamp would not read — UNKNOWN, nothing folded' };
+    if (done && typeof done === 'object' && done.ver >= _SPR_VER && !opts.force) return { ran: false, already: true, receipt: done };
+    if (typeof window.vaultRemove !== 'function' || typeof window._vfCanon !== 'function')
+      return { ran: false, why: 'the removal door or the canonicaliser is not on this page — nothing folded; it asks again next load' };
+    var amap = _assignMap();
+    if (amap === undefined) return { ran: false, why: 'd2r_muleAssign would not read — whether a form is filed is UNKNOWN, so nothing folded' };
+    var pairs = [], spared = [];
+    try {
+      Array.from(owned).forEach(function(nm){
+        var c = window._vfCanon(nm);
+        if (!c || c === nm || c === 'undefined' || !owned.has(c)) return;
+        /* Fold only when NO filing is lost: the keeper is already filed (amap[c]!=null), or the leaving form is
+           loose (amap[nm]==null). If the leaving (bare) form is the ONLY one filed, SPARE the pair — folding would
+           drop its mule cell, and a dropped filing is data loss. His board state is the first case (slotted filed,
+           bare loose), which folds; the reversed case is left for manual reconcile. */
+        if (amap[c] != null || amap[nm] == null) pairs.push({ remove: nm, keep: c });
+        else spared.push({ name: nm, keep: c, why: 'the bare form is filed and its slotted twin is not — folding would drop the filing; left for manual reconcile' });
+      });
+    } catch (ePairs) { return { ran: false, why: 'the owned set would not scan (' + String(ePairs && ePairs.message || ePairs) + ') — nothing folded' }; }
+    var take = pairs.map(function(p){ return p.remove; });
+    var vr = null;
+    if (take.length){
+      try { vr = window.vaultRemove(take, { lane: 'set-piece-reconcile', quiet: true,
+              why: 'set-piece name reconcile — a bare form duplicating its slotted roster name, folded into one item' }); }
+      catch (eR) { return { ran: false, why: 'the removal door threw (' + String(eR && eR.message || eR) + ') — nothing stamped; it asks again next load' }; }
+    }
+    var removed = (vr && vr.removed) || [];
+    var rc = { ver: _SPR_VER, ts: Date.now(), at: _iso(Date.now()), world: _hereWorld(), pairs: pairs, removed: removed, spared: spared, batchTs: (vr && vr.ts) || null };
+    try { window.LSR.setItem(_SPR_KEY, JSON.stringify(rc)); } catch (eS) {}
+    try { console.info('[vault] set-piece reconcile: folded ' + removed.length + ' duplicate name-form(s)'
+                       + (spared.length ? (', spared ' + spared.length) : '') + ' (journaled — undo: vaultRestoreLast())'); } catch (eC) {}
+    return { ran: true, folded: removed, spared: spared, receipt: rc };
   };
 
   /* ══ THE CARRIED STRIP'S MARKUP — one builder, so a law can render it without a page ══════════════════════════
@@ -66611,7 +66663,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3750', name:'v3750 - find dedups set piece forms', date:'2026-10-16', note:'#76 slice 3 - FIND showed a set piece stored under TWO name-forms (bare plus slotted, the Natalya Odium helm) as TWO rows; GrokBot confirmed on his board it is ONE item under two name strings, not two copies. vaultFind now canonicalizes a bare set-piece name to its roster slotted form (__allSets plus _etherNorm, scoped to known set pieces so a unique or rune is never folded) and dedups on that key, preferring the slotted form he owns. READ-ONLY: no store written, his data untouched. HEART: guarded by tests/v3750_find_dedups_set_piece_name_forms.spec.ts (RED-first - _vfCanon collapses both forms, FIND shows ONE Totem row); CDP smoke on the real page goes 5 to 4 rows with the Totem as the slotted form. Backend needs no new watcher - a read-time display dedup. GrokBot verifies on his board after.' };
+  window.D2R_BUILD = { id:'v3751', name:'v3751 - set piece name reconcile', date:'2026-10-16', note:'#76 phase 2 - set-piece name reconcile: a one-time journaled migration folds a set piece stored under two name-forms (bare plus slotted roster name) into ONE, fixing the inflated count and delete-leaves-in-mule at the source. Keeps the CANONICAL slotted name, removes the bare, ONLY when no filing is lost (keeper filed or leaving form loose); SPARES the reversed case because a dropped filing is data loss. Reuses the _seedCleanse load trigger; stamp d2r_setPieceReconcile; undo vaultRestoreLast. HEART: guarded by tests/v3751_set_piece_name_reconcile.spec.ts (RED-first - fold, spare-no-data-loss, no-op); CDP-verified 3 cases on the real page. His call: reconcile the data once. GrokBot confirms on his board after.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
