@@ -7,6 +7,23 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2270 - RECORDS-FAILED ORPHAN COUNT RENDERED SILENT (FALSE-AGREE) INSTEAD OF UNKNOWN (#76, #231 eye on v3756, v3757)
+
+Found by the Grok CLI second-eye on v3756 (run as the v3757 push prerequisite — v3756 shipped during the Grok
+`--no-verify` week with no review). `_vaultPopHtml`'s orphan-agreement check was `if (p.orphans === null)`, catching
+only the dock-unread case (null). Its SOLE caller — the vault header at `bible.html:42458` — passes
+`orphans: (_rh76 ? _rh76.orphans : undefined)`, i.e. **`undefined` when `_vaultRecords` FAILS** (`_rh76` null).
+`undefined !== null`, so a records FAILURE fell through to SILENT, which the convention reads as "they agree" —
+a records failure rendering as a false agree. FIX: `== null` catches null AND undefined (both UNKNOWN); `0 == null`
+stays false so `orphans:0` (measured agreement) stays silent. GUARD: `test_v3754_header_surfaces_orphans.py` — the
+`absent`/undefined case now asserts agreement UNKNOWN and `zero` asserts silent; RED-proven by reverting to
+`=== null` (undefined renders silent → the absent assertion goes red). [[unknown-stays-unknown]]
+
+The other two v3756 findings, REPRODUCED and triaged: finding-2 (the `carriedUnkUnk` test's `UNKNOWN` assertion is
+satisfied by the carried line) is a FALSE POSITIVE — `"agreement"` appears ONLY in the orphan line, so
+`assertIn("agreement")` already locks it; finding-3 was the eye's own "NOT SHOWN / could not verify the producer",
+not a defect.
+
 ### REG-2269 - FOUR MULE-WINDOW GATES PINNED THE PRE-#76 "ITEMS = PHYSICAL" CONTRACT (test-only; #76, review-after-ship on v3755/v3756)
 
 v3755 relabelled the mule window: the locker shows distinct NAMES as "Items" (= the shelf card's count) with

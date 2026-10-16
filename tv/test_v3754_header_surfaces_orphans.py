@@ -72,9 +72,14 @@ process.stdout.write(JSON.stringify(out));
         # a REAL disagreement is surfaced, with its count
         self.assertIn("disagree", o["orphan2"], "a real orphan disagreement must be surfaced")
         self.assertIn("<b>2</b>", o["orphan2"], "the orphan count is shown")
-        # nothing claimed when they agree
+        # orphans:0 is MEASURED agreement -> stays silent (never a false UNKNOWN); the == null fix keeps 0 out of it
         self.assertNotIn("disagree", o["zero"], "no disagreement line when orphans == 0")
-        self.assertNotIn("disagree", o["absent"], "no disagreement line when the field is absent")
+        self.assertNotIn("agreement", o["zero"], "orphans:0 is measured agreement -> silent, never a false UNKNOWN")
+        # v3757 (#231 eye on v3756): the SOLE caller passes orphans:undefined when _vaultRecords FAILS (_rh76 null).
+        # == null catches undefined too, so a records failure reads agreement UNKNOWN — never a silent false-agree.
+        self.assertNotIn("disagree", o["absent"], "records-failed (orphans undefined) is not a disagreement")
+        self.assertIn("agreement", o["absent"], "orphans undefined (records failed) must read agreement UNKNOWN, not silent")
+        self.assertIn("UNKNOWN", o["absent"])
         # UNKNOWN, never a false 0
         self.assertIn("UNKNOWN", o["unknown"], "orphans null must read UNKNOWN, never a false 0")
         self.assertIn("agreement", o["unknown"])
@@ -96,6 +101,15 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "    else if (p.orphans > 0) bits.push('\\u26a0 ' + n(p.orphans) + ' filed to a mule the board can\\u2019t find <i>(unsorted and the mules disagree)</i>');\n",
         "replace": "",
+        "matches": 1,
+    },
+    {
+        "why": "#76 v3757 (#231 eye on v3756) - reverting == null to === null makes orphans:undefined (records "
+               "FAILED, the sole caller's value when _rh76 is null) render SILENT instead of agreement UNKNOWN - a "
+               "records failure reading as a false agree",
+        "file": "bible.html",
+        "find": "if (p.orphans == null) bits.push('mule/unsorted agreement <b>UNKNOWN</b>');",
+        "replace": "if (p.orphans === null) bits.push('mule/unsorted agreement <b>UNKNOWN</b>');",
         "matches": 1,
     },
 ]

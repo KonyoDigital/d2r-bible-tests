@@ -22434,7 +22434,7 @@ try {
        "filed" but that _vaultRecords resolves to NO real mule (= his "unsorted dock and mules disagree", symptom a)
        surfaces in EVERY path, not only when the carried strip reads. Derived from _vaultRecordsHeader (dock+mule map),
        not the carried strip. orphans===null = UNKNOWN, never a false 0. [[the-unjoined-end]] [[unknown-stays-unknown]] */
-    if (p.orphans === null) bits.push('mule/unsorted agreement <b>UNKNOWN</b>');
+    if (p.orphans == null) bits.push('mule/unsorted agreement <b>UNKNOWN</b>');  /* v3757, #231 eye on v3756: == null catches BOTH null (dock unread) AND undefined (records failed -> _rh76 null -> the sole caller passes undefined); either is UNKNOWN, never a silent false-agree. 0 == null is false, so orphans:0 (measured, they agree) stays silent. [[unknown-stays-unknown]] */
     else if (p.orphans > 0) bits.push('\u26a0 ' + n(p.orphans) + ' filed to a mule the board can\u2019t find <i>(unsorted and the mules disagree)</i>');
     if (p.carried === null){
       bits.push('carried <b>UNKNOWN</b>');
