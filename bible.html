@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3751 · TV DIABLO</title>
-<meta name="d2r-build" content="v3751">
+  <title>Konyo's D2R Farming Bible v3752 · TV DIABLO</title>
+<meta name="d2r-build" content="v3752">
 <meta name="d2r-build-date" content="2026-10-16">
-<meta name="d2r-build-note" content="#76 phase 2 - set-piece name reconcile: a one-time journaled migration folds a set piece stored under two name-forms (bare plus slotted roster name) into ONE, fixing the inflated count and delete-leaves-in-mule at the source. Keeps the CANONICAL slotted name, removes the bare, ONLY when no filing is lost (keeper filed or leaving form loose); SPARES the reversed case because a dropped filing is data loss. Reuses the _seedCleanse load trigger; stamp d2r_setPieceReconcile; undo vaultRestoreLast. HEART: guarded by tests/v3751_set_piece_name_reconcile.spec.ts (RED-first - fold, spare-no-data-loss, no-op); CDP-verified 3 cases on the real page. His call: reconcile the data once. GrokBot confirms on his board after.">
+<meta name="d2r-build-note" content="#76 phase 3 - folds a set piece stored under two name-forms (bare + slotted) into ONE canonical name, carrying the copy count by MAX (never clamped, summed or reduced - he may own 2+, a stashed spare is invisible to the console, so the true count is his via the multi-keep recount control). The two re-read copy-bumps (processFile + _vpCopySeen) now skip a presence set piece so it stops auto-inflating; genuine multiples ride the keep-target. Apostrophe-robust canon (_spNorm). .d2s import stays a separate addon. HEART: tests/v3752_set_piece_copies_reconcile.spec.ts (RED-first); CDP-verified 4 cases on the real page. Konyo: do not cut to one; reconcile against real data, he recounts.">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -22244,7 +22244,7 @@ try {
      removal door (lane 'set-piece-reconcile' — dated, listed, undoable with vaultRestoreLast()). One-time per world
      (d2r_setPieceReconcile stamp). His call 2026-10-16 ("reconcile the data once"). UNKNOWN never acts.
      [[the-unjoined-end]] [[unknown-stays-unknown]] */
-  var _SPR_KEY = 'd2r_setPieceReconcile', _SPR_VER = 1;
+  var _SPR_KEY = 'd2r_setPieceReconcile', _SPR_VER = 2;   /* v3752 #76 — bumped 1->2 so the collapse re-runs on a board v3751 already stamped (v3751 folded names but left d2r_copies inflated) */
   window._setPieceReconcile = function(opts){
     opts = opts || {};
     var done = _bfJson(_SPR_KEY, null);
@@ -22275,11 +22275,62 @@ try {
       catch (eR) { return { ran: false, why: 'the removal door threw (' + String(eR && eR.message || eR) + ') — nothing stamped; it asks again next load' }; }
     }
     var removed = (vr && vr.removed) || [];
-    var rc = { ver: _SPR_VER, ts: Date.now(), at: _iso(Date.now()), world: _hereWorld(), pairs: pairs, removed: removed, spared: spared, batchTs: (vr && vr.ts) || null };
-    try { window.LSR.setItem(_SPR_KEY, JSON.stringify(rc)); } catch (eS) {}
+    /* #76 phase 3 (v3752) — FOLD THE COPY COUNT ACROSS NAME-FORMS, NEVER CLAMP. The name-fold removes the
+       bare form; vaultRemove does not touch d2r_copies, so carry the removed bare's count onto its canonical
+       keeper by MAX — the two forms are the SAME physical item under two names, so the combined count is the
+       LARGER of the two, never the sum, and never reduced. We do NOT clamp a set piece to 1: he may own 2+,
+       and NOTHING in the console's ledgers can see a STASHED spare separate from this count, so auto-deleting
+       one would delete a real helm. The true count is HIS to confirm (the recount control); this migration
+       only folds the duplicate NAME and lets the re-read guards stop future phantom inflation. REG-2243
+       discipline: build a CANDIDATE, write d2r_copies UNSWALLOWED, confirm it reached disk BEFORE stamping,
+       touch the live `copies` only after the write STICKS, and on a throw RESTORE the removed names (so a
+       reload re-runs the whole fold rather than stranding a half-applied removal under a done-stamp). The
+       MAX fold loses no count, so an undo via vaultRestoreLast (names) needs no copy restore; priors ride in
+       the receipt regardless. [[unknown-stays-unknown]] [[manual-tally-is-witness]] */
+    var copiesFolded = [], copiesPrior = {}, copiesStuck = true;
+    try {
+      if (typeof copies !== 'undefined' && copies && window.LSR && window.LSR.setItem){
+        var _nextC = {}, _chg = false;
+        Object.keys(copies).forEach(function(k){ _nextC[k] = copies[k]; });
+        pairs.forEach(function(p){
+          var bare = p.remove, keep = p.keep;
+          if (removed.indexOf(bare) < 0) return;                 /* only the bares vaultRemove actually took */
+          var bc = (_nextC[bare] > 0) ? _nextC[bare] : 1;
+          var kc = (_nextC[keep] > 0) ? _nextC[keep] : 1;
+          var merged = (bc > kc) ? bc : kc;
+          if (_nextC[bare] != null){ copiesPrior[bare] = _nextC[bare]; delete _nextC[bare]; _chg = true; }
+          if (merged > 1 && _nextC[keep] !== merged){ copiesPrior[keep] = (_nextC[keep] != null ? _nextC[keep] : null); _nextC[keep] = merged; _chg = true; }
+          copiesFolded.push(bare);
+        });
+        if (_chg){
+          try { window.LSR.setItem('d2r_copies', JSON.stringify(_nextC)); }
+          catch (eCW) {
+            copiesStuck = false;                                  /* the fold did not reach disk and vaultRemove already dropped the names — */
+            removed.forEach(function(L){ try { owned.add(L); } catch (e2) {} });   /* put them back so a healthy reload re-runs the whole fold */
+            try { window.LSR.setItem('d2r_owned', JSON.stringify(Array.from(owned))); } catch (e3) {}
+          }
+          if (copiesStuck){                                       /* write stuck — reconcile the live copies object to exactly what landed */
+            pairs.forEach(function(p){
+              if (removed.indexOf(p.remove) < 0) return;
+              if (copies[p.remove] != null) delete copies[p.remove];
+              if (_nextC[p.keep] != null) copies[p.keep] = _nextC[p.keep]; else if (copies[p.keep] != null && copiesPrior[p.keep] !== undefined) delete copies[p.keep];
+            });
+          }
+        }
+      }
+    } catch (eFold) { copiesStuck = false; }
+    var rc = { ver: _SPR_VER, ts: Date.now(), at: _iso(Date.now()), world: _hereWorld(), pairs: pairs, removed: removed, spared: spared, copiesFolded: copiesFolded, copiesPrior: copiesPrior, batchTs: (vr && vr.ts) || null };
+    /* stamp ONLY after the copies fold CONFIRMED on disk — a failed write restored the names above and must
+       not earn a done-stamp (REG-2243 shape). No clamp means nothing is destroyed even if this never stamps. */
+    if (copiesStuck){
+      try { window.LSR.setItem(_SPR_KEY, JSON.stringify(rc)); } catch (eS) {}
+    }
     try { console.info('[vault] set-piece reconcile: folded ' + removed.length + ' duplicate name-form(s)'
-                       + (spared.length ? (', spared ' + spared.length) : '') + ' (journaled — undo: vaultRestoreLast())'); } catch (eC) {}
-    return { ran: true, folded: removed, spared: spared, receipt: rc };
+                       + (copiesFolded.length ? (', merged copy-counts by max') : '')
+                       + (spared.length ? (', spared ' + spared.length) : '')
+                       + (copiesStuck ? '' : ' — copies write FAILED, names restored, left unstamped to retry')
+                       + ' (journaled — undo: vaultRestoreLast(); the count is yours to recount)'); } catch (eC) {}
+    return { ran: true, folded: removed, spared: spared, copiesFolded: copiesFolded, stamped: copiesStuck, receipt: rc };
   };
 
   /* ══ THE CARRIED STRIP'S MARKUP — one builder, so a law can render it without a page ══════════════════════════
@@ -41151,6 +41202,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      one row. READ-ONLY: no store is written, his data is untouched. Scoped to names whose slot-stripped base is
      a KNOWN set piece, so a unique/rune is never folded; also folds the wrong-slot forms _ALIAS hardcodes. */
   var _VF_SP_CANON = null;
+  /* #76 (v3752) — apostrophe-robust set-piece norm. _etherNorm strips the trailing slot/base "(...)" and
+     lowercases, but does NOT fold a curly apostrophe (U+2019) to a straight one, so an OCR read of
+     "Natalya’s Totem" never keyed the straight-apostrophe roster form and its bare/slotted forms could not
+     share a key (so the v3751 fold could miss it). Fold every apostrophe glyph to a straight ' so the canon
+     matches however the name was typed or read. SCOPED to the set-piece canon on purpose — _etherNorm and
+     _norm are left untouched (narrow blast radius). [[d2r-curly-apostrophe-class]] */
+  function _spNorm(s){
+    var b = (typeof _etherNorm === 'function') ? _etherNorm(s) : String(s == null ? '' : s).toLowerCase();
+    return b.replace(/[‘’ʼ＇′´‛]/g, "'");
+  }
   function _vfSpCanonMap(){
     if (_VF_SP_CANON) return _VF_SP_CANON;
     var m = {};
@@ -41158,7 +41219,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var sets = (typeof __allSets === 'function') ? __allSets() : [];
       sets.forEach(function(s){
         ((s && s.pieces) || []).forEach(function(p){
-          var base = (typeof _etherNorm === 'function') ? _etherNorm(p) : String(p||'').toLowerCase();
+          var base = _spNorm(p);
           if (base && !(base in m)) m[base] = p;   // slot-stripped base -> canonical slotted form
         });
       });
@@ -41167,10 +41228,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   function _vfCanon(name){
     try {
-      var base = (typeof _etherNorm === 'function') ? _etherNorm(name) : String(name||'').toLowerCase();
-      return _vfSpCanonMap()[base] || name;
+      return _vfSpCanonMap()[_spNorm(name)] || name;
     } catch (eC) { return name; }
   }
+  /* #76 (v3752) — is this name a KNOWN set piece, in ANY form (bare or slotted, curly or straight
+     apostrophe)? The canon map's KEYS are the set-piece bases, so membership is the set-piece test. Used by
+     the intake copy-bump guard and the reconcile's copies collapse so a presence-only set piece (owned
+     0-or-1) is never treated as a spare-able quantity item. A unique / rune / base is not in the map. */
+  function _vfIsSetPiece(name){
+    try { return !!_vfSpCanonMap()[_spNorm(name)]; } catch (eI) { return false; }
+  }
+  try { window._vfIsSetPiece = _vfIsSetPiece; } catch(e){}
   try { window._vfCanon = _vfCanon; } catch(e){}   /* #76 — exposed so the dedup guard can assert canonicalization without the DOM */
   window._vaultFindMatches = _vaultFindMatches;
   window.vaultFind = function(q){
@@ -45668,7 +45736,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (routed && routed.magicHome && beforeMagic)
       routed = { ok: true, filed: false, mode: 'already', mule: routed.mule, why: nm + ' is already filed' };
     if (routed && (routed.filed || routed.mode === 'already') && token){
-      if (routed.mode === 'already' && assign[nm] != null && _vpCopySeen[nm] !== token){
+      if (routed.mode === 'already' && assign[nm] != null && _vpCopySeen[nm] !== token && !(window._vfIsSetPiece && window._vfIsSetPiece(nm))){
+        /* v3752 #76 — a presence-only SET PIECE (owned 0-or-1) re-filed under a new session token is the
+           SAME helm, not a 2nd copy: never climb its count here (the other re-read inflator is at the
+           processFile path). _vpCopySeen is still marked below so the session is recorded; only the bump
+           is skipped. Genuine multiples a player keeps come via a hand copy-add, not a re-file. */
         if (typeof copies !== 'undefined' && copies){
           var prevN = (typeof copyCount === 'function') ? (copyCount(nm) || 1) : ((copies[nm] > 0) ? copies[nm] : 1);
           prevN = prevN | 0;
@@ -50961,6 +51033,12 @@ function renderJournal(){
           }
         } catch(e){}
         (data.items || []).forEach(function(n){
+          /* #76 (v3752) — CANONICALIZE a set piece to its slotted roster form at INTAKE, so OCR name-form
+             variance (bare "Natalya's Totem" vs slotted "...(helm)", or a curly vs straight apostrophe) can
+             never split one physical helm into two owned keys that each accrue copies. _vfCanon only rewrites
+             a KNOWN set piece (the canon map IS the set-piece scope); a unique / rune / base returns itself.
+             Paired with the presence-only copy-bump guard below so the surviving key cannot climb on re-reads. */
+          try { if (window._vfCanon) { var _cn76 = window._vfCanon(n); if (_cn76 && _cn76 !== n) n = _cn76; } } catch (e76) {}
           if (typeof _ensureSocketBaseEntry === 'function') _ensureSocketBaseEntry(n);   // v379 — per-base socketed identity (art + exact max sockets)
           // v394 — LOW set pieces (Sigon's/Sander's/etc.): mark the SET's grail aggregate ✓ for the codex/
           // tracker, then THROW OUT the physical piece — don't keep or mule it. Konyo: reverse low-set muling.
@@ -51030,7 +51108,7 @@ function renderJournal(){
               // reset, vault empty at start) the same item in two screenshots is the SAME item photographed
               // twice — a DUPLICATE SHOT, not a 2nd copy. Bumping it to ×2 there is a phantom over-count
               // (Konyo: "when we reset how can it tell me owned for Chance Guards?"). Collapse to one instead.
-              if (_tgt <= 1 && _ownedAtStart.has(n)) copies[n] = _cur + 1;   // v2265 — this item, not the pool
+              if (_tgt <= 1 && _ownedAtStart.has(n) && !(window._vfIsSetPiece && window._vfIsSetPiece(n))) copies[n] = _cur + 1;   // v2265 — this item, not the pool. v3752 #76 — a presence-only SET PIECE (owned 0-or-1, like a grail unique) re-read is the SAME helm photographed again, not a 2nd copy: never climb its count on a re-read, or the mule draws phantom extra tiles (his Natalya 2→4). Genuine multiples a player keeps still come via a hand copy-add, not this re-read path.
               if (dupes.indexOf(n) < 0) dupes.push(n);
               fRec.own.push(n);
             }
@@ -66663,7 +66741,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3751', name:'v3751 - set piece name reconcile', date:'2026-10-16', note:'#76 phase 2 - set-piece name reconcile: a one-time journaled migration folds a set piece stored under two name-forms (bare plus slotted roster name) into ONE, fixing the inflated count and delete-leaves-in-mule at the source. Keeps the CANONICAL slotted name, removes the bare, ONLY when no filing is lost (keeper filed or leaving form loose); SPARES the reversed case because a dropped filing is data loss. Reuses the _seedCleanse load trigger; stamp d2r_setPieceReconcile; undo vaultRestoreLast. HEART: guarded by tests/v3751_set_piece_name_reconcile.spec.ts (RED-first - fold, spare-no-data-loss, no-op); CDP-verified 3 cases on the real page. His call: reconcile the data once. GrokBot confirms on his board after.' };
+  window.D2R_BUILD = { id:'v3752', name:'v3752 - set-piece reconcile: name-fold, never clamp', date:'2026-10-16', note:'#76 phase 3 - folds a set piece stored under two name-forms (bare + slotted) into ONE canonical name, carrying the copy count by MAX (never clamped, summed or reduced - he may own 2+, a stashed spare is invisible to the console, so the true count is his via the multi-keep recount control). The two re-read copy-bumps (processFile + _vpCopySeen) now skip a presence set piece so it stops auto-inflating; genuine multiples ride the keep-target. Apostrophe-robust canon (_spNorm). .d2s import stays a separate addon. HEART: tests/v3752_set_piece_copies_reconcile.spec.ts (RED-first); CDP-verified 4 cases on the real page. Konyo: do not cut to one; reconcile against real data, he recounts.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
