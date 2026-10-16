@@ -770,7 +770,7 @@ class TheWindowAroundThePicker(unittest.TestCase):
           out.after = cnt();
           var g = /<div class="vd-goldbox"( title="[^"]*")?>([^<]*)<\\/div>/.exec(box.innerHTML);
           out.gold = g[2]; out.goldTitle = g[1] || '';
-          out.items = /<span class="mp-box-k">Items<\\/span><span class="mp-box-v">(\\d+)<\\/span>/.exec(box.innerHTML)[1];
+          out.items = /<span class="mp-box-k">Items<\\/span><span class="mp-box-v"(?: title="[^"]*")?>(\\d+)<\\/span>/.exec(box.innerHTML)[1];
           out.load = window._muleLoad(%s, window._mpWornFor('uni-armor'));
           out.load = { phys: out.load.phys, worn: out.load.worn, sized: out.load.sized.length };
           out.renders = renders;""" % json.dumps(sorted(LOCKER)))

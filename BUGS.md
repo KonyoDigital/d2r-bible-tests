@@ -7,6 +7,36 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2269 - FOUR MULE-WINDOW GATES PINNED THE PRE-#76 "ITEMS = PHYSICAL" CONTRACT (test-only; #76, review-after-ship on v3755/v3756)
+
+v3755 relabelled the mule window: the locker shows distinct NAMES as "Items" (= the shelf card's count) with
+physical COPIES as a separate figure, "On Mule"/"Items on Mule" became "Copies on Mule", and the Items badge gained
+a `title="N distinct items · M physical copies"` tooltip. bible.html is CORRECT and shipped (GrokBot validated "30
+items · 49 copies" on his board); four `tv/` gates encoded the SUPERSEDED contract and went RED on CI after v3755/
+v3756 (agent-tests run 38960482027). All four are TEST-ONLY corrections — bible.html is UNCHANGED, so this is a
+`test:` commit, not a vNNNN.
+
+- `test_the_mule_window_equips_and_says_its_source`: its regex anchored on `mp-box-v">` and broke when the badge
+  gained the `title=` attr. Fixed: tolerate the optional attr. The value (Items == 10 distinct == len(LOCKER)) is
+  unchanged — LOCKER has no duplicate copies, so names == physical there.
+- `test_the_mule_inventory_takes_items_like_the_doll`: `itemsBox` read the badge as PHYSICAL (2); under v3755 it
+  reads distinct NAMES. The two grand charms are GENERIC, placed by hand into inventory (not in `assign`; the test's
+  own line asserts `home` is None), so `_muleNamesFor` — the shelf card's own list — is 0: card and locker AGREE at
+  "0 named items · 2 copies · 2 tiles", which is the #76 consistency. Added a `copiesBox` reader; assertions now pin
+  `(tiles, named, copies)` = (2,0,2)/(1,0,1)/(2,0,2) — strictly stronger than the old single number.
+- `test_the_mule_window_fits_at_every_width` (real-Chrome geometry): the Summary panel (mp-show) grew ~2.5px past
+  its 150u floor to fit the new "Copies" row — MEASURED deterministic (287.2 at 1280, both runs; `.mp-kv` not
+  scrolling; right column rendered and LOOKED clean), nudging mp-stats down. Was NOT font-timing flake. Pinned
+  mp-stats flush below the Summary's REAL bottom + the 6u gap (not the floored 312u), and added a check that the
+  Summary sits at its spec top/left and never shrinks below its floor — more coverage than before.
+- `test_the_mule_window_places_by_hand`: `counts()` regexes updated "On Mule"/"Items on Mule" → "Copies on Mule";
+  the "one count of a mule, same everywhere" law (summary == calc == gold) is intact.
+
+GUARD: all four gates green (node x3 + the Chrome geometry methods at 1280x800, 1280x695, 2000x1300); each file's
+RED_PROOFs re-proven RED by `heart2 --prove` with the strengthened assertions (the _physN sabotages are now caught
+by the new `copiesBox`/`physA` reads). Swept `tv/` + `tests/` for every reader of the moved labels — exactly these
+four, no hidden siblings.
+
 ### REG-2268 - ORPHAN CORROBORATOR DROPPED WHEN CARRIED IS UNKNOWN (#76, review-after-ship on v3755, v3756)
 
 The #231 cross-family eye on v3755 found a real Medium defect in INC-1 (v3754): in `_vaultPopHtml`, the

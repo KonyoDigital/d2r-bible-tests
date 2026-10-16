@@ -1014,9 +1014,24 @@ class TheWindowFitsAtEveryWidth(unittest.TestCase):
             want = [v * k for v in _ours(c)]
             if c == "mp-stats":
                 # #174 v-B2 — STATS ends at the window's bottom (its list scrolls inside): min(726k, the room below it)
-                want[3] = min(want[3], m["vh"] - 30 - 312 * k)
+                # #76 v3755 — the Summary (mp-show) now lists Items AND physical Copies; that 5th row grows it past its
+                # 150u floor to fit its content (measured 139.4 vs the 136.9 floor at 1280, kv not scrolling), nudging
+                # STATS ~2.5px down. Pin STATS flush below the Summary's REAL bottom + the 6u gap, not the floored 312u;
+                # its max-height stays the CSS 100vh-30-312u, so it ends ~2.5px lower but well inside the glass. The
+                # Summary itself is pinned just below (spec top/left, at-least its floor). Law, not a number.
+                sh = m["panels"]["mp-show"]
+                want[1] = sh[1] + sh[3] + 6 * k
+                want[3] = min(726 * k, m["vh"] - 30 - 312 * k)
             if not _near(m["panels"][c], want, 1.0):
                 bad.append("%s %s, measured %s" % (c, [round(v, 1) for v in want], [round(v, 1) for v in m["panels"][c]]))
+        # #76 v3755 — the Summary (mp-show) sits at its spec top/left and never shrinks below its 150u floor; it is
+        # allowed to GROW to fit the Items + physical Copies rows (that growth is what moves STATS down, pinned above).
+        sh, ws = m["panels"]["mp-show"], _ours("mp-show")
+        if (not sh or abs(sh[0] - ws[0] * k) > 1.0 or abs(sh[1] - ws[1] * k) > 1.0
+                or abs(sh[2] - ws[2] * k) > 1.0 or sh[3] < ws[3] * k - 1.0):
+            bad.append("mp-show [%s, %s, %s, >=%s], measured %s"
+                       % (round(ws[0] * k, 1), round(ws[1] * k, 1), round(ws[2] * k, 1), round(ws[3] * k, 1),
+                          [round(v, 1) for v in sh] if sh else None))
         # #174 R1 — with the doll in front the side stash is EQUIPMENT's rect times the unit (their 400 kept at 1280)
         m2 = _measure()["1280x800"]
         want = [v * k for v in _ours("mp-eq")]

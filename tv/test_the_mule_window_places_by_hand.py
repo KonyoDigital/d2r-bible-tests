@@ -150,7 +150,7 @@ function faults(ld){
 }
 function load(){ return window._muleLoad(Object.keys(assign).filter(function(n){ return assign[n] === 'uni-armor'; }).sort(), window._mpWornFor('uni-armor'), 'uni-armor'); }
 function counts(){
-  var h = box.innerHTML, s = /<span>On Mule (\d+)<\/span><span>(\d+)<\/span>/.exec(h), c = /<td>Items on Mule \d+<\/td><td>(\d+)<\/td>/.exec(h);
+  var h = box.innerHTML, s = /<span>Copies on Mule (\d+)<\/span><span>(\d+)<\/span>/.exec(h), c = /<td>Copies on Mule \d+<\/td><td>(\d+)<\/td>/.exec(h);
   var g = /<div class="vd-goldbox"(?: title="([^"]*)")?>[^0-9]*(\d+) in stash · (\d+) in inventory · (\d+) (worn|on this mule)<\/div>/.exec(h);
   var gt = g ? (g[5] === 'worn' ? (+g[2] + +g[3] + +g[4]) : +g[4]) : null;
   return { summary: s ? +s[2] : null, calc: c ? +c[1] : null, gold: gt, goldParts: g ? [+g[2], +g[3], +g[4], g[5]] : null };

@@ -99,7 +99,8 @@ function place(x, y, id){ var ok = pickAt(x, y, id); if (ok && st().pick && st()
 function artOf(key){ var h = invHtml(), i = h.indexOf('data-dbkey="' + key + '"'); if (i < 0) return null;
   var m = /class="d2art-wrap[^"]*" role="img" aria-label="([^"]*)"/.exec(h.slice(i)); return m ? unesc(m[1]) : null; }
 function baseCodes(){ var re = /data-base="([^"]+)"/g, m, o = [], h = modalHtml() || ''; while ((m = re.exec(h))) o.push(unesc(m[1])); return o; }
-function itemsBox(){ var m = /mp-box-k">Items<\/span><span class="mp-box-v">(\d+)/.exec(box.innerHTML); return m ? +m[1] : null; }
+function itemsBox(){ var m = /mp-box-k">Items<\/span><span class="mp-box-v"(?: title="[^"]*")?>(\d+)/.exec(box.innerHTML); return m ? +m[1] : null; }
+function copiesBox(){ var m = /<span>Copies<\/span><span>(\d+)<\/span>/.exec(box.innerHTML); return m ? +m[1] : null; }
 function allTiles(name){
   var ld = window._muleLoad(window._muleNamesFor('uni-armor'), window._mpWornFor('uni-armor', eq()), 'uni-armor'), n = 0;
   ld.mules.forEach(function(m){ m.stash.concat(m.inv).forEach(function(p){ if (p.n === name) n++; });
@@ -470,27 +471,31 @@ class TheDoorFilesItOnceAndItIsOneItem(unittest.TestCase):
           door();
           window.openMuleCard('uni-armor');
           out.a = pickAt(0, 0, 'b:cm3'); out.a2 = pickAt(1, 0, 'b:cm3');
-          out.tilesA = dbTiles().length; out.itemsA = itemsBox(); out.emptyA = /empty locker/.test(box.innerHTML);
+          out.tilesA = dbTiles().length; out.itemsA = itemsBox(); out.physA = copiesBox(); out.emptyA = /empty locker/.test(box.innerHTML);
           var invA = (eq()['uni-armor'] || {}).inv || {};
           out.keysA = Object.keys(invA); out.copiesA = out.keysA.map(function(k){ return invA[k].copy || null; });
           window.openMuleCard('uni-weap'); out.b = pickAt(0, 0, 'b:cm3');
-          out.tilesB = dbTiles().length; out.itemsB = itemsBox();
+          out.tilesB = dbTiles().length; out.itemsB = itemsBox(); out.physB = copiesBox();
           window.openMuleCard('uni-armor');
-          out.tilesA2 = dbTiles().length; out.itemsA2 = itemsBox(); out.emptyA2 = /empty locker/.test(box.innerHTML);
+          out.tilesA2 = dbTiles().length; out.itemsA2 = itemsBox(); out.physA2 = copiesBox(); out.emptyA2 = /empty locker/.test(box.innerHTML);
           out.home = assign['Grand Charm'] || null;
           out.filed = FILED.map(function(f){ return f.n; });""")
         self.assertIs(out["a"], True, "the first grand charm was not placed")
         self.assertIs(out["a2"], True, "a second identical grand charm was not placed: the two counted as one")
         self.assertIs(out["b"], True, "the same charm was not placed on a second mule")
-        self.assertEqual((out["tilesA"], out["itemsA"]), (2, 2),
-                         "two grand charms were drawn as %s tile(s) and Items said %s" % (out["tilesA"], out["itemsA"]))
+        # #76 v3755 — generic grand charms carry no grail NAME (not filed to assign; home is None below), so the
+        # headline "Items" (distinct NAMED items = the shelf card's _muleNamesFor count) is 0, while the grid still
+        # draws each physical charm as its own tile (2) and physical "Copies" reads 2. Card and locker agree at 0.
+        self.assertEqual((out["tilesA"], out["itemsA"], out["physA"]), (2, 0, 2),
+                         "two grand charms: %s tile(s), Items(named) %s, Copies(physical) %s"
+                         % (out["tilesA"], out["itemsA"], out["physA"]))
         self.assertEqual(len(set(out["keysA"])), 2, "the two copies do not have their own store keys: %r" % out["keysA"])
         self.assertEqual(sorted(out["copiesA"]), sorted(out["keysA"]),
                          "a copy's identity is not its own key: %r" % out["copiesA"])
         self.assertFalse(out["emptyA"], "two placed charms read as an empty locker")
-        self.assertEqual((out["tilesB"], out["itemsB"]), (1, 1),
+        self.assertEqual((out["tilesB"], out["itemsB"], out["physB"]), (1, 0, 1),
                          "the second mule did not count its own copy")
-        self.assertEqual((out["tilesA2"], out["itemsA2"]), (2, 2),
+        self.assertEqual((out["tilesA2"], out["itemsA2"], out["physA2"]), (2, 0, 2),
                          "reopening the first mule lost a copy or stopped counting it")
         self.assertFalse(out["emptyA2"], "the first mule reads empty while its charms are still there")
         self.assertIsNone(out["home"], "a generic charm was filed by name, so the copies are one item: %r" % out["home"])
