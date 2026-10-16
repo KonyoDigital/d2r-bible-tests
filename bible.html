@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3753 · TV DIABLO</title>
-<meta name="d2r-build" content="v3753">
+  <title>Konyo's D2R Farming Bible v3754 · TV DIABLO</title>
+<meta name="d2r-build" content="v3754">
 <meta name="d2r-build-date" content="2026-10-16">
-<meta name="d2r-build-note" content="#76 phase 4 - v3752 folded set-piece name-forms (bare+slotted) into ONE by MAX copies (never clamps), but a cross-family review found the RECOUNT control keyed the BARE grail name while the vault keys SLOTTED, and the persist/undo was unsafe. v3753: the recount UI (vaultMultiKeepAdd + steppers + renderMultiKeep) canonicalizes to the slotted ledger key, lets an inflated count walk DOWN, and surfaces an owned inflated set piece with no target; the reconcile re-persists d2r_owned UNSWALLOWED before stamping (REG-2243), sweeps a dead bare copies key from a prior split (never raising the keeper), and an undo re-arms the one-time stamp. .d2s import stays a separate addon. HEART: tests/v3753_set_piece_recount_and_sweep.spec.ts + v3752_set_piece_copies_reconcile.spec.ts (RED-first); CDP-verified recount walks 3->2 + dead-key sweep on the real page. Konyo: do not cut to one; reconcile against real data, he recounts.">
+<meta name="d2r-build-note" content="#76 INC-1 — the vault header JOINS the one-record corroborator: _vaultRecordsHeader (the v3747/v3748 view, unconsumed until now) resolves each owned name true home, and the header surfaces its orphan count READ-ONLY — a name the subtraction counts as filed but that resolves to no real mule = symptom a, unsorted and the mules disagree; UNKNOWN when the mule map would not read, nothing when they agree. No store write, no re-route. HEART: the orphan line IS the corroborator surfaced (_vaultRecords resolves each name true home; a no-home name is the disagreement), watched by tv/test_v3754_header_surfaces_orphans.py (green + RED-proven) and the records-model parity spec tests/v3747_one_record_header_parity.spec.ts; read-only, no new store or lane to add a watcher for. Positive firing verified by GrokBot on his real board (retro).">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -22437,6 +22437,12 @@ try {
     if (p.carried) bits.push(n(p.carried) + ' carried');
     var sp = +p.sp || 0, lo = +p.loose || 0;
     bits.push(n(lo) + ' still loose' + (lo ? ' <i>(' + sp + ' set piece' + (sp === 1 ? '' : 's') + ' \u00b7 ' + (lo - sp) + ' other)</i>' : ''));
+    /* #76 INC-1 (v3754) \u2014 ONE-RECORD CORROBORATOR, read-only. _vaultRecords resolves each owned name's TRUE home; a name
+       the subtraction above counts as "filed" but that resolves to NO real mule is an ORPHAN = his "unsorted dock and
+       mules disagree" (symptom a), surfaced here. No store written, no re-route. orphans===null = the dock/mule map would
+       not read -> UNKNOWN, never a false 0. [[the-unjoined-end]] [[unknown-stays-unknown]] [[heart-first]] */
+    if (p.orphans === null) bits.push('mule/unsorted agreement <b>UNKNOWN</b>');
+    else if (p.orphans > 0) bits.push('\u26a0 ' + n(p.orphans) + ' filed to a mule the board can\u2019t find <i>(unsorted and the mules disagree)</i>');
     return bits.join(sep);
   };
   /* at load, once — never in a harness without a page */
@@ -42443,9 +42449,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         /* a cross-block call: the builder lives in the ⟦OWNED PROV⟧ door, and its absence is said, never a blank line */
         /* L-3 — the mule map that would not read (load() recorded it) makes filed / not filed UNKNOWN, never 0 / N */
         var _asgUnread = (typeof window._muleStoreUnread === 'function') ? window._muleStoreUnread(AK) : null;
+        /* #76 INC-1 (v3754) — JOIN the one-record corroborator: _vaultRecordsHeader resolves each name's TRUE home and
+           returns orphans (a count, or null=UNKNOWN when the dock/mule map would not read). undefined if the model could
+           not build, so nothing is claimed. This is the first consumer of the header built in v3747/v3748. [[the-unjoined-end]] */
+        var _rh76 = null; try { _rh76 = (typeof window._vaultRecordsHeader === 'function') ? window._vaultRecordsHeader() : null; } catch(e){ _rh76 = null; }
         _pEl.innerHTML = (typeof window._vaultPopHtml === 'function')
           ? window._vaultPopHtml({ owned: poolAll.length, shared: _shared, filed: _asgUnread ? null : _filed,
-                                   carried: _carUnknown ? null : _carried.length, loose: _asgUnread ? null : unsorted.length, sp: _sp })
+                                   carried: _carUnknown ? null : _carried.length, loose: _asgUnread ? null : unsorted.length, sp: _sp,
+                                   orphans: (_rh76 ? _rh76.orphans : undefined) })
           : 'the population line is UNKNOWN — its builder (window._vaultPopHtml) is not on this page';
       }
     } catch(e){}
@@ -66787,7 +66798,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3753', name:'v3753 - set-piece recount wired + persist/undo hardened', date:'2026-10-16', note:'#76 phase 4 - v3752 folded set-piece name-forms (bare+slotted) into ONE by MAX copies (never clamps), but a cross-family review found the RECOUNT control keyed the BARE grail name while the vault keys SLOTTED, and the persist/undo was unsafe. v3753: the recount UI (vaultMultiKeepAdd + steppers + renderMultiKeep) canonicalizes to the slotted ledger key, lets an inflated count walk DOWN, and surfaces an owned inflated set piece with no target; the reconcile re-persists d2r_owned UNSWALLOWED before stamping (REG-2243), sweeps a dead bare copies key from a prior split (never raising the keeper), and an undo re-arms the one-time stamp. .d2s import stays a separate addon. HEART: tests/v3753_set_piece_recount_and_sweep.spec.ts + v3752_set_piece_copies_reconcile.spec.ts (RED-first); CDP-verified recount walks 3->2 + dead-key sweep on the real page. Konyo: do not cut to one; reconcile against real data, he recounts.' };
+  window.D2R_BUILD = { id:'v3754', name:'v3754 - 76-inc1-header-orphan-corroborator', date:'2026-10-16', note:'#76 INC-1 — the vault header JOINS the one-record corroborator: _vaultRecordsHeader (the v3747/v3748 view, unconsumed until now) resolves each owned name true home, and the header surfaces its orphan count READ-ONLY — a name the subtraction counts as filed but that resolves to no real mule = symptom a, unsorted and the mules disagree; UNKNOWN when the mule map would not read, nothing when they agree. No store write, no re-route. HEART: the orphan line IS the corroborator surfaced (_vaultRecords resolves each name true home; a no-home name is the disagreement), watched by tv/test_v3754_header_surfaces_orphans.py (green + RED-proven) and the records-model parity spec tests/v3747_one_record_header_parity.spec.ts; read-only, no new store or lane to add a watcher for. Positive firing verified by GrokBot on his real board (retro).' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

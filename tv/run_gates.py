@@ -9669,6 +9669,13 @@ GATES = [
              "the old d2r_vaultHand rows come home once and the key goes only when every row landed. "
              "The vault planner search opens the character-builder picker and files a pick only when the reel route names a mule.")
          ),
+    Gate("test_v3754_header_surfaces_orphans", [sys.executable,
+         os.path.join(HERE, "test_v3754_header_surfaces_orphans.py")], 60,
+         needs_app=False,
+         why=("#76 INC-1 / v3754 - the vault header surfaces the one-record corroborator's orphan count (symptom a, "
+             "'unsorted and the mules disagree') read-only: a number when real, UNKNOWN when the mule map would not read, "
+             "nothing when they agree. First consumer of _vaultRecordsHeader (v3747/v3748, REG-2257/2258).")
+         ),
     Gate("test_the_vault_proposes_a_home_and_does_not_move", [sys.executable,
          os.path.join(HERE, "test_the_vault_proposes_a_home_and_does_not_move.py")], 90,
          needs_app=False,

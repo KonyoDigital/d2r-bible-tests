@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3753",
+  "ver": "v3754",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3753: #76 phase 4 - v3752 folded set-piece name-forms (bare+slotted) into ONE by MAX copies (never clamps), but a cross-family review found the RECOUNT control keyed the BARE grail name while the vault keys SLOTTED, and the persist/undo was unsafe. v3753: the recount UI (vaultMultiKeepAdd + steppers + renderMultiKeep) canonicalizes to the slotted ledger key, lets an inflated count walk DOWN, and surfaces an owned inflated set piece with no target; the reconcile re-persists d2r_owned UNSWALLOWED before stamping (REG-2243), sweeps a dead bare copies key from a prior split (never raising the keeper), and an undo re-arms the one-time stamp. .d2s import stays a separate addon. HEART: tests/v3753_set_piece_recount_and_sweep.spec.ts + v3752_set_piece_copies_reconcile.spec.ts (RED-first); CDP-verified recount walks 3->2 + dead-key sweep on the real page. Konyo: do not cut to one; reconcile against real data, he recounts.",
+  "note": "v3754: #76 INC-1 — the vault header JOINS the one-record corroborator: _vaultRecordsHeader (the v3747/v3748 view, unconsumed until now) resolves each owned name true home, and the header surfaces its orphan count READ-ONLY — a name the subtraction counts as filed but that resolves to no real mule = symptom a, unsorted and the mules disagree; UNKNOWN when the mule map would not read, nothing when they agree. No store write, no re-route. HEART: the orphan line IS the corroborator surfaced (_vaultRecords resolves each name true home; a no-home name is the disagreement), watched by tv/test_v3754_header_surfaces_orphans.py (green + RED-proven) and the records-model parity spec tests/v3747_one_record_header_parity.spec.ts; read-only, no new store or lane to add a watcher for. Positive firing verified by GrokBot on his real board (retro).",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
