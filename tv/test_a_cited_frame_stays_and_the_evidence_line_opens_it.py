@@ -82,9 +82,19 @@ var btn = window._vaultEvidenceBtn('Shako');
 var rebuilt = window._vaultOpenEvidence('Rebuilt', 0);
 var orphan = window._vaultOpenEvidence('NoSession', 0);
 var srcOf = window._vaultLookSrc({ frame: 'f_1.jpg', session: 'reel_s_9#3' });
+var srcs = {
+  bareMs: window._vaultLookSrc({ frame: '1788820373017', session: 's_1786385768689_67392' }),
+  bareMsReel: window._vaultLookSrc({ frame: '1788820373017', session: 'reel_s_1786385768689_67392' }),
+  fPrefixed: window._vaultLookSrc({ frame: 'f_1788820373017.jpg', session: 's_9_9' }),
+  filename: window._vaultLookSrc({ frame: 'cited.jpg', session: 's0' }),
+  reelRel: window._vaultLookSrc({ frame: 'reel_s_9_9/f_777' }),
+  reelRelJpg: window._vaultLookSrc({ frame: 'reel_s_9_9/f_777.jpg', session: null }),
+  noReel: window._vaultLookSrc({ frame: '1788820373017', session: null }),
+  noFrame: window._vaultLookSrc({ frame: '', session: 's_9_9' })
+};
 process.stdout.write(JSON.stringify({
   line: line, first: first, second: second, missing: missing, released: released,
-  opened: OPENED, btn: btn, rebuilt: rebuilt, orphan: orphan, srcOf: srcOf,
+  opened: OPENED, btn: btn, rebuilt: rebuilt, orphan: orphan, srcOf: srcOf, srcs: srcs,
   lines: { normal: window._vaultEvidenceLine('Normal'), receipt: window._vaultEvidenceLine('Receipt') }
 }));
 """
@@ -254,6 +264,22 @@ class ACitedFrameStaysAndTheLineOpensIt(unittest.TestCase):
         self.assertEqual(b"JPEGBYTES", h.wfile.getvalue())
 
     @unittest.skipIf(NODE is None, "node is absent — the evidence line was not driven")
+    def test_a_stored_filename_stays_bare_and_a_bare_millisecond_is_reel_footage(self):
+        """REG-2220 prefixed f_ onto every token that did not already start with it, so a
+        stored filename cited.jpg was opened as f_cited.jpg. A bare millisecond is reel
+        footage and lives as f_<ms>.jpg. A token that is already a filename is that file.
+        An already-prefixed name is not prefixed again, and a frame with no reel stays null."""
+        out = _drive()["srcs"]
+        self.assertEqual("tv/frames/hist/reel_s0/cited.jpg", out["filename"])
+        self.assertEqual("tv/frames/hist/reel_s_1786385768689_67392/f_1788820373017.jpg", out["bareMs"])
+        self.assertEqual("tv/frames/hist/reel_s_1786385768689_67392/f_1788820373017.jpg", out["bareMsReel"])
+        self.assertEqual("tv/frames/hist/reel_s_9_9/f_1788820373017.jpg", out["fPrefixed"])
+        self.assertEqual("tv/frames/hist/reel_s_9_9/f_777.jpg", out["reelRel"])
+        self.assertEqual("tv/frames/hist/reel_s_9_9/f_777.jpg", out["reelRelJpg"])
+        self.assertIsNone(out["noReel"])
+        self.assertIsNone(out["noFrame"])
+
+    @unittest.skipIf(NODE is None, "node is absent — the evidence line was not driven")
     def test_a_witnessed_filing_says_its_gate_and_that_its_tier_is_unknown(self):
         """#41 rank 10: the normal door's row carries looks and its gate, never a tier; its line read as if tiers did not
         apply. It now says the gate beside the looks and that the tier is UNKNOWN; a receipt keeps its own words."""
@@ -309,6 +335,13 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "    var s = sid.replace(/#\\d+$/, '').replace(/^reel_/, '');\n",
         "replace": "    var s = sid.replace(/^reel_/, '');\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2278 - every frame token is prefixed f_ again, so a stored filename no longer resolves",
+        "file": "bible.html",
+        "find": "    var fn = (/^\\d+$/.test(stem) ? ('f_' + stem) : stem) + '.jpg';\n",
+        "replace": "    var fn = ('f_' + stem) + '.jpg';\n",
         "matches": 1,
     },
     {

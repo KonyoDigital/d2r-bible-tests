@@ -684,6 +684,12 @@ else:
     # j3 used to click the on button on his live console. That click now lands on the
     # private page. A leaked pid file from an older hook is left alone: hunting it would
     # kill a background console that might be his supervisor.
+    # REG-2278 — pre-push always owns the console it drives. demoTarget adopts
+    # TV_DEMO_PORT when that port is not 17771 or 17772, so an ambient value would
+    # drive a listener this hook did not spawn. Both launches below inherit the
+    # cleared port and the owned flag.
+    unset TV_DEMO_PORT
+    export TV_DEMO_OWNED=1
     if curl -s -m 2 -o /dev/null http://127.0.0.1:17772/api/status; then
       echo "pre-push: [$(_pp_el)] his console is up on :17772 — left alone. The demos boot a private console."
       if gate_run "console-demos" "node tv/demo_console.mjs" 180 -- node "$REPO/tv/demo_console.mjs"; then

@@ -78,6 +78,23 @@ class TheDemoDrivesAPrivateConsole(unittest.TestCase):
                          "a refused or missing TV_DEMO_PORT does not boot a private console")
         self.assertIn("!HIS_PORTS.has(n)", code,
                       "an explicit port is used without asking whether it is his")
+        # REG-2278 — the explicit port is a hand run. Pre-push sets TV_DEMO_OWNED and must
+        # not be able to reach the unowned return. The old guard required !HIS_PORTS.has,
+        # which is exactly the ambient-listener path.
+        i = code.find("async function demoTarget()")
+        j = code.find("async function main()", i)
+        fn = code[i:j]
+        owned_at = fn.find("process.env.TV_DEMO_OWNED")
+        port_at = fn.find("!HIS_PORTS.has(n)")
+        self.assertGreaterEqual(owned_at, 0,
+                                "pre-push cannot force a console this process spawned, so an "
+                                "inherited TV_DEMO_PORT is adopted")
+        self.assertLess(owned_at, port_at,
+                        "the inherited port is considered before the pre-push owned flag")
+        unowned = fn.find("owned: false")
+        guard = fn.rfind("if (", 0, unowned)
+        self.assertIn("!ownedRoute", fn[guard:unowned],
+                      "the unowned listener is reachable while the pre-push owned flag is set")
 
     def test_the_hook_does_not_bind_his_port_and_still_runs_both_sites(self):
         code = _sh(HOOK)
@@ -86,6 +103,22 @@ class TheDemoDrivesAPrivateConsole(unittest.TestCase):
         self.assertNotIn("pkill", code, "the hook kills by name")
         self.assertEqual(code.count('gate_run "console-demos"'), 2,
                          "a console-demos call site was dropped or added")
+        # REG-2278 — both launches inherit a cleared TV_DEMO_PORT and the owned flag.
+        # An ambient value must not survive into the demo the hook starts.
+        cleared = code.find("unset TV_DEMO_PORT")
+        arm = code.find("export TV_DEMO_OWNED=1")
+        self.assertGreaterEqual(cleared, 0,
+                                "pre-push leaves TV_DEMO_PORT in the environment the demo inherits")
+        self.assertGreaterEqual(arm, 0,
+                                "pre-push does not force the demo to spawn a console it owns")
+        self.assertLess(cleared, arm, "the owned flag is set before TV_DEMO_PORT is cleared")
+        launches = list(re.finditer(r'node "\$REPO/tv/demo_console\.mjs"', code))
+        self.assertEqual(len(launches), 2, "both demo launches must be the owned-private route")
+        for m in launches:
+            self.assertLess(arm, m.start(), "a demo launch runs before the owned flag is set")
+            line = code[code.rfind("\n", 0, m.start()) + 1:code.find("\n", m.start())]
+            self.assertNotIn("TV_DEMO_PORT", line,
+                             "a demo launch passes TV_DEMO_PORT through: %s" % line)
 
     def test_the_private_shelf_is_one_filmed_run_in_the_sandbox(self):
         code = _js(DEMO)
@@ -131,6 +164,21 @@ RED_PROOF = [
         "file": "hooks/pre-push",
         "find": "      echo \"pre-push: [$(_pp_el)] :17772 is silent — the demos boot a private console. His port is not bound.\"\n",
         "replace": "      echo \"pre-push: [$(_pp_el)] :17772 is silent — the demos boot a private console. His port is not bound.\"\n      python3 control_app.py --no-open\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2278 - pre-push can adopt an inherited listener again",
+        "file": "tv/demo_console.mjs",
+        "find": "  const ownedRoute = String(process.env.TV_DEMO_OWNED || '') === '1';\n"
+                "  const explicit = ownedRoute ? '' : String(process.env.TV_DEMO_PORT || '').trim();\n",
+        "replace": "  const explicit = String(process.env.TV_DEMO_PORT || '').trim();\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2278 - the hook leaves TV_DEMO_PORT in the environment the demo inherits",
+        "file": "hooks/pre-push",
+        "find": "    unset TV_DEMO_PORT\n    export TV_DEMO_OWNED=1\n",
+        "replace": "",
         "matches": 1,
     },
     {
