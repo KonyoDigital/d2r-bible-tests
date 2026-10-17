@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3759 · TV DIABLO</title>
-<meta name="d2r-build" content="v3759">
+  <title>Konyo's D2R Farming Bible v3760 · TV DIABLO</title>
+<meta name="d2r-build" content="v3760">
 <meta name="d2r-build-date" content="2026-10-17">
-<meta name="d2r-build-note" content="Generalise the river watchdog to the vault AND chronicle lanes via one shared _sweep_hang_check (copy-drift: one logic, thin per-lane callers); harden with the v3758 Grok #231 review: finding-1 (TOCTOU, the clear re-check proves startedTs identity so a fresh sweep that took the slot is not wrongly declared hung) and finding-3 (vault_sweep_start refuses a quarantined reel at the door every caller passes, not only the picker). HEART: the river watchdog IS the WATCHDOG+DOCTOR for both sweep lanes, a hung guard that silently stalls the river (nobody pressed anything) is detected by a no-progress deadline and cleared on BOTH lanes, so the river recovers without a relaunch. REG-2271.">
+<meta name="d2r-build-note" content="#76 INC-3b: a persisted, forked, reversible d2r_vaultRecords store (one record per physical copy, carrying a stable opaque recId + per-copy location + witness), with a DORMANT stamped migration cloned from _setPieceReconcile. Named d2r_vaultRecords (not d2r_records) so test_store_isolation forces it into the per-account fork set - the Ladder/Main data-loss guard. Parity-proven on fixtures (persisted-derived views equal in-memory, including the shared-at-cap boundary), RED-proven, 4 adversarial skeptics clean. NOT wired to his board: no page-load path calls the migration, only the fixture test does; the live arming is gated on a GrokBot verify. HEART: the parity guard is the corroborator (persisted vs in-memory, two independent derivations), the corrupt-store guard is the doctor (it refuses to overwrite an UNKNOWN store, so DATA LOSS is averted), and the migrate reads the store back and confirms it intact BEFORE it stamps. #76.">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -4304,6 +4304,12 @@ window._LP_FORKED = new Set([
      d2r_muleAssign, both in this set, so it forks exactly as they do (the v2224 rule below). Bare, one world
      running the reconcile would silence it for every other world, leaving the dup in a sibling world unfolded. */
   "d2r_setPieceReconcile",
+  /* #76 INC-3b (DORMANT, v-foundation) - the vault-records migrate stamp records WHETHER THE PERSIST RAN over a store
+     derived from d2r_owned / d2r_copies / d2r_muleAssign, all in this Set, so it forks exactly as they do (the v2224
+     rule below). Bare, one world running the persist would silence it for every other world on the machine. The
+     isolation guard keeps this armed because the name matches GRAILISH via the word vault. NO apostrophe in this note,
+     by the rule documented just below. */
+  "d2r_vaultRecordsMigrate",
   /* ══ v2224 — A MIGRATION STAMP MUST FORK EXACTLY AS THE STORE IT MIGRATES ═══════════════════
      test_store_isolation caught these three, and it caught MY OWN work from this session. All
      three gate one-shot repairs of d2r_owned, and d2r_owned is in this very Set, so it is
@@ -4330,7 +4336,7 @@ window._LP_FORKED = new Set([
      A guard that reads source fails on its own reach before it fails on the code, and the tell was
      there both times: the names were provably present in the parsed blob while absent from the
      parsed names. [[source-reading-guard]] [[d2r-curly-apostrophe-class]] */
-  "d2r_vaultBackfill_v2200", "d2r_vaultBackfillUndo_v2205", "d2r_vaultEvidenceRestore_v2207","d2r_setDupeMigrate_v2227","d2r_owned", "d2r_tvExtraItems", "d2r_copies", "d2r_unknownReads", "d2r_magicFinds", "d2r_plannerMade", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_mulePos", "d2r_muleRoster", "d2r_muleEquip", "d2r_vaultRerouteDone", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiArt", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_setFarm", "d2r_craftReady", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge; v1570 d2r_setFarm = the same bridge for the SETS chronicle, forked for the same reason — a hunt list is per-account state */
+  "d2r_vaultBackfill_v2200", "d2r_vaultBackfillUndo_v2205", "d2r_vaultEvidenceRestore_v2207","d2r_setDupeMigrate_v2227","d2r_owned", "d2r_tvExtraItems", "d2r_copies", /* #76 INC-3b DORMANT - the persisted one-record-per-copy vault store, derived from and forked exactly like d2r_owned / d2r_copies / d2r_muleAssign */ "d2r_vaultRecords", "d2r_unknownReads", "d2r_magicFinds", "d2r_plannerMade", "d2r_ethereal", "d2r_superiorBases", "d2r_multiKeep", "d2r_wishlist", "d2r_runeStash", "d2r_gemStash", "d2r_craftStash", "d2r_craftBaseStash", "d2r_materialStash", "d2r_statues", "d2r_rwBaseUsed", "d2r_rwVerify", "d2r_muleAssign", "d2r_mulePos", "d2r_muleRoster", "d2r_muleEquip", "d2r_vaultRerouteDone", "d2r_forgeStep", "d2r_forgeSkip", "d2r_forgeDone", "d2r_intakeLog", "d2r_intakeSeen", "d2r_createNow", "d2r_createNowDate", "d2r_createNowAi", "d2r_createNowAiArt", "d2r_createNowAiV", "d2r_createNowAiDate", "d2r_lastTopScan", "d2r_aicDraft", "d2r_mf", "d2r_players", "d2r_stashMeta", "d2r_chroniclePin", "d2r_sessionLog", "d2r_tvdHist", "d2r_tvdTallyLog", "d2r_forgeSummary", "d2r_grailFarm", "d2r_setFarm", "d2r_craftReady", "d2r_tvdKeyDebt"]);  /* v686 — session-cockpit state is ACCOUNT state; v724 d2r_tvdHist = TV session history fork; d2r_grailFarm = the /api/evrank hunt-priority bridge; v1570 d2r_setFarm = the same bridge for the SETS chronicle, forked for the same reason — a hunt list is per-account state */
 // v665 — the WINDOWS fork set (Konyo: "make it the same and identical… structured the same").
 // v663 forked EVERY d2r_* key, which also forked UI PREFERENCES (active tab, dock, boss sorts,
 // grail-wall state…) — so the cousin shell rendered structurally different. Doctrine restored to
@@ -48023,6 +48029,213 @@ window.vaultAutoAssign = function(){
   }
   window._vaultRecordsOverflow = _vaultRecordsOverflow;
 
+  /* ══ #76 INC-3b (v-foundation, DORMANT) — PERSIST THE ONE-RECORD MODEL · FORKED · REVERSIBLE · MIGRATION OFF ══
+     The design doc PHASE-2 foundation. INC-1/INC-2 derive the one-record model on demand from the already-forked
+     name-homed stores (owned/copies/assign); this slice makes that model PERSISTABLE to d2r_vaultRecords so phase 2
+     can (his GrokBot-gated confirm) flip the live views to read the store and start routing per-copy. NOTHING here is
+     wired to a page-load / init / render / intake / chronicleApply path — persisting TOUCHES HIS DATA, which the
+     design doc PHASE 2 gates behind a brief on his live board + his explicit GO (feedback_autonomous_machine_ops).
+     The ONLY caller of _vaultRecordsMigrate/_vaultRecordsPersist is the parity harness
+     tv/test_v3758_records_persist_parity.py (node, seeded fixture, read-only). [[heart-first]] [[the-unjoined-end]]
+     [[unknown-stays-unknown]]
+
+     ALL enrichment is ADDITIVE — kind / mule / index length stay byte-equal to _vaultRecords(), so INC-1/INC-2
+     parity is untouched and the live views do not change:
+       (a) recId — a STABLE OPAQUE token (rec_<n>), minted ONCE per physical copy and REUSED on re-persist, so a
+           rename or a copy-count change never re-mints it (the old name+'#'+i id flipped on both — recIdStability).
+           name is a mutable FIELD; the stored id IS the copy identity.
+       (b) loc — each copy's OWN location: the mule home for a filed name, __keep / carried / loose / keepInv for the
+           non-mule homes, and for a SHARED name the first _SHARED_COPY_CAP copies -> 'shared' and the 3rd+ -> 'dupes'
+           (rule E made LITERAL per-copy, where today it is display-only). orphan -> null (home UNKNOWN, never guessed).
+       (c) prov — the name's d2r_vaultProv witness row where present, else null.
+     THE CORRUPT-STORE GUARD ([[unknown-stays-unknown]], the mule store _muleUnread/_guardedSet rule at ~40307): a
+     store that will not READ or PARSE is UNKNOWN and is NEVER overwritten — the persist refuses, so a corrupt
+     d2r_vaultRecords can never be clobbered by a fresh snapshot. */
+  var _VR_STORE_KEY = 'd2r_vaultRecords';
+  var _VRM_KEY = 'd2r_vaultRecordsMigrate';
+  var _VRM_VER = 1;
+  var _vrRecUnread = {};   /* keyed by store key: a reason once a read throws / will not parse; a guarded write then refuses */
+  function _vrRecLoadRaw(){
+    /* -> parsed object | null (absent) | undefined (UNKNOWN: unreadable/unparseable — the key is marked so a later
+       _vrRecGuardedSet refuses to overwrite it). Mirrors the mule store load() at ~bible.html:40308. */
+    var raw;
+    try { raw = window.LSR.getItem(_VR_STORE_KEY); }
+    catch (e) { _vrRecUnread[_VR_STORE_KEY] = 'could not be read'; return undefined; }
+    if (raw == null || raw === '') return null;
+    try { return JSON.parse(raw); }
+    catch (e) { _vrRecUnread[_VR_STORE_KEY] = 'will not parse'; return undefined; }
+  }
+  function _vrRecGuardedSet(obj){
+    /* NEVER overwrite a store that could not be read/parsed — the mule store _guardedSet rule (bible.html:40311). */
+    if (_vrRecUnread[_VR_STORE_KEY]) {
+      try { console.warn('[vaultRecords] ' + _VR_STORE_KEY + ' ' + _vrRecUnread[_VR_STORE_KEY] + ' - NOT overwritten'); } catch (e) {}
+      return false;
+    }
+    try { window.LSR.setItem(_VR_STORE_KEY, JSON.stringify(obj)); return true; } catch (e) { return false; }
+  }
+  function _vrLocForCopy(kind, mule, copyIx){
+    /* each copy's OWN location (additive; the parity views read kind/mule/index, never loc). Rule E: a shared name
+       keeps _SHARED_COPY_CAP copies in the shared stash, the 3rd+ is trade-stock in GRAIL-DUPES. */
+    if (kind === 'filed') return mule;
+    if (kind === 'keep') return '__keep';
+    if (kind === 'sharedStash') {
+      var cap = (typeof _SHARED_COPY_CAP === 'number' && _SHARED_COPY_CAP > 0) ? _SHARED_COPY_CAP : 2;
+      return (copyIx < cap) ? 'shared' : 'dupes';
+    }
+    if (kind === 'carried') return 'carried';
+    if (kind === 'loose') return 'loose';
+    if (kind === 'keepInv') return 'keepInv';
+    return null;   /* orphan — home UNKNOWN, never guessed [[unknown-stays-unknown]] */
+  }
+  function _vaultRecordsLoad(){
+    /* read the persisted store back into the SAME shape _vaultRecords() returns (records/index/byKind/orphans),
+       rebuilding the derived index + byKind from the stored records so the persisted views equal the in-memory ones.
+       -> model | null (absent) | undefined (UNKNOWN). */
+    var obj = _vrRecLoadRaw();
+    if (obj === undefined) return undefined;
+    if (obj === null) return null;
+    if (!obj || !Array.isArray(obj.records)) return null;
+    var model = { records: obj.records.slice(), index: {}, byKind: {}, orphans: [],
+                  carUnknown: !!obj.carUnknown, dockUnknown: !!obj.dockUnknown, ok: true,
+                  v: (obj.v || 1), ts: (obj.ts || null), seq: (obj.seq || 0) };
+    obj.records.forEach(function(r){ if (r && r.name != null) (model.index[r.name] = model.index[r.name] || []).push(r.recId); });
+    var seenK = {};
+    obj.records.forEach(function(r){
+      if (!r || r.name == null) return;
+      var kk = String(r.kind) + '\u0000' + String(r.name);
+      if (seenK[kk]) return; seenK[kk] = 1;                    /* byKind counts DISTINCT NAMES, exactly as _vaultRecords */
+      model.byKind[r.kind] = (model.byKind[r.kind] || 0) + 1;
+      if (r.kind === 'orphan') model.orphans.push({ name: r.name, assign: (r.mule == null ? null : String(r.mule)) });
+    });
+    return model;
+  }
+  window._vaultRecordsLoad = _vaultRecordsLoad;
+  function _vaultRecordsPersist(opts){
+    /* derive the live one-record model, ENRICH each copy (opaque recId reused from any prior store, per-copy loc,
+       prov witness), and write d2r_vaultRecords through the corrupt-store guard. -> {ok,wrote,count,seq,why}.
+       NOT wired to any live path — only _vaultRecordsMigrate (and the test) calls it. [[heart-first]] rule 6: persist
+       the per-copy location NOW so phase 2 can route the 3rd+ shared copy without re-deriving. */
+    opts = opts || {};
+    var rec = _vaultRecords();
+    if (!rec || !rec.ok) return { ok: false, wrote: false, why: 'the records model would not derive' };
+    if (rec.carUnknown || rec.dockUnknown) return { ok: false, wrote: false, unknown: true, why: 'carried or dock is UNKNOWN - nothing persisted' };
+    var prior = _vrRecLoadRaw();
+    if (prior === undefined) return { ok: false, wrote: false, unknown: true, why: (_vrRecUnread[_VR_STORE_KEY] || 'unreadable') + ' - NOT overwritten' };
+    var priorIds = {}, seq = 0;
+    if (prior && Array.isArray(prior.records)) {
+      seq = (typeof prior.seq === 'number' && prior.seq > 0) ? prior.seq : 0;
+      prior.records.forEach(function(r){ if (r && r.name != null) (priorIds[r.name] = priorIds[r.name] || []).push(r.recId); });
+    }
+    var prov = {};
+    try { var pv = JSON.parse(window.LSR.getItem('d2r_vaultProv') || '{}'); if (pv && typeof pv === 'object') prov = pv; } catch (e) { prov = {}; }
+    var byName = {};
+    rec.records.forEach(function(r){ (byName[r.name] = byName[r.name] || []).push(r); });
+    var outRecs = [];
+    Object.keys(byName).forEach(function(nm){
+      var reuse = priorIds[nm] ? priorIds[nm].slice() : [];
+      byName[nm].forEach(function(r, ci){
+        var recId = reuse[ci];
+        if (!recId) { seq += 1; recId = 'rec_' + seq; }        /* STABLE OPAQUE id, minted once, never name-derived */
+        outRecs.push({ recId: recId, name: r.name, copyIx: r.copyIx, kind: r.kind, mule: r.mule,
+                       loc: _vrLocForCopy(r.kind, r.mule, r.copyIx), prov: (prov[nm] != null ? prov[nm] : null) });
+      });
+    });
+    var store = { v: 1, ts: Date.now(), seq: seq, carUnknown: false, dockUnknown: false, records: outRecs };
+    var wrote = _vrRecGuardedSet(store);
+    return { ok: wrote, wrote: wrote, count: outRecs.length, seq: seq, why: (wrote ? null : 'guarded set refused - a corrupt store is never overwritten') };
+  }
+  window._vaultRecordsPersist = _vaultRecordsPersist;
+  function _vaultRecordsMigrate(opts){
+    /* STAMPED, UNKNOWN-safe, version-gated clone of _setPieceReconcile (bible.html:22248). Runs the persist ONCE per
+       world, confirms the store read back intact BEFORE stamping (REG-2243 discipline), then stamps. ⚠ DORMANT: no
+       page-load / init / render / intake / chronicleApply path calls this — phase 2 arms it behind GrokBot + his GO. */
+    opts = opts || {};
+    var done;
+    try {
+      var sraw = window.LSR.getItem(_VRM_KEY);
+      done = (sraw == null || sraw === '') ? null : JSON.parse(sraw);
+    } catch (e) { return { ran: false, why: 'the migrate stamp would not read - UNKNOWN, nothing persisted' }; }
+    if (done && typeof done === 'object' && done.ver >= _VRM_VER && !opts.force) return { ran: false, already: true, receipt: done };
+    var pr = _vaultRecordsPersist(opts);
+    if (!pr.ok) return { ran: false, why: pr.why || 'persist did not write', unknown: !!pr.unknown };
+    var back = _vrRecLoadRaw();
+    if (back === undefined || !back || !Array.isArray(back.records) || back.records.length !== pr.count)
+      return { ran: true, stamped: false, why: 'the persisted store did not read back intact - left UNstamped to retry' };
+    var rc = { ver: _VRM_VER, ts: Date.now(),
+               at: (function(){ try { return new Date().toISOString(); } catch (e) { return null; } })(),
+               world: ((window.D2R_PROFILE === 'ladder') ? 'ladder' : 'main'), count: pr.count, seq: pr.seq };
+    try { window.LSR.setItem(_VRM_KEY, JSON.stringify(rc)); }
+    catch (eS) { return { ran: true, stamped: false, why: 'stamp write failed - left UNstamped to retry', receipt: rc }; }
+    try { console.info('[vault] vault-records migrate: persisted ' + pr.count + ' copy record(s) (DORMANT foundation; undo: window._vaultRecordsMigrateUndo())'); } catch (eC) {}
+    return { ran: true, stamped: true, receipt: rc };
+  }
+  window._vaultRecordsMigrate = _vaultRecordsMigrate;
+  function _vaultRecordsMigrateUndo(){
+    /* REVERSIBLE + RE-ARMABLE: drop d2r_vaultRecords AND its stamp, leaving owned / copies / assign UNTOUCHED (the
+       persist never wrote them). Removing the stamp re-arms the migration for a clean re-run. The migration removes
+       NO names, so it journals NO removal batch (bible.html:44961 — an empty batch is never written); its undo is
+       therefore this standalone door, not vaultRestoreLast (which reverses name-removals). */
+    var hadStore = false, hadStamp = false;
+    try { hadStore = (window.LSR.getItem(_VR_STORE_KEY) != null); } catch (e) {}
+    try { hadStamp = (window.LSR.getItem(_VRM_KEY) != null); } catch (e) {}
+    try { window.LSR.removeItem(_VR_STORE_KEY); } catch (e) {}
+    try { window.LSR.removeItem(_VRM_KEY); } catch (e) {}
+    try { delete _vrRecUnread[_VR_STORE_KEY]; } catch (e) {}   /* a cleared key is no longer UNKNOWN */
+    return { undone: true, clearedStore: hadStore, clearedStamp: hadStamp };
+  }
+  window._vaultRecordsMigrateUndo = _vaultRecordsMigrateUndo;
+  function _vaultRecordsRename(oldName, newName){
+    /* phase-2 primitive, DORMANT: a rename updates the name FIELD on every matching record and KEEPS its recId — the
+       opaque id is the copy identity, independent of the name (proves the id survives a rename). Guarded write. */
+    if (!oldName || !newName || oldName === newName) return { ok: false, why: 'bad names' };
+    var obj = _vrRecLoadRaw();
+    if (obj === undefined) return { ok: false, unknown: true, why: (_vrRecUnread[_VR_STORE_KEY] || 'unreadable') + ' - NOT overwritten' };
+    if (!obj || !Array.isArray(obj.records)) return { ok: false, why: 'no store' };
+    var moved = 0;
+    obj.records.forEach(function(r){ if (r && r.name === oldName) { r.name = newName; moved++; } });
+    if (!moved) return { ok: true, moved: 0 };
+    var wrote = _vrRecGuardedSet(obj);
+    return { ok: wrote, moved: moved };
+  }
+  window._vaultRecordsRename = _vaultRecordsRename;
+  /* PARITY VIEWS — derive find / overflow / header from a PASSED model (the in-memory _vaultRecords() OR a loaded
+     store), so the test can prove the persisted store re-derives to the SAME views as the live in-memory path. These
+     mirror _vaultRecordsFind / _vaultRecordsOverflow / _vaultRecordsHeader exactly; the test pins them to those
+     shipped functions on the in-memory model, then reuses them on the loaded model (no view logic drifts [[copy-drift]]). */
+  function _vaultRecordsViewFind(model, name){
+    if (!model || !model.ok) return undefined;
+    var ids = model.index[name]; if (!ids || !ids.length) return null;
+    var rec = null;
+    for (var i = 0; i < model.records.length; i++){ if (model.records[i].name === name){ rec = model.records[i]; break; } }
+    return rec ? (rec.kind === 'filed' ? rec.mule : null) : null;
+  }
+  window._vaultRecordsViewFind = _vaultRecordsViewFind;
+  function _vaultRecordsViewOverflow(model){
+    var out = [];
+    if (!model || !model.ok) return out;
+    var shared = {};
+    model.records.forEach(function(r){ if (r && r.kind === 'sharedStash') shared[r.name] = 1; });
+    var cap = (typeof _SHARED_COPY_CAP === 'number' && _SHARED_COPY_CAP > 0) ? _SHARED_COPY_CAP : 2;
+    Object.keys(shared).forEach(function(n){ var ids = model.index[n] || []; if (ids.length - cap > 0) out.push(n); });
+    return out.sort();
+  }
+  window._vaultRecordsViewOverflow = _vaultRecordsViewOverflow;
+  function _vaultRecordsViewHeader(model){
+    if (!model || !model.ok) return null; var k = model.byKind;
+    var unk = model.carUnknown || model.dockUnknown;
+    return {
+      owned:   Object.keys(model.index).length,
+      copies:  model.records.length,
+      shared:  (k.sharedStash || 0),
+      carried: model.carUnknown ? null : (k.carried || 0),
+      loose:   unk ? null : (k.loose || 0),
+      filed:   unk ? null : ((k.filed || 0) + (k.keep || 0)),
+      keepInv: (k.keepInv || 0),
+      orphans: model.dockUnknown ? null : model.orphans.length
+    };
+  }
+  window._vaultRecordsViewHeader = _vaultRecordsViewHeader;
+
   /* ══ #174 v-B — THE DOLL EQUIPS FROM ITS OWN LOCKER, AND EVERY STAT SAYS WHERE ITS NUMBER CAME FROM.
      His words: click a slot and pick from this mule's items; hover is the board's own item card; the stats
      are computed from what is worn. SPEC §6 decides how honest each number is allowed to be:
@@ -66842,7 +67055,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3759', name:'v3759 - river-watchdog-both-lanes', date:'2026-10-17', note:'Generalise the river watchdog to the vault AND chronicle lanes via one shared _sweep_hang_check (copy-drift: one logic, thin per-lane callers); harden with the v3758 Grok #231 review: finding-1 (TOCTOU, the clear re-check proves startedTs identity so a fresh sweep that took the slot is not wrongly declared hung) and finding-3 (vault_sweep_start refuses a quarantined reel at the door every caller passes, not only the picker). HEART: the river watchdog IS the WATCHDOG+DOCTOR for both sweep lanes, a hung guard that silently stalls the river (nobody pressed anything) is detected by a no-progress deadline and cleared on BOTH lanes, so the river recovers without a relaunch. REG-2271.' };
+  window.D2R_BUILD = { id:'v3760', name:'v3760 - vault-records-store-dormant', date:'2026-10-17', note:'#76 INC-3b: a persisted, forked, reversible d2r_vaultRecords store (one record per physical copy, carrying a stable opaque recId + per-copy location + witness), with a DORMANT stamped migration cloned from _setPieceReconcile. Named d2r_vaultRecords (not d2r_records) so test_store_isolation forces it into the per-account fork set - the Ladder/Main data-loss guard. Parity-proven on fixtures (persisted-derived views equal in-memory, including the shared-at-cap boundary), RED-proven, 4 adversarial skeptics clean. NOT wired to his board: no page-load path calls the migration, only the fixture test does; the live arming is gated on a GrokBot verify. HEART: the parity guard is the corroborator (persisted vs in-memory, two independent derivations), the corrupt-store guard is the doctor (it refuses to overwrite an UNKNOWN store, so DATA LOSS is averted), and the migrate reads the store back and confirms it intact BEFORE it stamps. #76.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

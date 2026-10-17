@@ -9691,6 +9691,16 @@ GATES = [
              "FILED name resolves to, and FIDELITY that the record index carries copyCount(name) records per name. "
              "Read-only PHASE-1 scaffold; INC-3 (gated, his confirm) swaps the records source to a persisted per-copy store.")
          ),
+    Gate("test_v3758_records_persist_parity", [sys.executable,
+         os.path.join(HERE, "test_v3758_records_persist_parity.py")], 60,
+         needs_app=False,
+         why=("#76 INC-3b (DORMANT) - _vaultRecordsPersist writes a d2r_vaultRecords store whose records re-derive into "
+             "header/find/overflow views EQUAL to the live in-memory _vaultRecords ones, incl. the shared-name-AT-cap "
+             "boundary (F at _SHARED_COPY_CAP is NOT overflow); recId is a stable opaque token that survives a rename; a "
+             "corrupt store is NEVER overwritten (_muleUnread/_guardedSet); the undo clears both keys leaving "
+             "owned/copies/assign untouched; and the migration stays DORMANT (no live caller). PHASE-2 foundation; "
+             "arming is a later GrokBot-gated step. [[heart-first]] [[the-unjoined-end]] [[unknown-stays-unknown]]")
+         ),
     Gate("test_the_vault_proposes_a_home_and_does_not_move", [sys.executable,
          os.path.join(HERE, "test_the_vault_proposes_a_home_and_does_not_move.py")], 90,
          needs_app=False,
