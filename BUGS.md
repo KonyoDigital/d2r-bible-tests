@@ -23,10 +23,24 @@ startedTs/phase/runReelsDone/classified/pagesRead/runReel snapshot is unchanged)
 held), and the reel added to an in-memory `_VAULT_SWEEP_QUARANTINE` the tick's picker skips — NOT persisted, so a
 transient hang is retried after relaunch rather than lost forever. GUARD:
 `test_the_river_watchdog_clears_a_hung_sweep.py` (hung→cleared+quarantined · progressing→left running · advanced→clock
-resets · not-running→no-op), RED-proven by flipping the guard-clear to `running:True`. ⚠ OWED FOLLOW-UPS: (1) the
-ROOT per-operation deadline inside vault_retro.py's measure loop, so the hang is bounded at the source and no daemon
-thread leaks; (2) the CHRONICLE sibling (`_CHRON_JOB`, chronicle_autoread) has the identical release-bypass pattern —
-extend the same watchdog to it.
+resets · not-running→no-op), RED-proven by flipping the guard-clear to `running:True`.
+
+**v3759 — generalised to BOTH lanes + hardened against the v3758 cross-family (Grok #231) review.** The watchdog is
+now ONE shared `_sweep_hang_check(job, lock, progress, sig_fn, label, quarantine, reel_key)` with thin
+`_vault_sweep_hang_check` / `_chron_sweep_hang_check` callers (copy-drift: one logic, not a copy per lane), both wired
+into `_console_rescue_loop`. DONE: owed follow-up (2) — the CHRONICLE sibling (`_CHRON_JOB`) had the identical
+`finally`-doesn't-clear-`running` hang (success at 40816 clears it, a measure-phase hang does not) and now recovers
+too. Finding 1 (TOCTOU): the clear re-check tests `startedTs == the snapshot's`, not merely `running`, so a fresh
+sweep that took the slot in the lock gap is not wrongly declared hung and quarantined. Finding 3: `vault_sweep_start`
+now refuses a quarantined reel at the DOOR (every caller — relaunch/manual/busy-retry/api), not only at the autoreel
+picker (`force` overrides). GUARD: the same test file, now 9 cases incl. the TOCTOU flip-lock + the chronicle hang +
+the door refusal, RED-proven on 3 anchors (guard-clear, startedTs identity, door consult), each matches=1.
+⚠ STILL OWED: the ROOT per-operation deadline inside vault_retro.py / chronicle_retro.py's measure loop, so the hang
+is bounded at the SOURCE and no daemon thread leaks. That root fix ALSO closes finding 2 (a hung worker that LATER
+returns writing its terminal `done/error/stopped` state over a NEWER sweep): a bounded sweep always RETURNS, so
+`running` clears via the normal path and there is no zombie to clobber a successor. Until then the window is narrow
+(a slow-hang that returns AND a new sweep started in the gap), the watchdog still ENDS the stall, and a mis-marked
+successor is itself re-cleared on the next 10s tick.
 
 ### REG-2270 - RECORDS-FAILED ORPHAN COUNT RENDERED SILENT (FALSE-AGREE) INSTEAD OF UNKNOWN (#76, #231 eye on v3756, v3757)
 

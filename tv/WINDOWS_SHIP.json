@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3758",
+  "ver": "v3759",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3758: RIVER WATCHDOG a vault sweep that HANGS in its measure phase never releases its running guard so every 45s tick refuses busy and the river stalls on every PC (owed climbs); _vault_sweep_hang_check on the 10s rescue loop clears a guard stalled past the no-progress deadline and quarantines the reel so the lane recovers on its own. HEART: this IS the watchdog, a new heart instrument on the rescue lane, guarded by test_the_river_watchdog_clears_a_hung_sweep (RED-proven); the root per-operation deadline inside vault_retro is an owed follow-up",
+  "note": "v3759: Generalise the river watchdog to the vault AND chronicle lanes via one shared _sweep_hang_check (copy-drift: one logic, thin per-lane callers); harden with the v3758 Grok #231 review: finding-1 (TOCTOU, the clear re-check proves startedTs identity so a fresh sweep that took the slot is not wrongly declared hung) and finding-3 (vault_sweep_start refuses a quarantined reel at the door every caller passes, not only the picker). HEART: the river watchdog IS the WATCHDOG+DOCTOR for both sweep lanes, a hung guard that silently stalls the river (nobody pressed anything) is detected by a no-progress deadline and cleared on BOTH lanes, so the river recovers without a relaunch. REG-2271.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
