@@ -73,9 +73,9 @@ var _vrRecUnread = {};
 // Enigma is war gear filed to the shared locker and is NOT a never-muled regex name.
 // Ist rune is in the locker AND matches the regex. Worldstone Shard matches the regex and is NOT filed.
 // Shako is a real mule. Nagelring is loose. Grief is carried AND in the locker — carried wins.
-var assign = { Enigma:'shared', 'Ist rune':'shared', Shako:'mule1', Grief:'shared' };
+var assign = { Enigma:'shared', 'Ist rune':'shared', Shako:'mule1', Grief:'shared', Spirit:'__keep', 'Throw Me':'__throwout' };
 var copies = { Enigma:4, 'Worldstone Shard':4 };
-var OWNED = ['Enigma', 'Ist rune', 'Worldstone Shard', 'Shako', 'Nagelring', 'Grief'];
+var OWNED = ['Enigma', 'Ist rune', 'Worldstone Shard', 'Shako', 'Nagelring', 'Grief', 'Spirit', 'Throw Me', 'Annihilus', 'Plain Boots'];
 var _SHARED_COPY_CAP = 2, _MULE_COPY_CAP = 3;
 function ownedPool(){ return OWNED.slice(); }
 function copyCount(n){ var c = copies[n]; return (c && c > 0) ? c : (OWNED.indexOf(n) >= 0 ? 1 : 0); }
@@ -144,9 +144,16 @@ out.rune = pack('Ist rune');
 out.shard = pack('Worldstone Shard');
 out.filed = pack('Shako');
 out.carried = pack('Grief');
+out.loose = pack('Nagelring');
+out.keep = pack('Spirit');
+out.throwout = pack('Throw Me');
+out.charm = pack('Annihilus');
+out.orphan = pack('Plain Boots');
 out.findWar = _vaultRecordsFind('Enigma');
 out.findFiled = _vaultRecordsFind('Shako');
 out.findShard = _vaultRecordsFind('Worldstone Shard');
+out.findLoose = _vaultRecordsFind('Nagelring');
+out.findOrphan = _vaultRecordsFind('Plain Boots');
 out.sharedNames = _sharedNames();
 out.liveOverflow = _vaultSharedOverflowNames();
 out.recOverflow = _vaultRecordsOverflow();
@@ -155,6 +162,8 @@ var pr = _vaultRecordsPersist();
 var loaded = _vaultRecordsLoad();
 out.persistOk = !!pr.ok;
 out.locWar = loaded.records.filter(function(r){ return r.name === 'Enigma'; }).map(function(r){ return r.loc; });
+out.locKeep = loaded.records.filter(function(r){ return r.name === 'Spirit'; }).map(function(r){ return r.loc; });
+out.locLoose = loaded.records.filter(function(r){ return r.name === 'Nagelring'; }).map(function(r){ return r.loc; });
 out.loadedOverflow = _vaultRecordsViewOverflow(loaded);
 out.regexMissesWar = !isSharedStash('Enigma');
 out.regexHitsShard = !!isSharedStash('Worldstone Shard');
@@ -189,6 +198,35 @@ out.regexHitsShard = !!isSharedStash('Worldstone Shard');
                          "the in-memory overflow view left _sharedNames: %r" % o["memOverflow"])
         self.assertEqual(o["loadedOverflow"], ["Enigma"],
                          "the loaded store's overflow view left _sharedNames: %r" % o["loadedOverflow"])
+        self.assertEqual(o["loose"], [{"copyIx": 0, "kind": "loose", "mule": None}], o["loose"])
+        self.assertIsNone(o["findLoose"], o["findLoose"])
+        self.assertEqual(o["keep"], [{"copyIx": 0, "kind": "keep", "mule": None}], o["keep"])
+        self.assertEqual(o["locKeep"], ["__keep"], o["locKeep"])
+        self.assertEqual(o["throwout"], [{"copyIx": 0, "kind": "orphan", "mule": None}],
+                         "a throw-out was filed: %r" % o["throwout"])
+        self.assertEqual(o["charm"], [{"copyIx": 0, "kind": "keepInv", "mule": None}], o["charm"])
+        self.assertEqual(o["orphan"], [{"copyIx": 0, "kind": "orphan", "mule": None}], o["orphan"])
+        self.assertIsNone(o["findOrphan"], o["findOrphan"])
+        self.assertEqual(o["locLoose"], ["loose"], o["locLoose"])
+
+    def test_distinct_attacks_clear_the_write_door_wilson_bar(self):
+        """Same write-door bar as the persist law. One RED_PROOF is one distinct attack.
+
+        A wrong kind is what the migration would persist, so the bar is vault.apply, not a route.
+        Sabotage alone does not clear the kinds bar, and this stamp does not open the door."""
+        from confidence import confluence, wilson_lower
+        import self_arming as SA
+        bar = SA.LOCKS["vault.apply"]["bar"]
+        kinds_bar = SA.LOCKS["vault.apply"]["kinds_bar"]
+        n = len(RED_PROOF)
+        w = wilson_lower(n, n)
+        conf = confluence(["sabotage"], SA.KINDS)
+        msg = ("vault-records classification: %d distinct attacks, wilson %.4f vs write-door bar %.3f; "
+               "kinds sabotage %.2f vs %.2f" % (n, w, bar, conf, kinds_bar))
+        print(msg)
+        self.assertGreaterEqual(n, 10, msg)
+        self.assertGreaterEqual(w, bar, msg)
+        self.assertLess(conf, kinds_bar, "one sabotage family must not read as enough to open the write door")
 
 
 RED_PROOF = [
@@ -207,6 +245,69 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "      (_sharedNames() || []).forEach(function(n){\n        var ids = model.index[n] || [];\n",
         "replace": "      (function(){ var s=[]; (model.records||[]).forEach(function(r){ if(r && r.kind==='sharedStash' && s.indexOf(r.name)<0) s.push(r.name); }); return s; })().forEach(function(n){\n        var ids = model.index[n] || [];\n",
+        "matches": 1,
+    },
+    {
+        "why": "Carried wins over the locker. Grief is assign shared and carried; dropping the carried branch files it as sharedStash.",
+        "file": "bible.html",
+        "find": "        else if (carriedSet[name]) kind = 'carried';\n",
+        "replace": "        else if (false && carriedSet[name]) kind = 'carried';\n",
+        "matches": 1,
+    },
+    {
+        "why": "A docked name is loose. Dropping that branch makes Nagelring an orphan.",
+        "file": "bible.html",
+        "find": "        else if (looseSet[name]) kind = 'loose';\n",
+        "replace": "        else if (false && looseSet[name]) kind = 'loose';\n",
+        "matches": 1,
+    },
+    {
+        "why": "Standing kit kept with MAIN is keep, not a mule and not an orphan.",
+        "file": "bible.html",
+        "find": "else if (mid === '__keep') kind = 'keep';",
+        "replace": "else if (false && mid === '__keep') kind = 'keep';",
+        "matches": 1,
+    },
+    {
+        "why": "A real mule id stays filed. Disabling that branch makes Shako an orphan and FIND loses the mule.",
+        "file": "bible.html",
+        "find": "        else if (mid != null && mid !== '__throwout' && typeof muleById === 'function' && muleById(mid)) kind = 'filed';\n",
+        "replace": "        else if (false && mid != null && mid !== '__throwout' && typeof muleById === 'function' && muleById(mid)) kind = 'filed';\n",
+        "matches": 1,
+    },
+    {
+        "why": "Annihilus, Torch and Gheed with no mule are keepInv, not orphans.",
+        "file": "bible.html",
+        "find": "        else if (typeof KEEP_IN_INVENTORY !== 'undefined' && typeof _keepName === 'function' && KEEP_IN_INVENTORY.test(_keepName(name)))\n",
+        "replace": "        else if (false && typeof KEEP_IN_INVENTORY !== 'undefined' && typeof _keepName === 'function' && KEEP_IN_INVENTORY.test(_keepName(name)))\n",
+        "matches": 1,
+    },
+    {
+        "why": "The never-muled regex is the first shared branch. An unassigned Worldstone Shard is sharedStash only because of it.",
+        "file": "bible.html",
+        "find": "      if (typeof isSharedStash === 'function' && isSharedStash(name)) kind = 'sharedStash';\n",
+        "replace": "      if (false && typeof isSharedStash === 'function' && isSharedStash(name)) kind = 'sharedStash';\n",
+        "matches": 1,
+    },
+    {
+        "why": "Rule E sends the 3rd shared copy to dupes. Always returning shared keeps a 4-copy Enigma entirely in the stash.",
+        "file": "bible.html",
+        "find": "      return (copyIx < cap) ? 'shared' : 'dupes';\n",
+        "replace": "      return 'shared';\n",
+        "matches": 1,
+    },
+    {
+        "why": "FIND gives a mule only for kind filed. Returning shared for every other kind hands the locker a mule home.",
+        "file": "bible.html",
+        "find": "      return rec ? (rec.kind === 'filed' ? rec.mule : null) : null;\n    } catch(e){ return undefined; }\n",
+        "replace": "      return rec ? (rec.kind === 'filed' ? rec.mule : 'shared') : null;\n    } catch(e){ return undefined; }\n",
+        "matches": 1,
+    },
+    {
+        "why": "A name with no home is an orphan. Calling that branch filed invents a mule home for Plain Boots.",
+        "file": "bible.html",
+        "find": "        else { kind = 'orphan'; out.orphans.push({ name: name, assign: (mid == null ? null : String(mid)) }); }\n",
+        "replace": "        else { kind = 'filed'; out.orphans.push({ name: name, assign: (mid == null ? null : String(mid)) }); }\n",
         "matches": 1,
     },
 ]

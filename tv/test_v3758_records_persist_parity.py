@@ -51,7 +51,7 @@ EXTRACT = [
     "_vaultRecordsHeader",
     # INC-3b: persist / load / migrate / undo / rename + the model-in parity views
     "_vrRecLoadRaw", "_vrRecGuardedSet", "_vrLocForCopy", "_vaultRecordsLoad", "_vaultRecordsPersist",
-    "_vaultRecordsMigrate", "_vaultRecordsMigrateUndo", "_vaultRecordsRename",
+    "_vaultRecordsMigrate", "_vaultRecordsMigrateUndo", "_vaultRecordsArm", "_vaultRecordsRename",
     "_vaultRecordsViewFind", "_vaultRecordsViewOverflow", "_vaultRecordsViewHeader",
 ]
 
@@ -362,15 +362,135 @@ out.reArmed = !!(again && again.ran && again.stamped);
         self.assertTrue(o["reArmed"], "the migration did not re-arm after the undo")
 
     def test_the_migration_is_dormant_no_live_caller(self):
-        """DORMANCY (task step 4): nothing in bible.html's live flow calls the migration/persist — only this law.
-        Proven by counting call sites with /* */ comments stripped (bounded form, source-reading-guard): the
-        migration appears ONCE (its definition, no caller) and persist TWICE (its definition + the migration's
-        single call). The window-exports `= _vaultRecordsMigrate;` carry no '(' and do not count as calls."""
+        """DORMANCY. The arm is the one source caller of the migrate function, and nothing calls the arm.
+
+        v3765 wires page load by calling _vaultRecordsArm once. That moves the arm count from 1 to 2
+        and leaves the migrate count at 2 (definition + the arm body). A third migrate call is a second
+        door. Persist stays at two (its definition + the migration). Window exports carry no '('."""
         code = re.sub(r"/\*.{0,4000}?\*/", "", self.src, flags=re.S)
-        self.assertEqual(code.count("_vaultRecordsMigrate("), 1,
-                         "the migration has a caller in bible.html — it must stay DORMANT (phase-2 arms it)")
+        self.assertEqual(code.count("_vaultRecordsMigrate("), 2,
+                         "migrate callers drifted: definition plus the arm body are the only two")
+        self.assertEqual(code.count("_vaultRecordsArm("), 1,
+                         "the arm has a caller — page load is still unwired")
         self.assertEqual(code.count("_vaultRecordsPersist("), 2,
-                         "_vaultRecordsPersist has a caller other than the migration — it must stay DORMANT")
+                         "_vaultRecordsPersist has a caller other than the migration")
+
+    def test_the_arm_is_the_migration_and_undo_rearms_it(self):
+        """The seam v3765 calls. One arm persists and stamps. Undo drops both keys and the next arm runs."""
+        o = self._run(r"""
+var a = _vaultRecordsArm();
+var a2 = _vaultRecordsArm();
+out.ran = !!(a && a.ran && a.stamped);
+out.seam = a && a.seam;
+out.copyIdentity = a && a.copyIdentity;
+out.already = !!(a2 && a2.already && a2.ran === false);
+out.store = (window.LSR.getItem('d2r_vaultRecords') != null);
+var undo = _vaultRecordsMigrateUndo();
+var a3 = _vaultRecordsArm();
+out.rearmed = !!(undo && undo.undone && a3 && a3.ran && a3.stamped);
+out.sources = (window.LSR.getItem('d2r_owned') == null && window.LSR.getItem('d2r_copies') == null
+               && window.LSR.getItem('d2r_muleAssign') == null);
+""")
+        self.assertTrue(o["ran"], "the arm did not run the migration: %r" % o)
+        self.assertEqual(o["seam"], "page-load")
+        self.assertEqual(o["copyIdentity"], "positional",
+                         "the seam claimed a physical copy id: %r" % o)
+        self.assertTrue(o["already"], "a second arm was not version-gated: %r" % o)
+        self.assertTrue(o["store"])
+        self.assertTrue(o["rearmed"], "undo did not re-arm the seam: %r" % o)
+        self.assertTrue(o["sources"], "the arm wrote a source store")
+
+    def test_an_unknown_carried_or_dock_list_persists_nothing(self):
+        """carried UNKNOWN and dock UNKNOWN are one refusal: nothing is written and the stamp does not latch."""
+        o = self._run(r"""
+function probe(which){
+  _vrRecUnread = {};
+  window.LSR.removeItem('d2r_vaultRecords');
+  window.LSR.removeItem('d2r_vaultRecordsMigrate');
+  if (which === 'carried') window._carriedNames = function(){ return null; };
+  if (which === 'dock') _dockNames = null;
+  var pr = _vaultRecordsPersist();
+  var m = _vaultRecordsMigrate();
+  return {
+    unknown: !!pr.unknown, ok: pr.ok, ran: m.ran,
+    store: (window.LSR.getItem('d2r_vaultRecords') != null),
+    stamp: (window.LSR.getItem('d2r_vaultRecordsMigrate') != null)
+  };
+}
+out.carried = probe('carried');
+out.dock = probe('dock');
+""")
+        for which in ("carried", "dock"):
+            row = o[which]
+            self.assertTrue(row["unknown"], which + " was not UNKNOWN: %r" % row)
+            self.assertFalse(row["ok"], which)
+            self.assertFalse(row["ran"], which)
+            self.assertFalse(row["store"], which)
+            self.assertFalse(row["stamp"], which)
+
+    def test_a_short_readback_does_not_stamp(self):
+        """The stamp waits until the store reads back at the count just written."""
+        o = self._run(r"""
+var realGet = window.LSR.getItem.bind(window.LSR);
+var realSet = window.LSR.setItem.bind(window.LSR);
+var wrote = false;
+window.LSR.setItem = function(k, v){ if (k === 'd2r_vaultRecords') wrote = true; return realSet(k, v); };
+window.LSR.getItem = function(k){
+  var v = realGet(k);
+  if (wrote && k === 'd2r_vaultRecords' && v) {
+    var obj = JSON.parse(v);
+    obj.records = obj.records.slice(0, 1);
+    return JSON.stringify(obj);
+  }
+  return v;
+};
+var m = _vaultRecordsMigrate();
+out.ran = m.ran;
+out.stamped = !!m.stamped;
+out.why = m.why || '';
+out.stampKey = (realGet('d2r_vaultRecordsMigrate') != null);
+""")
+        self.assertTrue(o["ran"], o)
+        self.assertFalse(o["stamped"], "a short read-back still stamped: %r" % o)
+        self.assertFalse(o["stampKey"], o)
+        self.assertIn("read back", o["why"])
+
+    def test_a_stamp_write_that_throws_does_not_claim_it_stamped(self):
+        o = self._run(r"""
+var realSet = window.LSR.setItem.bind(window.LSR);
+window.LSR.setItem = function(k, v){
+  if (k === 'd2r_vaultRecordsMigrate') throw new Error('disk');
+  return realSet(k, v);
+};
+var m = _vaultRecordsMigrate();
+out.ran = m.ran;
+out.stamped = !!m.stamped;
+out.store = (window.LSR.getItem('d2r_vaultRecords') != null);
+out.stamp = (window.LSR.getItem('d2r_vaultRecordsMigrate') != null);
+""")
+        self.assertTrue(o["ran"], o)
+        self.assertFalse(o["stamped"], "a thrown stamp write reported stamped: %r" % o)
+        self.assertTrue(o["store"], "the store was not left for a retry")
+        self.assertFalse(o["stamp"], o)
+
+    def test_distinct_attacks_clear_the_write_door_wilson_bar(self):
+        """Write-door bar, scored per distinct attack (one RED_PROOF each), not per looped input.
+
+        vault.apply is the class: this door persists a store. The kinds bar is reported and is not
+        cleared by sabotage alone, so the score does not say the door is open."""
+        from confidence import confluence, wilson_lower
+        import self_arming as SA
+        bar = SA.LOCKS["vault.apply"]["bar"]
+        kinds_bar = SA.LOCKS["vault.apply"]["kinds_bar"]
+        n = len(RED_PROOF)
+        w = wilson_lower(n, n)
+        conf = confluence(["sabotage"], SA.KINDS)
+        msg = ("vault-records persist: %d distinct attacks, wilson %.4f vs write-door bar %.3f; "
+               "kinds sabotage %.2f vs %.2f" % (n, w, bar, conf, kinds_bar))
+        print(msg)
+        self.assertGreaterEqual(n, 10, msg)
+        self.assertGreaterEqual(w, bar, msg)
+        self.assertLess(conf, kinds_bar, "one sabotage family must not read as enough to open the write door")
 
 
 # ── RED_PROOF: each tamper matches EXACTLY ONCE and turns THIS law RED; heart2 reverts byte-identical. ──
@@ -400,6 +520,70 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "if (!recId) { seq += 1; recId = 'rec_' + seq; }",
         "replace": "if (!recId) { seq += 1; recId = r.name + '#' + r.copyIx; }",
+        "matches": 1,
+    },
+    {
+        "why": "A parse-OK store that is not {records: array} is UNKNOWN. Returning null treats it as absent, "
+               "so persist overwrites it and the stamp latches.",
+        "file": "bible.html",
+        "find": "        _vrRecUnread[_VR_STORE_KEY] = 'wrong shape';\n        return undefined;\n",
+        "replace": "        return null;\n",
+        "matches": 1,
+    },
+    {
+        "why": "An unreadable witness store is a marker, not the same null as no witness row.",
+        "file": "bible.html",
+        "find": "        if (provUnknown) row.provUnknown = true;\n        else row.prov = (prov[nm] != null ? prov[nm] : null);\n",
+        "replace": "        row.prov = null;\n",
+        "matches": 1,
+    },
+    {
+        "why": "Undo that throws must not report re-armed while the stamp still gates.",
+        "file": "bible.html",
+        "find": "return { undone: !storeErr && !stampErr,",
+        "replace": "return { undone: true,",
+        "matches": 1,
+    },
+    {
+        "why": "carried or dock UNKNOWN must not persist a guess or latch the stamp.",
+        "file": "bible.html",
+        "find": "if (rec.carUnknown || rec.dockUnknown) return { ok: false, wrote: false, unknown: true, why: 'carried or dock is UNKNOWN - nothing persisted' };",
+        "replace": "if (false && (rec.carUnknown || rec.dockUnknown)) return { ok: false, wrote: false, unknown: true, why: 'carried or dock is UNKNOWN - nothing persisted' };",
+        "matches": 1,
+    },
+    {
+        "why": "A read-back that is not the count just written must leave the migration unstamped so it can retry.",
+        "file": "bible.html",
+        "find": "if (back === undefined || !back || !Array.isArray(back.records) || back.records.length !== pr.count)",
+        "replace": "if (back === undefined)",
+        "matches": 1,
+    },
+    {
+        "why": "A stamp write that throws must not report stamped.",
+        "file": "bible.html",
+        "find": "catch (eS) { return { ran: true, stamped: false, why: 'stamp write failed - left UNstamped to retry', receipt: rc }; }",
+        "replace": "catch (eS) { return { ran: true, stamped: true, why: null, receipt: rc }; }",
+        "matches": 1,
+    },
+    {
+        "why": "An unreadable migrate stamp persists nothing.",
+        "file": "bible.html",
+        "find": "catch (e) { return { ran: false, why: 'the migrate stamp would not read - UNKNOWN, nothing persisted' }; }",
+        "replace": "catch (e) { var _pr = _vaultRecordsPersist(opts); return { ran: true, stamped: true, why: null, count: _pr.count }; }",
+        "matches": 1,
+    },
+    {
+        "why": "The arm is the migration. Cutting that call leaves the page-load seam as a no-op.",
+        "file": "bible.html",
+        "find": "    var r = _vaultRecordsMigrate();\n",
+        "replace": "    var r = { ran: false, stamped: false, why: 'seam cut' };\n",
+        "matches": 1,
+    },
+    {
+        "why": "Nothing calls the arm. A call beside the export wires the migration before v3765.",
+        "file": "bible.html",
+        "find": "  window._vaultRecordsArm = _vaultRecordsArm;\n",
+        "replace": "  window._vaultRecordsArm = _vaultRecordsArm; _vaultRecordsArm();\n",
         "matches": 1,
     },
 ]
