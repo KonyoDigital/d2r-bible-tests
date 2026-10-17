@@ -14,10 +14,15 @@ start a console and must still run the demos at both call sites.
 import io
 import os
 import re
+import sys
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
 DEMO = os.path.join(HERE, "demo_console.mjs")
 HOOK = os.path.join(ROOT, "hooks", "pre-push")
 
