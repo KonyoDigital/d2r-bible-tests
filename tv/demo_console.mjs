@@ -1,9 +1,11 @@
 // demo_console.mjs — STANDALONE scripted DEMONSTRATION journeys.
 // NOT a Playwright test-runner spec. Run:  node tv/demo_console.mjs   (from repo root).
 // REG-2275 (#18 / #73). Boots a private control_app on two free ports and drives that page.
-// It never opens 17772 or 17771, even when the shell inherited those ports. TV_DEMO_PORT is
-// honoured only when it is set and is not one of those two; that server is not started here
-// and is not killed. Own headless chromium — never his tab, never the repo suite. Each
+// It never opens 17772 or 17771, even when the shell inherited those ports.
+// REG-2278. Pre-push sets TV_DEMO_OWNED and unsets TV_DEMO_PORT, so that route always
+// spawns a console this process owns. A hand run may still set TV_DEMO_PORT to a console
+// it started (not 17771 or 17772); that server is not started here and is not killed.
+// Own headless chromium — never his tab, never the repo suite. Each
 // journey prints one ✅/❌ line; the process exits non-zero if any journey fails.
 //
 // The journeys mirror the console architecture (control_ui.html):
@@ -1185,9 +1187,12 @@ async function bootPrivate() {
 }
 
 async function demoTarget() {
-  const explicit = String(process.env.TV_DEMO_PORT || '').trim();
+  // REG-2278. TV_DEMO_OWNED means this process must spawn. An inherited port is a
+  // listener it did not start. 17771 and 17772 stay refused on the hand-run path too.
+  const ownedRoute = String(process.env.TV_DEMO_OWNED || '') === '1';
+  const explicit = ownedRoute ? '' : String(process.env.TV_DEMO_PORT || '').trim();
   const n = Number(explicit);
-  if (explicit && Number.isInteger(n) && !HIS_PORTS.has(n)) {
+  if (!ownedRoute && explicit && Number.isInteger(n) && !HIS_PORTS.has(n)) {
     return { base: `http://127.0.0.1:${explicit}/`, owned: false };
   }
   return { base: await bootPrivate(), owned: true };

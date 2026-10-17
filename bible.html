@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3762 · TV DIABLO</title>
-<meta name="d2r-build" content="v3762">
+  <title>Konyo's D2R Farming Bible v3763 · TV DIABLO</title>
+<meta name="d2r-build" content="v3763">
 <meta name="d2r-build-date" content="2026-10-17">
-<meta name="d2r-build-note" content="#18 the pre-push demo boots its own private console and never drives port 17772 or 17771. The hook no longer starts a console on his port. j3 still ends ON AIR only on that private console. HEART: the port law is the watcher; no page surface changed before the stamp.">
+<meta name="d2r-build-note" content="a stored frame filename stays bare and a bare millisecond still resolves as reel footage; a failed confirm puts owned names back through the provenance door with the receipt the removal carried; pre-push demos always spawn a console they own. HEART: the cited-frame law, the owned-door census and the private-demo law are the watchers; no new console surface.">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -21497,6 +21497,20 @@ try {
     owned.add(nm);
     return { added: !had, prov: p };
   };
+  /* A confirm write that throws has already taken the name out of owned and dropped its
+     receipt into the removal batch. A bare owned.add puts the name back and leaves the proof
+     gone. This is the reverse of that removal: the row the batch still holds comes back
+     verbatim, a filing row included, and a name the batch did not carry is owned again with
+     no invented row. */
+  window._ownedPutBack = function(names, batch){
+    var prov = (batch && batch.prov && typeof batch.prov === 'object' && !Array.isArray(batch.prov)) ? batch.prov : {};
+    (Array.isArray(names) ? names : []).forEach(function(L){
+      try {
+        var row = prov[L];
+        window._ownedAdd(L, (row && typeof row === 'object' && !Array.isArray(row)) ? { restoreRow: row } : null);
+      } catch (e2) {}
+    });
+  };
   /* un-owned by his hand: the RECEIPT goes with it (a filing row is the vault door's to drop, never this) */
   window._ownedProvForget = function(name){
     var nm = String(name == null ? '' : name).trim();
@@ -22287,7 +22301,7 @@ try {
        UNstamped and return — next load re-derives and re-folds the whole pair. Mirrors _vaultDedupeOldSetRows. */
     if (removed.length){
       try { window.LSR.setItem('d2r_owned', JSON.stringify(Array.from(owned))); }
-      catch (eOP){ removed.forEach(function(L){ try { owned.add(L); } catch (e2) {} });
+      catch (eOP){ window._ownedPutBack(removed, vr && vr.batch);
         return { ran: true, folded: [], stamped: false, why: 'the name-fold did not reach storage — left unstamped to retry' }; }
     }
     /* #76 phase 3 (v3752) — FOLD THE COPY COUNT ACROSS NAME-FORMS, NEVER CLAMP. The name-fold removes the
@@ -22343,7 +22357,7 @@ try {
           try { window.LSR.setItem('d2r_copies', JSON.stringify(_nextC)); }
           catch (eCW) {
             copiesStuck = false;                                  /* the fold did not reach disk and vaultRemove already dropped the names — */
-            removed.forEach(function(L){ try { owned.add(L); } catch (e2) {} });   /* put them back so a healthy reload re-runs the whole fold */
+            window._ownedPutBack(removed, vr && vr.batch);   /* put them back so a healthy reload re-runs the whole fold */
             try { window.LSR.setItem('d2r_owned', JSON.stringify(Array.from(owned))); } catch (e3) {}
           }
           if (copiesStuck){                                       /* write stuck — sync the live copies object to EXACTLY what landed (pairs folded, dead keys swept, keepers raised by max) */
@@ -43991,8 +44005,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (!sid) return null;
     var s = sid.replace(/#\d+$/, '').replace(/^reel_/, '');
     if (!s || /[\/\\]/.test(s) || /[\/\\]/.test(fr)) return null;
-    var fn = (/^f_/.test(fr) ? fr : ('f_' + fr));
-    fn = (/\.jpg$/.test(fn) ? fn : (fn + '.jpg'));
+    /* REG-2220 prefixed f_ onto every token that did not already start with it, so a stored
+       filename cited.jpg was opened as f_cited.jpg. A BARE millisecond is reel footage and
+       lives as f_<ms>.jpg. A token that is already a filename is that file. */
+    var stem = fr.replace(/\.jpg$/i, '');
+    var fn = (/^\d+$/.test(stem) ? ('f_' + stem) : stem) + '.jpg';
     return 'tv/frames/hist/reel_' + s + '/' + fn;
   };
   window._vaultEvidenceLooks = function(name){
@@ -45084,7 +45101,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           catch (eC) {
             /* the fold did not reach disk and the strays are already removed — restore them so a healthy
                reload re-runs the migration, and return UNstamped. Live copies is left as-is (stray kept). */
-            removedNames.forEach(function(L){ try { owned.add(L); } catch (e2) {} });
+            window._ownedPutBack(removedNames, r && r.batch);
             try { window.LSR.setItem('d2r_owned', JSON.stringify(Array.from(owned))); } catch (e3) {}
             return { ran: true, removed: removedNames.length, names: removedNames, stamped: false, why: 'copy-count fold did not reach storage — strays restored to owned, left unstamped to retry' };
           }
@@ -67094,7 +67111,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3762', name:'v3762 - private-demo-console', date:'2026-10-17', note:'#18 the pre-push demo boots its own private console and never drives port 17772 or 17771. The hook no longer starts a console on his port. j3 still ends ON AIR only on that private console. HEART: the port law is the watcher; no page surface changed before the stamp.' };
+  window.D2R_BUILD = { id:'v3763', name:'v3763 - frame-receipt-private-demo', date:'2026-10-17', note:'a stored frame filename stays bare and a bare millisecond still resolves as reel footage; a failed confirm puts owned names back through the provenance door with the receipt the removal carried; pre-push demos always spawn a console they own. HEART: the cited-frame law, the owned-door census and the private-demo law are the watchers; no new console surface.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

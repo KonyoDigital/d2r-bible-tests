@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2278 - A CITED FILENAME GAINED AN f_ PREFIX, CONFIRM ROLLBACKS SKIPPED PROVENANCE, AND PRE-PUSH COULD ADOPT AN AMBIENT LISTENER (v3763)
+
+Confirmed at e8c508c6. Three defects, one class each.
+
+1. `_vaultLookSrc` prefixed `f_` onto every frame token that did not already start with `f_`. REG-2220 needs that prefix only for a bare millisecond, because reel footage lives at `hist/reel_<sid>/f_<ms>.jpg`. A stored filename `cited.jpg` was opened as `f_cited.jpg`. FIX: a digit-only stem gains `f_` and `.jpg`; a token that is already a filename stays that file; an already-prefixed name is not prefixed again. A reel-relative frame and a frame with no reel are unchanged. GUARD: `test_a_stored_filename_stays_bare_and_a_bare_millisecond_is_reel_footage` in `tv/test_a_cited_frame_stays_and_the_evidence_line_opens_it.py`. RED before the fix: expected `tv/frames/hist/reel_s0/cited.jpg`, got `f_cited.jpg`.
+
+2. Two owned-set rollbacks inside the provenance door (`_setPieceReconcile`, the owned confirm and the copies confirm) and the same rollback in `_vaultDedupeOldSetRows` did `owned.add` after `vaultRemove` had already dropped the receipt into the batch. The name came back and the proof stayed gone. The census also failed a second way: it recognised the ladder fork line by a frozen prefix of the tokens before `d2r_owned`, so inserting `d2r_setDupeMigrate_v2227` made a name-list look unclassified. FIX: `window._ownedPutBack` restores the row the batch still holds, a filing row included, and invents nothing when the batch carried no row. All three rollbacks call it. A `d2r_owned` token inside `window._LP_FORKED = new Set([ ... ])` is a name, whatever sibling keys share the line. GUARD: `test_no_bare_owned_add_outside_the_door` (the door held 3 `owned.add`, the law is 1) and `test_a_failed_confirm_puts_the_name_back_with_the_receipt_it_carried`. RED before the fix: `_ownedPutBack is not a function`.
+
+3. GPT-5.6 Sol review of v3762, DIFFERS (MEDIUM). `tv/demo_console.mjs` `demoTarget` adopted any non-reserved inherited `TV_DEMO_PORT` listener (`owned: false`) instead of spawning its own private `control_app`, and `hooks/pre-push` did not clear that variable. 17771 and 17772 stayed refused. Ambient env could make pre-push drive a listener it does not own. FIX: before both demo launches the hook unsets `TV_DEMO_PORT` and exports `TV_DEMO_OWNED=1`. `demoTarget` spawns when that flag is set. A hand run may still pass `TV_DEMO_PORT` for a console it started, and those two ports stay refused. GUARD: `tv/test_the_demo_drives_a_private_console.py`, tightened so the pre-push route can no longer reach the unowned return. RED before the fix: the owned flag and the unset were absent.
+
+`test_proof_chip`, `test_a_pulse_that_never_fired_also_leaves_zero` and `test_no_pinned_footage` were green on the agent run of e8c508c6. They are not this class. INC-3 migration wiring and vault live data were not touched. Elad waived the cross-family look gate for this stamp; the Sol finding above is included.
+
 ### REG-2277 - THREE AGENT GATES READ A STALE ZERO (same reds as v3760)
 
 The agent suite failed these three on v3760 and again on a3daead9. This range did not add them.

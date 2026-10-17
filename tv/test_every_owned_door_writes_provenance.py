@@ -809,8 +809,6 @@ class TheOwnedStoreIsOnlyGrownThroughTheDoor(unittest.TestCase):
         "var KS = ['d2r_setPieces', 'd2r_foundLog', 'd2r_owned'];": (1, "a ledger read — reads only"),
         "if (k === 'd2r_owned'){": (1, "the un-seed Undo recognising the owned key — the growth it guards goes through "
                                        "window._ownedAdd (test_the_unseed_undo_writes_its_receipts drives it)"),
-        '"d2r_vaultBackfill_v2200", "d2r_vaultBackfillUndo_v2205", "d2r_vaultEvidenceRestore_v2207","d2r_owned",':
-            (1, "the ladder fork set — d2r_owned forks per profile; a name, never a write"),
     }
     READ_BEFORE = re.compile(r"(getItem|\.key|_chLsGet)\(\s*$")
     WRITE_BEFORE = re.compile(r"setItem\(\s*$")
@@ -833,9 +831,20 @@ class TheOwnedStoreIsOnlyGrownThroughTheDoor(unittest.TestCase):
     def test_every_occurrence_of_the_key_is_a_read_a_named_list_or_a_write_that_cannot_grow_it(self):
         s = _src()
         mask = code_mask(s, keep_strings=True)
-        bad, lists = [], {}
+        # The ladder fork set names d2r_owned among sibling keys. Inserting a key on that
+        # line used to make a name-list look unclassified, because the census matched a frozen
+        # prefix of the tokens before d2r_owned. A token inside the set literal is a name.
+        head = "window._LP_FORKED = new Set(["
+        fork_at = s.find(head)
+        fork_end = s.find("]);", fork_at) if fork_at >= 0 else -1
+        self.assertGreaterEqual(fork_at, 0, "the ladder fork set is not where this census cuts it")
+        self.assertGreater(fork_end, fork_at, "the ladder fork set does not close")
+        bad, lists, fork_hits = [], {}, 0
         for m in re.finditer(r"""['"]d2r_owned['"]""", s):
             if not mask[m.start()]:
+                continue
+            if fork_at <= m.start() < fork_end:
+                fork_hits += 1
                 continue
             ls = s.rfind("\n", 0, m.start()) + 1
             line = s[ls:s.find("\n", m.start())].strip()
@@ -854,8 +863,58 @@ class TheOwnedStoreIsOnlyGrownThroughTheDoor(unittest.TestCase):
             else:
                 lists[key] = lists.get(key, 0) + 1
         self.assertEqual([], bad)
+        self.assertEqual(1, fork_hits,
+                         "d2r_owned must be named once inside the ladder fork set — a name, never a write")
         for k, (want, why) in self.NAMED_LISTS.items():
             self.assertEqual(want, lists.get(k, 0), "a named d2r_owned list no longer matches the board — prune it: %r" % k)
+
+    def test_a_failed_confirm_puts_the_name_back_with_the_receipt_it_carried(self):
+        """The two rollbacks inside the provenance door, and the same rollback in the set-dupe
+        migration, did owned.add. vaultRemove had already dropped the receipt into the batch.
+        Putting the name back without that receipt leaves the item owned and the proof gone.
+        The door restores the row the batch still holds, filing row included, and invents
+        nothing when the batch carried no row."""
+        if NODE is None:
+            self.skipTest("node is absent — the put-back door was not driven")
+        region = owned_prov_region()
+        prog = (
+            "var window = globalThis, STORE = {};\n"
+            "window.LSR = { getItem: function(k){ return Object.prototype.hasOwnProperty.call(STORE, k) ? STORE[k] : null; },\n"
+            "  setItem: function(k, v){ STORE[k] = String(v); }, removeItem: function(k){ delete STORE[k]; } };\n"
+            "window.D2R_BUILD = { id: 'vTEST' };\n"
+            "var owned = new Set();\n"
+            + region +
+            "STORE['d2r_vaultProv'] = '{}';\n"
+            "var kept = { kind: 'owned', source: 'kai-register', frameId: 'cited.jpg', looks: [{ frame: 'cited.jpg' }] };\n"
+            "var filing = { mule: 'sets', source: 'stash', tier: 'PROVEN', looks: [{ frame: 'gone.jpg' }] };\n"
+            "window._ownedPutBack(['Shako', 'Tal', 'Magefist'], { prov: { Shako: kept, Tal: filing } });\n"
+            "var all = JSON.parse(STORE['d2r_vaultProv'] || '{}');\n"
+            "process.stdout.write(JSON.stringify({ owned: Array.from(owned).sort(), shako: all.Shako || null,\n"
+            "  tal: all.Tal || null, magefist: Object.prototype.hasOwnProperty.call(all, 'Magefist') }));\n"
+        )
+        r = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=30)
+        self.assertEqual(0, r.returncode, "the put-back door would not run — UNKNOWN, not passing: %s"
+                         % (r.stderr or r.stdout)[-800:])
+        got = json.loads(r.stdout)
+        self.assertEqual(["Magefist", "Shako", "Tal"], got["owned"])
+        self.assertEqual("kai-register", got["shako"]["source"])
+        self.assertEqual("cited.jpg", got["shako"]["frameId"])
+        self.assertEqual("owned", got["shako"]["kind"])
+        self.assertEqual("PROVEN", got["tal"]["tier"])
+        self.assertEqual("stash", got["tal"]["source"])
+        self.assertNotEqual("owned", got["tal"].get("kind"), "a filing row was replaced by a new receipt")
+        self.assertFalse(got["magefist"], "a name the batch did not carry was given an invented row")
+        src = _src()
+        for anchor in (
+            "the name-fold did not reach storage",
+            "put them back so a healthy reload re-runs the whole fold",
+            "copy-count fold did not reach storage",
+        ):
+            at = src.find(anchor)
+            self.assertGreaterEqual(at, 0, "the rollback this law watches is gone: %s" % anchor)
+            window = src[max(0, at - 400):at + 80]
+            self.assertIn("_ownedPutBack(", window, "this rollback does not go through the put-back door: %s" % anchor)
+            self.assertNotIn("owned.add(", window, "this rollback still adds to owned bare: %s" % anchor)
 
     def test_the_fork_set_is_the_only_other_occurrence(self):
         """The fork set names the key as a bare double-quoted token among fifty others; it is the one place this census
@@ -1385,6 +1444,13 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "      var origin = _consoleOrigin();\n      if (!origin) return end({ state: 'unknown', frame: id,",
         "replace": "      var origin = _consoleOrigin() || 'http://127.0.0.1:17772';\n      if (false) return end({ state: 'unknown', frame: id,",
+        "matches": 1,
+    },
+    {
+        "why": "a confirm rollback adds to owned bare again and the receipt the removal carried stays dropped",
+        "file": "bible.html",
+        "find": "        window._ownedAdd(L, (row && typeof row === 'object' && !Array.isArray(row)) ? { restoreRow: row } : null);\n",
+        "replace": "        try { owned.add(L); } catch (e3) {}\n",
         "matches": 1,
     },
     {

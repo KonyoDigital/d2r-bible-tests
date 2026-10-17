@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3762",
+  "ver": "v3763",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3762: #18 the pre-push demo boots its own private console and never drives port 17772 or 17771. The hook no longer starts a console on his port. j3 still ends ON AIR only on that private console. HEART: the port law is the watcher; no page surface changed before the stamp.",
+  "note": "v3763: a stored frame filename stays bare and a bare millisecond still resolves as reel footage; a failed confirm puts owned names back through the provenance door with the receipt the removal carried; pre-push demos always spawn a console they own. HEART: the cited-frame law, the owned-door census and the private-demo law are the watchers; no new console surface.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
