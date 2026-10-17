@@ -9707,6 +9707,15 @@ GATES = [
              "owned/copies/assign untouched; and the migration stays DORMANT (no live caller). PHASE-2 foundation; "
              "arming is a later GrokBot-gated step. [[heart-first]] [[the-unjoined-end]] [[unknown-stays-unknown]]")
          ),
+    Gate("test_v3764_records_classification_parity", [sys.executable,
+         os.path.join(HERE, "test_v3764_records_classification_parity.py")], 60,
+         needs_app=False,
+         why=("#76 REG-2272 item 6 - _vaultRecords classifies a shared-locker name (production _sharedNames, "
+             "assign===shared) as sharedStash even when the never-muled regex misses it, so muleById('shared') "
+             "cannot file war gear as a mule home, and the persisted loc is the rule-E copy split. Overflow "
+             "membership follows _sharedNames, so an unassigned regex material is not trade-stock. Carried still "
+             "wins. The store stays dormant. Copy-loss ids stay open. [[heart-first]] [[the-unjoined-end]]")
+         ),
     Gate("test_the_vault_proposes_a_home_and_does_not_move", [sys.executable,
          os.path.join(HERE, "test_the_vault_proposes_a_home_and_does_not_move.py")], 90,
          needs_app=False,

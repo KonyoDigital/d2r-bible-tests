@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3763 · TV DIABLO</title>
-<meta name="d2r-build" content="v3763">
+  <title>Konyo's D2R Farming Bible v3764 · TV DIABLO</title>
+<meta name="d2r-build" content="v3764">
 <meta name="d2r-build-date" content="2026-10-17">
-<meta name="d2r-build-note" content="a stored frame filename stays bare and a bare millisecond still resolves as reel footage; a failed confirm puts owned names back through the provenance door with the receipt the removal carried; pre-push demos always spawn a console they own. HEART: the cited-frame law, the owned-door census and the private-demo law are the watchers; no new console surface.">
+<meta name="d2r-build-note" content="#76 REG-2272 item 6: a shared-locker name the never-muled regex misses is sharedStash, with the rule-E copy split, and overflow follows the locker list. Items 1, 2, 3 and 5 already held. Copy-loss ids stay open: a dropped count keeps the prefix ids, and which copy left is not in the count. The store stays dormant. HEART: the classification law is the corroborator; no new console surface.">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -47954,6 +47954,11 @@ window.vaultAutoAssign = function(){
         if (typeof _dockNames !== 'function') out.dockUnknown = true;   // the dock list could not be read -> loose is UNKNOWN, not 0
         else _dockNames().forEach(function(n){ looseSet[n] = 1; });
       } catch(e){ out.dockUnknown = true; }
+      /* REG-2272 item 6 — production _sharedNames is assign==='shared' (the locker). The never-muled
+         regex does not match war gear, and muleById('shared') is a real roster row, so the filed
+         branch used to call that name a mule home and skip the rule-E copy split. */
+      var sharedSet = {};
+      try { (_sharedNames() || []).forEach(function(n){ sharedSet[n] = 1; }); } catch (e) {}
       poolAll.forEach(function(name){
         // classify this NAME to ONE location-kind, in the header's own priority order, but resolve "filed" FOR REAL
         var kind, mid = assign[name];
@@ -47961,6 +47966,7 @@ window.vaultAutoAssign = function(){
         else if (carriedSet[name]) kind = 'carried';
         else if (looseSet[name]) kind = 'loose';
         else if (mid === '__keep') kind = 'keep';                  // standing kit kept with MAIN — a legit non-mule home
+        else if (sharedSet[name]) kind = 'sharedStash';
         else if (mid != null && mid !== '__throwout' && typeof muleById === 'function' && muleById(mid)) kind = 'filed';
         else if (typeof KEEP_IN_INVENTORY !== 'undefined' && typeof _keepName === 'function' && KEEP_IN_INVENTORY.test(_keepName(name)))
           kind = 'keepInv';                                        // Anni/Torch/Gheed's drawn with MAIN — a kept charm with no mule is NOT an orphan
@@ -48267,12 +48273,18 @@ window.vaultAutoAssign = function(){
   }
   window._vaultRecordsViewFind = _vaultRecordsViewFind;
   function _vaultRecordsViewOverflow(model){
+    /* REG-2272 item 6 — membership is production _sharedNames, the same list _vaultRecordsOverflow
+       walks. kind === 'sharedStash' is wider: an unassigned rune is not in the locker, and a kind
+       walk would call a 4-copy shard trade-stock. */
     var out = [];
     if (!model || !model.ok) return out;
-    var shared = {};
-    model.records.forEach(function(r){ if (r && r.kind === 'sharedStash') shared[r.name] = 1; });
-    var cap = (typeof _SHARED_COPY_CAP === 'number' && _SHARED_COPY_CAP > 0) ? _SHARED_COPY_CAP : 2;
-    Object.keys(shared).forEach(function(n){ var ids = model.index[n] || []; if (ids.length - cap > 0) out.push(n); });
+    try {
+      var cap = (typeof _SHARED_COPY_CAP === 'number' && _SHARED_COPY_CAP > 0) ? _SHARED_COPY_CAP : 2;
+      (_sharedNames() || []).forEach(function(n){
+        var ids = model.index[n] || [];
+        if (ids.length - cap > 0) out.push(n);
+      });
+    } catch (e) {}
     return out.sort();
   }
   window._vaultRecordsViewOverflow = _vaultRecordsViewOverflow;
@@ -67111,7 +67123,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3763', name:'v3763 - frame-receipt-private-demo', date:'2026-10-17', note:'a stored frame filename stays bare and a bare millisecond still resolves as reel footage; a failed confirm puts owned names back through the provenance door with the receipt the removal carried; pre-push demos always spawn a console they own. HEART: the cited-frame law, the owned-door census and the private-demo law are the watchers; no new console surface.' };
+  window.D2R_BUILD = { id:'v3764', name:'v3764 - records-classification-parity', date:'2026-10-17', note:'#76 REG-2272 item 6: a shared-locker name the never-muled regex misses is sharedStash, with the rule-E copy split, and overflow follows the locker list. Items 1, 2, 3 and 5 already held. Copy-loss ids stay open: a dropped count keeps the prefix ids, and which copy left is not in the count. The store stays dormant. HEART: the classification law is the corroborator; no new console surface.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
