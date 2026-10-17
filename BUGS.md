@@ -7,6 +7,17 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2276 - THE PRIVATE DEMO SHELF HAD NO RUN, SO J7 WAITED OUT (#18)
+
+v3762 moved the pre-push demos onto a private console. J7 waits 15 s for one `.sh-card`. Since
+v3092 a film-less run is not a card (`SHELF_F.ghosts` defaults false), and the sandbox journal
+did not exist, so the shelf painted "No runs recorded yet" and the render wait expired. Measured
+on the refused push: private console up, :17772 left alone, 15/16 journeys, `j7_shelfStory`
+timeout 15000 ms. FIX: before the child starts, the sandbox gets one synthetic run (`demo_shelf`,
+not a `reel_s_<epoch>` fixture id) and three `f_####.jpg` stills under its own hist. His journal
+is not copied. GUARD: `test_the_private_shelf_is_one_filmed_run_in_the_sandbox` in
+`test_the_demo_drives_a_private_console.py`.
+
 ### REG-2275 - THE PRE-PUSH DEMO CLICKED HIS LIVE CONSOLE (#18 / #73)
 
 `tv/demo_console.mjs` opened `http://127.0.0.1:${TV_CONTROL_PORT || 17772}/`. Journey j3 clicks

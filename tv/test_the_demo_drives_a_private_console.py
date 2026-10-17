@@ -87,6 +87,29 @@ class TheDemoDrivesAPrivateConsole(unittest.TestCase):
         self.assertEqual(code.count('gate_run "console-demos"'), 2,
                          "a console-demos call site was dropped or added")
 
+    def test_the_private_shelf_is_one_filmed_run_in_the_sandbox(self):
+        code = _js(DEMO)
+        call = "seedShelf(_sand, hist);"
+        write = "fs.writeFileSync(path.join(sand, 'sessions.jsonl'),"
+        still = "fs.writeFileSync(path.join(reel, 'f_' + String(k).padStart(4, '0') + '.jpg'), still);"
+        self.assertEqual(code.count("function seedShelf(sand, hist) {"), 1,
+                         "the private boot no longer seeds a shelf run")
+        self.assertEqual(code.count(call), 1, "the seed is not what the private boot runs")
+        self.assertEqual(code.count(write), 1, "the journal is not written into the sandbox")
+        self.assertEqual(code.count(still), 1, "the seed no longer writes f_####.jpg stills")
+        self.assertEqual(code.count("const sid = 'demo_shelf';"), 1,
+                         "the seeded id changed; a reel_s_<epoch> id is hidden as a fixture")
+        self.assertEqual(code.count("const reel = path.join(hist, 'reel_' + sid);"), 1)
+        self.assertEqual(code.count("for (let k = 0; k < 3; k++) {"), 1,
+                         "the seed no longer writes three stills, so footageN stays 0 and the card is dropped")
+        self.assertEqual(code.count("sessions.jsonl"), 2,
+                         "the journal path is no longer exactly the sandbox write plus the child env")
+        made = code.find("fs.mkdirSync(hist, { recursive: true });")
+        self.assertGreaterEqual(made, 0)
+        self.assertLess(made, code.find(call), "the seed runs before its directory exists")
+        self.assertLess(code.find(call), code.find(SPAWN_LINE),
+                        "the child can start before the shelf run is on disk")
+
 
 RED_PROOF = [
     {
@@ -108,6 +131,13 @@ RED_PROOF = [
         "file": "hooks/pre-push",
         "find": "      echo \"pre-push: [$(_pp_el)] :17772 is silent — the demos boot a private console. His port is not bound.\"\n",
         "replace": "      echo \"pre-push: [$(_pp_el)] :17772 is silent — the demos boot a private console. His port is not bound.\"\n      python3 control_app.py --no-open\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2276 - the private boot no longer seeds a filmed run, so J7 waits on an empty shelf",
+        "file": "tv/demo_console.mjs",
+        "find": "  seedShelf(_sand, hist);\n",
+        "replace": "",
         "matches": 1,
     },
 ]

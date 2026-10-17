@@ -25,6 +25,13 @@ const HIS_PORTS = new Set([17771, 17772]);
 const DEMO_DIR = path.dirname(fileURLToPath(import.meta.url));
 let _private = null;
 let _sand = null;
+// REG-2276. The same 8x8 still render_check seeds. Synthetic. Never a copy of his journal.
+const SHELF_STILL_B64 = (
+  '/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABsSFBcUERsXFhceHBsgKEIrKCUlKFE6PTBCYFVlZF9VXVtqeJmBanGQ'
+  + 'c1tdhbWGkJ6jq62rZ4C8ybqmx5moq6T/2wBDARweHigjKE4rK06kbl1upKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSk'
+  + 'pKSkpKSkpKSkpKSkpKSkpKSkpKSkpKSkpKT/wAARCAAIAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAA'
+  + 'AAX/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFAEBAAAAAAAAAAAAAAAAAAAAAf/EABQRAQAAAAAAAAAAAAAAAAAA'
+  + 'AAD/2gAMAwEAAhEDEQA/AIAAL//Z');
 
 let chromium;
 try {
@@ -1104,11 +1111,31 @@ process.on('exit', () => {
   }
 });
 
+function seedShelf(sand, hist) {
+  // v3092 drops a film-less run out of the shelf grid (ghosts default false). J7 waits for one
+  // .sh-card. An empty sandbox paints the empty hero and that wait expires. One synthetic run,
+  // three stills, written only under the sandbox. The id is not a reel_s_<epoch> fixture.
+  const sid = 'demo_shelf';
+  const reel = path.join(hist, 'reel_' + sid);
+  fs.mkdirSync(reel, { recursive: true });
+  const still = Buffer.from(SHELF_STILL_B64, 'base64');
+  for (let k = 0; k < 3; k++) {
+    fs.writeFileSync(path.join(reel, 'f_' + String(k).padStart(4, '0') + '.jpg'), still);
+  }
+  const t = 1700000000000;
+  const rows = [
+    { sessionId: sid, ts: t, lane: 'deep', scene: 'gameplay', area: 'Stony Tomb' },
+    { sessionId: sid, ts: t + 1000, lane: 'kai', kai: { missedFrames: 0 } },
+  ];
+  fs.writeFileSync(path.join(sand, 'sessions.jsonl'), rows.map((r) => JSON.stringify(r)).join('\n') + '\n');
+}
+
 async function bootPrivate() {
   const { port, agent } = await twoPrivatePorts();
   _sand = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-console-'));
   const hist = path.join(_sand, 'frames', 'hist');
   fs.mkdirSync(hist, { recursive: true });
+  seedShelf(_sand, hist);
   const env = {
     ...process.env,
     TV_CONTROL_PORT: String(port),
