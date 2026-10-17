@@ -60,6 +60,36 @@ progress instrumentation would feed the watchdog as well, so it never quarantine
 build diff (reusable chronicle note="deadline"/not-sealed + vault quarantine wiring, at the WRONG sig_of
 granularity) saved at scratchpad/river_drain_build_REG2271_BACKED_OUT.diff.
 
+### REG-2272 - #76 INC-3b d2r_vaultRecords: 6 LATENT findings (v3760 #231 cross-family eye) — PHASE-2 PREREQUISITES, before the store is ARMED/TRUSTED
+
+v3760 shipped the persisted `d2r_vaultRecords` store **DORMANT** (no page-load/intake/render path calls the
+migration — only the fixture test does), so the ship writes NOTHING on his board and is safe. The #231 Grok eye
+caught 6 latent issues the 4 same-family INC-3b skeptics MISSED (parity/fork/dormancy/recId-survives-rename were
+verified; rename-THEN-persist, parse-OK-wrong-shape, and copy-loss id-shift were not) — the exact reason the
+cross-family eye is mandatory. ALL are latent (they bite only when the store is WRITTEN/re-written/renamed, i.e.
+PHASE 2). A single migrate on his FRESH (empty) board — the GrokBot verify — is UNAFFECTED (no prior store, no
+rename, one persist), so the verify of count+location correctness is safe. **These must be closed BEFORE phase-2
+arms repeated/trusted operation:**
+1. **HIGH recId is NOT rename-stable (claim correction).** `_vaultRecordsRename` keeps recId, but the next
+   `_vaultRecordsPersist` rebuilds priorIds keyed by the CURRENT derived name → a renamed name finds no prior ids →
+   re-mints + the guarded set replaces the store (the rename is lost). ⚠ v3760's note/commit claimed "stable opaque
+   recId surviving a rename" — that is TRUE for rename-alone, FALSE for rename-THEN-persist. The parity test tested
+   rename WITHOUT a subsequent persist (the gap). recId is in truth POSITIONAL (name+position), not a physical-copy
+   anchor.
+2. **HIGH corrupt-guard gap:** a store that PARSES but is not `{records:array}` (`[]`, `{"v":1}`, `{"records":{}}`)
+   is treated as ABSENT (not UNKNOWN) → overwritten AND the migration stamp latches (won't retry). Fix: `_vrRecLoadRaw`
+   must treat parse-OK-but-wrong-shape as UNKNOWN (refuse), same as a throw. [[unknown-stays-unknown]]
+3. **MED corrupt `d2r_vaultProv` → `prov:null` on every record** (absent and UNKNOWN collapsed). Carry an UNKNOWN
+   marker when the witness store is unreadable, don't write null. [[unknown-stays-unknown]]
+4. **MED positional recId reuse** shifts identity on copy-loss: name C `rec_1..rec_4`, first copy leaves → next
+   persist writes `rec_1..rec_3` onto the survivors → a surviving copy wears a removed copy's id. Inherent to the
+   count-only model — phase-2 needs a per-copy ANCHOR (not just name+position) to make recId a true physical-copy id.
+5. **LOW `_vaultRecordsMigrateUndo`** always returns `undone:true` + swallows a `removeItem` throw → reports re-armed
+   while the stamp still gates. Report honestly.
+6. **NOT JUDGED:** classification parity of `_vaultRecords`'s kind/copyIx choice vs production `_sharedNames` (outside
+   the eye's excerpt) — phase-2 must verify it.
+The dormant store (v3760) stands; these are the trust-gate items the prove-before-trust phase exists to surface.
+
 ### REG-2270 - RECORDS-FAILED ORPHAN COUNT RENDERED SILENT (FALSE-AGREE) INSTEAD OF UNKNOWN (#76, #231 eye on v3756, v3757)
 
 Found by the Grok CLI second-eye on v3756 (run as the v3757 push prerequisite — v3756 shipped during the Grok
