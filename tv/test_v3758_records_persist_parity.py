@@ -237,23 +237,35 @@ out.same = (out.aIds.length === 1 && out.aIds[0] === before[0]);
         self.assertTrue(o["same"], "rename-then-persist re-minted the id: %r" % o)
 
     def test_a_wrong_shape_store_is_unknown_and_not_overwritten(self):
-        """REG-2272 item 2. Parse-OK but not {records: array} is UNKNOWN, not absent."""
+        """REG-2272 item 2. Parse-OK but not {records: array} is UNKNOWN, not absent.
+
+        The note names three shapes, not one: [], {"v":1}, {"records":{}}. A guard that only
+        sees {"v":1} can miss a sibling the same branch was written to refuse.
+        """
         o = self._run(r"""
-window.LSR.setItem('d2r_vaultRecords', JSON.stringify({ v: 1 }));
-var before = window.LSR.getItem('d2r_vaultRecords');
-var pr = _vaultRecordsPersist();
-var m = _vaultRecordsMigrate();
-out.unknown = !!pr.unknown;
-out.ok = pr.ok;
-out.unchanged = (window.LSR.getItem('d2r_vaultRecords') === before);
-out.stamped = (window.LSR.getItem('d2r_vaultRecordsMigrate') != null);
-out.migrateRan = m.ran;
+var shapes = ['[]', JSON.stringify({ v: 1 }), JSON.stringify({ records: {} })];
+out.rows = shapes.map(function(raw){
+  _vrRecUnread = {};
+  window.LSR.removeItem('d2r_vaultRecordsMigrate');
+  window.LSR.setItem('d2r_vaultRecords', raw);
+  var before = window.LSR.getItem('d2r_vaultRecords');
+  var pr = _vaultRecordsPersist();
+  var m = _vaultRecordsMigrate();
+  return {
+    unknown: !!pr.unknown, ok: pr.ok,
+    unchanged: (window.LSR.getItem('d2r_vaultRecords') === before),
+    stamped: (window.LSR.getItem('d2r_vaultRecordsMigrate') != null),
+    migrateRan: m.ran
+  };
+});
 """)
-        self.assertTrue(o["unknown"], "a wrong-shape store was not UNKNOWN: %r" % o)
-        self.assertFalse(o["ok"], "persist wrote over a wrong-shape store")
-        self.assertTrue(o["unchanged"], "the wrong-shape bytes were overwritten")
-        self.assertFalse(o["stamped"], "the migrate stamp latched over a wrong-shape store")
-        self.assertFalse(o["migrateRan"], "the migration ran over a wrong-shape store")
+        self.assertEqual(len(o["rows"]), 3, o)
+        for row in o["rows"]:
+            self.assertTrue(row["unknown"], "a wrong-shape store was not UNKNOWN: %r" % row)
+            self.assertFalse(row["ok"], "persist wrote over a wrong-shape store: %r" % row)
+            self.assertTrue(row["unchanged"], "the wrong-shape bytes were overwritten: %r" % row)
+            self.assertFalse(row["stamped"], "the migrate stamp latched over a wrong-shape store: %r" % row)
+            self.assertFalse(row["migrateRan"], "the migration ran over a wrong-shape store: %r" % row)
 
     def test_an_unreadable_witness_store_is_not_a_null_witness(self):
         """REG-2272 item 3. Absent prov is null. Unreadable prov is a marker, not null."""

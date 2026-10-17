@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2279 - SHARED LOCKER CLASSIFIED AS A MULE HOME (#76, REG-2272 item 6, v3764)
+
+The INC-2 and INC-3b fixtures stubbed isSharedStash to mean assign==='shared' and muleById('shared') to null, so classification parity against production _sharedNames was never judged (REG-2272 item 6). Production is two different lists: _sharedNames is assign==='shared' (the locker, including war gear); isSharedStash is the never-muled regex (runes, shards, sunders). muleById('shared') returns the locker. A war-gear name in the locker therefore fell through to the filed branch: kind filed, mule shared, every copy loc the mule id, rule E skipped, and FIND returned a mule home. The persist overflow view walked kind==='sharedStash', so an unassigned 4-copy Worldstone Shard (regex, not in the locker) read as trade-stock while the live overflow, which walks _sharedNames, did not.
+
+FIX: after carried, loose and keep (the header order), a name in _sharedNames is sharedStash. _vrLocForCopy then splits copyIx at _SHARED_COPY_CAP (shared, shared, dupes, dupes for a 4-copy name). _vaultRecordsViewOverflow walks _sharedNames, the same list as _vaultRecordsOverflow. The live population line still derives filed by subtraction and reads the records header for orphans only, so this does not move a number on the board. The migration is not called from page load and d2r_vaultRecords is not wired into live reads or writes.
+
+GUARD: tv/test_v3764_records_classification_parity.py, registered in tv/run_gates.py. RED before the fix: Enigma kind filed, mule shared. heart2 --prove both anchors PROVEN (the locker branch, and the overflow membership). The three wrong-shape siblings named in item 2 are asserted by tv/test_v3758_records_persist_parity.py; that law and its three prior anchors re-proved PROVEN after the view edit.
+
+LEFT: REG-2272 item 4. See that entry. The store stays dormant. INC-3 live arming stays gated on Elad's go plus a GrokBot board verify.
+
 ### REG-2278 - A CITED FILENAME GAINED AN f_ PREFIX, CONFIRM ROLLBACKS SKIPPED PROVENANCE, AND PRE-PUSH COULD ADOPT AN AMBIENT LISTENER (v3763)
 
 Confirmed at e8c508c6. Three defects, one class each.
@@ -165,7 +175,9 @@ arms repeated/trusted operation:**
 6. **NOT JUDGED:** classification parity of `_vaultRecords`'s kind/copyIx choice vs production `_sharedNames` (outside
    the eye's excerpt) — phase-2 must verify it.
 The dormant store (v3760) stands; these are the trust-gate items the prove-before-trust phase exists to surface.
-CLOSED in the following edit, still dormant, still not armed: item 2 (wrong shape is UNKNOWN and is not overwritten, stamp does not latch), item 3 (unreadable d2r_vaultProv sets provUnknown and does not write prov:null), item 5 (undo reports undone:false when remove throws), item 1 for the measured case (rename writes prevName; the next persist of the live name reuses that recId). Item 4 (a lost copy shifts positional ids) and item 6 (classification parity vs _sharedNames, not judged here) stay open. A per-copy anchor is still required before phase 2 trusts recId as a physical copy.
+CLOSED in v3761, still dormant, still not armed: item 2 (wrong shape is UNKNOWN and is not overwritten, stamp does not latch; v3764 asserts all three named shapes [], {"v":1}, {"records":{}}), item 3 (unreadable d2r_vaultProv sets provUnknown and does not write prov:null), item 5 (undo reports undone:false when remove throws), item 1 for the measured case (rename writes prevName; the next persist of the live name reuses that recId). Re-verified green at the v3764 HEAD before the classification edit (tv/test_v3758_records_persist_parity.py, 10 tests).
+CLOSED in v3764 (REG-2279), still dormant: item 6. A shared-locker name the never-muled regex misses is sharedStash (carried, loose and keep still win), the persisted loc is the rule-E copy split, and overflow membership is _sharedNames on both the live view and the loaded store. Measured before the fix: Enigma assign shared, muleById('shared') present, kind filed, mule shared.
+LEFT OPEN — item 4, needs a ruling. Measured at this HEAD on the dormant persist: name C held rec_3..rec_6, copies.C 4 to 3, the next persist wrote rec_3..rec_5. That is prefix reuse. It keeps those ids on the survivors only when the copy that left was the last one. copies[name] is a count, so which physical copy left is not in the source. The notes require a per-copy anchor and do not name it (cell, witness, frame, or an explicit drop). Choosing one would decide whose id survives. Left for Elad: the anchor has to be named before the store can trust a recId across a lost copy. A per-copy anchor is still required before phase 2 trusts recId as a physical copy. The migration is not called from page load.
 
 ### REG-2270 - RECORDS-FAILED ORPHAN COUNT RENDERED SILENT (FALSE-AGREE) INSTEAD OF UNKNOWN (#76, #231 eye on v3756, v3757)
 
