@@ -42,6 +42,24 @@ returns writing its terminal `done/error/stopped` state over a NEWER sweep): a b
 (a slow-hang that returns AND a new sweep started in the gap), the watchdog still ENDS the stall, and a mis-marked
 successor is itself re-cleared on the next 10s tick.
 
+**2026-10-17 — THE ROOT DEADLINE WAS BUILT (fleet) AND BACKED OUT; it is harder than it looks. DO NOT re-ship a
+simple per-reel deadline.** Recon (both lanes): the grouping hang is `isLoopOverFrames:True` — `still_runs(frames,
+sig_of)` iterates ~150 frames, each sig_of BOUNDED (chron jpeg_sig ~0.08s; **vault tooltip-locate up to ~36 OCR
+tiles × 4s ≈ 144s PER FRAME**). The built guard was a CUMULATIVE per-reel wall-clock bound (45s/90s) wrapped at
+sig_of; an adversarial skeptic REFUTED it: a cumulative bound below a healthy large reel's grouping time
+FALSE-KILLS healthy footage. And the deeper hazard the whole area carries: **skipping a slow-but-still-reading reel
+DISCARDS his vault footage — the opposite of what he wants (his vault POPULATED). A deadline may fire ONLY on a
+GENUINELY FROZEN grouping, never on one that is merely slow-but-progressing.** A correct deadline therefore needs
+(1) progress instrumented at PER-OPERATION / per-TILE granularity (per-frame is too coarse — one legit frame is
+≤~144s), (2) a NO-PROGRESS bound (not cumulative), (3) a budget set from MEASURED real per-operation costs, and
+(4) a MEASUREMENT FIRST on his actual owed reels (GrokBot/probe): are they FROZEN (safe to skip → fast drain) or
+slow-but-progressing (must read → no safe speedup, skipping = footage loss)? ⚠ The shipped watchdog (v3758/v3759)
+shares this blind spot: its progress sig (classified/pagesRead/runReelsDone) does NOT change DURING grouping, so a
+reel whose grouping legitimately runs past 240s would be quarantined by the watchdog too — the per-operation
+progress instrumentation would feed the watchdog as well, so it never quarantines a progressing reel. Backed-out
+build diff (reusable chronicle note="deadline"/not-sealed + vault quarantine wiring, at the WRONG sig_of
+granularity) saved at scratchpad/river_drain_build_REG2271_BACKED_OUT.diff.
+
 ### REG-2270 - RECORDS-FAILED ORPHAN COUNT RENDERED SILENT (FALSE-AGREE) INSTEAD OF UNKNOWN (#76, #231 eye on v3756, v3757)
 
 Found by the Grok CLI second-eye on v3756 (run as the v3757 push prerequisite — v3756 shipped during the Grok
