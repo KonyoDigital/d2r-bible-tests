@@ -48,12 +48,14 @@ test('a fullscreen dupes window with only shared spare copies is NOT an empty lo
     return { filed, hasSpareHtml: /vm-spare-sec/.test(spareHtml), open, spares, emptyNotes };
   });
 
-  // the scenario is genuinely the only-spares case: nothing filed to dupes, but overflow to show
-  expect(r.filed).toBe(0);
+  // premise first: the overflow is really there, the window opened, and the spare cells drew.
+  // a filed count of 0 with no spare cells is just an empty locker, and that zero proves nothing.
   expect(r.hasSpareHtml).toBe(true);
   expect(r.open).toBe(true);
   // the spare cells ARE drawn (3 capped Grief spares) — REG-2231
   expect(r.spares).toBe(3);
+  // nothing is filed to dupes — the only content is those spare cells
+  expect(r.filed).toBe(0);
   // ...and the window does NOT also say "empty locker" — REG-2240
   expect(r.emptyNotes).toBe(0);
 });

@@ -7,6 +7,25 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2277 - THREE AGENT GATES READ A STALE ZERO (same reds as v3760)
+
+The agent suite failed these three on v3760 and again on a3daead9. This range did not add them.
+
+1. `test_vault_resume_seal.py` built its temp reel as `reel_s_1790000000000_00001`. That is a
+   2026-looking epoch in executable test code, so retention would freeze a reel no test opens.
+   The directory is now `reel_s_1500000000000_00001` (2017, the synthetic range). Frame
+   timestamps stay on BASE_TS. It is not added to test_reel_refs.json.
+2. The proof-chip law still required `(drawn || [])` inside the chip. REG-2224 counts distinct
+   drawn names. REG-2226 adds the dupes spare-overflow names. magicItems stay in both halves.
+   The printed denominator is `_itemN`. The header `total` stays the copy count. The per-copy
+   loop is not restored.
+3. Two spec blocks reached `.toBe(0)` before they showed anything, so the pulse ratchet went
+   40 to 42. The fullscreen dupes window now shows the spare cells before it says nothing is
+   filed. The one-record header now shows the five owned before it says zero orphans.
+
+The cited-frame prefix and the two owned-set rollbacks are page changes. They wait, because a
+new stamp cannot ship while v3762 has no cross-family look.
+
 ### REG-2276 - THE PRIVATE DEMO SHELF HAD NO RUN, SO J7 WAITED OUT (#18)
 
 v3762 moved the pre-push demos onto a private console. J7 waits 15 s for one `.sh-card`. Since

@@ -128,7 +128,7 @@ class VaultResumeSeal(unittest.TestCase):
 
     def setUp(self):
         self.tmp = tempfile.mkdtemp(prefix="vr-resume-seal-")
-        self.reel = build_reel(os.path.join(self.tmp, "reel_s_1790000000000_00001"))
+        self.reel = build_reel(os.path.join(self.tmp, "reel_s_1500000000000_00001"))
         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
 
     def _sweep(self, reader, resume=None, on_checkpoint=None, checkpoint_every=4, prior_seen=None):

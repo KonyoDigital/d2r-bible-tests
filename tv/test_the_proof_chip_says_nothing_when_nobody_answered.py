@@ -79,20 +79,37 @@ class TestTheProofChipSaysNothingWhenNobodyAnswered(unittest.TestCase):
 
     # ── THE DENOMINATOR BESIDE IT ───────────────────────────────────────────────────────────
     def test_it_counts_the_same_population_the_total_counts(self):
-        """The header total is one cell per copy plus the magic keepers."""
+        """REG-2224 / REG-2226 — the chip counts distinct names, the same population as _itemN.
+
+        `total` stays the COPY count (one cell per copy plus the magic keepers). The badge and
+        the scale denominator are `_itemN`: distinct drawn names, plus magicItems, plus the
+        dupes locker spare-overflow names. A per-copy loop counted one proven item once per copy.
+        """
         chip = _between(self.src, "var P = window.VAULT_PROVEN;", "})()")
-        self.assertIn("(drawn || [])", chip,
-                      "the chip does not count the cells the shelf draws")
+        shelf = _between(self.src, "var drawn = _shelfDrawNames(items, m.id);",
+                         "var P = window.VAULT_PROVEN;")
+        self.assertIsNotNone(chip, "the proof chip is gone — re-anchor this gate")
+        self.assertIsNotNone(shelf, "the shelf count that feeds the chip is gone — re-anchor this gate")
+        self.assertIn("Array.from(new Set(drawn)).forEach(function(n){ if (P[n]) seen++; });", chip,
+                      "the chip must count each drawn NAME once; a per-copy loop counts a 3-copy "
+                      "proven item as 3 against a distinct-item denominator")
+        self.assertNotIn("(drawn || [])", chip,
+                         "the per-copy loop is back: drawn is one entry per copy")
         self.assertNotIn("(items || [])", chip,
-                         "the chip still counts names while the header total counts one cell per copy")
-        self.assertIn("magicItems", chip,
-                      "the chip counts the drawn cells alone while the total beside it counts "
-                      "those cells plus magicItems — a numerator over one list under a "
-                      "denominator over two")
+                         "the chip counts the locker names list, not the drawn cells")
+        self.assertIn("_ovNames.forEach(function(n){ if (P[n]) seen++; });", chip,
+                      "a spare-overflow name is in _itemN and missing from the numerator")
+        self.assertIn("(typeof magicItems !== 'undefined' ? (magicItems || []) : []).forEach(function(n){",
+                      chip, "the chip drops the magic keepers the denominator still counts")
+        self.assertIn("seen + ' of ' + _itemN", chip,
+                      "the chip prints seen against something other than _itemN")
+        self.assertIn("var _itemN = (new Set(drawn)).size + magicItems.length;", shelf,
+                      "_itemN is no longer distinct drawn names plus the magic keepers")
+        self.assertIn("_itemN += _ovNames.length;", shelf,
+                      "the dupes spare-overflow names left the denominator")
         self.assertEqual(
             self.src.count("var total = drawn.length + magicItems.length;\n"), 1,
-            "the header total must stay one cell per copy plus the magic keepers, "
-            "the same population the chip counts")
+            "the header total must stay the COPY count: one cell per copy plus the magic keepers")
 
     # ── BOUNDED, BECAUSE REG-713 WAS THREE UNBOUNDED FETCHES ON THIS PAGE ───────────────────
     def test_the_ask_cannot_hang_forever(self):

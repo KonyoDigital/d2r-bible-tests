@@ -55,12 +55,13 @@ test('records header byte-matches the live vault header on consistent data (REG-
     return { rh, popOwned: num(/(\d+) owned/), popFiled: num(/(\d+) filed to mules/), popLoose: num(/(\d+) still loose/), txt };
   });
 
-  // the records model reproduces the header (CDP-verified fixture)
-  expect(r.rh.orphans).toBe(0);
+  // premise first: five owned, six records, four filed, one loose. Zero orphans then
+  // means those records were classified, not that the header was never built.
   expect(r.rh.owned).toBe(5);
   expect(r.rh.copies).toBe(6);        // SoJ counted twice — copies = total records
   expect(r.rh.filed).toBe(4);
   expect(r.rh.loose).toBe(1);
+  expect(r.rh.orphans).toBe(0);
   // THE PARITY: records-COUNT (independent path) == render-SUBTRACTION (what he actually sees on screen)
   expect(r.rh.owned, r.txt).toBe(r.popOwned);
   expect(r.rh.filed, r.txt).toBe(r.popFiled);
