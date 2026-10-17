@@ -574,10 +574,11 @@ fi
 # paid for behind 96 minutes of proofs. It refused 2 of 13 pushes over 2026-09-27..29 (3519 #3 at 16m42s, v3523 #3);
 # the render gate refused 4. The argument that moved the render gate moves this one: the stages likeliest to refuse
 # run first, so a refusal costs minutes, not the whole gate.
-# ⚠ A MOVE, NOT A CHANGE. The block below is the v938.6 / v2120 / 2026-09-16 console-demos gate byte for byte - its
-# two-space indentation included, because the python3 -c program embedded in it depends on it: the trigger, the
-# freshness question, the gate on his console, the headless console it starts when :17772 is silent, the by-pid stop,
-# the loud skip. Nothing removed, no bound moved. ⚠ AND THE SAME HOLE CLOSED: it sat inside the `tv/ python touched`
+# ⚠ A MOVE, NOT A CHANGE, except REG-2275. The trigger, the freshness question and the loud
+# file-unchanged skip stay. The silent branch no longer starts a console on :17772 and no
+# longer kills a pid. Both console-demos call sites stay, bound 180. The indentation stays,
+# because the python3 -c program embedded in the freshness question depends on its column-0
+# lines. ⚠ AND THE SAME HOLE CLOSED: it sat inside the `tv/ python touched`
 # lane, so a push changing only tv/control_ui.html or tv/demo_console.mjs - the very files its trigger names - never
 # ran the demos at all. At top level the trigger alone decides. Law: test_the_render_gate_runs_before_the_proving_stage.
   # v938.6 — console DEMO gate: when the console UI changed and the app is UP, the
@@ -633,20 +634,9 @@ fi
     if curl -s -m 2 -o /dev/null http://127.0.0.1:17772/api/status; then
       echo "pre-push: [$(_pp_el)] $(python3 "$REPO/tv/console_settle.py" --wait 360 --min-age 30 2>/dev/null || echo 'console settle: UNKNOWN - the helper did not run')"
     fi
-    # ⚠⚠ THE DEMOS DRIVE THE CONSOLE THAT IS ALREADY RUNNING, AND PYTHON DOES NOT RELOAD.
-    # `demo_console.mjs` hits :17772 — his live console — whose `control_app` module was imported
-    # when that process started. `control_ui.html` is re-read from disk per request, so a page
-    # change IS measured; a SERVER change is not, until the console is restarted.
-    #
-    # So widening this trigger to control_app.py (which was right — it had skipped 12 commits)
-    # bought a gate that FIRES on a server change and cannot SEE it, and then reports a pass.
-    # That is the "a skip is not a pass" trap wearing better clothes: a green that is about
-    # bytes which are not the ones shipping. [[regression-guard]] [[stale-reading]]
-    #
-    # This cannot be fixed by starting a scratch console here — the demos assert against his real
-    # shelf and board, and a `--no-open` instance has no board window at all, so half of them
-    # would fail for reasons that have nothing to do with the diff. What it CAN do is refuse to
-    # let the result be read as more than it is.
+    # REG-2275 — the freshness question below still ASKS his console, a GET only.
+    # It does not start a console and it does not send the demos there. The demo file boots
+    # a private control_app. The case-arm text stays so its law can still go red.
     # ⚠⚠ ASK THE CONSOLE, DO NOT TIME ITS PID. This compared the LISTENER PROCESS START to
     # tv/control_app.py's mtime and warned whenever the file was newer — and it was WRONG, on
     # every push, for weeks. MEASURED 2026-09-19 on his live console: the process started
@@ -689,83 +679,25 @@ else:
         echo "          below are ungraded on server-side changes."
         ;;
     esac
+    # REG-2275 (#18 / #73, his 2026-10-13 private yea). The demo boots its own private
+    # control_app. This hook does not start one, and it does not point the demo at :17772.
+    # j3 used to click the on button on his live console. That click now lands on the
+    # private page. A leaked pid file from an older hook is left alone: hunting it would
+    # kill a background console that might be his supervisor.
     if curl -s -m 2 -o /dev/null http://127.0.0.1:17772/api/status; then
+      echo "pre-push: [$(_pp_el)] his console is up on :17772 — left alone. The demos boot a private console."
       if gate_run "console-demos" "node tv/demo_console.mjs" 180 -- node "$REPO/tv/demo_console.mjs"; then
         echo "pre-push: [$(_pp_el)] ✅ console demos green."
       else
         exit 1
       fi
     else
-      # ── v2119 — A SKIP IS NOT A PASS, AND NOBODY IS COMING TO FIX IT ────────────────────────
-      # v1930 made this skip LOUD, which was right and was not enough: a loud skip still shipped
-      # UI nobody had looked at, because the remedy ("start TV DIABLO and re-push") required a
-      # person to be sitting there. Konyo's ruling, twice: "i dont get why you didnt open it
-      # yourself the console.. you have authorization to do it.. next time dont wait for me", and
-      # then "you can relaunch and verify you DONT NEED TO WAIT FOR ME TO DO IT ... i want it
-      # locked as a workflow too.. so you odnt forget it."
-      #
-      # So the gate starts its OWN headless console and runs. Two safety rules, both load-bearing:
-      #   · it only ever starts one when the port is ALREADY SILENT — it never takes over his
-      #     window, and it never rebinds a port something else holds [[process-port-discipline]]
-      #   · it stops ONLY the pid it started, by pid, never by name. `pkill -f` cannot tell his
-      #     console from ours and has cost him a live window before.
-      # A headless console cannot capture the GAME (no Screen Recording grant from this shell),
-      # which does not matter here: J1-J9 exercise the UI and its routes, not the capture.
-      echo "pre-push: [$(_pp_el)] ▶  :17772 is silent — starting a headless console for the gate (his window is not touched)."
-      _own_console=""
-      # A run that dies between here and the stop below LEAKS a console that survives for days.
-      # It binds whatever port is free — one was found alive on :17994 at 1d11h — so a leak is
-      # invisible on :17772 and nothing ever notices. Reap our own leaked pid first, BY PID, and
-      # only after confirming that pid really is a gate console (a recycled pid must not be hit).
-      _stale=$(cat /tmp/tvd_gate_console.pid 2>/dev/null || true)
-      if [ -n "$_stale" ] && ps -p "$_stale" >/dev/null 2>&1; then
-        case "$(ps -o args= -p "$_stale" 2>/dev/null)" in
-          *control_app.py*--no-open*)
-            kill "$_stale" 2>/dev/null || true
-            echo "pre-push: [$(_pp_el)] 🧹 reaped a leaked gate console (pid $_stale) left by an earlier run." ;;
-        esac
-      fi
-      rm -f /tmp/tvd_gate_console.pid
-      ( cd "$REPO/tv" && nohup python3 control_app.py --no-open >/tmp/tvd_gate_console.log 2>&1 & echo $! > /tmp/tvd_gate_console.pid ) || true
-      _own_console=$(cat /tmp/tvd_gate_console.pid 2>/dev/null || true)
-      # and stop it on EVERY exit path — a failing gate below exits before the explicit kill.
-      #
-      # ⚠ THIS TRAP HAD NEVER RUN, AND THE REAPER ABOVE IS THE SCAR IT LEFT. The body was wrapped
-      # in the '"'"' shell-in-shell escaping form, which belongs INSIDE an already-single-quoted
-      # string and is wrong at this level. bash read it as a literal-quote sandwich, refused the
-      # registration outright — `trap: RAN; fi'": invalid signal specification` — and then, on the
-      # way out of every push, tried to execute the whole trap body AS A FILENAME:
-      #     hooks/pre-push: line 658: 'if [ -n 5791 ]; then kill 5791 ...': No such file or directory
-      # Seen on the v2399 push. So the safety net for "a failing gate exits before the explicit
-      # kill" was decorative for its whole life, which is exactly why a leaked console was once
-      # found alive on :17994 at 1d11h and why the reaper above had to be written.
-      #
-      # Proven both directions before changing it: the shipped form registers nothing and dies on
-      # exit; the plain single-quoted form prints CLEANUP RAN. A trap that cannot be seen firing is
-      # a trap nobody should count. [[the-unjoined-end]]
-      trap 'if [ -n "$_own_console" ]; then kill "$_own_console" 2>/dev/null || true; rm -f /tmp/tvd_gate_console.pid; fi' EXIT INT TERM
-      _up=0
-      for _i in $(seq 1 40); do
-        sleep 1
-        if curl -s -m 2 -o /dev/null http://127.0.0.1:17772/api/status; then _up=1; break; fi
-      done
-      if [ "$_up" = "1" ]; then
-        if gate_run "console-demos" "node tv/demo_console.mjs" 180 -- node "$REPO/tv/demo_console.mjs"; then
-          echo "pre-push: [$(_pp_el)] ✅ console demos green (on a console this gate started)."
-          _demo_rc=0
-        else
-          _demo_rc=1
-        fi
+      echo "pre-push: [$(_pp_el)] :17772 is silent — the demos boot a private console. His port is not bound."
+      if gate_run "console-demos" "node tv/demo_console.mjs" 180 -- node "$REPO/tv/demo_console.mjs"; then
+        echo "pre-push: [$(_pp_el)] ✅ console demos green (private console, his port untouched)."
+        _demo_rc=0
       else
-        echo "pre-push: [$(_pp_el)] ❌ could not start a console on :17772 — see /tmp/tvd_gate_console.log"
-        echo "           This is a FAILURE, not a skip: the UI changed and nothing verified it."
         _demo_rc=1
-      fi
-      # stop ONLY what we started, by pid
-      if [ -n "$_own_console" ]; then
-        kill "$_own_console" 2>/dev/null || true
-        rm -f /tmp/tvd_gate_console.pid
-        _own_console=""
       fi
       [ "$_demo_rc" = "0" ] || exit 1
     fi

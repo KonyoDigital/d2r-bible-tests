@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3761",
+  "ver": "v3762",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3761: #76 dormant vault-record trust gate: a wrong-shape store stays unknown, an unreadable witness is not written as null, a throwing undo says it did not re-arm, and a rename then persist reuses the id. #139 a different install stays out when the owner id is unknown, while the same install and a reclaim from a guest are allowed. #139 a crushed label asks the title, visible overflow, and scroller exemptions before it counts as clipped. Copy-loss ids and classification parity stay open. The store is not armed. HEART: the parity law corroborates the dormant store and the two python laws watch the store guard and the crush exemptions. No new console surface.",
+  "note": "v3762: #18 the pre-push demo boots its own private console and never drives port 17772 or 17771. The hook no longer starts a console on his port. j3 still ends ON AIR only on that private console. HEART: the port law is the watcher; no page surface changed before the stamp.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

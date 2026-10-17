@@ -1,16 +1,30 @@
-// demo_console.mjs — STANDALONE scripted DEMONSTRATION journeys vs the LIVE TV·D console.
+// demo_console.mjs — STANDALONE scripted DEMONSTRATION journeys.
 // NOT a Playwright test-runner spec. Run:  node tv/demo_console.mjs   (from repo root).
-// Drives http://127.0.0.1:17772/ with a fresh headless chromium (own browser — never
-// touches Konyo's tab, never the repo suite). Each journey prints one ✅/❌ line; the
-// process exits non-zero if any journey fails. Target runtime < 60s.
+// REG-2275 (#18 / #73). Boots a private control_app on two free ports and drives that page.
+// It never opens 17772 or 17771, even when the shell inherited those ports. TV_DEMO_PORT is
+// honoured only when it is set and is not one of those two; that server is not started here
+// and is not killed. Own headless chromium — never his tab, never the repo suite. Each
+// journey prints one ✅/❌ line; the process exits non-zero if any journey fails.
 //
-// The 7 journeys mirror the console's real architecture (control_ui.html):
+// The journeys mirror the console architecture (control_ui.html):
 //   header tabs #head-tabs .ht[data-tab] → shellOpen() adds body.shell-open and routes the
 //   same-origin engine iframe #tvd-eng (its .tab.active gains the matching data-tab);
-//   the 📺 TV·D tab calls shellHome() back to the .stage. Tally chip .hd-chip.tly-btn opens
+//   the TV·D tab calls shellHome() back to the .stage. Tally chip .hd-chip.tly-btn opens
 //   #tly-ov with .tly-tab filters. Three eyes = #eye-live/#eye-second/#eye-kai + status spans.
-//   The 📚 shelf (#btn-shelf → thOpen+thShelf) renders one .sh-card per /api/sessions run,
-//   each sealed reel carrying a .sh-verdict line (🛡/🚨/🧠/📸).
+//   The shelf (#btn-shelf → thOpen+thShelf) renders one .sh-card per /api/sessions run,
+//   each sealed reel carrying a .sh-verdict line.
+
+import { spawn } from 'node:child_process';
+import fs from 'node:fs';
+import net from 'node:net';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const HIS_PORTS = new Set([17771, 17772]);
+const DEMO_DIR = path.dirname(fileURLToPath(import.meta.url));
+let _private = null;
+let _sand = null;
 
 let chromium;
 try {
@@ -22,10 +36,6 @@ try {
   ({ chromium } = require('playwright'));
 }
 
-// v1679 — the port is overridable so a layout probe can run against a THROWAWAY console
-// (TV_CONTROL_PORT=17999 control_app.py --no-open) instead of the one Konyo has open. Default
-// unchanged; nothing that does not set the variable behaves differently.
-const URL = `http://127.0.0.1:${process.env.TV_CONTROL_PORT || 17772}/`;
 const PANE_TABS = ['forge', 'crafts', 'funi', 'fsets', 'tools', 'vault'];  // v1377 — 'session' removed: Sessions is now console-native (data-view=sessions), no longer opens a bible pane
 // v2092 — 'vault' added. The console got a Vault tab between Tools and TV·D this ship, and this
 // list is what J1 SHELL MATRIX actually walks — so without it the new tab would have shipped
@@ -1044,9 +1054,132 @@ async function j9_terrorZoneFlagship(page) {
                        + `(${place.whyNow} why live / ${place.whyNext} up next): ${JSON.stringify(place.allBoxes)}`);
 }
 
+// ── private console ─────────────────────────────────────────────────────────────
+// REG-2275. The path set matches test_button_matrix._boot_control. A private app must
+// not write his hist, sessions, frames, or chronicle stores, and must not inherit his ports.
+function freePort() {
+  return new Promise((resolve, reject) => {
+    const srv = net.createServer();
+    srv.unref();
+    srv.once('error', reject);
+    srv.listen(0, '127.0.0.1', () => {
+      const addr = srv.address();
+      const port = addr && addr.port;
+      srv.close(() => resolve(port));
+    });
+  });
+}
+
+async function twoPrivatePorts() {
+  let port = await freePort();
+  let agent = await freePort();
+  for (let i = 0; i < 50; i++) {
+    if (port !== agent && !HIS_PORTS.has(port) && !HIS_PORTS.has(agent)) {
+      return { port, agent };
+    }
+    port = await freePort();
+    agent = await freePort();
+  }
+  throw new Error('no private console ports (refusing 17771 and 17772)');
+}
+
+function stopPrivate() {
+  const child = _private;
+  _private = null;
+  if (child && child.pid) {
+    try { process.kill(child.pid, 'SIGTERM'); } catch (e) { /* already gone */ }
+    try { child.unref(); } catch (e) {}
+  }
+  const sand = _sand;
+  _sand = null;
+  const root = path.resolve(os.tmpdir()) + path.sep;
+  if (sand && path.resolve(sand).startsWith(root)) {
+    try { fs.rmSync(sand, { recursive: true, force: true }); } catch (e) {}
+  }
+}
+
+process.on('exit', () => {
+  if (_private && _private.pid) {
+    try { process.kill(_private.pid, 'SIGTERM'); } catch (e) {}
+  }
+});
+
+async function bootPrivate() {
+  const { port, agent } = await twoPrivatePorts();
+  _sand = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-console-'));
+  const hist = path.join(_sand, 'frames', 'hist');
+  fs.mkdirSync(hist, { recursive: true });
+  const env = {
+    ...process.env,
+    TV_CONTROL_PORT: String(port),
+    TV_PORT: String(agent),
+    TV_ROBOT: '1',
+    TV_HIST: hist,
+    TV_FRAMES_DIR: path.join(_sand, 'frames'),
+    TV_SESSIONS: path.join(_sand, 'sessions.jsonl'),
+    TV_CHRON_EVIDENCE: path.join(_sand, 'chron_evidence.json'),
+    TV_CHRON_RESULT: path.join(_sand, 'chron_last_result.json'),
+    TV_CHRON_SWEPT: path.join(_sand, 'chronicle_swept.json'),
+    TV_CHRON_READS: path.join(_sand, 'chron_reads.json'),
+    TV_SWEEP_LOCK: path.join(_sand, '.sweep.lock'),
+  };
+  const py = process.env.PYTHON || 'python3';
+  _private = spawn(py, [path.join(DEMO_DIR, 'control_app.py'), '--no-open'], {
+    cwd: DEMO_DIR,
+    env,
+    detached: false,
+    stdio: 'ignore',
+  });
+  _private.on('error', () => { /* the wait below throws if the child never answers */ });
+  const base = `http://127.0.0.1:${port}/`;
+  const deadline = Date.now() + 30000;
+  while (Date.now() < deadline) {
+    if (_private.exitCode !== null) {
+      throw new Error('private console exited before /api/status');
+    }
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), 1500);
+    try {
+      const r = await fetch(base + 'api/status', { signal: ac.signal });
+      if (r.ok) {
+        await r.text();
+        console.log(`private console ${base} (agent :${agent}) — :17772 and :17771 untouched`);
+        return base;
+      }
+      await r.text();
+    } catch (e) {
+      // still booting
+    } finally {
+      clearTimeout(timer);
+    }
+    await new Promise((res) => setTimeout(res, 250));
+  }
+  throw new Error('private console did not answer /api/status');
+}
+
+async function demoTarget() {
+  const explicit = String(process.env.TV_DEMO_PORT || '').trim();
+  const n = Number(explicit);
+  if (explicit && Number.isInteger(n) && !HIS_PORTS.has(n)) {
+    return { base: `http://127.0.0.1:${explicit}/`, owned: false };
+  }
+  return { base: await bootPrivate(), owned: true };
+}
+
 // ── runner ──────────────────────────────────────────────────────────────────────
 async function main() {
   const t0 = Date.now();
+  let URL = '';
+  try {
+    const target = await demoTarget();
+    URL = target.base;
+  } catch (e) {
+    console.log(`❌ BOOT — ${e.message}`);
+    console.log('DEMOS: 0/0 ✅  (boot failed)');
+    process.exitCode = 1;
+    stopPrivate();
+    return;
+  }
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1470, height: 920 } });
   const page = await context.newPage();
@@ -1061,6 +1194,7 @@ async function main() {
     console.log('DEMOS: 0/0 ✅  (boot failed)');
     await browser.close();
     process.exitCode = 1;
+    stopPrivate();
     return;
   }
 
@@ -1070,7 +1204,7 @@ async function main() {
 // unpinned. The only harness touching the strip measured {top,left} and nothing else.
 //
 // It lives HERE and not in tests/ because the strip is control_ui.html — the console — and this is
-// the gate that runs against :17772 on every UI change.
+// the gate that runs on every UI change.
 //
 // ⚠ THE ROW COUNT IS COMPARED AS HEIGHTS, NEVER AS Math.round(top). v2100's own comment records
 // four failed "fixes" chasing a phantom second row that was really Tools/TV·D sitting 2px taller.
@@ -1161,9 +1295,11 @@ async function j10_headerGeometry(page) {
   // and the pre-push gate refused a push whose own summary said every journey passed. The count of
   // journeys is not the contract; "none of them failed" is.
   process.exitCode = (results.length && pass === results.length) ? 0 : 1;
+  stopPrivate();
 }
 
 main().catch((e) => {
   console.log(`❌ FATAL — ${e && e.stack ? e.stack : e}`);
+  stopPrivate();
   process.exitCode = 1;
 });

@@ -9320,6 +9320,12 @@ GATES = [
          needs_app=False,
          why=("REG-2123 - test_button_matrix's private control_app inherited his agent port :17771, so its OFF / STOP cut "
               "eleven of his ON AIR sessions on 2026-10-09; the env it hands its app must carry ports of its own")),
+    Gate("test_the_demo_drives_a_private_console", [sys.executable,
+         os.path.join(HERE, "test_the_demo_drives_a_private_console.py")], 30,
+         needs_app=False,
+         why=("REG-2275 (#18 / #73) - the pre-push demo opened :17772, or started control_app there when the port was "
+              "silent, and j3 clicked the on button on his live console. The demo now boots a private control_app on "
+              "two free ports and the hook does not start one. This law reads source and needs no app.")),
     Gate("test_the_heart_prints_the_figure_that_decided", [sys.executable,
          os.path.join(HERE, "test_the_heart_prints_the_figure_that_decided.py")], 120,
          needs_app=False,

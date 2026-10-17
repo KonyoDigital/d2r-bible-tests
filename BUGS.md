@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2275 - THE PRE-PUSH DEMO CLICKED HIS LIVE CONSOLE (#18 / #73)
+
+`tv/demo_console.mjs` opened `http://127.0.0.1:${TV_CONTROL_PORT || 17772}/`. Journey j3 clicks
+`#btn-on` whenever that page is on, sim, or stopping. `hooks/pre-push`, when :17772 was silent,
+started `control_app.py --no-open`, which binds 17772, then ran the demo against it. His 2026-10-13
+authorization is a private console. FIX: the demo draws two free ports, refuses 17771 and 17772
+even when the shell inherited them, and boots `control_app.py --no-open` with the button-matrix
+sandbox (TV_HIST, sessions, frames, chronicle paths, TV_ROBOT). It signals only that child pid.
+An explicit TV_DEMO_PORT that is not one of his two ports is used and not killed. The hook no
+longer starts a console and no longer kills one. Both console-demos call sites remain, bound 180.
+A GET of :17772 for settle and freshness stays. GUARD: `test_the_demo_drives_a_private_console.py`.
+
 ### REG-2274 - CRUSHED-LEAF FLAGS BEFORE THE CLIP EXEMPTIONS (#139, render_check, v3741 second eye)
 
 `render_check.py` `_PROBE` flagged a leaf with `width<2` and `height>=4` inside a painted parent as
