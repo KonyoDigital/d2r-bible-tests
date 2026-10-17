@@ -16,9 +16,13 @@ global slot keyed by nothing. The cure existed one function over and was never c
 
 THE FIX veils the WRITE, never the reader (his 10-04 shadow-reader ruling: the hand-over must keep
 running): a hand-over from a different world than the one on record may replace it only when it is
-this board's own owner. Same-world updates (incl. a main<->ladder profile switch, same install id)
-and the first write are untouched; when the owner cannot be established (Windows has no WebKit store)
-the world already on record stands, so a stranger cannot flip it. [[unknown-stays-unknown]]
+this board's own owner. Same-world updates and the first write are untouched.
+
+REG-2273 (#139): "owner id unknown, so nobody else may write" also refused the owner. A main↔ladder
+switch is the same install and is allowed with the owner id unread. An owner-shaped write (pfx "" or
+L·) may reclaim a slot a guest posted first (pfx I· / IL·). Two owner-shaped installs stay apart when
+the owner id is unknown — that is still the 2026-08-28 hole — and that refusal does not promise a
+re-post this function would drop. [[unknown-stays-unknown]]
 
 Fixtures only: _board_stores_path is pointed at a temp dir and board_own_route_id is stubbed, so his
 real board_stores.json and WebKit store are never opened. [[test-venue]] (pure python, no browser)
@@ -79,6 +83,11 @@ class AForeignWorldDoesNotOverwriteBankedStores(unittest.TestCase):
                          "a different world's hand-over was banked over his vault (%s)" % why)
         self.assertIn("different world", (why or ""),
                       "the refusal does not say WHY the stores were kept")
+        self.assertNotIn("re-posts", (why or ""),
+                         "the owner id is unknown, so a promise that the owner can re-post is a lie: "
+                         "that re-post takes this same branch")
+        self.assertIn("unknown", (why or "").lower(),
+                      "the refusal must say the owner id is unknown, not that the owner was identified")
         self.assertEqual(self._owned(), HIS_VAULT,
                          "board_stores.json now holds the other PC's items as his d2r_owned - "
                          "board_mask would publish the stranger's vault as his")
@@ -119,6 +128,44 @@ class AForeignWorldDoesNotOverwriteBankedStores(unittest.TestCase):
         self.assertEqual(saved, 1)
         self.assertEqual(self._owned(), HIS_VAULT)
 
+    # -- REG-2273: same install, owner id unread, is a profile switch not a stranger --------
+    def test_a_profile_switch_is_allowed_when_the_owner_id_is_unknown(self):
+        CA.accept_handed_stores({"stores": {"d2r_owned": HIS_VAULT}}, OWNER)
+        ladder = {"id": OWNER["id"], "p": "ladder", "pfx": "L·"}
+        saved, why = CA.accept_handed_stores({"stores": {"d2r_owned": ["Death's Web"]}}, ladder)
+        self.assertEqual(saved, 1,
+                         "his own ladder profile was refused because the owner id could not be "
+                         "read (%s)" % why)
+        self.assertEqual(self._owned(), ["Death's Web"])
+
+    # -- REG-2273: a guest prefix is proven not the owner; an owner-shaped write takes it back
+    def test_an_owner_shaped_write_reclaims_a_guest_when_the_owner_id_is_unknown(self):
+        guest = {"id": OTHER["id"], "p": "main", "pfx": "I·77f64154·"}
+        CA.accept_handed_stores({"stores": {"d2r_owned": THEIR_VAULT}}, guest)
+        self.assertEqual(self._owned(), THEIR_VAULT)
+        saved, why = CA.accept_handed_stores({"stores": {"d2r_owned": HIS_VAULT}}, OWNER)
+        self.assertEqual(saved, 1,
+                         "an owner-shaped board could not reclaim a guest that posted first (%s)"
+                         % why)
+        self.assertEqual(self._owned(), HIS_VAULT)
+
+    def test_a_guest_cannot_replace_an_owner_shaped_bank_when_the_owner_id_is_unknown(self):
+        CA.accept_handed_stores({"stores": {"d2r_owned": HIS_VAULT}}, OWNER)
+        guest = {"id": OTHER["id"], "p": "main", "pfx": "I·77f64154·"}
+        saved, why = CA.accept_handed_stores({"stores": {"d2r_owned": THEIR_VAULT}}, guest)
+        self.assertEqual(saved, 0, "a guest replaced the owner-shaped bank (%s)" % why)
+        self.assertEqual(self._owned(), HIS_VAULT)
+
+    def test_a_known_owner_still_names_the_re_post(self):
+        CA.board_own_route_id = lambda: OWNER["id"]
+        CA.accept_handed_stores({"stores": {"d2r_owned": HIS_VAULT}}, OWNER)
+        saved, why = CA.accept_handed_stores({"stores": {"d2r_owned": THEIR_VAULT}}, OTHER)
+        self.assertEqual(saved, 0)
+        self.assertIn("re-posts", why or "",
+                      "once the owner id is known, the refusal may say the owner can re-post, "
+                      "because that re-post matches the id and is accepted")
+        self.assertEqual(self._owned(), HIS_VAULT)
+
 
 RED_PROOF = [
     {
@@ -126,7 +173,7 @@ RED_PROOF = [
                'replaces his banked vault again - board_mask then publishes the other PC\'s items '
                'as his d2r_owned. test_a_different_world_cannot_replace_the_owner_vault must fail.',
         'file': 'control_app.py',
-        'find': '            if not (_own and str((who or {}).get("id") or "") == _own):',
+        'find': '            if not (_same_install or _owner_match or _reclaim_guest):',
         'replace': '            if False:',
         'matches': 1,
     },

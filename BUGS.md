@@ -7,6 +7,28 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2274 - CRUSHED-LEAF FLAGS BEFORE THE CLIP EXEMPTIONS (#139, render_check, v3741 second eye)
+
+`render_check.py` `_PROBE` flagged a leaf with `width<2` and `height>=4` inside a painted parent as
+`clipped [crushed]` and returned. It never asked `_recoverable` (an ancestor title holding the full
+string), never asked whether `overflow` is `visible` (the glyphs paint outside the 0px box), and never
+walked a scroller ancestor. A target whose clipped floor is 0 then failed on its own design. FIX: those
+three exemptions run before `flag('crushed')`. A crush none of them recover is still clipped. The
+`height>=4` sr-only spare is unchanged. GUARD: `test_a_crushed_label_is_not_a_clean_render.py`.
+
+### REG-2273 - FOREIGN-STORE GUARD LOCKS THE OWNER WHEN THE OWNER ID IS UNKNOWN (#139, #110)
+
+`accept_handed_stores` refused every later hand-over whose route key differed, unless
+`board_own_route_id()` was truthy and matched `who.id`. On a machine with no WebKit store that function
+returns None, so the condition was true for every later post. Two consequences, both measured in the
+law with the owner id stubbed to None: a main↔ladder switch on the SAME install was refused, and an
+owner-shaped write could not reclaim a slot a guest (`pfx` `I·` / `IL·`) posted first. The refusal
+said the stores wait until the owner re-posts, and that re-post took the same branch.
+FIX: the same install is not a foreign world. An owner-shaped write (`pfx` "" or `L·`) may replace a
+guest that posted first when the owner id cannot be read. Two owner-shaped installs (both empty prefix,
+the 2026-08-28 hole) stay apart when the owner id is unknown, and that refusal says the owner id is
+unknown instead of promising a re-post. GUARD: `test_a_foreign_world_does_not_overwrite_banked_stores.py`.
+
 ### REG-2271 - A HUNG VAULT SWEEP NEVER RELEASES ITS GUARD, STALLING THE RIVER ON EVERY PC (river watchdog, v3758)
 
 Live 2026-10-17 on his console: `vaultAutoread {owed:14, lastTick:{kind:busy, why:"a vault sweep is already
@@ -89,6 +111,7 @@ arms repeated/trusted operation:**
 6. **NOT JUDGED:** classification parity of `_vaultRecords`'s kind/copyIx choice vs production `_sharedNames` (outside
    the eye's excerpt) — phase-2 must verify it.
 The dormant store (v3760) stands; these are the trust-gate items the prove-before-trust phase exists to surface.
+CLOSED in the following edit, still dormant, still not armed: item 2 (wrong shape is UNKNOWN and is not overwritten, stamp does not latch), item 3 (unreadable d2r_vaultProv sets provUnknown and does not write prov:null), item 5 (undo reports undone:false when remove throws), item 1 for the measured case (rename writes prevName; the next persist of the live name reuses that recId). Item 4 (a lost copy shifts positional ids) and item 6 (classification parity vs _sharedNames, not judged here) stay open. A per-copy anchor is still required before phase 2 trusts recId as a physical copy.
 
 ### REG-2270 - RECORDS-FAILED ORPHAN COUNT RENDERED SILENT (FALSE-AGREE) INSTEAD OF UNKNOWN (#76, #231 eye on v3756, v3757)
 

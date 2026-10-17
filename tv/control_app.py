@@ -3739,18 +3739,43 @@ def accept_handed_stores(body, who):
     # vault here and board_mask then publishes the stranger's items as HIS d2r_owned, until his own
     # board re-posts ~60 s later. A hand-over from a DIFFERENT world than the one already on record
     # may REPLACE it only when it is this board's own owner (board_own_route_id — the SAME source the
-    # tally publish trusts, NOT the prefix, which 2026-08-28 proved was a coincidence). When the
-    # owner cannot be established (no WebKit store, e.g. Windows) the world on record stands, so a
-    # stranger can never flip it; same-world updates (incl. a main<->ladder switch, same install id)
-    # and the first write are untouched. [[copy-drift]] [[the-unjoined-end]] [[unknown-stays-unknown]]
+    # tally publish trusts, NOT the prefix, which 2026-08-28 proved was a coincidence).
+    #
+    # REG-2273 (#139) — "owner id unknown, so keep whoever posted first" locked the OWNER out too.
+    # On a machine with no WebKit store board_own_route_id() is None, and the old test was
+    # `not (_own and who.id == _own)`, which is true for EVERY later post, including:
+    #   · the same install switching main↔ladder (the comment above already called that the same
+    #     world, then the condition refused it whenever the owner id could not be read)
+    #   · an owner-shaped board reclaiming a slot a GUEST posted first (pfx I· / IL· is a guest by
+    #     construction; empty prefix is not). The refusal then said the stores wait for the owner
+    #     to re-post, and that re-post took the same branch.
+    # What stays refused, and is still the 2026-08-28 hole: two owner-shaped installs (both pfx "")
+    # when this console cannot read which one is his. A different install is not accepted just
+    # because the owner id is unknown. The unknown case says so, and does not promise a re-post.
+    # [[copy-drift]] [[the-unjoined-end]] [[unknown-stays-unknown]]
     _prior = board_stores_load()
     if isinstance(_prior, dict) and isinstance(_prior.get("stores"), dict) and _prior["stores"]:
         _pw = _prior.get("route") if isinstance(_prior.get("route"), dict) else _prior.get("who")
-        _prior_key = _route_key(_pw if isinstance(_pw, dict) else {})
+        _pw = _pw if isinstance(_pw, dict) else {}
+        _prior_key = _route_key(_pw)
         _in_key = _route_key(who)
         if _prior_key and _in_key and _prior_key != _in_key:
             _own = board_own_route_id()
-            if not (_own and str((who or {}).get("id") or "") == _own):
+            _in_id = str((who or {}).get("id") or "")
+            _prior_id = str(_pw.get("id") or "")
+            _same_install = bool(_in_id) and _in_id == _prior_id
+            _prior_pfx = str(_pw.get("pfx") or "")
+            _in_pfx = str((who or {}).get("pfx") or "")
+            _prior_guest = _prior_pfx.startswith("I·") or _prior_pfx.startswith("IL·")
+            _in_owner_shaped = _in_pfx in ("", "L·")
+            _owner_match = bool(_own) and _in_id == _own
+            _reclaim_guest = (not _own) and _prior_guest and _in_owner_shaped
+            if not (_same_install or _owner_match or _reclaim_guest):
+                if not _own:
+                    return 0, ("that hand-over is from a different world (%s) than the one this "
+                               "console banked (%s); the owner id is unknown here, so a different "
+                               "install stays out and a later post is not taken for him"
+                               % (_in_key, _prior_key))
                 return 0, ("that hand-over is from a different world (%s) than the one this console "
                            "banked (%s); the stores belong to this board's owner and are kept until "
                            "the owner itself re-posts" % (_in_key, _prior_key))
@@ -42142,7 +42167,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3760",
+        "ver": "v3761",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3760",
+  "ver": "v3761",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3760: #76 INC-3b: a persisted, forked, reversible d2r_vaultRecords store (one record per physical copy, carrying a stable opaque recId + per-copy location + witness), with a DORMANT stamped migration cloned from _setPieceReconcile. Named d2r_vaultRecords (not d2r_records) so test_store_isolation forces it into the per-account fork set - the Ladder/Main data-loss guard. Parity-proven on fixtures (persisted-derived views equal in-memory, including the shared-at-cap boundary), RED-proven, 4 adversarial skeptics clean. NOT wired to his board: no page-load path calls the migration, only the fixture test does; the live arming is gated on a GrokBot verify. HEART: the parity guard is the corroborator (persisted vs in-memory, two independent derivations), the corrupt-store guard is the doctor (it refuses to overwrite an UNKNOWN store, so DATA LOSS is averted), and the migrate reads the store back and confirms it intact BEFORE it stamps. #76.",
+  "note": "v3761: #76 dormant vault-record trust gate: a wrong-shape store stays unknown, an unreadable witness is not written as null, a throwing undo says it did not re-arm, and a rename then persist reuses the id. #139 a different install stays out when the owner id is unknown, while the same install and a reclaim from a guest are allowed. #139 a crushed label asks the title, visible overflow, and scroller exemptions before it counts as clipped. Copy-loss ids and classification parity stay open. The store is not armed. HEART: the parity law corroborates the dormant store and the two python laws watch the store guard and the crush exemptions. No new console surface.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

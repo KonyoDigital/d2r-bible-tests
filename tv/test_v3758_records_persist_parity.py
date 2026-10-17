@@ -217,6 +217,74 @@ out.a2IdNotNameDerived = (out.a2IdsAfter.length === 1 && out.a2IdsAfter[0] !== '
         self.assertEqual(o["aGoneAfter"], 0, "the old name still indexes records after the rename")
         self.assertTrue(o["a2IdNotNameDerived"], "the renamed record's id is name-derived: %r" % o["a2IdsAfter"])
 
+    def test_rename_then_persist_reuses_the_recId(self):
+        """REG-2272 item 1. Rename alone keeps the id. The next persist used to look the id up under the
+        renamed spelling, miss the live name, re-mint, and overwrite the store."""
+        o = self._run(r"""
+_vaultRecordsMigrate();
+var before = (_vaultRecordsLoad().index['A'] || []).slice();
+out.rename = _vaultRecordsRename('A', 'A2');
+var again = _vaultRecordsPersist();
+var loaded = _vaultRecordsLoad();
+out.ok = !!again.ok;
+out.aIds = (loaded.index['A'] || []).slice();
+out.a2Ids = (loaded.index['A2'] || []).slice();
+out.same = (out.aIds.length === 1 && out.aIds[0] === before[0]);
+""")
+        self.assertTrue(o["ok"], "the persist after a rename refused: %r" % o)
+        self.assertEqual(o["rename"]["moved"], 1, o["rename"])
+        self.assertEqual(o["a2Ids"], [], "the live name is still A, so the snapshot must not keep the renamed spelling: %r" % o)
+        self.assertTrue(o["same"], "rename-then-persist re-minted the id: %r" % o)
+
+    def test_a_wrong_shape_store_is_unknown_and_not_overwritten(self):
+        """REG-2272 item 2. Parse-OK but not {records: array} is UNKNOWN, not absent."""
+        o = self._run(r"""
+window.LSR.setItem('d2r_vaultRecords', JSON.stringify({ v: 1 }));
+var before = window.LSR.getItem('d2r_vaultRecords');
+var pr = _vaultRecordsPersist();
+var m = _vaultRecordsMigrate();
+out.unknown = !!pr.unknown;
+out.ok = pr.ok;
+out.unchanged = (window.LSR.getItem('d2r_vaultRecords') === before);
+out.stamped = (window.LSR.getItem('d2r_vaultRecordsMigrate') != null);
+out.migrateRan = m.ran;
+""")
+        self.assertTrue(o["unknown"], "a wrong-shape store was not UNKNOWN: %r" % o)
+        self.assertFalse(o["ok"], "persist wrote over a wrong-shape store")
+        self.assertTrue(o["unchanged"], "the wrong-shape bytes were overwritten")
+        self.assertFalse(o["stamped"], "the migrate stamp latched over a wrong-shape store")
+        self.assertFalse(o["migrateRan"], "the migration ran over a wrong-shape store")
+
+    def test_an_unreadable_witness_store_is_not_a_null_witness(self):
+        """REG-2272 item 3. Absent prov is null. Unreadable prov is a marker, not null."""
+        o = self._run(r"""
+window.LSR.setItem('d2r_vaultProv', '{bad');
+var pr = _vaultRecordsPersist();
+var loaded = _vaultRecordsLoad();
+out.ok = !!pr.ok;
+out.marked = loaded.records.every(function(r){ return r.provUnknown === true && !('prov' in r); });
+out.n = loaded.records.length;
+""")
+        self.assertTrue(o["ok"], "persist refused a readable records store: %r" % o)
+        self.assertGreater(o["n"], 0)
+        self.assertTrue(o["marked"], "an unreadable witness store was stored as a null witness: %r" % o)
+
+    def test_an_undo_that_throws_does_not_say_it_rearmed(self):
+        """REG-2272 item 5. undone:true while removeItem threw left the stamp gating."""
+        o = self._run(r"""
+_vaultRecordsMigrate();
+window.LSR.removeItem = function(){ throw new Error('disk'); };
+var undo = _vaultRecordsMigrateUndo();
+out.undone = undo.undone;
+out.why = undo.why || '';
+out.storeStill = (window.LSR.getItem('d2r_vaultRecords') != null);
+out.stampStill = (window.LSR.getItem('d2r_vaultRecordsMigrate') != null);
+""")
+        self.assertFalse(o["undone"], "undo reported re-armed after a throw: %r" % o)
+        self.assertIn("threw", o["why"], o["why"])
+        self.assertTrue(o["storeStill"], "a thrown remove still cleared the store")
+        self.assertTrue(o["stampStill"], "a thrown remove still cleared the stamp")
+
     def test_a_corrupt_store_is_never_overwritten(self):
         o = self._run(r"""
 window.LSR.setItem('d2r_vaultRecords', '{this is : not valid json');   // corrupt bytes

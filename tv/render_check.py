@@ -3763,7 +3763,25 @@ _PROBE = r"""(function(sel, OK_TRUNC){
          [[visual-regression-detector]] [[regression-guard]] [[unknown-stays-unknown]] */
       if (cr.width < 2 && cr.height >= 4) {
         var _crp = c.parentElement, _crpr = _crp ? _crp.getBoundingClientRect() : null;
-        if (_crpr && _crpr.width >= 2 && _crpr.height >= 2) { flag('crushed'); return; }
+        if (_crpr && _crpr.width >= 2 && _crpr.height >= 2) {
+          /* REG-2274 (#139) — this branch used to mark the leaf crushed and return
+             before the exemptions the rest of the scan already trusts, so a leaf
+             that paints (overflow visible), whose full string sits in an ancestor
+             title, or that lives under a real scroller, counted as clipped and a
+             target with floor 0 went red on its own design. A crush none of those
+             recover is still clipped. */
+          var _crVis = (_sx.overflowX === 'visible' && _sx.overflowY === 'visible');
+          var _crScroll = false;
+          if (!_crVis && !_recoverable(c, txt)) {
+            for (var _cq = c.parentElement; _cq && _cq !== document.body; _cq = _cq.parentElement) {
+              var _cqs = getComputedStyle(_cq);
+              var _csy = (_cqs.overflowY === 'auto' || _cqs.overflowY === 'scroll') && _cq.scrollHeight > _cq.clientHeight + 1;
+              var _csx = (_cqs.overflowX === 'auto' || _cqs.overflowX === 'scroll') && _cq.scrollWidth > _cq.clientWidth + 1;
+              if (_csy || _csx) { _crScroll = true; break; }
+            }
+            if (!_crScroll) { flag('crushed'); return; }
+          }
+        }
       }
       if (cr.width<1 || cr.height<1) return;
       /* ⚠ A FIXED ELEMENT IS NOT CLIPPED BY AN ORDINARY OVERFLOW ANCESTOR, AND THIS PROBE DID

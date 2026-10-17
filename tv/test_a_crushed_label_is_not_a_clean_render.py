@@ -72,6 +72,26 @@ class TheClipScanSeesALeafCrushedToZeroWidth(unittest.TestCase):
             "the parent guard does not require a painted box, so a crush in a 0-width ancestor is "
             "reported as a per-label crush")
 
+    def test_a_crush_asks_the_clip_exemptions_before_it_flags(self):
+        """REG-2274 (#139). The first crush branch flagged and returned before _recoverable,
+        before the overflow:visible paint check, and before the scroller walk. A titled leaf,
+        a leaf whose glyphs paint, or a leaf under a real scroller then counted as clipped."""
+        probe = RC._PROBE
+        flag_at = probe.find("flag('crushed')")
+        rec_at = probe.find("_recoverable(c, txt)")
+        vis_at = probe.find("_crVis")
+        scroll_at = probe.find("_crScroll")
+        self.assertGreater(flag_at, 0, "flag('crushed') is not in the probe")
+        self.assertGreater(rec_at, 0, "the crush branch never calls _recoverable(c, txt)")
+        self.assertGreater(vis_at, 0, "the crush branch has no overflow-visible exemption")
+        self.assertGreater(scroll_at, 0, "the crush branch has no scroller exemption")
+        self.assertLess(rec_at, flag_at,
+                        "_recoverable runs after flag('crushed'), so a titled leaf is already clipped")
+        self.assertLess(vis_at, flag_at,
+                        "the visible-overflow check runs after the flag, so a painted glyph is clipped")
+        self.assertLess(scroll_at, flag_at,
+                        "the scroller check runs after the flag, so a leaf one scroll away is clipped")
+
 
 class ACrushedFindingIsJUDGEDAndNotJustCounted(unittest.TestCase):
     """THE UNJOINED END. A new finding wired to a private counter that `verdict` never reads would

@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3760 · TV DIABLO</title>
-<meta name="d2r-build" content="v3760">
+  <title>Konyo's D2R Farming Bible v3761 · TV DIABLO</title>
+<meta name="d2r-build" content="v3761">
 <meta name="d2r-build-date" content="2026-10-17">
-<meta name="d2r-build-note" content="#76 INC-3b: a persisted, forked, reversible d2r_vaultRecords store (one record per physical copy, carrying a stable opaque recId + per-copy location + witness), with a DORMANT stamped migration cloned from _setPieceReconcile. Named d2r_vaultRecords (not d2r_records) so test_store_isolation forces it into the per-account fork set - the Ladder/Main data-loss guard. Parity-proven on fixtures (persisted-derived views equal in-memory, including the shared-at-cap boundary), RED-proven, 4 adversarial skeptics clean. NOT wired to his board: no page-load path calls the migration, only the fixture test does; the live arming is gated on a GrokBot verify. HEART: the parity guard is the corroborator (persisted vs in-memory, two independent derivations), the corrupt-store guard is the doctor (it refuses to overwrite an UNKNOWN store, so DATA LOSS is averted), and the migrate reads the store back and confirms it intact BEFORE it stamps. #76.">
+<meta name="d2r-build-note" content="#76 dormant vault-record trust gate: a wrong-shape store stays unknown, an unreadable witness is not written as null, a throwing undo says it did not re-arm, and a rename then persist reuses the id. #139 a different install stays out when the owner id is unknown, while the same install and a reclaim from a guest are allowed. #139 a crushed label asks the title, visible overflow, and scroller exemptions before it counts as clipped. Copy-loss ids and classification parity stay open. The store is not armed. HEART: the parity law corroborates the dormant store and the two python laws watch the store guard and the crush exemptions. No new console surface.">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -48041,16 +48041,18 @@ window.vaultAutoAssign = function(){
 
      ALL enrichment is ADDITIVE — kind / mule / index length stay byte-equal to _vaultRecords(), so INC-1/INC-2
      parity is untouched and the live views do not change:
-       (a) recId — a STABLE OPAQUE token (rec_<n>), minted ONCE per physical copy and REUSED on re-persist, so a
-           rename or a copy-count change never re-mints it (the old name+'#'+i id flipped on both — recIdStability).
-           name is a mutable FIELD; the stored id IS the copy identity.
+       (a) recId — an OPAQUE token (rec_<n>), minted once per name+position and REUSED on re-persist of that same
+           name and position. A rename writes prevName, and the next persist reuses the id through that name, so
+           rename-then-persist does not re-mint. A copy that LEAVES still shifts the survivors onto lower positions:
+           recId is not yet a physical-copy anchor (REG-2272 item 4). That anchor is phase 2, not this store.
        (b) loc — each copy's OWN location: the mule home for a filed name, __keep / carried / loose / keepInv for the
            non-mule homes, and for a SHARED name the first _SHARED_COPY_CAP copies -> 'shared' and the 3rd+ -> 'dupes'
            (rule E made LITERAL per-copy, where today it is display-only). orphan -> null (home UNKNOWN, never guessed).
        (c) prov — the name's d2r_vaultProv witness row where present, else null.
      THE CORRUPT-STORE GUARD ([[unknown-stays-unknown]], the mule store _muleUnread/_guardedSet rule at ~40307): a
-     store that will not READ or PARSE is UNKNOWN and is NEVER overwritten — the persist refuses, so a corrupt
-     d2r_vaultRecords can never be clobbered by a fresh snapshot. */
+     store that will not READ, will not PARSE, or parses to something that is not {records: array} is UNKNOWN and
+     is NEVER overwritten — the persist refuses, so a corrupt d2r_vaultRecords can never be clobbered, and the
+     migrate stamp does not latch over it (REG-2272 item 2). */
   var _VR_STORE_KEY = 'd2r_vaultRecords';
   var _VRM_KEY = 'd2r_vaultRecordsMigrate';
   var _VRM_VER = 1;
@@ -48062,7 +48064,16 @@ window.vaultAutoAssign = function(){
     try { raw = window.LSR.getItem(_VR_STORE_KEY); }
     catch (e) { _vrRecUnread[_VR_STORE_KEY] = 'could not be read'; return undefined; }
     if (raw == null || raw === '') return null;
-    try { return JSON.parse(raw); }
+    try {
+      var parsed = JSON.parse(raw);
+      /* REG-2272 item 2 — parse-OK is not the same as a store. [], {"v":1}, {"records":{}} used to read as
+         ABSENT, so persist overwrote them and the migrate stamp latched. Wrong shape is UNKNOWN. */
+      if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || !Array.isArray(parsed.records)) {
+        _vrRecUnread[_VR_STORE_KEY] = 'wrong shape';
+        return undefined;
+      }
+      return parsed;
+    }
     catch (e) { _vrRecUnread[_VR_STORE_KEY] = 'will not parse'; return undefined; }
   }
   function _vrRecGuardedSet(obj){
@@ -48124,10 +48135,25 @@ window.vaultAutoAssign = function(){
     var priorIds = {}, seq = 0;
     if (prior && Array.isArray(prior.records)) {
       seq = (typeof prior.seq === 'number' && prior.seq > 0) ? prior.seq : 0;
-      prior.records.forEach(function(r){ if (r && r.name != null) (priorIds[r.name] = priorIds[r.name] || []).push(r.recId); });
+      prior.records.forEach(function(r){
+        if (!r || r.recId == null) return;
+        /* Index under the stored name AND prevName. A rename keeps the id on the record but the live model
+           still speaks the old name, so a name-only index re-minted and the rename was overwritten (REG-2272 item 1). */
+        var keys = {};
+        if (r.name != null) keys[r.name] = 1;
+        if (r.prevName != null) keys[r.prevName] = 1;
+        Object.keys(keys).forEach(function(k){ (priorIds[k] = priorIds[k] || []).push(r.recId); });
+      });
     }
-    var prov = {};
-    try { var pv = JSON.parse(window.LSR.getItem('d2r_vaultProv') || '{}'); if (pv && typeof pv === 'object') prov = pv; } catch (e) { prov = {}; }
+    var prov = {}, provUnknown = false;
+    try {
+      var praw = window.LSR.getItem('d2r_vaultProv');
+      if (praw != null && praw !== '') {
+        var pv = JSON.parse(praw);
+        if (!pv || typeof pv !== 'object' || Array.isArray(pv)) provUnknown = true;
+        else prov = pv;
+      }
+    } catch (e) { provUnknown = true; }
     var byName = {};
     rec.records.forEach(function(r){ (byName[r.name] = byName[r.name] || []).push(r); });
     var outRecs = [];
@@ -48136,8 +48162,12 @@ window.vaultAutoAssign = function(){
       byName[nm].forEach(function(r, ci){
         var recId = reuse[ci];
         if (!recId) { seq += 1; recId = 'rec_' + seq; }        /* STABLE OPAQUE id, minted once, never name-derived */
-        outRecs.push({ recId: recId, name: r.name, copyIx: r.copyIx, kind: r.kind, mule: r.mule,
-                       loc: _vrLocForCopy(r.kind, r.mule, r.copyIx), prov: (prov[nm] != null ? prov[nm] : null) });
+        var row = { recId: recId, name: r.name, copyIx: r.copyIx, kind: r.kind, mule: r.mule,
+                    loc: _vrLocForCopy(r.kind, r.mule, r.copyIx) };
+        /* REG-2272 item 3 — an unreadable witness store is UNKNOWN, not the same null as "no witness row". */
+        if (provUnknown) row.provUnknown = true;
+        else row.prov = (prov[nm] != null ? prov[nm] : null);
+        outRecs.push(row);
       });
     });
     var store = { v: 1, ts: Date.now(), seq: seq, carUnknown: false, dockUnknown: false, records: outRecs };
@@ -48178,10 +48208,13 @@ window.vaultAutoAssign = function(){
     var hadStore = false, hadStamp = false;
     try { hadStore = (window.LSR.getItem(_VR_STORE_KEY) != null); } catch (e) {}
     try { hadStamp = (window.LSR.getItem(_VRM_KEY) != null); } catch (e) {}
-    try { window.LSR.removeItem(_VR_STORE_KEY); } catch (e) {}
-    try { window.LSR.removeItem(_VRM_KEY); } catch (e) {}
-    try { delete _vrRecUnread[_VR_STORE_KEY]; } catch (e) {}   /* a cleared key is no longer UNKNOWN */
-    return { undone: true, clearedStore: hadStore, clearedStamp: hadStamp };
+    var storeErr = false, stampErr = false;
+    try { window.LSR.removeItem(_VR_STORE_KEY); } catch (e) { storeErr = true; }
+    try { window.LSR.removeItem(_VRM_KEY); } catch (e) { stampErr = true; }
+    if (!storeErr) { try { delete _vrRecUnread[_VR_STORE_KEY]; } catch (e) {} }
+    /* REG-2272 item 5 — a remove that throws did not re-arm. undone:true while the stamp remains was a lie. */
+    return { undone: !storeErr && !stampErr, clearedStore: hadStore && !storeErr, clearedStamp: hadStamp && !stampErr,
+             why: (storeErr || stampErr) ? 'a remove threw - the stamp still gates' : null };
   }
   window._vaultRecordsMigrateUndo = _vaultRecordsMigrateUndo;
   function _vaultRecordsRename(oldName, newName){
@@ -48192,7 +48225,13 @@ window.vaultAutoAssign = function(){
     if (obj === undefined) return { ok: false, unknown: true, why: (_vrRecUnread[_VR_STORE_KEY] || 'unreadable') + ' - NOT overwritten' };
     if (!obj || !Array.isArray(obj.records)) return { ok: false, why: 'no store' };
     var moved = 0;
-    obj.records.forEach(function(r){ if (r && r.name === oldName) { r.name = newName; moved++; } });
+    obj.records.forEach(function(r){
+      if (r && r.name === oldName) {
+        if (r.prevName == null) r.prevName = oldName;
+        r.name = newName;
+        moved++;
+      }
+    });
     if (!moved) return { ok: true, moved: 0 };
     var wrote = _vrRecGuardedSet(obj);
     return { ok: wrote, moved: moved };
@@ -67055,7 +67094,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3760', name:'v3760 - vault-records-store-dormant', date:'2026-10-17', note:'#76 INC-3b: a persisted, forked, reversible d2r_vaultRecords store (one record per physical copy, carrying a stable opaque recId + per-copy location + witness), with a DORMANT stamped migration cloned from _setPieceReconcile. Named d2r_vaultRecords (not d2r_records) so test_store_isolation forces it into the per-account fork set - the Ladder/Main data-loss guard. Parity-proven on fixtures (persisted-derived views equal in-memory, including the shared-at-cap boundary), RED-proven, 4 adversarial skeptics clean. NOT wired to his board: no page-load path calls the migration, only the fixture test does; the live arming is gated on a GrokBot verify. HEART: the parity guard is the corroborator (persisted vs in-memory, two independent derivations), the corrupt-store guard is the doctor (it refuses to overwrite an UNKNOWN store, so DATA LOSS is averted), and the migrate reads the store back and confirms it intact BEFORE it stamps. #76.' };
+  window.D2R_BUILD = { id:'v3761', name:'v3761 - records-trust-gate', date:'2026-10-17', note:'#76 dormant vault-record trust gate: a wrong-shape store stays unknown, an unreadable witness is not written as null, a throwing undo says it did not re-arm, and a rename then persist reuses the id. #139 a different install stays out when the owner id is unknown, while the same install and a reclaim from a guest are allowed. #139 a crushed label asks the title, visible overflow, and scroller exemptions before it counts as clipped. Copy-loss ids and classification parity stay open. The store is not armed. HEART: the parity law corroborates the dormant store and the two python laws watch the store guard and the crush exemptions. No new console surface.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
