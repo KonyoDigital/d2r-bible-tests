@@ -949,7 +949,7 @@ def _witness_rows(evidence):
         #
         # `is not None`, never truthiness: eth=False and sockets=0 are ANSWERS, and `if e.get("eth")`
         # would throw both away as if the reader had said nothing. [[unknown-stays-unknown]]
-        for _vf in ("sockets", "eth", "quality", "promptVer", "point", "cell", "cellWhy"):   # v3554 — and WHERE
+        for _vf in ("sockets", "eth", "quality", "promptVer", "point", "cell", "cellWhy", "holder"):   # v3767 - who holds it, and where
             if e.get(_vf) is not None:
                 r[_vf] = e.get(_vf)
         if e.get("laneSaid") is not None:   # REG-1911 - what the reader called it, when it was filed by its point

@@ -21286,7 +21286,7 @@ try {
                 carried: (rec.carried === true) ? true : null, character: _str(rec.character),
                 /* round-5 review (HIGH) — a same-kind pair (Spirit: shield or sword) filed as its bare name: the receipt says the base is UNKNOWN */
                 baseUnknown: _str(rec.baseUnknown),
-                looks: fr ? [{ id: sid, frame: fr, conf: _num(rec.conf), at: m ? _iso(ts) : null, loc: _str(rec.loc), scene: _str(rec.scene) }] : [],
+                looks: fr ? [{ id: sid, frame: fr, conf: _num(rec.conf), at: m ? _iso(ts) : null, loc: _str(rec.loc), scene: _str(rec.scene), holder: _str(rec.holder), character: _str(rec.character), cell: (rec.cell == null || rec.cell === '') ? null : rec.cell }] : [], /* v3767 receipt place */
                 ver: (window.D2R_BUILD && window.D2R_BUILD.id) || null };
     out.seen = out.looks.length;
     return out;
@@ -43434,7 +43434,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var id = String(e.witness || e.session || e.reel || e.sid || e.id || '').trim();
       var c = _lookConf(e), fr = e.frame;
       if (!id || !fr || (c == null && _anyConf) || (c != null && c < VAULT_WITNESS_FLOOR)){ dropped++; return; }
-      keep.push({ id: id, frame: String(fr), conf: c, reel: String(e.reel || e.session || '') || null });
+      var _kept = { id: id, frame: String(fr), conf: c, reel: String(e.reel || e.session || '') || null };
+      if (e.holder != null && e.holder !== '') _kept.holder = e.holder;
+      else if (e.character != null && e.character !== '') _kept.character = e.character;
+      var _kloc = (e.loc != null && e.loc !== '') ? e.loc : ((e.lane != null && e.lane !== '') ? e.lane : ((e.location != null && e.location !== '') ? e.location : null));
+      if (_kloc != null) _kept.loc = _kloc;
+      if (e.cell != null && e.cell !== '') _kept.cell = e.cell;
+      keep.push(_kept); /* v3767 witness place */
       if (c != null && (best == null || c > best)) best = c;
     });
     var ids = {};
@@ -43555,7 +43561,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     persistOwned();
     var prov = (add && add.prov) || null, receipt = !!(prov && prov.ok === true);
     return { ok: true, mode: 'added', name: nm, prov: prov, receipt: receipt,
-             why: nm + ' is yours — it waits in Unsorted until you file it'
+             why: nm + ' is yours — a name the router already knows is homed on its mule, and a name with no home waits in Unsorted'
                   + (receipt ? '' : ' (its receipt was not written: ' + ((prov && prov.why) || (threw ? 'the owned door raised' : 'the door gave no answer')) + ')') };
   }
   /* THE DOOR. -> {ok, mode:'added'|'already', name, prov, receipt} or {ok:false, refused, why}
@@ -43674,7 +43680,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     host.hidden = false;
     _vhSeen = {};
-    host.innerHTML = '<div class="vault-hand-box"><div class="vault-hand-top"><p>Add an item you have, from the planner list. It is yours at once and waits in Unsorted — you choose its mule.</p>'
+    host.innerHTML = '<div class="vault-hand-box"><div class="vault-hand-top"><p>Add an item you have, from the planner list. It is yours at once. A name the router already knows is homed on its mule; a name with no home waits in Unsorted, and you choose that mule.</p>'
       + '<button type="button" onclick="window.vaultHandClose()">Close</button></div>'
       + '<input type="search" id="vault-hand-q" class="vault-hand-q" aria-label="search the planner list" oninput="window.vaultHandSearch(this.value)">'
       + '<p id="vault-hand-say" class="vault-hand-say" role="status"></p>'
@@ -43992,7 +43998,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (!e || typeof e !== 'object') return;
         var id = String(e.witness || e.session || '').trim(), fr = e.frame ? String(e.frame) : '', c = _lookConf(e);
         if (!id || !fr || c == null) return;
-        looksR.push({ id: id, frame: fr, conf: c });
+        looksR.push({ id: id, frame: fr, conf: c, holder: e.holder || e.character || null, loc: e.loc || e.lane || e.location || null, cell: e.cell || null }); /* v3767 rebuild look */
       });
       var nowR = new Date().toISOString();
       var rowF = {
@@ -44084,7 +44090,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       reel: (wc.kind === 'lane') ? wc.reel : ((witness && (witness.reel || witness.sessionId)) || null),
       frame: (wc.kind === 'lane') ? wc.frame : ((witness && (witness.frame || witness.frameId)) || null),
       sessions: wc.sessions || [],
-      looks: (wc.looks || []).map(function(k){ return { id: k.id, frame: k.frame, conf: k.conf }; }),
+      looks: (wc.looks || []).map(function(k){
+        var lk = { id: k.id, frame: k.frame, conf: k.conf };
+        if (k.holder != null && k.holder !== '') lk.holder = k.holder;
+        else if (k.character != null && k.character !== '') lk.character = k.character;
+        if (k.loc != null && k.loc !== '') lk.loc = k.loc;
+        else if (k.location != null && k.location !== '') lk.loc = k.location;
+        else if (k.lane != null && k.lane !== '') lk.loc = k.lane;
+        if (k.cell != null && k.cell !== '') lk.cell = k.cell;
+        return lk;
+      }), /* v3767 persisted look */
       conf: (wc.conf == null) ? null : wc.conf,
       gate: g ? { pass: g.pass === true, why: String(g.why || '').slice(0, 200),
                   looks: (typeof g.looks === 'number') ? g.looks : ((typeof g.witnesses === 'number') ? g.witnesses : null) } : null,
@@ -44110,7 +44125,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (row.source === 'hand') return { by: 'hand', at: row.at, where: row.where || 'an earlier filing by hand' };
     if (row.source === 'd2s') return { source: 'd2s', file: row.file, char: row.char, verify: { ok: true } };
     return { lane: row.source, by: row.by,
-             sessions: (row.looks || []).map(function(k){ return { witness: k.id, frame: k.frame, conf: k.conf }; }),
+             sessions: (row.looks || []).map(function(k){ return { witness: k.id, frame: k.frame, conf: k.conf, holder: k.holder || k.character || null, loc: k.loc || null, cell: k.cell || null }; }), /* v3767 refile look */
              gate: row.gate ? { pass: row.gate.pass, why: row.gate.why, wilson: row.wilson } : null };
   }
   window._vaultProvAsWitness = _provAsWitness;
@@ -44128,8 +44143,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
               ? (w.sessions || w.witnesses || w.looks || []) : [];
     var seen = {}, out = [], lane = null;
     mine.filter(function(k){ return k && _WIT_STASH[String(k.loc || '').toLowerCase()]; })
-        .map(function(k){ lane = lane || String(k.loc).toLowerCase(); return { session: k.id, frame: k.frame, conf: k.conf }; })
-        .concat(extra.map(function(e){ return { session: e.session || e.witness || e.id, frame: e.frame, conf: e.conf }; }))
+        .map(function(k){ lane = lane || String(k.loc).toLowerCase(); return { session: k.id, frame: k.frame, conf: k.conf, holder: k.holder || k.character || null, loc: k.loc || null, cell: k.cell || null }; }) /* v3767 receipt look */
+        .concat(extra.map(function(e){ return { session: e.session || e.witness || e.id, frame: e.frame, conf: e.conf, holder: e.holder || e.character || null, loc: e.loc || e.lane || e.location || null, cell: e.cell || null }; })) /* v3767 extra look */
         .forEach(function(e){
           /* a frameless or unsure look is passed through, never dropped here: _vaultWitnessCheck is the ONE judge of what a
              look is worth (a second copy of that rule here masked its own red-proof - test_the_witnessed_lane, Magefist) */
@@ -48388,7 +48403,8 @@ window.vaultAutoAssign = function(){
       var cell = _vaultCellKey(k.cell, location);
       if (!cell) return;
       var holder = k.holder || k.character || null;
-      var key = String(holder || '') + '\u0000' + String(location || '') + '\u0000' + cell; /* v3767 copy key */
+      var holderKey = (holder == null || String(holder) === '') ? '\u0001' : String(holder); /* v3767 unknown holder */
+      var key = holderKey + '\u0000' + String(location || '') + '\u0000' + cell; /* v3767 copy key */
       var g = by[key];
       if (!g) {
         g = { holder: holder, location: location, cell: cell, sessions: {} };
@@ -48937,7 +48953,11 @@ window.vaultAutoAssign = function(){
       copyIx: spec.copyIx || 0,
       kind: spec.kind,
       mule: (spec.mule == null ? null : spec.mule),
-      loc: (spec.loc == null ? null : spec.loc)
+      loc: (spec.loc == null ? null : spec.loc),
+      source: (spec.source == null ? null : spec.source), /* v3767 record source */
+      sight: (spec.sight && typeof spec.sight === 'object' && !Array.isArray(spec.sight)) ? spec.sight : null, /* v3767 record sight */
+      watching: spec.watching === true, /* v3767 record watching */
+      locked: spec.locked === true /* v3767 record locked */
     };
     if (spec.provUnknown) row.provUnknown = true;
     else row.prov = (spec.prov != null ? spec.prov : null);
@@ -48971,8 +48991,13 @@ window.vaultAutoAssign = function(){
         if (!recId) { seq += 1; recId = 'rec_' + seq; }        /* STABLE OPAQUE id, minted once, never name-derived */
         outRecs.push(_vrRecRow({
           recId: recId, name: r.name, copyIx: r.copyIx, kind: r.kind, mule: r.mule,
-          loc: _vrLocForCopy(r.kind, r.mule, r.copyIx), provUnknown: provUnknown, prov: prov[nm]
-        }));
+          loc: _vrLocForCopy(r.kind, r.mule, r.copyIx),
+          source: (r.source == null ? null : r.source),
+          sight: (r.sight && typeof r.sight === 'object' && !Array.isArray(r.sight)) ? r.sight : null,
+          watching: r.watching === true,
+          locked: r.locked === true,
+          provUnknown: provUnknown, prov: prov[nm]
+        })); /* v3767 record row */
       });
     });
     return { rows: outRecs, seq: seq };
