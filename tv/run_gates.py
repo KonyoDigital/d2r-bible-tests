@@ -9700,12 +9700,13 @@ GATES = [
     Gate("test_v3758_records_persist_parity", [sys.executable,
          os.path.join(HERE, "test_v3758_records_persist_parity.py")], 60,
          needs_app=False,
-         why=("#76 INC-3b (DORMANT) - _vaultRecordsPersist writes a d2r_vaultRecords store whose records re-derive into "
+         why=("#76 INC-3b - _vaultRecordsPersist writes a d2r_vaultRecords store whose records re-derive into "
              "header/find/overflow views EQUAL to the live in-memory _vaultRecords ones, incl. the shared-name-AT-cap "
              "boundary (F at _SHARED_COPY_CAP is NOT overflow); recId is a stable opaque token that survives a rename; a "
              "corrupt store is NEVER overwritten (_muleUnread/_guardedSet); the undo clears both keys leaving "
              "owned/copies/assign untouched; the page-load seam is _vaultRecordsArm, called once from "
-             "_seedCleanseArm. PHASE-2 foundation. The arm count is 2. A third call is a second door. "
+             "_seedCleanseArm. PHASE-2 foundation. The arm count is 2. A third arm call is a second door. "
+             "Persist callers are the definition, the migration and the write refresh. "
              "15 distinct attacks, Wilson lower bound against the write-door bar. "
              "[[heart-first]] [[the-unjoined-end]] [[unknown-stays-unknown]]")
          ),
@@ -9722,12 +9723,15 @@ GATES = [
     Gate("test_v3765_records_arm_live", [sys.executable,
          os.path.join(HERE, "test_v3765_records_arm_live.py")], 120,
          needs_app=False,
-         why=("#76 INC-3 live / v3765 - page load calls window._vaultRecordsArm once, so d2r_vaultRecords "
-             "is the one-record source for FIND, GRAIL-DUPES and the vault and locker counts. A presence "
-             "set piece is one record at one location. The shelf card and the locker Items box print that "
-             "same census. Undo is window._vaultRecordsMigrateUndo. An unknown dock, an unreadable witness "
-             "or a wrong store shape does not stamp. Copy-loss ids stay positional (REG-2272 item 4). "
-             "Wilson against the vault.apply bar; sabotage alone does not open the write door.")
+         why=("#76 INC-3 live / v3765 - page load calls window._vaultRecordsArm once, and only when the "
+             "set-piece reconcile did not refuse, so d2r_vaultRecords is the one-record source for FIND, "
+             "GRAIL-DUPES and the vault and locker counts. A successful owned, copies or assign write "
+             "re-persists and confirms the readback; a refusal follows the live model. An unreadable "
+             "d2r_muleAssign does not stamp. A presence set piece is one record at one location. The shelf "
+             "card and the locker Items box print that same census. Undo is window._vaultRecordsMigrateUndo. "
+             "An unknown dock, an unreadable witness or a wrong store shape does not stamp. Copy-loss ids "
+             "stay positional (REG-2272 item 4). Wilson against the vault.apply bar; sabotage alone does "
+             "not open the write door.")
          ),
     Gate("test_the_vault_proposes_a_home_and_does_not_move", [sys.executable,
          os.path.join(HERE, "test_the_vault_proposes_a_home_and_does_not_move.py")], 90,

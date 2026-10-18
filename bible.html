@@ -22244,8 +22244,9 @@ try {
             ? (window._mainLocksReachable() ? (window.MAIN_LOCKS ? 'answered' : 'unanswered') : 'absent — no console on this page')
             : 'UNKNOWN';
           try { window._seedCleanse(Object.assign({}, opts, { mainLedger: ml })); } catch (e) {}
-          try { window._setPieceReconcile({}); } catch (e) {}   /* #76 — fold any set-piece name-form duplicate, after the seed cleanse */
-          try { window._vaultRecordsArm(); } catch (eArm) {}   /* #76 INC-3 v3765 — the one page-load call, after the set-piece fold */
+          var _spr = null;
+          try { _spr = window._setPieceReconcile({}); } catch (eRec) { _spr = null; }   /* #76 — fold any set-piece name-form duplicate, after the seed cleanse */
+          try { if (typeof window._vaultRecordsMayArm === 'function' && window._vaultRecordsMayArm(_spr)) window._vaultRecordsArm(); } catch (eArm) {}   /* #76 INC-3 v3765 — the one page-load call, only when reconcile did not refuse */
         };
         Promise.resolve(p).then(run, run);
       };
@@ -23531,6 +23532,7 @@ const persist = () => {
   if (pinnedBoss) LS.setItem('d2r_pinnedBoss', pinnedBoss); else LS.removeItem('d2r_pinnedBoss');
   try { _writeGrailFarm(); } catch(e){}   // MF/players (odds) may have changed → re-rank the /api/evrank bridge
   try { if (window._writeCraftReady) window._writeCraftReady(); } catch(e){}   // gem/rune/craft-stash change → refresh craft-readiness
+  try { if (typeof window._vaultRecordsRefresh === 'function') window._vaultRecordsRefresh(); } catch (eVr) {}
 };
 
 // v42 Finding N (CC): one-shot boot-time sanitization. Wishlist + owned Sets
@@ -40332,6 +40334,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function _guardedSet(k, v){ if (_muleUnread[k]) { try{ console.warn('[mule] ' + k + ' ' + _muleUnread[k] + ' - NOT overwritten'); }catch(e){} return false; }
     window.LSR.setItem(k, v); return true; }
   window._muleStoreUnread = function(k){ return _muleUnread[k || AK] || null; };
+  var _vrRecFollowLive = false;   /* #76 — a refused records refresh follows the live model, not a stale stamp */
   var roster = load(RK, null) || DEFAULT_ROSTER.map(function(m){ return Object.assign({}, m); });
   var assign = load(AK, {});
   /* the SHARED STASH locker, one shape. Load adds it when a saved roster lacks it.
@@ -40395,7 +40398,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (_retired){ try{ _guardedSet(RK, JSON.stringify(roster)); }catch(e){} }
   })();
   function saveR(){ _guardedSet(RK, JSON.stringify(roster)); }
-  function saveA(){ _guardedSet(AK, JSON.stringify(assign)); }
+  function saveA(){ var _w = _guardedSet(AK, JSON.stringify(assign)); if (_w && typeof _vaultRecordsRefresh === 'function') _vaultRecordsRefresh(); return _w; }
   var selectedChip = null;
   // v322 polish: each locker carries a rarity ACCENT (like the Crafted Workshop's per-craft gem
   // colours) — tinted plate + top stripe + gauge, keyed to what the locker HOLDS. Sets green,
@@ -41298,6 +41301,31 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   try { window._vfIsSetPiece = _vfIsSetPiece; } catch(e){}
   try { window._vfCanon = _vfCanon; } catch(e){}   /* #76 — exposed so the dedup guard can assert canonicalization without the DOM */
   window._vaultFindMatches = _vaultFindMatches;
+  function _vaultFindHome(n){
+    /* FIND's row. The records source names the mule when the store is a real records array.
+       undefined means the store is absent or refused, so the live where-is answer stands.
+       null means the name is not filed: a filed, worn or over cell from the live map is not shown. */
+    var live = null;
+    try {
+      live = (typeof _vaultWhereIs === 'function') ? _vaultWhereIs(n)
+        : ((typeof window._vaultWhereIs === 'function') ? window._vaultWhereIs(n) : null);
+    } catch (eH) { live = null; }
+    var home;
+    try { home = (typeof _vaultRecordsFind === 'function') ? _vaultRecordsFind(n) : undefined; }
+    catch (eH2) { home = undefined; }
+    if (home === undefined) return live;
+    if (typeof home === 'string' && home) {
+      if (live && live.mule === home) return live;
+      var m = null;
+      try { m = (typeof muleById === 'function') ? muleById(home) : null; } catch (eH3) { m = null; }
+      var mName = m ? ((m.icon ? m.icon + ' ' : '') + m.name) : home;
+      return { kind: 'filed', mule: home, muleName: mName, cell: null, why: '' };
+    }
+    if (live && (live.kind === 'filed' || live.kind === 'worn' || live.kind === 'over')) {
+      return { kind: 'dock', mule: null, muleName: null, cell: null, why: 'not filed in the one-record store' };
+    }
+    return live;
+  }
   window.vaultFind = function(q){
     var res = document.getElementById('vault-find-results');
     if (!res) return;
@@ -41333,7 +41361,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     var rows = matches.slice(0,30).map(function(n){
       /* #264 — the mule AND the cell (or where it would go, or why it stays), from the packer the mule window draws */
-      var w = (typeof window._vaultWhereIs === 'function') ? window._vaultWhereIs(n) : null;
+      var w = (typeof _vaultFindHome === 'function') ? _vaultFindHome(n) : ((typeof window._vaultWhereIs === 'function') ? window._vaultWhereIs(n) : null);
       var mid = (w && (w.kind === 'filed' || w.kind === 'worn' || w.kind === 'over' || w.kind === 'would')) ? w.mule : null;
       var loc = !w ? '<span class="vfr-arrow">→</span><span style="color:var(--text-dim)">UNKNOWN — the finder could not ask where it is</span>'
         : (w.kind === 'would') ? '<span class="vfr-arrow">→</span><span class="vfr-would">unsorted · would go to <span class="vfr-mule">'+esc(w.muleName)+'</span> — press ⚖️ Auto-assign unsorted to file it</span>'
@@ -42645,7 +42673,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          stock, thrown out never. These items are homed in 'shared' (not re-filed), so the spare cells carry no
          ✕ — they are a view of copies[], and the true total is the registered ×N. No double-count: shared draws
          2, this draws the next ones. */
-      var _ovNames = (m.id === 'dupes') ? _vaultSharedOverflowNames() : [];
+      var _ovNames = (m.id === 'dupes') ? _vaultDupesNames() : [];
       var _ovHtml = '';
       {
         if (_ovNames.length){
@@ -42653,7 +42681,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           var _ovCells = [];
           _ovNames.forEach(function(n){
             var _ocl = (typeof _itemCells === 'function') ? _itemCells(n) : { w: 1, h: 2 };
-            var _ok = _vaultSharedOverflowCells(n), _otot = (typeof copyCount === 'function') ? copyCount(n) : 1;
+            var _ok = _vaultDupesCells(n), _otot = (typeof copyCount === 'function') ? copyCount(n) : 1;
             for (var _oi = 0; _oi < _ok; _oi++){
               _ovCells.push('<div class="vm-cell vmc-spare" style="grid-column:span ' + _ocl.w + ';grid-row:span ' + _ocl.h + '" data-arttip="' + esc(n) + '" title="' + esc(n) + ' — spare copy ' + (_oi + _SHARED_COPY_CAP + 1) + ' of ' + _otot + ' · trade stock: the shared stash keeps 2, the rest are held here (thrown out never)">'
                 + ((typeof art === 'function') ? art(n, '◆', 'lg') : '')
@@ -47480,13 +47508,35 @@ window.vaultAutoAssign = function(){
      homed in 'shared' (not re-filed), each cell carries no ✕, and the true total is the registered ×N. Callers
      gate on the DUPES locker before calling; the cell strings are byte-identical to v3738, so routing the shelf
      through this later is a pure no-op. */
+  function _vaultDupesCells(n){
+    /* Spare-cell count for the dupes card and the fullscreen window. The records index when
+       that store is the source, so a stale copies[] does not blank a spare the store still holds. */
+    try {
+      var r = (typeof _vaultRecordsSource === 'function') ? _vaultRecordsSource() : null;
+      if (r && r.ok && r.index && r.index[n]) {
+        var cap = (typeof _SHARED_COPY_CAP === 'number' && _SHARED_COPY_CAP > 0) ? _SHARED_COPY_CAP : 2;
+        var over = r.index[n].length - cap;
+        if (!(over > 0)) return 0;
+        var draw = (typeof _MULE_COPY_CAP === 'number' && _MULE_COPY_CAP > 0) ? _MULE_COPY_CAP : 3;
+        return Math.min(over, draw);
+      }
+    } catch (eC) {}
+    return _vaultSharedOverflowCells(n);
+  }
+  function _vaultDupesNames(){
+    /* GRAIL-DUPES names. The records source when the store is a real records array.
+       Absent or refused falls through that source to the live overflow list. */
+    try { if (typeof _vaultRecordsOverflow === 'function') return _vaultRecordsOverflow(); }
+    catch (eD) {}
+    return _vaultSharedOverflowNames();
+  }
   function _vaultSharedOverflowHtml(){
-    var _ovNames = _vaultSharedOverflowNames();
+    var _ovNames = _vaultDupesNames();
     if (!_ovNames.length) return '';
     var _ovCells = [];
     _ovNames.forEach(function(n){
       var _ocl = (typeof _itemCells === 'function') ? _itemCells(n) : { w: 1, h: 2 };
-      var _ok = _vaultSharedOverflowCells(n), _otot = (typeof copyCount === 'function') ? copyCount(n) : 1;
+      var _ok = _vaultDupesCells(n), _otot = (typeof copyCount === 'function') ? copyCount(n) : 1;
       for (var _oi = 0; _oi < _ok; _oi++){
         _ovCells.push('<div class="vm-cell vmc-spare" style="grid-column:span ' + _ocl.w + ';grid-row:span ' + _ocl.h + '" data-arttip="' + esc(n) + '" title="' + esc(n) + ' — spare copy ' + (_oi + _SHARED_COPY_CAP + 1) + ' of ' + _otot + ' · trade stock: the shared stash keeps 2, the rest are held here (thrown out never)">'
           + ((typeof art === 'function') ? art(n, '◆', 'lg') : '')
@@ -47958,10 +48008,27 @@ window.vaultAutoAssign = function(){
     return have;
   }
   window._vaultPresenceSpan = _vaultPresenceSpan;
+  function _assignStoreUnknown(){
+    /* d2r_muleAssign that will not read or will not parse is UNKNOWN. Absent is empty, not unknown.
+       The init loader records the same fact on _muleStoreUnread and substitutes {}. This re-reads,
+       so a later corrupt store is not treated as a readable empty map. */
+    try {
+      if (typeof window._muleStoreUnread === 'function' && window._muleStoreUnread('d2r_muleAssign')) return true;
+    } catch (e0) { return true; }
+    var raw = null;
+    try { raw = window.LSR.getItem('d2r_muleAssign'); }
+    catch (e1) { return true; }
+    if (raw == null || raw === '') return false;
+    try {
+      var a = JSON.parse(raw);
+      return !(a && typeof a === 'object' && !Array.isArray(a));
+    } catch (e2) { return true; }
+  }
   function _vaultRecords(){
-    var out = { records: [], index: {}, byKind: {}, orphans: [], carUnknown: false, dockUnknown: false, ok: true };
+    var out = { records: [], index: {}, byKind: {}, orphans: [], carUnknown: false, dockUnknown: false, assignUnknown: false, ok: true };
     try {
       if (typeof ownedPool !== 'function' || typeof assign === 'undefined') { out.ok = false; return out; }
+      if (typeof _assignStoreUnknown === 'function' && _assignStoreUnknown()) out.assignUnknown = true;
       var poolAll = ownedPool();                                   // distinct kept names (the header's `owned`)
       var carriedSet = {};
       try {
@@ -48013,9 +48080,13 @@ window.vaultAutoAssign = function(){
   window._vaultRecords = _vaultRecords;
 
   function _vaultRecordsSource(){
-    /* The persisted store is the source once it is a real {records: array}. Absent or UNKNOWN falls
-       back to the live derivation. A wrong shape stays unread and is not treated as empty. */
+    /* The persisted store is the source once it is a real {records: array}. Absent, refused or
+       UNKNOWN falls back to the live derivation. A wrong shape stays unread and is not treated as
+       empty. A refused refresh follows the live model. An unreadable assignment is not papered
+       over by an older stamp. */
     try {
+      if (typeof _vrRecFollowLive !== 'undefined' && _vrRecFollowLive) return _vaultRecords();
+      if (typeof _assignStoreUnknown === 'function' && _assignStoreUnknown()) return _vaultRecords();
       if (typeof _vaultRecordsLoad === 'function') {
         var loaded = _vaultRecordsLoad();
         if (loaded && loaded.ok && Array.isArray(loaded.records)) return loaded;
@@ -48030,7 +48101,7 @@ window.vaultAutoAssign = function(){
        print this number. */
     var r;
     try { r = _vaultRecordsSource(); } catch (e) { return null; }
-    if (!r || !r.ok || r.dockUnknown || r.carUnknown) return null;
+    if (!r || !r.ok || r.dockUnknown || r.carUnknown || r.assignUnknown) return null;
     var names = {};
     (r.records || []).forEach(function(rec){
       if (!rec || rec.name == null) return;
@@ -48043,7 +48114,7 @@ window.vaultAutoAssign = function(){
       try { Object.keys(magicFinds).forEach(function(n){ if (n) names[n] = 1; }); } catch (e2) {}
     }
     if (muleId === 'dupes') {
-      try { (_vaultSharedOverflowNames() || []).forEach(function(n){ if (n) names[n] = 1; }); } catch (e3) {}
+      try { (_vaultDupesNames() || []).forEach(function(n){ if (n) names[n] = 1; }); } catch (e3) {}
     }
     return Object.keys(names).length;
   }
@@ -48061,7 +48132,7 @@ window.vaultAutoAssign = function(){
      (REG-2258, v3748 — the v3747 cross-family review found the two UNKNOWN leaks + the filed nuance.) */
   function _vaultRecordsHeader(){
     var r = _vaultRecordsSource(); if (!r || !r.ok) return null; var k = r.byKind;
-    var unk = r.carUnknown || r.dockUnknown;
+    var unk = r.carUnknown || r.dockUnknown || r.assignUnknown;
     return {
       owned:    Object.keys(r.index).length,
       copies:   r.records.length,
@@ -48070,7 +48141,7 @@ window.vaultAutoAssign = function(){
       loose:    unk ? null : (k.loose || 0),
       filed:    unk ? null : ((k.filed || 0) + (k.keep || 0)),
       keepInv:  (k.keepInv || 0),
-      orphans:  r.dockUnknown ? null : r.orphans.length
+      orphans:  (r.dockUnknown || r.assignUnknown) ? null : r.orphans.length
     };
   }
   window._vaultRecordsHeader = _vaultRecordsHeader;
@@ -48207,11 +48278,12 @@ window.vaultAutoAssign = function(){
   function _vaultRecordsPersist(opts){
     /* derive the live one-record model, ENRICH each copy (opaque recId reused from any prior store, per-copy loc,
        prov witness), and write d2r_vaultRecords through the corrupt-store guard. -> {ok,wrote,count,seq,why}.
-       The page-load arm is the one caller. An unknown dock or a wrong-shape store still refuses. [[heart-first]] rule 6: persist
+       The page-load migration and a confirmed write-refresh are the callers. An unknown dock, an unreadable assignment or a wrong-shape store still refuses. [[heart-first]] rule 6: persist
        the per-copy location NOW so phase 2 can route the 3rd+ shared copy without re-deriving. */
     opts = opts || {};
     var rec = _vaultRecords();
     if (!rec || !rec.ok) return { ok: false, wrote: false, why: 'the records model would not derive' };
+    if (rec.assignUnknown) return { ok: false, wrote: false, unknown: true, why: 'd2r_muleAssign would not read - nothing persisted' };
     if (rec.carUnknown || rec.dockUnknown) return { ok: false, wrote: false, unknown: true, why: 'carried or dock is UNKNOWN - nothing persisted' };
     var prior = _vrRecLoadRaw();
     if (prior === undefined) return { ok: false, wrote: false, unknown: true, why: (_vrRecUnread[_VR_STORE_KEY] || 'unreadable') + ' - NOT overwritten' };
@@ -48258,6 +48330,30 @@ window.vaultAutoAssign = function(){
     return { ok: wrote, wrote: wrote, count: outRecs.length, seq: seq, why: (wrote ? null : 'guarded set refused - a corrupt store is never overwritten') };
   }
   window._vaultRecordsPersist = _vaultRecordsPersist;
+  function _vaultRecordsRefresh(){
+    /* Re-persist after a successful owned, copies or assign write. The arm returns already once
+       stamped, so a later write must call this, not the arm. A confirmed readback clears the
+       follow-live flag. A refusal, a short readback or an unreadable witness follows the live model. */
+    var refused = function(why){
+      try { if (typeof _vrRecFollowLive !== 'undefined') _vrRecFollowLive = true; } catch (eR) {}
+      return { ok: false, live: true, why: why || 'persist refused' };
+    };
+    try {
+      var pr = _vaultRecordsPersist();
+      if (!pr || !pr.ok) return refused((pr && pr.why) || 'persist refused');
+      var back = _vrRecLoadRaw();
+      var countOk = !!(back && Array.isArray(back.records) && back.records.length === pr.count);
+      if (back === undefined || !countOk) return refused('the persisted store did not read back');
+      var witnessUnread = false;
+      for (var wi = 0; wi < back.records.length; wi++){
+        if (back.records[wi] && back.records[wi].provUnknown) { witnessUnread = true; break; }
+      }
+      if (witnessUnread) return refused('the witness store would not read');
+      try { if (typeof _vrRecFollowLive !== 'undefined') _vrRecFollowLive = false; } catch (eC) {}
+      return { ok: true, live: false, count: pr.count };
+    } catch (e) { return refused('refresh threw'); }
+  }
+  window._vaultRecordsRefresh = _vaultRecordsRefresh;
   function _vaultRecordsMigrate(opts){
     /* STAMPED, UNKNOWN-safe, version-gated clone of _setPieceReconcile (bible.html:22248). Runs the persist ONCE per
        world, confirms the store read back intact BEFORE stamping (REG-2243 discipline), then stamps.
@@ -48316,18 +48412,30 @@ window.vaultAutoAssign = function(){
     return { undone: true, partial: false, clearedStore: hadStore, clearedStamp: hadStamp, why: null };
   }
   window._vaultRecordsMigrateUndo = _vaultRecordsMigrateUndo;
-  /* v3765 — THE PAGE-LOAD SEAM. _seedCleanseArm calls this once, after the set-piece fold.
+  /* v3765 — THE PAGE-LOAD SEAM. _seedCleanseArm calls this once, after the set-piece fold, and only when that fold did not refuse.
      No other caller of the migrate function is added. This body is that migration: one persist,
      a read-back before the stamp, then the stamp. An unreadable witness leaves the store unstamped.
      Undo is window._vaultRecordsMigrateUndo. It drops d2r_vaultRecords and the stamp, leaves owned, copies
      and assign untouched, and the next arm run persists again.
      recId stays positional (REG-2272 item 4). A dropped copy reuses the prefix ids. That is not a physical
      copy, and this stamp does not treat a recId as one across a lost copy. */
+  function _vaultRecordsMayArm(rec){
+    /* Page load arms only when the set-piece reconcile finished. already, or ran with the copies
+       write confirmed. A refusal, a throw or a failed copies write does not arm. */
+    return !!(rec && (rec.already || (rec.ran && rec.stamped !== false)));
+  }
+  window._vaultRecordsMayArm = _vaultRecordsMayArm;
   function _vaultRecordsArm(){
     var r = _vaultRecordsMigrate();
     if (!r || typeof r !== 'object') r = { ran: false, why: 'the migration returned nothing' };
     r.seam = 'page-load';
     r.copyIdentity = 'positional';
+    try {
+      if (typeof _vrRecFollowLive !== 'undefined') {
+        if (r.stamped) _vrRecFollowLive = false;
+        else if (r.unknown) _vrRecFollowLive = true;
+      }
+    } catch (eF) {}
     return r;
   }
   window._vaultRecordsArm = _vaultRecordsArm;
@@ -51150,11 +51258,13 @@ function renderJournal(){
   }
   try { window.renderJournal = renderJournal; } catch(e){}   /* v1562 — see the note above */
   function persistOwned(){
-    try { window.LSR.setItem('d2r_owned', JSON.stringify(Array.from(owned))); } catch(e){}
+    var _ownedOk = false, _copiesOk = false;
+    try { window.LSR.setItem('d2r_owned', JSON.stringify(Array.from(owned))); _ownedOk = true; } catch(e){}
     try { window.LSR.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch(e){}
     try { window.LSR.setItem('d2r_unknownReads', JSON.stringify(Array.from(unknownReads))); } catch(e){}
-    try { window.LSR.setItem('d2r_copies', JSON.stringify(copies)); } catch(e){}
+    try { window.LSR.setItem('d2r_copies', JSON.stringify(copies)); _copiesOk = true; } catch(e){}
     try { window.LSR.setItem('d2r_multiKeep', JSON.stringify(multiKeep)); } catch(e){}
+    if (_ownedOk && _copiesOk) { try { if (typeof _vaultRecordsRefresh === 'function') _vaultRecordsRefresh(); } catch (eRec) {} }
   }
   // v323: a cooler scanning/loading UI — animated progress bar + sweeping scan-line + rotating
   // verb (reading→scanning→analyzing→matching) so it's visibly WORKING, not a static text line.
