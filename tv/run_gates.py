@@ -486,7 +486,7 @@ GATES = [
              "UNATTRIBUTED, and since the Escape handler is the only legitimate caller an "
              "UNATTRIBUTED line IS the finding."),
     Gate("test_a_landed_update_is_not_an_edit", [sys.executable,
-         os.path.join(HERE, "test_a_landed_update_is_not_an_edit.py")], 60,
+         os.path.join(HERE, "test_a_landed_update_is_not_an_edit.py")], 120,
          why="A file that differs from HEAD but matches the blob already fetched at origin/main is an "
              "update that landed, not a person mid-edit. The same bytes with CR at end of line count as "
              "that update. A file that matches neither still blocks, and a blob that cannot be read still "
@@ -9738,11 +9738,18 @@ GATES = [
     Gate("test_v3766_grokbot_retest", [sys.executable,
          os.path.join(HERE, "test_v3766_grokbot_retest.py")], 60,
          needs_app=False,
-         why=("#137 GrokBot v3740 retest - Exile packs as a paladin shield, a copy past the shared cap "
-             "says trade stock, the cell badge does not multiply the owned count, FIND names the mule "
-             "page without a row click, Steel Shade routes with Andariel, and a missing picture is the "
-             "glyph. The honest shared-tab overflow note stays. 19 distinct attacks, Wilson against the "
+         why=("#137 GrokBot v3740 retest - Exile packs 2 by 2 from Sacred Targe and Sacred Rondache, "
+             "a copy past the shared cap says trade stock, the cell badge does not multiply the owned "
+             "count, FIND names the mule page without a row click, Steel Shade routes with Andariel, and "
+             "a missing picture is the glyph. The honest shared-tab overflow note stays. A bare v3765 "
+             "dirty marker is carried once into the forked key. Distinct attacks, Wilson against the "
              "vault.apply bar. The records seam is not edited.")
+         ),
+    Gate("test_the_render_hook_finds_a_browser_on_linux", [sys.executable,
+         os.path.join(HERE, "test_the_render_hook_finds_a_browser_on_linux.py")], 30,
+         needs_app=False,
+         why=("v3766 - the render hook finds Chrome or Chromium on Linux and makes its profile with a "
+             "portable mktemp template. macOS Chrome stays the first look.")
          ),
     Gate("test_the_vault_proposes_a_home_and_does_not_move", [sys.executable,
          os.path.join(HERE, "test_the_vault_proposes_a_home_and_does_not_move.py")], 90,

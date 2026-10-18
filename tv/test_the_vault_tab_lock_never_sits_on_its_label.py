@@ -58,7 +58,7 @@ RED_PROOF = [
     {
         "why": "#107 - the stamp goes back inside the tab at top:1px: the padlock sits on the Vault label again",
         "file": "control_ui.html",
-        "find": "    position: absolute; top: -10px; right: 3px;\n",
+        "find": "    position: absolute; top: -12px; right: 3px;\n",
         "replace": "    position: absolute; top: 1px; right: 3px;\n",
         "matches": 1,
     },

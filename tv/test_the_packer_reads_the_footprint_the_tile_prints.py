@@ -53,7 +53,47 @@ def _program(prelude, tail):
     if NODE is None:
         raise AssertionError("node is not on this machine - this gate does not skip")
     s = _src()
-    body = """
+    # The footprint is measured. This stub is the shape of that measurement: Enigma's legal
+    # bases agree, Delirium's agree, and Spirit / Hand of Justice / Grief disagree until the
+    # preferred bases, which then span two item types. Enigma has no preferred rescue, so
+    # dropping the agreeing-bases return puts it back on the guess.
+    stub = r"""
+if (typeof window === "undefined") { var window = {}; }
+var _savedFoot = window._cbFoot;
+var _RW_STUB_IT = [
+  ["e", "Enigma", "r"], ["d", "Delirium", "r"], ["s", "Spirit", "r"],
+  ["h", "Hand of Justice", "r"], ["g", "Grief", "r"]
+];
+var _RW_STUB_CODES = {
+  Enigma: ["arch"], Delirium: ["helm"], Spirit: ["mon", "crs", "big"],
+  "Hand of Justice": ["pb", "ba", "pole"], Grief: ["pb", "ba", "long"]
+};
+var _RW_STUB_FOOT = { arch:[2,3], helm:[2,2], mon:[2,3], crs:[2,3], big:[2,4], pb:[2,3], ba:[2,3], pole:[2,4], long:[2,4] };
+var _RW_STUB_TYPE = { arch:"tors", helm:"helm", mon:"shie", crs:"swor", big:"shie", pb:"swor", ba:"axe", pole:"pole", long:"swor" };
+var _RW_STUB_NAME = { arch:"Archon Plate", helm:"Bone Visage", mon:"Monarch", crs:"Crystal Sword", big:"Tower Shield", pb:"Phase Blade", ba:"Berserker Axe", pole:"Thresher", long:"Colossus Blade" };
+window._cbDb = function(){
+  var b = {};
+  Object.keys(_RW_STUB_FOOT).forEach(function(c){
+    var row = [];
+    row[0] = _RW_STUB_NAME[c]; row[1] = _RW_STUB_TYPE[c];
+    row[15] = _RW_STUB_FOOT[c][0]; row[16] = _RW_STUB_FOOT[c][1];
+    b[c] = row;
+  });
+  return { it: _RW_STUB_IT, b: b };
+};
+window._cbBasesOf = function(it){ return (_RW_STUB_CODES[it && it[1]] || []).slice(); };
+window._cbFoot = function(e){
+  if (_savedFoot){ var prev = _savedFoot(e); if (prev) return prev; }
+  var f = e && _RW_STUB_FOOT[e.base];
+  return f ? [f[0], f[1]] : null;
+};
+var RW_BIS = {
+  Spirit: { b: ["Monarch", "Crystal Sword"] },
+  "Hand of Justice": { b: ["Phase Blade", "Berserker Axe"] },
+  Grief: { b: ["Phase Blade", "Berserker Axe"] }
+};
+"""
+    body = stub + """
 var EXTRA_ITEMS = { "Odd Trophy": { base: "Mystery Base", cells: { w: 2, h: 4 } } };
 var ITEM_CODEX = { "Rainbow Facet": { rarity: "unique", base: "Jewels" }, "Bartuc's Cut-Throat": { base: "Greater Talons" },
                    "Shaftstop": { base: "Mesh Armor" }, "Nosferatu's Coil": { base: "Vampirefang Belt" } };
@@ -289,8 +329,8 @@ console.log(JSON.stringify({ two: take(two.placed), twoLeft: two.left.length, on
 RED_PROOF = [
     {"why": "REG-2051 - a runeword falls to the default again although its base settles its size (Enigma 1x2)",
      "file": "bible.html",
-     "find": "  if (/^\\d+\\s+socket\\s+body armou?r$/.test(_rwb)) return {w:2, h:3};\n",
-     "replace": "  if (false) return {w:2, h:3};\n",
+     "find": "  if (_same) return { w: _same.w, h: _same.h };\n",
+     "replace": "  if (false) return { w: _same.w, h: _same.h };\n",
      "matches": 1},
     {"why": "REG-2051 - a runeword is sized by a keyword in its name again (Hand of Justice read as gloves)",
      "file": "bible.html",

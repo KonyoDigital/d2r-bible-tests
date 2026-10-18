@@ -504,9 +504,40 @@ if [ "$_px_touched" = "1" ]; then
   # push's profile is never taken out from under it.
   find "${TMPDIR:-/tmp}" -maxdepth 1 -type d -name 'd2r-render-profile*' -mtime +0 \
        -exec rm -rf {} + >/dev/null 2>&1 || true
-  _px_profile="$(mktemp -d -t d2r-render-profile)"
+  # v3766 — GNU mktemp refuses `mktemp -d -t d2r-render-profile` (the template has no X).
+  # A path ending in XXXXXX is accepted by GNU and by macOS.
+  _px_profile="$(mktemp -d "${TMPDIR:-/tmp}/d2r-render-profile.XXXXXX")"
+  # ⟦RENDER BROWSER BEGIN⟧
+  _d2r_find_render_browser() {
+    if [ -x "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" ]; then
+      printf '%s\n' "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+      return 0
+    fi
+    local _c _hit _root _glob
+    for _c in google-chrome google-chrome-stable chromium chromium-browser; do
+      _hit="$(command -v "$_c" 2>/dev/null || true)"
+      if [ -n "${_hit:-}" ] && [ -x "$_hit" ]; then
+        printf '%s\n' "$_hit"
+        return 0
+      fi
+    done
+    local _roots=("${HOME:-/tmp}/.cache/ms-playwright" "${REPO:-.}/node_modules/playwright" "${REPO:-.}/node_modules/playwright-core")
+    for _root in "${_roots[@]}"; do
+      [ -d "$_root" ] || continue
+      for _glob in "$_root"/chromium-*/chrome-linux/chrome "$_root"/.local-browsers/chromium-*/chrome-linux/chrome; do
+        if [ -x "$_glob" ]; then
+          printf '%s\n' "$_glob"
+          return 0
+        fi
+      done
+    done
+    return 1
+  }
+  # ⟦RENDER BROWSER END⟧
+  _px_chrome="$(_d2r_find_render_browser 2>/dev/null || true)"
   if ! curl -s -m 2 -o /dev/null "http://127.0.0.1:$TV_RENDER_PORT/json/version"; then
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
+    if [ -n "${_px_chrome:-}" ]; then
+    "$_px_chrome" \
       --headless=new --remote-debugging-port="$TV_RENDER_PORT" \
       --user-data-dir="$_px_profile" \
       --no-first-run --no-default-browser-check --disable-gpu \
@@ -518,6 +549,7 @@ if [ "$_px_touched" = "1" ]; then
       sleep 1
       curl -s -m 2 -o /dev/null "http://127.0.0.1:$TV_RENDER_PORT/json/version" && break
     done
+    fi
   fi
   if curl -s -m 2 -o /dev/null "http://127.0.0.1:$TV_RENDER_PORT/json/version"; then
     # ⚠ 2026-09-27 — 300 -> 353, MEASURED, NOT WISHED: a clean full pass costs 296-317s at his daytime load (~5,
