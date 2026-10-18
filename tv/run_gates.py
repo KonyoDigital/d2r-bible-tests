@@ -9706,7 +9706,7 @@ GATES = [
              "corrupt store is NEVER overwritten (_muleUnread/_guardedSet); the undo clears both keys leaving "
              "owned/copies/assign untouched; the page-load seam is _vaultRecordsArm and nothing calls it. "
              "PHASE-2 foundation. v3765 calls _vaultRecordsArm once from page load. This stamp does not. "
-             "12 distinct attacks, Wilson lower bound against the write-door bar. "
+             "15 distinct attacks, Wilson lower bound against the write-door bar. "
              "[[heart-first]] [[the-unjoined-end]] [[unknown-stays-unknown]]")
          ),
     Gate("test_v3764_records_classification_parity", [sys.executable,

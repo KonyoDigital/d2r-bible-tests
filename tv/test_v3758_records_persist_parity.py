@@ -51,7 +51,7 @@ EXTRACT = [
     "_vaultRecordsHeader",
     # INC-3b: persist / load / migrate / undo / rename + the model-in parity views
     "_vrRecLoadRaw", "_vrRecGuardedSet", "_vrLocForCopy", "_vaultRecordsLoad", "_vaultRecordsPersist",
-    "_vaultRecordsMigrate", "_vaultRecordsMigrateUndo", "_vaultRecordsArm", "_vaultRecordsRename",
+    "_dockNames", "_vaultRecordsMigrate", "_vaultRecordsMigrateUndo", "_vaultRecordsArm", "_vaultRecordsRename",
     "_vaultRecordsViewFind", "_vaultRecordsViewOverflow", "_vaultRecordsViewHeader",
 ]
 
@@ -85,7 +85,7 @@ function ownedPool(){ return OWNED.slice(); }
 function copyCount(n){ var c = copies[n]; return (c && c > 0) ? c : (OWNED.indexOf(n) >= 0 ? 1 : 0); }
 function isSharedStash(n){ return assign[n] === 'shared'; }         // fixture: shared-assigned == shared-stash
 function muleById(id){ return (id === 'mule1') ? { id:'mule1', name:'Mule One' } : null; }
-function _dockNames(){ return ['D']; }                             // D is loose
+function _inMagicRare(n){ return false; }                          // the shipped dock calls this; a throw is UNKNOWN
 window._carriedNames = function(){ return []; };                   // nothing carried
 var KEEP_IN_INVENTORY = /Annihilus|Hellfire Torch|Gheed/;
 function _keepName(n){ return n; }
@@ -296,6 +296,78 @@ out.stampStill = (window.LSR.getItem('d2r_vaultRecordsMigrate') != null);
         self.assertIn("threw", o["why"], o["why"])
         self.assertTrue(o["storeStill"], "a thrown remove still cleared the store")
         self.assertTrue(o["stampStill"], "a thrown remove still cleared the stamp")
+
+    def test_a_throwing_dock_dependency_persists_nothing(self):
+        """A dock dependency that throws is UNKNOWN. null from _dockNames is not an empty loose list.
+
+        The old catch returned [], so loose D was classified orphan and the migration stamped."""
+        o = self._run(r"""
+_inMagicRare = function(){ throw new Error('dock dependency'); };
+var rec = _vaultRecords();
+var hdr = _vaultRecordsHeader();
+var pr = _vaultRecordsPersist();
+var m = _vaultRecordsMigrate();
+out.dockUnknown = !!(rec && rec.dockUnknown);
+out.loose = hdr && hdr.loose;
+out.orphans = hdr && hdr.orphans;
+out.unknown = !!pr.unknown;
+out.ok = !!pr.ok;
+out.ran = !!m.ran;
+out.stamped = !!m.stamped;
+out.store = (window.LSR.getItem('d2r_vaultRecords') != null);
+out.stamp = (window.LSR.getItem('d2r_vaultRecordsMigrate') != null);
+out.dOrphan = (rec.records || []).filter(function(r){ return r && r.name === 'D' && r.kind === 'orphan'; }).length;
+""")
+        self.assertTrue(o["dockUnknown"], "a throwing dock was a measured empty list: %r" % o)
+        self.assertIsNone(o["loose"], o)
+        self.assertIsNone(o["orphans"], o)
+        self.assertTrue(o["unknown"], o)
+        self.assertFalse(o["ok"], o)
+        self.assertFalse(o["ran"], o)
+        self.assertFalse(o["stamped"], "a throwing dock still stamped: %r" % o)
+        self.assertFalse(o["store"], o)
+        self.assertFalse(o["stamp"], o)
+
+    def test_a_stamp_remove_that_throws_leaves_the_store(self):
+        """Only the stamp removal throws. The store must still be there, and undone is false.
+
+        Removing the store first left the stamp gating an empty world, and the next arm said already."""
+        o = self._run(r"""
+_vaultRecordsArm();
+var realGet = window.LSR.getItem.bind(window.LSR);
+var realRemove = window.LSR.removeItem.bind(window.LSR);
+window.LSR.removeItem = function(k){
+  if (k === 'd2r_vaultRecordsMigrate') throw new Error('stamp');
+  return realRemove(k);
+};
+var undo = _vaultRecordsMigrateUndo();
+out.undone = !!undo.undone;
+out.partial = !!undo.partial;
+out.why = undo.why || '';
+out.storeStill = (realGet('d2r_vaultRecords') != null);
+out.stampStill = (realGet('d2r_vaultRecordsMigrate') != null);
+""")
+        self.assertFalse(o["undone"], "undo reported re-armed while the stamp remove threw: %r" % o)
+        self.assertFalse(o["partial"], "a stamp remove that threw was reported as a partial clear: %r" % o)
+        self.assertIn("threw", o["why"], o["why"])
+        self.assertTrue(o["storeStill"], "the store was removed before the stamp remove threw: %r" % o)
+        self.assertTrue(o["stampStill"], "the stamp was cleared by a remove that threw: %r" % o)
+
+    def test_a_stamp_without_a_store_persists_again(self):
+        """A stamp with no store is not already-done. The arm writes the store again."""
+        o = self._run(r"""
+var first = _vaultRecordsArm();
+window.LSR.removeItem('d2r_vaultRecords');
+var again = _vaultRecordsArm();
+out.first = !!(first && first.stamped);
+out.already = !!(again && again.already);
+out.ran = !!(again && again.ran && again.stamped);
+out.store = (window.LSR.getItem('d2r_vaultRecords') != null);
+""")
+        self.assertTrue(o["first"], o)
+        self.assertFalse(o["already"], "a missing store was treated as already migrated: %r" % o)
+        self.assertTrue(o["ran"], o)
+        self.assertTrue(o["store"], o)
 
     def test_a_corrupt_store_is_never_overwritten(self):
         o = self._run(r"""
@@ -538,10 +610,10 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "Undo that throws must not report re-armed while the stamp still gates.",
+        "why": "A remove that throws must not report re-armed while the stamp still gates. The stamp goes first, so that throw leaves both keys.",
         "file": "bible.html",
-        "find": "return { undone: !storeErr && !stampErr,",
-        "replace": "return { undone: true,",
+        "find": "      return { undone: false, partial: false, clearedStore: false, clearedStamp: false,\n               why: 'a remove threw - the stamp still gates' };",
+        "replace": "      return { undone: true, partial: false, clearedStore: false, clearedStamp: false,\n               why: 'a remove threw - the stamp still gates' };",
         "matches": 1,
     },
     {
@@ -584,6 +656,29 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "  window._vaultRecordsArm = _vaultRecordsArm;\n",
         "replace": "  window._vaultRecordsArm = _vaultRecordsArm; _vaultRecordsArm();\n",
+        "matches": 1,
+    },
+    {
+        "why": "A thrown dock dependency must not become an empty loose list. Returning [] classifies loose names "
+               "as orphans and the migration stamps that guess.",
+        "file": "bible.html",
+        "find": "    } catch (e) { return null; }   /* a thrown dock is UNKNOWN, never an empty list of loose names */\n",
+        "replace": "    } catch (e) { return []; }\n",
+        "matches": 1,
+    },
+    {
+        "why": "Undo must remove the stamp before the store. Removing the store first, then throwing on the stamp, "
+               "leaves the gate with nothing behind it.",
+        "file": "bible.html",
+        "find": "    try { window.LSR.removeItem(_VRM_KEY); }\n",
+        "replace": "    try { window.LSR.removeItem(_VR_STORE_KEY); }\n",
+        "matches": 1,
+    },
+    {
+        "why": "A stamp with no store must not report already. The arm has to persist again.",
+        "file": "bible.html",
+        "find": "      if (held && Array.isArray(held.records)) return { ran: false, already: true, receipt: done };\n",
+        "replace": "      return { ran: false, already: true, receipt: done };\n",
         "matches": 1,
     },
 ]
