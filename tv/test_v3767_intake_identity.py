@@ -323,6 +323,11 @@ RED_PROOF = [
      "find": "        if (loaded && loaded.ok && Array.isArray(loaded.records)) return loaded;",
      "replace": "        return _vaultRecords();",
      "matches": 1},
+    {"why": "A repeat sighting of the same cell does not count as a witness, so two looks become an uncounted copy.",
+     "file": "bible.html",
+     "find": "      if (sid) g.sessions[String(sid)] = 1; /* v3767 session witness */",
+     "replace": "      if (sid) g.sessions = {}; /* v3767 session witness */",
+     "matches": 1},
 ]
 
 

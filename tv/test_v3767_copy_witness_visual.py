@@ -76,7 +76,7 @@ class TestV3767CopyWitnessVisual(unittest.TestCase):
             return
         chrome = _chrome_path()
         if not chrome:
-            raise AssertionError("no Chrome/Chromium on this machine")
+            self.skipTest(NO_BROWSER)
         os.makedirs(SHOTS, exist_ok=True)
         os.makedirs(ART, exist_ok=True)
         page = r"""

@@ -209,9 +209,14 @@ test.describe('v203 the vault', () => {
     );
     await page.evaluate(() => localStorage.setItem('d2r_intakeUrl', 'https://intake.test/api/intake'));
     await page.evaluate(async (b64: string) => {
+      const w = window as any;
+      /* Elad 2026-10-18 — AUTO INTAKE defaults off, so this photo door does not
+         run until the world turns it on. The assertion is the intake outcome. */
+      if (w.LSR) w.LSR.setItem('d2r_vaultAutoIntake', 'on');
+      else localStorage.setItem('d2r_vaultAutoIntake', 'on');
       const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
       const f = new File([bytes], 'shot.jpg', { type: 'image/jpeg' });
-      await (window as any).vaultIntake([f]);
+      await w.vaultIntake([f]);
     }, '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==');
     const r = await page.evaluate(() => ({
       piece: eval('owned').has("Tal Rasha's Lidless Eye"),
@@ -229,14 +234,29 @@ test.describe('v203 the vault', () => {
        owned name filed to a mule. `owned` is ticked-or-found-ever, and that exact press filed 173 names in
        his vault, 160 with no witness. The sorter now files only names that carry a witness. */
     await page.evaluate(() => (window as any).vaultAutoAssign());
-    const r0 = await page.evaluate(() => ({
-      chips: document.querySelectorAll('.vault-dock .vault-chip').length,
-      stored: JSON.parse(localStorage.getItem('d2r_muleAssign') || '{}'),
-    }));
-    /* Elad 2026-10-18 — router-homed names are not dock chips, and the seam does not
-       write assign. An empty dock is that ruling, not the sorter filing the unwitnessed pool.
-       The fear stays: none of those names landed in the mule map. */
+    const r0 = await page.evaluate(() => {
+      try { (window as any).renderVault(); } catch (e) {}
+      const fold = (s: string) => String(s || '').replace(/[‘’ʼ´`]/g, "'").trim();
+      const held = [...eval('owned')].map(fold);
+      const dock = ((window as any)._vaultDockNames() || []).map(fold);
+      const org = [...document.querySelectorAll('#vault-organize .vault-org-row[data-name]')]
+        .map((c) => fold((c as HTMLElement).getAttribute('data-name') || ''));
+      const keep = [...document.querySelectorAll('.vk-chip')]
+        .map((c) => fold((c.textContent || '').replace(/[◆✕×]/g, '').replace(/\s*\d+\s*$/, '')));
+      return {
+        owned: held, dock, org, keep,
+        stored: JSON.parse(localStorage.getItem('d2r_muleAssign') || '{}'),
+      };
+    });
+    /* Elad 2026-10-18 — the sorter still must not write assign for an unwitnessed
+       name. The owned pool stays owned, and each name stays on a painted surface:
+       the dock if it is homeless, the organizer row if the seam homed it. */
     const seeded = ['Harlequin Crest (Shako)', 'The Stone of Jordan', 'Vampire Gaze', 'Annihilus', 'Stormshield', 'Raven Frost', 'Windforce'];
+    const painted = new Set([...r0.dock, ...r0.org, ...r0.keep]);
+    const lost = seeded.filter((n) => !r0.owned.includes(n));
+    const invisible = seeded.filter((n) => !painted.has(n));
+    expect(lost, 'the owned pool lost a seeded name').toEqual([]);
+    expect(invisible, 'a seeded name is owned but not on a painted surface (dock or seam home)').toEqual([]);
     const filed = seeded.filter((n) => r0.stored[n] != null);
     expect(filed, 'the sorter filed owned names that carry no witness').toEqual([]);
     expect(r0.stored['The Stone of Jordan'], 'an owned name was filed with no witness').toBeUndefined();
