@@ -51,6 +51,7 @@ EXTRACT = [
     "_vaultSharedOverflowNames", "isSharedStash",
     "_vaultRecords", "_vaultRecordsSource", "_vaultRecordsFind", "_vaultRecordsOverflow",
     "_vaultRecordsHeader",
+    "_vrRecWitness", "_vrRecRow", "_vrRecRowsFrom",
     "_vrRecLoadRaw", "_vrRecGuardedSet", "_vrLocForCopy", "_vaultRecordsLoad", "_vaultRecordsPersist",
     "_vrRecHome", "_vaultRecordsViewFind", "_vaultRecordsViewOverflow", "_vaultRecordsViewHeader",
 ]

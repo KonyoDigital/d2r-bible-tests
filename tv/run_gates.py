@@ -9726,13 +9726,13 @@ GATES = [
          needs_app=False,
          why=("#76 INC-3 live / v3765 - page load calls window._vaultRecordsArm once, and only when the "
              "set-piece reconcile did not refuse. The source is a stamped records store with no unreadable "
-             "witness; a shared-locker name finds that locker. A refresh writes only when the derived rows "
-             "(name, kind, loc and the presence span) differ from the stored rows, and only while a current "
-             "stamp exists. A refusal or a short readback drops the stamp and writes a dirty marker so a "
-             "reload follows live. A dirty marker bypasses already until its removal reads back gone. A "
-             "reset holds refresh until the clears finish, then refreshes once. An unreadable "
+             "witness; a shared-locker name finds that locker. A refresh writes only when the full row persist "
+             "would write, including prov and provUnknown, differs from the stored row, and only while a "
+             "current stamp exists. A refusal or a short readback drops the stamp and writes a dirty marker "
+             "so a reload follows live. A dirty marker bypasses already until its removal reads back gone. "
+             "A reset holds refresh until the clears finish, then refreshes once. An unreadable "
              "d2r_muleAssign, an unknown dock, an unreadable witness or a wrong store shape does not stamp. "
-             "Copy-loss ids stay positional (REG-2272 item 4). 41 distinct attacks, Wilson against the "
+             "Copy-loss ids stay positional (REG-2272 item 4). 43 distinct attacks, Wilson against the "
              "vault.apply bar; sabotage alone does not open the write door.")
          ),
     Gate("test_the_vault_proposes_a_home_and_does_not_move", [sys.executable,
