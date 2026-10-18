@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2285 - AN ENUMERATED SIGNATURE MISSED MAGIC & RARE, SO THE HEADER COUNTS STAYED STALE (#239, v3765)
+
+GPT-5.6 Sol fourth pass on PR #239 at a9eaf3b5, DIFFERS. The previous round verified. One HIGH. This was the third enumerated input the signature missed (copies and assign, then multiKeep, then magicFinds).
+
+1. HIGH. _dockNames reads _inMagicRare, which reads magicFinds. _vrRecSig listed names, copies, the presence span, assign and prov, and not magicFinds. vaultThrowFind deletes the magicFinds row and persistOwned calls refresh. The name goes loose live. The stored row stays orphan. The header loose and orphan counts stay stale. FIX: the refresh gate compares the rows the persist derivation writes (name, kind, loc and the presence span) with the stored rows, and writes only when that serialization differs. Any input the derivation reads is covered by the rows. The red proof drives vaultThrowFind. One law-level proof makes the comparison always equal. Another nulls kind and loc together, so an orphan and a loose row compare equal.
+
+GUARD: tv/test_v3765_records_arm_live.py. heart2 --prove 41/41 PROVEN. Wilson 0.9143 on 41 distinct attacks against the vault.apply bar 0.722. Sabotage kinds 1.00 against 1.30, so the write door stays shut. v3758 15/15 PROVEN, Wilson 0.7961. v3764 11/11 stayed green, Wilson 0.7412. The arm count stays 2. Persist callers stay the definition, the migration and the write refresh.
+
+LEFT: REG-2272 item 4. recId stays positional. The four stamps stay v3765. This is not a new version. A provenance-only change does not move name, kind, loc or span, so it does not by itself refresh the witness until one of those rows changes. The unreadable-witness refusal on the write, and the source refusal of a provUnknown snapshot, are unchanged.
+
 ### REG-2284 - A MULTI-KEEP ADD LEFT THE COLLAPSED RECORD, AND A THROWN DIRTY REMOVAL STUCK (#239, v3765)
 
 GPT-5.6 Sol third pass on PR #239 at dee9d97d, DIFFERS. The previous round verified. Two holes.

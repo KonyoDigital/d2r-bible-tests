@@ -10,8 +10,9 @@ census. Undo is window._vaultRecordsMigrateUndo.
 An unknown dock, an unreadable witness, an unreadable d2r_muleAssign or a wrong store
 shape does not stamp. Page load does not arm when the set-piece reconcile refuses.
 A successful owned, copies or assign write re-persists and confirms the readback when
-that signature changed. The signature includes each name's presence span, so a
-multi-keep add is a change. A refusal or a short readback drops the stamp and writes a
+the rows that derivation would write differ from the stored rows. Those rows are the
+name, the kind, the loc and the presence span, so a multi-keep add and a Magic & Rare
+membership change are both changes. A refusal or a short readback drops the stamp and writes a
 dirty marker, so a reload follows the live model. A dirty marker still present bypasses
 the migrate already path, and the marker clears only when the removal reads back gone. The source consumes a store only
 while that stamp is current and no row is an unreadable witness. A shared-locker name
@@ -49,13 +50,14 @@ EXTRACT = [
     "_vaultSharedOverflowNames", "_vaultDupesNames", "_vaultDupesCells", "_vaultSharedOverflowHtml",
     "_vaultPresenceSpan", "_assignStoreUnknown", "_vaultRecords", "_vaultRecordsSource",
     "_vaultRecordsStampOk", "_vrRecDirty", "_vrRecMarkDirty", "_vrRecClearDirty",
+    "_vrRecShape", "_vrRecCanon", "_vrRecDerivedCanon", "_vrRecStoredCanon",
     "_vrRecSig", "_vrRecSigSame", "_vrRecNoteSig", "_vrRecHome",
     "_vaultLockerItems", "_vaultRecordsHeader", "_vaultRecordsFind", "_vaultRecordsOverflow",
     "_vrRecLoadRaw", "_vrRecGuardedSet", "_vrLocForCopy", "_vaultRecordsLoad",
     "_vaultRecordsPersist", "_vaultRecordsRefresh", "_vaultRecordsMigrate",
     "_vaultRecordsMigrateUndo", "_vaultRecordsMayArm", "_vaultRecordsArm",
     "_shelfCopyCount", "_shelfDrawNames", "_muleLoad",
-    "_dockNames", "_vaultWhereIs", "_vaultFindHome", "_vaultFindMatches",
+    "_inMagicRare", "_dockNames", "_vaultWhereIs", "_vaultFindHome", "_vaultFindMatches",
     "saveA", "persistOwned",
 ]
 
@@ -115,7 +117,6 @@ function muleById(id){
   return (id === 'mule-sets' || id === 'mule-other') ? { id: id, name: id } : null;
 }
 window._carriedNames = function(){ return []; }
-function _inMagicRare(){ return false; }
 function esc(t){ return String(t == null ? '' : t); }
 function art(){ return ''; }
 function isAggregate(){ return false; }
@@ -864,6 +865,43 @@ out.liveCopies = liveRec.records.length;
         self.assertEqual(o["header"], o["liveCopies"], "the header left the live copy total: %r" % o)
         self.assertEqual(o["header"], 12, o)
 
+    def test_throwing_a_magic_find_refreshes_the_loose_and_orphan_counts(self):
+        """vaultThrowFind drops magicFinds membership. A name stored as orphan must become loose, and the header must follow."""
+        o = self._run(r"""
+var HARP = "Harpoonist's Grand Charm";
+OWNED.push(HARP);
+magicFinds[HARP] = { q: 'rare', base: '' };
+function renderVault(){}
+function status(){}
+_vaultRecordsArm();
+var before = _vaultRecordsLoad().records.filter(function(r){ return r && r.name === HARP; })[0];
+out.beforeKind = before ? before.kind : null;
+out.beforeLoc = before ? before.loc : 'missing';
+window.vaultThrowFind(HARP);
+var row = _vaultRecordsLoad().records.filter(function(r){ return r && r.name === HARP; })[0];
+var live = _vaultRecords();
+var liveRow = live.records.filter(function(r){ return r && r.name === HARP; })[0];
+var h = _vaultRecordsHeader();
+out.kind = row ? row.kind : null;
+out.loc = row ? row.loc : 'missing';
+out.liveKind = liveRow ? liveRow.kind : null;
+out.headerLoose = h && h.loose;
+out.headerOrphans = h && h.orphans;
+out.liveLoose = live.byKind.loose || 0;
+out.liveOrphans = live.orphans.length;
+out.magicGone = !Object.prototype.hasOwnProperty.call(magicFinds, HARP);
+""", extra=_window_fn(self.src, "vaultThrowFind") + ";\n")
+        self.assertEqual(o["beforeKind"], "orphan", o)
+        self.assertIsNone(o["beforeLoc"], o)
+        self.assertTrue(o["magicGone"], o)
+        self.assertEqual(o["kind"], "loose", "the stored row stayed orphan: %r" % o)
+        self.assertEqual(o["loc"], "loose", o)
+        self.assertEqual(o["liveKind"], "loose", o)
+        self.assertEqual(o["headerLoose"], o["liveLoose"], "header loose left the live count: %r" % o)
+        self.assertEqual(o["headerOrphans"], o["liveOrphans"], "header orphans left the live count: %r" % o)
+        self.assertEqual(o["headerLoose"], 1, o)
+        self.assertEqual(o["headerOrphans"], 0, o)
+
     def test_a_dirty_marker_whose_removal_throws_is_not_already(self):
         """The first dirty removal throws. The arm re-persists, and the marker stays until a read says it is gone."""
         o = self._run(r"""
@@ -1214,10 +1252,17 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "The signature has to include the presence span. Without it vaultMultiKeepAdd leaves Natalya collapsed at one record.",
+        "why": "The refresh gate compares the derived rows with the stored rows. An always-equal comparison skips vaultThrowFind and leaves the orphan record.",
         "file": "bible.html",
-        "find": "        span[n] = (typeof _vaultPresenceSpan === 'function') ? _vaultPresenceSpan(n, have) : have;",
-        "replace": "        span[n] = have;",
+        "find": "      return derived === stored;",
+        "replace": "      return true;",
+        "matches": 1,
+    },
+    {
+        "why": "Kind and loc are part of that comparison. Nulling both makes an orphan and a loose row look the same, so the header counts stay stale.",
+        "file": "bible.html",
+        "find": "    return { name: name, kind: kind, loc: (loc == null ? null : loc), span: span, copyIx: copyIx || 0 };",
+        "replace": "    return { name: name, kind: null, loc: null, span: span, copyIx: copyIx || 0 };",
         "matches": 1,
     },
     {
