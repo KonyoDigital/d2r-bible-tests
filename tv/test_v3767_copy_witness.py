@@ -126,7 +126,7 @@ function isSharedStash(){ return false; }
 function _sharedNames(){ return []; }
 function _inMagicRare(){ return false; }
 function muleById(id){
-  var known = { shared: 'SHARED', 'uni-weap': 'UNI-WEAPONS', 'uni-armor': 'UNI-ARMOR', 'uni-small': 'UNI-JEWELRY' };
+  var known = { shared: 'SHARED', 'uni-weap': 'UNI-WEAPONS', 'uni-armor': 'UNI-ARMOR', 'uni-small': 'UNI-JEWELRY', runewords: 'RUNEWORDS' };
   return known[id] ? { id: id, name: known[id] } : null;
 }
 function suggestMule(name){
@@ -566,6 +566,45 @@ document.getElementById('screen').textContent = lines.join('\n');
             shutil.copy(png, os.path.join(ART, os.path.basename(png)))
             shutil.rmtree(td, ignore_errors=True)
 
+    def test_a_charm_and_a_runeword_witness_and_sit_beside_the_original(self):
+        """A charm and a runeword. The same cell is one record and another witness.
+        A second cell is a second copy on that item's own mule, beside the original."""
+        o = self._run(r"""
+reset();
+ROUTES["Gheed's Fortune"] = { id: 'uni-small', why: 'grand charm' };
+ROUTES['Obedience'] = { id: 'runewords', why: 'runeword' };
+see("Gheed's Fortune", [
+  L('Mule','stash','stash:c1r1','c1','a'),
+  L('Mule','stash','stash:c1r1','c2','b'),
+  L('Mule','stash','stash:c2r1','c2','c')
+], 4);
+see('Obedience', [
+  L('Mule','stash','stash:c4r4','r1','a'),
+  L('Mule','stash','stash:c4r4','r2','b'),
+  L('Mule','stash','stash:c8r4','r2','c')
+], 4);
+var g = rows("Gheed's Fortune");
+var rw = rows('Obedience');
+console.log(JSON.stringify({
+  gN: g.length,
+  gMule: g.map(function(r){ return r.mule; }),
+  gW: g[0] && g[0].sight ? g[0].sight.witnesses : null,
+  gCell: g.map(function(r){ return r.sight && r.sight.cell; }),
+  rwN: rw.length,
+  rwMule: rw.map(function(r){ return r.mule; }),
+  rwW: rw[0] && rw[0].sight ? rw[0].sight.witnesses : null,
+  rwCell: rw.map(function(r){ return r.sight && r.sight.cell; })
+}));
+""")
+        self.assertEqual(o["gN"], 2, "a re-read of the same charm cell is not a second row")
+        self.assertEqual(o["gMule"], ["uni-small", "uni-small"])
+        self.assertEqual(o["gW"], 2)
+        self.assertEqual(o["gCell"], ["stash:c1r1", "stash:c2r1"])
+        self.assertEqual(o["rwN"], 2, "a re-read of the same runeword cell is not a second row")
+        self.assertEqual(o["rwMule"], ["runewords", "runewords"])
+        self.assertEqual(o["rwW"], 2)
+        self.assertEqual(o["rwCell"], ["stash:c4r4", "stash:c8r4"])
+
     def test_distinct_attacks_clear_the_vault_apply_wilson_bar(self):
         from confidence import confluence, wilson_lower
         import self_arming as SA
@@ -686,6 +725,11 @@ RED_PROOF = [
     {"why": "The AUTO INTAKE button no longer calls the switch.",
      "file": "bible.html", "find": 'onclick="window._vaultAutoIntakeToggle()"',
      "replace": 'onclick="void(0)"', "matches": 1},
+    {"why": "A charm or a runeword's second copy leaves its mule, so the duplicate does not sit next to the original.",
+     "file": "bible.html",
+     "find": "else if (_seamR && _seamR.loc === 'filed' && _seamR.mule) { kind = 'filed'; mid = _seamR.mule; } /* v3767 records home */",
+     "replace": "else if (false && _seamR && _seamR.loc === 'filed' && _seamR.mule) { kind = 'filed'; mid = _seamR.mule; } /* v3767 records home */",
+     "matches": 1},
 ]
 
 

@@ -9767,7 +9767,8 @@ GATES = [
          os.path.join(HERE, "test_v3767_copy_witness.py")], 180,
          needs_app=False,
          why=("v3767 - the same holder, location and cell is one record and its sessions are witnesses. "
-             "A second cell is a second copy on the same mule. Under 3 sessions the lane is WATCHING. "
+             "A second cell is a second copy on the same mule, including a charm and a runeword. "
+             "Under 3 sessions the lane is WATCHING. "
              "AUTO INTAKE off means a frame does not register; a typed item still places through the seam "
              "with source manual. The move record carries from, to, status and evidence frame ids. "
              "Distinct attacks, Wilson against the vault.apply bar.")
