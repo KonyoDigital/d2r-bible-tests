@@ -53,7 +53,7 @@ EXTRACT = [
     "_vrRecWitness", "_vrRecRow", "_vrRecRowsFrom", "_vrRecCanon",
     "_vrRecDerivedCanon", "_vrRecStoredCanon",
     "_vrRecSig", "_vrRecSigSame", "_vrRecNoteSig", "_vrRecHome",
-    "_vaultLockerItems", "_vaultRecordsHeader", "_vaultRecordsFind", "_vaultRecordsOverflow",
+    "_vaultLockerItems", "_vaultRecordsHeader", "_vaultRecordsFind", "_vaultSameMuleCopies", "_vaultRecordsOverflow",
     "_vrRecLoadRaw", "_vrRecGuardedSet", "_vrLocForCopy", "_vaultRecordsLoad",
     "_vaultRecordsPersist", "_vaultRecordsRefresh", "_vaultRecordsMigrate",
     "_vaultRecordsMigrateUndo", "_vaultRecordsMayArm", "_vaultRecordsArm",
@@ -328,7 +328,8 @@ out.storedCopies = copies[NATALYA];
         self.assertEqual(o["ik"], ["mule-sets"], "IK Soul Cage x3 stayed more than one record: %r" % o["ik"])
         self.assertEqual(o["enigma"], ["mule-sets", "mule-sets"],
                          "a non-set spare was collapsed: %r" % o["enigma"])
-        self.assertEqual(len(o["griffon"]), 4, "a non-set shared name was collapsed: %r" % o["griffon"])
+        self.assertEqual(o["griffon"], ["shared", "shared", "shared", "shared"],
+                         "a shared copy left the mule: %r" % o["griffon"])
         self.assertTrue(o["copiesSame"], "the span rewrote copies[]")
         self.assertEqual(o["storedCopies"], 4)
         self.assertEqual(o["shelfNat"], 1, o)
@@ -390,6 +391,7 @@ out.tiles = Object.keys(tiles).length;
 
     def test_find_and_dupes_read_the_persisted_store(self):
         card = self._line("var _ovNames = (m.id === 'dupes') ? _vaultDupesNames() : [];")
+        self._line("var _ovNames = _vaultDupesNames();")
         o = self._run(r"""
 _vaultRecordsArm();
 copies[GRIFFON] = 1;
@@ -400,6 +402,7 @@ out.find = askFind('natalya');
 out.card = _ovNames.slice();
 out.html = _vaultSharedOverflowHtml();
 out.lockerDupes = _vaultLockerItems('dupes');
+out.spare = _vaultDupesCells(GRIFFON);
 out.liveOverflow = _vaultSharedOverflowNames();
 out.liveFind = (function(){
   var w = _vaultWhereIs(NATALYA);
@@ -408,10 +411,10 @@ out.liveFind = (function(){
 """)
         self.assertIn("mule-sets", o["find"], "FIND left the persisted store: %r" % o)
         self.assertNotIn("mule-other", o["find"], o)
-        self.assertEqual(o["card"], ["Griffon's Eye"],
-                         "the dupes card left the persisted store: %r" % o)
-        self.assertIn("Griffon's Eye", o["html"], "the dupes window left the persisted store: %r" % o)
-        self.assertEqual(o["lockerDupes"], 1, "the dupes count left the persisted store: %r" % o)
+        self.assertEqual(o["card"], [], "a copy was listed as GRAIL-DUPES: %r" % o)
+        self.assertNotIn("Griffon's Eye", o["html"], "the dupes window drew a copy: %r" % o)
+        self.assertEqual(o["lockerDupes"], 0, "the dupes count listed a copy: %r" % o)
+        self.assertEqual(o["spare"], 0, o)
         self.assertEqual(o["liveOverflow"], [], o)
         self.assertEqual(o["liveFind"], "mule-other", o)
 
@@ -460,7 +463,7 @@ out.dupesLive = _vaultSharedOverflowNames();
         self.assertEqual(o["addCensus"], 5, o)
         self.assertEqual(o["addTiles"], 5, o)
         self.assertIn("mule-sets", o["addFind"], o)
-        self.assertEqual(o["addDupes"], ["Griffon's Eye"], o)
+        self.assertEqual(o["addDupes"], [], o)
         self.assertEqual(o["delCensus"], 4, o)
         self.assertEqual(o["delTiles"], 4, o)
         self.assertIn("no vaulted item matches", o["delFind"], o)
@@ -1115,7 +1118,7 @@ RED_PROOF = [
     {
         "why": "The locker packs one copy of a presence set piece. Without the span it packs the capped copy count.",
         "file": "bible.html",
-        "find": "      if (typeof _vaultPresenceSpan === 'function') { var _psMule = _vaultPresenceSpan(n, cc); if (_psMule != null) cc = Math.max(1, Math.min(_psMule, _MULE_COPY_CAP)); }",
+        "find": "      if (typeof _vaultPresenceSpan === 'function') { var _psMule = _vaultPresenceSpan(n, cc); if (_psMule != null) cc = Math.max(1, _psMule); /* v3767 every copy */ }",
         "replace": "      /* presence span removed from the locker pack */",
         "matches": 1,
     },
@@ -1267,17 +1270,17 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "The spare cells have to use the records index. Live copyCount blanks a spare the store still holds.",
+        "why": "Spare cells would put a copy in GRAIL-DUPES. A non-zero count draws trade stock the ruling retired.",
         "file": "bible.html",
-        "find": "        var over = r.index[n].length - cap;",
-        "replace": "        return _vaultSharedOverflowCells(n); var over = r.index[n].length - cap;",
+        "find": "return 0; /* v3767 no spare cells */",
+        "replace": "return 3; /* v3767 no spare cells */",
         "matches": 1,
     },
     {
         "why": "The dupes locker count has to ask the records overflow. The live spare list drops a copy the store still holds.",
         "file": "bible.html",
         "find": "      try { (_vaultDupesNames() || []).forEach(function(n){ if (n) names[n] = 1; }); } catch (e3) {}",
-        "replace": "      try { (_vaultSharedOverflowNames() || []).forEach(function(n){ if (n) names[n] = 1; }); } catch (e3) {}",
+        "replace": "      try { (['Griffon\\'s Eye']).forEach(function(n){ if (n) names[n] = 1; }); } catch (e3) {}",
         "matches": 1,
     },
     {

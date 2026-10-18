@@ -15,7 +15,7 @@ fake window.LSR (NEVER his real disk):
     _vaultRecordsOverflow AND the live _vaultSharedOverflowNames — including the SHARED-NAME-AT-CAP boundary (F has
     exactly _SHARED_COPY_CAP copies, so a `>= cap` bug would wrongly flag it as overflow);
   · each persisted record carries a STABLE OPAQUE recId (rec_<n>, not name+'#'+i) that SURVIVES a rename;
-  · each record carries its OWN per-copy loc (rule E: a shared name's 3rd+ copy -> 'dupes');
+  · each record carries its OWN per-copy loc (Elad 2026-10-18 13:18 IDT: every shared copy -> 'shared');
   · a CORRUPT/unreadable d2r_vaultRecords is NEVER overwritten (the _muleUnread/_guardedSet guard);
   · the undo clears d2r_vaultRecords + the stamp and leaves owned/copies/assign UNTOUCHED;
   · the arm is the one source caller of the migrate function, and page load calls that arm once.
@@ -47,7 +47,7 @@ NODE = os.environ.get("NODE") or shutil.which("node")
 # the shipped functions under test + the live overflow chain they are proven against
 EXTRACT = [
     "_sharedNames", "_sharedCopyCount", "_sharedCappedCopies", "_vaultSharedOverflowCells",
-    "_vaultSharedOverflowNames",     "_vaultRecords", "_vaultRecordsSource", "_vaultRecordsFind", "_vaultRecordsOverflow",
+    "_vaultSharedOverflowNames", "_vaultSameMuleCopies", "_vaultRecords", "_vaultRecordsSource", "_vaultRecordsFind", "_vaultRecordsOverflow",
     "_vaultRecordsHeader",
     # INC-3b: persist / load / migrate / undo / rename + the model-in parity views
     "_vrRecWitness", "_vrRecRow", "_vrRecRowsFrom",
@@ -175,8 +175,8 @@ names.forEach(function(n){ out.loadedFind[n] = _vaultRecordsViewFind(loaded, n);
         self.assertEqual(o["loadedViewOverflow"], o["shippedOverflow"],
                          "persisted overflow != in-memory overflow: %r vs %r" % (o["loadedViewOverflow"], o["shippedOverflow"]))
         # the BOUNDARY: F has exactly _SHARED_COPY_CAP copies -> NOT overflow; C, E are
-        self.assertEqual(o["loadedViewOverflow"], ["C", "E"],
-                         "overflow boundary wrong (F at cap must be excluded): %r" % o["loadedViewOverflow"])
+        self.assertEqual(o["loadedViewOverflow"], [],
+                         "overflow listed trade stock: %r" % o["loadedViewOverflow"])
         self.assertEqual(o["loadedViewOverflow"], o["liveOverflow"],
                          "persisted overflow != live _vaultSharedOverflowNames: %r vs %r" % (o["loadedViewOverflow"], o["liveOverflow"]))
         # a filed name resolves to its mule via the persisted store; non-filed / unknown invent no home
@@ -192,7 +192,7 @@ var loaded = _vaultRecordsLoad();
 out.allIds = loaded.records.map(function(r){ return r.recId; });
 out.idShapeOk = loaded.records.every(function(r){ return /^rec_\d+$/.test(r.recId); });
 out.idNotNameDerived = loaded.records.every(function(r){ return r.recId !== (r.name + '#' + r.copyIx); });
-// per-copy loc (rule E): C -> [shared,shared,dupes,dupes]; F -> [shared,shared] (boundary, NO dupes)
+// per-copy loc: C -> [shared, shared, shared, shared]; F -> [shared, shared]
 out.locByName = (function(){ var q={}; loaded.records.forEach(function(r){ (q[r.name]=q[r.name]||[]).push(r.loc); }); return q; })();
 // rename A -> A2: the record's name field changes, the recId does NOT
 out.aIdsBefore = (loaded.index['A'] || []).slice();
@@ -205,10 +205,10 @@ out.a2IdNotNameDerived = (out.a2IdsAfter.length === 1 && out.a2IdsAfter[0] !== '
         self.assertTrue(o["idShapeOk"], "a recId is not an opaque rec_<n> token: %r" % o["allIds"])
         self.assertTrue(o["idNotNameDerived"], "a recId is name+'#'+i derived: %r" % o["allIds"])
         # rule E per-copy location is persisted (phase-2 routing data), boundary respected
-        self.assertEqual(o["locByName"]["C"], ["shared", "shared", "dupes", "dupes"],
-                         "rule-E per-copy loc wrong for C: %r" % o["locByName"].get("C"))
+        self.assertEqual(o["locByName"]["C"], ["shared", "shared", "shared", "shared"],
+                         "a shared copy left the mule: %r" % o["locByName"].get("C"))
         self.assertEqual(o["locByName"]["F"], ["shared", "shared"],
-                         "F at cap must be two shared copies, no dupes: %r" % o["locByName"].get("F"))
+                         "F must be two shared copies: %r" % o["locByName"].get("F"))
         self.assertEqual(o["locByName"]["A"], ["mule1"], "a filed copy's loc must be its mule: %r" % o["locByName"].get("A"))
         self.assertEqual(o["locByName"]["D"], ["loose"], "a loose copy's loc must be loose: %r" % o["locByName"].get("D"))
         # the id SURVIVED the rename, unchanged, and is not the new name's positional id
@@ -569,12 +569,10 @@ out.stamp = (window.LSR.getItem('d2r_vaultRecordsMigrate') != null);
 # ── RED_PROOF: each tamper matches EXACTLY ONCE and turns THIS law RED; heart2 reverts byte-identical. ──
 RED_PROOF = [
     {
-        "why": "#76 INC-3b - the records-overflow view must EXCLUDE a shared name AT the cap (F, 2 copies). A `>= cap` "
-               "bug fills GRAIL-DUPES with every shared name at or over the cap and breaks parity with the live "
-               "trade-stock view and the in-memory overflow (F and B would wrongly appear).",
+        "why": "Nothing is GRAIL-DUPES trade stock. Returning a name fills the dupes list and breaks parity with the live view.",
         "file": "bible.html",
-        "find": "if (ids.length - cap > 0) out.push(n);",
-        "replace": "if (ids.length - cap >= 0) out.push(n);",
+        "find": "return []; /* v3767 no dupes list */",
+        "replace": "return ['C']; /* v3767 no dupes list */",
         "matches": 1,
     },
     {

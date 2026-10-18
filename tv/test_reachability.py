@@ -261,6 +261,10 @@ EXTERNAL_SYMBOLS = {
     # paints the lockers. setTimeout is the browser timer, the same kind of feature probe as
     # MutationObserver. The branch runs in every engine this page loads in, including node.
     ("bible.html", "setTimeout"): "browser timer — feature-detected, not ours to declare",
+    # v3767 — the AUTO INTAKE paint runs in node laws that have no document. The probe is the
+    # same environment check the console already allow-lists. The button exists on the page.
+    ("bible.html", "document"): "the environment probe `typeof document !== 'undefined'` — never a "
+                                "symbol this document declares",
 }
 
 

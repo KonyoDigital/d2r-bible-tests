@@ -3,7 +3,7 @@
 
 Exile's preferred bases, Sacred Targe and Sacred Rondache, measure 2x2. Spirit's
 preferred bases are two item types and stay a guess.
-A copy past the shared cap is trade stock in GRAIL-DUPES, and a capped cell says its place
+A later copy sits next to the original on the same mule (Elad 2026-10-18 13:18 IDT), and a capped cell says its place
 in the drawn run, not the owned total on every tile. FIND reads the mule page already in
 the cell and opens that page from a button; the row itself still has no click (#79).
 Andariel was already mercenary gear. Steel Shade was trade-trash and now rides the same
@@ -252,9 +252,11 @@ process.stdout.write(JSON.stringify(out));
         self.assertEqual(self.src.count("var _mark = _copyCellMark(_cc, _drawN[n] || 1, _ix);"), 1)
 
     def test_a_copy_past_the_shared_cap_says_trade_stock(self):
-        self.assertIn("GRAIL-DUPES", self.f["say4"])
-        self.assertNotIn("filed to shared", self.f["say4"])
-        self.assertIn("filed to shared", self.f["say2"])
+        self.assertIn("same mule", self.f["say4"])
+        self.assertIn("next to the original", self.f["say4"])
+        self.assertNotIn("GRAIL-DUPES", self.f["say4"])
+        self.assertIn("same mule", self.f["say2"])
+        self.assertNotIn("GRAIL-DUPES", self.f["say2"])
         self.assertIn("filed to runewords", self.f["sayRw"])
         self.assertEqual(self.src.count("why: _copyFileSay(nm, copies[nm], assign[nm])"), 1)
 
@@ -427,10 +429,10 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "Copy 4 of a shared item is trade stock. Saying it was filed to shared puts it on the tab that keeps 2.",
+        "why": "Copy 4 sits next to the original. Calling it GRAIL-DUPES sends it off the mule.",
         "file": "bible.html",
-        "find": "    if (String(home) === 'shared' && n > cap)\n      return name + ' — copy ' + n + ' is trade stock in GRAIL-DUPES (the shared stash keeps ' + cap + ')';\n",
-        "replace": "    /* shared cap message removed */\n",
+        "find": "    if (String(home) === 'shared' && n > 1)\n      return name + ' — copy ' + n + ' filed to ' + home + ', next to the original on the same mule';\n",
+        "replace": "    if (String(home) === 'shared' && n > 1)\n      return name + ' — copy ' + n + ' is trade stock in GRAIL-DUPES';\n",
         "matches": 1,
     },
     {

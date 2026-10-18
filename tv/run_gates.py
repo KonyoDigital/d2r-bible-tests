@@ -9745,6 +9745,33 @@ GATES = [
              "dirty marker is carried once into the forked key. Distinct attacks, Wilson against the "
              "vault.apply bar. The records seam is not edited.")
          ),
+    Gate("test_v3767_vault_spread", [sys.executable,
+         os.path.join(HERE, "test_v3767_vault_spread.py")], 120,
+         needs_app=False,
+         why=("#76 and #77 - a category mule packs the records homed there, up to 100 stash cells "
+             "and 40 inventory cells. A same-name group overflows together to the next mule of that "
+             "category. Two spellings of one set piece are one record, one FIND home, and one delete. "
+             "Elad 2026-10-18 13:18 IDT: every copy sits on the same mule as the original. Copies already "
+             "in GRAIL-DUPES re-home through the records route. 18 distinct attacks, Wilson against the "
+             "vault.apply bar.")
+         ),
+    Gate("test_v3767_unsorted_dock_seam", [sys.executable,
+         os.path.join(HERE, "test_v3767_unsorted_dock_seam.py")], 120,
+         needs_app=False,
+         why=("v3767 - Elad, the v3766 console: Still showing them unsorted though. A name whose "
+             "router already names a home leaves the unsorted dock through the records seam. A MAIN-worn "
+             "item is keep, not loose. An assign id no roster mule has is one location, not filed and "
+             "orphan. 14 distinct attacks, Wilson against the vault.apply bar.")
+         ),
+    Gate("test_v3767_copy_witness", [sys.executable,
+         os.path.join(HERE, "test_v3767_copy_witness.py")], 180,
+         needs_app=False,
+         why=("v3767 - the same holder, location and cell is one record and its sessions are witnesses. "
+             "A second cell is a second copy on the same mule. Under 3 sessions the lane is WATCHING. "
+             "AUTO INTAKE off means a frame does not register; a typed item still places through the seam "
+             "with source manual. The move record carries from, to, status and evidence frame ids. "
+             "Distinct attacks, Wilson against the vault.apply bar.")
+         ),
     Gate("test_the_render_hook_finds_a_browser_on_linux", [sys.executable,
          os.path.join(HERE, "test_the_render_hook_finds_a_browser_on_linux.py")], 30,
          needs_app=False,

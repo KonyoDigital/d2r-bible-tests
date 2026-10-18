@@ -110,7 +110,7 @@ class TwoSessionsInHisStashFileAnItem(unittest.TestCase):
 
     def test_a_second_sessions_stash_read_files_it_at_intake(self):
         _seed()
-        o = board().run("OUT.r = window.tvVaultRegister('Obedience', { lane: 'stash', by: 'kai-register',"
+        o = board().run("window.LSR.setItem('d2r_vaultAutoIntake','on'); OUT.r = window.tvVaultRegister('Obedience', { lane: 'stash', by: 'kai-register',"
                         " sessions: [{ session: 's_9', frame: '9_1', conf: null }] });"
                         "OUT.a = JSON.parse(window.LSR.getItem('d2r_muleAssign') || '{}');")
         self.assertEqual(o["a"].get("Obedience"), "runewords",

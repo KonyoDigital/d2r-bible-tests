@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3766",
+  "ver": "v3767",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3766: board 137: Exile packs 2 by 2 from Sacred Targe and Sacred Rondache, a copy past the shared cap says trade stock, the cell badge does not multiply the owned count, FIND names the mule page, Steel Shade routes with Andariel, and a missing picture is the glyph. The records dirty marker forks with the store and a bare v3765 marker is carried once. The finder proof sits on the register both the sort and the finder ask. HEART: the measured-base law, the mule-page law, the copy-cap law and the glyph law are the corroborators, watched by the v3766 gate. The dirty-marker fork is watched by the store-isolation gate. No new console surface.",
+  "note": "v3767: Elad 2026-10-18 13:18 IDT: duplicate copies sit next to the original on the same mule. This replaces rule E. The spread packs each category mule to 100 stash cells and 40 inventory cells and overflows a whole copy group together. One set piece is one record. Copies already in GRAIL-DUPES re-home through the records route. REG-2272 item 4 stays open. HEART: the same-mule law is the corroborator, watched by the v3767 gate. No new console surface.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

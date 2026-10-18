@@ -1,13 +1,8 @@
 import { test, expect } from '@playwright/test';
 
-// REG-2226 (#134 E half-2) — his rule E: the shared stash keeps 2 copies of a name; the 3rd+ is trade-stock
-// held in GRAIL-DUPES, thrown out NEVER. v3734/v3737 capped the shared VIEW at 2; this SHOWS the overflow in
-// the DUPES locker as display-only "spare" cells. The item stays homed in 'shared' (not re-filed), so the
-// spare cells carry no ✕; the true total is the registered ×N. No double-count: shared draws 2, dupes draws
-// min(copies-2, _MULE_COPY_CAP).
-//
-// RED without the fix: the helpers don't exist and the dupes card has no .vmc-spare cells. GREEN: a 7-copy
-// shared item contributes 3 spare cells (min(7-2,3)); a 2-copy item contributes none.
+// v3767 (Elad 2026-10-18 13:18 IDT) — duplicate copies sit next to the original on the same
+// mule. GRAIL-DUPES draws no spare cells. A 7-copy shared Grief and a 2-copy Raven Frost both
+// contribute 0 overflow. The dupes locker, holding nothing, is an empty locker.
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -23,13 +18,14 @@ test.beforeEach(async ({ page }) => {
     && typeof (window as any)._vaultSharedOverflowCells === 'function');
 });
 
-test('the DUPES locker shows overflow copies (>2) of a shared item as spare cells (REG-2226)', async ({ page }) => {
+test('the DUPES locker draws no spare cells; copies stay on the shared mule (Elad 2026-10-18)', async ({ page }) => {
   const r = await page.evaluate(() => {
     const W = window as any;
     const logic = {
-      griefOverflow: W._vaultSharedOverflowCells('Grief'),       // min(7-2, 3) = 3
-      ravenOverflow: W._vaultSharedOverflowCells('Raven Frost'), // 2-2 = 0
+      griefOverflow: W._vaultSharedOverflowCells('Grief'),
+      ravenOverflow: W._vaultSharedOverflowCells('Raven Frost'),
       names: W._vaultSharedOverflowNames(),
+      sharedGrief: W._shelfDrawNames(['Grief'], 'shared').length,
     };
     W.VAULT_PROVEN = { 'Grief': true };   // so the ⚖ proof chip renders and we can check its numerator
     W.renderVault();
@@ -50,19 +46,14 @@ test('the DUPES locker shows overflow copies (>2) of a shared item as spare cell
     return { logic, spareCells, griefCells, dupesPresent: !!dupes, saysEmpty, isDimmed, provSeen, provTitle };
   });
 
-  // the overflow LOGIC: 7 copies → 3 spare cells (capped), 2 copies → 0
-  expect(r.logic.griefOverflow).toBe(3);
-  expect(r.logic.ravenOverflow).toBe(0);
-  expect(r.logic.names).toContain('Grief');
-  expect(r.logic.names).not.toContain('Raven Frost');
-  // the RENDER: the dupes locker draws exactly those 3 spare cells, all Grief
+  expect(r.logic.sharedGrief).toBe(7);
   expect(r.dupesPresent).toBe(true);
-  expect(r.spareCells).toBe(3);
-  expect(r.griefCells).toBe(3);
-  // REG-2226 follow-up (v3739): a dupes card that holds only spare-overflow is NOT "empty locker" / dimmed
-  expect(r.saysEmpty).toBe(false);
-  expect(r.isDimmed).toBe(false);
-  // ...and the proven chip counts the proven overflow name in its numerator (1), not "0 of 1"
-  expect(r.provSeen).toBe('1');            // "⚖ 1", not "⚖ 0"
-  expect(r.provTitle).toContain('1 of 1'); // numerator and denominator agree
+  expect(r.logic.griefOverflow).toBe(0);
+  expect(r.logic.ravenOverflow).toBe(0);
+  expect(r.logic.names).not.toContain('Grief');
+  expect(r.logic.names).not.toContain('Raven Frost');
+  expect(r.spareCells).toBe(0);
+  expect(r.griefCells).toBe(0);
+  expect(r.saysEmpty).toBe(true);
+  expect(r.isDimmed).toBe(true);
 });

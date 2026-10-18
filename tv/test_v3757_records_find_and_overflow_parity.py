@@ -59,7 +59,7 @@ def _fn(src, name):
 
 # the functions under test + the live overflow chain they are proven against (all short, pure-ish)
 EXTRACT = ["_sharedNames", "_sharedCopyCount", "_sharedCappedCopies", "_vaultSharedOverflowCells",
-           "_vaultSharedOverflowNames", "_vaultRecords", "_vaultRecordsSource",
+           "_vaultSharedOverflowNames", "_vaultSameMuleCopies", "_vaultRecords", "_vaultRecordsSource",
            "_vrRecHome", "_vaultRecordsFind", "_vaultRecordsOverflow"]
 
 
@@ -108,8 +108,8 @@ process.stdout.write(JSON.stringify(out));
 
     def test_find_and_overflow_derive_from_records_at_parity(self):
         o = self._run()
-        # GRAIL-DUPES: records-derived overflow EQUALS the live view, and is the right set (C, E; not B)
-        self.assertEqual(o["recOverflow"], ["C", "E"], "records overflow is wrong: %r" % o["recOverflow"])
+        # same mule (Elad 2026-10-18 13:18 IDT): no name is GRAIL-DUPES trade stock, and the two lists agree
+        self.assertEqual(o["recOverflow"], [], "records overflow is wrong: %r" % o["recOverflow"])
         self.assertEqual(o["recOverflow"], o["liveOverflow"],
                          "records overflow != live _vaultSharedOverflowNames: %r vs %r" % (o["recOverflow"], o["liveOverflow"]))
         # FIND: a filed name resolves to its home mule; a non-filed / unknown name never invents a home
@@ -124,11 +124,10 @@ process.stdout.write(JSON.stringify(out));
 
 RED_PROOF = [
     {
-        "why": "#76 INC-2 - a > that admits 0-overflow shared names would fill GRAIL-DUPES with every shared name "
-               "and break parity with the live trade-stock view",
+        "why": "Nothing is GRAIL-DUPES trade stock. Returning a name fills the dupes list and breaks parity with the empty live view.",
         "file": "bible.html",
-        "find": "        if (ids.length - _SHARED_COPY_CAP > 0) out.push(n);\n",
-        "replace": "        if (ids.length - _SHARED_COPY_CAP >= 0) out.push(n);\n",
+        "find": "return []; /* v3767 no dupes list */",
+        "replace": "return ['C']; /* v3767 no dupes list */",
         "matches": 1,
     },
 ]

@@ -86,7 +86,7 @@ class TheWitnessedLaneFilesItsOwnRows(unittest.TestCase):
         b.seed({"d2r_owned": ["Nagelring", FOUND_EVER], "d2r_muleAssign": {}, "d2r_vaultProv": None,
                 "d2r_foundLog": {"Nagelring": "Aug 1, 2026 · 10:00", FOUND_EVER: "Aug 1, 2026 · 10:00"},
                 "d2r_setPieces": [], "d2r_laneLock": None, "d2r_rwProfile": "fresh"})
-        b.run("window.LSR.setItem('d2r_owned', JSON.stringify(['Nagelring', %s])); window._vaultReloadOwned();"
+        b.run("window.LSR.setItem('d2r_vaultAutoIntake','on'); window.LSR.setItem('d2r_owned', JSON.stringify(['Nagelring', %s])); window._vaultReloadOwned();"
               % json.dumps(FOUND_EVER))
         cls.out = b.run("var r = window.vaultAccumApply(%s); OUT.applied = r;"
                         "OUT.map = JSON.parse(window.LSR.getItem('d2r_muleAssign') || '{}');"
