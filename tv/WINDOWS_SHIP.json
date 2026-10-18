@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3765",
+  "ver": "v3766",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3765: #76 INC-3 live: page load calls window._vaultRecordsArm once, so d2r_vaultRecords is the one-record source for FIND, GRAIL-DUPES and the vault and locker counts. A presence set piece is one record at one location. Undo is window._vaultRecordsMigrateUndo. An unknown dock, an unreadable witness or a wrong store shape does not stamp. Copy-loss ids stay positional. HEART: the arm law is the corroborator; no new console surface.",
+  "note": "v3766: board 137: Exile packs as a paladin shield, a copy past the shared cap says trade stock, the cell badge does not multiply the owned count, FIND names the mule page, Steel Shade routes with Andariel, and a missing picture is the glyph. The records dirty marker forks with the store. The finder proof sits on the home the row now asks. HEART: the class-size law, the mule-page law, the copy-cap law and the glyph law are the corroborators, watched by the v3766 gate. The dirty-marker fork is watched by the store-isolation gate. No new console surface.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
