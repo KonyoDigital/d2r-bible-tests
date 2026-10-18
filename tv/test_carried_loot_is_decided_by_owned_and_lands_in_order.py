@@ -615,7 +615,7 @@ class L3FiledIsUnknownWhenTheMapWillNotRead(unittest.TestCase):
         j = s.find("dock.innerHTML = unsorted.map(", i)
         self.assertGreater(j, i, "renderVault's anchors moved — re-point this law rather than leaving it green")
         code = s[i:j]
-        self.assertIn("filed: _asgUnread ? null : _filed", code, "the population line is not told the map would not read")
+        self.assertIn("filed: (_asgUnread || _dockUnread) ? null : _filed", code, "the population line is not told the map would not read")
         self.assertIn("window._muleStoreUnread(AK)", code)
         sort = P._between(s, SORT_FROM, "\n    var n=0, suggested=0, suggestedRows=[];")
         self.assertIn("window._muleStoreUnread(AK)", sort, "Auto-Sort sorts over a mule map that would not read")
@@ -814,7 +814,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "L-3: renderVault hands the line a count instead of UNKNOWN",
      "file": "bible.html",
-     "find": "filed: _asgUnread ? null : _filed",
+     "find": "filed: (_asgUnread || _dockUnread) ? null : _filed",
      "replace": "filed: _filed",
      "matches": 1},
     {"why": "L-4: a bare name several known items share is never called ambiguous",
