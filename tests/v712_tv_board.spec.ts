@@ -568,7 +568,11 @@ test.describe('v712 TV DIABLO board (mock bridge)', () => {
       })) }));
     await page.goto(URL); await page.waitForTimeout(1500);
     await page.evaluate(() => (window as any).switchTab('tvd'));
-    await page.evaluate(() => (window as any)._tvdToggle());
+    await page.evaluate(() => {
+      const w = window as any;
+      if (w.LSR) w.LSR.setItem('d2r_vaultAutoIntake', 'on'); /* Elad 2026-10-18: a TV stash read registers only while AUTO INTAKE is on */
+      w._tvdToggle();
+    });
     await page.waitForTimeout(2200);
     const r = await page.evaluate(() => {
       (window as any).renderVault && (window as any).renderVault();

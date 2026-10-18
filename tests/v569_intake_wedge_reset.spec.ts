@@ -18,6 +18,7 @@ test('A — a batch of ghost files (deleted from disk) completes with errors ins
   const r = await page.evaluate(async () => {
     const w: any = window;
     localStorage.setItem('d2r_intakeUrl', 'https://intake.test/api/intake');
+    if (w.LSR) w.LSR.setItem('d2r_vaultAutoIntake', 'on'); /* Elad 2026-10-18: folder intake runs only while AUTO INTAKE is on */
     w.switchTab('tools'); w.renderVault && w.renderVault();
     // a File-like whose bytes are GONE — .slice().arrayBuffer() rejects like a deleted disk file
     const ghost = (n: string) => ({

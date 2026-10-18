@@ -68,6 +68,7 @@ async function applyBases(page: any) {
        registered (owned) and waits in the dock — the shape of the false filings in his vault. The law
        here is unchanged: a vaulted base survives a reload and reaches a mule. */
     const LOOKS = [{ session: 's_a', frame: 'f_a.jpg', conf: 0.9 }, { session: 's_b', frame: 'f_b.jpg', conf: 0.85 }];
+    if (w.LSR) w.LSR.setItem('d2r_vaultAutoIntake', 'on'); /* Elad 2026-10-18: chronicleApply files through the frame register, which runs only while AUTO INTAKE is on */
     const res = w.chronicleApply({
       wouldAdd: { uniques: bases.map((n: string) => ({ name: n, loc: 'stash', witnesses: LOOKS })), sets: [] },
     });

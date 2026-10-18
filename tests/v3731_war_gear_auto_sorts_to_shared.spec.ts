@@ -22,24 +22,32 @@ test.beforeEach(async ({ page }) => {
 test('war gear with no picture is auto-sorted INTO the shared stash, not stranded in the dock', async ({ page }) => {
   const r = await page.evaluate((nm: string) => {
     try { localStorage.setItem('d2r_ownerClaim', '*'); } catch (e) {}
+    if ((window as any).LSR) (window as any).LSR.setItem('d2r_vaultAutoIntake', 'on'); /* Elad 2026-10-18: the register runs only while AUTO INTAKE is on */
     (window as any).tvVaultRegister(nm);
     try { (window as any).renderVault && (window as any).renderVault(); } catch (e) {}
     const fold = (s: string) => String(s || '').replace(/[‘’ʼ´`]/g, "'").trim();
     const inDock = () => ((window as any)._vaultDockNames() || []).map(fold).indexOf(fold(nm)) >= 0;
     const propose = (window as any).vaultPropose(nm);
     const dockBefore = inDock();
+    const seam = ((window as any)._vaultSeamHome(nm) || {}).loc || null;
+    const held = eval('owned').has(nm);
+    let assign: any = {};
+    try { assign = JSON.parse((window as any).LSR.getItem('d2r_muleAssign') || '{}'); } catch (e) {}
     const res = (window as any).vaultAutoSortByHand();
     const dockAfter = inDock();
     const filedToShared = !!(res && Array.isArray(res.rows)
       && res.rows.some((x: any) => fold(x && x.name) === fold(nm) && x.mule === 'shared'));
-    return { propose, dockBefore, dockAfter, filedToShared };
+    return { propose, dockBefore, dockAfter, filedToShared, seam, owned: held, assigned: assign[nm] || null };
   }, NAME);
   // war gear routes to the shared stash
   expect(r.propose && (r.propose.kind === 'shared' || r.propose.id === 'shared'),
     "Dracul's Grasp must route to the shared stash").toBeTruthy();
-  // it starts unsorted in the dock (no picture, manually known)
-  expect(r.dockBefore, 'the item should start in the unsorted dock').toBe(true);
-  // ...and Auto-Sort FILES it to the shared stash and OUT of the dock (REG-2219)
-  expect(r.filedToShared, 'Auto-Sort must file the war-gear item to the shared stash').toBe(true);
-  expect(r.dockAfter, 'the item must leave the dock after Auto-Sort (it was stranded before REG-2219)').toBe(false);
+  /* Elad 2026-10-18 — a name the router already knows is homed at read time and is
+     never an unsorted dock chip. The seam does not write assign. REG-2219's fear
+     was "stranded in the dock"; the home is the seam's shared, not an Auto-Sort write. */
+  expect(r.owned, 'the register must record the holding').toBe(true);
+  expect(r.seam, "Dracul's Grasp is homed on the shared stash").toBe('shared');
+  expect(r.dockBefore, 'a homed name is not an unsorted dock chip').toBe(false);
+  expect(r.dockAfter, 'it must not fall back into the dock').toBe(false);
+  expect(r.assigned, 'the seam homes at read time and does not write assign').toBeNull();
 });

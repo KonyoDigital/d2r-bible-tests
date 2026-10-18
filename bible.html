@@ -22367,7 +22367,7 @@ try {
     var take = pairs.map(function(p){ return p.remove; });
     var vr = null;
     if (take.length){
-      try { vr = window.vaultRemove(take, { lane: 'set-piece-reconcile', quiet: true,
+      try { vr = window.vaultRemove(take, { lane: 'set-piece-reconcile', quiet: true, exact: true,
               why: 'set-piece name reconcile — a bare form duplicating its slotted roster name, folded into one item' }); }
       catch (eR) { return { ran: false, why: 'the removal door threw (' + String(eR && eR.message || eR) + ') — nothing stamped; it asks again next load' }; }
     }
@@ -45270,7 +45270,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   window.vaultRemove = function(names, opts){
     opts = opts || {};
     var req = Array.isArray(names) ? names : (names == null ? [] : [names]);
-    if (typeof _vaultSameItemNames === 'function' && typeof owned !== 'undefined' && owned && typeof owned.forEach === 'function') {
+    /* A hand delete of one spelling removes the item everywhere. A fold that is
+       keeping the other spelling (the migration, the name reconcile) passes
+       opts.exact so only the named stray leaves. */
+    if (!opts.exact && typeof _vaultSameItemNames === 'function' && typeof owned !== 'undefined' && owned && typeof owned.forEach === 'function') {
       var wide = [];
       req.forEach(function(raw){
         _vaultSameItemNames(raw, owned).forEach(function(n){ if (wide.indexOf(n) < 0) wide.push(n); });
@@ -45386,7 +45389,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          persists owned through persistOwned — but persistOwned SWALLOWS a quota/private throw, so its
          "removed" return is not proof the write stuck. */
       window._vaultDedupeBusy = true;
-      var r = window.vaultRemove(dupes, { lane: 'set-dupe-migration', quiet: true,
+      var r = window.vaultRemove(dupes, { lane: 'set-dupe-migration', quiet: true, exact: true,
         why: 'old double-filed set piece — the stray Unsorted copy of a piece already filed in its mule (REG-2229, #11)' });
       var removedNames = (r && r.removed) ? r.removed : [];
       if (!removedNames.length) return { ran: true, removed: 0 };   /* nothing was held to remove — leave UNstamped; a retry is a harmless no-op */

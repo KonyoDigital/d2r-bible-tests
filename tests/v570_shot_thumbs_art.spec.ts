@@ -42,6 +42,7 @@ test('A — thumbnails survive on recent sessions (not just the newest) and full
   const r = await page.evaluate(async (jpgB64: string) => {
     const w: any = window;
     localStorage.setItem('d2r_intakeUrl', 'https://intake.test/api/intake');
+    if (w.LSR) w.LSR.setItem('d2r_vaultAutoIntake', 'on'); /* Elad 2026-10-18: folder intake runs only while AUTO INTAKE is on */
     w.switchTab('tools'); w.renderVault && w.renderVault();
     const bytes = Uint8Array.from(atob(jpgB64), (c) => c.charCodeAt(0));   // a REAL decodable 1×1 JPEG → thumbnails generate
     const mk = (n: string) => new File([bytes], n, { type: 'image/jpeg', lastModified: Date.now() });

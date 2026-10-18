@@ -65,6 +65,7 @@ test('the assembler and the auditor agree on the item Konyo reported', async ({ 
 
   const r = await page.evaluate(() => {
     const w = window as any;
+    if (w.LSR) w.LSR.setItem('d2r_vaultAutoIntake', 'on'); /* Elad 2026-10-18: the frame register runs only while AUTO INTAKE is on */
     /* #246 — the register files only on a witness now (two independent stash looks, each with its own
        frame and conf); without one it registers and does not file. The law here — the locker the
        assembler files to is the one the auditor accepts — needs a real filing to grade. */

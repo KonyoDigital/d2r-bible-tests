@@ -47,5 +47,8 @@ test('v403 replica shows at most 3 slots for a base even if copies exceeds the c
     w.vaultCloseCard && w.vaultCloseCard();
     return c;
   });
-  expect(n).toBe(3);
+  /* Elad 2026-10-18 — duplicates sit next to the original, and v3767 draws every
+     copy ("v3767 every copy"). The old cap of 3 hid copies 4 and 5. Five owned
+     copies are five slots. */
+  expect(n).toBe(5);
 });

@@ -70,6 +70,7 @@ test('a swept item reaches a mule AND is still there after a reload', async ({ p
 
   const applied = await page.evaluate((p) => {
     const w: any = window;
+    if (w.LSR) w.LSR.setItem('d2r_vaultAutoIntake', 'on'); /* Elad 2026-10-18: the sweep registers through the frame door, which runs only while AUTO INTAKE is on */
     return w.vaultAccumApply(p);
   }, payload());
 

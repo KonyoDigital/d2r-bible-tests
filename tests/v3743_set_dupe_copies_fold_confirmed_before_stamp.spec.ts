@@ -122,11 +122,13 @@ test('a failed copy-count fold during the set-dupe migration leaves it UNstamped
   const phase2 = await page.evaluate(() => {
     const w = window as any;
     const f = (n: string) => String(n || '').replace(/[‘’ʼ´`]/g, "'").trim();
+    const eye = "Tal Rasha's Lidless Eye";
     return {
       dock: (w._vaultDockNames() || []).map(f),
       owned: JSON.parse(w.LSR.getItem('d2r_owned') || '[]') as string[],
       assign: JSON.parse(w.LSR.getItem('d2r_muleAssign') || '{}') as Record<string, string>,
       copies: JSON.parse(w.LSR.getItem('d2r_copies') || '{}') as Record<string, number>,
+      seamEye: (typeof w._vaultSeamHome === 'function' ? (w._vaultSeamHome(eye) || {}).loc : null) || null,
       stamp: w.LSR.getItem('d2r_setDupeMigrate_v2227'),
     };
   });
@@ -149,9 +151,13 @@ test('a failed copy-count fold during the set-dupe migration leaves it UNstamped
   expect(phase2.copies[SLOT_TAL], 'the stray copy count folds onto the surviving filed twin on the retry').toBe(3);
   expect(phase2.copies[BARE_TAL], 'the stray copy-count entry is gone once the row is removed').toBeUndefined();
 
-  // NON-REGRESSION — a genuinely loose set piece with no filed twin is left alone
-  expect(phase2.owned, 'a loose set piece with no filed twin stays owned').toContain(LONE_EYE);
-  expect(phase2.dock.indexOf(fold(LONE_EYE)), 'a loose set piece with no filed twin stays in the dock').toBeGreaterThanOrEqual(0);
+  // NON-REGRESSION — a set piece with no filed twin is NOT removed. Elad 2026-10-18: a name
+  // the router already knows is homed at read time and is never an unsorted dock chip. Lidless Eye
+  // is a known set piece, so the seam places it without writing assign.
+  expect(phase2.owned, 'a set piece with no filed twin stays owned').toContain(LONE_EYE);
+  expect(phase2.assign[LONE_EYE], 'the migration must not invent a filing for a piece with no twin').toBeUndefined();
+  expect(phase2.seamEye, "Tal Rasha's Lidless Eye is seam-homed onto its set mule").toBe('filed');
+  expect(phase2.dock.indexOf(fold(LONE_EYE)), 'a homed name is not an unsorted dock chip').toBe(-1);
 
   // and now it is stamped once — a later undo of the batch will never be re-applied
   expect(phase2.stamp, 'after a confirmed fold the migration stamps once per world').toBeTruthy();

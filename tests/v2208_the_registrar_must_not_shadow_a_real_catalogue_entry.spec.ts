@@ -40,6 +40,12 @@ test.describe('v2208 the registrar must not shadow a real catalogue entry', () =
   test.beforeEach(async ({ page }) => {
     await page.goto(URL);
     await page.waitForTimeout(1200);
+    /* Elad 2026-10-18 15:24 — tvVaultRegister is a frame door. These specs
+       drive that door, so AUTO INTAKE is on. The product default stays off. */
+    await page.evaluate(() => {
+      const w = window as any;
+      if (w.LSR) w.LSR.setItem('d2r_vaultAutoIntake', 'on');
+    });
   });
 
   test('d2rCatalogueKnows names the catalogue, and is exposed for BOTH sides to share', async ({ page }) => {
