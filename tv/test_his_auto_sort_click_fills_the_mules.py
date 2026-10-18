@@ -119,32 +119,47 @@ class HisAutoSortClickFillsTheMules(unittest.TestCase):
                         "OUT.r = window.vaultAutoSortByHand();"
                         "OUT.a1 = JSON.parse(window.LSR.getItem('d2r_muleAssign') || '{}');"
                         "OUT.pv = JSON.parse(window.LSR.getItem('d2r_vaultProv') || '{}')['Grief'] || null;"
-                        "OUT.dock = window._vaultDockNames();")
+                        "OUT.dock = window._vaultDockNames();"
+                        "OUT.rec = (window._vaultRecords().records || []).map(function(r){ return { name: r.name, kind: r.kind, mule: r.mule }; });")
         self.assertEqual(o["a0"], {}, "an AUTOMATIC caller (vaultAutoAssign) filed a receipt to a mule with nobody's hand: %r" % o["a0"])
         a1 = o["a1"]
-        self.assertEqual(a1.get("Grief"), "shared", "his click did not put his war gear in the shared stash: %r" % a1)
-        self.assertEqual(a1.get("Obedience"), "runewords", a1)
-        self.assertEqual(a1.get("Nokozan Relic"), "uni-small", a1)
-        self.assertNotIn("Enigma", a1, "an item last seen WORN on his MAIN was filed away from him")
-        self.assertIn("Enigma", o["r"]["main"])
-        self.assertNotIn("Insight", a1, "a receipt with no picture was filed")
-        self.assertIn("Insight", o["r"]["noPicture"])
+        # v3767 — a resolved home leaves the dock through the records seam. The click does not
+        # have to write assign, and it must not write it for a name that is no longer loose.
+        self.assertEqual(a1, {}, "the click wrote assign for a name the seam already homed: %r" % a1)
+        rec = o["rec"]
+        def kind(name):
+            return [r["kind"] for r in rec if r["name"] == name]
+        def mule(name):
+            return [r["mule"] for r in rec if r["name"] == name]
+        self.assertTrue(kind("Grief") and set(kind("Grief")) == {"sharedStash"}, rec)
+        self.assertTrue(kind("Obedience") and set(kind("Obedience")) == {"filed"}, rec)
+        self.assertTrue(set(mule("Obedience")) == {"runewords"}, rec)
+        self.assertTrue(set(mule("Nokozan Relic")) == {"uni-small"}, rec)
+        self.assertTrue(kind("Enigma") and set(kind("Enigma")) == {"keep"}, "a name last seen worn was not kept with MAIN: %r" % rec)
+        self.assertNotIn("Enigma", o["dock"])
+        self.assertNotIn("Grief", o["dock"])
+        self.assertIn("Isenhart's Case (armor)", o["dock"], o["dock"])
         self.assertNotIn("Isenhart's Case (armor)", a1, "a discard suggestion was filed instead of left for him")
         self.assertEqual(o["r"]["left"].get("throwout"), 1, o["r"])
-        self.assertTrue(o["pv"] and o["pv"].get("kind") != "owned" and "Auto-Sort" in json.dumps(o["pv"]),
-                        "the filing row does not say his Auto-Sort click put it there: %r" % o["pv"])
+        self.assertTrue(o["pv"] and o["pv"].get("kind") == "owned",
+                        "the seam wrote a filing row without his click: %r" % o["pv"])
 
     def test_a_chronicle_page_is_never_the_picture_a_filing_stands_on(self):
         """REG-2020 (#264) - a Chronicle read proves he found it ONCE (his §28 ruling), never that he holds it."""
-        board().seed({"d2r_owned": ["Nokozan Relic", "Raven Frost"],
+        board().seed({"d2r_owned": ["Nokozan Relic", "Obedience"],
                       "d2r_vaultProv": {"Nokozan Relic": _receipt("Nokozan Relic", [_look("8_100", "2026-10-07T08:08:00.000Z", "stash")]),
-                                        "Raven Frost": _receipt("Raven Frost", [dict(_look("9_100", "2026-10-07T08:09:00.000Z", "chronicle"),
-                                                                                       scene="chronicle")])},
+                                        "Obedience": _receipt("Obedience", [dict(_look("9_100", "2026-10-07T08:09:00.000Z", "chronicle"),
+                                                                                    scene="chronicle")])},
                       "d2r_muleAssign": {}})
-        o = board().run("OUT.r = window.vaultAutoSortByHand(); OUT.a = JSON.parse(window.LSR.getItem('d2r_muleAssign') || '{}');")
-        self.assertEqual(o["a"].get("Nokozan Relic"), "uni-small", "premise: the stash-seen control was not filed %r" % o)
-        self.assertNotIn("Raven Frost", o["a"], "a Chronicle page was the only picture and his click filed it anyway")
-        self.assertIn("Raven Frost", o["r"]["noPicture"], o["r"])
+        o = board().run("OUT.r = window.vaultAutoSortByHand(); OUT.a = JSON.parse(window.LSR.getItem('d2r_muleAssign') || '{}');"
+                        "OUT.dock = window._vaultDockNames();"
+                        "OUT.rec = (window._vaultRecords().records || []).map(function(r){ return { name: r.name, kind: r.kind, mule: r.mule }; });")
+        nok = [r for r in o["rec"] if r["name"] == "Nokozan Relic"]
+        self.assertEqual([r["mule"] for r in nok], ["uni-small"], "the stash-seen control was not homed on its mule %r" % o)
+        self.assertNotIn("Nokozan Relic", o["a"], "the seam wrote assign: %r" % o["a"])
+        self.assertNotIn("Obedience", o["a"], "a Chronicle page was the only picture and his click filed it anyway")
+        self.assertIn("Obedience", o["dock"], "a chronicle-only tick left the dock as if he held it %r" % o["dock"])
+        self.assertIn("Obedience", o["r"]["noPicture"], o["r"])
 
     def test_a_magic_and_rare_item_is_not_loose_and_not_double_filed(self):
         _seed()
@@ -157,13 +172,14 @@ class HisAutoSortClickFillsTheMules(unittest.TestCase):
         self.assertNotIn("Harpoonist's Grand Charm", o["dock"], "an item filed in MAGIC & RARE was listed as loose")
         self.assertNotIn("Harpoonist's Grand Charm", o["dupes"],
                          "owning a Magic & Rare item read as double-filed - its fix deletes it from its only home")
-        self.assertIn("Grief", o["dock"], "premise: the dock lost its real loose items")
+        self.assertNotIn("Grief", o["dock"], "a resolved war-gear home stayed in the dock %r" % o["dock"])
+        self.assertIn("Isenhart's Case (armor)", o["dock"], "the discard left the dock %r" % o["dock"])
 
     def test_delete_unsorted_takes_only_what_the_dock_shows(self):
         """REG-2021 (the #231 eye on v3616) - Delete unsorted kept its own copy of "what is loose": it offered and removed
         his Magic & Rare items and his CARRIED loot along with the dock. It asks the one dock list now."""
         board().seed({
-            "d2r_owned": ["Grief", "Harpoonist's Grand Charm", "Harlequin Crest"],
+            "d2r_owned": ["Grief", "Harpoonist's Grand Charm", "Harlequin Crest", "Isenhart's Case (armor)"],
             "d2r_vaultProv": {
                 "Grief": _receipt("Grief", [_look("1_100", "2026-10-07T08:01:00.000Z", "stash")]),
                 "Harpoonist's Grand Charm": _receipt("Harpoonist's Grand Charm", [_look("7_100", "2026-10-07T08:07:00.000Z", "stash")]),
@@ -179,9 +195,10 @@ class HisAutoSortClickFillsTheMules(unittest.TestCase):
                         "var ok = document.querySelector('.ui-confirm-ok'); OUT.msg = (document.querySelector('.ui-confirm-msg') || {}).textContent || '';"
                         "if (ok) ok.click(); await pr; await new Promise(function(r){ setTimeout(r, 250); });"
                         "OUT.owned = (typeof owned !== 'undefined') ? Array.from(owned).sort() : null;")
-        self.assertEqual(o["dock"], ["Grief"], "premise: the dock is not exactly the one loose item %r" % o["dock"])
+        self.assertEqual(o["dock"], ["Isenhart's Case (armor)"], "premise: the dock is not exactly the one homeless item %r" % o["dock"])
         self.assertIn("Delete all 1 UNSORTED", o["msg"], "the confirm offered a different count than the dock shows: %r" % o["msg"])
-        self.assertNotIn("Grief", o["owned"] or [], "the control: Delete unsorted did not remove the loose item %r" % o)
+        self.assertNotIn("Isenhart's Case (armor)", o["owned"] or [], "the control: Delete unsorted did not remove the loose item %r" % o)
+        self.assertIn("Grief", o["owned"] or [], "Delete unsorted removed a name the seam already homed %r" % o)
         self.assertIn("Harpoonist's Grand Charm", o["owned"] or [], "Delete unsorted removed a Magic & Rare item from owned")
         self.assertIn("Harlequin Crest", o["owned"] or [], "Delete unsorted removed loot he is CARRYING")
 
@@ -216,13 +233,13 @@ RED_PROOF = [
      "matches": 1},
     {"why": "REG-2019 - his click files an item his MAIN is wearing",
      "file": "bible.html",
-     "find": "      if (lastLoc && _WIT_MAIN[lastLoc]){ out.main.push(name); return; }\n",
-     "replace": "",
+     "find": "if (onMain) return { loc: 'keep', mule: null }; /* v3767 seam worn */",
+     "replace": "if (false && onMain) return { loc: 'keep', mule: null }; /* v3767 seam worn */",
      "matches": 1},
     {"why": "REG-2019 - a Magic & Rare item is listed as loose again",
      "file": "bible.html",
-     "find": "      return ownedPool().filter(function(n){ return assign[n] == null && !isSharedStash(n) && !_inMagicRare(n) && !carSet[n]\n",
-     "replace": "      return ownedPool().filter(function(n){ return assign[n] == null && !isSharedStash(n) && !carSet[n]\n",
+     "find": "        else if (!(assign[n] == null && !isSharedStash(n) && !_inMagicRare(n) && !carSet[n]\n",
+     "replace": "        else if (!(assign[n] == null && !isSharedStash(n) && !carSet[n]\n",
      "matches": 1},
     {"why": "REG-2019 - owning a Magic & Rare item reads as double-filed, and its fix deletes it from Magic & Rare",
      "file": "bible.html",

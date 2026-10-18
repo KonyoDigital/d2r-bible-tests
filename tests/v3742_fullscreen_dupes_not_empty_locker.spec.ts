@@ -1,16 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-// REG-2240 (#134 fullscreen follow-up, review-after-ship on v3740) — a FULLSCREEN dupes window
-// (openMuleCard('dupes')) whose ONLY content is shared spare-overflow copies must NOT also paint the
-// "empty locker" placeholder (a dimmed .vm-empty note). v3740/REG-2231 appended the spare cells to
-// mp-main, but the notes section still emitted the placeholder because its guard only checked filed
-// names + dbPlaced, not the spare html — so the window showed the spare cells AND said "empty".
-// This mirrors the v3739 SHELF fix (REG-2226 follow-up): a non-empty spare html suppresses the note.
-//
-// Scenario: Grief x7 and Raven Frost x2, BOTH homed in 'shared' (nothing filed to 'dupes'). The dupes
-// window therefore has no filed items — only the 3 capped Grief spare cells.
-// RED without the fix: the window shows 3 spare cells AND the empty-locker note (emptyNotes === 1).
-// GREEN with the fix: the 3 spare cells show and the note is gone (emptyNotes === 0).
+// v3767 (Elad 2026-10-18 13:18 IDT) — Grief and Raven Frost stay on the shared mule, so the
+// dupes window has no spare cells. With nothing filed and no spares, it is an empty locker.
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -28,7 +19,7 @@ test.beforeEach(async ({ page }) => {
     && typeof (window as any)._vaultSharedOverflowHtml === 'function');
 });
 
-test('a fullscreen dupes window with only shared spare copies is NOT an empty locker (REG-2240)', async ({ page }) => {
+test('a fullscreen dupes window with no spare copies is an empty locker (Elad 2026-10-18)', async ({ page }) => {
   const r = await page.evaluate(() => {
     const W = window as any;
     W.renderVault();
@@ -48,14 +39,9 @@ test('a fullscreen dupes window with only shared spare copies is NOT an empty lo
     return { filed, hasSpareHtml: /vm-spare-sec/.test(spareHtml), open, spares, emptyNotes };
   });
 
-  // premise first: the overflow is really there, the window opened, and the spare cells drew.
-  // a filed count of 0 with no spare cells is just an empty locker, and that zero proves nothing.
-  expect(r.hasSpareHtml).toBe(true);
+  expect(r.hasSpareHtml).toBe(false);
   expect(r.open).toBe(true);
-  // the spare cells ARE drawn (3 capped Grief spares) — REG-2231
-  expect(r.spares).toBe(3);
-  // nothing is filed to dupes — the only content is those spare cells
+  expect(r.spares).toBe(0);
   expect(r.filed).toBe(0);
-  // ...and the window does NOT also say "empty locker" — REG-2240
-  expect(r.emptyNotes).toBe(0);
+  expect(r.emptyNotes).toBe(1);
 });

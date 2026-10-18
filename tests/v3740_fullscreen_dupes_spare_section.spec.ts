@@ -1,15 +1,7 @@
 import { test, expect } from '@playwright/test';
 
-// REG-2231 (#134 fullscreen follow-up) — the FULLSCREEN dupes window (openMuleCard('dupes')) now shows the shared
-// overflow (the 3rd+ copies of a shared item) as display-only "spare" cells, mirroring the shelf card
-// (v3738/REG-2226). His rule E: the shared stash keeps 2 copies; the rest are trade stock held in GRAIL-DUPES,
-// thrown out NEVER. Self-contained: no _muleLoad packer change, the copies stay homed in 'shared', each spare cell
-// carries no remove control, and the true total is the registered xN. No double-count: the shared view draws 2,
-// the dupes window draws min(copies-2, _MULE_COPY_CAP).
-//
-// RED without the fix: window._vaultSharedOverflowHtml is undefined and the open dupes window has no .vmc-spare
-// cells. GREEN: a 7-copy shared item draws 3 spare cells in the fullscreen dupes window (and the shelf agrees); a
-// 2-copy item draws 0.
+// v3767 (Elad 2026-10-18 13:18 IDT) — the fullscreen dupes window and the shelf agree that
+// no copy is spare trade stock. A 7-copy Grief and a 2-copy Raven Frost both draw 0 spare cells.
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
@@ -26,7 +18,7 @@ test.beforeEach(async ({ page }) => {
     && typeof (window as any)._vaultSharedOverflowCells === 'function');
 });
 
-test('the FULLSCREEN dupes window shows shared overflow (>2) as spare cells and agrees with the shelf (REG-2231)', async ({ page }) => {
+test('the FULLSCREEN dupes window and the shelf both draw no spare cells (Elad 2026-10-18)', async ({ page }) => {
   const r = await page.evaluate(() => {
     const W = window as any;
 
@@ -68,20 +60,15 @@ test('the FULLSCREEN dupes window shows shared overflow (>2) as spare cells and 
     return { logic, hasHtmlHelper, htmlHasSpare: /vm-spare-sec/.test(html), shelfSpares, open, winSpares, griefCells, ravenCells, spareHasRemove };
   });
 
-  // overflow math (the logic both surfaces share)
-  expect(r.logic.grief).toBe(3);
-  expect(r.logic.raven).toBe(0);
-  // the single-source renderer exists and produces the section
   expect(r.hasHtmlHelper).toBe(true);
-  expect(r.htmlHasSpare).toBe(true);
-  // the fullscreen dupes window opened and drew exactly the 3 capped Grief spares, none for the 2-copy Raven Frost
   expect(r.open).toBe(true);
-  expect(r.winSpares).toBe(3);
-  expect(r.griefCells).toBe(3);
+  expect(r.logic.grief).toBe(0);
+  expect(r.logic.raven).toBe(0);
+  expect(r.htmlHasSpare).toBe(false);
+  expect(r.winSpares).toBe(0);
+  expect(r.griefCells).toBe(0);
   expect(r.ravenCells).toBe(0);
-  // DRIFT GUARD — the shelf card and the fullscreen window must show the SAME overflow
-  expect(r.shelfSpares).toBe(3);
+  expect(r.shelfSpares).toBe(0);
   expect(r.winSpares).toBe(r.shelfSpares);
-  // display-only: a spare carries no remove control (nothing is re-filed off 'shared')
   expect(r.spareHasRemove).toBe(false);
 });

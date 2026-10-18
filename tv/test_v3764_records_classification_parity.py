@@ -13,7 +13,7 @@ This law extracts the SHIPPED functions, including the real isSharedStash and SH
 gives muleById the shared locker. It does not stub the two shared notions into one.
 
   · a locker name the regex misses (Enigma, 4 copies) is sharedStash, mule null, copyIx 0..3,
-    and the persisted loc is the rule-E split (shared, shared, dupes, dupes);
+    and every persisted loc is shared (Elad 2026-10-18 13:18 IDT, same mule);
   · FIND does not give that name a mule home;
   · overflow membership is _sharedNames on the live view, the records view, and the loaded store.
     An unassigned Worldstone Shard with 4 copies is sharedStash and is NOT overflow;
@@ -49,7 +49,7 @@ NODE = os.environ.get("NODE") or shutil.which("node")
 EXTRACT = [
     "_sharedNames", "_sharedCopyCount", "_sharedCappedCopies", "_vaultSharedOverflowCells",
     "_vaultSharedOverflowNames", "isSharedStash",
-    "_vaultRecords", "_vaultRecordsSource", "_vaultRecordsFind", "_vaultRecordsOverflow",
+    "_vaultRecords", "_vaultRecordsSource", "_vaultRecordsFind", "_vaultSameMuleCopies", "_vaultRecordsOverflow",
     "_vaultRecordsHeader",
     "_vrRecWitness", "_vrRecRow", "_vrRecRowsFrom",
     "_vrRecLoadRaw", "_vrRecGuardedSet", "_vrLocForCopy", "_vaultRecordsLoad", "_vaultRecordsPersist",
@@ -182,8 +182,8 @@ out.regexHitsShard = !!isSharedStash('Worldstone Shard');
         ], "a shared-locker name the regex misses was not classified as the locker: %r" % o["war"])
         self.assertEqual(o["findWar"], "shared", "FIND did not home the shared locker on itself: %r" % o["findWar"])
         self.assertTrue(o["persistOk"], "persist refused a readable store: %r" % o)
-        self.assertEqual(o["locWar"], ["shared", "shared", "dupes", "dupes"],
-                         "rule E did not split the locker's copies: %r" % o["locWar"])
+        self.assertEqual(o["locWar"], ["shared", "shared", "shared", "shared"],
+                         "a shared copy left the mule: %r" % o["locWar"])
         self.assertEqual(o["rune"], [{"copyIx": 0, "kind": "sharedStash", "mule": None}], o["rune"])
         self.assertEqual(o["shard"], [
             {"copyIx": i, "kind": "sharedStash", "mule": None} for i in range(4)
@@ -194,12 +194,12 @@ out.regexHitsShard = !!isSharedStash('Worldstone Shard');
         self.assertEqual(o["findFiled"], "mule1", o["findFiled"])
         self.assertEqual(o["carried"], [{"copyIx": 0, "kind": "carried", "mule": None}],
                          "carried must still win over the locker: %r" % o["carried"])
-        self.assertEqual(o["liveOverflow"], ["Enigma"], o["liveOverflow"])
-        self.assertEqual(o["recOverflow"], ["Enigma"], o["recOverflow"])
-        self.assertEqual(o["memOverflow"], ["Enigma"],
-                         "the in-memory overflow view left _sharedNames: %r" % o["memOverflow"])
-        self.assertEqual(o["loadedOverflow"], ["Enigma"],
-                         "the loaded store's overflow view left _sharedNames: %r" % o["loadedOverflow"])
+        self.assertEqual(o["liveOverflow"], [], o["liveOverflow"])
+        self.assertEqual(o["recOverflow"], [], o["recOverflow"])
+        self.assertEqual(o["memOverflow"], [],
+                         "the in-memory overflow view listed trade stock: %r" % o["memOverflow"])
+        self.assertEqual(o["loadedOverflow"], [],
+                         "the loaded store's overflow view listed trade stock: %r" % o["loadedOverflow"])
         self.assertEqual(o["loose"], [{"copyIx": 0, "kind": "loose", "mule": None}], o["loose"])
         self.assertIsNone(o["findLoose"], o["findLoose"])
         self.assertEqual(o["keep"], [{"copyIx": 0, "kind": "keep", "mule": None}], o["keep"])
@@ -242,11 +242,10 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "REG-2272 item 6 — overflow membership is production _sharedNames, not kind === sharedStash. "
-               "A kind walk calls an unassigned 4-copy Worldstone Shard trade-stock. The live overflow does not.",
+        "why": "Nothing is GRAIL-DUPES trade stock. Returning a name puts an unassigned shard back on that list.",
         "file": "bible.html",
-        "find": "      (_sharedNames() || []).forEach(function(n){\n        var ids = model.index[n] || [];\n",
-        "replace": "      (function(){ var s=[]; (model.records||[]).forEach(function(r){ if(r && r.kind==='sharedStash' && s.indexOf(r.name)<0) s.push(r.name); }); return s; })().forEach(function(n){\n        var ids = model.index[n] || [];\n",
+        "find": "return []; /* v3767 no dupes list */",
+        "replace": "return ['Worldstone Shard']; /* v3767 no dupes list */",
         "matches": 1,
     },
     {
@@ -292,10 +291,10 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "Rule E sends the 3rd shared copy to dupes. Always returning shared keeps a 4-copy Enigma entirely in the stash.",
+        "why": "Every shared copy sits on the same mule. Sending copy 3 to dupes puts a 4-copy Enigma in GRAIL-DUPES.",
         "file": "bible.html",
-        "find": "      return (copyIx < cap) ? 'shared' : 'dupes';\n",
-        "replace": "      return 'shared';\n",
+        "find": "return 'shared'; /* v3767 same mule */",
+        "replace": "return (copyIx < 2) ? 'shared' : 'dupes';",
         "matches": 1,
     },
     {

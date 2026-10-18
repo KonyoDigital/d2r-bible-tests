@@ -12,6 +12,61 @@ closed thing. Where a task has a GitHub issue, it is named explicitly as `gh #NN
 Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CALL` waits on Konyo ·
 `SHIPPED` carries the version.
 
+## Board #76 and #77 — vault spread (v3767)
+
+Elad, 2026-10-18 13:18 IDT: duplicate copies of a vault item sit next to the original in the SAME mule. This replaces rule E (2 in the shared stash, the 3rd and later in GRAIL-DUPES).
+
+| item | where it stands |
+|---|---|
+| one record, one location | FIXED. Two spellings of one set piece are one record, one FIND home, and one delete. |
+| route straight to a mule | PINNED. Unsorted is only the route that names no mule. A null answer is the shared-stash regex. |
+| delete removes the item everywhere | FIXED. vaultRemove widens to both spellings, so the mule filing does not remain. |
+| counts from the record | FIXED. Filed and owned on the population line come from the record header. The shared subtraction is unchanged. |
+| no second copy of one item | FIXED. When both filings are real, the canon spelling is the record. |
+| spread by footprint | FIXED. Greedy first-fit on a 10 by 10 stash and a 10 by 4 inventory. A same-name group overflows together to the next mule of that category. A group bigger than an empty mule places what fits. |
+| war gear stays shared | PINNED. A shared-stash record homes on the shared locker. |
+| same mule | FIXED. Every physical copy is located on the original mule. Copy 2 and later are not GRAIL-DUPES. |
+| re-home | FIXED. Load rewrites a stored dupes location through the records route home. The record count and the recIds stay. |
+| REG-2272 item 4 | LEFT OPEN. recId stays positional. The cell and the witness are derived when the record is read. They are not stored on the row. |
+| REG-2272 item 6 | CLOSED in v3764. A shared-locker name the never-muled regex misses is sharedStash. |
+| optimal packer | DEFERRED. The spread stays greedy first-fit. |
+| unsorted dock | FIXED. Elad, the v3766 console: "Still showing them unsorted though." A name whose router already names a home leaves the dock through the records seam. A MAIN-worn item is keep. An assign id no roster mule has is one location. No Auto-Sort and no reset. REG-2289. |
+| doubles | FIXED. The same holder, location and cell is one record. A second cell is a second copy on the same mule. Natalya's Totem, Tal Rasha's Guardianship and Immortal King's Soul Cage, re-read with no second cell, stay one record. A unique with no cell keeps its copy count: nobody measured a second item. |
+| witnesses | FIXED. Witnesses are distinct sessions. Three frames of one session are one witness. A presence re-read is +1 witness. The intake line's button calls the existing window._vaultEvidenceOpen. |
+| 3-session lock | FIXED. Under 3 sessions the record is WATCHING. At 3 the existing lane lock is LOCKED and the seam calls it keep, so it leaves the dock. |
+| auto intake | FIXED. A visible AUTO INTAKE button, persisted per world as d2r_vaultAutoIntake. Absent is off. Off, vaultIntake, the TV register and TV auto-intake register nothing. On, those doors run, so a later witness can attach. The typed add is the existing + Add an item. Its receipt source stays hand. The record says manual. Placement is the records seam: same mule, assign not written by the hand door. |
+| move record | DATA ONLY. from, to, status to-move / moved-manual / verified / moved-elsewhere, evidence frame ids. Not painted. Not persisted. |
+| visual demo | FIXED. Five PNGs in tv/.render_shots, copied for the report. His console was not opened. |
+| live pixels | The demo is a private sandbox. His vault and the live console were not opened. |
+
+## VAULT ORGANIZE LOOP
+
+Elad, 2026-10-18 15:20 IDT, the whole loop, recorded in substance:
+
+1. INTAKE. The source does not matter. Reels, shadow-reader frames and screenshots all go through the AI and tooltip processors, which identify the item and register it with the witnessed coordinates (holder + location + cell). That place is its current messy spot. A repeat sighting adds a witness and never adds a row.
+2. PLAN. The vault assigns an organized target: a mule or the shared stash, and the exact cell.
+3. MOVE AS A SCENARIO. When he moves it live, consecutive frames should show it leaving FROM and arriving at TO. That frame sequence is the move's proof, and each frame is clickable to the full-screen picture.
+4. CHECK-OFF, both paths. AUTO: witnessed at TO and not at FROM means VERIFIED, ticked, with that evidence. A sighting still at FROM stays to-move. A sighting at a third spot is moved-elsewhere. MANUAL: he can tally a move off by hand (moved-manual), and a later witness that confirms the TO upgrades it to verified. He can also queue a from-to task for any item, even when the planner did not propose one.
+
+Elad, 2026-10-18 15:24 IDT, the safety switch. AUTO INTAKE is on or off, persisted per world. ON, the frame doors run (reels, scenarios, the shadow reader, AI and tooltip extraction, witnesses, and the auto check-off). OFF, no frame registers. The vault is fully manual: he types a name with the existing + Add an item (the planner list the character builder already uses). The record is marked manual. Later witnesses attach only when AUTO is on. A manual record never depends on a frame.
+
+v3767 wires the record and the switch. It does not paint the task list, does not compute the target cell, and does not apply a move.
+
+| stage | what exists | what is missing |
+|---|---|---|
+| read the mess | vault_retro place_on_grid, slot_identity.slot_key, the evidence looks, vaultIntake, the TV register | a dropped photo still has no cell, so it cannot split two physical copies; it also does not inflate |
+| organized target | suggestMule, the spread, the seam | a stored target cell, distinct from the witnessed cell. Not computed in v3767 |
+| move task | the record: from, to, status, evidence frame ids. Queue, hand tally, and the witness check-off are functions | the MOVE TASK LIST view. Not persisted. First follow-up after v3767 |
+| evidence | WIRE window._vaultEvidenceLooks, _vaultEvidenceOpen, _tvdOpenFrame, read_pictures, picture_status. The intake button calls _vaultEvidenceOpen. The cell is already named in the lightbox title | a highlight drawn on the pixels. The sandbox has no reel JPEG, so the demo cannot open one |
+| check-off | the status function is the acceptance law | the view that ticks the row, and a live frame sequence playing as the proof |
+| safety | the AUTO INTAKE button, default off | — |
+
+The acceptance test of the MOVE TASK LIST version, not a v3767 stub: plan a move, take a later screenshot at the target, and see the row flip to VERIFIED with that frame. A frame still at FROM leaves it to-move. A frame at a third spot flags moved-elsewhere. A hand tally stays moved-manual until a witness confirms.
+
+North star, not built: the vault reads real in-game holdings and produces an organized layout plus the move plan. The plan is computed from witnessed records, not the stale dock. Plan the moves. Do not write assign.
+
+LEFT. The planner path _vpRoute can still climb copies[] for a non-set piece on a new token. Two red proofs pin that line. Records deflate only when cells exist. REG-2272 item 4 stays open: recId is positional, and the cell, the witness and the move are derived at read time, not stored on the row.
+
 ## Board #137 — GrokBot v3740 retest (v3766)
 
 | item | where it stands |
@@ -21,7 +76,7 @@ Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CAL
 | shared-tab overflow (Exile) | FIXED the size. Sacred Targe and Sacred Rondache measure 2 by 2. The overflow note stays the 100-cell sentence. |
 | routing (Andariel) | PINNED. Already mercenary gear. Removing that line is a red proof. |
 | routing (Steel Shade) | FIXED. Seeded with the mercenary helms, so a trash trade value does not throw it out. A forced mule override still wins. Shaftstop stays off that list. |
-| copy-4-to-shared messaging | FIXED. A copy past the shared cap says GRAIL-DUPES trade stock. |
+| copy-4-to-shared messaging | SUPERSEDED by v3767. Elad 2026-10-18 13:18 IDT: a later copy sits next to the original on the same mule. v3766 said GRAIL-DUPES. |
 | empty art on reload | FIXED the blank return. A missing picture is the glyph. His live reload is not verified from this seat. |
 | CI dirty store | FIXED. d2r_vaultRecordsDirty forks with d2r_vaultRecords and its stamp. A bare v3765 marker is carried once into the forked key. Records and the stamp were already forked in v3765, so they are not carried. |
 | CI finder proof | FIXED. The proof sits on _inMagicRare, which the sort and the finder both ask, and the tamper turns the charm red. |
@@ -1756,7 +1811,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3766** | `(this commit)` | v3766 — board 137: Exile packs 2 by 2 from Sacred Targe and Sacred Rondache, a copy past the shared cap says trade stock, the cell badge does not multiply the owned count, FIND names the mule page, Steel Shade routes with Andariel, and a missing picture is the glyph. The records dirty marker forks with the store and a bare v3765 marker is carried once. The finder proof sits on the register both the sort and the finder ask. HEART: the measured-base law, the mule-page law, the copy-cap law and the glyph law are the corroborators, watched by the v3766 gate. The dirty-marker fork is watched by the store-isolation gate. No new console surface. |
+| **v3767** | `(this commit)` | v3767 — Elad 2026-10-18 13:18 IDT: duplicate copies sit next to the original on the same mule. This replaces rule E. The spread packs each category mule to 100 stash cells and 40 inventory cells and overflows a whole copy group together. One set piece is one record. Copies already in GRAIL-DUPES re-home through the records route. Elad, the v3766 console: Still showing them unsorted though. A resolved home leaves the unsorted dock through the records seam, a MAIN-worn item is keep, and a mule the board cannot find is one location. The same holder, location and cell is one record and its sessions are witnesses. AUTO INTAKE is a per-world switch, default off: a frame does not register, and the existing + Add an item still places through the seam with the record marked manual. The move record carries from, to, status and evidence frame ids. The task list is not painted. REG-2272 item 4 stays open. REG-2288. REG-2289. REG-2290. HEART: the same-mule law, the dock seam and the copy-witness law are the corroborators, watched by the v3767 gates. The switch is a button on the existing vault toolbar. |
+| **v3766** | `2bdd392d` | v3766 — board 137: Exile packs 2 by 2 from Sacred Targe and Sacred Rondache, a copy past the shared cap says trade stock, the cell badge does not multiply the owned count, FIND names the mule page, Steel Shade routes with Andariel, and a missing picture is the glyph. The records dirty marker forks with the store and a bare v3765 marker is carried once. The finder proof sits on the register both the sort and the finder ask. HEART: the measured-base law, the mule-page law, the copy-cap law and the glyph law are the corroborators, watched by the v3766 gate. The dirty-marker fork is watched by the store-isolation gate. No new console surface. |
 | **v3765** | `7bab20e6` | v3765 — #76 INC-3 live: page load calls window._vaultRecordsArm once, so d2r_vaultRecords is the one-record source for FIND, GRAIL-DUPES and the vault and locker counts. A presence set piece is one record at one location. Undo is window._vaultRecordsMigrateUndo. An unknown dock, an unreadable witness or a wrong store shape does not stamp. Copy-loss ids stay positional. HEART: the arm law is the corroborator; no new console surface. |
 | **v3764** | `7e2dda95` | v3764 — #76 REG-2272 item 6: a shared-locker name the never-muled regex misses is sharedStash, with the rule-E copy split, and overflow follows the locker list. The page-load seam is window._vaultRecordsArm and nothing calls it. v3765 wires that one call and the undo. Copy-loss ids stay positional. The store stays dormant. HEART: the classification law is the corroborator; no new console surface. |
 | **v3763** | `f4c86f1b` | v3763 — a stored frame filename stays bare and a bare millisecond still resolves as reel footage; a failed confirm puts owned names back through the provenance door with the receipt the removal carried; pre-push demos always spawn a console they own. HEART: the cited-frame law, the owned-door census and the private-demo law are the watchers; no new console surface. |

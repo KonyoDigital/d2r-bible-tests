@@ -1102,8 +1102,7 @@ process.stdout.write(JSON.stringify({
         self.assertNotIn("vaultFile(", opened)
 
     def test_the_shared_stash_card_draws_each_copy(self):
-        """The locker card draws one rectangle per copy. Shared stash does not stop at three.
-        A mule card does, the same cap the mule window packs."""
+        """The locker card draws one rectangle per copy, on the shared stash and on a mule."""
         s = _src()
         self.assertEqual(s.count("var drawn = _shelfDrawNames(items, m.id);\n"), 1)
         self.assertEqual(s.count("var itemRows = drawn.map(function(n){\n"), 1)
@@ -1125,7 +1124,7 @@ process.stdout.write(JSON.stringify({
         self.assertEqual(p.returncode, 0, (p.stderr or p.stdout)[-1500:])
         o = json.loads(p.stdout)
         self.assertEqual(o["shared"], ["Grief", "Grief", "Shako"])
-        self.assertEqual(o["mule"], ["Windforce", "Windforce", "Windforce"])
+        self.assertEqual(o["mule"], ["Windforce", "Windforce", "Windforce", "Windforce", "Windforce"])
         self.assertEqual(o["one"], ["Shako"])
 
     def test_the_three_keepers_are_drawn_and_stay_off_the_mule_map(self):

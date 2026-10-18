@@ -7,6 +7,51 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2290 - THE SAME CELL WAS ANOTHER COPY, AND A FRAME REGISTERED WITH NO SWITCH (Elad 2026-10-18, v3767)
+
+Elad, 2026-10-18 14:53 IDT through 15:24 IDT. A sighting is a holder, a location and a cell. Repeat sightings of that one spot were climbing copies (Natalya x4, Tal Rasha's Guardianship x4, Immortal King's Soul Cage x3) and a frame could register with no way to stop it.
+
+1. One cell is one record. Distinct cells are distinct copies, and they sit on the same mule. Witnesses are distinct session ids. Three frames of one session are one witness. A look with no session does not invent one. A unique with no cell keeps its copy count, because nobody measured a second item.
+2. A presence re-read is +1 witness. A multi-keep still under its target, and a socketed base still under the cap, stay real extra copies. The intake line's button calls the existing evidence viewer.
+3. Under 3 sessions the record is WATCHING. At 3 the existing lane lock is LOCKED and the seam calls it keep.
+4. AUTO INTAKE is a button on the vault toolbar, stored per world as d2r_vaultAutoIntake. Absent is off. Off, screenshot intake, the TV register and TV auto-intake return without registering. On, those doors run, so a later witness can attach to a record he typed. An unreadable value registers nothing and the switch does not write over it.
+5. The typed add is the existing + Add an item. The receipt source stays hand, which the hand law pins. The record says manual. The records seam places it on the router's mule. The hand door does not write assign.
+6. The move is a record: from, to, status to-move or moved-manual or verified or moved-elsewhere, and the evidence frame ids in witness order. A sighting at TO and not at FROM is verified. A sighting at FROM stays to-move. A third spot is moved-elsewhere. A sighting with no cell changes nothing. A hand tally is moved-manual until a witness confirms. Queuing a move does not write assign. The list is not painted and the record is not stored.
+
+GUARD: tv/test_v3767_copy_witness.py, registered in tv/run_gates.py. 28 distinct attacks. Wilson 0.8794 against the vault.apply bar 0.722. Sabotage kinds 1.00 against 1.30.
+
+LEFT: the MOVE TASK LIST view, a stored target cell, a highlight on the reel pixels, and a live frame that ticks a row. A dropped photo still has no cell. REG-2272 item 4 stays open. His console was not opened.
+
+### REG-2289 - A RESOLVED HOME STILL SAT IN THE UNSORTED DOCK (Elad, v3766 console, v3767)
+
+Elad, the live v3766 console: "Still showing them unsorted though." The Vault showed UNSORTED DOCK 7 (4 shared stash, 1 uni-weapons, 1 runewords): Arachnid Mesh, Dracul's Grasp, Eschuta's Temper, Grief, Splendor, Taebaek's Glory, War Traveler. Each row already named a destination (shared stash, Gloves/Belts/Boots, Grief on a Weapons cell) and the items stayed in the dock. The summary read "25 owned, 18 filed to mules, 2 filed to a mule the board can't find (unsorted and the mules disagree), 7 still loose (1 set piece, 6 other)". Eschuta's Temper and Splendor said "stays where it is, his gear, seen on his character" and still sat in the dock.
+
+1. The dock is the legacy unsorted list. `_dockNames` keeps an owned name whose assign is null, minus the shared-stash regex, magic/rare, carried loot, and the three keep-in-inventory charms. The sentence on the row is `vaultPropose`, which asks `suggestMule` when the row is painted and does not write assign (REG-1822). After INC-3, `_vaultRecords` builds its loose set FROM `_dockNames`, so the records call the same names loose. The router's home was never consumed. This steer files that home. It does not only hide the row.
+2. "2 filed to a mule the board can't find" is the records orphan count, not the dock count. Classification reaches orphan when assign holds an id `muleById` does not know, while the population subtraction (`pool - unsorted - carried`) still counts that name as filed. Two stores, two locations. One record, one location: a router home the roster can hold replaces the ghost id; a ghost id with no router home is loose, in the dock, and not an orphan.
+3. A lane lock (`_laneLockWhy`, "stays where it is — his gear") and a `__keep` route ("stays with your MAIN") are MAIN. They are not unsorted dock items. Throw-out advice is not a home, so a discard stays in the dock.
+
+FIX: `_vaultSeamHome` is the one reading. The dock and `_vaultRecords` both use it. `_vaultRecordsLoad` runs `_vaultReconcileHomes` on a stored loose or orphan row. Same records, same recIds. assign is not written, so the join does not wait on Auto-Sort or a reset. A home he already filed stands. A name last seen on MAIN is keep. A chronicle-only tick stays homeless. A Magic & Rare name stays on the old exclusion.
+
+GUARD: tv/test_v3767_unsorted_dock_seam.py, registered in tv/run_gates.py. heart2 --prove 14/14 PROVEN. Wilson 0.7847 on 14 distinct attacks against the vault.apply bar 0.722. Sabotage kinds 1.00 against 1.30.
+
+LEFT: live console pixels, his real vault, and a GrokBot look. REG-2272 item 4 stays open.
+
+### REG-2288 - DUPLICATE COPIES SIT ON THE SAME MULE (Elad 2026-10-18 13:18 IDT, v3767)
+
+Board #76 and #77. Elad, 2026-10-18 13:18 IDT: duplicate copies of a vault item sit next to the original in the SAME mule. This replaces rule E (2 in the shared stash, the 3rd and later in GRAIL-DUPES). The ruling was not in the repo before this version.
+
+1. Location. `_vrLocForCopy` returns shared for every sharedStash copy. The planner says a later copy sits next to the original on the same mule.
+2. Spread. A category mule packs the records homed there. The grids are the game grids: 10 by 10 stash (100 cells) and 10 by 4 inventory (40 cells). Greedy first-fit. Copies of one name are one group. The group stays when it fits and moves together to the next mule of that category when it does not. A group bigger than an empty mule places what fits. Sixteen 2 by 4 blades still use two mules, 15 then 1.
+3. One item. Two spellings of one set piece are one record, one FIND home, and one delete. The canon spelling wins when both filings are real.
+4. Re-home. `_vaultRecordsLoad` runs `_vaultRehomeCopies`. A stored loc of dupes becomes the first non-dupes loc of that name, or the records route home. The array length and the recIds do not change. Nothing is written back by the load.
+5. Drawing. The shelf, the shared pack, and the mule pack draw every physical copy. GRAIL-DUPES lists no trade stock.
+6. REG-2272 item 4 stays open. recId stays positional. A dropped copy reuses the prefix id. No cell, witness, or frame anchor was named, so none was invented.
+7. REG-2272 item 6 stays closed in v3764. The persisted loc split from that version is what this ruling replaces.
+
+GUARD: tv/test_v3767_vault_spread.py, registered in tv/run_gates.py. heart2 --prove 18/18 PROVEN. Wilson 0.8241 on 18 distinct attacks against the vault.apply bar 0.722. Sabotage kinds 1.00 against 1.30. The old rule-E gates were updated and re-proved: v3766 20/20, v3765 43/43, v3764 11/11, v3758 15/15, v3757 1/1.
+
+LEFT: live console pixels, his real vault, and a GrokBot look. An optimal packer was not built. Page and cell are not written onto the persisted row.
+
 ### REG-2287 - FIND NAMES THE MULE PAGE, EXILE PACKS AS A PALADIN SHIELD, AND THE RECORDS DIRTY MARKER FORKS (#137, v3766)
 
 Board #137, re-checked against v3765. The records seam is unchanged except through the public home helper.
