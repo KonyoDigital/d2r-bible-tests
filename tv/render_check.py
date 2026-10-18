@@ -832,10 +832,14 @@ TARGETS = {
     # #264 (v3620, REG-2030) - the "vault" target above files every seeded item, so the dock's organizer (the rows
     # that say the mule, the stash cell and the picture for each unsorted item) never painted in any render: the
     # surface v3620 changed was UNMEASURED. These items are registered and left unsorted, so the organizer must paint.
+    # v3767 — AUTO INTAKE defaults OFF, and tvVaultRegister with no witness is a frame door, so this seed
+    # registered nothing and #vault-organize stayed hidden. The fixture turns the switch on. His default
+    # stays off; this write is the harness page, not his store.
     "vault-organizer": {
         "why": "the dock's organizer - each unsorted item's mule, stash cell and evidence door",
         "seed": """(function(){
             localStorage.setItem('d2r_ownerClaim','*');
+            try { if (window.LSR && window.LSR.setItem) window.LSR.setItem('d2r_vaultAutoIntake','on'); } catch (e) {}
             ['Obedience','Nokozan Relic','Grief','Enigma','Raven Frost','Arachnid Mesh','War Traveler',
              'Isenhart\\'s Case (armor)','Magefist','Gloom'].forEach(function(n){
                 try{ window.tvVaultRegister(n); }catch(e){} });
