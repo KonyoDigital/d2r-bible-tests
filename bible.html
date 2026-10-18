@@ -48236,19 +48236,31 @@ window.vaultAutoAssign = function(){
     try { window.LSR.setItem(_VR_DIRTY_KEY, '1'); } catch (eD) {}
   }
   function _vrRecClearDirty(){
-    try { if (typeof _vrRecFollowLive !== 'undefined') _vrRecFollowLive = false; } catch (e) {}
+    /* The marker is gone only when a later read says so. A remove that throws leaves it, and the flag stays. */
     try { window.LSR.removeItem(_VR_DIRTY_KEY); } catch (eD) {}
+    var gone = false;
+    try { gone = (window.LSR.getItem(_VR_DIRTY_KEY) == null); } catch (eR) { gone = false; }
+    if (!gone) return false;
+    try { if (typeof _vrRecFollowLive !== 'undefined') _vrRecFollowLive = false; } catch (e) {}
+    return true;
   }
   function _vrRecSig(){
-    /* Cheap signature of the stores a refresh would re-derive. null = a read threw, so the refresh runs. */
+    /* Cheap signature of every input the record derivation reads. The presence span is one of them:
+       a set piece collapses to one record unless multiKeep[name] > 1, and vaultMultiKeepAdd writes
+       only that. null = a read threw, so the refresh runs. */
     try {
       var names = (typeof ownedPool === 'function') ? ownedPool().slice().sort() : null;
       var cc = {};
-      if (names) names.forEach(function(n){ cc[n] = (typeof copyCount === 'function') ? copyCount(n) : 1; });
+      var span = {};
+      if (names) names.forEach(function(n){
+        var have = (typeof copyCount === 'function') ? copyCount(n) : 1;
+        cc[n] = have;
+        span[n] = (typeof _vaultPresenceSpan === 'function') ? _vaultPresenceSpan(n, have) : have;
+      });
       var asg = (typeof assign !== 'undefined' && assign) ? assign : null;
       var prov = null;
       try { prov = window.LSR.getItem('d2r_vaultProv'); } catch (eP) { return null; }
-      return JSON.stringify({ names: names, cc: cc, asg: asg, prov: prov });
+      return JSON.stringify({ names: names, cc: cc, span: span, asg: asg, prov: prov });
     } catch (e) { return null; }
   }
   function _vrRecSigSame(){
@@ -48434,6 +48446,7 @@ window.vaultAutoAssign = function(){
     if (done && typeof done === 'object' && done.ver >= _VRM_VER && !opts.force) {
       var held = _vrRecLoadRaw();
       if (held === undefined) return { ran: false, unknown: true, why: 'the migrate stamp is set but the store would not read - UNKNOWN, nothing persisted' };
+      if (typeof _vrRecDirty === 'function' && _vrRecDirty()) held = null; /* a dirty marker is not already */
       if (held && Array.isArray(held.records)) return { ran: false, already: true, receipt: done };
       /* a stamp with no store is not a finished migration */
     }

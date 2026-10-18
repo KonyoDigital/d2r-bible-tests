@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2284 - A MULTI-KEEP ADD LEFT THE COLLAPSED RECORD, AND A THROWN DIRTY REMOVAL STUCK (#239, v3765)
+
+GPT-5.6 Sol third pass on PR #239 at dee9d97d, DIFFERS. The previous round verified. Two holes.
+
+1. HIGH. _vrRecSig covered names, copies, assign and prov. _vaultPresenceSpan collapses a set piece to one record unless multiKeep[name] > 1, and vaultMultiKeepAdd writes only multiKeep then calls persist(). Natalya's target became 2, the live span opened to 4, and the persisted record stayed 1. The header read 9 copies against 12 live. FIX: the signature includes each name's presence span. The red proof drives vaultMultiKeepAdd.
+
+2. MEDIUM. _vrRecClearDirty swallowed a failed removal. The next arm took the already path, and the marker cleared only on stamped. FIX: a present dirty marker bypasses already and forces a confirmed re-persist. The marker and the follow-live flag clear only when the removal reads back gone. The red proof throws on the first dirty removal.
+
+GUARD: tv/test_v3765_records_arm_live.py. heart2 --prove 40/40 PROVEN. Wilson 0.9124 on 40 distinct attacks against the vault.apply bar 0.722. Sabotage kinds 1.00 against 1.30, so the write door stays shut. v3758 15/15 PROVEN, Wilson 0.7961. v3764 11/11 stayed green, Wilson 0.7412. The arm count stays 2. Persist callers stay the definition, the migration and the write refresh.
+
+LEFT: REG-2272 item 4. recId stays positional. The four stamps stay v3765. This is not a new version.
+
 ### REG-2283 - SHARED FIND WENT TO THE DOCK, AND A RELOAD SERVED AN UNSTAMPED OR STALE STORE (#239, v3765)
 
 GPT-5.6 Sol re-look of PR #239 at 80386c82, DIFFERS. The page-load arm, the refusals, the set-piece collapse, the shared census and the stamps stayed. Five holes.

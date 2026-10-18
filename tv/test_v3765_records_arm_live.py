@@ -10,8 +10,10 @@ census. Undo is window._vaultRecordsMigrateUndo.
 An unknown dock, an unreadable witness, an unreadable d2r_muleAssign or a wrong store
 shape does not stamp. Page load does not arm when the set-piece reconcile refuses.
 A successful owned, copies or assign write re-persists and confirms the readback when
-that signature changed. A refusal or a short readback drops the stamp and writes a
-dirty marker, so a reload follows the live model. The source consumes a store only
+that signature changed. The signature includes each name's presence span, so a
+multi-keep add is a change. A refusal or a short readback drops the stamp and writes a
+dirty marker, so a reload follows the live model. A dirty marker still present bypasses
+the migrate already path, and the marker clears only when the removal reads back gone. The source consumes a store only
 while that stamp is current and no row is an unreadable witness. A shared-locker name
 finds the shared locker. A reset holds refresh until the clears finish, then refreshes
 once. FIND and GRAIL-DUPES read that source through the UI seams. copies[] is not
@@ -175,6 +177,24 @@ def _fn(src, name):
                 return src[m.start():j + 1]
         j += 1
     raise AssertionError("unbalanced braces extracting %s" % name)
+
+
+def _window_fn(src, name):
+    m = re.search(r"window\.%s\s*=\s*function\s*\(" % re.escape(name), src)
+    if not m:
+        raise AssertionError("could not find window.%s" % name)
+    i = src.index("{", m.start())
+    depth, j = 0, i
+    while j < len(src):
+        c = src[j]
+        if c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return src[m.start():j + 1]
+        j += 1
+    raise AssertionError("unbalanced braces extracting window.%s" % name)
 
 
 def _assigned_fn(src, name):
@@ -814,6 +834,68 @@ out.moved = writes;
         self.assertEqual(o["idle"], 0, "an unchanged persist rewrote d2r_vaultRecords: %r" % o)
         self.assertEqual(o["moved"], 1, "a real assign change did not refresh: %r" % o)
 
+    def test_a_multi_keep_add_refreshes_the_presence_span(self):
+        """vaultMultiKeepAdd writes only multiKeep. Natalya's span leaves 1 and the store must follow."""
+        o = self._run(r"""
+_vaultRecordsArm();
+function _resolveGrailName(){ return null; }
+function status(){}
+function renderMultiKeep(){}
+function renderVaultRegistered(){}
+window._vfCanon = function(n){ return n; };
+var input = { value: NATALYA };
+document.getElementById = function(id){ return id === 'vmk-add-input' ? input : null; };
+var before = _vaultRecordsLoad().records.filter(function(r){ return r.name === NATALYA; }).length;
+window.vaultMultiKeepAdd();
+var stored = _vaultRecordsLoad().records.filter(function(r){ return r.name === NATALYA; }).length;
+var liveRec = _vaultRecords();
+var live = liveRec.records.filter(function(r){ return r.name === NATALYA; }).length;
+out.before = before;
+out.target = multiKeep[NATALYA];
+out.stored = stored;
+out.live = live;
+out.header = _vaultRecordsHeader().copies;
+out.liveCopies = liveRec.records.length;
+""", extra=_window_fn(self.src, "vaultMultiKeepAdd") + ";\n")
+        self.assertEqual(o["before"], 1, o)
+        self.assertEqual(o["target"], 2, "vaultMultiKeepAdd did not set the spare target: %r" % o)
+        self.assertEqual(o["live"], 4, "the live span did not open to the climbed copies: %r" % o)
+        self.assertEqual(o["stored"], 4, "the store kept the collapsed record: %r" % o)
+        self.assertEqual(o["header"], o["liveCopies"], "the header left the live copy total: %r" % o)
+        self.assertEqual(o["header"], 12, o)
+
+    def test_a_dirty_marker_whose_removal_throws_is_not_already(self):
+        """The first dirty removal throws. The arm re-persists, and the marker stays until a read says it is gone."""
+        o = self._run(r"""
+_vaultRecordsArm();
+var obj = JSON.parse(window.LSR.getItem('d2r_vaultRecords'));
+var full = obj.records.length;
+obj.records = obj.records.slice(0, 1);
+window.LSR.setItem('d2r_vaultRecords', JSON.stringify(obj));
+window.LSR.setItem('d2r_vaultRecordsDirty', '1');
+_vrRecFollowLive = true;
+var throws = 0;
+var realRemove = window.LSR.removeItem.bind(window.LSR);
+window.LSR.removeItem = function(k){
+  if (k === 'd2r_vaultRecordsDirty' && throws < 1) { throws++; throw new Error('dirty disk'); }
+  return realRemove(k);
+};
+var a = _vaultRecordsArm();
+out.already = !!(a && a.already);
+out.stamped = !!(a && a.stamped);
+out.throws = throws;
+out.dirty = window.LSR.getItem('d2r_vaultRecordsDirty') != null;
+out.follow = _vrRecFollowLive === true;
+out.count = JSON.parse(window.LSR.getItem('d2r_vaultRecords')).records.length;
+out.full = full;
+""")
+        self.assertEqual(o["throws"], 1, o)
+        self.assertFalse(o["already"], "a dirty marker took the already path: %r" % o)
+        self.assertTrue(o["stamped"], "the dirty marker did not force a confirmed re-persist: %r" % o)
+        self.assertEqual(o["count"], o["full"], "the truncated store survived the re-persist: %r" % o)
+        self.assertTrue(o["dirty"], "the marker was cleared without a readback: %r" % o)
+        self.assertTrue(o["follow"], "the flag dropped while the marker was still stored: %r" % o)
+
     def test_a_light_reset_refreshes_once_after_the_clears(self):
         """Assign clears before provenance. The records store must not be rewritten in between."""
         scope = _slice(self.src,
@@ -1129,6 +1211,27 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "    if (typeof _vrRecSigSame === 'function' && _vrRecSigSame()) return { ok: true, skipped: true, why: 'owned, copies, assign and provenance are unchanged' };",
         "replace": "    /* every persist rewrites the records store */",
+        "matches": 1,
+    },
+    {
+        "why": "The signature has to include the presence span. Without it vaultMultiKeepAdd leaves Natalya collapsed at one record.",
+        "file": "bible.html",
+        "find": "        span[n] = (typeof _vaultPresenceSpan === 'function') ? _vaultPresenceSpan(n, have) : have;",
+        "replace": "        span[n] = have;",
+        "matches": 1,
+    },
+    {
+        "why": "A dirty marker bypasses already and forces a re-persist. Leaving the stamp on the already path keeps the truncated store.",
+        "file": "bible.html",
+        "find": "      if (typeof _vrRecDirty === 'function' && _vrRecDirty()) held = null; /* a dirty marker is not already */",
+        "replace": "      /* a dirty marker still takes the already path */",
+        "matches": 1,
+    },
+    {
+        "why": "The dirty marker clears only when the removal reads back gone. Treating a thrown remove as success drops the flag while the marker remains.",
+        "file": "bible.html",
+        "find": "    try { gone = (window.LSR.getItem(_VR_DIRTY_KEY) == null); } catch (eR) { gone = false; }",
+        "replace": "    gone = true;",
         "matches": 1,
     },
 ]
