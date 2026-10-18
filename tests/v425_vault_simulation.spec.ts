@@ -43,10 +43,11 @@ test('every item routes to a valid destination — no nulls, no unknown mules, n
   expect(consoleErrors).toEqual([]);
 });
 
-test('never-mule keepers are SAVED (Gheed\'s / Anni / Torch → __keep), sunders shared', async ({ page }) => {
+test('keeper charms follow the 2026-10-15 ruling (Anni / Torch → shared, Gheed\'s → uni-small), sunders shared', async ({ page }) => {
   await page.goto(URL); await page.waitForTimeout(1500);
   const r = await page.evaluate(() => {
     const w: any = window;
+    /* suggestMule does not read AUTO INTAKE. The switch cannot change these ids. */
     const id = (n: string) => (w.suggestMule(n) || {}).id;
     return {
       gheeds: id("Gheed's Fortune"), anni: id('Annihilus'), torch: id('Hellfire Torch'),
@@ -54,9 +55,12 @@ test('never-mule keepers are SAVED (Gheed\'s / Anni / Torch → __keep), sunders
       istShared: w.isSharedStash('Ist rune'),
     };
   });
-  expect(r.gheeds).toBe('__keep');
-  expect(r.anni).toBe('__keep');
-  expect(r.torch).toBe('__keep');
+  /* REG-2241, his ruling 2026-10-15, already pinned by v3743: Anni and Torch ride in the
+     shared stash; Gheed's Fortune mules to UNI-SMALL. __keep remains standing kit only.
+     Exact ids — a softer "not throw-out" would hide a mule change. */
+  expect(r.gheeds).toBe('uni-small');
+  expect(r.anni).toBe('shared');
+  expect(r.torch).toBe('shared');
   expect(r.sunderShared).toBe(true);
   expect(r.istShared).toBe(true);
 });
@@ -114,8 +118,8 @@ test('LOAD/CAPACITY — 450 owned items register, render, and persist without cr
   const names: string[] = await page.evaluate(() => (window as any).__allItemNames().slice(0, 450));
   // v681 — the v677 boot cleanse strips grail-seed + uni-extra names from d2r_owned unless they're
   // mule-assigned, so mule-assign ONLY that subset to keep all 450 physical. The remaining (non-grail)
-  // names stay unassigned → they persist via the registry prune AND render as loose .vault-chip, so the
-  // 450-item load/capacity pass still exercises both persistence and chip rendering.
+  // names stay unassigned. v3767 paints a router-homed name on the organizer and leaves the unsorted
+  // dock to homeless names, so the capacity pass counts both surfaces. Persistence is unchanged.
   await page.evaluate((ns) => {
     localStorage.setItem('d2r_owned', JSON.stringify(ns));
     const w: any = window;
@@ -128,9 +132,21 @@ test('LOAD/CAPACITY — 450 owned items register, render, and persist without cr
   await page.reload(); await page.waitForTimeout(2200);
   const r = await page.evaluate(() => {
     const w: any = window;
-    let rendered = -1, threw = '';
+    let rendered = -1, threw = '', dockChips = -1, orgRows = -1;
     try { if (typeof w.renderVault === 'function') w.renderVault(); } catch (e) { threw = (e as any).message; }
-    try { rendered = document.querySelectorAll('.vault-chip').length; } catch (e) {}
+    try {
+      /* v3767 — the unsorted dock lists homeless names only. A name the router can home
+         paints as an organizer row, not a second dock chip. The capacity bar counts the
+         distinct names either surface painted. Dock chips alone are the homeless remainder. */
+      const seen: Record<string, 1> = {};
+      let n = 0;
+      const add = (nm: string | null) => { if (!nm || seen[nm]) return; seen[nm] = 1; n++; };
+      document.querySelectorAll('#vault-dock .vault-chip').forEach((c) => add(c.getAttribute('data-vault-item')));
+      document.querySelectorAll('#vault-organize .vault-org-row[data-name]').forEach((c) => add(c.getAttribute('data-name')));
+      rendered = n;
+      dockChips = document.querySelectorAll('#vault-dock .vault-chip').length;
+      orgRows = document.querySelectorAll('#vault-organize .vault-org-row[data-name]').length;
+    } catch (e) {}
     const ownedSaved = JSON.parse(localStorage.getItem('d2r_owned') || '[]').length;
     /* v2265 — WHERE THE REST WENT, INSTEAD OF ONLY HOW MANY ARE LEFT. */
     const ownedNow: string[] = JSON.parse(localStorage.getItem('d2r_owned') || '[]');
@@ -139,9 +155,9 @@ test('LOAD/CAPACITY — 450 owned items register, render, and persist without cr
     const seeded: string[] = JSON.parse(localStorage.getItem('__v425_seeded') || '[]');
     const anywhere = new Set([...ownedNow, ...Object.keys(fl), ...sp]);
     const vanished = seeded.filter((n) => !anywhere.has(n));
-    return { ownedSaved, rendered, threw, vanished, seededN: seeded.length };
+    return { ownedSaved, rendered, dockChips, orgRows, threw, vanished, seededN: seeded.length };
   });
-  console.log(`load test — owned persisted:${r.ownedSaved} chips rendered:${r.rendered} threw:"${r.threw}"`);
+  console.log(`load test — owned persisted:${r.ownedSaved} painted:${r.rendered} dock:${r.dockChips} organizer:${r.orgRows} threw:"${r.threw}"`);
   expect(r.threw).toBe('');
   /* ⚠ v2265 — `ownedSaved === 450` COUNTED ONE STORE FOR A BOARD THAT LEGITIMATELY USES THREE.
      Measured, seeding exactly what this fixture seeds and reloading: 446, and the four are named —
@@ -173,6 +189,7 @@ test('LOAD/CAPACITY — 450 owned items register, render, and persist without cr
     `seeded then present in NO store — not owned, not the ledger, not the set pieces: ${JSON.stringify(newlyVanished)}`)
     .toEqual([]);
   expect(r.ownedSaved).toBeGreaterThanOrEqual(440);
-  expect(r.rendered).toBeGreaterThan(50);   // the vault painted a substantial set of chips
+  expect(r.orgRows).toBeGreaterThan(50);    // router-homed names left the dock and still painted
+  expect(r.rendered).toBeGreaterThan(50);   // the vault painted a substantial set — dock chips plus organizer rows
   expect(consoleErrors).toEqual([]);
 });

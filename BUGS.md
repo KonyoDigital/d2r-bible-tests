@@ -18,7 +18,7 @@ Elad, 2026-10-18 14:53 IDT through 15:24 IDT. A sighting is a holder, a location
 5. The typed add is the existing + Add an item. The receipt source stays hand, which the hand law pins. The record says manual. The records seam places it on the router's mule. The hand door does not write assign.
 6. The move is a record: from, to, status to-move or moved-manual or verified or moved-elsewhere, and the evidence frame ids in witness order. A sighting at TO and not at FROM is verified. A sighting at FROM stays to-move. A third spot is moved-elsewhere. A sighting with no cell changes nothing. A hand tally is moved-manual until a witness confirms. Queuing a move does not write assign. The list is not painted and the record is not stored.
 
-GUARD: tv/test_v3767_copy_witness.py, registered in tv/run_gates.py. 28 distinct attacks. Wilson 0.8794 against the vault.apply bar 0.722. Sabotage kinds 1.00 against 1.30.
+GUARD: tv/test_v3767_copy_witness.py, registered in tv/run_gates.py. A charm (Gheed's Fortune) and a runeword (Obedience) are in that guard: the same cell is one record and another witness, and the second cell sits on that item's own mule. 29 distinct attacks. Wilson 0.8830 against the vault.apply bar 0.722. Sabotage kinds 1.00 against 1.30 — one sabotage family weighs 1.0, and 1.30 is the minimum that may open the write door, so the guard asserts the family stays under the bar.
 
 LEFT: the MOVE TASK LIST view, a stored target cell, a highlight on the reel pixels, and a live frame that ticks a row. A dropped photo still has no cell. REG-2272 item 4 stays open. His console was not opened.
 
