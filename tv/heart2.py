@@ -1971,15 +1971,16 @@ def _prove_narrow(sandbox, label, tgt, tgt_rel, find, repl, want, filename, time
 
 
 def _sha_file(path, memo=None):
-    """sha256 of a file's bytes -> hex | None (unreadable). `memo` (one run) keys on (path, size, mtime_ns), so a
-    target the tamper rewrote and restored is hashed again, never served from before the tamper."""
+    """sha256 of a file's bytes -> hex | None (unreadable).
+
+    The bytes are always read. A same-size rewrite can keep the same mtime_ns on a filesystem
+    whose timestamps do not move, and a memo keyed only on (path, size, mtime_ns) then serves the
+    hash from before the rewrite. `memo` still records the digest for this run after the read."""
     try:
         st = os.stat(path)
     except OSError:
         return None
     k = (path, st.st_size, st.st_mtime_ns)
-    if memo is not None and k in memo:
-        return memo[k]
     h = hashlib.sha256()
     try:
         with open(path, "rb") as fh:

@@ -109,8 +109,8 @@ class TheVaultFinderNamesTheMuleAndTheCell(unittest.TestCase):
 RED_PROOF = [
     {"why": "REG-2020 - a Magic & Rare charm reads as loose in the finder again",
      "file": "bible.html",
-     "find": "    if (mid == null && window._vaultInMagicRare && window._vaultInMagicRare(nm)) mid = 'magic-rare';\n",
-     "replace": "",
+     "find": "    try { return typeof magicFinds === 'object' && !!magicFinds && Object.prototype.hasOwnProperty.call(magicFinds, n); }\n",
+     "replace": "    try { return false; }\n",
      "matches": 1},
     {"why": "REG-2020 - the finder names no shared-tab cell",
      "file": "bible.html",

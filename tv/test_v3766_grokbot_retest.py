@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """v3766 board #137 — the GrokBot v3740 retest, re-checked after the records arm.
 
-Exile is a paladin shield, one size, 2x3. Spirit names swords or shields and stays a guess.
+Exile's preferred bases, Sacred Targe and Sacred Rondache, measure 2x2. Spirit's
+preferred bases are two item types and stay a guess.
 A copy past the shared cap is trade stock in GRAIL-DUPES, and a capped cell says its place
 in the drawn run, not the owned total on every tile. FIND reads the mule page already in
 the cell and opens that page from a button; the row itself still has no click (#79).
@@ -70,14 +71,47 @@ def _assigned_fn(src, name):
     raise AssertionError("unbalanced braces extracting window.%s" % name)
 
 
-def _tip(src, name):
-    i = src.find('"%s":{' % name)
+def _object_from(src, token):
+    """The object that starts at token, closed on its own braces. Strings do not count."""
+    i = src.find(token)
     if i < 0:
-        raise AssertionError("no runeword tip for %s" % name)
-    m = re.search(r'\bb:"([^"]*)"', src[i:i + 5000])
+        raise AssertionError("missing %s" % token)
+    b = src.index("{", i)
+    depth, j, q = 0, b, None
+    while j < len(src):
+        c = src[j]
+        if q:
+            if c == "\\":
+                j += 2
+                continue
+            if c == q:
+                q = None
+        elif c in ("'", '"'):
+            q = c
+        elif c == "{":
+            depth += 1
+        elif c == "}":
+            depth -= 1
+            if depth == 0:
+                return src[i:j + 1]
+        j += 1
+    raise AssertionError("unbalanced %s" % token)
+
+
+def _tip(src, name):
+    blob = _object_from(src, '"%s":{' % name)
+    m = re.search(r'\bb:"([^"]*)"', blob)
     if not m:
         raise AssertionError("no base on the %s tip" % name)
     return m.group(1)
+
+
+def _cb_text(src):
+    a = src.find('<script type="application/json" id="cb-db">')
+    if a < 0:
+        raise AssertionError("the builder database block is not on the page")
+    b = src.find("</script>", a)
+    return src[src.find(">", a) + 1:b]
 
 
 def _row_open(html):
@@ -95,6 +129,9 @@ class TestV3766GrokbotRetest(unittest.TestCase):
         with open(BIBLE, encoding="utf-8") as fh:
             cls.src = fh.read()
         tips = {n: {"b": _tip(cls.src, n)} for n in ("Exile", "Spirit", "Enigma", "Lore")}
+        cb_fns = "\n".join(_fn(cls.src, n) for n in (
+            "_cbDb", "_cbBase", "_cbFoot", "_cbMaxSock", "_cbBasesOf"))
+        rw_bis = _object_from(cls.src, "var RW_BIS = {")
         gear = re.search(r"var MERC_GEAR = \{.*?\n  \};", cls.src, re.S)
         if not gear:
             raise AssertionError("MERC_GEAR did not parse")
@@ -108,6 +145,15 @@ class TestV3766GrokbotRetest(unittest.TestCase):
 var window = globalThis;
 var artOr;
 var _SHARED_COPY_CAP = 2;
+var document = { getElementById: function(id){
+  return id === 'cb-db' ? { textContent: %s } : null;
+} };
+var DB = null, DB_ERR = '';
+%s
+window._cbDb = _cbDb;
+window._cbFoot = _cbFoot;
+window._cbBasesOf = _cbBasesOf;
+%s
 var RUNEWORD_TIP = %s;
 function findRuneword(name){ return Object.prototype.hasOwnProperty.call(RUNEWORD_TIP, name) ? name : null; }
 %s
@@ -120,6 +166,7 @@ function _vfCanon(n){ return n; }
 function _vaultFindHome(){
   return { kind:'filed', mule:'uni-armor', muleName:'Armor', cell:'Mule 2 · Personal stash · col 1', why:'' };
 }
+_cbDb();
 var document = { getElementById: function(){ return null; } };
 function mountFind(){
   var box = { hidden: true, innerHTML: '' };
@@ -161,7 +208,8 @@ var box = mountFind();
 window.vaultFind('exile');
 out.find = box.innerHTML;
 process.stdout.write(JSON.stringify(out));
-""" % (json.dumps(tips), gear.group(0), body + "\n" + _assigned_fn(cls.src, "vaultFind"))
+""" % (json.dumps(_cb_text(cls.src)), cb_fns, rw_bis, json.dumps(tips), gear.group(0),
+        body + "\n" + _assigned_fn(cls.src, "vaultFind"))
         p = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=30)
         if p.returncode != 0:
             raise AssertionError((p.stderr or p.stdout)[-2000:])
@@ -171,7 +219,7 @@ process.stdout.write(JSON.stringify(out));
         ex, sp, en, lo = self.f["exile"], self.f["spirit"], self.f["enigma"], self.f["lore"]
         self.assertEqual(self.f["tips"]["Exile"]["b"], "4 socket Paladin Shields")
         self.assertEqual(self.f["tips"]["Spirit"]["b"], "4 socket Swords or Shields")
-        self.assertEqual([ex["w"], ex["h"]], [2, 3], ex)
+        self.assertEqual([ex["w"], ex["h"]], [2, 2], ex)
         self.assertNotIn("approx", ex)
         self.assertTrue(sp.get("approx"), sp)
         self.assertEqual([sp["w"], sp["h"]], [1, 2], sp)
@@ -242,6 +290,61 @@ process.stdout.write(JSON.stringify(out));
         self.assertNotIn("preview", self.f["note"])
         self.assertEqual(self.f["noteEmpty"], "")
 
+    def test_a_bare_dirty_marker_is_carried_into_the_forked_key(self):
+        """v3765 wrote d2r_vaultRecordsDirty bare. Forking the name hides that value from every
+        world whose key is now prefixed. The carry copies it once. Records and the migrate stamp
+        were already forked in v3765, so this function does not write them."""
+        fn = _fn(self.src, "_vrDirtyCarryOnce")
+        self.assertEqual(fn.count("localStorage."), 0, fn)
+        self.assertEqual(fn.count("phys.setItem"), 2, fn)
+        prog = (
+            "var store = {};\n"
+            "var window = { localStorage: {\n"
+            "  getItem: function(k){ return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },\n"
+            "  setItem: function(k, v){ store[k] = String(v); }\n"
+            "} };\n"
+            "window.LSR = { key: function(k){ return window._key(k); }, raw: window.localStorage };\n"
+            "function world(owner, profile){\n"
+            "  window._key = function(k){\n"
+            "    if (!owner) return (profile === 'ladder' ? 'IL·abcd1234·' : 'I·abcd1234·') + k;\n"
+            "    return profile === 'ladder' ? ('L·' + k) : k;\n"
+            "  };\n"
+            "}\n"
+            + fn + "\n"
+            "function snap(owner, profile, bare){\n"
+            "  store = {};\n"
+            "  if (bare != null) store['d2r_vaultRecordsDirty'] = bare;\n"
+            "  world(owner, profile);\n"
+            "  var key = _vrDirtyCarryOnce();\n"
+            "  var first = Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null;\n"
+            "  if (key !== 'd2r_vaultRecordsDirty') delete store[key];\n"
+            "  _vrDirtyCarryOnce();\n"
+            "  var second = Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null;\n"
+            "  var keys = Object.keys(store);\n"
+            "  return { key: key, first: first, second: second, keys: keys };\n"
+            "}\n"
+            "process.stdout.write(JSON.stringify({\n"
+            "  main: snap(true, 'main', '1'),\n"
+            "  ladder: snap(true, 'ladder', '1'),\n"
+            "  guest: snap(false, 'main', '1'),\n"
+            "  empty: snap(false, 'main', null)\n"
+            "}));\n"
+        )
+        p = subprocess.run([NODE, "-"], input=prog, capture_output=True, text=True, timeout=30)
+        self.assertEqual(p.returncode, 0, (p.stderr or p.stdout)[-1500:])
+        got = json.loads(p.stdout)
+        self.assertEqual(got["main"]["key"], "d2r_vaultRecordsDirty", got["main"])
+        self.assertEqual(got["main"]["first"], "1", got["main"])
+        self.assertEqual(got["ladder"]["key"], "L·d2r_vaultRecordsDirty", got["ladder"])
+        self.assertEqual(got["ladder"]["first"], "1", got["ladder"])
+        self.assertIsNone(got["ladder"]["second"], got["ladder"])
+        self.assertEqual(got["guest"]["key"], "I·abcd1234·d2r_vaultRecordsDirty", got["guest"])
+        self.assertEqual(got["guest"]["first"], "1", got["guest"])
+        self.assertIsNone(got["guest"]["second"], got["guest"])
+        self.assertIsNone(got["empty"]["first"], got["empty"])
+        for row in got.values():
+            self.assertFalse(any(k.endswith("d2r_vaultRecords") or "Migrate" in k for k in row["keys"]), row)
+
     def test_distinct_attacks_clear_the_vault_apply_wilson_bar(self):
         from confidence import confluence, wilson_lower
         import self_arming as SA
@@ -261,17 +364,17 @@ process.stdout.write(JSON.stringify(out));
 
 RED_PROOF = [
     {
-        "why": "Exile is a paladin shield. Dropping that class puts it back on the 1x2 guess.",
+        "why": "Exile is 2 by 2 because Sacred Targe and Sacred Rondache measure that. Skipping the preferred bases puts the mixed paladin shields back on the guess.",
         "file": "bible.html",
-        "find": "  if (/^\\d+\\s+socket\\s+paladin shields$/.test(_rwb)) return {w:2, h:3};\n",
-        "replace": "  /* paladin shield size removed */\n",
+        "find": "  if (_ps) return { w: _ps.w, h: _ps.h };\n",
+        "replace": "  if (false) return { w: _ps.w, h: _ps.h };\n",
         "matches": 1,
     },
     {
-        "why": "Spirit names swords or shields. Sizing every shield as 2x3 states a size the tip does not.",
+        "why": "Spirit names a sword and a shield. Dropping the same-type check states one size for two item types.",
         "file": "bible.html",
-        "find": "  if (/^\\d+\\s+socket\\s+paladin shields$/.test(_rwb)) return {w:2, h:3};\n",
-        "replace": "  if (/^\\d+\\s+socket\\s+.*shields$/.test(_rwb)) return {w:2, h:3};\n",
+        "find": "  if (!_typed) return cells;\n",
+        "replace": "  if (false) return cells;\n",
         "matches": 1,
     },
     {
@@ -384,6 +487,13 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "    \"steel shade\":         'merc helm - fire absorb, the barb and Act 2 merc helm'\n  };\n",
         "replace": "    \"steel shade\":         'merc helm - fire absorb, the barb and Act 2 merc helm',\n    \"shaftstop\":           'budget armor - a control that must stay off this list'\n  };\n",
+        "matches": 1,
+    },
+    {
+        "why": "A bare v3765 dirty marker has to reach the forked key. Without the copy a ladder or guest reload misses it.",
+        "file": "bible.html",
+        "find": "        if (raw != null) phys.setItem(forked, raw);\n",
+        "replace": "        /* carry removed */\n",
         "matches": 1,
     },
     {

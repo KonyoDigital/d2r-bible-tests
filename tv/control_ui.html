@@ -5749,10 +5749,11 @@
   /* #107 (REG-1609) - top:1px put the lock on the label's ink whenever the strip ran tight: MEASURED on v3528 with the
      real tab icons, 6-10px of the padlock on "Vault" at 900-1600 (it read "Vaul" with a lock on the t). Reserving its
      room inside the tab would cost the strip ~14px it does not have at 900, so the stamp sits ON the tab's top edge, a
-     badge clear of the label at every width - still out of flow, still costing nothing. The brand above it clips only
+     badge clear of the label at every width - still out of flow, still costing nothing. Linux Chrome still
+     crossed the ink by 1px at 1600 with -10px, so the badge is -12px. The brand above it clips only
      sideways now (overflow-x: clip), or the badge was cut to a sliver wherever the tabs wrap. */
   .lockchip.lc-tab {
-    position: absolute; top: -10px; right: 3px;
+    position: absolute; top: -12px; right: 3px;
     margin: 0; padding: 0; border: 0; line-height: 1;
     /* ⚠ v2443 — THIS WAS `9px` AND TWO GATES REFUSED IT: visual-lock ('every size must be a
        var(--fs-*) token') and TestV1504TypeFloor ('[9.0] != []'). The floor exists so

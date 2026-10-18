@@ -18,13 +18,13 @@ Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CAL
 |---|---|
 | FIND mule-nav | FIXED. The cell already names the mule page. A button inside vd-mule-nav opens that page. The row stays on the vault. |
 | copy-N inflation | FIXED. A repeated cell badge is index/drawn. The title says how many he owns. |
-| shared-tab overflow (Exile) | FIXED the size. A paladin-shield runeword is 2 by 3. The overflow note stays the 100-cell sentence. |
+| shared-tab overflow (Exile) | FIXED the size. Sacred Targe and Sacred Rondache measure 2 by 2. The overflow note stays the 100-cell sentence. |
 | routing (Andariel) | PINNED. Already mercenary gear. Removing that line is a red proof. |
 | routing (Steel Shade) | FIXED. Seeded with the mercenary helms, so a trash trade value does not throw it out. A forced mule override still wins. Shaftstop stays off that list. |
 | copy-4-to-shared messaging | FIXED. A copy past the shared cap says GRAIL-DUPES trade stock. |
 | empty art on reload | FIXED the blank return. A missing picture is the glyph. His live reload is not verified from this seat. |
-| CI dirty store | FIXED. d2r_vaultRecordsDirty forks with d2r_vaultRecords and its stamp. |
-| CI finder proof | FIXED. The proof sits on the _vaultFindHome line, and the tamper turns the cell line red. |
+| CI dirty store | FIXED. d2r_vaultRecordsDirty forks with d2r_vaultRecords and its stamp. A bare v3765 marker is carried once into the forked key. Records and the stamp were already forked in v3765, so they are not carried. |
+| CI finder proof | FIXED. The proof sits on _inMagicRare, which the sort and the finder both ask, and the tamper turns the charm red. |
 
 ---
 
@@ -1756,7 +1756,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3766** | `(this commit)` | v3766 — board 137: Exile packs as a paladin shield, a copy past the shared cap says trade stock, the cell badge does not multiply the owned count, FIND names the mule page, Steel Shade routes with Andariel, and a missing picture is the glyph. The records dirty marker forks with the store. The finder proof sits on the home the row now asks. HEART: the class-size law, the mule-page law, the copy-cap law and the glyph law are the corroborators, watched by the v3766 gate. The dirty-marker fork is watched by the store-isolation gate. No new console surface. |
+| **v3766** | `(this commit)` | v3766 — board 137: Exile packs 2 by 2 from Sacred Targe and Sacred Rondache, a copy past the shared cap says trade stock, the cell badge does not multiply the owned count, FIND names the mule page, Steel Shade routes with Andariel, and a missing picture is the glyph. The records dirty marker forks with the store and a bare v3765 marker is carried once. The finder proof sits on the register both the sort and the finder ask. HEART: the measured-base law, the mule-page law, the copy-cap law and the glyph law are the corroborators, watched by the v3766 gate. The dirty-marker fork is watched by the store-isolation gate. No new console surface. |
 | **v3765** | `7bab20e6` | v3765 — #76 INC-3 live: page load calls window._vaultRecordsArm once, so d2r_vaultRecords is the one-record source for FIND, GRAIL-DUPES and the vault and locker counts. A presence set piece is one record at one location. Undo is window._vaultRecordsMigrateUndo. An unknown dock, an unreadable witness or a wrong store shape does not stamp. Copy-loss ids stay positional. HEART: the arm law is the corroborator; no new console surface. |
 | **v3764** | `7e2dda95` | v3764 — #76 REG-2272 item 6: a shared-locker name the never-muled regex misses is sharedStash, with the rule-E copy split, and overflow follows the locker list. The page-load seam is window._vaultRecordsArm and nothing calls it. v3765 wires that one call and the undo. Copy-loss ids stay positional. The store stays dormant. HEART: the classification law is the corroborator; no new console surface. |
 | **v3763** | `f4c86f1b` | v3763 — a stored frame filename stays bare and a bare millisecond still resolves as reel footage; a failed confirm puts owned names back through the provenance door with the receipt the removal carried; pre-push demos always spawn a console they own. HEART: the cited-frame law, the owned-door census and the private-demo law are the watchers; no new console surface. |

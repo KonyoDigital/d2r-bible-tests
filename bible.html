@@ -7,7 +7,7 @@
   <title>Konyo's D2R Farming Bible v3766 · TV DIABLO</title>
 <meta name="d2r-build" content="v3766">
 <meta name="d2r-build-date" content="2026-10-18">
-<meta name="d2r-build-note" content="board 137: Exile packs as a paladin shield, a copy past the shared cap says trade stock, the cell badge does not multiply the owned count, FIND names the mule page, Steel Shade routes with Andariel, and a missing picture is the glyph. The records dirty marker forks with the store. The finder proof sits on the home the row now asks. HEART: the class-size law, the mule-page law, the copy-cap law and the glyph law are the corroborators, watched by the v3766 gate. The dirty-marker fork is watched by the store-isolation gate. No new console surface.">
+<meta name="d2r-build-note" content="board 137: Exile packs 2 by 2 from Sacred Targe and Sacred Rondache, a copy past the shared cap says trade stock, the cell badge does not multiply the owned count, FIND names the mule page, Steel Shade routes with Andariel, and a missing picture is the glyph. The records dirty marker forks with the store and a bare v3765 marker is carried once. The finder proof sits on the register both the sort and the finder ask. HEART: the measured-base law, the mule-page law, the copy-cap law and the glyph law are the corroborators, watched by the v3766 gate. The dirty-marker fork is watched by the store-isolation gate. No new console surface.">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -20119,18 +20119,76 @@ window._artRarity = _artRarity;
 // stash-style grid like the in-game inventory. Resolution order: explicit EXTRA_ITEMS.cells →
 // base-type keyword. Approximation by slot (Konyo: generalized, exact per-base size not needed).
 var _ITEM_CELLS_CACHE = {};
-/* v3766 (#137) — A RUNEWORD CLASS WITH ONE SIZE. Body armour is 2x3, helms are 2x2, and a paladin
-   shield is one size too (2x3): Exile's tip is "4 socket Paladin Shields". A tip that names more
-   than one base ("4 socket Swords or Shields") stays the 1x2 guess. Not a runeword: null, so the
-   keyword table in _itemCells still runs. */
+/* v3766 (#137) — A RUNEWORD FOOTPRINT IS MEASURED OFF ITS BASES, NEVER GUESSED FROM THE TIP.
+   Legal bases are the builder table (_cbBasesOf) and the size is that base's invwidth x invheight
+   (_cbFoot). When every legal base is one size, that size is the footprint. When they disagree, the
+   preferred bases (RW_BIS) count only when every name resolves, they share one measured size, and
+   they are the same item type. Sacred Targe and Sacred Rondache are both paladin shields at 2 by 2,
+   so Exile is 2 by 2. Paladin shields as a class are 2 by 2 and 2 by 4, never one 2 by 3.
+   Spirit's Monarch and Crystal Sword are both 2 by 3 and two item types, so Spirit stays the 1 by 2
+   guess. No table: the guess, never a class-wide constant. Not a runeword: null, so the keyword
+   table in _itemCells still runs. */
 function _runewordCells(name){
   var cells = {w:1, h:2, approx:true};
   var _rwk = (typeof findRuneword === 'function' && typeof RUNEWORD_TIP !== 'undefined') ? findRuneword(name) : null;
   if (!_rwk) return null;
-  var _rwb = String((RUNEWORD_TIP[_rwk] && RUNEWORD_TIP[_rwk].b) || '').trim().toLowerCase();
-  if (/^\d+\s+socket\s+body armou?r$/.test(_rwb)) return {w:2, h:3};
-  if (/^\d+\s+socket\s+(helms|barbarian helms|druid pelts)$/.test(_rwb)) return {w:2, h:2};
-  if (/^\d+\s+socket\s+paladin shields$/.test(_rwb)) return {w:2, h:3};
+  var _db = null;
+  try {
+    if (typeof window !== 'undefined' && window && typeof window._cbDb === 'function') _db = window._cbDb();
+  } catch (eDb) { _db = null; }
+  if (!_db || !_db.it || typeof window._cbBasesOf !== 'function' || typeof window._cbFoot !== 'function') return cells;
+  var _hit = null, _list = _db.it;
+  for (var _ri = 0; _ri < _list.length && !_hit; _ri++){
+    var _rr = _list[_ri];
+    if (_rr && _rr[1] === _rwk && _rr[2] === 'r') _hit = _rr;
+  }
+  if (!_hit) return cells;
+  function _measured(code){
+    var f = null;
+    try { f = window._cbFoot({ base: code }); } catch (eF) { f = null; }
+    if (!f || !(f[0] >= 1) || !(f[1] >= 1)) return null;
+    var brow = _db.b && _db.b[code];
+    return { w: f[0] | 0, h: f[1] | 0, t: brow ? brow[1] : null };
+  }
+  function _oneSize(rows){
+    if (!rows.length) return null;
+    var w = rows[0].w, h = rows[0].h;
+    for (var i = 1; i < rows.length; i++){ if (rows[i].w !== w || rows[i].h !== h) return null; }
+    return { w: w, h: h };
+  }
+  var _codes = [];
+  try { _codes = window._cbBasesOf(_hit) || []; } catch (eB) { _codes = []; }
+  var _legal = [];
+  for (var _ci = 0; _ci < _codes.length; _ci++){
+    var _m = _measured(_codes[_ci]);
+    if (!_m) return cells;
+    _legal.push(_m);
+  }
+  var _same = _oneSize(_legal);
+  if (_same) return { w: _same.w, h: _same.h };
+  var _bis = (typeof RW_BIS !== 'undefined' && RW_BIS && RW_BIS[_rwk] && RW_BIS[_rwk].b) ? RW_BIS[_rwk].b : null;
+  if (!_bis || !_bis.length || !_db.b) return cells;
+  if (!_db._baseByName){
+    var _map = {}, _keys = Object.keys(_db.b);
+    for (var _ki = 0; _ki < _keys.length; _ki++){
+      var _br = _db.b[_keys[_ki]];
+      if (_br && _br[0]){ var _lc = String(_br[0]).toLowerCase(); if (!_map[_lc]) _map[_lc] = _keys[_ki]; }
+    }
+    _db._baseByName = _map;
+  }
+  var _pref = [], _type = null, _typed = true;
+  for (var _pi = 0; _pi < _bis.length; _pi++){
+    var _code = _db._baseByName[String(_bis[_pi]).toLowerCase()];
+    if (!_code) return cells;
+    var _pm = _measured(_code);
+    if (!_pm) return cells;
+    if (_type == null) _type = _pm.t;
+    else if (_type !== _pm.t) _typed = false;
+    _pref.push(_pm);
+  }
+  if (!_typed) return cells;
+  var _ps = _oneSize(_pref);
+  if (_ps) return { w: _ps.w, h: _ps.h };
   return cells;
 }
 try { window._runewordCells = _runewordCells; } catch (eRw) {}
@@ -20188,7 +20246,7 @@ function _itemCells(name){
          owned uniques that carry no stored base (The Oculus drawn 2x2 not 1x3, Death Cleaver 2x4 not 2x3,
          Bonehew 1x3 not 2x4, Schaefer's Hammer 1x3 not 2x3, ...). A unique's base is FIXED, so the game
          footprint is authoritative. A RUNEWORD (it[2]==='r') is EXCLUDED on purpose: its base varies, so
-         its size comes from the stored base above, or the runeword-CLASS rule below, never pinned to one
+         its size comes from the stored base above, or the measured bases in _runewordCells, never pinned to one
          base here. */
       if (!_storedBase && typeof window !== 'undefined' && window
           && typeof window._cbDb === 'function' && typeof window._cbFoot === 'function'){
@@ -20246,9 +20304,9 @@ function _itemCells(name){
           }
         } catch (eBaseFoot) {}
       }
-      /* #275 (GrokBot tick 418, K14) - A RUNEWORD IS SIZED BY ITS BASE CLASS, NEVER BY ITS NAME.
-         v3766 — the class rule lives in _runewordCells (body armour 2x3, helms 2x2, paladin shields
-         2x3). A class with more than one size stays a guess. */
+      /* #275 (GrokBot tick 418, K14) - A RUNEWORD IS SIZED BY ITS BASES, NEVER BY ITS NAME.
+         v3766 — _runewordCells measures the builder table. One size across the legal bases is that
+         size. Preferred bases count only when they agree and share an item type. */
       if (!base){
         var _rwSized = (typeof _runewordCells === 'function') ? _runewordCells(name) : null;
         if (_rwSized){ cells = _rwSized; _ITEM_CELLS_CACHE[name] = cells; return cells; }
@@ -40986,12 +41044,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     /* #269 (REG-2054, GrokBot tick 419 K10) - A TV STUB IS NOT A CURATED ENTRY. Every name TV registers gets an EXTRA_ITEMS
        stub (base: its own name, val: 'tv'), and the curated-EXTRA branch below then answered for it: 'grand charm' in the
        name -> UNI-SMALL ('charm/skiller'). A stub whose name wears the rolled grammar - and no codex / ITEM_TIP base - is
-       a rolled-name keeper. Curated entries keep their own routing. */
+       a rolled-name keeper. When the name is already in the Magic & Rare register, this return
+       also asks _inMagicRare, so closing that register stops this stub path from filing it.
+       Curated entries keep their own routing. */
     try {
       var _itip0 = (typeof ITEM_TIP !== 'undefined') ? ITEM_TIP[name] : null;
       if (ex && ex.val === 'tv' && !((_itip0 && _itip0.b) || (tip && tip.base)) && typeof _rolledQuality === 'function'){
         var _rqx = _rolledQuality(name);
-        if (_rqx && muleById('magic-rare')) return _rolledRoute(_rqx);
+        if (_rqx && muleById('magic-rare')
+            && (_inMagicRare(name) || !(typeof magicFinds === 'object' && magicFinds && Object.prototype.hasOwnProperty.call(magicFinds, name))))
+          return _rolledRoute(_rqx);
       }
     } catch(eRx){}
     if (ex){
@@ -42403,7 +42465,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (owned > drawn) title += ' · ' + owned + ' owned';
     return { badge: badge, title: title };
   }
-  try { window._shelfDrawNames = _shelfDrawNames; window._shelfCopyCount = _shelfCopyCount; window._copyCellMark = _copyCellMark; } catch (e) {}
+  try { window._shelfDrawNames = _shelfDrawNames; window._shelfCopyCount = _shelfCopyCount; } catch (e) {}
+  try { window._copyCellMark = _copyCellMark; } catch (eMark) {}
 
   function renderVault(){
     var dock=document.getElementById('vault-dock'), shelf=document.getElementById('vault-shelf');
@@ -45949,6 +46012,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (routed && routed.why){ try { status(routed.why); } catch (e11) {} }
     return routed || { ok: false, filed: false, why: nm + ' was not filed' };
   };
+  /* v3766 (#137) — a copy past the shared cap is trade stock in GRAIL-DUPES. Saying it was
+     filed to shared told him the 4th copy landed on the tab that keeps 2. */
+  function _copyFileSay(name, n, home){
+    n = n | 0;
+    var cap = (typeof _SHARED_COPY_CAP === 'number' && _SHARED_COPY_CAP > 0) ? _SHARED_COPY_CAP : 2;
+    if (String(home) === 'shared' && n > cap)
+      return name + ' — copy ' + n + ' is trade stock in GRAIL-DUPES (the shared stash keeps ' + cap + ')';
+    return name + ' — copy ' + n + ' filed to ' + home;
+  }
+  try { window._copyFileSay = _copyFileSay; } catch (eSay) {}
   /* ⟦VAULT PLANNER FILE END⟧ */
   function _aicMsg(html, show){ var el=document.getElementById('aic-msg'); if(el){ el.innerHTML=html; el.style.display=(show===false?'none':'block'); } try{ status(String(html).replace(/<[^>]+>/g,'')); }catch(e){} }
   // v948.1 — TV engine / control console always use same-origin /api/intake → control's
@@ -47534,16 +47607,6 @@ window.vaultAutoAssign = function(){
      cells AND the count together, so they can never disagree; the extra copies stay tracked in copies[]
      (the ×N in the registered view is unchanged) and show as duplicates-mule cells (half 2). */
   var _SHARED_COPY_CAP = 2;
-  /* v3766 (#137) — a copy past the shared cap is trade stock in GRAIL-DUPES. Saying it was
-     filed to shared told him the 4th copy landed on the tab that keeps 2. */
-  function _copyFileSay(name, n, home){
-    n = n | 0;
-    var cap = (typeof _SHARED_COPY_CAP === 'number' && _SHARED_COPY_CAP > 0) ? _SHARED_COPY_CAP : 2;
-    if (String(home) === 'shared' && n > cap)
-      return name + ' — copy ' + n + ' is trade stock in GRAIL-DUPES (the shared stash keeps ' + cap + ')';
-    return name + ' — copy ' + n + ' filed to ' + home;
-  }
-  try { window._copyFileSay = _copyFileSay; } catch (eSay) {}
   function _sharedCappedCopies(n){ return Math.min(_sharedCopyCount(n), _SHARED_COPY_CAP); }
   function _sharedCopyTotal(names){
     var n = 0;
@@ -48290,7 +48353,33 @@ window.vaultAutoAssign = function(){
       return !!(done && typeof done === 'object' && !Array.isArray(done) && done.ver >= _VRM_VER);
     } catch (e) { return false; }
   }
+  /* v3766 — forking d2r_vaultRecordsDirty changed its physical key. A bare v3765 value was written
+     under the unforked name (owner main still reads that name). Owner ladder and a guest now read a
+     prefixed key and would miss it. Copy the bare value into this world's key once. The stamp is the
+     physical key plus a suffix, so one world latching does not silence another, and a later clear of
+     the forked key is not undone by the fossil. d2r_vaultRecords and d2r_vaultRecordsMigrate were
+     already in the ladder fork set on v3765, so they were not bare on a forked world and are not carried. */
+  function _vrDirtyCarryOnce(){
+    var bare = 'd2r_vaultRecordsDirty';
+    var forked = bare;
+    try { if (window.LSR && typeof window.LSR.key === 'function') forked = window.LSR.key(bare); } catch (eK) { forked = bare; }
+    if (forked === bare) return forked;
+    /* LSR.raw is the physical store. LSR.getItem would read the forked key and could not see the bare v3765 value. */
+    var phys = (window.LSR && window.LSR.raw) ? window.LSR.raw : null;
+    if (!phys) return forked;
+    try {
+      var stamp = forked + ':v3766carry';
+      if (phys.getItem(stamp) != null) return forked;
+      if (phys.getItem(forked) == null){
+        var raw = phys.getItem(bare);
+        if (raw != null) phys.setItem(forked, raw);
+      }
+      phys.setItem(stamp, '1');
+    } catch (eC) {}
+    return forked;
+  }
   function _vrRecDirty(){
+    try { if (typeof _vrDirtyCarryOnce === 'function') _vrDirtyCarryOnce(); } catch (eC) {}
     try { return window.LSR.getItem(_VR_DIRTY_KEY) != null; } catch (e) { return true; }
   }
   function _vrRecMarkDirty(){
@@ -67544,7 +67633,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3766', name:'v3766 - grokbot-retest', date:'2026-10-18', note:'board 137: Exile packs as a paladin shield, a copy past the shared cap says trade stock, the cell badge does not multiply the owned count, FIND names the mule page, Steel Shade routes with Andariel, and a missing picture is the glyph. The records dirty marker forks with the store. The finder proof sits on the home the row now asks. HEART: the class-size law, the mule-page law, the copy-cap law and the glyph law are the corroborators, watched by the v3766 gate. The dirty-marker fork is watched by the store-isolation gate. No new console surface.' };
+  window.D2R_BUILD = { id:'v3766', name:'v3766 - grokbot-retest', date:'2026-10-18', note:'board 137: Exile packs 2 by 2 from Sacred Targe and Sacred Rondache, a copy past the shared cap says trade stock, the cell badge does not multiply the owned count, FIND names the mule page, Steel Shade routes with Andariel, and a missing picture is the glyph. The records dirty marker forks with the store and a bare v3765 marker is carried once. The finder proof sits on the register both the sort and the finder ask. HEART: the measured-base law, the mule-page law, the copy-cap law and the glyph law are the corroborators, watched by the v3766 gate. The dirty-marker fork is watched by the store-isolation gate. No new console surface.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
