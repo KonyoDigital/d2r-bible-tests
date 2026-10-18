@@ -42528,6 +42528,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       window._rwMadeHeld = true;
       window._rwMadeSeen = false;
       window._rwMadeObj = undefined;
+      window._seamPaint = {};
     }
     try { renderVaultDraw(); }
     finally {
@@ -42545,6 +42546,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         window._rwMadeHeld = false;
         window._rwMadeSeen = false;
         window._rwMadeObj = undefined;
+        window._seamPaint = null;
       }
     }
     /* #12 (REG-2230) — the OUTERMOST vault render has settled (spare depth back to 0): refresh the open
@@ -44506,50 +44508,61 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   try { window._vaultSameItemNames = _vaultSameItemNames; } catch (e) {}
   function _vaultSeamHome(name){
-    /* v3767 dock seam — Elad, the v3766 console: "Still showing them unsorted though."
-       The dock was the legacy assign==null list. The destination on the row is the router,
-       asked when the row is painted and never written, so a resolved home stayed loose.
-       This is the one reading the dock and the records both use. It does not write assign,
-       and it does not add or drop a record. A home already filed stands. A lane lock or a
-       __keep route is MAIN, never a dock row. A router home the roster can hold is the home
-       while assign is still null, so nothing waits on Auto-Sort or a reset. An assign id no
-       roster mule has is not a second location: the router home wins, and with no router home
-       the name is homeless, never both filed and orphan. Throw-out advice stays homeless. */
-    try { if (typeof _inMagicRare === 'function' && _inMagicRare(name)) return null; } catch (eMag) {}
-    var mid = null;
-    try { mid = assign[name]; } catch (eA) { mid = null; }
-    if (mid === '__keep') return { loc: 'keep', mule: null };
-    if (mid === '__throwout') return { loc: 'throwout', mule: null };
-    if (mid === 'shared') return { loc: 'shared', mule: null };
-    if (mid != null && typeof muleById === 'function' && muleById(mid)) return { loc: 'filed', mule: mid }; /* v3767 seam filed */
-    var stayed = null;
-    try { stayed = (typeof window._laneLockWhy === 'function') ? window._laneLockWhy(name) : null; } catch (eL) { stayed = null; }
-    if (stayed && stayed.why) return { loc: 'keep', mule: null }; /* v3767 seam main */
-    var onMain = null;
-    try { onMain = (typeof window._vaultLastSeenOnMain === 'function') ? window._vaultLastSeenOnMain(name) : null; } catch (eM) { onMain = null; }
-    if (onMain) return { loc: 'keep', mule: null }; /* v3767 seam worn */
-    var chron = false;
-    try {
-      if (typeof _isChronicleOnlyRow === 'function' && typeof _provAll === 'function')
-        chron = !!_isChronicleOnlyRow(_provAll()[name] || null);
-    } catch (eC) { chron = false; }
-    if (chron) return { loc: 'loose', mule: null }; /* v3767 seam chronicle */
-    var sg = null, asked = false;
-    try {
-      if (typeof suggestMule === 'function') { sg = suggestMule(name); asked = true; }
-    } catch (eS) { return null; }
-    if (!asked) return null;
-    if (sg === null) {
-      if (typeof isSharedStash === 'function' && isSharedStash(name)) return { loc: 'shared', mule: null };
-      return { loc: 'loose', mule: null };
+    /* One paint asks the router once per name. The dock, the organizer and the
+       records all read this, and a 500-name vault was asking three times. The
+       memo lives only while renderVault is on the stack, so a later assign
+       write is seen by the next paint. */
+    var memo = window._seamPaint;
+    if (memo && Object.prototype.hasOwnProperty.call(memo, name)) return memo[name];
+    var home = _vaultSeamAsk(name);
+    if (memo) memo[name] = home;
+    return home;
+      function _vaultSeamAsk(name){
+      /* v3767 dock seam — Elad, the v3766 console: "Still showing them unsorted though."
+         The dock was the legacy assign==null list. The destination on the row is the router,
+         asked when the row is painted and never written, so a resolved home stayed loose.
+         This is the one reading the dock and the records both use. It does not write assign,
+         and it does not add or drop a record. A home already filed stands. A lane lock or a
+         __keep route is MAIN, never a dock row. A router home the roster can hold is the home
+         while assign is still null, so nothing waits on Auto-Sort or a reset. An assign id no
+         roster mule has is not a second location: the router home wins, and with no router home
+         the name is homeless, never both filed and orphan. Throw-out advice stays homeless. */
+      try { if (typeof _inMagicRare === 'function' && _inMagicRare(name)) return null; } catch (eMag) {}
+      var mid = null;
+      try { mid = assign[name]; } catch (eA) { mid = null; }
+      if (mid === '__keep') return { loc: 'keep', mule: null };
+      if (mid === '__throwout') return { loc: 'throwout', mule: null };
+      if (mid === 'shared') return { loc: 'shared', mule: null };
+      if (mid != null && typeof muleById === 'function' && muleById(mid)) return { loc: 'filed', mule: mid }; /* v3767 seam filed */
+      var stayed = null;
+      try { stayed = (typeof window._laneLockWhy === 'function') ? window._laneLockWhy(name) : null; } catch (eL) { stayed = null; }
+      if (stayed && stayed.why) return { loc: 'keep', mule: null }; /* v3767 seam main */
+      var onMain = null;
+      try { onMain = (typeof window._vaultLastSeenOnMain === 'function') ? window._vaultLastSeenOnMain(name) : null; } catch (eM) { onMain = null; }
+      if (onMain) return { loc: 'keep', mule: null }; /* v3767 seam worn */
+      var chron = false;
+      try {
+        if (typeof _isChronicleOnlyRow === 'function' && typeof _provAll === 'function')
+          chron = !!_isChronicleOnlyRow(_provAll()[name] || null);
+      } catch (eC) { chron = false; }
+      if (chron) return { loc: 'loose', mule: null }; /* v3767 seam chronicle */
+      var sg = null, asked = false;
+      try {
+        if (typeof suggestMule === 'function') { sg = suggestMule(name); asked = true; }
+      } catch (eS) { return null; }
+      if (!asked) return null;
+      if (sg === null) {
+        if (typeof isSharedStash === 'function' && isSharedStash(name)) return { loc: 'shared', mule: null };
+        return { loc: 'loose', mule: null };
+      }
+      if (sg.unsorted || sg.id == null) return { loc: 'loose', mule: null }; /* v3767 seam homeless */
+      if (sg.id === '__keep') return { loc: 'keep', mule: null };
+      if (sg.id === '__throwout') return { loc: 'loose', mule: null }; /* v3767 seam discard */
+      if (sg.id === 'shared') return { loc: 'shared', mule: null }; /* v3767 seam shared */
+      if (typeof muleById === 'function' && muleById(sg.id)) return { loc: 'filed', mule: sg.id }; /* v3767 seam route */
+      return { loc: 'loose', mule: null }; /* v3767 seam ghost */
     }
-    if (sg.unsorted || sg.id == null) return { loc: 'loose', mule: null }; /* v3767 seam homeless */
-    if (sg.id === '__keep') return { loc: 'keep', mule: null };
-    if (sg.id === '__throwout') return { loc: 'loose', mule: null }; /* v3767 seam discard */
-    if (sg.id === 'shared') return { loc: 'shared', mule: null }; /* v3767 seam shared */
-    if (typeof muleById === 'function' && muleById(sg.id)) return { loc: 'filed', mule: sg.id }; /* v3767 seam route */
-    return { loc: 'loose', mule: null }; /* v3767 seam ghost */
-  }
+}
   try { window._vaultSeamHome = _vaultSeamHome; } catch (eSeam) {}
   function _dockNames(){
     try {
@@ -44564,7 +44577,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          ONE dock list, which the dock display, Auto-Sort AND "Delete unsorted" all read. "Delete unsorted" then
          removed them from `owned` (data loss: three grail keepers gone on one click). They are keepers by NAME, not
          by a filing, so exclude them here the same way renderVaultRegistered now counts them as kept. */
-      return ownedPool().filter(function(n){
+      /* One pool. Calling ownedPool() inside this filter re-scans the catalogue
+         for every name, and a 500-name vault then spends a minute in _norm before
+         the page can finish loading. */
+      var pool = ownedPool();
+      return pool.filter(function(n){
         var _seamD = (typeof _vaultSeamHome === 'function') ? _vaultSeamHome(n) : null; /* v3767 dock seam */
         if (_seamD && _seamD.loc === 'loose') {
           if (isSharedStash(n) || _inMagicRare(n) || carSet[n]) return false;
@@ -44573,7 +44590,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         else if (!(assign[n] == null && !isSharedStash(n) && !_inMagicRare(n) && !carSet[n]
           && !(typeof KEEP_IN_INVENTORY !== 'undefined' && typeof _keepName === 'function' && KEEP_IN_INVENTORY.test(_keepName(n))))) return false;
         if (typeof _vaultSameItemNames === 'function') { /* v3767 dock twin */
-          var twins = _vaultSameItemNames(n, ownedPool());
+          var twins = _vaultSameItemNames(n, pool);
           for (var ti = 0; ti < twins.length; ti++) {
             var tw = twins[ti];
             if (tw !== n && assign[tw] != null && assign[tw] !== '__throwout') return false;
