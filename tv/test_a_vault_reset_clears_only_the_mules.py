@@ -60,7 +60,7 @@ LINES = (
     # reads it, so a reset driven here must carry it
     "  function _consoleOrigin(){ var o = ''; try { o = (window.location && window.location.origin) ? String(window.location.origin) : ''; } catch (e) { o = ''; } return /^https?:\\/\\/(127\\.0\\.0\\.1|localhost)(:\\d+)?$/.test(o) ? o : null; }",
     "  var RK='d2r_muleRoster', AK='d2r_muleAssign';",
-    "  function saveA(){ _guardedSet(AK, JSON.stringify(assign)); }",
+    "  function saveA(){ var _w = _guardedSet(AK, JSON.stringify(assign)); if (_w && typeof _vaultRecordsRefresh === 'function') _vaultRecordsRefresh(); return _w; }",
     "  var PROV_KEY = 'd2r_vaultProv';",
     "  var JOURNAL_KEY='d2r_intakeLog';",
     "  var FOLDER_DB='d2r_vault_fs', FOLDER_KEY='shotdir', SEEN_KEY='d2r_intakeSeen';",

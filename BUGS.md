@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2282 - AN UNREADABLE ASSIGNMENT STAMPED, THE SNAPSHOT WENT STALE, AND FIND AND DUPES STAYED ON THE LIVE LISTS (#239, v3765)
+
+GPT-5.6 Sol on PR #239, DIFFERS. The single page-load call, the earlier refusals, the set-piece collapse with multi-keep, the shared census, the Wilson claim and the stamps verified. Three HIGH holes.
+
+1. An unreadable d2r_muleAssign was loaded as {}. The dock then listed every owned name as loose, persist saw no UNKNOWN, and the page-load arm ran even when _setPieceReconcile refused. FIX: _assignStoreUnknown re-reads the store. Persist refuses and does not stamp. _vaultRecordsMayArm arms only when reconcile already finished or ran with the copies write confirmed. A refusal follows the live model instead of an older stamp. The red proof runs the production loader and the production dock, and asserts the dock returned names.
+
+2. After the stamp, _vaultRecordsSource kept returning the store. owned, copies and assign writes did not refresh it, so five live items displayed as four. FIX: persist, persistOwned and a successful saveA call _vaultRecordsRefresh, which re-runs _vaultRecordsPersist and confirms the readback. A refusal or a short readback sets the follow-live flag. Calling the arm is not the refresh: the arm returns already. Add, delete and move each update the counts, tiles, FIND and GRAIL-DUPES.
+
+3. FIND still called _vaultWhereIs and GRAIL-DUPES still called _vaultSharedOverflowNames. _vaultRecordsFind and _vaultRecordsOverflow had no live callers. FIX: vaultFind calls _vaultFindHome, and the dupes card, the fullscreen window and the dupes locker count call _vaultDupesNames. The spare-cell count uses the records index. Absent or refused falls back to the live lists. The tests drive those UI seams.
+
+GUARD: the same tv/test_v3765_records_arm_live.py. heart2 --prove 29/29 PROVEN. Wilson 0.8830 on 29 distinct attacks against the vault.apply bar 0.722. Sabotage kinds 1.00 against 1.30, so the write door stays shut. v3758 re-proved 15/15 after the persist caller count moved from 2 to 3 (definition, migration, write refresh). The arm count stays 2.
+
+LEFT: REG-2272 item 4. Same as REG-2281. The four stamps stay v3765. This is not a new version.
+
 ### REG-2281 - PAGE LOAD ARMS THE ONE-RECORD STORE (#76, v3765)
 
 v3764 left window._vaultRecordsArm unwired, so persisted d2r_vaultRecords was not the source for FIND, GRAIL-DUPES, or the vault and locker counts. A presence set piece stored at copies[] 4 or 3 (Natalya, Tal Rasha Guardianship, Immortal King Soul Cage) became that many records, shelf tiles and packed copies. The shelf card and the locker Items box could print different numbers.
@@ -17,7 +31,7 @@ An unknown dock and a wrong-shape store refuse the write and do not stamp. An un
 
 GUARD: tv/test_v3765_records_arm_live.py, registered in tv/run_gates.py. heart2 --prove 15/15 PROVEN. Wilson 0.7961 on 15 distinct attacks against the vault.apply bar 0.722. Sabotage kinds 1.00 against 1.30, so the write door stays shut.
 
-LEFT: REG-2272 item 4. recId stays positional. A dropped copy reuses the prefix id. No cell, witness or frame anchor was named, so the item stays open. After a successful stamp, a later edit of owned, copies or assign is not copied into the store until undo and the next arm. The shelf and locker tiles use the live presence span, so those tiles stay current. FIND, the header, GRAIL-DUPES and the card and Items census follow the snapshot.
+LEFT: REG-2272 item 4. recId stays positional. A dropped copy reuses the prefix id. No cell, witness or frame anchor was named, so the item stays open. The three HIGH holes from the GPT-5.6 Sol look of PR #239 are REG-2282.
 
 ### REG-2280 - A THROWN DOCK STAMPED AS EMPTY, AND UNDO DROPPED THE STORE BEFORE THE STAMP (#238, v3764)
 
