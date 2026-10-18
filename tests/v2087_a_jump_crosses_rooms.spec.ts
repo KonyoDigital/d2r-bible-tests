@@ -96,6 +96,7 @@ test('a TV pickup expands the vault card in the room he is watching, and not els
       (document.querySelector('[data-tab=' + where + ']') as HTMLElement).click();
       const c = card();
       if (!c.classList.contains('collapsed')) (window as any).toggleCardCollapse('mule-vault-card');
+      if ((window as any).LSR) (window as any).LSR.setItem('d2r_vaultAutoIntake', 'on'); /* Elad 2026-10-18: a TV pickup registers only while AUTO INTAKE is on */
       (window as any).tvVaultRegister && (window as any).tvVaultRegister('Harlequin Crest');
       return !c.classList.contains('collapsed');
     };

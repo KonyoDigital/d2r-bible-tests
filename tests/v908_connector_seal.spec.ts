@@ -30,6 +30,7 @@ test.describe('v908 connector seal', () => {
       const full = await w.tvStashAutoIntake('runes', { frameId: '8_888' });
       // case 3: vault wrapper truth
       w._vaultAutoBusy = false; w._vaultAutoDone = false;
+      if (w.LSR) w.LSR.setItem('d2r_vaultAutoIntake', 'on'); /* Elad 2026-10-18: the TV frame wrapper reaches intake only while AUTO INTAKE is on */
       w.vaultIntake = async () => ({ ok: true, total: 3, added: { 'Harlequin Crest': 1 }, errors: 0, kind: 'vault' });
       const vault = await w.tvVaultAutoIntake({ tab: 'personal', frameId: '9_999' });
       (window as any).fetch = realFetch;

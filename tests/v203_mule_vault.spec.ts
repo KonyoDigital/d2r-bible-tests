@@ -55,6 +55,11 @@ test.describe('v203 the vault', () => {
          again — assert the fear (never nowhere), not the arrangement. */
       keepNames: [...document.querySelectorAll('.vk-chip')]
         .map((c) => (c.textContent || '').replace(/[◆✕×]/g, '').replace(/\s*\d+\s*$/, '').trim()),
+      /* Elad 2026-10-18 — a name the router already knows is homed on the organizer
+         at read time. It is not a dock chip and assign is not written, so it is not
+         a locker cell either. The organizer row is the vault showing it. */
+      orgNames: [...document.querySelectorAll('#vault-organize .vault-org-row[data-name]')]
+        .map((c) => c.getAttribute('data-name') || ''),
     }));
     // v230: runes/essences/shards/statues → shared stash (RUNES-HIGH + MATS removed, 10→8).
     // v342: + MAGIC & RARE (8→9). v360: + SHARED STASH locker for the never-muled items (9→10).
@@ -84,7 +89,7 @@ test.describe('v203 the vault', () => {
        the vault can SHOW him — the dock if unfiled, its locker if filed — and never nowhere. That
        is what "an item vanished" would break, and it cannot be moved by which lane filed it first. */
     const expected = OWNED.filter((n) => n !== 'Tal Rasha set (any piece)').sort();
-    const anywhere = new Set([...r.chipNames, ...r.cellNames, ...r.keepNames]);  // REG-2207: a keeper is shown in the keep advisory
+    const anywhere = new Set([...r.chipNames, ...r.cellNames, ...r.keepNames, ...r.orgNames]);  // REG-2207 keep advisory; v3767 organizer row for a router-homed name
     const unreachable = expected.filter((n) => !anywhere.has(n));
     expect(unreachable,
       `owned but nowhere in the vault — not a dock chip and not in any locker: ${JSON.stringify(unreachable)}`)
@@ -102,17 +107,22 @@ test.describe('v203 the vault', () => {
   // rune / Tal Rasha set off a no-tooltip shards screenshot.
   test('v226 dock chip ✕ un-owns the item, persists, and leaves other items alone', async ({ page }) => {
     const r = await page.evaluate(() => {
+      /* Windforce is a name the router homes, so it is an organizer row and not a dock
+         chip (Elad 2026-10-18). The ✕ lives on a homeless dock chip. Lenymo is a
+         throw-out: the seam leaves it loose, so the chip and its eraser are real. */
+      eval('owned').add('Lenymo');
+      (window as any).renderVault();
       const chip = [...document.querySelectorAll('#vault-dock .vault-chip')]
-        .find((c: any) => c.dataset.vaultItem === 'Windforce') as HTMLElement;
+        .find((c: any) => c.dataset.vaultItem === 'Lenymo') as HTMLElement;
       const btn = chip?.querySelector('.vc-unown') as HTMLElement;
       btn?.click();
       return {
         hadBtn: !!btn,
-        stillOwned: eval('owned').has('Windforce'),
+        stillOwned: eval('owned').has('Lenymo'),
         otherKept: eval('owned').has('Stormshield'),
         chipGone: ![...document.querySelectorAll('#vault-dock .vault-chip')]
-          .some((c: any) => c.dataset.vaultItem === 'Windforce'),
-        persisted: !JSON.parse(localStorage.getItem('d2r_owned') || '[]').includes('Windforce'),
+          .some((c: any) => c.dataset.vaultItem === 'Lenymo'),
+        persisted: !JSON.parse(localStorage.getItem('d2r_owned') || '[]').includes('Lenymo'),
       };
     });
     expect(r.hadBtn).toBe(true);
@@ -160,11 +170,15 @@ test.describe('v203 the vault', () => {
       eval('owned').add("Trang-Oul's Girth");
       (window as any).renderVault();
       const chips = [...document.querySelectorAll('#vault-dock .vault-chip')].map((c: any) => c.dataset.vaultItem);
+      const org = [...document.querySelectorAll('#vault-organize .vault-org-row[data-name]')].map((c) => c.getAttribute('data-name'));
       return {
         pieceVocab: (window as any).__setPieceNames().length,
         aggInDock: chips.includes('Tal Rasha set (any piece)'),
+        /* Elad 2026-10-18 — a set piece the router homes is an organizer row, not a dock chip. */
         guardInDock: chips.includes("Tal Rasha's Guardianship"),
         girthInDock: chips.includes("Trang-Oul's Girth"),
+        guardShown: org.includes("Tal Rasha's Guardianship"),
+        girthShown: org.includes("Trang-Oul's Girth"),
         guardSize: eval('vaultSize')("Tal Rasha's Guardianship"),   // armor → 2×3
         girthSize: eval('vaultSize')("Trang-Oul's Girth"),          // belt → 2×2 row family
         crestSize: eval('vaultSize')("Tal Rasha's Horadric Crest"), // helm → 2×2
@@ -175,8 +189,10 @@ test.describe('v203 the vault', () => {
     });
     expect(r.pieceVocab).toBeGreaterThanOrEqual(50);
     expect(r.aggInDock).toBe(false);
-    expect(r.guardInDock).toBe(true);
-    expect(r.girthInDock).toBe(true);
+    expect(r.guardInDock, 'a homed set piece is not an unsorted dock chip').toBe(false);
+    expect(r.girthInDock, 'a homed set piece is not an unsorted dock chip').toBe(false);
+    expect(r.guardShown, "Tal Rasha's Guardianship is homed on the organizer").toBe(true);
+    expect(r.girthShown, "Trang-Oul's Girth is homed on the organizer").toBe(true);
     expect(r.guardSize).toEqual([2, 3]);
     expect(r.crestSize).toEqual([2, 2]);
     expect(r.adjSize).toEqual([1, 1]);
@@ -217,7 +233,12 @@ test.describe('v203 the vault', () => {
       chips: document.querySelectorAll('.vault-dock .vault-chip').length,
       stored: JSON.parse(localStorage.getItem('d2r_muleAssign') || '{}'),
     }));
-    expect(r0.chips, 'the sorter filed owned names that carry no witness').toBeGreaterThan(0);
+    /* Elad 2026-10-18 — router-homed names are not dock chips, and the seam does not
+       write assign. An empty dock is that ruling, not the sorter filing the unwitnessed pool.
+       The fear stays: none of those names landed in the mule map. */
+    const seeded = ['Harlequin Crest (Shako)', 'The Stone of Jordan', 'Vampire Gaze', 'Annihilus', 'Stormshield', 'Raven Frost', 'Windforce'];
+    const filed = seeded.filter((n) => r0.stored[n] != null);
+    expect(filed, 'the sorter filed owned names that carry no witness').toEqual([]);
     expect(r0.stored['The Stone of Jordan'], 'an owned name was filed with no witness').toBeUndefined();
     // a WITNESSED item goes through the one door; the router still decides its mule
     await page.evaluate(() => (window as any).vaultFile('The Stone of Jordan', { lane: 'stash', sessions: [
@@ -246,17 +267,21 @@ test.describe('v203 the vault', () => {
 
   test('click-assign (chip → locker) and unassign round-trip', async ({ page }) => {
     await page.evaluate(() => {
-      const chip = [...document.querySelectorAll('.vault-chip')].find(c => (c as HTMLElement).dataset.vaultItem === 'Windforce') as HTMLElement;
+      /* Windforce is seam-homed, so it is not a dock chip. Lenymo stays loose
+         (throw-out). The click-assign law is the chip, not which unique it is. */
+      eval('owned').add('Lenymo');
+      (window as any).renderVault();
+      const chip = [...document.querySelectorAll('.vault-chip')].find(c => (c as HTMLElement).dataset.vaultItem === 'Lenymo') as HTMLElement;
       chip.click();
     });
     await page.evaluate(() => {
       (document.querySelector('[data-vault-mule="wip"] .vm-plate') as HTMLElement).click();
     });
     const r = await page.evaluate(() => JSON.parse(localStorage.getItem('d2r_muleAssign') || '{}'));
-    expect(r['Windforce']).toBe('wip');
-    await page.evaluate(() => (window as any).vaultUnassign('Windforce'));
+    expect(r['Lenymo']).toBe('wip');
+    await page.evaluate(() => (window as any).vaultUnassign('Lenymo'));
     const r2 = await page.evaluate(() => JSON.parse(localStorage.getItem('d2r_muleAssign') || '{}'));
-    expect(r2['Windforce']).toBeUndefined();
+    expect(r2['Lenymo']).toBeUndefined();
   });
 
   test('the 🏦 location badge renders on the item detail card and jumps to the vault', async ({ page }) => {

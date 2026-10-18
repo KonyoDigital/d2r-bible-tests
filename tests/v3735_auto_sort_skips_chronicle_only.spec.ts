@@ -29,6 +29,7 @@ test.beforeEach(async ({ page }) => {
 test('Auto-Sort does NOT file a chronicle-only found-ever tick to the shared stash, but STILL files held war gear (REG-2223)', async ({ page }) => {
   const r = await page.evaluate(({ chron, hold }) => {
     try { localStorage.setItem('d2r_ownerClaim', '*'); } catch (e) {}
+    if ((window as any).LSR) (window as any).LSR.setItem('d2r_vaultAutoIntake', 'on'); /* Elad 2026-10-18: the holding's register runs only while AUTO INTAKE is on */
     // (1) a chronicle-ONLY found-ever tick — one look, loc/scene 'chronicle', no holding picture
     (window as any)._ownedAdd(chron, { source: 'chronicle-apply', by: 'chronicle', loc: 'chronicle',
       scene: 'chronicle', frameId: 'f_chron_1', sessionId: 's_test_chron', at: Date.now() });
@@ -53,6 +54,8 @@ test('Auto-Sort does NOT file a chronicle-only found-ever tick to the shared sta
     const proposeHold = (window as any).vaultPropose(hold);
     const dockChron0 = inDock(chron);
     const dockHold0 = inDock(hold);
+    const seamHold = (((window as any)._vaultSeamHome(hold) || {}).loc) || null;
+    const holdOwned = eval('owned').has(hold);
 
     const res = (window as any).vaultAutoSortByHand() || {};
     const rows = Array.isArray(res.rows) ? res.rows : [];
@@ -60,7 +63,7 @@ test('Auto-Sort does NOT file a chronicle-only found-ever tick to the shared sta
     const filedToShared = (n: string) => rows.some((x: any) => foldJS(x && x.name) === foldJS(n) && x.mule === 'shared');
 
     return {
-      looksChron, proposeChron, proposeHold, dockChron0, dockHold0,
+      looksChron, proposeChron, proposeHold, dockChron0, dockHold0, seamHold, holdOwned,
       chronFiled: filedToShared(chron), chronNoPicture: noPic.indexOf(foldJS(chron)) >= 0, chronStillInDock: inDock(chron),
       holdFiled: filedToShared(hold),
     };
@@ -75,15 +78,21 @@ test('Auto-Sort does NOT file a chronicle-only found-ever tick to the shared sta
   expect(r.looksChron.kind, 'the chronicle item is a kind:owned receipt').toBe('owned');
   expect(r.looksChron.allChronicle, 'its looks are all chronicle (found-ever, not a holding picture)').toBe(true);
 
-  // both start unsorted in the dock
+  // the chronicle-only tick is homeless testimony, so it starts in the dock
   expect(r.dockChron0, `${CHRON} should start in the dock`).toBe(true);
-  expect(r.dockHold0, `${HOLD} should start in the dock`).toBe(true);
+  /* Elad 2026-10-18 — the holding is a name the router already knows. It is homed
+     on shared at read time and is not an unsorted dock chip. */
+  expect(r.holdOwned, `${HOLD} must be recorded`).toBe(true);
+  expect(r.seamHold, `${HOLD} is homed on the shared stash`).toBe('shared');
+  expect(r.dockHold0, `${HOLD} is homed, so it does not start in the dock`).toBe(false);
 
   // REG-2223: the chronicle-ONLY tick is NOT filed to shared — it goes to noPicture and stays in the dock
   expect(r.chronFiled, `${CHRON} (chronicle-only) must NOT be filed to the shared stash`).toBe(false);
   expect(r.chronNoPicture, `${CHRON} must fall to "no picture"`).toBe(true);
   expect(r.chronStillInDock, `${CHRON} must stay in the dock`).toBe(true);
 
-  // no regression: the real name-only holding (REG-2219 / v3731) STILL files to the shared stash
-  expect(r.holdFiled, `${HOLD} (a real holding) must STILL file to the shared stash`).toBe(true);
+  /* The holding is already homed by the seam, which does not write assign, so
+     Auto-Sort (it walks the dock) has nothing to file. The regression guard is
+     the seam home above, not a second write into the mule map. */
+  expect(r.holdFiled, `${HOLD} is already homed — Auto-Sort must not need a dock filing`).toBe(false);
 });

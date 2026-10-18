@@ -72,6 +72,14 @@ async function boot(page: any, seed: Record<string, any>) {
   }, seed);
   await page.goto(URL, { waitUntil: 'domcontentloaded' });
   await page.waitForTimeout(5000);
+  /* Elad 2026-10-18 15:24 — chronicleApply reaches the vault through the frame
+     register. That door runs only while AUTO INTAKE is on. Default stays off.
+     Set after boot: the init script's clear would have wiped a raw seed, and
+     the value must be the word on, not a JSON string. */
+  await page.evaluate(() => {
+    const w = window as any;
+    if (w.LSR) w.LSR.setItem('d2r_vaultAutoIntake', 'on');
+  });
 }
 
 /* ⚠ bible.html SEEDS a default found ledger on first load ("a bare d2r_rwMade holding 99 entries

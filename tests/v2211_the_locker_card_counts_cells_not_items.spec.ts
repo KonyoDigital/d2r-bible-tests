@@ -77,6 +77,7 @@ test.describe('v2211 the locker card counts cells, not items', () => {
       // "proved" the card was broken when it was the plant that never arrived.
       const r = await page.evaluate(() => {
         const W = window as any;
+        if (W.LSR) W.LSR.setItem('d2r_vaultAutoIntake', 'on'); /* Elad 2026-10-18: the register runs only while AUTO INTAKE is on */
         // every big two-by-four weapon we can actually get into the vault, through tvVaultRegister
         const big = ['Windforce', 'Doombringer', 'The Grandfather', 'Breath of the Dying',
                      'Stormlash', 'Bonehew', 'Steeldriver', 'Earth Shifter', 'Baranar\'s Star',

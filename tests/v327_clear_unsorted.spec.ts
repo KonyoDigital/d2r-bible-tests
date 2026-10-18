@@ -23,14 +23,14 @@ test('Delete-unsorted button clears the dock but keeps filed items', async ({ pa
     const assignAfterSort = JSON.parse(localStorage.getItem('d2r_muleAssign')||'{}');
     // un-file Death Cleaver so it's unsorted again (it auto-filed too); simulate an unsorted leftover
     // instead: add a fresh unsorted item that has a home but we DON'T assign
-    owned.add('Bonesnap');                    // unsorted (not auto-assigned this pass)
+    owned.add('Lenymo');                      // throw-out: the seam leaves it loose, so it is a real dock chip (Elad 2026-10-18 — a router-homed name is not)
     (window as any).renderVault();
     const barHasClear = !!document.querySelector('#vault-dock-bar .vault-clear-btn');
     const dockBefore = document.querySelectorAll('#vault-dock .vault-chip').length;
     await (window as any).vaultClearUnsorted();   // v341.60 — async (awaits uiConfirm); await before reading the dock
     const dockAfter = document.querySelectorAll('#vault-dock .vault-chip').length;
     const stillOwnedFiled = (window as any).eval('owned').has('Chance Guards');
-    const unsortedGone = !(window as any).eval('owned').has('Bonesnap');
+    const unsortedGone = !(window as any).eval('owned').has('Lenymo');
     return { barHasClear, dockBefore, dockAfter, stillOwnedFiled, unsortedGone };
   });
   expect(r.barHasClear).toBe(true);

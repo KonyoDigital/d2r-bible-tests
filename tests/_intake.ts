@@ -51,6 +51,14 @@ export async function seedIntake(page: Page, lane: keyof typeof FN | string, fil
       const fs = payload.map(
         (p: any) => new File([new Uint8Array(p.bytes)], p.name, { type: p.type })
       );
+      /* Elad, 2026-10-18 15:24 IDT — AUTO INTAKE is per world and defaults off.
+         A frame or a batch does not register while it is off. These specs drive
+         that path, so they turn the switch on. The product default stays off.
+         A later localStorage.clear() in the spec wipes the key; seed after it. */
+      if (fn === 'vaultIntake') {
+        if (w.LSR && typeof w.LSR.setItem === 'function') w.LSR.setItem('d2r_vaultAutoIntake', 'on');
+        else localStorage.setItem('d2r_vaultAutoIntake', 'on');
+      }
       return await w[fn](fs);
     },
     { fn, payload }

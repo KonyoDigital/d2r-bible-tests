@@ -55,12 +55,14 @@ test('records header byte-matches the live vault header on consistent data (REG-
     return { rh, popOwned: num(/(\d+) owned/), popFiled: num(/(\d+) filed to mules/), popLoose: num(/(\d+) still loose/), txt };
   });
 
-  // premise first: five owned, six records, four filed, one loose. Zero orphans then
-  // means those records were classified, not that the header was never built.
+  /* Elad 2026-10-18 — a name the router already knows is homed at read time.
+     Nagelring was left unassigned so this spec could call it loose. The seam
+     homes it on uni-small, so it is filed, and the dock does not hold it.
+     Five owned, six records, five filed, zero loose. The parity below is the law. */
   expect(r.rh.owned).toBe(5);
   expect(r.rh.copies).toBe(6);        // SoJ counted twice — copies = total records
-  expect(r.rh.filed).toBe(4);
-  expect(r.rh.loose).toBe(1);
+  expect(r.rh.filed).toBe(5);
+  expect(r.rh.loose).toBe(0);
   expect(r.rh.orphans).toBe(0);
   // THE PARITY: records-COUNT (independent path) == render-SUBTRACTION (what he actually sees on screen)
   expect(r.rh.owned, r.txt).toBe(r.popOwned);
@@ -80,10 +82,17 @@ test('a kept charm with no resolvable mule is keepInv, never an orphan (REG-2257
     try { if ((window as any).renderVault) (window as any).renderVault(); } catch (e) {}
     const rec = (window as any)._vaultRecords();
     const rh = (window as any)._vaultRecordsHeader();
-    return { orphans: rec.orphans.map((o: any) => o.name), keepInv: (rec.byKind.keepInv || 0), rhOrphans: rh.orphans };
+    const anni = (rec.records || []).find((row: any) => row && row.name === 'Annihilus');
+    return { orphans: rec.orphans.map((o: any) => o.name), keepInv: (rec.byKind.keepInv || 0), rhOrphans: rh.orphans,
+             anniKind: anni ? anni.kind : null };
   });
 
-  expect(r.orphans).not.toContain(ANNI);          // the false positive is fixed
+  /* A dead assign id is not a home. The seam asks the router, and the router
+     (his 2026-10-15 ruling, still in suggestMule) puts Annihilus in the shared
+     stash. It must not become an orphan. It is not keepInv, because that route
+     is shared. */
+  expect(r.orphans).not.toContain(ANNI);
   expect(r.rhOrphans).toBe(0);
-  expect(r.keepInv).toBeGreaterThanOrEqual(1);
+  expect(r.keepInv || 0, 'a shared-routed charm is not counted as keep-in-inventory').toBe(0);
+  expect(r.anniKind, 'the dead assign falls through to the router home').toBe('sharedStash');
 });

@@ -69,7 +69,9 @@ test('a filed set piece no longer shows as unsorted: the stray dock copy is de-d
       tal: ((w.findSetPiece("Tal Rasha's Horadric Crest") || {}) as any).piece,
       ik:  ((w.findSetPiece("Immortal King's Will") || {}) as any).piece,
     };
-    return { dock, owned, assign, resolves, stamp: w.LSR.getItem('d2r_setDupeMigrate_v2227') };
+    const eye = "Tal Rasha's Lidless Eye";
+    const seamEye = (typeof w._vaultSeamHome === 'function' ? (w._vaultSeamHome(eye) || {}).loc : null) || null;
+    return { dock, owned, assign, resolves, seamEye, stamp: w.LSR.getItem('d2r_setDupeMigrate_v2227') };
   });
 
   // the premise of the bug: the bare and slot forms resolve to the SAME canonical piece, so one is a stray
@@ -88,10 +90,14 @@ test('a filed set piece no longer shows as unsorted: the stray dock copy is de-d
   expect(r.assign[SLOT_TAL], 'the Tal Rasha set-mule filing must be untouched').toBe('sets-major');
   expect(r.assign[SLOT_IK], 'the Immortal King set-mule filing must be untouched').toBe('sets-major');
 
-  // NON-REGRESSION — a genuinely loose set piece with no filed twin is NOT touched; it stays owned and loose
-  expect(r.owned, 'a loose set piece with no filed twin must be kept in owned').toContain(LONE_EYE);
-  expect(r.dock.indexOf(fold(LONE_EYE)), 'a loose set piece with no filed twin must stay in the dock')
-    .toBeGreaterThanOrEqual(0);
+  // NON-REGRESSION — a set piece with no filed twin is NOT removed. Elad 2026-10-18: a name
+  // the router already knows is homed at read time and is never an unsorted dock chip. Lidless Eye
+  // is a known set piece, so the seam places it without writing assign. The migration's law is that
+  // the row survives unfiled; the dock chip is gone because the home is the set mule.
+  expect(r.owned, 'a set piece with no filed twin must be kept in owned').toContain(LONE_EYE);
+  expect(r.assign[LONE_EYE], 'the migration must not invent a filing for a piece with no twin').toBeUndefined();
+  expect(r.seamEye, "Tal Rasha's Lidless Eye is seam-homed onto its set mule").toBe('filed');
+  expect(r.dock.indexOf(fold(LONE_EYE)), 'a homed name is not an unsorted dock chip').toBe(-1);
 
   // the migration stamped itself once, so a later undo of the batch (vaultRestoreLast) will stick
   expect(r.stamp, 'the migration must stamp once per world so it never re-applies over a later undo').toBeTruthy();

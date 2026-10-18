@@ -64,6 +64,10 @@ test.describe('v212 folder watch', () => {
       localStorage.clear();
       indexedDB.deleteDatabase('d2r_vault_fs');
       localStorage.setItem('d2r_intakeUrl', 'https://intake.test/api/intake');
+      /* Elad 2026-10-18 15:24 — folder auto-watch is frame intake. It runs only
+         while AUTO INTAKE is on. The clear above wiped the key. Default stays off. */
+      if ((window as any).LSR) (window as any).LSR.setItem('d2r_vaultAutoIntake', 'on');
+      else localStorage.setItem('d2r_vaultAutoIntake', 'on');
       (window as any).switchTab('tools');
       (window as any).renderVault();
     });
