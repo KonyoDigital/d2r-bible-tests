@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2286 - THE ROW COMPARISON MISSED THE WITNESS, SO A PROV-ONLY CHANGE STAYED STALE (#239, v3765)
+
+GPT-5.6 Sol fifth pass on PR #239 at 5c3d641f, DIFFERS. The previous round verified. One MEDIUM.
+
+The comparison serialized name, kind, loc, span and copy index. Persist also writes prov and provUnknown. A light reset whose assignments were already empty left the old witness in d2r_vaultRecords. A stamped provUnknown row stayed unrepaired after valid prov returned, and the source kept refusing that snapshot.
+
+FIX: the compared row and the written row are one function, _vrRecRow, with stable key order, covering every field including prov and provUnknown. Persist writes the list that function builds. The red proof for the empty-assignment reset requires the witness to clear. The red proof for the stamped provUnknown snapshot requires a repair once valid prov exists, and the source then consumes that store. A structural law fails if persist grows a second row writer.
+
+GUARD: tv/test_v3765_records_arm_live.py. heart2 --prove 43/43 PROVEN. Wilson 0.9180 on 43 distinct attacks against the vault.apply bar 0.722. Sabotage kinds 1.00 against 1.30, so the write door stays shut. v3758 15/15 PROVEN, Wilson 0.7961. v3764 stayed green, Wilson 0.7412. The arm count stays 2. Persist callers stay the definition, the migration and the write refresh.
+
+LEFT: REG-2272 item 4. recId stays positional. The four stamps stay v3765. This is not a new version.
+
 ### REG-2285 - AN ENUMERATED SIGNATURE MISSED MAGIC & RARE, SO THE HEADER COUNTS STAYED STALE (#239, v3765)
 
 GPT-5.6 Sol fourth pass on PR #239 at a9eaf3b5, DIFFERS. The previous round verified. One HIGH. This was the third enumerated input the signature missed (copies and assign, then multiKeep, then magicFinds).

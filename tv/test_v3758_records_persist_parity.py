@@ -50,6 +50,7 @@ EXTRACT = [
     "_vaultSharedOverflowNames",     "_vaultRecords", "_vaultRecordsSource", "_vaultRecordsFind", "_vaultRecordsOverflow",
     "_vaultRecordsHeader",
     # INC-3b: persist / load / migrate / undo / rename + the model-in parity views
+    "_vrRecWitness", "_vrRecRow", "_vrRecRowsFrom",
     "_vrRecLoadRaw", "_vrRecGuardedSet", "_vrLocForCopy", "_vaultRecordsLoad", "_vaultRecordsPersist",
     "_dockNames", "_vaultRecordsMigrate", "_vaultRecordsMigrateUndo", "_vaultRecordsArm", "_vaultRecordsRename",
     "_vrRecHome", "_vaultRecordsViewFind", "_vaultRecordsViewOverflow", "_vaultRecordsViewHeader",
@@ -605,8 +606,8 @@ RED_PROOF = [
     {
         "why": "An unreadable witness store is a marker, not the same null as no witness row.",
         "file": "bible.html",
-        "find": "        if (provUnknown) row.provUnknown = true;\n        else row.prov = (prov[nm] != null ? prov[nm] : null);\n",
-        "replace": "        row.prov = null;\n",
+        "find": "    if (spec.provUnknown) row.provUnknown = true;\n    else row.prov = (spec.prov != null ? spec.prov : null);",
+        "replace": "    row.prov = null;",
         "matches": 1,
     },
     {

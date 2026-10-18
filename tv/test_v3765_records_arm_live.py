@@ -10,9 +10,9 @@ census. Undo is window._vaultRecordsMigrateUndo.
 An unknown dock, an unreadable witness, an unreadable d2r_muleAssign or a wrong store
 shape does not stamp. Page load does not arm when the set-piece reconcile refuses.
 A successful owned, copies or assign write re-persists and confirms the readback when
-the rows that derivation would write differ from the stored rows. Those rows are the
-name, the kind, the loc and the presence span, so a multi-keep add and a Magic & Rare
-membership change are both changes. A refusal or a short readback drops the stamp and writes a
+the full row that derivation would write differs from the stored row. That row is
+the one persist writes, including prov and provUnknown, so a multi-keep add, a Magic
+& Rare membership change, and a witness-only change are all changes. A refusal or a short readback drops the stamp and writes a
 dirty marker, so a reload follows the live model. A dirty marker still present bypasses
 the migrate already path, and the marker clears only when the removal reads back gone. The source consumes a store only
 while that stamp is current and no row is an unreadable witness. A shared-locker name
@@ -50,7 +50,8 @@ EXTRACT = [
     "_vaultSharedOverflowNames", "_vaultDupesNames", "_vaultDupesCells", "_vaultSharedOverflowHtml",
     "_vaultPresenceSpan", "_assignStoreUnknown", "_vaultRecords", "_vaultRecordsSource",
     "_vaultRecordsStampOk", "_vrRecDirty", "_vrRecMarkDirty", "_vrRecClearDirty",
-    "_vrRecShape", "_vrRecCanon", "_vrRecDerivedCanon", "_vrRecStoredCanon",
+    "_vrRecWitness", "_vrRecRow", "_vrRecRowsFrom", "_vrRecCanon",
+    "_vrRecDerivedCanon", "_vrRecStoredCanon",
     "_vrRecSig", "_vrRecSigSame", "_vrRecNoteSig", "_vrRecHome",
     "_vaultLockerItems", "_vaultRecordsHeader", "_vaultRecordsFind", "_vaultRecordsOverflow",
     "_vrRecLoadRaw", "_vrRecGuardedSet", "_vrLocForCopy", "_vaultRecordsLoad",
@@ -973,6 +974,90 @@ out.hold = _vrRecHold;
         self.assertFalse(o["afterWitness"], "the witness survived the reset refresh: %r" % o)
         self.assertEqual(o["hold"], 0, o)
 
+    def test_a_light_reset_with_empty_assignments_clears_the_witness(self):
+        """Assignments are already empty, so kind and loc do not move. The stored witness must still clear."""
+        scope = _slice(self.src,
+                       "  var _VAULT_RESET_SCOPE = Object.freeze({",
+                       "    try { console.info('[vault reset] ' + JSON.stringify(R)); } catch(e){}\n    return R;\n  }")
+        extra = (
+            "var JOURNAL_KEY = 'd2r_journal';\n"
+            "var SEEN_KEY = 'd2r_seen';\n"
+            "var FOLDER_DB = 'folderdb';\n"
+            "var FOLDER_KEY = 'folderkey';\n"
+            "var PROV_KEY = 'd2r_vaultProv';\n"
+            "function _vaultRefileFromPlan(){ return; }\n"
+            + _fn(self.src, "_provWrite") + "\n"
+            + scope + "\n"
+        )
+        o = self._run(r"""
+Object.keys(assign).forEach(function(k){ delete assign[k]; });
+window.LSR.setItem('d2r_vaultProv', JSON.stringify((function(){
+  var o = {}; o[NATALYA] = { by: 'witness', kind: 'filed' }; return o;
+})()));
+_vaultRecordsArm();
+var before = JSON.parse(window.LSR.getItem('d2r_vaultRecords')).records;
+out.beforeWitness = before.some(function(r){ return r && r.prov && r.prov.by === 'witness'; });
+out.beforeFiled = before.some(function(r){ return r && r.kind === 'filed'; });
+var realProv = _provWrite;
+_provWrite = function(all){
+  var rows = [];
+  try { rows = JSON.parse(window.LSR.getItem('d2r_vaultRecords')).records; } catch (e) { rows = []; }
+  out.midWitness = rows.some(function(r){ return r && r.prov && r.prov.by === 'witness'; });
+  return realProv(all);
+};
+_vaultResetRun('vaultReset');
+var after = [];
+try { after = JSON.parse(window.LSR.getItem('d2r_vaultRecords')).records; } catch (e2) { after = []; }
+out.afterWitness = after.some(function(r){ return r && r.prov && r.prov.by === 'witness'; });
+out.hold = _vrRecHold;
+""", extra=extra)
+        self.assertTrue(o["beforeWitness"], "the arm did not store the witness: %r" % o)
+        self.assertFalse(o["beforeFiled"], "an empty assignment was stored as filed: %r" % o)
+        self.assertTrue(o["midWitness"], "refresh rewrote the store between the clears: %r" % o)
+        self.assertFalse(o["afterWitness"], "the witness stayed after a prov-only reset: %r" % o)
+        self.assertEqual(o["hold"], 0, o)
+
+    def test_a_stamped_prov_unknown_snapshot_is_repaired_when_prov_returns(self):
+        """A stamped provUnknown row is not a source. Once valid prov exists, the store must be rewritten and then consumed."""
+        o = self._run(r"""
+_vaultRecordsArm();
+var obj = JSON.parse(window.LSR.getItem('d2r_vaultRecords'));
+obj.records.forEach(function(r){ if (!r) return; r.provUnknown = true; delete r.prov; });
+window.LSR.setItem('d2r_vaultRecords', JSON.stringify(obj));
+var before = _vaultRecordsSource();
+out.beforeUnknown = (before.records || []).some(function(r){ return r && r.provUnknown === true; });
+var pv = {}; pv[NATALYA] = { by: 'repaired' };
+window.LSR.setItem('d2r_vaultProv', JSON.stringify(pv));
+var refreshed = _vaultRecordsRefresh();
+out.skipped = !!(refreshed && refreshed.skipped);
+var stored = JSON.parse(window.LSR.getItem('d2r_vaultRecords')).records;
+out.stillUnknown = stored.some(function(r){ return r && r.provUnknown === true; });
+out.repaired = stored.some(function(r){ return r && r.name === NATALYA && r.prov && r.prov.by === 'repaired'; });
+var after = _vaultRecordsSource();
+out.sourceRepaired = (after.records || []).some(function(r){ return r && r.name === NATALYA && r.prov && r.prov.by === 'repaired'; });
+""")
+        self.assertFalse(o["beforeUnknown"], "the source consumed a provUnknown snapshot: %r" % o)
+        self.assertFalse(o["skipped"], "refresh skipped a provUnknown store: %r" % o)
+        self.assertFalse(o["stillUnknown"], "the provUnknown row was left in the store: %r" % o)
+        self.assertTrue(o["repaired"], "valid prov was not written onto the row: %r" % o)
+        self.assertTrue(o["sourceRepaired"], "the source did not consume the repaired store: %r" % o)
+
+    def test_the_written_row_and_the_compared_row_are_one_function(self):
+        """The serialization and the persist write build the row in one function."""
+        persist = _strip(_fn(self.src, "_vaultRecordsPersist"))
+        derived = _strip(_fn(self.src, "_vrRecDerivedCanon"))
+        rows_fn = _strip(_fn(self.src, "_vrRecRowsFrom"))
+        canon = _strip(_fn(self.src, "_vrRecCanon"))
+        row = _strip(_fn(self.src, "_vrRecRow"))
+        self.assertEqual(persist.count("_vrRecRowsFrom("), 1, persist)
+        self.assertEqual(derived.count("_vrRecRowsFrom("), 1, derived)
+        self.assertEqual(rows_fn.count("_vrRecRow("), 1, rows_fn)
+        self.assertEqual(canon.count("_vrRecRow("), 1, canon)
+        self.assertEqual(row.count("row.provUnknown = true"), 1, row)
+        self.assertEqual(row.count("row.prov ="), 1, row)
+        self.assertNotIn("provUnknown", persist)
+        self.assertNotIn("row.prov", persist)
+
     def test_distinct_attacks_clear_the_write_door_wilson_bar(self):
         """vault.apply bar. One RED_PROOF is one attack. Sabotage does not open the door."""
         from confidence import confluence, wilson_lower
@@ -1261,8 +1346,22 @@ RED_PROOF = [
     {
         "why": "Kind and loc are part of that comparison. Nulling both makes an orphan and a loose row look the same, so the header counts stay stale.",
         "file": "bible.html",
-        "find": "    return { name: name, kind: kind, loc: (loc == null ? null : loc), span: span, copyIx: copyIx || 0 };",
-        "replace": "    return { name: name, kind: null, loc: null, span: span, copyIx: copyIx || 0 };",
+        "find": "      kind: spec.kind,\n      mule: (spec.mule == null ? null : spec.mule),\n      loc: (spec.loc == null ? null : spec.loc)",
+        "replace": "      kind: null,\n      mule: (spec.mule == null ? null : spec.mule),\n      loc: null",
+        "matches": 1,
+    },
+    {
+        "why": "Prov and provUnknown are part of the row. Dropping them leaves a witness in place on an empty-assignment reset, and leaves a provUnknown snapshot unrepaired.",
+        "file": "bible.html",
+        "find": "    if (spec.provUnknown) row.provUnknown = true;\n    else row.prov = (spec.prov != null ? spec.prov : null);",
+        "replace": "    row.prov = null;",
+        "matches": 1,
+    },
+    {
+        "why": "The written row and the compared row are one function. A second writer in persist can store a field the comparison never sees.",
+        "file": "bible.html",
+        "find": "    var built = _vrRecRowsFrom(rec, prior, witness); /* persist writes the row the comparison serializes */",
+        "replace": "    var built = { rows: rec.records.slice(), seq: 0 }; /* a second row writer */",
         "matches": 1,
     },
     {

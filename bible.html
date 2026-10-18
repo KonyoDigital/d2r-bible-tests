@@ -48244,18 +48244,75 @@ window.vaultAutoAssign = function(){
     try { if (typeof _vrRecFollowLive !== 'undefined') _vrRecFollowLive = false; } catch (e) {}
     return true;
   }
-  function _vrRecShape(name, kind, loc, span, copyIx){
-    /* One row persist would write. Fixed key order. null loc stays null, so orphan is not loose. */
-    return { name: name, kind: kind, loc: (loc == null ? null : loc), span: span, copyIx: copyIx || 0 };
+  function _vrRecWitness(){
+    /* The witness store the row carries. Unreadable or a non-object is provUnknown, not a null witness. */
+    var prov = {}, provUnknown = false;
+    try {
+      var praw = window.LSR.getItem('d2r_vaultProv');
+      if (praw != null && praw !== '') {
+        var pv = JSON.parse(praw);
+        if (!pv || typeof pv !== 'object' || Array.isArray(pv)) provUnknown = true;
+        else prov = pv;
+      }
+    } catch (e) { provUnknown = true; }
+    return { prov: prov, provUnknown: provUnknown };
+  }
+  function _vrRecRow(spec){
+    /* The one row persist writes. Fixed key order. The comparison serializes this same object,
+       so a field cannot be written without also being compared. */
+    spec = spec || {};
+    var row = {
+      recId: spec.recId,
+      name: spec.name,
+      copyIx: spec.copyIx || 0,
+      kind: spec.kind,
+      mule: (spec.mule == null ? null : spec.mule),
+      loc: (spec.loc == null ? null : spec.loc)
+    };
+    if (spec.provUnknown) row.provUnknown = true;
+    else row.prov = (spec.prov != null ? spec.prov : null);
+    return row;
+  }
+  function _vrRecRowsFrom(rec, prior, witness){
+    /* Every record persist would write: reused recId, loc, and the witness. */
+    witness = witness || { prov: {}, provUnknown: false };
+    var priorIds = {}, seq = 0;
+    if (prior && Array.isArray(prior.records)) {
+      seq = (typeof prior.seq === 'number' && prior.seq > 0) ? prior.seq : 0;
+      prior.records.forEach(function(r){
+        if (!r || r.recId == null) return;
+        /* Index under the stored name AND prevName. A rename keeps the id on the record but the live model
+           still speaks the old name, so a name-only index re-minted and the rename was overwritten (REG-2272 item 1). */
+        var keys = {};
+        if (r.name != null) keys[r.name] = 1;
+        if (r.prevName != null) keys[r.prevName] = 1;
+        Object.keys(keys).forEach(function(k){ (priorIds[k] = priorIds[k] || []).push(r.recId); });
+      });
+    }
+    var prov = witness.prov || {};
+    var provUnknown = !!witness.provUnknown;
+    var byName = {};
+    (rec.records || []).forEach(function(r){ if (r && r.name != null) (byName[r.name] = byName[r.name] || []).push(r); });
+    var outRecs = [];
+    Object.keys(byName).forEach(function(nm){
+      var reuse = priorIds[nm] ? priorIds[nm].slice() : [];
+      byName[nm].forEach(function(r, ci){
+        var recId = reuse[ci];
+        if (!recId) { seq += 1; recId = 'rec_' + seq; }        /* STABLE OPAQUE id, minted once, never name-derived */
+        outRecs.push(_vrRecRow({
+          recId: recId, name: r.name, copyIx: r.copyIx, kind: r.kind, mule: r.mule,
+          loc: _vrLocForCopy(r.kind, r.mule, r.copyIx), provUnknown: provUnknown, prov: prov[nm]
+        }));
+      });
+    });
+    return { rows: outRecs, seq: seq };
   }
   function _vrRecCanon(rows){
-    /* Stable serialization of name, kind, loc and the presence span (how many records that name keeps). */
-    var span = {};
-    (rows || []).forEach(function(r){ if (r && r.name != null) span[r.name] = (span[r.name] || 0) + 1; });
+    /* Stable serialization of the full row _vrRecRow writes, including prov and provUnknown. */
     var out = [];
     (rows || []).forEach(function(r){
       if (!r || r.name == null) return;
-      out.push(_vrRecShape(r.name, r.kind, (r.loc == null ? null : r.loc), span[r.name], r.copyIx));
+      out.push(_vrRecRow(r));
     });
     out.sort(function(a, b){
       if (a.name < b.name) return -1;
@@ -48265,24 +48322,15 @@ window.vaultAutoAssign = function(){
     return JSON.stringify(out);
   }
   function _vrRecDerivedCanon(){
-    /* The rows the persist derivation writes, before the witness is attached.
-       Any input that derivation reads is in these rows. null = do not skip. */
+    /* The same rows persist would write. null = do not skip. */
     try {
       var rec = (typeof _vaultRecords === 'function') ? _vaultRecords() : null;
       if (!rec || !rec.ok || rec.assignUnknown || rec.dockUnknown || rec.carUnknown) return null;
-      var rows = [];
-      var threw = false;
-      var list = rec.records || [];
-      for (var i = 0; i < list.length; i++){
-        var r = list[i];
-        if (!r || r.name == null) continue;
-        var loc = null;
-        try { loc = (typeof _vrLocForCopy === 'function') ? _vrLocForCopy(r.kind, r.mule, r.copyIx) : null; }
-        catch (eL) { threw = true; break; }
-        rows.push({ name: r.name, kind: r.kind, loc: loc, copyIx: r.copyIx });
-      }
-      if (threw) return null;
-      return _vrRecCanon(rows);
+      var prior = (typeof _vrRecLoadRaw === 'function') ? _vrRecLoadRaw() : undefined;
+      if (prior === undefined) return null;
+      var witness = (typeof _vrRecWitness === 'function') ? _vrRecWitness() : { prov: {}, provUnknown: false };
+      var built = _vrRecRowsFrom(rec, prior, witness);
+      return _vrRecCanon(built.rows);
     } catch (e) { return null; }
   }
   function _vrRecStoredCanon(){
@@ -48396,51 +48444,17 @@ window.vaultAutoAssign = function(){
     if (rec.carUnknown || rec.dockUnknown) return { ok: false, wrote: false, unknown: true, why: 'carried or dock is UNKNOWN - nothing persisted' };
     var prior = _vrRecLoadRaw();
     if (prior === undefined) return { ok: false, wrote: false, unknown: true, why: (_vrRecUnread[_VR_STORE_KEY] || 'unreadable') + ' - NOT overwritten' };
-    var priorIds = {}, seq = 0;
-    if (prior && Array.isArray(prior.records)) {
-      seq = (typeof prior.seq === 'number' && prior.seq > 0) ? prior.seq : 0;
-      prior.records.forEach(function(r){
-        if (!r || r.recId == null) return;
-        /* Index under the stored name AND prevName. A rename keeps the id on the record but the live model
-           still speaks the old name, so a name-only index re-minted and the rename was overwritten (REG-2272 item 1). */
-        var keys = {};
-        if (r.name != null) keys[r.name] = 1;
-        if (r.prevName != null) keys[r.prevName] = 1;
-        Object.keys(keys).forEach(function(k){ (priorIds[k] = priorIds[k] || []).push(r.recId); });
-      });
-    }
-    var prov = {}, provUnknown = false;
-    try {
-      var praw = window.LSR.getItem('d2r_vaultProv');
-      if (praw != null && praw !== '') {
-        var pv = JSON.parse(praw);
-        if (!pv || typeof pv !== 'object' || Array.isArray(pv)) provUnknown = true;
-        else prov = pv;
-      }
-    } catch (e) { provUnknown = true; }
-    var byName = {};
-    rec.records.forEach(function(r){ (byName[r.name] = byName[r.name] || []).push(r); });
-    var outRecs = [];
-    Object.keys(byName).forEach(function(nm){
-      var reuse = priorIds[nm] ? priorIds[nm].slice() : [];
-      byName[nm].forEach(function(r, ci){
-        var recId = reuse[ci];
-        if (!recId) { seq += 1; recId = 'rec_' + seq; }        /* STABLE OPAQUE id, minted once, never name-derived */
-        var row = { recId: recId, name: r.name, copyIx: r.copyIx, kind: r.kind, mule: r.mule,
-                    loc: _vrLocForCopy(r.kind, r.mule, r.copyIx) };
-        /* REG-2272 item 3 — an unreadable witness store is UNKNOWN, not the same null as "no witness row". */
-        if (provUnknown) row.provUnknown = true;
-        else row.prov = (prov[nm] != null ? prov[nm] : null);
-        outRecs.push(row);
-      });
-    });
+    var witness = _vrRecWitness();
+    var built = _vrRecRowsFrom(rec, prior, witness); /* persist writes the row the comparison serializes */
+    var outRecs = built.rows;
+    var seq = built.seq;
     var store = { v: 1, ts: Date.now(), seq: seq, carUnknown: false, dockUnknown: false, records: outRecs };
     var wrote = _vrRecGuardedSet(store);
     return { ok: wrote, wrote: wrote, count: outRecs.length, seq: seq, why: (wrote ? null : 'guarded set refused - a corrupt store is never overwritten') };
   }
   window._vaultRecordsPersist = _vaultRecordsPersist;
   function _vaultRecordsRefresh(){
-    /* Re-persist when the rows this derivation would write differ from the stored rows.
+    /* Re-persist when the full row this derivation would write differs from the stored row.
        No current stamp: do not create a store. A reset holds this until the clears finish.
        A confirmed readback clears the dirty marker. A refusal or a short readback drops the
        stamp and writes the marker, so a reload follows live. */
