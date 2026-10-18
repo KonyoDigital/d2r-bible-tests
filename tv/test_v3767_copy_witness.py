@@ -20,7 +20,6 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -33,9 +32,6 @@ except Exception:
     pass
 BIBLE = os.path.join(HERE, "..", "bible.html")
 NODE = os.environ.get("NODE") or shutil.which("node")
-CHROME = "/opt/google/chrome/chrome"
-SHOTS = os.path.join(HERE, ".render_shots")
-ART = "/opt/cursor/artifacts/v3767"
 
 FNS = [
     "_vaultCellKey", "_vaultSightGroups", "_vaultRereadKind",
@@ -171,6 +167,18 @@ window._vaultAutoIntakePaint = _vaultAutoIntakePaint;
 """
 
 
+def witness_bundle(src):
+    """The pure law, cut from bible.html. No browser."""
+    lane = _slice_fn(src, "var _LANE_LOCK_KEY = 'd2r_laneLock';", "window._laneLockWhy = function(name){")
+    looks = _assigned(src, r"window\._vaultEvidenceLooks\s*=\s*function\s*\(")
+    doors = "\n".join(_assigned(src, p) for p in (
+        r"window\.tvVaultRegister = function\(name\)\{",
+        r"window\.vaultIntake = async function\(files, opts\)\{",
+        r"window\.tvVaultAutoIntake = async function\(opts\)\{",
+    ))
+    return "\n".join([lane, looks] + [_fn(src, n) for n in FNS] + [doors, TAIL])
+
+
 class TestV3767CopyWitness(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -178,14 +186,7 @@ class TestV3767CopyWitness(unittest.TestCase):
             raise AssertionError("node is not on this machine — this law does not skip")
         with open(BIBLE, encoding="utf-8") as f:
             cls.src = f.read()
-        lane = _slice_fn(cls.src, "var _LANE_LOCK_KEY = 'd2r_laneLock';", "window._laneLockWhy = function(name){")
-        looks = _assigned(cls.src, r"window\._vaultEvidenceLooks\s*=\s*function\s*\(")
-        doors = "\n".join(_assigned(cls.src, p) for p in (
-            r"window\.tvVaultRegister = function\(name\)\{",
-            r"window\.vaultIntake = async function\(files, opts\)\{",
-            r"window\.tvVaultAutoIntake = async function\(opts\)\{",
-        ))
-        cls.bundle = "\n".join([lane, looks] + [_fn(cls.src, n) for n in FNS] + [doors, TAIL])
+        cls.bundle = witness_bundle(cls.src)
 
     def _run(self, body):
         prog = PREAMBLE + "\n" + self.bundle + "\n" + body
@@ -423,149 +424,6 @@ Promise.all([pack(intakeP), pack(tvP)]).then(function(both){
         ):
             self.assertEqual(self.src.count(line), 1, line)
 
-    def test_visual_demo(self):
-        if "heart2." in os.path.abspath(__file__):
-            return
-        if not os.path.isfile(CHROME):
-            raise AssertionError("chrome is not at %s — the demo does not skip" % CHROME)
-        os.makedirs(SHOTS, exist_ok=True)
-        os.makedirs(ART, exist_ok=True)
-        page = r"""
-<!doctype html><meta charset="utf-8"><title>__TITLE__</title>
-<style>
-  body{margin:0;background:#140e08;color:#f3e2b8;font:18px/1.45 Georgia,serif}
-  h1{margin:0;padding:18px 22px 0;color:#f0c060;font-size:22px}
-  p{margin:0;padding:4px 22px 12px;color:#b5a48a;font-size:14px}
-  #vault-auto-intake{margin:8px 22px;padding:8px 14px;background:#2a2114;color:#f0c060;border:1px solid #f0c060}
-  pre{margin:0;padding:8px 22px 24px;white-space:pre-wrap}
-</style>
-<h1>__TITLE__</h1>
-<p>__BLURB__</p>
-<button type="button" id="vault-auto-intake">AUTO INTAKE · OFF</button>
-<pre id="screen"></pre>
-<script>
-__BUNDLE__
-var lines = [];
-function say(s){ lines.push(s); }
-function recs(name){ return _vaultRecords().records.filter(function(r){ return r.name === name; }); }
-function recLine(name){
-  var rs = recs(name), w = null, mule = rs.length ? rs[0].mule : null;
-  rs.forEach(function(r){ if (r.sight && r.sight.witnesses != null) w = r.sight.witnesses; });
-  var same = rs.length > 1 && rs.every(function(r){ return r.mule === mule; });
-  var bit = name + ' · ' + rs.length + ' record' + (rs.length === 1 ? '' : 's');
-  if (w != null) bit += ' · witnesses ' + w;
-  if (same) bit += ' · same mule';
-  return bit;
-}
-reset();
-if (__STEP__ === 1){
-  see("Natalya's Totem", null, 4);
-  see("Tal Rasha's Guardianship", null, 4);
-  see("Immortal King's Soul Cage", null, 3);
-  see("Griffon's Eye", [L('Mule','stash','stash:c1r1','s1','a'), L('Mule','stash','stash:c9r2','s2','b')], 1);
-  ROUTES["Griffon's Eye"] = { id: 'uni-armor', why: 'helm' };
-  see("Harlequin Crest", [L('Mule','stash','stash:c3r3','s1','a'), L('Mule','stash','stash:c3r3','s2','b'), L('Mule','stash','stash:c3r3','s3','c')], 4);
-  see("Enigma", [L('Mule','stash','stash:c5r5','e1','a'), L('Mule','stash','stash:c5r5','e2','b'), L('Mule','stash','stash:c5r5','e3','c')], 1);
-  see("Annihilus", [L('MAIN','inventory','inventory:c1r1','c1','a'), L('MAIN','inventory','inventory:c1r1','c2','b'), L('MAIN','inventory','inventory:c1r1','c3','c')], 1);
-  see("Archon Plate", [L('Mule','stash','stash:c6r6','b1','a')], 3);
-  ["Natalya's Totem","Tal Rasha's Guardianship","Immortal King's Soul Cage","Griffon's Eye","Harlequin Crest","Enigma","Annihilus","Archon Plate"].forEach(function(n){ say(recLine(n)); });
-}
-if (__STEP__ === 2){
-  copies["Enigma"] = 4;
-  see("Enigma", [L('Mule','stash','stash:c5r5','e1','a'), L('Mule','stash','stash:c5r5','e2','b'), L('Mule','stash','stash:c5r5','e3','c'), L('Mule','stash','stash:c5r5','e4','d')], 4);
-  var kind = _vaultRereadKind('Enigma', { tgt: 1, cur: copyCount('Enigma'), qtyBase: false });
-  say(recLine('Enigma'));
-  say('copies[] ' + copyCount('Enigma'));
-  if (kind === 'witness') say('+1 witness');
-  var was = owned.has('Stone of Jordan');
-  owned.add('Stone of Jordan');
-  say('Stone of Jordan · ' + (was ? 'already' : 'new record') + ' · ' + recs('Stone of Jordan').length + ' record');
-}
-if (__STEP__ === 3){
-  owned.add("Eschuta's Temper");
-  window._laneLockNote("Eschuta's Temper", 'equipment', 's1');
-  window._laneLockNote("Eschuta's Temper", 'equipment', 's2');
-  var mid = recs("Eschuta's Temper")[0];
-  if (mid.watching) say("Eschuta's Temper · WATCHING 2/3");
-  window._laneLockNote("Eschuta's Temper", 'equipment', 's3');
-  var end = recs("Eschuta's Temper")[0];
-  if (end.locked && !end.watching) say("Eschuta's Temper · LOCKED");
-}
-if (__STEP__ === 4){
-  ['Rare Junk','Raven Frost',"Sigon's Guard",'Grief','Enigma','Shako'].forEach(function(n){ owned.add(n); });
-  ROUTES['Rare Junk'] = { id: null, unsorted: true, why: 'unknown' };
-  ROUTES['Raven Frost'] = { id: null, unsorted: true, why: 'unknown' };
-  ROUTES["Sigon's Guard"] = { id: '__throwout', why: 'low set' };
-  ROUTES['Grief'] = { id: 'uni-weap', why: 'weapon' };
-  ROUTES['Enigma'] = { id: 'shared', why: 'war' };
-  ROUTES['Shako'] = { id: 'uni-armor', why: 'helm' };
-  _dockNames().forEach(function(n){ say('dock: ' + n); });
-}
-if (__STEP__ === 5){
-  _vaultAutoIntakePaint();
-  say('toggle: ' + document.getElementById('vault-auto-intake').textContent);
-  var g = _vaultIntakeGate();
-  say('frame Stone of Jordan · ' + (g && g.refused === 'auto-intake-off' ? 'not registered' : 'REGISTERED'));
-  if (owned.has('Stone of Jordan')) say('frame owned');
-  PROV['Grief'] = { source: 'hand' };
-  owned.add('Grief');
-  ROUTES['Grief'] = { id: 'uni-weap', why: 'war weapon' };
-  var row = recs('Grief')[0];
-  say('Grief · source ' + row.source + ' · ' + row.mule);
-  say(assign['Grief'] ? 'assign written' : 'assign untouched');
-}
-document.getElementById('screen').textContent = lines.join('\n');
-</script>
-"""
-        bundle = (PREAMBLE + "\n" + self.bundle).replace("</script>", "<\\/script>")
-        steps = [
-            (1, "1 — the mess, one record per cell", "A second read of the same cell is not a second item."),
-            (2, "2 — a screenshot adds a witness", "The count does not climb. A new name is a new record."),
-            (3, "3 — three sessions lock", "Two sessions stay WATCHING. The third is LOCKED."),
-            (4, "4 — the unsorted dock", "Only a name with no home is listed."),
-            (5, "5 — AUTO INTAKE off", "A frame does not register. A typed item still places."),
-        ]
-        expect = {
-            1: ["Natalya's Totem · 1 record", "Tal Rasha's Guardianship · 1 record",
-                "Immortal King's Soul Cage · 1 record", "Griffon's Eye · 2 records", "same mule",
-                "Harlequin Crest · 1 record · witnesses 3", "Enigma · 1 record · witnesses 3",
-                "Annihilus · 1 record · witnesses 3", "Archon Plate · 1 record"],
-            2: ["Enigma · 1 record · witnesses 4", "copies[] 4", "+1 witness",
-                "Stone of Jordan · new record · 1 record"],
-            3: ["WATCHING 2/3", "LOCKED"],
-            4: ["dock: Rare Junk", "dock: Raven Frost", "dock: Sigon's Guard"],
-            5: ["toggle: AUTO INTAKE · OFF", "frame Stone of Jordan · not registered",
-                "Grief · source manual · uni-weap", "assign untouched"],
-        }
-        for n, title, blurb in steps:
-            html = page.replace("__TITLE__", title).replace("__BLURB__", blurb).replace("__STEP__", str(n)).replace("__BUNDLE__", bundle)
-            td = tempfile.mkdtemp(prefix="v3767-shot-")
-            path = os.path.join(td, "step.html")
-            png = os.path.join(SHOTS, "v3767-%d.png" % n)
-            with open(path, "w", encoding="utf-8") as f:
-                f.write(html)
-            udd = os.path.join(td, "profile")
-            cmd = [CHROME, "--headless=old", "--disable-gpu", "--no-sandbox", "--no-first-run",
-                   "--disable-extensions", "--user-data-dir=" + udd, "--virtual-time-budget=3000",
-                   "--window-size=1100,1400", "--screenshot=" + png, "--dump-dom",
-                   "file://" + path]
-            raw = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
-            self.assertEqual(raw.returncode, 0, raw.stderr[-1500:])
-            self.assertTrue(os.path.isfile(png) and os.path.getsize(png) > 3000, png)
-            with open(png, "rb") as f:
-                self.assertEqual(f.read(8), b"\x89PNG\r\n\x1a\n")
-            m = re.search(r'<pre id="screen">(.*?)</pre>', raw.stdout, re.S)
-            self.assertIsNotNone(m, raw.stdout[-1500:])
-            screen = m.group(1)
-            for bit in expect[n]:
-                self.assertIn(bit, screen, "step %d screen:\n%s" % (n, screen))
-            if n == 4:
-                self.assertNotIn("dock: Grief", screen)
-                self.assertNotIn("dock: Enigma", screen)
-                self.assertNotIn("dock: Shako", screen)
-            shutil.copy(png, os.path.join(ART, os.path.basename(png)))
-            shutil.rmtree(td, ignore_errors=True)
-
     def test_a_charm_and_a_runeword_witness_and_sit_beside_the_original(self):
         """A charm and a runeword. The same cell is one record and another witness.
         A second cell is a second copy on that item's own mule, beside the original."""
@@ -635,7 +493,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "The same cell string on two holders is one copy.",
      "file": "bible.html",
-     "find": "var key = String(holder || '') + '\\u0000' + String(location || '') + '\\u0000' + cell; /* v3767 copy key */",
+     "find": "var key = holderKey + '\\u0000' + String(location || '') + '\\u0000' + cell; /* v3767 copy key */",
      "replace": "var key = cell; /* v3767 copy key */", "matches": 1},
     {"why": "The evidence look drops the holder, so two mules share one record.",
      "file": "bible.html",

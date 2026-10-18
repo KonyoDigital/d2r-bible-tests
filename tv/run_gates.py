@@ -9764,15 +9764,30 @@ GATES = [
              "orphan. 14 distinct attacks, Wilson against the vault.apply bar.")
          ),
     Gate("test_v3767_copy_witness", [sys.executable,
-         os.path.join(HERE, "test_v3767_copy_witness.py")], 180,
+         os.path.join(HERE, "test_v3767_copy_witness.py")], 60,
          needs_app=False,
          why=("v3767 - the same holder, location and cell is one record and its sessions are witnesses. "
              "A second cell is a second copy on the same mule, including a charm and a runeword. "
              "Under 3 sessions the lane is WATCHING. "
              "AUTO INTAKE off means a frame does not register; a typed item still places through the seam "
              "with source manual. The move record carries from, to, status and evidence frame ids. "
-             "Distinct attacks, Wilson against the vault.apply bar.")
+             "Distinct attacks, Wilson against the vault.apply bar. The screen is a separate gate.")
          ),
+    Gate("test_v3767_intake_identity", [sys.executable,
+         os.path.join(HERE, "test_v3767_intake_identity.py")], 60,
+         needs_app=False,
+         why=("v3767 - holder, location and cell survive the real retro row, the receipt, the witness "
+             "check and the persisted look. An unknown holder stays unknown and does not share a key "
+             "with another holder's same cell. source, sight, watching and locked round-trip, including "
+             "a manual WATCHING record and a LOCKED record. Distinct attacks, Wilson against the "
+             "vault.apply bar.")
+         ),
+    Gate("test_v3767_copy_witness_visual", [sys.executable,
+         os.path.join(HERE, "test_v3767_copy_witness_visual.py")], 180,
+         needs_app=False,
+         why=("v3767 - the five-step copy-witness screen. Chrome is found the same way the pre-push "
+             "render gate finds it. No browser is a declared skip. The pure law does not launch a browser."),
+         skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_render_hook_finds_a_browser_on_linux", [sys.executable,
          os.path.join(HERE, "test_the_render_hook_finds_a_browser_on_linux.py")], 30,
          needs_app=False,

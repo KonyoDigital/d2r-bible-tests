@@ -110,7 +110,7 @@ test('identifier coverage — every item resolves a rarity/tier + class; set pie
   expect(r.istRune).toBe(true);
 });
 
-test('LOAD/CAPACITY — 450 owned items register, render, and persist without crashing', async ({ page }) => {
+test('LOAD/CAPACITY — 450 owned names persist, and the painted set of organizer rows plus homeless dock chips stays substantial without crashing', async ({ page }) => {
   const consoleErrors: string[] = [];
   page.on('console', m => { if (m.type() === 'error') consoleErrors.push(m.text()); });
   // seed 450 real item names into owned BEFORE the app boots

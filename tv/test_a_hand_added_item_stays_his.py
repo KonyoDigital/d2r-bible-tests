@@ -177,7 +177,7 @@ class AHandAddedItemStaysHis(unittest.TestCase):
         self.assertEqual(row["where"], "the Vault (+ Add an item)")
         self.assertTrue(row["tsMeasured"])
         self.assertEqual(out["keys"], ["d2r_owned", "d2r_vaultProv"], "the add wrote a store beyond owned + its receipt")
-        self.assertIn("is yours — it waits in Unsorted", out["say"])
+        self.assertIn("is yours — a name the router already knows is homed", out["say"])
         self.assertEqual(out["sayState"], "added")
         self.assertEqual(out["renders"], 1, "the vault was not repainted after the add")
         self.assertIn("already yours", out["after"])
