@@ -9704,8 +9704,8 @@ GATES = [
              "header/find/overflow views EQUAL to the live in-memory _vaultRecords ones, incl. the shared-name-AT-cap "
              "boundary (F at _SHARED_COPY_CAP is NOT overflow); recId is a stable opaque token that survives a rename; a "
              "corrupt store is NEVER overwritten (_muleUnread/_guardedSet); the undo clears both keys leaving "
-             "owned/copies/assign untouched; the page-load seam is _vaultRecordsArm and nothing calls it. "
-             "PHASE-2 foundation. v3765 calls _vaultRecordsArm once from page load. This stamp does not. "
+             "owned/copies/assign untouched; the page-load seam is _vaultRecordsArm, called once from "
+             "_seedCleanseArm. PHASE-2 foundation. The arm count is 2. A third call is a second door. "
              "15 distinct attacks, Wilson lower bound against the write-door bar. "
              "[[heart-first]] [[the-unjoined-end]] [[unknown-stays-unknown]]")
          ),
@@ -9717,7 +9717,17 @@ GATES = [
              "cannot file war gear as a mule home, and the persisted loc is the rule-E copy split. Overflow "
              "membership follows _sharedNames, so an unassigned regex material is not trade-stock. Carried, "
              "loose, keep and keepInv still win. 11 distinct attacks, Wilson lower bound against the "
-             "write-door bar. The store stays dormant. Copy-loss ids stay positional. [[heart-first]] [[the-unjoined-end]]")
+             "write-door bar. Copy-loss ids stay positional. [[heart-first]] [[the-unjoined-end]]")
+         ),
+    Gate("test_v3765_records_arm_live", [sys.executable,
+         os.path.join(HERE, "test_v3765_records_arm_live.py")], 120,
+         needs_app=False,
+         why=("#76 INC-3 live / v3765 - page load calls window._vaultRecordsArm once, so d2r_vaultRecords "
+             "is the one-record source for FIND, GRAIL-DUPES and the vault and locker counts. A presence "
+             "set piece is one record at one location. The shelf card and the locker Items box print that "
+             "same census. Undo is window._vaultRecordsMigrateUndo. An unknown dock, an unreadable witness "
+             "or a wrong store shape does not stamp. Copy-loss ids stay positional (REG-2272 item 4). "
+             "Wilson against the vault.apply bar; sabotage alone does not open the write door.")
          ),
     Gate("test_the_vault_proposes_a_home_and_does_not_move", [sys.executable,
          os.path.join(HERE, "test_the_vault_proposes_a_home_and_does_not_move.py")], 90,

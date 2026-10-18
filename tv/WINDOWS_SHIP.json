@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3764",
+  "ver": "v3765",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3764: #76 REG-2272 item 6: a shared-locker name the never-muled regex misses is sharedStash, with the rule-E copy split, and overflow follows the locker list. The page-load seam is window._vaultRecordsArm and nothing calls it. v3765 wires that one call and the undo. Copy-loss ids stay positional. The store stays dormant. HEART: the classification law is the corroborator; no new console surface.",
+  "note": "v3765: #76 INC-3 live: page load calls window._vaultRecordsArm once, so d2r_vaultRecords is the one-record source for FIND, GRAIL-DUPES and the vault and locker counts. A presence set piece is one record at one location. Undo is window._vaultRecordsMigrateUndo. An unknown dock, an unreadable witness or a wrong store shape does not stamp. Copy-loss ids stay positional. HEART: the arm law is the corroborator; no new console surface.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -18,7 +18,7 @@ fake window.LSR (NEVER his real disk):
   · each record carries its OWN per-copy loc (rule E: a shared name's 3rd+ copy -> 'dupes');
   · a CORRUPT/unreadable d2r_vaultRecords is NEVER overwritten (the _muleUnread/_guardedSet guard);
   · the undo clears d2r_vaultRecords + the stamp and leaves owned/copies/assign UNTOUCHED;
-  · DORMANCY: the migration/persist have NO caller in bible.html's live flow — only this law calls them.
+  · the arm is the one source caller of the migrate function, and page load calls that arm once.
 
 NOT vacuous: the persisted views are derived from the stored records, so a parity miss means the PERSIST drifted
 from the model it snapshots — exactly what must hold before phase 2 swaps the source. A missing node raises — this
@@ -47,7 +47,7 @@ NODE = os.environ.get("NODE") or shutil.which("node")
 # the shipped functions under test + the live overflow chain they are proven against
 EXTRACT = [
     "_sharedNames", "_sharedCopyCount", "_sharedCappedCopies", "_vaultSharedOverflowCells",
-    "_vaultSharedOverflowNames", "_vaultRecords", "_vaultRecordsFind", "_vaultRecordsOverflow",
+    "_vaultSharedOverflowNames",     "_vaultRecords", "_vaultRecordsSource", "_vaultRecordsFind", "_vaultRecordsOverflow",
     "_vaultRecordsHeader",
     # INC-3b: persist / load / migrate / undo / rename + the model-in parity views
     "_vrRecLoadRaw", "_vrRecGuardedSet", "_vrLocForCopy", "_vaultRecordsLoad", "_vaultRecordsPersist",
@@ -433,17 +433,17 @@ out.reArmed = !!(again && again.ran && again.stamped);
         self.assertTrue(o["ownedUnchanged"], "the undo altered owned")
         self.assertTrue(o["reArmed"], "the migration did not re-arm after the undo")
 
-    def test_the_migration_is_dormant_no_live_caller(self):
-        """DORMANCY. The arm is the one source caller of the migrate function, and nothing calls the arm.
+    def test_page_load_is_the_one_arm_call(self):
+        """The arm is the one source caller of the migrate function. Page load calls the arm once.
 
-        v3765 wires page load by calling _vaultRecordsArm once. That moves the arm count from 1 to 2
-        and leaves the migrate count at 2 (definition + the arm body). A third migrate call is a second
-        door. Persist stays at two (its definition + the migration). Window exports carry no '('."""
+        That is two `_vaultRecordsArm(` sites: the definition and the `_seedCleanseArm` call. A third
+        is another door. Migrate stays at two (definition + the arm body). Persist stays at two
+        (definition + the migration). Window exports carry no '('."""
         code = re.sub(r"/\*.{0,4000}?\*/", "", self.src, flags=re.S)
         self.assertEqual(code.count("_vaultRecordsMigrate("), 2,
                          "migrate callers drifted: definition plus the arm body are the only two")
-        self.assertEqual(code.count("_vaultRecordsArm("), 1,
-                         "the arm has a caller — page load is still unwired")
+        self.assertEqual(code.count("_vaultRecordsArm("), 2,
+                         "the arm call count drifted from definition plus the one page-load call")
         self.assertEqual(code.count("_vaultRecordsPersist("), 2,
                          "_vaultRecordsPersist has a caller other than the migration")
 
@@ -652,7 +652,7 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "Nothing calls the arm. A call beside the export wires the migration before v3765.",
+        "why": "Page load is the one arm call. A second call beside the export is another door.",
         "file": "bible.html",
         "find": "  window._vaultRecordsArm = _vaultRecordsArm;\n",
         "replace": "  window._vaultRecordsArm = _vaultRecordsArm; _vaultRecordsArm();\n",
