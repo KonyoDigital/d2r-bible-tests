@@ -26,8 +26,12 @@ _console_safe_enable()
 from cb_node_harness import NODE  # noqa: E402
 
 PAGE = os.path.join(os.path.dirname(HERE), "bible.html")
-CELLS_START = "var _ITEM_CELLS_CACHE = {};\nfunction _itemCells(name){\n"
+# v3766 — the class rule moved into _runewordCells, which _itemCells calls. A cut of
+# _itemCells alone sizes every runeword by the keyword table (Hand of Justice as gloves).
+CELLS_START = "function _itemCells(name){\n"
 CELLS_END = "\n  return cells;\n}\n"
+RW_START = "function _runewordCells(name){\n"
+RW_END = "\n  return cells;\n}\n"
 SIZE_START = "  function vaultSize(name){\n"
 SIZE_END = "\n  }\n"
 CHIP = "(_approxN ? ' (' + _approxN + ' of unknown size, counted at the default 1x2)' : '')"
@@ -63,7 +67,8 @@ var SET_SLOTS = { "Tal Rasha's Guardianship": "armor", "Tal Rasha's Horadric Cre
 function findSetPiece(n){ return SET_SLOTS[n] ? { slot: SET_SLOTS[n] } : null; }
 %s
 %s
-""" % (_cut(s, CELLS_START, CELLS_END), _cut(s, SIZE_START, SIZE_END))
+""" % ("var _ITEM_CELLS_CACHE = {};\n" + _cut(s, RW_START, RW_END) + _cut(s, CELLS_START, CELLS_END),
+      _cut(s, SIZE_START, SIZE_END))
     return prelude + body + tail
 
 
@@ -284,13 +289,13 @@ console.log(JSON.stringify({ two: take(two.placed), twoLeft: two.left.length, on
 RED_PROOF = [
     {"why": "REG-2051 - a runeword falls to the default again although its base settles its size (Enigma 1x2)",
      "file": "bible.html",
-     "find": "        if (/^\\d+\\s+socket\\s+body armou?r$/.test(_rwb)) cells = {w:2,h:3};\n",
-     "replace": "        if (false) cells = {w:2,h:3};\n",
+     "find": "  if (/^\\d+\\s+socket\\s+body armou?r$/.test(_rwb)) return {w:2, h:3};\n",
+     "replace": "  if (false) return {w:2, h:3};\n",
      "matches": 1},
     {"why": "REG-2051 - a runeword is sized by a keyword in its name again (Hand of Justice read as gloves)",
      "file": "bible.html",
-     "find": "        _ITEM_CELLS_CACHE[name] = cells;\n        return cells;\n      }\n",
-     "replace": "      }\n",
+     "find": "        if (_rwSized){ cells = _rwSized; _ITEM_CELLS_CACHE[name] = cells; return cells; }\n",
+     "replace": "\n",
      "matches": 1},
     {"why": "REG-2051 - the packer answers with its own default again (a second copy of the footprint rule)",
      "file": "bible.html",

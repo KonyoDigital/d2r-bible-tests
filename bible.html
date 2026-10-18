@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3765 · TV DIABLO</title>
-<meta name="d2r-build" content="v3765">
+  <title>Konyo's D2R Farming Bible v3766 · TV DIABLO</title>
+<meta name="d2r-build" content="v3766">
 <meta name="d2r-build-date" content="2026-10-18">
-<meta name="d2r-build-note" content="#76 INC-3 live: page load calls window._vaultRecordsArm once, so d2r_vaultRecords is the one-record source for FIND, GRAIL-DUPES and the vault and locker counts. A presence set piece is one record at one location. Undo is window._vaultRecordsMigrateUndo. An unknown dock, an unreadable witness or a wrong store shape does not stamp. Copy-loss ids stay positional. HEART: the arm law is the corroborator; no new console surface.">
+<meta name="d2r-build-note" content="board 137: Exile packs as a paladin shield, a copy past the shared cap says trade stock, the cell badge does not multiply the owned count, FIND names the mule page, Steel Shade routes with Andariel, and a missing picture is the glyph. The records dirty marker forks with the store. The finder proof sits on the home the row now asks. HEART: the class-size law, the mule-page law, the copy-cap law and the glyph law are the corroborators, watched by the v3766 gate. The dirty-marker fork is watched by the store-isolation gate. No new console surface.">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -4310,6 +4310,11 @@ window._LP_FORKED = new Set([
      isolation guard keeps this armed because the name matches GRAILISH via the word vault. NO apostrophe in this note,
      by the rule documented just below. */
   "d2r_vaultRecordsMigrate",
+  /* #76 v3766 - d2r_vaultRecordsDirty says a reload must follow live because the records write did not read back.
+     It records whether a write failed on d2r_vaultRecords, which sits in this Set with its stamp
+     d2r_vaultRecordsMigrate, so the marker forks exactly as they do (the v2224 rule). Bare, a failed
+     persist in one world would send every other world on the machine back to live. No apostrophe in this note. */
+  "d2r_vaultRecordsDirty",
   /* ══ v2224 — A MIGRATION STAMP MUST FORK EXACTLY AS THE STORE IT MIGRATES ═══════════════════
      test_store_isolation caught these three, and it caught MY OWN work from this session. All
      three gate one-shot repairs of d2r_owned, and d2r_owned is in this very Set, so it is
@@ -4350,7 +4355,7 @@ window._LP_FORKED = new Set([
 // and LADDER on this Mac write ONE bench book (the key resolves bare on both), while the Windows
 // cousin keeps its own. The COUNT of crafted items on hand stays in d2r_craftStash, which is in
 // _LP_FORKED, because that is INVENTORY. Inventory forks; the book does not.
-window._WP_FORKED = new Set(Array.from(window._LP_FORKED).concat(['d2r_rwMade','d2r_rwUnmade','d2r_rwProfile','d2r_grailUnfound','d2r_ladderMode','d2r_unknownReads','d2r_foundLog','d2r_setPieces','d2r_grailImportReport','d2r_chronApplied','d2r_craftMade','d2r_chronicleHandoff','d2r_foundBy']));   /* REG-1886 — d2r_foundBy says who made each d2r_foundLog row, so it forks exactly as that ledger does (a new key: nothing to orphan). v1521 — the sweep's apply batches follow the chronicle they belong to: shared MAC main↔ladder, forked on the Windows cousin. An undo that reached across machines would reverse a find its own chronicle never had. */
+window._WP_FORKED = new Set(Array.from(window._LP_FORKED).concat(['d2r_rwMade','d2r_rwUnmade','d2r_rwProfile','d2r_grailUnfound','d2r_ladderMode','d2r_unknownReads','d2r_foundLog','d2r_setPieces','d2r_grailImportReport','d2r_chronApplied','d2r_craftMade','d2r_chronicleHandoff','d2r_foundBy','d2r_vaultRecords','d2r_vaultRecordsMigrate','d2r_vaultRecordsDirty']));   /* REG-1886 — d2r_foundBy says who made each d2r_foundLog row, so it forks exactly as that ledger does (a new key: nothing to orphan). v1521 — the sweep's apply batches follow the chronicle they belong to: shared MAC main↔ladder, forked on the Windows cousin. An undo that reached across machines would reverse a find its own chronicle never had. */
 try { window.localStorage.setItem('d2r_profile', window.D2R_PROFILE === 'ladder' ? 'ladder' : 'main'); } catch(e){}   // v911.1 — the console reads the ACTIVE profile
 window.LSR = (function(){
   var RAW = window.localStorage;
@@ -20114,6 +20119,21 @@ window._artRarity = _artRarity;
 // stash-style grid like the in-game inventory. Resolution order: explicit EXTRA_ITEMS.cells →
 // base-type keyword. Approximation by slot (Konyo: generalized, exact per-base size not needed).
 var _ITEM_CELLS_CACHE = {};
+/* v3766 (#137) — A RUNEWORD CLASS WITH ONE SIZE. Body armour is 2x3, helms are 2x2, and a paladin
+   shield is one size too (2x3): Exile's tip is "4 socket Paladin Shields". A tip that names more
+   than one base ("4 socket Swords or Shields") stays the 1x2 guess. Not a runeword: null, so the
+   keyword table in _itemCells still runs. */
+function _runewordCells(name){
+  var cells = {w:1, h:2, approx:true};
+  var _rwk = (typeof findRuneword === 'function' && typeof RUNEWORD_TIP !== 'undefined') ? findRuneword(name) : null;
+  if (!_rwk) return null;
+  var _rwb = String((RUNEWORD_TIP[_rwk] && RUNEWORD_TIP[_rwk].b) || '').trim().toLowerCase();
+  if (/^\d+\s+socket\s+body armou?r$/.test(_rwb)) return {w:2, h:3};
+  if (/^\d+\s+socket\s+(helms|barbarian helms|druid pelts)$/.test(_rwb)) return {w:2, h:2};
+  if (/^\d+\s+socket\s+paladin shields$/.test(_rwb)) return {w:2, h:3};
+  return cells;
+}
+try { window._runewordCells = _runewordCells; } catch (eRw) {}
 function _itemCells(name){
   if (!name) return {w:1,h:2};
   /* v3686 — A PLANNER PICK STORES THE CATALOGUE BASE. The cache key includes that code, so a later
@@ -20226,18 +20246,12 @@ function _itemCells(name){
           }
         } catch (eBaseFoot) {}
       }
-      /* #275 (GrokBot tick 418, K14) - A RUNEWORD IS SIZED BY ITS BASE, NEVER BY ITS NAME. Enigma has no codex row, so it
-         fell to the default 1x2 (its tile admitted the size was a guess) although every Enigma is body armour (2x3) - and a runeword
-         name matched as a base keyword lies outright ("Hand of Justice" read as gloves). Its tip names the base CLASS;
-         only a class with ONE size settles it (body armour 2x3, helms 2x2). Anything else - "Swords or Shields",
-         "Weapons" - stays a guess that says so. */
-      var _rwk = (!base && typeof findRuneword === 'function' && typeof RUNEWORD_TIP !== 'undefined') ? findRuneword(name) : null;
-      if (_rwk){
-        var _rwb = String((RUNEWORD_TIP[_rwk] && RUNEWORD_TIP[_rwk].b) || '').trim().toLowerCase();
-        if (/^\d+\s+socket\s+body armou?r$/.test(_rwb)) cells = {w:2,h:3};
-        else if (/^\d+\s+socket\s+(helms|barbarian helms|druid pelts)$/.test(_rwb)) cells = {w:2,h:2};
-        _ITEM_CELLS_CACHE[name] = cells;
-        return cells;
+      /* #275 (GrokBot tick 418, K14) - A RUNEWORD IS SIZED BY ITS BASE CLASS, NEVER BY ITS NAME.
+         v3766 — the class rule lives in _runewordCells (body armour 2x3, helms 2x2, paladin shields
+         2x3). A class with more than one size stays a guess. */
+      if (!base){
+        var _rwSized = (typeof _runewordCells === 'function') ? _runewordCells(name) : null;
+        if (_rwSized){ cells = _rwSized; _ITEM_CELLS_CACHE[name] = cells; return cells; }
       }
       var s = ((base ? base + ' ' : '') + name).toLowerCase();
       // ⚠ v2240 — A PLURAL BASE MATCHED NOTHING, AND FELL ALL THE WAY THROUGH TO THE DEFAULT.
@@ -40517,12 +40531,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     "crown of thieves":    'merc helm - life leech + gold/MF, an Act 2 merc helm',
     "stealskull":          'merc helm - leech + faster hit recovery / MF',
     "highlord's wrath":    'merc amulet - +1 skills, attack speed, deadly strike',
-    "the reaper's toll":   'merc weapon - Decrepify on strike, the Act 2 merc polearm'
+    "the reaper's toll":   'merc weapon - Decrepify on strike, the Act 2 merc polearm',
+    // #135 / #137 — Steel Shade is trade-trash and was thrown out; it is the barb and Act 2 merc helm
+    "steel shade":         'merc helm - fire absorb, the barb and Act 2 merc helm'
   };
   /* -> the merc role words, or null. Reuses _warKey so the case / paren / apostrophe fold is
      defined ONCE; an OCR curly apostrophe folds to the straight key, exactly like war gear. */
   function mercGearRole(n){ var k = _warKey(n); return (k && Object.prototype.hasOwnProperty.call(MERC_GEAR, k)) ? MERC_GEAR[k] : null; }
-  try { window.vaultMercGearRole = mercGearRole; } catch(e){}
+  /* v3766 (#135 / #137) — the merc drawer. A forced mule override still wins. Null means this name
+     is not merc gear, so the trash drawer below can still throw a worthless unique out. */
+  function _mercRoute(name, ov){
+    var role = mercGearRole(name);
+    if (role && ov !== 'mule') return {id:'shared', why:'mercenary gear: ' + role + ' - in the shared stash, where every character can reach it'};
+    return null;
+  }
+  try { window.vaultMercGearRole = mercGearRole; window._mercRoute = _mercRoute; } catch(e){}
   /* ══ #264 / gh#235 (2026-10-14) — HIS PER-ITEM SHARED-STASH SWITCH ════════════════════════════
      His ask: "a list within the console like advanced setting for vault.. so i can checkmark what
      should or should not be in the shared/war stash ... like war traveler.. eventually i dont want
@@ -40814,8 +40837,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        'mule' (_ov) still wins, so he can untick any merc item and send it to its slot mule. This does
        NOT call _shareDefault, so it cannot recurse; and because _shareDefault asks with
        ignoreShareOverride (_ov === null), the share panel reads these as TICKED by default. */
-    var _merc = mercGearRole(name);
-    if (_merc && _ov !== 'mule') return {id:'shared', why:'mercenary gear: ' + _merc + ' - in the shared stash, where every character can reach it'};
+    var _mercHit = _mercRoute(name, _ov);
+    if (_mercHit) return _mercHit;
     // v394 — KEEP only the genuinely good sets; the low/junk partial sets (Sigon's, Sander's, Hsarus',
     // Cleglaw's, Iratha's, Angelic, Arctic, Cathan's, Death's, Vidala's, Berserker's, Milabrega's, Isenhart's,
     // Civerb's, Infernal, Bul-Kathos, Cow King's, Tancred's…) are NOT worth muling — Konyo: identify them for
@@ -41234,7 +41257,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return Array.from(owned).filter(_vaultKeeps).sort();
     }catch(e){ return []; }
   }
-  function art(n, glyph, size){ try{ return (typeof artOr==='function') ? artOr(n, glyph||'◆', size||'sm') : ''; }catch(e){ return ''; } }
+  function art(n, glyph, size){ glyph = glyph || '◆'; try { if (typeof artOr === 'function') { var html = artOr(n, glyph, size || 'sm'); if (html) return html; } } catch (e) {} return '<span class="d2art-fallback">' + glyph + '</span>'; }
   function esc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
   function jsArg(t){ return String(t).replace(/\\/g,'\\\\').replace(/'/g,"\\'"); }
   function status(msg, ms){ var el=document.getElementById('vault-status'); if(el){ el.textContent=msg; setTimeout(function(){ if(el.textContent===msg) el.textContent=''; }, ms || 4200); } }   /* 2026-09-27 — `ms`: the vault reset's receipt line names every store it cleared and kept; 4.2s is too short to read it */
@@ -41301,6 +41324,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   try { window._vfIsSetPiece = _vfIsSetPiece; } catch(e){}
   try { window._vfCanon = _vfCanon; } catch(e){}   /* #76 — exposed so the dedup guard can assert canonicalization without the DOM */
   window._vaultFindMatches = _vaultFindMatches;
+  /* v3766 (#137) — FIND already writes "Mule N · ..." into the cell when a locker spans mules.
+     The row stays on the vault (#79: no row onclick). This reads that page for the mule-nav button. */
+  function _findMuleNav(cell){
+    var m = /Mule\s+(\d+)/.exec(String(cell || ''));
+    if (!m) return null;
+    var page = parseInt(m[1], 10);
+    if (!(page >= 1)) return null;
+    return { page: page, index: page - 1, label: 'Mule ' + page };
+  }
+  try { window._findMuleNav = _findMuleNav; } catch (eNav) {}
   function _vaultFindHome(n){
     /* FIND's row. The records source names the mule when the store is a real records array.
        undefined means the store is absent or refused, so the live where-is answer stands.
@@ -41377,8 +41410,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          cell inline, and the floating HD card opens on the art hover and STAYS on the click (v169's keep-open
          list below now carries .vfr-row). #12's click-to-open is intentionally dropped here; its separate
          _vaultFindRefresh seam is unchanged. [[the-unjoined-end]] */
+      var _fnav = (w && w.cell && mid) ? _findMuleNav(w.cell) : null;
+      var _navHtml = (_fnav && mid)
+        ? '<span class="vd-mule-nav"><button type="button" class="vd-mule-arrow" onclick="event.stopPropagation();window._muleOpenAt(\''+jsArg(mid)+'\','+_fnav.index+')">'+esc(_fnav.label)+'</button></span>'
+        : '';
       return '<div class="vfr-row" title="'+esc(n)+'">'
-        + art(n) + '<span class="vfr-name"'+(typeof _qStyle==='function'?_qStyle(n,'unique'):'')+'>'+esc(n)+'</span><span class="vfr-loc">'+loc+'</span></div>';
+        + art(n) + '<span class="vfr-name"'+(typeof _qStyle==='function'?_qStyle(n,'unique'):'')+'>'+esc(n)+'</span><span class="vfr-loc">'+loc+'</span>'+_navHtml+'</div>';
     }).join('');
     /* #79 — the row opens nothing now: it names where each item sits and floats the item card on hover */
     res.innerHTML = '<div class="vfr-head">'+matches.length+' match'+(matches.length===1?'':'es')+(matches.length>30?' · showing 30':'')+' — each row names where it sits · hover an item for its card</div>' + rows;
@@ -42353,7 +42390,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     });
     return out;
   }
-  try { window._shelfDrawNames = _shelfDrawNames; window._shelfCopyCount = _shelfCopyCount; } catch (e) {}
+  /* v3766 (#137) — a capped cell names its place in the drawn run (1/2), and the owned total
+     only in the title. Printing ×owned on every repeated cell reads as owned times drawn. */
+  function _copyCellMark(owned, drawn, index){
+    owned = (owned > 0) ? (owned | 0) : 1;
+    drawn = (drawn > 0) ? (drawn | 0) : 1;
+    index = index | 0;
+    if (!(index >= 0) || index >= drawn) index = 0;
+    if (owned <= 1 && drawn <= 1) return { badge: '', title: '' };
+    var badge = (drawn > 1) ? ((index + 1) + '/' + drawn) : '';
+    var title = 'copy ' + (index + 1) + ' of ' + drawn + ' on this locker';
+    if (owned > drawn) title += ' · ' + owned + ' owned';
+    return { badge: badge, title: title };
+  }
+  try { window._shelfDrawNames = _shelfDrawNames; window._shelfCopyCount = _shelfCopyCount; window._copyCellMark = _copyCellMark; } catch (e) {}
 
   function renderVault(){
     var dock=document.getElementById('vault-dock'), shelf=document.getElementById('vault-shelf');
@@ -42760,6 +42810,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // and packed into a stash-style grid, like the in-game inventory (Konyo: "1x1 unit cell based
       // … 1x1 1-8x"). Rarity tints the frame; socketed bases show their os-count / 1H-2H badge.
       var SHOWN = 8;
+      var _drawN = {}, _drawIx = {};
+      drawn.forEach(function(n){ _drawN[n] = (_drawN[n] || 0) + 1; });
       var itemRows = drawn.map(function(n){
         var cl = (typeof _itemCells === 'function') ? _itemCells(n) : {w:1,h:2};
         var rr = (typeof _artRarity === 'function') ? _artRarity(n) : '';
@@ -42767,9 +42819,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var badge = (ex && ex.sockets) ? (ex.sockets + 'os')
           : (ex && ex.hand) ? (ex.hand === '1h' ? '1H' : '2H') : '';
         var osTag = badge ? '<span class="vm-cell-os">' + badge + '</span>' : '';
-        // v347 — duplicate/multi-keep count badge on the locker cell (top-right)
+        // v3766 — this cell's place in the drawn run, never the owned total on every cell
         var _cc = (typeof copyCount === 'function') ? copyCount(n) : 1;
-        var _cntTag = (_cc > 1) ? '<span class="vm-cell-cnt" title="you own ' + _cc + ' of this">×' + _cc + '</span>' : '';
+        var _ix = _drawIx[n] || 0; _drawIx[n] = _ix + 1;
+        var _mark = _copyCellMark(_cc, _drawN[n] || 1, _ix);
+        var _cntTag = _mark.badge ? '<span class="vm-cell-cnt" title="' + esc(_mark.title) + '">' + _mark.badge + '</span>' : '';
         /* #41 rank 17 (REG-1562) — the ✕ says when it will refuse: a HARDENED row is locked here (Shift+✕ releases it),
            and an unreadable witness store is UNKNOWN, which refuses as well */
         var _hlk = null; try { _hlk = window._vaultHardLock ? window._vaultHardLock(n) : null; } catch(e){ _hlk = null; }
@@ -42787,7 +42841,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          pass as a measurement — and then nothing read it, so it passed as a measurement anyway.
          A flag nobody consults is not honesty, it is a comment. [[the-unjoined-end]] */
         return '<div class="vm-cell' + (rr ? ' vmc-' + rr : '') + (cl.approx ? ' vmc-approx' : '') + _lockCls + '" style="grid-column:span ' + cl.w + ';grid-row:span ' + cl.h + '"'
-          + ' data-vault-item="' + esc(n) + '" data-arttip="' + esc(n) + '" title="' + esc(n) + (_cc>1?' ×'+_cc:'')
+          + ' data-vault-item="' + esc(n) + '" data-arttip="' + esc(n) + '" title="' + esc(n) + (_mark.title ? ' · ' + _mark.title : '')
           + (cl.approx ? ' — size not established: no footprint rule matches this base, so it is drawn at the default 1x2. Set names (\'Tal Rasha set (any piece)\') are not items and have no single size.' : ' — ' + cl.w + '×' + cl.h + ' = ' + (cl.w*cl.h) + ' cell' + (cl.w*cl.h===1?'':'s')) + '">'
           + '<span class="vm-cell-art">' + (((typeof artUrl==='function'&&artUrl(n)) || typeof _magicArtSrc!=='function' || !_magicArtSrc(n)) ? art(n, '◆', 'lg') : '<span class="d2art-wrap lg" role="img" aria-label="'+esc(n)+'"><img class="d2art-img" src="'+_magicArtSrc(n)+'" alt="" loading="lazy"></span>') + '</span>' + osTag + _cntTag
           + '<span class="vm-item-name vm-cell-name"' + (typeof _qStyle === 'function' ? _qStyle(n, 'unique') : '') + '>' + esc(n) + '</span>'
@@ -45863,7 +45917,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           copies[nm] = prevN + 1;
           _vpCopyBump = { name: nm, token: token, prev: prevN, prevSeen: _vpCopySeen[nm] };
           routed = { ok: true, filed: true, mode: 'copy', mule: assign[nm],
-            why: nm + ' — copy ' + copies[nm] + ' filed to ' + assign[nm] };
+            why: _copyFileSay(nm, copies[nm], assign[nm]) };
         }
       }
       _vpCopySeen[nm] = token;
@@ -47480,6 +47534,16 @@ window.vaultAutoAssign = function(){
      cells AND the count together, so they can never disagree; the extra copies stay tracked in copies[]
      (the ×N in the registered view is unchanged) and show as duplicates-mule cells (half 2). */
   var _SHARED_COPY_CAP = 2;
+  /* v3766 (#137) — a copy past the shared cap is trade stock in GRAIL-DUPES. Saying it was
+     filed to shared told him the 4th copy landed on the tab that keeps 2. */
+  function _copyFileSay(name, n, home){
+    n = n | 0;
+    var cap = (typeof _SHARED_COPY_CAP === 'number' && _SHARED_COPY_CAP > 0) ? _SHARED_COPY_CAP : 2;
+    if (String(home) === 'shared' && n > cap)
+      return name + ' — copy ' + n + ' is trade stock in GRAIL-DUPES (the shared stash keeps ' + cap + ')';
+    return name + ' — copy ' + n + ' filed to ' + home;
+  }
+  try { window._copyFileSay = _copyFileSay; } catch (eSay) {}
   function _sharedCappedCopies(n){ return Math.min(_sharedCopyCount(n), _SHARED_COPY_CAP); }
   function _sharedCopyTotal(names){
     var n = 0;
@@ -49970,6 +50034,17 @@ window.vaultAutoAssign = function(){
     var rows = document.querySelectorAll('#vault-detail .mp-st-r');
     for (var i = 0; i < rows.length; i++) rows[i].hidden = !!_mpQ && (rows[i].getAttribute('data-k') || '').indexOf(_mpQ) < 0;
   };
+  /* v3766 (#137) — a FIND mule button names the page. A re-render of the open locker keeps the page.
+     Switching lockers with no pending page starts at the first mule. */
+  function _mulePageOnOpen(muleId, currentId, pending){
+    if (pending && pending.mule === muleId && (pending.page | 0) >= 0) return pending.page | 0;
+    if (muleId !== currentId) return 0;
+    return null;
+  }
+  window._muleOpenAt = function(id, page){
+    window._findNav = { mule: id, page: page | 0 };
+    if (typeof window.openMuleCard === 'function') window.openMuleCard(id);
+  };
   window.openMuleCard = function(muleId){
     var m=muleById(muleId); var box=document.getElementById('vault-detail');
     if (!m||!box) return;
@@ -49978,7 +50053,11 @@ window.vaultAutoAssign = function(){
     if (muleId !== openMuleId){ _mpBindAt = null; _mpBindSaid = null; }   // #253 — the bind list belongs to the locker it opened on
     if (muleId !== openMuleId && typeof window._cbHostClose === 'function') window._cbHostClose();   // #174 v-B4 — the host goes with it
     if (muleId !== openMuleId) _mpInvAt = null;                                                     // #174 v-B5 — and the inventory's picker
-    if (muleId !== openMuleId){ _mulePage = 0; _mpView = _mpViewFor(muleId); _mpQ = ''; _mpStab = 'personal'; }   // v405 — reset to the first mule when switching lockers; #174 R1 — EQUIPMENT in front unless he chose otherwise for this mule
+    var _pendingNav = window._findNav || null;
+    var _navPg = _mulePageOnOpen(muleId, openMuleId, _pendingNav);
+    if (_pendingNav && _pendingNav.mule === muleId) window._findNav = null;
+    if (muleId !== openMuleId){ _mpView = _mpViewFor(muleId); _mpQ = ''; _mpStab = 'personal'; }   // v405 — the page comes from _mulePageOnOpen; #174 R1 — EQUIPMENT in front unless he chose otherwise for this mule
+    if (_navPg != null) _mulePage = _navPg;
     if (_mpCarry) _mpCarryEnd();   // #174 v-B2 — a keyboard carry holds nodes this render replaces; it is put back, never left dangling
     openMuleId = muleId;
     // v235: remember the tab the card was opened from (the vault lives in Tools)
@@ -67465,7 +67544,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3765', name:'v3765 - records-arm-live', date:'2026-10-18', note:'#76 INC-3 live: page load calls window._vaultRecordsArm once, so d2r_vaultRecords is the one-record source for FIND, GRAIL-DUPES and the vault and locker counts. A presence set piece is one record at one location. Undo is window._vaultRecordsMigrateUndo. An unknown dock, an unreadable witness or a wrong store shape does not stamp. Copy-loss ids stay positional. HEART: the arm law is the corroborator; no new console surface.' };
+  window.D2R_BUILD = { id:'v3766', name:'v3766 - grokbot-retest', date:'2026-10-18', note:'board 137: Exile packs as a paladin shield, a copy past the shared cap says trade stock, the cell badge does not multiply the owned count, FIND names the mule page, Steel Shade routes with Andariel, and a missing picture is the glyph. The records dirty marker forks with the store. The finder proof sits on the home the row now asks. HEART: the class-size law, the mule-page law, the copy-cap law and the glyph law are the corroborators, watched by the v3766 gate. The dirty-marker fork is watched by the store-isolation gate. No new console surface.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

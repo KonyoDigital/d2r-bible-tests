@@ -127,9 +127,9 @@ RED_PROOF = [
      "find": "    if (mainLoc) return { kind: 'main', mule: null, muleName: null, cell: null, why: (mainLoc === 'equipped' ? 'worn' : 'carried in your ' + mainLoc) + ' by your MAIN when last seen' };\n",
      "replace": "",
      "matches": 1},
-    {"why": "REG-2020 - the finder stops asking where an item is and prints only a mule name",
+    {"why": "REG-2020 - the finder stops asking _vaultFindHome, so the row no longer names the mule and the cell",
      "file": "bible.html",
-     "find": "      var w = (typeof window._vaultWhereIs === 'function') ? window._vaultWhereIs(n) : null;\n",
+     "find": "      var w = (typeof _vaultFindHome === 'function') ? _vaultFindHome(n) : ((typeof window._vaultWhereIs === 'function') ? window._vaultWhereIs(n) : null);\n",
      "replace": "      var w = null;\n",
      "matches": 1},
 ]

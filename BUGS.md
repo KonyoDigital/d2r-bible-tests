@@ -7,6 +7,22 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2287 - FIND NAMES THE MULE PAGE, EXILE PACKS AS A PALADIN SHIELD, AND THE RECORDS DIRTY MARKER FORKS (#137, v3766)
+
+Board #137, re-checked against v3765. The records seam is unchanged except through the public home helper.
+
+1. FIND mule-nav. The cell string already names the mule page. A button inside vd-mule-nav calls window._muleOpenAt, and openMuleCard reads that page. The FIND row stays on the vault with no row click (REG-2238).
+2. Copy-N inflation. A repeated shelf cell prints index/drawn. The title carries the owned count once.
+3. Shared-tab overflow. Exile is a paladin shield, 2 by 3, from the runeword class rule. Spirit stays the 1 by 2 guess. The shared overflow note still says a shared tab is 100 cells.
+4. Routing. Andariel was already mercenary gear. Steel Shade is seeded the same way, so a trash trade value does not throw it out. A forced mule override still wins. Shaftstop stays out of that list.
+5. Copy past the shared cap. The planner says that copy is trade stock in GRAIL-DUPES. A copy at or under the cap still says filed.
+6. Empty art. Vault art() returns the glyph span when the picture helper is missing, throws, or returns nothing.
+7. CI. d2r_vaultRecordsDirty now sits in the ladder fork set and the world fork set with d2r_vaultRecords and d2r_vaultRecordsMigrate. The finder red-proof that matched 0 times is re-anchored to the _vaultFindHome line the row asks, and that tamper turns the cell line red. The packer proofs that named the old class-rule lines are re-anchored to _runewordCells and the early return, and both turn red.
+
+GUARD: tv/test_v3766_grokbot_retest.py. heart2 --prove 19/19 PROVEN. Wilson 0.8318 on 19 distinct attacks against the vault.apply bar 0.722. Sabotage kinds 1.00 against 1.30. Shard 3/4 of tv/run_gates.py: 240 passed, 1 skipped for a declared reason. The records arm gate stayed green.
+
+LEFT: live console pixels, including whether a reload still shows a blank picture in his browser. The GrokBot comment body on the batch was not re-read.
+
 ### REG-2286 - THE ROW COMPARISON MISSED THE WITNESS, SO A PROV-ONLY CHANGE STAYED STALE (#239, v3765)
 
 GPT-5.6 Sol fifth pass on PR #239 at 5c3d641f, DIFFERS. The previous round verified. One MEDIUM.
