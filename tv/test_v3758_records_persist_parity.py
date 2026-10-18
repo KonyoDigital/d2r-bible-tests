@@ -52,7 +52,7 @@ EXTRACT = [
     # INC-3b: persist / load / migrate / undo / rename + the model-in parity views
     "_vrRecLoadRaw", "_vrRecGuardedSet", "_vrLocForCopy", "_vaultRecordsLoad", "_vaultRecordsPersist",
     "_dockNames", "_vaultRecordsMigrate", "_vaultRecordsMigrateUndo", "_vaultRecordsArm", "_vaultRecordsRename",
-    "_vaultRecordsViewFind", "_vaultRecordsViewOverflow", "_vaultRecordsViewHeader",
+    "_vrRecHome", "_vaultRecordsViewFind", "_vaultRecordsViewOverflow", "_vaultRecordsViewHeader",
 ]
 
 # ── the fixture: A filed to mule1; B shared(1); C shared(4 -> overflow 2); E shared(3 -> overflow 1);
@@ -180,7 +180,7 @@ names.forEach(function(n){ out.loadedFind[n] = _vaultRecordsViewFind(loaded, n);
                          "persisted overflow != live _vaultSharedOverflowNames: %r vs %r" % (o["loadedViewOverflow"], o["liveOverflow"]))
         # a filed name resolves to its mule via the persisted store; non-filed / unknown invent no home
         self.assertEqual(o["loadedFind"]["A"], "mule1", "a filed name did not resolve to its mule via the store")
-        self.assertIsNone(o["loadedFind"]["B"], "a SHARED name was given a mule home")
+        self.assertEqual(o["loadedFind"]["B"], "shared", "a shared-locker name did not home on the shared locker")
         self.assertIsNone(o["loadedFind"]["D"], "a LOOSE name was given a mule home")
         self.assertIsNone(o["loadedFind"]["ZZ"], "an unknown name was given a home")
 
