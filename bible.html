@@ -48215,7 +48215,7 @@ window.vaultAutoAssign = function(){
   var _VRM_VER = 1;
   var _VR_DIRTY_KEY = 'd2r_vaultRecordsDirty';
   var _vrRecHold = 0;       /* a reset holds refresh until every clear has landed */
-  var _vrRecSigSeen = null; /* owned/copies/assign/prov signature last confirmed into the store */
+  var _vrRecSigSeen = null; /* unused: the stored rows are the comparison, not a remembered input list */
   var _vrRecUnread = {};   /* keyed by store key: a reason once a read throws / will not parse; a guarded write then refuses */
   function _vaultRecordsStampOk(){
     /* A current migrate stamp is an object whose ver is this migration. Absent, unreadable or older is not a source. */
@@ -48244,33 +48244,69 @@ window.vaultAutoAssign = function(){
     try { if (typeof _vrRecFollowLive !== 'undefined') _vrRecFollowLive = false; } catch (e) {}
     return true;
   }
-  function _vrRecSig(){
-    /* Cheap signature of every input the record derivation reads. The presence span is one of them:
-       a set piece collapses to one record unless multiKeep[name] > 1, and vaultMultiKeepAdd writes
-       only that. null = a read threw, so the refresh runs. */
+  function _vrRecShape(name, kind, loc, span, copyIx){
+    /* One row persist would write. Fixed key order. null loc stays null, so orphan is not loose. */
+    return { name: name, kind: kind, loc: (loc == null ? null : loc), span: span, copyIx: copyIx || 0 };
+  }
+  function _vrRecCanon(rows){
+    /* Stable serialization of name, kind, loc and the presence span (how many records that name keeps). */
+    var span = {};
+    (rows || []).forEach(function(r){ if (r && r.name != null) span[r.name] = (span[r.name] || 0) + 1; });
+    var out = [];
+    (rows || []).forEach(function(r){
+      if (!r || r.name == null) return;
+      out.push(_vrRecShape(r.name, r.kind, (r.loc == null ? null : r.loc), span[r.name], r.copyIx));
+    });
+    out.sort(function(a, b){
+      if (a.name < b.name) return -1;
+      if (a.name > b.name) return 1;
+      return (a.copyIx || 0) - (b.copyIx || 0);
+    });
+    return JSON.stringify(out);
+  }
+  function _vrRecDerivedCanon(){
+    /* The rows the persist derivation writes, before the witness is attached.
+       Any input that derivation reads is in these rows. null = do not skip. */
     try {
-      var names = (typeof ownedPool === 'function') ? ownedPool().slice().sort() : null;
-      var cc = {};
-      var span = {};
-      if (names) names.forEach(function(n){
-        var have = (typeof copyCount === 'function') ? copyCount(n) : 1;
-        cc[n] = have;
-        span[n] = (typeof _vaultPresenceSpan === 'function') ? _vaultPresenceSpan(n, have) : have;
-      });
-      var asg = (typeof assign !== 'undefined' && assign) ? assign : null;
-      var prov = null;
-      try { prov = window.LSR.getItem('d2r_vaultProv'); } catch (eP) { return null; }
-      return JSON.stringify({ names: names, cc: cc, span: span, asg: asg, prov: prov });
+      var rec = (typeof _vaultRecords === 'function') ? _vaultRecords() : null;
+      if (!rec || !rec.ok || rec.assignUnknown || rec.dockUnknown || rec.carUnknown) return null;
+      var rows = [];
+      var threw = false;
+      var list = rec.records || [];
+      for (var i = 0; i < list.length; i++){
+        var r = list[i];
+        if (!r || r.name == null) continue;
+        var loc = null;
+        try { loc = (typeof _vrLocForCopy === 'function') ? _vrLocForCopy(r.kind, r.mule, r.copyIx) : null; }
+        catch (eL) { threw = true; break; }
+        rows.push({ name: r.name, kind: r.kind, loc: loc, copyIx: r.copyIx });
+      }
+      if (threw) return null;
+      return _vrRecCanon(rows);
     } catch (e) { return null; }
   }
+  function _vrRecStoredCanon(){
+    try {
+      var obj = (typeof _vrRecLoadRaw === 'function') ? _vrRecLoadRaw() : undefined;
+      if (obj === undefined) return undefined;
+      if (!obj || !Array.isArray(obj.records)) return null;
+      return _vrRecCanon(obj.records);
+    } catch (e) { return undefined; }
+  }
+  function _vrRecSig(){
+    return (typeof _vrRecDerivedCanon === 'function') ? _vrRecDerivedCanon() : null;
+  }
   function _vrRecSigSame(){
-    var sig = (typeof _vrRecSig === 'function') ? _vrRecSig() : null;
-    if (sig == null || _vrRecSigSeen == null) return false;
-    return sig === _vrRecSigSeen;
+    /* Skip only when the derived rows match the stored rows. Nothing in front of this may skip. */
+    try {
+      var derived = (typeof _vrRecDerivedCanon === 'function') ? _vrRecDerivedCanon() : null;
+      var stored = (typeof _vrRecStoredCanon === 'function') ? _vrRecStoredCanon() : null;
+      if (derived == null || stored == null) return false;
+      return derived === stored;
+    } catch (e) { return false; }
   }
   function _vrRecNoteSig(){
-    var sig = (typeof _vrRecSig === 'function') ? _vrRecSig() : null;
-    if (sig != null) _vrRecSigSeen = sig;
+    /* The store is the comparison. Nothing is remembered beside it. */
   }
   function _vrRecHome(rec, name){
     /* filed -> that mule. A shared-stash record that is actually in the locker homes on 'shared'.
@@ -48404,7 +48440,7 @@ window.vaultAutoAssign = function(){
   }
   window._vaultRecordsPersist = _vaultRecordsPersist;
   function _vaultRecordsRefresh(){
-    /* Re-persist after a successful owned, copies or assign write whose signature changed.
+    /* Re-persist when the rows this derivation would write differ from the stored rows.
        No current stamp: do not create a store. A reset holds this until the clears finish.
        A confirmed readback clears the dirty marker. A refusal or a short readback drops the
        stamp and writes the marker, so a reload follows live. */
