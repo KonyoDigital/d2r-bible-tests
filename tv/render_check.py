@@ -4425,6 +4425,48 @@ def _world_source(here=None):
                   "which is UNKNOWN rather than clean")
 
 
+def _seed_empty_world_journal(sand, runs=None):
+    """Write a synthetic journal into a sandbox that has none. -> run count, or 0.
+
+    A checkout with no sessions.jsonl (this cloud VM, a fresh clone, a worktree whose main checkout
+    also has none) used to boot the render console against an empty journal. _seed_film then filmed
+    0 of 0 runs. Measured on that world: the shelf overlay opened with four river lanes and no
+    .sh-grid, theatre-head said the theatre never opened, and river-strip's rebuild check read
+    0 of 4 lanes because thShelf waits to paint until TH.sessions is nonempty. The three targets
+    then refused as coverage, which is an empty fixture, not a broken page.
+
+    The rows are the same shape the card-branch law already drives: a sessionId, a ts, scene
+    gameplay, plus an area so the optional card line can paint, and three deep rows so the run is
+    not a one-line ghost. The id is s_<epoch>_<n>, the shape reel_retention.recent_order parses.
+    An unparseable name is left out of riverKept, and the shelf then marks every such card
+    data-river-out, so the grid the first widths photographed is empty by the time the river
+    answers. The string is built here, never written as a reel_s_<digits> literal, so the fixture
+    scan that hides test reels does not hide these. A journal already in `sand` is left byte for
+    byte — his world, when the copy loop brought it, is the world that gets filmed.
+    """
+    runs = FILM_RUNS if runs is None else int(runs)
+    path = os.path.join(sand, "sessions.jsonl")
+    if os.path.isfile(path) or runs < 1:
+        return 0
+    base = 1700000000000
+    lines = []
+    for i in range(runs):
+        ts0 = base + i * 3600000
+        sid = "s_%d_%d" % (ts0, i)
+        for k in range(3):
+            lines.append(json.dumps({
+                "sessionId": sid,
+                "ts": ts0 + k * 1000,
+                "scene": "gameplay",
+                "area": "Rogue Encampment",
+                "lane": "deep",
+                "names": ["Shako"],
+            }, separators=(",", ":")))
+    with io.open(path, "w", encoding="utf-8") as fh:
+        fh.write("\n".join(lines) + "\n")
+    return runs
+
+
 def _seed_film(sand, hist, runs=FILM_RUNS, frames=FILM_FRAMES):
     """Give the newest `runs` sessions synthetic film. -> (filmed, total_runs_seen)
 
@@ -4607,6 +4649,18 @@ def _serve_console():
     # run is routed OUT of the shelf grid into the history chips — so `shelf-cards` photographs an
     # empty room by construction. The measurement, the ⛔ that keeps this seeded rather than
     # copied, and why it is 24 runs and not 357, all live on `_seed_film` above. One place.
+    # No journal at all is the same empty room one step earlier: the film seed has nothing to
+    # attach stills to. Write the synthetic journal into the SANDBOX only, then film it.
+    if not os.path.isfile(os.path.join(_sand, "sessions.jsonl")):
+        _nj = _seed_empty_world_journal(_sand)
+        if _nj:
+            print("   \u2139 render sandbox: no session store, so %d synthetic run(s) were written "
+                  "into this sandbox only. The shelf, the river and the theatre photograph that "
+                  "fixture. His tree was not written." % _nj, flush=True)
+        else:
+            print("   \u26a0 render sandbox: no session store and no synthetic journal was written "
+                  "— the shelf targets will measure an EMPTY world, which is UNKNOWN rather than clean",
+                  flush=True)
     _filmed, _allruns = _seed_film(_sand, _hist)
     if _filmed:
         # ⚠ [[zero-needs-a-denominator]] — say the denominator out loud. "seeded 24" alone cannot

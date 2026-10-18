@@ -9751,6 +9751,13 @@ GATES = [
          why=("v3766 - the render hook finds Chrome or Chromium on Linux and makes its profile with a "
              "portable mktemp template. macOS Chrome stays the first look.")
          ),
+    Gate("test_a_render_with_no_session_store_still_seeds_a_world", [sys.executable,
+         os.path.join(HERE, "test_a_render_with_no_session_store_still_seeds_a_world.py")], 30,
+         needs_app=False,
+         why=("v3766 - a render checkout with no sessions.jsonl still gets a synthetic journal in the "
+              "sandbox, so shelf-cards, river-strip and theatre-head photograph a world. A journal "
+              "already present is left byte for byte.")
+         ),
     Gate("test_the_vault_proposes_a_home_and_does_not_move", [sys.executable,
          os.path.join(HERE, "test_the_vault_proposes_a_home_and_does_not_move.py")], 90,
          needs_app=False,
