@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3764 · TV DIABLO</title>
-<meta name="d2r-build" content="v3764">
-<meta name="d2r-build-date" content="2026-10-17">
-<meta name="d2r-build-note" content="#76 REG-2272 item 6: a shared-locker name the never-muled regex misses is sharedStash, with the rule-E copy split, and overflow follows the locker list. The page-load seam is window._vaultRecordsArm and nothing calls it. v3765 wires that one call and the undo. Copy-loss ids stay positional. The store stays dormant. HEART: the classification law is the corroborator; no new console surface.">
+  <title>Konyo's D2R Farming Bible v3765 · TV DIABLO</title>
+<meta name="d2r-build" content="v3765">
+<meta name="d2r-build-date" content="2026-10-18">
+<meta name="d2r-build-note" content="#76 INC-3 live: page load calls window._vaultRecordsArm once, so d2r_vaultRecords is the one-record source for FIND, GRAIL-DUPES and the vault and locker counts. A presence set piece is one record at one location. Undo is window._vaultRecordsMigrateUndo. An unknown dock, an unreadable witness or a wrong store shape does not stamp. Copy-loss ids stay positional. HEART: the arm law is the corroborator; no new console surface.">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -22245,6 +22245,7 @@ try {
             : 'UNKNOWN';
           try { window._seedCleanse(Object.assign({}, opts, { mainLedger: ml })); } catch (e) {}
           try { window._setPieceReconcile({}); } catch (e) {}   /* #76 — fold any set-piece name-form duplicate, after the seed cleanse */
+          try { window._vaultRecordsArm(); } catch (eArm) {}   /* #76 INC-3 v3765 — the one page-load call, after the set-piece fold */
         };
         Promise.resolve(p).then(run, run);
       };
@@ -42301,6 +42302,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var c = 1;
     try { c = (typeof copyCount === 'function' ? (copyCount(n) || 1) : 1) | 0; } catch (e) { c = 1; }
     if (!(c > 0)) c = 1;
+    if (typeof _vaultPresenceSpan === 'function') { var _psShelf = _vaultPresenceSpan(n, c); if (_psShelf != null) c = _psShelf; }
     /* REG-2225 — the shelf locker card draws one cell per copy (drawn.map). v3734 capped the FULLSCREEN
        shared view (_sharedPack/_sharedCappedCopies) at _SHARED_COPY_CAP but left THIS path uncapped for
        'shared', so the shelf shared card still drew copyCount cells (a 7-copy item = 7 tiles) while the
@@ -42661,6 +42663,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
           if (_ovCells.length) _ovHtml = '<div class="vm-spare-sec"><div class="vm-spare-head">♻️ spare copies — trade stock (' + _ovCells.length + ' cell' + (_ovCells.length === 1 ? '' : 's') + ')</div><div class="vm-grid vm-grid-spare">' + _ovCells.join('') + '</div></div>';
         }
       }
+      try { var _ci76 = _vaultLockerItems(m.id); if (typeof _ci76 === 'number') _itemN = _ci76; } catch (eCi) {}
       /* ══ v2211 — THE GAUGE MEASURES CELLS AND STOPS PRETENDING ONE MULE IS ENOUGH ══════════
          It was `cap = 40` with `Math.min(100, …)`: item COUNT against the INVENTORY alone, then
          clamped. A locker holding 61 and one holding 200 painted the same bar, and the drill-down
@@ -47439,7 +47442,9 @@ window.vaultAutoAssign = function(){
   function _sharedCopyCount(n){
     var c = 1;
     try { c = (typeof copyCount === 'function' ? (copyCount(n) || 1) : 1) | 0; } catch (e) { c = 1; }
-    return c > 0 ? c : 1;
+    if (!(c > 0)) c = 1;
+    if (typeof _vaultPresenceSpan === 'function') { var _psShared = _vaultPresenceSpan(n, c); if (_psShared != null) c = _psShared; }
+    return c;
   }
   /* REG-2222 — his rule 2026-10-15: the SHARED STASH keeps at most 2 copies of a name (war gear and
      keepers a character might switch to); a 3rd+ copy is trade-stock, never a 3rd shared cell. GrokBot
@@ -47712,6 +47717,7 @@ window.vaultAutoAssign = function(){
     (names || []).forEach(function(n){
       var s = vaultSize(n); var t = tipOf(n);
       var cc = Math.max(1, Math.min(copyCount(n) || 1, _MULE_COPY_CAP));
+      if (typeof _vaultPresenceSpan === 'function') { var _psMule = _vaultPresenceSpan(n, cc); if (_psMule != null) cc = Math.max(1, Math.min(_psMule, _MULE_COPY_CAP)); }
       var _w = Math.min(cc, Math.max(0, (worn && worn[n]) | 0));
       _wornN += _w;
       var _d = Math.min(cc - _w, (_db.hold[n] | 0)); _dbInLocker += _d; _w += _d;   // the copies on his inventory cells
@@ -47941,6 +47947,17 @@ window.vaultAutoAssign = function(){
      real mule surfaces as an `orphan` = his reported "unsorted dock and mules disagree" bug, MEASURED.
      [[heart-first]] the corroborator is built WITH the model, not after. [[unknown-stays-unknown]] a
      name whose home cannot be resolved is `orphan`, never silently folded into `filed`. */
+  function _vaultPresenceSpan(name, have){
+    /* A presence set piece is one item at one location. Re-reads climbed copies[] (Natalya x4,
+       Tal Rasha Guardianship x4, Immortal King Soul Cage x3) without a second item. An explicit
+       multi-keep target is a spare he asked for, so that count stays. copies[] is not rewritten. */
+    try {
+      if (!(window._vfIsSetPiece && window._vfIsSetPiece(name))) return have;
+      if (!(typeof multiKeep !== 'undefined' && multiKeep && multiKeep[name] > 1)) return 1;
+    } catch (e) {}
+    return have;
+  }
+  window._vaultPresenceSpan = _vaultPresenceSpan;
   function _vaultRecords(){
     var out = { records: [], index: {}, byKind: {}, orphans: [], carUnknown: false, dockUnknown: false, ok: true };
     try {
@@ -47980,6 +47997,7 @@ window.vaultAutoAssign = function(){
           kind = 'keepInv';                                        // Anni/Torch/Gheed's drawn with MAIN — a kept charm with no mule is NOT an orphan
         else { kind = 'orphan'; out.orphans.push({ name: name, assign: (mid == null ? null : String(mid)) }); }
         var cc = (typeof copyCount === 'function') ? copyCount(name) : 1; if (!(cc >= 1)) cc = 1;
+        if (typeof _vaultPresenceSpan === 'function') { var _psRec = _vaultPresenceSpan(name, cc); if (_psRec != null) cc = _psRec; }
         var ids = [];
         for (var i = 0; i < cc; i++){
           var recId = name + '#' + i;
@@ -47994,6 +48012,43 @@ window.vaultAutoAssign = function(){
   }
   window._vaultRecords = _vaultRecords;
 
+  function _vaultRecordsSource(){
+    /* The persisted store is the source once it is a real {records: array}. Absent or UNKNOWN falls
+       back to the live derivation. A wrong shape stays unread and is not treated as empty. */
+    try {
+      if (typeof _vaultRecordsLoad === 'function') {
+        var loaded = _vaultRecordsLoad();
+        if (loaded && loaded.ok && Array.isArray(loaded.records)) return loaded;
+      }
+    } catch (e) {}
+    return _vaultRecords();
+  }
+  window._vaultRecordsSource = _vaultRecordsSource;
+  function _vaultLockerItems(muleId){
+    /* Distinct names the one-record model homes on this locker. null = the model will not read,
+       and the caller keeps the list it already built. The shelf card and the locker Items box both
+       print this number. */
+    var r;
+    try { r = _vaultRecordsSource(); } catch (e) { return null; }
+    if (!r || !r.ok || r.dockUnknown || r.carUnknown) return null;
+    var names = {};
+    (r.records || []).forEach(function(rec){
+      if (!rec || rec.name == null) return;
+      var home = null;
+      if (rec.kind === 'filed') home = rec.mule;
+      else if (rec.kind === 'sharedStash') home = 'shared';
+      if (home === muleId) names[rec.name] = 1;
+    });
+    if (muleId === 'magic-rare' && typeof magicFinds === 'object' && magicFinds) {
+      try { Object.keys(magicFinds).forEach(function(n){ if (n) names[n] = 1; }); } catch (e2) {}
+    }
+    if (muleId === 'dupes') {
+      try { (_vaultSharedOverflowNames() || []).forEach(function(n){ if (n) names[n] = 1; }); } catch (e3) {}
+    }
+    return Object.keys(names).length;
+  }
+  window._vaultLockerItems = _vaultLockerItems;
+
   /* The header's numbers DERIVED FROM records (distinct names per kind), for the parity guard.
      owned = distinct names · copies = total records (the #137 copy sub-count).
      ⚠ `filed` is the CORRECTED mule-filed count (filed + __keep). It EXCLUDES keepInv + orphan, which the
@@ -48005,7 +48060,7 @@ window.vaultAutoAssign = function(){
         will not read. A count is never guessed over an unreadable source. [[unknown-stays-unknown]]
      (REG-2258, v3748 — the v3747 cross-family review found the two UNKNOWN leaks + the filed nuance.) */
   function _vaultRecordsHeader(){
-    var r = _vaultRecords(); if (!r.ok) return null; var k = r.byKind;
+    var r = _vaultRecordsSource(); if (!r || !r.ok) return null; var k = r.byKind;
     var unk = r.carUnknown || r.dockUnknown;
     return {
       owned:    Object.keys(r.index).length,
@@ -48035,7 +48090,7 @@ window.vaultAutoAssign = function(){
     // FILED name (both read assign[name] -> muleById). null = not filed (shared/loose/carried/orphan/keep);
     // undefined = the record model would not read (never a false home). [[unknown-stays-unknown]]
     try {
-      var r = _vaultRecords(); if (!r || !r.ok) return undefined;
+      var r = _vaultRecordsSource(); if (!r || !r.ok) return undefined;
       var ids = r.index[name]; if (!ids || !ids.length) return null;   // not an owned/kept name
       var rec = null;
       for (var i = 0; i < r.records.length; i++){ if (r.records[i].name === name){ rec = r.records[i]; break; } }
@@ -48050,7 +48105,7 @@ window.vaultAutoAssign = function(){
     // miscount. Rule E: a shared name with more records than _SHARED_COPY_CAP has overflow (the 3rd+ copies).
     var out = [];
     try {
-      var r = _vaultRecords(); if (!r || !r.ok) return out;
+      var r = _vaultRecordsSource(); if (!r || !r.ok) return out;
       (_sharedNames() || []).forEach(function(n){
         var ids = r.index[n] || [];
         if (ids.length - _SHARED_COPY_CAP > 0) out.push(n);
@@ -48060,15 +48115,12 @@ window.vaultAutoAssign = function(){
   }
   window._vaultRecordsOverflow = _vaultRecordsOverflow;
 
-  /* ══ #76 INC-3b (v-foundation, DORMANT) — PERSIST THE ONE-RECORD MODEL · FORKED · REVERSIBLE · MIGRATION OFF ══
+  /* ══ #76 INC-3 (v3765) — PERSIST THE ONE-RECORD MODEL · FORKED · REVERSIBLE · ONE PAGE-LOAD CALL ══
      The design doc PHASE-2 foundation. INC-1/INC-2 derive the one-record model on demand from the already-forked
-     name-homed stores (owned/copies/assign); this slice makes that model PERSISTABLE to d2r_vaultRecords so phase 2
-     can (his GrokBot-gated confirm) flip the live views to read the store and start routing per-copy. NOTHING here is
-     wired to a page-load / init / render / intake / chronicleApply path — persisting TOUCHES HIS DATA, which the
-     design doc PHASE 2 gates behind a brief on his live board + his explicit GO (feedback_autonomous_machine_ops).
-     The only source caller of the migrate function is _vaultRecordsArm, and nothing on the page calls that arm. The parity harness remains the runtime caller until v3765
-     tv/test_v3758_records_persist_parity.py (node, seeded fixture, read-only). [[heart-first]] [[the-unjoined-end]]
-     [[unknown-stays-unknown]]
+     name-homed stores (owned/copies/assign); this slice persists that model to d2r_vaultRecords. Elad gave the go
+     on 2026-10-18. Page load calls the arm once, from _seedCleanseArm, after the set-piece fold. That arm is the
+     only source caller of the migrate function. Init, render, intake and chronicleApply do not call it. The parity
+     harness remains a runtime caller in node. [[heart-first]] [[the-unjoined-end]] [[unknown-stays-unknown]]
 
      ALL enrichment is ADDITIVE — kind / mule / index length stay byte-equal to _vaultRecords(), so INC-1/INC-2
      parity is untouched and the live views do not change:
@@ -48155,7 +48207,7 @@ window.vaultAutoAssign = function(){
   function _vaultRecordsPersist(opts){
     /* derive the live one-record model, ENRICH each copy (opaque recId reused from any prior store, per-copy loc,
        prov witness), and write d2r_vaultRecords through the corrupt-store guard. -> {ok,wrote,count,seq,why}.
-       NOT wired to any live path. _vaultRecordsArm is the one source caller, and nothing on the page calls the arm. [[heart-first]] rule 6: persist
+       The page-load arm is the one caller. An unknown dock or a wrong-shape store still refuses. [[heart-first]] rule 6: persist
        the per-copy location NOW so phase 2 can route the 3rd+ shared copy without re-deriving. */
     opts = opts || {};
     var rec = _vaultRecords();
@@ -48208,8 +48260,8 @@ window.vaultAutoAssign = function(){
   window._vaultRecordsPersist = _vaultRecordsPersist;
   function _vaultRecordsMigrate(opts){
     /* STAMPED, UNKNOWN-safe, version-gated clone of _setPieceReconcile (bible.html:22248). Runs the persist ONCE per
-       world, confirms the store read back intact BEFORE stamping (REG-2243 discipline), then stamps. ⚠ DORMANT: no
-       page-load / init / render / intake / chronicleApply path calls the arm. v3765 adds that one call. This stamp does not. */
+       world, confirms the store read back intact BEFORE stamping (REG-2243 discipline), then stamps.
+       Page load is the one call, from _seedCleanseArm, after the set-piece fold. */
     opts = opts || {};
     var done;
     try {
@@ -48227,12 +48279,14 @@ window.vaultAutoAssign = function(){
     var back = _vrRecLoadRaw();
     if (back === undefined || !back || !Array.isArray(back.records) || back.records.length !== pr.count)
       return { ran: true, stamped: false, why: 'the persisted store did not read back intact - left UNstamped to retry' };
+    if (back.records.some(function(row){ return row && row.provUnknown === true; }))
+      return { ran: true, stamped: false, unknown: true, why: 'the witness store would not read - left UNstamped' };
     var rc = { ver: _VRM_VER, ts: Date.now(),
                at: (function(){ try { return new Date().toISOString(); } catch (e) { return null; } })(),
                world: ((window.D2R_PROFILE === 'ladder') ? 'ladder' : 'main'), count: pr.count, seq: pr.seq };
     try { window.LSR.setItem(_VRM_KEY, JSON.stringify(rc)); }
     catch (eS) { return { ran: true, stamped: false, why: 'stamp write failed - left UNstamped to retry', receipt: rc }; }
-    try { console.info('[vault] vault-records migrate: persisted ' + pr.count + ' copy record(s) (DORMANT foundation; undo: window._vaultRecordsMigrateUndo())'); } catch (eC) {}
+    try { console.info('[vault] vault-records migrate: persisted ' + pr.count + ' copy record(s) (page-load arm; undo: window._vaultRecordsMigrateUndo())'); } catch (eC) {}
     return { ran: true, stamped: true, receipt: rc };
   }
   window._vaultRecordsMigrate = _vaultRecordsMigrate;
@@ -48262,13 +48316,13 @@ window.vaultAutoAssign = function(){
     return { undone: true, partial: false, clearedStore: hadStore, clearedStamp: hadStamp, why: null };
   }
   window._vaultRecordsMigrateUndo = _vaultRecordsMigrateUndo;
-  /* v3764 — THE PAGE-LOAD SEAM. Elad has given the go for INC-3 live. That wiring is v3765, not this stamp.
-     v3765 adds one call of window._vaultRecordsArm from page load and no other caller of the migrate function.
-     This body is that migration: one persist, a read-back before the stamp, then the stamp.
+  /* v3765 — THE PAGE-LOAD SEAM. _seedCleanseArm calls this once, after the set-piece fold.
+     No other caller of the migrate function is added. This body is that migration: one persist,
+     a read-back before the stamp, then the stamp. An unreadable witness leaves the store unstamped.
      Undo is window._vaultRecordsMigrateUndo. It drops d2r_vaultRecords and the stamp, leaves owned, copies
      and assign untouched, and the next arm run persists again.
      recId stays positional (REG-2272 item 4). A dropped copy reuses the prefix ids. That is not a physical
-     copy, and the next stamp must not treat a recId as one across a lost copy. */
+     copy, and this stamp does not treat a recId as one across a lost copy. */
   function _vaultRecordsArm(){
     var r = _vaultRecordsMigrate();
     if (!r || typeof r !== 'object') r = { ran: false, why: 'the migration returned nothing' };
@@ -49714,7 +49768,8 @@ window.vaultAutoAssign = function(){
     // #174 v-B2 — with this locker's id, so his hand-placed spots are laid first (the shelf card passes the same id)
     var _load = _muleLoad(names, _mpWornFor(muleId, _eqAll), muleId);
     var sized = _load.sized, _physN = _load.phys, _mules = _load.mules, _rem = _load.rem;
-    var _namesN = names.length;   /* #76 INC (v3755) — distinct-NAME count (= the shelf card badge, _muleNamesFor is the card's own list); _physN is CAPPED PHYSICAL COPIES. Both were labelled "Items", so card "30" vs locker "49" read as a contradiction when they count different things. Pure relabel below — no store write, no records dependency. */
+    var _namesN = names.length;   /* #76 INC (v3755) — distinct-NAME count; _physN is CAPPED PHYSICAL COPIES. v3765 prints the one-record census on this box and on the shelf card, so the card cannot come out lower. */
+    try { var _li76 = _vaultLockerItems(muleId); if (typeof _li76 === 'number') _namesN = _li76; } catch (eLi) {}
     _muleTotalPages = _mules.length || 1;
     if (_mulePage >= _muleTotalPages) _mulePage = _muleTotalPages - 1;
     if (_mulePage < 0) _mulePage = 0;
@@ -67160,7 +67215,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3764', name:'v3764 - records-classification-parity', date:'2026-10-17', note:'#76 REG-2272 item 6: a shared-locker name the never-muled regex misses is sharedStash, with the rule-E copy split, and overflow follows the locker list. The page-load seam is window._vaultRecordsArm and nothing calls it. v3765 wires that one call and the undo. Copy-loss ids stay positional. The store stays dormant. HEART: the classification law is the corroborator; no new console surface.' };
+  window.D2R_BUILD = { id:'v3765', name:'v3765 - records-arm-live', date:'2026-10-18', note:'#76 INC-3 live: page load calls window._vaultRecordsArm once, so d2r_vaultRecords is the one-record source for FIND, GRAIL-DUPES and the vault and locker counts. A presence set piece is one record at one location. Undo is window._vaultRecordsMigrateUndo. An unknown dock, an unreadable witness or a wrong store shape does not stamp. Copy-loss ids stay positional. HEART: the arm law is the corroborator; no new console surface.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.

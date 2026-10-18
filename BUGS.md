@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2281 - PAGE LOAD ARMS THE ONE-RECORD STORE (#76, v3765)
+
+v3764 left window._vaultRecordsArm unwired, so persisted d2r_vaultRecords was not the source for FIND, GRAIL-DUPES, or the vault and locker counts. A presence set piece stored at copies[] 4 or 3 (Natalya, Tal Rasha Guardianship, Immortal King Soul Cage) became that many records, shelf tiles and packed copies. The shelf card and the locker Items box could print different numbers.
+
+FIX: _seedCleanseArm calls window._vaultRecordsArm once, after the set-piece fold. That arm is the only new caller of _vaultRecordsMigrate. FIND, GRAIL-DUPES and the vault header read _vaultRecordsSource, which is the persisted store when it is a real records array and the live derivation when the store is absent. A presence set piece spans to one record, one shelf tile and one packed copy unless multiKeep for that name is above 1. copies[] is not rewritten. The shelf card and the locker Items box both print _vaultLockerItems. Undo is window._vaultRecordsMigrateUndo: it clears the store and the stamp, leaves owned, copies and assign untouched, and the next arm stamps again. A stamp remove that throws leaves the store.
+
+An unknown dock and a wrong-shape store refuse the write and do not stamp. An unreadable d2r_vaultProv still persists the provUnknown marker and does not write prov null, and the arm leaves that store unstamped.
+
+GUARD: tv/test_v3765_records_arm_live.py, registered in tv/run_gates.py. heart2 --prove 15/15 PROVEN. Wilson 0.7961 on 15 distinct attacks against the vault.apply bar 0.722. Sabotage kinds 1.00 against 1.30, so the write door stays shut.
+
+LEFT: REG-2272 item 4. recId stays positional. A dropped copy reuses the prefix id. No cell, witness or frame anchor was named, so the item stays open. After a successful stamp, a later edit of owned, copies or assign is not copied into the store until undo and the next arm. The shelf and locker tiles use the live presence span, so those tiles stay current. FIND, the header, GRAIL-DUPES and the card and Items census follow the snapshot.
+
 ### REG-2280 - A THROWN DOCK STAMPED AS EMPTY, AND UNDO DROPPED THE STORE BEFORE THE STAMP (#238, v3764)
 
 GPT-5.6 Sol on PR #238, DIFFERS. Dormancy, classification, the earlier red-proofs, the stamps and the Wilson claims verified. Two holes in the seam.

@@ -59,7 +59,8 @@ def _fn(src, name):
 
 # the functions under test + the live overflow chain they are proven against (all short, pure-ish)
 EXTRACT = ["_sharedNames", "_sharedCopyCount", "_sharedCappedCopies", "_vaultSharedOverflowCells",
-           "_vaultSharedOverflowNames", "_vaultRecords", "_vaultRecordsFind", "_vaultRecordsOverflow"]
+           "_vaultSharedOverflowNames", "_vaultRecords", "_vaultRecordsSource",
+           "_vaultRecordsFind", "_vaultRecordsOverflow"]
 
 
 class TestV3757RecordsFindAndOverflowParity(unittest.TestCase):
