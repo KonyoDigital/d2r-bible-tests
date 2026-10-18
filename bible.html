@@ -42447,6 +42447,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     _carried = (_carried || []).filter(function(c){ return pool.indexOf(c.name) >= 0 && !isSharedStash(c.name); });
     var _carSet = {}; _carried.forEach(function(c){ _carSet[c.name] = 1; });
     var unsorted = _dockNames();   /* #264 (REG-2021) — the ONE dock list: Delete unsorted and Auto-Sort ask the same function */
+    /* null is a dock that threw. Coerce only for the widgets; the population must not subtract a 0 it did not measure. */
+    var _dockUnread = (unsorted == null);
+    if (_dockUnread) unsorted = [];
     /* ══ v3286 — THE VAULT SAYS ITS OWN POPULATION ═══════════════════════════════════════════
        Every figure below is DERIVED BY SUBTRACTION from the two pools this function already
        built, never counted independently. That is the whole point: an independent tally can
@@ -42475,8 +42478,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
            not build, so nothing is claimed. This is the first consumer of the header built in v3747/v3748. [[the-unjoined-end]] */
         var _rh76 = null; try { _rh76 = (typeof window._vaultRecordsHeader === 'function') ? window._vaultRecordsHeader() : null; } catch(e){ _rh76 = null; }
         _pEl.innerHTML = (typeof window._vaultPopHtml === 'function')
-          ? window._vaultPopHtml({ owned: poolAll.length, shared: _shared, filed: _asgUnread ? null : _filed,
-                                   carried: _carUnknown ? null : _carried.length, loose: _asgUnread ? null : unsorted.length, sp: _sp,
+          ? window._vaultPopHtml({ owned: poolAll.length, shared: _shared, filed: (_asgUnread || _dockUnread) ? null : _filed,
+                                   carried: _carUnknown ? null : _carried.length, loose: (_asgUnread || _dockUnread) ? null : unsorted.length, sp: _sp,
                                    orphans: (_rh76 ? _rh76.orphans : undefined) })
           : 'the population line is UNKNOWN — its builder (window._vaultPopHtml) is not on this page';
       }
@@ -44278,7 +44281,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          by a filing, so exclude them here the same way renderVaultRegistered now counts them as kept. */
       return ownedPool().filter(function(n){ return assign[n] == null && !isSharedStash(n) && !_inMagicRare(n) && !carSet[n]
         && !(typeof KEEP_IN_INVENTORY !== 'undefined' && typeof _keepName === 'function' && KEEP_IN_INVENTORY.test(_keepName(n))); });
-    } catch (e) { return []; }
+    } catch (e) { return null; }   /* a thrown dock is UNKNOWN, never an empty list of loose names */
   }
   window._vaultInMagicRare = _inMagicRare;
   window._vaultDockNames = _dockNames;
@@ -47082,6 +47085,7 @@ window.vaultAutoAssign = function(){
   // in a mule are untouched (only `!assign[name]`). Konyo wanted this beside the Auto-Sort button.
   window.vaultClearUnsorted = async function(){
     var unsorted = _dockNames();   /* #264 (REG-2021) — exactly the names the dock shows, never Magic & Rare or carried loot */
+    if (unsorted == null){ status('the dock could not be read - nothing was deleted'); return; }
     if (!unsorted.length){ status('nothing unsorted to clear'); return; }
     if (!(await uiConfirm('Delete all '+unsorted.length+' UNSORTED item'+(unsorted.length===1?'':'s')+' from the dock?\n\nThis removes them from ✓ owned. Items already filed in a mule are NOT touched. You can re-✓ any of them later from its item card.'))) return;
     /* ⚠ M-3 (review of 7cded0c1, reproduced) — HIS DELETE IS HIS WORD, SO IT GOES THROUGH THE JOURNALED DOOR. This took the
@@ -47952,7 +47956,11 @@ window.vaultAutoAssign = function(){
       var looseSet = {};
       try {
         if (typeof _dockNames !== 'function') out.dockUnknown = true;   // the dock list could not be read -> loose is UNKNOWN, not 0
-        else _dockNames().forEach(function(n){ looseSet[n] = 1; });
+        else {
+          var _dock = _dockNames();
+          if (_dock == null) out.dockUnknown = true;   // a thrown dock returns null, which is not an empty loose list
+          else _dock.forEach(function(n){ looseSet[n] = 1; });
+        }
       } catch(e){ out.dockUnknown = true; }
       /* REG-2272 item 6 — production _sharedNames is assign==='shared' (the locker). The never-muled
          regex does not match war gear, and muleById('shared') is a real roster row, so the filed
@@ -48208,7 +48216,12 @@ window.vaultAutoAssign = function(){
       var sraw = window.LSR.getItem(_VRM_KEY);
       done = (sraw == null || sraw === '') ? null : JSON.parse(sraw);
     } catch (e) { return { ran: false, why: 'the migrate stamp would not read - UNKNOWN, nothing persisted' }; }
-    if (done && typeof done === 'object' && done.ver >= _VRM_VER && !opts.force) return { ran: false, already: true, receipt: done };
+    if (done && typeof done === 'object' && done.ver >= _VRM_VER && !opts.force) {
+      var held = _vrRecLoadRaw();
+      if (held === undefined) return { ran: false, unknown: true, why: 'the migrate stamp is set but the store would not read - UNKNOWN, nothing persisted' };
+      if (held && Array.isArray(held.records)) return { ran: false, already: true, receipt: done };
+      /* a stamp with no store is not a finished migration */
+    }
     var pr = _vaultRecordsPersist(opts);
     if (!pr.ok) return { ran: false, why: pr.why || 'persist did not write', unknown: !!pr.unknown };
     var back = _vrRecLoadRaw();
@@ -48224,20 +48237,29 @@ window.vaultAutoAssign = function(){
   }
   window._vaultRecordsMigrate = _vaultRecordsMigrate;
   function _vaultRecordsMigrateUndo(){
-    /* REVERSIBLE + RE-ARMABLE: drop d2r_vaultRecords AND its stamp, leaving owned / copies / assign UNTOUCHED (the
-       persist never wrote them). Removing the stamp re-arms the migration for a clean re-run. The migration removes
-       NO names, so it journals NO removal batch (bible.html:44961 — an empty batch is never written); its undo is
-       therefore this standalone door, not vaultRestoreLast (which reverses name-removals). */
+    /* REVERSIBLE + RE-ARMABLE. The stamp is the gate, so it goes first. Dropping the store and then
+       failing the stamp left a gate with nothing behind it, and the next arm said already.
+       A stamp remove that throws leaves both keys. A store remove that throws after the stamp is gone
+       says partial and leaves the store. owned, copies and assign are never written by the persist, so
+       they stay. The migration removes no names, so it journals no removal batch; this door is not
+       vaultRestoreLast. */
     var hadStore = false, hadStamp = false;
     try { hadStore = (window.LSR.getItem(_VR_STORE_KEY) != null); } catch (e) {}
     try { hadStamp = (window.LSR.getItem(_VRM_KEY) != null); } catch (e) {}
-    var storeErr = false, stampErr = false;
-    try { window.LSR.removeItem(_VR_STORE_KEY); } catch (e) { storeErr = true; }
-    try { window.LSR.removeItem(_VRM_KEY); } catch (e) { stampErr = true; }
+    try { window.LSR.removeItem(_VRM_KEY); }
+    catch (eSt) {
+      return { undone: false, partial: false, clearedStore: false, clearedStamp: false,
+               why: 'a remove threw - the stamp still gates' };
+    }
+    var storeErr = false;
+    try { window.LSR.removeItem(_VR_STORE_KEY); }
+    catch (eSo) { storeErr = true; }
     if (!storeErr) { try { delete _vrRecUnread[_VR_STORE_KEY]; } catch (e) {} }
-    /* REG-2272 item 5 — a remove that throws did not re-arm. undone:true while the stamp remains was a lie. */
-    return { undone: !storeErr && !stampErr, clearedStore: hadStore && !storeErr, clearedStamp: hadStamp && !stampErr,
-             why: (storeErr || stampErr) ? 'a remove threw - the stamp still gates' : null };
+    if (storeErr) {
+      return { undone: false, partial: true, clearedStore: false, clearedStamp: hadStamp,
+               why: 'the stamp was cleared but the store remove threw' };
+    }
+    return { undone: true, partial: false, clearedStore: hadStore, clearedStamp: hadStamp, why: null };
   }
   window._vaultRecordsMigrateUndo = _vaultRecordsMigrateUndo;
   /* v3764 — THE PAGE-LOAD SEAM. Elad has given the go for INC-3 live. That wiring is v3765, not this stamp.

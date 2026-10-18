@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2280 - A THROWN DOCK STAMPED AS EMPTY, AND UNDO DROPPED THE STORE BEFORE THE STAMP (#238, v3764)
+
+GPT-5.6 Sol on PR #238, DIFFERS. Dormancy, classification, the earlier red-proofs, the stamps and the Wilson claims verified. Two holes in the seam.
+
+1. HIGH. `_dockNames` caught an internal failure and returned `[]`. `_vaultRecords` treated that array as a measured empty dock (`dockUnknown:false`). A loose name then fell through to orphan, persist wrote it, and the migration stamped. Reproduced with `_inMagicRare` throwing: loose D became orphan and the stamp latched. FIX: the catch returns null. The records model sets `dockUnknown`. Persist refuses and does not stamp. The population line reports loose and filed as null rather than subtracting a zero. Delete-unsorted does not delete when the dock is null. GUARD: `test_a_throwing_dock_dependency_persists_nothing` in `tv/test_v3758_records_persist_parity.py`. The older null-function case stays. RED: the catch returns `[]` again.
+
+2. MEDIUM. Undo removed `d2r_vaultRecords` and then the stamp. A stamp `removeItem` that threw left the store gone and the stamp in place, so the next arm returned `already:true` and did not write the store back. FIX: the stamp is removed first. If that throws, both keys stay and `undone` is false. If the store remove throws after the stamp is gone, `undone` is false and `partial` is true, and the store stays. A stamp whose store is absent is not already-done: the arm persists again. An unreadable store under a stamp stays UNKNOWN and is not overwritten. GUARD: `test_a_stamp_remove_that_throws_leaves_the_store` and `test_a_stamp_without_a_store_persists_again`. RED: the first remove targets the store key again, and the already-check ignores a missing store.
+
+The store stays dormant. Nothing calls the arm. Wilson on this gate: 15 distinct attacks, lower bound 0.7961 against the write-door bar 0.722. Sabotage kinds 1.00 against 1.30, so the door stays shut.
+
 ### REG-2279 - SHARED LOCKER CLASSIFIED AS A MULE HOME (#76, REG-2272 item 6, v3764)
 
 The INC-2 and INC-3b fixtures stubbed isSharedStash to mean assign==='shared' and muleById('shared') to null, so classification parity against production _sharedNames was never judged (REG-2272 item 6). Production is two different lists: _sharedNames is assign==='shared' (the locker, including war gear); isSharedStash is the never-muled regex (runes, shards, sunders). muleById('shared') returns the locker. A war-gear name in the locker therefore fell through to the filed branch: kind filed, mule shared, every copy loc the mule id, rule E skipped, and FIND returned a mule home. The persist overflow view walked kind==='sharedStash', so an unassigned 4-copy Worldstone Shard (regex, not in the locker) read as trade-stock while the live overflow, which walks _sharedNames, did not.
