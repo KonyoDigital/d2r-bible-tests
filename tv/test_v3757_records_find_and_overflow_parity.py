@@ -60,7 +60,7 @@ def _fn(src, name):
 # the functions under test + the live overflow chain they are proven against (all short, pure-ish)
 EXTRACT = ["_sharedNames", "_sharedCopyCount", "_sharedCappedCopies", "_vaultSharedOverflowCells",
            "_vaultSharedOverflowNames", "_vaultRecords", "_vaultRecordsSource",
-           "_vaultRecordsFind", "_vaultRecordsOverflow"]
+           "_vrRecHome", "_vaultRecordsFind", "_vaultRecordsOverflow"]
 
 
 class TestV3757RecordsFindAndOverflowParity(unittest.TestCase):
@@ -93,7 +93,7 @@ var out = {
   recOverflow:  _vaultRecordsOverflow(),
   liveOverflow: _vaultSharedOverflowNames(),
   findA: _vaultRecordsFind('A'),   // filed -> 'mule1'
-  findB: _vaultRecordsFind('B'),   // shared -> null
+  findB: _vaultRecordsFind('B'),   // shared locker -> 'shared'
   findD: _vaultRecordsFind('D'),   // loose  -> null
   findZ: _vaultRecordsFind('ZZ'),  // unknown -> null (no index)
   idxLen: (function(){ var r = _vaultRecords(); var o = {}; OWNED.forEach(function(n){ o[n] = (r.index[n]||[]).length; }); return o; })()
@@ -114,7 +114,7 @@ process.stdout.write(JSON.stringify(out));
                          "records overflow != live _vaultSharedOverflowNames: %r vs %r" % (o["recOverflow"], o["liveOverflow"]))
         # FIND: a filed name resolves to its home mule; a non-filed / unknown name never invents a home
         self.assertEqual(o["findA"], "mule1", "a filed name did not resolve to its mule via records")
-        self.assertIsNone(o["findB"], "a SHARED name was given a mule home")
+        self.assertEqual(o["findB"], "shared", "a shared-locker name did not home on the shared locker")
         self.assertIsNone(o["findD"], "a LOOSE name was given a mule home")
         self.assertIsNone(o["findZ"], "an unknown name was given a home")
         # FIDELITY: the index carries copyCount records per name (so overflow can't drift from copies[])

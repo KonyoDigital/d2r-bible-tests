@@ -9,11 +9,14 @@ census. Undo is window._vaultRecordsMigrateUndo.
 
 An unknown dock, an unreadable witness, an unreadable d2r_muleAssign or a wrong store
 shape does not stamp. Page load does not arm when the set-piece reconcile refuses.
-A successful owned, copies or assign write re-persists and confirms the readback; a
-refusal follows the live model. FIND and GRAIL-DUPES read that source through the UI
-seams. copies[] is not rewritten. recId stays positional (REG-2272 item 4): a dropped
-copy reuses the prefix id. That item stays open. The write door stays shut on sabotage
-alone.
+A successful owned, copies or assign write re-persists and confirms the readback when
+that signature changed. A refusal or a short readback drops the stamp and writes a
+dirty marker, so a reload follows the live model. The source consumes a store only
+while that stamp is current and no row is an unreadable witness. A shared-locker name
+finds the shared locker. A reset holds refresh until the clears finish, then refreshes
+once. FIND and GRAIL-DUPES read that source through the UI seams. copies[] is not
+rewritten. recId stays positional (REG-2272 item 4): a dropped copy reuses the prefix
+id. That item stays open. The write door stays shut on sabotage alone.
 
 The functions are extracted from bible.html and run in node on a seeded fixture, with an
 in-memory window.LSR. A missing node raises. RED_PROOF below.
@@ -43,6 +46,8 @@ EXTRACT = [
     "_sharedNames", "_sharedCopyCount", "_sharedCappedCopies", "_vaultSharedOverflowCells",
     "_vaultSharedOverflowNames", "_vaultDupesNames", "_vaultDupesCells", "_vaultSharedOverflowHtml",
     "_vaultPresenceSpan", "_assignStoreUnknown", "_vaultRecords", "_vaultRecordsSource",
+    "_vaultRecordsStampOk", "_vrRecDirty", "_vrRecMarkDirty", "_vrRecClearDirty",
+    "_vrRecSig", "_vrRecSigSame", "_vrRecNoteSig", "_vrRecHome",
     "_vaultLockerItems", "_vaultRecordsHeader", "_vaultRecordsFind", "_vaultRecordsOverflow",
     "_vrRecLoadRaw", "_vrRecGuardedSet", "_vrLocForCopy", "_vaultRecordsLoad",
     "_vaultRecordsPersist", "_vaultRecordsRefresh", "_vaultRecordsMigrate",
@@ -69,6 +74,9 @@ var _VRM_KEY = 'd2r_vaultRecordsMigrate';
 var _VRM_VER = 1;
 var _vrRecUnread = {};
 var _vrRecFollowLive = false;
+var _VR_DIRTY_KEY = 'd2r_vaultRecordsDirty';
+var _vrRecHold = 0;
+var _vrRecSigSeen = null;
 var _muleUnread = {};
 var AK = 'd2r_muleAssign';
 var LS = window.LSR;
@@ -100,7 +108,10 @@ var _SHARED_COPY_CAP = 2, _MULE_COPY_CAP = 3;
 function ownedPool(){ return OWNED.slice(); }
 function copyCount(n){ var c = copies[n]; return (c && c > 0) ? c : (OWNED.indexOf(n) >= 0 ? 1 : 0); }
 function isSharedStash(n){ return false; }
-function muleById(id){ return (id === 'mule-sets' || id === 'mule-other') ? { id: id, name: id } : null; }
+function muleById(id){
+  if (id === 'shared') return { id: 'shared', name: 'SHARED STASH', icon: '' };
+  return (id === 'mule-sets' || id === 'mule-other') ? { id: id, name: id } : null;
+}
 window._carriedNames = function(){ return []; }
 function _inMagicRare(){ return false; }
 function esc(t){ return String(t == null ? '' : t); }
@@ -459,6 +470,8 @@ out.unknown = !!(a && a.unknown);
 out.store = window.LSR.getItem('d2r_vaultRecords') != null;
 out.stamp = window.LSR.getItem('d2r_vaultRecordsMigrate') != null;
 _vrRecFollowLive = false;
+window.LSR.removeItem('d2r_vaultRecordsDirty');
+window.LSR.setItem('d2r_vaultRecordsMigrate', JSON.stringify({ ver: 1 }));
 window.LSR.setItem('d2r_vaultRecords', JSON.stringify({ v: 1, records: [
   { recId: 'rec_1', name: NATALYA, copyIx: 0, kind: 'filed', mule: 'mule-sets', loc: 'mule-sets' }
 ]}));
@@ -507,6 +520,8 @@ _vaultRecordsArm();
 _dockNames = function(){ return null; };
 copies[GRIFFON] = 1;
 persist();
+window.LSR.setItem('d2r_vaultRecordsMigrate', JSON.stringify({ ver: 1 }));
+window.LSR.removeItem('d2r_vaultRecordsDirty');
 var m = { id: 'dupes' };
 """ + "\n" + card + r"""
 out.card = _ovNames.slice();
@@ -535,6 +550,8 @@ assign.Shako = 'mule-sets';
 OWNED.push('Shako');
 owned.add('Shako');
 persist();
+window.LSR.setItem('d2r_vaultRecordsMigrate', JSON.stringify({ ver: 1 }));
+window.LSR.removeItem('d2r_vaultRecordsDirty');
 out.census = _vaultLockerItems('mule-sets');
 out.stored = JSON.parse(window.LSR.getItem('d2r_vaultRecords')).records.length;
 out.find = askFind('shako');
@@ -667,6 +684,174 @@ out.copyIdentity = a && a.copyIdentity;
         self.assertEqual(o["ids2"], [o["ids"][0]],
                          "a dropped copy did not keep the positional prefix id: %r" % o)
         self.assertEqual(o["copyIdentity"], "positional", o)
+
+    def test_a_shared_locker_item_finds_the_shared_locker(self):
+        """Griffon's Eye is filed in the shared locker. FIND must name that locker, not the dock."""
+        o = self._run(r"""
+_vaultRecordsArm();
+out.find = askFind('griffon');
+""")
+        self.assertIn("SHARED STASH", o["find"], "FIND did not name the shared locker: %r" % o)
+        self.assertNotIn("unsorted", o["find"], "a shared filing was sent to the dock: %r" % o)
+        self.assertNotIn("in the dock", o["find"], o)
+
+    def test_a_short_readback_stays_live_after_reload(self):
+        """The follow-live flag dies with the page. The stamp drop or the dirty marker has to remain."""
+        o = self._run(r"""
+_vaultRecordsArm();
+var realSet = window.LSR.setItem.bind(window.LSR);
+window.LSR.setItem = function(k, v){
+  if (k === 'd2r_vaultRecords') {
+    var obj = JSON.parse(v);
+    obj.records = obj.records.slice(0, 1);
+    return realSet(k, JSON.stringify(obj));
+  }
+  return realSet(k, v);
+};
+assign.Shako = 'mule-sets';
+OWNED.push('Shako');
+owned.add('Shako');
+persist();
+_vrRecFollowLive = false;
+out.census = _vaultLockerItems('mule-sets');
+out.stored = JSON.parse(window.LSR.getItem('d2r_vaultRecords')).records.length;
+out.stamp = window.LSR.getItem('d2r_vaultRecordsMigrate') != null;
+out.dirty = window.LSR.getItem('d2r_vaultRecordsDirty') != null;
+""")
+        self.assertEqual(o["stored"], 1, o)
+        self.assertEqual(o["census"], 5, "a reload served the truncated store: %r" % o)
+        self.assertTrue((not o["stamp"]) or o["dirty"], "neither the stamp nor the dirty marker moved: %r" % o)
+
+    def test_a_refused_refresh_stays_live_after_reload(self):
+        card = self._line("var _ovNames = (m.id === 'dupes') ? _vaultDupesNames() : [];")
+        o = self._run(r"""
+_vaultRecordsArm();
+_dockNames = function(){ return null; };
+copies[GRIFFON] = 1;
+persist();
+_vrRecFollowLive = false;
+var m = { id: 'dupes' };
+""" + "\n" + card + r"""
+out.card = _ovNames.slice();
+out.stamp = window.LSR.getItem('d2r_vaultRecordsMigrate') != null;
+out.dirty = window.LSR.getItem('d2r_vaultRecordsDirty') != null;
+""")
+        self.assertEqual(o["card"], [], "a reload served the stale dupes snapshot: %r" % o)
+        self.assertTrue((not o["stamp"]) or o["dirty"], o)
+
+    def test_undo_then_persist_does_not_create_a_store(self):
+        """No stamp, no store. An ordinary persist must not recreate one the source would then consume."""
+        o = self._run(r"""
+_vaultRecordsArm();
+_vaultRecordsMigrateUndo();
+assign[NATALYA] = 'mule-other';
+var writes = 0;
+var real = window.LSR.setItem.bind(window.LSR);
+window.LSR.setItem = function(k, v){
+  if (k === 'd2r_vaultRecords') writes++;
+  return real(k, v);
+};
+persist();
+out.writes = writes;
+out.store = window.LSR.getItem('d2r_vaultRecords') != null;
+_vrRecFollowLive = false;
+window.LSR.removeItem('d2r_vaultRecordsDirty');
+out.census = _vaultLockerItems('mule-sets');
+""")
+        self.assertEqual(o["writes"], 0, "refresh created a store with no stamp: %r" % o)
+        self.assertFalse(o["store"], o)
+        self.assertEqual(o["census"], 3, "an unstamped store became the census: %r" % o)
+
+    def test_an_unstamped_store_is_not_the_source_after_reload(self):
+        o = self._run(r"""
+_vaultRecordsArm();
+window.LSR.removeItem('d2r_vaultRecordsMigrate');
+window.LSR.removeItem('d2r_vaultRecordsDirty');
+window.LSR.setItem('d2r_vaultRecords', JSON.stringify({ v: 1, records: [
+  { recId: 'rec_9', name: NATALYA, copyIx: 0, kind: 'filed', mule: 'mule-sets', loc: 'mule-sets' }
+]}));
+_vrRecFollowLive = false;
+out.census = _vaultLockerItems('mule-sets');
+""")
+        self.assertEqual(o["census"], 4, "an unstamped store survived a reload: %r" % o)
+
+    def test_a_prov_unknown_snapshot_is_not_the_source_after_reload(self):
+        """A planted stamp does not make an unreadable witness the source. A store that was never stamped does not either."""
+        o = self._run(r"""
+function plant(stamp){
+  _vrRecFollowLive = false;
+  window.LSR.removeItem('d2r_vaultRecordsDirty');
+  if (stamp) window.LSR.setItem('d2r_vaultRecordsMigrate', JSON.stringify({ ver: 1 }));
+  else window.LSR.removeItem('d2r_vaultRecordsMigrate');
+  window.LSR.setItem('d2r_vaultRecords', JSON.stringify({ v: 1, records: [
+    { recId: 'rec_9', name: NATALYA, copyIx: 0, kind: 'filed', mule: 'mule-sets', provUnknown: true }
+  ]}));
+  return _vaultLockerItems('mule-sets');
+}
+out.stamped = plant(true);
+out.never = plant(false);
+""")
+        self.assertEqual(o["stamped"], 4, "a provUnknown snapshot was the source: %r" % o)
+        self.assertEqual(o["never"], 4, "a never-stamped provUnknown snapshot was the source: %r" % o)
+
+    def test_an_unchanged_persist_does_not_rewrite_the_records_store(self):
+        o = self._run(r"""
+_vaultRecordsArm();
+var writes = 0;
+var real = window.LSR.setItem.bind(window.LSR);
+window.LSR.setItem = function(k, v){
+  if (k === 'd2r_vaultRecords') writes++;
+  return real(k, v);
+};
+mf = 250;
+players = 8;
+persist();
+out.idle = writes;
+assign[NATALYA] = 'mule-other';
+persist();
+out.moved = writes;
+""")
+        self.assertEqual(o["idle"], 0, "an unchanged persist rewrote d2r_vaultRecords: %r" % o)
+        self.assertEqual(o["moved"], 1, "a real assign change did not refresh: %r" % o)
+
+    def test_a_light_reset_refreshes_once_after_the_clears(self):
+        """Assign clears before provenance. The records store must not be rewritten in between."""
+        scope = _slice(self.src,
+                       "  var _VAULT_RESET_SCOPE = Object.freeze({",
+                       "    try { console.info('[vault reset] ' + JSON.stringify(R)); } catch(e){}\n    return R;\n  }")
+        extra = (
+            "var JOURNAL_KEY = 'd2r_journal';\n"
+            "var SEEN_KEY = 'd2r_seen';\n"
+            "var FOLDER_DB = 'folderdb';\n"
+            "var FOLDER_KEY = 'folderkey';\n"
+            "var PROV_KEY = 'd2r_vaultProv';\n"
+            "function _vaultRefileFromPlan(){ return; }\n"
+            + _fn(self.src, "_provWrite") + "\n"
+            + scope + "\n"
+        )
+        o = self._run(r"""
+window.LSR.setItem('d2r_vaultProv', JSON.stringify((function(){
+  var o = {}; o[NATALYA] = { by: 'witness', kind: 'filed' }; return o;
+})()));
+_vaultRecordsArm();
+var realProv = _provWrite;
+_provWrite = function(all){
+  var rows = [];
+  try { rows = JSON.parse(window.LSR.getItem('d2r_vaultRecords')).records; } catch (e) { rows = []; }
+  out.midFiled = rows.some(function(r){ return r && r.kind === 'filed' && r.mule === 'mule-sets'; });
+  out.midWitness = rows.some(function(r){ return r && r.prov && r.prov.by === 'witness'; });
+  return realProv(all);
+};
+_vaultResetRun('vaultReset');
+var after = [];
+try { after = JSON.parse(window.LSR.getItem('d2r_vaultRecords')).records; } catch (e2) { after = []; }
+out.afterWitness = after.some(function(r){ return r && r.prov && r.prov.by === 'witness'; });
+out.hold = _vrRecHold;
+""", extra=extra)
+        self.assertTrue(o["midFiled"], "refresh rewrote the store between the clears: %r" % o)
+        self.assertTrue(o["midWitness"], "the mid snapshot was not the pre-reset witness: %r" % o)
+        self.assertFalse(o["afterWitness"], "the witness survived the reset refresh: %r" % o)
+        self.assertEqual(o["hold"], 0, o)
 
     def test_distinct_attacks_clear_the_write_door_wilson_bar(self):
         """vault.apply bar. One RED_PROOF is one attack. Sabotage does not open the door."""
@@ -888,6 +1073,62 @@ RED_PROOF = [
         "file": "bible.html",
         "find": "      try { (_vaultDupesNames() || []).forEach(function(n){ if (n) names[n] = 1; }); } catch (e3) {}",
         "replace": "      try { (_vaultSharedOverflowNames() || []).forEach(function(n){ if (n) names[n] = 1; }); } catch (e3) {}",
+        "matches": 1,
+    },
+    {
+        "why": "A shared-locker record homes on the shared locker. Returning null sends Griffon's Eye to the dock.",
+        "file": "bible.html",
+        "find": "      if (inLocker) return 'shared';",
+        "replace": "      if (false && inLocker) return 'shared';",
+        "matches": 1,
+    },
+    {
+        "why": "A refused or short refresh has to drop the stamp and leave a dirty marker. The memory flag does not survive a reload.",
+        "file": "bible.html",
+        "find": "    try { window.LSR.removeItem(_VRM_KEY); } catch (eSt) {}\n    try { window.LSR.setItem(_VR_DIRTY_KEY, '1'); } catch (eD) {}",
+        "replace": "    /* a reload serves the stale stamp again */",
+        "matches": 1,
+    },
+    {
+        "why": "Refresh must not create a store when no stamp exists. After undo, persist would recreate a store the source can consume.",
+        "file": "bible.html",
+        "find": "    if (typeof _vaultRecordsStampOk === 'function' && !_vaultRecordsStampOk()) return { ok: false, live: true, why: 'no current stamp - refresh does not create a store' };",
+        "replace": "    /* refresh creates a store with no stamp */",
+        "matches": 1,
+    },
+    {
+        "why": "An unstamped store is not the source. Serving it after a reload makes a store that was never armed active.",
+        "file": "bible.html",
+        "find": "      if (typeof _vaultRecordsStampOk === 'function' && !_vaultRecordsStampOk()) return _vaultRecords();",
+        "replace": "      /* an unstamped store is still the source */",
+        "matches": 1,
+    },
+    {
+        "why": "A provUnknown snapshot is not the source, even under a planted stamp. A reload must follow the live model.",
+        "file": "bible.html",
+        "find": "        if (loaded && loaded.ok && Array.isArray(loaded.records) && loaded.records.some(function(row){ return row && row.provUnknown === true; })) return _vaultRecords();",
+        "replace": "        /* a provUnknown snapshot is still the source */",
+        "matches": 1,
+    },
+    {
+        "why": "Refresh has to wait until a reset finishes clearing. Running it after assign and before provenance keeps the old witness.",
+        "file": "bible.html",
+        "find": "    if (typeof _vrRecHold !== 'undefined') _vrRecHold++;",
+        "replace": "    /* refresh runs between the reset clears */",
+        "matches": 1,
+    },
+    {
+        "why": "The reset refreshes once after the clears. Without that call the old witness rows stay in d2r_vaultRecords.",
+        "file": "bible.html",
+        "find": "    try { if (typeof _vaultRecordsRefresh === 'function') _vaultRecordsRefresh(); } catch (eVrReset) {}",
+        "replace": "    /* the reset never refreshed the records store */",
+        "matches": 1,
+    },
+    {
+        "why": "An unchanged persist must not rewrite the records store. Skipping the signature check writes it from every slider tick.",
+        "file": "bible.html",
+        "find": "    if (typeof _vrRecSigSame === 'function' && _vrRecSigSame()) return { ok: true, skipped: true, why: 'owned, copies, assign and provenance are unchanged' };",
+        "replace": "    /* every persist rewrites the records store */",
         "matches": 1,
     },
 ]

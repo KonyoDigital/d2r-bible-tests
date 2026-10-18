@@ -7,6 +7,24 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2283 - SHARED FIND WENT TO THE DOCK, AND A RELOAD SERVED AN UNSTAMPED OR STALE STORE (#239, v3765)
+
+GPT-5.6 Sol re-look of PR #239 at 80386c82, DIFFERS. The page-load arm, the refusals, the set-piece collapse, the shared census and the stamps stayed. Five holes.
+
+1. HIGH. _vaultRecordsFind returned null for sharedStash, so _vaultFindHome turned Griffon's Eye into unsorted in the dock. FIX: a shared-stash record that is in the locker homes on the shared locker. Loose, carried, keep, orphan and a regex-only sharedStash name stay null. The red proof drives vaultFind.
+
+2. HIGH. _vrRecFollowLive lived only in memory. After a reload a short or refused refresh served the stale stamp again. FIX: a refusal or a short readback drops the migrate stamp and writes d2r_vaultRecordsDirty. A reload follows that marker.
+
+3. HIGH. _vaultRecordsSource did not require a stamp. After undo, persist recreated the store and the source consumed it. A provUnknown store that was never stamped became active after reload. FIX: consume or refresh a store only while the stamp is current. Refresh does not create a store when no stamp exists. A provUnknown snapshot is not a source. Each of these is red-proven across a simulated reload.
+
+4. MEDIUM. A light reset refreshed after clearing assignments and before clearing provenance, so the old witness stayed on the rows. FIX: refresh is held until the clears finish, then runs once.
+
+5. MEDIUM. persist() rewrote the whole records store from unrelated call sites. FIX: refresh skips when owned, copies, assign and provenance are unchanged.
+
+GUARD: tv/test_v3765_records_arm_live.py. heart2 --prove 37/37 PROVEN. Wilson 0.9059 on 37 distinct attacks against the vault.apply bar 0.722. Sabotage kinds 1.00 against 1.30, so the write door stays shut. v3758 15/15 PROVEN, Wilson 0.7961. v3764 11/11 PROVEN, Wilson 0.7412. v3757 re-proved. The arm count stays 2. Persist callers stay the definition, the migration and the write refresh.
+
+LEFT: REG-2272 item 4. recId stays positional. The four stamps stay v3765. This is not a new version.
+
 ### REG-2282 - AN UNREADABLE ASSIGNMENT STAMPED, THE SNAPSHOT WENT STALE, AND FIND AND DUPES STAYED ON THE LIVE LISTS (#239, v3765)
 
 GPT-5.6 Sol on PR #239, DIFFERS. The single page-load call, the earlier refusals, the set-piece collapse with multi-keep, the shared census, the Wilson claim and the stamps verified. Three HIGH holes.

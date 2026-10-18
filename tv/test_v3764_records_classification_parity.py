@@ -52,7 +52,7 @@ EXTRACT = [
     "_vaultRecords", "_vaultRecordsSource", "_vaultRecordsFind", "_vaultRecordsOverflow",
     "_vaultRecordsHeader",
     "_vrRecLoadRaw", "_vrRecGuardedSet", "_vrLocForCopy", "_vaultRecordsLoad", "_vaultRecordsPersist",
-    "_vaultRecordsViewFind", "_vaultRecordsViewOverflow", "_vaultRecordsViewHeader",
+    "_vrRecHome", "_vaultRecordsViewFind", "_vaultRecordsViewOverflow", "_vaultRecordsViewHeader",
 ]
 
 PREAMBLE = r"""
@@ -179,7 +179,7 @@ out.regexHitsShard = !!isSharedStash('Worldstone Shard');
             {"copyIx": 2, "kind": "sharedStash", "mule": None},
             {"copyIx": 3, "kind": "sharedStash", "mule": None},
         ], "a shared-locker name the regex misses was not classified as the locker: %r" % o["war"])
-        self.assertIsNone(o["findWar"], "FIND gave the shared locker a mule home: %r" % o["findWar"])
+        self.assertEqual(o["findWar"], "shared", "FIND did not home the shared locker on itself: %r" % o["findWar"])
         self.assertTrue(o["persistOk"], "persist refused a readable store: %r" % o)
         self.assertEqual(o["locWar"], ["shared", "shared", "dupes", "dupes"],
                          "rule E did not split the locker's copies: %r" % o["locWar"])
@@ -298,10 +298,11 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "FIND gives a mule only for kind filed. Returning shared for every other kind hands the locker a mule home.",
+        "why": "FIND gives a mule only for kind filed, and the shared locker only to a name in it. "
+               "Returning shared for every other kind hands a loose name that locker.",
         "file": "bible.html",
-        "find": "      return rec ? (rec.kind === 'filed' ? rec.mule : null) : null;\n    } catch(e){ return undefined; }\n",
-        "replace": "      return rec ? (rec.kind === 'filed' ? rec.mule : 'shared') : null;\n    } catch(e){ return undefined; }\n",
+        "find": "      if (inLocker) return 'shared';\n    }\n    return null;\n",
+        "replace": "      if (inLocker) return 'shared';\n    }\n    return 'shared';\n",
         "matches": 1,
     },
     {

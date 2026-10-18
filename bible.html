@@ -48080,15 +48080,18 @@ window.vaultAutoAssign = function(){
   window._vaultRecords = _vaultRecords;
 
   function _vaultRecordsSource(){
-    /* The persisted store is the source once it is a real {records: array}. Absent, refused or
-       UNKNOWN falls back to the live derivation. A wrong shape stays unread and is not treated as
-       empty. A refused refresh follows the live model. An unreadable assignment is not papered
-       over by an older stamp. */
+    /* The persisted store is the source only while a current migrate stamp is valid, the store is
+       a real {records: array}, and no row is an unreadable witness. Absent, unstamped, dirty,
+       refused or UNKNOWN falls back to the live derivation. A wrong shape stays unread. A reload
+       follows the dirty marker, not a memory flag. */
     try {
       if (typeof _vrRecFollowLive !== 'undefined' && _vrRecFollowLive) return _vaultRecords();
+      if (typeof _vrRecDirty === 'function' && _vrRecDirty()) return _vaultRecords();
       if (typeof _assignStoreUnknown === 'function' && _assignStoreUnknown()) return _vaultRecords();
+      if (typeof _vaultRecordsStampOk === 'function' && !_vaultRecordsStampOk()) return _vaultRecords();
       if (typeof _vaultRecordsLoad === 'function') {
         var loaded = _vaultRecordsLoad();
+        if (loaded && loaded.ok && Array.isArray(loaded.records) && loaded.records.some(function(row){ return row && row.provUnknown === true; })) return _vaultRecords();
         if (loaded && loaded.ok && Array.isArray(loaded.records)) return loaded;
       }
     } catch (e) {}
@@ -48165,7 +48168,7 @@ window.vaultAutoAssign = function(){
       var ids = r.index[name]; if (!ids || !ids.length) return null;   // not an owned/kept name
       var rec = null;
       for (var i = 0; i < r.records.length; i++){ if (r.records[i].name === name){ rec = r.records[i]; break; } }
-      return rec ? (rec.kind === 'filed' ? rec.mule : null) : null;
+      return _vrRecHome(rec, name);
     } catch(e){ return undefined; }
   }
   window._vaultRecordsFind = _vaultRecordsFind;
@@ -48210,7 +48213,65 @@ window.vaultAutoAssign = function(){
   var _VR_STORE_KEY = 'd2r_vaultRecords';
   var _VRM_KEY = 'd2r_vaultRecordsMigrate';
   var _VRM_VER = 1;
+  var _VR_DIRTY_KEY = 'd2r_vaultRecordsDirty';
+  var _vrRecHold = 0;       /* a reset holds refresh until every clear has landed */
+  var _vrRecSigSeen = null; /* owned/copies/assign/prov signature last confirmed into the store */
   var _vrRecUnread = {};   /* keyed by store key: a reason once a read throws / will not parse; a guarded write then refuses */
+  function _vaultRecordsStampOk(){
+    /* A current migrate stamp is an object whose ver is this migration. Absent, unreadable or older is not a source. */
+    try {
+      var sraw = window.LSR.getItem(_VRM_KEY);
+      if (sraw == null || sraw === '') return false;
+      var done = JSON.parse(sraw);
+      return !!(done && typeof done === 'object' && !Array.isArray(done) && done.ver >= _VRM_VER);
+    } catch (e) { return false; }
+  }
+  function _vrRecDirty(){
+    try { return window.LSR.getItem(_VR_DIRTY_KEY) != null; } catch (e) { return true; }
+  }
+  function _vrRecMarkDirty(){
+    /* A refused or short refresh must survive a reload. The memory flag does not. Drop the stamp and leave a marker. */
+    try { if (typeof _vrRecFollowLive !== 'undefined') _vrRecFollowLive = true; } catch (e) {}
+    try { window.LSR.removeItem(_VRM_KEY); } catch (eSt) {}
+    try { window.LSR.setItem(_VR_DIRTY_KEY, '1'); } catch (eD) {}
+  }
+  function _vrRecClearDirty(){
+    try { if (typeof _vrRecFollowLive !== 'undefined') _vrRecFollowLive = false; } catch (e) {}
+    try { window.LSR.removeItem(_VR_DIRTY_KEY); } catch (eD) {}
+  }
+  function _vrRecSig(){
+    /* Cheap signature of the stores a refresh would re-derive. null = a read threw, so the refresh runs. */
+    try {
+      var names = (typeof ownedPool === 'function') ? ownedPool().slice().sort() : null;
+      var cc = {};
+      if (names) names.forEach(function(n){ cc[n] = (typeof copyCount === 'function') ? copyCount(n) : 1; });
+      var asg = (typeof assign !== 'undefined' && assign) ? assign : null;
+      var prov = null;
+      try { prov = window.LSR.getItem('d2r_vaultProv'); } catch (eP) { return null; }
+      return JSON.stringify({ names: names, cc: cc, asg: asg, prov: prov });
+    } catch (e) { return null; }
+  }
+  function _vrRecSigSame(){
+    var sig = (typeof _vrRecSig === 'function') ? _vrRecSig() : null;
+    if (sig == null || _vrRecSigSeen == null) return false;
+    return sig === _vrRecSigSeen;
+  }
+  function _vrRecNoteSig(){
+    var sig = (typeof _vrRecSig === 'function') ? _vrRecSig() : null;
+    if (sig != null) _vrRecSigSeen = sig;
+  }
+  function _vrRecHome(rec, name){
+    /* filed -> that mule. A shared-stash record that is actually in the locker homes on 'shared'.
+       A loose, carried, keep, orphan or regex-only sharedStash name stays null. */
+    if (!rec) return null;
+    if (rec.kind === 'filed') return rec.mule;
+    if (rec.kind === 'sharedStash') {
+      var inLocker = false;
+      try { inLocker = (_sharedNames() || []).indexOf(name) >= 0; } catch (eL) { inLocker = false; }
+      if (inLocker) return 'shared';
+    }
+    return null;
+  }
   function _vrRecLoadRaw(){
     /* -> parsed object | null (absent) | undefined (UNKNOWN: unreadable/unparseable — the key is marked so a later
        _vrRecGuardedSet refuses to overwrite it). Mirrors the mule store load() at ~bible.html:40308. */
@@ -48331,11 +48392,16 @@ window.vaultAutoAssign = function(){
   }
   window._vaultRecordsPersist = _vaultRecordsPersist;
   function _vaultRecordsRefresh(){
-    /* Re-persist after a successful owned, copies or assign write. The arm returns already once
-       stamped, so a later write must call this, not the arm. A confirmed readback clears the
-       follow-live flag. A refusal, a short readback or an unreadable witness follows the live model. */
+    /* Re-persist after a successful owned, copies or assign write whose signature changed.
+       No current stamp: do not create a store. A reset holds this until the clears finish.
+       A confirmed readback clears the dirty marker. A refusal or a short readback drops the
+       stamp and writes the marker, so a reload follows live. */
+    if (typeof _vrRecHold !== 'undefined' && _vrRecHold > 0) return { ok: false, held: true, why: 'a reset is clearing' };
+    if (typeof _vaultRecordsStampOk === 'function' && !_vaultRecordsStampOk()) return { ok: false, live: true, why: 'no current stamp - refresh does not create a store' };
+    if (typeof _vrRecSigSame === 'function' && _vrRecSigSame()) return { ok: true, skipped: true, why: 'owned, copies, assign and provenance are unchanged' };
     var refused = function(why){
-      try { if (typeof _vrRecFollowLive !== 'undefined') _vrRecFollowLive = true; } catch (eR) {}
+      if (typeof _vrRecMarkDirty === 'function') _vrRecMarkDirty();
+      else { try { if (typeof _vrRecFollowLive !== 'undefined') _vrRecFollowLive = true; } catch (eR) {} }
       return { ok: false, live: true, why: why || 'persist refused' };
     };
     try {
@@ -48349,7 +48415,8 @@ window.vaultAutoAssign = function(){
         if (back.records[wi] && back.records[wi].provUnknown) { witnessUnread = true; break; }
       }
       if (witnessUnread) return refused('the witness store would not read');
-      try { if (typeof _vrRecFollowLive !== 'undefined') _vrRecFollowLive = false; } catch (eC) {}
+      try { if (typeof _vrRecClearDirty === 'function') _vrRecClearDirty(); } catch (eC) {}
+      try { if (typeof _vrRecNoteSig === 'function') _vrRecNoteSig(); } catch (eN) {}
       return { ok: true, live: false, count: pr.count };
     } catch (e) { return refused('refresh threw'); }
   }
@@ -48431,9 +48498,13 @@ window.vaultAutoAssign = function(){
     r.seam = 'page-load';
     r.copyIdentity = 'positional';
     try {
-      if (typeof _vrRecFollowLive !== 'undefined') {
-        if (r.stamped) _vrRecFollowLive = false;
-        else if (r.unknown) _vrRecFollowLive = true;
+      if (r.stamped) {
+        if (typeof _vrRecClearDirty === 'function') _vrRecClearDirty();
+        else if (typeof _vrRecFollowLive !== 'undefined') _vrRecFollowLive = false;
+        if (typeof _vrRecNoteSig === 'function') _vrRecNoteSig();
+      } else if (r.unknown) {
+        if (typeof _vrRecMarkDirty === 'function') _vrRecMarkDirty();
+        else if (typeof _vrRecFollowLive !== 'undefined') _vrRecFollowLive = true;
       }
     } catch (eF) {}
     return r;
@@ -48468,7 +48539,7 @@ window.vaultAutoAssign = function(){
     var ids = model.index[name]; if (!ids || !ids.length) return null;
     var rec = null;
     for (var i = 0; i < model.records.length; i++){ if (model.records[i].name === name){ rec = model.records[i]; break; } }
-    return rec ? (rec.kind === 'filed' ? rec.mule : null) : null;
+    return _vrRecHome(rec, name);
   }
   window._vaultRecordsViewFind = _vaultRecordsViewFind;
   function _vaultRecordsViewOverflow(model){
@@ -52290,6 +52361,8 @@ function renderJournal(){
     S.keeps.forEach(function(k){ before[k.store] = _vResetRead(k.store); R.kept[k.store] = _vResetCount(before[k.store]); });
     R.recorded = _vaultRecordedFilings();
     parts.forEach(function(p){ var c = S.clears[p]; if (c.store) R.cleared[p] = _vResetCount(_vResetRead(c.store)); });
+    if (typeof _vrRecHold !== 'undefined') _vrRecHold++;
+    try {
     parts.forEach(function(p){ var c = S.clears[p]; if (c.later) return; try { c.clear(); } catch(e){ R.failed.push(p); } });
     S.keeps.forEach(function(k){
       var was = before[k.store], now = _vResetRead(k.store);
@@ -52302,6 +52375,10 @@ function renderJournal(){
       try { await c.clear(); R.cleared[parts[i]] = true; } catch(e){ R.failed.push(parts[i]); }
     }
     R.ok = (R.touched.length || R.failed.length) ? false : (R.unknown.length ? null : true);
+    } finally {
+      if (typeof _vrRecHold !== 'undefined' && _vrRecHold > 0) _vrRecHold--;
+    }
+    try { if (typeof _vaultRecordsRefresh === 'function') _vaultRecordsRefresh(); } catch (eVrReset) {}
     try { await _vaultRefileFromPlan(R); } catch (e) {
       if (R && R.door === 'vaultClearHistory') {
         R.rebuilt = null; R.held = null;

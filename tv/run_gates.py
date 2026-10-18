@@ -9693,9 +9693,10 @@ GATES = [
          os.path.join(HERE, "test_v3757_records_find_and_overflow_parity.py")], 60,
          needs_app=False,
          why=("#76 INC-2 / v3757 - FIND + GRAIL-DUPES re-expressed through the one-record model (_vaultRecordsFind / "
-             "_vaultRecordsOverflow), proven at PARITY with the live _vaultSharedOverflowNames + the assign[name] home a "
-             "FILED name resolves to, and FIDELITY that the record index carries copyCount(name) records per name. "
-             "Read-only PHASE-1 scaffold; INC-3 (gated, his confirm) swaps the records source to a persisted per-copy store.")
+             "_vaultRecordsOverflow), proven at PARITY with the live _vaultSharedOverflowNames. A FILED name resolves "
+             "to its mule. A shared-locker name resolves to the shared locker. Loose and unknown names invent no home. "
+             "FIDELITY: the record index carries copyCount(name) records per name. "
+             "Read-only PHASE-1 scaffold; INC-3 swaps the records source to a persisted per-copy store.")
          ),
     Gate("test_v3758_records_persist_parity", [sys.executable,
          os.path.join(HERE, "test_v3758_records_persist_parity.py")], 60,
@@ -9724,14 +9725,14 @@ GATES = [
          os.path.join(HERE, "test_v3765_records_arm_live.py")], 120,
          needs_app=False,
          why=("#76 INC-3 live / v3765 - page load calls window._vaultRecordsArm once, and only when the "
-             "set-piece reconcile did not refuse, so d2r_vaultRecords is the one-record source for FIND, "
-             "GRAIL-DUPES and the vault and locker counts. A successful owned, copies or assign write "
-             "re-persists and confirms the readback; a refusal follows the live model. An unreadable "
-             "d2r_muleAssign does not stamp. A presence set piece is one record at one location. The shelf "
-             "card and the locker Items box print that same census. Undo is window._vaultRecordsMigrateUndo. "
-             "An unknown dock, an unreadable witness or a wrong store shape does not stamp. Copy-loss ids "
-             "stay positional (REG-2272 item 4). Wilson against the vault.apply bar; sabotage alone does "
-             "not open the write door.")
+             "set-piece reconcile did not refuse. The source is a stamped records store with no unreadable "
+             "witness; a shared-locker name finds that locker. A refresh runs only when owned, copies, assign "
+             "or provenance changed, and only while a current stamp exists. A refusal or a short readback "
+             "drops the stamp and writes a dirty marker so a reload follows live. A reset holds refresh until "
+             "the clears finish, then refreshes once. An unreadable d2r_muleAssign, an unknown dock, an "
+             "unreadable witness or a wrong store shape does not stamp. Copy-loss ids stay positional "
+             "(REG-2272 item 4). 37 distinct attacks, Wilson against the vault.apply bar; sabotage alone "
+             "does not open the write door.")
          ),
     Gate("test_the_vault_proposes_a_home_and_does_not_move", [sys.executable,
          os.path.join(HERE, "test_the_vault_proposes_a_home_and_does_not_move.py")], 90,
