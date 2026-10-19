@@ -15,18 +15,34 @@
 // stub here is determinism, not a defect anyone has shown. [[inherited_claim_is_not_evidence]]
 import { test, expect } from './_net_stub';
 import { spawn, ChildProcess } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, createWriteStream, readFileSync, WriteStream } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, openSync, closeSync, writeSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const PORT = 17962;
 const CTRL = `http://127.0.0.1:${PORT}/`;
 let server: ChildProcess | null = null;
-// The boot poll used to drop the console's stdout and stderr, so a miss could only say
-// "never came up". The log is evidence for that miss. python -u so a stuck boot still flushes.
+// The boot poll used to drop the console's stdout and stderr (stdio: 'ignore'), so a miss
+// could only say "never came up". Piping both into a Node WriteStream did not fix that:
+// CI run 39206560700 failed both attempts in 1 ms with `fetch failed`, and the file was
+// empty — the bytes never left the pipe, and a full pipe stalls the child before bind.
+// A file descriptor does not have that buffer. python -u writes straight to the file.
 const BOOT_LOG = join(tmpdir(), `tvd-rinse-boot-${process.pid}.log`);
-let bootLog: WriteStream | null = null;
+let bootFd: number | null = null;
+let serverFate = 'not spawned';
 let lastStatusTiming = 'last /api/status: none';
+
+function errorDetail(e: unknown): string {
+  if (!(e instanceof Error)) return String(e);
+  const cause = (e as { cause?: unknown }).cause;
+  let extra = '';
+  if (cause && typeof cause === 'object') {
+    const c = cause as { code?: unknown; name?: unknown; message?: unknown };
+    const bits = [c.code, c.name, c.message].filter((x) => x != null && x !== '').map(String);
+    if (bits.length) extra = ` cause=${bits.join(' ')}`;
+  }
+  return e.message + extra;
+}
 
 function rememberStatus(wallMs: number, ok: boolean | null, timing: any, error: string | null) {
   const total = timing && timing.totalMs != null ? timing.totalMs : 'none';
@@ -55,8 +71,15 @@ function bootTail(): string {
   }
 }
 
+function serverLine(): string {
+  const pid = server && server.pid != null ? String(server.pid) : 'none';
+  const exit = server && server.exitCode != null ? String(server.exitCode) : 'running';
+  const sig = server && server.signalCode ? server.signalCode : 'none';
+  return `server: pid=${pid} exit=${exit} signal=${sig} ${serverFate}`;
+}
+
 function withBoot<T extends Error>(err: T): T {
-  err.message += `\n${lastStatusTiming}\n--- rinse boot log (${BOOT_LOG}) ---\n${bootTail()}`;
+  err.message += `\n${lastStatusTiming}\n${serverLine()}\n--- rinse boot log (${BOOT_LOG}) ---\n${bootTail()}`;
   return err;
 }
 
@@ -137,21 +160,31 @@ test.describe('v877 RINSE (self-hosted console)', () => {
     // (blocks / steals focus / flakes in CI) and the rinse suite was timing out on
     // every keyboard/arrow assertion waiting for a stable #btn-sim.
     const fx = fixtureRun();
-    bootLog = createWriteStream(BOOT_LOG, { flags: 'w' });
-    server = spawn('python3', ['-u', 'tv/control_app.py', '--no-open'], {
-      env: {
-        ...process.env,
-        TV_CONTROL_PORT: String(PORT),
-        TV_PORT: '17961',
-        TV_SESSIONS: fx.journal,
-        TV_HIST: fx.hist,   // v1459 — isolate hist to the fixture's own film (never Konyo's real reels)
-      },
-      stdio: ['ignore', 'pipe', 'pipe'],
+    bootFd = openSync(BOOT_LOG, 'w');
+    writeSync(bootFd, `rinse parent: spawning control_app on :${PORT}\n`);
+    try {
+      server = spawn('python3', ['-u', 'tv/control_app.py', '--no-open'], {
+        env: {
+          ...process.env,
+          TV_CONTROL_PORT: String(PORT),
+          TV_PORT: '17961',
+          TV_SESSIONS: fx.journal,
+          TV_HIST: fx.hist,   // v1459 — isolate hist to the fixture's own film (never Konyo's real reels)
+        },
+        stdio: ['ignore', bootFd, bootFd],
+      });
+    } catch (e) {
+      serverFate = `spawn threw ${errorDetail(e)}`;
+      throw withBoot(e instanceof Error ? e : new Error(String(e)));
+    }
+    serverFate = 'spawned';
+    server.on('error', (err) => { serverFate = `spawn error ${err.message}`; });
+    server.on('exit', (code, signal) => {
+      serverFate = `exited code=${code} signal=${signal ?? 'none'}`;
     });
-    server.stdout?.pipe(bootLog, { end: false });
-    server.stderr?.pipe(bootLog, { end: false });
     // wait for the server
     for (let i = 0; i < 40; i++) {
+      if (server.exitCode != null || server.signalCode) break;
       const t0 = Date.now();
       try {
         const r = await fetch(CTRL + 'api/status', { signal: AbortSignal.timeout(900) });
@@ -159,7 +192,7 @@ test.describe('v877 RINSE (self-hosted console)', () => {
         rememberStatus(wall, r.ok, await statusTimingOf(r), null);
         if (r.ok) return;
       } catch (e) {
-        rememberStatus(Date.now() - t0, null, null, e instanceof Error ? e.message : String(e));
+        rememberStatus(Date.now() - t0, null, null, errorDetail(e));
       }
       await new Promise((r) => setTimeout(r, 500));
     }
@@ -168,7 +201,8 @@ test.describe('v877 RINSE (self-hosted console)', () => {
 
   test.afterAll(async () => {
     try { server?.kill('SIGKILL'); } catch {}
-    try { bootLog?.end(); } catch {}
+    try { if (bootFd != null) closeSync(bootFd); } catch {}
+    bootFd = null;
   });
 
   const state = (page: any) => page.evaluate(() => ({
@@ -330,7 +364,7 @@ test.describe('v877 RINSE (self-hosted console)', () => {
       try {
         r = await fetch(CTRL + 'api/status', { signal: AbortSignal.timeout(3000) });
       } catch (e) {
-        rememberStatus(Date.now() - t0, null, null, e instanceof Error ? e.message : String(e));
+        rememberStatus(Date.now() - t0, null, null, errorDetail(e));
         throw withBoot(e instanceof Error ? e : new Error(String(e)));
       }
       const wall = Date.now() - t0;
