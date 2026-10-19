@@ -961,7 +961,7 @@ class TheProofRemembersWhatTheGateRead(unittest.TestCase):
     def test_a_node_child_traces_what_it_read(self):
         reader = ("import os, subprocess, sys\nHERE = os.path.dirname(os.path.abspath(__file__))\n"
                   "js = \"process.exit(require('fs').readFileSync(process.argv[1], 'utf8').includes('ok') ? 0 : 1)\"\n"
-                  "sys.exit(subprocess.run(['node', '-e', js, os.path.join(HERE, 'page_gl.txt')]).returncode)\n")
+                  "sys.exit(subprocess.run(['node', '-e', js, os.path.join(HERE, 'page' + '_gl.txt')]).returncode)\n")
         shell = "import subprocess\nsubprocess.run(['node', '-e', \"require('child_process').spawnSync('true')\"])\n"
         root, led = self._tree({"t_node.py": reader, "t_nsh.py": shell, "page_gl.txt": "ok\n"})
         gate, sh = _gate(root, "t_node.py"), _gate(root, "t_nsh.py")
@@ -1562,8 +1562,8 @@ RED_PROOF = [
     {
         "why": "REG-2293 r5: node's readFileSync is not traced, so a file only node read carries over an edit",
         "file": "gate_trace/node_trace.cjs",
-        "find": "  for (const n of ['readFileSync', 'readFile', 'createReadStream']) wrap(fs, n, R);\n",
-        "replace": "  for (const n of []) wrap(fs, n, R);\n",
+        "find": "  const R = (p) => note('R', p);\n",
+        "replace": "  const R = (p) => null;\n",
         "matches": 1,
     },
     {
