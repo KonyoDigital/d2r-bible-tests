@@ -9871,6 +9871,12 @@ GATES = [
          why=("v3773 - the + Add an item box was a fixed inset:0 layer at z-index 130 with a scrim: it "
              "covered the tab bar and FIND ON A MULE and swallowed tab clicks. It now opens inline right "
              "under the find results. The top search's hover title sat on its first result row; gone.")),
+    Gate("test_set_piece_lookup_stays_cheap", [sys.executable,
+         os.path.join(HERE, "test_set_piece_lookup_stays_cheap.py")], 120,
+         needs_app=False,
+         why=("v3773 - opening the vault spent 148 ms self in findSetPiece, which re-normed all 135 set "
+             "pieces per call. In node on the real functions: same answers as the table scan, 300 lookups "
+             "norm the table once, a grown table is re-read.")),
     Gate("test_d2jsp_cards_stay_cheap", [sys.executable,
          os.path.join(HERE, "test_d2jsp_cards_stay_cheap.py")], 420,
          needs_app=False,
