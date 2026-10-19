@@ -8,7 +8,8 @@ GitHub", drawn over .shc-hero and .shc-sess. fleet_origin_status counts HEAD..or
 serves from. `advanced-fleet` was red only under `unshare -rn`, because the fleet roster needs the network.
 
 Now render_check gives its stub console TV_FLEET_BEHIND_PIN=0, and fleet_origin_status honours the pin only when
-TV_STUB=1. His real console still counts and fetches. RED_PROOF below. [[regression-guard]]
+TV_STUB=1 (render_check) or TV_ROBOT=1 (demo_console, whose J7 shelf click the same
+banner ate). His real console still counts and fetches. RED_PROOF below. [[regression-guard]]
 """
 import os
 import re
@@ -34,7 +35,7 @@ class ARenderConsoleDoesNotReadTheBranchDistance(unittest.TestCase):
     def _ask(self, env):
         ca = self.ca
         calls = []
-        old_env = {k: os.environ.get(k) for k in ("TV_STUB", "TV_FLEET_BEHIND_PIN")}
+        old_env = {k: os.environ.get(k) for k in ("TV_STUB", "TV_ROBOT", "TV_FLEET_BEHIND_PIN")}
         old_run = ca._git_run
         old_kick = getattr(ca, "_fleet_fetch_kick", None)
         def fake_run(args, **kw):
@@ -83,6 +84,19 @@ class ARenderConsoleDoesNotReadTheBranchDistance(unittest.TestCase):
         self.assertTrue(m, "the harness console env was not found")
         self.assertIn('TV_FLEET_BEHIND_PIN="0"', m.group(0), "render_check does not pin its console's fleet distance")
 
+    def test_a_robot_console_with_the_pin_reports_zero(self):
+        out, calls = self._ask({"TV_ROBOT": "1", "TV_FLEET_BEHIND_PIN": "0"})
+        self.assertEqual(out["behind"], 0, out)
+        self.assertFalse([c for c in calls if "rev-list" in c], calls)
+
+    def test_demo_console_pins_its_console(self):
+        # MEASURED 2026-10-19: J7 SHELF STORY's click on #btn-shelf timed out at 30 s on this branch and passed on main
+        # 74ddf4bc. Pinning the distance turned it green.
+        src = open(os.path.join(HERE, "demo_console.mjs"), encoding="utf-8").read()
+        m = re.search(r"const env = \{\n    \.\.\.process\.env,.*?\};", src, re.S)
+        self.assertTrue(m, "the demo console env was not found")
+        self.assertIn("TV_FLEET_BEHIND_PIN: '0'", m.group(0), "demo_console does not pin its console's fleet distance")
+
 
 RED_PROOF = [
     {"why": "render_check stops pinning, so a branch behind main draws BEHIND FLEET over the shelf cards.",
@@ -92,13 +106,23 @@ RED_PROOF = [
      "matches": 1},
     {"why": "The console ignores the pin.",
      "file": "tv/control_app.py",
-     "find": "    if _pin is not None and os.environ.get(\"TV_STUB\") == \"1\":",
-     "replace": "    if False and _pin is not None and os.environ.get(\"TV_STUB\") == \"1\":",
+     "find": "    if _pin is not None and (os.environ.get(\"TV_STUB\") == \"1\" or os.environ.get(\"TV_ROBOT\") == \"1\"):",
+     "replace": "    if False:",
      "matches": 1},
     {"why": "His real console obeys the pin too, so a real lag is hidden.",
      "file": "tv/control_app.py",
-     "find": "    if _pin is not None and os.environ.get(\"TV_STUB\") == \"1\":",
+     "find": "    if _pin is not None and (os.environ.get(\"TV_STUB\") == \"1\" or os.environ.get(\"TV_ROBOT\") == \"1\"):",
      "replace": "    if _pin is not None:",
+     "matches": 1},
+    {"why": "Only the stub honours it, so demo_console's robot console draws BEHIND FLEET and J7's shelf click times out.",
+     "file": "tv/control_app.py",
+     "find": " or os.environ.get(\"TV_ROBOT\") == \"1\"):",
+     "replace": "):",
+     "matches": 1},
+    {"why": "demo_console stops pinning.",
+     "file": "tv/demo_console.mjs",
+     "find": "    TV_FLEET_BEHIND_PIN: '0', // L1",
+     "replace": "    // L1",
      "matches": 1},
 ]
 
