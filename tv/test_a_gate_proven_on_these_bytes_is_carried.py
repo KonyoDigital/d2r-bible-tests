@@ -957,6 +957,24 @@ class TheProofRemembersWhatTheGateRead(unittest.TestCase):
         self.assertTrue(_prove(_open(led), ps), "ps reads the process table, not this checkout")
         self.assertFalse(_prove(_open(led), lsof), "lsof was handed a file in this checkout and was carried")
 
+    @unittest.skipUnless(shutil.which("node"), "node is not installed here")
+    def test_a_node_child_traces_what_it_read(self):
+        reader = ("import os, subprocess, sys\nHERE = os.path.dirname(os.path.abspath(__file__))\n"
+                  "js = \"process.exit(require('fs').readFileSync(process.argv[1], 'utf8').includes('ok') ? 0 : 1)\"\n"
+                  "sys.exit(subprocess.run(['node', '-e', js, os.path.join(HERE, 'page_gl.txt')]).returncode)\n")
+        shell = "import subprocess\nsubprocess.run(['node', '-e', \"require('child_process').spawnSync('true')\"])\n"
+        root, led = self._tree({"t_node.py": reader, "t_nsh.py": shell, "page_gl.txt": "ok\n"})
+        gate, sh = _gate(root, "t_node.py"), _gate(root, "t_nsh.py")
+        sh.name = "node-shell-fixture"
+        self.assertTrue(_prove(_open(led), gate), "PREMISE: the node reader was not stored")
+        self.assertFalse(_prove(_open(led), sh), "a node child that started a non-node child was stored")
+        _write(root, "tv/page_gl.txt", "gone\n")
+        _commit(root, "edit what node read")
+        self.assertNotEqual(_run_traced(gate)[0], 0, "PREMISE: the gate is not red over the edit")
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNone(entry, "a file only node read was carried over an edit")
+        self.assertIn("page_gl.txt", why or "")
+
     def test_old_ledger_shapes_still_parse(self):
         self.assertEqual(GL._churn("?? tv/a/b.py\n M tv/c.py\nD  tv/d.py\n"), {"tv/a/b.py", "tv/d.py"})
         self.assertEqual(GL.first_hit((), ("tv",), (), {"tv/x/y.py"}, {"tv/x/y.py"}), "tv/x/y.py")
@@ -1515,6 +1533,20 @@ RED_PROOF = [
         "file": "gate_trace/sitecustomize.py",
         "find": "                rel(a) is not None for a in args[1:] if \"/\" in a):\n",
         "replace": "                False for a in args[1:] if \"/\" in a):\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r5: node children are not armed, so every gate that shells out to node is never stored",
+        "file": "gate_ledger.py",
+        "find": "    env[\"NODE_OPTIONS\"] = ('--require \"%s\"' % hook) + (\" \" + node if node else \"\")  # LEDGER-TRACE-NODE\n",
+        "replace": "    env[\"NODE_OPTIONS\"] = node  # LEDGER-TRACE-NODE\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r5: node's readFileSync is not traced, so a file only node read carries over an edit",
+        "file": "gate_trace/node_trace.cjs",
+        "find": "  for (const n of ['readFileSync', 'readFile', 'createReadStream']) wrap(fs, n, R);\n",
+        "replace": "  for (const n of []) wrap(fs, n, R);\n",
         "matches": 1,
     },
 ]

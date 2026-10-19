@@ -13,6 +13,7 @@ place before the first byte of the gate is opened. Each line is `KIND<TAB>PID<TA
     G  ran `git check-ignore`, so every .gitignore is an input
     U  did something this trace cannot follow (a non-python child, a child without the trace env)
 
+A node child carries node_trace.cjs (NODE_OPTIONS --require), which writes the same lines.
 A git child aimed outside this checkout (a fixture repository in a tempdir) is not a read of it.
 lsof, ps and pgrep read the process table and no file in this checkout, unless an argument
 names one. `git ls-files` is a listing of the whole tracked set. `git rev-parse --show-toplevel` reads nothing
@@ -169,6 +170,16 @@ def _boot():
                 traced = False
         else:
             traced = True
+        is_node = head in ("node", "nodejs")
+        if is_node and traced:
+            try:
+                opts = (env if env is not None else os.environ).get("NODE_OPTIONS") or ""
+            except Exception:
+                opts = ""
+            if "node_trace.cjs" in opts:
+                state["n"] += 1
+                emit("P", "%d" % state["n"], once=False)  # node_trace.cjs writes its own B line
+                return
         if is_py and traced and not any(a in ("-I", "-E", "-S") for a in args[1:4]):
             state["n"] += 1
             emit("P", "%d" % state["n"], once=False)
