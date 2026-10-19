@@ -19038,6 +19038,13 @@ def ui_beat_record(state=None):
         _ia = state.get("inputAgeS")
         _UI_BEAT["inputAgeS"] = (float(_ia) if isinstance(_ia, (int, float)) and not isinstance(_ia, bool)
                                  and _ia >= 0 else None)
+        # REG-2293 — click-to-paint and the longest task, as the page measured them. None = the page
+        # has not said, which is UNKNOWN, never "instant".
+        try:
+            import input_latency as _ilat
+            _UI_BEAT["inputLatency"] = _ilat.record(state.get("inputLatency"))
+        except Exception:
+            _UI_BEAT["inputLatency"] = None
         # v3538 — WHICH SESSION'S DOSSIER IS ON SCREEN, by number (the page reads it off the overlay): a
         # number, None (no dossier shown) or "UNKNOWN". A page that did not send the key at all predates it -
         # UNKNOWN, never "none shown". GrokBot's visual pass counts a tick as opened only when this says N.
@@ -42287,7 +42294,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3771",
+        "ver": "v3772",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.
@@ -42449,6 +42456,7 @@ def status_payload():
                    # REG-2010 - seconds since he last touched this window, aged to NOW; None = UNKNOWN. The relaunch
                    # hold reads this same number, so the reason the update waits is checkable from outside.
                    "inputAgeS": _ui_input_age_rounded(),
+                   "inputLatency": _UI_BEAT.get("inputLatency"),
                    # v3538 — the session whose dossier is ON SCREEN (a number), None when none is shown,
                    # "UNKNOWN" when no beat has said. Read it beside ageS: a stale beat is a stale answer.
                    "dossier": _UI_BEAT.get("dossier", "UNKNOWN"),

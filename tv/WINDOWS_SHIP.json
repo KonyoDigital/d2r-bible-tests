@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3771",
+  "ver": "v3772",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3771: The vault controls wear the console gold. An unseen place reads Location not seen yet and sorts last. The MF bar stacks under the vault room and under the header. REG-2292. HEART: the unseen-place law and the bar-under-room law are the corroborators, watched by the v3771 gate.",
+  "note": "v3772: a vault paint no longer walks the document, a lowered floater is restored, and add an item writes the move row",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

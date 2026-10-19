@@ -9793,7 +9793,7 @@ GATES = [
          needs_app=False,
          why=("v3769 - the vault paints a move list grouped by holder and stash. Each out-of-place "
              "copy keeps a saved target cell from the packer. A later witness at that cell verifies "
-             "the row only while AUTO INTAKE is on. A hand tally and a typed move work while it is off. "
+             "the row only while AUTO INTAKE is on. Add an item writes the move row while it is off. "
              "Sets, uniques, runewords, charms and bases go through the writer. Distinct attacks, "
              "Wilson against the vault.apply bar. The screen is a separate gate.")
          ),
@@ -9822,6 +9822,15 @@ GATES = [
              "check that no fixed chip covers the move list. After a reload the same check runs "
              "at the landing scroll, the bottom, and the middle, with the dock at opacity 0. "
              "No browser is a declared skip."),
+         skip_ok=(r"no Chrome/Chromium on this machine",)),
+    Gate("test_input_stays_responsive", [sys.executable,
+         os.path.join(HERE, "test_input_stays_responsive.py")], 300,
+         needs_app=False,
+         why=("v3772 - a click on every main tab lands, a search takes focus and text, and no "
+             "long task during an idle vault repaint exceeds the v3769 baseline. The vault does "
+             "not walk the document on paint. The move list has no typed add-a-move control. "
+             "Add an item with AUTO INTAKE off grows the row. Mark moved stays. bible.html and "
+             "control_ui.html. No browser is a declared skip."),
          skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_render_hook_finds_a_browser_on_linux", [sys.executable,
          os.path.join(HERE, "test_the_render_hook_finds_a_browser_on_linux.py")], 30,

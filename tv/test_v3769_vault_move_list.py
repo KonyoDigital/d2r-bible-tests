@@ -44,7 +44,7 @@ FNS = [
     "_vaultRecordsLoad", "_vaultRecordsPersist",
     "_vaultMoveHome", "_vaultMoveCopies", "_vaultMovePackHome", "_vaultMovePlanCell",
     "_vaultMoveFromSight", "_vaultMoveBag", "_vaultMoveEnsure", "_vaultMoveCommit",
-    "_vaultMoveApplySight", "_vaultMoveMark", "_vaultMoveAddNamed", "_vaultMoveAddOpen",
+    "_vaultMoveApplySight", "_vaultMoveMark", "_vaultMoveNoteAdded",
     "_vaultMoveOnKeep", "_vaultMoveShown", "_vaultMoveStashSay", "_vaultMoveUnseen", "_vaultMoveGroup", "_vaultMoveLocks",
     "persistOwned",
     "_vaultMoveCellSay", "_vaultMovePlaceSay", "_vaultMoveGridHtml", "_vaultMoveHtml",
@@ -174,7 +174,7 @@ window._vaultMoveApplySight = _vaultMoveApplySight;
 window._vaultMoveEnsure = _vaultMoveEnsure;
 window._vaultMoveCommit = _vaultMoveCommit;
 window._vaultMoveMark = _vaultMoveMark;
-window._vaultMoveAddNamed = _vaultMoveAddNamed;
+window._vaultMoveNoteAdded = _vaultMoveNoteAdded;
 window._vaultMoveHtml = _vaultMoveHtml;
 window._vaultMoveGroup = _vaultMoveGroup;
 window._vaultMoveShown = _vaultMoveShown;
@@ -336,25 +336,32 @@ console.log(JSON.stringify({
         self.assertEqual(o["confirmed"], "verified")
         self.assertIn("to-2", o["evidence"])
 
-    def test_a_typed_move_uses_the_packer_and_does_not_write_assign(self):
+    def test_a_hand_add_uses_the_packer_and_does_not_write_assign(self):
         o = self._run(r"""
 reset();
+_vaultAutoIntakeSet(false);
 ROUTES["Harlequin Crest"] = { id: 'uni-armor', why: 'helm' };
-selectedChip = "Harlequin Crest";
-var added = _vaultMoveAddNamed("");
+var added = _vaultMoveNoteAdded("Harlequin Crest");
+var home = _vaultMoveNoteAdded("Zzznotanitem");
 console.log(JSON.stringify({
   ok: added.ok,
-  manual: added.task && added.task.manual,
+  shown: added.shown === true,
+  manual: !!(added.task && added.task.manual),
   holder: added.task && added.task.to && added.task.to.holder,
   cell: added.task && added.task.to && added.task.to.cell,
-  assign: Object.prototype.hasOwnProperty.call(assign, "Harlequin Crest") ? assign["Harlequin Crest"] : null
+  assign: Object.prototype.hasOwnProperty.call(assign, "Harlequin Crest") ? assign["Harlequin Crest"] : null,
+  homeShown: home.shown === true,
+  intake: _vaultAutoIntakeRead()
 }));
 """)
         self.assertTrue(o["ok"], o)
-        self.assertTrue(o["manual"])
+        self.assertTrue(o["shown"], o)
+        self.assertFalse(o["manual"], o)
         self.assertEqual(o["holder"], "UNI-ARMOR")
         self.assertEqual(o["cell"], "stash:c0r0")
         self.assertIsNone(o["assign"])
+        self.assertFalse(o["homeShown"], o)
+        self.assertFalse(o["intake"]["on"])
 
     def test_a_typed_move_lands_after_the_store_already_exists(self):
         o = self._run(r"""
@@ -363,7 +370,7 @@ ROUTES["Griffon's Eye"] = { id: 'uni-armor', why: 'helm' };
 see("Griffon's Eye", [L('Mule','stash','stash:c1r1','s1','a')], 1);
 _vaultMovePaint();
 ROUTES["Harlequin Crest"] = { id: 'uni-armor', why: 'helm' };
-var added = _vaultMoveAddNamed("Harlequin Crest");
+var added = _vaultMoveNoteAdded("Harlequin Crest");
 var loaded = _vaultRecordsLoad();
 var row = (loaded.records || []).filter(function(r){ return r.name === "Harlequin Crest"; })[0];
 var kept = (loaded.records || []).filter(function(r){ return r.name === "Griffon's Eye"; })[0];
@@ -541,13 +548,18 @@ console.log(JSON.stringify({
             "window._vaultMovePaint(); } catch (eMv) {} /* v3769 move paint */", self.src)
         self.assertIn("window._vaultMoveCellMarkHtml(meta.cell)", self.src)
         self.assertIn('id="vault-move-list"', self.src)
-        self.assertIn("Add a move", self.src)
+        self.assertIn("mark moved", self.src)
+        self.assertIn("/* v3772 no manual move */", self.src)
+        self.assertNotIn("vault-move-q", self.src)
+        self.assertNotIn("_vaultMoveAddNamed", self.src)
+        self.assertNotIn("_vaultMoveAddOpen", self.src)
+        self.assertNotIn("Add a move", self.src)
 
     def test_add_a_move_persists_owned_across_reload(self):
         o = self._run(r"""
 reset();
 ROUTES["Harlequin Crest"] = { id: 'uni-armor', why: 'helm' };
-var added = _vaultMoveAddNamed("Harlequin Crest");
+var added = _vaultMoveNoteAdded("Harlequin Crest");
 owned.clear();
 var n = window._vaultReloadOwned();
 console.log(JSON.stringify({
@@ -679,30 +691,30 @@ RED_PROOF = [
      "find": "if (t.status === 'moved-manual' && atFrom && !atTo) return { applied: false, task: t, why: 'hand-tally' }; /* v3769 moved-manual hold */",
      "replace": "if (false && t.status === 'moved-manual' && atFrom && !atTo) return { applied: false, task: t, why: 'hand-tally' }; /* v3769 moved-manual hold */",
      "matches": 1},
-    {"why": "Add a move no longer writes the task, so the typed item has no target.",
+    {"why": "A hand add no longer writes the move, so an out-of-place item has no target.",
      "file": "bible.html",
-     "find": "var wrote = _vaultMoveCommit([{ name: nm, copyIx: 0, task: t }]); /* v3769 add move */",
-     "replace": "var wrote = { ok: false }; /* v3769 add move */",
+     "find": "var wrote = _vaultMoveCommit([{ name: nm, copyIx: 0, task: ens.task }]); /* v3772 auto row */",
+     "replace": "var wrote = { ok: false }; /* v3772 auto row */",
      "matches": 1},
     {"why": "A name owned after the store exists never gets a row, so the typed move is not saved.",
      "file": "bible.html",
      "find": "var pr = _vaultRecordsPersist(); /* v3769 row refresh */",
      "replace": "var pr = null; /* v3769 row refresh */",
      "matches": 1},
-    {"why": "Add a move writes assign. The hand door files the item.",
+    {"why": "Noting a hand add writes assign. The hand door files the item.",
      "file": "bible.html",
-     "find": "return { ok: !!(wrote && wrote.ok), task: t, assign: (typeof assign !== 'undefined' ? assign[nm] : undefined) }; /* v3769 no assign */",
-     "replace": "try { assign[nm] = 'shared'; } catch (eAs) {} return { ok: !!(wrote && wrote.ok), task: t, assign: assign[nm] }; /* v3769 no assign */",
+     "find": "return { ok: !!(wrote && wrote.ok), shown: true, task: ens.task, assign: (typeof assign !== 'undefined' ? assign[nm] : undefined) }; /* v3772 no assign */",
+     "replace": "try { assign[nm] = 'shared'; } catch (eAs) {} return { ok: !!(wrote && wrote.ok), shown: true, task: ens.task, assign: assign[nm] }; /* v3772 no assign */",
      "matches": 1},
     {"why": "Saving a target clears the 3-session lock.",
      "file": "bible.html",
      "find": "locked: row.locked === true, /* v3769 lock stays */",
      "replace": "locked: false, /* v3769 lock stays */",
      "matches": 1},
-    {"why": "Add a move keeps the name in memory and never writes d2r_owned, so a reload loses it.",
+    {"why": "Noting a hand add keeps the name in memory and never writes d2r_owned, so a reload loses it.",
      "file": "bible.html",
-     "find": "try { if (typeof persistOwned === 'function') persistOwned(); } catch (eOw) {} /* v3769 owned persist */",
-     "replace": "try { void 0; } catch (eOw) {} /* v3769 owned persist */",
+     "find": "try { if (typeof persistOwned === 'function') persistOwned(); } catch (eOw) {} /* v3772 owned persist */",
+     "replace": "try { void 0; } catch (eOw) {} /* v3772 owned persist */",
      "matches": 1},
     {"why": "A keep already on MAIN inventory or equipment is painted as a move.",
      "file": "bible.html",

@@ -7,6 +7,23 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2293 - A VAULT PAINT WALKED THE WHOLE DOCUMENT, AND ADD A MOVE DID NOT ADD A ROW (v3772)
+
+Since v3771 (69817adf) clicks inside a tab took seconds. The top tab bar still switched. The freeze was `_vaultRoomReadFloaters`: `document.body.querySelectorAll('*')` plus `getComputedStyle` on every node, from every vault paint, from boot, and from the tab observer. Nodes hidden during the lower kept `z-index:20 !important` because the restore skipped `display:none`. A hidden full-viewport layer could sit on the page. The same build grew a typed ADD A MOVE control. An empty name returned quietly, a name with no target cell was filtered out of the list, and there was no suggestion list. Elad's ruling: moves are not typed. AUTO INTAKE off means he adds an item, the same placement rules write the row, and he only ticks a row off by hand.
+
+1. The sink names `#shortcut-hint` and `#control-dock`, caches them, and restores every element it lowered, including one hidden while lowered. The per-paint call is gone.
+2. A hidden `.vault-ev-panel`, `#gsearch-scrim`, and theatre do not keep pointer-events. Focused inputs wear the console gold glow. Buttons press on `:active`.
+3. Click-to-paint is sampled on the board and published on the ui beat as `inputLatency`. The heart row is UNKNOWN until a beat arrives. A missing number is not zero.
+4. The move panel has no typed add-a-move control. `+ Add an item` with AUTO INTAKE off writes the row when the place and the target differ. Mark moved stays.
+
+WHY THE WATCHERS MISSED A MULTI-SECOND FREEZE. The heart rows score lanes, receipts, shelf, orphans and shadow, not click time or long tasks, so a frozen main thread with correct data stays green. The v3771 gate required the per-paint lift and ran it on a handful of fake elements, so the scan was O(1). Routine I's Playwright timeouts are 10s and longer, and `navigator.webdriver` skips the live poll. render_check photographs after load. `inputAgeS` is seconds since the last pointer, not click-to-paint. No input-latency channel existed.
+
+MEASURED on this machine, same probe, repaint poll on. v3769 (38f15023) peak click-to-paint p95 392ms, idle long task 62ms once and otherwise under the 50ms floor. The fix matches that band (peak p95 493ms, no idle long task). v3771 on the same probe: vault control p95 838ms, vault search 854ms, TV-D 950ms, one `renderVault` 131-161ms against 2-3ms, idle long task 362ms. Budgets are p95 750ms and long task 250ms. A live console with his full vault is larger than this page, which is why his clicks were 7-15s and this probe's v3771 numbers are under a second. The scan is still the difference between the three builds.
+
+GUARD: tv/test_input_stays_responsive.py, registered in tv/run_gates.py. Ten attacks. Wilson against the vault.apply bar. The heart row is `inputLatency` on the vault surface. A document-wide scan, a typed add-a-move control, a floater left lowered, and a hand add that skips the row each go red. Chrome is a declared skip only when the machine has none. heart2 does not launch Chrome.
+
+LEFT: his console was not opened.
+
 ### REG-2292 - THE MF BAR COVERED THE MOVE LIST, AND AN UNSEEN PLACE READ UNKNOWN · UNKNOWN (v3771)
 
 The v3769 demo shots showed the MF slider, TZ-rotates and MF QUICK SET bar painted on top of #vault-move-list. #control-dock is position:fixed at z-index 120, a root stacking context, so a z-index inside the vault card could not climb over it. A holder with no location grouped as UNKNOWN · UNKNOWN.
