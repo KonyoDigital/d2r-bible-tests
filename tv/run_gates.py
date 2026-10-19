@@ -9858,6 +9858,13 @@ GATES = [
              "elementFromPoint. A hand add reads MANUAL -> target cell with AUTO INTAKE off. Click "
              "p95 is a report only. No browser is a declared skip."),
          skip_ok=(r"no Chrome/Chromium on this machine",)),
+    Gate("test_vault_find_stays_cheap", [sys.executable,
+         os.path.join(HERE, "test_vault_find_stays_cheap.py")], 120,
+         needs_app=False,
+         why=("v3773 - FIND ON A MULE took 12.9 s for one key on his store: _provAll re-parsed the "
+             "witness store per call and one FIND rebuilt every record per matched name. In node: "
+             "50 _provAll calls parse once, one FIND pass rebuilds once, five quick keys run one "
+             "FIND after the pause and none inside a key.")),
     Gate("test_d2jsp_cards_stay_cheap", [sys.executable,
          os.path.join(HERE, "test_d2jsp_cards_stay_cheap.py")], 420,
          needs_app=False,
