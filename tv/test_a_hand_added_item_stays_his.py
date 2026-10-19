@@ -1397,8 +1397,8 @@ RED_PROOF = [
     {
         "why": "the add must reach d2r_owned; without the persist it lives until the next reload",
         "file": "bible.html",
-        "find": "    persistOwned();\n    var prov = (add && add.prov) || null, receipt = !!(prov && prov.ok === true);\n",
-        "replace": "    var prov = (add && add.prov) || null, receipt = !!(prov && prov.ok === true);\n",
+        "find": "    persistOwned();\n    try { if (opts !== VH_MIGRATE && typeof _vaultMoveNoteAdded === 'function')",
+        "replace": "    try { if (opts !== VH_MIGRATE && typeof _vaultMoveNoteAdded === 'function')",
         "matches": 1,
     },
     {
