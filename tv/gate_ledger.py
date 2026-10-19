@@ -1076,16 +1076,25 @@ def _derived(paths):
     return set(p for p in paths if "__pycache__/" not in p and not p.endswith(".pyc"))
 
 
-def _churn(text):
-    """Paths added or deleted, from `git status --porcelain --no-renames`. -> set"""
+def _churn(text, untracked=False):
+    """Tracked paths added or deleted (or, with untracked=True, the `??` paths), from
+    `git status --porcelain --no-renames`. -> set"""
     out = set()
     for line in (text or "").splitlines():
         if len(line) < 4:
             continue
         code = line[:2]
-        if code == "??" or "A" in code or "D" in code:  # LEDGER-CHURN
+        if (code == "??") if untracked else (code != "??" and ("A" in code or "D" in code)):  # LEDGER-CHURN
             out.add(line[3:].strip().strip('"').replace("\\", "/"))
     return out
+
+
+def covered(listed, imports, path):
+    """A path whose presence or absence this gate can see: under a directory it listed (any
+    ancestor, since a new folder is a new entry of its parent), or a module it imported. -> bool"""
+    if any(a in listed for a in _ancestors(path)):  # LEDGER-TRACE-LIST
+        return True
+    return _module_stem(path) in imports  # LEDGER-TRACE-IMPORT
 
 
 TRACE_DIR = os.path.join(HERE, "gate_trace")
@@ -1185,9 +1194,7 @@ def first_hit(inputs, listed, imports, changed, churn):
     listed = set(listed or ())
     imports = set(imports or ())
     for path in sorted(churn or ()):
-        if any(a in listed for a in _ancestors(path)):  # LEDGER-TRACE-LIST
-            return path
-        if _module_stem(path) in imports:  # LEDGER-TRACE-IMPORT
+        if covered(listed, imports, path):
             return path
     return None
 
@@ -1764,6 +1771,7 @@ class Ledger(object):
         changed = set()
         changed |= _porcelain(status_out)  # LEDGER-STATUS
         changed = _derived({p.replace("\\", "/") for p in changed}) - drop
+        self._status_untracked = _derived(_churn(status_out, untracked=True)) - drop
         return changed, _derived(_churn(status_out)) - drop, None
 
     def _worktree(self, root):
@@ -1773,6 +1781,7 @@ class Ledger(object):
         self._work_root = root
         changed, churn, why = self._status(root)
         self._work_churn = churn
+        self._work_untracked = set(getattr(self, "_status_untracked", ()) or ())
         self._work = (changed, why)
         return self._work
 
@@ -1924,8 +1933,11 @@ class Ledger(object):
         if entry.get("traced") is not True or not isinstance(entry.get("inputs"), list):  # LEDGER-OLD-ROW
             return None, "the stored PASS does not say what the gate read, so it runs once"
         inputs = set(row["inputs"]) | set(str(p) for p in entry["inputs"])  # LEDGER-PROOF-INPUTS
-        hit = first_hit(inputs, entry.get("listed") or (), entry.get("imports") or (),
-                        changed, self._churn_cache.get(sha, set()))
+        listed, imports = set(entry.get("listed") or ()), set(entry.get("imports") or ())
+        # an untracked file the proof already saw is not a change; one that came or went is
+        seen = set(p for p in getattr(self, "_work_untracked", ()) or () if covered(listed, imports, p))
+        moved = seen ^ set(entry.get("untracked") or ())  # LEDGER-UNTRACKED-SNAPSHOT
+        hit = first_hit(inputs, listed, imports, changed, self._churn_cache.get(sha, set()) | moved)
         if hit:
             return None, "inputs changed: %s" % hit
         line = self.carry_line(entry)
@@ -2067,9 +2079,11 @@ class Ledger(object):
         # while the gate ran is in one of the two
         start = self._work[0] if (self._work is not None and self._work_root == root) else None
         dirty, churn, dwhy = self._status(root)
+        untracked = set(getattr(self, "_status_untracked", ()) or ())
         if dirty is not None and start is not None:
             dirty = dirty | start
             churn = churn | set(getattr(self, "_work_churn", ()) or ())
+            untracked |= set(getattr(self, "_work_untracked", ()) or ())
         hit = None if dirty is None else first_hit(
             inputs, traced["listed"], traced["imports"], dirty, churn)
         if dirty is None or hit:  # LEDGER-DIRTY-RECORD
@@ -2097,6 +2111,8 @@ class Ledger(object):
             "inputs": sorted(inputs),
             "listed": sorted(traced["listed"]),
             "imports": sorted(traced["imports"]),
+            "untracked": sorted(p for p in untracked
+                                if covered(traced["listed"], traced["imports"], p)),
         }
         self._write()
         return True
