@@ -812,6 +812,33 @@ class TheProofRemembersWhatTheGateRead(unittest.TestCase):
         self.assertIsNone(entry, "a module that now resolves was carried")
         self.assertIn("maybe_gl.py", why or "")
 
+    def test_a_submodule_served_from_a_cached_pyc_is_an_input(self):
+        """r5 B: with __pycache__ warm, importlib opens only the .pyc, so the .py read was never seen."""
+        law = ("import importlib, os\n"
+               "m = importlib.import_module('pkg_gl.sub' + '_gl')\n"
+               "os._exit(0 if m.OK else 1)\n")
+        root, led = self._tree({"t_pyc.py": law}, {"tv/pkg_gl/__init__.py": "", "tv/pkg_gl/sub_gl.py": "OK = True\n"})
+        gate = _gate(root, "t_pyc.py")
+        warm = subprocess.run(list(gate.argv), cwd=root, capture_output=True,
+                              env=dict(os.environ, PYTHONDONTWRITEBYTECODE="", PYTHONPYCACHEPREFIX=""))
+        self.assertEqual(warm.returncode, 0, "PREMISE: the gate is not green")
+        self.assertTrue(os.path.isdir(os.path.join(root, "tv", "pkg_gl", "__pycache__")), "PREMISE: no .pyc cache")
+        self.assertTrue(_prove(_open(led), gate), "PREMISE: the PASS was not stored")
+        _write(root, "tv/pkg_gl/sub_gl.py", "OK = False\n")
+        _commit(root, "break the submodule")
+        self.assertNotEqual(_run_traced(gate)[0], 0, "PREMISE: the gate is not red after the edit")
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNone(entry, "a module imported from its .pyc carried a red gate")
+        self.assertIn("sub_gl.py", why or "")
+
+    def test_an_imported_name_is_its_tracked_source(self):
+        """r5 B2: a python child imported dep_gl; the name alone must make tv/dep_gl.py an input."""
+        root, _led = self._tree({"t_x.py": "print('OK')\n", "dep_gl.py": "X = 1\n"})
+        traced, why = _open(os.path.join(root, ".gate_ledger.json"))._traced_inputs(
+            {"R": set(), "S": set(), "A": set(), "L": set(), "I": {"dep_gl"}, "M": set()}, root)
+        self.assertIsNone(why)
+        self.assertIn("tv/dep_gl.py", traced["inputs"], "an imported module's source is not an input")
+
     def test_a_pass_proved_on_a_dirty_tree_is_not_stored_under_head(self):
         root, led = self._tree({"t_mod.py": "import sys, helper_gl\nsys.exit(0 if helper_gl.OK else 1)\n",
                                 "helper_gl.py": "OK = False\n"})
@@ -1571,6 +1598,20 @@ RED_PROOF = [
         "file": "gate_ledger.py",
         "find": "        moved = seen ^ set(entry.get(\"untracked\") or ())  # LEDGER-UNTRACKED-SNAPSHOT\n",
         "replace": "        moved = set()  # LEDGER-UNTRACKED-SNAPSHOT\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r6 (B): a gate's imports come from a warm .pyc again, so the .py it ran is never read",
+        "file": "gate_ledger.py",
+        "find": "    env[\"PYTHONPYCACHEPREFIX\"] = path + \".pycache\"  # LEDGER-TRACE-NOPYC\n",
+        "replace": "    env.pop(\"PYTHONDONTWRITEBYTECODE\")  # LEDGER-TRACE-NOPYC\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r6 (B2): an imported name is not its source, so a module a child imported carries over an edit",
+        "file": "gate_ledger.py",
+        "find": "            inputs.update(p for p in tracked if _module_stem(p) in names)  # LEDGER-TRACE-IMPORT-SOURCE\n",
+        "replace": "            pass  # LEDGER-TRACE-IMPORT-SOURCE\n",
         "matches": 1,
     },
 ]
