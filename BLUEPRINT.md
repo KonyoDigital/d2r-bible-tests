@@ -439,6 +439,7 @@ re-derives nothing, and it **prints nothing and deletes nothing** — it is a re
 - **test_a_game_with_nothing_to_name_is_still_the_game** — REG-1711 - his ALT sealed his LIVE game as the Boosteroid launcher twice in eight minutes: the reader filed every read as gameplay with nothing on scr…
 - **test_a_gate_busy_at_its_deadline_gets_one_extension** — REG-1995 - load that arrives after the render starts (GrokBot began a tick 2 min in) was not covered by REG-1993
 - **test_a_gate_names_its_subject_by_importing_it** — #52. heart2_candidates resolved a gate's subject only from filename string literals, which left 94 of the 238 unproven gates with NO resolvable subjec…
+- **test_a_gate_proven_on_these_bytes_is_carried** — v3768 - a push carries a gate when one git diff from the proven commit, plus the dirty worktree, does not touch that gate's inputs.
 - **test_a_gate_says_what_it_guards_not_how_many** — #104 (REG-1610, 2026-09-30) - a typed count in a gate's why went stale the day its law grew a case: 284 of 738 whys typed one and 72 of the 230 counta…
 - **test_a_grok_only_reader_does_not_start_a_sweep** — REG-2159 - GROK ONLY started the vault and chronicle sweeps because the Claude function exists, then every page timed out on grok.
 - **test_a_grok_read_asks_low_effort_and_survives_an_older_cli** — REG-2040 (#239) - 46% of the console's Grok reads timed out at 140 s
@@ -1346,7 +1347,7 @@ about what a module MEANS cannot be re-derived from its AST. The drift between t
 printed below rather than hidden, because a map that quietly drops a module is the exact
 failure this section was written about.
 
-    245 modules · 0 unindexed · 0 stale entries
+    246 modules · 0 unindexed · 0 stale entries
 
 `no importer` means no OTHER MODULE IN tv/ IMPORTS IT — measured by parsing, never by
 grepping a name that may be sitting inside a comment. It is not `dead`: a CLI tool, a
@@ -1461,7 +1462,7 @@ hook and a routine are all reached without an import, so it is a question, not a
       ↪ parse · only · pick · at · label · declared · scrub · banner
       ⚠ A PROVING DEVICE, NEVER A VERDICT: run_gates.run() calls scrub() before its first gate and heart2's _run_gate drops TV_LAW_WIDTHS from every run it did not restrict itself, so the full width sweep stays the verdict of record (CI never sets it). Unset or empty means EVERY width; garbage refuses rather than silently narrowing.
 
-### gates-proofs (35)
+### gates-proofs (36)
 
 - **cb_node_harness.py** — The character builder's node stand-in: a localStorage + document harness with spies on the vault and the mules, the cutters that lift the CHARACTER BUILDER JS block, the CB_DB block and the board pieces it stands on out of bible.html between their own anchors, and _run(body) which executes all of it in ONE node process. Moved verbatim out of the builder law (REG-1561) so a production lane can run the shipped tooltip composition; the ten builder laws keep importing it through that law's re-exports.
       ↪ node_path · NODE · _run · _src · _between · _builder_js · _db_json · _stage · _db · HARNESS
@@ -1481,6 +1482,9 @@ hook and a routine are all reached without an import, so it is a question, not a
 - **frame_release_wilson.py** — Wilson evidence for the `frame.release` lock — pure sabotages proving seal_releases_frames() refuses a bare 'nothing was taken' seal.
       ↪ run · live · main
       ⚠ It banks under a NEW lock rather than under prune.arm on purpose — prune.arm is 'may the prune RUN' and vault.apply is the write door, so filing frame-granularity attacks there would move a bigger counter and prove nothing. It calls exactly one pure predicate on in-memory dicts: it never touches the seal store, apply_plan, _prune_once, os.remove/unlink/rmtree or TV_AUTO_PRUNE, and test_frame_release_wilson.py asserts that by reading this file's own source. Each entry is ONE distinct refusal idea, not a parameter sweep — five spellings of a falsy flag count as one.
+- **gate_ledger.py** — Per-checkout memory of which gates passed at which commit. A later run asks git once which files moved and carries a gate whose inputs are not among them.
+      ↪ Ledger · main
+      ⚠ The ledger and the input map are gitignored and never a verdict of record. A missing or unreachable proven sha, a failed diff, or a gate whose inputs cannot be named runs the gate. A FAIL is not stored. GitHub CI does not consult it. CARRY is not a fresh pass and does not bank Wilson evidence.
 - **hover_wilson.py** — Scores the MINI/hover autopilot's four independently-failing claims — COORDINATE, ANCHOR, READ, SLOT — with a Wilson lower bound and banks them into the self-arming lock ledger.  ·  *no importer*
       ↪ score · bank_into_proof_queue · wilson_lower · probe_coordinate · probe_slot
       ⚠ THE DENOMINATOR IS SABOTAGE ATTEMPTS, NOT RUNS — an always-agreeing check may be perfect or INERT (vault_autoreel_tick ran every 45s for months at 100% agreement having swept nothing), so a claim nobody tried to break scores UNPROVEN, and UNPROVEN must not read as failing. It runs on synthetic RECTANGLES, not his screen: no cursor moves, no window opens, safe in CI and safe while he plays. It is a REPORT not a gate — run_gates invokes it with -c and it has no failing mode, so it always exits 0. bank_into_proof_queue folds by (lock, kind, src) so re-running REPLACES rather than inflating n; attempts=None banks NOTHING.
@@ -2124,7 +2128,7 @@ hook and a routine are all reached without an import, so it is a question, not a
 - **vault_simulate.py** — Drives the vault lane end to end on his REAL reels with a scripted reader injected, printing the whole ownership/discard decision in the Vault manager's own words — no vision calls, no writes.
       ↪ run · build · explain · scripted_reader · main
       ⚠ Only the READER's answer is injected — the frame names, timestamps, still-run grouping (via chronicle_retro), the real gate and the real merge are all the production code, because the archive contains everything except what a reader would have said. The rule it exists to make visible: seeing an item MORE often never means throw it away — repetition decides OWNERSHIP, and only the reader's own junk flag can propose a discard, and then only across three separate recordings. So the scenarios deliberately include cases that SHOULD refuse. It calls console_safe.enable() at import because a non-ASCII print on his Windows console crashes the script while reporting a clean tree.
-- **vault_wilson.py** — Sabotage harness for the `vault.apply` lock — six proposals the write door must refuse, Wilson-scored offline and again against the running console.  ·  *no importer*
+- **vault_wilson.py** — Sabotage harness for the `vault.apply` lock — six proposals the write door must refuse, Wilson-scored offline and again against the running console.
       ↪ score · score_live · forget_note · bank_into_proof_queue · main
       ⚠ It never applies anything: every row carries an EMPTY evidence list, so the v1595 re-gate refuses before the board is ever asked. Banking is OPT-IN (`--bank`) because an audit that writes evidence is not an audit — and there are TWO bank doors, the shared `bank_into_proof_queue` and a separate LIVE-witness bank in main(); guarding only the first still moved his ledger. `vault.forget` is UNPROVABLE by construction (no refusal path) and `forget_note()` says so rather than leaving a blank.
 - **vault_witness.py** — Holds the vault's STORED owned rows beside a re-gate of their own witnesses at today's live bars, and publishes the disagreement.

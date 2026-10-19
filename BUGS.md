@@ -17,6 +17,8 @@ Fail closed. A missing or unreachable proven sha, a failed diff, a gate whose in
 
 Measured after that switch, with the 903 keyable gates recorded as passes at that commit and the 91 unnameable gates actually executed: no-change `--changed` 556s (903 carried, 82 passed fresh, 8 failed). An edit of `tv/page_delta.py` was 566s; the one gate that names that file ran in 0.8s and 902 carried. The 91 unnameable gates are the floor of a no-change push, because a directory listing has no input list to diff.
 
+Rebased onto v3767 (`cc8a8fd7`) and re-bumped as v3768. The post-rebase `--changed` run, labelled at the pre-rebase tip, took 1786s. 999 gates, 0 carried, 950 passed, 43 failed, 6 skipped. Nothing carried because the rebase changed `BLUEPRINT.md`, `bible.html` and `tv/run_gates.py`, and the closures name those files. The same full execution under the old per-gate hash was 9320s. Hashing each input on each lookup is gone: one git diff is shared, and the input map is built once.
+
 GUARD: tv/test_a_gate_proven_on_these_bytes_is_carried.py. heart2 --prove 29/29 PROVEN. Wilson 0.883 on 29 distinct attacks against the bar 0.722.
 
 ### REG-2292 - THE MF BAR COVERED THE MOVE LIST, AND AN UNSEEN PLACE READ UNKNOWN · UNKNOWN (v3771)
