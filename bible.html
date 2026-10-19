@@ -43682,6 +43682,39 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     catch (e) { return { ok: false, refused: 'unknown', why: 'the name the vault files "' + raw + '" under could not be asked — nothing was added' }; }
     return { ok: true, name: nm };
   }
+  /* L1 (Elad 2026-10-19: bases are hand-added too) — a white or ethereal base the builder catalogue names (CB_DB .b,
+     the table _cbFoot sizes) is a real stash item. Only the HAND door and the move packer ask this; _vaultKeeps and every
+     owned list it feeds are unchanged. -> the catalogue base name, or null */
+  function _vaultHandBase(name){
+    var n = String(name == null ? '' : name).trim().replace(/^(eth|ethereal)\s+/i, '').toLowerCase();
+    if (!n) return null;
+    var db = null;
+    try { db = (typeof window._cbDb === 'function') ? window._cbDb() : null; } catch (e) { db = null; }
+    if (!db || !db.b) return null;
+    if (!db._handBaseByName){
+      var map = {};
+      Object.keys(db.b).forEach(function(k){ var r = db.b[k]; if (r && r[0]) map[String(r[0]).toLowerCase()] = String(r[0]); });
+      db._handBaseByName = map;
+    }
+    return db._handBaseByName[n] || null;
+  }
+  try { window._vaultHandBase = _vaultHandBase; } catch (eHb) {}
+  /* L1 — the bases HE typed through + Add an item and nothing else: owned, a catalogue base, not already in ownedPool, and
+     its receipt is the hand door's. Empty when he typed none, so every other list reads exactly what it read before. */
+  function _vaultHandBasePool(){
+    var out = [];
+    try {
+      if (typeof owned === 'undefined' || !owned) return out;
+      var pool = ownedPool(), prov = (typeof _provAll === 'function') ? (_provAll() || {}) : {};
+      Array.from(owned).sort().forEach(function(n){
+        if (pool.indexOf(n) >= 0 || !_vaultHandBase(n)) return;
+        var p = prov[n];
+        if (p && p.source === 'hand' && /Add an item/.test(String(p.where || p.by || ''))) out.push(n); /* L1 hand-typed base */
+      });
+    } catch (e) { return []; }
+    return out;
+  }
+  try { window._vaultHandBasePool = _vaultHandBasePool; } catch (eHp) {}
   /* -> {ok, name, ts} | {ok:false, refused, why}: every question asked before anything is written */
   function _vhPrepare(name, at, opts){
     var raw = String(name == null ? '' : name).trim();
@@ -43694,7 +43727,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     var r = _vhResolve(raw, (opts && opts.kind) || null);
     if (!r.ok) return r;
-    if (!_vaultKeeps(r.name))
+    if (!_vaultKeeps(r.name) && !_vaultHandBase(r.name)) /* L1 a catalogue base passes the hand door */
       return { ok: false, refused: 'not-drawn', name: r.name,
                why: r.name + ' is not an item the vault draws (a unique, a set piece, a runeword or a socketed base it carries) — nothing was added' };
     return { ok: true, name: r.name, ts: ts };
@@ -48788,6 +48821,7 @@ window.vaultAutoAssign = function(){
     var names = [];
     var pool = [];
     try { pool = (typeof ownedPool === 'function') ? ownedPool() : []; } catch (e) { pool = []; }
+    try { if (typeof window._vaultHandBasePool === 'function') pool = pool.concat(window._vaultHandBasePool()); } catch (eHb) {} /* L1 hand bases pack */
     pool.forEach(function(n){
       var h = _vaultMoveHome(n);
       if (h && h.id != null && h.id === home.id) names.push(n);
@@ -49580,6 +49614,7 @@ window.vaultAutoAssign = function(){
       if (typeof ownedPool !== 'function' || typeof assign === 'undefined') { out.ok = false; return out; }
       if (typeof _assignStoreUnknown === 'function' && _assignStoreUnknown()) out.assignUnknown = true;
       var poolAll = ownedPool();                                   // distinct kept names (the header's `owned`)
+      try { if (typeof window._vaultHandBasePool === 'function') poolAll = poolAll.concat(window._vaultHandBasePool()); } catch (eHb) {} /* L1 hand bases record */
       if (typeof _vaultSameItemNames === 'function') { /* v3767 one set piece */
         var _kept76 = [], _drop76 = {};
         poolAll.forEach(function(name){
