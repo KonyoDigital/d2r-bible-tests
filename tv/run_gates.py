@@ -10752,14 +10752,14 @@ GATES = [
              "bump_version.py rewrites stamp lines in bible.html, control_app.py, tv_diablo.py "
              "and WINDOWS_SHIP.json and regenerates RESUME_HERE.md, BLUEPRINT.md and the "
              "TASKS.md ship row. Under gate memory a bump-only diff reran 760 of 1003 gates; "
-             "counted on a real bump of the v3772 tree it now reruns 346, and 346 after two back-to-back bumps. Stamp surfaces "
+             "counted on a real bump of the v3772 tree it now reruns 164, and 164 after two back-to-back bumps. Stamp surfaces "
              "leave the change set only when every required surface moved, each only its "
              "stamp lines, each swapped in place (same hunk position, kind, indentation), "
              "all from one old to one new version, with N new top ship rows in exact bump format and rising versions. A "
              "partial or hand bump, a moved or re-indented stamp, code or keys riding on a "
              "stamp line, any other TASKS row edit, an unknown diff line or a failed diff "
              "reruns everything. A gate whose name, script, or reader-only closure module "
-             "reads the version reruns, and a gate that scans stamp-file text (privacy, leak, wording) always reruns. bump_version.py refuses a name or note carrying a home path, IP, hostname, token or machine identity. 28 RED proofs, Wilson 0.879 against 0.722."),
+             "reads the version reruns. Every added stamp line must pass stamp_leak.leak_problem (home path, IP, hostname, token, machine identity) or nothing is carried, and bump_version.py refuses the same note before writing. The home-path gate always reruns. The BLUEPRINT generated time no longer rekeys the input map. 32 RED proofs, Wilson 0.893 against 0.722."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

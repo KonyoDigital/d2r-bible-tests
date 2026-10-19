@@ -158,14 +158,11 @@ _VERSION_WORDS = re.compile(
 _VERSION_READER_ONLY = frozenset(("tv/version_stamp_gate.py", "tv/windows_boot_check.py"))
 
 
-# v3774 round 2 — THE STAMP LINES CARRY FREE TEXT (build name, notes, the ship row). A gate that
-# scans file CONTENT (a home path, a hostname, a token, an em dash...) must see that text, so it
-# reruns whenever a stamp surface moved, coherent or not. Its script names a stamp file or the
-# tracked-file list, or its name says it guards publishing or privacy.
-_CONTENT_SCRIPT = re.compile(r"bible\.html|TASKS\.md|WINDOWS_SHIP|RESUME_HERE|BLUEPRINT\.md|"
-                             r"ls-files|home_path|/Users/|guest_profile")
-_CONTENT_NAME = re.compile(r"publish|leak|secret|token|privacy|private|scrub|home_path|guest|redact|"
-                           r"hostname|install_id", re.I)
+# v3774 round 3 — THE STAMP LINES CARRY FREE TEXT (build name, notes, the ship row). A coherent bump
+# carries the content gates only when every ADDED stamp line passes stamp_leak.leak_problem (the same
+# check bump_version.py refuses with), so a note pasted past the tool still reruns everything. A few
+# gates that read the stamp files' text as their whole job always rerun on any stamp move.
+_ALWAYS_RERUN = frozenset(("test_no_new_home_path_is_published",))
 
 
 def stamp_kinds(rel, line):
@@ -279,6 +276,18 @@ def stamp_file_versions(rel, text):
     return olds, news
 
 
+def stamp_text_clean(lines):
+    """Every added stamp line passes the leak check bump_version refuses with. Any doubt is dirty."""
+    try:
+        import stamp_leak
+    except Exception:
+        return False
+    for line in lines:
+        if stamp_leak.leak_problem(line):  # STAMP-ADDED-LEAK
+            return False
+    return True
+
+
 def coherent_bump(per_file):
     """{rel: (olds, news) | None} for every stamp surface in the change set -> bool.
     Every required surface present and stamp-only, one old version, one new version."""
@@ -367,11 +376,33 @@ def _file_hash(path):
         return None
 
 
+_BLUEPRINT_STAMP = re.compile(rb"(?m)^    generated \d{4}-\d\d-\d\d \d\d:\d\d$")
+
+
+def _blueprint_hash(path):
+    """v3774 — sha256 of BLUEPRINT.md with its one `generated <time>` line blanked. -> hex | None
+
+    BLUEPRINT.md is GENERATED from the code (blueprint.py) and every bump regenerates it, which moved
+    only that time line and still rebuilt the whole input map (~35s). The time is not a fact about any
+    gate. Every other byte is still hashed, so a gate added or removed (which changes the gate list
+    and counts in the map) still rekeys. Only the FIRST such line is blanked."""
+    try:
+        with open(path, "rb") as fh:
+            raw = fh.read()
+    except OSError:
+        return None
+    raw = _BLUEPRINT_STAMP.sub(b"    generated -", raw, count=1)  # LEDGER-MAPKEY-STAMP
+    return hashlib.sha256(raw).hexdigest()
+
+
 def map_key(root):
     """The input map is reused while these files are the same bytes. -> hex"""
     rels = ("tv/run_gates.py", "BLUEPRINT.md", "tv/heart2.py")  # LEDGER-MAPKEY
     parts = []
     for rel in rels:
+        if rel == "BLUEPRINT.md":
+            parts.append(_blueprint_hash(os.path.join(root, rel)) or "absent")
+            continue
         parts.append(_file_hash(os.path.join(root, rel)) or "absent")
     return hashlib.sha256(b"\0".join(p.encode("ascii") for p in parts)).hexdigest()
 
@@ -2175,7 +2206,7 @@ class Ledger(object):
         key = str(sha)
         if key in self._stamp_cache:
             return set(self._stamp_cache[key]) & set(changed or ())
-        per = {}
+        per, added = {}, []
         for rel in sorted(STAMP_SURFACES):
             if rel not in (changed or ()):
                 continue
@@ -2185,28 +2216,18 @@ class Ledger(object):
                                    "--no-renames", str(sha), "--", rel])
                 if proc is not None and proc.returncode == 0:  # STAMP-GIT-OK
                     got = stamp_file_versions(rel, proc.stdout or "")
+                    if got is not None:
+                        added.extend(a for h in (diff_hunks(proc.stdout) or []) for a in h[3])
             except Exception:
                 got = None
             per[rel] = got
-        out = set(per) if (per and coherent_bump(per)) else set()
+        out = set(per) if (per and coherent_bump(per) and stamp_text_clean(added)) else set()
         self._stamp_cache[key] = out
         return set(out)
 
     def scans_content(self, row, root, name=""):
-        """Does the gate read stamp-file text (privacy, leak, wording)? Unreadable counts as yes."""
-        if _CONTENT_NAME.search(str(name or "")):  # STAMP-CONTENT-NAME
-            return True
-        rel = row.get("script")
-        if not rel:
-            return True
-        key = ("content", rel)
-        if key not in self._verdep:
-            try:
-                with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
-                    self._verdep[key] = bool(_CONTENT_SCRIPT.search(fh.read()))  # STAMP-CONTENT-SCRIPT
-            except OSError:
-                self._verdep[key] = True
-        return self._verdep[key]
+        """A gate whose whole job is the stamp files' text reruns on any stamp move."""
+        return str(name or "") in _ALWAYS_RERUN  # STAMP-ALWAYS-RERUN
 
     def reads_version(self, row, root, name=""):
         """Does the gate's name or own script speak of the version, or does its closure hold a
