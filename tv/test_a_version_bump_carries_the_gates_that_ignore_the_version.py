@@ -474,6 +474,7 @@ class ACoherentBumpCarries(unittest.TestCase):
             else:
                 sys.modules["tree_busy"] = held
         self.assertIn("REFUSED", str(cm.exception))
+        self.assertIn("home path", str(cm.exception), "the leak was not refused as a leak (only the word whitelist caught it)")
         self.assertIn('"ver": "%s"' % U, _read(self.root, "tv/control_app.py"))
 
     # --- item 3: nothing rides on a stamp line
@@ -782,8 +783,8 @@ RED_PROOF = [
     {
         'why': 'the bump accepts a note that is not inert words',
         'file': 'bump_version.py',
-        'find': '        _leak = free_text_problem(_txt) or leak_problem(_txt)\n',
-        'replace': '        _leak = leak_problem(_txt)\n',
+        'find': '        if _inert:  # BUMP-FREE-TEXT-REFUSE\n',
+        'replace': '        if False:  # BUMP-FREE-TEXT-REFUSE\n',
         'matches': 1,
     },
     {
