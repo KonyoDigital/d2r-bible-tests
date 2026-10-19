@@ -10748,7 +10748,7 @@ GATES = [
     Gate("test_a_version_bump_carries_the_gates_that_ignore_the_version",
          [sys.executable, os.path.join(HERE, "test_a_version_bump_carries_the_gates_that_ignore_the_version.py")], 120,
          needs_app=False,
-         why="v3774 (REG-2294) - a coherent version bump is not a change to every gate. "
+         why="v3774 (REG-2295) - a coherent version bump is not a change to every gate. "
              "bump_version.py rewrites stamp lines in bible.html, control_app.py, tv_diablo.py "
              "and WINDOWS_SHIP.json and regenerates RESUME_HERE.md, BLUEPRINT.md and the "
              "TASKS.md ship row. Under gate memory a bump-only diff reran 760 of 1003 gates; "

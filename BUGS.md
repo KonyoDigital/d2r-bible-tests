@@ -7,7 +7,7 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
-### REG-2294 - A VERSION BUMP RERAN NEARLY EVERY GATE (v3774)
+### REG-2295 - A VERSION BUMP RERAN NEARLY EVERY GATE (v3774)
 
 Elad: release wall-clock is top priority. Under gate memory (REG-2293) a bump-only change was measured at 2172.2s with 154 carried, against 574.9s for no change. `bump_version.py` rewrites stamp lines in `bible.html` (D2R_BUILD, `<title>`, three d2r-build metas), `tv/control_app.py` (`"ver"`), `tv/tv_diablo.py` (`VERSION`) and `tv/WINDOWS_SHIP.json` (`ver`, `note`); `_regen_blueprint` and `_record_ship_in_tasks` then touch `BLUEPRINT.md` (generated time), `RESUME_HERE.md` (fp, version stamp, derived time) and the `TASKS.md` ship table. Those paths sit in most gates' closures, so `Ledger.lookup` saw every one as an input change.
 
