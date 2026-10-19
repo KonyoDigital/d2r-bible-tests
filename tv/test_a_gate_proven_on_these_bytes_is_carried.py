@@ -465,6 +465,24 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
         entry, why = _open(led).lookup(reader)
         self.assertIsNone(entry, "a gate that imports the runner carried the edit: %s" % why)
 
+    def test_a_file_named_only_inside_the_runner_is_not_every_gates_input(self):
+        root, led, _gate_py = self._law(extra={"namer.py": "import run_gates\n"})
+        tv = os.path.join(root, "tv")
+        with io.open(os.path.join(tv, "t_carry.py"), "w", encoding="utf-8") as fh:
+            fh.write("import namer\nimport sys\nsys.exit(0)\n")
+        with io.open(os.path.join(tv, "run_gates.py"), "w", encoding="utf-8") as fh:
+            fh.write("OTHER = 'other_gate.py'\n")
+        with io.open(os.path.join(tv, "other_gate.py"), "w", encoding="utf-8") as fh:
+            fh.write("N = 1\n")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-q", "-m", "the runner names another file")
+        gate = _gate(root, "t_carry.py")
+        self.assertTrue(_open(led).record(gate, True), "PREMISE: the PASS was not stored")
+        with io.open(os.path.join(tv, "other_gate.py"), "a", encoding="utf-8") as fh:
+            fh.write("N = 2\n")
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNotNone(entry, why)
+
     def test_a_declared_glob_matches_a_new_file(self):
         self.assertTrue(GL._watched("tv/brand_new.py", ("tv/*.py",)))
         self.assertFalse(GL._watched("bible.html", ("tv/*.py",)))
@@ -857,6 +875,13 @@ RED_PROOF = [
         "file": "gate_ledger.py",
         "find": "        if not _script_reads_bible(script):  # LEDGER-BIBLE\n",
         "replace": "        if False:  # LEDGER-BIBLE\n",
+        "matches": 1,
+    },
+    {
+        "why": "a file the runner names is an input of every gate, so a new gate reruns them all",
+        "file": "heart2.py",
+        "find": "            if dep in skip_modules and p != law:  # LEDGER-SKIP-RUNNER\n",
+        "replace": "            if False and dep in skip_modules and p != law:  # LEDGER-SKIP-RUNNER\n",
         "matches": 1,
     },
     {

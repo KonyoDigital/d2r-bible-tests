@@ -2083,7 +2083,7 @@ def _tracked_files(repo=None):
     return frozenset(x.decode("utf-8", "replace") for x in r.stdout.split(b"\0") if x)
 
 
-def law_inputs(sandbox, filename, proofs, parsed=None, tracked=None, allow_listing=False):
+def law_inputs(sandbox, filename, proofs, parsed=None, tracked=None, allow_listing=False, skip_modules=()):
     """#42 P3 — every file in `sandbox` (a copied tv/) that a law's verdict can depend on. -> (sorted [abs path], why)
 
     `why` is None when every input could be found and read; otherwise the reason this law is UNKEYABLE (the list then
@@ -2136,6 +2136,10 @@ def law_inputs(sandbox, filename, proofs, parsed=None, tracked=None, allow_listi
                                     "run time, so no byte key can name it" % lists)
         inputs.add(p)
         for dep in names & set(local):
+            # A module the caller named is not walked from a dependency. The law file's own
+            # import still is: that is the gate reading it, not an inherited one.
+            if dep in skip_modules and p != law:  # LEDGER-SKIP-RUNNER
+                continue
             stack.append(local[dep])
         if tracked is not None:           # #242 (2026-10-08) - a named file git does not track is runtime data, not a key input
             named = {q for q in named if os.path.relpath(q, repo).replace(os.sep, "/") in tracked}
