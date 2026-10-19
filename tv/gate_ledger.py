@@ -18,8 +18,10 @@ diff per distinct commit, cached for the run.
 The input map is reused while `tv/run_gates.py`, `BLUEPRINT.md` and `tv/heart2.py` are the same
 bytes. A row is rebuilt when the gate script, heart2.py, or any file already in its closure is
 in the change set, and a PASS is stored from a fresh parse, not from that cache. The runner
-file is not an input of every gate; the hashed Gate definition is. `bible.html` is an input
-only of a gate that itself loads or greps it.
+file is not an input of every gate: heart2 imports it, and that walk would otherwise rerun
+everything when a Gate is registered. The hashed Gate definition covers that. A gate that
+itself imports or names the runner still depends on it. `bible.html` is an input only of a
+gate that itself loads or greps it.
 
 A gate whose inputs are not in the set is printed as `proven at <sha> (<age>)` and its files
 are not opened.
@@ -198,6 +200,37 @@ def _script_reads_bible(script):
         if isinstance(node, ast.Constant) and isinstance(node.value, str) and "bible.html" in node.value:
             if node not in docs:
                 return True
+    return False
+
+
+def _script_reads_runner(script):
+    """Does this gate file itself import or name run_gates.py? -> bool
+
+    heart2.py sits in every closure and imports the runner, so the walk would make a new
+    Gate rerun every gate. The hashed definition covers registering one. Fail closed. A
+    docstring does not count. A string in some other module does not either.
+    """
+    try:
+        with open(script, encoding="utf-8", errors="replace") as fh:
+            src = fh.read()
+    except OSError:
+        return True
+    if "run_gates" not in src:
+        return False
+    try:
+        tree = ast.parse(src)
+    except (SyntaxError, ValueError):
+        return True
+    docs = _doc_nodes(tree)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            if any((a.name or "").split(".")[0] == "run_gates" for a in node.names):
+                return True
+        elif isinstance(node, ast.ImportFrom) and (node.module or "").split(".")[0] == "run_gates":
+            return True
+        elif (isinstance(node, ast.Constant) and isinstance(node.value, str)
+              and "run_gates.py" in node.value and node not in docs):
+            return True
     return False
 
 
@@ -446,12 +479,14 @@ class Ledger(object):
         if why:
             return [], why
         paths = list(found)  # LEDGER-CLOSURE-WALK
-        for extra in ("gate_ledger.py",):  # LEDGER-NO-RUNNER
+        for extra in ("gate_ledger.py",):
             path = os.path.join(sandbox, extra)
             if os.path.isfile(path):
                 paths.append(path)
         if not _script_reads_bible(script):  # LEDGER-BIBLE
             paths = [p for p in paths if os.path.basename(p) != "bible.html"]
+        if not _script_reads_runner(script):  # LEDGER-NO-RUNNER
+            paths = [p for p in paths if os.path.basename(p) != "run_gates.py"]
         return paths, None
 
     def _node_inputs(self, script):
