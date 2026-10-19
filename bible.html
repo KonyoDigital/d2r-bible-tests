@@ -41589,6 +41589,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var rows = matches.slice(0,30).map(function(n){
       /* #264 — the mule AND the cell (or where it would go, or why it stays), from the packer the mule window draws */
       var w = (typeof _vaultFindHome === 'function') ? _vaultFindHome(n) : ((typeof window._vaultWhereIs === 'function') ? window._vaultWhereIs(n) : null);
+      /* L1 — FIND names the cell the move list sends it to when the mule window has none yet (a hand add, not yet seen) */
+      try {
+        var _ht = !!(w && w.kind === 'would' && typeof window._vaultHandTyped === 'function' && window._vaultHandTyped(n));
+        if (w && (!w.cell || _ht) && typeof window._vaultMoveEnsure === 'function'){
+          var _mt = window._vaultMoveEnsure(n, 0).task, _mc = _mt && _mt.to && _mt.to.cell;
+          var _mm = _mc && String(_mc).match(/c(\d+)r(\d+)/);
+          if (_mm) w = Object.assign({}, w, { kind: _ht ? 'target' : w.kind, muleName: (_ht && _mt.to.holder) ? _mt.to.holder : w.muleName,
+                                             cell: String(_mc) + ' (' + ((+_mm[1]) + 1) + ',' + ((+_mm[2]) + 1) + ') target' + (_ht ? ' · MANUAL move' : '') }); /* L1 find cell */
+        }
+      } catch (eFc) {}
       var mid = (w && (w.kind === 'filed' || w.kind === 'worn' || w.kind === 'over' || w.kind === 'would')) ? w.mule : null;
       var loc = !w ? '<span class="vfr-arrow">→</span><span style="color:var(--text-dim)">UNKNOWN — the finder could not ask where it is</span>'
         : (w.kind === 'would') ? '<span class="vfr-arrow">→</span><span class="vfr-would">unsorted · would go to <span class="vfr-mule">'+esc(w.muleName)+'</span>' + (w.cell ? ' · '+esc(w.cell) : '') + ' — press ⚖️ Auto-assign unsorted to file it</span>'
@@ -43708,13 +43718,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var pool = ownedPool(), prov = (typeof _provAll === 'function') ? (_provAll() || {}) : {};
       Array.from(owned).sort().forEach(function(n){
         if (pool.indexOf(n) >= 0 || !_vaultHandBase(n)) return;
-        var p = prov[n];
-        if (p && p.source === 'hand' && /Add an item/.test(String(p.where || p.by || ''))) out.push(n); /* L1 hand-typed base */
+        void prov;
+        if (_vaultHandTyped(n)) out.push(n); /* L1 hand-typed base */
       });
     } catch (e) { return []; }
     return out;
   }
   try { window._vaultHandBasePool = _vaultHandBasePool; } catch (eHp) {}
+  /* L1 — did HE type this name through + Add an item? The receipt the hand door wrote says so. */
+  function _vaultHandTyped(n){
+    try {
+      var p = (typeof _provAll === 'function') ? (_provAll() || {})[n] : null;
+      return !!(p && p.source === 'hand' && /Add an item/.test(String(p.where || p.by || '')));
+    } catch (e) { return false; }
+  }
+  try { window._vaultHandTyped = _vaultHandTyped; } catch (eHt) {}
   /* L1 — a catalogue name typed without its leading "The" or in another case ("stone of jordan") is that item. Hand door
      only, and only when the register's own resolution did not land on a drawn name. -> the ITEMS name, or null */
   function _vhAlias(name){
@@ -43997,7 +44015,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var why = (typeof sg.why === 'string') ? sg.why.trim() : '';
     if (!why) return no('the router gave no reason');
     var id = String(sg.id);
-    if (id === '__throwout') return { ok: true, moved: false, kind: 'throwout', id: id, home: null, why: why };
+    if (id === '__throwout') {
+      var _hs = null;
+      try { _hs = (typeof window._vaultSeamHome === 'function') ? window._vaultSeamHome(nm) : null; } catch (eHs) { _hs = null; }
+      var _hm = (_hs && _hs.loc === 'filed' && _hs.mule) ? muleById(_hs.mule) : null;
+      if (_hm) return { ok: true, moved: false, kind: 'mule', id: _hs.mule, home: String(_hm.name || _hs.mule),
+                        why: 'you added it by hand, so it is kept — ' + why }; /* L1 propose reads the seam keep */
+      return { ok: true, moved: false, kind: 'throwout', id: id, home: null, why: why };
+    }
     if (id === '__keep') return { ok: true, moved: false, kind: 'keep', id: id, home: null, why: why };
     var mule = muleById(id);
     if (!mule) return no(_vNoHomeWhy(nm, id));
@@ -44762,6 +44787,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
       if (sg.unsorted || sg.id == null) return { loc: 'loose', mule: null }; /* v3767 seam homeless */
       if (sg.id === '__keep') return { loc: 'keep', mule: null };
+      if (sg.id === '__throwout' && /by DEFAULT/.test(String(sg.why || '')) && typeof window._vaultHandTyped === 'function'
+          && window._vaultHandTyped(name) && typeof muleById === 'function' && muleById('sets-rest'))
+        return { loc: 'filed', mule: 'sets-rest' }; /* L1 he typed an unruled set piece: kept, not thrown out */
       if (sg.id === '__throwout') return { loc: 'loose', mule: null }; /* v3767 seam discard */
       if (sg.id === 'shared') return { loc: 'shared', mule: null }; /* v3767 seam shared */
       if (typeof muleById === 'function' && muleById(sg.id)) return { loc: 'filed', mule: sg.id }; /* v3767 seam route */
@@ -49230,7 +49258,10 @@ window.vaultAutoAssign = function(){
       + '<span class="vault-move-sub">one stash at a time</span>'
       + '<span class="vmv-locks">' + locks + '</span></div>'; /* v3773 no manual move */
     var groups = built.groups || [];
-    if (!groups.length) return head + '<p class="vmv-empty">Nothing is out of place.</p>';
+    var unr = built.unrouted || [];
+    var unrHtml = unr.length ? '<p class="vmv-unrouted" data-n="' + unr.length + '">' + unr.length + ' added by hand with no target cell yet: '
+      + unr.map(function(n){ return '<b>' + esc(n) + '</b>'; }).join(', ') + '</p>' : ''; /* L1 never "nothing" while hand adds wait */
+    if (!groups.length) return head + (unr.length ? unrHtml : '<p class="vmv-empty">Nothing is out of place.</p>');
     var body = groups.map(function(g){
       var rows = g.rows.map(function(row){
         var t = row.task;
@@ -49261,7 +49292,7 @@ window.vaultAutoAssign = function(){
         + '<div class="vmv-gh">' + head + '</div>'
         + _vaultMoveGridHtml(g.rows) + rows + '</section>';
     }).join('');
-    return head + body;
+    return head + unrHtml + body;
   }
   function _vaultMoveCollect(){
     window._movePackCache = {};
@@ -49281,7 +49312,17 @@ window.vaultAutoAssign = function(){
       });
     });
     if (pending.length) _vaultMoveCommit(pending);
-    return { tasks: shown, groups: _vaultMoveGroup(shown), locks: _vaultMoveLocks(rec.records), records: rec.records };
+    var unrouted = [], seenRow = {};
+    shown.forEach(function(r){ seenRow[r.name] = 1; });
+    try {
+      if (typeof owned !== 'undefined' && owned && typeof window._vaultHandTyped === 'function')
+        Array.from(owned).sort().forEach(function(n){
+          if (seenRow[n] || !window._vaultHandTyped(n)) return;
+          var t0 = _vaultMoveEnsure(n, 0, bag).task;
+          if (!(t0.to && t0.to.cell) && !_vaultMoveWorn(t0.from)) unrouted.push(n); /* L1 hand add with no target */
+        });
+    } catch (eU) {}
+    return { tasks: shown, groups: _vaultMoveGroup(shown), locks: _vaultMoveLocks(rec.records), records: rec.records, unrouted: unrouted };
   }
   function _vaultMovePaint(){
     if (window._movePaintBusy) return null;
