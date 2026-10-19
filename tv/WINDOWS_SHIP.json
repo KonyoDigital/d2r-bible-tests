@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3773",
+  "ver": "v3774",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3773: a vault paint no longer walks the document, a lowered floater is restored, and add an item writes the move row",
+  "note": "v3774: a version bump carries the gates that ignore the version (REG-2295)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
