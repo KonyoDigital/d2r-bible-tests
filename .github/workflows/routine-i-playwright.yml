@@ -42,6 +42,10 @@ on:
       # surfaced two ships later, wearing someone else's commit. A gate that cannot see the
       # input it polices is not a gate. [[feedback_blind_fixture_green_gate]]
       - 'tv/control_ui.html'
+      # v877 boots tv/control_app.py on its own port. Two fixes to that file
+      # (the lock census, then git fetch) landed outside this list, so Routine I
+      # never graded them and the rinse spec stayed "never came up".
+      - 'tv/control_app.py'
       - 'playwright.config.ts'
       - 'package.json'
       - 'package-lock.json'
