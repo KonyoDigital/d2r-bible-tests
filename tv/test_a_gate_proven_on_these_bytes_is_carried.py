@@ -1714,9 +1714,9 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "REG-2293 r6 (C): os.path.realpath is not a probe",
+        "why": "REG-2293 r6 (C): os.readlink is not a probe",
         "file": "gate_trace/sitecustomize.py",
-        "find": "    os.path.realpath = probe_wrap(os.path.realpath)  # LEDGER-TRACE-PROBE\n",
+        "find": "    os.readlink = probe_wrap(os.readlink)  # LEDGER-TRACE-PROBE\n",
         "replace": "    pass  # LEDGER-TRACE-PROBE\n",
         "matches": 1,
     },
