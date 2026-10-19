@@ -17,7 +17,16 @@ Fail closed. A missing sha, a sha that is not an ancestor, a failed diff, a gate
 
 `test_agent` is nameable: its directory listings are temp dirs. `test_control` stays unnameable. Its globs read `tv/*.py`, `tests/*.spec.ts`, `tv/*.sh`, `hooks/*`, and `tv/frames/hist/**/*.jpg`. That footage is gitignored, so a glob watch cannot see a new frame that changes pass versus skip. The hook never skips `test_control`.
 
-Clocks on this Linux VM. The carried gates were seeded as PASS at that commit and were not re-executed. Full, old per-gate hash: 9320s (943 passed, 46 failed). Not re-measured after the switch, because `--full` ignores the ledger. No-change before: 556s (903 carried of 994, 82 passed, 8 failed). No-change after: 575.6s (908 carried of 999, 83 passed, 6 failed, 2 skipped). `test_agent` carried. `test_control` ran 152.8s. One committed file, `tv/page_delta.py`: 587.6s, 907 carried, and the one extra gate was `test_a_version_stamp_is_not_a_page_change`. The earlier 566s figure was a dirty worktree, not a new HEAD. `bible.html` only: 971.2s, 713 carried, 257 passed, 27 failed, 2 skipped. 195 gates reran because their own script loads or greps `bible.html`. A four-stamp bump: 2073.1s, 155 carried, 797 passed, 44 failed, 3 skipped, because most gates import `control_app.py` or `tv_diablo.py`. A new Gate added to `run_gates.py`: 642.5s, 885 carried of 1000, the new gate passed in 0.0s, `test_agent` carried, 115 ran fresh. The old post-rebase clock of 1786s with 0 carried was `bible.html`, `BLUEPRINT.md` and `run_gates.py` sitting in every closure.
+Clocks measured on the rebased head `3f166dd2`, which contains main `38f15023`. Carried gates were seeded as PASS at that commit and were not re-executed. Seeding the 909 keyable gates took 44.9s and is not inside the wall clocks. 92 gates refused a name, including `test_control`. rc=1 is this VM missing PIL and websocket-client.
+
+| run | before | on this head |
+|---|---|---|
+| full | 9320s, old per-gate hash (943 passed, 46 failed) | 3722.1s, `--full`, empty ledger (951 passed, 44 failed, 5 declared skips, 1 undeclared skip: websocket-client is not importable) |
+| no-change `--changed` | 556s, 903 carried of 994 | 574.9s, 909 carried of 1001, 84 passed, 6 failed, 2 skipped. `test_agent` carried. `test_control` ran 152.6s |
+| one committed file (`tv/page_delta.py`) | 566s was a dirty worktree, 902 carried | 575.0s, 908 carried, 85 passed. The extra gate was `test_a_version_stamp_is_not_a_page_change` in 0.9s |
+| `bible.html` only | the closest old number is 1786s with 0 carried, when `bible.html`, `BLUEPRINT.md` and `run_gates.py` sat in every closure | 892.0s, 713 carried, 259 passed, 27 failed, 2 skipped. 196 gates that carried on the clean tree reran. `test_agent` carried |
+| four-stamp bump, version string left at v3770 | unmeasured as its own shape | 2731.1s, 155 carried, 799 passed, 44 failed, 3 skipped. Most gates import `control_app.py` or `tv_diablo.py`. `test_agent` ran and failed in 7.4s |
+| a new Gate in `run_gates.py` | unmeasured | 1249.7s, 886 carried of 1002. The new gate passed in 0.0s. `test_agent` carried. 116 ran fresh. `test_control` alone took 763.3s on that run |
 
 GUARD: tv/test_a_gate_proven_on_these_bytes_is_carried.py. heart2 --prove 40/40 PROVEN. Wilson 0.9124 on 40 distinct attacks against the bar 0.722.
 
