@@ -243,6 +243,19 @@ class AHandAddRoutesByType(unittest.TestCase):
         self.assertEqual(sorted(set(o["rec1"]) - set(o["rec0"])), ["Archon Plate"], "records changed beyond the typed base: %r -> %r" % (o["rec0"], o["rec1"]))
         self.assertTrue(set(o["rec0"]) <= set(o["rec1"]))
 
+    def test_a_catalogue_name_without_the_or_in_another_case_is_that_item(self):
+        fresh()
+        a = add_all(["Stone of Jordan", "stone of jordan", "THE STONE OF JORDAN"])["add"]
+        for typed in ("Stone of Jordan", "stone of jordan", "THE STONE OF JORDAN"):
+            self.assertTrue(a[typed]["ok"], "%r was refused: %r" % (typed, a[typed]))
+            self.assertEqual(a[typed]["name"], "The Stone of Jordan", a[typed])
+        o = board().run(READ + "OUT.m = moveOf('The Stone of Jordan'); OUT.bad = moveOf('Stone of Jordan').length;"
+                        "OUT.junk = window.vaultHandAdd('Stone of Nothing');")
+        self.assertEqual(len(o["m"]), 1, "one item, typed three ways, is one row: %r" % o["m"])
+        self.assertEqual(o["m"][0]["to"]["holder"], "SHARED STASH", o["m"])
+        self.assertEqual(o["bad"], 0)
+        self.assertFalse(o["junk"]["ok"], "an alias invented an item: %r" % o["junk"])
+
     def test_distinct_attacks_clear_the_vault_apply_wilson_bar(self):
         from confidence import confluence, wilson_lower
         import self_arming as SA
@@ -259,6 +272,21 @@ class AHandAddRoutesByType(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "The hand door no longer tries the alias, so Stone of Jordan is refused.",
+     "file": "bible.html",
+     "find": "if (!_vaultKeeps(r.name)) { var al = _vhAlias(r.name); if (al && _vaultKeeps(al)) r = { ok: true, name: al }; } /* L1 alias */",
+     "replace": "/* L1 alias */",
+     "matches": 1},
+    {"why": "The alias keeps a leading The, so Stone of Jordan matches nothing.",
+     "file": "bible.html",
+     "find": ".replace(/^the\\s+/, '');",
+     "replace": ";",
+     "matches": 1},
+    {"why": "The alias is case-sensitive, so a lower-case name matches nothing.",
+     "file": "bible.html",
+     "find": "function k(x){ return String(x == null ? '' : x).trim().toLowerCase()",
+     "replace": "function k(x){ return String(x == null ? '' : x).trim()",
+     "matches": 1},
     {"why": "The hand door refuses a catalogue base again.",
      "file": "bible.html",
      "find": "if (!_vaultKeeps(r.name) && !_vaultHandBase(r.name)) /* L1 a catalogue base passes the hand door */",

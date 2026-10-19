@@ -25,7 +25,10 @@ FIX:
 
 GUARD: tv/test_vault_l1_a_hand_add_routes_by_type.py, 14 RED_PROOF attacks, all PROVEN by heart2 --prove, Wilson 0.7847 against the vault.apply bar 0.722.
 
-LEFT (open): a hand-typed white base (Monarch, Archon Plate, Eth Thresher, Shako as a base) is refused by the door as not-drawn (`_vaultKeeps`), so bases have no manual row yet. "Stone of Jordan" is refused; the catalogue name is "The Stone of Jordan". Rolled magic jewels and charms (no catalogue name) are not hand-addable. Spirit's footprint stays the 1x2 guess (REG v3766). Throw-out rows are L3.
+BASES (round 2): a white or eth base the builder catalogue names passes the hand door (`_vaultHandBase`). The packer and `_vaultRecords` add only `_vaultHandBasePool()`, which is owned bases whose receipt is the + Add an item hand door. `ownedPool` and the dock are unchanged, and a base owned through another door stays out (test_a_hand_typed_base_changes_no_other_list). Monarch, Archon Plate, Eth Thresher and Ethereal Archon Plate route to SOCKETED.
+ALIASES (round 2): the hand door folds case and a leading "The" (`_vhAlias`), only when one ITEMS name matches. "Stone of Jordan" now resolves to "The Stone of Jordan".
+LEFT (open): rolled magic jewels and charms (no catalogue name) are not hand-addable. Spirit's footprint stays the 1x2 guess. Throw-out rows are L3.
+
 ### REG-2296 - A BUMP-ONLY RUN STILL TOOK 4750 s: REDS RERAN IN FULL, THE PROOF QUEUE DIRTIED 147 PROOFS, LISTINGS WERE NEVER STORED (v3775)
 
 Measured on v3774 (7793ac8a): `--full` 4924 s, then a bump-only `--changed` (v3775 stamp, local commit f49305f2) 4750 s against a ~600 s target. 1014 gates carried, 497 ran (4606 s summed). The stamp lines were exactly the expected ones; the time went elsewhere:
