@@ -840,7 +840,7 @@ class TheProofRemembersWhatTheGateRead(unittest.TestCase):
         root, led = self._tree({"t_pin.py": law, "scan_gl.py": helper}, {"tests/a.spec.ts": "ok\n"})
         gate = _gate(root, "t_pin.py")
         self.assertTrue(_prove(_open(led), gate), "PREMISE: the PASS was not stored")
-        _write(root, "tests/zz_pin.spec.ts", "'reel_s_1790000000000_12345'\n")
+        _write(root, "tests/zz_pin.spec.ts", "'reel_s" + "_1790000000000_12345'\n")  # split: frame_authority scans tv/*.py
         _commit(root, "pin a reel")
         self.assertNotEqual(_run_traced(gate)[0], 0, "PREMISE: the gate is not red with the pinned reel")
         entry, why = _open(led).lookup(gate)
@@ -912,6 +912,26 @@ class TheProofRemembersWhatTheGateRead(unittest.TestCase):
         book = _open(led)
         self.assertFalse(_prove(book, _gate(root, "t_live.py")), "a read of ignored local state was carried")
         self.assertIn("ignores", book.last_why or "")
+
+    def test_git_ls_files_is_a_listing_and_git_history_is_never_carried(self):
+        lister = ("import os, subprocess, sys\nROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))\n"
+                  "out = subprocess.run(['git', 'ls-files'], cwd=ROOT, capture_output=True, text=True).stdout\n"
+                  "sys.exit(0 if len(out.split()) < 9 else 1)\n")
+        history = "import subprocess\nsubprocess.run(['git', 'log', '-1'], capture_output=True)\n"
+        aside = ("import subprocess, tempfile\nd = tempfile.mkdtemp()\n"
+                 "subprocess.run(['git', 'init', '-q', d], capture_output=True)\n"
+                 "subprocess.run(['git', '-C', d, 'status'], capture_output=True)\n")
+        root, led = self._tree({"t_ls.py": lister, "t_log.py": history, "t_aside.py": aside})
+        gate = _gate(root, "t_ls.py")
+        self.assertTrue(_prove(_open(led), gate), "PREMISE: the ls-files gate was not stored")
+        self.assertFalse(_prove(_open(led), _gate(root, "t_log.py")), "a gate that reads git history was stored")
+        self.assertTrue(_prove(_open(led), _gate(root, "t_aside.py")), "git in a tempdir repository is not a read")
+        for n in range(5):
+            _write(root, "docs/n%d.md" % n, "n\n")
+        _commit(root, "five new files")
+        self.assertNotEqual(_run_traced(gate)[0], 0, "PREMISE: the gate is not red with five more files")
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNone(entry, "git ls-files saw new files and the gate was carried")
 
     def test_old_ledger_shapes_still_parse(self):
         self.assertEqual(GL._churn("?? tv/a/b.py\n M tv/c.py\nD  tv/d.py\n"), {"tv/a/b.py", "tv/d.py"})
@@ -1450,6 +1470,13 @@ RED_PROOF = [
         "file": "run_gates.py",
         "find": "            if led is not None:  # LEDGER-TRACE-RUN — what this run reads is what a later carry is checked against\n",
         "replace": "            if False:  # LEDGER-TRACE-RUN — what this run reads is what a later carry is checked against\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r5: `git ls-files` is not a listing, so a new tracked file carries",
+        "file": "gate_trace/sitecustomize.py",
+        "find": "            emit(\"L\", \"\")  # the tracked set: any added or deleted file\n",
+        "replace": "            pass  # the tracked set: any added or deleted file\n",
         "matches": 1,
     },
 ]

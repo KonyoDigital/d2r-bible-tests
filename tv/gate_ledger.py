@@ -1092,7 +1092,7 @@ def read_trace(path):
             lines = fh.read().splitlines()
     except OSError:
         return None, "the gate's reads were not traced"
-    facts = {"R": set(), "W": set(), "S": set(), "L": set(), "I": set()}
+    facts = {"R": set(), "W": set(), "S": set(), "L": set(), "I": set(), "G": set()}
     boots = {}
     spawns = {}
     for line in lines:
@@ -1948,7 +1948,9 @@ class Ledger(object):
             if os.path.basename(path) in _SELF or not path:
                 continue
             if path == ".git" or path.startswith(".git/"):
-                return None, "the gate read git's own files (%s)" % path
+                if path in set(facts.get("R") or ()) and path != ".git":
+                    return None, "the gate read git's own files (%s)" % path
+                continue  # looking for .git is how a script finds its checkout
             if path in tracked or path in dirs:
                 inputs.add(path)
                 continue
@@ -1974,6 +1976,9 @@ class Ledger(object):
             if any(w.startswith(path + "/") for w in writes) or not os.path.isdir(os.path.join(root, path)):
                 continue
             return None, "the gate listed %s, which holds no tracked file, so no diff can say it moved" % path
+        if facts.get("G"):
+            inputs.update(p for p in tracked if os.path.basename(p) == ".gitignore")
+            listed.add("")
         return {"inputs": inputs, "listed": listed,
                 "imports": set(facts.get("I") or ())}, None
 
