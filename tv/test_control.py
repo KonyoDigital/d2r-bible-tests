@@ -20182,8 +20182,15 @@ class TestV2049TheVerdictNamesWhatDidNotRun(unittest.TestCase):
         would inflate the number and make the honest one look wrong."""
         blk = _between(self, self._src(), "COUNT THE CASES THAT DID NOT RUN", "return 0",
                        what="the case-skip accounting")
-        self.assertTrue('_st != "SKIP"' in blk,
-                        "gate-level SKIPs are being counted a second time as case skips")
+        live = [ln for ln in blk.splitlines() if ln.strip() and not ln.lstrip().startswith("#")]
+        self.assertTrue(any("counts_as_ran(_st)" in ln for ln in live),
+                        "the census no longer asks counts_as_ran, so a gate that skipped "
+                        "entirely can be counted again as case skips")
+        import run_gates as _rg
+        self.assertFalse(_rg.counts_as_ran("SKIP"))
+        self.assertFalse(_rg.counts_as_ran("CARRY"))
+        self.assertTrue(_rg.counts_as_ran("PASS"))
+        self.assertTrue(_rg.counts_as_ran("FAIL"))
 
     def test_the_gate_still_passes_when_nothing_skipped(self):
         """The warning must be conditional. A line that always prints is furniture."""

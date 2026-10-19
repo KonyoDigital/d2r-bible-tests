@@ -20,8 +20,10 @@ bytes. A row is rebuilt when the gate script, heart2.py, or any file already in 
 in the change set, and a PASS is stored from a fresh parse, not from that cache. The runner
 file is not an input of every gate: heart2 imports it, and that walk would otherwise rerun
 everything when a Gate is registered. The hashed Gate definition covers that. A gate that
-itself imports or names the runner still depends on it. `bible.html` is an input only of a
-gate that itself loads or greps it.
+itself imports or names the runner still depends on it. `bible.html` is an input of a
+gate that opens it, or that reaches a function which opens it. A string in an
+imported module does not count, and importing a module that only names the file
+does not either.
 
 A gate whose inputs are not in the set is printed as `proven at <sha> (<age>)` and its files
 are not opened.
@@ -203,6 +205,578 @@ def _script_reads_bible(script):
     return False
 
 
+_OPEN_NAMES = frozenset(("open", "read_text", "read_bytes"))
+
+
+def _is_main_guard(node):
+    if not isinstance(node, ast.If):
+        return False
+    test = node.test
+    if not isinstance(test, ast.Compare) or len(test.ops) != 1 or not isinstance(test.ops[0], ast.Eq):
+        return False
+    if len(test.comparators) != 1:
+        return False
+    left, right = test.left, test.comparators[0]
+
+    def _name(n):
+        return isinstance(n, ast.Name) and n.id == "__name__"
+
+    def _main(n):
+        return isinstance(n, ast.Constant) and n.value == "__main__"
+
+    return (_name(left) and _main(right)) or (_main(left) and _name(right))
+
+
+def _assign_names(target):
+    if isinstance(target, ast.Name):
+        return [target.id]
+    if isinstance(target, ast.Starred):
+        return _assign_names(target.value)
+    if isinstance(target, (ast.Tuple, ast.List)):
+        out = []
+        for elt in target.elts:
+            out.extend(_assign_names(elt))
+        return out
+    return []
+
+
+def _qual(prefix, name):
+    return name if not prefix else prefix + "." + name
+
+
+def _call_name(func):
+    if isinstance(func, ast.Name):
+        return func.id
+    if isinstance(func, ast.Attribute):
+        return func.attr
+    return None
+
+
+def _import_module_literal(node):
+    if not isinstance(node, ast.Call) or not node.args:
+        return None
+    if not isinstance(node.args[0], ast.Constant) or not isinstance(node.args[0].value, str):
+        return None
+    if _call_name(node.func) not in ("__import__", "import_module"):
+        return None
+    head = node.args[0].value.split(".")[0]
+    return head or None
+
+
+def _note_import(node, aliases, stars, modules):
+    if isinstance(node, ast.Import):
+        for alias in node.names:
+            head = alias.name.split(".")[0]
+            modules.add(head)
+            aliases[alias.asname or head] = ("mod", head)
+    elif isinstance(node, ast.ImportFrom):
+        if node.level and not node.module:
+            modules.add("*relative*")
+            return
+        head = (node.module or "").split(".")[0]
+        if head:
+            modules.add(head)
+        for alias in node.names:
+            if alias.name == "*":
+                if head:
+                    stars.append(head)
+            else:
+                aliases[alias.asname or alias.name] = ("from", head, alias.name)
+
+
+def _collect_imports(stmts, aliases, stars, modules):
+    for stmt in stmts:
+        if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            continue
+        if isinstance(stmt, ast.Import) or isinstance(stmt, ast.ImportFrom):
+            _note_import(stmt, aliases, stars, modules)
+        elif isinstance(stmt, ast.Assign):
+            mod = _import_module_literal(stmt.value)
+            if mod:
+                modules.add(mod)
+                for target in stmt.targets:
+                    for name in _assign_names(target):
+                        aliases[name] = ("mod", mod)
+        if isinstance(stmt, (ast.If, ast.For, ast.While, ast.With)):
+            _collect_imports(stmt.body, aliases, stars, modules)
+            _collect_imports(getattr(stmt, "orelse", []) or [], aliases, stars, modules)
+        elif isinstance(stmt, ast.Try):
+            _collect_imports(stmt.body, aliases, stars, modules)
+            _collect_imports(stmt.orelse, aliases, stars, modules)
+            _collect_imports(stmt.finalbody, aliases, stars, modules)
+            for handler in stmt.handlers:
+                _collect_imports(handler.body, aliases, stars, modules)
+
+
+def _all_import_modules(tree):
+    modules = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                modules.add(alias.name.split(".")[0])
+        elif isinstance(node, ast.ImportFrom):
+            if node.module:
+                modules.add(node.module.split(".")[0])
+            elif node.level:
+                modules.add("*relative*")
+        else:
+            mod = _import_module_literal(node)
+            if mod:
+                modules.add(mod)
+    modules.discard("")
+    return modules
+
+
+def _stored_names(stmts):
+    """Names this block assigns. A nested function's assignments belong to that function."""
+    names = set()
+
+    def add(target):
+        names.update(_assign_names(target))
+
+    def walk_node(node):
+        if node is None or not isinstance(node, ast.AST):
+            return
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            return
+        if isinstance(node, ast.NamedExpr):
+            add(node.target)
+        elif isinstance(node, ast.comprehension):
+            add(node.target)
+        elif isinstance(node, ast.ExceptHandler) and node.name:
+            names.add(node.name)
+        for child in ast.iter_child_nodes(node):
+            walk_node(child)
+
+    def walk(stmts):
+        for stmt in stmts:
+            if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                continue
+            if isinstance(stmt, ast.Assign):
+                for target in stmt.targets:
+                    add(target)
+            elif isinstance(stmt, ast.AnnAssign):
+                add(stmt.target)
+            elif isinstance(stmt, ast.AugAssign):
+                add(stmt.target)
+            elif isinstance(stmt, ast.For):
+                add(stmt.target)
+            elif isinstance(stmt, ast.With):
+                for item in stmt.items:
+                    if item.optional_vars:
+                        add(item.optional_vars)
+            elif isinstance(stmt, ast.ExceptHandler) and stmt.name:
+                names.add(stmt.name)
+            walk_node(stmt)
+            if isinstance(stmt, (ast.If, ast.For, ast.While, ast.With)):
+                walk(stmt.body)
+                walk(getattr(stmt, "orelse", []) or [])
+            elif isinstance(stmt, ast.Try):
+                walk(stmt.body)
+                walk(stmt.orelse)
+                walk(stmt.finalbody)
+                for handler in stmt.handlers:
+                    walk(handler.body)
+
+    walk(stmts)
+    return names
+
+
+def _arg_names(args):
+    names = set()
+    for arg in list(args.args) + list(args.kwonlyargs):
+        names.add(arg.arg)
+    if args.vararg:
+        names.add(args.vararg.arg)
+    if args.kwarg:
+        names.add(args.kwarg.arg)
+    return names
+
+
+def _scope_defs(stmts, prefix):
+    """Names bound by def/class directly in this block, not inside a nested def. -> {name: qual}"""
+    found = {}
+
+    def walk(stmts):
+        for stmt in stmts:
+            if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                found[stmt.name] = _qual(prefix, stmt.name)
+            elif isinstance(stmt, (ast.If, ast.For, ast.While, ast.With)):
+                walk(stmt.body)
+                walk(getattr(stmt, "orelse", []) or [])
+            elif isinstance(stmt, ast.Try):
+                walk(stmt.body)
+                walk(stmt.orelse)
+                walk(stmt.finalbody)
+                for handler in stmt.handlers:
+                    walk(handler.body)
+
+    walk(stmts)
+    return found
+
+
+def _collect_funcs(stmts, prefix, class_qual, out):
+    for stmt in stmts:
+        if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            qual = _qual(prefix, stmt.name)
+            out.append((qual, stmt, class_qual))
+            _collect_funcs(stmt.body, qual, class_qual, out)
+        elif isinstance(stmt, ast.ClassDef):
+            qual = _qual(prefix, stmt.name)
+            _collect_funcs(stmt.body, qual, qual, out)
+        elif isinstance(stmt, (ast.If, ast.For, ast.While, ast.With)):
+            _collect_funcs(stmt.body, prefix, class_qual, out)
+            _collect_funcs(getattr(stmt, "orelse", []) or [], prefix, class_qual, out)
+        elif isinstance(stmt, ast.Try):
+            _collect_funcs(stmt.body, prefix, class_qual, out)
+            _collect_funcs(stmt.orelse, prefix, class_qual, out)
+            _collect_funcs(stmt.finalbody, prefix, class_qual, out)
+            for handler in stmt.handlers:
+                _collect_funcs(handler.body, prefix, class_qual, out)
+
+
+def _attr_base(node):
+    attrs = []
+    cur = node
+    while isinstance(cur, ast.Attribute):
+        attrs.append(cur.attr)
+        cur = cur.value
+        if isinstance(cur, ast.Call):
+            cur = cur.func
+    attrs.reverse()
+    if isinstance(cur, ast.Name):
+        return cur.id, attrs
+    return None, attrs
+
+
+def _each_all(node, cb):
+    if node is None or not isinstance(node, ast.AST):
+        return
+    cb(node)
+    for child in ast.iter_child_nodes(node):
+        _each_all(child, cb)
+
+
+def _each_args(args, cb):
+    for node in list(args.defaults) + list(args.kw_defaults):
+        _each_all(node, cb)
+    for arg in list(args.args) + list(args.kwonlyargs):
+        _each_all(arg.annotation, cb)
+    if args.vararg:
+        _each_all(args.vararg.annotation, cb)
+    if args.kwarg:
+        _each_all(args.kwarg.annotation, cb)
+
+
+def _each(node, cb):
+    """Visit nodes that execute here. A nested function's body is a different function."""
+    if node is None or not isinstance(node, ast.AST):
+        return
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        for deco in node.decorator_list:
+            _each_all(deco, cb)
+        _each_args(node.args, cb)
+        _each_all(node.returns, cb)
+        return
+    if isinstance(node, ast.ClassDef):
+        for deco in node.decorator_list:
+            _each_all(deco, cb)
+        for base in node.bases:
+            _each_all(base, cb)
+        for kw in node.keywords:
+            _each_all(kw.value, cb)
+        for stmt in node.body:
+            _each(stmt, cb)
+        return
+    cb(node)
+    for child in ast.iter_child_nodes(node):
+        _each(child, cb)
+
+
+def _bible_binding_names(tree, docs):
+    names = set()
+    for stmt in tree.body:
+        value = None
+        targets = []
+        if isinstance(stmt, ast.Assign):
+            value = stmt.value
+            targets = list(stmt.targets)
+        elif isinstance(stmt, ast.AnnAssign) and stmt.value is not None:
+            value = stmt.value
+            targets = [stmt.target]
+        if value is None:
+            continue
+        hit = False
+        for node in ast.walk(value):
+            if node in docs:
+                continue
+            if isinstance(node, ast.Constant) and isinstance(node.value, str) and "bible.html" in node.value:
+                hit = True
+                break
+        if hit:
+            for target in targets:
+                names.update(_assign_names(target))
+    return names
+
+
+class _Resolve(object):
+    def __init__(self, imports, scope_names, shadow, stars, class_qual):
+        self.imports = imports
+        self.scope_names = scope_names
+        self.shadow = shadow
+        self.stars = stars
+        self.class_qual = class_qual
+
+    def _spec(self, name):
+        if name in self.shadow:
+            return None
+        if name in self.scope_names:
+            return ("local", self.scope_names[name])
+        return self.imports.get(name)
+
+    def module_of(self, name):
+        spec = self._spec(name)
+        if spec and spec[0] == "mod":
+            return spec[1]
+        return None
+
+    def name_ref(self, name):
+        spec = self._spec(name)
+        if spec is None:
+            if self.stars and name not in self.shadow:
+                return [("func", mod, name) for mod in self.stars]
+            return []
+        if spec[0] == "local":
+            return [("local", spec[1])]
+        if spec[0] == "from":
+            return [("func", spec[1], spec[2])]
+        return []
+
+    def attr_ref(self, node):
+        base, attrs = _attr_base(node)
+        if not base or not attrs:
+            return []
+        if base in ("self", "cls") and self.class_qual:
+            return [("local", self.class_qual + "." + ".".join(attrs))]
+        spec = self._spec(base)
+        if spec is None:
+            return []
+        if spec[0] == "mod":
+            return [("func", spec[1], ".".join(attrs))]
+        if spec[0] == "from":
+            return [("func", spec[1], spec[2] + "." + ".".join(attrs))]
+        if spec[0] == "local":
+            return [("local", spec[1] + "." + ".".join(attrs))]
+        return []
+
+
+def _is_open_call(node, resolve):
+    if not isinstance(node, ast.Call):
+        return False
+    func = node.func
+    name = _call_name(func)
+    if name in _OPEN_NAMES:
+        return True
+    if isinstance(func, ast.Name):
+        spec = resolve.imports.get(func.id)
+        if spec and spec[0] == "from" and spec[2] in _OPEN_NAMES:
+            return True
+    return False
+
+
+def _touch(node, words, resolve):
+    """A path expression names bible.html. -> (immediate, [(mod, attr)])"""
+    immediate = False
+    deferred = []
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.Constant) and isinstance(sub.value, str) and "bible.html" in sub.value:
+            immediate = True
+        elif isinstance(sub, ast.Name) and isinstance(sub.ctx, ast.Load) and sub.id in words:
+            immediate = True
+        elif isinstance(sub, ast.Attribute) and isinstance(getattr(sub, "ctx", None), ast.Load):
+            base, attrs = _attr_base(sub)
+            if base and len(attrs) == 1:
+                mod = resolve.module_of(base)
+                if mod:
+                    deferred.append((mod, attrs[0]))
+    return immediate, deferred
+
+
+def _open_parts(node):
+    parts = list(node.args) + [kw.value for kw in node.keywords]
+    func = node.func
+    if isinstance(func, ast.Attribute):
+        parts.append(func.value)
+    return parts
+
+
+def _alias_words(stmts, resolve, bible_names):
+    """Names in this block that hold the bible path, including through other names."""
+    pairs = []
+
+    def walk(stmts):
+        for stmt in stmts:
+            if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                continue
+            if isinstance(stmt, ast.Assign):
+                for target in stmt.targets:
+                    for name in _assign_names(target):
+                        pairs.append((name, stmt.value))
+            elif isinstance(stmt, ast.AnnAssign) and stmt.value is not None:
+                for name in _assign_names(stmt.target):
+                    pairs.append((name, stmt.value))
+            elif isinstance(stmt, ast.NamedExpr):
+                pairs.append((stmt.target.id, stmt.value))
+            if isinstance(stmt, ast.ClassDef):
+                walk(stmt.body)
+            elif isinstance(stmt, (ast.If, ast.For, ast.While, ast.With)):
+                walk(stmt.body)
+                walk(getattr(stmt, "orelse", []) or [])
+            elif isinstance(stmt, ast.Try):
+                walk(stmt.body)
+                walk(stmt.orelse)
+                walk(stmt.finalbody)
+                for handler in stmt.handlers:
+                    walk(handler.body)
+    walk(stmts)
+    words = set(bible_names) - resolve.shadow
+    local = set()
+    changed = True
+    while changed:
+        changed = False
+        known = words | local
+        for name, value in pairs:
+            if name in local or name in resolve.shadow:
+                continue
+            immediate, _deferred = _touch(value, known, resolve)
+            if immediate:
+                local.add(name)
+                changed = True
+    return words | local
+
+
+def _scan_block(stmts, resolve, bible_names, refs, opens):
+    """Refs and bible opens in statements that execute in this block."""
+    stmts = [stmt for stmt in stmts if not (isinstance(stmt, ast.If) and _is_main_guard(stmt))]
+    words = _alias_words(stmts, resolve, bible_names)
+
+    def cb(node):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
+            refs.extend(resolve.name_ref(node.id))
+        elif isinstance(node, ast.Attribute) and isinstance(getattr(node, "ctx", None), ast.Load):
+            refs.extend(resolve.attr_ref(node))
+        elif isinstance(node, ast.Call) and _call_name(node.func) == "getattr" and node.args:
+            mod = None
+            arg = node.args[0]
+            if isinstance(arg, ast.Name):
+                mod = resolve.module_of(arg.id)
+            if mod:
+                refs.append(("dyn", mod))
+        if _is_open_call(node, resolve):
+            for part in _open_parts(node):
+                immediate, deferred = _touch(part, words, resolve)
+                if immediate:
+                    opens.append(True)
+                for mod, attr in deferred:
+                    opens.append((mod, attr))
+
+    for stmt in stmts:
+        if isinstance(stmt, ast.If) and _is_main_guard(stmt):
+            continue
+        _each(stmt, cb)
+    return words
+
+
+def _bible_facts_from_src(src):
+    """What one module does with bible.html, before other modules are joined. -> dict
+
+    A module-level `PATH = 'bible.html'` is a binding, not an open. `open(PATH)` and
+    `open('bible.html')` are opens. Fail closed when the file will not parse, or when it
+    uses a relative import whose target this walk cannot name.
+    """
+    try:
+        tree = ast.parse(src)
+    except (SyntaxError, ValueError):
+        return {"opaque": True}
+    docs = _doc_nodes(tree)
+    bible_names = _bible_binding_names(tree, docs)
+    modules = _all_import_modules(tree)
+    if "*relative*" in modules:
+        return {"opaque": True}
+    mod_aliases, mod_stars = {}, []
+    _collect_imports(tree.body, mod_aliases, mod_stars, set())
+    mod_resolve = _Resolve(mod_aliases, _scope_defs(tree.body, ""), set(), mod_stars, None)
+    mod_refs, mod_opens = [], []
+    _scan_block(tree.body, mod_resolve, bible_names, mod_refs, mod_opens)
+    main_refs, main_opens = [], []
+    for stmt in tree.body:
+        if _is_main_guard(stmt):
+            _scan_block(stmt.body, mod_resolve, bible_names, main_refs, main_opens)
+    for head in mod_stars:
+        mod_refs.append(("import_mod", head))
+    for name, spec in mod_aliases.items():
+        if spec[0] == "mod":
+            mod_refs.append(("import_mod", spec[1]))
+        elif spec[0] == "from" and spec[1]:
+            mod_refs.append(("import_mod", spec[1]))
+    funcs = []
+    _collect_funcs(tree.body, "", None, funcs)
+    direct = set()
+    refs = {}
+    qual_names = set()
+    for qual, node, class_qual in funcs:
+        qual_names.add(qual)
+        aliases, stars = dict(mod_aliases), list(mod_stars)
+        _collect_imports(node.body, aliases, stars, set())
+        scope = _scope_defs(node.body, qual)
+        if class_qual:
+            # the class name is in scope for its methods; self is handled separately
+            pass
+        shadow = _stored_names(node.body) | _arg_names(node.args)
+        resolve = _Resolve(aliases, scope or _scope_defs([], ""), shadow, stars, class_qual)
+        # module-level functions and classes are visible unless this function shadows them
+        resolve.scope_names = dict(_scope_defs(tree.body, ""))
+        resolve.scope_names.update(scope)
+        resolve.imports = dict(mod_aliases)
+        resolve.imports.update(aliases)
+        frefs, fopens = [], []
+        _scan_block(node.body, resolve, bible_names, frefs, fopens)
+        for head in stars:
+            frefs.append(("import_mod", head))
+        for spec in aliases.values():
+            if spec[0] == "mod":
+                frefs.append(("import_mod", spec[1]))
+            elif spec[0] == "from" and spec[1]:
+                frefs.append(("import_mod", spec[1]))
+        if any(op is True for op in fopens):
+            direct.add(qual)
+        for op in fopens:
+            if op is not True:
+                frefs.append(("bible", op[0], op[1]))
+        refs.setdefault(qual, []).extend(frefs)
+    # An open under `if __name__` runs only when this file is the program. It is not an
+    # import-time read. The gate file checks main_direct itself.
+    mod_direct = any(op is True for op in mod_opens)
+    for op in mod_opens:
+        if op is not True:
+            mod_refs.append(("bible", op[0], op[1]))
+    for op in main_opens:
+        if op is not True:
+            main_refs.append(("bible", op[0], op[1]))
+    return {
+        "opaque": False,
+        "bible_names": bible_names,
+        "direct": direct,
+        "refs": refs,
+        "mod_refs": mod_refs,
+        "main_refs": main_refs,
+        "main_direct": any(op is True for op in main_opens),
+        "mod_direct": mod_direct,
+        "import_names": modules,
+        "funcs": qual_names,
+    }
+
+
 def _script_reads_runner(script):
     """Does this gate file itself import or name run_gates.py? -> bool
 
@@ -347,6 +921,16 @@ class Ledger(object):
         self._diff_root = None
         self._work = None
         self._work_root = None
+        self._bible_facts = {}
+        self._bible_modmap = None
+        self._bible_rev = {}
+        self._bible_mod_root = None
+        self._bible_folded = set()
+        self._bible_readers = set()
+        self._bible_itime = set()
+        self._bible_reader_mods = set()
+        self._bible_waiters = {}
+        self._bible_pending = []
 
     def _ensure(self):
         if self._loaded:
@@ -465,6 +1049,206 @@ class Ledger(object):
             self._tracked_root = root
         return self._tracked_memo
 
+    def _bible_modmap_for(self, script):
+        sandbox = os.path.dirname(os.path.abspath(script))
+        root = os.path.dirname(sandbox)
+        if self._bible_mod_root == root and self._bible_modmap is not None:
+            return self._bible_modmap
+        self._bible_facts = {}
+        self._bible_folded = set()
+        self._bible_readers = set()
+        self._bible_itime = set()
+        self._bible_reader_mods = set()
+        self._bible_waiters = {}
+        self._bible_pending = []
+        local = {}
+        for directory in (root, sandbox):
+            try:
+                listing = os.listdir(directory)
+            except OSError:
+                continue
+            for name in listing:
+                if name.endswith(".py"):
+                    local[name[:-3]] = os.path.normpath(os.path.join(directory, name))
+        self._bible_modmap = local
+        self._bible_rev = {path: name for name, path in local.items()}
+        self._bible_mod_root = root
+        return local
+
+    def _bible_get(self, path):
+        path = os.path.normpath(path)
+        try:
+            st = os.stat(path)
+            mk = (st.st_size, st.st_mtime_ns)
+        except OSError:
+            return {"opaque": True}
+        hit = self._bible_facts.get(path)
+        if hit and hit[0] == mk:
+            return hit[1]
+        try:
+            with open(path, encoding="utf-8", errors="replace") as fh:
+                src = fh.read()
+        except OSError:
+            facts = {"opaque": True}
+        else:
+            facts = _bible_facts_from_src(src)
+        self._bible_facts[path] = (mk, facts)
+        return facts
+
+    def _bible_key(self, ref, path):
+        kind = ref[0]
+        if kind == "local":
+            return ("local", path, ref[1])
+        if kind in ("func", "star"):
+            return ("func", ref[1], ref[2])
+        if kind == "dyn":
+            return ("dyn", ref[1])
+        if kind == "bible":
+            return ("bible", ref[1], ref[2])
+        if kind == "import_mod":
+            return ("itime", ref[1])
+        return None
+
+    def _bible_index(self, path, facts, local):
+        def add(qual, ref):
+            key = self._bible_key(ref, path)
+            if key is None:
+                return
+            if key[0] != "local" and key[1] not in local:
+                return
+            self._bible_waiters.setdefault(key, []).append((path, qual))
+
+        for qual, rlist in facts["refs"].items():
+            for ref in rlist:
+                add(qual, ref)
+        for ref in facts["mod_refs"]:
+            add(None, ref)
+
+    def _bible_hit(self, ref, path, local):
+        kind = ref[0]
+        if kind == "local":
+            return (path, ref[1]) in self._bible_readers
+        if kind in ("func", "star"):
+            dest = local.get(ref[1])
+            return bool(dest and (dest, ref[2]) in self._bible_readers)
+        if kind == "dyn":
+            dest = local.get(ref[1])
+            return bool(dest and dest in self._bible_reader_mods)
+        if kind == "bible":
+            dest = local.get(ref[1])
+            if not dest:
+                return False
+            got = self._bible_facts.get(dest)
+            return bool(got and ref[2] in got[1].get("bible_names", ()))
+        if kind == "import_mod":
+            dest = local.get(ref[1])
+            return bool(dest and dest in self._bible_itime)
+        return False
+
+    def _bible_wake(self, path, qual):
+        if qual is None:
+            if path in self._bible_itime:
+                return
+            self._bible_itime.add(path)
+        else:
+            if (path, qual) in self._bible_readers:
+                return
+            self._bible_readers.add((path, qual))
+            self._bible_reader_mods.add(path)
+        self._bible_pending.append((path, qual))
+
+    def _bible_drain(self, local):
+        while self._bible_pending:
+            path, qual = self._bible_pending.pop()
+            if qual is None:
+                mod = self._bible_rev.get(path)
+                keys = (("itime", mod),) if mod else ()
+            else:
+                keys = [("local", path, qual)]
+                mod = self._bible_rev.get(path)
+                if mod:
+                    keys.append(("func", mod, qual))
+                    keys.append(("dyn", mod))
+            for key in keys:
+                for waiter in self._bible_waiters.get(key, ()):
+                    self._bible_wake(waiter[0], waiter[1])
+
+    def _bible_satisfy(self, path, facts, local):
+        def consider(qual, refs):
+            for ref in refs:
+                if self._bible_hit(ref, path, local):
+                    self._bible_wake(path, qual)
+                    return
+
+        for qual, rlist in facts["refs"].items():
+            consider(qual, rlist)
+        consider(None, facts["mod_refs"])
+
+    def _bible_fold(self, path, local):
+        path = os.path.normpath(path)
+        if path in self._bible_folded:
+            return
+        facts = self._bible_get(path)
+        self._bible_folded.add(path)
+        if not facts or facts.get("opaque"):
+            return
+        self._bible_index(path, facts, local)
+        self._bible_satisfy(path, facts, local)
+        for qual in facts["direct"]:
+            self._bible_wake(path, qual)
+        if facts.get("mod_direct"):
+            self._bible_wake(path, None)
+        mod = self._bible_rev.get(path)
+        if mod:
+            for attr in facts.get("bible_names", ()):
+                for waiter in self._bible_waiters.get(("bible", mod, attr), ()):
+                    self._bible_wake(waiter[0], waiter[1])
+        self._bible_drain(local)
+
+    def _callee_opens_bible(self, script):
+        """A reached function opens bible.html. The gate file's own strings are separate. -> bool"""
+        script = os.path.normpath(script)
+        local = self._bible_modmap_for(script)
+        stack = [script]
+        seen = []
+        seen_set = set()
+        while stack:
+            path = stack.pop()
+            if path in seen_set:
+                continue
+            seen_set.add(path)
+            facts = self._bible_get(path)
+            if facts.get("opaque"):
+                return True
+            seen.append(path)
+            for name in facts.get("import_names", ()):
+                nxt = local.get(name)
+                if nxt and nxt not in seen_set:
+                    stack.append(nxt)
+        for path in seen:
+            self._bible_fold(path, local)
+        facts = self._bible_facts[script][1]
+        if script in self._bible_itime or facts.get("main_direct"):
+            return True
+        if any((script, qual) in self._bible_readers for qual in facts.get("funcs", ())):
+            return True
+        for ref in facts.get("main_refs", ()):
+            if self._bible_hit(ref, script, local):
+                return True
+        return False
+
+    def _closure_reads_bible(self, script):
+        """Keep bible.html when this gate opens it, or a function it can reach does. -> bool
+
+        Fail closed. A callee the walk cannot see is a read.
+        """
+        if _script_reads_bible(script):
+            return True
+        try:
+            return self._callee_opens_bible(script)  # LEDGER-BIBLE-CALL
+        except Exception:
+            return True
+
     def _py_inputs(self, script, gate_name=None):
         import heart2 as H
         sandbox = os.path.dirname(script)
@@ -485,7 +1269,7 @@ class Ledger(object):
             path = os.path.join(sandbox, extra)
             if os.path.isfile(path):
                 paths.append(path)
-        if not _script_reads_bible(script):  # LEDGER-BIBLE
+        if not self._closure_reads_bible(script):  # LEDGER-BIBLE
             paths = [p for p in paths if os.path.basename(p) != "bible.html"]
         if not _script_reads_runner(script):  # LEDGER-NO-RUNNER
             paths = [p for p in paths if os.path.basename(p) != "run_gates.py"]

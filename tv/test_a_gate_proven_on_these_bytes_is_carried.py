@@ -439,6 +439,56 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
         entry, why = _open(led).lookup(reader)
         self.assertIsNone(entry, "a gate that opens bible.html carried the edit: %s" % why)
 
+    def test_a_callee_in_an_imported_module_opens_bible(self):
+        opener = (
+            "PATH = 'bible.html'\n"
+            "def read():\n"
+            "    open('bible.html')\n"
+            "def mid():\n"
+            "    read()\n"
+            "def read_path():\n"
+            "    open(PATH)\n"
+        )
+        root, led, _gate_py = self._law(extra={"opener.py": opener})
+        bible = os.path.join(root, "bible.html")
+        tv = os.path.join(root, "tv")
+        with io.open(bible, "w", encoding="utf-8") as fh:
+            fh.write("<html></html>\n")
+        with io.open(os.path.join(tv, "gate_call.py"), "w", encoding="utf-8") as fh:
+            fh.write("import opener\ndef go():\n    opener.mid()\ngo()\n")
+        with io.open(os.path.join(tv, "gate_path.py"), "w", encoding="utf-8") as fh:
+            fh.write("import opener\ndef go():\n    opener.read_path()\ngo()\n")
+        with io.open(os.path.join(tv, "gate_dyn.py"), "w", encoding="utf-8") as fh:
+            fh.write("import opener\ndef go():\n    getattr(opener, 'mid')()\ngo()\n")
+        with io.open(os.path.join(tv, "gate_import.py"), "w", encoding="utf-8") as fh:
+            fh.write("import opener\nimport sys\nsys.exit(0)\n")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-q", "-m", "callee opens the page")
+        call = _gate(root, "gate_call.py")
+        call.name = "call-mid"
+        path = _gate(root, "gate_path.py")
+        path.name = "call-path"
+        dyn = _gate(root, "gate_dyn.py")
+        dyn.name = "call-dyn"
+        only = _gate(root, "gate_import.py")
+        only.name = "import-only"
+        book = _open(led)
+        self.assertTrue(book.record(call, True), "PREMISE: the transitive call was not stored")
+        self.assertTrue(book.record(path, True), "PREMISE: the path open was not stored")
+        self.assertTrue(book.record(dyn, True), "PREMISE: the dynamic call was not stored")
+        self.assertTrue(book.record(only, True), "PREMISE: the import was not stored")
+        with io.open(bible, "a", encoding="utf-8") as fh:
+            fh.write("<!-- moved -->\n")
+        book = _open(led)
+        entry, why = book.lookup(call)
+        self.assertIsNone(entry, "a callee in an imported module opens bible.html and the edit carried: %s" % why)
+        entry, why = book.lookup(path)
+        self.assertIsNone(entry, "open(PATH) in an imported module carried the edit: %s" % why)
+        entry, why = book.lookup(dyn)
+        self.assertIsNone(entry, "getattr on a module that opens bible.html carried the edit: %s" % why)
+        entry, why = book.lookup(only)
+        self.assertIsNotNone(entry, why)
+
     def test_the_runner_file_is_not_an_input_of_every_gate(self):
         root, led, _gate_py = self._law(extra={"namer.py": "PATH = 'run_gates.py'\n"})
         tv = os.path.join(root, "tv")
@@ -873,8 +923,15 @@ RED_PROOF = [
     {
         "why": "bible.html is inherited from a string constant in an import",
         "file": "gate_ledger.py",
-        "find": "        if not _script_reads_bible(script):  # LEDGER-BIBLE\n",
+        "find": "        if not self._closure_reads_bible(script):  # LEDGER-BIBLE\n",
         "replace": "        if False:  # LEDGER-BIBLE\n",
+        "matches": 1,
+    },
+    {
+        "why": "a callee in an imported module opens bible.html",
+        "file": "gate_ledger.py",
+        "find": "            return self._callee_opens_bible(script)  # LEDGER-BIBLE-CALL\n",
+        "replace": "            return False  # LEDGER-BIBLE-CALL\n",
         "matches": 1,
     },
     {
