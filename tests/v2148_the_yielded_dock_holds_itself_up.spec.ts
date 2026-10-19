@@ -3,6 +3,11 @@ import * as path from 'path';
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 // v2148 — THE YIELD'S HOVER-RESTORE COULD NOT HOLD ITSELF UP AT HIS OWN WINDOW WIDTH.
+// v3771 — THE VAULT ROOM NO LONGER KEEPS THAT LIP. The 20px grip at opacity .4 was the
+// MF / TZ / quick-set strip across the move list. While the vault tab is open the dock
+// is translated fully off and painted at opacity 0. Detail and runs still use the lip.
+// This spec now guards the vault room: the dock stays off, and aiming where the lip
+// used to be does not bring it back over the list or set it bouncing.
 //
 // v2146 extended the v694 yield law to the vault room: `html.vault-open .control-dock` slides down
 // by `translateY(calc(100% - 20px))`, leaving a 20px lip, and `:hover` brings it back. The lip IS
@@ -54,41 +59,44 @@ async function translateYSeries(page: any, samples: number) {
 }
 
 for (const w of WIDTHS) {
-  test(`at ${w}px the summoned dock stays up instead of jittering`, async ({ page }) => {
+  test(`at ${w}px the vault dock stays off the list instead of bouncing back`, async ({ page }) => {
     await page.setViewportSize({ width: w, height: 900 });
     await page.goto(URL);
     await page.waitForFunction(() => typeof (window as any).switchTab === 'function');
     await page.evaluate(() => (window as any).switchTab('vault'));
     await page.waitForTimeout(500);
 
-    // the dock must actually BE yielded, or this spec proves nothing about the restore
+    // the dock must actually BE off the room, or this spec proves nothing about the strip
     const yielded = await page.evaluate(() => {
       const d = document.querySelector('.control-dock') as HTMLElement;
-      const m = getComputedStyle(d).transform;
+      const st = getComputedStyle(d);
+      const m = st.transform;
       return { open: document.documentElement.classList.contains('vault-open'),
-               ty: m === 'none' ? 0 : Math.round(parseFloat(m.split(',')[5])) };
+               ty: m === 'none' ? 0 : Math.round(parseFloat(m.split(',')[5])),
+               opacity: st.opacity };
     });
     expect(yielded.open, 'switchTab did not put the root in vault-open').toBe(true);
-    expect(yielded.ty, `the dock is not yielded at ${w}px, so the restore is untested`)
+    expect(yielded.ty, `the dock is not off the room at ${w}px`)
       .toBeGreaterThan(40);
+    expect(yielded.opacity, `the dock still paints at ${w}px`).toBe('0');
 
-    // aim where a person aims: the middle of the visible lip
+    // aim where the old lip was. That aim must not pull the bar back over the list.
     const lip = await page.evaluate(() => {
       const r = (document.querySelector('.dock-inner') as HTMLElement).getBoundingClientRect();
-      return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top) + 8 };
+      return { x: Math.round(r.left + r.width / 2), y: Math.round(Math.min(r.top + 8, window.innerHeight - 2)) };
     });
     await page.mouse.move(lip.x, lip.y);
-    await page.waitForTimeout(600);             // let the restore transition finish
+    await page.waitForTimeout(600);
 
     const series = await translateYSeries(page, 12);
     const moved = new Set(series).size;
+    const opacity = await page.evaluate(() => getComputedStyle(document.querySelector('.control-dock') as Element).opacity);
 
     expect(moved,
       `at ${w}px translateY took ${moved} distinct values with the mouse held still — `
-      + `${JSON.stringify(series)}. The dock is bouncing: the cursor that summoned it lands in `
-      + `.control-dock's pointer-events:none bottom padding, so :hover drops the instant the `
-      + `restore completes.`).toBe(1);
-    expect(series[0], `at ${w}px the dock settled at translateY=${series[0]}, not fully restored`)
-      .toBe(0);
+      + `${JSON.stringify(series)}. The dock is bouncing back over the list.`).toBe(1);
+    expect(series[0], `at ${w}px the dock came back at translateY=${series[0]}`)
+      .toBeGreaterThan(40);
+    expect(opacity, `at ${w}px the dock painted again`).toBe('0');
   });
 }
