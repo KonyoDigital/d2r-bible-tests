@@ -882,8 +882,9 @@ echo "pre-push: [$(_pp_el)] ✅ boss portraits are the pictures a human opened, 
 # v3768 — a stored PASS carries when its commit is an ancestor of HEAD and git says none of
 # its inputs moved. A miss, a missing ledger and a corrupt ledger all fall through and the gate runs.
 # FAIL is never stored. --record stores a PASS only when suite_verdict already proved these bytes,
-# and (REG-2293 r5) only with a trace of what the run read, which only run_gates takes. Here it
-# prints why it stored nothing; `run_gates.py --changed` is what makes these carry next time.
+# and (REG-2293 r5) only with a trace of what the run read. REG-2293 r6: a suite this hook runs
+# fresh runs traced (`gate_ledger.py --trace-env`) and is recorded with `--trace`; a reused verdict
+# had no run here, so it has no trace and stores nothing (it prints why).
 ledger_carry() {
   python3 "$REPO/tv/gate_ledger.py" --carry "$1"
 }
@@ -908,11 +909,15 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
       echo "pre-push: [$(_pp_el)] ✅ test_agent: a green run of these exact bytes was reused (the line above names it)."
       python3 "$REPO/tv/gate_ledger.py" --record test_agent || true
     else
-      if ! gate_run "test_agent" "python3 tv/test_agent.py" 600 -- python3 "$REPO/tv/test_agent.py"; then
+      # REG-2293 r6 - the run is traced, so --record can store what it read (a reuse above has no run, so no trace).
+      _tr="$(mktemp "${TMPDIR:-/tmp}/gate-trace.XXXXXX")"
+      if ! ( eval "$(python3 "$REPO/tv/gate_ledger.py" --trace-env "$_tr")"; gate_run "test_agent" "python3 tv/test_agent.py" 600 -- python3 "$REPO/tv/test_agent.py" ); then
+        rm -f "$_tr"
         exit 1
       fi
       python3 "$REPO/tv/suite_verdict.py" --record test_agent || true
-      python3 "$REPO/tv/gate_ledger.py" --record test_agent || true
+      python3 "$REPO/tv/gate_ledger.py" --record test_agent --trace "$_tr" || true
+      rm -f "$_tr"
     fi
   fi
   # ⚠ v2361 — 600s ASSUMED AN IDLE MACHINE, AND HIS IS NOT. Measured 2026-08-31 on the same
@@ -935,11 +940,14 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
       # suite: 133.6 s); then 4 shards by class ran all 2,259 cases in 66-88 s (3 green runs, his game running beside them).
       # tv/shard_suite.py is green only when every shard ran every case it was dealt and every class was dealt - a shard
       # that dies or runs less is RED. SUITE_SHARDS=1 runs it as one shard. CI still runs the whole file serially.
-      if ! gate_run "test_control" "python3 tv/shard_suite.py test_control" 1500 -- python3 "$REPO/tv/shard_suite.py" test_control; then
+      _tr="$(mktemp "${TMPDIR:-/tmp}/gate-trace.XXXXXX")"
+      if ! ( eval "$(python3 "$REPO/tv/gate_ledger.py" --trace-env "$_tr")"; gate_run "test_control" "python3 tv/shard_suite.py test_control" 1500 -- python3 "$REPO/tv/shard_suite.py" test_control ); then
+        rm -f "$_tr"
         exit 1
       fi
       python3 "$REPO/tv/suite_verdict.py" --record test_control || true
-      python3 "$REPO/tv/gate_ledger.py" --record test_control || true
+      python3 "$REPO/tv/gate_ledger.py" --record test_control --trace "$_tr" || true
+      rm -f "$_tr"
     fi
   fi
   # v1578 — the TZ panel's DATA (67 zones -> game-extracted art + the game's own density/level, and

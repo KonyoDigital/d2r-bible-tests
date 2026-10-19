@@ -2172,7 +2172,17 @@ def main(argv):
     parser = argparse.ArgumentParser(description="carry or record one gate's PASS")
     parser.add_argument("--carry", metavar="GATE")
     parser.add_argument("--record", metavar="GATE")
+    parser.add_argument("--trace", metavar="FILE", help="with --record: what the passing run read")
+    parser.add_argument("--trace-env", metavar="FILE",
+                        help="print the shell exports that arm the trace into FILE (the pre-push hook)")
     args = parser.parse_args(argv[1:])
+    if args.trace_env:
+        import shlex
+        armed = trace_env(os.environ, REPO, args.trace_env)
+        for key in sorted(armed):
+            if os.environ.get(key) != armed[key]:
+                print("export %s=%s" % (key, shlex.quote(armed[key])))  # LEDGER-HOOK-TRACE
+        return 0
     if bool(args.carry) == bool(args.record):
         print("ledger: name one of --carry or --record")
         return 2
@@ -2196,7 +2206,7 @@ def main(argv):
     if not ok:
         print("ledger: %s was not recorded — %s" % (name, why))
         return 1
-    if led.record(gate, True):
+    if led.record(gate, True, trace=args.trace):
         print("ledger: %s PASS recorded" % name)
         return 0
     print("ledger: %s was not recorded (%s) — the next run will execute it"
