@@ -166,7 +166,7 @@ class ACoherentBumpCarries(unittest.TestCase):
     def book(self, *gates):
         b = GL.Ledger(path=self.led, probes=dict(PROBES))
         for g in gates:
-            self.assertTrue(b.record(g, True), "PREMISE: no PASS stored for %s" % g.name)
+            self.assertTrue(b.record(g, True, trace={"R": set(), "W": set(), "S": set(), "L": set(), "I": set()}), "PREMISE: no PASS stored for %s" % g.name)
         return GL.Ledger(path=self.led, probes=dict(PROBES))
 
     def bump(self, skip=(), ver=V, override=None, shipped=None):
