@@ -37,7 +37,7 @@ PROBES = {"python": "3.9.9", "node": "v20.0.0", "playwright": "1.40.0"}
 _LAW = "import helper_gl\nimport sys\nprint('OK')\nsys.exit(0)\n"
 _HELPER = "SALT = 1\n"
 _PLAIN = "import sys\nprint('OK')\nsys.exit(0)\n"
-_LISTING = "import os, sys\nos.listdir('.')\nprint('OK')\nsys.exit(0)\n"
+_LISTING = "import os, sys, tempfile\nos.listdir(tempfile.mkdtemp())\nprint('OK')\nsys.exit(0)\n"
 _NODE = "console.log('ok')\n"
 _PW = "import playwright" + "\nprint('ok')\n"
 
@@ -110,6 +110,30 @@ def _open(path, probes=None):
     return GL.Ledger(path=path, probes=dict(probes or PROBES))
 
 
+def _run_traced(gate, root=None):
+    """Run the fixture gate the way run_gates does with the ledger on. -> (rc, trace path)"""
+    root = root or os.path.dirname(os.path.dirname(os.path.abspath(
+        [a for a in gate.argv if str(a).endswith(".py")][0])))
+    trace = GL.trace_path()
+    env = GL.trace_env(dict(os.environ), root, trace)
+    proc = subprocess.run(list(gate.argv), cwd=gate.cwd, env=env, capture_output=True, text=True)
+    return proc.returncode, trace
+
+
+def _prove_static(book, gate):
+    """Store a PASS whose run read nothing, so the static walk alone has to name the input."""
+    return book.record(gate, True, trace={"R": set(), "W": set(), "S": set(), "L": set(), "I": set()})
+
+
+def _prove(book, gate):
+    """Store a PASS for what one traced run of this fixture read (its verdict is the test's premise)."""
+    _rc, trace = _run_traced(gate)
+    try:
+        return book.record(gate, True, trace=trace)
+    finally:
+        os.remove(trace)
+
+
 class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
     def setUp(self):
         self.held = _Env(GITHUB_ACTIONS=None, GATE_LEDGER=None,
@@ -128,7 +152,7 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
     def test_an_edited_input_runs_again(self):
         root, led, gate = self._law()
         book = _open(led)
-        self.assertTrue(book.record(gate, True), "PREMISE: the PASS was not stored")
+        self.assertTrue(_prove(book, gate), "PREMISE: the PASS was not stored")
         with io.open(os.path.join(root, "tv", "helper_gl.py"), "a", encoding="utf-8") as fh:
             fh.write("# moved\n")
         entry, why = book.lookup(gate)
@@ -137,7 +161,7 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
     def test_an_unrelated_edit_is_carried(self):
         root, led, gate = self._law()
         book = _open(led)
-        self.assertTrue(book.record(gate, True), "PREMISE: the PASS was not stored")
+        self.assertTrue(_prove(book, gate), "PREMISE: the PASS was not stored")
         with io.open(os.path.join(root, "tv", "unrelated.py"), "a", encoding="utf-8") as fh:
             fh.write("b\n")
         entry, why = book.lookup(gate)
@@ -153,7 +177,7 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
         self.assertFalse(book.record(gate, False))
         entry, _why = book.lookup(gate)
         self.assertIsNone(entry, "record(False) left a row that carries")
-        self.assertTrue(book.record(gate, True))
+        self.assertTrue(_prove(book, gate))
         self.assertFalse(book.record(gate, False))
         entry, _why = _open(led).lookup(gate)
         self.assertIsNone(entry, "a FAIL left the earlier PASS in place")
@@ -161,7 +185,7 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
     def test_a_stored_fail_row_is_not_carried(self):
         root, led, gate = self._law()
         book = _open(led)
-        self.assertTrue(book.record(gate, True), "PREMISE: the PASS was not stored")
+        self.assertTrue(_prove(book, gate), "PREMISE: the PASS was not stored")
         with io.open(led, encoding="utf-8") as fh:
             data = json.load(fh)
         data["entries"][gate.name]["ok"] = False
@@ -173,7 +197,7 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
     def test_a_tampered_row_and_a_corrupt_ledger_both_run(self):
         root, led, gate = self._law()
         book = _open(led)
-        self.assertTrue(book.record(gate, True))
+        self.assertTrue(_prove(book, gate))
         with io.open(led, encoding="utf-8") as fh:
             data = json.load(fh)
         data["entries"][gate.name]["def"] = "0" * 64
@@ -252,12 +276,12 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
         key, _m, why = _open(led).key_for(listing)
         self.assertIsNone(key, "a law that lists a directory got a key")
         self.assertIn("directory", why or "")
-        self.assertFalse(_open(led).record(listing, True))
+        self.assertFalse(_prove(_open(led), listing))
 
     def test_ci_and_the_off_switch_never_carry(self):
         root, led, gate = self._law()
         book = _open(led)
-        self.assertTrue(book.record(gate, True), "PREMISE: the PASS was not stored")
+        self.assertTrue(_prove(book, gate), "PREMISE: the PASS was not stored")
         os.environ["GATE_LEDGER"] = "0"
         try:
             entry, why = _open(led).lookup(gate)
@@ -276,7 +300,7 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
     def test_a_committed_input_edit_runs_again(self):
         root, led, gate = self._law()
         book = _open(led)
-        self.assertTrue(book.record(gate, True), "PREMISE: the PASS was not stored")
+        self.assertTrue(_prove(book, gate), "PREMISE: the PASS was not stored")
         with io.open(os.path.join(root, "tv", "helper_gl.py"), "a", encoding="utf-8") as fh:
             fh.write("# committed\n")
         _git(root, "add", "-A")
@@ -287,7 +311,7 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
     def test_an_unreachable_proven_sha_runs(self):
         root, led, gate = self._law()
         book = _open(led)
-        self.assertTrue(book.record(gate, True), "PREMISE: the PASS was not stored")
+        self.assertTrue(_prove(book, gate), "PREMISE: the PASS was not stored")
         with io.open(led, encoding="utf-8") as fh:
             data = json.load(fh)
         data["proven_sha"] = "deadbeef" * 5
@@ -301,7 +325,7 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
     def test_a_carry_does_not_open_the_inputs(self):
         root, led, gate = self._law()
         book = _open(led)
-        self.assertTrue(book.record(gate, True), "PREMISE: the PASS was not stored")
+        self.assertTrue(_prove(book, gate), "PREMISE: the PASS was not stored")
         self.assertGreater(book.reads, 0, "PREMISE: recording never named the inputs")
         import heart2
         fresh = _open(led)
@@ -345,7 +369,7 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
     def test_a_carry_does_not_bank_evidence(self):
         root, led, gate = self._law()
         book = _open(led)
-        self.assertTrue(book.record(gate, True))
+        self.assertTrue(_prove(book, gate))
         import self_arming
         import vault_wilson
         seen = {"bank": 0, "queue": 0}
@@ -380,9 +404,9 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
 
     def test_a_script_that_gained_an_import_is_not_carried_from_a_stale_map(self):
         root, led, gate = self._law()
-        self.assertTrue(_open(led).record(gate, True), "PREMISE: the PASS was not stored")
+        self.assertTrue(_prove(_open(led), gate), "PREMISE: the PASS was not stored")
         self._commit_import(root, "t_carry.py")
-        self.assertTrue(_open(led).record(gate, True), "PREMISE: the refreshed PASS was not stored")
+        self.assertTrue(_prove(_open(led), gate), "PREMISE: the refreshed PASS was not stored")
         with io.open(os.path.join(root, "tv", "newbie.py"), "a", encoding="utf-8") as fh:
             fh.write("N = 2\n")
         entry, why = _open(led).lookup(gate)
@@ -390,9 +414,9 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
 
     def test_a_helper_that_grew_an_import_is_not_carried_from_a_stale_map(self):
         root, led, gate = self._law()
-        self.assertTrue(_open(led).record(gate, True), "PREMISE: the PASS was not stored")
+        self.assertTrue(_prove(_open(led), gate), "PREMISE: the PASS was not stored")
         self._commit_import(root, "helper_gl.py")
-        self.assertTrue(_open(led).record(gate, True), "PREMISE: the refreshed PASS was not stored")
+        self.assertTrue(_prove(_open(led), gate), "PREMISE: the refreshed PASS was not stored")
         with io.open(os.path.join(root, "tv", "newbie.py"), "a", encoding="utf-8") as fh:
             fh.write("N = 2\n")
         entry, why = _open(led).lookup(gate)
@@ -403,13 +427,13 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
         other = _gate(root, "unrelated.py")
         other.name = "other-fixture"
         book = _open(led)
-        self.assertTrue(book.record(gate, True), "PREMISE: the first PASS was not stored")
-        self.assertTrue(book.record(other, True), "PREMISE: the second PASS was not stored")
+        self.assertTrue(_prove(book, gate), "PREMISE: the first PASS was not stored")
+        self.assertTrue(_prove(book, other), "PREMISE: the second PASS was not stored")
         with io.open(os.path.join(root, "tv", "note.py"), "w", encoding="utf-8") as fh:
             fh.write("x = 1\n")
         _git(root, "add", "-A")
         _git(root, "commit", "-q", "-m", "unrelated commit")
-        self.assertTrue(_open(led).record(gate, True), "PREMISE: the new HEAD did not store a PASS")
+        self.assertTrue(_prove(_open(led), gate), "PREMISE: the new HEAD did not store a PASS")
         entry, why = _open(led).lookup(other)
         self.assertIsNotNone(entry, why)
         self.assertTrue(str(entry.get("line") or "").startswith("proven at "), entry)
@@ -423,7 +447,7 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
             fh.write("import namer\nimport sys\nsys.exit(0)\n")
         _git(root, "add", "-A")
         _git(root, "commit", "-q", "-m", "name the page")
-        self.assertTrue(_open(led).record(gate, True), "PREMISE: the PASS was not stored")
+        self.assertTrue(_prove(_open(led), gate), "PREMISE: the PASS was not stored")
         with io.open(bible, "a", encoding="utf-8") as fh:
             fh.write("<!-- moved -->\n")
         entry, why = _open(led).lookup(gate)
@@ -433,7 +457,7 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
         _git(root, "add", "-A")
         _git(root, "commit", "-q", "-m", "the gate opens the page")
         reader = _gate(root, "t_carry.py")
-        self.assertTrue(_open(led).record(reader, True), "PREMISE: the reader was not stored")
+        self.assertTrue(_prove(_open(led), reader), "PREMISE: the reader was not stored")
         with io.open(bible, "a", encoding="utf-8") as fh:
             fh.write("<!-- again -->\n")
         entry, why = _open(led).lookup(reader)
@@ -473,10 +497,10 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
         only = _gate(root, "gate_import.py")
         only.name = "import-only"
         book = _open(led)
-        self.assertTrue(book.record(call, True), "PREMISE: the transitive call was not stored")
-        self.assertTrue(book.record(path, True), "PREMISE: the path open was not stored")
-        self.assertTrue(book.record(dyn, True), "PREMISE: the dynamic call was not stored")
-        self.assertTrue(book.record(only, True), "PREMISE: the import was not stored")
+        self.assertTrue(_prove(book, call), "PREMISE: the transitive call was not stored")
+        self.assertTrue(_prove(book, path), "PREMISE: the path open was not stored")
+        self.assertTrue(_prove(book, dyn), "PREMISE: the dynamic call was not stored")
+        self.assertTrue(_prove(book, only), "PREMISE: the import was not stored")
         with io.open(bible, "a", encoding="utf-8") as fh:
             fh.write("<!-- moved -->\n")
         book = _open(led)
@@ -554,7 +578,7 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
             gates.append(gate)
         book = _open(led)
         for gate in gates:
-            self.assertTrue(book.record(gate, True), "PREMISE: %s was not stored" % gate.name)
+            self.assertTrue(_prove(book, gate), "PREMISE: %s was not stored" % gate.name)
         with io.open(bible, "a", encoding="utf-8") as fh:
             fh.write("<!-- moved -->\n")
         book = _open(led)
@@ -628,7 +652,7 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
             gates.append(gate)
         book = _open(led)
         for gate in gates:
-            self.assertTrue(book.record(gate, True), "PREMISE: %s was not stored" % gate.name)
+            self.assertTrue(_prove_static(book, gate), "PREMISE: %s was not stored" % gate.name)
         with io.open(bible, "a", encoding="utf-8") as fh:
             fh.write("<!-- moved -->\n")
         book = _open(led)
@@ -649,7 +673,7 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
         _git(root, "add", "-A")
         _git(root, "commit", "-q", "-m", "name the runner")
         gate = _gate(root, "t_carry.py")
-        self.assertTrue(_open(led).record(gate, True), "PREMISE: the PASS was not stored")
+        self.assertTrue(_prove(_open(led), gate), "PREMISE: the PASS was not stored")
         with io.open(os.path.join(tv, "run_gates.py"), "a", encoding="utf-8") as fh:
             fh.write("GATES.append(1)\n")
         entry, why = _open(led).lookup(gate)
@@ -659,7 +683,7 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
         _git(root, "add", "-A")
         _git(root, "commit", "-q", "-m", "the gate imports the runner")
         reader = _gate(root, "t_carry.py")
-        self.assertTrue(_open(led).record(reader, True), "PREMISE: the importer was not stored")
+        self.assertTrue(_prove(_open(led), reader), "PREMISE: the importer was not stored")
         with io.open(os.path.join(tv, "run_gates.py"), "a", encoding="utf-8") as fh:
             fh.write("GATES.append(2)\n")
         entry, why = _open(led).lookup(reader)
@@ -677,7 +701,7 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
         _git(root, "add", "-A")
         _git(root, "commit", "-q", "-m", "the runner names another file")
         gate = _gate(root, "t_carry.py")
-        self.assertTrue(_open(led).record(gate, True), "PREMISE: the PASS was not stored")
+        self.assertTrue(_prove(_open(led), gate), "PREMISE: the PASS was not stored")
         with io.open(os.path.join(tv, "other_gate.py"), "a", encoding="utf-8") as fh:
             fh.write("N = 2\n")
         entry, why = _open(led).lookup(gate)
@@ -691,7 +715,7 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
         root, led, _gate_py = self._law(extra={"t_list.py": _LISTING})
         gate = _gate(root, "t_list.py")
         gate.name = "test_agent"
-        self.assertTrue(_open(led).record(gate, True), "PREMISE: test_agent was not stored")
+        self.assertTrue(_prove(_open(led), gate), "PREMISE: test_agent was not stored")
         with io.open(os.path.join(root, "tv", "brand_new.py"), "w", encoding="utf-8") as fh:
             fh.write("N = 1\n")
         entry, why = _open(led).lookup(gate)
@@ -701,7 +725,7 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
         root, led, _gate_py = self._law(extra={"t_list.py": _LISTING})
         gate = _gate(root, "t_list.py")
         gate.name = "test_control"
-        self.assertFalse(_open(led).record(gate, True), "test_control's directory listings were named")
+        self.assertFalse(_prove(_open(led), gate), "test_control's directory listings were named")
 
     def test_record_does_not_mint_a_pass_without_a_suite_verdict(self):
         root, _led, _gate_py = self._law()
@@ -717,6 +741,182 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
         self.assertTrue(ok, why)
         self.assertFalse(GL.verdict_allows("test_control", root)[0])
         self.assertFalse(GL.verdict_allows("test_tz_art", root)[0])
+
+
+def _write(root, rel, text):
+    path = os.path.join(root, rel)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with io.open(path, "w", encoding="utf-8") as fh:
+        fh.write(text)
+
+
+def _commit(root, msg="change"):
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", msg)
+
+
+class TheProofRemembersWhatTheGateRead(unittest.TestCase):
+    """REG-2293 round 5: the four carries the round-4 look reproduced, plus an untracked folder.
+
+    Each one is the reviewer's scenario cut down to a fixture: the inputs a gate is checked
+    against are the ones its passing run read (stored with the PASS) together with today's walk."""
+
+    def setUp(self):
+        self.held = _Env(GITHUB_ACTIONS=None, GATE_LEDGER=None)
+        self.held.__enter__()
+        self.addCleanup(self.held.__exit__, None, None, None)
+
+    def _tree(self, files, extra=None):
+        root, led = _tree(files)
+        self.addCleanup(shutil.rmtree, root, True)
+        for rel, text in (extra or {}).items():
+            _write(root, rel, text)
+        if extra:
+            _commit(root, "extra")
+        return root, led
+
+    def test_a_deleted_fixture_the_gate_read_runs_again(self):
+        law = ("import os, sys\nHERE = os.path.dirname(os.path.abspath(__file__))\n"
+               "p = os.path.join(HERE, 'seed_gl.json')\n"
+               "sys.exit(0 if os.path.exists(p) and open(p).read() else 1)\n")
+        root, led = self._tree({"t_seed.py": law, "seed_gl.json": "{}\n"})
+        gate = _gate(root, "t_seed.py")
+        self.assertTrue(_prove(_open(led), gate), "PREMISE: the PASS was not stored")
+        _git(root, "rm", "-q", "tv/seed_gl.json")
+        _commit(root, "drop the seed")
+        self.assertNotEqual(_run_traced(gate)[0], 0, "PREMISE: the gate is not red without its seed")
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNone(entry, "a deleted input carried a red gate")
+        self.assertIn("seed_gl.json", why or "")
+
+    def test_a_deleted_module_runs_again(self):
+        root, led = self._tree({"t_mod.py": "import helper_gl\nprint('OK')\n", "helper_gl.py": "X = 1\n"})
+        gate = _gate(root, "t_mod.py")
+        self.assertTrue(_prove(_open(led), gate), "PREMISE: the PASS was not stored")
+        _git(root, "rm", "-q", "tv/helper_gl.py")
+        _commit(root, "drop the module")
+        self.assertNotEqual(_run_traced(gate)[0], 0, "PREMISE: the gate is not red without its module")
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNone(entry, "a deleted module carried a ModuleNotFoundError")
+
+    def test_a_new_module_the_gate_tried_to_import_runs_again(self):
+        law = ("import sys\ntry:\n    import maybe_gl\nexcept ImportError:\n    maybe_gl = None\n"
+               "sys.exit(0 if maybe_gl is None or maybe_gl.OK else 1)\n")
+        root, led = self._tree({"t_try.py": law})
+        gate = _gate(root, "t_try.py")
+        self.assertTrue(_prove(_open(led), gate), "PREMISE: the PASS was not stored")
+        _write(root, "tv/maybe_gl.py", "OK = False\n")
+        _commit(root, "the import now resolves")
+        self.assertNotEqual(_run_traced(gate)[0], 0, "PREMISE: the gate is not red with the new module")
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNone(entry, "a module that now resolves was carried")
+        self.assertIn("maybe_gl.py", why or "")
+
+    def test_a_pass_proved_on_a_dirty_tree_is_not_stored_under_head(self):
+        root, led = self._tree({"t_mod.py": "import sys, helper_gl\nsys.exit(0 if helper_gl.OK else 1)\n",
+                                "helper_gl.py": "OK = False\n"})
+        gate = _gate(root, "t_mod.py")
+        self.assertNotEqual(_run_traced(gate)[0], 0, "PREMISE: the gate is not red at HEAD")
+        _write(root, "tv/helper_gl.py", "OK = True\n")
+        book = _open(led)
+        self.assertFalse(_prove(book, gate), "a PASS on uncommitted bytes was stored under the clean HEAD")
+        self.assertIn("uncommitted", book.last_why or "")
+        _git(root, "checkout", "-q", "--", "tv/helper_gl.py")
+        entry, _why = _open(led).lookup(gate)
+        self.assertIsNone(entry, "the red HEAD was carried")
+
+    def test_a_dirty_file_the_gate_does_not_read_does_not_stop_the_record(self):
+        root, led = self._tree({"t_mod.py": "import helper_gl\nprint('OK')\n", "helper_gl.py": "X = 1\n",
+                                "unrelated.py": "a\n"})
+        _write(root, "tv/unrelated.py", "b\n")
+        self.assertTrue(_prove(_open(led), _gate(root, "t_mod.py")), "an unrelated dirty file stopped the record")
+
+    def test_a_glob_inside_an_imported_module_sees_a_new_file(self):
+        helper = ("import glob, os\nROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))\n"
+                  "def pinned():\n    out = []\n"
+                  "    for p in glob.glob(os.path.join(ROOT, 'tests', '*.spec.ts')):\n"
+                  "        out += [l for l in open(p) if 'reel_s_' in l]\n    return out\n")
+        law = "import sys, scan_gl\nsys.exit(1 if scan_gl.pinned() else 0)\n"
+        root, led = self._tree({"t_pin.py": law, "scan_gl.py": helper}, {"tests/a.spec.ts": "ok\n"})
+        gate = _gate(root, "t_pin.py")
+        self.assertTrue(_prove(_open(led), gate), "PREMISE: the PASS was not stored")
+        _write(root, "tests/zz_pin.spec.ts", "'reel_s_1790000000000_12345'\n")
+        _commit(root, "pin a reel")
+        self.assertNotEqual(_run_traced(gate)[0], 0, "PREMISE: the gate is not red with the pinned reel")
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNone(entry, "a new file under a directory the closure globs was carried")
+        self.assertIn("zz_pin.spec.ts", why or "")
+
+    def test_a_deleted_file_under_a_listed_directory_runs_again(self):
+        helper = ("import os\nROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))\n"
+                  "def count():\n    return len(os.listdir(os.path.join(ROOT, 'tests')))\n")
+        law = "import sys, scan_gl\nsys.exit(0 if scan_gl.count() == 2 else 1)\n"
+        root, led = self._tree({"t_cnt.py": law, "scan_gl.py": helper},
+                               {"tests/a.spec.ts": "a\n", "tests/b.spec.ts": "b\n"})
+        gate = _gate(root, "t_cnt.py")
+        self.assertTrue(_prove(_open(led), gate), "PREMISE: the PASS was not stored")
+        _git(root, "rm", "-q", "tests/b.spec.ts")
+        _commit(root, "drop one")
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNone(entry, "a deleted file under a listed directory was carried")
+
+    def test_bible_html_through_a_local_alias_or_a_default_arg_is_an_input(self):
+        helper = ("import os\nBIBLE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),"
+                  " 'bible.html')\n"
+                  "def seed_table(path=None):\n    p = path or BIBLE\n    return open(p).read()\n"
+                  "def size(path=BIBLE):\n    return len(open(path).read())\n")
+        law = "import sys, ledger_gl\nsys.exit(0 if 'ok' in ledger_gl.seed_table() and ledger_gl.size() else 1)\n"
+        root, led = self._tree({"t_bible.py": law, "ledger_gl.py": helper}, {"bible.html": "<p>ok</p>\n"})
+        gate = _gate(root, "t_bible.py")
+        self.assertTrue(_prove(_open(led), gate), "PREMISE: the PASS was not stored")
+        _write(root, "bible.html", "<p>gone</p>\n")
+        _commit(root, "edit the bible")
+        self.assertNotEqual(_run_traced(gate)[0], 0, "PREMISE: the gate is not red over the edit")
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNone(entry, "a bible.html read through a local alias was carried")
+        self.assertIn("bible.html", why or "")
+
+    def test_an_input_inside_an_untracked_folder_is_dirty(self):
+        law = ("import os, sys\nHERE = os.path.dirname(os.path.abspath(__file__))\n"
+               "sys.exit(0 if open(os.path.join(HERE, 'newpkg_gl', 'seed.json')).read() else 1)\n")
+        root, led = self._tree({"t_new.py": law})
+        _write(root, "tv/newpkg_gl/seed.json", "{}\n")
+        book = _open(led)
+        self.assertFalse(_prove(book, _gate(root, "t_new.py")),
+                         "a PASS that read a file in an untracked folder was stored")
+        self.assertIn("newpkg_gl/seed.json", book.last_why or "")
+
+    def test_no_trace_a_lost_child_and_an_old_row_all_run(self):
+        root, led = self._tree({"t_mod.py": "import helper_gl\nprint('OK')\n", "helper_gl.py": "X = 1\n",
+                                "t_sh.py": "import subprocess\nsubprocess.run(['true'])\n"})
+        gate = _gate(root, "t_mod.py")
+        book = _open(led)
+        self.assertFalse(book.record(gate, True), "a PASS with no trace of its reads was stored")
+        self.assertFalse(_prove(_open(led), _gate(root, "t_sh.py")), "a non-python child was carried")
+        self.assertTrue(_prove(_open(led), gate), "PREMISE: the PASS was not stored")
+        with io.open(led, encoding="utf-8") as fh:
+            data = json.load(fh)
+        for row in data["entries"].values():
+            row.pop("traced", None)
+        with io.open(led, "w", encoding="utf-8") as fh:
+            json.dump(data, fh)
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNone(entry, "a row stored before reads were traced was carried")
+
+    def test_an_ignored_file_the_gate_read_is_never_carried(self):
+        law = ("import os, sys\nHERE = os.path.dirname(os.path.abspath(__file__))\n"
+               "sys.exit(0 if os.path.exists(os.path.join(HERE, 'live_gl.json')) else 1)\n")
+        root, led = self._tree({"t_live.py": law}, {".gitignore": ".gate_ledger.json\n.gate_inputs.json\n"
+                                                                 "*.tmp\nlive_gl.json\n"})
+        _write(root, "tv/live_gl.json", "{}\n")
+        book = _open(led)
+        self.assertFalse(_prove(book, _gate(root, "t_live.py")), "a read of ignored local state was carried")
+        self.assertIn("ignores", book.last_why or "")
+
+    def test_old_ledger_shapes_still_parse(self):
+        self.assertEqual(GL._churn("?? tv/a/b.py\n M tv/c.py\nD  tv/d.py\n"), {"tv/a/b.py", "tv/d.py"})
+        self.assertEqual(GL.first_hit((), ("tv",), (), {"tv/x/y.py"}, {"tv/x/y.py"}), "tv/x/y.py")
+        self.assertIsNone(GL.first_hit(("tv/a.py",), ("tests",), ("foo",), {"tv/b.py"}, {"tv/b.py"}))
 
 
 class TheRunnerSeparatesFreshFromCarried(unittest.TestCase):
@@ -856,7 +1056,7 @@ RED_PROOF = [
     {
         "why": "the diff is discarded, so a committed input edit still carries",
         "file": "gate_ledger.py",
-        "find": "        changed = set(p.strip() for p in out.splitlines() if p.strip())  # LEDGER-DIFF\n",
+        "find": "        changed = set(p.strip() for _c, p in rows if p.strip())  # LEDGER-DIFF\n",
         "replace": "        changed = set()  # LEDGER-DIFF\n",
         "matches": 1,
     },
@@ -1024,8 +1224,8 @@ RED_PROOF = [
     {
         "why": "a FAIL is recorded as a PASS, and the next run carries it",
         "file": "run_gates.py",
-        "find": "                    led.record(g, status == \"PASS\")\n",
-        "replace": "                    led.record(g, True)\n",
+        "find": "                    if not led.record(g, status == \"PASS\", trace=_trace) and status == \"PASS\" and led.last_why:\n",
+        "replace": "                    if not led.record(g, True, trace=_trace) and status == \"PASS\" and led.last_why:\n",
         "matches": 1,
     },
     {
@@ -1166,6 +1366,90 @@ RED_PROOF = [
         "file": ".github/workflows/tv-tests.yml",
         "find": "          python3 tv/run_gates.py --shard ${{ matrix.shard }}/4\n",
         "replace": "          python3 tv/run_gates.py --changed --shard ${{ matrix.shard }}/4\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r5 hole 1: only today's walk is compared, so a deleted input carries a red gate",
+        "file": "gate_ledger.py",
+        "find": "        inputs = set(row[\"inputs\"]) | set(str(p) for p in entry[\"inputs\"])  # LEDGER-PROOF-INPUTS\n",
+        "replace": "        inputs = set(row[\"inputs\"])  # LEDGER-PROOF-INPUTS\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r5 hole 2: a PASS proved on uncommitted bytes is stored under the clean HEAD",
+        "file": "gate_ledger.py",
+        "find": "        if dirty is None or hit:  # LEDGER-DIRTY-RECORD\n",
+        "replace": "        if dirty is None:  # LEDGER-DIRTY-RECORD\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r5 hole 3: a glob inside an imported module is not a listing, so a new file carries",
+        "file": "gate_ledger.py",
+        "find": "        if any(a in listed for a in _ancestors(path)):  # LEDGER-TRACE-LIST\n",
+        "replace": "        if False:  # LEDGER-TRACE-LIST\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r5 hole 4: what the run opened is thrown away, so bible.html through a local alias carries",
+        "file": "gate_ledger.py",
+        "find": "        inputs = set(row[\"inputs\"]) | traced[\"inputs\"]  # LEDGER-TRACE-READ\n",
+        "replace": "        inputs = set(row[\"inputs\"])  # LEDGER-TRACE-READ\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r5: an untracked folder is one status line, so a file inside it is not dirty",
+        "file": "gate_ledger.py",
+        "find": "        stat = _git(root, [\"status\", \"--porcelain\", \"--untracked-files=all\", \"--no-renames\"])  # LEDGER-UNTRACKED-ALL\n",
+        "replace": "        stat = _git(root, [\"status\", \"--porcelain\", \"--no-renames\"])  # LEDGER-UNTRACKED-ALL\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r5: a committed deletion under a listed directory is not churn",
+        "file": "gate_ledger.py",
+        "find": "        churn = set(p.strip() for c, p in rows if p.strip() and c[:1] in (\"A\", \"D\"))  # LEDGER-DIFF-CHURN\n",
+        "replace": "        churn = set()  # LEDGER-DIFF-CHURN\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r5: a module the gate failed to import is not watched, so the file that now resolves carries",
+        "file": "gate_ledger.py",
+        "find": "        if _module_stem(path) in imports:  # LEDGER-TRACE-IMPORT\n",
+        "replace": "        if False:  # LEDGER-TRACE-IMPORT\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r5: a PASS with no trace is stored, so its reads are UNKNOWN and it carries",
+        "file": "gate_ledger.py",
+        "find": "            facts, twhy = None, \"no trace of what the gate read\"  # LEDGER-NEEDS-TRACE\n",
+        "replace": "            facts, twhy = {}, None  # LEDGER-NEEDS-TRACE\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r5: a non-python child is ignored, so what it read is never checked",
+        "file": "gate_ledger.py",
+        "find": "            return None, \"the gate %s, which the trace cannot follow\" % text  # LEDGER-UNTRACED\n",
+        "replace": "            continue  # LEDGER-UNTRACED\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r5: a row stored before reads were traced is carried",
+        "file": "gate_ledger.py",
+        "find": "        if entry.get(\"traced\") is not True or not isinstance(entry.get(\"inputs\"), list):  # LEDGER-OLD-ROW\n",
+        "replace": "        if not isinstance(entry.get(\"inputs\"), list):  # LEDGER-OLD-ROW\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r5: a read of gitignored local state is carried, and no diff can say it moved",
+        "file": "gate_ledger.py",
+        "find": "            if ignored is not None and ignored.returncode == 0:  # LEDGER-IGNORED-READ\n",
+        "replace": "            if False:  # LEDGER-IGNORED-READ\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r5: run_gates does not trace the gate, so nothing it runs is ever stored",
+        "file": "run_gates.py",
+        "find": "            if led is not None:  # LEDGER-TRACE-RUN — what this run reads is what a later carry is checked against\n",
+        "replace": "            if False:  # LEDGER-TRACE-RUN — what this run reads is what a later carry is checked against\n",
         "matches": 1,
     },
 ]
