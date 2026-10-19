@@ -257,6 +257,10 @@ EXTERNAL_SYMBOLS = {
     # Leaving it red was the real cost — a gate with a permanent known failure stops being read,
     # and this suite's whole value is that a NEW entry in it means something broke.
     ("bible.html", "MutationObserver"): "browser API — feature-detected, not ours to declare",
+    # v3771 — the cover scan reads computed position and z-index. Node laws have no
+    # getComputedStyle, so the reader skips a floater it cannot measure. It is the browser's
+    # function, the same kind of probe as MutationObserver.
+    ("bible.html", "getComputedStyle"): "browser API — feature-detected, not ours to declare",
     # v3715 — Auto-Sort yields one frame with `typeof setTimeout === 'function'` before it
     # paints the lockers. setTimeout is the browser timer, the same kind of feature probe as
     # MutationObserver. The branch runs in every engine this page loads in, including node.
