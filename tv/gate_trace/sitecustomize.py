@@ -14,7 +14,8 @@ place before the first byte of the gate is opened. Each line is `KIND<TAB>PID<TA
     U  did something this trace cannot follow (a non-python child, a child without the trace env)
 
 A git child aimed outside this checkout (a fixture repository in a tempdir) is not a read of it.
-`git ls-files` is a listing of the whole tracked set. `git rev-parse --show-toplevel` reads nothing
+lsof, ps and pgrep read the process table and no file in this checkout, unless an argument
+names one. `git ls-files` is a listing of the whole tracked set. `git rev-parse --show-toplevel` reads nothing
 that a commit can move. Any other git command reads history or the index, and is a U.
 
 Only paths under TV_GATE_TRACE_ROOT are written, repo-relative. A listing made by the import system
@@ -157,6 +158,9 @@ def _boot():
         head = os.path.basename(args[0]) if args else ""
         if head == "git" and git_child(args, env, cwd):
             return
+        if head in ("lsof", "ps", "pgrep") and not any(
+                rel(a) is not None for a in args[1:] if "/" in a):
+            return  # the process table, not a file in this checkout
         is_py = bool(args) and (args[0] == sys.executable or head.startswith("python"))
         if env is not None:
             try:

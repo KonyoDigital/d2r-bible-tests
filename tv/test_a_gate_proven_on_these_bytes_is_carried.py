@@ -947,6 +947,16 @@ class TheProofRemembersWhatTheGateRead(unittest.TestCase):
         entry, why = _open(led).lookup(gate)
         self.assertIsNone(entry, "git ls-files saw new files and the gate was carried")
 
+    def test_a_process_table_probe_is_not_a_read_unless_it_names_a_file(self):
+        probe = "import subprocess\nsubprocess.run(['ps', '-o', 'pid='], capture_output=True)\n"
+        named = ("import os, subprocess\nHERE = os.path.dirname(os.path.abspath(__file__))\n"
+                 "subprocess.run(['lsof', os.path.join(HERE, 'helper_gl.py')], capture_output=True)\n")
+        root, led = self._tree({"t_ps.py": probe, "t_lsof.py": named, "helper_gl.py": "X = 1\n"})
+        ps, lsof = _gate(root, "t_ps.py"), _gate(root, "t_lsof.py")
+        ps.name, lsof.name = "ps-fixture", "lsof-fixture"
+        self.assertTrue(_prove(_open(led), ps), "ps reads the process table, not this checkout")
+        self.assertFalse(_prove(_open(led), lsof), "lsof was handed a file in this checkout and was carried")
+
     def test_old_ledger_shapes_still_parse(self):
         self.assertEqual(GL._churn("?? tv/a/b.py\n M tv/c.py\nD  tv/d.py\n"), {"tv/a/b.py", "tv/d.py"})
         self.assertEqual(GL.first_hit((), ("tv",), (), {"tv/x/y.py"}, {"tv/x/y.py"}), "tv/x/y.py")
@@ -1498,6 +1508,13 @@ RED_PROOF = [
         "file": "gate_ledger.py",
         "find": "    facts[\"M\"] = set(p for p, k in first.items() if k == \"W\" or (k == \"A\" and p in facts[\"W\"]))  # LEDGER-MADE-FIRST\n",
         "replace": "    facts[\"M\"] = set(facts[\"W\"])  # LEDGER-MADE-FIRST\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r5: lsof handed a file in the checkout is waved through as a process-table probe",
+        "file": "gate_trace/sitecustomize.py",
+        "find": "                rel(a) is not None for a in args[1:] if \"/\" in a):\n",
+        "replace": "                False for a in args[1:] if \"/\" in a):\n",
         "matches": 1,
     },
 ]
