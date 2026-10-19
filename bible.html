@@ -10480,6 +10480,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 #vault-auto-intake[data-state="unknown"]{border-color:var(--q-orange);color:var(--q-orange)}
 .vault-toolbar > button.vault-btn[onclick*="_vaultMoveAddOpen"]{font-family:var(--serif-display,serif);letter-spacing:var(--ls-wide);text-transform:uppercase;border-radius:999px;border:1px solid rgba(240,192,96,.5);background:var(--surface-3);color:var(--gold-bright);box-shadow:inset 0 1px 0 rgba(240,192,96,.14)}
 html[data-active-tab="vault"] #tab-vault{background:var(--bg)}
+html[data-active-tab="vault"] #shortcut-hint{z-index:20} /* v3771 hint under vault */
 .tvd-frame-mark{position:absolute;left:18px;bottom:18px;z-index:3;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;border:1px solid var(--border-light);background:linear-gradient(180deg,rgba(20,16,10,.92),rgba(8,7,5,.88));box-shadow:0 10px 28px rgba(0,0,0,.45);color:var(--gold-bright)}
 .tvd-frame-mark[hidden]{display:none!important}
 .tvd-frame-mark-say{font-size:var(--fs-meta);letter-spacing:var(--ls-normal)}
@@ -38884,7 +38885,8 @@ body::before{
    unclickable, measured with ONE elementFromPoint per locker at the plate centre — a SAMPLE, not a
    verdict. Real dispatched clicks all LAND. This is a seeing problem, so the fix is the one that
    already exists for seeing problems here. */
-html.detail-open .control-dock, html.runs-open .control-dock, html.vault-open .control-dock{ transform:translateY(calc(100% - 20px)); opacity:.4; transition:transform .25s ease, opacity .25s ease }
+html.detail-open .control-dock, html.runs-open .control-dock{ transform:translateY(calc(100% - 20px)); opacity:.4; transition:transform .25s ease, opacity .25s ease }
+html.vault-open .control-dock{transform:translateY(100%);opacity:0;pointer-events:none;transition:none} /* v3771 dock off the room */
 html.detail-open .control-dock:hover, html.runs-open .control-dock:hover, html.vault-open .control-dock:hover{ transform:none; opacity:1 }
 /* v2148 — THE RESTORE COULD NOT HOLD ITSELF UP AT HIS OWN WINDOW WIDTH.
    The yield above leaves a 20px lip, and that lip is .dock-inner's top edge, so pointing at it
@@ -39186,6 +39188,9 @@ body{
 .vault-move .vault-btn,.vault-move .vmv-mark,.vault-move .vmv-wit{font-family:var(--serif-display,serif);letter-spacing:var(--ls-wide);text-transform:uppercase;border-radius:999px;border:1px solid rgba(240,192,96,.5);background:var(--surface-3);color:var(--gold-bright);font-size:var(--fs-micro);font-weight:var(--fw-semibold);box-shadow:inset 0 1px 0 rgba(240,192,96,.14)}
 .vault-move .vault-btn:hover,.vault-move .vmv-mark:hover,.vault-move .vmv-wit:hover{border-color:var(--gold-bright);box-shadow:0 0 14px rgba(212,168,71,.22);transform:translateY(-1px)}
 .vault-move .vault-btn-primary{color:#1a1208;background:linear-gradient(180deg,var(--gold-bright),var(--gold));border-color:rgba(240,192,96,.85)}
+.vault-toolbar .vault-btn{font-family:var(--serif-display,serif);letter-spacing:var(--ls-wide);text-transform:uppercase;border-radius:999px;border:1px solid rgba(240,192,96,.5);background:var(--surface-3);color:var(--gold-bright);font-size:var(--fs-micro);font-weight:var(--fw-semibold);box-shadow:inset 0 1px 0 rgba(240,192,96,.14)}
+.vault-toolbar .vault-btn-primary{color:#1a1208;background:linear-gradient(180deg,var(--gold-bright),var(--gold));border-color:rgba(240,192,96,.85)}
+.vault-toolbar .vault-btn-danger{color:var(--hell,#ff4040);border-color:rgba(255,64,64,.55);background:rgba(255,64,64,.08)} /* v3771 toolbar face */
 .vault-status{font-size:11.5px;color:var(--text-dim,#8c7a68);margin-left:auto}
 /* v3286 — the population line: one sentence that accounts for every item in the vault */
 .vault-pop{margin:0 0 12px;padding:9px 13px;border:1px solid rgba(212,168,71,.22);border-left:3px solid var(--gold-dim,#a07830);border-radius:9px;background:linear-gradient(135deg,rgba(212,168,71,.05),rgba(20,14,9,.25));font-size:var(--fs-body);color:var(--text-muted,#b5a48a);line-height:var(--lh-snug)}
@@ -48934,7 +48939,7 @@ window.vaultAutoAssign = function(){
     return out;
   }
   function _vaultMoveCellSay(cell){
-    if (cell == null || cell === '') return 'UNKNOWN';
+    if (cell == null || cell === '') return 'not seen yet'; /* v3771 cell say */
     var m = String(cell).match(/c(\d+)r(\d+)/);
     if (!m) return String(cell);
     return String(cell) + ' · col ' + ((+m[1]) + 1) + ' · row ' + ((+m[2]) + 1);
@@ -48942,9 +48947,9 @@ window.vaultAutoAssign = function(){
   function _vaultMovePlaceSay(place){
     place = place || {};
     if (_vaultMoveUnseen(place.holder, place.location)) return 'Location not seen yet'; /* v3771 unseen say */
-    var holder = (place.holder == null || place.holder === '') ? 'UNKNOWN' : String(place.holder);
+    var holder = (place.holder == null || place.holder === '') ? 'not seen yet' : String(place.holder); /* v3771 holder say */
     var stash = _vaultMoveStashSay(place.location);
-    return holder + ' · ' + (stash || 'UNKNOWN') + ' · ' + _vaultMoveCellSay(place.cell);
+    return holder + ' · ' + (stash || 'not seen yet') + ' · ' + _vaultMoveCellSay(place.cell); /* v3771 place stash */
   }
   function _vaultMoveGridHtml(rows){
     var by = {}, keys = [];
@@ -48966,7 +48971,7 @@ window.vaultAutoAssign = function(){
         placed.push({ n: row.name, key: row.name + '#' + (row.copyIx || 0), x: +m[1], y: +m[2], w: s[0] || 1, h: s[1] || 1 });
       });
       var grid = (typeof gridHtml === 'function') ? gridHtml(placed, gw, gh, 36, { area: 'move', page: 0, label: 'Target' }) : ''; /* v3769 grid */
-      var say = (g.holder || 'UNKNOWN') + ' · ' + (_vaultMoveStashSay(g.location) || 'UNKNOWN');
+      var say = (g.holder || 'not seen yet') + ' · ' + (_vaultMoveStashSay(g.location) || 'not seen yet'); /* v3771 grid say */
       return '<div class="vmv-grid"><div class="vmv-grid-h">TO ' + esc(say) + '</div>' + grid + '</div>';
     }).join('');
   }
@@ -48987,7 +48992,7 @@ window.vaultAutoAssign = function(){
         var t = row.task;
         var opener = "window._vaultEvidenceOpen('" + jsArg(row.name) + "')"; /* v3769 evidence */
         var w = row.witnesses;
-        var wSay = (w == null) ? 'witnesses UNKNOWN' : (w + ' witness' + (w === 1 ? '' : 'es'));
+        var wSay = (w == null) ? 'not seen yet' : (w + ' witness' + (w === 1 ? '' : 'es')); /* v3771 witness say */
         var chip = { 'to-move': 'TO MOVE', 'moved-manual': 'MOVED', 'verified': 'VERIFIED', 'moved-elsewhere': 'ELSEWHERE' }[t.status] || 'TO MOVE';
         return '<div class="vmv-row" data-name="' + esc(row.name) + '" data-copy="' + (row.copyIx || 0) + '" data-status="' + esc(t.status) + '"'
           + ' data-from="' + esc((t.from && t.from.cell) || '') + '" data-to="' + esc((t.to && t.to.cell) || '') + '" data-group="' + esc(g.label) + '"'
@@ -49001,7 +49006,7 @@ window.vaultAutoAssign = function(){
           + '<button type="button" class="vault-btn vmv-mark" onclick="event.stopPropagation();window._vaultMoveMark(\'' + jsArg(row.name) + '\',' + (row.copyIx || 0) + ')">mark moved</button>'
           + '</div>';
       }).join('');
-      var stash = g.unseen ? '' : (g.stash || 'UNKNOWN');
+      var stash = g.unseen ? '' : (g.stash || 'not seen yet'); /* v3771 group stash */
       var head = g.unseen
         ? '<b>Location not seen yet</b><span class="vmv-hint">Take a screenshot so the console can see where it sits.</span>' /* v3771 unseen hint */
         : '<b>' + esc(g.label) + '</b> · ' + esc(stash);
@@ -49101,13 +49106,87 @@ window.vaultAutoAssign = function(){
     var dv = dock && dock.style ? parseInt(dock.style.zIndex, 10) : NaN;
     return { on: true, clears: tv > dv && tv < 100, vault: tv, bar: dv }; /* v3771 room clears */
   }
+  function _vaultCoverGrid(box, cols, rows){
+    cols = cols || 4;
+    rows = rows || 3;
+    var pts = [], i, j;
+    if (!box || !(box.w >= 2) || !(box.h >= 2)) return pts;
+    for (j = 0; j < rows; j++) {
+      for (i = 0; i < cols; i++) {
+        pts.push({ x: box.l + box.w * (i + 0.5) / cols, y: box.t + box.h * (j + 0.5) / rows });
+      }
+    }
+    return pts; /* v3771 cover grid */
+  }
+  function _vaultFloaterOver(floater, listBox, vaultZ){
+    if (!floater || floater.inside || floater.hidden || !listBox) return false; /* v3771 floater inside */
+    var pos = floater.position;
+    if (pos !== 'fixed' && pos !== 'sticky' && pos !== 'absolute') return false;
+    var r = floater.box;
+    if (!r || !(r.w >= 2) || !(r.h >= 2)) return false;
+    var left = Math.max(listBox.l, r.l);
+    var right = Math.min(listBox.l + listBox.w, r.l + r.w);
+    var top = Math.max(listBox.t, r.t);
+    var bottom = Math.min(listBox.t + listBox.h, r.t + r.h);
+    if ((right - left) < 2 || (bottom - top) < 2) return false;
+    var z = floater.z;
+    if (z == null || z !== z) return true;
+    return z >= vaultZ; /* v3771 floater z */
+  }
+  function _vaultRoomSink(floaters, on){
+    var z = _vaultRoomStack();
+    (floaters || []).forEach(function(el){
+      if (!el || !el.style) return;
+      if (!on) {
+        if (el._v3771z != null) {
+          if (el.style.removeProperty) el.style.removeProperty('z-index');
+          if (el._v3771z) el.style.zIndex = el._v3771z;
+          el._v3771z = null;
+        }
+        return;
+      }
+      if (el._v3771z == null) el._v3771z = el.style.zIndex || '';
+      var cz = (el._cz != null) ? el._cz : parseInt(el.style.zIndex, 10);
+      if (isNaN(cz) || cz >= z.vault) {
+        if (el.style.setProperty) el.style.setProperty('z-index', String(z.bar), 'important'); /* v3771 sink floater */
+        else el.style.zIndex = String(z.bar);
+      }
+    });
+    return { bar: z.bar, n: (floaters || []).length };
+  }
+  function _vaultRoomReadFloaters(doc){
+    doc = doc || ((typeof document !== 'undefined') ? document : null);
+    if (!doc || !doc.querySelectorAll || !doc.getElementById || !doc.body) return [];
+    var vault = doc.getElementById('tab-vault');
+    var header = doc.querySelector ? doc.querySelector('.header') : null;
+    var nodes = doc.body.querySelectorAll('*');
+    var out = [], i;
+    for (i = 0; i < nodes.length; i++) {
+      var el = nodes[i];
+      if (!el) continue;
+      if (vault && vault.contains && vault.contains(el)) continue;
+      if (header && (el === header || (header.contains && header.contains(el)))) continue;
+      var st = (typeof getComputedStyle === 'function') ? getComputedStyle(el) : null;
+      if (!st) continue;
+      if (st.display === 'none' || st.visibility === 'hidden' || parseFloat(st.opacity) === 0) continue;
+      var pos = st.position;
+      if (pos !== 'fixed' && pos !== 'sticky' && pos !== 'absolute') continue;
+      var cz = parseInt(st.zIndex, 10);
+      el._cz = isNaN(cz) ? null : cz;
+      el._pos = pos;
+      out.push(el);
+    }
+    return out;
+  }
   function _vaultRoomLift(){
     var root = (typeof document !== 'undefined') ? document.documentElement : null;
     var on = !!(root && root.getAttribute && root.getAttribute('data-active-tab') === 'vault');
     var tab = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('tab-vault') : null;
     var dock = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('control-dock') : null;
     var tz = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('v42-tz-countdown') : null;
-    return _vaultRoomApply(tab, dock, tz, on);
+    var applied = _vaultRoomApply(tab, dock, tz, on);
+    try { _vaultRoomSink(_vaultRoomReadFloaters(), on); } catch (eSink) {}
+    return applied;
   }
   function _vaultCoverVerdict(hits){
     var list = hits || [];
@@ -49118,44 +49197,59 @@ window.vaultAutoAssign = function(){
     var list = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('vault-move-list') : null;
     if (!list || !list.getBoundingClientRect) return { covered: null, why: 'no list' };
     var lr = list.getBoundingClientRect();
-    var bars = [];
-    ['#control-dock .dock-inner', '#v42-tz-countdown'].forEach(function(sel){ /* v3771 painted bar */
-      var el = document.querySelector(sel);
-      if (!el || !el.getBoundingClientRect) return;
-      var st = window.getComputedStyle ? getComputedStyle(el) : null;
-      if (st && st.display === 'none') return;
-      var r = el.getBoundingClientRect();
-      if (r.width < 2 || r.height < 2) return;
-      var left = Math.max(lr.left, r.left, 0);
-      var right = Math.min(lr.right, r.right, window.innerWidth || 0);
-      var top = Math.max(lr.top, r.top, 0);
-      var bottom = Math.min(lr.bottom, r.bottom, window.innerHeight || 0);
-      var overlap = (right - left) >= 2 && (bottom - top) >= 2;
-      var hits = [];
-      if (overlap && document.elementFromPoint) {
-        [[(left + right) / 2, (top + bottom) / 2],
-         [Math.min(right - 1, left + 3), Math.min(bottom - 1, top + 3)],
-         [Math.max(left + 1, right - 3), Math.max(top + 1, bottom - 3)]].forEach(function(pt){
-          if (pt[0] < 0 || pt[1] < 0 || pt[0] >= window.innerWidth || pt[1] >= window.innerHeight) return;
-          var hit = document.elementFromPoint(pt[0], pt[1]);
-          var onBar = !!(hit && (hit === el || (el.contains && el.contains(hit))));
-          hits.push({ x: Math.round(pt[0]), y: Math.round(pt[1]), onBar: onBar });
-        });
-      }
-      var verdict = _vaultCoverVerdict(hits);
-      bars.push({ sel: sel, overlap: overlap, covers: !!verdict.covered, hits: hits,
-                  box: { t: r.top, b: r.bottom, l: r.left, r: r.right, w: r.width, h: r.height } });
+    var vw = window.innerWidth || 0, vh = window.innerHeight || 0;
+    var vis = {
+      l: Math.max(lr.left, 0),
+      t: Math.max(lr.top, 0),
+      w: Math.min(lr.right, vw) - Math.max(lr.left, 0),
+      h: Math.min(lr.bottom, vh) - Math.max(lr.top, 0)
+    };
+    var vault = document.getElementById('tab-vault');
+    var header = document.querySelector ? document.querySelector('.header') : null;
+    var vaultZ = _vaultRoomStack().vault;
+    var pts = _vaultCoverGrid(vis, 4, 3);
+    var hits = [];
+    pts.forEach(function(pt){
+      if (pt.x < 0 || pt.y < 0 || pt.x >= vw || pt.y >= vh || !document.elementFromPoint) return;
+      var hit = document.elementFromPoint(pt.x, pt.y);
+      var onList = !!(hit && (hit === list || (list.contains && list.contains(hit))));
+      var onVault = !!(hit && vault && (hit === vault || (vault.contains && vault.contains(hit))));
+      var onHead = !!(hit && header && (hit === header || (header.contains && header.contains(hit))));
+      hits.push({ x: Math.round(pt.x), y: Math.round(pt.y), onBar: !!(hit && !onList && !onVault && !onHead) }); /* v3771 header is the mast */
     });
+    var verdict = _vaultCoverVerdict(hits);
+    var painted = [];
+    _vaultRoomReadFloaters().forEach(function(el){
+      var r = el.getBoundingClientRect ? el.getBoundingClientRect() : null;
+      var spec = {
+        id: el.id || '',
+        position: el._pos,
+        z: el._cz,
+        hidden: false,
+        inside: false,
+        box: r ? { l: r.left, t: r.top, w: r.width, h: r.height } : null
+      };
+      if (_vaultFloaterOver(spec, vis, vaultZ)) painted.push(spec.id || spec.position);
+    });
+    var dock = document.getElementById('control-dock');
+    var dockSt = (dock && window.getComputedStyle) ? getComputedStyle(dock) : null;
     return {
-      covered: bars.some(function(b){ return b.covers; }),
-      list: { t: lr.top, b: lr.bottom, l: lr.left, r: lr.right, w: lr.width, h: lr.height },
-      bars: bars
+      covered: !!(verdict.covered || painted.length),
+      samples: hits.length,
+      hits: hits,
+      painted: painted,
+      visible: vis.h,
+      dockOpacity: dockSt ? dockSt.opacity : null,
+      list: { t: lr.top, b: lr.bottom, l: lr.left, r: lr.right, w: lr.width, h: lr.height }
     };
   }
   try { window._vaultMoveUnseen = _vaultMoveUnseen; } catch (eUn) {}
   try { window._vaultRoomStack = _vaultRoomStack; } catch (eRs) {}
   try { window._vaultRoomApply = _vaultRoomApply; } catch (eRa) {}
   try { window._vaultRoomLift = _vaultRoomLift; } catch (eRl) {}
+  try { window._vaultCoverGrid = _vaultCoverGrid; } catch (eCg) {}
+  try { window._vaultFloaterOver = _vaultFloaterOver; } catch (eFo) {}
+  try { window._vaultRoomSink = _vaultRoomSink; } catch (eSk) {}
   try { window._vaultCoverVerdict = _vaultCoverVerdict; } catch (eVd) {}
   try { window._vaultMoveCovered = _vaultMoveCovered; } catch (eCv) {}
   try {

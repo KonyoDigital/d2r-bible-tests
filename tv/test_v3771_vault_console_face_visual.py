@@ -47,6 +47,9 @@ SHOT_NAMES = (
     "05-unknown-location.png",
     "06-duplicate-beside.png",
     "07-after-reload.png",
+    "08-no-cover-landing.png",
+    "09-no-cover-bottom.png",
+    "10-no-cover-middle.png",
 )
 
 
@@ -130,7 +133,7 @@ def _viewport(cdp, name):
 class TestV3771VaultConsoleFaceVisual(unittest.TestCase):
     def test_the_real_vault_wears_the_console_and_clears_the_bar(self):
         if "heart2." in os.path.abspath(__file__):
-            return
+            self.skipTest("heart2 sandbox does not launch a browser")
         chrome = _chrome_path()
         if not chrome:
             self.skipTest(NO_BROWSER)
@@ -171,7 +174,10 @@ class TestV3771VaultConsoleFaceVisual(unittest.TestCase):
 
     def _shot(self, cdp, selector, name):
         path = os.path.join(SHOTS, name)
-        _png(cdp, selector, path)
+        if selector == "#v3771-beside":
+            _png_beside(cdp, path)
+        else:
+            _png(cdp, selector, path)
         _save(path)
         return path
 
@@ -260,7 +266,7 @@ class TestV3771VaultConsoleFaceVisual(unittest.TestCase):
         self.assertEqual(off2.get("state"), "off", off2)
 
         self._shot(cdp, "#vault-move-list", "03-restyled-move-list.png")
-        self._assert_clear(cdp, "04-no-cover.png")
+        self._cover(cdp, "landing", "04-no-cover.png")
 
         cdp.call("Page.reload", {"ignoreCache": True}, timeout=30)
         _wait_fn(
@@ -274,27 +280,26 @@ class TestV3771VaultConsoleFaceVisual(unittest.TestCase):
         self.assertTrue(again.get("tab"), again)
         self.assertTrue(again.get("group"), again)
         self.assertGreaterEqual(len(again.get("griffon") or []), 2, again)
-        self._shot(cdp, "#vault-move-list", "07-after-reload.png")
-        self._assert_clear(cdp, "04-no-cover.png")
+        _viewport(cdp, "07-after-reload.png")
+        landed = self._cover(cdp, "landing", "08-no-cover-landing.png")
+        self.assertEqual(landed.get("dockOpacity"), "0", landed)
+        self._cover(cdp, "end", "09-no-cover-bottom.png")
+        self._cover(cdp, "center", "10-no-cover-middle.png")
 
         for name in SHOT_NAMES:
             path = os.path.join(ART, name)
             self.assertTrue(os.path.isfile(path) and os.path.getsize(path) > 3000, path)
 
-    def _assert_clear(self, cdp, name):
-        pulled = self._js(cdp, _PULL)
-        self.assertTrue(pulled.get("overlap"), pulled)
-        cover = self._js(cdp, "window._vaultMoveCovered()")
+    def _cover(self, cdp, where, name):
+        cover = self._js(cdp, _COVER_AT % json.dumps(where))
         self.assertIs(cover.get("covered"), False, cover)
-        bars = cover.get("bars") or []
-        self.assertTrue(any(b.get("overlap") for b in bars), cover)
-        for bar in bars:
-            if not bar.get("overlap"):
-                continue
-            self.assertTrue(bar.get("hits"), cover)
-            self.assertFalse(bar.get("covers"), cover)
-            self.assertTrue(all(h.get("onBar") is False for h in bar["hits"]), cover)
+        self.assertGreaterEqual(cover.get("samples") or 0, 4, cover)
+        self.assertGreaterEqual(cover.get("visible") or 0, 8, cover)
+        self.assertFalse(cover.get("painted"), cover)
+        self.assertTrue(all(h.get("onBar") is False for h in (cover.get("hits") or [])), cover)
+        self.assertEqual(cover.get("hintZ"), "20", cover)
         _viewport(cdp, name)
+        return cover
 
 
 def _stop(proc):
@@ -329,6 +334,62 @@ _NAMES = _wrap(r"""
   }
   return { griffon: canon("Griffon's Eye"), harlequin: canon("Harlequin Crest") };
 """)
+
+def _png_beside(cdp, path):
+    """Stamp the two-item grid in the same turn that measures it.
+
+    A later vault paint replaces the move-list nodes, so an id set on an earlier
+    turn is gone by the time the clip looks. The stamp and the measure share one
+    evaluation.
+    """
+    import base64
+    info = _ev(cdp, _STAMP_AND_CLIP, timeout=60)
+    if isinstance(info, dict) and info.get("error"):
+        raise AssertionError(info["error"][:2500])
+    if not info or info.get("missing"):
+        raise AssertionError("no element #v3771-beside %s" % (info,))
+    if info["width"] < 8 or info["height"] < 8:
+        raise AssertionError("empty clip #v3771-beside %s" % (info,))
+    res = cdp.call("Page.captureScreenshot", {
+        "format": "png", "captureBeyondViewport": True,
+        "clip": {"x": info["x"], "y": info["y"], "width": info["width"],
+                 "height": info["height"], "scale": 1},
+    }, timeout=60)
+    raw = base64.b64decode(res["data"])
+    if raw[:8] != b"\x89PNG\r\n\x1a\n" or len(raw) < 3000:
+        raise AssertionError("bad png %s (%d bytes)" % (path, len(raw)))
+    with open(path, "wb") as fh:
+        fh.write(raw)
+    return path
+
+
+_STAMP_AND_CLIP = r"""(function(){
+  try {
+    var host = document.getElementById('vault-move-list');
+    [].forEach.call(document.querySelectorAll('#vault-move-list .vmv-grid'), function(grid){
+      var n = grid.querySelectorAll('.vd-item').length;
+      if (n >= 2 && !document.getElementById('v3771-beside')) grid.id = 'v3771-beside';
+    });
+    var el = document.getElementById('v3771-beside');
+    if (!el) return { missing: true, grids: host ? host.querySelectorAll('.vmv-grid').length : 0,
+                      items: host ? host.querySelectorAll('.vd-item').length : 0 };
+    try { el.scrollIntoView({block:'center', inline:'nearest'}); } catch (e) {}
+    var node = el.parentElement;
+    while (node && node !== document.body) {
+      if (node.scrollHeight > node.clientHeight + 8) {
+        var top = el.getBoundingClientRect().top - node.getBoundingClientRect().top + node.scrollTop;
+        node.scrollTop = Math.max(0, top - 24);
+      }
+      node = node.parentElement;
+    }
+    var r = el.getBoundingClientRect();
+    var x = r.left + (window.scrollX || window.pageXOffset || 0);
+    var y = r.top + (window.scrollY || window.pageYOffset || 0);
+    return { x: Math.max(0, x), y: Math.max(0, y),
+             width: Math.max(1, r.width), height: Math.max(1, Math.min(r.height, 1100)),
+             items: el.querySelectorAll('.vd-item').length };
+  } catch (e) { return { error: String(e && e.stack || e) }; }
+})()"""
 
 _BESIDE = _wrap(r"""
   function look(name, holder, loc, cell, session, frame){
@@ -416,29 +477,18 @@ _INTAKE = _wrap(r"""
   return { state: b ? b.getAttribute('data-state') : null, text: b ? b.textContent : '' };
 """)
 
-_PULL = _wrap(r"""
+_COVER_AT = _wrap(r"""
+  var mode = %s;
   var list = document.getElementById('vault-move-list');
-  var bar = document.querySelector('#control-dock .dock-inner');
-  if (!list || !bar) return { overlap: false, why: 'missing' };
-  function box(el){ var r = el.getBoundingClientRect(); return { t: r.top, b: r.bottom, l: r.left, r: r.right, w: r.width, h: r.height }; }
-  function hit(a, b){
-    var left = Math.max(a.l, b.l), right = Math.min(a.r, b.r);
-    var top = Math.max(a.t, b.t), bottom = Math.min(a.b, b.b);
-    return (right - left) >= 8 && (bottom - top) >= 8;
-  }
-  try { list.scrollIntoView({block:'end', inline:'center'}); } catch (e) {}
-  var scroller = document.scrollingElement || document.documentElement;
-  var guard = 0;
-  while (guard < 12 && !hit(box(list), box(bar))) {
-    var lr = box(list), br = box(bar);
-    var delta = lr.b - (br.t + Math.min(36, br.h / 2));
-    if (Math.abs(delta) < 1) break;
-    scroller.scrollTop += delta;
-    guard++;
-  }
-  var lr2 = box(list), br2 = box(bar);
-  return { overlap: hit(lr2, br2), guard: guard, list: lr2, bar: br2,
-           lift: (typeof window._vaultRoomLift === 'function') ? window._vaultRoomLift() : null };
+  if (!list) return { covered: true, why: 'no list', samples: 0, visible: 0, painted: ['missing'], hits: [] };
+  if (mode === 'end') { try { list.scrollIntoView({block:'end', inline:'nearest'}); } catch (e1) {} }
+  else if (mode === 'center') { try { list.scrollIntoView({block:'center', inline:'nearest'}); } catch (e2) {} }
+  else if (mode === 'start') { try { list.scrollIntoView({block:'start', inline:'nearest'}); } catch (e3) {} }
+  var sh = document.getElementById('shortcut-hint');
+  if (sh) sh.classList.add('show');
+  var cover = window._vaultMoveCovered();
+  cover.hintZ = sh ? getComputedStyle(sh).zIndex : null;
+  return cover;
 """)
 
 _REOPEN = _wrap(r"""

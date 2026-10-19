@@ -9810,15 +9810,17 @@ GATES = [
          needs_app=False,
          why=("v3771 - the vault controls wear the console gold. An unseen place reads "
              "Location not seen yet, asks for a screenshot, and sorts last. While the Vault "
-             "tab is open the MF bar stacks under that room and under the header. 14 distinct "
-             "attacks, Wilson against the vault.apply bar. The screen is a separate gate.")
+             "tab is open the MF bar and every floating chip stack under that room and under "
+             "the header. 22 distinct attacks, Wilson against the vault.apply bar. The screen "
+             "is a separate gate.")
          ),
     Gate("test_v3771_vault_console_face_visual", [sys.executable,
          os.path.join(HERE, "test_v3771_vault_console_face_visual.py")], 300,
          needs_app=False,
          why=("v3771 - the real vault tab: AUTO INTAKE off and on, the restyled move list, "
-             "a duplicate beside its original, the unseen-location group, and a bounding-box "
-             "check that the MF bar does not cover the move list. The same room after a reload. "
+             "a duplicate beside its original, the unseen-location group, and a grid-plus-floater "
+             "check that no fixed chip covers the move list. After a reload the same check runs "
+             "at the landing scroll, the bottom, and the middle, with the dock at opacity 0. "
              "No browser is a declared skip."),
          skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_render_hook_finds_a_browser_on_linux", [sys.executable,

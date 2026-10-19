@@ -32,6 +32,7 @@ from test_v3769_vault_move_list import PREAMBLE, move_bundle  # noqa: E402
 
 EXTRA = [
     "_vaultRoomStack", "_vaultRoomApply", "_vaultRoomLift",
+    "_vaultCoverGrid", "_vaultFloaterOver", "_vaultRoomSink", "_vaultRoomReadFloaters",
     "_vaultCoverVerdict", "_vaultMoveCovered",
 ]
 
@@ -179,10 +180,114 @@ console.log(JSON.stringify({
         self.assertIn(".vmv-gh{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;", self.src)
         self.assertIn("font-family:var(--serif-display,serif);", self.src[self.src.find(".vmv-gh{"):self.src.find(".vmv-gh{") + 500])
         self.assertIn(".vmv-q{min-width:180px;flex:1;font-family:var(--serif-text,Georgia,serif);", self.src)
-        self.assertIn("['#control-dock .dock-inner', '#v42-tz-countdown']", self.src)
         self.assertIn(
             r'.vault-toolbar > button.vault-btn[onclick*="_vaultMoveAddOpen"]{font-family:var(--serif-display,serif);',
             self.src)
+        self.assertIn(
+            ".vault-toolbar .vault-btn{font-family:var(--serif-display,serif);",
+            self.src)
+        self.assertIn(
+            ".vault-toolbar .vault-btn-danger{color:var(--hell,#ff4040);",
+            self.src)
+        self.assertIn(
+            "html.vault-open .control-dock{transform:translateY(100%);opacity:0;pointer-events:none;transition:none} /* v3771 dock off the room */",
+            self.src)
+        self.assertNotIn(
+            "html.vault-open .control-dock{ transform:translateY(calc(100% - 20px)); opacity:.4;",
+            self.src)
+        self.assertIn(
+            'html[data-active-tab="vault"] #shortcut-hint{z-index:20} /* v3771 hint under vault */',
+            self.src)
+        self.assertIn(
+            "onBar: !!(hit && !onList && !onVault && !onHead) }); /* v3771 header is the mast */",
+            self.src)
+
+    def test_a_missing_cell_and_a_missing_witness_do_not_say_unknown(self):
+        o = self._run(r"""
+var html = _vaultMoveHtml({ tasks: [], groups: _vaultMoveGroup([{
+  name: 'Harlequin Crest', copyIx: 0, witnesses: null, task: _vaultMoveTask({
+    name: 'Harlequin Crest',
+    from: { holder: null, location: null, cell: null },
+    to: { holder: 'UNI-ARMOR', location: 'stash', cell: 'stash:c1r1' },
+    status: 'to-move'
+  })
+}]), locks: [] });
+var grid = _vaultMoveGridHtml([{
+  name: 'Harlequin Crest', copyIx: 0, task: _vaultMoveTask({
+    name: 'Harlequin Crest',
+    from: { holder: null, location: null, cell: null },
+    to: { holder: null, location: null, cell: null },
+    status: 'to-move'
+  })
+}]);
+console.log(JSON.stringify({
+  cell: _vaultMoveCellSay(null),
+  empty: _vaultMoveCellSay(''),
+  known: _vaultMoveCellSay('stash:c1r1'),
+  place: _vaultMovePlaceSay({ holder: null, location: 'stash', cell: 'stash:c0r0' }),
+  witness: html.indexOf('>not seen yet</button>') >= 0,
+  word: html.indexOf('witnesses UNKNOWN') >= 0,
+  grid: grid.indexOf('not seen yet') >= 0,
+  gridUnknown: grid.indexOf('UNKNOWN') >= 0
+}));
+""")
+        self.assertEqual(o["cell"], "not seen yet", o)
+        self.assertEqual(o["empty"], "not seen yet", o)
+        self.assertNotIn("UNKNOWN", o["known"], o)
+        self.assertNotIn("UNKNOWN", o["place"], o)
+        self.assertIn("not seen yet", o["place"], o)
+        self.assertIn("private stash", o["place"], o)
+        self.assertTrue(o["witness"], o)
+        self.assertFalse(o["word"], o)
+        self.assertTrue(o["grid"], o)
+        self.assertFalse(o["gridUnknown"], o)
+
+    def test_the_cover_grid_and_a_floating_chip(self):
+        o = self._run(r"""
+var pts = _vaultCoverGrid({ l: 0, t: 0, w: 400, h: 300 }, 4, 3);
+var list = { l: 0, t: 100, w: 800, h: 400 };
+function chip(over){
+  var base = { position: 'fixed', z: 150, hidden: false, inside: false,
+    box: { l: 10, t: 300, w: 180, h: 40 } };
+  if (over) { for (var k in over) base[k] = over[k]; }
+  return _vaultFloaterOver(base, list, 40);
+}
+var hint = { style: {
+  zIndex: '150',
+  setProperty: function(name, value, pri){ this.zIndex = value; this.pri = pri; },
+  removeProperty: function(){ this.zIndex = ''; }
+}, _cz: 150 };
+var sunk = _vaultRoomSink([hint], true);
+var mid = hint.style.zIndex;
+var pri = hint.style.pri;
+var restored = _vaultRoomSink([hint], false);
+console.log(JSON.stringify({
+  n: pts.length,
+  x0: pts[0].x, y0: pts[0].y, x1: pts[pts.length - 1].x, y1: pts[pts.length - 1].y,
+  over: chip(null),
+  under: chip({ z: 20 }),
+  inside: chip({ inside: true }),
+  hidden: chip({ hidden: true }),
+  still: chip({ position: 'static' }),
+  sunk: mid,
+  pri: pri,
+  back: restored && hint.style.zIndex,
+  bar: sunk.bar
+}));
+""")
+        self.assertEqual(o["n"], 12, o)
+        self.assertGreater(o["x0"], 0, o)
+        self.assertLess(o["x1"], 400, o)
+        self.assertGreater(o["y1"], o["y0"], o)
+        self.assertTrue(o["over"], o)
+        self.assertFalse(o["under"], o)
+        self.assertFalse(o["inside"], o)
+        self.assertFalse(o["hidden"], o)
+        self.assertFalse(o["still"], o)
+        self.assertEqual(o["sunk"], "20", o)
+        self.assertEqual(o["pri"], "important", o)
+        self.assertEqual(o["back"], "150", o)
+        self.assertEqual(o["bar"], 20, o)
 
     def test_distinct_attacks_clear_the_vault_apply_wilson_bar(self):
         from confidence import confluence, wilson_lower
@@ -271,6 +376,46 @@ RED_PROOF = [
      "file": "bible.html",
      "find": ".vault-move .vault-btn,.vault-move .vmv-mark,.vault-move .vmv-wit{font-family:var(--serif-display,serif);",
      "replace": ".vault-move .vault-btn,.vault-move .vmv-mark,.vault-move .vmv-wit{font-family:sans-serif;",
+     "matches": 1},
+    {"why": "The vault yield paints the MF bar back over the list at 40 percent.",
+     "file": "bible.html",
+     "find": "html.vault-open .control-dock{transform:translateY(100%);opacity:0;pointer-events:none;transition:none} /* v3771 dock off the room */",
+     "replace": "html.vault-open .control-dock{transform:translateY(calc(100% - 20px));opacity:.4} /* v3771 dock off the room */",
+     "matches": 1},
+    {"why": "The shortcut hint stacks above the vault room again.",
+     "file": "bible.html",
+     "find": 'html[data-active-tab="vault"] #shortcut-hint{z-index:20} /* v3771 hint under vault */',
+     "replace": 'html[data-active-tab="vault"] #shortcut-hint{z-index:150} /* v3771 hint under vault */',
+     "matches": 1},
+    {"why": "A fixed chip whose z-index is above the room is reported as clear.",
+     "file": "bible.html",
+     "find": "return z >= vaultZ; /* v3771 floater z */",
+     "replace": "return false; /* v3771 floater z */",
+     "matches": 1},
+    {"why": "Opening the vault does not sink a floating chip, so the hint stays at 150.",
+     "file": "bible.html",
+     "find": "el.style.setProperty('z-index', String(z.bar), 'important'); /* v3771 sink floater */",
+     "replace": "if (false) el.style.setProperty('z-index', String(z.bar), 'important'); /* v3771 sink floater */",
+     "matches": 1},
+    {"why": "The cover grid samples nothing, so a chip in the middle of the list is never asked.",
+     "file": "bible.html",
+     "find": "return pts; /* v3771 cover grid */",
+     "replace": "return []; /* v3771 cover grid */",
+     "matches": 1},
+    {"why": "A witness that was not counted says UNKNOWN again.",
+     "file": "bible.html",
+     "find": "var wSay = (w == null) ? 'not seen yet' : (w + ' witness' + (w === 1 ? '' : 'es')); /* v3771 witness say */",
+     "replace": "var wSay = (w == null) ? 'witnesses UNKNOWN' : (w + ' witness' + (w === 1 ? '' : 'es')); /* v3771 witness say */",
+     "matches": 1},
+    {"why": "A missing cell is spelled UNKNOWN again.",
+     "file": "bible.html",
+     "find": "if (cell == null || cell === '') return 'not seen yet'; /* v3771 cell say */",
+     "replace": "if (cell == null || cell === '') return 'UNKNOWN'; /* v3771 cell say */",
+     "matches": 1},
+    {"why": "The sticky header is treated as a bar covering the list, so the room would have to climb over the mast.",
+     "file": "bible.html",
+     "find": "onBar: !!(hit && !onList && !onVault && !onHead) }); /* v3771 header is the mast */",
+     "replace": "onBar: !!(hit && !onList && !onVault) }); /* v3771 header is the mast */",
      "matches": 1},
 ]
 
