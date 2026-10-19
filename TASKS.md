@@ -37,7 +37,7 @@ Elad, 2026-10-18 13:18 IDT: duplicate copies of a vault item sit next to the ori
 | auto intake | FIXED. A visible AUTO INTAKE button, persisted per world as d2r_vaultAutoIntake. Absent is off. Off, vaultIntake, the TV register and TV auto-intake register nothing. On, those doors run, so a later witness can attach. The typed add is the existing + Add an item. Its receipt source stays hand. The record says manual. Placement is the records seam: same mule, assign not written by the hand door. |
 | move record | FIXED in v3769. The list is painted and the target cell is stored on the row. v3767 had the record only. |
 | console face | FIXED in v3771. The move controls wear the console gold. An unseen place reads Location not seen yet and sorts last. The MF bar stacks under the vault room. REG-2292. |
-| visual demo | FIXED. Five PNGs in tv/.render_shots, copied for the report. His console was not opened. |
+| visual demo | FIXED in v3771. Ten PNGs in /opt/cursor/artifacts/v3771/: AUTO INTAKE off and on, the restyled list, the no-cover shots, the unseen group, a duplicate beside its original, the reload landing, and the list at the bottom and the middle. His console was not opened. |
 | live pixels | The demo is a private sandbox. His vault and the live console were not opened. |
 
 ## VAULT ORGANIZE LOOP
