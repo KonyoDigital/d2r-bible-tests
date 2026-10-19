@@ -12602,7 +12602,7 @@ function d2jspPriceLine(q) {
       </div>
       <div class="vault-find vault-find-mule">
         <span class="vault-find-k">Find on a mule</span>
-        <input id="vault-find-input" class="vault-find-input" aria-label="find an item across your mules" type="text" autocomplete="off" spellcheck="false" placeholder="Which mule holds it?" oninput="window.vaultFind&&window.vaultFind(this.value)" onkeydown="if(event.key==='Escape'){this.value='';window.vaultFind('')}">
+        <input id="vault-find-input" class="vault-find-input" aria-label="find an item across your mules" type="text" autocomplete="off" spellcheck="false" placeholder="Which mule holds it?" oninput="window._vaultFindSoon?window._vaultFindSoon(this.value):(window.vaultFind&&window.vaultFind(this.value))" onkeydown="if(event.key==='Escape'){this.value='';window.vaultFind('')}">
         <button class="vault-find-x" type="button" title="clear" onclick="var i=document.getElementById('vault-find-input');i.value='';window.vaultFind('');i.focus()">✕</button>
       </div>
       <div id="vault-find-results" class="vault-find-results" hidden></div>
@@ -41586,6 +41586,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     /* #79 — the row opens nothing now: it names where each item sits and floats the item card on hover */
     res.innerHTML = '<div class="vfr-head">'+matches.length+' match'+(matches.length===1?'':'es')+(matches.length>30?' · showing 30':'')+' — each row names where it sits · hover an item for its card</div>' + rows;
   };
+  /* v3773 - one FIND pass shares one records answer (_vaultRecordsSource), and typing paints first:
+     the box takes the key at once and the list follows when the keys pause. */
+  (function(){
+    var _vfOne = window.vaultFind;
+    window.vaultFind = function(q){
+      var outer = window._vrFindPass;
+      window._vrFindPass = outer || {};
+      try { return _vfOne(q); } finally { window._vrFindPass = outer || null; }
+    };
+    var _vfT = 0;
+    window._vaultFindSoon = function(q){
+      if (_vfT) clearTimeout(_vfT);
+      _vfT = setTimeout(function(){ _vfT = 0; window.vaultFind(q); }, 140);
+    };
+  })();
   /* #12 (REG-2230) — FIND went STALE after a re-sort. vaultFind re-ran ONLY on type / clear (the input
      events), so after Auto-Sort, a drag, an unfile or any redraw the rows kept the location AND the onclick
      target baked in at the moment they were typed, each pointing at where the item USED to be. This re-runs
@@ -43272,8 +43287,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try {
       var raw = _witnessRaw();
       if (window._provHeld === true && window._provObjReady === true && window._provObjRaw === raw) return window._provObjHold;
+      /* v3773 - FIND ON A MULE parsed the whole witness store once per name per key (12.9 s a key on
+         his data). The same raw string parses to the same object: keep the last parse, keyed on it. */
+      if (typeof raw === 'string' && window._provParseRaw === raw && window._provParseObj) return window._provParseObj;
       var v = JSON.parse(raw || '{}');
       v = (v && typeof v === 'object' && !Array.isArray(v)) ? v : {};
+      if (typeof raw === 'string') { window._provParseRaw = raw; window._provParseObj = v; }
       if (window._provHeld === true) {
         window._provObjHold = v;
         window._provObjRaw = raw;
@@ -43285,6 +43304,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function _provWrite(all){
     var raw = JSON.stringify(all);
     window.LSR.setItem(PROV_KEY, raw);
+    window._provParseRaw = raw; window._provParseObj = (all && typeof all === 'object' && !Array.isArray(all)) ? all : {};
     if (window._provHeld === true) {
       window._provHoldSeen = true;
       window._provHoldErr = false;
@@ -49500,6 +49520,13 @@ window.vaultAutoAssign = function(){
   window._vaultRecords = _vaultRecords;
 
   function _vaultRecordsSource(){
+    /* v3773 - one FIND pass asked this once per matched name, rebuilding every record each time.
+       Inside one pass nothing writes, so the first answer stands for the rest of that pass. */
+    var _pass = window._vrFindPass;
+    if (_pass && typeof _pass === 'object') {
+      if (!_pass.has) { window._vrFindPass = null; try { _pass.v = _vaultRecordsSource(); _pass.has = true; } finally { window._vrFindPass = _pass; } }
+      return _pass.v;
+    }
     /* The persisted store is the source only while a current migrate stamp is valid, the store is
        a real {records: array}, and no row is an unreadable witness. Absent, unstamped, dirty,
        refused or UNKNOWN falls back to the live derivation. A wrong shape stays unread. A reload
