@@ -141,6 +141,72 @@ class ThePolledEndpointNeverWaitsOnASurvey(unittest.TestCase):
         self.assertIn('("tvd-vault-autoread", _vault_autoread_loop)', roster)
 
 
+class TheLockCensusNeverBlocksStatus(unittest.TestCase):
+    """The rinse console measured this on v3771: one /api/status spent 6,419 ms in
+    selfArming while the rest of that request was milliseconds. The spec aborts at
+    3 s, and the boot poll aborts at 900 ms, so the same stall is reported as
+    "rinse control server never came up"."""
+
+    def setUp(self):
+        self._real = CA._self_arming_state
+        self.calls = []
+        CA._SELF_ARM_CACHE["t"], CA._SELF_ARM_CACHE["d"] = 0.0, None
+        CA._SELF_ARM_REFRESH["running"] = False
+
+    def tearDown(self):
+        CA._self_arming_state = self._real
+        CA._SELF_ARM_CACHE["t"], CA._SELF_ARM_CACHE["d"] = 0.0, None
+        for _ in range(80):
+            if not CA._SELF_ARM_REFRESH.get("running"):
+                break
+            time.sleep(0.1)
+
+    def _slow(self):
+        def _fn():
+            self.calls.append(time.time())
+            time.sleep(SLOW_S)
+            return {"ok": True, "open": 1, "total": 1, "locks": [{"lock": "x", "state": "OPEN"}],
+                    "why": "measured by the slow stand-in"}
+        return _fn
+
+    def test_the_handler_returns_while_the_lock_census_is_still_running(self):
+        CA._self_arming_state = self._slow()
+        worst, n = 0.0, 6
+        for _ in range(n):
+            t = time.time()
+            CA._self_arming_state_cached()
+            worst = max(worst, (time.time() - t) * 1000.0)
+            time.sleep(0.25)
+        self.assertTrue(self.calls, "the lock census never ran, so this law measured NOTHING")
+        self.assertLess(worst, BUDGET_MS,
+                        "the polled endpoint waited %.0f ms on a %.0f ms lock census"
+                        % (worst, SLOW_S * 1000))
+
+    def test_one_census_at_a_time_not_one_per_poll(self):
+        CA._self_arming_state = self._slow()
+        for _ in range(6):
+            CA._self_arming_state_cached()
+            time.sleep(0.25)
+        self.assertEqual(len(self.calls), 1,
+                         "%d censuses started in 1.5s of polling" % len(self.calls))
+        alive = [t for t in threading.enumerate() if t.name == "tvd-self-arm-lamp"]
+        self.assertLessEqual(len(alive), 1, "%d census threads alive at once" % len(alive))
+
+    def test_before_the_first_census_the_badge_is_LOCKED_not_open(self):
+        CA._self_arming_state = self._slow()
+        r = CA._self_arming_state_cached()
+        self.assertFalse(r.get("ok"), r)
+        self.assertEqual(r.get("open"), 0, r)
+        self.assertEqual(r.get("locks"), [], r)
+        self.assertIn("not open", str(r.get("why") or ""))
+
+    def test_status_asks_the_cached_census(self):
+        import inspect
+        src = inspect.getsource(CA.status_payload)
+        self.assertIn('_t("selfArming", _self_arming_state_cached)', src)
+        self.assertNotIn('_t("selfArming", _self_arming_state),', src)
+
+
 RED_PROOF = [
     {
         "why": "restoring the SYNCHRONOUS survey inside the polled handler — the exact code that "
@@ -173,6 +239,41 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": '    threading.Thread(target=_run, daemon=True, name="tvd-vault-lamp").start()\n',
         "replace": '    threading.Thread(target=_run, daemon=True, name="tvd-vault-autoread").start()\n',
+        "matches": 1,
+    },
+    {
+        "why": "running the lock census on the request thread again — the 6,419 ms "
+               "selfArming stall the rinse spec reports as the server never coming up",
+        "file": "control_app.py",
+        "find": "        _self_arming_kick()",
+        "replace": "        c[\"t\"], c[\"d\"] = time.time(), _self_arming_state()",
+        "matches": 1,
+    },
+    {
+        "why": "the status poll calls the synchronous census again, so a slow report "
+               "lands on every /api/status",
+        "file": "control_app.py",
+        "find": '        "selfArming": _t("selfArming", _self_arming_state_cached),',
+        "replace": '        "selfArming": _t("selfArming", _self_arming_state),',
+        "matches": 1,
+    },
+    {
+        "why": "dropping the one-at-a-time flag on the lock census, so a slow report "
+               "plus a once-a-second poll starts a thread per poll",
+        "file": "control_app.py",
+        "find": '        if _SELF_ARM_REFRESH["running"]:\n            return False',
+        "replace": '        if False:\n            return False',
+        "matches": 1,
+    },
+    {
+        "why": "rendering the badge OPEN before the census has been read — an unmeasured "
+               "lock shown as an open one",
+        "file": "control_app.py",
+        "find": ('        return {"ok": False, "open": 0, "total": 0, "locks": [],\n'
+                 '                "why": "the lock census has not finished its first read since this "\n'
+                 '                       "console started — UNKNOWN, and specifically not open"}'),
+        "replace": ('        return {"ok": True, "open": 1, "total": 1, '
+                    '"locks": [{"state": "OPEN"}], "why": "open before the census"}'),
         "matches": 1,
     },
 ]
