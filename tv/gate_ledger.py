@@ -1112,7 +1112,8 @@ def read_trace(path):
             lines = fh.read().splitlines()
     except OSError:
         return None, "the gate's reads were not traced"
-    facts = {"R": set(), "W": set(), "S": set(), "L": set(), "I": set(), "G": set()}
+    facts = {"R": set(), "W": set(), "S": set(), "A": set(), "L": set(), "I": set(), "G": set()}
+    first = {}
     boots = {}
     spawns = {}
     for line in lines:
@@ -1130,11 +1131,15 @@ def read_trace(path):
             spawns[pid] = spawns.get(pid, 0) + 1
         elif kind in facts:
             facts[kind].add(text)
+            if kind in ("R", "S", "A", "W", "L"):
+                first.setdefault(text, kind)
     if not any(k.startswith("pid:") for k in boots):
         return None, "the gate's reads were not traced"  # LEDGER-UNTRACED-BOOT
     for pid, n in spawns.items():
         if boots.get(pid, 0) < n:
             return None, "a python child of the gate ran without the trace"
+    # made by this run before anything looked at it, so it is not state the run found
+    facts["M"] = set(p for p, k in first.items() if k == "W" or (k == "A" and p in facts["W"]))  # LEDGER-MADE-FIRST
     return facts, None
 
 
@@ -1962,9 +1967,9 @@ class Ledger(object):
         if tracked is None:
             return None, "git did not list the tracked files"
         dirs = self._tracked_dirs(root, tracked)
-        writes = set(facts.get("W") or ())
+        made = set(facts.get("M") or ())
         inputs = set()
-        for path in sorted(set(facts.get("R") or ()) | set(facts.get("S") or ())):
+        for path in sorted(set(facts.get("R") or ()) | set(facts.get("S") or ()) | set(facts.get("A") or ())):
             if os.path.basename(path) in _SELF or not path:
                 continue
             if path == ".git" or path.startswith(".git/"):
@@ -1974,7 +1979,7 @@ class Ledger(object):
             if path in tracked or path in dirs:
                 inputs.add(path)
                 continue
-            if path in writes or any(a in writes for a in _ancestors(path)):
+            if path in made:
                 continue
             full = os.path.join(root, path)
             if not os.path.lexists(full):
@@ -1991,10 +1996,8 @@ class Ledger(object):
             if path in dirs or path == "":
                 listed.add(path)
                 continue
-            if path in writes or any(a in writes for a in _ancestors(path)):
-                continue
-            if any(w.startswith(path + "/") for w in writes) or not os.path.isdir(os.path.join(root, path)):
-                continue
+            if path in made or not os.path.isdir(os.path.join(root, path)):
+                continue  # a folder this run made, or one it removed again
             return None, "the gate listed %s, which holds no tracked file, so no diff can say it moved" % path
         if facts.get("G"):
             inputs.update(p for p in tracked if os.path.basename(p) == ".gitignore")

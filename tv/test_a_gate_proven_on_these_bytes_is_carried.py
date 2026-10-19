@@ -912,6 +912,17 @@ class TheProofRemembersWhatTheGateRead(unittest.TestCase):
         book = _open(led)
         self.assertFalse(_prove(book, _gate(root, "t_live.py")), "a read of ignored local state was carried")
         self.assertIn("ignores", book.last_why or "")
+        cache = ("import os, sys\nHERE = os.path.dirname(os.path.abspath(__file__))\n"
+                 "p = os.path.join(HERE, 'live_gl.json')\nif not os.path.exists(p):\n"
+                 "    open(p + '.tmp', 'w').write('{}')\n    os.replace(p + '.tmp', p)\n"
+                 "sys.exit(0 if open(p).read() else 1)\n")
+        _write(root, "tv/t_cache.py", cache)
+        _commit(root, "a gate that builds its own cache")
+        os.remove(os.path.join(root, "tv", "live_gl.json"))
+        self.assertTrue(_prove(_open(led), _gate(root, "t_cache.py")),
+                        "a cache this run built before reading it was called local state")
+        self.assertFalse(_prove(_open(led), _gate(root, "t_cache.py")),
+                         "a cache an earlier run left behind was carried")
 
     def test_git_ls_files_is_a_listing_and_git_history_is_never_carried(self):
         lister = ("import os, subprocess, sys\nROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))\n"
@@ -1477,6 +1488,13 @@ RED_PROOF = [
         "file": "gate_trace/sitecustomize.py",
         "find": "            emit(\"L\", \"\")  # the tracked set: any added or deleted file\n",
         "replace": "            pass  # the tracked set: any added or deleted file\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r5: a file the run found already there is treated as one it made, so ignored state carries",
+        "file": "gate_ledger.py",
+        "find": "    facts[\"M\"] = set(p for p, k in first.items() if k == \"W\" or (k == \"A\" and p in facts[\"W\"]))  # LEDGER-MADE-FIRST\n",
+        "replace": "    facts[\"M\"] = set(facts[\"W\"])  # LEDGER-MADE-FIRST\n",
         "matches": 1,
     },
 ]
