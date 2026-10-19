@@ -897,6 +897,13 @@ class TheProofRemembersWhatTheGateRead(unittest.TestCase):
         entry, why = _open(led).lookup(gate)
         self.assertIsNotNone(entry, "the console's own record stopped the carry: %s" % why)
 
+    def test_a_pass_dropped_for_a_listing_law_says_why(self):
+        """r5: 8 real passes were dropped for "lists a directory itself" and run_gates printed nothing."""
+        root, led = self._tree({"t_ls.py": _LISTING})
+        book = _open(led)
+        self.assertFalse(_prove(book, _gate(root, "t_ls.py")), "PREMISE: a listing law was stored")
+        self.assertIn("lists a directory", book.last_why or "", "a dropped PASS gave no reason")
+
     def test_a_pass_proved_on_a_dirty_tree_is_not_stored_under_head(self):
         root, led = self._tree({"t_mod.py": "import sys, helper_gl\nsys.exit(0 if helper_gl.OK else 1)\n",
                                 "helper_gl.py": "OK = False\n"})
@@ -1698,6 +1705,13 @@ RED_PROOF = [
         "file": "gate_ledger.py",
         "find": "        return set(self_prove.CONSOLE_OWN_RECORDS)  # LEDGER-OWN-RECORDS\n",
         "replace": "        return set()  # LEDGER-OWN-RECORDS\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r6: a PASS dropped for a listing law says nothing, so the runner prints no reason",
+        "file": "gate_ledger.py",
+        "find": "                self.last_why = why or \"its inputs are UNKNOWN\"  # LEDGER-SAY-WHY\n",
+        "replace": "                pass  # LEDGER-SAY-WHY\n",
         "matches": 1,
     },
 ]
