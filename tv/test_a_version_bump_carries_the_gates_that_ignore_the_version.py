@@ -320,6 +320,11 @@ class ACoherentBumpCarries(unittest.TestCase):
         self.edit("BLUEPRINT.md", "# b", "# b gate added")
         self.assertNotEqual(a, GL.map_key(self.root), "a real blueprint change kept the map key")
 
+    def test_the_leak_check_uses_the_home_path_gates_own_pattern(self):
+        import stamp_leak
+        import test_no_new_home_path_is_published as HP
+        self.assertEqual(stamp_leak.HOME.pattern, HP.HOME.pattern, "the leak check drifted from the home-path gate")
+
     def test_the_bump_refuses_a_leak_in_its_free_text(self):
         import bump_version as BV
         for bad in ("moved the cache out of /Us" + "ers/someone/Library/", "talks to 192.168." + "1.20 now",
@@ -559,8 +564,8 @@ RED_PROOF = [
     {
         'why': 'a home path in the note is accepted',
         'file': 'stamp_leak.py',
-        'find': '        if _hp.count(t):  # BUMP-LEAK-HOME\n',
-        'replace': '        if False:  # BUMP-LEAK-HOME\n',
+        'find': '    if HOME.search(t):  # BUMP-LEAK-HOME\n',
+        'replace': '    if False:  # BUMP-LEAK-HOME\n',
         'matches': 1,
     },
     {
