@@ -879,8 +879,9 @@ if ! gate_run "boss-portraits" "python3 art/verify_boss_portraits.py   (--list t
 fi
 echo "pre-push: [$(_pp_el)] ✅ boss portraits are the pictures a human opened, and bible.html serves them."
 
-# v3768 — a stored PASS carries only when the gate name, definition and input bytes still match.
-# A miss, a missing ledger and a corrupt ledger all fall through and the gate runs. FAIL is never stored.
+# v3768 — a stored PASS carries when its commit is an ancestor of HEAD and git says none of
+# its inputs moved. A miss, a missing ledger and a corrupt ledger all fall through and the gate runs.
+# FAIL is never stored. --record stores a PASS only when suite_verdict already proved these bytes.
 ledger_carry() {
   python3 "$REPO/tv/gate_ledger.py" --carry "$1"
 }
@@ -951,7 +952,8 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
     if ! gate_run "test_tz_art" "python3 tv/test_tz_art.py" 120 -- python3 "$REPO/tv/test_tz_art.py"; then
       exit 1
     fi
-    python3 "$REPO/tv/gate_ledger.py" --record test_tz_art || true
+    # No --record here. These three have no suite_verdict, and --record must not mint a PASS
+    # the hook merely claims it ran. run_gates stores them after it actually runs them.
   fi
   # 2026-08-20 — THE CHRONICLE GATES RAN ONLY IN CI, AND ONE SAT RED FOR NINE VERSIONS.
   # run_gates.py runs 30 gates; this hook ran three. test_chronicle_seal extracts the seal loop
@@ -970,7 +972,6 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
          python3 "$REPO/tv/test_chronicle_retro.py"; then
       exit 1
     fi
-    python3 "$REPO/tv/gate_ledger.py" --record test_chronicle_retro || true
   fi
   _carry_line="$(ledger_carry test_chronicle_seal)"
   _carry_rc=$?
@@ -982,7 +983,6 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
          python3 "$REPO/tv/test_chronicle_seal.py"; then
       exit 1
     fi
-    python3 "$REPO/tv/gate_ledger.py" --record test_chronicle_seal || true
   fi
   echo "pre-push: [$(_pp_el)] ✅ tv suites green."
 fi

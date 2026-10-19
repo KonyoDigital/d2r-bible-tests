@@ -10,9 +10,19 @@ A PASS is stored with the commit it was proved at. The next `--changed` run asks
     git diff --name-only <proven_sha>..HEAD
     git status --porcelain
 
-and intersects that set with each gate's inputs. The input map is built once and reused while
-`tv/run_gates.py` and `BLUEPRINT.md` are unchanged. A gate whose inputs are not in the set is
-printed as `proven at <sha> (<age>)` and its files are not opened.
+and intersects that set with each gate's inputs. Each stored PASS keeps its own commit. A later
+PASS at a new HEAD does not discard the others: a gate carries while its commit is an ancestor
+of HEAD and none of its inputs are in `diff(that commit..HEAD)` plus the dirty worktree. One
+diff per distinct commit, cached for the run.
+
+The input map is reused while `tv/run_gates.py`, `BLUEPRINT.md` and `tv/heart2.py` are the same
+bytes. A row is rebuilt when the gate script, heart2.py, or any file already in its closure is
+in the change set, and a PASS is stored from a fresh parse, not from that cache. The runner
+file is not an input of every gate; the hashed Gate definition is. `bible.html` is an input
+only of a gate that itself loads or greps it.
+
+A gate whose inputs are not in the set is printed as `proven at <sha> (<age>)` and its files
+are not opened.
 
 Fail closed. A missing or unreachable proven sha, a diff that fails, a gate whose inputs cannot
 be named, a corrupt ledger, and a FAIL are all a run. Only a PASS is stored. `--full` does not
@@ -23,8 +33,10 @@ The files are per checkout, gitignored, and never a verdict of record. CARRY is 
 and it does not bank Wilson evidence.
 
     python3 tv/gate_ledger.py --carry NAME     exit 0 and "proven at <sha> (<age>)", or exit 1
-    python3 tv/gate_ledger.py --record NAME    store a PASS for the registered gate
+    python3 tv/gate_ledger.py --record NAME    store a PASS only when suite_verdict proved these bytes
 """
+import ast
+import fnmatch
 import hashlib
 import json
 import os
@@ -130,12 +142,108 @@ def _file_hash(path):
 
 
 def map_key(root):
-    """The input map is reused while these two files are the same bytes. -> hex"""
-    rels = ("tv/run_gates.py", "BLUEPRINT.md")  # LEDGER-MAPKEY
+    """The input map is reused while these files are the same bytes. -> hex"""
+    rels = ("tv/run_gates.py", "BLUEPRINT.md", "tv/heart2.py")  # LEDGER-MAPKEY
     parts = []
     for rel in rels:
         parts.append(_file_hash(os.path.join(root, rel)) or "absent")
     return hashlib.sha256(b"\0".join(p.encode("ascii") for p in parts)).hexdigest()
+
+
+# Directory listings that are sound to name. test_agent only lists directories the test
+# itself creates (a tempfile, or HIST_DIR pointed at one), so the import closure is the
+# whole input set. test_control stays unnameable: it globs gitignored footage
+# (tv/frames/hist, which git status never shows) and also tests/*.spec.ts, tv/*.sh and
+# hooks/*. A glob of tv/*.py would miss those, and a carry would be a pass for bytes
+# the suite can still read. Anything else that lists a directory stays unnameable.
+_LISTING_OK = {
+    "test_agent": (),  # LEDGER-LISTING
+}
+
+
+def _doc_nodes(tree):
+    nodes = set()
+
+    def take(body):
+        if (body and isinstance(body[0], ast.Expr)
+                and isinstance(getattr(body[0], "value", None), ast.Constant)):
+            nodes.add(body[0].value)
+
+    take(getattr(tree, "body", None) or [])
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            take(node.body)
+    return nodes
+
+
+def _script_reads_bible(script):
+    """Does this gate file itself load or grep bible.html? -> bool
+
+    Fail closed. A file that cannot be read or parsed, and that names bible.html, counts
+    as a read. A docstring does not. A string in some other module does not either.
+    """
+    try:
+        with open(script, encoding="utf-8", errors="replace") as fh:
+            src = fh.read()
+    except OSError:
+        return True
+    if "bible.html" not in src:
+        return False
+    try:
+        tree = ast.parse(src)
+    except (SyntaxError, ValueError):
+        return True
+    docs = _doc_nodes(tree)
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str) and "bible.html" in node.value:
+            if node not in docs:
+                return True
+    return False
+
+
+def _pack_row(decl, why):
+    blank = why or not decl
+    return {
+        "inputs": None if blank else list(decl["inputs"]),
+        "why": why,
+        "kinds": [] if blank else list(decl["kinds"]),
+        "def": None if blank else decl["def"],
+        "watch": [] if blank else list(decl.get("watch") or []),
+        "script": None if blank else decl.get("script"),
+    }
+
+
+def _watched(path, patterns):
+    """A changed path matches one of the gate's explicit globs. -> bool"""
+    for pat in patterns or ():
+        if fnmatch.fnmatch(path, pat):  # LEDGER-WATCH-GLOB
+            return True
+    return False
+
+
+def _verdict_row(name, root):
+    """The green suite_verdict for this tree, or why there is none. -> (ok, why)"""
+    try:
+        import suite_verdict as SV
+    except Exception as exc:
+        return False, "suite_verdict could not be imported (%s)" % type(exc).__name__
+    if name not in getattr(SV, "SUITES", ()):
+        return False, "no suite verdict exists for this gate"
+    key, why = SV.tree_key(root)
+    if not key:
+        return False, why or "these bytes have no suite verdict"
+    row, rwhy = SV.reusable(name, key, path=SV.store_path(root))
+    if not row:
+        return False, rwhy or "no green suite verdict for these bytes"
+    return True, None
+
+
+def verdict_allows(name, root):
+    """A green suite_verdict for this commit's tree. -> (ok, why)"""
+    ok, why = _verdict_row(name, root)  # LEDGER-NO-MINT
+    if not ok:
+        return False, why
+    return True, None
 
 
 def _porcelain(text):
@@ -202,9 +310,10 @@ class Ledger(object):
         self._parsed = {}
         self._tracked_memo = None
         self._tracked_root = None
-        self._change_memo = None
-        self._change_root = None
-        self._change_base = None
+        self._diff_cache = {}
+        self._diff_root = None
+        self._work = None
+        self._work_root = None
 
     def _ensure(self):
         if self._loaded:
@@ -323,23 +432,26 @@ class Ledger(object):
             self._tracked_root = root
         return self._tracked_memo
 
-    def _py_inputs(self, script):
+    def _py_inputs(self, script, gate_name=None):
         import heart2 as H
         sandbox = os.path.dirname(script)
         root = os.path.dirname(sandbox)
         try:
             found, why = H.law_inputs(
                 sandbox, os.path.basename(script), [],
-                parsed=self._parsed, tracked=self._tracked(root))
+                parsed=self._parsed, tracked=self._tracked(root),
+                allow_listing=gate_name in _LISTING_OK)
         except Exception as exc:
             return [], "inputs could not be derived (%s)" % type(exc).__name__
         if why:
             return [], why
-        paths = list(found)
-        for extra in ("gate_ledger.py", "run_gates.py"):
+        paths = list(found)  # LEDGER-CLOSURE-WALK
+        for extra in ("gate_ledger.py",):  # LEDGER-NO-RUNNER
             path = os.path.join(sandbox, extra)
             if os.path.isfile(path):
                 paths.append(path)
+        if not _script_reads_bible(script):  # LEDGER-BIBLE
+            paths = [p for p in paths if os.path.basename(p) != "bible.html"]
         return paths, None
 
     def _node_inputs(self, script):
@@ -366,9 +478,9 @@ class Ledger(object):
             paths.append(found)
         return paths, None
 
-    def _inputs(self, script, kinds):
+    def _inputs(self, script, kinds, gate_name=None):
         if script.endswith(".py"):
-            return self._py_inputs(script)
+            return self._py_inputs(script, gate_name)
         if "node" in kinds or script.endswith((".js", ".mjs", ".cjs")):
             return self._node_inputs(script)
         return [], "the script is not a python or node file"
@@ -394,7 +506,7 @@ class Ledger(object):
         parts, pwhy = self._tool_parts(kinds, root)
         if pwhy:
             return None, pwhy
-        found, iwhy = self._inputs(script, kinds)
+        found, iwhy = self._inputs(script, kinds, getattr(gate, "name", None))
         if iwhy:  # LEDGER-UNKEYABLE
             return None, iwhy
         rels = []
@@ -410,6 +522,8 @@ class Ledger(object):
             "tools": list(parts),
             "inputs": sorted(set(rels)),
             "kinds": sorted(kinds),
+            "watch": list(_LISTING_OK.get(getattr(gate, "name", None), ())),
+            "script": _rel(root, script),
         }, None
 
     def key_for(self, gate):
@@ -470,12 +584,7 @@ class Ledger(object):
                 decl, why = self.declare(gate)
             except Exception as exc:
                 decl, why = None, "inputs could not be derived (%s)" % type(exc).__name__
-            rows[gate.name] = {
-                "inputs": None if (why or not decl) else list(decl["inputs"]),
-                "why": why,
-                "kinds": [] if (why or not decl) else list(decl["kinds"]),
-                "def": None if (why or not decl) else decl["def"],
-            }
+            rows[gate.name] = _pack_row(decl, why)
         self.map = {"v": 1, "key": map_key(root), "gates": rows}
         self.map_hit = False
         self._write_map()
@@ -489,12 +598,7 @@ class Ledger(object):
             decl, why = self.declare(gate)
         except Exception as exc:
             decl, why = None, "inputs could not be derived (%s)" % type(exc).__name__
-        row = {
-            "inputs": None if (why or not decl) else list(decl["inputs"]),
-            "why": why,
-            "kinds": [] if (why or not decl) else list(decl["kinds"]),
-            "def": None if (why or not decl) else decl["def"],
-        }
+        row = _pack_row(decl, why)
         self.map.setdefault("gates", {})[gate.name] = row
         try:
             self._write_map()
@@ -502,40 +606,113 @@ class Ledger(object):
             pass
         return row
 
-    def git_changed(self, root, proven):
-        """Files that moved since the proven commit, plus the dirty worktree. -> (set|None, why)"""
-        out = ""
+    def _worktree(self, root):
+        """Dirty paths, once per run. -> (set|None, why)"""
+        if self._work is not None and self._work_root == root:
+            return self._work
+        self._work_root = root
         status_out = ""
-        cat_rc = diff_rc = stat_rc = 1
-        if proven and _SHA.match(proven):
-            cat = _git(root, ["cat-file", "-e", "%s^{commit}" % proven])
-            diff = _git(root, ["diff", "--name-only", "%s..HEAD" % proven])
-            stat = _git(root, ["status", "--porcelain"])
-            if cat is not None:
-                cat_rc = cat.returncode
-            if diff is not None:
-                diff_rc = diff.returncode
-                out = diff.stdout or ""
-            if stat is not None:
-                stat_rc = stat.returncode
-                status_out = stat.stdout or ""
-        if cat_rc != 0 or diff_rc != 0 or stat_rc != 0:  # LEDGER-SHA
-            return None, "the proven sha cannot be diffed"
-        changed = set(p.strip() for p in out.splitlines() if p.strip())  # LEDGER-DIFF
+        stat_rc = 1
+        stat = _git(root, ["status", "--porcelain"])
+        if stat is not None:
+            stat_rc = stat.returncode
+            status_out = stat.stdout or ""
+        if stat_rc != 0:
+            self._work = (None, "the worktree cannot be read")
+            return self._work
+        changed = set()
         changed |= _porcelain(status_out)  # LEDGER-STATUS
         changed = {p.replace("\\", "/") for p in changed}
         changed -= _SELF
         changed -= set("tv/" + name for name in _SELF)
-        return changed, None
+        self._work = (changed, None)
+        return self._work
 
-    def _changes(self, root):
-        if (self._change_memo is not None and self._change_root == root
-                and self._change_base == self.proven):
-            return self._change_memo
-        self._change_root = root
-        self._change_base = self.proven
-        self._change_memo = self.git_changed(root, self.proven)
-        return self._change_memo
+    def changes_since(self, root, sha):
+        """diff(sha..HEAD) plus the dirty worktree. One git diff per distinct sha. -> (set|None, why)"""
+        if self._diff_root != root:
+            self._diff_cache = {}
+            self._diff_root = root
+        key = str(sha or "")
+        if key in self._diff_cache:
+            return self._diff_cache[key]
+        dirty, dwhy = self._worktree(root)
+        if dwhy or dirty is None:
+            result = (None, dwhy or "the worktree cannot be read")
+            self._diff_cache[key] = result
+            return result
+        out = ""
+        cat_rc = diff_rc = stat_rc = 1
+        stat_rc = 0
+        if key and _SHA.match(key):
+            cat = _git(root, ["cat-file", "-e", "%s^{commit}" % key])
+            if cat is not None:
+                cat_rc = cat.returncode
+            head = head_sha(root) or ""
+            if cat_rc == 0 and key == head:
+                diff_rc = 0
+            elif cat_rc == 0:
+                diff = _git(root, ["diff", "--name-only", "%s..HEAD" % key])
+                if diff is not None:
+                    diff_rc = diff.returncode
+                    out = diff.stdout or ""
+        if cat_rc != 0 or diff_rc != 0 or stat_rc != 0:  # LEDGER-SHA
+            result = (None, "the proven sha cannot be diffed")
+            self._diff_cache[key] = result
+            return result
+        changed = set(p.strip() for p in out.splitlines() if p.strip())  # LEDGER-DIFF
+        changed |= set(dirty)
+        changed = {p.replace("\\", "/") for p in changed}
+        changed -= _SELF
+        changed -= set("tv/" + name for name in _SELF)
+        result = (changed, None)
+        self._diff_cache[key] = result
+        return result
+
+    def _is_ancestor(self, root, sha):
+        if not sha or not _SHA.match(str(sha)):
+            return False
+        head = head_sha(root)
+        if not head:
+            return False
+        if sha == head:
+            return True
+        proc = _git(root, ["merge-base", "--is-ancestor", sha, head])
+        return proc is not None and proc.returncode == 0
+
+    def _store_decl(self, gate, root):
+        """Parse the closure now and keep that row. -> row"""
+        self._load_map(root)
+        try:
+            decl, why = self.declare(gate)
+        except Exception as exc:
+            decl, why = None, "inputs could not be derived (%s)" % type(exc).__name__
+        row = _pack_row(decl, why)
+        self.map.setdefault("gates", {})[gate.name] = row
+        try:
+            self._write_map()
+        except Exception:
+            pass
+        return row
+
+    def _row_for(self, gate, root, changed):
+        """The cached row, rebuilt when its closure or the gate script moved. -> row"""
+        row = self._map_row(gate, root)
+        if not isinstance(row, dict):
+            return row
+        moved = "script" not in row
+        script_rel = row.get("script")
+        inputs = row.get("inputs")
+        if changed:
+            if script_rel and script_rel in changed:  # LEDGER-REBUILD-SCRIPT
+                moved = True
+            if isinstance(inputs, list) and any(p in changed for p in inputs):  # LEDGER-REBUILD-CLOSURE
+                moved = True
+            if "tv/heart2.py" in changed:
+                moved = True
+        if not moved:
+            return row
+        return self._store_decl(gate, root)
 
     def carry_line(self, entry):
         """'proven at <sha> (<age>)', or None when the row cannot be dated."""
@@ -569,23 +746,27 @@ class Ledger(object):
         root = self._root_of([gate])
         if entry.get("def") != self._definition(gate, root):
             return None, "the definition changed"
-        if entry.get("sha") != self.proven:
-            return None, "the stored PASS is not the proven sha"
         stored = [str(t) for t in (entry.get("tools") or [])]
         live, tw = self._tools_for(stored, root)
         if tw:
             return None, tw
         if live != stored:
             return None, "a tool version changed"
+        sha = str(entry.get("sha") or "")
+        changed, cwhy = self.changes_since(root, sha)
+        if cwhy or changed is None:
+            return None, cwhy or "the proven sha cannot be diffed"
+        if not self._is_ancestor(root, sha):  # LEDGER-ENTRY
+            return None, "the stored sha is not an ancestor of HEAD"
         try:
-            row = self._map_row(gate, root)
+            row = self._row_for(gate, root, changed)
         except Exception as exc:
             return None, "taking its inputs raised %s" % type(exc).__name__
         if not isinstance(row, dict) or row.get("why") or not isinstance(row.get("inputs"), list):
             return None, (row or {}).get("why") or "inputs are UNKNOWN"
-        changed, cwhy = self._changes(root)
-        if cwhy or changed is None:
-            return None, cwhy or "the proven sha cannot be diffed"
+        for path in changed:
+            if _watched(path, row.get("watch")):
+                return None, "inputs changed: %s" % path
         hit = [p for p in row["inputs"] if p in changed]
         if hit:
             return None, "inputs changed: %s" % hit[0]
@@ -639,7 +820,7 @@ class Ledger(object):
         name = str(getattr(gate, "name", "") or "")
         root = self._root_of([gate])
         try:
-            row = self._map_row(gate, root)
+            row = self._store_decl(gate, root)  # LEDGER-RECORD-FRESH
         except Exception:
             return False
         why = (row or {}).get("why")
@@ -717,6 +898,10 @@ def main(argv):
             return 1
         print(entry["line"])
         return 0
+    ok, why = verdict_allows(name, REPO)
+    if not ok:
+        print("ledger: %s was not recorded — %s" % (name, why))
+        return 1
     if led.record(gate, True):
         print("ledger: %s PASS recorded" % name)
         return 0

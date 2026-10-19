@@ -334,6 +334,13 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
             fh.write("RUN = 2\n")
         third = GL.map_key(root)
         self.assertNotEqual(second, third, "editing the runner left the map key unchanged")
+        with io.open(os.path.join(tv, "heart2.py"), "w", encoding="utf-8") as fh:
+            fh.write("H = 1\n")
+        fourth = GL.map_key(root)
+        with io.open(os.path.join(tv, "heart2.py"), "a", encoding="utf-8") as fh:
+            fh.write("H = 2\n")
+        fifth = GL.map_key(root)
+        self.assertNotEqual(fourth, fifth, "editing heart2.py left the map key unchanged")
 
     def test_a_carry_does_not_bank_evidence(self):
         root, led, gate = self._law()
@@ -362,6 +369,122 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
         finally:
             self_arming.bank = old_b
             vault_wilson.bank_into_proof_queue = old_q
+
+    def _commit_import(self, root, filename):
+        with io.open(os.path.join(root, "tv", filename), "a", encoding="utf-8") as fh:
+            fh.write("import newbie\n")
+        with io.open(os.path.join(root, "tv", "newbie.py"), "w", encoding="utf-8") as fh:
+            fh.write("N = 1\n")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-q", "-m", "gain an import")
+
+    def test_a_script_that_gained_an_import_is_not_carried_from_a_stale_map(self):
+        root, led, gate = self._law()
+        self.assertTrue(_open(led).record(gate, True), "PREMISE: the PASS was not stored")
+        self._commit_import(root, "t_carry.py")
+        self.assertTrue(_open(led).record(gate, True), "PREMISE: the refreshed PASS was not stored")
+        with io.open(os.path.join(root, "tv", "newbie.py"), "a", encoding="utf-8") as fh:
+            fh.write("N = 2\n")
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNone(entry, "a new import's file was carried: %s" % why)
+
+    def test_a_helper_that_grew_an_import_is_not_carried_from_a_stale_map(self):
+        root, led, gate = self._law()
+        self.assertTrue(_open(led).record(gate, True), "PREMISE: the PASS was not stored")
+        self._commit_import(root, "helper_gl.py")
+        self.assertTrue(_open(led).record(gate, True), "PREMISE: the refreshed PASS was not stored")
+        with io.open(os.path.join(root, "tv", "newbie.py"), "a", encoding="utf-8") as fh:
+            fh.write("N = 2\n")
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNone(entry, "a helper's new import was carried: %s" % why)
+
+    def test_a_fresh_pass_at_a_new_head_does_not_drop_the_other_carries(self):
+        root, led, gate = self._law()
+        other = _gate(root, "unrelated.py")
+        other.name = "other-fixture"
+        book = _open(led)
+        self.assertTrue(book.record(gate, True), "PREMISE: the first PASS was not stored")
+        self.assertTrue(book.record(other, True), "PREMISE: the second PASS was not stored")
+        with io.open(os.path.join(root, "tv", "note.py"), "w", encoding="utf-8") as fh:
+            fh.write("x = 1\n")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-q", "-m", "unrelated commit")
+        self.assertTrue(_open(led).record(gate, True), "PREMISE: the new HEAD did not store a PASS")
+        entry, why = _open(led).lookup(other)
+        self.assertIsNotNone(entry, why)
+        self.assertTrue(str(entry.get("line") or "").startswith("proven at "), entry)
+
+    def test_bible_html_is_not_inherited_from_an_imported_string(self):
+        root, led, gate = self._law(extra={"namer.py": "PATH = 'bible.html'\n"})
+        bible = os.path.join(root, "bible.html")
+        with io.open(bible, "w", encoding="utf-8") as fh:
+            fh.write("<html></html>\n")
+        with io.open(os.path.join(root, "tv", "t_carry.py"), "w", encoding="utf-8") as fh:
+            fh.write("import namer\nimport sys\nsys.exit(0)\n")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-q", "-m", "name the page")
+        self.assertTrue(_open(led).record(gate, True), "PREMISE: the PASS was not stored")
+        with io.open(bible, "a", encoding="utf-8") as fh:
+            fh.write("<!-- moved -->\n")
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNotNone(entry, why)
+        with io.open(os.path.join(root, "tv", "t_carry.py"), "w", encoding="utf-8") as fh:
+            fh.write("import namer\nopen('bible.html')\n")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-q", "-m", "the gate opens the page")
+        reader = _gate(root, "t_carry.py")
+        self.assertTrue(_open(led).record(reader, True), "PREMISE: the reader was not stored")
+        with io.open(bible, "a", encoding="utf-8") as fh:
+            fh.write("<!-- again -->\n")
+        entry, why = _open(led).lookup(reader)
+        self.assertIsNone(entry, "a gate that opens bible.html carried the edit: %s" % why)
+
+    def test_the_runner_file_is_not_an_input_of_every_gate(self):
+        root, led, gate = self._law()
+        with io.open(os.path.join(root, "tv", "run_gates.py"), "w", encoding="utf-8") as fh:
+            fh.write("GATES = []\n")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-q", "-m", "add a runner")
+        self.assertTrue(_open(led).record(gate, True), "PREMISE: the PASS was not stored")
+        with io.open(os.path.join(root, "tv", "run_gates.py"), "a", encoding="utf-8") as fh:
+            fh.write("GATES.append(1)\n")
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNotNone(entry, why)
+
+    def test_a_declared_glob_matches_a_new_file(self):
+        self.assertTrue(GL._watched("tv/brand_new.py", ("tv/*.py",)))
+        self.assertFalse(GL._watched("bible.html", ("tv/*.py",)))
+
+    def test_test_agent_is_nameable_because_its_listings_are_temp_dirs(self):
+        root, led, _gate_py = self._law(extra={"t_list.py": _LISTING})
+        gate = _gate(root, "t_list.py")
+        gate.name = "test_agent"
+        self.assertTrue(_open(led).record(gate, True), "PREMISE: test_agent was not stored")
+        with io.open(os.path.join(root, "tv", "brand_new.py"), "w", encoding="utf-8") as fh:
+            fh.write("N = 1\n")
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNotNone(entry, why)
+
+    def test_test_control_stays_unnameable(self):
+        root, led, _gate_py = self._law(extra={"t_list.py": _LISTING})
+        gate = _gate(root, "t_list.py")
+        gate.name = "test_control"
+        self.assertFalse(_open(led).record(gate, True), "test_control's directory listings were named")
+
+    def test_record_does_not_mint_a_pass_without_a_suite_verdict(self):
+        root, _led, _gate_py = self._law()
+        ok, why = GL.verdict_allows("test_agent", root)
+        self.assertFalse(ok, why)
+        import suite_verdict as SV
+        key, why = SV.tree_key(root)
+        self.assertTrue(key, why)
+        path = SV.store_path(root)
+        self.assertTrue(path, "the fixture has no suite-verdict store")
+        self.assertTrue(SV.record("test_agent", key, True, path=path))
+        ok, why = GL.verdict_allows("test_agent", root)
+        self.assertTrue(ok, why)
+        self.assertFalse(GL.verdict_allows("test_control", root)[0])
+        self.assertFalse(GL.verdict_allows("test_tz_art", root)[0])
 
 
 class TheRunnerSeparatesFreshFromCarried(unittest.TestCase):
@@ -484,6 +607,10 @@ class TheHookAndTheWorkflowStayHonest(unittest.TestCase):
         self.assertIn("python3 tv/run_gates.py --shard ${{ matrix.shard }}/4", raw)
         self.assertNotIn("run_gates.py --changed", raw)
 
+    def test_the_carry_comment_does_not_say_input_bytes(self):
+        raw, _code = self._hook()
+        self.assertNotIn("input bytes", raw)
+
     def test_wilson_of_these_attacks_meets_the_bar_and_one_kind_does_not_open_a_door(self):
         import confidence
         n = len(RED_PROOF)
@@ -518,8 +645,8 @@ RED_PROOF = [
     {
         "why": "the blueprint is not part of the input-map key, so a stale map is reused",
         "file": "gate_ledger.py",
-        "find": "    rels = (\"tv/run_gates.py\", \"BLUEPRINT.md\")  # LEDGER-MAPKEY\n",
-        "replace": "    rels = (\"tv/run_gates.py\",)  # LEDGER-MAPKEY\n",
+        "find": "    rels = (\"tv/run_gates.py\", \"BLUEPRINT.md\", \"tv/heart2.py\")  # LEDGER-MAPKEY\n",
+        "replace": "    rels = (\"tv/run_gates.py\", \"tv/heart2.py\")  # LEDGER-MAPKEY\n",
         "matches": 1,
     },
     {
@@ -688,6 +815,76 @@ RED_PROOF = [
         "file": "run_gates.py",
         "find": "_LEDGER_SELF = frozenset((\".gate_ledger.json\", \".gate_ledger.json.tmp\", \".gate_inputs.json\", \".gate_inputs.json.tmp\"))  # LEDGER-WATCH\n",
         "replace": "_LEDGER_SELF = frozenset()  # LEDGER-WATCH\n",
+        "matches": 1,
+    },
+    {
+        "why": "script gained an import, map not rebuilt",
+        "file": "gate_ledger.py",
+        "find": "            row = self._store_decl(gate, root)  # LEDGER-RECORD-FRESH\n",
+        "replace": "            row = self._map_row(gate, root)  # LEDGER-RECORD-FRESH\n",
+        "matches": 1,
+    },
+    {
+        "why": "helper grew a new import",
+        "file": "gate_ledger.py",
+        "find": "        paths = list(found)  # LEDGER-CLOSURE-WALK\n",
+        "replace": "        paths = [p for p in found if os.path.basename(p) == os.path.basename(script)]  # LEDGER-CLOSURE-WALK\n",
+        "matches": 1,
+    },
+    {
+        "why": "one fresh PASS at the new HEAD makes every other gate rerun",
+        "file": "gate_ledger.py",
+        "find": "        if not self._is_ancestor(root, sha):  # LEDGER-ENTRY\n",
+        "replace": "        if sha != self.proven:  # LEDGER-ENTRY\n",
+        "matches": 1,
+    },
+    {
+        "why": "bible.html is inherited from a string constant in an import",
+        "file": "gate_ledger.py",
+        "find": "        if not _script_reads_bible(script):  # LEDGER-BIBLE\n",
+        "replace": "        if False:  # LEDGER-BIBLE\n",
+        "matches": 1,
+    },
+    {
+        "why": "the whole runner is an input of every gate, so editing it reruns them all",
+        "file": "gate_ledger.py",
+        "find": "        for extra in (\"gate_ledger.py\",):  # LEDGER-NO-RUNNER\n",
+        "replace": "        for extra in (\"gate_ledger.py\", \"run_gates.py\"):  # LEDGER-NO-RUNNER\n",
+        "matches": 1,
+    },
+    {
+        "why": "a new file matching a declared glob is carried",
+        "file": "gate_ledger.py",
+        "find": "        if fnmatch.fnmatch(path, pat):  # LEDGER-WATCH-GLOB\n",
+        "replace": "        if False:  # LEDGER-WATCH-GLOB\n",
+        "matches": 1,
+    },
+    {
+        "why": "test_agent's temp-directory listings are treated as unnameable",
+        "file": "gate_ledger.py",
+        "find": "    \"test_agent\": (),  # LEDGER-LISTING\n",
+        "replace": "    \"test_agent_disabled\": (),  # LEDGER-LISTING\n",
+        "matches": 1,
+    },
+    {
+        "why": "test_control's live directory listings are named, so a footage change carries",
+        "file": "gate_ledger.py",
+        "find": "    \"test_agent\": (),  # LEDGER-LISTING\n",
+        "replace": "    \"test_agent\": (),  # LEDGER-LISTING\n    \"test_control\": (),\n",
+        "matches": 1,
+    },
+    {
+        "why": "--record mints a PASS with no suite verdict for these bytes",
+        "file": "gate_ledger.py",
+        "find": "    ok, why = _verdict_row(name, root)  # LEDGER-NO-MINT\n",
+        "replace": "    ok, why = (True, None)  # LEDGER-NO-MINT\n",
+        "matches": 1,
+    },
+    {
+        "why": "heart2.py is not part of the input-map key, so a stale closure map is reused",
+        "file": "gate_ledger.py",
+        "find": "    rels = (\"tv/run_gates.py\", \"BLUEPRINT.md\", \"tv/heart2.py\")  # LEDGER-MAPKEY\n",
+        "replace": "    rels = (\"tv/run_gates.py\", \"BLUEPRINT.md\")  # LEDGER-MAPKEY\n",
         "matches": 1,
     },
     {
