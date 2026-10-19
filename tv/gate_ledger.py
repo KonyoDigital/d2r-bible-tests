@@ -1105,6 +1105,9 @@ def trace_env(env, root, path):
     env["TV_GATE_TRACE_ROOT"] = os.path.abspath(root)
     old = env.get("PYTHONPATH") or ""
     env["PYTHONPATH"] = TRACE_DIR + (os.pathsep + old if old else "")  # LEDGER-TRACE-ARM
+    hook = os.path.join(TRACE_DIR, "node_trace.cjs")
+    node = env.get("NODE_OPTIONS") or ""
+    env["NODE_OPTIONS"] = ('--require "%s"' % hook) + (" " + node if node else "")  # LEDGER-TRACE-NODE
     return env
 
 
