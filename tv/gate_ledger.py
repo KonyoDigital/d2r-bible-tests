@@ -28,6 +28,25 @@ does not either.
 A gate whose inputs are not in the set is printed as `proven at <sha> (<age>)` and its files
 are not opened.
 
+REG-2293 round 5 — THE PROOF REMEMBERS WHAT THE GATE READ. A static walk cannot see every read:
+a glob inside an imported module, `p = path or BIBLE; open(p)`, a handler reached by dispatch. So
+run_gates runs each gate with gate_trace/sitecustomize.py armed (an audit hook on open, listdir,
+scandir, glob, stat, import and every child process), and the PASS stores what that run read:
+
+    inputs   the static walk plus every repo file the run opened or stat'ed
+    listed   every repo directory it listed (not the import system's own listings)
+    imports  every non-stdlib module name it imported, found or not
+
+`lookup` compares `git diff --name-status --no-renames` plus `git status --porcelain
+--untracked-files=all` with the stored set AND today's walk, so a deleted input is still an
+input. An added or deleted file under a listed directory, or a new module whose name the gate
+imported, is a hit. `record` refuses a PASS when a dirty or untracked path touches those inputs,
+since the commit it would be labelled with is not the bytes it ran on. A run the hook could not
+follow is never stored: no trace (a node gate), a non-python child (node, chrome, lsof, a git
+command that reads history), a python child that did not trace itself, a read of a gitignored
+file, or a listing of a directory that holds no tracked file. A row stored before this change
+has no `traced` mark and runs once.
+
 Fail closed. A missing or unreachable proven sha, a diff that fails, a gate whose inputs cannot
 be named, a corrupt ledger, and a FAIL are all a run. Only a PASS is stored. `--full` does not
 consult the ledger. GitHub CI does not either. The changed-law red-proof (v3292) is a different
@@ -37,7 +56,8 @@ The files are per checkout, gitignored, and never a verdict of record. CARRY is 
 and it does not bank Wilson evidence.
 
     python3 tv/gate_ledger.py --carry NAME     exit 0 and "proven at <sha> (<age>)", or exit 1
-    python3 tv/gate_ledger.py --record NAME    store a PASS only when suite_verdict proved these bytes
+    python3 tv/gate_ledger.py --record NAME    needs suite_verdict for these bytes AND a trace, so a bare
+                                               --record says why and stores nothing; run_gates stores
 """
 import ast
 import fnmatch
@@ -155,12 +175,12 @@ def map_key(root):
     return hashlib.sha256(b"\0".join(p.encode("ascii") for p in parts)).hexdigest()
 
 
-# Directory listings that are sound to name. test_agent only lists directories the test
-# itself creates (a tempfile, or HIST_DIR pointed at one), so the import closure is the
-# whole input set. test_control stays unnameable: it globs gitignored footage
-# (tv/frames/hist, which git status never shows) and also tests/*.spec.ts, tv/*.sh and
-# hooks/*. A glob of tv/*.py would miss those, and a carry would be a pass for bytes
-# the suite can still read. Anything else that lists a directory stays unnameable.
+# Directory listings IN THE GATE FILE ITSELF that the static walk may name. test_agent only
+# lists directories the test itself creates (a tempfile, or HIST_DIR pointed at one).
+# test_control stays unnameable: it globs gitignored footage (tv/frames/hist, which git status
+# never shows). Any other gate file that lists a directory stays unnameable. A listing inside an
+# imported module is not seen by the walk; the traced run records it (`listed`), and a run that
+# listed a directory holding no tracked file is not stored.
 _LISTING_OK = {
     "test_agent": (),  # LEDGER-LISTING
 }
