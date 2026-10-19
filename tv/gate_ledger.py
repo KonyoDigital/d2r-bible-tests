@@ -99,7 +99,7 @@ def head_sha(root):
         try:
             proc = subprocess.run(
                 ["git", "-C", cwd, "rev-parse", "HEAD"],
-                capture_output=True, text=True, timeout=15)
+                capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15)
         except Exception:
             continue
         sha = (proc.stdout or "").strip()
@@ -112,7 +112,7 @@ def _git(root, args):
     """One git invocation. -> CompletedProcess | None"""
     try:
         return subprocess.run(["git", "-C", root] + list(args),
-                              capture_output=True, text=True, timeout=60)
+                              capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60)
     except Exception:
         return None
 
@@ -155,7 +155,8 @@ def _porcelain(text):
 
 def _node_version():
     try:
-        proc = subprocess.run(["node", "--version"], capture_output=True, text=True, timeout=10)
+        proc = subprocess.run(["node", "--version"], capture_output=True, text=True,
+                              encoding="utf-8", errors="replace", timeout=10)
     except Exception:
         return None
     if proc.returncode != 0:
