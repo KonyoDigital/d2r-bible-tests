@@ -271,22 +271,59 @@ class ACoherentBumpCarries(unittest.TestCase):
             self.assertIsNone(GL.stamp_file_versions(rel, _hunk(rel, rem, [top] + mid + [bot])), mid)
 
     # --- round 2 A: free text on stamp lines
-    def test_a_content_scanner_reruns_on_a_coherent_bump(self):
+    def test_a_content_scanner_carries_a_clean_bump(self):
         _write(self.root, "tv/t_scan.py", "import control_app\nopen('bible.html').read()\n")
         _git(self.root, "add", "-A"); _git(self.root, "commit", "-qm", "scan")
         g = self.gate("t_scan.py", name="fixture-plain-name"); b = self.book(g)
         self.bump()
-        self.assertFalse(self.carried(g, b)[0], "a gate that reads bible.html text was carried over a bump")
+        ok, why = self.carried(g, b)
+        self.assertTrue(ok, "a clean coherent bump reran a content scanner: %s" % why)
 
-    def test_a_privacy_gate_reruns_on_a_coherent_bump(self):
-        g = self.gate("t_plain.py", name="test_no_new_home_path_fixture"); b = self.book(g)
+    def _leaky_bump(self, leak):
+        new = _files(V, sha_row=True, note="second")
+        new["bible.html"] = new["bible.html"].replace("note:'second'", "note:'second %s'" % leak)
+        self.bump(override={"bible.html": new["bible.html"]})
+
+    def test_a_hand_pasted_leak_on_a_stamp_line_reruns_everything(self):
+        _write(self.root, "tv/t_scan.py", "import control_app\nopen('bible.html').read()\n")
+        _git(self.root, "add", "-A"); _git(self.root, "commit", "-qm", "scan")
+        for leak in ("/Us" + "ers/someone/Library/", "10.0." + "0.7", "konyo-3" + ".local", "ghp_" + "b" * 30):
+            g = self.gate("t_scan.py", name="fixture-plain-name")
+            _git(self.root, "checkout", "-q", "--", ".")
+            b = self.book(g)
+            self._leaky_bump(leak)
+            self.assertIsNotNone(GL.stamp_file_versions("bible.html", _git(self.root, "diff", "-U0", "HEAD", "--", "bible.html").stdout),
+                                 "PREMISE: the leaky line is still a well-formed stamp")
+            self.assertFalse(self.carried(g, b)[0], "a leak pasted into a stamp line by hand was carried: %s" % leak)
+
+    def test_an_unloadable_leak_check_is_not_clean(self):
+        held = sys.modules.get("stamp_leak")
+        sys.modules["stamp_leak"] = None
+        try:
+            self.assertFalse(GL.stamp_text_clean(["a clean note"]), "a leak check that cannot load read as clean")
+        finally:
+            if held is None:
+                sys.modules.pop("stamp_leak", None)
+            else:
+                sys.modules["stamp_leak"] = held
+        self.assertTrue(GL.stamp_text_clean(["a clean note"]))
+
+    def test_the_home_path_gate_always_reruns_on_a_bump(self):
+        g = self.gate("t_plain.py", name="test_no_new_home_path_is_published"); b = self.book(g)
         self.bump()
-        self.assertFalse(self.carried(g, b)[0], "a privacy gate was carried over a bump")
+        self.assertFalse(self.carried(g, b)[0], "the home-path gate was carried over a bump")
+
+    def test_the_blueprint_time_line_does_not_rekey_the_map(self):
+        a = GL.map_key(self.root)
+        self.edit("BLUEPRINT.md", "generated 2026-10-19 10:16", "generated 2026-10-19 13:50")
+        self.assertEqual(a, GL.map_key(self.root), "the generated time rebuilt the input map")
+        self.edit("BLUEPRINT.md", "# b", "# b gate added")
+        self.assertNotEqual(a, GL.map_key(self.root), "a real blueprint change kept the map key")
 
     def test_the_bump_refuses_a_leak_in_its_free_text(self):
         import bump_version as BV
-        for bad in ("moved the cache out of /Us" + "ers/someone/Library/", "talks to 192.168.1.20 now",
-                    "the konyo-3.local box", "token ghp_" + "a" * 30):
+        for bad in ("moved the cache out of /Us" + "ers/someone/Library/", "talks to 192.168." + "1.20 now",
+                    "the konyo-3" + ".local box", "token ghp_" + "a" * 30):
             self.assertTrue(BV.leak_problem(bad), bad)
         for fine in ("gate memory carries a bump", "Wilson 0.824 against 0.722", "sha e22a1975 and v3.1.2"):
             self.assertIsNone(BV.leak_problem(fine), fine)
@@ -521,28 +558,28 @@ RED_PROOF = [
     },
     {
         'why': 'a home path in the note is accepted',
-        'file': 'bump_version.py',
+        'file': 'stamp_leak.py',
         'find': '        if _hp.count(t):  # BUMP-LEAK-HOME\n',
         'replace': '        if False:  # BUMP-LEAK-HOME\n',
         'matches': 1,
     },
     {
         'why': 'an IP in the note is accepted',
-        'file': 'bump_version.py',
+        'file': 'stamp_leak.py',
         'find': '    if _LEAK_IP.search(t):  # BUMP-LEAK-IP\n',
         'replace': '    if False:  # BUMP-LEAK-IP\n',
         'matches': 1,
     },
     {
         'why': 'a hostname in the note is accepted',
-        'file': 'bump_version.py',
+        'file': 'stamp_leak.py',
         'find': '    if _LEAK_HOST.search(t):  # BUMP-LEAK-HOST\n',
         'replace': '    if False:  # BUMP-LEAK-HOST\n',
         'matches': 1,
     },
     {
         'why': 'a token in the note is accepted',
-        'file': 'bump_version.py',
+        'file': 'stamp_leak.py',
         'find': '    if _LEAK_TOKEN.search(t):  # BUMP-LEAK-TOKEN\n',
         'replace': '    if False:  # BUMP-LEAK-TOKEN\n',
         'matches': 1,
@@ -552,20 +589,6 @@ RED_PROOF = [
         'file': 'bump_version.py',
         'find': '        if _leak:  # BUMP-LEAK-REFUSE\n',
         'replace': '        if False:  # BUMP-LEAK-REFUSE\n',
-        'matches': 1,
-    },
-    {
-        'why': 'a privacy gate is carried over a bump',
-        'file': 'gate_ledger.py',
-        'find': '        if _CONTENT_NAME.search(str(name or "")):  # STAMP-CONTENT-NAME\n',
-        'replace': '        if False:  # STAMP-CONTENT-NAME\n',
-        'matches': 1,
-    },
-    {
-        'why': 'a gate that reads bible.html text is carried over a bump',
-        'file': 'gate_ledger.py',
-        'find': '                    self._verdep[key] = bool(_CONTENT_SCRIPT.search(fh.read()))  # STAMP-CONTENT-SCRIPT\n',
-        'replace': '                    self._verdep[key] = False  # STAMP-CONTENT-SCRIPT\n',
         'matches': 1,
     },
     {
@@ -587,6 +610,48 @@ RED_PROOF = [
         'file': 'gate_ledger.py',
         'find': '    if o != n or len(rem) != 1 or not 2 <= len(add) <= _MAX_BUMPS + 1:  # STAMP-TASKS-SHAPE\n',
         'replace': '    if o != n or len(rem) != 1 or len(add) != 2:  # STAMP-TASKS-SHAPE\n',
+        'matches': 1,
+    },
+    {
+        'why': 'a leak on an added stamp line is accepted',
+        'file': 'gate_ledger.py',
+        'find': '        if stamp_leak.leak_problem(line):  # STAMP-ADDED-LEAK\n',
+        'replace': '        if False:  # STAMP-ADDED-LEAK\n',
+        'matches': 1,
+    },
+    {
+        'why': 'the added stamp text is never checked',
+        'file': 'gate_ledger.py',
+        'find': ' and stamp_text_clean(added)) else set()',
+        'replace': ' and True) else set()',
+        'matches': 1,
+    },
+    {
+        'why': 'the leak module failing to load counts as clean',
+        'file': 'gate_ledger.py',
+        'find': '    except Exception:\n        return False\n    for line in lines:',
+        'replace': '    except Exception:\n        return True\n    for line in lines:',
+        'matches': 1,
+    },
+    {
+        'why': 'the home-path gate is carried over a bump',
+        'file': 'gate_ledger.py',
+        'find': '        return str(name or "") in _ALWAYS_RERUN  # STAMP-ALWAYS-RERUN\n',
+        'replace': '        return False  # STAMP-ALWAYS-RERUN\n',
+        'matches': 1,
+    },
+    {
+        'why': 'the blueprint time line still rekeys the map',
+        'file': 'gate_ledger.py',
+        'find': '    raw = _BLUEPRINT_STAMP.sub(b"    generated -", raw, count=1)  # LEDGER-MAPKEY-STAMP\n',
+        'replace': '    pass  # LEDGER-MAPKEY-STAMP\n',
+        'matches': 1,
+    },
+    {
+        'why': 'the whole blueprint is blanked, so a real change keeps the map',
+        'file': 'gate_ledger.py',
+        'find': '    raw = _BLUEPRINT_STAMP.sub(b"    generated -", raw, count=1)  # LEDGER-MAPKEY-STAMP\n',
+        'replace': '    raw = b""  # LEDGER-MAPKEY-STAMP\n',
         'matches': 1,
     },
 ]

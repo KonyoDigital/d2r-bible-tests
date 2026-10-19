@@ -2672,5 +2672,13 @@
     "gotcha": "A missing beat is None (UNKNOWN), never 0 or instant. P95_BUDGET_MS and LONGTASK_BUDGET_MS are wall-clock and move with box load, so the v3773 guard (test_input_stays_responsive) does not judge on them; it judges COUNT_BUDGET, the getComputedStyle calls and whole-document walks per tab switch and per vault repaint.",
     "purpose": "Holds the click-to-paint beat the page reports ({p50, p95, maxLongtask, n}) for health_engine and the console, plus the v3769 latency baseline and the v3773 count budget.",
     "territory": "heart-organs"
+  },
+  "stamp_leak.py": {
+    "entryPoints": [
+      "leak_problem"
+    ],
+    "purpose": "What a version stamp may not carry: a home path, an IP, a hostname, a token or this machine's identity. bump_version refuses a leaking name or note with it, and gate_ledger checks every added stamp line with it before a coherent bump carries a gate.",
+    "gotcha": "One definition, two callers. A check that cannot load counts as dirty, never clean.",
+    "territory": "gates-proofs"
   }
 }
