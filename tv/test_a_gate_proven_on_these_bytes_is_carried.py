@@ -913,8 +913,9 @@ class TheProofRemembersWhatTheGateRead(unittest.TestCase):
         self.assertFalse(_prove(book, _gate(root, "t_live.py")), "a read of ignored local state was carried")
         self.assertIn("ignores", book.last_why or "")
         cache = ("import os, sys\nHERE = os.path.dirname(os.path.abspath(__file__))\n"
-                 "p = os.path.join(HERE, 'live_gl.json')\nif not os.path.exists(p):\n"
-                 "    open(p + '.tmp', 'w').write('{}')\n    os.replace(p + '.tmp', p)\n"
+                 "p = os.path.join(HERE, 'live_gl.json')\n"
+                 "old = open(p).read() if os.path.exists(p) else ''\n"
+                 "open(p + '.tmp', 'w').write('{}')\nos.replace(p + '.tmp', p)\n"
                  "sys.exit(0 if open(p).read() else 1)\n")
         _write(root, "tv/t_cache.py", cache)
         _commit(root, "a gate that builds its own cache")
@@ -934,9 +935,11 @@ class TheProofRemembersWhatTheGateRead(unittest.TestCase):
                  "subprocess.run(['git', '-C', d, 'status'], capture_output=True)\n")
         root, led = self._tree({"t_ls.py": lister, "t_log.py": history, "t_aside.py": aside})
         gate = _gate(root, "t_ls.py")
+        log, aside_gate = _gate(root, "t_log.py"), _gate(root, "t_aside.py")
+        log.name, aside_gate.name = "git-log-fixture", "git-aside-fixture"
         self.assertTrue(_prove(_open(led), gate), "PREMISE: the ls-files gate was not stored")
-        self.assertFalse(_prove(_open(led), _gate(root, "t_log.py")), "a gate that reads git history was stored")
-        self.assertTrue(_prove(_open(led), _gate(root, "t_aside.py")), "git in a tempdir repository is not a read")
+        self.assertFalse(_prove(_open(led), log), "a gate that reads git history was stored")
+        self.assertTrue(_prove(_open(led), aside_gate), "git in a tempdir repository is not a read")
         for n in range(5):
             _write(root, "docs/n%d.md" % n, "n\n")
         _commit(root, "five new files")
