@@ -6,7 +6,8 @@ TV_GATE_TRACE. Python imports `sitecustomize` before the gate's own script, so a
 place before the first byte of the gate is opened. Each line is `KIND<TAB>PID<TAB>TEXT`:
 
     B  this process started (TEXT is the parent pid)
-    R  opened for reading        W  opened for writing       S  stat'ed (exists/isfile/getsize)
+    R  opened for reading        S  stat'ed (exists/isfile/getsize)   A  stat'ed and absent
+    W  opened for writing, or made by rename, copy, mkdir or link
     L  listed (listdir, scandir, glob, walk)                  I  imported a top-level module name
     P  started a python child that will trace itself
     G  ran `git check-ignore`, so every .gitignore is an input
@@ -199,6 +200,19 @@ def _boot():
                     r = rel(os.path.dirname(fsdecode(pat)) or ".")
                     if r is not None:
                         emit("L", r)
+            elif event in ("os.rename", "shutil.copyfile", "shutil.copytree", "shutil.move"):
+                if len(args) > 1:
+                    if event != "os.rename":
+                        r = rel(args[0])
+                        if r is not None:
+                            emit("R", r)
+                    r = rel(args[1])
+                    if r is not None:
+                        emit("W", r)  # a file this run made is not state it found
+            elif event in ("os.mkdir", "os.symlink", "os.link"):
+                r = rel(args[1] if event != "os.mkdir" and len(args) > 1 else args[0])
+                if r is not None:
+                    emit("W", r)
             elif event == "import":
                 name = str(args[0] or "").split(".")[0]
                 if name and name not in stdlib:
@@ -219,19 +233,28 @@ def _boot():
 
     def stat_wrap(real):
         def wrapped(path, *a, **k):
-            if not state["busy"] and k.get("dir_fd") is None:
-                state["busy"] = True
-                try:
-                    r = rel(path)
-                    if r is not None:
-                        emit("S", r)
-                except Exception:
-                    pass
-                finally:
-                    state["busy"] = False
-            return real(path, *a, **k)
+            if state["busy"] or k.get("dir_fd") is not None:
+                return real(path, *a, **k)
+            try:
+                out_stat = real(path, *a, **k)
+            except FileNotFoundError:
+                note(path, "A")
+                raise
+            note(path, "S")
+            return out_stat
         wrapped.__wrapped__ = real
         return wrapped
+
+    def note(path, kind):
+        state["busy"] = True
+        try:
+            r = rel(path)
+            if r is not None:
+                emit(kind, r)
+        except Exception:
+            pass
+        finally:
+            state["busy"] = False
 
     def after_fork():
         parent = state["pid"]
