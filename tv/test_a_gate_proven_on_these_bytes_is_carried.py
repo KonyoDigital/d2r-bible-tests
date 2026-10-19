@@ -839,6 +839,52 @@ class TheProofRemembersWhatTheGateRead(unittest.TestCase):
         self.assertIsNone(why)
         self.assertIn("tv/dep_gl.py", traced["inputs"], "an imported module's source is not an input")
 
+    def test_reads_on_other_threads_are_all_seen(self):
+        """r5 A: one process-wide busy flag dropped opens made on thread B while A was in the hook."""
+        law = ("import os, sys\nfrom concurrent.futures import ThreadPoolExecutor\n"
+               "HERE = os.path.dirname(os.path.abspath(__file__))\n"
+               "import threading\nGO = threading.Barrier(64)\n"
+               "def rd(i):\n    GO.wait()\n    with open(os.path.join(HERE, 'th', 'f%d.txt' % i)) as fh:\n        return fh.read()\n"
+               "with ThreadPoolExecutor(64) as ex:\n    out = list(ex.map(rd, range(64)))\n"
+               "sys.exit(0 if all(x == 'ok' for x in out) else 1)\n")
+        root, led = self._tree({"t_th.py": law}, dict(("tv/th/f%d.txt" % i, "ok") for i in range(64)))
+        gate = _gate(root, "t_th.py")
+        _rc, trace = _run_traced(gate)
+        try:
+            facts, why = GL.read_trace(trace)
+        finally:
+            os.remove(trace)
+        self.assertIsNone(why)
+        missing = [i for i in range(64) if "tv/th/f%d.txt" % i not in facts["R"]]
+        self.assertEqual(missing, [], "reads made on other threads were not traced")
+
+    def test_os_access_on_an_absent_file_is_an_input(self):
+        """r5 C: `not os.access(p, F_OK)` stored nothing, so adding the file carried a red gate."""
+        law = ("import os, sys\nHERE = os.path.dirname(os.path.abspath(__file__))\n"
+               "sys.exit(1 if os.access(os.path.join(HERE, 'zz_flag'), os.F_OK) else 0)\n")
+        root, led = self._tree({"t_acc.py": law})
+        gate = _gate(root, "t_acc.py")
+        self.assertTrue(_prove(_open(led), gate), "PREMISE: the PASS was not stored")
+        _write(root, "tv/zz_flag", "x\n")
+        _commit(root, "the flag appears")
+        self.assertNotEqual(_run_traced(gate)[0], 0, "PREMISE: the gate is not red with the flag")
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNone(entry, "a file probed with os.access carried a red gate")
+
+    def test_readlink_and_realpath_are_probes(self):
+        law = ("import os\nHERE = os.path.dirname(os.path.abspath(__file__))\n"
+               "os.path.realpath(os.path.join(HERE, 'zz_rp'))\n"
+               "try:\n    os.readlink(os.path.join(HERE, 'zz_rl'))\nexcept OSError:\n    pass\nprint('OK')\n")
+        root, _led = self._tree({"t_rp.py": law})
+        _rc, trace = _run_traced(_gate(root, "t_rp.py"))
+        try:
+            facts, _why = GL.read_trace(trace)
+        finally:
+            os.remove(trace)
+        seen = facts["S"] | facts["A"]
+        self.assertIn("tv/zz_rp", seen, "os.path.realpath is not traced")
+        self.assertIn("tv/zz_rl", seen, "os.readlink is not traced")
+
     def test_a_pass_proved_on_a_dirty_tree_is_not_stored_under_head(self):
         root, led = self._tree({"t_mod.py": "import sys, helper_gl\nsys.exit(0 if helper_gl.OK else 1)\n",
                                 "helper_gl.py": "OK = False\n"})
@@ -1612,6 +1658,27 @@ RED_PROOF = [
         "file": "gate_ledger.py",
         "find": "            inputs.update(p for p in tracked if _module_stem(p) in names)  # LEDGER-TRACE-IMPORT-SOURCE\n",
         "replace": "            pass  # LEDGER-TRACE-IMPORT-SOURCE\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r6 (A): one busy flag for every thread, so an open on another thread is dropped",
+        "file": "gate_trace/sitecustomize.py",
+        "find": "    local = _thread._local()  # LEDGER-TRACE-THREAD\n",
+        "replace": "    local = type(\"Shared\", (), {})()  # LEDGER-TRACE-THREAD\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r6 (C): os.access is not a probe, so a file a gate checked was absent carries when it appears",
+        "file": "gate_trace/sitecustomize.py",
+        "find": "    os.access = probe_wrap(os.access)\n",
+        "replace": "    pass\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r6 (C): os.path.realpath is not a probe",
+        "file": "gate_trace/sitecustomize.py",
+        "find": "    os.path.realpath = probe_wrap(os.path.realpath)  # LEDGER-TRACE-PROBE\n",
+        "replace": "    pass  # LEDGER-TRACE-PROBE\n",
         "matches": 1,
     },
 ]
