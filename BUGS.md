@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2293 - A PUSH RE-PROVED GATES WHOSE INPUTS HAD NOT MOVED (v3768)
+
+A version was paying for about four full `run_gates` passes. Hashing every input of every gate, to decide whether it could be skipped, cost about as much as running it: on this machine a full execution was 9320s (943 passed, 46 failed) and the next run, with nothing intended to change, was 9066s.
+
+v3768 stores the commit a PASS was proved at. The next `--changed` run asks git once (`git diff --name-only <proven_sha>..HEAD` and `git status --porcelain`) and intersects that set with each gate's inputs. The input map is built once (22.7s cold for 994 gates, 0.15s warm) and reused while `tv/run_gates.py` and `BLUEPRINT.md` are the same bytes. A carry does not open the gate's files. 40 such lookups took 0.07s and read 0 inputs.
+
+Fail closed. A missing or unreachable proven sha, a failed diff, a gate whose inputs cannot be named, a corrupt ledger, and a FAIL all run. Only a PASS is stored. `--full` does not consult the ledger. GitHub CI does not either. CARRY is not a fresh pass and does not bank Wilson evidence.
+
+Measured after that switch, with the 903 keyable gates recorded as passes at that commit and the 91 unnameable gates actually executed: no-change `--changed` 556s (903 carried, 82 passed fresh, 8 failed). An edit of `tv/page_delta.py` was 566s; the one gate that names that file ran in 0.8s and 902 carried. The 91 unnameable gates are the floor of a no-change push, because a directory listing has no input list to diff.
+
+GUARD: tv/test_a_gate_proven_on_these_bytes_is_carried.py. heart2 --prove 29/29 PROVEN. Wilson 0.883 on 29 distinct attacks against the bar 0.722.
+
 ### REG-2292 - THE MF BAR COVERED THE MOVE LIST, AND AN UNSEEN PLACE READ UNKNOWN · UNKNOWN (v3771)
 
 The v3769 demo shots showed the MF slider, TZ-rotates and MF QUICK SET bar painted on top of #vault-move-list. #control-dock is position:fixed at z-index 120, a root stacking context, so a z-index inside the vault card could not climb over it. A holder with no location grouped as UNKNOWN · UNKNOWN.
