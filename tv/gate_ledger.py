@@ -1118,6 +1118,10 @@ def trace_env(env, root, path):
     env["TV_GATE_TRACE_ROOT"] = os.path.abspath(root)
     old = env.get("PYTHONPATH") or ""
     env["PYTHONPATH"] = TRACE_DIR + (os.pathsep + old if old else "")  # LEDGER-TRACE-ARM
+    # a module served from a cached .pyc never opens its .py, so no read of it is seen: compile
+    # every import from source, into a cache folder nobody has filled
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    env["PYTHONPYCACHEPREFIX"] = path + ".pycache"  # LEDGER-TRACE-NOPYC
     hook = os.path.join(TRACE_DIR, "node_trace.cjs")
     node = env.get("NODE_OPTIONS") or ""
     env["NODE_OPTIONS"] = ('--require "%s"' % hook) + (" " + node if node else "")  # LEDGER-TRACE-NODE
@@ -2025,6 +2029,10 @@ class Ledger(object):
             if path in made or not os.path.isdir(os.path.join(root, path)):
                 continue  # a folder this run made, or one it removed again
             return None, "the gate listed %s, which holds no tracked file, so no diff can say it moved" % path
+        names = set(facts.get("I") or ())
+        if names:
+            # an imported name is its tracked source, however the import found it (a .pyc, a child)
+            inputs.update(p for p in tracked if _module_stem(p) in names)  # LEDGER-TRACE-IMPORT-SOURCE
         if facts.get("G"):
             inputs.update(p for p in tracked if os.path.basename(p) == ".gitignore")
             listed.add("")
