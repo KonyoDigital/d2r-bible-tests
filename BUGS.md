@@ -7,6 +7,18 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2292 - THE MF BAR COVERED THE MOVE LIST, AND AN UNSEEN PLACE READ UNKNOWN · UNKNOWN (v3771)
+
+The v3769 demo shots showed the MF slider, TZ-rotates and MF QUICK SET bar painted on top of #vault-move-list. #control-dock is position:fixed at z-index 120, a root stacking context, so a z-index inside the vault card could not climb over it. A holder with no location grouped as UNKNOWN · UNKNOWN.
+
+1. While the Vault tab is the room, the existing tab is raised to 40 and the existing dock (and a TZ pill that is not already inside the dock) is lowered to 20. 40 sits under the sticky header at 100. Leaving the vault clears those inline values, so the bar returns to its own sheet. The vault room is opaque, so the bar does not show through.
+2. A holder with no named stash is not UNKNOWN · UNKNOWN. The group reads Location not seen yet, the hint says to take a screenshot, the group is marked vmv-unseen, and it sorts after MAIN, named holders, and a holder-unknown row that still has a stash. A null holder with a private stash stays UNKNOWN · private stash.
+3. The move-list controls, AUTO INTAKE, the item input, the group headers and the unsorted-dock bar use the console's existing serif, gold and chip tokens. No second design system.
+
+GUARD: tv/test_v3771_vault_console_face.py, registered in tv/run_gates.py. 14 distinct attacks. Wilson against the vault.apply bar 0.722. Sabotage kinds 1.00 against 1.30. The screen is tv/test_v3771_vault_console_face_visual.py. It drives the real vault tab, photographs AUTO INTAKE off and on, the restyled list, the unseen group and a duplicate beside its original, and refuses a bar whose box covers #vault-move-list. The same checks run after a reload. No browser is a declared skip.
+
+LEFT: his console was not opened. A dropped photo still has no cell. REG-2272 item 4 stays open.
+
 ### REG-2291 - THE MOVE WAS A RECORD WITH NO LIST AND NO SAVED CELL (Elad 2026-10-18, v3769)
 
 Elad, 2026-10-18. v3767 stored a move as data and did not paint it, did not pick a cell, and did not keep that cell across a reload.

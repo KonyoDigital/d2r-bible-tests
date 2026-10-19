@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3769",
+  "ver": "v3771",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3769: The vault paints a move list grouped by holder and stash. Each out-of-place item keeps a saved target cell from the packer, and a later witness at that cell verifies the row when AUTO INTAKE is on. A hand tally and a typed move work while it is off. REG-2291. HEART: the target-cell law and the verify law are the corroborators, watched by the v3769 gate.",
+  "note": "v3771: The vault controls wear the console gold. An unseen place reads Location not seen yet and sorts last. The MF bar stacks under the vault room and under the header. REG-2292. HEART: the unseen-place law and the bar-under-room law are the corroborators, watched by the v3771 gate.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
