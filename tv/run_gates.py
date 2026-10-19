@@ -9788,6 +9788,23 @@ GATES = [
          why=("v3767 - the five-step copy-witness screen. Chrome is found the same way the pre-push "
              "render gate finds it. No browser is a declared skip. The pure law does not launch a browser."),
          skip_ok=(r"no Chrome/Chromium on this machine",)),
+    Gate("test_v3769_vault_move_list", [sys.executable,
+         os.path.join(HERE, "test_v3769_vault_move_list.py")], 60,
+         needs_app=False,
+         why=("v3769 - the vault paints a move list grouped by holder and stash. Each out-of-place "
+             "copy keeps a saved target cell from the packer. A later witness at that cell verifies "
+             "the row only while AUTO INTAKE is on. A hand tally and a typed move work while it is off. "
+             "Sets, uniques, runewords, charms and bases go through the writer. Distinct attacks, "
+             "Wilson against the vault.apply bar. The screen is a separate gate.")
+         ),
+    Gate("test_v3769_vault_move_list_visual", [sys.executable,
+         os.path.join(HERE, "test_v3769_vault_move_list_visual.py")], 300,
+         needs_app=False,
+         why=("v3769 - the move list on the real vault tab: item art in grid cells, a duplicate beside "
+             "the original, a witness, the 3-session lock, the homeless dock, AUTO INTAKE off with a "
+             "typed move, mark moved, and a witness frame that verifies the row. No browser is a "
+             "declared skip."),
+         skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_the_render_hook_finds_a_browser_on_linux", [sys.executable,
          os.path.join(HERE, "test_the_render_hook_finds_a_browser_on_linux.py")], 30,
          needs_app=False,
