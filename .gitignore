@@ -240,6 +240,12 @@ tv/.self_prove.json.tmp
 # cache that travelled would let one Mac's proofs pass on a tree it never proved.
 tv/.heart2_cache.json
 tv/.heart2_cache.json.tmp
+# v3768 — per-checkout gate-result ledger. A PASS carries only for the same name, definition and
+# input bytes. It is this checkout's memory between pushes, never a verdict that travels.
+tv/.gate_ledger.json
+tv/.gate_ledger.json.tmp
+tv/.gate_inputs.json
+tv/.gate_inputs.json.tmp
 # #42 lever 1 (REG-1710) - which cases caught each sabotage at push time, so the next push asks only those. Per machine.
 tv/.heart2_red.json
 tv/.heart2_red.json.tmp

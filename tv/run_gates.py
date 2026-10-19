@@ -25,6 +25,11 @@ Reporting rules (learned the hard way)
   lane is allowed to produce (`skip_ok=`); a SKIP whose reason matches nothing there is counted
   with the failures and named in the verdict.
 * The exit code is the verdict: non-zero if any REQUIRED entry failed OR skipped undeclared.
+* v3768 — `python3 tv/run_gates.py --changed` carries a gate whose stored PASS was proved
+  at a commit git can still diff, and whose inputs are not in that diff or the dirty
+  worktree. It prints `proven at <sha> (<age>)` and does not open those files.
+  That line is not a fresh pass. `--full` runs every gate and still records a PASS.
+  With no flag, and on GitHub CI, every gate runs and the ledger is not consulted.
 """
 from __future__ import annotations
 
@@ -149,6 +154,24 @@ def case_is_dark(n, ran):
     """A gate that passed while skipping EVERY case it ran. -> bool  (REG-1897: 0 is a real denominator - n>0 skips of a run of
     0 IS dark; only None, an unknown denominator, is never judged)"""
     return ran is not None and int(n) > 0 and int(n) >= int(ran)
+
+
+def counts_as_ran(status):
+    """A carried gate did not run. It is not a skip and it is not a fresh pass. -> bool"""
+    return status not in ("SKIP", "CARRY")  # LEDGER-CENSUS
+
+
+def format_totals(n_fresh, n_carry, n_skip):
+    """The verdict. Carried gates are counted apart from the gates that ran. -> str"""
+    shown = n_fresh  # LEDGER-FRESH
+    line = "\u2705 %d gate(s) passed fresh" % shown
+    if n_skip:
+        line += ", %d skipped for a DECLARED reason" % n_skip
+    lines = [line + "."]
+    if n_carry:
+        lines.append("\u21a9 %d gate(s) carried from an earlier proof — not a fresh pass, not new evidence."
+                     % n_carry)
+    return "\n".join(lines)
 
 
 def needs_app_of(filename):
@@ -10661,6 +10684,16 @@ GATES = [
              "version later. laws_that_read names the laws whose source mentions "
              "the changed basename. A short name selects nothing. The hook's "
              "own set, gates_for_tests, still answers only the test files."),
+    Gate("test_a_gate_proven_on_these_bytes_is_carried",
+         [sys.executable, os.path.join(HERE, "test_a_gate_proven_on_these_bytes_is_carried.py")], 600,
+         needs_app=False,
+         why="v3768 - a push carries a gate when one git diff from the proven commit, plus "
+             "the dirty worktree, does not touch that gate's inputs. The carry does not "
+             "open those files. Editing an input runs the gate again. Editing an unrelated "
+             "file leaves it carried. A missing or unreachable sha, a failed diff, a gate "
+             "whose inputs cannot be named, a corrupt ledger and a FAIL all run. --full "
+             "does not consult the ledger. CI does not either. A carried line says proven "
+             "at a sha and an age, and it is not a fresh pass and not new Wilson evidence."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
@@ -10731,8 +10764,31 @@ def leaked_by_this_run(before, after, me, here):
     return leaked, theirs
 
 
-def run(only=None, live_watch=True, live_writer=None):
+def run(only=None, live_watch=True, live_writer=None, ledger=None):
     del _skip_reasons[:]
+    led = None
+    if ledger in ("changed", "full"):
+        try:
+            import gate_ledger as _GL
+            led = _GL.Ledger()
+            if ledger == "full":
+                print("ledger: --full runs every gate. A PASS is recorded and a FAIL is dropped.",
+                      flush=True)
+            elif _GL.ci_blocks():
+                print("ledger: CI runs the full set. Nothing is carried and nothing is recorded.",
+                      flush=True)
+            elif _GL.reuse_closed():
+                print("ledger: GATE_LEDGER=0. Every gate runs and nothing is stored.", flush=True)
+            else:
+                _ents, _why = _GL.load(led.path)
+                if _why:
+                    print("ledger: %s. Every gate runs." % _why, flush=True)
+                elif not _ents:
+                    print("ledger: empty. Every gate runs, and a PASS is recorded.", flush=True)
+        except Exception as _lexc:
+            led = None
+            print("ledger: could not be opened (%s). Every gate runs." % type(_lexc).__name__,
+                  flush=True)
     """`live_watch` fingerprints the live-state files BETWEEN gates, so a leak is attributed.
 
     ⚠ v2419 — THE WATCHLIST COULD SAY WHAT MOVED AND NEVER WHICH GATE MOVED IT. main() fingerprints
@@ -10822,6 +10878,24 @@ def run(only=None, live_watch=True, live_writer=None):
             # v1711 lesson: "needs_app was TRUE, so this gate was skipped before it could even try".
             results.append((g, "SKIP", 0.0, "control app is not running on :17772", ""))
             continue
+        if led is not None and not getattr(led, "_prepared", False):
+            try:
+                led.prepare(GATES)
+                led._prepared = True
+            except Exception as _lexc:
+                print("ledger: the input map was not built (%s). Every gate runs."
+                      % type(_lexc).__name__, flush=True)
+        if ledger == "changed" and led is not None:  # LEDGER-CHANGED-ONLY
+            try:
+                _hit, _miss = led.lookup(g)
+            except Exception as _lexc:
+                _hit, _miss = None, "taking its key raised %s" % type(_lexc).__name__
+            if _hit is not None:
+                print("\u21a9 %-20s %s" % (g.name, _hit.get("line") or ""), flush=True)
+                results.append((g, "CARRY", 0.0, _hit.get("line") or "", ""))
+                if live_watch:
+                    _lw_prev = _state_fingerprint()
+                continue
         t0 = time.time()
         _lw_before = _lw_prev
         try:
@@ -10916,9 +10990,19 @@ def run(only=None, live_watch=True, live_writer=None):
                                      lambda m: "skipped=%s of %s" % (m.group(1), _ran.group(1)),
                                      _detail)[:170]
             results.append((g, status, dt, _detail, blob if status in ("FAIL", "SKIP") else ""))
+            if led is not None and status in ("PASS", "FAIL"):
+                try:
+                    led.record(g, status == "PASS")
+                except Exception:
+                    pass
         except subprocess.TimeoutExpired:
             results.append((g, "FAIL", time.time() - t0,
                             "timed out after %ds — a hung gate is a failed gate" % g.timeout, ""))
+            if led is not None:
+                try:
+                    led.record(g, False)
+                except Exception:
+                    pass
         except OSError as e:
             results.append((g, "SKIP", time.time() - t0, "could not launch (%s)" % e, ""))
         if live_watch:
@@ -11276,6 +11360,8 @@ def _external_writer(names=_LIVE_STATE):
 # his footage (the frames dir is enormous and a sweep writing an index there is not this gate's
 # business). [[feedback-blind-fixture-green-gate]]
 _TREE_SKIP_DIRS = {".git", "__pycache__", "frames", "node_modules", ".pytest_cache"}
+# v3768 — the gate ledger is this run's own record. Watching it blames every gate for the write.
+_LEDGER_SELF = frozenset((".gate_ledger.json", ".gate_ledger.json.tmp", ".gate_inputs.json", ".gate_inputs.json.tmp"))  # LEDGER-WATCH
 
 
 def _tree_fingerprint():
@@ -11284,6 +11370,8 @@ def _tree_fingerprint():
     for root, dirs, files in os.walk(HERE):
         dirs[:] = [d for d in dirs if d not in _TREE_SKIP_DIRS]
         for f in files:
+            if f in _LEDGER_SELF:
+                continue
             p = os.path.join(root, f)
             try:
                 with open(p, "rb") as fh:
@@ -11347,6 +11435,8 @@ def _state_fingerprint():
     for pat in ("*.json", "*.jsonl", ".*.json", "*.healer_bak"):
         for p in _g.glob(os.path.join(HERE, pat)):
             n = os.path.basename(p)
+            if n in _LEDGER_SELF:
+                continue
             try:
                 with open(p, "rb") as fh:
                     out[n] = hashlib.md5(fh.read()).hexdigest()[:16]
@@ -11457,6 +11547,10 @@ def main(argv):
     ap = argparse.ArgumentParser(description="run the gate set and return one verdict")
     ap.add_argument("--only", nargs="*", help="run only these gate names")
     ap.add_argument("--shard", help="K/N — run the K-th of N deterministic cost-balanced slices (#184)")
+    ap.add_argument("--changed", action="store_true",
+                    help="carry a gate whose inputs git has not changed since the proven commit")
+    ap.add_argument("--full", action="store_true",
+                    help="run every gate; a PASS is recorded and a FAIL is dropped")
     a = ap.parse_args(argv[1:])
     only = a.only
     if a.shard:
@@ -11477,6 +11571,12 @@ def main(argv):
             return 2
         print("── SHARD %d/%d: %d of %d gates (balanced on %s) ──"
               % (_k, _n, len(only), len(GATES), _cost_table()[1]))
+
+    # --full wins: it does not skip, and it still records so a later push cannot carry a PASS
+    # this run contradicted. No flag, and --shard alone, leave the ledger closed.
+    if a.full and a.changed:
+        print("ledger: --full wins over --changed. Every gate runs.")
+    ledger_mode = "full" if a.full else ("changed" if a.changed else None)
 
     # ⚠ 2026-09-29 — A NAME THIS REGISTRY DOES NOT HAVE RUNS NOTHING, AND NOTHING IS NOT A PASS. A zsh `--only $G` handed
     # 34 names as ONE argument; it matched no gate and the run printed "✅ 0 gate(s) passed" with exit 0 - a green over a
@@ -11508,7 +11608,8 @@ def main(argv):
                                        list(_sweep_live or []) if (_console_live or _sweep_live)
                                        else None) and
                   [x for x in ([("the console" if _console_live else None)] +
-                               list(_sweep_live or [])) if x] or None)
+                               list(_sweep_live or [])) if x] or None,
+                  ledger=ledger_mode)
     _live_moved = _live_state_diff(_live_before, _live_fingerprint())
     # the named files are the FAILURE; everything else in the tree is reported by name so the next
     # leak is found the way tonight's five were, instead of waiting to be guessed at
@@ -11520,7 +11621,7 @@ def main(argv):
     _undeclared = {g.name for g, s, _, d, _ in results
                    if s == "SKIP" and not _skip_allowed(g, d)}
     for g, status, dt, detail, _blob in results:
-        mark = {"PASS": "✅", "FAIL": "❌", "SKIP": "⚠"}[status]
+        mark = {"PASS": "✅", "FAIL": "❌", "SKIP": "⚠", "CARRY": "↩"}[status]
         if status == "SKIP" and g.name in _undeclared:
             mark = "⛔"
         print("%s %-20s %6.1fs  %s" % (mark, g.name, dt, detail))
@@ -11615,16 +11716,16 @@ def main(argv):
     _dark = []
     for _g, _st, _dt, _d, _ in results:
         _m = case_skips(_d)
-        if _m and _st != "SKIP":
+        if _m and counts_as_ran(_st):
             _n, _ran = _m
             if _n:
                 _cases += _n
                 _where.append(case_skip_tag(_g.name, _n, _ran))
                 if case_is_dark(_n, _ran):
                     _dark.append((_g.name, _n, _ran))
-    print("\u2705 %d gate(s) passed%s."
-          % (len(results) - len(skipped),
-             (", %d skipped for a DECLARED reason" % len(skipped)) if skipped else ""))
+    _n_fresh = sum(1 for _g, _s, _dt, _d, _b in results if _s == "PASS")
+    _n_carry = sum(1 for _g, _s, _dt, _d, _b in results if _s == "CARRY")
+    print(format_totals(_n_fresh, _n_carry, len(skipped)))
     if _cases:
         print("\u26a0 %d CASE(S) DID NOT RUN inside those gates: %s"
               % (_cases, ", ".join(sorted(_where))))
