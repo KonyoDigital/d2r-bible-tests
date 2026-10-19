@@ -2083,7 +2083,7 @@ def _tracked_files(repo=None):
     return frozenset(x.decode("utf-8", "replace") for x in r.stdout.split(b"\0") if x)
 
 
-def law_inputs(sandbox, filename, proofs, parsed=None, tracked=None):
+def law_inputs(sandbox, filename, proofs, parsed=None, tracked=None, allow_listing=False):
     """#42 P3 — every file in `sandbox` (a copied tv/) that a law's verdict can depend on. -> (sorted [abs path], why)
 
     `why` is None when every input could be found and read; otherwise the reason this law is UNKEYABLE (the list then
@@ -2131,7 +2131,7 @@ def law_inputs(sandbox, filename, proofs, parsed=None, tracked=None):
                 parsed[mk] = (names, named, lists)
         # the floor: a law that lists a directory ITSELF reads what is there at run time - no byte key can name that.
         # Only the law file is asked (the closure lists directories everywhere; see the block comment above).
-        if p == law and lists:
+        if p == law and lists and not allow_listing:
             return sorted(inputs), ("the law lists a directory itself (%s at line %d) - what it reads is decided at "
                                     "run time, so no byte key can name it" % lists)
         inputs.add(p)
