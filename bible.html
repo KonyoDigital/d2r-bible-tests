@@ -43715,6 +43715,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     return out;
   }
   try { window._vaultHandBasePool = _vaultHandBasePool; } catch (eHp) {}
+  /* L1 — a catalogue name typed without its leading "The" or in another case ("stone of jordan") is that item. Hand door
+     only, and only when the register's own resolution did not land on a drawn name. -> the ITEMS name, or null */
+  function _vhAlias(name){
+    function k(x){ return String(x == null ? '' : x).trim().toLowerCase().replace(/[\u2018\u2019`]/g, "'").replace(/^the\s+/, ''); }
+    var q = k(name);
+    if (!q || typeof ITEMS === 'undefined') return null;
+    var hit = ITEMS.filter(function(i){ return i && i.n && k(i.n) === q; });
+    return hit.length === 1 ? hit[0].n : null; /* L1 alias must name one item */
+  }
   /* -> {ok, name, ts} | {ok:false, refused, why}: every question asked before anything is written */
   function _vhPrepare(name, at, opts){
     var raw = String(name == null ? '' : name).trim();
@@ -43727,6 +43736,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     var r = _vhResolve(raw, (opts && opts.kind) || null);
     if (!r.ok) return r;
+    if (!_vaultKeeps(r.name)) { var al = _vhAlias(r.name); if (al && _vaultKeeps(al)) r = { ok: true, name: al }; } /* L1 alias */
     if (!_vaultKeeps(r.name) && !_vaultHandBase(r.name)) /* L1 a catalogue base passes the hand door */
       return { ok: false, refused: 'not-drawn', name: r.name,
                why: r.name + ' is not an item the vault draws (a unique, a set piece, a runeword or a socketed base it carries) — nothing was added' };
