@@ -878,6 +878,11 @@ def drive(root, samples=3, viewports=None, page="/bible.html"):
         url = "http://127.0.0.1:%d%s" % (http_port, page)
         cdp.call("Page.navigate", {"url": url})
         _wait_fn(cdp, "typeof window.switchTab==='function' && typeof window.renderVault==='function'", timeout=120)
+        # boot parks a home-tab switch (setTimeout 0) and a hash route (+250 ms) after
+        # DOMContentLoaded; on a loaded box they land after the probe's own switchTab('vault')
+        # and hide the room while pick() looks. Let the router settle first.
+        _wait_fn(cdp, "document.readyState==='complete'", timeout=120)
+        time.sleep(1.0)
         views, hands = {}, {}
         for w, h in viewports:
             cdp.call("Emulation.setDeviceMetricsOverride", {
