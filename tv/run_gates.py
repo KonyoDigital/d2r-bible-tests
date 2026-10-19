@@ -10745,6 +10745,18 @@ GATES = [
              "named, a corrupt ledger and a FAIL all run. --full does not consult the "
              "ledger. CI does not either. A carried line says proven at a sha and an age, "
              "and it is not a fresh pass and not new Wilson evidence."),
+    Gate("test_a_version_bump_carries_the_gates_that_ignore_the_version",
+         [sys.executable, os.path.join(HERE, "test_a_version_bump_carries_the_gates_that_ignore_the_version.py")], 120,
+         needs_app=False,
+         why="v3774 (REG-2294) - a version bump is not a change to every gate. bump_version.py "
+             "rewrites known stamp lines in bible.html, control_app.py, tv_diablo.py and "
+             "WINDOWS_SHIP.json, and its regenerations touch BLUEPRINT.md, RESUME_HERE.md and "
+             "the TASKS.md ship table. Under gate memory a bump-only diff reran 760 of 1003 "
+             "gates; measured on a real bump of the v3772 tree it now reruns 108. A path whose "
+             "git diff since the proof is only stamp lines does not invalidate a gate whose "
+             "own script and name never speak of the version. Any other line in that file, an "
+             "unequal swap, an unknown diff line, a removed '-- x' line, or a failed diff still "
+             "runs the gate. 10 RED proofs, Wilson 0.7225 against 0.722."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
