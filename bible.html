@@ -48645,7 +48645,7 @@ window.vaultAutoAssign = function(){
       var mule = (typeof muleById === 'function') ? muleById(seam.mule) : null;
       return { id: seam.mule, holder: (mule && mule.name) || null, location: 'stash' };
     }
-    if (seam.loc === 'keep') return { id: null, holder: 'MAIN', location: null };
+    if (seam.loc === 'keep') return { id: 'main', holder: 'MAIN', location: 'inventory' }; /* v3769 home keep */
     return { id: null, holder: null, location: null };
   }
   function _vaultMoveCopies(name){
@@ -48686,6 +48686,10 @@ window.vaultAutoAssign = function(){
         if (p.key == null) return;
         out[p.key] = { holder: home.holder, location: location, cell: location + ':c' + p.x + 'r' + p.y };
       });
+    }
+    if (home.id === 'main') { /* v3769 pack main */
+      lay(packGrid(items, 10, 4).placed, 'inventory');
+      return out;
     }
     if (home.id === 'shared' || home.location === 'shared') {
       lay(packGrid(items, 10, 10).placed, 'shared');
@@ -48765,8 +48769,15 @@ window.vaultAutoAssign = function(){
         });
         if (!row) { missed = true; return; }
         var prev = JSON.stringify(row.move || null);
-        row.move = t; /* v3769 lock stays */
-        if (JSON.stringify(row.move) !== prev) dirty = true;
+        var built = _vrRecRow({
+          recId: row.recId, name: row.name, copyIx: row.copyIx || 0, kind: row.kind,
+          mule: row.mule, loc: row.loc, source: row.source, sight: row.sight,
+          watching: row.watching === true, locked: row.locked === true, /* v3769 lock stays */
+          move: t, prov: row.prov, provUnknown: row.provUnknown === true
+        }); /* v3769 row writer */
+        if (JSON.stringify(built.move || null) !== prev) dirty = true;
+        var ix = store.records.indexOf(row);
+        if (ix >= 0) store.records[ix] = built;
       });
       return { dirty: dirty, missed: missed };
     }
@@ -48804,14 +48815,7 @@ window.vaultAutoAssign = function(){
     var atFrom = _vaultMoveSamePlace(place, t.from);
     var atTo = _vaultMoveSamePlace(place, t.to);
     if (t.status === 'moved-manual' && atFrom && !atTo) return { applied: false, task: t, why: 'hand-tally' }; /* v3769 moved-manual hold */
-    var next = _vaultMoveWitness(t, sighting);
-    if (atFrom && !atTo) next.status = 'to-move'; /* v3769 still */
-    else if (!atTo && !atFrom) next.status = 'moved-elsewhere'; /* v3769 elsewhere */
-    else if (atTo && !atFrom) {
-      next.status = 'verified';
-      var fr = sighting.frame || null;
-      if (fr != null && fr !== '' && next.evidence.indexOf(String(fr)) < 0) next.evidence.push(String(fr)); /* v3769 verified frame */
-    }
+    var next = _vaultMoveWitness(t, sighting); /* v3769 one writer */
     _vaultMoveCommit([{ name: name, copyIx: hit.copyIx, task: next }]);
     try { if (!window._movePaintBusy && typeof _vaultMovePaint === 'function') _vaultMovePaint(); } catch (eP) {}
     return { applied: true, task: next };
@@ -48830,6 +48834,7 @@ window.vaultAutoAssign = function(){
     if (!nm && typeof selectedChip !== 'undefined' && selectedChip) nm = String(selectedChip).trim();
     if (!nm) return { ok: false, why: 'no name' };
     try { if (typeof window._ownedAdd === 'function' && !(typeof owned !== 'undefined' && owned && typeof owned.has === 'function' && owned.has(nm))) window._ownedAdd(nm, { source: 'hand', by: 'add a move', where: 'the move list' }); } catch (eO) {} /* v3769 owned door */
+    try { if (typeof persistOwned === 'function') persistOwned(); } catch (eOw) {} /* v3769 owned persist */
     window._movePackCache = null;
     var ens = _vaultMoveEnsure(nm, 0, _vaultMoveBag());
     var t = _vaultMoveTask({
@@ -48849,8 +48854,19 @@ window.vaultAutoAssign = function(){
     try { if (q) q.focus(); } catch (e) {}
     return { ok: false, why: 'no name' };
   }
+  function _vaultMoveOnKeep(place){
+    if (!place || place.holder !== 'MAIN') return false;
+    var loc = String(place.location || '').toLowerCase();
+    if (loc === 'inv') loc = 'inventory';
+    var lanes = (typeof _LOCKED_LANES === 'object' && _LOCKED_LANES) ? _LOCKED_LANES : null;
+    if (!lanes) return loc === 'inventory' || loc === 'equipment';
+    return !!lanes[loc]; /* v3769 keep home */
+  }
   function _vaultMoveShown(task){
     var t = _vaultMoveTask(task);
+    if (!t.to || t.to.holder == null || t.to.location == null || t.to.cell == null) return false; /* v3769 known target */
+    var home = (t.name && typeof _vaultMoveHome === 'function') ? _vaultMoveHome(t.name) : null;
+    if (_vaultMoveOnKeep(t.from) && home && home.id === 'main') return false; /* v3769 already home */
     if (t.status === 'verified' || t.status === 'moved-manual' || t.status === 'moved-elsewhere') return true; /* v3769 shown */
     if (!t.from || t.from.cell == null) return true;
     if (!_vaultMoveSamePlace(t.from, t.to)) return true;
