@@ -45,7 +45,8 @@ FNS = [
     "_vaultMoveHome", "_vaultMoveCopies", "_vaultMovePackHome", "_vaultMovePlanCell",
     "_vaultMoveFromSight", "_vaultMoveBag", "_vaultMoveEnsure", "_vaultMoveCommit",
     "_vaultMoveApplySight", "_vaultMoveMark", "_vaultMoveAddNamed", "_vaultMoveAddOpen",
-    "_vaultMoveShown", "_vaultMoveStashSay", "_vaultMoveGroup", "_vaultMoveLocks",
+    "_vaultMoveOnKeep", "_vaultMoveShown", "_vaultMoveStashSay", "_vaultMoveGroup", "_vaultMoveLocks",
+    "persistOwned",
     "_vaultMoveCellSay", "_vaultMovePlaceSay", "_vaultMoveGridHtml", "_vaultMoveHtml",
     "_vaultMoveCollect", "_vaultMovePaint", "_vaultMoveCellMarkHtml", "_vaultFrameMeta",
 ]
@@ -62,6 +63,11 @@ var ROUTES = {};
 var selectedChip = null;
 var GRID_CALLS = [];
 var VAULT_AUTO_INTAKE_KEY = 'd2r_vaultAutoIntake';
+var unknownReads = new Set();
+function _safeJsonParse(raw, fallback){
+  if (raw == null || raw === '') return fallback;
+  try { return JSON.parse(raw); } catch (e) { return fallback; }
+}
 var CELLS = {
   "Griffon's Eye": { w: 2, h: 2 },
   "Harlequin Crest": { w: 2, h: 2 },
@@ -85,6 +91,7 @@ window.LSR = {
   setItem: function(k, v){ _ls[k] = String(v); },
   removeItem: function(k){ delete _ls[k]; }
 };
+var LS = window.LSR;
 var document = { _els: {}, getElementById: function(id){
   if (!document._els[id]) document._els[id] = { id: id, hidden: true, innerHTML: '', textContent: '' };
   return document._els[id];
@@ -182,7 +189,9 @@ def move_bundle(src):
     looks = _assigned(src, r"window\._vaultEvidenceLooks\s*=\s*function\s*\(")
     evidence = _assigned(src, r"window\._vaultEvidenceHtml\s*=\s*function\s*\(")
     register = _assigned(src, r"window\.tvVaultRegister = function\(name\)\{")
-    return "\n".join([lane, looks, evidence, register] + [_fn(src, n) for n in FNS] + [TAIL])
+    reload_owned = _assigned(src, r"window\._vaultReloadOwned\s*=\s*function\(")
+    return "\n".join(
+        [lane, looks, evidence, register, reload_owned] + [_fn(src, n) for n in FNS] + [TAIL])
 
 
 class TestV3769VaultMoveList(unittest.TestCase):
@@ -534,6 +543,75 @@ console.log(JSON.stringify({
         self.assertIn('id="vault-move-list"', self.src)
         self.assertIn("Add a move", self.src)
 
+    def test_add_a_move_persists_owned_across_reload(self):
+        o = self._run(r"""
+reset();
+ROUTES["Harlequin Crest"] = { id: 'uni-armor', why: 'helm' };
+var added = _vaultMoveAddNamed("Harlequin Crest");
+owned.clear();
+var n = window._vaultReloadOwned();
+console.log(JSON.stringify({
+  ok: !!(added && added.ok),
+  n: n,
+  has: owned.has("Harlequin Crest"),
+  raw: window.LSR.getItem('d2r_owned')
+}));
+""")
+        self.assertTrue(o["ok"], o)
+        self.assertEqual(o["n"], 1, o)
+        self.assertTrue(o["has"], o)
+        self.assertIn("Harlequin Crest", o["raw"] or "", o)
+
+    def test_a_keep_on_main_is_not_a_row_and_a_displaced_keep_gets_a_cell(self):
+        o = self._run(r"""
+reset();
+ROUTES["Eschuta's Temper"] = { id: 'uni-weap', why: 'wand' };
+see("Eschuta's Temper", [L('MAIN','inventory','inventory:c1r1','s1','e1')], 1);
+window._laneLockNote("Eschuta's Temper", 'equipment', 'a');
+window._laneLockNote("Eschuta's Temper", 'equipment', 'b');
+window._laneLockNote("Eschuta's Temper", 'equipment', 'c');
+var home = _vaultMoveCollect();
+var names = (home.tasks || []).map(function(r){ return r.name; });
+var gear = _vaultMoveShown({
+  name: "Eschuta's Temper", status: 'to-move',
+  from: { holder: 'MAIN', location: 'equipment', cell: 'equipment:c0r0' },
+  to: { holder: 'MAIN', location: 'inventory', cell: 'inventory:c0r0' }
+});
+var bare = _vaultMoveShown({
+  name: "Eschuta's Temper", status: 'to-move',
+  from: { holder: 'Mule', location: 'stash', cell: 'stash:c2r2' },
+  to: { holder: 'MAIN', location: null, cell: null }
+});
+reset();
+ROUTES["Eschuta's Temper"] = { id: 'uni-weap', why: 'wand' };
+see("Eschuta's Temper", [L('Mule','stash','stash:c3r1','s9','e9')], 1);
+window._laneLockNote("Eschuta's Temper", 'equipment', 'a');
+window._laneLockNote("Eschuta's Temper", 'equipment', 'b');
+window._laneLockNote("Eschuta's Temper", 'equipment', 'c');
+var ens = _vaultMoveEnsure("Eschuta's Temper", 0);
+var to = ens.task.to;
+var built = _vaultMoveCollect();
+var row = (built.tasks || []).filter(function(r){ return r.name === "Eschuta's Temper"; })[0];
+console.log(JSON.stringify({
+  homeNames: names,
+  gear: gear,
+  bare: bare,
+  shown: !!row,
+  holder: to && to.holder,
+  location: to && to.location,
+  cell: to && to.cell,
+  say: _vaultMovePlaceSay(to)
+}));
+""")
+        self.assertNotIn("Eschuta's Temper", o["homeNames"], o)
+        self.assertFalse(o["gear"], o)
+        self.assertFalse(o["bare"], o)
+        self.assertTrue(o["shown"], o)
+        self.assertEqual(o["holder"], "MAIN", o)
+        self.assertEqual(o["location"], "inventory", o)
+        self.assertRegex(o["cell"] or "", r"^inventory:c\d+r\d+$")
+        self.assertNotIn("UNKNOWN", o["say"] or "", o)
+
     def test_distinct_attacks_clear_the_vault_apply_wilson_bar(self):
         from confidence import confluence, wilson_lower
         import self_arming as SA
@@ -578,18 +656,18 @@ RED_PROOF = [
      "matches": 1},
     {"why": "A sighting still at FROM is called verified.",
      "file": "bible.html",
-     "find": "if (atFrom && !atTo) next.status = 'to-move'; /* v3769 still */",
-     "replace": "if (atFrom && !atTo) next.status = 'verified'; /* v3769 still */",
+     "find": "t.status = 'to-move'; /* v3767 move still */",
+     "replace": "t.status = 'verified'; /* v3767 move still */",
      "matches": 1},
     {"why": "A third spot is called verified instead of moved elsewhere.",
      "file": "bible.html",
-     "find": "else if (!atTo && !atFrom) next.status = 'moved-elsewhere'; /* v3769 elsewhere */",
-     "replace": "else if (!atTo && !atFrom) next.status = 'verified'; /* v3769 elsewhere */",
+     "find": "t.status = 'moved-elsewhere'; /* v3767 move elsewhere */",
+     "replace": "t.status = 'verified'; /* v3767 move elsewhere */",
      "matches": 1},
     {"why": "The verifying frame is wiped off the task.",
      "file": "bible.html",
-     "find": "if (fr != null && fr !== '' && next.evidence.indexOf(String(fr)) < 0) next.evidence.push(String(fr)); /* v3769 verified frame */",
-     "replace": "next.evidence = []; /* v3769 verified frame */",
+     "find": "if (frame != null && frame !== '' && t.evidence.indexOf(String(frame)) < 0) t.evidence.push(String(frame)); /* v3767 move proof */",
+     "replace": "void frame; /* v3767 move proof */",
      "matches": 1},
     {"why": "A hand tally is stored as verified before any witness.",
      "file": "bible.html",
@@ -618,8 +696,38 @@ RED_PROOF = [
      "matches": 1},
     {"why": "Saving a target clears the 3-session lock.",
      "file": "bible.html",
-     "find": "row.move = t; /* v3769 lock stays */",
-     "replace": "row.locked = false; row.move = t; /* v3769 lock stays */",
+     "find": "locked: row.locked === true, /* v3769 lock stays */",
+     "replace": "locked: false, /* v3769 lock stays */",
+     "matches": 1},
+    {"why": "Add a move keeps the name in memory and never writes d2r_owned, so a reload loses it.",
+     "file": "bible.html",
+     "find": "try { if (typeof persistOwned === 'function') persistOwned(); } catch (eOw) {} /* v3769 owned persist */",
+     "replace": "try { void 0; } catch (eOw) {} /* v3769 owned persist */",
+     "matches": 1},
+    {"why": "A keep already on MAIN inventory or equipment is painted as a move.",
+     "file": "bible.html",
+     "find": "if (_vaultMoveOnKeep(t.from) && home && home.id === 'main') return false; /* v3769 already home */",
+     "replace": "if (false && _vaultMoveOnKeep(t.from) && home && home.id === 'main') return false; /* v3769 already home */",
+     "matches": 1},
+    {"why": "A row with no target location and no cell is still painted.",
+     "file": "bible.html",
+     "find": "if (!t.to || t.to.holder == null || t.to.location == null || t.to.cell == null) return false; /* v3769 known target */",
+     "replace": "if (false && (!t.to || t.to.holder == null || t.to.location == null || t.to.cell == null)) return false; /* v3769 known target */",
+     "matches": 1},
+    {"why": "A keep is sent to MAIN with no location, so the packer has no inventory cell.",
+     "file": "bible.html",
+     "find": "if (seam.loc === 'keep') return { id: 'main', holder: 'MAIN', location: 'inventory' }; /* v3769 home keep */",
+     "replace": "if (seam.loc === 'keep') return { id: null, holder: 'MAIN', location: null }; /* v3769 home keep */",
+     "matches": 1},
+    {"why": "A keep that must move is packed into a stash grid instead of MAIN inventory.",
+     "file": "bible.html",
+     "find": "if (home.id === 'main') { /* v3769 pack main */",
+     "replace": "if (false && home.id === 'main') { /* v3769 pack main */",
+     "matches": 1},
+    {"why": "The sighting door copies the task and never asks the witness writer.",
+     "file": "bible.html",
+     "find": "var next = _vaultMoveWitness(t, sighting); /* v3769 one writer */",
+     "replace": "var next = _vaultMoveTask(t); /* v3769 one writer */",
      "matches": 1},
     {"why": "A holder that was not named is called MAIN.",
      "file": "bible.html",

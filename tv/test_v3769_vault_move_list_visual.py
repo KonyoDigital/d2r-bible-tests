@@ -345,7 +345,14 @@ class TestV3769VaultMoveListVisual(unittest.TestCase):
 
     def _shot(self, cdp, selector, name):
         path = os.path.join(SHOTS, name)
-        _png(cdp, selector, path)
+        try:
+            _png(cdp, selector, path)
+        except AssertionError as err:
+            if selector != "#vault-move-list" or "empty clip" not in str(err):
+                raise
+            self._js(cdp, _STEP_REOPEN)
+            time.sleep(0.35)
+            _png(cdp, selector, path)
         _save(path)
         return path
 
@@ -392,9 +399,22 @@ class TestV3769VaultMoveListVisual(unittest.TestCase):
         self.assertEqual(planned.get("stored"), planned.get("to"), planned)
         self._shot(cdp, "#vault-move-list", "06-planned-move.png")
         cdp.call("Page.reload", {"ignoreCache": True}, timeout=30)
-        _wait_fn(cdp, "typeof window.renderVault==='function' && typeof window.switchTab==='function'", timeout=120)
+        # A fresh load lands on session. The 0ms and 250ms boot timers can fire after
+        # renderVault exists and yank the vault tab back off, which leaves the list in
+        # the DOM with a zero box. Wait them out, then open the room.
+        _wait_fn(
+            cdp,
+            "document.readyState==='complete' && typeof window.vaultJump==='function'"
+            " && typeof window.renderVault==='function'",
+            timeout=120,
+        )
+        time.sleep(0.8)
         kept = self._js(cdp, _STEP_RELOAD)
         self.assertEqual(kept.get("to"), planned["to"], kept)
+        self.assertTrue(kept.get("tab"), kept)
+        self.assertFalse(kept.get("collapsed"), kept)
+        self.assertGreaterEqual(kept.get("w") or 0, 8, kept)
+        self.assertGreaterEqual(kept.get("h") or 0, 8, kept)
 
         marked = self._js(cdp, _STEP_MARK % (json.dumps(g), int(planned["copy"])))
         self.assertEqual(marked.get("status"), "moved-manual", marked)
@@ -404,12 +424,24 @@ class TestV3769VaultMoveListVisual(unittest.TestCase):
         self.assertEqual(verified.get("status"), "verified", verified)
         self.assertIn("v3769-live", verified.get("evidence") or [], verified)
         list_png = self._shot(cdp, "#vault-move-list", "08-verified-list.png")
-        opened = self._js(cdp, _STEP_FRAME % json.dumps(verified["cell"]))
+        self._js(cdp, _STEP_FRAME % json.dumps(verified["cell"]))
+        _wait_fn(cdp, _FRAME_READY, timeout=20)
+        opened = self._js(cdp, _FRAME_READ)
         self.assertTrue(opened.get("open"), opened)
+        self.assertIn("chronicle_uniques_A", opened.get("src") or "", opened)
+        self.assertNotIn("data:image", opened.get("src") or "", opened)
+        self.assertGreater(opened.get("nw") or 0, 8, opened)
         self.assertIn('class="on"', opened.get("mark") or "", opened)
         frame_png = self._shot(cdp, "#tvd-frame-lb", "08-verified-frame.png")
         _stitch(list_png, frame_png, frame_png)
         _save(frame_png)
+        for name in (
+            "01-duplicate-beside.png", "02-witness-plus.png", "03-session-lock.png",
+            "04-dock-homeless.png", "05-auto-off-manual.png", "06-planned-move.png",
+            "07-mark-moved.png", "08-verified-frame.png",
+        ):
+            path = os.path.join(SHOTS, name)
+            self.assertTrue(os.path.isfile(path) and os.path.getsize(path) > 3000, name)
 
     def _shot_span(self, cdp, start, end, name):
         info = _ev(cdp, """
@@ -426,6 +458,8 @@ class TestV3769VaultMoveListVisual(unittest.TestCase):
 })()
 """ % (json.dumps(start), json.dumps(end)))
         self.assertFalse(not info or info.get("missing"), info)
+        self.assertGreaterEqual(info.get("width") or 0, 8, info)
+        self.assertGreaterEqual(info.get("height") or 0, 8, info)
         res = cdp.call("Page.captureScreenshot", {
             "format": "png",
             "captureBeyondViewport": True,
@@ -585,12 +619,42 @@ _STEP_PLANNED = _wrap(r"""
            to: el && el.getAttribute('data-to'), stored: stored, copy: copy };
 """)
 
+_STEP_REOPEN = _wrap(r"""
+  if (typeof window.vaultJump === 'function') window.vaultJump();
+  else {
+    window.switchTab('vault');
+    if (typeof window.renderVault === 'function') window.renderVault();
+  }
+  var card = document.getElementById('mule-vault-card');
+  if (card && card.classList.contains('collapsed') && typeof window.toggleCardCollapse === 'function')
+    window.toggleCardCollapse('mule-vault-card');
+  if (typeof window.renderVault === 'function') window.renderVault();
+  var list = document.getElementById('vault-move-list');
+  var r = list ? list.getBoundingClientRect() : { width: 0, height: 0 };
+  var tab = document.getElementById('tab-vault');
+  return { w: r.width, h: r.height, tab: !!(tab && tab.classList.contains('active')),
+           collapsed: !!(card && card.classList.contains('collapsed')) };
+""")
+
 _STEP_RELOAD = _wrap(r"""
-  window.switchTab('vault');
-  window.renderVault();
-  var el = document.querySelector('#vault-move-list .vmv-row[data-from="stash:c1r1"]');
-  return { status: el && el.getAttribute('data-status'), to: el && el.getAttribute('data-to'),
-           from: el && el.getAttribute('data-from') };
+  var opened = (function(){
+    if (typeof window.vaultJump === 'function') window.vaultJump();
+    else { window.switchTab('vault'); window.renderVault(); }
+    var card = document.getElementById('mule-vault-card');
+    if (card && card.classList.contains('collapsed') && typeof window.toggleCardCollapse === 'function')
+      window.toggleCardCollapse('mule-vault-card');
+    window.renderVault();
+    var tab = document.getElementById('tab-vault');
+    var list = document.getElementById('vault-move-list');
+    var r = list ? list.getBoundingClientRect() : { width: 0, height: 0 };
+    var el = document.querySelector('#vault-move-list .vmv-row[data-from="stash:c1r1"]');
+    return { status: el && el.getAttribute('data-status'), to: el && el.getAttribute('data-to'),
+             from: el && el.getAttribute('data-from'),
+             tab: !!(tab && tab.classList.contains('active')),
+             collapsed: !!(card && card.classList.contains('collapsed')),
+             w: r.width, h: r.height, hidden: !!(list && list.hidden) };
+  })();
+  return opened;
 """)
 
 _STEP_MARK = _wrap(r"""
@@ -618,14 +682,30 @@ _STEP_VERIFY = _wrap(r"""
 """)
 
 _STEP_FRAME = _wrap(r"""
-  try { if (typeof initShotExample === 'function') initShotExample(); } catch (e) {}
-  var ex = document.getElementById('vault-shot-example');
-  var src = (ex && ex.src) || (typeof VAULT_SHOT_EXAMPLE === 'string' ? VAULT_SHOT_EXAMPLE : '');
+  var src = 'tests/golden/intake/chronicle_uniques_A.jpg';
   window._tvdOpenFrame('v3769-live', { title: 'witness frame', src: src, cell: %s });
   var lb = document.getElementById('tvd-frame-lb');
+  var img = document.getElementById('tvd-frame-lb-img');
   var mark = document.getElementById('tvd-frame-lb-mark');
-  return { open: !!(lb && !lb.hidden && src && src.length > 80),
-           mark: mark ? mark.innerHTML : '', src: (src || '').slice(0, 30) };
+  return { open: !!(lb && !lb.hidden),
+           mark: mark ? mark.innerHTML : '',
+           src: img ? (img.getAttribute('src') || '') : '' };
+""")
+
+_FRAME_READY = r"""(function(){
+  var img = document.getElementById('tvd-frame-lb-img');
+  var src = img ? (img.getAttribute('src') || '') : '';
+  return !!(img && img.complete && img.naturalWidth > 8 && src.indexOf('chronicle_uniques_A') >= 0);
+})()"""
+
+_FRAME_READ = _wrap(r"""
+  var lb = document.getElementById('tvd-frame-lb');
+  var img = document.getElementById('tvd-frame-lb-img');
+  var mark = document.getElementById('tvd-frame-lb-mark');
+  return { open: !!(lb && !lb.hidden),
+           mark: mark ? mark.innerHTML : '',
+           src: img ? (img.getAttribute('src') || '') : '',
+           nw: img ? img.naturalWidth : 0 };
 """)
 
 
