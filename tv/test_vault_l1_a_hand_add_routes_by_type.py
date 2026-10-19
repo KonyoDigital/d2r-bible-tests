@@ -204,6 +204,45 @@ class AHandAddRoutesByType(unittest.TestCase):
         self.assertIn("from MULE-2 private stash (4,2)", o["seenSay"])
         self.assertTrue(o["backdrop"], "a backdrop click did not close the view")
 
+    def test_a_hand_typed_base_routes_to_the_bases_mule_at_its_footprint(self):
+        fresh()
+        bases = [("Monarch", (2, 3)), ("Archon Plate", (2, 3)), ("Eth Thresher", (2, 4)), ("Ethereal Archon Plate", (2, 3))]
+        a = add_all([b for b, _ in bases])["add"]
+        o = board().run(READ + "OUT.m = {}; OUT.c = {}; %s.forEach(function(n){ OUT.m[n] = moveOf(n); OUT.c[n] = window.vaultSize(n); });"
+                        "OUT.rows = document.querySelectorAll('#vault-move-list .vmv-row .vmv-manual-badge').length;"
+                        % json.dumps([b for b, _ in bases]))
+        import re
+        rects = []
+        for nm, fp in bases:
+            self.assertTrue(a[nm]["ok"], "the hand door refused the base %s: %r" % (nm, a[nm]))
+            mv = o["m"][nm]
+            self.assertEqual(len(mv), 1, "%s has %d rows: %r" % (nm, len(mv), mv))
+            self.assertTrue(mv[0]["manual"] and mv[0]["from"]["cell"] is None, mv)
+            self.assertEqual(mv[0]["to"]["holder"], "SOCKETED", "%s did not route to the bases mule: %r" % (nm, mv))
+            self.assertEqual(tuple(o["c"][nm]), fp, "%s footprint %r" % (nm, o["c"][nm]))
+            m = re.match(r"^stash:c(\d+)r(\d+)$", mv[0]["to"]["cell"])
+            rects.append((nm, (int(m.group(1)), int(m.group(2)), fp[0], fp[1])))
+        for i in range(len(rects)):
+            for j in range(i + 1, len(rects)):
+                self.assertFalse(overlap(rects[i][1], rects[j][1]), "bases overlap: %r" % rects)
+        self.assertEqual(o["rows"], len(bases))
+
+    def test_a_hand_typed_base_changes_no_other_list(self):
+        # a base owned through any OTHER door (no hand receipt) stays exactly where it was: not in records, not in the pool
+        board().seed({"d2r_owned": ["Monarch", "Insight"], "d2r_vaultProv": {}, "d2r_muleAssign": {}, "d2r_vaultRecords": None})
+        o = board().run("var rn = function(){ return (window._vaultRecords().records || []).map(function(r){ return r.name; }).sort(); };"
+                        "OUT.pool0 = ownedPool(); OUT.dock0 = window._vaultDockNames(); OUT.rec0 = rn(); OUT.hb0 = window._vaultHandBasePool();"
+                        "window._vaultAutoIntakeSet(false); OUT.add = window.vaultHandAdd('Archon Plate');"
+                        "OUT.pool1 = ownedPool(); OUT.dock1 = window._vaultDockNames(); OUT.rec1 = rn(); OUT.hb1 = window._vaultHandBasePool();")
+        self.assertTrue(o["add"]["ok"], o["add"])
+        self.assertEqual(o["hb0"], [], "a base he never typed counted as hand-typed: %r" % o["hb0"])
+        self.assertNotIn("Monarch", o["rec0"], "a non-hand base entered the records: %r" % o["rec0"])
+        self.assertEqual(o["pool0"], o["pool1"], "ownedPool changed")
+        self.assertEqual(o["dock0"], o["dock1"], "the dock changed")
+        self.assertEqual(o["hb1"], ["Archon Plate"], o["hb1"])
+        self.assertEqual(sorted(set(o["rec1"]) - set(o["rec0"])), ["Archon Plate"], "records changed beyond the typed base: %r -> %r" % (o["rec0"], o["rec1"]))
+        self.assertTrue(set(o["rec0"]) <= set(o["rec1"]))
+
     def test_distinct_attacks_clear_the_vault_apply_wilson_bar(self):
         from confidence import confluence, wilson_lower
         import self_arming as SA
@@ -220,6 +259,31 @@ class AHandAddRoutesByType(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "The hand door refuses a catalogue base again.",
+     "file": "bible.html",
+     "find": "if (!_vaultKeeps(r.name) && !_vaultHandBase(r.name)) /* L1 a catalogue base passes the hand door */",
+     "replace": "if (!_vaultKeeps(r.name)) /* L1 a catalogue base passes the hand door */",
+     "matches": 1},
+    {"why": "An ethereal base is not recognised as its catalogue base.",
+     "file": "bible.html",
+     "find": ".replace(/^(eth|ethereal)\\s+/i, '').toLowerCase();",
+     "replace": ".toLowerCase();",
+     "matches": 1},
+    {"why": "The packer leaves hand-typed bases out, so they get no target cell.",
+     "file": "bible.html",
+     "find": "try { if (typeof window._vaultHandBasePool === 'function') pool = pool.concat(window._vaultHandBasePool()); } catch (eHb) {} /* L1 hand bases pack */",
+     "replace": "/* L1 hand bases pack */",
+     "matches": 1},
+    {"why": "The records leave hand-typed bases out, so the row is never saved.",
+     "file": "bible.html",
+     "find": "try { if (typeof window._vaultHandBasePool === 'function') poolAll = poolAll.concat(window._vaultHandBasePool()); } catch (eHb) {} /* L1 hand bases record */",
+     "replace": "/* L1 hand bases record */",
+     "matches": 1},
+    {"why": "Any owned base counts as hand-typed, so a base from another door enters the records.",
+     "file": "bible.html",
+     "find": "if (p && p.source === 'hand' && /Add an item/.test(String(p.where || p.by || ''))) out.push(n); /* L1 hand-typed base */",
+     "replace": "out.push(n); /* L1 hand-typed base */",
+     "matches": 1},
     {"why": "Saved targets are not reserved, so a later bigger add is packed onto the cell Shako was given.",
      "file": "bible.html",
      "find": "    }); /* L1 append-only occ */",
