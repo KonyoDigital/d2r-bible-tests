@@ -9,7 +9,12 @@ place before the first byte of the gate is opened. Each line is `KIND<TAB>PID<TA
     R  opened for reading        W  opened for writing       S  stat'ed (exists/isfile/getsize)
     L  listed (listdir, scandir, glob, walk)                  I  imported a top-level module name
     P  started a python child that will trace itself
+    G  ran `git check-ignore`, so every .gitignore is an input
     U  did something this trace cannot follow (a non-python child, a child without the trace env)
+
+A git child aimed outside this checkout (a fixture repository in a tempdir) is not a read of it.
+`git ls-files` is a listing of the whole tracked set. `git rev-parse --show-toplevel` reads nothing
+that a commit can move. Any other git command reads history or the index, and is a U.
 
 Only paths under TV_GATE_TRACE_ROOT are written, repo-relative. A listing made by the import system
 itself is not a listing by the gate. Lines go straight to an O_APPEND descriptor, so a forked child,
@@ -105,9 +110,52 @@ def _boot():
         except Exception:
             return False
 
-    def child(argv, env):
+    def git_child(args, env, cwd):
+        """A git child that only names tracked paths, or one aimed at another repository. -> bool (handled)"""
+        where = cwd
+        rest = list(args[1:])
+        while rest and rest[0].startswith("-"):
+            flag = rest.pop(0)
+            if flag in ("-C", "-c") and rest:
+                value = rest.pop(0)
+                if flag == "-C":
+                    where = join(fsdecode(where) if where else getcwd(), value)
+            elif flag.startswith("--git-dir") or flag.startswith("--work-tree"):
+                return False
+        source = env if env is not None else os.environ
+        try:
+            if any(source.get(k) for k in ("GIT_DIR", "GIT_WORK_TREE")):
+                return False
+        except Exception:
+            return False
+        if rel(where if where is not None else getcwd()) is None:
+            return True  # a fixture repository outside this checkout
+        sub = rest[0] if rest else ""
+        opts = rest[1:]
+        if sub == "ls-files" and not any(o.startswith(("-o", "--others", "-m", "--modified", "-d", "--deleted",
+                                                         "-s", "--stage", "--with-tree", "--error-unmatch"))
+                                         for o in opts):
+            emit("L", "")  # the tracked set: any added or deleted file
+            return True
+        if sub == "rev-parse" and opts and all(o in ("--show-toplevel", "--git-dir", "--is-inside-work-tree",
+                                                     "--show-cdup", "--show-prefix", "--git-common-dir")
+                                               for o in opts):
+            return True
+        if sub == "init":
+            paths = [o for o in opts if not o.startswith("-")]
+            base = fsdecode(where) if where is not None else getcwd()
+            if paths and rel(join(base, paths[-1])) is None:
+                return True  # a new fixture repository outside this checkout
+        if sub == "check-ignore":
+            emit("G", "")  # every .gitignore
+            return True
+        return False
+
+    def child(argv, env, cwd=None):
         args = [str(a) for a in (argv if isinstance(argv, (list, tuple)) else [argv or ""])]
         head = os.path.basename(args[0]) if args else ""
+        if head == "git" and git_child(args, env, cwd):
+            return
         is_py = bool(args) and (args[0] == sys.executable or head.startswith("python"))
         if env is not None:
             try:
@@ -156,8 +204,8 @@ def _boot():
                 if name and name not in stdlib:
                     emit("I", name)
             elif event == "subprocess.Popen":
-                exe, argv, _cwd, env = (list(args) + [None] * 4)[:4]
-                child(argv if argv else [exe], env)
+                exe, argv, cwd, env = (list(args) + [None] * 4)[:4]
+                child(argv if argv else [exe], env, cwd)
             elif event in ("os.posix_spawn", "os.exec"):
                 if not from_subprocess():
                     path, argv, env = (list(args) + [None] * 3)[:3]
