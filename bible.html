@@ -41605,15 +41605,22 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      the box takes the key at once and the list follows when the keys pause. */
   (function(){
     var _vfOne = window.vaultFind;
+    var _vfT = 0;
+    /* v3773 round 4 - any direct FIND (the x, Escape, a refresh) cancels the pending key timer, so a
+       clear inside the 140 ms pause is not undone by the old query landing after it */
     window.vaultFind = function vaultFindOnePass(q){
+      if (_vfT) { clearTimeout(_vfT); _vfT = 0; }
       var outer = window._vrFindPass;
       window._vrFindPass = outer || {};
       try { return _vfOne(q); } finally { window._vrFindPass = outer || null; }
     };
-    var _vfT = 0;
     window._vaultFindSoon = function(q){
       if (_vfT) clearTimeout(_vfT);
-      _vfT = setTimeout(function(){ _vfT = 0; window.vaultFind(q); }, 140);
+      _vfT = setTimeout(function(){
+        _vfT = 0;
+        var inp = document.getElementById('vault-find-input');
+        window.vaultFind(inp ? inp.value : q);   /* the live box, never the value the key carried */
+      }, 140);
     };
   })();
   /* #12 (REG-2230) — FIND went STALE after a re-sort. vaultFind re-ran ONLY on type / clear (the input
