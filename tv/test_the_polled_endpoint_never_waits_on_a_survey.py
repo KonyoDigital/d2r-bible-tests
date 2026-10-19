@@ -207,6 +207,79 @@ class TheLockCensusNeverBlocksStatus(unittest.TestCase):
         self.assertNotIn('_t("selfArming", _self_arming_state),', src)
 
 
+class TheStatusPollDoesNotWaitOnGitFetch(unittest.TestCase):
+    """main() calls status_payload() before it binds. That call's fleet row used to
+    run `git fetch origin main` with a 25s timeout, and the rinse boot poll gives
+    up at 20s. Routine I 39209490488: the child was still alive, nothing was
+    listening, and the boot log had not one line from the console."""
+
+    def setUp(self):
+        self._real = CA._git_run
+        self._cache = dict(CA._FLEET_CACHE)
+        self._last = CA._FLEET_LAST_FETCH
+        self.fetches = []
+        CA._FLEET_CACHE["val"] = None
+        CA._FLEET_CACHE["t"] = 0.0
+        CA._FLEET_LAST_FETCH = 0.0
+        CA._FLEET_FETCHING["on"] = False
+
+    def tearDown(self):
+        CA._git_run = self._real
+        for _ in range(80):
+            if not CA._FLEET_FETCHING.get("on"):
+                break
+            time.sleep(0.1)
+        CA._FLEET_CACHE.clear()
+        CA._FLEET_CACHE.update(self._cache)
+        CA._FLEET_LAST_FETCH = self._last
+        CA._FLEET_FETCHING["on"] = False
+
+    def _slow_git(self):
+        def _fn(argv, **kw):
+            class R:
+                returncode = 0
+                stdout = "0\n"
+                stderr = ""
+            if isinstance(argv, (list, tuple)) and "fetch" in argv:
+                self.fetches.append(time.time())
+                time.sleep(SLOW_S)
+                return R()
+            # The other git questions are not what this law measures. A sandbox with no
+            # origin makes them sit on their timeouts, and that would paint a fast fetch
+            # as a slow status.
+            return R()
+        return _fn
+
+    def test_a_slow_fetch_does_not_hold_the_status_answer(self):
+        CA._git_run = self._slow_git()
+        t = time.time()
+        fl = CA.fleet_origin_status(force_fetch=False)
+        waited = (time.time() - t) * 1000.0
+        for _ in range(40):
+            if self.fetches:
+                break
+            time.sleep(0.01)
+        self.assertTrue(self.fetches, "no fetch was started, so this law measured nothing")
+        self.assertLess(waited, BUDGET_MS,
+                        "fleet_origin_status waited %.0f ms on a %.0f ms git fetch. "
+                        "The headless boot calls this before it binds, and the rinse "
+                        "poll gives that boot 20s against a 25s fetch timeout"
+                        % (waited, SLOW_S * 1000))
+        self.assertIn("behind", fl)
+        alive = [th for th in threading.enumerate() if th.name == "tvd-fleet-fetch"]
+        self.assertLessEqual(len(alive), 1, "%d fetch threads alive" % len(alive))
+
+    def test_an_update_request_still_waits_for_the_fetch(self):
+        """/api/update exists to return the count after the fetch, not before it."""
+        CA._git_run = self._slow_git()
+        t = time.time()
+        CA.fleet_origin_status(force_fetch=True)
+        waited = (time.time() - t) * 1000.0
+        self.assertGreaterEqual(waited, SLOW_S * 1000.0 * 0.9,
+                                "force_fetch returned in %.0f ms — /api/update no longer waits"
+                                % waited)
+
+
 RED_PROOF = [
     {
         "why": "restoring the SYNCHRONOUS survey inside the polled handler — the exact code that "
@@ -274,6 +347,16 @@ RED_PROOF = [
                  '                       "console started — UNKNOWN, and specifically not open"}'),
         "replace": ('        return {"ok": True, "open": 1, "total": 1, '
                     '"locks": [{"state": "OPEN"}], "why": "open before the census"}'),
+        "matches": 1,
+    },
+    {
+        "why": "git fetch back on the status thread — a 25s fetch before bind, which "
+               "the 20s rinse boot poll reports as the server never coming up",
+        "file": "control_app.py",
+        "find": "            _fleet_fetch_kick()",
+        "replace": ("            _git_run([\"git\", \"fetch\", \"origin\", \"main\", \"--quiet\"], "
+                    "cwd=REPO, capture_output=True, timeout=25)\n"
+                    "            _FLEET_LAST_FETCH = now"),
         "matches": 1,
     },
 ]

@@ -1436,6 +1436,8 @@ _FLEET_CACHE = {"t": 0.0, "val": None}
 _FLEET_TTL_S = 120.0  # re-fetch at most every 2 min
 _FLEET_FETCH_TTL_S = 300.0  # network fetch at most every 5 min
 _FLEET_LAST_FETCH = 0.0
+_FLEET_FETCH_LOCK = threading.Lock()
+_FLEET_FETCHING = {"on": False}
 
 
 def _his_tracked_edits(porcelain):
@@ -1734,6 +1736,44 @@ def fleet_annotate_lag(fl):
     return out
 
 
+def _fleet_fetch_kick():
+    """Start ONE `git fetch origin main`. Returns immediately.
+
+    The status poll and the headless boot both call fleet_origin_status with
+    force_fetch=False. Waiting here holds the boot banner and the bind for up
+    to the fetch's 25s timeout. /api/update still fetches on its own thread
+    and waits, because that request exists to return the fresh count.
+    """
+    global _FLEET_LAST_FETCH
+    with _FLEET_FETCH_LOCK:
+        if _FLEET_FETCHING["on"]:
+            return False
+        _FLEET_FETCHING["on"] = True
+        # Stamp before the thread, so a once-a-second poll does not start a
+        # fetch per poll. A failed fetch waits out the TTL rather than retrying
+        # on the next status.
+        _FLEET_LAST_FETCH = time.time()
+
+    def _run():
+        try:
+            _git_run(
+                ["git", "fetch", "origin", "main", "--quiet"],
+                cwd=REPO, capture_output=True, timeout=25,
+                creationflags=_WIN_CREATE if IS_WIN else 0,
+            )
+            # the next status recomputes `behind` from the ref this fetch moved
+            _FLEET_CACHE["t"] = 0.0
+            _FLEET_CACHE["val"] = None
+        except Exception:
+            pass
+        finally:
+            with _FLEET_FETCH_LOCK:
+                _FLEET_FETCHING["on"] = False
+
+    threading.Thread(target=_run, daemon=True, name="tvd-fleet-fetch").start()
+    return True
+
+
 def fleet_origin_status(force_fetch=False):
     """v1418 — {behind, latest, head, origin, dirty, ok, howTo, ver}.
     behind = commits on origin/main not in HEAD (0 = unified with fleet channel)."""
@@ -1762,8 +1802,14 @@ def fleet_origin_status(force_fetch=False):
                     out[key] = (r.stdout or "").strip()
             except Exception:
                 pass
-        # network fetch (throttled)
-        if force_fetch or (now - _FLEET_LAST_FETCH) >= _FLEET_FETCH_TTL_S:
+        # network fetch. /api/update asks for it and waits. The status poll must not:
+        # this same call runs inside main() BEFORE the port is bound, and the fetch
+        # timeout is 25s. The rinse boot poll gives up at 20s, so a fetch that uses
+        # its timeout is "the server never came up" — process still alive, log still
+        # empty, because the boot banner is printed after status_payload returns.
+        # Measured on Routine I 39209490488: pid alive, ECONNREFUSED for the whole
+        # poll, and the only log line was the spec's own spawn note.
+        if force_fetch:
             try:
                 _git_run(
                     ["git", "fetch", "origin", "main", "--quiet"],
@@ -1780,6 +1826,8 @@ def fleet_origin_status(force_fetch=False):
                     out["origin"] = (r.stdout or "").strip()
             except Exception:
                 pass
+        elif (now - _FLEET_LAST_FETCH) >= _FLEET_FETCH_TTL_S:
+            _fleet_fetch_kick()
         r = _git_run(
             ["git", "rev-list", "HEAD..origin/main", "--count"],
             cwd=REPO, capture_output=True, text=True, timeout=10,
