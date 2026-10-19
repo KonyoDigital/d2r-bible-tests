@@ -99,83 +99,165 @@ _PY_PLAYWRIGHT = re.compile(r"(^|\n)\s*(import playwright\b|from playwright\b)")
 
 
 # v3774 — A VERSION BUMP IS NOT A CHANGE TO EVERY GATE. bump_version.py rewrites a known set of
-# lines in four files (bible.html, tv/control_app.py, tv/tv_diablo.py, tv/WINDOWS_SHIP.json), and
-# most gates import or open one of them, so a bump-only diff reran nearly every gate (~2172s
-# against ~600s for no change). A path whose diff since the proof is ONLY these lines is a
-# "stamp-only" change and does not invalidate a gate that never reads the version.
-# Fail closed: any other changed line, a rename, a binary diff, a missing newline, an unequal
-# count of removed and added stamps, or a failing git diff keeps the path changed. A gate whose
-# own script or name speaks of the version reruns as before.
+# lines in bible.html, tv/control_app.py, tv/tv_diablo.py and tv/WINDOWS_SHIP.json, and its own
+# regenerations rewrite known lines in RESUME_HERE.md, BLUEPRINT.md and the TASKS.md ship table.
+# Most gates import or open one of those files, so a bump-only diff reran 760 of 1003 gates.
+#
+# The stamp lines are dropped from the change set ONLY for a COHERENT bump: every required surface
+# changed, every one changed only its stamp lines, each stamp was swapped in place (same hunk
+# position, same indentation, same kind), and every removed version is one old version U and every
+# added version is one new version V != U. A partial bump, a hand edit of one stamp, a moved or
+# re-indented stamp, a TASKS.md edit other than the single new top ship row, a failed git diff, or
+# any line the reader does not know keeps every stamp surface changed, so every gate reruns.
+# Even then a gate that reads the version (see reads_version) reruns.
+_V = r"(?P<v>v\d+(?:\.\d+)*)"
+_SQ = r"'(?:[^'\\\n]|\\.)*'"          # one single-quoted JS string, nothing after its close quote
 STAMP_SURFACES = {  # LEDGER-STAMP-SURFACES (mirrors tv/bump_version.py bump + _rewrite_head_stamps)
     "bible.html": (
-        re.compile(r"^  window\.D2R_BUILD = \{ id:'v\d+(?:\.\d+)*', name:'.*', date:'[0-9-]+', note:'.*' \};$"),
-        re.compile(r"^\s*<title>[^<]*\bv\d+(?:\.\d+)*\b[^<]*</title>\s*$"),
-        re.compile(r'^<meta name="d2r-build" content="[^"]*">$'),
-        re.compile(r'^<meta name="d2r-build-date" content="[^"]*">$'),
-        re.compile(r'^<meta name="d2r-build-note" content="[^"]*">$'),
+        ("build", re.compile(r"^  window\.D2R_BUILD = \{ id:'" + _V + r"', name:" + _SQ +
+                             r", date:'\d{4}-\d\d-\d\d', note:" + _SQ + r" \};$")),
+        ("title", re.compile(r"^(?P<pre>\s*<title>[^<]*?)\b" + _V + r"\b(?P<post>[^<]*</title>)$")),
+        ("meta", re.compile(r'^<meta name="d2r-build" content="' + _V + r'">$')),
+        ("meta-date", re.compile(r'^<meta name="d2r-build-date" content="\d{4}-\d\d-\d\d">$')),
+        ("meta-note", re.compile(r'^<meta name="d2r-build-note" content="[^"<>\n]*">$')),
     ),
-    "tv/control_app.py": (re.compile(r'^\s*"ver": "v\d+(?:\.\d+)*",\s*$'),),
-    "tv/tv_diablo.py": (re.compile(r'^VERSION = "v\d+(?:\.\d+)*"   # .*$'),),
+    "tv/control_app.py": (("ver", re.compile(r'^\s*"ver": "' + _V + r'",$')),),
+    "tv/tv_diablo.py": (("ver", re.compile(r'^VERSION = "' + _V + r'"   # [^\n]*$')),),
     "tv/WINDOWS_SHIP.json": (
-        re.compile(r'^  "ver": "v\d+(?:\.\d+)*",$'),
-        re.compile(r'^  "note": "v\d+(?:\.\d+)*: .*",$'),
+        ("ver", re.compile(r'^  "ver": "' + _V + r'",$')),
+        ("note", re.compile(r'^  "note": "' + _V + r': (?:[^"\\\n]|\\.)*",$')),
     ),
-    # The bump's own regenerations (_regen_blueprint, _record_ship_in_tasks + stamp_versions).
-    "BLUEPRINT.md": (re.compile(r"^    generated \d{4}-\d\d-\d\d \d\d:\d\d$"),),
+    "BLUEPRINT.md": (("generated", re.compile(r"^    generated \d{4}-\d\d-\d\d \d\d:\d\d$")),),
     "RESUME_HERE.md": (
-        re.compile(r"^<!-- fp: ver=v\d+(?:\.\d+)* -->$"),
-        re.compile(r"^\| version stamp \| v\d+(?:\.\d+)* \|$"),
-        re.compile(r"^\*Derived \d{4}-\d\d-\d\d \d\d:\d\d by `tv/resume_state\.py`\..*\*$"),
+        ("fp", re.compile(r"^<!-- fp: ver=" + _V + r" -->$")),
+        ("stamp", re.compile(r"^\| version stamp \| " + _V + r" \|$")),
+        ("derived", re.compile(r"^\*Derived \d{4}-\d\d-\d\d \d\d:\d\d by `tv/resume_state\.py`\. "
+                               r"Everything outside these markers is narrative a machine cannot "
+                               r"measure, written by hand\.\*$")),
     ),
-    "TASKS.md": (re.compile(r"^\| \*\*v\d+(?:\.\d+)*\*\* \| `[^`]*` \| .*\|\s*$"),),
+    "TASKS.md": (),  # handled by _tasks_row_versions: one new top ship row, exact bump format
 }
-# The ship table GROWS by one row per bump; every other surface swaps a line for a line.
-_STAMP_GROWS = frozenset(("TASKS.md",))
-# A gate whose own script or name speaks of the version reruns on a stamp-only change. The
-# closure is NOT searched: measured on v3772, 913 of 1003 closures hold a version word
-# (gate_ledger.py, control_ui.html, console_doctor.py...), which would rerun everything.
-# CI never consults the ledger, so a version reader this misses is still caught there.
-_VERSION_NAME = re.compile(r"version|stamp|bump|ship|build|title|status", re.I)
-# A gate that reads the version reruns on a stamp-only change. Searched in the gate script and in
-# every closure file except the stamp surfaces themselves (which always hold the stamp).
+# Every coherent bump moves these. BLUEPRINT.md may or may not move (same-minute regen).
+_STAMP_REQUIRED = frozenset(("bible.html", "tv/control_app.py", "tv/tv_diablo.py",
+                             "tv/WINDOWS_SHIP.json", "RESUME_HERE.md", "TASKS.md"))
+_TASK_NEW = re.compile(r"^\| \*\*" + _V + r"\*\* \| `\(this commit\)` \| (?P<s>v\d+(?:\.\d+)*) — [^|\n]*\|$")
+_TASK_OLD = re.compile(r"^\| \*\*" + _V + r"\*\* \| `\(this commit\)` \| (?P<rest>.*)$")
+_TASK_BOUND = re.compile(r"^\| \*\*" + _V + r"\*\* \| `[0-9a-f]{7,40}` \| (?P<rest>.*)$")
+# A gate whose own name or script speaks of the version, or names a module whose job is reading
+# it, reruns even on a coherent bump. The closure is NOT searched by word: measured on v3772,
+# 913 of 1003 closures hold a version word and resume_state / stamp_versions / second_eye_ledger /
+# console_doctor each sit in 619-633 closures through hub imports, so a closure test reruns
+# everything. Closure membership is used only for _VERSION_READER_ONLY, modules that exist to read
+# the version and sit in no hub. CI never consults the ledger.
+_VERSION_NAME = re.compile(r"version|stamp|bump|ship|build|title|status|resume|fresh", re.I)
 _VERSION_WORDS = re.compile(
     r"D2R_BUILD|d2r-build|bump_version|WINDOWS_SHIP|stamp_versions|\bVERSION\b|"
-    r"[\x27\x22]ver[\x27\x22]|<title>")
+    r"[\x27\x22]ver[\x27\x22]|<title>|resume_state|RESUME_HERE|version_stamp_gate|"
+    r"second_eye_ledger|tooltip_oracle_lane|windows_boot_check|_tree_version|"
+    r"_check_version_drift|current_version|_shipped_versions|bible_stamp|TASKS\.md")
+_VERSION_READER_ONLY = frozenset(("tv/version_stamp_gate.py", "tv/windows_boot_check.py"))
 
 
 def stamp_kinds(rel, line):
-    """Index of the stamp pattern a changed line matches, or None. -> int|None"""
-    for i, pat in enumerate(STAMP_SURFACES.get(rel, ())):
-        if pat.match(line):
-            return i
+    """(kind, match) of the stamp pattern a changed line matches, or None."""
+    for kind, pat in STAMP_SURFACES.get(rel, ()):
+        m = pat.match(line)
+        if m:
+            return kind, m
     return None
 
 
-def stamp_only_diff(rel, text):
-    """True only when a `git diff -U0` of one path changes stamp lines and nothing else. -> bool"""
-    if rel not in STAMP_SURFACES or not text:
-        return False
-    removed, added = [], []
-    in_hunk = False  # a removed "-- x" line reads "--- x": headers are only headers before the first @@
-    for line in text.splitlines():
-        if line.startswith("diff --git "):
-            in_hunk = False
+_HUNK = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
+
+
+def diff_hunks(text):
+    """`git diff -U0` of one path -> [(old_start, new_start, removed, added)] or None on any
+    line that is not a header before the first @@, a hunk header, or a +/- line."""
+    hunks, in_hunk, cur = [], False, None
+    for line in (text or "").splitlines():
+        if line.startswith("diff --git ") and not in_hunk:
             continue
-        if line.startswith("@@ "):
+        m = _HUNK.match(line) if line.startswith("@@ ") else None
+        if m:
             in_hunk = True
+            cur = (int(m.group(1)), int(m.group(3)), [], [])
+            hunks.append(cur)
             continue
         if not in_hunk and line.startswith(("index ", "--- ", "+++ ")):  # STAMP-HEADER
             continue
-        if in_hunk and (line.startswith("-") or line.startswith("+")):
-            k = stamp_kinds(rel, line[1:])
-            if k is None:  # STAMP-OTHER-LINE
-                return False
-            (removed if line[0] == "-" else added).append(k)
+        if in_hunk and line[:1] == "-":
+            cur[2].append(line[1:])
             continue
-        return False  # STAMP-UNKNOWN-LINE: rename, mode, binary, "\ No newline", or anything unknown
-    if rel in _STAMP_GROWS:
-        return bool(added) and len(added) >= len(removed)  # STAMP-GROWS
-    return bool(added) and sorted(removed) == sorted(added)  # STAMP-PAIRED
+        if in_hunk and line[:1] == "+":
+            cur[3].append(line[1:])
+            continue
+        return None  # STAMP-UNKNOWN-LINE: rename, mode, binary, "\ No newline", a second file
+    return hunks or None
+
+
+def _indent(line):
+    return line[:len(line) - len(line.lstrip())]
+
+
+def _tasks_row_versions(hunks):
+    """The single new top ship row, exact bump_version format. -> (old, new) | None"""
+    if len(hunks) != 1:
+        return None
+    o, n, rem, add = hunks[0]
+    if o != n or len(rem) != 1 or len(add) != 2:  # STAMP-TASKS-SHAPE
+        return None
+    old, new, bound = _TASK_OLD.match(rem[0]), _TASK_NEW.match(add[0]), _TASK_BOUND.match(add[1])
+    if not (old and new and bound):
+        return None
+    if new.group("v") != new.group("s") or bound.group("v") != old.group("v"):
+        return None
+    if bound.group("rest") != old.group("rest"):  # STAMP-TASKS-REST
+        return None
+    return {old.group("v")}, {new.group("v")}
+
+
+def stamp_file_versions(rel, text):
+    """Versions a stamp-only diff of one path swaps. -> (old set, new set) | None (not stamp-only)"""
+    if rel not in STAMP_SURFACES:
+        return None
+    hunks = diff_hunks(text)
+    if not hunks:
+        return None
+    if rel == "TASKS.md":
+        return _tasks_row_versions(hunks)
+    olds, news = set(), set()
+    for o, n, rem, add in hunks:
+        if o != n or len(rem) != len(add) or not rem:  # STAMP-IN-PLACE
+            return None
+        for a, b in zip(rem, add):
+            ka, kb = stamp_kinds(rel, a), stamp_kinds(rel, b)
+            if ka is None or kb is None:  # STAMP-OTHER-LINE
+                return None
+            if ka[0] != kb[0] or _indent(a) != _indent(b):  # STAMP-PAIRED
+                return None
+            ma, mb = ka[1], kb[1]
+            if ka[0] == "title" and (ma.group("pre"), ma.group("post")) != (mb.group("pre"), mb.group("post")):
+                return None
+            if "v" in ma.re.groupindex:
+                olds.add(ma.group("v"))
+                news.add(mb.group("v"))
+    return olds, news
+
+
+def coherent_bump(per_file):
+    """{rel: (olds, news) | None} for every stamp surface in the change set -> bool.
+    Every required surface present and stamp-only, one old version, one new version."""
+    if any(v is None for v in per_file.values()):  # STAMP-ANY-DOUBT
+        return False
+    if not _STAMP_REQUIRED <= set(per_file):  # STAMP-REQUIRED
+        return False
+    olds, news = set(), set()
+    for rel, (o, n) in per_file.items():
+        if rel in _STAMP_REQUIRED and not n:
+            return False
+        olds |= o
+        news |= n
+    return len(olds) == 1 and len(news) == 1 and olds != news  # STAMP-ONE-VERSION
 
 
 def ledger_path():
@@ -2053,30 +2135,34 @@ class Ledger(object):
         return shown, None  # LEDGER-NO-BANK
 
     def stamp_only(self, root, sha, changed):
-        """Stamp surfaces in `changed` whose diff from sha to the worktree is only stamp lines.
-        One git diff per (sha, path), cached. Any doubt keeps the path changed. -> set"""
-        out = set()
+        """The stamp surfaces in `changed`, when they together form one coherent bump from sha to
+        the worktree; otherwise the empty set. One git diff per (sha, path), cached. -> set"""
+        key = str(sha)
+        if key in self._stamp_cache:
+            return set(self._stamp_cache[key]) & set(changed or ())
+        per = {}
         for rel in sorted(STAMP_SURFACES):
             if rel not in (changed or ()):
                 continue
-            key = (str(sha), rel)
-            if key not in self._stamp_cache:
-                ok = False
-                try:
-                    proc = _git(root, ["diff", "-U0", "--no-color", "--no-ext-diff",
-                                       "--no-renames", str(sha), "--", rel])
-                    ok = (proc is not None and proc.returncode == 0  # STAMP-GIT-OK
-                          and stamp_only_diff(rel, proc.stdout or ""))
-                except Exception:
-                    ok = False
-                self._stamp_cache[key] = ok
-            if self._stamp_cache[key]:
-                out.add(rel)
-        return out
+            got = None
+            try:
+                proc = _git(root, ["diff", "-U0", "--no-color", "--no-ext-diff", "--no-textconv",
+                                   "--no-renames", str(sha), "--", rel])
+                if proc is not None and proc.returncode == 0:  # STAMP-GIT-OK
+                    got = stamp_file_versions(rel, proc.stdout or "")
+            except Exception:
+                got = None
+            per[rel] = got
+        out = set(per) if (per and coherent_bump(per)) else set()
+        self._stamp_cache[key] = out
+        return set(out)
 
     def reads_version(self, row, root, name=""):
-        """Does the gate's name or own script name the version? Unreadable counts as yes. -> bool"""
+        """Does the gate's name or own script speak of the version, or does its closure hold a
+        module that exists only to read it? Unreadable counts as yes. -> bool"""
         if _VERSION_NAME.search(str(name or "")):  # STAMP-VERSION-NAME
+            return True
+        if any(p in _VERSION_READER_ONLY for p in (row.get("inputs") or [])):  # STAMP-VERSION-READER
             return True
         rel = row.get("script")
         if not rel:
