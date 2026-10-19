@@ -786,6 +786,15 @@
     "gotcha": "A measurement with a source, committed so every machine cuts the same slices. A gate the table has not seen weighs the MEDIAN, not its declared timeout. Refresh from CI job logs with python3 tv/gate_costs.py <logs>; test_the_gate_set_shards_cleanly refuses a table covering under 95% of the registry.",
     "territory": "routines-infra"
   },
+  "gate_ledger.py": {
+    "entryPoints": [
+      "Ledger",
+      "main"
+    ],
+    "purpose": "Per-checkout memory of which gates passed at which commit. A later run asks git once which files moved and carries a gate whose inputs are not among them.",
+    "gotcha": "The ledger and the input map are gitignored and never a verdict of record. A missing or unreachable proven sha, a failed diff, or a gate whose inputs cannot be named runs the gate. A FAIL is not stored. GitHub CI does not consult it. CARRY is not a fresh pass and does not bank Wilson evidence.",
+    "territory": "gates-proofs"
+  },
   "git_quiet.py": {
     "entryPoints": [
       "run"

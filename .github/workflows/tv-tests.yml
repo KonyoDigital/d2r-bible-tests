@@ -196,6 +196,7 @@ jobs:
         run: |
           _t0=$(date -u +%s)
           set +e
+          # v3768 — CI stays a full run. The local ledger is not a verdict here.
           python3 tv/run_gates.py --shard ${{ matrix.shard }}/4
           _rc=$?
           set -e

@@ -879,6 +879,12 @@ if ! gate_run "boss-portraits" "python3 art/verify_boss_portraits.py   (--list t
 fi
 echo "pre-push: [$(_pp_el)] ✅ boss portraits are the pictures a human opened, and bible.html serves them."
 
+# v3768 — a stored PASS carries only when the gate name, definition and input bytes still match.
+# A miss, a missing ledger and a corrupt ledger all fall through and the gate runs. FAIL is never stored.
+ledger_carry() {
+  python3 "$REPO/tv/gate_ledger.py" --carry "$1"
+}
+
 # v877 — TV FAST LANE: any tv/*.py in the push runs both python suites (~10s, no Playwright,
 # no Chromium, no Mac load). The physically unskippable gate KONYO_WORKFLOW step 12 asks for.
 if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
@@ -889,13 +895,22 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
   # when the commit was (`suite_verdict.py --run`) or by an earlier push of the same bytes; a run of these bytes still in
   # flight is waited for. Anything else runs the suite here, as before. CI still runs both suites in full after the push.
   # SUITE_VERDICT_REUSE=0 git push closes it for one push.
-  if python3 "$REPO/tv/suite_verdict.py" --check test_agent --wait 900; then
-    echo "pre-push: [$(_pp_el)] ✅ test_agent: a green run of these exact bytes was reused (the line above names it)."
+  _carry_line="$(ledger_carry test_agent)"
+  _carry_rc=$?
+  if [ "$_carry_rc" -eq 0 ]; then
+    echo "pre-push: [$(_pp_el)] test_agent carried: $_carry_line"
   else
-    if ! gate_run "test_agent" "python3 tv/test_agent.py" 600 -- python3 "$REPO/tv/test_agent.py"; then
-      exit 1
+    echo "pre-push: [$(_pp_el)] $_carry_line"
+    if python3 "$REPO/tv/suite_verdict.py" --check test_agent --wait 900; then
+      echo "pre-push: [$(_pp_el)] ✅ test_agent: a green run of these exact bytes was reused (the line above names it)."
+      python3 "$REPO/tv/gate_ledger.py" --record test_agent || true
+    else
+      if ! gate_run "test_agent" "python3 tv/test_agent.py" 600 -- python3 "$REPO/tv/test_agent.py"; then
+        exit 1
+      fi
+      python3 "$REPO/tv/suite_verdict.py" --record test_agent || true
+      python3 "$REPO/tv/gate_ledger.py" --record test_agent || true
     fi
-    python3 "$REPO/tv/suite_verdict.py" --record test_agent || true
   fi
   # ⚠ v2361 — 600s ASSUMED AN IDLE MACHINE, AND HIS IS NOT. Measured 2026-08-31 on the same
   # tree: 385s with the Mac quiet, 719s with D2R running at 110% CPU. A ceiling set between
@@ -903,23 +918,40 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
   # is playing, which is most of them, and the message says HUNG when nothing hung.
   # 1500s still catches a genuine wedge (the suite has never exceeded 720s) while leaving
   # room for the machine he actually owns. [[feedback-threshold-above-the-ceiling]]
-  if python3 "$REPO/tv/suite_verdict.py" --check test_control --wait 1500; then
-    echo "pre-push: [$(_pp_el)] ✅ test_control: a green run of these exact bytes was reused (the line above names it)."
+  _carry_line="$(ledger_carry test_control)"
+  _carry_rc=$?
+  if [ "$_carry_rc" -eq 0 ]; then
+    echo "pre-push: [$(_pp_el)] test_control carried: $_carry_line"
   else
-    # #42 lever 4 (2026-10-02) - AS PARALLEL SHARDS. Measured per class: one case was 271.6 s of 435.6 s (fixed in the
-    # suite: 133.6 s); then 4 shards by class ran all 2,259 cases in 66-88 s (3 green runs, his game running beside them).
-    # tv/shard_suite.py is green only when every shard ran every case it was dealt and every class was dealt - a shard
-    # that dies or runs less is RED. SUITE_SHARDS=1 runs it as one shard. CI still runs the whole file serially.
-    if ! gate_run "test_control" "python3 tv/shard_suite.py test_control" 1500 -- python3 "$REPO/tv/shard_suite.py" test_control; then
-      exit 1
+    echo "pre-push: [$(_pp_el)] $_carry_line"
+    if python3 "$REPO/tv/suite_verdict.py" --check test_control --wait 1500; then
+      echo "pre-push: [$(_pp_el)] ✅ test_control: a green run of these exact bytes was reused (the line above names it)."
+      python3 "$REPO/tv/gate_ledger.py" --record test_control || true
+    else
+      # #42 lever 4 (2026-10-02) - AS PARALLEL SHARDS. Measured per class: one case was 271.6 s of 435.6 s (fixed in the
+      # suite: 133.6 s); then 4 shards by class ran all 2,259 cases in 66-88 s (3 green runs, his game running beside them).
+      # tv/shard_suite.py is green only when every shard ran every case it was dealt and every class was dealt - a shard
+      # that dies or runs less is RED. SUITE_SHARDS=1 runs it as one shard. CI still runs the whole file serially.
+      if ! gate_run "test_control" "python3 tv/shard_suite.py test_control" 1500 -- python3 "$REPO/tv/shard_suite.py" test_control; then
+        exit 1
+      fi
+      python3 "$REPO/tv/suite_verdict.py" --record test_control || true
+      python3 "$REPO/tv/gate_ledger.py" --record test_control || true
     fi
-    python3 "$REPO/tv/suite_verdict.py" --record test_control || true
   fi
   # v1578 — the TZ panel's DATA (67 zones -> game-extracted art + the game's own density/level, and
   # the tiering that greys a zone out). Cheap, pure stdlib, and it guards a surface Konyo looks at
   # every hour: a missing art key is a broken image on his TV that the browser reports to nobody.
-  if ! gate_run "test_tz_art" "python3 tv/test_tz_art.py" 120 -- python3 "$REPO/tv/test_tz_art.py"; then
-    exit 1
+  _carry_line="$(ledger_carry test_tz_art)"
+  _carry_rc=$?
+  if [ "$_carry_rc" -eq 0 ]; then
+    echo "pre-push: [$(_pp_el)] test_tz_art carried: $_carry_line"
+  else
+    echo "pre-push: [$(_pp_el)] $_carry_line"
+    if ! gate_run "test_tz_art" "python3 tv/test_tz_art.py" 120 -- python3 "$REPO/tv/test_tz_art.py"; then
+      exit 1
+    fi
+    python3 "$REPO/tv/gate_ledger.py" --record test_tz_art || true
   fi
   # 2026-08-20 — THE CHRONICLE GATES RAN ONLY IN CI, AND ONE SAT RED FOR NINE VERSIONS.
   # run_gates.py runs 30 gates; this hook ran three. test_chronicle_seal extracts the seal loop
@@ -928,13 +960,29 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
   # v1830..v1838 all shipped over a red gate nobody was looking at.
   # Both suites are pure stdlib and finish in well under a second together, so the fast lane stays
   # fast. [[feedback-ci-verdict-before-seal]]
-  if ! gate_run "test_chronicle_retro" "python3 tv/test_chronicle_retro.py" 120 -- \
-       python3 "$REPO/tv/test_chronicle_retro.py"; then
-    exit 1
+  _carry_line="$(ledger_carry test_chronicle_retro)"
+  _carry_rc=$?
+  if [ "$_carry_rc" -eq 0 ]; then
+    echo "pre-push: [$(_pp_el)] test_chronicle_retro carried: $_carry_line"
+  else
+    echo "pre-push: [$(_pp_el)] $_carry_line"
+    if ! gate_run "test_chronicle_retro" "python3 tv/test_chronicle_retro.py" 120 -- \
+         python3 "$REPO/tv/test_chronicle_retro.py"; then
+      exit 1
+    fi
+    python3 "$REPO/tv/gate_ledger.py" --record test_chronicle_retro || true
   fi
-  if ! gate_run "test_chronicle_seal" "python3 tv/test_chronicle_seal.py" 120 -- \
-       python3 "$REPO/tv/test_chronicle_seal.py"; then
-    exit 1
+  _carry_line="$(ledger_carry test_chronicle_seal)"
+  _carry_rc=$?
+  if [ "$_carry_rc" -eq 0 ]; then
+    echo "pre-push: [$(_pp_el)] test_chronicle_seal carried: $_carry_line"
+  else
+    echo "pre-push: [$(_pp_el)] $_carry_line"
+    if ! gate_run "test_chronicle_seal" "python3 tv/test_chronicle_seal.py" 120 -- \
+         python3 "$REPO/tv/test_chronicle_seal.py"; then
+      exit 1
+    fi
+    python3 "$REPO/tv/gate_ledger.py" --record test_chronicle_seal || true
   fi
   echo "pre-push: [$(_pp_el)] ✅ tv suites green."
 fi

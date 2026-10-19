@@ -1,0 +1,704 @@
+# -*- coding: utf-8 -*-
+"""v3768 — A GATE CARRIES WHEN GIT SAYS ITS INPUTS HAVE NOT MOVED SINCE THE PROOF.
+
+The ledger stores the commit a PASS was proved at. The next run diffs that commit once and
+intersects the result with the gate's inputs. It does not hash those files again. A miss runs.
+A FAIL is never stored. A corrupt ledger is unreadable, never empty. An unreachable sha runs.
+--full does not consult it. CI does not either. A carried line says `proven at <sha> (<age>)`
+and is not a fresh pass and not new evidence.
+
+The changed-law red-proof (v3292) is a different stage and does not read this file.
+"""
+import io
+import json
+import os
+import re
+import shutil
+import subprocess
+import sys
+import tempfile
+import time
+import unittest
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ROOT = os.path.dirname(HERE)
+sys.path.insert(0, HERE)
+
+import fixture_tmp as _fx_tmp  # noqa: E402
+_fx_tmp.contain()
+
+from console_safe import enable as _console_safe_enable  # noqa: E402
+_console_safe_enable()
+
+import gate_ledger as GL  # noqa: E402
+
+SHA = "abcdef123456"
+PROBES = {"python": "3.9.9", "node": "v20.0.0", "playwright": "1.40.0"}
+_LAW = "import helper_gl\nimport sys\nprint('OK')\nsys.exit(0)\n"
+_HELPER = "SALT = 1\n"
+_PLAIN = "import sys\nprint('OK')\nsys.exit(0)\n"
+_LISTING = "import os, sys\nos.listdir('.')\nprint('OK')\nsys.exit(0)\n"
+_NODE = "console.log('ok')\n"
+_PW = "import playwright" + "\nprint('ok')\n"
+
+
+class _Env(object):
+    def __init__(self, **kw):
+        self.kw = kw
+        self.old = {}
+
+    def __enter__(self):
+        for key, val in self.kw.items():
+            self.old[key] = os.environ.get(key)
+            if val is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = val
+        return self
+
+    def __exit__(self, *exc):
+        for key, val in self.old.items():
+            if val is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = val
+
+
+class _G(object):
+    def __init__(self, name, argv, timeout=30, cwd=".", needs_app=False, skip_ok=()):
+        self.name = name
+        self.argv = argv
+        self.timeout = timeout
+        self.cwd = cwd
+        self.needs_app = needs_app
+        self.skip_ok = tuple(skip_ok)
+
+
+def _git(root, *args):
+    proc = subprocess.run(["git", "-C", root, *args], capture_output=True, text=True)
+    if proc.returncode != 0:
+        raise RuntimeError((proc.stderr or proc.stdout or "git failed").strip())
+    return proc
+
+
+def _tree(files):
+    root = tempfile.mkdtemp(prefix="gledger.")
+    tv = os.path.join(root, "tv")
+    os.makedirs(tv)
+    with io.open(os.path.join(root, ".gitignore"), "w", encoding="utf-8") as fh:
+        fh.write(".gate_ledger.json\n.gate_inputs.json\n*.tmp\n")
+    for name, text in files.items():
+        with io.open(os.path.join(tv, name), "w", encoding="utf-8") as fh:
+            fh.write(text)
+    _git(root, "init", "-q", "-b", "main")
+    _git(root, "config", "user.email", "ledger@example.com")
+    _git(root, "config", "user.name", "ledger")
+    _git(root, "config", "commit.gpgsign", "false")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "base")
+    led = os.path.join(root, ".gate_ledger.json")
+    return root, led
+
+
+def _gate(root, filename, timeout=30, argv_head=None):
+    script = os.path.join(root, "tv", filename)
+    head = argv_head or [sys.executable]
+    return _G("carry-fixture", head + [script], timeout=timeout, cwd=root)
+
+
+def _open(path, probes=None):
+    return GL.Ledger(path=path, probes=dict(probes or PROBES))
+
+
+class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
+    def setUp(self):
+        self.held = _Env(GITHUB_ACTIONS=None, GATE_LEDGER=None,
+                         TV_SELF_ARMING_LEDGER=os.path.join(tempfile.mkdtemp(prefix="gledger-arm."), "arm.json"))
+        self.held.__enter__()
+        self.addCleanup(self.held.__exit__, None, None, None)
+
+    def _law(self, extra=None):
+        files = {"t_carry.py": _LAW, "helper_gl.py": _HELPER, "unrelated.py": "a\n"}
+        if extra:
+            files.update(extra)
+        root, led = _tree(files)
+        self.addCleanup(shutil.rmtree, root, True)
+        return root, led, _gate(root, "t_carry.py")
+
+    def test_an_edited_input_runs_again(self):
+        root, led, gate = self._law()
+        book = _open(led)
+        self.assertTrue(book.record(gate, True), "PREMISE: the PASS was not stored")
+        with io.open(os.path.join(root, "tv", "helper_gl.py"), "a", encoding="utf-8") as fh:
+            fh.write("# moved\n")
+        entry, why = book.lookup(gate)
+        self.assertIsNone(entry, "an edited input was carried: %s" % why)
+
+    def test_an_unrelated_edit_is_carried(self):
+        root, led, gate = self._law()
+        book = _open(led)
+        self.assertTrue(book.record(gate, True), "PREMISE: the PASS was not stored")
+        with io.open(os.path.join(root, "tv", "unrelated.py"), "a", encoding="utf-8") as fh:
+            fh.write("b\n")
+        entry, why = book.lookup(gate)
+        self.assertIsNotNone(entry, why)
+        self.assertTrue(str(entry.get("line") or "").startswith("proven at "), entry)
+        self.assertNotIn("PASS", entry["line"])
+        with io.open(led, encoding="utf-8") as fh:
+            self.assertNotIn(root, fh.read())
+
+    def test_a_fail_is_not_stored_and_a_later_fail_drops_the_pass(self):
+        root, led, gate = self._law()
+        book = _open(led)
+        self.assertFalse(book.record(gate, False))
+        entry, _why = book.lookup(gate)
+        self.assertIsNone(entry, "record(False) left a row that carries")
+        self.assertTrue(book.record(gate, True))
+        self.assertFalse(book.record(gate, False))
+        entry, _why = _open(led).lookup(gate)
+        self.assertIsNone(entry, "a FAIL left the earlier PASS in place")
+
+    def test_a_stored_fail_row_is_not_carried(self):
+        root, led, gate = self._law()
+        book = _open(led)
+        self.assertTrue(book.record(gate, True), "PREMISE: the PASS was not stored")
+        with io.open(led, encoding="utf-8") as fh:
+            data = json.load(fh)
+        data["entries"][gate.name]["ok"] = False
+        with io.open(led, "w", encoding="utf-8") as fh:
+            json.dump(data, fh)
+        entry, _why = _open(led).lookup(gate)
+        self.assertIsNone(entry, "a row with ok false was carried")
+
+    def test_a_tampered_row_and_a_corrupt_ledger_both_run(self):
+        root, led, gate = self._law()
+        book = _open(led)
+        self.assertTrue(book.record(gate, True))
+        with io.open(led, encoding="utf-8") as fh:
+            data = json.load(fh)
+        data["entries"][gate.name]["def"] = "0" * 64
+        with io.open(led, "w", encoding="utf-8") as fh:
+            json.dump(data, fh)
+        entry, _why = _open(led).lookup(gate)
+        self.assertIsNone(entry, "a row whose definition was rewritten was carried")
+        with io.open(led, "w", encoding="utf-8") as fh:
+            fh.write("{not json")
+        entries, why = GL.load(led)
+        self.assertIsNone(entries)
+        self.assertIn("unreadable", why or "")
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNone(entry)
+        self.assertIn("unreadable", why or "")
+
+    def test_a_missing_ledger_is_empty_and_an_unknown_key_runs(self):
+        root, led, gate = self._law()
+        self.assertEqual(GL.load(led + ".absent"), ({}, None))
+        entry, _why = _open(led).lookup(gate)
+        self.assertIsNone(entry)
+
+    def test_python_node_and_playwright_versions_enter_the_key(self):
+        root, led, gate = self._law()
+        a = _open(led, {"python": "3.9.9", "node": "v20.0.0", "playwright": "1.40.0"})
+        b = _open(led, {"python": "3.12.1", "node": "v20.0.0", "playwright": "1.40.0"})
+        ka, _m, wa = a.key_for(gate)
+        kb, _m, wb = b.key_for(gate)
+        self.assertIsNone(wa, wa)
+        self.assertIsNone(wb, wb)
+        self.assertNotEqual(ka, kb, "two python versions produced one key")
+        node = _gate(root, "t_node.js", argv_head=["node"])
+        with io.open(os.path.join(root, "tv", "t_node.js"), "w", encoding="utf-8") as fh:
+            fh.write(_NODE)
+        na = _open(led).key_for(node)[0]
+        nb = _open(led, {"python": "3.9.9", "node": "v18.0.0", "playwright": "1.40.0"}).key_for(node)[0]
+        self.assertTrue(na and nb)
+        self.assertNotEqual(na, nb, "two node versions produced one key")
+        pw = _gate(root, "t_pw.py")
+        with io.open(os.path.join(root, "tv", "t_pw.py"), "w", encoding="utf-8") as fh:
+            fh.write(_PW)
+        pa = _open(led).key_for(pw)[0]
+        pb = _open(led, {"python": "3.9.9", "node": "v20.0.0", "playwright": "1.41.0"}).key_for(pw)[0]
+        self.assertTrue(pa and pb)
+        self.assertNotEqual(pa, pb, "two playwright versions produced one key")
+
+    def test_a_missing_tool_version_is_unkeyable(self):
+        root, led, _gate_py = self._law()
+        bare = _open(led, {"python": None, "node": "v20.0.0", "playwright": "1.40.0"})
+        key, _m, why = bare.key_for(_gate(root, "t_carry.py"))
+        self.assertIsNone(key)
+        self.assertIn("python", why or "")
+        with io.open(os.path.join(root, "tv", "t_node.js"), "w", encoding="utf-8") as fh:
+            fh.write(_NODE)
+        key, _m, why = _open(led, {"python": "3.9.9", "node": None, "playwright": "1.40.0"}).key_for(
+            _gate(root, "t_node.js", argv_head=["node"]))
+        self.assertIsNone(key)
+        self.assertIn("node", why or "")
+        with io.open(os.path.join(root, "tv", "t_pw.py"), "w", encoding="utf-8") as fh:
+            fh.write(_PW)
+        key, _m, why = _open(led, {"python": "3.9.9", "node": "v20.0.0", "playwright": None}).key_for(
+            _gate(root, "t_pw.py"))
+        self.assertIsNone(key)
+        self.assertIn("playwright", why or "")
+
+    def test_a_definition_change_and_a_listing_law_do_not_carry(self):
+        root, led, gate = self._law()
+        slow = _G(gate.name, gate.argv, timeout=31, cwd=gate.cwd)
+        ka, _m, wa = _open(led).key_for(gate)
+        kb, _m, wb = _open(led).key_for(slow)
+        self.assertIsNone(wa, wa)
+        self.assertNotEqual(ka, kb, "timeout 30 and 31 produced one key")
+        with io.open(os.path.join(root, "tv", "t_list.py"), "w", encoding="utf-8") as fh:
+            fh.write(_LISTING)
+        listing = _gate(root, "t_list.py")
+        key, _m, why = _open(led).key_for(listing)
+        self.assertIsNone(key, "a law that lists a directory got a key")
+        self.assertIn("directory", why or "")
+        self.assertFalse(_open(led).record(listing, True))
+
+    def test_ci_and_the_off_switch_never_carry(self):
+        root, led, gate = self._law()
+        book = _open(led)
+        self.assertTrue(book.record(gate, True), "PREMISE: the PASS was not stored")
+        os.environ["GATE_LEDGER"] = "0"
+        try:
+            entry, why = _open(led).lookup(gate)
+        finally:
+            os.environ.pop("GATE_LEDGER", None)
+        self.assertIsNone(entry, "GATE_LEDGER=0 carried a PASS")
+        self.assertIn("GATE_LEDGER", why or "")
+        os.environ["GITHUB_ACTIONS"] = "true"
+        try:
+            entry, why = _open(led).lookup(gate)
+        finally:
+            os.environ.pop("GITHUB_ACTIONS", None)
+        self.assertIsNone(entry, "CI carried a PASS")
+        self.assertIn("CI", why or "")
+
+    def test_a_committed_input_edit_runs_again(self):
+        root, led, gate = self._law()
+        book = _open(led)
+        self.assertTrue(book.record(gate, True), "PREMISE: the PASS was not stored")
+        with io.open(os.path.join(root, "tv", "helper_gl.py"), "a", encoding="utf-8") as fh:
+            fh.write("# committed\n")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-q", "-m", "edit the input")
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNone(entry, "a committed input edit was carried: %s" % why)
+
+    def test_an_unreachable_proven_sha_runs(self):
+        root, led, gate = self._law()
+        book = _open(led)
+        self.assertTrue(book.record(gate, True), "PREMISE: the PASS was not stored")
+        with io.open(led, encoding="utf-8") as fh:
+            data = json.load(fh)
+        data["proven_sha"] = "deadbeef" * 5
+        data["entries"][gate.name]["sha"] = data["proven_sha"]
+        with io.open(led, "w", encoding="utf-8") as fh:
+            json.dump(data, fh)
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNone(entry, "an unreachable sha was carried: %s" % why)
+        self.assertIn("diffed", why or "")
+
+    def test_a_carry_does_not_open_the_inputs(self):
+        root, led, gate = self._law()
+        book = _open(led)
+        self.assertTrue(book.record(gate, True), "PREMISE: the PASS was not stored")
+        self.assertGreater(book.reads, 0, "PREMISE: recording never named the inputs")
+        import heart2
+        fresh = _open(led)
+
+        def _boom(*_a, **_k):
+            raise AssertionError("a carry hashed an input file")
+
+        old = heart2._sha_file
+        heart2._sha_file = _boom
+        try:
+            entry, why = fresh.lookup(gate)
+        finally:
+            heart2._sha_file = old
+        self.assertIsNotNone(entry, why)
+        self.assertEqual(fresh.reads, 0, "a carry opened the gate's inputs")
+
+    def test_the_input_map_key_covers_the_runner_and_the_blueprint(self):
+        root, led, _gate_py = self._law()
+        tv = os.path.join(root, "tv")
+        with io.open(os.path.join(tv, "run_gates.py"), "w", encoding="utf-8") as fh:
+            fh.write("RUN = 1\n")
+        with io.open(os.path.join(root, "BLUEPRINT.md"), "w", encoding="utf-8") as fh:
+            fh.write("blue\n")
+        first = GL.map_key(root)
+        with io.open(os.path.join(root, "BLUEPRINT.md"), "a", encoding="utf-8") as fh:
+            fh.write("more\n")
+        second = GL.map_key(root)
+        self.assertNotEqual(first, second, "editing the blueprint left the map key unchanged")
+        with io.open(os.path.join(tv, "run_gates.py"), "a", encoding="utf-8") as fh:
+            fh.write("RUN = 2\n")
+        third = GL.map_key(root)
+        self.assertNotEqual(second, third, "editing the runner left the map key unchanged")
+
+    def test_a_carry_does_not_bank_evidence(self):
+        root, led, gate = self._law()
+        book = _open(led)
+        self.assertTrue(book.record(gate, True))
+        import self_arming
+        import vault_wilson
+        seen = {"bank": 0, "queue": 0}
+
+        def _bank(*a, **k):
+            seen["bank"] += 1
+            return {}
+
+        def _queue(*a, **k):
+            seen["queue"] += 1
+            return None
+
+        old_b, old_q = self_arming.bank, vault_wilson.bank_into_proof_queue
+        self_arming.bank = _bank
+        vault_wilson.bank_into_proof_queue = _queue
+        try:
+            entry, why = book.lookup(gate)
+            self.assertIsNotNone(entry, why)
+            self.assertEqual(seen["bank"], 0, "a carry called self_arming.bank")
+            self.assertEqual(seen["queue"], 0, "a carry called vault_wilson.bank_into_proof_queue")
+        finally:
+            self_arming.bank = old_b
+            vault_wilson.bank_into_proof_queue = old_q
+
+
+class TheRunnerSeparatesFreshFromCarried(unittest.TestCase):
+    def test_the_ledger_file_is_not_blamed_as_live_state(self):
+        import run_gates as rg
+        root = tempfile.mkdtemp(prefix="gledger-watch.")
+        self.addCleanup(shutil.rmtree, root, True)
+        tv = os.path.join(root, "tv")
+        os.makedirs(tv)
+        with io.open(os.path.join(tv, ".gate_ledger.json"), "w", encoding="utf-8") as fh:
+            fh.write("{}\n")
+        with io.open(os.path.join(tv, ".gate_inputs.json"), "w", encoding="utf-8") as fh:
+            fh.write("{}\n")
+        with io.open(os.path.join(tv, "tooltip_find.json"), "w", encoding="utf-8") as fh:
+            fh.write("{}\n")
+        old = rg.HERE
+        rg.HERE = tv
+        try:
+            state = rg._state_fingerprint()
+            tree = rg._tree_fingerprint()
+        finally:
+            rg.HERE = old
+        self.assertNotIn(".gate_ledger.json", state)
+        self.assertNotIn(".gate_ledger.json", tree)
+        self.assertNotIn(".gate_inputs.json", state)
+        self.assertNotIn(".gate_inputs.json", tree)
+        self.assertIn("tooltip_find.json", state)
+        self.assertIn("tooltip_find.json", tree)
+
+    def test_the_totals_do_not_call_a_carry_a_fresh_pass(self):
+        import run_gates as rg
+        text = rg.format_totals(0, 4, 0)
+        self.assertIn("0 gate(s) passed fresh", text)
+        self.assertIn("4 gate(s) carried", text)
+        self.assertNotIn("4 gate(s) passed", text)
+        skipped = rg.format_totals(2, 0, 1)
+        self.assertIn("2 gate(s) passed fresh", skipped)
+        self.assertIn("skipped for a DECLARED reason", skipped)
+        self.assertFalse(rg.counts_as_ran("CARRY"))
+        self.assertTrue(rg.counts_as_ran("PASS"))
+
+    def test_full_runs_and_changed_carries_and_a_fail_is_not_carried(self):
+        import run_gates as rg
+        mark_src = ("import os, sys\n"
+                    "p = os.environ['GL_MARK']\n"
+                    "fh = open(p, 'a', encoding='utf-8')\n"
+                    "fh.write('ran\\n')\n"
+                    "fh.close()\n"
+                    "print('OK')\n"
+                    "sys.exit(0)\n")
+        root, led = _tree({
+            "mark_gate.py": mark_src,
+            "fail_gate.py": "import os, sys\nprint('OK')\nsys.exit(0 if os.environ.get('GL_OK') == '1' else 1)\n",
+        })
+        self.addCleanup(shutil.rmtree, root, True)
+        mark = os.path.join(root, "mark.txt")
+        script = os.path.join(root, "tv", "mark_gate.py")
+        gate = _G("mark-gate", [sys.executable, script], timeout=30, cwd=root)
+        fail = _G("fail-gate", [sys.executable, os.path.join(root, "tv", "fail_gate.py")],
+                  timeout=30, cwd=root)
+        old_gates, old_up = rg.GATES, rg._app_up
+        rg.GATES = [gate, fail]
+        rg._app_up = lambda *a, **k: False
+        env = _Env(TV_GATE_LEDGER=led, GL_MARK=mark,
+                   GITHUB_ACTIONS=None, GATE_LEDGER=None, GL_OK="1")
+        env.__enter__()
+        try:
+            first = rg.run(only=set(["mark-gate"]), live_watch=False, ledger="full")
+            self.assertEqual(first[0][1], "PASS", first)
+            carried = rg.run(only=set(["mark-gate"]), live_watch=False, ledger="changed")
+            self.assertEqual(carried[0][1], "CARRY", carried)
+            self.assertTrue(str(carried[0][3]).startswith("proven at "), carried)
+            self.assertNotIn("PASS", carried[0][3])
+            with io.open(mark, "w", encoding="utf-8") as fh:
+                fh.write("")
+            again = rg.run(only=set(["mark-gate"]), live_watch=False, ledger="full")
+            self.assertEqual(again[0][1], "PASS", again)
+            with io.open(mark, encoding="utf-8") as fh:
+                self.assertIn("ran", fh.read(), "--full did not execute the gate")
+            os.environ["GL_OK"] = "1"
+            passed = rg.run(only=set(["fail-gate"]), live_watch=False, ledger="changed")
+            self.assertEqual(passed[0][1], "PASS", passed)
+            os.environ["GL_OK"] = "0"
+            failed = rg.run(only=set(["fail-gate"]), live_watch=False, ledger="full")
+            self.assertEqual(failed[0][1], "FAIL", failed)
+            again_fail = rg.run(only=set(["fail-gate"]), live_watch=False, ledger="changed")
+            self.assertEqual(again_fail[0][1], "FAIL", again_fail)
+        finally:
+            env.__exit__(None, None, None)
+            rg.GATES = old_gates
+            rg._app_up = old_up
+
+
+class TheHookAndTheWorkflowStayHonest(unittest.TestCase):
+    def _hook(self):
+        with io.open(os.path.join(ROOT, "hooks", "pre-push"), encoding="utf-8") as fh:
+            raw = fh.read()
+        code = "\n".join(re.sub(r"(^|\s)#.*$", "", line) for line in raw.split("\n"))
+        return raw, code
+
+    def test_each_suite_asks_the_ledger_before_it_runs(self):
+        raw, code = self._hook()
+        self.assertIn("ledger_carry()", raw)
+        names = ("test_agent", "test_control", "test_tz_art", "test_chronicle_retro", "test_chronicle_seal")
+        for name in names:
+            call = "ledger_carry %s" % name
+            run = 'gate_run "%s"' % name
+            self.assertEqual(code.count(call), 1, call)
+            self.assertLess(code.index(call), code.index(run), "%s runs before it asks the ledger" % name)
+
+    def test_the_changed_law_proof_is_not_a_carry(self):
+        raw, _code = self._hook()
+        line = 'if python3 "$REPO/tv/heart2.py" --prove $_gates --push > "$_prove_log" 2>&1; then'
+        self.assertIn(line, raw)
+        self.assertNotIn('ledger_carry "$_gates"', raw)
+
+    def test_ci_does_not_pass_the_changed_flag(self):
+        with io.open(os.path.join(ROOT, ".github", "workflows", "tv-tests.yml"), encoding="utf-8") as fh:
+            raw = fh.read()
+        self.assertIn("python3 tv/run_gates.py --shard ${{ matrix.shard }}/4", raw)
+        self.assertNotIn("run_gates.py --changed", raw)
+
+    def test_wilson_of_these_attacks_meets_the_bar_and_one_kind_does_not_open_a_door(self):
+        import confidence
+        n = len(RED_PROOF)
+        self.assertGreaterEqual(n, 10)
+        low = confidence.wilson_lower(n, n)
+        self.assertGreaterEqual(low, 0.722)
+        self.assertLess(1.0, 1.3)
+
+
+RED_PROOF = [
+    {
+        "why": "the diff is discarded, so a committed input edit still carries",
+        "file": "gate_ledger.py",
+        "find": "        changed = set(p.strip() for p in out.splitlines() if p.strip())  # LEDGER-DIFF\n",
+        "replace": "        changed = set()  # LEDGER-DIFF\n",
+        "matches": 1,
+    },
+    {
+        "why": "the dirty worktree is ignored, so an uncommitted input edit still carries",
+        "file": "gate_ledger.py",
+        "find": "        changed |= _porcelain(status_out)  # LEDGER-STATUS\n",
+        "replace": "        changed |= set()  # LEDGER-STATUS\n",
+        "matches": 1,
+    },
+    {
+        "why": "an unreachable proven sha is treated as an empty diff, so the stored PASS carries",
+        "file": "gate_ledger.py",
+        "find": "        if cat_rc != 0 or diff_rc != 0 or stat_rc != 0:  # LEDGER-SHA\n",
+        "replace": "        if False:  # LEDGER-SHA\n",
+        "matches": 1,
+    },
+    {
+        "why": "the blueprint is not part of the input-map key, so a stale map is reused",
+        "file": "gate_ledger.py",
+        "find": "    rels = (\"tv/run_gates.py\", \"BLUEPRINT.md\")  # LEDGER-MAPKEY\n",
+        "replace": "    rels = (\"tv/run_gates.py\",)  # LEDGER-MAPKEY\n",
+        "matches": 1,
+    },
+    {
+        "why": "an unrelated file is pulled into every input set, so editing it refuses a carry that was still valid",
+        "file": "gate_ledger.py",
+        "find": "        rels = list(rels)  # LEDGER-CLOSURE-ONLY\n",
+        "replace": "        rels = list(rels) + [\"tv/unrelated.py\"]  # LEDGER-CLOSURE-ONLY\n",
+        "matches": 1,
+    },
+    {
+        "why": "a corrupt ledger is read as an empty one, and an empty one is not unreadable",
+        "file": "gate_ledger.py",
+        "find": "        return None, \"unreadable (%s)\" % type(exc).__name__  # LEDGER-CORRUPT\n",
+        "replace": "        return {}, None  # LEDGER-CORRUPT\n",
+        "matches": 1,
+    },
+    {
+        "why": "a stored row with ok false is carried",
+        "file": "gate_ledger.py",
+        "find": "        if not isinstance(entry, dict) or entry.get(\"ok\") is not True:  # LEDGER-ONLY-PASS\n",
+        "replace": "        if False:  # LEDGER-ONLY-PASS\n",
+        "matches": 1,
+    },
+    {
+        "why": "record(False) stores the row as a PASS",
+        "file": "gate_ledger.py",
+        "find": "        if ok is not True or why or not isinstance((row or {}).get(\"inputs\"), list):  # LEDGER-NO-FAIL\n",
+        "replace": "        if why or not isinstance((row or {}).get(\"inputs\"), list):  # LEDGER-NO-FAIL\n",
+        "matches": 1,
+    },
+    {
+        "why": "a later FAIL leaves the earlier PASS in the ledger",
+        "file": "gate_ledger.py",
+        "find": "        self.entries.pop(name, None)  # LEDGER-DROP-FAIL\n",
+        "replace": "        self.entries.get(name, None)  # LEDGER-DROP-FAIL\n",
+        "matches": 1,
+    },
+    {
+        "why": "the python version is not part of the key",
+        "file": "gate_ledger.py",
+        "find": "        parts.append(\"python:%s\" % py)  # LEDGER-PY\n",
+        "replace": "        parts.append(\"python:fixed\")  # LEDGER-PY\n",
+        "matches": 1,
+    },
+    {
+        "why": "the node version is not part of the key",
+        "file": "gate_ledger.py",
+        "find": "            parts.append(\"node:%s\" % node)  # LEDGER-NODE\n",
+        "replace": "            parts.append(\"node:fixed\")  # LEDGER-NODE\n",
+        "matches": 1,
+    },
+    {
+        "why": "the playwright version is not part of the key",
+        "file": "gate_ledger.py",
+        "find": "            parts.append(\"playwright:%s\" % pw)  # LEDGER-PW\n",
+        "replace": "            parts.append(\"playwright:fixed\")  # LEDGER-PW\n",
+        "matches": 1,
+    },
+    {
+        "why": "a missing python version still produces a key",
+        "file": "gate_ledger.py",
+        "find": "            return None, \"python version is UNKNOWN\"\n",
+        "replace": "            py = \"missing\"\n",
+        "matches": 1,
+    },
+    {
+        "why": "a missing node version still produces a key",
+        "file": "gate_ledger.py",
+        "find": "                return None, \"node version is UNKNOWN\"\n",
+        "replace": "                node = \"missing\"\n",
+        "matches": 1,
+    },
+    {
+        "why": "a missing playwright version still produces a key",
+        "file": "gate_ledger.py",
+        "find": "                return None, \"playwright version is UNKNOWN\"\n",
+        "replace": "                pw = \"missing\"\n",
+        "matches": 1,
+    },
+    {
+        "why": "a law that lists a directory is cached",
+        "file": "gate_ledger.py",
+        "find": "        if iwhy:  # LEDGER-UNKEYABLE\n",
+        "replace": "        if False:  # LEDGER-UNKEYABLE\n",
+        "matches": 1,
+    },
+    {
+        "why": "CI carries a stored PASS",
+        "file": "gate_ledger.py",
+        "find": "    return os.environ.get(\"GITHUB_ACTIONS\") == \"true\"  # LEDGER-CI\n",
+        "replace": "    return False  # LEDGER-CI\n",
+        "matches": 1,
+    },
+    {
+        "why": "GATE_LEDGER=0 still carries",
+        "file": "gate_ledger.py",
+        "find": "    return os.environ.get(\"GATE_LEDGER\", \"1\") == \"0\"  # LEDGER-OFF\n",
+        "replace": "    return False  # LEDGER-OFF\n",
+        "matches": 1,
+    },
+    {
+        "why": "a missing ledger is not the empty ledger the next run expects",
+        "file": "gate_ledger.py",
+        "find": "        return {}, None  # LEDGER-MISSING empty, so the gate runs\n",
+        "replace": "        return None, \"missing\"  # LEDGER-MISSING empty, so the gate runs\n",
+        "matches": 1,
+    },
+    {
+        "why": "a carry banks a Wilson row",
+        "file": "gate_ledger.py",
+        "find": "        return shown, None  # LEDGER-NO-BANK\n",
+        "replace": "        import self_arming as _sa\n        _sa.bank(\"vault.apply\", \"sabotage\", \"gate-ledger\", 1, 1)\n        return shown, None  # LEDGER-NO-BANK\n",
+        "matches": 1,
+    },
+    {
+        "why": "the timeout is not part of the definition hash",
+        "file": "gate_ledger.py",
+        "find": "        blob = json.dumps({\"argv\": argv, \"timeout\": int(getattr(gate, \"timeout\", 0) or 0),\n                           \"venue\": venue}, sort_keys=True, default=str)  # LEDGER-DEF\n",
+        "replace": "        blob = json.dumps({\"argv\": argv, \"venue\": venue}, sort_keys=True, default=str)  # LEDGER-DEF\n",
+        "matches": 1,
+    },
+    {
+        "why": "--full consults the ledger and skips a gate",
+        "file": "run_gates.py",
+        "find": "        if ledger == \"changed\" and led is not None:  # LEDGER-CHANGED-ONLY\n",
+        "replace": "        if ledger != \"zzz\" and led is not None:  # LEDGER-CHANGED-ONLY\n",
+        "matches": 1,
+    },
+    {
+        "why": "carried gates are added into the fresh-pass count",
+        "file": "run_gates.py",
+        "find": "    shown = n_fresh  # LEDGER-FRESH\n",
+        "replace": "    shown = n_fresh + n_carry  # LEDGER-FRESH\n",
+        "matches": 1,
+    },
+    {
+        "why": "a carried gate is counted as a gate that ran",
+        "file": "run_gates.py",
+        "find": "    return status not in (\"SKIP\", \"CARRY\")  # LEDGER-CENSUS\n",
+        "replace": "    return status not in (\"SKIP\",)  # LEDGER-CENSUS\n",
+        "matches": 1,
+    },
+    {
+        "why": "a FAIL is recorded as a PASS, and the next run carries it",
+        "file": "run_gates.py",
+        "find": "                    led.record(g, status == \"PASS\")\n",
+        "replace": "                    led.record(g, True)\n",
+        "matches": 1,
+    },
+    {
+        "why": "test_agent is carried without asking the ledger",
+        "file": "hooks/pre-push",
+        "find": "ledger_carry test_agent",
+        "replace": "true  # ledger_carry test_agent",
+        "matches": 1,
+    },
+    {
+        "why": "the changed-law red-proof is skipped when a carry says so",
+        "file": "hooks/pre-push",
+        "find": "if python3 \"$REPO/tv/heart2.py\" --prove $_gates --push > \"$_prove_log\" 2>&1; then\n",
+        "replace": "if ledger_carry \"$_gates\" || python3 \"$REPO/tv/heart2.py\" --prove $_gates --push > \"$_prove_log\" 2>&1; then\n",
+        "matches": 1,
+    },
+    {
+        "why": "the ledger file is watched as live state, so every gate is blamed for the runner writing it",
+        "file": "run_gates.py",
+        "find": "_LEDGER_SELF = frozenset((\".gate_ledger.json\", \".gate_ledger.json.tmp\", \".gate_inputs.json\", \".gate_inputs.json.tmp\"))  # LEDGER-WATCH\n",
+        "replace": "_LEDGER_SELF = frozenset()  # LEDGER-WATCH\n",
+        "matches": 1,
+    },
+    {
+        "why": "CI passes the changed flag and can carry a PASS it did not produce",
+        "file": ".github/workflows/tv-tests.yml",
+        "find": "          python3 tv/run_gates.py --shard ${{ matrix.shard }}/4\n",
+        "replace": "          python3 tv/run_gates.py --changed --shard ${{ matrix.shard }}/4\n",
+        "matches": 1,
+    },
+]
+
+
+if __name__ == "__main__":
+    unittest.main()
