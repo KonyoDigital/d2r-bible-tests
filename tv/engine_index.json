@@ -2675,9 +2675,10 @@
   },
   "stamp_leak.py": {
     "entryPoints": [
-      "leak_problem"
+      "leak_problem",
+      "free_text_problem"
     ],
-    "purpose": "What a version stamp may not carry: a home path, an IP, a hostname, a token or this machine's identity. bump_version refuses a leaking name or note with it, and gate_ledger checks every added stamp line with it before a coherent bump carries a gate.",
+    "purpose": "What a version stamp may not carry: a home path, an IP, a hostname, a token or this machine's identity (leak_problem), and anything but inert words (free_text_problem). bump_version refuses a leaking or non-inert name or note with them, and gate_ledger checks every added stamp line with it before a coherent bump carries a gate.",
     "gotcha": "One definition, two callers. A check that cannot load counts as dirty, never clean.",
     "territory": "gates-proofs"
   }
