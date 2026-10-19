@@ -18707,15 +18707,29 @@ function findSetPiece(name){
   // set piece carrying its disambiguator still resolves its set identity + green rarity + card (same class as
   // the v418 art / _etherNorm suffix fixes). The app registers the un-suffixed base, but be tolerant of both.
   var qStripped=_norm(String(name).replace(/\s*\([^)]*\)\s*$/,''));
-  var sets=__allSets();
-  for(var i=0;i<sets.length;i++){
-    var ps=sets[i].pieces||[];
-    for(var k=0;k<ps.length;k++){
-      var pb=_norm(__pieceBase(ps[k]));
-      if(pb===q || (qStripped && pb===qStripped)) return {set:sets[i], piece:ps[k], base:__pieceBase(ps[k]), slot:__pieceSlot(ps[k])};
+  /* v3773 - one vault paint asked this ~thousands of times and each call re-normed all 135 pieces
+     (148 ms self on his store). The normed index is built once per set table and kept while the
+     table's shape is the same; the first piece in table order still wins, exactly as the scan did. */
+  var sets=__allSets(), sig=sets.length, i, k;
+  for(i=0;i<sets.length;i++) sig+=','+((sets[i].pieces||[]).length);
+  var ix=findSetPiece._ix;
+  if(!ix || ix.sig!==sig){
+    ix={sig:sig, at:{}};
+    for(i=0;i<sets.length;i++){
+      var ps=sets[i].pieces||[];
+      for(k=0;k<ps.length;k++){
+        var pb=_norm(__pieceBase(ps[k]));
+        if(!Object.prototype.hasOwnProperty.call(ix.at,pb)) ix.at[pb]=[i,k];
+      }
     }
+    findSetPiece._ix=ix;
   }
-  return null;
+  var a=Object.prototype.hasOwnProperty.call(ix.at,q)?ix.at[q]:null;
+  var b=(qStripped && Object.prototype.hasOwnProperty.call(ix.at,qStripped))?ix.at[qStripped]:null;
+  var h=(a && b) ? ((a[0]<b[0]||(a[0]===b[0]&&a[1]<=b[1]))?a:b) : (a||b);
+  if(!h) return null;
+  var pc=sets[h[0]].pieces[h[1]];
+  return {set:sets[h[0]], piece:pc, base:__pieceBase(pc), slot:__pieceSlot(pc)};
 }
 window.findSetPiece = findSetPiece;
 // v227: the vault + AI intake work with EXACT pieces, never aggregates
