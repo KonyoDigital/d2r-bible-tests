@@ -430,3 +430,4 @@ tv/.ledger_drops.json.unreadable-*
 # this console's picture-refusal log (frame + session ids), triage_backlog.json its survey mark.
 tv/read_pictures.jsonl
 tv/triage_backlog.json
+tv/gate_costs.json.lock
