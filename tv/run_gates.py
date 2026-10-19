@@ -10748,15 +10748,18 @@ GATES = [
     Gate("test_a_version_bump_carries_the_gates_that_ignore_the_version",
          [sys.executable, os.path.join(HERE, "test_a_version_bump_carries_the_gates_that_ignore_the_version.py")], 120,
          needs_app=False,
-         why="v3774 (REG-2294) - a version bump is not a change to every gate. bump_version.py "
-             "rewrites known stamp lines in bible.html, control_app.py, tv_diablo.py and "
-             "WINDOWS_SHIP.json, and its regenerations touch BLUEPRINT.md, RESUME_HERE.md and "
-             "the TASKS.md ship table. Under gate memory a bump-only diff reran 760 of 1003 "
-             "gates; measured on a real bump of the v3772 tree it now reruns 108. A path whose "
-             "git diff since the proof is only stamp lines does not invalidate a gate whose "
-             "own script and name never speak of the version. Any other line in that file, an "
-             "unequal swap, an unknown diff line, a removed '-- x' line, or a failed diff still "
-             "runs the gate. 10 RED proofs, Wilson 0.7225 against 0.722."),
+         why="v3774 (REG-2294) - a coherent version bump is not a change to every gate. "
+             "bump_version.py rewrites stamp lines in bible.html, control_app.py, tv_diablo.py "
+             "and WINDOWS_SHIP.json and regenerates RESUME_HERE.md, BLUEPRINT.md and the "
+             "TASKS.md ship row. Under gate memory a bump-only diff reran 760 of 1003 gates; "
+             "counted on a real bump of the v3772 tree it now reruns 144. Stamp surfaces "
+             "leave the change set only when every required surface moved, each only its "
+             "stamp lines, each swapped in place (same hunk position, kind, indentation), "
+             "all from one old to one new version, with exactly one new top ship row. A "
+             "partial or hand bump, a moved or re-indented stamp, code or keys riding on a "
+             "stamp line, any other TASKS row edit, an unknown diff line or a failed diff "
+             "reruns everything. A gate whose name, script, or reader-only closure module "
+             "reads the version reruns. 18 RED proofs, Wilson 0.824 against 0.722."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
