@@ -53,6 +53,7 @@ backups/*.tar.gz
 tv/.windows_install.json
 tv/_*.txt
 tv/__pycache__/
+tv/gate_trace/__pycache__/
 
 # v1465 — per-install identity: unique per PC, must NEVER travel between machines
 # v2119 — AND THE ROOT COPIES. These two patterns name `tv/` only, so `git check-ignore` was

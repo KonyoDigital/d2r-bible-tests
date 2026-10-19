@@ -10927,9 +10927,17 @@ def run(only=None, live_watch=True, live_writer=None, ledger=None):
             # Only unittest suites get -v. A non-suite gate (js_syntax_gate, render_check)
             # would either ignore it or, worse, read it as its own flag.
             _argv = gate_argv(g)
+            _env = law_env(g.needs_app)
+            _trace = None
+            if led is not None:  # LEDGER-TRACE-RUN — what this run reads is what a later carry is checked against
+                try:
+                    _trace = _GL.trace_path()
+                    _env = _GL.trace_env(_env, led._root_of([g]), _trace)
+                except Exception:
+                    _trace = None
             p = subprocess.run(_argv, cwd=g.cwd, capture_output=True, text=True,
                                encoding="utf-8", errors="replace", timeout=g.timeout,
-                               env=law_env(g.needs_app))
+                               env=_env)
             dt = time.time() - t0
             # A GATE DECLARES ITS SKIP REASON ON STDOUT. Reading `stdout + stderr` let ANYTHING on
             # stderr — a SyntaxWarning, an atexit flush, a traceback tail — become the gate's
@@ -10997,8 +11005,14 @@ def run(only=None, live_watch=True, live_writer=None, ledger=None):
             results.append((g, status, dt, _detail, blob if status in ("FAIL", "SKIP") else ""))
             if led is not None and status in ("PASS", "FAIL"):
                 try:
-                    led.record(g, status == "PASS")
+                    if not led.record(g, status == "PASS", trace=_trace) and status == "PASS" and led.last_why:
+                        print("ledger: %s not stored \u2014 %s" % (g.name, led.last_why), flush=True)
                 except Exception:
+                    pass
+            if _trace:
+                try:
+                    os.remove(_trace)
+                except OSError:
                     pass
         except subprocess.TimeoutExpired:
             results.append((g, "FAIL", time.time() - t0,
@@ -11007,6 +11021,10 @@ def run(only=None, live_watch=True, live_writer=None, ledger=None):
                 try:
                     led.record(g, False)
                 except Exception:
+                    pass
+                try:
+                    os.remove(_trace)
+                except (OSError, TypeError):
                     pass
         except OSError as e:
             results.append((g, "SKIP", time.time() - t0, "could not launch (%s)" % e, ""))

@@ -47,6 +47,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -1043,6 +1044,119 @@ def _porcelain(text):
     return out
 
 
+def _derived(paths):
+    """Drop compiled bytecode: python writes it while a gate runs, and it is not a source. -> set"""
+    return set(p for p in paths if "__pycache__/" not in p and not p.endswith(".pyc"))
+
+
+def _churn(text):
+    """Paths added or deleted, from `git status --porcelain --no-renames`. -> set"""
+    out = set()
+    for line in (text or "").splitlines():
+        if len(line) < 4:
+            continue
+        code = line[:2]
+        if code == "??" or "A" in code or "D" in code:  # LEDGER-CHURN
+            out.add(line[3:].strip().strip('"').replace("\\", "/"))
+    return out
+
+
+TRACE_DIR = os.path.join(HERE, "gate_trace")
+
+
+def trace_path():
+    """A fresh trace file outside the checkout. -> path"""
+    fd, path = tempfile.mkstemp(prefix="gate-trace.", suffix=".tsv")
+    os.close(fd)
+    return path
+
+
+def trace_env(env, root, path):
+    """The gate's environment with gate_trace/sitecustomize.py armed. -> dict (a copy)"""
+    env = dict(env)
+    env["TV_GATE_TRACE"] = path
+    env["TV_GATE_TRACE_ROOT"] = os.path.abspath(root)
+    old = env.get("PYTHONPATH") or ""
+    env["PYTHONPATH"] = TRACE_DIR + (os.pathsep + old if old else "")  # LEDGER-TRACE-ARM
+    return env
+
+
+def read_trace(path):
+    """What one traced run read. -> (facts|None, why)
+
+    No B line means the gate never ran under the hook (a node gate, `python -I`). A U line is a
+    child or a call the hook cannot follow. A python child that started without writing its own B
+    line ran untraced. Each of those is a run whose reads are UNKNOWN, so it is never carried."""
+    try:
+        with open(path, encoding="utf-8", errors="surrogateescape") as fh:
+            lines = fh.read().splitlines()
+    except OSError:
+        return None, "the gate's reads were not traced"
+    facts = {"R": set(), "W": set(), "S": set(), "L": set(), "I": set()}
+    boots = {}
+    spawns = {}
+    for line in lines:
+        parts = line.split("\t", 2)
+        if len(parts) != 3:
+            continue
+        kind, pid, text = parts
+        if kind == "U":
+            return None, "the gate %s, which the trace cannot follow" % text  # LEDGER-UNTRACED
+        if kind == "B":
+            boots.setdefault(text, 0)
+            boots[text] += 1
+            boots.setdefault("pid:" + pid, 0)
+        elif kind == "P":
+            spawns[pid] = spawns.get(pid, 0) + 1
+        elif kind in facts:
+            facts[kind].add(text)
+    if not any(k.startswith("pid:") for k in boots):
+        return None, "the gate's reads were not traced"  # LEDGER-UNTRACED-BOOT
+    for pid, n in spawns.items():
+        if boots.get(pid, 0) < n:
+            return None, "a python child of the gate ran without the trace"
+    return facts, None
+
+
+def _ancestors(path):
+    """'tv/a/b.py' -> ['tv/a', 'tv', '']"""
+    out = []
+    while True:
+        path = os.path.dirname(path)
+        out.append(path)
+        if not path:
+            return out
+
+
+def _module_stem(path):
+    if not path.endswith(".py"):
+        return None
+    stem = os.path.basename(path)[:-3]
+    if stem == "__init__":
+        stem = os.path.basename(os.path.dirname(path))
+    return stem or None
+
+
+def first_hit(inputs, listed, imports, changed, churn):
+    """The first moved path that this gate's inputs cover. -> path | None
+
+    A changed path that is an input. An added or deleted path under a listed directory (a new
+    folder is a new entry of its parent, so any ancestor counts). An added or deleted module
+    whose name the gate imported, because a new tv/foo.py changes what `import foo` finds."""
+    inputs = set(inputs or ())
+    for path in sorted(changed or ()):
+        if path in inputs:  # LEDGER-STORED-INPUTS
+            return path
+    listed = set(listed or ())
+    imports = set(imports or ())
+    for path in sorted(churn or ()):
+        if any(a in listed for a in _ancestors(path)):  # LEDGER-TRACE-LIST
+            return path
+        if _module_stem(path) in imports:  # LEDGER-TRACE-IMPORT
+            return path
+    return None
+
+
 def _node_version():
     try:
         proc = subprocess.run(["node", "--version"], capture_output=True, text=True,
@@ -1093,7 +1207,9 @@ class Ledger(object):
         self._tracked_memo = None
         self._tracked_root = None
         self._diff_cache = {}
+        self._churn_cache = {}
         self._diff_root = None
+        self.last_why = None
         self._work = None
         self._work_root = None
         self._bible_facts = {}
@@ -1570,6 +1686,7 @@ class Ledger(object):
     def prepare(self, gates):
         """Build the input map once, or load the one already cached for this runner and blueprint."""
         root = self._root_of(gates)
+        self._worktree(root)  # the tree as this run found it, for record()
         self._load_map(root)
         names = [getattr(g, "name", None) for g in gates]
         if self.map_hit and all(name in self.map.get("gates", {}) for name in names):
@@ -1602,32 +1719,33 @@ class Ledger(object):
             pass
         return row
 
+    def _status(self, root):
+        """One `git status`. -> (changed|None, churn, why)"""
+        stat = _git(root, ["status", "--porcelain", "--untracked-files=all", "--no-renames"])  # LEDGER-UNTRACKED-ALL
+        if stat is None or stat.returncode != 0:
+            return None, set(), "the worktree cannot be read"
+        status_out = stat.stdout or ""
+        drop = _SELF | set("tv/" + name for name in _SELF)
+        changed = set()
+        changed |= _porcelain(status_out)  # LEDGER-STATUS
+        changed = _derived({p.replace("\\", "/") for p in changed}) - drop
+        return changed, _derived(_churn(status_out)) - drop, None
+
     def _worktree(self, root):
         """Dirty paths, once per run. -> (set|None, why)"""
         if self._work is not None and self._work_root == root:
             return self._work
         self._work_root = root
-        status_out = ""
-        stat_rc = 1
-        stat = _git(root, ["status", "--porcelain"])
-        if stat is not None:
-            stat_rc = stat.returncode
-            status_out = stat.stdout or ""
-        if stat_rc != 0:
-            self._work = (None, "the worktree cannot be read")
-            return self._work
-        changed = set()
-        changed |= _porcelain(status_out)  # LEDGER-STATUS
-        changed = {p.replace("\\", "/") for p in changed}
-        changed -= _SELF
-        changed -= set("tv/" + name for name in _SELF)
-        self._work = (changed, None)
+        changed, churn, why = self._status(root)
+        self._work_churn = churn
+        self._work = (changed, why)
         return self._work
 
     def changes_since(self, root, sha):
         """diff(sha..HEAD) plus the dirty worktree. One git diff per distinct sha. -> (set|None, why)"""
         if self._diff_root != root:
             self._diff_cache = {}
+            self._churn_cache = {}
             self._diff_root = root
         key = str(sha or "")
         if key in self._diff_cache:
@@ -1648,7 +1766,7 @@ class Ledger(object):
             if cat_rc == 0 and key == head:
                 diff_rc = 0
             elif cat_rc == 0:
-                diff = _git(root, ["diff", "--name-only", "%s..HEAD" % key])
+                diff = _git(root, ["diff", "--name-status", "--no-renames", "%s..HEAD" % key])
                 if diff is not None:
                     diff_rc = diff.returncode
                     out = diff.stdout or ""
@@ -1656,7 +1774,12 @@ class Ledger(object):
             result = (None, "the proven sha cannot be diffed")
             self._diff_cache[key] = result
             return result
-        changed = set(p.strip() for p in out.splitlines() if p.strip())  # LEDGER-DIFF
+        rows = [line.split("\t", 1) for line in out.splitlines() if "\t" in line]
+        changed = set(p.strip() for _c, p in rows if p.strip())  # LEDGER-DIFF
+        churn = set(p.strip() for c, p in rows if p.strip() and c[:1] in ("A", "D"))  # LEDGER-DIFF-CHURN
+        churn |= set(getattr(self, "_work_churn", ()) or ())
+        churn = {p.replace("\\", "/") for p in churn} - _SELF - set("tv/" + name for name in _SELF)
+        self._churn_cache[key] = churn
         changed |= set(dirty)
         changed = {p.replace("\\", "/") for p in changed}
         changed -= _SELF
@@ -1763,9 +1886,13 @@ class Ledger(object):
         for path in changed:
             if _watched(path, row.get("watch")):
                 return None, "inputs changed: %s" % path
-        hit = [p for p in row["inputs"] if p in changed]
+        if entry.get("traced") is not True or not isinstance(entry.get("inputs"), list):  # LEDGER-OLD-ROW
+            return None, "the stored PASS does not say what the gate read, so it runs once"
+        inputs = set(row["inputs"]) | set(str(p) for p in entry["inputs"])  # LEDGER-PROOF-INPUTS
+        hit = first_hit(inputs, entry.get("listed") or (), entry.get("imports") or (),
+                        changed, self._churn_cache.get(sha, set()))
         if hit:
-            return None, "inputs changed: %s" % hit[0]
+            return None, "inputs changed: %s" % hit
         line = self.carry_line(entry)
         if not line:
             return None, "the stored PASS has no sha or no age"
@@ -1809,8 +1936,62 @@ class Ledger(object):
         self.why = None
         return True
 
-    def record(self, gate, ok):
-        """Store a PASS. A FAIL deletes that gate and is never written. -> bool (stored)"""
+    def _traced_inputs(self, facts, root):
+        """The repo files a traced run read, or why that run cannot be carried. -> (dict|None, why)"""
+        tracked = self._tracked(root)
+        if tracked is None:
+            return None, "git did not list the tracked files"
+        dirs = self._tracked_dirs(root, tracked)
+        writes = set(facts.get("W") or ())
+        inputs = set()
+        for path in sorted(set(facts.get("R") or ()) | set(facts.get("S") or ())):
+            if os.path.basename(path) in _SELF or not path:
+                continue
+            if path == ".git" or path.startswith(".git/"):
+                return None, "the gate read git's own files (%s)" % path
+            if path in tracked or path in dirs:
+                inputs.add(path)
+                continue
+            if path in writes or any(a in writes for a in _ancestors(path)):
+                continue
+            full = os.path.join(root, path)
+            if not os.path.lexists(full):
+                inputs.add(path)  # an absent file it looked for: adding it is a change
+                continue
+            if os.path.isdir(full):
+                continue
+            ignored = _git(root, ["check-ignore", "-q", "--", path])
+            if ignored is not None and ignored.returncode == 0:  # LEDGER-IGNORED-READ
+                return None, "the gate read %s, which git ignores, so no diff can say it moved" % path
+            inputs.add(path)
+        listed = set()
+        for path in sorted(facts.get("L") or ()):
+            if path in dirs or path == "":
+                listed.add(path)
+                continue
+            if path in writes or any(a in writes for a in _ancestors(path)):
+                continue
+            if any(w.startswith(path + "/") for w in writes) or not os.path.isdir(os.path.join(root, path)):
+                continue
+            return None, "the gate listed %s, which holds no tracked file, so no diff can say it moved" % path
+        return {"inputs": inputs, "listed": listed,
+                "imports": set(facts.get("I") or ())}, None
+
+    def _tracked_dirs(self, root, tracked):
+        if getattr(self, "_dirs_root", None) != root:
+            dirs = set()
+            for path in tracked:
+                dirs.update(_ancestors(path))
+            self._dirs_memo = dirs
+            self._dirs_root = root
+        return self._dirs_memo
+
+    def record(self, gate, ok, trace=None):
+        """Store a PASS. A FAIL deletes that gate and is never written. -> bool (stored)
+
+        `trace` is the file gate_trace/sitecustomize.py wrote during the passing run, or its
+        read_trace() facts. Without one the reads are UNKNOWN and nothing is stored."""
+        self.last_why = None
         if reuse_closed() or ci_blocks():
             return False
         name = str(getattr(gate, "name", "") or "")
@@ -1829,6 +2010,36 @@ class Ledger(object):
             if name:
                 self._drop(name)
             return False
+        if not trace:
+            facts, twhy = None, "no trace of what the gate read"  # LEDGER-NEEDS-TRACE
+        elif isinstance(trace, dict):
+            facts, twhy = trace, None
+        else:
+            facts, twhy = read_trace(trace)
+        traced = None
+        if facts is not None:
+            traced, twhy = self._traced_inputs(facts, root)
+        if traced is None:
+            self.last_why = twhy or "no trace of what the gate read"
+            if name:
+                self._drop(name)
+            return False
+        inputs = set(row["inputs"]) | traced["inputs"]  # LEDGER-TRACE-READ
+        # a fresh status, plus the one taken when the run began: a file edited and put back
+        # while the gate ran is in one of the two
+        start = self._work[0] if (self._work is not None and self._work_root == root) else None
+        dirty, churn, dwhy = self._status(root)
+        if dirty is not None and start is not None:
+            dirty = dirty | start
+            churn = churn | set(getattr(self, "_work_churn", ()) or ())
+        hit = None if dirty is None else first_hit(
+            inputs, traced["listed"], traced["imports"], dirty, churn)
+        if dirty is None or hit:  # LEDGER-DIRTY-RECORD
+            self.last_why = ("proved on uncommitted %s, not on the commit" % hit) if hit else (
+                dwhy or "the worktree cannot be read")
+            if name:
+                self._drop(name)
+            return False
         sha = head_sha(root)
         if not sha:
             return False
@@ -1844,6 +2055,10 @@ class Ledger(object):
             "at": int(time.time() * 1000),
             "def": self._definition(gate, root),
             "tools": list(parts),
+            "traced": True,
+            "inputs": sorted(inputs),
+            "listed": sorted(traced["listed"]),
+            "imports": sorted(traced["imports"]),
         }
         self._write()
         return True
@@ -1901,7 +2116,8 @@ def main(argv):
     if led.record(gate, True):
         print("ledger: %s PASS recorded" % name)
         return 0
-    print("ledger: %s was not recorded — the next run will execute it" % name)
+    print("ledger: %s was not recorded (%s) — the next run will execute it"
+          % (name, led.last_why or "its inputs are UNKNOWN"))
     return 1
 
 
