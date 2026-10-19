@@ -9843,6 +9843,16 @@ GATES = [
              "equipped item gets no row, and a row click opens BEFORE | AFTER with real art and closes. "
              "No browser is a declared skip."),
          skip_ok=(r"no Chrome/Chromium on this machine",)),
+    Gate("test_vault_l1_throw_out_rows_drain", [sys.executable,
+         os.path.join(HERE, "test_vault_l1_throw_out_rows_drain.py")], 180,
+         needs_app=False,
+         why=("Vault L1 (Elad 2026-10-20) - a junk route is a THROW OUT row in MOVE TASKS (target NOWHERE, one "
+             "plain reason, Keep / Junk inline), never a dock chip; Keep turns it into a normal move; his hand-added "
+             "unruled set piece stays kept and routed. Rows drain on direct proof only: seen at the target closes a "
+             "move at once; 5 reel sessions whose frames SHOWED the first-witnessed cell empty close a throw-out or a "
+             "vanished move, a container never shown counts nothing, a re-sighting resets, the row says gone k/5; a "
+             "throw-out read on the ground after it left closes at once. No browser is a declared skip."),
+         skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_v3771_vault_console_face", [sys.executable,
          os.path.join(HERE, "test_v3771_vault_console_face.py")], 60,
          needs_app=False,

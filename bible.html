@@ -10500,6 +10500,12 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .vmv-chip[data-status="moved-manual"]{color:var(--q-rare);border-color:rgba(255,255,100,.45);background:rgba(255,255,100,.08)}
 .vmv-chip[data-status="verified"]{color:var(--best);border-color:rgba(102,255,136,.5);background:rgba(102,255,136,.1)}
 .vmv-chip[data-status="moved-elsewhere"]{color:var(--q-orange);border-color:rgba(255,168,0,.5);background:rgba(255,168,0,.1)}
+.vmv-throw-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.vmv-throw .vmv-gh b{color:var(--q-orange)}
+.vmv-nowhere{color:var(--q-orange)}
+.vmv-reason{flex:1 1 160px;color:var(--text-dim);font-size:var(--fs-meta)}
+.vmv-gone{color:var(--q-orange);font-size:var(--fs-meta);font-weight:var(--fw-medium)}
+.vmv-chip[data-status="junk"]{color:var(--q-orange);border-color:rgba(255,168,0,.5)}
 .vmv-empty{margin:0;padding:8px 2px;font-size:var(--fs-body);color:var(--text-muted)}
 #vault-auto-intake{font-family:var(--serif-display,serif);letter-spacing:var(--ls-wide);text-transform:uppercase;border-radius:999px;background:var(--surface-2);box-shadow:inset 0 1px 0 rgba(240,192,96,.16)}
 #vault-auto-intake[data-state="on"]{border-color:rgba(102,255,136,.55);color:var(--best);background:rgba(102,255,136,.08);box-shadow:0 0 16px rgba(102,255,136,.18),inset 0 1px 0 rgba(255,255,255,.08)}
@@ -44101,6 +44107,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var inInv = {};
     (Array.isArray(carried) ? carried : []).forEach(function(n){ if (n && !(window._standingKit && window._standingKit(n))) inInv[n] = 1; });
     var list = Object.keys(inInv).concat(names.filter(function(n){ return n && !inInv[n]; }));
+    list = list.filter(function(n){ try { return !(typeof window._vaultThrowRoute === 'function' && window._vaultThrowRoute(n)); } catch (eTr) { return true; } }); /* L1 THROW OUT lives in MOVE TASKS */
     if (!list.length){ el.hidden = true; el.innerHTML = ''; return { ok: true, n: 0 }; }
     var shown = list.slice(0, VAULT_ORG_SHOWN);
     var plans = shown.map(function(nm){ var pg = null; try { pg = window.vaultPropose(nm); } catch (e) { pg = null; } return { nm: nm, pg: pg }; });
@@ -44790,6 +44797,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (sg.id === '__throwout' && /by DEFAULT/.test(String(sg.why || '')) && typeof window._vaultHandTyped === 'function'
           && window._vaultHandTyped(name) && typeof muleById === 'function' && muleById('sets-rest'))
         return { loc: 'filed', mule: 'sets-rest' }; /* L1 he typed an unruled set piece: kept, not thrown out */
+      if (sg.id === '__throwout' && typeof window._vaultKeptByHim === 'function' && window._vaultKeptByHim(name)) {
+        var _kh = (/\(set\)/i.test(String(sg.why || '')) && typeof muleById === 'function' && muleById('sets-rest')) ? 'sets-rest' : null;
+        return _kh ? { loc: 'filed', mule: _kh } : { loc: 'shared', mule: null }; /* L1 he pressed Keep on a THROW OUT row */
+      }
       if (sg.id === '__throwout') return { loc: 'loose', mule: null }; /* v3767 seam discard */
       if (sg.id === 'shared') return { loc: 'shared', mule: null }; /* v3767 seam shared */
       if (typeof muleById === 'function' && muleById(sg.id)) return { loc: 'filed', mule: sg.id }; /* v3767 seam route */
@@ -44818,6 +44829,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var _seamD = (typeof _vaultSeamHome === 'function') ? _vaultSeamHome(n) : null; /* v3767 dock seam */
         if (_seamD && _seamD.loc === 'loose') {
           if (isSharedStash(n) || _inMagicRare(n) || carSet[n]) return false;
+          try { var _sgD = suggestMule(n); if (_sgD && _sgD.id === '__throwout') return false; } catch (eSgD) {} /* L1 a junk route is a THROW OUT row */
           if (typeof KEEP_IN_INVENTORY !== 'undefined' && typeof _keepName === 'function' && KEEP_IN_INVENTORY.test(_keepName(n))) return false;
         } else if (_seamD && _seamD.loc && _seamD.loc !== 'loose') return false;
         else if (!(assign[n] == null && !isSharedStash(n) && !_inMagicRare(n) && !carSet[n]
@@ -48762,7 +48774,7 @@ window.vaultAutoAssign = function(){
   }
   function _vaultMoveTask(spec){
     spec = spec || {};
-    var allowed = { 'to-move': 1, 'moved-manual': 1, 'verified': 1, 'moved-elsewhere': 1 };
+    var allowed = { 'to-move': 1, 'moved-manual': 1, 'verified': 1, 'moved-elsewhere': 1, 'closed': 1 }; /* L1 drain closed */
     var st = allowed[spec.status] ? spec.status : 'to-move';
     var ev = [];
     (Array.isArray(spec.evidence) ? spec.evidence : []).forEach(function(id){
@@ -48771,7 +48783,7 @@ window.vaultAutoAssign = function(){
       if (ev.indexOf(s) < 0) ev.push(s);
     });
     var from = spec.from || {}, to = spec.to || {};
-    return {
+    var out = {
       name: spec.name || null,
       from: _vaultMovePlace(from.holder, from.location || from.loc, from.cell),
       to: _vaultMovePlace(to.holder, to.location || to.loc, to.cell),
@@ -48779,6 +48791,19 @@ window.vaultAutoAssign = function(){
       evidence: ev,
       manual: spec.manual === true || st === 'moved-manual'
     };
+    /* L1 (Elad 2026-10-20) — a THROW OUT row and the drain counter ride on the same task. Fields are written only when
+       set, so an ordinary move serializes exactly as before. gone = the distinct reel sessions whose frame SHOWED the
+       first-witnessed cell without the item (direct proof only); a re-sighting there empties it. */
+    if (spec.kind === 'throw') out.kind = 'throw';
+    if (typeof spec.reason === 'string' && spec.reason) out.reason = spec.reason;
+    if (spec.kept === true) out.kept = true;
+    if (spec.junk === true) out.junk = true;
+    if (spec.left === true) out.left = true;
+    if (typeof spec.closedBy === 'string' && spec.closedBy) out.closedBy = spec.closedBy;
+    var g = [];
+    (Array.isArray(spec.gone) ? spec.gone : []).forEach(function(x){ if (x != null && x !== '' && g.indexOf(String(x)) < 0) g.push(String(x)); });
+    if (g.length) out.gone = g;
+    return out;
   }
   function _vaultMoveQueue(name, from, to){
     return _vaultMoveTask({ name: name, from: from, to: to, status: 'to-move', evidence: [], manual: true }); /* v3767 move queue */
@@ -49077,6 +49102,8 @@ window.vaultAutoAssign = function(){
   }
   function _vaultMoveShown(task){
     var t = _vaultMoveTask(task);
+    if (t.status === 'closed') return false; /* L1 a drained row is done */
+    if (t.kind === 'throw') return !_vaultMoveWorn(t.from); /* L1 THROW OUT row: target NOWHERE */
     if (_vaultMoveWorn(t.from)) return false; /* L1 equipped is locked, no move row */
     if (!t.to || t.to.holder == null || t.to.location == null || t.to.cell == null) return false; /* v3769 known target */
     var home = (t.name && typeof _vaultMoveHome === 'function') ? _vaultMoveHome(t.name) : null;
@@ -49257,11 +49284,30 @@ window.vaultAutoAssign = function(){
     var head = '<div class="vault-move-h"><span class="vault-move-k">MOVE TASKS</span>'
       + '<span class="vault-move-sub">one stash at a time</span>'
       + '<span class="vmv-locks">' + locks + '</span></div>'; /* v3773 no manual move */
-    var groups = built.groups || [];
+    var groups = [], throws = [];
+    (built.groups || []).forEach(function(g){
+      var mv = g.rows.filter(function(r){ return !(r.task && r.task.kind === 'throw'); });
+      g.rows.filter(function(r){ return r.task && r.task.kind === 'throw'; }).forEach(function(r){ throws.push(r); });
+      if (mv.length) { g.rows = mv; groups.push(g); }
+    });
+    var thrHtml = throws.length ? '<section class="vmv-group vmv-throw" data-holder="THROW OUT"><div class="vmv-gh"><b>THROW OUT</b> · '
+      + throws.length + '</div>' + throws.map(function(row){
+        var t = row.task, nm = jsArg(row.name), ci = (row.copyIx || 0), gs = (typeof _vaultGoneSay === 'function') ? _vaultGoneSay(t) : '';
+        return '<div class="vmv-row vmv-throw-row" data-name="' + esc(row.name) + '" data-copy="' + ci + '" data-kind="throw"' + (t.junk ? ' data-junk="1"' : '') + '>'
+          + '<span class="vmv-art">' + (typeof art === 'function' ? art(row.name) : '') + '</span>'
+          + '<span class="vmv-name">' + esc(row.name) + '</span>'
+          + '<span class="vmv-place"><i>FROM</i>' + esc(_vaultMovePlaceSay(t.from)) + '</span>'
+          + '<span class="vmv-place vmv-nowhere"><i>TO</i>NOWHERE</span>'
+          + '<span class="vmv-reason">' + esc(t.reason || 'the rules call it junk') + (gs ? ' · <b class="vmv-gone">' + esc(gs) + '</b>' : '') + '</span>'
+          + (t.junk ? '<span class="vmv-chip" data-status="junk">JUNK</span>'
+             : '<button type="button" class="vault-btn vmv-keep" onclick="event.stopPropagation();window._vaultThrowKeep(\'' + nm + '\',' + ci + ')">Keep</button>'
+             + '<button type="button" class="vault-btn vmv-junk" onclick="event.stopPropagation();window._vaultThrowJunk(\'' + nm + '\',' + ci + ')">Junk</button>')
+          + '</div>';
+      }).join('') + '</section>' : ''; /* L1 THROW OUT rows beside the moves */
     var unr = built.unrouted || [];
     var unrHtml = unr.length ? '<p class="vmv-unrouted" data-n="' + unr.length + '">' + unr.length + ' added by hand with no target cell yet: '
       + unr.map(function(n){ return '<b>' + esc(n) + '</b>'; }).join(', ') + '</p>' : ''; /* L1 never "nothing" while hand adds wait */
-    if (!groups.length) return head + (unr.length ? unrHtml : '<p class="vmv-empty">Nothing is out of place.</p>');
+    if (!groups.length) return head + thrHtml + (unr.length ? unrHtml : (throws.length ? '' : '<p class="vmv-empty">Nothing is out of place.</p>'));
     var body = groups.map(function(g){
       var rows = g.rows.map(function(row){
         var t = row.task;
@@ -49280,6 +49326,7 @@ window.vaultAutoAssign = function(){
               : '<span class="vmv-place"><i>FROM</i>' + esc(_vaultMovePlaceSay(t.from)) + '</span>')
           + '<span class="vmv-place"><i>TO</i>' + esc(_vaultMovePlaceSay(t.to)) + '</span>'
           + '<span class="vmv-chip" data-status="' + esc(t.status) + '">' + chip + '</span>'
+          + ((t.gone && t.gone.length) ? '<b class="vmv-gone">gone ' + t.gone.length + '/' + (window.VAULT_GONE_SESSIONS || 5) + '</b>' : '') /* L1 vanished-move drain */
           + '<button type="button" class="vault-btn vmv-wit" onclick="event.stopPropagation();' + esc(opener) + '">' + esc(wSay) + '</button>'
           + '<button type="button" class="vault-btn vmv-mark" onclick="event.stopPropagation();window._vaultMoveMark(\'' + jsArg(row.name) + '\',' + (row.copyIx || 0) + ')">mark moved</button>'
           + '</div>';
@@ -49292,8 +49339,122 @@ window.vaultAutoAssign = function(){
         + '<div class="vmv-gh">' + head + '</div>'
         + _vaultMoveGridHtml(g.rows) + rows + '</section>';
     }).join('');
-    return head + unrHtml + body;
+    return head + thrHtml + unrHtml + body;
   }
+  /* L1 (Elad 2026-10-20) — the rules route it to junk (a screenshot-seen item, or one he ruled junk): it is a THROW OUT row
+     in MOVE TASKS, target NOWHERE, one plain reason. A hand add of an unruled set piece is NOT one (his ruling: kept and
+     routed), because _vaultSeamHome files it. Keep turns the row into a normal move (_vaultKeptByHim). */
+  function _vaultThrowReason(why){
+    var w = String(why || '');
+    if (/never ruled/i.test(w)) return /\(set\)/i.test(w) ? 'set never ruled' : 'never ruled';
+    var first = w.replace(/^by DEFAULT( only)?\s*[—-]\s*/i, '').split(' — ')[0].trim();
+    return first ? first.slice(0, 70) : 'the rules call it junk';
+  }
+  function _vaultThrowRoute(name){
+    var seam = null, sg = null;
+    try { seam = (typeof _vaultSeamHome === 'function') ? _vaultSeamHome(name) : null; } catch (e) { seam = null; }
+    if (!seam || seam.loc !== 'loose') return null;
+    try { sg = (typeof suggestMule === 'function') ? suggestMule(name) : null; } catch (e2) { sg = null; }
+    var ruledJunk = (typeof assign !== 'undefined' && assign && assign[name] === '__throwout');
+    if (!(sg && sg.id === '__throwout') && !ruledJunk) return null;
+    return { why: (sg && sg.why) || 'you ruled it junk' };
+  }
+  function _vaultThrowTask(r, storedRaw){
+    var stored = storedRaw ? _vaultMoveTask(storedRaw) : null;
+    if (stored && stored.kept) return null; /* L1 Keep: a normal move now */
+    if (stored && stored.kind === 'throw') return { task: stored, fresh: false };
+    var route = _vaultThrowRoute(r.name);
+    if (!route) return null;
+    var seen = !!(r.sight && r.sight.cell); /* an unseen junk route still gets its row: FROM reads not seen yet */
+    var from = seen ? { holder: r.sight.holder, location: r.sight.location, cell: r.sight.cell } : {};
+    return { task: _vaultMoveTask({ name: r.name, from: from, to: {}, status: 'to-move', kind: 'throw',
+                                    reason: _vaultThrowReason(route.why), evidence: [] }), fresh: true };
+  }
+  function _vaultKeptByHim(name){
+    var bag = null;
+    try { bag = _vaultMoveBag(); } catch (e) { return false; }
+    return Object.keys(bag.map || {}).some(function(k){ return k.split('\u0000')[0] === name && bag.map[k] && bag.map[k].kept === true; });
+  }
+  function _vaultThrowKeep(name, copyIx){
+    copyIx = copyIx || 0;
+    var bag = _vaultMoveBag(), cur = bag.map[String(name) + '\u0000' + copyIx];
+    var t0 = _vaultMoveTask(cur || { name: name });
+    var kept = _vaultMoveTask({ name: name, from: t0.from, to: {}, status: 'to-move', kept: true, evidence: t0.evidence });
+    _vaultMoveCommit([{ name: name, copyIx: copyIx, task: kept }]);
+    window._movePackCache = null;
+    var b2 = _vaultMoveBag(); delete b2.map[String(name) + '\u0000' + copyIx];
+    var to = _vaultMovePlanCell(name, copyIx, b2); /* the same packer every move uses */
+    var mv = _vaultMoveTask({ name: name, from: t0.from, to: to, status: 'to-move', kept: true, evidence: t0.evidence });
+    _vaultMoveCommit([{ name: name, copyIx: copyIx, task: mv }]);
+    try { _vaultMovePaint(); } catch (eP) {}
+    try { if (typeof renderVault === 'function') renderVault(); } catch (eR) {}
+    return mv;
+  }
+  function _vaultThrowJunk(name, copyIx){
+    copyIx = copyIx || 0;
+    var cur = _vaultMoveBag().map[String(name) + '\u0000' + copyIx];
+    if (!cur) return null;
+    var t = _vaultMoveTask(cur); t.junk = true;
+    _vaultMoveCommit([{ name: name, copyIx: copyIx, task: t }]);
+    try { _vaultMovePaint(); } catch (eP) {}
+    return t;
+  }
+  var VAULT_GONE_SESSIONS = 5;
+  /* L1 (Elad 2026-10-20) — THE DRAIN. One frame of one reel session: { session, holder, location, items:[{name, cell}],
+     ground:[names] }. Direct proof only:
+       · a move seen in its TARGET cell closes at once (verified);
+       · the first-witnessed cell SHOWN in this frame with the item still there resets the count;
+       · that container SHOWN without the item adds this session (distinct sessions) — a session whose frames never show
+         that container counts for nothing;
+       · VAULT_GONE_SESSIONS such sessions close the row (a throw-out, or a move that vanished without reaching its target);
+       · a throw-out whose item already left its cell and is now read as a dropped-item label on the ground closes at once.
+     Reads and writes only the saved move records. */
+  function _vaultGoneObserve(frame){
+    frame = frame || {};
+    var sid = frame.session == null ? '' : String(frame.session);
+    if (!sid) return { ok: false, why: 'a frame with no reel session proves nothing' };
+    var items = Array.isArray(frame.items) ? frame.items : [];
+    var ground = Array.isArray(frame.ground) ? frame.ground.map(String) : [];
+    function here(name, cell){
+      return items.some(function(it){ return it && it.name === name && (cell == null || _vaultCellKey(it.cell, frame.location) === cell); });
+    }
+    var shows = function(place){
+      return place && place.cell != null && String(place.holder || '') === String(frame.holder || '')
+        && String(place.location || '') === String(frame.location || '');
+    };
+    var bag = _vaultMoveBag(), out = [];
+    Object.keys(bag.map || {}).forEach(function(k){
+      var t = _vaultMoveTask(bag.map[k]);
+      if (t.status === 'closed' || t.status === 'verified') return;
+      var name = k.split('\u0000')[0], copyIx = +k.split('\u0000')[1] || 0, next = null;
+      if (t.kind !== 'throw' && shows(t.to) && here(name, t.to.cell)) {
+        next = _vaultMoveTask(t); next.status = 'verified'; next.closedBy = 'seen at target';
+      } else if (shows(t.from)) {
+        if (here(name, t.from.cell)) { if (t.gone || t.left) { next = _vaultMoveTask(t); delete next.gone; delete next.left; } }
+        else {
+          next = _vaultMoveTask(t); next.left = true;
+          var g = (next.gone || []).slice(); if (g.indexOf(sid) < 0) g.push(sid); next.gone = g;
+          if (g.length >= VAULT_GONE_SESSIONS) { next.status = 'closed'; next.closedBy = 'gone ' + g.length + '/' + VAULT_GONE_SESSIONS + ' sessions'; }
+        }
+      }
+      var cur = next || t;
+      if (cur.kind === 'throw' && cur.status !== 'closed' && cur.left && ground.indexOf(name) >= 0) {
+        next = _vaultMoveTask(cur); next.status = 'closed'; next.closedBy = 'seen on the ground';
+      }
+      if (next) out.push({ name: name, copyIx: copyIx, task: next });
+    });
+    if (out.length) _vaultMoveCommit(out);
+    try { if (out.length && !window._movePaintBusy) _vaultMovePaint(); } catch (eP) {}
+    return { ok: true, changed: out.map(function(o){ return { name: o.name, status: o.task.status, gone: (o.task.gone || []).length, closedBy: o.task.closedBy || null }; }) };
+  }
+  function _vaultGoneSay(t){
+    var n = (t && t.gone) ? t.gone.length : 0;
+    return n ? ('gone ' + n + '/' + VAULT_GONE_SESSIONS) : '';
+  }
+  try {
+    window._vaultThrowKeep = _vaultThrowKeep; window._vaultThrowJunk = _vaultThrowJunk; window._vaultKeptByHim = _vaultKeptByHim;
+    window._vaultGoneObserve = _vaultGoneObserve; window._vaultThrowRoute = _vaultThrowRoute; window._vaultThrowReason = _vaultThrowReason; window.VAULT_GONE_SESSIONS = VAULT_GONE_SESSIONS;
+  } catch (eTw) {}
   function _vaultMoveCollect(){
     window._movePackCache = {};
     var bag = _vaultMoveBag();
@@ -49303,6 +49464,13 @@ window.vaultAutoAssign = function(){
       if (!r || r.name == null) return;
       var stored = bag.map[String(r.name) + '\u0000' + (r.copyIx || 0)];
       var hasSight = !!(r.sight && r.sight.cell);
+      var thr = (typeof _vaultThrowTask === 'function') ? _vaultThrowTask(r, stored) : null;
+      if (thr) {
+        if (thr.fresh) pending.push({ name: r.name, copyIx: r.copyIx || 0, task: thr.task });
+        if (_vaultMoveShown(thr.task)) shown.push({ name: r.name, copyIx: r.copyIx || 0, task: thr.task,
+          witnesses: r.sight ? r.sight.witnesses : null });
+        return;
+      } /* L1 a junk route is a THROW OUT row, never a dock chip */
       if (!stored && !hasSight) return;
       var ens = _vaultMoveEnsure(r.name, r.copyIx || 0, bag);
       if (ens.fresh) pending.push({ name: r.name, copyIx: r.copyIx || 0, task: ens.task });
