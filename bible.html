@@ -10474,6 +10474,19 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .vmv-hint{font-family:var(--serif-text,Georgia,serif);font-style:italic;font-weight:var(--fw-regular);letter-spacing:var(--ls-snug);text-transform:none;color:var(--text-dim);font-size:var(--fs-meta)}
 .vmv-unseen{border-style:dashed;border-color:rgba(240,192,96,.5);background:linear-gradient(180deg,rgba(212,168,71,.08),rgba(10,8,5,.35))}
 .vmv-grid{margin:0 0 8px}
+/* L1 before/after compare (Elad ruling 12) */
+.vault-move-compare{position:fixed;inset:0;z-index:99981;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(4,3,2,.62);box-sizing:border-box}
+.vault-move-compare[hidden]{display:none}
+.vmc-card{background:var(--panel,#15110c);border:1px solid rgba(240,192,96,.45);border-radius:10px;padding:14px 16px;max-width:96vw;max-height:94vh;overflow:auto;color:var(--text,#e8dcc0)}
+.vmc-say{margin:0 0 10px;font-weight:600;color:var(--gold-bright,#f0c060)}
+.vmc-sides{display:flex;align-items:flex-start;gap:14px}
+.vmc-side{flex:0 0 auto}
+.vmc-h{font-size:var(--fs-micro,11px);letter-spacing:var(--ls-label,.08em);text-transform:uppercase;margin:0 0 6px;min-height:2.6em}
+.vmc-wrap{position:relative;display:inline-block}
+.vmc-ring{position:absolute;box-sizing:border-box;border:3px solid #ffd24a;border-radius:4px;box-shadow:0 0 10px #ffd24a;pointer-events:none}
+.vmc-arrow{align-self:center;font-size:28px;color:#ffd24a;padding:0 4px}
+.vmc-manual{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;border:1px dashed rgba(240,192,96,.45);border-radius:6px;padding:18px;min-width:180px}
+.vmc-close{margin-top:10px}
 .vmv-grid-h{font-size:var(--fs-micro);letter-spacing:var(--ls-normal);color:var(--text-dim);margin:0 0 4px}
 .vmv-row{display:grid;grid-template-columns:auto minmax(120px,1.2fr) minmax(140px,1fr) minmax(140px,1fr) auto auto auto;gap:8px;align-items:center;padding:6px;margin:0 0 4px;border-radius:10px;background:var(--surface);border:1px solid transparent;cursor:pointer}
 .vmv-row:hover{border-color:rgba(240,192,96,.45);box-shadow:0 0 18px rgba(212,168,71,.12)}
@@ -48757,7 +48770,21 @@ window.vaultAutoAssign = function(){
     }
     return Math.max(1, cc | 0);
   }
-  function _vaultMovePackHome(home){
+  function _vaultMovePackHome(home, bag){
+    /* L1 (Elad ruling 1) — placement is append-only. A target already saved on a record keeps its cell and
+       that rectangle is TAKEN before first-fit runs, so a later, bigger item can never be packed onto it. */
+    var kept = {}, occBy = {};
+    var saved = (bag && bag.map) ? bag.map : {};
+    Object.keys(saved).forEach(function(k){
+      var mv = saved[k], to = mv && mv.to;
+      if (!to || to.cell == null || String(to.holder || '') !== String(home.holder || '')) return;
+      var m = String(to.cell).match(/^(\w+):c(\d+)r(\d+)$/);
+      if (!m) return;
+      var nm = k.split('\u0000')[0];
+      var s0 = (typeof vaultSize === 'function') ? vaultSize(nm) : [1, 1];
+      kept[k] = { holder: home.holder, location: m[1], cell: String(to.cell) };
+      (occBy[m[1]] || (occBy[m[1]] = [])).push({ x: +m[2], y: +m[3], w: s0[0] || 1, h: s0[1] || 1 });
+    }); /* L1 append-only occ */
     var names = [];
     var pool = [];
     try { pool = (typeof ownedPool === 'function') ? ownedPool() : []; } catch (e) { pool = []; }
@@ -48770,13 +48797,17 @@ window.vaultAutoAssign = function(){
       var s = (typeof vaultSize === 'function') ? vaultSize(n) : [1, 1];
       var cc = _vaultMoveCopies(n);
       var area = (s[0] || 1) * (s[1] || 1);
-      for (var i = 0; i < cc; i++) items.push({ n: n, copyIx: i, key: n + '\u0000' + i, w: s[0] || 1, h: s[1] || 1, area: area });
+      for (var i = 0; i < cc; i++) {
+        if (kept[n + '\u0000' + i]) continue; /* L1 saved cell stays */
+        items.push({ n: n, copyIx: i, key: n + '\u0000' + i, w: s[0] || 1, h: s[1] || 1, area: area });
+      }
     });
     items.sort(function(a, b){
       if (a.n !== b.n) return (b.area - a.area) || (a.n < b.n ? -1 : (a.n > b.n ? 1 : 0));
       return a.copyIx - b.copyIx; /* v3769 beside */
     });
     var out = {};
+    Object.keys(kept).forEach(function(k){ out[k] = kept[k]; });
     function lay(placed, location){
       (placed || []).forEach(function(p){
         if (p.key == null) return;
@@ -48784,24 +48815,24 @@ window.vaultAutoAssign = function(){
       });
     }
     if (home.id === 'main') { /* v3769 pack main */
-      lay(packGrid(items, 10, 4).placed, 'inventory');
+      lay(packGrid(items, 10, 4, occBy.inventory).placed, 'inventory');
       return out;
     }
     if (home.id === 'shared' || home.location === 'shared') {
-      lay(packGrid(items, 10, 10).placed, 'shared');
+      lay(packGrid(items, 10, 10, occBy.shared).placed, 'shared');
       return out;
     }
-    var st = packGrid(items, 10, 10);
+    var st = packGrid(items, 10, 10, occBy.stash);
     lay(st.placed, 'stash');
-    lay(packGrid(st.left, 10, 4).placed, 'inventory');
+    lay(packGrid(st.left, 10, 4, occBy.inventory).placed, 'inventory');
     return out;
   }
-  function _vaultMovePlanCell(name, copyIx){
+  function _vaultMovePlanCell(name, copyIx, bag){
     var home = _vaultMoveHome(name);
     if (!home || home.holder == null || !home.location) return _vaultMovePlace(home && home.holder, home && home.location, null);
     var cache = window._movePackCache || (window._movePackCache = {});
     var ck = String(home.id);
-    if (!cache[ck]) cache[ck] = _vaultMovePackHome(home);
+    if (!cache[ck]) cache[ck] = _vaultMovePackHome(home, bag || _vaultMoveBag()); /* L1 pack reads saved cells */
     var hit = cache[ck][name + '\u0000' + (copyIx || 0)];
     if (!hit) return _vaultMovePlace(home.holder, home.location, null);
     return _vaultMovePlace(hit.holder, hit.location, hit.cell);
@@ -48831,7 +48862,7 @@ window.vaultAutoAssign = function(){
     var stored = storedRaw ? _vaultMoveTask(storedRaw) : null;
     if (stored && stored.to && stored.to.cell) return { task: stored, copyIx: copyIx, name: name, fresh: false }; /* v3769 saved target */
     var from = (stored && stored.from && stored.from.cell) ? stored.from : _vaultMoveFromSight(name, copyIx);
-    var to = _vaultMovePlanCell(name, copyIx);
+    var to = _vaultMovePlanCell(name, copyIx, bag);
     var task = _vaultMoveTask({
       name: name, from: from, to: to,
       status: stored ? stored.status : 'to-move',
@@ -48911,6 +48942,16 @@ window.vaultAutoAssign = function(){
     var atFrom = _vaultMoveSamePlace(place, t.from);
     var atTo = _vaultMoveSamePlace(place, t.to);
     if (t.status === 'moved-manual' && atFrom && !atTo) return { applied: false, task: t, why: 'hand-tally' }; /* v3769 moved-manual hold */
+    /* L1 (Elad ruling 4 + 8) — a hand-typed row (FROM = MANUAL, no cell) or a row whose item was last seen worn takes the
+       FIRST real sighting as its FROM cell, on the SAME row: no second row, the target is kept, the frame is its proof. */
+    if (t.manual && t.status === 'to-move' && !atTo && (t.from == null || t.from.cell == null || _vaultMoveWorn(t.from))) {
+      var ev0 = (t.evidence || []).slice();
+      if (sighting.frame != null && sighting.frame !== '' && ev0.indexOf(String(sighting.frame)) < 0) ev0.push(String(sighting.frame));
+      var up = _vaultMoveTask({ name: name, from: place, to: t.to, status: 'to-move', evidence: ev0, manual: true }); /* L1 sighting upgrades the manual row */
+      _vaultMoveCommit([{ name: name, copyIx: hit.copyIx, task: up }]);
+      try { if (!window._movePaintBusy && typeof _vaultMovePaint === 'function') _vaultMovePaint(); } catch (eP1) {}
+      return { applied: true, task: up, upgraded: true };
+    }
     var next = _vaultMoveWitness(t, sighting); /* v3769 one writer */
     _vaultMoveCommit([{ name: name, copyIx: hit.copyIx, task: next }]);
     try { if (!window._movePaintBusy && typeof _vaultMovePaint === 'function') _vaultMovePaint(); } catch (eP) {}
@@ -48957,8 +48998,14 @@ window.vaultAutoAssign = function(){
     if (!lanes) return loc === 'inventory' || loc === 'equipment';
     return !!lanes[loc]; /* v3769 keep home */
   }
+  function _vaultMoveWorn(place){
+    /* Elad ruling 8 — an item seen on the character's equipment is LOCKED where it is: registered, never a move. */
+    var loc = String((place && place.location) || '').toLowerCase();
+    return loc === 'equipment' || loc === 'equipped';
+  }
   function _vaultMoveShown(task){
     var t = _vaultMoveTask(task);
+    if (_vaultMoveWorn(t.from)) return false; /* L1 equipped is locked, no move row */
     if (!t.to || t.to.holder == null || t.to.location == null || t.to.cell == null) return false; /* v3769 known target */
     var home = (t.name && typeof _vaultMoveHome === 'function') ? _vaultMoveHome(t.name) : null;
     if (_vaultMoveOnKeep(t.from) && home && home.id === 'main') return false; /* v3769 already home */
@@ -49054,6 +49101,82 @@ window.vaultAutoAssign = function(){
       return '<div class="vmv-grid"><div class="vmv-grid-h">TO ' + esc(say) + '</div>' + grid + '</div>';
     }).join('');
   }
+  /* L1 (Elad ruling 12) — clicking a move row opens BEFORE | AFTER. Both sides are gridHtml (the mule window's own grid,
+     real item art in real cells) at the same cell size, the same ring colour on the from- and to-cell, one arrow and one
+     instruction line. BEFORE of a hand-typed row has no cell yet, so it shows the MANUAL badge; once a frame saw the item it
+     is that holder's container with the item where it sits. AFTER is the organized vault order: every saved target in that
+     container. Reads only saved state (_vaultMoveBag, _vaultRecords) and writes nothing. */
+  function _vaultMoveCompareModel(name, copyIx){
+    copyIx = copyIx || 0;
+    var bag = _vaultMoveBag();
+    var t = _vaultMoveEnsure(name, copyIx, bag).task;
+    function xy(cell){ var m = cell && String(cell).match(/^(\w+):c(\d+)r(\d+)$/); return m ? { loc: m[1], x: +m[2], y: +m[3] } : null; }
+    function dims(loc){ return [10, (loc === 'inventory' || loc === 'inv') ? 4 : 10]; }
+    function sz(n){ var s0 = (typeof vaultSize === 'function') ? vaultSize(n) : [1, 1]; return [s0[0] || 1, s0[1] || 1]; }
+    var to = xy(t.to && t.to.cell), from = xy(t.from && t.from.cell);
+    var after = [];
+    Object.keys(bag.map || {}).forEach(function(k){
+      var mv = bag.map[k], c = xy(mv && mv.to && mv.to.cell);
+      if (!c || !to || String(mv.to.holder || '') !== String(t.to.holder || '') || c.loc !== to.loc) return;
+      var n = k.split('\u0000')[0], s1 = sz(n);
+      after.push({ n: n, x: c.x, y: c.y, w: s1[0], h: s1[1] });
+    });
+    var before = [];
+    if (from) {
+      var recs = [];
+      try { recs = (_vaultRecords().records || []); } catch (eR) { recs = []; }
+      recs.forEach(function(r){
+        var sc = r && r.sight && xy(r.sight.cell);
+        if (!sc || sc.loc !== from.loc || String(r.sight.holder || '') !== String(t.from.holder || '')) return;
+        if (r.name === name && (r.copyIx || 0) === copyIx) return;
+        var s2 = sz(r.name); before.push({ n: r.name, x: sc.x, y: sc.y, w: s2[0], h: s2[1] });
+      });
+      var s3 = sz(name); before.push({ n: name, x: from.x, y: from.y, w: s3[0], h: s3[1] });
+    }
+    var fromSay = from ? (String(t.from.holder || 'not seen yet') + ' ' + (_vaultMoveStashSay(t.from.location) || from.loc) + ' (' + (from.x + 1) + ',' + (from.y + 1) + ')') : 'MANUAL';
+    var toSay = to ? (String(t.to.holder || 'not seen yet') + ' ' + (_vaultMoveStashSay(t.to.location) || to.loc) + ' (' + (to.x + 1) + ',' + (to.y + 1) + ')') : 'not placed yet';
+    return { name: name, copyIx: copyIx, task: t, manual: !from, from: from, to: to, before: before, after: after,
+             fromSay: fromSay, toSay: toSay, size: sz(name), dims: { from: from ? dims(from.loc) : null, to: to ? dims(to.loc) : null },
+             say: 'Move ' + name + ' from ' + fromSay + ' to ' + toSay };
+  }
+  function _vaultMoveCompareHtml(name, copyIx){
+    var m = _vaultMoveCompareModel(name, copyIx), cell = 36;
+    function ring(c){
+      return '<div class="vmc-ring" data-ring="' + c.x + ',' + c.y + '" style="left:' + (3 + c.x * (cell + 2)) + 'px;top:' + (3 + c.y * (cell + 2)) + 'px;width:'
+        + (m.size[0] * cell + (m.size[0] - 1) * 2) + 'px;height:' + (m.size[1] * cell + (m.size[1] - 1) * 2) + 'px"></div>';
+    }
+    function grid(placed, d, label, c){
+      var g = (typeof gridHtml === 'function') ? gridHtml(placed, d[0], d[1], cell, { area: 'move-' + label.toLowerCase(), page: 0, label: label }) : '';
+      return '<div class="vmc-wrap">' + g + (c ? ring(c) : '') + '</div>';
+    }
+    var left = m.manual
+      ? '<div class="vmc-manual"><span class="vmv-art">' + (typeof art === 'function' ? art(m.name) : '') + '</span><b class="vmv-manual-badge">MANUAL</b><span>added by hand — no cell seen yet</span></div>'
+      : grid(m.before, m.dims.from, 'Before', m.from);
+    var right = m.to ? grid(m.after, m.dims.to, 'After', m.to) : '<div class="vmc-manual"><span>no target cell yet</span></div>';
+    return '<div class="vmc-card" role="dialog" aria-label="' + esc(m.say) + '" data-name="' + esc(m.name) + '" data-copy="' + m.copyIx + '">'
+      + '<p class="vmc-say">' + esc(m.say) + '</p>'
+      + '<div class="vmc-sides">'
+      + '<div class="vmc-side vmc-before" data-manual="' + (m.manual ? 1 : 0) + '"><div class="vmc-h">BEFORE · ' + esc(m.fromSay) + '</div>' + left + '</div>'
+      + '<div class="vmc-arrow" aria-hidden="true">→</div>'
+      + '<div class="vmc-side vmc-after"><div class="vmc-h">AFTER · ' + esc(m.toSay) + '</div>' + right + '</div>'
+      + '</div>'
+      + '<button type="button" class="vault-btn vmc-close" onclick="window._vaultMoveCompareClose()">close</button></div>';
+  }
+  function _vaultMoveCompareOpen(name, copyIx){
+    var host = document.getElementById('vault-move-compare');
+    if (!host){
+      host = document.createElement('div'); host.id = 'vault-move-compare'; host.className = 'vault-move-compare';
+      document.body.appendChild(host);
+      host.addEventListener('click', function(e){ if (e.target === host) _vaultMoveCompareClose(); });
+    }
+    host.innerHTML = _vaultMoveCompareHtml(name, copyIx || 0);
+    host.hidden = false;
+    return host;
+  }
+  function _vaultMoveCompareClose(){
+    var host = document.getElementById('vault-move-compare');
+    if (host){ host.hidden = true; host.innerHTML = ''; }
+  }
   function _vaultMoveHtml(built){
     built = built || { tasks: [], groups: [], locks: [] };
     var locks = (built.locks || []).map(function(l){
@@ -49068,12 +49191,13 @@ window.vaultAutoAssign = function(){
       var rows = g.rows.map(function(row){
         var t = row.task;
         var opener = "window._vaultEvidenceOpen('" + jsArg(row.name) + "')"; /* v3769 evidence */
+        var compare = "window._vaultMoveCompareOpen('" + jsArg(row.name) + "'," + (row.copyIx || 0) + ")"; /* L1 row opens before/after */
         var w = row.witnesses;
         var wSay = (w == null) ? 'not seen yet' : (w + ' witness' + (w === 1 ? '' : 'es')); /* v3771 witness say */
         var chip = { 'to-move': 'TO MOVE', 'moved-manual': 'MOVED', 'verified': 'VERIFIED', 'moved-elsewhere': 'ELSEWHERE' }[t.status] || 'TO MOVE';
         return '<div class="vmv-row" data-name="' + esc(row.name) + '" data-copy="' + (row.copyIx || 0) + '" data-status="' + esc(t.status) + '"'
           + ' data-from="' + esc((t.from && t.from.cell) || '') + '" data-to="' + esc((t.to && t.to.cell) || '') + '" data-group="' + esc(g.label) + '"'
-          + ' onclick="' + esc(opener) + '">'
+          + ' onclick="' + esc(compare) + '">'
           + '<span class="vmv-art">' + (typeof art === 'function' ? art(row.name) : '') + '</span>'
           + '<span class="vmv-name">' + esc(row.name) + '</span>'
           + ((t.manual && t.status === 'to-move' && !(t.from && t.from.cell != null))
@@ -49158,6 +49282,11 @@ window.vaultAutoAssign = function(){
   try { window._vaultMoveMark = _vaultMoveMark; } catch (eM) {}
   try { window._vaultMoveNoteAdded = _vaultMoveNoteAdded; } catch (eN) {}
   try { window._vaultMoveShown = _vaultMoveShown; } catch (eS) {}
+  try { window._vaultMoveWorn = _vaultMoveWorn; } catch (eWn) {}
+  try { window._vaultMoveCompareModel = _vaultMoveCompareModel; } catch (eCm) {}
+  try { window._vaultMoveCompareHtml = _vaultMoveCompareHtml; } catch (eCh) {}
+  try { window._vaultMoveCompareOpen = _vaultMoveCompareOpen; } catch (eCo) {}
+  try { window._vaultMoveCompareClose = _vaultMoveCompareClose; } catch (eCc) {}
   try { window._vaultMoveGroup = _vaultMoveGroup; } catch (eG) {}
   try { window._vaultMoveHtml = _vaultMoveHtml; } catch (eHtml) {}
   try { window._vaultMovePaint = _vaultMovePaint; } catch (ePaint) {}
