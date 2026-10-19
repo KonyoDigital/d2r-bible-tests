@@ -62,8 +62,9 @@ function _vaultRecords(){ rebuilt++; return { ok: true, records: [rebuilt] }; }
 var timers = [];
 function setTimeout(fn, ms){ timers.push({fn: fn, ms: ms, live: true}); return timers.length; }
 function clearTimeout(id){ if (timers[id - 1]) timers[id - 1].live = false; }
-var finds = 0, perFind = [];
-window.vaultFind = function(q){ finds++; var a = _vaultRecordsSource(); for (var k = 0; k < 20; k++) _vaultRecordsSource(); perFind.push(rebuilt); return a; };
+var finds = 0, perFind = [], lastQ = null;
+var INP = {value: ''}; var document = {getElementById: function(id){ return id === 'vault-find-input' ? INP : null; }};
+window.vaultFind = function(q){ finds++; lastQ = q; var a = _vaultRecordsSource(); for (var k = 0; k < 20; k++) _vaultRecordsSource(); perFind.push(rebuilt); return a; };
 """ + wrap + r"""
 rebuilt = 0; window.vaultFind('sha'); var afterOne = rebuilt; var passAfter = window._vrFindPass;
 rebuilt = 0; window.vaultFind('shak'); var afterTwo = rebuilt;
@@ -71,9 +72,15 @@ finds = 0; ['s','sh','sha','shak','shako'].forEach(function(q){ window._vaultFin
 var syncFinds = finds;
 var live = timers.filter(function(t){ return t.live; });
 live.forEach(function(t){ t.live = false; t.fn(); });
+var findsAfterKeys = finds;
+function fire(){ timers.forEach(function(t){ if (t.live) { t.live = false; t.fn(); } }); }
+var f0 = finds; INP.value = 'sha'; window._vaultFindSoon('sha'); INP.value = ''; window.vaultFind(''); fire();
+var afterClear = lastQ, clearRuns = finds - f0;
+INP.value = 'sha'; window._vaultFindSoon('sh'); fire();
+var liveRead = lastQ;
 console.log(JSON.stringify({p1: p1, sameObj: sameObj, changed: !!(second && second.c && !second.a),
   afterOne: afterOne, afterTwo: afterTwo, passAfter: passAfter === null || passAfter === undefined,
-  syncFinds: syncFinds, liveTimers: live.length, delay: live.length ? live[0].ms : null, finds: finds}));
+  syncFinds: syncFinds, liveTimers: live.length, delay: live.length ? live[0].ms : null, finds: findsAfterKeys, afterClear: afterClear, clearRuns: clearRuns, liveRead: liveRead}));
 """
     try:
         got = _node(prog)
@@ -95,6 +102,12 @@ console.log(JSON.stringify({p1: p1, sameObj: sameObj, changed: !!(second && seco
         bad.append("five quick keys left %d FIND runs pending, ran %d (want 1, 1)" % (got["liveTimers"], got["finds"]))
     if got["delay"] is None or got["delay"] > 300:
         bad.append("FIND waits %s ms after the last key (want <= 300)" % got["delay"])
+    if got["afterClear"] != "":
+        bad.append("typed sha then cleared inside the pause: FIND came back with %r (want empty)" % got["afterClear"])
+    if got["clearRuns"] != 1:
+        bad.append("a clear inside the pause ran FIND %d times: the old key timer was left pending" % got["clearRuns"])
+    if got["liveRead"] != "sha":
+        bad.append("the pending FIND ran the key's old value %r, not the live box 'sha'" % got["liveRead"])
     tag = _cut(bible, '<input id="vault-find-input"', ">")
     if "_vaultFindSoon" not in tag:
         bad.append("the FIND box's oninput does not go through _vaultFindSoon")
@@ -156,8 +169,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "_vaultFindSoon runs FIND at once instead of after the keys pause.",
      "file": "bible.html",
-     "find": "      _vfT = setTimeout(function(){ _vfT = 0; window.vaultFind(q); }, 140);",
-     "replace": "      window.vaultFind(q);",
+     "find": "      _vfT = setTimeout(function(){\n        _vfT = 0;",
+     "replace": "      window.vaultFind(q); _vfT = setTimeout(function(){\n        _vfT = 0;",
      "matches": 1},
     {"why": "_vaultFindSoon never cancels the pending run, so every key still runs a FIND.",
      "file": "bible.html",
@@ -166,8 +179,18 @@ RED_PROOF = [
      "matches": 1},
     {"why": "_vaultFindSoon waits five seconds after the last key.",
      "file": "bible.html",
-     "find": "window.vaultFind(q); }, 140);",
-     "replace": "window.vaultFind(q); }, 5000);",
+     "find": "never the value the key carried */\n      }, 140);",
+     "replace": "never the value the key carried */\n      }, 5000);",
+     "matches": 1},
+    {"why": "Typed sha then cleared inside the pause: the x / Escape leave the key timer pending.",
+     "file": "bible.html",
+     "find": "      if (_vfT) { clearTimeout(_vfT); _vfT = 0; }",
+     "replace": "      if (false) { clearTimeout(_vfT); _vfT = 0; }",
+     "matches": 1},
+    {"why": "The pending FIND runs the value its key carried, not the live box.",
+     "file": "bible.html",
+     "find": "        window.vaultFind(inp ? inp.value : q);",
+     "replace": "        window.vaultFind(q);",
      "matches": 1},
 ]
 
