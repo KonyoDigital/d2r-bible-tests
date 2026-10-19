@@ -279,6 +279,19 @@ class TheStatusPollDoesNotWaitOnGitFetch(unittest.TestCase):
                                 "force_fetch returned in %.0f ms — /api/update no longer waits"
                                 % waited)
 
+    def test_an_update_joins_the_fetch_already_in_flight(self):
+        """Two git fetches at once is how /api/update sat for 29s on Routine I
+        39213642558. The boot kicks one fetch. The page's GET /api/update then
+        started a second and waited out the 25s timeout on the lock. The film
+        jpeg stayed queued, the theatre heal closed the stage, and Space did
+        nothing. One fetch, and the update waits for that one."""
+        CA._git_run = self._slow_git()
+        self.assertTrue(CA._fleet_fetch_kick(), "the boot fetch did not start")
+        CA.fleet_origin_status(force_fetch=True)
+        self.assertEqual(len(self.fetches), 1,
+                         "%d git fetches ran — /api/update started its own beside the one already in flight"
+                         % len(self.fetches))
+
 
 RED_PROOF = [
     {
@@ -353,10 +366,22 @@ RED_PROOF = [
         "why": "git fetch back on the status thread — a 25s fetch before bind, which "
                "the 20s rinse boot poll reports as the server never coming up",
         "file": "control_app.py",
-        "find": "            _fleet_fetch_kick()",
-        "replace": ("            _git_run([\"git\", \"fetch\", \"origin\", \"main\", \"--quiet\"], "
+        "find": ("        elif (now - _FLEET_LAST_FETCH) >= _FLEET_FETCH_TTL_S:\n"
+                 "            _fleet_fetch_kick()"),
+        "replace": ("        elif (now - _FLEET_LAST_FETCH) >= _FLEET_FETCH_TTL_S:\n"
+                    "            _git_run([\"git\", \"fetch\", \"origin\", \"main\", \"--quiet\"], "
                     "cwd=REPO, capture_output=True, timeout=25)\n"
                     "            _FLEET_LAST_FETCH = now"),
+        "matches": 1,
+    },
+    {
+        "why": "/api/update starts a second git fetch beside the one already in flight "
+               "and the two sit on the index lock until the 25s timeout",
+        "file": "control_app.py",
+        "find": "                _fleet_fetch_kick()\n                _fleet_fetch_wait(25)",
+        "replace": ("                _git_run([\"git\", \"fetch\", \"origin\", \"main\", \"--quiet\"], "
+                    "cwd=REPO, capture_output=True, timeout=25)\n"
+                    "                _FLEET_LAST_FETCH = now"),
         "matches": 1,
     },
 ]

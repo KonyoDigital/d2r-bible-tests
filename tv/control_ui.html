@@ -31273,7 +31273,13 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
           if (film) {
             var _tag = film.tagName.toLowerCase();
             if (_tag === 'img') {
-              if (!film.complete) { ink = false; inkWhy = 'the film image has not finished loading'; }
+              /* not finished is UNKNOWN, not a measured black. ink false here
+                 closed a loaded theatre (sessions 1, painted, jpeg still queued
+                 behind a 29s /api/update fetch) and Space then found TH.open
+                 false, so the play control stayed ▶. Routine I 39213642558.
+                 A finished image with naturalWidth 0 is the measured black and
+                 still closes. [[unknown-stays-unknown]] */
+              if (!film.complete) { ink = null; inkWhy = 'the film image has not finished loading'; }
               else if (!(film.naturalWidth > 0)) { ink = false; inkWhy = 'the film image decoded to nothing (naturalWidth 0) — a black rectangle with a full-size box'; }
               else { ink = true; }
             } else if (_tag === 'video') {

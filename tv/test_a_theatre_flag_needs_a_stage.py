@@ -137,6 +137,75 @@ class TheShelfIsNotAnEmptyStage(unittest.TestCase):
         self.assertFalse(self.run_heal(dossier=True)["stageHidden"])
 
 
+LOADING = r"""
+var cb = %s;
+var state = %s;
+var out = {closed: 0, faults: 0, ink: null, why: ''};
+var film = {tagName: 'IMG', complete: state.complete, naturalWidth: state.nw,
+  getBoundingClientRect: function(){ return {height: 600}; }};
+var stage = {hidden: false, scrollHeight: 700, clientHeight: 700,
+  querySelector: function(){ return film; }, getBoundingClientRect: function(){ return {width: 1000, height: 700}; }};
+var cls = {'theatre-open': true};
+var window = {TH: {open: true, sessions: state.sessions, beats: state.beats, i: 0},
+  _thTouchedAt: 0, innerHeight: 800, scrollY: 0, thClose: function(){ out.closed++; }};
+var TH = window.TH;
+var document = {getElementById: function(id){ return id === 'theatre' ? stage : null; },
+  querySelectorAll: function(){ return []; },
+  body: {classList: {contains: function(c){ return !!cls[c]; }, remove: function(c){ cls[c] = false; }}}};
+var console = {warn: function(){}, log: function(){}, error: function(){}};
+function fetch(){ out.faults++; return {then: function(){ return this; }, catch: function(){}}; }
+for (var i = 0; i < 6; i++) cb();
+out.stageHidden = !!stage.hidden; out.openAfter = !!window.TH.open;
+out.ink = window._thInk && window._thInk.ink; out.why = window._thInk && window._thInk.why;
+process.stdout.write(JSON.stringify(out));
+"""
+
+
+@unittest.skipUnless(shutil.which("node"), "node is not installed")
+class ALoadingFilmIsNotAnEmptyStage(unittest.TestCase):
+    """Routine I 39213642558, shard 7. The reel had its session. The play control
+    was ▶ because entry opens paused. Space did not toggle it, on the attempt or
+    the retry. The fault posted at that moment:
+
+        kind theatre-stuck-black
+        sessions 1, loaded true, painted true
+        ink false
+        inkWhy "the film image has not finished loading"
+
+    The 12s heal then set TH.open false. The key handler returns on Space unless
+    the theatre is open, so the control stayed ▶. An image that has not finished
+    is UNKNOWN. A decoded empty image (complete, naturalWidth 0) is the measured
+    black and still closes.
+    """
+
+    def run_loading(self, complete, nw, sessions=None, beats=None):
+        cb = _callback()
+        self.assertIsNotNone(cb, "the theatre self-heal is gone from control_ui.html")
+        state = {
+            "complete": complete, "nw": nw,
+            "sessions": [1] if sessions is None else sessions,
+            "beats": [{"frame": "f"}] if beats is None else beats,
+        }
+        p = subprocess.run(["node", "-"], input=LOADING % (cb, json.dumps(state)),
+                           capture_output=True, text=True, timeout=30)
+        self.assertEqual(p.returncode, 0, p.stderr[-800:])
+        return json.loads(p.stdout)
+
+    def test_a_loaded_reel_whose_film_has_not_finished_stays_open(self):
+        out = self.run_loading(complete=False, nw=0)
+        self.assertIsNone(out["ink"],
+                          "an unfinished film was judged black (%s) — the heal will close a reel that is only queued"
+                          % out["why"])
+        self.assertFalse(out["stageHidden"],
+                         "the heal closed a loaded theatre because its jpeg had not finished: %s" % out)
+        self.assertTrue(out["openAfter"])
+
+    def test_a_loaded_reel_whose_film_decoded_to_nothing_still_closes(self):
+        out = self.run_loading(complete=True, nw=0)
+        self.assertTrue(out["stageHidden"] or not out["openAfter"],
+                        "a decoded-empty film on a loaded reel no longer closes — this case measures nothing: %s" % out)
+
+
 @unittest.skipUnless(shutil.which("node"), "node is not installed")
 class ATheatreFlagNeedsAStage(unittest.TestCase):
 
@@ -171,6 +240,14 @@ class ATheatreFlagNeedsAStage(unittest.TestCase):
 
 
 RED_PROOF = [
+    {
+        "why": "an unfinished film is judged black again, so the 12s heal closes a loaded "
+               "theatre and Space finds it shut",
+        "file": "tv/control_ui.html",
+        "find": "if (!film.complete) { ink = null; inkWhy = 'the film image has not finished loading'; }",
+        "replace": "if (!film.complete) { ink = false; inkWhy = 'the film image has not finished loading'; }",
+        "matches": 1,
+    },
     {
         "why": "REG-1934 - thClose stops repainting the cockpit: THEATRE stays up over TV.D until the next poll",
         "file": "tv/control_ui.html",
