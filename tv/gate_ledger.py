@@ -114,18 +114,18 @@ _V = r"(?P<v>v\d+(?:\.\d+)*)"
 _SQ = r"'(?:[^'\\\n]|\\.)*'"          # one single-quoted JS string, nothing after its close quote
 STAMP_SURFACES = {  # LEDGER-STAMP-SURFACES (mirrors tv/bump_version.py bump + _rewrite_head_stamps)
     "bible.html": (
-        ("build", re.compile(r"^  window\.D2R_BUILD = \{ id:'" + _V + r"', name:" + _SQ +
-                             r", date:'\d{4}-\d\d-\d\d', note:" + _SQ + r" \};$")),
+        ("build", re.compile(r"^  window\.D2R_BUILD = \{ id:'" + _V + r"', name:(?P<f>" + _SQ +
+                             r"), date:'\d{4}-\d\d-\d\d', note:(?P<g>" + _SQ + r") \};$")),
         ("title", re.compile(r"^(?P<pre>\s*<title>[^<]*?)\b" + _V + r"\b(?P<post>[^<]*</title>)$")),
         ("meta", re.compile(r'^<meta name="d2r-build" content="' + _V + r'">$')),
         ("meta-date", re.compile(r'^<meta name="d2r-build-date" content="\d{4}-\d\d-\d\d">$')),
-        ("meta-note", re.compile(r'^<meta name="d2r-build-note" content="[^"<>\n]*">$')),
+        ("meta-note", re.compile(r'^<meta name="d2r-build-note" content="(?P<f>[^"<>\n]*)">$')),
     ),
     "tv/control_app.py": (("ver", re.compile(r'^\s*"ver": "' + _V + r'",$')),),
-    "tv/tv_diablo.py": (("ver", re.compile(r'^VERSION = "' + _V + r'"   # [^\n]*$')),),
+    "tv/tv_diablo.py": (("ver", re.compile(r'^VERSION = "' + _V + r'"   # (?P<f>[^\n]*)$')),),
     "tv/WINDOWS_SHIP.json": (
         ("ver", re.compile(r'^  "ver": "' + _V + r'",$')),
-        ("note", re.compile(r'^  "note": "' + _V + r': (?:[^"\\\n]|\\.)*",$')),
+        ("note", re.compile(r'^  "note": "' + _V + r': (?P<f>(?:[^"\\\n]|\\.)*)",$')),
     ),
     "BLUEPRINT.md": (("generated", re.compile(r"^    generated \d{4}-\d\d-\d\d \d\d:\d\d$")),),
     "RESUME_HERE.md": (
@@ -140,9 +140,9 @@ STAMP_SURFACES = {  # LEDGER-STAMP-SURFACES (mirrors tv/bump_version.py bump + _
 # Every coherent bump moves these. BLUEPRINT.md may or may not move (same-minute regen).
 _STAMP_REQUIRED = frozenset(("bible.html", "tv/control_app.py", "tv/tv_diablo.py",
                              "tv/WINDOWS_SHIP.json", "RESUME_HERE.md", "TASKS.md"))
-_TASK_NEW = re.compile(r"^\| \*\*" + _V + r"\*\* \| `\(this commit\)` \| (?P<s>v\d+(?:\.\d+)*) — [^|\n]*\|$")
+_TASK_NEW = re.compile(r"^\| \*\*" + _V + r"\*\* \| `\(this commit\)` \| (?P<s>v\d+(?:\.\d+)*) — (?P<f>[^|\n]*)\|$")
 _TASK_OLD = re.compile(r"^\| \*\*" + _V + r"\*\* \| `\(this commit\)` \| (?P<rest>.*)$")
-_TASK_BOUND = re.compile(r"^\| \*\*" + _V + r"\*\* \| `[0-9a-f]{7,40}` \| (?P<rest>.*)$")
+_TASK_BOUND = re.compile(r"^\| \*\*" + _V + r"\*\* \| `(?P<sha>[0-9a-f]{7,40})` \| (?P<rest>.*)$")
 # A gate whose own name or script speaks of the version, or names a module whose job is reading
 # it, reruns even on a coherent bump. The closure is NOT searched by word: measured on v3772,
 # 913 of 1003 closures hold a version word and resume_state / stamp_versions / second_eye_ledger /
@@ -206,7 +206,7 @@ def _indent(line):
     return line[:len(line) - len(line.lstrip())]
 
 
-_TASK_SHIPPED = re.compile(r"^\| \*\*" + _V + r"\*\* \| `[0-9a-f]{7,40}` \| (?P<s>v\d+(?:\.\d+)*) — [^|\n]*\|$")
+_TASK_SHIPPED = re.compile(r"^\| \*\*" + _V + r"\*\* \| `(?P<sha>[0-9a-f]{7,40})` \| (?P<s>v\d+(?:\.\d+)*) — (?P<f>[^|\n]*)\|$")
 _MAX_BUMPS = 20
 
 
@@ -276,16 +276,115 @@ def stamp_file_versions(rel, text):
     return olds, news
 
 
-def stamp_text_clean(lines):
-    """Every added stamp line passes the leak check bump_version refuses with. Any doubt is dirty."""
+def stamp_free_text(rel, text):
+    """The NEW free text a stamp-only diff of one path adds: build name and note, meta note, ship
+    note, tv_diablo comment, new ship-row subjects. The proof's own ship row is re-added byte-identical
+    and is not new. -> [str] | None (not stamp-only)"""
+    hunks = diff_hunks(text)
+    if not hunks or stamp_file_versions(rel, text) is None:
+        return None
+    out = []
+    if rel == "TASKS.md":
+        add = hunks[0][3]
+        for line in add[:-1]:
+            m = _TASK_NEW.match(line) or _TASK_SHIPPED.match(line)
+            if not m:
+                return None
+            out.append(m.group("f").strip())
+        return out
+    for _o, _n, _rem, add in hunks:
+        for line in add:
+            k = stamp_kinds(rel, line)
+            if k is None:
+                return None
+            for g in ("f", "g"):
+                if g in k[1].re.groupindex:
+                    v = k[1].group(g)
+                    if k[0] == "build":
+                        v = v[1:-1]
+                    out.append(v)
+    return out
+
+
+def tasks_bound_rows(text):
+    """(version, sha, line) for every added ship row bound to a sha. -> [tuple] | None"""
+    hunks = diff_hunks(text)
+    if not hunks or len(hunks) != 1:
+        return None
+    rows = []
+    for line in hunks[0][3][1:]:
+        m = _TASK_BOUND.match(line)
+        if not m:
+            return None
+        rows.append((m.group("v"), m.group("sha"), line))
+    return rows
+
+
+def free_text_clean(texts):
+    """Every new free-text field is inert words and leaks nothing. Any doubt is dirty."""
     try:
         import stamp_leak
     except Exception:
         return False
-    for line in lines:
-        if stamp_leak.leak_problem(line):  # STAMP-ADDED-LEAK
+    for t in texts:
+        if stamp_leak.free_text_problem(t) or stamp_leak.leak_problem(t):  # STAMP-FREE-TEXT
             return False
     return True
+
+
+_WORD = re.compile(r"[a-z0-9]{3,}")
+_RE_CALLS = frozenset(("compile", "search", "findall", "match", "fullmatch", "sub", "subn", "finditer", "split"))
+
+
+def script_literals(text):
+    """(every string literal, the literals handed to re.*) of a gate script. -> (set, set) | None"""
+    import ast
+    import warnings
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            tree = ast.parse(text)
+    except Exception:
+        return None
+    lits, rx = set(), set()
+    for n in ast.walk(tree):
+        if (isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute) and n.func.attr in _RE_CALLS
+                and isinstance(n.func.value, ast.Name) and n.func.value.id == "re" and n.args):
+            for m in ast.walk(n.args[0]):
+                if isinstance(m, ast.Constant) and isinstance(m.value, str):
+                    rx.add(m.value)
+        if isinstance(n, ast.Constant) and isinstance(n.value, str) and len(n.value.strip()) >= 3:
+            lits.add(n.value)
+    return lits, rx
+
+
+def _count(text, needle):
+    if re.fullmatch(r"[a-z0-9_]+", needle):  # a bare word counts as a whole word
+        return len(re.findall(r"(?<![a-z0-9_])" + re.escape(needle) + r"(?![a-z0-9_])", text))
+    return text.count(needle)
+
+
+def literal_hit(lits, added, removed):
+    """A literal of the gate whose count differs between the removed and the added stamp lines: a
+    string-count or forbidden-string test must hold the string it checks, so its verdict can only move
+    if one of its strings moves. Bare words compare as words, case-insensitive; phrases and anything
+    with punctuation compare as substrings, both exact and case-insensitive; a regex's words compare
+    as words. -> str|None (the literal that moved)"""
+    if lits is None:
+        return "<script did not parse>"
+    al, rl = added.lower(), removed.lower()
+    every, rx = lits
+    for lit in every:
+        low = lit.lower()
+        if _count(al, low) != _count(rl, low):  # STAMP-LITERAL-MOVED
+            return lit
+        if not re.fullmatch(r"[A-Za-z0-9_]+", lit) and added.count(lit) != removed.count(lit):
+            return lit
+    for pat in rx:
+        for w in _WORD.findall(re.sub(r"\\[A-Za-z]", " ", pat).lower()):
+            if _count(al, w) != _count(rl, w):  # STAMP-REGEX-WORD-MOVED
+                return pat
+    return None
 
 
 def coherent_bump(per_file):
@@ -1501,6 +1600,7 @@ class Ledger(object):
         self._churn_cache = {}
         self._diff_root = None
         self._stamp_cache = {}
+        self._stamp_words = {}
         self._verdep = {}
         self._work = None
         self._work_root = None
@@ -2178,7 +2278,8 @@ class Ledger(object):
             return None, "taking its inputs raised %s" % type(exc).__name__
         if not isinstance(row, dict) or row.get("why") or not isinstance(row.get("inputs"), list):
             return None, (row or {}).get("why") or "inputs are UNKNOWN"
-        if stamped and not self.reads_version(row, root, name) and not self.scans_content(row, root, name):
+        if (stamped and not self.reads_version(row, root, name) and not self.scans_content(row, root, name)
+                and not self.hits_free_text(row, root, sha)):
             changed = changed - stamped  # STAMP-DROP
         for path in changed:
             if _watched(path, row.get("watch")):
@@ -2202,11 +2303,12 @@ class Ledger(object):
 
     def stamp_only(self, root, sha, changed):
         """The stamp surfaces in `changed`, when they together form one coherent bump from sha to
-        the worktree; otherwise the empty set. One git diff per (sha, path), cached. -> set"""
+        the worktree with inert, leak-free new text and real shipped rows; otherwise the empty set.
+        One git diff per (sha, path), cached. -> set"""
         key = str(sha)
         if key in self._stamp_cache:
             return set(self._stamp_cache[key]) & set(changed or ())
-        per, added = {}, []
+        per, texts, rows_ok, moved = {}, [], True, ([], [])
         for rel in sorted(STAMP_SURFACES):
             if rel not in (changed or ()):
                 continue
@@ -2215,15 +2317,62 @@ class Ledger(object):
                 proc = _git(root, ["diff", "-U0", "--no-color", "--no-ext-diff", "--no-textconv",
                                    "--no-renames", str(sha), "--", rel])
                 if proc is not None and proc.returncode == 0:  # STAMP-GIT-OK
-                    got = stamp_file_versions(rel, proc.stdout or "")
+                    out_text = proc.stdout or ""
+                    got = stamp_file_versions(rel, out_text)
                     if got is not None:
-                        added.extend(a for h in (diff_hunks(proc.stdout) or []) for a in h[3])
+                        for _o, _n, rem_l, add_l in diff_hunks(out_text):
+                            moved[0].extend(add_l)
+                            moved[1].extend(rem_l)
+                        ft = stamp_free_text(rel, out_text)
+                        if ft is None:
+                            got = None
+                        else:
+                            texts.extend(ft)
+                    if got is not None and rel == "TASKS.md":
+                        rows_ok = self._rows_are_shipped(root, tasks_bound_rows(out_text))  # STAMP-ROWS-REAL
             except Exception:
                 got = None
             per[rel] = got
-        out = set(per) if (per and coherent_bump(per) and stamp_text_clean(added)) else set()
+        ok = bool(per) and coherent_bump(per) and rows_ok and free_text_clean(texts)  # STAMP-ALL-CLEAN
+        out = set(per) if ok else set()
         self._stamp_cache[key] = out
+        self._stamp_words[key] = ("\n".join(moved[0]), "\n".join(moved[1])) if ok else None
         return set(out)
+
+    def _rows_are_shipped(self, root, rows):
+        """Each bound ship row names a commit in HEAD's history whose own TASKS.md holds that row as
+        `(this commit)`. A made-up row is refused. -> bool"""
+        if not rows:
+            return False
+        for ver, sha, line in rows:
+            anc = _git(root, ["merge-base", "--is-ancestor", sha, "HEAD"])
+            if anc is None or anc.returncode != 0:  # STAMP-ROW-ANCESTOR
+                return False
+            show = _git(root, ["show", "%s:TASKS.md" % sha])
+            if show is None or show.returncode != 0:
+                return False
+            m = _TASK_BOUND.match(line)
+            own = "| **%s** | `(this commit)` | %s" % (ver, m.group("rest"))
+            if own not in (show.stdout or "").splitlines():  # STAMP-ROW-OWN
+                return False
+        return True
+
+    def hits_free_text(self, row, root, sha):
+        """Does a string the gate's own script checks move between the old and new stamp lines? -> bool"""
+        moved = self._stamp_words.get(str(sha))
+        if not moved:
+            return False
+        rel = row.get("script")
+        if not rel:
+            return True
+        k = ("literals", rel)
+        if k not in self._verdep:
+            try:
+                with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
+                    self._verdep[k] = script_literals(fh.read())
+            except OSError:
+                self._verdep[k] = None
+        return literal_hit(self._verdep[k], moved[0], moved[1]) is not None  # STAMP-WORD-HIT
 
     def scans_content(self, row, root, name=""):
         """A gate whose whole job is the stamp files' text reruns on any stamp move."""
