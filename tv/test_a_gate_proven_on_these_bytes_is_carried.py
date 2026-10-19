@@ -565,6 +565,80 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
         entry, why = book.lookup(gates[3])
         self.assertIsNotNone(entry, why)
 
+    def test_a_module_that_escapes_into_code_the_walk_cannot_follow_opens_bible(self):
+        opener = (
+            "PATH = 'bible.html'\n"
+            "def read():\n"
+            "    open('bible.html')\n"
+        )
+        root, led, _gate_py = self._law(extra={"opener.py": opener})
+        bible = os.path.join(root, "bible.html")
+        tv = os.path.join(root, "tv")
+        with io.open(bible, "w", encoding="utf-8") as fh:
+            fh.write("<html></html>\n")
+        shapes = (
+            ("gate_tuple.py", "tuple-self",
+             "import opener\n"
+             "class Box(object):\n"
+             "    def setUp(self):\n"
+             "        self.ca, self.n = opener, 1\n"
+             "    def go(self):\n"
+             "        self.ca.read()\n"
+             "Box().go()\n"),
+            ("gate_kid.py", "subclass",
+             "import opener\n"
+             "class Base(object):\n"
+             "    def setUp(self):\n"
+             "        self.ca = opener\n"
+             "class Kid(Base):\n"
+             "    def go(self):\n"
+             "        self.ca.read()\n"
+             "Kid().go()\n"),
+            ("gate_ret.py", "returned",
+             "def _ca():\n"
+             "    import opener as ca\n"
+             "    return ca\n"
+             "_ca().read()\n"),
+            ("gate_local.py", "local-alias",
+             "import opener\n"
+             "def go():\n"
+             "    c = opener\n"
+             "    c.read()\n"
+             "go()\n"),
+            ("gate_arg.py", "argument",
+             "import opener\n"
+             "def run(m):\n"
+             "    m.read()\n"
+             "run(opener)\n"),
+            ("gate_look.py", "inspect-only",
+             "import inspect\n"
+             "import opener\n"
+             "assert hasattr(opener, 'read')\n"
+             "inspect.getsource(opener)\n"),
+        )
+        for name, _label, body in shapes:
+            with io.open(os.path.join(tv, name), "w", encoding="utf-8") as fh:
+                fh.write(body)
+        _git(root, "add", "-A")
+        _git(root, "commit", "-q", "-m", "the module escapes")
+        gates = []
+        for name, label, _body in shapes:
+            gate = _gate(root, name)
+            gate.name = label
+            gates.append(gate)
+        book = _open(led)
+        for gate in gates:
+            self.assertTrue(book.record(gate, True), "PREMISE: %s was not stored" % gate.name)
+        with io.open(bible, "a", encoding="utf-8") as fh:
+            fh.write("<!-- moved -->\n")
+        book = _open(led)
+        for gate in gates[:-1]:
+            entry, why = book.lookup(gate)
+            self.assertIsNone(
+                entry, "the module escaped (%s) and the bible.html edit was carried: %s" % (gate.name, why))
+        entry, why = book.lookup(gates[-1])
+        self.assertIsNotNone(entry, "hasattr/getsource never call the module, so it carries: %s" % why)
+
     def test_the_runner_file_is_not_an_input_of_every_gate(self):
         root, led, _gate_py = self._law(extra={"namer.py": "PATH = 'run_gates.py'\n"})
         tv = os.path.join(root, "tv")
@@ -1008,6 +1082,27 @@ RED_PROOF = [
         "file": "gate_ledger.py",
         "find": "            return self._callee_opens_bible(script)  # LEDGER-BIBLE-CALL\n",
         "replace": "            return False  # LEDGER-BIBLE-CALL\n",
+        "matches": 1,
+    },
+    {
+        "why": "a module alias passed, returned or re-bound is not a read, so a bible.html edit carries",
+        "file": "gate_ledger.py",
+        "find": "                refs.append((\"dyn\", mod))  # LEDGER-BIBLE-ESCAPE\n",
+        "replace": "                pass  # LEDGER-BIBLE-ESCAPE\n",
+        "matches": 1,
+    },
+    {
+        "why": "self.ca, self.n = opener, 1 is not unpacked, so self.ca.read() carries a bible.html edit",
+        "file": "gate_ledger.py",
+        "find": "                for target, one in _assign_pairs(targets, value):  # LEDGER-BIBLE-TUPLE\n",
+        "replace": "                for target, one in [(t, value) for t in targets]:  # LEDGER-BIBLE-TUPLE\n",
+        "matches": 1,
+    },
+    {
+        "why": "a subclass does not see what its base stored on self, so self.ca.read() carries",
+        "file": "gate_ledger.py",
+        "find": "    class_mods = dict((qual, file_mods) for qual in class_mods)  # LEDGER-BIBLE-FILEWIDE\n",
+        "replace": "    class_mods = class_mods  # LEDGER-BIBLE-FILEWIDE\n",
         "matches": 1,
     },
     {

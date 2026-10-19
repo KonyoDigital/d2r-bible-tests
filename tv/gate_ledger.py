@@ -527,6 +527,65 @@ def _self_attr_target(target):
     return None
 
 
+def _assign_pairs(targets, value):
+    """(target, value) pairs, unpacking `a, b = x, y` element by element. -> list"""
+    pairs = []
+    for target in targets:
+        if (isinstance(target, (ast.Tuple, ast.List)) and isinstance(value, (ast.Tuple, ast.List))
+                and len(target.elts) == len(value.elts)
+                and not any(isinstance(e, ast.Starred) for e in target.elts + value.elts)):
+            for t, v in zip(target.elts, value.elts):
+                pairs.extend(_assign_pairs([t], v))
+        else:
+            pairs.append((target, value))
+    return pairs
+
+
+# A module object handed to these is inspected or patched, never called through.
+_MODULE_SAFE_CALLS = frozenset((
+    "hasattr", "setattr", "delattr", "isinstance", "id", "type", "repr", "dir", "vars",
+    "getsource", "getsourcefile", "getfile", "getsourcelines", "getmodule",
+))
+
+
+def _module_safe_names(stmts):
+    """Name nodes where a module alias is used but cannot escape into a call. -> set of id()
+
+    `ca.x` is an attribute and is resolved. `self.ca = ca` is followed by _class_self_modules.
+    `hasattr(ca, ...)`, `inspect.getsource(ca)`, `mock.patch.object(ca, ...)` and
+    `addCleanup(setattr, ca, ...)` inspect or patch the module. Anything else (a local alias,
+    an argument, a tuple, a loop) lets the module reach code this walk cannot follow.
+    """
+    safe = set()
+
+    def mark(node):
+        if isinstance(node, ast.Name):
+            safe.add(id(node))
+
+    for stmt in stmts:
+        for node in ast.walk(stmt):
+            if isinstance(node, ast.Attribute):
+                mark(node.value)
+            elif isinstance(node, (ast.Assign, ast.AnnAssign)) and node.value is not None:
+                targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+                for target, one in _assign_pairs(targets, node.value):
+                    if _self_attr_target(target):
+                        mark(one)
+            elif isinstance(node, ast.Call):
+                name = _call_name(node.func)
+                args = list(node.args)
+                if name in ("addCleanup", "enterContext", "callback") and args \
+                        and _call_name(args[0]) in _MODULE_SAFE_CALLS:
+                    name, args = _call_name(args[0]), args[1:]
+                if name in _MODULE_SAFE_CALLS:
+                    for arg in args:
+                        mark(arg)
+                elif (name == "object" and isinstance(node.func, ast.Attribute)
+                        and _call_name(node.func.value) == "patch" and args):
+                    mark(args[0])
+    return safe
+
+
 def _class_self_modules(class_node, mod_aliases):
     """Attributes this class stores a module on, via self.name = alias or cls.name = alias.
 
@@ -556,18 +615,17 @@ def _class_self_modules(class_node, mod_aliases):
                 elif isinstance(stmt, ast.AnnAssign) and stmt.value is not None:
                     value = stmt.value
                     targets = (stmt.target,)
-                mod = None
-                if isinstance(value, ast.Name) and value.id not in shadow:
-                    spec = aliases.get(value.id)
-                    if spec and spec[0] == "mod":
-                        mod = spec[1]
-                elif value is not None:
-                    mod = _import_module_literal(value)
-                if mod:
-                    for target in targets:
-                        attr = _self_attr_target(target)
-                        if attr:
-                            add(attr, mod)
+                for target, one in _assign_pairs(targets, value):  # LEDGER-BIBLE-TUPLE
+                    mod = None
+                    if isinstance(one, ast.Name) and one.id not in shadow:
+                        spec = aliases.get(one.id)
+                        if spec and spec[0] == "mod":
+                            mod = spec[1]
+                    elif one is not None:
+                        mod = _import_module_literal(one)
+                    attr = _self_attr_target(target) if mod else None
+                    if attr:
+                        add(attr, mod)
                 if isinstance(stmt, (ast.If, ast.For, ast.While, ast.With)):
                     walk(stmt.body)
                     walk(getattr(stmt, "orelse", []) or [])
@@ -762,10 +820,14 @@ def _scan_block(stmts, resolve, bible_names, refs, opens):
     """Refs and bible opens in statements that execute in this block."""
     stmts = [stmt for stmt in stmts if not (isinstance(stmt, ast.If) and _is_main_guard(stmt))]
     words = _alias_words(stmts, resolve, bible_names)
+    safe = _module_safe_names(stmts)
 
     def cb(node):
         if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load):
             refs.extend(resolve.name_ref(node.id))
+            mod = resolve.module_of(node.id)
+            if mod and id(node) not in safe:
+                refs.append(("dyn", mod))  # LEDGER-BIBLE-ESCAPE
         elif isinstance(node, ast.Attribute) and isinstance(getattr(node, "ctx", None), ast.Load):
             refs.extend(resolve.attr_ref(node))
         elif isinstance(node, ast.Call) and _call_name(node.func) == "getattr" and node.args:
@@ -824,6 +886,12 @@ def _bible_facts_from_src(src):
             mod_refs.append(("import_mod", spec[1]))
     class_mods = {}
     _classes_self_modules(tree.body, "", mod_aliases, class_mods)
+    # a subclass in this file reads what its base stored on self, so join them file-wide
+    file_mods = {}
+    for found in class_mods.values():
+        for attr, mods in found.items():
+            file_mods.setdefault(attr, set()).update(mods)
+    class_mods = dict((qual, file_mods) for qual in class_mods)  # LEDGER-BIBLE-FILEWIDE
     funcs = []
     _collect_funcs(tree.body, "", None, funcs)
     direct = set()
