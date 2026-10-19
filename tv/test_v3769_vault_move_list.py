@@ -45,7 +45,7 @@ FNS = [
     "_vaultMoveHome", "_vaultMoveCopies", "_vaultMovePackHome", "_vaultMovePlanCell",
     "_vaultMoveFromSight", "_vaultMoveBag", "_vaultMoveEnsure", "_vaultMoveCommit",
     "_vaultMoveApplySight", "_vaultMoveMark", "_vaultMoveNoteAdded",
-    "_vaultMoveOnKeep", "_vaultMoveShown", "_vaultMoveStashSay", "_vaultMoveUnseen", "_vaultMoveGroup", "_vaultMoveLocks",
+    "_vaultMoveOnKeep", "_vaultMoveWorn", "_vaultMoveShown", "_vaultMoveStashSay", "_vaultMoveUnseen", "_vaultMoveGroup", "_vaultMoveLocks",
     "persistOwned",
     "_vaultMoveCellSay", "_vaultMovePlaceSay", "_vaultMoveGridHtml", "_vaultMoveHtml",
     "_vaultMoveCollect", "_vaultMovePaint", "_vaultMoveCellMarkHtml", "_vaultFrameMeta",

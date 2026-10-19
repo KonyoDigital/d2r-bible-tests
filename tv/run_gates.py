@@ -9835,6 +9835,15 @@ GATES = [
              "typed move, mark moved, and a witness frame that verifies the row. No browser is a "
              "declared skip."),
          skip_ok=(r"no Chrome/Chromium on this machine",)),
+    Gate("test_vault_l1_a_hand_add_routes_by_type", [sys.executable,
+         os.path.join(HERE, "test_vault_l1_a_hand_add_routes_by_type.py")], 240,
+         needs_app=False,
+         why=("Vault L1 - a hand add through the real door routes by type (set, unique, runeword, grand "
+             "charm, jewel, amulet, belt) to one MANUAL row at a real target cell, at the game footprint. "
+             "Placement is append-only, a first sighting upgrades the same row to a real FROM cell, an "
+             "equipped item gets no row, and a row click opens BEFORE | AFTER with real art and closes. "
+             "No browser is a declared skip."),
+         skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_v3771_vault_console_face", [sys.executable,
          os.path.join(HERE, "test_v3771_vault_console_face.py")], 60,
          needs_app=False,
