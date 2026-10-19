@@ -1170,6 +1170,18 @@ def read_trace(path):
     return facts, None
 
 
+def _console_own_records():
+    """The tracked records the running console rewrites itself (self_prove's ONE rule). -> set
+
+    A dirty one is not a development edit, so it neither blocks a record nor stops a carry.
+    Unreadable is the empty set: nothing is forgiven."""
+    try:
+        import self_prove
+        return set(self_prove.CONSOLE_OWN_RECORDS)  # LEDGER-OWN-RECORDS
+    except Exception:
+        return set()
+
+
 def _ancestors(path):
     """'tv/a/b.py' -> ['tv/a', 'tv', '']"""
     out = []
@@ -1775,7 +1787,7 @@ class Ledger(object):
         if stat is None or stat.returncode != 0:
             return None, set(), "the worktree cannot be read"
         status_out = stat.stdout or ""
-        drop = _SELF | set("tv/" + name for name in _SELF)
+        drop = _SELF | set("tv/" + name for name in _SELF) | _console_own_records()
         changed = set()
         changed |= _porcelain(status_out)  # LEDGER-STATUS
         changed = _derived({p.replace("\\", "/") for p in changed}) - drop

@@ -885,6 +885,18 @@ class TheProofRemembersWhatTheGateRead(unittest.TestCase):
         self.assertIn("tv/zz_rp", seen, "os.path.realpath is not traced")
         self.assertIn("tv/zz_rl", seen, "os.readlink is not traced")
 
+    def test_the_consoles_own_dirty_record_neither_blocks_nor_stops_a_carry(self):
+        """r5 speed: the running console rewrites tv/.status_worst.json, which 29 of 32 real gates read."""
+        law = ("import os\nHERE = os.path.dirname(os.path.abspath(__file__))\n"
+               "open(os.path.join(HERE, '.status_worst.json')).read()\nprint('OK')\n")
+        root, led = self._tree({"t_sw.py": law, ".status_worst.json": "{}\n"})
+        gate = _gate(root, "t_sw.py")
+        _write(root, "tv/.status_worst.json", '{"ms": 9}\n')
+        book = _open(led)
+        self.assertTrue(_prove(book, gate), "the console's own record blocked the record: %s" % book.last_why)
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNotNone(entry, "the console's own record stopped the carry: %s" % why)
+
     def test_a_pass_proved_on_a_dirty_tree_is_not_stored_under_head(self):
         root, led = self._tree({"t_mod.py": "import sys, helper_gl\nsys.exit(0 if helper_gl.OK else 1)\n",
                                 "helper_gl.py": "OK = False\n"})
@@ -1679,6 +1691,13 @@ RED_PROOF = [
         "file": "gate_trace/sitecustomize.py",
         "find": "    os.path.realpath = probe_wrap(os.path.realpath)  # LEDGER-TRACE-PROBE\n",
         "replace": "    pass  # LEDGER-TRACE-PROBE\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r6 (speed): the running console's own record blocks every record and every carry",
+        "file": "gate_ledger.py",
+        "find": "        return set(self_prove.CONSOLE_OWN_RECORDS)  # LEDGER-OWN-RECORDS\n",
+        "replace": "        return set()  # LEDGER-OWN-RECORDS\n",
         "matches": 1,
     },
 ]
