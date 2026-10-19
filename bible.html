@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3769 · TV DIABLO</title>
-<meta name="d2r-build" content="v3769">
-<meta name="d2r-build-date" content="2026-10-18">
-<meta name="d2r-build-note" content="The vault paints a move list grouped by holder and stash. Each out-of-place item keeps a saved target cell from the packer, and a later witness at that cell verifies the row when AUTO INTAKE is on. A hand tally and a typed move work while it is off. REG-2291. HEART: the target-cell law and the verify law are the corroborators, watched by the v3769 gate.">
+  <title>Konyo's D2R Farming Bible v3771 · TV DIABLO</title>
+<meta name="d2r-build" content="v3771">
+<meta name="d2r-build-date" content="2026-10-19">
+<meta name="d2r-build-note" content="The vault controls wear the console gold. An unseen place reads Location not seen yet and sorts last. The MF bar stacks under the vault room and under the header. REG-2292. HEART: the unseen-place law and the bar-under-room law are the corroborators, watched by the v3771 gate.">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -10450,11 +10450,15 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .vmv-lock{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;border:1px solid var(--border-light);background:var(--surface-3);font-size:var(--fs-micro);letter-spacing:var(--ls-normal);color:var(--text)}
 .vmv-lock[data-say="LOCKED"]{border-color:rgba(255,120,120,.55);color:#ffb4b4}
 .vmv-lock[data-say="WATCHING"]{border-color:rgba(240,192,96,.45);color:var(--gold-bright)}
-.vmv-add{display:flex;flex-wrap:wrap;gap:8px;margin-left:auto}
-.vmv-q{min-width:180px;flex:1;font-size:var(--fs-body);color:var(--text);background:var(--bg);border:1px solid var(--border-light);border-radius:8px;padding:6px 8px}
-.vmv-group{margin:0 0 10px;padding:8px;border-radius:12px;background:rgba(10,8,5,.35);border:1px solid rgba(240,192,96,.14)}
-.vmv-gh{display:flex;align-items:baseline;gap:8px;margin:0 0 8px;font-size:var(--fs-meta);letter-spacing:var(--ls-wide);text-transform:uppercase;color:var(--gold)}
-.vmv-gh b{font-weight:var(--fw-semibold);color:var(--text)}
+.vmv-add{display:flex;flex-wrap:wrap;gap:8px;margin-left:auto;align-items:center}
+.vmv-q{min-width:180px;flex:1;font-family:var(--serif-text,Georgia,serif);font-size:var(--fs-body);color:var(--text);background:var(--bg);border:1px solid rgba(212,168,71,.55);border-radius:999px;padding:7px 12px;letter-spacing:var(--ls-snug)}
+.vmv-q::placeholder{color:rgba(240,192,96,.55);font-style:italic}
+.vmv-q:focus{outline:none;border-color:var(--gold-bright);box-shadow:0 0 0 1px rgba(240,192,96,.28),0 0 16px rgba(212,168,71,.16)}
+.vmv-group{margin:0 0 10px;padding:8px;border-radius:12px;background:rgba(10,8,5,.35);border:1px solid rgba(240,192,96,.22)}
+.vmv-gh{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin:0 0 8px;padding-bottom:6px;border-bottom:1px solid rgba(212,168,71,.28);font-family:var(--serif-display,serif);font-size:var(--fs-meta);font-weight:var(--fw-semibold);letter-spacing:var(--ls-label);text-transform:uppercase;color:var(--gold-bright)}
+.vmv-gh b{font-weight:var(--fw-semibold);color:var(--gold-bright)}
+.vmv-hint{font-family:var(--serif-text,Georgia,serif);font-style:italic;font-weight:var(--fw-regular);letter-spacing:var(--ls-snug);text-transform:none;color:var(--text-dim);font-size:var(--fs-meta)}
+.vmv-unseen{border-style:dashed;border-color:rgba(240,192,96,.5);background:linear-gradient(180deg,rgba(212,168,71,.08),rgba(10,8,5,.35))}
 .vmv-grid{margin:0 0 8px}
 .vmv-grid-h{font-size:var(--fs-micro);letter-spacing:var(--ls-normal);color:var(--text-dim);margin:0 0 4px}
 .vmv-row{display:grid;grid-template-columns:auto minmax(120px,1.2fr) minmax(140px,1fr) minmax(140px,1fr) auto auto auto;gap:8px;align-items:center;padding:6px;margin:0 0 4px;border-radius:10px;background:var(--surface);border:1px solid transparent;cursor:pointer}
@@ -10464,15 +10468,18 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .vmv-name{font-size:var(--fs-body);color:var(--text);font-weight:var(--fw-medium)}
 .vmv-place{font-size:var(--fs-micro);color:var(--text-muted);line-height:1.35}
 .vmv-place i{display:block;font-style:normal;letter-spacing:var(--ls-wider);color:var(--text-dim)}
-.vmv-chip{justify-self:start;padding:3px 8px;border-radius:999px;font-size:var(--fs-micro);letter-spacing:var(--ls-wide);font-weight:var(--fw-semibold);border:1px solid var(--border-light);background:var(--surface-3);color:var(--text)}
+.vmv-chip{justify-self:start;padding:3px 8px;border-radius:999px;font-family:var(--serif-display,serif);font-size:var(--fs-micro);letter-spacing:var(--ls-wide);font-weight:var(--fw-semibold);text-transform:uppercase;border:1px solid var(--border-light);background:var(--surface-3);color:var(--text)}
 .vmv-chip[data-status="to-move"]{color:var(--gold-bright);border-color:rgba(240,192,96,.55);background:rgba(212,168,71,.12)}
 .vmv-chip[data-status="moved-manual"]{color:var(--q-rare);border-color:rgba(255,255,100,.45);background:rgba(255,255,100,.08)}
 .vmv-chip[data-status="verified"]{color:var(--best);border-color:rgba(102,255,136,.5);background:rgba(102,255,136,.1)}
 .vmv-chip[data-status="moved-elsewhere"]{color:var(--q-orange);border-color:rgba(255,168,0,.5);background:rgba(255,168,0,.1)}
 .vmv-empty{margin:0;padding:8px 2px;font-size:var(--fs-body);color:var(--text-muted)}
-#vault-auto-intake[data-state="on"]{border-color:rgba(102,255,136,.55);color:var(--best);box-shadow:0 0 16px rgba(102,255,136,.18)}
-#vault-auto-intake[data-state="off"]{border-color:var(--border-light);color:var(--text-dim)}
+#vault-auto-intake{font-family:var(--serif-display,serif);letter-spacing:var(--ls-wide);text-transform:uppercase;border-radius:999px;background:var(--surface-2);box-shadow:inset 0 1px 0 rgba(240,192,96,.16)}
+#vault-auto-intake[data-state="on"]{border-color:rgba(102,255,136,.55);color:var(--best);background:rgba(102,255,136,.08);box-shadow:0 0 16px rgba(102,255,136,.18),inset 0 1px 0 rgba(255,255,255,.08)}
+#vault-auto-intake[data-state="off"]{border-color:rgba(240,192,96,.4);color:var(--gold-dim);background:var(--surface-2)}
 #vault-auto-intake[data-state="unknown"]{border-color:var(--q-orange);color:var(--q-orange)}
+.vault-toolbar > button.vault-btn[onclick*="_vaultMoveAddOpen"]{font-family:var(--serif-display,serif);letter-spacing:var(--ls-wide);text-transform:uppercase;border-radius:999px;border:1px solid rgba(240,192,96,.5);background:var(--surface-3);color:var(--gold-bright);box-shadow:inset 0 1px 0 rgba(240,192,96,.14)}
+html[data-active-tab="vault"] #tab-vault{background:var(--bg)}
 .tvd-frame-mark{position:absolute;left:18px;bottom:18px;z-index:3;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;border:1px solid var(--border-light);background:linear-gradient(180deg,rgba(20,16,10,.92),rgba(8,7,5,.88));box-shadow:0 10px 28px rgba(0,0,0,.45);color:var(--gold-bright)}
 .tvd-frame-mark[hidden]{display:none!important}
 .tvd-frame-mark-say{font-size:var(--fs-meta);letter-spacing:var(--ls-normal)}
@@ -39176,6 +39183,9 @@ body{
 .vault-btn:hover{border-color:rgba(240,192,96,.55);box-shadow:0 0 16px rgba(212,168,71,.15);transform:translateY(-1px)}
 .vault-btn-primary{border-color:rgba(102,255,136,.45);color:var(--best,#66ff88)}
 .vault-btn-danger{color:var(--hell,#ff4040)}
+.vault-move .vault-btn,.vault-move .vmv-mark,.vault-move .vmv-wit{font-family:var(--serif-display,serif);letter-spacing:var(--ls-wide);text-transform:uppercase;border-radius:999px;border:1px solid rgba(240,192,96,.5);background:var(--surface-3);color:var(--gold-bright);font-size:var(--fs-micro);font-weight:var(--fw-semibold);box-shadow:inset 0 1px 0 rgba(240,192,96,.14)}
+.vault-move .vault-btn:hover,.vault-move .vmv-mark:hover,.vault-move .vmv-wit:hover{border-color:var(--gold-bright);box-shadow:0 0 14px rgba(212,168,71,.22);transform:translateY(-1px)}
+.vault-move .vault-btn-primary{color:#1a1208;background:linear-gradient(180deg,var(--gold-bright),var(--gold));border-color:rgba(240,192,96,.85)}
 .vault-status{font-size:11.5px;color:var(--text-dim,#8c7a68);margin-left:auto}
 /* v3286 — the population line: one sentence that accounts for every item in the vault */
 .vault-pop{margin:0 0 12px;padding:9px 13px;border:1px solid rgba(212,168,71,.22);border-left:3px solid var(--gold-dim,#a07830);border-radius:9px;background:linear-gradient(135deg,rgba(212,168,71,.05),rgba(20,14,9,.25));font-size:var(--fs-body);color:var(--text-muted,#b5a48a);line-height:var(--lh-snug)}
@@ -39272,7 +39282,7 @@ body{
 .vcar-stale{border-color:rgba(240,192,96,.7);border-style:dashed}
 .vcar-stale .vcar-seen{color:var(--gold-bright,#f0c060)}
 /* v251: the dock's Auto-Sort widget — a glowing golden pill that sends loose items home */
-.vault-dock-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 8px}
+.vault-dock-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin:0 0 8px;padding:8px 10px;border:1px solid rgba(212,168,71,.4);border-radius:12px;background:linear-gradient(180deg,var(--surface-2),var(--surface));box-shadow:inset 0 1px 0 rgba(240,192,96,.14)}
 /* v3250 — the sorter's own verdict for what is left in the dock. A class nobody styles is a flag
    nobody can see, and this page has shipped that twice (sh-chip-st, sh-chip-stunk). Quiet on
    purpose: it explains a button that correctly does nothing, it is not an alarm. */
@@ -39297,7 +39307,7 @@ body{
 .vault-audit .va-fix:hover{background:rgba(122,212,255,.2)}
 .vault-audit .va-review{flex:0 0 auto;font-size:11px;color:var(--text-dim);font-style:italic;padding:2px 6px}
 .vault-audit .va-more{margin-top:6px;font-size:11px;color:var(--text-dim)}
-.vdb-label{display:inline-flex;align-items:center;gap:8px;font-family:var(--serif-display,'Cinzel',Georgia,serif);font-weight:var(--fw-semibold);font-size:var(--fs-body);letter-spacing:var(--ls-normal);text-transform:uppercase;color:#d9bd7d}   /* v610 — echoes the plate titles */
+.vdb-label{display:inline-flex;align-items:center;gap:8px;font-family:var(--serif-display,'Cinzel',Georgia,serif);font-weight:var(--fw-semibold);font-size:var(--fs-body);letter-spacing:var(--ls-label);text-transform:uppercase;color:var(--gold-bright)}   /* v610 — echoes the plate titles */
 .vdb-count{font-family:var(--mono,monospace);font-weight:var(--fw-semibold);font-size:var(--fs-meta);color:var(--gold-bright,#f0c060);background:rgba(240,192,96,.12);border:1px solid rgba(240,192,96,.32);border-radius:20px;padding:1px 9px}
 .vdb-actions{display:inline-flex;align-items:center;gap:9px;flex-wrap:wrap}
 /* v327: danger button to wipe the unsorted dock — sits LEFT of the gold Auto-Sort, outlined red so it reads as destructive */
@@ -42858,6 +42868,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { if (typeof window.vaultOrganizePaint === 'function')
             window.vaultOrganizePaint(unsorted, (_carried || []).map(function(c){ return c.name; })); } catch (eO) {}
     try { if (typeof window._vaultMovePaint === 'function') window._vaultMovePaint(); } catch (eMv) {} /* v3769 move paint */
+    try { if (typeof window._vaultRoomLift === 'function') window._vaultRoomLift(); } catch (eLift) {} /* v3771 room lift */
     unsorted = _dockShown;
     dock.innerHTML = unsorted.map(function(n){
       var _vr = (typeof _artRarity==='function') ? _artRarity(n) : '';
@@ -48878,23 +48889,35 @@ window.vaultAutoAssign = function(){
     if (location === 'shared') return 'shared stash';
     return null;
   }
+  function _vaultMoveUnseen(holder, location){
+    var named = !(holder == null || holder === '');
+    var stash = _vaultMoveStashSay(location);
+    return !named && !stash; /* v3771 unseen place */
+  }
   function _vaultMoveGroup(rows){
     var by = {}, order = [];
     (rows || []).forEach(function(row){
       var from = (row.task && row.task.from) || {};
       var holder = (from.holder == null || from.holder === '') ? null : String(from.holder); /* v3769 group */
       var stash = _vaultMoveStashSay(from.location);
-      var key = (holder == null ? '\u0001' : holder) + '\u0000' + String(from.location || '');
+      var unseen = _vaultMoveUnseen(holder, from.location); /* v3771 unseen group */
+      var key = (unseen ? '\u0002' : (holder == null ? '\u0001' : holder)) + '\u0000' + String(from.location || '');
       var g = by[key];
       if (!g) {
-        g = { holder: holder, location: from.location || null, stash: stash, label: holder == null ? 'UNKNOWN' : holder, rows: [] };
+        g = { holder: holder, location: from.location || null, stash: stash, unseen: unseen,
+              label: unseen ? 'Location not seen yet' : (holder == null ? 'UNKNOWN' : holder), rows: [] }; /* v3771 unseen label */
         by[key] = g;
         order.push(g);
       }
       g.rows.push(row);
     });
     order.sort(function(a, b){
-      function rank(g){ if (g.holder === 'MAIN') return 0; if (g.holder == null) return 2; return 1; }
+      function rank(g){
+        if (g.unseen) return 3; /* v3771 unseen last */
+        if (g.holder === 'MAIN') return 0;
+        if (g.holder == null) return 2;
+        return 1;
+      }
       var d = rank(a) - rank(b);
       if (d) return d;
       return String(a.label).localeCompare(String(b.label)) || String(a.stash || '').localeCompare(String(b.stash || ''));
@@ -48918,6 +48941,7 @@ window.vaultAutoAssign = function(){
   }
   function _vaultMovePlaceSay(place){
     place = place || {};
+    if (_vaultMoveUnseen(place.holder, place.location)) return 'Location not seen yet'; /* v3771 unseen say */
     var holder = (place.holder == null || place.holder === '') ? 'UNKNOWN' : String(place.holder);
     var stash = _vaultMoveStashSay(place.location);
     return holder + ' · ' + (stash || 'UNKNOWN') + ' · ' + _vaultMoveCellSay(place.cell);
@@ -48977,9 +49001,12 @@ window.vaultAutoAssign = function(){
           + '<button type="button" class="vault-btn vmv-mark" onclick="event.stopPropagation();window._vaultMoveMark(\'' + jsArg(row.name) + '\',' + (row.copyIx || 0) + ')">mark moved</button>'
           + '</div>';
       }).join('');
-      var stash = g.stash || 'UNKNOWN';
-      return '<section class="vmv-group" data-holder="' + esc(g.label) + '" data-stash="' + esc(stash) + '">'
-        + '<div class="vmv-gh"><b>' + esc(g.label) + '</b> · ' + esc(stash) + '</div>'
+      var stash = g.unseen ? '' : (g.stash || 'UNKNOWN');
+      var head = g.unseen
+        ? '<b>Location not seen yet</b><span class="vmv-hint">Take a screenshot so the console can see where it sits.</span>' /* v3771 unseen hint */
+        : '<b>' + esc(g.label) + '</b> · ' + esc(stash);
+      return '<section class="vmv-group' + (g.unseen ? ' vmv-unseen' : '') + '" data-holder="' + esc(g.label) + '" data-stash="' + esc(stash) + '"' + (g.unseen ? ' data-unseen="1"' : '') + '>'
+        + '<div class="vmv-gh">' + head + '</div>'
         + _vaultMoveGridHtml(g.rows) + rows + '</section>';
     }).join('');
     return head + body;
@@ -49053,6 +49080,91 @@ window.vaultAutoAssign = function(){
   try { window._vaultMovePaint = _vaultMovePaint; } catch (ePaint) {}
   try { window._vaultMoveCellMarkHtml = _vaultMoveCellMarkHtml; } catch (eMk) {}
   try { window._vaultFrameMeta = _vaultFrameMeta; } catch (eFm) {}
+  function _vaultRoomStack(){
+    return { vault: 40, bar: 20 }; /* v3771 bar under vault */
+  }
+  function _vaultRoomApply(tab, dock, tz, on){
+    var z = _vaultRoomStack();
+    function setZ(el, v){ if (el && el.style) el.style.zIndex = v; }
+    if (!on) {
+      setZ(dock, '');
+      setZ(tab, '');
+      if (tab && tab.style) tab.style.position = '';
+      if (tz && !(tz.classList && tz.classList.contains('in-dock'))) setZ(tz, '');
+      return { on: false, clears: true, vault: z.vault, bar: z.bar };
+    }
+    if (tab && tab.style) tab.style.position = 'relative';
+    setZ(tab, String(z.vault));
+    setZ(dock, String(z.bar));
+    if (tz && !(tz.classList && tz.classList.contains('in-dock'))) setZ(tz, String(z.bar));
+    var tv = tab && tab.style ? parseInt(tab.style.zIndex, 10) : NaN;
+    var dv = dock && dock.style ? parseInt(dock.style.zIndex, 10) : NaN;
+    return { on: true, clears: tv > dv && tv < 100, vault: tv, bar: dv }; /* v3771 room clears */
+  }
+  function _vaultRoomLift(){
+    var root = (typeof document !== 'undefined') ? document.documentElement : null;
+    var on = !!(root && root.getAttribute && root.getAttribute('data-active-tab') === 'vault');
+    var tab = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('tab-vault') : null;
+    var dock = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('control-dock') : null;
+    var tz = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('v42-tz-countdown') : null;
+    return _vaultRoomApply(tab, dock, tz, on);
+  }
+  function _vaultCoverVerdict(hits){
+    var list = hits || [];
+    for (var i = 0; i < list.length; i++) if (list[i] && list[i].onBar) return { covered: true }; /* v3771 cover hit */
+    return { covered: false };
+  }
+  function _vaultMoveCovered(){
+    var list = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('vault-move-list') : null;
+    if (!list || !list.getBoundingClientRect) return { covered: null, why: 'no list' };
+    var lr = list.getBoundingClientRect();
+    var bars = [];
+    ['#control-dock .dock-inner', '#v42-tz-countdown'].forEach(function(sel){ /* v3771 painted bar */
+      var el = document.querySelector(sel);
+      if (!el || !el.getBoundingClientRect) return;
+      var st = window.getComputedStyle ? getComputedStyle(el) : null;
+      if (st && st.display === 'none') return;
+      var r = el.getBoundingClientRect();
+      if (r.width < 2 || r.height < 2) return;
+      var left = Math.max(lr.left, r.left, 0);
+      var right = Math.min(lr.right, r.right, window.innerWidth || 0);
+      var top = Math.max(lr.top, r.top, 0);
+      var bottom = Math.min(lr.bottom, r.bottom, window.innerHeight || 0);
+      var overlap = (right - left) >= 2 && (bottom - top) >= 2;
+      var hits = [];
+      if (overlap && document.elementFromPoint) {
+        [[(left + right) / 2, (top + bottom) / 2],
+         [Math.min(right - 1, left + 3), Math.min(bottom - 1, top + 3)],
+         [Math.max(left + 1, right - 3), Math.max(top + 1, bottom - 3)]].forEach(function(pt){
+          if (pt[0] < 0 || pt[1] < 0 || pt[0] >= window.innerWidth || pt[1] >= window.innerHeight) return;
+          var hit = document.elementFromPoint(pt[0], pt[1]);
+          var onBar = !!(hit && (hit === el || (el.contains && el.contains(hit))));
+          hits.push({ x: Math.round(pt[0]), y: Math.round(pt[1]), onBar: onBar });
+        });
+      }
+      var verdict = _vaultCoverVerdict(hits);
+      bars.push({ sel: sel, overlap: overlap, covers: !!verdict.covered, hits: hits,
+                  box: { t: r.top, b: r.bottom, l: r.left, r: r.right, w: r.width, h: r.height } });
+    });
+    return {
+      covered: bars.some(function(b){ return b.covers; }),
+      list: { t: lr.top, b: lr.bottom, l: lr.left, r: lr.right, w: lr.width, h: lr.height },
+      bars: bars
+    };
+  }
+  try { window._vaultMoveUnseen = _vaultMoveUnseen; } catch (eUn) {}
+  try { window._vaultRoomStack = _vaultRoomStack; } catch (eRs) {}
+  try { window._vaultRoomApply = _vaultRoomApply; } catch (eRa) {}
+  try { window._vaultRoomLift = _vaultRoomLift; } catch (eRl) {}
+  try { window._vaultCoverVerdict = _vaultCoverVerdict; } catch (eVd) {}
+  try { window._vaultMoveCovered = _vaultMoveCovered; } catch (eCv) {}
+  try {
+    if (typeof MutationObserver !== 'undefined' && document.documentElement) {
+      new MutationObserver(function(){ try { _vaultRoomLift(); } catch (eObs) {} })
+        .observe(document.documentElement, { attributes: true, attributeFilter: ['data-active-tab'] });
+    }
+    _vaultRoomLift();
+  } catch (eBoot) {}
 
   function _vaultPresenceSpan(name, have){
     /* A presence set piece is one item at one location. Re-reads climbed copies[] (Natalya x4,
@@ -68723,7 +68835,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3769', name:'v3769 - vault-move-list', date:'2026-10-18', note:'The vault paints a move list grouped by holder and stash. Each out-of-place item keeps a saved target cell from the packer, and a later witness at that cell verifies the row when AUTO INTAKE is on. A hand tally and a typed move work while it is off. REG-2291. HEART: the target-cell law and the verify law are the corroborators, watched by the v3769 gate.' };
+  window.D2R_BUILD = { id:'v3771', name:'v3771 - vault console face', date:'2026-10-19', note:'The vault controls wear the console gold. An unseen place reads Location not seen yet and sorts last. The MF bar stacks under the vault room and under the header. REG-2292. HEART: the unseen-place law and the bar-under-room law are the corroborators, watched by the v3771 gate.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
