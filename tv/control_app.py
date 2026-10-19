@@ -26481,6 +26481,67 @@ def _self_arming_state():
     }
 
 
+_SELF_ARM_CACHE = {"t": 0.0, "d": None}
+_SELF_ARM_TTL_S = 3.0
+_SELF_ARM_REFRESH = {"running": False}
+_SELF_ARM_LOCK = threading.Lock()
+
+
+def _self_arming_kick():
+    """Start ONE background read of the lock census. Returns immediately.
+
+    ⚠ THE STATUS POLL MUST NOT WAIT ON IT. Measured on the v3771 rinse console, one
+    `/api/status` spent 6,419 ms inside `_self_arming_state` → `self_arming.report()`
+    while every other section of that same request was milliseconds. The rinse spec
+    aborts a status call at 3 s, and its boot poll aborts at 900 ms, so a census that
+    slow is reported as "the server never came up" even though the port is bound.
+    `report()` itself is 4–71 ms when nothing else is in the process. The seconds are
+    the census running on the request thread while the rest of the console is busy.
+    Same shape as the vault survey that held `/api/status` for 603 s: a polled handler
+    carrying a survey. [[poll-slower-than-its-interval]]
+    """
+    with _SELF_ARM_LOCK:
+        if _SELF_ARM_REFRESH["running"]:
+            return False
+        _SELF_ARM_REFRESH["running"] = True
+
+    def _run():
+        try:
+            d = _self_arming_state()
+            _SELF_ARM_CACHE["t"], _SELF_ARM_CACHE["d"] = time.time(), d
+        except Exception:
+            pass
+        finally:
+            with _SELF_ARM_LOCK:
+                _SELF_ARM_REFRESH["running"] = False
+
+    threading.Thread(target=_run, daemon=True, name="tvd-self-arm-lamp").start()
+    return True
+
+
+def _self_arming_state_cached():
+    """The lock census for `/api/status`. At most _SELF_ARM_TTL_S seconds old. -> dict
+
+    A miss kicks the census and returns. It never calls `report()` on this thread.
+    Before the first census finishes the badge stays LOCKED (ok false, no rows) —
+    an empty lock list is what the console already renders as LOCKED, and a missing
+    payload must not read as an open lock. [[unknown-stays-unknown]]
+    """
+    now = time.time()
+    c = _SELF_ARM_CACHE
+    fresh = c["d"] is not None and (now - c["t"]) < _SELF_ARM_TTL_S
+    if not fresh:
+        _self_arming_kick()
+    if c["d"] is None:
+        return {"ok": False, "open": 0, "total": 0, "locks": [],
+                "why": "the lock census has not finished its first read since this "
+                       "console started — UNKNOWN, and specifically not open"}
+    out = dict(c["d"])
+    if isinstance(out.get("locks"), list):
+        out["locks"] = list(out["locks"])
+    return out
+
+
 # ── ♥ THE HEART, AS A SURFACE ────────────────────────────────────────────────────────────────
 # v2443 — Konyo: "i want a visual architecture of it within the console so i can click a widget
 # HEART on the bottom of the console next to the version... when i click it it opens the derived
@@ -42193,7 +42254,7 @@ def status_payload():
         # blank most of the time, and a blank lock reads as an OPEN one. This is a small file read.
         # ONE source: the badge quotes this, it does not re-derive a state of its own. [[v2436]]
         "timing": _status_timing_payload(),   # #28 — which component, not just how slow
-        "selfArming": _t("selfArming", _self_arming_state),
+        "selfArming": _t("selfArming", _self_arming_state_cached),
         "retention": _t("retention", retention_state),   # v2080 — extract -> prune, and why nothing moved
         # v2041 — the only durable copy of a ledger that otherwise lives in a window.
         "ledgerBackup": _t("ledgerBackup", ledger_backup_state),
