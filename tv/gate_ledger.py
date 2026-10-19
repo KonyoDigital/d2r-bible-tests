@@ -98,6 +98,86 @@ _REL_IMPORT = re.compile(
 _PY_PLAYWRIGHT = re.compile(r"(^|\n)\s*(import playwright\b|from playwright\b)")
 
 
+# v3774 — A VERSION BUMP IS NOT A CHANGE TO EVERY GATE. bump_version.py rewrites a known set of
+# lines in four files (bible.html, tv/control_app.py, tv/tv_diablo.py, tv/WINDOWS_SHIP.json), and
+# most gates import or open one of them, so a bump-only diff reran nearly every gate (~2172s
+# against ~600s for no change). A path whose diff since the proof is ONLY these lines is a
+# "stamp-only" change and does not invalidate a gate that never reads the version.
+# Fail closed: any other changed line, a rename, a binary diff, a missing newline, an unequal
+# count of removed and added stamps, or a failing git diff keeps the path changed. A gate whose
+# own script or name speaks of the version reruns as before.
+STAMP_SURFACES = {  # LEDGER-STAMP-SURFACES (mirrors tv/bump_version.py bump + _rewrite_head_stamps)
+    "bible.html": (
+        re.compile(r"^  window\.D2R_BUILD = \{ id:'v\d+(?:\.\d+)*', name:'.*', date:'[0-9-]+', note:'.*' \};$"),
+        re.compile(r"^\s*<title>[^<]*\bv\d+(?:\.\d+)*\b[^<]*</title>\s*$"),
+        re.compile(r'^<meta name="d2r-build" content="[^"]*">$'),
+        re.compile(r'^<meta name="d2r-build-date" content="[^"]*">$'),
+        re.compile(r'^<meta name="d2r-build-note" content="[^"]*">$'),
+    ),
+    "tv/control_app.py": (re.compile(r'^\s*"ver": "v\d+(?:\.\d+)*",\s*$'),),
+    "tv/tv_diablo.py": (re.compile(r'^VERSION = "v\d+(?:\.\d+)*"   # .*$'),),
+    "tv/WINDOWS_SHIP.json": (
+        re.compile(r'^  "ver": "v\d+(?:\.\d+)*",$'),
+        re.compile(r'^  "note": "v\d+(?:\.\d+)*: .*",$'),
+    ),
+    # The bump's own regenerations (_regen_blueprint, _record_ship_in_tasks + stamp_versions).
+    "BLUEPRINT.md": (re.compile(r"^    generated \d{4}-\d\d-\d\d \d\d:\d\d$"),),
+    "RESUME_HERE.md": (
+        re.compile(r"^<!-- fp: ver=v\d+(?:\.\d+)* -->$"),
+        re.compile(r"^\| version stamp \| v\d+(?:\.\d+)* \|$"),
+        re.compile(r"^\*Derived \d{4}-\d\d-\d\d \d\d:\d\d by `tv/resume_state\.py`\..*\*$"),
+    ),
+    "TASKS.md": (re.compile(r"^\| \*\*v\d+(?:\.\d+)*\*\* \| `[^`]*` \| .*\|\s*$"),),
+}
+# The ship table GROWS by one row per bump; every other surface swaps a line for a line.
+_STAMP_GROWS = frozenset(("TASKS.md",))
+# A gate whose own script or name speaks of the version reruns on a stamp-only change. The
+# closure is NOT searched: measured on v3772, 913 of 1003 closures hold a version word
+# (gate_ledger.py, control_ui.html, console_doctor.py...), which would rerun everything.
+# CI never consults the ledger, so a version reader this misses is still caught there.
+_VERSION_NAME = re.compile(r"version|stamp|bump|ship|build|title|status", re.I)
+# A gate that reads the version reruns on a stamp-only change. Searched in the gate script and in
+# every closure file except the stamp surfaces themselves (which always hold the stamp).
+_VERSION_WORDS = re.compile(
+    r"D2R_BUILD|d2r-build|bump_version|WINDOWS_SHIP|stamp_versions|\bVERSION\b|"
+    r"[\x27\x22]ver[\x27\x22]|<title>")
+
+
+def stamp_kinds(rel, line):
+    """Index of the stamp pattern a changed line matches, or None. -> int|None"""
+    for i, pat in enumerate(STAMP_SURFACES.get(rel, ())):
+        if pat.match(line):
+            return i
+    return None
+
+
+def stamp_only_diff(rel, text):
+    """True only when a `git diff -U0` of one path changes stamp lines and nothing else. -> bool"""
+    if rel not in STAMP_SURFACES or not text:
+        return False
+    removed, added = [], []
+    in_hunk = False  # a removed "-- x" line reads "--- x": headers are only headers before the first @@
+    for line in text.splitlines():
+        if line.startswith("diff --git "):
+            in_hunk = False
+            continue
+        if line.startswith("@@ "):
+            in_hunk = True
+            continue
+        if not in_hunk and line.startswith(("index ", "--- ", "+++ ")):  # STAMP-HEADER
+            continue
+        if in_hunk and (line.startswith("-") or line.startswith("+")):
+            k = stamp_kinds(rel, line[1:])
+            if k is None:  # STAMP-OTHER-LINE
+                return False
+            (removed if line[0] == "-" else added).append(k)
+            continue
+        return False  # STAMP-UNKNOWN-LINE: rename, mode, binary, "\ No newline", or anything unknown
+    if rel in _STAMP_GROWS:
+        return bool(added) and len(added) >= len(removed)  # STAMP-GROWS
+    return bool(added) and sorted(removed) == sorted(added)  # STAMP-PAIRED
+
+
 def ledger_path():
     """This checkout's ledger, unless TV_GATE_LEDGER names another file. -> path"""
     return os.environ.get("TV_GATE_LEDGER") or os.path.join(HERE, LEDGER_NAME)
@@ -1272,6 +1352,8 @@ class Ledger(object):
         self._diff_cache = {}
         self._churn_cache = {}
         self._diff_root = None
+        self._stamp_cache = {}
+        self._verdep = {}
         self._work = None
         self._work_root = None
         self._bible_facts = {}
@@ -1941,12 +2023,15 @@ class Ledger(object):
             return None, cwhy or "the proven sha cannot be diffed"
         if not self._is_ancestor(root, sha):  # LEDGER-ENTRY
             return None, "the stored sha is not an ancestor of HEAD"
+        stamped = self.stamp_only(root, sha, changed)  # LEDGER-STAMP-ONLY
         try:
-            row = self._row_for(gate, root, changed)
+            row = self._row_for(gate, root, changed - stamped)
         except Exception as exc:
             return None, "taking its inputs raised %s" % type(exc).__name__
         if not isinstance(row, dict) or row.get("why") or not isinstance(row.get("inputs"), list):
             return None, (row or {}).get("why") or "inputs are UNKNOWN"
+        if stamped and not self.reads_version(row, root, name):
+            changed = changed - stamped  # STAMP-DROP
         for path in changed:
             if _watched(path, row.get("watch")):
                 return None, "inputs changed: %s" % path
@@ -1966,6 +2051,43 @@ class Ledger(object):
         shown = dict(entry)
         shown["line"] = line
         return shown, None  # LEDGER-NO-BANK
+
+    def stamp_only(self, root, sha, changed):
+        """Stamp surfaces in `changed` whose diff from sha to the worktree is only stamp lines.
+        One git diff per (sha, path), cached. Any doubt keeps the path changed. -> set"""
+        out = set()
+        for rel in sorted(STAMP_SURFACES):
+            if rel not in (changed or ()):
+                continue
+            key = (str(sha), rel)
+            if key not in self._stamp_cache:
+                ok = False
+                try:
+                    proc = _git(root, ["diff", "-U0", "--no-color", "--no-ext-diff",
+                                       "--no-renames", str(sha), "--", rel])
+                    ok = (proc is not None and proc.returncode == 0  # STAMP-GIT-OK
+                          and stamp_only_diff(rel, proc.stdout or ""))
+                except Exception:
+                    ok = False
+                self._stamp_cache[key] = ok
+            if self._stamp_cache[key]:
+                out.add(rel)
+        return out
+
+    def reads_version(self, row, root, name=""):
+        """Does the gate's name or own script name the version? Unreadable counts as yes. -> bool"""
+        if _VERSION_NAME.search(str(name or "")):  # STAMP-VERSION-NAME
+            return True
+        rel = row.get("script")
+        if not rel:
+            return True
+        if rel not in self._verdep:
+            try:
+                with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
+                    self._verdep[rel] = bool(_VERSION_WORDS.search(fh.read()))  # STAMP-VERSION-SCRIPT
+            except OSError:
+                self._verdep[rel] = True
+        return self._verdep[rel]
 
     def _tools_for(self, stored, root):
         """Live versions for the tool names already stored. -> (list|None, why)"""
