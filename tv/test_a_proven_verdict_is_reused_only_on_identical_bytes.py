@@ -631,8 +631,8 @@ RED_PROOF = [
     {
         "why": "the import closure never enters the key: an edit to a helper the law imports reuses a PROVEN",
         "file": "heart2.py",
-        "find": "        for dep in names & set(local):\n            stack.append(local[dep])\n",
-        "replace": "        for dep in ():\n            stack.append(local[dep])\n",
+        "find": "            stack.append(local[dep])\n",
+        "replace": "            pass  # closure not walked\n",
         "matches": 1,
     },
     {
@@ -716,7 +716,7 @@ RED_PROOF = [
     {
         "why": "a law that lists a directory itself is cached under a key that cannot name what it reads",
         "file": "heart2.py",
-        "find": "        if p == law and lists:\n",
+        "find": "        if p == law and lists and not allow_listing:\n",
         "replace": "        if False:\n",
         "matches": 1,
     },
