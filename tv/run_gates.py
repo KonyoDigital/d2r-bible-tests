@@ -9865,6 +9865,12 @@ GATES = [
              "witness store per call and one FIND rebuilt every record per matched name. In node: "
              "50 _provAll calls parse once, one FIND pass rebuilds once, five quick keys run one "
              "FIND after the pause and none inside a key.")),
+    Gate("test_vault_hand_box_stays_inline", [sys.executable,
+         os.path.join(HERE, "test_vault_hand_box_stays_inline.py")], 120,
+         needs_app=False,
+         why=("v3773 - the + Add an item box was a fixed inset:0 layer at z-index 130 with a scrim: it "
+             "covered the tab bar and FIND ON A MULE and swallowed tab clicks. It now opens inline right "
+             "under the find results. The top search's hover title sat on its first result row; gone.")),
     Gate("test_d2jsp_cards_stay_cheap", [sys.executable,
          os.path.join(HERE, "test_d2jsp_cards_stay_cheap.py")], 420,
          needs_app=False,
