@@ -242,6 +242,29 @@ class EquippedLine(unittest.TestCase):
 
 
 @unittest.skipUnless(os.path.exists(H.RC.CHROME), "no Chrome/Chromium on this machine - UNMEASURED here, not passing")
+class AnUnseenThrowOutTakesItsFirstSighting(unittest.TestCase):
+    """Found on his real store (2026-10-20 click-through): all 9 THROW OUT rows were made before any frame saw the item,
+    so they read 'not seen yet' forever and the drain had no cell to watch."""
+
+    def test_the_first_sighting_fills_from_on_the_same_row_and_the_drain_counts(self):
+        board().seed({"d2r_owned": [HEAD], "d2r_muleAssign": {}, "d2r_vaultRecords": None,
+                      "d2r_vaultProv": {HEAD: {"kind": "owned", "source": "tv", "seen": 0, "looks": []}}})
+        o = board().run(READ + "window._vaultAutoIntakeSet(false); window.switchTab('vault'); window._vaultMovePaint();"
+                        "OUT.f0 = (row(%s) || {getAttribute: function(){ return 'missing'; }}).getAttribute('data-from');"
+                        "window._ownedProvWrite(%s, { source: 'intake-read', by: 'reel', holder: 'MAIN', loc: 'stash', cell: 'stash:c3r2',"
+                        "  sessionId: 'z1', frameId: 'z-a', ts: Date.now() });"
+                        "window._vaultMovePaint(); OUT.f1 = (row(%s) || {getAttribute: function(){ return 'missing'; }}).getAttribute('data-from');"
+                        "OUT.rows = document.querySelectorAll('#vault-move-list .vmv-row[data-name=\"' + %s + '\"]').length;"
+                        "obs({ session: 'z2', holder: 'MAIN', location: 'stash', items: [], ground: [] }); window._vaultMovePaint();"
+                        "OUT.k = (row(%s) || {}).textContent || '';"
+                        % (json.dumps(HEAD), json.dumps(HEAD), json.dumps(HEAD), json.dumps(HEAD), json.dumps(HEAD)))
+        self.assertEqual(o["f0"], "", "premise: the row starts unseen: %r" % o)
+        self.assertTrue(o["f1"] and "c3r2" in o["f1"], "the first sighting did not fill FROM: %r" % o)
+        self.assertEqual(o["rows"], 1, "a second row appeared: %r" % o)
+        self.assertIn("gone 1/5", o["k"], "the drain cannot count a row that never got its cell: %r" % o)
+
+
+@unittest.skipUnless(os.path.exists(H.RC.CHROME), "no Chrome/Chromium on this machine - UNMEASURED here, not passing")
 class CompactSearchRow(unittest.TestCase):
     """Elad 2026-10-20: ADD AN ITEM and FIND ON A MULE sit in one compact row."""
 
@@ -264,6 +287,11 @@ class CompactSearchRow(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "An unseen THROW OUT row never takes its first sighting, so it can never drain.",
+     "file": "bible.html",
+     "find": "        up.from = _vaultMovePlace(r.sight.holder, r.sight.location, r.sight.cell); /* L1 throw row takes its first sighting */\n",
+     "replace": "",
+     "matches": 1},
     {"why": "A junk route goes back to the dock instead of a THROW OUT row.",
      "file": "bible.html",
      "find": "? _vaultThrowTask(r, stored) : null;\n",

@@ -49412,7 +49412,16 @@ window.vaultAutoAssign = function(){
   function _vaultThrowTask(r, storedRaw){
     var stored = storedRaw ? _vaultMoveTask(storedRaw) : null;
     if (stored && stored.kept) return null; /* L1 Keep: a normal move now */
-    if (stored && stored.kind === 'throw') return { task: stored, fresh: false };
+    if (stored && stored.kind === 'throw') {
+      /* L1 — a THROW OUT row made before any frame saw the item takes the FIRST real sighting as its FROM cell, on the
+         same row, so the drain has a cell to watch (the same rule a hand-typed move follows). */
+      if (!(stored.from && stored.from.cell != null) && r.sight && r.sight.cell && !_vaultMoveWorn(r.sight)) {
+        var up = _vaultMoveTask(stored);
+        up.from = _vaultMovePlace(r.sight.holder, r.sight.location, r.sight.cell); /* L1 throw row takes its first sighting */
+        return { task: up, fresh: true };
+      }
+      return { task: stored, fresh: false };
+    }
     var route = _vaultThrowRoute(r.name);
     if (!route) return null;
     var seen = !!(r.sight && r.sight.cell); /* an unseen junk route still gets its row: FROM reads not seen yet */
