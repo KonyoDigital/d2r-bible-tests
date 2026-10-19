@@ -256,6 +256,65 @@ class AHandAddRoutesByType(unittest.TestCase):
         self.assertEqual(o["bad"], 0)
         self.assertFalse(o["junk"]["ok"], "an alias invented an item: %r" % o["junk"])
 
+    def test_no_add_a_move_control_exists_anywhere(self):
+        fresh()
+        add_all(["Insight"])
+        o = board().run("try { switchTab('vault'); } catch (e) {} await new Promise(function(r){ setTimeout(r, 500); });"
+                        "OUT.n = Array.prototype.filter.call(document.querySelectorAll('button,input,[role=button],[contenteditable]'), function(e){"
+                        " var t = (e.textContent || '') + ' ' + (e.placeholder || '') + ' ' + (e.getAttribute('aria-label') || '') + ' ' + (e.getAttribute('onclick') || '') + ' ' + (e.getAttribute('oninput') || '');"
+                        " return /add a move|type an item, or select one|_vaultMoveAdd/i.test(t); }).map(function(e){ return e.outerHTML.slice(0, 120); });"
+                        "OUT.q = !!document.getElementById('vault-move-q'); OUT.fn = typeof window._vaultMoveAddNamed + typeof window._vaultMoveAddOpen;"
+                        "OUT.inList = document.querySelectorAll('#vault-move-list input').length;")
+        self.assertEqual(o["n"], [], "an add-a-move control is on the page: %r" % o["n"])
+        self.assertFalse(o["q"])
+        self.assertEqual(o["fn"], "undefinedundefined")
+        self.assertEqual(o["inList"], 0, "the move list carries an input (a search there may only filter, never add)")
+
+    def test_find_on_a_mule_lists_a_hand_add_with_its_mule_and_cell(self):
+        fresh()
+        add_all(["Arcanna's Sign", "Insight"])
+        o = board().run(READ + "try { switchTab('vault'); } catch (e) {} await new Promise(function(r){ setTimeout(r, 500); });"
+                        "var i = document.getElementById('vault-find-input'); i.value = 'arcan'; i.dispatchEvent(new Event('input', { bubbles: true }));"
+                        "var res = document.getElementById('vault-find-results'); OUT.hidden = res.hidden; OUT.text = res.textContent;"
+                        "OUT.to = moveOf(\"Arcanna's Sign (amulet)\").map(function(m){ return m.to.cell; });")
+        self.assertFalse(o["hidden"], "typing in FIND ON A MULE showed nothing")
+        self.assertIn("Arcanna's Sign", o["text"])
+        self.assertIn("SETS-REST", o["text"], o["text"])
+        self.assertTrue(o["to"] and o["to"][0] in o["text"], "FIND does not name the cell: %r / %r" % (o["text"], o["to"]))
+        self.assertNotIn("cell UNKNOWN", o["text"])
+
+    def test_a_hand_added_unruled_set_piece_gets_a_manual_row_not_throw_out(self):
+        fresh()
+        add_all(["Arcanna's Sign"])
+        o = board().run(READ + "OUT.m = moveOf(\"Arcanna's Sign (amulet)\"); OUT.dock = window._vaultDockNames();"
+                        "var l = document.getElementById('vault-move-list'); OUT.text = l.textContent;"
+                        "OUT.badge = !!l.querySelector('.vmv-row .vmv-manual-badge');"
+                        "OUT.ctl = window.suggestMule(\"Arcanna's Sign (amulet)\").id;"
+                        "OUT.line = window.vaultProposeLine(\"Arcanna's Sign (amulet)\");")
+        self.assertNotIn("throw-out advice", o["line"], "the organizer still advises throw-out for his hand add: %r" % o["line"])
+        self.assertIn("SETS-REST", o["line"], o["line"])
+        self.assertEqual(o["ctl"], "__throwout", "premise: the rules still default it to throw-out")
+        self.assertEqual(len(o["m"]), 1, o)
+        self.assertEqual(o["m"][0]["to"]["holder"], "SETS-REST", o["m"])
+        self.assertTrue(o["badge"])
+        self.assertNotIn("Arcanna's Sign (amulet)", o["dock"], "the hand add still sits in Unsorted")
+        self.assertNotIn("Nothing is out of place", o["text"])
+
+    def test_the_list_never_says_nothing_while_a_hand_add_waits(self):
+        fresh()
+        # a hand receipt for a name the router cannot home: no target cell can exist
+        board().seed({"d2r_owned": ["Insight"], "d2r_muleAssign": {}, "d2r_vaultRecords": None,
+                      "d2r_vaultProv": {"Insight": {"kind": "owned", "source": "hand", "by": "+ Add an item",
+                                                    "where": "the Vault (+ Add an item)", "at": "2026-10-19T18:00:00.000Z", "looks": [], "seen": 0}},
+                      "d2r_mulesRoster": None})
+        o = board().run("var b = window._vaultMoveCollect ? null : null; window._movePackCache = null;"
+                        "var built = { tasks: [], groups: [], locks: [], unrouted: ['Insight'] };"
+                        "OUT.html = window._vaultMoveHtml(built); OUT.empty = window._vaultMoveHtml({ tasks: [], groups: [], locks: [] });")
+        self.assertNotIn("Nothing is out of place", o["html"])
+        self.assertIn("added by hand with no target cell yet", o["html"])
+        self.assertIn("Insight", o["html"])
+        self.assertIn("Nothing is out of place", o["empty"], "the control: an empty list with no hand adds")
+
     def test_distinct_attacks_clear_the_vault_apply_wilson_bar(self):
         from confidence import confluence, wilson_lower
         import self_arming as SA
@@ -272,6 +331,31 @@ class AHandAddRoutesByType(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "The organizer line still advises throw-out for a hand-kept set piece.",
+     "file": "bible.html",
+     "find": "      if (_hm) return { ok: true, moved: false, kind: 'mule', id: _hs.mule,",
+     "replace": "      if (false) return { ok: true, moved: false, kind: 'mule', id: _hs.mule,",
+     "matches": 1},
+    {"why": "An ADD A MOVE button comes back in the move list header.",
+     "file": "bible.html",
+     "find": "+ '<span class=\"vmv-locks\">' + locks + '</span></div>'; /* v3773 no manual move */",
+     "replace": "+ '<span class=\"vmv-locks\">' + locks + '</span><button type=\"button\">Add a move</button></div>'; /* v3773 no manual move */",
+     "matches": 1},
+    {"why": "FIND keeps cell UNKNOWN for a hand add the move list already placed.",
+     "file": "bible.html",
+     "find": "if (_mm) w = Object.assign({}, w, { kind:",
+     "replace": "if (false) w = Object.assign({}, w, { kind:",
+     "matches": 1},
+    {"why": "A hand-typed unruled set piece goes back to throw-out advice in Unsorted.",
+     "file": "bible.html",
+     "find": "        return { loc: 'filed', mule: 'sets-rest' }; /* L1 he typed an unruled set piece: kept, not thrown out */",
+     "replace": "        return { loc: 'loose', mule: null }; /* L1 he typed an unruled set piece: kept, not thrown out */",
+     "matches": 1},
+    {"why": "The list says Nothing is out of place while a hand add has no target.",
+     "file": "bible.html",
+     "find": "if (!groups.length) return head + (unr.length ? unrHtml : '<p class=\"vmv-empty\">Nothing is out of place.</p>');",
+     "replace": "if (!groups.length) return head + '<p class=\"vmv-empty\">Nothing is out of place.</p>';",
+     "matches": 1},
     {"why": "The hand door no longer tries the alias, so Stone of Jordan is refused.",
      "file": "bible.html",
      "find": "if (!_vaultKeeps(r.name)) { var al = _vhAlias(r.name); if (al && _vaultKeeps(al)) r = { ok: true, name: al }; } /* L1 alias */",
@@ -309,7 +393,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "Any owned base counts as hand-typed, so a base from another door enters the records.",
      "file": "bible.html",
-     "find": "if (p && p.source === 'hand' && /Add an item/.test(String(p.where || p.by || ''))) out.push(n); /* L1 hand-typed base */",
+     "find": "if (_vaultHandTyped(n)) out.push(n); /* L1 hand-typed base */",
      "replace": "out.push(n); /* L1 hand-typed base */",
      "matches": 1},
     {"why": "Saved targets are not reserved, so a later bigger add is packed onto the cell Shako was given.",
