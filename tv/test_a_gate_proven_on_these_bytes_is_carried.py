@@ -975,8 +975,25 @@ class TheProofRemembersWhatTheGateRead(unittest.TestCase):
         self.assertIsNone(entry, "a file only node read was carried over an edit")
         self.assertIn("page_gl.txt", why or "")
 
+    def test_an_untracked_file_the_proof_saw_carries_and_a_new_one_does_not(self):
+        helper = ("import os\nROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))\n"
+                  "def count():\n    return len(os.listdir(os.path.join(ROOT, 'tests')))\n")
+        law = "import sys, scan_gl\nsys.exit(0 if scan_gl.count() < 3 else 1)\n"
+        root, led = self._tree({"t_cnt.py": law, "scan_gl.py": helper}, {"tests/a.spec.ts": "a\n"})
+        _write(root, "tests/local_notes.txt", "his, untracked\n")
+        gate = _gate(root, "t_cnt.py")
+        self.assertTrue(_prove(_open(led), gate), "an untracked file the gate only listed stopped the record")
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNotNone(entry, "the same untracked file, still there, stopped the carry: %s" % why)
+        _write(root, "tests/zz_new.txt", "new\n")
+        self.assertNotEqual(_run_traced(gate)[0], 0, "PREMISE: the gate is not red with one more file")
+        entry, why = _open(led).lookup(gate)
+        self.assertIsNone(entry, "a new untracked file under a listed directory was carried")
+        self.assertIn("zz_new.txt", why or "")
+
     def test_old_ledger_shapes_still_parse(self):
-        self.assertEqual(GL._churn("?? tv/a/b.py\n M tv/c.py\nD  tv/d.py\n"), {"tv/a/b.py", "tv/d.py"})
+        self.assertEqual(GL._churn("?? tv/a/b.py\n M tv/c.py\nD  tv/d.py\n"), {"tv/d.py"})
+        self.assertEqual(GL._churn("?? tv/a/b.py\n M tv/c.py\n", untracked=True), {"tv/a/b.py"})
         self.assertEqual(GL.first_hit((), ("tv",), (), {"tv/x/y.py"}, {"tv/x/y.py"}), "tv/x/y.py")
         self.assertIsNone(GL.first_hit(("tv/a.py",), ("tests",), ("foo",), {"tv/b.py"}, {"tv/b.py"}))
 
@@ -1447,8 +1464,8 @@ RED_PROOF = [
     {
         "why": "REG-2293 r5 hole 3: a glob inside an imported module is not a listing, so a new file carries",
         "file": "gate_ledger.py",
-        "find": "        if any(a in listed for a in _ancestors(path)):  # LEDGER-TRACE-LIST\n",
-        "replace": "        if False:  # LEDGER-TRACE-LIST\n",
+        "find": "    if any(a in listed for a in _ancestors(path)):  # LEDGER-TRACE-LIST\n",
+        "replace": "    if False:  # LEDGER-TRACE-LIST\n",
         "matches": 1,
     },
     {
@@ -1475,8 +1492,8 @@ RED_PROOF = [
     {
         "why": "REG-2293 r5: a module the gate failed to import is not watched, so the file that now resolves carries",
         "file": "gate_ledger.py",
-        "find": "        if _module_stem(path) in imports:  # LEDGER-TRACE-IMPORT\n",
-        "replace": "        if False:  # LEDGER-TRACE-IMPORT\n",
+        "find": "    return _module_stem(path) in imports  # LEDGER-TRACE-IMPORT\n",
+        "replace": "    return False  # LEDGER-TRACE-IMPORT\n",
         "matches": 1,
     },
     {
@@ -1547,6 +1564,13 @@ RED_PROOF = [
         "file": "gate_trace/node_trace.cjs",
         "find": "  for (const n of ['readFileSync', 'readFile', 'createReadStream']) wrap(fs, n, R);\n",
         "replace": "  for (const n of []) wrap(fs, n, R);\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r5: the untracked snapshot is not compared, so a new untracked file under a listed directory carries",
+        "file": "gate_ledger.py",
+        "find": "        moved = seen ^ set(entry.get(\"untracked\") or ())  # LEDGER-UNTRACKED-SNAPSHOT\n",
+        "replace": "        moved = set()  # LEDGER-UNTRACKED-SNAPSHOT\n",
         "matches": 1,
     },
 ]
