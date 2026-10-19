@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3767",
+  "ver": "v3769",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3767: Elad 2026-10-18 13:18 IDT: duplicate copies sit next to the original on the same mule. This replaces rule E. The spread packs each category mule to 100 stash cells and 40 inventory cells and overflows a whole copy group together. One set piece is one record. Copies already in GRAIL-DUPES re-home through the records route. REG-2272 item 4 stays open. HEART: the same-mule law is the corroborator, watched by the v3767 gate. No new console surface.",
+  "note": "v3769: The vault paints a move list grouped by holder and stash. Each out-of-place item keeps a saved target cell from the packer, and a later witness at that cell verifies the row when AUTO INTAKE is on. A hand tally and a typed move work while it is off. REG-2291. HEART: the target-cell law and the verify law are the corroborators, watched by the v3769 gate.",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

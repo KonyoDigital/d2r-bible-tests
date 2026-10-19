@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3767 · TV DIABLO</title>
-<meta name="d2r-build" content="v3767">
+  <title>Konyo's D2R Farming Bible v3769 · TV DIABLO</title>
+<meta name="d2r-build" content="v3769">
 <meta name="d2r-build-date" content="2026-10-18">
-<meta name="d2r-build-note" content="Elad 2026-10-18 13:18 IDT: duplicate copies sit next to the original on the same mule. This replaces rule E. The spread packs each category mule to 100 stash cells and 40 inventory cells and overflows a whole copy group together. One set piece is one record. Copies already in GRAIL-DUPES re-home through the records route. REG-2272 item 4 stays open. HEART: the same-mule law is the corroborator, watched by the v3767 gate. No new console surface.">
+<meta name="d2r-build-note" content="The vault paints a move list grouped by holder and stash. Each out-of-place item keeps a saved target cell from the packer, and a later witness at that cell verifies the row when AUTO INTAKE is on. A hand tally and a typed move work while it is off. REG-2291. HEART: the target-cell law and the verify law are the corroborators, watched by the v3769 gate.">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -10438,8 +10438,49 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .vault-organize .vault-org-cell,.vault-organize .vault-org-from{color:var(--text-dim)}
 /* #264 (v3621) - the row's evidence door: styled only inside a mule tile until now, so here it drew as a bare white button */
 .vault-organize .vd-ev{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;padding:0;margin:0 6px 0 0;vertical-align:middle;background:rgba(10,8,5,.82);border:1px solid rgba(240,192,96,.35);border-radius:3px;font-size:var(--fs-micro);line-height:1;cursor:pointer;color:var(--text-dim)}
+
 .vault-organize .vd-ev:hover{border-color:var(--gold-bright,#f0c060)}
 .vault-organize .vd-ev.ev-none{opacity:.55}
+/* v3769 — the move list. One stash at a time, the item's own art, a status chip. */
+.vault-move{margin:0 0 12px;padding:12px 12px 10px;border-radius:14px;border:1px solid var(--border-light);background:radial-gradient(120% 80% at 0% 0%, rgba(212,168,71,.16), transparent 46%),linear-gradient(180deg, var(--surface-2), var(--surface));box-shadow:0 14px 36px -22px rgba(0,0,0,.85), inset 0 1px 0 rgba(240,192,96,.18)}
+.vault-move-h{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0 0 10px}
+.vault-move-k{font-family:var(--serif-display,serif);font-size:var(--fs-title);letter-spacing:var(--ls-wide);color:var(--gold-bright);text-shadow:0 0 18px rgba(240,192,96,.28)}
+.vault-move-sub{font-size:var(--fs-meta);color:var(--text-dim);letter-spacing:var(--ls-snug)}
+.vmv-locks{display:flex;flex-wrap:wrap;gap:6px}
+.vmv-lock{display:inline-flex;align-items:center;gap:6px;padding:3px 8px;border-radius:999px;border:1px solid var(--border-light);background:var(--surface-3);font-size:var(--fs-micro);letter-spacing:var(--ls-normal);color:var(--text)}
+.vmv-lock[data-say="LOCKED"]{border-color:rgba(255,120,120,.55);color:#ffb4b4}
+.vmv-lock[data-say="WATCHING"]{border-color:rgba(240,192,96,.45);color:var(--gold-bright)}
+.vmv-add{display:flex;flex-wrap:wrap;gap:8px;margin-left:auto}
+.vmv-q{min-width:180px;flex:1;font-size:var(--fs-body);color:var(--text);background:var(--bg);border:1px solid var(--border-light);border-radius:8px;padding:6px 8px}
+.vmv-group{margin:0 0 10px;padding:8px;border-radius:12px;background:rgba(10,8,5,.35);border:1px solid rgba(240,192,96,.14)}
+.vmv-gh{display:flex;align-items:baseline;gap:8px;margin:0 0 8px;font-size:var(--fs-meta);letter-spacing:var(--ls-wide);text-transform:uppercase;color:var(--gold)}
+.vmv-gh b{font-weight:var(--fw-semibold);color:var(--text)}
+.vmv-grid{margin:0 0 8px}
+.vmv-grid-h{font-size:var(--fs-micro);letter-spacing:var(--ls-normal);color:var(--text-dim);margin:0 0 4px}
+.vmv-row{display:grid;grid-template-columns:auto minmax(120px,1.2fr) minmax(140px,1fr) minmax(140px,1fr) auto auto auto;gap:8px;align-items:center;padding:6px;margin:0 0 4px;border-radius:10px;background:var(--surface);border:1px solid transparent;cursor:pointer}
+.vmv-row:hover{border-color:rgba(240,192,96,.45);box-shadow:0 0 18px rgba(212,168,71,.12)}
+.vmv-art{width:36px;height:36px;display:grid;place-items:center}
+.vmv-art img{width:32px;height:32px;object-fit:contain}
+.vmv-name{font-size:var(--fs-body);color:var(--text);font-weight:var(--fw-medium)}
+.vmv-place{font-size:var(--fs-micro);color:var(--text-muted);line-height:1.35}
+.vmv-place i{display:block;font-style:normal;letter-spacing:var(--ls-wider);color:var(--text-dim)}
+.vmv-chip{justify-self:start;padding:3px 8px;border-radius:999px;font-size:var(--fs-micro);letter-spacing:var(--ls-wide);font-weight:var(--fw-semibold);border:1px solid var(--border-light);background:var(--surface-3);color:var(--text)}
+.vmv-chip[data-status="to-move"]{color:var(--gold-bright);border-color:rgba(240,192,96,.55);background:rgba(212,168,71,.12)}
+.vmv-chip[data-status="moved-manual"]{color:var(--q-rare);border-color:rgba(255,255,100,.45);background:rgba(255,255,100,.08)}
+.vmv-chip[data-status="verified"]{color:var(--best);border-color:rgba(102,255,136,.5);background:rgba(102,255,136,.1)}
+.vmv-chip[data-status="moved-elsewhere"]{color:var(--q-orange);border-color:rgba(255,168,0,.5);background:rgba(255,168,0,.1)}
+.vmv-empty{margin:0;padding:8px 2px;font-size:var(--fs-body);color:var(--text-muted)}
+#vault-auto-intake[data-state="on"]{border-color:rgba(102,255,136,.55);color:var(--best);box-shadow:0 0 16px rgba(102,255,136,.18)}
+#vault-auto-intake[data-state="off"]{border-color:var(--border-light);color:var(--text-dim)}
+#vault-auto-intake[data-state="unknown"]{border-color:var(--q-orange);color:var(--q-orange)}
+.tvd-frame-mark{position:absolute;left:18px;bottom:18px;z-index:3;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;border:1px solid var(--border-light);background:linear-gradient(180deg,rgba(20,16,10,.92),rgba(8,7,5,.88));box-shadow:0 10px 28px rgba(0,0,0,.45);color:var(--gold-bright)}
+.tvd-frame-mark[hidden]{display:none!important}
+.tvd-frame-mark-say{font-size:var(--fs-meta);letter-spacing:var(--ls-normal)}
+.tvd-frame-grid{display:grid;gap:1px}
+.tvd-frame-grid i{display:block;width:8px;height:8px;background:var(--surface-3);border-radius:1px}
+.tvd-frame-grid i.on{background:var(--gold-bright);box-shadow:0 0 8px var(--gold)}
+.vev-wits{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
+@media (max-width:800px){.vmv-row{grid-template-columns:auto 1fr auto}.vmv-place{grid-column:1 / -1}}
 #vault-hand-win{position:fixed;inset:0;z-index:130;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(4,3,2,.62);box-sizing:border-box}
 #vault-hand-win[hidden]{display:none}
 #vault-hand-win .vault-hand-box{width:min(440px,100%);max-height:min(640px,100%);overflow:auto;background:var(--surface);border:1px solid var(--border-light);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
@@ -12490,6 +12531,7 @@ function d2jspPriceLine(q) {
         <button class="vault-btn" onclick="window.vaultAddMule()">➕ Add mule</button>
         <button class="vault-btn" type="button" id="vault-auto-intake" aria-pressed="false" data-state="off" onclick="window._vaultAutoIntakeToggle()">AUTO INTAKE · OFF</button>
         <button class="vault-btn" type="button" onclick="window.vaultHandOpen()">+ Add an item</button>
+        <button class="vault-btn" type="button" onclick="window._vaultMoveAddOpen()">Add a move</button>
         <button class="vault-btn" onclick="window.vaultExport()">📋 Copy manifests</button>
         <button class="vault-btn vault-btn-danger" onclick="window.vaultReset()" title="Clears ONLY the mule assignments and their witness rows. Your ✓ owned uniques, set pieces, runewords, chronicle, Magic &amp; Rare and runes / gems / materials stay untouched.">↺ Reset assignments</button>
         <button class="vault-btn vault-btn-danger" onclick="window.vaultClearHistory()" title="Clears the mules, the intake's own records AND your ✓ owned list (his 2026-09-27 ruling 'clear owned'): mule assignments, their witness rows, the Recently-registered log, the scan ledger, the linked folder and the owned ticks. Set pieces, runewords, the chronicle, Magic &amp; Rare, runes / gems / materials and the witness evidence stay untouched, and proven items are rebuilt from the evidence.">🧹 Reset vault (mules + intake)</button>
@@ -12536,6 +12578,7 @@ function d2jspPriceLine(q) {
       <div id="vault-dock-bar" class="vault-dock-bar" hidden></div>
       <div id="vault-hand-left" class="vault-organize vault-hand-left" hidden></div>
       <div id="vault-organize" class="vault-organize" hidden></div>
+      <div id="vault-move-list" class="vault-move" aria-label="move task list"></div>
       <!-- v1282 — VAULT INTEGRITY CHECKER: a retro pass that re-verifies routing / dedup / grail-safety across every muled item. Hidden when the vault is clean. -->
       <div id="vault-audit" class="vault-audit" hidden></div>
       <div class="vault-dock" id="vault-dock"></div>
@@ -12751,6 +12794,7 @@ function d2jspPriceLine(q) {
       <button type="button" onclick="window._tvdCloseFrame&&window._tvdCloseFrame()">✕ close · Esc</button>
     </div>
     <img id="tvd-frame-lb-img" alt="AI vision frame fullscreen">
+    <div id="tvd-frame-lb-mark" class="tvd-frame-mark" hidden></div>
   </div>
 
   <!-- v766 — 🎞 THE THEATRE (site): the app's theatre affordance, brought to the board. Replays
@@ -42813,6 +42857,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     } catch (eOrgN) {}
     try { if (typeof window.vaultOrganizePaint === 'function')
             window.vaultOrganizePaint(unsorted, (_carried || []).map(function(c){ return c.name; })); } catch (eO) {}
+    try { if (typeof window._vaultMovePaint === 'function') window._vaultMovePaint(); } catch (eMv) {} /* v3769 move paint */
     unsorted = _dockShown;
     dock.innerHTML = unsorted.map(function(n){
       var _vr = (typeof _artRarity==='function') ? _artRarity(n) : '';
@@ -44349,7 +44394,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       + '<button type="button" class="vev-x" onclick="window._vaultEvidenceClose()" aria-label="close">✕</button></div>'
       + (m.line ? '<div class="vev-line">' + _evEsc(m.line) + '</div>' : '')
       + (rows.length ? '<dl class="vev-rows">' + rows.join('') + '</dl>' : '') + body
-      + (m.has ? window._vaultEvidencePicHtml(m, pic) : '') + '</div>';
+      + (m.has ? window._vaultEvidencePicHtml(m, pic) : '')
+      + (function(){
+          if (!m || !Array.isArray(m.looks) || !m.looks.length) return '';
+          var _witFn = 'window._vaultOpenEvidence'; /* v3769 witness door */
+          return '<div class="vev-wits">' + m.looks.map(function(k, i){
+            if (!k || !k.frame) return '';
+            return '<button type="button" class="vault-btn vev-wit" onclick="event.stopPropagation();' + _witFn + '(\'' + jsArg(m.name) + '\',' + i + ')">witness ' + (i + 1) + '</button>';
+          }).join('') + '</div>';
+        })() + '</div>';
   };
   /* Is the picture on this machine? The same chain the lightbox walks, tried off-screen first; if none
      loads, the console is asked WHY (who took it, or that it was never written). -> done({state, say, src})
@@ -44443,12 +44496,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       + (look.at ? (' · ' + look.at) : '');
     if (look.released) {
       title = 'frame released — crop kept · ' + title;
-      if (look.crop && typeof window._tvdOpenFrame === 'function') window._tvdOpenFrame(look.crop, { title: title, src: look.crop });
+      if (look.crop && typeof window._tvdOpenFrame === 'function') window._tvdOpenFrame(look.crop, (typeof _vaultFrameMeta === 'function') ? _vaultFrameMeta(title, look.crop, cell) : { title: title, src: look.crop });
       return { ok: !!look.crop, frame: look.crop || null, say: 'frame released — crop kept', title: title, ids: looks.map(function(k){ return k.frame || null; }) };
     }
     if (!look.frame) return { ok: false, frame: null, say: 'picture missing: UNKNOWN', title: 'picture missing: UNKNOWN · ' + title, ids: looks.map(function(k){ return k.frame || null; }) };
     var srcL = window._vaultLookSrc(look);
-    if (typeof window._tvdOpenFrame === 'function') window._tvdOpenFrame(look.frame, srcL ? { title: title, src: srcL } : { title: title });
+    if (typeof window._tvdOpenFrame === 'function') window._tvdOpenFrame(look.frame, (typeof _vaultFrameMeta === 'function') ? _vaultFrameMeta(title, srcL, cell) : (srcL ? { title: title, src: srcL } : { title: title }));
     return { ok: true, frame: look.frame, src: srcL, say: '', title: title, ids: looks.map(function(k){ return k.frame || null; }) };
   };
   window._vaultOpenEvidence = function(name, index){
@@ -44937,6 +44990,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       catch(e){ r = { ok:false, why:'threw: ' + (e && e.message || e) }; }
       try {
         var nm = String(name || '').trim();
+        try {
+          if (nm && r && r.ok && _witIn && typeof _witIn === 'object' && !Array.isArray(_witIn) && (_witIn.cell || _witIn.frame) && typeof window._vaultMoveApplySight === 'function')
+            window._vaultMoveApplySight((r && r.label) || (r && r.name) || nm, _witIn); /* v3769 register sight */
+        } catch (eSight) {}
         /* v1959 \u2014 `!r.dup` WAS ALWAYS TRUE. tvVaultRegister returns `mode: 'new' | 'already'`
            and never a `dup` field; the only `dup:` in this file is set by a DIFFERENT function
            (the inbox queue, ~line 18208). The guard was written against a producer that does not
@@ -48455,7 +48512,7 @@ window.vaultAutoAssign = function(){
   }
   try { window._vaultRereadKind = _vaultRereadKind; } catch (eRk) {}
 
-  /* v3767 — Elad 2026-10-18 15:20 IDT. The move is a record. The list that paints it is the next version.
+  /* v3767 — Elad 2026-10-18 15:20 IDT. The move is a record. v3769 paints the list and stores the target cell.
      from and to are holder + location + cell. status is to-move, moved-manual, verified, or moved-elsewhere.
      evidence is the frame ids in the order they were witnessed. assign is not written.
      15:24 IDT — AUTO INTAKE is a per-world switch. Off, a frame does not register. The manual add does not ask it. */
@@ -48576,6 +48633,411 @@ window.vaultAutoAssign = function(){
   try { window._vaultMoveQueue = _vaultMoveQueue; } catch (eMq) {}
   try { window._vaultMoveTally = _vaultMoveTally; } catch (eMy) {}
   try { window._vaultMoveWitness = _vaultMoveWitness; } catch (eMw) {}
+
+  /* v3769 — the list the v3767 record was waiting for. Target cell from the same packer
+     the mule window uses. Saved on the record. A later witness verifies only while AUTO INTAKE is on. */
+  function _vaultMoveHome(name){
+    var seam = null;
+    try { seam = (typeof _vaultSeamHome === 'function') ? _vaultSeamHome(name) : null; } catch (e) { seam = null; }
+    if (!seam) return { id: null, holder: null, location: null };
+    if (seam.loc === 'shared') return { id: 'shared', holder: 'SHARED STASH', location: 'shared' }; /* v3769 home shared */
+    if (seam.loc === 'filed' && seam.mule) { /* v3769 home filed */
+      var mule = (typeof muleById === 'function') ? muleById(seam.mule) : null;
+      return { id: seam.mule, holder: (mule && mule.name) || null, location: 'stash' };
+    }
+    if (seam.loc === 'keep') return { id: null, holder: 'MAIN', location: null };
+    return { id: null, holder: null, location: null };
+  }
+  function _vaultMoveCopies(name){
+    var g = null;
+    try { g = (typeof _vaultSightGroups === 'function') ? _vaultSightGroups(name) : null; } catch (e) { g = null; }
+    if (g && g.length) return g.length;
+    var cc = 1;
+    try { cc = (typeof copyCount === 'function' ? (copyCount(name) || 1) : 1) | 0; } catch (e2) { cc = 1; }
+    if (!(cc > 0)) cc = 1;
+    if (typeof _vaultPresenceSpan === 'function') {
+      var ps = _vaultPresenceSpan(name, cc);
+      if (ps != null) cc = ps;
+    }
+    return Math.max(1, cc | 0);
+  }
+  function _vaultMovePackHome(home){
+    var names = [];
+    var pool = [];
+    try { pool = (typeof ownedPool === 'function') ? ownedPool() : []; } catch (e) { pool = []; }
+    pool.forEach(function(n){
+      var h = _vaultMoveHome(n);
+      if (h && h.id != null && h.id === home.id) names.push(n);
+    });
+    var items = [];
+    names.forEach(function(n){
+      var s = (typeof vaultSize === 'function') ? vaultSize(n) : [1, 1];
+      var cc = _vaultMoveCopies(n);
+      var area = (s[0] || 1) * (s[1] || 1);
+      for (var i = 0; i < cc; i++) items.push({ n: n, copyIx: i, key: n + '\u0000' + i, w: s[0] || 1, h: s[1] || 1, area: area });
+    });
+    items.sort(function(a, b){
+      if (a.n !== b.n) return (b.area - a.area) || (a.n < b.n ? -1 : (a.n > b.n ? 1 : 0));
+      return a.copyIx - b.copyIx; /* v3769 beside */
+    });
+    var out = {};
+    function lay(placed, location){
+      (placed || []).forEach(function(p){
+        if (p.key == null) return;
+        out[p.key] = { holder: home.holder, location: location, cell: location + ':c' + p.x + 'r' + p.y };
+      });
+    }
+    if (home.id === 'shared' || home.location === 'shared') {
+      lay(packGrid(items, 10, 10).placed, 'shared');
+      return out;
+    }
+    var st = packGrid(items, 10, 10);
+    lay(st.placed, 'stash');
+    lay(packGrid(st.left, 10, 4).placed, 'inventory');
+    return out;
+  }
+  function _vaultMovePlanCell(name, copyIx){
+    var home = _vaultMoveHome(name);
+    if (!home || home.holder == null || !home.location) return _vaultMovePlace(home && home.holder, home && home.location, null);
+    var cache = window._movePackCache || (window._movePackCache = {});
+    var ck = String(home.id);
+    if (!cache[ck]) cache[ck] = _vaultMovePackHome(home);
+    var hit = cache[ck][name + '\u0000' + (copyIx || 0)];
+    if (!hit) return _vaultMovePlace(home.holder, home.location, null);
+    return _vaultMovePlace(hit.holder, hit.location, hit.cell);
+  }
+  function _vaultMoveFromSight(name, copyIx){
+    var groups = null;
+    try { groups = (typeof _vaultSightGroups === 'function') ? _vaultSightGroups(name) : null; } catch (e) { groups = null; }
+    var g = groups && groups[copyIx || 0];
+    if (!g) return { holder: null, location: null, cell: null };
+    return { holder: g.holder || null, location: g.location || null, cell: g.cell || null };
+  }
+  function _vaultMoveBag(){
+    var prior = (typeof _vrRecLoadRaw === 'function') ? _vrRecLoadRaw() : undefined;
+    var map = {};
+    if (prior && Array.isArray(prior.records)) {
+      prior.records.forEach(function(r){
+        if (!r || r.name == null || !r.move) return;
+        map[String(r.name) + '\u0000' + (r.copyIx || 0)] = r.move;
+      });
+    }
+    return { prior: prior, map: map, unread: prior === undefined };
+  }
+  function _vaultMoveEnsure(name, copyIx, bag){
+    copyIx = copyIx || 0;
+    bag = bag || _vaultMoveBag();
+    var storedRaw = bag.map ? bag.map[String(name) + '\u0000' + copyIx] : null;
+    var stored = storedRaw ? _vaultMoveTask(storedRaw) : null;
+    if (stored && stored.to && stored.to.cell) return { task: stored, copyIx: copyIx, name: name, fresh: false }; /* v3769 saved target */
+    var from = (stored && stored.from && stored.from.cell) ? stored.from : _vaultMoveFromSight(name, copyIx);
+    var to = _vaultMovePlanCell(name, copyIx);
+    var task = _vaultMoveTask({
+      name: name, from: from, to: to,
+      status: stored ? stored.status : 'to-move',
+      evidence: stored ? stored.evidence : [],
+      manual: stored ? stored.manual : false
+    });
+    return { task: task, copyIx: copyIx, name: name, fresh: true };
+  }
+  function _vaultMoveCommit(list){
+    list = list || [];
+    if (!list.length) return { ok: true, wrote: false };
+    if (typeof _vrRecLoadRaw !== 'function' || typeof _vrRecGuardedSet !== 'function') return { ok: false, wrote: false };
+    var prior = _vrRecLoadRaw();
+    if (prior === undefined) return { ok: false, wrote: false, unknown: true };
+    if (prior === null) {
+      var pr0 = (typeof _vaultRecordsPersist === 'function') ? _vaultRecordsPersist() : null;
+      if (!pr0 || !pr0.ok) return { ok: false, wrote: false, why: pr0 && pr0.why };
+      prior = _vrRecLoadRaw();
+      if (!prior || !Array.isArray(prior.records)) return { ok: false, wrote: false };
+    }
+    function _apply(store){
+      var dirty = false, missed = false;
+      list.forEach(function(item){
+        var copyIx = item.copyIx || 0;
+        var t = _vaultMoveTask(item.task || item);
+        var row = null;
+        store.records.forEach(function(r){
+          if (!r || r.name !== t.name) return;
+          if ((r.copyIx || 0) !== copyIx) return;
+          row = r;
+        });
+        if (!row) { missed = true; return; }
+        var prev = JSON.stringify(row.move || null);
+        row.move = t; /* v3769 lock stays */
+        if (JSON.stringify(row.move) !== prev) dirty = true;
+      });
+      return { dirty: dirty, missed: missed };
+    }
+    var applied = _apply(prior);
+    /* A name owned after the store was written has no row yet. Rebuild once from the live
+       pool (the carry keeps every move already saved) and apply again. */
+    if (applied.missed && typeof _vaultRecordsPersist === 'function') {
+      var pr = _vaultRecordsPersist(); /* v3769 row refresh */
+      if (pr && pr.ok) {
+        var again = _vrRecLoadRaw();
+        if (again && Array.isArray(again.records)) { prior = again; applied = _apply(prior); }
+      }
+    }
+    if (!applied.dirty) return { ok: true, wrote: false };
+    var wrote = _vrRecGuardedSet(prior);
+    return { ok: !!wrote, wrote: !!wrote };
+  }
+  function _vaultMoveApplySight(name, sighting){
+    var st = (typeof _vaultAutoIntakeRead === 'function') ? _vaultAutoIntakeRead() : { on: false, known: false };
+    if (!(st.on === true && st.known === true)) return { applied: false, task: null, why: 'auto-off' }; /* v3769 auto off */
+    if (!sighting || !name) return { applied: false, task: null };
+    var place = _vaultMovePlace(sighting.holder, sighting.location || sighting.loc, sighting.cell);
+    if (place.cell == null) return { applied: false, task: null };
+    var bag = _vaultMoveBag();
+    var recs = [];
+    try { recs = (_vaultRecords().records || []).filter(function(r){ return r && r.name === name; }); } catch (e) { recs = []; }
+    var hit = null;
+    recs.forEach(function(r){
+      var ens = _vaultMoveEnsure(name, r.copyIx || 0, bag);
+      if (_vaultMoveSamePlace(place, ens.task.to) || _vaultMoveSamePlace(place, ens.task.from)) hit = ens;
+    });
+    if (!hit && recs.length) hit = _vaultMoveEnsure(name, recs[0].copyIx || 0, bag);
+    if (!hit) return { applied: false, task: null };
+    var t = hit.task;
+    var atFrom = _vaultMoveSamePlace(place, t.from);
+    var atTo = _vaultMoveSamePlace(place, t.to);
+    if (t.status === 'moved-manual' && atFrom && !atTo) return { applied: false, task: t, why: 'hand-tally' }; /* v3769 moved-manual hold */
+    var next = _vaultMoveWitness(t, sighting);
+    if (atFrom && !atTo) next.status = 'to-move'; /* v3769 still */
+    else if (!atTo && !atFrom) next.status = 'moved-elsewhere'; /* v3769 elsewhere */
+    else if (atTo && !atFrom) {
+      next.status = 'verified';
+      var fr = sighting.frame || null;
+      if (fr != null && fr !== '' && next.evidence.indexOf(String(fr)) < 0) next.evidence.push(String(fr)); /* v3769 verified frame */
+    }
+    _vaultMoveCommit([{ name: name, copyIx: hit.copyIx, task: next }]);
+    try { if (!window._movePaintBusy && typeof _vaultMovePaint === 'function') _vaultMovePaint(); } catch (eP) {}
+    return { applied: true, task: next };
+  }
+  function _vaultMoveMark(name, copyIx){
+    copyIx = copyIx || 0;
+    var ens = _vaultMoveEnsure(name, copyIx, _vaultMoveBag());
+    var t = _vaultMoveTally(ens.task);
+    t.status = 'moved-manual'; /* v3769 move mark */
+    _vaultMoveCommit([{ name: name, copyIx: copyIx, task: t }]);
+    try { _vaultMovePaint(); } catch (e) {}
+    return t;
+  }
+  function _vaultMoveAddNamed(name){
+    var nm = String(name || '').trim();
+    if (!nm && typeof selectedChip !== 'undefined' && selectedChip) nm = String(selectedChip).trim();
+    if (!nm) return { ok: false, why: 'no name' };
+    try { if (typeof window._ownedAdd === 'function' && !(typeof owned !== 'undefined' && owned && typeof owned.has === 'function' && owned.has(nm))) window._ownedAdd(nm, { source: 'hand', by: 'add a move', where: 'the move list' }); } catch (eO) {} /* v3769 owned door */
+    window._movePackCache = null;
+    var ens = _vaultMoveEnsure(nm, 0, _vaultMoveBag());
+    var t = _vaultMoveTask({
+      name: nm, from: ens.task.from, to: ens.task.to, status: 'to-move',
+      evidence: ens.task.evidence || [], manual: true
+    });
+    var wrote = _vaultMoveCommit([{ name: nm, copyIx: 0, task: t }]); /* v3769 add move */
+    try { if (typeof _vaultMovePaint === 'function') _vaultMovePaint(); } catch (eP) {}
+    return { ok: !!(wrote && wrote.ok), task: t, assign: (typeof assign !== 'undefined' ? assign[nm] : undefined) }; /* v3769 no assign */
+  }
+  function _vaultMoveAddOpen(){
+    var q = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('vault-move-q') : null;
+    var chip = (typeof selectedChip !== 'undefined' && selectedChip) ? String(selectedChip) : '';
+    if (q && chip && !q.value) q.value = chip;
+    if (q && q.value) return _vaultMoveAddNamed(q.value);
+    if (chip) return _vaultMoveAddNamed(chip);
+    try { if (q) q.focus(); } catch (e) {}
+    return { ok: false, why: 'no name' };
+  }
+  function _vaultMoveShown(task){
+    var t = _vaultMoveTask(task);
+    if (t.status === 'verified' || t.status === 'moved-manual' || t.status === 'moved-elsewhere') return true; /* v3769 shown */
+    if (!t.from || t.from.cell == null) return true;
+    if (!_vaultMoveSamePlace(t.from, t.to)) return true;
+    return false;
+  }
+  function _vaultMoveStashSay(location){
+    if (location === 'inventory') return 'inventory';
+    if (location === 'stash') return 'private stash'; /* v3769 stash label */
+    if (location === 'shared') return 'shared stash';
+    return null;
+  }
+  function _vaultMoveGroup(rows){
+    var by = {}, order = [];
+    (rows || []).forEach(function(row){
+      var from = (row.task && row.task.from) || {};
+      var holder = (from.holder == null || from.holder === '') ? null : String(from.holder); /* v3769 group */
+      var stash = _vaultMoveStashSay(from.location);
+      var key = (holder == null ? '\u0001' : holder) + '\u0000' + String(from.location || '');
+      var g = by[key];
+      if (!g) {
+        g = { holder: holder, location: from.location || null, stash: stash, label: holder == null ? 'UNKNOWN' : holder, rows: [] };
+        by[key] = g;
+        order.push(g);
+      }
+      g.rows.push(row);
+    });
+    order.sort(function(a, b){
+      function rank(g){ if (g.holder === 'MAIN') return 0; if (g.holder == null) return 2; return 1; }
+      var d = rank(a) - rank(b);
+      if (d) return d;
+      return String(a.label).localeCompare(String(b.label)) || String(a.stash || '').localeCompare(String(b.stash || ''));
+    });
+    return order; /* v3769 group order */
+  }
+  function _vaultMoveLocks(records){
+    var seen = {}, out = [];
+    (records || []).forEach(function(r){
+      if (!r || !r.name || seen[r.name]) return;
+      if (r.locked) { seen[r.name] = 1; out.push({ name: r.name, say: 'LOCKED' }); }
+      else if (r.watching) { seen[r.name] = 1; out.push({ name: r.name, say: 'WATCHING' }); }
+    });
+    return out;
+  }
+  function _vaultMoveCellSay(cell){
+    if (cell == null || cell === '') return 'UNKNOWN';
+    var m = String(cell).match(/c(\d+)r(\d+)/);
+    if (!m) return String(cell);
+    return String(cell) + ' · col ' + ((+m[1]) + 1) + ' · row ' + ((+m[2]) + 1);
+  }
+  function _vaultMovePlaceSay(place){
+    place = place || {};
+    var holder = (place.holder == null || place.holder === '') ? 'UNKNOWN' : String(place.holder);
+    var stash = _vaultMoveStashSay(place.location);
+    return holder + ' · ' + (stash || 'UNKNOWN') + ' · ' + _vaultMoveCellSay(place.cell);
+  }
+  function _vaultMoveGridHtml(rows){
+    var by = {}, keys = [];
+    (rows || []).forEach(function(row){
+      var to = (row.task && row.task.to) || {};
+      var k = String(to.holder || '') + '\u0000' + String(to.location || '');
+      if (!by[k]) { by[k] = { holder: to.holder, location: to.location, rows: [] }; keys.push(k); }
+      by[k].rows.push(row);
+    });
+    return keys.map(function(k){
+      var g = by[k];
+      var gw = 10, gh = (g.location === 'inventory') ? 4 : 10;
+      var placed = [];
+      g.rows.forEach(function(row){
+        var cell = row.task && row.task.to && row.task.to.cell;
+        var m = cell && String(cell).match(/c(\d+)r(\d+)/);
+        if (!m) return;
+        var s = (typeof vaultSize === 'function') ? vaultSize(row.name) : [1, 1];
+        placed.push({ n: row.name, key: row.name + '#' + (row.copyIx || 0), x: +m[1], y: +m[2], w: s[0] || 1, h: s[1] || 1 });
+      });
+      var grid = (typeof gridHtml === 'function') ? gridHtml(placed, gw, gh, 36, { area: 'move', page: 0, label: 'Target' }) : ''; /* v3769 grid */
+      var say = (g.holder || 'UNKNOWN') + ' · ' + (_vaultMoveStashSay(g.location) || 'UNKNOWN');
+      return '<div class="vmv-grid"><div class="vmv-grid-h">TO ' + esc(say) + '</div>' + grid + '</div>';
+    }).join('');
+  }
+  function _vaultMoveHtml(built){
+    built = built || { tasks: [], groups: [], locks: [] };
+    var locks = (built.locks || []).map(function(l){
+      return '<span class="vmv-lock" data-say="' + esc(l.say) + '">' + esc(l.name) + ' · ' + esc(l.say) + '</span>';
+    }).join('');
+    var head = '<div class="vault-move-h"><span class="vault-move-k">MOVE TASKS</span>'
+      + '<span class="vault-move-sub">one stash at a time</span>'
+      + '<span class="vmv-locks">' + locks + '</span>'
+      + '<span class="vmv-add"><input id="vault-move-q" class="vmv-q" aria-label="item to move" placeholder="Type an item, or select one">'
+      + '<button type="button" class="vault-btn vault-btn-primary" onclick="window._vaultMoveAddNamed(document.getElementById(\'vault-move-q\').value)">Add a move</button></span></div>';
+    var groups = built.groups || [];
+    if (!groups.length) return head + '<p class="vmv-empty">Nothing is out of place.</p>';
+    var body = groups.map(function(g){
+      var rows = g.rows.map(function(row){
+        var t = row.task;
+        var opener = "window._vaultEvidenceOpen('" + jsArg(row.name) + "')"; /* v3769 evidence */
+        var w = row.witnesses;
+        var wSay = (w == null) ? 'witnesses UNKNOWN' : (w + ' witness' + (w === 1 ? '' : 'es'));
+        var chip = { 'to-move': 'TO MOVE', 'moved-manual': 'MOVED', 'verified': 'VERIFIED', 'moved-elsewhere': 'ELSEWHERE' }[t.status] || 'TO MOVE';
+        return '<div class="vmv-row" data-name="' + esc(row.name) + '" data-copy="' + (row.copyIx || 0) + '" data-status="' + esc(t.status) + '"'
+          + ' data-from="' + esc((t.from && t.from.cell) || '') + '" data-to="' + esc((t.to && t.to.cell) || '') + '" data-group="' + esc(g.label) + '"'
+          + ' onclick="' + esc(opener) + '">'
+          + '<span class="vmv-art">' + (typeof art === 'function' ? art(row.name) : '') + '</span>'
+          + '<span class="vmv-name">' + esc(row.name) + '</span>'
+          + '<span class="vmv-place"><i>FROM</i>' + esc(_vaultMovePlaceSay(t.from)) + '</span>'
+          + '<span class="vmv-place"><i>TO</i>' + esc(_vaultMovePlaceSay(t.to)) + '</span>'
+          + '<span class="vmv-chip" data-status="' + esc(t.status) + '">' + chip + '</span>'
+          + '<button type="button" class="vault-btn vmv-wit" onclick="event.stopPropagation();' + esc(opener) + '">' + esc(wSay) + '</button>'
+          + '<button type="button" class="vault-btn vmv-mark" onclick="event.stopPropagation();window._vaultMoveMark(\'' + jsArg(row.name) + '\',' + (row.copyIx || 0) + ')">mark moved</button>'
+          + '</div>';
+      }).join('');
+      var stash = g.stash || 'UNKNOWN';
+      return '<section class="vmv-group" data-holder="' + esc(g.label) + '" data-stash="' + esc(stash) + '">'
+        + '<div class="vmv-gh"><b>' + esc(g.label) + '</b> · ' + esc(stash) + '</div>'
+        + _vaultMoveGridHtml(g.rows) + rows + '</section>';
+    }).join('');
+    return head + body;
+  }
+  function _vaultMoveCollect(){
+    window._movePackCache = {};
+    var bag = _vaultMoveBag();
+    var rec = (typeof _vaultRecords === 'function') ? _vaultRecords() : { records: [] };
+    var pending = [], shown = [];
+    (rec.records || []).forEach(function(r){
+      if (!r || r.name == null) return;
+      var stored = bag.map[String(r.name) + '\u0000' + (r.copyIx || 0)];
+      var hasSight = !!(r.sight && r.sight.cell);
+      if (!stored && !hasSight) return;
+      var ens = _vaultMoveEnsure(r.name, r.copyIx || 0, bag);
+      if (ens.fresh) pending.push({ name: r.name, copyIx: r.copyIx || 0, task: ens.task });
+      if (_vaultMoveShown(ens.task)) shown.push({
+        name: r.name, copyIx: r.copyIx || 0, task: ens.task,
+        witnesses: (r.sight && typeof r.sight.witnesses === 'number') ? r.sight.witnesses : (r.sight ? r.sight.witnesses : null)
+      });
+    });
+    if (pending.length) _vaultMoveCommit(pending);
+    return { tasks: shown, groups: _vaultMoveGroup(shown), locks: _vaultMoveLocks(rec.records), records: rec.records };
+  }
+  function _vaultMovePaint(){
+    if (window._movePaintBusy) return null;
+    window._movePaintBusy = true;
+    try {
+      var built = _vaultMoveCollect();
+      window._moveModel = built;
+      var host = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('vault-move-list') : null;
+      if (host) { host.hidden = false; host.innerHTML = _vaultMoveHtml(built); }
+      return built;
+    } finally { window._movePaintBusy = false; }
+  }
+  function _vaultMoveCellMarkHtml(cell){
+    var key = null;
+    if (typeof cell === 'string' && cell) key = cell;
+    else if (typeof _vaultCellKey === 'function') key = _vaultCellKey(cell);
+    if (!key) return ''; /* v3769 cell mark */
+    var mm = String(key).match(/c(\d+)r(\d+)/);
+    if (!mm) return '';
+    var x = +mm[1], y = +mm[2];
+    var loc = String(key).split(':')[0];
+    var gw = 10, gh = (loc === 'inventory' || loc === 'inv') ? 4 : 10;
+    var cells = '';
+    for (var i = 0; i < gw * gh; i++) {
+      var cx = i % gw, cy = Math.floor(i / gw);
+      cells += '<i' + (cx === x && cy === y ? ' class="on"' : '') + '></i>';
+    }
+    return '<span class="tvd-frame-mark-say">cell ' + esc(key) + '</span><span class="tvd-frame-grid" data-cell="' + esc(key) + '" style="grid-template-columns:repeat(' + gw + ',8px)">' + cells + '</span>';
+  }
+  function _vaultFrameMeta(title, src, cell){
+    var meta = { title: title || '' };
+    if (src) meta.src = src;
+    var key = null;
+    try { key = (typeof _vaultCellKey === 'function') ? _vaultCellKey(cell) : (typeof cell === 'string' ? cell : null); } catch (e) { key = null; }
+    if (key) meta.cell = key; /* v3769 frame cell */
+    return meta;
+  }
+  try { window._vaultMoveHome = _vaultMoveHome; } catch (eH) {}
+  try { window._vaultMoveEnsure = _vaultMoveEnsure; } catch (eE) {}
+  try { window._vaultMoveCommit = _vaultMoveCommit; } catch (eC) {}
+  try { window._vaultMoveApplySight = _vaultMoveApplySight; } catch (eA) {}
+  try { window._vaultMoveMark = _vaultMoveMark; } catch (eM) {}
+  try { window._vaultMoveAddNamed = _vaultMoveAddNamed; } catch (eN) {}
+  try { window._vaultMoveAddOpen = _vaultMoveAddOpen; } catch (eO) {}
+  try { window._vaultMoveShown = _vaultMoveShown; } catch (eS) {}
+  try { window._vaultMoveGroup = _vaultMoveGroup; } catch (eG) {}
+  try { window._vaultMoveHtml = _vaultMoveHtml; } catch (eHtml) {}
+  try { window._vaultMovePaint = _vaultMovePaint; } catch (ePaint) {}
+  try { window._vaultMoveCellMarkHtml = _vaultMoveCellMarkHtml; } catch (eMk) {}
+  try { window._vaultFrameMeta = _vaultFrameMeta; } catch (eFm) {}
+
   function _vaultPresenceSpan(name, have){
     /* A presence set piece is one item at one location. Re-reads climbed copies[] (Natalya x4,
        Tal Rasha Guardianship x4, Immortal King Soul Cage x3) without a second item. An explicit
@@ -48979,6 +49441,7 @@ window.vaultAutoAssign = function(){
       watching: spec.watching === true, /* v3767 record watching */
       locked: spec.locked === true /* v3767 record locked */
     };
+    row.move = (spec.move && typeof spec.move === 'object' && !Array.isArray(spec.move)) ? spec.move : null; /* v3769 record move */
     if (spec.provUnknown) row.provUnknown = true;
     else row.prov = (spec.prov != null ? spec.prov : null);
     return row;
@@ -49001,6 +49464,13 @@ window.vaultAutoAssign = function(){
     }
     var prov = witness.prov || {};
     var provUnknown = !!witness.provUnknown;
+    var priorMove = {};
+    if (prior && Array.isArray(prior.records)) {
+      prior.records.forEach(function(r){
+        if (!r || r.name == null || !r.move || typeof r.move !== 'object') return;
+        priorMove[String(r.name) + '\u0000' + (r.copyIx || 0)] = r.move;
+      });
+    }
     var byName = {};
     (rec.records || []).forEach(function(r){ if (r && r.name != null) (byName[r.name] = byName[r.name] || []).push(r); });
     var outRecs = [];
@@ -49016,6 +49486,7 @@ window.vaultAutoAssign = function(){
           sight: (r.sight && typeof r.sight === 'object' && !Array.isArray(r.sight)) ? r.sight : null,
           watching: r.watching === true,
           locked: r.locked === true,
+          move: priorMove[String(r.name) + '\u0000' + (r.copyIx || 0)] || null, /* v3769 move carry */
           provUnknown: provUnknown, prov: prov[nm]
         })); /* v3767 record row */
       });
@@ -52153,6 +52624,7 @@ function renderJournal(){
     try { window.LSR.setItem('d2r_multiKeep', JSON.stringify(multiKeep)); } catch(e){}
     if (_ownedOk && _copiesOk) { try { if (typeof _vaultRecordsRefresh === 'function') _vaultRecordsRefresh(); } catch (eRec) {} }
   }
+  try { window.persistOwned = persistOwned; } catch (ePo) {} /* v3769 owned flush */
   // v323: a cooler scanning/loading UI — animated progress bar + sweeping scan-line + rotating
   // verb (reading→scanning→analyzing→matching) so it's visibly WORKING, not a static text line.
   function _scanUI(done, total, nw){
@@ -68235,7 +68707,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3767', name:'v3767 - vault-spread', date:'2026-10-18', note:'Elad 2026-10-18 13:18 IDT: duplicate copies sit next to the original on the same mule. This replaces rule E. The spread packs each category mule to 100 stash cells and 40 inventory cells and overflows a whole copy group together. One set piece is one record. Copies already in GRAIL-DUPES re-home through the records route. REG-2272 item 4 stays open. HEART: the same-mule law is the corroborator, watched by the v3767 gate. No new console surface.' };
+  window.D2R_BUILD = { id:'v3769', name:'v3769 - vault-move-list', date:'2026-10-18', note:'The vault paints a move list grouped by holder and stash. Each out-of-place item keeps a saved target cell from the packer, and a later witness at that cell verifies the row when AUTO INTAKE is on. A hand tally and a typed move work while it is off. REG-2291. HEART: the target-cell law and the verify law are the corroborators, watched by the v3769 gate.' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
@@ -72223,6 +72695,12 @@ window.tvStashAutoIntake = async function(tab, opts){
       };
       img.src = _chain[0];
       lb.hidden = false;
+      var mark = document.getElementById('tvd-frame-lb-mark');
+      if (mark) {
+        var _mh = (meta && typeof window._vaultMoveCellMarkHtml === 'function') ? window._vaultMoveCellMarkHtml(meta.cell) : '';
+        if (_mh) { mark.hidden = false; mark.innerHTML = _mh; }
+        else { mark.hidden = true; mark.innerHTML = ''; }
+      }
       lb.onclick = function(e){ if (e.target === lb) window._tvdCloseFrame(); };
     } catch(e){}
   };
@@ -72232,6 +72710,8 @@ window.tvStashAutoIntake = async function(tab, opts){
       var img = document.getElementById('tvd-frame-lb-img');
       if (lb) lb.hidden = true;
       if (img) { img.removeAttribute('src'); }
+      var mark = document.getElementById('tvd-frame-lb-mark');
+      if (mark) { mark.hidden = true; mark.innerHTML = ''; }
     } catch(e){}
   };
   try {
