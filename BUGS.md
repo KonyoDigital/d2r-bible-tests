@@ -7,6 +7,21 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2301 - MOVE TASKS WAS A WIDE WALL OF GRIDS IN THE LEFT COLUMN, NOT A CHECKLIST HE COULD TICK (Vault L1, provisional number, unversioned)
+
+Elad, 2026-10-20: MOVE TASKS becomes a right-side panel, a clean numbered checklist with one line per task
+("Arcanna's Sign · MANUAL → SETS-REST (3,1)"), Moves then Throw-outs, the done tasks collapsed at the bottom; each
+line has a tick box (his hand, or the reels with gone k/5) and a click opens BEFORE | AFTER. The left keeps add, find,
+the mules and the locked line, each with one plain line; the wordy headers go.
+FIXED on vault/l1-manual-routing (PR #247): `#vault-move-list` moved into `aside#vault-tasks` beside `.vault-main`
+(flex, 360px, sticky); `_vaultMoveHtml` paints `ol.vtk-list` lines (tick box, art, one say, gone k/5, Keep/Junk on
+throw-outs, a witness button on moves), an unseen sub-section with its screenshot hint, and `details.vtk-donebox`
+for moved/verified/closed rows; `_vaultTaskTick` is the tick; `_vaultMoveCollect` keeps closed rows for Done. The
+wide target grids now live only in BEFORE | AFTER. Guard test_vault_l1_tasks_panel, 14 RED proofs PROVEN
+(Wilson 14/14 = 0.785 vs 0.722). Existing guards re-pointed to the same properties: v3769/v3771 visuals read the
+duplicate-beside tiles from BEFORE | AFTER and the LOCKED line from Equipped (locked); the organizer guard now
+asserts a throw-out is not advised twice. The Unsorted Dock is UNCHANGED (Elad: "not move away yet").
+
 ### REG-2300 - A JUNK ROUTE SAT IN THE UNSORTED DOCK AS WORDY ADVICE, AND NO ROW EVER DRAINED BY ITSELF (Vault L1, provisional number, unversioned)
 
 Elad, 2026-10-20, at his live Vault: it is messy. Throw-out suggestions leave the Unsorted Dock and become THROW OUT rows in MOVE TASKS beside the moves, target NOWHERE, one plain reason, Keep / Junk inline; Keep turns the row into a move; the dock keeps only items with no route. Rows drain through the same sighting pipeline on direct proof only: 5 reel sessions whose frames SHOWED the first-witnessed cell without the item, a container never shown counts nothing, a re-sighting resets, progress reads "gone k/5"; a move seen at its target closes at once; a throw-out read on the ground after it left closes at once. A hand-added unruled set piece stays kept and routed (his earlier ruling).

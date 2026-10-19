@@ -368,7 +368,8 @@ def _png_beside(cdp, path):
 _STAMP_AND_CLIP = r"""(function(){
   try {
     var host = document.getElementById('vault-move-list');
-    [].forEach.call(document.querySelectorAll('#vault-move-list .vmv-grid'), function(grid){
+    if (window._vaultMoveCompareOpen) window._vaultMoveCompareOpen("Griffon's Eye", 0); /* L1: the target grid lives in BEFORE | AFTER */
+  [].forEach.call(document.querySelectorAll('#vault-move-compare .vmc-after .vmc-wrap'), function(grid){
       var n = grid.querySelectorAll('.vd-item').length;
       if (n >= 2 && !document.getElementById('v3771-beside')) grid.id = 'v3771-beside';
     });
@@ -405,11 +406,12 @@ _BESIDE = _wrap(r"""
   look(g, 'Mule', 'stash', 'stash:c1r1', 's1', 'f-a');
   look(g, 'Mule', 'stash', 'stash:c8r2', 's2', 'f-b');
   window.renderVault();
-  [].forEach.call(document.querySelectorAll('#vault-move-list .vmv-grid'), function(grid){
+  if (window._vaultMoveCompareOpen) window._vaultMoveCompareOpen("Griffon's Eye", 0); /* L1: the target grid lives in BEFORE | AFTER */
+  [].forEach.call(document.querySelectorAll('#vault-move-compare .vmc-after .vmc-wrap'), function(grid){
     var n = grid.querySelectorAll('.vd-item').length;
     if (n >= 2 && !document.getElementById('v3771-beside')) grid.id = 'v3771-beside';
   });
-  var tiles = [].map.call(document.querySelectorAll('#vault-move-list .vd-item'), function(el){
+  var tiles = [].map.call(document.querySelectorAll('#vault-move-compare .vmc-after .vd-item'), function(el){
     var img = el.querySelector('img');
     return { n: (el.getAttribute('title') || '').split(' (')[0], x: +el.getAttribute('data-x'),
              y: +el.getAttribute('data-y'), w: +el.getAttribute('data-w'), h: +el.getAttribute('data-h'),
@@ -419,7 +421,7 @@ _BESIDE = _wrap(r"""
 """)
 
 _ART_READY = r"""(function(){
-  var imgs = document.querySelectorAll('#vault-move-list .vd-item img');
+  var imgs = document.querySelectorAll('#vault-move-compare .vmc-after .vd-item img');
   if (imgs.length < 2) return false;
   for (var i = 0; i < imgs.length; i++) if (!imgs[i].complete || imgs[i].naturalWidth < 1) return false;
   return true;
@@ -466,8 +468,8 @@ _FACE = _wrap(r"""
     return (getComputedStyle(el).fontFamily || '');
   }
   return { intake: face('#vault-auto-intake'),
-           mark: face('#vault-move-list .vmv-mark'),
-           chip: face('#vault-move-list .vmv-chip'),
+           mark: face('#vault-move-list .vtk-sec'), /* L1 checklist: the section heads wear the console face */
+           chip: face('#vault-move-list .vault-move-k'),
            gh: face('#vault-move-list .vmv-gh'),
            dock: face('.vdb-label'),
            manual: !!document.getElementById('vault-move-q') || !!document.querySelector('[onclick*="_vaultMoveAddOpen"]') };
@@ -480,6 +482,7 @@ _INTAKE = _wrap(r"""
 
 _COVER_AT = _wrap(r"""
   var mode = %s;
+  if (window._vaultMoveCompareClose) window._vaultMoveCompareClose(); /* L1: the BEFORE | AFTER card an earlier step opened */
   var list = document.getElementById('vault-move-list');
   if (!list) return { covered: true, why: 'no list', samples: 0, visible: 0, painted: ['missing'], hits: [] };
   if (mode === 'end') { try { list.scrollIntoView({block:'end', inline:'nearest'}); } catch (e1) {} }
@@ -501,7 +504,7 @@ _REOPEN = _wrap(r"""
   var name = %s;
   var g = document.querySelector('#vault-move-list .vmv-unseen');
   var tab = document.getElementById('tab-vault');
-  var griffon = [].map.call(document.querySelectorAll('#vault-move-list .vd-item'), function(el){
+  var griffon = [].map.call((window._vaultMoveCompareOpen && window._vaultMoveCompareOpen("Griffon's Eye", 0), document.querySelectorAll('#vault-move-compare .vmc-after .vd-item')), function(el){
     return (el.getAttribute('title') || '').split(' (')[0];
   }).filter(function(n){ return n.indexOf('Griffon') >= 0; });
   return { tab: !!(tab && tab.classList.contains('active')),

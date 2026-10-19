@@ -47,7 +47,7 @@ FNS = [
     "_vaultMoveApplySight", "_vaultMoveMark", "_vaultMoveNoteAdded",
     "_vaultMoveOnKeep", "_vaultMoveWorn", "_vaultMoveShown", "_vaultMoveStashSay", "_vaultMoveUnseen", "_vaultMoveGroup", "_vaultMoveLocks",
     "persistOwned",
-    "_vaultMoveCellSay", "_vaultMovePlaceSay", "_vaultMoveGridHtml", "_vaultMoveHtml",
+    "_vaultMoveCellSay", "_vaultMovePlaceSay", "_vaultMoveGridHtml", "_vaultMoveHtml", "_vaultMoveCompareModel", "_vaultMoveCompareHtml",
     "_vaultMoveCollect", "_vaultMovePaint", "_vaultMoveCellMarkHtml", "_vaultFrameMeta",
 ]
 
@@ -449,6 +449,7 @@ see("Griffon's Eye", [
 ], 1);
 var built = _vaultMoveCollect();
 var html = _vaultMoveHtml(built);
+var cmp = _vaultMoveCompareHtml("Griffon's Eye", 0); /* L1: the target grid is drawn in the row's BEFORE | AFTER view */
 var panel = window._vaultEvidenceHtml({
   has: true, name: "Griffon's Eye", who: 'hand', line: 'evidence',
   looks: [{ frame: 'a', cell: 'stash:c1r1' }, { frame: 'b', cell: 'stash:c1r1' }]

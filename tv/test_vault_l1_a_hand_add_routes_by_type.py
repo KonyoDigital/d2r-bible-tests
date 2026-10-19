@@ -264,7 +264,7 @@ class AHandAddRoutesByType(unittest.TestCase):
                         " var t = (e.textContent || '') + ' ' + (e.placeholder || '') + ' ' + (e.getAttribute('aria-label') || '') + ' ' + (e.getAttribute('onclick') || '') + ' ' + (e.getAttribute('oninput') || '');"
                         " return /add a move|type an item, or select one|_vaultMoveAdd/i.test(t); }).map(function(e){ return e.outerHTML.slice(0, 120); });"
                         "OUT.q = !!document.getElementById('vault-move-q'); OUT.fn = typeof window._vaultMoveAddNamed + typeof window._vaultMoveAddOpen;"
-                        "OUT.inList = document.querySelectorAll('#vault-move-list input').length;")
+                        "OUT.inList = document.querySelectorAll('#vault-move-list input:not([type=checkbox])').length;")
         self.assertEqual(o["n"], [], "an add-a-move control is on the page: %r" % o["n"])
         self.assertFalse(o["q"])
         self.assertEqual(o["fn"], "undefinedundefined")
@@ -274,7 +274,7 @@ class AHandAddRoutesByType(unittest.TestCase):
         fresh()
         add_all(["Arcanna's Sign", "Insight"])
         o = board().run(READ + "try { switchTab('vault'); } catch (e) {} await new Promise(function(r){ setTimeout(r, 500); });"
-                        "var i = document.getElementById('vault-find-input'); i.value = 'arcan'; i.dispatchEvent(new Event('input', { bubbles: true }));"
+                        "var i = document.getElementById('vault-find-input'); i.value = 'arcan'; i.dispatchEvent(new Event('input', { bubbles: true })); await new Promise(function(r){ setTimeout(r, 900); });"
                         "var res = document.getElementById('vault-find-results'); OUT.hidden = res.hidden; OUT.text = res.textContent;"
                         "OUT.to = moveOf(\"Arcanna's Sign (amulet)\").map(function(m){ return m.to.cell; });")
         self.assertFalse(o["hidden"], "typing in FIND ON A MULE showed nothing")
@@ -353,8 +353,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "The list says Nothing is out of place while a hand add has no target.",
      "file": "bible.html",
-     "find": "if (!groups.length) return head + thrHtml + (unr.length ? unrHtml : (throws.length ? '' : '<p class=\"vmv-empty\">Nothing is out of place.</p>'));",
-     "replace": "if (!groups.length) return head + thrHtml + '<p class=\"vmv-empty\">Nothing is out of place.</p>';",
+     "find": "    if (!moves.length && !throws.length && !unr.length) html += '<p class=\"vmv-empty\">Nothing is out of place.</p>';",
+     "replace": "    if (!moves.length && !throws.length) html = head + '<p class=\"vmv-empty\">Nothing is out of place.</p>';",
      "matches": 1},
     {"why": "The hand door no longer tries the alias, so Stone of Jordan is refused.",
      "file": "bible.html",
@@ -443,8 +443,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "Clicking a row opens the evidence panel, not BEFORE | AFTER.",
      "file": "bible.html",
-     "find": "          + ' onclick=\"' + esc(compare) + '\">'",
-     "replace": "          + ' onclick=\"' + esc(opener) + '\">'",
+     "find": "        + ' onclick=\"window._vaultMoveCompareOpen(\\'' + nm + '\\',' + ci + ')\">'",
+     "replace": "        + ' onclick=\"window._vaultEvidenceOpen(\\'' + nm + '\\')\">'",
      "matches": 1},
     {"why": "BEFORE of a seen row stays the MANUAL badge.",
      "file": "bible.html",
@@ -463,8 +463,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "Close leaves the view up.",
      "file": "bible.html",
-     "find": "    if (host){ host.hidden = true; host.innerHTML = ''; }\n  }\n  function _vaultMoveHtml",
-     "replace": "    void host;\n  }\n  function _vaultMoveHtml",
+     "find": "    if (host){ host.hidden = true; host.innerHTML = ''; }\n  }\n  /* L1 (Elad 2026-10-20) \u2014 MOVE TASKS is a clean",
+     "replace": "    void host;\n  }\n  /* L1 (Elad 2026-10-20) \u2014 MOVE TASKS is a clean",
      "matches": 1},
 ]
 
