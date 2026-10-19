@@ -440,16 +440,30 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
         self.assertIsNone(entry, "a gate that opens bible.html carried the edit: %s" % why)
 
     def test_the_runner_file_is_not_an_input_of_every_gate(self):
-        root, led, gate = self._law()
-        with io.open(os.path.join(root, "tv", "run_gates.py"), "w", encoding="utf-8") as fh:
+        root, led, _gate_py = self._law(extra={"namer.py": "PATH = 'run_gates.py'\n"})
+        tv = os.path.join(root, "tv")
+        with io.open(os.path.join(tv, "t_carry.py"), "w", encoding="utf-8") as fh:
+            fh.write("import namer\nimport sys\nsys.exit(0)\n")
+        with io.open(os.path.join(tv, "run_gates.py"), "w", encoding="utf-8") as fh:
             fh.write("GATES = []\n")
         _git(root, "add", "-A")
-        _git(root, "commit", "-q", "-m", "add a runner")
+        _git(root, "commit", "-q", "-m", "name the runner")
+        gate = _gate(root, "t_carry.py")
         self.assertTrue(_open(led).record(gate, True), "PREMISE: the PASS was not stored")
-        with io.open(os.path.join(root, "tv", "run_gates.py"), "a", encoding="utf-8") as fh:
+        with io.open(os.path.join(tv, "run_gates.py"), "a", encoding="utf-8") as fh:
             fh.write("GATES.append(1)\n")
         entry, why = _open(led).lookup(gate)
         self.assertIsNotNone(entry, why)
+        with io.open(os.path.join(tv, "t_carry.py"), "w", encoding="utf-8") as fh:
+            fh.write("import namer\nimport run_gates\nimport sys\nsys.exit(0)\n")
+        _git(root, "add", "-A")
+        _git(root, "commit", "-q", "-m", "the gate imports the runner")
+        reader = _gate(root, "t_carry.py")
+        self.assertTrue(_open(led).record(reader, True), "PREMISE: the importer was not stored")
+        with io.open(os.path.join(tv, "run_gates.py"), "a", encoding="utf-8") as fh:
+            fh.write("GATES.append(2)\n")
+        entry, why = _open(led).lookup(reader)
+        self.assertIsNone(entry, "a gate that imports the runner carried the edit: %s" % why)
 
     def test_a_declared_glob_matches_a_new_file(self):
         self.assertTrue(GL._watched("tv/brand_new.py", ("tv/*.py",)))
@@ -848,8 +862,8 @@ RED_PROOF = [
     {
         "why": "the whole runner is an input of every gate, so editing it reruns them all",
         "file": "gate_ledger.py",
-        "find": "        for extra in (\"gate_ledger.py\",):  # LEDGER-NO-RUNNER\n",
-        "replace": "        for extra in (\"gate_ledger.py\", \"run_gates.py\"):  # LEDGER-NO-RUNNER\n",
+        "find": "        if not _script_reads_runner(script):  # LEDGER-NO-RUNNER\n",
+        "replace": "        if False:  # LEDGER-NO-RUNNER\n",
         "matches": 1,
     },
     {
