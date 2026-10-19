@@ -25,6 +25,7 @@ os._exit and a kill keep what was already seen. gate_ledger.read_trace() turns t
 set, and a gate with any U line, or with no B line for a child it started, is never carried.
 After installing the hook, the next `sitecustomize` on sys.path (the system's own) still runs.
 """
+import _thread
 import os
 import sys
 
@@ -44,7 +45,10 @@ def _boot():
         if cand not in roots:
             roots.append(cand)
     here = os.path.dirname(os.path.abspath(__file__))
-    state = {"pid": os.getpid(), "busy": False, "n": 0}
+    state = {"pid": os.getpid(), "n": 0}
+    # one guard PER THREAD: emit() drops the GIL in os.write, so a process-wide flag skipped
+    # every read another thread made meanwhile
+    local = _thread._local()  # LEDGER-TRACE-THREAD
     seen = set()
     write = os.write
     getcwd = os.getcwd
@@ -186,10 +190,13 @@ def _boot():
             return
         emit("U", "started %s" % (head or "a process"))
 
+    def busy():
+        return getattr(local, "busy", False)
+
     def hook(event, args):
-        if state["busy"]:
+        if busy():
             return
-        state["busy"] = True
+        local.busy = True
         try:
             if event == "open":
                 path = args[0]
@@ -244,11 +251,11 @@ def _boot():
         except Exception:
             emit("U", "the trace hook raised")
         finally:
-            state["busy"] = False
+            local.busy = False
 
     def stat_wrap(real):
         def wrapped(path, *a, **k):
-            if state["busy"] or k.get("dir_fd") is not None:
+            if busy() or k.get("dir_fd") is not None:
                 return real(path, *a, **k)
             try:
                 out_stat = real(path, *a, **k)
@@ -260,8 +267,29 @@ def _boot():
         wrapped.__wrapped__ = real
         return wrapped
 
+    def probe_wrap(real):
+        """os.access, os.readlink, os.path.realpath: each one asks whether a path is there."""
+        def wrapped(path, *a, **k):
+            if busy() or k.get("dir_fd") is not None:
+                return real(path, *a, **k)
+            try:
+                out_probe = real(path, *a, **k)
+            except FileNotFoundError:
+                note(path, "A")
+                raise
+            except OSError:
+                note(path, "S")
+                raise
+            if out_probe is False:
+                note(path, "A")  # LEDGER-TRACE-ACCESS
+            else:
+                note(path, "S")
+            return out_probe
+        wrapped.__wrapped__ = real
+        return wrapped
+
     def note(path, kind):
-        state["busy"] = True
+        local.busy = True
         try:
             r = rel(path)
             if r is not None:
@@ -269,7 +297,7 @@ def _boot():
         except Exception:
             pass
         finally:
-            state["busy"] = False
+            local.busy = False
 
     def after_fork():
         parent = state["pid"]
@@ -280,6 +308,9 @@ def _boot():
     emit("B", "%d" % os.getppid())
     os.stat = stat_wrap(os.stat)
     os.lstat = stat_wrap(os.lstat)
+    os.access = probe_wrap(os.access)
+    os.readlink = probe_wrap(os.readlink)
+    os.path.realpath = probe_wrap(os.path.realpath)  # LEDGER-TRACE-PROBE
     if hasattr(os, "register_at_fork"):
         os.register_at_fork(after_in_child=after_fork)
     sys.addaudithook(hook)
