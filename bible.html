@@ -10482,11 +10482,12 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .vault-tasks-panel .vmv-grid,.vault-tasks-panel .vault-move-sub{display:none}
 .vtk-sec{font-family:var(--serif-display,serif);margin:8px 0 4px;font-size:var(--fs-micro);letter-spacing:var(--ls-wide);text-transform:uppercase;color:var(--gold-bright,#f0c060)}
 .vtk-list{list-style:none;margin:0;padding:0;counter-reset:vtk}
-.vault-tasks-panel .vtk-line{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;padding:3px 4px;margin:0;border-radius:6px;border:0;background:none;box-shadow:none;cursor:pointer;font-size:var(--fs-meta);counter-increment:vtk;grid-template-columns:none}
+.vault-tasks-panel li.vtk-line.vmv-row{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;padding:3px 4px;margin:0;border-radius:6px;border:0;background:none;box-shadow:none;cursor:pointer;font-size:var(--fs-meta);counter-increment:vtk;grid-template-columns:none}
 .vault-tasks-panel .vtk-line .vmv-reason{flex:0 1 90px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-micro)}
 .vault-tasks-panel .vtk-line .vault-btn{flex:0 0 auto;padding:0 6px;min-height:0;line-height:1.6;font-size:var(--fs-micro)}
 .vault-tasks-panel .vtk-line .vmv-gone{flex:0 0 auto;white-space:nowrap;font-size:var(--fs-micro)}
-.vault-tasks-panel .vmv-unseen{border:1px dashed rgba(240,192,96,.4);border-radius:8px;padding:4px 6px;margin:4px 0}
+.vault-tasks-panel .vtk-line + .vtk-line{border-top:1px solid rgba(212,168,71,.12)!important}
+.vault-tasks-panel section.vmv-unseen{border:1px dashed rgba(240,192,96,.4);border-radius:8px;padding:4px 6px;margin:4px 0}
 .vtk-line::before{content:counter(vtk) ".";flex:0 0 auto;min-width:1.6em;text-align:right;color:var(--text-dim)}
 .vtk-line:hover{background:rgba(240,192,96,.08)}
 .vtk-tick{flex:0 0 auto;margin:0;cursor:pointer}
@@ -49357,11 +49358,11 @@ window.vaultAutoAssign = function(){
         + '<input type="checkbox" class="vtk-tick" aria-label="mark moved"' + (fin ? ' checked disabled' : '')
         + ' onclick="event.stopPropagation();window._vaultTaskTick(\'' + nm + '\',' + ci + ')">'
         + '<span class="vmv-art vtk-art">' + (typeof art === 'function' ? art(row.name) : '') + '</span>'
-        + '<span class="vtk-say" title="' + esc(say + (thr && t.reason ? ' — ' + t.reason : '')) + '">' + esc(row.name) + ' · '
+        + '<span class="vtk-say" title="' + esc(say + (thr && t.reason ? ' — ' + t.reason : '')) + '"' + ((thr && t.reason) ? ' data-reason="' + esc(t.reason) + '"' : '') + '>' + esc(row.name) + ' · '
         + (manual ? '<b class="vmv-manual-badge">MANUAL</b>' : esc(_vtkPlace(t.from, false))) + ' → ' + (thr ? '<b class="vmv-nowhere">NOWHERE</b>' : esc(_vtkPlace(t.to, false))) + '</span>'
-        + ((thr && t.reason) ? '<span class="vmv-reason">' + esc(t.reason) + '</span>' : '')
+
         + (gs ? '<b class="vmv-gone">' + esc(gs) + '</b>' : '')
-        + (thr ? '' : '<button type="button" class="vault-btn vmv-wit" title="the pictures it was read on" onclick="event.stopPropagation();window._vaultEvidenceOpen(\'' + nm + '\')">' + esc(row.witnesses == null ? 'not seen yet' : (row.witnesses + ' witness' + (row.witnesses === 1 ? '' : 'es'))) + '</button>')
+        + (thr ? '' : '<button type="button" class="vault-btn vmv-wit" title="' + esc(row.witnesses == null ? 'not seen yet' : (row.witnesses + ' witness' + (row.witnesses === 1 ? '' : 'es'))) + ' · the pictures it was read on" onclick="event.stopPropagation();window._vaultEvidenceOpen(\'' + nm + '\')">' + (row.witnesses == null ? '👁 0' : '👁 ' + row.witnesses) + '</button>')
         + ((thr && !fin && !t.junk) ? '<button type="button" class="vault-btn vmv-keep" title="keep it instead" onclick="event.stopPropagation();window._vaultThrowKeep(\'' + nm + '\',' + ci + ')">Keep</button>' : '')
         + ((thr && !fin && !t.junk) ? '<button type="button" class="vault-btn vmv-junk" title="yes, it is junk" onclick="event.stopPropagation();window._vaultThrowJunk(\'' + nm + '\',' + ci + ')">Junk</button>' : '')
         + (t.junk ? '<span class="vmv-chip" data-status="junk">JUNK</span>' : '')
