@@ -13,6 +13,7 @@ import io
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -904,6 +905,25 @@ class TheProofRemembersWhatTheGateRead(unittest.TestCase):
         self.assertFalse(_prove(book, _gate(root, "t_ls.py")), "PREMISE: a listing law was stored")
         self.assertIn("lists a directory", book.last_why or "", "a dropped PASS gave no reason")
 
+    def test_the_pre_push_hook_traces_the_suites_it_records(self):
+        """r6: the hook's --record had no trace, so it could never store; now it arms one and hands it over."""
+        out = tempfile.mkdtemp(prefix="gl-hook.")
+        self.addCleanup(shutil.rmtree, out, True)
+        trace = os.path.join(out, "t.tsv")
+        buf = io.StringIO()
+        import contextlib
+        with contextlib.redirect_stdout(buf):
+            self.assertEqual(GL.main(["gate_ledger.py", "--trace-env", trace]), 0)
+        proc = subprocess.run(["bash", "-c", buf.getvalue() + "\n" + shlex.quote(sys.executable) + " -c 'print(1)'"],
+                              capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        facts, why = GL.read_trace(trace)
+        self.assertIsNone(why, "the exports the hook evals do not arm the trace")
+        with io.open(os.path.join(os.path.dirname(HERE), "hooks", "pre-push"), encoding="utf-8") as fh:
+            hook = fh.read()
+        for suite in ("test_agent", "test_control"):
+            self.assertIn('gate_ledger.py" --record %s --trace "$_tr"' % suite, hook)
+
     def test_a_pass_proved_on_a_dirty_tree_is_not_stored_under_head(self):
         root, led = self._tree({"t_mod.py": "import sys, helper_gl\nsys.exit(0 if helper_gl.OK else 1)\n",
                                 "helper_gl.py": "OK = False\n"})
@@ -1712,6 +1732,13 @@ RED_PROOF = [
         "file": "gate_ledger.py",
         "find": "                self.last_why = why or \"its inputs are UNKNOWN\"  # LEDGER-SAY-WHY\n",
         "replace": "                pass  # LEDGER-SAY-WHY\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2293 r6: the hook's --trace-env arms nothing, so its --record can never store",
+        "file": "gate_ledger.py",
+        "find": "                print(\"export %s=%s\" % (key, shlex.quote(armed[key])))  # LEDGER-HOOK-TRACE\n",
+        "replace": "                pass  # LEDGER-HOOK-TRACE\n",
         "matches": 1,
     },
 ]
