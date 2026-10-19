@@ -10927,17 +10927,18 @@ def run(only=None, live_watch=True, live_writer=None, ledger=None):
             # Only unittest suites get -v. A non-suite gate (js_syntax_gate, render_check)
             # would either ignore it or, worse, read it as its own flag.
             _argv = gate_argv(g)
-            _env = law_env(g.needs_app)
+            _env = None  # law_env's base: os.environ, or the traced copy of it
             _trace = None
             if led is not None:  # LEDGER-TRACE-RUN — what this run reads is what a later carry is checked against
                 try:
                     _trace = _GL.trace_path()
-                    _env = _GL.trace_env(_env, led._root_of([g]), _trace)
+                    _env = _GL.trace_env(os.environ, led._root_of([g]), _trace)
                 except Exception:
                     _trace = None
+                    _env = None
             p = subprocess.run(_argv, cwd=g.cwd, capture_output=True, text=True,
                                encoding="utf-8", errors="replace", timeout=g.timeout,
-                               env=_env)
+                               env=law_env(g.needs_app, _env))
             dt = time.time() - t0
             # A GATE DECLARES ITS SKIP REASON ON STDOUT. Reading `stdout + stderr` let ANYTHING on
             # stderr — a SyntaxWarning, an atexit flush, a traceback tail — become the gate's

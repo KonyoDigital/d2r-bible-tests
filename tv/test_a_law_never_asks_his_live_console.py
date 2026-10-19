@@ -11,7 +11,7 @@ a free port nobody listens on (what CI sees), unless the gate NEEDS his console 
 
   · DRIVEN: law_env's four answers (default, needs_app, a chosen port, an inherited 17772).
   · DRIVEN: heart2's sandbox runner hands a law the dead port - a planted law that refuses 17772 passes.
-  · COMPILER: run_gates launches every gate with env=law_env(g.needs_app).
+  · COMPILER: run_gates launches every gate with env=law_env(g.needs_app, _env).
 RED_PROOF below. [[test-venue]] [[the-unjoined-end]]
 """
 import ast
@@ -135,7 +135,7 @@ class TheLaneStampKeepsTheReservedPort(unittest.TestCase):
 RED_PROOF = [
     {"why": "REG-1729 - run_gates launches every gate on the inherited env again: a law reaches :17772",
      "file": "run_gates.py",
-     "find": "                               env=law_env(g.needs_app))\n",
+     "find": "                               env=law_env(g.needs_app, _env))\n",
      "replace": "                               env=None)\n",
      "matches": 1},
     {"why": "REG-1729 - heart2's sandbox runs a law on the inherited env again",
