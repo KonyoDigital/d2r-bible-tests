@@ -186,6 +186,13 @@ _LISTING_OK = {
 }
 
 
+# Gitignored caches whose body is used only under a key built from mtimes the trace already
+# records (frame_authority's (path, size, mtime) stamp over its globs, chronicle_routes'
+# _source_key over listdir + getmtime). test_cold_caches_invalidate proves a stale key and a
+# poisoned body are both ignored, so reading one is not state a diff cannot see.
+_KEYED_CACHES = frozenset(("tv/.fixture_reels_cache.json", "tv/.chronicle_routes_cache.json"))  # LEDGER-KEYED-CACHE
+
+
 def _doc_nodes(tree):
     nodes = set()
 
@@ -1979,7 +1986,7 @@ class Ledger(object):
             if path in tracked or path in dirs:
                 inputs.add(path)
                 continue
-            if path in made:
+            if path in made or path in _KEYED_CACHES:
                 continue
             full = os.path.join(root, path)
             if not os.path.lexists(full):
