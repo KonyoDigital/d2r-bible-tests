@@ -84,6 +84,10 @@ WATCHES = {
     # ABSENT row nobody could act on. This entry was missing entirely in v3092 and
     # `test_the_doctor_says_what_it_watches` was RED on the tree for six versions.
     "read_lanes_at_cap": (),
+    # v3773 — click-to-paint on the board. The number is the page's own sample,
+    # read from the ui beat. It renders on the vault because that is the room
+    # whose paint froze the console. A beat that has not arrived is UNKNOWN.
+    "inputLatency":    ("vault",),
     # selfArming is DERIVED — see the note above. It must not be listed here.
 }
 
@@ -1674,7 +1678,52 @@ def check_sweep_meter():
                 evidence=ev, k=_atkK, n=_atkN)
 
 
+def check_input_latency():
+    """The last click-to-paint sample on the board.
+
+    No beat is UNKNOWN. A missing p95 is not 0. A number over the v3769
+    budget is WARN. A long task the observer has not seen stays absent and
+    does not read as a zero-length task.
+    """
+    try:
+        import input_latency as IL
+    except Exception as e:
+        return _row("inputLatency", UNKNOWN, "input latency could not be loaded - %s" % e)
+    sample = IL.read()
+    if not isinstance(sample, dict):
+        return _row("inputLatency", UNKNOWN, "has not reported an input latency yet")
+    p95, mx, n = sample.get("p95"), sample.get("maxLongtask"), sample.get("n")
+    ev = ["p50=%s" % sample.get("p50"), "p95=%s" % p95,
+          "maxLongtask=%s" % mx, "n=%s" % n]
+    if IL.P95_BUDGET_MS is None or IL.LONGTASK_BUDGET_MS is None:
+        return _row("inputLatency", UNKNOWN,
+                    "the v3769 latency budget has not been entered", evidence=ev)
+    if not isinstance(p95, (int, float)) or isinstance(p95, bool):
+        if isinstance(mx, (int, float)) and not isinstance(mx, bool) and mx > IL.LONGTASK_BUDGET_MS:
+            return _row("inputLatency", WARN,
+                        "longest task %.0f ms is over the v3769 budget of %.0f ms, and no click has been sampled"
+                        % (mx, IL.LONGTASK_BUDGET_MS), evidence=ev)
+        return _row("inputLatency", UNKNOWN, "has not reported an input latency yet", evidence=ev)
+    over = []
+    if p95 > IL.P95_BUDGET_MS:
+        over.append("p95 %.0f ms over %.0f" % (p95, IL.P95_BUDGET_MS))
+    if isinstance(mx, (int, float)) and not isinstance(mx, bool) and mx > IL.LONGTASK_BUDGET_MS:
+        over.append("longest task %.0f ms over %.0f" % (mx, IL.LONGTASK_BUDGET_MS))
+    if over:
+        return _row("inputLatency", WARN,
+                    "input latency is over the v3769 budget - " + "; ".join(over),
+                    evidence=ev)
+    if mx is None:
+        line = ("click-to-paint p95 %.0f ms (n=%s), no long task reported, inside the v3769 budget"
+                % (p95, n))
+    else:
+        line = ("click-to-paint p95 %.0f ms, longest task %.0f ms, inside the v3769 budget"
+                % (p95, mx))
+    return _row("inputLatency", OK, line, evidence=ev)
+
+
 CHECKS = [check_lanes, check_read_lanes_at_cap, check_armed_migrations, check_board_join, check_orphans,
+          check_input_latency,
           check_shelf_witnesses,
           check_shadow_watch, check_readers_agree, check_self_arming,
           check_lane_liveness, check_lane_attacks, check_vault_receipts,

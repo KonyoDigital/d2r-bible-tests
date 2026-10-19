@@ -9816,7 +9816,7 @@ GATES = [
          needs_app=False,
          why=("v3769 - the vault paints a move list grouped by holder and stash. Each out-of-place "
              "copy keeps a saved target cell from the packer. A later witness at that cell verifies "
-             "the row only while AUTO INTAKE is on. A hand tally and a typed move work while it is off. "
+             "the row only while AUTO INTAKE is on. Add an item writes the move row while it is off. "
              "Sets, uniques, runewords, charms and bases go through the writer. Distinct attacks, "
              "Wilson against the vault.apply bar. The screen is a separate gate.")
          ),
@@ -9846,6 +9846,32 @@ GATES = [
              "at the landing scroll, the bottom, and the middle, with the dock at opacity 0. "
              "No browser is a declared skip."),
          skip_ok=(r"no Chrome/Chromium on this machine",)),
+    Gate("test_input_stays_responsive", [sys.executable,
+         os.path.join(HERE, "test_input_stays_responsive.py")], 300,
+         needs_app=False,
+         why=("v3773 - a tab switch and a vault repaint cost at most 20 getComputedStyle calls and "
+             "20 whole-document walks (v3771: 28,480-39,402 per vault switch; the fix: 0), counted "
+             "in Chrome and in node on a 5,000-element fake page, so box load cannot move it. A "
+             "comment- and regex-aware parser refuses any function that walks the document and "
+             "reads computed style. Every main tab's control and search take the click, and the "
+             "TV-D theatre is closed through window._tvdTheatre.close() and checked with "
+             "elementFromPoint. A hand add reads MANUAL -> target cell with AUTO INTAKE off. Click "
+             "p95 is a report only. No browser is a declared skip."),
+         skip_ok=(r"no Chrome/Chromium on this machine",)),
+    Gate("test_d2jsp_cards_stay_cheap", [sys.executable,
+         os.path.join(HERE, "test_d2jsp_cards_stay_cheap.py")], 420,
+         needs_app=False,
+         why=("v3773 (spec D1) - the console window is WebKitGTK, which paints CSS filter and "
+             "drop-shadow in software: v3771 held the main thread 93-98% on a 228-card D2JSP list "
+             "and grew the web process past 3 GB. D2JSP card art has no filter (a baked gradient "
+             "glow instead) and each card is content-visibility:auto with an intrinsic size. A "
+             "reading repaints its own card, Options repaints no card and the desk builds its "
+             "builder list once per query (node). Chrome counts filtered art outside a contained "
+             "card in D2JSP, Vault and Runewords (budget 24). WebKitGTK opens D2JSP with 228 "
+             "synthetic filings, refreshes prices and opens Options twice under a 3 GB kill guard: "
+             "at most 40% blocked per phase after idle and 1 GB growth over idle. No Chrome or no WebKitGTK "
+             "is a declared skip."),
+         skip_ok=(r"no Chrome/Chromium on this machine", r"no WebKitGTK \(gi WebKit2 \+ xvfb-run\) on this machine")),
     Gate("test_the_render_hook_finds_a_browser_on_linux", [sys.executable,
          os.path.join(HERE, "test_the_render_hook_finds_a_browser_on_linux.py")], 30,
          needs_app=False,

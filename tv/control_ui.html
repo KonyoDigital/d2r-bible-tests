@@ -1576,6 +1576,7 @@
   /* v768 — the [hidden] attr must actually hide it: author display:flex above was overriding the
      UA [hidden]{display:none}, so the theatre permanently covered the stage (site had this guard). */
   .theatre[hidden] { display: none !important; }
+  body:not(.theatre-open) #theatre { pointer-events: none !important; }
   .th-film { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
     background: #000; transition: right 200ms ease; }
   #theatre.card-open .th-film { right: min(280px, 30%); width: auto; }   /* the inset is the drawer's own width, so the frame is beside the panel, not under it */
@@ -7783,6 +7784,13 @@
     letter-spacing: var(--ls-label);
   }
   .page-newer[hidden] { display: none !important; }
+  input:focus, textarea:focus, select:focus,
+  input:focus-visible, textarea:focus-visible, select:focus-visible {
+    outline: 2px solid var(--gold, #f0c060);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 3px rgba(240, 192, 96, .35), 0 0 14px rgba(240, 192, 96, .45);
+  }
+  button:active { transform: translateY(1px); filter: brightness(.94); }
 </style>
 </head>
 <style>
@@ -30716,6 +30724,17 @@ var TZ_INFO = {"Abaddon":[800,85,"act4-lava"],"Ancient Tunnels":[680,85,"act2-to
             docVer: (window.__DOC_VER__ || null),
             /* REG-2010 - seconds since his last pointer / key / wheel here; null = never touched since this page loaded */
             inputAgeS: (window.__lastInputTs ? Math.max(0, (Date.now() - window.__lastInputTs) / 1000) : null),
+            inputLatency: (function(){
+              var lat = window._inputLatency || null;
+              try {
+                var fr = document.getElementById('tvd-eng');
+                var w = fr && fr.contentWindow;
+                if (w && w._inputLatency) lat = w._inputLatency;
+              } catch (eLat) { lat = lat || null; }
+              if (!lat) return null;
+              return { p50: lat.p50 == null ? null : lat.p50, p95: lat.p95 == null ? null : lat.p95,
+                       maxLongtask: lat.maxLongtask == null ? null : lat.maxLongtask, n: lat.n == null ? null : lat.n };
+            })(),
             /* ⚠⚠ v2457 — THE HOLE IN THIS BEAT'S OWN PREMISE, WHICH IT STATES 15 LINES ABOVE:
                "a renderer that has wedged runs no timers, so it stops beating". Measured on his
                machine 2026-09-03 while he was looking at a black window: it beat the whole time.

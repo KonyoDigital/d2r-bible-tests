@@ -238,8 +238,8 @@ class TestV3771VaultConsoleFaceVisual(unittest.TestCase):
         self._shot(cdp, "#v3771-beside", "06-duplicate-beside.png")
 
         added = self._js(cdp, _TYPE % json.dumps(hq))
-        self.assertEqual(added.get("value"), hq, added)
-        self._click(cdp, "#vault-move-list .vmv-add button.vault-btn-primary")
+        self.assertTrue(added.get("shown"), added)
+        self.assertTrue(added.get("manual"), added)  # v3773 Elad: MANUAL -> target cell
         unseen = self._js(cdp, _UNSEEN % json.dumps(hq))
         self.assertTrue(unseen.get("group"), unseen)
         self.assertIn("Location not seen yet", unseen.get("text") or "", unseen)
@@ -249,9 +249,9 @@ class TestV3771VaultConsoleFaceVisual(unittest.TestCase):
         self._shot(cdp, "#vault-move-list .vmv-unseen", "05-unknown-location.png")
 
         face = self._js(cdp, _FACE)
-        for key in ("intake", "add", "mark", "chip", "gh"):
+        for key in ("intake", "mark", "chip", "gh"):
             self.assertIn("Cinzel", face.get(key) or "", face)
-        self.assertIn("Playfair Display", face.get("q") or "", face)
+        self.assertFalse(face.get("manual"), face)
         if face.get("dock"):
             self.assertIn("Cinzel", face["dock"], face)
 
@@ -426,12 +426,12 @@ _ART_READY = r"""(function(){
 })()"""
 
 _TYPE = _wrap(r"""
-  var q = document.getElementById('vault-move-q');
-  if (!q) return { value: null };
-  q.focus();
-  q.value = %s;
-  q.dispatchEvent(new Event('input', { bubbles: true }));
-  return { value: q.value };
+  var name = %s;
+  if (typeof window._vaultAutoIntakeSet === 'function') window._vaultAutoIntakeSet(false);
+  var added = (typeof window._vaultMoveNoteAdded === 'function') ? window._vaultMoveNoteAdded(name) : null;
+  window.renderVault();
+  return { shown: !!(added && added.shown), manual: !!(added && added.task && added.task.manual),
+           ok: !!(added && added.ok), why: added && added.why };
 """)
 
 _CLICK_BOX = r"""(function(){
@@ -466,12 +466,11 @@ _FACE = _wrap(r"""
     return (getComputedStyle(el).fontFamily || '');
   }
   return { intake: face('#vault-auto-intake'),
-           add: face('.vault-toolbar > button.vault-btn[onclick*="_vaultMoveAddOpen"]'),
            mark: face('#vault-move-list .vmv-mark'),
            chip: face('#vault-move-list .vmv-chip'),
            gh: face('#vault-move-list .vmv-gh'),
-           q: face('#vault-move-q'),
-           dock: face('.vdb-label') };
+           dock: face('.vdb-label'),
+           manual: !!document.getElementById('vault-move-q') || !!document.querySelector('[onclick*="_vaultMoveAddOpen"]') };
 """)
 
 _INTAKE = _wrap(r"""

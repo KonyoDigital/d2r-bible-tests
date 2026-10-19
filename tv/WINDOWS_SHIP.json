@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3772",
+  "ver": "v3773",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3772: A gate carries when the commit it was proved at is an ancestor of HEAD and git says none of its inputs moved. A callee that opens bible.html stays in that closure, so a gate that reaches the open is not carried. The v3771 status census and the non-blocking fetch are in the call graph and do not open bible.html. REG-2293. HEART: no new console surface. The carry law is watched by the gate-memory gate.",
+  "note": "v3773: a vault paint no longer walks the document, a lowered floater is restored, and add an item writes the move row",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -7,6 +7,35 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2294 - A VAULT PAINT WALKED THE WHOLE DOCUMENT, THE D2JSP LIST FROZE THE CONSOLE WINDOW, AND ADD A MOVE DID NOT ADD A ROW (v3773)
+
+Since v3771 (69817adf) clicks inside a tab took seconds. The top tab bar still switched. Two causes, one per engine.
+
+The first is in every browser. `_vaultRoomReadFloaters` ran `document.body.querySelectorAll('*')` plus `getComputedStyle` on every node, from every vault paint, from boot, and from the tab observer. Nodes hidden during the lower kept `z-index:20 !important` because the restore skipped `display:none`. The same build grew a typed ADD A MOVE control. An empty name returned quietly, a name with no target cell was filtered out, and there was no suggestion list. Elad's ruling: moves are not typed. AUTO INTAKE off means he adds an item and it reads MANUAL -> target cell. He ticks a row off by hand.
+
+The second is only in his console window, which is WebKitGTK (pywebview). It paints CSS `filter: drop-shadow` in software. Every one of 228 D2JSP cards carried a drop-shadow on its art. Every price reading, sold toggle and typed fg repainted all 228 cards, and every Options click repainted the list under the picker. In WebKitGTK v3771 held the main thread 91-96% of the time and grew the web process past 3 GB. The kill guard took it at 3.3-3.7 GB. Typing never reached an input because the main thread never came back. Chrome does not show it.
+
+1. The room sink names `#shortcut-hint` and `#control-dock`, caches them, and restores every element it lowered, including one hidden while lowered. It runs once per mode (on or off the Vault), which the code now says. A rewrite of the dock's inline z-index while the Vault stays open is not re-applied until the next tab change.
+2. D2JSP card art has no filter in the D2JSP room. The glow is baked as a radial gradient per rarity (`--d2glow`). Each card is `content-visibility:auto` with `contain-intrinsic-size:auto 230px`.
+3. `paintPrices(name)` repaints that card only: a finished reading, a sold toggle, a typed fg. A refresh starting or ending is one full pass.
+4. Options keeps the list. The picker host keeps its markup when it is unchanged and does not repaint the list. A filed pick repaints the list once. The D2JSP desk builds its 1,220-row builder list once per query (`_cbPickListHtml`). Other builder hosts build it fresh, as before.
+5. The move panel has no typed add-a-move control. `+ Add an item` writes a row with `manual: true`, and the FROM cell shows a MANUAL badge until a sighting fills the real cell. A row still needs a known target cell; with none, no row is painted. The d2r_vaultHand migration no longer writes a move row per migrated item.
+6. Focused inputs wear the gold outline, and it is `!important`, because `:is(#tab-funi,#tab-fsets) .tsrch-i{outline:0}` won over it on Sets and Uniques. The no-op `pointer-events` lines on hidden panels are gone. `body:not(.theatre-open) #theatre` stays. Click-to-paint is still published on the ui beat as `inputLatency`, and a missing number is UNKNOWN, not zero.
+
+WHY THE WATCHERS MISSED IT. The heart rows score lanes, receipts, shelf, orphans and shadow, not the main thread. The v3771 gate ran the lift on a handful of fake elements, so the scan was O(1). Every browser check here is Chrome, and Chrome paints filters on the GPU. The v3773 first cut judged wall-clock p95, which a loaded box moves, and its parser read one 3.8 MB "function" because it did not skip comments or regexes.
+
+MEASURED (box, 1440x900; v3771 then the fix).
+- Counts per action, Chrome: getComputedStyle per vault switch or `renderVault` 28,486-39,674 then 0. Whole-document walks 1 then 0. Every other tab 0 on both.
+- Chrome, 228 synthetic filings: filtered art outside a contained card in D2JSP 227 then 0. Vault 0 and Runewords 15 on both. Cards one reading touches 227 then 1. Cards an Options open touches 228 then 0.
+- WebKitGTK, D2JSP phases, console app mode, 228 synthetic filings, guarded at 3 GB: D2JSP open blocked 96% then 13%. The guard killed v3771 at 3.3-3.7 GB before the price refresh or Options ever reported. On the fix, refresh 7%, Options 13% and 11% (sync 25 ms then 9 ms on the cached second open), and the web process grew 122 MB over idle.
+- WebKitGTK per tab with his store copied to the box: see the PR body. The D2JSP rooms were the only ones over budget. Vault is about 18-21% blocked on both builds, with or without filters, so its cost is script, not paint.
+- Uniques and Sets still carry 567 and 142 filtered art nodes outside a contained card. They are under the WebKit budget (9-13% blocked), so they are reported, not changed.
+
+GUARDS, registered in tv/run_gates.py:
+- tv/test_input_stays_responsive.py has ten behaviour attacks, Wilson 0.7225 against the vault.apply bar 0.722. Counts, not clocks: at most 20 getComputedStyle calls and 20 whole-document walks per tab switch and per vault repaint, in node on a 5,000-element fake page and in Chrome. A comment- and regex-aware parser covers `doc.querySelectorAll('*')`, `getElementsByTagName('*')` and TreeWalker. The TV-D step closes bible's `#tvz-theatre` with `window._tvdTheatre.close()` and checks with elementFromPoint. The Chrome half goes RED on v3771 by itself. Click p95 is a report only.
+- tv/test_d2jsp_cards_stay_cheap.py has eleven behaviour attacks, Wilson 0.7412. CSS rules are read, not grepped. Node runs the one-card reading, Options and the desk list. Chrome counts filtered art and touched cards in D2JSP, Vault and Runewords. WebKitGTK runs under a 3 GB kill guard: at most 40% blocked per phase and 1 GB growth over idle. No Chrome or no WebKitGTK is a declared skip.
+
+LEFT: the Vault tab in WebKitGTK with his store copied to the box still takes about 2.1s from click to paint (v3771: 2.75s). Its switch is 888ms of script (v3771: 1,612ms) and it is 21% blocked, under budget, so it is reported here and not fixed by this build. The Unsorted dock Frostwind click was not reproduced, so it is not proven fixed. His console was not touched. Uniques and Sets art filters stay, as above.
 ### REG-2293 - A PUSH RE-PROVED GATES WHOSE INPUTS HAD NOT MOVED (v3772)
 
 A version was paying for about four full `run_gates` passes. Hashing every input of every gate, to decide whether it could be skipped, cost about as much as running it: on this machine a full execution was 9320s (943 passed, 46 failed) and the next run, with nothing intended to change, was 9066s.

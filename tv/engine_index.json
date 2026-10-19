@@ -2663,5 +2663,14 @@
     "gotcha": "It fails toward the FULL gate: one ref that is not refs/heads/ci/<name>, any ref naming refs/heads/main (even a deletion), no ref that ships, a malformed line, or the script failing all mean full. It reads the refs git hands the hook, never the branch the shell stands on.",
     "purpose": "Decides which lane a push takes for hooks/pre-push: ci-only (every ref is refs/heads/ci/*, graded on GitHub, nothing deploys) or full (the whole Mac gate).",
     "territory": "push"
+  },
+  "input_latency.py": {
+    "entryPoints": [
+      "record",
+      "read"
+    ],
+    "gotcha": "A missing beat is None (UNKNOWN), never 0 or instant. P95_BUDGET_MS and LONGTASK_BUDGET_MS are wall-clock and move with box load, so the v3773 guard (test_input_stays_responsive) does not judge on them; it judges COUNT_BUDGET, the getComputedStyle calls and whole-document walks per tab switch and per vault repaint.",
+    "purpose": "Holds the click-to-paint beat the page reports ({p50, p95, maxLongtask, n}) for health_engine and the console, plus the v3769 latency baseline and the v3773 count budget.",
+    "territory": "heart-organs"
   }
 }
