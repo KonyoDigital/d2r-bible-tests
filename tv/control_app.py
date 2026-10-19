@@ -1741,8 +1741,8 @@ def _fleet_fetch_kick():
 
     The status poll and the headless boot both call fleet_origin_status with
     force_fetch=False. Waiting here holds the boot banner and the bind for up
-    to the fetch's 25s timeout. /api/update still fetches on its own thread
-    and waits, because that request exists to return the fresh count.
+    to the fetch's 25s timeout. /api/update waits for THIS fetch, because that
+    request exists to return the count after it. It does not start a second one.
     """
     global _FLEET_LAST_FETCH
     with _FLEET_FETCH_LOCK:
@@ -1772,6 +1772,17 @@ def _fleet_fetch_kick():
 
     threading.Thread(target=_run, daemon=True, name="tvd-fleet-fetch").start()
     return True
+
+
+def _fleet_fetch_wait(timeout):
+    """Block until the one in-flight fetch finishes, or timeout seconds pass."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        with _FLEET_FETCH_LOCK:
+            if not _FLEET_FETCHING["on"]:
+                return True
+        time.sleep(0.02)
+    return False
 
 
 def fleet_origin_status(force_fetch=False):
@@ -1811,12 +1822,12 @@ def fleet_origin_status(force_fetch=False):
         # poll, and the only log line was the spec's own spawn note.
         if force_fetch:
             try:
-                _git_run(
-                    ["git", "fetch", "origin", "main", "--quiet"],
-                    cwd=REPO, capture_output=True, timeout=25,
-                    creationflags=_WIN_CREATE if IS_WIN else 0,
-                )
-                _FLEET_LAST_FETCH = now
+                # One fetch. A second `git fetch` beside the boot's sits on the
+                # index lock until the 25s timeout (Routine I 39213642558: the
+                # page's /api/update took 29s, the film jpeg stayed queued, and
+                # the theatre heal closed the stage under Space).
+                _fleet_fetch_kick()
+                _fleet_fetch_wait(25)
                 r = _git_run(
                     ["git", "rev-parse", "--short", "origin/main"],
                     cwd=REPO, capture_output=True, text=True, timeout=5,
