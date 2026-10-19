@@ -204,6 +204,65 @@ class TheDrain(unittest.TestCase):
         self.assertLess(conf, kinds_bar, msg)
 
 
+@unittest.skipUnless(os.path.exists(H.RC.CHROME), "no Chrome/Chromium on this machine - UNMEASURED here, not passing")
+class OneItemOnePlace(unittest.TestCase):
+    """Elad 2026-10-20: remove the duplicate item chips around MOVE TASKS - an item with a row is drawn once."""
+
+    def test_an_item_with_a_row_is_not_drawn_again(self):
+        world()
+        o = board().run("window.renderVault && window.renderVault(); var rows = {};"
+                        "document.querySelectorAll('#vault-move-list .vmv-row').forEach(function(r){ rows[r.getAttribute('data-name')] = 1; });"
+                        "OUT.rows = Object.keys(rows); OUT.chips = Array.from(document.querySelectorAll('#vault-dock [data-vault-item]')).map(function(c){ return c.getAttribute('data-vault-item'); });"
+                        "OUT.org = Array.from(document.querySelectorAll('#vault-organize .vault-org-row[data-name]')).map(function(c){ return c.getAttribute('data-name'); });")
+        self.assertIn(SHAKO, o["rows"], "premise: the routed Shako has a move row")
+        self.assertIn("Arcanna's Sign (amulet)", o["rows"])
+        dup = [n for n in o["chips"] + o["org"] if n in o["rows"]]
+        self.assertEqual(dup, [], "drawn twice - a MOVE TASKS row and a chip/organizer line: %r" % dup)
+
+
+@unittest.skipUnless(os.path.exists(H.RC.CHROME), "no Chrome/Chromium on this machine - UNMEASURED here, not passing")
+class EquippedLine(unittest.TestCase):
+    """Elad 2026-10-20: locked equipped gear reads on a quiet 'Equipped (locked)' line, not in MOVE TASKS."""
+
+    def test_worn_gear_is_a_quiet_line_outside_move_tasks(self):
+        world()
+        o = board().run("var e = document.getElementById('vault-equipped'); OUT.hidden = e.hidden; OUT.text = e.textContent;"
+                        "var l = document.getElementById('vault-move-list'); OUT.inList = l.contains(e); OUT.list = l.textContent;")
+        self.assertFalse(o["hidden"], "no Equipped (locked) line")
+        self.assertIn("Equipped (locked)", o["text"])
+        self.assertIn(SOJ, o["text"])
+        self.assertFalse(o["inList"], "the equipped line sits inside MOVE TASKS")
+        self.assertNotIn(SOJ, o["list"], "worn gear still shows in MOVE TASKS")
+
+    def test_a_locked_record_leaves_the_move_tasks_head(self):
+        world()
+        o = board().run("OUT.h = window._vaultMoveHtml({ tasks: [], groups: [], locks: [{ name: 'Griffon\\'s Eye', say: 'LOCKED' }, { name: 'Tyrael\\'s Might', say: 'WATCHING' }] });")
+        self.assertNotIn("LOCKED", o["h"], "LOCKED chips still ride in the MOVE TASKS head")
+        self.assertIn("WATCHING", o["h"], "the control: WATCHING stays")
+
+
+@unittest.skipUnless(os.path.exists(H.RC.CHROME), "no Chrome/Chromium on this machine - UNMEASURED here, not passing")
+class CompactSearchRow(unittest.TestCase):
+    """Elad 2026-10-20: ADD AN ITEM and FIND ON A MULE sit in one compact row."""
+
+    def test_both_bars_share_one_compact_row_at_desktop_width(self):
+        world()
+        b = board()
+        b.t.send("Emulation.setDeviceMetricsOverride", width=1440, height=900, deviceScaleFactor=1, mobile=False)
+        try:
+            o = b.run("window.switchTab('vault'); await new Promise(function(r){ setTimeout(r, 300); });"
+                      "var a = document.querySelector('.vault-planner-find').getBoundingClientRect();"
+                      "var f = document.querySelector('.vault-find-mule').getBoundingClientRect();"
+                      "OUT.a = [a.top, a.height, a.width]; OUT.f = [f.top, f.height, f.width];"
+                      "OUT.same = document.querySelector('.vault-planner-find').parentNode === document.querySelector('.vault-find-mule').parentNode;")
+        finally:
+            b.t.send("Emulation.clearDeviceMetricsOverride")
+        self.assertTrue(o["same"])
+        self.assertLess(abs(o["a"][0] - o["f"][0]), 3, "the two bars are stacked, not one row: %r" % o)
+        self.assertLessEqual(max(o["a"][1], o["f"][1]), 44, "the row is not compact: %r" % o)
+        self.assertGreater(min(o["a"][2], o["f"][2]), 280, "a bar collapsed: %r" % o)
+
+
 RED_PROOF = [
     {"why": "A junk route goes back to the dock instead of a THROW OUT row.",
      "file": "bible.html",
@@ -264,6 +323,36 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "    return n ? ('gone ' + n + '/' + VAULT_GONE_SESSIONS) : '';\n",
      "replace": "    return '';\n",
+     "matches": 1},
+    {"why": "An item with a MOVE TASKS row is drawn again as a dock chip.",
+     "file": "bible.html",
+     "find": "    unsorted = _dockShown.filter(_noRow); /* L1 no duplicate chips */\n",
+     "replace": "    unsorted = _dockShown.concat(Object.keys(_rowNm)); /* L1 no duplicate chips */\n",
+     "matches": 1},
+    {"why": "The organizer repeats every item that already has a move row.",
+     "file": "bible.html",
+     "find": "            window.vaultOrganizePaint(unsorted.filter(_noRow),",
+     "replace": "            window.vaultOrganizePaint(unsorted,",
+     "matches": 1},
+    {"why": "Worn gear loses its Equipped (locked) line.",
+     "file": "bible.html",
+     "find": "      if (r.locked === true || (r.sight && _vaultMoveWorn(r.sight))) { seen[r.name] = 1; out.push(r.name); }\n",
+     "replace": "",
+     "matches": 1},
+    {"why": "LOCKED chips go back into the MOVE TASKS head.",
+     "file": "bible.html",
+     "find": "    var locks = (built.locks || []).filter(function(l){ return l.say !== 'LOCKED'; }).map(function(l){",
+     "replace": "    var locks = (built.locks || []).map(function(l){",
+     "matches": 1},
+    {"why": "ADD AN ITEM and FIND ON A MULE stack again on two rows.",
+     "file": "bible.html",
+     "find": ".vault-find-row{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 6px}",
+     "replace": ".vault-find-row{display:block;gap:8px;margin:0 0 6px}",
+     "matches": 1},
+    {"why": "The search row goes back to the tall bars.",
+     "file": "bible.html",
+     "find": ".vault-find-row > .vault-find{flex:1 1 320px;min-width:0;margin:0;padding:4px 10px}",
+     "replace": ".vault-find-row > .vault-find{flex:1 1 320px;min-width:0;margin:0;padding:14px 12px}",
      "matches": 1},
     {"why": "Keep/Junk buttons leave the THROW OUT row.",
      "file": "bible.html",

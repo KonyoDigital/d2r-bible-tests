@@ -10500,6 +10500,8 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .vmv-chip[data-status="moved-manual"]{color:var(--q-rare);border-color:rgba(255,255,100,.45);background:rgba(255,255,100,.08)}
 .vmv-chip[data-status="verified"]{color:var(--best);border-color:rgba(102,255,136,.5);background:rgba(102,255,136,.1)}
 .vmv-chip[data-status="moved-elsewhere"]{color:var(--q-orange);border-color:rgba(255,168,0,.5);background:rgba(255,168,0,.1)}
+.vault-equipped{margin:4px 0 10px;padding:4px 10px;color:var(--text-dim);font-size:var(--fs-meta);opacity:.8}
+.vault-equipped-k{letter-spacing:var(--ls-wide);text-transform:uppercase;margin-right:6px}
 .vmv-throw-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 .vmv-throw .vmv-gh b{color:var(--q-orange)}
 .vmv-nowhere{color:var(--q-orange)}
@@ -12615,6 +12617,7 @@ function d2jspPriceLine(q) {
            could point at the same number. Filled by renderVault from the SAME pools it draws from,
            so the parts cannot drift from the whole. -->
       <div id="vault-pop" class="vault-pop"></div>
+      <div class="vault-find-row"><!-- L1 (Elad 2026-10-20): ADD AN ITEM and FIND ON A MULE share one compact row -->
       <div class="vault-find vault-planner-find">
         <span class="vault-find-k">Add an item</span>
         <input id="vault-planner-q" class="vault-find-input" aria-label="add an item from the planner" type="search" autocomplete="off" spellcheck="false" placeholder="Search the planner. Choose the base and the rolls. A pick files into its locker." onfocus="window.vaultPlannerOpen(this.value)" oninput="window.vaultPlannerOpen(this.value)">
@@ -12625,6 +12628,7 @@ function d2jspPriceLine(q) {
         <input id="vault-find-input" class="vault-find-input" aria-label="find an item across your mules" type="text" autocomplete="off" spellcheck="false" placeholder="Which mule holds it?" oninput="window._vaultFindSoon?window._vaultFindSoon(this.value):(window.vaultFind&&window.vaultFind(this.value))" onkeydown="if(event.key==='Escape'){this.value='';window.vaultFind('')}">
         <button class="vault-find-x" type="button" title="clear" onclick="var i=document.getElementById('vault-find-input');i.value='';window.vaultFind('');i.focus()">✕</button>
       </div>
+      </div>
       <div id="vault-find-results" class="vault-find-results" hidden></div>
       <!-- §31.2 (his ruling, 2026-09-28) — loot in a character's inventory is OWNED right away and carried here, per
            character, never locked and never filed; it lands when next seen in a stash tab or on a mule. It sits ABOVE the
@@ -12634,6 +12638,7 @@ function d2jspPriceLine(q) {
       <div id="vault-hand-left" class="vault-organize vault-hand-left" hidden></div>
       <div id="vault-organize" class="vault-organize" hidden></div>
       <div id="vault-move-list" class="vault-move" aria-label="move task list"></div>
+      <p id="vault-equipped" class="vault-equipped" hidden></p>
       <!-- v1282 — VAULT INTEGRITY CHECKER: a retro pass that re-verifies routing / dedup / grail-safety across every muled item. Hidden when the vault is clean. -->
       <div id="vault-audit" class="vault-audit" hidden></div>
       <div class="vault-dock" id="vault-dock"></div>
@@ -39194,6 +39199,10 @@ body{
 /* v236 — vault item finder: which alt holds it? */
 .vault-find{display:flex;align-items:center;gap:8px;margin:0 0 6px;padding:8px 12px;border:1px solid rgba(212,168,71,.32);border-radius:11px;
   background:linear-gradient(180deg,rgba(36,27,14,.5),rgba(13,10,6,.5));transition:border-color .15s,box-shadow .15s}
+.vault-find-row{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 6px}
+.vault-find-row > .vault-find{flex:1 1 320px;min-width:0;margin:0;padding:4px 10px}
+.vault-find-row .vault-find-input{font-size:var(--fs-body)}
+.vault-find-row .vault-find-k{padding:2px 6px}
 .vault-find:focus-within{border-color:var(--gold-bright,#f0c060);box-shadow:0 0 0 1px rgba(240,192,96,.2),0 0 18px rgba(240,192,96,.1)}
 .vault-find-ic{font-size:var(--fs-title);opacity:.8}
 .vault-find-input{flex:1;background:transparent;border:none;outline:none;color:var(--text,#e8dcc8);font-family:var(--serif-text,Georgia,serif);font-size:14px;letter-spacing:.2px}
@@ -42970,10 +42979,15 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (_hO && (_hO.loc === 'filed' || _hO.loc === 'shared')) unsorted.push(n); /* v3767 organizer seam */
       });
     } catch (eOrgN) {}
-    try { if (typeof window.vaultOrganizePaint === 'function')
-            window.vaultOrganizePaint(unsorted, (_carried || []).map(function(c){ return c.name; })); } catch (eO) {}
     try { if (typeof window._vaultMovePaint === 'function') window._vaultMovePaint(); } catch (eMv) {} /* v3769 move paint */
-    unsorted = _dockShown;
+    /* L1 (Elad 2026-10-20) — one item, one place on screen. A name that already has a MOVE TASKS row (a move or a THROW OUT)
+       is not drawn again as a dock chip or an organizer line below or above it. */
+    var _rowNm = {};
+    try { ((window._moveModel && window._moveModel.tasks) || []).forEach(function(t){ if (t && t.name) _rowNm[t.name] = 1; }); } catch (eRn) {}
+    var _noRow = function(n){ return !_rowNm[n]; };
+    try { if (typeof window.vaultOrganizePaint === 'function')
+            window.vaultOrganizePaint(unsorted.filter(_noRow), (_carried || []).map(function(c){ return c.name; }).filter(_noRow)); } catch (eO) {}
+    unsorted = _dockShown.filter(_noRow); /* L1 no duplicate chips */
     dock.innerHTML = unsorted.map(function(n){
       var _vr = (typeof _artRarity==='function') ? _artRarity(n) : '';
       return '<span class="vault-chip'+(_vr?' vc-r-'+_vr:'')+(selectedChip===n?' vc-selected':'')+'" draggable="true" data-vault-item="'+esc(n)+'" title="drag onto a locker — or click, then click a locker">'+art(n)+'<span class="vault-chip-name"'+(typeof _qStyle==='function'?_qStyle(n,'unique'):'')+'>'+esc(n)+'</span>'
@@ -49278,7 +49292,7 @@ window.vaultAutoAssign = function(){
   }
   function _vaultMoveHtml(built){
     built = built || { tasks: [], groups: [], locks: [] };
-    var locks = (built.locks || []).map(function(l){
+    var locks = (built.locks || []).filter(function(l){ return l.say !== 'LOCKED'; }).map(function(l){ /* L1 locked gear reads on its own quiet line */
       return '<span class="vmv-lock" data-say="' + esc(l.say) + '">' + esc(l.name) + ' · ' + esc(l.say) + '</span>';
     }).join('');
     var head = '<div class="vault-move-h"><span class="vault-move-k">MOVE TASKS</span>'
@@ -49492,6 +49506,16 @@ window.vaultAutoAssign = function(){
     } catch (eU) {}
     return { tasks: shown, groups: _vaultMoveGroup(shown), locks: _vaultMoveLocks(rec.records), records: rec.records, unrouted: unrouted };
   }
+  /* L1 (Elad 2026-10-20) — worn or locked gear is registered, never a move: one quiet line, outside MOVE TASKS. */
+  function _vaultEquippedNames(records){
+    var seen = {}, out = [];
+    (records || []).forEach(function(r){
+      if (!r || !r.name || seen[r.name]) return;
+      if (r.locked === true || (r.sight && _vaultMoveWorn(r.sight))) { seen[r.name] = 1; out.push(r.name); }
+    });
+    return out.sort();
+  }
+  try { window._vaultEquippedNames = _vaultEquippedNames; } catch (eEq) {}
   function _vaultMovePaint(){
     if (window._movePaintBusy) return null;
     window._movePaintBusy = true;
@@ -49500,6 +49524,9 @@ window.vaultAutoAssign = function(){
       window._moveModel = built;
       var host = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('vault-move-list') : null;
       if (host) { host.hidden = false; host.innerHTML = _vaultMoveHtml(built); }
+      var eq = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('vault-equipped') : null;
+      if (eq) { var eqN = _vaultEquippedNames(built.records); eq.hidden = !eqN.length;
+        eq.innerHTML = eqN.length ? '<span class="vault-equipped-k">Equipped (locked)</span> ' + eqN.map(function(n){ return esc(n); }).join(' · ') : ''; }
       return built;
     } finally { window._movePaintBusy = false; }
   }

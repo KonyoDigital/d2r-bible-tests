@@ -27,7 +27,9 @@ MEASURED on the shipped page (box Chrome, isolated): a screenshot-seen Arcanna's
 
 FIX: `_vaultThrowTask` / `_vaultThrowRoute` build a THROW OUT task (kind throw, to NOWHERE, `_vaultThrowReason` -> "set never ruled") inside `_vaultMoveCollect`; `_vaultMoveHtml` draws them in a THROW OUT section with Keep (`_vaultThrowKeep`, the same packer) and Junk (`_vaultThrowJunk`); `_dockNames` and `vaultOrganizePaint` drop junk routes; `_vaultSeamHome` files a kept one. `_vaultGoneObserve(frame)` is the drain; `_vaultMoveTask` carries kind/reason/kept/junk/left/gone/closedBy only when set.
 
-GUARD: tv/test_vault_l1_throw_out_rows_drain.py, 13 RED_PROOF attacks, all PROVEN, Wilson 0.7719 against 0.722.
+ALSO (same live screenshot): an item with a MOVE TASKS row is no longer drawn again as a dock chip or organizer line (renderVault paints the move list first and filters by `window._moveModel`); worn or locked gear reads on one quiet "Equipped (locked)" line (`#vault-equipped`, `_vaultEquippedNames`) outside MOVE TASKS, and LOCKED chips left its head; ADD AN ITEM and FIND ON A MULE share one compact `.vault-find-row`.
+
+GUARD: tv/test_vault_l1_throw_out_rows_drain.py, 19 RED_PROOF attacks, all PROVEN, Wilson 0.8318 against 0.722.
 
 LEFT (open): nothing calls `_vaultGoneObserve` from the reel yet - the frame reader must hand it {session, holder, location, items, ground} per frame. No floor-label (dropped item on the ground) reader exists, so the ground rule fires only when a caller supplies `ground`.
 
