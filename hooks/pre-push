@@ -881,7 +881,9 @@ echo "pre-push: [$(_pp_el)] ✅ boss portraits are the pictures a human opened, 
 
 # v3768 — a stored PASS carries when its commit is an ancestor of HEAD and git says none of
 # its inputs moved. A miss, a missing ledger and a corrupt ledger all fall through and the gate runs.
-# FAIL is never stored. --record stores a PASS only when suite_verdict already proved these bytes.
+# FAIL is never stored. --record stores a PASS only when suite_verdict already proved these bytes,
+# and (REG-2293 r5) only with a trace of what the run read, which only run_gates takes. Here it
+# prints why it stored nothing; `run_gates.py --changed` is what makes these carry next time.
 ledger_carry() {
   python3 "$REPO/tv/gate_ledger.py" --carry "$1"
 }
