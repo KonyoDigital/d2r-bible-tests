@@ -80,14 +80,14 @@ class ThrowOutRows(unittest.TestCase):
     def test_a_junk_route_is_a_throw_out_row_not_a_dock_chip(self):
         world()
         o = board().run(READ + "var r = row(%s); OUT.has = !!r; OUT.kind = r && r.getAttribute('data-kind');"
-                        "OUT.text = r ? r.textContent : ''; OUT.keep = !!(r && r.querySelector('.vmv-keep'));"
+                        "OUT.text = r ? r.textContent + ' ' + ((r.querySelector('[data-reason]') || {getAttribute: function(){ return ''; }}).getAttribute('data-reason') || '') : ''; OUT.keep = !!(r && r.querySelector('.vmv-keep'));"
                         "OUT.junk = !!(r && r.querySelector('.vmv-junk')); OUT.dock = window._vaultDockNames();"
                         "OUT.org = (document.getElementById('vault-organize') || {}).textContent || '';"
                         "OUT.list = document.getElementById('vault-move-list').textContent;" % json.dumps(HEAD))
         self.assertTrue(o["has"], "no THROW OUT row for the screenshot-seen junk item")
         self.assertEqual(o["kind"], "throw")
         self.assertIn("NOWHERE", o["text"])
-        self.assertIn("set never ruled", o["text"])
+        self.assertIn("set never ruled", o["text"])  # the plain reason rides on the line (hover + data-reason)
         self.assertNotIn("by DEFAULT", o["list"], "the wordy throw-out advice is back in MOVE TASKS")
         self.assertTrue(o["keep"] and o["junk"], "Keep / Junk are not inline on the row")
         self.assertNotIn(HEAD, o["dock"] or [], "the junk item still sits in the Unsorted Dock")
