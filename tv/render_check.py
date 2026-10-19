@@ -4681,6 +4681,7 @@ def _serve_console():
     # and pinned his GeForce NOW stream mid-push, starving the render gate (load 12.6).
     env = dict(os.environ, TV_CONTROL_PORT=str(port), TV_PORT=str(port + 1), TV_STUB="1",
                TV_CAPTURE="off",
+               TV_FLEET_BEHIND_PIN="0",  # L1: the pushing branch's distance from origin/main is not a render fact
                TV_PARENT_PID=str(os.getpid()),
                TV_HIST=_hist,
                TV_FRAMES_DIR=os.path.join(_sand, "frames"),
