@@ -489,6 +489,82 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
         entry, why = book.lookup(only)
         self.assertIsNotNone(entry, why)
 
+    def test_a_self_attribute_holding_an_imported_module_opens_bible(self):
+        opener = (
+            "PATH = 'bible.html'\n"
+            "def read():\n"
+            "    open('bible.html')\n"
+        )
+        root, led, _gate_py = self._law(extra={"opener.py": opener})
+        bible = os.path.join(root, "bible.html")
+        tv = os.path.join(root, "tv")
+        with io.open(bible, "w", encoding="utf-8") as fh:
+            fh.write("<html></html>\n")
+        with io.open(os.path.join(tv, "gate_self.py"), "w", encoding="utf-8") as fh:
+            fh.write(
+                "import opener\n"
+                "class Box(object):\n"
+                "    def setUp(self):\n"
+                "        self.ca = opener\n"
+                "    def go(self):\n"
+                "        self.ca.read()\n"
+                "Box().go()\n"
+            )
+        with io.open(os.path.join(tv, "gate_alias.py"), "w", encoding="utf-8") as fh:
+            fh.write(
+                "class Box(object):\n"
+                "    def setUp(self):\n"
+                "        import opener as ca\n"
+                "        self.ca = ca\n"
+                "    def go(self):\n"
+                "        self.ca.read()\n"
+                "Box().go()\n"
+            )
+        with io.open(os.path.join(tv, "gate_cls.py"), "w", encoding="utf-8") as fh:
+            fh.write(
+                "import opener\n"
+                "class Box(object):\n"
+                "    def setUp(cls):\n"
+                "        cls.ca = opener\n"
+                "    def go(cls):\n"
+                "        cls.ca.read()\n"
+                "Box().go()\n"
+            )
+        with io.open(os.path.join(tv, "gate_hold.py"), "w", encoding="utf-8") as fh:
+            fh.write(
+                "import opener\n"
+                "class Box(object):\n"
+                "    def setUp(self):\n"
+                "        self.ca = opener\n"
+                "    def go(self):\n"
+                "        return 1\n"
+                "Box().go()\n"
+            )
+        _git(root, "add", "-A")
+        _git(root, "commit", "-q", "-m", "self holds the module")
+        gates = []
+        for name, label in (
+            ("gate_self.py", "self-ca"),
+            ("gate_alias.py", "self-alias"),
+            ("gate_cls.py", "cls-ca"),
+            ("gate_hold.py", "hold-only"),
+        ):
+            gate = _gate(root, name)
+            gate.name = label
+            gates.append(gate)
+        book = _open(led)
+        for gate in gates:
+            self.assertTrue(book.record(gate, True), "PREMISE: %s was not stored" % gate.name)
+        with io.open(bible, "a", encoding="utf-8") as fh:
+            fh.write("<!-- moved -->\n")
+        book = _open(led)
+        for gate in gates[:3]:
+            entry, why = book.lookup(gate)
+            self.assertIsNone(
+                entry, "self.ca = opener; self.ca.read() carried the bible.html edit (%s): %s" % (gate.name, why))
+        entry, why = book.lookup(gates[3])
+        self.assertIsNotNone(entry, why)
+
     def test_the_runner_file_is_not_an_input_of_every_gate(self):
         root, led, _gate_py = self._law(extra={"namer.py": "PATH = 'run_gates.py'\n"})
         tv = os.path.join(root, "tv")
@@ -932,6 +1008,13 @@ RED_PROOF = [
         "file": "gate_ledger.py",
         "find": "            return self._callee_opens_bible(script)  # LEDGER-BIBLE-CALL\n",
         "replace": "            return False  # LEDGER-BIBLE-CALL\n",
+        "matches": 1,
+    },
+    {
+        "why": "self.ca = opener is not followed, so self.ca.read() carries a bible.html edit",
+        "file": "gate_ledger.py",
+        "find": "            mods = self.self_mods.get(attrs[0])  # LEDGER-BIBLE-SELF\n",
+        "replace": "            mods = None  # LEDGER-BIBLE-SELF\n",
         "matches": 1,
     },
     {

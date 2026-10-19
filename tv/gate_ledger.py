@@ -519,13 +519,113 @@ def _bible_binding_names(tree, docs):
     return names
 
 
+def _self_attr_target(target):
+    """self.name or cls.name, one level deep. -> the attribute, or None."""
+    if (isinstance(target, ast.Attribute) and isinstance(target.value, ast.Name)
+            and target.value.id in ("self", "cls")):
+        return target.attr
+    return None
+
+
+def _class_self_modules(class_node, mod_aliases):
+    """Attributes this class stores a module on, via self.name = alias or cls.name = alias.
+
+    The assignment and the use are different methods: setUp does `self.ca = ca` and a
+    later method calls `self.ca.read()`. A name the method also assigns is not the
+    import. -> {attr: set of module names}
+    """
+    found = {}
+
+    def add(attr, mod):
+        found.setdefault(attr, set()).add(mod)
+
+    def scan_fn(fn):
+        aliases = dict(mod_aliases)
+        _collect_imports(fn.body, aliases, [], set())
+        shadow = _stored_names(fn.body) | _arg_names(fn.args)
+
+        def walk(stmts):
+            for stmt in stmts:
+                if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    continue
+                value = None
+                targets = ()
+                if isinstance(stmt, ast.Assign):
+                    value = stmt.value
+                    targets = stmt.targets
+                elif isinstance(stmt, ast.AnnAssign) and stmt.value is not None:
+                    value = stmt.value
+                    targets = (stmt.target,)
+                mod = None
+                if isinstance(value, ast.Name) and value.id not in shadow:
+                    spec = aliases.get(value.id)
+                    if spec and spec[0] == "mod":
+                        mod = spec[1]
+                elif value is not None:
+                    mod = _import_module_literal(value)
+                if mod:
+                    for target in targets:
+                        attr = _self_attr_target(target)
+                        if attr:
+                            add(attr, mod)
+                if isinstance(stmt, (ast.If, ast.For, ast.While, ast.With)):
+                    walk(stmt.body)
+                    walk(getattr(stmt, "orelse", []) or [])
+                elif isinstance(stmt, ast.Try):
+                    walk(stmt.body)
+                    walk(stmt.orelse)
+                    walk(stmt.finalbody)
+                    for handler in stmt.handlers:
+                        walk(handler.body)
+
+        walk(fn.body)
+
+    def walk_body(stmts):
+        for stmt in stmts:
+            if isinstance(stmt, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                scan_fn(stmt)
+                walk_body(stmt.body)
+            elif isinstance(stmt, ast.ClassDef):
+                continue
+            elif isinstance(stmt, (ast.If, ast.For, ast.While, ast.With)):
+                walk_body(stmt.body)
+                walk_body(getattr(stmt, "orelse", []) or [])
+            elif isinstance(stmt, ast.Try):
+                walk_body(stmt.body)
+                walk_body(stmt.orelse)
+                walk_body(stmt.finalbody)
+                for handler in stmt.handlers:
+                    walk_body(handler.body)
+
+    walk_body(class_node.body)
+    return found
+
+
+def _classes_self_modules(stmts, prefix, mod_aliases, out):
+    for stmt in stmts:
+        if isinstance(stmt, ast.ClassDef):
+            qual = _qual(prefix, stmt.name)
+            out[qual] = _class_self_modules(stmt, mod_aliases)
+            _classes_self_modules(stmt.body, qual, mod_aliases, out)
+        elif isinstance(stmt, (ast.If, ast.For, ast.While, ast.With)):
+            _classes_self_modules(stmt.body, prefix, mod_aliases, out)
+            _classes_self_modules(getattr(stmt, "orelse", []) or [], prefix, mod_aliases, out)
+        elif isinstance(stmt, ast.Try):
+            _classes_self_modules(stmt.body, prefix, mod_aliases, out)
+            _classes_self_modules(stmt.orelse, prefix, mod_aliases, out)
+            _classes_self_modules(stmt.finalbody, prefix, mod_aliases, out)
+            for handler in stmt.handlers:
+                _classes_self_modules(handler.body, prefix, mod_aliases, out)
+
+
 class _Resolve(object):
-    def __init__(self, imports, scope_names, shadow, stars, class_qual):
+    def __init__(self, imports, scope_names, shadow, stars, class_qual, self_mods=None):
         self.imports = imports
         self.scope_names = scope_names
         self.shadow = shadow
         self.stars = stars
         self.class_qual = class_qual
+        self.self_mods = self_mods or {}
 
     def _spec(self, name):
         if name in self.shadow:
@@ -557,6 +657,9 @@ class _Resolve(object):
         if not base or not attrs:
             return []
         if base in ("self", "cls") and self.class_qual:
+            mods = self.self_mods.get(attrs[0])  # LEDGER-BIBLE-SELF
+            if mods and len(attrs) > 1:
+                return [("func", mod, ".".join(attrs[1:])) for mod in mods]
             return [("local", self.class_qual + "." + ".".join(attrs))]
         spec = self._spec(base)
         if spec is None:
@@ -719,6 +822,8 @@ def _bible_facts_from_src(src):
             mod_refs.append(("import_mod", spec[1]))
         elif spec[0] == "from" and spec[1]:
             mod_refs.append(("import_mod", spec[1]))
+    class_mods = {}
+    _classes_self_modules(tree.body, "", mod_aliases, class_mods)
     funcs = []
     _collect_funcs(tree.body, "", None, funcs)
     direct = set()
@@ -733,7 +838,9 @@ def _bible_facts_from_src(src):
             # the class name is in scope for its methods; self is handled separately
             pass
         shadow = _stored_names(node.body) | _arg_names(node.args)
-        resolve = _Resolve(aliases, scope or _scope_defs([], ""), shadow, stars, class_qual)
+        resolve = _Resolve(
+            aliases, scope or _scope_defs([], ""), shadow, stars, class_qual,
+            class_mods.get(class_qual) if class_qual else None)
         # module-level functions and classes are visible unless this function shadows them
         resolve.scope_names = dict(_scope_defs(tree.body, ""))
         resolve.scope_names.update(scope)
