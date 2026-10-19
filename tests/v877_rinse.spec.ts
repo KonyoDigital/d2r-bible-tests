@@ -15,13 +15,50 @@
 // stub here is determinism, not a defect anyone has shown. [[inherited_claim_is_not_evidence]]
 import { test, expect } from './_net_stub';
 import { spawn, ChildProcess } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, createWriteStream, readFileSync, WriteStream } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 const PORT = 17962;
 const CTRL = `http://127.0.0.1:${PORT}/`;
 let server: ChildProcess | null = null;
+// The boot poll used to drop the console's stdout and stderr, so a miss could only say
+// "never came up". The log is evidence for that miss. python -u so a stuck boot still flushes.
+const BOOT_LOG = join(tmpdir(), `tvd-rinse-boot-${process.pid}.log`);
+let bootLog: WriteStream | null = null;
+let lastStatusTiming = 'last /api/status: none';
+
+function rememberStatus(wallMs: number, ok: boolean | null, timing: any, error: string | null) {
+  const total = timing && timing.totalMs != null ? timing.totalMs : 'none';
+  const slow = timing && timing.slowest ? JSON.stringify(timing.slowest) : 'none';
+  lastStatusTiming = `last /api/status: wall ${wallMs}ms ok=${ok} totalMs=${total} slowest=${slow}`
+    + (error ? ` error=${error}` : '');
+}
+
+async function statusTimingOf(r: Response | null): Promise<any> {
+  if (!r) return null;
+  try {
+    const j = await r.json();
+    return j && j.timing ? j.timing : null;
+  } catch {
+    return null;
+  }
+}
+
+function bootTail(): string {
+  try {
+    const text = readFileSync(BOOT_LOG, 'utf8');
+    const tail = text.split('\n').slice(-60).join('\n').trim();
+    return tail || '(boot log empty)';
+  } catch (e) {
+    return `(boot log unreadable: ${(e as Error).message})`;
+  }
+}
+
+function withBoot<T extends Error>(err: T): T {
+  err.message += `\n${lastStatusTiming}\n--- rinse boot log (${BOOT_LOG}) ---\n${bootTail()}`;
+  return err;
+}
 
 // v1459 — a real 32×32 JPEG (SOI ff d8 ff). The fixture must put ACTUAL film on disk: /api/session
 // only returns a beat with `frame` when hist/<frameId>.jpg exists, and the theatre refuses to paint a
@@ -100,7 +137,8 @@ test.describe('v877 RINSE (self-hosted console)', () => {
     // (blocks / steals focus / flakes in CI) and the rinse suite was timing out on
     // every keyboard/arrow assertion waiting for a stable #btn-sim.
     const fx = fixtureRun();
-    server = spawn('python3', ['tv/control_app.py', '--no-open'], {
+    bootLog = createWriteStream(BOOT_LOG, { flags: 'w' });
+    server = spawn('python3', ['-u', 'tv/control_app.py', '--no-open'], {
       env: {
         ...process.env,
         TV_CONTROL_PORT: String(PORT),
@@ -108,21 +146,29 @@ test.describe('v877 RINSE (self-hosted console)', () => {
         TV_SESSIONS: fx.journal,
         TV_HIST: fx.hist,   // v1459 — isolate hist to the fixture's own film (never Konyo's real reels)
       },
-      stdio: 'ignore',
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
+    server.stdout?.pipe(bootLog, { end: false });
+    server.stderr?.pipe(bootLog, { end: false });
     // wait for the server
     for (let i = 0; i < 40; i++) {
+      const t0 = Date.now();
       try {
         const r = await fetch(CTRL + 'api/status', { signal: AbortSignal.timeout(900) });
+        const wall = Date.now() - t0;
+        rememberStatus(wall, r.ok, await statusTimingOf(r), null);
         if (r.ok) return;
-      } catch {}
+      } catch (e) {
+        rememberStatus(Date.now() - t0, null, null, e instanceof Error ? e.message : String(e));
+      }
       await new Promise((r) => setTimeout(r, 500));
     }
-    throw new Error('rinse control server never came up');
+    throw withBoot(new Error('rinse control server never came up'));
   });
 
   test.afterAll(async () => {
     try { server?.kill('SIGKILL'); } catch {}
+    try { bootLog?.end(); } catch {}
   });
 
   const state = (page: any) => page.evaluate(() => ({
@@ -280,9 +326,21 @@ test.describe('v877 RINSE (self-hosted console)', () => {
     const ms: number[] = [];
     for (let i = 0; i < 7; i++) {
       const t0 = Date.now();
-      const r = await fetch(CTRL + 'api/status', { signal: AbortSignal.timeout(3000) });
-      expect(r.ok).toBe(true);
-      ms.push(Date.now() - t0);
+      let r: Response;
+      try {
+        r = await fetch(CTRL + 'api/status', { signal: AbortSignal.timeout(3000) });
+      } catch (e) {
+        rememberStatus(Date.now() - t0, null, null, e instanceof Error ? e.message : String(e));
+        throw withBoot(e instanceof Error ? e : new Error(String(e)));
+      }
+      const wall = Date.now() - t0;
+      rememberStatus(wall, r.ok, await statusTimingOf(r), null);
+      try {
+        expect(r.ok).toBe(true);
+      } catch (e) {
+        throw withBoot(e instanceof Error ? e : new Error(String(e)));
+      }
+      ms.push(wall);
       await new Promise(res => setTimeout(res, 150));
     }
     ms.sort((a, b) => a - b);
