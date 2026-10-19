@@ -20,6 +20,25 @@ GUARDS (registered in tv/run_gates.py): tv/test_a_locked_tab_never_strands_the_v
 
 LEFT: why his window reads hidden while on screen (macOS occlusion of the pywebview window) is not fixed here; only its effect on the tab route is.
 
+### REG-2304 - A HAND ADD COULD BE SENT ONTO A CELL ALREADY GIVEN, A SIGHTING DID NOT FILL ITS MANUAL ROW, AND A WORN ITEM GOT A MOVE (Vault L1, provisional number, was REG-2296 before #248, unversioned)
+
+Elad, 2026-10-19: the manual path must work by itself. He adds items one by one (sets, uniques, runewords, charms, jewels, bases) and each must route to the right mule cell, the shared stash or throw-out.
+
+MEASURED on the shipped page (box Chrome, isolated, AUTO INTAKE off), through `window.vaultHandAdd`:
+- Shako was given `shared:c0r0`. A later Enigma was also given `shared:c0r0`, and Arachnid Mesh landed on Annihilus at `shared:c4r0`. `_vaultMovePackHome` re-ran first-fit over every item sorted by area, and `_vaultMoveEnsure` kept the saved cell, so the new pack ignored cells already handed out (ruling 1: append-only).
+- After a hand add, the first sighting at a real cell did not fill FROM. `_vaultMoveWitness` saw neither FROM nor TO and set `moved-elsewhere`, so the MANUAL row became ELSEWHERE with no from-cell (ruling 4).
+- An item seen on MAIN equipment got a move row (ruling 8).
+- A row click opened the evidence panel. There was no BEFORE | AFTER view (ruling 12).
+
+FIX:
+1. `_vaultMovePackHome(home, bag)` reserves every saved target in that holder (its footprint, per grid) before first-fit, and keeps those cells. New items take the next free cell.
+2. `_vaultMoveApplySight`: a manual `to-move` row with no FROM cell, or one last seen worn, takes the sighting as its FROM on the same row. The target and the row stay, and the frame becomes its proof.
+3. `_vaultMoveWorn` (equipment or equipped) hides the row in `_vaultMoveShown`. Seen off the character, the row comes back routed from that cell.
+4. `_vaultMoveCompareModel/Html/Open/Close`: the row click opens BEFORE | AFTER. Both sides are `gridHtml` at 36 px with real art, the same gold ring on the from-cell and the to-cell, and one arrow and one instruction line ("Move X from MANUAL to UNI-SMALL private stash (2,1)"). BEFORE shows the MANUAL badge until a frame sees the item, then the real container. AFTER shows every saved target in that container. Closing works by the button or the backdrop. The witness button still opens the evidence.
+
+GUARD: tv/test_vault_l1_a_hand_add_routes_by_type.py, 14 RED_PROOF attacks, all PROVEN by heart2 --prove, Wilson 0.7847 against the vault.apply bar 0.722.
+
+LEFT (open): a hand-typed white base (Monarch, Archon Plate, Eth Thresher, Shako as a base) is refused by the door as not-drawn (`_vaultKeeps`), so bases have no manual row yet. "Stone of Jordan" is refused; the catalogue name is "The Stone of Jordan". Rolled magic jewels and charms (no catalogue name) are not hand-addable. Spirit's footprint stays the 1x2 guess (REG v3766). Throw-out rows are L3.
 ### REG-2296 - A BUMP-ONLY RUN STILL TOOK 4750 s: REDS RERAN IN FULL, THE PROOF QUEUE DIRTIED 147 PROOFS, LISTINGS WERE NEVER STORED (v3775)
 
 Measured on v3774 (7793ac8a): `--full` 4924 s, then a bump-only `--changed` (v3775 stamp, local commit f49305f2) 4750 s against a ~600 s target. 1014 gates carried, 497 ran (4606 s summed). The stamp lines were exactly the expected ones; the time went elsewhere:
