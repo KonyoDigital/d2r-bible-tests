@@ -30,8 +30,10 @@ except Exception:
     pass
 
 from test_v3769_vault_move_list_visual import (  # noqa: E402
-    NO_BROWSER, _CDP, _chrome_path, _ev, _png, _wait_fn, _wrap,
+    _CDP, _chrome_path, _ev, _png, _wait_fn, _wrap,
 )
+
+NO_BROWSER = "no Chrome/Chromium on this machine"
 
 SHOTS = os.path.join(HERE, ".render_shots")
 ART = "/opt/cursor/artifacts/v3771"
