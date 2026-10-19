@@ -5276,7 +5276,7 @@ try {
     <button class="tab" data-tab="tvd">📺 TV·D</button><!-- v914 (Konyo: 'yes I want it on the website too') — the live view is a first-class site tab again; app-ctx keeps it in the console header instead -->
    </div>
   </div>
-  <div class="gsearch-wrap" title="Search a boss, act, zone, super-unique or item — Enter to jump">
+  <div class="gsearch-wrap"><!-- v3773 - no title here: its hover tip sat on the first result row; the placeholder says the same -->
     <span class="gsearch-ic-lead">🔍</span>
     <input id="gsearch-input" aria-label="search the whole bible" class="gsearch-input" type="text" autocomplete="off" spellcheck="false" data-ph-full="Search a boss, act, zone, super-unique, or item — jump straight to it" data-ph-short="Search the bible…" placeholder="Search a boss, act, zone, super-unique, or item — jump straight to it">
     <div id="gsearch-results" class="gsearch-results" hidden></div>
@@ -10502,9 +10502,10 @@ html[data-active-tab="vault"] #shortcut-hint{z-index:20} /* v3771 hint under vau
 .tvd-frame-grid i.on{background:var(--gold-bright);box-shadow:0 0 8px var(--gold)}
 .vev-wits{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0}
 @media (max-width:800px){.vmv-row{grid-template-columns:auto 1fr auto}.vmv-place{grid-column:1 / -1}}
-#vault-hand-win{position:fixed;inset:0;z-index:130;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(4,3,2,.62);box-sizing:border-box}
+/* v3773 - the add box sits in the vault under FIND ON A MULE: no scrim, so the tabs and the find row keep their clicks */
+#vault-hand-win{position:relative;z-index:auto;display:block;margin:8px 0;padding:0;background:none;box-sizing:border-box}
 #vault-hand-win[hidden]{display:none}
-#vault-hand-win .vault-hand-box{width:min(440px,100%);max-height:min(640px,100%);overflow:auto;background:var(--surface);border:1px solid var(--border-light);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
+#vault-hand-win .vault-hand-box{width:100%;max-height:min(420px,60vh);box-sizing:border-box;overflow:auto;background:var(--surface);border:1px solid var(--border-light);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:10px}
 #vault-hand-win .vault-hand-top{display:flex;align-items:center;gap:8px}
 #vault-hand-win .vault-hand-top p{margin:0;flex:1;font-size:var(--fs-body);color:var(--text)}
 #vault-hand-win .vault-hand-q{font-size:var(--fs-body);color:var(--text);background:var(--surface);border:1px solid var(--border-light);border-radius:8px;padding:6px 8px}
@@ -41590,7 +41591,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      the box takes the key at once and the list follows when the keys pause. */
   (function(){
     var _vfOne = window.vaultFind;
-    window.vaultFind = function(q){
+    window.vaultFind = function vaultFindOnePass(q){
       var outer = window._vrFindPass;
       window._vrFindPass = outer || {};
       try { return _vfOne(q); } finally { window._vrFindPass = outer || null; }
@@ -43795,6 +43796,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       host.setAttribute('aria-label', 'add an item to your vault');
       if (document.body && document.body.appendChild) document.body.appendChild(host);
     }
+    /* v3773 - inline under the find results, never a page-wide layer over the tabs */
+    var _vhAnchor = document.getElementById('vault-find-results');
+    if (_vhAnchor && _vhAnchor.parentNode && _vhAnchor.nextSibling !== host)
+      _vhAnchor.parentNode.insertBefore(host, _vhAnchor.nextSibling);
     host.hidden = false;
     _vhSeen = {};
     host.innerHTML = '<div class="vault-hand-box"><div class="vault-hand-top"><p>Add an item you have, from the planner list. It is yours at once. A name the router already knows is homed on its mule; a name with no home waits in Unsorted, and you choose that mule.</p>'
