@@ -470,10 +470,12 @@ class Ledger(object):
         sandbox = os.path.dirname(script)
         root = os.path.dirname(sandbox)
         try:
+            skip = ("run_gates",) if not _script_reads_runner(script) else ()
             found, why = H.law_inputs(
                 sandbox, os.path.basename(script), [],
                 parsed=self._parsed, tracked=self._tracked(root),
-                allow_listing=gate_name in _LISTING_OK)
+                allow_listing=gate_name in _LISTING_OK,
+                skip_modules=skip)
         except Exception as exc:
             return [], "inputs could not be derived (%s)" % type(exc).__name__
         if why:
