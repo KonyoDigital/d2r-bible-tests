@@ -10687,15 +10687,18 @@ GATES = [
     Gate("test_a_gate_proven_on_these_bytes_is_carried",
          [sys.executable, os.path.join(HERE, "test_a_gate_proven_on_these_bytes_is_carried.py")], 600,
          needs_app=False,
-         why="v3770 - a push carries a gate when the commit that gate was proved at is an "
-             "ancestor of HEAD and none of its inputs are in the diff from that commit to "
-             "HEAD plus the dirty worktree. One diff is cached per distinct sha. The carry "
-             "does not open those files. A stale input map is rebuilt when the script, a "
-             "file it closes over, or heart2.py changed. Editing an input runs the gate "
-             "again. A missing sha, a sha that is not an ancestor, a failed diff, a gate "
-             "whose inputs cannot be named, a corrupt ledger and a FAIL all run. --full "
-             "does not consult the ledger. CI does not either. A carried line says proven "
-             "at a sha and an age, and it is not a fresh pass and not new Wilson evidence."),
+         why="v3772 (REG-2293) - a push carries a gate when the commit that gate was proved "
+             "at is an ancestor of HEAD and none of its inputs are in the diff from that "
+             "commit to HEAD plus the dirty worktree. One diff is cached per distinct sha. "
+             "The carry does not open those files. bible.html stays an input when the gate "
+             "opens it or reaches a function that opens it, including a callee in an "
+             "imported module. A string constant in an imported module is not an open. A "
+             "stale input map is rebuilt when the script, a file it closes over, or "
+             "heart2.py changed. Editing an input runs the gate again. A missing sha, a "
+             "sha that is not an ancestor, a failed diff, a gate whose inputs cannot be "
+             "named, a corrupt ledger and a FAIL all run. --full does not consult the "
+             "ledger. CI does not either. A carried line says proven at a sha and an age, "
+             "and it is not a fresh pass and not new Wilson evidence."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
