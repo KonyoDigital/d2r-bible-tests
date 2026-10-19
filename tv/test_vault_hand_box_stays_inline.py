@@ -10,10 +10,18 @@ import json
 import os
 import re
 import subprocess
+import sys
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
 
 
 def _read():
@@ -75,7 +83,7 @@ for (var n = 0; n < 2; n++) {
 console.log(JSON.stringify(out));
 """
     try:
-        r = subprocess.run(["node", "-e", prog], capture_output=True, text=True, timeout=60)
+        r = subprocess.run(["node", "-"], input=prog, capture_output=True, text=True, timeout=60)
         got = json.loads(r.stdout.strip().splitlines()[-1])
     except Exception as e:
         return bad + ["node run failed: %s %s" % (e, (r.stderr if 'r' in dir() else '')[-400:])]

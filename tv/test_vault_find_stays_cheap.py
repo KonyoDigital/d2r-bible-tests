@@ -35,7 +35,7 @@ def _cut(src, start, end):
 
 
 def _node(prog):
-    out = subprocess.run(["node", "-e", prog], capture_output=True, text=True, timeout=60)
+    out = subprocess.run(["node", "-"], input=prog, capture_output=True, text=True, timeout=60)
     if out.returncode != 0:
         raise AssertionError(out.stderr[-1500:])
     return json.loads(out.stdout.strip().splitlines()[-1])
