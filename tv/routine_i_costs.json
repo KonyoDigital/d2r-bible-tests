@@ -1,5 +1,5 @@
 {
-"source": "Playwright blob reports from run 37139166700 (sha 57100324), chromium project, sum of every attempt duration + v3723/v3724/v3725/v3726 vault-share specs added by hand (estimate, pending next snapshot)",
+"source": "Playwright blob reports from run 37139166700 (sha 57100324), chromium project, sum of every attempt duration + v3723/v3724/v3725/v3726 vault-share specs added by hand (estimate, pending next snapshot) + tests/v877_space_ci_load.spec.ts measured locally at 17.2s (the held-film heal window, /tmp/space-red3.log), pending the next snapshot",
 "run": "37139166700",
 "sha": "57100324f8a74721cdcf94807ccbf4f9e3733a36",
 "files": "456",
@@ -451,6 +451,7 @@
 "tests/v85_tz_enrichment.spec.ts": 29.7,
 "tests/v86_tz_hell_grid.spec.ts": 29.5,
 "tests/v877_rinse.spec.ts": 64.0,
+"tests/v877_space_ci_load.spec.ts": 17.2,
 "tests/v889_tools_funnel.spec.ts": 26.5,
 "tests/v908_connector_seal.spec.ts": 9.5,
 "tests/v910_chronicle_relevance.spec.ts": 14.1,
