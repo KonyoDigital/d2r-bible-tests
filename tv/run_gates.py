@@ -9828,6 +9828,12 @@ GATES = [
              "typed move, mark moved, and a witness frame that verifies the row. No browser is a "
              "declared skip."),
          skip_ok=(r"no Chrome/Chromium on this machine",)),
+    Gate("test_a_render_console_does_not_read_the_branch_distance", [sys.executable,
+         os.path.join(HERE, "test_a_render_console_does_not_read_the_branch_distance.py")], 30,
+         needs_app=False,
+         why=("the render harness console pins its fleet distance (TV_FLEET_BEHIND_PIN=0, honoured only under "
+             "TV_STUB=1), so a branch behind origin/main no longer draws BEHIND FLEET over the shelf reel cards "
+             "and turns shelf-cards red. His real console still counts.")),
     Gate("test_vault_l1_a_hand_add_routes_by_type", [sys.executable,
          os.path.join(HERE, "test_vault_l1_a_hand_add_routes_by_type.py")], 240,
          needs_app=False,
