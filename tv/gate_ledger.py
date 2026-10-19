@@ -2175,7 +2175,11 @@ def main(argv):
     parser.add_argument("--trace", metavar="FILE", help="with --record: what the passing run read")
     parser.add_argument("--trace-env", metavar="FILE",
                         help="print the shell exports that arm the trace into FILE (the pre-push hook)")
+    parser.add_argument("--trace-path", action="store_true", help="make and print a fresh trace file")
     args = parser.parse_args(argv[1:])
+    if args.trace_path:
+        print(trace_path())
+        return 0
     if args.trace_env:
         import shlex
         armed = trace_env(os.environ, REPO, args.trace_env)

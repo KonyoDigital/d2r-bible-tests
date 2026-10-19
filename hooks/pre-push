@@ -910,7 +910,7 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
       python3 "$REPO/tv/gate_ledger.py" --record test_agent || true
     else
       # REG-2293 r6 - the run is traced, so --record can store what it read (a reuse above has no run, so no trace).
-      _tr="$(mktemp "${TMPDIR:-/tmp}/gate-trace.XXXXXX")"
+      _tr="$(python3 "$REPO/tv/gate_ledger.py" --trace-path)"
       if ! ( eval "$(python3 "$REPO/tv/gate_ledger.py" --trace-env "$_tr")"; gate_run "test_agent" "python3 tv/test_agent.py" 600 -- python3 "$REPO/tv/test_agent.py" ); then
         rm -f "$_tr"
         exit 1
@@ -940,7 +940,7 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
       # suite: 133.6 s); then 4 shards by class ran all 2,259 cases in 66-88 s (3 green runs, his game running beside them).
       # tv/shard_suite.py is green only when every shard ran every case it was dealt and every class was dealt - a shard
       # that dies or runs less is RED. SUITE_SHARDS=1 runs it as one shard. CI still runs the whole file serially.
-      _tr="$(mktemp "${TMPDIR:-/tmp}/gate-trace.XXXXXX")"
+      _tr="$(python3 "$REPO/tv/gate_ledger.py" --trace-path)"
       if ! ( eval "$(python3 "$REPO/tv/gate_ledger.py" --trace-env "$_tr")"; gate_run "test_control" "python3 tv/shard_suite.py test_control" 1500 -- python3 "$REPO/tv/shard_suite.py" test_control ); then
         rm -f "$_tr"
         exit 1
