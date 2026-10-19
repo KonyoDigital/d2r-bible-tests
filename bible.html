@@ -10477,13 +10477,17 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 /* L1 (Elad 2026-10-20) — right-side task panel */
 #mule-vault-card .boss-body.vault-body{display:flex;align-items:flex-start;gap:14px}
 .vault-main{flex:1 1 auto;min-width:0}
-.vault-tasks-panel{flex:0 0 360px;max-width:40%;position:sticky;top:8px;max-height:calc(100vh - 16px);overflow:auto;border:1px solid rgba(212,168,71,.32);border-radius:12px;padding:10px 12px;background:linear-gradient(180deg,rgba(36,27,14,.5),rgba(13,10,6,.5));box-sizing:border-box}
+.vault-tasks-panel{flex:0 0 420px;max-width:42%;position:sticky;top:8px;max-height:calc(100vh - 16px);overflow:auto;border:1px solid rgba(212,168,71,.32);border-radius:12px;padding:10px 12px;background:linear-gradient(180deg,rgba(36,27,14,.5),rgba(13,10,6,.5));box-sizing:border-box}
 .vault-say{margin:2px 0 6px;color:var(--text-dim);font-size:var(--fs-meta)}
 .vault-tasks-panel .vmv-grid,.vault-tasks-panel .vault-move-sub{display:none}
 .vtk-sec{font-family:var(--serif-display,serif);margin:8px 0 4px;font-size:var(--fs-micro);letter-spacing:var(--ls-wide);text-transform:uppercase;color:var(--gold-bright,#f0c060)}
 .vtk-list{list-style:none;margin:0;padding:0;counter-reset:vtk}
-.vtk-line{display:flex;align-items:center;gap:6px;padding:4px 4px;border-radius:6px;cursor:pointer;font-size:var(--fs-meta);counter-increment:vtk}
-.vtk-line::before{content:counter(vtk) ".";min-width:1.6em;text-align:right;color:var(--text-dim)}
+.vault-tasks-panel .vtk-line{display:flex;flex-wrap:nowrap;align-items:center;gap:6px;padding:3px 4px;margin:0;border-radius:6px;border:0;background:none;box-shadow:none;cursor:pointer;font-size:var(--fs-meta);counter-increment:vtk;grid-template-columns:none}
+.vault-tasks-panel .vtk-line .vmv-reason{flex:0 1 90px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:var(--fs-micro)}
+.vault-tasks-panel .vtk-line .vault-btn{flex:0 0 auto;padding:0 6px;min-height:0;line-height:1.6;font-size:var(--fs-micro)}
+.vault-tasks-panel .vtk-line .vmv-gone{flex:0 0 auto;white-space:nowrap;font-size:var(--fs-micro)}
+.vault-tasks-panel .vmv-unseen{border:1px dashed rgba(240,192,96,.4);border-radius:8px;padding:4px 6px;margin:4px 0}
+.vtk-line::before{content:counter(vtk) ".";flex:0 0 auto;min-width:1.6em;text-align:right;color:var(--text-dim)}
 .vtk-line:hover{background:rgba(240,192,96,.08)}
 .vtk-tick{flex:0 0 auto;margin:0;cursor:pointer}
 .vtk-art{flex:0 0 22px;width:22px;height:22px;overflow:hidden;display:inline-flex;align-items:center;justify-content:center}
@@ -41643,6 +41647,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var loc = !w ? '<span class="vfr-arrow">→</span><span style="color:var(--text-dim)">UNKNOWN — the finder could not ask where it is</span>'
         : (w.kind === 'would') ? '<span class="vfr-arrow">→</span><span class="vfr-would">unsorted · would go to <span class="vfr-mule">'+esc(w.muleName)+'</span>' + (w.cell ? ' · '+esc(w.cell) : '') + ' — press ⚖️ Auto-assign unsorted to file it</span>'
         : (w.kind === 'main') ? '<span class="vfr-arrow">→</span><span class="vfr-main">stays with your MAIN — '+esc(w.why)+'</span>'
+        : (w.kind === 'dock' && typeof window._vaultThrowRoute === 'function' && window._vaultThrowRoute(n)) ? '<span class="vfr-arrow">→</span><span class="vfr-throw" title="'+esc(w.why)+'">THROW OUT task in MOVE TASKS — '+esc(String(w.why).split(' — ')[0].slice(0, 48))+'</span>' /* L1 find names the throw-out task */
         : (w.kind === 'dock') ? '<span class="vfr-arrow">→</span><span style="color:var(--text-dim)" title="'+esc(w.why)+'">unsorted · in the dock — '+esc(String(w.why).split(' — ')[0].slice(0, 48))+'</span>'
         : '<span class="vfr-arrow">→</span><span class="vfr-mule">'+esc(w.muleName)+'</span>'
           + (w.cell ? '<span class="vfr-cell"> · '+esc(w.cell)+'</span>' : '<span class="vfr-cell"> · cell UNKNOWN</span>');

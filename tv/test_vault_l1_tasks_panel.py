@@ -142,6 +142,15 @@ class TheTasksPanel(unittest.TestCase):
         self.assertTrue(o["done"], "his tick did not move the task to Done")
         self.assertTrue(o["cmp"], "clicking a line does not open BEFORE | AFTER")
 
+    def test_find_names_the_throw_out_task_not_the_dock(self):
+        world()
+        o = board().run("var i = document.getElementById('vault-find-input'); i.value = 'arcanna\\'s head';"
+                        "i.dispatchEvent(new Event('input', { bubbles: true })); await new Promise(function(r){ setTimeout(r, 900); });"
+                        "OUT.text = document.getElementById('vault-find-results').textContent;"
+                        "i.value = ''; window.vaultFind('');")
+        self.assertIn("THROW OUT task", o["text"], o["text"])
+        self.assertNotIn("in the dock", o["text"], "FIND still sends him to the dock for a THROW OUT task: %r" % o["text"])
+
     def test_each_left_area_says_one_plain_line_and_the_wordy_text_is_gone(self):
         world()
         o = board().run("OUT.says = [].map.call(document.querySelectorAll('#mule-vault-card .vault-say'), function(e){"
@@ -163,6 +172,11 @@ class TheTasksPanel(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "FIND sends him to the dock for a THROW OUT task.",
+     "file": "bible.html",
+     "find": "        : (w.kind === 'dock' && typeof window._vaultThrowRoute === 'function' && window._vaultThrowRoute(n)) ?",
+     "replace": "        : (false) ?",
+     "matches": 1},
     {"why": "MOVE TASKS goes back into the left column.",
      "file": "bible.html",
      "find": "      </div><!-- /vault-main -->\n      <aside id=\"vault-tasks\" class=\"vault-tasks-panel\" aria-label=\"move tasks\">\n        <p class=\"vault-say\" data-say=\"tasks\">Tick each task when it is done. The reels tick them too.</p>\n        <div id=\"vault-move-list\" class=\"vault-move\" aria-label=\"move task list\"></div>\n      </aside>\n",
