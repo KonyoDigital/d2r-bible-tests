@@ -2072,15 +2072,19 @@ class Ledger(object):
         root = self._root_of([gate])
         try:
             row = self._store_decl(gate, root)  # LEDGER-RECORD-FRESH
-        except Exception:
+        except Exception as exc:
+            self.last_why = "its inputs could not be derived (%s)" % type(exc).__name__
             return False
         why = (row or {}).get("why")
         if ok is not True or why or not isinstance((row or {}).get("inputs"), list):  # LEDGER-NO-FAIL
+            if ok is True:
+                self.last_why = why or "its inputs are UNKNOWN"  # LEDGER-SAY-WHY
             if name:
                 self._drop(name)
             return False
         parts, pwhy = self._tool_parts(set(row.get("kinds") or []), root)
         if pwhy or not parts:
+            self.last_why = pwhy or "the tool versions could not be read"
             if name:
                 self._drop(name)
             return False
@@ -2118,6 +2122,7 @@ class Ledger(object):
             return False
         sha = head_sha(root)
         if not sha:
+            self.last_why = "HEAD could not be read"
             return False
         self._ensure()
         if self.entries is None:
