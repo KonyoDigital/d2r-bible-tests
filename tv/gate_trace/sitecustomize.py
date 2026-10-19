@@ -268,7 +268,7 @@ def _boot():
         return wrapped
 
     def probe_wrap(real):
-        """os.access, os.readlink, os.path.realpath: each one asks whether a path is there."""
+        """os.access and os.readlink: each one asks whether a path is there."""
         def wrapped(path, *a, **k):
             if busy() or k.get("dir_fd") is not None:
                 return real(path, *a, **k)
@@ -309,8 +309,8 @@ def _boot():
     os.stat = stat_wrap(os.stat)
     os.lstat = stat_wrap(os.lstat)
     os.access = probe_wrap(os.access)
-    os.readlink = probe_wrap(os.readlink)
-    os.path.realpath = probe_wrap(os.path.realpath)  # LEDGER-TRACE-PROBE
+    os.readlink = probe_wrap(os.readlink)  # LEDGER-TRACE-PROBE
+    # os.path.realpath needs no wrap: it walks the path through os.lstat, which is wrapped above
     if hasattr(os, "register_at_fork"):
         os.register_at_fork(after_in_child=after_fork)
     sys.addaudithook(hook)
