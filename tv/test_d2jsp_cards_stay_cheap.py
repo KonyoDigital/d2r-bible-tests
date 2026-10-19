@@ -12,7 +12,8 @@ it. Four laws, each read where it can be read:
   2. A reading, a sold toggle or a typed fg repaints its own card only (node).
   3. Options keeps the list: opening the picker repaints no card, and the D2JSP
      desk builds its 1,220-row builder list once per query (node).
-  4. Screens: Chrome counts filtered art that is not inside a contained card in
+  4. Screens: Chrome counts every element computing any filter (not only
+     drop-shadow or blur) inside a D2JSP card and outside a contained card in
      D2JSP, Vault and Runewords, and the cards a reading or an Options click
      touches. WebKitGTK opens D2JSP with 228 synthetic filings, refreshes the
      prices and opens Options twice under a 3 GB kill guard; it judges the
@@ -54,7 +55,9 @@ NO_WEBKIT = "no WebKitGTK (gi WebKit2 + xvfb-run) on this machine"
 SKIPS = set()
 
 CARDS = 228                    # his live list when it froze
-FILTER_BUDGET = 24             # filtered art outside a contained card, per room
+FILTER_BUDGET = {"d2jsp": 0, "vault": 24, "forge": 32}   # elements computing any filter outside a contained card
+                               # (forge: 29 colour filters on v3771 and v3773 alike; a follow-up in REG-2294)
+CARD_FILTERS = 0               # elements computing any filter inside a D2JSP card
 ROOMS = ("d2jsp", "vault", "forge")   # D2JSP, Vault, Runewords
 REPORT_ROOMS = ("funi", "fsets", "crafts")
 READING_CARDS = 1              # cards one reading may touch
@@ -91,10 +94,75 @@ def _block(src, pattern):
 
 
 # ---------------------------------------------------------------- 1. CSS
+ART_BUILDERS = (r"function cardHtml\(n\)\s*\{", r"function d2jspArt\(n\)\s*\{", r"function artOr\(name, fallbackHtml, size\)\s*\{")
+NO_FILTER = ("#tab-d2jsp .d2art-wrap", "#tab-d2jsp .d2art-wrap .d2art-img", "#tab-d2jsp .d2art-wrap:hover .d2art-img")
+_STR_RE = re.compile(r"'(?:[^'\\\n]|\\.)*'|\"(?:[^\"\\\n]|\\.)*\"|`(?:[^`\\]|\\.)*`")
+
+
+def card_names(bible):
+    """(classes, ids, prefixes) a D2JSP card or its art can carry, read from the markup builders
+    (cardHtml, d2jspArt, artOr) and the #tab-d2jsp section that holds the list. Over-wide on
+    purpose: a name that is only maybe on the card still counts as reaching it."""
+    words = set()
+    for pat in ART_BUILDERS:
+        blk = _block(bible, pat) or ""
+        for lit in _STR_RE.findall(blk):
+            words.update(re.findall(r"[A-Za-z_][\w-]*", re.sub(r"\$\{[^}]*\}", " ", lit)))
+    a = bible.find('<div class="tab-content" id="tab-d2jsp">')
+    b = bible.find('<div class="tab-content"', a + 10) if a >= 0 else -1
+    section = bible[a:b if b > a else a + 200000] if a >= 0 else ""
+    for m in re.finditer(r"\b(?:class|id)\s*=\s*[\"']([^\"']*)[\"']", section):
+        words.update(re.findall(r"[A-Za-z_][\w-]*", m.group(1)))
+    words.update(("tab-content", "active", "tab-d2jsp", "d2jsp-list"))
+    prefixes = set(w for w in words if w.endswith("-"))
+    return words, prefixes
+
+
+def _known(name, words, prefixes):
+    return name in words or any(name.startswith(p) for p in prefixes)
+
+
+def can_reach_card(selector, words, prefixes):
+    """True when every compound of `selector` could match the card, its art or an ancestor.
+    html, body and :root compounds are always reachable (their classes change at run time)."""
+    sel = re.sub(r"::?[\w-]+(\((?:[^()]|\([^()]*\))*\))?", "", selector)   # pseudo-classes say when, not where
+    sel = re.sub(r"\[[^\]]*\]", "", sel)                                     # attributes too
+    for comp in re.split(r"\s*[>+~]\s*|\s+", sel.strip()):
+        if not comp:
+            continue
+        tag = re.match(r"[A-Za-z*][\w-]*", comp)
+        if tag and tag.group(0).lower() in ("html", "body"):
+            continue
+        for kind, name in re.findall(r"([.#])([\w-]+)", comp):
+            if not _known(name, words, prefixes):
+                return False
+    return True
+
+
 def css_problems(bible):
     bad = []
     rules = css_rules(bible)
-    for sel in ("#tab-d2jsp .d2art-wrap .d2art-img", "#tab-d2jsp .d2art-wrap:hover .d2art-img"):
+    words, prefixes = card_names(bible)
+    # Any !important filter that can reach the card wins over or ties with the no-filter rule,
+    # whatever its specificity, so none is allowed (v3773 round 2, cases 1 and 2).
+    for sels, decls in rules:
+        for prop in ("filter", "-webkit-filter"):
+            v = decls.get(prop)
+            if not v or not v[1] or v[0] == "none":
+                continue
+            hit = [x for x in sels if x not in NO_FILTER and can_reach_card(x, words, prefixes)]
+            if hit:
+                bad.append("an !important %s can reach D2JSP card art: %s{%s:%s}" % (prop, hit[0], prop, v[0]))
+    for pat in ART_BUILDERS:
+        raw = _block(bible, pat) or ""
+        for lit in _STR_RE.findall(raw):          # an inline style="filter:..." beats every sheet rule
+            if re.search(r"(?<![\w-])(?:-webkit-)?filter\s*:", lit):
+                bad.append("a D2JSP card builder writes an inline filter: %s" % lit[:120])
+        if re.search(r"\.style\.(?:webkitF|f)ilter\b", code_mask(raw)):
+            bad.append("a D2JSP card builder sets a filter in script (%s)" % pat)
+        if re.search(r"setProperty\(\s*['\"](?:-webkit-)?filter['\"]", raw):
+            bad.append("a D2JSP card builder sets a filter with setProperty (%s)" % pat)
+    for sel in NO_FILTER:
         got = _decl(rules, sel, "filter")
         if ("none", True) not in got:
             bad.append("D2JSP card art can take a filter (%s): %s" % (sel, got))
@@ -287,14 +355,15 @@ window.__d1 = async function(rooms, n){
       await frames();
       var root = document.getElementById('tab-' + rooms[r]);
       var all = root ? root.getElementsByTagName('*') : [];
-      var bad = 0, tot = 0;
+      var bad = 0, tot = 0, inCard = 0;
       for (var i = 0; i < all.length; i++) {
-        var fl = gcs(all[i]).filter;
-        if (!fl || fl === 'none' || !/drop-shadow|blur/.test(fl)) continue;
+        var fl = gcs(all[i]).filter;            /* any filter at all: WebKitGTK paints every one in software */
+        if (!fl || fl === 'none') continue;
         tot++;
+        if (all[i].closest('.d2jsp-card')) inCard++;
         if (!contained(all[i], root)) bad++;
       }
-      out.rooms[rooms[r]] = {filtered: tot, uncontained: bad, nodes: all.length};
+      out.rooms[rooms[r]] = {filtered: tot, uncontained: bad, inCard: inCard, nodes: all.length};
     }
     switchTab('d2jsp');
     await frames();
@@ -455,8 +524,11 @@ def chrome_problems(got):
         bad.append("the D2JSP list drew %s of %d synthetic filings" % (got.get("cards"), CARDS))
     for room in ROOMS:
         row = (got.get("rooms") or {}).get(room) or {}
-        if row.get("uncontained") is None or row["uncontained"] > FILTER_BUDGET:
-            bad.append("%s paints %s filtered art outside a contained card (budget %d)" % (room, row.get("uncontained"), FILTER_BUDGET))
+        if row.get("uncontained") is None or row["uncontained"] > FILTER_BUDGET[room]:
+            bad.append("%s paints %s filtered elements outside a contained card (budget %d)" % (room, row.get("uncontained"), FILTER_BUDGET[room]))
+    d2 = (got.get("rooms") or {}).get("d2jsp") or {}
+    if d2.get("inCard") is None or d2["inCard"] > CARD_FILTERS:
+        bad.append("%s elements inside D2JSP cards compute a filter (budget %d)" % (d2.get("inCard"), CARD_FILTERS))
     reading = got.get("reading") or {}
     if not reading.get("held") or reading.get("cards") is None or reading["cards"] > READING_CARDS:
         bad.append("one D2JSP reading touched %s cards (budget %d)" % (reading.get("cards"), READING_CARDS))
@@ -719,6 +791,22 @@ RED_PROOF = [
      "file": "bible.html",
      "find": "#tab-d2jsp .d2art-wrap,#tab-d2jsp .d2art-wrap .d2art-img,#tab-d2jsp .d2art-wrap:hover .d2art-img{filter:none!important;",
      "replace": "#tab-d2jsp .d2art-wrap,#tab-d2jsp .d2art-wrap .d2art-img{filter:none!important;",
+     "matches": 1},
+    {"why": "Review case 1: a higher-specificity !important rule gives every D2JSP card img a drop-shadow and saturate.",
+     "file": "bible.html",
+     "find": "transition:none!important} /* v3773 no art filter */",
+     "replace": "transition:none!important} /* v3773 no art filter */\n"
+                "#tab-d2jsp #d2jsp-list .d2jsp-card .d2art-wrap img.d2art-img{filter:drop-shadow(0 0 6px #f0c060) saturate(1.4)!important}",
+     "matches": 1},
+    {"why": "Review case 2: the wrap leaves the no-filter rule, so the global .d2art-wrap saturate/contrast filter is back on every card.",
+     "file": "bible.html",
+     "find": "#tab-d2jsp .d2art-wrap,#tab-d2jsp .d2art-wrap .d2art-img,#tab-d2jsp .d2art-wrap:hover .d2art-img{filter:none!important;",
+     "replace": "#tab-d2jsp .d2art-wrap .d2art-img,#tab-d2jsp .d2art-wrap:hover .d2art-img{filter:none!important;",
+     "matches": 1},
+    {"why": "An inline !important filter on the card's art box beats every sheet rule.",
+     "file": "bible.html",
+     "find": "      + '<div class=\"d2jsp-art\">' + art + '</div>'",
+     "replace": "      + '<div class=\"d2jsp-art\" style=\"filter:saturate(1.4)!important\">' + art + '</div>'",
      "matches": 1},
     {"why": "A D2JSP card is painted even when it is off screen.",
      "file": "bible.html",

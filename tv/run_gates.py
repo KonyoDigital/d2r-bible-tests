@@ -9866,8 +9866,9 @@ GATES = [
              "and grew the web process past 3 GB. D2JSP card art has no filter (a baked gradient "
              "glow instead) and each card is content-visibility:auto with an intrinsic size. A "
              "reading repaints its own card, Options repaints no card and the desk builds its "
-             "builder list once per query (node). Chrome counts filtered art outside a contained "
-             "card in D2JSP, Vault and Runewords (budget 24). WebKitGTK opens D2JSP with 228 "
+             "builder list once per query (node). Any !important filter that can reach card art, or an "
+             "inline one, is a hit. Chrome counts every element computing any filter: 0 inside "
+             "D2JSP cards, and outside a contained card D2JSP 0, Vault 24, Runewords 32. WebKitGTK opens D2JSP with 228 "
              "synthetic filings, refreshes prices and opens Options twice under a 3 GB kill guard: "
              "at most 40% blocked per phase after idle and 1 GB growth over idle. No Chrome or no WebKitGTK "
              "is a declared skip."),

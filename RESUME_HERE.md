@@ -14,7 +14,7 @@
 
 ⚠ **Nothing has shipped until `origin/main` equals `HEAD`.** Verify BY THE REF (`git fetch -q origin && git rev-parse --short origin/main`), never by a push's exit code — `git push | tail` reports tail's status.
 
-*Derived 2026-10-19 15:30 by `tv/resume_state.py`. Everything outside these markers is narrative a machine cannot measure, written by hand.*
+*Derived 2026-10-19 16:18 by `tv/resume_state.py`. Everything outside these markers is narrative a machine cannot measure, written by hand.*
 
 <!-- END DERIVED -->
 
