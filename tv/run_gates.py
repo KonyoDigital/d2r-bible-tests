@@ -9860,6 +9860,16 @@ GATES = [
              "vanished move, a container never shown counts nothing, a re-sighting resets, the row says gone k/5; a "
              "throw-out read on the ground after it left closes at once. No browser is a declared skip."),
          skip_ok=(r"no Chrome/Chromium on this machine",)),
+    Gate("test_vault_l1_tasks_panel", [sys.executable,
+         os.path.join(HERE, "test_vault_l1_tasks_panel.py")], 180,
+         needs_app=False,
+         why=("Vault L1 (Elad 2026-10-20) - MOVE TASKS is a right-side panel beside the left column at 1280 and 1440: "
+             "a numbered checklist, one line per task (Arcanna's Sign · MANUAL → SETS-REST (x,y)), Moves then "
+             "Throw-outs, no wide grids; each line has one tick box (his tick moves it to Done, the reels show gone "
+             "k/5), a click opens BEFORE | AFTER; Done is collapsed at the bottom. The left keeps add, find, the mules "
+             "and the Equipped (locked) line, each with one short plain line; the wordy headers stay gone. "
+             "No browser is a declared skip."),
+         skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_v3771_vault_console_face", [sys.executable,
          os.path.join(HERE, "test_v3771_vault_console_face.py")], 60,
          needs_app=False,

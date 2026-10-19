@@ -64,7 +64,7 @@ def world():
 
 READ = r"""
 function bag(){ var m = {}; try { (JSON.parse(LSR.getItem('d2r_vaultRecords') || '{}').records || []).forEach(function(r){ if (r.move) m[r.name] = r.move; }); } catch (e) {} return m; }
-function row(nm){ var l = document.getElementById('vault-move-list'); return l ? l.querySelector('.vmv-row[data-name="' + nm.replace(/"/g, '\\"') + '"]') : null; }
+function row(nm){ var l = document.getElementById('vault-move-list'); return l ? l.querySelector('.vtk-list:not([data-sec="done"]) .vmv-row[data-name="' + nm.replace(/"/g, '\\"') + '"]') : null; } /* an open task; a drained one sits in Done */
 function obs(f){ return window._vaultGoneObserve(f); }
 """
 
@@ -135,7 +135,7 @@ class TheDrain(unittest.TestCase):
         self.assertEqual(o["m4"]["status"], "to-move")
         self.assertEqual(len(o["m4b"]["gone"]), 4, "one session counted twice")
         self.assertEqual(o["m5"]["status"], "closed", o["m5"])
-        self.assertFalse(o["row5"], "a drained row is still on the list")
+        self.assertFalse(o["row5"], "a drained row is still an open task")
 
     def test_container_not_shown_so_no_count(self):
         world()
@@ -356,8 +356,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "Keep/Junk buttons leave the THROW OUT row.",
      "file": "bible.html",
-     "find": "             : '<button type=\"button\" class=\"vault-btn vmv-keep\"",
-     "replace": "             : '<span hidden class=\"x-keep\"",
+     "find": "        + ((thr && !fin && !t.junk) ? '<button type=\"button\" class=\"vault-btn vmv-keep\"",
+     "replace": "        + ((false) ? '<button type=\"button\" class=\"vault-btn vmv-keep\"",
      "matches": 1},
 ]
 
