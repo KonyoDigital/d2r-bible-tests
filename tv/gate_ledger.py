@@ -40,12 +40,16 @@ scandir, glob, stat, import and every child process), and the PASS stores what t
 `lookup` compares `git diff --name-status --no-renames` plus `git status --porcelain
 --untracked-files=all` with the stored set AND today's walk, so a deleted input is still an
 input. An added or deleted file under a listed directory, or a new module whose name the gate
-imported, is a hit. `record` refuses a PASS when a dirty or untracked path touches those inputs,
-since the commit it would be labelled with is not the bytes it ran on. A run the hook could not
-follow is never stored: no trace (a node gate), a non-python child (node, chrome, lsof, a git
-command that reads history), a python child that did not trace itself, a read of a gitignored
-file, or a listing of a directory that holds no tracked file. A row stored before this change
-has no `traced` mark and runs once.
+imported, is a hit. `record` refuses a PASS when a dirty or untracked path is one of those
+inputs, or a tracked file under a listed directory was added or deleted in the worktree, since the
+commit it would be labelled with is not the bytes it ran on. An untracked file the run could only
+see in a listing is kept as a snapshot (`untracked`); one that comes or goes later is a hit.
+A node child carries gate_trace/node_trace.cjs and is traced the same way. A run the hook could
+not follow is never stored, so the gate always runs: no trace, a child that is not python or node
+(chrome, bash, a git command that reads history or the index), a child that did not trace itself,
+an ES module from this checkout, a read of a gitignored file (except the two keyed caches below),
+or a listing of a directory that holds no tracked file. A row stored before this change has no
+`traced` mark and runs once.
 
 Fail closed. A missing or unreachable proven sha, a diff that fails, a gate whose inputs cannot
 be named, a corrupt ledger, and a FAIL are all a run. Only a PASS is stored. `--full` does not
