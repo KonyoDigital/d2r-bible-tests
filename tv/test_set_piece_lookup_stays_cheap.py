@@ -8,10 +8,18 @@ import json
 import os
 import re
 import subprocess
+import sys
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)
+if HERE not in sys.path:
+    sys.path.insert(0, HERE)
+try:
+    from console_safe import enable as _enable
+    _enable()
+except Exception:
+    pass
 
 
 def _read():
@@ -62,7 +70,7 @@ var grown = got("Fresh One");
 console.log(JSON.stringify({mism:mism, many:many, grown:grown}));
 """
     try:
-        r = subprocess.run(["node", "-e", prog], capture_output=True, text=True, timeout=60)
+        r = subprocess.run(["node", "-"], input=prog, capture_output=True, text=True, timeout=60)
         out = json.loads(r.stdout.strip().splitlines()[-1])
     except Exception as e:
         return ["node run failed: %s" % e]
