@@ -39,9 +39,11 @@ U, V = "v100", "v101"
 NOTE = "Derived 2026-10-19 10:17 by `tv/resume_state.py`. Everything outside these markers is narrative a machine cannot measure, written by hand."
 
 
-def _files(ver, sha_row=False, note="first", title_word="Bible"):
+def _files(ver, sha_row=False, note="first", title_word="Bible", shipped=None):
+    shipped = list(shipped if shipped is not None else ([U] if sha_row else []))
     tasks_rows = ("| **%s** | `(this commit)` | %s — %s |\n" % (ver, ver, note)
-                  + ("| **%s** | `abcdef12` | %s — first |\n" % (U, U) if sha_row else "")
+                  + "".join("| **%s** | `abcdef12` | %s — %s |\n" % (v, v, "first" if v == U else "mid")
+                            for v in shipped)
                   + "| **v99** | `1234567a` | v99 — older |\n")
     return {
         "bible.html": ("<html><head>\n  <title>Konyo %s %s · TV</title>\n"
@@ -155,8 +157,8 @@ class ACoherentBumpCarries(unittest.TestCase):
             self.assertTrue(b.record(g, True), "PREMISE: no PASS stored for %s" % g.name)
         return GL.Ledger(path=self.led, probes=dict(PROBES))
 
-    def bump(self, skip=(), ver=V, override=None):
-        new = _files(ver, sha_row=True, note="second")
+    def bump(self, skip=(), ver=V, override=None, shipped=None):
+        new = _files(ver, sha_row=True, note="second", shipped=shipped)
         new["BLUEPRINT.md"] = "# b\n    generated 2026-10-19 13:50\n"
         for rel, text in new.items():
             if rel in skip:
@@ -234,6 +236,76 @@ class ACoherentBumpCarries(unittest.TestCase):
         g = self.gate("t_plain.py", name="test_build_stamp_fixture"); b = self.book(g)
         self.bump()
         self.assertFalse(self.carried(g, b)[0])
+
+    # --- round 2 B: back-to-back bumps
+    def test_two_back_to_back_bumps_carry(self):
+        g = self.gate("t_plain.py"); b = self.book(g)
+        self.bump(ver=V)
+        _git(self.root, "commit", "-qam", "bump 1")
+        self.bump(ver="v102", shipped=[V, U])
+        ok, why = self.carried(g, b)
+        self.assertTrue(ok, "two back-to-back bumps reran the gate: %s" % why)
+
+    def test_three_back_to_back_bumps_carry(self):
+        g = self.gate("t_plain.py"); b = self.book(g)
+        self.bump(ver=V)
+        _git(self.root, "commit", "-qam", "bump 1")
+        self.bump(ver="v102", shipped=[V, U])
+        _git(self.root, "commit", "-qam", "bump 2")
+        self.bump(ver="v105", shipped=["v102", V, U])
+        _git(self.root, "commit", "-qam", "bump 3")
+        ok, why = self.carried(g, b)
+        self.assertTrue(ok, "three back-to-back bumps reran the gate: %s" % why)
+
+    def test_a_middle_row_out_of_order_or_hand_written_runs(self):
+        rel = "TASKS.md"
+        rem = ["| **v1** | `(this commit)` | v1 — a |"]
+        top = "| **v4** | `(this commit)` | v4 — d |"
+        bot = "| **v1** | `abcdef12` | v1 — a |"
+        self.assertEqual(GL.stamp_file_versions(rel, _hunk(rel, rem, [top, "| **v3** | `abcdef12` | v3 — c |", "| **v2** | `abcdef12` | v2 — b |", bot])), ({"v1"}, {"v4"}))
+        for mid in (["| **v2** | `abcdef12` | v2 — b |", "| **v3** | `abcdef12` | v3 — c |"],
+                    ["| **v3** | `abcdef12` | v3 — c | extra |"],
+                    ["| **v3** | `abcdef12` | v9 — c |"],
+                    ["| **v3** | `(this commit)` | v3 — c |"],
+                    ["hand prose"]):
+            self.assertIsNone(GL.stamp_file_versions(rel, _hunk(rel, rem, [top] + mid + [bot])), mid)
+
+    # --- round 2 A: free text on stamp lines
+    def test_a_content_scanner_reruns_on_a_coherent_bump(self):
+        _write(self.root, "tv/t_scan.py", "import control_app\nopen('bible.html').read()\n")
+        _git(self.root, "add", "-A"); _git(self.root, "commit", "-qm", "scan")
+        g = self.gate("t_scan.py", name="fixture-plain-name"); b = self.book(g)
+        self.bump()
+        self.assertFalse(self.carried(g, b)[0], "a gate that reads bible.html text was carried over a bump")
+
+    def test_a_privacy_gate_reruns_on_a_coherent_bump(self):
+        g = self.gate("t_plain.py", name="test_no_new_home_path_fixture"); b = self.book(g)
+        self.bump()
+        self.assertFalse(self.carried(g, b)[0], "a privacy gate was carried over a bump")
+
+    def test_the_bump_refuses_a_leak_in_its_free_text(self):
+        import bump_version as BV
+        for bad in ("moved the cache out of /Us" + "ers/someone/Library/", "talks to 192.168.1.20 now",
+                    "the konyo-3.local box", "token ghp_" + "a" * 30):
+            self.assertTrue(BV.leak_problem(bad), bad)
+        for fine in ("gate memory carries a bump", "Wilson 0.824 against 0.722", "sha e22a1975 and v3.1.2"):
+            self.assertIsNone(BV.leak_problem(fine), fine)
+
+    def test_the_bump_writes_nothing_when_the_note_leaks(self):
+        import types
+        import bump_version as BV
+        held = sys.modules.get("tree_busy")
+        sys.modules["tree_busy"] = types.SimpleNamespace(why=lambda r: None)
+        try:
+            with self.assertRaises(SystemExit) as cm:
+                BV.bump("v101", "a name", "see /Us" + "ers/someone/x/", repo=self.root)
+        finally:
+            if held is None:
+                sys.modules.pop("tree_busy", None)
+            else:
+                sys.modules["tree_busy"] = held
+        self.assertIn("REFUSED", str(cm.exception))
+        self.assertIn('"ver": "%s"' % U, _read(self.root, "tv/control_app.py"))
 
     # --- item 3: nothing rides on a stamp line
     def test_code_riding_on_the_build_line_is_not_a_stamp(self):
@@ -394,7 +466,7 @@ RED_PROOF = [
     {
         'why': 'the ship table may take extra rows',
         'file': 'gate_ledger.py',
-        'find': '    if o != n or len(rem) != 1 or len(add) != 2:  # STAMP-TASKS-SHAPE\n',
+        'find': '    if o != n or len(rem) != 1 or not 2 <= len(add) <= _MAX_BUMPS + 1:  # STAMP-TASKS-SHAPE\n',
         'replace': '    if len(add) < 1:  # STAMP-TASKS-SHAPE\n',
         'matches': 1,
     },
@@ -445,6 +517,76 @@ RED_PROOF = [
         'file': 'gate_ledger.py',
         'find': '"--no-ext-diff", "--no-textconv",',
         'replace': '"--no-ext-diff",',
+        'matches': 1,
+    },
+    {
+        'why': 'a home path in the note is accepted',
+        'file': 'bump_version.py',
+        'find': '        if _hp.count(t):  # BUMP-LEAK-HOME\n',
+        'replace': '        if False:  # BUMP-LEAK-HOME\n',
+        'matches': 1,
+    },
+    {
+        'why': 'an IP in the note is accepted',
+        'file': 'bump_version.py',
+        'find': '    if _LEAK_IP.search(t):  # BUMP-LEAK-IP\n',
+        'replace': '    if False:  # BUMP-LEAK-IP\n',
+        'matches': 1,
+    },
+    {
+        'why': 'a hostname in the note is accepted',
+        'file': 'bump_version.py',
+        'find': '    if _LEAK_HOST.search(t):  # BUMP-LEAK-HOST\n',
+        'replace': '    if False:  # BUMP-LEAK-HOST\n',
+        'matches': 1,
+    },
+    {
+        'why': 'a token in the note is accepted',
+        'file': 'bump_version.py',
+        'find': '    if _LEAK_TOKEN.search(t):  # BUMP-LEAK-TOKEN\n',
+        'replace': '    if False:  # BUMP-LEAK-TOKEN\n',
+        'matches': 1,
+    },
+    {
+        'why': 'the bump writes a leaking note',
+        'file': 'bump_version.py',
+        'find': '        if _leak:  # BUMP-LEAK-REFUSE\n',
+        'replace': '        if False:  # BUMP-LEAK-REFUSE\n',
+        'matches': 1,
+    },
+    {
+        'why': 'a privacy gate is carried over a bump',
+        'file': 'gate_ledger.py',
+        'find': '        if _CONTENT_NAME.search(str(name or "")):  # STAMP-CONTENT-NAME\n',
+        'replace': '        if False:  # STAMP-CONTENT-NAME\n',
+        'matches': 1,
+    },
+    {
+        'why': 'a gate that reads bible.html text is carried over a bump',
+        'file': 'gate_ledger.py',
+        'find': '                    self._verdep[key] = bool(_CONTENT_SCRIPT.search(fh.read()))  # STAMP-CONTENT-SCRIPT\n',
+        'replace': '                    self._verdep[key] = False  # STAMP-CONTENT-SCRIPT\n',
+        'matches': 1,
+    },
+    {
+        'why': 'a malformed middle ship row is accepted',
+        'file': 'gate_ledger.py',
+        'find': '        if not m or m.group("v") != m.group("s"):  # STAMP-TASKS-MIDDLE\n            return None\n',
+        'replace': '        if not m:  # STAMP-TASKS-MIDDLE\n            continue\n',
+        'matches': 1,
+    },
+    {
+        'why': 'ship rows out of order are accepted',
+        'file': 'gate_ledger.py',
+        'find': '    if any(a <= b for a, b in zip(nums, nums[1:])):  # STAMP-TASKS-ORDER\n',
+        'replace': '    if False:  # STAMP-TASKS-ORDER\n',
+        'matches': 1,
+    },
+    {
+        'why': 'only one bump is accepted, so back-to-back bumps rerun everything',
+        'file': 'gate_ledger.py',
+        'find': '    if o != n or len(rem) != 1 or not 2 <= len(add) <= _MAX_BUMPS + 1:  # STAMP-TASKS-SHAPE\n',
+        'replace': '    if o != n or len(rem) != 1 or len(add) != 2:  # STAMP-TASKS-SHAPE\n',
         'matches': 1,
     },
 ]
