@@ -10687,10 +10687,12 @@ GATES = [
     Gate("test_a_gate_proven_on_these_bytes_is_carried",
          [sys.executable, os.path.join(HERE, "test_a_gate_proven_on_these_bytes_is_carried.py")], 600,
          needs_app=False,
-         why="v3768 - a push carries a gate when one git diff from the proven commit, plus "
-             "the dirty worktree, does not touch that gate's inputs. The carry does not "
-             "open those files. Editing an input runs the gate again. Editing an unrelated "
-             "file leaves it carried. A missing or unreachable sha, a failed diff, a gate "
+         why="v3770 - a push carries a gate when the commit that gate was proved at is an "
+             "ancestor of HEAD and none of its inputs are in the diff from that commit to "
+             "HEAD plus the dirty worktree. One diff is cached per distinct sha. The carry "
+             "does not open those files. A stale input map is rebuilt when the script, a "
+             "file it closes over, or heart2.py changed. Editing an input runs the gate "
+             "again. A missing sha, a sha that is not an ancestor, a failed diff, a gate "
              "whose inputs cannot be named, a corrupt ledger and a FAIL all run. --full "
              "does not consult the ledger. CI does not either. A carried line says proven "
              "at a sha and an age, and it is not a fresh pass and not new Wilson evidence."),

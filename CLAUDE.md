@@ -99,7 +99,7 @@ cat .claude/skills/human-eyes-harness/SKILL.md #   and that is NOT absence
 - **Silence is not evidence.** An unreachable eye is an EMPTY SEAT, never agreement.
 - **An inherited claim is not evidence** — including a claim from my own earlier prompt.
 - **Batch 3–4 versions per push**; the gate cost is per-push, not per-version.
-- **Iterate on the gates the edit can affect, then one full run, then one push.** `python3 tv/run_gates.py --changed` diffs the proven commit once (`git diff --name-only <sha>..HEAD` plus `git status --porcelain`) and carries a gate whose inputs are not in that set. It prints `proven at <sha> (<age>)` and does not open those files. A missing sha, a failed diff, or a gate whose inputs cannot be named runs the gate. That line is not a fresh pass. Do one `python3 tv/run_gates.py --full` before the final push. Push once. GitHub CI stays a full run.
+- **Iterate on the gates the edit can affect, then one full run, then one push.** `python3 tv/run_gates.py --changed` carries a gate when the commit that gate was proved at is an ancestor of HEAD and none of its inputs are in `git diff --name-only <that sha>..HEAD` plus the dirty worktree. One diff is cached per distinct sha. It prints `proven at <sha> (<age>)` and does not open those files. A missing sha, a sha that is not an ancestor, a failed diff, or a gate whose inputs cannot be named runs the gate. That line is not a fresh pass. Do one `python3 tv/run_gates.py --full` before the final push. Push once. GitHub CI stays a full run.
 - **A `vNNNN` label means the four stamps MOVED.** Use `fix:` / `test:` / `ci:` for everything else.
 
 ---
