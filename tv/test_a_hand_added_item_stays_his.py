@@ -1390,8 +1390,8 @@ RED_PROOF = [
     {
         "why": "only a name the vault draws is added; dropping the keep check files a crafted recipe that renders nowhere",
         "file": "bible.html",
-        "find": "    if (!_vaultKeeps(r.name))\n      return { ok: false, refused: 'not-drawn', name: r.name,\n",
-        "replace": "    if (false)\n      return { ok: false, refused: 'not-drawn', name: r.name,\n",
+        "find": "    if (!_vaultKeeps(r.name) && !_vaultHandBase(r.name)) /* L1 a catalogue base passes the hand door */\n      return { ok: false, refused: 'not-drawn', name: r.name,\n",
+        "replace": "    if (false) /* L1 a catalogue base passes the hand door */\n      return { ok: false, refused: 'not-drawn', name: r.name,\n",
         "matches": 1,
     },
     {

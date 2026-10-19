@@ -272,8 +272,8 @@ RED_PROOF = [
     {
         "why": "the throw-out review is advice; without its own branch it is painted as a proposed home",
         "file": "bible.html",
-        "find": "    if (id === '__throwout') return { ok: true, moved: false, kind: 'throwout', id: id, home: null, why: why };\n",
-        "replace": "    if (id === '__throwout') return { ok: true, moved: false, kind: 'mule', id: id, home: 'the throw-out review', why: why };\n",
+        "find": "      return { ok: true, moved: false, kind: 'throwout', id: id, home: null, why: why };\n",
+        "replace": "      return { ok: true, moved: false, kind: 'mule', id: id, home: 'the throw-out review', why: why };\n",
         "matches": 1,
     },
     {
