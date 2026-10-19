@@ -19,6 +19,17 @@ Elad's Mac, v3775 (main 4f487af9), 2026-10-20: Vault, D2JSP and every other boar
 GUARDS (registered in tv/run_gates.py): tv/test_a_locked_tab_never_strands_the_veil.py (5 RED proofs); tv/test_a_tab_click_is_never_silently_dropped.py updated for the reload round.
 
 LEFT: why his window reads hidden while on screen (macOS occlusion of the pywebview window) is not fixed here; only its effect on the tab route is.
+### REG-2300 - A JUNK ROUTE SAT IN THE UNSORTED DOCK AS WORDY ADVICE, AND NO ROW EVER DRAINED BY ITSELF (Vault L1, provisional number, unversioned)
+
+Elad, 2026-10-20, at his live Vault: it is messy. Throw-out suggestions leave the Unsorted Dock and become THROW OUT rows in MOVE TASKS beside the moves, target NOWHERE, one plain reason, Keep / Junk inline; Keep turns the row into a move; the dock keeps only items with no route. Rows drain through the same sighting pipeline on direct proof only: 5 reel sessions whose frames SHOWED the first-witnessed cell without the item, a container never shown counts nothing, a re-sighting resets, progress reads "gone k/5"; a move seen at its target closes at once; a throw-out read on the ground after it left closes at once. A hand-added unruled set piece stays kept and routed (his earlier ruling).
+
+MEASURED on the shipped page (box Chrome, isolated): a screenshot-seen Arcanna's Head sat as a dock chip AND as an organizer line "throw-out advice — by DEFAULT only — you have never ruled Arcanna's Tricks (set) keep or junk"; MOVE TASKS had no row for it; no code path ever closed a row whose item vanished.
+
+FIX: `_vaultThrowTask` / `_vaultThrowRoute` build a THROW OUT task (kind throw, to NOWHERE, `_vaultThrowReason` -> "set never ruled") inside `_vaultMoveCollect`; `_vaultMoveHtml` draws them in a THROW OUT section with Keep (`_vaultThrowKeep`, the same packer) and Junk (`_vaultThrowJunk`); `_dockNames` and `vaultOrganizePaint` drop junk routes; `_vaultSeamHome` files a kept one. `_vaultGoneObserve(frame)` is the drain; `_vaultMoveTask` carries kind/reason/kept/junk/left/gone/closedBy only when set.
+
+GUARD: tv/test_vault_l1_throw_out_rows_drain.py, 13 RED_PROOF attacks, all PROVEN, Wilson 0.7719 against 0.722.
+
+LEFT (open): nothing calls `_vaultGoneObserve` from the reel yet - the frame reader must hand it {session, holder, location, items, ground} per frame. No floor-label (dropped item on the ground) reader exists, so the ground rule fires only when a caller supplies `ground`.
 
 ### REG-2304 - A HAND ADD COULD BE SENT ONTO A CELL ALREADY GIVEN, A SIGHTING DID NOT FILL ITS MANUAL ROW, AND A WORN ITEM GOT A MOVE (Vault L1, provisional number, was REG-2296 before #248, unversioned)
 
