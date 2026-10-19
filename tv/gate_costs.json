@@ -411,6 +411,7 @@
   "test_counter_ledger": 0.1,
   "test_countless_proof": 4.3,
   "test_css_generated_text_is_not_a_js_escape": 0.1,
+  "test_d2jsp_cards_stay_cheap": 41.4,
   "test_dead_field": 0.1,
   "test_dead_field_reads_jsonl": 0.1,
   "test_declared_vs_content": 0.1,
@@ -501,6 +502,7 @@
   "test_importing_a_suite_isolates_his_stores": 0.7,
   "test_inbox_engine": 0.7,
   "test_inert_proof_exit": 0.1,
+  "test_input_stays_responsive": 58.9,
   "test_inventory_lattice": 0.1,
   "test_item_classifier": 10.1,
   "test_kai_missed_recoverable": 0.1,
@@ -986,10 +988,12 @@
    "test_a_waiting_build_stops_the_sweep_at_a_banked_page",
    "test_a_worktree_render_reads_the_main_checkouts_world",
    "test_an_examined_seal_releases_only_when_every_panel_was_probed",
+   "test_d2jsp_cards_stay_cheap",
    "test_escape_closes_only_the_card_it_names",
    "test_furniture_filed_in_a_mule_is_an_integrity_finding",
    "test_his_auto_sort_re_homes_misfiled_items",
    "test_his_own_fleet_row_shows_the_version_it_runs",
+   "test_input_stays_responsive",
    "test_one_drift_gets_one_advice",
    "test_one_look_that_disagrees_is_not_a_second_item",
    "test_one_scroll_owns_the_bosses_return",
@@ -1067,10 +1071,16 @@
     "date": "2026-10-09",
     "count": 1,
     "locked": true
+   },
+   {
+    "source": "v3773 local run_gates on the box (loaded, load ~5-7)",
+    "date": "2026-10-19",
+    "count": 2,
+    "locked": true
    }
   ],
-  "count": 59
+  "count": 61
  },
- "estimatedGates": 59,
- "estimatedSeconds": 39.5
+ "estimatedGates": 61,
+ "estimatedSeconds": 139.8
 }

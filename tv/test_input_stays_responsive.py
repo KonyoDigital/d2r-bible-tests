@@ -397,7 +397,7 @@ def _scan_hits(html):
             if walk:
                 hits.append((off + a, off + b))
     inner = [h for h in hits if not any(o != h and h[0] <= o[0] and o[1] <= h[1] for o in hits)]
-    return ["line %d: %s" % (html.count("\n", 0, a) + 1, html[a:a + 70].replace("\n", " ")) for a, _b in inner]
+    return ["line %d: %s" % (html.count("\n", 0, a) + 1, html[a:html.find("\n", a) if "\n" in html[a:] else len(html)].strip()) for a, _b in inner]
 
 
 def css_rules(html):

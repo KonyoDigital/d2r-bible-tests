@@ -11767,6 +11767,7 @@ function d2jspPriceLine(q) {
         if (cardsOne[c1].getAttribute('data-d2jsp-item') !== only) continue;
         var pr1 = cardsOne[c1].querySelector('[data-d2jsp-price]');
         if (pr1) one.push(pr1);
+        break; /* listedNames dedupes, so one name is one card */
       }
       nodes = one; /* v3773 one card */
     }
