@@ -310,7 +310,7 @@ def bump(ver, name, note, repo=None):
             "   Wait for it to finish, then bump again. Nothing has been written."
             % (ver, _busy))
     for _label, _txt in (("name", name), ("note", note)):
-        _leak = free_text_problem(_txt) or leak_problem(_txt)
+        _leak = leak_problem(_txt)
         if _leak:  # BUMP-LEAK-REFUSE
             raise SystemExit("REFUSED to bump %s: the %s carries %s, and it would be published in bible.html, "
                              "WINDOWS_SHIP.json and TASKS.md. Nothing has been written." % (ver, _label, _leak))
@@ -401,6 +401,14 @@ def bump(ver, name, note, repo=None):
         raise SystemExit("the bible.html this bump would write does not parse — NOTHING WRITTEN."
                          "\n   %s\n   line: %s" % (_page_problem, new_line[:200]))
     pending.append((p, _new_page))
+    # REG-2295 - the name and note must be inert words (stamp_leak.free_text_problem), so gate memory
+    # may carry content gates over them. Asked after the older, more specific refusals above so each
+    # still names its own reason; still before anything is written.
+    for _label, _txt in (("name", name), ("note", note)):
+        _inert = free_text_problem(_txt)
+        if _inert:  # BUMP-FREE-TEXT-REFUSE
+            raise SystemExit("REFUSED to bump %s: the %s carries %s, and gate memory may only carry content "
+                             "gates over inert words. Nothing has been written." % (ver, _label, _inert))
 
     p = os.path.join(repo, "tv", "control_app.py")
     s = io.open(p, encoding="utf-8").read()
