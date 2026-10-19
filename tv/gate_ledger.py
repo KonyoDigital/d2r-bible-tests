@@ -1226,6 +1226,7 @@ class Ledger(object):
         self._loaded = False
         self.dropped = set()
         self.reads = 0
+        self.last_why = None
         self.map = None
         self.map_hit = False
         self._parsed = {}
@@ -1234,7 +1235,6 @@ class Ledger(object):
         self._diff_cache = {}
         self._churn_cache = {}
         self._diff_root = None
-        self.last_why = None
         self._work = None
         self._work_root = None
         self._bible_facts = {}
