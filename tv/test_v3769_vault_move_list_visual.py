@@ -588,7 +588,7 @@ _STEP_MANUAL = _wrap(r"""
   var hq = %s;
   window._vaultAutoIntakeSet(false);
   var gate = window._vaultIntakeGate();
-  var added = window._vaultMoveAddNamed(hq);
+  var added = window._vaultMoveNoteAdded(hq);
   window.renderVault();
   var el = null;
   [].forEach.call(document.querySelectorAll('#vault-move-list .vmv-row'), function(row){

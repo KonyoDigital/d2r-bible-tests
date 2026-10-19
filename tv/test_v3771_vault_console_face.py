@@ -32,9 +32,16 @@ from test_v3769_vault_move_list import PREAMBLE, move_bundle  # noqa: E402
 
 EXTRA = [
     "_vaultRoomStack", "_vaultRoomApply", "_vaultRoomLift",
-    "_vaultCoverGrid", "_vaultFloaterOver", "_vaultRoomSink", "_vaultRoomReadFloaters",
+    "_vaultCoverGrid", "_vaultFloaterOver", "_vaultRoomRestore", "_vaultRoomKnown",
+    "_vaultRoomSink", "_vaultRoomReadFloaters",
     "_vaultCoverVerdict", "_vaultMoveCovered",
 ]
+
+
+def _room_state(src):
+    start = src.index("var _vaultRoomTouched = [];")
+    end = src.index("function _vaultRoomRestore")
+    return src[start:end]
 
 
 class TestV3771VaultConsoleFace(unittest.TestCase):
@@ -44,7 +51,8 @@ class TestV3771VaultConsoleFace(unittest.TestCase):
             raise AssertionError("node is not on this machine — this law does not skip")
         with open(BIBLE, encoding="utf-8") as fh:
             cls.src = fh.read()
-        cls.bundle = move_bundle(cls.src) + "\n" + "\n".join(_fn(cls.src, n) for n in EXTRA)
+        cls.bundle = (move_bundle(cls.src) + "\n" + _room_state(cls.src) + "\n"
+                      + "\n".join(_fn(cls.src, n) for n in EXTRA))
 
     def _run(self, body):
         prog = PREAMBLE + "\n" + self.bundle + "\n" + body
@@ -158,7 +166,9 @@ console.log(JSON.stringify({
         self.assertTrue(o["lifted"], o)
         self.assertIn("clears: tv > dv && tv < 100", self.src)
         self.assertIn(
-            "window._vaultRoomLift(); } catch (eLift) {} /* v3771 room lift */", self.src)
+            "new MutationObserver(function(){ try { _vaultRoomLift(); } catch (eObs) {} })", self.src)
+        self.assertNotIn("querySelectorAll('*')", self.src)
+        self.assertNotIn("/* v3771 room lift */", self.src)
 
     def test_a_bar_hit_inside_the_list_box_covers_it(self):
         o = self._run(r"""
@@ -179,10 +189,8 @@ console.log(JSON.stringify({
         self.assertIn("#vault-auto-intake{font-family:var(--serif-display,serif);", self.src)
         self.assertIn(".vmv-gh{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;", self.src)
         self.assertIn("font-family:var(--serif-display,serif);", self.src[self.src.find(".vmv-gh{"):self.src.find(".vmv-gh{") + 500])
-        self.assertIn(".vmv-q{min-width:180px;flex:1;font-family:var(--serif-text,Georgia,serif);", self.src)
-        self.assertIn(
-            r'.vault-toolbar > button.vault-btn[onclick*="_vaultMoveAddOpen"]{font-family:var(--serif-display,serif);',
-            self.src)
+        self.assertNotIn("vault-move-q", self.src)
+        self.assertNotIn("_vaultMoveAddOpen", self.src)
         self.assertIn(
             ".vault-toolbar .vault-btn{font-family:var(--serif-display,serif);",
             self.src)
@@ -367,10 +375,10 @@ RED_PROOF = [
      "find": "if (list[i] && list[i].onBar) return { covered: true }; /* v3771 cover hit */",
      "replace": "if (false && list[i] && list[i].onBar) return { covered: true }; /* v3771 cover hit */",
      "matches": 1},
-    {"why": "renderVault no longer lifts the room, so the paint and the stacking never meet.",
+    {"why": "The tab observer no longer lifts the room, so opening Vault leaves the bar on top.",
      "file": "bible.html",
-     "find": "window._vaultRoomLift(); } catch (eLift) {} /* v3771 room lift */",
-     "replace": "/* v3771 room lift */",
+     "find": "new MutationObserver(function(){ try { _vaultRoomLift(); } catch (eObs) {} })",
+     "replace": "new MutationObserver(function(){ try { void 0; } catch (eObs) {} })",
      "matches": 1},
     {"why": "The move-list buttons drop the console serif and read as a second design.",
      "file": "bible.html",
