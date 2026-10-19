@@ -278,7 +278,7 @@ def _rewrite_head_stamps(html, ver, today, note):
 
 
 # v3774 (REG-2295) — the name and note are published free text; tv/stamp_leak.py decides what may not be.
-from stamp_leak import leak_problem  # noqa: E402
+from stamp_leak import leak_problem, free_text_problem  # noqa: E402
 
 
 def bump(ver, name, note, repo=None):
@@ -310,7 +310,7 @@ def bump(ver, name, note, repo=None):
             "   Wait for it to finish, then bump again. Nothing has been written."
             % (ver, _busy))
     for _label, _txt in (("name", name), ("note", note)):
-        _leak = leak_problem(_txt)
+        _leak = free_text_problem(_txt) or leak_problem(_txt)
         if _leak:  # BUMP-LEAK-REFUSE
             raise SystemExit("REFUSED to bump %s: the %s carries %s, and it would be published in bible.html, "
                              "WINDOWS_SHIP.json and TASKS.md. Nothing has been written." % (ver, _label, _leak))

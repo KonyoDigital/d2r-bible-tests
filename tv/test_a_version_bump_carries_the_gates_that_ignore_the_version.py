@@ -39,10 +39,13 @@ U, V = "v100", "v101"
 NOTE = "Derived 2026-10-19 10:17 by `tv/resume_state.py`. Everything outside these markers is narrative a machine cannot measure, written by hand."
 
 
+_SHAS = {}  # version -> the real fixture commit that shipped it (round 3: bound rows must be real)
+
+
 def _files(ver, sha_row=False, note="first", title_word="Bible", shipped=None):
     shipped = list(shipped if shipped is not None else ([U] if sha_row else []))
     tasks_rows = ("| **%s** | `(this commit)` | %s — %s |\n" % (ver, ver, note)
-                  + "".join("| **%s** | `abcdef12` | %s — %s |\n" % (v, v, "first" if v == U else "mid")
+                  + "".join("| **%s** | `%s` | %s — %s |\n" % (v, _SHAS.get(v, "abcdef12"), v, "first" if v == U else "second")
                             for v in shipped)
                   + "| **v99** | `1234567a` | v99 — older |\n")
     return {
@@ -146,7 +149,16 @@ class ACoherentBumpCarries(unittest.TestCase):
         _git(root, "add", "-A")
         _git(root, "commit", "-q", "-m", "base")
         self.root = root
+        _SHAS.clear()
+        _SHAS[U] = self.head()
         self.led = os.path.join(root, ".gate_ledger.json")
+
+    def head(self):
+        return _git(self.root, "rev-parse", "HEAD").stdout.strip()
+
+    def ship(self, ver, msg):
+        _git(self.root, "commit", "-qam", msg)
+        _SHAS[ver] = self.head()
 
     def gate(self, script, name=None):
         return _G(name or ("fixture-" + script), [sys.executable, os.path.join(self.root, "tv", script)], self.root)
@@ -241,7 +253,7 @@ class ACoherentBumpCarries(unittest.TestCase):
     def test_two_back_to_back_bumps_carry(self):
         g = self.gate("t_plain.py"); b = self.book(g)
         self.bump(ver=V)
-        _git(self.root, "commit", "-qam", "bump 1")
+        self.ship(V, "bump 1")
         self.bump(ver="v102", shipped=[V, U])
         ok, why = self.carried(g, b)
         self.assertTrue(ok, "two back-to-back bumps reran the gate: %s" % why)
@@ -249,11 +261,11 @@ class ACoherentBumpCarries(unittest.TestCase):
     def test_three_back_to_back_bumps_carry(self):
         g = self.gate("t_plain.py"); b = self.book(g)
         self.bump(ver=V)
-        _git(self.root, "commit", "-qam", "bump 1")
+        self.ship(V, "bump 1")
         self.bump(ver="v102", shipped=[V, U])
-        _git(self.root, "commit", "-qam", "bump 2")
+        self.ship("v102", "bump 2")
         self.bump(ver="v105", shipped=["v102", V, U])
-        _git(self.root, "commit", "-qam", "bump 3")
+        self.ship("v105", "bump 3")
         ok, why = self.carried(g, b)
         self.assertTrue(ok, "three back-to-back bumps reran the gate: %s" % why)
 
@@ -287,7 +299,8 @@ class ACoherentBumpCarries(unittest.TestCase):
     def test_a_hand_pasted_leak_on_a_stamp_line_reruns_everything(self):
         _write(self.root, "tv/t_scan.py", "import control_app\nopen('bible.html').read()\n")
         _git(self.root, "add", "-A"); _git(self.root, "commit", "-qm", "scan")
-        for leak in ("/Us" + "ers/someone/Library/", "10.0." + "0.7", "konyo-3" + ".local", "ghp_" + "b" * 30):
+        for leak in ("/Us" + "ers/someone/Library/", "10.0." + "0.7", "konyo-3" + ".local", "ghp_" + "b" * 30,
+                     "glpat-" + "q" * 20):  # the last one passes the word whitelist, so only the leak check stops it
             g = self.gate("t_scan.py", name="fixture-plain-name")
             _git(self.root, "checkout", "-q", "--", ".")
             b = self.book(g)
@@ -300,13 +313,13 @@ class ACoherentBumpCarries(unittest.TestCase):
         held = sys.modules.get("stamp_leak")
         sys.modules["stamp_leak"] = None
         try:
-            self.assertFalse(GL.stamp_text_clean(["a clean note"]), "a leak check that cannot load read as clean")
+            self.assertFalse(GL.free_text_clean(["a clean note"]), "a leak check that cannot load read as clean")
         finally:
             if held is None:
                 sys.modules.pop("stamp_leak", None)
             else:
                 sys.modules["stamp_leak"] = held
-        self.assertTrue(GL.stamp_text_clean(["a clean note"]))
+        self.assertTrue(GL.free_text_clean(["a clean note"]))
 
     def test_the_home_path_gate_always_reruns_on_a_bump(self):
         g = self.gate("t_plain.py", name="test_no_new_home_path_is_published"); b = self.book(g)
@@ -332,6 +345,120 @@ class ACoherentBumpCarries(unittest.TestCase):
             self.assertTrue(BV.leak_problem(bad), bad)
         for fine in ("gate memory carries a bump", "Wilson 0.824 against 0.722", "sha e22a1975 and v3.1.2"):
             self.assertIsNone(BV.leak_problem(fine), fine)
+
+    # --- round 3: free text is inert words, or it is content
+    REVIEW_NOTE = "see bull-4-u" + ".com/api/intake for the fix"
+
+    def test_the_bump_refuses_free_text_that_is_not_inert_words(self):
+        import stamp_leak as L
+        for bad in (self.REVIEW_NOTE, "a/b", "C" + ":x", "x.y", "mail a@b", "<b>x</b>", 'say "hi"', "a`b`",
+                    "k=v", "it's", "this & that", "100%", "tab\there", "x" * 121, "wilson 0.722"):
+            self.assertTrue(L.free_text_problem(bad), bad)
+        for fine in ("Fast version bump (gate memory) - carries #245 + more", "Shipped the fix.",
+                     "One. Two.", "x" * 120, ""):
+            self.assertIsNone(L.free_text_problem(fine), fine)
+
+    def test_the_bump_writes_nothing_for_the_reviews_url_note(self):
+        import types
+        import bump_version as BV
+        held = sys.modules.get("tree_busy")
+        sys.modules["tree_busy"] = types.SimpleNamespace(why=lambda r: None)
+        try:
+            with self.assertRaises(SystemExit) as cm:
+                BV.bump("v101", "Door test", self.REVIEW_NOTE, repo=self.root)
+        finally:
+            if held is None:
+                sys.modules.pop("tree_busy", None)
+            else:
+                sys.modules["tree_busy"] = held
+        self.assertIn("REFUSED", str(cm.exception))
+        self.assertIn('"ver": "%s"' % U, _read(self.root, "tv/control_app.py"))
+
+    def _note_bump(self, note):
+        new = _files(V, sha_row=True, note=note)
+        new["BLUEPRINT.md"] = "# b\n    generated 2026-10-19 13:50\n"
+        for rel, text in new.items():
+            _write(self.root, rel, text)
+
+    def test_the_reviews_url_note_pasted_by_hand_reruns_the_door_gate(self):
+        _write(self.root, "tv/t_door.py", "import control_app\nURL = 'bull-4-u' + '.com/api/intake'\n")
+        _git(self.root, "add", "-A"); _git(self.root, "commit", "-qm", "door")
+        g = self.gate("t_door.py", name="fixture-door"); b = self.book(g)
+        self._note_bump(self.REVIEW_NOTE)
+        self.assertFalse(self.carried(g, b)[0], "the review's URL note carried the door gate")
+
+    def test_a_url_note_reruns_even_a_gate_holding_none_of_its_words(self):
+        _write(self.root, "tv/t_scan.py", "import control_app\nopen('bible.html').read()\n")
+        _git(self.root, "add", "-A"); _git(self.root, "commit", "-qm", "scan")
+        g = self.gate("t_scan.py", name="fixture-plain-name"); b = self.book(g)
+        self._note_bump(self.REVIEW_NOTE)
+        self.assertFalse(self.carried(g, b)[0], "a URL in the note was carried (the ledger skipped the whitelist)")
+
+    def test_a_gate_holding_a_note_word_reruns(self):
+        _write(self.root, "tv/t_word.py", "import control_app\nassert open('bible.html').read().count('Intake') < 2\n")
+        _write(self.root, "tv/t_other.py", "import control_app\nprint('fine')\n")
+        _git(self.root, "add", "-A"); _git(self.root, "commit", "-qm", "word")
+        gw, go = self.gate("t_word.py", name="fixture-word"), self.gate("t_other.py", name="fixture-other")
+        b = self.book(gw, go)
+        self._note_bump("the INTAKE door now counts once")
+        self.assertFalse(self.carried(gw, b)[0], "a gate holding a word of the note was carried")
+        self.assertTrue(self.carried(go, b)[0], "a gate holding none of the note's words reran")
+
+    def test_a_gate_whose_regex_or_phrase_moves_reruns(self):
+        _write(self.root, "tv/t_rx.py", "import re, control_app\nassert len(re.findall(r'\\bdoor\\s+named\\b', open('bible.html').read())) < 9\n")
+        _write(self.root, "tv/t_phrase.py", "import control_app\nassert open('bible.html').read().count('named twice') < 9\n")
+        _git(self.root, "add", "-A"); _git(self.root, "commit", "-qm", "rx")
+        gr, gp = self.gate("t_rx.py", name="fixture-rx"), self.gate("t_phrase.py", name="fixture-phrase")
+        b = self.book(gr, gp)
+        self._note_bump("the door is NAMED TWICE")
+        self.assertFalse(self.carried(gr, b)[0], "a gate whose regex word moved was carried")
+        self.assertFalse(self.carried(gp, b)[0], "a gate whose phrase moved (case-insensitive) was carried")
+
+    def test_the_old_note_leaving_counts_too(self):
+        lits = GL.script_literals("x = 'intake'\n")
+        self.assertTrue(GL.literal_hit(lits, "note one", "intake note"), "a string the bump REMOVED did not count")
+        self.assertIsNone(GL.literal_hit(lits, "same intake", "same intake"))
+        self.assertTrue(GL.literal_hit(None, "", ""), "an unparsable script read as untouched")
+
+    def test_a_made_up_middle_row_runs(self):
+        g = self.gate("t_plain.py"); b = self.book(g)
+        self.bump(ver=V)
+        self.ship(V, "bump 1")
+        real = _SHAS[V]
+        for fake in ("abcdef12", "0" * 40):
+            _SHAS[V] = fake
+            self.bump(ver="v102", shipped=[V, U])
+            self.assertFalse(self.carried(g, GL.Ledger(path=self.led, probes=dict(PROBES)))[0],
+                             "a made-up sha %s for a middle row was carried" % fake)
+        base = _SHAS[U]
+        _git(self.root, "checkout", "-q", "--", ".")
+        _git(self.root, "checkout", "-q", "-b", "side", base)
+        self.bump(ver=V)
+        _git(self.root, "commit", "-qam", "side bump")
+        side = self.head()
+        _git(self.root, "checkout", "-q", "main")
+        _SHAS[V] = side
+        self.bump(ver="v102", shipped=[V, U])
+        self.assertFalse(self.carried(g, GL.Ledger(path=self.led, probes=dict(PROBES)))[0],
+                         "a middle row bound to a commit outside HEAD's history was carried")
+        _SHAS[V] = real
+        self.bump(ver="v102", shipped=[V, U])
+        tasks = _read(self.root, "TASKS.md").replace("v101 — second", "v101 — rewritten", 1)
+        _write(self.root, "TASKS.md", tasks)
+        self.assertFalse(self.carried(g, GL.Ledger(path=self.led, probes=dict(PROBES)))[0],
+                         "a middle row whose text differs from its own commit's row was carried")
+        self.bump(ver="v102", shipped=[V, U])
+        self.assertTrue(self.carried(g, GL.Ledger(path=self.led, probes=dict(PROBES)))[0], "PREMISE: real rows carry")
+
+    def test_the_leak_check_catches_the_reviews_misses(self):
+        import stamp_leak as L
+        for bad in ("C:" + "\\\\Users\\\\elad\\\\", "c:" + "\\users\\elad", "%2FUs" + "ers%2Felad%2F",
+                    "&#47;Us" + "ers&#47;elad&#47;", "/Us" + "ers/elad", "/ro" + "ot/", "/ho" + "me/elad",
+                    "fe80" + "::1", "box.home" + ".arpa", "glpat-" + "a" * 20, "AIza" + "b" * 35,
+                    "ghp_" + "c" * 19, "Bear" + "er abcdefgh12"):
+            self.assertTrue(L.leak_problem(bad), bad)
+        for fine in ("at 12:30 today", "Wilson 0.824", "the users tab", "v3774 - fast bump", "home page"):
+            self.assertIsNone(L.leak_problem(fine), fine)
 
     def test_the_bump_writes_nothing_when_the_note_leaks(self):
         import types
@@ -562,13 +689,6 @@ RED_PROOF = [
         'matches': 1,
     },
     {
-        'why': 'a home path in the note is accepted',
-        'file': 'stamp_leak.py',
-        'find': '    if HOME.search(t):  # BUMP-LEAK-HOME\n',
-        'replace': '    if False:  # BUMP-LEAK-HOME\n',
-        'matches': 1,
-    },
-    {
         'why': 'an IP in the note is accepted',
         'file': 'stamp_leak.py',
         'find': '    if _LEAK_IP.search(t):  # BUMP-LEAK-IP\n',
@@ -620,22 +740,22 @@ RED_PROOF = [
     {
         'why': 'a leak on an added stamp line is accepted',
         'file': 'gate_ledger.py',
-        'find': '        if stamp_leak.leak_problem(line):  # STAMP-ADDED-LEAK\n',
-        'replace': '        if False:  # STAMP-ADDED-LEAK\n',
+        'find': '        if stamp_leak.free_text_problem(t) or stamp_leak.leak_problem(t):  # STAMP-FREE-TEXT\n',
+        'replace': '        if stamp_leak.free_text_problem(t):  # STAMP-FREE-TEXT\n',
         'matches': 1,
     },
     {
-        'why': 'the added stamp text is never checked',
+        'why': 'the new free text is never checked',
         'file': 'gate_ledger.py',
-        'find': ' and stamp_text_clean(added)) else set()',
-        'replace': ' and True) else set()',
+        'find': ' and rows_ok and free_text_clean(texts)  # STAMP-ALL-CLEAN',
+        'replace': ' and rows_ok  # STAMP-ALL-CLEAN',
         'matches': 1,
     },
     {
         'why': 'the leak module failing to load counts as clean',
         'file': 'gate_ledger.py',
-        'find': '    except Exception:\n        return False\n    for line in lines:',
-        'replace': '    except Exception:\n        return True\n    for line in lines:',
+        'find': '    except Exception:\n        return False\n    for t in texts:',
+        'replace': '    except Exception:\n        return True\n    for t in texts:',
         'matches': 1,
     },
     {
@@ -657,6 +777,111 @@ RED_PROOF = [
         'file': 'gate_ledger.py',
         'find': '    raw = _BLUEPRINT_STAMP.sub(b"    generated -", raw, count=1)  # LEDGER-MAPKEY-STAMP\n',
         'replace': '    raw = b""  # LEDGER-MAPKEY-STAMP\n',
+        'matches': 1,
+    },
+    {
+        'why': 'the bump accepts a note that is not inert words',
+        'file': 'bump_version.py',
+        'find': '        _leak = free_text_problem(_txt) or leak_problem(_txt)\n',
+        'replace': '        _leak = leak_problem(_txt)\n',
+        'matches': 1,
+    },
+    {
+        'why': 'the free-text whitelist lets a slash or colon through',
+        'file': 'stamp_leak.py',
+        'find': '_FREE_BAD = re.compile(r"[^A-Za-z0-9 ,()+#.\\-]")\n',
+        'replace': '_FREE_BAD = re.compile(r"[^A-Za-z0-9 ,()+#.:/\\-]")\n',
+        'matches': 1,
+    },
+    {
+        'why': 'a period inside a word (a domain) is allowed',
+        'file': 'stamp_leak.py',
+        'find': '    if _FREE_DOT.search(t):  # FREE-DOT\n',
+        'replace': '    if False:  # FREE-DOT\n',
+        'matches': 1,
+    },
+    {
+        'why': 'free text has no length cap',
+        'file': 'stamp_leak.py',
+        'find': '    if len(t) > FREE_TEXT_MAX:  # FREE-MAX\n',
+        'replace': '    if False:  # FREE-MAX\n',
+        'matches': 1,
+    },
+    {
+        'why': 'the ledger checks leaks but not the whitelist, so the review URL carries',
+        'file': 'gate_ledger.py',
+        'find': '        if stamp_leak.free_text_problem(t) or stamp_leak.leak_problem(t):  # STAMP-FREE-TEXT\n',
+        'replace': '        if stamp_leak.leak_problem(t):  # STAMP-FREE-TEXT\n',
+        'matches': 1,
+    },
+    {
+        'why': 'a gate holding a word of the note is carried',
+        'file': 'gate_ledger.py',
+        'find': '        return literal_hit(self._verdep[k], moved[0], moved[1]) is not None  # STAMP-WORD-HIT',
+        'replace': '        return False  # STAMP-WORD-HIT',
+        'matches': 1,
+    },
+    {
+        'why': 'a made-up middle-row sha is accepted',
+        'file': 'gate_ledger.py',
+        'find': '            if anc is None or anc.returncode != 0:  # STAMP-ROW-ANCESTOR\n',
+        'replace': '            if anc is None:  # STAMP-ROW-ANCESTOR\n',
+        'matches': 1,
+    },
+    {
+        'why': 'a middle row whose text differs from its own commit is accepted',
+        'file': 'gate_ledger.py',
+        'find': '            if own not in (show.stdout or "").splitlines():  # STAMP-ROW-OWN\n',
+        'replace': '            if False:  # STAMP-ROW-OWN\n',
+        'matches': 1,
+    },
+    {
+        'why': 'the shipped rows are never checked against git',
+        'file': 'gate_ledger.py',
+        'find': ' and rows_ok and free_text_clean(texts)  # STAMP-ALL-CLEAN',
+        'replace': ' and free_text_clean(texts)  # STAMP-ALL-CLEAN',
+        'matches': 1,
+    },
+    {
+        'why': 'escaped, encoded and lowercase home paths are missed',
+        'file': 'stamp_leak.py',
+        'find': '    if _HOME_ANY.search(t):  # BUMP-LEAK-HOME-ANY\n',
+        'replace': '    if False:  # BUMP-LEAK-HOME-ANY\n',
+        'matches': 1,
+    },
+    {
+        'why': 'IPv6 addresses are missed',
+        'file': 'stamp_leak.py',
+        'find': '           for m in _LEAK_IP6.finditer(t)):  # BUMP-LEAK-IP6\n',
+        'replace': '           for m in _LEAK_IP6.finditer(t)) and False:  # BUMP-LEAK-IP6\n',
+        'matches': 1,
+    },
+    {
+        'why': 'GitLab, Google and Bearer tokens are missed',
+        'file': 'stamp_leak.py',
+        'find': '                         r"glpat-[A-Za-z0-9_-]{16,}|AIza[0-9A-Za-z_-]{30,}|"\n',
+        'replace': '                         r""\n',
+        'matches': 1,
+    },
+    {
+        'why': 'a moved literal is ignored',
+        'file': 'gate_ledger.py',
+        'find': '        if _count(al, low) != _count(rl, low):  # STAMP-LITERAL-MOVED\n',
+        'replace': '        if False:  # STAMP-LITERAL-MOVED\n',
+        'matches': 1,
+    },
+    {
+        'why': 'a regex word that moved is ignored',
+        'file': 'gate_ledger.py',
+        'find': '            if _count(al, w) != _count(rl, w):  # STAMP-REGEX-WORD-MOVED\n',
+        'replace': '            if False:  # STAMP-REGEX-WORD-MOVED\n',
+        'matches': 1,
+    },
+    {
+        'why': 'a script that does not parse reads as untouched',
+        'file': 'gate_ledger.py',
+        'find': '        return "<script did not parse>"\n',
+        'replace': '        return None\n',
         'matches': 1,
     },
 ]
