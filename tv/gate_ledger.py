@@ -158,6 +158,16 @@ _VERSION_WORDS = re.compile(
 _VERSION_READER_ONLY = frozenset(("tv/version_stamp_gate.py", "tv/windows_boot_check.py"))
 
 
+# v3774 round 2 — THE STAMP LINES CARRY FREE TEXT (build name, notes, the ship row). A gate that
+# scans file CONTENT (a home path, a hostname, a token, an em dash...) must see that text, so it
+# reruns whenever a stamp surface moved, coherent or not. Its script names a stamp file or the
+# tracked-file list, or its name says it guards publishing or privacy.
+_CONTENT_SCRIPT = re.compile(r"bible\.html|TASKS\.md|WINDOWS_SHIP|RESUME_HERE|BLUEPRINT\.md|"
+                             r"ls-files|home_path|/Users/|guest_profile")
+_CONTENT_NAME = re.compile(r"publish|leak|secret|token|privacy|private|scrub|home_path|guest|redact|"
+                           r"hostname|install_id", re.I)
+
+
 def stamp_kinds(rel, line):
     """(kind, match) of the stamp pattern a changed line matches, or None."""
     for kind, pat in STAMP_SURFACES.get(rel, ()):
@@ -199,19 +209,44 @@ def _indent(line):
     return line[:len(line) - len(line.lstrip())]
 
 
+_TASK_SHIPPED = re.compile(r"^\| \*\*" + _V + r"\*\* \| `[0-9a-f]{7,40}` \| (?P<s>v\d+(?:\.\d+)*) — [^|\n]*\|$")
+_MAX_BUMPS = 20
+
+
+def _vnum(v):
+    return tuple(int(x) for x in v[1:].split("."))
+
+
 def _tasks_row_versions(hunks):
-    """The single new top ship row, exact bump_version format. -> (old, new) | None"""
+    """N back-to-back bumps in exact bump_version format. -> (old, new) | None
+
+    The proof's top row `| **U** | `(this commit)` | ... |` comes back bound to a sha with its text
+    byte-identical, and above it sit N new rows: the newest `(this commit)` and N-1 shipped rows, each
+    `| **Vi** | `sha` | Vi — note |`, versions strictly rising toward the top."""
     if len(hunks) != 1:
         return None
     o, n, rem, add = hunks[0]
-    if o != n or len(rem) != 1 or len(add) != 2:  # STAMP-TASKS-SHAPE
+    if o != n or len(rem) != 1 or not 2 <= len(add) <= _MAX_BUMPS + 1:  # STAMP-TASKS-SHAPE
         return None
-    old, new, bound = _TASK_OLD.match(rem[0]), _TASK_NEW.match(add[0]), _TASK_BOUND.match(add[1])
+    old, new, bound = _TASK_OLD.match(rem[0]), _TASK_NEW.match(add[0]), _TASK_BOUND.match(add[-1])
     if not (old and new and bound):
         return None
     if new.group("v") != new.group("s") or bound.group("v") != old.group("v"):
         return None
     if bound.group("rest") != old.group("rest"):  # STAMP-TASKS-REST
+        return None
+    chain = [new.group("v")]
+    for line in add[1:-1]:
+        m = _TASK_SHIPPED.match(line)
+        if not m or m.group("v") != m.group("s"):  # STAMP-TASKS-MIDDLE
+            return None
+        chain.append(m.group("v"))
+    chain.append(old.group("v"))
+    try:
+        nums = [_vnum(v) for v in chain]
+    except ValueError:
+        return None
+    if any(a <= b for a, b in zip(nums, nums[1:])):  # STAMP-TASKS-ORDER
         return None
     return {old.group("v")}, {new.group("v")}
 
@@ -2112,7 +2147,7 @@ class Ledger(object):
             return None, "taking its inputs raised %s" % type(exc).__name__
         if not isinstance(row, dict) or row.get("why") or not isinstance(row.get("inputs"), list):
             return None, (row or {}).get("why") or "inputs are UNKNOWN"
-        if stamped and not self.reads_version(row, root, name):
+        if stamped and not self.reads_version(row, root, name) and not self.scans_content(row, root, name):
             changed = changed - stamped  # STAMP-DROP
         for path in changed:
             if _watched(path, row.get("watch")):
@@ -2156,6 +2191,22 @@ class Ledger(object):
         out = set(per) if (per and coherent_bump(per)) else set()
         self._stamp_cache[key] = out
         return set(out)
+
+    def scans_content(self, row, root, name=""):
+        """Does the gate read stamp-file text (privacy, leak, wording)? Unreadable counts as yes."""
+        if _CONTENT_NAME.search(str(name or "")):  # STAMP-CONTENT-NAME
+            return True
+        rel = row.get("script")
+        if not rel:
+            return True
+        key = ("content", rel)
+        if key not in self._verdep:
+            try:
+                with open(os.path.join(root, rel), encoding="utf-8", errors="replace") as fh:
+                    self._verdep[key] = bool(_CONTENT_SCRIPT.search(fh.read()))  # STAMP-CONTENT-SCRIPT
+            except OSError:
+                self._verdep[key] = True
+        return self._verdep[key]
 
     def reads_version(self, row, root, name=""):
         """Does the gate's name or own script speak of the version, or does its closure hold a
