@@ -251,8 +251,11 @@ class AHandAddRoutesByType(unittest.TestCase):
             self.assertEqual(a[typed]["name"], "The Stone of Jordan", a[typed])
         o = board().run(READ + "OUT.m = moveOf('The Stone of Jordan'); OUT.bad = moveOf('Stone of Jordan').length;"
                         "OUT.junk = window.vaultHandAdd('Stone of Nothing');")
-        self.assertEqual(len(o["m"]), 1, "one item, typed three ways, is one row: %r" % o["m"])
-        self.assertEqual(o["m"][0]["to"]["holder"], "SHARED STASH", o["m"])
+        # L1 (Elad 2026-10-20): a name he types again is ANOTHER COPY. Three spellings resolve to the ONE catalogue
+        # item (no row under a variant name), and as three hand adds they are three copies: three rows, three cells.
+        self.assertEqual(len(o["m"]), 3, "three hand adds of one item are three copies: %r" % o["m"])
+        self.assertEqual(len(set(m["to"]["cell"] for m in o["m"])), 3, "the copies share a cell: %r" % o["m"])
+        self.assertEqual(set(m["to"]["holder"] for m in o["m"]), {"SHARED STASH"}, o["m"])
         self.assertEqual(o["bad"], 0)
         self.assertFalse(o["junk"]["ok"], "an alias invented an item: %r" % o["junk"])
 
@@ -413,8 +416,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "The shared grid ignores the taken rectangles.",
      "file": "bible.html",
-     "find": "lay(packGrid(items, 10, 10, occBy.shared).placed, 'shared');",
-     "replace": "lay(packGrid(items, 10, 10).placed, 'shared');",
+     "find": "        var pk = packGrid(left, 10, 10, occP);",
+     "replace": "        var pk = packGrid(left, 10, 10);",
      "matches": 1},
     {"why": "A sighting no longer upgrades the MANUAL row, so it reads moved-elsewhere with no FROM cell.",
      "file": "bible.html",
