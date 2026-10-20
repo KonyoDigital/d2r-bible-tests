@@ -49291,7 +49291,7 @@ window.vaultAutoAssign = function(){
         + (m.size[0] * cell + (m.size[0] - 1) * 2) + 'px;height:' + (m.size[1] * cell + (m.size[1] - 1) * 2) + 'px"></div>';
     }
     function grid(placed, d, label, c){
-      var g = (typeof gridHtml === 'function') ? gridHtml(placed, d[0], d[1], cell, { area: 'move-' + label.toLowerCase(), page: 0, label: label }) : '';
+      var g = (typeof gridHtml === 'function') ? gridHtml(placed, d[0], d[1], cell, { area: 'move-' + label.toLowerCase(), page: 0, label: label }) : ''; /* L1 compare grid */
       return '<div class="vmc-wrap">' + g + (c ? ring(c) : '') + '</div>';
     }
     var left = m.manual
