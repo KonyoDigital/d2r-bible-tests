@@ -36,9 +36,12 @@ test.describe('v466 AI Item Checker', () => {
 
   test('mid roll → BORDERLINE', async ({ page }) => {
     const v = await page.evaluate(() => (window as any)._aicVerdict({
-      base: 'Sharkskin Belt', q: 'rare', mods: ['+30% Faster Hit Recovery', '+20 to Life'],
+      // +15 Life, not +20: a life roll at 20/20 is a PERFECTION KEEP (a coveted affix within ~15% of its max is muled
+      // however the rest rolls), so the old +20 fixture was a keep by rule, never a mid roll. 15/20 = 75% stays mid.
+      base: 'Sharkskin Belt', q: 'rare', mods: ['+30% Faster Hit Recovery', '+15 to Life'],
     }));
     expect(v.tier).toBe('border');
+    expect(v.perfect && v.perfect.keep, 'a 75% life roll is not a perfection keep').toBeFalsy();
   });
 
   test('verdict states the slot benchmark for the base type', async ({ page }) => {

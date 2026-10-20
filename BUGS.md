@@ -7,6 +7,21 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2320 - MAIN'S PLAYWRIGHT SHARDS WERE RED: 28 TESTS, 8 OF 10 SHARDS (2026-10-20, v3777)
+
+Routine I on main 4f487af9 (run 39414323728): 29 failed names across shards 1-8, 28 of them reproduced locally (v1625 ITEM 5 passed locally twice and is filed as an environment flake). Grouped by root cause:
+
+1. **Stale specs - his routing rulings moved the routes (9 tests).** REG-2241 (2026-10-15, "torches and anni stay in shared. gheeds gets muled") and the 2026-10-19 war-stash list (Vampire Gaze, Andariel's Visage, Guillaume's Face are war gear) were shipped without updating v203 taxonomy, v363, v1958, v1970, v3721, v3723, v3724, v3726 x2. Rewritten to the ruled routes; each keeps its property (apostrophe parity, never in the dock, a force-in cannot move standing kit, a med item stays unlisted - Windforce replaces Andariel's Visage as the med example).
+2. **Stale specs - the per-copy vault (v3766/v3767) (3 tests).** v347 locker cells show 1/3 2/3 3/3 per copy, v403 header reads "2 items total · 4 copies", v203 v227 intake owns the canonical slotted key "Tal Rasha's Lidless Eye (orb)" (#76).
+3. **Stale specs - #76 set-piece reconcile fixtures (5 tests).** The REG-2229 one-time set-dupe migration runs on the load render and folded the seeded pair before the spec could drive _setPieceReconcile: the seeds stamp it as run. v3753 sweep reseeded the same page and carried the first count through the per-copy state: the second scenario gets its own context. v3752's tripwire read the processFile copy-bump v3767 retired (now a witness, asserted to never write copies[n]) and the nested _vpCopySeen guard.
+4. **Stale specs - REG-2267 superseded REG-2227/2240 (2 tests).** The planner holds ONE cell per open; v3753 ruled a second pick in the same open a swap that drops the swapped-away copy. v3740 now pins a later OPEN keeps the copy; v3742 pins the re-roll after a swap reaches no further back.
+5. **Stale fixtures (2 tests).** v3742 overflow note seeded 120 gibberish names the load now drops: 30 real weapon uniques overflow the weapons tab. v466 mid roll used +20 Life, a 20/20 perfection keep: +15 Life.
+6. **APP BUG - a perfect base whose runewords are all forged stayed unfiled (4 tests, REG-2250).** suggestMule's spare-base rule said vendor it. FIX: `_vpRoute(nm, keeperWhy)` re-homes a vendor verdict to the base mule only for the planner's proven perfect base.
+7. **APP BUG - a scroll in the styled tip's 380 ms cold-start wait hid it (2 tests, tv/control_ui.html).** reglue() took the item-card branch. FIX: a pending tip is left alone, a disconnected host still hides, the timer clears sayTimer when it fires.
+8. **APP BUG - renderMultiKeep was not on window (1 test).** FIX: exposed beside vaultCopyAdjust.
+
+GUARD: tv/test_main_shards_cleanup_holds.py, registered in tv/run_gates.py, 13 tests, 12 RED proofs (heart2 --prove all PROVEN), Wilson 0.7575 against 0.722. Every rewritten spec names the ruling or version it now follows; no test was skipped or deleted.
+
 ### REG-2296 - A BUMP-ONLY RUN STILL TOOK 4750 s: REDS RERAN IN FULL, THE PROOF QUEUE DIRTIED 147 PROOFS, LISTINGS WERE NEVER STORED (v3775)
 
 Measured on v3774 (7793ac8a): `--full` 4924 s, then a bump-only `--changed` (v3775 stamp, local commit f49305f2) 4750 s against a ~600 s target. 1014 gates carried, 497 ran (4606 s summed). The stamp lines were exactly the expected ones; the time went elsewhere:

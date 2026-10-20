@@ -41,10 +41,13 @@ test.describe('v347 duplicate count badge', () => {
 
   test('locker cell shows the ×N count badge', async ({ page }) => {
     const r = await page.evaluate(() => {
-      const cell = document.querySelector('.vm-cell[data-vault-item="Windforce"]');
-      return { cnt: cell?.querySelector('.vm-cell-cnt')?.textContent || '' };
+      const cells = Array.from(document.querySelectorAll('.vm-cell[data-vault-item="Windforce"]'));
+      return { cnts: cells.map(c => c.querySelector('.vm-cell-cnt')?.textContent || '') };
     });
-    expect(r.cnt).toContain('×3');
+    /* v3766 (per-copy vault, his ruling: duplicates are separate copies, each its own cell) — the locker draws
+       one cell per copy and each cell names ITS place in the run (1/3, 2/3, 3/3), never the owned total on
+       every cell. The count property is the same: all 3 copies are visible and counted. */
+    expect(r.cnts).toEqual(['1/3', '2/3', '3/3']);
   });
 
   test('copyCount reflects duplicates and a single-owned item has no badge', async ({ page }) => {

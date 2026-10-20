@@ -28,7 +28,10 @@ test('v403 a base owned x3 renders 3 separate slots in the mule replica', async 
   });
   expect(r.thresherSlots).toBe(3);
   expect(r.grimSlots).toBe(1);
-  expect(r.sub).toContain('4 items');
+  // the header counts DISTINCT items and PHYSICAL copies separately ("2 items total · 4 copies", v3766
+  // per-copy vault): the physical total is still 4, it is just named as copies, not items
+  expect(r.sub).toContain('2 items total');
+  expect(r.sub).toContain('4 copies');
   expect(r.gold).toContain('4 on this mule');   // v405 — goldbox now reports stash/mule counts
   expect(errs).toEqual([]);
 });

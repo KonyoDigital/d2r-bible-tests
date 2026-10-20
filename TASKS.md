@@ -12,6 +12,12 @@ closed thing. Where a task has a GitHub issue, it is named explicitly as `gh #NN
 Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CALL` waits on Konyo ·
 `SHIPPED` carries the version.
 
+## Main Playwright shards cleanup (REG-2320, v3777)
+
+| item | where it stands |
+|---|---|
+| 28 red tests on main 4f487af9 (8 of 10 shards) | FIXED on shards/main-cleanup: 3 app bugs (perfect base unfiled, tip killed by an early scroll, renderMultiKeep unexposed), 21 stale specs rewritten to the rulings they now follow. v1625 ITEM 5 is an environment flake (green locally), watched on CI. |
+
 ## Board #76 and #77 — vault spread (v3767)
 
 Elad, 2026-10-18 13:18 IDT: duplicate copies of a vault item sit next to the original in the SAME mule. This replaces rule E (2 in the shared stash, the 3rd and later in GRAIL-DUPES).

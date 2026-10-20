@@ -28,6 +28,10 @@ async function seedLoad(page: any, owned: string[], assign: any, copies: any) {
       localStorage.setItem('d2r_muleAssign', JSON.stringify(assign));
       localStorage.setItem('d2r_copies', JSON.stringify(copies));
       localStorage.removeItem('d2r_setPieceReconcile');
+      /* the REG-2229 one-time set-dupe migration (_vaultDedupeOldSetRows) runs on the load render and folds a
+         loose set-piece twin BEFORE this spec can drive _setPieceReconcile. It has its own law and spec; stamp it
+         as already run on this world so the reconcile under test sees the seeded pair. */
+      localStorage.setItem('d2r_setDupeMigrate_v2227', '1');
     } catch (e) {}
   }, { owned, assign, copies });
   await page.goto(URL);
@@ -102,10 +106,16 @@ test('both re-read copy-bump sites are guarded against a presence set piece auto
   // structural tripwire: if a future edit drops the _vfIsSetPiece guard from either copy-bump, a presence
   // set piece re-inflates on reads and this fails. Anchored to the two exact bump statements.
   const src = fs.readFileSync(process.cwd() + '/bible.html', 'utf8');
-  const procBump = src.match(/if \(_tgt <= 1 && _ownedAtStart\.has\(n\)[^\n]*copies\[n\] = _cur \+ 1;/);
-  expect(procBump, 'the processFile copy-bump statement must still exist').not.toBeNull();
-  expect(procBump![0]).toContain('_vfIsSetPiece(n)');
-  const vpGuard = src.match(/routed\.mode === 'already' && assign\[nm\] != null && _vpCopySeen\[nm\] !== token[^\n]*\{/);
+  /* v3767 (vault-spread) retired the processFile re-read copy-bump outright: a re-read of a presence item now
+     records a WITNESS (_ownedAdd with the frame) and never writes copies[n]. So the guard is structural in a
+     stronger form — the re-read branch must stay a witness and must not grow a copies bump back. */
+  const procWit = src.match(/if \(_rk === 'witness' && _tgt <= 1 && _ownedAtStart\.has\(n\)\) \{ \/\* v3767 intake witness \*\/([\s\S]*?)fRec\.own\.push\(n\);/);
+  expect(procWit, 'the processFile re-read witness branch must still exist').not.toBeNull();
+  expect(procWit![1], 'the re-read branch records a witness').toContain('_ownedAdd(n');
+  expect(procWit![1], 'the re-read branch must not bump copies (a presence set piece would auto-climb)').not.toMatch(/copies\[n\]\s*=/);
+  /* the _vpCopySeen guard is a NESTED condition now (the outer line stays byte-identical to its red-proof anchor,
+     see the bible.html comment there), so read the condition AND the block up to its copy bump */
+  const vpGuard = src.match(/routed\.mode === 'already' && assign\[nm\] != null && _vpCopySeen\[nm\] !== token[^\n]*\{([\s\S]*?)copies\[nm\] = prevN \+ 1;/);
   expect(vpGuard, 'the _vpCopySeen copy-bump condition must still exist').not.toBeNull();
   expect(vpGuard![0]).toContain('_vfIsSetPiece(nm)');
 });

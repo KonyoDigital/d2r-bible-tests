@@ -41709,6 +41709,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       +(rows||'<div style="padding:8px 4px;color:#8a9aa8;font-size:12px">No multi-copy items yet — add one below.</div>')
       +'<div class="vmk-add"><input id="vmk-add-input" aria-label="add an item to collect spares of" type="text" autocomplete="off" placeholder="Add an item to collect spares of (e.g. Gore Rider)" onkeydown="if(event.key===\'Enter\')window.vaultMultiKeepAdd()"><button onclick="window.vaultMultiKeepAdd()">+ Add</button></div></div></details>';
   }
+  try { window.renderMultiKeep = renderMultiKeep; } catch (eRmk) {}   /* REG-2320 — the recount panel's painter is reachable from the page again (v3753's walk-down spec drives it) */
   window.vaultCopyAdjust=function(n,d){ n=(window._vfCanon?window._vfCanon(n):n)||n; var want=multiTarget(n), cap=Math.max(want,copyCount(n)), nv=Math.max(0,Math.min(cap,copyCount(n)+d)); if(nv<=1){ delete copies[n]; } else { copies[n]=nv; } try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };   /* #76 v3753 — canonicalize to the slotted ledger key; cap at max(want,have) so an inflated count walks DOWN one step toward his true count instead of snapping */
   window.vaultTargetBump=function(n,d){ n=(window._vfCanon?window._vfCanon(n):n)||n; var nt=multiTarget(n)+d; if(nt<2){ window.vaultMultiKeepRemove(n); return; } multiKeep[n]=nt; if(copies[n]&&copies[n]>nt) copies[n]=nt; try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };
   window.vaultMultiKeepRemove=function(n){ n=(window._vfCanon?window._vfCanon(n):n)||n; delete multiKeep[n]; delete copies[n]; try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };
@@ -46112,9 +46113,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (assign[nm] != null && typeof window.vaultUnassign === 'function') window.vaultUnassign(nm);
     _vpForget(nm);
   }
-  function _vpRoute(nm){
+  function _vpRoute(nm, keeperWhy){
     var sg, asked = false;
     try { sg = suggestMule(nm); asked = true; } catch (e) { sg = null; }
+    /* REG-2320 — a PERFECT base (REG-2250, his 2026-10-13 ruling) is a keeper even when every runeword its type can
+       host is already forged: suggestMule's spare-base rule says "vendor it", and that verdict sent his 4os Monarch
+       back to "stays unfiled". Only the caller that proved the pick perfect passes keeperWhy; it re-homes a vendor
+       verdict to the socketed base mule. Every other route is untouched. */
+    if (keeperWhy && sg && sg.id === '__throwout' && !sg.unsorted){
+      var _kb = null; try { _kb = muleById('bases'); } catch (eKb) { _kb = null; }
+      if (_kb) sg = { id: 'bases', why: String(keeperWhy) };
+    }
     if (!asked) return { ok: false, filed: false, why: nm + ' — the router could not be asked, so nothing was filed' };
     if (sg == null){
       var shared = false;
@@ -46292,7 +46301,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         try { if (typeof window._ensureSocketBaseEntry === 'function') window._ensureSocketBaseEntry(_pb.name); } catch (eEn) {}
         var _pbWasOwned = !!(typeof owned !== 'undefined' && owned && owned.has && owned.has(_pb.name));
         var _pbWasAssigned = assign[_pb.name] != null;
-        var _pbRouted = _vpRoute(_pb.name);
+        var _pbRouted = _vpRoute(_pb.name, _pb.why);
         if (_pbRouted && (_pbRouted.filed || _pbRouted.mode === 'already')){
           try { status(_pbRouted.why); } catch (ePs) {}
           _vpMade = { token: token, id: entry.id, name: _pb.name, fresh: !!(!_pbWasOwned && !_pbWasAssigned && _pbRouted.filed), magic: false };

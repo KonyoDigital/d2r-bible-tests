@@ -148,11 +148,11 @@ test.describe('v203 the vault', () => {
     // v364: high trade-value items ("worth keeping close") auto-route to the SHARED cross-account stash
     // instead of their slot mule. SoJ is 'high' value → shared.
     expect(r.soj).toBe('shared');
-    expect(r.gaze).toBe('uni-armor');   // med value → its slot mule
+    // his war-stash ruling (2026-10-19): Vampire Gaze is war gear → the shared (war) stash
+    expect(r.gaze).toBe('shared');
     expect(r.storm).toBe('uni-armor');  // low value → its slot mule
-    // v409: Annihilus (like Hellfire Torch / Gheed's Fortune) only works in the ACTIVE character's
-    // inventory — never muled and not shared (a charm in shared stash does nothing). → __keep sentinel.
-    expect(r.anni).toBe('__keep');
+    // REG-2241 (his ruling 2026-10-15, "torches and anni stay in shared") — Annihilus → shared stash.
+    expect(r.anni).toBe('shared');
     expect(r.wf).toBe('uni-weap');      // med value → its slot mule
     // shared-stash items are explicitly excluded from muling
     expect(r.rune).toBeNull();
@@ -218,12 +218,17 @@ test.describe('v203 the vault', () => {
       const f = new File([bytes], 'shot.jpg', { type: 'image/jpeg' });
       await w.vaultIntake([f]);
     }, '/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0aHBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAACf/EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AKp//2Q==');
-    const r = await page.evaluate(() => ({
-      piece: eval('owned').has("Tal Rasha's Lidless Eye"),
+    /* #76 (v3751-v3753) — a set piece is owned under its CANONICAL SLOTTED ledger key ("… (orb)"), the one form the
+       reconcile keeps, so the exact piece is registered as "Tal Rasha's Lidless Eye (orb)", never a bare twin. */
+    const PIECE = "Tal Rasha's Lidless Eye (orb)";
+    const r = await page.evaluate((piece: string) => ({
+      piece: eval('owned').has(piece),
+      bare: eval('owned').has("Tal Rasha's Lidless Eye"),
       grailRow: eval('owned').has('Tal Rasha set (any piece)'),
       chips: [...document.querySelectorAll('#vault-dock .vault-chip, .vm-item-row')].map((c: any) => c.dataset?.vaultItem || c.textContent),
-      assigned: JSON.parse(localStorage.getItem('d2r_muleAssign') || '{}')["Tal Rasha's Lidless Eye"],
-    }));
+      assigned: JSON.parse(localStorage.getItem('d2r_muleAssign') || '{}')[piece],
+    }), PIECE);
+    expect(r.bare, 'no bare-name twin beside the slotted piece (#76)').toBe(false);
     expect(r.piece).toBe(true);
     expect(r.grailRow).toBe(true);             // grail ✓ rides along
     expect(r.assigned).toBe('sets-major');     // auto-filed to SETS-TAL-IK
