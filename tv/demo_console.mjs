@@ -1143,6 +1143,7 @@ async function bootPrivate() {
     TV_CONTROL_PORT: String(port),
     TV_PORT: String(agent),
     TV_ROBOT: '1',
+    TV_FLEET_BEHIND_PIN: '0', // L1: the pushing branch's distance from origin/main is not a journey fact
     TV_HIST: hist,
     TV_FRAMES_DIR: path.join(_sand, 'frames'),
     TV_SESSIONS: path.join(_sand, 'sessions.jsonl'),

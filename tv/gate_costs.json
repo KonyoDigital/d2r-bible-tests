@@ -1018,6 +1018,11 @@
   "visual-lock": 0.4,
   "write_census": 0.1,
   "test_a_gate_crash_still_folds_the_banked_rows": 1.0,
-  "test_a_timeout_is_never_stored_red": 9.0
+  "test_a_timeout_is_never_stored_red": 9.0,
+  "test_a_render_console_does_not_read_the_branch_distance": 0.6,
+  "test_vault_l1_a_hand_add_routes_by_type": 11.3,
+  "test_vault_l1_tasks_panel": 10.0,
+  "test_vault_l1_every_hand_add_is_a_move_task": 6.0,
+  "test_vault_l1_war_stash_overflow": 31.0
  }
 }

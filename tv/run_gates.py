@@ -9828,6 +9828,68 @@ GATES = [
              "typed move, mark moved, and a witness frame that verifies the row. No browser is a "
              "declared skip."),
          skip_ok=(r"no Chrome/Chromium on this machine",)),
+    Gate("test_a_render_console_does_not_read_the_branch_distance", [sys.executable,
+         os.path.join(HERE, "test_a_render_console_does_not_read_the_branch_distance.py")], 30,
+         needs_app=False,
+         why=("the render harness console pins its fleet distance (TV_FLEET_BEHIND_PIN=0, honoured only under "
+             "TV_STUB=1), so a branch behind origin/main no longer draws BEHIND FLEET over the shelf reel cards "
+             "and turns shelf-cards red. His real console still counts.")),
+    Gate("test_vault_l1_war_stash_overflow", [sys.executable,
+         os.path.join(HERE, "test_vault_l1_war_stash_overflow.py")], 300,
+         needs_app=False,
+         why=("Vault L1 (Elad, live v3774: a 2nd hand-added Aldur's Deception vanished) - every hand copy is its own "
+             "item, cell and MANUAL row; the war stash packs all 5 pages, then WAR1, WAR2 (case-insensitive); none "
+             "or all full is said plainly and no mule is created. Elad 2026-10-20: the war stash keeps ONE copy of a "
+             "big item (a seen/planned war-stash copy, else the first-witnessed; never swapped) and every extra goes "
+             "to its normal mule with its own row; small gear (<=2 cells, by footprint) keeps every copy, grouped; "
+             "WAR mules bind by role on the id, wear the Shared Stash colour and badge, sit right after it, and a "
+             "rename keeps their tasks. No browser is a declared skip."),
+         skip_ok=(r"no Chrome/Chromium on this machine",)),
+    Gate("test_vault_l1_every_hand_add_is_a_move_task", [sys.executable,
+         os.path.join(HERE, "test_vault_l1_every_hand_add_is_a_move_task.py")], 240,
+         needs_app=False,
+         why=("Vault L1 (Elad, live v3774: a hand-added set item showed no move task) - every hand add is one "
+             "open MOVE TASKS row 'MANUAL → <mule> (x,y)'; a set piece he types, ruled-low included, is kept "
+             "and routed to a sets mule, never a THROW OUT row. A batch of 20 hand adds paints 20 rows. "
+             "No browser is a declared skip."),
+         skip_ok=(r"no Chrome/Chromium on this machine",)),
+    Gate("test_vault_l1_a_hand_add_routes_by_type", [sys.executable,
+         os.path.join(HERE, "test_vault_l1_a_hand_add_routes_by_type.py")], 240,
+         needs_app=False,
+         why=("Vault L1 - a hand add through the real door routes by type (set, unique, runeword, grand "
+             "charm, jewel, amulet, belt) to one MANUAL row at a real target cell, at the game footprint. "
+             "Placement is append-only, a first sighting upgrades the same row to a real FROM cell, an "
+             "equipped item gets no row, and a row click opens BEFORE | AFTER with real art and closes. "
+             "No browser is a declared skip."),
+         skip_ok=(r"no Chrome/Chromium on this machine",)),
+    Gate("test_vault_l1_rules_drive_every_move", [sys.executable,
+         os.path.join(HERE, "test_vault_l1_rules_drive_every_move.py")], 180,
+         needs_app=False,
+         why=("Vault L1 (Elad 2026-10-20, live v3776 on his data) - moves come from the placement rules, never a Fix / "
+             "Auto-assign press: a hand copy of an owned misfiled item routes by the current rules to its own cell and "
+             "MANUAL row; a misfiled item gets a move row from its mule; copies cluster on the nearest free cell; two "
+             "copies close per copy at their own targets, never swapped or merged. No browser is a declared skip."),
+         skip_ok=(r"no Chrome/Chromium on this machine",)),
+    Gate("test_vault_l1_throw_out_rows_drain", [sys.executable,
+         os.path.join(HERE, "test_vault_l1_throw_out_rows_drain.py")], 180,
+         needs_app=False,
+         why=("Vault L1 (Elad 2026-10-20) - a junk route is a THROW OUT row in MOVE TASKS (target NOWHERE, one "
+             "plain reason, Keep / Junk inline), never a dock chip; Keep turns it into a normal move; his hand-added "
+             "unruled set piece stays kept and routed. Rows drain on direct proof only: seen at the target closes a "
+             "move at once; 5 reel sessions whose frames SHOWED the first-witnessed cell empty close a throw-out or a "
+             "vanished move, a container never shown counts nothing, a re-sighting resets, the row says gone k/5; a "
+             "throw-out read on the ground after it left closes at once. No browser is a declared skip."),
+         skip_ok=(r"no Chrome/Chromium on this machine",)),
+    Gate("test_vault_l1_tasks_panel", [sys.executable,
+         os.path.join(HERE, "test_vault_l1_tasks_panel.py")], 180,
+         needs_app=False,
+         why=("Vault L1 (Elad 2026-10-20) - MOVE TASKS is a right-side panel beside the left column at 1280 and 1440: "
+             "a numbered checklist, one line per task (Arcanna's Sign · MANUAL → SETS-REST (x,y)), Moves then "
+             "Throw-outs, no wide grids; each line has one tick box (his tick moves it to Done, the reels show gone "
+             "k/5), a click opens BEFORE | AFTER; Done is collapsed at the bottom. The left keeps add, find, the mules "
+             "and the Equipped (locked) line, each with one short plain line; the wordy headers stay gone. "
+             "No browser is a declared skip."),
+         skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_v3771_vault_console_face", [sys.executable,
          os.path.join(HERE, "test_v3771_vault_console_face.py")], 60,
          needs_app=False,

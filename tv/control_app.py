@@ -1797,6 +1797,19 @@ def fleet_origin_status(force_fetch=False):
         "ok": True, "behind": 0, "latest": "", "head": "", "origin": "",
         "dirty": False, "howTo": "", "ver": _app_ver() if "_app_ver" in globals() else "",
     }
+    # L1 (render gate root cause, 2026-10-19) — A HARNESS CONSOLE MUST NOT PHOTOGRAPH THE TESTER'S BRANCH. render_check
+    # serves this app from whatever checkout pushes, and a feature branch is behind origin/main, so the BEHIND FLEET
+    # banner (#fault-banner) was drawn over the shelf's reel cards and `shelf-cards` went red on every branch but main.
+    # The same banner ate demo_console's J7 click on #btn-shelf. Only a harness console (render_check's TV_STUB=1,
+    # demo_console's TV_ROBOT=1) honours the pin; his real console sets neither, so it still counts and fetches.
+    _pin = os.environ.get("TV_FLEET_BEHIND_PIN")
+    if _pin is not None and (os.environ.get("TV_STUB") == "1" or os.environ.get("TV_ROBOT") == "1"):
+        try:
+            out["behind"] = max(0, int(_pin))
+            out["howTo"] = "pinned by the render sandbox (TV_FLEET_BEHIND_PIN)"
+            return dict(out)  # L1 fleet pin
+        except ValueError:
+            pass
     try:
         out["dirty"] = _git_tracked_dirty()
         # lightweight rev-parse always
@@ -42294,7 +42307,7 @@ def status_payload():
         "selfProbe": dict(_SELF_PROBE), "selfProve": dict(_SELF_PROVE), "shelfPrewarm": dict(_SHELF_PREWARM), "captureSweep": dict(_CAP_SWEEP), "captureStop": dict(_CAP_STOP),
         # #83 — the child supervisor's receipts (door / watchdog / RAM); the census itself is the doctor's row
         "childGuard": _child_guard_status(),
-        "ver": "v3775",
+        "ver": "v3776",
         # v3288 — WHICH QUESTION THE NUMBER ABOVE ANSWERS. `ver` is a literal compiled into the
         # module that is running; `moduleFreshness` says whether that module is still the file on
         # disk, measured from this module's OWN import rather than from a PID or a string compare.

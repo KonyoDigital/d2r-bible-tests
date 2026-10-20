@@ -562,7 +562,7 @@ console.log(JSON.stringify({
   manual: !!(t && t.manual),
   stored: !!(stored && stored.manual === true),
   badge: html.indexOf('vmv-manual-badge">MANUAL<') >= 0,
-  toCell: !!(t && t.to && t.to.cell != null) && html.indexOf('<i>TO</i>') >= 0,
+  toCell: !!(t && t.to && t.to.cell != null) && html.indexOf('data-to="' + t.to.cell + '"') >= 0, /* L1 checklist: the line carries its target cell */
   on: _vaultAutoIntakeRead().on === true
 }));
 """
@@ -944,13 +944,13 @@ RED_PROOF = [
      "matches": 1},
     {"why": "A hand add says it wrote the row and stores nothing.",
      "file": "bible.html",
-     "find": "var wrote = _vaultMoveCommit([{ name: nm, copyIx: 0, task: hand }]); /* v3773 manual row */",
+     "find": "var wrote = _vaultMoveCommit([{ name: nm, copyIx: copyIx, task: hand }]); /* v3773 manual row */",
      "replace": "var wrote = { ok: true }; /* v3773 manual row */",
      "matches": 1},
     {"why": "The move list draws a hand add's FROM as 'not seen yet' instead of the MANUAL badge.",
      "file": "bible.html",
-     "find": "((t.manual && t.status === 'to-move' && !(t.from && t.from.cell != null))",
-     "replace": "((false && t.status === 'to-move' && !(t.from && t.from.cell != null))",
+     "find": "(manual ? '<b class=\"vmv-manual-badge\">MANUAL</b>'",
+     "replace": "(false ? '<b class=\"vmv-manual-badge\">MANUAL</b>'",
      "matches": 1},
     {"why": "The Sets and Uniques search (#tsrch-i) loses the gold outline to its own outline:0 rule.",
      "file": "bible.html",

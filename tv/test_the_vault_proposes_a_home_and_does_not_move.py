@@ -224,7 +224,7 @@ class TheVaultProposesAHomeAndDoesNotMove(unittest.TestCase):
     def test_the_joins(self):
         s = _src()
         code = code_only(s)
-        self.assertEqual(code.count('            window.vaultOrganizePaint(unsorted, (_carried || []).map(function(c){ return c.name; })); } catch (eO) {}\n'), 1)
+        self.assertEqual(code.count('            window.vaultOrganizePaint(unsorted.filter(_noRow), (_carried || []).map(function(c){ return c.name; }).filter(_noRow)); } catch (eO) {}\n'), 1)
         dock_at = code.find("dock.innerHTML = unsorted.map(function(n){")
         self.assertGreater(dock_at, 0)
         self.assertNotIn("vaultPropose", code[dock_at:code.find(".join('');", dock_at)])
@@ -272,8 +272,8 @@ RED_PROOF = [
     {
         "why": "the throw-out review is advice; without its own branch it is painted as a proposed home",
         "file": "bible.html",
-        "find": "    if (id === '__throwout') return { ok: true, moved: false, kind: 'throwout', id: id, home: null, why: why };\n",
-        "replace": "    if (id === '__throwout') return { ok: true, moved: false, kind: 'mule', id: id, home: 'the throw-out review', why: why };\n",
+        "find": "      return { ok: true, moved: false, kind: 'throwout', id: id, home: null, why: why };\n",
+        "replace": "      return { ok: true, moved: false, kind: 'mule', id: id, home: 'the throw-out review', why: why };\n",
         "matches": 1,
     },
     {
@@ -293,7 +293,7 @@ RED_PROOF = [
     {
         "why": "the dock's unsorted items must be asked; dropping the paint leaves the organizer unjoined",
         "file": "bible.html",
-        "find": '            window.vaultOrganizePaint(unsorted, (_carried || []).map(function(c){ return c.name; })); } catch (eO) {}\n',
+        "find": '            window.vaultOrganizePaint(unsorted.filter(_noRow), (_carried || []).map(function(c){ return c.name; }).filter(_noRow)); } catch (eO) {}\n',
         "replace": "            void 0; } catch (eO) {}\n",   # the whole call statement goes; the try still closes
         "matches": 1,
     },

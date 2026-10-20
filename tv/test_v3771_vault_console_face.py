@@ -83,8 +83,8 @@ console.log(JSON.stringify({
   last: groups[groups.length - 1].label,
   unseen: groups[groups.length - 1].unseen === true,
   hint: html.indexOf('Take a screenshot so the console can see where it sits.') >= 0,
-  cls: html.indexOf('vmv-unseen') >= 0,
-  data: html.indexOf('data-unseen="1"') >= 0,
+  cls: /<section class="vmv-group vmv-unseen"/.test(html),
+  data: /<section [^>]*data-unseen="1"/.test(html),
   collided: html.indexOf('UNKNOWN · UNKNOWN') >= 0
 }));
 """)
@@ -233,7 +233,7 @@ console.log(JSON.stringify({
   empty: _vaultMoveCellSay(''),
   known: _vaultMoveCellSay('stash:c1r1'),
   place: _vaultMovePlaceSay({ holder: null, location: 'stash', cell: 'stash:c0r0' }),
-  witness: html.indexOf('>not seen yet</button>') >= 0,
+  witness: html.indexOf('title="not seen yet · the pictures it was read on"') >= 0, /* L1 checklist: the eye button's title says it */
   word: html.indexOf('witnesses UNKNOWN') >= 0,
   grid: grid.indexOf('not seen yet') >= 0,
   gridUnknown: grid.indexOf('UNKNOWN') >= 0
@@ -332,8 +332,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "The unseen group loses its marker, so the console style and the gate cannot see it.",
      "file": "bible.html",
-     "find": "(g.unseen ? ' vmv-unseen' : '')",
-     "replace": "''",
+     "find": "<section class=\"vmv-group vmv-unseen\" data-unseen=\"1\"",
+     "replace": "<section class=\"vmv-group\" data-unseen=\"0\"",
      "matches": 1},
     {"why": "An unseen place is spelled UNKNOWN · UNKNOWN on the row.",
      "file": "bible.html",

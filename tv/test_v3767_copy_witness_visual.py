@@ -182,7 +182,7 @@ document.getElementById('screen').textContent = lines.join('\n');
             2: ["Enigma · 1 record · witnesses 4", "copies[] 4", "+1 witness",
                 "Stone of Jordan · new record · 1 record"],
             3: ["WATCHING 2/3", "LOCKED"],
-            4: ["dock: Rare Junk", "dock: Raven Frost", "dock: Sigon's Guard"],
+            4: ["dock: Rare Junk", "dock: Raven Frost"],  # L1: Sigon's (a throw-out route) is a THROW OUT task, not a dock chip
             5: ["toggle: AUTO INTAKE · OFF", "frame Stone of Jordan · not registered",
                 "Grief · source manual · uni-weap", "assign untouched"],
         }
@@ -212,6 +212,7 @@ document.getElementById('screen').textContent = lines.join('\n');
                 self.assertNotIn("dock: Grief", screen)
                 self.assertNotIn("dock: Enigma", screen)
                 self.assertNotIn("dock: Shako", screen)
+                self.assertNotIn("dock: Sigon's Guard", screen, "a throw-out route sat in the dock")
             shutil.copy(png, os.path.join(ART, os.path.basename(png)))
             shutil.rmtree(td, ignore_errors=True)
 

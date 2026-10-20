@@ -90,7 +90,9 @@ test('the sets he RULED are keepers — their pieces mule, they do not get throw
     const r = await page.evaluate((x) => (window as any).suggestMule(x), n);
     expect(r?.id, `"${n}" is a piece of a set he RULED a keeper; it must never be discarded`)
       .not.toBe('__throwout');
-    expect(r?.id, `"${n}" should mule to sets-rest (MAJOR_SETS is Tal Rasha/IK/Griswold only)`)
-      .toBe('sets-rest');
+    // L1 (Elad 2026-10-19): Guillaume's Face is war gear — the war stash (Shared Stash), not SETS-REST
+    const want = n === "Guillaume's Face" ? 'shared' : 'sets-rest';
+    expect(r?.id, `"${n}" should go to ${want} (MAJOR_SETS is Tal Rasha/IK/Griswold only; Guillaume's Face is war gear)`)
+      .toBe(want);
   }
 });
