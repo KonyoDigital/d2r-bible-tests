@@ -10477,6 +10477,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 /* L1 (Elad 2026-10-20) — right-side task panel */
 #mule-vault-card .boss-body.vault-body{display:flex;align-items:flex-start;gap:14px}
 .vault-main{flex:1 1 auto;min-width:0}
+@media (max-width:1100px){#mule-vault-card .boss-body.vault-body{flex-direction:column;align-items:stretch}.vault-tasks-panel{flex:1 1 auto;width:100%;max-width:none;position:static;max-height:none}}
 .vault-tasks-panel{flex:0 0 420px;max-width:42%;position:sticky;top:8px;max-height:calc(100vh - 16px);overflow:auto;border:1px solid rgba(212,168,71,.32);border-radius:12px;padding:10px 12px;background:linear-gradient(180deg,rgba(36,27,14,.5),rgba(13,10,6,.5));box-sizing:border-box}
 .vault-say{margin:2px 0 6px;color:var(--text-dim);font-size:var(--fs-meta)}
 .vault-tasks-panel .vmv-grid,.vault-tasks-panel .vault-move-sub{display:none}
