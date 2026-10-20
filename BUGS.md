@@ -20,6 +20,15 @@ GUARDS (registered in tv/run_gates.py): tv/test_a_locked_tab_never_strands_the_v
 
 LEFT: why his window reads hidden while on screen (macOS occlusion of the pywebview window) is not fixed here; only its effect on the tab route is.
 ### REG-2303 - A SECOND HAND-ADDED COPY VANISHED, AND THE WAR STASH WAS ONE PAGE (Vault L1, provisional number, unversioned)
+### REG-2305 - GUILLAUME'S FACE WENT TO SETS-REST, AND ONE DROPPED COPY CLOSED EVERY COPY'S THROW OUT ROW (Vault L1, v3776)
+Review of #247 (2026-10-20). (1) Elad ruled 2026-10-19 that Guillaume's Face lives in the war stash (Shared Stash); the
+keep-set rule (Orphan's Call) sent it to SETS-REST. Fix: it is a WAR_GEAR row, so war gear beats the set branch. (2) The
+drain's ground close matched by name only, so one dropped-item label closed the THROW OUT row of every copy that had left
+its cell. Fix: a ground label is one dropped copy and closes at most one row (lowest copyIx first). Guards:
+test_vault_l1_war_stash_overflow (15 RED PROVEN, Wilson 0.796) and test_vault_l1_throw_out_rows_drain (21 RED PROVEN,
+Wilson 0.845); v1970 / v3743 specs re-anchored (Guillaume's Face -> shared).
+
+### REG-2303 - A SECOND HAND-ADDED COPY VANISHED, AND THE WAR STASH WAS ONE PAGE (Vault L1, v3776)
 Elad, live v3774 (2026-10-20): a 2nd Aldur's Deception he typed vanished - no row, no cell, no error. vaultHandAdd
 answered 'already yours - nothing changed' for any owned name. Fix: a name he types again is another copy (the
 copies[] store Grief x2 uses; for a set piece his hand sets the multi-keep target, so a re-read still never
@@ -28,7 +37,7 @@ climbs one); _vaultMoveNoteAdded writes the row for that copyIx. The move planne
 in order; with none or all full the item keeps no cell and MOVE TASKS says so plainly - no mule is created.
 Guard test_vault_l1_war_stash_overflow, 11 RED proofs. The SoJ three-spellings check now expects three copies.
 
-### REG-2302 - A SET PIECE HE TYPED BY HAND GOT NO MOVE TASK (Vault L1, provisional number, unversioned)
+### REG-2302 - A SET PIECE HE TYPED BY HAND GOT NO MOVE TASK (Vault L1, v3776)
 Elad, live v3774 (2026-10-20): he hand-added a set item and saw no move task. Cause: the hand-typed keep in
 _vaultSeamAsk only matched the planner's "by DEFAULT" reason, so a ruled-low set (Sigon's, Cathan's, Isenhart's)
 typed through + Add an item fell to a THROW OUT row (NOWHERE). Fix: a set piece he types is kept, ruled-low
@@ -37,7 +46,7 @@ test_vault_l1_every_hand_add_is_a_move_task: 20 hand adds (8 set pieces) = 20 op
 Also: the six agent-suite guards and v203/v327/v622 Playwright specs re-anchored to L1 (a throw-out is a
 THROW OUT task, never a dock chip; the dock's homeless example is a Chronicle-only read).
 
-### REG-2301 - MOVE TASKS WAS A WIDE WALL OF GRIDS IN THE LEFT COLUMN, NOT A CHECKLIST HE COULD TICK (Vault L1, provisional number, unversioned)
+### REG-2301 - MOVE TASKS WAS A WIDE WALL OF GRIDS IN THE LEFT COLUMN, NOT A CHECKLIST HE COULD TICK (Vault L1, v3776)
 
 Elad, 2026-10-20: MOVE TASKS becomes a right-side panel, a clean numbered checklist with one line per task
 ("Arcanna's Sign · MANUAL → SETS-REST (3,1)"), Moves then Throw-outs, the done tasks collapsed at the bottom; each
@@ -52,7 +61,7 @@ wide target grids now live only in BEFORE | AFTER. Guard test_vault_l1_tasks_pan
 duplicate-beside tiles from BEFORE | AFTER and the LOCKED line from Equipped (locked); the organizer guard now
 asserts a throw-out is not advised twice. The Unsorted Dock is UNCHANGED (Elad: "not move away yet").
 
-### REG-2300 - A JUNK ROUTE SAT IN THE UNSORTED DOCK AS WORDY ADVICE, AND NO ROW EVER DRAINED BY ITSELF (Vault L1, provisional number, unversioned)
+### REG-2300 - A JUNK ROUTE SAT IN THE UNSORTED DOCK AS WORDY ADVICE, AND NO ROW EVER DRAINED BY ITSELF (Vault L1, v3776)
 
 Elad, 2026-10-20, at his live Vault: it is messy. Throw-out suggestions leave the Unsorted Dock and become THROW OUT rows in MOVE TASKS beside the moves, target NOWHERE, one plain reason, Keep / Junk inline; Keep turns the row into a move; the dock keeps only items with no route. Rows drain through the same sighting pipeline on direct proof only: 5 reel sessions whose frames SHOWED the first-witnessed cell without the item, a container never shown counts nothing, a re-sighting resets, progress reads "gone k/5"; a move seen at its target closes at once; a throw-out read on the ground after it left closes at once. A hand-added unruled set piece stays kept and routed (his earlier ruling).
 
