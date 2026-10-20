@@ -49351,6 +49351,8 @@ window.vaultAutoAssign = function(){
       var manual = !!(t.manual && !(t.from && t.from.cell != null));
       var gs = (typeof _vaultGoneSay === 'function') ? _vaultGoneSay(t) : ((t.gone && t.gone.length) ? 'gone ' + t.gone.length + '/' + (window.VAULT_GONE_SESSIONS || 5) : '');
       var say = row.name + ' · ' + _vtkPlace(t.from, manual) + ' → ' + (thr ? 'NOWHERE' : _vtkPlace(t.to, false));
+      var w = row.witnesses;
+      var wSay = (w == null) ? 'not seen yet' : (w + ' witness' + (w === 1 ? '' : 'es')); /* v3771 witness say */
       var uns = !manual && _vaultMoveUnseen(t.from && t.from.holder, t.from && t.from.location);
       return '<li class="vmv-row vtk-line' + (fin ? ' vtk-done' : '') + (thr ? ' vmv-throw-row' : '') + (uns ? ' vmv-unseen' : '') + '"' + (uns ? ' data-unseen="1"' : '') + ' data-name="' + esc(row.name) + '" data-copy="' + ci + '"'
         + ' data-status="' + esc(t.status) + '"' + (thr ? ' data-kind="throw"' : '') + (t.junk ? ' data-junk="1"' : '')
@@ -49363,7 +49365,7 @@ window.vaultAutoAssign = function(){
         + (manual ? '<b class="vmv-manual-badge">MANUAL</b>' : esc(_vtkPlace(t.from, false))) + ' → ' + (thr ? '<b class="vmv-nowhere">NOWHERE</b>' : esc(_vtkPlace(t.to, false))) + '</span>'
 
         + (gs ? '<b class="vmv-gone">' + esc(gs) + '</b>' : '')
-        + (thr ? '' : '<button type="button" class="vault-btn vmv-wit" title="' + esc(row.witnesses == null ? 'not seen yet' : (row.witnesses + ' witness' + (row.witnesses === 1 ? '' : 'es'))) + ' · the pictures it was read on" onclick="event.stopPropagation();window._vaultEvidenceOpen(\'' + nm + '\')">' + (row.witnesses == null ? '👁 0' : '👁 ' + row.witnesses) + '</button>')
+        + (thr ? '' : '<button type="button" class="vault-btn vmv-wit" title="' + esc(wSay) + ' · the pictures it was read on" onclick="event.stopPropagation();window._vaultEvidenceOpen(\'' + nm + '\')">' + (row.witnesses == null ? '👁 0' : '👁 ' + row.witnesses) + '</button>')
         + ((thr && !fin && !t.junk) ? '<button type="button" class="vault-btn vmv-keep" title="keep it instead" onclick="event.stopPropagation();window._vaultThrowKeep(\'' + nm + '\',' + ci + ')">Keep</button>' : '')
         + ((thr && !fin && !t.junk) ? '<button type="button" class="vault-btn vmv-junk" title="yes, it is junk" onclick="event.stopPropagation();window._vaultThrowJunk(\'' + nm + '\',' + ci + ')">Junk</button>' : '')
         + (t.junk ? '<span class="vmv-chip" data-status="junk">JUNK</span>' : '')
