@@ -10768,6 +10768,14 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_a_gate_run_does_not_dirty_the_proof_queue.py")], 120,
          needs_app=False,
          why='v3775 (REG-2296) fix 2 - Wilson gates bank into tv/.self_arming.jsonl, which dirtied an input of 147 gates mid-run so none were stored. While run_gates records proofs, self_arming._bank_path sends default-queue rows to a TV_SELF_ARMING_DEFER scratch file outside the checkout; run_gates folds them in after the last gate and removes it. A redirected fixture queue is never deferred.'),
+    Gate("test_a_gate_crash_still_folds_the_banked_rows",
+         [sys.executable, os.path.join(HERE, "test_a_gate_crash_still_folds_the_banked_rows.py")], 120,
+         needs_app=False,
+         why='v3775 review B1 (REG-2296) - a gate that raised mid-run skipped the fold of the deferred self-arming rows: TV_SELF_ARMING_DEFER stayed set and the banked rows sat in an unnamed scratch file. The gate loop is in try/finally; the finally clears the defer and folds, and a failed fold prints the scratch path and keeps the file.'),
+    Gate("test_a_timeout_is_never_stored_red",
+         [sys.executable, os.path.join(HERE, "test_a_timeout_is_never_stored_red.py")], 120,
+         needs_app=False,
+         why='v3775 review B2 (REG-2296) - a gate killed by its clock on a loaded box was stored red and capped at red_cap on every later --changed run, so it could never pass on unchanged bytes. A timeout now stores nothing (trace=None) and reruns with its full timeout; red_cap is never below the last measured runtime from gate_costs.json.'),
     Gate("test_a_build_word_in_a_gate_name_is_not_a_version_read",
          [sys.executable, os.path.join(HERE, "test_a_build_word_in_a_gate_name_is_not_a_version_read.py")], 60,
          needs_app=False,
@@ -10859,7 +10867,52 @@ def red_cap(g):
         cap = int(os.environ.get("TV_RED_CAP") or RED_CAP)
     except ValueError:
         cap = RED_CAP
+    # v3775 review B2 — the cap is never below what the gate last measured: a red that needs 90s
+    # to reach its own verdict is not capped into a timeout at 45s.
+    cap = max(cap, _measured_cost(getattr(g, "name", "")))  # GATES-RED-CAP-MEASURED
     return max(1, min(int(g.timeout or cap), cap))
+
+
+_COSTS = {}
+
+
+def _measured_cost(name):
+    """The gate's last measured runtime (tv/gate_costs.json), rounded up, 0 when unknown. -> int"""
+    import json
+    if "t" not in _COSTS:
+        try:
+            with open(os.path.join(HERE, "gate_costs.json"), encoding="utf-8") as fh:
+                _COSTS["t"] = json.load(fh)
+        except Exception:
+            _COSTS["t"] = {}
+    try:
+        v = float(((_COSTS["t"] or {}).get("costs") or {}).get(name) or 0)  # GATES-COST-ROWS
+    except (TypeError, ValueError):
+        v = 0.0
+    return int(v + 0.999) if v > 0 else 0
+
+
+def _fold_deferred_bank(path):
+    """Fold the run's deferred proof-queue rows into tv/.self_arming.jsonl and clear the defer env. -> bool"""
+    if not path:
+        return True
+    if os.environ.get("TV_SELF_ARMING_DEFER") == path:
+        os.environ.pop("TV_SELF_ARMING_DEFER", None)
+    try:
+        import self_arming as _SA
+        _nf, _nr = _SA.fold_deferred(path)
+    except BaseException as _fexc:  # a fold that fails says where the rows are, never silence
+        print("\u26a0 the deferred proof-queue rows were NOT folded (%s) - they are kept at %s"
+              % (type(_fexc).__name__, path), flush=True)
+        return False
+    try:
+        os.remove(path)
+    except OSError:
+        pass
+    if _nf or _nr:
+        print("ledger: %d proof-queue row(s) banked by this run folded into tv/.self_arming.jsonl%s"
+              % (_nf, (", %d unreadable row(s) refused" % _nr) if _nr else ""), flush=True)
+    return True
 
 
 def run(only=None, live_watch=True, live_writer=None, ledger=None):
@@ -10977,216 +11030,210 @@ def run(only=None, live_watch=True, live_writer=None, ledger=None):
     # is a FAIL that says "still red, carried, unchanged".  # GATES-RED-LAST
     _queue = list(GATES)
     _red_last = {}
-    for g in _queue:
-        if only and g.name not in only:
-            continue
-        if g.needs_app and not app_up:
-            # v1925 — NO GATE SETS needs_app=True ANY MORE (test_button_matrix, the last one, boots
-            # its own control_app on an ephemeral port since v1711), so this branch is currently
-            # unreachable and the :17772 probe above only costs the run 1.5s. It is kept because the
-            # NEXT gate that needs the live app will reach for it — and it is deliberately left
-            # UNDECLARED in skip_ok, so the day someone sets needs_app=True the run goes red on his
-            # Mac with the console down instead of quietly not running that gate. That is the whole
-            # v1711 lesson: "needs_app was TRUE, so this gate was skipped before it could even try".
-            results.append((g, "SKIP", 0.0, "control app is not running on :17772", ""))
-            continue
-        if led is not None and not getattr(led, "_prepared", False):
-            try:
-                led.prepare(GATES)
-                led._prepared = True
-            except Exception as _lexc:
-                print("ledger: the input map was not built (%s). Every gate runs."
-                      % type(_lexc).__name__, flush=True)
-        _capped = _red_last.pop(g.name, None) if g.name in _red_last and _red_last[g.name] else None
-        if ledger == "changed" and led is not None and _capped is None:  # LEDGER-CHANGED-ONLY
-            try:
-                _hit, _miss = led.lookup(g)
-            except Exception as _lexc:
-                _hit, _miss = None, "taking its key raised %s" % type(_lexc).__name__
-            if _hit is None and g.name not in _red_last:
-                try:
-                    _red, _rmiss = led.lookup(g, want=False)
-                except Exception:
-                    _red = None
-                if _red is not None:  # GATES-RED-DEFER
-                    _red_last[g.name] = _red.get("line") or "red, inputs unchanged"
-                    _queue.append(g)
-                    print("\u21a9\u2717 %-18s still red, carried, unchanged (%s) - runs last, capped at %ds"
-                          % (g.name, _red_last[g.name], red_cap(g)), flush=True)
-                    continue
-            if _hit is not None:
-                print("\u21a9 %-20s %s" % (g.name, _hit.get("line") or ""), flush=True)
-                results.append((g, "CARRY", 0.0, _hit.get("line") or "", ""))
-                if live_watch:
-                    _lw_prev = _state_fingerprint()
+    try:
+        for g in _queue:
+            if only and g.name not in only:
                 continue
-        t0 = time.time()
-        _lw_before = _lw_prev
-        try:
-            # v1868 — NO BLANKET TV_SESSIONS HERE, and that is a deliberate retreat.
-            # Forcing a scratch journal on every gate DID stop the leaks — and broke eleven tests
-            # that already isolate correctly by repointing control_app.HERE at a tempdir, because
-            # an env var outranks their patch. A lock that overrides working isolation is not a
-            # stronger guard, it is a different bug. The leaks are fixed where they were written
-            # (the durability harness, the button matrix, the capped-vault-read test) and the
-            # live-state watchlist below is what catches the next one — it caught all three within
-            # an hour of learning to watch the journal. [[feedback-blind-fixture-green-gate]]
-            # v2669 — ASK THE SUITE TO SAY WHY IT SKIPPED. v2668 gave the census a
-            # denominator (12 of 12, not a bare 12) but still could not say WHAT stopped
-            # running, which is CF-3's own complaint one level down: "a delta of 2 is not
-            # actionable, two names are". unittest prints a skip REASON only at verbosity=2,
-            # and every suite here hardcodes `unittest.main(verbosity=1)` — but argv wins, so
-            # `-v` is enough and no suite has to change.
-            #
-            # ⚠ THIS DOES NOT BLOAT THE CI LOG. capture_output means nothing streams; the blob
-            # is parsed and then DROPPED for a pass (a passing gate keeps only a 150-char
-            # tail). The reasons are aggregated and printed as a short histogram, so the log
-            # grows by a few lines, not by test_control's 2,233.
-            #
-            # Only unittest suites get -v. A non-suite gate (js_syntax_gate, render_check)
-            # would either ignore it or, worse, read it as its own flag.
-            _argv = gate_argv(g)
-            _env = None  # law_env's base: os.environ, or the traced copy of it
-            _trace = None
-            if led is not None:  # LEDGER-TRACE-RUN — what this run reads is what a later carry is checked against
+            if g.needs_app and not app_up:
+                # v1925 — NO GATE SETS needs_app=True ANY MORE (test_button_matrix, the last one, boots
+                # its own control_app on an ephemeral port since v1711), so this branch is currently
+                # unreachable and the :17772 probe above only costs the run 1.5s. It is kept because the
+                # NEXT gate that needs the live app will reach for it — and it is deliberately left
+                # UNDECLARED in skip_ok, so the day someone sets needs_app=True the run goes red on his
+                # Mac with the console down instead of quietly not running that gate. That is the whole
+                # v1711 lesson: "needs_app was TRUE, so this gate was skipped before it could even try".
+                results.append((g, "SKIP", 0.0, "control app is not running on :17772", ""))
+                continue
+            if led is not None and not getattr(led, "_prepared", False):
                 try:
-                    _trace = _GL.trace_path()
-                    _env = _GL.trace_env(os.environ, led._root_of([g]), _trace)
-                except Exception:
-                    _trace = None
-                    _env = None
-            p = subprocess.run(_argv, cwd=g.cwd, capture_output=True, text=True,
-                               encoding="utf-8", errors="replace",
-                               timeout=red_cap(g) if _capped else g.timeout,  # GATES-RED-CAP
-                               env=law_env(g.needs_app, _env))
-            dt = time.time() - t0
-            # A GATE DECLARES ITS SKIP REASON ON STDOUT. Reading `stdout + stderr` let ANYTHING on
-            # stderr — a SyntaxWarning, an atexit flush, a traceback tail — become the gate's
-            # "reason" and displace the declared line, converting a DECLARED skip into an
-            # UNDECLARED one, which :2025 counts as a build failure. That is exactly the camouflage
-            # v2430 shipped to remove, arriving through the back door.
-            # Measured on CI at af8beac: `render_check.py:332` emitted an invalid-escape warning
-            # whose source echo `  "activate": """(function(){` became crest_loudness's reason
-            # instead of its own `⚪ SKIPPED — no Chrome on :9224`. Invisible on Konyo's python3.9
-            # (hidden DeprecationWarning), fatal on CI's 3.12 (visible SyntaxWarning).
-            # stderr is still the fallback, because a gate that dies without printing anything to
-            # stdout has its only explanation there — silence must not become an empty reason.
-            _out = [ln for ln in (p.stdout or "").strip().split("\n") if ln.strip()]
-            _err = [ln for ln in (p.stderr or "").strip().split("\n") if ln.strip()]
-            blob = (p.stdout or "") + (p.stderr or "")
-            # v1601 — exit 77 means "I could not run", not "I passed". Without this a gate that
-            # self-skipped printed its own ⚠ SKIPPED line and still got counted green, which is the
-            # lie this file's docstring opens by forbidding. js-syntax skips on every local run on
-            # Konyo's Mac, so the surface least protected was the one showing a tick.
-            if p.returncode == SKIP_EXIT:
-                status = "SKIP"
-            else:
-                status = "PASS" if p.returncode == 0 else "FAIL"
-            # ⚠⚠ THE STDOUT PREFERENCE IS FOR THE **SKIP** CASE ONLY — and the first cut applied it
-            # to every status, which traded one hidden reason for another. TWO INDEPENDENT
-            # REVIEWERS REACHED THIS FROM DIFFERENT DIRECTIONS, which is why it is taken rather
-            # than argued: a cross-family read called it "displacement of stderr from tail", and a
-            # same-family review named the consequence exactly — **unittest writes
-            # `FAILED (failures=N)` to STDERR**, so any suite that also prints to stdout would show
-            # an incidental print as its failure reason in the summary table. Measured stdout
-            # printers among the gates: test_button_matrix (27 prints), test_routes (5),
-            # test_control (2), and test_scope_reach_signal's own new informational line.
-            #
-            # So the rule splits by what the line is FOR:
-            #   · SKIP — the gate DECLARED a reason on stdout, and stderr noise must not displace
-            #     it. That is the crest_loudness defect this whole ship exists to fix.
-            #   · FAIL/PASS — the diagnosis is whatever the run said LAST, on either stream,
-            #     because unittest's verdict lives on stderr.
-            # [[feedback-contradiction-is-the-finding]] — two checks disagreeing WAS the finding.
-            if status == "SKIP":
-                tail = (_out or _err)[-1:] or [""]
-            else:
-                _both = [ln for ln in blob.strip().split("\n") if ln.strip()]
-                tail = _both[-1:] or [""]
-            # v1925 — the blob is kept for a SKIP too. An undeclared skip is now a failure, and a
-            # failure has to be diagnosable from the log alone: the reason column is only the LAST
-            # line the gate printed, which for a suite that skipped in setUp is rarely the sentence
-            # that says why.
-            # v2668 — CARRY THE DENOMINATOR WHILE THE BLOB IS STILL IN HAND. The blob is
-            # dropped for a PASS (right above), so by the time the case-census runs, the only
-            # surviving text is this 150-char tail. unittest's own summary says "OK (skipped=26)"
-            # and never how many ran, so the census could report a suite and a count and NOTHING
-            # to divide it by — "test_chronicle_template=12" reads like a detail when it is in
-            # fact 12 of 12, a gate that passed while covering NOTHING on this venue.
-            # [[zero-needs-a-denominator]] [[regression-guard]]
-            for _sk in re.findall(r"\bskipped ['\"](.{3,120}?)['\"]", blob or ""):
-                _skip_reasons.append((g.name, _sk.strip()))
-            _detail = tail[0][:150]
-            if "skipped=" in _detail and " of " not in _detail:
-                _ran = re.search(r"Ran (\d+) test", blob or "")
-                if _ran:
-                    _detail = re.sub(r"skipped=(\d+)",
-                                     lambda m: "skipped=%s of %s" % (m.group(1), _ran.group(1)),
-                                     _detail)[:170]
-            results.append((g, status, dt, _detail, blob if status in ("FAIL", "SKIP") else ""))
-            if _capped and status == "FAIL":
-                _detail = ("still red, carried, unchanged (%s) - " % _capped + _detail)[:220]
-                results[-1] = (g, status, dt, _detail, results[-1][4])
-            if led is not None and status in ("PASS", "FAIL"):
+                    led.prepare(GATES)
+                    led._prepared = True
+                except Exception as _lexc:
+                    print("ledger: the input map was not built (%s). Every gate runs."
+                          % type(_lexc).__name__, flush=True)
+            _capped = _red_last.pop(g.name, None) if g.name in _red_last and _red_last[g.name] else None
+            if ledger == "changed" and led is not None and _capped is None:  # LEDGER-CHANGED-ONLY
                 try:
-                    if not led.record(g, status == "PASS", trace=_trace) and status == "PASS" and led.last_why:
-                        print("ledger: %s not stored \u2014 %s" % (g.name, led.last_why), flush=True)
-                except Exception:
-                    pass
-            if _trace:
-                try:
-                    os.remove(_trace)
-                except OSError:
-                    pass
-        except subprocess.TimeoutExpired:
-            if _capped:  # GATES-RED-STAYS-RED
-                results.append((g, "FAIL", time.time() - t0,
-                                "still red, carried, unchanged (%s) - capped at %ds" % (_capped, red_cap(g)), ""))
-            else:
-                results.append((g, "FAIL", time.time() - t0,
-                                "timed out after %ds — a hung gate is a failed gate" % g.timeout, ""))
-            if led is not None:
-                try:
-                    led.record(g, False, trace=_trace)
-                except Exception:
-                    pass
-                try:
-                    os.remove(_trace)
-                except (OSError, TypeError):
-                    pass
-        except OSError as e:
-            results.append((g, "SKIP", time.time() - t0, "could not launch (%s)" % e, ""))
-        if live_watch:
-            _lw_now = _state_fingerprint()
-            _moved = _live_state_diff(_lw_before, _lw_now,
-                                      names=sorted(set(_lw_before) | set(_lw_now)))
-            if _moved:
-                _lw_blame.append((g.name, _moved))
-                # ⚠ ATTRIBUTION IS NOT BLAME WHEN SOMETHING ELSE IS ALSO WRITING. On his Mac the
-                # console and a sweep write these files continuously, so a gate that merely ran
-                # while they did would be named as the culprit. Say which it is instead of
-                # implying. [[feedback-contradiction-is-the-finding]]
-                _who = ("⚠ but %s is running, so this may be its write and not the gate's"
-                        % ", ".join(live_writer)) if live_writer else \
-                       "nothing else was writing, so this gate did it"
-                print("   \u26a0 state moved during `%s`: %s — %s"
-                      % (g.name, "; ".join(_moved), _who), flush=True)
-            _lw_prev = _lw_now
-    if _defer:
-        os.environ.pop("TV_SELF_ARMING_DEFER", None)
-        try:
-            import self_arming as _SA
-            _nf, _nr = _SA.fold_deferred(_defer)
+                    _hit, _miss = led.lookup(g)
+                except Exception as _lexc:
+                    _hit, _miss = None, "taking its key raised %s" % type(_lexc).__name__
+                if _hit is None and g.name not in _red_last:
+                    try:
+                        _red, _rmiss = led.lookup(g, want=False)
+                    except Exception:
+                        _red = None
+                    if _red is not None:  # GATES-RED-DEFER
+                        _red_last[g.name] = _red.get("line") or "red, inputs unchanged"
+                        _queue.append(g)
+                        print("\u21a9\u2717 %-18s still red, carried, unchanged (%s) - runs last, capped at %ds"
+                              % (g.name, _red_last[g.name], red_cap(g)), flush=True)
+                        continue
+                if _hit is not None:
+                    print("\u21a9 %-20s %s" % (g.name, _hit.get("line") or ""), flush=True)
+                    results.append((g, "CARRY", 0.0, _hit.get("line") or "", ""))
+                    if live_watch:
+                        _lw_prev = _state_fingerprint()
+                    continue
+            t0 = time.time()
+            _lw_before = _lw_prev
             try:
-                os.remove(_defer)
-            except OSError:
-                pass
-            if _nf or _nr:
-                print("ledger: %d proof-queue row(s) banked by this run folded into tv/.self_arming.jsonl%s"
-                      % (_nf, (", %d unreadable row(s) refused" % _nr) if _nr else ""), flush=True)
-        except Exception as _fexc:
-            print("\u26a0 the deferred proof-queue rows were NOT folded (%s): %s" % (type(_fexc).__name__, _defer),
-                  flush=True)
+                # v1868 — NO BLANKET TV_SESSIONS HERE, and that is a deliberate retreat.
+                # Forcing a scratch journal on every gate DID stop the leaks — and broke eleven tests
+                # that already isolate correctly by repointing control_app.HERE at a tempdir, because
+                # an env var outranks their patch. A lock that overrides working isolation is not a
+                # stronger guard, it is a different bug. The leaks are fixed where they were written
+                # (the durability harness, the button matrix, the capped-vault-read test) and the
+                # live-state watchlist below is what catches the next one — it caught all three within
+                # an hour of learning to watch the journal. [[feedback-blind-fixture-green-gate]]
+                # v2669 — ASK THE SUITE TO SAY WHY IT SKIPPED. v2668 gave the census a
+                # denominator (12 of 12, not a bare 12) but still could not say WHAT stopped
+                # running, which is CF-3's own complaint one level down: "a delta of 2 is not
+                # actionable, two names are". unittest prints a skip REASON only at verbosity=2,
+                # and every suite here hardcodes `unittest.main(verbosity=1)` — but argv wins, so
+                # `-v` is enough and no suite has to change.
+                #
+                # ⚠ THIS DOES NOT BLOAT THE CI LOG. capture_output means nothing streams; the blob
+                # is parsed and then DROPPED for a pass (a passing gate keeps only a 150-char
+                # tail). The reasons are aggregated and printed as a short histogram, so the log
+                # grows by a few lines, not by test_control's 2,233.
+                #
+                # Only unittest suites get -v. A non-suite gate (js_syntax_gate, render_check)
+                # would either ignore it or, worse, read it as its own flag.
+                _argv = gate_argv(g)
+                _env = None  # law_env's base: os.environ, or the traced copy of it
+                _trace = None
+                if led is not None:  # LEDGER-TRACE-RUN — what this run reads is what a later carry is checked against
+                    try:
+                        _trace = _GL.trace_path()
+                        _env = _GL.trace_env(os.environ, led._root_of([g]), _trace)
+                    except Exception:
+                        _trace = None
+                        _env = None
+                p = subprocess.run(_argv, cwd=g.cwd, capture_output=True, text=True,
+                                   encoding="utf-8", errors="replace",
+                                   timeout=red_cap(g) if _capped else g.timeout,  # GATES-RED-CAP
+                                   env=law_env(g.needs_app, _env))
+                dt = time.time() - t0
+                # A GATE DECLARES ITS SKIP REASON ON STDOUT. Reading `stdout + stderr` let ANYTHING on
+                # stderr — a SyntaxWarning, an atexit flush, a traceback tail — become the gate's
+                # "reason" and displace the declared line, converting a DECLARED skip into an
+                # UNDECLARED one, which :2025 counts as a build failure. That is exactly the camouflage
+                # v2430 shipped to remove, arriving through the back door.
+                # Measured on CI at af8beac: `render_check.py:332` emitted an invalid-escape warning
+                # whose source echo `  "activate": """(function(){` became crest_loudness's reason
+                # instead of its own `⚪ SKIPPED — no Chrome on :9224`. Invisible on Konyo's python3.9
+                # (hidden DeprecationWarning), fatal on CI's 3.12 (visible SyntaxWarning).
+                # stderr is still the fallback, because a gate that dies without printing anything to
+                # stdout has its only explanation there — silence must not become an empty reason.
+                _out = [ln for ln in (p.stdout or "").strip().split("\n") if ln.strip()]
+                _err = [ln for ln in (p.stderr or "").strip().split("\n") if ln.strip()]
+                blob = (p.stdout or "") + (p.stderr or "")
+                # v1601 — exit 77 means "I could not run", not "I passed". Without this a gate that
+                # self-skipped printed its own ⚠ SKIPPED line and still got counted green, which is the
+                # lie this file's docstring opens by forbidding. js-syntax skips on every local run on
+                # Konyo's Mac, so the surface least protected was the one showing a tick.
+                if p.returncode == SKIP_EXIT:
+                    status = "SKIP"
+                else:
+                    status = "PASS" if p.returncode == 0 else "FAIL"
+                # ⚠⚠ THE STDOUT PREFERENCE IS FOR THE **SKIP** CASE ONLY — and the first cut applied it
+                # to every status, which traded one hidden reason for another. TWO INDEPENDENT
+                # REVIEWERS REACHED THIS FROM DIFFERENT DIRECTIONS, which is why it is taken rather
+                # than argued: a cross-family read called it "displacement of stderr from tail", and a
+                # same-family review named the consequence exactly — **unittest writes
+                # `FAILED (failures=N)` to STDERR**, so any suite that also prints to stdout would show
+                # an incidental print as its failure reason in the summary table. Measured stdout
+                # printers among the gates: test_button_matrix (27 prints), test_routes (5),
+                # test_control (2), and test_scope_reach_signal's own new informational line.
+                #
+                # So the rule splits by what the line is FOR:
+                #   · SKIP — the gate DECLARED a reason on stdout, and stderr noise must not displace
+                #     it. That is the crest_loudness defect this whole ship exists to fix.
+                #   · FAIL/PASS — the diagnosis is whatever the run said LAST, on either stream,
+                #     because unittest's verdict lives on stderr.
+                # [[feedback-contradiction-is-the-finding]] — two checks disagreeing WAS the finding.
+                if status == "SKIP":
+                    tail = (_out or _err)[-1:] or [""]
+                else:
+                    _both = [ln for ln in blob.strip().split("\n") if ln.strip()]
+                    tail = _both[-1:] or [""]
+                # v1925 — the blob is kept for a SKIP too. An undeclared skip is now a failure, and a
+                # failure has to be diagnosable from the log alone: the reason column is only the LAST
+                # line the gate printed, which for a suite that skipped in setUp is rarely the sentence
+                # that says why.
+                # v2668 — CARRY THE DENOMINATOR WHILE THE BLOB IS STILL IN HAND. The blob is
+                # dropped for a PASS (right above), so by the time the case-census runs, the only
+                # surviving text is this 150-char tail. unittest's own summary says "OK (skipped=26)"
+                # and never how many ran, so the census could report a suite and a count and NOTHING
+                # to divide it by — "test_chronicle_template=12" reads like a detail when it is in
+                # fact 12 of 12, a gate that passed while covering NOTHING on this venue.
+                # [[zero-needs-a-denominator]] [[regression-guard]]
+                for _sk in re.findall(r"\bskipped ['\"](.{3,120}?)['\"]", blob or ""):
+                    _skip_reasons.append((g.name, _sk.strip()))
+                _detail = tail[0][:150]
+                if "skipped=" in _detail and " of " not in _detail:
+                    _ran = re.search(r"Ran (\d+) test", blob or "")
+                    if _ran:
+                        _detail = re.sub(r"skipped=(\d+)",
+                                         lambda m: "skipped=%s of %s" % (m.group(1), _ran.group(1)),
+                                         _detail)[:170]
+                results.append((g, status, dt, _detail, blob if status in ("FAIL", "SKIP") else ""))
+                if _capped and status == "FAIL":
+                    _detail = ("still red, carried, unchanged (%s) - " % _capped + _detail)[:220]
+                    results[-1] = (g, status, dt, _detail, results[-1][4])
+                if led is not None and status in ("PASS", "FAIL"):
+                    try:
+                        if not led.record(g, status == "PASS", trace=_trace) and status == "PASS" and led.last_why:
+                            print("ledger: %s not stored \u2014 %s" % (g.name, led.last_why), flush=True)
+                    except Exception:
+                        pass
+                if _trace:
+                    try:
+                        os.remove(_trace)
+                    except OSError:
+                        pass
+            except subprocess.TimeoutExpired:
+                if _capped:  # GATES-RED-STAYS-RED
+                    results.append((g, "FAIL", time.time() - t0,
+                                    "still red, carried, unchanged (%s) - capped at %ds" % (_capped, red_cap(g)), ""))
+                else:
+                    results.append((g, "FAIL", time.time() - t0,
+                                    "timed out after %ds — a hung gate is a failed gate" % g.timeout, ""))
+                if led is not None:
+                    # v3775 review B2 — A TIMEOUT IS NOT A RED. A gate killed by its clock (a loaded box, or the red
+                    # cap) never reached a verdict, so it is never stored red: trace=None drops any PASS row AND
+                    # any red row, and the next --changed run gives it its full g.timeout.  # GATES-TIMEOUT-NOT-RED
+                    try:
+                        led.record(g, False, trace=None)
+                    except Exception:
+                        pass
+                    try:
+                        os.remove(_trace)
+                    except (OSError, TypeError):
+                        pass
+            except OSError as e:
+                results.append((g, "SKIP", time.time() - t0, "could not launch (%s)" % e, ""))
+            if live_watch:
+                _lw_now = _state_fingerprint()
+                _moved = _live_state_diff(_lw_before, _lw_now,
+                                          names=sorted(set(_lw_before) | set(_lw_now)))
+                if _moved:
+                    _lw_blame.append((g.name, _moved))
+                    # ⚠ ATTRIBUTION IS NOT BLAME WHEN SOMETHING ELSE IS ALSO WRITING. On his Mac the
+                    # console and a sweep write these files continuously, so a gate that merely ran
+                    # while they did would be named as the culprit. Say which it is instead of
+                    # implying. [[feedback-contradiction-is-the-finding]]
+                    _who = ("⚠ but %s is running, so this may be its write and not the gate's"
+                            % ", ".join(live_writer)) if live_writer else \
+                           "nothing else was writing, so this gate did it"
+                    print("   \u26a0 state moved during `%s`: %s — %s"
+                          % (g.name, "; ".join(_moved), _who), flush=True)
+                _lw_prev = _lw_now
+    finally:
+        # v3775 review B1 — THE DEFERRED ROWS ALWAYS LAND. An exception, a KeyboardInterrupt or a SIGTERM
+        # (raised as SystemExit by the handler) inside the loop used to skip the fold: the banked rows stayed in
+        # a scratch file nobody named, and TV_SELF_ARMING_DEFER stayed set for the rest of the process.  # GATES-ARMING-FOLD-FINALLY
+        _fold_deferred_bank(_defer)
     if live_watch and _lw_blame:
         print()
         print("\u26a0 WHICH GATE %s:" % ("MAY HAVE TOUCHED HIS LIVE STATE — suspects, because "
