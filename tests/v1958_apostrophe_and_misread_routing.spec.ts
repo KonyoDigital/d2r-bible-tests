@@ -49,8 +49,10 @@ test('★★★ Gheed’s Fortune stays in inventory whichever apostrophe reads 
     return { straight: p("Gheed's Fortune"), curly: p('Gheed’s Fortune') };
   });
 
-  expect(r.straight?.id).toBe('__keep');
-  expect(r.curly?.id, 'a curly apostrophe must not mule a keep-in-inventory charm').toBe('__keep');
+  // REG-2241 (his ruling 2026-10-15, "gheeds gets muled") — Gheed's now files to its grand-charm mule.
+  // The apostrophe property is unchanged: BOTH spellings must land in the SAME drawer (never uni-weap).
+  expect(r.straight?.id).toBe('uni-small');
+  expect(r.curly?.id, 'a curly apostrophe must route exactly like the straight one').toBe(r.straight?.id);
 });
 
 test('★★★ a curly apostrophe routes to the same mule as a straight one', async ({ page }) => {

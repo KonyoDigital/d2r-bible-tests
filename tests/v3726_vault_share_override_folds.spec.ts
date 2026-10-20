@@ -92,7 +92,8 @@ test('a planner-label force-in is shared', async ({ page }) => {
   const r = await page.evaluate(() => {
     const w = window as any;
     try { localStorage.removeItem('d2r_vaultShareOverride'); w.__shareOvCache = null; } catch (e) {}
-    const n = "Andariel's Visage (Demonhead)";
+    // Andariel's Visage became war gear (shared by default) in his 2026-10-19 ruling; Windforce still mules
+    const n = 'Windforce (Hydra Bow)';
     const before = (w.suggestMule(n) || {}).id || null;
     w._setShareOverride(n, 'shared');
     const after = w.suggestMule(n) || {};
@@ -139,8 +140,9 @@ test('a keeper force-in stays a keeper', async ({ page }) => {
     }
     return { anni: go('Annihilus'), cube: go('Horadric Cube') };
   });
-  expect(r.anni.id, 'Annihilus stays in inventory').toBe('__keep');
-  expect(r.anni.id, 'a keeper is not shared').not.toBe('shared');
+  // REG-2241 (his ruling 2026-10-15, "torches and anni stay in shared") — Annihilus is shared by rule, so a
+  // force-in leaves it shared; standing kit is the keeper a force-in cannot move.
+  expect(r.anni.id, 'Annihilus rides in the shared stash').toBe('shared');
   expect(r.cube.id, 'the Cube stays with the character').toBe('__keep');
   expect(r.cube.id, 'standing kit is not shared').not.toBe('shared');
 });

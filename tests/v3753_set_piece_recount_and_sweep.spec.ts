@@ -26,6 +26,10 @@ async function seedLoad(page: any, owned: string[], assign: any, copies: any, mu
       localStorage.setItem('d2r_copies', JSON.stringify(copies));
       localStorage.setItem('d2r_multiKeep', JSON.stringify(multiKeep));
       localStorage.removeItem('d2r_setPieceReconcile');
+      /* the REG-2229 one-time set-dupe migration (_vaultDedupeOldSetRows) runs on the load render and folds a
+         loose set-piece twin BEFORE this spec can drive _setPieceReconcile. It has its own law and spec; stamp it
+         as already run on this world so the reconcile under test sees the seeded pair. */
+      localStorage.setItem('d2r_setDupeMigrate_v2227', '1');
     } catch (e) {}
   }, { owned, assign, copies, multiKeep });
   await page.goto(URL);
@@ -78,7 +82,7 @@ async function sweepRun(page: any) {
   }, { helm: HELM, bare: BARE });
 }
 
-test('the reconcile sweeps a dead bare copies key, folding its count onto the keeper by MAX — never lost (#76)', async ({ page }) => {
+test('the reconcile sweeps a dead bare copies key, folding its count onto the keeper by MAX — never lost (#76)', async ({ page, browser }) => {
   // a prior version removed the bare from owned but left a copies["Natalya's Totem"] key behind.
   // dead count (2) BELOW the keeper (3): keeper unchanged, orphan swept
   await seedLoad(page, [HELM], { [HELM]: 'sets-rest' }, { [HELM]: 3, [BARE]: 2 }, {});
@@ -88,8 +92,13 @@ test('the reconcile sweeps a dead bare copies key, folding its count onto the ke
   expect(r.cpHelm).toBe(3);            // MAX(3,2) — keeper not over-raised
   expect(r.stamped).toBe(true);
   // dead count (4) ABOVE the keeper (absent -> 1): MOVED onto the keeper, never deleted-and-lost
-  await seedLoad(page, [HELM], { [HELM]: 'sets-rest' }, { [BARE]: 4 }, {});
-  r = await sweepRun(page);
+  /* the second scenario gets its OWN browser context: re-seeding the same page carried the first scenario's
+     keeper count (3) into the second load through the per-copy vault state (v3767), so the MAX read 3. */
+  const ctx2 = await browser.newContext();
+  const page2 = await ctx2.newPage();
+  await seedLoad(page2, [HELM], { [HELM]: 'sets-rest' }, { [BARE]: 4 }, {});
+  r = await sweepRun(page2);
+  await ctx2.close();
   expect(r.dead).toContain(BARE);
   expect(r.cpBare).toBeUndefined();
   expect(r.cpHelm).toBe(4);            // MAX(1,4) — the real count is PRESERVED on the ledger key (Grok v3753 #2)

@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3775",
+  "ver": "v3777",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3775: A bump reruns only what it moved - reds stay red and run last (REG-2296)",
+  "note": "v3777: Main Playwright shards green again, 3 app fixes and 21 specs follow the rulings (REG-2320)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

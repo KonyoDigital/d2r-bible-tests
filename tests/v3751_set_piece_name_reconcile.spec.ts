@@ -24,6 +24,10 @@ async function seedLoad(page: any, owned: string[], assign: any) {
       localStorage.setItem('d2r_muleAssign', JSON.stringify(assign));
       localStorage.setItem('d2r_copies', '{}');
       localStorage.removeItem('d2r_setPieceReconcile');
+      /* the REG-2229 one-time set-dupe migration (_vaultDedupeOldSetRows) runs on the load render and folds a
+         loose set-piece twin BEFORE this spec can drive _setPieceReconcile. It has its own law and spec; stamp it
+         as already run on this world so the reconcile under test sees the seeded pair. */
+      localStorage.setItem('d2r_setDupeMigrate_v2227', '1');
     } catch (e) {}
   }, { owned, assign });
   await page.goto(URL);

@@ -10,6 +10,8 @@ import { test, expect } from '@playwright/test';
 //
 // RED (bug present): after the second pick d2r_copies has no Grief (undone -> copy 1).
 // GREEN (fixed): d2r_copies still holds Grief: 2.
+// 2026-10-20 (REG-2320): REG-2267 (v3753) later ruled that a DIFFERENT pick in the SAME open is a SWAP of the one held
+// cell and drops the swapped-away copy, so the protected "later pick" is now a pick in a LATER open (own token).
 
 const GRIEF = 'Grief';     // a real weapon runeword — survives the owned-prune, routes to uni-weap
 const SECOND = 'Spirit';   // a DIFFERENT real runeword — different builder id, different name
@@ -48,17 +50,26 @@ test('a second, different planner pick keeps the first pick copy (REG-2227)', as
     const r1 = W.vaultPlannerFile({ id: 'ENTRY-GRIEF', name: grief, base: 'Phase Blade' }, token);
     const afterGrief = readCopies();
 
-    // pick #2 — a DIFFERENT item in the SAME open (same token, different id + name)
-    const r2 = W.vaultPlannerFile({ id: 'ENTRY-SECOND', name: second, base: 'Monarch' }, token);
+    // pick #2 — a DIFFERENT item in a NEW planner open (its own token: the Vault's "+ Add" mints one per open)
+    const r2 = W.vaultPlannerFile({ id: 'ENTRY-SECOND', name: second, base: 'Monarch' }, token + '-open2');
     const afterSecond = readCopies();
 
-    return { r1mode: r1 && r1.mode, r2mode: r2 && r2.mode, afterGrief, afterSecond };
+    // pick #3 — a DIFFERENT item in the SAME open. The planner holds ONE cell per open (ctx.cur/held), so this
+    // REPLACES the held pick: a swap. REG-2267 (v3753) ruled a swap drops the swapped-away pick's extra copy.
+    const r3 = W.vaultPlannerFile({ id: 'ENTRY-THIRD', name: 'Enigma', base: 'Archon Plate' }, token + '-open2');
+    const afterSwapOwnOpen = readCopies();
+
+    return { r1mode: r1 && r1.mode, r2mode: r2 && r2.mode, r3mode: r3 && r3.mode, afterGrief, afterSecond, afterSwapOwnOpen };
   }, { grief: GRIEF, second: SECOND });
 
   // baseline — the first pick really filed a SECOND copy of Grief, so the undo has something to undo
   expect(r.r1mode, 'the already-filed Grief re-pick is recorded as a copy').toBe('copy');
   expect(r.afterGrief[GRIEF], 'Grief is copy 2 after the first pick').toBe(2);
 
-  // REG-2227 (#3): picking a DIFFERENT item next must NOT undo Grief's copy — whatever its id
+  // REG-2227 (#3): a later, DIFFERENT pick must NOT undo Grief's copy — whatever its id. Since REG-2267 (v3753) a
+  // second pick in the SAME open is a swap of the one held cell and drops the swapped-away copy by design, so
+  // "later pick" here is a pick in a later open — the case REG-2227 protects.
   expect(r.afterSecond[GRIEF], 'a later, different pick must not undo the earlier copy').toBe(2);
+  // and swapping THAT later open's pick touches only its own pick — Grief's copy from the earlier open stays
+  expect(r.afterSwapOwnOpen[GRIEF], "a swap in a later open must not undo an earlier open's copy").toBe(2);
 });

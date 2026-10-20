@@ -10,16 +10,6 @@ import { test, expect } from './_net_stub';
 const URL = 'file://' + process.cwd() + '/bible.html';
 
 test('shared-tab overflow note is honest: no "preview", names the items, says there is no spill', async ({ page }) => {
-  // 120 slot-unknown dummies all routed to SHARED → they pile on tab 5 (spare) and overflow its 10×10.
-  // Gibberish names resolve to no doll slot (tab 5) and to the default footprint, so overflow is
-  // deterministic and does not depend on any item-size or routing table.
-  await page.addInitScript(() => {
-    const dummies: string[] = [];
-    const assign: Record<string, string> = {};
-    for (let i = 0; i < 120; i++) { const n = 'Zdummy' + i; dummies.push(n); assign[n] = 'shared'; }
-    localStorage.setItem('d2r_owned', JSON.stringify(dummies));
-    localStorage.setItem('d2r_muleAssign', JSON.stringify(assign));
-  });
   await page.setViewportSize({ width: 1500, height: 950 });
   await page.goto(URL);
   await page.waitForTimeout(1800);
@@ -42,9 +32,19 @@ test('shared-tab overflow note is honest: no "preview", names the items, says th
   // PART B — the note is WIRED into the live render (the-unjoined-end), read synchronously (no re-render race).
   const rendered = await page.evaluate(() => {
     const w = window as any;
+    /* 2026-10-20 (REG-2320) — the fixture used to be 120 gibberish names ("Zdummy0"…) seeded as owned+shared. The
+       load now drops names no catalogue knows, so the tab drew 0 items and the spec went red on its fixture, not
+       on the note. 30 REAL weapon uniques (2x3 / 2x4 each, well past one 10x10 tab) filed to shared overflow the
+       WEAPONS tab deterministically — every one has a known slot, so nothing depends on the spare tab's rules. */
+    const WEAPONS = ["Windforce", "The Grandfather", "Doombringer", "The Reaper's Toll", "Tomb Reaver", "Eschuta's Temper",
+      "Death's Web", "Lycander's Aim", "Titan's Revenge", "Thunderstroke", "Stormspire", "Hellslayer",
+      "Messerschmidt's Reaver", "The Cranium Basher", "Ethereal Edge", "Djinn Slayer", "Bloodmoon", "Azurewrath",
+      "Lightsabre", "Baranar's Star", "Schaefer's Hammer", "Earthshaker", "Cloudcrack", "Ribcracker", "Stone Crusher",
+      "Boneslayer Blade", "Bonehew", "Buriza-Do Kyanon", "Eaglehorn", "Widowmaker"];
+    WEAPONS.forEach((n) => { (eval('owned') as any).add(n); w.vaultAssign(n, 'shared'); });
     w.switchTab('tools');
     w.openMuleCard('shared');
-    w._sharedSetPage(4);   // the spare tab, where the slot-unknown dummies piled up
+    w._sharedSetPage(0);   // the weapons tab, where the 30 weapons overflow
     const placed = document.querySelectorAll('#vault-detail .vd-item').length;
     const ov = document.querySelector('#vault-detail .vd-overflow');
     return { placed, has: !!ov, text: ov ? (ov.textContent || '') : '' };

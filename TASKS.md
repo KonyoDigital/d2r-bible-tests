@@ -12,6 +12,12 @@ closed thing. Where a task has a GitHub issue, it is named explicitly as `gh #NN
 Status: `READY` may be applied now · `BLOCKED` names what blocks it · `HIS CALL` waits on Konyo ·
 `SHIPPED` carries the version.
 
+## Main Playwright shards cleanup (REG-2320, v3777)
+
+| item | where it stands |
+|---|---|
+| 28 red tests on main 4f487af9 (8 of 10 shards) | FIXED on shards/main-cleanup: 3 app bugs (perfect base unfiled, tip killed by an early scroll, renderMultiKeep unexposed), 21 stale specs rewritten to the rulings they now follow. v1625 ITEM 5 is an environment flake (green locally), watched on CI. |
+
 ## Board #76 and #77 — vault spread (v3767)
 
 Elad, 2026-10-18 13:18 IDT: duplicate copies of a vault item sit next to the original in the SAME mule. This replaces rule E (2 in the shared stash, the 3rd and later in GRAIL-DUPES).
@@ -1815,7 +1821,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3775** | `(this commit)` | v3775 — A bump reruns only what it moved - reds stay red and run last (REG-2296) |
+| **v3777** | `(this commit)` | v3777 — Main Playwright shards green again, 3 app fixes and 21 specs follow the rulings (REG-2320) |
+| **v3775** | `942d11ff` | v3775 — A bump reruns only what it moved - reds stay red and run last (REG-2296) |
 | **v3774** | `1d208ee5` | v3774 — a version bump carries the gates that ignore the version (REG-2295) |
 | **v3773** | `a8e9633d` | v3773 — a vault paint no longer walks the document, the D2JSP list stays cheap in the WebKit console window, and a hand add reads MANUAL to its target cell. REG-2294 |
 | **v3772** | `74ddf4bc` | v3772 — A gate carries when the commit it was proved at is an ancestor of HEAD and git says none of its inputs moved. A callee that opens bible.html stays in that closure, so a gate that reaches the open is not carried. The v3771 status census and the non-blocking fetch are in the call graph and do not open bible.html. REG-2293. HEART: no new console surface. The carry law is watched by the gate-memory gate. |

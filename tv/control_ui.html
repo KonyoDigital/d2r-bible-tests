@@ -9893,6 +9893,15 @@ window._lockMark = function(isOpen, px, label){
          pointer, so the card hides, exactly as it always has on scroll. [[copy-drift]] [[the-unjoined-end]] */
       reglue: function(){
         if (!sayHost || !el) return this.hide();
+        /* REG-2320 — A SCROLL DURING THE COLD-START WAIT IS NOT A REASON TO DROP THE TIP. say() holds its host
+           for ~380ms before it paints, and in that window #itip is not yet .tip-say — so the item-card branch
+           below hid it, and the pending tip never opened. A scroll of the shelf overlay right after the pointer
+           lands (the async 'scroll' a programmatic scrollTop fires, or a wheel tick) killed every row tip. The
+           pending timer anchors to the host's CURRENT rect when it fires, so there is nothing to re-glue yet. */
+        if (sayTimer){
+          if (!sayHost.isConnected) return this.hide();
+          return;
+        }
         if (el.classList.contains('tip-say')){
           if (!sayHost.isConnected || sayHost.offsetParent === null) return this.hide();
           var r = sayHost.getBoundingClientRect();
@@ -9974,6 +9983,7 @@ window._lockMark = function(isOpen, px, label){
         var self = this, wait = viaFocus ? 0 : ((Date.now() - sayWarm < 600) ? 40 : 380);
         clearTimeout(sayTimer);
         sayTimer = setTimeout(function(){
+          sayTimer = null;   /* REG-2320 — the cold-start wait is over; reglue() reads this to tell "pending" from "open" */
           if (sayHost !== node || !node.isConnected) return;
           el.className = 'tip-say';
           el.removeAttribute('aria-hidden');       /* describedby must point at a visible node */

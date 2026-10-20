@@ -11,7 +11,7 @@ test.beforeEach(async ({ page, context }) => {
       localStorage.setItem('d2r_ownerClaim', '*');
       Object.defineProperty(navigator, 'webdriver', { get: () => true });
       localStorage.setItem('d2r_owned', JSON.stringify(
-        ['War Traveler', 'Enigma', "Griffon's Eye", 'Raven Frost', 'Annihilus', "Andariel's Visage"]));
+        ['War Traveler', 'Enigma', "Griffon's Eye", 'Raven Frost', 'Annihilus', "Andariel's Visage", 'Windforce', 'Horadric Cube']));
     } catch (e) {}
   });
   await page.goto('file://' + process.cwd() + '/bible.html');
@@ -36,8 +36,13 @@ test('the share panel lists owned shared candidates, checked; keepers and med it
   const names = r.rows.map((x: any) => x.name);
   expect(names, 'a high-trade item is a shared candidate').toContain('War Traveler');
   expect(names, 'a war-gear item is a shared candidate').toContain('Enigma');
-  expect(names, 'a keeper (Annihilus) is never offered a shared toggle').not.toContain('Annihilus');
-  expect(names, 'a med item does not route to shared, so it is not listed').not.toContain("Andariel's Visage");
+  // REG-2241 (his ruling 2026-10-15) — Annihilus rides in the shared stash now, so it IS a candidate;
+  // standing kit (the Cube) still stays with the character and is never offered a toggle.
+  expect(names, 'Annihilus is shared by his ruling, so it is listed').toContain('Annihilus');
+  expect(names, 'standing kit (the Cube) is never offered a shared toggle').not.toContain('Horadric Cube');
+  // his war-stash ruling (2026-10-19) made Andariel's Visage war gear; Windforce is the med item the rules mule
+  expect(names, "Andariel's Visage is war gear, so it is listed").toContain("Andariel's Visage");
+  expect(names, 'a med item does not route to shared, so it is not listed').not.toContain('Windforce');
   const wt = r.rows.find((x: any) => x.name === 'War Traveler');
   expect(wt && wt.checked, 'War Traveler is in the shared stash by default → checked').toBe(true);
 });
