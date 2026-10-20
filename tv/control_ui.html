@@ -22747,8 +22747,19 @@ window._lockMark = function(isOpen, px, label){
       var v = document.getElementById('shell-opening');
       if (!v){ v = document.createElement('div'); v.id = 'shell-opening'; v.setAttribute('role', 'status'); document.body.appendChild(v); }
       var b = document.querySelector('#head-tabs .ht[data-tab="' + tab + '"]');
-      var label = ((b && b.textContent) || '').replace(/\s+/g, ' ').trim() || tab;
-      v.textContent = 'opening ' + label + ' - the board is busy; it lands by itself';
+      /* REG-2297 — the LABEL is the tab's own word, not the whole button: the lock chip carries an
+         off-screen "LOCKED", so button.textContent read "VaultLOCKED" on his screen. Read .ht-lbl. */
+      var _lbl = b && b.querySelector('.ht-lbl');
+      var label = (((_lbl && _lbl.textContent) || (b && b.textContent) || '')).replace(/\s+/g, ' ').trim() || tab;
+      /* REG-2297 — an occluded/background window composites NOTHING NEW, so "it lands by itself" is a
+         LIE in exactly that state. Traced + un-stuck live 2026-10-20: hidden:true, painting:false, 59
+         frozen beats, the DOM already switched — the veil's teardown never reached the pixels, so he saw
+         a frozen "opening…" that could not land until he brought the window forward. Say the true thing
+         in that state; the visibilitychange→visible handler (below) forces the repaint the moment he does. */
+      var _bg = (document.visibilityState !== 'visible');
+      v.textContent = _bg
+        ? ('opening ' + label + ' - the console is behind another window; bring it to the front')
+        : ('opening ' + label + ' - the board is busy; it lands by itself');
       v.style.cssText = 'position:fixed;left:0;right:0;bottom:0;top:' + _shellHeadH() + 'px;z-index:941;display:flex;'
         + 'align-items:center;justify-content:center;background:rgba(7,6,5,.94);color:#f0c060;font-size:var(--fs-xs);'
         + 'letter-spacing:.08em;pointer-events:none';
@@ -22899,6 +22910,26 @@ window._lockMark = function(isOpen, px, label){
   window._shellDemotePane = _shellDemotePane;
   window._shellRestoreConsole = _shellRestoreConsole;
   window._shellLight = _shellLight;
+  /* REG-2297 — RETURNING TO THE WINDOW IS THE ONE MOMENT WEBKIT COMPOSITES AGAIN. While the console is
+     occluded/background, rAF does not fire and nothing new paints — L22816 already says the existing
+     repaint cure is "switched off in precisely the state that needs it" — so a tab that ROUTED in the DOM
+     while hidden keeps showing its frozen "opening…" veil (the live 2026-10-20 lockup: front → painting
+     true, frozenBeats 59→0). On visible: force the trusted repaint pair, and if the route has since
+     landed, tear the veil down. In-scope here (same IIFE) so it reaches _shellPaintAgain/_shellRoute. */
+  document.addEventListener('visibilitychange', function(){
+    try {
+      if (document.visibilityState !== 'visible') return;
+      if (!document.body.classList.contains('shell-open')) return;
+      _shellPaintAgain(function(){
+        try {
+          if (_shellTab && _shellRoute(_shellTab)) {
+            if (_shellRouteTimer){ clearInterval(_shellRouteTimer); _shellRouteTimer = null; }
+            _shellOpeningEnd();
+          }
+        } catch (e) {}
+      });
+    } catch (e) {}
+  });
   // ══ v1376 (SESSIONS FLAGSHIP R3) — the console-native SESSIONS view. Unlike the other pane tabs, the
   // Sessions tab does NOT open the bible iframe — the flagship hunt hub IS the console home under
   // data-view="sessions". Same shell-close mechanics as shellHome, but keyed to the Sessions context; the
