@@ -8079,6 +8079,31 @@ GATES = [
              "proposal (same owned/unsure/held, same witnesses) while the resume reads STRICTLY FEWER "
              "pages — a skip that re-read everything fails the read count, a seed that dropped or "
              "doubled a banked sighting fails the identity"),
+    Gate("test_a_hung_reel_fails_before_the_watchdog",
+         [sys.executable, os.path.join(HERE, "test_a_hung_reel_fails_before_the_watchdog.py")], 120,
+         why="REG-2271 - a sweep's FRAME-GROUPING (measure) phase can sit classified=0/pages=0 for a "
+             "very long time (vault: a 36-tile tooltip-OCR locate per frame; chronicle: a jpeg_sig "
+             "decode per frame), and the ONLY thing that recovered a FROZEN one was control_app's 240s "
+             "river watchdog - so his owed backlog drained one 240s stall per frozen reel, AND that "
+             "watchdog's sig was FROZEN during grouping so it FALSE-KILLED a slow-but-progressing "
+             "grouping (discarding his vault footage - THE hard constraint). sweep()/read_reel() now "
+             "bound ONLY the grouping with a per-reel NO-PROGRESS deadline: the window resets on every "
+             "COMPLETED tile/frame (so a reel that keeps completing, however slowly, however far past "
+             "240s, is NEVER skipped) and fires only when NOTHING completes for the budget. The vault "
+             "poll fires from the per-TILE callback as a BaseException (ReelDeadline) so it escapes "
+             "still_runs' `except Exception` and interrupts a frozen frame mid-tile-loop; the chronicle "
+             "poll is per-frame in sig_of. The vault lane HOLDS + QUARANTINEs the reel via "
+             "on_reel_timeout (the same store the watchdog writes and the picker + start door skip); the "
+             "chronicle lane returns note='deadline' and the seal loop skips it (a frozen reel "
+             "look-stamped 'nothing here' would hide footage) so it stays OWED until tries/retire "
+             "re-homes it. Either way the sweep RETURNS, so running clears via the done-path WITHOUT the "
+             "240s wait. The grouping-progress count is threaded UP to _VAULT_JOB/_CHRON_JOB and ADDED "
+             "to the river watchdog _sweep_hang_check sig, so a progressing grouping keeps changing the "
+             "sig and is never false-killed. These tests drive the SHIPPED sweep/read_reel on SYNTHETIC "
+             "tempdir reels (never his footage, never his stores) with a fake clock so the no-progress "
+             "window is exercised deterministically past 240s without a real wait; each RED_PROOF turns "
+             "the BaseException base, a lane's poll, the quarantine JOIN, the seal-loop skip, or the "
+             "watchdog-sig grouping term red"),
     Gate("test_import_bound_paths",
          [sys.executable, os.path.join(HERE, "test_import_bound_paths.py")], 120,
          why="v1925 — the registry of which env redirects a fixture can still make AFTER import. "

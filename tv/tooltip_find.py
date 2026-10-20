@@ -121,11 +121,18 @@ def _ocr():
         return None
 
 
-def density(frame_path, cols=DEFAULT_COLS, rows=DEFAULT_ROWS, tmp_dir=None, reader=None):
+def density(frame_path, cols=DEFAULT_COLS, rows=DEFAULT_ROWS, tmp_dir=None, reader=None,
+            on_tile=None):
     """Text-line count per tile. -> (grid, why)
 
     `reader` takes a path and returns {"lines": [...]}; it defaults to the local OCR worker so
     callers do not have to know about it, and can be injected so this is testable without one.
+
+    `on_tile`, when given, is called once per COMPLETED tile (immediately after its line count is
+    recorded) with no arguments. REG-2271 uses it as the vault lane's per-tile grouping heartbeat and
+    no-progress deadline: it may raise to abort a frozen frame mid-tile-loop. It is called OUTSIDE the
+    per-tile read try/except, so a BaseException it raises escapes density cleanly rather than being
+    turned into a LocateFailed. [[heart-first]]
     """
     try:
         from PIL import Image
@@ -166,6 +173,16 @@ def density(frame_path, cols=DEFAULT_COLS, rows=DEFAULT_ROWS, tmp_dir=None, read
                     # tooltip. A tile that threw was not measured.
                     raise LocateFailed("the tile could not be read: %s" % type(e).__name__) from e
                 row.append(n)
+                # REG-2271 — one tile COMPLETED. The heartbeat fires here, outside the read try/except
+                # above, so a BaseException it raises (the per-tile no-progress deadline) escapes this
+                # loop uncaught instead of becoming a LocateFailed. A broken callback must not cost the
+                # sweep, so an ordinary Exception from it is swallowed — but a BaseException (the
+                # deadline) is deliberately let through. [[the-unjoined-end]]
+                if on_tile is not None:
+                    try:
+                        on_tile()
+                    except Exception:
+                        pass
             grid.append(row)
     finally:
         try:
@@ -182,7 +199,7 @@ def density(frame_path, cols=DEFAULT_COLS, rows=DEFAULT_ROWS, tmp_dir=None, read
 
 
 def locate(frame_path, cols=DEFAULT_COLS, rows=DEFAULT_ROWS, tmp_dir=None, reader=None,
-           min_lines=6):
+           min_lines=6, on_tile=None):
     """Where is the tooltip in this frame? -> (rect|None, why)
 
     `rect` is (left, top, width, height) in FRAME pixels — the same shape tooltip_crop.crop_to
@@ -199,7 +216,8 @@ def locate(frame_path, cols=DEFAULT_COLS, rows=DEFAULT_ROWS, tmp_dir=None, reade
     A reader or a tile that throws raises LocateFailed. That is not this refusal: the frame was
     not measured, so the caller must not record it as "no tooltip".
     """
-    d, why = density(frame_path, cols=cols, rows=rows, tmp_dir=tmp_dir, reader=reader)
+    d, why = density(frame_path, cols=cols, rows=rows, tmp_dir=tmp_dir, reader=reader,
+                     on_tile=on_tile)
     if not d:
         return None, why
     grid, (W, H) = d["grid"], d["size"]

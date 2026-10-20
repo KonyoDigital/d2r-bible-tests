@@ -127,6 +127,118 @@ CHRON_STILL_MAX_DIFF = 0.002
 MIN_RUN_FRAMES = 3
 
 
+# ══ REG-2271 — THE SHARED PER-UNIT NO-PROGRESS DEADLINE (one logic, two lanes) ══════════════════
+# A sweep's frame-GROUPING (still_runs) measure phase can sit classified=0/pages=0 for a very long
+# time: the vault lane pays a tooltip-OCR locate per frame (36 OCR tiles each), the chronicle lane a
+# jpeg_sig PIL decode per frame. Until now the ONLY thing that recovered a FROZEN grouping was
+# control_app's 240s river watchdog — so his owed backlog drained one 240s stall per frozen reel.
+#
+# THE HARD CONSTRAINT (his vault footage): a reel that is SLOW but still PROGRESSING must NEVER be
+# skipped — skipping it discards footage. So this is NOT a cumulative "the reel took too long" budget
+# (that WOULD skip a slow-but-honest reel). It is a NO-PROGRESS window: the clock resets on EVERY
+# tile/frame that COMPLETES, and fires ONLY when NOTHING has completed for `budget` seconds. A reel
+# whose tiles keep completing — however slowly, however far past 240s — resets the clock on each one
+# and is therefore NEVER skipped. Footage-safe by construction. [[heart-first]] [[unknown-stays-unknown]]
+#
+# ⚠ WHY A BaseException AND NOT Exception. The guard fires from the per-TILE callback (vault) so one
+# frozen FRAME can be interrupted mid-tile-loop — a per-frame-only poll cannot, a frame of 36 timeout
+# tiles is ~144s before the next frame's poll is even reached. But still_runs wraps its tooltip_of
+# call in `except Exception` (it turns a failed look into a run-break), so an Exception raised from a
+# tile would be SWALLOWED into a run-break and never escape. A BaseException is not caught there, so
+# it propagates cleanly out of still_runs to the per-reel caller that skips the reel. The per-frame
+# sig_of poll is the backstop; its raise already escapes still_runs today. [[the-unjoined-end]] [[copy-drift]]
+class ReelDeadline(BaseException):
+    """Raised by the per-reel grouping-deadline guard when a reel's measure phase makes NO forward
+    progress (no tile/frame completes) for its wall-clock budget. A BaseException (NOT Exception) on
+    purpose: it is raised from inside still_runs' tooltip_of call, which is wrapped in `except
+    Exception`; a plain Exception would be swallowed into a run-break instead of escaping to the
+    per-reel caller. A DEDICATED class so a sweep's per-reel loop catches EXACTLY this and skips the
+    reel, while any unrelated error still surfaces. REG-2271."""
+    def __init__(self, rid, stalled_s, budget_s):
+        self.rid = rid
+        self.stalled_s = stalled_s
+        self.budget_s = budget_s
+        super().__init__(
+            "reel %s made no grouping progress for %.2fs (budget %.2fs) - skipped so the sweep keeps "
+            "draining; the 240s river watchdog remains the backstop for an uninterruptible hang"
+            % (rid, float(stalled_s or 0), float(budget_s or 0)))
+
+
+class _ReelDeadlineGuard:
+    """A pollable per-reel NO-PROGRESS window. beat() records that a unit of work (one tile, one
+    frame) COMPLETED — forward progress — and resets the clock. check() raises ReelDeadline once
+    `budget_s` seconds have elapsed with NO beat (nothing completed). disarm() stops it firing (the
+    caller disarms once GROUPING is done, so the paid read stage is never bounded here). budget_s <= 0
+    disables it entirely — an UNKNOWN or zero budget NEVER kills a reel. [[unknown-stays-unknown]]
+
+    ⚠ FOOTAGE-SAFE: because beat() resets the window on every completed tile/frame, a reel that keeps
+    completing units — however slowly, however long in total — never fires. Only a reel where a SINGLE
+    unit fails to complete for `budget_s` trips it. The one case it cannot catch in-thread is a unit
+    that blocks UNINTERRUPTIBLY (e.g. a lock with no timeout): no later check() runs, and the 240s
+    watchdog stays the backstop. The clock is resolved at CALL time so a test can inject one."""
+    def __init__(self, rid, budget_s, clock=None):
+        self.rid = rid
+        try:
+            self.budget_s = float(budget_s or 0)
+        except Exception:
+            self.budget_s = 0.0
+        self._clock = clock or time.monotonic
+        self._t_last = self._clock()
+        self._armed = self.budget_s > 0
+
+    def beat(self):
+        # a unit of work completed = forward progress; reset the no-progress window
+        self._t_last = self._clock()
+
+    def check(self):
+        if self._armed:
+            stalled = self._clock() - self._t_last
+            if stalled >= self.budget_s:
+                raise ReelDeadline(self.rid, stalled, self.budget_s)
+
+    def disarm(self):
+        self._armed = False
+
+
+def reel_deadline(rid, budget_s, clock=None):
+    """Factory for the shared per-reel NO-PROGRESS grouping deadline (REG-2271) — ONE logic for the
+    vault and chronicle measure loops (copy-drift: one helper, thin per-lane callers)."""
+    return _ReelDeadlineGuard(rid, budget_s, clock=clock)
+
+
+_CHRON_REEL_DEADLINE_DEFAULT_S = 20
+# The per-reel grouping deadline MUST stay under the river watchdog's backstop, or the guard could
+# never fire before it. Pinned at load on the default; an env override is clamped at call time.
+assert _CHRON_REEL_DEADLINE_DEFAULT_S < 240, \
+    "REG-2271: the chronicle per-reel grouping deadline default must stay under the 240s watchdog"
+
+
+def _chron_reel_deadline_budget(explicit=None):
+    """REG-2271 — the chronicle per-reel NO-PROGRESS grouping deadline, seconds, resolved at CALL
+    time (a default read at import freezes the bar). Default 20: a healthy chronicle frame is one
+    jpeg_sig (~0.08s), so no single frame comes near 20s unless its decode is wedged — while a reel
+    of thousands of frames each completing in ~0.08s NEVER fires, because the window resets per frame.
+    MUST stay under the watchdog (TV_VAULT_HANG_DEADLINE_S, default 240); clamped so a misconfig
+    cannot silently exceed the backstop. The paid read stage is NOT bounded here (legitimately long on
+    a many-page reel) — the watchdog remains its backstop."""
+    if explicit is not None:
+        try:
+            return float(explicit)
+        except Exception:
+            return float(_CHRON_REEL_DEADLINE_DEFAULT_S)
+    try:
+        v = int(os.environ.get("TV_CHRON_REEL_DEADLINE_S") or _CHRON_REEL_DEADLINE_DEFAULT_S)
+    except Exception:
+        v = _CHRON_REEL_DEADLINE_DEFAULT_S
+    try:
+        hang = int(os.environ.get("TV_VAULT_HANG_DEADLINE_S") or 240)
+    except Exception:
+        hang = 240
+    if v >= hang:
+        v = max(1, hang - 1)
+    return v
+
+
 def jpeg_sig(path):
     """A 16×16 grayscale fingerprint of a reel JPEG, as 256 bytes.
 
@@ -574,7 +686,7 @@ def _journal_runs(frames, known, covered_runs=None):
 
 
 def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRAMES,
-              known_chronicle=None, skip_read=None):
+              known_chronicle=None, skip_read=None, on_frame=None, reel_deadline_s=None):
     """Sweep ONE sealed reel. Returns evidence — it writes nothing, anywhere.
 
     classify(frame_path) -> ("chronicle-uniques" | "chronicle-sets" | None)
@@ -613,6 +725,26 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
     # pure (no sessions.jsonl, no console import), which is the only reason the laws above can be
     # tested against fixtures without a vision model.
     sig_of = sig_of or (lambda n: jpeg_sig(os.path.join(reel_dir, n)))
+    # REG-2271 — bound the GROUPING phase with a NO-PROGRESS deadline so a FROZEN still_runs fails in
+    # seconds, not after the 240s river watchdog. The chronicle lane's per-frame unit is sig_of (one
+    # jpeg_sig), so the heartbeat is here: fingerprint the frame, then beat (this frame completed =
+    # progress, reset the window) and poll (a frame whose decode never settles past the budget fires).
+    # A frame that completes — however slow — resets the window, so a slow-but-progressing reel is
+    # NEVER skipped. Disarmed once grouping is done so the paid read stage is never false-killed. The
+    # raise escapes still_runs cleanly (sig_of is not wrapped in its except). [[heart-first]]
+    _dl = reel_deadline(sid, _chron_reel_deadline_budget(reel_deadline_s))
+    _dl_raw_sig = sig_of
+
+    def sig_of(n, _b=_dl_raw_sig):
+        v = _b(n)        # fingerprint this frame (the per-frame unit of grouping work)
+        _dl.check()      # REG-2271 chronicle per-frame no-progress poll (did this frame stall past budget?)
+        _dl.beat()       # this frame completed = forward progress; reset the no-progress window
+        if on_frame is not None:
+            try:
+                on_frame()   # surface the per-frame grouping count (the river watchdog sig reads it)
+            except Exception:
+                pass
+        return v
     idx_frames = idx.get("frames") or []
     known = _resolve_known(idx_frames, _known_chronicle_map(known_chronicle))
     # v1778 — THE COARSE TOLERANCE HERE IS DELIBERATE, and a code review flagging it is a false
@@ -627,8 +759,20 @@ def read_reel(reel_dir, classify, read_page, sig_of=None, min_frames=MIN_RUN_FRA
     #     fine   tol=4  : 289 runs -> 289 classifies + 292 pages = 581 calls
     # Identical coverage, 68% more spend. The fine tolerance belongs in _distinct (v1771/v1775),
     # where it decides what to READ, and nowhere else.
-    runs = still_runs(idx_frames, sig_of, max_diff=CHRON_STILL_MAX_DIFF)
-    cands = candidate_runs(runs, min_frames=min_frames)
+    try:
+        runs = still_runs(idx_frames, sig_of, max_diff=CHRON_STILL_MAX_DIFF)
+        cands = candidate_runs(runs, min_frames=min_frames)
+    except ReelDeadline as _rd:
+        # REG-2271 — grouping made no progress for the budget (a wedged decode). Return a NON-sealing
+        # stat (classified=0, pages=[], note="deadline") so _chron_sweep_run's seal loop SKIPS it: the
+        # reel stays OWED and is retried FAST next tick (bounded, not a 240s stall) until the lane's
+        # EXISTING tries/retire re-homes it. A frozen reel must NOT be look-stamped "nothing here" —
+        # that would hide footage that may read fine once the wedge clears. [[the-unjoined-end]]
+        print("   [REG-2271] chronicle %s" % _rd, flush=True)
+        return {"reel": sid, "runs": 0, "candidates": 0, "classified": 0, "pages": [],
+                "note": "deadline"}
+    finally:
+        _dl.disarm()   # bound ONLY grouping; the paid read stage below is the 240s watchdog's job
     # a scrolled Chronicle is never still, so the journal's own marks are candidates in their own
     # right — see _journal_runs() and the STILL_MAX_DIFF note.
     jruns = _journal_runs(idx_frames, known, cands)
@@ -2528,7 +2672,8 @@ def _reel_known(known, reel):
 
 
 def sweep_hist(hist_dir, classify, read_page, limit=None, sig_of=None, on_reel=None,
-               skip_reels=None, known_chronicle=None, priced_only=False, skip_read=None):
+               skip_reels=None, known_chronicle=None, priced_only=False, skip_read=None,
+               on_frame=None, reel_deadline_s=None):
     """v1524 — `skip_reels` is the sweep's MEMORY: reel basenames already read, which are not paid
     for twice. A sealed reel never changes, so re-reading one buys nothing and costs everything.
 
@@ -2607,7 +2752,8 @@ def sweep_hist(hist_dir, classify, read_page, limit=None, sig_of=None, on_reel=N
             continue
         r = read_reel(reel_dir, classify, read_page, sig_of=sig_of,
                       known_chronicle=_reel_known(known_chronicle, os.path.basename(reel_dir)),
-                      skip_read=(skip_read or {}).get(os.path.basename(reel_dir)))
+                      skip_read=(skip_read or {}).get(os.path.basename(reel_dir)),
+                      on_frame=on_frame, reel_deadline_s=reel_deadline_s)
         # v1607 — same accessor as read_reel(), so the frame COUNT and the frames actually swept can
         # never disagree. Counting straight off index.json here would have reported 0 frames for a
         # reel the sweep had just read 98 of.

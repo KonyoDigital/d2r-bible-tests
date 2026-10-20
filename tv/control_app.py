@@ -23056,7 +23056,10 @@ def _chronicle_scan_cost_inner(hist_dir=None, limit=None, reel_id=None):
 # It STILL WRITES NOTHING. The engine's read-only law holds all the way out to the route: this
 # produces a proposal and the gate's verdicts, and the apply step is a separate decision he makes.
 _CHRON_JOB = {"running": False, "startedTs": 0, "phase": "idle", "reelsDone": 0, "reelsTotal": 0,
-              "classified": 0, "pagesRead": 0, "result": None, "error": None, "lanes": []}
+              "classified": 0, "pagesRead": 0, "result": None, "error": None, "lanes": [],
+              # REG-2271 — per-FRAME grouping-progress count (the river watchdog sig reads it so a
+              # slow-but-progressing grouping is not false-killed at 240s). Reset per run on start.
+              "groupFrames": 0}
 _CHRON_LOCK = threading.Lock()
 
 
@@ -28853,7 +28856,10 @@ _VAULT_SEEN_PATH = (os.environ.get("TV_VAULT_SEEN")
 
 _VAULT_LOCK = threading.Lock()
 _VAULT_JOB = {"running": False, "startedTs": 0, "phase": "idle", "reelsDone": 0, "reelsTotal": 0,
-              "classified": 0, "pagesRead": 0, "result": None, "error": None, "lanes": []}
+              "classified": 0, "pagesRead": 0, "result": None, "error": None, "lanes": [],
+              # REG-2271 — per-TILE grouping-progress count (the river watchdog sig reads it so a
+              # slow-but-progressing grouping is not false-killed at 240s). Reset per run on start.
+              "groupTiles": 0}
 
 # ── RIVER WATCHDOG (no-progress deadline on a hung vault sweep) ────────────────────────────────────
 # THE BUG this exists for: _vault_sweep_run releases _VAULT_JOB["running"] only on a RETURN or RAISE
@@ -28873,6 +28879,27 @@ _CHRON_SWEEP_PROGRESS = {}   # {sig, ts} — owned by _chron_sweep_hang_check
 # not re-hang on the same reel. Deliberately NOT persisted: on relaunch the reel is retried fresh (a transient
 # hang is not lost forever); if it hangs again it is re-quarantined after one deadline. [[unknown-stays-unknown]]
 _VAULT_SWEEP_QUARANTINE = {}   # {rid: {at, why, runReel}}
+
+
+def _vault_quarantine_reel(rid, why=None):
+    """REG-2271 — quarantine a reel that blew its per-reel NO-PROGRESS grouping deadline INSIDE
+    vault_retro.sweep(). Writes the SAME in-memory store the river watchdog does (and that the
+    autoreel picker AND vault_sweep_start both skip), so the lane reads PAST a reel whose measure
+    phase froze instead of re-owning it every tick. Because the sweep now RETURNS (it did not hang),
+    _vault_sweep_run's done-path clears running and the finally releases the sweep lock WITHOUT the
+    240s watchdog. NOT persisted: a relaunch retries it fresh, so a transient freeze is not lost for
+    ever. The sweep-side JOIN for the measure-phase deadline; the watchdog writes the same store when
+    a freeze escapes the per-tile guard (the uninterruptible lock case). [[heart-first]] [[the-unjoined-end]]"""
+    try:
+        rid = os.path.basename(os.path.normpath(str(rid)))
+        if not rid:
+            return
+        _VAULT_SWEEP_QUARANTINE[rid] = {
+            "at": int(time.time() * 1000), "runReel": rid,
+            "why": ("REG-2271 per-reel grouping deadline: %s"
+                    % (str(why)[:200] if why else "the reel's measure phase made no progress in budget"))}
+    except Exception:
+        pass
 
 
 def _vault_ask_stop_for_relaunch(detail=None):
@@ -31276,7 +31303,8 @@ def vault_sweep_state():
     return st
 
 
-def _sweep_hang_check(job, lock, progress, sig_fn, label, quarantine=None, reel_key=None):
+def _sweep_hang_check(job, lock, progress, sig_fn, label, quarantine=None, reel_key=None,
+                      grouping_deadline_fn=None):
     """RIVER WATCHDOG, ONE logic for every sweep lane — clear a sweep whose guard a HANG left set.
 
     Called on the 10 s rescue tick (the only in-process place that can see job["running"]).
@@ -31312,7 +31340,25 @@ def _sweep_hang_check(job, lock, progress, sig_fn, label, quarantine=None, reel_
             progress["ts"] = now
             return False
         stalled = now - progress.get("ts", now)
-        if stalled < _VAULT_SWEEP_HANG_DEADLINE_S:
+        # REG-2271 — PHASE-SCOPED no-progress bound. In the GROUPING sub-phase the sweep's unit of work
+        # is a tile/frame whose completion advances the sig (groupTiles/groupFrames), so a PROGRESSING
+        # grouping always changes the sig and resets this clock at the branch above — only a TRULY FROZEN
+        # grouping ever reaches here. A frozen grouping is a wedged UNINTERRUPTIBLE unit the in-thread
+        # per-reel deadline cannot fire on (it never gets to run its check), and it should drain in
+        # ~budget (~12x faster), not 240s. The paid READING sub-phase is deliberately NOT scoped: a
+        # single model read legitimately freezes the sig for many seconds, so it keeps the full 240s
+        # backstop and is never false-killed. The grouping sub-phase is set per reel by the sweep's
+        # on_reel/_tick wiring; groupTiles/groupFrames advancing is the footage-safety invariant that
+        # keeps a PROGRESSING grouping off this path. [[heart-first]] [[the-unjoined-end]]
+        deadline = _VAULT_SWEEP_HANG_DEADLINE_S
+        if grouping_deadline_fn is not None and str(st.get("phase")) == "grouping":
+            try:
+                _gb = float(grouping_deadline_fn())
+                if _gb > 0:
+                    deadline = min(_gb, _VAULT_SWEEP_HANG_DEADLINE_S)
+            except Exception:
+                deadline = _VAULT_SWEEP_HANG_DEADLINE_S
+        if stalled < deadline:
             return False
         # no forward progress past the deadline -> hung. Clear the guard (the worker's finally never does on a
         # hang) and, when the lane names a single reel, quarantine it so the next sweep reads past it.
@@ -31354,11 +31400,21 @@ def _sweep_hang_check(job, lock, progress, sig_fn, label, quarantine=None, reel_
 def _vault_sweep_hang_check():
     """RIVER WATCHDOG for the VAULT lane (see _sweep_hang_check). Quarantines the one reel it targets
     (runReelDir) in _VAULT_SWEEP_QUARANTINE, which both the autoreel picker AND vault_sweep_start now skip."""
+    _vr = _vault_retro()
     return _sweep_hang_check(
         _VAULT_JOB, _VAULT_LOCK, _VAULT_SWEEP_PROGRESS,
+        # REG-2271 — groupTiles is the per-TILE/per-FRAME grouping-progress count. Without it the sig is
+        # FROZEN through the whole grouping phase (runReelsDone/classified/pagesRead move only per reel
+        # or on a paid read), so the watchdog FALSE-KILLS a slow-but-progressing grouping and discards
+        # footage. With it, a grouping that keeps completing tiles/frames keeps changing the sig ->
+        # clock resets -> never false-killed; a truly frozen one still trips. [[heart-first]]
         lambda st: (st.get("startedTs"), st.get("phase"), st.get("runReelsDone"),
-                    st.get("classified"), st.get("pagesRead"), st.get("runReel")),
-        "vault", quarantine=_VAULT_SWEEP_QUARANTINE, reel_key="runReelDir")
+                    st.get("classified"), st.get("pagesRead"), st.get("runReel"), st.get("groupTiles")),
+        "vault", quarantine=_VAULT_SWEEP_QUARANTINE, reel_key="runReelDir",
+        # REG-2271 — during the GROUPING sub-phase, bound no-progress at the per-reel budget (~20s),
+        # not 240s: a frozen (uninterruptible) grouping tile then drains ~12x faster. A PROGRESSING
+        # grouping advances groupTiles -> sig changes -> clock resets, so this never false-kills it.
+        grouping_deadline_fn=_vr._reel_deadline_budget)
 
 
 def _chron_sweep_hang_check():
@@ -31367,11 +31423,19 @@ def _chron_sweep_hang_check():
     measure phase leaves it True and the `finally` (REG-1745) only releases the lock. No reel quarantine:
     the chronicle sweep reads a LIST (reel_dirs[:limit]), not one named reel_dir, and its own tries/retire
     (_CHRON_AUTOREAD) re-homes a reel that keeps failing once the guard is cleared and the lane runs again."""
+    import chronicle_retro as _cr
     return _sweep_hang_check(
         _CHRON_JOB, _CHRON_LOCK, _CHRON_SWEEP_PROGRESS,
+        # REG-2271 — groupFrames is the per-FRAME grouping-progress count; same reason as the vault
+        # lane's groupTiles. Without it a single reel's long grouping shows a FROZEN sig (reelsDone
+        # moves only when read_reel RETURNS) and the watchdog false-kills a progressing grouping.
         lambda st: (st.get("startedTs"), st.get("phase"), st.get("reelsDone"),
-                    st.get("classified"), st.get("pagesRead")),
-        "chronicle")
+                    st.get("classified"), st.get("pagesRead"), st.get("groupFrames")),
+        "chronicle",
+        # REG-2271 — the chronicle lane gets the SAME shorter grouping bound. No reel quarantine (it
+        # reads a LIST, not one named reel; its tries/retire re-homes a reel that keeps failing once
+        # the guard is cleared and the lane runs again — see the docstring).
+        grouping_deadline_fn=_cr._chron_reel_deadline_budget)
 
 
 # ══ v2223 — THE VAULT LANE GETS A WATCHDOG. IT NEVER HAD ONE. ═══════════════════════════════════
@@ -35673,6 +35737,9 @@ def vault_sweep_start(hist_dir=None, limit=None, force=False, reel_dir=None):
         _VAULT_JOB.update({"running": True, "startedTs": int(time.time() * 1000), "phase": "grouping",
                            "reelsDone": 0, "reelsTotal": 0, "classified": 0, "pagesRead": 0,
                            "result": None, "error": None, "lanes": lanes,
+                           # REG-2271 — a fresh run starts the per-tile grouping-progress count at 0
+                           # (the river watchdog sig reads it; it is bumped per tile by _on_tile).
+                           "groupTiles": 0,
                            # REG-1649 — a reason belongs to the run that found it; never carried
                            # into the next one, which may seal cleanly
                            "notDefinitiveWhy": None, "incompleteWhy": None,
@@ -35871,6 +35938,11 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
             with _VAULT_LOCK:
                 for k, v in kw.items():
                     _VAULT_JOB[k] = _VAULT_JOB.get(k, 0) + v if isinstance(v, int) else v
+                # REG-2271 — a paid classify or page read is the READING sub-phase: a single model read
+                # is legitimately long, so the river watchdog bounds it at the full 240s (NOT the short
+                # grouping budget, which would false-kill a slow read and quarantine a healthy reel).
+                if "classified" in kw or "pagesRead" in kw:
+                    _VAULT_JOB["phase"] = "reading"
             # v3180 — HEARTBEAT THE LOCK HERE, not once at the start. run_gates treats a lock
             # older than 900s as stale and IGNORES it (deliberately — a crashed sweep must not
             # forbid relaunching forever), so a single touch would go cold mid-run on exactly the
@@ -36234,10 +36306,38 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
                 _VAULT_JOB["runReelsDone"] = int(idx)
                 _VAULT_JOB["runReelsTotal"] = int(total) or None
                 _VAULT_JOB["runReel"] = str(name)[:80]
+                # REG-2271 — entering a reel's GROUPING (cheap per-tile/per-frame work, bounded by the
+                # per-reel no-progress deadline). The river watchdog bounds this sub-phase at ~budget,
+                # not 240s, so a frozen (uninterruptible) grouping tile drains fast; a paid read later
+                # flips it back to "reading" (bounded at the full 240s, since one read is legitimately
+                # long). groupTiles advancing keeps a PROGRESSING grouping off the kill path. [[heart-first]]
+                _VAULT_JOB["phase"] = "grouping"
             try:
                 _sweep_lock_touch()
             except Exception:
                 pass
+
+        def _on_tile():
+            # REG-2271 — one tooltip tile COMPLETED during grouping. Bump the monotone per-tile count
+            # the river watchdog sig reads (so a long-but-PROGRESSING grouping keeps changing the sig
+            # and is never false-killed at 240s), and heartbeat the lock the same way _on_reel does —
+            # a long quiet grouping stretch (many tiles, no paid read) must not let the lock go stale
+            # and re-arm the relaunch it forbids. A tile is cheap and frequent; this stays a quick
+            # increment under the lock. [[heart-first]] [[the-unjoined-end]]
+            with _VAULT_LOCK:
+                _VAULT_JOB["groupTiles"] = int(_VAULT_JOB.get("groupTiles") or 0) + 1
+            try:
+                _sweep_lock_touch()
+            except Exception:
+                pass
+
+        def _on_reel_timeout(rid, why):
+            # REG-2271 — vault_retro.sweep() hands the reel that blew its per-reel NO-PROGRESS grouping
+            # deadline here so the lane QUARANTINEs it (the SAME store the river watchdog writes and
+            # the autoreel picker + vault_sweep_start skip) and reads PAST it, instead of re-paying the
+            # deadline on it every tick. The sweep keeps draining the rest and RETURNS, so running
+            # clears via the done-path without the 240s watchdog. [[the-unjoined-end]] [[heart-first]]
+            _vault_quarantine_reel(rid, why)
 
         # ══ #130 — RESUME-SEAL: read what a stopped pass banked for the reel(s) about to be swept,
         # and give the sweep a checkpoint that persists its accumulators + answers "should I stop?".
@@ -36284,7 +36384,8 @@ def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
         try:
             prop = _vr.sweep(dirs, sig=_vr.DEFAULT_SIG, classify=_classify, reader=_reader, limit=limit,
                              panel_gate=stash_screen_open_cached, prior_seen=_prior_seen,
-                             on_reel=_on_reel, resume=_resume_rec, on_checkpoint=_on_checkpoint)
+                             on_reel=_on_reel, resume=_resume_rec, on_checkpoint=_on_checkpoint,
+                             on_tile=_on_tile, on_reel_timeout=_on_reel_timeout)
         except _vr.VaultSweepStopped as _stop:
             # #130 — a waiting build asked, and the sweep stopped at a banked read. NOT an error: the
             # checkpoint already wrote the resume record, NOTHING is sealed (the reel still owes its
@@ -39978,6 +40079,8 @@ def chronicle_sweep_start(hist_dir=None, limit=None, force=False, visit=None, re
         _CHRON_JOB.update({"running": True, "startedTs": int(time.time() * 1000), "phase": "grouping",
                            "stopAsk": None, "stopped": None,      # REG-2039 - an old ask never stops a new run
                            "reelsDone": 0, "reelsTotal": 0, "classified": 0, "pagesRead": 0,
+                           # REG-2271 — fresh per-frame grouping-progress count (read by the river watchdog sig).
+                           "groupFrames": 0,
                            "result": None, "error": None, "lanes": lanes})
     if visit:
         threading.Thread(target=_chron_visit_run, args=(int(visit),),
@@ -40428,6 +40531,15 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
             with _CHRON_LOCK:
                 for k, v in kw.items():
                     _CHRON_JOB[k] = _CHRON_JOB.get(k, 0) + v if isinstance(v, int) else v
+                # REG-2271 — sub-phase for the phase-scoped river watchdog. A grouping frame (on_frame)
+                # is the GROUPING sub-phase, bounded at ~budget so a frozen frame-decode drains fast; a
+                # paid classify/read is the READING sub-phase, bounded at the full 240s (one read is
+                # legitimately long). groupFrames advancing keeps a PROGRESSING grouping off the kill
+                # path, which is the footage-safety invariant. [[heart-first]] [[the-unjoined-end]]
+                if "groupFrames" in kw:
+                    _CHRON_JOB["phase"] = "grouping"
+                elif "classified" in kw or "pagesRead" in kw:
+                    _CHRON_JOB["phase"] = "reading"
 
         # v1577 — ONE BAD FRAME USED TO ABANDON THE WHOLE SWEEP. read_reel() calls classify() bare
         # (chronicle_retro:209) and sweep_hist() calls read_reel() bare (:608), so a transient
@@ -40716,6 +40828,10 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
                                  skip_reels=_skip,
                                  known_chronicle=known,
                                  on_reel=lambda st: _tick(reelsDone=1),
+                                 # REG-2271 — per-FRAME grouping heartbeat: bump the monotone count the
+                                 # river watchdog sig reads, so a single reel's long-but-PROGRESSING
+                                 # grouping is not false-killed at 240s (reelsDone moves only per reel).
+                                 on_frame=lambda: _tick(groupFrames=1),
                                  skip_read=_resume_in)
         except _ChronSweepStopped as _stop:
             # REG-2039 - the run ends HERE for a waiting build. Not an error: every page it read is banked and on
@@ -40768,7 +40884,14 @@ def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
         for st in res["reels"]:
             if _throttled[0] or _capped[0]:
                 break
-            if st.get("note") == "already-swept" or not st.get("reel"):
+            # REG-2271 — a reel whose GROUPING blew its per-reel NO-PROGRESS deadline (read_reel returns
+            # note="deadline") must NOT be sealed or look-stamped: it froze before any page was read, so
+            # stamping it "looked, nothing here" would hide footage that may be fine once the freeze
+            # clears. Skipped like "already-swept" so it stays OWED and is retried FAST next tick
+            # (bounded, not a 240s stall) until the lane's tries/retire re-homes it. ⚠ sweep_hist's stat
+            # comprehension ALWAYS adds a `blankRuns` KEY, so the did_read/`_looked` guard below would
+            # otherwise read this as a real walk and seal it. [[the-unjoined-end]] [[regression-guard]]
+            if st.get("note") in ("already-swept", "deadline") or not st.get("reel"):
                 continue
             # ══ v2202 — RECORD THE LOOK, NOT ONLY THE FIND ═══════════════════════════════
             # THE DEADLOCK THIS BREAKS, measured on his seven retired reels (1-7 frames each):

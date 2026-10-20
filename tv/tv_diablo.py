@@ -5481,7 +5481,17 @@ class OcrWorker:
 
     def read(self, path, timeout=1.2):
         """Return {ms, lines, confs, mode} or None. Never raises into the scan loop."""
-        with self.lock:
+        # REG-2271 — BOUND THE LOCK ACQUIRE. This lock serialises the one OCR worker's pipe. If the
+        # holder is wedged (a subprocess op that never returns), a plain `with self.lock` makes a SECOND
+        # caller — a sweep's grouping tile sharing the module _OCR singleton with the live text-eye lane
+        # — block UNINTERRUPTIBLY, which no in-thread per-reel deadline can fire on (its check() never
+        # runs) and only the 240s river watchdog could end. Acquiring with a timeout makes a contended
+        # read return None (an honest miss, never invented loot) so on_tile fires and the grouping's
+        # no-progress deadline / the phase-scoped watchdog can interrupt the frame in ~budget. Released
+        # in a finally so a return or raise in the body never leaks the lock. [[heart-first]] [[the-unjoined-end]]
+        if not self.lock.acquire(timeout=max(1.0, timeout)):
+            return None
+        try:
             try:
                 if self.p is None or self.p.poll() is not None:
                     self.stop()
@@ -5524,6 +5534,8 @@ class OcrWorker:
             except Exception:
                 self.stop()
                 return None
+        finally:
+            self.lock.release()
 
 _OCR = OcrWorker()
 

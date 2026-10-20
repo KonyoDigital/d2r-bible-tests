@@ -44,8 +44,11 @@ def _set_sweep(running, stalled_s):
     ca._VAULT_JOB.clear()
     ca._VAULT_JOB.update({"running": running, "startedTs": int((now - stalled_s) * 1000),
                           "phase": "reading", "runReelsDone": 0, "classified": 0, "pagesRead": 0,
-                          "runReel": "Bad Reel", "runReelDir": REEL})
-    sig = (ca._VAULT_JOB["startedTs"], "reading", 0, 0, 0, "Bad Reel")
+                          "runReel": "Bad Reel", "runReelDir": REEL, "groupTiles": 0})
+    # REG-2271 — the production sig carries groupTiles (per-tile/per-frame grouping progress); the
+    # seeded snapshot MUST match it exactly or the watchdog reads a "first sighting" and resets instead
+    # of timing the stall. phase "reading" so the 240s (not the short grouping) bound applies here.
+    sig = (ca._VAULT_JOB["startedTs"], "reading", 0, 0, 0, "Bad Reel", 0)
     ca._VAULT_SWEEP_PROGRESS.clear()
     ca._VAULT_SWEEP_PROGRESS.update({"sig": sig, "ts": now - stalled_s})
 
@@ -54,8 +57,10 @@ def _set_chron(running, stalled_s):
     now = time.time()
     ca._CHRON_JOB.clear()
     ca._CHRON_JOB.update({"running": running, "startedTs": int((now - stalled_s) * 1000),
-                          "phase": "reading", "reelsDone": 0, "classified": 0, "pagesRead": 0})
-    sig = (ca._CHRON_JOB["startedTs"], "reading", 0, 0, 0)
+                          "phase": "reading", "reelsDone": 0, "classified": 0, "pagesRead": 0,
+                          "groupFrames": 0})
+    # REG-2271 — the production sig carries groupFrames; the seeded snapshot must match it exactly.
+    sig = (ca._CHRON_JOB["startedTs"], "reading", 0, 0, 0, 0)
     ca._CHRON_SWEEP_PROGRESS.clear()
     ca._CHRON_SWEEP_PROGRESS.update({"sig": sig, "ts": now - stalled_s})
 

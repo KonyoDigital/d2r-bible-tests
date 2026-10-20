@@ -94,6 +94,55 @@ SURFACE_LANE = {
 }
 LANES = ("stash", "inventory", "equipment")
 
+# ── REG-2271 — THE PER-REEL NO-PROGRESS GROUPING DEADLINE (vault lane) ─────────────────────────
+# A FROZEN measure phase (a tooltip-OCR tile that never settles) used to sit classified=0/pages=0
+# until control_app's 240s river watchdog cleared it — one 240s stall per frozen reel, so his owed
+# backlog drained one slow cycle at a time. sweep() now bounds the GROUPING with a NO-PROGRESS window
+# via _cr.reel_deadline (the shared helper, one logic across both lanes): the clock resets on every
+# COMPLETED tile (a cache-MISS frame, via _tile_progress) AND on every completed cache-HIT tooltip
+# look (the beat in _tip_of's cache-hit branch, so a PRIMED tooltip memo whose _tip_of are all cache
+# hits still beats per frame), and fires only when NOTHING completes for the budget. sig_of does NOT
+# beat; it surfaces the per-frame grouping count UP (on_tile) so the out-of-thread watchdog's sig moves
+# on a cache-hit frame too. A reel whose frames/tiles keep completing — however slowly, past 240s — is NEVER skipped
+# (his footage is never discarded). Defaults resolved at CALL time; the default MUST stay under the
+# watchdog or the guard could never beat it. The one case it cannot catch in-thread is a unit that
+# blocks UNINTERRUPTIBLY (a wedged OCR subprocess, or — before REG-2271's complement bounded it — the
+# OCR worker's lock); control_app's river watchdog is the out-of-thread backstop for that, and is now
+# PHASE-SCOPED so a frozen grouping drains in ~budget rather than 240s.
+_REEL_DEADLINE_DEFAULT_S = 20
+_HANG_DEADLINE_DEFAULT_S = 240   # mirrors control_app._VAULT_SWEEP_HANG_DEADLINE_S (TV_VAULT_HANG_DEADLINE_S)
+assert _REEL_DEADLINE_DEFAULT_S < _HANG_DEADLINE_DEFAULT_S, \
+    "REG-2271: the vault per-reel grouping deadline default must stay under the 240s watchdog backstop"
+
+
+def _reel_deadline_budget(explicit=None):
+    """REG-2271 — the vault per-reel NO-PROGRESS grouping deadline, seconds, resolved at CALL time (a
+    default read at import would freeze the bar). Default 20: comfortably above the 4.0s single-tile
+    OCR cap (tooltip_find reader timeout) so one legit tile that burns its full 4s never trips it,
+    while a reel that makes NO tile progress for 20s fires ~12x faster than the 240s river watchdog.
+    Because the window RESETS on every completed tile, a healthy or merely-slow reel (36 tiles at up
+    to 4s each, grouping a whole reel) NEVER fires — only a genuinely frozen one does. MUST stay below
+    the watchdog (TV_VAULT_HANG_DEADLINE_S, default 240) or it would never beat it; clamped so a
+    misconfig cannot silently exceed the backstop. The paid read stage is NOT bounded here — that is
+    the watchdog's job, so a legitimately long read is never false-killed."""
+    if explicit is not None:
+        try:
+            return float(explicit)
+        except Exception:
+            return float(_REEL_DEADLINE_DEFAULT_S)
+    try:
+        v = int(os.environ.get("TV_VAULT_REEL_DEADLINE_S") or _REEL_DEADLINE_DEFAULT_S)
+    except Exception:
+        v = _REEL_DEADLINE_DEFAULT_S
+    try:
+        hang = int(os.environ.get("TV_VAULT_HANG_DEADLINE_S") or _HANG_DEADLINE_DEFAULT_S)
+    except Exception:
+        hang = _HANG_DEADLINE_DEFAULT_S
+    if v >= hang:          # the per-reel guard MUST beat the watchdog or it is pointless
+        v = max(1, hang - 1)
+    return v
+
+
 # ── v2075 — THE LANES HE HAS ALREADY RULED ON. HIS WORDS: ────────────────────────────────────
 # "the whole point of this is for the ai readers to log and register exactly whats currently in my
 #  inventory and main character equipment (SHOULD NEVER BE TOLD TO BE MOVED its locked there)"
@@ -1574,7 +1623,8 @@ def _deser_state(st):
 def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=None,
           on_reel=None,
           panel_gate=None, prior_seen=None,
-          resume=None, on_checkpoint=None, checkpoint_every=4):
+          resume=None, on_checkpoint=None, checkpoint_every=4,
+          on_tile=None, on_reel_timeout=None, reel_deadline_s=None):
     """THE VAULT RETRO SWEEP: sealed reels in, a PROPOSAL of what he owns out. Writes nothing.
 
     hist_dirs: sealed reel directories, newest-first (mini/stash reels are re-ordered to the front).
@@ -1599,6 +1649,9 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
 
     # v2023 — order by MEASURED panel density when a gate is supplied, so `limit` spends the
     # budget on reels that demonstrably show a stash instead of on the four most recent ones.
+    # REG-2271 — resolve the per-reel NO-PROGRESS grouping deadline ONCE, at call time (a default read
+    # at import would freeze the bar). _reel_deadline_budget: default 20s, clamped under the 240s watchdog.
+    _reel_deadline_s = _reel_deadline_budget(reel_deadline_s)
     dirs = order_reels(hist_dirs, panel_gate=panel_gate)
     if limit:
         dirs = dirs[:limit]
@@ -1701,6 +1754,30 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
                 on_reel(_reel_i, len(dirs), os.path.basename(str(reel_dir)))
             except Exception:
                 pass
+        # ── REG-2271 — PER-REEL NO-PROGRESS GROUPING DEADLINE ───────────────────────────────
+        # _dl is a fresh no-progress window for THIS reel. The per-tile callback below beats it on
+        # every COMPLETED tooltip tile (resetting the window — a reel that keeps completing tiles,
+        # however slowly, is NEVER skipped) and polls it (a frozen tile that stalls past the budget
+        # raises _cr.ReelDeadline, a BaseException that escapes still_runs' `except Exception`). The
+        # grouping below catches it, HOLDS + QUARANTINEs the reel via on_reel_timeout and CONTINUEs,
+        # so the sweep RETURNS and the rest of the owed reels drain this pass — instead of sitting
+        # classified=0/pages=0 until the 240s river watchdog fires. Disarmed before the paid read
+        # stage, which stays the watchdog's job so a legitimately long read is never false-killed.
+        _reel_rid = os.path.basename(str(reel_dir))
+        _dl = _cr.reel_deadline(_reel_rid, _reel_deadline_s)
+
+        def _tile_progress():
+            # one tooltip tile COMPLETED. poll FIRST (did THIS tile take longer than the budget to
+            # complete — i.e. no progress for too long?), then beat (reset the window), then surface
+            # the per-tile grouping count up to the console (the river watchdog sig reads it). A raise
+            # here is _cr.ReelDeadline (BaseException), which escapes density and still_runs uncaught.
+            _dl.check()   # REG-2271 vault per-tile no-progress poll (raises if this tile stalled past budget)
+            _dl.beat()    # this tile completed = forward progress; reset the no-progress window
+            if on_tile is not None:
+                try:
+                    on_tile()
+                except Exception:
+                    pass
         sessions_seen += 1
         sessions_examined.append(os.path.basename(os.path.normpath(str(reel_dir))).replace("reel_", "", 1))
         idx = _load_index(reel_dir)
@@ -1720,8 +1797,24 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
         _sig_memo = {}
 
         def sig_of(n, _d=reel_dir):
+            _dl.check()   # REG-2271 vault per-frame no-progress poll (did the PREVIOUS unit stall past
+                          # budget?) — runs once per frame regardless of tooltip cache state.
             if n not in _sig_memo:
                 _sig_memo[n] = sig(os.path.join(_d, n))
+            # REG-2271 — SURFACE PER-FRAME GROUPING PROGRESS UP, unconditionally, so _VAULT_JOB's
+            # groupTiles advances on a cache-HIT frame too. On a PRIMED _TOOLTIP_MEMO (vault_scan_cost
+            # primes his whole corpus) every _tip_of returns at the cache-hit branch and _tile_progress
+            # — the ONLY other on_tile source — NEVER fires; without this call the control_app river
+            # watchdog's sig would FREEZE through a healthy primed grouping and, under the phase-scoped
+            # grouping bound, FALSE-KILL it (discarding his footage — THE hard constraint). The
+            # in-thread no-progress window is beaten per frame by the tooltip look itself (the cache-hit
+            # beat in _tip_of, or the per-tile beat in _tile_progress on a miss), so the deadline is not
+            # beaten here; this is the heartbeat the OUT-OF-THREAD watchdog reads. [[heart-first]]
+            if on_tile is not None:
+                try:
+                    on_tile()
+                except Exception:
+                    pass
             return _sig_memo[n]
         # ══ v2396 — SPLIT THE RUN ON THE TOOLTIP, NOT ONLY ON THE GRID ═══════════════════════
         # MEASURED on reel_s_1788099914191_40921: 20 frames, all carrying an open stash panel,
@@ -1759,17 +1852,44 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
             except OSError:
                 key = None
             if key is not None and key in _TOOLTIP_MEMO:
+                # REG-2271 — a cache HIT is a COMPLETED tooltip look (a dict lookup; it cannot freeze),
+                # so it is forward progress and beats the no-progress window. On a PRIMED memo every
+                # _tip_of lands here and locate() (which beats via _tile_progress) never runs; without
+                # this beat the window would see no tile heartbeat at all for the frame. sig_of also
+                # beats per frame, so this is the belt to that suspenders — and it keeps a frame that is
+                # tooltip-looked more than once honest. [[heart-first]] [[the-unjoined-end]]
+                _dl.beat()
                 return _TOOLTIP_MEMO[key]
             import tooltip_find as _tf
-            r = _tf.locate(p)
+            # REG-2271 — hand the per-tile heartbeat down so density beats/polls the no-progress
+            # deadline once per completed tile (see _tile_progress). A cache HIT returns above without
+            # locate(), which is correct: a memoised look did no OCR work, so it owes no heartbeat.
+            r = _tf.locate(p, on_tile=_tile_progress)
             v = r[0] if isinstance(r, tuple) else r
             if key is not None:
                 if len(_TOOLTIP_MEMO) >= _TOOLTIP_MEMO_MAX:
                     _TOOLTIP_MEMO.clear()     # coarse, bounded, never stale
                 _TOOLTIP_MEMO[key] = v
             return v
-        runs = _cr.still_runs(frames, sig_of, tooltip_of=_tip_of)
-        cands = _cr.candidate_runs(runs, min_frames=MIN_RUN_FRAMES)
+        try:
+            runs = _cr.still_runs(frames, sig_of, tooltip_of=_tip_of)
+            cands = _cr.candidate_runs(runs, min_frames=MIN_RUN_FRAMES)
+        except _cr.ReelDeadline as _rd:
+            # REG-2271 — this reel's grouping made NO progress for the budget (a frozen tooltip pass).
+            # HOLD it with a machine-readable reason and QUARANTINE it via on_reel_timeout so the lane
+            # does not re-own it every tick; CONTINUE so the rest of the owed reels still drain this
+            # pass and the sweep RETURNS (running clears without the 240s watchdog). No read was paid
+            # here (classified=0/pages=0), so nothing partial is banked. [[the-unjoined-end]] [[heart-first]]
+            held.append({"name": None, "why": "REG-2271: %s" % _rd})
+            if on_reel_timeout is not None:
+                try:
+                    on_reel_timeout(_reel_rid, str(_rd))
+                except Exception:
+                    pass
+            continue
+        finally:
+            _dl.disarm()   # bound ONLY grouping; the paid read stage below (and the memoised _unsplit
+                           # regroup) is the 240s river watchdog's job, never false-killed here
         # ⚠⚠ v3075 — THE SPLIT MAY ONLY EVER ADD. v2396 splits a still run on the TOOLTIP so a
         # hover-by-hover pass stops collapsing into one page, and it says of itself that it
         # "splits on evidence and leaves the rest alone". It does not: MIN_RUN_FRAMES is a
