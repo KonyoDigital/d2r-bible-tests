@@ -33934,21 +33934,21 @@ function switchTab(name) {
   // data-active-tab, NOT data-tab — the v605 gauntlet predicate treats [data-tab] as a clickable
   // marker (nav buttons), and a data-tab on <html> made closest() call EVERYTHING grabbable.
   try { document.documentElement.setAttribute("data-active-tab", name); } catch(e){}
-  try { if (name === "tvd" && typeof window._tvdRefreshTab === "function") window._tvdRefreshTab(); } catch(_rgErr){}   /* REG-2321 */   // v710.4 — repaint the flagship board on entry
+  try { if (name === "tvd" && typeof window._tvdRefreshTab === "function") window._tvdRefreshTab(); } catch(_rgErr){ try { console.warn("switchTab room setup failed", name, _rgErr); } catch(_w){} }   /* REG-2321 */   // v710.4 — repaint the flagship board on entry
   // v707 — lore tabs render sections late; build their TOC rail on first entry (idempotent)
   if ((name === "ref" || name === "binds" || name === "rotw" || name === "ancients") && window._buildLoreTocs) window._buildLoreTocs();
   // v607 — glide the tab in (transform/opacity only; class self-removes so re-entry replays)
   try { _tabEl.classList.remove("tab-in"); void _tabEl.offsetWidth; _tabEl.classList.add("tab-in"); setTimeout(function(){ _tabEl.classList.remove("tab-in"); }, 400); } catch(e){}
   // v28: ensure data-boss-id is set on TZ zones when tab becomes visible
-  try { if (name === "tz" && typeof tagTzZonesWithBossId === "function") tagTzZonesWithBossId(); } catch(_rgErr){}   /* REG-2321 */
-  try { if (name === "tztracker" && typeof tzTrackerOnShow === "function") tzTrackerOnShow(); } catch(_rgErr){}   /* REG-2321 */
-  try { if (name === "forge" && typeof renderForge === "function") renderForge(); } catch(_rgErr){}   /* REG-2321 */   // v470 — recompute the task plan every time the Forge tab opens
-  try { if (name === "tools" && typeof window._renderToolsSpine === "function") window._renderToolsSpine(); } catch(_rgErr){}   /* REG-2321 */             // v775 — family spine stat rail (vault · runes · gems)
-  try { if (name === "tools" && typeof window.refreshLootFilterCount === "function") window.refreshLootFilterCount(); } catch(_rgErr){}   /* REG-2321 */   // v535 — live loot-filter base count
-  try { if (name === "tools" && typeof window.renderSmartInsights === "function") window.renderSmartInsights(); } catch(_rgErr){}   /* REG-2321 */          // v543 — smart Chronicle insights
-  try { if (name === "session" && typeof window.renderSessionCockpit === "function") window.renderSessionCockpit(); } catch(_rgErr){}   /* REG-2321 */      // v686 — cockpit recomputes on every open (same doctrine as the Forge)
-  try { if (name === "d2jsp" && typeof window._d2jspShow === "function") window._d2jspShow(); } catch(_rgErr){}   /* REG-2321 */
-  try { if (name === "main" && typeof window._mainPeeks === "function") setTimeout(window._mainPeeks, 600); } catch(_rgErr){}   /* REG-2321 */              // v693 🏓R3 — closed-row peeks refresh after the async boards paint
+  try { if (name === "tz" && typeof tagTzZonesWithBossId === "function") tagTzZonesWithBossId(); } catch(_rgErr){ try { console.warn("switchTab room setup failed", name, _rgErr); } catch(_w){} }   /* REG-2321 */
+  try { if (name === "tztracker" && typeof tzTrackerOnShow === "function") tzTrackerOnShow(); } catch(_rgErr){ try { console.warn("switchTab room setup failed", name, _rgErr); } catch(_w){} }   /* REG-2321 */
+  try { if (name === "forge" && typeof renderForge === "function") renderForge(); } catch(_rgErr){ try { console.warn("switchTab room setup failed", name, _rgErr); } catch(_w){} }   /* REG-2321 */   // v470 — recompute the task plan every time the Forge tab opens
+  try { if (name === "tools" && typeof window._renderToolsSpine === "function") window._renderToolsSpine(); } catch(_rgErr){ try { console.warn("switchTab room setup failed", name, _rgErr); } catch(_w){} }   /* REG-2321 */             // v775 — family spine stat rail (vault · runes · gems)
+  try { if (name === "tools" && typeof window.refreshLootFilterCount === "function") window.refreshLootFilterCount(); } catch(_rgErr){ try { console.warn("switchTab room setup failed", name, _rgErr); } catch(_w){} }   /* REG-2321 */   // v535 — live loot-filter base count
+  try { if (name === "tools" && typeof window.renderSmartInsights === "function") window.renderSmartInsights(); } catch(_rgErr){ try { console.warn("switchTab room setup failed", name, _rgErr); } catch(_w){} }   /* REG-2321 */          // v543 — smart Chronicle insights
+  try { if (name === "session" && typeof window.renderSessionCockpit === "function") window.renderSessionCockpit(); } catch(_rgErr){ try { console.warn("switchTab room setup failed", name, _rgErr); } catch(_w){} }   /* REG-2321 */      // v686 — cockpit recomputes on every open (same doctrine as the Forge)
+  try { if (name === "d2jsp" && typeof window._d2jspShow === "function") window._d2jspShow(); } catch(_rgErr){ try { console.warn("switchTab room setup failed", name, _rgErr); } catch(_w){} }   /* REG-2321 */
+  try { if (name === "main" && typeof window._mainPeeks === "function") setTimeout(window._mainPeeks, 600); } catch(_rgErr){ try { console.warn("switchTab room setup failed", name, _rgErr); } catch(_w){} }   /* REG-2321 */              // v693 🏓R3 — closed-row peeks refresh after the async boards paint
   // v693.1 🏓R4 — the Binds verdict opens itself ONCE per session (the tab's whole answer); every
   // other lore drawer stays collapsed. sessionStorage: per-tab-session, never persisted state.
   try { document.documentElement.classList.toggle('runs-open', name === 'funi' && !!window._fuRunsActive); } catch(e){}   // v695 🏓R7 — the dock yields only while the runs view is actually on screen
