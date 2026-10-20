@@ -40041,6 +40041,11 @@ details[open] > summary .to-chev{transform:rotate(180deg)}
 .vault-mule.vm-empty:hover,.vault-mule.vm-empty.vm-over{opacity:1}
 .vault-mule.vm-empty .vm-count{opacity:.6}
 .vault-mule.vm-shared{order:-1;grid-column:1/-1;border:2px solid rgba(127,212,255,.55);background:linear-gradient(180deg,rgba(127,212,255,.07),rgba(10,14,20,.5));box-shadow:inset 0 0 0 1px rgba(127,212,255,.18),0 8px 28px rgba(0,0,0,.5),0 0 30px rgba(127,212,255,.14);margin-bottom:6px}
+.vault-mule.vm-war{order:-1;border:2px solid rgba(127,212,255,.55);background:linear-gradient(180deg,rgba(127,212,255,.07),rgba(10,14,20,.5))}
+.vault-mule.vm-war .vm-plate{background:linear-gradient(180deg,rgba(127,212,255,.18),rgba(127,212,255,.04));border-bottom:1px solid rgba(127,212,255,.34)}
+.vault-mule.vm-war .vm-name{color:#aee4ff}
+.vault-mule.vm-war.vm-empty{opacity:.85} /* L1 an empty WAR box still reads as part of the war stash */
+.vault-mule.vm-shared.vm-shared{order:-2} /* L1 the war stash, then its WAR overflow mules, then the rest */
 .vault-mule.vm-shared .vm-plate{background:linear-gradient(180deg,rgba(127,212,255,.18),rgba(127,212,255,.04));border-bottom:1px solid rgba(127,212,255,.34);padding:9px 12px}
 .vault-mule.vm-shared .vm-icon{font-size:var(--fs-display);filter:drop-shadow(0 0 7px rgba(127,212,255,.6))}
 .vault-mule.vm-shared .vm-name{font-size:var(--fs-title);letter-spacing:var(--ls-wide);color:#aee4ff;text-shadow:0 1px 2px rgba(0,0,0,.8),0 0 12px rgba(127,212,255,.4)}
@@ -41653,7 +41658,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       } catch (eFc) {}
       var mid = (w && (w.kind === 'filed' || w.kind === 'worn' || w.kind === 'over' || w.kind === 'would')) ? w.mule : null;
       var loc = !w ? '<span class="vfr-arrow">→</span><span style="color:var(--text-dim)">UNKNOWN — the finder could not ask where it is</span>'
-        : (w.kind === 'would') ? '<span class="vfr-arrow">→</span><span class="vfr-would">unsorted · would go to <span class="vfr-mule">'+esc(w.muleName)+'</span>' + (w.cell ? ' · '+esc(w.cell) : '') + ' — press ⚖️ Auto-assign unsorted to file it</span>'
+        : (w.kind === 'would') ? '<span class="vfr-arrow">→</span><span class="vfr-would">unsorted · would go to <span class="vfr-mule">'+esc(w.muleName)+'</span>' + (w.cell ? ' · '+esc(w.cell) : '') + ' — it files there on its own, nothing to press</span>'
         : (w.kind === 'main') ? '<span class="vfr-arrow">→</span><span class="vfr-main">stays with your MAIN — '+esc(w.why)+'</span>'
         : (w.kind === 'dock' && typeof window._vaultThrowRoute === 'function' && window._vaultThrowRoute(n)) ? '<span class="vfr-arrow">→</span><span class="vfr-throw" title="'+esc(w.why)+'">THROW OUT task in MOVE TASKS — '+esc(String(w.why).split(' — ')[0].slice(0, 48))+'</span>' /* L1 find names the throw-out task */
         : (w.kind === 'dock') ? '<span class="vfr-arrow">→</span><span style="color:var(--text-dim)" title="'+esc(w.why)+'">unsorted · in the dock — '+esc(String(w.why).split(' — ')[0].slice(0, 48))+'</span>'
@@ -43209,9 +43214,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       } else { itemsHtml = _gridWrap(itemRows); }
       // v365 — SHARED STASH is its OWN emphasized section ABOVE the mules (full-width, bigger), so it's
       // clearly distinguished as the cross-account storage — not just another mule.
-      return '<div class="vault-mule '+_muleAccent(m.id)+(m.id==='shared'?' vm-shared':'')+((total===0 && !_ovHtml)?' vm-empty':'')+'" data-vault-mule="'+esc(m.id)+'">'
+      return '<div class="vault-mule '+_muleAccent(m.id)+(m.id==='shared'?' vm-shared':'')+((window._vaultWarRole&&window._vaultWarRole(m))?' vm-war':'')+((total===0 && !_ovHtml)?' vm-empty':'')+'" data-vault-mule="'+esc(m.id)+'">'
         + '<div class="vm-plate" title="'+(m.id==='shared'?'SHARED STASH — accessible by ALL characters · click to open the fullscreen 5-page view':'click: open the in-game ID card of this mule · with a chip selected: assign it here')+'">'
-        + '<span class="vm-icon">'+esc(m.icon||'📦')+'</span><span class="vm-name">'+esc(m.name)+'</span>'
+        + '<span class="vm-icon">'+esc(m.icon||'📦')+'</span><span class="vm-name">'+esc(m.name)+'</span>'+((window._vaultWarRole&&window._vaultWarRole(m))?'<span class="vm-warbadge" title="part of your Shared Stash (war stash) - overflow pages" style="margin-left:4px;font-size:9px;padding:0 4px;border:1px solid rgba(240,192,96,.6);border-radius:3px;color:#f0c060">SHARED STASH · overflow</span>':'')/* L1 WAR mule is the war stash */
         + '<span class="vm-count"'
           + ' title="'+_itemN+' item'+(_itemN===1?'':'s')
           + (_known ? (' · '+cells+' cells'
@@ -47852,6 +47857,7 @@ window.vaultAutoAssign = function(){
   window.vaultRenameMule = function(id){
     var m=muleById(id); if(!m) return;
     var name=prompt('Rename mule:', m.name); if(!name) return;
+    try { if (window._vaultWarRole) window._vaultWarRole(m); } catch (eWr) {} /* L1 the role rides the id, not the name */
     m.name=name.toUpperCase().slice(0,15); saveR(); renderVault();
   };
   // REG-2195 (GrokBot batch K) — only a mule HE added can be deleted. A core locker (uni-weap, magic-rare, …)
@@ -48847,14 +48853,17 @@ window.vaultAutoAssign = function(){
   try { window._vaultAutoIntakePaint = _vaultAutoIntakePaint; } catch (eAp) {}
   try { window._vaultFrameRefuse = _vaultFrameRefuse; } catch (eAf) {}
   try { window._vaultIntakeGate = _vaultIntakeGate; } catch (eAg) {}
-  function _vaultMovePlace(holder, location, cell){
+  function _vaultMovePlace(holder, location, cell, id){
     var loc = location || null;
     var key = (typeof _vaultCellKey === 'function') ? _vaultCellKey(cell, loc) : (cell == null || cell === '' ? null : String(cell));
-    return { holder: holder || null, location: loc, cell: key };
+    var pl = { holder: holder || null, location: loc, cell: key };
+    if (id != null) pl.id = id; /* L1 a target binds to the mule's stable id */
+    return pl;
   }
   function _vaultMoveSamePlace(a, b){
     if (!a || !b || a.cell == null || b.cell == null) return false;
-    return String(a.holder || '') === String(b.holder || '')
+    var _nm = function(p){ var mm = (p.id != null && typeof muleById === 'function') ? muleById(p.id) : null; return String((mm && mm.name) || p.holder || ''); }; /* L1 by id: a renamed mule is the same holder */
+    return ((a.id != null && b.id != null) ? String(a.id) === String(b.id) : _nm(a) === _nm(b))
         && String(a.location || '') === String(b.location || '')
         && String(a.cell) === String(b.cell);
   }
@@ -48871,8 +48880,8 @@ window.vaultAutoAssign = function(){
     var from = spec.from || {}, to = spec.to || {};
     var out = {
       name: spec.name || null,
-      from: _vaultMovePlace(from.holder, from.location || from.loc, from.cell),
-      to: _vaultMovePlace(to.holder, to.location || to.loc, to.cell),
+      from: _vaultMovePlace(from.holder, from.location || from.loc, from.cell, from.id),
+      to: _vaultMovePlace(to.holder, to.location || to.loc, to.cell, to.id),
       status: st,
       evidence: ev,
       manual: spec.manual === true || st === 'moved-manual'
@@ -48927,10 +48936,21 @@ window.vaultAutoAssign = function(){
 
   /* v3769 — the list the v3767 record was waiting for. Target cell from the same packer
      the mule window uses. Saved on the record. A later witness verifies only while AUTO INTAKE is on. */
+  function _vaultWarRole(m){
+    if (!m) return 0;
+    if (m.role === 'war') return +m.warN || 1;
+    var x = /^war\s*(\d*)$/i.exec(String(m.name || '').trim());
+    if (!x) return 0;
+    m.role = 'war'; m.warN = x[1] ? +x[1] : 1; /* L1 stamp the role on the id (saved with the roster's next write) */
+    return m.warN;
+  }
+  window._vaultWarRole = _vaultWarRole;
   function _vaultWarMules(){
     /* L1 — the overflow mules: WAR1, WAR2, ... (WAR alone counts as 1), case-insensitive, in number order */
+    /* L1 (Elad 2026-10-20) — a WAR mule is bound by its ROLE on the stable id, never its display name: a mule first named
+       WAR1 is stamped role 'war' + warN 1, so renaming it to a character name keeps its routing, tasks, colour and place. */
     var r = [];
-    try { (roster || []).forEach(function(m){ var x = m && /^war\s*(\d*)$/i.exec(String(m.name || '').trim()); if (x) r.push({ id: m.id, name: m.name, n: x[1] ? +x[1] : 1 }); }); } catch (e) {}
+    try { (roster || []).forEach(function(m){ var w = _vaultWarRole(m); if (w) r.push({ id: m.id, name: m.name, n: w }); }); } catch (e) {}
     return r.sort(function(a, b){ return a.n - b.n || (a.name < b.name ? -1 : 1); });
   }
   window._vaultWarMules = _vaultWarMules;
@@ -48951,11 +48971,49 @@ window.vaultAutoAssign = function(){
     return { seam: { loc: 'filed', mule: sg.id }, filed: mid };
   }
   try { window._vaultMisfiled = _vaultMisfiled; } catch (eMf) {}
-  function _vaultMoveHome(name){
+  /* L1 (Elad 2026-10-20) — THE WAR STASH KEEPS ONE COPY OF EACH BIG ITEM. Small gear (a footprint of at most 2 cells, or a
+     ring / amulet / belt / charm by type) keeps every copy there, side by side. A bigger one (helm, armour, weapon) keeps ONE:
+     the copy already seen in the shared stash, else the one already planned there, else the first-witnessed (copy 0) - so the
+     keeper never swaps. Every other copy goes to the item's normal mule (the rules with the war / trade branches switched off). */
+  function _vaultWarSmall(name){
+    var s = (typeof vaultSize === 'function') ? vaultSize(name) : [1, 2];
+    if ((s[0] || 1) * (s[1] || 1) <= 2) return true;
+    var it = null;
+    try { it = (typeof d2rItemLookup === 'function') ? d2rItemLookup(name) : null; } catch (e) { it = null; }
+    return !!(it && /\b(ring|amulet|belt|sash|charm)\b/i.test(String(it.type || it.slot || it.base || '')));
+  }
+  function _vaultWarKeeper(name){
+    var g = null;
+    try { g = (typeof _vaultSightGroups === 'function') ? _vaultSightGroups(name) : null; } catch (e) { g = null; }
+    for (var i = 0; g && i < g.length; i++) if (g[i] && g[i].location === 'shared') return i; /* L1 a war-stash copy wins */
+    var bag = window._warKeepBag || (window._warKeepBag = (typeof _vaultMoveBag === 'function' ? _vaultMoveBag() : { map: {} }));
+    var best = null;
+    Object.keys(bag.map || {}).forEach(function(k){
+      var p = k.split('\u0000'), to = bag.map[k] && bag.map[k].to;
+      if (p[0] === name && to && to.location === 'shared' && to.cell != null && (best == null || +p[1] < best)) best = +p[1];
+    });
+    return best == null ? 0 : best; /* L1 else the first-witnessed copy */
+  }
+  function _vaultWarExtra(name, copyIx){
+    if (copyIx == null) return null;
+    if (_vaultWarSmall(name) || copyIx === _vaultWarKeeper(name)) return null;
+    var sg = null;
+    try { sg = suggestMule(name, { _shareForceOut: true }); } catch (e) { sg = null; }
+    if (sg && sg.id === 'uni-weap' && /recognises/.test(String(sg.why || ''))) { /* L1 an unknown unique: read its slot off the base in "(Shako)" */
+      var bm = /\(([^)]+)\)\s*$/.exec(String(name)), bc = null;
+      try { bc = bm && typeof BASE_CLASS !== 'undefined' ? BASE_CLASS[bm[1].trim()] : null; } catch (eB) { bc = null; }
+      if (bc && bc.some(function(c){ return /helm|armor|shield|glove|boot|belt|circlet|pelt/i.test(c); }) && muleById('uni-armor')) sg = { id: 'uni-armor' };
+    }
+    if (!sg || sg.id == null || sg.id === 'shared' || /^__/.test(String(sg.id)) || !muleById(sg.id)) return null;
+    return { loc: 'filed', mule: sg.id }; /* L1 an extra copy to its normal mule */
+  }
+  try { window._vaultWarSmall = _vaultWarSmall; window._vaultWarKeeper = _vaultWarKeeper; window._vaultWarExtraHome = function(n){ return _vaultWarExtra(n, -1); }; } catch (eWk) {} /* L1 read-only: where an extra copy goes */
+  function _vaultMoveHome(name, copyIx){
     var seam = null;
     try { seam = (typeof _vaultSeamHome === 'function') ? _vaultSeamHome(name) : null; } catch (e) { seam = null; }
     var _mis = _vaultMisfiled(name);
     if (_mis) seam = _mis.seam; /* L1 the rules' home, not a stale filing */
+    if (seam && seam.loc === 'shared') { var _xw = _vaultWarExtra(name, copyIx); if (_xw) seam = _xw; } /* L1 one big copy per war item */
     if (!seam) return { id: null, holder: null, location: null };
     if (seam.loc === 'shared') return { id: 'shared', holder: 'SHARED STASH', location: 'shared' }; /* v3769 home shared */
     if (seam.loc === 'filed' && seam.mule) { /* v3769 home filed */
@@ -48981,26 +49039,36 @@ window.vaultAutoAssign = function(){
   function _vaultMovePackHome(home, bag){
     /* L1 (Elad ruling 1) — placement is append-only. A target already saved on a record keeps its cell and
        that rectangle is TAKEN before first-fit runs, so a later, bigger item can never be packed onto it. */
-    var kept = {}, occBy = {};
+    var kept = {}, occBy = {}, _hkMemo = {};
     var saved = (bag && bag.map) ? bag.map : {};
     Object.keys(saved).forEach(function(k){
       var mv = saved[k], to = mv && mv.to;
-      var _warH = (home.id === 'shared' || home.location === 'shared') && to && /^war\s*\d*$/i.test(String(to.holder || '').trim()); /* L1 war kept */
-      if (!to || to.cell == null || (String(to.holder || '') !== String(home.holder || '') && !_warH)) return;
+      var _toM = to && to.id != null && typeof muleById === 'function' ? muleById(to.id) : null;
+      var _warH = (home.id === 'shared' || home.location === 'shared') && to && (_toM ? !!_vaultWarRole(_toM) : /^war\s*\d*$/i.test(String(to.holder || '').trim())); /* L1 war kept, by id */
+      var _same = to && (to.id != null ? String(to.id) === String(home.id) : String(to.holder || '') === String(home.holder || ''));
+      if (!to || to.cell == null || (!_same && !_warH)) return;
       var m = String(to.cell).match(/^(\w+):c(\d+)r(\d+)$/);
       if (!m) return;
       var nm = k.split('\u0000')[0];
+      var _hk = _hkMemo[nm] || (_hkMemo[nm] = _vaultMoveHome(nm));
+      if (_hk && _hk.id === 'shared' && !_vaultWarSmall(nm)) _hk = _vaultMoveHome(nm, +(k.split('\u0000')[1] || 0));
+      if (!_hk || _hk.id !== home.id) return; /* L1 a stale target of a copy that now lives elsewhere */
       var s0 = (typeof vaultSize === 'function') ? vaultSize(nm) : [1, 1];
-      kept[k] = { holder: home.holder, location: m[1], cell: String(to.cell) };
+      kept[k] = _warH ? { holder: (_toM && _toM.name) || to.holder, id: _toM ? _toM.id : to.id, location: m[1], cell: String(to.cell) }
+                      : { holder: home.holder, id: home.id, location: m[1], cell: String(to.cell) };
       if (!_warH) (occBy[m[1]] || (occBy[m[1]] = [])).push({ x: +m[2], y: +m[3], w: s0[0] || 1, h: s0[1] || 1 });
     }); /* L1 append-only occ */
     var names = [];
     var pool = [];
     try { pool = (typeof ownedPool === 'function') ? ownedPool() : []; } catch (e) { pool = []; }
     try { if (typeof window._vaultHandBasePool === 'function') pool = pool.concat(window._vaultHandBasePool()); } catch (eHb) {} /* L1 hand bases pack */
+    var mine = {};
     pool.forEach(function(n){
-      var h = _vaultMoveHome(n);
-      if (h && h.id != null && h.id === home.id) names.push(n);
+      if (mine[n]) return;
+      var cc0 = _vaultMoveCopies(n), ix = [], h0 = _vaultMoveHome(n);
+      var per = h0 && h0.id === 'shared' && !_vaultWarSmall(n); /* L1 only a big war item splits per copy */
+      for (var c0 = 0; c0 < cc0; c0++) { var h = per ? _vaultMoveHome(n, c0) : h0; if (h && h.id != null && h.id === home.id) ix.push(c0); }
+      if (ix.length) { mine[n] = ix; names.push(n); } /* L1 per-copy home */
     });
     var items = [];
     names.forEach(function(n){
@@ -49010,6 +49078,7 @@ window.vaultAutoAssign = function(){
       var sib = null;
       for (var j = 0; j < cc && !sib; j++) { var kj = kept[n + '\u0000' + j]; var mj = kj && String(kj.cell).match(/^(\w+):c(\d+)r(\d+)$/); if (mj) sib = { loc: mj[1], x: +mj[2], y: +mj[3] }; }
       for (var i = 0; i < cc; i++) {
+        if (mine[n].indexOf(i) < 0) continue; /* L1 this copy lives elsewhere */
         if (kept[n + '\u0000' + i]) continue; /* L1 saved cell stays */
         var it0 = { n: n, copyIx: i, key: n + '\u0000' + i, w: s[0] || 1, h: s[1] || 1, area: area, cluster: true };
         if (sib) it0.near = sib; /* L1 a copy lands beside its sibling */
@@ -49054,13 +49123,13 @@ window.vaultAutoAssign = function(){
         if (!left.length) return;
         var occW = [];
         Object.keys(saved).forEach(function(k){
-          var mv = saved[k], to = mv && mv.to, m = to && to.cell != null && String(to.holder || '') === String(wm.name) && String(to.cell).match(/^stash:c(\d+)r(\d+)$/);
+          var mv = saved[k], to = mv && mv.to, m = to && to.cell != null && (to.id != null ? String(to.id) === String(wm.id) : String(to.holder || '') === String(wm.name)) && String(to.cell).match(/^stash:c(\d+)r(\d+)$/);
           if (!m) return;
           var sz = (typeof vaultSize === 'function') ? vaultSize(k.split('\u0000')[0]) : [1, 1];
           occW.push({ x: +m[1], y: +m[2], w: sz[0] || 1, h: sz[1] || 1 });
         });
         var pw = packGrid(left, 10, 10, occW);
-        (pw.placed || []).forEach(function(q){ if (q.key != null) out[q.key] = { holder: wm.name, location: 'stash', cell: 'stash:c' + q.x + 'r' + q.y }; });
+        (pw.placed || []).forEach(function(q){ if (q.key != null) out[q.key] = { holder: wm.name, id: wm.id, location: 'stash', cell: 'stash:c' + q.x + 'r' + q.y }; });
         left = pw.left;
       }); /* L1 war overflow */
       window._vaultWarFull = left.map(function(it){ return it.n; });
@@ -49074,14 +49143,14 @@ window.vaultAutoAssign = function(){
     return out;
   }
   function _vaultMovePlanCell(name, copyIx, bag){
-    var home = _vaultMoveHome(name);
+    var home = _vaultMoveHome(name, copyIx || 0);
     if (!home || home.holder == null || !home.location) return _vaultMovePlace(home && home.holder, home && home.location, null);
     var cache = window._movePackCache || (window._movePackCache = {});
     var ck = String(home.id);
     if (!cache[ck]) cache[ck] = _vaultMovePackHome(home, bag || _vaultMoveBag()); /* L1 pack reads saved cells */
     var hit = cache[ck][name + '\u0000' + (copyIx || 0)];
     if (!hit) return _vaultMovePlace(home.holder, home.location, null);
-    return _vaultMovePlace(hit.holder, hit.location, hit.cell);
+    return _vaultMovePlace(hit.holder, hit.location, hit.cell, hit.id != null ? hit.id : home.id);
   }
   function _vaultMoveFromSight(name, copyIx){
     var groups = null;
@@ -49228,7 +49297,7 @@ window.vaultAutoAssign = function(){
         window._ownedAdd(nm, { source: 'hand', by: '+ Add an item', where: 'the Vault (+ Add an item)' });
     } catch (eO) {}
     try { if (typeof persistOwned === 'function') persistOwned(); } catch (eOw) {} /* v3773 owned persist */
-    window._movePackCache = null;
+    window._movePackCache = null; window._warKeepBag = null;
     var ens = _vaultMoveEnsure(nm, copyIx, _vaultMoveBag());
     var _noRoom = !_vaultMoveWorn(ens.task.from) && ens.task.to && ens.task.to.holder != null && ens.task.to.cell == null; /* L1 hand add, no room */
     if (!_vaultMoveShown(ens.task) && !_noRoom) {
@@ -49263,9 +49332,13 @@ window.vaultAutoAssign = function(){
     if (_vaultMoveWorn(t.from)) return false; /* L1 equipped is locked, no move row */
     if (t.manual && t.status === 'to-move' && t.to && t.to.holder != null && t.to.cell == null) return true; /* L1 a hand add always has its row, even with no room */
     if (!t.to || t.to.holder == null || t.to.location == null || t.to.cell == null) return false; /* v3769 known target */
-    var home = (t.name && typeof _vaultMoveHome === 'function') ? _vaultMoveHome(t.name) : null;
+    var home = (t.name && typeof _vaultMoveHome === 'function') ? _vaultMoveHome(t.name, t.copyIx || 0) : null;
     if (_vaultMoveOnKeep(t.from) && home && home.id === 'main') return false; /* v3769 already home */
     if (t.status === 'verified' || t.status === 'moved-manual' || t.status === 'moved-elsewhere') return true; /* v3769 shown */
+    if (t.from && t.from.cell == null && t.from.holder != null && !t.manual) { /* L1 filed on its home mule already (an extra war copy on its normal mule): no row */
+      var _hn = function(p){ var mm = (p.id != null && typeof muleById === 'function') ? muleById(p.id) : null; return String((mm && mm.name) || p.holder || ''); };
+      if (_hn(t.from) === _hn(t.to) && String(t.from.location || '') === String(t.to.location || '')) return false;
+    }
     if (!t.from || t.from.cell == null) return true;
     if (!_vaultMoveSamePlace(t.from, t.to)) return true;
     return false;
@@ -49442,10 +49515,12 @@ window.vaultAutoAssign = function(){
       place = place || {};
       if (manual) return 'MANUAL';
       if (_vaultMoveUnseen(place.holder, place.location)) return 'not seen yet';
-      var h = (place.holder == null || place.holder === '') ? 'not seen yet' : String(place.holder);
+      var _pm = (place.id != null && typeof muleById === 'function') ? muleById(place.id) : null;
+      var h = _pm && _pm.name ? String(_pm.name) : (place.holder == null || place.holder === '') ? 'not seen yet' : String(place.holder); /* L1 the name of the id today */
       var m = place.cell != null && String(place.cell).match(/c(\d+)r(\d+)/);
       if (m && /^shared:/.test(String(place.cell))) /* L1 the war stash page reads as its tab */
         return h + ' tab ' + (Math.floor((+m[2]) / 10) + 1) + ' (' + ((+m[1]) + 1) + ',' + ((+m[2]) % 10 + 1) + ')';
+      if (_pm ? _vaultWarRole(_pm) : /^war\s*\d*$/i.test(h.trim())) h = h + ' (SHARED STASH · overflow)'; /* L1 a WAR mule reads as the war stash */
       return h + (m ? ' (' + ((+m[1]) + 1) + ',' + ((+m[2]) + 1) + ')' : '');
     }
     function _vtkDone(t){ return t && (t.status === 'moved-manual' || t.status === 'verified' || t.status === 'closed'); }
@@ -49565,7 +49640,7 @@ window.vaultAutoAssign = function(){
     var t0 = _vaultMoveTask(cur || { name: name });
     var kept = _vaultMoveTask({ name: name, from: t0.from, to: {}, status: 'to-move', kept: true, evidence: t0.evidence });
     _vaultMoveCommit([{ name: name, copyIx: copyIx, task: kept }]);
-    window._movePackCache = null;
+    window._movePackCache = null; window._warKeepBag = null;
     var b2 = _vaultMoveBag(); delete b2.map[String(name) + '\u0000' + copyIx];
     var to = _vaultMovePlanCell(name, copyIx, b2); /* the same packer every move uses */
     var mv = _vaultMoveTask({ name: name, from: t0.from, to: to, status: 'to-move', kept: true, evidence: t0.evidence });
@@ -49643,7 +49718,7 @@ window.vaultAutoAssign = function(){
     window._vaultGoneObserve = _vaultGoneObserve; window._vaultThrowRoute = _vaultThrowRoute; window._vaultThrowReason = _vaultThrowReason; window.VAULT_GONE_SESSIONS = VAULT_GONE_SESSIONS;
   } catch (eTw) {}
   function _vaultMoveCollect(){
-    window._movePackCache = {};
+    window._movePackCache = {}; window._warKeepBag = null;
     var bag = _vaultMoveBag();
     var rec = (typeof _vaultRecords === 'function') ? _vaultRecords() : { records: [] };
     var pending = [], shown = [], done = [];

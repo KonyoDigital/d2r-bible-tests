@@ -59,11 +59,13 @@ class RulesDriveEveryMove(unittest.TestCase):
         self.assertEqual(o["a"]["mode"], "copy", o["a"])
         self.assertNotEqual(o["a"]["why"], "in place", "the new copy was 'in place' with no row: %r" % o["a"])
         self.assertTrue(o["a"]["shown"], o["a"])
-        self.assertEqual((o["a"]["to"] or {}).get("holder"), "SHARED STASH", "the copy followed the stale filing: %r" % o["a"])
+        # Elad 2026-10-20: the war stash keeps ONE copy of a big item (the owned, first-witnessed one); this
+        # extra copy goes to its normal mule - by the rules, with its own row, never 'in place'
+        self.assertEqual((o["a"]["to"] or {}).get("holder"), "UNI-WEAPONS", "the extra big copy did not go to its normal mule: %r" % o["a"])
         self.assertTrue((o["a"]["to"] or {}).get("cell"), "the copy got no cell: %r" % o["a"])
         manual = [r for r in o["rows"] if "MANUAL" in r["t"]]
         self.assertEqual(len(manual), 1, "the hand copy has no MANUAL row of its own: %r" % o["rows"])
-        self.assertRegex(manual[0]["t"], r"MANUAL → SHARED STASH tab \d \(\d+,\d+\)")
+        self.assertRegex(manual[0]["t"], r"MANUAL → UNI-WEAPONS \(\d+,\d+\)")
 
     def test_a_misfiled_item_gets_a_move_row_from_its_mule_with_no_press(self):
         seed_misfiled()

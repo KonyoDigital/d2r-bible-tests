@@ -7,6 +7,19 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2307 - THE WAR STASH HELD EVERY COPY OF BIG WAR GEAR, SO HIS REAL DATA OVERFLOWED BY 85 COPIES; WAR MULES WERE BOUND BY NAME (Vault L1, v3776)
+His real vault (2026-10-20): 170 copies routed to the 5-page war stash needed ~717 cells of ~500, leaving 85 copies with no cell
+(Shako x7, SoJ x5, Raven Frost x5, Mara's x6...). His rulings: keep ONE copy of a big war item there, extras to the normal mule;
+small gear (rings, amulets, belts, charms) keeps every copy grouped; WAR1/WAR2 are part of the Shared Stash, coloured and placed
+with it; mule names will be renamed, so routing/tasks/colour bind to the id. Fix: _vaultMoveHome is per copy (_vaultWarExtra,
+_vaultWarKeeper: a copy seen in / planned for the shared stash wins, else copy 0, never swapped); size by footprint
+(_vaultWarSmall: <=2 cells, or ring/amulet/belt/charm type); an extra already filed on its home mule gets no row; WAR mules carry
+role 'war' + warN on the id (stamped from the WAR name, kept through vaultRenameMule), move targets carry the mule id and
+same-place compares by id; vm-war class shares the shared-stash colour, order -1 behind SHARED (-2), badge 'SHARED STASH · overflow'
+on card and rows. Also: an unknown unique 'Harlequin Crest (Shako)' extra reads its slot off its base (helm -> UNI-ARMOR, not
+UNI-WEAPONS), and bible.html no longer tells him to press Auto-assign. After: 87 copies kept, 258 / 500 cells, 0 overflow.
+Guard: test_vault_l1_war_stash_overflow (22 RED_PROOF attacks, wilson 0.851 >= 0.722). [[regression-guard]]
+
 ### REG-2306 - ON HIS REAL DATA A HAND COPY OF OWNED WAR GEAR WAS 'IN PLACE' WITH NO ROW, AND MISFILED ITEMS WAITED FOR A FIX PRESS (Vault L1, v3776)
 Live v3776 click-through on his real vault (2026-10-20): a 2nd Demon Limb / Andariel's / Guillaume's Face followed the
 stale UNI-* / SETS-REST filing and answered 'in place' with no row; war gear filed on UNI-* only moved through VAULT

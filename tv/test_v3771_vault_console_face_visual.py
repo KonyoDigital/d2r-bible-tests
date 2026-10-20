@@ -226,7 +226,7 @@ class TestV3771VaultConsoleFaceVisual(unittest.TestCase):
         names = self._js(cdp, _NAMES)
         g, hq = names["griffon"], names["harlequin"]
         beside = self._js(cdp, _BESIDE % json.dumps(g))
-        tiles = [t for t in beside["tiles"] if "Griffon" in (t.get("n") or "")]
+        tiles = [t for t in beside["tiles"] if "Kira" in (t.get("n") or "")]
         tiles.sort(key=lambda t: (t["x"], t["y"]))
         self.assertGreaterEqual(len(tiles), 2, beside)
         self.assertTrue(all(t.get("src") for t in tiles[:2]), beside)
@@ -334,7 +334,7 @@ _NAMES = _wrap(r"""
     } catch (e) {}
     return hit || part;
   }
-  return { griffon: canon("Griffon's Eye"), harlequin: canon("Harlequin Crest") };
+  return { griffon: canon("Kira's Guardian"), harlequin: canon("Harlequin Crest") };
 """)
 
 def _png_beside(cdp, path):
@@ -368,7 +368,7 @@ def _png_beside(cdp, path):
 _STAMP_AND_CLIP = r"""(function(){
   try {
     var host = document.getElementById('vault-move-list');
-    if (window._vaultMoveCompareOpen) window._vaultMoveCompareOpen("Griffon's Eye", 0); /* L1: the target grid lives in BEFORE | AFTER */
+    if (window._vaultMoveCompareOpen) window._vaultMoveCompareOpen("Kira's Guardian", 0); /* L1: the target grid lives in BEFORE | AFTER */
   [].forEach.call(document.querySelectorAll('#vault-move-compare .vmc-after .vmc-wrap'), function(grid){
       var n = grid.querySelectorAll('.vd-item').length;
       if (n >= 2 && !document.getElementById('v3771-beside')) grid.id = 'v3771-beside';
@@ -406,7 +406,7 @@ _BESIDE = _wrap(r"""
   look(g, 'Mule', 'stash', 'stash:c1r1', 's1', 'f-a');
   look(g, 'Mule', 'stash', 'stash:c8r2', 's2', 'f-b');
   window.renderVault();
-  if (window._vaultMoveCompareOpen) window._vaultMoveCompareOpen("Griffon's Eye", 0); /* L1: the target grid lives in BEFORE | AFTER */
+  if (window._vaultMoveCompareOpen) window._vaultMoveCompareOpen("Kira's Guardian", 0); /* L1: the target grid lives in BEFORE | AFTER */
   [].forEach.call(document.querySelectorAll('#vault-move-compare .vmc-after .vmc-wrap'), function(grid){
     var n = grid.querySelectorAll('.vd-item').length;
     if (n >= 2 && !document.getElementById('v3771-beside')) grid.id = 'v3771-beside';
@@ -504,9 +504,9 @@ _REOPEN = _wrap(r"""
   var name = %s;
   var g = document.querySelector('#vault-move-list .vmv-unseen');
   var tab = document.getElementById('tab-vault');
-  var griffon = [].map.call((window._vaultMoveCompareOpen && window._vaultMoveCompareOpen("Griffon's Eye", 0), document.querySelectorAll('#vault-move-compare .vmc-after .vd-item')), function(el){
+  var griffon = [].map.call((window._vaultMoveCompareOpen && window._vaultMoveCompareOpen("Kira's Guardian", 0), document.querySelectorAll('#vault-move-compare .vmc-after .vd-item')), function(el){
     return (el.getAttribute('title') || '').split(' (')[0];
-  }).filter(function(n){ return n.indexOf('Griffon') >= 0; });
+  }).filter(function(n){ return n.indexOf('Kira') >= 0; });
   return { tab: !!(tab && tab.classList.contains('active')),
            group: !!(g && g.getAttribute('data-unseen') === '1' && g.textContent.indexOf(name) >= 0),
            text: g ? g.textContent : '',

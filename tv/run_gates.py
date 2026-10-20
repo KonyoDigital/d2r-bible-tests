@@ -9839,7 +9839,11 @@ GATES = [
          needs_app=False,
          why=("Vault L1 (Elad, live v3774: a 2nd hand-added Aldur's Deception vanished) - every hand copy is its own "
              "item, cell and MANUAL row; the war stash packs all 5 pages, then WAR1, WAR2 (case-insensitive); none "
-             "or all full is said plainly and no mule is created. No browser is a declared skip."),
+             "or all full is said plainly and no mule is created. Elad 2026-10-20: the war stash keeps ONE copy of a "
+             "big item (a seen/planned war-stash copy, else the first-witnessed; never swapped) and every extra goes "
+             "to its normal mule with its own row; small gear (<=2 cells, by footprint) keeps every copy, grouped; "
+             "WAR mules bind by role on the id, wear the Shared Stash colour and badge, sit right after it, and a "
+             "rename keeps their tasks. No browser is a declared skip."),
          skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_vault_l1_every_hand_add_is_a_move_task", [sys.executable,
          os.path.join(HERE, "test_vault_l1_every_hand_add_is_a_move_task.py")], 240,
