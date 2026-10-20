@@ -7,6 +7,20 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2296 - A BUMP-ONLY RUN STILL TOOK 4750 s: REDS RERAN IN FULL, THE PROOF QUEUE DIRTIED 147 PROOFS, LISTINGS WERE NEVER STORED (v3775)
+
+Measured on v3774 (7793ac8a): `--full` 4924 s, then a bump-only `--changed` (v3775 stamp, local commit f49305f2) 4750 s against a ~600 s target. 1014 gates carried, 497 ran (4606 s summed). The stamp lines were exactly the expected ones; the time went elsewhere:
+
+1. 50 gates that failed in the `--full` baseline had no stored row (a FAIL was dropped), so all ran again: 2647 s, five of them to 120-300 s timeouts. The same 51 failed in both runs. FIX: a FAIL from a traced run is kept in the ledger's `reds` map, never in the PASS entries. On `--changed` a red gate whose inputs did not move prints `still red, carried, unchanged`, goes to the back of the queue and runs once under `RED_CAP` (45 s, `TV_RED_CAP`). A cap hit or a failure is a FAIL with that reason. A pass inside the cap is a real pass and is recorded; a red row is never carried green.
+2. 147 passes (599 s) were refused as "proved on uncommitted tv/.self_arming.jsonl": the Wilson gates bank into that tracked file mid-run. FIX: while run_gates records proofs, `self_arming._bank_path` sends a default-queue row to a `TV_SELF_ARMING_DEFER` scratch file outside the checkout; run_gates folds the rows in after the last gate (`fold_deferred`) and removes the scratch file. A fixture that redirected the queue still writes where it pointed.
+3. 80 gates (404 s) were refused because the gate file itself lists a directory, and 40 (229 s) because the run listed `tv/frames/hist`. FIX: every PASS is stored from a traced run, and the trace records each listing, so the static walk no longer refuses a listing law. A listed folder with no tracked file is keyed by a name/size/mtime snapshot of everything under it (`listing_snap`, at most 2000 entries); any difference or an unsnapshottable folder runs the gate.
+4. 107 passing gates reran on the stamp. 22 of them only because their NAME held build|title|status|fresh. FIX: the name rule keeps version|stamp|bump|ship|resume. The script-word and reader-module rules are unchanged.
+5. `sleep`, `ps` and `pgrep` children made a gate's reads UNKNOWN (pgrep 39 s, sleep 12 s). FIX: they read no file here (a pgrep pattern is matched, never opened). lsof on a path here, bash, sh, git history reads, chrome and the rest still untrace a gate.
+
+GUARDS (each registered in tv/run_gates.py, heart2 --prove): tv/test_a_red_gate_is_never_carried_as_a_pass.py (13 RED proofs), tv/test_a_gate_run_does_not_dirty_the_proof_queue.py (11), tv/test_a_build_word_in_a_gate_name_is_not_a_version_read.py (11), tv/test_a_listing_is_keyed_by_what_the_trace_listed.py (10), tv/test_an_inert_child_does_not_untrace_a_gate.py (10). tv/test_a_gate_proven_on_these_bytes_is_carried.py follows the new listing and red rules (3 tests, 4 RED proofs retargeted, one footage proof moved to the listing guard).
+
+LEFT: git children (26 gates, 182 s) still untrace a gate. A gate that reads the version through `VERSION`, `"ver"` or a reader module still reruns on a bump (by design). The folded proof-queue rows still dirty tv/.self_arming.jsonl after the run, as before; they no longer do so while proofs are taken. CI never consults the ledger.
+
 ### REG-2295 - A VERSION BUMP RERAN NEARLY EVERY GATE (v3774)
 
 Elad: release wall-clock is top priority. Under gate memory (REG-2293) a bump-only change was measured at 2172.2s with 154 carried, against 574.9s for no change. `bump_version.py` rewrites stamp lines in `bible.html` (D2R_BUILD, `<title>`, three d2r-build metas), `tv/control_app.py` (`"ver"`), `tv/tv_diablo.py` (`VERSION`) and `tv/WINDOWS_SHIP.json` (`ver`, `note`); `_regen_blueprint` and `_record_ship_in_tasks` then touch `BLUEPRINT.md` (generated time), `RESUME_HERE.md` (fp, version stamp, derived time) and the `TASKS.md` ship table. Those paths sit in most gates' closures, so `Ledger.lookup` saw every one as an input change.
