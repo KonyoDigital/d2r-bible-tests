@@ -12,6 +12,7 @@ The law drives the REAL _shellVeil / _shellOpeningEnd / _shellRoute / shellOpen 
   * the veil is REMOVED from the DOM when the route ends, not only hidden;
   * a board that never gets a switchTab is reloaded once (cache-busted), then the give-up is honest and the veil is gone;
   * a switchTab that throws after the board moved is a landed route.
+bible.html switchTab wraps each room's setup in its own try/catch that console.warns (#252 review), so one room cannot stall the switch silently.
 """
 import io
 import json
