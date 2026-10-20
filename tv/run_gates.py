@@ -9585,6 +9585,13 @@ GATES = [
          why=("REG-1946 - shellOpen retried the board route for 4 s and stopped without a word, so on a busy machine the "
               "first Vault click lit the tab and opened nothing; it marks the tab opening, retries 20 s, and says so if it gives up.")
          ),
+    Gate("test_a_locked_tab_never_strands_the_veil", [sys.executable,
+         os.path.join(HERE, "test_a_locked_tab_never_strands_the_veil.py")], 60,
+         needs_app=False,
+         why=("REG-2321 - on his occluded Mac console every board tab sat on 'opening VaultLOCKED - the board is busy': "
+              "the label reads .ht-lbl, a hidden window shows no veil, the veil is removed (not hidden) when the route "
+              "ends, a board with no switchTab is reloaded once then told honestly, a switchTab throw after the move lands.")
+         ),
     Gate("test_the_registered_total_names_its_parts", [sys.executable,
          os.path.join(HERE, "test_the_registered_total_names_its_parts.py")], 60,
          needs_app=False,

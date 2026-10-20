@@ -22720,7 +22720,8 @@ window._lockMark = function(isOpen, px, label){
       var w = f.contentWindow;
       if (!w || !w.document) return false;
       if (typeof w.switchTab === 'function'){
-        w.switchTab(tab);
+        /* REG-2321 - a room render that throws AFTER switchTab moved the board is still a landed route */
+        try { w.switchTab(tab); } catch (_sw) {}
         /* v2120 (#110) — SUCCESS IS THE BOARD MOVING, NOT THE FUNCTION EXISTING. switchTab
            no-ops SILENTLY when its button or pane is missing (`if (!_tabBtn || !_tabEl) return;`),
            so "it is defined" and "it routed" are different facts and this returned the first for
@@ -22747,7 +22748,9 @@ window._lockMark = function(isOpen, px, label){
       var v = document.getElementById('shell-opening');
       if (!v){ v = document.createElement('div'); v.id = 'shell-opening'; v.setAttribute('role', 'status'); document.body.appendChild(v); }
       var b = document.querySelector('#head-tabs .ht[data-tab="' + tab + '"]');
-      var label = ((b && b.textContent) || '').replace(/\s+/g, ' ').trim() || tab;
+      /* REG-2321 - the label is the tab's NAME (.ht-lbl), not the whole button: the lock chip's text glued on as "VaultLOCKED" */
+      var _lb = null; try { _lb = b && b.querySelector ? b.querySelector('.ht-lbl') : null; } catch (_q) {}
+      var label = (((_lb || b) && (_lb || b).textContent) || '').replace(/\s+/g, ' ').trim() || tab;
       v.textContent = 'opening ' + label + ' - the board is busy; it lands by itself';
       v.style.cssText = 'position:fixed;left:0;right:0;bottom:0;top:' + _shellHeadH() + 'px;z-index:941;display:flex;'
         + 'align-items:center;justify-content:center;background:rgba(7,6,5,.94);color:#f0c060;font-size:var(--fs-xs);'
@@ -22755,7 +22758,10 @@ window._lockMark = function(isOpen, px, label){
     } catch (e) {}
   }
   function _shellOpeningEnd(){
-    try { var v = document.getElementById('shell-opening'); if (v) v.style.display = 'none'; } catch (e) {}
+    /* REG-2321 - an OCCLUDED window (2026-09-07: visibilityState hidden while he is looking) composites nothing new, so a
+       veil only set to display:none can stay on his pixels. Take it out of the DOM and run the paint pass that survives a dead rAF. */
+    try { var v = document.getElementById('shell-opening'); if (v) { v.style.display = 'none'; if (v.remove) v.remove(); } } catch (e) {}
+    try { if (typeof _shellPaintAgain === 'function') _shellPaintAgain(function(){}); } catch (e) {}
     try { document.querySelectorAll('#head-tabs .ht.ht-opening').forEach(function(b){ b.classList.remove('ht-opening'); }); } catch (e) {}
   }
   function shellOpen(tab){
@@ -22780,16 +22786,24 @@ window._lockMark = function(isOpen, px, label){
     var _btn = null;
     try { _btn = document.querySelector('#head-tabs .ht[data-tab="' + tab + '"]'); if (_btn) _btn.classList.add('ht-opening'); } catch (_b) {}
     var _done = function(){ try { if (_btn) _btn.classList.remove('ht-opening'); } catch (_d) {} _shellOpeningEnd(); };
-    _shellVeil(tab);   /* REG-2110 - the pane says what it is waiting for */
+    var _hiddenDoc = false; try { _hiddenDoc = (document.visibilityState === 'hidden'); } catch (_h) {}
+    if (!_hiddenDoc) _shellVeil(tab);   /* REG-2110 - the pane says what it is waiting for; REG-2321 - never on a hidden (occluded) window, whose pixels freeze it */
     if (_shellRouteTimer) clearInterval(_shellRouteTimer);
-    var n = 0;
+    var n = 0, _reloaded = false;
     _shellRouteTimer = setInterval(function(){
       n++;
       if (_shellTab !== tab) { clearInterval(_shellRouteTimer); _shellRouteTimer = null; _done(); return; }   // he went elsewhere
       if (_shellRoute(tab)) { clearInterval(_shellRouteTimer); _shellRouteTimer = null; _done(); return; }
+      if (n > 250 && !_reloaded) {
+        /* REG-2321 - a board that never routes is reloaded ONCE (cache-busted) before anyone is told anything */
+        _reloaded = true; n = 0;
+        try { var _fr = document.getElementById('tvd-eng'); if (_fr) _fr.src = '/board?app=1&engine=1&v=' + Date.now() + '#' + encodeURIComponent(tab); } catch (_r) {}
+        try { var _vv = document.getElementById('shell-opening'); if (_vv) _vv.textContent = 'reloading the board to open ' + tab + '...'; } catch (_r2) {}
+        return;
+      }
       if (n > 250) {
         clearInterval(_shellRouteTimer); _shellRouteTimer = null; _done();
-        try { toast('The board did not open ' + tab + ' in 20 s - it may still be loading. Click the tab again.'); } catch (_t) {}
+        try { toast('The board did not open ' + tab + ' even after a reload - it failed to load. Reload the console window (Cmd+R).'); } catch (_t) {}
         try {
           fetch('/api/ui_fault', {method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({kind: 'shell-route-gave-up', why: 'switchTab(' + tab + ') never moved the board in 20 s',

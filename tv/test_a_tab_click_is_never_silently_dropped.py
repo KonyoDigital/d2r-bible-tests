@@ -106,7 +106,7 @@ class ATabClickIsNeverSilentlyDropped(unittest.TestCase):
 
     def test_a_board_that_never_moves_says_so_at_twenty_seconds(self):
         out = self.drive(ok_at=0)
-        self.assertEqual(out["ticks"], 251, "the give-up is not at 20 s: %s" % out["ticks"])
+        self.assertEqual(out["ticks"], 502, "the give-up is not at 20 s + one reload + 20 s (REG-2321): %s" % out["ticks"])
         self.assertEqual(len(out["toasts"]), 1, "a route that gave up said nothing on screen")
         self.assertIn("did not open vault", out["toasts"][0])
         self.assertEqual(out["faults"], ["shell-route-gave-up"], "the give-up was not recorded")
@@ -138,7 +138,7 @@ RED_PROOF = [
     {
         "why": "REG-1946 - a route that gave up says nothing again",
         "file": "tv/control_ui.html",
-        "find": "        try { toast('The board did not open ' + tab + ' in 20 s - it may still be loading. Click the tab again.'); } catch (_t) {}\n",
+        "find": "        try { toast('The board did not open ' + tab + ' even after a reload - it failed to load. Reload the console window (Cmd+R).'); } catch (_t) {}\n",
         "replace": "",
         "matches": 1,
     },
@@ -152,8 +152,8 @@ RED_PROOF = [
     {
         "why": "REG-2110 - the pane says nothing while the board is slow again (only the tab pulses)",
         "file": "tv/control_ui.html",
-        "find": "    _shellVeil(tab);   /* REG-2110 - the pane says what it is waiting for */\n",
-        "replace": "",
+        "find": "    if (!_hiddenDoc) _shellVeil(tab);",
+        "replace": "    if (false) _shellVeil(tab);",
         "matches": 1,
     },
     {
