@@ -269,6 +269,58 @@ class TestVaultGroupingDeadline(unittest.TestCase):
                          "still_runs (is ReelDeadline still a BaseException?)")
         self.assertEqual(timeouts[0][0], "reel_s_1500000000000_1FRAME")
 
+    def test_a_two_reel_sweep_drops_only_the_frozen_reel_from_sessionsexamined(self):
+        # GrokBot #250 BLOCKING #1+#2, PINNED. ONE vault sweep over TWO reels: reel A's grouping is
+        # FROZEN (its first tooltip tile never completes, stalling past the budget) while reel B
+        # completes normally/empty. control_app's seal loop stamps EVERY reel left in sessionsExamined
+        # examinedEmpty once ANOTHER reel is examined-empty — which RELEASES its owed footage and clears
+        # its banked resume record. A reel is appended to sessions_examined at the loop TOP, before
+        # grouping; so a deadline-skipped reel MUST be taken BACK OUT (a frozen reel is HELD / UNKNOWN,
+        # never "looked, nothing here" — it stays OWED). reel B, examined to completion, MUST remain.
+        # [[unknown-stays-unknown]] [[the-unjoined-end]] [[regression-guard]]
+        reel_a = _build_reel(os.path.join(self.tmp, "reel_s_1500000000000_FROZENA"))
+        reel_b = _build_reel(os.path.join(self.tmp, "reel_s_1600000000000_LIVEB"))
+
+        class _ReelFrozenOCR(object):
+            # The freeze is tied to reel A's IDENTITY, not call order: sweep() runs order_reels() over
+            # its inputs, so a first_jump keyed on call-order could freeze the WRONG reel. density reads
+            # <reel_dir>/.tooltip_tile.jpg, so keying on the frame path freezes reel A whichever runs first.
+            def __init__(self, clock):
+                self.clock = clock
+
+            def read(self, p, timeout=None):
+                if "FROZENA" in str(p):
+                    self.clock.advance(15.0)   # reel A: this tile stalls past the 10s budget -> never completes
+                return {"lines": ["Crescent Moon", "One-Handed Sword",
+                                  "+180% Enhanced Damage", "Required Level 47"]}
+
+        timeouts = []
+        with mock.patch.object(cr.time, "monotonic", self.clk), \
+                mock.patch.object(tf, "_ocr", lambda: _ReelFrozenOCR(self.clk)):
+            prop = vr.sweep([reel_a, reel_b], sig=_sig_grouped,
+                            reader=lambda p, s: {"items": [], "conf": 0.0, "note": None},
+                            classify=lambda p: None, reel_deadline_s=10,
+                            on_tile=lambda: None,
+                            on_reel_timeout=lambda rid, why: timeouts.append((rid, why)))
+        self.assertTrue(prop.get("ok"), "the sweep must RETURN a proposal, not hang")
+        self.assertLess(self.clk.t - 1000, 240,
+                        "the frozen reel must be caught FAST, well under the 240s river watchdog")
+        examined = prop.get("sessionsExamined") or []
+        # reel A took the DEADLINE path — handed to on_reel_timeout exactly once AND held with a
+        # REG-2271 reason. (Asserted FIRST: a vacuous pass where reel A never reached grouping would
+        # fail HERE, not slip silently through the sessionsExamined claim below — regression-guard §5.)
+        self.assertEqual([t[0] for t in timeouts], ["reel_s_1500000000000_FROZENA"],
+                         "the FROZEN reel A was not handed to on_reel_timeout exactly once")
+        self.assertTrue(any("REG-2271" in (h.get("why") or "") for h in (prop.get("held") or [])),
+                        "the frozen reel A was not HELD with a REG-2271 reason")
+        # #1+#2 THE FIX — reel A is NOT in sessionsExamined (so the seal loop can never stamp it
+        # examinedEmpty and release its footage); reel B, examined to completion, IS.
+        self.assertNotIn("s_1500000000000_FROZENA", examined,
+                         "FOOTAGE RELEASED: a deadline-skipped reel was left in sessionsExamined — the "
+                         "seal loop would stamp it examinedEmpty and release its owed footage")
+        self.assertIn("s_1600000000000_LIVEB", examined,
+                      "reel B completed its grouping and MUST remain in sessionsExamined")
+
     def test_the_quarantine_join_reaches_control_apps_real_store_and_door(self):
         # The on_reel_timeout control_app wires writes _VAULT_SWEEP_QUARANTINE, which the start DOOR
         # refuses on. Prove the JOIN end-to-end against the real store + door (the-unjoined-end).
@@ -781,6 +833,56 @@ RED_PROOF = [
         "replace": "        if not self.lock.acquire():",
         "matches": 1,
         "test": "TestOcrWorkerLockIsBounded.test_a_wedged_lock_holder_does_not_block_a_second_read_forever",
+    },
+    {
+        "why": "REG-2271 CORE - ReelDeadline must be a BaseException so the per-tile raise ESCAPES "
+               "still_runs' `except Exception`; as a plain Exception it is swallowed into a run-break and "
+               "a FROZEN vault reel is never caught/held/quarantined (it stalls to the 240s watchdog)",
+        "file": "chronicle_retro.py",
+        "find": "class ReelDeadline(BaseException):",
+        "replace": "class ReelDeadline(Exception):",
+        "matches": 1,
+        "test": "TestReelDeadlineGuardNoProgress.test_the_deadline_is_a_baseexception_not_an_exception",
+    },
+    {
+        "why": "REG-2271 (GrokBot #250) - the chronicle seal loop must SKIP a note='deadline' row just "
+               "like 'already-swept' so a frozen reel stays OWED; dropping \"deadline\" seals the reel "
+               "examinedEmpty and HIDES footage that may read fine once the wedge clears",
+        "file": "control_app.py",
+        "find": '            if st.get("note") in ("already-swept", "deadline") or not st.get("reel"):',
+        "replace": '            if st.get("note") in ("already-swept",) or not st.get("reel"):',
+        "matches": 1,
+        "test": "TestChronicleDeadlineStaysOwed.test_the_seal_loop_skips_a_deadline_row",
+    },
+    {
+        "why": "REG-2271 QUARANTINE JOIN - _vault_quarantine_reel must write the frozen reel into "
+               "control_app's REAL _VAULT_SWEEP_QUARANTINE store (the same store the start door + the "
+               "autoreel picker both skip); writing nowhere lets every caller re-own and re-hang the reel",
+        "file": "control_app.py",
+        "find": "        _VAULT_SWEEP_QUARANTINE[rid] = {",
+        "replace": "        _discarded_quarantine = {",
+        "matches": 1,
+        "test": "TestVaultGroupingDeadline.test_the_quarantine_join_reaches_control_apps_real_store_and_door",
+    },
+    {
+        "why": "REG-2271 #1+#2 FIX - a deadline-skipped reel must be taken BACK OUT of sessions_examined "
+               "(it was appended before grouping), or control_app's seal loop stamps it examinedEmpty once "
+               "another reel is examined-empty, RELEASING its owed footage and clearing its resume record",
+        "file": "vault_retro.py",
+        "find": '                sessions_examined.remove(\n                    os.path.basename(os.path.normpath(str(reel_dir))).replace("reel_", "", 1))',
+        "replace": '                _reg2271_no_removal = (\n                    os.path.basename(os.path.normpath(str(reel_dir))).replace("reel_", "", 1))',
+        "matches": 1,
+        "test": "TestVaultGroupingDeadline.test_a_two_reel_sweep_drops_only_the_frozen_reel_from_sessionsexamined",
+    },
+    {
+        "why": "REG-2271 CHRONICLE POLL - the per-frame no-progress poll must fire inside sig_of, or a "
+               "wedged jpeg_sig decode is never caught and the frozen chronicle reel returns a normal stat "
+               "instead of note='deadline' - it is then SEALED, hiding footage",
+        "file": "chronicle_retro.py",
+        "find": "        _dl.check()      # REG-2271 chronicle per-frame no-progress poll (did this frame stall past budget?)",
+        "replace": "        pass  # REG-2271 per-frame poll disabled (red-proof sabotage)",
+        "matches": 1,
+        "test": "TestChronicleGroupingDeadline.test_a_frozen_frame_returns_note_deadline",
     },
 ]
 

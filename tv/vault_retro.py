@@ -1881,6 +1881,18 @@ def sweep(hist_dirs, sig=None, reader=None, classify=None, limit=None, resolve=N
             # pass and the sweep RETURNS (running clears without the 240s watchdog). No read was paid
             # here (classified=0/pages=0), so nothing partial is banked. [[the-unjoined-end]] [[heart-first]]
             held.append({"name": None, "why": "REG-2271: %s" % _rd})
+            # REG-2271 (GrokBot #250 review, BLOCKING #1+#2) — this reel was appended to
+            # sessions_examined at the top of the loop BEFORE grouping, but blowing the deadline means
+            # it was NOT examined to completion. Left in sessionsExamined, a multi-reel pass would seal
+            # it examinedEmpty (control_app seals EVERY sessionsExamined reel once another reel is
+            # examined-empty) and RELEASE its footage, and would clear its banked resume record. A
+            # frozen reel is HELD / UNKNOWN, never "looked, nothing here" — so take it back out.
+            # [[unknown-stays-unknown]] [[the-unjoined-end]]
+            try:
+                sessions_examined.remove(
+                    os.path.basename(os.path.normpath(str(reel_dir))).replace("reel_", "", 1))
+            except ValueError:
+                pass
             if on_reel_timeout is not None:
                 try:
                     on_reel_timeout(_reel_rid, str(_rd))

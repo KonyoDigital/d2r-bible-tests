@@ -117,13 +117,13 @@ geometry, not preference.
 ## LEDGERS — the durable memory
 
 <!-- LIVE:BEGIN — a snapshot of his data, NOT part of the staleness check -->
-    capture_doors.json       empty         -  per-door Wilson: reels opened vs reels that held film
-    retro_gate.json          empty         -  every retro read graded on what / where / how
-    main_character.json      empty         -  what he wears, learned from repeated sightings
-    shadow_watch.json        empty         -  when the shadow watcher last looked, and what it saw
-    shadow_seals.jsonl       empty         -  every shadow reel opened and closed, with the rule that did it (REG-1675)
-    vault_seen.json          empty         -  vault sightings
-    chronicle_swept.json     empty         -  which reels the chronicle lane has read
+    capture_doors.json       live     1122 B  per-door Wilson: reels opened vs reels that held film
+    retro_gate.json          live      108 B  every retro read graded on what / where / how
+    main_character.json      live    31023 B  what he wears, learned from repeated sightings
+    shadow_watch.json        live      846 B  when the shadow watcher last looked, and what it saw
+    shadow_seals.jsonl       live    83183 B  every shadow reel opened and closed, with the rule that did it (REG-1675)
+    vault_seen.json          live   1245438 B  vault sightings
+    chronicle_swept.json     live    87416 B  which reels the chronicle lane has read
 <!-- LIVE:END -->
 
 ## WILSON — one statistic, every lane that scores itself
@@ -310,18 +310,48 @@ his words on a subject. The code stays the source.
 <!-- LIVE:BEGIN — a snapshot of his data, NOT part of the staleness check -->
 ## THE RIVER — every reel from the door to the far end
 
-⚠ UNKNOWN — printer.stream() could not answer: UNKNOWN, not an empty shelf — no reel reached this probe and nothing said why; there is no tombstone ledger at reel_tombstones.json — this console has no record
+Stations, in `reel_router.STATIONS` order (the router owns them; this quotes it):
+
+    INTAKE → TRIAGE → EMPTY → STATION → PRINTER → JOIN → CAPTURE → ROUTED → TOMBSTONE
+
+Where his 86 reel(s) sit right now:
+
+| station | reels | of those, owing work |
+|---|---|---|
+| STATION | 10 | 10 |
+| PRINTER | 4 | 4 |
+| CAPTURE | 16 | 16 |
+| ROUTED | 56 | 56 |
+
+Grouped into the four lanes `river_lanes` publishes: INTAKE 10 · PRINTER 4 · CAPTURE 16 · TOMBSTONE 56
 
 ## THE PRINTER — one door, one stream, out the other end
 
 `tv/printer.py` follows every reel through the stations and QUOTES each owner; it
 re-derives nothing, and it **prints nothing and deletes nothing** — it is a report.
 
-    walked 0 reel(s) · state UNKNOWN
+    walked 86 reel(s) · state PARTIAL
+
+    extract                {'NO_NAMES': 23, 'UNSEALED': 41, 'NOT_A_HOLDING': 7, 'RECOVERABLE': 5, 'JOINED': 10}
+    funnel                 {'releasable': 51, 'banked': 9, 'vault-done': 4, 'swept': 22}
+    in                     {'recorder': 75, 'repair': 11}
+    out                    {'UNDECIDED': 86}
+    route                  {'policy': 22, 'content': 64}
+    template               {'UNKNOWN': 33, 'CHRONICLE': 2, 'RUN': 26, 'STASH': 24, 'INVENTORY': 1}
+    tombstone              {'ON DISK': 76, 'CONTRADICTION': 10}
 
 ## GROSS vs STRIPPED — how much of the footage actually carries a panel
 
-⚠ UNKNOWN — retro_triage.json is absent, so nothing is known about panel frames
+`retro_triage` records, per reel, which frames CARRY a panel (`panelFrames`). That is the
+stripped set; the reel folder is the gross one.
+
+    reels surveyed          591
+    with a stripped set     64
+    frames in those sets    8160
+    gross frames surveyed   200614
+
+⚠ Measured 2026-09-08: the ONLY readers of `panelFrames` were `river.py` counting how
+many reels have one, and a census writer. The stripped sets are recorded and unread.
 
 <!-- LIVE:END -->
 
@@ -458,6 +488,7 @@ re-derives nothing, and it **prints nothing and deletes nothing** — it is a re
 - **test_a_hidden_element_is_actually_hidden** — v3397 (#142) - `hidden` MUST ACTUALLY HIDE, AND THIS HAS COST HIM TWICE.
 - **test_a_hop_shadows_the_window** — v3209 joined the write door to the board with `window = _cw`, and window is not an assignable binding - in sloppy mode that write is DISCARDED with no…
 - **test_a_host_dependency_is_not_always_an_attribute** — #123/#185 - ci_sim answers 'would this pass on a runner?' and its HOST_STUBS held exactly THREE entries, all the SAME KIND: patch a module attribute.
+- **test_a_hung_reel_fails_before_the_watchdog** — REG-2271 - a sweep's FRAME-GROUPING (measure) phase can sit classified=0/pages=0 for a very long time (vault: a 36-tile tooltip-OCR locate per frame
 - **test_a_join_that_is_done_or_spent_moves_on** — REG-2004 (#168) - his Mac's drain sat behind JOIN 9 for 8 days: 6 certified seals read RECOVERABLE and 7 spent re-reads had nowhere to go
 - **test_a_join_that_owes_nothing_is_routed** — REG-1782 (#152 slice 1) - a JOIN reel whose engine ruled NOT_A_HOLDING owes nothing, and the route lane only moved EMPTY, so that reel never reached R…
 - **test_a_journal_row_leaves_only_on_proof** — A JOURNAL ROW MAY LEAVE ONLY ON A PROOF OF EXTRACTION, AND THE PLANNER MAY NEVER WRITE.
