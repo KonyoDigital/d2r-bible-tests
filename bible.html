@@ -10474,6 +10474,9 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .vmv-hint{font-family:var(--serif-text,Georgia,serif);font-style:italic;font-weight:var(--fw-regular);letter-spacing:var(--ls-snug);text-transform:none;color:var(--text-dim);font-size:var(--fs-meta)}
 .vmv-unseen{border-style:dashed;border-color:rgba(240,192,96,.5);background:linear-gradient(180deg,rgba(212,168,71,.08),rgba(10,8,5,.35))}
 .vmv-grid{margin:0 0 8px}
+.vault-tasks-panel li.vtk-expand-li{list-style:none;margin:2px 0 8px 24px;padding:6px;border-radius:8px;background:rgba(10,8,5,.45);border:1px solid rgba(240,192,96,.22)}
+.vtk-expand{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-start}.vtk-expand .vtx-h{font-size:var(--fs-micro);color:var(--text-dim);margin:0 0 3px}
+.vtk-expand .vtx-arrow{align-self:center;color:var(--text-dim)}.vtk-expand .vtx-from[data-from=demo] .vd-grid{opacity:.55}
 /* L1 (Elad 2026-10-20) — right-side task panel */
 #mule-vault-card .boss-body.vault-body{display:flex;align-items:flex-start;gap:14px}
 .vault-main{flex:1 1 auto;min-width:0}
@@ -42676,6 +42679,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { c = (typeof copyCount === 'function' ? (copyCount(n) || 1) : 1) | 0; } catch (e) { c = 1; }
     if (!(c > 0)) c = 1;
     if (typeof _vaultPresenceSpan === 'function') { var _psShelf = _vaultPresenceSpan(n, c); if (_psShelf != null) c = _psShelf; }
+    try { /* L1 (Elad 2026-10-20) the war stash card draws only what its cap keeps; a WAR mule draws the over-cap copies planned on it */
+      if (muleId === 'shared' && typeof window._vaultWarCap === 'function') { var _cap = window._vaultWarCap(n); if (c > _cap) c = _cap; }
+      var _wo = (typeof window._vaultWarOverOn === 'function') ? window._vaultWarOverOn(muleId) : null;
+      if (_wo && _wo[n]) c = (window._vaultFiledOn && window._vaultFiledOn(n) === muleId ? c : 0) + _wo[n];
+    } catch (eWc) {}
     return c;
   }
   function _shelfDrawNames(names, muleId){
@@ -43037,9 +43045,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         +(typeof window._vaultEvidenceChip==='function'?window._vaultEvidenceChip(n,'vc-ev'):'')
         +'<button class="vc-unown" onclick="event.stopPropagation();window.vaultUnown(\''+jsArg(n)+'\')" title="not mine — remove from ✓ owned (AI misread? this erases it)">✕</button></span>';
     }).join('');
+    try { window._warOverCache = null; window._warCapCache = null; } catch (eWcc) {} /* L1 fresh war plan per paint */
     var byMule = _vaultByMule();
     shelf.innerHTML = roster.map(function(m){
-      var items=(byMule[m.id]||[]).sort();
+      var items=(byMule[m.id]||[]).slice();
+      try { var _wOn = (window._vaultWarRole && window._vaultWarRole(m) && window._vaultWarOverOn) ? window._vaultWarOverOn(m.id) : null;
+            if (_wOn) Object.keys(_wOn).forEach(function(n){ if (items.indexOf(n) < 0) items.push(n); }); } catch (eWo) {} /* L1 over-cap war copies show on their WAR mule */
+      items.sort();
       // v364 — SHARED STASH = general cross-account storage (5 in-game shared tabs) you fill MANUALLY by
       // assigning items here; it's a normal assignable locker (runes/gems/materials are NOT synced here —
       // they have their own planners). Items come from byMule['shared'] like any other locker.
@@ -48982,6 +48994,66 @@ window.vaultAutoAssign = function(){
     try { it = (typeof d2rItemLookup === 'function') ? d2rItemLookup(name) : null; } catch (e) { it = null; }
     return !!(it && /\b(ring|amulet|belt|sash|charm)\b/i.test(String(it.type || it.slot || it.base || '')));
   }
+  /* L1 (Elad 2026-10-20 22:05, live v3776 shot: 9 Arachnid Mesh in the war stash) — THE WAR STASH CAP, by footprint and
+     the router's base, never a name list: a 1x1 ring / amulet keeps every copy; other small gear (<=2 cells, or a belt /
+     sash / charm base) keeps at most 4; a bigger item keeps 1. Copies over the cap go to the WAR mules (WAR1, WAR2 ... in
+     order) with their own rows; with no WAR mule they keep no cell and the 'make a mule named WAR1' line says so. */
+  var _WAR_SMALL_CAP = 4;
+  function _vaultWarCap(name){
+    var CC = window._warCapCache || (window._warCapCache = {});
+    if (Object.prototype.hasOwnProperty.call(CC, name)) return CC[name];
+    return (CC[name] = _vaultWarCap0(name));
+  }
+  function _vaultWarCap0(name){
+    var s = (typeof vaultSize === 'function') ? vaultSize(name) : [1, 2];
+    var area = (s[0] || 1) * (s[1] || 1), why = '';
+    try { var sg = suggestMule(name, { _shareForceOut: true }); why = String((sg && sg.why) || ''); } catch (e) { why = ''; }
+    var bm = /base:\s*([^\u2014(]+)/i.exec(why), base = bm ? bm[1] : '';
+    if (area === 1 && /\b(ring|amulet)\b/i.test(base)) return Infinity;
+    return _vaultWarSmall(name) || /\b(belt|sash|charm)\b/i.test(base) ? _WAR_SMALL_CAP : 1;
+  }
+  function _vaultWarKept(name, cap){
+    var cc = (typeof _vaultMoveCopies === 'function') ? _vaultMoveCopies(name) : 1, out = [];
+    if (!(cap < Infinity)) { for (var a = 0; a < cc; a++) out.push(a); return out; }
+    var g = null;
+    try { g = (typeof _vaultSightGroups === 'function') ? _vaultSightGroups(name) : null; } catch (e) { g = null; }
+    for (var i = 0; g && i < g.length && out.length < cap; i++) if (g[i] && g[i].location === 'shared') out.push(i); /* L1 war-stash copies first */
+    var k0 = _vaultWarKeeper(name);
+    if (out.length < cap && out.indexOf(k0) < 0) out.push(k0); /* L1 then the planned keeper */
+    for (var j = 0; j < cc && out.length < cap; j++) if (out.indexOf(j) < 0) out.push(j); /* L1 then first-witnessed order */
+    return out;
+  }
+  function _vaultWarOver(name, copyIx){
+    if (copyIx == null || copyIx < 0) return false;
+    var cap = _vaultWarCap(name);
+    return cap < Infinity && _vaultWarKept(name, cap).indexOf(copyIx) < 0;
+  }
+  /* L1 {name: over-cap copies planned on this WAR mule} — read off the same plan the task rows use */
+  function _vaultWarOverOn(muleId){
+    if (muleId == null || muleId === 'shared') return null;
+    var C = window._warOverCache || (window._warOverCache = {});
+    if (Object.prototype.hasOwnProperty.call(C, muleId)) return C[muleId];
+    var mm = (typeof muleById === 'function') ? muleById(muleId) : null;
+    if (!mm || !_vaultWarRole(mm)) return (C[muleId] = null);
+    var out = {}, any = false;
+    var pool = [];
+    try { pool = (typeof ownedPool === 'function') ? ownedPool() : []; } catch (eP) { pool = []; }
+    try { if (typeof window._vaultHandBasePool === 'function') pool = pool.concat(window._vaultHandBasePool()); } catch (eHb) {}
+    pool.filter(function(n, i, a){ return a.indexOf(n) === i; }).forEach(function(n){
+      var h0 = _vaultMoveHome(n);
+      if (!h0 || h0.id !== 'shared') return;
+      var cap = _vaultWarCap(n), cc = (typeof _vaultMoveCopies === 'function') ? _vaultMoveCopies(n) : 1;
+      if (!(cap < Infinity) || cc <= cap) return;
+      for (var i = 0; i < cc; i++) {
+        if (!_vaultWarOver(n, i)) continue;
+        var pl = _vaultMovePlanCell(n, i);
+        if (pl && pl.cell != null && (pl.id != null ? String(pl.id) === String(muleId) : pl.holder === mm.name)) { out[n] = (out[n] || 0) + 1; any = true; }
+      }
+    });
+    return (C[muleId] = any ? out : null);
+  }
+  try { window._vaultWarCap = _vaultWarCap; window._vaultWarOver = _vaultWarOver; window._vaultWarOverOn = _vaultWarOverOn;
+        window._vaultFiledOn = function(n){ try { return assign[n] || null; } catch (e) { return null; } }; } catch (eWc) {}
   function _vaultWarKeeper(name){
     var g = null;
     try { g = (typeof _vaultSightGroups === 'function') ? _vaultSightGroups(name) : null; } catch (e) { g = null; }
@@ -49013,9 +49085,10 @@ window.vaultAutoAssign = function(){
     try { seam = (typeof _vaultSeamHome === 'function') ? _vaultSeamHome(name) : null; } catch (e) { seam = null; }
     var _mis = _vaultMisfiled(name);
     if (_mis) seam = _mis.seam; /* L1 the rules' home, not a stale filing */
-    if (seam && seam.loc === 'shared') { var _xw = _vaultWarExtra(name, copyIx); if (_xw) seam = _xw; } /* L1 one big copy per war item */
+    var _xw = null; /* L1 over-cap copies stay war-stash homed */
     if (!seam) return { id: null, holder: null, location: null };
-    if (seam.loc === 'shared') return { id: 'shared', holder: 'SHARED STASH', location: 'shared' }; /* v3769 home shared */
+    if (seam.loc === 'shared') return _vaultWarOver(name, copyIx) ? { id: 'shared', holder: 'SHARED STASH', location: 'shared', over: true }
+                                                               : { id: 'shared', holder: 'SHARED STASH', location: 'shared' }; /* L1 over the cap -> WAR mules */
     if (seam.loc === 'filed' && seam.mule) { /* v3769 home filed */
       var mule = (typeof muleById === 'function') ? muleById(seam.mule) : null;
       return { id: seam.mule, holder: (mule && mule.name) || null, location: 'stash' };
@@ -49051,7 +49124,7 @@ window.vaultAutoAssign = function(){
       if (!m) return;
       var nm = k.split('\u0000')[0];
       var _hk = _hkMemo[nm] || (_hkMemo[nm] = _vaultMoveHome(nm));
-      if (_hk && _hk.id === 'shared' && !_vaultWarSmall(nm)) _hk = _vaultMoveHome(nm, +(k.split('\u0000')[1] || 0));
+      if (_hk && _hk.id === 'shared' && _vaultWarCap(nm) < Infinity) _hk = _vaultMoveHome(nm, +(k.split('\u0000')[1] || 0));
       if (!_hk || _hk.id !== home.id) return; /* L1 a stale target of a copy that now lives elsewhere */
       var s0 = (typeof vaultSize === 'function') ? vaultSize(nm) : [1, 1];
       kept[k] = _warH ? { holder: (_toM && _toM.name) || to.holder, id: _toM ? _toM.id : to.id, location: m[1], cell: String(to.cell) }
@@ -49062,12 +49135,12 @@ window.vaultAutoAssign = function(){
     var pool = [];
     try { pool = (typeof ownedPool === 'function') ? ownedPool() : []; } catch (e) { pool = []; }
     try { if (typeof window._vaultHandBasePool === 'function') pool = pool.concat(window._vaultHandBasePool()); } catch (eHb) {} /* L1 hand bases pack */
-    var mine = {};
+    var mine = {}, overK = {};
     pool.forEach(function(n){
       if (mine[n]) return;
       var cc0 = _vaultMoveCopies(n), ix = [], h0 = _vaultMoveHome(n);
-      var per = h0 && h0.id === 'shared' && !_vaultWarSmall(n); /* L1 only a big war item splits per copy */
-      for (var c0 = 0; c0 < cc0; c0++) { var h = per ? _vaultMoveHome(n, c0) : h0; if (h && h.id != null && h.id === home.id) ix.push(c0); }
+      var per = h0 && h0.id === 'shared' && _vaultWarCap(n) < Infinity; /* L1 a capped war item splits per copy */
+      for (var c0 = 0; c0 < cc0; c0++) { var h = per ? _vaultMoveHome(n, c0) : h0; if (h && h.id != null && h.id === home.id) { ix.push(c0); if (h.over) overK[n + '\u0000' + c0] = 1; } }
       if (ix.length) { mine[n] = ix; names.push(n); } /* L1 per-copy home */
     });
     var items = [];
@@ -49080,7 +49153,7 @@ window.vaultAutoAssign = function(){
       for (var i = 0; i < cc; i++) {
         if (mine[n].indexOf(i) < 0) continue; /* L1 this copy lives elsewhere */
         if (kept[n + '\u0000' + i]) continue; /* L1 saved cell stays */
-        var it0 = { n: n, copyIx: i, key: n + '\u0000' + i, w: s[0] || 1, h: s[1] || 1, area: area, cluster: true };
+        var it0 = { n: n, copyIx: i, key: n + '\u0000' + i, w: s[0] || 1, h: s[1] || 1, area: area, cluster: true, over: !!overK[n + '\u0000' + i] };
         if (sib) it0.near = sib; /* L1 a copy lands beside its sibling */
         items.push(it0);
       }
@@ -49107,7 +49180,8 @@ window.vaultAutoAssign = function(){
          (shared:c3r12 = page 2, row 3), each page packed on its own 10x10 so nothing straddles a page. What does
          not fit on any of the 5 spills to the mules named WAR1, WAR2, ... in order (case-insensitive). With none,
          or all full, the item keeps NO cell and the move list says so plainly - a mule is never created here. */
-      var left = items, SHARED_TABS = 5; /* L1 the war stash has 5 pages */
+      var overIt = items.filter(function(it){ return it.over; }).map(function(it){ var c = {}; for (var kk in it) c[kk] = it[kk]; delete c.near; return c; });
+      var left = items.filter(function(it){ return !it.over; }), SHARED_TABS = 5; /* L1 the war stash has 5 pages; over-cap copies skip them */
       for (var pg = 0; pg < SHARED_TABS && left.length; pg++) {
         var occP = (occBy.shared || []).filter(function(r){ return r.y >= pg * 10 && r.y < pg * 10 + 10; })
           .map(function(r){ return { x: r.x, y: r.y - pg * 10, w: r.w, h: r.h }; });
@@ -49118,6 +49192,8 @@ window.vaultAutoAssign = function(){
         (pk.placed || []).forEach(function(q){ if (q.key != null) out[q.key] = { holder: home.holder, location: 'shared', cell: 'shared:c' + q.x + 'r' + (q.y + pg * 10) }; });
         left = pk.left;
       } /* L1 shared 5 pages */
+      var pagesFull = left.length > 0;
+      left = overIt.concat(left); /* L1 over-cap copies go to WAR1, WAR2 ... first */
       var wars = (typeof _vaultWarMules === 'function') ? _vaultWarMules() : [];
       wars.forEach(function(wm){
         if (!left.length) return;
@@ -49134,7 +49210,8 @@ window.vaultAutoAssign = function(){
       }); /* L1 war overflow */
       window._vaultWarFull = left.map(function(it){ return it.n; });
       window._vaultWarFullWhy = left.length ? (wars.length ? 'the war stash (5 pages) and ' + wars.map(function(w){ return w.name; }).join(', ') + ' are full'
-                                                            : 'the war stash (5 pages) is full and you have no WAR1 mule') : '';
+                                                            : (pagesFull ? 'the war stash (5 pages) is full and you have no WAR1 mule'
+                                                                         : 'copies over the war stash cap (rings/amulets all, other small gear 4, big gear 1) go to a WAR mule and you have no WAR1 mule')) : '';
       return out;
     }
     var st = packGrid(items.map(function(it){ if (it.near && it.near.loc !== 'stash') { var c = {}; for (var kk in it) c[kk] = it[kk]; delete c.near; return c; } return it; }), 10, 10, occBy.stash);
@@ -49297,7 +49374,7 @@ window.vaultAutoAssign = function(){
         window._ownedAdd(nm, { source: 'hand', by: '+ Add an item', where: 'the Vault (+ Add an item)' });
     } catch (eO) {}
     try { if (typeof persistOwned === 'function') persistOwned(); } catch (eOw) {} /* v3773 owned persist */
-    window._movePackCache = null; window._warKeepBag = null;
+    window._movePackCache = null; window._warKeepBag = null; window._warOverCache = null; window._warCapCache = null;
     var ens = _vaultMoveEnsure(nm, copyIx, _vaultMoveBag());
     var _noRoom = !_vaultMoveWorn(ens.task.from) && ens.task.to && ens.task.to.holder != null && ens.task.to.cell == null; /* L1 hand add, no room */
     var _newCopy = copyIx > 0; /* L1 a new hand copy is never 'in place': its own MANUAL row, routed by the rules */
@@ -49411,7 +49488,7 @@ window.vaultAutoAssign = function(){
     var by = {}, keys = [];
     (rows || []).forEach(function(row){
       var to = (row.task && row.task.to) || {};
-      var k = String(to.holder || '') + '\u0000' + String(to.location || '');
+      var k = String(row.name) + '\u0000' + (row.copyIx || 0); /* L1 one grid per task, never merged */
       if (!by[k]) { by[k] = { holder: to.holder, location: to.location, rows: [] }; keys.push(k); }
       by[k].rows.push(row);
     });
@@ -49492,6 +49569,36 @@ window.vaultAutoAssign = function(){
       + '</div>'
       + '<button type="button" class="vault-btn vmc-close" onclick="window._vaultMoveCompareClose()">close</button></div>';
   }
+  /* L1 (Elad 2026-10-20 22:35) — EVERY MOVE TASK IS ITS OWN COLLAPSED ROW. A click opens that row only, under it:
+     FROM = MANUAL (typed by hand), else the source cell the screenshot saw, else a DEMO grid that says it is simulated;
+     TO = a mini grid of that exact mule with ONLY this item at its exact cell. One grid per task, never merged with
+     another task's ("TO SETS-REST" holding several tasks was wrong). Reads saved state only, writes nothing. */
+  function _vaultTaskExpandHtml(name, copyIx){
+    var m = _vaultMoveCompareModel(name, copyIx || 0), cell = 26, sz = m.size;
+    function one(c, d, label, area){
+      var it = [{ n: m.name, key: m.name + '#' + m.copyIx, x: c.x, y: c.y, w: sz[0], h: sz[1] }];
+      return (typeof gridHtml === 'function') ? gridHtml(it, d[0], d[1], cell, { area: area, page: 0, label: label }) : '';
+    }
+    var thr = m.task && m.task.kind === 'throw';
+    var from;
+    if (m.manual && m.task && m.task.manual) from = '<div class="vtx-from" data-from="manual"><b class="vmv-manual-badge">MANUAL</b><span>added by hand — no cell seen yet</span></div>';
+    else if (m.from) from = '<div class="vtx-from" data-from="seen"><div class="vtx-h">FROM · ' + esc(m.fromSay) + '</div>' + one(m.from, m.dims.from, 'From', 'task-from') + '</div>';
+    else from = '<div class="vtx-from" data-from="demo"><div class="vtx-h">FROM · DEMO (simulated — no screenshot has shown where it sits yet)</div>' + one({ x: 0, y: 0 }, [10, 4], 'Demo', 'task-demo') + '</div>';
+    var to = thr ? '<div class="vtx-to" data-to="nowhere"><b class="vmv-nowhere">NOWHERE</b> throw it out</div>'
+      : m.to ? '<div class="vtx-to" data-to="' + esc(m.task.to.cell) + '"><div class="vtx-h">TO · ' + esc(m.toSay) + '</div>' + one(m.to, m.dims.to, 'To', 'task-to') + '</div>'
+      : '<div class="vtx-to" data-to="none">no target cell yet</div>';
+    return '<div class="vtk-expand" data-name="' + esc(m.name) + '" data-copy="' + m.copyIx + '">' + from + '<span class="vtx-arrow" aria-hidden="true">→</span>' + to + '</div>';
+  }
+  function _vaultTaskExpand(name, copyIx, li){
+    li = li || document.querySelector('#vault-move-list .vtk-line[data-name="' + String(name).replace(/"/g, '\\"') + '"][data-copy="' + (copyIx || 0) + '"]');
+    if (!li) return null;
+    var open = li.nextElementSibling && li.nextElementSibling.classList.contains('vtk-expand-li') ? li.nextElementSibling : null;
+    if (open) { open.remove(); li.classList.remove('vtk-open'); return false; } /* L1 a second click collapses it */
+    var x = document.createElement('li'); x.className = 'vtk-expand-li'; x.innerHTML = _vaultTaskExpandHtml(name, copyIx || 0);
+    li.parentNode.insertBefore(x, li.nextSibling); li.classList.add('vtk-open');
+    return x;
+  }
+  try { window._vaultTaskExpand = _vaultTaskExpand; window._vaultTaskExpandHtml = _vaultTaskExpandHtml; } catch (eTx) {}
   function _vaultMoveCompareOpen(name, copyIx){
     var host = document.getElementById('vault-move-compare');
     if (!host){
@@ -49546,7 +49653,7 @@ window.vaultAutoAssign = function(){
       return '<li class="vmv-row vtk-line' + (fin ? ' vtk-done' : '') + (thr ? ' vmv-throw-row' : '') + (uns ? ' vmv-unseen' : '') + '"' + (uns ? ' data-unseen="1"' : '') + ' data-name="' + esc(row.name) + '" data-copy="' + ci + '"'
         + ' data-status="' + esc(t.status) + '"' + (thr ? ' data-kind="throw"' : '') + (t.junk ? ' data-junk="1"' : '')
         + ' data-from="' + esc((t.from && t.from.cell) || '') + '" data-to="' + esc((t.to && t.to.cell) || '') + '"'
-        + ' onclick="window._vaultMoveCompareOpen(\'' + nm + '\',' + ci + ')">'
+        + ' onclick="window._vaultTaskExpand(\'' + nm + '\',' + ci + ',this)">'
         + '<input type="checkbox" class="vtk-tick vmv-mark" aria-label="mark moved"' + (fin ? ' checked disabled' : '')
         + ' onclick="event.stopPropagation();window._vaultTaskTick(\'' + nm + '\',' + ci + ')">'
         + '<span class="vmv-art vtk-art">' + (typeof art === 'function' ? art(row.name) : '') + '</span>'
@@ -49641,7 +49748,7 @@ window.vaultAutoAssign = function(){
     var t0 = _vaultMoveTask(cur || { name: name });
     var kept = _vaultMoveTask({ name: name, from: t0.from, to: {}, status: 'to-move', kept: true, evidence: t0.evidence });
     _vaultMoveCommit([{ name: name, copyIx: copyIx, task: kept }]);
-    window._movePackCache = null; window._warKeepBag = null;
+    window._movePackCache = null; window._warKeepBag = null; window._warOverCache = null; window._warCapCache = null;
     var b2 = _vaultMoveBag(); delete b2.map[String(name) + '\u0000' + copyIx];
     var to = _vaultMovePlanCell(name, copyIx, b2); /* the same packer every move uses */
     var mv = _vaultMoveTask({ name: name, from: t0.from, to: to, status: 'to-move', kept: true, evidence: t0.evidence });
@@ -49719,7 +49826,7 @@ window.vaultAutoAssign = function(){
     window._vaultGoneObserve = _vaultGoneObserve; window._vaultThrowRoute = _vaultThrowRoute; window._vaultThrowReason = _vaultThrowReason; window.VAULT_GONE_SESSIONS = VAULT_GONE_SESSIONS;
   } catch (eTw) {}
   function _vaultMoveCollect(){
-    window._movePackCache = {}; window._warKeepBag = null;
+    window._movePackCache = {}; window._warKeepBag = null; window._warOverCache = null; window._warCapCache = null;
     var bag = _vaultMoveBag();
     var rec = (typeof _vaultRecords === 'function') ? _vaultRecords() : { records: [] };
     var pending = [], shown = [], done = [];

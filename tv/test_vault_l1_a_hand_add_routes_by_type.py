@@ -17,6 +17,7 @@ Driven on the SHIPPED page through the real door (window.vaultHandAdd) with AUTO
 NO CHROME AT ALL = a declared skip, never a pass. RED_PROOF below. [[regression-guard]] [[heart-first]]
 """
 import json
+import re
 import os
 import sys
 import unittest
@@ -168,41 +169,48 @@ class AHandAddRoutesByType(unittest.TestCase):
         self.assertEqual(o["offMv"]["from"]["cell"], "stash:c1r1", o["offMv"])
         self.assertEqual(o["offMv"]["status"], "to-move", o["offMv"])
 
-    def test_clicking_a_row_opens_before_and_after_with_real_art_and_closes(self):
+    def test_each_move_task_is_its_own_collapsed_row_that_expands_its_own_from_and_to(self):
+        """Elad 2026-10-20 22:35: every MOVE TASK is its own collapsed row; a click expands THAT row: FROM = MANUAL (by
+        hand) / the screenshot's source cell / a DEMO grid that says it is simulated; TO = a mini grid of that exact mule
+        with ONLY this item at its exact cell. One grid per task - never a shared 'TO SETS-REST' grid of several tasks."""
         fresh()
         add_all(["Gheed's Fortune", "Nokozan Relic"])
-        o = board().run(READ + "var row = document.querySelector('#vault-move-list .vmv-row[data-name=\"Nokozan Relic\"]'); row.click();"
-                        "var h = document.getElementById('vault-move-compare'); OUT.open = !!(h && !h.hidden);"
-                        "OUT.say = (h.querySelector('.vmc-say') || {}).textContent;"
-                        "OUT.manualLeft = !!h.querySelector('.vmc-before .vmv-manual-badge');"
-                        "OUT.leftGrid = !!h.querySelector('.vmc-before .vd-grid');"
-                        "OUT.afterItems = Array.prototype.map.call(h.querySelectorAll('.vmc-after .vd-item'), function(e){ return e.getAttribute('title') || e.textContent; });"
-                        "OUT.afterArt = h.querySelectorAll('.vmc-after .vd-item img, .vmc-after .vd-item .d2art, .vmc-after .vd-item [class*=art]').length;"
-                        "OUT.ring = (h.querySelector('.vmc-after .vmc-ring') || {getAttribute:function(){return null;}}).getAttribute('data-ring');"
-                        "OUT.to = moveOf('Nokozan Relic')[0].to.cell;"
-                        "h.querySelector('.vmc-close').click(); OUT.closed = h.hidden === true && h.innerHTML === '';"
+        q = ("function px(e){ return [parseInt(e.style.left, 10), parseInt(e.style.top, 10)]; }"
+             "function ex(n){ var r = document.querySelector('#vault-move-list .vmv-row[data-name=\\\"' + n + '\\\"]'); var x = r && r.nextElementSibling;"
+             " if (!x || !x.classList.contains('vtk-expand-li')) return null; var t = x.querySelector('.vtx-to');"
+             " return { from: x.querySelector('.vtx-from').getAttribute('data-from'), manual: !!x.querySelector('.vtx-from .vmv-manual-badge'),"
+             "  fromItems: x.querySelectorAll('.vtx-from .vd-item').length, fromPx: x.querySelector('.vtx-from .vd-item') ? px(x.querySelector('.vtx-from .vd-item')) : null,"
+             "  to: t.getAttribute('data-to'), items: Array.prototype.map.call(t.querySelectorAll('.vd-item'), function(e){ return e.getAttribute('title') || ''; }),"
+             "  px: t.querySelector('.vd-item') ? px(t.querySelector('.vd-item')) : null, grids: x.querySelectorAll('.vd-grid').length, art: t.querySelectorAll('.vd-item img, .vd-item [class*=art]').length }; }")
+        o = board().run(READ + q + "OUT.collapsed = document.querySelectorAll('#vault-move-list .vtk-expand-li').length;"
+                        "var a = document.querySelector('#vault-move-list .vmv-row[data-name=\\\"Nokozan Relic\\\"]'); a.click();"
+                        "document.querySelector('#vault-move-list .vmv-row[data-name=\\\"Gheed\\'s Fortune\\\"]').click();"
+                        "OUT.n = ex('Nokozan Relic'); OUT.g = ex(\"Gheed's Fortune\"); OUT.open = document.querySelectorAll('#vault-move-list .vtk-expand-li').length;"
+                        "OUT.popup = !!(document.getElementById('vault-move-compare') && !document.getElementById('vault-move-compare').hidden);"
+                        "OUT.toN = moveOf('Nokozan Relic')[0].to.cell; OUT.toG = moveOf(\"Gheed's Fortune\")[0].to.cell;"
+                        "a.click(); OUT.after = ex('Nokozan Relic'); OUT.gStill = !!ex(\"Gheed's Fortune\");"
                         "window._vaultAutoIntakeSet(true);"
                         "window._vaultMoveApplySight('Nokozan Relic', { holder: 'MULE-2', location: 'stash', cell: 'stash:c3r1', frame: 'n_1' });"
-                        "document.querySelector('#vault-move-list .vmv-row[data-name=\"Nokozan Relic\"]').click();"
-                        "OUT.seenLeftGrid = !!h.querySelector('.vmc-before .vd-grid');"
-                        "OUT.seenLeftRing = (h.querySelector('.vmc-before .vmc-ring') || {getAttribute:function(){return null;}}).getAttribute('data-ring');"
-                        "OUT.seenManual = !!h.querySelector('.vmc-before .vmv-manual-badge');"
-                        "OUT.seenSay = (h.querySelector('.vmc-say') || {}).textContent;"
-                        "h.click(); OUT.backdrop = h.hidden === true;")
-        self.assertTrue(o["open"], o)
-        self.assertTrue(o["manualLeft"] and not o["leftGrid"], "BEFORE of a hand-typed row is not the MANUAL badge: %r" % o)
-        self.assertTrue(any("Nokozan Relic" in (x or "") for x in o["afterItems"]), "AFTER does not draw the item: %r" % o)
-        self.assertTrue(any("Gheed" in (x or "") for x in o["afterItems"]), "AFTER is not the organized container: %r" % o)
-        self.assertGreaterEqual(o["afterArt"], 1, "AFTER tiles carry no item art")
-        import re
-        m = re.match(r"^stash:c(\d+)r(\d+)$", o["to"])
-        self.assertEqual(o["ring"], "%s,%s" % (m.group(1), m.group(2)), "AFTER rings a cell that is not the target")
-        self.assertIn("Move Nokozan Relic from MANUAL to UNI-SMALL", o["say"])
-        self.assertTrue(o["closed"], "close left the view up")
-        self.assertTrue(o["seenLeftGrid"] and not o["seenManual"], "once seen, BEFORE is not the real grid: %r" % o)
-        self.assertEqual(o["seenLeftRing"], "3,1", o)
-        self.assertIn("from MULE-2 private stash (4,2)", o["seenSay"])
-        self.assertTrue(o["backdrop"], "a backdrop click did not close the view")
+                        "document.querySelector('#vault-move-list .vmv-row[data-name=\\\"Nokozan Relic\\\"]').click(); OUT.seen = ex('Nokozan Relic');"
+                        "var d = document.createElement('div'); d.innerHTML = window._vaultTaskExpandHtml('Nokozan Relic', 0); OUT.demoFn = typeof window._vaultTaskExpandHtml;")
+        self.assertEqual(o["collapsed"], 0, "a task row starts expanded")
+        self.assertFalse(o["popup"], "a row click opened the merged BEFORE | AFTER popup")
+        self.assertEqual(o["open"], 2, "two clicked tasks are not two expansions: %r" % o["open"])
+        for k, nm, to in (("n", "Nokozan Relic", o["toN"]), ("g", "Gheed", o["toG"])):
+            e = o[k]
+            self.assertTrue(e, "%s did not expand" % nm)
+            self.assertEqual(e["from"], "manual"); self.assertTrue(e["manual"])
+            self.assertEqual(e["to"], to, "%s TO is not its own target cell" % nm)
+            self.assertEqual(len(e["items"]), 1, "%s TO grid holds other tasks: %r" % (nm, e["items"]))
+            self.assertIn(nm, e["items"][0])
+            self.assertGreaterEqual(e["art"], 1, "TO tile carries no art")
+            m = re.match(r"^\w+:c(\d+)r(\d+)$", to)
+            self.assertEqual(e["px"], [3 + int(m.group(1)) * 28, 3 + int(m.group(2)) * 28], "%s is not drawn at its exact cell" % nm)
+        self.assertIsNone(o["after"], "a second click did not collapse the row")
+        self.assertTrue(o["gStill"], "collapsing one task closed another")
+        s = o["seen"]
+        self.assertEqual(s["from"], "seen", s); self.assertEqual(s["fromItems"], 1, s)
+        self.assertEqual(s["fromPx"], [3 + 3 * 28, 3 + 1 * 28], "FROM is not the screenshot's source cell: %r" % s)
 
     def test_a_hand_typed_base_routes_to_the_bases_mule_at_its_footprint(self):
         fresh()
@@ -334,6 +342,22 @@ class AHandAddRoutesByType(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "The TO mini grid draws every task bound for that mule again (the merged 'TO SETS-REST' grid).",
+     "file": "bible.html", "find": "      var it = [{ n: m.name, key: m.name + '#' + m.copyIx, x: c.x, y: c.y, w: sz[0], h: sz[1] }];",
+     "replace": "      var it = (label === 'To' ? m.after : [{ n: m.name, key: m.name + '#' + m.copyIx, x: c.x, y: c.y, w: sz[0], h: sz[1] }]);", "matches": 1},
+    {"why": "The task is drawn at the mule's first cell, not its exact cell.",
+     "file": "bible.html", "find": "      : m.to ? '<div class=\"vtx-to\" data-to=\"' + esc(m.task.to.cell) + '\"><div class=\"vtx-h\">TO · ' + esc(m.toSay) + '</div>' + one(m.to, m.dims.to, 'To', 'task-to') + '</div>'",
+     "replace": "      : m.to ? '<div class=\"vtx-to\" data-to=\"' + esc(m.task.to.cell) + '\"><div class=\"vtx-h\">TO · ' + esc(m.toSay) + '</div>' + one({ x: 0, y: 0 }, m.dims.to, 'To', 'task-to') + '</div>'", "matches": 1},
+    {"why": "A second click does not collapse the row.",
+     "file": "bible.html", "find": "    if (open) { open.remove(); li.classList.remove('vtk-open'); return false; }",
+     "replace": "    if (false) { open.remove(); }", "matches": 1},
+    {"why": "FROM of a screenshot-seen task falls back to the MANUAL badge.",
+     "file": "bible.html", "find": "    else if (m.from) from = ", "replace": "    else if (false) from = ", "matches": 1},
+    {"why": "A hand-typed task shows a grid instead of MANUAL.",
+     "file": "bible.html", "find": "    if (m.manual && m.task && m.task.manual) from = ", "replace": "    if (false) from = ", "matches": 1},
+    {"why": "Expanding one task collapses every other open task (one shared panel).",
+     "file": "bible.html", "find": "    var x = document.createElement('li'); x.className = 'vtk-expand-li';",
+     "replace": "    [].slice.call(document.querySelectorAll('.vtk-expand-li')).forEach(function(e){ e.remove(); }); var x = document.createElement('li'); x.className = 'vtk-expand-li';", "matches": 1},
     {"why": "The organizer line still advises throw-out for a hand-kept set piece.",
      "file": "bible.html",
      "find": "      if (_hm) return { ok: true, moved: false, kind: 'mule', id: _hs.mule,",
@@ -446,7 +470,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "Clicking a row opens the evidence panel, not BEFORE | AFTER.",
      "file": "bible.html",
-     "find": "        + ' onclick=\"window._vaultMoveCompareOpen(\\'' + nm + '\\',' + ci + ')\">'",
+     "find": "        + ' onclick=\"window._vaultTaskExpand(\\'' + nm + '\\',' + ci + ',this)\">'",
      "replace": "        + ' onclick=\"window._vaultEvidenceOpen(\\'' + nm + '\\')\">'",
      "matches": 1},
     {"why": "BEFORE of a seen row stays the MANUAL badge.",

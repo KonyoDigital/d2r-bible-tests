@@ -33,8 +33,9 @@ READ = T.READ + r"""
 function mv(re){ return recs().filter(function(r){ return re.test(r.name) && r.move; }).map(function(r){ return { n: r.name, c: r.copyIx || 0, to: r.move.to }; }); }
 function rows(re){ var h = document.getElementById('vault-move-list'); return h ? Array.prototype.filter.call(h.querySelectorAll('.vtk-list:not([data-sec="done"]) .vmv-row'), function(r){ return re.test(r.getAttribute('data-name') || ''); }).map(function(r){ return r.textContent.replace(/\s+/g, ' '); }) : null; }
 """
-BELT_PER_GRID = 50     # a 2x1 belt on a 10x10 grid (small gear keeps every copy in the war stash)
-BELT = "Thundergod's Vigor"
+BELT_PER_GRID = 100    # a 1x1 ring on a 10x10 grid (rings / amulets keep every copy in the war stash)
+BELT = "The Stone of Jordan"   # the page-fill filler: the only war gear with no copy cap
+CAP_BELT = "Arachnid Mesh"     # a 2x1 belt: at most 4 copies in the war stash (Elad 2026-10-20 22:05)
 
 
 def tearDownModule():
@@ -46,11 +47,18 @@ def roster_with(names):
     T.fresh()
     r = T.board().run("OUT.r = JSON.parse(window.LSR.getItem('d2r_muleRoster') || 'null') || (window._vaultRosterNow && window._vaultRosterNow());")["r"]
     assert isinstance(r, list) and r, "PREMISE: the page saved no roster to extend: %r" % (r,)
-    r = [m for m in r if not re.match(r"^war\s*\d*$", str(m.get("name", "")), re.I)]
+    r = [m for m in r if not re.match(r"^war\s*\d*$", str(m.get("name", "")), re.I)
+         and not str(m.get("id", "")).startswith("war-law-") and m.get("role") != "war"]  # a renamed WAR box from another test
     for i, n in enumerate(names):
         r.append({"id": "war-law-%d" % i, "name": n})
     T.board().seed({"d2r_muleRoster": r, "d2r_owned": [], "d2r_vaultProv": {}, "d2r_muleAssign": {},
                     "d2r_vaultRecords": None, "d2r_copies": {}, "d2r_multiKeep": {}})
+
+
+def add_many(names, step=20):
+    """hand-add in batches: one page call per batch, so a 500-copy fill never outlives one CDP call"""
+    for i in range(0, len(names), step):
+        T.add_all(names[i:i + step])
 
 
 def cells(moves):
@@ -75,9 +83,9 @@ class WarStashOverflow(unittest.TestCase):
             self.assertRegex(r, r"MANUAL → SETS-[A-Z\-]+ \(\d+,\d+\)")
 
     def test_three_and_four_war_copies_each_get_a_cell_and_a_row(self):
-        """Elad 2026-10-20: a BIG item keeps ONE copy in the war stash; every extra copy goes to its normal mule,
-        each with its own cell and row. Small gear (Arachnid Mesh is a 2x1 belt) keeps every copy there."""
-        T.fresh()
+        """Elad 2026-10-20: a BIG item keeps ONE copy in the war stash; every extra copy goes to the WAR mules (never its
+        normal mule), each with its own cell and row. Small gear (Arachnid Mesh, a 2x1 belt) keeps up to 4 there."""
+        roster_with(["WAR1"])
         T.add_all(["Andariel's Visage"] * 4 + ["Vampire Gaze"] * 3 + ["Arachnid Mesh"] * 3)
         for nm, n in (("Andariel's Visage", 4), ("Vampire Gaze", 3)):
             o = T.board().run(READ + "OUT.m = mv(new RegExp('^' + %s)); OUT.rows = rows(new RegExp('^' + %s));" % (json.dumps(nm), json.dumps(nm)))
@@ -87,7 +95,7 @@ class WarStashOverflow(unittest.TestCase):
             by = {m["c"]: m["to"]["holder"] for m in o["m"]}
             self.assertEqual(by[0], "SHARED STASH", "%s: the first-witnessed copy left the war stash: %r" % (nm, by))
             self.assertEqual([c for c, h in by.items() if h == "SHARED STASH"], [0], "%s: more than one big copy in the war stash: %r" % (nm, by))
-            self.assertTrue(all(re.match(r"^UNI-", h) for c, h in by.items() if c), "%s extras not on the normal UNI-* mule: %r" % (nm, by))
+            self.assertTrue(all(h == "WAR1" for c, h in by.items() if c), "%s extras not on the WAR1 mule: %r" % (nm, by))
             self.assertEqual(len(o["rows"]), n, "%s: not %d rows: %r" % (nm, n, o["rows"]))
         for nm, n in (("Arachnid Mesh", 3),):
             o = T.board().run(READ + "OUT.m = mv(new RegExp('^' + %s)); OUT.rows = rows(new RegExp('^' + %s));" % (json.dumps(nm), json.dumps(nm)))
@@ -102,10 +110,10 @@ class WarStashOverflow(unittest.TestCase):
     def test_all_five_pages_fill_then_war1_then_war2(self):
         roster_with(["war1", "WAR2"])     # case-insensitive names
         n = 5 * BELT_PER_GRID + BELT_PER_GRID + 1
-        T.add_all([BELT] * n)
-        o = T.board().run(READ + "OUT.m = mv(/^Thundergod's Vigor$/); OUT.full = window._vaultWarFull || [];"
+        add_many([BELT] * n)
+        o = T.board().run(READ + "OUT.m = mv(/^The Stone of Jordan$/); OUT.full = window._vaultWarFull || [];"
                           "OUT.badge = Array.prototype.map.call(document.querySelectorAll('.vm-warbadge'), function(e){ return e.textContent; });"
-                          "OUT.rows = rows(/^Thundergod's Vigor$/).filter(function(t){ return /war1|WAR2/.test(t); });")
+                          "OUT.rows = rows(/^The Stone of Jordan$/).filter(function(t){ return /war1|WAR2/.test(t); });")
         cs = cells(o["m"])
         self.assertEqual(len(cs), n, "copies were dropped: %d of %d" % (len(cs), n))
         pages = {}
@@ -124,13 +132,13 @@ class WarStashOverflow(unittest.TestCase):
     def test_no_war_mule_says_so_and_creates_none(self):
         roster_with([])
         n = 5 * BELT_PER_GRID + 1
-        T.add_all([BELT] * n)
-        o = T.board().run(READ + "OUT.m = mv(/^Thundergod's Vigor$/); OUT.line = ((document.querySelector('#vault-move-list .vmv-warfull') || {}).textContent || '');"
+        add_many([BELT] * n)
+        o = T.board().run(READ + "OUT.m = mv(/^The Stone of Jordan$/); OUT.line = ((document.querySelector('#vault-move-list .vmv-warfull') || {}).textContent || '');"
                           "OUT.roster = JSON.parse(window.LSR.getItem('d2r_muleRoster') || '[]').map(function(m){ return m.name; });")
         placed = [m for m in o["m"] if (m["to"] or {}).get("cell")]
         self.assertEqual(len(placed), 5 * BELT_PER_GRID)
         self.assertIn("no WAR1 mule", o["line"], "the overflow is not said plainly: %r" % o["line"])
-        self.assertIn("Thundergod", o["line"])
+        self.assertIn("Stone of Jordan", o["line"])
         self.assertFalse(any(re.match(r"^war", str(x), re.I) for x in o["roster"]), "a WAR mule was created: %r" % o["roster"])
 
     def test_utility_proc_and_charge_gear_routes_to_the_war_stash(self):
@@ -159,7 +167,7 @@ class WarStashOverflow(unittest.TestCase):
             self.assertFalse(o["r"][n]["small"], "%s is big gear: %r" % (n, o["r"][n]))
 
     def test_small_war_gear_keeps_every_copy_grouped_in_the_war_stash(self):
-        T.fresh()
+        roster_with([])
         T.add_all(["The Stone of Jordan"] * 5 + ["Raven Frost"] * 5)
         for nm in ("The Stone of Jordan", "Raven Frost"):
             o = T.board().run(READ + "OUT.m = mv(new RegExp('^' + %s + '$'));" % json.dumps(nm))
@@ -180,16 +188,16 @@ class WarStashOverflow(unittest.TestCase):
         B = {m["c"]: (m["to"]["holder"], m["to"]["cell"]) for m in b}
         self.assertEqual(A[0][0], "SHARED STASH", A)
         self.assertTrue(all(A[c] == B[c] for c in A), "a copy moved or swapped after another add: %r -> %r" % (A, B))
-        self.assertEqual(sum(1 for v in B.values() if v[0] == "SHARED STASH"), 1, B)
+        self.assertEqual(sum(1 for v in B.values() if v[0] == "SHARED STASH" and v[1]), 1, B)
+        self.assertTrue(all(v[1] is None for c, v in B.items() if c != 0), "with no WAR mule an extra copy keeps no cell: %r" % B)
 
     def test_renaming_a_war_mule_keeps_its_tasks_colour_and_place(self):
         """Elad 2026-10-20: mule names get renamed to character names later - routing, tasks, colour and place bind to the id"""
         roster_with(["WAR1"])
-        n = 5 * BELT_PER_GRID + 2
-        T.add_all([BELT] * n)
-        q = (READ + "OUT.m = mv(/^Thundergod's Vigor$/).filter(function(m){ return m.to && m.to.holder !== 'SHARED STASH'; })"
+        T.add_all(["Andariel's Visage"] * 3)   # big war gear: 1 kept, 2 over the cap -> WAR1 (cheap, no page fill)
+        q = (READ + "OUT.m = mv(/^Andariel.s Visage$/).filter(function(m){ return m.to && m.to.holder !== 'SHARED STASH'; })"
              ".map(function(m){ return [m.c, m.to.id, m.to.cell]; });"
-             "OUT.rows = rows(/^Thundergod's Vigor$/).filter(function(t){ return /overflow/.test(t); });"
+             "OUT.rows = rows(/^Andariel.s Visage$/).filter(function(t){ return /overflow/.test(t); });"
              "var c = document.querySelector('.vault-mule[data-vault-mule=\"war-law-0\"]'); OUT.cls = c ? c.className : null;"
              "OUT.badge = c ? !!c.querySelector('.vm-warbadge') : null; OUT.order = c ? getComputedStyle(c).order : null;"
              "var sh = document.querySelector('.vault-mule.vm-shared'); OUT.sorder = sh ? getComputedStyle(sh).order : null;")
@@ -207,6 +215,55 @@ class WarStashOverflow(unittest.TestCase):
             self.assertTrue(o["badge"])
             self.assertLess(int(o["sorder"]), int(o["order"]), "SHARED STASH is not above its WAR box")
             self.assertLess(int(o["order"]), 0, "the WAR box is not ahead of the other mules: %r" % o["order"])
+
+    def _cap_case(self, wars):
+        roster_with(wars)
+        T.add_all([CAP_BELT] * 9 + ["The Stone of Jordan"] * 6)
+        return T.board().run(READ + "OUT.m = mv(/^Arachnid Mesh$/); OUT.rows = rows(/^Arachnid Mesh$/); OUT.soj = mv(/^The Stone of Jordan$/);"
+                             "OUT.line = ((document.querySelector('#vault-move-list .vmv-warfull') || {}).textContent || '');"
+                             "OUT.roster = JSON.parse(window.LSR.getItem('d2r_muleRoster') || '[]').map(function(m){ return m.name; });"
+                             "var ss = document.querySelector('.vault-mule[data-vault-mule=\"shared\"]'), w = document.querySelector('.vault-mule[data-vault-mule=\"war-law-0\"]');"
+                             "function n(c){ return c ? c.querySelectorAll('.vm-cell[data-vault-item=\"Arachnid Mesh\"]').length : null; }"
+                             "OUT.card = n(ss); OUT.wcard = n(w); OUT.sojcard = ss ? ss.querySelectorAll('.vm-cell[data-vault-item=\"The Stone of Jordan\"]').length : null;")
+
+    def test_nine_belts_keep_four_in_the_war_stash_and_five_go_to_war1(self):
+        """Elad 2026-10-20 22:05 (live v3776: 9 Arachnid Mesh in the war stash, 'that cant happen'): rings and amulets
+        keep every copy, any other small item at most 4, big gear 1; the rest go to WAR1, WAR2 ... each with its row."""
+        o = self._cap_case(["WAR1"])
+        by = [(m["c"], (m["to"] or {}).get("holder"), (m["to"] or {}).get("cell")) for m in o["m"]]
+        self.assertEqual(len(by), 9, by)
+        self.assertEqual(sum(1 for _, h, _c in by if h == "SHARED STASH"), 4, "not 4 belts in the war stash: %r" % by)
+        self.assertEqual(sum(1 for _, h, c in by if h == "WAR1" and c), 5, "not 5 belts on WAR1: %r" % by)
+        self.assertEqual(len(set((h, c) for _, h, c in by)), 9, "two belts share a cell: %r" % by)
+        self.assertEqual(sum(1 for r in o["rows"] if "WAR1 (SHARED STASH · overflow)" in r), 5, "not 5 rows to WAR1: %r" % o["rows"])
+        self.assertEqual(len(o["rows"]), 9, o["rows"])
+        self.assertEqual(o["card"], 4, "the SHARED STASH card draws %r belts, not 4" % o["card"])
+        self.assertEqual(o["wcard"], 5, "the WAR1 card draws %r belts, not 5" % o["wcard"])
+        self.assertEqual(sum(1 for m in o["soj"] if (m["to"] or {}).get("holder") == "SHARED STASH"), 6, "6 rings must all stay: %r" % o["soj"])
+        self.assertEqual(o["sojcard"], 6)
+        self.assertEqual(o["line"], "", "no overflow line when WAR1 holds the extras: %r" % o["line"])
+
+    def test_nine_belts_with_no_war_mule_say_make_war1_and_create_none(self):
+        o = self._cap_case([])
+        by = [(m["c"], (m["to"] or {}).get("holder"), (m["to"] or {}).get("cell")) for m in o["m"]]
+        self.assertEqual(sum(1 for _, h, c in by if h == "SHARED STASH" and c), 4, by)
+        self.assertFalse(any(h not in (None, "SHARED STASH") for _, h, _c in by), "an extra went to a normal mule: %r" % by)
+        self.assertEqual(len(o["rows"]), 9, "every copy keeps its own row: %r" % o["rows"])
+        self.assertIn("no WAR1 mule", o["line"])
+        self.assertIn("make a mule named WAR1", o["line"])
+        self.assertIn("Arachnid Mesh", o["line"])
+        self.assertEqual(o["card"], 4)
+        self.assertFalse(any(re.match(r"^war", str(x), re.I) for x in o["roster"]), "a WAR mule was created: %r" % o["roster"])
+
+    def test_the_cap_is_read_off_footprint_and_base_not_a_name_list(self):
+        o = T.board().run("OUT.r = {}; ['The Stone of Jordan', 'Raven Frost', \"Mara's Kaleidoscope\", \"Highlord's Wrath\", 'Arachnid Mesh', \"Thundergod's Vigor\", 'Enigma', \"Andariel's Visage\", 'Demon Limb']"
+                          ".forEach(function(n){ var c = window._vaultWarCap(n); OUT.r[n] = c === Infinity ? 'all' : c; });")
+        for n in ("The Stone of Jordan", "Raven Frost", "Mara's Kaleidoscope", "Highlord's Wrath"):
+            self.assertEqual(o["r"][n], "all", "%s (ring/amulet) must keep every copy: %r" % (n, o["r"]))
+        for n in ("Arachnid Mesh", "Thundergod's Vigor"):
+            self.assertEqual(o["r"][n], 4, "%s (belt) caps at 4: %r" % (n, o["r"]))
+        for n in ("Enigma", "Andariel's Visage", "Demon Limb"):
+            self.assertEqual(o["r"][n], 1, "%s (big) caps at 1: %r" % (n, o["r"]))
 
     def test_distinct_attacks_clear_the_vault_apply_wilson_bar(self):
         from confidence import wilson_lower
@@ -231,8 +288,8 @@ RED_PROOF = [
      "file": "bible.html", "find": "                  && !(multiKeep[pre.name] >= _cN)) multiKeep[pre.name] = _cN; } catch (eMk) {} /* L1 hand set copy */",
      "replace": "                  && false) multiKeep[pre.name] = _cN; } catch (eMk) {} /* L1 hand set copy */", "matches": 1},
     {"why": "The war stash is one page again.",
-     "file": "bible.html", "find": "      var left = items, SHARED_TABS = 5; /* L1 the war stash has 5 pages */",
-     "replace": "      var left = items, SHARED_TABS = 1; /* L1 the war stash has 5 pages */", "matches": 1},
+     "file": "bible.html", "find": "      var left = items.filter(function(it){ return !it.over; }), SHARED_TABS = 5;",
+     "replace": "      var left = items.filter(function(it){ return !it.over; }), SHARED_TABS = 1;", "matches": 1},
     {"why": "Every page packs over page 1's cells (the page offset is lost).",
      "file": "bible.html", "find": "cell: 'shared:c' + q.x + 'r' + (q.y + pg * 10) }; });",
      "replace": "cell: 'shared:c' + q.x + 'r' + q.y }; });", "matches": 1},
@@ -272,12 +329,30 @@ RED_PROOF = [
     {"why": "The tab and in-page row are not read off the shared cell.",
      "file": "bible.html", "find": "        return h + ' tab ' + (Math.floor((+m[2]) / 10) + 1) + ' (' + ((+m[1]) + 1) + ',' + ((+m[2]) % 10 + 1) + ')';",
      "replace": "        return h + ' (' + ((+m[1]) + 1) + ',' + ((+m[2]) + 1) + ')';", "matches": 1},
-    {"why": "Every copy of a big war item stays in the war stash again (the overflow Elad ruled out).",
-     "file": "bible.html", "find": "    if (seam && seam.loc === 'shared') { var _xw = _vaultWarExtra(name, copyIx); if (_xw) seam = _xw; } /* L1 one big copy per war item */",
-     "replace": "", "matches": 1},
-    {"why": "Small war gear (rings, amulets, belts) is cut to one copy too.",
+    {"why": "Every copy of a war item stays in the war stash again: 9 belts, 7 Enigmas (Elad 22:05 'that cant happen').",
+     "file": "bible.html", "find": "    if (seam.loc === 'shared') return _vaultWarOver(name, copyIx) ?",
+     "replace": "    if (seam.loc === 'shared') return false ?", "matches": 1},
+    {"why": "Small war gear (belts) is cut to one copy too.",
      "file": "bible.html", "find": "    if ((s[0] || 1) * (s[1] || 1) <= 2) return true;",
      "replace": "    if (false) return true;", "matches": 1},
+    {"why": "Belts and charms keep every copy like rings (no cap of 4).",
+     "file": "bible.html", "find": "  var _WAR_SMALL_CAP = 4;", "replace": "  var _WAR_SMALL_CAP = Infinity;", "matches": 1},
+    {"why": "Rings and amulets get capped at 4 like belts.",
+     "file": "bible.html", "find": "    if (area === 1 && /\\b(ring|amulet)\\b/i.test(base)) return Infinity;", "replace": "", "matches": 1},
+    {"why": "Over-cap copies fill the 5 war-stash pages instead of going to WAR1.",
+     "file": "bible.html", "find": "      var left = items.filter(function(it){ return !it.over; }), SHARED_TABS = 5;",
+     "replace": "      var left = items, SHARED_TABS = 5; overIt = [];", "matches": 1},
+    {"why": "Over-cap copies route to the item's normal mule (Elad 22:10: they go to the WAR mules).",
+     "file": "bible.html", "find": "    var _xw = null; /* L1 over-cap copies stay war-stash homed */",
+     "replace": "      var _xw = (seam && seam.loc === 'shared') ? _vaultWarExtra(name, copyIx) : null; if (_xw) seam = _xw;", "matches": 1},
+    {"why": "The SHARED STASH card draws every owned copy again (the 9 belts in his shot).",
+     "file": "bible.html", "find": "var _cap = window._vaultWarCap(n); if (c > _cap) c = _cap;", "replace": "var _cap = 0;", "matches": 1},
+    {"why": "The WAR mule card does not show the copies planned on it.",
+     "file": "bible.html", "find": "if (_wOn) Object.keys(_wOn).forEach(function(n){ if (items.indexOf(n) < 0) items.push(n); });",
+     "replace": "", "matches": 1},
+    {"why": "The kept copies are not the first-witnessed ones (keeper order lost).",
+     "file": "bible.html", "find": "    for (var j = 0; j < cc && out.length < cap; j++) if (out.indexOf(j) < 0) out.push(j);",
+     "replace": "    for (var j = cc - 1; j >= 0 && out.length < cap; j--) if (out.indexOf(j) < 0) out.push(j);", "matches": 1},
     {"why": "The keeper is not the first-witnessed copy (the last one stays instead).",
      "file": "bible.html", "find": "    return best == null ? 0 : best; /* L1 else the first-witnessed copy */",
      "replace": "    return best == null ? 99 : best; /* L1 else the first-witnessed copy */", "matches": 1},

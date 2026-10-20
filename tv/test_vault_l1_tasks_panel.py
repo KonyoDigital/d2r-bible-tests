@@ -134,13 +134,13 @@ class TheTasksPanel(unittest.TestCase):
         o = board().run(READ + "var r = open_(%s); r.querySelector('.vtk-tick').click();"
                         "OUT.open = !!open_(%s); OUT.done = !!done_(%s);"
                         "OUT.cmpBefore = !!(document.getElementById('vault-move-compare') && !document.getElementById('vault-move-compare').hidden);"
-                        "var s = open_(%s); s.click(); var h = document.getElementById('vault-move-compare');"
-                        "OUT.cmp = !!(h && !h.hidden && h.querySelector('.vmc-before') && h.querySelector('.vmc-after'));"
-                        "window._vaultMoveCompareClose();" % (json.dumps(SHAKO), json.dumps(SHAKO), json.dumps(SHAKO), json.dumps(SIGN)))
+                        "var s = open_(%s); s.click(); var x = s.nextElementSibling;"
+                        "OUT.cmp = !!(x && x.classList.contains('vtk-expand-li') && x.querySelector('.vtx-from') && x.querySelector('.vtx-to'));"
+                        "s.click();" % (json.dumps(SHAKO), json.dumps(SHAKO), json.dumps(SHAKO), json.dumps(SIGN)))
         self.assertFalse(o["cmpBefore"], "the tick box also opened BEFORE | AFTER")
         self.assertFalse(o["open"], "his tick left the task open")
         self.assertTrue(o["done"], "his tick did not move the task to Done")
-        self.assertTrue(o["cmp"], "clicking a line does not open BEFORE | AFTER")
+        self.assertTrue(o["cmp"], "clicking a line does not expand its own FROM | TO")
 
     def test_find_names_the_throw_out_task_not_the_dock(self):
         world()
