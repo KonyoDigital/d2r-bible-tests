@@ -19,6 +19,15 @@ Elad's Mac, v3775 (main 4f487af9), 2026-10-20: Vault, D2JSP and every other boar
 GUARDS (registered in tv/run_gates.py): tv/test_a_locked_tab_never_strands_the_veil.py (5 RED proofs); tv/test_a_tab_click_is_never_silently_dropped.py updated for the reload round.
 
 LEFT: why his window reads hidden while on screen (macOS occlusion of the pywebview window) is not fixed here; only its effect on the tab route is.
+### REG-2302 - A SET PIECE HE TYPED BY HAND GOT NO MOVE TASK (Vault L1, provisional number, unversioned)
+Elad, live v3774 (2026-10-20): he hand-added a set item and saw no move task. Cause: the hand-typed keep in
+_vaultSeamAsk only matched the planner's "by DEFAULT" reason, so a ruled-low set (Sigon's, Cathan's, Isenhart's)
+typed through + Add an item fell to a THROW OUT row (NOWHERE). Fix: a set piece he types is kept, ruled-low
+included - MANUAL → SETS-REST (x,y). A screenshot-seen low set still routes to THROW OUT. Guard
+test_vault_l1_every_hand_add_is_a_move_task: 20 hand adds (8 set pieces) = 20 open MANUAL rows, 10 RED proofs.
+Also: the six agent-suite guards and v203/v327/v622 Playwright specs re-anchored to L1 (a throw-out is a
+THROW OUT task, never a dock chip; the dock's homeless example is a Chronicle-only read).
+
 ### REG-2301 - MOVE TASKS WAS A WIDE WALL OF GRIDS IN THE LEFT COLUMN, NOT A CHECKLIST HE COULD TICK (Vault L1, provisional number, unversioned)
 
 Elad, 2026-10-20: MOVE TASKS becomes a right-side panel, a clean numbered checklist with one line per task

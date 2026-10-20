@@ -120,6 +120,7 @@ class HisAutoSortClickFillsTheMules(unittest.TestCase):
                         "OUT.a1 = JSON.parse(window.LSR.getItem('d2r_muleAssign') || '{}');"
                         "OUT.pv = JSON.parse(window.LSR.getItem('d2r_vaultProv') || '{}')['Grief'] || null;"
                         "OUT.dock = window._vaultDockNames();"
+                        "OUT.sgIsen = (window.suggestMule(\"Isenhart's Case (armor)\") || {}).id || null;"
                         "OUT.rec = (window._vaultRecords().records || []).map(function(r){ return { name: r.name, kind: r.kind, mule: r.mule }; });")
         self.assertEqual(o["a0"], {}, "an AUTOMATIC caller (vaultAutoAssign) filed a receipt to a mule with nobody's hand: %r" % o["a0"])
         a1 = o["a1"]
@@ -138,9 +139,13 @@ class HisAutoSortClickFillsTheMules(unittest.TestCase):
         self.assertTrue(kind("Enigma") and set(kind("Enigma")) == {"keep"}, "a name last seen worn was not kept with MAIN: %r" % rec)
         self.assertNotIn("Enigma", o["dock"])
         self.assertNotIn("Grief", o["dock"])
-        self.assertIn("Isenhart's Case (armor)", o["dock"], o["dock"])
+        # L1 (Elad): a discard route is a THROW OUT task in MOVE TASKS, never a dock chip, and never filed.
+        self.assertNotIn("Isenhart's Case (armor)", o["dock"], "a throw-out route sat in the dock: %r" % o["dock"])
         self.assertNotIn("Isenhart's Case (armor)", a1, "a discard suggestion was filed instead of left for him")
-        self.assertEqual(o["r"]["left"].get("throwout"), 1, o["r"])
+        # L1: Auto-Sort reads the dock, and a throw-out is no longer in it - it is a THROW OUT task,
+        # left for his Keep / Junk. It is still the planner's discard, so it left the dock for that reason.
+        self.assertEqual(o["sgIsen"], "__throwout", "premise: Isenhart's is not a ruled discard %r" % o["sgIsen"])
+        self.assertIsNone(o["r"]["left"].get("throwout"), "Auto-Sort still counts a throw-out as left in the dock: %r" % o["r"])
         self.assertTrue(o["pv"] and o["pv"].get("kind") == "owned",
                         "the seam wrote a filing row without his click: %r" % o["pv"])
 
@@ -173,14 +178,16 @@ class HisAutoSortClickFillsTheMules(unittest.TestCase):
         self.assertNotIn("Harpoonist's Grand Charm", o["dupes"],
                          "owning a Magic & Rare item read as double-filed - its fix deletes it from its only home")
         self.assertNotIn("Grief", o["dock"], "a resolved war-gear home stayed in the dock %r" % o["dock"])
-        self.assertIn("Isenhart's Case (armor)", o["dock"], "the discard left the dock %r" % o["dock"])
+        # L1: the discard is a THROW OUT task, not loose - the dock stays empty of it.
+        self.assertNotIn("Isenhart's Case (armor)", o["dock"], "a throw-out route sat in the dock %r" % o["dock"])
 
     def test_delete_unsorted_takes_only_what_the_dock_shows(self):
         """REG-2021 (the #231 eye on v3616) - Delete unsorted kept its own copy of "what is loose": it offered and removed
         his Magic & Rare items and his CARRIED loot along with the dock. It asks the one dock list now."""
         board().seed({
-            "d2r_owned": ["Grief", "Harpoonist's Grand Charm", "Harlequin Crest", "Isenhart's Case (armor)"],
+            "d2r_owned": ["Grief", "Harpoonist's Grand Charm", "Harlequin Crest", "Isenhart's Case (armor)", "Obedience"],
             "d2r_vaultProv": {
+                "Obedience": _receipt("Obedience", [dict(_look("9_100", "2026-10-07T08:09:00.000Z", "chronicle"), scene="chronicle")]),
                 "Grief": _receipt("Grief", [_look("1_100", "2026-10-07T08:01:00.000Z", "stash")]),
                 "Harpoonist's Grand Charm": _receipt("Harpoonist's Grand Charm", [_look("7_100", "2026-10-07T08:07:00.000Z", "stash")]),
                 "Harlequin Crest": dict(_receipt("Harlequin Crest", [_look("c_1", "2026-10-07T08:10:00.000Z", "inventory")]),
@@ -195,9 +202,11 @@ class HisAutoSortClickFillsTheMules(unittest.TestCase):
                         "var ok = document.querySelector('.ui-confirm-ok'); OUT.msg = (document.querySelector('.ui-confirm-msg') || {}).textContent || '';"
                         "if (ok) ok.click(); await pr; await new Promise(function(r){ setTimeout(r, 250); });"
                         "OUT.owned = (typeof owned !== 'undefined') ? Array.from(owned).sort() : null;")
-        self.assertEqual(o["dock"], ["Isenhart's Case (armor)"], "premise: the dock is not exactly the one homeless item %r" % o["dock"])
+        # L1: the discard (Isenhart's) is a THROW OUT task, so the only homeless item is the chronicle-only Obedience.
+        self.assertEqual(o["dock"], ["Obedience"], "premise: the dock is not exactly the one homeless item %r" % o["dock"])
         self.assertIn("Delete all 1 UNSORTED", o["msg"], "the confirm offered a different count than the dock shows: %r" % o["msg"])
-        self.assertNotIn("Isenhart's Case (armor)", o["owned"] or [], "the control: Delete unsorted did not remove the loose item %r" % o)
+        self.assertNotIn("Obedience", o["owned"] or [], "the control: Delete unsorted did not remove the loose item %r" % o)
+        self.assertIn("Isenhart's Case (armor)", o["owned"] or [], "Delete unsorted removed a THROW OUT task - a throw-out is his call, never a sweep")
         self.assertIn("Grief", o["owned"] or [], "Delete unsorted removed a name the seam already homed %r" % o)
         self.assertIn("Harpoonist's Grand Charm", o["owned"] or [], "Delete unsorted removed a Magic & Rare item from owned")
         self.assertIn("Harlequin Crest", o["owned"] or [], "Delete unsorted removed loot he is CARRYING")

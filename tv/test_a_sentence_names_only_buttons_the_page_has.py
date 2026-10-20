@@ -45,7 +45,9 @@ class ASentenceNamesOnlyButtonsThePageHas(unittest.TestCase):
         labels = _button_labels(src)
         self.assertIn("⚖️ Auto-assign unsorted", labels, "the Auto-assign button itself is gone - re-point this law")
         named = re.findall(r"press (⚖️ [A-Za-z][A-Za-z \-]*?)(?= to | to$|\)|\"|<|$)", src)
-        self.assertGreaterEqual(len(named), 3, "the three vault sentences no longer name a button: %r" % named)
+        # L1 (Elad: less wordy text) cut the organizer header, the third sentence. The two that remain
+        # (the dock line and the hand-add line) must still name the real button.
+        self.assertGreaterEqual(len(named), 2, "the two vault sentences no longer name a button: %r" % named)
         for n in named:
             self.assertIn(n.strip(), labels, "a sentence tells him to press %r and no button has that name" % n)
 

@@ -22,7 +22,11 @@ test('Spired Helm (Larzuk base): chip + tip resolve the true in-game sprite, not
     const card = document.getElementById('mule-vault-card');
     if (card && card.classList.contains('collapsed') && w.toggleCardCollapse) w.toggleCardCollapse('mule-vault-card');
     w.renderVault();
-    const chip = document.querySelector('.vault-chip[data-vault-item="Spired Helm (Larzuk base)"] img') as HTMLImageElement;
+    /* Vault L1: a spare socketed base the planner vendors is a THROW OUT task in MOVE TASKS, not a
+       dock chip - the task line wears the item's sprite, so the art law reads that line (or a chip, if
+       one is ever drawn again). */
+    const chip = (document.querySelector('#vault-move-list .vmv-row[data-name="Spired Helm (Larzuk base)"] img')
+      || document.querySelector('.vault-chip[data-vault-item="Spired Helm (Larzuk base)"] img')) as HTMLImageElement;
     localStorage.removeItem('d2r_owned');
     return { chipSrc: chip ? chip.getAttribute('src') : null, tipArt: w.artUrl('Spired Helm (Larzuk base)') };
   });

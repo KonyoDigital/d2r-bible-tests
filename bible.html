@@ -44840,9 +44840,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       }
       if (sg.unsorted || sg.id == null) return { loc: 'loose', mule: null }; /* v3767 seam homeless */
       if (sg.id === '__keep') return { loc: 'keep', mule: null };
-      if (sg.id === '__throwout' && /by DEFAULT/.test(String(sg.why || '')) && typeof window._vaultHandTyped === 'function'
+      /* L1 (Elad, live v3774: hand-added a set item, saw no move task) - A SET PIECE HE TYPES IS KEPT. His hand
+         is the ruling: an unruled set (by DEFAULT) and a ruled-low set (low set piece) both get a MANUAL row to
+         the sets mule. A screenshot-seen low set still routes to THROW OUT; only his typing overrides it. */
+      if (sg.id === '__throwout' && /by DEFAULT|low set piece/.test(String(sg.why || '')) && typeof window._vaultHandTyped === 'function'
           && window._vaultHandTyped(name) && typeof muleById === 'function' && muleById('sets-rest'))
-        return { loc: 'filed', mule: 'sets-rest' }; /* L1 he typed an unruled set piece: kept, not thrown out */
+        return { loc: 'filed', mule: 'sets-rest' }; /* L1 he typed a set piece: kept, not thrown out */
       if (sg.id === '__throwout' && typeof window._vaultKeptByHim === 'function' && window._vaultKeptByHim(name)) {
         var _kh = (/\(set\)/i.test(String(sg.why || '')) && typeof muleById === 'function' && muleById('sets-rest')) ? 'sets-rest' : null;
         return _kh ? { loc: 'filed', mule: _kh } : { loc: 'shared', mule: null }; /* L1 he pressed Keep on a THROW OUT row */

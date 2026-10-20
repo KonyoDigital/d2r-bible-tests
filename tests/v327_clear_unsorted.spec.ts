@@ -23,19 +23,25 @@ test('Delete-unsorted button clears the dock but keeps filed items', async ({ pa
     const assignAfterSort = JSON.parse(localStorage.getItem('d2r_muleAssign')||'{}');
     // un-file Death Cleaver so it's unsorted again (it auto-filed too); simulate an unsorted leftover
     // instead: add a fresh unsorted item that has a home but we DON'T assign
-    owned.add('Lenymo');                      // throw-out: the seam leaves it loose, so it is a real dock chip (Elad 2026-10-18 — a router-homed name is not)
+    owned.add('Lenymo');                      // Vault L1: a throw-out is a THROW OUT task, not a dock chip - Delete unsorted must not sweep it
+    owned.add('Obedience');                   // read only off a Chronicle page (his §28 ruling): no home, so it is the real dock chip
+    window._ownedProvWrite('Obedience', { source: 'intake-read', by: 'law', holder: 'Chronicle', loc: 'chronicle', scene: 'chronicle', sessionId: 's1', frameId: 'f1', ts: Date.now() });
     (window as any).renderVault();
+    const throwChip = [...document.querySelectorAll('#vault-dock .vault-chip')].some((c: any) => c.dataset.vaultItem === 'Lenymo');
     const barHasClear = !!document.querySelector('#vault-dock-bar .vault-clear-btn');
     const dockBefore = document.querySelectorAll('#vault-dock .vault-chip').length;
     await (window as any).vaultClearUnsorted();   // v341.60 — async (awaits uiConfirm); await before reading the dock
     const dockAfter = document.querySelectorAll('#vault-dock .vault-chip').length;
     const stillOwnedFiled = (window as any).eval('owned').has('Chance Guards');
-    const unsortedGone = !(window as any).eval('owned').has('Lenymo');
-    return { barHasClear, dockBefore, dockAfter, stillOwnedFiled, unsortedGone };
+    const unsortedGone = !(window as any).eval('owned').has('Obedience');
+    const throwKept = (window as any).eval('owned').has('Lenymo');
+    return { barHasClear, dockBefore, dockAfter, stillOwnedFiled, unsortedGone, throwChip, throwKept };
   });
   expect(r.barHasClear).toBe(true);
   expect(r.dockBefore).toBeGreaterThan(0);
   expect(r.dockAfter).toBe(0);            // dock emptied
   expect(r.stillOwnedFiled).toBe(true);   // filed item kept
   expect(r.unsortedGone).toBe(true);      // unsorted item deleted from owned
+  expect(r.throwChip).toBe(false);        // L1: the throw-out is a task, not a dock chip
+  expect(r.throwKept).toBe(true);         // L1: Delete unsorted never sweeps a THROW OUT task
 });

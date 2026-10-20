@@ -9841,6 +9841,14 @@ GATES = [
          why=("the render harness console pins its fleet distance (TV_FLEET_BEHIND_PIN=0, honoured only under "
              "TV_STUB=1), so a branch behind origin/main no longer draws BEHIND FLEET over the shelf reel cards "
              "and turns shelf-cards red. His real console still counts.")),
+    Gate("test_vault_l1_every_hand_add_is_a_move_task", [sys.executable,
+         os.path.join(HERE, "test_vault_l1_every_hand_add_is_a_move_task.py")], 240,
+         needs_app=False,
+         why=("Vault L1 (Elad, live v3774: a hand-added set item showed no move task) - every hand add is one "
+             "open MOVE TASKS row 'MANUAL → <mule> (x,y)'; a set piece he types, ruled-low included, is kept "
+             "and routed to a sets mule, never a THROW OUT row. A batch of 20 hand adds paints 20 rows. "
+             "No browser is a declared skip."),
+         skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_vault_l1_a_hand_add_routes_by_type", [sys.executable,
          os.path.join(HERE, "test_vault_l1_a_hand_add_routes_by_type.py")], 240,
          needs_app=False,

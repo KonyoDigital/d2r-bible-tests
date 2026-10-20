@@ -373,7 +373,9 @@ class TestV3769VaultMoveListVisual(unittest.TestCase):
         self._js(cdp, "(function(){ window._vaultMoveCompareClose(); return true; })()")
 
         wit = self._js(cdp, _STEP_WITNESS % json.dumps(g))
-        self.assertIn("2 witnesses", wit.get("say") or "", wit)
+        # L1: the witness button is a small eye count; the full say rides in its title (hover).
+        self.assertEqual((wit.get("say") or "").strip(), "\U0001f441 2", wit)
+        self.assertIn("2 witnesses", wit.get("title") or "", wit)
         self._shot(cdp, "#vault-move-list", "02-witness-plus.png")
 
         locked = self._js(cdp, _STEP_LOCK % json.dumps(es))
@@ -548,7 +550,8 @@ _STEP_WITNESS = _wrap(r"""
     cell: 'stash:c1r1', sessionId: 's3', frameId: 'f-c', ts: Date.now() });
   window.renderVault();
   var el = document.querySelector('#vault-move-list .vmv-row[data-from="stash:c1r1"]');
-  return { say: el ? (el.querySelector('.vmv-wit') || {}).textContent : '',
+  var w = el ? el.querySelector('.vmv-wit') : null;
+  return { say: w ? w.textContent : '', title: w ? (w.getAttribute('title') || '') : '',
            status: el ? el.getAttribute('data-status') : null };
 """)
 
