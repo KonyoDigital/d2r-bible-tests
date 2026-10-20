@@ -1815,7 +1815,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3774** | `(this commit)` | v3774 — a version bump carries the gates that ignore the version (REG-2295) |
+| **v3775** | `(this commit)` | v3775 — A bump reruns only what it moved - reds stay red and run last (REG-2296) |
+| **v3774** | `1d208ee5` | v3774 — a version bump carries the gates that ignore the version (REG-2295) |
 | **v3773** | `a8e9633d` | v3773 — a vault paint no longer walks the document, the D2JSP list stays cheap in the WebKit console window, and a hand add reads MANUAL to its target cell. REG-2294 |
 | **v3772** | `74ddf4bc` | v3772 — A gate carries when the commit it was proved at is an ancestor of HEAD and git says none of its inputs moved. A callee that opens bible.html stays in that closure, so a gate that reaches the open is not carried. The v3771 status census and the non-blocking fetch are in the call graph and do not open bible.html. REG-2293. HEART: no new console surface. The carry law is watched by the gate-memory gate. |
 | **v3771** | `9a933a86` | v3771 — The vault controls wear the console gold. An unseen place reads Location not seen yet and sorts last. The MF bar stacks under the vault room and under the header. REG-2292. HEART: the unseen-place law and the bar-under-room law are the corroborators, watched by the v3771 gate. |
