@@ -54219,7 +54219,7 @@ function renderJournal(){
     var w = _vaultResetWords(door), one = door === 'vaultReset', wipe = door === 'vaultWipeItems';
     if (wipe) return 'Wipe every item — every mule, the Shared Stash, the WAR mules and MAGIC & RARE emptied?'
       + '\n\nClears: ' + w.clears.join(' · ') + '. Nothing is rebuilt from the evidence.'
-      + '\n\nStays untouched: ' + w.keeps.join(' · ') + '.'
+      + '\n\nStays untouched (runes / gems / materials and the rest): ' + w.keeps.join(' · ') + '.'
       + '\n\nWhat it clears cannot be undone.';
     return (one ? 'Reset the mule assignments?' : 'Reset the vault — the mules, what you are marked as holding, and the intake records?')
       + '\n\nClears ONLY: ' + w.clears.join(' · ') + (one ? ' — every item returns to the unsorted dock.' : '.')

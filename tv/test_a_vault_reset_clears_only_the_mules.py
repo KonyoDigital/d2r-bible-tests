@@ -485,8 +485,8 @@ RED_PROOF = [
     {
         "why": "2026-09-27 - the full reset no longer clears what he is marked as holding",
         "file": "bible.html",
-        "find": "      vaultClearHistory: Object.freeze(['assign', 'prov', 'journal', 'seen', 'folder', 'owned'])\n",
-        "replace": "      vaultClearHistory: Object.freeze(['assign', 'prov', 'journal', 'seen', 'folder'])\n",
+        "find": "      vaultClearHistory: Object.freeze(['assign', 'prov', 'journal', 'seen', 'folder', 'owned']),\n",
+        "replace": "      vaultClearHistory: Object.freeze(['assign', 'prov', 'journal', 'seen', 'folder']),\n",
         "matches": 1,
     },
     {
@@ -514,8 +514,8 @@ RED_PROOF = [
     {
         "why": "v569 - the vault reset leaves the screenshot folder linked",
         "file": "bible.html",
-        "find": "      vaultClearHistory: Object.freeze(['assign', 'prov', 'journal', 'seen', 'folder', 'owned'])\n",
-        "replace": "      vaultClearHistory: Object.freeze(['assign', 'prov', 'journal', 'seen', 'owned'])\n",
+        "find": "      vaultClearHistory: Object.freeze(['assign', 'prov', 'journal', 'seen', 'folder', 'owned']),\n",
+        "replace": "      vaultClearHistory: Object.freeze(['assign', 'prov', 'journal', 'seen', 'owned']),\n",
         "matches": 1,
     },
     {

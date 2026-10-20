@@ -162,7 +162,7 @@ RED_PROOF = [
      "replace": "vaultWipeItems:    Object.freeze(["},
     {"why": "REG-2335 - the confirm stops saying runes / gems / materials stay",
      "file": "bible.html", "matches": 1,
-     "find": "      + '\\n\\nClears: ' + w.clears.join(' · ') + '. Nothing is rebuilt from the evidence.'\n      + '\\n\\nStays untouched: ' + w.keeps.join(' · ') + '.'\n",
+     "find": "      + '\\n\\nClears: ' + w.clears.join(' · ') + '. Nothing is rebuilt from the evidence.'\n      + '\\n\\nStays untouched (runes / gems / materials and the rest): ' + w.keeps.join(' · ') + '.'\n",
      "replace": "      + '\\n\\nClears: ' + w.clears.join(' · ') + '. Nothing is rebuilt from the evidence.'\n"},
 ]
 
