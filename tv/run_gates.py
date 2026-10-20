@@ -10883,8 +10883,8 @@ def _measured_cost(name):
         try:
             with open(os.path.join(HERE, "gate_costs.json"), encoding="utf-8") as fh:
                 _COSTS["t"] = json.load(fh)
-        except Exception:
-            _COSTS["t"] = {}
+        except Exception:  # no cost table: UNKNOWN (None), and red_cap keeps RED_CAP
+            _COSTS["t"] = None
     try:
         v = float(((_COSTS["t"] or {}).get("costs") or {}).get(name) or 0)  # GATES-COST-ROWS
     except (TypeError, ValueError):
