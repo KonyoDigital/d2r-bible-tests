@@ -10494,7 +10494,7 @@ input:not([type=button]):not([type=submit]):not([type=checkbox]):not([type=radio
 .vtk-tick{flex:0 0 auto;margin:0;cursor:pointer}
 .vtk-art{flex:0 0 22px;width:22px;height:22px;overflow:hidden;display:inline-flex;align-items:center;justify-content:center}
 .vtk-art img{max-width:22px;max-height:22px}
-.vtk-say{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vtk-say{flex:1 1 auto;min-width:0;overflow-wrap:anywhere;white-space:normal} /* L1 the full target, wrapped */
 .vtk-done .vtk-say{text-decoration:line-through;color:var(--text-dim)}
 .vtk-donebox summary{cursor:pointer}
 /* L1 before/after compare (Elad ruling 12) */
@@ -39352,7 +39352,7 @@ body{
    his hands: carried loot has no home until it lands, so the empty dock says what is true beside a carried strip */
 .vault-dock[data-owned="1"][data-carried="1"]:empty::after{content:"nothing loose — what you carry lands when it is seen in a stash tab or on a mule ✦"}
 /* #269 (GrokBot tick 412, K03) — "perfect order" sat directly under VAULT INTEGRITY listing three items in the wrong locker */
-.vault-dock[data-owned="1"][data-misfiled="1"]:empty::after{content:"nothing loose — but some filed items sit in the wrong locker: see VAULT INTEGRITY, or press ⚖️ Auto-assign unsorted"}
+.vault-dock[data-owned="1"][data-misfiled="1"]:empty::after{content:"nothing loose ✦"}
 /* §31.2 — THE CARRIED STRIP: loot in a character's inventory, owned and not filed. A quieter frame than the dock (it is
    not waiting to be sorted) and the same chip, so an item reads the same wherever it sits. A stale chip (a few game
    sessions unseen) takes the amber of a question, never the red of a loss. */
@@ -47923,14 +47923,25 @@ window.vaultAutoAssign = function(){
       return true;
     }
     function mark(x,y,w,h){ for (var dy=0;dy<h;dy++) for (var dx=0;dx<w;dx++) grid[y+dy][x+dx]=true; }
+    var lastOf = {};
     items.forEach(function(it){
+      var near = it.near || (it.cluster && lastOf[it.n]) || null; /* L1 copies of one item cluster */
+      if (near) { /* L1 a copy lands on the free cell nearest its sibling copy */
+        var best = null, bd = 1e9;
+        for (var ny=0;ny<gh;ny++) for (var nx=0;nx<gw;nx++){
+          var d = Math.abs(nx - near.x) + Math.abs(ny - near.y);
+          if (d < bd && fits(nx,ny,it.w,it.h)) { bd = d; best = [nx, ny]; }
+        }
+        if (best) { mark(best[0],best[1],it.w,it.h); placed.push({n:it.n,key:it.key,x:best[0],y:best[1],w:it.w,h:it.h,bad:it.bad||null}); lastOf[it.n] = {x:best[0],y:best[1]}; return; }
+      }
       for (var y=0;y<gh;y++) for (var x=0;x<gw;x++){
-        if (fits(x,y,it.w,it.h)){ mark(x,y,it.w,it.h); placed.push(it.key != null ? {n:it.n,key:it.key,x:x,y:y,w:it.w,h:it.h,bad:it.bad||null} : {n:it.n,x:x,y:y,w:it.w,h:it.h}); return; }
+        if (fits(x,y,it.w,it.h)){ mark(x,y,it.w,it.h); if (it.key != null) lastOf[it.n] = {x:x,y:y}; placed.push(it.key != null ? {n:it.n,key:it.key,x:x,y:y,w:it.w,h:it.h,bad:it.bad||null} : {n:it.n,x:x,y:y,w:it.w,h:it.h}); return; }
       }
       left.push(it);
     });
     return {placed:placed, left:left};
   }
+  try { window._vaultPackGrid = packGrid; } catch (ePg) {} /* L1 the packer, read by the copies-cluster guard */
   /* v2240 — EXPORTED ON PURPOSE. The fault arithmetic began life inside gridHtml, where nothing
      could call it: correct code no test can reach, which is the exact defect this session kept
      finding elsewhere. Named, exported, and asserted — cells claimed vs capacity, items outside the
@@ -48924,9 +48935,27 @@ window.vaultAutoAssign = function(){
   }
   window._vaultWarMules = _vaultWarMules;
   window._vaultRosterNow = function(){ try { return (roster || []).map(function(m){ return { id: m.id, name: m.name }; }); } catch (e) { return null; } }; /* L1 read-only roster copy */
+  /* L1 (Elad's standing rule 2026-10-20: moves come from the placement rules, never a Fix / Auto-assign press). A name
+     FILED on a mule the current rules no longer pick (war gear on UNI-*, the VAULT INTEGRITY mismatches) plans its move
+     to the rules' home; its filing is where it is now. A hardened lock keeps its filing. -> {seam, filed} or null */
+  function _vaultMisfiled(name){
+    var mid = null;
+    try { mid = assign[name]; } catch (e) { return null; }
+    if (mid == null || mid === 'shared' || /^__/.test(String(mid)) || !(typeof muleById === 'function' && muleById(mid))) return null;
+    try { if (typeof _hardLock === 'function' && _hardLock(name)) return null; } catch (eL) { return null; }
+    var sg = null;
+    try { sg = (typeof suggestMule === 'function') ? suggestMule(name) : null; } catch (eS) { return null; }
+    if (!sg || sg.id == null || sg.unsorted || sg.id === mid) return null;
+    if (sg.id === 'shared') return { seam: { loc: 'shared', mule: null }, filed: mid };
+    if (/^__/.test(String(sg.id)) || !muleById(sg.id)) return null; /* never auto-trash or park a filed item */
+    return { seam: { loc: 'filed', mule: sg.id }, filed: mid };
+  }
+  try { window._vaultMisfiled = _vaultMisfiled; } catch (eMf) {}
   function _vaultMoveHome(name){
     var seam = null;
     try { seam = (typeof _vaultSeamHome === 'function') ? _vaultSeamHome(name) : null; } catch (e) { seam = null; }
+    var _mis = _vaultMisfiled(name);
+    if (_mis) seam = _mis.seam; /* L1 the rules' home, not a stale filing */
     if (!seam) return { id: null, holder: null, location: null };
     if (seam.loc === 'shared') return { id: 'shared', holder: 'SHARED STASH', location: 'shared' }; /* v3769 home shared */
     if (seam.loc === 'filed' && seam.mule) { /* v3769 home filed */
@@ -48978,12 +49007,17 @@ window.vaultAutoAssign = function(){
       var s = (typeof vaultSize === 'function') ? vaultSize(n) : [1, 1];
       var cc = _vaultMoveCopies(n);
       var area = (s[0] || 1) * (s[1] || 1);
+      var sib = null;
+      for (var j = 0; j < cc && !sib; j++) { var kj = kept[n + '\u0000' + j]; var mj = kj && String(kj.cell).match(/^(\w+):c(\d+)r(\d+)$/); if (mj) sib = { loc: mj[1], x: +mj[2], y: +mj[3] }; }
       for (var i = 0; i < cc; i++) {
         if (kept[n + '\u0000' + i]) continue; /* L1 saved cell stays */
-        items.push({ n: n, copyIx: i, key: n + '\u0000' + i, w: s[0] || 1, h: s[1] || 1, area: area });
+        var it0 = { n: n, copyIx: i, key: n + '\u0000' + i, w: s[0] || 1, h: s[1] || 1, area: area, cluster: true };
+        if (sib) it0.near = sib; /* L1 a copy lands beside its sibling */
+        items.push(it0);
       }
     });
     items.sort(function(a, b){
+      if (!!a.near !== !!b.near) return a.near ? -1 : 1; /* L1 copies beside a sibling claim their cell first */
       if (a.n !== b.n) return (b.area - a.area) || (a.n < b.n ? -1 : (a.n > b.n ? 1 : 0));
       return a.copyIx - b.copyIx; /* v3769 beside */
     });
@@ -49008,7 +49042,10 @@ window.vaultAutoAssign = function(){
       for (var pg = 0; pg < SHARED_TABS && left.length; pg++) {
         var occP = (occBy.shared || []).filter(function(r){ return r.y >= pg * 10 && r.y < pg * 10 + 10; })
           .map(function(r){ return { x: r.x, y: r.y - pg * 10, w: r.w, h: r.h }; });
-        var pk = packGrid(left, 10, 10, occP);
+        var leftP = left.map(function(it){ var c = {}; for (var kk in it) c[kk] = it[kk];
+          if (it.near) { if (it.near.loc === 'shared' && it.near.y >= pg * 10 && it.near.y < pg * 10 + 10) c.near = { x: it.near.x, y: it.near.y - pg * 10 }; else delete c.near; }
+          return c; }); /* L1 a sibling's page-relative cell */
+        var pk = packGrid(leftP, 10, 10, occP);
         (pk.placed || []).forEach(function(q){ if (q.key != null) out[q.key] = { holder: home.holder, location: 'shared', cell: 'shared:c' + q.x + 'r' + (q.y + pg * 10) }; });
         left = pk.left;
       } /* L1 shared 5 pages */
@@ -49031,9 +49068,9 @@ window.vaultAutoAssign = function(){
                                                             : 'the war stash (5 pages) is full and you have no WAR1 mule') : '';
       return out;
     }
-    var st = packGrid(items, 10, 10, occBy.stash);
+    var st = packGrid(items.map(function(it){ if (it.near && it.near.loc !== 'stash') { var c = {}; for (var kk in it) c[kk] = it[kk]; delete c.near; return c; } return it; }), 10, 10, occBy.stash);
     lay(st.placed, 'stash');
-    lay(packGrid(st.left, 10, 4, occBy.inventory).placed, 'inventory');
+    lay(packGrid(st.left.map(function(it){ if (it.near && it.near.loc !== 'inventory') { var c = {}; for (var kk in it) c[kk] = it[kk]; delete c.near; return c; } return it; }), 10, 4, occBy.inventory).placed, 'inventory');
     return out;
   }
   function _vaultMovePlanCell(name, copyIx, bag){
@@ -49050,7 +49087,12 @@ window.vaultAutoAssign = function(){
     var groups = null;
     try { groups = (typeof _vaultSightGroups === 'function') ? _vaultSightGroups(name) : null; } catch (e) { groups = null; }
     var g = groups && groups[copyIx || 0];
-    if (!g) return { holder: null, location: null, cell: null };
+    if (!g) {
+      var _mf = _vaultMisfiled(name); /* L1 a filed item moves FROM its mule */
+      var _fm = _mf && muleById(_mf.filed);
+      if (_fm) return { holder: _fm.name || null, location: 'stash', cell: null, filed: true };
+      return { holder: null, location: null, cell: null };
+    }
     return { holder: g.holder || null, location: g.location || null, cell: g.cell || null };
   }
   function _vaultMoveBag(){
@@ -49188,7 +49230,8 @@ window.vaultAutoAssign = function(){
     try { if (typeof persistOwned === 'function') persistOwned(); } catch (eOw) {} /* v3773 owned persist */
     window._movePackCache = null;
     var ens = _vaultMoveEnsure(nm, copyIx, _vaultMoveBag());
-    if (!_vaultMoveShown(ens.task)) {
+    var _noRoom = !_vaultMoveWorn(ens.task.from) && ens.task.to && ens.task.to.holder != null && ens.task.to.cell == null; /* L1 hand add, no room */
+    if (!_vaultMoveShown(ens.task) && !_noRoom) {
       try { if (typeof _vaultMovePaint === 'function') _vaultMovePaint(); } catch (eP0) {}
       return { ok: true, shown: false, task: ens.task, why: 'in place' };
     }
@@ -49218,6 +49261,7 @@ window.vaultAutoAssign = function(){
     if (t.status === 'closed') return false; /* L1 a drained row is done */
     if (t.kind === 'throw') return !_vaultMoveWorn(t.from); /* L1 THROW OUT row: target NOWHERE */
     if (_vaultMoveWorn(t.from)) return false; /* L1 equipped is locked, no move row */
+    if (t.manual && t.status === 'to-move' && t.to && t.to.holder != null && t.to.cell == null) return true; /* L1 a hand add always has its row, even with no room */
     if (!t.to || t.to.holder == null || t.to.location == null || t.to.cell == null) return false; /* v3769 known target */
     var home = (t.name && typeof _vaultMoveHome === 'function') ? _vaultMoveHome(t.name) : null;
     if (_vaultMoveOnKeep(t.from) && home && home.id === 'main') return false; /* v3769 already home */
@@ -49615,7 +49659,7 @@ window.vaultAutoAssign = function(){
         else if (thr.task.status === 'closed') done.push({ name: r.name, copyIx: r.copyIx || 0, task: thr.task }); /* L1 done collapsed */
         return;
       } /* L1 a junk route is a THROW OUT row, never a dock chip */
-      if (!stored && !hasSight) return;
+      if (!stored && !hasSight && !_vaultMisfiled(r.name)) return; /* L1 a misfiled item gets its move row */
       var ens = _vaultMoveEnsure(r.name, r.copyIx || 0, bag);
       if (ens.fresh) pending.push({ name: r.name, copyIx: r.copyIx || 0, task: ens.task });
       if (ens.task.status === 'closed') done.push({ name: r.name, copyIx: r.copyIx || 0, task: ens.task }); /* L1 done collapsed */

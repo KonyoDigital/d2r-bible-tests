@@ -20,6 +20,16 @@ GUARDS (registered in tv/run_gates.py): tv/test_a_locked_tab_never_strands_the_v
 
 LEFT: why his window reads hidden while on screen (macOS occlusion of the pywebview window) is not fixed here; only its effect on the tab route is.
 ### REG-2303 - A SECOND HAND-ADDED COPY VANISHED, AND THE WAR STASH WAS ONE PAGE (Vault L1, provisional number, unversioned)
+### REG-2306 - ON HIS REAL DATA A HAND COPY OF OWNED WAR GEAR WAS 'IN PLACE' WITH NO ROW, AND MISFILED ITEMS WAITED FOR A FIX PRESS (Vault L1, v3776)
+Live v3776 click-through on his real vault (2026-10-20): a 2nd Demon Limb / Andariel's / Guillaume's Face followed the
+stale UNI-* / SETS-REST filing and answered 'in place' with no row; war gear filed on UNI-* only moved through VAULT
+INTEGRITY Fix / Auto-assign. His standing rule: moves come from the placement rules, no press. Fix: a filing the current
+rules no longer pick (not hardened) plans its move to the rules' home, and gets a row FROM its mule (the filing is not
+rewritten); a hand add always has its row, even with no room; copies cluster on the free cell nearest the sibling;
+two copies close per copy at their own targets. Task lines wrap the full target; the empty-dock line is 'nothing loose'.
+The war stash warning is real on his data: 170 items (717 cells) route to 5 pages of 500. Guard:
+test_vault_l1_rules_drive_every_move (11 RED PROVEN, Wilson 0.741).
+
 ### REG-2305 - GUILLAUME'S FACE WENT TO SETS-REST, AND ONE DROPPED COPY CLOSED EVERY COPY'S THROW OUT ROW (Vault L1, v3776)
 Review of #247 (2026-10-20). (1) Elad ruled 2026-10-19 that Guillaume's Face lives in the war stash (Shared Stash); the
 keep-set rule (Orphan's Call) sent it to SETS-REST. Fix: it is a WAR_GEAR row, so war gear beats the set branch. (2) The

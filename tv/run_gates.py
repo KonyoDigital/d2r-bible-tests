@@ -9865,6 +9865,14 @@ GATES = [
              "equipped item gets no row, and a row click opens BEFORE | AFTER with real art and closes. "
              "No browser is a declared skip."),
          skip_ok=(r"no Chrome/Chromium on this machine",)),
+    Gate("test_vault_l1_rules_drive_every_move", [sys.executable,
+         os.path.join(HERE, "test_vault_l1_rules_drive_every_move.py")], 180,
+         needs_app=False,
+         why=("Vault L1 (Elad 2026-10-20, live v3776 on his data) - moves come from the placement rules, never a Fix / "
+             "Auto-assign press: a hand copy of an owned misfiled item routes by the current rules to its own cell and "
+             "MANUAL row; a misfiled item gets a move row from its mule; copies cluster on the nearest free cell; two "
+             "copies close per copy at their own targets, never swapped or merged. No browser is a declared skip."),
+         skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_vault_l1_throw_out_rows_drain", [sys.executable,
          os.path.join(HERE, "test_vault_l1_throw_out_rows_drain.py")], 180,
          needs_app=False,
