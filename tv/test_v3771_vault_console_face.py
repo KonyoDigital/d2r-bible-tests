@@ -83,8 +83,8 @@ console.log(JSON.stringify({
   last: groups[groups.length - 1].label,
   unseen: groups[groups.length - 1].unseen === true,
   hint: html.indexOf('Take a screenshot so the console can see where it sits.') >= 0,
-  cls: html.indexOf('vmv-unseen') >= 0,
-  data: html.indexOf('data-unseen="1"') >= 0,
+  cls: /<section class="vmv-group vmv-unseen"/.test(html),
+  data: /<section [^>]*data-unseen="1"/.test(html),
   collided: html.indexOf('UNKNOWN · UNKNOWN') >= 0
 }));
 """)
