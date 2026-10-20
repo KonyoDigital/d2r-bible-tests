@@ -436,8 +436,8 @@ RED_PROOF = [
     {
         "why": "First-fit still places a later item that fits. Stopping at the first miss leaves the 1x1 out of the gap.",
         "file": "bible.html",
-        "find": "    items.forEach(function(it){\n      for (var y=0;y<gh;y++) for (var x=0;x<gw;x++){\n",
-        "replace": "    items.forEach(function(it){\n      if (left.length) { left.push(it); return; }\n      for (var y=0;y<gh;y++) for (var x=0;x<gw;x++){\n",
+        "find": "    items.forEach(function(it){\n      var near = it.near || (it.cluster && lastOf[it.n]) || null; /* L1 copies of one item cluster */\n",
+        "replace": "    items.forEach(function(it){\n      if (left.length) { left.push(it); return; }\n      var near = it.near || (it.cluster && lastOf[it.n]) || null; /* L1 copies of one item cluster */\n",
         "matches": 1,
     },
     {
