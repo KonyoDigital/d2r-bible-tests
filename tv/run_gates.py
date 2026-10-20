@@ -9842,7 +9842,7 @@ GATES = [
              "TV_STUB=1), so a branch behind origin/main no longer draws BEHIND FLEET over the shelf reel cards "
              "and turns shelf-cards red. His real console still counts.")),
     Gate("test_vault_l1_war_stash_overflow", [sys.executable,
-         os.path.join(HERE, "test_vault_l1_war_stash_overflow.py")], 480,  # REG-2321: two 500+ ring page fills
+         os.path.join(HERE, "test_vault_l1_war_stash_overflow.py")], 480,  # REG-2330: two 500+ ring page fills
          needs_app=False,
          why=("Vault L1 (Elad, live v3774: a 2nd hand-added Aldur's Deception vanished) - every hand copy is its own "
              "item, cell and MANUAL row; the war stash packs all 5 pages, then WAR1, WAR2 (case-insensitive); none "

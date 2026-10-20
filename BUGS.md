@@ -22,6 +22,7 @@ LEFT: why his window reads hidden while on screen (macOS occlusion of the pywebv
 ### REG-2303 - A SECOND HAND-ADDED COPY VANISHED, AND THE WAR STASH WAS ONE PAGE (Vault L1, provisional number, unversioned)
 ### REG-2308 - THE WAR STASH DREW 9 OF ONE BELT; OVER-CAP COPIES WENT TO NORMAL MULES; MOVE TASKS SHARED ONE MERGED GRID (Vault L1, v3776)
 ### REG-2321 - THE WAR STASH DREW 9 OF ONE BELT; OVER-CAP COPIES WENT TO NORMAL MULES; MOVE TASKS SHARED ONE MERGED GRID (Vault L1, v3776)
+### REG-2330 - THE WAR STASH DREW 9 OF ONE BELT; OVER-CAP COPIES WENT TO NORMAL MULES; MOVE TASKS SHARED ONE MERGED GRID (Vault L1, v3776)
 Live v3776 shot 10 (2026-10-20 22:05 IDT): the SHARED STASH card drew Arachnid Mesh 1/9..9/9. Cause: his real tally holds 9
 Arachnid Mesh (records copyIx 0-8, not a script add or staged duplicate); REG-2307's small-gear rule (<=2 cells keeps EVERY copy)
 let all 9 in, and the card drew every owned copy on the filed locker (copyCount), ignoring the plan - so Enigma x7, Infinity x6,
