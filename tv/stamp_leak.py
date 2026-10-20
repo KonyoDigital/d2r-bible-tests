@@ -4,7 +4,8 @@
 The build name and note land in bible.html (twice), WINDOWS_SHIP.json and TASKS.md of a PUBLIC repo.
 bump_version.py refuses a leaking name or note before writing, and gate_ledger.py runs the same check
 on every ADDED stamp line before it lets a coherent bump carry the content gates, so a note pasted by
-hand past the tool still reruns them. One definition, two callers.
+hand past the tool still reruns them. Both callers also ask free_text_problem, which admits only
+inert words. One definition, two callers.
 """
 import re
 
