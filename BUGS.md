@@ -20,6 +20,21 @@ GUARDS (registered in tv/run_gates.py): tv/test_a_locked_tab_never_strands_the_v
 
 LEFT: why his window reads hidden while on screen (macOS occlusion of the pywebview window) is not fixed here; only its effect on the tab route is.
 ### REG-2303 - A SECOND HAND-ADDED COPY VANISHED, AND THE WAR STASH WAS ONE PAGE (Vault L1, provisional number, unversioned)
+### REG-2308 - THE WAR STASH DREW 9 OF ONE BELT; OVER-CAP COPIES WENT TO NORMAL MULES; MOVE TASKS SHARED ONE MERGED GRID (Vault L1, v3776)
+Live v3776 shot 10 (2026-10-20 22:05 IDT): the SHARED STASH card drew Arachnid Mesh 1/9..9/9. Cause: his real tally holds 9
+Arachnid Mesh (records copyIx 0-8, not a script add or staged duplicate); REG-2307's small-gear rule (<=2 cells keeps EVERY copy)
+let all 9 in, and the card drew every owned copy on the filed locker (copyCount), ignoring the plan - so Enigma x7, Infinity x6,
+Shako x7 also drew there although their tasks moved extras out. His rulings: rings and amulets keep every copy; any other small
+item at most 4; big gear 1; extras go to WAR1, WAR2 ... in order (not their normal mule), never auto-created; with none, the
+'make a mule named WAR1' line plus per-copy rows. Fix: _vaultWarCap (footprint + the router's base: 1x1 ring/amulet = all, <=2
+cells or belt/sash/charm = 4, else 1), _vaultWarKept/_vaultWarOver per copy (war-stash copies, then the planned keeper, then
+first-witnessed order); an over copy stays shared-homed with over:true and the packer sends it past the 5 pages to the WAR mules;
+the SHARED card caps its draw, a WAR card draws the copies planned on it (_vaultWarOverOn). Also (Elad 22:35): every MOVE TASK is
+its own collapsed row; a click expands FROM (MANUAL / seen source cell / DEMO, said simulated) and TO (a mini grid of that mule
+with only this item at its exact cell); _vaultMoveGridHtml keys one grid per task. Guards: test_vault_l1_war_stash_overflow
+(29 RED_PROOF, 9 belts -> 4 + 5 on WAR1, 6 rings -> 6) and test_vault_l1_a_hand_add_routes_by_type (task expansion).
+[[regression-guard]]
+
 ### REG-2307 - THE WAR STASH HELD EVERY COPY OF BIG WAR GEAR, SO HIS REAL DATA OVERFLOWED BY 85 COPIES; WAR MULES WERE BOUND BY NAME (Vault L1, v3776)
 His real vault (2026-10-20): 170 copies routed to the 5-page war stash needed ~717 cells of ~500, leaving 85 copies with no cell
 (Shako x7, SoJ x5, Raven Frost x5, Mara's x6...). His rulings: keep ONE copy of a big war item there, extras to the normal mule;
