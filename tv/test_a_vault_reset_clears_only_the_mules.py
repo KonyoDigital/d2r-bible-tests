@@ -72,11 +72,14 @@ PROV_TO = "  /* a filing taken OUT takes its witness row with it"
 SCOPE_STORES = {"assign": "d2r_muleAssign", "prov": "d2r_vaultProv",
                 "journal": "d2r_intakeLog", "seen": "d2r_intakeSeen",
                 "owned": "d2r_owned"}
+#: REG-2335 (Elad 2026-10-21) - the items-only wipe (vaultWipeItems) ALSO empties these; the two older doors keep them
+WIPE_ONLY = {"magic": "d2r_magicFinds", "copies": "d2r_copies"}
 FOLDER_IDB = "d2r_vault_fs/shotdir"
 #: #41 rank 2 — the reset persists its receipt here (the runner's own record; the doctor's reset row reads it)
 RECEIPT_KEY = "d2r_vaultLastReset"
 DOORS = {"vaultReset": ["assign", "prov"],
-         "vaultClearHistory": ["assign", "prov", "journal", "seen", "folder", "owned"]}
+         "vaultClearHistory": ["assign", "prov", "journal", "seen", "folder", "owned"],
+         "vaultWipeItems": ["assign", "prov", "journal", "seen", "folder", "owned", "magic", "copies"]}
 #: what no reset may ever touch. d2r_owned is cleared by the FULL door only (his ruling 2026-09-27).
 NEVER = ("d2r_setPieces", "d2r_foundLog", "d2r_rwMade", "d2r_magicFinds", "d2r_copies",
          "d2r_unknownReads", "d2r_tally", "d2r_runeStash", "d2r_gemStash", "d2r_materialStash", "d2r_craftStash",
@@ -293,9 +296,9 @@ class AVaultResetClearsOnlyTheMules(unittest.TestCase):
 
     def test_the_scope_is_declared_once_and_names_exactly_the_mules_and_the_intake_records(self):
         sc = self.o["scope"]
-        self.assertEqual(SCOPE_STORES, dict((p, c["store"]) for p, c in sc["clears"].items() if c["store"]),
+        self.assertEqual(dict(SCOPE_STORES, **WIPE_ONLY), dict((p, c["store"]) for p, c in sc["clears"].items() if c["store"]),
                          "the reset scope names a store his ruling does not allow: %r" % sc["clears"])
-        self.assertEqual({"assign", "prov", "journal", "seen", "folder", "owned"}, set(sc["clears"]))
+        self.assertEqual({"assign", "prov", "journal", "seen", "folder", "owned", "magic", "copies"}, set(sc["clears"]))
         self.assertEqual(FOLDER_IDB, sc["clears"]["folder"]["idb"])
         self.assertTrue(sc["clears"]["folder"]["later"], "the folder unlink is not the async step after the check")
         self.assertEqual(DOORS, sc["doors"], "a door clears a different part of the scope than declared")

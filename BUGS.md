@@ -7,6 +7,22 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2335 - AFTER A RESET HIS BOARD STILL HELD A TORCH IN SHARED STASH, A TORCH IN UNI-SMALL AND SIX CHARMS IN MAGIC & RARE (v3782)
+
+Elad, v3778 console, 2026-10-21 01:44 IDT: "when i do reset it. i still have these items that are stuck and not being deleted automatically with the rest of the items" and "there should be an option that resets just the items and wipes them from the mules and shared stash/war stash/mules all emptied" (runes / gems / materials need not be reset).
+
+ROOT CAUSE - neither reset door was built to empty the board (both are scoped by the 2026-09-27 ruling in _VAULT_RESET_SCOPE):
+1. MAGIC & RARE reads `d2r_magicFinds`, not the mule map (`_vaultLockerItems('magic-rare')`). Both doors list it under `keeps`, so its six items always survived.
+2. Reset assignments keeps `d2r_owned`; the router seam (`_vaultSeamHome`, v3767) homes every owned name with no assignment straight back onto a locker (Shared Stash by `isSharedStash`, a charm to UNI-SMALL), so the lockers refill on the next paint.
+3. Reset vault clears owned, then `_vaultRefileFromPlan` re-files every row the evidence plan calls proven - the Hellfire Torch copies came back that way.
+4. `d2r_copies` (extra copies, multi-copy / WAR overflow) is also a keep of both doors.
+
+FIX: a third door, `window.vaultWipeItems` ("🧹 Wipe items (keep runes · gems · materials)", first of the reset buttons, asks a confirm that names what it clears and what stays). It clears through the same scope: assignments, witness rows, intake log, scan ledger, linked folder, owned, plus two new scope steps `magic` (d2r_magicFinds, in place) and `copies` (d2r_copies, in place). It rebuilds nothing. Its self-check watches every keep it does not itself clear (`_vKeepsFor`): runes / gems / materials, set pieces, runewords, the chronicle, tallies, unknown reads, copy targets and the roster. The two older doors are unchanged.
+
+GUARDS (registered in tv/run_gates.py): tv/test_a_wipe_items_empties_every_locker.py (11 RED proofs, heart2 11/11 PROVEN); tv/test_a_vault_reset_clears_only_the_mules.py pins the new door and steps.
+
+LEFT: not verified on his live board (no reset is pressed on :17772). Reset vault still rebuilds proven items by design; the wipe is the door that empties.
+
 ### REG-2321 - EVERY BOARD TAB SAT ON "OPENING VaultLOCKED - THE BOARD IS BUSY" ON HIS OCCLUDED MAC CONSOLE (v3778)
 
 Elad's Mac, v3775 (main 4f487af9), 2026-10-20: Vault, D2JSP and every other board-routed header tab stayed on the shellOpen veil; TV-D (shellHome) and SESSIONS (showSessions) never enter that path and worked. A console restart did not help. Live read-only evidence: server and CPU fine, uiBeat hidden:true, painting:false, frozenBeats 46+, DOM intact - the 2026-09-07 occlusion signature. The board on the box (top level and inside the console's engine frame) had switchTab defined and no pageerror.

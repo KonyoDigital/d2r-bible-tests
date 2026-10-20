@@ -2698,6 +2698,10 @@ def _check_the_vault_reset(receipt=None, before=None, after=None):
     digest of every kept store before the clears and after the rebuild) through the shared board
     read, and carries the reset's own time. No console, no receipt, or one that will not parse is
     UNKNOWN, not a report of 0 rebuilt. A kept store whose digest changed is named.
+
+    REG-2335 (v3782) - this row also watches the items-only wipe (door vaultWipeItems): it never
+    rebuilds, so it is judged like Reset assignments, on the stores it keeps (runes / gems / materials,
+    set pieces, the chronicle) - a wipe that touched one of them reads MISSING here.
     """
     at = None
     if receipt is None and before is None and after is None:

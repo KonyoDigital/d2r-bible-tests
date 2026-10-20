@@ -9585,6 +9585,14 @@ GATES = [
          why=("REG-1946 - shellOpen retried the board route for 4 s and stopped without a word, so on a busy machine the "
               "first Vault click lit the tab and opened nothing; it marks the tab opening, retries 20 s, and says so if it gives up.")
          ),
+    Gate("test_a_wipe_items_empties_every_locker", [sys.executable,
+         os.path.join(HERE, "test_a_wipe_items_empties_every_locker.py")], 120,
+         needs_app=False,
+         why=("REG-2335 - after a reset Elad still had a torch in SHARED STASH, a torch in UNI-SMALL and six charms in "
+              "MAGIC & RARE: Reset assignments keeps owned (the router re-homes it), Reset vault rebuilds proven items, "
+              "and both keep d2r_magicFinds and d2r_copies. The new 'Wipe items' door empties mules, Shared Stash, WAR, "
+              "Magic & Rare and copies, rebuilds nothing, and keeps runes / gems / materials, set pieces and the chronicle.")
+         ),
     Gate("test_a_locked_tab_never_strands_the_veil", [sys.executable,
          os.path.join(HERE, "test_a_locked_tab_never_strands_the_veil.py")], 60,
          needs_app=False,
