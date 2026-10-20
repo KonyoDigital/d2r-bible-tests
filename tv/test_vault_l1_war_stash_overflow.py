@@ -116,6 +116,13 @@ class WarStashOverflow(unittest.TestCase):
         self.assertIn("Enigma", o["line"])
         self.assertFalse(any(re.match(r"^war", str(x), re.I) for x in o["roster"]), "a WAR mule was created: %r" % o["roster"])
 
+    def test_utility_proc_and_charge_gear_routes_to_the_war_stash(self):
+        """Elad 2026-10-20: Demon Limb (Enchant charges), Metamorphosis (Mark of Bear/Wolf), Treachery (Fade) -> SHARED STASH"""
+        o = T.board().run("OUT.r = {}; ['Demon Limb', 'Metamorphosis', 'Treachery', 'Arachnid Mesh', \"Andariel's Visage\", 'Vampire Gaze']"
+                          ".forEach(function(n){ var s = window.suggestMule(n); OUT.r[n] = s && s.id; });")
+        for n, mid in o["r"].items():
+            self.assertEqual(mid, "shared", "%s routed to %r, not the war stash" % (n, mid))
+
     def test_distinct_attacks_clear_the_vault_apply_wilson_bar(self):
         from confidence import wilson_lower
         import self_arming as SA
@@ -153,6 +160,15 @@ RED_PROOF = [
     {"why": "WAR mules fill in roster order, not WAR1 then WAR2.",
      "file": "bible.html", "find": "    return r.sort(function(a, b){ return a.n - b.n || (a.name < b.name ? -1 : 1); });",
      "replace": "    return r.reverse();", "matches": 1},
+    {"why": "Demon Limb (Enchant charges) goes back to a mule.",
+     "file": "bible.html", "find": "    'demon limb': 'enchant charges - utility charge flail',\n",
+     "replace": "", "matches": 1},
+    {"why": "Metamorphosis (Mark of Bear/Wolf) goes back to the runewords mule.",
+     "file": "bible.html", "find": "    'metamorphosis': 'mark of the bear / wolf on striking - utility proc helm',\n",
+     "replace": "", "matches": 1},
+    {"why": "Treachery (Fade) goes back to the runewords mule.",
+     "file": "bible.html", "find": "    'treachery': 'fade on striking - utility proc armour'\n",
+     "replace": "    'treachery_x': 'x'\n", "matches": 1},
     {"why": "A full war stash says nothing.",
      "file": "bible.html", "find": "    if (_wf.length) unrHtml += '<p class=\"vmv-warfull\"",
      "replace": "    if (false) unrHtml += '<p class=\"vmv-warfull\"", "matches": 1},
