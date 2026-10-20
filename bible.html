@@ -49300,13 +49300,14 @@ window.vaultAutoAssign = function(){
     window._movePackCache = null; window._warKeepBag = null;
     var ens = _vaultMoveEnsure(nm, copyIx, _vaultMoveBag());
     var _noRoom = !_vaultMoveWorn(ens.task.from) && ens.task.to && ens.task.to.holder != null && ens.task.to.cell == null; /* L1 hand add, no room */
-    if (!_vaultMoveShown(ens.task) && !_noRoom) {
+    var _newCopy = copyIx > 0; /* L1 a new hand copy is never 'in place': its own MANUAL row, routed by the rules */
+    if (!_newCopy && !_vaultMoveShown(ens.task) && !_noRoom) {
       try { if (typeof _vaultMovePaint === 'function') _vaultMovePaint(); } catch (eP0) {}
       return { ok: true, shown: false, task: ens.task, why: 'in place' };
     }
     /* Elad's ruling: a hand-typed item reads MANUAL -> target cell. A later sighting fills the real from-cell
        on the same row (_vaultMoveApplySight), which keeps the row and drops the MANUAL face. */
-    var hand = _vaultMoveTask({ name: nm, from: ens.task.from, to: ens.task.to, status: ens.task.status,
+    var hand = _vaultMoveTask({ name: nm, from: _newCopy ? null : ens.task.from, to: ens.task.to, status: ens.task.status,
                                 evidence: ens.task.evidence || [], manual: true });
     var wrote = _vaultMoveCommit([{ name: nm, copyIx: copyIx, task: hand }]); /* v3773 manual row */
     try { if (typeof _vaultMovePaint === 'function') _vaultMovePaint(); } catch (eP) {}
