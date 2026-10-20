@@ -45,9 +45,9 @@ class ASentenceNamesOnlyButtonsThePageHas(unittest.TestCase):
         labels = _button_labels(src)
         self.assertIn("⚖️ Auto-assign unsorted", labels, "the Auto-assign button itself is gone - re-point this law")
         named = re.findall(r"press (⚖️ [A-Za-z][A-Za-z \-]*?)(?= to | to$|\)|\"|<|$)", src)
-        # L1 (Elad: less wordy text) cut the organizer header, the third sentence. The two that remain
-        # (the dock line and the hand-add line) must still name the real button.
-        self.assertGreaterEqual(len(named), 2, "the two vault sentences no longer name a button: %r" % named)
+        # L1 (Elad: less wordy text) cut the organizer header, then the dock line ('nothing loose' - moves are
+        # automatic now). The hand-add line that remains must still name the real button.
+        self.assertGreaterEqual(len(named), 1, "the vault sentence no longer names a button: %r" % named)
         for n in named:
             self.assertIn(n.strip(), labels, "a sentence tells him to press %r and no button has that name" % n)
 
@@ -71,8 +71,8 @@ class ASentenceNamesOnlyButtonsThePageHas(unittest.TestCase):
 RED_PROOF = [
     {"why": "REG-2045 - a vault sentence tells him to press Auto-Sort again, a button the page does not have",
      "file": "bible.html",
-     "find": "see VAULT INTEGRITY, or press ⚖️ Auto-assign unsorted\"}",
-     "replace": "see VAULT INTEGRITY, or press Auto-Sort ✦\"}",
+     "find": "press ⚖️ Auto-assign unsorted to file it</span",
+     "replace": "press Auto-Sort to file it</span",
      "matches": 1},
 ]
 
