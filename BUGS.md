@@ -7,6 +7,19 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2321 - EVERY BOARD TAB SAT ON "OPENING VaultLOCKED - THE BOARD IS BUSY" ON HIS OCCLUDED MAC CONSOLE (v3778)
+
+Elad's Mac, v3775 (main 4f487af9), 2026-10-20: Vault, D2JSP and every other board-routed header tab stayed on the shellOpen veil; TV-D (shellHome) and SESSIONS (showSessions) never enter that path and worked. A console restart did not help. Live read-only evidence: server and CPU fine, uiBeat hidden:true, painting:false, frozenBeats 46+, DOM intact - the 2026-09-07 occlusion signature. The board on the box (top level and inside the console's engine frame) had switchTab defined and no pageerror.
+
+1. The veil label was the whole button's textContent, so the Vault lock chip glued on as "VaultLOCKED". FIX: `_shellVeil` reads `.ht-lbl`.
+2. A hidden (occluded) window composites nothing new, so a veil only set to display:none could stay on his pixels. FIX: no veil while `document.visibilityState === 'hidden'` (the route still runs); `_shellOpeningEnd` removes the veil from the DOM and runs `_shellPaintAgain` (rAF + setTimeout fallback).
+3. A board that never routed gave up after 20 s and was never reloaded. FIX: one cache-busted reload of `#tvd-eng`, then 20 s more, then an honest "failed to load - reload the console window" toast and the veil gone.
+4. A switchTab that threw after moving the board failed `_shellRoute`. FIX: the throw is caught and the `.tab.active` read decides. In bible.html each room's setup in switchTab is wrapped in its own try/catch.
+
+GUARDS (registered in tv/run_gates.py): tv/test_a_locked_tab_never_strands_the_veil.py (5 RED proofs); tv/test_a_tab_click_is_never_silently_dropped.py updated for the reload round.
+
+LEFT: why his window reads hidden while on screen (macOS occlusion of the pywebview window) is not fixed here; only its effect on the tab route is.
+
 ### REG-2296 - A BUMP-ONLY RUN STILL TOOK 4750 s: REDS RERAN IN FULL, THE PROOF QUEUE DIRTIED 147 PROOFS, LISTINGS WERE NEVER STORED (v3775)
 
 Measured on v3774 (7793ac8a): `--full` 4924 s, then a bump-only `--changed` (v3775 stamp, local commit f49305f2) 4750 s against a ~600 s target. 1014 gates carried, 497 ran (4606 s summed). The stamp lines were exactly the expected ones; the time went elsewhere:

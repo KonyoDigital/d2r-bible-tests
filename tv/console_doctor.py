@@ -3281,6 +3281,9 @@ def _check_the_console_UI_has_not_faulted():
 
     The console now POSTs /api/ui_fault when it heals itself, and this reads that record. A fault
     that healed is still a fault — the point is that it stops being HIS job to notice.
+
+    REG-2321 (v3778) - this is also the watcher for the shell tab route: a board tab that cannot
+    open after its one reload records `shell-route-gave-up`, and it lands here by kind.
     """
     try:
         import control_app as ca
