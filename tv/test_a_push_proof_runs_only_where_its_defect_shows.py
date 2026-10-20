@@ -520,9 +520,10 @@ class TheRestrictionIsAProvingDeviceNeverAVerdict(unittest.TestCase):
             for n in ast.walk(st):
                 if scrub_at is None and isinstance(n, ast.Call) and getattr(n.func, "attr", None) == "scrub":
                     scrub_at = i
-                if loop_at is None and isinstance(st, ast.For) and getattr(st.iter, "id", None) == "GATES":
+                # v3775 (REG-2296) - the gate loop walks `_queue`, a copy of GATES that sends reds to the back
+                if loop_at is None and isinstance(st, ast.For) and getattr(st.iter, "id", None) in ("GATES", "_queue"):
                     loop_at = i
-        self.assertIsNotNone(loop_at, "PREMISE: run() has no `for g in GATES` loop - re-anchor this law")
+        self.assertIsNotNone(loop_at, "PREMISE: run() has no `for g in GATES`/`_queue` loop - re-anchor this law")
         self.assertTrue(scrub_at is not None and scrub_at < loop_at,
                         "run() does not scrub TV_LAW_WIDTHS before its first gate (scrub at %s, loop at %s)" % (scrub_at, loop_at))
 
