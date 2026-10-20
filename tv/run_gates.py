@@ -10760,6 +10760,26 @@ GATES = [
              "stamp line, any other TASKS row edit, an unknown diff line or a failed diff "
              "reruns everything. A gate whose name, script, or reader-only closure module "
              "reads the version reruns. Every added stamp line must pass stamp_leak.leak_problem (home path, IP, hostname, token, machine identity) or nothing is carried, and bump_version.py refuses the same note before writing. The home-path gate always reruns. The BLUEPRINT generated time no longer rekeys the input map. 46 RED proofs, Wilson 0.9229 against 0.722."),
+    Gate("test_a_red_gate_is_never_carried_as_a_pass",
+         [sys.executable, os.path.join(HERE, "test_a_red_gate_is_never_carried_as_a_pass.py")], 120,
+         needs_app=False,
+         why="v3775 (REG-2296) fix 1 - a red gate whose inputs did not move is still red. A FAIL from a traced run is kept in the ledger's own reds map, never the PASS entries; on --changed it is announced still red, carried, unchanged, runs last under RED_CAP (45 s, TV_RED_CAP), and a cap hit or failure is a FAIL. A real pass inside the cap is recorded as a pass; a red row is never carried green."),
+    Gate("test_a_gate_run_does_not_dirty_the_proof_queue",
+         [sys.executable, os.path.join(HERE, "test_a_gate_run_does_not_dirty_the_proof_queue.py")], 120,
+         needs_app=False,
+         why='v3775 (REG-2296) fix 2 - Wilson gates bank into tv/.self_arming.jsonl, which dirtied an input of 147 gates mid-run so none were stored. While run_gates records proofs, self_arming._bank_path sends default-queue rows to a TV_SELF_ARMING_DEFER scratch file outside the checkout; run_gates folds them in after the last gate and removes it. A redirected fixture queue is never deferred.'),
+    Gate("test_a_build_word_in_a_gate_name_is_not_a_version_read",
+         [sys.executable, os.path.join(HERE, "test_a_build_word_in_a_gate_name_is_not_a_version_read.py")], 60,
+         needs_app=False,
+         why="v3775 (REG-2296) fix 3 - the stamp carry's name rule dropped build|title|status|fresh, which reran 22 gates per bump whose scripts never name the version. version|stamp|bump|ship|resume (any case) still rerun, as do the script-word and reader-module rules."),
+    Gate("test_a_listing_is_keyed_by_what_the_trace_listed",
+         [sys.executable, os.path.join(HERE, "test_a_listing_is_keyed_by_what_the_trace_listed.py")], 120,
+         needs_app=False,
+         why='v3775 (REG-2296) fix 4 - a gate file that lists a directory is keyed by its traced listings instead of refused (80 gates). A listed folder holding no tracked file (tv/frames/hist) is keyed by a name/size/mtime snapshot of everything under it; any difference or an unsnapshottable folder runs the gate.'),
+    Gate("test_an_inert_child_does_not_untrace_a_gate",
+         [sys.executable, os.path.join(HERE, "test_an_inert_child_does_not_untrace_a_gate.py")], 60,
+         needs_app=False,
+         why="v3775 (REG-2296) fix 5 - sleep, ps and pgrep read no file in this checkout (a pgrep pattern is matched, never opened), so they no longer make a gate's reads UNKNOWN. lsof on a path here, bash, sh, chrome, perl and the rest still do."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
@@ -10830,6 +10850,18 @@ def leaked_by_this_run(before, after, me, here):
     return leaked, theirs
 
 
+RED_CAP = 45
+
+
+def red_cap(g):
+    """Seconds an unchanged red gate gets on its capped rerun. -> int"""
+    try:
+        cap = int(os.environ.get("TV_RED_CAP") or RED_CAP)
+    except ValueError:
+        cap = RED_CAP
+    return max(1, min(int(g.timeout or cap), cap))
+
+
 def run(only=None, live_watch=True, live_writer=None, ledger=None):
     del _skip_reasons[:]
     led = None
@@ -10838,7 +10870,7 @@ def run(only=None, live_watch=True, live_writer=None, ledger=None):
             import gate_ledger as _GL
             led = _GL.Ledger()
             if ledger == "full":
-                print("ledger: --full runs every gate. A PASS is recorded and a FAIL is dropped.",
+                print("ledger: --full runs every gate. A PASS is recorded; a FAIL is kept as red, never carried as a pass.",
                       flush=True)
             elif _GL.ci_blocks():
                 print("ledger: CI runs the full set. Nothing is carried and nothing is recorded.",
@@ -10931,7 +10963,21 @@ def run(only=None, live_watch=True, live_writer=None, ledger=None):
             _orphan_before, _orphan_ok = dict(_tbl), True    # the TABLE, not a set: #31 walks the parents
     except Exception:
         pass                                        # no ps, no claim — UNKNOWN, never "clean"
-    for g in GATES:
+    # v3775 (REG-2296) — the Wilson gates bank into tv/.self_arming.jsonl. Mid-run that dirtied an
+    # input of 147 gates, so none of them could be stored. While proofs are recorded the bank goes to
+    # a scratch file outside the checkout and is folded in after the last gate.  # GATES-ARMING-DEFER
+    _defer = None
+    if led is not None and not _GL.ci_blocks() and not _GL.reuse_closed() \
+            and not os.environ.get("TV_SELF_ARMING_DEFER"):
+        _dfd, _defer = tempfile.mkstemp(prefix="self-arming-defer.", suffix=".jsonl")
+        os.close(_dfd)
+        os.environ["TV_SELF_ARMING_DEFER"] = _defer
+    # v3775 (REG-2296) — A RED GATE WHOSE INPUTS DID NOT MOVE IS STILL RED. It is never carried as a
+    # pass: it goes to the back of the queue and runs once more under RED_CAP seconds, and a cap hit
+    # is a FAIL that says "still red, carried, unchanged".  # GATES-RED-LAST
+    _queue = list(GATES)
+    _red_last = {}
+    for g in _queue:
         if only and g.name not in only:
             continue
         if g.needs_app and not app_up:
@@ -10951,11 +10997,23 @@ def run(only=None, live_watch=True, live_writer=None, ledger=None):
             except Exception as _lexc:
                 print("ledger: the input map was not built (%s). Every gate runs."
                       % type(_lexc).__name__, flush=True)
-        if ledger == "changed" and led is not None:  # LEDGER-CHANGED-ONLY
+        _capped = _red_last.pop(g.name, None) if g.name in _red_last and _red_last[g.name] else None
+        if ledger == "changed" and led is not None and _capped is None:  # LEDGER-CHANGED-ONLY
             try:
                 _hit, _miss = led.lookup(g)
             except Exception as _lexc:
                 _hit, _miss = None, "taking its key raised %s" % type(_lexc).__name__
+            if _hit is None and g.name not in _red_last:
+                try:
+                    _red, _rmiss = led.lookup(g, want=False)
+                except Exception:
+                    _red = None
+                if _red is not None:  # GATES-RED-DEFER
+                    _red_last[g.name] = _red.get("line") or "red, inputs unchanged"
+                    _queue.append(g)
+                    print("\u21a9\u2717 %-18s still red, carried, unchanged (%s) - runs last, capped at %ds"
+                          % (g.name, _red_last[g.name], red_cap(g)), flush=True)
+                    continue
             if _hit is not None:
                 print("\u21a9 %-20s %s" % (g.name, _hit.get("line") or ""), flush=True)
                 results.append((g, "CARRY", 0.0, _hit.get("line") or "", ""))
@@ -10998,7 +11056,8 @@ def run(only=None, live_watch=True, live_writer=None, ledger=None):
                     _trace = None
                     _env = None
             p = subprocess.run(_argv, cwd=g.cwd, capture_output=True, text=True,
-                               encoding="utf-8", errors="replace", timeout=g.timeout,
+                               encoding="utf-8", errors="replace",
+                               timeout=red_cap(g) if _capped else g.timeout,  # GATES-RED-CAP
                                env=law_env(g.needs_app, _env))
             dt = time.time() - t0
             # A GATE DECLARES ITS SKIP REASON ON STDOUT. Reading `stdout + stderr` let ANYTHING on
@@ -11065,6 +11124,9 @@ def run(only=None, live_watch=True, live_writer=None, ledger=None):
                                      lambda m: "skipped=%s of %s" % (m.group(1), _ran.group(1)),
                                      _detail)[:170]
             results.append((g, status, dt, _detail, blob if status in ("FAIL", "SKIP") else ""))
+            if _capped and status == "FAIL":
+                _detail = ("still red, carried, unchanged (%s) - " % _capped + _detail)[:220]
+                results[-1] = (g, status, dt, _detail, results[-1][4])
             if led is not None and status in ("PASS", "FAIL"):
                 try:
                     if not led.record(g, status == "PASS", trace=_trace) and status == "PASS" and led.last_why:
@@ -11077,11 +11139,15 @@ def run(only=None, live_watch=True, live_writer=None, ledger=None):
                 except OSError:
                     pass
         except subprocess.TimeoutExpired:
-            results.append((g, "FAIL", time.time() - t0,
-                            "timed out after %ds — a hung gate is a failed gate" % g.timeout, ""))
+            if _capped:  # GATES-RED-STAYS-RED
+                results.append((g, "FAIL", time.time() - t0,
+                                "still red, carried, unchanged (%s) - capped at %ds" % (_capped, red_cap(g)), ""))
+            else:
+                results.append((g, "FAIL", time.time() - t0,
+                                "timed out after %ds — a hung gate is a failed gate" % g.timeout, ""))
             if led is not None:
                 try:
-                    led.record(g, False)
+                    led.record(g, False, trace=_trace)
                 except Exception:
                     pass
                 try:
@@ -11106,6 +11172,21 @@ def run(only=None, live_watch=True, live_writer=None, ledger=None):
                 print("   \u26a0 state moved during `%s`: %s — %s"
                       % (g.name, "; ".join(_moved), _who), flush=True)
             _lw_prev = _lw_now
+    if _defer:
+        os.environ.pop("TV_SELF_ARMING_DEFER", None)
+        try:
+            import self_arming as _SA
+            _nf, _nr = _SA.fold_deferred(_defer)
+            try:
+                os.remove(_defer)
+            except OSError:
+                pass
+            if _nf or _nr:
+                print("ledger: %d proof-queue row(s) banked by this run folded into tv/.self_arming.jsonl%s"
+                      % (_nf, (", %d unreadable row(s) refused" % _nr) if _nr else ""), flush=True)
+        except Exception as _fexc:
+            print("\u26a0 the deferred proof-queue rows were NOT folded (%s): %s" % (type(_fexc).__name__, _defer),
+                  flush=True)
     if live_watch and _lw_blame:
         print()
         print("\u26a0 WHICH GATE %s:" % ("MAY HAVE TOUCHED HIS LIVE STATE — suspects, because "

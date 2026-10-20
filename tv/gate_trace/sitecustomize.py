@@ -163,7 +163,9 @@ def _boot():
         head = os.path.basename(args[0]) if args else ""
         if head == "git" and git_child(args, env, cwd):
             return
-        if head in ("lsof", "ps", "pgrep") and not any(
+        if head in ("ps", "pgrep", "sleep"):
+            return  # the process table or a clock: a path in a pgrep pattern is matched, never opened  # TRACE-INERT-CHILD
+        if head == "lsof" and not any(
                 rel(a) is not None for a in args[1:] if "/" in a):
             return  # the process table, not a file in this checkout
         is_py = bool(args) and (args[0] == sys.executable or head.startswith("python"))

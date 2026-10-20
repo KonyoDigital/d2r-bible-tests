@@ -149,7 +149,10 @@ _TASK_BOUND = re.compile(r"^\| \*\*" + _V + r"\*\* \| `(?P<sha>[0-9a-f]{7,40})` 
 # console_doctor each sit in 619-633 closures through hub imports, so a closure test reruns
 # everything. Closure membership is used only for _VERSION_READER_ONLY, modules that exist to read
 # the version and sit in no hub. CI never consults the ledger.
-_VERSION_NAME = re.compile(r"version|stamp|bump|ship|build|title|status|resume|fresh", re.I)
+# v3775 (REG-2296): build|title|status|fresh dropped from the NAME rule. They named 22 of the 107 bump
+# reruns (test_the_item_edit_tab_builds_..., test_a_fresh_install_..., test_a_title_is_not_an_owner) whose
+# scripts never speak of the version; such a gate is still caught by its script's words below.
+_VERSION_NAME = re.compile(r"version|stamp|bump|ship|resume", re.I)  # STAMP-NAME-NARROW
 _VERSION_WORDS = re.compile(
     r"D2R_BUILD|d2r-build|bump_version|WINDOWS_SHIP|stamp_versions|\bVERSION\b|"
     r"[\x27\x22]ver[\x27\x22]|<title>|resume_state|RESUME_HERE|version_stamp_gate|"
@@ -515,6 +518,12 @@ def map_key(root):
 _LISTING_OK = {
     "test_agent": (),  # LEDGER-LISTING
 }
+# v3775 (REG-2296) — A LISTING IS KEYED BY WHAT THE TRACED RUN LISTED. 80 gates (404 s on a bump) were
+# refused because the gate file itself calls os.listdir / glob / os.walk. Every PASS is now stored only
+# from a traced run, and the trace records each listing (`listed`): an added or deleted tracked file
+# under one is a hit (first_hit), an untracked one that comes or goes is a hit (`untracked`), and a
+# listed directory that holds no tracked file is keyed by its own name list (`snaps`). So the static
+# walk no longer refuses a gate file for listing; the trace keys it.
 
 
 # Gitignored caches whose body is used only under a key built from mtimes the trace already
@@ -1528,6 +1537,31 @@ def _module_stem(path):
     return stem or None
 
 
+_SNAP_MAX = 2000
+
+
+def listing_snap(root, rel):
+    """A directory with no tracked file, keyed by what is in it: every entry under it (walked), with
+    its size and mtime. Too many entries, a link, or anything unreadable is None. -> [str] | None"""
+    top = os.path.join(root, rel)
+    out = []
+    try:
+        if os.path.islink(top) or not os.path.isdir(top):
+            return None
+        for here, dirs, files in os.walk(top, followlinks=False):
+            dirs.sort()
+            for f in sorted(dirs + files):
+                full = os.path.join(here, f)
+                st = os.lstat(full)
+                out.append("%s\t%d\t%d" % (os.path.relpath(full, top).replace(os.sep, "/"),
+                                              st.st_size, st.st_mtime_ns))
+                if len(out) > _SNAP_MAX:  # LEDGER-SNAP-MAX
+                    return None
+    except OSError:
+        return None
+    return out
+
+
 def first_hit(inputs, listed, imports, changed, churn):
     """The first moved path that this gate's inputs cover. -> path | None
 
@@ -1589,6 +1623,8 @@ class Ledger(object):
         self.why = None
         self._loaded = False
         self.dropped = set()
+        self.reds = {}
+        self.reds_dropped = set()
         self.reads = 0
         self.last_why = None
         self.map = None
@@ -1628,6 +1664,8 @@ class Ledger(object):
                     data = json.load(fh)
                 sha = str((data or {}).get("proven_sha") or "")
                 self.proven = sha if _SHA.match(sha) else None
+                reds = (data or {}).get("reds")
+                self.reds = dict(reds) if isinstance(reds, dict) else {}  # LEDGER-REDS-LOAD
             except Exception:
                 self.proven = None
         self._loaded = True
@@ -1941,7 +1979,7 @@ class Ledger(object):
             found, why = H.law_inputs(
                 sandbox, os.path.basename(script), [],
                 parsed=self._parsed, tracked=self._tracked(root),
-                allow_listing=gate_name in _LISTING_OK,
+                allow_listing=True,  # LEDGER-LISTING-TRACED
                 skip_modules=skip)
         except Exception as exc:
             return [], "inputs could not be derived (%s)" % type(exc).__name__
@@ -2241,8 +2279,11 @@ class Ledger(object):
             return None
         return "proven at %s (%s)" % (sha, age)
 
-    def lookup(self, gate):
-        """-> (entry|None, why). A hit did not open the gate's inputs."""
+    def lookup(self, gate, want=True):
+        """-> (entry|None, why). A hit did not open the gate's inputs.
+
+        want=False asks the RED map: a stored FAIL whose inputs have not moved since it failed. That is
+        never a pass. run_gates runs it last under a short cap and its verdict is whatever that run says."""
         if reuse_closed():
             return None, "GATE_LEDGER=0 — every gate runs"
         if ci_blocks():
@@ -2251,9 +2292,10 @@ class Ledger(object):
         if self.why:
             return None, self.why
         name = getattr(gate, "name", None)
-        entry = self.entries.get(name) if isinstance(self.entries, dict) else None
-        if not isinstance(entry, dict) or entry.get("ok") is not True:  # LEDGER-ONLY-PASS
-            return None, "no stored PASS for this gate"
+        book = self.entries if want is True else self.reds
+        entry = book.get(name) if isinstance(book, dict) else None
+        if not isinstance(entry, dict) or entry.get("ok") is not (want is True):  # LEDGER-ONLY-PASS
+            return None, "no stored PASS for this gate" if want is True else "no stored red for this gate"
         if entry.get("gate") != name:
             return None, "the stored row does not match this gate"
         root = self._root_of([gate])
@@ -2294,9 +2336,17 @@ class Ledger(object):
         hit = first_hit(inputs, listed, imports, changed, self._churn_cache.get(sha, set()) | moved)
         if hit:
             return None, "inputs changed: %s" % hit
+        snaps = entry.get("snaps") or {}
+        if not isinstance(snaps, dict):
+            return None, "the stored listing snapshot is unreadable"
+        for path in sorted(snaps):
+            if listing_snap(root, path) != snaps[path]:  # LEDGER-SNAP-MOVED
+                return None, "inputs changed: the listing of %s" % path
         line = self.carry_line(entry)
         if not line:
             return None, "the stored PASS has no sha or no age"
+        if want is not True:
+            line = "red" + line[len("proven"):]  # LEDGER-RED-LINE: "red at <sha> (<age>)", never "proven"
         shown = dict(entry)
         shown["line"] = line
         return shown, None  # LEDGER-NO-BANK
@@ -2422,12 +2472,23 @@ class Ledger(object):
                     continue
                 if isinstance(entry, dict) and entry.get("ok") is True and entry.get("gate") == name:
                     self.entries[name] = entry
+            try:
+                with open(self.path, encoding="utf-8") as fh:
+                    dreds = (json.load(fh) or {}).get("reds")
+            except Exception:
+                dreds = None
+            for name, entry in (dreds.items() if isinstance(dreds, dict) else ()):
+                if name in self.reds_dropped or name in self.reds or name in self.entries:
+                    continue
+                if isinstance(entry, dict) and entry.get("ok") is False and entry.get("gate") == name:
+                    self.reds[name] = entry
         folder = os.path.dirname(self.path)
         if folder:
             os.makedirs(folder, exist_ok=True)
         tmp = self.path + ".tmp"
         with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump({"v": 2, "proven_sha": self.proven, "entries": self.entries}, fh, sort_keys=True)
+            json.dump({"v": 2, "proven_sha": self.proven, "entries": self.entries, "reds": self.reds}, fh,
+                      sort_keys=True)
         os.replace(tmp, self.path)
         self.why = None
         return True
@@ -2463,13 +2524,17 @@ class Ledger(object):
                 return None, "the gate read %s, which git ignores, so no diff can say it moved" % path
             inputs.add(path)
         listed = set()
+        snaps = {}
         for path in sorted(facts.get("L") or ()):
             if path in dirs or path == "":
                 listed.add(path)
                 continue
             if path in made or not os.path.isdir(os.path.join(root, path)):
                 continue  # a folder this run made, or one it removed again
-            return None, "the gate listed %s, which holds no tracked file, so no diff can say it moved" % path
+            snap = listing_snap(root, path)
+            if snap is None:
+                return None, "the gate listed %s, which holds no tracked file, so no diff can say it moved" % path
+            snaps[path] = snap  # LEDGER-LISTING-SNAP
         names = set(facts.get("I") or ())
         if names:
             # an imported name is its tracked source, however the import found it (a .pyc, a child)
@@ -2477,7 +2542,7 @@ class Ledger(object):
         if facts.get("G"):
             inputs.update(p for p in tracked if os.path.basename(p) == ".gitignore")
             listed.add("")
-        return {"inputs": inputs, "listed": listed,
+        return {"inputs": inputs, "listed": listed, "snaps": snaps,
                 "imports": set(facts.get("I") or ())}, None
 
     def _tracked_dirs(self, root, tracked):
@@ -2505,17 +2570,22 @@ class Ledger(object):
             self.last_why = "its inputs could not be derived (%s)" % type(exc).__name__
             return False
         why = (row or {}).get("why")
-        if ok is not True or why or not isinstance((row or {}).get("inputs"), list):  # LEDGER-NO-FAIL
+        red = ok is not True
+        if red and name:
+            self._drop(name)  # LEDGER-NO-FAIL: a FAIL never stays a PASS row
+        if why or not isinstance((row or {}).get("inputs"), list):
             if ok is True:
                 self.last_why = why or "its inputs are UNKNOWN"  # LEDGER-SAY-WHY
             if name:
                 self._drop(name)
+                self._drop_red(name)
             return False
         parts, pwhy = self._tool_parts(set(row.get("kinds") or []), root)
         if pwhy or not parts:
             self.last_why = pwhy or "the tool versions could not be read"
             if name:
                 self._drop(name)
+                self._drop_red(name)
             return False
         if not trace:
             facts, twhy = None, "no trace of what the gate read"  # LEDGER-NEEDS-TRACE
@@ -2530,6 +2600,7 @@ class Ledger(object):
             self.last_why = twhy or "no trace of what the gate read"
             if name:
                 self._drop(name)
+                self._drop_red(name)
             return False
         inputs = set(row["inputs"]) | traced["inputs"]  # LEDGER-TRACE-READ
         # a fresh status, plus the one taken when the run began: a file edited and put back
@@ -2548,6 +2619,7 @@ class Ledger(object):
                 dwhy or "the worktree cannot be read")
             if name:
                 self._drop(name)
+                self._drop_red(name)
             return False
         sha = head_sha(root)
         if not sha:
@@ -2556,10 +2628,8 @@ class Ledger(object):
         self._ensure()
         if self.entries is None:
             self.entries = {}
-        self.dropped.discard(name)
-        self.proven = sha
-        self.entries[name] = {
-            "ok": True,
+        row_out = {
+            "ok": not red,
             "gate": name,
             "sha": sha,
             "at": int(time.time() * 1000),
@@ -2571,9 +2641,31 @@ class Ledger(object):
             "imports": sorted(traced["imports"]),
             "untracked": sorted(p for p in untracked
                                 if covered(traced["listed"], traced["imports"], p)),
+            "snaps": dict(traced.get("snaps") or {}),
         }
+        if red:  # LEDGER-RED-STORE: kept in its own map, so lookup() can never carry it as a pass
+            row_out["red"] = True
+            self.reds[name] = row_out
+            self.reds_dropped.discard(name)
+            self._write()
+            return False
+        self.dropped.discard(name)
+        self.proven = sha
+        self.entries[name] = row_out
+        self._drop_red(name, write=False)
         self._write()
         return True
+
+    def _drop_red(self, name, write=True):
+        self._ensure()
+        if name in self.reds or write is False:
+            self.reds.pop(name, None)
+            self.reds_dropped.add(name)
+            if write:
+                try:
+                    self._write()
+                except Exception:
+                    pass
 
     def _drop(self, name):
         self._ensure()

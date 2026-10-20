@@ -109,6 +109,44 @@ def _ledger_path():
     """
     return os.environ.get("TV_SELF_ARMING_LEDGER") or LEDGER
 
+
+def _bank_path():
+    """Where a NEW row is appended, resolved at call time. -> str
+
+    v3775 (REG-2296) — A GATE RUN DOES NOT DIRTY THE TRACKED QUEUE WHILE OTHER GATES ARE PROVED.
+    Wilson gates bank here mid-run, so every later gate that reads this file was refused by the gate
+    ledger ("proved on uncommitted tv/.self_arming.jsonl") - 147 of 497 reruns on a v3775 bump. While
+    run_gates records proofs it sets TV_SELF_ARMING_DEFER to a scratch file outside the checkout; a row
+    bound for the DEFAULT queue goes there and run_gates folds it in after the last gate. A fixture
+    that redirected the queue (env or LEDGER patched) still writes where it pointed."""
+    p = _ledger_path()
+    d = os.environ.get("TV_SELF_ARMING_DEFER")
+    if d and os.path.abspath(p) == os.path.abspath(os.path.join(HERE, ".self_arming.jsonl")):  # ARMING-DEFER
+        return d
+    return p
+
+
+def fold_deferred(path):
+    """Append every row a deferred run banked into the real queue.
+    A line that is not one JSON object is not testimony this run made, so it is not folded and is
+    counted as refused. -> (folded, refused)"""
+    try:
+        with io.open(path, encoding="utf-8") as fh:
+            lines = [ln for ln in fh.read().splitlines() if ln.strip()]
+    except OSError:
+        return 0, 0
+    good = []
+    for ln in lines:
+        try:
+            if isinstance(json.loads(ln), dict):
+                good.append(ln)
+        except ValueError:
+            pass
+    if good:
+        with io.open(_ledger_path(), "a", encoding="utf-8") as fh:  # ARMING-FOLD
+            fh.write("\n".join(good) + "\n")
+    return len(good), len(lines) - len(good)  # the caller removes its own scratch file
+
 #: What counts as an INDEPENDENT KIND of proof, and what each is worth. Passed to confluence()
 #: rather than hardcoded there, because what counts as independent differs per lane.
 #: ⚠ An unknown kind scores 0 by design — a kind nobody has weighted is a kind nobody has thought
@@ -404,7 +442,7 @@ def record(lock, kind, refused, note="", src=None):
         "lock": str(lock), "kind": str(kind), "refused": bool(refused), "src": src,
         "note": str(note or "")[:400], "ts": int(time.time() * 1000),
     }
-    with io.open(_ledger_path(), "a", encoding="utf-8") as fh:
+    with io.open(_bank_path(), "a", encoding="utf-8") as fh:
         fh.write(json.dumps(row, ensure_ascii=False) + "\n")
     return row
 
@@ -658,7 +696,7 @@ def bank(lock, kind, src, n, k, note="", ref="", attacks=None, withdrawn=False):
         "withdrawn": bool(withdrawn),
         "note": str(note or "")[:400], "ts": int(time.time() * 1000),
     }
-    with io.open(_ledger_path(), "a", encoding="utf-8") as fh:
+    with io.open(_bank_path(), "a", encoding="utf-8") as fh:
         fh.write(json.dumps(row, ensure_ascii=False) + "\n")
     return row
 
