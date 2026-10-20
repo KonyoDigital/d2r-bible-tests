@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3775",
+  "ver": "v3776",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3775: A bump reruns only what it moved - reds stay red and run last (REG-2296)",
+  "note": "v3776: Vault L1 - MOVE TASKS checklist, every copy its own row, THROW OUT rows drain, war stash then WAR1 (REG-2300 to 2305)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
