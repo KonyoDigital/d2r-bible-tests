@@ -1,6 +1,6 @@
 {
  "source": "run_gates per-gate rows from 4 CI job log(s)",
- "gates": 1014,
+ "gates": 1008,
  "totalSeconds": 2576.0,
  "costs": {
   "blueprint-agrees": 3.9,
