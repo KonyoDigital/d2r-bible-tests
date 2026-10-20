@@ -43216,7 +43216,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       // clearly distinguished as the cross-account storage — not just another mule.
       return '<div class="vault-mule '+_muleAccent(m.id)+(m.id==='shared'?' vm-shared':'')+((window._vaultWarRole&&window._vaultWarRole(m))?' vm-war':'')+((total===0 && !_ovHtml)?' vm-empty':'')+'" data-vault-mule="'+esc(m.id)+'">'
         + '<div class="vm-plate" title="'+(m.id==='shared'?'SHARED STASH — accessible by ALL characters · click to open the fullscreen 5-page view':'click: open the in-game ID card of this mule · with a chip selected: assign it here')+'">'
-        + '<span class="vm-icon">'+esc(m.icon||'📦')+'</span><span class="vm-name">'+esc(m.name)+'</span>'+((window._vaultWarRole&&window._vaultWarRole(m))?'<span class="vm-warbadge" title="part of your Shared Stash (war stash) - overflow pages" style="margin-left:4px;font-size:9px;padding:0 4px;border:1px solid rgba(240,192,96,.6);border-radius:3px;color:#f0c060">SHARED STASH · overflow</span>':'')/* L1 WAR mule is the war stash */
+        + '<span class="vm-icon">'+esc(m.icon||'📦')+'</span><span class="vm-name">'+esc(m.name)+'</span>'+((window._vaultWarRole&&window._vaultWarRole(m))?'<span class="vm-warbadge" title="part of your Shared Stash (war stash) - overflow pages" style="margin-left:4px;font-size:var(--fs-micro);padding:0 4px;border:1px solid rgba(240,192,96,.6);border-radius:3px;color:#f0c060">SHARED STASH · overflow</span>':'')/* L1 WAR mule is the war stash */
         + '<span class="vm-count"'
           + ' title="'+_itemN+' item'+(_itemN===1?'':'s')
           + (_known ? (' · '+cells+' cells'
