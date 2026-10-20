@@ -189,7 +189,10 @@ console.log(JSON.stringify(out));
         for gone in ["Arachnid Mesh", "Dracul's Grasp", "Eschuta's Temper", "Grief",
                      "Splendor", "Taebaek's Glory", "War Traveler", "Stone of Jordan", "Shako", "Enigma"]:
             self.assertNotIn(gone, dock, "%s still sits in the dock: %r" % (gone, dock))
-        for stay in ["Raven Frost", "Rare Junk", "Sigon's Guard", "Ghost Drawer", "Chronicle Raven"]:
+        # L1 (Elad): a junk route is a THROW OUT task in MOVE TASKS, never a dock chip. The record stays
+        # homeless (no mule, not filed) - the task, not the dock, carries it.
+        self.assertNotIn("Sigon's Guard", dock, "a throw-out route still sits in the dock: %r" % (dock,))
+        for stay in ["Raven Frost", "Rare Junk", "Ghost Drawer", "Chronicle Raven"]:
             self.assertIn(stay, dock, "%s left the dock and it has no home: %r" % (stay, dock))
         self.assertEqual(o["count"], 16, "a copy was dropped or duplicated: %s" % o["count"])
         self.assertEqual(o["owned"], 15)
@@ -209,7 +212,8 @@ console.log(JSON.stringify(out));
         self.assertNotEqual(o["soj"][0]["mule"], "no-such-mule")
         self.assertEqual(o["raven"][0]["kind"], "loose")
         self.assertEqual(o["junk"][0]["kind"], "loose")
-        self.assertEqual(o["sigon"][0]["kind"], "loose")
+        self.assertEqual(o["sigon"], [{"recId": "Sigon's Guard#0", "kind": "loose", "mule": None}],
+                         "a throw-out was filed or dropped: %r" % (o["sigon"],))
         self.assertEqual(o["ghost"][0]["kind"], "loose")
         self.assertIsNone(o["ghost"][0]["mule"])
         self.assertEqual(o["enigma"][0]["kind"], "keep")
@@ -249,6 +253,13 @@ console.log(JSON.stringify(out));
 
 
 RED_PROOF = [
+    {
+        "why": "L1: a junk route falls back into the unsorted dock instead of being a THROW OUT task.",
+        "file": "bible.html",
+        "find": "try { var _sgD = suggestMule(n); if (_sgD && _sgD.id === '__throwout') return false; } catch (eSgD) {} /* L1 a junk route is a THROW OUT row */",
+        "replace": "/* L1 a junk route is a THROW OUT row */",
+        "matches": 1,
+    },
     {
         "why": "The dock still reads assign==null. A resolved home stays in the unsorted dock.",
         "file": "bible.html",

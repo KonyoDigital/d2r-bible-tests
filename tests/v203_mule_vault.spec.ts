@@ -108,23 +108,28 @@ test.describe('v203 the vault', () => {
   test('v226 dock chip ✕ un-owns the item, persists, and leaves other items alone', async ({ page }) => {
     const r = await page.evaluate(() => {
       /* Windforce is a name the router homes, so it is an organizer row and not a dock
-         chip (Elad 2026-10-18). The ✕ lives on a homeless dock chip. Lenymo is a
-         throw-out: the seam leaves it loose, so the chip and its eraser are real. */
+         chip (Elad 2026-10-18). Vault L1: Lenymo (a throw-out) is a THROW OUT task, not a
+         dock chip either. The ✕ lives on a homeless dock chip: Obedience read only off a
+         Chronicle page (his §28 ruling - found once, not held) has no home, so it is the chip. */
       eval('owned').add('Lenymo');
+      eval('owned').add('Obedience');
+      window._ownedProvWrite('Obedience', { source: 'intake-read', by: 'law', holder: 'Chronicle', loc: 'chronicle', scene: 'chronicle', sessionId: 's1', frameId: 'f1', ts: Date.now() });
       (window as any).renderVault();
-      const chip = [...document.querySelectorAll('#vault-dock .vault-chip')]
-        .find((c: any) => c.dataset.vaultItem === 'Lenymo') as HTMLElement;
+      const chips = () => [...document.querySelectorAll('#vault-dock .vault-chip')] as HTMLElement[];
+      const throwChip = chips().some((c: any) => c.dataset.vaultItem === 'Lenymo');
+      const chip = chips().find((c: any) => c.dataset.vaultItem === 'Obedience') as HTMLElement;
       const btn = chip?.querySelector('.vc-unown') as HTMLElement;
       btn?.click();
       return {
+        throwChip,
         hadBtn: !!btn,
-        stillOwned: eval('owned').has('Lenymo'),
-        otherKept: eval('owned').has('Stormshield'),
-        chipGone: ![...document.querySelectorAll('#vault-dock .vault-chip')]
-          .some((c: any) => c.dataset.vaultItem === 'Lenymo'),
-        persisted: !JSON.parse(localStorage.getItem('d2r_owned') || '[]').includes('Lenymo'),
+        stillOwned: eval('owned').has('Obedience'),
+        otherKept: eval('owned').has('Stormshield') && eval('owned').has('Lenymo'),
+        chipGone: !chips().some((c: any) => c.dataset.vaultItem === 'Obedience'),
+        persisted: !JSON.parse(localStorage.getItem('d2r_owned') || '[]').includes('Obedience'),
       };
     });
+    expect(r.throwChip).toBe(false);   // L1: a throw-out is a THROW OUT task, never a dock chip
     expect(r.hadBtn).toBe(true);
     expect(r.stillOwned).toBe(false);
     expect(r.otherKept).toBe(true);
@@ -287,21 +292,23 @@ test.describe('v203 the vault', () => {
 
   test('click-assign (chip → locker) and unassign round-trip', async ({ page }) => {
     await page.evaluate(() => {
-      /* Windforce is seam-homed, so it is not a dock chip. Lenymo stays loose
-         (throw-out). The click-assign law is the chip, not which unique it is. */
-      eval('owned').add('Lenymo');
+      /* Windforce is seam-homed, so it is not a dock chip. Vault L1: a throw-out (Lenymo) is a
+         THROW OUT task, not a chip. A Chronicle-only Obedience has no home, so it is the dock
+         chip. The click-assign law is the chip, not which item it is. */
+      eval('owned').add('Obedience');
+      window._ownedProvWrite('Obedience', { source: 'intake-read', by: 'law', holder: 'Chronicle', loc: 'chronicle', scene: 'chronicle', sessionId: 's1', frameId: 'f1', ts: Date.now() });
       (window as any).renderVault();
-      const chip = [...document.querySelectorAll('.vault-chip')].find(c => (c as HTMLElement).dataset.vaultItem === 'Lenymo') as HTMLElement;
+      const chip = [...document.querySelectorAll('#vault-dock .vault-chip')].find(c => (c as HTMLElement).dataset.vaultItem === 'Obedience') as HTMLElement;
       chip.click();
     });
     await page.evaluate(() => {
       (document.querySelector('[data-vault-mule="wip"] .vm-plate') as HTMLElement).click();
     });
     const r = await page.evaluate(() => JSON.parse(localStorage.getItem('d2r_muleAssign') || '{}'));
-    expect(r['Lenymo']).toBe('wip');
-    await page.evaluate(() => (window as any).vaultUnassign('Lenymo'));
+    expect(r['Obedience']).toBe('wip');
+    await page.evaluate(() => (window as any).vaultUnassign('Obedience'));
     const r2 = await page.evaluate(() => JSON.parse(localStorage.getItem('d2r_muleAssign') || '{}'));
-    expect(r2['Lenymo']).toBeUndefined();
+    expect(r2['Obedience']).toBeUndefined();
   });
 
   test('the 🏦 location badge renders on the item detail card and jumps to the vault', async ({ page }) => {
