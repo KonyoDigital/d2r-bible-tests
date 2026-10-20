@@ -905,6 +905,16 @@ class TheProofRemembersWhatTheGateRead(unittest.TestCase):
         # v3775 (REG-2296): a listing law is stored from its trace now, and says nothing
         self.assertTrue(_prove(book, _gate(root, "t_ls.py")), book.last_why)
         self.assertIsNone(book.last_why)
+        # a gate that still cannot be named (a node script that lists a directory) is dropped AND says why
+        _write(root, "tv/t_ls.js", "require('fs').readdirSync('.');\n")
+        _commit(root, "a node listing")
+        node = _gate(root, "t_ls.js", argv_head=["node"])
+        key, _m, why = _open(led).key_for(node)
+        self.assertIsNone(key, "a node listing got a key")
+        self.assertIn("lists a directory", why or "")
+        book = _open(led)
+        self.assertFalse(_prove_static(book, node), "an unnameable gate was stored")
+        self.assertIn("lists a directory", book.last_why or "", "a dropped PASS gave no reason")
 
     def test_the_pre_push_hook_traces_the_suites_it_records(self):
         """r6: the hook's --record had no trace, so it could never store; now it arms one and hands it over."""
@@ -1351,7 +1361,7 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "a law that lists a directory is cached",
+        "why": "a gate whose inputs cannot be named (a node listing) is cached",
         "file": "gate_ledger.py",
         "find": "        if iwhy:  # LEDGER-UNKEYABLE\n",
         "replace": "        if False:  # LEDGER-UNKEYABLE\n",
