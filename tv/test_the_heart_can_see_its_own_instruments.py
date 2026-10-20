@@ -71,6 +71,7 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
     def test_every_declared_red_proof_is_well_formed(self):
         bad = []
         checked = 0
+        _srcs = {}
         for name, fn in heart2.gate_files():
             # v3473 — an UNREADABLE declaration used to fall through `if not proofs` as if the gate
             # declared nothing; eleven proofs sat unrun that way. It is a malformed declaration.
@@ -115,8 +116,13 @@ class TestHeartSeesItsInstruments(unittest.TestCase):
                 if not os.path.isfile(tgt):
                     bad.append("%s names a file that does not exist: %r" % (label, pr.get("file")))
                     continue
-                with io.open(tgt, encoding="utf-8") as fh:
-                    src = fh.read()
+                # REG-2321 - READ EACH TARGET ONCE. This re-read the whole target per proof: bible.html
+                # (8.6 MB) and control_ui.html are named by hundreds of proofs, so the law spent its
+                # 120 s budget on I/O and timed out on CI when #252 added 10 more. Same count, cached text.
+                src = _srcs.get(tgt)
+                if src is None:
+                    with io.open(tgt, encoding="utf-8") as fh:
+                        src = _srcs[tgt] = fh.read()
                 got = src.count(str(pr.get("find") or ""))
                 # ⚠⚠ AN ABSENT COUNT IS UNKNOWN, NOT A DECLARED ZERO. `int(pr.get("matches") or 0)`
                 # reads a missing key and a real 0 as the same number. That mattered the moment
