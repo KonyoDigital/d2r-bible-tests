@@ -275,9 +275,8 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
             fh.write(_LISTING)
         listing = _gate(root, "t_list.py")
         key, _m, why = _open(led).key_for(listing)
-        self.assertIsNone(key, "a law that lists a directory got a key")
-        self.assertIn("directory", why or "")
-        self.assertFalse(_prove(_open(led), listing))
+        # v3775 (REG-2296): a listing law is keyed by what its traced run listed
+        self.assertIsNotNone(key, why)
 
     def test_ci_and_the_off_switch_never_carry(self):
         root, led, gate = self._law()
@@ -722,11 +721,12 @@ class TheLedgerCarriesOnlyIdenticalBytes(unittest.TestCase):
         entry, why = _open(led).lookup(gate)
         self.assertIsNotNone(entry, why)
 
-    def test_test_control_stays_unnameable(self):
+    def test_test_control_is_keyed_by_its_traced_listings(self):
+        """v3775 (REG-2296): test_control's footage listing is keyed by the trace's snapshot."""
         root, led, _gate_py = self._law(extra={"t_list.py": _LISTING})
         gate = _gate(root, "t_list.py")
         gate.name = "test_control"
-        self.assertFalse(_prove(_open(led), gate), "test_control's directory listings were named")
+        self.assertTrue(_prove(_open(led), gate), "a listing of temp dirs only was refused")
 
     def test_record_does_not_mint_a_pass_without_a_suite_verdict(self):
         root, _led, _gate_py = self._law()
@@ -902,8 +902,9 @@ class TheProofRemembersWhatTheGateRead(unittest.TestCase):
         """r5: 8 real passes were dropped for "lists a directory itself" and run_gates printed nothing."""
         root, led = self._tree({"t_ls.py": _LISTING})
         book = _open(led)
-        self.assertFalse(_prove(book, _gate(root, "t_ls.py")), "PREMISE: a listing law was stored")
-        self.assertIn("lists a directory", book.last_why or "", "a dropped PASS gave no reason")
+        # v3775 (REG-2296): a listing law is stored from its trace now, and says nothing
+        self.assertTrue(_prove(book, _gate(root, "t_ls.py")), book.last_why)
+        self.assertIsNone(book.last_why)
 
     def test_the_pre_push_hook_traces_the_suites_it_records(self):
         """r6: the hook's --record had no trace, so it could never store; now it arms one and hands it over."""
@@ -1289,15 +1290,15 @@ RED_PROOF = [
     {
         "why": "a stored row with ok false is carried",
         "file": "gate_ledger.py",
-        "find": "        if not isinstance(entry, dict) or entry.get(\"ok\") is not True:  # LEDGER-ONLY-PASS\n",
+        "find": "        if not isinstance(entry, dict) or entry.get(\"ok\") is not (want is True):  # LEDGER-ONLY-PASS\n",
         "replace": "        if False:  # LEDGER-ONLY-PASS\n",
         "matches": 1,
     },
     {
         "why": "record(False) stores the row as a PASS",
         "file": "gate_ledger.py",
-        "find": "        if ok is not True or why or not isinstance((row or {}).get(\"inputs\"), list):  # LEDGER-NO-FAIL\n",
-        "replace": "        if why or not isinstance((row or {}).get(\"inputs\"), list):  # LEDGER-NO-FAIL\n",
+        "find": "        red = ok is not True\n",
+        "replace": "        red = False\n",
         "matches": 1,
     },
     {
@@ -1394,8 +1395,8 @@ RED_PROOF = [
     {
         "why": "--full consults the ledger and skips a gate",
         "file": "run_gates.py",
-        "find": "        if ledger == \"changed\" and led is not None:  # LEDGER-CHANGED-ONLY\n",
-        "replace": "        if ledger != \"zzz\" and led is not None:  # LEDGER-CHANGED-ONLY\n",
+        "find": "        if ledger == \"changed\" and led is not None and _capped is None:  # LEDGER-CHANGED-ONLY\n",
+        "replace": "        if ledger != \"zzz\" and led is not None and _capped is None:  # LEDGER-CHANGED-ONLY\n",
         "matches": 1,
     },
     {
@@ -1525,17 +1526,10 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "test_agent's temp-directory listings are treated as unnameable",
+        "why": "a listing law is refused by the static walk again (v3775 keys it by its trace)",
         "file": "gate_ledger.py",
-        "find": "    \"test_agent\": (),  # LEDGER-LISTING\n",
-        "replace": "    \"test_agent_disabled\": (),  # LEDGER-LISTING\n",
-        "matches": 1,
-    },
-    {
-        "why": "test_control's live directory listings are named, so a footage change carries",
-        "file": "gate_ledger.py",
-        "find": "    \"test_agent\": (),  # LEDGER-LISTING\n",
-        "replace": "    \"test_agent\": (),  # LEDGER-LISTING\n    \"test_control\": (),\n",
+        "find": "                allow_listing=True,  # LEDGER-LISTING-TRACED\n",
+        "replace": "                allow_listing=False,  # LEDGER-LISTING-TRACED\n",
         "matches": 1,
     },
     {
