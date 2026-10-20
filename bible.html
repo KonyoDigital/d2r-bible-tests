@@ -40730,7 +40730,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     /* L1 (Elad 2026-10-20) - utility proc / charge gear lives in the war stash, not a mule */
     'demon limb': 'enchant charges - utility charge flail',
     'metamorphosis': 'mark of the bear / wolf on striking - utility proc helm',
-    'treachery': 'fade on striking - utility proc armour'
+    'treachery': 'fade on striking - utility proc armour',
+    /* L1 (Elad 2026-10-19) - Guillaume's Face lives in the war stash (Shared Stash), not SETS-REST: war gear beats the keep-set rule */
+    "guillaume's face": 'crushing blow + deadly strike helm - war set piece'
   };
   function _warKey(n){ return String(n == null ? '' : n).toLowerCase().replace(/[‘’ʼ´`]/g, "'")
                                 .replace(/\s*\([^)]*\)\s*$/, '').trim(); }
@@ -49561,7 +49563,9 @@ window.vaultAutoAssign = function(){
         && String(place.location || '') === String(frame.location || '');
     };
     var bag = _vaultMoveBag(), out = [];
-    Object.keys(bag.map || {}).forEach(function(k){
+    /* L1 (review #247) - a ground label is ONE dropped copy: it closes at most one row of that name, never every copy's row. */
+    var groundLeft = {}; ground.forEach(function(g){ groundLeft[g] = (groundLeft[g] || 0) + 1; });
+    Object.keys(bag.map || {}).sort(function(a, b){ return (+a.split('\u0000')[1] || 0) - (+b.split('\u0000')[1] || 0); }).forEach(function(k){
       var t = _vaultMoveTask(bag.map[k]);
       if (t.status === 'closed' || t.status === 'verified') return;
       var name = k.split('\u0000')[0], copyIx = +k.split('\u0000')[1] || 0, next = null;
@@ -49576,7 +49580,8 @@ window.vaultAutoAssign = function(){
         }
       }
       var cur = next || t;
-      if (cur.kind === 'throw' && cur.status !== 'closed' && cur.left && ground.indexOf(name) >= 0) {
+      if (cur.kind === 'throw' && cur.status !== 'closed' && cur.left && groundLeft[name] > 0) {
+        groundLeft[name] -= 1; /* L1 one ground label closes one copy */
         next = _vaultMoveTask(cur); next.status = 'closed'; next.closedBy = 'seen on the ground';
       }
       if (next) out.push({ name: name, copyIx: copyIx, task: next });

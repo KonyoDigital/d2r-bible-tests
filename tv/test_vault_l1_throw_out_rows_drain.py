@@ -169,6 +169,27 @@ class TheDrain(unittest.TestCase):
         self.assertEqual(o["m"]["status"], "closed")
         self.assertEqual(o["m"].get("closedBy"), "seen on the ground")
 
+    def test_one_dropped_copy_closes_only_one_copys_row(self):
+        """review #247: two copies of the same junk both left their cells; ONE ground label closes ONE row, a 2nd closes the other"""
+        world()
+        js = READ + r"""
+var st = JSON.parse(LSR.getItem('d2r_vaultRecords')); var r0 = st.records.filter(function(r){ return r.name === %s; })[0];
+var r1 = JSON.parse(JSON.stringify(r0)); r1.copyIx = 1; if (r1.recId) r1.recId = r1.recId + '#1'; r1.move.from.cell = 'c1r0'; if (r1.sight) r1.sight.cell = 'c1r0';
+st.records.push(r1); LSR.setItem('d2r_vaultRecords', JSON.stringify(st));
+function both(){ return (JSON.parse(LSR.getItem('d2r_vaultRecords')).records || []).filter(function(r){ return r.name === %s && r.move; })
+  .map(function(r){ return [r.copyIx || 0, r.move.status]; }).sort(); }
+OUT.b0 = both();
+""" % (json.dumps(HEAD), json.dumps(HEAD))
+        js += "obs(%s); OUT.left = both();" % frame("d1")  # both copies' cells shown empty
+        js += "obs(%s); OUT.one = both();" % frame("d2", holder="ELSEWHERE", location="ground", ground=[HEAD])
+        js += "obs(%s); OUT.two = both();" % frame("d3", holder="ELSEWHERE", location="ground", ground=[HEAD])
+        o = board().run(js)
+        self.assertEqual(o["b0"], [[0, "to-move"], [1, "to-move"]], "PREMISE: two open copy rows: %r" % o["b0"])
+        self.assertEqual(o["left"], [[0, "to-move"], [1, "to-move"]])
+        self.assertEqual(sorted(x[1] for x in o["one"]), ["closed", "to-move"],
+                         "one dropped copy must close exactly one copy's row: %r" % o["one"])
+        self.assertEqual(o["two"], [[0, "closed"], [1, "closed"]], "the 2nd drop did not close the other copy: %r" % o["two"])
+
     def test_a_move_seen_at_its_target_closes_at_once(self):
         world()
         o = board().run(READ + "var t = bag()[%s].to; OUT.to = t; obs({ session: 'm1', holder: t.holder, location: t.location,"
@@ -339,8 +360,13 @@ RED_PROOF = [
      "matches": 1},
     {"why": "A ground label closes a throw-out before the item left its cell.",
      "file": "bible.html",
-     "find": "if (cur.kind === 'throw' && cur.status !== 'closed' && cur.left && ground.indexOf(name) >= 0) {",
-     "replace": "if (cur.kind === 'throw' && cur.status !== 'closed' && ground.indexOf(name) >= 0) {",
+     "find": "if (cur.kind === 'throw' && cur.status !== 'closed' && cur.left && groundLeft[name] > 0) {",
+     "replace": "if (cur.kind === 'throw' && cur.status !== 'closed' && groundLeft[name] > 0) {",
+     "matches": 1},
+    {"why": "The ground close matches by name only: one dropped copy closes every copy's THROW OUT row.",
+     "file": "bible.html",
+     "find": "        groundLeft[name] -= 1; /* L1 one ground label closes one copy */\n",
+     "replace": "",
      "matches": 1},
     {"why": "A move seen at its target no longer closes at once.",
      "file": "bible.html",

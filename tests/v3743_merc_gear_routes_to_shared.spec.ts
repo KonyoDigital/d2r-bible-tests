@@ -48,7 +48,8 @@ test.describe('v3743 — mercenary gear → shared stash', () => {
       };
     });
     expect(r.guillaume.id, "Guillaume's Face must reach the shared stash ahead of the set branch").toBe('shared');
-    expect(r.guillaume.why, 'and by the mercenary rule').toMatch(/mercenary/i);
+    // L1 (Elad 2026-10-19): Guillaume's Face is also war gear, which is checked first — same shared stash
+    expect(r.guillaume.why, 'and by the mercenary or war-gear rule').toMatch(/mercenary|war gear/i);
     expect(r.andariel.id, "Andariel's Visage is merc gear").toBe('shared');
     expect(r.andariel.why).toMatch(/mercenary/i);
     expect(r.mara.id, "Mara's Kaleidoscope is in the shared stash").toBe('shared');
