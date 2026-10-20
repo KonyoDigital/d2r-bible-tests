@@ -93,9 +93,10 @@ console.log(JSON.stringify({
         self.assertTrue(o["unseen"], o)
         self.assertIn("UNKNOWN", o["labels"], o)
         self.assertNotIn("Location not seen yet", o["labels"][:-1], o)
-        self.assertTrue(o["hint"], o)
-        self.assertTrue(o["cls"], o)
-        self.assertTrue(o["data"], o)
+        # L1 (Elad v3778): MOVE TASKS is one collapsed row per task - no shared 'Location not seen yet' block.
+        self.assertFalse(o["hint"], o)
+        self.assertFalse(o["cls"], o)
+        self.assertFalse(o["data"], o)
         self.assertFalse(o["collided"], o)
 
     def test_a_known_stash_with_no_holder_stays_unknown(self):
@@ -327,13 +328,13 @@ RED_PROOF = [
      "matches": 1},
     {"why": "The screenshot hint is gone, so the group no longer says what to do.",
      "file": "bible.html",
-     "find": "<span class=\"vmv-hint\">Take a screenshot so the console can see where it sits.</span>",
-     "replace": "<span class=\"vmv-hint\"></span>",
+     "find": "      + '<ol class=\"vtk-list\" data-sec=\"moves\">' + moves.map(line).join('') + '</ol>';",
+     "replace": "      + '<p class=\"vmv-gh\">Take a screenshot so the console can see where it sits.</p><ol class=\"vtk-list\" data-sec=\"moves\">' + moves.map(line).join('') + '</ol>';",
      "matches": 1},
     {"why": "The unseen group loses its marker, so the console style and the gate cannot see it.",
      "file": "bible.html",
-     "find": "<section class=\"vmv-group vmv-unseen\" data-unseen=\"1\"",
-     "replace": "<section class=\"vmv-group\" data-unseen=\"0\"",
+     "find": "      + '<ol class=\"vtk-list\" data-sec=\"moves\">' + moves.map(line).join('') + '</ol>';",
+     "replace": "      + '<section class=\"vmv-group vmv-unseen\" data-unseen=\"1\"><ol class=\"vtk-list\" data-sec=\"moves\">' + moves.map(line).join('') + '</ol></section>';",
      "matches": 1},
     {"why": "An unseen place is spelled UNKNOWN · UNKNOWN on the row.",
      "file": "bible.html",

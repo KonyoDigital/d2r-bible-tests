@@ -37,6 +37,16 @@ with only this item at its exact cell); _vaultMoveGridHtml keys one grid per tas
 (29 RED_PROOF, 9 belts -> 4 + 5 on WAR1, 6 rings -> 6) and test_vault_l1_a_hand_add_routes_by_type (task expansion).
 [[regression-guard]]
 
+v3778 follow-up (Elad 2026-10-21 01:48): hand-added Angelic Sickle (with Gheed's Fortune, Hellfire Torch) fell to the UNSORTED
+DOCK as a discard, and MOVE TASKS drew one open 'Location not seen yet' block for one item. Cause: _vaultHandTyped read only the
+witness store's FIRST record, so an item a frame had seen before his typing read as not-typed and the ruled-junk route sent it to
+the dock; the seam also sent a route to a missing mule (and a null route) to the dock. His rule: the router files EVERY item -
+anything in UNSORTED is a routing bug (his own manual unsort-all stays). Fix: his MANUAL move row is a second proof of typing; a
+typed junk/homeless item files to the sets mule (set piece) or the war stash; a missing-mule route tries the other sets mule, else
+the war stash; nothing is created. MOVE TASKS paints every task as its own collapsed row in one list (no shared unseen block); a
+click expands FROM + TO for that task only. Guard: test_vault_l1_router_files_every_item (10 RED, PROVEN); v3767 dock seam and
+v3771 console face laws re-pointed to the new ruling (PROVEN).
+
 ### REG-2307 - THE WAR STASH HELD EVERY COPY OF BIG WAR GEAR, SO HIS REAL DATA OVERFLOWED BY 85 COPIES; WAR MULES WERE BOUND BY NAME (Vault L1, v3776)
 His real vault (2026-10-20): 170 copies routed to the 5-page war stash needed ~717 cells of ~500, leaving 85 copies with no cell
 (Shako x7, SoJ x5, Raven Frost x5, Mara's x6...). His rulings: keep ONE copy of a big war item there, extras to the normal mule;

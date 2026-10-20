@@ -9860,6 +9860,14 @@ GATES = [
              "and routed to a sets mule, never a THROW OUT row. A batch of 20 hand adds paints 20 rows. "
              "No browser is a declared skip."),
          skip_ok=(r"no Chrome/Chromium on this machine",)),
+    Gate("test_vault_l1_router_files_every_item", [sys.executable,
+         os.path.join(HERE, "test_vault_l1_router_files_every_item.py")], 300,
+         needs_app=False,
+         why=("Vault L1 (Elad, live v3778: hand-added Angelic Sickle fell to UNSORTED; MOVE TASKS drew one open "
+             "'Location not seen yet' block) - REG-2330. The router files every item: set pieces, uniques, magic, "
+             "charms and runewords, routed or typed, never land in the Unsorted Dock. MOVE TASKS is one collapsed "
+             "row per task; a click expands FROM and TO (that mule, only this item at its cell). No browser is a declared skip."),
+         skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_vault_l1_a_hand_add_routes_by_type", [sys.executable,
          os.path.join(HERE, "test_vault_l1_a_hand_add_routes_by_type.py")], 240,
          needs_app=False,

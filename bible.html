@@ -43804,7 +43804,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function _vaultHandTyped(n){
     try {
       var p = (typeof _provAll === 'function') ? (_provAll() || {})[n] : null;
-      return !!(p && p.source === 'hand' && /Add an item/.test(String(p.where || p.by || '')));
+      if (p && p.source === 'hand' && /Add an item|Vault planner|the Vault/.test(String(p.where || '') + ' ' + String(p.by || ''))) return true;
+      /* L1 (Elad, live v3778: hand-added Angelic Sickle fell to the UNSORTED DOCK) - the witness keeps the FIRST
+         sighting, so an item seen before and then typed by him read as not-typed. His MANUAL move row is the
+         other proof of the typing; either one is enough. */
+      return !!(typeof window._vaultManualRow === 'function' && window._vaultManualRow(n));
     } catch (e) { return false; }
   }
   try { window._vaultHandTyped = _vaultHandTyped; } catch (eHt) {}
@@ -44879,9 +44883,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (!asked) return null;
       if (sg === null) {
         if (typeof isSharedStash === 'function' && isSharedStash(name)) return { loc: 'shared', mule: null };
-        return { loc: 'loose', mule: null };
+        return { loc: 'shared', mule: null }; /* L1 (Elad v3778: the router files EVERY item) a known item with no rule is war stash, never unsorted */
       }
-      if (sg.unsorted || sg.id == null) return { loc: 'loose', mule: null }; /* v3767 seam homeless */
+      if ((sg.unsorted || sg.id == null) && !(typeof window._vaultHandTyped === 'function' && window._vaultHandTyped(name))) return { loc: 'loose', mule: null }; /* v3767 seam homeless (L1: not a hand add) */
       if (sg.id === '__keep') return { loc: 'keep', mule: null };
       /* L1 (Elad, live v3774: hand-added a set item, saw no move task) - A SET PIECE HE TYPES IS KEPT. His hand
          is the ruling: an unruled set (by DEFAULT) and a ruled-low set (low set piece) both get a MANUAL row to
@@ -44889,6 +44893,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (sg.id === '__throwout' && /by DEFAULT|low set piece/.test(String(sg.why || '')) && typeof window._vaultHandTyped === 'function'
           && window._vaultHandTyped(name) && typeof muleById === 'function' && muleById('sets-rest'))
         return { loc: 'filed', mule: 'sets-rest' }; /* L1 he typed a set piece: kept, not thrown out */
+      /* L1 (v3778) every hand add is filed: a typed item the rules call junk or homeless never lands in the dock.
+         A set piece goes to the sets mule (rest, else major); anything else to the war stash. No mule is created. */
+      if ((sg.id === '__throwout' || sg.unsorted || sg.id == null) && typeof window._vaultHandTyped === 'function' && window._vaultHandTyped(name)) {
+        var _isSetH = /set piece|\(set\)|\bset\b|never ruled/i.test(String(sg.why || '')) || !!(window.findSetPiece && window.findSetPiece(name));
+        if (_isSetH && typeof muleById === 'function') { if (muleById('sets-rest')) return { loc: 'filed', mule: 'sets-rest' }; if (muleById('sets-major')) return { loc: 'filed', mule: 'sets-major' }; }
+        return { loc: 'shared', mule: null }; /* L1 hand add never unsorted */
+      }
       if (sg.id === '__throwout' && typeof window._vaultKeptByHim === 'function' && window._vaultKeptByHim(name)) {
         var _kh = (/\(set\)/i.test(String(sg.why || '')) && typeof muleById === 'function' && muleById('sets-rest')) ? 'sets-rest' : null;
         return _kh ? { loc: 'filed', mule: _kh } : { loc: 'shared', mule: null }; /* L1 he pressed Keep on a THROW OUT row */
@@ -44896,7 +44907,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (sg.id === '__throwout') return { loc: 'loose', mule: null }; /* v3767 seam discard */
       if (sg.id === 'shared') return { loc: 'shared', mule: null }; /* v3767 seam shared */
       if (typeof muleById === 'function' && muleById(sg.id)) return { loc: 'filed', mule: sg.id }; /* v3767 seam route */
-      return { loc: 'loose', mule: null }; /* v3767 seam ghost */
+      /* L1 (Elad v3778) a route to a mule he has not made is NOT unsorted: a set piece tries the other sets mule, else the war stash. Nothing is created. */
+      if (typeof muleById === 'function' && /^sets-/.test(String(sg.id))) { var _alt = sg.id === 'sets-rest' ? 'sets-major' : 'sets-rest'; if (muleById(_alt)) return { loc: 'filed', mule: _alt }; }
+      return { loc: 'shared', mule: null }; /* L1 seam ghost -> war stash, never unsorted */
     }
 }
   try { window._vaultSeamHome = _vaultSeamHome; } catch (eSeam) {}
@@ -49252,6 +49265,11 @@ window.vaultAutoAssign = function(){
     }
     return { prior: prior, map: map, unread: prior === undefined };
   }
+  /* L1 - a MANUAL move row exists for this name (any copy): he typed it in. */
+  try { window._vaultManualRow = function(n){
+    try { var m = _vaultMoveBag().map, k = String(n) + '\u0000';
+      for (var key in m) if (key.indexOf(k) === 0 && m[key] && m[key].manual) return true; } catch (e) {}
+    return false; }; } catch (eMr) {}
   function _vaultMoveEnsure(name, copyIx, bag){
     copyIx = copyIx || 0;
     bag = bag || _vaultMoveBag();
@@ -49674,13 +49692,8 @@ window.vaultAutoAssign = function(){
     if (_wf.length) unrHtml += '<p class="vmv-warfull" data-n="' + _wf.length + '">No room: ' + esc(window._vaultWarFullWhy || 'the war stash is full')
       + ' — make a mule named WAR1 (then WAR2…) for: ' + _wf.map(function(n){ return '<b>' + esc(n) + '</b>'; }).join(', ') + '</p>'; /* L1 war full said plainly */
     var html = head;
-    var unseenMv = moves.filter(function(r){ var f = r.task.from || {}; return _vaultMoveUnseen(f.holder, f.location); });
-    var seenMv = moves.filter(function(r){ return unseenMv.indexOf(r) < 0; });
     if (moves.length) html += '<p class="vtk-sec" data-sec="moves">Moves · ' + moves.length + '</p>'
-      + (seenMv.length ? '<ol class="vtk-list" data-sec="moves">' + seenMv.map(line).join('') + '</ol>' : '')
-      + (unseenMv.length ? '<section class="vmv-group vmv-unseen" data-unseen="1" data-holder="Location not seen yet"><p class="vmv-gh"><b>Location not seen yet</b> '
-         + '<span class="vmv-hint">Take a screenshot so the console can see where it sits.</span></p>'
-         + '<ol class="vtk-list" data-sec="moves" start="' + (seenMv.length + 1) + '" style="counter-reset:vtk ' + seenMv.length + '">' + unseenMv.map(line).join('') + '</ol></section>' : ''); /* v3771 unseen last */
+      + '<ol class="vtk-list" data-sec="moves">' + moves.map(line).join('') + '</ol>'; /* L1 (Elad v3778) one collapsed row per task, never a shared 'Location not seen yet' block */
     if (throws.length) html += '<section class="vmv-throw" data-holder="THROW OUT"><p class="vtk-sec" data-sec="throws">Throw-outs · ' + throws.length + '</p><ol class="vtk-list" data-sec="throws">' + throws.map(line).join('') + '</ol></section>';
     html += unrHtml;
     if (!moves.length && !throws.length && !unr.length) html += '<p class="vmv-empty">Nothing is out of place.</p>';

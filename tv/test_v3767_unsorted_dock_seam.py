@@ -192,7 +192,9 @@ console.log(JSON.stringify(out));
         # L1 (Elad): a junk route is a THROW OUT task in MOVE TASKS, never a dock chip. The record stays
         # homeless (no mule, not filed) - the task, not the dock, carries it.
         self.assertNotIn("Sigon's Guard", dock, "a throw-out route still sits in the dock: %r" % (dock,))
-        for stay in ["Raven Frost", "Rare Junk", "Ghost Drawer", "Chronicle Raven"]:
+        # L1 (Elad v3778): the router files EVERY item - a route to a mule he has not made goes to the war stash, not the dock.
+        self.assertNotIn("Ghost Drawer", dock, "a route to a missing mule still sits in the dock: %r" % (dock,))
+        for stay in ["Raven Frost", "Rare Junk", "Chronicle Raven"]:
             self.assertIn(stay, dock, "%s left the dock and it has no home: %r" % (stay, dock))
         self.assertEqual(o["count"], 16, "a copy was dropped or duplicated: %s" % o["count"])
         self.assertEqual(o["owned"], 15)
@@ -214,7 +216,7 @@ console.log(JSON.stringify(out));
         self.assertEqual(o["junk"][0]["kind"], "loose")
         self.assertEqual(o["sigon"], [{"recId": "Sigon's Guard#0", "kind": "loose", "mule": None}],
                          "a throw-out was filed or dropped: %r" % (o["sigon"],))
-        self.assertEqual(o["ghost"][0]["kind"], "loose")
+        self.assertEqual(o["ghost"][0]["kind"], "sharedStash")
         self.assertIsNone(o["ghost"][0]["mule"])
         self.assertEqual(o["enigma"][0]["kind"], "keep")
         self.assertEqual(o["chron"][0]["kind"], "loose")
@@ -305,8 +307,8 @@ RED_PROOF = [
     {
         "why": "A missing mule with no router home is filed and orphan at once. Unsorted and the mules disagree.",
         "file": "bible.html",
-        "find": "return { loc: 'loose', mule: null }; /* v3767 seam ghost */",
-        "replace": "return { loc: 'orphan', mule: mid }; /* v3767 seam ghost */",
+        "find": "return { loc: 'shared', mule: null }; /* L1 seam ghost -> war stash, never unsorted */",
+        "replace": "return { loc: 'orphan', mule: mid }; /* L1 seam ghost -> war stash, never unsorted */",
         "matches": 1,
     },
     {

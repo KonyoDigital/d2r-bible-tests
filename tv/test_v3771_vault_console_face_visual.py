@@ -241,12 +241,12 @@ class TestV3771VaultConsoleFaceVisual(unittest.TestCase):
         self.assertTrue(added.get("shown"), added)
         self.assertTrue(added.get("manual"), added)  # v3773 Elad: MANUAL -> target cell
         unseen = self._js(cdp, _UNSEEN % json.dumps(hq))
-        self.assertTrue(unseen.get("group"), unseen)
-        self.assertIn("Location not seen yet", unseen.get("text") or "", unseen)
-        self.assertIn("Take a screenshot", unseen.get("text") or "", unseen)
+        # L1 (Elad v3778): the hand add is its own collapsed row in one list - no shared unseen block.
+        self.assertFalse(unseen.get("group"), unseen)
+        self.assertIn("MANUAL", unseen.get("list") or "", unseen)
         self.assertNotIn("UNKNOWN · UNKNOWN", unseen.get("list") or "", unseen)
-        self.assertEqual(unseen.get("last"), "Location not seen yet", unseen)
-        self._shot(cdp, "#vault-move-list .vmv-unseen", "05-unknown-location.png")
+        self.assertNotIn("Location not seen yet", unseen.get("list") or "", unseen)
+        self._shot(cdp, "#vault-move-list", "05-unknown-location.png")
 
         face = self._js(cdp, _FACE)
         for key in ("intake", "mark", "chip", "gh"):
@@ -470,7 +470,7 @@ _FACE = _wrap(r"""
   return { intake: face('#vault-auto-intake'),
            mark: face('#vault-move-list .vtk-sec'), /* L1 checklist: the section heads wear the console face */
            chip: face('#vault-move-list .vault-move-k'),
-           gh: face('#vault-move-list .vmv-gh'),
+           gh: face('#vault-move-list .vtk-sec'),
            dock: face('.vdb-label'),
            manual: !!document.getElementById('vault-move-q') || !!document.querySelector('[onclick*="_vaultMoveAddOpen"]') };
 """)
@@ -502,13 +502,13 @@ _REOPEN = _wrap(r"""
     window.toggleCardCollapse('mule-vault-card');
   window.renderVault();
   var name = %s;
-  var g = document.querySelector('#vault-move-list .vmv-unseen');
+  var g = document.querySelector('#vault-move-list .vmv-row[data-name="' + name + '"]'); /* L1 v3778 its own row survives reload */
   var tab = document.getElementById('tab-vault');
   var griffon = [].map.call((window._vaultMoveCompareOpen && window._vaultMoveCompareOpen("Kira's Guardian", 0), document.querySelectorAll('#vault-move-compare .vmc-after .vd-item')), function(el){
     return (el.getAttribute('title') || '').split(' (')[0];
   }).filter(function(n){ return n.indexOf('Kira') >= 0; });
   return { tab: !!(tab && tab.classList.contains('active')),
-           group: !!(g && g.getAttribute('data-unseen') === '1' && g.textContent.indexOf(name) >= 0),
+           group: !!(g && g.textContent.indexOf(name) >= 0),
            text: g ? g.textContent : '',
            griffon: griffon };
 """)
