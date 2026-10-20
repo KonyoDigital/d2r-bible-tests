@@ -562,7 +562,7 @@ console.log(JSON.stringify({
   manual: !!(t && t.manual),
   stored: !!(stored && stored.manual === true),
   badge: html.indexOf('vmv-manual-badge">MANUAL<') >= 0,
-  toCell: !!(t && t.to && t.to.cell != null) && html.indexOf('<i>TO</i>') >= 0,
+  toCell: !!(t && t.to && t.to.cell != null) && html.indexOf('data-to="' + t.to.cell + '"') >= 0, /* L1 checklist: the line carries its target cell */
   on: _vaultAutoIntakeRead().on === true
 }));
 """

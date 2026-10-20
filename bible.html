@@ -49356,7 +49356,7 @@ window.vaultAutoAssign = function(){
         + ' data-status="' + esc(t.status) + '"' + (thr ? ' data-kind="throw"' : '') + (t.junk ? ' data-junk="1"' : '')
         + ' data-from="' + esc((t.from && t.from.cell) || '') + '" data-to="' + esc((t.to && t.to.cell) || '') + '"'
         + ' onclick="window._vaultMoveCompareOpen(\'' + nm + '\',' + ci + ')">'
-        + '<input type="checkbox" class="vtk-tick" aria-label="mark moved"' + (fin ? ' checked disabled' : '')
+        + '<input type="checkbox" class="vtk-tick vmv-mark" aria-label="mark moved"' + (fin ? ' checked disabled' : '')
         + ' onclick="event.stopPropagation();window._vaultTaskTick(\'' + nm + '\',' + ci + ')">'
         + '<span class="vmv-art vtk-art">' + (typeof art === 'function' ? art(row.name) : '') + '</span>'
         + '<span class="vtk-say" title="' + esc(say + (thr && t.reason ? ' — ' + t.reason : '')) + '"' + ((thr && t.reason) ? ' data-reason="' + esc(t.reason) + '"' : '') + '>' + esc(row.name) + ' · '

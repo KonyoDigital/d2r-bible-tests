@@ -233,7 +233,7 @@ console.log(JSON.stringify({
   empty: _vaultMoveCellSay(''),
   known: _vaultMoveCellSay('stash:c1r1'),
   place: _vaultMovePlaceSay({ holder: null, location: 'stash', cell: 'stash:c0r0' }),
-  witness: html.indexOf('>not seen yet</button>') >= 0,
+  witness: html.indexOf('title="not seen yet · the pictures it was read on"') >= 0, /* L1 checklist: the eye button's title says it */
   word: html.indexOf('witnesses UNKNOWN') >= 0,
   grid: grid.indexOf('not seen yet') >= 0,
   gridUnknown: grid.indexOf('UNKNOWN') >= 0
