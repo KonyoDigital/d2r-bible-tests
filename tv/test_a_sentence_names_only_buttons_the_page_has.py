@@ -45,9 +45,11 @@ class ASentenceNamesOnlyButtonsThePageHas(unittest.TestCase):
         labels = _button_labels(src)
         self.assertIn("⚖️ Auto-assign unsorted", labels, "the Auto-assign button itself is gone - re-point this law")
         named = re.findall(r"press (⚖️ [A-Za-z][A-Za-z \-]*?)(?= to | to$|\)|\"|<|$)", src)
-        # L1 (Elad: less wordy text) cut the organizer header, then the dock line ('nothing loose' - moves are
-        # automatic now). The hand-add line that remains must still name the real button.
-        self.assertGreaterEqual(len(named), 1, "the vault sentence no longer names a button: %r" % named)
+        # L1 (Elad 2026-10-20: moves come from the rules, no Fix/Auto-assign press) cut the last 'press' from the
+        # unsorted row: it now says it files on its own. That row must say so (never a press of a missing control),
+        # and any 'press ⚖️ ...' that remains must still name the real button.
+        self.assertEqual(src.count(" — it files there on its own, nothing to press</span>"), 1,
+                         "the unsorted row no longer says it files on its own - it may name a press again")
         for n in named:
             self.assertIn(n.strip(), labels, "a sentence tells him to press %r and no button has that name" % n)
 
@@ -71,7 +73,7 @@ class ASentenceNamesOnlyButtonsThePageHas(unittest.TestCase):
 RED_PROOF = [
     {"why": "REG-2045 - a vault sentence tells him to press Auto-Sort again, a button the page does not have",
      "file": "bible.html",
-     "find": "press ⚖️ Auto-assign unsorted to file it</span",
+     "find": "it files there on its own, nothing to press</span",
      "replace": "press Auto-Sort to file it</span",
      "matches": 1},
 ]
