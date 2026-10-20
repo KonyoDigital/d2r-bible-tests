@@ -118,10 +118,20 @@ class WarStashOverflow(unittest.TestCase):
 
     def test_utility_proc_and_charge_gear_routes_to_the_war_stash(self):
         """Elad 2026-10-20: Demon Limb (Enchant charges), Metamorphosis (Mark of Bear/Wolf), Treachery (Fade) -> SHARED STASH"""
-        o = T.board().run("OUT.r = {}; ['Demon Limb', 'Metamorphosis', 'Treachery', 'Arachnid Mesh', \"Andariel's Visage\", 'Vampire Gaze']"
+        o = T.board().run("OUT.r = {}; ['Demon Limb', 'Metamorphosis', 'Treachery', \"Guillaume's Face\", 'Arachnid Mesh', \"Andariel's Visage\", 'Vampire Gaze']"
                           ".forEach(function(n){ var s = window.suggestMule(n); OUT.r[n] = s && s.id; });")
         for n, mid in o["r"].items():
             self.assertEqual(mid, "shared", "%s routed to %r, not the war stash" % (n, mid))
+
+    def test_guillaumes_face_goes_to_the_war_stash_not_sets_rest(self):
+        """Elad 2026-10-19: Guillaume's Face -> the war stash (Shared Stash); war gear beats the keep-set rule"""
+        o = T.board().run("var s = window.suggestMule(\"Guillaume's Face\"); OUT.id = s && s.id; OUT.why = s && s.why;"
+                          "OUT.set = !!(window.findSetPiece && window.findSetPiece(\"Guillaume's Face\"));"
+                          "OUT.role = window.vaultWarGearRole(\"Guillaume's Face\");")
+        self.assertTrue(o["set"], "PREMISE: Guillaume's Face is a set piece (the keep-set rule would claim it)")
+        self.assertEqual(o["id"], "shared", "Guillaume's Face routed to %r (%s), not the war stash" % (o["id"], o["why"]))
+        self.assertIn("war gear", o["why"] or "")
+        self.assertTrue(o["role"])
 
     def test_distinct_attacks_clear_the_vault_apply_wilson_bar(self):
         from confidence import wilson_lower
@@ -167,8 +177,11 @@ RED_PROOF = [
      "file": "bible.html", "find": "    'metamorphosis': 'mark of the bear / wolf on striking - utility proc helm',\n",
      "replace": "", "matches": 1},
     {"why": "Treachery (Fade) goes back to the runewords mule.",
-     "file": "bible.html", "find": "    'treachery': 'fade on striking - utility proc armour'\n",
-     "replace": "    'treachery_x': 'x'\n", "matches": 1},
+     "file": "bible.html", "find": "    'treachery': 'fade on striking - utility proc armour',\n",
+     "replace": "", "matches": 1},
+    {"why": "Guillaume's Face falls back to SETS-REST (the keep-set rule wins over war gear).",
+     "file": "bible.html", "find": "    \"guillaume's face\": 'crushing blow + deadly strike helm - war set piece'\n",
+     "replace": "    \"guillaume_x\": 'x'\n", "matches": 1},
     {"why": "A full war stash says nothing.",
      "file": "bible.html", "find": "    if (_wf.length) unrHtml += '<p class=\"vmv-warfull\"",
      "replace": "    if (false) unrHtml += '<p class=\"vmv-warfull\"", "matches": 1},
