@@ -516,14 +516,20 @@ class TheRestrictionIsAProvingDeviceNeverAVerdict(unittest.TestCase):
         run = next((n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == "run"), None)
         self.assertIsNotNone(run, "run_gates.run moved - re-anchor this law")
         scrub_at = loop_at = None
+        queue_from_gates = False
         for i, st in enumerate(run.body):
             for n in ast.walk(st):
                 if scrub_at is None and isinstance(n, ast.Call) and getattr(n.func, "attr", None) == "scrub":
                     scrub_at = i
-                # v3775 (REG-2296) - the gate loop walks `_queue`, a copy of GATES that sends reds to the back
-                if loop_at is None and isinstance(st, ast.For) and getattr(st.iter, "id", None) in ("GATES", "_queue"):
-                    loop_at = i
-        self.assertIsNotNone(loop_at, "PREMISE: run() has no `for g in GATES`/`_queue` loop - re-anchor this law")
+                # v3775 (REG-2296) - the gate loop walks `_queue`, sits inside the try/finally that folds the
+                # deferred rows, and `_queue` must be built FROM GATES (review minor: a name alone is not the set)
+                if (isinstance(n, ast.Assign) and any(getattr(t, "id", None) == "_queue" for t in n.targets)
+                        and any(getattr(c, "id", None) == "GATES" for c in ast.walk(n.value))):
+                    queue_from_gates = True
+                if loop_at is None and isinstance(n, ast.For) and getattr(n.iter, "id", None) in ("GATES", "_queue"):
+                    if getattr(n.iter, "id", None) == "GATES" or queue_from_gates:
+                        loop_at = i
+        self.assertIsNotNone(loop_at, "PREMISE: run() has no `for g in GATES` loop (or `_queue` built from GATES) - re-anchor this law")
         self.assertTrue(scrub_at is not None and scrub_at < loop_at,
                         "run() does not scrub TV_LAW_WIDTHS before its first gate (scrub at %s, loop at %s)" % (scrub_at, loop_at))
 
@@ -596,6 +602,11 @@ class TheRestrictionIsAProvingDeviceNeverAVerdict(unittest.TestCase):
 
 
 RED_PROOF = [
+    {"why": "the gate loop walks a `_queue` that is not the gate set - the scrub law must not read it as the gate loop",
+     "file": "run_gates.py",
+     "find": "    _queue = list(GATES)\n    _red_last = {}\n",
+     "replace": "    _queue = list(only or [])\n    _red_last = {}\n",
+     "matches": 1},
     {
         "why": "a push-time proof's declared widths never reach its runs: it measures every width (the push stays slow)",
         "file": "heart2.py",

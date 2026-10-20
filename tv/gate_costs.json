@@ -1016,6 +1016,8 @@
   "vault_apply_crossfamily": 0.1,
   "verdict_provenance": 0.1,
   "visual-lock": 0.4,
-  "write_census": 0.1
+  "write_census": 0.1,
+  "test_a_gate_crash_still_folds_the_banked_rows": 1.0,
+  "test_a_timeout_is_never_stored_red": 9.0
  }
 }

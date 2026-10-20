@@ -170,9 +170,9 @@ RED_PROOF = [
     {"why": "the runner leaves the defer set", "file": "run_gates.py",
      "find": "        os.environ.pop(\"TV_SELF_ARMING_DEFER\", None)\n", "replace": "        pass\n", "matches": 1},
     {"why": "the deferred rows are dropped", "file": "run_gates.py",
-     "find": "            _nf, _nr = _SA.fold_deferred(_defer)\n", "replace": "            _nf, _nr = 0, 0\n", "matches": 1},
+     "find": "        _nf, _nr = _SA.fold_deferred(path)\n", "replace": "        _nf, _nr = 0, 0\n", "matches": 1},
     {"why": "the scratch file is left behind", "file": "run_gates.py",
-     "find": "                os.remove(_defer)\n", "replace": "                pass\n", "matches": 1},
+     "find": "        os.remove(path)\n", "replace": "        pass\n", "matches": 1},
 ]
 
 if __name__ == "__main__":
