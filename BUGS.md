@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2303 - A SECOND HAND-ADDED COPY VANISHED, AND THE WAR STASH WAS ONE PAGE (Vault L1, provisional number, unversioned)
+Elad, live v3774 (2026-10-20): a 2nd Aldur's Deception he typed vanished - no row, no cell, no error. vaultHandAdd
+answered 'already yours - nothing changed' for any owned name. Fix: a name he types again is another copy (the
+copies[] store Grief x2 uses; for a set piece his hand sets the multi-keep target, so a re-read still never
+climbs one); _vaultMoveNoteAdded writes the row for that copyIx. The move planner packed the war stash as one
+10x10 page: it now packs all 5 pages (cell rows 10p..10p+9, row reads 'tab N'), then the mules named WAR1, WAR2...
+in order; with none or all full the item keeps no cell and MOVE TASKS says so plainly - no mule is created.
+Guard test_vault_l1_war_stash_overflow, 11 RED proofs. The SoJ three-spellings check now expects three copies.
+
 ### REG-2302 - A SET PIECE HE TYPED BY HAND GOT NO MOVE TASK (Vault L1, provisional number, unversioned)
 Elad, live v3774 (2026-10-20): he hand-added a set item and saw no move task. Cause: the hand-typed keep in
 _vaultSeamAsk only matched the planner's "by DEFAULT" reason, so a ruled-low set (Sigon's, Cathan's, Isenhart's)

@@ -30,7 +30,7 @@ SETS = ["Sigon's Guard", "Sigon's Visor", "Cathan's Mesh", "Isenhart's Case",
 BATCH = SETS + ["Immortal King's Stone Crusher", "Natalya's Mark", "Griswold's Heart", "M'avina's Embrace",
                 "Harlequin Crest", "Insight", "Gheed's Fortune", "Rainbow Facet", "Nokozan Relic",
                 "Arachnid Mesh", "Enigma", "Stone of Jordan"]
-LINE = re.compile(r"MANUAL → ([A-Z][A-Z0-9\- ]+?) \((\d+),(\d+)\)")
+LINE = re.compile(r"MANUAL → ([A-Z][A-Z0-9\- ]+?)(?: tab \d+)? \((\d+),(\d+)\)")
 
 ROWS = (T.READ + "var host = document.getElementById('vault-move-list');"
         "OUT.rows = host ? Array.prototype.map.call(host.querySelectorAll('.vtk-list:not([data-sec=\"done\"]) .vmv-row'), function(r){"

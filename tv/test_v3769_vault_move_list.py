@@ -694,7 +694,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "A hand add no longer writes the move, so an out-of-place item has no target.",
      "file": "bible.html",
-     "find": "var wrote = _vaultMoveCommit([{ name: nm, copyIx: 0, task: hand }]); /* v3773 manual row */",
+     "find": "var wrote = _vaultMoveCommit([{ name: nm, copyIx: copyIx, task: hand }]); /* v3773 manual row */",
      "replace": "var wrote = { ok: false }; /* v3773 manual row */",
      "matches": 1},
     {"why": "A name owned after the store exists never gets a row, so the typed move is not saved.",

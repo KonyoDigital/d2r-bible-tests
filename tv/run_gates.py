@@ -9834,6 +9834,13 @@ GATES = [
          why=("the render harness console pins its fleet distance (TV_FLEET_BEHIND_PIN=0, honoured only under "
              "TV_STUB=1), so a branch behind origin/main no longer draws BEHIND FLEET over the shelf reel cards "
              "and turns shelf-cards red. His real console still counts.")),
+    Gate("test_vault_l1_war_stash_overflow", [sys.executable,
+         os.path.join(HERE, "test_vault_l1_war_stash_overflow.py")], 300,
+         needs_app=False,
+         why=("Vault L1 (Elad, live v3774: a 2nd hand-added Aldur's Deception vanished) - every hand copy is its own "
+             "item, cell and MANUAL row; the war stash packs all 5 pages, then WAR1, WAR2 (case-insensitive); none "
+             "or all full is said plainly and no mule is created. No browser is a declared skip."),
+         skip_ok=(r"no Chrome/Chromium on this machine",)),
     Gate("test_vault_l1_every_hand_add_is_a_move_task", [sys.executable,
          os.path.join(HERE, "test_vault_l1_every_hand_add_is_a_move_task.py")], 240,
          needs_app=False,

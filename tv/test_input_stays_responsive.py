@@ -944,7 +944,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "A hand add says it wrote the row and stores nothing.",
      "file": "bible.html",
-     "find": "var wrote = _vaultMoveCommit([{ name: nm, copyIx: 0, task: hand }]); /* v3773 manual row */",
+     "find": "var wrote = _vaultMoveCommit([{ name: nm, copyIx: copyIx, task: hand }]); /* v3773 manual row */",
      "replace": "var wrote = { ok: true }; /* v3773 manual row */",
      "matches": 1},
     {"why": "The move list draws a hand add's FROM as 'not seen yet' instead of the MANUAL badge.",
