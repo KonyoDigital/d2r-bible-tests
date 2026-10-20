@@ -42,6 +42,7 @@ FNS = [
     "_vrRecLoadRaw", "_vrRecGuardedSet", "_vrLocForCopy",
     "_vaultRehomeCopies", "_vaultReconcileHomes",
     "_vaultRecordsLoad", "_vaultRecordsPersist",
+    "_vaultMisfiled", "_vaultWarSmall", "_vaultWarKeeper", "_vaultWarExtra", "_vaultWarRole", "_vaultWarMules",
     "_vaultMoveHome", "_vaultMoveCopies", "_vaultMovePackHome", "_vaultMovePlanCell",
     "_vaultMoveFromSight", "_vaultMoveBag", "_vaultMoveEnsure", "_vaultMoveCommit",
     "_vaultMoveApplySight", "_vaultMoveMark", "_vaultMoveNoteAdded",

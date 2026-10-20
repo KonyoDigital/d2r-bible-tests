@@ -362,7 +362,7 @@ class TestV3769VaultMoveListVisual(unittest.TestCase):
         g, es, hq = names["griffon"], names["eschuta"], names["harlequin"]
 
         beside = self._js(cdp, _STEP_BESIDE % json.dumps(g))
-        tiles = [t for t in beside["tiles"] if "Griffon" in (t.get("n") or "")]
+        tiles = [t for t in beside["tiles"] if "Kira" in (t.get("n") or "")]
         tiles.sort(key=lambda t: (t["x"], t["y"]))
         self.assertGreaterEqual(len(tiles), 2, beside)
         dx, dy = tiles[1]["x"] - tiles[0]["x"], tiles[1]["y"] - tiles[0]["y"]
@@ -512,7 +512,7 @@ _NAMES = _wrap(r"""
     } catch (e) {}
     return hit || part;
   }
-  return { griffon: canon("Griffon's Eye"), eschuta: canon("Eschuta's Temper"), harlequin: canon("Harlequin Crest") };
+  return { griffon: canon("Kira's Guardian"), eschuta: canon("Eschuta's Temper"), harlequin: canon("Harlequin Crest") };
 """)
 
 _ART_READY = r"""(function(){
@@ -535,7 +535,7 @@ _STEP_BESIDE = _wrap(r"""
   look(g, 'Mule', 'stash', 'stash:c8r2', 's2', 'f-b');
   window.switchTab('vault');
   window.renderVault();
-  var tiles = [].map.call((window._vaultMoveCompareOpen && window._vaultMoveCompareOpen("Griffon's Eye", 0), document.querySelectorAll('#vault-move-compare .vmc-after .vd-item')), function(el){
+  var tiles = [].map.call((window._vaultMoveCompareOpen && window._vaultMoveCompareOpen("Kira's Guardian", 0), document.querySelectorAll('#vault-move-compare .vmc-after .vd-item')), function(el){
     var img = el.querySelector('img');
     return { n: (el.getAttribute('title') || '').split(' (')[0], x: +el.getAttribute('data-x'),
              y: +el.getAttribute('data-y'), w: +el.getAttribute('data-w'), h: +el.getAttribute('data-h'),
