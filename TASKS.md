@@ -1815,7 +1815,8 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 
 | version | commit | commit subject |
 |---|---|---|
-| **v3778** | `(this commit)` | v3778 — (REG-2321) |
+| **v3779** | `(this commit)` | v3779 — REG-2271 footage-safe per-tile river drain - rebased onto v3778 for merge (#250) |
+| **v3778** | `fb541215` | v3778 — (REG-2321) |
 | **v3775** | `942d11ff` | v3775 — A bump reruns only what it moved - reds stay red and run last (REG-2296) |
 | **v3774** | `1d208ee5` | v3774 — a version bump carries the gates that ignore the version (REG-2295) |
 | **v3773** | `a8e9633d` | v3773 — a vault paint no longer walks the document, the D2JSP list stays cheap in the WebKit console window, and a hand add reads MANUAL to its target cell. REG-2294 |
