@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2380 - EVERY WINDOWS AGENT ANNOUNCED THE MAC'S OCR BINARY (Dean diff 03)
+
+MEASURED on a copy of Dean's tv/control_agent.log taken 2026-10-21: 139 agent boots, v2246 to v3767, every one printing `ocr lane: ON ...\tv\bin\ocr_mac`, beside an OCR lane that was reading at 34-50 ms through the PowerShell worker. The banner built its tag as `"ON " + OCR_BIN`, and OCR_BIN is always tv/bin/ocr_mac; on Windows `_ocr_worker_cmd()` runs `powershell ... -File tv/ocr_win.ps1`. The boot's missing-worker line (`ocr binary missing — Claude-only until tv/bin/ocr_mac is built`) named the Mac binary on Windows too.
+
+FIX: `tv_diablo._ocr_lane_tag()` builds the tag from the argv `_ocr_worker_cmd()` hands the spawn (what `OcrWorker._spawn` runs); OFF says `TV_OCR=0` or names the platform's missing worker (`_ocr_worker_wanted()`: tv/ocr_win.ps1 on Windows, tv/bin/ocr_mac on the Mac). main() asks the helper and no longer names OCR_BIN.
+
+GUARD: tv/test_the_ocr_banner_names_the_worker_that_runs.py (registered) - drives the helper under the Windows (worker present / missing), Mac and TV_OCR=0 branches, and pins main()'s `ocr lane:` line to the helper by AST. 4 RED proofs.
+
 ### REG-2576 - A D2JSP QUOTE WHOSE NODE PARSER TOOK OVER 20 S RAISED INSTEAD OF READING "UNREAD" (M6 review of REG-2575)
 
 Found by the cross-family review of REG-2575: the same defect class on the quote path. tv/d2jsp_chrome.py parse_public_quote

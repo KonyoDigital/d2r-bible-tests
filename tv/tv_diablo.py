@@ -8323,6 +8323,30 @@ def _verify_drain(worker=None, budget=1, timeout=75, deadline=None):
         n += 1
 
 
+def _ocr_worker_wanted():
+    """REG-2380 - the OCR worker THIS platform runs when it has one. -> str (repo-relative, never a home path)"""
+    if os.environ.get("TV_OCR_ARGV") or os.environ.get("TV_OCR_BIN"):
+        return "the TV_OCR_ARGV / TV_OCR_BIN worker"
+    return "tv/ocr_win.ps1" if sys.platform.startswith("win") else "tv/bin/ocr_mac"
+
+
+def _ocr_lane_tag():
+    """REG-2380 - THE BANNER NAMES THE OCR WORKER THAT RUNS, NOT THE MAC'S BINARY. -> str
+
+    The banner printed `"ON " + OCR_BIN` whenever the lane was available, and OCR_BIN is always tv/bin/ocr_mac. On
+    Windows _ocr_worker_cmd() runs ocr_win.ps1 instead, so every Windows agent announced a Mach-O path that can never run
+    there. MEASURED on a copy of Dean's control_agent.log (2026-10-21): 139 agent boots, v2246 to v3767, every one
+    "ocr lane: ON ...\\tv\\bin\\ocr_mac", beside a lane reading at 34-50 ms through the PowerShell worker. The tag is
+    built from the argv _ocr_worker_cmd() hands the spawn - the same answer OcrWorker._spawn acts on - and an OFF
+    says which switch or which missing worker turned it off. [[label-outlived-referent]]"""
+    cmd = _ocr_worker_cmd() if _OCR.available() else None
+    if cmd:
+        return "ON " + " ".join(str(x) for x in cmd)
+    if not OCR_ENABLED:
+        return "OFF (TV_OCR=0)"
+    return "OFF (no worker: %s is missing here)" % _ocr_worker_wanted()
+
+
 def main():
     global _LIFECYCLE, _VISION_BUSY, SESSION_ID
     _establish_footage()
@@ -8452,7 +8476,7 @@ def main():
         print("      (heavy cinematic capture for the SIM debugger: TV_LIGHT=0)")
     else:
         print(f"   film: live ~{_FILM_FPS}fps · SIM {_FOOTAGE_FPS}fps · max {FILM_MAX_PX}px · q{FILM_JPEG_Q}")
-    ocr_tag = "ON " + OCR_BIN if _OCR.available() else "OFF"
+    ocr_tag = _ocr_lane_tag()   # REG-2380 - the worker that runs (ocr_win.ps1 on Windows), never OCR_BIN by default
     print(f"   ocr lane: {ocr_tag}")
     if ROBOT_MODE:
         print("   tip: ROBOT lane — continuous reads are the truth; stash-pause intake ALSO fires (governed by the debt law)")
@@ -8500,7 +8524,8 @@ def main():
         if not OCR_ENABLED:
             ev("skip", "ocr lane off (LIGHT default) — set TV_OCR=1 to arm the fast lane")
         else:
-            ev("skip", "ocr binary missing — Claude-only until tv/bin/ocr_mac is built")
+            # REG-2380 - this said tv/bin/ocr_mac on Windows too, where the missing worker is ocr_win.ps1
+            ev("skip", "ocr worker missing — Claude-only until %s is present" % _ocr_worker_wanted())
 
     frame = live_frame_path(for_write=True)   # v2324 — JPEG: no 46ms/12MB conversion per frame
     # v927.3 — boot with a clean slate: a stale frame from a previous session (e.g. the
