@@ -87,6 +87,7 @@ them is one nobody can ship. Mandatory for every NEW gate; the backlog burns dow
 """
 import argparse
 import ast
+import atexit
 import contextlib
 import hashlib
 import io
@@ -2126,16 +2127,36 @@ class _StoreFile(object):
 # a tampered run that goes red writes down WHICH cases failed; the next push asks only those - untampered first (must be
 # green), then tampered (must be red). Both hold -> PROVEN in seconds. Anything else - a renamed case, a subset that
 # stays green, a run that cannot finish - falls back to today's FULL proof, so the memory can only ever save time, never
-# grant a verdict the full proof would refuse. Per machine, gitignored, beside .heart2_cache.json.
+# grant a verdict the full proof would refuse.
 #   HEART2_RED_MEMORY=0 closes it for one run (the cold half of a measurement).
+# R2 (REG-2342) — ONE MEMORY PER MACHINE. MEASURED on the v3783 push (2026-10-21): it was per CHECKOUT, so the push from a
+# fresh worktree ran test_control's 27 tampered proofs in full (187-227 s each, serial in the browser lock) while main's
+# memory held proofs 0-26. It now lives beside the verdict cache (git's common dir, _shared_store); HEART2_RED_PATH names
+# another file (a law's seam). It is keyed by the sabotage itself - gate, file, find, replace - with NO idx, so a proof
+# inserted above another no longer re-keys every proof below it; a key from before R2 (with its idx) is still asked when
+# the new one is unknown, and re-filed under the new key. It keeps 20,000 entries and evicts by USE, not by learning: a
+# re-filed old key first, then an entry no gate file still declares, then the least recently used or learned. A push's
+# first open folds every checkout's own pre-R2 tv/.heart2_red.json in (newest 'at' wins) and only READS them - older
+# code keeps writing them. Its writes go through _StoreFile (locked, merged, never overwriting an unreadable memory).
 # The law: test_a_proof_remembers_where_it_went_red. [[regression-guard]] [[unknown-stays-unknown]]
-RED_MEMORY = os.path.join(HERE, ".heart2_red.json")
-RED_MEMORY_MAX = 2000      # entries kept; the oldest leave first
+def _red_memory_path(cache=None, env=None):
+    """R2 - the red memory: beside the verdict cache, unless HEART2_RED_PATH names another file. -> path"""
+    env = os.environ if env is None else env
+    if env.get("HEART2_RED_PATH"):
+        return env["HEART2_RED_PATH"]
+    return os.path.join(os.path.dirname(CACHE if cache is None else cache), _RED_NAME)
+
+
+RED_MEMORY = _red_memory_path()
+_RED_DEFAULT, _CACHE_DEFAULT = RED_MEMORY, CACHE     # the machine's own stores, as this process found them
+RED_MEMORY_MAX = 20000     # entries kept, counted AFTER the merge; see _red_evict for who leaves first
 RED_IDS_MAX = 60           # a sabotage that reddens more cases than this is asked in full anyway
 _RED_ID_RX = re.compile(r"^(?:FAIL|ERROR): (\w+) \(([\w.]+)\)")
 _RED_CASE_RX = re.compile(r"^[A-Za-z_]\w*\.test\w*$")
 _RED_LOCK = threading.Lock()
 _LAST_RED = {}             # thread id -> the red cases of that thread's last _run_gate (a side channel: stand-ins stay valid)
+_RED = {"path": None, "sig": None, "entries": None, "folded": False}   # the memory as last read or written
+_RED_USED = {}             # (memory file, key) -> [ms used, entry to re-file under the key | None, its pre-R2 key | None]
 
 
 def _red_ids(lines):
@@ -2159,60 +2180,286 @@ def _red_ids(lines):
     return sorted(out)
 
 
+class _RedKey(str):
+    """A sabotage's identity (R2: no idx). `.legacy` is the key the same sabotage had before R2 - with its idx."""
+    legacy = None
+
+
 def _red_key(name, idx, pr):
-    """One sabotage's identity: the gate, the proof's place, and the exact bytes it tampers. -> hex | None"""
+    """One sabotage's identity: the gate and the exact bytes it tampers - NOT its place in the list (R2), so a proof
+    inserted above it changes nothing. -> _RedKey (a str; .legacy = the pre-R2 key) | None"""
     try:
-        blob = json.dumps([str(name), int(idx), str(pr.get("file") or ""), str(pr.get("find") or ""),
-                           str(pr.get("replace") or "")], ensure_ascii=False)
+        f, fi, rp = str(pr.get("file") or ""), str(pr.get("find") or ""), str(pr.get("replace") or "")
+        blob = json.dumps([str(name), f, fi, rp], ensure_ascii=False)
+        key = _RedKey(hashlib.sha256(blob.encode("utf-8")).hexdigest()[:24])
     except Exception:
         return None
-    return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:24]
-
-
-def _red_load():
-    """-> the memory dict, {} when there is none yet, or None when it is closed (HEART2_RED_MEMORY=0)."""
-    if os.environ.get("HEART2_RED_MEMORY") == "0":
-        return None
-    if not os.path.exists(RED_MEMORY):
-        return {}                  # nothing learned on this machine yet: every proof runs in full
     try:
-        with io.open(RED_MEMORY, encoding="utf-8") as fh:
-            d = json.load(fh)
-    except Exception as _re:
-        # said, never silent: an unreadable memory costs this push its narrowed proofs, and the reason is in the log
-        print("  ⚠ the red memory would not read (%s) - every proof runs in full this push" % type(_re).__name__)
-        return {}
-    return d if isinstance(d, dict) else {}
+        old = json.dumps([str(name), int(idx), f, fi, rp], ensure_ascii=False)
+        key.legacy = hashlib.sha256(old.encode("utf-8")).hexdigest()[:24]
+    except Exception:
+        key.legacy = None
+    return key
 
 
-def _red_recall(key):
-    d = _red_load()
-    e = (d or {}).get(key) if key else None
+def _red_ids_of(e):
+    """The case ids an entry remembers, only well-formed ones. -> [id] | None"""
     ids = e.get("ids") if isinstance(e, dict) else None
     ids = [str(i) for i in ids if _RED_CASE_RX.match(str(i))] if isinstance(ids, list) else []
     return ids[:RED_IDS_MAX] or None
 
 
+def _red_load():
+    """-> the memory's entries {key: entry}; {} when nothing is learned yet; None when it is closed
+    (HEART2_RED_MEMORY=0). Read again only when its file changed (size, mtime, inode) - not once per proof."""
+    if os.environ.get("HEART2_RED_MEMORY") == "0":
+        return None
+    with _RED_LOCK:
+        try:
+            st = os.stat(RED_MEMORY)
+            sig = (st.st_size, st.st_mtime_ns, st.st_ino)
+        except OSError:
+            sig = None
+        if _RED["path"] == RED_MEMORY and _RED["sig"] == sig and _RED["entries"] is not None:
+            return _RED["entries"]
+        if RED_MEMORY == _RED_DEFAULT and CACHE_WHY and _is_prover_process():
+            _say_once(print, ("red-own", RED_MEMORY), "  ⚠ the red memory is this checkout's own (%s) - what it learns "
+                                                      "dies with the checkout" % CACHE_WHY)
+        ent = {}
+        if sig is not None:
+            body, why = _read_store(RED_MEMORY, _entries_shape)
+            if why is not None:
+                # said, never silent: an unreadable memory costs this push its narrowed proofs, and the reason is in
+                # the log. The next write sets it aside (never over it); until then its last good generation is asked.
+                prev, pwhy = _read_store(RED_MEMORY + ".prev", _entries_shape)
+                print("  ⚠ the red memory would not read (%s) - %s" % (
+                    why, "its last good generation (.prev) is asked instead" if pwhy is None and prev
+                    else "every proof runs in full this push"))
+                body = prev if pwhy is None else None
+            ent = (body or {}).get("entries") or {}
+        _RED.update(path=RED_MEMORY, sig=sig, entries=ent)
+        return ent
+
+
+def _red_recall(key):
+    """-> the case ids that caught this sabotage before, or None. R2: when the key is unknown, the key the same sabotage
+    had before R2 (with its idx) is asked, and its entry is re-filed under the new key at the next write; every recall
+    marks the entry USED - the memory evicts by use, never by when it learned."""
+    d = _red_load()
+    if not d or not key:
+        return None
+    k, old = str(key), None
+    e = d.get(k)
+    ids = _red_ids_of(e)
+    if ids is None:
+        old = getattr(key, "legacy", None)
+        e = d.get(old) if old else None
+        ids = _red_ids_of(e)
+    if ids is None:
+        return None
+    with _RED_LOCK:
+        _RED_USED[(RED_MEMORY, k)] = [int(time.time() * 1000), dict(e) if old else None, old]
+    return ids
+
+
 def _red_remember(key, name, idx, ids):
     if not key or not ids or len(ids) > RED_IDS_MAX:
         return
+    now = int(time.time() * 1000)
+    _red_write({str(key): {"gate": str(name), "proof": int(idx), "ids": list(ids), "at": now, "usedAt": now}})
+
+
+def _red_merged(disk, learned, used):
+    """R2 - what is on disk, plus what this process learned and used: newest 'at' wins a key, usedAt is the latest
+    anyone recorded, and a recalled pre-R2 entry lands under its new key (the old one is marked, so it leaves first).
+    -> {key: entry}"""
+    out = dict((k, v) for k, v in (disk or {}).items() if isinstance(v, dict))
+
+    def put(k, e):
+        cur = out.get(k)
+        if cur is None or _num(e.get("at")) > _num(cur.get("at")):
+            if cur is not None and _num(cur.get("usedAt")) > _num(e.get("usedAt")):
+                e = dict(e, usedAt=cur["usedAt"])
+            out[k] = e
+        elif _num(e.get("usedAt")) > _num(cur.get("usedAt")):
+            out[k] = dict(cur, usedAt=e["usedAt"])
+
+    for k, e in (learned or {}).items():
+        if isinstance(e, dict):
+            put(k, e)
+    for k, (ms, refile, old) in (used or {}).items():
+        if isinstance(refile, dict) and k not in out:
+            out[k] = dict(((a, b) for a, b in refile.items() if a not in ("v1", "refiled")), usedAt=ms)
+            if old in out:
+                out[old] = dict(out[old], refiled=k)
+        elif k in out and _num(out[k].get("usedAt")) < ms:
+            out[k] = dict(out[k], usedAt=ms)
+    return out
+
+
+def _red_live_keys():
+    """Every key a gate file still declares - its R2 key and its pre-R2 key. -> set | None (UNKNOWN: that tier is
+    skipped, never guessed)"""
+    try:
+        out = set()
+        for name, fn in gate_files(say=lambda *a, **k: None):
+            for i, pr in enumerate(red_proofs_in(fn) or []):
+                k = _red_key(name, i, pr) if isinstance(pr, dict) else None
+                if k:
+                    out.add(str(k))
+                    if k.legacy:
+                        out.add(k.legacy)
+        return out or None
+    except Exception:
+        return None
+
+
+def _red_evict(ent, cap, live=None):
+    """R2 - over the cap, AFTER the merge, these leave first: a pre-R2 key already re-filed under its new one, then an
+    entry no gate file still declares, then the one least recently USED or learned. -> how many left"""
+    over = len(ent) - cap
+    if over <= 0:
+        return 0
+    live = _red_live_keys() if live is None else live
+
+    def rank(k):
+        e = ent[k] if isinstance(ent[k], dict) else {}
+        return (0 if e.get("refiled") else 1,
+                0 if (live is not None and k not in live) else 1,
+                max(_num(e.get("at")), _num(e.get("usedAt"))))
+
+    for k in sorted(ent, key=rank)[:over]:
+        ent.pop(k, None)
+    return over
+
+
+def _red_write(learned=None):
+    """R2/R4 - the red memory's ONE write: what is on disk now, plus what this process learned, used and re-filed,
+    capped AFTER the merge. A memory that cannot be written costs the next push time, never a verdict. -> bool"""
+    if os.environ.get("HEART2_RED_MEMORY") == "0":
+        return False
     with _RED_LOCK:
-        d = _red_load()
-        if d is None:
-            return
-        d[key] = {"gate": str(name), "proof": int(idx), "ids": list(ids), "at": int(time.time() * 1000)}
-        if len(d) > RED_MEMORY_MAX:
-            for k in sorted(d, key=lambda k: (d[k] or {}).get("at") or 0)[:len(d) - RED_MEMORY_MAX]:
-                d.pop(k, None)
-        if os.path.basename(RED_MEMORY) != ".heart2_red.json":
-            return                 # the one file this writer may touch, by name - like CACHE's writer
-        tmp = RED_MEMORY + ".tmp"
+        mine = [pk for pk in _RED_USED if pk[0] == RED_MEMORY]       # uses recorded against THIS memory file only
+        used = dict((pk[1], _RED_USED[pk]) for pk in mine)
+        if not learned and not used:
+            return False
+        out = {}
+
+        def merge(disk):
+            ent = _red_merged((disk or {}).get("entries"), learned, used)
+            _red_evict(ent, RED_MEMORY_MAX)
+            body = dict((k, v) for k, v in (disk or {}).items() if k not in ("_why", "format", "entries"))
+            body.update(_why="#42 lever 1 / R2 - which cases caught each sabotage, per machine; keyed by gate, file, "
+                             "find and replace. Written only by tv/heart2.py's _StoreFile.", format=2, entries=ent)
+            out["entries"] = ent
+            return body
+
+        ok, why = _StoreFile(RED_MEMORY, print).commit(merge)
+        if ok:
+            for pk in mine:
+                _RED_USED.pop(pk, None)
+            try:
+                st = os.stat(RED_MEMORY)
+                _RED.update(path=RED_MEMORY, sig=(st.st_size, st.st_mtime_ns, st.st_ino), entries=out["entries"])
+            except OSError:
+                _RED.update(path=None, sig=None, entries=None)
+        elif why:
+            _say_once(print, ("red-write", RED_MEMORY, why), "  ⚠ the red memory was not written (%s) - the next push "
+                                                             "asks those proofs in full" % why)
+        return ok
+
+
+def _red_flush():
+    """The uses and re-files this process recorded, written - on the verdict cache's per-gate beat and at exit."""
+    if _RED_USED:
         try:
-            with io.open(tmp, "w", encoding="utf-8") as fh:
-                json.dump(d, fh, sort_keys=True)
-            os.replace(tmp, RED_MEMORY)
+            _red_write(None)
         except Exception:
-            pass                   # a memory that cannot be written costs the next push time, never a verdict
+            pass
+
+
+atexit.register(_red_flush)
+
+
+def _red_v1_sources(repo=None):
+    """R2 - the per-checkout memories of the old layout: this checkout's, the main checkout's and every live worktree's
+    tv/.heart2_red.json, found through git's common dir (<common>/worktrees/*/gitdir). -> [existing path]"""
+    repo = REPO if repo is None else repo
+    found = [os.path.join(repo, "tv", _RED_NAME)]
+    common, _cw = _git_common_dir(repo)
+    if common:
+        if os.path.basename(common) == ".git":
+            found.append(os.path.join(os.path.dirname(common), "tv", _RED_NAME))
+        wt = os.path.join(common, "worktrees")
+        try:
+            names = sorted(os.listdir(wt))
+        except OSError:
+            names = []
+        for n in names:
+            try:
+                with io.open(os.path.join(wt, n, "gitdir"), encoding="utf-8") as fh:
+                    p = fh.read().strip()
+            except (OSError, ValueError):
+                continue                                # a half-made or pruned worktree record: nothing to read
+            if p:
+                p = p if os.path.isabs(p) else os.path.join(wt, n, p)
+                found.append(os.path.join(os.path.dirname(os.path.normpath(p)), "tv", _RED_NAME))
+    out, seen = [], set()
+    for p in found:
+        r = os.path.realpath(p)
+        if r not in seen and os.path.isfile(p):
+            seen.add(r)
+            out.append(p)
+    return out
+
+
+def _red_fold(sources, say=print):
+    """R2 - fold pre-R2 memories (flat {key: entry} files) into this machine's: an entry keeps its key (it holds its
+    idx; recall falls back to it and re-files it), newest 'at' wins, and the old files are only READ. -> entries taken"""
+    got = {}
+    for p in sources or ():
+        d, why = _read_store(p)
+        if why is not None:
+            _say_once(say, ("red-v1", p), "  ⚠ a pre-R2 red memory would not read (%s) - left as it is: %s" % (why, p))
+            continue
+        for k, e in d.items():
+            if _red_ids_of(e) and _num(e.get("at")):
+                if k not in got or e["at"] > _num(got[k].get("at")):
+                    got[k] = dict(e, v1=1)
+    if not got:
+        return 0
+    have = _red_load() or {}
+    fresh = dict((k, e) for k, e in got.items()
+                 if not isinstance(have.get(k), dict) or e["at"] > _num(have[k].get("at")))
+    if fresh and _red_write(fresh):
+        say("  #42 lever 1 (R2): %d sabotage(s) learned in a checkout's own pre-R2 memory now serve this machine"
+            % len(fresh))
+        return len(fresh)
+    return 0
+
+
+def _is_prover_process():
+    """Is this process heart2's own CLI (the hook's `heart2.py --prove ... --push`), not a law driving it in-process?"""
+    return os.path.basename(str(sys.argv[0] if sys.argv else "")) == "heart2.py"
+
+
+def _red_fold_checkouts(say=print):
+    """R2 - at a push's first open: every checkout's own pre-R2 memory folded into the machine's, once per process. Only
+    in the prover's own process and only into the machine's OWN memory: a law that drives prove(push=True) in-process,
+    a law's fixture store, or a seam never folds his checkouts' memories anywhere."""
+    if _RED["folded"] or os.environ.get("HEART2_RED_MEMORY") == "0":
+        return 0
+    _RED["folded"] = True
+    if not _is_prover_process():
+        return 0
+    if (os.environ.get("HEART2_RED_PATH") or os.environ.get("HEART2_CACHE_PATH") or RED_MEMORY != _RED_DEFAULT
+            or CACHE != _CACHE_DEFAULT):
+        return 0
+    try:
+        return _red_fold(_red_v1_sources(), say)
+    except Exception as _fe:
+        say("  ⚠ the checkouts' pre-R2 red memories could not be folded in (%s) - left as they are" % type(_fe).__name__)
+        return 0
 
 
 def _prove_narrow(sandbox, label, tgt, tgt_rel, find, repl, want, filename, timeout, w, ids, widths, say):
@@ -2645,8 +2892,12 @@ class _VerdictCache(object):
 
     def flush(self):
         """Write what this run banked and used, merged with what is on disk NOW and capped after that merge, through
-        the stores' one locked writer. -> True when written."""
-        return self._flush()
+        the stores' one locked writer. -> True when written. R2: the red memory's recorded uses ride the same per-gate
+        beat (its own file, its own write)."""
+        try:
+            return self._flush()
+        finally:
+            _red_flush()
 
     def _flush(self):
         with self.lock:
@@ -2685,7 +2936,9 @@ class _VerdictCache(object):
 
 
 def open_cache(say=print):
-    """The cache prove(push=True) hands to _prove_push -> _VerdictCache | None (HEART2_PROVE_CACHE=0: closed, said)."""
+    """The cache prove(push=True) hands to _prove_push -> _VerdictCache | None (HEART2_PROVE_CACHE=0: closed, said).
+    R2: a push's first open also folds every checkout's own pre-R2 red memory into the machine's."""
+    _red_fold_checkouts(say)
     if str(os.environ.get("HEART2_PROVE_CACHE", "1")).strip().lower() in ("0", "no", "off", "false"):
         say("  #42 P3 CACHE: OFF for this run (HEART2_PROVE_CACHE=0) - every proof runs, nothing is banked")
         return None

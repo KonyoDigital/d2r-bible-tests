@@ -6,8 +6,8 @@ with no cross-process lock, while a worktree's pre-flight runs beside main's pus
 made certain by TV_STORE_HOLD_S (a law's seam: a writer holds its written tmp unreplaced, so the other writer is provably
 inside the same window - never a race left to luck):
 
-  1. two processes, released together by a barrier, writing the verdict cache: every write of both survives (the store
-     directory's lock);
+  1. two processes, released together by a barrier, writing the verdict cache and the red memory: every write of both
+     survives (the store directory's lock);
   2. with NO lock to be had (a machine without flock), two writers inside the window at once each install their own
      bytes - a tmp named for one writer is never moved by the other's rename;
   3. a tmp a DEAD writer left beside a store is swept, a live writer's never, and nothing beside a guard is touched;
@@ -48,6 +48,10 @@ if kind == "cache":
     c = H._VerdictCache(path=path, say=lambda *a, **k: None)
     c.store(key, {"verdict": "PROVEN", "provedAt": now, "gate": key, "proof": 0})
     ok = c.flush()
+else:
+    H.RED_MEMORY = path
+    H._red_remember(key, key, 0, ["Case.test_%s" % key])
+    ok = os.path.exists(path)
 print(json.dumps({"key": key, "ok": bool(ok)}))
 '''
 
@@ -96,7 +100,7 @@ class TwoProversNeverTearTheStore(unittest.TestCase):
         with io.open(script, "w", encoding="utf-8") as fh:
             fh.write(_WRITER)
         go = os.path.join(self.root, "go-%s" % kind)
-        env = dict(os.environ, TV_STORE_HOLD_S=HOLD)
+        env = dict(os.environ, TV_STORE_HOLD_S=HOLD, HEART2_RED_MEMORY="1")
         env.pop("HEART2_CACHE_PATH", None)
         env.pop("HEART2_RED_PATH", None)
         procs = [subprocess.Popen([sys.executable, script, HERE, kind, path, "%s%s" % (kind, n), go], env=env,
@@ -115,8 +119,9 @@ class TwoProversNeverTearTheStore(unittest.TestCase):
         return out
 
     def test_two_processes_writing_at_once_both_survive_in_every_store(self):
-        """★ the cache: two writers inside one window, every write kept (the lock)"""
-        jobs = [("cache", os.path.join(self.root, "c", ".heart2_cache.json"))]
+        """★ the cache and the red memory: two writers inside one window, every write kept (the lock)"""
+        jobs = [("cache", os.path.join(self.root, "c", ".heart2_cache.json")),
+                ("red", os.path.join(self.root, "r", ".heart2_red.json"))]
         for _k, p in jobs:
             os.makedirs(os.path.dirname(p))
         reports = {}
@@ -200,6 +205,7 @@ class TwoProversNeverTearTheStore(unittest.TestCase):
         v2 = H._shared_cache_path(here=os.path.join(wt, "tv"), repo=wt, env={})
         v1 = os.path.join(main, "tv", ".heart2_cache.json")      # what the pre-REG-2341 rule resolved, from either tree
         self.assertNotEqual(os.path.realpath(v2), os.path.realpath(v1), "the v2 store IS the file old code writes")
+        self.assertNotEqual(os.path.dirname(H._red_memory_path(cache=v2, env={})), os.path.join(main, "tv"))
         os.makedirs(os.path.dirname(v2))
         with io.open(v2, "w", encoding="utf-8") as fh:
             json.dump({"format": 2, "pushes": [{"forecast": 1}],
