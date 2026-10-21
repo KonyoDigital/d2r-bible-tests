@@ -100,7 +100,13 @@ class ImportingASuiteIsolatesHisStores(unittest.TestCase):
         """REG-2150. test_seal_named calls vault_sweep_start(force=True). The sweep thread
         finishes in _vault_lane_note_outcome, which saves. That gate is not a console and
         does not repoint the store, so the save created tv/.vault_autoread.json. The
-        v3628 shard blamed test_seal_named, which writes nothing of its own."""
+        v3628 shard blamed test_seal_named, which writes nothing of its own.
+
+        REG-2373 - A WRITE IS A WRITE EVEN WHEN THE BYTES COME OUT THE SAME. Where the store already exists (his
+        Mac's main checkout, where the census runs) the save first LOADS it, which replaces the fixture's reason with
+        the file's own, and then writes those same bytes back. This compared bytes only, so proof [0] (the guard
+        removed) stayed green there - BLIND on his census - and PROVEN only in trees with no store. The write is
+        now caught by the file's identity: os.replace gives it a new inode and a new mtime."""
         got = _child(
             "import os, sys, json, tempfile\n"
             "sys.path.insert(0, '.')\n"
@@ -108,6 +114,10 @@ class ImportingASuiteIsolatesHisStores(unittest.TestCase):
             "live = os.path.join(os.path.dirname(os.path.abspath(ca.__file__)), '.vault_autoread.json')\n"
             "existed = os.path.isfile(live)\n"
             "before = open(live, 'rb').read() if existed else None\n"
+            "def ident():\n"
+            "    st = os.stat(live)\n"
+            "    return [st.st_ino, st.st_mtime_ns, st.st_size]\n"
+            "id0 = ident() if existed else None\n"
             "root = tempfile.mkdtemp(prefix='vault-law-')\n"
             "reel = os.path.join(root, 'reel_s_1500000000001_12001')\n"
             "os.makedirs(reel)\n"
@@ -118,10 +128,11 @@ class ImportingASuiteIsolatesHisStores(unittest.TestCase):
             "ca._VAULT_AUTOREAD_STORE['readable'] = None\n"
             "why = ca._vault_lane_note_outcome(reel, swept={})\n"
             "created = (not existed) and os.path.isfile(live)\n"
-            "changed = bool(existed and os.path.isfile(live) and open(live, 'rb').read() != before)\n"
+            "changed = bool(existed and os.path.isfile(live) and (open(live, 'rb').read() != before\n"
+            "                                                     or ident() != id0))\n"
             "if created:\n"
             "    os.remove(live)\n"
-            "print(json.dumps({'console': bool(fr.on_console_path()), 'why': why,\n"
+            "print(json.dumps({'console': bool(fr.on_console_path()), 'why': why, 'existed': existed,\n"
             " 'created': created, 'changed': changed}))")
         self.assertFalse(got["console"], "the child was a console, so this measured the wrong process")
         self.assertTrue(got["why"], "the note gave no reason, so the save was never asked: %r" % got)
@@ -143,10 +154,15 @@ class ImportingASuiteIsolatesHisStores(unittest.TestCase):
             "live = os.path.join(os.path.dirname(os.path.abspath(ca.__file__)), '.vault_autoread.json')\n"
             "existed = os.path.isfile(live)\n"
             "before = open(live, 'rb').read() if existed else None\n"
+            "def ident():\n"
+            "    st = os.stat(live)\n"
+            "    return [st.st_ino, st.st_mtime_ns, st.st_size]\n"
+            "id0 = ident() if existed else None\n"
             "why = ca._vault_lane_note_outcome(reel, swept={})\n"
             "store = os.path.join(root, '.vault_autoread.json')\n"
             "created = (not existed) and os.path.isfile(live)\n"
-            "changed = bool(existed and os.path.isfile(live) and open(live, 'rb').read() != before)\n"
+            "changed = bool(existed and os.path.isfile(live) and (open(live, 'rb').read() != before\n"
+            "                                                     or ident() != id0))\n"
             "print(json.dumps({'why': bool(why), 'in_world': os.path.isfile(store),\n"
             " 'created': created, 'changed': changed}))\n"
             "shutil.rmtree(root, ignore_errors=True)")

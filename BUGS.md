@@ -273,6 +273,52 @@ GUARD (registered in tv/run_gates.py): tv/test_a_leaked_git_dir_never_writes_the
 
 LEFT: 14 other laws `git init` a temp dir without a scope scrub of their own (test_a_suite_run_is_reused_only_on_identical_bytes, test_a_version_bump_carries_the_gates_that_ignore_the_version, test_the_eye_reads_the_commit_read_only and others); at push the hook's unset covers them, outside a hook they are not swept.
 
+### REG-2371 - THE EVIDENCE LAW'S REEL-KEY PROOF TAMPERED A KEY REG-2036 HAD ALREADY NORMALISED (Dean diff 02)
+
+test_evidence_counts_a_reel_once[1] dropped `_rk()` from the reel-list key, but REG-2036 put
+`r = _evidence_reel_id(...)` in front of it, which already spells a bare "s_..." as "reel_s_...", so the tamper changed
+nothing and the proof stayed green on every PC - BLIND on his Mac's census and on Dean's, and under the old rule that
+one record shut every lock on both. The tamper now restores the whole defect (the raw spelling, unnormalised, as the
+key). Diff from Dean's PC; PROVEN here.
+
+### REG-2372 - THE FOUND-EVER LAW PRESSED THE TV REGISTRAR WHERE THE INTAKE STOP RETURNS FIRST
+
+test_found_ever_never_files_to_a_mule[1] tampers the registrar's no-witness branch, and the law pressed
+`tvVaultRegister('Stormshield')` with AUTO INTAKE off - v3767's stop returns 'auto-intake-off' before the registrar
+runs, so the tamper was unreachable and the proof read BLIND on his census. The press now runs with intake on (as his
+console runs the registrar) and puts the key back, and the law asserts the registrar answered 'witness' (reached and
+refused), so a press stopped short can never pass again. Browser law: re-aimed by reading, proved at push.
+
+### REG-2373 - A LAW COMPARED BYTES, AND THE TAMPERED SAVE WROTE THE SAME BYTES BACK
+
+test_importing_a_suite_isolates_his_stores[0] removes the REG-2150 guard on the vault lane store. Where the store
+already exists (his Mac's main checkout, where the census runs) the save first loads it - replacing the fixture's
+reason with the file's own - and writes those same bytes back, so a byte comparison saw nothing: BLIND on his census,
+PROVEN in any tree without the store. Reproduced here by planting a store (BLIND), then fixed: the law also compares the
+file's identity (inode, mtime_ns, size), which os.replace always moves. PROVEN with and without a store.
+
+### REG-2374 - THE SESSIONS LAW'S PRESS WAS NOT A PRIMARY PRESS
+
+test_sessions_leaves_the_vault_on_the_first_press[1] deletes the `return` that swallows the click after a press. The
+harness's fake pointerdown carried no `button`, and #142 drops every press whose button is not 0, so the press never
+counted and "one press leaves once" held whether the return was there or not - BLIND here and on his census. The
+harness now sends a primary press (button 0) and the law first asserts that a press alone leaves.
+
+### REG-2375 - THE CROSS-REFERENCE LAW'S CATCHING CASES SKIPPED, AND A SKIP READ AS BLIND
+
+test_the_cross_reference_asks_one_question[4] is caught only by the two universe cases, and both SKIPPED when
+surface_pairs() reported no uniques roster size - which it did in his census's proving sandbox ("2 of 18 law(s)
+SKIPPED"), so the proof read BLIND while PROVEN in a fresh sandbox. The cases now build their own roster through the
+one reader both surface_pairs() and mask_cross_check() use (fleet_mask.load_roster_for) and never skip.
+
+### REG-2376 - THE VAULT FINDER'S CELL PROOFS DELETED A BRANCH THE LAW NEVER REACHES
+
+test_the_vault_finder_names_the_mule_and_the_cell[1] and [2] deleted the cell lines of `_vaultWhereIs`'s FILED branch.
+Since v3767 the hand auto-sort homes items through the records seam and writes no `assign`, so the finder answers
+Grief and Obedience from its "would" branch, which packs the cell itself: both proofs stayed green (BLIND on his
+census). They now delete the "would" branch's shared-tab and personal-stash cell lines. Browser law: re-aimed by
+reading, proved at push. The filed branch's cell lines (a hand-filed item) are not reached by any case here.
+
 ### REG-2335 - AFTER A RESET HIS BOARD STILL HELD A TORCH IN SHARED STASH, A TORCH IN UNI-SMALL AND SIX CHARMS IN MAGIC & RARE (v3782)
 
 Elad, v3778 console, 2026-10-21 01:44 IDT: "when i do reset it. i still have these items that are stuck and not being deleted automatically with the rest of the items" and "there should be an option that resets just the items and wipes them from the mules and shared stash/war stash/mules all emptied" (runes / gems / materials need not be reset).
