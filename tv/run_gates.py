@@ -10983,8 +10983,9 @@ GATES = [
          needs_app=False,
          why="REG-2382 / REG-2385 - tv/pc_settings.json (this PC's intake caps) and the subscription ledger's temp "
              "files are ignored by git, asked of git's own matcher in a throwaway repo seeded with the tree's "
-             ".gitignore. Its own law and node-free: inside the node-only reader-cap law these two cases were the "
-             "only ones a PC without node ran, so every node-only proof there was filed BLIND."),
+             ".gitignore files, with the host's global excludes switched off so no PC's own ignore answers for the "
+             "tree. Its own law and node-free: inside the node-only reader-cap law these two cases were the only "
+             "ones a PC without node ran, so every node-only proof there was filed BLIND."),
     Gate("test_a_capped_runner_reaches_the_board_as_429",
          [sys.executable, os.path.join(HERE, "test_a_capped_runner_reaches_the_board_as_429.py")], 120,
          needs_app=False,
