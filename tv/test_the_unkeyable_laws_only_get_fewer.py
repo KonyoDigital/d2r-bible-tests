@@ -11,11 +11,12 @@ keyable; this stops the next one from arriving silently.
 THE RULE IS heart2's OWN, asked of heart2 - never a copy: heart2.law_inputs over every registered gate file
 (heart2.gate_files), exactly as the push's key_for asks it, plus the one fact a filesystem cannot answer the same way
 in every venue: a PROOF_NEEDS under a directory safe_copy never carries (.git, frames - "history and footage are never
-hashed") can never be keyed - in a main checkout it is a directory, from a worktree it is a pointer heart2 refuses to
-bring, so the gate is unkeyable or UNPROVABLE and never saved either way. The verdict is MEMBERSHIP against
-tv/unkeyable_laws.json: a law unkeyable now and not listed fails, naming why; a listed law that is keyable again fails
-until it is removed; and the list may not be longer than CEILING below, so growing it is an edit to this law, made on
-purpose and re-proved at push - never a quiet line in a data file. [[regression-guard]] [[zero-needs-a-denominator]]
+hashed") can never be keyed - in the sandbox it is a directory wherever the push starts (from a worktree a private
+clone since REG-2364), while law_inputs over a worktree reads the one-line pointer FILE and would call it keyable. The
+verdict is MEMBERSHIP against tv/unkeyable_laws.json: a law unkeyable now and not listed fails, naming why; a listed
+law that is keyable again fails until it is removed; and the list may not be longer than CEILING below, so growing it
+is an edit to this law, made on purpose and re-proved at push - never a quiet line in a data file.
+[[regression-guard]] [[zero-needs-a-denominator]]
 RED_PROOF below.
 """
 import io
@@ -117,9 +118,9 @@ class TheUnkeyableLawsOnlyGetFewer(unittest.TestCase):
         self.assertIn("frames", safe_copy.HEAVY)
         for fn, part in (("test_tasks_ships_are_recorded.py", ".git"), ("test_no_new_home_path_is_published.py", ".git"),
                          ("test_chronicle_template.py", "frames")):
-            self.assertIn(part, _heavy_need(fn) or "", "%s needs %s, which no venue can key - from a worktree heart2 "
-                                                       "will not bring it, so without this rule the census would "
-                                                       "differ by the tree it runs in" % (fn, part))
+            self.assertIn(part, _heavy_need(fn) or "", "%s needs %s, which no venue can key - over a worktree "
+                                                       "law_inputs reads a pointer file there, so without this rule "
+                                                       "the census would differ by the tree it runs in" % (fn, part))
             self.assertIn(fn, self.now, "%s is not seen as unsaveable in this venue" % fn)
         self.assertIsNone(_heavy_need("test_the_fleet_shows_the_shadow_eye.py"),
                           "a need that is a tracked file (functions/api/console.js) was called unkeyable")

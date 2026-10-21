@@ -10939,6 +10939,15 @@ GATES = [
              "law_inputs over every registered gate, plus PROOF_NEEDS under .git or frames, is compared with "
              "tv/unkeyable_laws.json: a new unkeyable law fails naming why, a listed law that is keyable again "
              "must leave, and the list may not exceed CEILING in the law - it only shrinks."),
+    Gate("test_a_worktree_sandbox_carries_its_own_history",
+         [sys.executable, os.path.join(HERE, "test_a_worktree_sandbox_carries_its_own_history.py")], 120,
+         needs_app=False,
+         why="REG-2364 - from a linked worktree heart2's sandbox had no git history (the .git pointer is never "
+             "copied); laws read HEAD there only through the GIT_DIR the hook leaked, so once REG-2360 unset it "
+             "test_control's relaunch case errored and the version-stamp law's [7] went BLIND. make_sandbox now "
+             "gives it a private git clone --shared of that checkout (HEAD = the worktree's, GIT_*-free, push "
+             "shut). Driven on a fixture worktree under a leaked GIT_DIR: the sandbox reads the worktree's HEAD and "
+             "an old commit, and building it or writing in it leaves the real repo byte-identical."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
