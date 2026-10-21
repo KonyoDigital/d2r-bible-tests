@@ -47665,6 +47665,11 @@ class Handler(BaseHTTPRequestHandler):
                     _nice_kw = ({"creationflags": 0x4000 | _WIN_CREATE} if IS_WIN
                                 else {"preexec_fn": (lambda: os.nice(10))})   # v879 — intake yields to the game
                     _last_err = ""
+                    # REG-2383 - A LANE AT ITS CAP REFUSED; IT DID NOT FAIL. Its runner answers 429 with the limit, the
+                    # limit's source and when to retry (tv/intake_local.mjs). Another lane may still read (shadow: Grok
+                    # is the failover), but when none does the answer is that 429 - never 200 with an error body, and
+                    # never the website proxy below, which reads on the site's API key: the spend the cap exists to stop.
+                    _cap_answer = None
                     for _lane_lab, _runner in _runners:
                         try:
                             _pr = subprocess.run(
@@ -47674,6 +47679,10 @@ class Handler(BaseHTTPRequestHandler):
                             if _pr.returncode == 0 and _pr.stdout:
                                 _out = json.loads(_pr.stdout.decode("utf-8", "replace"))
                                 _pl = (_out.get("body") or "").encode("utf-8")
+                                if str(_out.get("status")) == "429":
+                                    _cap_answer = _cap_answer or (_lane_lab, _pl)
+                                    _last_err = "the %s lane is at its cap" % _lane_lab
+                                    continue
                                 # Prefer a body that is not an obvious hard error if multiple lanes
                                 _ok_body = True
                                 try:
@@ -47683,7 +47692,7 @@ class Handler(BaseHTTPRequestHandler):
                                         _last_err = str(_bj.get("error"))[:200]
                                 except Exception:
                                     pass
-                                if _ok_body or _lane_lab == _runners[-1][0]:
+                                if _ok_body or (_lane_lab == _runners[-1][0] and _cap_answer is None):
                                     self.send_response(int(_out.get("status") or 200))
                                     self.send_header("Content-Type", "application/json")
                                     self.send_header("X-Intake-Lane", _lane_lab)
@@ -47696,6 +47705,14 @@ class Handler(BaseHTTPRequestHandler):
                         except Exception as _lane_ex:
                             _last_err = str(_lane_ex)[:200]
                             continue
+                    if _cap_answer is not None:
+                        self.send_response(429)
+                        self.send_header("Content-Type", "application/json")
+                        self.send_header("X-Intake-Lane", _cap_answer[0])
+                        self.send_header("Content-Length", str(len(_cap_answer[1])))
+                        self.end_headers()
+                        self.wfile.write(_cap_answer[1])
+                        return
                     if _strict:
                         self._json(502, {"ok": False, "lane": "subscription-failed",
                                          "msg": "all local intake runners failed (strict: no website fallback)",

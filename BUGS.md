@@ -201,6 +201,16 @@ FIX: `_git_common_dir` reads `.git` the way git does - a relative gitdir joined 
 GUARDS: tv/test_one_verdict_cache_serves_every_tree.py (relative gitdir from another cwd; REAL git worktrees, absolute and --relative-paths, land on `git rev-parse --git-common-dir`; bare repository; an unreadable pointer is said) - 7 of 7 PROVEN; tv/test_safe_copy.py (every store generation and side file stays out, the census still travels) - 6 of 6 PROVEN; tv/test_a_proven_verdict_is_reused_only_on_identical_bytes.py (every side file is gitignored).
 
 LEFT: a checkout with no readable git dir banks into its own store and is SAID, but nothing merges that store into the machine's at the end of the push (there is no machine store it could find).
+### REG-2383 - A CAPPED READ WAS ANSWERED 200, OR READ ON THE WEBSITE'S API KEY
+
+tv/intake_local.mjs refused a call at its cap by throwing inside the fetch shim. intake.js catches every throw and answers `200 {"error":"worker-exception", ...}`, so the console handed the board a SUCCESS status for a read that never happened. ask.js does not catch: the runner died with exit 1, and control_app's /api/intake handler, finding no lane answer, fell through to the website proxy - which reads on the site's ANTHROPIC_API_KEY, the spend the subscription cap exists to stop. In shadow mode a capped Claude plus a Grok failover that could not run took the same road.
+
+FIX: the runner reports a cap hit as status 429 with {error:"subscription-cap", message, window, used, limit, source, retry_s} on both paths (REG-2382's commit). The handler forwards a runner's 429 as HTTP 429 with X-Intake-Lane; in shadow mode the Grok failover still reads, and when no lane reads the answer is the 429 - never the website proxy, never 200 with an error body.
+
+GUARD: tv/test_a_capped_read_is_answered_429.py (registered) - a private ThreadingHTTPServer on control_app.Handler; one case spawns the REAL runner under node on a fixture ledger at its cap (the join of the two halves); the website door is stubbed in every case. 4 RED proofs.
+
+LEFT: the board's own handling of a 429 is unchanged (bible.html is not in this change): aicUpload says "read failed (server 429)" and the vault batch says "AI service unreachable · HTTP 429" without reading the body's message. The Grok lane's own cap (tv/intake_grok_sub.mjs) still answers 200 worker-exception.
+
 ### REG-2384 - TV_INTAKE_*_MAX=0 NEVER SWITCHED THE INTAKE LANE OFF
 
 tv/intake_local.mjs read each cap as `Math.max(0, parseInt(v || '20', 10) || 20)`. `parseInt('0')` is 0, and `0 || 20` is 20, so the documented off switch (`subscription circuit open (TV_INTAKE_*_MAX=0)`) was unreachable from a 0 - only a negative number opened it. The Python lanes (`TV_VISION_*_MAX`, `G5_GROK_*_MAX`) read 0 as 0.
