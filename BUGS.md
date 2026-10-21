@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2381 - A WINDOWS CONSOLE KEPT NOTHING IT SAID: PYTHONW HAS NO STDOUT (Dean diff 04)
+
+MEASURED on Dean's PC 2026-10-21: his console starts as `pythonw.exe tv\control_app.py --open` (start_tvd_win.log), there is no tv/control_app.log at all, and his /api/status said `no console log on this machine, so the hunt's cost cannot be read · unaskable for 48d (891 attempts)`. pythonw leaves sys.stdout and sys.stderr None, and print() to None is silent, so every line the console printed - the `🚀 CONSOLE BOOT` marker console_doctor's hunt-economy eye slices on, sign-in, the reel auto-sweep's watch line, the drift hold - went nowhere. His Mac's launcher appends the same stream to tv/control_app.log (start_tvd_mac.sh).
+
+FIX: `control_app._route_pythonw_output()`, the first statement of main(): only a stream that is None is routed, to tv/control_app.log (the file the doctor reads), line-buffered UTF-8; past 32 MB at boot it rolls to control_app.prev.log (tv/*.log ignores both). A scratch console (win_relaunch.scratch_console(): TV_STUB=1 or a non-primary port) writes a temp-dir log instead, so a harness boot never moves the doctor's CONSOLE BOOT slice. Adapted from Dean diff 04 (moved ahead of the console-path mark so its warning is kept too; scratch rule added).
+
+GUARD: tv/test_a_relaunch_leaves_a_receipt.py `APythonwConsoleKeepsWhatItSays` - 6 cases, one of them asks console_doctor's own eye to read what the routed console printed. 5 new RED proofs.
+
+LEFT: not run on a Windows PC; the routing is driven with the streams set to None the way pythonw leaves them.
+
 ### REG-2380 - EVERY WINDOWS AGENT ANNOUNCED THE MAC'S OCR BINARY (Dean diff 03)
 
 MEASURED on a copy of Dean's tv/control_agent.log taken 2026-10-21: 139 agent boots, v2246 to v3767, every one printing `ocr lane: ON ...\tv\bin\ocr_mac`, beside an OCR lane that was reading at 34-50 ms through the PowerShell worker. The banner built its tag as `"ON " + OCR_BIN`, and OCR_BIN is always tv/bin/ocr_mac; on Windows `_ocr_worker_cmd()` runs `powershell ... -File tv/ocr_win.ps1`. The boot's missing-worker line (`ocr binary missing — Claude-only until tv/bin/ocr_mac is built`) named the Mac binary on Windows too.

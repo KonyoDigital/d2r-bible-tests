@@ -5974,7 +5974,9 @@ GATES = [
              "quiet exits and any uncaught exception land in it, every exec leaves a receipt naming its "
              "pid, and a Windows child waits for that pid to exit (measured on the ALT: 3.03 s for a 3 s "
              "parent). A TV_STUB or scratch-port console writes a temp log, never this machine's record "
-             "(8 of 9 lines were render_check's on day one)."),
+             "(8 of 9 lines were render_check's on day one). REG-2381 - and what a pythonw console SAYS is kept: "
+             "a None stdout/stderr is routed to tv/control_app.log (Dean's PC had none, so the doctor's hunt eye "
+             "read 'no console log' for 48 days), rolled past 32 MB, scratch consoles to a temp log."),
     Gate("test_the_chronicle_inbox_asks_on_the_page",
          [sys.executable, os.path.join(HERE, "test_the_chronicle_inbox_asks_on_the_page.py")], 60,
          why="#230 - his ask: harness Grok's mailbox study (~/tv-diablo-mailbox) into the console's own "
