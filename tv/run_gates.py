@@ -11485,7 +11485,9 @@ GATES = [
              "and is status 429. Driven through the real runner and pipeline on a fixture ledger and settings file; "
              "the claude CLI is a path that does not exist, so no case spends a read. REG-2385 - recording an intake "
              "call erased the vision lane's seconds rows from the shared ledger; they are kept (a stand-in CLI admits "
-             "and records a call), the intake cap still counts its own rows, and the write is atomic."),
+             "and records a call), the intake cap still counts its own rows, and the write is atomic. Every case "
+             "needs node, so a PC without node skips the law whole; the stand-in-CLI cases also need POSIX, and the "
+             "three proofs only they catch declare needs: posix."),
     Gate("test_a_capped_read_is_answered_429",
          [sys.executable, os.path.join(HERE, "test_a_capped_read_is_answered_429.py")], 120,
          needs_app=False,
@@ -11504,6 +11506,13 @@ GATES = [
              "file the Mac launcher appends to and the doctor reads) before it says anything, rolled past 32 MB; a "
              "scratch console writes a temp log. Driven with the streams set to None, and the doctor's own eye reads "
              "what the routed console printed."),
+    Gate("test_this_pcs_settings_file_never_travels",
+         [sys.executable, os.path.join(HERE, "test_this_pcs_settings_file_never_travels.py")], 60,
+         needs_app=False,
+         why="REG-2382 / REG-2385 - tv/pc_settings.json (this PC's intake caps) and the subscription ledger's temp "
+             "files are ignored by git, asked of git's own matcher in a throwaway repo seeded with the tree's "
+             ".gitignore. Its own law and node-free: inside the node-only reader-cap law these two cases were the "
+             "only ones a PC without node ran, so every node-only proof there was filed BLIND."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

@@ -13,7 +13,7 @@ tv/.subscription_budget.json has two writers on two clocks: tv_diablo's vision l
 
 FIX: `budgetRecord()` keeps the other lane's rows, aged in their own unit (tv_diablo's window: a minute of skew, under a day); the write is tmp + rename (per-process tmp; the old in-place write only where a rename is refused). What the intake cap COUNTS is unchanged - its own millisecond rows - and is now pinned: whether vision reads should count against the intake cap is a ruling nobody has made. `tv/.subscription_budget.json.*` (both writers' temp files) is ignored.
 
-GUARD: tv/test_the_reader_cap_comes_from_this_pcs_settings.py `TheLedgerKeepsTheOtherLanesRows` (a stand-in claude CLI admits and records a call; POSIX only) and `test_the_ledgers_temp_files_are_ignored_by_git`. 4 RED proofs.
+GUARD: tv/test_the_reader_cap_comes_from_this_pcs_settings.py `TheLedgerKeepsTheOtherLanesRows` (a stand-in claude CLI admits and records a call; POSIX only, so its 3 RED proofs declare `needs: posix` and a Windows PC with node files them ELSEWHERE, never BLIND) and tv/test_this_pcs_settings_file_never_travels.py `test_the_ledgers_temp_files_are_ignored_by_git` (1 RED proof).
 
 ### REG-2383 - A CAPPED READ WAS ANSWERED 200, OR READ ON THE WEBSITE'S API KEY
 
@@ -39,7 +39,7 @@ MEASURED 2026-10-21 on his Mac, read-only: the live console process carries `TVD
 
 FIX: one rule on every PC, Dean's included - tv/pc_settings.mjs reads this PC's GITIGNORED tv/pc_settings.json (`{"TV_INTAKE_HOURLY_MAX": 50, "TV_INTAKE_DAILY_MAX": 300}`, env-style names; a UTF-8 BOM from Notepad is accepted). The environment stays the override: env > the file > the code default. Each limit keeps its source, and the refusal names it (`... (20/20, limit from the code default) ...`, `... limit from tv/pc_settings.json`, `... limit from env TV_INTAKE_HOURLY_MAX`); a layer holding an unusable value is passed over AND SAID. TV_PC_SETTINGS / TV_SUB_BUDGET point the runner at fixtures (TV_SUB_BUDGET is the override tv_diablo already honours).
 
-GUARD: tv/test_the_reader_cap_comes_from_this_pcs_settings.py (registered) - drives `node tv/intake_local.mjs` and the real functions/api pipeline on a fixture ledger and settings file, asserts his live ledger and settings are byte-identical after every case, and asks git's own matcher that tv/pc_settings.json is ignored. 11 RED proofs (REG-2382/2383/2384).
+GUARD: tv/test_the_reader_cap_comes_from_this_pcs_settings.py (registered) - drives `node tv/intake_local.mjs` and the real functions/api pipeline on a fixture ledger and settings file and asserts his live ledger and settings are byte-identical after every case; 10 RED proofs (REG-2382/2383/2384). Every case needs node, so a PC without node skips it whole (ELSEWHERE under REG-2354, never BLIND). tv/test_this_pcs_settings_file_never_travels.py (registered, node-free) asks git's own matcher that tv/pc_settings.json is ignored; 1 RED proof.
 
 LEFT: no tv/pc_settings.json is written on any PC by this change - writing his (50/300, the GB-L stopgap now exported from the login shell) and Dean's is a step on each machine. The Grok lane's caps (tv/intake_grok_sub.mjs, G5_GROK_*_MAX) still read env only.
 
