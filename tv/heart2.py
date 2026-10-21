@@ -112,6 +112,10 @@ except Exception:
 
 STATE = os.path.join(HERE, ".heart2.json")
 PROPOSALS = os.path.join(HERE, ".heart2_proposals.md")
+#: REG-2355 — the rule a census's BLIND list was judged under. 2: a proof whose every law skipped in both runs on a PC with
+#: no node is ELSEWHERE, never BLIND. A census filed under an older rule owes those BLIND gates again, by name
+#: (blind_rule_owed), until each has been judged under this one; self_prove reads the census stale till then.
+BLIND_RULE = 2
 
 PROVEN, BLIND, UNPROVEN, UNPROVABLE, INVALID = "PROVEN", "BLIND", "UNPROVEN", "UNPROVABLE", "INVALID"
 #: REG-1686 — a red-proof whose tamper can only be judged on a PC that HAS something (`"needs": "<capability>"`) is
@@ -134,6 +138,12 @@ PROOF_NEEDS_HOST = {
     # tamper and clean). posix: the prover's birth read runs `ps` through fork_exec only off Windows.
     "numpy": ("heart2", "_host_has_numpy", "numpy (the inventory lattice reads a frame only with it)"),
     "posix": ("heart2", "_host_is_posix", "a POSIX process table (ps through fork_exec; Windows reads births another way)"),
+    # REG-2354 — MEASURED on Dean's PC 2026-10-21: no node and no bash on PATH (tv/install-tvd.ps1 installs neither), so
+    # its census filed 56 gates BLIND - 53 whose every law skipped "no node on PATH", 1 whose catching laws skip for want
+    # of node, 1 for want of bash, 1 stale tamper - and one BLIND shuts every lock on a PC: 0 of 9 permitted there, 135
+    # reels on disk and not one ever tombstoned. Measured where the tool is, never BLIND here.
+    "node": ("heart2", "_host_has_node", "Node.js on PATH (the law runs the page's own JavaScript through node)"),
+    "bash": ("heart2", "_host_has_bash", "bash on PATH (the law runs a hook script through bash)"),
 }
 
 
@@ -156,6 +166,16 @@ def _host_has_numpy():
 def _host_is_posix():
     """REG-1719 — the PROOF_NEEDS_HOST probe for "posix". -> bool"""
     return os.name == "posix"
+
+
+def _host_has_node():
+    """REG-2354 — the PROOF_NEEDS_HOST probe for "node". -> bool (asks PATH the way the JS laws do; runs nothing)"""
+    return shutil.which("node") is not None
+
+
+def _host_has_bash():
+    """REG-2354 — the PROOF_NEEDS_HOST probe for "bash". -> bool (the question the hooks law's skipUnless asks)"""
+    return shutil.which("bash") is not None
 
 
 def host_lacks(need):
@@ -463,6 +483,18 @@ def gate_shas(gates=None):
     return out
 
 
+def blind_rule_owed(state):
+    """REG-2355 — the BLIND gates a census filed under an older BLIND_RULE and has not judged since. -> set (pure)
+
+    A census stamped with this rule carries what is left by name (`blindRuleOwed`); one from before it - or from an
+    older rule - owes its whole BLIND list. Asked by slice_owed() here and by self_prove.census_state(), one answer."""
+    if not isinstance(state, dict):
+        return set()
+    if state.get("blindRule") == BLIND_RULE:
+        return set(state.get("blindRuleOwed") or [])
+    return set(state.get("blind") or [])
+
+
 def slice_owed(gates=None, state=None):
     """#99 — which gates that DECLARE a proof this census has not proved against the file on disk now. -> dict
 
@@ -483,6 +515,7 @@ def slice_owed(gates=None, state=None):
                 state, why = {}, "the census would not parse (%s)" % type(e).__name__
     recorded = state.get("gateShas") if isinstance(state, dict) else None
     recorded = recorded if isinstance(recorded, dict) else {}
+    _rule_blind = blind_rule_owed(state)
     shas = gate_shas(gates)
     owed, declared = [], 0
     for n, f in gates:
@@ -491,6 +524,10 @@ def slice_owed(gates=None, state=None):
             continue
         declared += 1
         if not shas.get(n) or recorded.get(n) != shas.get(n):
+            owed.append((n, len(proofs)))
+        # REG-2355 — and a BLIND judged under an older BLIND_RULE, though its file is unchanged: a gate is otherwise owed
+        # only when its OWN file changes, so a fixed rule would never reach the verdicts the old one filed (Dean's 53).
+        elif _rule_blind and n in _rule_blind:
             owed.append((n, len(proofs)))
     owed.sort(key=lambda t: t[0])
     return {"owed": owed, "declared": declared, "covered": declared - len(owed),
@@ -1219,6 +1256,30 @@ def make_sandbox(say=print):
         _drop_sandbox(root)
         return None, None
     return tv, root
+
+
+def _skipped_every_law(tail):
+    """REG-2354 — did this run skip EVERY law it ran? -> bool. The two numbers blind_reason's "ALL n law(s) SKIPPED" line
+    is printed from; a run that did not say how many it ran answers False here and is judged exactly as before."""
+    _sk = re.search(r"skipped=(\d+)", tail or "")
+    _rn = re.search(r"Ran (\d+) test", tail or "")
+    return bool(_sk and _rn and int(_rn.group(1)) > 0 and int(_sk.group(1)) >= int(_rn.group(1)))
+
+
+#: REG-2354 — how a gate reaches for node: measured, these three spellings cover all 54 node gates Dean's PC filed BLIND.
+_GATE_NAMES_NODE = re.compile(r"""shutil\.which\(\s*["']node["']\s*\)|["']node["']|\bNODE\b""")
+
+
+def _gate_reaches_for_node(sandbox, filename):
+    """REG-2354 — does this gate's own source reach for node? -> bool. The sandbox copy first, then the repo's; a file
+    that will not read answers False, so an unreadable gate is judged exactly as before and never excused."""
+    for _p in (os.path.join(sandbox, filename), os.path.join(REPO, "tv", filename)):
+        try:
+            with io.open(_p, encoding="utf-8", errors="replace") as fh:
+                return bool(_GATE_NAMES_NODE.search(fh.read()))
+        except Exception:
+            continue
+    return False
 
 
 def blind_reason(why, matches, tail, widths=None):
@@ -3785,7 +3846,14 @@ def _write_state(results, measured=None, stamp=True, unmeasured=None):
         _fp_out = None
     else:
         _fp_out = gates_fingerprint(gates) if (stamp or not _owed) else prior.get("gatesFingerprint")
+    # ⚠⚠ REG-2355 — WHAT IS LEFT TO JUDGE UNDER THE NEW RULE IS CARRIED BY NAME. A gate judged now leaves the list
+    # whatever its new verdict, so a slice always shrinks it - a flag stamped "once all are judged" kept re-owing the
+    # ones already judged, and a slice of only those landed none and was booked a failure. slice_owed() owes the list
+    # and self_prove reads the census stale while it is not empty.
+    _rule_left = sorted(b for b in blind_rule_owed(prior) if b not in (results or {}) and b in blind)
     out.update({
+        "blindRule": BLIND_RULE,
+        "blindRuleOwed": _rule_left,
         "gateShas": _gs,
         "sliceOwed": len(_owed),
         "sliceOwedSample": _owed[:12],
@@ -4112,6 +4180,18 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
         say("     %-52s %s — tampered run%s: %s" % (label, UNPROVABLE, _at_widths(widths), tail2))
         return UNPROVABLE
     if ok_tampered:
+        # ⚠⚠ REG-2354 — EVERY LAW SKIPPED IN BOTH RUNS ON A PC WITH NO NODE: THE TAMPER WAS NEVER JUDGED HERE. The line
+        # below says exactly that ("ALL n law(s) SKIPPED - the tamper was never judged") and filed BLIND anyway, and one
+        # BLIND shuts every lock on a PC. MEASURED on Dean's PC 2026-10-21: 53 of its 56 BLIND were JS laws skipping "no
+        # node on PATH" in the clean run and the tampered one - 0 of 9 locks permitted, 0 reels ever tombstoned. It is
+        # REG-1686's case without the declaration. All three must hold - both runs skipped every law, this PC has no
+        # node, the gate reaches for node - so a PC with node judges as before, and a law that opts out for any other
+        # reason is still BLIND. [[unknown-stays-unknown]]
+        if (not widths and _skipped_every_law(tail) and _skipped_every_law(tail2)
+                and host_lacks("node")[0] is True and _gate_reaches_for_node(sandbox, filename)):
+            say("     %-52s %s — every law skipped in BOTH runs and this PC has no %s: the tamper was never judged "
+                "here; it is proven on a PC that has it" % (label, ELSEWHERE, host_lacks("node")[1]))
+            return ELSEWHERE
         say("     %-52s %s ← %s" % (label, BLIND, blind_reason(pr.get("why"), got, tail2, widths=widths)))
         if widths:
             say("     %-52s   ↳ #42: GREEN at its DECLARED widths %s - the declaration is wrong (or the law is blind "

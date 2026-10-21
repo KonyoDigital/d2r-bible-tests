@@ -120,7 +120,10 @@ RED_PROOF = [
      "file": "hooks/pre-push",
      "find": '  if [ -n "${GATE_SCALE:-}" ]; then\n',
      "replace": '  if false; then\n',
-     "matches": 1},
+     "matches": 1,
+     # REG-2354 - only the bash law runs gate_run; with no bash on PATH it skips and the other four never reach it, so
+     # Dean's PC filed this proof BLIND and shut every lock there. Judged where bash is.
+     "needs": "bash"},
     {"why": "REG-1993 - the render call site never hands its measured factor down",
      "file": "hooks/pre-push",
      "find": '    export GATE_SCALE="${_rs:-1.00}" TV_RENDER_SCALE="${_rs:-1.00}" GATE_LOAD_GRACE=1\n',

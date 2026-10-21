@@ -15,9 +15,16 @@ Driven through the REAL heart2._prove_one / _prove_gate (only the law runs and t
   4. a gate is PROVEN when its other proofs are and the rest are ELSEWHERE; every proof ELSEWHERE is UNPROVABLE here;
      a BLIND among them stays BLIND;
   5. the builder law's [9] and [10] declare the install; the install probe is the ONE rule _pull itself checks.
+  6. REG-2354 - a proof whose every law skipped in BOTH runs, on a PC with no node, for a gate that reaches for node, is
+     ELSEWHERE; with node, with laws that ran, or with a gate that never names node, it is BLIND exactly as before.
+     MEASURED on Dean's PC 2026-10-21: 53 of its 56 BLIND were that shape, and 0 of its 9 locks were permitted;
+  7. "node" and "bash" answer from PATH, the question the laws' own skips ask;
+  8. a BLIND filed under an older BLIND_RULE is owed again though its file is unchanged, a slice takes it off the list
+     whatever it finds, and self_prove reads a census that still carries one as stale.
 RED_PROOF below.
 """
 import io
+import json
 import os
 import shutil
 import sys
@@ -34,6 +41,7 @@ _fx_tmp.contain()
 from console_safe import enable as _console_safe_enable  # noqa: E402  (its red-proofs carry non-ASCII)
 _console_safe_enable()
 import heart2 as H  # noqa: E402
+import self_prove as SP  # noqa: E402
 
 LINES = []
 
@@ -100,6 +108,126 @@ class AProofThatNeedsWhatThisPcLacks(_Sandbox):
     def test_a_proof_with_no_need_is_untouched(self):
         v = self.judge(self.proof(), lacks=True, tampered_red=False)
         self.assertEqual(v, H.BLIND, "a proof that declared nothing was excused")
+
+
+class AnAllSkippedProofOnAPcWithNoNode(_Sandbox):
+    """REG-2354 - MEASURED on Dean's PC 2026-10-21: no node on PATH, and 53 of the 56 gates its census filed BLIND were JS
+    laws whose every law skipped in the clean run AND the tampered one ("the tamper was never judged"). One BLIND shuts
+    every lock on a PC: 0 of 9 permitted there, 135 reels on disk, not one ever tombstoned."""
+
+    ALL = "Ran 4 tests in 0.002s\n\nOK (skipped=4)"
+    SOME = "Ran 4 tests in 0.002s\n\nOK (skipped=2)"
+
+    def skipping(self, node, tail=None, names_node=True):
+        with io.open(os.path.join(self.tv, "test_law.py"), "w", encoding="utf-8") as fh:
+            fh.write("NODE = shutil.which('node')\n" if names_node else "pass\n")
+        out = tail or self.ALL
+
+        def run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=None):
+            with io.open(os.path.join(sandbox_tv, "subject.py"), encoding="utf-8") as fh:
+                self.runs.append("tampered" if "ANCHOR = 2" in fh.read() else "clean")
+            return True, out
+        probe = {"node": ("_elsewhere_probe", "have", "Node.js on PATH")}
+        sys.modules["_elsewhere_probe"] = types.SimpleNamespace(have=lambda: node)
+        self.addCleanup(sys.modules.pop, "_elsewhere_probe", None)
+        with mock.patch.object(H, "_run_gate", run_gate), mock.patch.object(H, "PROOF_NEEDS_HOST", probe):
+            return H._prove_one(self.tv, "test_law", "test_law.py", self.proof(), 0, _say)
+
+    def test_it_is_elsewhere_on_a_pc_with_no_node(self):
+        v = self.skipping(node=False)
+        self.assertEqual(v, H.ELSEWHERE, "a tamper no law judged was filed %s on a PC with no node" % v)
+        self.assertEqual(self.runs, ["clean", "tampered"], "PREMISE: both runs were asked")
+        self.assertTrue(any("ELSEWHERE" in l and "never judged" in l for l in LINES), LINES)
+
+    def test_a_pc_with_node_still_files_it_blind(self):
+        self.assertEqual(self.skipping(node=True), H.BLIND,
+                         "a law that skips everything on a PC that HAS node was excused")
+
+    def test_a_gate_that_never_reaches_for_node_is_still_blind(self):
+        self.assertEqual(self.skipping(node=False, names_node=False), H.BLIND,
+                         "a law that opts out for some other reason was excused by node's absence")
+
+    def test_laws_that_ran_and_stayed_green_are_still_blind(self):
+        self.assertEqual(self.skipping(node=False, tail=self.SOME), H.BLIND,
+                         "laws that RAN and stayed green were excused because others skipped")
+
+
+class NodeAndBashAnswerFromPath(unittest.TestCase):
+    """REG-2354 - the capability is the question the laws' own skips ask (shutil.which), never a guess."""
+
+    def test_a_pc_without_them_lacks_them(self):
+        with mock.patch.object(H.shutil, "which", lambda name, *a, **k: None):
+            self.assertIs(H.host_lacks("node")[0], True, "a PC with no node on PATH claimed node")
+            self.assertIs(H.host_lacks("bash")[0], True, "a PC with no bash on PATH claimed bash")
+
+    def test_a_pc_with_them_has_them(self):
+        with mock.patch.object(H.shutil, "which", lambda name, *a, **k: "/bin/" + name):
+            self.assertIs(H.host_lacks("node")[0], False)
+            self.assertIs(H.host_lacks("bash")[0], False)
+
+
+class ABlindFiledUnderAnOlderRuleIsJudgedAgain(unittest.TestCase):
+    """REG-2355 - a gate is owed only when its OWN file changes, and self_prove stops for good once the census reads
+    current, so the BLINDs Dean's census filed under the old rule would have stood for ever under the fixed one."""
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp(prefix="blind_rule_")
+        self.addCleanup(shutil.rmtree, self.d, True)
+        self.gates = []
+        for n in ("g1", "g2", "g3"):
+            f = os.path.join(self.d, "test_%s.py" % n)
+            with io.open(f, "w", encoding="utf-8") as fh:
+                fh.write('RED_PROOF = [{"why": "fixture %s", "file": "nowhere.py", "find": "a", "replace": "b", '
+                         '"matches": 1}]\n' % n)
+            self.gates.append((n, f))
+        self.state = os.path.join(self.d, ".heart2.json")
+        for p in (mock.patch.object(H, "gate_files", lambda say=print: list(self.gates)),
+                  mock.patch.object(H, "STATE", self.state)):
+            p.start()
+            self.addCleanup(p.stop)
+
+    def old_census(self, blind):
+        """a census as the old rule left it: every gate proved against its file, `blind` filed, no blindRule"""
+        st = {"gateShas": H.gate_shas(self.gates), "blind": list(blind), "provedGates": [], "partial": True,
+              "gatesFingerprint": H.gates_fingerprint(self.gates)}
+        with io.open(self.state, "w", encoding="utf-8") as fh:
+            json.dump(st, fh)
+        return st
+
+    def census(self):
+        with io.open(self.state, encoding="utf-8") as fh:
+            return json.load(fh)
+
+    def owed(self, st):
+        return [n for n, _k in H.slice_owed(gates=self.gates, state=st)["owed"]]
+
+    def test_an_unchanged_gate_filed_blind_under_the_old_rule_is_owed(self):
+        self.assertEqual(self.owed(self.old_census(["g2", "g3"])), ["g2", "g3"],
+                         "a BLIND the old rule filed is not owed - the fixed rule would never reach it")
+
+    def test_a_census_under_this_rule_owes_only_what_is_left(self):
+        st = dict(self.old_census(["g2", "g3"]), blindRule=H.BLIND_RULE, blindRuleOwed=["g3"])
+        self.assertEqual(self.owed(st), ["g3"])
+
+    def test_a_slice_shrinks_what_is_left_whatever_it_found(self):
+        self.old_census(["g2", "g3"])
+        H._write_state({"g2": H.BLIND}, stamp=False)        # judged again and still BLIND: it leaves the list all the same
+        c = self.census()
+        self.assertEqual(c.get("blindRule"), H.BLIND_RULE)
+        self.assertEqual(c.get("blindRuleOwed"), ["g3"],
+                         "a gate judged under the new rule is still owed - a slice of only those lands none and is "
+                         "booked a failure, for ever")
+        H._write_state({"g3": H.UNPROVABLE}, stamp=False)
+        c = self.census()
+        self.assertEqual(c.get("blindRuleOwed"), [])
+        self.assertEqual(c.get("blind"), ["g2"], "a gate judged ELSEWHERE kept its old BLIND")
+        self.assertEqual(self.owed(c), [])
+
+    def test_self_prove_reads_a_current_census_with_old_rule_blinds_as_stale(self):
+        self.old_census(["g2"])
+        st = SP.census_state()
+        self.assertEqual(st["state"], "stale", "a census still carrying an old-rule BLIND read current: %s" % st)
+        self.assertEqual(st["owed"], 1)
 
 
 class TheGateCountsWhatWasJudgedHere(unittest.TestCase):
@@ -249,6 +377,36 @@ RED_PROOF = [
      "file": "heart2.py",
      "find": "        _GATE_HOOK[\"fn\"] = None         # #145 (the v3545 eye) - a push banks once at the end, never through a slice's banker\n",
      "replace": "        pass\n",
+     "matches": 1},
+    {"why": "REG-2354 - an all-skipped tamper on a PC with no node is filed BLIND again, and every lock there shuts",
+     "file": "heart2.py",
+     "find": "        if (not widths and _skipped_every_law(tail) and _skipped_every_law(tail2)\n",
+     "replace": "        if (False and _skipped_every_law(tail) and _skipped_every_law(tail2)\n",
+     "matches": 1},
+    {"why": "REG-2354 - every PC claims node, so a PC without it judges JS laws it cannot run and files them BLIND",
+     "file": "heart2.py",
+     "find": "    return shutil.which(\"node\") is not None\n",
+     "replace": "    return True\n",
+     "matches": 1},
+    {"why": "REG-2354 - every PC claims bash, so the hooks law's proof is judged where its only catching law skips",
+     "file": "heart2.py",
+     "find": "    return shutil.which(\"bash\") is not None\n",
+     "replace": "    return True\n",
+     "matches": 1},
+    {"why": "REG-2355 - a BLIND filed under the old rule is never owed again, so the fixed rule never reaches it",
+     "file": "heart2.py",
+     "find": "        elif _rule_blind and n in _rule_blind:\n",
+     "replace": "        elif False:\n",
+     "matches": 1},
+    {"why": "REG-2355 - a gate judged under the new rule stays owed: a slice of only those lands none, a failure for ever",
+     "file": "heart2.py",
+     "find": "    _rule_left = sorted(b for b in blind_rule_owed(prior) if b not in (results or {}) and b in blind)\n",
+     "replace": "    _rule_left = sorted(b for b in blind_rule_owed(prior) if b in blind)\n",
+     "matches": 1},
+    {"why": "REG-2355 - a census that already reads current keeps its old-rule BLINDs for ever",
+     "file": "self_prove.py",
+     "find": "    elif _rule_owed(_h2, st):\n",
+     "replace": "    elif False:\n",
      "matches": 1},
 ]
 

@@ -572,10 +572,26 @@ def census_state():
         out.update(state="stale", why="the gates changed since this PC last proved them (%s != %s)"
                                       % (str(want)[:8], have[:8]))
         out.update(_owed_of(_h2, st))
+    elif _rule_owed(_h2, st):
+        # REG-2355 — the gates are unchanged but BLIND verdicts filed under an older heart2.BLIND_RULE are owed again:
+        # without this a PC whose census already read current would keep them for ever under the fixed rule.
+        _ro = _rule_owed(_h2, st)
+        out.update(state="stale", why="%d BLIND verdict(s) were filed under an older blind rule and are judged again"
+                                      % len(_ro))
+        out.update(_owed_of(_h2, st))
     else:
         out.update(state="current", why="proved for the gates on disk: %s of %s, %d blind"
                                         % (st.get("proved"), st.get("declared"), len(out["blind"])))
     return out
+
+
+def _rule_owed(h2, st):
+    """REG-2355 — heart2's own answer for the BLIND gates owed under a newer rule. -> set; empty when it cannot be asked
+    (an older heart2 without the rule), so the census reads exactly as it did before."""
+    try:
+        return set(h2.blind_rule_owed(st))
+    except Exception:
+        return set()
 
 
 def _git(*args, timeout=15):

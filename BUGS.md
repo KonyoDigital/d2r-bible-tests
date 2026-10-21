@@ -7,6 +7,24 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2355 - A BLIND FILED UNDER THE OLD RULE WOULD NEVER HAVE BEEN JUDGED AGAIN (Dean's PC, push-proof track T2)
+
+Companion to REG-2354, from Dean's diff 01. A census gate is owed a proof only when its OWN file changes. self_prove stops for good once the census reads current. So the 56 BLIND verdicts Dean's census filed under the old rule would have stood for ever under the fixed one, unchanged gate files and all.
+
+FIX: `heart2.BLIND_RULE = 2`. A census written under an older rule (no `blindRule`) owes its whole BLIND list again, by name (`blind_rule_owed`); a census stamped with this rule carries what is still owed as `blindRuleOwed`. A gate judged by any run leaves that list whatever its new verdict, so a slice always shrinks it. `slice_owed` owes the list; `self_prove.census_state` reads the census stale while it is not empty. On his Mac this re-judges the census's BLIND gates once.
+
+GUARD: tv/test_a_proof_that_needs_what_this_pc_lacks_is_elsewhere.py (shared with REG-2354).
+
+### REG-2354 - ON A PC WITH NO NODE, A JS LAW THAT SKIPPED IN BOTH RUNS WAS FILED BLIND AND SHUT EVERY LOCK (Dean's PC, push-proof track T2)
+
+Dean's diff 01, measured on Dean's PC 2026-10-21 (claims re-read against the code here). There is no node and no bash on PATH: tv/install-tvd.ps1 installs Git and Python only. Its census filed 56 gates BLIND: 53 whose every law skipped "no node on PATH" in the clean run and in the tampered one, 1 whose catching laws skip without node, 1 without bash, 1 stale tamper. One BLIND shuts every lock on a PC: 0 of 9 permitted there, 135 reels on disk, not one tombstoned. `_prove_one` filed BLIND while blind_reason's own line said "ALL n law(s) SKIPPED - the tamper was never judged". Checked here: the node regex finds 243 gate files; every law with a node skip message except one that only mentions node in prose; and the extra matches really run node.
+
+FIX: "node" and "bash" are PROOF_NEEDS_HOST capabilities, asked of PATH (shutil.which) the way the laws' own skips ask. A tamper is ELSEWHERE, not BLIND, only when all three hold: every law skipped in BOTH runs, this PC has no node, and the gate's own source reaches for node. A PC with node judges as before, and a law that opts out for any other reason stays BLIND. The two proofs whose only catching law needs node or bash now declare it: test_the_settled_row_names_the_store_it_is_in[1] and test_the_render_bound_moves_with_the_load[3].
+
+GUARD: tv/test_a_proof_that_needs_what_this_pc_lacks_is_elsewhere.py (15 RED proofs, 6 new, heart2 15/15 PROVEN on this Mac). test_the_settled_row_names_the_store_it_is_in 2/2 and test_the_render_bound_moves_with_the_load 5/5 re-proven with their declarations.
+
+LEFT: Dean's measurement of 53/56 was not re-run here; that is his PC's census. A bash-only law that skips everything is BLIND unless it declares "bash", which only the render-bound proof does today.
+
 ### REG-2353 - A PASSING PUSH LEFT NO ACCOUNT OF WHAT IT PROVED, REUSED OR RE-RAN (#42 R16, push-proof track T2)
 
 Spec R16 and section 6, 2026-10-21. hooks/pre-push deletes its prove log when heart2 exits 0. The v3783 series (six attempts, ~355 minutes of proving) could be reconstructed only from logs that happened to survive. Nothing said beforehand what a push would reuse, narrow or run in full. Nothing said afterwards whether a banked proof had been run again for the same bytes.

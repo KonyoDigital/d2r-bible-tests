@@ -178,6 +178,9 @@ RED_PROOF = [
         "find": "          if (!_inFL && _fl[String(nm).replace(/\\u2019/g, \"'\")] != null) _inFL = true;",
         "replace": "          if (false) _inFL = true;",
         "matches": 1,
+        # REG-2354 - only the three node laws reach the fold; on a PC with no node they skip and the three that run
+        # never touch it, so Dean's PC filed this proof BLIND (and with it shut every lock there). Judged where node is.
+        "needs": "node",
     },
 ]
 
