@@ -290,8 +290,9 @@ fi
 # can leave the loop at EOF.
 _PUSH_REFS="$(cat)"
 # REG-2360 - THE PUSHED COMMIT, BY NAME. TestTheStampsAgreeInTheCOMMITNotJustTheWorktree asks what the bytes
-# being PUSHED say. In heart2's sandbox (a copy with no .git) it reached that commit only through the GIT_DIR this hook
-# now unsets, so it is handed the commit instead: the local sha pushed to main, else the first ref that ships bytes,
+# being PUSHED say. In heart2's sandbox from a worktree (then a copy with no .git) it reached that commit only through
+# the GIT_DIR this hook now unsets; the sandbox's own history (REG-2364) holds HEAD, and the pushed commit need not be
+# HEAD. So it is handed the commit instead: the local sha pushed to main, else the first ref that ships bytes,
 # else HEAD. A deletion ships nothing. With TV_PUSHED_GIT_DIR it is read by `git --git-dir=... show <sha>:<path>`.
 # >>> pushed-commit
 TV_PUSHED_COMMIT=""
