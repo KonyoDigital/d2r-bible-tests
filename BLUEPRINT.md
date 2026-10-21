@@ -5,6 +5,7 @@ A hand-written map is out of date the first time anyone edits anything, and the 
 is confidently wrong is worse than no map at all.
 
     generated 2026-10-21 02:37
+    generated 2026-10-21 02:10
 
 ## THE REVERSE-BLUEPRINT RULE (inherited from ~/achilles-revival)
 
@@ -689,6 +690,7 @@ many reels have one, and a census writer. The stripped sets are recorded and unr
 - **test_a_windows_console_asks_before_it_starts_at_sign_in** — #229 - MEASURED on the ALT: zero scheduled tasks and zero startup entries, so the console survives its own relaunch but not a reboot.
 - **test_a_windows_console_is_seen_by_its_own_os** — REG-1303 - window_visibility asked only Quartz, so on the ALT (Windows) the console's covered/on-screen witness was always UNKNOWN and the silence res…
 - **test_a_windows_door_sees_the_game** — 2026-09-27 - measured on his ALT: shadow on, the game streaming through Boosteroid, and the watcher wrote 'Diablo is not on screen' every 20s - captur…
+- **test_a_wipe_items_empties_every_locker** — REG-2335 - after a reset Elad still had a torch in SHARED STASH, a torch in UNI-SMALL and six charms in MAGIC & RARE: Reset assignments keeps owned (t…
 - **test_a_witness_written_for_the_rescue_is_called_by_it** — A WITNESS WRITTEN FOR THE RESCUE THAT THE RESCUE NEVER ASKED.
 - **test_a_worker_read_has_a_deadline** — v3381 - THE SECOND WEDGE IN ONE SESSION, SAME CLASS AS THE FIRST.
 - **test_a_worktree_render_reads_the_main_checkouts_world** — REG-2070 - render_check in a git worktree met an EMPTY world (its small state is gitignored and lives in the main checkout): river-strip / shelf-cards…

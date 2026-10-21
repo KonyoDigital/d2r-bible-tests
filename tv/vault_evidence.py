@@ -1327,13 +1327,15 @@ def reset_receipt(receipt, before, after):
     made = (" · wrote where no store existed (the page's defaults, not a change): %s" % ", ".join(materialised)) if materialised else ""
     # #41 rank 2 — "Reset assignments" (door vaultReset) never rebuilds: rebuilt / held are NOT APPLICABLE to it, not
     # UNKNOWN, so its receipt is judged on the kept stores alone and never reads as "rebuilt is UNKNOWN" for ever
-    if receipt.get("door") == "vaultReset":
-        base = dict(base, rebuilt=None, held=None, refused=None, notApplicable="rebuilt / held (Reset assignments never rebuilds)")
+    # REG-2335 - the items-only wipe (vaultWipeItems) never rebuilds either: same judgement, its own words
+    if receipt.get("door") in ("vaultReset", "vaultWipeItems"):
+        _who = "Wipe items" if receipt.get("door") == "vaultWipeItems" else "Reset assignments"
+        base = dict(base, rebuilt=None, held=None, refused=None, notApplicable="rebuilt / held (%s never rebuilds)" % _who)
         if unknown:
             return dict(base, ok=False, why="a kept store could not be read: %s — UNKNOWN, not intact" % ", ".join(unknown))
         if touched:
             return dict(base, ok=False, why="a reset must never change %s — it did" % ", ".join(touched))
-        return dict(base, ok=True, why="Reset assignments never rebuilds · kept stores unchanged" + made)
+        return dict(base, ok=True, why="%s never rebuilds · kept stores unchanged" % _who + made)
     if rebuilt_n is None or held_n is None:
         return dict(base, ok=False, why="rebuilt is UNKNOWN, not 0" if rebuilt_n is None
                     else "held is UNKNOWN, not 0")

@@ -1816,6 +1816,7 @@ was reading it. Two more (CF-6, CF-9) were found while grounding the first seven
 | version | commit | commit subject |
 |---|---|---|
 | **v3779** | `(this commit)` | v3779 — REG-2271 footage-safe per-tile river drain - rebased onto v3778 for merge (#250) |
+| **v3782** | `(this commit)` | v3782 — Wipe items empties every mule, Shared Stash, WAR and Magic and Rare - keeps runes, gems, materials (REG-2335) |
 | **v3778** | `fb541215` | v3778 — (REG-2321) |
 | **v3775** | `942d11ff` | v3775 — A bump reruns only what it moved - reds stay red and run last (REG-2296) |
 | **v3774** | `1d208ee5` | v3774 — a version bump carries the gates that ignore the version (REG-2295) |

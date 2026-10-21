@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3779",
+  "ver": "v3782",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3779: REG-2271 footage-safe per-tile river drain - rebased onto v3778 for merge (#250)",
+  "note": "v3782: Wipe items empties every mule, Shared Stash, WAR and Magic and Rare - keeps runes, gems, materials (REG-2335)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

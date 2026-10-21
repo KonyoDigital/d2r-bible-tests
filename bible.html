@@ -4,10 +4,10 @@
 <meta charset="utf-8">
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Konyo's D2R Farming Bible v3779 · TV DIABLO</title>
-<meta name="d2r-build" content="v3779">
+  <title>Konyo's D2R Farming Bible v3782 · TV DIABLO</title>
+<meta name="d2r-build" content="v3782">
 <meta name="d2r-build-date" content="2026-10-21">
-<meta name="d2r-build-note" content="REG-2271 footage-safe per-tile river drain - rebased onto v3778 for merge (#250)">
+<meta name="d2r-build-note" content="Wipe items empties every mule, Shared Stash, WAR and Magic and Rare - keeps runes, gems, materials (REG-2335)">
 <style>
 :root{--bg:#0a0805;--surface:#1a140d;--surface-2:#241c12;--surface-3:#2f261a;--surface-4:#3a2f1e;--border:#3a2f1e;--border-light:#4a3f2a;--text:#f4e8d0;--text-muted:#b5a48a;--text-dim:#8c7a68;--gold:#d4a847;--gold-bright:#f0c060;--gold-dim:#a07830;--bg-elev0:var(--surface);--bg-elev1:var(--surface-2);--best-dim:color-mix(in srgb,var(--best) 55%,var(--surface));--norm:#6fc06f;--nm:#ffcc44;--hell:#ff4040;--terror:#ff00d4;--uber:#ff00d4;--su:#e8b24a;--grail:#00ffff;--rune:#ff7d3c;--best:#66ff88;--block-mlvl:#ff8855;--block-tc:#ff5588;--star:#ffd040;--verified:#00ffaa;--q-unique:#c7b377;--q-set:#00fc00;--q-orange:#ffa800;--q-magic:#6e6eff;--q-rare:#ffff64;--q-normal:#f4f4f4;--q-runeword:var(--q-unique);--q-grey:#8a8a8a;--fs-display:24px;--fs-title:15px;--fs-body:13px;--fs-meta:11px;--fs-micro:10px;--fw-regular:400;--fw-normal:500;--fw-medium:600;--fw-semibold:700;--fw-bold:800;--fw-black:900;--ls-tight:.02em;--ls-snug:.04em;--ls-normal:.06em;--ls-wide:.10em;--ls-label:.14em;--ls-wider:.20em;--ls-widest:.28em;--lh-none:1;--lh-tightest:1.1;--lh-tight:1.2;--lh-snug:1.35;--lh-normal:1.5;--lh-relaxed:1.65;--lh-loose:1.8;--acc-action:var(--gold-bright);--acc-done:var(--best);--acc-danger:#ff5555;--acc-intel:#6fb8e8;--acc-rotw:#b58cff;--chrome-top:70px;--scroll-pad-card:calc(var(--chrome-top) + 60px);--scroll-pad-deep:calc(var(--chrome-top) + 80px)}
 *{box-sizing:border-box}
@@ -12569,6 +12569,7 @@ function d2jspPriceLine(q) {
         <button class="vault-btn" type="button" id="vault-auto-intake" aria-pressed="false" data-state="off" onclick="window._vaultAutoIntakeToggle()">AUTO INTAKE · OFF</button>
         <button class="vault-btn" type="button" onclick="window.vaultHandOpen()">+ Add an item</button>
         <button class="vault-btn" onclick="window.vaultExport()">📋 Copy manifests</button>
+        <button class="vault-btn vault-btn-danger" onclick="window.vaultWipeItems()" title="Empties every mule, the Shared Stash, the WAR mules and MAGIC &amp; RARE: mule assignments, their witness rows, the intake log, the scan ledger, the linked folder, the owned items, Magic &amp; Rare and the extra copies. Nothing is rebuilt. Runes / gems / materials, set pieces, runewords and the chronicle stay.">🧹 Wipe items (keep runes · gems · materials)</button>
         <button class="vault-btn vault-btn-danger" onclick="window.vaultReset()" title="Clears ONLY the mule assignments and their witness rows. Your ✓ owned uniques, set pieces, runewords, chronicle, Magic &amp; Rare and runes / gems / materials stay untouched.">↺ Reset assignments</button>
         <button class="vault-btn vault-btn-danger" onclick="window.vaultClearHistory()" title="Clears the mules, the intake's own records AND your ✓ owned list (his 2026-09-27 ruling 'clear owned'): mule assignments, their witness rows, the Recently-registered log, the scan ledger, the linked folder and the owned ticks. Set pieces, runewords, the chronicle, Magic &amp; Rare, runes / gems / materials and the witness evidence stay untouched, and proven items are rebuilt from the evidence.">🧹 Reset vault (mules + intake)</button>
         <!-- v1976 — the manual 📸 vault door is GONE. The vault already has its OWN automation:
@@ -47705,6 +47706,21 @@ window.vaultAutoAssign = function(){
   /* 2026-09-27 — this door and the 🧹 vault reset both clear through ONE declared scope,
      window._VAULT_RESET_SCOPE (declared beside the folder unlink, below). What they clear and the words he
      reads come from that one list, and neither door can reach his owned / set / chronicle stores. */
+  /* REG-2335 (Elad 2026-10-21 01:44 IDT) — "there should be an option that resets just the items and wipes them from the
+     mules and shared stash/war stash/mules all emptied ... i still have these items that are stuck". Neither door emptied
+     the board: Reset assignments keeps owned (and the router re-homes every owned name), Reset vault rebuilds proven items
+     from the evidence, and both keep MAGIC & RARE (that locker reads d2r_magicFinds, not the mule map) and the extra
+     copies (d2r_copies). This door clears all of those through the same scope and rebuilds nothing; runes / gems /
+     materials, set pieces, runewords and the chronicle stay. Law: tv/test_a_wipe_items_empties_every_locker.py */
+  window.vaultWipeItems = async function(){
+    if (!(await uiConfirm(_vaultResetConfirm('vaultWipeItems')))) return;
+    var R = await _vaultResetRun('vaultWipeItems');
+    var rep = document.getElementById('vault-intake-report'); if (rep){ rep.hidden = true; rep.innerHTML=''; }
+    try { renderJournal(); try{ window.renderRoutingLedger && window.renderRoutingLedger(); }catch(e){} } catch(e){}
+    try { renderVault(); } catch(e){}
+    try { window._repaintOwned(); } catch(e){}
+    status(_vaultResetSay(R), 20000);
+  };
   window.vaultReset = async function(){
     if (!(await uiConfirm(_vaultResetConfirm('vaultReset')))) return;
     var R = await _vaultResetRun('vaultReset');
@@ -53940,11 +53956,18 @@ function renderJournal(){
       // 2026-09-27 — his ruling: a full reset clears the mules AND what he is marked as holding.
       // Reset assignments does not name this part. persistOwned writes the emptied set.
       owned:   Object.freeze({ store: 'd2r_owned', say: '✓ owned items',
-                 clear: function(){ owned.clear(); persistOwned(); } })
+                 clear: function(){ owned.clear(); persistOwned(); } }),
+      // REG-2335 — the items-only wipe: MAGIC & RARE reads this, not the mule map, so no other part empties it
+      magic:   Object.freeze({ store: 'd2r_magicFinds', say: 'Magic & Rare items',
+                 clear: function(){ Object.keys(magicFinds).forEach(function(k){ delete magicFinds[k]; }); window.LSR.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } }),
+      // REG-2335 — the extra copies (multi-copy keepers, WAR overflow) are counted here, apart from owned
+      copies:  Object.freeze({ store: 'd2r_copies', say: 'extra copies (multi-copy · WAR)',
+                 clear: function(){ Object.keys(copies).forEach(function(k){ delete copies[k]; }); window.LSR.setItem('d2r_copies', JSON.stringify(copies)); } })
     }),
     doors: Object.freeze({
       vaultReset:        Object.freeze(['assign', 'prov']),
-      vaultClearHistory: Object.freeze(['assign', 'prov', 'journal', 'seen', 'folder', 'owned'])
+      vaultClearHistory: Object.freeze(['assign', 'prov', 'journal', 'seen', 'folder', 'owned']),
+      vaultWipeItems:    Object.freeze(['assign', 'prov', 'journal', 'seen', 'folder', 'owned', 'magic', 'copies'])
     }),
     keeps: Object.freeze([
       { store: 'd2r_setPieces',      say: 'set pieces', n: 1 },
@@ -53969,6 +53992,12 @@ function renderJournal(){
     ].map(function(k){ return Object.freeze(k); }))
   });
   window._VAULT_RESET_SCOPE = _VAULT_RESET_SCOPE;
+  /* REG-2335 — the keeps a door checks: a store the door itself clears is not one it keeps */
+  function _vKeepsFor(door){
+    var S = _VAULT_RESET_SCOPE, mine = {};
+    (S.doors[door] || []).forEach(function(p){ var c = S.clears[p]; if (c && c.store) mine[c.store] = 1; });
+    return S.keeps.filter(function(k){ return !mine[k.store]; });
+  }
   /* a store read that says which of three things it saw: a string (the store), null (nothing stored — a real
      reading), undefined (the read itself failed — UNKNOWN). A count is null when it cannot be told. */
   function _vResetRead(store){ try { return window.LSR.getItem(store); } catch(e){ return undefined; } }
@@ -54019,7 +54048,7 @@ function renderJournal(){
   function _vaultResetPersist(R, before){
     var S = _VAULT_RESET_SCOPE;
     R.keepsBefore = {}; R.keepsAfter = {};
-    S.keeps.forEach(function(k){
+    _vKeepsFor(R.door).forEach(function(k){
       var b = _vDigest(before[k.store]), a = _vDigest(_vResetRead(k.store));
       if (b !== undefined) R.keepsBefore[k.store] = b;
       if (a !== undefined) R.keepsAfter[k.store] = a;
@@ -54039,14 +54068,14 @@ function renderJournal(){
     var R = { door: door, at: new Date().toISOString(), cleared: {}, failed: [], kept: {}, touched: [], unknown: [], materialised: [], ok: null };
     window._vaultLastReset = R;
     if (!parts){ R.ok = false; R.failed.push('no such reset door: ' + door); return R; }
-    var before = {};
-    S.keeps.forEach(function(k){ before[k.store] = _vResetRead(k.store); R.kept[k.store] = _vResetCount(before[k.store]); });
+    var before = {}, KEEPS = _vKeepsFor(door);
+    KEEPS.forEach(function(k){ before[k.store] = _vResetRead(k.store); R.kept[k.store] = _vResetCount(before[k.store]); });
     R.recorded = _vaultRecordedFilings();
     parts.forEach(function(p){ var c = S.clears[p]; if (c.store) R.cleared[p] = _vResetCount(_vResetRead(c.store)); });
     if (typeof _vrRecHold !== 'undefined') _vrRecHold++;
     try {
     parts.forEach(function(p){ var c = S.clears[p]; if (c.later) return; try { c.clear(); } catch(e){ R.failed.push(p); } });
-    S.keeps.forEach(function(k){
+    KEEPS.forEach(function(k){
       var was = before[k.store], now = _vResetRead(k.store);
       if (was === undefined || now === undefined) R.unknown.push(k.store);
       else if (was === null && now !== null) R.materialised.push(k.store);
@@ -54173,7 +54202,7 @@ function renderJournal(){
       var n = R && R.cleared ? R.cleared[p] : undefined;
       clears.push(S.clears[p].say + (typeof n === 'number' ? ' (' + n + ')' : ''));
     });
-    S.keeps.forEach(function(k){
+    _vKeepsFor(door).forEach(function(k){
       if (said[k.say]) return; said[k.say] = 1;
       var n = (R && k.n) ? R.kept[k.store] : undefined;
       keeps.push(k.say + (typeof n === 'number' ? ' (' + n + ')' : (n === null ? ' (?)' : '')));
@@ -54187,7 +54216,11 @@ function renderJournal(){
     return { clears: clears, keeps: keeps };
   }
   function _vaultResetConfirm(door){
-    var w = _vaultResetWords(door), one = door === 'vaultReset';
+    var w = _vaultResetWords(door), one = door === 'vaultReset', wipe = door === 'vaultWipeItems';
+    if (wipe) return 'Wipe every item — every mule, the Shared Stash, the WAR mules and MAGIC & RARE emptied?'
+      + '\n\nClears: ' + w.clears.join(' · ') + '. Nothing is rebuilt from the evidence.'
+      + '\n\nStays untouched (runes / gems / materials and the rest): ' + w.keeps.join(' · ') + '.'
+      + '\n\nWhat it clears cannot be undone.';
     return (one ? 'Reset the mule assignments?' : 'Reset the vault — the mules, what you are marked as holding, and the intake records?')
       + '\n\nClears ONLY: ' + w.clears.join(' · ') + (one ? ' — every item returns to the unsorted dock.' : '.')
       + '\n\nStays untouched: ' + w.keeps.join(' · ') + '.'
@@ -54217,7 +54250,7 @@ function renderJournal(){
       + w.keeps.join(' · ') + (bits.length ? ' · ' + bits.join(' · ') : '');
   }
   /* the button titles come from the same scope (the static title in the markup is only the first paint) */
-  [['vaultReset', 'window.vaultReset()'], ['vaultClearHistory', 'window.vaultClearHistory()']].forEach(function(d){
+  [['vaultWipeItems', 'window.vaultWipeItems()'], ['vaultReset', 'window.vaultReset()'], ['vaultClearHistory', 'window.vaultClearHistory()']].forEach(function(d){
     try {
       var b = document.querySelector('button[onclick="' + d[1] + '"]'); if (!b) return;
       var w = _vaultResetWords(d[0]);
@@ -69095,7 +69128,7 @@ body.app-ctx.engine-driven .gsearch-wrap{margin-right:148px}
 </style>
 <script id="v687-p0-boot">
 (function(){
-  window.D2R_BUILD = { id:'v3779', name:'v3779 - river-tile-drain', date:'2026-10-21', note:'REG-2271 footage-safe per-tile river drain - rebased onto v3778 for merge (#250)' };
+  window.D2R_BUILD = { id:'v3782', name:'v3782 - the items-only wipe empties every locker', date:'2026-10-21', note:'Wipe items empties every mule, Shared Stash, WAR and Magic and Rare - keeps runes, gems, materials (REG-2335)' };
   /* v1643 — CATCH THE EARLY BIRDS. _artV stamps every art url with D2R_BUILD.id, but a few images
      are painted by code that runs BEFORE this assignment, so they were leaving with the '?v=0'
      fallback — i.e. no cache-bust at all, which is the exact bug _artV exists to kill.
