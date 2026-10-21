@@ -64,6 +64,7 @@ and it does not bank Wilson evidence.
                                                --record says why and stores nothing; run_gates stores
 """
 import ast
+import contextlib
 import fnmatch
 import hashlib
 import json
@@ -72,6 +73,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -406,9 +408,52 @@ def coherent_bump(per_file):
     return len(olds) == 1 and len(news) == 1 and olds != news  # STAMP-ONE-VERSION
 
 
+def ledger_where(root=None):
+    """REG-2343 - THE MACHINE'S LEDGER: the main checkout's tv/.gate_ledger.json, found through git's common dir (the
+    rule suite_verdict's store and heart2's stores already use - one per machine, shared by main and every worktree).
+    MEASURED 2026-10-21: it was per CHECKOUT, so every fresh worktree carried nothing and every PASS a worktree's push
+    recorded died with the worktree (the main checkout had no ledger at all). Its PASS rows are keyed by commit and
+    input bytes, never by checkout, so a row recorded in one tree is carried in another only where git says those bytes
+    are the same - the rule that already held inside one checkout. -> (path, None) | (this checkout's own, why)"""
+    root = REPO if root is None else root
+    try:
+        import heart2 as _H
+        common, why = _H._git_common_dir(root)
+    except Exception as exc:
+        common, why = None, "heart2 would not import (%s)" % type(exc).__name__
+    if common and os.path.basename(common) == ".git":
+        tv = os.path.join(os.path.dirname(common), "tv")
+        if os.path.isdir(tv):
+            return os.path.join(tv, LEDGER_NAME), None
+        why = "the main checkout has no tv/"
+    elif common:
+        why = "its common git dir %s is a bare repository, with no checkout to hold it" % common
+    return os.path.join(HERE, LEDGER_NAME), why
+
+
 def ledger_path():
-    """This checkout's ledger, unless TV_GATE_LEDGER names another file. -> path"""
-    return os.environ.get("TV_GATE_LEDGER") or os.path.join(HERE, LEDGER_NAME)
+    """The machine's ledger (ledger_where), unless TV_GATE_LEDGER names another file. -> path"""
+    return os.environ.get("TV_GATE_LEDGER") or ledger_where()[0]
+
+
+def _store_kit():
+    """heart2's store helpers (one lock, one fsync, one set-aside rule for every store on this machine). -> module | None"""
+    try:
+        import heart2 as _H
+        return _H
+    except Exception:
+        return None
+
+
+def _stderr(line):
+    """A store's own warning: stderr, so the hook's captured `--carry` line stays exactly one line."""
+    print(line, file=sys.stderr)
+
+
+def _at(entry):
+    """A row's time, or 0 when it has none."""
+    t = entry.get("at") if isinstance(entry, dict) else None
+    return t if isinstance(t, (int, float)) and not isinstance(t, bool) else 0
 
 
 def ci_blocks():
@@ -1615,7 +1660,13 @@ def _rel(root, path):
 
 class Ledger(object):
     def __init__(self, path=None, probes=None):
-        self.path = path or ledger_path()
+        # REG-2343 - the default is the MACHINE's ledger; its input map stays this checkout's (_map_file)
+        self.where_why, self._map_dir = None, None
+        if path or os.environ.get("TV_GATE_LEDGER"):
+            self.path = path or os.environ["TV_GATE_LEDGER"]
+        else:
+            self.path, self.where_why = ledger_where()
+            self._map_dir = HERE
         self.probes = probes
         self._measured = None
         self.entries = None
@@ -1623,6 +1674,7 @@ class Ledger(object):
         self.why = None
         self._loaded = False
         self.dropped = set()
+        self._dropped_at = {}
         self.reds = {}
         self.reds_dropped = set()
         self.reads = 0
@@ -2082,7 +2134,9 @@ class Ledger(object):
         return hashlib.sha256(blob.encode("utf-8")).hexdigest(), decl, None
 
     def _map_file(self):
-        return os.path.join(os.path.dirname(self.path) or ".", MAP_NAME)
+        # REG-2343 - the input map is a derivation of THIS checkout's files (keyed by its runner, blueprint and prover),
+        # so it stays per checkout: shared, two trees with different runners would rebuild it on every alternation
+        return os.path.join(self._map_dir or os.path.dirname(self.path) or ".", MAP_NAME)
 
     def _load_map(self, root):
         key = map_key(root)
@@ -2108,10 +2162,14 @@ class Ledger(object):
         folder = os.path.dirname(path)
         if folder:
             os.makedirs(folder, exist_ok=True)
-        tmp = path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump(self.map, fh, sort_keys=True)
-        os.replace(tmp, path)
+        tmp = "%s.%d.%d.tmp" % (path, os.getpid(), threading.get_ident())  # REG-2343 - this writer's own tmp
+        try:
+            with open(tmp, "w", encoding="utf-8") as fh:
+                json.dump(self.map, fh, sort_keys=True)
+            os.replace(tmp, path)
+        finally:
+            if os.path.exists(tmp):
+                os.remove(tmp)
 
     def prepare(self, gates):
         """Build the input map once, or load the one already cached for this runner and blueprint."""
@@ -2459,37 +2517,61 @@ class Ledger(object):
         return live, None
 
     def _write(self):
+        """REG-2343 - ONE MACHINE'S LEDGER, SEVERAL WRITERS (every checkout's run_gates and hook): under one lock, read
+        what is on disk NOW and merge it - the newer row of a gate wins, a row this run dropped stays dropped only if it
+        is not newer than the drop - cap AFTER the merge, write this writer's own tmp, fsync, replace. A ledger that will
+        not read is set aside, never written over."""
         if os.path.basename(self.path) != LEDGER_NAME:
             return False
-        if len(self.entries) > _MAX:
-            ranked = sorted(self.entries, key=lambda k: (self.entries[k] or {}).get("at") or 0)
-            for old in ranked[:len(self.entries) - _MAX]:
-                self.entries.pop(old, None)
-        disk, why = load(self.path)
-        if isinstance(disk, dict) and not why:
-            for name, entry in disk.items():
-                if name in self.dropped or name in self.entries:
-                    continue
-                if isinstance(entry, dict) and entry.get("ok") is True and entry.get("gate") == name:
-                    self.entries[name] = entry
-            try:
-                with open(self.path, encoding="utf-8") as fh:
-                    dreds = (json.load(fh) or {}).get("reds")
-            except Exception:
-                dreds = None
-            for name, entry in (dreds.items() if isinstance(dreds, dict) else ()):
-                if name in self.reds_dropped or name in self.reds or name in self.entries:
-                    continue
-                if isinstance(entry, dict) and entry.get("ok") is False and entry.get("gate") == name:
-                    self.reds[name] = entry
         folder = os.path.dirname(self.path)
         if folder:
             os.makedirs(folder, exist_ok=True)
-        tmp = self.path + ".tmp"
-        with open(tmp, "w", encoding="utf-8") as fh:
-            json.dump({"v": 2, "proven_sha": self.proven, "entries": self.entries, "reds": self.reds}, fh,
-                      sort_keys=True)
-        os.replace(tmp, self.path)
+        kit = _store_kit()
+        with (kit._store_locked(folder or ".", _stderr) if kit is not None else contextlib.nullcontext()):
+            disk, why = load(self.path)
+            if why and os.path.exists(self.path):
+                if kit is None or not kit._set_aside(self.path, why, _stderr):  # LEDGER-ASIDE
+                    if kit is None:
+                        _stderr("ledger: %s is %s and heart2 would not import to set it aside - nothing is written "
+                                "over it" % (self.path, why))
+                    return False
+            if isinstance(disk, dict) and not why:
+                for name, entry in disk.items():
+                    if not (isinstance(entry, dict) and entry.get("ok") is True and entry.get("gate") == name):
+                        continue
+                    if name in self.dropped and _at(entry) <= self._dropped_at.get(name, 0):
+                        continue  # LEDGER-MERGE-DROPPED: the row this run dropped
+                    if isinstance(self.entries.get(name), dict) and _at(self.entries[name]) >= _at(entry):
+                        continue  # LEDGER-MERGE-NEWER: this run's row is the newer
+                    self.entries[name] = entry
+                try:
+                    with open(self.path, encoding="utf-8") as fh:
+                        dreds = (json.load(fh) or {}).get("reds")
+                except Exception:
+                    dreds = None
+                for name, entry in (dreds.items() if isinstance(dreds, dict) else ()):
+                    if name in self.reds_dropped or name in self.reds or name in self.entries:
+                        continue
+                    if isinstance(entry, dict) and entry.get("ok") is False and entry.get("gate") == name:
+                        self.reds[name] = entry
+            if len(self.entries) > _MAX:  # LEDGER-CAP-AFTER-MERGE
+                ranked = sorted(self.entries, key=lambda k: _at(self.entries[k]))
+                for old in ranked[:len(self.entries) - _MAX]:
+                    self.entries.pop(old, None)
+            tmp = "%s.%d.%d.tmp" % (self.path, os.getpid(), threading.get_ident())  # LEDGER-OWN-TMP
+            try:
+                with open(tmp, "w", encoding="utf-8") as fh:
+                    json.dump({"v": 2, "proven_sha": self.proven, "entries": self.entries, "reds": self.reds}, fh,
+                              sort_keys=True)
+                    fh.flush()
+                    if kit is not None:
+                        kit._fsync(fh.fileno())
+                if kit is not None:
+                    kit._store_hold()
+                os.replace(tmp, self.path)
+            finally:
+                if os.path.exists(tmp):
+                    os.remove(tmp)
         self.why = None
         return True
 
@@ -2572,19 +2654,19 @@ class Ledger(object):
         why = (row or {}).get("why")
         red = ok is not True
         if red and name:
-            self._drop(name)  # LEDGER-NO-FAIL: a FAIL never stays a PASS row
+            self._drop(name, gate)  # LEDGER-NO-FAIL: a FAIL never stays a PASS row
         if why or not isinstance((row or {}).get("inputs"), list):
             if ok is True:
                 self.last_why = why or "its inputs are UNKNOWN"  # LEDGER-SAY-WHY
             if name:
-                self._drop(name)
+                self._drop(name, gate)
                 self._drop_red(name)
             return False
         parts, pwhy = self._tool_parts(set(row.get("kinds") or []), root)
         if pwhy or not parts:
             self.last_why = pwhy or "the tool versions could not be read"
             if name:
-                self._drop(name)
+                self._drop(name, gate)
                 self._drop_red(name)
             return False
         if not trace:
@@ -2599,7 +2681,7 @@ class Ledger(object):
         if traced is None:
             self.last_why = twhy or "no trace of what the gate read"
             if name:
-                self._drop(name)
+                self._drop(name, gate)
                 self._drop_red(name)
             return False
         inputs = set(row["inputs"]) | traced["inputs"]  # LEDGER-TRACE-READ
@@ -2618,7 +2700,7 @@ class Ledger(object):
             self.last_why = ("proved on uncommitted %s, not on the commit" % hit) if hit else (
                 dwhy or "the worktree cannot be read")
             if name:
-                self._drop(name)
+                self._drop(name, gate)
                 self._drop_red(name)
             return False
         sha = head_sha(root)
@@ -2667,12 +2749,26 @@ class Ledger(object):
                 except Exception:
                     pass
 
-    def _drop(self, name):
+    def _carries_here(self, gate):
+        """REG-2343 - would the stored PASS carry for THESE bytes? Only then does this run's result speak about it. A row
+        proved on other bytes - another branch, or inputs that moved here - stays for the tree it is true of (shared, a
+        worktree's failed run would otherwise erase main's earned PASS). A lookup that cannot answer counts as yes: the
+        row is dropped, as before. -> bool"""
+        try:
+            entry, _why = self.lookup(gate)
+        except Exception:
+            return True
+        return entry is not None
+
+    def _drop(self, name, gate=None):
         self._ensure()
         if not isinstance(self.entries, dict):
             self.entries = {}
+        if gate is not None and isinstance(self.entries.get(name), dict) and not self._carries_here(gate):
+            return  # LEDGER-KEEP-OTHER-BYTES
         self.entries.pop(name, None)  # LEDGER-DROP-FAIL
         self.dropped.add(name)
+        self._dropped_at[name] = int(time.time() * 1000)
         if os.path.exists(self.path) or self.entries:
             try:
                 self._write()
@@ -2720,6 +2816,9 @@ def main(argv):
         print("ledger: %s is not a registered gate — it runs" % name)
         return 1
     led = Ledger()
+    if led.where_why:
+        _stderr("ledger: the machine's ledger was not found (%s) - this checkout's own is used, and it dies with the "
+                "checkout" % led.where_why)
     if args.carry:
         entry, why = led.lookup(gate)
         if entry is None:

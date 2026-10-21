@@ -1,13 +1,14 @@
 # -*- coding: utf-8 -*-
-"""R4 (REG-2341) - TWO PROVERS NEVER TEAR OR THIN A STORE.
+"""R4 (REG-2341) / REG-2343 - TWO PROVERS NEVER TEAR OR THIN A STORE.
 
 FOUND in the v1 writers (read 2026-10-21): heart2's verdict cache and red memory each wrote through ONE fixed tmp name
-with no cross-process lock, while a worktree's pre-flight runs beside main's push - two writers on one file. Driven here with REAL processes and threads; the overlap is
+with no cross-process lock, while a worktree's pre-flight runs beside main's push - two writers on one file. The gate ledger,
+shared per machine by REG-2343, has the same two writers. Driven here with REAL processes and threads; the overlap is
 made certain by TV_STORE_HOLD_S (a law's seam: a writer holds its written tmp unreplaced, so the other writer is provably
 inside the same window - never a race left to luck):
 
-  1. two processes, released together by a barrier, writing the verdict cache and the red memory: every write of both
-     survives (the store directory's lock);
+  1. two processes, released together by a barrier, writing the verdict cache, the red memory and the gate ledger: every
+     write of both survives (the store directory's lock);
   2. with NO lock to be had (a machine without flock), two writers inside the window at once each install their own
      bytes - a tmp named for one writer is never moved by the other's rename;
   3. a tmp a DEAD writer left beside a store is swept, a live writer's never, and nothing beside a guard is touched;
@@ -32,6 +33,7 @@ sys.path.insert(0, HERE)
 import fixture_tmp as _fx_tmp  # noqa: E402
 _fx_tmp.contain()
 import heart2 as H  # noqa: E402
+import gate_ledger as GL  # noqa: E402
 
 HOLD = "1.0"          # seconds a writer holds its written tmp before the rename: both writers are inside the window
 
@@ -40,6 +42,7 @@ import json, os, sys, time
 sys.path.insert(0, sys.argv[1])
 kind, path, key, go = sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
 import heart2 as H
+import gate_ledger as GL
 open(go + "." + key + ".ready", "w").close()
 while not os.path.exists(go):          # the barrier: both writers start the same instant
     time.sleep(0.01)
@@ -48,10 +51,15 @@ if kind == "cache":
     c = H._VerdictCache(path=path, say=lambda *a, **k: None)
     c.store(key, {"verdict": "PROVEN", "provedAt": now, "gate": key, "proof": 0})
     ok = c.flush()
-else:
+elif kind == "red":
     H.RED_MEMORY = path
     H._red_remember(key, key, 0, ["Case.test_%s" % key])
     ok = os.path.exists(path)
+else:
+    led = GL.Ledger(path=path)
+    led._ensure()
+    led.entries[key] = {"ok": True, "gate": key, "sha": "abc1234", "at": now}
+    ok = led._write()
 print(json.dumps({"key": key, "ok": bool(ok)}))
 '''
 
@@ -119,9 +127,10 @@ class TwoProversNeverTearTheStore(unittest.TestCase):
         return out
 
     def test_two_processes_writing_at_once_both_survive_in_every_store(self):
-        """★ the cache and the red memory: two writers inside one window, every write kept (the lock)"""
+        """★ the cache, the red memory and the ledger: two writers inside one window, every write kept (the lock)"""
         jobs = [("cache", os.path.join(self.root, "c", ".heart2_cache.json")),
-                ("red", os.path.join(self.root, "r", ".heart2_red.json"))]
+                ("red", os.path.join(self.root, "r", ".heart2_red.json")),
+                ("ledger", os.path.join(self.root, "l", ".gate_ledger.json"))]
         for _k, p in jobs:
             os.makedirs(os.path.dirname(p))
         reports = {}
@@ -170,6 +179,36 @@ class TwoProversNeverTearTheStore(unittest.TestCase):
                                                      "one tmp name shared by two writers: %s" % (got,))
         self.assertEqual(sorted(_entries(path)), ["B"], "the store holds neither writer's own bytes")
         self.assertEqual([n for n in os.listdir(self.root) if n.endswith(".tmp")], [], "a tmp outlived its write")
+
+    def test_with_no_lock_two_ledger_writers_never_move_each_others_bytes(self):
+        """★ the same for the gate ledger: each writer renames only its own tmp"""
+        path = os.path.join(self.root, ".gate_ledger.json")
+        got = {}
+
+        def write(tag):
+            try:
+                led = GL.Ledger(path=path)
+                led._ensure()
+                led.entries[tag] = {"ok": True, "gate": tag, "sha": "abc1234", "at": 1}
+                got[tag] = led._write()
+            except Exception as e:                 # a rename that finds its tmp gone raises here
+                got[tag] = "%s" % type(e).__name__
+
+        real = H._fcntl
+        H._fcntl = None
+        try:
+            with _Env(TV_STORE_HOLD_S="0.6"):
+                a = threading.Thread(target=write, args=("A",))
+                a.start()
+                time.sleep(0.2)
+                b = threading.Thread(target=write, args=("B",))
+                b.start()
+                a.join(30)
+                b.join(30)
+        finally:
+            H._fcntl = real
+        self.assertEqual((got.get("A"), got.get("B")), (True, True),
+                         "a ledger writer's tmp was moved by the other's rename: %s" % (got,))
 
     def test_a_dead_writers_tmp_is_swept_and_a_live_ones_is_kept(self):
         """★ R9 - a tmp left by a writer whose pid no longer runs leaves when the store opens; this process's stays; a tmp
@@ -241,6 +280,16 @@ RED_PROOF = [
      "file": "heart2.py",
      "find": "        return \"%s.%d.%d.tmp\" % (self.path, os.getpid(), threading.get_ident())\n",
      "replace": "        return self.path + \".tmp\"\n",
+     "matches": 1},
+    {"why": "REG-2343 - the shared ledger is written without the lock, and one checkout's write erases another's",
+     "file": "gate_ledger.py",
+     "find": "        with (kit._store_locked(folder or \".\", _stderr) if kit is not None else contextlib.nullcontext()):\n",
+     "replace": "        with contextlib.nullcontext():\n",
+     "matches": 1},
+    {"why": "REG-2343 - the ledger writes one fixed tmp, so two writers' renames move each other's bytes",
+     "file": "gate_ledger.py",
+     "find": "            tmp = \"%s.%d.%d.tmp\" % (self.path, os.getpid(), threading.get_ident())  # LEDGER-OWN-TMP\n",
+     "replace": "            tmp = self.path + \".tmp\"  # LEDGER-OWN-TMP\n",
      "matches": 1},
     {"why": "R9 - a dead writer's tmp is never swept, and a 320 MB leftover rides beside the store for good",
      "file": "heart2.py",
