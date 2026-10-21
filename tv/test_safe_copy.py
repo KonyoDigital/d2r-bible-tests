@@ -41,8 +41,22 @@ RED_PROOF = [
     {
         "why": "REG-1845 - heart2's own cache and his reel-seed archive are copied again, and his Mac's every sandbox is refused at 420 MB",
         "file": "safe_copy.py",
-        "find": "    return name in HEAVY_FILES or name.endswith(HEAVY_SUFFIXES) or name.endswith(LIVE_SUFFIXES)\n",
+        "find": "    return (name in HEAVY_FILES or name.startswith(STORE_PREFIXES) or name.endswith(HEAVY_SUFFIXES)\n            or name.endswith(LIVE_SUFFIXES))\n",
         "replace": "    return False\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2340 (R9) - only the exact store name is excluded: a writer's 320 MB tmp, a .prev, the red memory and the ledger travel into every sandbox",
+        "file": "safe_copy.py",
+        "find": "name.startswith(STORE_PREFIXES)",
+        "replace": "name in STORE_PREFIXES",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2340 (R9) - a checkout's own fallback store dir (tv/.heart2_v2/) is copied into sandboxes",
+        "file": "safe_copy.py",
+        "find": "    \".heart2_v2\",\n",
+        "replace": "",
         "matches": 1,
     },
     {
@@ -167,6 +181,29 @@ class TheHeavyDirectoriesAreNeverCopied(unittest.TestCase):
         self.assertFalse(os.path.exists(os.path.join(self.dst, "tv", ".heart2_cache.json")))
         self.assertFalse(os.path.exists(os.path.join(self.dst, "tv", "tvd-reel-seed-small.tgz")))
         self.assertTrue(os.path.exists(os.path.join(self.dst, "tv", "kept.json")), "an ordinary json was dropped")
+
+    def test_no_store_generation_or_side_file_is_ever_copied(self):
+        """REG-2340 (R9) - the exact name `.heart2_cache.json` let every sibling through: a writer's per-process tmp (a
+        320 MB leftover in main's tv/ would push every main-tree sandbox over the 400 MB refusal again), a .prev, an
+        .unreadable-<ms> kept aside, the red memory, the gate ledger and its map, and tv/.heart2_v2/ (a checkout's own
+        stores). None is source a sabotage test reads. The census .heart2.json is not a store and still travels."""
+        names = [".heart2_cache.json.123.4.tmp", ".heart2_cache.json.prev", ".heart2_cache.json.unreadable-99",
+                 ".heart2_cache.v1-x.json", ".heart2_red.json", ".heart2_red.json.9.9.tmp", ".heart2_red.json.prev",
+                 ".gate_ledger.json", ".gate_ledger.json.1.2.tmp", ".gate_inputs.json", ".gate_inputs.json.3.4.tmp"]
+        for n in names:
+            io.open(os.path.join(self.src, "tv", n), "w").write("S" * 1000)
+        os.makedirs(os.path.join(self.src, "tv", ".heart2_v2"))
+        io.open(os.path.join(self.src, "tv", ".heart2_v2", ".heart2_cache.json"), "w").write("V" * 1000)
+        io.open(os.path.join(self.src, "tv", ".heart2.json"), "w").write("{}")
+        _files, _total, skipped = SC.plan(self.src)
+        for n in names:
+            self.assertIn(os.path.join("tv", n), skipped, "the plan still counts the store file %s" % n)
+        self.assertIn(os.path.join("tv", ".heart2_v2"), skipped)
+        self.assertEqual(SC.copy(self.src, self.dst, say=lambda m: None), 0)
+        for n in names + [".heart2_v2"]:
+            self.assertFalse(os.path.exists(os.path.join(self.dst, "tv", n)), "%s travelled into the copy" % n)
+        self.assertTrue(os.path.exists(os.path.join(self.dst, "tv", ".heart2.json")),
+                        "the census (not a store) was dropped - the prefix rule over-reaches")
 
     def test_a_file_naming_a_live_process_is_never_copied(self):
         """REG-2123 - tv/control_agent.pid holds HIS live agent's pid. Copied into a prover sandbox, a private control_app
