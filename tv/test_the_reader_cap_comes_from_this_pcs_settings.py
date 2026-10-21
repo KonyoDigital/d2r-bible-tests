@@ -15,7 +15,17 @@ written, and the claude CLI is a path that does not exist, so no case can spend 
   · one rule on every PC: env TV_INTAKE_*_MAX (the override) > this PC's gitignored tv/pc_settings.json > the default;
   · the refusal names the active limit and its source, and a layer holding an unusable value is said, not skipped;
   · a cap hit - intake or ask - answers status 429 with {error, window, used, limit, source, retry_s}, and never
-    reaches the CLI; 0 opens the circuit; the settings file is ignored by git.
+    reaches the CLI; 0 opens the circuit.
+That the settings file is ignored by git is test_this_pcs_settings_file_never_travels; that the console hands the
+runner's 429 to the board is test_a_capped_runner_reaches_the_board_as_429.
+
+EVERY CASE HERE NEEDS NODE, ON PURPOSE. A PC without node (Dean's: tv/install-tvd.ps1 installs none) skips this law
+whole, and a tamper every case skipped on a PC without node is ELSEWHERE there (heart2, REG-2354), never BLIND. When
+two node-free git cases lived here they ran there, so every node-only proof stayed green "with 2 laws run" and was
+filed BLIND - and one BLIND shuts every lock on a PC.
+The ledger cases need a POSIX host too (a stand-in CLI script cannot be spawned without a shell on Windows): they
+skip on the question heart2's "posix" capability asks, and the three proofs only they catch declare it, so a Windows
+PC with node files those three ELSEWHERE, never BLIND.
 [[unknown-stays-unknown]] [[the-unjoined-end]]  RED_PROOF below.
 """
 import io
@@ -40,13 +50,12 @@ except Exception:
     pass
 
 NODE = shutil.which("node")
-GIT = shutil.which("git")
 RUNNER = os.path.join(HERE, "intake_local.mjs")
 READER = os.path.join(HERE, "pc_settings.mjs")
 LIVE_LEDGER = os.path.join(HERE, ".subscription_budget.json")
 LIVE_SETTINGS = os.path.join(HERE, "pc_settings.json")
 #: the locked pipeline the runner drives - part of this law's verdict, so part of its proof key
-PROOF_NEEDS = ["../functions/api/intake.js", "../functions/api/ask.js", "../.gitignore"]
+PROOF_NEEDS = ["../functions/api/intake.js", "../functions/api/ask.js"]
 
 LOCATE = {"image": "aGk=", "media_type": "image/jpeg", "kind": "locate"}
 SEAMS = ("TV_INTAKE_HOURLY_MAX", "TV_INTAKE_DAILY_MAX", "TV_PC_SETTINGS", "TV_SUB_BUDGET", "TVD_CLAUDE_BIN",
@@ -203,7 +212,8 @@ class ARefusalIsSaidAndNeverSpends(_Runner):
         self.assertCapped(self.ask(), "hour", 3, 3, "the TV_PC_SETTINGS file")
 
 
-@unittest.skipIf(os.name == "nt", "a stand-in claude CLI cannot be spawned without a shell on Windows - UNMEASURED there")
+@unittest.skipUnless(os.name == "posix", "a stand-in claude CLI cannot be spawned without a shell on Windows - "
+                                         "UNMEASURED there (its proofs declare needs: posix)")
 class TheLedgerKeepsTheOtherLanesRows(_Runner):
     """REG-2385 - tv/.subscription_budget.json is ALSO tv_diablo's vision meter (SECONDS, _sub_budget_record). Recording
     an intake call kept only rows younger than a day in MILLISECONDS - none of the vision lane's - so every intake read
@@ -243,32 +253,6 @@ class TheLedgerKeepsTheOtherLanesRows(_Runner):
             json.dump({"calls": [now - 60.0 * (i + 1) for i in range(25)]}, fh)
         out = self.ask(env={"TVD_CLAUDE_BIN": self.cli})
         self.assertEqual(out.get("status"), 200, "vision reads refused an intake read: %r" % out.get("body"))
-
-
-@unittest.skipIf(GIT is None, "git is absent - this law is UNMEASURED, not passing")
-class TheSettingsFileNeverTravels(unittest.TestCase):
-
-    def _unignored(self, rels):
-        """Asked of git's own matcher in a throwaway repo seeded with the tree's .gitignore. GIT_* is dropped for
-        these calls only: inside a push hook GIT_DIR points at the real repo and would outrank cwd."""
-        d = tempfile.mkdtemp(prefix="pc-settings-ignore-")
-        self.addCleanup(shutil.rmtree, d, True)
-        env = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
-        subprocess.run([GIT, "init", "-q", d], check=True, env=env)
-        shutil.copyfile(os.path.join(ROOT, ".gitignore"), os.path.join(d, ".gitignore"))
-        os.makedirs(os.path.join(d, "tv"))
-        return [r for r in rels
-                if subprocess.run([GIT, "check-ignore", "-q", "--no-index", r], cwd=d, env=env).returncode != 0]
-
-    def test_tv_pc_settings_json_is_ignored_by_git(self):
-        self.assertEqual(self._unignored(["tv/pc_settings.json"]), [],
-                         "tv/pc_settings.json is trackable - one `git add -A` publishes this PC's settings to a "
-                         "public repo and ships them to every other PC")
-
-    def test_the_ledgers_temp_files_are_ignored_by_git(self):
-        """REG-2385 - both writers mint a temp file beside the ledger and rename it away under a running console."""
-        self.assertEqual(self._unignored(["tv/.subscription_budget.json.tmp", "tv/.subscription_budget.json.4242.tmp"]),
-                         [], "a ledger temp file is trackable")
 
 
 if __name__ == "__main__":
@@ -347,18 +331,12 @@ RED_PROOF = [
         "matches": 1,
     },
     {
-        "why": "REG-2382 - this PC's settings file is trackable: one `git add -A` publishes it and ships it to every PC",
-        "file": "../.gitignore",
-        "find": "\ntv/pc_settings.json\n",
-        "replace": "\n",
-        "matches": 1,
-    },
-    {
         "why": "REG-2385 - recording an intake call erases the vision lane's seconds rows from the shared ledger again",
         "file": "intake_local.mjs",
         "find": "    if (n >= MS_FLOOR) return now - n < DAY_MS;\n    const age = now / 1000 - n;\n    return age >= -60 && age < 86400;\n",
         "replace": "    return now - n < DAY_MS;\n",
         "matches": 1,
+        "needs": "posix",
     },
     {
         "why": "REG-2385 - the intake cap starts counting the vision lane's reads (a rule change nobody ruled on)",
@@ -366,6 +344,7 @@ RED_PROOF = [
         "find": "  const calls = (state.calls || []).filter((t) => now - t < DAY_MS);\n",
         "replace": "  const calls = (state.calls || []).map((t) => (t < 1e11 ? t * 1000 : t)).filter((t) => now - t < DAY_MS);\n",
         "matches": 1,
+        "needs": "posix",
     },
     {
         "why": "REG-2385 - the ledger is rewritten in place again: a torn write reads as {} and resets both lanes' caps",
@@ -373,12 +352,6 @@ RED_PROOF = [
         "find": "    renameSync(tmp, BUDGET_PATH);\n    return;\n",
         "replace": "    throw new Error('written in place');\n",
         "matches": 1,
-    },
-    {
-        "why": "REG-2385 - the ledger's temp files are trackable under a running console",
-        "file": "../.gitignore",
-        "find": "\ntv/.subscription_budget.json.*\n",
-        "replace": "\n",
-        "matches": 1,
+        "needs": "posix",
     },
 ]
