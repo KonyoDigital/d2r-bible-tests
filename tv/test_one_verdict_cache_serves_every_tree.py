@@ -10,6 +10,13 @@ sat one directory over. And the pre-prove itself named 17 laws where the hook pr
      proofs were banked in the tree being proved - a law reading live state only main holds still gets its clean run;
   3. `heart2.py --changed` / gates_for_tests() answer exactly what the hook's own inline script answers, file for file;
   plus: a cache write MERGES what another prover banked since it loaded, so two provers never erase each other.
+
+R10 (REG-2340, 2026-10-21) - THE SHARED PATH RESOLVES EVERY WORKTREE SHAPE, AND SAYS WHEN IT CANNOT. The store is now
+<git common dir>/heart2/, read from the files git itself reads: a relative gitdir is joined to the CHECKOUT (the first
+cut normalised it against the cwd), the gitdir's `commondir` names the common dir (so a bare repository's worktree
+resolves too), and a real `git worktree add` - absolute and relative - lands exactly where `git rev-parse
+--git-common-dir` says. A pointer that will not read falls back to this checkout's own tv/.heart2_v2/, and the store's
+opener SAYS so.
 """
 import io
 import json
@@ -34,6 +41,63 @@ def _quiet(*a, **k):
     pass
 
 
+class _NoGitEnv(object):
+    """A temp repo's git must never answer for another tree: a hook's leaked GIT_DIR flipped his live repo to
+    core.bare=true on 2026-10-21. Every GIT_* variable leaves os.environ for the block (the ledger's own git calls run
+    inside it), and so do the seams that would steer the ledger - then all of it is put back."""
+    STEER = ("GITHUB_ACTIONS", "GATE_LEDGER", "TV_GATE_LEDGER", "TV_GATE_LEDGER_SHA")
+
+    def __enter__(self):
+        self.old = dict((k, v) for k, v in os.environ.items() if k.startswith("GIT_") or k in self.STEER)
+        for k in self.old:
+            os.environ.pop(k, None)
+        return self
+
+    def __exit__(self, *_e):
+        for k in [k for k in os.environ if k.startswith("GIT_") or k in self.STEER]:
+            os.environ.pop(k, None)
+        os.environ.update(self.old)
+        return False
+
+
+def _git(cwd, *args):
+    env = dict((k, v) for k, v in os.environ.items() if not k.startswith("GIT_"))
+    p = subprocess.run(["git", "-C", cwd] + list(args), capture_output=True, text=True, env=env, timeout=60)
+    if p.returncode != 0:
+        raise RuntimeError("git %s: %s" % (" ".join(args), (p.stderr or p.stdout).strip()[-300:]))
+    return p.stdout.strip()
+
+
+def _repo(root, files):
+    """A real throwaway repository with one commit holding `files` (repo-relative). -> its root"""
+    os.makedirs(root)
+    for rel, text in files.items():
+        os.makedirs(os.path.dirname(os.path.join(root, rel)), exist_ok=True)
+        with io.open(os.path.join(root, rel), "w", encoding="utf-8") as fh:
+            fh.write(text)
+    _git(root, "init", "-q", "-b", "main")
+    _git(root, "config", "user.email", "law@example.com")
+    _git(root, "config", "user.name", "law")
+    _git(root, "config", "commit.gpgsign", "false")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "base")
+    return root
+
+
+def _worktree_shape(root, name="wt1", relative=False):
+    """A main checkout and one linked worktree, laid out as git lays them out. -> (main, worktree)"""
+    main = os.path.join(root, "main")
+    wt = os.path.join(root, name)
+    gd = os.path.join(main, ".git", "worktrees", name)
+    for d in (os.path.join(main, "tv"), gd, os.path.join(wt, "tv")):
+        os.makedirs(d)
+    with io.open(os.path.join(gd, "commondir"), "w", encoding="utf-8") as fh:
+        fh.write("../..\n")
+    with io.open(os.path.join(wt, ".git"), "w", encoding="utf-8") as fh:
+        fh.write("gitdir: %s\n" % (os.path.relpath(gd, wt) if relative else gd))
+    return main, wt
+
+
 class OneVerdictCacheServesEveryTree(unittest.TestCase):
 
     def setUp(self):
@@ -41,20 +105,82 @@ class OneVerdictCacheServesEveryTree(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.root, True)
 
     def test_a_worktree_resolves_its_main_checkouts_cache(self):
-        main = os.path.join(self.root, "main")
-        wt = os.path.join(main, ".claude", "worktrees", "wt1")
-        os.makedirs(os.path.join(main, "tv"))
-        os.makedirs(os.path.join(main, ".git", "worktrees", "wt1"))
-        os.makedirs(os.path.join(wt, "tv"))
-        with io.open(os.path.join(wt, ".git"), "w", encoding="utf-8") as fh:
-            fh.write("gitdir: %s\n" % os.path.join(main, ".git", "worktrees", "wt1"))
+        main, wt = _worktree_shape(self.root)
+        store = os.path.join(main, ".git", "heart2", ".heart2_cache.json")
         got = H._shared_cache_path(here=os.path.join(wt, "tv"), repo=wt, env={})
-        self.assertEqual(got, os.path.join(main, "tv", ".heart2_cache.json"),
-                         "a worktree banks into its own cache again, where the push in main never reads")
+        self.assertEqual(got, store, "a worktree banks into its own cache again, where the push in main never reads")
         own = H._shared_cache_path(here=os.path.join(main, "tv"), repo=main, env={})
-        self.assertEqual(own, os.path.join(main, "tv", ".heart2_cache.json"), "the main checkout lost its own cache")
+        self.assertEqual(own, store, "the main checkout lost the machine's cache")
         self.assertEqual(H._shared_cache_path(here=os.path.join(wt, "tv"), repo=wt,
                                               env={"HEART2_CACHE_PATH": "/x/.heart2_cache.json"}), "/x/.heart2_cache.json")
+
+    def test_a_relative_gitdir_resolves_from_the_checkout_not_the_cwd(self):
+        """★ R10 - `gitdir: ../main/.git/worktrees/wt2` (git's worktree.useRelativePaths) is relative to the checkout;
+        read from any other cwd it still finds main's store"""
+        main, wt = _worktree_shape(self.root, "wt2", relative=True)
+        cwd = os.getcwd()
+        os.chdir(os.path.dirname(os.path.abspath(HERE)))       # anywhere but the worktree's parent
+        try:
+            got = H._shared_store(here=os.path.join(wt, "tv"), repo=wt)
+        finally:
+            os.chdir(cwd)
+        self.assertEqual(got, (os.path.join(main, ".git", "heart2"), None),
+                         "a relative gitdir was read against the cwd, not the checkout: %r" % (got,))
+
+    def test_every_worktree_git_makes_lands_where_git_says_its_common_dir_is(self):
+        """★ R10 - a REAL repository and two REAL worktrees (absolute and relative pointers): heart2's common dir is git's
+        own `rev-parse --git-common-dir`, and every one of them resolves the one store"""
+        with _NoGitEnv():
+            main = _repo(os.path.join(self.root, "real"), {"tv/x.py": "X = 1\n"})
+            _git(main, "worktree", "add", "-q", "-b", "a", os.path.join(self.root, "wtA"))
+            wtb = os.path.join(self.root, "wtB")
+            try:
+                _git(main, "worktree", "add", "-q", "--relative-paths", "-b", "b", wtb)
+            except RuntimeError:                       # a git before 2.48: write the relative pointer by hand
+                _git(main, "worktree", "add", "-q", "-b", "b", wtb)
+                with io.open(os.path.join(wtb, ".git"), encoding="utf-8") as fh:
+                    gd = fh.read().split(":", 1)[1].strip()
+                with io.open(os.path.join(wtb, ".git"), "w", encoding="utf-8") as fh:
+                    fh.write("gitdir: %s\n" % os.path.relpath(gd, wtb))
+            for tree in (main, os.path.join(self.root, "wtA"), wtb):
+                said = _git(tree, "rev-parse", "--git-common-dir")
+                gits = os.path.realpath(said if os.path.isabs(said) else os.path.join(tree, said))
+                common, why = H._git_common_dir(tree)
+                self.assertIsNone(why, "%s: %s" % (tree, why))
+                self.assertEqual(os.path.realpath(common), gits, "%s: heart2 and git disagree on the common dir" % tree)
+                self.assertEqual(os.path.realpath(H._shared_store(repo=tree)[0]), os.path.join(gits, "heart2"))
+
+    def test_a_bare_repositorys_worktree_resolves_and_an_unreadable_pointer_is_said(self):
+        """★ R10 - a worktree of a BARE repository resolves through its commondir; a pointer that will not read falls
+        back to the checkout's own tv/.heart2_v2/ and the cache's opener SAYS so - a store that dies with its checkout is
+        never silent"""
+        bare = os.path.join(self.root, "b.git")
+        gd = os.path.join(bare, "worktrees", "wtc")
+        wtc = os.path.join(self.root, "wtc")
+        for d in (gd, os.path.join(wtc, "tv")):
+            os.makedirs(d)
+        with io.open(os.path.join(gd, "commondir"), "w", encoding="utf-8") as fh:
+            fh.write("../..\n")
+        with io.open(os.path.join(wtc, ".git"), "w", encoding="utf-8") as fh:
+            fh.write("gitdir: %s\n" % gd)
+        self.assertEqual(H._shared_store(here=os.path.join(wtc, "tv"), repo=wtc), (os.path.join(bare, "heart2"), None))
+        broken = os.path.join(self.root, "broken")
+        os.makedirs(os.path.join(broken, "tv"))
+        with io.open(os.path.join(broken, ".git"), "w", encoding="utf-8") as fh:
+            fh.write("this is not a pointer\n")
+        where, why = H._shared_store(here=os.path.join(broken, "tv"), repo=broken)
+        self.assertEqual(where, os.path.join(broken, "tv", ".heart2_v2"))
+        self.assertIn("not a gitdir pointer", why or "", "the reason the store is the checkout's own is not given")
+        said = []
+        own = os.path.join(where, ".heart2_cache.json")
+        real = (H.CACHE, H.CACHE_WHY)
+        H.CACHE, H.CACHE_WHY = own, why
+        try:
+            H._VerdictCache(say=said.append)
+        finally:
+            H.CACHE, H.CACHE_WHY = real
+        self.assertTrue(any("was not found" in l and "not a gitdir pointer" in l and "dies with the checkout" in l
+                            for l in said), "the fallback to this checkout's own store is silent: %s" % said)
 
     def test_two_provers_writing_one_cache_never_erase_each_other(self):
         path = os.path.join(self.root, ".heart2_cache.json")
@@ -126,13 +252,28 @@ class OneVerdictCacheServesEveryTree(unittest.TestCase):
 RED_PROOF = [
     {"why": "#242 - a worktree banks into its own cache again; the push in main proves from nothing",
      "file": "heart2.py",
-     "find": "                    if os.path.isdir(os.path.join(main, \"tv\")):\n",
-     "replace": "                    if False:\n",
+     "find": "        return os.path.join(common, \"heart2\"), None\n",
+     "replace": "        return os.path.join(here, \".heart2_v2\"), None\n",
      "matches": 1},
     {"why": "#242 - a cache write overwrites what another prover banked since it loaded",
      "file": "heart2.py",
-     "find": "                    if _k not in self.entries and isinstance(_v, dict) and _v.get(\"verdict\") == PROVEN:\n",
-     "replace": "                    if False:\n",
+     "find": "    out = dict((k, v) for k, v in (disk or {}).items() if isinstance(v, dict))\n    for k, e in (mine or {}).items():\n",
+     "replace": "    out = {}\n    for k, e in (mine or {}).items():\n",
+     "matches": 1},
+    {"why": "R10 - a relative gitdir is read against the cwd again, and a worktree misses main's store",
+     "file": "heart2.py",
+     "find": "                gitdir = os.path.join(repo, gitdir)          # R10 - relative to the checkout, never the cwd\n",
+     "replace": "                gitdir = os.path.abspath(gitdir)\n",
+     "matches": 1},
+    {"why": "R10 - the gitdir's commondir is ignored: a worktree's store is its own admin dir, never the machine's",
+     "file": "heart2.py",
+     "find": "            common = os.path.normpath(rel if os.path.isabs(rel) else os.path.join(gitdir, rel))\n",
+     "replace": "            common = gitdir\n",
+     "matches": 1},
+    {"why": "R10 - a store that falls back to this checkout's own is silent about it",
+     "file": "heart2.py",
+     "find": "        if self.path == CACHE and CACHE_WHY:\n",
+     "replace": "        if False:\n",
      "matches": 1},
     {"why": "#242 - the wave skips a gate whose proofs were banked in ANOTHER tree, so a main-only red is never run",
      "file": "heart2.py",

@@ -10898,6 +10898,21 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_an_inert_child_does_not_untrace_a_gate.py")], 60,
          needs_app=False,
          why="v3775 (REG-2296) fix 5 - sleep, ps and pgrep read no file in this checkout (a pgrep pattern is matched, never opened), so they no longer make a gate's reads UNKNOWN. lsof on a path here, bash, sh, chrome, perl and the rest still do."),
+    Gate("test_two_provers_never_tear_the_store",
+         [sys.executable, os.path.join(HERE, "test_two_provers_never_tear_the_store.py")], 120,
+         needs_app=False,
+         why="R4 (REG-2341) / REG-2343 - heart2's verdict cache and red memory wrote through one fixed tmp name with no "
+             "lock while a worktree's pre-flight ran beside main's push, and the machine's gate ledger has the same two "
+             "writers. Two REAL processes released by a barrier, held inside one window (TV_STORE_HOLD_S), keep both "
+             "writes in every store; with no lock each writer renames only its own tmp; a dead writer's tmp is swept; an "
+             "old-code flush never reaches the v2 store."),
+    Gate("test_an_unreadable_store_is_kept_not_overwritten",
+         [sys.executable, os.path.join(HERE, "test_an_unreadable_store_is_kept_not_overwritten.py")], 60,
+         needs_app=False,
+         why="R4 (REG-2341) / REG-2343 - an unreadable cache was read as empty and rewritten, and a failed merge-read "
+             "wrote one run's entries alone. Every write keeps a .prev generation; an unreadable store (cache or "
+             "machine ledger) is renamed aside, the newest one kept, and .prev stands in at the open and the write - "
+             "nothing it held is thinned."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

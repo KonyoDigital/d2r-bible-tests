@@ -87,6 +87,7 @@ them is one nobody can ship. Mandatory for every NEW gate; the backlog burns dow
 """
 import argparse
 import ast
+import contextlib
 import hashlib
 import io
 import json
@@ -1790,51 +1791,334 @@ class _HeldLock(object):
 #   "moved" after it; the verdict the run produced stands either way.
 # ⚠ PUSH TIME ONLY. prove(push=True) - hooks/pre-push's `--prove NAMES --push` - is the only opener; _prove_push takes
 #   the cache as a parameter and every other caller (the plain --prove path, run_gates, CI, a law driving _prove_push
-#   with a fixture) hands none and runs every proof. The file is per machine, gitignored, beside .heart2.json.
-#   HEART2_PROVE_CACHE=0 leaves it closed for one run (the cold half of a measurement) and says so.
+#   with a fixture) hands none and runs every proof. The file is per machine, in git's common dir (REG-2340), never
+#   committed and never copied into a sandbox. HEART2_PROVE_CACHE=0 leaves it closed for one run (the cold half of a
+#   measurement) and says so.
 # The law: test_a_proven_verdict_is_reused_only_on_identical_bytes. [[regression-guard]] [[unknown-stays-unknown]]
+def _git_common_dir(repo):
+    """R10 (REG-2340) - git's COMMON dir for the checkout at `repo`, read from the files git itself reads.
+    -> (dir, None) | (None, why)
+
+    Every worktree shape: a main checkout (.git is a directory); a linked worktree whose .git pointer names its gitdir by
+    an absolute OR a relative path (worktree.useRelativePaths, git 2.48+) - relative to the CHECKOUT, never the cwd: the
+    first cut normalised it against the cwd, so from anywhere but the checkout's own root it missed main; that gitdir's
+    `commondir` file (git writes one for every linked worktree) names the common dir, so a worktree of a BARE repository
+    resolves too; a submodule or a --separate-git-dir clone has no `commondir`, and its gitdir is its common dir. NEVER by
+    running git: inside a hook GIT_DIR is inherited, and git would answer for whichever tree set it."""
+    g = os.path.join(repo, ".git")
+    try:
+        if os.path.isdir(g):
+            gitdir = g
+        elif os.path.isfile(g):
+            with io.open(g, encoding="utf-8") as fh:
+                line = fh.read().strip()
+            if not line.startswith("gitdir:"):
+                return None, "its .git file is not a gitdir pointer"
+            gitdir = line.split(":", 1)[1].strip()
+            if not os.path.isabs(gitdir):
+                gitdir = os.path.join(repo, gitdir)          # R10 - relative to the checkout, never the cwd
+        else:
+            return None, "it has no .git"
+        gitdir = os.path.normpath(gitdir)
+        if not os.path.isdir(gitdir):
+            return None, "its .git pointer names %s, which is not a directory" % gitdir
+        common = gitdir
+        cd = os.path.join(gitdir, "commondir")
+        if os.path.isfile(cd):
+            with io.open(cd, encoding="utf-8") as fh:
+                rel = fh.read().strip()
+            common = os.path.normpath(rel if os.path.isabs(rel) else os.path.join(gitdir, rel))
+        elif os.path.basename(os.path.dirname(gitdir)) == "worktrees":
+            common = os.path.dirname(os.path.dirname(gitdir))  # git's own layout, when the commondir file is missing
+        if not os.path.isdir(common):
+            return None, "its common git dir %s is not a directory" % common
+        return common, None
+    except (OSError, ValueError) as _ge:
+        return None, "its .git pointer could not be read (%s)" % type(_ge).__name__
+
+
+def _shared_store(here=None, repo=None):
+    """R10 (REG-2340) - WHERE heart2's per-machine stores live. -> (dir, None) | (this checkout's own dir, why)
+
+    `<git common dir>/heart2/`: one per machine, shared by the main checkout and every worktree - where suite_verdict's
+    store already lives. git never lists it, safe_copy never copies it (.git never travels), and code from before
+    REG-2341 never opens it: that code keeps writing tv/.heart2_cache.json and tv/.heart2_red.json, so an old writer can
+    never strip or shrink this store (the critic's rule). When no git dir can be found - a heart2 sandbox, a pointer that
+    will not read - the stores are this checkout's own tv/.heart2_v2/, and `why` says so: they die with the checkout."""
+    here = HERE if here is None else here
+    repo = REPO if repo is None else repo
+    common, why = _git_common_dir(repo)
+    if common:
+        return os.path.join(common, "heart2"), None
+    return os.path.join(here, ".heart2_v2"), why
+
+
 def _shared_cache_path(here=None, repo=None, env=None):
     """#242 (2026-10-07) - ONE VERDICT CACHE PER MACHINE, NOT ONE PER WORKTREE. -> the .heart2_cache.json to use
 
     MEASURED on the v3602 pushes: every pre-prove I ran in a worktree banked into THAT tree's cache, and the push in main
     read main's own - so the 136 laws the hook proved were proved from nothing while their worktree proofs sat unread
-    one directory over. A worktree's `.git` is a FILE naming `<main>/.git/worktrees/<name>`, so its main checkout is
-    found without asking git; the cache is that checkout's tv/.heart2_cache.json. Sharing is safe for the same reason
-    the cache is: an entry is reused only over byte-identical keyed inputs. What it cannot see - a law that reads live
-    state by a computed path, present only in main - is why every entry records its TREE and the clean wave (REG-1992)
-    skips only a gate whose proofs were banked in the tree being proved. HEART2_CACHE_PATH overrides (a law's seam)."""
-    here = HERE if here is None else here
-    repo = REPO if repo is None else repo
+    one directory over. REG-2340: the cache is the one in _shared_store() - git's common dir, found from the checkout's
+    .git without asking git. Sharing is safe for the same reason the cache is: an entry is reused only over
+    byte-identical keyed inputs. What it cannot see - a law that reads live state by a computed path, present only in
+    main - is why every entry records its TREE and the clean wave (REG-1992) skips only a gate whose proofs were banked
+    in the tree being proved. HEART2_CACHE_PATH overrides (a law's seam)."""
     env = os.environ if env is None else env
-    own = os.path.join(here, ".heart2_cache.json")
     if env.get("HEART2_CACHE_PATH"):
         return env["HEART2_CACHE_PATH"]
-    g = os.path.join(repo, ".git")
-    try:
-        if os.path.isfile(g):
-            with io.open(g, encoding="utf-8") as fh:
-                line = fh.read().strip()
-            if line.startswith("gitdir:"):
-                gd = os.path.normpath(line.split(":", 1)[1].strip())
-                if os.path.basename(os.path.dirname(gd)) == "worktrees":
-                    main = os.path.dirname(os.path.dirname(os.path.dirname(gd)))
-                    if os.path.isdir(os.path.join(main, "tv")):
-                        return os.path.join(main, "tv", ".heart2_cache.json")
-    except OSError:
-        return own                       # an unreadable pointer: this tree's own cache, as before - never a guess
-    return own
+    return os.path.join(_shared_store(here, repo)[0], ".heart2_cache.json")
 
 
 #: #242 - the tree a verdict was proved in, carried on every banked entry (local only: the cache is never committed)
 TREE_ID = os.path.realpath(REPO)
 CACHE = _shared_cache_path()
-CACHE_MAX = 4000          # entries kept; the oldest leave first - a cache, not a ledger
+#: R10 (REG-2340) - None when CACHE is the machine's shared store (or a seam named it); otherwise WHY it is this
+#: checkout's own. The first opener of a store says it - a store that dies with its checkout is never silent.
+CACHE_WHY = None if os.environ.get("HEART2_CACHE_PATH") else _shared_store()[1]
+#: R4 (REG-2341) - entries kept, counted AFTER the merge with what is on disk (a trim before the merge was undone by
+#: it, and the v1 file grew to 320 MB). With no per-entry inputs list an entry is about 0.3 KB.
+CACHE_MAX = 50000
 _NAME_MAX = 240           # a string constant longer than this is prose, not a path
 #: the run's OWN records - written by the prove / render that reads them. Keyed, every law whose closure names heart2
 #: (which names all of them) would miss on every push, and this cache would invalidate itself by being written. A record
 #: of a run cannot make a tamper stay green, so these are the one named exclusion; every other named file is keyed.
 _SELF_RECORDS = frozenset((".heart2.json", ".heart2_cache.json", ".heart2_cache.json.tmp", ".heart2_proposals.md",
                            ".render_verdict.json", ".heart2_red.json", ".heart2_red.json.tmp"))
+
+# ══ R4 (REG-2341) — HEART2'S TWO STORES: LOCKED, MERGED, FSYNCED, A GOOD GENERATION KEPT, NEVER OVERWRITTEN UNREAD ════
+# FOUND in the v1 writers (read 2026-10-21; main's cache measured 320 MB, 7,991 entries): each store had ONE fixed tmp
+# name and no cross-process lock, so two provers (a worktree's pre-flight beside main's push) could tear or lose each
+# other's write; a store that would not parse was read as empty and then OVERWRITTEN by the next write; and the cache's
+# cap ran before the merge with the disk, which undid it - so the file only ever grew. Now every write of the verdict cache and of the red memory goes through
+# ONE writer, _StoreFile.commit: an exclusive flock on the store's DIRECTORY across read-merge-write (a lock on the file
+# would leave with the inode os.replace swaps out), a tmp named for this process and thread, fsync, the current file kept
+# as `.prev`, then os.replace. A store that will not read is renamed aside (`.unreadable-<ms>`, the newest one kept) and
+# its `.prev` merged in its place - never overwritten. A machine with no flock (Windows) writes unlocked and says so.
+# TV_STORE_HOLD_S is a LAW's seam: it holds a written tmp unreplaced, so two writers provably overlap.
+# The laws: test_two_provers_never_tear_the_store, test_an_unreadable_store_is_kept_not_overwritten.
+try:
+    import fcntl as _fcntl
+except ImportError:                 # Windows: no flock - the writes stay merged, and the missing lock is said
+    _fcntl = None
+_RED_NAME = ".heart2_red.json"
+_STORE_SAID = set()
+
+
+def _say_once(say, key, line):
+    """A store's warning, once per process and key - a per-proof repeat would bury the verdict lines."""
+    if key in _STORE_SAID:
+        return
+    _STORE_SAID.add(key)
+    try:
+        (say or print)(line)
+    except Exception:
+        pass
+
+
+def _fsync(fd):
+    """Push a file's (or a directory's) bytes to the disk: F_FULLFSYNC where the OS has it (macOS's fsync stops at the
+    drive's cache), fsync otherwise. Best effort - the atomic rename is the guarantee, this is the durability."""
+    try:
+        if _fcntl is not None and hasattr(_fcntl, "F_FULLFSYNC"):
+            _fcntl.fcntl(fd, _fcntl.F_FULLFSYNC)
+            return
+    except OSError:
+        pass
+    try:
+        os.fsync(fd)
+    except OSError:
+        pass
+
+
+def _store_hold():
+    """TV_STORE_HOLD_S - a law's seam, never set by a push: hold a written tmp this long before it replaces the store."""
+    try:
+        s = float(os.environ.get("TV_STORE_HOLD_S") or 0)
+    except ValueError:
+        s = 0.0
+    if s > 0:
+        time.sleep(min(s, 30.0))
+
+
+@contextlib.contextmanager
+def _store_locked(folder, say=None):
+    """R4 - an exclusive flock on `folder` (a store's directory) for the block, across processes and threads (each
+    holder opens its own descriptor). -> the directory's fd (fsync it after a rename), or None when unlocked (said)."""
+    fd = None
+    try:
+        os.makedirs(folder, exist_ok=True)
+    except OSError:
+        pass
+    if _fcntl is None:
+        _say_once(say, ("nolock",), "  ⚠ heart2 stores: this machine has no flock, so a store write is merged but "
+                                    "UNLOCKED - two writers at the same moment can still lose one write")
+    else:
+        try:
+            fd = os.open(folder, os.O_RDONLY)
+            _fcntl.flock(fd, _fcntl.LOCK_EX)
+        except OSError as _le:
+            if fd is not None:
+                os.close(fd)
+                fd = None
+            _say_once(say, ("nolock", folder), "  ⚠ heart2 stores: %s could not be locked (%s) - this write is "
+                                               "UNLOCKED" % (folder, type(_le).__name__))
+    try:
+        yield fd
+    finally:
+        if fd is not None:
+            try:
+                _fcntl.flock(fd, _fcntl.LOCK_UN)
+            except OSError:
+                pass
+            os.close(fd)
+
+
+def _read_store(path, valid=None):
+    """-> (body, None); ({}, None) when the file is absent (nothing stored yet); (None, why) when it will not parse or
+    `valid(body)` names what is wrong with it (without `valid`, anything but a JSON object is wrong)."""
+    if not os.path.exists(path):
+        return {}, None
+    try:
+        with io.open(path, encoding="utf-8") as fh:
+            body = json.load(fh)
+    except Exception as _e:
+        return None, "it would not parse (%s)" % type(_e).__name__
+    bad = valid(body) if valid is not None else (None if isinstance(body, dict) else "it is not a JSON object")
+    return (None, bad) if bad else (body, None)
+
+
+def _entries_shape(body):
+    """A v2 store keeps its records under 'entries'. -> why it is not one | None"""
+    return None if isinstance(body, dict) and isinstance(body.get("entries"), dict) else "it has no 'entries' map"
+
+
+def _num(x):
+    """A store's stamp (at, usedAt) as a number; anything else is 0 - one corrupt entry must never raise inside a merge
+    and so block every later write of the store."""
+    return x if isinstance(x, (int, float)) and not isinstance(x, bool) else 0
+
+
+def _set_aside(path, why, say=print):
+    """R4 - an unreadable store is RENAMED, never overwritten: `<path>.unreadable-<ms>`, the newest one kept.
+    -> True when it is out of the way (renamed, or already gone)"""
+    folder, base = os.path.split(os.path.abspath(path))
+    aside = "%s.unreadable-%d" % (path, int(time.time() * 1000))
+    try:
+        os.replace(path, aside)
+    except FileNotFoundError:
+        return True
+    except OSError as _ae:
+        say("  ⚠ %s is UNREADABLE (%s) and could not be set aside (%s) - nothing is written over it"
+            % (base, why, type(_ae).__name__))
+        return False
+    try:
+        for n in os.listdir(folder):
+            if n.startswith(base + ".unreadable-") and n != os.path.basename(aside):
+                os.remove(os.path.join(folder, n))      # keep ONE: the newest unreadable generation
+    except OSError:
+        pass
+    say("  ⚠ %s was UNREADABLE (%s) - kept aside as %s, never overwritten" % (base, why, os.path.basename(aside)))
+    return True
+
+
+class _StoreFile(object):
+    """R4 (REG-2341) - THE ONE WRITER of heart2's two per-machine stores, the verdict cache and the red memory."""
+
+    def __init__(self, path, say=print, valid=_entries_shape):
+        self.path, self.say, self.valid = path, say, valid
+
+    def _tmp(self):
+        return "%s.%d.%d.tmp" % (self.path, os.getpid(), threading.get_ident())
+
+    def _merged(self, merge):
+        """Read the store as it is NOW (under the lock) and hand it to merge(). An unreadable store is set aside and its
+        last good generation (.prev) stands in. -> the body to write | None (nothing to write) | why (refused)"""
+        disk, why = _read_store(self.path, self.valid)
+        if why is not None:
+            if not _set_aside(self.path, why, self.say):
+                return "the unreadable store could not be set aside, so nothing is written over it"
+            disk, pwhy = _read_store(self.path + ".prev", self.valid)
+            self.say("  ⚠ heart2 store: %s" % ("its last good generation (.prev) is merged in its place"
+                                               if pwhy is None and disk else "it has no readable .prev - what it held "
+                                               "is in the file kept aside"))
+            disk = disk if pwhy is None else None
+        return merge(disk)
+
+    def commit(self, merge):
+        """Under the store directory's lock: merge(what is on disk now | None) -> the body, written atomically.
+        -> (True, None) | (False, why | None)"""
+        try:
+            return self._commit(merge)
+        except Exception as _ce:
+            return False, "it could not be written (%s)" % type(_ce).__name__
+        finally:
+            for p in (self._tmp(), self._tmp() + ".prev"):
+                if os.path.exists(p):
+                    try:
+                        os.remove(p)                    # this thread's tmp never outlives the write
+                    except OSError:
+                        pass
+
+    def _commit(self, merge):
+        # ⛔ IT NEVER EDITS A GUARD: the only files written are ones named like CACHE or the red memory - refused BEFORE
+        # anything is read, set aside or created, and the guard sits right above the write the instruments law admits.
+        if os.path.basename(self.path) != os.path.basename(CACHE) and os.path.basename(self.path) != _RED_NAME:
+            return False, "refusing to write %s - heart2's stores are only named %s or %s" % (
+                self.path, os.path.basename(CACHE), _RED_NAME)
+        with _store_locked(os.path.dirname(os.path.abspath(self.path)), self.say) as lockfd:
+            body = self._merged(merge)
+            if not isinstance(body, dict):
+                return False, body
+            with io.open(self._tmp(), "w", encoding="utf-8") as fh:
+                json.dump(body, fh, sort_keys=True)
+                fh.flush()
+                _fsync(fh.fileno())
+            _store_hold()
+            if os.path.exists(self.path):
+                # the good generation being replaced stays one rename away (a hard link: no copy of the bytes)
+                try:
+                    os.link(self.path, self._tmp() + ".prev")
+                    os.replace(self._tmp() + ".prev", self.path + ".prev")
+                except OSError as _pe:
+                    _say_once(self.say, ("noprev", self.path), "  ⚠ heart2 store: %s keeps no .prev generation (%s)"
+                              % (os.path.basename(self.path), type(_pe).__name__))
+            os.replace(self._tmp(), self.path)
+            if lockfd is not None:
+                _fsync(lockfd)                          # the rename itself reaches the disk
+            return True, None
+
+    def sweep(self):
+        """R9 - tmps a DEAD writer left beside the store (its pid no longer runs) are removed; a live writer's never.
+        -> how many. Not on Windows, where asking a pid is not harmless (REG-1725)."""
+        if os.name == "nt":
+            return 0                                    # REG-1725: os.kill(pid, 0) is a Ctrl-C there, never a probe
+        folder, base = os.path.split(os.path.abspath(self.path))
+        if base not in (os.path.basename(CACHE), _RED_NAME):
+            return 0                                    # only ever beside one of the two stores
+        rx = re.compile(re.escape(base) + r"\.(\d+)\.\d+\.tmp(?:\.prev)?$")
+        gone = 0
+        try:
+            names = os.listdir(folder)
+        except OSError:
+            return 0
+        for n in names:
+            m = rx.match(n)
+            if not m or int(m.group(1)) == os.getpid():
+                continue
+            try:
+                os.kill(int(m.group(1)), 0)
+                continue                                # alive, or not ours to judge: left alone
+            except ProcessLookupError:
+                pass
+            except OSError:
+                continue
+            try:
+                os.remove(os.path.join(folder, n))
+                gone += 1
+            except OSError:
+                pass
+        return gone
+
 
 # ══ #42 lever 1 (REG-1710) — THE RED MEMORY: A PROOF REMEMBERS WHICH CASES CAUGHT IT ══════════════════════════════════
 # MEASURED 2026-10-02: pushes went from 17-20 minutes to 100+ because every batch touched tv/test_control.py, and each of
@@ -2171,18 +2455,87 @@ def law_inputs(sandbox, filename, proofs, parsed=None, tracked=None, allow_listi
 
 def _load_cache(path):
     """-> (entries, None) | (None, why). An absent file is an EMPTY cache; a file that will not parse or has the wrong
-    shape is UNREADABLE - said, never read as empty - and the first store rewrites it (a cache, not a ledger)."""
-    if not os.path.exists(path):
-        return {}, None
+    shape is UNREADABLE - said, never read as empty. R4: the next write sets it aside - it is never written over."""
+    body, why = _read_store(path, _entries_shape)
+    if why is not None:
+        return None, why
+    return (body or {}).get("entries") or {}, None
+
+
+def _proven_at(e):
+    """An entry's provedAt as a number, or -1 when it has none a reader could date."""
+    t = e.get("provedAt") if isinstance(e, dict) else None
+    return t if isinstance(t, (int, float)) and not isinstance(t, bool) else -1
+
+
+def _compact_entry(entry):
+    """R4 (REG-2341) - an entry keeps HOW MANY inputs it was keyed on and a digest of their names, never the list: the
+    lists were nearly all of the 320 MB v1 file, and the key already digests every byte. -> the entry (a copy if changed)"""
+    if not (isinstance(entry, dict) and isinstance(entry.get("inputs"), list)):
+        return entry
+    names = [str(p) for p in entry["inputs"]]
+    out = dict((k, v) for k, v in entry.items() if k != "inputs")
+    out["nInputs"] = len(names)
+    out["inputsDigest"] = hashlib.sha256("\0".join(names).encode("utf-8", "replace")).hexdigest()[:16]
+    return out
+
+
+def _merged_cache(disk, mine, used):
+    """R4 - what is on disk NOW, plus what this run holds and used: for one key the newer proof (provedAt) wins and
+    usedAt is the latest anyone recorded. Nothing is trimmed here - the cap runs after this. -> {key: entry}"""
+    out = dict((k, v) for k, v in (disk or {}).items() if isinstance(v, dict))
+    for k, e in (mine or {}).items():
+        if not isinstance(e, dict):
+            continue
+        d = out.get(k)
+        if d is None or _proven_at(e) >= _proven_at(d):
+            if d is not None and _num(d.get("usedAt")) > _num(e.get("usedAt")):
+                e = dict(e, usedAt=d["usedAt"])
+            out[k] = e
+        elif _num(e.get("usedAt")) > _num(d.get("usedAt")):
+            out[k] = dict(d, usedAt=e["usedAt"])
+    for k, ms in (used or {}).items():
+        if isinstance(out.get(k), dict) and _num(out[k].get("usedAt")) < ms:
+            out[k] = dict(out[k], usedAt=ms)
+    return out
+
+
+def _live_gate_names():
+    """The gate names this checkout still registers. -> set | None (UNKNOWN: that eviction tier is skipped)"""
     try:
-        with io.open(path, encoding="utf-8") as fh:
-            d = json.load(fh)
-    except Exception as _e:
-        return None, "it would not parse (%s)" % type(_e).__name__
-    ent = d.get("entries") if isinstance(d, dict) else None
-    if not isinstance(ent, dict):
-        return None, "it has no 'entries' map"
-    return ent, None
+        return set(n for n, _f in gate_files(say=lambda *a, **k: None)) or None
+    except Exception:
+        return None
+
+
+def _cache_evict(ent, cap, live=None):
+    """R4 - over the cap, AFTER the merge, these leave first: an entry no reader could serve (not PROVEN, or undated),
+    then one SUPERSEDED by a newer proof of the same gate, proof, target and widths, then one whose gate is no longer
+    registered, then the least recently used or proved. -> how many left"""
+    over = len(ent) - cap
+    if over <= 0:
+        return 0
+    newest = {}
+    for k, e in ent.items():
+        if e.get("verdict") == PROVEN and _proven_at(e) >= 0:
+            ident = (e.get("gate"), e.get("proof"), e.get("target"), e.get("at"), e.get("why"))
+            if ident not in newest or _proven_at(e) > _proven_at(ent[newest[ident]]):
+                newest[ident] = k
+    live = _live_gate_names() if live is None else live
+
+    def rank(k):
+        e = ent[k]
+        if not (e.get("verdict") == PROVEN and _proven_at(e) >= 0):
+            return (0, 0)
+        if newest.get((e.get("gate"), e.get("proof"), e.get("target"), e.get("at"), e.get("why"))) != k:
+            return (1, _proven_at(e))
+        if live is not None and e.get("gate") not in live:
+            return (2, _proven_at(e))
+        return (3, max(_proven_at(e), _num(e.get("usedAt"))))
+
+    for k in sorted(ent, key=rank)[:over]:
+        ent.pop(k, None)
+    return over
 
 
 class _VerdictCache(object):
@@ -2201,12 +2554,20 @@ class _VerdictCache(object):
         self._said = set()               # (gate, why): an unkeyable law's reason is said once, not once per proof
         self.reused = {}                 # (gate, proof) -> provedAt ms of the entry a hit served, this run
         self.measured = {}               # gate -> the OLDEST provedAt among its reused proofs; the census stamp
+        self.used = {}                   # R4 - key -> ms of this run's hits (usedAt), written at the next flush
+        self.file = _StoreFile(self.path, say)
+        self.file.sweep()                # R9 - a tmp a dead writer left beside the store
+        if self.path == CACHE and CACHE_WHY:
+            say("  #42 P3 CACHE: the machine's shared store was not found (%s) - this checkout's own is used, and what it "
+                "banks dies with the checkout" % CACHE_WHY)
         ent, why = _load_cache(self.path)
         self.readable = why is None
+        prev = _load_cache(self.path + ".prev")[0] if why and os.path.exists(self.path + ".prev") else None
         if not self.readable:
-            say("  #42 P3 CACHE: %s is UNREADABLE (%s) - every proof runs, and the first PROVEN rewrites it"
-                % (os.path.basename(self.path), why))
-        self.entries = ent if ent is not None else {}
+            say("  #42 P3 CACHE: %s is UNREADABLE (%s) - it is set aside at the first write, never written over; %s"
+                % (os.path.basename(self.path), why, "its last good generation (.prev, %d entr(ies)) stands in"
+                   % len(prev) if prev is not None else "no readable .prev, so every proof runs"))
+        self.entries = ent if ent is not None else (prev if prev is not None else {})
 
     def key_for(self, sandbox, name, filename, pr):
         """-> (key | None, [repo-relative inputs], why-unkeyable | None), from the SANDBOX's bytes now."""
@@ -2266,58 +2627,56 @@ class _VerdictCache(object):
         if not (isinstance(e, dict) and isinstance(e.get("provedAt"), (int, float))
                 and not isinstance(e.get("provedAt"), bool)):
             return None
+        # R4 (critic) - MISSING OR UNREADABLE FACTS ARE A MISS, ALWAYS: an entry that stands on facts (a traced kind, a
+        # facts reference) is served only by a reader that checks those facts - never by this byte key, never as "none"
+        if e.get("kind", "static") != "static" or "facts" in e or "factsRef" in e:
+            return None
+        if e.get("verdict") == PROVEN:
+            with self.lock:
+                self.used[key] = int(time.time() * 1000)       # R4 - usedAt: eviction is by use, written at the flush
         return e if isinstance(e, dict) and e.get("verdict") == PROVEN else None
 
     def store(self, key, entry):
-        """Bank one PROVEN in memory; flush() writes the file (once per gate, and at the end of the run)."""
+        """Bank one PROVEN in memory; flush() writes the file (once per gate, and at the end of the run). R4: nothing is
+        trimmed here - the cap runs after the merge with the disk, which undid every trim made before it."""
         with self.lock:
-            self.entries[key] = entry
-            if len(self.entries) > CACHE_MAX:
-                for k in sorted(self.entries, key=lambda k: self.entries[k].get("provedAt") or 0)[
-                        :len(self.entries) - CACHE_MAX]:
-                    self.entries.pop(k, None)
+            self.entries[key] = _compact_entry(entry)
             self.dirty = True
 
     def flush(self):
-        """Write the file atomically when something was banked since the last write. -> True when written"""
+        """Write what this run banked and used, merged with what is on disk NOW and capped after that merge, through
+        the stores' one locked writer. -> True when written."""
+        return self._flush()
+
+    def _flush(self):
         with self.lock:
-            if not self.dirty:
+            if not (self.dirty or self.used):
                 return False
-            body = {"_why": "#42 P3 - PROVEN verdicts this machine may reuse at push time, keyed by a digest of every "
-                            "byte each depends on (tv/heart2.py law_inputs). Per machine, never committed.",
-                    "entries": self.entries}
-            tmp = self.path + ".tmp"
-            # #242 - ONE FILE, SEVERAL PROVERS (a worktree's pre-flight and main's push share it): merge what another run
-            # banked since this one loaded, so the later writer never erases the earlier one's entries. A lost race
-            # still costs only a re-prove - an entry is a shortcut, never a verdict.
-            try:
-                _disk, _dwhy = _load_cache(self.path)
-                for _k, _v in (_disk or {}).items():
-                    if _k not in self.entries and isinstance(_v, dict) and _v.get("verdict") == PROVEN:
-                        self.entries[_k] = _v
-                body["entries"] = self.entries
-            except Exception as _me:
-                self.say("  #42 P3 CACHE: could not merge %s before writing (%s) - writing this run's entries only"
-                         % (os.path.basename(self.path), type(_me).__name__))
-            # ⛔ IT NEVER EDITS A GUARD: the only file this object may write is one named like CACHE - the real one
-            # beside .heart2.json, or a law's fixture copy of it. Any other path is refused, and said. The refusal sits
-            # DIRECTLY above the write because the instruments law admits this write on the guard expression, read
-            # from the lines just before the open - the first cut left it eight lines up, outside that window.
-            if os.path.basename(self.path) != os.path.basename(CACHE):
-                self.say("  #42 P3 CACHE: refusing to write %s - a verdict cache is only ever named %s"
-                         % (self.path, os.path.basename(CACHE)))
-                return False
-            try:
-                with io.open(tmp, "w", encoding="utf-8") as fh:
-                    json.dump(body, fh, sort_keys=True)
-                os.replace(tmp, self.path)
+            mine, used, out = dict(self.entries), dict(self.used), {}
+
+            def merge(disk):
+                # #242 - ONE FILE, SEVERAL PROVERS: what another run banked since this one loaded is kept - R4 reads it
+                # under the lock, so no write lands between this read and this write
+                ent = _merged_cache((disk or {}).get("entries"), mine, used)
+                out["evicted"] = _cache_evict(ent, CACHE_MAX)
+                body = dict((k, v) for k, v in (disk or {}).items() if k not in ("_why", "format", "entries"))
+                body.update(_why="#42 P3 - PROVEN verdicts this machine may reuse at push time, keyed by a digest of "
+                                 "every byte each depends on (tv/heart2.py law_inputs). Per machine, never committed. "
+                                 "R4: format 2, no inputs lists, written only by tv/heart2.py's _StoreFile.",
+                            format=2, entries=ent)
+                out["entries"] = ent
+                return body
+
+            ok, why = self.file.commit(merge)
+            if ok:
+                self.entries, self.used = out["entries"], {}
                 self.readable, self.dirty = True, False
                 return True
-            except Exception as _e:
-                # a cache that cannot be written costs the next push a re-prove, never this push its verdict - said
-                self.say("  #42 P3 CACHE: could not write %s (%s) - what this run proved is not banked"
-                         % (os.path.basename(self.path), type(_e).__name__))
-                return False
+            # a cache that cannot be written costs the next push a re-prove, never this push its verdict - said
+            self.say("  #42 P3 CACHE: %s" % (why if str(why).startswith("refusing") else
+                                             "could not write %s (%s) - what this run proved is not banked"
+                                             % (os.path.basename(self.path), why)))
+            return False
 
     def summary(self, n_total):
         return ("#42 P3 CACHE: %d of %d proof(s) reused from the cache (byte-identical inputs, not re-run) · %d proved "
