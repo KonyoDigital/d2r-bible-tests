@@ -17,6 +17,7 @@ RED_PROOF below.
 """
 import ast
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -39,6 +40,7 @@ class AScratchListingReadsOnlyItsOwnScratch(unittest.TestCase):
 
     def setUp(self):
         self.d = tempfile.mkdtemp(prefix="own_")          # inside the contained parent
+        self.addCleanup(shutil.rmtree, self.d, True)      # removed by its own test, not only at exit
         for n in ("f_1.jpg", "f_2.jpg", "note.txt"):
             with open(os.path.join(self.d, n), "w") as fh:
                 fh.write("x")
