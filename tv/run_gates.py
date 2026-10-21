@@ -11495,8 +11495,9 @@ GATES = [
              "in shadow mode when the Grok failover also failed, the console fell through to the website proxy and "
              "read on the site's API key - the spend the cap exists to stop. control_app's /api/intake handler now "
              "answers a runner's 429 as HTTP 429 with its body (limit, source, retry_s), still lets the Grok failover "
-             "read, answers the 429 when no lane reads, and never calls the website after a cap. One case runs the "
-             "REAL runner under node at its cap through a private server; the website door is always stubbed."),
+             "read, answers the 429 when no lane reads, and never calls the website after a cap. Driven through a "
+             "private server with stub runners, so every case runs with or without node; the website door is always "
+             "stubbed. The real runner's join is test_a_capped_runner_reaches_the_board_as_429."),
     Gate("test_a_pythonw_console_keeps_what_it_says",
          [sys.executable, os.path.join(HERE, "test_a_pythonw_console_keeps_what_it_says.py")], 60,
          needs_app=False,
@@ -11513,6 +11514,14 @@ GATES = [
              "files are ignored by git, asked of git's own matcher in a throwaway repo seeded with the tree's "
              ".gitignore. Its own law and node-free: inside the node-only reader-cap law these two cases were the "
              "only ones a PC without node ran, so every node-only proof there was filed BLIND."),
+    Gate("test_a_capped_runner_reaches_the_board_as_429",
+         [sys.executable, os.path.join(HERE, "test_a_capped_runner_reaches_the_board_as_429.py")], 120,
+         needs_app=False,
+         why="REG-2383 / REG-2382 - the join: control_app's /api/intake handler spawns the REAL tv/intake_local.mjs at "
+             "its cap on a fixture ledger, and the board receives HTTP 429 with used, limit and the limit's source, "
+             "never 200 and never the website. Node-only on purpose, and its proof key names the JavaScript it runs "
+             "(the runner, tv/pc_settings.mjs, functions/api/intake.js) - heart2's closure follows Python imports "
+             "only, so an edit to the settings reader would otherwise be served a PROVEN it never ran on."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

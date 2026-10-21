@@ -21,7 +21,7 @@ tv/intake_local.mjs refused a call at its cap by throwing inside the fetch shim.
 
 FIX: the runner reports a cap hit as status 429 with {error:"subscription-cap", message, window, used, limit, source, retry_s} on both paths (REG-2382's commit). The handler forwards a runner's 429 as HTTP 429 with X-Intake-Lane; in shadow mode the Grok failover still reads, and when no lane reads the answer is the 429 - never the website proxy, never 200 with an error body.
 
-GUARD: tv/test_a_capped_read_is_answered_429.py (registered) - a private ThreadingHTTPServer on control_app.Handler; one case spawns the REAL runner under node on a fixture ledger at its cap (the join of the two halves); the website door is stubbed in every case. 4 RED proofs.
+GUARD: tv/test_a_capped_read_is_answered_429.py (registered) - a private ThreadingHTTPServer on control_app.Handler with stub runners, so every case runs with or without node; the website door is stubbed in every case. 3 RED proofs. The join - the REAL runner under node on a fixture ledger at its cap, through the same handler - is tv/test_a_capped_runner_reaches_the_board_as_429.py (registered, node-only, 2 RED proofs); its PROOF_NEEDS names the JavaScript it runs (the runner, tv/pc_settings.mjs, functions/api/intake.js), because heart2's closure follows Python imports only and a review measured a PROVEN served after an edit to tv/pc_settings.mjs that turned the law red.
 
 LEFT: the board's own handling of a 429 is unchanged (bible.html is not in this change): aicUpload says "read failed (server 429)" and the vault batch says "AI service unreachable · HTTP 429" without reading the body's message. The Grok lane's own cap (tv/intake_grok_sub.mjs) still answers 200 worker-exception.
 
