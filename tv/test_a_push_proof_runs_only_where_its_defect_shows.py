@@ -545,14 +545,19 @@ class TheRestrictionIsAProvingDeviceNeverAVerdict(unittest.TestCase):
             self.assertFalse(any(LW.ENV in str(a) for a in (g.argv or [])), "gate %s passes %s" % (g.name, LW.ENV))
 
     def test_the_hook_passes_the_flag_only_to_its_prove_call(self):
-        """★ hooks/pre-push: exactly one command runs heart2.py, it is the --prove call, and it carries --push; nothing in
-        the hook sets TV_LAW_WIDTHS itself"""
+        """★ hooks/pre-push: exactly one command runs heart2.py --prove, and it carries --push; nothing in the hook sets
+        TV_LAW_WIDTHS itself. REG-2361: the one other heart2.py call is the read-only --forecast preview just before it,
+        which proves nothing and never carries --push"""
         with io.open(os.path.join(ROOT, "hooks", "pre-push"), encoding="utf-8") as fh:
             lines = [l.strip() for l in fh]
         calls = [l for l in lines if "heart2.py" in l and not l.startswith(("#", "echo"))]
-        self.assertEqual(len(calls), 1, "PREMISE: the hook runs heart2.py %d times: %s" % (len(calls), calls))
-        self.assertIn("--prove", calls[0])
-        self.assertIn("--push", calls[0], "the hook's red-proof step does not pass --push: %s" % calls[0])
+        prove = [l for l in calls if "--prove" in l]
+        other = [l for l in calls if "--prove" not in l]
+        self.assertEqual(len(prove), 1, "PREMISE: the hook runs heart2.py --prove %d times: %s" % (len(prove), calls))
+        self.assertIn("--push", prove[0], "the hook's red-proof step does not pass --push: %s" % prove[0])
+        self.assertLessEqual(len(other), 1, "the hook runs heart2.py beyond its prove call and its forecast: %s" % other)
+        self.assertEqual([l for l in other if "--forecast" not in l or "--push" in l], [],
+                         "a heart2.py call other than the prove call is not the read-only forecast: %s" % other)
         self.assertEqual([l for l in lines if LW.ENV in l and not l.startswith("#")], [],
                          "the hook sets %s itself" % LW.ENV)
 

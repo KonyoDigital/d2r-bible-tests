@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2361 - A TWO-MINUTE SUITE REFUSAL WAITED BEHIND AN HOUR OF PROVING (unversioned)
+
+v3783 series, 2026-10-21: push 10 proved for 65.7 min, then the sharded test_control suite (126.9 s) refused it at 72m37s on a duplicate REG number; push 11 was refused by the same suite at 10m28s. hooks/pre-push ran heart2 --prove before the red-proof anchors, review-lite, visual-lock, the boss portraits and every tv suite - the same shape #42 P5 already fixed for the render gate.
+
+FIX: those stages now run right after the console demos, byte for byte (trigger, bound, verdict and `exit 1` unchanged), and the changed laws are proved last. Just before the prove call the hook runs `heart2 --forecast $_gates` as a read-only preview, bounded at 120 s; any exit but 0 (a heart2 without the flag says "unrecognized arguments") prints one line and proving goes on - nothing in that block can refuse a push.
+
+GUARDS: tv/test_the_render_gate_runs_before_the_proving_stage.py gains the fail-fast order case and the forecast case (2 new RED proofs: a suite put back after the prove call; a forecast that learns to exit). tv/test_a_push_proof_runs_only_where_its_defect_shows.py now allows exactly one other heart2 call, the forecast, which never carries --push.
+
+LEFT: the forecast itself is track T2's; on a tree without it the line says so.
+
 ### REG-2360 - INSIDE THE HOOK, GIT_DIR POINTED EVERY TEST'S GIT AT HIS REAL REPO: FIXTURE COMMITS ON THE PUSH BRANCH, core.bare=true ON HIS CHECKOUT (unversioned)
 
 v3783 pushes #10 and #11, 2026-10-21: git exports GIT_DIR to a pre-push hook (absolute `<main>/.git/worktrees/<name>` from a linked worktree), and GIT_DIR beats cwd= and -C in every git child. A law that `git init`s a temp repo committed "v0001 claude seat" / "v0002 grok backs up claude" onto the push branch, the commit-stamps law read the half-bumped HEAD and refused both pushes, and a `git init` in a temp dir re-initialised the common config to core.bare=true - his main checkout refused every git command for 2.5 h. Measured again on a fixture repo standing in for his: each of test_the_author_is_read_from_the_stamp, TheLauncherUsesTheSameRule, the P3 tracked-files case, TheTreeIsToldApart and test_a_stale_git_lock_is_cleared_and_said, unscrubbed, moved the worktree branch or set core.bare=true (or both).
