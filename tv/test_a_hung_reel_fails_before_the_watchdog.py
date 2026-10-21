@@ -53,6 +53,9 @@ from unittest import mock
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 
+import fixture_tmp as _fx_tmp  # noqa: E402  #171 — contain scratch so _ISO (and the per-test tmps) leave with the run
+_fx_tmp.contain()
+
 # Isolate every live-state file this suite could otherwise reach into (the sweep lock especially —
 # run_gates reads it to decide whether a sweep is live, so stamping his real one would blind a gate).
 _ISO = tempfile.mkdtemp(prefix="reg2271-iso-")
