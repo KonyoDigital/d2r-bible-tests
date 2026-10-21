@@ -28036,6 +28036,11 @@ class TestV2143TheSecondEyeCannotBeSkippedQuietly(unittest.TestCase):
 
     def test_a_claude_look_counts_when_the_commit_is_the_grok_seat(self):
         """#231 names both families in one model line. family_of stays silent. The commit decides."""
+        # A git HOOK exports GIT_DIR/GIT_WORK_TREE pointing at the REAL repo and they override cwd= - so this temp repo's
+        # git calls committed into the real branch during a push (2026-10-21, two refused pushes). Scoped to THIS test and
+        # restored after: other tests (the commit-stamps law) still need the hook's GIT_DIR to reach the pushed commit.
+        _gitenv = {_k: os.environ.pop(_k) for _k in list(os.environ) if _k.startswith("GIT_")}
+        self.addCleanup(os.environ.update, _gitenv)
         model = "claude (cross-family: the author seat was Grok CLI)"
         self.assertIsNone(self.L.family_of(model), "naming both families must stay ambiguous")
         td = tempfile.mkdtemp(prefix="seatlook_")
