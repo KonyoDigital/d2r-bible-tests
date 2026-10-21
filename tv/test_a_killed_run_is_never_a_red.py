@@ -299,7 +299,8 @@ class TheKillWatchSaysWhoSentIt(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.d, True)
 
     def _watched(self, script):
-        kills = os.path.join(self.d, "kills-%d.tsv" % len(os.listdir(self.d)))
+        fd, kills = tempfile.mkstemp(prefix="kills-", suffix=".tsv", dir=self.d)   # never a listing: it keeps this law keyable
+        os.close(fd)
         env = dict(os.environ, TV_GATE_KILLS=kills, PYTHONPATH=os.path.join(HERE, "gate_trace"))
         r = subprocess.run([sys.executable, "-c", script], capture_output=True, text=True, timeout=120, env=env,
                            cwd=self.d)
