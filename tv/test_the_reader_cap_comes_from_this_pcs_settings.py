@@ -203,10 +203,54 @@ class ARefusalIsSaidAndNeverSpends(_Runner):
         self.assertCapped(self.ask(), "hour", 3, 3, "the TV_PC_SETTINGS file")
 
 
+@unittest.skipIf(os.name == "nt", "a stand-in claude CLI cannot be spawned without a shell on Windows - UNMEASURED there")
+class TheLedgerKeepsTheOtherLanesRows(_Runner):
+    """REG-2385 - tv/.subscription_budget.json is ALSO tv_diablo's vision meter (SECONDS, _sub_budget_record). Recording
+    an intake call kept only rows younger than a day in MILLISECONDS - none of the vision lane's - so every intake read
+    erased the vision meter. A stand-in CLI that answers like claude lets a call be ADMITTED and RECORDED here."""
+
+    def setUp(self):
+        super().setUp()
+        self.cli = os.path.join(self.d, "claude-stand-in")
+        with io.open(self.cli, "w", encoding="utf-8") as fh:
+            fh.write("#!/usr/bin/env node\nprocess.stdout.write('{\"found\":false,\"x0\":0,\"y0\":0,\"x1\":0,\"y1\":0}');\n")
+        os.chmod(self.cli, 0o755)
+
+    def rows(self):
+        with io.open(self.ledger, encoding="utf-8") as fh:
+            return json.load(fh)["calls"]
+
+    def test_a_recorded_intake_call_keeps_the_vision_lanes_rows(self):
+        now = time.time()
+        vision = [now - 300.0, now - 200.0, now - 100.0]            # what tv_diablo writes: seconds
+        mine = [(now - 50.0) * 1000.0, (now - 40.0) * 1000.0]       # what this lane writes: milliseconds
+        with io.open(self.ledger, "w", encoding="utf-8") as fh:
+            json.dump({"calls": vision + mine}, fh)
+        ino = os.stat(self.ledger).st_ino
+        out = self.ask(env={"TVD_CLAUDE_BIN": self.cli})
+        self.assertEqual(out.get("status"), 200, "premise: the stand-in call was not admitted: %r" % out.get("body"))
+        after = self.rows()
+        self.assertEqual([r for r in after if r < 1e11], vision, "an intake read erased the vision lane's rows")
+        self.assertEqual(len([r for r in after if r >= 1e11]), 3, "this lane's own call was not recorded")
+        self.assertNotEqual(os.stat(self.ledger).st_ino, ino,
+                            "the ledger was rewritten in place - a torn write resets both lanes' caps")
+        self.assertEqual([n for n in os.listdir(self.d) if n.startswith("ledger.json.")], [],
+                         "the atomic write left its temp file behind")
+
+    def test_the_vision_lanes_rows_do_not_count_against_the_intake_cap(self):
+        """The rule today, kept: this lane's cap counts the reads THIS lane made. 25 vision reads in the hour must not
+        refuse an intake read at a cap of 20 (whether they should is a ruling nobody has made)."""
+        now = time.time()
+        with io.open(self.ledger, "w", encoding="utf-8") as fh:
+            json.dump({"calls": [now - 60.0 * (i + 1) for i in range(25)]}, fh)
+        out = self.ask(env={"TVD_CLAUDE_BIN": self.cli})
+        self.assertEqual(out.get("status"), 200, "vision reads refused an intake read: %r" % out.get("body"))
+
+
 @unittest.skipIf(GIT is None, "git is absent - this law is UNMEASURED, not passing")
 class TheSettingsFileNeverTravels(unittest.TestCase):
 
-    def test_tv_pc_settings_json_is_ignored_by_git(self):
+    def _unignored(self, rels):
         """Asked of git's own matcher in a throwaway repo seeded with the tree's .gitignore. GIT_* is dropped for
         these calls only: inside a push hook GIT_DIR points at the real repo and would outrank cwd."""
         d = tempfile.mkdtemp(prefix="pc-settings-ignore-")
@@ -215,9 +259,18 @@ class TheSettingsFileNeverTravels(unittest.TestCase):
         subprocess.run([GIT, "init", "-q", d], check=True, env=env)
         shutil.copyfile(os.path.join(ROOT, ".gitignore"), os.path.join(d, ".gitignore"))
         os.makedirs(os.path.join(d, "tv"))
-        r = subprocess.run([GIT, "check-ignore", "-q", "--no-index", "tv/pc_settings.json"], cwd=d, env=env)
-        self.assertEqual(r.returncode, 0, "tv/pc_settings.json is trackable - one `git add -A` publishes this PC's "
-                                          "settings to a public repo and ships them to every other PC")
+        return [r for r in rels
+                if subprocess.run([GIT, "check-ignore", "-q", "--no-index", r], cwd=d, env=env).returncode != 0]
+
+    def test_tv_pc_settings_json_is_ignored_by_git(self):
+        self.assertEqual(self._unignored(["tv/pc_settings.json"]), [],
+                         "tv/pc_settings.json is trackable - one `git add -A` publishes this PC's settings to a "
+                         "public repo and ships them to every other PC")
+
+    def test_the_ledgers_temp_files_are_ignored_by_git(self):
+        """REG-2385 - both writers mint a temp file beside the ledger and rename it away under a running console."""
+        self.assertEqual(self._unignored(["tv/.subscription_budget.json.tmp", "tv/.subscription_budget.json.4242.tmp"]),
+                         [], "a ledger temp file is trackable")
 
 
 if __name__ == "__main__":
@@ -299,6 +352,34 @@ RED_PROOF = [
         "why": "REG-2382 - this PC's settings file is trackable: one `git add -A` publishes it and ships it to every PC",
         "file": "../.gitignore",
         "find": "\ntv/pc_settings.json\n",
+        "replace": "\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2385 - recording an intake call erases the vision lane's seconds rows from the shared ledger again",
+        "file": "intake_local.mjs",
+        "find": "    if (n >= MS_FLOOR) return now - n < DAY_MS;\n    const age = now / 1000 - n;\n    return age >= -60 && age < 86400;\n",
+        "replace": "    return now - n < DAY_MS;\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2385 - the intake cap starts counting the vision lane's reads (a rule change nobody ruled on)",
+        "file": "intake_local.mjs",
+        "find": "  const calls = (state.calls || []).filter((t) => now - t < DAY_MS);\n",
+        "replace": "  const calls = (state.calls || []).map((t) => (t < 1e11 ? t * 1000 : t)).filter((t) => now - t < DAY_MS);\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2385 - the ledger is rewritten in place again: a torn write reads as {} and resets both lanes' caps",
+        "file": "intake_local.mjs",
+        "find": "    renameSync(tmp, BUDGET_PATH);\n    return;\n",
+        "replace": "    throw new Error('written in place');\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2385 - the ledger's temp files are trackable under a running console",
+        "file": "../.gitignore",
+        "find": "\ntv/.subscription_budget.json.*\n",
         "replace": "\n",
         "matches": 1,
     },

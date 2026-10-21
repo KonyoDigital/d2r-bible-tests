@@ -201,6 +201,14 @@ FIX: `_git_common_dir` reads `.git` the way git does - a relative gitdir joined 
 GUARDS: tv/test_one_verdict_cache_serves_every_tree.py (relative gitdir from another cwd; REAL git worktrees, absolute and --relative-paths, land on `git rev-parse --git-common-dir`; bare repository; an unreadable pointer is said) - 7 of 7 PROVEN; tv/test_safe_copy.py (every store generation and side file stays out, the census still travels) - 6 of 6 PROVEN; tv/test_a_proven_verdict_is_reused_only_on_identical_bytes.py (every side file is gitignored).
 
 LEFT: a checkout with no readable git dir banks into its own store and is SAID, but nothing merges that store into the machine's at the end of the push (there is no machine store it could find).
+### REG-2385 - EVERY INTAKE READ ERASED THE VISION LANE'S ROWS FROM THE SHARED SUBSCRIPTION LEDGER
+
+tv/.subscription_budget.json has two writers on two clocks: tv_diablo's vision lane (`_sub_budget_record`, `time.time()` SECONDS - the meter control_app's `_meter_state` draws) and tv/intake_local.mjs (`Date.now()` MILLISECONDS). REG-217 taught the Python side to read a millisecond row; the Node side was never fixed. Recording an intake call kept only the rows younger than a day IN MILLISECONDS - which no seconds row ever is - and wrote the file back, so every intake read deleted every vision row. Reproduced on a fixture 2026-10-21: three fresh vision rows in, one intake row out. (His live ledger that evening held 40 rows, every one in milliseconds.) The write was also in place: a torn file reads as {} on both sides and restarts both lanes' caps.
+
+FIX: `budgetRecord()` keeps the other lane's rows, aged in their own unit (tv_diablo's window: a minute of skew, under a day); the write is tmp + rename (per-process tmp; the old in-place write only where a rename is refused). What the intake cap COUNTS is unchanged - its own millisecond rows - and is now pinned: whether vision reads should count against the intake cap is a ruling nobody has made. `tv/.subscription_budget.json.*` (both writers' temp files) is ignored.
+
+GUARD: tv/test_the_reader_cap_comes_from_this_pcs_settings.py `TheLedgerKeepsTheOtherLanesRows` (a stand-in claude CLI admits and records a call; POSIX only) and `test_the_ledgers_temp_files_are_ignored_by_git`. 4 RED proofs.
+
 ### REG-2383 - A CAPPED READ WAS ANSWERED 200, OR READ ON THE WEBSITE'S API KEY
 
 tv/intake_local.mjs refused a call at its cap by throwing inside the fetch shim. intake.js catches every throw and answers `200 {"error":"worker-exception", ...}`, so the console handed the board a SUCCESS status for a read that never happened. ask.js does not catch: the runner died with exit 1, and control_app's /api/intake handler, finding no lane answer, fell through to the website proxy - which reads on the site's ANTHROPIC_API_KEY, the spend the subscription cap exists to stop. In shadow mode a capped Claude plus a Grok failover that could not run took the same road.

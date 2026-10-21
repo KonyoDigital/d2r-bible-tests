@@ -10956,7 +10956,9 @@ GATES = [
              "the circuit (parseInt('0') || 20). One rule on every PC now (tv/pc_settings.mjs): env override > this "
              "PC's gitignored tv/pc_settings.json > the default; the refusal names its limit, its source and retry_s, "
              "and is status 429. Driven through the real runner and pipeline on a fixture ledger and settings file; "
-             "the claude CLI is a path that does not exist, so no case spends a read."),
+             "the claude CLI is a path that does not exist, so no case spends a read. REG-2385 - recording an intake "
+             "call erased the vision lane's seconds rows from the shared ledger; they are kept (a stand-in CLI admits "
+             "and records a call), the intake cap still counts its own rows, and the write is atomic."),
     Gate("test_a_capped_read_is_answered_429",
          [sys.executable, os.path.join(HERE, "test_a_capped_read_is_answered_429.py")], 120,
          needs_app=False,
