@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2350 - A PROOF RUN A SIGNAL ENDED READ AS RED, SO A KILLED TAMPERED RUN COULD BE BANKED PROVEN (#42 R5, push-proof track T2)
+
+Spec R5 and the critic's could_lie entry on it, 2026-10-21. `heart2._run_gate_once` returned `returncode == 0`. A law process ended by a signal (reap's by-pid kill of a lane child, jetsam, a Ctrl-C) therefore read RED. In a tampered run that is PROVEN, banked after a green closing run, and it stands until an input moves. In a clean run it read ALREADY RED and refused a good push. Two more shapes read the same way: a shell's 128+N exit (a child killed by signal N), and a GRANDCHILD a signal ended (a headless Chrome, the node demo, a python helper). In the second case the law exits 1 with an ERROR case. Also found on the way: two copies of tv/gate_trace on sys.path chained into each other (measured 163 B lines for one process). That was latent until heart2 armed its own copy.
+
+FIX: before any verdict line is read, a run is UNKNOWN (None) when the law was killed by a signal, or exited 128+N for N in 1, 2, 6, 9, 14, 15. It is also UNKNOWN when the kill watch saw a child of the run end by a signal that no process of the run sent. heart2 arms the watch on every run (TV_GATE_KILLS and its own gate_trace copy on PYTHONPATH). The watch is gate_trace/sitecustomize.py's `_boot_kills`. It writes K for every child a signal ended (wait, poll, and an exit sweep of children nobody waited on) and X for every os.kill / os.killpg the process sent (a 0 probe is not one). heart2._kills_in explains a K by an X to its pid, its group or every process. SIGPIPE is not a kill. A law that ends its own helper is judged as before. The narrow path and the closing run fall through on UNKNOWN; a killed run teaches the red memory nothing and banks nothing. SIGINT now ends a prover like SIGTERM: sandboxes are removed and it exits 130. The chain skips every gate_trace copy, so two copies boot once.
+
+GUARD (registered in tv/run_gates.py): tv/test_a_killed_run_is_never_a_red.py (16 RED proofs, heart2 16/16 PROVEN). It drives the real _run_gate_once / _prove_one / _prove_push_one / _prove_gate_push over probe gates with real signals. The scenarios that kill on purpose run in a driver whose own environment carries no watch, so the watch heart2 arms over the law's own run is not fed by them.
+
+LEFT: a kill sent by a NON-python process of the run (a shell `kill`, node) has no X line, so that run reads UNKNOWN. That errs toward re-proving, never toward a false verdict. A python child run with -I/-E, or with PYTHONPATH scrubbed, is not watched. Windows has no negative exit codes, so the watch never fires there.
+
 ### REG-2335 - AFTER A RESET HIS BOARD STILL HELD A TORCH IN SHARED STASH, A TORCH IN UNI-SMALL AND SIX CHARMS IN MAGIC & RARE (v3782)
 
 Elad, v3778 console, 2026-10-21 01:44 IDT: "when i do reset it. i still have these items that are stuck and not being deleted automatically with the rest of the items" and "there should be an option that resets just the items and wipes them from the mules and shared stash/war stash/mules all emptied" (runes / gems / materials need not be reset).

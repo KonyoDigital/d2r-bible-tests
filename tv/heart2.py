@@ -1040,10 +1040,12 @@ def _on_fatal_signal(signum, frame):
 
 
 def install_sandbox_cleanup():
-    """-> the signals now covered. Only the main thread may install a handler; anywhere else this is a no-op."""
+    """-> the signals now covered. Only the main thread may install a handler; anywhere else this is a no-op.
+    REG-2350 - SIGINT too: a Ctrl-C raised KeyboardInterrupt in the main thread only, the lanes ran on behind it with
+    their sandboxes, and the law runs the same Ctrl-C killed read as RED. Now it ends the prover like the others."""
     import signal
     done = []
-    for name in ("SIGTERM", "SIGALRM", "SIGHUP"):
+    for name in ("SIGTERM", "SIGALRM", "SIGHUP", "SIGINT"):  # REG-2350 - SIGINT
         sig = getattr(signal, name, None)
         if sig is None:
             continue
@@ -1347,11 +1349,112 @@ def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=N
     return again[0], str(again[1]) + note + " (re-run once)"
 
 
+# ══ REG-2350 (#42 R5) — A RUN A SIGNAL ENDED IS UNKNOWN, NEVER A RED ═══════════════════════════════════════════════════
+# _run_gate_once returned `returncode == 0`, so a law process killed by a signal (-9 from reap's by-pid kill or jetsam,
+# -2 from a Ctrl-C) read as RED: in a tampered run that is PROVEN, banked after a green closing run, a lie standing until
+# an input moves; in a clean run it is ALREADY RED and refuses a good push. Two more shapes read the same: a shell that
+# reports a child killed by signal N exits 128+N, and a GRANDCHILD killed by a signal (a headless Chrome, the node demo,
+# a python helper) makes the law exit 1 with an ERROR case. So, before any verdict is read:
+#   · the law process ended by a signal (a negative code), or exited 128+N for a signal N that ends a run from outside
+#     (_SHELL_SIGNALS - heart2's own handlers exit 128+N for SIGTERM/SIGALRM/SIGHUP/SIGINT the same way) -> UNKNOWN;
+#   · the kill watch (gate_trace/sitecustomize.py, armed here by TV_GATE_KILLS) saw a child of the run end by a signal
+#     that no process of the run SENT (a K line no X line explains; SIGPIPE, a closed pipe, is not a kill) -> UNKNOWN.
+# A law that kills its own child (terminate, kill, killpg - the X line) is judged exactly as before. UNKNOWN is never
+# banked, never a stop, and the narrow path and the closing run both fall through on it. Counted for the push record.
+# The law: test_a_killed_run_is_never_a_red. [[unknown-stays-unknown]]
+_SHELL_SIGNALS = (1, 2, 6, 9, 14, 15)
+_SIGNAL_RUNS = {"n": 0}
+_SIGNAL_LOCK = threading.Lock()
+_KILL_LINE = re.compile(r"^([KX])\t\d+\t(.*)$")
+_KILL_FIELD = re.compile(r"(\w+)=(\S+)")
+
+
+def _signal_words(n):
+    """'signal 9 (SIGKILL)' -> str"""
+    try:
+        import signal as _sg
+        return "signal %d (%s)" % (int(n), _sg.Signals(int(n)).name)
+    except Exception:
+        return "signal %s" % (n,)
+
+
+def _ended_by_signal(rc):
+    """REG-2350 — the signal a law's exit code says ended it, or None. -> (n, words) | None"""
+    if not isinstance(rc, int) or isinstance(rc, bool):
+        return None
+    if rc < 0:
+        return -rc, "the law was killed by %s" % _signal_words(-rc)
+    if rc - 128 in _SHELL_SIGNALS:
+        return rc - 128, "the law exited %d, a shell's word for a child killed by %s" % (rc, _signal_words(rc - 128))
+    return None
+
+
+def _kill_watch(env):
+    """REG-2350 — arm gate_trace/sitecustomize.py's kill watch in a run's environment. -> the watch file | None
+
+    The prover's OWN copy of the hook (HERE, never the sandbox's): a proof that tampers the hook in its sandbox must not
+    blind the watch over its own run."""
+    try:
+        fd, path = tempfile.mkstemp(prefix="heart2-kills.", suffix=".tsv")
+        os.close(fd)
+    except OSError:
+        return None
+    env["TV_GATE_KILLS"] = path
+    hook_dir = os.path.join(HERE, "gate_trace")
+    old = env.get("PYTHONPATH") or ""
+    if hook_dir not in old.split(os.pathsep):
+        env["PYTHONPATH"] = hook_dir + (os.pathsep + old if old else "")  # KILL-WATCH-ARM
+    return path
+
+
+def _kills_in(path):
+    """REG-2350 — the K lines of one run's kill watch that no X line of the SAME run explains. -> [{pid, pgid, sig, head}]
+
+    Explained: a signal some process of the run sent to that pid, to its group (a group leader's pid is its pgid), or to
+    every process. SIGPIPE is a reader that closed its end, not a kill. A watch file nobody can read is no K line: the
+    watch adds UNKNOWNs, it never grants a verdict."""
+    try:
+        with io.open(path, encoding="utf-8", errors="replace") as fh:
+            lines = fh.read().splitlines()
+    except (OSError, TypeError):
+        return []
+    ks, pids, groups, every = [], set(), set(), False
+    for ln in lines:
+        m = _KILL_LINE.match(ln)
+        if not m:
+            continue
+        f = dict(_KILL_FIELD.findall(m.group(2)))
+        if m.group(1) == "K":
+            ks.append(f)
+        elif m.group(2).startswith("all"):
+            every = True
+        elif "pid" in f:
+            pids.add(f["pid"])
+        elif "pgid" in f:
+            groups.add(f["pgid"])
+    try:
+        import signal as _sg
+        _pipe = int(getattr(_sg, "SIGPIPE", 13))
+    except Exception:
+        _pipe = 13
+    out = []
+    for k in ks:
+        try:
+            if int(k.get("sig")) == _pipe:
+                continue
+        except (TypeError, ValueError):
+            continue
+        if every or k.get("pid") in pids or k.get("pid") in groups or (k.get("pgid") or "-") in groups:
+            continue  # KILL-WATCH-EXPLAINED
+        out.append(k)
+    return out
+
+
 def _run_gate_once(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=None):
     # v2882 — `extra` carries the registered gate's argv tail (e.g. `--selftest`). Without
     # it a gate runs a command the suite never issues, and its verdict is about something
     # else. Default empty keeps every existing caller identical.
-    """-> (passed: bool, tail: str)"""
+    """-> (passed: bool | None, tail: str). None = UNKNOWN: a deadline, a missing file, or a run a signal ended."""
     p = os.path.join(sandbox_tv, filename)
     if not os.path.exists(p):
         return None, "the gate file is not in the sandbox"
@@ -1387,11 +1490,31 @@ def _run_gate_once(sandbox_tv, filename, timeout=180, extra=(), script=None, wid
         return a
     _args = [_resite(a) for a in extra]
     _cmd = ([sys.executable, "-c", script] + _args) if script else ([sys.executable, p] + _args)
+    _watch = _kill_watch(env)                 # REG-2350 — which children of this run a signal ended, and who sent it
     try:
         r = subprocess.run(_cmd, cwd=sandbox_tv, env=env,
                            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=timeout)
     except subprocess.TimeoutExpired:
         return None, "timed out after %ss" % timeout
+    finally:
+        _killed = _kills_in(_watch) if _watch else []
+        if _watch:
+            try:
+                os.unlink(_watch)
+            except OSError:
+                pass
+    _sig = _ended_by_signal(r.returncode)
+    if _sig is not None or _killed:
+        # REG-2350 — NOT A VERDICT, before any line of it is read: a signal from outside ended the law or a child of it
+        with _SIGNAL_LOCK:
+            _SIGNAL_RUNS["n"] += 1
+        _k = _killed[0] if _killed else {}
+        _why = _sig[1] if _sig is not None else (
+            "a child of the run (%s, pid %s) was killed by %s that nothing in the run sent"
+            % (_k.get("head") or "?", _k.get("pid") or "?", _signal_words(_k.get("sig"))))
+        _tl = ((r.stdout or b"").decode("utf-8", "replace").strip().splitlines() or [""])[-1].strip()[:80]
+        return None, "%s - a run a signal ended is UNKNOWN, never a verdict (REG-2350)%s" % (
+            _why, (" | last line: %s" % _tl) if _tl else "")
     # ⚠⚠ v2870 — THE LAST LINE ALONE IS A NUMERATOR WITH NO DENOMINATOR. unittest prints
     # "Ran 10 tests in 0.1s", a blank, then "OK (skipped=4)" — and keeping only the last line threw
     # away the one number that says whether a skip covered the WHOLE file or part of it. A

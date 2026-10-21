@@ -10898,6 +10898,15 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_an_inert_child_does_not_untrace_a_gate.py")], 60,
          needs_app=False,
          why="v3775 (REG-2296) fix 5 - sleep, ps and pgrep read no file in this checkout (a pgrep pattern is matched, never opened), so they no longer make a gate's reads UNKNOWN. lsof on a path here, bash, sh, chrome, perl and the rest still do."),
+    Gate("test_a_killed_run_is_never_a_red",
+         [sys.executable, os.path.join(HERE, "test_a_killed_run_is_never_a_red.py")], 120,
+         needs_app=False,
+         why="REG-2350 (#42 R5) - heart2 read a law run's exit code as its verdict, so a run a SIGNAL ended (reap's "
+             "by-pid kill, jetsam, a Ctrl-C; a shell's 128+N; a helper such as a headless Chrome killed from outside) "
+             "read RED: a tampered run became PROVEN and was banked, a clean run read ALREADY RED and refused a good "
+             "push. Such a run is now UNKNOWN: the kill watch in gate_trace/sitecustomize.py writes K for every child a "
+             "signal ended and X for every signal the run sent itself, and a K no X explains is a kill from outside. A "
+             "law that ends its own helper is judged as before; SIGINT ends a prover like SIGTERM."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

@@ -24,6 +24,19 @@ itself is not a listing by the gate. Lines go straight to an O_APPEND descriptor
 os._exit and a kill keep what was already seen. gate_ledger.read_trace() turns this into an input
 set, and a gate with any U line, or with no B line for a child it started, is never carried.
 After installing the hook, the next `sitecustomize` on sys.path (the system's own) still runs.
+
+REG-2350 (#42 R5) - THE KILL WATCH, armed by TV_GATE_KILLS alone (heart2 arms it on every proof run), into its
+own file, in the same line shape:
+
+    K  a child this process waited on or polled ENDED BY A SIGNAL (TEXT: pid, pgid when known, sig, argv0 name)
+    X  this process SENT a signal (os.kill / os.killpg; a 0 probe is not one): `pid=N`, `pgid=N` or `all`
+
+heart2 reads the pair: a K that no X of the same run explains is a kill from OUTSIDE the run (a by-pid reap, jetsam,
+a Ctrl-C) and the run is UNKNOWN, never a red. MEASURED tonight: a lane child killed by reap or jetsam made its law
+exit 1 with an ERROR case, which read as red, and a red tampered run is PROVEN. Children are noted when they start,
+and an atexit sweep polls the ones nobody waited on, so a headless Chrome jetsam took mid-run is still said.
+Two copies of this folder on sys.path (heart2 arms its own, and a law arms its sandbox's for a fixture gate) boot
+ONCE: the chain below skips every gate_trace folder - before, they chained into each other 160 times.
 """
 import _thread
 import os
@@ -319,12 +332,146 @@ def _boot():
     return here
 
 
-def _chain(here):
+def _boot_kills():
+    """REG-2350 (#42 R5) - K and X lines into TV_GATE_KILLS (see the docstring). Never raises; a process that cannot
+    open the file runs unwatched, exactly as before. Booted once per process, whichever copy of this file loads."""
+    out = os.environ.get("TV_GATE_KILLS") or ""
+    if not out or getattr(sys, "_tv_gate_kills", False):
+        return
+    try:
+        fd = os.open(out, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
+    except OSError:
+        return
+    sys._tv_gate_kills = True
+    write = os.write
+    getpid = os.getpid
+    getpgid = getattr(os, "getpgid", None)
+    getpgrp = getattr(os, "getpgrp", None)
+    getframe = sys._getframe
+    st = {"cls": None, "live": None}
+    events = frozenset(("os.kill", "os.killpg", "subprocess.Popen"))
+
+    def emit(kind, text):
+        try:
+            write(fd, ("%s\t%d\t%s\n" % (kind, getpid(), text)).encode("utf-8", "replace"))
+        except OSError:
+            pass
+
+    def noted(p):
+        # the group is asked while the child can still answer: a reaped (or zombie) pid has none on macOS
+        if getpgid is not None:
+            try:
+                if p.returncode is None:
+                    p.__dict__["_tv_pgid"] = getpgid(p.pid)
+            except Exception:
+                pass
+
+    def judged(p):
+        try:
+            rc = p.returncode
+            if isinstance(rc, int) and not isinstance(rc, bool) and rc < 0 and not p.__dict__.get("_tv_k"):
+                p.__dict__["_tv_k"] = True
+                a = p.args
+                head = os.path.basename(str(a[0] if isinstance(a, (list, tuple)) and a else a))[:40]
+                emit("K", "pid=%s pgid=%s sig=%d head=%s" % (p.pid, p.__dict__.get("_tv_pgid", "-"), -rc,
+                                                             head.replace(" ", "_") or "-"))
+        except Exception:
+            pass
+
+    def patch(cls):
+        real_wait, real_poll = cls.wait, cls.poll
+
+        def wait(self, *a, **k):
+            noted(self)
+            try:
+                return real_wait(self, *a, **k)
+            finally:
+                judged(self)  # KILL-WATCH-WAIT
+
+        def poll(self, *a, **k):
+            noted(self)
+            try:
+                return real_poll(self, *a, **k)
+            finally:
+                judged(self)  # KILL-WATCH-POLL
+        for f, r in ((wait, real_wait), (poll, real_poll)):
+            f.__wrapped__, f.__name__, f.__doc__ = r, r.__name__, r.__doc__
+        cls.wait, cls.poll = wait, poll
+
+    def sweep():
+        """at exit: a child nobody waited on that a signal ended is said too (a jetsam'd Chrome a test never polled)"""
+        for p in list(st["live"] or ()):
+            try:
+                p.poll() if p.returncode is None else judged(p)  # KILL-WATCH-SWEEP
+            except Exception:
+                pass
+
+    def hook(event, args):
+        if event not in events:
+            return
+        try:
+            if event == "subprocess.Popen":
+                sp = sys.modules.get("subprocess")
+                if sp is None:
+                    return
+                if st["cls"] is None:
+                    import atexit
+                    import weakref
+                    st["cls"], st["live"] = sp.Popen, weakref.WeakSet()
+                    patch(sp.Popen)
+                    atexit.register(sweep)
+                f = getframe(1)
+                for _i in range(4):
+                    if f is None:
+                        break
+                    me = f.f_locals.get("self")
+                    if isinstance(me, sp.Popen):
+                        st["live"].add(me)
+                        break
+                    f = f.f_back
+                return
+            target, sig = int(args[0]), int(args[1])
+            if not sig:
+                return  # a probe (signal 0) ends nothing
+            if event == "os.killpg":
+                who = "pgid=%d" % (target or (getpgrp() if getpgrp else 0))
+            elif target > 0:
+                who = "pid=%d" % target
+            elif target == -1:
+                who = "all"
+            else:
+                who = "pgid=%d" % (-target if target else (getpgrp() if getpgrp else 0))
+            emit("X", "%s sig=%d" % (who, sig))  # KILL-WATCH-SENT
+        except Exception:
+            pass
+    sys.addaudithook(hook)
+
+
+def _is_trace_dir(p):
+    """A folder that holds a copy of this hook (this file beside node_trace.cjs). -> bool"""
+    try:
+        return (os.path.isfile(os.path.join(p or ".", "sitecustomize.py"))
+                and os.path.isfile(os.path.join(p or ".", "node_trace.cjs")))
+    except Exception:
+        return False
+
+
+def _chain_path(here):
+    """Where the sitecustomize this one shadows is looked for. REG-2350 - never in ANOTHER copy of this folder: heart2
+    puts its own on PYTHONPATH and a ledger law puts its sandbox's in front of it, and two copies that each chained to
+    "the next sitecustomize" booted each other ~160 times (measured). Asked BEFORE any hook is armed, so these stats
+    are never facts of the gate's trace."""
+    try:
+        return [p for p in sys.path if os.path.abspath(p or ".") != here and not _is_trace_dir(p)]  # TRACE-CHAIN-ONCE
+    except Exception:
+        return [p for p in sys.path if os.path.abspath(p or ".") != here]
+
+
+def _chain(path):
     """Run the sitecustomize this one shadows, so the system's own hook still loads."""
     try:
         import importlib.machinery
         import importlib.util
-        path = [p for p in sys.path if os.path.abspath(p or ".") != here]
         spec = importlib.machinery.PathFinder.find_spec("sitecustomize", path)
         if spec is None or spec.loader is None:
             return
@@ -334,4 +481,7 @@ def _chain(here):
         pass
 
 
-_chain(_boot() or os.path.dirname(os.path.abspath(__file__)))
+_CHAIN_PATH = _chain_path(os.path.dirname(os.path.abspath(__file__)))
+_boot_kills()
+_boot()
+_chain(_CHAIN_PATH)
