@@ -1420,9 +1420,12 @@ def _run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=N
 #     (_SHELL_SIGNALS - heart2's own handlers exit 128+N for SIGTERM/SIGALRM/SIGHUP/SIGINT the same way) -> UNKNOWN;
 #   · the kill watch (gate_trace/sitecustomize.py, armed here by TV_GATE_KILLS) saw a child of the run end by a signal
 #     that no process of the run SENT (a K line no X line explains; SIGPIPE, a closed pipe, is not a kill) -> UNKNOWN.
-# A law that kills its own child (terminate, kill, killpg - the X line) is judged exactly as before. UNKNOWN is never
-# banked, never a stop, and the narrow path and the closing run both fall through on it. Counted for the push record.
-# The law: test_a_killed_run_is_never_a_red. [[unknown-stays-unknown]]
+# A law that kills its own LIVE child (terminate, kill, killpg - the X line) is judged exactly as before. REG-2356: a
+# signal sent to a child that was already dead explains nothing. That is a teardown signalling a helper a kill from
+# outside had already ended, which once banked a BLIND law PROVEN. Nor does a signal sent after the death was reaped,
+# or one of another number (see _kills_in). UNKNOWN is never banked, never a stop, and the narrow path and the closing
+# run both fall through on it. Counted for the push record. The law: test_a_killed_run_is_never_a_red.
+# [[unknown-stays-unknown]]
 _SHELL_SIGNALS = (1, 2, 6, 9, 14, 15)
 _SIGNAL_RUNS = {"n": 0}
 _SIGNAL_LOCK = threading.Lock()
@@ -1473,41 +1476,56 @@ def _kills_in(path):
 
     Explained: a signal some process of the run sent to that pid, to its group (a group leader's pid is its pgid), or to
     every process. SIGPIPE is a reader that closed its end, not a kill. A watch file nobody can read is no K line: the
-    watch adds UNKNOWNs, it never grants a verdict."""
+    watch adds UNKNOWNs, it never grants a verdict.
+
+    REG-2356 — and only by an X that could have caused that death. Before, any X to the same pid or group explained a K,
+    so a helper killed from OUTSIDE (jetsam, a reap) and then signalled by the law's teardown before it was reaped read
+    as a death the run caused. The run read red, and a BLIND law was banked PROVEN (measured). Now all of these hold:
+      · the X is written ABOVE the K. The hook writes an X before its signal leaves and a K after the death is reaped,
+        so a death reaped before the signal was sent was never that signal's doing;
+      · the SAME signal: a SIGTERM never explains a SIGKILL death;
+      · the X is not `dead=1` (its target was already dead, or a group that pid does not lead), and it does not name
+        this pid in `gone=` (a member of the signalled group that was already dead)."""
     try:
         with io.open(path, encoding="utf-8", errors="replace") as fh:
             lines = fh.read().splitlines()
     except (OSError, TypeError):
         return []
-    ks, pids, groups, every = [], set(), set(), False
-    for ln in lines:
-        m = _KILL_LINE.match(ln)
-        if not m:
-            continue
-        f = dict(_KILL_FIELD.findall(m.group(2)))
-        if m.group(1) == "K":
-            ks.append(f)
-        elif m.group(2).startswith("all"):
-            every = True
-        elif "pid" in f:
-            pids.add(f["pid"])
-        elif "pgid" in f:
-            groups.add(f["pgid"])
     try:
         import signal as _sg
         _pipe = int(getattr(_sg, "SIGPIPE", 13))
     except Exception:
         _pipe = 13
+    sent, ks = [], []
+    for at, ln in enumerate(lines):
+        m = _KILL_LINE.match(ln)
+        if not m:
+            continue
+        f = dict(_KILL_FIELD.findall(m.group(2)))
+        try:
+            f["at"], f["n"] = at, int(f.get("sig"))
+        except (TypeError, ValueError):
+            continue  # a line with no signal number explains nothing and is no kill
+        if m.group(1) == "K":
+            ks.append(f)
+            continue
+        if f.get("dead") == "1":
+            continue  # KILL-WATCH-DEAD-X: it could end nothing, so it explains nothing
+        f["all"] = m.group(2).startswith("all")
+        f["gone"] = set((f.get("gone") or "").split(","))
+        sent.append(f)
     out = []
     for k in ks:
-        try:
-            if int(k.get("sig")) == _pipe:
-                continue
-        except (TypeError, ValueError):
+        if k["n"] == _pipe:
             continue
-        if every or k.get("pid") in pids or k.get("pid") in groups or (k.get("pgid") or "-") in groups:
+        if any(x["at"] < k["at"]  # KILL-WATCH-ORDER
+               and x["n"] == k["n"]  # KILL-WATCH-SAME-SIGNAL
+               and k.get("pid") not in x["gone"]  # KILL-WATCH-GONE-PID
+               and (x["all"] or ("pid" in x and x["pid"] == k.get("pid"))
+                    or ("pgid" in x and x["pgid"] in (k.get("pid"), k.get("pgid"))))
+               for x in sent):
             continue  # KILL-WATCH-EXPLAINED
-        out.append(k)
+        out.append(dict((key, v) for key, v in k.items() if key not in ("at", "n")))
     return out
 
 

@@ -29,12 +29,21 @@ REG-2350 (#42 R5) - THE KILL WATCH, armed by TV_GATE_KILLS alone (heart2 arms it
 own file, in the same line shape:
 
     K  a child this process waited on or polled ENDED BY A SIGNAL (TEXT: pid, pgid when known, sig, argv0 name)
-    X  this process SENT a signal (os.kill / os.killpg; a 0 probe is not one): `pid=N`, `pgid=N` or `all`
+    X  this process SENT a signal (os.kill / os.killpg; a 0 probe is not one): `pid=N`, `pgid=N` or `all`, then `sig=S`,
+       `dead=1` when the signal can end nothing at its target number, and `gone=a,b` naming the members of a signalled
+       group (children of this process) that were already dead. Written BEFORE the signal leaves.
 
 heart2 reads the pair: a K that no X of the same run explains is a kill from OUTSIDE the run (a by-pid reap, jetsam,
 a Ctrl-C) and the run is UNKNOWN, never a red. MEASURED tonight: a lane child killed by reap or jetsam made its law
 exit 1 with an ERROR case, which read as red, and a red tampered run is PROVEN. Children are noted when they start,
 and an atexit sweep polls the ones nobody waited on, so a headless Chrome jetsam took mid-run is still said.
+REG-2356 - an X is checked against its target BEFORE it is written, and without reaping anything. A helper killed from
+outside stays a zombie until it is reaped, and a teardown that then signalled it by pid or by group once wrote an X
+that explained the outside kill away: a BLIND law was banked PROVEN (measured). So the X now says `dead=1` when its pid
+is already dead (a zombie or no process: macOS getpgid answers ESRCH for both; Linux's /proc says Z or PF_EXITING),
+or, for a group, when that pid leads no group (killpg then reaches no one: ESRCH, measured). It also names in `gone=`
+every member it can see already dead. Nothing is reaped here: kill() on a zombie succeeds, and on a reaped pid it
+raises ESRCH (measured), so a reap would change what the law's own os.kill returns.
 Two copies of this folder on sys.path (heart2 arms its own, and a law arms its sandbox's for a fixture gate) boot
 ONCE: the chain below skips every gate_trace folder - before, they chained into each other 160 times.
 """
@@ -344,6 +353,7 @@ def _boot_kills():
         return
     sys._tv_gate_kills = True
     write = os.write
+    os_open, os_read, os_close, rdonly = os.open, os.read, os.close, os.O_RDONLY
     getpid = os.getpid
     getpgid = getattr(os, "getpgid", None)
     getpgrp = getattr(os, "getpgrp", None)
@@ -365,6 +375,54 @@ def _boot_kills():
                     p.__dict__["_tv_pgid"] = getpgid(p.pid)
             except Exception:
                 pass
+
+    def zombie_on_proc(n):
+        """Linux keeps a zombie's group, so getpgid cannot tell it from a live pid there: /proc says Z, or PF_EXITING
+        (0x4 in field 9, set before the dying task closes its files - so before any pipe of it reads EOF). On macOS
+        getpgid already answers ESRCH by the time a killed child's pipe reads EOF: 0 of 700 trials, 400 of them under
+        12 busy loops (measured). -> bool"""
+        try:
+            fd = os_open("/proc/%d/stat" % n, rdonly)
+        except OSError:
+            return False  # no /proc (macOS, where getpgid already answered) or no such pid
+        try:
+            data = os_read(fd, 512)
+        except OSError:
+            return False
+        finally:
+            os_close(fd)
+        i = data.rfind(b")")
+        rest = data[i + 1:].split() if i >= 0 else []
+        try:
+            return rest[0] in (b"Z", b"X") or bool(int(rest[6]) & 0x4)
+        except (IndexError, ValueError):
+            return False
+
+    def unreachable(kind, n):
+        """REG-2356 - can a signal sent to this target NUMBER end nothing? A pid that is already dead (a zombie nobody
+        reaped yet, or no process at all), or, for a group, a live pid that leads no group. Asked WITHOUT reaping.
+        False when it cannot be told: the reader then judges this X as before. -> bool"""
+        if kind == "all" or not n or n < 0 or getpgid is None:
+            return False
+        try:
+            g = getpgid(n)
+        except ProcessLookupError:
+            return True  # macOS: a zombie and a missing pid both answer ESRCH (measured)
+        except Exception:
+            return False
+        if kind == "pgid" and g != n:
+            return True  # it lives in another group: killpg(n) reaches no one (ESRCH, measured)
+        return zombie_on_proc(n)
+
+    def group_of(p):
+        """A child's group, read now if no wait or poll read it while it was alive. -> int | None"""
+        g = p.__dict__.get("_tv_pgid")
+        if g is None and getpgid is not None:
+            try:
+                g = p.__dict__["_tv_pgid"] = getpgid(p.pid)
+            except Exception:
+                g = None  # a zombie on macOS: its K says pgid=-, which no group X can explain
+        return g
 
     def judged(p):
         try:
@@ -434,14 +492,24 @@ def _boot_kills():
             if not sig:
                 return  # a probe (signal 0) ends nothing
             if event == "os.killpg":
-                who = "pgid=%d" % (target or (getpgrp() if getpgrp else 0))
+                kind, n = "pgid", (target or (getpgrp() if getpgrp else 0))
             elif target > 0:
-                who = "pid=%d" % target
+                kind, n = "pid", target
             elif target == -1:
-                who = "all"
+                kind, n = "all", 0
             else:
-                who = "pgid=%d" % (-target if target else (getpgrp() if getpgrp else 0))
-            emit("X", "%s sig=%d" % (who, sig))  # KILL-WATCH-SENT
+                kind, n = "pgid", (-target if target else (getpgrp() if getpgrp else 0))
+            # REG-2356 - before the X is written (the audit hook runs before the signal leaves): what can it NOT end?
+            dead = unreachable(kind, n)  # KILL-WATCH-DEAD
+            late = []
+            if kind != "pid":
+                for p in list(st["live"] or ()):
+                    if p.returncode is None and p.pid != n and (kind == "all" or group_of(p) == n) \
+                            and unreachable("pid", p.pid):
+                        late.append("%d" % p.pid)  # KILL-WATCH-GONE
+            who = "all" if kind == "all" else "%s=%d" % (kind, n)
+            tail = (" dead=1" if dead else "") + (" gone=" + ",".join(late) if late else "")
+            emit("X", "%s sig=%d%s" % (who, sig, tail))  # KILL-WATCH-SENT
         except Exception:
             pass
     sys.addaudithook(hook)
