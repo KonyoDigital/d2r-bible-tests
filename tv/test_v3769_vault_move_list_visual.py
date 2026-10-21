@@ -362,17 +362,20 @@ class TestV3769VaultMoveListVisual(unittest.TestCase):
         g, es, hq = names["griffon"], names["eschuta"], names["harlequin"]
 
         beside = self._js(cdp, _STEP_BESIDE % json.dumps(g))
-        tiles = [t for t in beside["tiles"] if "Griffon" in (t.get("n") or "")]
+        tiles = [t for t in beside["tiles"] if "Kira" in (t.get("n") or "")]
         tiles.sort(key=lambda t: (t["x"], t["y"]))
         self.assertGreaterEqual(len(tiles), 2, beside)
         dx, dy = tiles[1]["x"] - tiles[0]["x"], tiles[1]["y"] - tiles[0]["y"]
         adjacent = (dx == tiles[0]["w"] and dy == 0) or (dy == tiles[0]["h"] and dx == 0)
         self.assertTrue(adjacent, beside)
         _wait_fn(cdp, _ART_READY, timeout=20)
-        self._shot(cdp, "#vault-move-list", "01-duplicate-beside.png")
+        self._shot(cdp, "#vault-move-compare .vmc-card", "01-duplicate-beside.png")
+        self._js(cdp, "(function(){ window._vaultMoveCompareClose(); return true; })()")
 
         wit = self._js(cdp, _STEP_WITNESS % json.dumps(g))
-        self.assertIn("2 witnesses", wit.get("say") or "", wit)
+        # L1: the witness button is a small eye count; the full say rides in its title (hover).
+        self.assertEqual((wit.get("say") or "").strip(), "\U0001f441 2", wit)
+        self.assertIn("2 witnesses", wit.get("title") or "", wit)
         self._shot(cdp, "#vault-move-list", "02-witness-plus.png")
 
         locked = self._js(cdp, _STEP_LOCK % json.dumps(es))
@@ -381,7 +384,12 @@ class TestV3769VaultMoveListVisual(unittest.TestCase):
 
         dock = self._js(cdp, _STEP_DOCK)
         self.assertTrue(dock.get("homeless"), dock)
-        self.assertIn(dock["homeless"], dock["dock"], dock)
+        if dock.get("throwRoute"):
+            # L1 (Elad 2026-10-20): a junk route is a THROW OUT row in MOVE TASKS, never a dock chip
+            self.assertTrue(dock.get("throwRow"), dock)
+            self.assertNotIn(dock["homeless"], dock["dock"], dock)
+        else:
+            self.assertIn(dock["homeless"], dock["dock"], dock)
         self.assertNotIn(g, dock["dock"], dock)
         self._shot(cdp, "#vault-dock", "04-dock-homeless.png")
 
@@ -504,11 +512,11 @@ _NAMES = _wrap(r"""
     } catch (e) {}
     return hit || part;
   }
-  return { griffon: canon("Griffon's Eye"), eschuta: canon("Eschuta's Temper"), harlequin: canon("Harlequin Crest") };
+  return { griffon: canon("Kira's Guardian"), eschuta: canon("Eschuta's Temper"), harlequin: canon("Harlequin Crest") };
 """)
 
 _ART_READY = r"""(function(){
-  var imgs = document.querySelectorAll('#vault-move-list .vd-item img');
+  var imgs = document.querySelectorAll('#vault-move-compare .vmc-after .vd-item img');
   if (imgs.length < 2) return false;
   for (var i = 0; i < imgs.length; i++) if (!imgs[i].complete || imgs[i].naturalWidth < 1) return false;
   return true;
@@ -527,7 +535,7 @@ _STEP_BESIDE = _wrap(r"""
   look(g, 'Mule', 'stash', 'stash:c8r2', 's2', 'f-b');
   window.switchTab('vault');
   window.renderVault();
-  var tiles = [].map.call(document.querySelectorAll('#vault-move-list .vd-item'), function(el){
+  var tiles = [].map.call((window._vaultMoveCompareOpen && window._vaultMoveCompareOpen("Kira's Guardian", 0), document.querySelectorAll('#vault-move-compare .vmc-after .vd-item')), function(el){
     var img = el.querySelector('img');
     return { n: (el.getAttribute('title') || '').split(' (')[0], x: +el.getAttribute('data-x'),
              y: +el.getAttribute('data-y'), w: +el.getAttribute('data-w'), h: +el.getAttribute('data-h'),
@@ -542,7 +550,8 @@ _STEP_WITNESS = _wrap(r"""
     cell: 'stash:c1r1', sessionId: 's3', frameId: 'f-c', ts: Date.now() });
   window.renderVault();
   var el = document.querySelector('#vault-move-list .vmv-row[data-from="stash:c1r1"]');
-  return { say: el ? (el.querySelector('.vmv-wit') || {}).textContent : '',
+  var w = el ? el.querySelector('.vmv-wit') : null;
+  return { say: w ? w.textContent : '', title: w ? (w.getAttribute('title') || '') : '',
            status: el ? el.getAttribute('data-status') : null };
 """)
 
@@ -552,7 +561,7 @@ _STEP_LOCK = _wrap(r"""
     cell: 'inventory:c2r1', sessionId: 'e1', frameId: 'e-a', ts: Date.now() });
   window._laneLockNote(es, 'equipment', ['e1', 'e2', 'e3']);
   window.renderVault();
-  var lock = document.querySelector('#vault-move-list .vmv-lock[data-say="LOCKED"]');
+  var lock = document.getElementById('vault-equipped'); /* L1: locked gear reads on the Equipped (locked) line, outside MOVE TASKS */
   return { locked: !!(lock && lock.textContent.indexOf(es) >= 0),
            text: lock ? lock.textContent : '',
            sessions: window._laneLockSessions ? window._laneLockSessions(es) : null };
@@ -581,7 +590,9 @@ _STEP_DOCK = _wrap(r"""
   var dock = [].map.call(document.querySelectorAll('#vault-dock [data-vault-item]'), function(el){
     return el.getAttribute('data-vault-item');
   });
-  return { homeless: homeless, dock: dock, tried: tried };
+  var thr = !!(window._vaultThrowRoute && window._vaultThrowRoute(homeless));
+  var row = [].some.call(document.querySelectorAll('#vault-move-list .vmv-row[data-kind="throw"]'), function(el){ return el.getAttribute('data-name') === homeless; });
+  return { homeless: homeless, dock: dock, tried: tried, throwRoute: thr, throwRow: row };
 """)
 
 _STEP_MANUAL = _wrap(r"""

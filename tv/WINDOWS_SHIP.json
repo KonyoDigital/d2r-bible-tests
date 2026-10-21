@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3782",
+  "ver": "v3783",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3782: Wipe items empties every mule, Shared Stash, WAR and Magic and Rare - keeps runes, gems, materials (REG-2335)",
+  "note": "v3783: Vault L1 - war stash cap 4 and WAR overflow, one collapsed row per move task, the router files every item (REG-2330)",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",

@@ -35,6 +35,134 @@ Elad's Mac, v3775 (main 4f487af9), 2026-10-20: Vault, D2JSP and every other boar
 GUARDS (registered in tv/run_gates.py): tv/test_a_locked_tab_never_strands_the_veil.py (5 RED proofs); tv/test_a_tab_click_is_never_silently_dropped.py updated for the reload round.
 
 LEFT: why his window reads hidden while on screen (macOS occlusion of the pywebview window) is not fixed here; only its effect on the tab route is.
+### REG-2303 - A SECOND HAND-ADDED COPY VANISHED, AND THE WAR STASH WAS ONE PAGE (Vault L1, provisional number, unversioned)
+### REG-2308 - THE WAR STASH DREW 9 OF ONE BELT; OVER-CAP COPIES WENT TO NORMAL MULES; MOVE TASKS SHARED ONE MERGED GRID (Vault L1, v3776)
+### REG-2321 - THE WAR STASH DREW 9 OF ONE BELT; OVER-CAP COPIES WENT TO NORMAL MULES; MOVE TASKS SHARED ONE MERGED GRID (Vault L1, v3776)
+### REG-2330 - THE WAR STASH DREW 9 OF ONE BELT; OVER-CAP COPIES WENT TO NORMAL MULES; MOVE TASKS SHARED ONE MERGED GRID (Vault L1, v3776)
+Live v3776 shot 10 (2026-10-20 22:05 IDT): the SHARED STASH card drew Arachnid Mesh 1/9..9/9. Cause: his real tally holds 9
+Arachnid Mesh (records copyIx 0-8, not a script add or staged duplicate); REG-2307's small-gear rule (<=2 cells keeps EVERY copy)
+let all 9 in, and the card drew every owned copy on the filed locker (copyCount), ignoring the plan - so Enigma x7, Infinity x6,
+Shako x7 also drew there although their tasks moved extras out. His rulings: rings and amulets keep every copy; any other small
+item at most 4; big gear 1; extras go to WAR1, WAR2 ... in order (not their normal mule), never auto-created; with none, the
+'make a mule named WAR1' line plus per-copy rows. Fix: _vaultWarCap (footprint + the router's base: 1x1 ring/amulet = all, <=2
+cells or belt/sash/charm = 4, else 1), _vaultWarKept/_vaultWarOver per copy (war-stash copies, then the planned keeper, then
+first-witnessed order); an over copy stays shared-homed with over:true and the packer sends it past the 5 pages to the WAR mules;
+the SHARED card caps its draw, a WAR card draws the copies planned on it (_vaultWarOverOn). Also (Elad 22:35): every MOVE TASK is
+its own collapsed row; a click expands FROM (MANUAL / seen source cell / DEMO, said simulated) and TO (a mini grid of that mule
+with only this item at its exact cell); _vaultMoveGridHtml keys one grid per task. Guards: test_vault_l1_war_stash_overflow
+(29 RED_PROOF, 9 belts -> 4 + 5 on WAR1, 6 rings -> 6) and test_vault_l1_a_hand_add_routes_by_type (task expansion).
+[[regression-guard]]
+
+v3778 follow-up (Elad 2026-10-21 01:48): hand-added Angelic Sickle (with Gheed's Fortune, Hellfire Torch) fell to the UNSORTED
+DOCK as a discard, and MOVE TASKS drew one open 'Location not seen yet' block for one item. Cause: _vaultHandTyped read only the
+witness store's FIRST record, so an item a frame had seen before his typing read as not-typed and the ruled-junk route sent it to
+the dock; the seam also sent a route to a missing mule (and a null route) to the dock. His rule: the router files EVERY item -
+anything in UNSORTED is a routing bug (his own manual unsort-all stays). Fix: his MANUAL move row is a second proof of typing; a
+typed junk/homeless item files to the sets mule (set piece) or the war stash; a missing-mule route tries the other sets mule, else
+the war stash; nothing is created. MOVE TASKS paints every task as its own collapsed row in one list (no shared unseen block); a
+click expands FROM + TO for that task only. Guard: test_vault_l1_router_files_every_item (10 RED, PROVEN); v3767 dock seam and
+v3771 console face laws re-pointed to the new ruling (PROVEN).
+
+### REG-2307 - THE WAR STASH HELD EVERY COPY OF BIG WAR GEAR, SO HIS REAL DATA OVERFLOWED BY 85 COPIES; WAR MULES WERE BOUND BY NAME (Vault L1, v3776)
+His real vault (2026-10-20): 170 copies routed to the 5-page war stash needed ~717 cells of ~500, leaving 85 copies with no cell
+(Shako x7, SoJ x5, Raven Frost x5, Mara's x6...). His rulings: keep ONE copy of a big war item there, extras to the normal mule;
+small gear (rings, amulets, belts, charms) keeps every copy grouped; WAR1/WAR2 are part of the Shared Stash, coloured and placed
+with it; mule names will be renamed, so routing/tasks/colour bind to the id. Fix: _vaultMoveHome is per copy (_vaultWarExtra,
+_vaultWarKeeper: a copy seen in / planned for the shared stash wins, else copy 0, never swapped); size by footprint
+(_vaultWarSmall: <=2 cells, or ring/amulet/belt/charm type); an extra already filed on its home mule gets no row; WAR mules carry
+role 'war' + warN on the id (stamped from the WAR name, kept through vaultRenameMule), move targets carry the mule id and
+same-place compares by id; vm-war class shares the shared-stash colour, order -1 behind SHARED (-2), badge 'SHARED STASH · overflow'
+on card and rows. Also: an unknown unique 'Harlequin Crest (Shako)' extra reads its slot off its base (helm -> UNI-ARMOR, not
+UNI-WEAPONS), and bible.html no longer tells him to press Auto-assign. After: 87 copies kept, 258 / 500 cells, 0 overflow.
+Guard: test_vault_l1_war_stash_overflow (22 RED_PROOF attacks, wilson 0.851 >= 0.722). [[regression-guard]]
+
+### REG-2306 - ON HIS REAL DATA A HAND COPY OF OWNED WAR GEAR WAS 'IN PLACE' WITH NO ROW, AND MISFILED ITEMS WAITED FOR A FIX PRESS (Vault L1, v3776)
+Live v3776 click-through on his real vault (2026-10-20): a 2nd Demon Limb / Andariel's / Guillaume's Face followed the
+stale UNI-* / SETS-REST filing and answered 'in place' with no row; war gear filed on UNI-* only moved through VAULT
+INTEGRITY Fix / Auto-assign. His standing rule: moves come from the placement rules, no press. Fix: a filing the current
+rules no longer pick (not hardened) plans its move to the rules' home, and gets a row FROM its mule (the filing is not
+rewritten); a hand add always has its row, even with no room; copies cluster on the free cell nearest the sibling;
+two copies close per copy at their own targets. Task lines wrap the full target; the empty-dock line is 'nothing loose'.
+The war stash warning is real on his data: 170 items (717 cells) route to 5 pages of 500. Guard:
+test_vault_l1_rules_drive_every_move (11 RED PROVEN, Wilson 0.741).
+
+### REG-2305 - GUILLAUME'S FACE WENT TO SETS-REST, AND ONE DROPPED COPY CLOSED EVERY COPY'S THROW OUT ROW (Vault L1, v3776)
+Review of #247 (2026-10-20). (1) Elad ruled 2026-10-19 that Guillaume's Face lives in the war stash (Shared Stash); the
+keep-set rule (Orphan's Call) sent it to SETS-REST. Fix: it is a WAR_GEAR row, so war gear beats the set branch. (2) The
+drain's ground close matched by name only, so one dropped-item label closed the THROW OUT row of every copy that had left
+its cell. Fix: a ground label is one dropped copy and closes at most one row (lowest copyIx first). Guards:
+test_vault_l1_war_stash_overflow (15 RED PROVEN, Wilson 0.796) and test_vault_l1_throw_out_rows_drain (21 RED PROVEN,
+Wilson 0.845); v1970 / v3743 specs re-anchored (Guillaume's Face -> shared).
+
+### REG-2303 - A SECOND HAND-ADDED COPY VANISHED, AND THE WAR STASH WAS ONE PAGE (Vault L1, v3776)
+Elad, live v3774 (2026-10-20): a 2nd Aldur's Deception he typed vanished - no row, no cell, no error. vaultHandAdd
+answered 'already yours - nothing changed' for any owned name. Fix: a name he types again is another copy (the
+copies[] store Grief x2 uses; for a set piece his hand sets the multi-keep target, so a re-read still never
+climbs one); _vaultMoveNoteAdded writes the row for that copyIx. The move planner packed the war stash as one
+10x10 page: it now packs all 5 pages (cell rows 10p..10p+9, row reads 'tab N'), then the mules named WAR1, WAR2...
+in order; with none or all full the item keeps no cell and MOVE TASKS says so plainly - no mule is created.
+Guard test_vault_l1_war_stash_overflow, 11 RED proofs. The SoJ three-spellings check now expects three copies.
+
+### REG-2302 - A SET PIECE HE TYPED BY HAND GOT NO MOVE TASK (Vault L1, v3776)
+Elad, live v3774 (2026-10-20): he hand-added a set item and saw no move task. Cause: the hand-typed keep in
+_vaultSeamAsk only matched the planner's "by DEFAULT" reason, so a ruled-low set (Sigon's, Cathan's, Isenhart's)
+typed through + Add an item fell to a THROW OUT row (NOWHERE). Fix: a set piece he types is kept, ruled-low
+included - MANUAL → SETS-REST (x,y). A screenshot-seen low set still routes to THROW OUT. Guard
+test_vault_l1_every_hand_add_is_a_move_task: 20 hand adds (8 set pieces) = 20 open MANUAL rows, 10 RED proofs.
+Also: the six agent-suite guards and v203/v327/v622 Playwright specs re-anchored to L1 (a throw-out is a
+THROW OUT task, never a dock chip; the dock's homeless example is a Chronicle-only read).
+
+### REG-2301 - MOVE TASKS WAS A WIDE WALL OF GRIDS IN THE LEFT COLUMN, NOT A CHECKLIST HE COULD TICK (Vault L1, v3776)
+
+Elad, 2026-10-20: MOVE TASKS becomes a right-side panel, a clean numbered checklist with one line per task
+("Arcanna's Sign · MANUAL → SETS-REST (3,1)"), Moves then Throw-outs, the done tasks collapsed at the bottom; each
+line has a tick box (his hand, or the reels with gone k/5) and a click opens BEFORE | AFTER. The left keeps add, find,
+the mules and the locked line, each with one plain line; the wordy headers go.
+FIXED on vault/l1-manual-routing (PR #247): `#vault-move-list` moved into `aside#vault-tasks` beside `.vault-main`
+(flex, 360px, sticky); `_vaultMoveHtml` paints `ol.vtk-list` lines (tick box, art, one say, gone k/5, Keep/Junk on
+throw-outs, a witness button on moves), an unseen sub-section with its screenshot hint, and `details.vtk-donebox`
+for moved/verified/closed rows; `_vaultTaskTick` is the tick; `_vaultMoveCollect` keeps closed rows for Done. The
+wide target grids now live only in BEFORE | AFTER. Guard test_vault_l1_tasks_panel, 14 RED proofs PROVEN
+(Wilson 14/14 = 0.785 vs 0.722). Existing guards re-pointed to the same properties: v3769/v3771 visuals read the
+duplicate-beside tiles from BEFORE | AFTER and the LOCKED line from Equipped (locked); the organizer guard now
+asserts a throw-out is not advised twice. The Unsorted Dock is UNCHANGED (Elad: "not move away yet").
+
+### REG-2300 - A JUNK ROUTE SAT IN THE UNSORTED DOCK AS WORDY ADVICE, AND NO ROW EVER DRAINED BY ITSELF (Vault L1, v3776)
+
+Elad, 2026-10-20, at his live Vault: it is messy. Throw-out suggestions leave the Unsorted Dock and become THROW OUT rows in MOVE TASKS beside the moves, target NOWHERE, one plain reason, Keep / Junk inline; Keep turns the row into a move; the dock keeps only items with no route. Rows drain through the same sighting pipeline on direct proof only: 5 reel sessions whose frames SHOWED the first-witnessed cell without the item, a container never shown counts nothing, a re-sighting resets, progress reads "gone k/5"; a move seen at its target closes at once; a throw-out read on the ground after it left closes at once. A hand-added unruled set piece stays kept and routed (his earlier ruling).
+
+MEASURED on the shipped page (box Chrome, isolated): a screenshot-seen Arcanna's Head sat as a dock chip AND as an organizer line "throw-out advice — by DEFAULT only — you have never ruled Arcanna's Tricks (set) keep or junk"; MOVE TASKS had no row for it; no code path ever closed a row whose item vanished.
+
+FIX: `_vaultThrowTask` / `_vaultThrowRoute` build a THROW OUT task (kind throw, to NOWHERE, `_vaultThrowReason` -> "set never ruled") inside `_vaultMoveCollect`; `_vaultMoveHtml` draws them in a THROW OUT section with Keep (`_vaultThrowKeep`, the same packer) and Junk (`_vaultThrowJunk`); `_dockNames` and `vaultOrganizePaint` drop junk routes; `_vaultSeamHome` files a kept one. `_vaultGoneObserve(frame)` is the drain; `_vaultMoveTask` carries kind/reason/kept/junk/left/gone/closedBy only when set.
+
+ALSO (same live screenshot): an item with a MOVE TASKS row is no longer drawn again as a dock chip or organizer line (renderVault paints the move list first and filters by `window._moveModel`); worn or locked gear reads on one quiet "Equipped (locked)" line (`#vault-equipped`, `_vaultEquippedNames`) outside MOVE TASKS, and LOCKED chips left its head; ADD AN ITEM and FIND ON A MULE share one compact `.vault-find-row`.
+
+GUARD: tv/test_vault_l1_throw_out_rows_drain.py, 19 RED_PROOF attacks, all PROVEN, Wilson 0.8318 against 0.722.
+
+LEFT (open): nothing calls `_vaultGoneObserve` from the reel yet - the frame reader must hand it {session, holder, location, items, ground} per frame. No floor-label (dropped item on the ground) reader exists, so the ground rule fires only when a caller supplies `ground`.
+
+### REG-2304 - A HAND ADD COULD BE SENT ONTO A CELL ALREADY GIVEN, A SIGHTING DID NOT FILL ITS MANUAL ROW, AND A WORN ITEM GOT A MOVE (Vault L1, provisional number, was REG-2296 before #248, unversioned)
+
+Elad, 2026-10-19: the manual path must work by itself. He adds items one by one (sets, uniques, runewords, charms, jewels, bases) and each must route to the right mule cell, the shared stash or throw-out.
+
+MEASURED on the shipped page (box Chrome, isolated, AUTO INTAKE off), through `window.vaultHandAdd`:
+- Shako was given `shared:c0r0`. A later Enigma was also given `shared:c0r0`, and Arachnid Mesh landed on Annihilus at `shared:c4r0`. `_vaultMovePackHome` re-ran first-fit over every item sorted by area, and `_vaultMoveEnsure` kept the saved cell, so the new pack ignored cells already handed out (ruling 1: append-only).
+- After a hand add, the first sighting at a real cell did not fill FROM. `_vaultMoveWitness` saw neither FROM nor TO and set `moved-elsewhere`, so the MANUAL row became ELSEWHERE with no from-cell (ruling 4).
+- An item seen on MAIN equipment got a move row (ruling 8).
+- A row click opened the evidence panel. There was no BEFORE | AFTER view (ruling 12).
+
+FIX:
+1. `_vaultMovePackHome(home, bag)` reserves every saved target in that holder (its footprint, per grid) before first-fit, and keeps those cells. New items take the next free cell.
+2. `_vaultMoveApplySight`: a manual `to-move` row with no FROM cell, or one last seen worn, takes the sighting as its FROM on the same row. The target and the row stay, and the frame becomes its proof.
+3. `_vaultMoveWorn` (equipment or equipped) hides the row in `_vaultMoveShown`. Seen off the character, the row comes back routed from that cell.
+4. `_vaultMoveCompareModel/Html/Open/Close`: the row click opens BEFORE | AFTER. Both sides are `gridHtml` at 36 px with real art, the same gold ring on the from-cell and the to-cell, and one arrow and one instruction line ("Move X from MANUAL to UNI-SMALL private stash (2,1)"). BEFORE shows the MANUAL badge until a frame sees the item, then the real container. AFTER shows every saved target in that container. Closing works by the button or the backdrop. The witness button still opens the evidence.
+
+GUARD: tv/test_vault_l1_a_hand_add_routes_by_type.py, 14 RED_PROOF attacks, all PROVEN by heart2 --prove, Wilson 0.7847 against the vault.apply bar 0.722.
+
+BASES (round 2): a white or eth base the builder catalogue names passes the hand door (`_vaultHandBase`). The packer and `_vaultRecords` add only `_vaultHandBasePool()`, which is owned bases whose receipt is the + Add an item hand door. `ownedPool` and the dock are unchanged, and a base owned through another door stays out (test_a_hand_typed_base_changes_no_other_list). Monarch, Archon Plate, Eth Thresher and Ethereal Archon Plate route to SOCKETED.
+ALIASES (round 2): the hand door folds case and a leading "The" (`_vhAlias`), only when one ITEMS name matches. "Stone of Jordan" now resolves to "The Stone of Jordan".
+LIVE REPORT (round 3, Elad on v3772): there is no add-a-move control (a guard fails on any button or input reading add a move or "Type an item, or select one", and on any input in the move list). FIND ON A MULE names a hand add's mule and its target cell ("MANUAL move"), not "unsorted · press Auto-assign". A hand-typed set piece that is thrown out only by DEFAULT (Arcanna's Sign) is his keep: the seam files it to SETS-REST, so it gets a MANUAL row and the organizer line stops advising throw-out. A ruled-junk set is unchanged. MOVE TASKS never says "Nothing is out of place" while a hand add has no target; it names them.
+LEFT (open): rolled magic jewels and charms (no catalogue name) are not hand-addable. Spirit's footprint stays the 1x2 guess. Throw-out rows are L3.
 
 ### REG-2296 - A BUMP-ONLY RUN STILL TOOK 4750 s: REDS RERAN IN FULL, THE PROOF QUEUE DIRTIED 147 PROOFS, LISTINGS WERE NEVER STORED (v3775)
 

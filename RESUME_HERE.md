@@ -12,6 +12,12 @@
 |---|---|
 | version stamp | v3782 |
 | gates registered | 1018 *(when this was written — ask run_gates for now)* |
+<!-- fp: ver=v3783 -->
+
+| | |
+|---|---|
+| version stamp | v3783 |
+| gates registered | 1025 *(when this was written — ask run_gates for now)* |
 
 ⚠ **HEAD, origin/main, what is unpushed and whether the tree is clean are NOT written here.** A file inside a commit cannot name that commit, and the push always runs after the bump, so this block was wrong about all four on every ship (#164). Ask git, now:
 
@@ -21,6 +27,7 @@
 
 *Derived 2026-10-21 02:38 by `tv/resume_state.py`. Everything outside these markers is narrative a machine cannot measure, written by hand.*
 *Derived 2026-10-21 02:10 by `tv/resume_state.py`. Everything outside these markers is narrative a machine cannot measure, written by hand.*
+*Derived 2026-10-21 03:19 by `tv/resume_state.py`. Everything outside these markers is narrative a machine cannot measure, written by hand.*
 
 <!-- END DERIVED -->
 

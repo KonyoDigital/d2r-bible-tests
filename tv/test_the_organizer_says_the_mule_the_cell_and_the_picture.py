@@ -96,8 +96,10 @@ class TheOrganizerSaysTheMuleTheCellAndThePicture(unittest.TestCase):
         self.assertNotIn("Gheed's Fortune", self.by, "kit (a charm he carries) was offered a mule")
 
     def test_a_discard_keeps_its_advice_and_gets_no_cell(self):
+        # L1 (Elad 2026-10-20): a junk route is a THROW OUT row in MOVE TASKS, so the organizer no longer repeats it
+        # as "throw-out advice" (one item, one place). It must still never be given a stash cell.
         i = self.by.get("Isenhart's Case (armor)") or {}
-        self.assertIn("throw-out advice", i.get("text", ""), i)
+        self.assertNotIn("throw-out advice", i.get("text", ""), "a throw-out is advised twice (organizer and MOVE TASKS): %r" % i)
         self.assertFalse(i.get("cell"), "a discard suggestion was given a stash cell: %r" % i)
         self.assertFalse(self.o["more"], "rows are still capped")
 

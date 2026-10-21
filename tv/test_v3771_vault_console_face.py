@@ -83,8 +83,8 @@ console.log(JSON.stringify({
   last: groups[groups.length - 1].label,
   unseen: groups[groups.length - 1].unseen === true,
   hint: html.indexOf('Take a screenshot so the console can see where it sits.') >= 0,
-  cls: html.indexOf('vmv-unseen') >= 0,
-  data: html.indexOf('data-unseen="1"') >= 0,
+  cls: /<section class="vmv-group vmv-unseen"/.test(html),
+  data: /<section [^>]*data-unseen="1"/.test(html),
   collided: html.indexOf('UNKNOWN · UNKNOWN') >= 0
 }));
 """)
@@ -93,9 +93,10 @@ console.log(JSON.stringify({
         self.assertTrue(o["unseen"], o)
         self.assertIn("UNKNOWN", o["labels"], o)
         self.assertNotIn("Location not seen yet", o["labels"][:-1], o)
-        self.assertTrue(o["hint"], o)
-        self.assertTrue(o["cls"], o)
-        self.assertTrue(o["data"], o)
+        # L1 (Elad v3778): MOVE TASKS is one collapsed row per task - no shared 'Location not seen yet' block.
+        self.assertFalse(o["hint"], o)
+        self.assertFalse(o["cls"], o)
+        self.assertFalse(o["data"], o)
         self.assertFalse(o["collided"], o)
 
     def test_a_known_stash_with_no_holder_stays_unknown(self):
@@ -233,7 +234,7 @@ console.log(JSON.stringify({
   empty: _vaultMoveCellSay(''),
   known: _vaultMoveCellSay('stash:c1r1'),
   place: _vaultMovePlaceSay({ holder: null, location: 'stash', cell: 'stash:c0r0' }),
-  witness: html.indexOf('>not seen yet</button>') >= 0,
+  witness: html.indexOf('title="not seen yet · the pictures it was read on"') >= 0, /* L1 checklist: the eye button's title says it */
   word: html.indexOf('witnesses UNKNOWN') >= 0,
   grid: grid.indexOf('not seen yet') >= 0,
   gridUnknown: grid.indexOf('UNKNOWN') >= 0
@@ -327,13 +328,13 @@ RED_PROOF = [
      "matches": 1},
     {"why": "The screenshot hint is gone, so the group no longer says what to do.",
      "file": "bible.html",
-     "find": "<span class=\"vmv-hint\">Take a screenshot so the console can see where it sits.</span>",
-     "replace": "<span class=\"vmv-hint\"></span>",
+     "find": "      + '<ol class=\"vtk-list\" data-sec=\"moves\">' + moves.map(line).join('') + '</ol>';",
+     "replace": "      + '<p class=\"vmv-gh\">Take a screenshot so the console can see where it sits.</p><ol class=\"vtk-list\" data-sec=\"moves\">' + moves.map(line).join('') + '</ol>';",
      "matches": 1},
     {"why": "The unseen group loses its marker, so the console style and the gate cannot see it.",
      "file": "bible.html",
-     "find": "(g.unseen ? ' vmv-unseen' : '')",
-     "replace": "''",
+     "find": "      + '<ol class=\"vtk-list\" data-sec=\"moves\">' + moves.map(line).join('') + '</ol>';",
+     "replace": "      + '<section class=\"vmv-group vmv-unseen\" data-unseen=\"1\"><ol class=\"vtk-list\" data-sec=\"moves\">' + moves.map(line).join('') + '</ol></section>';",
      "matches": 1},
     {"why": "An unseen place is spelled UNKNOWN · UNKNOWN on the row.",
      "file": "bible.html",

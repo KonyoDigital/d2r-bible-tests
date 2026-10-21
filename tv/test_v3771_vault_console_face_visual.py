@@ -226,7 +226,7 @@ class TestV3771VaultConsoleFaceVisual(unittest.TestCase):
         names = self._js(cdp, _NAMES)
         g, hq = names["griffon"], names["harlequin"]
         beside = self._js(cdp, _BESIDE % json.dumps(g))
-        tiles = [t for t in beside["tiles"] if "Griffon" in (t.get("n") or "")]
+        tiles = [t for t in beside["tiles"] if "Kira" in (t.get("n") or "")]
         tiles.sort(key=lambda t: (t["x"], t["y"]))
         self.assertGreaterEqual(len(tiles), 2, beside)
         self.assertTrue(all(t.get("src") for t in tiles[:2]), beside)
@@ -241,12 +241,12 @@ class TestV3771VaultConsoleFaceVisual(unittest.TestCase):
         self.assertTrue(added.get("shown"), added)
         self.assertTrue(added.get("manual"), added)  # v3773 Elad: MANUAL -> target cell
         unseen = self._js(cdp, _UNSEEN % json.dumps(hq))
-        self.assertTrue(unseen.get("group"), unseen)
-        self.assertIn("Location not seen yet", unseen.get("text") or "", unseen)
-        self.assertIn("Take a screenshot", unseen.get("text") or "", unseen)
+        # L1 (Elad v3778): the hand add is its own collapsed row in one list - no shared unseen block.
+        self.assertFalse(unseen.get("group"), unseen)
+        self.assertIn("MANUAL", unseen.get("list") or "", unseen)
         self.assertNotIn("UNKNOWN · UNKNOWN", unseen.get("list") or "", unseen)
-        self.assertEqual(unseen.get("last"), "Location not seen yet", unseen)
-        self._shot(cdp, "#vault-move-list .vmv-unseen", "05-unknown-location.png")
+        self.assertNotIn("Location not seen yet", unseen.get("list") or "", unseen)
+        self._shot(cdp, "#vault-move-list", "05-unknown-location.png")
 
         face = self._js(cdp, _FACE)
         for key in ("intake", "mark", "chip", "gh"):
@@ -334,7 +334,7 @@ _NAMES = _wrap(r"""
     } catch (e) {}
     return hit || part;
   }
-  return { griffon: canon("Griffon's Eye"), harlequin: canon("Harlequin Crest") };
+  return { griffon: canon("Kira's Guardian"), harlequin: canon("Harlequin Crest") };
 """)
 
 def _png_beside(cdp, path):
@@ -368,7 +368,8 @@ def _png_beside(cdp, path):
 _STAMP_AND_CLIP = r"""(function(){
   try {
     var host = document.getElementById('vault-move-list');
-    [].forEach.call(document.querySelectorAll('#vault-move-list .vmv-grid'), function(grid){
+    if (window._vaultMoveCompareOpen) window._vaultMoveCompareOpen("Kira's Guardian", 0); /* L1: the target grid lives in BEFORE | AFTER */
+  [].forEach.call(document.querySelectorAll('#vault-move-compare .vmc-after .vmc-wrap'), function(grid){
       var n = grid.querySelectorAll('.vd-item').length;
       if (n >= 2 && !document.getElementById('v3771-beside')) grid.id = 'v3771-beside';
     });
@@ -405,11 +406,12 @@ _BESIDE = _wrap(r"""
   look(g, 'Mule', 'stash', 'stash:c1r1', 's1', 'f-a');
   look(g, 'Mule', 'stash', 'stash:c8r2', 's2', 'f-b');
   window.renderVault();
-  [].forEach.call(document.querySelectorAll('#vault-move-list .vmv-grid'), function(grid){
+  if (window._vaultMoveCompareOpen) window._vaultMoveCompareOpen("Kira's Guardian", 0); /* L1: the target grid lives in BEFORE | AFTER */
+  [].forEach.call(document.querySelectorAll('#vault-move-compare .vmc-after .vmc-wrap'), function(grid){
     var n = grid.querySelectorAll('.vd-item').length;
     if (n >= 2 && !document.getElementById('v3771-beside')) grid.id = 'v3771-beside';
   });
-  var tiles = [].map.call(document.querySelectorAll('#vault-move-list .vd-item'), function(el){
+  var tiles = [].map.call(document.querySelectorAll('#vault-move-compare .vmc-after .vd-item'), function(el){
     var img = el.querySelector('img');
     return { n: (el.getAttribute('title') || '').split(' (')[0], x: +el.getAttribute('data-x'),
              y: +el.getAttribute('data-y'), w: +el.getAttribute('data-w'), h: +el.getAttribute('data-h'),
@@ -419,7 +421,7 @@ _BESIDE = _wrap(r"""
 """)
 
 _ART_READY = r"""(function(){
-  var imgs = document.querySelectorAll('#vault-move-list .vd-item img');
+  var imgs = document.querySelectorAll('#vault-move-compare .vmc-after .vd-item img');
   if (imgs.length < 2) return false;
   for (var i = 0; i < imgs.length; i++) if (!imgs[i].complete || imgs[i].naturalWidth < 1) return false;
   return true;
@@ -466,9 +468,9 @@ _FACE = _wrap(r"""
     return (getComputedStyle(el).fontFamily || '');
   }
   return { intake: face('#vault-auto-intake'),
-           mark: face('#vault-move-list .vmv-mark'),
-           chip: face('#vault-move-list .vmv-chip'),
-           gh: face('#vault-move-list .vmv-gh'),
+           mark: face('#vault-move-list .vtk-sec'), /* L1 checklist: the section heads wear the console face */
+           chip: face('#vault-move-list .vault-move-k'),
+           gh: face('#vault-move-list .vtk-sec'),
            dock: face('.vdb-label'),
            manual: !!document.getElementById('vault-move-q') || !!document.querySelector('[onclick*="_vaultMoveAddOpen"]') };
 """)
@@ -480,6 +482,7 @@ _INTAKE = _wrap(r"""
 
 _COVER_AT = _wrap(r"""
   var mode = %s;
+  if (window._vaultMoveCompareClose) window._vaultMoveCompareClose(); /* L1: the BEFORE | AFTER card an earlier step opened */
   var list = document.getElementById('vault-move-list');
   if (!list) return { covered: true, why: 'no list', samples: 0, visible: 0, painted: ['missing'], hits: [] };
   if (mode === 'end') { try { list.scrollIntoView({block:'end', inline:'nearest'}); } catch (e1) {} }
@@ -499,13 +502,13 @@ _REOPEN = _wrap(r"""
     window.toggleCardCollapse('mule-vault-card');
   window.renderVault();
   var name = %s;
-  var g = document.querySelector('#vault-move-list .vmv-unseen');
+  var g = document.querySelector('#vault-move-list .vmv-row[data-name="' + name + '"]'); /* L1 v3778 its own row survives reload */
   var tab = document.getElementById('tab-vault');
-  var griffon = [].map.call(document.querySelectorAll('#vault-move-list .vd-item'), function(el){
+  var griffon = [].map.call((window._vaultMoveCompareOpen && window._vaultMoveCompareOpen("Kira's Guardian", 0), document.querySelectorAll('#vault-move-compare .vmc-after .vd-item')), function(el){
     return (el.getAttribute('title') || '').split(' (')[0];
-  }).filter(function(n){ return n.indexOf('Griffon') >= 0; });
+  }).filter(function(n){ return n.indexOf('Kira') >= 0; });
   return { tab: !!(tab && tab.classList.contains('active')),
-           group: !!(g && g.getAttribute('data-unseen') === '1' && g.textContent.indexOf(name) >= 0),
+           group: !!(g && g.textContent.indexOf(name) >= 0),
            text: g ? g.textContent : '',
            griffon: griffon };
 """)

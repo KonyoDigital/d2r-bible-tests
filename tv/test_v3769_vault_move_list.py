@@ -42,12 +42,14 @@ FNS = [
     "_vrRecLoadRaw", "_vrRecGuardedSet", "_vrLocForCopy",
     "_vaultRehomeCopies", "_vaultReconcileHomes",
     "_vaultRecordsLoad", "_vaultRecordsPersist",
+    "_vaultMisfiled", "_vaultWarSmall", "_vaultWarKeeper", "_vaultWarExtra", "_vaultWarRole", "_vaultWarMules",
+    "_vaultWarCap0", "_vaultWarOver", "_vaultWarOverOn", "_vaultWarCap", "_vaultWarKept", "_vaultHandBasePool",
     "_vaultMoveHome", "_vaultMoveCopies", "_vaultMovePackHome", "_vaultMovePlanCell",
     "_vaultMoveFromSight", "_vaultMoveBag", "_vaultMoveEnsure", "_vaultMoveCommit",
     "_vaultMoveApplySight", "_vaultMoveMark", "_vaultMoveNoteAdded",
-    "_vaultMoveOnKeep", "_vaultMoveShown", "_vaultMoveStashSay", "_vaultMoveUnseen", "_vaultMoveGroup", "_vaultMoveLocks",
+    "_vaultMoveOnKeep", "_vaultMoveWorn", "_vaultMoveShown", "_vaultMoveStashSay", "_vaultMoveUnseen", "_vaultMoveGroup", "_vaultMoveLocks",
     "persistOwned",
-    "_vaultMoveCellSay", "_vaultMovePlaceSay", "_vaultMoveGridHtml", "_vaultMoveHtml",
+    "_vaultMoveCellSay", "_vaultMovePlaceSay", "_vaultMoveGridHtml", "_vaultMoveHtml", "_vaultMoveCompareModel", "_vaultMoveCompareHtml",
     "_vaultMoveCollect", "_vaultMovePaint", "_vaultMoveCellMarkHtml", "_vaultFrameMeta",
 ]
 
@@ -449,6 +451,7 @@ see("Griffon's Eye", [
 ], 1);
 var built = _vaultMoveCollect();
 var html = _vaultMoveHtml(built);
+var cmp = _vaultMoveCompareHtml("Griffon's Eye", 0); /* L1: the target grid is drawn in the row's BEFORE | AFTER view */
 var panel = window._vaultEvidenceHtml({
   has: true, name: "Griffon's Eye", who: 'hand', line: 'evidence',
   looks: [{ frame: 'a', cell: 'stash:c1r1' }, { frame: 'b', cell: 'stash:c1r1' }]
@@ -693,7 +696,7 @@ RED_PROOF = [
      "matches": 1},
     {"why": "A hand add no longer writes the move, so an out-of-place item has no target.",
      "file": "bible.html",
-     "find": "var wrote = _vaultMoveCommit([{ name: nm, copyIx: 0, task: hand }]); /* v3773 manual row */",
+     "find": "var wrote = _vaultMoveCommit([{ name: nm, copyIx: copyIx, task: hand }]); /* v3773 manual row */",
      "replace": "var wrote = { ok: false }; /* v3773 manual row */",
      "matches": 1},
     {"why": "A name owned after the store exists never gets a row, so the typed move is not saved.",
@@ -753,8 +756,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "A move row no longer opens the evidence ledger.",
      "file": "bible.html",
-     "find": 'var opener = "window._vaultEvidenceOpen(\'" + jsArg(row.name) + "\')"; /* v3769 evidence */',
-     "replace": 'var opener = "void 0"; /* v3769 evidence */',
+     "find": "window._vaultEvidenceOpen(\\'' + nm + '\\')\">' + (row.witnesses == null",
+     "replace": "void 0)\">' + (row.witnesses == null",
      "matches": 1},
     {"why": "A witness in the evidence ledger no longer opens its frame.",
      "file": "bible.html",
@@ -783,8 +786,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "The shared stash is renamed, so a runeword's target is not the shared holder.",
      "file": "bible.html",
-     "find": "if (seam.loc === 'shared') return { id: 'shared', holder: 'SHARED STASH', location: 'shared' }; /* v3769 home shared */",
-     "replace": "if (seam.loc === 'shared') return { id: 'shared', holder: 'MAIN', location: 'stash' }; /* v3769 home shared */",
+     "find": "                                                               : { id: 'shared', holder: 'SHARED STASH', location: 'shared' }; /* L1 over the cap -> WAR mules */",
+     "replace": "                                                               : { id: 'shared', holder: 'MAIN', location: 'stash' }; /* L1 over the cap -> WAR mules */",
      "matches": 1},
     {"why": "A verified row whose cells already match is hidden, so the tick disappears.",
      "file": "bible.html",
@@ -793,8 +796,8 @@ RED_PROOF = [
      "matches": 1},
     {"why": "The list no longer draws the target grid, so the cell is words without the item's art.",
      "file": "bible.html",
-     "find": "var grid = (typeof gridHtml === 'function') ? gridHtml(placed, gw, gh, 36, { area: 'move', page: 0, label: 'Target' }) : ''; /* v3769 grid */",
-     "replace": "var grid = ''; /* v3769 grid */",
+     "find": "var g = (typeof gridHtml === 'function') ? gridHtml(placed, d[0], d[1], cell, { area: 'move-' + label.toLowerCase(), page: 0, label: label }) : ''; /* L1 compare grid */",
+     "replace": "var g = ''; /* L1 compare grid */",
      "matches": 1},
     {"why": "The vault render no longer paints the move list.",
      "file": "bible.html",
