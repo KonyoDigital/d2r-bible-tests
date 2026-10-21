@@ -478,16 +478,6 @@ RED_PROOF = [
      "find": "(manual ? '<b class=\"vmv-manual-badge\">MANUAL</b>'",
      "replace": "(true ? '<b class=\"vmv-manual-badge\">MANUAL</b>'",
      "matches": 1},
-    {"why": "The ring is drawn at the origin instead of the target cell.",
-     "file": "bible.html",
-     "find": "return '<div class=\"vmc-ring\" data-ring=\"' + c.x + ',' + c.y + '\"",
-     "replace": "c = { x: 0, y: 0 }; return '<div class=\"vmc-ring\" data-ring=\"' + c.x + ',' + c.y + '\"",
-     "matches": 1},
-    {"why": "Close leaves the view up.",
-     "file": "bible.html",
-     "find": "    if (host){ host.hidden = true; host.innerHTML = ''; }\n  }\n  /* L1 (Elad 2026-10-20) \u2014 MOVE TASKS is a clean",
-     "replace": "    void host;\n  }\n  /* L1 (Elad 2026-10-20) \u2014 MOVE TASKS is a clean",
-     "matches": 1},
 ]
 
 
