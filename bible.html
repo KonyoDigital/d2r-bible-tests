@@ -49116,8 +49116,22 @@ window.vaultAutoAssign = function(){
     if (_mis) seam = _mis.seam; /* L1 the rules' home, not a stale filing */
     var _xw = null; /* L1 over-cap copies stay war-stash homed */
     if (!seam) return { id: null, holder: null, location: null };
-    if (seam.loc === 'shared') return _vaultWarOver(name, copyIx) ? { id: 'shared', holder: 'SHARED STASH', location: 'shared', over: true }
-                                                               : { id: 'shared', holder: 'SHARED STASH', location: 'shared' }; /* L1 over the cap -> WAR mules */
+    if (seam.loc === 'shared') {
+      /* L1 (Elad 2026-10-20) — the war stash keeps ONE copy of a BIG item (the keeper). An EXTRA copy returns to a NORMAL
+         mule ONLY when he has EXPLICITLY FILED the item there (a misfiling: Demon Limb filed on UNI-WEAPONS before it
+         became war gear) — test_vault_l1_rules_drive_every_move. Proper war-stash gear with no such filing overflows to
+         the WAR mules, and a small item keeps its copies here to the cap — test_vault_l1_war_stash_overflow. So the
+         source is assign[name] (the filing), never suggestMule's base guess: Andariel's Visage derives UNI-ARMOR by base
+         but is not filed there, so its extras overflow to the WAR mules rather than a mule he never put it on. This also
+         leaves the base home (null copyIx) and the keeper on 'shared', so _vaultWarOverOn still sees id 'shared'. */
+      var _filed = (typeof assign !== 'undefined' && assign) ? assign[name] : null;
+      if (copyIx != null && copyIx !== _vaultWarKeeper(name) && !_vaultWarSmall(name) && _filed && _filed !== 'shared') {
+        var _fM = (typeof muleById === 'function') ? muleById(_filed) : null;
+        if (_fM && !_vaultWarRole(_fM)) return { id: _filed, holder: _fM.name || null, location: 'stash' }; /* L1 the extra copy to its filed mule */
+      }
+      return _vaultWarOver(name, copyIx) ? { id: 'shared', holder: 'SHARED STASH', location: 'shared', over: true }
+                                         : { id: 'shared', holder: 'SHARED STASH', location: 'shared' }; /* L1 over the cap -> WAR mules */
+    }
     if (seam.loc === 'filed' && seam.mule) { /* v3769 home filed */
       var mule = (typeof muleById === 'function') ? muleById(seam.mule) : null;
       return { id: seam.mule, holder: (mule && mule.name) || null, location: 'stash' };
