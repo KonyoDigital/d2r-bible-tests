@@ -10946,6 +10946,17 @@ GATES = [
              "_ocr_worker_cmd() runs ocr_win.ps1, so every Windows agent named a Mach-O it can never run (139 boots on a "
              "copy of Dean's agent log, beside OCR reading at 34-50 ms). The tag is now the argv the spawn runs, an OFF "
              "names the switch or the missing worker, and main() never names OCR_BIN."),
+    Gate("test_the_reader_cap_comes_from_this_pcs_settings",
+         [sys.executable, os.path.join(HERE, "test_the_reader_cap_comes_from_this_pcs_settings.py")], 120,
+         needs_app=False,
+         why="REG-2382 / REG-2383 / REG-2384 - the intake reader's caps were read from process.env only, and his "
+             "Terminal-launched console carries no TV_INTAKE_* (measured 2026-10-21), so it capped at the code default "
+             "20/hour while the caps were believed raised, said so as '(20/20)' with no source, answered the refusal as "
+             "200 worker-exception (an ask died and fell to the website's API key), and TV_INTAKE_*_MAX=0 never opened "
+             "the circuit (parseInt('0') || 20). One rule on every PC now (tv/pc_settings.mjs): env override > this "
+             "PC's gitignored tv/pc_settings.json > the default; the refusal names its limit, its source and retry_s, "
+             "and is status 429. Driven through the real runner and pipeline on a fixture ledger and settings file; "
+             "the claude CLI is a path that does not exist, so no case spends a read."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

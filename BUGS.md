@@ -201,6 +201,24 @@ FIX: `_git_common_dir` reads `.git` the way git does - a relative gitdir joined 
 GUARDS: tv/test_one_verdict_cache_serves_every_tree.py (relative gitdir from another cwd; REAL git worktrees, absolute and --relative-paths, land on `git rev-parse --git-common-dir`; bare repository; an unreadable pointer is said) - 7 of 7 PROVEN; tv/test_safe_copy.py (every store generation and side file stays out, the census still travels) - 6 of 6 PROVEN; tv/test_a_proven_verdict_is_reused_only_on_identical_bytes.py (every side file is gitignored).
 
 LEFT: a checkout with no readable git dir banks into its own store and is SAID, but nothing merges that store into the machine's at the end of the push (there is no machine store it could find).
+### REG-2384 - TV_INTAKE_*_MAX=0 NEVER SWITCHED THE INTAKE LANE OFF
+
+tv/intake_local.mjs read each cap as `Math.max(0, parseInt(v || '20', 10) || 20)`. `parseInt('0')` is 0, and `0 || 20` is 20, so the documented off switch (`subscription circuit open (TV_INTAKE_*_MAX=0)`) was unreachable from a 0 - only a negative number opened it. The Python lanes (`TV_VISION_*_MAX`, `G5_GROK_*_MAX`) read 0 as 0.
+
+FIX: tv/pc_settings.mjs `wholeNumber()` - a whole number >= 0 is taken as it is (0 opens the circuit), anything else is ignored and SAID in the refusal.
+
+GUARD: tv/test_the_reader_cap_comes_from_this_pcs_settings.py `test_zero_opens_the_circuit` (RED proof: a reader that drops 0).
+
+### REG-2382 - THE INTAKE READER'S CAPS LIVED ONLY IN process.env, WHICH HIS CONSOLE NEVER RECEIVES (GB-L reader caps)
+
+MEASURED 2026-10-21 on his Mac, read-only: the live console process carries `TVD_VIA_TERMINAL=1` and no `TV_INTAKE_*` variable at all - a Terminal-launched console sees neither the LaunchAgent plist nor `launchctl setenv` - and his tv/.subscription_budget.json held 20 intake reads inside the last hour. So tv/intake_local.mjs capped at its code default (20/hour, 80/day) while the caps were believed raised, and the refusal said only `subscription hourly cap hit (20/20)`: which limit, and where it came from, was not on screen. A Windows console started from its shortcut has the same blind spot.
+
+FIX: one rule on every PC, Dean's included - tv/pc_settings.mjs reads this PC's GITIGNORED tv/pc_settings.json (`{"TV_INTAKE_HOURLY_MAX": 50, "TV_INTAKE_DAILY_MAX": 300}`, env-style names; a UTF-8 BOM from Notepad is accepted). The environment stays the override: env > the file > the code default. Each limit keeps its source, and the refusal names it (`... (20/20, limit from the code default) ...`, `... limit from tv/pc_settings.json`, `... limit from env TV_INTAKE_HOURLY_MAX`); a layer holding an unusable value is passed over AND SAID. TV_PC_SETTINGS / TV_SUB_BUDGET point the runner at fixtures (TV_SUB_BUDGET is the override tv_diablo already honours).
+
+GUARD: tv/test_the_reader_cap_comes_from_this_pcs_settings.py (registered) - drives `node tv/intake_local.mjs` and the real functions/api pipeline on a fixture ledger and settings file, asserts his live ledger and settings are byte-identical after every case, and asks git's own matcher that tv/pc_settings.json is ignored. 11 RED proofs (REG-2382/2383/2384).
+
+LEFT: no tv/pc_settings.json is written on any PC by this change - writing his (50/300, the GB-L stopgap now exported from the login shell) and Dean's is a step on each machine. The Grok lane's caps (tv/intake_grok_sub.mjs, G5_GROK_*_MAX) still read env only.
+
 ### REG-2381 - A WINDOWS CONSOLE KEPT NOTHING IT SAID: PYTHONW HAS NO STDOUT (Dean diff 04)
 
 MEASURED on Dean's PC 2026-10-21: his console starts as `pythonw.exe tv\control_app.py --open` (start_tvd_win.log), there is no tv/control_app.log at all, and his /api/status said `no console log on this machine, so the hunt's cost cannot be read · unaskable for 48d (891 attempts)`. pythonw leaves sys.stdout and sys.stderr None, and print() to None is silent, so every line the console printed - the `🚀 CONSOLE BOOT` marker console_doctor's hunt-economy eye slices on, sign-in, the reel auto-sweep's watch line, the drift hold - went nowhere. His Mac's launcher appends the same stream to tv/control_app.log (start_tvd_mac.sh).

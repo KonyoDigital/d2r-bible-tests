@@ -43,6 +43,9 @@ tv/g5_shadow.jsonl
 tv/g5_subscription_budget.json
 .wrangler/
 tv/.subscription_budget.json
+# REG-2382 — this PC's own settings (the intake reader's caps, read by tv/pc_settings.mjs). Per machine by design: a
+# limit set on one PC must never travel to another, and the public repo never learns any of them.
+tv/pc_settings.json
 
 # Point-in-time restore snapshots (large art dumps — keep local, never ship)
 backups/RESTORE_*/
