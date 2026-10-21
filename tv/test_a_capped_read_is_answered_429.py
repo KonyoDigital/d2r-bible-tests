@@ -9,18 +9,17 @@ test_the_reader_cap_comes_from_this_pcs_settings), and control_app's /api/intake
   · forwards it as HTTP 429 with the runner's body (limit, source, retry_s) and X-Intake-Lane;
   · in shadow mode still lets the Grok failover read, and answers the 429 when no lane does;
   · never calls the website proxy after a cap.
-DRIVEN on a private ThreadingHTTPServer with control_app.Handler (never :17772). One case runs the REAL runner under
-node on a fixture ledger at its cap - the join of the two halves - and the rest stub the runners; the website proxy is
-always stubbed, so no case can reach the network. [[the-unjoined-end]]  RED_PROOF below.
+DRIVEN on a private ThreadingHTTPServer with control_app.Handler (never :17772), with the node runners stubbed, so
+every case runs on any PC - node or none; the website proxy is always stubbed, so no case can reach the network. The
+join - the REAL runner at its cap, through this handler - is test_a_capped_runner_reaches_the_board_as_429, node-only
+on purpose: here it was the one case a PC without node skipped, which filed its proof BLIND there.
+[[the-unjoined-end]]  RED_PROOF below.
 """
 import http.client
 import json
 import os
-import shutil
 import sys
-import tempfile
 import threading
-import time
 import unittest
 from http.server import ThreadingHTTPServer
 from unittest import mock
@@ -37,9 +36,6 @@ except Exception:
 
 import control_app as ca  # noqa: E402
 
-NODE = shutil.which("node")
-RUNNER = "intake_local.mjs"
-PROOF_NEEDS = ["../functions/api/intake.js", "../functions/api/ask.js"]
 SEAMS = ("TV_INTAKE_HOURLY_MAX", "TV_INTAKE_DAILY_MAX", "TV_PC_SETTINGS", "TV_SUB_BUDGET", "TVD_CLAUDE_BIN",
          "TV_INTAKE_LOCAL", "TV_INTAKE_LOCAL_STRICT", "TV_INTAKE_MIN_GAP_S")
 CAPPED = json.dumps({"error": "subscription-cap", "message": "subscription hourly cap hit (20/20, limit from the code "
@@ -135,26 +131,6 @@ class AnOffModeCapIs429(_Console):
         self.assertEqual(json.loads(body).get("source"), "the code default", "the runner's refusal was not passed on")
         self.assertNoWebsite()
 
-    @unittest.skipIf(NODE is None, "node is absent - the end-to-end case is UNMEASURED, not passing")
-    def test_the_real_runner_at_its_cap_is_answered_429(self):
-        """The join: the handler spawns the REAL tv/intake_local.mjs, whose fixture ledger is at its cap."""
-        d = tempfile.mkdtemp(prefix="capped-429-")
-        self.addCleanup(shutil.rmtree, d, True)
-        ledger = os.path.join(d, "ledger.json")
-        now = time.time() * 1000.0
-        with open(ledger, "w") as fh:
-            json.dump({"calls": [now - 60000.0 * (i + 1) for i in range(20)]}, fh)
-        os.environ.update(TV_SUB_BUDGET=ledger, TV_PC_SETTINGS=os.path.join(d, "absent.json"),
-                          TVD_CLAUDE_BIN=os.path.join(d, "no-such-claude"))
-        self.assertTrue(os.path.isfile(os.path.join(HERE, RUNNER)), "premise: the runner is not beside the console")
-        self.g5("off")
-        status, body, hdrs = self.post()
-        self.assertEqual(status, 429, "the real runner's cap reached the board as %d: %r" % (status, body[:300]))
-        j = json.loads(body)
-        self.assertEqual((j.get("error"), j.get("used"), j.get("limit")), ("subscription-cap", 20, 20))
-        self.assertIn("limit from the code default", j.get("message", ""))
-        self.assertNoWebsite()
-
     def test_an_ask_at_the_cap_is_429(self):
         self.g5("off")
         self.runners({"intake_local.mjs": _PR(out={"status": 429, "body": CAPPED, "lane": "subscription"})})
@@ -223,13 +199,6 @@ RED_PROOF = [
         "file": "control_app.py",
         "find": "(_lane_lab == _runners[-1][0] and _cap_answer is None)",
         "replace": "_lane_lab == _runners[-1][0]",
-        "matches": 1,
-    },
-    {
-        "why": "REG-2383 - the real runner reports its cap as a 200 again, and the board is told the read succeeded",
-        "file": "intake_local.mjs",
-        "find": "  process.stdout.write(JSON.stringify({\n    status: 429,\n",
-        "replace": "  process.stdout.write(JSON.stringify({\n    status: 200,\n",
         "matches": 1,
     },
 ]
