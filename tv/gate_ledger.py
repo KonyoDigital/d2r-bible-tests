@@ -456,6 +456,43 @@ def _at(entry):
     return t if isinstance(t, (int, float)) and not isinstance(t, bool) else 0
 
 
+def _file_sig(path):
+    """REG-2344 - which file the ledger IS right now: every write replaces it, so any writer's write moves this.
+    -> (inode, size, mtime) | None (absent or unstatable)"""
+    try:
+        st = os.stat(path)
+    except OSError:
+        return None
+    return (st.st_ino, st.st_size, st.st_mtime_ns)
+
+
+def _stamps(m):
+    """REG-2344 - a tombstone map as written, {gate: ms}; a malformed row is skipped, never allowed to block a merge."""
+    return dict((k, v) for k, v in (m.items() if isinstance(m, dict) else ())
+                if isinstance(k, str) and isinstance(v, (int, float)) and not isinstance(v, bool))
+
+
+def _alive(rows, tomb):
+    """REG-2344 - A DROP IS FOR EVERY WRITER: a row no newer than its gate's tombstone is dead, whoever still holds it -
+    a long run's snapshot, or a PASS stamped before another tree's FAIL and written after it. -> dict"""
+    return dict((n, e) for n, e in rows.items() if _at(e) > tomb.get(n, 0))  # LEDGER-TOMBSTONE
+
+
+def _lay(base, tomb, rows, gone):
+    """REG-2344 - one writer's changes laid onto the ledger as it is: its drops join the tombstones (the newest per gate
+    stands), its rows replace older ones, and nothing no newer than its gate's tombstone survives. The tombstones keep
+    the newest _MAX gates. -> (rows, tombstones)"""
+    out, tomb = dict(base), dict(tomb)
+    for n, ms in gone.items():
+        tomb[n] = max(tomb.get(n, 0), ms)
+    for n, e in rows.items():
+        if _at(e) >= _at(out.get(n)):  # LEDGER-MERGE-NEWER
+            out[n] = e
+    if len(tomb) > _MAX:
+        tomb = dict(sorted(tomb.items(), key=lambda kv: kv[1])[len(tomb) - _MAX:])
+    return _alive(out, tomb), tomb
+
+
 def ci_blocks():
     """GitHub is the full run. A ledger on the runner is not a verdict. -> bool"""
     return os.environ.get("GITHUB_ACTIONS") == "true"  # LEDGER-CI
@@ -1673,10 +1710,19 @@ class Ledger(object):
         self.proven = None
         self.why = None
         self._loaded = False
-        self.dropped = set()
-        self._dropped_at = {}
+        # REG-2344 - THE SNAPSHOT FOLLOWS THE FILE, AND A WRITE CARRIES ONLY THIS WRITER'S OWN CHANGES. `_base_*` is the
+        # ledger as this writer last read or wrote it; a row in `entries`/`reds` that is not that very object is one this
+        # writer recorded, a base row it no longer holds is one it dropped. `dropped`/`reds_dropped` are the tombstones
+        # {gate: ms} every writer honours; `_drop_pend`/`_red_drop_pend` are this writer's drops not yet written.
+        self.dropped = {}
         self.reds = {}
-        self.reds_dropped = set()
+        self.reds_dropped = {}
+        self._base_entries = {}
+        self._base_reds = {}
+        self._drop_pend = {}
+        self._red_drop_pend = {}
+        self._proven_pend = None
+        self._sig = None
         self.reads = 0
         self.last_why = None
         self.map = None
@@ -1706,21 +1752,62 @@ class Ledger(object):
     def _ensure(self):
         if self._loaded:
             return
+        self._sync(force=True)
+        self._loaded = True
+
+    def _delta(self):
+        """REG-2344 - what THIS writer changed since it last read or wrote the ledger: a row it holds that the disk did not
+        hand it (not the same object) is one it recorded; a row it no longer holds - from what it read, or one it dropped
+        on purpose - is a drop, stamped with the moment it was made. Only these ever reach the file: never a row it merely
+        loaded, so a snapshot hours old cannot put back what another tree dropped since. -> (rows, drops, reds, red drops)"""
+        now = int(time.time() * 1000)
+        ents = self.entries if isinstance(self.entries, dict) else {}
+        reds = self.reds if isinstance(self.reds, dict) else {}
+        base, rbase = self._base_entries, self._base_reds
+        rows = dict((n, e) for n, e in ents.items() if base.get(n) is not e)  # LEDGER-DELTA
+        rrows = dict((n, e) for n, e in reds.items() if rbase.get(n) is not e)  # LEDGER-DELTA-RED
+        gone = dict((n, self._drop_pend.get(n) or now) for n in set(base) | set(self._drop_pend) if n not in ents)
+        rgone = dict((n, self._red_drop_pend.get(n) or now) for n in set(rbase) | set(self._red_drop_pend)
+                     if n not in reds)
+        return rows, gone, rrows, rgone
+
+    def _sync(self, force=False):
+        """REG-2344 - THE SNAPSHOT FOLLOWS THE FILE. MEASURED 2026-10-22 (T1 review): run_gates holds ONE Ledger for a whole
+        run and looked every gate up in what it loaded at its start, so a PASS another tree dropped after a FAIL on the
+        same bytes was still carried here, and written back by this run's next record. Re-read whenever the file is not
+        the one this writer last read or wrote (any write replaces it, so its inode moves), and lay this writer's own
+        unwritten changes back on top (normally none - every change is written at once)."""
+        sig = _file_sig(self.path)
+        if self._loaded and not force and sig == self._sig:  # LEDGER-SYNC
+            return
+        mine = self._delta() if self._loaded else ({}, {}, {}, {})
         entries, why = load(self.path)
         self.why = why
-        self.entries = entries if isinstance(entries, dict) else {}
-        self.proven = None
+        self._sig = sig
+        if why:
+            if not isinstance(self.entries, dict):
+                self.entries = {}
+            return  # unreadable: every lookup misses on self.why, and the write sets it aside
+        self.proven, body = None, {}
+        self.reds = {}
         if not why and os.path.exists(self.path):
             try:
                 with open(self.path, encoding="utf-8") as fh:
-                    data = json.load(fh)
-                sha = str((data or {}).get("proven_sha") or "")
+                    body = json.load(fh) or {}
+                sha = str((body or {}).get("proven_sha") or "")
                 self.proven = sha if _SHA.match(sha) else None
-                reds = (data or {}).get("reds")
+                reds = (body or {}).get("reds")
                 self.reds = dict(reds) if isinstance(reds, dict) else {}  # LEDGER-REDS-LOAD
             except Exception:
-                self.proven = None
-        self._loaded = True
+                self.proven, body = None, {}
+        tomb = _stamps(body.get("dropped") if isinstance(body, dict) else None)
+        rtomb = _stamps(body.get("reds_dropped") if isinstance(body, dict) else None)
+        self._base_entries = _alive(dict(entries or {}), tomb)
+        self._base_reds = _alive(self.reds, rtomb)
+        self.entries, self.dropped = _lay(self._base_entries, tomb, mine[0], mine[1])
+        self.reds, self.reds_dropped = _lay(self._base_reds, rtomb, mine[2], mine[3])
+        if self._proven_pend:
+            self.proven = self._proven_pend
 
     def _tools(self, root):
         if self._measured is None:
@@ -2347,6 +2434,7 @@ class Ledger(object):
         if ci_blocks():
             return None, "CI runs the full set — the ledger is not a verdict here"
         self._ensure()
+        self._sync()  # REG-2344 - another tree's write since this run read the ledger is seen before anything is carried
         if self.why:
             return None, self.why
         name = getattr(gate, "name", None)
@@ -2518,50 +2606,57 @@ class Ledger(object):
 
     def _write(self):
         """REG-2343 - ONE MACHINE'S LEDGER, SEVERAL WRITERS (every checkout's run_gates and hook): under one lock, read
-        what is on disk NOW and merge it - the newer row of a gate wins, a row this run dropped stays dropped only if it
-        is not newer than the drop - cap AFTER the merge, write this writer's own tmp, fsync, replace. A ledger that will
-        not read is set aside, never written over."""
+        what is on disk NOW. REG-2344 - and lay onto it ONLY what this writer did (_delta): the rows it recorded and the
+        rows it dropped, never the rest of the snapshot it loaded, and every drop written down as a tombstone that every
+        writer's merge honours. Cap AFTER the merge, this writer's own tmp, fsync, replace. A ledger that will not read is
+        set aside, never written over - and the last good view this writer read stands in for it."""
         if os.path.basename(self.path) != LEDGER_NAME:
             return False
         folder = os.path.dirname(self.path)
         if folder:
             os.makedirs(folder, exist_ok=True)
         kit = _store_kit()
+        rows, gone, rrows, rgone = self._delta()
         with (kit._store_locked(folder or ".", _stderr) if kit is not None else contextlib.nullcontext()):
             disk, why = load(self.path)
+            body = {}
             if why and os.path.exists(self.path):
                 if kit is None or not kit._set_aside(self.path, why, _stderr):  # LEDGER-ASIDE
                     if kit is None:
                         _stderr("ledger: %s is %s and heart2 would not import to set it aside - nothing is written "
                                 "over it" % (self.path, why))
                     return False
-            if isinstance(disk, dict) and not why:
-                for name, entry in disk.items():
-                    if not (isinstance(entry, dict) and entry.get("ok") is True and entry.get("gate") == name):
-                        continue
-                    if name in self.dropped and _at(entry) <= self._dropped_at.get(name, 0):
-                        continue  # LEDGER-MERGE-DROPPED: the row this run dropped
-                    if isinstance(self.entries.get(name), dict) and _at(self.entries[name]) >= _at(entry):
-                        continue  # LEDGER-MERGE-NEWER: this run's row is the newer
-                    self.entries[name] = entry
+                disk, body = dict(self._base_entries), {"reds": dict(self._base_reds), "dropped": dict(self.dropped),
+                                                        "reds_dropped": dict(self.reds_dropped)}
+            elif not why and os.path.exists(self.path):
                 try:
                     with open(self.path, encoding="utf-8") as fh:
-                        dreds = (json.load(fh) or {}).get("reds")
+                        body = json.load(fh) or {}
                 except Exception:
-                    dreds = None
-                for name, entry in (dreds.items() if isinstance(dreds, dict) else ()):
-                    if name in self.reds_dropped or name in self.reds or name in self.entries:
-                        continue
-                    if isinstance(entry, dict) and entry.get("ok") is False and entry.get("gate") == name:
-                        self.reds[name] = entry
-            if len(self.entries) > _MAX:  # LEDGER-CAP-AFTER-MERGE
-                ranked = sorted(self.entries, key=lambda k: _at(self.entries[k]))
-                for old in ranked[:len(self.entries) - _MAX]:
-                    self.entries.pop(old, None)
+                    body = {}
+            body = body if isinstance(body, dict) else {}
+            ents = dict((n, e) for n, e in (disk or {}).items()
+                        if isinstance(e, dict) and e.get("ok") is True and e.get("gate") == n)
+            dreds = body.get("reds")
+            reds = {}
+            for name, entry in (dreds.items() if isinstance(dreds, dict) else ()):
+                if isinstance(entry, dict) and entry.get("ok") is False and entry.get("gate") == name:
+                    reds[name] = entry
+            ents, tomb = _lay(ents, _stamps(body.get("dropped")), rows, gone)
+            reds, rtomb = _lay(reds, _stamps(body.get("reds_dropped")), rrows, rgone)
+            if len(ents) > _MAX:  # LEDGER-CAP-AFTER-MERGE
+                ranked = sorted(ents, key=lambda k: _at(ents[k]))
+                for old in ranked[:len(ents) - _MAX]:
+                    ents.pop(old, None)
+            sha = str(body.get("proven_sha") or "")
+            proven = self._proven_pend or (sha if _SHA.match(sha) else None)
+            held = (self.entries, self.reds, self.dropped, self.reds_dropped, self.proven)
+            self.entries, self.reds, self.dropped, self.reds_dropped, self.proven = ents, reds, tomb, rtomb, proven
             tmp = "%s.%d.%d.tmp" % (self.path, os.getpid(), threading.get_ident())  # LEDGER-OWN-TMP
             try:
                 with open(tmp, "w", encoding="utf-8") as fh:
-                    json.dump({"v": 2, "proven_sha": self.proven, "entries": self.entries, "reds": self.reds}, fh,
+                    json.dump({"v": 2, "proven_sha": self.proven, "dropped": self.dropped,
+                               "reds_dropped": self.reds_dropped, "entries": self.entries, "reds": self.reds}, fh,
                               sort_keys=True)
                     fh.flush()
                     if kit is not None:
@@ -2569,9 +2664,15 @@ class Ledger(object):
                 if kit is not None:
                     kit._store_hold()
                 os.replace(tmp, self.path)
+            except BaseException:
+                self.entries, self.reds, self.dropped, self.reds_dropped, self.proven = held
+                raise
             finally:
                 if os.path.exists(tmp):
                     os.remove(tmp)
+            self._sig = _file_sig(self.path)
+        self._base_entries, self._base_reds = dict(self.entries), dict(self.reds)
+        self._drop_pend, self._red_drop_pend, self._proven_pend = {}, {}, None
         self.why = None
         return True
 
@@ -2654,19 +2755,19 @@ class Ledger(object):
         why = (row or {}).get("why")
         red = ok is not True
         if red and name:
-            self._drop(name, gate)  # LEDGER-NO-FAIL: a FAIL never stays a PASS row
+            self._drop(name)  # LEDGER-NO-FAIL: a FAIL never stays a PASS row
         if why or not isinstance((row or {}).get("inputs"), list):
             if ok is True:
                 self.last_why = why or "its inputs are UNKNOWN"  # LEDGER-SAY-WHY
             if name:
-                self._drop(name, gate)
+                self._drop(name)
                 self._drop_red(name)
             return False
         parts, pwhy = self._tool_parts(set(row.get("kinds") or []), root)
         if pwhy or not parts:
             self.last_why = pwhy or "the tool versions could not be read"
             if name:
-                self._drop(name, gate)
+                self._drop(name)
                 self._drop_red(name)
             return False
         if not trace:
@@ -2681,7 +2782,7 @@ class Ledger(object):
         if traced is None:
             self.last_why = twhy or "no trace of what the gate read"
             if name:
-                self._drop(name, gate)
+                self._drop(name)
                 self._drop_red(name)
             return False
         inputs = set(row["inputs"]) | traced["inputs"]  # LEDGER-TRACE-READ
@@ -2700,7 +2801,7 @@ class Ledger(object):
             self.last_why = ("proved on uncommitted %s, not on the commit" % hit) if hit else (
                 dwhy or "the worktree cannot be read")
             if name:
-                self._drop(name, gate)
+                self._drop(name)
                 self._drop_red(name)
             return False
         sha = head_sha(root)
@@ -2728,11 +2829,11 @@ class Ledger(object):
         if red:  # LEDGER-RED-STORE: kept in its own map, so lookup() can never carry it as a pass
             row_out["red"] = True
             self.reds[name] = row_out
-            self.reds_dropped.discard(name)
+            self._red_drop_pend.pop(name, None)  # REG-2344 - this red supersedes this writer's own drop
             self._write()
             return False
-        self.dropped.discard(name)
-        self.proven = sha
+        self._drop_pend.pop(name, None)  # REG-2344 - this PASS supersedes this writer's own drop
+        self.proven = self._proven_pend = sha
         self.entries[name] = row_out
         self._drop_red(name, write=False)
         self._write()
@@ -2740,35 +2841,26 @@ class Ledger(object):
 
     def _drop_red(self, name, write=True):
         self._ensure()
+        self._sync()  # REG-2344 - a red another tree stored since this run read the ledger is this run's to drop too
         if name in self.reds or write is False:
             self.reds.pop(name, None)
-            self.reds_dropped.add(name)
+            self._red_drop_pend[name] = int(time.time() * 1000)
             if write:
                 try:
                     self._write()
                 except Exception:
                     pass
 
-    def _carries_here(self, gate):
-        """REG-2343 - would the stored PASS carry for THESE bytes? Only then does this run's result speak about it. A row
-        proved on other bytes - another branch, or inputs that moved here - stays for the tree it is true of (shared, a
-        worktree's failed run would otherwise erase main's earned PASS). A lookup that cannot answer counts as yes: the
-        row is dropped, as before. -> bool"""
-        try:
-            entry, _why = self.lookup(gate)
-        except Exception:
-            return True
-        return entry is not None
-
-    def _drop(self, name, gate=None):
+    def _drop(self, name):
+        """LEDGER-NO-FAIL on the machine's ONE ledger: a FAIL in any tree takes the gate's PASS row out - whatever a lookup
+        could or could not have said about it (REG-2344: a FAIL kept only when lookup missed let a PASS carry on the very
+        bytes that had just failed, once git answered again) - and its tombstone keeps every writer from putting a row
+        no newer than this drop back."""
         self._ensure()
         if not isinstance(self.entries, dict):
             self.entries = {}
-        if gate is not None and isinstance(self.entries.get(name), dict) and not self._carries_here(gate):
-            return  # LEDGER-KEEP-OTHER-BYTES
         self.entries.pop(name, None)  # LEDGER-DROP-FAIL
-        self.dropped.add(name)
-        self._dropped_at[name] = int(time.time() * 1000)
+        self._drop_pend[name] = int(time.time() * 1000)
         if os.path.exists(self.path) or self.entries:
             try:
                 self._write()

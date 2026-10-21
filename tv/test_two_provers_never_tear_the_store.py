@@ -13,9 +13,14 @@ inside the same window - never a race left to luck):
      bytes - a tmp named for one writer is never moved by the other's rename;
   3. a tmp a DEAD writer left beside a store is swept, a live writer's never, and nothing beside a guard is touched;
   4. an old-code writer (a copy of the v1 flush body: fixed tmp, no lock, {_why, entries} only) writes the file it always
-     wrote, and the v2 store - with a section that writer would strip - is never reached.
-EVERYTHING HERE IS A FIXTURE: throwaway directories, stores named like heart2's. Nothing of his is read or written.
-RED_PROOF below.
+     wrote, and the v2 store - with a section that writer would strip - is never reached;
+  5. REG-2344 (the T1 review, 2026-10-22) - THE MACHINE'S LEDGER NEVER UNDOES A DROP. run_gates holds one Ledger for a
+     whole run; another writer's FAIL on the same bytes dropped a PASS that run had loaded, and the run kept carrying it
+     and wrote it back. Driven with REAL git: a long run sees the drop at its next lookup and never writes the row back;
+     a writer lays onto the file only the rows it recorded or dropped itself (a drop made with no tombstone - older code
+     rewriting the whole file - survives too); and a row stamped before a drop and written after it stays dead.
+EVERYTHING HERE IS A FIXTURE: throwaway directories and repositories, stores named like heart2's and the ledger. Nothing
+of his is read or written. RED_PROOF below.
 """
 import io
 import json
@@ -94,6 +99,77 @@ def _entries(path):
     with io.open(path, encoding="utf-8") as fh:
         body = json.load(fh)
     return body.get("entries") if isinstance(body, dict) else None
+
+
+def _reds(path):
+    with io.open(path, encoding="utf-8") as fh:
+        body = json.load(fh)
+    return (body.get("reds") if isinstance(body, dict) else None) or {}
+
+
+class _NoGit(object):
+    """A temp repo's git must never answer for another tree (a hook's leaked GIT_DIR flipped his live repo to
+    core.bare=true on 2026-10-21): every GIT_* variable and every seam that would steer the ledger leave os.environ for
+    the block, the self-arming ledger is a fixture file, and all of it is put back."""
+    STEER = ("GITHUB_ACTIONS", "GATE_LEDGER", "TV_GATE_LEDGER", "TV_GATE_LEDGER_SHA", "TV_SELF_ARMING_LEDGER")
+
+    def __init__(self, arm):
+        self.arm = arm
+
+    def __enter__(self):
+        self.old = dict((k, v) for k, v in os.environ.items() if k.startswith("GIT_") or k in self.STEER)
+        for k in self.old:
+            os.environ.pop(k, None)
+        os.environ["TV_SELF_ARMING_LEDGER"] = self.arm
+        return self
+
+    def __exit__(self, *_e):
+        for k in [k for k in os.environ if k.startswith("GIT_") or k in self.STEER]:
+            os.environ.pop(k, None)
+        os.environ.update(self.old)
+        return False
+
+
+def _git(cwd, *args):
+    env = dict((k, v) for k, v in os.environ.items() if not k.startswith("GIT_"))
+    p = subprocess.run(["git", "-C", cwd] + list(args), capture_output=True, text=True, env=env, timeout=60)
+    if p.returncode != 0:
+        raise RuntimeError("git %s: %s" % (" ".join(args), (p.stderr or p.stdout).strip()[-300:]))
+    return p.stdout.strip()
+
+
+PROBES = {"python": "3.9.9", "node": "v20.0.0", "playwright": "1.40.0"}
+
+
+def _facts():
+    """A traced run that read nothing beyond the static closure."""
+    return {"R": set(), "W": set(), "S": set(), "L": set(), "I": set()}
+
+
+class _G(object):
+    def __init__(self, root, name, script):
+        self.name, self.timeout, self.cwd = name, 30, root
+        self.argv = [sys.executable, os.path.join(root, "tv", script)]
+        self.needs_app, self.skip_ok = False, ()
+
+
+def _ledger_repo(root):
+    """A throwaway repository: x-law imports a helper; the ledger and its side files are ignored, so the tree stays
+    clean while the ledger is written. -> (root, the ledger path)"""
+    files = {"tv/t_x.py": "import helper_x\nimport sys\nsys.exit(0)\n", "tv/helper_x.py": "SALT = 1\n",
+             "tv/t_y.py": "import sys\nsys.exit(0)\n",
+             ".gitignore": ".gate_ledger.json\n.gate_inputs.json\n*.tmp\n.gate_ledger.json.*\n"}
+    for rel, text in files.items():
+        os.makedirs(os.path.dirname(os.path.join(root, rel)), exist_ok=True)
+        with io.open(os.path.join(root, rel), "w", encoding="utf-8") as fh:
+            fh.write(text)
+    _git(root, "init", "-q", "-b", "main")
+    _git(root, "config", "user.email", "law@example.com")
+    _git(root, "config", "user.name", "law")
+    _git(root, "config", "commit.gpgsign", "false")
+    _git(root, "add", "-A")
+    _git(root, "commit", "-q", "-m", "base")
+    return root, os.path.join(root, "tv", ".gate_ledger.json")
 
 
 class TwoProversNeverTearTheStore(unittest.TestCase):
@@ -269,6 +345,81 @@ class TwoProversNeverTearTheStore(unittest.TestCase):
         self.assertEqual(sorted(body.get("entries") or {}), ["k2"], "an old-code flush reached the v2 store")
         self.assertEqual(body.get("format"), 2)
 
+    def test_a_long_run_sees_another_writers_drop_and_never_undoes_it(self):
+        """★ REG-2344 (the T1 review's repro) - run_gates holds ONE Ledger for a whole run. It loaded x-law's PASS and
+        carried it; another writer then records x-law FAILING on the same bytes. The long run's next lookup must not
+        carry it, its next write must not put it back, and a fresh lookup must miss."""
+        with _NoGit(os.path.join(self.root, "arm.json")):
+            root, led = _ledger_repo(os.path.join(self.root, "ra"))
+            gx, gy = _G(root, "x-law", "t_x.py"), _G(root, "y-law", "t_y.py")
+            self.assertTrue(GL.Ledger(path=led, probes=PROBES).record(gx, True, trace=_facts()), "PREMISE: no PASS")
+            a = GL.Ledger(path=led, probes=PROBES)
+            hit, why = a.lookup(gx)
+            self.assertIsNotNone(hit, "PREMISE: the long run does not carry x-law at its start: %s" % why)
+            GL.Ledger(path=led, probes=PROBES).record(gx, False)        # another writer: x-law FAILS on these bytes
+            hit, why = a.lookup(gx)
+            self.assertIsNone(hit, "the long run still carries a PASS another writer dropped after a FAIL on the same "
+                                   "bytes - it looked it up in what it loaded at its start")
+            self.assertTrue(a.record(gy, True, trace=_facts()), "PREMISE: the long run's unrelated PASS was not stored")
+            self.assertNotIn("x-law", _entries(led), "the long run's write put back the PASS another writer dropped")
+            hit, why = GL.Ledger(path=led, probes=PROBES).lookup(gx)
+            self.assertIsNone(hit, "x-law carries on the bytes it just FAILED on")
+
+    def test_a_writer_writes_only_its_own_changes_never_a_row_it_only_loaded(self):
+        """★ REG-2344 - a drop made WITHOUT a tombstone (the code before REG-2344 still runs in a checkout that has not
+        pulled it, and it rewrites the whole file) must survive this writer's next write all the same: a writer lays
+        onto the file only what it recorded or dropped itself, never a PASS or a red it merely loaded."""
+        with _NoGit(os.path.join(self.root, "arm.json")):
+            root, led = _ledger_repo(os.path.join(self.root, "rb"))
+            gx, gw, gz = _G(root, "x-law", "t_x.py"), _G(root, "w-law", "t_y.py"), _G(root, "z-law", "t_y.py")
+            first = GL.Ledger(path=led, probes=PROBES)
+            self.assertTrue(first.record(gx, True, trace=_facts()), "PREMISE: no PASS for x-law")
+            first.record(gw, False, trace=_facts())                    # a traced FAIL: w-law is kept red
+            self.assertIn("w-law", _reds(led), "PREMISE: no red row for w-law")
+            a = GL.Ledger(path=led, probes=PROBES)
+            a._ensure()
+            self.assertIn("x-law", a.entries, "PREMISE")
+            self.assertIn("w-law", a.reds, "PREMISE")
+            with io.open(led, encoding="utf-8") as fh:
+                body = json.load(fh)
+            body["entries"].pop("x-law")                               # an older writer drops both, and writes no
+            body["reds"].pop("w-law")                                  # tombstone: it rewrites the file it read
+            for k in ("dropped", "reds_dropped"):
+                body.pop(k, None)
+            with io.open(led + ".old.tmp", "w", encoding="utf-8") as fh:
+                json.dump(body, fh)
+            os.replace(led + ".old.tmp", led)
+            a.record(gz, False)                                        # an unrelated FAIL: a write with no re-read
+            self.assertNotIn("x-law", _entries(led), "a writer put back a PASS it had only loaded")
+            self.assertNotIn("w-law", _reds(led), "a writer put back a red it had only loaded")
+
+    def test_a_pass_stamped_before_a_fail_and_written_after_it_stays_dead(self):
+        """★ REG-2344 - a writer's own PASS for x-law and red for w-law, stamped before another writer's FAIL of x-law
+        and PASS of w-law and written after them (a record whose write waited on the store lock), never come back: a
+        drop is a tombstone every writer's merge honours, and a row no newer than it is dead."""
+        with _NoGit(os.path.join(self.root, "arm.json")):
+            root, led = _ledger_repo(os.path.join(self.root, "rc"))
+            gx, gw = _G(root, "x-law", "t_x.py"), _G(root, "w-law", "t_y.py")
+            first = GL.Ledger(path=led, probes=PROBES)
+            self.assertTrue(first.record(gx, True, trace=_facts()), "PREMISE: no PASS for x-law")
+            first.record(gw, False, trace=_facts())
+            a = GL.Ledger(path=led, probes=PROBES)
+            a._ensure()
+            a.entries["x-law"] = dict(a.entries["x-law"])            # this writer's own rows, stamped now and not
+            a.reds["w-law"] = dict(a.reds["w-law"])                    # yet written
+            time.sleep(0.02)
+            b = GL.Ledger(path=led, probes=PROBES)
+            b.record(gx, False)                                        # later: x-law FAILS on the same bytes
+            self.assertTrue(b.record(gw, True, trace=_facts()), "PREMISE: w-law's later PASS was not stored")
+            self.assertNotIn("x-law", _entries(led), "PREMISE: the FAIL did not drop x-law")
+            self.assertNotIn("w-law", _reds(led), "PREMISE: the PASS did not drop w-law's red")
+            self.assertTrue(a._write(), "the waiting writer's write failed")
+            self.assertNotIn("x-law", _entries(led), "a PASS stamped before a FAIL on the same bytes came back when "
+                                                     "written after it")
+            self.assertNotIn("w-law", _reds(led), "a red stamped before a later PASS came back when written after it")
+            hit, why = GL.Ledger(path=led, probes=PROBES).lookup(gx)
+            self.assertIsNone(hit, "x-law carries on the bytes it just FAILED on")
+
 
 RED_PROOF = [
     {"why": "R4 - the store directory is not locked: two writers inside one window, and one write is lost",
@@ -300,6 +451,27 @@ RED_PROOF = [
      "file": "heart2.py",
      "find": "        return os.path.join(common, \"heart2\"), None\n",
      "replace": "        return os.path.join(os.path.dirname(common), \"tv\"), None\n",
+     "matches": 1},
+    {"why": "REG-2344 - a long run never re-reads the ledger: it carries a PASS another writer dropped after a FAIL on "
+            "the same bytes",
+     "file": "gate_ledger.py",
+     "find": "        if self._loaded and not force and sig == self._sig:  # LEDGER-SYNC\n",
+     "replace": "        if self._loaded and not force:  # LEDGER-SYNC\n",
+     "matches": 1},
+    {"why": "REG-2344 - a writer writes back every PASS it loaded, undoing a drop another writer made",
+     "file": "gate_ledger.py",
+     "find": "        rows = dict((n, e) for n, e in ents.items() if base.get(n) is not e)  # LEDGER-DELTA\n",
+     "replace": "        rows = dict(ents)  # LEDGER-DELTA\n",
+     "matches": 1},
+    {"why": "REG-2344 - a writer writes back every red it loaded, undoing a drop another writer made",
+     "file": "gate_ledger.py",
+     "find": "        rrows = dict((n, e) for n, e in reds.items() if rbase.get(n) is not e)  # LEDGER-DELTA-RED\n",
+     "replace": "        rrows = dict(reds)  # LEDGER-DELTA-RED\n",
+     "matches": 1},
+    {"why": "REG-2344 - the merge ignores the tombstone: a row stamped before a drop and written after it comes back",
+     "file": "gate_ledger.py",
+     "find": "    return dict((n, e) for n, e in rows.items() if _at(e) > tomb.get(n, 0))  # LEDGER-TOMBSTONE\n",
+     "replace": "    return dict(rows)  # LEDGER-TOMBSTONE\n",
      "matches": 1},
 ]
 

@@ -10905,7 +10905,10 @@ GATES = [
              "lock while a worktree's pre-flight ran beside main's push, and the machine's gate ledger has the same two "
              "writers. Two REAL processes released by a barrier, held inside one window (TV_STORE_HOLD_S), keep both "
              "writes in every store; with no lock each writer renames only its own tmp; a dead writer's tmp is swept; an "
-             "old-code flush never reaches the v2 store."),
+             "old-code flush never reaches the v2 store. REG-2344 - one Ledger for a whole run carried a PASS another "
+             "writer had dropped after a FAIL on the same bytes, and its next write put it back: a lookup now re-reads a "
+             "ledger another writer moved, a write lays only its own rows and drops onto the file, and every drop is a "
+             "tombstone no older row survives."),
     Gate("test_an_unreadable_store_is_kept_not_overwritten",
          [sys.executable, os.path.join(HERE, "test_an_unreadable_store_is_kept_not_overwritten.py")], 60,
          needs_app=False,
