@@ -49,7 +49,7 @@ MEASURED on Dean's PC 2026-10-21: his console starts as `pythonw.exe tv\control_
 
 FIX: `control_app._route_pythonw_output()`, the first statement of main(): only a stream that is None is routed, to tv/control_app.log (the file the doctor reads), line-buffered UTF-8; past 32 MB at boot it rolls to control_app.prev.log (tv/*.log ignores both). A scratch console (win_relaunch.scratch_console(): TV_STUB=1 or a non-primary port) writes a temp-dir log instead, so a harness boot never moves the doctor's CONSOLE BOOT slice. Adapted from Dean diff 04 (moved ahead of the console-path mark so its warning is kept too; scratch rule added).
 
-GUARD: tv/test_a_relaunch_leaves_a_receipt.py `APythonwConsoleKeepsWhatItSays` - 6 cases, one of them asks console_doctor's own eye to read what the routed console printed. 5 new RED proofs.
+GUARD: tv/test_a_pythonw_console_keeps_what_it_says.py (registered) - 6 cases, one of them asks console_doctor's own eye to read what the routed console printed. 5 RED proofs. A law of its own on purpose: the #225 relaunch law keys on 7 files, and these cases import control_app (the whole-suite key) - folded into it, its proofs would re-prove on every test edit.
 
 LEFT: not run on a Windows PC; the routing is driven with the streams set to None the way pythonw leaves them.
 
