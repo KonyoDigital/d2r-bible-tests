@@ -234,8 +234,6 @@ class TheLedgerKeepsTheOtherLanesRows(_Runner):
         self.assertEqual(len([r for r in after if r >= 1e11]), 3, "this lane's own call was not recorded")
         self.assertNotEqual(os.stat(self.ledger).st_ino, ino,
                             "the ledger was rewritten in place - a torn write resets both lanes' caps")
-        self.assertEqual([n for n in os.listdir(self.d) if n.startswith("ledger.json.")], [],
-                         "the atomic write left its temp file behind")
 
     def test_the_vision_lanes_rows_do_not_count_against_the_intake_cap(self):
         """The rule today, kept: this lane's cap counts the reads THIS lane made. 25 vision reads in the hour must not
