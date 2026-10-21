@@ -201,6 +201,13 @@ FIX: `_git_common_dir` reads `.git` the way git does - a relative gitdir joined 
 GUARDS: tv/test_one_verdict_cache_serves_every_tree.py (relative gitdir from another cwd; REAL git worktrees, absolute and --relative-paths, land on `git rev-parse --git-common-dir`; bare repository; an unreadable pointer is said) - 7 of 7 PROVEN; tv/test_safe_copy.py (every store generation and side file stays out, the census still travels) - 6 of 6 PROVEN; tv/test_a_proven_verdict_is_reused_only_on_identical_bytes.py (every side file is gitignored).
 
 LEFT: a checkout with no readable git dir banks into its own store and is SAID, but nothing merges that store into the machine's at the end of the push (there is no machine store it could find).
+### REG-2380 - EVERY WINDOWS AGENT ANNOUNCED THE MAC'S OCR BINARY (Dean diff 03)
+
+MEASURED on a copy of Dean's tv/control_agent.log taken 2026-10-21: 139 agent boots, v2246 to v3767, every one printing `ocr lane: ON ...\tv\bin\ocr_mac`, beside an OCR lane that was reading at 34-50 ms through the PowerShell worker. The banner built its tag as `"ON " + OCR_BIN`, and OCR_BIN is always tv/bin/ocr_mac; on Windows `_ocr_worker_cmd()` runs `powershell ... -File tv/ocr_win.ps1`. The boot's missing-worker line (`ocr binary missing — Claude-only until tv/bin/ocr_mac is built`) named the Mac binary on Windows too.
+
+FIX: `tv_diablo._ocr_lane_tag()` builds the tag from the argv `_ocr_worker_cmd()` hands the spawn (what `OcrWorker._spawn` runs); OFF says `TV_OCR=0` or names the platform's missing worker (`_ocr_worker_wanted()`: tv/ocr_win.ps1 on Windows, tv/bin/ocr_mac on the Mac). main() asks the helper and no longer names OCR_BIN.
+
+GUARD: tv/test_the_ocr_banner_names_the_worker_that_runs.py (registered) - drives the helper under the Windows (worker present / missing), Mac and TV_OCR=0 branches, and pins main()'s `ocr lane:` line to the helper by AST. 4 RED proofs.
 
 ### REG-2335 - AFTER A RESET HIS BOARD STILL HELD A TORCH IN SHARED STASH, A TORCH IN UNI-SMALL AND SIX CHARMS IN MAGIC & RARE (v3782)
 

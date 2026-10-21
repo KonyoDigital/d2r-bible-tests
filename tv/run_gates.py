@@ -10937,6 +10937,13 @@ GATES = [
          why="R4 (REG-2341) - an unreadable cache was read as empty and rewritten, and a failed merge-read wrote one "
              "run's entries alone. Every write keeps a .prev generation; an unreadable store is renamed aside, the newest "
              "one kept, and .prev stands in at the open and the write - nothing it held is thinned."),
+    Gate("test_the_ocr_banner_names_the_worker_that_runs",
+         [sys.executable, os.path.join(HERE, "test_the_ocr_banner_names_the_worker_that_runs.py")], 60,
+         needs_app=False,
+         why="REG-2380 - the agent banner printed 'ocr lane: ON ' + OCR_BIN, which is always tv/bin/ocr_mac; on Windows "
+             "_ocr_worker_cmd() runs ocr_win.ps1, so every Windows agent named a Mach-O it can never run (139 boots on a "
+             "copy of Dean's agent log, beside OCR reading at 34-50 ms). The tag is now the argv the spawn runs, an OFF "
+             "names the switch or the missing worker, and main() never names OCR_BIN."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
