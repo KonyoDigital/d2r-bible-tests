@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2360 - INSIDE THE HOOK, GIT_DIR POINTED EVERY TEST'S GIT AT HIS REAL REPO: FIXTURE COMMITS ON THE PUSH BRANCH, core.bare=true ON HIS CHECKOUT (unversioned)
+
+v3783 pushes #10 and #11, 2026-10-21: git exports GIT_DIR to a pre-push hook (absolute `<main>/.git/worktrees/<name>` from a linked worktree), and GIT_DIR beats cwd= and -C in every git child. A law that `git init`s a temp repo committed "v0001 claude seat" / "v0002 grok backs up claude" onto the push branch, the commit-stamps law read the half-bumped HEAD and refused both pushes, and a `git init` in a temp dir re-initialised the common config to core.bare=true - his main checkout refused every git command for 2.5 h. Measured again on a fixture repo standing in for his: each of test_the_author_is_read_from_the_stamp, TheLauncherUsesTheSameRule, the P3 tracked-files case, TheTreeIsToldApart and test_a_stale_git_lock_is_cleared_and_said, unscrubbed, moved the worktree branch or set core.bare=true (or both).
+
+FIX: (1) hooks/pre-push records the git dir and then unsets every variable `git rev-parse --local-env-vars` names (plus GIT_DIR / GIT_WORK_TREE / GIT_INDEX_FILE) before any stage; its own git calls find the repo from the work tree it starts in. (2) The commit-stamps law reached the pushed commit only through that leak inside heart2's no-.git sandbox, so the hook now hands it over by name: TV_PUSHED_GIT_DIR + TV_PUSHED_COMMIT (the sha pushed to main, else the first ref that ships bytes, else HEAD); `_at_head` reads `git --git-dir=... show <sha>:<path>`, and a named commit git cannot read FAILS rather than skips. (3) Each of the five laws scrubs GIT_* for its own test only, restored by addCleanup.
+
+GUARD (registered in tv/run_gates.py): tv/test_a_leaked_git_dir_never_writes_the_real_repo.py - every temp-repo law run whole under GIT_DIR=<a fixture worktree's git dir> must be green and leave the fixture byte-identical (refs, objects, both indexes, config, core.bare false); the hook's two marked blocks are driven in bash; the commit-stamps law passes a named coherent commit and refuses a named half-bump. 8 RED proofs, heart2 8/8 PROVEN.
+
+LEFT: 14 other laws `git init` a temp dir without a scope scrub of their own (test_a_suite_run_is_reused_only_on_identical_bytes, test_a_version_bump_carries_the_gates_that_ignore_the_version, test_the_eye_reads_the_commit_read_only and others); at push the hook's unset covers them, outside a hook they are not swept.
+
 ### REG-2335 - AFTER A RESET HIS BOARD STILL HELD A TORCH IN SHARED STASH, A TORCH IN UNI-SMALL AND SIX CHARMS IN MAGIC & RARE (v3782)
 
 Elad, v3778 console, 2026-10-21 01:44 IDT: "when i do reset it. i still have these items that are stuck and not being deleted automatically with the rest of the items" and "there should be an option that resets just the items and wipes them from the mules and shared stash/war stash/mules all emptied" (runes / gems / materials need not be reset).

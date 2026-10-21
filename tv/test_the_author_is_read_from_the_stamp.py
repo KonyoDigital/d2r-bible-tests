@@ -35,6 +35,10 @@ import second_eye_ledger as L
 class TestTheAuthorIsReadFromTheStamp(unittest.TestCase):
 
     def setUp(self):
+        # REG-2360 - inside a git hook GIT_DIR points at the REAL repo and beats cwd=, so this fixture's
+        # `git init` and commits landed on his push branch. Dropped for THIS test only; addCleanup puts them back.
+        _gitenv = {_k: os.environ.pop(_k) for _k in list(os.environ) if _k.startswith("GIT_")}
+        self.addCleanup(os.environ.update, _gitenv)
         self.d = tempfile.mkdtemp(prefix="authorstamp_")
         self.led = os.path.join(self.d, ".second_eye.jsonl")
         self._live = L.LEDGER_PATH

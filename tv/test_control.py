@@ -13624,6 +13624,18 @@ class TestTheStampsAgreeInTheCOMMITNotJustTheWorktree(unittest.TestCase):
     """
 
     def _at_head(self, path):
+        # REG-2360 - THE PUSHED COMMIT ARRIVES BY NAME. Inside heart2's sandbox (a copy with no .git) this read
+        # reached the pushed commit only through the GIT_DIR a git hook leaks - the same leak that let a temp-repo law
+        # commit into the push branch and set core.bare on his live checkout. hooks/pre-push now unsets that pointer
+        # for every stage and exports TV_PUSHED_GIT_DIR + TV_PUSHED_COMMIT instead; outside a push this reads HEAD.
+        # A commit the hook named that git cannot read is a FAILURE, not a skip: the push said which bytes ship.
+        gd, sha = os.environ.get("TV_PUSHED_GIT_DIR"), os.environ.get("TV_PUSHED_COMMIT")
+        if gd and sha:
+            r = subprocess.run(["git", "--git-dir=" + gd, "show", "%s:%s" % (sha, path)],
+                               capture_output=True, text=True, encoding="utf-8", errors="replace")
+            self.assertEqual(r.returncode, 0, "the pushed commit %s (in %s) has no readable %s: %s"
+                             % (sha[:12], gd, path, (r.stderr or "").strip()[:200]))
+            return r.stdout
         r = subprocess.run(["git", "show", "HEAD:" + path],
                            capture_output=True, text=True,
                            cwd=os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

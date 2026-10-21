@@ -10898,6 +10898,15 @@ GATES = [
          [sys.executable, os.path.join(HERE, "test_an_inert_child_does_not_untrace_a_gate.py")], 60,
          needs_app=False,
          why="v3775 (REG-2296) fix 5 - sleep, ps and pgrep read no file in this checkout (a pgrep pattern is matched, never opened), so they no longer make a gate's reads UNKNOWN. lsof on a path here, bash, sh, chrome, perl and the rest still do."),
+    Gate("test_a_leaked_git_dir_never_writes_the_real_repo",
+         [sys.executable, os.path.join(HERE, "test_a_leaked_git_dir_never_writes_the_real_repo.py")], 300,
+         needs_app=False,
+         why="REG-2360 - inside a git hook GIT_DIR points at the real repo and beats cwd=, so a temp-repo law "
+             "committed onto the push branch and a git init set core.bare=true on his live checkout (v3783). The hook "
+             "now unsets every repo-local git variable before any stage and hands the commit-stamps law the pushed "
+             "commit by name (TV_PUSHED_GIT_DIR + TV_PUSHED_COMMIT); each temp-repo law scrubs GIT_* for its own "
+             "test. Driven on a fixture repo with a linked worktree: every temp-repo law run whole under the leaked "
+             "GIT_DIR leaves it byte-identical with core.bare false."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

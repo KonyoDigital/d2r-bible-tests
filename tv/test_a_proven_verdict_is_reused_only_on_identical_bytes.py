@@ -559,6 +559,11 @@ class TheKeyNamesEveryInput(unittest.TestCase):
         """#242 (2026-10-08) - MEASURED on the v3618 push: 66 proofs banked on the final bytes, 1 reused - each key held
         40+ runtime files his live console rewrites every few seconds, named as literals somewhere in control_app's
         closure, so every key moved. The push-time cache counts a NAMED file only when git tracks it."""
+        # REG-2360 - inside a git hook GIT_DIR points at the REAL repo and beats cwd= and -C: the throwaway
+        # repo's `git init` / `git add` below would write his index and git's answer would be his tracked set.
+        # Dropped for THIS test only; addCleanup puts them back.
+        _gitenv = {_k: os.environ.pop(_k) for _k in list(os.environ) if _k.startswith("GIT_")}
+        self.addCleanup(os.environ.update, _gitenv)
         d = tempfile.mkdtemp(prefix="p3tracked.")
         try:
             repo = os.path.join(d, "repo")
