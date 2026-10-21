@@ -13,7 +13,7 @@
 // Now: empty-cwd spawn, no project/local settings, no session persistence, low effort,
 // hard hourly circuit breaker, explicit --model sonnet.
 import { spawnSync } from 'node:child_process';
-import { writeFileSync, unlinkSync, mkdtempSync, rmdirSync, readFileSync, mkdirSync, existsSync } from 'node:fs';
+import { writeFileSync, unlinkSync, mkdtempSync, rmdirSync, readFileSync, mkdirSync, existsSync, renameSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -58,8 +58,20 @@ function _budgetLoad() {
 }
 
 function _budgetSave(state) {
+  // REG-2385 - ATOMIC, like tv_diablo's writer of the same file: a torn write reads as {} on both sides and restarts
+  // BOTH lanes' caps from zero. A per-process tmp (two writers), and where a rename is refused - a reader holding the
+  // file on Windows - the old in-place write rather than no write at all.
+  const body = JSON.stringify(state);
+  const tmp = BUDGET_PATH + '.' + process.pid + '.tmp';
   try {
-    writeFileSync(BUDGET_PATH, JSON.stringify(state));
+    writeFileSync(tmp, body);
+    renameSync(tmp, BUDGET_PATH);
+    return;
+  } catch (_) {
+    try { unlinkSync(tmp); } catch (e) {}
+  }
+  try {
+    writeFileSync(BUDGET_PATH, body);
   } catch (_) {}
 }
 
@@ -100,10 +112,24 @@ function budgetCheck() {
   return null;
 }
 
+// REG-2385 - TWO WRITERS, TWO CLOCKS, ONE LEDGER. This file is also tv_diablo's vision meter (_sub_budget_record writes
+// time.time() SECONDS); this lane writes Date.now() MILLISECONDS. Recording a call kept only the rows younger than a day
+// IN MILLISECONDS - which no seconds row ever is - so every intake read ERASED the vision lane's rows (reproduced on a
+// fixture: three fresh vision rows in, one intake row out). The other lane's rows are kept now, aged in their own unit
+// (tv_diablo._sub_budget_calls' window: a minute of skew, under a day). What this lane COUNTS is unchanged: budgetCheck
+// windows in milliseconds, so it counts its own rows only - the G5 ledger records the same collision (v1698).
+const MS_FLOOR = 1e11;   // 1e11 ms is 1973 and 1e11 s is the year 5138: nothing real lands between them
+
 function budgetRecord() {
   const now = Date.now();
   const state = _budgetLoad();
-  const calls = (state.calls || []).filter((t) => now - t < 24 * 3600 * 1000);
+  const calls = (Array.isArray(state.calls) ? state.calls : []).filter((t) => {
+    const n = Number(t);
+    if (!Number.isFinite(n)) return false;
+    if (n >= MS_FLOOR) return now - n < DAY_MS;
+    const age = now / 1000 - n;
+    return age >= -60 && age < 86400;
+  });
   calls.push(now);
   _budgetSave({ calls, last: now });
 }
