@@ -48528,6 +48528,51 @@ def _win_focus_existing_console():
         return False
 
 
+CONSOLE_LOG_ROLL_BYTES = 32 * 1024 * 1024
+
+
+def _route_pythonw_output():
+    """REG-2381 — PYTHONW HAS NO STDOUT, SO ON WINDOWS EVERYTHING THE CONSOLE SAID WAS DROPPED. -> path | None
+
+    MEASURED on Dean's PC 2026-10-21 (his console starts as pythonw.exe, per start_tvd_win.log): no tv/control_app.log
+    at all, so console_doctor's hunt-economy eye answered "no console log on this machine ... unaskable for 48d (891
+    attempts)", and every print() - the CONSOLE BOOT marker that eye slices on, "[sign-in] created", the reel
+    auto-sweep's watch line, the drift hold - went nowhere (pythonw leaves sys.stdout and sys.stderr None, and print()
+    to None is silent). His Mac's launcher appends the same stream to this file (start_tvd_mac.sh
+    `>>"$HERE/control_app.log"`), which is the path the doctor reads.
+
+    Only a stream that is None is routed, so a terminal, a launcher redirect and every law keep exactly what they
+    have. A scratch console (win_relaunch.scratch_console(): TV_STUB=1 or a non-primary port) writes a temp-dir log,
+    never this machine's - a harness boot in the real log would move the doctor's CONSOLE BOOT slice (the #225 rule).
+    Past CONSOLE_LOG_ROLL_BYTES at boot the file rolls to control_app.prev.log (tv/*.log ignores both)."""
+    if sys.stdout is not None and sys.stderr is not None:
+        return None
+    try:
+        import win_relaunch as _wr_out
+        _scratch = bool(_wr_out.scratch_console())
+    except Exception:
+        _scratch = False
+    if _scratch:
+        import tempfile as _tf_out
+        p = os.path.join(_tf_out.gettempdir(), "tvd-scratch-console-control_app.log")
+    else:
+        p = os.path.join(HERE, "control_app.log")
+    try:
+        if os.path.getsize(p) > CONSOLE_LOG_ROLL_BYTES:
+            os.replace(p, os.path.splitext(p)[0] + ".prev.log")
+    except OSError:
+        pass                     # absent, or held open by the image this one replaces: append to it as it is
+    try:
+        fh = open(p, "a", encoding="utf-8", errors="replace", buffering=1)
+    except OSError:
+        return None              # nowhere to write: the streams stay None, exactly as before
+    if sys.stdout is None:
+        sys.stdout = fh
+    if sys.stderr is None:
+        sys.stderr = fh
+    return p
+
+
 def main():
     # ⚠⚠ REG-1436 (#66) — THIS PROCESS IS A CONSOLE, SAID FIRST, BEFORE IT ASKS ANYTHING (REG-1410..1412).
     # MEASURED on his ALT right after v3522: 11 s /api/status then timeouts while tvd-eagle-watch tokenized every
@@ -48540,6 +48585,9 @@ def main():
     # marked that is the exact tokenize scan over every tv/*.py: the post-ship stall itself, once per ship, at
     # boot. Marking spawns nothing, so it may precede the #224 reap. Proven by DRIVING main() under stubs
     # (test_a_plan_is_computed_once.TheConsoleIsMarkedBeforeItAsksAnything), not by reading its names.
+    # REG-2381 - before ANY of that: under pythonw (every Windows console) sys.stdout/stderr are None and everything main()
+    # prints - the CONSOLE BOOT marker included - was dropped. It opens one file and asks nothing.
+    _route_pythonw_output()
     try:
         import frame_ref as _fr_console
         _fr_console.mark_console_path(True)
