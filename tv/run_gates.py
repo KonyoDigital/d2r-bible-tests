@@ -5944,9 +5944,7 @@ GATES = [
              "quiet exits and any uncaught exception land in it, every exec leaves a receipt naming its "
              "pid, and a Windows child waits for that pid to exit (measured on the ALT: 3.03 s for a 3 s "
              "parent). A TV_STUB or scratch-port console writes a temp log, never this machine's record "
-             "(8 of 9 lines were render_check's on day one). REG-2381 - and what a pythonw console SAYS is kept: "
-             "a None stdout/stderr is routed to tv/control_app.log (Dean's PC had none, so the doctor's hunt eye "
-             "read 'no console log' for 48 days), rolled past 32 MB, scratch consoles to a temp log."),
+             "(8 of 9 lines were render_check's on day one)."),
     Gate("test_the_chronicle_inbox_asks_on_the_page",
          [sys.executable, os.path.join(HERE, "test_the_chronicle_inbox_asks_on_the_page.py")], 60,
          why="#230 - his ask: harness Grok's mailbox study (~/tv-diablo-mailbox) into the console's own "
@@ -10968,6 +10966,15 @@ GATES = [
              "answers a runner's 429 as HTTP 429 with its body (limit, source, retry_s), still lets the Grok failover "
              "read, answers the 429 when no lane reads, and never calls the website after a cap. One case runs the "
              "REAL runner under node at its cap through a private server; the website door is always stubbed."),
+    Gate("test_a_pythonw_console_keeps_what_it_says",
+         [sys.executable, os.path.join(HERE, "test_a_pythonw_console_keeps_what_it_says.py")], 60,
+         needs_app=False,
+         why="REG-2381 - pythonw (every Windows console) leaves sys.stdout/stderr None, so everything the console "
+             "printed was dropped: Dean's PC had no tv/control_app.log at all and the doctor's hunt eye read 'no "
+             "console log on this machine' for 48 days. main() now routes a None stream to tv/control_app.log (the "
+             "file the Mac launcher appends to and the doctor reads) before it says anything, rolled past 32 MB; a "
+             "scratch console writes a temp log. Driven with the streams set to None, and the doctor's own eye reads "
+             "what the routed console printed."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
