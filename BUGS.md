@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2363 - A LAW HEART2 CANNOT KEY NEVER HAS A PROOF SAVED, AND NOTHING SAID WHEN ONE BECAME UNKEYABLE (unversioned)
+
+Measured 2026-10-21: 85 of 1,001 laws were unkeyable (heart2.law_inputs: "the law lists a directory itself ... no byte key can name it", or a PROOF_NEEDS directory), so each of their proofs re-runs on every push that has them in scope. test_control was one of them: 27 proofs at ~4 min each, never once saved across the v3783 series. No gate watched the count; the only symptom was a slower push.
+
+FIX: tv/unkeyable_laws.json lists every registered gate whose proofs can never be saved, with heart2's reason (line numbers dropped). tv/test_the_unkeyable_laws_only_get_fewer.py asks heart2's own law_inputs over heart2.gate_files (no second copy of the rule), plus one venue-independent fact: a PROOF_NEEDS under a directory safe_copy never carries (.git, frames) can never be keyed - from a main checkout it is a directory, from a worktree heart2 refuses to bring the pointer. A law unkeyable now and not listed fails, naming why; a listed law that is keyable again must leave; and the list may not exceed CEILING (91) written in the law, so growing it is a deliberate edit that re-proves the law.
+
+GUARD (registered in tv/run_gates.py): tv/test_the_unkeyable_laws_only_get_fewer.py, 4 RED proofs (an extra listing law; a keyable law slipped into the list; a blind census; the .git/footage rule naming nothing).
+
+LEFT: 91 laws stay unkeyable (88 list a directory in the law file; 2 need ../.git; 1 needs a footage reel). The ratchet runs in run_gates and CI, and at push only when its own file is in the push - a new unkeyable law is caught after the push that adds it, not before. Each run costs ~45 s (law_inputs over 1,031 gates).
+
 ### REG-2362 - test_control AND test_agent LISTED THEIR OWN TEMP DIRS, SO HEART2 COULD NEVER KEY THEM (unversioned)
 
 heart2 scans only the LAW FILE for a directory listing and refuses to key any law that has one. test_control had 40 listing sites and test_agent 6. 29 of the 46 listed a temp dir the test had made a line earlier (a reel fixture, a corrupt-ledger copy, a settle queue), which no other process writes; one was a `_scripts()` glob nothing called; one took a probe image from his live footage when it existed.

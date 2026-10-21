@@ -10931,6 +10931,14 @@ GATES = [
              "the temp root, not the tree, never in an uncontained process). 29 of test_control's and "
              "test_agent's 46 listing sites listed their own temp dirs; through these the heart can key both "
              "suites, and a real read of the tree still has to be os.listdir in the law file, where it is seen."),
+    Gate("test_the_unkeyable_laws_only_get_fewer",
+         [sys.executable, os.path.join(HERE, "test_the_unkeyable_laws_only_get_fewer.py")], 300,
+         needs_app=False,
+         why="REG-2363 - a law heart2 cannot key never has a proof saved, so it is proved from nothing on "
+             "every push it is in (test_control: 27 proofs, ~4 min each, the whole v3783 series). heart2's own "
+             "law_inputs over every registered gate, plus PROOF_NEEDS under .git or frames, is compared with "
+             "tv/unkeyable_laws.json: a new unkeyable law fails naming why, a listed law that is keyable again "
+             "must leave, and the list may not exceed CEILING in the law - it only shrinks."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
