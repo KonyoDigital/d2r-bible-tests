@@ -131,13 +131,18 @@ class TheTasksPanel(unittest.TestCase):
 
     def test_his_tick_moves_a_task_to_done_and_a_click_opens_before_after(self):
         world()
-        o = board().run(READ + "var r = open_(%s); r.querySelector('.vtk-tick').click();"
+        # The tick re-renders the row into Done, so a click that bubbles on reaches a DETACHED row whose expand never
+        # paints - and #vault-move-compare is the retired popup. Count the row's expand handler instead: a tick that
+        # reaches it is the bug, whether or not anything shows.
+        o = board().run(READ + "var __n = 0, __o = window._vaultTaskExpand;"
+                        "window._vaultTaskExpand = function(){ __n++; return __o.apply(this, arguments); };"
+                        "var r = open_(%s); r.querySelector('.vtk-tick').click();"
+                        "window._vaultTaskExpand = __o; OUT.expandOnTick = __n;"
                         "OUT.open = !!open_(%s); OUT.done = !!done_(%s);"
-                        "OUT.cmpBefore = !!(document.getElementById('vault-move-compare') && !document.getElementById('vault-move-compare').hidden);"
                         "var s = open_(%s); s.click(); var x = s.nextElementSibling;"
                         "OUT.cmp = !!(x && x.classList.contains('vtk-expand-li') && x.querySelector('.vtx-from') && x.querySelector('.vtx-to'));"
                         "s.click();" % (json.dumps(SHAKO), json.dumps(SHAKO), json.dumps(SHAKO), json.dumps(SIGN)))
-        self.assertFalse(o["cmpBefore"], "the tick box also opened BEFORE | AFTER")
+        self.assertEqual(o["expandOnTick"], 0, "the tick box also opened BEFORE | AFTER (its click reached the row's expand)")
         self.assertFalse(o["open"], "his tick left the task open")
         self.assertTrue(o["done"], "his tick did not move the task to Done")
         self.assertTrue(o["cmp"], "clicking a line does not expand its own FROM | TO")
