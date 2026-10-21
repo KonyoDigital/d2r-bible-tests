@@ -11486,6 +11486,15 @@ GATES = [
              "PC's gitignored tv/pc_settings.json > the default; the refusal names its limit, its source and retry_s, "
              "and is status 429. Driven through the real runner and pipeline on a fixture ledger and settings file; "
              "the claude CLI is a path that does not exist, so no case spends a read."),
+    Gate("test_a_capped_read_is_answered_429",
+         [sys.executable, os.path.join(HERE, "test_a_capped_read_is_answered_429.py")], 120,
+         needs_app=False,
+         why="REG-2383 - a capped subscription read reached the board as 200 with an error body, and on /api/ask, or "
+             "in shadow mode when the Grok failover also failed, the console fell through to the website proxy and "
+             "read on the site's API key - the spend the cap exists to stop. control_app's /api/intake handler now "
+             "answers a runner's 429 as HTTP 429 with its body (limit, source, retry_s), still lets the Grok failover "
+             "read, answers the 429 when no lane reads, and never calls the website after a cap. One case runs the "
+             "REAL runner under node at its cap through a private server; the website door is always stubbed."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
