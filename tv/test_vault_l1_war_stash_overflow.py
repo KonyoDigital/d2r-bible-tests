@@ -108,9 +108,11 @@ class WarStashOverflow(unittest.TestCase):
                 self.assertRegex(r, r"MANUAL → SHARED STASH tab [1-5] \(\d+,\d+\)")
 
     def test_all_five_pages_fill_then_war1_then_war2(self):
+        # the 600-copy fill leaves its page busy for minutes; the next test opens a fresh board instead of timing out on it
+        self.addCleanup(T.tearDownModule)
         roster_with(["war1", "WAR2"])     # case-insensitive names
         n = 5 * BELT_PER_GRID + BELT_PER_GRID + 1
-        add_many([BELT] * n)
+        add_many([BELT] * n, step=5)  # each add re-plans every copy; small batches keep each CDP call short late in the fill
         o = T.board().run(READ + "OUT.m = mv(/^The Stone of Jordan$/); OUT.full = window._vaultWarFull || [];"
                           "OUT.badge = Array.prototype.map.call(document.querySelectorAll('.vm-warbadge'), function(e){ return e.textContent; });"
                           "OUT.rows = rows(/^The Stone of Jordan$/).filter(function(t){ return /war1|WAR2/.test(t); });")
@@ -132,7 +134,7 @@ class WarStashOverflow(unittest.TestCase):
     def test_no_war_mule_says_so_and_creates_none(self):
         roster_with([])
         n = 5 * BELT_PER_GRID + 1
-        add_many([BELT] * n)
+        add_many([BELT] * n, step=5)  # each add re-plans every copy; small batches keep each CDP call short late in the fill
         o = T.board().run(READ + "OUT.m = mv(/^The Stone of Jordan$/); OUT.line = ((document.querySelector('#vault-move-list .vmv-warfull') || {}).textContent || '');"
                           "OUT.roster = JSON.parse(window.LSR.getItem('d2r_muleRoster') || '[]').map(function(m){ return m.name; });")
         placed = [m for m in o["m"] if (m["to"] or {}).get("cell")]
