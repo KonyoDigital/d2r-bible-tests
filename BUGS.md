@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2351 - ONE CLOSING CLEAN RUN THAT COULD NOT FINISH THREW AWAY EVERY PROOF ITS GATE HAD EARNED (#42 R7, push-proof track T2)
+
+Spec R7, 2026-10-21. `_closing_clean` (REG-1669 / REG-1988) treated an UNKNOWN closing run like a RED one: a deadline, a raise, and now a run a signal ended (REG-2350). It made every PROVEN of the gate UNPROVABLE, so nothing was banked. One slow closing run on a loaded push cost the whole gate; test_control's 27 proofs are ~92 minutes of runs.
+
+FIX: an UNKNOWN closing run is asked once more before the gate's proofs are discarded, and the line names REG-2351. A RED closing run is never asked again, because red is a finding. A second UNKNOWN discards as before. A green retry is a green clean run after the last proof, so the REG-1988 bracket holds. Census and push paths both pass through `_closing_clean`.
+
+GUARD (registered in tv/run_gates.py): tv/test_a_closing_run_that_cannot_finish_is_asked_again.py (3 RED proofs, heart2 3/3 PROVEN). It drives the real _prove_gate and the push path with a fixture verdict cache.
+
 ### REG-2350 - A PROOF RUN A SIGNAL ENDED READ AS RED, SO A KILLED TAMPERED RUN COULD BE BANKED PROVEN (#42 R5, push-proof track T2)
 
 Spec R5 and the critic's could_lie entry on it, 2026-10-21. `heart2._run_gate_once` returned `returncode == 0`. A law process ended by a signal (reap's by-pid kill of a lane child, jetsam, a Ctrl-C) therefore read RED. In a tampered run that is PROVEN, banked after a green closing run, and it stands until an input moves. In a clean run it read ALREADY RED and refused a good push. Two more shapes read the same way: a shell's 128+N exit (a child killed by signal N), and a GRANDCHILD a signal ended (a headless Chrome, the node demo, a python helper). In the second case the law exits 1 with an ERROR case. Also found on the way: two copies of tv/gate_trace on sys.path chained into each other (measured 163 B lines for one process). That was latent until heart2 armed its own copy.

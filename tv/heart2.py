@@ -3060,7 +3060,13 @@ def _closing_clean(name, verdicts, say):
     INVALID go on the census's blind list, and one BLIND shuts every lock on that PC. So the closing run is asked
     whenever a reused verdict could be banked (PROVEN, BLIND or INVALID), and a red, unknown or RAISING closing run
     makes PROVEN and every reused BLIND/INVALID UNPROVABLE; a first proof's BLIND, judged on its own fresh clean run,
-    stands."""
+    stands.
+
+    REG-2351 (#42 R7) - A CLOSING RUN THAT COULD NOT FINISH IS ASKED ONCE MORE before the gate's proofs are thrown away.
+    UNKNOWN (a deadline, a run a signal ended, a raise) said nothing about the sandbox, yet it took every PROVEN of the
+    gate with it - test_control's 27 proofs are ~92 minutes of runs. A RED closing run is never asked again: red is a
+    finding. A second UNKNOWN discards as before, and a retry that comes back green is a green clean run after the last
+    proof, so the REG-1988 bracket holds."""
     runs = getattr(_CLEAN, "runs", None) or {}
     shared = [r for r in runs.values() if r.get("reused")]
     if not shared or not any(v in (PROVEN, BLIND, INVALID) for v in verdicts):
@@ -3069,10 +3075,15 @@ def _closing_clean(name, verdicts, say):
     for r in shared:
         _reused.update(r.get("by") or ())
     for r in shared:
-        try:
-            ok, tail = r["again"]()
-        except Exception as _ce:                         # REG-1677 — the closing run raising is UNKNOWN, never a BLIND gate
-            ok, tail = None, "the closing clean run raised %s" % type(_ce).__name__
+        for _ask in (1, 2):
+            try:
+                ok, tail = r["again"]()
+            except Exception as _ce:                         # REG-1677 — a raise is UNKNOWN, never a BLIND gate
+                ok, tail = None, "the closing clean run raised %s" % type(_ce).__name__
+            if ok is not None or _ask == 2:              # REG-2351 - only a run that could not finish is asked again
+                break
+            say("     %-52s   ↳ REG-2351: the CLOSING clean run could not finish (%s) - asked once more before this "
+                "gate's proofs are discarded" % (name, str(tail)[:80]))
         if not ok:
             say("     %-52s %s - the CLOSING clean run is %s (%s): its proofs shared one clean run and the sandbox did "
                 "not stay clean across them, so no PROVEN of this gate is kept, and no BLIND judged on the shared run"

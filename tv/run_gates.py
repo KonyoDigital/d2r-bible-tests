@@ -10907,6 +10907,13 @@ GATES = [
              "push. Such a run is now UNKNOWN: the kill watch in gate_trace/sitecustomize.py writes K for every child a "
              "signal ended and X for every signal the run sent itself, and a K no X explains is a kill from outside. A "
              "law that ends its own helper is judged as before; SIGINT ends a prover like SIGTERM."),
+    Gate("test_a_closing_run_that_cannot_finish_is_asked_again",
+         [sys.executable, os.path.join(HERE, "test_a_closing_run_that_cannot_finish_is_asked_again.py")], 60,
+         needs_app=False,
+         why="REG-2351 (#42 R7) - a gate's closing clean run that could not FINISH (a deadline, a run a signal ended, a "
+             "raise) discarded every PROVEN the gate had just earned - test_control's 27 proofs are ~92 minutes. It is "
+             "now asked once more; a RED closing run is never asked again, and a second UNKNOWN discards as before. "
+             "Real _prove_gate and the push path with a fixture verdict cache; the law run is a stand-in."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
