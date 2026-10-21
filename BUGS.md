@@ -7,6 +7,28 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2353 - A PASSING PUSH LEFT NO ACCOUNT OF WHAT IT PROVED, REUSED OR RE-RAN (#42 R16, push-proof track T2)
+
+Spec R16 and section 6, 2026-10-21. hooks/pre-push deletes its prove log when heart2 exits 0. The v3783 series (six attempts, ~355 minutes of proving) could be reconstructed only from logs that happened to survive. Nothing said beforehand what a push would reuse, narrow or run in full. Nothing said afterwards whether a banked proof had been run again for the same bytes.
+
+FIX:
+- `python3 tv/heart2.py --forecast NAMES` prints, before any proving, a block headed "#42 FORECAST". Each law in scope gets one row: hit (the verdict cache will serve it), narrow (the red memory names its cases), full, and UNKEYABLE with the reason. Each row also gives the runs and, where gate_costs.json measured the gate, the seconds of the full runs. It uses a sandbox and the run's own key_for / lookup / red recall, so a forecast hit is exactly what the push will reuse. Any failure prints UNKNOWN; it always exits 0.
+- Every `--push` run appends one record to `heart2_pushes.jsonl` in git's common dir. That is one file per machine, shared by every worktree, outside every work tree, so never in `git status` or a sandbox. HEART2_PUSHES_PATH points it elsewhere. Per proof the record holds: the forecast path decided before any run of it, the path taken, the verdict, seconds, whether it was banked, and missWhy. It also holds wall and wave seconds, the seams, runs a signal ended (REG-2350), exit / failures / stop / unmatched names, and the cache summary.
+- A proof whose key the cache would serve when the run BEGAN, and which ran anyway, is a PROVE-ONCE VIOLATION, printed and recorded. This is the shape of the live store() trim to CACHE_MAX that evicts entries mid-run (spec section 0).
+- `--pushes [N]` prints the table. tv/prove_record.py is the one writer: exclusive lock, one fsync'd line, keeps the newest 200, refuses any file not named like its own.
+
+GUARD (registered in tv/run_gates.py): tv/test_a_push_records_its_forecast_and_actual.py (20 RED proofs with REG-2352, heart2 20/20 PROVEN).
+
+LEFT: missWhy names THAT the bytes moved, not WHICH path. Entries carry no per-input digest today; the store format is track T1's. The dropped / writeFailures / cacheContradictions fields of spec section 6 belong to T1/R6 and are not written here. Absent is not 0. The forecast costs a sandbox plus one closure walk per law, ~15-20 s on this Mac for three laws (measured).
+
+### REG-2352 - `heart2 --prove NAME[5]` MATCHED NO GATE AND EXITED 0 (#42 R11, push-proof track T2)
+
+Spec R11, 2026-10-21. A --prove name that matched no gate (a typo, or `NAME[k]`, a proof index nobody can ask for) printed "nothing to prove" and exited 0. A run that proved nothing read as a run that passed. The HEART2_* seams that change what a push proves or banks were never said either.
+
+FIX: prove() names every unmatched --prove name; a `NAME[k]` gets the hint to prove the gate. main() then exits 2, also when other names matched. A push prints every inherited HEART2_* variable in its first lines and keeps them in its record (REG-2353). The summary of a passing push survives in that record.
+
+GUARD: tv/test_a_push_records_its_forecast_and_actual.py (shared with REG-2353).
+
 ### REG-2351 - ONE CLOSING CLEAN RUN THAT COULD NOT FINISH THREW AWAY EVERY PROOF ITS GATE HAD EARNED (#42 R7, push-proof track T2)
 
 Spec R7, 2026-10-21. `_closing_clean` (REG-1669 / REG-1988) treated an UNKNOWN closing run like a RED one: a deadline, a raise, and now a run a signal ended (REG-2350). It made every PROVEN of the gate UNPROVABLE, so nothing was banked. One slow closing run on a loaded push cost the whole gate; test_control's 27 proofs are ~92 minutes of runs.

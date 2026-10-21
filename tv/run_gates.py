@@ -10914,6 +10914,15 @@ GATES = [
              "raise) discarded every PROVEN the gate had just earned - test_control's 27 proofs are ~92 minutes. It is "
              "now asked once more; a RED closing run is never asked again, and a second UNKNOWN discards as before. "
              "Real _prove_gate and the push path with a fixture verdict cache; the law run is a stand-in."),
+    Gate("test_a_push_records_its_forecast_and_actual",
+         [sys.executable, os.path.join(HERE, "test_a_push_records_its_forecast_and_actual.py")], 120,
+         needs_app=False,
+         why="REG-2352 + REG-2353 (#42 R11, R16) - `heart2 --prove NAME[5]` matched nothing and exited 0, and the "
+             "hook deletes its prove log when heart2 exits 0, so a passing push left no account of what it proved. "
+             "Unmatched names now exit 2 and are named; `--forecast NAMES` prints a '#42 FORECAST' block (hit / narrow "
+             "/ full / UNKEYABLE with its reason) before any proving and never fails; every --push appends a record "
+             "(per proof the forecast path beside the path taken, verdict, seconds; seams; runs a signal ended; "
+             "prove-once violations) to a per-machine file in git's common dir, read by `--pushes`."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

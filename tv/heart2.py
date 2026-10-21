@@ -1812,6 +1812,11 @@ class _PushRun(object):
         self._qlock = threading.Lock()
         self.wave = False                       # REG-1992: True while the clean wave runs (one clean run per gate)
         self.clean_wave = {}                    # REG-1992: clean-run key -> (ok, tail) the wave measured
+        self.proofs = {}                        # REG-2353: (gate, index) -> what the proof was forecast to do and did
+        self.t0 = time.time()                   # REG-2353: the push record's clock
+        self.sig0 = _SIGNAL_RUNS["n"]           # REG-2353: runs a signal ended before this run began
+        self.wave_s = None                      # REG-2353: the clean wave's seconds, when one ran
+        self.keys0 = _servable_keys(cache)      # REG-2353: every key the cache would serve when the run began
 
     def fail(self, name, idx, verdict, reason):
         """Record the FIRST failure and stop the run. -> True for the call that stopped it"""
@@ -1857,6 +1862,31 @@ class _PushRun(object):
                 if it[0] not in self.browser:
                     return self._items.pop(k), contextlib.nullcontext()
             return self._items.pop(0), self.browser_lock     # only browser gates are left: wait for the one browser
+
+
+def _servable_keys(cache):
+    """REG-2353 — the keys a verdict cache would serve right now (lookup's own rule). -> frozenset; empty with no cache"""
+    if cache is None:
+        return frozenset()
+    try:
+        return frozenset(k for k in list(cache.entries) if cache.lookup(k) is not None)
+    except Exception:
+        return frozenset()
+
+
+#: REG-2353 (#42 R16) — the proof a push-time lane thread is proving right now: the path it was forecast to take (f: hit /
+#: narrow / full, decided before any run of it), the path it took (a), its key and why it cannot be banked (u). Set only
+#: around _prove_push_one by _prove_gate_push; every other caller's notes go nowhere.
+_MARK = threading.local()
+
+
+def _mark(once=False, **kw):
+    """REG-2353 — note facts about the push-time proof this thread is proving. `once`: keep a value already noted."""
+    m = getattr(_MARK, "m", None)
+    if isinstance(m, dict):
+        for k, v in kw.items():
+            if not (once and k in m):
+                m[k] = v
 
 
 class _HeldLock(object):
@@ -2710,6 +2740,7 @@ def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
             key, rels, kwhy = cache.key_for(sandbox, name, filename, pr)
         except Exception as _ke:
             key, rels, kwhy = None, [], "taking its key raised %s (%s)" % (type(_ke).__name__, str(_ke)[:80])
+        _mark(key=key, u=kwhy if key is None else None)         # REG-2353 - the push record's keyable / unkeyable
         if key is None:
             cache.count("unkeyable")
             cache.say_once(name, kwhy, "     %-52s   ↳ #42 P3: not cacheable - %s; every proof of this law runs on "
@@ -2718,6 +2749,7 @@ def _prove_push_one(sandbox, name, filename, pr, idx, say, why):
             hit = cache.lookup(key)
             if hit is not None:
                 cache.count("hits")
+                _mark(f="hit", a="hit")                          # REG-2353 - forecast and taken: served, not run
                 # the census keeps the age this proof was MEASURED at, never this run's clock [[stale-reading]]
                 cache.reused_at(name, idx, hit["provedAt"])
                 say("     %-52s %s (cached %s: %d byte-identical input(s), proved %s ago%s - not re-run)"
@@ -2893,11 +2925,16 @@ def _prove_gate_push(sandbox, name, filename, proofs, say, run):
             if run.stop.is_set():
                 break
             why = {}
+            _MARK.m = {"t0": time.time()}                # REG-2353 - what this proof was forecast to do, and did
             try:
                 got[i] = _prove_push_one(sandbox, name, filename, proofs[i], i, say, why)
             except Exception as _pe:
                 say("    proof %d raised %s — recorded BLIND: %s" % (i, type(_pe).__name__, str(_pe)[:120]))
                 got[i] = BLIND
+            finally:
+                _m, _MARK.m = (getattr(_MARK, "m", None) or {}), None
+            with run._lock:
+                run.proofs[(name, i)] = dict(_m, v=got.get(i), s=round(time.time() - _m.get("t0", time.time()), 1))
             reason = {BLIND: "the tamper ran and the law stayed GREEN",
                       INVALID: "the red-proof cannot tamper as declared"}.get(got[i])
             if got[i] == UNPROVABLE and why.get("red"):
@@ -2921,6 +2958,8 @@ def _prove_gate_push(sandbox, name, filename, proofs, say, run):
                 if _bankable(per[_i]):
                     run.cache.store(_key, _entry)
                     run.cache.count("stores")
+                    with run._lock:
+                        run.proofs.setdefault((name, _i), {})["b"] = True     # REG-2353 - banked for its bytes
                 else:
                     run.cache.count("moved")
                     say("     %-52s   ↳ #42 P3: not banked - the gate's closing clean run took its PROVEN away"
@@ -2933,6 +2972,193 @@ def _prove_gate_push(sandbox, name, filename, proofs, say, run):
     return _push_gate_verdict(per), per
 
 
+#: REG-2353 — the record the last prove(push=True) assembled; main() adds its exit and summary, then writes it
+_PUSH_RECORD = {"record": None}
+
+
+def _heart2_seams(env=None):
+    """REG-2352 (#42 R11) — every inherited HEART2_* variable: each one changes what a push proves or banks. -> {k: v}"""
+    env = os.environ if env is None else env
+    return dict((k, str(env[k])) for k in sorted(env) if str(k).startswith("HEART2_"))
+
+
+def _proof_ident(name, pr):
+    """REG-2353 — a proof's identity as a banked entry records it (gate, target, why). -> tuple"""
+    pr = pr if isinstance(pr, dict) else {}
+    return (str(name), str(pr.get("file") or ""), str(pr.get("why") or "")[:120])
+
+
+def _push_record(run, have, cache, n_proofs, results):
+    """REG-2353 (#42 R16) — what this --push run forecast and did, proof by proof. -> dict (JSON; no absolute path)
+
+    forecast `f`: the path a proof was going to take, decided before any run of it - hit (served by the cache), narrow
+    (the red memory names the cases that caught it), full; None when it was decided without a run (ELSEWHERE, INVALID,
+    no subject). actual `a`: hit / narrow / full / none, or notRun (the run stopped before it). `fell`: a narrowed pair
+    that did not decide it. A proof that ran carries `missWhy`; one whose key the cache would serve when the run BEGAN
+    and that still ran is a PROVE-ONCE VIOLATION (a banked proof re-run for the same bytes - a wrongful eviction)."""
+    t0_ms = int(run.t0 * 1000)
+    fc = {"hit": 0, "narrow": 0, "full": 0, "none": 0}
+    ac = {"hit": 0, "narrow": 0, "full": 0, "none": 0, "notRun": 0}
+    before = {}
+    for e in (list(cache.entries.values()) if cache is not None else []):
+        if isinstance(e, dict) and e.get("verdict") == PROVEN and isinstance(e.get("provedAt"), (int, float)) \
+                and e["provedAt"] < t0_ms:
+            ident = (str(e.get("gate")), str(e.get("target") or ""), str(e.get("why") or "")[:120])
+            before[ident] = max(before.get(ident, 0), e["provedAt"])
+    per, violations, unkeyable, fell = [], [], 0, 0
+    for name, _f, proofs in have:
+        for i, pr in enumerate(proofs or []):
+            m = run.proofs.get((name, i)) or {}
+            if "v" not in m:
+                ac["notRun"] += 1
+                per.append({"g": name, "i": i, "a": "notRun"})
+                continue
+            f, a = m.get("f"), m.get("a") or "none"
+            fc[f or "none"] = fc.get(f or "none", 0) + 1
+            ac[a] = ac.get(a, 0) + 1
+            row = {"g": name, "i": i, "f": f, "a": a, "v": m.get("v"), "s": m.get("s"), "b": bool(m.get("b"))}
+            if m.get("u"):
+                row["u"] = str(m["u"])[:160]
+                unkeyable += 1
+            if m.get("fellThrough"):
+                row["fell"] = True
+                fell += 1
+            if a != "hit":
+                key = m.get("key")
+                ident = _proof_ident(name, pr)
+                if cache is None:
+                    row["missWhy"] = "the verdict cache was off"
+                elif row.get("u"):
+                    row["missWhy"] = "unkeyable: %s" % row["u"]
+                elif key and key in run.keys0:
+                    row["missWhy"] = ("PROVE-ONCE VIOLATION: banked for these exact bytes before this run began, and "
+                                      "run again")
+                    violations.append({"g": name, "i": i, "key": str(key)[:16], "a": a})
+                elif ident in before:
+                    row["missWhy"] = ("banked %s before this run under other bytes - an input, the proof entry, its "
+                                      "gate spec or the prover moved" % _age_say(before[ident]))
+                else:
+                    row["missWhy"] = "never banked on this machine"
+            per.append(row)
+    return {
+        "v": 1, "at": t0_ms, "wallS": round(time.time() - run.t0, 1), "waveS": run.wave_s,
+        "gates": sorted(n for n, _f, _p in have), "proofs": n_proofs,
+        "forecast": fc, "actual": ac, "unkeyable": unkeyable, "fellThrough": fell,
+        "proveOnceViolations": None if cache is None else violations,
+        "signalKilled": _SIGNAL_RUNS["n"] - run.sig0,
+        "seams": _heart2_seams(),
+        "cache": cache.summary(n_proofs) if cache is not None else "off",
+        "stopped": list(run.first) if run.first else None,
+        "results": dict(results or {}),
+        "perProof": per,
+    }
+
+
+def _proof_path(cache, sandbox, name, filename, pr, idx):
+    """REG-2353 — the path one push-time proof will take, judged with the run's own primitives before any run of it.
+    -> (path: "hit" | "narrow" | "full", why it cannot be banked | None)
+
+    hit: the verdict cache would serve its key (key_for + lookup, as _prove_push_one asks); narrow: the red memory
+    names the cases that caught it and the gate takes case ids (no argv tail, no -c script - _prove_one's rule); full:
+    anything else. With the cache off nothing is a hit and nothing is called unkeyable."""
+    why = None
+    if cache is not None:
+        try:
+            key, _rels, why = cache.key_for(sandbox, name, filename, pr)
+        except Exception as _ke:
+            key, why = None, "taking its key raised %s (%s)" % (type(_ke).__name__, str(_ke)[:80])
+        if key is not None and cache.lookup(key) is not None:
+            return "hit", None
+        if key is None and not why:
+            why = "no key could be taken"
+    _extra, _to, _script = gate_spec(name)
+    if not _extra and not _script and _red_recall(_red_key(name, idx, pr)):
+        return "narrow", why
+    return "full", why
+
+
+def forecast(have, say=print, sandbox=None, cache=None, unmatched=()):
+    """REG-2353 (#42 R16) — WHAT A --push RUN OVER `have` WILL DO, said BEFORE any proving. -> dict (never raises)
+
+    One block headed "#42 FORECAST": per law in scope, how many proofs the verdict cache will serve (hit), the red
+    memory will narrow, and will run in full; how many can never be banked and why (UNKEYABLE); the runs that costs and,
+    where gate_costs.json measured the gate, the seconds. Judged on a sandbox of the tree with the run's own key and
+    lookup, so a forecast hit is exactly what the push will reuse. `sandbox` and `cache` are a caller's (a law's
+    fixture); left None, a sandbox is built here and dropped, and the cache is opened read-only (HEART2_PROVE_CACHE=0
+    honoured). Anything that goes wrong prints UNKNOWN and returns - a forecast never refuses a push."""
+    out = {"proofs": sum(len(p or []) for _n, _f, p in have), "hit": 0, "narrow": 0, "full": 0, "unkeyable": 0,
+           "laws": [], "why": None}
+    for _un, _uwhy in (unmatched or ()):
+        say("  #42 FORECAST: %r %s - nothing will be proven for it (REG-2352)" % (_un, _uwhy))
+    _own = None
+    _quiet = lambda *a, **k: None                       # noqa: E731
+    try:
+        if not have:
+            out["why"] = "no named gate declares a red-proof"
+            say("  #42 FORECAST — nothing in scope: %s" % out["why"])
+            return out
+        if cache is None:
+            cache = open_cache(say=_quiet)
+        if sandbox is None:
+            sandbox, _own = make_sandbox(say=_quiet)
+            if not sandbox:
+                out["why"] = "no sandbox could be built to take the keys on"
+                say("  #42 FORECAST: UNKNOWN - %s" % out["why"])
+                return out
+        try:
+            import self_prove as _sp
+            costs = _sp._gate_costs() or {}
+        except Exception:
+            costs = {}
+        for name, filename, proofs in have:
+            row = {"gate": name, "proofs": len(proofs or []), "hit": 0, "narrow": 0, "full": 0, "unkeyable": 0,
+                   "why": None}
+            try:
+                for i, pr in enumerate(proofs or []):
+                    path, why = _proof_path(cache, sandbox, name, filename, pr, i)
+                    row[path] += 1
+                    if why:
+                        row["unkeyable"] += 1
+                        row["why"] = row["why"] or str(why)[:140]
+            except Exception as _fe:
+                row["unknown"] = "%s: %s" % (type(_fe).__name__, str(_fe)[:80])
+            # runs: a narrowed proof asks its cases twice (untampered, tampered); a full one tampers once, and a gate with
+            # any full proof adds its shared clean run and its closing run. Seconds price only the FULL runs, at the
+            # gate's measured cost per run - a narrowed subset's time is not measured anywhere, so it is not guessed.
+            _full_runs = row["full"] + (2 if row["full"] else 0)
+            row["runs"] = 2 * row["narrow"] + _full_runs
+            try:
+                row["seconds"] = int(round(float(costs.get(name)) * _full_runs))
+            except (TypeError, ValueError):
+                row["seconds"] = None
+            out["laws"].append(row)
+            for k in ("hit", "narrow", "full", "unkeyable"):
+                out[k] += row[k]
+        _secs = [r["seconds"] for r in out["laws"] if r.get("seconds") is not None]
+        say("  #42 FORECAST — %d law(s), %d proof(s) in scope: %d hit · %d narrow · %d full · %d UNKEYABLE (never banked)"
+            " · ~%d run(s)%s%s" % (len(out["laws"]), out["proofs"], out["hit"], out["narrow"], out["full"],
+                                   out["unkeyable"], sum(r["runs"] for r in out["laws"]),
+                                   (", ~%dm of full runs where measured" % (sum(_secs) // 60)) if _secs else "",
+                                   "" if cache is not None else " - the verdict cache is OFF, so nothing is a hit"))
+        for r in out["laws"]:
+            if r.get("unknown"):
+                say("     %-52s UNKNOWN - %s" % (r["gate"], r["unknown"]))
+                continue
+            parts = ["%d %s" % (r[k], k) for k in ("hit", "narrow", "full") if r[k]]
+            say("     %-52s %3d proof(s): %s%s · ~%d run(s)%s" % (
+                r["gate"], r["proofs"], " · ".join(parts) or "none",
+                (" · %d UNKEYABLE - %s" % (r["unkeyable"], r["why"])) if r["unkeyable"] else "", r["runs"],
+                (" (~%ds of full runs)" % r["seconds"]) if r.get("seconds") else ""))
+        return out
+    except Exception as _e:
+        out["why"] = "%s: %s" % (type(_e).__name__, str(_e)[:120])
+        say("  #42 FORECAST: UNKNOWN - the forecast itself failed (%s); the push decides as it always has" % out["why"])
+        return out
+    finally:
+        if _own:
+            _drop_sandbox(_own)
+
+
 def _prove_push(have, say, stopped=None, cache=None, blank=None):
     """#42 — prove() at push time. -> ({name: verdict}, {name: [verdict | None]}) | (None, None); NOT_RUN gates are left
     OUT of the verdicts (never banked), and a stop is appended to `stopped` for main() to refuse on.
@@ -2942,6 +3168,9 @@ def _prove_push(have, say, stopped=None, cache=None, blank=None):
     _np = sum(len(_p) for _n, _f, _p in have)
     say("  #42 PUSH TIME: %d of %d proof(s) declare the widths their defect shows at and run only there; the other %d "
         "run at every width. The full sweep stays run_gates' and CI's." % (_nw, _np, _np - _nw))
+    _seams = _heart2_seams()
+    say("  #42 SEAMS (REG-2352): %s" % (" · ".join("%s=%s" % kv for kv in _seams.items()) if _seams else
+                                        "no HEART2_* variable is set - every default holds"))
     base, order, gates, counts = _push_facts(have, say)
     say("  #42 FAIL FAST: likeliest to fail first - %d anchor(s) off, %d entr(ies) new or changed since %s, %d whose "
         "tampered file changed; the run stops at the first BLIND / INVALID / clean-run red."
@@ -2975,6 +3204,7 @@ def _prove_push(have, say, stopped=None, cache=None, blank=None):
             finally:
                 run.wave = False
                 run._items = None              # take() drains the main pass's own queue
+            run.wave_s = round(time.time() - _w0, 1)       # REG-2353 - the push record keeps the wave's minutes
             say("  REG-1992 CLEAN WAVE: %d clean run(s) measured in %.0f s%s"
                 % (len(run.clean_wave), time.time() - _w0,
                    " - STOPPED on a red" if run.stop.is_set() else " - all green"))
@@ -2988,6 +3218,22 @@ def _prove_push(have, say, stopped=None, cache=None, blank=None):
     if cache is not None:
         cache.flush()
         say("  " + cache.summary(_np))
+    try:                                               # REG-2353 - a record that cannot be built costs a line, never a push
+        _PUSH_RECORD["record"] = _push_record(run, have, cache, _np, results)
+        _r = _PUSH_RECORD["record"]
+        say("  #42 RECORD (REG-2353): forecast %d hit · %d narrow · %d full; actual %d hit · %d narrow · %d full · %d "
+            "not run · %d fell through; %s prove-once violation(s); %d run(s) a signal ended"
+            % (_r["forecast"]["hit"], _r["forecast"]["narrow"], _r["forecast"]["full"], _r["actual"]["hit"],
+               _r["actual"]["narrow"], _r["actual"]["full"], _r["actual"]["notRun"], _r["fellThrough"],
+               "UNKNOWN (the cache was off)" if _r["proveOnceViolations"] is None else len(_r["proveOnceViolations"]),
+               _r["signalKilled"]))
+        for _v in (_r["proveOnceViolations"] or [])[:6]:
+            say("     ⚠ PROVE-ONCE VIOLATION: %s[%d] was banked for these exact bytes before this run began and ran "
+                "again (%s)" % (_v["g"], _v["i"], _v["a"]))
+    except Exception as _re:
+        _PUSH_RECORD["record"] = None
+        say("  #42 RECORD (REG-2353): could not be built (%s: %s) - UNKNOWN, the run's verdicts stand"
+            % (type(_re).__name__, str(_re)[:80]))
     if results is None:
         return None, None
     not_run = sorted(n for n, v in results.items() if v == NOT_RUN)
@@ -3313,9 +3559,41 @@ def _prove_gates(have, say=print, workers=None, blank=None):
             {k: p for k, (_v, p) in out.items()})
 
 
+#: REG-2352 (#42 R11) — the names the last prove() was asked for that matched no gate; main() refuses on them
+_PROVE_UNMATCHED = []
+_INDEXED_NAME = re.compile(r"^(.+)\[(\d+)\]$")
+
+
+def unmatched_names(only, gates):
+    """REG-2352 (#42 R11) — the --prove names that match no gate by name or by file. -> [(name, why)] (pure)
+
+    `--prove NAME[5]` matched nothing, printed "nothing to prove", and exited 0: a typo, or a proof index nobody can ask
+    for, read as a proof that passed. A name with an index gets the hint it needs."""
+    known = set()
+    for n, f in (gates or []):
+        known.update((n, f, os.path.basename(f)))
+    out = []
+    for n in sorted(set(only or ())):
+        if n in known:
+            continue
+        m = _INDEXED_NAME.match(str(n))
+        if m:
+            out.append((n, "a proof index is not a gate name - `--prove %s` proves every proof of %s"
+                        % (m.group(1), "that gate" if m.group(1) in known else "a gate of that name, and there is none")))
+        else:
+            out.append((n, "matches no gate this heart can prove (no registered python gate has that name or file)"))
+    return out
+
+
 def prove(only=None, say=print, detail=None, push=False, stopped=None, stamp=True):
     gates = gate_files()
     todo = [(n, f) for n, f in gates if (not only or n in only or f in only)]
+    # REG-2352 (#42 R11) — NO SILENT PROVE-NOTHING: every name that matches no gate is said here, and main() exits 2 on it
+    _PROVE_UNMATCHED[:] = unmatched_names(only, gates) if only else []
+    for _un, _uwhy in _PROVE_UNMATCHED:
+        say("  ✗ REG-2352: %r %s - nothing was proven for it" % (_un, _uwhy))
+    if push:
+        _PUSH_RECORD["record"] = None                    # REG-2353 - a fresh record per push-time run
     with_proofs = [(n, f, red_proofs_in(f)) for n, f in todo]
     have = [(n, f, p) for n, f, p in with_proofs if p]
     # ⚠ v3476 — THE DENOMINATOR NAMES EVERY STATE. v3473 printed the warning but the count line
@@ -3337,6 +3615,10 @@ def prove(only=None, say=print, detail=None, push=False, stopped=None, stamp=Tru
             % (len(_unparsed), ", ".join(_unparsed[:6])))
     if not have:
         say("  nothing to prove. That is the BACKLOG, not a clean bill of health.")
+        if push:                                        # REG-2353 - a push that proved nothing is recorded all the same
+            _PUSH_RECORD["record"] = {"v": 1, "at": int(time.time() * 1000), "proofs": 0, "seams": _heart2_seams(),
+                                      "gates": sorted(n for n, _f in todo),
+                                      "note": "nothing was proven - no gate in scope declares a red-proof"}
         return {}
     _ages = {}
     _blank = set()      # gates written BLIND that no proof measured - never banked as proved against their file
@@ -3726,9 +4008,13 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
     # cases that caught it. PROVEN there is a proof; anything else falls through to the full proof below, unchanged.
     _rk = _red_key(name, idx, pr) if (_PUSH is not None and not _script and not _extra and not clean_only) else None
     _rids = _red_recall(_rk) if _rk else None
+    _mark(once=True, f="narrow" if _rids else "full")   # REG-2353 - the path this proof is forecast to take, before a run
     if _rids and _prove_narrow(sandbox, label, tgt, tgt_rel, find, repl, want, filename, _to, _w, _rids, widths,
                                say) == PROVEN:
+        _mark(a="narrow")                                # REG-2353 - and the path it took
         return PROVEN
+    if _rids:
+        _mark(fellThrough=True)                          # REG-2353 - the narrowed pair did not decide it; the full proof does
     _runs = getattr(_CLEAN, "runs", None)
     _ck = (filename, repr(_extra), repr(_script), _at_widths(widths), _to)
     _hit = _runs.get(_ck) if isinstance(_runs, dict) else None
@@ -3813,6 +4099,7 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
     with io.open(tgt, "w", encoding="utf-8") as fh:
         fh.write(_tampered)
     _LAST_RED.pop(threading.get_ident(), None)
+    _mark(a="full")                                      # REG-2353 - the full tampered run is the path taken
     try:
         ok_tampered, tail2 = _run_gate(sandbox, filename, timeout=_to, extra=_extra, script=_script, **_w)
     finally:
@@ -4197,7 +4484,16 @@ def main(argv):
     ap.add_argument("--ratchet", action="store_true")
     ap.add_argument("--triage", action="store_true",
                     help="split the no-red-proof gates into WRITABLE vs NOT PROVABLE HERE")
+    ap.add_argument("--forecast", nargs="*", default=None,
+                    help="REG-2353 print the '#42 FORECAST' block for these gates - what a --push run will reuse, narrow "
+                         "and run in full, and what can never be banked - BEFORE any proving; always exits 0")
+    ap.add_argument("--pushes", nargs="?", type=int, const=20, default=None,
+                    help="REG-2353 print this machine's last N push records (forecast vs actual), newest last")
     a = ap.parse_args(argv)
+    if a.forecast is not None:
+        return _forecast_main(a.forecast)
+    if a.pushes is not None:
+        return _pushes_main(a.pushes)
     if a.changed_gates or a.changed:
         _names, _base, _cwhy = changed_gates()
         if _cwhy:
@@ -4225,6 +4521,26 @@ def main(argv):
 
     census, results, hits = {}, {}, []
     _stopped = []
+    _PROVE_UNMATCHED[:] = []                    # REG-2352 - this run's names only, never a previous run's
+    _PUSH_RECORD["record"] = None               # REG-2353 - this run's record only
+
+    def _done(code):
+        """REG-2353 - a --push run's record, with its exit, is written whatever the exit; the hook deletes its log."""
+        _rec = _PUSH_RECORD.get("record") if (a.prove is not None and a.push) else None
+        if isinstance(_rec, dict):
+            _c, _b, _i = prove_exit_code(results)
+            _rec.update({"exit": code, "broken": _b, "idle": _i, "unmatched": [n for n, _w in _PROVE_UNMATCHED]})
+            try:
+                import prove_record as _PR
+                _at = _PR.append(_rec, where=_PR.path(cache_path=CACHE), say=print)
+            except Exception as _we:
+                _at = None
+                print("  #42 RECORD (REG-2353): not written (%s) - this run's account is only in this log"
+                      % type(_we).__name__)
+            if _at:
+                print("  #42 RECORD (REG-2353): this run's forecast vs actual is kept in %s (per machine; "
+                      "`python3 tv/heart2.py --pushes` reads it) - it outlives this log" % os.path.basename(_at))
+        return code
     if a.report or a.ratchet:
         census = report()
     if a.prove is not None:
@@ -4312,14 +4628,49 @@ def main(argv):
             print("\n  ✗ %d gate(s) have a red-proof that PROVES NOTHING (blind or inert):\n     %s"
                   % (len(_broken), ", ".join(_broken[:8]) + (" …" if len(_broken) > 8 else "")))
         if _code:
-            return _code
+            return _done(_code)
     # #42 — A STOPPED PUSH-TIME RUN IS A REFUSAL even when what stopped it is not failed above (a law ALREADY RED
     # untampered is UNPROVABLE): the proofs after it were never run, and exit 0 would pass them unseen.
     if _stopped:
         _n, _i, _v, _why = _stopped[0]
         print("\n  ✗ #42 the push-time run STOPPED at %s[%d] (%s: %s) — the proofs after it were NOT RUN, so this "
               "cannot pass." % (_n, _i, _v, _why))
-        return 1
+        return _done(1)
+    # REG-2352 (#42 R11) — A NAME THAT MATCHED NO GATE PROVED NOTHING, AND NOTHING PROVEN IS NEVER A PASS. It exited 0 and
+    # said "nothing to prove": a typo, or `NAME[5]`, read as a proof that held.
+    if a.prove is not None and _PROVE_UNMATCHED:
+        print("\n  ✗ REG-2352: %d --prove name(s) matched no gate, so nothing was proven for them and this run cannot "
+              "pass: %s" % (len(_PROVE_UNMATCHED), "; ".join("%s (%s)" % t for t in _PROVE_UNMATCHED[:6])))
+        return _done(2)
+    return _done(0)
+
+
+def _forecast_main(names):
+    """REG-2353 — `heart2.py --forecast NAMES...`: the "#42 FORECAST" block, and exit 0 whatever happens."""
+    try:
+        gates = gate_files(say=lambda *a, **k: None)
+        want = set(names or ())
+        todo = [(n, f) for n, f in gates if n in want or f in want]
+        have = [(n, f, red_proofs_in(f)) for n, f in todo]
+        forecast([(n, f, p) for n, f, p in have if p], say=print,
+                 unmatched=unmatched_names(want, gates) if want else ())
+    except Exception as e:
+        print("  #42 FORECAST: UNKNOWN - %s: %s" % (type(e).__name__, str(e)[:120]))
+    return 0
+
+
+def _pushes_main(n):
+    """REG-2353 — `heart2.py --pushes [N]`: this machine's last N push records. -> 0, or 2 when they cannot be read"""
+    import prove_record as _PR
+    where = _PR.path(cache_path=CACHE)
+    recs, bad = _PR.read(where, n=n)
+    if recs is None:
+        print("  #42 PUSH RECORDS: UNKNOWN - %s (%s)" % (bad, os.path.basename(where)))
+        return 2
+    print("  #42 PUSH RECORDS: the last %d of this machine's --push runs (%s)%s"
+          % (len(recs), os.path.basename(where), (" - %d line(s) would not parse" % bad) if bad else ""))
+    for line in _PR.table(recs):
+        print(line)
     return 0
 
 
