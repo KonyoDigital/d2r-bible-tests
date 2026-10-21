@@ -14,7 +14,9 @@ moment to discover a missing one-line import.
 So the rule moved to `console_safe.audit()` — beside the `enable()` it tells you to call — and:
 
     tv/console_safe.py          the definition, plus a CLI that answers in under a second
-    tv/test_control.py          calls audit() instead of keeping a second copy of the loop
+    tv/test_every_cli_that_prints_non_ascii_is_encoding_safe.py
+                                calls audit() instead of keeping a second copy of the loop (it lived in
+                                test_control until REG-2362 moved it out so test_control can be keyed)
     hooks/pre-push              runs the CLI EARLY, before the expensive gates
 
 One definition, three callers. A second copy of a rule is how two rules begin to disagree, and
@@ -47,9 +49,11 @@ class TestTheEncodingRuleHasOneDefinition(unittest.TestCase):
                         "about WHICH scripts the rule covers")
 
     def test_the_suite_calls_it_instead_of_keeping_a_copy(self):
-        src = io.open(os.path.join(ROOT, "tv", "test_control.py"), encoding="utf-8").read()
+        # REG-2362 - the suite case moved out of test_control into its own law; it still calls the one rule
+        src = io.open(os.path.join(ROOT, "tv", "test_every_cli_that_prints_non_ascii_is_encoding_safe.py"),
+                      encoding="utf-8").read()
         self.assertIn("console_safe.audit(self.REPO)", src,
-                      "test_control kept its own loop, so there are two rules that can drift")
+                      "the encoding law kept its own loop, so there are two rules that can drift")
 
     def test_it_CATCHES_an_unsafe_script_and_spares_a_safe_one(self):
         """Behavioural, on fixtures — a rule that only ever returns [] passes every source law."""

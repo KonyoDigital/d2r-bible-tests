@@ -4866,64 +4866,6 @@ class TestForkedKeysAreRouted(unittest.TestCase):
                                      "drop them? The gate would now be untested against real raw code.")
 
 
-class TestToolsCanReportTheirVerdict(unittest.TestCase):
-    """v1480 — a tool whose verdict is its exit code must not die reporting it.
-
-    Fourth instance of one bug: REG-044 (tv_diablo could not print its status lines), REG-054 (both
-    suites were only green because PYTHONIOENCODING was set by hand off-screen — a plain run went
-    red AND corrupted a tracked fixture), REG-077 (visual_lock_invariant and js_syntax_gate each
-    PASSED, reached the success branch, then died inside `print("✅ …")`).
-
-    This machine's console is Hebrew (cp1255) and cannot encode the check marks, arrows and box
-    characters the tooling prints everywhere. The failure always lands in the dangerous direction:
-    a CORRECT tree reports FAILURE, which teaches people to ignore the tool, and then the next real
-    failure is ignored too. `tv/test_button_matrix.py` proves the cost — it died on encoding, and
-    hidden underneath was a `^v8\\d\\d` version assertion that had been wrong since v900.
-
-    So: any CLI script that prints non-ASCII must make its own output encoding-safe, rather than
-    inherit safety from the operator's shell.
-    """
-
-    TV = os.path.dirname(os.path.abspath(__file__))
-    REPO = os.path.dirname(TV)
-    # These get their safety from a module they import, which installs it at import time.
-    VIA_IMPORT = re.compile(r"^\s*(?:import|from)\s+(control_app|tv_diablo|console_safe)\b", re.M)
-
-    def _scripts(self):
-        import glob
-        out = list(glob.glob(os.path.join(self.TV, "*.py")))
-        out.append(os.path.join(self.REPO, "visual_lock_invariant.py"))
-        return sorted(out)
-
-    def test_every_cli_that_prints_non_ascii_is_encoding_safe(self):
-        # ⚠ v3293 — THE RULE MOVED TO console_safe.audit() AND THIS CALLS IT. It used to be
-        # spelled out here, which made it reachable only by running a ~500s suite at push time —
-        # the most expensive moment to learn that a one-line import is missing. It now also has a
-        # CLI (`python3 tv/console_safe.py`) that answers in under a second, and the pre-push hook
-        # runs that first. Keeping a second copy of the rule here is how two rules begin to
-        # disagree, so this asserts on the SAME function the fast path calls. [[copy-drift]]
-        sys.path.insert(0, self.TV)
-        import console_safe
-        unsafe = console_safe.audit(self.REPO)
-        self.assertEqual(
-            unsafe, [],
-            "these print non-ASCII but never make stdout encoding-safe, so on a non-UTF-8 console "
-            "they crash while REPORTING and a clean tree exits non-zero:\n  " + "\n  ".join(unsafe)
-            + "\nAdd `from console_safe import enable; enable()` (see tv/console_safe.py).")
-
-    def test_console_safe_never_raises(self):
-        """The helper's whole job is to stop crashes, so it must not become a new source of them —
-        including on stream objects that cannot be reconfigured at all."""
-        sys.path.insert(0, self.TV)
-        import console_safe
-        import io as _io
-        self.assertTrue(console_safe.enable(_io.TextIOWrapper(_io.BytesIO())))
-        # a stream with no reconfigure(): reports False, raises nothing
-        class Dumb:
-            pass
-        self.assertFalse(console_safe.enable(Dumb()))
-        self.assertFalse(console_safe.enable(_io.StringIO()))
-        console_safe.enable(None)          # tolerated, no exception
 
 
 class TestV2272TheTaskForceContractIsJOINED(unittest.TestCase):
@@ -7818,47 +7760,6 @@ class TestNoOrphanSuite(unittest.TestCase):
     now a list in `tv/run_gates.py`, and this test makes falling out of it impossible.
     """
 
-    def test_no_suite_defines_a_class_BELOW_unittest_main(self):
-        """v1533 — the trap this repo already paid for once (v1457: 7 tests in test_control.py were
-        defined below the guard and had NEVER run, while the suite reported OK). It has no automated
-        check, so it is still live — I walked straight into it appending a class to
-        test_chronicle_chain.py: 6 tests written, 0 defined, suite green.
-
-        unittest.main() exits the interpreter. Anything after it is dead code that LOOKS like
-        coverage, which is the most expensive kind of nothing."""
-        here = os.path.dirname(os.path.abspath(__file__))
-        bad = []
-        for path in sorted(glob.glob(os.path.join(here, "test_*.py"))):
-            with open(path, encoding="utf-8") as fh:
-                src = fh.read()
-            # anchor on the REAL guard, not the string: this very test's own docstring mentions
-            # unittest.main(), and a naive find() matched that and flagged this file (caught on the
-            # first run — a guard whose first victim is itself is not yet a guard)
-            m = re.search(r'^if __name__ == ["\']__main__["\']:', src, re.M)
-            if not m:
-                continue
-            tail = src[m.start():]
-            if re.search(r"^class\s+\w+", tail, re.M):
-                bad.append(os.path.basename(path))
-        self.assertEqual(
-            bad, [],
-            "these suites define a test class AFTER unittest.main(), which exits the interpreter — "
-            "every class below it is NEVER DEFINED and the suite still reports OK:\n  "
-            + "\n  ".join(bad) + "\nMove the class above the `if __name__` guard.")
-
-    def test_every_suite_is_in_the_gate_set(self):
-        here = os.path.dirname(os.path.abspath(__file__))
-        with open(os.path.join(here, "run_gates.py"), encoding="utf-8") as fh:
-            runner = fh.read()
-        suites = sorted(os.path.basename(p) for p in glob.glob(os.path.join(here, "test_*.py")))
-        self.assertGreater(len(suites), 3, "suite discovery found almost nothing — check the glob")
-        missing = [s for s in suites if s not in runner]
-        self.assertEqual(
-            missing, [],
-            "these suites exist but no gate runs them, so they can rot for a hundred versions "
-            "while still looking maintained (REG-079):\n  " + "\n  ".join(missing)
-            + "\nAdd each to GATES in tv/run_gates.py, with a `why` saying what it protects.")
-
     def test_gate_set_names_only_things_that_exist(self):
         """The other direction: a gate pointing at a deleted file would 'skip' forever and quietly
         shrink the real coverage."""
@@ -9718,12 +9619,10 @@ class TestV1777EveryBlockerRefusesByName(unittest.TestCase):
 
     def _img(self):
         """A REAL image, because the cap guard sits after the file check on the Claude path — a
-        directory returns early for the wrong reason and the test passes vacuously. Falls back to a
-        tiny generated jpg so this never depends on his footage existing."""
-        import glob
-        hits = glob.glob(os.path.join(HERE, "frames", "hist", "*", "*.jpg"))
-        if hits:
-            return hits[0]
+        directory returns early for the wrong reason and the test passes vacuously. A tiny generated
+        jpg, always: REG-2362 - it used to take the first frame of HIS footage when one existed,
+        a live-data read and a directory listing in this file, which left every test_control proof
+        unkeyable (never saved). Any real file reaches the cap guard; his footage never had to."""
         p = os.path.join(self.tmpdir, "probe.jpg")
         try:
             from PIL import Image
@@ -10115,7 +10014,7 @@ class TestV2202AReelThatHeldNothingIsNotForeverUnread(unittest.TestCase):
         _t.sleep(0.02)
         with open(os.path.join(self.d, "f_1780000000077.jpg"), "wb") as fh:
             fh.write(b"\xff\xd8\xff\xe0" + b"0" * 120)
-        self.assertEqual(len(glob.glob(os.path.join(self.d, "f_*.jpg"))), 3,
+        self.assertEqual(len(_fx_tmp.match_own(os.path.join(self.d, "f_*.jpg"))), 3,
                          "the fixture did not actually restore the count, so it is not testing "
                          "the prune-then-capture case at all")
         self.assertTrue(self.ca._chron_reel_owes_a_read(self.rid, mem),
@@ -10530,7 +10429,7 @@ class TestReelAutoSweepCannotSurpriseHim(unittest.TestCase):
         # at the current mtime is a LIVE reel and would be skipped — these tests are all about
         # FINISHED ones. Ageing it is what makes the fixture mean what its name says.
         old = time.time() - 3600
-        for n in os.listdir(d):
+        for n in _fx_tmp.list_own(d):
             os.utime(os.path.join(d, n), (old, old))
         os.utime(d, (old, old))
         return hist
@@ -10552,7 +10451,7 @@ class TestReelAutoSweepCannotSurpriseHim(unittest.TestCase):
         self._make_reel(rid)
         d = os.path.join(self.tmp, "hist", rid)
         now = time.time()
-        for n in os.listdir(d):
+        for n in _fx_tmp.list_own(d):
             os.utime(os.path.join(d, n), (now, now))
         os.utime(d, (now, now))
         r = self.ca.chronicle_autoreel_tick()
@@ -15293,73 +15192,6 @@ class TestNoSuiteImportsSomethingCIDoesNotHave(unittest.TestCase):
                 out.append(node.module.split(".")[0])
         return out
 
-    def test_every_third_party_import_is_one_CI_installs(self):
-        import ast
-        import glob
-        here = os.path.dirname(os.path.abspath(__file__))
-        repo_mods = {os.path.splitext(os.path.basename(p))[0]
-                     for p in glob.glob(os.path.join(here, "*.py"))}
-        # ⚠ #42 (2026-10-02) - ONE PARSE PER MODULE, ONE LOOKUP PER NAME. This case was 271.6 s of test_control's 435.6 s
-        # (62%, measured per class): every suite that imports a repo module re-parsed that module - control_app.py, some
-        # 46k lines, once per suite that imports it - and asked importlib about the same names again and again. A run
-        # never changes a file under it, so each answer is computed once here. Same question, same verdict.
-        _deps, _third = {}, {}
-
-        def repo_deps(m):
-            if m not in _deps:
-                _deps[m] = self._repo_module_deps(here, m)
-            return _deps[m]
-
-        def third_party(m):
-            if m not in _third:
-                _third[m] = self._is_third_party(m)
-            return _third[m]
-        bad = []
-        for path in sorted(glob.glob(os.path.join(here, "test_*.py"))):
-            with open(path, encoding="utf-8") as fh:
-                tree = ast.parse(fh.read())
-            inside_try = set()
-            for node in ast.walk(tree):
-                if isinstance(node, ast.Try):
-                    for sub in ast.walk(node):
-                        inside_try.add(id(sub))
-            for node in ast.walk(tree):
-                mods = []
-                if isinstance(node, ast.Import):
-                    mods = [a.name.split(".")[0] for a in node.names]
-                elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
-                    mods = [node.module.split(".")[0]]
-                for m in mods:
-                    if m in repo_mods:
-                        # ⚠ v1934 — A LOCAL MODULE IS NOT AUTOMATICALLY SAFE. It was treated as
-                        # safe, and that let a suite import `conftest` — a repo module whose FIRST
-                        # LINE is `import pytest`. run_gates.py runs each suite as a plain script
-                        # and the agent-tests runner installs only pillow, so the gate ERRORED on CI
-                        # for NINE consecutive runs while every local signal stayed green. The guard
-                        # was right about its own question — "is this import third-party?" — and
-                        # blind to the failure one level below it. [[the-unjoined-end]] §6
-                        for dep in repo_deps(m):
-                            if dep in repo_mods or not third_party(dep):
-                                continue
-                            if dep not in self.ALLOWED_BARE:
-                                bad.append("%s:%d imports the repo module %r, which imports %r "
-                                           "at module level — and the runner does not have it"
-                                           % (os.path.basename(path),
-                                              getattr(node, "lineno", 0), m, dep))
-                        continue
-                    if not third_party(m):
-                        continue
-                    ok = (self.ALLOWED_GUARDED if id(node) in inside_try else self.ALLOWED_BARE)
-                    if m not in ok:
-                        bad.append("%s:%d imports %r%s"
-                                   % (os.path.basename(path), getattr(node, "lineno", 0), m,
-                                      " (inside a try)" if id(node) in inside_try else ""))
-        self.assertEqual(bad, [],
-                         "a suite imports something the CI runner does not have — it will pass here "
-                         "and take the deploy down there:\n  " + "\n  ".join(bad)
-                         + "\nCI installs only what publish.yml AND tv-tests.yml pip-install. Parse it by hand, "
-                           "or add the dependency to both and widen this allowlist.")
-
     @staticmethod
     def _runner_installs(text):
         """The pip packages one workflow installs, read from its `pip install` lines."""
@@ -17853,130 +17685,6 @@ class TestV2003ACompleteAnswerMaySeal(unittest.TestCase):
                         "re-reading with the SAME reader buys nothing and costs money")
 
 
-class TestV2007TheEndToEndGateRunsOnWhateverFootageEXISTS(unittest.TestCase):
-    """v2007 — restores what v1712 recorded as permanently lost.
-
-    TestStashPanelOpenGuard has two real-frame tests that have not run since the corpus was pruned,
-    "PERMANENTLY skipped in both venues". v1712 handled that honestly: it kept the pure-predicate
-    tests covering the DECISION and wrote down exactly what was gone —
-
-        "What is genuinely lost here is only the END-TO-END path (crop -> features -> label) on real
-         pixels, which is why these are kept rather than deleted."
-
-    THE FIXTURES WERE PINNED TO REEL NAMES, and reel names get pruned. Pin to a PROPERTY instead and
-    the same coverage survives any pruning: ask his corpus for a frame that classifies not-d2r and a
-    frame that classifies as an open stash, whichever reels happen to be on disk today.
-
-    MEASURED across 199 sampled frames of his 31 current reels — every case the pruned pair covered
-    is present:
-        gameplay / gameplay        122
-        stash    / stash            43
-        stash    / stash-default    31
-        gameplay / not-d2r           3     <- the wallpaper bug's exact verdict
-
-    It still skips where there is genuinely no footage (CI, a fresh checkout), and says so. The
-    difference is that it now RUNS on the machine that has the film, every push, instead of nowhere.
-    [[feedback-blind-fixture-green-gate]]
-    """
-
-    HIST = os.path.join(HERE, "frames", "hist")
-    _CACHE = {}
-
-    @classmethod
-    def _find(cls, shape, cap=260):
-        """First frame whose measured PIXELS match `shape`. Cached so the tests scan once.
-
-        ⚠ IT SEARCHES BY FEATURES, NOT BY VERDICT, and the first cut got this wrong. Anchoring on
-        `pick == "not-d2r"` meant that breaking the predicate produced NO not-d2r frames, so the
-        search found nothing and the test SKIPPED — sabotage-proven, and a skip is not a failure.
-        That is the "a gate that always skips is the same defect" scar, in my own new test, the
-        first time I ran it against a broken predicate.
-
-        frac_dark and dark_cols are measurements of the picture and survive any change to the rule
-        that reads them, so the frame is still found and the ASSERTION is what fails.
-        [[feedback-blind-fixture-green-gate]] [[feedback-suspect-the-instrument]]
-        """
-        if shape in cls._CACHE:
-            return cls._CACHE[shape]
-        import glob
-        frames = []
-        for d in sorted(glob.glob(os.path.join(cls.HIST, "reel_*"))):
-            frames += sorted(glob.glob(os.path.join(d, "*.jpg")))[::12]
-        hit = None
-        for p in frames[:cap]:
-            try:
-                label, detail = se.classify_stash_grid(p)
-            except Exception:
-                continue
-            fd = (detail or {}).get("frac_dark")
-            dc = (detail or {}).get("dark_cols")
-            if fd is None or dc is None:
-                continue
-            # LIT PHOTOGRAPH — the wallpaper shape. Measured in his corpus: 2 frames at fd=0.0, 0 cols.
-            if shape == "lit-photo" and fd < 0.05 and dc == 0:
-                hit = (p, label, detail); break
-            # OPEN PANEL — measured: 61 frames, e.g. fd=0.5302/15 cols, fd=0.3688/11 cols.
-            if shape == "open-panel" and 0.15 <= fd <= 0.65 and dc >= 10:
-                hit = (p, label, detail); break
-        cls._CACHE[shape] = hit
-        return hit
-
-    def test_a_not_d2r_frame_never_carries_a_stash_label(self):
-        """THE wallpaper bug, end to end on real pixels: 69 desktop frames sealed as stash-gems and
-        fired a phantom tally that read 0. The predicate is tested at measured values elsewhere;
-        this proves the whole path still agrees with it."""
-        hit = self._find("lit-photo")
-        if not hit:
-            self.skipTest("no lit-photograph frame in this checkout's footage — the DECISION is "
-                          "still covered by the _panel_open_from_features tests, which need no film")
-        p, label, detail = hit
-        self.assertFalse(str(label).startswith("stash"),
-                         "%s: a LIT PHOTOGRAPH (frac_dark=%s, dark_cols=%s — no game content) "
-                         "classified as %r. This is the wallpaper bug: 69 desktop frames sealed as "
-                         "stash-gems and fired a phantom tally that read 0."
-                         % (os.path.basename(p), detail.get("frac_dark"),
-                            detail.get("dark_cols"), label))
-        self.assertEqual(detail.get("pick"), "not-d2r")
-
-    def test_a_real_open_panel_is_still_recognised(self):
-        """The other half, and the one a too-strict guard breaks: refusing everything is not a fix.
-        A gate that never says yes is the same defect as one that never says no."""
-        hit = self._find("open-panel")
-        if not hit:
-            self.skipTest("no open-stash frame in this checkout's footage")
-        p, label, detail = hit
-        self.assertTrue(str(label).startswith("stash"),
-                        "%s: a real open stash panel classified as %r" % (os.path.basename(p), label))
-
-    def test_the_two_detectors_do_not_flatly_contradict_each_other(self):
-        """stash_screen_open (OCR of the tab chrome) and classify_stash_grid (pixel geometry) are
-        INDEPENDENT. Where the OCR one admits a frame, the pixel one must not call it not-d2r —
-        that combination means one of them is badly wrong, and it is exactly the pair the vault
-        sweep leans on. Reported as the finding it is, rather than averaged.
-        [[feedback-contradiction-is-the-finding]]"""
-        import glob
-        import control_app as ca
-        frames = []
-        for d in sorted(glob.glob(os.path.join(self.HIST, "reel_*"))):
-            frames += sorted(glob.glob(os.path.join(d, "*.jpg")))[::12]
-        if not frames:
-            self.skipTest("no footage in this checkout")
-        clashes, looked = [], 0
-        for p in frames[:120]:
-            if ca.stash_screen_open(p) is None:
-                continue
-            looked += 1
-            try:
-                _label, detail = se.classify_stash_grid(p)
-            except Exception:
-                continue
-            if str((detail or {}).get("pick") or "") == "not-d2r":
-                clashes.append(os.path.basename(p))
-        if not looked:
-            self.skipTest("the OCR gate admitted no frame in this sample — nothing to cross-check")
-        self.assertEqual(clashes, [],
-                         "the tab-chrome OCR admitted these frames as a stash while the pixel "
-                         "geometry called them NOT D2R: %s" % ", ".join(clashes[:5]))
 
 
 class TestV2010NoCallIntoANameThatIsNotThere(unittest.TestCase):
@@ -18042,18 +17750,6 @@ class TestV2010NoCallIntoANameThatIsNotThere(unittest.TestCase):
                         out.append("%s: %r in %s()" % (os.path.basename(path), n, scope.get_name()))
             stack.extend(scope.get_children())
         return out
-
-    def test_no_python_file_calls_a_name_nothing_binds(self):
-        import glob
-        here = os.path.dirname(os.path.abspath(__file__))
-        bad = []
-        for f in sorted(glob.glob(os.path.join(here, "*.py"))):
-            bad += self._scan(f)
-        self.assertEqual(
-            bad, [],
-            "these read a name that is bound NOWHERE — module scope, enclosing scope, parameter or "
-            "builtin. Inside a try/except that is silent forever and the code looks wired:\n  "
-            + "\n  ".join(bad))
 
     def test_the_detector_actually_catches_the_three_that_shipped(self):
         """A guard that has never been seen RED is measuring nothing — and this one currently finds
@@ -19679,7 +19375,7 @@ class TestV2037TheRollingPruneNeverEatsEvidence(unittest.TestCase):
                 self._mk(root, n)
                 sigs[n] = [0] * (100 - k) + [100] * k     # k of 100 samples differ from f_0
             d, b, why = self._run(root, sigs, max_diff=0.02)
-            left = sorted(os.path.basename(x) for x in glob.glob(os.path.join(root, "f_*.jpg")))
+            left = sorted(os.path.basename(x) for x in _fx_tmp.match_own(os.path.join(root, "f_*.jpg")))
             self.assertIn("f_0.jpg", left, "the anchor itself must never be dropped")
             self.assertIn("f_3.jpg", left,
                           "f_3 is 0.03 from the anchor - over the 0.02 bar - and was eaten. "
@@ -19741,7 +19437,7 @@ class TestV2037TheRollingPruneNeverEatsEvidence(unittest.TestCase):
                 self._mk(root, n); sigs[n] = [0] * 100
             self._mk(root, "f_bad.jpg"); sigs["f_bad.jpg"] = None
             self._run(root, sigs, max_diff=0.02)
-            left = [os.path.basename(x) for x in glob.glob(os.path.join(root, "f_*.jpg"))]
+            left = [os.path.basename(x) for x in _fx_tmp.match_own(os.path.join(root, "f_*.jpg"))]
             self.assertIn("f_bad.jpg", left, "an unreadable frame was deleted as a duplicate")
 
     def test_dry_run_deletes_nothing_but_still_reports(self):
@@ -19752,7 +19448,7 @@ class TestV2037TheRollingPruneNeverEatsEvidence(unittest.TestCase):
                 n = "f_%d.jpg" % k
                 self._mk(root, n); sigs[n] = [0] * 100
             d, b, why = self._run(root, sigs, max_diff=0.02, dry_run=True)
-            left = glob.glob(os.path.join(root, "f_*.jpg"))
+            left = _fx_tmp.match_own(os.path.join(root, "f_*.jpg"))
             self.assertEqual(len(left), 5, "dry_run deleted files")
             self.assertGreater(d, 0, "dry_run reported nothing - it must still count")
 
@@ -19882,7 +19578,7 @@ class TestV2041ADurableReceiptForALedgerThatLivesInAWindow(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             path, why = self._run({"ok": False, "why": "the board did not answer in time"}, tmp)
             self.assertIsNone(path, "a refusal was written to disk as a backup")
-            self.assertEqual(len(glob.glob(os.path.join(tmp, "*.json"))), 0)
+            self.assertEqual(len(_fx_tmp.match_own(os.path.join(tmp, "*.json"))), 0)
 
     def test_an_empty_ledger_is_refused(self):
         import tempfile
@@ -19932,7 +19628,7 @@ class TestV2041ADurableReceiptForALedgerThatLivesInAWindow(unittest.TestCase):
             for i in range(ca._LEDGER_BACKUP_KEEP + 6):
                 open(os.path.join(tmp, "ledger_2020-01-01_%06d.json" % i), "w").write("{}")
             self._run(self._full(), tmp)
-            left = glob.glob(os.path.join(tmp, "ledger_*.json"))
+            left = _fx_tmp.match_own(os.path.join(tmp, "ledger_*.json"))
             self.assertLessEqual(len(left), ca._LEDGER_BACKUP_KEEP,
                                  "backups grow without bound")
 
@@ -21047,7 +20743,7 @@ class TestV2063DoNotRecordAGameThatIsNotRunning(unittest.TestCase):
                 self.t.__dict__[k] = v
 
     def _count(self):
-        return len([f for f in os.listdir(self.hist) if f.startswith("f_")])
+        return len([f for f in _fx_tmp.list_own(self.hist) if f.startswith("f_")])
 
     def _shoot(self, n, ts0=1000.0):
         """n archive attempts; returns how many frames are on disk afterwards."""
@@ -21975,7 +21671,7 @@ class TestV2071OrphanFoldNeverForgesASession(unittest.TestCase):
                        reels=[("reel_s_%d_9" % base, [base + 2000])])
         p = of.plan(h)
         of.apply_plan(p, yes=True)
-        left = [n for n in os.listdir(h) if n.startswith("f_")]
+        left = [n for n in _fx_tmp.list_own(h) if n.startswith("f_")]
         self.assertEqual(len(left), 5, "an overlapping cluster was folded anyway")
 
     def test_the_folded_reel_is_named_so_its_session_parses(self):
@@ -22023,7 +21719,7 @@ class TestV2071OrphanFoldNeverForgesASession(unittest.TestCase):
         r = of.apply_plan(of.plan(h), yes=False)
         self.assertFalse(r["ok"])
         self.assertIn("--yes", r["why"])
-        self.assertEqual(len([n for n in os.listdir(h) if n.startswith("f_")]), 2)
+        self.assertEqual(len([n for n in _fx_tmp.list_own(h) if n.startswith("f_")]), 2)
 
     def test_a_long_silence_starts_a_new_cluster(self):
         of = self._of()
@@ -22292,44 +21988,6 @@ class TestV2072TheDriftNobodyWasWatching(unittest.TestCase):
                         "_drift_loop is never spawned, so the console still says nothing")
 
 
-class TestV2077HdArtCoverageDoesNotRegress(unittest.TestCase):
-    """Konyo: "in general all the HD ART make sure is back."
-
-    MEASURED by asking the page itself on 2026-08-24: of 320 ITEMS, 317 resolve real art, ZERO fall
-    back to a placeholder, and 3 have none — Polaris Spear, The Scourge, and Cow King's Leathers
-    (set). All three are genuinely ABSENT FILES, not lookup bugs: `ls art/ | grep -i polaris` and
-    `scourge` return nothing, and for Cow King's only mr_cowkingshooves.png exists, which is a
-    different piece. That is a CASC extraction job, not a code fix, and saying so is the point —
-    [[unknown-stays-unknown]] applies to assets too.
-
-    What CAN regress silently is the corpus: art is 1,233 files on disk, and a prune, a bad sync or
-    a rename takes them away with nothing failing. The board would then quietly draw placeholders
-    where it used to draw items — exactly the class of loss he has been catching by eye."""
-
-    ART = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "art")
-    FLOOR = 1233
-
-    def test_the_art_corpus_has_not_shrunk(self):
-        import glob as _g
-        if not os.path.isdir(self.ART):
-            self.skipTest("the art directory is not on this machine")
-        n = len(_g.glob(os.path.join(self.ART, "*.png")))
-        self.assertGreaterEqual(
-            n, self.FLOOR,
-            "the art corpus dropped from %d to %d file(s). Something removed artwork the board "
-            "draws, and nothing else would have failed — the page just starts showing placeholders."
-            % (self.FLOOR, n))
-
-    def test_the_gem_art_every_craft_card_depends_on_is_present(self):
-        """v2077 gave craft cards their gem sprite. If these four go, every craft silently reverts
-        to one alembic emoji and the cards become indistinguishable again."""
-        import glob as _g
-        if not os.path.isdir(self.ART):
-            self.skipTest("the art directory is not on this machine")
-        for gem in ("amethyst", "ruby", "emerald", "saphire"):
-            hits = _g.glob(os.path.join(self.ART, "hd_perfect_%s*.png" % gem))
-            self.assertTrue(hits, "hd_perfect_%s is gone — the crafts that depend on it fall back "
-                                  "to the generic icon" % gem)
 
 
 #: REG-1990 - the fixed workload the cheap-subset gate reads a core's speed with, and its CPU cost on a FAST core of his
@@ -23396,7 +23054,7 @@ class TestV2080TheExtractPruneCycleIsClosed(unittest.TestCase):
         return ca
 
     def _reels(self, hist):
-        return len([d for d in os.listdir(hist) if d.startswith("reel_")])
+        return len([d for d in _fx_tmp.list_own(hist) if d.startswith("reel_")])
 
     def test_ABOVE_the_floor_it_still_frees_what_has_GIVEN_UP_ITS_INFORMATION(self):
         """⚠⚠ v2226 REVERSED THIS TEST, ON HIS EXPLICIT RULING, AND THE INTENT IS PRESERVED.
@@ -23737,12 +23395,12 @@ class TestV2080TheFoldNeverEatsALiveRecording(unittest.TestCase):
         of, hist = self._tree(old=10, live=10)
         p = of.plan(hist_dir=hist)
         of.apply_plan(p, yes=True)
-        loose = [f for f in os.listdir(hist)
+        loose = [f for f in _fx_tmp.list_own(hist)
                  if f.endswith(".jpg") and int(f[2:-4]) >= 1600000000000]
         self.assertEqual(len(loose), 10,
                          "apply_plan moved %d live frame(s) out from under the recorder"
                          % (10 - len(loose)))
-        reels = [d for d in os.listdir(hist) if d.startswith("reel_")]
+        reels = [d for d in _fx_tmp.list_own(hist) if d.startswith("reel_")]
         self.assertEqual(len(reels), 1, "the finished recording was not folded")
 
     def test_the_boundary_is_the_same_gap_that_defines_a_cluster(self):
@@ -23833,7 +23491,7 @@ class TestV2080TheFoldNeverEatsALiveRecording(unittest.TestCase):
             ca._CHRON_JOB["running"] = False
         self.assertIsNot(did, True,
                          "the fold MOVED his footage while a sweep was reading: %s" % said)
-        loose = [f for f in os.listdir(hist) if f.endswith(".jpg")]
+        loose = [f for f in _fx_tmp.list_own(hist) if f.endswith(".jpg")]
         self.assertEqual(len(loose), 10, "frames were moved despite the refusal")
 
 
@@ -24208,7 +23866,7 @@ class TestV2080TheReviewFindings(unittest.TestCase):
         with io.open(ch.LEDGER, "a", encoding="utf-8") as fh:
             fh.write("!")
         ch.record(red, now_ms=2000)
-        kept = [f for f in os.listdir(os.path.dirname(ch.LEDGER)) if ".corrupt" in f]
+        kept = [f for f in _fx_tmp.list_own(os.path.dirname(ch.LEDGER)) if ".corrupt" in f]
         self.assertTrue(kept, "the unreadable ledger was overwritten instead of being kept")
 
     def test_5b_a_second_corruption_does_not_overwrite_the_first(self):
@@ -24219,7 +23877,7 @@ class TestV2080TheReviewFindings(unittest.TestCase):
             with io.open(ch.LEDGER, "a", encoding="utf-8") as fh:
                 fh.write("!")
         ch.record(red, now_ms=9000)
-        kept = [f for f in os.listdir(os.path.dirname(ch.LEDGER)) if ".corrupt" in f]
+        kept = [f for f in _fx_tmp.list_own(os.path.dirname(ch.LEDGER)) if ".corrupt" in f]
         self.assertGreaterEqual(len(kept), 2,
                                 "each corruption overwrote the last — only %d copy kept" % len(kept))
 
@@ -24290,7 +23948,7 @@ class TestV2080TheReviewFindings(unittest.TestCase):
             ch.back_up_healthy_stores()
             io.open(fp, "w").write("}{ garbage")
             ch._remedy_restore_a_vault_store()
-        kept = [f for f in os.listdir(root) if f.startswith("vault_seen.json.corrupt")]
+        kept = [f for f in _fx_tmp.list_own(root) if f.startswith("vault_seen.json.corrupt")]
         self.assertGreaterEqual(len(kept), 2,
                                 "the second corruption overwrote the first under a message saying "
                                 "it was KEPT — only %d copy survived" % len(kept))
@@ -24525,7 +24183,7 @@ class TestV2082TheReviewOfV2080(unittest.TestCase):
         for payload in ('["a valid JSON list"]', '"a valid JSON string"', '42', 'null'):
             io.open(ch.LEDGER, "w", encoding="utf-8").write(payload)
             ch.record(RED, now_ms=2000)
-            kept = [f for f in os.listdir(d) if ".corrupt" in f]
+            kept = [f for f in _fx_tmp.list_own(d) if ".corrupt" in f]
             self.assertTrue(kept, "a ledger holding %s was overwritten, not kept" % payload)
             for f in kept:
                 os.remove(os.path.join(d, f))
@@ -24539,7 +24197,7 @@ class TestV2082TheReviewOfV2080(unittest.TestCase):
         RED = [{"check": "visual lock", "state": "missing", "why": "drifted"}]
         for i in range(4):
             ch.record(RED, now_ms=1000 + i)
-        self.assertEqual([f for f in os.listdir(d) if ".corrupt" in f], [],
+        self.assertEqual([f for f in _fx_tmp.list_own(d) if ".corrupt" in f], [],
                          "a healthy ledger was set aside as corrupt")
 
 
@@ -24697,7 +24355,7 @@ class TestV2082SightingsSurviveAStrayByte(unittest.TestCase):
         io.open(ca._VAULT_SEEN_PATH, "a").write("!")
         n = ca.vault_seen_save([self._row("d", "s4")])
         self.assertIsNone(n, "it merged onto an unreadable prior and erased every banked sighting")
-        kept = [f for f in os.listdir(root) if ".corrupt" in f]
+        kept = [f for f in _fx_tmp.list_own(root) if ".corrupt" in f]
         self.assertTrue(kept, "the unreadable bytes were destroyed rather than kept")
 
     def test_a_second_corruption_does_not_overwrite_the_first(self):
@@ -24708,7 +24366,7 @@ class TestV2082SightingsSurviveAStrayByte(unittest.TestCase):
             io.open(ca._VAULT_SEEN_PATH, "w").write(_j.dumps({"rows": [self._row("a", "s1")]}))
             io.open(ca._VAULT_SEEN_PATH, "a").write("!")
             ca.vault_seen_save([self._row("d", "s4")])
-        kept = [f for f in os.listdir(root) if ".corrupt" in f]
+        kept = [f for f in _fx_tmp.list_own(root) if ".corrupt" in f]
         self.assertGreaterEqual(len(kept), 2,
                                 "the second corruption overwrote the first — only %d kept"
                                 % len(kept))
@@ -25883,52 +25541,6 @@ class TestV2107ItFetchesItselfButAsksBeforeRestarting(unittest.TestCase):
                       "the catch no longer reports the torn connection as the relaunch it is")
 
 
-class TestTheSleepThenReadFlakesDoNotGetMoreNumerous(unittest.TestCase):
-    """v2108 — a ratchet on the flake class that cost two false failures in one night.
-
-    `await page.waitForTimeout(N)` followed by an evaluate that reads a LAZILY BUILT board
-    global (RUNEWORD_TIP, CRAFTS, forgeScan, funiScan, fsetsScan, _endgameFilterBases) is a
-    race: bible.html is ~5.9MB and defines those after load, so on a loaded runner the global
-    is absent, the customary `|| {}` swallows it, the fixture seeds NOTHING, and the assertion
-    reports a PRODUCT defect that is really the harness arriving early.
-
-    Both of tonight's false failures had that exact shape — v592 seeded an empty `d2r_rwMade`
-    and then accused the loot filter; v559 read a toast before it existed. Each was green in
-    four consecutive runs and red in one, with the only ship in between touching a different
-    surface. That is a flake, and a gate that is sometimes red has stopped carrying
-    information.
-
-    This does not pretend to have fixed all of them. It stops the count GROWING and records
-    the debt honestly, the same way TestTheSourceGuardsDoNotGetMoreDangerous does for
-    byte-counted slices. `tests/_board_ready.ts` is the way to pay it down: it waits for the
-    thing the test is about to read. [[feedback-blind-fixture-green-gate]]
-    """
-
-    LIMIT = 51        # measured 2026-08-25 after fixing v592 and v559. It may only go DOWN.
-    GLOBALS = ("RUNEWORD_TIP", "RUNEWORDS", "CRAFTS", "_endgameFilterBases",
-               "forgeScan", "funiScan", "fsetsScan")
-
-    def test_the_count_does_not_grow(self):
-        import glob
-        root = os.path.join(os.path.dirname(HERE), "tests")
-        pat = re.compile(r"waitForTimeout\([^)]*\);?\s*(?:const\s+\w+\s*=\s*)?await page\.evaluate")
-        gpat = re.compile(r"w\.(%s)\b" % "|".join(self.GLOBALS))
-        found = []
-        for f in sorted(glob.glob(os.path.join(root, "*.spec.ts"))):
-            with open(f, encoding="utf-8") as fh:
-                src = fh.read()
-            for m in pat.finditer(src):
-                if gpat.search(src[m.end():m.end() + 420]):
-                    found.append(os.path.basename(f))
-                    break
-        self.assertLessEqual(
-            len(found), self.LIMIT,
-            "%d specs sleep and then read a lazily-built board global, up from %d. That is a "
-            "race, not a wait: on a loaded runner the global is absent, `|| {}` swallows it, "
-            "and the test reports a PRODUCT defect that is really the harness arriving early. "
-            "Use boardReady() from tests/_board_ready.ts. New: %s"
-            % (len(found), self.LIMIT, sorted(set(found))[-6:]),
-        )
 
 
 class TestV2109TheBoardHintWearsTheSameSkin(unittest.TestCase):
@@ -29652,31 +29264,6 @@ class TestV2160NothingShippedKillsByNamePattern(unittest.TestCase):
     its own documentation sits red forever pointing at itself. [[feedback-comments-vs-code]]
     """
 
-    def test_no_shipped_script_uses_pkill(self):
-        import glob
-        here = os.path.dirname(os.path.abspath(__file__))
-        repo = os.path.dirname(here)
-        targets = sorted(glob.glob(os.path.join(here, "*.sh"))
-                         + glob.glob(os.path.join(repo, "hooks", "*")))
-        checked = 0
-        for path in targets:
-            if os.path.isdir(path):
-                continue
-            try:
-                with io.open(path, encoding="utf-8", errors="replace") as fh:
-                    src = fh.read()
-            except Exception:
-                continue
-            checked += 1
-            for n, line in enumerate(src.split("\n"), 1):
-                bare = line.split("#", 1)[0]          # CODE only — prose explains the ban
-                self.assertNotIn("pkill", bare,
-                                 "%s:%d kills by NAME PATTERN — it cannot tell his live console "
-                                 "from a grep that happens to contain the string. Ask the PORT "
-                                 "who holds it and kill that pid.\n    %s"
-                                 % (os.path.basename(path), n, line.strip()[:100]))
-        self.assertGreater(checked, 2, "the guard scanned almost nothing — it proves nothing")
-
     def test_the_replacement_actually_asks_the_port(self):
         """Seen red for its own reason: deleting the pkill and killing NOTHING would also pass the
         test above, and would leave a half-dead process holding :17772 forever."""
@@ -30844,7 +30431,7 @@ class TestV2188TheFleetTallyCanActuallyBeReported(unittest.TestCase):
         import sqlite3
         # a fresh file per call — the reader is invoked more than once per test and the old
         # version reused one path, so the second CREATE TABLE blew up inside a lambda
-        db = os.path.join(self.d, "ls-%d.sqlite3" % len(os.listdir(self.d)))
+        db = os.path.join(self.d, "ls-%d.sqlite3" % len(_fx_tmp.list_own(self.d)))
         con = sqlite3.connect(db)
         con.execute("CREATE TABLE ItemTable (key TEXT UNIQUE ON CONFLICT REPLACE, value BLOB)")
         for k, v in rows.items():
@@ -32258,37 +31845,6 @@ class TestV2175EveryPaidLaneRemembersWhatItAlreadyBOUGHT(unittest.TestCase):
         "name hunt":       ("chronicle_hunt.py", "chron_hunt_memory.json"),
         "vault sweep":     ("vault_retro.py", "vault_swept.json"),
     }
-
-    def test_every_module_that_SPENDS_is_in_the_registry(self):
-        """If a new module starts calling a paid reader, it appears here and this goes red until
-        someone says what stops it re-buying. That is the point."""
-        import glob
-        here = os.path.dirname(os.path.abspath(__file__))
-        spenders = set()
-        for path in glob.glob(os.path.join(here, "*.py")):
-            base = os.path.basename(path)
-            if base.startswith("test_"):
-                continue
-            with io.open(path, encoding="utf-8", errors="replace") as fh:
-                src = fh.read()
-            code = "\n".join(l.split("#", 1)[0] for l in src.split("\n"))
-            if "read_page(" in code or "_oneshot(" in code:
-                spenders.add(base)
-        known = {m for m, _ in self.PAID_LANES.values()} | {
-            "control_app.py",          # the orchestrator: it OWNS the memories, it is not a lane
-            # ⚠ FOUND BY THIS TEST ON ITS FIRST RUN, which is the whole point of writing it as a
-            # law. tv_diablo is the READER, not a lane: it never decides WHAT to buy — the sweep
-            # and the hunt hand it a page. Its one self-directed spend is the crop-refused retry
-            # (crop first, full frame once if the crop answer is refused), bounded at exactly one
-            # extra read per page and pinned by the case below. If that ever becomes a loop, this
-            # module needs a memory like the others.
-            "tv_diablo.py",
-        }
-        unregistered = spenders - known
-        self.assertFalse(unregistered,
-                         "these modules call a PAID reader and are not in PAID_LANES, so nothing "
-                         "says what stops them buying the same thing twice: %s"
-                         % sorted(unregistered))
 
     def test_every_registered_lane_NAMES_what_stops_it_rebuying(self):
         ca_dir = os.path.dirname(os.path.abspath(__file__))

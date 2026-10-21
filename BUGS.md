@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2362 - test_control AND test_agent LISTED THEIR OWN TEMP DIRS, SO HEART2 COULD NEVER KEY THEM (unversioned)
+
+heart2 scans only the LAW FILE for a directory listing and refuses to key any law that has one. test_control had 40 listing sites and test_agent 6. 29 of the 46 listed a temp dir the test had made a line earlier (a reel fixture, a corrupt-ledger copy, a settle queue), which no other process writes; one was a `_scripts()` glob nothing called; one took a probe image from his live footage when it existed.
+
+FIX: (1) tv/fixture_tmp.py gains `list_own` / `match_own`, which list a directory only when it lies strictly inside the scratch parent contain() made for THIS process (symlinks resolved; never the parent, the temp root, the tree, or any path in an uncontained process). The 29 temp-dir sites use them. (2) The probe image is always generated (no read of his footage). (3) The cases that genuinely read what a folder holds moved byte for byte, under their old class names, to tv/test_folder_scans.py (orphan suites, a class below unittest.main(), CI imports, unbound names, pkill, paid lanes, the art corpus, sleep-then-read specs, the footage detectors); constants and helpers are borrowed from test_control's classes, never copied, and hooks/pre-push runs the file right after test_control. (4) TestToolsCanReportTheirVerdict moved to tv/test_every_cli_that_prints_non_ascii_is_encoding_safe.py, where the old `_scripts()` glob is now the audit's denominator. heart2.law_inputs now returns a key for test_control (1,265 inputs) and test_agent (1,231).
+
+GUARDS (registered in tv/run_gates.py): tv/test_a_scratch_listing_reads_only_its_own_scratch.py (5 RED proofs), tv/test_folder_scans.py (5), tv/test_every_cli_that_prints_non_ascii_is_encoding_safe.py (2); tv/test_the_encoding_rule_has_one_definition.py now reads the moved case.
+
+LEFT: test_control's own 27 RED proofs were not re-proved here (each full run is minutes; the push proves them). Its static key is still wide (run_gates names every test file, and BUGS.md is a literal), so a retry whose fix touches a test file or BUGS.md still re-proves it - REG-2296's traced keys are the fix for that, not this entry.
+
 ### REG-2361 - A TWO-MINUTE SUITE REFUSAL WAITED BEHIND AN HOUR OF PROVING (unversioned)
 
 v3783 series, 2026-10-21: push 10 proved for 65.7 min, then the sharded test_control suite (126.9 s) refused it at 72m37s on a duplicate REG number; push 11 was refused by the same suite at 10m28s. hooks/pre-push ran heart2 --prove before the red-proof anchors, review-lite, visual-lock, the boss portraits and every tv suite - the same shape #42 P5 already fixed for the render gate.

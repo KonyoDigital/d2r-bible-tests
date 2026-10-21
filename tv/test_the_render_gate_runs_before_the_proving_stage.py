@@ -58,7 +58,7 @@ STAGES = {"version-stamp": 30, "second-eye": 30, "blueprint": 60, "heart": 60, "
           "crest-loudness": 180, "console-demos": 180, "smoke": 900}
 #: REG-2361 - every stage that refuses in minutes, called before the proving stage
 FAIL_FAST = ("red-proof anchors", "review-lite", "visual-lock", "boss-portraits", "test_agent", "test_control",
-             "test_tz_art", "test_chronicle_retro", "test_chronicle_seal")
+             "test_folder_scans", "test_tz_art", "test_chronicle_retro", "test_chronicle_seal")
 _GATE_RUN = re.compile(r'gate_run\s+"([^"]+)"\s+"(?:[^"\\]|\\.)*"\s+(\d+)\s+--')
 
 

@@ -909,6 +909,21 @@ if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'; then
       rm -f "$_tr"
     fi
   fi
+  # REG-2362 - THE CASES THAT LEFT test_control TO LET IT BE KEYED STILL STOP A PUSH. test_control listed folders at
+  # 40 sites, so heart2 could never save one of its proofs; the cases that genuinely read what a folder holds (an
+  # unregistered suite, an import CI lacks, a pkill, a paid lane, the art corpus, the footage detectors) moved to
+  # tv/test_folder_scans.py, byte for byte. They ran here inside test_control, so they run here still - same lane,
+  # same refusal. ~10 s. No --record: like test_tz_art below, run_gates stores what it actually runs.
+  _carry_line="$(ledger_carry test_folder_scans)"
+  _carry_rc=$?
+  if [ "$_carry_rc" -eq 0 ]; then
+    echo "pre-push: [$(_pp_el)] test_folder_scans carried: $_carry_line"
+  else
+    echo "pre-push: [$(_pp_el)] $_carry_line"
+    if ! gate_run "test_folder_scans" "python3 tv/test_folder_scans.py" 600 -- python3 "$REPO/tv/test_folder_scans.py"; then
+      exit 1
+    fi
+  fi
   # v1578 — the TZ panel's DATA (67 zones -> game-extracted art + the game's own density/level, and
   # the tiering that greys a zone out). Cheap, pure stdlib, and it guards a surface Konyo looks at
   # every hour: a missing art key is a broken image on his TV that the browser reports to nobody.

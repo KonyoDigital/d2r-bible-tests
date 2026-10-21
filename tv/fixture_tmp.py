@@ -89,3 +89,50 @@ def contain():
 
 def _release(d):
     shutil.rmtree(d, ignore_errors=True)
+
+
+# ══ REG-2362 - A LAW MAY LIST ITS OWN SCRATCH, AND ONLY ITS OWN SCRATCH ══════════════════════════════════════
+# heart2 keys a proof on the bytes its law can read, and a law that lists a directory ITSELF (os.listdir, glob.glob,
+# os.walk in the law file) reads whatever is there at run time - so heart2 calls it UNKEYABLE and never saves one of
+# its proofs. MEASURED 2026-10-21: test_control's 27 proofs ran ~4 min each on every push of the v3783 series and were
+# never saved, because the file lists directories at 40 sites - and 26 of them list a temp dir the test made a line
+# earlier, which no other process can write. A listing of THIS process's own scratch is decided by the code under
+# test, which the key already holds. These two say so by construction: they refuse any path that is not strictly
+# inside the parent contain() made for this process, so they can never be pointed at the tree, his footage or a
+# temp dir another process shares. A listing of anything else stays os.listdir in the law file, where heart2 sees it.
+# Law: test_a_scratch_listing_reads_only_its_own_scratch. [[unknown-stays-unknown]]
+def _own(path):
+    """-> the real path of `path`, when it lies strictly inside this process's contained scratch parent. Raises
+    ValueError otherwise: no contain() in this process, the parent itself, or anywhere outside it (symlinks resolved)."""
+    held = _HELD.get("dir")
+    if not held:
+        raise ValueError("fixture_tmp: this process never called contain(), so no directory can be shown to be its "
+                         "own scratch - list it with os.listdir in the law file, where the heart sees it")
+    root = os.path.realpath(held)
+    p = os.path.realpath(path)
+    try:
+        inside = os.path.commonpath([root, p]) == root
+    except ValueError:                       # a different drive on Windows
+        inside = False
+    if p == root or not inside:
+        raise ValueError("fixture_tmp: %r is not inside this process's own scratch (%s) - a listing of anything else "
+                         "is a read of the tree, his footage or a shared temp dir, and belongs in the law file"
+                         % (path, root))
+    return p
+
+
+def list_own(path):
+    """os.listdir(path), for a directory inside this process's own scratch only (REG-2362). -> [names]"""
+    _own(path)
+    return os.listdir(path)
+
+
+def match_own(pattern):
+    """glob.glob(pattern), when the pattern's directory is inside this process's own scratch and only its last part
+    holds a wildcard (REG-2362). -> [paths]"""
+    import glob as _glob
+    d = os.path.dirname(pattern)
+    if any(c in d for c in "*?["):
+        raise ValueError("fixture_tmp: only the last part of %r may hold a wildcard" % pattern)
+    _own(d)
+    return _glob.glob(pattern)

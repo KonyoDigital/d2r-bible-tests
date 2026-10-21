@@ -10907,6 +10907,30 @@ GATES = [
              "commit by name (TV_PUSHED_GIT_DIR + TV_PUSHED_COMMIT); each temp-repo law scrubs GIT_* for its own "
              "test. Driven on a fixture repo with a linked worktree: every temp-repo law run whole under the leaked "
              "GIT_DIR leaves it byte-identical with core.bare false."),
+    Gate("test_every_cli_that_prints_non_ascii_is_encoding_safe",
+         [sys.executable, os.path.join(HERE, "test_every_cli_that_prints_non_ascii_is_encoding_safe.py")], 60,
+         needs_app=False,
+         why="v1480 / REG-2362 - a CLI that prints non-ASCII makes its own stdout safe (console_safe.audit, "
+             "one definition). Moved out of test_control with the _scripts() folder glob that left all of "
+             "test_control unkeyable; the glob is now the audit's denominator - console_safe.scripts() must be "
+             "every entry point the folder holds. Unkeyable on purpose and cheap; the hook's console_safe step "
+             "runs the same audit first on every push."),
+    Gate("test_folder_scans",
+         [sys.executable, os.path.join(HERE, "test_folder_scans.py")], 600,
+         needs_app=False,
+         why="REG-2362 - the test_control cases that read what a folder holds when they run (an "
+             "unregistered suite, a class below unittest.main(), an import CI lacks, an unbound name, a pkill, a "
+             "paid lane with no memory, the art corpus, sleep-then-read specs, the stash detectors on whatever "
+             "footage exists), moved byte for byte so test_control can be keyed and its proofs saved. Unkeyable on "
+             "purpose; hooks/pre-push runs it in the tv suites stage right after test_control."),
+    Gate("test_a_scratch_listing_reads_only_its_own_scratch",
+         [sys.executable, os.path.join(HERE, "test_a_scratch_listing_reads_only_its_own_scratch.py")], 60,
+         needs_app=False,
+         why="REG-2362 - fixture_tmp.list_own / match_own list a directory only when it lies strictly "
+             "inside the scratch parent contain() made for this process (symlinks resolved; not the parent, not "
+             "the temp root, not the tree, never in an uncontained process). 29 of test_control's and "
+             "test_agent's 46 listing sites listed their own temp dirs; through these the heart can key both "
+             "suites, and a real read of the tree still has to be os.listdir in the law file, where it is seen."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
