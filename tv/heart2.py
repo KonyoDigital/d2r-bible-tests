@@ -3473,8 +3473,9 @@ def forecast(have, say=print, sandbox=None, cache=None, unmatched=()):
     One block headed "#42 FORECAST": per law in scope, how many proofs the verdict cache will serve (hit), the red
     memory will narrow, and will run in full; how many are decided before any run (round 4: ELSEWHERE, INVALID or
     UNPROVABLE by _prove_one's own doors - never priced as a run, and `none` in the push record too); how many can never
-    be banked and why (UNKEYABLE); the runs that costs and, where gate_costs.json measured the gate, the seconds. Judged on a sandbox of the tree with the run's own key and
-    lookup's own predicate (peek), so a forecast hit is exactly what the push will reuse - and nothing it asks is marked
+    be banked and why (UNKEYABLE); the runs that costs and, where gate_costs.json measured the gate, the seconds.
+    Judged on a sandbox of the tree with the run's own key and lookup's own predicate (peek), so a forecast hit is
+    exactly what the push will reuse - and nothing it asks is marked
     used, in the verdict cache or the red memory (_proof_path). `sandbox` and `cache` are a caller's (a law's
     fixture); left None, a sandbox is built here and dropped, and the cache is opened read-only (HEART2_PROVE_CACHE=0
     honoured). Anything that goes wrong prints UNKNOWN and returns - a forecast never refuses a push."""

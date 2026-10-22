@@ -479,7 +479,7 @@ class NothingAskedMarksAnEntryUsed(unittest.TestCase):
                         "PREMISE: both stores are on disk, written by heart2's own writers")
         self.cache = H._VerdictCache(path=self.cache_path, say=_say)    # a push's own cache, opened over that file
         H._red_load()                                     # the memory as a push holds it, read before any question
-        time.sleep(0.01)                                  # a use marked from here on is stamped later than any above
+        time.sleep(0.05)      # a use marked from here on is stamped later than any above (Windows' clock ticks ~16 ms)
 
     def ask(self, what, fn):
         """Ask one question: nothing a use could be recorded in may change. -> its answer"""
