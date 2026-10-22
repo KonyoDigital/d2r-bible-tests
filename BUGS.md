@@ -17,7 +17,9 @@ FIX: second_eye_ledger keeps the parse per (path, size, mtime_ns, inode, device)
 written in the last SETTLE_S (3 s) is never memoised (a coarse clock can give two same-size writes one mtime); a census over readers a
 caller swapped in (_rows, agreement, verdict_provenance) is never kept or served; every caller gets copies.
 MEASURED after, same copy: first tick 0.68 s with ONE parse, every later tick 0.01 s with none. The old and new modules give
-byte-identical census, agreement() for the last 120 versions, audit() and looked_at() on that copy.
+byte-identical census, agreement() for the last 120 versions, audit() and looked_at() on that copy. _rows() hands out shallow
+copies, so a caller that edited a NESTED value would edit the kept parse: every public reader of the module and 22 console_doctor
+rows (every one named for the eye or a ledger), run over the kept parse of a fresh copy (16:4x), left it deep-equal.
 GUARD: tv/test_the_second_eye_row_reads_the_ledger_once.py drives the real console_doctor row on a fixture: one parse a tick, none on
 the next, an appended look seen at once (SINGLE -> AGREE), a same-size in-place rewrite with its mtime put back still read fresh, the
 census walked once per state and handed back as a copy. 4 RED proofs, heart2 4/4 PROVEN.
@@ -74,9 +76,10 @@ FIX: the ledger is <git common dir>/second_eye.jsonl - one per machine, never in
 walk; a hook's GIT_DIR never answers). The first READ or WRITE of it in a process folds every checkout's own tv/.second_eye.jsonl
 in (this checkout's, main's, every live worktree's via <common>/worktrees/*/gitdir): exact rows, never dropping one (a row held N
 times stays N times), ordered by their own ts, the sources only read; afterwards a source is read again only when its (size,
-mtime_ns, inode) moved, so old code still appending to one is folded too. Importing the module reads nothing under .git (verified
-with an audit hook): run_gates' gate ledger never carries a gate that read git's own files, and ~36 laws import the module only to
-drive fixtures, so an import-time fold would have re-run every one of them on every main-checkout push. Every append (record() and the fold) holds the ledger's lock (flock; on
+mtime_ns, inode) moved, so old code still appending to one is folded too. Importing the module opens no file under the checkout's
+own .git/ (audit hook: a main checkout only stats .git; a linked worktree reads its .git pointer and its gitdir's commondir, both
+outside its work tree): run_gates' gate ledger never carries a gate that read git's own files, and ~36 laws import the module only
+to drive fixtures, so an import-time fold would have re-run every one of them on every main-checkout push. Every append (record() and the fold) holds the ledger's lock (flock; on
 Windows msvcrt's byte lock far past the end, so readers are never refused; neither: unlocked and said), and closes a row a killed
 writer left without its newline. --gate pins the machine's ledger and still ignores TV_SECOND_EYE_LEDGER; the seam still names a
 fixture otherwise. A tree with no git dir (a heart2 sandbox) keeps its own file, LEDGER_WHY says why, and the CLI prints it.
@@ -85,7 +88,9 @@ LEDGER_PATH: the file the push gate's --check (and every read in his console's o
 MEASURED on a fixture replica of this Mac (copies of main's ledger and of every worktree's, in the same layout): distinct rows after
 the fold = 2,276 = the union of every checkout's distinct rows, in ts order; a second fold adds 0; a fresh process's first fold
 that finds nothing missing costs 0.23 s; --gate there passes v3783 and v3784 (the A2 worktree's looks) and still refuses v3778.
-His real .git was never written.
+Re-measured 16:4x over the REAL layout, read-only (his checkouts as the sources, a scratch file as the ledger): 19 checkout ledgers
+(main + 18 worktrees holding seeded 7.3 MB copies, 132 MB), the first fold 0.20 s adding 2,276 rows, a later process's first
+read 0.14 s adding 0. His real .git was never written.
 GUARD: tv/test_the_second_eye_ledger_is_one_per_machine.py (fixture main + absolute and relative worktree pointers; the module run
 in a subprocess inside the fixture). 4 RED proofs (the HERE path, the worktree fold skipped, a set-dedupe that drops a repeated row,
 --gate honouring the variable), heart2 4/4 PROVEN. The 25 existing ledger laws and test_control's ledger classes stay green.
