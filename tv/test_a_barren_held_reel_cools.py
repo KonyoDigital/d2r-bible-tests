@@ -104,7 +104,7 @@ RED_PROOF = [
         "why": "#188 REG-2560 - the requeue stops cooling: a barren held reel is read again on the next tick",
         "file": "tv/control_app.py",
         "find": "                    _vault_cool(rid, _said)                # #188 REG-2560 - but not before its cooldown ends\n",
-        "replace": "",
+        "replace": "                    pass\n",
         "matches": 1,
     },
     {
