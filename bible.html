@@ -41794,6 +41794,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       +(rows||'<div style="padding:8px 4px;color:#8a9aa8;font-size:12px">No multi-copy items yet — add one below.</div>')
       +'<div class="vmk-add"><input id="vmk-add-input" aria-label="add an item to collect spares of" type="text" autocomplete="off" placeholder="Add an item to collect spares of (e.g. Gore Rider)" onkeydown="if(event.key===\'Enter\')window.vaultMultiKeepAdd()"><button onclick="window.vaultMultiKeepAdd()">+ Add</button></div></div></details>';
   }
+  window.renderMultiKeep=renderMultiKeep;   /* v3787 - the v3753 #76 walk-down hook the spec and console call */
   window.vaultCopyAdjust=function(n,d){ n=(window._vfCanon?window._vfCanon(n):n)||n; var want=multiTarget(n), cap=Math.max(want,copyCount(n)), nv=Math.max(0,Math.min(cap,copyCount(n)+d)); if(nv<=1){ delete copies[n]; } else { copies[n]=nv; } try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };   /* #76 v3753 — canonicalize to the slotted ledger key; cap at max(want,have) so an inflated count walks DOWN one step toward his true count instead of snapping */
   window.vaultTargetBump=function(n,d){ n=(window._vfCanon?window._vfCanon(n):n)||n; var nt=multiTarget(n)+d; if(nt<2){ window.vaultMultiKeepRemove(n); return; } multiKeep[n]=nt; if(copies[n]&&copies[n]>nt) copies[n]=nt; try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };
   window.vaultMultiKeepRemove=function(n){ n=(window._vfCanon?window._vfCanon(n):n)||n; delete multiKeep[n]; delete copies[n]; try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };
@@ -46495,6 +46496,16 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var _pbWasOwned = !!(typeof owned !== 'undefined' && owned && owned.has && owned.has(_pb.name));
         var _pbWasAssigned = assign[_pb.name] != null;
         var _pbRouted = _vpRoute(_pb.name);
+        /* REG-2553 (v3787) - his REG-2250 ruling outranks the router's vendor advice. suggestMule calls a
+           socketed base whose runewords are all forged a throw-out, so a 4os Monarch came back unfiled. A
+           PERFECT base is a keeper anyway: file it to the SOCKETED base mule. */
+        if (_pbRouted && !_pbRouted.filed && _pbRouted.mode !== 'already' && assign[_pb.name] == null
+            && typeof muleById === 'function' && muleById('bases') && typeof window.vaultFile === 'function'){
+          var _pbF = window.vaultFile(_pb.name, { by: 'hand', at: new Date().toISOString(), where: VP_WHERE }, { mule: 'bases' });
+          var _pbOk = !!(_pbF && (_pbF.mode === 'filed' || _pbF.mode === 'confirmed'));
+          if (_pbOk) _pbRouted = { ok: true, filed: true, mode: _pbF.mode, mule: 'bases',
+            why: _pb.name + ' filed to ' + (muleById('bases').name || 'bases') + ' — ' + _pb.why };
+        }
         if (_pbRouted && (_pbRouted.filed || _pbRouted.mode === 'already')){
           try { status(_pbRouted.why); } catch (ePs) {}
           _vpMade = { token: token, id: entry.id, name: _pb.name, fresh: !!(!_pbWasOwned && !_pbWasAssigned && _pbRouted.filed), magic: false };
