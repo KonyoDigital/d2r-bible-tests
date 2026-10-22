@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2559 - A LAW SPENT HIS PLAN ON OPUS: THE CLOUD-ROUTE CASE RAN THE REAL `claude -p` (#189, GB-L, 2026-10-22, v3788)
+
+test_triage_runs_beside_a_shadow_reel's test_a_cloud_route_pc_is_never_told_to_launch_d2r calls farmgate_payload,
+whose d2r_window row asks the agent probe. Nothing stubbed `_find_claude_bin`, so each run launched the real CLI:
+`claude auth status --json`, then `claude -p "reply with only: ok"` (measured with a tripwire binary). Fix: the file
+patches `_find_claude_bin` to None at import, and a case that needs a CLI patches its own. Law:
+TheClaudeCliIsNeverLaunched runs the cloud-route case with a tripwire `claude` first on PATH and in ~/.local/bin and
+asserts it was never called. RED_PROOF "#189 REG-2559" drops the patch and the tripwire logs both calls.
+
 ### REG-2558 - A PERFECT BASE FILED FROM THE PLANNER RETURNED BEFORE IT WAS SAVED OR DRAWN (GB-L, 2026-10-22, v3788)
 
 Found by the Grok CLI second eye on v3787. The REG-2250 perfect-base branch of vaultPlannerFile returned early,
