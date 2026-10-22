@@ -246,6 +246,211 @@ def _cpu_sample():
 #: kind of cost it exists to find. Consecutive calls are separated by real time — far more than a
 #: sleep would buy — so the samples are better AND free. [[poll-slower-than-its-interval]]
 _LAST_SAMPLE = {"at": 0.0, "cpu": {}}
+#: what the last sweep actually measured: how many processes, by which instrument, when. health_engine's OK sentence
+#: reads it, so "nothing busy" always names its denominator. n None = no sweep has measured yet.
+_SCAN = {"n": None, "how": None, "at": None, "portsSay": None}
+
+
+def last_scan():
+    """What the last suspects() call measured. -> {"n", "how", "at", "portsSay"} (a copy). portsSay None = the
+    default sentence about his ports holds. [[zero-needs-a-denominator]]"""
+    return dict(_SCAN)
+
+
+def _platform():
+    """A seam: the law drives the Windows sweep on any PC."""
+    return sys.platform
+
+
+def _now():
+    return time.time()
+
+
+# ══ #171 (REG-2482) — THE SAME SWEEP ON WINDOWS, MEASURED BY THE KERNEL'S OWN COUNTERS ══════════════════════════════
+# MEASURED on Dean's PC 2026-10-22: 'stray processes' UNKNOWN for 45 days, "`ps` could not be asked for a CPU sample" -
+# there is no ps on Windows, so the runaway watch was blind on every Windows PC while it read as an instrument hiccup.
+# The Windows sweep asks the same question the same way: TWO samples, the second from the previous call (never a
+# sleep), and a process is busy only on the CPU time it actually burned BETWEEN them. tv_diablo's one Toolhelp32 snapshot
+# names every process; GetProcessTimes gives each one's CUMULATIVE CPU time. No process is spawned. Age comes from the
+# creation time child_guard's birth reader already reads - one reader each, never a copy. [[copy-drift]]
+_LAST_WIN = {"at": 0.0, "cpu": {}}
+#: Windows' own images: %SystemRoot%'s system folders and Defender's platform folder. NEVER Program Files, AppData or
+#: WindowsApps - python and node live there, and excusing them would blind the sweep to its own author.
+WIN_SYSTEM_DIRS = ("\\windows\\system32\\", "\\windows\\syswow64\\", "\\windows\\winsxs\\",
+                   "\\windows\\systemapps\\", "\\windows\\servicing\\", "\\windows\\microsoft.net\\",
+                   "\\windows\\explorer.exe", "\\windows defender\\")
+#: ...but the shells that live there run whatever they are handed, so their work is somebody's - mine, possibly - and
+#: never the OS's: a `powershell -Command` runaway is exactly the 28-hour class, wearing a System32 path.
+WIN_SCRIPT_HOSTS = ("powershell.exe", "pwsh.exe", "cmd.exe", "wscript.exe", "cscript.exe")
+#: his game on Windows, and the cloud clients that stream it (self_prove.PLAY_EXES) - busy by design, never mine
+WIN_KNOWN = ("d2r.exe", "boosteroid.exe", "geforcenow.exe", "nvidia geforce now.exe")
+#: the kernel's pseudo-processes, which have no image and are the OS by definition
+WIN_PSEUDO = ("System Idle Process", "System", "Registry", "Memory Compression", "Secure System")
+PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+
+
+def _win_kernel():
+    """kernel32 through its OWN ctypes handle (never the shared windll one), argument types declared here."""
+    import ctypes
+    from ctypes import wintypes
+    k = ctypes.WinDLL("kernel32", use_last_error=True)
+    k.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+    k.OpenProcess.restype = wintypes.HANDLE
+    k.GetProcessTimes.argtypes = [wintypes.HANDLE] + [ctypes.POINTER(ctypes.c_uint64)] * 4
+    k.GetProcessTimes.restype = wintypes.BOOL
+    k.QueryFullProcessImageNameW.argtypes = [wintypes.HANDLE, wintypes.DWORD, wintypes.LPWSTR,
+                                             ctypes.POINTER(wintypes.DWORD)]
+    k.QueryFullProcessImageNameW.restype = wintypes.BOOL
+    k.CloseHandle.argtypes = [wintypes.HANDLE]
+    k.CloseHandle.restype = wintypes.BOOL
+    return k
+
+
+def _win_cpu_sample():
+    """{pid: {"cpuS", "ppid", "exe"}} - every process this user may open, with its CUMULATIVE CPU seconds - or None.
+
+    The process list is tv_diablo._win_process_names(), the ONE Toolhelp32 snapshot reader (control_app's git census
+    trusts it too) - never a second copy; each process's CPU time is GetProcessTimes (kernel + user). None, never {}: a
+    snapshot that could not be taken is UNMEASURED, and a process that cannot be opened (a protected one) is left out
+    of the sample rather than read as idle. Windows only; it raises nowhere."""
+    try:
+        import ctypes
+        import tv_diablo as _tvd
+        names = _tvd._win_process_names()
+        if not names:
+            return None
+        k = _win_kernel()
+        out = {}
+        for pid, exe in names.items():
+            if int(pid) in (0, 4) or exe in WIN_PSEUDO:
+                continue                                            # the kernel itself, not a process of anyone's
+            h = k.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, int(pid))
+            if not h:
+                continue
+            try:
+                c, x, kt, ut = (ctypes.c_uint64() for _ in range(4))
+                if k.GetProcessTimes(h, ctypes.byref(c), ctypes.byref(x), ctypes.byref(kt), ctypes.byref(ut)):
+                    out[str(pid)] = {"cpuS": (kt.value + ut.value) / 1e7, "ppid": None, "exe": exe}
+            finally:
+                k.CloseHandle(h)
+        return out
+    except Exception:
+        return None
+
+
+def _win_birth(pid):
+    """Creation time, epoch seconds, through child_guard's ONE birth reader. None = UNKNOWN. A seam."""
+    try:
+        import child_guard as _cg
+        return _cg._birth_win(pid)
+    except Exception:
+        return None
+
+
+def _win_command(pid):
+    """The process's command line (ProcessCommandLineInformation, Windows 8.1+), else its image path, else None.
+    KNOWN names things like `control_app.py`, which only a command line carries. A seam."""
+    try:
+        import ctypes
+        from ctypes import wintypes
+        k = _win_kernel()
+        h = k.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, int(pid))
+        if not h:
+            return None
+        try:
+            nt = ctypes.WinDLL("ntdll")
+            nt.NtQueryInformationProcess.argtypes = [wintypes.HANDLE, ctypes.c_ulong, ctypes.c_void_p,
+                                                     ctypes.c_ulong, ctypes.POINTER(ctypes.c_ulong)]
+            nt.NtQueryInformationProcess.restype = ctypes.c_long
+            need = ctypes.c_ulong(0)
+            nt.NtQueryInformationProcess(h, 60, None, 0, ctypes.byref(need))
+            if 16 <= need.value <= 1 << 20:
+
+                class UNICODE_STRING(ctypes.Structure):
+                    _fields_ = [("Length", ctypes.c_ushort), ("MaximumLength", ctypes.c_ushort),
+                                ("Buffer", ctypes.c_void_p)]
+                buf = ctypes.create_string_buffer(need.value)
+                if nt.NtQueryInformationProcess(h, 60, buf, need, ctypes.byref(need)) >= 0:
+                    us = UNICODE_STRING.from_buffer(buf)
+                    if us.Buffer and us.Length:
+                        return ctypes.wstring_at(us.Buffer, us.Length // 2)
+            size = wintypes.DWORD(32768)
+            img = ctypes.create_unicode_buffer(size.value)
+            if k.QueryFullProcessImageNameW(h, 0, img, ctypes.byref(size)):
+                return img.value
+            return None
+        finally:
+            k.CloseHandle(h)
+    except Exception:
+        return None
+
+
+def _win_os_image(cmd):
+    """Is this Windows' own work - an image out of Windows' own folders that is not a shell? -> bool
+    The image is the quoted head of the command line, or everything up to its first `.exe` (an unquoted path may
+    hold spaces: ...\\Windows Defender\\...\\MsMpEng.exe)."""
+    low = str(cmd or "").strip().lower()
+    if low.startswith('"'):
+        first = low[1:].split('"', 1)[0]
+    else:
+        first = low[:low.find(".exe") + 4] if ".exe" in low else low.split(" ", 1)[0]
+    if first.rsplit("\\", 1)[-1] in WIN_SCRIPT_HOSTS:
+        return False                    # a shell's work is somebody's, never the OS's
+    return any(d in first for d in WIN_SYSTEM_DIRS)
+
+
+def _unmeasured_win(cur):
+    return {"pid": None, "ours": None,
+            "why": ("the Windows kernel's process counters %s, so nothing can be judged about runaways right now. "
+                    "This is UNMEASURED, not clean."
+                    % ("could not be read for a CPU sample" if cur is None else "answered for no process at all"))}
+
+
+def _suspects_win(busy, old_min):
+    """#171 (REG-2482) — suspects() on Windows: busy in the CPU time burned BETWEEN two samples, and old. -> rows"""
+    now = _now()
+    prev, prev_at = _LAST_WIN.get("cpu") or {}, float(_LAST_WIN.get("at") or 0.0)
+    cur = _win_cpu_sample()
+    if not cur:
+        return [_unmeasured_win(cur)]
+    _LAST_WIN["cpu"], _LAST_WIN["at"] = cur, now
+    _SCAN.update(n=len(cur), at=now,
+                 how="the Windows kernel's own per-process CPU time (GetProcessTimes), two samples",
+                 portsSay=("His ports cannot be read on this PC (there is no lsof here), so no busy process is "
+                           "ever counted as mine - it is reported as nobody's."))
+    gap = now - prev_at
+    if not prev or gap < 1.0:
+        return [{"pid": None, "ours": None,
+                 "why": ("only ONE cpu sample is available%s - a CPU time becomes a load only against a second "
+                         "reading, so no runaway verdict is possible yet. Ask again in a moment and this becomes "
+                         "measurable." % ("" if not prev else " (the previous one is %.1fs old)" % gap))}]
+    out = []
+    for pid, row in cur.items():
+        first = prev.get(pid)
+        if not first:
+            continue                    # younger than the first sample: it cannot be a 20-minute runaway
+        burned = float(row.get("cpuS") or 0.0) - float(first.get("cpuS") or 0.0)
+        if burned < 0:
+            continue                    # less CPU than before: the pid now names another process
+        pct = 100.0 * burned / gap
+        if pct < busy:
+            continue
+        born = _win_birth(pid)
+        if born is None or born > prev_at:
+            continue                    # unreadable, or born after the first sample: that reading was another's
+        mins = (now - born) / 60.0
+        if mins < old_min:
+            continue
+        cmd = _win_command(pid) or str(row.get("exe") or "")
+        if any(k in cmd for k in KNOWN) or any(k in cmd.lower() for k in WIN_KNOWN):
+            continue
+        if _win_os_image(cmd):
+            continue                    # Windows itself (never a shell: capture_win.ps1 runs in one)
+        _own, _ownWhy = _attribute(pid, cmd)
+        out.append({"pid": pid, "ppid": row.get("ppid"), "cpu": round(pct, 1), "samples": 2,
+                    "sampleGapS": round(gap, 1), "minutes": round(mins, 1), "cmd": cmd[:150],
+                    "ours": _own, "whose": _ownWhy})
+    return out
 
 
 def suspects(busy=BUSY_PCT, old_min=OLD_MIN, settle=0.0):
@@ -261,6 +466,8 @@ def suspects(busy=BUSY_PCT, old_min=OLD_MIN, settle=0.0):
     `cpu` is the MINIMUM, so a spike cannot promote itself into a verdict.
     [[feedback-suspect-the-instrument]] [[unknown-stays-unknown]]
     """
+    if _platform() == "win32":
+        return _suspects_win(busy, old_min)     # #171 (REG-2482) - no ps there; the kernel's own counters
     out = []
     _now = time.time()
     _prev, _prevAt = _LAST_SAMPLE.get("cpu") or {}, float(_LAST_SAMPLE.get("at") or 0.0)
@@ -272,6 +479,7 @@ def suspects(busy=BUSY_PCT, old_min=OLD_MIN, settle=0.0):
                  "why": "`ps` could not be asked for a CPU sample, so nothing can be judged about "
                         "runaways right now. This is UNMEASURED, not clean."}]
     _LAST_SAMPLE["cpu"], _LAST_SAMPLE["at"] = _cur, _now
+    _SCAN.update(n=len(_cur), at=_now, how="`ps` %CPU, two samples", portsSay=None)
     # ⚠ `settle` REMAINS, so a caller that genuinely wants an immediate second reading can ask for
     # one — but it is OFF by default, because the timer path must stay cheap.
     if settle:

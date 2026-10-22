@@ -7,6 +7,30 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2482 - 'STRAY PROCESSES' WAS UNKNOWN FOR 45 DAYS ON WINDOWS: THE RUNAWAY WATCH ASKED `ps`, WHICH WINDOWS DOES NOT HAVE (#171)
+
+MEASURED on Dean's PC 2026-10-22: "the sweep could not judge yet - `ps` could not be asked for a CPU sample ... unaskable for 45d (729 attempts)". my_orphans.suspects() sampled `ps -Ao pid,pcpu`, so on every Windows PC the 28-hour core-burner class was unwatched while the row read like an instrument hiccup. health_engine's OK sentence also re-sampled `ps` only to count it, so on Windows a clean verdict would have printed "UNKNOWN process(es) scanned".
+
+FIX: on Windows suspects() samples the kernel's own CUMULATIVE CPU time (tv_diablo's one Toolhelp32 snapshot for the process list, GetProcessTimes per process, no spawn) - two samples, the second from the previous call as on POSIX - and a process is busy only on the CPU it burned between them; age comes from child_guard's birth reader (both reused, never copied). A process born after the first sample, a reused pid, his game and its stream, and Windows' own images are not suspects - but a shell is never excused as the OS (powershell, cmd: this tree's capture runs in one, and so would an inline runaway of mine). The command line comes from ProcessCommandLineInformation, so KNOWN still reads `control_app.py`. An unreadable or empty sample is the UNMEASURED row, never `{}` and never "nothing busy", and it does not replace the last good sample. health_engine's OK sentence now reads my_orphans.last_scan(): the count and the instrument of the sweep that just ran, and on Windows that his ports cannot be read there.
+
+GUARD: tv/test_stray_processes_are_measured_on_windows.py (registered; 5 RED proofs, one of them "a sampler failure read as clean").
+
+### REG-2481 - 'TEST VENUE' ONLY KNEW LAUNCHD AND 'CONSOLE PAINTED WHOLE' ONLY KNEW QUARTZ, SO ON WINDOWS BOTH WERE UNKNOWN FOR WEEKS (#171)
+
+MEASURED on Dean's PC 2026-10-22: 'test venue' UNKNOWN for 49 days ("this check only knows launchd, so it cannot speak for this machine") - his order that browser suites never run on a PC of his was unchecked on Windows; 'console painted whole' UNKNOWN for 45 days ("Quartz is not importable here"), worded as a look that failed this tick rather than a witness that does not exist on that OS.
+
+FIX: the venue row on Windows reads Task Scheduler (`schtasks /query /fo CSV /v`, the 'Task To Run' column, through git_quiet's windowless door, at most hourly and saying how old the listing is) and judges every task, and every script it names by an absolute path, with reaches_a_browser_suite - the ONE rule launchd's plists are judged by (widened to the Windows spellings: npx.cmd, a quoted path, node_modules\.bin\playwright.cmd). A listing that cannot be read, has no 'Task To Run' column or lists nothing is UNKNOWN. The painted-whole row stays UNKNOWN off macOS - never OK without a look - and names the Windows witness that has not been built.
+
+GUARD: tv/test_the_venue_check_reads_windows_tasks.py (registered; 4 RED proofs, one of them "the Windows venue answers OK without reading").
+
+### REG-2480 - A PC THAT NEVER SHIPS WAS BILLED THIRTEEN EYE ROWS FOR THE SHIP-TIME INSTRUMENT IT DOES NOT OWN (#171)
+
+MEASURED on Dean's PC 2026-10-22 02:44 - never shipped a version, EYES Claude-only: 'this machine can get a second opinion' and 'the eye seat can be filled' MISSING ("there is no binary there" - grok.exe), and eleven second-eye-ledger rows UNKNOWN "unaskable for 31d" over a ledger that does not exist there ('second eye asked twice', 'eye reach per file', 'verdict matches the answer', 'a look keeps its evidence', 'the eye asks for every code extension', 'a verdict comes from a declared field', 'eye told what was stripped', 'the eye audit agrees with the gate', 'the eye cap is a size it has finished', 'the eye answers in a field', 'two eyes compared').
+
+FIX: console_doctor.this_pc_ships() - ONE measured predicate: this PC ships if its second-eye ledger exists, OR its eye binary exists (an eye configured as an API counts), OR self_prove.tree_state() says 'dev' (through the doctor's spawn-safe git door, asked only when neither of the first two holds). run() asks every row in SHIP_EYE_ROWS through ask_an_eye_row(): measured NOT shipping -> OK, "this PC has never shipped a version and has no eye - the second eye is the shipping PC's instrument; nothing is owed here" plus what was measured; shipping, or any input unreadable -> the row's own question, unchanged. No fifth state word. A check called on its own (every existing law) still asks its own question.
+
+GUARD: tv/test_an_eye_row_asks_only_a_pc_that_ships.py (registered; 4 RED proofs, among them "the predicate forced to not-shipping" and "the predicate ignores the ledger").
+
 ### REG-2473 - THE "PER-PC" STORES WERE PER CHECKOUT, AND THE TOMBSTONE READ WAS UNDECLARED (#181/#165 review, M4 track B)
 
 Found by the review of the first cut (dc9f31d4c), before it landed. TWO DEFECTS.

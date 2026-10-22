@@ -560,18 +560,24 @@ def check_orphans():
         # naming a different one. A note about a forbidden vocabulary must not speak it.
         # Describe the capability; never name the call. [[feedback-comments-vs-code]]
         # [[zero-needs-a-denominator]] [[unknown-stays-unknown]]
+        # ⚠ #171 (REG-2482) — THE DENOMINATOR COMES FROM THE SWEEP THAT JUST RAN, AND IT NAMES ITS INSTRUMENT.
+        # This used to take a SECOND `ps` sample only to count it: one more process-table read per tick on a Mac, and
+        # on Windows - no ps - a count of UNKNOWN printed beside a clean verdict. last_scan() is what suspects()
+        # itself measured a moment ago, and by what. None = no sweep measured, never "zero processes".
         try:
-            _s = MO._cpu_sample()
-            _n = None if _s is None else len(_s)     # None = ps unreadable, not "zero processes"
+            _scan = MO.last_scan() or {}
         except Exception:
-            _n = None
+            _scan = None
+        _n = (_scan or {}).get("n")
+        _how = (_scan or {}).get("how") or "an instrument that did not say which"
+        _ports = (_scan or {}).get("portsSay") or (
+            "Processes on his ports (%s) and their children are excluded by name, never counted as mine."
+            % ", ".join(":%d" % p for p in MO.HIS_PORTS))
         return _row("orphans", OK,
                     "nothing busy and old that is not a known system process — %s process(es) "
-                    "scanned, TWO CPU samples each, bar %.0f%% sustained and %d min old. "
-                    "Processes on his ports (%s) and their children are excluded by name, never "
-                    "counted as mine."
-                    % ("UNKNOWN" if _n is None else _n, MO.BUSY_PCT, MO.OLD_MIN,
-                       ", ".join(":%d" % p for p in MO.HIS_PORTS)), k=_atkK, n=_atkN)
+                    "scanned by %s, bar %.0f%% sustained and %d min old. %s"
+                    % ("UNKNOWN" if _n is None else _n, _how, MO.BUSY_PCT, MO.OLD_MIN, _ports),
+                    k=_atkK, n=_atkN)
 
     # ⚠⚠ v2744 — TWO ANSWERS, NOT ONE, AND THE OLD ONE CLAIMED SOMETHING IT NEVER TESTED.
     # This row said "nothing of OURS is both busy and old" while `my_orphans` had no ownership test
