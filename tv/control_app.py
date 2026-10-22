@@ -42150,13 +42150,23 @@ def _status_worst_path():
     Resolved at CALL time, like `_disk_history_path()` and `_shadow_watch_path()` — an env honoured
     only at import is a redirect that silently does not take. In production TV_HIST is unset and
     this is exactly HERE, so nothing about his console's own record changes.
+
+    ⚠⚠ REG-2461 (#181) — THIS PC'S RECORD, NEVER ANOTHER PC'S. The record lived in the TRACKED
+    tv/.status_worst.json, so every update shipped one console's slowest request to every PC: a fresh
+    install loaded the committed record (v3404, 1,773,092 ms, fleetOrigin - his Mac's) as ITS OWN
+    worst and published it as worstRequest until something there beat 29.5 minutes. The record is
+    now `.status_worst.here.json`, gitignored: written only by this PC's console, read only from
+    here, and absent means None - nothing measured here yet, never a number from elsewhere. The
+    tracked file stays as it is and nothing writes it again: deleting it in a commit would make
+    `git pull --ff-only` refuse forever on a PC where it is locally modified (the ALT's ` M`,
+    REG-1837). [[unknown-stays-unknown]] [[feedback-per-pc-personal-data]]
     """
-    return os.path.join(_fixture_root_for_state(), ".status_worst.json")
+    return os.path.join(_fixture_root_for_state(), ".status_worst.here.json")
 
 
 #: kept so existing readers of the module attribute resolve; the CALLABLE is the source
-#: of truth and every read/write goes through it.
-_STATUS_WORST_PATH = os.path.join(_fixture_root_for_state(), ".status_worst.json")
+#: of truth and every read/write goes through it. REG-2461: the per-PC name, never the tracked one.
+_STATUS_WORST_PATH = os.path.join(_fixture_root_for_state(), ".status_worst.here.json")
 
 
 def _status_worst_load():
@@ -42173,19 +42183,23 @@ def _status_worst_load():
     the next ordinary one. The event #28 exists to explain has happened repeatedly and left no
     record. This keeps the whole thing, and keeps it across a restart, so the NEXT one is evidence
     instead of another anecdote.
+
+    REG-2461 - only THIS PC's record (_status_worst_path). No per-PC file is None - nothing has
+    crossed the bar here yet - and the tracked tv/.status_worst.json, another PC's request, is never
+    read in its place.
     """
     try:
         with io.open(_status_worst_path(), encoding="utf-8") as fh:
             d = json.load(fh)
         return d if isinstance(d, dict) else None
     except FileNotFoundError:
-        return None
+        return None             # REG-2461 - nothing measured HERE yet: UNKNOWN, never another PC's record
     except Exception:
         return None
 
 
 def _status_worst_save(rec):
-    """Persist the slowest request. Never raises into the request path."""
+    """Persist THIS PC's slowest request (REG-2461: the per-PC file only). Never raises into the request path."""
     try:
         dest = _status_worst_path()
         tmp = dest + ".tmp"

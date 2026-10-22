@@ -37,8 +37,22 @@ def _names():
     return sorted(set(re.findall(r'_decision_path\(\s*"([^"]+)"\s*\)', src)))
 
 
-#: #148 — tracked ON PURPOSE (.gitignore says why): a single kept evidence record, not per-machine state
-TRACKED_ON_PURPOSE = {".status_worst.json": "the 612,893 ms request that answered #28 - kept evidence, a ruling"}
+#: #148 — tracked ON PURPOSE (.gitignore says why). REG-2461: none left. Its one entry was the console's slowest-request
+#: record, which the running console rewrote on every PC; that record is per-PC now (.status_worst.here.json) and is
+#: checked below like every other file the console mints at the state root.
+TRACKED_ON_PURPOSE = {}
+
+
+def _git_env():
+    """GIT_* dropped for this law's own git calls: inside a push hook GIT_DIR names the real repo and outranks cwd=,
+    and a leaked GIT_DIR once re-initialised his live repo as bare (REG-2392)."""
+    return {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
+
+
+def _no_host(d):
+    """-c value that points core.excludesFile at a file that does not exist, so no PC's global ignore answers for
+    the tree (a host rule would keep this law green with the tree's own line deleted)."""
+    return "core.excludesFile=" + os.path.join(d, "no-host-excludes")
 
 
 def _state_root_names():
@@ -62,14 +76,16 @@ def _ignored(rels):
     """-> the subset of rels git's real matcher would NOT ignore, asked of a throwaway repo seeded with the tree's own
     .gitignore files (a proof sandbox is not a git work tree)."""
     d = tempfile.mkdtemp(prefix="decision-ignore-")
+    env = _git_env()
     try:
-        subprocess.run([GIT, "init", "-q", d], check=True)
+        subprocess.run([GIT, "init", "-q", d], check=True, env=env)
         os.makedirs(os.path.join(d, "tv"))
         for rel in (".gitignore", os.path.join("tv", ".gitignore")):
             if os.path.isfile(os.path.join(ROOT, rel)):
                 shutil.copyfile(os.path.join(ROOT, rel), os.path.join(d, rel))
         return [rel for rel in rels
-                if subprocess.run([GIT, "check-ignore", "-q", "--no-index", rel], cwd=d).returncode != 0]
+                if subprocess.run([GIT, "-c", _no_host(d), "check-ignore", "-q", "--no-index", rel],
+                                  cwd=d, env=env).returncode != 0]
     finally:
         shutil.rmtree(d, True)
 
@@ -85,7 +101,8 @@ class EveryDecisionFileIsIgnored(unittest.TestCase):
         # real matcher and does not depend on this copy being a git work tree (a proof sandbox is not).
         d = tempfile.mkdtemp(prefix="decision-ignore-")
         self.addCleanup(shutil.rmtree, d, True)
-        subprocess.run([GIT, "init", "-q", d], check=True)
+        env = _git_env()
+        subprocess.run([GIT, "init", "-q", d], check=True, env=env)
         os.makedirs(os.path.join(d, "tv"))
         for rel in (".gitignore", os.path.join("tv", ".gitignore")):
             if os.path.isfile(os.path.join(ROOT, rel)):
@@ -94,7 +111,7 @@ class EveryDecisionFileIsIgnored(unittest.TestCase):
         for n in _names():
             stem, ext = os.path.splitext(n)
             for rel in ("tv/" + n, "tv/%s.scratch-17999%s" % (stem, ext)):
-                r = subprocess.run([GIT, "check-ignore", "-q", "--no-index", rel], cwd=d)
+                r = subprocess.run([GIT, "-c", _no_host(d), "check-ignore", "-q", "--no-index", rel], cwd=d, env=env)
                 if r.returncode != 0:
                     missing.append(rel)
         self.assertEqual(missing, [], "runtime decision files git would publish: %s" % missing)
