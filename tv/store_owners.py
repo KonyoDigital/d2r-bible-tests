@@ -107,6 +107,13 @@ STORES = {
                               "                              reel_retention._tombstone_path(root) and refuses the one\n"
                               "                              answer that would date a FIXTURE root with his real record.\n"
                               "                              Read-only; deletes and writes nothing",
+            # #165 (REG-2472/2473) - a THIRD reader that asks the owner first, for one provenance question.
+            "counter_ledger": "READS it (_tombstone_rows) for ONE question: is the reel a shipped Remaining page\n"
+                              "                              was filmed on one THIS PC pruned? If so the page is this PC's\n"
+                              "                              and may judge its board. The owner answers twice: the path\n"
+                              "                              (reel_retention._tombstone_path) and the read\n"
+                              "                              (reel_retention._load_state), so an unreadable file is\n"
+                              "                              UNKNOWN, never 'not this PC's'. Read-only; writes nothing",
             "render_check":  "SEEDS a synthetic tombstone ledger inside the render sandbox so the\n"
                              "                              TOMBSTONE lane has rows to photograph. Writes to <hist>,\n"
                              "                              never to tv/, and reads nothing back from his real store",

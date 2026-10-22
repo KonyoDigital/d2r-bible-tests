@@ -65,11 +65,13 @@ UNKNOWN, and UNKNOWN is LOCKED: fail closed, and say which of the two it is.
 
 "deans is logically related and derived from his own console and not mimicking mine". The shared
 ledger (tv/.self_arming.jsonl) is TRACKED, so it holds only what is a property of the CODE. A LIVE
-trial is a property of the PC that ran it and goes to that PC's gitignored ledger
-(tv/.self_arming.here.jsonl). A live row the shared file already carries is LEGACY: counted on no
-PC, reported as a count. `--adopt-legacy-live --reason "..." --confirm` moves it to the PC that
-measured it - a person's statement about where real evidence came from, never new evidence, and
-nothing runs it on its own.
+trial is a property of the PC that ran it and goes to that PC's own ledger, which no checkout
+tracks: self_arming.here.jsonl in git's COMMON dir, one per PC and shared by the main checkout and
+every linked worktree (REG-2473; tv/.self_arming.here.jsonl, gitignored, only where no git dir can
+be found). A live row the shared file already carries is LEGACY: counted on no PC, reported as a
+count. `--adopt-legacy-live --reason "..." --confirm` moves it to the PC that measured it - a
+person's statement about where real evidence came from, never new evidence, and nothing runs it on
+its own.
 """
 
 import io
@@ -99,14 +101,18 @@ except Exception:
 #: .console_scars.json and .second_eye.jsonl, and `git ls-files` said otherwise: it ships to EVERY PC with every
 #: update. So it may hold only what is a property of the CODE - a sabotage, a cross-family refusal, a CI red - which
 #: is equally true on any install. A LIVE trial is measured against ONE PC's running console, shelf, disk history or
-#: window, and it lives in that PC's own ledger (HERE_LEDGER, gitignored). MEASURED at 7285e7efc: 657 rows = sabotage
+#: window, and it lives in that PC's own ledger (_here_path). MEASURED at 7285e7efc: 657 rows = sabotage
 #: 583, cross-family 25, live 49, the 49 all measured on Konyo's Mac - and Dean's heart read frame.release "earned
 #: 85/85" = 35 code rows + 50 of the Mac's live checks. [[feedback-per-pc-personal-data]] [[unknown-stays-unknown]]
 #: THE DEFAULT ONLY. Deliberately NOT `os.environ.get(...) or ...` at module level.
 LEDGER = os.path.join(HERE, ".self_arming.jsonl")
-#: THIS PC's own proof ledger - gitignored (tv/.gitignore), per machine, written only by this PC. The default only;
-#: _here_path() resolves it at call time, exactly as _ledger_path() does LEDGER.
+#: THIS PC's own proof ledger's name in git's COMMON dir - one file per PC, shared by the main checkout and every
+#: linked worktree, inside no work tree (REG-2473). _here_path() resolves it at call time, as _ledger_path() does LEDGER.
+MACHINE_LEDGER = "self_arming.here.jsonl"
+#: where it lives only when no git dir can be found (a heart2 sandbox, an unpacked copy) - gitignored, and it dies with
+#: the checkout, which the door and the report SAY. A fixture may patch this attribute; a patch is honoured.
 HERE_LEDGER = os.path.join(HERE, ".self_arming.here.jsonl")
+_HERE_LEDGER_DEFAULT = HERE_LEDGER
 #: the evidence KINDS that are a property of a PC rather than of the code. Every other kind is shared.
 PER_PC_KINDS = frozenset(("live",))
 #: what the last fold_deferred() put where - run_gates' fold line names both files from it, never one for both
@@ -134,20 +140,66 @@ def _ledger_path():
 
 
 def _here_path():
-    """THIS PC's own proof ledger, resolved at call time. -> str
+    """THIS PC's own proof ledger, resolved at call time. -> str  (see _here_where for which kind of place it is)"""
+    return _here_where()[0]
 
-    #181 (REG-2470) - TV_SELF_ARMING_HERE names it outright. A fixture that redirected the SHARED queue
-    (TV_SELF_ARMING_LEDGER, or LEDGER patched) and named no per-PC file gets a sibling of its own queue, never this
-    PC's real one, in either direction: its live rows must not land in his ledger, and his live rows must not count
-    in its world. [[feedback-fixtures-never-touch-live-data]]
+
+def _machine_dir(repo=None):
+    """THIS PC's own directory: git's COMMON dir for the checkout at `repo`. -> (dir, None) | (None, why)
+
+    heart2._git_common_dir is the one implementation (R10, REG-2340): read from the files git itself reads, never by
+    running git - inside a hook GIT_DIR is inherited, and git would answer for whichever tree set it. Asked, not
+    copied: a third copy of that walk is how two of them drift. [[copy-drift]]"""
+    try:
+        import heart2 as _h2
+        return _h2._git_common_dir(os.path.dirname(HERE) if repo is None else repo)
+    except Exception as e:  # the helper could not answer: this checkout's own file, and the door says why
+        return None, "git's common dir could not be asked (%s)" % type(e).__name__
+
+
+def _here_where(repo=None):
+    """#181 - THIS PC's own proof ledger, and what kind of place it is. -> (path, scope, why)
+
+      seam      TV_SELF_ARMING_HERE names it outright
+      follows   a fixture redirected the SHARED queue (TV_SELF_ARMING_LEDGER, or LEDGER patched) and named no per-PC
+                file: a sibling of its own queue, never this PC's real one, in either direction - its live rows must
+                not land in his ledger, and his live rows must not count in its world
+      patched   a fixture patched HERE_LEDGER: honoured, so a redirect never silently fails to take
+      machine   git's COMMON dir: ONE file per PC, shared by the main checkout and every linked worktree
+      checkout  no git dir could be found (a heart2 sandbox, an unpacked copy): this checkout's tv/ file, and why
+
+    ⚠⚠ REG-2473 - IT WAS ONE PER CHECKOUT. The first cut answered tv/.self_arming.here.jsonl of whichever checkout ran,
+    and fleet agents may write only in linked worktrees (his main tree is the running console). A deliberate live bank
+    from a worktree - `python3 tv/vault_wilson.py --bank` against his console on :17772 - landed in THAT worktree's
+    gitignored file: his console never counted it, git status showed nothing to carry it, and `git worktree remove`
+    deleted it. Before the split the same bank went into the tracked ledger and travelled with the ship, so that was a
+    NEVER-DROP regression. The common dir is the R10 precedent (heart2._shared_store): never listed by git, never
+    copied into a heart2 sandbox, never in a work tree. [[feedback-fixtures-never-touch-live-data]]
     """
     env = os.environ.get("TV_SELF_ARMING_HERE")
     if env:
-        return env
+        return env, "seam", ""
     shared = _ledger_path()
     if os.path.abspath(shared) != os.path.abspath(os.path.join(HERE, ".self_arming.jsonl")):  # PER-PC-FOLLOWS
-        return os.path.splitext(shared)[0] + ".here.jsonl"
-    return HERE_LEDGER
+        return os.path.splitext(shared)[0] + ".here.jsonl", "follows", ""
+    if os.path.abspath(HERE_LEDGER) != os.path.abspath(_HERE_LEDGER_DEFAULT):  # PER-PC-PATCHED
+        return HERE_LEDGER, "patched", ""
+    common, why = _machine_dir(repo)
+    if common:  # PER-MACHINE
+        return os.path.join(common, MACHINE_LEDGER), "machine", ""
+    return (os.path.join(os.path.dirname(HERE) if repo is None else repo, "tv", os.path.basename(_HERE_LEDGER_DEFAULT)),
+            "checkout", why)
+
+
+def here_label():
+    """Where THIS PC's own ledger is, in words and with no path - a gate log or a status poll is not his machine's to
+    publish. -> str"""
+    p, scope, why = _here_where()
+    if scope == "machine":
+        return "%s in git's common dir - one per PC, shared by every checkout of this repo" % os.path.basename(p)
+    if scope == "checkout":
+        return "this checkout's own tv/%s - no git dir was found, so it dies with this checkout" % os.path.basename(p)
+    return "a fixture's %s (%s)" % (os.path.basename(p), scope)
 
 
 def _is_per_pc(row):
@@ -167,7 +219,8 @@ def _append_here(row):
     """Append one row to THIS PC's ledger. -> dict (the row written)
 
     ⚠ NEVER DEFERRED. TV_SELF_ARMING_DEFER exists because the SHARED queue is TRACKED: banking into it mid-run
-    dirtied an input of 147 gates (REG-2296). This file is gitignored, so it is no gate's input and nothing waits."""
+    dirtied an input of 147 gates (REG-2296). This file is in no work tree (git's common dir, REG-2473 - or a
+    gitignored tv/ file where no git dir exists), so it is no gate's input and nothing waits."""
     with io.open(_here_path(), "a", encoding="utf-8") as fh:  # PER-PC-WRITE
         fh.write(json.dumps(row, ensure_ascii=False) + "\n")
     return row
@@ -1653,7 +1706,10 @@ def _ledger_summary(sp):
                 "the per-PC split - counted on no PC%s. Only the PC that measured them may take them, through "
                 "`python3 tv/self_arming.py --adopt-legacy-live --reason \"<why>\" --confirm`."
                 % (n, (" (this PC adopted %d of them)" % taken) if taken else ""))
-    return {"shared": os.path.basename(_ledger_path()), "here": os.path.basename(_here_path()),
+    _hp, _hscope, _ = _here_where()
+    return {"shared": os.path.basename(_ledger_path()), "here": os.path.basename(_hp),
+            # REG-2473 - WHICH KIND of place it is, in words: one per PC (git's common dir), or one per checkout
+            "hereScope": _hscope, "hereWhere": here_label(),
             "codeRows": sp.get("code") or 0, "hereRows": len(here),
             "hereAdopted": sum(1 for r in here if r.get("adopted")),
             "hereSay": (_HERE_NOTHING if not here else
@@ -1699,21 +1755,27 @@ def adopt_legacy_live(reason, confirm=False):
     for r in todo:
         by_lock[str(r.get("lock"))] = by_lock.get(str(r.get("lock")), 0) + 1
     _list = ", ".join("%s %d" % kv for kv in sorted(by_lock.items())) or "none"
+    # ⚠ REG-2473 - THE SENTENCE NAMES THE WHOLE PATH AND THE CHECKOUT IT RAN FROM, never a basename: run in the wrong
+    # checkout, a basename reads as success. This sentence goes to his terminal only - report() carries names.
+    dest = _here_path()
+    where = "%s (%s; run from the checkout at %s)" % (dest, here_label(), os.path.dirname(HERE))  # ADOPT-WHERE
     if not confirm:  # ADOPT-DRY
         return {"ok": True, "refused": False, "dryRun": True, "wrote": 0, "would": len(todo), "byLock": by_lock,
-                "say": ("DRY RUN - nothing written. %d legacy live row(s) would be adopted into %s (%s); %d already "
-                        "adopted here. Pass --confirm to write them." % (len(todo), os.path.basename(_here_path()),
-                                                                         _list, len(sp["legacy"]) - len(todo)))}
+                "dest": dest,
+                "say": ("DRY RUN - nothing written. %d legacy live row(s) would be adopted into %s - %s; %d already "
+                        "adopted here. Pass --confirm to write them." % (len(todo), where, _list,
+                                                                         len(sp["legacy"]) - len(todo)))}
     stamp = {"by": "--adopt-legacy-live", "reason": why[:400], "at": int(time.time() * 1000),
              "from": os.path.basename(_ledger_path())}
     rows = [dict(r, adopted=dict(stamp)) for r in todo]  # ADOPT-KEEPS-TS
     if rows:
-        with io.open(_here_path(), "a", encoding="utf-8") as fh:  # ADOPT-WRITE
+        with io.open(dest, "a", encoding="utf-8") as fh:  # ADOPT-WRITE
             fh.write("".join(json.dumps(r, ensure_ascii=False) + "\n" for r in rows))
     return {"ok": True, "refused": False, "dryRun": False, "wrote": len(rows), "would": len(todo), "byLock": by_lock,
-            "say": ("adopted %d legacy live row(s) into %s (%s), each marked with this reason and keeping its own "
+            "dest": dest,
+            "say": ("adopted %d legacy live row(s) into %s - %s - each marked with this reason and keeping its own "
                     "age; %d were already here. The shared ledger was not touched."
-                    % (len(rows), os.path.basename(_here_path()), _list, len(sp["legacy"]) - len(todo)))}
+                    % (len(rows), where, _list, len(sp["legacy"]) - len(todo)))}
 
 
 def _adopt_cli(argv):
@@ -1786,8 +1848,8 @@ def main(argv):
     _led = rep.get("ledger") or {}
     if _led:
         print("  ledgers: %s (shared: proven in code, %d rows) + %s (this PC: %d rows, %d adopted) - %s"
-              % (_led.get("shared"), _led.get("codeRows") or 0, _led.get("here"), _led.get("hereRows") or 0,
-                 _led.get("hereAdopted") or 0, _led.get("hereSay") or ""))
+              % (_led.get("shared"), _led.get("codeRows") or 0, _led.get("hereWhere") or _led.get("here"),
+                 _led.get("hereRows") or 0, _led.get("hereAdopted") or 0, _led.get("hereSay") or ""))
         if _led.get("legacyLive"):
             print("  %s" % _led.get("legacyLiveSay"))
     for l in rep["locks"]:
