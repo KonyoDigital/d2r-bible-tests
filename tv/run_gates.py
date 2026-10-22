@@ -10937,6 +10937,42 @@ GATES = [
          why="R4 (REG-2341) - an unreadable cache was read as empty and rewritten, and a failed merge-read wrote one "
              "run's entries alone. Every write keeps a .prev generation; an unreadable store is renamed aside, the newest "
              "one kept, and .prev stands in at the open and the write - nothing it held is thinned."),
+    Gate("test_a_store_that_will_not_read_is_kept_aside",
+         [sys.executable, os.path.join(HERE, "test_a_store_that_will_not_read_is_kept_aside.py")], 120,
+         needs_app=False,
+         why="#152 items 2-3 (REG-2410) - d2r_owned saved as {\"a\":1} threw at `new Set(...)` and every name after it in "
+             "the main script never existed; a store that would not parse read as the default and persist() wrote it "
+             "over his bytes. Every boot loader of a store persist() writes back reads by shape (_storeRead); one that "
+             "will not read is quarantined at the one storage door (window.LSR): its bytes are copied aside as "
+             "d2r_quarantine~<key>~<hash> and read back, every write and remove of the key is refused (persist() still "
+             "writes the rest), release() lets go only while the bytes are kept aside (his restore, Start it fresh), "
+             "and the notice says each held store on the board."),
+    Gate("test_a_wrong_shaped_mule_store_never_stops_the_vault",
+         [sys.executable, os.path.join(HERE, "test_a_wrong_shaped_mule_store_never_stops_the_vault.py")], 120,
+         needs_app=False,
+         why="#152 item 2 (REG-2411) - d2r_muleRoster saved as {} parsed, roster.find threw, and the vault script stopped "
+             "before renderVault and vaultHandAdd existed, on every reload. _muleShape quarantines a roster or mule map of "
+             "the wrong shape, and while d2r_owned, the roster, the mule map or the copy counts is quarantined the vault "
+             "is HELD: saveA, the render prune, the records persist and refresh write nothing from the page's default, "
+             "persistOwned does not call a refused write a write, + Add an item refuses in words, the population line "
+             "says owned UNKNOWN, and a fresh roster keeps every mule the map names."),
+    Gate("test_a_corrupt_records_store_is_said_and_kept",
+         [sys.executable, os.path.join(HERE, "test_a_corrupt_records_store_is_said_and_kept.py")], 120,
+         needs_app=False,
+         why="#152 item 3 (REG-2412) - a corrupt d2r_vaultRecords was refused silently: no tasks, no warning, hand-adds "
+             "said 'is yours'. Every unreadable shape is now named and kept aside at the door, which refuses every "
+             "writer; the move list says the saved tasks are UNKNOWN, not done; + Add an item is held (the mule map is "
+             "not); Start it fresh goes through the records undo, which lets go only while the bytes are kept aside and "
+             "reports a refused remove as partial; another tab's fresh store lifts the quarantine here."),
+    Gate("test_another_tabs_write_is_merged_not_clobbered",
+         [sys.executable, os.path.join(HERE, "test_another_tabs_write_is_merged_not_clobbered.py")], 120,
+         needs_app=False,
+         why="#153 item 11 (REG-2413) - no storage listener watched the stores the page writes back whole, so another "
+             "tab's owned write was lost on this tab's next hand-add. A storage event now applies that write's change "
+             "(against ev.oldValue) to this tab's copy in place, removals included; the tab holding both halves of a race "
+             "writes the merge back once; bytes that will not parse are quarantined here too; a roster both tabs changed "
+             "and a cleared storage hold the key until reload; a quarantine here lifts when the other tab's store reads; "
+             "only this world's key is merged."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

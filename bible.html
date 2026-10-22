@@ -4427,13 +4427,100 @@ window.LSR = (function(){
     if (h.length > 20) h = h.slice(h.length - 20);
     RAW.setItem(_spSide('d2r_setPiecesHistory'), JSON.stringify(h));
   }
+  /* ⟦STORE QUARANTINE⟧ ══ #152 items 2-3 (REG-2410) — A SAVED STORE THAT WILL NOT READ IS NAMED, KEPT ASIDE, AND
+     NOTHING WRITES OVER IT. GrokBot's sweep (10-21, cov*.py): d2r_muleRoster saved as {} stopped the vault script
+     before renderVault and vaultHandAdd were defined; d2r_owned saved as {"a":1} made `new Set(...)` throw, so
+     `owned` and everything declared after it never existed; a corrupt d2r_vaultRecords left the vault with no
+     tasks and no word why. Every reload stayed broken, and a loader that DID survive read the bytes as empty and
+     let the next persist() write the empty copy over them.
+     So a loader that cannot use what it read calls quarantine(k, reason): the exact bytes are copied to
+     <world prefix>d2r_quarantine~<key>~<hash> (content-addressed, so a reload never writes a second copy and two
+     different bad copies never share a slot) and read back to prove it. From then on this door REFUSES every
+     write and remove of that key, whoever calls it (persist(), persistOwned(), saveA(), a raw LS.setItem), and
+     answers false instead of throwing, so a persist() of twenty stores still writes the other nineteen. The
+     page runs on its in-memory default, says so through window._storeQuarantinePaint, and only release() - a
+     button he presses, a backup he restores, or another tab that wrote a store that reads - lifts it, and only
+     when the bad bytes are kept aside. hold() is the same refusal for a tab whose copy is behind another tab's
+     write (#153 item 11): nothing is copied, and a reload clears it. [[unknown-stays-unknown]] [[heart-first]] */
+  var _QUAR = Object.create(null);
+  function _qHash(s){
+    var h = 0x811c9dc5;
+    for (var i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    return ('0000000' + h.toString(16)).slice(-8);
+  }
+  function _qSay(){ try { if (typeof window._storeQuarantinePaint === 'function') window._storeQuarantinePaint(); } catch(e){} }
+  function _qWarn(msg){ try { console.warn('[store] ' + msg); } catch(e){} }
+  function quarantine(k, reason){
+    k = String(k);
+    var cur = _QUAR[k];
+    if (cur && cur.kind === 'quarantine') return cur;
+    var phys = key(k), raw = null, readOk = true;
+    try { raw = RAW.getItem(phys); } catch(e){ readOk = false; }
+    var ent = { key: k, phys: phys, kind: 'quarantine', reason: String(reason || 'will not read'), at: Date.now(),
+                bytes: (raw == null ? null : String(raw).length), hash: (raw == null ? null : _qHash(String(raw))),
+                aside: null, asideOk: false, refused: 0, lastVerb: null };
+    if (readOk && raw != null){
+      var slot = phys.slice(0, phys.length - k.length) + 'd2r_quarantine~' + k + '~' + ent.hash;
+      try {
+        if (RAW.getItem(slot) !== raw) RAW.setItem(slot, raw);
+        ent.asideOk = (RAW.getItem(slot) === raw);
+      } catch(eA){ ent.asideOk = false; }
+      if (ent.asideOk) ent.aside = slot;
+    }
+    _QUAR[k] = ent;
+    _qWarn(k + ' ' + ent.reason + ' - QUARANTINED: ' + (ent.asideOk ? 'its bytes are kept aside as ' + ent.aside
+           : 'its bytes could not be copied aside, so they stay where they are') + ', and nothing writes over them');
+    _qSay();
+    return ent;
+  }
+  function hold(k, reason){
+    k = String(k);
+    if (_QUAR[k]) return _QUAR[k];
+    var ent = { key: k, phys: key(k), kind: 'stale', reason: String(reason || 'another tab changed it'), at: Date.now(),
+                bytes: null, aside: null, asideOk: false, refused: 0, lastVerb: null };
+    _QUAR[k] = ent;
+    _qWarn(k + ' HELD: ' + ent.reason + ' - this tab writes nothing to it until it reloads');
+    _qSay();
+    return ent;
+  }
+  function release(k){
+    k = String(k);
+    var ent = _QUAR[k];
+    if (!ent) return { ok: true, released: false, aside: null, why: k + ' was not held' };
+    if (ent.kind === 'quarantine' && !ent.asideOk){
+      /* not kept aside: release only once the bad bytes are no longer the ones in the key (another tab replaced
+         them, or the key is gone) - releasing over them would be the overwrite this door exists to refuse */
+      var again = null;
+      try { again = RAW.getItem(ent.phys); } catch(e){ again = null; }
+      if (again != null && (ent.hash == null || _qHash(String(again)) === ent.hash))
+        return { ok: false, released: false, aside: null,
+                 why: k + ' could not be copied aside, so starting it fresh would lose its bytes - nothing changed' };
+    }
+    delete _QUAR[k];
+    _qSay();
+    return { ok: true, released: true, aside: ent.aside, why: null };
+  }
+  function _qRefuse(k, verb){
+    var ent = _QUAR[k];
+    ent.refused++; ent.lastVerb = verb; ent.lastRefusedAt = Date.now();
+    if (ent.refused === 1 || ent.refused % 50 === 0)
+      _qWarn(k + ' is ' + (ent.kind === 'stale' ? 'held' : 'quarantined') + ' (' + ent.reason + ') - a ' + verb
+             + ' was refused (' + ent.refused + ' so far)');
+    return false;
+  }
+  function quarantined(k){
+    if (k == null) return Object.keys(_QUAR).map(function(x){ return _QUAR[x]; });
+    return _QUAR[String(k)] || null;
+  }
   return {
     getItem:    function(k){ return RAW.getItem(key(k)); },
     setItem:    function(k,v){
+      if (_QUAR[k]) return _qRefuse(String(k), 'write');
       if (k === 'd2r_setPieces'){ try { _spHistory(v); } catch(e){} }
       return RAW.setItem(key(k), v);
     },
-    removeItem: function(k){ return RAW.removeItem(key(k)); },
+    removeItem: function(k){ if (_QUAR[k]) return _qRefuse(String(k), 'remove'); return RAW.removeItem(key(k)); },
+    quarantine: quarantine, hold: hold, release: release, quarantined: quarantined,
     spSide: _spSide,
     raw: RAW, key: key
   };
@@ -21328,14 +21415,154 @@ const _safeJsonParse = (raw, fallback) => {
     return fallback;
   }
 };
-let wishlist = new Set(_safeJsonParse(LS.getItem('d2r_wishlist'), []));
-let owned = new Set(_safeJsonParse(LS.getItem('d2r_owned'), []));
+/* ⟦STORE READ⟧ ══ #152 item 2 (REG-2410) — A STORE THIS PAGE HOLDS IN MEMORY IS READ BY ITS SHAPE, AND ONE THAT
+   WILL NOT READ IS QUARANTINED, NEVER READ AS EMPTY.
+   _safeJsonParse above stops a parse error from throwing, and that is all it does. Bytes that parse to the wrong
+   SHAPE still reach `new Set(...)`: d2r_owned saved as {"a":1} threw "object is not iterable" on the next line,
+   so `owned`, `multiKeep` and every name declared after it in this script never existed (GrokBot's sweep,
+   cov*.py) - and bytes that will not parse came back as the default, which the next persist() wrote over them.
+   _storeRead(kind, fallback).getItem(k) is a read of k that knows its shape: 'list' wants an array, 'map' a plain
+   object, 'map?' a plain object or the null this page writes for "not seeded yet". Absent or '' is the fallback - a
+   fresh store. Anything else goes to the door: window.LSR.quarantine(k, why) keeps the bytes aside and refuses every
+   write to k, the page runs on the fallback in memory, and window._storeQuarantinePaint says so on the board.
+   ⚠ CONTAINER SHAPE ONLY. A list holding one odd element still reads: holding a 300-name owned list over one
+   stray null would stop his vault for nothing, and that is a different question. [[unknown-stays-unknown]] */
+const _storeRead = (kind, fallback) => ({ getItem: (k) => {
+  const _what = (v) => (v === null ? 'null' : Array.isArray(v) ? 'a list' : typeof v === 'object' ? 'a map'
+                        : typeof v === 'string' ? 'text' : typeof v === 'number' ? 'a number' : typeof v);
+  const _q = (why) => {
+    try { if (window.LSR && typeof window.LSR.quarantine === 'function') window.LSR.quarantine(k, why); } catch(eQ){}
+    return fallback;
+  };
+  let raw = null;
+  try { raw = LS.getItem(k); } catch(e) { return _q('could not be read'); }
+  if (raw === null || raw === undefined || raw === '') return fallback;
+  let v;
+  try { v = JSON.parse(raw); } catch(e) { return _q('will not parse'); }
+  if (kind === 'map?' && v === null) return fallback;
+  if (kind === 'list') return Array.isArray(v) ? v : _q('is not a list (it holds ' + _what(v) + ')');
+  return (v !== null && typeof v === 'object' && !Array.isArray(v)) ? v : _q('is not a map (it holds ' + _what(v) + ')');
+} });
+try { window._storeRead = _storeRead; } catch(e){}
+/* ⟦/STORE READ⟧ */
+/* ⟦STORE NOTICE⟧ ══ REG-2410 — SAY IT. A quarantined or held store is on the board in plain words, on every tab, for as
+   long as it is held: which store, what it holds, why, where its bytes are kept, how many writes were refused, and
+   the two ways out - a backup restore (Backup & Share), or "Start it fresh", which asks first and only works while
+   the bytes are kept aside. A store held behind another tab offers a reload instead. The notice is built from the
+   door's own registry (window.LSR.quarantined()), so it can never say less than the door refuses. */
+window._STORE_SAY = {
+  d2r_owned: 'what you own', d2r_muleRoster: 'your mules', d2r_muleAssign: 'which mule holds what',
+  d2r_copies: 'how many copies you hold', d2r_vaultRecords: 'the vault records and saved move tasks',
+  d2r_magicFinds: 'Magic & Rare keepers', d2r_multiKeep: 'multi-copy targets', d2r_unknownReads: 'unmatched reads',
+  d2r_ethereal: 'ethereal flags', d2r_superiorBases: 'superior bases', d2r_wishlist: 'starred items',
+  d2r_statues: 'Colossal statues', d2r_setPieces: 'set pieces', d2r_runeStash: 'rune counts',
+  d2r_rwMade: 'forged runewords', d2r_rwUnmade: 'runeword un-marks', d2r_rwVerify: 'runeword verdicts',
+  d2r_materialStash: 'material counts', d2r_gemStash: 'gem counts', d2r_craftStash: 'crafted items',
+  d2r_craftBaseStash: 'craft bases', d2r_bossFilters: 'boss filters', d2r_bossSorts: 'boss sorting'
+};
+window._storeQuarantineHtml = function(list){
+  var esc = function(s){ return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); };
+  var held = (list || []).filter(function(q){ return q && q.key; });
+  if (!held.length) return '';
+  var nq = held.filter(function(q){ return q.kind !== 'stale'; }).length;
+  var head = nq
+    ? '⚠ ' + nq + ' saved store' + (nq === 1 ? '' : 's') + ' would not read — kept aside, and nothing writes over ' + (nq === 1 ? 'it' : 'them')
+    : '⚠ Another tab changed what this tab holds — reload before you change anything here';
+  var rows = held.map(function(q){
+    var say = (window._STORE_SAY && window._STORE_SAY[q.key]) || '';
+    var k = esc(q.key);
+    if (q.kind === 'stale')
+      return '<li data-store="' + k + '" data-kind="stale"><b>' + k + '</b>' + (say ? ' (' + esc(say) + ')' : '')
+        + ' changed in another tab: ' + esc(q.reason) + '. This tab writes nothing to it until it reloads.'
+        + ' <button type="button" class="sq-btn" onclick="location.reload()">Reload this tab</button></li>';
+    return '<li data-store="' + k + '" data-kind="quarantine"><b>' + k + '</b>' + (say ? ' (' + esc(say) + ')' : '')
+      + ' ' + esc(q.reason) + '. '
+      + (q.asideOk ? 'Its ' + (q.bytes == null ? '' : esc(q.bytes) + ' ') + 'bytes are kept aside as <code>' + esc(q.aside) + '</code>. '
+                   : 'Its bytes could not be copied aside, so they stay where they are. ')
+      + 'Until it is fixed the page runs on a default in its place' + (q.refused ? ', and ' + esc(q.refused) + ' write' + (q.refused === 1 ? ' was' : 's were') + ' refused' : '') + '.'
+      + (q.asideOk ? ' <button type="button" class="sq-btn" onclick="window._storeStartFresh(\'' + k + '\')">Start it fresh</button>' : '')
+      + '</li>';
+  }).join('');
+  return '<div class="sq-head">' + head + '</div><ul class="sq-list">' + rows + '</ul>'
+    + (nq ? '<div class="sq-foot">A backup restore (Backup &amp; Share) puts a good copy back. Starting a store fresh keeps the old bytes aside.</div>' : '');
+};
+window._storeQuarantinePaint = function(){
+  try {
+    var list = (window.LSR && typeof window.LSR.quarantined === 'function') ? window.LSR.quarantined() : [];
+    var el = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('store-quarantine') : null;
+    if (!list.length){ if (el){ el.hidden = true; el.innerHTML = ''; } return 0; }
+    if (!el){
+      if (typeof document === 'undefined' || !document.body || !document.createElement) return list.length;
+      el = document.createElement('div');
+      el.id = 'store-quarantine';
+      el.setAttribute('role', 'alert');
+      document.body.appendChild(el);
+    }
+    el.innerHTML = window._storeQuarantineHtml(list);
+    el.hidden = false;
+    return list.length;
+  } catch(e){ return null; }
+};
+/* Start it fresh: he is asked first; the door lets go only while the bytes are kept aside; the store is then removed
+   (a mule roster is rebuilt with every mule his map still names, so no filing loses its mule), and the page reloads
+   so nothing in memory outlives the store it came from. The records store goes through its own undo. */
+/* what starting each store fresh costs, said in the question before it is asked */
+var _FRESH_SAY = {
+  d2r_muleRoster: ' Every mule your mule map names is kept.',
+  d2r_owned: ' A mule filing stays only where a sighting witnessed it - if you have a backup, restore it instead (Backup & Share).'
+};
+window._storeStartFresh = function(k, skipAsk){
+  var q = (window.LSR && typeof window.LSR.quarantined === 'function') ? window.LSR.quarantined(k) : null;
+  if (!q || q.kind !== 'quarantine') return Promise.resolve({ ok: false, why: k + ' is not quarantined' });
+  if (!q.asideOk) return Promise.resolve({ ok: false, why: k + ' could not be copied aside, so it cannot start fresh' });
+  /* a fresh roster keeps every mule the mule map names - which it cannot read while the map is quarantined too: the
+     map goes first (or a restore), or a later restore of the map would find its mules gone and lose those filings */
+  if (k === 'd2r_muleRoster' && window.LSR.quarantined('d2r_muleAssign'))
+    return Promise.resolve({ ok: false, why: 'd2r_muleAssign is quarantined too - start it fresh (or restore a backup) first, so the roster keeps every mule it names' });
+  var say = (window._STORE_SAY && window._STORE_SAY[k]) || k;
+  var ask = skipAsk ? Promise.resolve(true)
+    : (typeof window.uiConfirm === 'function'
+        ? window.uiConfirm('Start ' + k + ' (' + say + ') fresh?\n\nIt ' + q.reason + '. Its exact bytes stay kept aside as '
+            + q.aside + ', and the page reloads with this store empty.' + (_FRESH_SAY[k] || ''),
+            { ok: 'Start it fresh', cancel: 'Keep it held' })
+        : Promise.resolve(false));
+  return ask.then(function(yes){
+    if (!yes) return { ok: false, why: 'kept held' };
+    var out = null;
+    if (k === 'd2r_vaultRecords' && typeof window._vaultRecordsMigrateUndo === 'function'){
+      var u = window._vaultRecordsMigrateUndo();
+      out = (u && u.undone) ? { ok: true, aside: q.aside } : { ok: false, why: (u && u.why) || 'the records undo refused' };
+    } else {
+      var rel = window.LSR.release(k);
+      if (!rel || !rel.ok) return { ok: false, why: (rel && rel.why) || 'the door kept it' };
+      var fresh = (k === 'd2r_muleRoster' && typeof window._vaultRosterFresh === 'function') ? window._vaultRosterFresh() : null;
+      try {
+        if (fresh) window.LSR.setItem(k, JSON.stringify(fresh));
+        else window.LSR.removeItem(k);
+        out = { ok: true, aside: rel.aside };
+      } catch(e){ out = { ok: false, why: 'the store could not be cleared: ' + (e && e.message || e) }; }
+    }
+    try { window._storeQuarantinePaint(); } catch(eP){}
+    if (out && out.ok && !skipAsk){ try { setTimeout(function(){ try { location.reload(); } catch(eR){} }, 150); } catch(eT){} }
+    return out;
+  });
+};
+try {
+  if (typeof document !== 'undefined' && document.addEventListener)
+    document.addEventListener('DOMContentLoaded', function(){ try { window._storeQuarantinePaint(); } catch(e){} });
+} catch(e){}
+/* ⟦/STORE NOTICE⟧ */
+let wishlist = new Set(_storeRead('list', []).getItem('d2r_wishlist'));
+let owned = new Set(_storeRead('list', []).getItem('d2r_owned'));
 /* ⚠⚠⚠ v3222 — A DOOR TO RE-READ THIS SET, BECAUSE NOTHING COULD AND IT COST HIM TWICE.
    `owned` is read ONCE, here, at boot. There is no `storage` listener anywhere in this file
    (grep: 0), and `persist()` writes this in-memory Set back. So anything that writes
    `d2r_owned` from outside — the console's restore doors — is invisible until reload AND is
    overwritten by the next persist() from the boot-time copy. That is REG-1010: a restore of 171
    names sat one tick away from being destroyed.
+   ⚠ REG-2413 (2026-10-22): a write from ANOTHER document - another tab, the console's engine frame - now arrives
+   through ⟦TAB SYNC⟧'s storage listener and is merged into this Set. A write made IN this document (the console's
+   restore doors evaluate here) fires no storage event, so for those this door is still the way.
    The workaround was to reload the whole board after every such write, which is disruptive and
    still left the items UNFILED, because every automatic `vaultAutoAssign` call is gated on a
    chronicleApply having landed something — so a direct `d2r_owned` write never sorted. His dock
@@ -22666,6 +22893,13 @@ try {
   window._vaultPopHtml = function(p){
     p = p || {};
     var n = function(v){ return '<b>' + (+v || 0) + '</b>'; }, sep = ' <span class="vp-sep">\u00b7</span> ';
+    /* REG-2411 — owned:null = the vault is HELD (d2r_owned, the roster, the mule map or the copy counts is quarantined).
+       What is in memory for that store is the page's default, so no figure is claimed: "0 owned" would be the empty
+       read the quarantine exists to refuse. heldWhy names the store and the reason. [[unknown-stays-unknown]] */
+    if (p.owned === null)
+      return 'owned <b>UNKNOWN</b>' + sep + '<i>' + String(p.heldWhy || 'a store the vault stands on would not read')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        + ' \u2014 nothing is counted from it, and nothing is written over it (see the notice at the top)</i>';
     var bits = [n(p.owned) + ' owned'];
     if (p.shared) bits.push(n(p.shared) + ' in the shared stash <i>(never muled)</i>');
     /* ⚠ L-3 (review of 7cded0c1, reproduced) — WITH THE MULE MAP UNREADABLE, "FILED" AND "NOT FILED" ARE UNKNOWN TOO. The line
@@ -22771,9 +23005,9 @@ try { window._SET_SEED = _SET_SEED; } catch(e){}
 // v342.3 — Magic & Rare keepers: rolled-name items (skillers, magic/rare charms·jewels·rings·amulets,
 // notable rares/crafts) that can't be grail-DB entries. Map name→quality ('magic'|'rare'|'crafted').
 // Tracked SEPARATELY from grail `owned` so it never pollutes the calculator / grail count.
-let magicFinds = _safeJsonParse(LS.getItem('d2r_magicFinds'), {});
+let magicFinds = _storeRead('map', {}).getItem('d2r_magicFinds');
 // v395 — ETHEREAL items: names the AI flagged as Ethereal (Cannot be Repaired). Shown with an ⊘ eth badge.
-let etherealItems = new Set(_safeJsonParse(LS.getItem('d2r_ethereal'), []));
+let etherealItems = new Set(_storeRead('list', []).getItem('d2r_ethereal'));
 try { window.etherealItems = etherealItems; } catch(e){}   // v429 — exposed for the ethereal audit/debug
 // v429 — KNOWLEDGE of what CAN vs CAN'T be ethereal (D2 rules), so a mis-read never tags an impossible item.
 // CAN be ethereal: all armour (body/helm/shield/gloves/boots/belt/circlet), melee weapons, bows/crossbows,
@@ -22822,7 +23056,7 @@ window._isEthereal = function(n){ try {
 // v450 (CORRECTS v412) — SUPERIOR socketed bases. A Superior base IS a normal-quality (white) item and DOES
 // form runewords like any white base — and keeps its superior bonus on top. Tracked like ethereal so the base
 // card shows the "valid superior base (keeps its bonus)" note (NOT the old wrong "can't runeword" warning).
-let superiorBases = new Set(_safeJsonParse(LS.getItem('d2r_superiorBases'), []));
+let superiorBases = new Set(_storeRead('list', []).getItem('d2r_superiorBases'));
 window._isSuperior = function(n){ try {
   // v580.1 — the NAME PREFIX is authoritative too: a base registered/labelled "Superior X (…)" is superior
   // even when the intake's superiorBases flag-set never saw it (live bug: the cube gamble fired on Konyo's
@@ -22982,15 +23216,15 @@ function _magicArtSrc(base){
 }
 // v342.4 — unmatched reads: legible names the AI read that matched neither grail nor a keeper. Persisted
 // (not evaporated) so they're reviewable — promote to Magic & Rare, or dismiss. Set of name strings.
-let unknownReads = new Set(_safeJsonParse(LS.getItem('d2r_unknownReads'), []));
+let unknownReads = new Set(_storeRead('list', []).getItem('d2r_unknownReads'));
 // v342.28 — MULTI-COPY KEEPERS: items you legitimately want SEVERAL of (merc/build staples — every
 // merc wants an Andariel's Visage, every char 2 Raven Frosts…). `copies[name]` = how many you own
 // (>=1, only stored once it exceeds 1); `multiKeep[name]` = the TARGET you're collecting toward. A
 // re-read of a multi-keep item that's still UNDER target logs a wanted EXTRA copy instead of being
 // discarded as an already-owned dupe. The default list is curated; targets are editable in the UI.
 const MULTI_KEEP_DEFAULT = {"Andariel's Visage":5,"Raven Frost":4,"Nagelring":4,"Harlequin Crest (Shako)":3,"Mara's Kaleidoscope":3,"The Stone of Jordan":3,"War Traveler":2,"Gore Rider":2,"Stormshield":2};
-let copies = _safeJsonParse(LS.getItem('d2r_copies'), {});
-let multiKeep = _safeJsonParse(LS.getItem('d2r_multiKeep'), null) || Object.assign({}, MULTI_KEEP_DEFAULT);
+let copies = _storeRead('map', {}).getItem('d2r_copies');
+let multiKeep = _storeRead('map?', null).getItem('d2r_multiKeep') || Object.assign({}, MULTI_KEEP_DEFAULT);
 function multiTarget(n){ return (multiKeep && multiKeep[n] > 1) ? multiKeep[n] : 1; }
 function copyCount(n){ var c = copies && copies[n]; return (c && c > 0) ? c : (owned.has(n) ? 1 : 0); }
 // v677 (Konyo: 'items from chronicle I pick up I don't save — mostly thrown out; this shouldn't
@@ -23034,16 +23268,16 @@ function _gFound(n){
   } catch(e){ return owned.has(n); }
 }
 try { window._gFound=_gFound; window._gFoundDirty=_gFoundDirty; } catch(e){}
-let statues = new Set(_safeJsonParse(LS.getItem('d2r_statues'), []));
-let bossFilters = _safeJsonParse(LS.getItem('d2r_bossFilters'), {});
-let bossSorts = _safeJsonParse(LS.getItem('d2r_bossSorts'), {});
+let statues = new Set(_storeRead('list', []).getItem('d2r_statues'));
+let bossFilters = _storeRead('map', {}).getItem('d2r_bossFilters');
+let bossSorts = _storeRead('map', {}).getItem('d2r_bossSorts');
 let pinnedBoss = LS.getItem('d2r_pinnedBoss') || null;
-let setPieces = new Set(_safeJsonParse(LS.getItem('d2r_setPieces'), []));
+let setPieces = new Set(_storeRead('list', []).getItem('d2r_setPieces'));
 // v664 (army audit) — the pre-fix Sets undo bar could walk _UNI_EXTRA unique names INTO the set-piece
 // store (one click per name). Uniques never belong here — strip them once on every load.
 try { if (typeof _UNI_EXTRA !== 'undefined'){ var _spDirty=false; Array.from(setPieces).forEach(function(n){ if (_UNI_EXTRA[n]){ setPieces.delete(n); _spDirty=true; } }); if (_spDirty) LS.setItem('d2r_setPieces', JSON.stringify(Array.from(setPieces))); } } catch(e){}
 // Rune Stash: { runeName: count } map. Pure user-owned tally; powers the cube-up planner.
-let runeStash = _safeJsonParse(LS.getItem('d2r_runeStash'), {});
+let runeStash = _storeRead('map', {}).getItem('d2r_runeStash');
 try { window.runeStash = runeStash; } catch(e){}   // v674 — exposed for the 99/99 spec probes (the in-memory stash is canMakeNow's source)
 // v369 — Chronicle Runeword Maker: { runewordName: "first-made date string" } — which runewords the
 // user has already FORGED. First run seeds Konyo's in-game Chronicle (7/100 = 7%, from his screenshots);
@@ -23069,13 +23303,13 @@ try { window._RWC_SEED = _RWC_SEED; } catch(e){}
 // A 'fresh' profile flag (set by the Chronicle "Reset" button) suppresses the seed entirely, so a new player
 // tracks their OWN Chronicle from zero. localStorage is per-browser, so each person keeps their own progress.
 var _rwFreshFlag = false; try { _rwFreshFlag = (LS.getItem('d2r_rwProfile') === 'fresh'); } catch(e){}   // v638 — the chronicle is SHARED across accounts (one chronicle): the owner's floor applies on both; only an explicit fresh-profile reset skips it
-let rwMade = _safeJsonParse(LS.getItem('d2r_rwMade'), null);
+let rwMade = _storeRead('map?', null).getItem('d2r_rwMade');
 if (rwMade === null || typeof rwMade !== 'object' || Array.isArray(rwMade)) { rwMade = (_rwFreshFlag || !window._seedsBelongHere) ? {} : Object.assign({}, _RWC_SEED); try { LS.setItem('d2r_rwMade', JSON.stringify(rwMade)); } catch(e){} }   // v663 — the cousin shell NEVER inherits the owner's seed
 // v424 — DURABLE 28-FLOOR. A one-time flag was too fragile (a cache hit / backup-restore left Konyo's
 // Chronicle stuck at the old 19). Instead the 28 created runewords are a permanent FLOOR re-applied on EVERY
 // load, EXCEPT ones the user has explicitly UN-marked (tracked in d2r_rwUnmade). So a reset/restore always
 // snaps back to ≥28, while un-marks still stick. This converges the stuck-at-19 save to 28 with no flag.
-let rwUnmade = _safeJsonParse(LS.getItem('d2r_rwUnmade'), null);
+let rwUnmade = _storeRead('map?', null).getItem('d2r_rwUnmade');
 if (rwUnmade === null || typeof rwUnmade !== 'object' || Array.isArray(rwUnmade)) rwUnmade = {};
 // v638 — SHARED CHRONICLE (Konyo's real-life truth, correcting v637's one-way merge: "the only
 // thing they DO share in real life is the chronicle — regardless if you're in ladder or non-ladder
@@ -23222,7 +23456,7 @@ window._rwLadderBlockedForge = function(rw){
 // two Shael+Ko+Eld combos Konyo proved don't work on his (non-ladder) character — Mania on
 // weapons and Hysteria on body armor, which are RotW's renamed halves of vanilla's Hustle. (v1738:
 // this said THREE and the seed has always held two; there is no third combo in RUNEWORD_TIP.)
-let rwVerify = _safeJsonParse(LS.getItem('d2r_rwVerify'), null);
+let rwVerify = _storeRead('map?', null).getItem('d2r_rwVerify');
 /* v2704 — THE FIFTH SEED IS NOW EXPORTED LIKE THE OTHER FOUR. _GRAIL_SEED, _SET_SEED,
    _RWC_SEED and _RULING_SEED all live on `window`; this one was an inline literal, so the v2699
    un-seed had to carry a hand-copied second copy of it. Two copies of one constant with nothing
@@ -23250,10 +23484,10 @@ window._rwGuard = function(key){
 };
 // Materials Stash: { materialName: count } map. Pandemonium keys / uber organs / Token
 // essences the user holds; powers the uber & token readiness planner.
-let materialStash = _safeJsonParse(LS.getItem('d2r_materialStash'), {});
+let materialStash = _storeRead('map', {}).getItem('d2r_materialStash');
 // Gem Stash: { gemFullName: count } map (e.g. "Perfect Amethyst":4). Powers the gem
 // cube-up planner. Gem socket stats are verified D2R game-data values (gems.json).
-let gemStash = _safeJsonParse(LS.getItem('d2r_gemStash'), {});
+let gemStash = _storeRead('map', {}).getItem('d2r_gemStash');
 
 try { window.gemStash = gemStash; } catch(e){}         // v687 — intake review undo/edit
 try { window.materialStash = materialStash; } catch(e){} // v687 — intake review undo/edit
@@ -23261,12 +23495,182 @@ try { window.runeStash = runeStash; } catch(e){}       // v687 — re-bind after
 // Crafted Items Workshop: { "<Craft> <Slot>": count } map (e.g. "Caster Amulet":2) — the
 // finished crafted rares the user owns. Ingredients are NOT stored here (cubeable status
 // reads live from runeStash + gemStash); this tracks only completed crafts (📸 AI intake).
-let craftStash = _safeJsonParse(LS.getItem('d2r_craftStash'), {});
+let craftStash = _storeRead('map', {}).getItem('d2r_craftStash');
 // v341 — magic BASE items the player actually has, keyed by slot ('Gloves','Amulet',…).
 // HONESTY: a craft needs a magic base of the right type; the bible NO LONGER auto-assumes
 // you own one. Default = empty (own nothing) → the dashboard/AI tells you the exact base
 // you still need. Konyo toggles a base owned per slot in the workshop / preview sandbox.
-let craftBaseStash = _safeJsonParse(LS.getItem('d2r_craftBaseStash'), {});
+let craftBaseStash = _storeRead('map', {}).getItem('d2r_craftBaseStash');
+/* ⟦TAB SYNC⟧ ══ #153 item 11 (REG-2413) — ANOTHER TAB'S WRITE IS MERGED INTO THIS ONE, NEVER CLOBBERED.
+   GrokBot's sweep (10-21): two tabs of the board, an add in one, an add in the other - and the first add was gone.
+   Every store above is read ONCE at boot and written back WHOLE from memory (persist(), persistOwned(), saveA()), and
+   no `storage` listener watched any of them, so the second tab's next write carried its boot-time copy over the other
+   tab's item. His console can hold two boards of one origin (the board and its engine frame), so this is not only a
+   two-browser-tab story.
+   Each in-memory store is registered here with its shape (the vault module adds the mule map and the roster, the
+   records block its store). A storage event from another document applies THAT write's change - what it added,
+   removed or changed against the value it replaced (ev.oldValue) - to this tab's copy, in place. What this tab holds
+   that the other write did not touch stays; what the other write removed does not come back. If this tab then holds
+   something the other write lacks (both wrote at once), it writes the merged copy back once, and the other tab applies
+   that the same way and stops. Nothing is guessed: bytes that will not parse are quarantined here too, a roster both
+   tabs changed and a cleared storage HOLD the key (the door refuses this tab's writes to it), and the notice asks for
+   a reload. [[unknown-stays-unknown]] [[heart-first]] */
+window._TAB_SYNC = window._TAB_SYNC || {};
+window._tabSyncMerge = function(k, oldRaw, newRaw){
+  var spec = window._TAB_SYNC[k], LSR = window.LSR;
+  if (!spec) return { ok: false, why: k + ' is not a store this tab holds' };
+  var parse = function(raw){
+    if (raw == null || raw === '') return { ok: true, v: null };
+    try { return { ok: true, v: JSON.parse(raw) }; } catch (e) { return { ok: false, v: undefined }; }
+  };
+  var shapeOk = function(v){
+    if (v == null || spec.kind === 'store') return true;
+    if (spec.kind === 'set' || spec.kind === 'list') return Array.isArray(v);
+    return typeof v === 'object' && !Array.isArray(v);
+  };
+  var replace = function(live, v){
+    if (spec.kind === 'set'){ live.clear(); (v || []).forEach(function(n){ live.add(n); }); }
+    else if (spec.kind === 'list'){ live.length = 0; (v || []).forEach(function(m){ live.push(m); }); }
+    else { Object.keys(live).forEach(function(x){ delete live[x]; }); Object.keys(v || {}).forEach(function(x){ live[x] = v[x]; }); }
+  };
+  var same = function(live, v){
+    if (spec.kind === 'set'){
+      var ts = new Set(v || []);
+      if (ts.size !== live.size) return false;
+      var all = true; live.forEach(function(n){ if (!ts.has(n)) all = false; }); return all;
+    }
+    var t = v || {}, lk = Object.keys(live), tk = Object.keys(t);
+    if (lk.length !== tk.length) return false;
+    for (var i = 0; i < lk.length; i++){
+      if (!Object.prototype.hasOwnProperty.call(t, lk[i])) return false;
+      if (JSON.stringify(live[lk[i]]) !== JSON.stringify(t[lk[i]])) return false;
+    }
+    return true;
+  };
+  var after = function(wrote){ try { if (spec.after) spec.after(!!wrote); } catch (eA) {} };
+  var theirs = parse(newRaw);
+  var held = (LSR && typeof LSR.quarantined === 'function') ? LSR.quarantined(k) : null;
+  if (!theirs.ok || !shapeOk(theirs.v)){
+    if (LSR && typeof LSR.quarantine === 'function')
+      LSR.quarantine(k, 'another tab wrote ' + (theirs.ok ? 'a store of the wrong shape' : 'bytes that will not parse'));
+    return { ok: false, quarantined: true };
+  }
+  if (spec.kind === 'store'){
+    /* read from storage on every use, so there is nothing to merge; a quarantine here lifts once the store reads */
+    if (held && held.kind === 'quarantine' && typeof spec.readable === 'function' && spec.readable(theirs.v)){
+      var rs = LSR.release(k);
+      try { if (spec.adopted) spec.adopted(); } catch (eAd) {}
+      after(false);
+      return { ok: true, released: !!(rs && rs.ok) };
+    }
+    return { ok: true, store: true };
+  }
+  if (held && held.kind === 'stale') return { ok: false, stale: true };
+  var live = spec.get();
+  if (live == null) return { ok: false, why: k + ' is not in this tab yet' };
+  if (held && held.kind === 'quarantine'){
+    /* this tab is running on a default for a store that would not read; the other tab's readable store replaces it */
+    replace(live, theirs.v);
+    var rl = LSR.release(k);
+    try { if (spec.adopted) spec.adopted(); } catch (eAd2) {}
+    after(false);
+    return { ok: true, adopted: true, released: !!(rl && rl.ok) };
+  }
+  var base = parse(oldRaw);
+  if (spec.kind === 'list'){
+    /* an absent store is what this tab runs on when nothing was saved (the roster's default), not an empty list */
+    var tl = theirs.v || [], bl = base.ok ? (base.v == null ? (typeof spec.absent === 'function' ? spec.absent() : []) : base.v) : [];
+    if (JSON.stringify(live) === JSON.stringify(tl)) return { ok: true, same: true };
+    if (base.ok && JSON.stringify(live) === JSON.stringify(bl)){ replace(live, tl); after(false); return { ok: true, adopted: true }; }
+    if (LSR && typeof LSR.hold === 'function') LSR.hold(k, 'it changed here and in another tab at once');
+    return { ok: false, stale: true };
+  }
+  if (!base.ok || !shapeOk(base.v)){
+    /* the value it replaced is unknown, so its change cannot be told apart: the newest whole write stands */
+    replace(live, theirs.v);
+    after(false);
+    return { ok: true, adopted: true };
+  }
+  var n = 0;
+  if (spec.kind === 'set'){
+    var bs = new Set(base.v || []), ts = new Set(theirs.v || []);
+    bs.forEach(function(x){ if (!ts.has(x) && live.has(x)){ live.delete(x); n++; } });
+    ts.forEach(function(x){ if (!bs.has(x) && !live.has(x)){ live.add(x); n++; } });
+  } else {
+    var b = base.v || {}, t = theirs.v || {}, seen = {};
+    Object.keys(b).concat(Object.keys(t)).forEach(function(x){
+      if (seen[x]) return; seen[x] = 1;
+      var tj = JSON.stringify(t[x]);
+      if (JSON.stringify(b[x]) === tj) return;
+      if (Object.prototype.hasOwnProperty.call(t, x)) live[x] = JSON.parse(tj); else delete live[x];
+      n++;
+    });
+  }
+  var wrote = false;
+  if (!same(live, theirs.v))
+    wrote = (LSR.setItem(k, JSON.stringify(spec.kind === 'set' ? Array.from(live) : live)) !== false);
+  after(wrote);
+  return { ok: true, merged: true, applied: n, wroteBack: wrote };
+};
+(function(){
+  var REG = window._TAB_SYNC, _paintT = null;
+  function vaultAfter(wrote){
+    if (wrote){ try { if (typeof window._vaultRecordsRefresh === 'function') window._vaultRecordsRefresh(); } catch (eR) {} }
+    if (_paintT) return;
+    _paintT = setTimeout(function(){
+      _paintT = null;
+      try { if (typeof window.renderVault === 'function') window.renderVault(); } catch (e) {}
+      try { if (typeof window.renderGrailProgress === 'function') window.renderGrailProgress(); } catch (e) {}
+    }, 40);
+  }
+  /* each store this script holds in memory and writes back whole: its shape, its live copy, what to repaint */
+  var HELD = {
+    d2r_owned:         ['set', function(){ return owned; }, vaultAfter],
+    d2r_copies:        ['map', function(){ return copies; }, vaultAfter],
+    d2r_multiKeep:     ['map', function(){ return multiKeep; }, vaultAfter],
+    d2r_magicFinds:    ['map', function(){ return magicFinds; }, vaultAfter],
+    d2r_unknownReads:  ['set', function(){ return unknownReads; }, vaultAfter],
+    d2r_ethereal:      ['set', function(){ return etherealItems; }],
+    d2r_superiorBases: ['set', function(){ return superiorBases; }],
+    d2r_wishlist:      ['set', function(){ return wishlist; }],
+    d2r_statues:       ['set', function(){ return statues; }],
+    d2r_setPieces:     ['set', function(){ return setPieces; }],
+    d2r_runeStash:     ['map', function(){ return runeStash; }],
+    d2r_rwMade:        ['map', function(){ return rwMade; }],
+    d2r_rwUnmade:      ['map', function(){ return rwUnmade; }],
+    d2r_materialStash: ['map', function(){ return materialStash; }],
+    d2r_gemStash:      ['map', function(){ return gemStash; }],
+    d2r_craftStash:    ['map', function(){ return craftStash; }],
+    d2r_craftBaseStash:['map', function(){ return craftBaseStash; }],
+    d2r_bossFilters:   ['map', function(){ return bossFilters; }],
+    d2r_bossSorts:     ['map', function(){ return bossSorts; }]
+  };
+  Object.keys(HELD).forEach(function(k){
+    if (!REG[k]) REG[k] = { kind: HELD[k][0], get: HELD[k][1], after: HELD[k][2] || null };
+  });
+  try {
+    window.addEventListener('storage', function(ev){
+      var k = null;
+      try {
+        if (!ev) return;
+        try { if (ev.storageArea && window.localStorage && ev.storageArea !== window.localStorage) return; } catch (eA) {}
+        if (ev.key == null){
+          /* another document cleared this browser's storage: nothing here can be merged against that */
+          Object.keys(REG).forEach(function(x){ try { window.LSR.hold(x, 'another tab cleared this browser’s saved data'); } catch (eH) {} });
+          return;
+        }
+        var ks = Object.keys(REG);
+        for (var i = 0; i < ks.length; i++){ if (window.LSR.key(ks[i]) === ev.key){ k = ks[i]; break; } }
+        if (!k) return;
+        window._tabSyncMerge(k, ev.oldValue, ev.newValue);
+      } catch (e) {
+        /* a write this tab could not merge is never written over: the key is held and the notice says why */
+        try { if (k) window.LSR.hold(k, 'a write from another tab could not be merged (' + String((e && e.message) || e).slice(0, 80) + ')'); } catch (eH2) {}
+      }
+    });
+  } catch (eL) {}
+})();
+/* ⟦/TAB SYNC⟧ */
 
 
 const effMF = (gMF, factor) => (gMF*100)/(gMF+factor);
@@ -27777,9 +28181,20 @@ async function _applyProgress(raw){
   // Restoring an old snapshot in the owner world would therefore overwrite a guest's chronicle.
   // ⚠ The export fix alone does not close this: old files already exist on his disk.
   // [[sweep-dont-ask]] — one place fixed, the sibling left running, three versions in a row.
+  const _keptHeld = [];
   keys.forEach(k => { if (k === 'd2r_activeProfile' || k === 'd2r_activeProfileWin' || k === 'd2r_activeMachine' || k.indexOf('L·') === 0 || k.indexOf('W·') === 0 || k.indexOf('I·') === 0 || k.indexOf('IL·') === 0) return;   // v636 — a restore must never flip the account or reach across into the other one (v684: nor flip/overwrite the other MACHINE — W· covers WL· too; v2738: nor into a guest INSTALL world — I·/IL·)
-    try { LS.setItem(k, data[k]); } catch(e){} });
-  _backupStatus("Restored " + keys.length + " keys — reloading…", "ok");
+    try {
+      /* REG-2410 — HIS restore is the way out of a quarantine: the door lets go of a store whose bytes are kept aside and
+         the snapshot's copy lands. One it cannot let go of (its bytes could not be copied aside) is not written over,
+         and the status line names it. */
+      if (window.LSR && typeof window.LSR.quarantined === 'function' && window.LSR.quarantined(k)) {
+        const _rl = window.LSR.release(k);
+        if (!_rl || !_rl.ok) { _keptHeld.push(k); return; }
+      }
+      LS.setItem(k, data[k]);
+    } catch(e){} });
+  if (_keptHeld.length) _backupStatus("Restored " + (keys.length - _keptHeld.length) + " keys — " + _keptHeld.join(', ') + " stayed quarantined (its bytes could not be kept aside, so nothing wrote over them) — reloading…", "warn");
+  else _backupStatus("Restored " + keys.length + " keys — reloading…", "ok");
   setTimeout(() => location.reload(), 600);
   return true;
 }
@@ -40579,15 +40994,102 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      writes over bytes it could not read. load() answered {} for corrupt bytes and the next saveA() replaced them with {},
      erasing every mule assignment while the doctor, reading the same store, said UNKNOWN. [[unknown-stays-unknown]] */
   var _muleUnread = {};
-  function load(k,f){ var raw; try{ raw = window.LSR.getItem(k); }catch(e){ _muleUnread[k] = 'could not be read'; return f; }
+  /* REG-2411 — load() is the shape door too: _loadParsed reads and parses as it always did, and _muleShape (⟦VAULT HOLD⟧
+     below) refuses a roster or mule map of the wrong shape the same way. Absent in a harness that cuts only this part. */
+  function load(k,f){ var v = _loadParsed(k, f); return (typeof _muleShape === 'function') ? _muleShape(k, v, f) : v; }
+  function _loadParsed(k,f){ var raw; try{ raw = window.LSR.getItem(k); }catch(e){ _muleUnread[k] = 'could not be read'; return f; }
     if (raw == null || raw === '') return f;
     try{ var v=JSON.parse(raw); return v||f; }catch(e){ _muleUnread[k] = 'will not parse'; return f; } }
   function _guardedSet(k, v){ if (_muleUnread[k]) { try{ console.warn('[mule] ' + k + ' ' + _muleUnread[k] + ' - NOT overwritten'); }catch(e){} return false; }
-    window.LSR.setItem(k, v); return true; }
+    /* REG-2411 — the mule map is judged against what he owns and the roster (the render prune drops a filing whose name
+       left the pool or whose mule is not on the roster); with one of them quarantined that judgement runs on the page's
+       in-memory default, so the map is not written from it. And the door answers false for a key it holds. */
+    if (k === AK && typeof window._vaultBasisHeld === 'function' && window._vaultBasisHeld()) {
+      try{ console.warn('[mule] ' + k + ' NOT written - ' + window._vaultBasisHeld()); }catch(e){} return false; }
+    return window.LSR.setItem(k, v) !== false; }
   window._muleStoreUnread = function(k){ return _muleUnread[k || AK] || null; };
+  /* ⟦VAULT HOLD⟧ ══ #152 item 2 (REG-2411) — A MULE STORE OF THE WRONG SHAPE IS UNKNOWN TOO, AND THE VAULT IS HELD WHILE A
+     STORE IT STANDS ON IS QUARANTINED.
+     load() above catches bytes that will not PARSE. GrokBot saved d2r_muleRoster as {} - it parses - and roster.find
+     threw on the next migration, so this whole script stopped before renderVault and vaultHandAdd existed, on every
+     reload. _muleShape asks the shape too: the roster must be a list of mules, each with an id; the mule map a map. A
+     wrong shape is marked exactly like a parse failure (_guardedSet then refuses it), handed to the door's quarantine
+     (bytes kept aside, every writer refused), and the script runs on the default roster / an empty map in memory.
+     THE HOLD. The vault stands on d2r_owned, the roster, the mule map and the copy counts. While one of them is
+     quarantined (or held behind another tab), what this page has in memory for it is a default, not his vault: so
+     the mule map and the records are not written from it (_guardedSet above, _vaultRecordsPersist/_Refresh), the
+     render prune does not drop filings against it, and + Add an item refuses in words (_vhPrepare). Nothing here
+     deletes, repairs or guesses: the notice offers the way out (a backup restore, or starting that one store fresh
+     with its bytes kept aside). [[unknown-stays-unknown]] [[heart-first]] */
+  function _muleShape(k, v, f){
+    var why = _muleUnread[k] || null;
+    if (!why && v != null && v !== f){
+      var ok = (k === RK)
+        ? (Array.isArray(v) && v.every(function(m){ return !!m && typeof m === 'object' && !Array.isArray(m) && typeof m.id === 'string' && m.id !== ''; }))
+        : (typeof v === 'object' && !Array.isArray(v));
+      if (!ok) why = _muleUnread[k] = (k === RK ? 'is not a list of mules' : 'is not a map of names to mules');
+    }
+    if (!why) return v;
+    try { if (window.LSR && typeof window.LSR.quarantine === 'function') window.LSR.quarantine(k, why); } catch (eQ) {}
+    return f;
+  }
+  /* what the vault stands on (the mule map is judged against it), and what + Add an item writes (those plus the records) */
+  var VAULT_BASIS = Object.keys({ d2r_owned: 1, d2r_muleRoster: 1, d2r_muleAssign: 1, d2r_copies: 1 });
+  var VAULT_STORES = VAULT_BASIS.concat(Object.keys({ d2r_vaultRecords: 1 }));
+  function _vaultHeldBy(keys){
+    var out = [];
+    keys.forEach(function(k){
+      var q = null;
+      try { q = (window.LSR && typeof window.LSR.quarantined === 'function') ? window.LSR.quarantined(k) : null; } catch (e) { q = null; }
+      if (q) out.push(q);
+      else if ((k === RK || k === AK) && _muleUnread[k]) out.push({ key: k, kind: 'quarantine', reason: _muleUnread[k] });
+    });
+    return out;
+  }
+  function _vaultHeldSay(list){
+    return 'the vault is held - ' + list.map(function(q){
+      return q.key + ' ' + (q.kind === 'stale' ? 'changed in another tab (' + q.reason + ')' : q.reason);
+    }).join('; ');
+  }
+  window._vaultBasisHeld = function(){ var l = _vaultHeldBy(VAULT_BASIS); return l.length ? _vaultHeldSay(l) : null; };
+  window._vaultHeld = function(){
+    var l = _vaultHeldBy(VAULT_STORES);
+    return l.length ? { keys: l.map(function(q){ return q.key; }), why: _vaultHeldSay(l) } : null;
+  };
   var _vrRecFollowLive = false;   /* #76 — a refused records refresh follows the live model, not a stale stamp */
   var roster = load(RK, null) || DEFAULT_ROSTER.map(function(m){ return Object.assign({}, m); });
   var assign = load(AK, {});
+  /* the roster "Start it fresh" writes: the default lockers plus one mule for every mule id his map still names, so no
+     filing is orphaned and pruned by the next paint. Their names and notes are in the quarantined bytes, kept aside. */
+  window._vaultRosterFresh = function(){
+    var fresh = DEFAULT_ROSTER.map(function(m){ return Object.assign({}, m); }), have = {};
+    fresh.forEach(function(m){ have[m.id] = 1; });
+    Object.keys(assign || {}).sort().forEach(function(n){
+      var id = assign[n];
+      if (typeof id !== 'string' || !id || id.indexOf('__') === 0 || have[id]) return;
+      have[id] = 1;
+      fresh.push({ id: id, name: id.toUpperCase().slice(0, 15), icon: '📦', added: true,
+                   note: 'kept from your mule map when the roster started fresh - its own name and note are in the roster kept aside' });
+    });
+    return fresh;
+  };
+  /* #153 item 11 (REG-2413) — the mule map and the roster join the page's tab sync (⟦TAB SYNC⟧): another tab's write is
+     merged into these two, never written over by this tab's boot-time copy. A store this tab had quarantined lifts
+     when the other tab's write reads, and the module's own unread mark goes with it. */
+  try {
+    window._TAB_SYNC = window._TAB_SYNC || {};
+    var _vaultTabPaintT = null;
+    var _vaultTabAfter = function(){
+      if (_vaultTabPaintT) return;
+      _vaultTabPaintT = setTimeout(function(){ _vaultTabPaintT = null; try { renderVault(); } catch (eR) {} }, 40);
+    };
+    window._TAB_SYNC[AK] = { kind: 'map', get: function(){ return assign; }, after: _vaultTabAfter,
+                             adopted: function(){ delete _muleUnread[AK]; } };
+    window._TAB_SYNC[RK] = { kind: 'list', get: function(){ return roster; }, after: _vaultTabAfter,
+                             absent: function(){ return DEFAULT_ROSTER.map(function(m){ return Object.assign({}, m); }); },
+                             adopted: function(){ delete _muleUnread[RK]; } };
+  } catch (eTs) {}
+  /* ⟦/VAULT HOLD⟧ */
   /* the SHARED STASH locker, one shape. Load adds it when a saved roster lacks it.
      The delete door does not offer it: it is the account locker, and its items stay filed.
      A saved roster that never held it still asks this function, so a war-gear pick has the id. */
@@ -42836,7 +43338,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       if (_pvLive[k] && _pvLive[k].kind === 'owned') return;   /* a receipt keeps no filing */
       _pvW6[k] = _pvLive[k];
     });
+    /* REG-2411 — held: the pool and the roster in memory are the page's default for a quarantined store, not his vault,
+       so no filing is dropped against them (the mule map keeps every row, and _guardedSet does not write it anyway) */
+    var _pruneHeld = (typeof window !== 'undefined' && typeof window._vaultBasisHeld === 'function') && !!window._vaultBasisHeld();
     Object.keys(assign).forEach(function(n){
+      if (_pruneHeld) return;
       if (assign[n]!=='__keep' && !muleById(assign[n])) { delete assign[n]; return; }
       if (pool.indexOf(n) >= 0) return;
       if (Object.prototype.hasOwnProperty.call(_pvW6, n)) return;
@@ -42891,6 +43397,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
                        carried: _carUnknown ? null : _carried.length, loose: (_asgUnread || _dockUnread) ? null : unsorted.length, sp: _sp,
                        orphans: (_rh76 ? _rh76.orphans : undefined) };
         if (typeof _vaultPopFromHeader === 'function') _sub76 = _vaultPopFromHeader(_sub76, _rh76);
+        /* REG-2411 — held: no count is claimed, the line names the store instead */
+        var _popHeld = (typeof window._vaultBasisHeld === 'function') ? window._vaultBasisHeld() : null;
+        if (_popHeld) { _sub76.owned = null; _sub76.heldWhy = _popHeld; }
         _pEl.innerHTML = (typeof window._vaultPopHtml === 'function')
           ? window._vaultPopHtml(_sub76)
           : 'the population line is UNKNOWN — its builder (window._vaultPopHtml) is not on this page';
@@ -43826,6 +44335,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   function _vhPrepare(name, at, opts){
     var raw = String(name == null ? '' : name).trim();
     if (!raw) return { ok: false, refused: 'no-name', why: 'no name — nothing was added' };
+    /* REG-2411 / REG-2412 — a vault standing on a quarantined store is HELD. The add used to land in memory and say
+       "is yours" while the store under it refused the write (GrokBot: "every hand-add says 'is yours' but writes
+       nothing ... and is lost on reload"). It now refuses before anything is touched, and says which store and why. */
+    var _hold = (typeof window._vaultHeld === 'function') ? window._vaultHeld() : null;
+    if (_hold) return { ok: false, refused: 'held', held: _hold.keys,
+                        why: _hold.why + ' — nothing was added (restore a backup, or start that store fresh from the notice at the top)' };
     var ts = null;
     if (at != null && at !== ''){
       var atMs = Date.parse(String(at));
@@ -48886,6 +49401,11 @@ window.vaultAutoAssign = function(){
     var _aiOff = (typeof window._vaultFrameRefuse === 'function') ? window._vaultFrameRefuse()
       : { ok: false, refused: 'auto-intake-off', registered: false, why: 'AUTO INTAKE is not on this page - a frame does not register' };
     if (_aiOff) return _aiOff; /* v3767 frame gate */
+    /* REG-2411 — a held vault reads nothing in from a frame: the add would land in memory and its write be refused, and
+       the frame would still be marked read, so the item could never come back once the store does */
+    var _heldV = (typeof window._vaultHeld === 'function') ? window._vaultHeld() : null;
+    if (_heldV) return { ok: false, refused: 'held', registered: false, held: _heldV.keys,
+                         why: _heldV.why + ' — nothing from a frame was registered' };
     return null;
   }
   try { window._vaultAutoIntakeRead = _vaultAutoIntakeRead; } catch (eAr) {}
@@ -49917,6 +50437,18 @@ window.vaultAutoAssign = function(){
     return out.sort();
   }
   try { window._vaultEquippedNames = _vaultEquippedNames; } catch (eEq) {}
+  function _vaultMoveHeldHtml(){
+    /* #152 item 3 (REG-2412) — the saved move tasks live in d2r_vaultRecords. When it is quarantined the list under this
+       line is not "nothing to move": every saved task is UNKNOWN, and the list says so above whatever it can still draw. */
+    var q = null;
+    try { q = (window.LSR && typeof window.LSR.quarantined === 'function') ? window.LSR.quarantined('d2r_vaultRecords') : null; } catch (e) { q = null; }
+    if (!q) return '';
+    return '<p class="vault-propose" data-state="unknown" data-held="d2r_vaultRecords">Your saved move tasks are UNKNOWN, not done: d2r_vaultRecords '
+      + esc(q.kind === 'stale' ? 'changed in another tab' : q.reason) + '. '
+      + (q.asideOk ? 'Its bytes are kept aside as ' + esc(q.aside) + ', and nothing writes over them. ' : 'Nothing writes over it. ')
+      + 'The notice at the top can start it fresh.</p>';
+  }
+  try { window._vaultMoveHeldHtml = _vaultMoveHeldHtml; } catch (eMh) {}
   function _vaultMovePaint(){
     if (window._movePaintBusy) return null;
     window._movePaintBusy = true;
@@ -49924,7 +50456,7 @@ window.vaultAutoAssign = function(){
       var built = _vaultMoveCollect();
       window._moveModel = built;
       var host = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('vault-move-list') : null;
-      if (host) { host.hidden = false; host.innerHTML = _vaultMoveHtml(built); }
+      if (host) { host.hidden = false; host.innerHTML = ((typeof _vaultMoveHeldHtml === 'function') ? _vaultMoveHeldHtml() : '') + _vaultMoveHtml(built); }
       var eq = (typeof document !== 'undefined' && document.getElementById) ? document.getElementById('vault-equipped') : null;
       if (eq && typeof _vaultEquippedNames === 'function') { var eqN = _vaultEquippedNames(built.records); eq.hidden = !eqN.length;
         eq.innerHTML = eqN.length ? '<span class="vault-equipped-k">Equipped (locked)</span> ' + eqN.map(function(n){ return esc(n); }).join(' · ') : ''; }
@@ -50742,24 +51274,32 @@ window.vaultAutoAssign = function(){
     }
     return null;
   }
+  function _vrRecQuarantine(why){
+    /* #152 item 3 (REG-2412) — the refusal below kept the bytes, and nothing else did: no tasks, no warning, and every
+       hand-add said "is yours" while its move row went nowhere (GrokBot, cov*.py). The store that will not read is now
+       NAMED and KEPT ASIDE at the one door (window.LSR.quarantine), which also refuses every other writer, and the
+       board says it (window._storeQuarantinePaint). Absent in a harness without the door: the refusal stands alone. */
+    try { if (window.LSR && typeof window.LSR.quarantine === 'function') window.LSR.quarantine(_VR_STORE_KEY, why); } catch (eQ) {}
+  }
   function _vrRecLoadRaw(){
     /* -> parsed object | null (absent) | undefined (UNKNOWN: unreadable/unparseable — the key is marked so a later
        _vrRecGuardedSet refuses to overwrite it). Mirrors the mule store load() at ~bible.html:40308. */
     var raw;
     try { raw = window.LSR.getItem(_VR_STORE_KEY); }
-    catch (e) { _vrRecUnread[_VR_STORE_KEY] = 'could not be read'; return undefined; }
+    catch (e) { _vrRecUnread[_VR_STORE_KEY] = 'could not be read'; if (typeof _vrRecQuarantine === 'function') _vrRecQuarantine('could not be read'); return undefined; }
     if (raw == null || raw === '') return null;
     try {
       var parsed = JSON.parse(raw);
       /* REG-2272 item 2 — parse-OK is not the same as a store. [], {"v":1}, {"records":{}} used to read as
          ABSENT, so persist overwrote them and the migrate stamp latched. Wrong shape is UNKNOWN. */
       if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed) || !Array.isArray(parsed.records)) {
+        if (typeof _vrRecQuarantine === 'function') _vrRecQuarantine('is not a records store (wrong shape)');
         _vrRecUnread[_VR_STORE_KEY] = 'wrong shape';
         return undefined;
       }
       return parsed;
     }
-    catch (e) { _vrRecUnread[_VR_STORE_KEY] = 'will not parse'; return undefined; }
+    catch (e) { _vrRecUnread[_VR_STORE_KEY] = 'will not parse'; if (typeof _vrRecQuarantine === 'function') _vrRecQuarantine('will not parse'); return undefined; }
   }
   function _vrRecGuardedSet(obj){
     /* NEVER overwrite a store that could not be read/parsed — the mule store _guardedSet rule (bible.html:40311). */
@@ -50767,8 +51307,20 @@ window.vaultAutoAssign = function(){
       try { console.warn('[vaultRecords] ' + _VR_STORE_KEY + ' ' + _vrRecUnread[_VR_STORE_KEY] + ' - NOT overwritten'); } catch (e) {}
       return false;
     }
-    try { window.LSR.setItem(_VR_STORE_KEY, JSON.stringify(obj)); return true; } catch (e) { return false; }
+    /* REG-2412 — the door answers false (it does not throw) for a key it holds, so a refused write is not a write */
+    try { return window.LSR.setItem(_VR_STORE_KEY, JSON.stringify(obj)) !== false; } catch (e) { return false; }
   }
+  /* REG-2412 / REG-2413 — the records store is read from storage on every use, so another tab's write needs no merge;
+     but a quarantine this tab holds lifts when another tab writes a store that reads (it started it fresh). */
+  try {
+    window._TAB_SYNC = window._TAB_SYNC || {};
+    window._TAB_SYNC[_VR_STORE_KEY] = {
+      kind: 'store',
+      readable: function(v){ return !!(v && typeof v === 'object' && !Array.isArray(v) && Array.isArray(v.records)); },
+      adopted: function(){ try { delete _vrRecUnread[_VR_STORE_KEY]; } catch (eD) {} },
+      after: function(){ try { if (typeof window.renderVault === 'function') window.renderVault(); } catch (eR) {} }
+    };
+  } catch (eTsR) {}
   function _vrLocForCopy(kind, mule, copyIx){
     /* each copy's OWN location. v3767 (Elad 2026-10-18 13:18 IDT): every shared copy sits on the same mule. */
     if (kind === 'filed') return mule;
@@ -50845,6 +51397,10 @@ window.vaultAutoAssign = function(){
        The page-load migration and a confirmed write-refresh are the callers. An unknown dock, an unreadable assignment or a wrong-shape store still refuses. [[heart-first]] rule 6: persist
        the per-copy location NOW so phase 2 can route the 3rd+ shared copy without re-deriving. */
     opts = opts || {};
+    /* #152 item 2 (REG-2411) — with d2r_owned or the roster quarantined the live model is derived from the page's
+       in-memory default, not from his vault: persisting it would write an empty vault over the last good records. */
+    var _basis = (typeof window._vaultBasisHeld === 'function') ? window._vaultBasisHeld() : null;
+    if (_basis) return { ok: false, wrote: false, unknown: true, held: true, why: _basis + ' - nothing persisted' };
     var rec = _vaultRecords();
     if (!rec || !rec.ok) return { ok: false, wrote: false, why: 'the records model would not derive' };
     if (rec.assignUnknown) return { ok: false, wrote: false, unknown: true, why: 'd2r_muleAssign would not read - nothing persisted' };
@@ -50866,6 +51422,9 @@ window.vaultAutoAssign = function(){
        A confirmed readback clears the dirty marker. A refusal or a short readback drops the
        stamp and writes the marker, so a reload follows live. */
     if (typeof _vrRecHold !== 'undefined' && _vrRecHold > 0) return { ok: false, held: true, why: 'a reset is clearing' };
+    /* REG-2411 — held, not refused: the stored records stay the source (the last good model) and no dirty marker is written */
+    var _basisR = (typeof window._vaultBasisHeld === 'function') ? window._vaultBasisHeld() : null;
+    if (_basisR) return { ok: false, held: true, why: _basisR };
     if (typeof _vaultRecordsStampOk === 'function' && !_vaultRecordsStampOk()) return { ok: false, live: true, why: 'no current stamp - refresh does not create a store' };
     if (typeof _vrRecSigSame === 'function' && _vrRecSigSame()) return { ok: true, skipped: true, why: 'owned, copies, assign and provenance are unchanged' };
     var refused = function(why){
@@ -50938,13 +51497,21 @@ window.vaultAutoAssign = function(){
       return { undone: false, partial: false, clearedStore: false, clearedStamp: false,
                why: 'a remove threw - the stamp still gates' };
     }
-    var storeErr = false;
-    try { window.LSR.removeItem(_VR_STORE_KEY); }
+    var storeErr = false, storeWhy = null;
+    /* REG-2412 — a store the door quarantined is released first, which it allows only while its bytes are kept aside;
+       a remove the door still refuses answers false, and a refused remove is not a cleared store */
+    try {
+      if (typeof window.LSR.quarantined === 'function' && window.LSR.quarantined(_VR_STORE_KEY) && typeof window.LSR.release === 'function') {
+        var _rl = window.LSR.release(_VR_STORE_KEY);
+        if (_rl && _rl.ok === false) storeWhy = 'the stamp was cleared but ' + _rl.why;
+      }
+    } catch (eRl) {}
+    try { if (window.LSR.removeItem(_VR_STORE_KEY) === false) { storeErr = true; storeWhy = storeWhy || 'the stamp was cleared but the store is held, so it was not removed'; } }
     catch (eSo) { storeErr = true; }
     if (!storeErr) { try { delete _vrRecUnread[_VR_STORE_KEY]; } catch (e) {} }
     if (storeErr) {
       return { undone: false, partial: true, clearedStore: false, clearedStamp: hadStamp,
-               why: 'the stamp was cleared but the store remove threw' };
+               why: storeWhy || 'the stamp was cleared but the store remove threw' };
     }
     return { undone: true, partial: false, clearedStore: hadStore, clearedStamp: hadStamp, why: null };
   }
@@ -53805,10 +54372,11 @@ function renderJournal(){
   try { window.renderJournal = renderJournal; } catch(e){}   /* v1562 — see the note above */
   function persistOwned(){
     var _ownedOk = false, _copiesOk = false;
-    try { window.LSR.setItem('d2r_owned', JSON.stringify(Array.from(owned))); _ownedOk = true; } catch(e){}
+    /* REG-2411 — the door answers false for a store it holds (quarantined, or behind another tab): not written, not ok */
+    try { _ownedOk = (window.LSR.setItem('d2r_owned', JSON.stringify(Array.from(owned))) !== false); } catch(e){}
     try { window.LSR.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch(e){}
     try { window.LSR.setItem('d2r_unknownReads', JSON.stringify(Array.from(unknownReads))); } catch(e){}
-    try { window.LSR.setItem('d2r_copies', JSON.stringify(copies)); _copiesOk = true; } catch(e){}
+    try { _copiesOk = (window.LSR.setItem('d2r_copies', JSON.stringify(copies)) !== false); } catch(e){}
     try { window.LSR.setItem('d2r_multiKeep', JSON.stringify(multiKeep)); } catch(e){}
     if (_ownedOk && _copiesOk) { try { if (typeof _vaultRecordsRefresh === 'function') _vaultRecordsRefresh(); } catch (eRec) {} }
   }
@@ -54870,6 +55438,16 @@ function renderJournal(){
     if (typeof _vrRecHold !== 'undefined') _vrRecHold++;
     try {
     parts.forEach(function(p){ var c = S.clears[p]; if (c.later) return; try { c.clear(); } catch(e){ R.failed.push(p); } });
+    /* REG-2410 / REG-2411 — a part whose store the door holds (quarantined, or behind another tab) was not cleared whatever
+       its clear() returned, and the mule map is not written while the vault is held: either is "could not clear" on the
+       receipt, never a clean reset over a store that still holds its bytes */
+    parts.forEach(function(p){
+      var c = S.clears[p], held = null;
+      if (c.later || !c.store || R.failed.indexOf(p) >= 0) return;
+      try { held = (window.LSR && typeof window.LSR.quarantined === 'function') ? window.LSR.quarantined(c.store) : null; } catch (eQ) { held = null; }
+      if (!held && c.store === AK) { try { held = (typeof window._vaultBasisHeld === 'function') ? window._vaultBasisHeld() : null; } catch (eB) { held = null; } }
+      if (held) R.failed.push(p);
+    });
     KEEPS.forEach(function(k){
       var was = before[k.store], now = _vResetRead(k.store);
       if (was === undefined || now === undefined) R.unknown.push(k.store);
@@ -63514,6 +64092,16 @@ html{overflow-x:clip;overflow-y:auto}
 #backup-nudge .bn-go{color:var(--gold-bright);font-weight:var(--fw-semibold);cursor:pointer;margin-left:4px;white-space:nowrap}
 #backup-nudge .bn-x{float:right;margin-left:10px;color:var(--text-dim);cursor:pointer;font-weight:var(--fw-semibold)}
 #backup-nudge .bn-x:hover{color:var(--gold-bright)}
+/* REG-2410 — a saved store that will not read, said on every tab for as long as it is held (⟦STORE NOTICE⟧) */
+#store-quarantine{position:fixed;left:50%;top:10px;transform:translateX(-50%);z-index:260;width:min(640px,calc(100vw - 28px));max-height:45vh;overflow:auto;padding:10px 13px;border:1px solid rgba(240,192,96,.55);border-left:3px solid #f0c060;border-radius:10px;background:linear-gradient(180deg,rgba(26,18,8,.97),rgba(14,9,4,.97));color:var(--text);font-size:var(--fs-meta);line-height:var(--lh-normal);box-shadow:0 6px 22px rgba(0,0,0,.55);box-sizing:border-box;overflow-wrap:anywhere}
+#store-quarantine[hidden]{display:none}
+#store-quarantine .sq-head{color:#f3dfae;font-weight:var(--fw-semibold)}
+#store-quarantine .sq-list{margin:6px 0 4px;padding:0 0 0 18px}
+#store-quarantine .sq-list li{margin:3px 0}
+#store-quarantine code{font-size:var(--fs-meta);color:var(--gold-bright)}
+#store-quarantine .sq-foot{color:var(--text-dim)}
+#store-quarantine .sq-btn{margin-left:6px;padding:1px 8px;border:1px solid rgba(240,192,96,.55);border-radius:6px;background:rgba(40,28,6,.88);color:var(--gold-bright);font:inherit;font-weight:var(--fw-semibold);cursor:pointer}
+#store-quarantine .sq-btn:hover{background:rgba(70,50,12,.92)}
 /* v708.1 (Grok: 'mobile tab strip') — ≤700px: ONE scroll-snap row, never a multi-line flag.
    Clusters ride along at natural width; the fade edge says "there's more". */
 @media (max-width:700px){

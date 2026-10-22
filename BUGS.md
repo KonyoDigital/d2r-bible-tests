@@ -7,6 +7,84 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2413 - ANOTHER TAB'S VAULT WRITE WAS LOST ON THIS TAB'S NEXT ADD: NO STORAGE LISTENER (#153 item 11, vault batch V1)
+
+GrokBot's sweep (#230, 10-21): two browser tabs of the board, an add in one, an add in the other, and the first add was gone. Every
+store the page holds in memory (owned, the mule map, the roster, copies, multiKeep, Magic & Rare, the stashes, set pieces, the
+runeword ledgers) is read ONCE at boot and written back WHOLE by persist(), persistOwned() and saveA(), and no `storage` listener
+watched any of them (the two in the file serve the builder), so the second tab's next write carried its boot-time copy over the
+other tab's item. His console can hold two boards of one origin (the board and its engine frame), so it is not only a two-tab story.
+FIX: ⟦TAB SYNC⟧ in bible.html. Each in-memory store is registered with its shape (the vault module adds the mule map and the roster,
+the records block its store). A storage event from another document applies THAT write's change - what it added, removed or changed
+against ev.oldValue - to this tab's copy in place: what this tab holds that the write did not touch stays, and what the write removed
+does not come back. When both wrote at once, the tab holding both halves writes the merge back once and the other side adopts it (no
+ping-pong). Nothing is guessed: bytes that will not parse are quarantined here too (REG-2410), a roster both tabs changed and a
+cleared storage HOLD the key (the door refuses this tab's writes, the notice asks for a reload), a store this tab had quarantined
+lifts when the other tab writes one that reads, and only this world's physical key is merged.
+GUARD: tv/test_another_tabs_write_is_merged_not_clobbered.py (11 RED proofs, heart2 11/11 PROVEN), driving the shipped listener,
+merge, boot loaders and persist() in node. The real cross-page delivery is the browser's: tests/reg2410_stores_never_bricked.spec.ts
+drives two pages on CI (not run on the Mac). LEFT: a store a door reads straight from storage on every use (d2r_vaultProv, the
+records) needs no merge and has none.
+
+### REG-2412 - A CORRUPT d2r_vaultRecords WAS REFUSED SILENTLY: NO TASKS, NO WARNING, AND HAND-ADDS SAID "IS YOURS" (#152 item 3, vault batch V1)
+
+GrokBot's sweep (#230, 10-21), unchanged on v3784: corrupt d2r_vaultRecords "silently empties the vault forever: no records/tasks, no
+warning; every hand-add says 'is yours' but writes nothing ... never self-heals". REG-2272 had made the persist REFUSE to write over a
+store it could not read, and that refusal was the only thing that knew: the move list read the unreadable store as no saved tasks,
+the board said nothing, + Add an item landed its name and lost its move row, and nothing offered a way back.
+FIX: _vrRecLoadRaw hands every unreadable shape (will not parse, [], {"v":1}, {"records":{}}) to the door's quarantine (REG-2410),
+which keeps the bytes aside and refuses every writer, including one that skips the module's own unread mark (_vrRecGuardedSet now
+reads the door's false). The move list says the saved tasks are UNKNOWN, not done, and where the bytes are kept. + Add an item is held
+while the records store is (the mule map is not: the records are derived from it). "Start it fresh" goes through
+_vaultRecordsMigrateUndo, which now releases the door first (only while the bytes are kept aside) and reports a refused remove as
+partial, never "cleared"; the next page load re-arms the records from owned/copies/assign. Another tab's fresh store lifts the
+quarantine here.
+GUARD: tv/test_a_corrupt_records_store_is_said_and_kept.py (8 RED proofs, heart2 8/8 PROVEN).
+
+### REG-2411 - A MULE ROSTER SAVED AS {} STOPPED THE VAULT SCRIPT ON EVERY RELOAD; A PAGE THAT SURVIVED WOULD PRUNE HIS MAP AGAINST A DEFAULT (#152 item 2, vault batch V1)
+
+GrokBot's sweep (#230, 10-21), unchanged on v3784: d2r_muleRoster saved as {} parses, so the mule store's load() (which caught only a
+parse failure) handed it on, roster.find threw on the next migration, and the vault script stopped before renderVault and
+vaultHandAdd existed. And a page that SURVIVES a quarantined store is the next danger: with d2r_owned or the roster replaced by the
+page's default in memory, the render prune drops every filing "whose name left the pool" or "whose mule is not on the roster", the
+next saveA() writes that over his mule map, and a records persist writes an empty vault over the last good records.
+FIX: load() is the shape door too (_loadParsed + _muleShape in ⟦VAULT HOLD⟧): a roster that is not a list of mules with ids, or a
+mule map that is not a map, is marked like a parse failure, quarantined (REG-2410), and the module runs on the default roster / an
+empty map. THE HOLD: while d2r_owned, the roster, the mule map or the copy counts is quarantined or held, saveA() refuses, the render
+prune drops nothing, _vaultRecordsPersist/_vaultRecordsRefresh persist nothing and mark nothing dirty, persistOwned does not call a
+refused write a write, + Add an item refuses in words before anything is touched, the frame doors (vaultIntake, tvVaultRegister and
+tvVaultAutoIntake share _vaultIntakeGate) read nothing in - a frame read into a refusing store would also be marked read and never
+offered again - and the population line says owned UNKNOWN, never 0.
+A reset pressed while the vault is held says "could not clear" for each part the door kept. "Start it fresh" on the roster keeps one
+mule for every mule id his map still names, so no filing is orphaned.
+GUARD: tv/test_a_wrong_shaped_mule_store_never_stops_the_vault.py (11 RED proofs, heart2 11/11 PROVEN); the whole-page boot over {} is
+tests/reg2410_stores_never_bricked.spec.ts on CI.
+
+### REG-2410 - ONE BAD SAVED VALUE BRICKED THE PAGE, AND A STORE THAT WOULD NOT PARSE WAS READ AS EMPTY AND WRITTEN OVER (#152 items 2-3, vault batch V1)
+
+GrokBot's sweep (#230, 10-21, cov*.py), unchanged on v3784: d2r_owned saved as {"a":1} made `let owned = new Set(...)` throw "object
+is not iterable", so `owned`, `multiKeep` and every name declared after it in the main script never existed: "owned is not defined",
+the vault dead on every reload. The quiet half was older: _safeJsonParse handed back the default for bytes that would not parse, and
+the next persist() wrote that default over them. The mule store (_muleUnread, 2026-09-29) and the records store (REG-2272) each had a
+private refusal; the twenty stores persist() writes back had none.
+FIX: one door. window.LSR (the router every writer already uses) gains quarantine(k, why): the exact bytes are copied to
+<world prefix>d2r_quarantine~<key>~<hash> (content-addressed: a reload never writes a second copy, two bad copies never share a
+slot) and read back, and from then on setItem and removeItem of that key answer false - whoever calls them - so persist() still writes
+the other stores. release() lets go only while the bytes are kept aside, or once they are no longer the bytes in the key. Every boot
+loader of a store persist() writes back now reads `_storeRead(kind, fallback).getItem(key)`: absent is a fresh store, a parse failure
+or the wrong container is quarantined, and the page runs on the default in memory. ⟦STORE NOTICE⟧ says each held store on every tab:
+which store in his words, why, where the bytes are kept, how many writes were refused, and the ways out - a backup restore (which now
+lets go of a quarantine kept aside, and names one it could not) or "Start it fresh" (asks first, keeps the bytes aside, reloads;
+the roster waits while the mule map is quarantined too, and the owned confirm says a filing stays only where a sighting witnessed it).
+Container shape only: a list with one odd element still reads. His real store was read from a copy before this was written: every one
+of these stores holds the right container, so nothing of his is quarantined by it.
+GUARD: tv/test_a_store_that_will_not_read_is_kept_aside.py (9 RED proofs, heart2 9/9 PROVEN), driving the shipped door, readers,
+persist(), notice and restore in node; tests/reg2410_stores_never_bricked.spec.ts boots the whole page over {"a":1} on CI.
+A Wipe or a reset pressed while a store is quarantined leaves that store as it is, and its receipt says "could not clear" for each
+part the door kept (without that check it would have reported a clean reset: persistOwned swallows a refused write); the notice's
+Start it fresh is the way to empty it.
+LEFT: rebuilding a corrupt d2r_owned from the last good records store is possible and not built.
+
 ### REG-2392 - A PUSH-SCOPE LAW'S THROWAWAY GIT REPO RE-INITIALISED THE REAL ONE AS BARE (v3784 push, GIT_DIR leak)
 
 2026-10-22 07:48, the first v3784 push. test_a_proven_verdict_is_reused_only_on_identical_bytes entered the push scope because Push A1
