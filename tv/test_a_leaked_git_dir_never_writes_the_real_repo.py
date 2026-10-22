@@ -336,19 +336,43 @@ def _reexports(src, first_line, names):
     The forms bash itself assigns or exports with: NAME= / NAME+= (a plain assignment, a `NAME=... cmd` prefix, `env
     NAME=...`, `${NAME=...}` / `${NAME:=...}`); export / declare / typeset / local / readonly naming it; read /
     printf -v / mapfile naming it. Strings are read too - `env "GIT_DIR=$x" cmd` and `eval "export GIT_DIR=..."` are
-    real re-exports. Its reach, stated: a name built at run time (`v=GIT_DIR; export "$v=..."`) is not seen."""
+    real re-exports. REG-2552 (GB-L, second eye on 8ddee4d1): a name SPLIT by quotes (`export GIT_D''IR=...`, bash
+    joins the parts into GIT_DIR) is read on the code with its quote characters dropped, and a name held in a
+    variable (`_n=GIT_DIR; export "$_n=..."`, `for _v in GIT_DIR; do export "${_v}=..."`) is followed: a variable
+    whose value or loop list names a pointer, then exported, declared, read or printf -v'd through `$_n` / `${_n}`.
+    Its reach, stated: a name assembled from parts at run time (`a=GIT_; export "${a}DIR=..."`) is not seen."""
     alt = "|".join(re.escape(x) for x in sorted(names, key=len, reverse=True))
     forms = (("assigns", re.compile(r"(?<![\w$])(%s)[+:]?=" % alt)),
              ("exports", re.compile(r"\b(?:export|declare|typeset|local|readonly)\b[^\n;&|]*?(?<![\w${])(%s)\b" % alt)),
              ("reads into", re.compile(r"\b(?:read|printf[ \t]+-v|mapfile|readarray)\b[^\n;&|]*?(?<![\w${])(%s)\b"
                                        % alt)))
     code, pos, heredocs, still_open = _shell_code(src)
+    # REG-2552 - the code as bash sees a WORD after quote removal: every ' and " dropped, so GIT_D''IR reads GIT_DIR
+    keep = [k for k, ch in enumerate(code) if ch not in "'\""]
+    bare = "".join(code[k] for k in keep)
+    bpos = [pos[k] for k in keep]
     lines = src.split("\n")
     hits = set()
     for form, rx in forms:
-        for m in rx.finditer(code):
-            at = src.count("\n", 0, pos[m.start(1)])
+        for m in rx.finditer(bare):
+            at = src.count("\n", 0, bpos[m.start(1)])
             hits.add((first_line + at, form, m.group(1), lines[at].strip()[:160]))
+    # REG-2552 - a pointer named through a variable: bound by `v=NAME` or `for v in ... NAME ...`, then used as the
+    # name of an export / declare / read / printf -v / assignment through $v or ${v}
+    held = {}
+    for m in re.finditer(r"(?<![\w$])([A-Za-z_]\w*)=(%s)(?![\w])" % alt, bare):
+        held.setdefault(m.group(1), m.group(2))
+    for m in re.finditer(r"\bfor[ \t]+([A-Za-z_]\w*)[ \t]+in\b([^;\n]*)", bare):
+        named = [w for w in m.group(2).split() if w in names]
+        if named:
+            held.setdefault(m.group(1), named[0])
+    for var, name in held.items():
+        ref = r"\$(?:\{%s\}|%s\b)" % (re.escape(var), re.escape(var))
+        rx = re.compile(r"(?:\b(?:export|declare|typeset|local|readonly|read|printf[ \t]+-v|mapfile|readarray|eval|env)\b"
+                        r"[^\n;&|]*?%s|%s[+]?=)" % (ref, ref))
+        for m in rx.finditer(bare):
+            at = src.count("\n", 0, bpos[m.start()])
+            hits.add((first_line + at, "exports via $%s" % var, name, lines[at].strip()[:160]))
     return sorted(hits), code, heredocs, still_open
 
 
@@ -547,6 +571,15 @@ _REACH = (
     ('cat <<"EOF"\nit\'s data\nEOF\nexport GIT_DIR=/tmp/x\n', True),
     ("cat <<\\EOF\nit's data\nEOF\nexport GIT_DIR=/tmp/x\n", True),
     ("cat <<-EOF\n\tit's data\n\tEOF\nexport GIT_DIR=/tmp/x\n", True),        # <<- : the delimiter line is tab-indented
+    # REG-2552 - a name split by quotes, and a name held in a variable
+    ("export GIT_D''IR=/tmp/x\n", True),
+    ('env "GIT_D"IR=/tmp/x git log\n', True),
+    ("declare -x 'GIT_WORK'_TREE=/tmp/x\n", True),
+    ('_n=GIT_DIR; export "$_n=/tmp/x"\n', True),
+    ('_n="GIT_INDEX_FILE"\nprintf -v "$_n" %s /tmp/i\n', True),
+    ('for _v in GIT_WORK_TREE GIT_DIR; do export "${_v}=/tmp/x"; done\n', True),
+    ('_n=GIT_DIR; echo "$_n is what git hands a hook"\n', False),
+    ('for _v in GIT_DIR GIT_WORK_TREE; do unset "$_v"; done\n', False),
     ("# export GIT_DIR=/tmp/x\n", False),
     ("echo ok  # GIT_DIR=/tmp/x is what git hands a hook\n", False),
     ('echo "TV_PUSHED_GIT_DIR=$TV_PUSHED_GIT_DIR"\nexport TV_PUSHED_GIT_DIR\n', False),
@@ -835,6 +868,22 @@ RED_PROOF = [
         "file": "hooks/pre-push",
         "find": "# <<< scrub-git-env\n",
         "replace": "# <<< scrub-git-env\nexport GIT_DIR=/tmp/x\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2552 - the reader stops dropping quote characters: `export GIT_D''IR=...` (bash joins it into GIT_DIR) "
+               "reads clean again",
+        "file": "tv/test_a_leaked_git_dir_never_writes_the_real_repo.py",
+        "find": "    keep = [k for k, ch in enumerate(code) if ch not in \"'\\\"\"]\n",
+        "replace": "    keep = list(range(len(code)))\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2552 - the reader stops following a pointer held in a variable: `_n=GIT_DIR; export \"$_n=...\"` reads "
+               "clean again",
+        "file": "tv/test_a_leaked_git_dir_never_writes_the_real_repo.py",
+        "find": "        held.setdefault(m.group(1), m.group(2))\n",
+        "replace": "        pass\n",
         "matches": 1,
     },
     {
