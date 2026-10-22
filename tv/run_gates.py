@@ -11049,6 +11049,14 @@ GATES = [
              "lane never ran. The boot step asks node_runtime.ensure(blocking=False) once on Windows - never off "
              "Windows or on a scratch console - and an import failure, a raise or a non-record is UNKNOWN while boot "
              "goes on. Driven with a stand-in node_runtime; main() starts the step."),
+    Gate("test_a_sweep_holds_the_pc_awake_only_while_it_runs",
+         [sys.executable, os.path.join(HERE, "test_a_sweep_holds_the_pc_awake_only_while_it_runs.py")], 60,
+         needs_app=False,
+         why="REG-2466 (#170) - Dean's laptop slept mid-proof, and nothing held a PC awake while work ran. His ruling: "
+             "only while working. The vault and chronicle sweeps run inside keep_awake.held(why), entered at the "
+             "sweep's start and left at its end - after a return, a failure the sweep catches, or a crash that "
+             "escapes it (not swallowed); with no keep_awake the sweep runs and the record says NOT held. Driven "
+             "with a stand-in keep_awake, the sweeps in a fixture world stopped at their first step."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

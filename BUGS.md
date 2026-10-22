@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2466 - NOTHING HELD A PC AWAKE WHILE A SWEEP RAN (#170, the console's half)
+
+Dean's laptop slept in the middle of a proof (2026-10-21). Measured on his PC 2026-10-22 (read-only powercfg): standby never on AC or battery, hibernate after 7,200 s on battery only, and that day's drop was a lid close (Kernel-Power 42 "Button or Lid") - so a hold matters on battery and never overrides a lid. Low value for Dean, ruled anyway: "YES, ONLY WHILE WORKING" (no display hold, no powercfg change).
+
+FIX: control_app's vault and chronicle sweep runners (`_vault_sweep_run`, `_chron_sweep_run`) run inside `_SweepHold` (a decorator; their bodies are unchanged), which enters tv/keep_awake.py's `held(why)` (Track C: this thread, the with-block, never raises) when the sweep starts and leaves it when the sweep ends - by a return, by a failure the sweep catches, or by a crash that escapes it, which is not swallowed. Without keep_awake the sweep runs unheld and SAYS so: `KEEP_AWAKE_LAST` every time, the log once per process.
+
+GUARD: tv/test_a_sweep_holds_the_pc_awake_only_while_it_runs.py (registered), with a stand-in keep_awake and the sweeps in a fixture world stopped at their first step: each sweep is held from its start to its end; a failure inside and a crash that escapes both let go (the crash is re-raised); no keep_awake runs the sweep and records "NOT held". RED proofs: either sweep unheld; a crash never letting go.
+
+LEFT: tv/keep_awake.py is Track C's; until it lands every sweep records "NOT held". The heart2 proof runs (the other half of "a proof/sweep") are not wrapped here - heart2 is not in this change.
+
 ### REG-2465 - A WINDOWS CONSOLE NEVER ASKED FOR NODE, SO A PC WITHOUT IT STAYED WITHOUT IT (#167, the console's half)
 
 Measured on Dean's PC (by the agent, 2026-10-21/22): no node on PATH. Every node-only law skipped there (heart2 asks PATH), the eagle's 'their tooltip rows' read "node absent ... the composition was NOT run" for 14 days, and the subscription intake lane - which spawns a bare `node` - never ran, so his reads went to the hosted site. Node was put there by hand over SSH (2026-10-22). His ruling 2026-10-21: "BOTH" - the installer and the console's own dependency step fetch Node on every PC. A self-updated console never re-runs the installer (REG-1260, the Pillow lesson), so the console must ask for itself.

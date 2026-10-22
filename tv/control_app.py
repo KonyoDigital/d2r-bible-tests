@@ -35944,6 +35944,64 @@ def vault_sweep_start(hist_dir=None, limit=None, force=False, reel_dir=None):
     return {"ok": True, "started": True, "lanes": lanes}
 
 
+#: REG-2466 (#170) — the last sweep's keep-awake hold on this PC: {what, held, why, ts}. None until a sweep has run.
+KEEP_AWAKE_LAST = None
+
+
+class _SweepHold(object):
+    """REG-2466 (#170) — THIS PC STAYS AWAKE WHILE A SWEEP RUNS, AND ONLY THEN. His ruling 2026-10-21: "YES, ONLY
+    WHILE WORKING" (Dean's laptop slept mid-proof).
+
+    Enters tv/keep_awake.py's `held(why)` (Track C: this thread, for the with-block; never raises - on Windows
+    SetThreadExecutionState(ES_CONTINUOUS|ES_SYSTEM_REQUIRED), no display hold, no powercfg change) when the sweep
+    starts, and leaves it when the sweep ends - by a return or a raise alike, so a crash never leaves the PC held.
+    Without keep_awake it holds nothing and SAYS so: on KEEP_AWAKE_LAST every time, in the log once per process."""
+    _said = set()
+
+    def __init__(self, what):
+        self.what, self.cm = what, None
+
+    def __enter__(self):
+        rec = {"what": self.what, "held": False, "why": None, "ts": int(time.time() * 1000)}
+        try:
+            import keep_awake as _ka
+            cm = _ka.held("%s running" % self.what)
+            cm.__enter__()
+            self.cm = cm
+            rec.update(held=True, why="this PC is held awake for the %s" % self.what)
+        except Exception as e:
+            rec["why"] = ("NOT held - keep_awake is unavailable (%s: %s), so this PC may sleep in the middle of the %s"
+                          % (type(e).__name__, str(e)[:100], self.what))
+            if self.what not in _SweepHold._said:
+                _SweepHold._said.add(self.what)
+                print("\u26a0 %s" % rec["why"], flush=True)
+        globals()["KEEP_AWAKE_LAST"] = rec
+        return rec
+
+    def __exit__(self, et, ev, tb):
+        cm, self.cm = self.cm, None
+        if cm is not None:
+            try:
+                cm.__exit__(et, ev, tb)
+            except Exception:
+                pass
+        return False                  # the sweep's own raise is never swallowed here
+
+
+def _held_awake(what):
+    """REG-2466 - run a sweep inside _SweepHold(what). A decorator, so the sweep's own body is unchanged."""
+    import functools as _functools
+
+    def _deco(fn):
+        @_functools.wraps(fn)
+        def _run(*a, **k):
+            with _SweepHold(what):
+                return fn(*a, **k)
+        return _run
+    return _deco
+
+
+@_held_awake("vault sweep")
 def _vault_sweep_run(hist_dir, limit, force=False, reel_dir=None):
     try:
         # REG-2159 — a thread that got past the door (the switch moved) still does not read.
@@ -40654,6 +40712,7 @@ def _chron_live_lane_pages(limit=2000):
         return []
 
 
+@_held_awake("chronicle sweep")
 def _chron_sweep_run(hist_dir, limit, force=False, reel_id=None):
     try:
         # REG-2159 — a thread that got past the door still does not read, and does not seal.
