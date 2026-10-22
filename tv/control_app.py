@@ -31521,8 +31521,8 @@ def _vault_cool(rid, why="", now_ms=None):
     try:
         n = int(old.get("barren") or 0) if str(old.get("promptVer") or "") == ver else 0
     except (TypeError, ValueError):
-        n = 0
-    n += 1
+        n = None   # #188 CI: an unreadable count is UNKNOWN, not zero - it must not reset the backoff to 6 h
+    n = 11 if n is None else n + 1   # unknown -> the longest wait (the 7-day cap), never a fresh short one
     wait = min(_VAULT_COOL_MAX_MS, _VAULT_COOL_BASE_MS * (2 ** min(n - 1, 10)))
     e = {"until": now + wait, "at": now, "barren": n, "promptVer": ver, "why": str(why or "")[:200]}
     c[rid] = e
