@@ -4252,6 +4252,15 @@ window.D2R_PROFILE = (function(){ try { return window.localStorage.getItem(windo
 // built in v1633 with a union migration and REVERTED because the merge could not survive a reload
 // (the board re-derives from the ledger). Nobody try it a fourth time.
 window._LP_FORKED = new Set([
+  /* #114 - THE D2JSP DESK KEEPS ONE TRADE LIST PER PROFILE. Main posts to board 268 and ladder to board 271, and
+     ladder is a separate item pool. Bare, the two profiles shared one saved topic: a post on main, then on ladder, then
+     on main again put a second topic on board 268 while the first was live, and a price typed for 268 filled a 271
+     draft. NO MIGRATION BETWEEN PROFILES: main keeps the bare values it holds today and ladder starts empty, because
+     copying main filings or prices onto board 271 would list another pool on that board. A guest world wrote these
+     bare too, so its main copies them once into its own namespace (the desk does it, see D2JSP_FORKED_KEYS).
+     This block sits first so a vault key appended at the end of the Set never meets it. NO apostrophe and no
+     double quote inside this note, by the rule documented further down. [[d2r-ladder-doctrine]] */
+  'd2r_d2jsp_topic', 'd2r_d2jsp_fg', 'd2r_d2jsp_sold', 'd2r_d2jsp_hide', 'd2r_d2jsp_gear', 'd2r_d2jsp_mods',
   /* ══ v2706 — A SNAPSHOT OF PER-PROFILE DATA IS ITSELF PER-PROFILE ═══════════════════════
      d2r_unseedBackup captures d2r_foundLog, d2r_owned, d2r_setPieces, d2r_rwMade and
      d2r_rwVerify — and EVERY ONE of those five is in this set. The snapshot key was not, so it
@@ -11268,6 +11277,8 @@ html[data-active-tab="vault"] #shortcut-hint{z-index:20} /* v3771 hint under vau
 /* ⟦D2JSP DESK BEGIN⟧ */
 var D2JSP_BOARD = 268;
 var D2JSP_LADDER_BOARD = 271;
+/* #114 - the desk's own stores, each forked per profile in window._LP_FORKED */
+var D2JSP_FORKED_KEYS = ['d2r_d2jsp_topic', 'd2r_d2jsp_fg', 'd2r_d2jsp_sold', 'd2r_d2jsp_hide', 'd2r_d2jsp_gear', 'd2r_d2jsp_mods'];
 function d2jspBoard(){
   var profile = '';
   try { profile = (typeof window !== 'undefined' && window.D2R_PROFILE) ? String(window.D2R_PROFILE) : ''; } catch (eBoard) { profile = ''; }
@@ -11293,6 +11304,53 @@ function d2jspPriceToSend(quoted, typed) {
   }
   var q = Number(quoted);
   return (q > 0) ? q : null;
+}
+/* #113 — THE PUBLIC PRICE IS READ ON ANOTHER BOARD. A reading comes from board 243, D2:R Switch Ladder Trading
+   (d2jsp_chrome.py QUOTE_BOARD and functions/api/d2jsp_quote.js both search there), and a post goes to board 268 or 271.
+   The quote function's own header calls them different economies. So a reading is the post price only when it was
+   read on the board the post goes to; any other reading is shown under its own board's name and he types the price.
+   d2jspPriceToSend keeps its own contract: it is handed this answer, never the raw reading. A reading that names no
+   board is on no board. [[unknown-stays-unknown]] */
+function d2jspQuotedForBoard(q, board) {
+  if (!q || typeof q !== 'object') return null;
+  var on = Number(q.board);
+  if (!(on > 0) || on !== Number(board)) return null;
+  var fg = Number(q.fg);
+  return (fg > 0) ? fg : null;
+}
+/* the sentence under a reading that is not this post's price: why the post waits for his number */
+function d2jspPriceNote(q, board) {
+  q = q || {};
+  if (q.reason !== 'read' || !(Number(q.fg) > 0)) return '';
+  if (d2jspQuotedForBoard(q, board) != null) return '';
+  return (Number(q.board) > 0)
+    ? ('This post goes to board ' + board + ', a different economy, so it does not carry that price. Type your own.')
+    : ('The board that reading came from is not on record, so the post does not carry it. Type your own.');
+}
+/* #106 — the answers the console's /api/d2jsp_send can give (the contract tv/d2jsp_chrome.py keeps). Each has its own
+   words in sendWords, under the room's click handler. */
+var D2JSP_SEND_REASONS = ['submitted', 'already-posted', 'maybe-sent', 'maybe-sent-recently', 'busy', 'not-posted', 'unread',
+  'chrome-start', 'chrome-unread', 'need-login', 'form-unknown', 'wrong-board', 'no-price', 'title', 'long', 'origin'];
+/* the board a send answer is about: the console's word when it names a post board, else the board this page asked for */
+function d2jspPostBoard(said, asked) {
+  var n = Number(said);
+  if (n === D2JSP_BOARD || n === D2JSP_LADDER_BOARD) return n;
+  n = Number(asked);
+  return (n === D2JSP_BOARD || n === D2JSP_LADDER_BOARD) ? n : d2jspBoard();
+}
+function d2jspForumUrl(board) {
+  var n = Number(board);
+  return (n === D2JSP_BOARD || n === D2JSP_LADDER_BOARD) ? ('https://forums.d2jsp.org/forum.php?f=' + n) : '';
+}
+/* when the console says a post went out: a time it sent, as it sent it; seconds or milliseconds become a UTC stamp */
+function d2jspAtText(at) {
+  if (at == null || at === '') return '';
+  if (typeof at === 'number') {
+    if (!(at > 0) || !isFinite(at)) return '';
+    var d = new Date(at > 1e12 ? at : at * 1000);
+    return isNaN(d.getTime()) ? '' : d.toISOString();
+  }
+  return String(at).slice(0, 40);
 }
 function d2jspPostLine(row) {
   var t = String(row == null ? '' : row)
@@ -11525,13 +11583,16 @@ function d2jspPriceLine(q) {
   q = q || {};
   if (q.reason === 'read' && Number(q.fg) > 0) {
     var when = q.readAt ? (', read ' + q.readAt) : '';
+    /* #113 - the line names the board the reading came from (243 is D2:R Switch Ladder Trading) */
+    var on = Number(q.board) > 0 ? Number(q.board) : 0;
+    var head = on ? ('Board ' + on + (on === 243 ? ' (D2:R Switch Ladder Trading)' : '')) : 'Public';
     var low = Number(q.low);
     var high = Number(q.high);
     if (q.n > 1 && low > 0 && high > 0 && low !== high) {
-      return 'Public range ' + low + '\u2013' + high + ' fg, middle ' + q.fg + ', from ' + q.n + ' prices' + when + '.';
+      return head + ' range ' + low + '\u2013' + high + ' fg, middle ' + q.fg + ', from ' + q.n + ' prices' + when + '.';
     }
     var n = q.n > 0 ? q.n : 1;
-    return 'Public price ' + q.fg + ' fg, from ' + n + ' ' + (n === 1 ? 'price' : 'prices') + when + '.';
+    return head + ' price ' + q.fg + ' fg, from ' + n + ' ' + (n === 1 ? 'price' : 'prices') + when + '.';
   }
   if (q.reason === 'need-login') return 'Public price unknown. The forum search needs the Chrome login on this machine.';
   if (q.readAt) return 'Public price unknown. The reading at ' + q.readAt + ' returned no fg number.';
@@ -11559,6 +11620,23 @@ function d2jspPriceLine(q) {
     try { if (typeof LS !== 'undefined' && LS && LS.getItem) return LS; } catch (e) {}
     try { return localStorage; } catch (e2) { return null; }
   }
+  /* #114 - the six desk keys fork per profile (_LP_FORKED). The owner main reads them bare, as it always did, and a
+     ladder starts empty. A GUEST world wrote them bare before the fork, and its main now reads them under the install
+     prefix, so its own filings, prices and saved topic would vanish and the next list post would start a second
+     topic. Its main copies each bare value once into its own key, only where that key is still empty. Never a ladder,
+     never the owner, never over a value already there. */
+  (function(){
+    try {
+      var R = window.LSR;
+      if (!R || !R.raw || typeof R.key !== 'function' || window._D2R_OWNER || window.D2R_PROFILE === 'ladder') return;
+      D2JSP_FORKED_KEYS.forEach(function(k){
+        var to = R.key(k);
+        if (to === k || R.raw.getItem(to) != null) return;   // raw-ok: reads the bare key this guest world wrote before #114 forked it
+        var was = R.raw.getItem(k);   // raw-ok: the same pre-fork bare value, copied into this world only
+        if (was != null) R.raw.setItem(to, was);   // raw-ok: written under this guest main prefix, never the bare key
+      });
+    } catch (eAdopt) {}
+  })();
   function readMap(key){
     var s = store();
     if (!s) return {};
@@ -11646,6 +11724,10 @@ function d2jspPriceLine(q) {
     var v = readMap('d2r_d2jsp_fg')[name];
     return (v == null) ? '' : String(v);
   }
+  /* #113 - the price a post may carry: his typed number, or a reading taken on the board this post goes to */
+  function sendOf(name){
+    return d2jspPriceToSend(d2jspQuotedForBoard(quoted[name], d2jspBoard()), typedOf(name));
+  }
   function soldOf(name){
     var v = readMap('d2r_d2jsp_sold')[name];
     return v === 1 || v === true;
@@ -11681,7 +11763,7 @@ function d2jspPriceLine(q) {
       var n = rows[i];
       items.push({
         name: n, base: baseOf(n), mods: modsOf(n), copies: copiesOf(n),
-        fg: d2jspPriceToSend((quoted[n] || {}).fg, typedOf(n)), sold: soldOf(n)
+        fg: sendOf(n), sold: soldOf(n)
       });
     }
     var draft = d2jspShopDraft(items);
@@ -11761,7 +11843,7 @@ function d2jspPriceLine(q) {
     return out;
   }
   function priceText(n){
-    if (quoted[n]) return d2jspPriceLine(quoted[n]);
+    if (quoted[n]) { var note = d2jspPriceNote(quoted[n], d2jspBoard()); return d2jspPriceLine(quoted[n]) + (note ? (' ' + note) : ''); }
     if (reading) return 'Reading the public price.';
     return 'Public price unknown.';
   }
@@ -11769,7 +11851,7 @@ function d2jspPriceLine(q) {
     var art = d2jspArt(n);
     var base = baseOf(n);
     var mods = modsOf(n);
-    var send = d2jspPriceToSend((quoted[n] || {}).fg, typedOf(n));
+    var send = sendOf(n);
     var sold = soldOf(n);
     var draft = d2jspItemBlock(n, base, mods, copiesOf(n), send, sold);
     var postText = draft.ok ? draft.body : mods;
@@ -11824,7 +11906,7 @@ function d2jspPriceLine(q) {
       var n = card && card.getAttribute('data-d2jsp-item');
       if (!n) continue;
       nodes[i].textContent = priceText(n);
-      var send = d2jspPriceToSend((quoted[n] || {}).fg, typedOf(n));
+      var send = sendOf(n);
       var sold = soldOf(n);
       var btn = card.querySelector('[data-d2jsp-post]');
       if (btn) btn.disabled = send == null || sold;
@@ -11960,10 +12042,18 @@ function d2jspPriceLine(q) {
   window._d2jspShow = function(){
     var boardLine = document.getElementById('d2jsp-board');
     if (boardLine) boardLine.textContent = d2jspBoardSay();
+    ladderNotice();
     paint();
     refreshQuotes();
     d2jspLamp();
   };
+  /* #114 - said once a session, the first time the room opens on ladder: its list is its own */
+  var ladderSaid = false;
+  function ladderNotice(){
+    if (ladderSaid || d2jspBoard() !== D2JSP_LADDER_BOARD) return;
+    ladderSaid = true;
+    say('Ladder keeps its own trade list, prices and saved topic for board 271. Main filings stay on main, because ladder is a separate item pool.');
+  }
   var held = null;
   var editing = '';
   function plannerHost(){
@@ -12166,8 +12256,7 @@ function d2jspPriceLine(q) {
         say(post + ' is marked sold. Post the list to publish that update.');
         return;
       }
-      var q = quoted[post] || {};
-      var fg = d2jspPriceToSend(q.fg, typedOf(post));
+      var fg = sendOf(post);
       var draft = d2jspDraft(post, baseOf(post), modsOf(post), copiesOf(post), fg);
       if (!draft.ok) { say('Forum gold is unknown, so this item is not posted.'); closeDraft(); return; }
       if (t.getAttribute('data-d2jsp-send') !== '1') {
@@ -12211,31 +12300,15 @@ function d2jspPriceLine(q) {
           showReceipt('missed', 'This console has not loaded the Chrome connection, so nothing was posted.', '');
           return;
         }
-        var reason = j.reason;
-        if (j.ok && reason === 'submitted') {
-          say(d2jspBoardSay('posted'));
-          showReceipt('confirmed', d2jspBoardSay('accepted'), j.topic);
+        var w = sendWords(j, draft.forum, false);
+        if (w.kind === 'confirmed') {
+          say(w.say);
+          showReceipt('confirmed', w.text, w.topic);
           return;
         }
-        var missed = 'The board did not confirm the post, so nothing was posted.';
-        if (reason === 'need-login') {
-          missed = j.opened
-            ? 'Chrome is not logged into d2jsp. The login page is open in Chrome. Nothing was posted.'
-            : 'Chrome is not logged into d2jsp, so nothing was posted.';
-        } else if (reason === 'chrome-unread') {
-          missed = 'This machine could not read the Chrome login, so nothing was posted.';
-        } else if (reason === 'wrong-board') {
-          missed = d2jspBoardSay('wrong');
-        } else if (reason === 'no-price') {
-          missed = 'Forum gold is unknown, so this item is not posted.';
-        } else if (reason === 'title') {
-          missed = 'The board title holds 50 characters, so nothing was posted.';
-        } else if (reason === 'long') {
-          missed = 'The post is longer than the board accepts, so nothing was posted.';
-        }
         d2jspLamp();
-        say(missed);
-        showReceipt('missed', missed, '');
+        say(w.text);
+        showReceipt(w.kind, w.text, w.link);
       }).catch(function(){
         settle();
         say('This console has not loaded the Chrome connection, so nothing was posted.');
@@ -12244,6 +12317,60 @@ function d2jspPriceLine(q) {
       return;
     }
   });
+  /* ⟦D2JSP SEND WORDS BEGIN⟧ */
+  /* #106 — WHAT THE CONSOLE ANSWERED, IN THIS ROOM'S OWN WORDS, ONE MAP FOR BOTH SEND PATHS (one item, the list).
+     The two paths each kept a copy of this map, and both fell back to "The board did not confirm the post, so nothing
+     was posted." for every reason they did not name — the console's MAYBE-SENT and its busy lock included. A post the
+     board may already hold is never called unsent: that sentence is what sends the second click and the second topic
+     (GrokBot's two live Post attempts both read as failures). Every reason in the console's contract
+     (D2JSP_SEND_REASONS, desk block) has its own words here; an answer this page does not know is a maybe, never a no.
+     kind: confirmed | maybe | missed, which the receipt heads Confirmed / Maybe sent / Not sent.
+     [[unknown-stays-unknown]] [[copy-drift]] */
+  function sendWords(j, board, updating){
+    j = j || {};
+    var reason = String(j.reason || '');
+    var n = d2jspPostBoard(j.board, board);
+    var at = d2jspAtText(j.at);
+    var check = 'Check board ' + n + ' before you post again.';
+    var link = d2jspForumUrl(n);
+    if (j.ok && reason === 'submitted') return { kind: 'confirmed', text: d2jspBoardSay('accepted'), say: d2jspBoardSay('posted'), topic: j.topic };
+    if (reason === 'already-posted') {
+      var was = 'This post is already on board ' + n + (at ? (', sent ' + at) : '') + '. This click posted nothing new.';
+      return { kind: 'confirmed', text: was, say: was, topic: j.topic };
+    }
+    if (reason === 'maybe-sent') return { kind: 'maybe', text: 'The board may already have this post' + (at ? (' (sent ' + at + ')') : '') + '. ' + check, link: link };
+    if (reason === 'maybe-sent-recently') return { kind: 'maybe', text: 'A post like this went to the board ' + (at ? ('at ' + at) : 'a moment ago') + ' and may already be up. ' + check, link: link };
+    if (reason === 'busy') return { kind: 'missed', text: 'Another post from this console is still being sent. This click started no second post.' };
+    var missed = '';
+    if (reason === 'not-posted') {
+      missed = updating ? 'The saved topic could not be updated, so nothing new was posted.' : 'The board did not confirm the post, so nothing was posted.';
+    } else if (reason === 'unread') {
+      missed = 'The d2jsp page did not answer before the post was submitted, so nothing was posted.';
+    } else if (reason === 'chrome-start') {
+      missed = 'Chrome did not start on this machine' + (j.why ? (' (' + String(j.why).slice(0, 120) + ')') : '') + ', so nothing was posted.';
+    } else if (reason === 'chrome-unread') {
+      missed = 'This machine could not read the Chrome login, so nothing was posted.';
+    } else if (reason === 'need-login') {
+      missed = j.opened
+        ? 'Chrome is not logged into d2jsp. The login page is open in Chrome. Nothing was posted.'
+        : 'Chrome is not logged into d2jsp, so nothing was posted.';
+    } else if (reason === 'form-unknown') {
+      missed = 'The d2jsp form was not the one this console knows, so nothing was posted.';
+    } else if (reason === 'wrong-board') {
+      missed = d2jspBoardSay('wrong');
+    } else if (reason === 'no-price') {
+      missed = 'Forum gold is unknown, so nothing was posted.';
+    } else if (reason === 'title') {
+      missed = 'The board title holds 50 characters, so nothing was posted.';
+    } else if (reason === 'long') {
+      missed = 'The post is longer than the board accepts, so nothing was posted.';
+    } else if (reason === 'origin') {
+      missed = 'The console takes a post only from its own page, so nothing was posted.';
+    }
+    if (missed) return { kind: 'missed', text: missed };
+    return { kind: 'maybe', text: 'The console answered ' + (reason ? ('"' + reason.slice(0, 40) + '"') : 'with no reason') + ', which this page does not know, so the post may be up. ' + check, link: link };
+  }
+  /* ⟦D2JSP SEND WORDS END⟧ */
   document.addEventListener('input', function(ev){
     var t = ev.target;
     if (!t || !t.getAttribute) return;
@@ -12384,7 +12511,7 @@ function d2jspPriceLine(q) {
     host.hidden = false;
     host.innerHTML = '<div class="d2jsp-draft-box" role="dialog" aria-modal="true" aria-label="Draft post">'
       + '<p class="d2jsp-draft-k">Draft</p>'
-      + '<p class="d2jsp-say">This is a demonstration of the post. Nothing was posted.</p>'
+      + '<p class="d2jsp-say">This is the draft. Nothing posts until Post this draft.</p>'
       + (draft.shop ? '<p class="d2jsp-say">Each item is one block. Sold items follow, marked SOLD.</p>' : '')
       + (draft.topic ? '<p class="d2jsp-say">This updates the topic already posted.</p>' : '')
       + '<p class="d2jsp-say">Board ' + esc(draft.forum) + '.</p>'
@@ -12402,13 +12529,15 @@ function d2jspPriceLine(q) {
     if (back){ try { back.focus(); } catch (eFocus) {} }
     d2jspMountShots(host, draft);
   }
-  function showReceipt(kind, detail, topic){
+  function showReceipt(kind, detail, url){
     var host = draftHost();
     var safe = '';
-    if (typeof topic === 'string' && topic.indexOf('https://forums.d2jsp.org/topic.php') === 0) safe = topic;
-    var head = kind === 'confirmed' ? 'Confirmed' : 'Not sent';
+    if (typeof url === 'string' && url.indexOf('https://forums.d2jsp.org/topic.php') === 0) safe = url;
+    /* #106 - a maybe links the board it may be on, so he can look before a second click */
+    if (kind === 'maybe' && url && (url === d2jspForumUrl(D2JSP_BOARD) || url === d2jspForumUrl(D2JSP_LADDER_BOARD))) safe = url;
+    var head = kind === 'confirmed' ? 'Confirmed' : (kind === 'maybe' ? 'Maybe sent' : 'Not sent');
     var link = safe
-      ? '<p class="d2jsp-say">The topic</p><p class="d2jsp-draft-subject"><a href="' + esc(safe) + '" target="_blank" rel="noopener">' + esc(safe) + '</a></p>'
+      ? '<p class="d2jsp-say">' + (kind === 'maybe' ? 'The board' : 'The topic') + '</p><p class="d2jsp-draft-subject"><a href="' + esc(safe) + '" target="_blank" rel="noopener">' + esc(safe) + '</a></p>'
       : '';
     host.hidden = false;
     host.innerHTML = '<div class="d2jsp-draft-box" role="dialog" aria-modal="true" aria-label="' + esc(head) + '">'
@@ -12534,34 +12663,16 @@ function d2jspPriceLine(q) {
         showReceipt('missed', 'This console has not loaded the Chrome connection, so nothing was posted.', '');
         return;
       }
-      var reason = j.reason;
-      if (j.ok && reason === 'submitted') {
-        if (draft.shop && j.topic) writeTopic(j.topic);
-        say(d2jspBoardSay('posted'));
-        showReceipt('confirmed', d2jspBoardSay('accepted'), j.topic);
+      var w = sendWords(j, draft.forum, !!payload.topic);
+      if (w.kind === 'confirmed') {
+        if (draft.shop && w.topic) writeTopic(w.topic);
+        say(w.say);
+        showReceipt('confirmed', w.text, w.topic);
         return;
       }
-      var missed = 'The board did not confirm the post, so nothing was posted.';
-      if (reason === 'need-login') {
-        missed = j.opened
-          ? 'Chrome is not logged into d2jsp. The login page is open in Chrome. Nothing was posted.'
-          : 'Chrome is not logged into d2jsp, so nothing was posted.';
-      } else if (reason === 'chrome-unread') {
-        missed = 'This machine could not read the Chrome login, so nothing was posted.';
-      } else if (reason === 'wrong-board') {
-        missed = d2jspBoardSay('wrong');
-      } else if (reason === 'no-price') {
-        missed = 'Forum gold is unknown, so this item is not posted.';
-      } else if (reason === 'title') {
-        missed = 'The board title holds 50 characters, so nothing was posted.';
-      } else if (reason === 'long') {
-        missed = 'The post is longer than the board accepts, so nothing was posted.';
-      } else if (reason === 'not-posted' && payload.topic) {
-        missed = 'The saved topic could not be updated, so nothing new was posted.';
-      }
       d2jspLamp();
-      say(missed);
-      showReceipt('missed', missed, '');
+      say(w.text);
+      showReceipt(w.kind, w.text, w.link);
     }).catch(function(){
       settle();
       say('This console has not loaded the Chrome connection, so nothing was posted.');
