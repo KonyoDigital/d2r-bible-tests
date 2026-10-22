@@ -10937,6 +10937,54 @@ GATES = [
          why="R4 (REG-2341) - an unreadable cache was read as empty and rewritten, and a failed merge-read wrote one "
              "run's entries alone. Every write keeps a .prev generation; an unreadable store is renamed aside, the newest "
              "one kept, and .prev stands in at the open and the write - nothing it held is thinned."),
+    Gate("test_a_reload_never_drops_what_he_owns",
+         [sys.executable, os.path.join(HERE, "test_a_reload_never_drops_what_he_owns.py")], 120,
+         needs_app=False,
+         why="REG-2400 (#162 item 1 + #144 item 6) - GrokBot #230 on v3783/v3784: one reload took d2r_owned 272 -> 113, no "
+             "journal row, no undo. The load-time prune read 'no catalogue knows this name' as 'he does not own it' and "
+             "persisted it: rolled-name keepers (Death Loop, Wraith Grasp, Chaotic Grand Charm of Pestilence...) and the "
+             "typed runewords Ancient's Pledge / Breath of the Dying. Now the prune's filter is a question and the owned-load "
+             "doctor answers it: a name it would drop is KEPT, named in window._ownedLoadReceipt, warned and painted on the "
+             "Vault (#vault-owned-kept); only a non-name entry is set aside, and said. The shipped prune runs in node over "
+             "his lost names through two reloads."),
+    Gate("test_a_frame_is_read_again_when_its_item_is_gone",
+         [sys.executable, os.path.join(HERE, "test_a_frame_is_read_again_when_its_item_is_gone.py")], 120,
+         needs_app=False,
+         why="REG-2401 (#162 item 2) - after the reload loss, re-feeding all 292 frames added 0: d2r_intakeSeen keyed the "
+             "skip on 'this file was ever read'. A file that read something now records what it put in the vault, and the "
+             "skip asks whether that is still his: still owned -> skipped; gone with no removal on record -> read again; "
+             "removed by him -> skipped; UNKNOWN -> skipped and said; a legacy mark keeps its old meaning. A re-read never "
+             "counts a second copy, and the folder poll never re-reads on its own. The shipped verdict block runs in node."),
+    Gate("test_grasp_is_a_gloves_suffix",
+         [sys.executable, os.path.join(HERE, "test_grasp_is_a_gloves_suffix.py")], 60,
+         needs_app=False,
+         why="REG-2402 (#162 item 4) - 'Wraith Grasp' routed as 'Wraith + Grasp: ring'. The rolled-name grammar had no "
+             "gloves row; the game's RareSuffix table (RotW) gives hand/fist/claw/clutches/knuckle to gloves and "
+             "grip/grasp/hold/touch/finger to gloves AND ring. The Gloves row is the game's, so Grasp reads 'gloves / "
+             "ring'; routing to MAGIC & RARE is unchanged."),
+    Gate("test_a_scan_reads_what_it_marks",
+         [sys.executable, os.path.join(HERE, "test_a_scan_reads_what_it_marks.py")], 120,
+         needs_app=False,
+         why="REG-2403 (review of REG-2401) - with one gone screenshot waiting, his manual Scan sent two new "
+             "screenshots to the menu, and the menu marked them read before he chose: a '♻ Read again' pick, Skip or a "
+             "closed menu left them never read (v584.1's restart trap, back). Now 1-12 new files are read at once and "
+             "the gone ones are said; the menu marks nothing, a pick writes what it means, merged into the ledger as it "
+             "is; the 12 s poll never reads a gone file. The shipped scan code runs in node over a stubbed folder."),
+    Gate("test_every_removal_door_leaves_his_word",
+         [sys.executable, os.path.join(HERE, "test_every_removal_door_leaves_his_word.py")], 120,
+         needs_app=False,
+         why="REG-2404 + REG-2405 (review of REG-2400/2401) - two of his removal doors wrote no journal row, so a "
+             "re-read brought the item back over his word: the non-grail un-tick, and the socket-count fix (a rename). "
+             "And the Magic & Rare ✕ left the owned name behind, which REG-2400's doctor then kept for good ('1 item you "
+             "own'). Now the un-tick and the ✕ go through the removal door (the ✕'s batch carries the Magic & Rare "
+             "record, so the undo is whole) and the rename rewrites the scan ledger. Each shipped door runs in node."),
+    Gate("test_a_reread_is_the_same_file",
+         [sys.executable, os.path.join(HERE, "test_a_reread_is_the_same_file.py")], 120,
+         needs_app=False,
+         why="REG-2401/2405 (review M2, M4, M5, M7) - promises REG-2401 pinned only by call-site text: vaultIntake reads "
+             "only 'fresh' and 'gone' files, each read is handed what its file read last time, a name the same file "
+             "read never bumps a copy (multi-keep, socketed base, base-copy branch), the Last-scan card says what was "
+             "read again - and a renamed label read again is the renamed item. The shipped intake code runs in node."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

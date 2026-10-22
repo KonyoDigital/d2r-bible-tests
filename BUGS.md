@@ -7,6 +7,120 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2400 - A RELOAD SILENTLY DELETED ~55% OF THE ITEMS FRAMES HAD READ, FOR GOOD (#162 item 1 + #144 item 6, vault batch V1)
+
+GrokBot #230 on v3783, 292 of his real frames x 3 rounds headless, and again on v3784: d2r_owned went 272 -> 113 on ONE reload (the
+60-frame repro 61 -> 30), d2r_vaultRemoved stayed null - no journal row, no undo. The load-time prune (_v42_sanitizeWishlistOwned)
+asks every catalogue whether an owned name is real and read "no catalogue knows it" as "he does not own it", then persist() wrote that
+over d2r_owned. The names lost are the keepers the router itself sends to MAGIC & RARE - rolled names (Chaotic Grand Charm of
+Pestilence, Sullied Grand Charm of Blight, Death Loop, Wraith Grasp, Havoc Finger, Jewel of Daring) that no catalogue carries by
+construction - and (#144 item 6) the runewords typed "Ancient's Pledge" / "Breath of the Dying", which RUNEWORDS spells "Ancients'
+Pledge" / "Breath of the Dying (BotD)". v2082, v2128, v2208, v2234 and #75 each added one more catalogue and closed one victim.
+MEASURED on the shipped origin/main prune (cut whole, run in node with the page's real _norm and RUNEWORDS): one reload drops all
+eight of those names and keeps Harlequin Crest, Enigma, "Ancients' Pledge" and a mule-filed Dread Grasp.
+FIX: the filter stays a question and an owned-load doctor answers it: it compares owned before the filter with owned after, puts back
+every name the filter would drop, names them in window._ownedLoadReceipt.kept, warns "[bible] KEPT ..." and paints them on the Vault
+(#vault-owned-kept, existing organizer classes). Only an entry that is not a non-empty string is set aside, and that is said with the
+entry. The wishlist prune is unchanged. (This entry also said "a name leaves owned through the removal door or not at all" - false on
+this tree; the review found two doors that wrote no row and one that left a leftover: REG-2404, REG-2405.)
+GUARD: tv/test_a_reload_never_drops_what_he_owns.py (6 cases, 5 RED proofs, heart2 5/5 PROVEN) runs the whole shipped prune through
+two reloads over his lost names. Browser half (CI): tests/reg2400_reload_keeps_what_he_owns.spec.ts.
+
+### REG-2401 - A FRAME WHOSE ITEM WAS SILENTLY LOST COULD NEVER BE READ AGAIN (#162 item 2, vault batch V1)
+
+GrokBot #230 on v3783: after the reload took 159 names, re-feeding all 292 frames added 0 ("ok 0"). d2r_intakeSeen held 1 for a file
+that read something - THAT it read, never WHAT - so vaultIntake's skip was "this file name was ever read" and the loss could not heal.
+FIX: a file that read something records what it put in the vault ({held: names owned or in MAGIC & RARE when its batch closed, unr:
+its throw-outs, at}); one verdict (⟦INTAKE SEEN VERDICT⟧) asks the vault: every held name still his -> skipped as before; one gone
+with no removal on record -> read again; one he removed after the read (_removedAfter) -> skipped, "your removal stands"; owned or the
+removal journal unreadable -> skipped and said, never guessed; a legacy 1 / number / name|mtime mark keeps its old meaning (what it
+read is UNKNOWN, so it is not re-billed); a record carries its world, so ladder - which seeds its ledger once from main's - never
+re-reads main's history. A re-read is the same file: a name it read last time never bumps a copy. vaultIntake's
+filter, its marking and both folder scans ask this verdict; the 12 s folder poll never re-reads a gone file on its own (v567) - it
+says how many, and a manual Scan offers them as "♻ Read again N". An extra copy or an over-cap read now counts as a read (it was
+marked 'retry', so a manual rescan could re-bump the copy). tests/v567_intake_rescan_loop.spec.ts moves with the mark's new shape.
+GUARD: tv/test_a_frame_is_read_again_when_its_item_is_gone.py (6 cases, 7 RED proofs, heart2 7/7 PROVEN) on GrokBot's frame
+f_1790549355102.jpg. Browser half (CI): tests/reg2400_reload_keeps_what_he_owns.spec.ts.
+LEFT: the console feeds vaultIntake fixed file names ('kai-vault.jpg', 'drv-vault.jpg' in control_app.py), so once one of those names
+holds a record every later frame under it is skipped while that record's items are still owned - the dedupe keys a FILE NAME that is
+not a frame identity there. That is the V2 lane (#158: every frame read is filed like a hand-add), not changed here.
+
+### REG-2402 - "WRAITH GRASP" ROUTED AS A RING: THE ROLLED-NAME GRAMMAR HAD NO GLOVES ROW (#162 item 4, vault batch V1)
+
+GrokBot #230: _rolledQuality("Wraith Grasp") -> rare, slots Ring; the route sentence said "Wraith + Grasp: ring". RARE_NAME_POOLS
+(v332) had Amulet, Ring and Jewel rows only. The game's RareSuffix table (RotW raresuffix.txt, itype columns) gives hand, clutches and
+knuckle to glov, fist and claw to glov + h2h, and grip, grasp, hold, touch and finger to glov AND ring.
+FIX: a Gloves row with exactly the game's glov words; Grip/Grasp/Hold/Touch/Finger stay in Ring as the table says, so "Wraith Grasp"
+now reads "gloves / ring" (the name alone cannot say which). The brief said "not a ring"; the table says ring too, and the table wins.
+Routing is unchanged (every rolled name still files to MAGIC & RARE); the console's rare-name combo space grows by the five
+gloves-only words (1,550 combos, still tossable). tests/v332_rare_name_pools.spec.ts moves with the new row.
+GUARD: tv/test_grasp_is_a_gloves_suffix.py (2 cases, 2 RED proofs, heart2 2/2 PROVEN).
+
+### REG-2403 - WITH ONE GONE SCREENSHOT WAITING, HIS MANUAL SCAN MARKED HIS NEW SCREENSHOTS READ WITHOUT READING THEM (review of REG-2401)
+
+REG-2401 sent every manual Scan that found a 'gone' screenshot (its item left the vault with no removal on record) to the
+pick-a-batch menu, and the menu (v224) registered every new file the moment it appeared, before he chose. A pick of the new
+'♻ Read again', Skip, or a menu he closed left the new screenshots marked read and never read: the 12 s poll skips them and the next
+Scan says '0 new'. That is v584.1's restart trap exactly (after a browser restart the poll cannot run until he re-authorises the folder
+by clicking Scan); tests/v212_folder_watch.spec.ts' guard for it has no gone file. MEASURED by the reviewer, the scan code cut from
+origin/main and from the branch and run in node: origin/main read [new_1, new_2] at once; the branch read nothing, showed the menu,
+and the stored ledger already said new_1=1, new_2=1.
+FIX: a manual Scan with 1-12 new files reads them at once whether or not a gone file waits (v584.1), and SAYS the gone ones (status,
+the poll, the Last-scan card); the next Scan with nothing new offers them as '♻ Read again N'. The menu marks nothing: a PICK writes
+what it means - New registers what it reads, Latest N and Skip register the new files as v224 always did, '♻ Read again' leaves them
+new (and says so). A mark is merged into the ledger as it is at that moment (_seenRegister), never the scan's stale snapshot written
+back over reads that landed meanwhile, and never over a record. The poll still never reads a gone file on its own.
+GUARD: tv/test_a_scan_reads_what_it_marks.py (5 cases, 6 RED proofs, heart2 6/6 PROVEN) runs the shipped scan code in node over a
+stubbed folder - on the pre-fix page 4 of its 5 cases are red. Browser half (CI): tests/reg2400_reload_keeps_what_he_owns.spec.ts.
+
+### REG-2404 - A MAGIC & RARE TOSS CAME BACK AS "1 ITEM YOU OWN" FOR GOOD (review of REG-2400)
+
+The ✕ on a MAGIC & RARE row (window.vaultThrowFind) deleted magicFinds[name] only - its comment still said a keeper "lives in
+magicFinds, not grail owned", which stopped being true at #75: data.finds, aicMule, aicJudgeApply and the planner own the name beside
+its record. The load-time prune used to sweep that owned leftover on the next reload; REG-2400's doctor keeps a name no catalogue
+knows, so the tossed item stayed in d2r_owned for ever and the Vault said "1 item you own is a name no catalogue on this page knows ...
+a reload never drops what you own: Death Loop". MEASURED by the reviewer on the shipped prune + vaultThrowFind: origin/main ->
+owned [Harlequin Crest]; branch -> owned still holds Death Loop, receipt.kept = [Death Loop].
+FIX: the ✕ takes the owned name out through the removal door (vaultRemove, lane card-click: dated, journaled, undoable); the batch
+carries the Magic & Rare record (batch.magic) and vaultRestoreLast puts it back, so an undo returns the keeper WHOLE, never a bare
+name; a keeper Magic & Rare held alone gets the per-name removal note, so his ✕ is on record either way and a frame that read it is
+'removed', never read again over it. Swept the other doors that clear a Magic & Rare record (the vault audit's fixes, _vpDrop, the
+runeword migration): each keeps the item in another home or takes the owned name too - only the ✕ left a leftover.
+GUARD: tv/test_every_removal_door_leaves_his_word.py (toss, toss-alone, toss -> reload -> not kept, undo whole; 10 RED proofs in all,
+heart2 10/10 PROVEN).
+Browser half (CI): tests/reg2400_reload_keeps_what_he_owns.spec.ts.
+
+### REG-2405 - HIS UN-TICK AND HIS SOCKET-COUNT FIX WERE NOT ON RECORD, SO A RE-READ BROUGHT THE ITEM BACK (review of REG-2401)
+
+REG-2401's verdict reads a frame 'gone' whenever a name it read has left owned with no removal on record, and vaultIntake reads a
+gone frame again without asking on every door but the folder (drag-drop, upload, the console's fromTv feeds). Two of his removal
+doors wrote no journal row: toggleOwned's non-grail un-tick (runewords, set pieces, EXTRA_ITEMS, socketed bases - the branch's own
+comment names Enigma, Aldur's Advance, Marshal's Amulet, Monarch (4os)) deleted straight out of owned; vaultFixSockets corrects a
+misread socket count by RENAMING the label (old out, new in). On origin/main the frame stayed 'seen' for ever, so his word held.
+MEASURED by the reviewer on the page's real removal predicate: card-click and forge consume -> 'removed'; the non-grail un-tick ->
+'gone'; the socket fix 'Monarch (Larzuk base)' -> 'Monarch (4os)' -> 'gone' (gone = the old label: a re-read puts the misread label
+back beside the fixed one).
+FIX: the non-grail un-tick goes through the removal door exactly as the grail branch has since M-3 (lane 'un-tick', keepFiling - his
+ruling, the un-tick never deletes a mule filing; the receipt still goes with it; the old delete is only the fallback). The socket fix
+tells the scan ledger (_intakeSeenRename): every record that held the old label holds the new one and keeps the old under `as`; a
+re-read hands that to the read (_intakePrevOf -> _intakeRenamed), so the old label read again off the same file is the renamed item,
+a record a re-read writes keeps the rename, an older rename follows the newest, and an unreadable ledger is left exactly as it is and
+said. The doctor's "a name leaves owned through the removal door or not at all" comment now names every door that does.
+ALSO (review finding 4): the REG-2401 promises the reviewer's sabotages left green - M1 the poll reads a gone file, M2 vaultIntake
+reads an 'unknown' file, M4 the base-copy branch counts a second copy off the same file, M5 the per-file line hands the read
+prev: null, M7 the card no longer says a file was read again - each now turns a node law red (re-run of the reviewer's M1-M8 against
+all six V1a laws: 8 of 8 caught).
+GUARD: tv/test_every_removal_door_leaves_his_word.py (6 cases, the real toggleOwned / vaultFixSockets / vaultThrowFind / _vpDrop /
+vaultRemove / vaultRestoreLast cut from the page; 10 RED proofs) and tv/test_a_reread_is_the_same_file.py (6 cases: vaultIntake's
+filter, per-file line, data.items loop, base-copy branch and Last-scan note cut from the page; 11 RED proofs) - heart2 21/21 PROVEN.
+Browser half (CI):
+tests/reg2400_reload_keeps_what_he_owns.spec.ts.
+LEFT: a no-proof TV unvault (lane 'tv-unvault' without a frame) and the seed-cleanse / backfill-undo lanes are not his word by
+doctrine (H-1, M-3), so a frame that read such a name still reads 'gone' and is re-read - the doctrine's choice, not changed here. The
+reviewer's other notes stay open too: an undo leaves the per-name note (d2r_vaultRemovedAt), so a later silent loss of that name reads
+'removed'; a failed re-read of a gone file writes 'retry' over its record. Keeping the record there instead would make the console's
+fixed-name feeds ('kai-vault.jpg') re-read every frame while reads fail - v567's money loop - so it was not done here.
+
 ### REG-2392 - A PUSH-SCOPE LAW'S THROWAWAY GIT REPO RE-INITIALISED THE REAL ONE AS BARE (v3784 push, GIT_DIR leak)
 
 2026-10-22 07:48, the first v3784 push. test_a_proven_verdict_is_reused_only_on_identical_bytes entered the push scope because Push A1

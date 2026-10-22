@@ -14,6 +14,8 @@ test('RARE_NAME_POOLS holds the authoritative per-slot suffixes + shared prefixe
       amuletHasNoose: P.Amulet.includes('Noose'),
       ringHasSpiral: P.Ring.includes('Spiral'),
       jewelHasGyre: P.Jewel.includes('Gyre'),
+      glovesHasGrasp: P.Gloves.includes('Grasp'),   // REG-2402 — the game's RareSuffix glov rows
+      ringHasGrasp: P.Ring.includes('Grasp'),       // ...and grasp is glov AND ring there
       prefixHasHavoc: pre.includes('Havoc'),
       prefixHasViper: pre.includes('Viper'),
       slots: Object.keys(P),
@@ -24,7 +26,9 @@ test('RARE_NAME_POOLS holds the authoritative per-slot suffixes + shared prefixe
   expect(r.jewelHasGyre).toBe(true);
   expect(r.prefixHasHavoc).toBe(true);
   expect(r.prefixHasViper).toBe(true);
-  expect(r.slots).toEqual(['Amulet', 'Ring', 'Jewel']);
+  expect(r.glovesHasGrasp).toBe(true);  // "Wraith Grasp" = gloves (or a ring)
+  expect(r.ringHasGrasp).toBe(true);
+  expect(r.slots).toEqual(['Amulet', 'Gloves', 'Ring', 'Jewel']);   // REG-2402 — the Gloves row (#162 item 4)
 });
 
 test('the name-pool reference renders at the top of High-Value Finds', async ({ page }) => {
@@ -42,6 +46,6 @@ test('the name-pool reference renders at the top of High-Value Finds', async ({ 
   });
   expect(r.present).toBe(true);
   expect(r.isFirst).toBe(true);            // rides at the top
-  expect(r.rows).toBeGreaterThanOrEqual(4); // amulet/ring/jewel + prefixes
+  expect(r.rows).toBeGreaterThanOrEqual(5); // amulet/gloves/ring/jewel + prefixes (REG-2402)
   expect(r.chips).toBeGreaterThan(40);
 });
