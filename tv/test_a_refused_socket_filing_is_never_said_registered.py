@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""REG-2565 - THE THROW-OUT REVIEW'S "SET SOCKETS" AND "KEEP AS BASE" NEVER SAY A REFUSED FILING LANDED.
+"""REG-2571 - THE THROW-OUT REVIEW'S "SET SOCKETS" AND "KEEP AS BASE" NEVER SAY A REFUSED FILING LANDED.
 
 Minor from the focused second eye on the r3a fix round (ede52513c): vaultSetSockets and vaultKeepAsBase asked vaultFile to
 file the new label, and a refusal fell through to persistOwned(), saveA(), a status that led with "registered" / "kept"
@@ -69,10 +69,10 @@ class ARefusedSocketFilingIsNeverSaidRegistered(unittest.TestCase):
 
 
 RED_PROOF = [
-    {"why": "REG-2565 - set sockets says 'registered' and ok over a refused filing again",
+    {"why": "REG-2571 - set sockets says 'registered' and ok over a refused filing again",
      "file": "bible.html", "find": "      if (_vfS && !_vfS.ok){\n", "replace": "      if (false){\n",
      "matches": 1, "needs": "node"},
-    {"why": "REG-2565 - keep as base says 'kept' and ok over a refused filing again",
+    {"why": "REG-2571 - keep as base says 'kept' and ok over a refused filing again",
      "file": "bible.html", "find": "      if (_vfK && !_vfK.ok){\n", "replace": "      if (false){\n",
      "matches": 1, "needs": "node"},
 ]

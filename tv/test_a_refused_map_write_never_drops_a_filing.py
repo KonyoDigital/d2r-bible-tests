@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""REG-2564 - A MULE-MAP WRITE THAT DOES NOT STICK NEVER DROPS A FILING, AND ANOTHER TAB'S ROSTER IS HELD BY THE LOAD RULE.
+"""REG-2570 - A MULE-MAP WRITE THAT DOES NOT STICK NEVER DROPS A FILING, AND ANOTHER TAB'S ROSTER IS HELD BY THE LOAD RULE.
 
 The focused second-eye review of the r3a fix round (ede52513c, REG-2521/2522 fix round), reproduced on the merged V1 tree:
   * vaultUnassign (major): the cell X deleted the filing from the live map, then a refused or THROWING map write (quota)
@@ -149,21 +149,21 @@ class ARefusedMapWriteNeverDropsAFiling(unittest.TestCase):
 
 
 RED_PROOF = [
-    {"why": "REG-2564 r2 - a socket fix of a filed label with no refile lets the old label go again",
+    {"why": "REG-2570 r2 - a socket fix of a filed label with no refile lets the old label go again",
      "file": "bible.html", "find": "      if (_rfNeed && !_rfF) _rfF = { ok: false,", "replace": "      if (false) _rfF = { ok: false,",
      "matches": 1, "needs": "node"},
-    {"why": "REG-2564 r2 - any map from another tab lifts the wait, even one still filing the missing mule",
+    {"why": "REG-2570 r2 - any map from another tab lifts the wait, even one still filing the missing mule",
      "file": "bible.html", "find": "after: function(){ try { _rosterMapPending = !!_rosterMapWhy(roster, assign); } catch (eP) { _rosterMapPending = true; } return _vaultTabAfter",
      "replace": "after: function(){ _rosterMapPending = false; return _vaultTabAfter", "matches": 1, "needs": "node"},
-    {"why": "REG-2564 r2 - a refused restore leaves its own witness row in place of the old one",
+    {"why": "REG-2570 r2 - a refused restore leaves its own witness row in place of the old one",
      "file": "bible.html", "find": "        if (rowR && _rowPrevOk){", "replace": "        if (false){", "matches": 1, "needs": "node"},
-    {"why": "REG-2564 - a refused map write leaves the filing deleted in the live map, and the next save drops it",
+    {"why": "REG-2570 - a refused map write leaves the filing deleted in the live map, and the next save drops it",
      "file": "bible.html", "find": "      if (_prevU !== undefined) assign[name] = _prevU;",
      "replace": "      /* tamper */", "matches": 1, "needs": "node"},
-    {"why": "REG-2564 - the restore door answers ok over a map write that did not stick",
+    {"why": "REG-2570 - the restore door answers ok over a map write that did not stick",
      "file": "bible.html", "find": "      if (!_okR){\n        delete assign[nm];",
      "replace": "      if (false){\n        delete assign[nm];", "matches": 1, "needs": "node"},
-    {"why": "REG-2564 - another tab's roster, ahead of its map, lets the paint prune drop the filings",
+    {"why": "REG-2570 - another tab's roster, ahead of its map, lets the paint prune drop the filings",
      "file": "bible.html", "find": "{ if (_rosterMapPending) return; delete assign[n]; return; }",
      "replace": "{ delete assign[n]; return; }", "matches": 1, "needs": "node"},
 ]

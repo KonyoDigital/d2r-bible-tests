@@ -41677,7 +41677,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   var _rosterSaved = load(RK, null);   /* null: nothing saved yet, or UNKNOWN (_muleUnread says which) */
   var roster = _rosterSaved || DEFAULT_ROSTER.map(function(m){ return Object.assign({}, m); });
   var assign = load(AK, {});
-  var _rosterMapPending = false;   /* REG-2564 — another tab's roster arrived ahead of its map: no mule-rule prune yet */
+  var _rosterMapPending = false;   /* REG-2570 — another tab's roster arrived ahead of its map: no mule-rule prune yet */
   /* a roster rebuilt from a list of mules, keeping every filing: each mule the list holds VERBATIM (his name, note, icon,
      boundChar, added), each core locker it lacks at its default place, and a stand-in for each mule id the mule map
      still files items to that the list does not hold. REG-2522 fix round — Start it fresh rebuilt from the map's ids
@@ -41726,12 +41726,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        roster from another tab must also hold every core locker (_rosterCoreWhy): a load puts one back, a merge cannot,
        and no tab of this board saves one without them. A missing ADDED mule is not asked here - another tab's delete
        writes the roster first and the map (its filings gone) right after. */
-    /* REG-2564 (focused second eye on ede52513c) — ANOTHER TAB'S ROSTER IS NOT A REASON TO PRUNE. Its delete writes the
+    /* REG-2570 (focused second eye on ede52513c) — ANOTHER TAB'S ROSTER IS NOT A REASON TO PRUNE. Its delete writes the
        roster first and the map right after, so a roster that lacks a mule the map still files to is adopted (above) - but
        until that tab's map arrives, the paint's prune must not drop those filings against it: a later saveA() here would
        write the map without them, and if no map ever comes (not this board's delete) they would be gone for good. */
     window._TAB_SYNC[AK] = { kind: 'map', get: function(){ return assign; },
-                             after: function(){ try { _rosterMapPending = !!_rosterMapWhy(roster, assign); } catch (eP) { _rosterMapPending = true; } return _vaultTabAfter.apply(this, arguments); },   /* REG-2564 r2 — a map that still files the missing mule keeps the wait */
+                             after: function(){ try { _rosterMapPending = !!_rosterMapWhy(roster, assign); } catch (eP) { _rosterMapPending = true; } return _vaultTabAfter.apply(this, arguments); },   /* REG-2570 r2 — a map that still files the missing mule keeps the wait */
                              shape: function(v){ return _muleShapeWhy(AK, v); },
                              adopted: function(){ delete _muleUnread[AK]; } };
     window._TAB_SYNC[RK] = { kind: 'list', get: function(){ return roster; },
@@ -44132,12 +44132,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     });
     /* REG-2411 — held: the pool and the roster in memory are the page's default for a quarantined store, not his vault,
        so no filing is dropped against them (the mule map keeps every row, and _guardedSet does not write it anyway) */
-    if (_rosterMapPending){ try { if (!_rosterMapWhy(roster, assign)) _rosterMapPending = false; } catch (eRp) {} }   /* REG-2564 r2 — never stuck */
+    if (_rosterMapPending){ try { if (!_rosterMapWhy(roster, assign)) _rosterMapPending = false; } catch (eRp) {} }   /* REG-2570 r2 — never stuck */
     var _pruneHeld = (_pvW6 === null)
       || ((typeof window !== 'undefined' && typeof window._vaultBasisHeld === 'function') && !!window._vaultBasisHeld());
     Object.keys(assign).forEach(function(n){
       if (_pruneHeld) return;
-      if (assign[n]!=='__keep' && !muleById(assign[n])) { if (_rosterMapPending) return; delete assign[n]; return; }   /* REG-2564 r2 — the wait lifts below once roster and map agree */
+      if (assign[n]!=='__keep' && !muleById(assign[n])) { if (_rosterMapPending) return; delete assign[n]; return; }   /* REG-2570 r2 — the wait lifts below once roster and map agree */
       if (pool.indexOf(n) >= 0) return;
       if (Object.prototype.hasOwnProperty.call(_pvW6, n)) return;
       delete assign[n];
@@ -45667,7 +45667,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         why: nm + ' is locked to your MAIN (' + lk + ') — a restore never puts a MAIN item into a mule' };
       var rowR = (opts.prov && typeof opts.prov === 'object' && !Array.isArray(opts.prov) && opts.prov.source)
                ? JSON.parse(JSON.stringify(opts.prov)) : null;
-      /* REG-2564 r2 — a COPY of the row it replaces (never the live object), and no undo at all when it could not be read */
+      /* REG-2570 r2 — a COPY of the row it replaces (never the live object), and no undo at all when it could not be read */
       var _rowPrevR, _rowPrevOk = true; try { var _rp0 = _provAll()[nm]; _rowPrevR = (_rp0 && typeof _rp0 === 'object') ? JSON.parse(JSON.stringify(_rp0)) : _rp0; } catch (e) { _rowPrevOk = false; }
       if (rowR){
         rowR.mule = toR; rowR.holder = _vHomeName(toR); rowR.restoredAt = new Date().toISOString();
@@ -45675,7 +45675,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         var paR = _provAll(); paR[nm] = rowR; _provWrite(paR);
       }
       assign[nm] = toR;
-      /* REG-2564 — A RESTORE THE MAP REFUSES IS NOT A RESTORE: the filing and the witness row go back to what they were */
+      /* REG-2570 — A RESTORE THE MAP REFUSES IS NOT A RESTORE: the filing and the witness row go back to what they were */
       var _okR; try { _okR = saveA() !== false; } catch (e) { _okR = false; }
       if (!_okR){
         delete assign[nm];
@@ -47038,9 +47038,9 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        demoted only once the filing it describes has really left the saved map */
     var _prevU = assign[name];
     delete assign[name];
-    var _okU; try { _okU = saveA() !== false; } catch (e) { _okU = false; }   /* REG-2564 — a throw (quota) is a refusal too */
+    var _okU; try { _okU = saveA() !== false; } catch (e) { _okU = false; }   /* REG-2570 — a throw (quota) is a refusal too */
     if (!_okU){
-      if (_prevU !== undefined) assign[name] = _prevU;   /* REG-2564 — the live map files it again, so the next save cannot drop it */
+      if (_prevU !== undefined) assign[name] = _prevU;   /* REG-2570 — the live map files it again, so the next save cannot drop it */
       var whyW = String(name == null ? '' : name) + ' was not sent back to the dock - the mule map could not be written, so the saved map still files it'
                + ' (its witness row is untouched; a reload shows it in its locker)';
       _vaultLockSay(name, '⚠ ' + whyW, true);
@@ -47477,7 +47477,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _vfS = null;
       var sg = suggestMule(label); if (sg && sg.id !== '__throwout' && muleById(sg.id) && !assign[label])
         _vfS = window.vaultFile(label, { by: 'hand', at: new Date().toISOString(), where: 'the socket fix (throw-out review)' }, { mule: sg.id });
-      /* REG-2565 — A REFUSED FILING IS SAID AS A REFUSAL: it used to fall through to "registered"/"kept" and {ok:true} */
+      /* REG-2571 — A REFUSED FILING IS SAID AS A REFUSAL: it used to fall through to "registered"/"kept" and {ok:true} */
       if (_vfS && !_vfS.ok){
         var _why_vfS = String(_vfS.why || _vfS.refused || 'the vault door refused it');
         persistOwned(); renderVault(); refreshOpenCard();
@@ -47504,7 +47504,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _vfK = null;
       var sg = suggestMule(label); if (sg && sg.id !== '__throwout' && muleById(sg.id) && !assign[label])
         _vfK = window.vaultFile(label, { by: 'hand', at: new Date().toISOString(), where: 'keep as a Larzuk base (throw-out review)' }, { mule: sg.id });
-      /* REG-2565 — A REFUSED FILING IS SAID AS A REFUSAL: it used to fall through to "registered"/"kept" and {ok:true} */
+      /* REG-2571 — A REFUSED FILING IS SAID AS A REFUSAL: it used to fall through to "registered"/"kept" and {ok:true} */
       if (_vfK && !_vfK.ok){
         var _why_vfK = String(_vfK.why || _vfK.refused || 'the vault door refused it');
         persistOwned(); renderVault(); refreshOpenCard();
@@ -47554,7 +47554,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
          the door refuses (a MAIN lock on the new label, a witness it will not take) puts back what this click added and
          leaves the old label, its filing and its witness row exactly as they were - said, never "fixed". */
       var _rfF = null;
-      /* REG-2564 — a label that is filed, or carries a stash witness, MUST be refiled before it lets go; no refile is a refusal */
+      /* REG-2570 — a label that is filed, or carries a stash witness, MUST be refiled before it lets go; no refile is a refusal */
       var _rfNeed = !!oldMule || !!(_pvF && _pvF.kind !== 'owned');
       if (oldMule && typeof muleById === 'function' && (muleById(oldMule) || oldMule === '__keep')) _rfF = window.vaultFile(newLabel, null, { restore: true, mule: oldMule, prov: _pvF });
       else if (_pvF && _pvF.kind !== 'owned') { var sg = suggestMule(newLabel); if (sg && sg.id !== '__throwout' && muleById(sg.id)) _rfF = window.vaultFile(newLabel, _provAsWitness(_pvF), { mule: sg.id }); }
@@ -47979,7 +47979,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       delete magicFinds[nm];
       try { LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch (e) {}
     }
-    /* REG-2560 (V1 round-3 review 2 of REG-2534, major) - A FRESH PICK'S UNDO TAKES BACK ONLY ITS OWN ONE. REG-2534 made
+    /* REG-2566 (V1 round-3 review 2 of REG-2534, major) - A FRESH PICK'S UNDO TAKES BACK ONLY ITS OWN ONE. REG-2534 made
        a COPY pick's undo take one copy off the live count; a FRESH pick's undo still deleted the name outright (owned,
        filing, no journal row), so a copy another door counted while the pick was held - another tab's write merged by
        _tabSyncMerge, the low-base register, his own HAVE stepper - left with it and the d2r_copies key was orphaned.
@@ -48163,7 +48163,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     try { shown = (typeof window._cbShown === 'function') ? window._cbShown(entry, it) : null; } catch (e2) { shown = null; }
     var nm = shown ? String(shown.name || '').trim() : '';
     if (!nm) return { ok: false, filed: false, why: 'that pick has no name — nothing was filed' };
-    /* REG-2561 (V1 round-3 review 2 of REG-2532/2533, major) - A HELD VAULT SAVES NO PICK. The perfect-base road skips
+    /* REG-2567 (V1 round-3 review 2 of REG-2532/2533, major) - A HELD VAULT SAVES NO PICK. The perfect-base road skips
        vaultHandAdd (the door that refuses while held) and an already-filed label never reaches vaultFile, so the copy
        bump answered 'copy 2 filed to bases' and the plate lit 'Saved into the vault' while the store door refused the
        d2r_copies write (and the 2 came from the empty default of a store that would not parse). Every pick that is not a
@@ -48216,7 +48216,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     _vpDropSaid = '';
     if (_vpMade && _vpMade.token === token && _vpMade.id === entry.id && _vpMade.name !== nm && _vpMade.fresh) _vpDrop();
     /* REG-2534 — a re-roll whose copy undo found the count already lowered elsewhere took nothing back; its answer says so.
-       REG-2560 — a re-roll whose fresh pick's undo kept a copy another door counted says that too. */
+       REG-2566 — a re-roll whose fresh pick's undo kept a copy another door counted says that too. */
     var _undoHeld = [(_vpCopyUndone && !_vpCopyUndone.took) ? _vpCopyUndone.say : '', _vpDropSaid].filter(Boolean).join(' — ');
     var _withUndo = function(w){ return _undoHeld ? (String(w || '') + ' — ' + _undoHeld) : w; };
     var baseName = _vpBase(entry, shown);

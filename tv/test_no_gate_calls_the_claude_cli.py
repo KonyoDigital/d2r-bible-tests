@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""REG-2563 - A GATE NEVER CALLS THE CLAUDE CLI.
+"""REG-2569 - A GATE NEVER CALLS THE CLAUDE CLI.
 
 Elad 2026-10-22: his Claude plan sits at ~98%, and no gate may spend it. A run_gates --changed on the V1 worktree logged
 "test_screen_parity not stored - the gate started claude": traced with a logging fake `claude` first on PATH, the gate's
@@ -61,12 +61,12 @@ class NoGateCallsTheClaudeCli(unittest.TestCase):
 
 
 RED_PROOF = [
-    {"why": "REG-2563 - claude_signin spawns `claude auth status` again under a gate",
+    {"why": "REG-2569 - claude_signin spawns `claude auth status` again under a gate",
      "file": "tv/claude_signin.py",
      "find": "    if _run is None and os.environ.get(\"D2R_NO_CLAUDE\") == \"1\":",
      "replace": "    if False and _run is None and os.environ.get(\"D2R_NO_CLAUDE\") == \"1\":",
      "matches": 1},
-    {"why": "REG-2563 - law_env no longer puts the refusing claude first on a gate's PATH",
+    {"why": "REG-2569 - law_env no longer puts the refusing claude first on a gate's PATH",
      "file": "tv/run_gates.py",
      "find": "        env[\"PATH\"] = _ncb + os.pathsep + env.get(\"PATH\", \"\")\n",
      "replace": "        pass\n",

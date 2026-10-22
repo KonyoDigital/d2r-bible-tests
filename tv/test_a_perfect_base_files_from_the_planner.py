@@ -22,7 +22,7 @@ Driven on the WHOLE page in node (tv/vault_page_node.py):
     in ownedPool, the sentence names the ruling; a plain 0-socket Monarch still stays unfiled in the white-base words;
   * a later open of the same perfect base files copy 2, the same open does not; the open planner is marked to draw on
     close, and the filing writes its ledger row;
-  * a roster saved without SOCKETED gets that core locker back (REG-2562, track A's fix round) and the base files there;
+  * a roster saved without SOCKETED gets that core locker back (REG-2568, track A's fix round) and the base files there;
   * a fresh install (nothing forged) files it to SOCKETED on the router's own answer, with no ruling override said;
   * the later open's pick re-rolled to 0 sockets (a plain white) takes its copy back on disk, the first filing stays;
   * closing the planner runs its one deferred draw (counted), and every filed perfect base is still filed, owned and
@@ -197,7 +197,7 @@ class APerfectBaseFilesFromThePlanner(unittest.TestCase):
         self.assertIn("Monarch (4os)|filed-by-hand|bases", o["ledger"], "the filing wrote no ledger row: %r" % o["ledger"])
 
     def test_5_a_roster_saved_without_socketed_gets_it_back_and_the_base_files_there(self):
-        """REG-2562 (merged V1 round 3): track A's fix round brings a missing core locker back (the v404/v342.5/v360
+        """REG-2568 (merged V1 round 3): track A's fix round brings a missing core locker back (the v404/v342.5/v360
         way), so a board with no SOCKETED mule cannot be built by seeding a roster any more; the pick files to SOCKETED"""
         o = run("no-socketed", "one")
         self.assertIn("bases", o["roster"], "a roster saved without SOCKETED did not get its core locker back: %r" % o["roster"])

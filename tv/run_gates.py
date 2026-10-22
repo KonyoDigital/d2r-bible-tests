@@ -149,7 +149,7 @@ def git_free_env(base=None, **extra):
 def law_env(needs_app, base=None):
     """The environment a gate runs in. -> dict (a copy; `base` defaults to os.environ; no GIT_* variable - REG-2396)"""
     env = git_free_env(base)
-    # REG-2563 - A GATE NEVER CALLS THE CLAUDE CLI (Elad 2026-10-22: his plan sits at 98%). test_screen_parity's console
+    # REG-2569 - A GATE NEVER CALLS THE CLAUDE CLI (Elad 2026-10-22: his plan sits at 98%). test_screen_parity's console
     # import asked `claude auth status`. Every gate runs with D2R_NO_CLAUDE=1 (claude_signin answers UNKNOWN without
     # spawning) and a refusing `claude` first on PATH.
     env["D2R_NO_CLAUDE"] = "1"
@@ -11313,7 +11313,7 @@ GATES = [
     Gate("test_a_fresh_picks_undo_and_a_held_pick_keep_what_he_owns",
          [sys.executable, os.path.join(HERE, "test_a_fresh_picks_undo_and_a_held_pick_keep_what_he_owns.py")], 300,
          needs_app=False,
-         why="REG-2560/2561 (V1 round-3 review 2) - a fresh planner pick's clear or re-roll deleted the name outright, "
+         why="REG-2566/2561 (V1 round-3 review 2) - a fresh planner pick's clear or re-roll deleted the name outright, "
              "taking a copy this tab's reader (or another tab, or his HAVE stepper) had counted while it was held; and a "
              "held vault answered 'copy 2 filed to bases' over a refused write. One copy comes off and the name stays "
              "owned and filed; the pick's own single copy leaves through the removal door (journaled, undoable); every "
@@ -11321,17 +11321,17 @@ GATES = [
     Gate("test_a_refused_map_write_never_drops_a_filing",
          [sys.executable, os.path.join(HERE, "test_a_refused_map_write_never_drops_a_filing.py")], 300,
          needs_app=False,
-         why="REG-2564 (focused second eye on the r3a fix round) - a refused or throwing mule-map write left the filing "
+         why="REG-2570 (focused second eye on the r3a fix round) - a refused or throwing mule-map write left the filing "
              "deleted in the live map, a refused restore answered ok, and another tab's roster dropping a filed mule was "
              "adopted. Whole page in node, real doors."),
     Gate("test_a_refused_socket_filing_is_never_said_registered",
          [sys.executable, os.path.join(HERE, "test_a_refused_socket_filing_is_never_said_registered.py")], 300,
          needs_app=False,
-         why="REG-2565 - set sockets / keep as base said \"registered\" and ok over a refused filing. Whole page in node."),
+         why="REG-2571 - set sockets / keep as base said \"registered\" and ok over a refused filing. Whole page in node."),
     Gate("test_no_gate_calls_the_claude_cli",
          [sys.executable, os.path.join(HERE, "test_no_gate_calls_the_claude_cli.py")], 300,
          needs_app=False,
-         why="REG-2563 (Elad 2026-10-22, his plan at 98%) - test_screen_parity's console import ran `claude auth status`. "
+         why="REG-2569 (Elad 2026-10-22, his plan at 98%) - test_screen_parity's console import ran `claude auth status`. "
              "Every gate now runs with D2R_NO_CLAUDE=1 (claude_signin answers UNKNOWN without spawning) and a refusing, "
              "logging `claude` first on PATH; the screen-parity gate run in law_env calls no claude."),
     Gate("test_a_leaked_git_dir_never_writes_the_real_repo",

@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
-"""REG-2560 / REG-2561 - A FRESH PLANNER PICK'S UNDO TAKES BACK ONLY ITS OWN ONE, AND A HELD VAULT SAVES NO PICK.
+"""REG-2566 / REG-2567 - A FRESH PLANNER PICK'S UNDO TAKES BACK ONLY ITS OWN ONE, AND A HELD VAULT SAVES NO PICK.
 
 The V1 round-3 review 2 of track B (REG-2534, REG-2532/2533), reproduced on the merged A+B+C tree, the whole page in node:
-  * REG-2560 (major): REG-2534 fixed a COPY pick's undo; a FRESH pick's undo (_vpDrop) still deleted the name outright -
+  * REG-2566 (major): REG-2534 fixed a COPY pick's undo; a FRESH pick's undo (_vpDrop) still deleted the name outright -
     owned, filing, no journal row. A 4os Monarch filed by a fresh pick, then this tab's own reader counts a re-read one
     (the low-base register: copy 2), then the pick is cleared or re-rolled: BOTH Monarchs left d2r_owned and SOCKETED,
     and the d2r_copies key was orphaned. Now one copy comes off and the name stays owned and filed, said in words; only
     the pick's own single copy is removed, through the removal door (dated, journaled, undoable).
-  * REG-2561 (major): with a store the vault stands on quarantined (d2r_copies cut short), a perfect-base pick of a
+  * REG-2567 (major): with a store the vault stands on quarantined (d2r_copies cut short), a perfect-base pick of a
     filed label skipped vaultHandAdd and vaultFile and answered 'copy 2 filed to bases' (ok, filed) - nothing landed,
     and the 2 came from the empty default of a store that would not parse. Every pick that is not a clear now asks the
     hold first and refuses in its words, writing nothing.
@@ -159,17 +159,17 @@ class AFreshPicksUndoAndAHeldPickKeepWhatHeOwns(unittest.TestCase):
 
 
 RED_PROOF = [
-    {"why": "REG-2560 - a fresh pick's undo drops the name outright again, taking the copy another door counted",
+    {"why": "REG-2566 - a fresh pick's undo drops the name outright again, taking the copy another door counted",
      "file": "bible.html",
      "find": "    if (cnt > 1 && typeof owned !== 'undefined' && owned && owned.has && owned.has(nm)){\n",
      "replace": "    if (false && cnt > 1 && typeof owned !== 'undefined' && owned && owned.has && owned.has(nm)){\n",
      "matches": 1, "needs": "node"},
-    {"why": "REG-2560 - the take-back walks around the removal door again: no dated, journaled, undoable row",
+    {"why": "REG-2566 - the take-back walks around the removal door again: no dated, journaled, undoable row",
      "file": "bible.html",
      "find": "    if (typeof window.vaultRemove === 'function' && typeof owned !== 'undefined' && owned && owned.has && owned.has(nm)){\n",
      "replace": "    if (false && typeof window.vaultRemove === 'function' && typeof owned !== 'undefined' && owned && owned.has && owned.has(nm)){\n",
      "matches": 1, "needs": "node"},
-    {"why": "REG-2561 - the planner door no longer asks the hold, so a held vault answers 'copy 2 filed' over nothing",
+    {"why": "REG-2567 - the planner door no longer asks the hold, so a held vault answers 'copy 2 filed' over nothing",
      "file": "bible.html",
      "find": "    if (_hdP){\n",
      "replace": "    if (false && _hdP){\n",

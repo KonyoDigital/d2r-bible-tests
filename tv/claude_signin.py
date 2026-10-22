@@ -40,7 +40,7 @@ def status(bin_path, _run=None, timeout=30):
     """The CLI's own word on its sign-in. -> {loggedIn: bool|None, method, why}. Never raises."""
     if not bin_path:
         return {"loggedIn": None, "method": None, "why": "the Claude CLI was not found on this PC"}
-    if _run is None and os.environ.get("D2R_NO_CLAUDE") == "1":   # REG-2563 - a gate never spawns the Claude CLI
+    if _run is None and os.environ.get("D2R_NO_CLAUDE") == "1":   # REG-2569 - a gate never spawns the Claude CLI
         return {"loggedIn": None, "method": None, "why": "a gate never asks the Claude CLI (D2R_NO_CLAUDE) - UNKNOWN"}
     try:
         r = (_run or subprocess.run)([bin_path, "auth", "status", "--json"], capture_output=True, text=True,

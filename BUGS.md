@@ -7,14 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
-### REG-2565 - "SET SOCKETS" / "KEEP AS BASE" SAID "REGISTERED" OVER A REFUSED FILING - minor from the focused second eye on ede52513c
+### REG-2571 - "SET SOCKETS" / "KEEP AS BASE" SAID "REGISTERED" OVER A REFUSED FILING - minor from the focused second eye on ede52513c
 
 vaultSetSockets and vaultKeepAsBase fell through a vaultFile refusal to persistOwned(), saveA(), a status leading with
 "registered" / "kept" and {ok:true}. A refusal is now said as "not filed" with its reason and answered
 {ok:false, refused, why}; the label stays on the owned list, unfiled. Law:
 tv/test_a_refused_socket_filing_is_never_said_registered.py (2 red-proofs).
 
-### REG-2564 - A MULE-MAP WRITE THAT DID NOT STICK DROPPED A FILING; ANOTHER TAB'S ROSTER SKIPPED THE MAP RULE - focused second eye on ede52513c
+### REG-2570 - A MULE-MAP WRITE THAT DID NOT STICK DROPPED A FILING; ANOTHER TAB'S ROSTER SKIPPED THE MAP RULE - focused second eye on ede52513c
 
 The r3a fix round (ede52513c) was never reviewed; a focused Grok CLI review (2026-10-23) failed it with three majors:
 vaultUnassign deleted the filing from the live map before a write that could be refused or throw (quota), so the next good
@@ -29,13 +29,13 @@ tv/test_a_refused_map_write_never_drops_a_filing.py (3 red-proofs). Open minors 
 vaultKeepAsBase still say "registered" over a refused filing; the in-flight reading window (15 min) is shorter than a 40-file
 read, and a duplicated tab inherits the scan session id.
 
-Round 2 (Grok CLI review of REG-2564, 2026-10-23, FAIL, 3 majors 2 minors): the map hook forced the wait off for ANY map
+Round 2 (Grok CLI review of REG-2570, 2026-10-23, FAIL, 3 majors 2 minors): the map hook forced the wait off for ANY map
 (now: it stays while the map still files the missing mule, and lifts at the prune once roster and map agree - never stuck);
 the vaultFixSockets refusal and the witness rollback had no case (now pinned, 6 red-proofs); the rollback snapshot was the
 live row object (now a copy, and no undo when it could not be read); the restore throw path is now driven. Finding 1 (a
 refused restore drops an existing filing) does not apply: the restore door returns 'already' for any filed name first.
 
-### REG-2563 - A GATE CALLED THE CLAUDE CLI (test_screen_parity, `claude auth status`) - Elad 2026-10-22: never
+### REG-2569 - A GATE CALLED THE CLAUDE CLI (test_screen_parity, `claude auth status`) - Elad 2026-10-22: never
 
 A run_gates --changed logged "test_screen_parity not stored - the gate started claude". Traced with a logging fake `claude`
 first on PATH: the gate's console import (control_app._claude_auth_state -> claude_signin.status) ran `claude auth status
@@ -44,7 +44,7 @@ FIX: law_env (every gate's environment) sets D2R_NO_CLAUDE=1, which claude_signi
 and puts tv/no_claude_bin first on PATH: a `claude` that logs to $D2R_NO_CLAUDE_LOG, says so and exits 1.
 LAW: tv/test_no_gate_calls_the_claude_cli.py (3 cases, 2 red-proofs).
 
-### REG-2560 - A FRESH PLANNER PICK'S UNDO DROPPED THE ITEM OUTRIGHT, WITH A COPY ANOTHER DOOR HAD COUNTED (V1 round-3 review 2 of track B, major)
+### REG-2566 - A FRESH PLANNER PICK'S UNDO DROPPED THE ITEM OUTRIGHT, WITH A COPY ANOTHER DOOR HAD COUNTED (V1 round-3 review 2 of track B, major)
 
 The review (merged A+B+C tree, the whole page in node): a fresh pick files Monarch (4os) to SOCKETED; this tab's own reader
 then counts a re-read one (_autoRegisterLowBase, copy 2); a clear or a re-roll of the held pick ran _vpDrop, which deleted the
@@ -56,7 +56,7 @@ pick's own single copy is removed, and through window.vaultRemove (lane planner-
 and undoable; a refused removal leaves everything as it was and says why.
 LAW: tv/test_a_fresh_picks_undo_and_a_held_pick_keep_what_he_owns.py (5 cases, 3 red-proofs).
 
-### REG-2561 - A HELD VAULT ANSWERED "COPY 2 FILED TO BASES" FOR A PERFECT-BASE PICK THAT SAVED NOTHING (V1 round-3 review 2, major)
+### REG-2567 - A HELD VAULT ANSWERED "COPY 2 FILED TO BASES" FOR A PERFECT-BASE PICK THAT SAVED NOTHING (V1 round-3 review 2, major)
 
 With d2r_copies cut short (quarantined, the vault held), a perfect-base pick of an already filed label skipped vaultHandAdd
 (the door that refuses while held) and never reached vaultFile: the copy bump answered ok/filed/mode copy and the plate lit
@@ -65,13 +65,13 @@ parse. New with REG-2532/2533.
 FIX: vaultPlannerFile asks window._vaultHeld() for every pick that is not a clear, before any road, and refuses in the hold's
 words ({ok:false, refused:'held'}, "... nothing was added"), writing nothing. LAW: the same file, test_4.
 
-### REG-2562 - THE PERFECT-BASE LAW'S "NO SOCKETED MULE" CASE WENT RED ON THE MERGED V1 TREE (V1 round-3 review 2, major)
+### REG-2568 - THE PERFECT-BASE LAW'S "NO SOCKETED MULE" CASE WENT RED ON THE MERGED V1 TREE (V1 round-3 review 2, major)
 
 test_a_perfect_base_files_from_the_planner test_5 seeded a roster without SOCKETED; after track A's fix round a missing core
 locker comes back, so the premise failed and the gate failed the merged push. The case now pins the merged rule: SOCKETED comes
 back and the perfect base files there. The "no mule on this board has id bases" refusal is unreachable from a seeded roster,
 so its red-proof (the white-base sentence put back for a refused perfect base) is retired; a refused pick's words are pinned by
-REG-2561's law instead.
+REG-2567's law instead.
 
 ### REG-2520 - THE SCAN LEDGER, THE REMOVAL JOURNAL AND THE RECENTLY-REGISTERED LOG READ BYTES CUT SHORT AS EMPTY AND WROTE OVER THEM (V1 round 3, #162 + #152)
 
