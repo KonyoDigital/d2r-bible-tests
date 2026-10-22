@@ -7,6 +7,10 @@ board must receive HTTP 429 with the runner's refusal - used, limit, and the lim
 website. The handler's own branches (shadow failover, a dead Grok, an erroring Grok) are driven with stub runners in
 test_a_capped_read_is_answered_429; the runner's rules in test_the_reader_cap_comes_from_this_pcs_settings.
 
+REG-2387 - THE CAP STILL STANDS AFTER A VISION READ. tv_diablo's vision lane records into the same ledger
+(_sub_budget_record, SECONDS) and wrote every row back divided by 1000, so the runner's millisecond rows became rows its
+cap does not count: one vision read reset the intake cap. Driven with tv_diablo's own writer on the fixture ledger.
+
 A LAW OF ITS OWN, NODE-ONLY ON PURPOSE. In the handler law this was the one case that needed node, so on a PC without
 node (Dean's) its proof stayed green "with 5 laws run" and was filed BLIND - and one BLIND shuts every lock on a PC.
 Here every case skips without node, and such a tamper is ELSEWHERE there (heart2, REG-2354), never BLIND.
@@ -104,7 +108,9 @@ class TheRealRunnersCapReachesTheBoard(unittest.TestCase):
         finally:
             c.close()
 
-    def test_the_real_runner_at_its_cap_is_answered_429(self):
+    def at_the_cap(self):
+        """20 intake reads in the last hour on a fixture ledger, in MILLISECONDS (the unit the runner writes), and the
+        runner pointed at it. -> the ledger's path"""
         ledger = os.path.join(self.d, "ledger.json")
         now = time.time() * 1000.0
         with open(ledger, "w") as fh:
@@ -112,6 +118,10 @@ class TheRealRunnersCapReachesTheBoard(unittest.TestCase):
         os.environ.update(TV_SUB_BUDGET=ledger, TV_PC_SETTINGS=os.path.join(self.d, "absent.json"),
                           TVD_CLAUDE_BIN=os.path.join(self.d, "no-such-claude"))
         self.assertTrue(os.path.isfile(os.path.join(HERE, RUNNER)), "premise: the runner is not beside the console")
+        return ledger
+
+    def test_the_real_runner_at_its_cap_is_answered_429(self):
+        self.at_the_cap()
         status, body, hdrs = self.post()
         self.assertEqual(status, 429, "the real runner's cap reached the board as %d: %r" % (status, body[:300]))
         self.assertEqual(hdrs.get("X-Intake-Lane"), "subscription")
@@ -121,6 +131,40 @@ class TheRealRunnersCapReachesTheBoard(unittest.TestCase):
         self.assertEqual(j.get("source"), "the code default", "the board is not told where the limit came from")
         self.assertIn("limit from the code default", j.get("message", ""))
         self.assertEqual(self.web.call_count, 0, "the console read on the website's API key after a cap")
+
+    def test_a_vision_read_on_the_same_ledger_leaves_the_cap_standing(self):
+        """REG-2387 - 20 intake reads, then ONE vision read recorded by tv_diablo's own writer, and the 21st intake
+        read is still refused 429. The writer used to hand every row back divided by 1000."""
+        import tv_diablo as TD
+        ledger = self.at_the_cap()
+        live = os.path.join(HERE, ".subscription_budget.json")
+        before = _snap(live)
+        arm = {"TV_CLAUDE_ARGV": json.dumps(["claude"])}       # the argv the writer arms on; nothing is spawned
+        with mock.patch.object(TD, "_SUB_BUDGET_PATH", ledger), mock.patch.dict(os.environ, arm):
+            for k in ("TV_STUB", "TV_NO_BUDGET"):
+                os.environ.pop(k, None)
+            self.assertTrue(TD._vision_budget_armed(), "premise: the vision lane's writer is disarmed here")
+            TD._sub_budget_record()
+        self.assertEqual(_snap(live), before, "a case wrote his live tv/.subscription_budget.json")
+        with open(ledger) as fh:
+            rows = json.load(fh)["calls"]
+        self.assertEqual(len(rows), 21, "premise: the vision read was not recorded: %r" % (rows,))
+        self.assertEqual(sum(1 for t in rows if t >= 1e11), 20,
+                         "the vision writer rewrote the intake lane's millisecond rows in another unit")
+        status, body, _h = self.post()
+        self.assertEqual(status, 429, "one vision read reset the intake cap - the 21st read was answered %d: %r"
+                         % (status, body[:300]))
+        j = json.loads(body)
+        self.assertEqual((j.get("window"), j.get("used"), j.get("limit")), ("hour", 20, 20))
+        self.assertEqual(self.web.call_count, 0, "the console read on the website's API key after a cap")
+
+
+def _snap(p):
+    try:
+        with open(p, "rb") as fh:
+            return fh.read()
+    except OSError:
+        return None
 
 
 if __name__ == "__main__":
@@ -141,6 +185,22 @@ RED_PROOF = [
         "file": "pc_settings.mjs",
         "find": "  return { value: fallback, source: 'the code default', notes };\n",
         "replace": "  return { value: fallback, source: '', notes };\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2387 - the vision lane's writer normalises the ledger in place again: the intake lane's millisecond "
+               "rows go back as seconds, and one vision read resets the intake cap",
+        "file": "tv_diablo.py",
+        "find": "        calls = _sub_budget_calls(st, now, as_written=True)\n",
+        "replace": "        calls = _sub_budget_calls(st, now)\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2387 - the window hands back every row in seconds whatever its writer used, so the writer that asks "
+               "for the rows as written still rewrites the intake lane's rows",
+        "file": "tv_diablo.py",
+        "find": "            out.append(v if as_written else t)\n",
+        "replace": "            out.append(t)\n",
         "matches": 1,
     },
 ]
