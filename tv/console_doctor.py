@@ -388,7 +388,14 @@ def _check_disk_headroom():
 
 
 def _check_subscription_burn():
-    """Reads against the window. Not tokens — this lane bills none."""
+    """Reads against the window. Not tokens — this lane bills none.
+
+    REG-2389 — THE REFUSAL'S OPERANDS, NOT A HAND FILTER (control_app._meter_state learned it in v3099). This counted
+    `now - c <= 3600` over the raw rows, and the ledger is shared with tv/intake_local.mjs, whose rows are MILLISECONDS:
+    for those `now - c` is hugely negative, so every intake read still in the ledger - up to a day old - counted as a
+    read "this hour". MEASURED on a fixture: 30 intake rows 5-20 h old and 2 vision reads in the last 10 min said
+    "32 read(s) this hour", where the cap counts 2 - and since REG-2387 keeps those rows in milliseconds for a day, it
+    would have said so all day. The rows are counted through tv._sub_budget_calls, the call _sub_budget_check counts."""
     try:
         import tv_diablo as tv
         path = getattr(tv, "_SUB_BUDGET_PATH", "")
@@ -398,13 +405,14 @@ def _check_subscription_burn():
         return UNKNOWN, "tv_diablo will not import: %s" % str(e)[:90]
     if not path or not os.path.isfile(path):
         return UNKNOWN, "no vision read has been recorded on this machine yet"
+    now = time.time()
     try:
-        calls = [float(c) for c in (json.load(open(path, encoding="utf-8")).get("calls") or [])]
+        with open(path, encoding="utf-8") as fh:
+            calls = tv._sub_budget_calls(json.load(fh) or {}, now)
     except Exception as e:
         return UNKNOWN, "budget file unreadable: %s" % str(e)[:90]
-    now = time.time()
-    hour = sum(1 for c in calls if now - c <= 3600)
-    day = sum(1 for c in calls if now - c <= 86400)
+    hour = sum(1 for c in calls if now - c < 3600)
+    day = len(calls)
     pct = (100.0 * hour / hourly) if hourly else 0.0
     if hourly and pct >= 85:
         return MISSING, ("%d reads this hour of %d (%.0f%%) — close to the cap; a sweep started now "
