@@ -24,10 +24,11 @@ written, and the claude CLI is a path that does not exist, so no case can spend 
 That the settings file is ignored by git is test_this_pcs_settings_file_never_travels; that the console hands the
 runner's 429 to the board is test_a_capped_runner_reaches_the_board_as_429.
 
-EVERY CASE HERE NEEDS NODE, ON PURPOSE. A PC without node (Dean's: tv/install-tvd.ps1 installs none) skips this law
-whole. On this heart2 such a tamper is still filed BLIND there; it is ELSEWHERE once REG-2354 lands, which files
-ELSEWHERE only a tamper EVERY case skipped. When two node-free git cases lived here they ran there, so every node-only
-proof stayed green "with 2 laws run" - BLIND under either rule, and one BLIND shuts every lock on a PC.
+EVERY CASE HERE NEEDS NODE, ON PURPOSE. A PC without node (Dean's had none until 2026-10-22) skips this law whole,
+and heart2 files such a tamper ELSEWHERE, never BLIND (REG-2354, REG-2359): an all-skipped tamper is ELSEWHERE only
+when every skip was for what that PC lacks - node here, and on Windows POSIX too, for the stand-in-CLI cases below. So
+no case may skip for anything else, and no node-free case may join: when two node-free git cases lived here they ran
+there, so every node-only proof stayed green "with 2 laws run" - BLIND, and one BLIND shuts every lock on a PC.
 The ledger cases need a POSIX host too (a stand-in CLI script cannot be spawned without a shell on Windows): they
 skip on the question heart2's "posix" capability asks, and the three proofs only they catch declare it, so a Windows
 PC with node files those three ELSEWHERE, never BLIND.
