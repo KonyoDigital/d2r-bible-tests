@@ -40,6 +40,7 @@ only ever produce a percentage; this file needs a session and produces NAMES).
 import glob
 import json
 import os
+import stat
 import sys
 from datetime import datetime, timezone
 
@@ -53,7 +54,144 @@ _console_safe_enable()
 
 
 def _dir():
+    """The SHIPPED Remaining pages: the tracked tv/remaining/, or a TV_REMAINING_DIR world. -> str
+
+    ⚠⚠ #165 (REG-2472) - tv/remaining/ is TRACKED, so every page in it ships to every PC with every update. A page
+    there is the game's list of what ONE player was missing on the day it was filmed - evidence about THAT player's
+    board, never about the board of whoever installed the update. readings() decides, per page, whose it is."""
     return os.environ.get("TV_REMAINING_DIR") or os.path.join(HERE, "remaining")
+
+
+def _hist_env():
+    """TV_HIST when it names a real place; blank or relative is nobody asking (tv_diablo._fixture_root's rule). -> str"""
+    v = (os.environ.get("TV_HIST") or "").strip()
+    return v if (v and os.path.isabs(v)) else ""
+
+
+def _here_dir():
+    """#165 - the Remaining pages filmed on THIS PC (gitignored, per machine). -> str | None
+
+    TV_REMAINING_HERE names it outright. A TV_REMAINING_DIR world is that world's own and names no per-PC dir unless
+    TV_REMAINING_HERE does, and a TV_HIST world keeps its own beside its footage - a fixture never reads the real one.
+    """
+    env = os.environ.get("TV_REMAINING_HERE")
+    if env:
+        return env
+    if os.environ.get("TV_REMAINING_DIR"):
+        return None
+    h = _hist_env()
+    return os.path.join(h, "remaining_here") if h else os.path.join(HERE, "remaining_here")
+
+
+def _hist_root():
+    """THIS PC's footage root, at call time: TV_HIST or tv/frames/hist (control_app.HIST_DIR's rule). -> str"""
+    return _hist_env() or os.path.join(HERE, "frames", "hist")
+
+
+def _swept_path():
+    """THIS PC's sweep memory, at call time - control_app._chron_swept_path's precedence: TV_CHRON_SWEPT names it
+    outright, then a TV_HIST world's own, then this tree's. -> str"""
+    env = os.environ.get("TV_CHRON_SWEPT")
+    if env:
+        return env
+    h = _hist_env()
+    return os.path.join(h, "chronicle_swept.json") if h else os.path.join(HERE, "chronicle_swept.json")
+
+
+def _tombstone_path():
+    """THIS PC's reel tombstones, asked of their owner at call time. -> (path, None) | (None, why)"""
+    try:
+        import reel_retention as _rr
+        return _rr._tombstone_path(), None
+    except Exception as e:      # the owner could not answer: the store is UNKNOWN, never "absent"
+        return None, "reel_tombstones.json could not be located (%s)" % type(e).__name__
+
+
+def _read_store(p):
+    """-> (blob, "ok") | (None, "absent") | (None, "unreadable"). Absent is an honest empty; unreadable is not."""
+    if not p or not os.path.exists(p):
+        return None, "absent"
+    try:
+        with open(p, encoding="utf-8") as fh:
+            return json.load(fh), "ok"
+    except Exception:
+        return None, "unreadable"
+
+
+def _is_dir(p):
+    """-> True | False | None. None: the footage tree would not answer, which is not the same as no."""
+    try:
+        return stat.S_ISDIR(os.stat(p).st_mode)
+    except (FileNotFoundError, NotADirectoryError):
+        return False
+    except (OSError, ValueError):
+        return None
+
+
+def _reel_ids(reel):
+    """The spellings a reel goes by in this PC's stores (`reel_s_<ms>_<n>` and `s_<ms>_<n>`). -> list
+
+    A reel that is blank, or that carries a path separator or `..`, names no reel at all: it could only ever
+    point the footage check somewhere else."""
+    v = str(reel or "").strip() if isinstance(reel, str) else ""
+    if not v or "/" in v or "\\" in v or ".." in v:
+        return []
+    if v.startswith("reel_"):
+        return [v, v[len("reel_"):]]
+    if v.startswith("s_"):
+        return [v, "reel_" + v]
+    return [v]
+
+
+def _names_of(row):
+    """The reel names one tombstone row carries. -> set"""
+    if not isinstance(row, dict):
+        return set()
+    return set(str(row.get(k)) for k in ("reel", "session") if row.get(k))
+
+
+def _held_here(reel):
+    """#165 (REG-2472) - did THIS PC ever hold this reel? -> (True | False | None, why)
+
+    True when any of this PC's own stores names it: the reel dir under the footage root, the sweep memory, or the
+    reel tombstones - every one resolved at call time, so a fixture's world answers for the fixture. False only when
+    every store answered and none names it. A store that will not read, with no positive answer elsewhere, is
+    UNKNOWN (None) - never "another PC's" and never "this PC's". A page naming no reel cannot be attributed at all.
+    [[unknown-stays-unknown]] [[feedback-per-pc-personal-data]]
+    """
+    ids = _reel_ids(reel)
+    if not ids:  # NO-REEL
+        return None, ("the page names no usable reel, so which install filmed it cannot be established - it is "
+                      "UNKNOWN here, not evidence about this board")
+    unread = []
+    root = _hist_root()
+    for i in ids:
+        got = _is_dir(os.path.join(root, i))
+        if got is True:  # FOOTAGE-ARM
+            return True, "its reel is in this PC's footage tree"
+        if got is None:
+            unread.append("this PC's footage tree would not answer")
+    blob, st = _read_store(_swept_path())
+    if st == "ok" and isinstance(blob, dict):
+        if any(i in blob for i in ids):  # SWEPT-ARM
+            return True, "this PC's sweep memory (chronicle_swept.json) holds its reel"
+    elif st != "absent":
+        unread.append("this PC's chronicle_swept.json would not read")
+    tp, twhy = _tombstone_path()
+    if tp is None:
+        unread.append(twhy)
+    else:
+        blob, st = _read_store(tp)
+        rows = (blob.get("reels") if isinstance(blob, dict) else blob) if st == "ok" else None
+        if st == "ok" and isinstance(rows, list):
+            if any(_names_of(x) & set(ids) for x in rows):  # TOMBSTONE-ARM
+                return True, "this PC's reel_tombstones.json records its reel"
+        elif st != "absent":
+            unread.append("this PC's reel_tombstones.json would not read")
+    if unread:  # UNREAD-IS-UNKNOWN
+        return None, ("whether THIS PC ever held its reel is UNKNOWN (%s) - so the page is UNKNOWN here, not "
+                      "evidence about this board" % "; ".join(sorted(set(unread))))
+    return False, "its reel is in none of this PC's stores (footage, sweep memory, tombstones)"
 
 
 def _norm_piece(s):
@@ -124,10 +262,97 @@ def _age_days(read_at, now=None):
     return round((now - dt).total_seconds() / 86400.0, 2)
 
 
-def readings(ledger="sets"):
-    """Every recorded reading for a ledger, newest first. [] when none were ever taken."""
+def _newest_first(pages):
+    pages.sort(key=lambda r: (str(r.get("readAt") or ""), r["source"]), reverse=True)
+    return pages
+
+
+def _pages(ledger="sets"):
+    """#165 (REG-2472) - every Remaining page on file for this ledger, each saying whether THIS PC may judge with it.
+    -> list, newest first. `origin` on each:
+
+        world      a TV_REMAINING_DIR world's own page - a fixture names its world outright; no provenance asked
+        here       filmed on THIS PC: in its own per-PC dir, or a shipped page whose reel this PC held
+        elsewhere  a shipped page whose reel is in none of this PC's stores - another install's
+        unknown    a shipped page whose reel could not be checked (a store would not read) or that names none
+
+    Decided at READ time, on every call: a sweep that lands the reel tomorrow makes the page this PC's tomorrow.
+    """
     out = []
-    for p in sorted(glob.glob(os.path.join(_dir(), "*.json"))):
+    if os.environ.get("TV_REMAINING_DIR"):  # WORLD-OWN
+        for p in _pages_in(_dir(), ledger):
+            p["origin"], p["originWhy"] = "world", "a TV_REMAINING_DIR world's own page"
+            out.append(p)
+    else:
+        for p in _pages_in(_dir(), ledger):
+            held, why = _held_here(p.get("reel"))  # PROVENANCE
+            p["origin"] = "here" if held is True else ("elsewhere" if held is False else "unknown")
+            p["originWhy"] = why
+            out.append(p)
+    hd = _here_dir()
+    if hd:
+        for p in _pages_in(hd, ledger):
+            p["origin"] = "here"  # PER-PC-DIR
+            p["originWhy"] = "filmed on this PC (its own Remaining pages)"
+            out.append(p)
+    return _newest_first(out)
+
+
+def readings(ledger="sets"):
+    """Every reading THIS PC may judge with, newest first. [] when none - including when the only pages on file
+    were read on another install (provenance() says which)."""
+    return [p for p in _pages(ledger) if p.get("origin") in ("world", "here")]
+
+
+def reference(ledger="sets"):
+    """The newest SHIPPED page (or a TV_REMAINING_DIR world's), read as GAME DATA. -> dict | None
+
+    #165 (REG-2472) - which base the game prints for which piece is true for every player, so sets_base_index (and
+    bible.html's _SET_BASE_INDEX, generated from it) reads this on every PC. It is NOT evidence about this PC's board
+    and must never be handed to a judge - that is load(), which asks whose page it is."""
+    pages = _newest_first(_pages_in(_dir(), ledger))
+    return pages[0] if pages else None
+
+
+def provenance(ledger="sets"):
+    """Why THIS PC has, or has not, a Remaining page to judge with. -> dict
+
+    {"state": "here" | "elsewhere" | "unknown" | "none", "why": the sentence a judge says, "pages": [...]}.
+    UNKNOWN outranks "elsewhere": one page nobody could attribute is reason enough not to call them all foreign."""
+    ps = _pages(ledger)
+    brief = [{"source": p.get("source"), "reel": p.get("reel"), "readAt": p.get("readAt"),
+              "origin": p.get("origin"), "why": p.get("originWhy")} for p in ps]
+    use = [p for p in ps if p.get("origin") in ("world", "here")]
+    unk = [p for p in ps if p.get("origin") == "unknown"]
+    far = [p for p in ps if p.get("origin") == "elsewhere"]
+    if use:
+        return {"state": "here", "pages": brief,
+                "why": "this PC's own Remaining page (%s): %s" % (use[0].get("source"), use[0].get("originWhy"))}
+    if unk:
+        return {"state": "unknown", "pages": brief,
+                "why": ("a Remaining page is on file, but %s" % unk[0].get("originWhy"))}
+    if far:
+        return {"state": "elsewhere", "pages": brief,
+                "why": (("the only Remaining page on file was read off a reel this PC never held - another "
+                         "install's page is UNKNOWN here, not evidence about this board") if len(far) == 1 else
+                        ("all %d Remaining pages on file were read off reels this PC never held - another "
+                         "install's pages are UNKNOWN here, not evidence about this board" % len(far)))}
+    return {"state": "none", "pages": brief, "why": "no Remaining page has ever been recorded"}
+
+
+def _no_page(ledger, never):
+    """The sentence a judge says when THIS PC has no page: the provenance one when a page exists that is not this
+    PC's, or the judge's own `never` when nothing was ever recorded. -> (say, state)"""
+    pv = provenance(ledger)
+    if pv["state"] in ("elsewhere", "unknown"):  # SAY-WHY
+        return pv["why"], pv["state"]
+    return never, pv["state"]
+
+
+def _pages_in(folder, ledger="sets"):
+    """Every page in ONE directory for a ledger, newest first, with no judgement about whose it is. -> list"""
+    out = []
+    for p in sorted(glob.glob(os.path.join(folder, "*.json"))):
         try:
             with open(p, encoding="utf-8") as fh:
                 d = json.load(fh)
@@ -171,6 +396,9 @@ def load(ledger="sets"):
     None is the whole point of the return type. There is no empty-list answer here, because an
     empty list would mean "the game says he is missing nothing" — a strong claim — and that is not
     what "nobody has taken a reading" means.
+
+    #165 (REG-2472) - "the game has never been asked" is per PC: a shipped page read off a reel this PC never held is
+    another player's answer, so this is None there too, and provenance() says which of the two it is.
     """
     rs = readings(ledger)
     return rs[0] if rs else None
@@ -197,7 +425,8 @@ def owned_by_subtraction(roster, ledger="sets", reading=None):
     """
     r = reading or load(ledger)
     if not r:
-        return None, {"why": "the game has never been asked — no Remaining reading on file"}
+        say, st = _no_page(ledger, "the game has never been asked — no Remaining reading on file")
+        return None, {"why": say, "provenance": st}
     names = set((roster or {}).values()) if isinstance(roster, dict) else set(roster or ())
     fold = _folder(roster if isinstance(roster, dict) else None)
     miss = {c for c in (fold(n) for n in r["names"]) if c}
@@ -231,9 +460,9 @@ def contradicted(board_names, ledger="sets", dates=None, reading=None, roster=No
     """
     r = reading or load(ledger)
     if not r:
-        return {"ok": None, "reading": None,
-                "say": "the game has never been asked for a Remaining page, so nothing is "
-                       "compared — which is not the same as the board being right"}
+        say, st = _no_page(ledger, "the game has never been asked for a Remaining page, so nothing is "
+                                   "compared — which is not the same as the board being right")
+        return {"ok": None, "reading": None, "provenance": st, "say": say}
     fold = _folder(roster)
     miss = {c for c in (fold(n) for n in r["names"]) if c}
     read_at = r.get("readAt")
@@ -247,7 +476,7 @@ def contradicted(board_names, ledger="sets", dates=None, reading=None, roster=No
             continue
         hits.append({"name": nm, "boardDate": d, "undated": not d})
     out = {"ok": not hits, "contradicted": hits, "laterFinds": later,
-           "checked": len(board_names or ()), "reading": {
+           "checked": len(board_names or ()), "provenance": r.get("origin") or "given", "reading": {
                "readAt": read_at, "reel": r.get("reel"), "ageDays": r.get("ageDays"),
                "count": r.get("count"), "source": r.get("source")}}
     age = r.get("ageDays")
@@ -328,9 +557,11 @@ def denied(sightings_by_name, ledger="sets", reading=None, roster=None):
     """
     r = reading or load(ledger)
     if not r:
+        # #165 - another install's page withholds NOTHING here: an unowned page is not a veto, it is UNKNOWN
+        say, st = _no_page(ledger, "no Remaining page on file, so no proposed name can be contradicted — which "
+                                   "is not the same as every proposed name being right")
         return {"ok": None, "denied": [], "superseded": [], "undated": [], "reading": None,
-                "say": "no Remaining page on file, so no proposed name can be contradicted — which "
-                       "is not the same as every proposed name being right"}
+                "provenance": st, "say": say}
     fold = _folder(roster)
     miss = {c for c in (fold(n) for n in r["names"]) if c}
     ref = _reading_ms(r)
@@ -355,6 +586,7 @@ def denied(sightings_by_name, ledger="sets", reading=None, roster=None):
         else:
             den.append({"name": name, "seenMs": max(times), "readingMs": ref})
     out = {"ok": not den, "denied": den, "superseded": sup, "undated": und,
+           "provenance": r.get("origin") or "given",
            "reading": {"readAt": r.get("readAt"), "reel": r.get("reel"),
                        "ageDays": r.get("ageDays"), "count": r.get("count"),
                        "source": r.get("source")}}
@@ -597,13 +829,14 @@ def arithmetic(board_found, roster_total, ledger="sets", reading=None):
     """
     r = reading or load(ledger)
     if not r:
-        return {"ok": None, "say": "no Remaining reading on file — the arithmetic cannot be done, "
-                                   "and an arithmetic nobody did is not an arithmetic that agreed"}
+        say, st = _no_page(ledger, "no Remaining reading on file — the arithmetic cannot be done, "
+                                   "and an arithmetic nobody did is not an arithmetic that agreed")
+        return {"ok": None, "provenance": st, "say": say}
     miss = int(r.get("count") or 0)
     total = int(roster_total or 0)
     surplus = int(board_found or 0) + miss - total
     out = {"boardFound": int(board_found or 0), "gameMissing": miss, "rosterTotal": total,
-           "surplus": surplus, "impliedFound": total - miss,
+           "surplus": surplus, "impliedFound": total - miss, "provenance": r.get("origin") or "given",
            "reading": {"readAt": r.get("readAt"), "reel": r.get("reel"),
                        "ageDays": r.get("ageDays"), "source": r.get("source")}}
     if surplus == 0:
@@ -686,6 +919,9 @@ def audit(evidence=None):
     r = load("sets")
     out["remainingPage"] = ({"readAt": r.get("readAt"), "reel": r.get("reel"),
                              "ageDays": r.get("ageDays"), "count": r.get("count")} if r else None)
+    _page_say, out["remainingProvenance"] = ((None, r.get("origin") or "given") if r else
+                                             _no_page("sets", "no Remaining page has ever been recorded, so the "
+                                                              "game cannot deny anything"))
     # ⚠ v2185 — THE VALIDATOR CARRIED THE PRE-v2152 RULE, AND IT IS THE ONE FUNCTION THAT MUST NOT.
     # This computed its own answer as `len(notFoundSeen) >= len(notFound)` — NAMES in one
     # population against KEYS in another, which are not a subset. v2152 fixed exactly that shape
@@ -719,7 +955,7 @@ def audit(evidence=None):
     else:
         bits.append("every not-found reading carries a receipt and can be ordered (%d)" % nf_total)
     if out["remainingPage"] is None:
-        bits.append("no Remaining page has ever been recorded, so the game cannot deny anything")
+        bits.append(_page_say)
     else:
         age = out["remainingPage"].get("ageDays")
         # v2186 — `"%d" % None` raised TypeError here, so a Remaining page banked without a count
@@ -794,6 +1030,11 @@ def main(argv=None):
         return 0 if a.get("ok") else 1
     r = load(ledger)
     if not r:
+        _pv = provenance(ledger)
+        if _pv["state"] in ("elsewhere", "unknown"):
+            print("no Remaining reading of THIS PC's for %r: %s." % (ledger, _pv["why"]))
+            print("⚠ That is 'this board was never asked', NOT 'the board is fine'.")
+            return 0
         print("no Remaining reading on file for %r." % ledger)
         print("⚠ That is 'the game was never asked', NOT 'the board is fine'.")
         return 0

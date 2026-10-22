@@ -10947,6 +10947,15 @@ GATES = [
              "reported as legacyLive, and score() carries byOrigin {code, here} with 'nothing measured on this PC yet'. "
              "`self_arming.py --adopt-legacy-live --reason ... --confirm` moves them to the PC that measured them: no "
              "reason is refused, no --confirm writes nothing, adopted rows keep their own age and are written once."),
+    Gate("test_a_remaining_page_read_on_another_pc_is_unknown_here",
+         [sys.executable, os.path.join(HERE, "test_a_remaining_page_read_on_another_pc_is_unknown_here.py")], 120,
+         needs_app=False,
+         why="#165 (REG-2472) - counter_ledger judged every PC's board (the calibration and the write-path veto, which "
+             "WITHHOLDS set rows) by the tracked tv/remaining page Konyo filmed on 2026-08-21. A shipped page now counts "
+             "for this PC only when its reel is this PC's (footage root, sweep memory or tombstones, resolved at call "
+             "time); an unreadable store with no positive answer is UNKNOWN; a page filmed here goes to the gitignored "
+             "tv/remaining_here/; every judge says why it has no page. sets_base_index reads the shipped page as game "
+             "data through counter_ledger.reference(), so the base index is identical on every PC."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

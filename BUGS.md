@@ -59,6 +59,36 @@ POST-LAND: main runs it on Konyo's Mac with a reason; dean-pc-river checks Dean'
 35/35) with "nothing measured on this PC yet" for live.
 GUARD: the same law's TheAdoptionDoor (function and command line).
 
+### REG-2472 - DEAN'S BOARD WAS JUDGED BY KONYO'S REMAINING PAGE (#165, M4 track B)
+
+counter_ledger._dir() resolved to the TRACKED tv/remaining/, and readings() took every page in it with no provenance.
+load() fed missing_names, owned_by_subtraction, contradicted, denied, arithmetic and audit, and through them
+control_app's chronicle calibration and the write-path veto, where `denied` WITHHOLDS set rows. The only page there is
+Konyo's 2026-08-21 Remaining filter (tv/remaining/sets_2026-08-21.json), read by eye off reel_s_1787307553811_9452 -
+a reel whose footage is released and which only the Mac's gitignored chronicle_swept.json still names. Dean's eagle,
+02:44: "Your board has 130 set pieces ticked. The last Remaining page (62 days old) still listed 19 as missing ...", and
+his calibration said 130 + 19 = 149, "14 rows the game says you do not have" - another player's page.
+FIX: provenance at READ time. A shipped page counts for THIS PC's judgement only when its reel is this PC's: the reel dir
+under the footage root (TV_HIST or tv/frames/hist), or the reel in this PC's sweep memory (TV_CHRON_SWEPT) or reel
+tombstones (reel_retention._tombstone_path) - all resolved at call time. A store that will not read, with no positive
+answer, is UNKNOWN; a page with no usable reel cannot be attributed (UNKNOWN). A TV_REMAINING_DIR world is that world's
+own. A page filmed on a PC goes to its gitignored tv/remaining_here/ (TV_REMAINING_HERE) and needs no provenance. Every
+judge says WHY it has no page ("the only Remaining page on file was read off a reel this PC never held - another
+install's page is UNKNOWN here, not evidence about this board"), and carries `provenance`. denied() on another install's
+page withholds nothing. The page cannot be untracked: sets_base_index and bible.html's _SET_BASE_INDEX embed read it, and
+which base the game prints for which piece is GAME DATA - so counter_ledger.reference() reads the shipped page as data,
+sets_base_index.build() switched to it, and the index is identical on every PC. test_counter_ledger's two real-page cases
+pinned load() to the Mac (a roster) and now read reference(); its evidence case skips, saying why, where the page is not
+this PC's.
+GUARD: tv/test_a_remaining_page_read_on_another_pc_is_unknown_here.py (PC-A / PC-B / unreadable stores in its own
+scratch, the reel derived from the tracked page; git's own matcher on the ignore line), 12 RED_PROOFs.
+LEFT: the doctor's calibration row (console_doctor._remaining_page_reading) and the console card read the SAVED sweep
+result (chron_last_result.json), so a PC keeps showing the old comparison until its next chronicle sweep recomputes it -
+re-judging a saved reading's reel at read time is console_doctor's (not this batch). control_app._chron_calibration's
+"board did not answer" branch still prints "no Remaining page has ever been recorded either" (control_app.py is not this
+batch). bible.html's embedded _SET_MISSING is the same leak on the board side (bible.html is not this batch).
+bake_seed.game_says_missing reads the tracked page for the shipped seed by design.
+
 ### REG-2392 - A PUSH-SCOPE LAW'S THROWAWAY GIT REPO RE-INITIALISED THE REAL ONE AS BARE (v3784 push, GIT_DIR leak)
 
 2026-10-22 07:48, the first v3784 push. test_a_proven_verdict_is_reused_only_on_identical_bytes entered the push scope because Push A1
