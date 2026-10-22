@@ -37,7 +37,16 @@ IS_WIN = os.name == "nt"
 STORE = ".self_prove.json"
 #: Busier than this (percent of the machine) and a proof does not START - he is playing, or the console is
 #: working. A running proof is never killed for it: it already runs below everything he does.
-MAX_BUSY_TO_START = 45.0
+#: ⚠ REG-2550 - 45 -> 75, HIS ORDER (2026-10-22): "raise the cap to 75% so it proves now". On macOS "busy" is the
+#: one-minute load average over the core count (control_app._cpu_busy_pct), so every agent fleet, push gate and build
+#: on his Mac counts as "not idle": it read 93% and 64% while fleets ran. MEASURED on his console that afternoon (10
+#: cores): no game on screen, 4-5 GB free, his census stale (2 gates owed, 5 BLIND), and the lane said "the machine is
+#: 46% busy", then "58% busy - a proof starts only when it is idle (busy for 7 min ...)" - at 45 it waited for a quiet a
+#: working Mac does not have. What stands between a proof and his game is asked BEFORE this bar and is unchanged: is he
+#: playing, is memory free; and a running proof still stands aside within 10 s of either (guard()). REG-1905's 6-hour
+#: escape (BUSY_STARVE_S) stays for a machine busier than this for that long. On Windows "busy" is GetSystemTimes over a
+#: short sample; the same bar applies there.
+MAX_BUSY_TO_START = 75.0
 #: REG-1905 - A WAIT FOR IDLE NEEDS A CEILING. GrokBot's PC read "the machine is 77% busy - a proof starts only when it is
 #: idle" for 20 DAYS (#230, v3600 brief C2): its own driver keeps it above the bar around the clock, so no proof ever
 #: started, its census never went current, and its river stayed shut the whole time while the doctor counted "busy" as a

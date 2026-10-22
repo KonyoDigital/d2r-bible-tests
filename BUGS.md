@@ -7,6 +7,26 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2550 - THE SELF-PROVER WAITED FOR AN IDLE HIS MAC NEVER HAS: ITS START BAR IS 75, NOT 45 (his order, 2026-10-22)
+
+His order, 2026-10-22: "raise the cap to 75% so it proves now". tv/self_prove.py's MAX_BUSY_TO_START was 45.0 - busier than
+that and a proof does not START. On macOS "busy" is control_app._cpu_busy_pct: the one-minute load average over the core count,
+so every agent fleet, push gate and build on his Mac counts against it - it read 93% and 64% while fleets ran. MEASURED on his
+console that afternoon (10 cores): no game on screen, 4-5 GB free, his census stale (2 gates owed, 5 BLIND), and the lane said
+"the machine is 46% busy", then "58% busy - a proof starts only when it is idle (busy for 7 min ...)".
+FIX: MAX_BUSY_TO_START = 75.0, its comment saying why. Unchanged: what decide() asks BEFORE the bar (is he playing, is memory
+free), guard()'s stand-aside of a running proof within 10 s of either, REG-1905's 6-hour escape (BUSY_STARVE_S), and Windows'
+measure (GetSystemTimes over a short sample) - the same bar applies there.
+GUARD: the laws read the bar by name - test_every_pc_proves_itself refuses `busy=SP.MAX_BUSY_TO_START`, and its RED_PROOF anchor
+`if busy_pct >= MAX_BUSY_TO_START:` is unchanged (1 match). No law pins 45: the busy readings the laws hand in are 77 and 80
+(test_a_prover_never_waits_forever_for_idle) and 90 (test_a_proof_yields_the_moment_the_game_starts), all above the new bar,
+and 0, 3 and 5, below both. The 16 non-browser laws that import self_prove: 16/16 OK plain on the new bar (373 tests);
+test_control runs in the push's suites.
+RE-PROVES NOTHING IN HIS HEART: heart2.gates_fingerprint digests the gate files and heart2.py only, and slice_owed compares each
+gate file's own digest - self_prove.py is neither. MEASURED on the trees' own bytes: the fingerprint is the same before and after
+this change and 0 of the 1,039 gate digests differ (self_prove.py is never read). Only the proof CACHE's keys of the laws that
+import it move, so the next --prove of one of them runs it instead of reusing its last proof.
+
 ### REG-2399 - THE VAULT FINDER'S FILED BRANCH HAS NO CASE AND NO PROOF: A KNOWN, UNGUARDED GAP (Push A2 review, REG-2376's other half)
 
 Said plainly so nobody reads REG-2020's guard as covering it. REG-2376 re-aimed test_the_vault_finder_names_the_mule_and_the_cell's
