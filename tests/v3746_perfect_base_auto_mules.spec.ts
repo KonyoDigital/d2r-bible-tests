@@ -211,4 +211,24 @@ test.describe('v3746 — perfect socketable bases auto-mule (REG-2250)', () => {
     expect(out.monarch0, 'a plain 0-socket Monarch is not perfect → null').toBeNull();
     expect(out.monarch1, 'a 1-of-4-socket Monarch is not near max → null').toBeNull();
   });
+  /* REG-2558 - a perfect base filed from an OPEN planner marks it dirty (the close draws the vault) and is saved:
+     owned and the mule assignment are in storage before the planner closes, so a reload keeps it. */
+  test('a perfect base filed in an open planner is saved and marks the planner dirty', async ({ page }: any) => {
+    const r = await page.evaluate(() => {
+      const w = window as any;
+      const d = w._cbDb();
+      const code = Object.keys(d.b).find((c: string) => d.b[c][0] === 'Monarch');
+      const entry = w._cbEntryFor(w._cbItem('b:' + code));
+      entry.sockets = 4;
+      const name = w._cbPerfectBaseMule(entry).name;
+      w._vaultPlannerOn = true;
+      w._vaultPlannerDirty = false;
+      const res = w.vaultPlannerFile(entry, 'vp-spec-dirty');
+      const raw = JSON.stringify(Object.keys(localStorage).reduce((o: any, k: string) => { o[k] = localStorage.getItem(k); return o; }, {}));
+      return { filed: !!(res && res.filed), dirty: w._vaultPlannerDirty === true, name, saved: raw.indexOf(JSON.stringify(name).slice(1, -1)) >= 0 };
+    });
+    expect(r.filed, 'the 4os Monarch must be filed').toBe(true);
+    expect(r.dirty, 'the planner close must be told to draw the vault (_vaultPlannerDirty)').toBe(true);
+    expect(r.saved, r.name + ' must be in storage before the planner closes').toBe(true);
+  });
 });

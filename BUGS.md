@@ -7,6 +7,15 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2558 - A PERFECT BASE FILED FROM THE PLANNER RETURNED BEFORE IT WAS SAVED OR DRAWN (GB-L, 2026-10-22, v3788)
+
+Found by the Grok CLI second eye on v3787. The REG-2250 perfect-base branch of vaultPlannerFile returned early,
+before the tail every other filing runs: persistOwned, saveA, and `_vaultPlannerDirty = true` (the planner close
+draws the vault from that flag). A 4os Monarch filed in an open planner left the flag false. Fix: the branch owns
+the name, saves owned and assign, and marks the planner dirty (or draws the vault when no planner is open). _vpDrop
+still takes a fresh one back. Law: tests/v3746_perfect_base_auto_mules.spec.ts "a perfect base filed in an open
+planner is saved and marks the planner dirty". It is red with the 8 added lines removed.
+
 ### REG-2557 - THE SCRUB READER BOUND A POINTER FIRST-WINS AND FROM A QUOTED MENTION (GB-L, 2026-10-22, v3788)
 
 Found by the Grok CLI second eye on v3787. REG-2552's variable follower kept the FIRST `v=NAME` anywhere in the hook,
