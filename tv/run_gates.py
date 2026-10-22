@@ -11669,6 +11669,35 @@ GATES = [
              "checks its SHA-256 BEFORE extracting, renames it into %LOCALAPPDATA%\\Programs\\nodejs and puts it on "
              "this process's PATH only; never off Windows, never a persistent PATH write. tv/install-tvd.ps1 calls "
              "the door exactly once, after the clone."),
+    Gate("test_the_second_eye_ledger_is_one_per_machine",
+         [sys.executable, os.path.join(HERE, "test_the_second_eye_ledger_is_one_per_machine.py")], 120,
+         needs_app=False,
+         why="#178 (REG-2450) - the ship gate read the PUSHING tree's tv/.second_eye.jsonl: a fresh push worktree has "
+             "none (v3784 refused, 'v3783 OWES A LOOK'), and a look recorded in a worktree died with it (v3778). The "
+             "ledger is now one file per machine in git's common dir, found by reading .git; the first resolution in a "
+             "process folds every checkout's own ledger in (exact rows, none dropped, the sources only read); --gate "
+             "pins it and ignores TV_SECOND_EYE_LEDGER; a tree with no git dir keeps its own file and says so."),
+    Gate("test_a_push_worktree_is_seeded_before_its_gates",
+         [sys.executable, os.path.join(HERE, "test_a_push_worktree_is_seeded_before_its_gates.py")], 120,
+         needs_app=False,
+         why="#143 (REG-2451) - a fresh push worktree lacked node_modules and tv/.heart2.json, so pushes refused one gap "
+             "at a time. tv/seed_worktree.py finds main from the worktree's .git pointer and COPIES (never links) what "
+             "is missing, never overwrites, asks second_eye_ledger whether its ledger is still per checkout, refuses the "
+             "main checkout itself and any seed that would leave free disk under his 8 GB ON AIR floor."),
+    Gate("test_two_provers_never_share_a_lane_port",
+         [sys.executable, os.path.join(HERE, "test_two_provers_never_share_a_lane_port.py")], 120,
+         needs_app=False,
+         why="#160 (REG-2452) - base_for_lane gave every process the same ports, so the census and a push bound one "
+             "listener; stamp never set TV_RENDER_PORT; nothing capped Chrome machine-wide. A prover now claims a "
+             "machine-wide slot (a flock'd file per slot in git's common dir, freed when its holder dies) whose ports "
+             "are its own; each lane renders on its spare port; at most two browser slots are held across the machine."),
+    Gate("test_the_second_eye_row_reads_the_ledger_once",
+         [sys.executable, os.path.join(HERE, "test_the_second_eye_row_reads_the_ledger_once.py")], 120,
+         needs_app=False,
+         why="#48 (REG-2453) - console_doctor's 'second eye asked twice' row re-parsed the 7.3 MB ledger 43 times a tick "
+             "(census 3.96 s profiled, 6-11 s loaded). The parse is kept per (path, size, mtime_ns, inode, device) and "
+             "the census per ledger state: one parse on the first tick, none on the next, an appended row seen at once, "
+             "a file written in the last 3 s never served from memory."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
