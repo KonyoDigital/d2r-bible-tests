@@ -63,18 +63,29 @@ test('recount: a BARE set-piece name typed in the Add box keys the SLOTTED ledge
   expect(r.cpBare).toBeUndefined();
 });
 
+/* V0 spec refresh (#176) — renderMultiKeep is a closure function of the vault script and has NEVER been on
+   window (not at v3753 either), so `w.renderMultiKeep()` threw "is not a function" from the day this spec was
+   written. It is reached through its public door instead: renderVault paints the Multi-copy Keepers panel into
+   #vault-multikeep on every render (bible.html renderVault: `renderMultiKeep(); renderVaultRegistered();`), and
+   the panel lists an owned set piece whose copy count is inflated even with no keep-target
+   (renderMultiKeep: `if(window._vfIsSetPiece && window._vfIsSetPiece(c) && copyCount(c)>1 ...) names.push(c)`).
+   Measured on the merged V1 tree: one row for the slotted helm, a HAVE stepper, and the no-target "want —". */
 test('renderMultiKeep surfaces an owned inflated set piece with NO keep-target (walk-down without typing) (#76)', async ({ page }) => {
   await seedLoad(page, [HELM, RAVEN], { [HELM]: 'sets-rest' }, { [HELM]: 3 }, {});
   const r = await page.evaluate((K: any) => {
     const w = window as any;
-    let el: any = document.getElementById('vault-multikeep');
-    if (!el) { el = document.createElement('div'); el.id = 'vault-multikeep'; document.body.appendChild(el); }
-    w.renderMultiKeep();
-    const html = el.innerHTML || '';
-    return { surfaced: html.indexOf(K.helm) >= 0, hasHaveStepper: /vaultCopyAdjust/.test(html) };
+    w.renderVault();                     // the public door that paints the panel (renderMultiKeep is not on window)
+    const el: any = document.getElementById('vault-multikeep');
+    const html = (el && el.innerHTML) || '';
+    return { panel: !!el, copies: (JSON.parse(localStorage.getItem('d2r_copies') || '{}'))[K.helm],
+             surfaced: html.indexOf(K.helm.replace(/'/g, '&#39;')) >= 0 || html.indexOf(K.helm) >= 0,
+             hasHaveStepper: /vaultCopyAdjust/.test(html), noTarget: /vmk-notarget/.test(html) };
   }, { helm: HELM });
+  expect(r.panel, 'the Multi-copy Keepers panel is in the page markup').toBe(true);
+  expect(r.copies, 'PREMISE: the seeded inflated count survived the load').toBe(3);
   expect(r.surfaced).toBe(true);       // the inflated set piece appears without being typed
   expect(r.hasHaveStepper).toBe(true); // with a HAVE stepper to walk it down
+  expect(r.noTarget).toBe(true);       // and no keep-target (the "want —" cell): nothing typed it in
 });
 
 async function sweepRun(page: any) {

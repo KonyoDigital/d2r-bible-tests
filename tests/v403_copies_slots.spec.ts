@@ -3,7 +3,12 @@ import * as path from 'path';
 const URL = 'file://' + path.resolve(__dirname, '..', 'bible.html');
 
 // v403 — a QUANTITY base owned ×N occupies N SEPARATE slots in the in-game stash replica (Konyo's 3 Threshers
-// = 3 cells, packed alongside the other units). The header/goldbox count the PHYSICAL total. Capped at 3.
+// = 3 cells, packed alongside the other units). The goldbox counts the PHYSICAL total. (The cap of 3 is gone:
+// v3767 draws every copy — the second test.)
+// V0 spec refresh (#176) — v3755 (#76 locker/card labeling): the card's sub line counts DISTINCT items and
+// names the physical copies separately — "2 items total · 4 copies" — so one name owned ×3 is never read as three
+// items (bible.html openMuleCard head: `_namesN+' item'+(_namesN===1?'':'s')+' total'+(_physN>_namesN?(' · '+_physN+'
+// copies'):'')`). Measured on the merged V1 tree: "2 items total · 4 copies · pack in-game EXACTLY like this".
 test('v403 a base owned x3 renders 3 separate slots in the mule replica', async ({ page }) => {
   const errs: string[] = [];
   page.on('console', m => { if (m.type()==='error') errs.push(m.text()); });
@@ -28,7 +33,8 @@ test('v403 a base owned x3 renders 3 separate slots in the mule replica', async 
   });
   expect(r.thresherSlots).toBe(3);
   expect(r.grimSlots).toBe(1);
-  expect(r.sub).toContain('4 items');
+  expect(r.sub, 'distinct items: the Thresher and the Grim Scythe').toContain('2 items total');
+  expect(r.sub, 'the physical copies, said separately').toContain('4 copies');
   expect(r.gold).toContain('4 on this mule');   // v405 — goldbox now reports stash/mule counts
   expect(errs).toEqual([]);
 });

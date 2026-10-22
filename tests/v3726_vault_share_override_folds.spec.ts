@@ -5,7 +5,8 @@ import { test, expect } from '@playwright/test';
 // the planner fold ("Harlequin Crest (Shako)" → "Harlequin Crest") each recurse on the
 // inner spelling and return before the outer name's override is read. Force-in still
 // routes to the shared stash; force-out keeps the war-gear and high/vhigh branches
-// from firing. Keepers and standing kit still win. _shareDefault stays override-free.
+// from firing. Standing kit still wins (REG-2241 moved the charm keepers to the shared
+// stash, so they follow the switch). _shareDefault stays override-free.
 //
 // Each case does its work inside one evaluate. The vault re-renders asynchronously
 // and can wipe a panel between an evaluate and a later locator.
@@ -88,16 +89,22 @@ test('a dashed register name force-mule is not shared', async ({ page }) => {
 });
 
 // A folding name whose rules say mule, forced in, must become shared.
+// V0 spec refresh (#176) — REG-2242 (his ruling: merc gear lives in the shared stash) made Andariel's Visage
+// shared by default, so its planner label can no longer be the "rules say mule" case. Re-anchored on a med-tier,
+// NON-merc helm whose planner label still folds: "Nightwing's Veil (Spired Helm)" — d2rResolveItem calls it
+// unknown, the fuzzy fold hop files it as Nightwing's Veil ("the planner names it"), and it routes to uni-armor
+// (measured on the merged V1 tree). The why-text premise keeps this case on the fold hop it was written for.
 test('a planner-label force-in is shared', async ({ page }) => {
   const r = await page.evaluate(() => {
     const w = window as any;
     try { localStorage.removeItem('d2r_vaultShareOverride'); w.__shareOvCache = null; } catch (e) {}
-    const n = "Andariel's Visage (Demonhead)";
-    const before = (w.suggestMule(n) || {}).id || null;
+    const n = "Nightwing's Veil (Spired Helm)";
+    const plain = w.suggestMule(n) || {};
     w._setShareOverride(n, 'shared');
     const after = w.suggestMule(n) || {};
-    return { before: before, ov: w._shareOverride(n), id: after.id || null };
+    return { before: plain.id || null, why: plain.why || '', ov: w._shareOverride(n), id: after.id || null };
   });
+  expect(r.why, 'precondition: the label reaches the planner fold hop (REG-1913)').toContain('the planner names it');
   expect(r.before, 'precondition: the rules do not share this planner label').not.toBe('shared');
   expect(r.ov, 'the force-in is stored').toBe('shared');
   expect(r.id, 'force-in routes to the shared stash').toBe('shared');
@@ -127,20 +134,31 @@ test('a dashed-name force-in is shared', async ({ page }) => {
   expect(r.id, 'force-in routes to the shared stash').toBe('shared');
 });
 
-// A charm cannot be forced into a stash it cannot use. Standing kit wins the same way.
-test('a keeper force-in stays a keeper', async ({ page }) => {
+// Standing kit cannot be forced into the shared stash: it stays with the character.
+// V0 spec refresh (#176) — REG-2241, his ruling 2026-10-15 (verbatim): "torches and anni stay in shared. gheeds
+// gets muled." Annihilus is no longer a MAIN keeper (__keep): the rules alone put it in the shared stash
+// (suggestMule: `if (_ov !== 'mule' && /^(Annihilus|Hellfire Torch)$/i ...) return {id:'shared'...}`), so his
+// per-item switch decides it like any shared item — ticked it stays shared, unticked it goes to its charm mule
+// (uni-small, measured on the merged V1 tree), never to MAIN and never nowhere. Standing kit (_keepHome, the §29
+// furniture list, read ABOVE the override) is the keeper that still wins over a forced tick.
+test('a keeper force-in stays a keeper; Annihilus follows his switch (REG-2241)', async ({ page }) => {
   const r = await page.evaluate(() => {
     const w = window as any;
-    function go(n: string) {
+    function go(n: string, v: string) {
       try { localStorage.removeItem('d2r_vaultShareOverride'); w.__shareOvCache = null; } catch (e) {}
-      w._setShareOverride(n, 'shared');
+      w._setShareOverride(n, v);
       const s = w.suggestMule(n) || {};
-      return { id: s.id || null };
+      return { id: s.id || null, ov: w._shareOverride(n) };
     }
-    return { anni: go('Annihilus'), cube: go('Horadric Cube') };
+    try { localStorage.removeItem('d2r_vaultShareOverride'); w.__shareOvCache = null; } catch (e) {}
+    return { anniDefault: w._shareDefault('Annihilus'), anniIn: go('Annihilus', 'shared'), anniOut: go('Annihilus', 'mule'),
+             cube: go('Horadric Cube', 'shared') };
   });
-  expect(r.anni.id, 'Annihilus stays in inventory').toBe('__keep');
-  expect(r.anni.id, 'a keeper is not shared').not.toBe('shared');
+  expect(r.anniDefault, 'REG-2241: the rules alone keep Annihilus in the shared stash').toBe('shared');
+  expect(r.anniIn.id, 'ticked → the shared stash').toBe('shared');
+  expect(r.anniOut.ov, 'unticking differs from the default, so it is stored').toBe('mule');
+  expect(r.anniOut.id, 'unticked → out of the shared stash').not.toBe('shared');
+  expect(r.anniOut.id, 'unticked → its charm mule, never parked on MAIN').toBe('uni-small');
   expect(r.cube.id, 'the Cube stays with the character').toBe('__keep');
   expect(r.cube.id, 'standing kit is not shared').not.toBe('shared');
 });

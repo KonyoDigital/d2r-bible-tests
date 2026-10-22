@@ -15,16 +15,34 @@ import { test, expect } from '@playwright/test';
 const URL = 'file://' + process.cwd() + '/bible.html';
 const BARE = "Natalya's Totem", HELM = "Natalya's Totem (helm)";
 
+/* V0 spec refresh (#176, GrokBot triage: "the load-time fold consumes the seed") — the boot render runs the
+   REG-2229 one-time migration window._vaultDedupeOldSetRows BEFORE any test code: a LOOSE owned set piece whose
+   twin is FILED leaves owned through vaultRemove (lane 'set-dupe-migration'), and the world is stamped
+   d2r_setDupeMigrate_v2227. Measured on the merged V1 tree: with the fold seed the bare form was already gone
+   (before = [helm, Raven Frost]); with the spare seed the loose SLOTTED twin was gone, so there was no pair left
+   to spare. That migration ran ONCE on his world, long ago (v3742); this fixture is that world — it carries the
+   stamp, so the seed reaches the function under test, _setPieceReconcile, exactly as a new split would.
+   Not a regression: on the v3751 page itself (measured in node) the same boot migration consumed the same seed,
+   so these two cases never reached the reconcile on a fresh world — red from the day they were written.
+   The page also runs _setPieceReconcile({}) itself, 1.5 s after load (_seedCleanseArm); on a slow runner that pass
+   can fold the seed before the test's forced pass reads `before` (the race #184 measured on a CI retry for v3753).
+   So the fixture says that pass already ran on this world too (a receipt no version outranks): only the test's
+   forced pass folds, and it is the one every assertion reads. The SAME 1.5 s callback first runs the one-time
+   seed cleanse (window._seedCleanse), which takes an unfiled grail-seed name with no receipt — Raven Frost here,
+   which `after` reads (measured: with no d2r_seedCleanse receipt, a callback that fires first removes it through
+   lane 'seed-cleanse') — so that receipt is stamped as already run as well. */
 async function seedLoad(page: any, owned: string[], assign: any) {
   await page.addInitScript(({ owned, assign }: any) => {
     try {
       localStorage.setItem('d2r_ownerClaim', '*');
-      Object.defineProperty(navigator, 'webdriver', { get: () => true });
       localStorage.setItem('d2r_owned', JSON.stringify(owned));
       localStorage.setItem('d2r_muleAssign', JSON.stringify(assign));
       localStorage.setItem('d2r_copies', '{}');
-      localStorage.removeItem('d2r_setPieceReconcile');
+      localStorage.setItem('d2r_setPieceReconcile', JSON.stringify({ ver: 1e9, by: 'spec' }));   // the load-time pass: already ran
+      localStorage.setItem('d2r_seedCleanse', JSON.stringify({ ver: 1e9, by: 'spec' }));         // the seed cleanse in that callback: already ran
+      localStorage.setItem('d2r_setDupeMigrate_v2227', String(Date.now()));                     // REG-2229 already ran on this world
     } catch (e) {}
+    try { if (!Object.getOwnPropertyDescriptor(navigator, 'webdriver')) Object.defineProperty(navigator, 'webdriver', { get: () => true }); } catch (e) {}
   }, { owned, assign });
   await page.goto(URL);
   await page.waitForFunction(() =>

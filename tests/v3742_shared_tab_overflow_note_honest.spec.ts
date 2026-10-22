@@ -9,17 +9,26 @@ import { test, expect } from './_net_stub';
 
 const URL = 'file://' + process.cwd() + '/bible.html';
 
+/* V0 spec refresh (#176) — the fixture was 120 'Zdummy' names filed to SHARED, piled on tab 5. Those names are no
+   item, and the board draws only items it knows (_vaultKeeps, the ownedPool rule — the names stay in d2r_owned and
+   in the stored d2r_muleAssign): measured on the merged V1 tree, owned held 120 but ownedPool() 0 and the shared
+   stash 0, so tab 5 painted an empty grid (GrokBot V0: placed = 0) — the fixture, not the note, went missing. The
+   v3742 page that wrote this spec measures the same (0 placed), so PART B was red from the day it was written; it
+   is not a regression. It is rebuilt from REAL items: fifteen 2×3 / 2×4 weapon uniques filed to the shared stash. Every
+   one has a slot on record (_sharedTabOf → tab 1, Weapons) and a measured footprint, so they cannot all fit one
+   10×10 tab (≥ 120 cells; ten 2×4s fill it). Measured: tab 1 places 10, and the overflow note names the other 5.
+   (No roster unique lands on tab 5 any more — every one has a slot — so the overflow is shown where it happens.) */
+const WEAPONS = ['Windforce', 'Buriza-Do Kyanon', 'Goldstrike Arch', 'The Grandfather', 'Tomb Reaver', 'Bonehew',
+  'Bloodtree Stump', 'Bonesnap', 'Cliffkiller', 'Eaglehorn', 'Hone Sundan', 'Kuko Shakaku', 'Spire of Honor',
+  'Stoneraven', 'Woestave'];
+
 test('shared-tab overflow note is honest: no "preview", names the items, says there is no spill', async ({ page }) => {
-  // 120 slot-unknown dummies all routed to SHARED → they pile on tab 5 (spare) and overflow its 10×10.
-  // Gibberish names resolve to no doll slot (tab 5) and to the default footprint, so overflow is
-  // deterministic and does not depend on any item-size or routing table.
-  await page.addInitScript(() => {
-    const dummies: string[] = [];
+  await page.addInitScript((names: string[]) => {
     const assign: Record<string, string> = {};
-    for (let i = 0; i < 120; i++) { const n = 'Zdummy' + i; dummies.push(n); assign[n] = 'shared'; }
-    localStorage.setItem('d2r_owned', JSON.stringify(dummies));
+    names.forEach((n) => { assign[n] = 'shared'; });
+    localStorage.setItem('d2r_owned', JSON.stringify(names));
     localStorage.setItem('d2r_muleAssign', JSON.stringify(assign));
-  });
+  }, WEAPONS);
   await page.setViewportSize({ width: 1500, height: 950 });
   await page.goto(URL);
   await page.waitForTimeout(1800);
@@ -40,17 +49,21 @@ test('shared-tab overflow note is honest: no "preview", names the items, says th
   expect(unit.note).toContain('no overflow spill');           // says the stash cannot spill on its own
 
   // PART B — the note is WIRED into the live render (the-unjoined-end), read synchronously (no re-render race).
-  const rendered = await page.evaluate(() => {
+  const rendered = await page.evaluate((names: string[]) => {
     const w = window as any;
     w.switchTab('tools');
+    const tabs = names.map((n) => w._sharedTabOf(n).tab);
     w.openMuleCard('shared');
-    w._sharedSetPage(4);   // the spare tab, where the slot-unknown dummies piled up
+    w._sharedSetPage(0);   // tab 1, Weapons — where the fifteen weapons are laid by slot
     const placed = document.querySelectorAll('#vault-detail .vd-item').length;
     const ov = document.querySelector('#vault-detail .vd-overflow');
-    return { placed, has: !!ov, text: ov ? (ov.textContent || '') : '' };
-  });
+    const text = ov ? (ov.textContent || '') : '';
+    return { tabs, placed, has: !!ov, text, named: names.filter((n) => text.indexOf(n) >= 0).length };
+  }, WEAPONS);
+  expect(new Set(rendered.tabs), 'PREMISE: every fixture weapon is laid on tab 1 (Weapons)').toEqual(new Set([0]));
   expect(rendered.placed).toBeGreaterThan(0);                     // the tab rendered its grid (render did not throw)
   expect(rendered.has).toBe(true);                                // and it overflowed
   expect(rendered.text.toLowerCase()).not.toContain('preview');   // honest in the real DOM
   expect(rendered.text).toContain('will not fit');
+  expect(rendered.named, 'the live note names the items that did not fit').toBeGreaterThan(0);
 });
