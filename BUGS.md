@@ -7,6 +7,14 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2483 - DEAN'S LAPTOP SLEPT IN THE MIDDLE OF A PROOF; NOTHING HELD IT AWAKE, AND NOTHING MAY HOLD IT LONGER THAN THE WORK (#170)
+
+MEASURED on Dean's PC 2026-10-22 (powercfg, read-only): standby never on AC or DC, hibernate after 7,200 s on battery only; the 15:30 drop that day was Kernel-Power 42 ("Button or Lid"). `git grep SetThreadExecutionState|caffeinate` found nothing: no lane ever asked the OS to stay up while a proof ran. His ruling 2026-10-21: keep the PC awake ONLY while a proof or sweep runs.
+
+FIX: tv/keep_awake.py - `held(why)` (this thread, the with-block), `hold_for_pid(pid, why)` (idempotent, ends when the process ends, normally or killed), `status()` {on, holds, lastTs, why}; none of them raises. Windows: SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED) = exactly 0x80000001, released with ES_CONTINUOUS on the thread that took it (a pid hold lives on a watcher thread that waits on the process handle). macOS: `caffeinate -i -w <pid>`, spawned posix_spawn-safe. Never the display flag, away mode, powercfg or the registry. self_prove takes the hold for a prover it spawns and, every tick, for a running prover a relaunched console adopts; a law's stand-in pid is never held for real.
+
+GUARD: tv/test_the_pc_stays_awake_only_while_a_proof_runs.py (registered; a fake kernel on every PC plus one real caffeinate case; 7 RED proofs, one declares "needs": "macos").
+
 ### REG-2482 - 'STRAY PROCESSES' WAS UNKNOWN FOR 45 DAYS ON WINDOWS: THE RUNAWAY WATCH ASKED `ps`, WHICH WINDOWS DOES NOT HAVE (#171)
 
 MEASURED on Dean's PC 2026-10-22: "the sweep could not judge yet - `ps` could not be asked for a CPU sample ... unaskable for 45d (729 attempts)". my_orphans.suspects() sampled `ps -Ao pid,pcpu`, so on every Windows PC the 28-hour core-burner class was unwatched while the row read like an instrument hiccup. health_engine's OK sentence also re-sampled `ps` only to count it, so on Windows a clean verdict would have printed "UNKNOWN process(es) scanned".

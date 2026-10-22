@@ -11636,6 +11636,14 @@ GATES = [
              "samples the kernel's own cumulative CPU time (Toolhelp + GetProcessTimes, no spawn) twice, the second "
              "from the previous call, ages each process by child_guard's birth reader, and an unreadable sample is "
              "UNMEASURED, never 'nothing busy'. health_engine's OK sentence names the count and the instrument."),
+    Gate("test_the_pc_stays_awake_only_while_a_proof_runs",
+         [sys.executable, os.path.join(HERE, "test_the_pc_stays_awake_only_while_a_proof_runs.py")], 120,
+         needs_app=False,
+         why="REG-2483 (#170) - Dean's laptop slept mid-proof; his ruling: awake ONLY while work runs. tv/keep_awake.py "
+             "holds with SetThreadExecutionState(ES_CONTINUOUS|ES_SYSTEM_REQUIRED) = exactly 0x80000001 on Windows "
+             "and `caffeinate -i -w <pid>` on macOS, released when the block or the prover ends (normally or "
+             "killed); self_prove holds a prover it spawns and one a relaunched console adopts. A fake kernel on every "
+             "PC, plus one real caffeinate case judged on macOS."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
