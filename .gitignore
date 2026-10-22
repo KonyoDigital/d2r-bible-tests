@@ -390,8 +390,10 @@ heart2_look_*.sh
 # nothing writes it again.
 tv/.vault_autoread.json
 
-# REG-2461 / REG-2462 (#181) - THIS PC's console records. Each is written only by the console or harness on this
-# machine and read only here; another PC shows UNKNOWN, never these numbers.
+# REG-2461 / REG-2462 (#181) - THIS PC's records. The slowest-request record is read and written only by this PC's
+# console, or by a fixture world under TV_HIST (control_app._status_worst_ours); a law, a suite or a CLI keeps its
+# own in memory. The epoch is written only by its harness, tv/river_epoch.py, run on this machine. Another PC shows
+# UNKNOWN, never these numbers.
 tv/.status_worst.here.json
 tv/.status_worst.here.json.tmp
 tv/.river_epoch.here.json
