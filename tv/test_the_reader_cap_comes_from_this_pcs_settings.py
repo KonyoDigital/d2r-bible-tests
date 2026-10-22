@@ -107,8 +107,11 @@ class _Runner(unittest.TestCase):
             e["TV_PC_SETTINGS"] = self.settings
         e["TVD_CLAUDE_BIN"] = os.path.join(self.d, "no-such-claude")   # a cap that fails open spends nothing
         e.update(env or {})
+        # node writes UTF-8 to a pipe on every OS; text=True alone decodes with the locale's code page (cp1255 or
+        # cp1252 on a Windows PC without UTF-8 mode), which turned the refusal's em dash into mojibake there
         p = subprocess.run([NODE, runner or RUNNER], input=json.dumps({"path": path, "body": body or LOCATE}),
-                           capture_output=True, text=True, timeout=60, env=e, cwd=self.d)
+                           capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=60, env=e,
+                           cwd=self.d)
         self.assertEqual(p.returncode, 0, "the runner died: %s" % (p.stderr or "")[-400:])
         out = json.loads(p.stdout)
         try:
@@ -220,7 +223,9 @@ class TheRefusalNamesTheWindowThatBinds(_Runner):
     retry_s 120 (a read promised two minutes on) while the day cap refused for 20 hours more, and it named the
     hour's source when the day's limit came from another layer. The refusal is the window whose retry is LATEST - its
     own limit, source and retry_s - and its message says the other window is full too. Node only, like every case here:
-    nothing in this class needs a shell or a stand-in CLI, so a Windows PC with node runs all of it."""
+    nothing in this class needs a shell or a stand-in CLI, so a Windows PC with node runs all of it - read from the
+    source, not run on Windows; ask() decodes the runner's UTF-8 itself, and with the pipe decoded as cp1255 or cp1252
+    (a Windows code page without UTF-8 mode) the em dash these cases assert became mojibake there."""
 
     def write(self, rows):
         with io.open(self.ledger, "w", encoding="utf-8") as fh:
