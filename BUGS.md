@@ -143,9 +143,30 @@ SOURCES: https://classic.battle.net/diablo2exp/items/normal/uamulets.shtml , ...
 .../elite/uhelms.shtml (Steel Shade +5-11 Fire Absorb); d2emu https://d2emu.com/db/unique/the-rising-sun (raw "Level 0").
 GUARD: tv/test_no_codex_number_contradicts_its_own_table.py - every codex proc level equals its hover card's; every absorb and
 skill-count claim in a note (both copies) is its own table's figure; a codex note and its duplicate agree.
-OPEN (siblings found, not swept here): notes whose ED / IAS / FRW / MF figure is not their table's - 50 ED, 10 IAS, 10 FRW, 12 MF
-claims at the time of writing (e.g. Stormrider "+200% ED" over +100%, Dwarf Star "+100% MF" over 100% extra gold). Armor "ED"
-means Enhanced Defense, so that sweep needs its own reader.
+FIX ROUND (the adversarial review): the skill reader the law certified read a claim only when it ended in the word "skills"
+after at most two letter-only words, so five contradicted notes passed green in both copies - Frostburn "+1-2 cold sorc" (no
+skill line), Bane Ash "+1 fire sorc" (+5 Fire Bolt, +2 Warmth), Eschuta's Temper "+1-3 fire/light skills" (+1-3 Sorceress),
+Seraph's Hymn "+2 paladin auras" (+2 All Skills, +1 Masteries), Homunculus "+1 nec auras" (no aura line, and "+20% fcr" with no
+FCR line); Death's Fathom's "+3 cold sorc skills" over +3 Sorceress turned up with the wider reader. And the OPEN list above
+undercounted: measured with the law's readers on the notes as this branch first shipped them, 138 of the 320 codex notes
+printed a number their own table does not hold, 62 more named a stat with a figure its table line does not print, and 7 gave
+a skill count no line holds - 203 in all (Gheed's Fortune printed its gold as MF and its MF as gold; Atma's Wail gave
+"+8-10% LL" to an item with no leech; Nosferatu's Coil 8% LL over 5-7%; Crushflange 25% CB over 33%; Duriel's Shell +20-40%
+cold res over +50%; Skin of the Flayed One "+15-20 LL" over 5-7%; Crow Caw 40 / 25 / 50 over 15 / 15 / 35). FIX: those 203
+notes (and Shaftstop's "+250 def", which is defense vs missile) were rewritten from their own tables, clause by clause - a figure restated from its table line, or the clause removed (his
+ruling: a contradicting copy is removed) - in the codex and in every ITEM_INFO / ITEM_INFO_EXTRA copy (and the alias key
+"Bul-Kathos Wedding Band"). Non-numeric claims a rewritten note's table contradicts went with them (a "CTC Frost Nova" no table
+line holds, "cold dmg" on a lightning weapon, "LL" with no leech, "the small charm" on a grand charm). The keys' notes no
+longer say three keys open Uber Tristram (one of each opens a mini-uber portal), and Polaris Spear and The Scourge - RotW
+uniques with no props on record - say so instead of a picked "+200% ED". The law now reads every copy (codex, ITEM_INFO,
+and the runtime uniques' notes) three ways: every number a note prints is one its own table prints (a rune reads the rune
+table; a note with no table prints no number) - 2,028 numbers in 645 copies; a stat it names with a figure carries that
+table line's figure - 1,030 claims; a skill count, read with the widened '+N[-M] <class or tree words> skills | sorc |
+auras | ...' reader and its slash forms, is a table line that names that class or tree. 20 red-proofs.
+OPEN (measured, not swept): non-numeric descriptors in notes the readers passed (a role word such as "merc fave" or "MF helm")
+are not read against anything; the ITEM_INFO_EXTRA key blurbs and "Ist rune ... trade value ~5 Pul" are not copies of a codex
+note and are not read; several props look mis-mapped on skill-tab lines (Wolfhowl "+2 to Fire Skills", Halaberd's Reign "+1
+to Lightning Skills", Arreat's Face "+2 to Cold Skills"), so the rewritten notes do not restate those lines.
 
 ### REG-2505 - ESSENCES CARRIED THREE RATES, AND THE JEWEL WORE A NAME THE GAME DOES NOT USE (#69, M6 T2)
 
