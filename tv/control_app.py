@@ -19818,11 +19818,20 @@ def _runaway_verdict(late_s, tick_s, cpu_frac, streak, blocked_delta=None):
 
 
 def _cpu_seconds():
-    """CPU seconds this process has burned, or None. -> float|None"""
+    """CPU seconds this process has burned, or None. -> float|None
+
+    REG-2464 (#171) — `resource` is POSIX-only, so on Windows this was None on every tick: _RUNAWAY['cpu'] read null
+    on Dean's PC and the runaway watch's CPU half was blind there. time.process_time() is this process's user+system
+    CPU on every OS (GetProcessTimes on Windows) - the same measure getrusage(RUSAGE_SELF) gives on POSIX, which is
+    still asked first. None only when neither can answer."""
     try:
         import resource
         r = resource.getrusage(resource.RUSAGE_SELF)
         return float(r.ru_utime) + float(r.ru_stime)
+    except Exception:
+        pass
+    try:
+        return float(time.process_time())      # REG-2464 - every OS, Windows included
     except Exception:
         return None
 

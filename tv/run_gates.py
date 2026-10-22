@@ -11563,6 +11563,13 @@ GATES = [
              "it leaves loose (a window a reel covers, a recording that may still be filming), and never folds "
              "beside another fold. Driven on a fixture hist with every path named; the roster is parsed, never "
              "started."),
+    Gate("test_the_runaway_watch_reads_cpu_on_every_os",
+         [sys.executable, os.path.join(HERE, "test_the_runaway_watch_reads_cpu_on_every_os.py")], 60,
+         needs_app=False,
+         why="REG-2464 (#171) - the runaway watch read this process's CPU only through `resource`, which Windows does "
+             "not have, so its CPU half was None on every tick there (Dean's runaway cpu: null) and 'late AND "
+             "burning' could never fire. _cpu_seconds() falls back to time.process_time(); with `resource` "
+             "unimportable the reading is a float that rises across a busy loop."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

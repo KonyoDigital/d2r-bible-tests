@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2464 - THE RUNAWAY WATCH WAS BLIND TO CPU ON EVERY WINDOWS PC: `resource` IS POSIX-ONLY (#171)
+
+Seen by the agent on Dean's PC 2026-10-21: the console's runaway record read `cpu: null`. Read from the code: control_app's `_cpu_seconds()` asked only `resource.getrusage(RUSAGE_SELF)`, `resource` does not exist on Windows, so every tick's CPU was None and the CPU half of the runaway watch (REG-699, "late AND burning") could never fire there - a console spinning a core while refusing status reads would only ever read "late but idle".
+
+FIX: `_cpu_seconds()` falls back to `time.process_time()` - this process's user+system CPU on every OS (GetProcessTimes on Windows), the measure getrusage gives on POSIX, which is still asked first. None only when neither answers.
+
+GUARD: tv/test_the_runaway_watch_reads_cpu_on_every_os.py (registered) - with `resource` unimportable (sys.modules['resource'] = None, the Windows shape) the reading is a float that rises across a busy loop, and the watch's fraction is a number. RED proof: the fallback removed.
+
+LEFT: the eagle's other Windows assumptions in #171 (the Grok-only eye rows, the Quartz-only paint row, the launchd-only test venue, the `ps` stray sweep) are not in this change.
+
 ### REG-2463 - NOTHING FOLDED LOOSE FRAMES ON ITS OWN ON ANY PC, SO EVERY RIVER WAS DAMMED BY FOOTAGE NO LANE COULD SEE (#168)
 
 Measured on Dean's PC 2026-10-21/22 (by the agent): 67,925 frames (2.53 GB) belonged to no reel. A fold by hand (`orphan_fold.py --apply --yes`) moved 65,457 of them into 18 reels and left 2,468 loose in 18 clusters an existing reel overlaps. Read from the code: the only automatic fold, console_healer's `_remedy_fold_orphan_footage`, runs only with TV_AUTO_HEAL=1, which no PC sets; and even armed, its still-red rule would disarm it for good after one fold, because the doctor's row stays MISSING on the frames an overlap refuses. His ruling 2026-10-21: "FOLD + LANE".
