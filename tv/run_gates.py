@@ -11553,6 +11553,16 @@ GATES = [
              "another PC's record is never this PC's, a slow status request is kept and published here only, git's "
              "own matcher ignores the names the code writes, and an epoch that cannot be serialised leaves the last "
              "one whole."),
+    Gate("test_loose_frames_fold_on_their_own_lane",
+         [sys.executable, os.path.join(HERE, "test_loose_frames_fold_on_their_own_lane.py")], 120,
+         needs_app=False,
+         why="REG-2463 (#168) - nothing folded loose frames on its own on any PC (the healer's fold runs only with "
+             "TV_AUTO_HEAL=1, and would disarm itself after one fold), so a session that died before it sealed "
+             "dammed the river with footage no lane could see. The tvd-orphan-fold lane asks what is in flight "
+             "first, folds only the clusters apply_plan calls eligible into reel_s_<t0>_1 with an index, names what "
+             "it leaves loose (a window a reel covers, a recording that may still be filming), and never folds "
+             "beside another fold. Driven on a fixture hist with every path named; the roster is parsed, never "
+             "started."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

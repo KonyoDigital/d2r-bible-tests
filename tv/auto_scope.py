@@ -181,6 +181,19 @@ LANES = {
         "brakes": "no node on this machine = a receipt saying so, which every reader takes as UNKNOWN - never "
                   "0 rows and never agreement; a receipt the page has moved from is UNKNOWN until re-measured",
     },
+    # REG-2463 (#168) - his ruling 2026-10-21, "FOLD + LANE"
+    "tvd-orphan-fold": {
+        "does": "moves the loose frames of a recording that died before it sealed into a reel of their own, named "
+                "by the frames' own timestamps, so the lanes can read them",
+        "touches": "loose f_<ms>.jpg frames in this console's hist folder (moved, never copied or rewritten) and "
+                   "the new reel's index",
+        "forbids": ["delete"],
+        "never": "a frame already in a reel, a window an existing reel covers (that would give one recording two "
+                 "session ids), or a recording whose newest frame is still inside the gap - it may still be filming",
+        "when": "a few minutes after boot, then every half hour",
+        "brakes": "asks what is in flight first and moves nothing on a refusal or when nobody can be asked; one fold "
+                  "at a time - while the healer's fold runs it moves nothing; what it leaves loose is named",
+    },
 }
 
 
@@ -390,6 +403,7 @@ LANE_FN = {
     "tvd-retro-triage": "_retro_triage_loop",
     "tvd-runaway-watch": "_runaway_watch_loop",
     "tvd-tooltip-oracle": "_tooltip_oracle_loop",
+    "tvd-orphan-fold": "_orphan_fold_loop",
 }
 
 #: what a forbidden word means in code. Deliberately broad: a false alarm costs a comment, a missed
