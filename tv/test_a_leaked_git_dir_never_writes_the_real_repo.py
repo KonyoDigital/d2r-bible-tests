@@ -17,8 +17,18 @@ inside heart2's sandbox (a copy with no .git), so the hook hands it the commit b
 TV_PUSHED_COMMIT. And each law that builds a temp repo scrubs GIT_* for its OWN scope (a module-wide strip once made the
 commit-stamps law skip), so a run outside the hook - by hand, from another hook, a census - is safe as well.
 
+REG-2394 / REG-2395 (the cross-family review of Push A2, 2026-10-22). The first cut unset GIT_CONFIG_PARAMETERS and
+GIT_CONFIG_COUNT with the pointer - git's list names them - and they are how `git -c k=v push` reaches a hook: MEASURED
+on a throwaway repo, `git -c push.default=upstream push origin HEAD:main` had @{push} = origin/main before the loop and
+"cannot resolve" after it, so every stage after the scrub ran without the push's own options. They carry options, never
+a pointer, and they stay. And the tv-suites lane asked `git diff @{push}..` with no fallback and no word: on a branch
+whose @{push} does not resolve (his push branches track origin/main and push as HEAD:main) every suite in it was
+skipped in silence. The hook now asks the range once, at the top (@{push}, else origin/main), and the lane RUNS when the
+range is unknown and names the range it read. Both are driven here: a REAL `git -c` push through a hook built from the
+hook's own marked blocks, and the lane's three outcomes on fixture branches shaped like his.
+
 These cases DRIVE all three halves against a FIXTURE repo with a linked worktree, leaked exactly the way git leaks it:
-the hook's two marked blocks in a real bash, the commit-stamps law on a named fixture commit, and every temp-repo law
+the hook's marked blocks in a real bash, the commit-stamps law on a named fixture commit, and every temp-repo law
 run whole under GIT_DIR=<the fixture worktree's git dir>, after which the fixture must be byte-for-byte what it was.
 Its reach, stated: the 14 other laws that `git init` a temp dir (test_a_suite_run_is_reused_only_on_identical_bytes,
 test_a_version_bump_carries_..., test_the_eye_reads_the_commit_read_only, ...) are covered at push time by the hook's
@@ -67,6 +77,10 @@ TEMP_REPO_LAWS = (
 )
 #: the variables a hook must not hand a stage (git's own list is asked at run time; these three by name)
 POINTERS = ("GIT_DIR", "GIT_WORK_TREE", "GIT_INDEX_FILE")
+#: REG-2394 - on git's list, but they carry the push's own `git -c` options, never a pointer: the scrub keeps them
+CARRIERS = ("GIT_CONFIG_PARAMETERS", "GIT_CONFIG_COUNT")
+#: the fixture's git never reads his global or system config (a push.default there would decide @{push} for it)
+_HERMETIC = {"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull, "GIT_TERMINAL_PROMPT": "0"}
 _IDENT = ["-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false",
           "-c", "init.defaultBranch=main"]
 
@@ -122,6 +136,41 @@ class _Fixture(object):
             "index": _sha(os.path.join(self.real, ".git", "index")),
             "wtIndex": _sha(os.path.join(self.gitdir, "index")),
         }
+
+
+class _PushFixture(object):
+    """REG-2395 - a repo standing in for HIS with a bare remote standing in for GitHub (main pushed there), and a linked
+    worktree on a branch that TRACKS origin/main - his push branches' shape: under push.default=simple its @{push} does
+    not resolve ("cannot resolve 'simple' push to a single destination"). remote=False: no remote at all."""
+
+    def __init__(self, root, remote=True):
+        self.real = os.path.join(root, "real")
+        self.wt = os.path.join(root, "wt")
+        self.remote = os.path.join(root, "remote.git") if remote else None
+        os.makedirs(self.real)
+        _git("init", "-q", self.real)
+        with io.open(os.path.join(self.real, "f.txt"), "w", encoding="utf-8") as fh:
+            fh.write(u"one\n")
+        _git("-C", self.real, "add", "f.txt")
+        _git("-C", self.real, "commit", "-q", "-m", "one")
+        if remote:
+            _git("init", "-q", "--bare", self.remote)
+            _git("-C", self.real, "remote", "add", "origin", self.remote)
+            _git("-C", self.real, "push", "-q", "origin", "main")
+            _git("-C", self.real, "fetch", "-q", "origin")
+        _git("-C", self.real, "worktree", "add", "-q", self.wt, "-b", "wtb")
+        if remote:
+            _git("-C", self.wt, "branch", "-q", "--set-upstream-to=origin/main")
+
+    def commit(self, rel):
+        """one commit on the worktree branch that changes `rel` (repo-relative)"""
+        p = os.path.join(self.wt, *rel.split("/"))
+        if not os.path.isdir(os.path.dirname(p)):
+            os.makedirs(os.path.dirname(p))
+        with io.open(p, "a", encoding="utf-8") as fh:
+            fh.write(u"x\n")
+        _git("-C", self.wt, "add", rel)
+        _git("-C", self.wt, "commit", "-q", "-m", "change " + rel)
 
 
 def _bash():
@@ -210,7 +259,7 @@ class TheHookUnsetsThePointerBeforeAnyStage(_Case):
                                           GIT_COMMON_DIR=os.path.join(fx.real, ".git")))
         self.assertEqual(r.returncode, 0, "the hook's scrub block did not run - UNKNOWN, not passing: %s" % r.stderr)
         left = sorted(set(re.findall(r"^(GIT_[A-Z_]+)=", r.stdout, re.M)))
-        local = set(_git("rev-parse", "--local-env-vars").split()) | set(POINTERS)
+        local = (set(_git("rev-parse", "--local-env-vars").split()) | set(POINTERS)) - set(CARRIERS)
         self.assertEqual(sorted(set(left) & local), [],
                          "the hook hands its stages a pointer at the real repo: %s" % sorted(set(left) & local))
         m = re.search(r"^TV_PUSHED_GIT_DIR=(.*)$", r.stdout, re.M)
@@ -226,6 +275,133 @@ class TheHookUnsetsThePointerBeforeAnyStage(_Case):
                      if not l.lstrip().startswith("#") and ("gate_run \"" in l or 'python3 "$REPO/' in l))
         self.assertLess(at, first, "a stage (line %d) runs before the hook unsets git's pointer (line %d)"
                         % (first + 1, at + 1))
+
+
+class ThePushsOwnOptionsSurviveTheScrub(_Case):
+    """REG-2394 - a `git -c` option reaches the hook in GIT_CONFIG_PARAMETERS (the env form in GIT_CONFIG_COUNT with
+    GIT_CONFIG_KEY_i / GIT_CONFIG_VALUE_i). git's --local-env-vars names both carriers and the first cut unset them."""
+
+    def test_the_scrub_block_keeps_the_options_and_still_unsets_every_pointer(self):
+        bash = _bash()
+        if bash is None:
+            self.skipTest("no real POSIX bash on this PC - the hook's scrub is UNMEASURED, not passing")
+        fx = _Fixture(self.root)
+        block, _line = _block("scrub-git-env")
+        script = (block + 'echo "PROBE=[$(git config --get tv.probe)]"\n'
+                  'echo "COUNTED=[$(git config --get tv.counted)]"\nenv | grep "^GIT_" || true\n')
+        r = subprocess.run([bash, "-c", "set -u\n" + script], cwd=fx.wt, capture_output=True, text=True, timeout=60,
+                           env=_clean_env(GIT_DIR=fx.gitdir, GIT_INDEX_FILE=os.path.join(fx.gitdir, "index"),
+                                          GIT_CONFIG_PARAMETERS="'tv.probe'='kept'", GIT_CONFIG_COUNT="1",
+                                          GIT_CONFIG_KEY_0="tv.counted", GIT_CONFIG_VALUE_0="yes", **_HERMETIC))
+        self.assertEqual(r.returncode, 0, "the hook's scrub block did not run - UNKNOWN, not passing: %s" % r.stderr)
+        self.assertIn("PROBE=[kept]", r.stdout, "a `git -c` option is gone after the scrub - every later stage runs "
+                                                "without the push's own options:\n%s" % r.stdout)
+        self.assertIn("COUNTED=[yes]", r.stdout, "a GIT_CONFIG_COUNT option is gone after the scrub:\n%s" % r.stdout)
+        left = set(re.findall(r"^(GIT_[A-Z0-9_]+)=", r.stdout, re.M))
+        self.assertEqual(sorted(left & {"GIT_DIR", "GIT_INDEX_FILE"}), [],
+                         "keeping the options let a pointer through: %s" % sorted(left))
+
+    def test_a_real_git_c_push_keeps_its_options_past_the_scrub(self):
+        """★ on a throwaway repo: a REAL `git -c push.default=upstream -c tv.probe=kept push origin HEAD:main` (plus
+        the env form) from a linked worktree whose branch tracks origin/main, through a hook made of the real hook's
+        push-range and scrub blocks - after the scrub git still answers both options, @{push} is origin/main, the push
+        base is origin/main's commit, and no pointer is left. The fixture hook refuses, so nothing reaches the remote."""
+        if _bash() is None:
+            self.skipTest("no real POSIX bash on this PC - git cannot run the hook; UNMEASURED, not passing")
+        fx = _PushFixture(self.root)
+        fx.commit("tv/x.py")
+        hooks = os.path.join(self.root, "hooks")
+        os.makedirs(hooks)
+        rng, _l1 = _block("push-range")
+        scrub, _l2 = _block("scrub-git-env")
+        hook = os.path.join(hooks, "pre-push")
+        with io.open(hook, "w", encoding="utf-8", newline="\n") as fh:
+            fh.write(u"#!/usr/bin/env bash\nset -u\n" + rng + scrub
+                     + u'echo "PROBE=[$(git config --get tv.probe)]"\n'
+                       u'echo "COUNTED=[$(git config --get tv.counted)]"\n'
+                       u"echo \"PUSH=[$(git rev-parse --abbrev-ref '@{push}' 2>&1)]\"\n"
+                       u'echo "BASE=[$TV_PUSH_BASE]"\n'
+                       u'env | grep "^GIT_" | sed "s/^/LEFT /"\n'
+                       u"exit 1\n")
+        os.chmod(hook, 0o755)
+        _git("-C", fx.real, "config", "core.hooksPath", hooks)
+        on_remote = _git("-C", fx.remote, "rev-parse", "main")
+        r = subprocess.run(["git", "-c", "push.default=upstream", "-c", "tv.probe=kept", "push", "origin", "HEAD:main"],
+                           cwd=fx.wt, capture_output=True, text=True, timeout=120, encoding="utf-8", errors="replace",
+                           env=_clean_env(GIT_CONFIG_COUNT="1", GIT_CONFIG_KEY_0="tv.counted",
+                                          GIT_CONFIG_VALUE_0="yes", **_HERMETIC))
+        out = (r.stdout or "") + (r.stderr or "")
+        self.assertIn("PROBE=[", out, "PREMISE: git never ran the fixture hook:\n%s" % out[-800:])
+        self.assertNotEqual(r.returncode, 0, "PREMISE: the fixture hook refuses every push:\n%s" % out[-800:])
+        self.assertIn("PROBE=[kept]", out, "the push's own `git -c` option is gone after the scrub - every stage after "
+                                           "it runs without it:\n%s" % out[-1500:])
+        self.assertIn("COUNTED=[yes]", out, "the push's GIT_CONFIG_COUNT option is gone after the scrub:\n%s"
+                      % out[-1500:])
+        self.assertIn("PUSH=[origin/main]", out, "after the scrub @{push} no longer resolves - push.default=upstream "
+                                                 "was lost with GIT_CONFIG_PARAMETERS:\n%s" % out[-1500:])
+        self.assertIn("BASE=[%s]" % _git("-C", fx.wt, "rev-parse", "origin/main"), out,
+                      "the push base is not origin/main's commit:\n%s" % out[-1500:])
+        left = set(re.findall(r"^LEFT (GIT_[A-Z0-9_]+)=", out, re.M))
+        self.assertIn("GIT_CONFIG_PARAMETERS", left, "PREMISE: git handed this hook no `git -c` options at all")
+        local = (set(_git("rev-parse", "--local-env-vars").split()) | set(POINTERS)) - set(CARRIERS)
+        self.assertEqual(sorted(left & local), [], "a pointer at the real repo outlived the scrub: %s" % sorted(left))
+        self.assertEqual(_git("-C", fx.remote, "rev-parse", "main"), on_remote, "the fixture push reached its remote")
+
+
+class TheTvLaneReadsAKnownRangeOrRuns(_Case):
+    """REG-2395 - the tv-suites lane's trigger was `git diff --name-only @{push}..` alone: no fallback, no word. These
+    drive the hook's push-range and tv-lane blocks in bash on fixture branches shaped like his."""
+
+    def _lane(self, cwd):
+        bash = _bash()
+        if bash is None:
+            self.skipTest("no real POSIX bash on this PC - the hook's tv lane is UNMEASURED, not passing")
+        rng, _l1 = _block("push-range")
+        lane, _l2 = _block("tv-lane")
+        script = "set -u\n_pp_el() { printf '0m00s'; }\n" + rng + lane + 'echo "LANE=[$_tv_lane]"\n'
+        r = subprocess.run([bash, "-c", script], cwd=cwd, capture_output=True, text=True, timeout=60,
+                           encoding="utf-8", errors="replace", env=_clean_env(**_HERMETIC))
+        self.assertEqual(r.returncode, 0, "the hook's tv-lane blocks did not run - UNKNOWN, not passing: %s" % r.stderr)
+        m = re.search(r"^LANE=\[(.*)\]$", r.stdout, re.M)
+        self.assertIsNotNone(m, "the lane decided nothing: %r" % r.stdout)
+        return m.group(1), r.stdout
+
+    def test_a_branch_whose_push_does_not_resolve_reads_origin_main(self):
+        """★ his push branches' shape: @{push} fails, so the old trigger matched nothing and skipped all six suites"""
+        fx = _PushFixture(self.root)
+        fx.commit("tv/x.py")
+        old = subprocess.run(["git", "-C", fx.wt, "diff", "--name-only", "@{push}.."], capture_output=True, text=True,
+                             timeout=60, env=_clean_env(**_HERMETIC))
+        self.assertNotEqual(old.returncode, 0, "PREMISE: @{push} resolves in this fixture, so it cannot show the old "
+                                               "trigger's silent skip")
+        lane, out = self._lane(fx.wt)
+        self.assertEqual(lane, "touched", "a tv/*.py change on a branch whose @{push} does not resolve did not run the "
+                                          "tv suites from origin/main:\n%s" % out)
+        self.assertIn("tv/ python touched in origin/main..HEAD", out, "the lane does not name the range it read:\n%s"
+                      % out)
+
+    def test_an_unknown_range_runs_the_lane_and_says_so(self):
+        """no @{push} and no origin/main: nobody can tell whether tv/ python changed, so the suites RUN"""
+        fx = _PushFixture(self.root, remote=False)
+        fx.commit("docs.txt")
+        lane, out = self._lane(fx.wt)
+        self.assertEqual(lane, "unknown", "an UNKNOWN push range skipped the tv suites:\n%s" % out)
+        self.assertIn("UNKNOWN range is never a skip", out, "the lane ran on an unknown range without saying so:\n%s"
+                      % out)
+
+    def test_a_known_range_says_whether_the_lane_runs(self):
+        """@{push} resolves (push.default=upstream): no tv/*.py in it is a skip SAID with its range; one is a run"""
+        fx = _PushFixture(self.root)
+        _git("-C", fx.real, "config", "push.default", "upstream")
+        fx.commit("docs.txt")
+        lane, out = self._lane(fx.wt)
+        self.assertEqual(lane, "", "a push with no tv/*.py in a known range ran the tv suites:\n%s" % out)
+        self.assertIn("no tv/*.py changed in @{push}..HEAD (@{push} = origin/main)", out,
+                      "the lane skipped without a word:\n%s" % out)
+        fx.commit("tv/y.py")
+        lane, out = self._lane(fx.wt)
+        self.assertEqual(lane, "touched", "a tv/*.py change in @{push}..HEAD did not run the tv suites:\n%s" % out)
+        self.assertIn("tv/ python touched in @{push}..HEAD", out)
 
 
 class ThePushedCommitIsHandedOverByName(_Case):
@@ -315,6 +491,7 @@ RED_PROOF = [
         "find": "  unset \"$_pp_v\"\n",
         "replace": "  : \"$_pp_v\"\n",
         "matches": 1,
+        "needs": "bash",
     },
     {
         "why": "REG-2360 - the pushed commit is the first ref, not the one pushed to main",
@@ -322,6 +499,7 @@ RED_PROOF = [
         "find": "  if [ \"$_pc_rr\" = \"refs/heads/main\" ]; then TV_PUSHED_COMMIT=\"$_pc_ls\"; break; fi\n",
         "replace": "",
         "matches": 1,
+        "needs": "bash",
     },
     {
         "why": "REG-2360 - the commit-stamps law ignores the commit it was handed and reads HEAD of whatever tree it is in",
@@ -364,5 +542,39 @@ RED_PROOF = [
         "find": "        _gitenv = {_k: os.environ.pop(_k) for _k in list(os.environ) if _k.startswith(\"GIT_\")}\n",
         "replace": "        _gitenv = {}\n",
         "matches": 1,
+    },
+    {
+        "why": "REG-2394 - the scrub unsets the push's own options again: a `git -c` push loses push.default, @{push} "
+               "stops resolving, and every stage after the scrub runs without the caller's options",
+        "file": "hooks/pre-push",
+        "find": "  case \"$_pp_v\" in GIT_CONFIG_PARAMETERS|GIT_CONFIG_COUNT) continue ;; esac\n",
+        "replace": "",
+        "matches": 1,
+        "needs": "bash",
+    },
+    {
+        "why": "REG-2395 - an UNKNOWN push range skips the tv suites again, the way the bare @{push} trigger did",
+        "file": "hooks/pre-push",
+        "find": "if [ -z \"${TV_PUSH_BASE:-}\" ]; then\n  _tv_lane=\"unknown\"\n",
+        "replace": "if [ -z \"${TV_PUSH_BASE:-}\" ]; then\n  _tv_lane=\"\"\n",
+        "matches": 1,
+        "needs": "bash",
+    },
+    {
+        "why": "REG-2395 - the push range loses its origin/main fallback: a branch whose @{push} does not resolve (his "
+               "push branches) reads UNKNOWN instead of the range it ships",
+        "file": "hooks/pre-push",
+        "find": "elif _pr_b=\"$(git rev-parse --verify --quiet 'origin/main' 2>/dev/null)\" && [ -n \"$_pr_b\" ]; then\n",
+        "replace": "elif false; then\n",
+        "matches": 1,
+        "needs": "bash",
+    },
+    {
+        "why": "REG-2395 - the lane skips in silence again: a push with no tv/*.py says nothing about the six suites",
+        "file": "hooks/pre-push",
+        "find": "  echo \"pre-push: [$(_pp_el)] \u23ed  no tv/*.py changed in ${TV_PUSH_RANGE:-?} - the tv suites do not run.\"\n",
+        "replace": "  :\n",
+        "matches": 1,
+        "needs": "bash",
     },
 ]

@@ -7,6 +7,51 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2395 - A PUSH WHOSE @{push} DID NOT RESOLVE SKIPPED ALL SIX TV SUITES WITHOUT A WORD (Push A2 review)
+
+hooks/pre-push's tv-suites lane (test_agent, test_control, test_folder_scans, test_tz_art, test_chronicle_retro,
+test_chronicle_seal) ran on `if git diff --name-only @{push}.. 2>/dev/null | grep -qE '^tv/.*\.py$'` - no fallback, no else.
+Where @{push} does not resolve the diff fails, grep matches nothing, and the lane is skipped with no line at all. That is the
+shape of every push branch now: MEASURED on speed/push-a2 (upstream origin/main, pushed as HEAD:main, push.default unset) -
+`@{push}` -> "cannot resolve 'simple' push to a single destination". The changed-law block 120 lines below already fell back to
+origin/main and announced its skip; this lane did neither. (REG-2394's scrub made it likelier still: a `git -c push.default=...`
+that WOULD have resolved @{push} was unset before the lane asked.) Found by both reviews of Push A2; listed as a T3 minor earlier.
+FIX: a `push-range` block at the top of the hook, BEFORE the scrub, asks the base once in the changed-law block's order - @{push},
+else origin/main - and hands it on by value: TV_PUSH_BASE (a commit; empty = UNKNOWN) and TV_PUSH_RANGE (the words). The lane
+(`tv-lane` block) diffs `TV_PUSH_BASE..HEAD`; a range that cannot be read RUNS the lane (an UNKNOWN is never a skip) and says so;
+a known range with no tv/*.py says "no tv/*.py changed in <range> - the tv suites do not run"; a run names its range.
+MEASURED on fixture branches shaped like his: @{push} unresolvable + a tv/*.py change -> runs, "tv/ python touched in
+origin/main..HEAD"; no remote at all -> runs, UNKNOWN said; push.default=upstream with only docs changed -> skip said with
+"@{push}..HEAD (@{push} = origin/main)", then a tv/*.py change -> runs.
+GUARD: tv/test_a_leaked_git_dir_never_writes_the_real_repo.py, class TheTvLaneReadsAKnownRangeOrRuns (3 cases, the hook's own
+marked blocks driven in bash; the first asserts the old trigger's premise - `git diff @{push}..` fails on that fixture). RED proofs
+[9]-[11] (`"needs": "bash"`): an UNKNOWN range skips again; the origin/main fallback gone; the skip silent again. PROVEN with the
+rest of the law (12/12).
+⚠ NOT FOR THIS PUSH: core.hooksPath runs the hook file in his main checkout, so Push A2's own push runs v3784's hook, whose lane
+still asks the bare @{push} - on speed/push-a2 it skips the six suites in silence. Its pre-flight ran test_agent and test_control
+by hand in the push context; the fix guards every push after his main tree pulls it.
+
+### REG-2394 - THE HOOK'S GIT_* SCRUB WIPED THE PUSH'S OWN `git -c` OPTIONS (Push A2 review)
+
+REG-2360's scrub unset every name `git rev-parse --local-env-vars` prints. That list includes GIT_CONFIG_PARAMETERS and
+GIT_CONFIG_COUNT - the variables `git -c k=v push` (and `GIT_CONFIG_COUNT=n GIT_CONFIG_KEY_i/VALUE_i`) hand the hook - so every
+stage after the scrub ran without the options the push was given, and the env form was left half-set (KEY_i/VALUE_i are not on
+the list and stayed, orphaned without COUNT). Found by the cross-family review (GrokBot, #230: `git -c foo.bar=KEEP push` read
+KEEP before the loop, empty after). MEASURED here on a throwaway repo with a linked worktree on git 2.50.1: `git -c
+push.default=upstream push origin HEAD:main` - @{push} = origin/main before the loop, "cannot resolve 'simple' push to a single
+destination" after it.
+FIX: the loop passes over GIT_CONFIG_PARAMETERS and GIT_CONFIG_COUNT - options, never a pointer at a repository - and still
+unsets every pointer (GIT_DIR, GIT_WORK_TREE, GIT_INDEX_FILE, GIT_COMMON_DIR, the object dirs, ...). A suite the hook runs itself
+keeps them (options, never a pointer); every law heart2, run_gates, suite_verdict or shard_suite starts drops every GIT_* (REG-2396).
+MEASURED after the fix, a REAL `git -c push.default=upstream -c tv.probe=kept push origin HEAD:main` (plus GIT_CONFIG_COUNT=1
+tv.counted=yes) from a linked worktree through a hook made of the hook's own push-range and scrub blocks: after the scrub `git
+config` answers both options, @{push} = origin/main, TV_PUSH_BASE = origin/main's commit, no pointer left; the fixture hook
+refuses, so nothing reached the remote.
+GUARD: tv/test_a_leaked_git_dir_never_writes_the_real_repo.py, class ThePushsOwnOptionsSurviveTheScrub (the scrub block in bash
+with the carriers and the pointers; the real `git -c` push). RED proof [8] (`"needs": "bash"`); [0] and [1], whose only catchers
+drive the hook in bash, now declare `"needs": "bash"` too (a PC without bash reads them ELSEWHERE, never BLIND). The law: 11/11 OK
+plain; heart2 --prove 12/12 PROVEN.
+
 ### REG-2393 - THE CARRIED-PROOF LAW COULD NEVER PASS ON HIS MAC: ITS .pyc PREMISE LOOKED FOR __pycache__, WHICH HIS PYTHON NEVER WRITES (Push A2)
 
 test_a_gate_proven_on_these_bytes_is_carried's case test_a_submodule_served_from_a_cached_pyc_is_an_input (REG-2293 r6 B, 2026-10-19)
