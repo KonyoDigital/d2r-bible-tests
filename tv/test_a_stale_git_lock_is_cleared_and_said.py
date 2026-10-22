@@ -108,6 +108,11 @@ def _plant(clone, age_s, body=b""):
 class _Base(unittest.TestCase):
 
     def setUp(self):
+        # REG-2360 - inside a git hook GIT_DIR points at the REAL repo and beats cwd=: the fixture's
+        # `git init --bare` then rewrites the real config to core.bare=true. Dropped for THIS test only, before the
+        # fixture is built; addCleanup (which runs after tearDown) puts them back.
+        _gitenv = {_k: os.environ.pop(_k) for _k in list(os.environ) if _k.startswith("GIT_")}
+        self.addCleanup(os.environ.update, _gitenv)
         self.root, self.clone, self.origin_head = _fixture()
         self._env = mock.patch.dict(os.environ, _GIT_ENV)
         self._env.start()

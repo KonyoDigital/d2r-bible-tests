@@ -557,7 +557,7 @@ class TestFootageArchivePromote(unittest.TestCase):
     def _footage_files(self):
         if not os.path.isdir(tv.HIST_DIR):
             return []
-        return os.listdir(tv.HIST_DIR)
+        return _fx_tmp.list_own(tv.HIST_DIR)
 
     def test_success_promotes_full_frame(self):
         now_f = time.time()
@@ -2252,8 +2252,8 @@ class TestOneBudget(unittest.TestCase):
             src = make_jpeg(os.path.join(d, "seed.jpg"))
             fid = tv.archive_read_frame(src, 99, 999999)
             self.assertTrue(fid, "archive must land so the orphan sweep runs")
-            live = {f for f in os.listdir(d) if f.endswith(".jpg")}
-            cached = set(os.listdir(os.path.join(d, "cache1280")))
+            live = {f for f in _fx_tmp.list_own(d) if f.endswith(".jpg")}
+            cached = set(_fx_tmp.list_own(os.path.join(d, "cache1280")))
             # v861.1 recal — COUNT CAPS ABOLISHED (Konyo): with free disk, EVERY frame lives.
             self.assertGreaterEqual(len(live), 12, "frames must survive when the disk is fine")
             for c in cached:
@@ -2355,7 +2355,7 @@ class TestSettleQueue(unittest.TestCase):
         self.assertEqual([e["sig"] for e in tv._SETTLE_QUEUE],
                          [self._sig(80), self._sig(160)])
         qd = os.path.join(self.d, "queue")
-        self.assertEqual(sorted(os.listdir(qd)),
+        self.assertEqual(sorted(_fx_tmp.list_own(qd)),
                          sorted(os.path.basename(e["path"]) for e in tv._SETTLE_QUEUE))
 
     def test_drain_pops_newest_and_cleans_the_rest(self):
@@ -2398,7 +2398,7 @@ class TestSettleQueue(unittest.TestCase):
             self.assertFalse(os.path.isfile(p))
         qd = os.path.join(self.d, "queue")
         if os.path.isdir(qd):
-            self.assertFalse([f for f in os.listdir(qd) if f.endswith(".bmp")])
+            self.assertFalse([f for f in _fx_tmp.list_own(qd) if f.endswith(".bmp")])
 
     # ── v944 brains 1+2 calibration (film-medic): eviction justice + sweeper backlog ──
     @staticmethod
@@ -2973,7 +2973,7 @@ class TestSourceShapeLocks(unittest.TestCase):
             open(src, "wb").write(b"BM" + b"D" * 60000)
             with unittest.mock.patch.object(sh, "disk_usage", return_value=starving):
                 tv.archive_read_frame(src, 1, 12345)
-            left = set(os.listdir(d))
+            left = set(_fx_tmp.list_own(d))
             for y in young:
                 self.assertIn(y, left, "YOUTH SHIELD BREACH: young frame %s was shed" % y)
         finally:
