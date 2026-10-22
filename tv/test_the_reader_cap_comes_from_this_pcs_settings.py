@@ -15,7 +15,9 @@ written, and the claude CLI is a path that does not exist, so no case can spend 
   · one rule on every PC: env TV_INTAKE_*_MAX (the override) > this PC's gitignored tv/pc_settings.json > the default;
   · the refusal names the active limit and its source, and a layer holding an unusable value is said, not skipped;
   · a cap hit - intake or ask - answers status 429 with {error, window, used, limit, source, retry_s}, and never
-    reaches the CLI; 0 opens the circuit.
+    reaches the CLI; 0 opens the circuit;
+  · REG-2390 - with both windows full the refusal is the one that BINDS (the latest retry, an unknown one latest of
+    all), with that window's own limit, source and retry_s, and says the other is full too; both 0 switches are named.
 That the settings file is ignored by git is test_this_pcs_settings_file_never_travels; that the console hands the
 runner's 429 to the board is test_a_capped_runner_reaches_the_board_as_429.
 
@@ -212,6 +214,80 @@ class ARefusalIsSaidAndNeverSpends(_Runner):
         self.assertCapped(self.ask(), "hour", 3, 3, "the TV_PC_SETTINGS file")
 
 
+class TheRefusalNamesTheWindowThatBinds(_Runner):
+    """REG-2390 - WITH BOTH WINDOWS FULL, THE HOUR WAS ASKED FIRST AND ANSWERED ALONE. 80 reads today, 20 of them this
+    hour, at the default caps: the refusal said `(20/20, limit from the code default) — intake paused this hour` with
+    retry_s 120 (a read promised two minutes on) while the day cap refused for 20 hours more, and it named the
+    hour's source when the day's limit came from another layer. The refusal is the window whose retry is LATEST - its
+    own limit, source and retry_s - and its message says the other window is full too. Node only, like every case here:
+    nothing in this class needs a shell or a stand-in CLI, so a Windows PC with node runs all of it."""
+
+    def write(self, rows):
+        with io.open(self.ledger, "w", encoding="utf-8") as fh:
+            json.dump({"calls": rows}, fh)
+        return rows
+
+    def test_a_full_day_binds_over_a_full_hour(self):
+        now = time.time() * 1000.0
+        rows = self.write([now - (60.0 + 180.0 * i) * 1000.0 for i in range(80)])   # 20 in each of the last 4 hours
+        j = self.assertCapped(self.ask(), "day", 80, 80, "the code default")
+        want = 86400.0 - (time.time() * 1000.0 - min(rows)) / 1000.0                 # the day's oldest read ages out
+        self.assertLessEqual(abs(j.get("retry_s") - want), 5,
+                             "retry_s %r is not the day's, about %d - the hour's was 120" % (j.get("retry_s"), want))
+        self.assertTrue(j["message"].startswith(
+            "subscription daily cap hit (80/80, limit from the code default) — intake paused today;"), j["message"])
+        self.assertIn("; the hourly cap is full too (20/20, limit from the code default)", j["message"])
+        self.assertNotIn("paused this hour", j["message"], "an hour's pause promised while the day cap refuses")
+
+    def test_the_binding_window_names_its_own_source(self):
+        now = time.time() * 1000.0
+        self.write([now - (60.0 + 180.0 * i) * 1000.0 for i in range(80)])
+        self.settle({"TV_INTAKE_DAILY_MAX": 80})
+        j = self.assertCapped(self.ask(env={"TV_INTAKE_HOURLY_MAX": "20"}), "day", 80, 80, "the TV_PC_SETTINGS file")
+        self.assertTrue(j["message"].startswith(
+            "subscription daily cap hit (80/80, limit from the TV_PC_SETTINGS file) — intake paused today;"),
+            j["message"])
+        self.assertIn("; the hourly cap is full too (20/20, limit from env TV_INTAKE_HOURLY_MAX)", j["message"])
+
+    def test_an_hour_that_frees_last_binds_over_a_full_day(self):
+        """The rule is the LATEST retry, not 'the day wins': the day's oldest read ages out in 10 minutes and the
+        hour's in half an hour, so the hour binds - and says the day is full too."""
+        now = time.time() * 1000.0
+        hour = [now - (60.0 + 90.0 * i) * 1000.0 for i in range(20)]                 # the oldest 1770 s old
+        older = [now - (7200.0 + 1000.0 * k) * 1000.0 for k in range(59)] + [now - 85800.0 * 1000.0]
+        self.write(hour + older)
+        j = self.assertCapped(self.ask(), "hour", 20, 20, "the code default")
+        want = 3600.0 - (time.time() * 1000.0 - min(hour)) / 1000.0
+        self.assertLessEqual(abs(j.get("retry_s") - want), 5,
+                             "retry_s %r is not the hour's, about %d - the day's was 600" % (j.get("retry_s"), want))
+        self.assertTrue(j["message"].startswith(
+            "subscription hourly cap hit (20/20, limit from the code default) — intake paused this hour;"),
+            j["message"])
+        self.assertIn("; the daily cap is full too (80/80, limit from the code default)", j["message"])
+
+    def test_an_unknown_retry_is_never_a_promise(self):
+        """A row the window cannot age - a number saved as a string, as a hand edit leaves it - is counted, and its
+        window's retry is unknown (_retryS never guesses). Another window's known retry must not stand in for it: no
+        retry_s, and no 'paused this hour' while the day is full too."""
+        now = time.time() * 1000.0
+        hour = [str(int(now - (60.0 + 90.0 * i) * 1000.0)) for i in range(20)]
+        older = [now - (7200.0 + 1000.0 * k) * 1000.0 for k in range(60)]
+        self.write(hour + older)
+        j = self.assertCapped(self.ask(), "hour", 20, 20, "the code default")
+        self.assertIsNone(j.get("retry_s"), "a time was promised while the hour's own retry cannot be known")
+        self.assertIn("; the daily cap is full too (80/80, limit from the code default)", j["message"])
+        self.assertNotIn("paused this hour", j["message"])
+
+    def test_both_switches_at_zero_are_both_named(self):
+        self.calls(0)
+        self.settle({"TV_INTAKE_DAILY_MAX": 0})
+        j = self.assertCapped(self.ask(env={"TV_INTAKE_HOURLY_MAX": "0"}), "circuit", None, 0,
+                              "env TV_INTAKE_HOURLY_MAX")
+        self.assertIn("TV_INTAKE_HOURLY_MAX=0, limit from env TV_INTAKE_HOURLY_MAX", j["message"])
+        self.assertIn("TV_INTAKE_DAILY_MAX=0, limit from the TV_PC_SETTINGS file", j["message"],
+                      "raising the hourly switch would still leave intake off, and the refusal does not say why")
+
+
 @unittest.skipUnless(os.name == "posix", "a stand-in claude CLI cannot be spawned without a shell on Windows - "
                                          "UNMEASURED there (its proofs declare needs: posix)")
 class TheLedgerKeepsTheOtherLanesRows(_Runner):
@@ -353,5 +429,51 @@ RED_PROOF = [
         "replace": "    throw new Error('written in place');\n",
         "matches": 1,
         "needs": "posix",
+    },
+    {
+        "why": "REG-2390 - the hour is asked first and answered alone again: with both windows full the refusal names the "
+               "hour and its two-minute retry while the day cap refuses for 20 hours more",
+        "file": "intake_local.mjs",
+        "find": "  const bind = full.reduce((a, b) => (_late(b) >= _late(a) ? b : a));\n",
+        "replace": "  const bind = full[0];\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2390 - the day always wins when both windows are full: an hour that frees last is said as the day, "
+               "with a retry ten minutes away while the hour refuses for half an hour",
+        "file": "intake_local.mjs",
+        "find": "  const bind = full.reduce((a, b) => (_late(b) >= _late(a) ? b : a));\n",
+        "replace": "  const bind = full[full.length - 1];\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2390 - the other full window goes unsaid: the refusal reads as if only one cap were in the way",
+        "file": "intake_local.mjs",
+        "find": "  const others = full.filter((w) => w !== bind);\n",
+        "replace": "  const others = [];\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2390 - a known retry outranks an unknown one: the refusal promises a time while a full window's own "
+               "retry cannot be known",
+        "file": "intake_local.mjs",
+        "find": "  return w.retryS === null ? Infinity : w.retryS;\n",
+        "replace": "  return w.retryS === null ? -1 : w.retryS;\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2390 - with a window's retry unknown and the day full too, the refusal still says 'paused this hour'",
+        "file": "intake_local.mjs",
+        "find": "  const pause = bind.retryS === null && others.length ? 'intake paused' : 'intake paused ' + bind.words[1];\n",
+        "replace": "  const pause = 'intake paused ' + bind.words[1];\n",
+        "matches": 1,
+    },
+    {
+        "why": "REG-2390 - with both switches at 0 the circuit names only the hourly one: raising it leaves intake off, "
+               "and nothing says why",
+        "file": "intake_local.mjs",
+        "find": ".filter(([, l]) => l.value <= 0);\n",
+        "replace": ".filter(([, l]) => l.value <= 0).slice(0, 1);\n",
+        "matches": 1,
     },
 ]

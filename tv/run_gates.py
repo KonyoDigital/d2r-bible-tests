@@ -11487,7 +11487,12 @@ GATES = [
              "call erased the vision lane's seconds rows from the shared ledger; they are kept (a stand-in CLI admits "
              "and records a call), the intake cap still counts its own rows, and the write is atomic. Every case "
              "needs node, so a PC without node skips the law whole; the stand-in-CLI cases also need POSIX, and the "
-             "three proofs only they catch declare needs: posix."),
+             "three proofs only they catch declare needs: posix. REG-2390 - with both windows full the hour was asked "
+             "first and answered alone: 'paused this hour' with a two-minute retry_s while the day cap refused for 20 "
+             "hours more (reproduced on a fixture ledger), and the hour's source named when the day's limit came from "
+             "another layer. The refusal is now the window whose retry is latest, with its own limit, source and "
+             "retry_s, and says the other is full too; an unknown retry binds over a known one, and two switches at 0 "
+             "are both named."),
     Gate("test_a_capped_read_is_answered_429",
          [sys.executable, os.path.join(HERE, "test_a_capped_read_is_answered_429.py")], 120,
          needs_app=False,
