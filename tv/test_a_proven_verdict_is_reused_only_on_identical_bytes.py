@@ -666,6 +666,12 @@ class TheKeyNamesEveryInput(unittest.TestCase):
         """#242 (2026-10-08) - MEASURED on the v3618 push: 66 proofs banked on the final bytes, 1 reused - each key held
         40+ runtime files his live console rewrites every few seconds, named as literals somewhere in control_app's
         closure, so every key moved. The push-time cache counts a NAMED file only when git tracks it."""
+        # A git HOOK exports GIT_DIR/GIT_WORK_TREE pointing at the REAL repo, and they override cwd= and -C: run inside the
+        # pre-push hook, this case's throwaway repo re-initialised the real one as bare and staged kept.txt into its index
+        # (measured 2026-10-22 on the v3784 push, REG-2392). Scoped to this case and restored after, like test_control's
+        # grok-seat case - other tests still need the hook's GIT_DIR to reach the pushed commit.
+        _gitenv = {_k: os.environ.pop(_k) for _k in list(os.environ) if _k.startswith("GIT_")}
+        self.addCleanup(os.environ.update, _gitenv)
         d = tempfile.mkdtemp(prefix="p3tracked.")
         try:
             repo = os.path.join(d, "repo")
