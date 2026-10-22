@@ -11491,14 +11491,15 @@ GATES = [
     Gate("test_a_capped_read_is_answered_429",
          [sys.executable, os.path.join(HERE, "test_a_capped_read_is_answered_429.py")], 120,
          needs_app=False,
-         why="REG-2383 - a capped subscription read reached the board as 200 with an error body, and on /api/ask, or "
-             "in shadow mode when the Grok failover also failed, the console fell through to the website proxy and "
-             "read on the site's API key - the spend the cap exists to stop. control_app's /api/intake handler now "
-             "answers a runner's 429 as HTTP 429 with its body (limit, source, retry_s), still lets the Grok failover "
-             "read, answers the 429 when no lane reads, and never calls the website after a cap. REG-2388 - a board "
-             "that hung up as the 429 was written fell through to the website proxy, and one that hung up on a lane's "
-             "answer sent the console to the next lane and the website for a read already made; each write has its "
-             "own try now and the handler returns. Driven through a private server with stub runners, so every case "
+         why="REG-2383 - a capped subscription read was answered 200 with an error body (intake.js catches the "
+             "shim's throw), and on /api/ask, or in shadow mode when the Grok failover also failed, the handler fell "
+             "through to the website proxy, which reads on the site's API key - the spend the cap exists to stop. "
+             "control_app's /api/intake handler now answers a runner's 429 as HTTP 429 with its body (limit, source, "
+             "retry_s), still lets the Grok failover read, answers the 429 when no lane reads, and never calls the "
+             "website after a cap. REG-2388 - reproduced with stub runners: a board hanging up as the 429 was written "
+             "sent the handler to the website proxy, and one hanging up on a lane's answer sent it to the next lane "
+             "and the website for a read already made; each write has its own try now and the handler returns. "
+             "Driven through a private server with stub runners, so every case "
              "runs with or without node; the website door is always stubbed. The real runner's join is "
              "test_a_capped_runner_reaches_the_board_as_429."),
     Gate("test_a_pythonw_console_keeps_what_it_says",
@@ -11528,7 +11529,8 @@ GATES = [
              "(the runner, tv/pc_settings.mjs, functions/api/intake.js) - heart2's closure follows Python imports "
              "only, so an edit to the settings reader would otherwise be served a PROVEN it never ran on. REG-2387 - "
              "tv_diablo's vision writer handed the shared ledger back in seconds, so one vision read reset the intake "
-             "cap: 20 intake rows, one _sub_budget_record(), and the board's 21st read is still 429."),
+             "cap (reproduced on a fixture ledger): 20 intake rows, one _sub_budget_record(), and the board's 21st "
+             "read is still 429."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
