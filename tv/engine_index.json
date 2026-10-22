@@ -1483,6 +1483,17 @@
     "purpose": "On-demand proof that the SUBSCRIPTION intake lane really reads pixels — a golden JPG through intake_local.mjs, asserted against frozen golden names.",
     "territory": "capture-vision"
   },
+  "prove_record.py": {
+    "entryPoints": [
+      "path",
+      "append",
+      "read",
+      "table"
+    ],
+    "gotcha": "One file per MACHINE (heart2_pushes.jsonl in git's common dir), shared by the main checkout and every worktree - never in a work tree, so never in git status, a sandbox or a commit of this PUBLIC repo; HEART2_PUSHES_PATH is a law's seam. It writes only a file named like NAME, and a record it cannot write is said, never raised: a record costs a log line, never a push. It keeps its own copy of the common-dir walk (heart2's _git_common_dir is the fuller one). A row's v is the verdict from BEFORE the gate's closing clean run - read b (banked) beside it.",
+    "purpose": "REG-2353 (#42 R16) - the push-time prover's own record: every heart2 --prove ... --push appends one JSON line (per proof the forecast path beside the path taken, the verdict, seconds and whether it was banked; the seams, runs a signal ended, prove-once violations and the summary), read back by heart2 --pushes.",
+    "territory": "gates-proofs"
+  },
   "provenance.py": {
     "entryPoints": [
       "save_json",
