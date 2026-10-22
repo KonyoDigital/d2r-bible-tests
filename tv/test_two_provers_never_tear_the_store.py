@@ -9,15 +9,18 @@ tmp unreplaced, so the other writer is provably inside the same window - never a
   1. two processes, released together by a barrier, writing the verdict cache and the red memory: every write of both
      survives (the store directory's lock);
   2. Windows has no flock: there the lock is msvcrt's byte lock on ONE lock file beside the stores. Two processes with
-     flock gone and msvcrt's lock modelled keep both writes the same way, each takes the lock and gives it back, and the
-     lock file is a name no checkout lists and no sandbox copies (the real .gitignore and safe_copy are asked);
+     flock gone and msvcrt's lock in force (the real one on Windows; elsewhere modelled) keep both writes the same way,
+     each takes the lock and gives it back, and the lock file is a name no checkout lists and no sandbox copies (the
+     real .gitignore and safe_copy are asked);
   3. with NO lock to be had (neither flock nor msvcrt), two writers inside the window at once each install their own
      bytes - a tmp named for one writer is never moved by the other's rename;
-  4. a tmp a DEAD writer left beside a store is swept, a live writer's never, and nothing beside a guard is touched;
+  4. a tmp a DEAD writer left beside a store is swept, a live writer's never, and nothing beside a guard is touched
+     (on Windows nothing is swept at all: asking a pid there is a Ctrl-C, REG-1725);
   5. an old-code writer (a copy of the v1 flush body: fixed tmp, no lock, {_why, entries} only) writes the file it always
      wrote, and the v2 store - with a section that writer would strip - is never reached.
 EVERYTHING HERE IS A FIXTURE: throwaway directories, stores named like heart2's. Nothing of his is read or written.
-RED_PROOF below.
+RED_PROOF below; the flock and sweep proofs need a POSIX PC (REG-1686: ELSEWHERE on Windows, never BLIND there), and
+the msvcrt proofs bite on both.
 """
 import io
 import json
@@ -48,21 +51,24 @@ while not os.path.exists(go):          # the barrier: both writers start the sam
     time.sleep(0.01)
 now = int(time.time() * 1000)
 out = {"key": key}
-if kind == "cachewin":                 # Windows, modelled: no flock, and msvcrt's byte lock - which binds the handle that
-    import fcntl                       # took it - played by flock on that descriptor
-    out["locks"] = []
+if kind == "cachewin":                 # Windows' lock: no flock, and msvcrt's byte lock - the REAL one on Windows, every
+    real = H._msvcrt                   # call recorded; elsewhere modelled, the byte lock (it binds the handle that took
+    out["locks"] = []                  # it) played by flock on that descriptor
+    if real is None:
+        import fcntl
 
     class _Msvcrt(object):
-        LK_UNLCK, LK_LOCK, LK_NBLCK = 0, 1, 2
+        LK_UNLCK, LK_LOCK, LK_NBLCK = (real.LK_UNLCK, real.LK_LOCK, real.LK_NBLCK) if real is not None else (0, 1, 2)
 
         @staticmethod
         def locking(fd, mode, nbytes):
-            if mode == 0:
+            if real is not None:
+                real.locking(fd, mode, nbytes)            # held: an OSError, and nothing recorded
+            elif mode == _Msvcrt.LK_UNLCK:
                 fcntl.flock(fd, fcntl.LOCK_UN)
-                out["locks"].append("unlock")
-                return
-            fcntl.flock(fd, fcntl.LOCK_EX | (fcntl.LOCK_NB if mode == 2 else 0))   # held: an OSError, as on Windows
-            out["locks"].append("lock")
+            else:
+                fcntl.flock(fd, fcntl.LOCK_EX | (fcntl.LOCK_NB if mode == _Msvcrt.LK_NBLCK else 0))
+            out["locks"].append("unlock" if mode == _Msvcrt.LK_UNLCK else "lock")
 
     H._fcntl, H._msvcrt = None, _Msvcrt()
 if kind in ("cache", "cachewin"):
@@ -166,8 +172,9 @@ class TwoProversNeverTearTheStore(unittest.TestCase):
 
     def test_on_windows_msvcrts_lock_file_keeps_both_writes(self):
         """★ R4 - Windows has no flock: there the store directory's lock is msvcrt's byte lock on ONE lock file beside the
-        stores (heart2._LOCK_NAME). Two REAL processes with flock gone and msvcrt modelled: both writes kept, each writer
-        took the lock and gave it back, and the lock file is a name no checkout lists and no sandbox copies"""
+        stores (heart2._LOCK_NAME). Two REAL processes with flock gone and msvcrt's lock in force (Windows' own; modelled
+        elsewhere): both writes kept, each writer took the lock and gave it back, and the lock file is a name no checkout
+        lists and no sandbox copies"""
         path = os.path.join(self.root, "w", ".heart2_cache.json")
         os.makedirs(os.path.dirname(path))
         reports = self._pair("cachewin", path)
@@ -230,6 +237,10 @@ class TwoProversNeverTearTheStore(unittest.TestCase):
         H._VerdictCache(path=path, say=_quiet)
         H._StoreFile(os.path.join(self.root, "control_app.py"), _quiet).sweep()
         left = set(os.listdir(self.root))
+        if os.name == "nt":             # REG-1725 - os.kill(pid, 0) is a Ctrl-C there, never a probe: nothing is swept
+            self.assertEqual(H._StoreFile(path, _quiet).sweep(), 0, "the sweep asked a pid on Windows")
+            self.assertEqual(left, set(names.values()), "the sweep removed a file on Windows")
+            return
         self.assertNotIn(names["dead"], left, "a dead writer's tmp was left beside the store")
         self.assertNotIn(names["dead_prev"], left, "a dead writer's .prev link was left beside the store")
         self.assertIn(names["live"], left, "a LIVE writer's tmp was swept")
@@ -281,7 +292,7 @@ RED_PROOF = [
      "file": "heart2.py",
      "find": "            fd = os.open(folder, os.O_RDONLY)\n            _fcntl.flock(fd, _fcntl.LOCK_EX)\n",
      "replace": "            fd = os.open(folder, os.O_RDONLY)\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix"},
     {"why": "R4 - on Windows the store write takes no lock: two writers inside one window, and one write is lost",
      "file": "heart2.py",
      "find": "                _msvcrt.locking(fd, _msvcrt.LK_NBLCK, 1)\n",
@@ -311,7 +322,7 @@ RED_PROOF = [
      "file": "heart2.py",
      "find": "        self.file.sweep()                # R9 - a tmp a dead writer left beside the store\n",
      "replace": "        pass\n",
-     "matches": 1},
+     "matches": 1, "needs": "posix"},
     {"why": "(critic) the v2 store is the file old code writes, so an old flush strips its sections",
      "file": "heart2.py",
      "find": "        return os.path.join(common, \"heart2\"), None\n",
