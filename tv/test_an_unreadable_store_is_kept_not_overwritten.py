@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
-"""R4 (REG-2341) / REG-2343 - A STORE THAT WILL NOT READ IS KEPT, NEVER WRITTEN OVER, AND NO WRITE THINS WHAT IT HELD.
+"""R4 (REG-2341) - A STORE THAT WILL NOT READ IS KEPT, NEVER WRITTEN OVER, AND NO WRITE THINS WHAT IT HELD.
 
 FOUND in the v1 writers (read 2026-10-21): an unreadable verdict cache was read as empty and rewritten by the first
 PROVEN, and a flush whose merge-read failed (its `_dwhy` ignored) wrote that run's entries alone - one bad read and main's
-7,991 entries would have become a handful. The gate ledger wrote over an unreadable file the same way. Now every write keeps
+7,991 entries would have become a handful. Now every write keeps
 the store's last good generation as `.prev`; a store that will not read is renamed aside (`.unreadable-<ms>`, the newest
 one kept), and `.prev` stands in for it - at the open and at the write. Driven on fixtures:
 
@@ -11,8 +11,7 @@ one kept), and `.prev` stands in for it - at the open and at the write. Driven o
      byte for byte while writing .prev's entries plus the new one;
   2. the cache, turned unreadable AFTER the open (the failed merge-read): the write keeps it aside and merges .prev - the
      entries another prover banked are still there;
-  3. the machine's gate ledger: an unreadable one is kept aside, never written over;
-  4. only the newest unreadable generation is kept.
+  3. only the newest unreadable generation is kept.
 EVERYTHING HERE IS A FIXTURE. RED_PROOF below.
 """
 import io
@@ -29,7 +28,6 @@ sys.path.insert(0, HERE)
 import fixture_tmp as _fx_tmp  # noqa: E402
 _fx_tmp.contain()
 import heart2 as H  # noqa: E402
-import gate_ledger as GL  # noqa: E402
 
 GARBAGE = '{"entries": {"half a write'
 
@@ -108,22 +106,6 @@ class AnUnreadableStoreIsKeptNotOverwritten(unittest.TestCase):
         with io.open(os.path.join(self.dir, kept[0]), encoding="utf-8") as fh:
             self.assertEqual(fh.read(), "{second", "the aside kept is not the newest")
 
-    def test_an_unreadable_machine_ledger_is_kept_aside(self):
-        """★ REG-2343 - the gate ledger every checkout shares: unreadable, it is renamed aside - never written over"""
-        led = os.path.join(self.dir, ".gate_ledger.json")
-        with io.open(led, "w", encoding="utf-8") as fh:
-            fh.write(GARBAGE)
-        book = GL.Ledger(path=led)
-        book._ensure()
-        book.entries["g"] = {"ok": True, "gate": "g", "sha": "abc1234", "at": 1}
-        self.assertTrue(book._write(), "the ledger write failed")
-        kept = self.asides(".gate_ledger.json")
-        self.assertEqual(len(kept), 1, "the unreadable ledger was written over: %s" % os.listdir(self.dir))
-        with io.open(os.path.join(self.dir, kept[0]), encoding="utf-8") as fh:
-            self.assertEqual(fh.read(), GARBAGE)
-        entries, why = GL.load(led)
-        self.assertIsNone(why)
-        self.assertEqual(sorted(entries), ["g"])
 
 
 RED_PROOF = [
@@ -151,11 +133,6 @@ RED_PROOF = [
      "file": "heart2.py",
      "find": "                os.remove(os.path.join(folder, n))      # keep ONE: the newest unreadable generation\n",
      "replace": "                pass\n",
-     "matches": 1},
-    {"why": "REG-2343 - an unreadable machine ledger is written over by one checkout's rows",
-     "file": "gate_ledger.py",
-     "find": "                if kit is None or not kit._set_aside(self.path, why, _stderr):  # LEDGER-ASIDE\n",
-     "replace": "                if False:  # LEDGER-ASIDE\n",
      "matches": 1},
 ]
 

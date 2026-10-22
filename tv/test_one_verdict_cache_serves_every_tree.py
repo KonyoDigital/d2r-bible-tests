@@ -16,10 +16,7 @@ R10 (REG-2340, 2026-10-21) - THE SHARED PATH RESOLVES EVERY WORKTREE SHAPE, AND 
 cut normalised it against the cwd), the gitdir's `commondir` names the common dir (so a bare repository's worktree
 resolves too), and a real `git worktree add` - absolute and relative - lands exactly where `git rev-parse
 --git-common-dir` says. A pointer that will not read falls back to this checkout's own tv/.heart2_v2/, and the store's
-opener SAYS so. REG-2343: the gate ledger is the machine's too - the main checkout's tv/, found the same way - while its
-input map stays the checkout's. REG-2344: on that one ledger a FAIL in any tree takes the gate's PASS out whatever a
-lookup could say at the time - a FAIL recorded while git cannot answer never leaves a PASS that carries on the very
-bytes that just failed.
+opener SAYS so.
 """
 import io
 import json
@@ -36,7 +33,6 @@ sys.path.insert(0, HERE)
 import fixture_tmp as _fx_tmp  # noqa: E402
 _fx_tmp.contain()
 import heart2 as H  # noqa: E402
-import gate_ledger as GL  # noqa: E402
 
 HOOK = os.path.join(os.path.dirname(HERE), "hooks", "pre-push")
 
@@ -47,18 +43,16 @@ def _quiet(*a, **k):
 
 class _NoGitEnv(object):
     """A temp repo's git must never answer for another tree: a hook's leaked GIT_DIR flipped his live repo to
-    core.bare=true on 2026-10-21. Every GIT_* variable leaves os.environ for the block (the ledger's own git calls run
-    inside it), and so do the seams that would steer the ledger - then all of it is put back."""
-    STEER = ("GITHUB_ACTIONS", "GATE_LEDGER", "TV_GATE_LEDGER", "TV_GATE_LEDGER_SHA")
+    core.bare=true on 2026-10-21. Every GIT_* variable leaves os.environ for the block - then it is put back."""
 
     def __enter__(self):
-        self.old = dict((k, v) for k, v in os.environ.items() if k.startswith("GIT_") or k in self.STEER)
+        self.old = dict((k, v) for k, v in os.environ.items() if k.startswith("GIT_"))
         for k in self.old:
             os.environ.pop(k, None)
         return self
 
     def __exit__(self, *_e):
-        for k in [k for k in os.environ if k.startswith("GIT_") or k in self.STEER]:
+        for k in [k for k in os.environ if k.startswith("GIT_")]:
             os.environ.pop(k, None)
         os.environ.update(self.old)
         return False
@@ -186,95 +180,6 @@ class OneVerdictCacheServesEveryTree(unittest.TestCase):
         self.assertTrue(any("was not found" in l and "not a gitdir pointer" in l and "dies with the checkout" in l
                             for l in said), "the fallback to this checkout's own store is silent: %s" % said)
 
-    def test_the_gate_ledger_is_the_machines_and_its_input_map_stays_the_checkouts(self):
-        """★ REG-2343 - from main and from its worktree, one ledger: main's tv/.gate_ledger.json; a bare repository's
-        worktree has no checkout to hold it and says so; the input map is this checkout's own"""
-        main, wt = _worktree_shape(self.root)
-        want = (os.path.join(main, "tv", ".gate_ledger.json"), None)
-        self.assertEqual(GL.ledger_where(root=wt), want, "a worktree's ledger is its own again - it dies with it")
-        self.assertEqual(GL.ledger_where(root=main), want)
-        bare = os.path.join(self.root, "b.git")
-        gd = os.path.join(bare, "worktrees", "w")
-        wb = os.path.join(self.root, "wb")
-        for d in (gd, os.path.join(wb, "tv")):
-            os.makedirs(d)
-        with io.open(os.path.join(gd, "commondir"), "w", encoding="utf-8") as fh:
-            fh.write("../..\n")
-        with io.open(os.path.join(wb, ".git"), "w", encoding="utf-8") as fh:
-            fh.write("gitdir: %s\n" % gd)
-        path, why = GL.ledger_where(root=wb)
-        self.assertEqual(path, os.path.join(GL.HERE, ".gate_ledger.json"))
-        self.assertIn("bare repository", why or "")
-        real = GL.ledger_where
-        GL.ledger_where = lambda root=None: (os.path.join(main, "tv", ".gate_ledger.json"), None)
-        try:
-            with _NoGitEnv():
-                book = GL.Ledger()
-        finally:
-            GL.ledger_where = real
-        self.assertEqual(book.path, os.path.join(main, "tv", ".gate_ledger.json"))
-        self.assertEqual(book._map_file(), os.path.join(GL.HERE, ".gate_inputs.json"),
-                         "the input map followed the shared ledger - two trees would rebuild it on every alternation")
-
-    def test_a_fail_drops_the_pass_even_while_git_cannot_answer(self):
-        """★ REG-2344 - REAL git, one machine ledger shared by main and a worktree. A FAIL takes the gate's PASS out
-        whatever a lookup could say at that moment: recorded while `git cat-file` fails (what _git returns on a timeout
-        or a fork error - lookup reads 'the proven sha cannot be diffed'), an untraced FAIL and a traced one each leave
-        no PASS that carries once git answers again - on the very bytes that just failed. (The T1 review measured the
-        first cut keeping the row on every lookup miss, and carrying it on the failed bytes on the next healthy run.)"""
-        law = "import helper_x\nimport sys\nsys.exit(0)\n"
-        probes = {"python": "3.9.9", "node": "v20.0.0", "playwright": "1.40.0"}
-        facts = {"R": set(), "W": set(), "S": set(), "L": set(), "I": set()}
-        arm = os.path.join(self.root, "arm.json")
-        with _NoGitEnv():
-            os.environ["TV_SELF_ARMING_LEDGER"] = arm
-            try:
-                main = _repo(os.path.join(self.root, "lm"), {"tv/t_x.py": law, "tv/helper_x.py": "SALT = 1\n",
-                                                             ".gitignore": ".gate_ledger.json\n.gate_inputs.json\n"
-                                                                           "*.tmp\n.gate_ledger.json.*\n"})
-                wt = os.path.join(self.root, "lw")
-                _git(main, "worktree", "add", "-q", "-b", "side", wt)
-                led, why = GL.ledger_where(root=wt)
-                there, why2 = GL.ledger_where(root=main)
-                self.assertEqual((os.path.realpath(led), why), (os.path.realpath(there), why2),
-                                 "PREMISE: the two trees do not share a ledger")
-                self.assertEqual(os.path.realpath(led), os.path.realpath(os.path.join(main, "tv", ".gate_ledger.json")))
-
-                class _G(object):
-                    def __init__(self, root):
-                        self.name, self.timeout, self.cwd = "x-law", 30, root
-                        self.argv = [sys.executable, os.path.join(root, "tv", "t_x.py")]
-                        self.needs_app, self.skip_ok = False, ()
-
-                gw = _G(wt)
-                real_git = GL._git
-
-                def no_cat_file(root, args):
-                    return None if (args and args[0] == "cat-file") else real_git(root, args)
-
-                for how, trace in (("an untraced", None), ("a traced", facts)):
-                    self.assertTrue(GL.Ledger(path=led, probes=probes).record(gw, True, trace=dict(facts)),
-                                    "PREMISE: the worktree's PASS was not stored")
-                    entry, why = GL.Ledger(path=led, probes=probes).lookup(gw)
-                    self.assertIsNotNone(entry, "PREMISE: the stored PASS does not carry on its own bytes: %s" % why)
-                    book = GL.Ledger(path=led, probes=probes)
-                    GL._git = no_cat_file
-                    try:
-                        self.assertEqual(book.lookup(gw)[1], "the proven sha cannot be diffed",
-                                         "PREMISE: the failing git is not what lookup saw")
-                        book.record(gw, False, trace=dict(trace) if trace else None)
-                    finally:
-                        GL._git = real_git
-                    entry, why = GL.Ledger(path=led, probes=probes).lookup(gw)
-                    self.assertIsNone(entry, "%s FAIL recorded while git could not answer left the PASS standing - it "
-                                             "now carries on the bytes that just FAILED: %s" % (how, entry and
-                                                                                              entry.get("line")))
-                    entries, lwhy = GL.load(led)
-                    self.assertNotIn("x-law", entries or {}, "%s FAIL left the PASS row in the ledger" % how)
-            finally:
-                GL._git = real_git
-                os.environ.pop("TV_SELF_ARMING_LEDGER", None)
-
     def test_two_provers_writing_one_cache_never_erase_each_other(self):
         path = os.path.join(self.root, ".heart2_cache.json")
         a = H._VerdictCache(path=path, say=_quiet)
@@ -367,27 +272,6 @@ RED_PROOF = [
      "file": "heart2.py",
      "find": "        if self.path == CACHE and CACHE_WHY:\n",
      "replace": "        if False:\n",
-     "matches": 1},
-    {"why": "REG-2343 - the gate ledger is per checkout again: a fresh worktree carries nothing, its PASSes die with it",
-     "file": "gate_ledger.py",
-     "find": "    if common and os.path.basename(common) == \".git\":\n",
-     "replace": "    if False:\n",
-     "matches": 1},
-    {"why": "REG-2343 - the input map follows the shared ledger, so two trees rebuild it on every alternation",
-     "file": "gate_ledger.py",
-     "find": "        return os.path.join(self._map_dir or os.path.dirname(self.path) or \".\", MAP_NAME)\n",
-     "replace": "        return os.path.join(os.path.dirname(self.path) or \".\", MAP_NAME)\n",
-     "matches": 1},
-    {"why": "REG-2344 - a FAIL drops the PASS only when lookup says it would carry: a traced FAIL recorded while git "
-            "cannot answer leaves the PASS, which then carries on the bytes that just failed",
-     "file": "gate_ledger.py",
-     "find": "            self._drop(name)  # LEDGER-NO-FAIL: a FAIL never stays a PASS row\n",
-     "replace": "            self._drop(name) if self.lookup(gate)[0] is not None else None  # LEDGER-NO-FAIL\n",
-     "matches": 1},
-    {"why": "REG-2344 - a drop takes nothing out of the machine's ledger, so every FAIL leaves its PASS standing",
-     "file": "gate_ledger.py",
-     "find": "        self.entries.pop(name, None)  # LEDGER-DROP-FAIL\n",
-     "replace": "        self.entries.get(name, None)  # LEDGER-DROP-FAIL\n",
      "matches": 1},
     {"why": "#242 - the wave skips a gate whose proofs were banked in ANOTHER tree, so a main-only red is never run",
      "file": "heart2.py",

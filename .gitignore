@@ -250,14 +250,12 @@ tv/.gate_inputs.json.tmp
 # #42 lever 1 (REG-1710) - which cases caught each sabotage at push time, so the next push asks only those. Per machine.
 tv/.heart2_red.json
 tv/.heart2_red.json.tmp
-# REG-2340/2341 (R9) - no generation or side file of the stores above ever shows in git status: a writer's own tmp
+# REG-2340/2341 (R9) - no generation or side file of heart2's stores ever shows in git status: a writer's own tmp
 # (<name>.<pid>.<thread>.tmp), a .prev, an .unreadable-<ms> kept aside, and tv/.heart2_v2/ (heart2's stores in a checkout
 # whose git dir could not be found). The machine's own heart2 stores live in git's common dir, which git never lists.
 tv/.heart2_cache*
 tv/.heart2_red.json.*
 tv/.heart2_v2/
-tv/.gate_ledger.json.*
-tv/.gate_inputs.json.*
 # v2861 — THE RENDER VERDICT IS A READING, NOT A CONTRACT. I shipped it TRACKED in v2859
 # and that is a stale-reading hazard with a passport: this Mac's "16/16 reported OK"
 # would travel to CI and to the Windows machine, where nothing rendered, and the heart

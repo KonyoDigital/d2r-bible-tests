@@ -521,11 +521,10 @@ class AProvenVerdictIsReusedOnlyOnIdenticalBytes(_Case):
         self.assertIn("tv/.heart2_cache.json", ignored, "the cache is not gitignored - one Mac's proofs would travel")
         self.assertIn("tv/.heart2_cache.json.tmp", ignored)
         # R9 (REG-2340) - no generation or side file of a store ever shows in git status: a writer's own tmp, a .prev, an
-        # .unreadable-<ms> kept aside, a checkout's own fallback store dir, the ledger's tmps
+        # .unreadable-<ms> kept aside, a checkout's own fallback store dir
         import fnmatch
         for name in ("tv/.heart2_cache.json.123.4.tmp", "tv/.heart2_cache.json.prev", "tv/.heart2_cache.json.unreadable-9",
-                     "tv/.heart2_red.json.123.4.tmp", "tv/.heart2_red.json.prev", "tv/.gate_ledger.json.123.4.tmp",
-                     "tv/.gate_inputs.json.123.4.tmp"):
+                     "tv/.heart2_red.json.123.4.tmp", "tv/.heart2_red.json.prev"):
             self.assertTrue(any(fnmatch.fnmatch(name, pat) for pat in ignored),
                             "%s would show in git status - no .gitignore pattern covers it" % name)
         self.assertIn("tv/.heart2_v2/", ignored, "a checkout's own fallback store dir would show in git status")

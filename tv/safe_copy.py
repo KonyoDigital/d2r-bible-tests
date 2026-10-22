@@ -66,8 +66,9 @@ HEAVY_FILES = (".heart2_cache.json",)
 HEAVY_SUFFIXES = (".tgz",)
 #: REG-2340 (R9) - A STORE NEVER TRAVELS, IN ANY GENERATION. The exact name let every sibling through: a writer's
 #: per-process tmp (`.heart2_cache.json.<pid>.<tid>.tmp` - a 320 MB tmp left in main's tv/ would push every main-tree
-#: sandbox over the 400 MB refusal again, REG-1845), a `.prev`, an `.unreadable-<ms>` kept aside, the red memory and the
-#: gate ledger with its input map. They are per-machine records of runs, never source a sabotage test reads.
+#: sandbox over the 400 MB refusal again, REG-1845), a `.prev`, an `.unreadable-<ms>` kept aside, the red memory, and
+#: this checkout's gate ledger and input map with their tmps. They are records of this machine's runs, never source a
+#: sabotage test reads.
 STORE_PREFIXES = (".heart2_cache", ".heart2_red", ".gate_ledger.json", ".gate_inputs.json")
 #: REG-2123 - FILES THAT NAME A LIVE PROCESS ON THIS MACHINE NEVER TRAVEL. tv/control_agent.pid holds HIS live agent's pid;
 #: copied into a prover sandbox, a private control_app there read it as its own agent, and its STOP path SIGTERMed it -
