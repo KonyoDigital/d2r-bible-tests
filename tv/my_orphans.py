@@ -48,6 +48,10 @@ HIS_PORTS = (17772, 17781, 17955, 9222, 9223, 8848)
 #: sweep unable to see its own author.
 SYSTEM_PATHS = ("/System/", "/usr/sbin/", "/usr/libexec/", "/sbin/", "/Library/Apple/")
 
+#: #171 (REG-2482) - why his ports are UNKNOWN on a Windows PC. "could not be asked" is what holds_his_port fails closed
+#: on, so every Windows process is NEVER MINE and the spawn ledger and the tree are never asked about it.
+WIN_PORTS_UNREAD = "his ports could not be asked on this PC - there is no lsof on Windows"
+
 #: Where `claude-owns` records what it started. ⚠ INCOMPLETE BY NATURE: 53 rows, last written a day
 #: before this was needed, and today's 52-minute runaway was never in it. Registration is a claim
 #: about INTENT that has to be made at spawn — so its ABSENCE proves nothing at all.
@@ -95,6 +99,11 @@ def _listening_ports(pid):
 
     ⚠ `-a` ANDs the selectors. Without it lsof ORs them and hands back the whole machine.
     """
+    if _platform() == "win32":
+        # #171 (REG-2482, the review of the first cut) - THERE IS NO lsof ON WINDOWS, so his ports are never read there.
+        # Asked anyway it failed as a bare FileNotFoundError on every suspect, a reason that read like a hiccup. This
+        # says what it is and spawns nothing; holds_his_port fails CLOSED on it, so no Windows process is ever "mine".
+        return set(), WIN_PORTS_UNREAD
     try:
         r = subprocess.run(["lsof", "-nP", "-a", "-p", str(pid), "-iTCP", "-sTCP:LISTEN"],
                            capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=10)
@@ -416,8 +425,9 @@ def _suspects_win(busy, old_min):
     _LAST_WIN["cpu"], _LAST_WIN["at"] = cur, now
     _SCAN.update(n=len(cur), at=now,
                  how="the Windows kernel's own per-process CPU time (GetProcessTimes), two samples",
-                 portsSay=("His ports cannot be read on this PC (there is no lsof here), so no busy process is "
-                           "ever counted as mine - it is reported as nobody's."))
+                 portsSay=("His ports cannot be read on this PC (there is no lsof on Windows), so no busy process is "
+                           "ever counted as mine here, and the spawn ledger and this tree are never asked about one - "
+                           "each is still reported, with that reason."))
     gap = now - prev_at
     if not prev or gap < 1.0:
         return [{"pid": None, "ours": None,

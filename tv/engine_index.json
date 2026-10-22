@@ -1317,7 +1317,7 @@
       "holds_his_port",
       "main"
     ],
-    "gotcha": "holds_his_port() is the whole point of the file and DID NOT EXIST for a long time: HIS_PORTS (17772, 17781, 17955, 9222, 9223, 8848) was declared with a comment claiming it protected his console and `grep -c HIS_PORTS` returned 1 — its own definition. It FAILS CLOSED: if lsof cannot answer, the port is UNKNOWN and the process is NOT-MINE. KNOWN is not a convenience list — it is what keeps the sweep from becoming furniture, and D2R.exe/CrossOver/wineserver are in it because HIS GAME IS NOT AN ORPHAN (334% CPU for 100 minutes while he played).",
+    "gotcha": "holds_his_port() is the whole point of the file and DID NOT EXIST for a long time: HIS_PORTS (17772, 17781, 17955, 9222, 9223, 8848) was declared with a comment claiming it protected his console and `grep -c HIS_PORTS` returned 1 — its own definition. It FAILS CLOSED: if lsof cannot answer, the port is UNKNOWN and the process is NOT-MINE. On Windows there is no lsof, so EVERY process fails closed there (none is ever counted as mine, and the spawn ledger and the tree are never asked) - the orphans row says exactly that instead of claiming the three witnesses (REG-2482). KNOWN is not a convenience list — it is what keeps the sweep from becoming furniture, and D2R.exe/CrossOver/wineserver are in it because HIS GAME IS NOT AN ORPHAN (334% CPU for 100 minutes while he played).",
     "purpose": "Reports busy, long-lived processes I started and left running (>20% CPU, >20 min) so he is never the one who notices his Mac is hot; it KILLS nothing.",
     "territory": "routines-infra"
   },
