@@ -7,21 +7,52 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
-### REG-2392 - A PUSH-SCOPE LAW'S THROWAWAY GIT REPO RE-INITIALISED THE REAL ONE AS BARE (v3784 push, GIT_DIR leak)
+### REG-2393 - THE CARRIED-PROOF LAW COULD NEVER PASS ON HIS MAC: ITS .pyc PREMISE LOOKED FOR __pycache__, WHICH HIS PYTHON NEVER WRITES (Push A2)
 
-2026-10-22 07:48, the first v3784 push. test_a_proven_verdict_is_reused_only_on_identical_bytes entered the push scope because Push A1
-edited it, so for the first time its case test_a_named_file_git_does_not_track_is_not_a_key_input ran INSIDE the pre-push hook. Its
-throwaway repo ran `git init -q` and `git add kept.txt` with cwd= only; the hook's exported GIT_DIR/GIT_WORK_TREE override cwd= and -C,
-so `git init` re-initialised his main checkout's common config with core.bare=true (every git command there then refused: "this
-operation must be run in a work tree") and `git add` staged kept.txt into the push worktree's index. heart2's clean wave read the law
-ALREADY RED (git answered for the real repo, not the throwaway) and refused the push before any tamper. The integration pre-flight had
-passed because it ran outside a hook. The case existed on origin/main; it had simply never run in a push.
+test_a_gate_proven_on_these_bytes_is_carried's case test_a_submodule_served_from_a_cached_pyc_is_an_input (REG-2293 r6 B, 2026-10-19)
+warmed a bytecode cache with PYTHONPYCACHEPREFIX="" and asserted `tv/pkg_gl/__pycache__` existed. His Mac's python3 (the Command Line
+Tools 3.9) has a BUILT-IN pycache_prefix, ~/Library/Caches/com.apple.python, and an empty PYTHONPYCACHEPREFIX does not clear it: the
+.pyc went there, `__pycache__` was never written, and the case failed "PREMISE: no .pyc cache" on every run on his Mac - measured on
+origin/main's own bytes (59 of 60 OK). The whole law read RED here, so none of its 70 red-proofs could ever be proved on this Mac, and
+each run left a stray .pyc under his ~/Library/Caches. Found because Push A2 scrubs GIT_* in this law (REG-2392), which puts it in the
+push's proving set: its clean run would have read ALREADY RED and refused the push.
+FIX: the case warms the cache under a PYTHONPYCACHEPREFIX of its own (a scratch dir), set for the whole case, and asks python where
+the cache is (importlib.util.cache_from_source of the source's realpath - python resolves a script's folder; /var is /private/var).
+A trace run that lost LEDGER-TRACE-NOPYC inherits that prefix and reads the warm .pyc, exactly as it read __pycache__ on Linux.
+MEASURED on his Mac: 60/60 OK plain and under a leaked GIT_DIR; with red-proof [62] (the NOPYC tamper) applied to a scratch copy the
+case fails "a module imported from its .pyc carried a red gate" (stored inputs: tv/t_pyc.py only) - the bite the proof needs.
+Each run of the old case left its two pkg_gl .pyc under ~/Library/Caches/com.apple.python (four measured today; 240 such fixture
+mirrors sit there); a full run of the fixed law adds none (240 before, 240 after).
+
+### REG-2392 - A PUSH-SCOPE LAW'S THROWAWAY GIT REPO RE-INITIALISED THE REAL ONE AS BARE (v3784 push from a linked worktree, GIT_DIR leak)
+
+2026-10-22 07:48, the first v3784 push, made from a LINKED WORKTREE (the integration worktree). Only a push from a linked worktree
+exports GIT_DIR into the hook: absolute, <main>/.git/worktrees/<name>. A push from the main checkout exports no GIT_DIR, and git
+exports no GIT_WORK_TREE from either (corrected by the post-ship review; re-measured on git 2.50.1 with a hook that dumps its
+environment). test_a_proven_verdict_is_reused_only_on_identical_bytes was in the push scope because Push A1 edited it, so its case
+test_a_named_file_git_does_not_track_is_not_a_key_input ran under that GIT_DIR. Its throwaway repo ran `git init -q` and
+`git add kept.txt` with cwd= only; GIT_DIR beats cwd= and -C, so `git init` re-initialised the real repo's COMMON config - his main
+checkout's - with core.bare=true (every git command there then refused: "this operation must be run in a work tree") and `git add`
+staged kept.txt into the push worktree's index. heart2's clean wave read the law ALREADY RED (git answered for the real repo, not the
+throwaway) and refused the push before any tamper. The integration pre-flight had passed because it ran with no GIT_DIR at all. The
+case was not new; what was new is pushes made from worktrees.
 FIX: the case pops GIT_* for its own scope and restores them after (addCleanup), like test_control's grok-seat case (011d9d144).
-MEASURED in a simulated hook environment (GIT_DIR + GIT_WORK_TREE exported at the push worktree): 26 tests OK, core.bare stayed false,
-nothing staged. Repaired by hand: `git config core.bare false` in his main checkout; kept.txt unstaged.
+MEASURED in a simulated hook environment: 26 tests OK, core.bare stayed false, nothing staged. ⚠ CORRECTED: that simulation exported
+GIT_DIR AND GIT_WORK_TREE, which is not what a hook gets. Measured on throwaway repos with a linked worktree: under GIT_DIR alone an
+unscrubbed `git init` + `git add` set core.bare=true in the common config and stage the file in the worktree (this incident's shape);
+under GIT_DIR + GIT_WORK_TREE they write core.worktree into the common config instead and core.bare stays false - so that simulation
+could not have reproduced this failure. A pre-flight in the push context exports GIT_DIR ONLY. Repaired by hand: `git config core.bare
+false` in his main checkout; kept.txt unstaged.
 LEFT: the class fix - the hook unsetting GIT_* for every test stage and handing the stamps law the pushed commit by its own variable -
-ships with track T3 (REG-2360); the hook file runs from his main checkout, so it takes effect only after that lands. Until then any law
-that enters a push's scope and runs git must scrub GIT_* itself. GUARD: this case, run under the hook.
+ships with track T3 (REG-2360, v3785); the hook file runs from his main checkout (core.hooksPath), so it takes effect only after that
+lands AND his main tree pulls. Until then any law that enters a push's scope and runs git must scrub GIT_* itself. GUARD: this case,
+run under the hook.
+ALSO SCRUBBED (Push A2): test_a_gate_proven_on_these_bytes_is_carried - its three classes that build throwaway repos (`_tree`'s
+`git init` / `config user.*` / `add -A` / `commit`, and the ledger's own git calls on them). MEASURED on a sacrificial --shared clone
+with a linked worktree, GIT_DIR alone aimed at that worktree: the unscrubbed law set core.bare=true and user.email=ledger@example.com
+in the clone's common config, committed onto the worktree's HEAD and left 1461 status lines; scrubbed, 60/60 OK and the clone
+byte-identical. T3 already scrubbed test_a_landed_update_is_not_an_edit, test_the_author_is_read_from_the_stamp and
+test_a_stale_git_lock_is_cleared_and_said.
 
 ### REG-2359 - THE NODE RULE READ ONLY SKIP COUNTS, SO A LAW THAT SKIPPED FOR ANY REASON WAS EXCUSED ON A PC WITHOUT NODE (round-3 review of REG-2354, push-proof track T2)
 
