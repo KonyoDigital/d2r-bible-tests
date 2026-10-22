@@ -10966,9 +10966,12 @@ GATES = [
              "in shadow mode when the Grok failover also failed, the console fell through to the website proxy and "
              "read on the site's API key - the spend the cap exists to stop. control_app's /api/intake handler now "
              "answers a runner's 429 as HTTP 429 with its body (limit, source, retry_s), still lets the Grok failover "
-             "read, answers the 429 when no lane reads, and never calls the website after a cap. Driven through a "
-             "private server with stub runners, so every case runs with or without node; the website door is always "
-             "stubbed. The real runner's join is test_a_capped_runner_reaches_the_board_as_429."),
+             "read, answers the 429 when no lane reads, and never calls the website after a cap. REG-2388 - a board "
+             "that hung up as the 429 was written fell through to the website proxy, and one that hung up on a lane's "
+             "answer sent the console to the next lane and the website for a read already made; each write has its "
+             "own try now and the handler returns. Driven through a private server with stub runners, so every case "
+             "runs with or without node; the website door is always stubbed. The real runner's join is "
+             "test_a_capped_runner_reaches_the_board_as_429."),
     Gate("test_a_pythonw_console_keeps_what_it_says",
          [sys.executable, os.path.join(HERE, "test_a_pythonw_console_keeps_what_it_says.py")], 60,
          needs_app=False,

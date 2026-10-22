@@ -201,6 +201,13 @@ FIX: `_git_common_dir` reads `.git` the way git does - a relative gitdir joined 
 GUARDS: tv/test_one_verdict_cache_serves_every_tree.py (relative gitdir from another cwd; REAL git worktrees, absolute and --relative-paths, land on `git rev-parse --git-common-dir`; bare repository; an unreadable pointer is said) - 7 of 7 PROVEN; tv/test_safe_copy.py (every store generation and side file stays out, the census still travels) - 6 of 6 PROVEN; tv/test_a_proven_verdict_is_reused_only_on_identical_bytes.py (every side file is gitignored).
 
 LEFT: a checkout with no readable git dir banks into its own store and is SAID, but nothing merges that store into the machine's at the end of the push (there is no machine store it could find).
+### REG-2388 - A BOARD THAT HUNG UP MID-ANSWER WAS READ AGAIN: ON THE NEXT LANE, AND ON THE WEBSITE'S API KEY
+
+control_app's /api/intake handler wrote its answers inside trys that read any exception as a lane failing. The cap's 429 (REG-2383) was written inside the handler's outer try, whose except falls through to the website proxy: a board that hung up as the 429 went out (BrokenPipeError - its fetch gave up, the vault batch waits 75 s against a runner allowed 150 s; or the tab closed) sent the console on to read on the site's ANTHROPIC_API_KEY, the spend the cap exists to stop. A lane's answer was written inside the per-lane try: a hang-up there sent the console on to the next lane (Grok, in shadow mode) and then to the website, for a read already made. Reproduced with stub runners 2026-10-22: a BrokenPipe on the 429 -> one website call; on an answer, off mode -> one website call; shadow mode -> Grok read again, then one website call. The 429 site was found by the round-2 review of REG-2383; the answer site is its sibling, on origin/main as well.
+
+FIX: each of the two writes has its own try - whatever happens to it, the handler returns, and a failed write closes the connection (`close_connection`) so nothing more is said on a socket the board left. A lane's unreadable status is still that lane's failure: it is read before the write.
+
+GUARD: tv/test_a_capped_read_is_answered_429.py `ABoardThatHangsUpEndsTheRead` (registered) - every header write to /api/intake raises BrokenPipeError: a capped read reaches no website, and an answered read in shadow mode runs no second lane and no website. 2 RED proofs (each write's except re-raising). Node-free, stub runners.
 
 ### REG-2387 - ONE VISION READ RESET THE INTAKE CAP: TV_DIABLO WROTE THE INTAKE LANE'S ROWS BACK AS SECONDS
 
