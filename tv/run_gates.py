@@ -10903,8 +10903,9 @@ GATES = [
          needs_app=False,
          why="R4 (REG-2341) - heart2's verdict cache and red memory wrote through one fixed tmp name with no lock while a "
              "worktree's pre-flight ran beside main's push. Two REAL processes released by a barrier, held inside one "
-             "window (TV_STORE_HOLD_S), keep both writes in both stores; with no lock each writer renames only its own "
-             "tmp; a dead writer's tmp is swept; an old-code flush never reaches the v2 store."),
+             "window (TV_STORE_HOLD_S), keep both writes in both stores - under flock, and under Windows' msvcrt lock "
+             "file; with no lock each writer renames only its own tmp; a dead writer's tmp is swept; an old-code flush "
+             "never reaches the v2 store."),
     Gate("test_an_unreadable_store_is_kept_not_overwritten",
          [sys.executable, os.path.join(HERE, "test_an_unreadable_store_is_kept_not_overwritten.py")], 60,
          needs_app=False,

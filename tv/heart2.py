@@ -1894,14 +1894,26 @@ _SELF_RECORDS = frozenset((".heart2.json", ".heart2_cache.json", ".heart2_cache.
 # ONE writer, _StoreFile.commit: an exclusive flock on the store's DIRECTORY across read-merge-write (a lock on the file
 # would leave with the inode os.replace swaps out), a tmp named for this process and thread, fsync, the current file kept
 # as `.prev`, then os.replace. A store that will not read is renamed aside (`.unreadable-<ms>`, the newest one kept) and
-# its `.prev` merged in its place - never overwritten. A machine with no flock (Windows) writes unlocked and says so.
+# its `.prev` merged in its place - never overwritten. Windows has no flock: there the lock is msvcrt's byte lock on ONE
+# lock file in the store's directory (_LOCK_NAME), so both stores still share one lock per directory. A machine with
+# neither writes unlocked and says so.
 # TV_STORE_HOLD_S is a LAW's seam: it holds a written tmp unreplaced, so two writers provably overlap.
 # The laws: test_two_provers_never_tear_the_store, test_an_unreadable_store_is_kept_not_overwritten.
 try:
     import fcntl as _fcntl
-except ImportError:                 # Windows: no flock - the writes stay merged, and the missing lock is said
+except ImportError:                 # Windows: no flock - msvcrt's lock file stands in (_win_lock)
     _fcntl = None
+try:
+    import msvcrt as _msvcrt
+except ImportError:                 # every machine but Windows
+    _msvcrt = None
 _RED_NAME = ".heart2_red.json"
+#: R4 - Windows' stand-in for the directory flock: ONE empty lock file per store directory, shared by the cache and the
+#: red memory as the flock is, its first byte held with msvcrt.locking. Named under the cache's own prefix, so no checkout
+#: lists it (.gitignore tv/.heart2_cache*), no sandbox copies it (safe_copy's store prefixes), and the sweep of dead
+#: writers' tmps never matches it. It is never deleted: a lock file removed while held is how two writers lock two files.
+_LOCK_NAME = ".heart2_cache.lock"
+_LOCK_WAIT_S = 300.0                # a Windows writer waits this long for the lock, then writes unlocked and says so
 _STORE_SAID = set()
 
 
@@ -1941,19 +1953,51 @@ def _store_hold():
         time.sleep(min(s, 30.0))
 
 
+def _win_lock(folder):
+    """R4 - Windows: an exclusive msvcrt lock on the first byte of `folder`'s lock file (_LOCK_NAME), polled with
+    LK_NBLCK until it is free or _LOCK_WAIT_S has passed - then OSError, and the caller writes unlocked and says so.
+    Each holder opens its own descriptor, and a Windows byte lock binds the handle that took it, so two threads exclude
+    each other as two processes do. -> the lock file's fd, for _win_unlock"""
+    fd = os.open(os.path.join(folder, _LOCK_NAME), os.O_RDWR | os.O_CREAT)
+    deadline = time.time() + _LOCK_WAIT_S
+    try:
+        while True:
+            try:
+                os.lseek(fd, 0, os.SEEK_SET)
+                _msvcrt.locking(fd, _msvcrt.LK_NBLCK, 1)
+                return fd
+            except OSError:
+                if time.time() >= deadline:
+                    raise
+                time.sleep(0.05)
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def _win_unlock(fd):
+    """Release _win_lock's byte and close its descriptor; the lock file itself stays (see _LOCK_NAME)."""
+    try:
+        os.lseek(fd, 0, os.SEEK_SET)
+        _msvcrt.locking(fd, _msvcrt.LK_UNLCK, 1)
+    except (OSError, ValueError):
+        pass                                            # closing the descriptor releases it all the same
+    finally:
+        os.close(fd)
+
+
 @contextlib.contextmanager
 def _store_locked(folder, say=None):
-    """R4 - an exclusive flock on `folder` (a store's directory) for the block, across processes and threads (each
-    holder opens its own descriptor). -> the directory's fd (fsync it after a rename), or None when unlocked (said)."""
-    fd = None
+    """R4 - an exclusive lock on `folder` (a store's directory) for the block, across processes and threads (each
+    holder opens its own descriptor): flock on the directory itself; on Windows, which has no flock, msvcrt's byte lock
+    on the directory's lock file (_win_lock). -> the directory's fd (fsync it after a rename), or None - on Windows,
+    where no directory is opened, or when the write is unlocked (said)."""
+    fd = win = None
     try:
         os.makedirs(folder, exist_ok=True)
     except OSError:
         pass
-    if _fcntl is None:
-        _say_once(say, ("nolock",), "  ⚠ heart2 stores: this machine has no flock, so a store write is merged but "
-                                    "UNLOCKED - two writers at the same moment can still lose one write")
-    else:
+    if _fcntl is not None:
         try:
             fd = os.open(folder, os.O_RDONLY)
             _fcntl.flock(fd, _fcntl.LOCK_EX)
@@ -1963,6 +2007,15 @@ def _store_locked(folder, say=None):
                 fd = None
             _say_once(say, ("nolock", folder), "  ⚠ heart2 stores: %s could not be locked (%s) - this write is "
                                                "UNLOCKED" % (folder, type(_le).__name__))
+    elif _msvcrt is not None:
+        try:
+            win = _win_lock(folder)
+        except Exception as _le:
+            _say_once(say, ("nolock", folder), "  ⚠ heart2 stores: %s could not be locked (%s) - this write is "
+                                               "UNLOCKED" % (folder, type(_le).__name__))
+    else:
+        _say_once(say, ("nolock",), "  ⚠ heart2 stores: this machine has neither flock nor msvcrt, so a store write is "
+                                    "merged but UNLOCKED - two writers at the same moment can still lose one write")
     try:
         yield fd
     finally:
@@ -1972,6 +2025,8 @@ def _store_locked(folder, say=None):
             except OSError:
                 pass
             os.close(fd)
+        if win is not None:
+            _win_unlock(win)
 
 
 def _read_store(path, valid=None):

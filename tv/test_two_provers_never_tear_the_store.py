@@ -2,16 +2,19 @@
 """R4 (REG-2341) - TWO PROVERS NEVER TEAR OR THIN A STORE.
 
 FOUND in the v1 writers (read 2026-10-21): heart2's verdict cache and red memory each wrote through ONE fixed tmp name
-with no cross-process lock, while a worktree's pre-flight runs beside main's push - two writers on one file. Driven here with REAL processes and threads; the overlap is
-made certain by TV_STORE_HOLD_S (a law's seam: a writer holds its written tmp unreplaced, so the other writer is provably
-inside the same window - never a race left to luck):
+with no cross-process lock, while a worktree's pre-flight runs beside main's push - two writers on one file. Driven here
+with REAL processes and threads; the overlap is made certain by TV_STORE_HOLD_S (a law's seam: a writer holds its written
+tmp unreplaced, so the other writer is provably inside the same window - never a race left to luck):
 
   1. two processes, released together by a barrier, writing the verdict cache and the red memory: every write of both
      survives (the store directory's lock);
-  2. with NO lock to be had (a machine without flock), two writers inside the window at once each install their own
+  2. Windows has no flock: there the lock is msvcrt's byte lock on ONE lock file beside the stores. Two processes with
+     flock gone and msvcrt's lock modelled keep both writes the same way, each takes the lock and gives it back, and the
+     lock file is a name no checkout lists and no sandbox copies (the real .gitignore and safe_copy are asked);
+  3. with NO lock to be had (neither flock nor msvcrt), two writers inside the window at once each install their own
      bytes - a tmp named for one writer is never moved by the other's rename;
-  3. a tmp a DEAD writer left beside a store is swept, a live writer's never, and nothing beside a guard is touched;
-  4. an old-code writer (a copy of the v1 flush body: fixed tmp, no lock, {_why, entries} only) writes the file it always
+  4. a tmp a DEAD writer left beside a store is swept, a live writer's never, and nothing beside a guard is touched;
+  5. an old-code writer (a copy of the v1 flush body: fixed tmp, no lock, {_why, entries} only) writes the file it always
      wrote, and the v2 store - with a section that writer would strip - is never reached.
 EVERYTHING HERE IS A FIXTURE: throwaway directories, stores named like heart2's. Nothing of his is read or written.
 RED_PROOF below.
@@ -44,7 +47,25 @@ open(go + "." + key + ".ready", "w").close()
 while not os.path.exists(go):          # the barrier: both writers start the same instant
     time.sleep(0.01)
 now = int(time.time() * 1000)
-if kind == "cache":
+out = {"key": key}
+if kind == "cachewin":                 # Windows, modelled: no flock, and msvcrt's byte lock - which binds the handle that
+    import fcntl                       # took it - played by flock on that descriptor
+    out["locks"] = []
+
+    class _Msvcrt(object):
+        LK_UNLCK, LK_LOCK, LK_NBLCK = 0, 1, 2
+
+        @staticmethod
+        def locking(fd, mode, nbytes):
+            if mode == 0:
+                fcntl.flock(fd, fcntl.LOCK_UN)
+                out["locks"].append("unlock")
+                return
+            fcntl.flock(fd, fcntl.LOCK_EX | (fcntl.LOCK_NB if mode == 2 else 0))   # held: an OSError, as on Windows
+            out["locks"].append("lock")
+
+    H._fcntl, H._msvcrt = None, _Msvcrt()
+if kind in ("cache", "cachewin"):
     c = H._VerdictCache(path=path, say=lambda *a, **k: None)
     c.store(key, {"verdict": "PROVEN", "provedAt": now, "gate": key, "proof": 0})
     ok = c.flush()
@@ -52,7 +73,8 @@ else:
     H.RED_MEMORY = path
     H._red_remember(key, key, 0, ["Case.test_%s" % key])
     ok = os.path.exists(path)
-print(json.dumps({"key": key, "ok": bool(ok)}))
+out["ok"] = bool(ok)
+print(json.dumps(out))
 '''
 
 
@@ -142,9 +164,32 @@ class TwoProversNeverTearTheStore(unittest.TestCase):
             self.assertEqual(sorted(ent), ["%sA" % kind, "%sB" % kind],
                              "%s: one writer erased the other's write - the store is unlocked: %s" % (kind, sorted(ent)))
 
+    def test_on_windows_msvcrts_lock_file_keeps_both_writes(self):
+        """★ R4 - Windows has no flock: there the store directory's lock is msvcrt's byte lock on ONE lock file beside the
+        stores (heart2._LOCK_NAME). Two REAL processes with flock gone and msvcrt modelled: both writes kept, each writer
+        took the lock and gave it back, and the lock file is a name no checkout lists and no sandbox copies"""
+        path = os.path.join(self.root, "w", ".heart2_cache.json")
+        os.makedirs(os.path.dirname(path))
+        reports = self._pair("cachewin", path)
+        self.assertEqual(sorted(r["ok"] for r in reports), [True, True], "a writer did not finish its write: %s" % reports)
+        for r in reports:
+            self.assertEqual(r.get("locks"), ["lock", "unlock"], "%s did not take msvcrt's lock and give it back: %s"
+                             % (r["key"], r.get("locks")))
+        self.assertEqual(sorted(_entries(path)), ["cachewinA", "cachewinB"],
+                         "one writer erased the other's write - the Windows lock does not hold")
+        self.assertTrue(os.path.isfile(os.path.join(os.path.dirname(path), H._LOCK_NAME)), "no lock file beside the store")
+        self.assertEqual([n for n in os.listdir(os.path.dirname(path)) if n.endswith(".tmp")], [], "a tmp outlived its write")
+        import fnmatch
+        import safe_copy as SC
+        self.assertTrue(SC._heavy_file(H._LOCK_NAME), "the lock file %s would travel into every sandbox" % H._LOCK_NAME)
+        with io.open(os.path.join(os.path.dirname(HERE), ".gitignore"), encoding="utf-8") as fh:
+            ignored = [l.strip() for l in fh if l.strip() and not l.startswith("#")]
+        self.assertTrue(any(fnmatch.fnmatch("tv/" + H._LOCK_NAME, pat) for pat in ignored),
+                        "a lock file in tv/ (a store a seam put there) would show in git status")
+
     def test_with_no_lock_two_writers_never_move_each_others_bytes(self):
-        """★ a machine with no flock: two writers inside the window at once - each tmp is its own, so each rename installs
-        its own bytes and neither finds its tmp gone"""
+        """★ a machine with neither flock nor msvcrt: two writers inside the window at once - each tmp is its own, so each
+        rename installs its own bytes and neither finds its tmp gone"""
         path = os.path.join(self.root, ".heart2_cache.json")
         got = {}
 
@@ -152,8 +197,8 @@ class TwoProversNeverTearTheStore(unittest.TestCase):
             body = {"format": 2, "entries": {tag: {"verdict": H.PROVEN, "provedAt": 1}}}
             got[tag] = H._StoreFile(path, _quiet).commit(lambda disk: body)
 
-        real = H._fcntl
-        H._fcntl = None
+        real = H._fcntl, H._msvcrt
+        H._fcntl = H._msvcrt = None     # no lock at all, on every OS - Windows' own msvcrt included
         try:
             with _Env(TV_STORE_HOLD_S="0.6"):
                 a = threading.Thread(target=write, args=("A",))
@@ -164,7 +209,7 @@ class TwoProversNeverTearTheStore(unittest.TestCase):
                 a.join(30)
                 b.join(30)
         finally:
-            H._fcntl = real
+            H._fcntl, H._msvcrt = real
         self.assertEqual(got.get("A"), (True, None), "the first writer failed: %s" % (got,))
         self.assertEqual(got.get("B"), (True, None), "the second writer's tmp was moved by the first writer's rename - "
                                                      "one tmp name shared by two writers: %s" % (got,))
@@ -236,6 +281,26 @@ RED_PROOF = [
      "file": "heart2.py",
      "find": "            fd = os.open(folder, os.O_RDONLY)\n            _fcntl.flock(fd, _fcntl.LOCK_EX)\n",
      "replace": "            fd = os.open(folder, os.O_RDONLY)\n",
+     "matches": 1},
+    {"why": "R4 - on Windows the store write takes no lock: two writers inside one window, and one write is lost",
+     "file": "heart2.py",
+     "find": "                _msvcrt.locking(fd, _msvcrt.LK_NBLCK, 1)\n",
+     "replace": "                pass\n",
+     "matches": 1},
+    {"why": "R4 - on Windows msvcrt is never asked: with no flock every store write is unlocked",
+     "file": "heart2.py",
+     "find": "    elif _msvcrt is not None:\n        try:\n            win = _win_lock(folder)\n",
+     "replace": "    elif False:\n        try:\n            win = _win_lock(folder)\n",
+     "matches": 1},
+    {"why": "R4 - Windows' lock is never given back: it lingers until the handle's close is processed",
+     "file": "heart2.py",
+     "find": "        _msvcrt.locking(fd, _msvcrt.LK_UNLCK, 1)\n",
+     "replace": "        pass\n",
+     "matches": 1},
+    {"why": "R4 - Windows' lock file is named outside the store prefixes: it travels into sandboxes and shows in git status",
+     "file": "heart2.py",
+     "find": "_LOCK_NAME = \".heart2_cache.lock\"\n",
+     "replace": "_LOCK_NAME = \"heart2_stores.lock\"\n",
      "matches": 1},
     {"why": "R4 - one fixed tmp name for every writer: with no lock, the first rename moves the second writer's bytes",
      "file": "heart2.py",
