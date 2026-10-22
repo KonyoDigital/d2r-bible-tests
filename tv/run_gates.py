@@ -10962,6 +10962,29 @@ GATES = [
              "gloves row; the game's RareSuffix table (RotW) gives hand/fist/claw/clutches/knuckle to gloves and "
              "grip/grasp/hold/touch/finger to gloves AND ring. The Gloves row is the game's, so Grasp reads 'gloves / "
              "ring'; routing to MAGIC & RARE is unchanged."),
+    Gate("test_a_scan_reads_what_it_marks",
+         [sys.executable, os.path.join(HERE, "test_a_scan_reads_what_it_marks.py")], 120,
+         needs_app=False,
+         why="REG-2403 (review of REG-2401) - with one gone screenshot waiting, his manual Scan sent two new "
+             "screenshots to the menu, and the menu marked them read before he chose: a '♻ Read again' pick, Skip or a "
+             "closed menu left them never read (v584.1's restart trap, back). Now 1-12 new files are read at once and "
+             "the gone ones are said; the menu marks nothing, a pick writes what it means, merged into the ledger as it "
+             "is; the 12 s poll never reads a gone file. The shipped scan code runs in node over a stubbed folder."),
+    Gate("test_every_removal_door_leaves_his_word",
+         [sys.executable, os.path.join(HERE, "test_every_removal_door_leaves_his_word.py")], 120,
+         needs_app=False,
+         why="REG-2404 + REG-2405 (review of REG-2400/2401) - two of his removal doors wrote no journal row, so a "
+             "re-read brought the item back over his word: the non-grail un-tick, and the socket-count fix (a rename). "
+             "And the Magic & Rare ✕ left the owned name behind, which REG-2400's doctor then kept for good ('1 item you "
+             "own'). Now the un-tick and the ✕ go through the removal door (the ✕'s batch carries the Magic & Rare "
+             "record, so the undo is whole) and the rename rewrites the scan ledger. Each shipped door runs in node."),
+    Gate("test_a_reread_is_the_same_file",
+         [sys.executable, os.path.join(HERE, "test_a_reread_is_the_same_file.py")], 120,
+         needs_app=False,
+         why="REG-2401/2405 (review M2, M4, M5, M7) - promises REG-2401 pinned only by call-site text: vaultIntake reads "
+             "only 'fresh' and 'gone' files, each read is handed what its file read last time, a name the same file "
+             "read never bumps a copy (multi-keep, socketed base, base-copy branch), the Last-scan card says what was "
+             "read again - and a renamed label read again is the renamed item. The shipped intake code runs in node."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
