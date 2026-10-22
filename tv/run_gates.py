@@ -11215,6 +11215,75 @@ GATES = [
              "re-read and re-billed A's files. The mark now carries its time and tab ('reading@<ms>@<tab>'): another "
              "tab's recent mark is in flight (said, never offered), an old one never finished, and ⏯ Finish re-stamps "
              "what it reads. The shipped scan runs in node over a stubbed folder."),
+    Gate("test_a_second_planner_pick_keeps_the_first_picks_copy",
+         [sys.executable, os.path.join(HERE, "test_a_second_planner_pick_keeps_the_first_picks_copy.py")], 300,
+         needs_app=False,
+         why="#183 (REG-2530) - GrokBot V0 on v3784: Grief already filed, a planner pick files copy 2, a pick of a DIFFERENT "
+             "item in the same open, and d2r_copies had no Grief (v3740:63, v3742r:72: expected 2, actual undefined). "
+             "REG-2267 had dropped the id check from the name-change undo, and REG-2240's name check compares the first "
+             "pick's own name. Only a re-roll (same id) or a clear of the pick that made a copy takes it back, and the "
+             "undo now writes d2r_copies itself (it changed only the live count, so after a clear, or a re-roll that "
+             "stops at the white-base sentence, the next load put the copy back). The whole page runs in node with the "
+             "specs' own seed and stubs."),
+    Gate("test_a_dead_bare_copies_key_folds_by_max",
+         [sys.executable, os.path.join(HERE, "test_a_dead_bare_copies_key_folds_by_max.py")], 300,
+         needs_app=False,
+         why="#184 (REG-2531) - GrokBot filed v3753:95 (fold of a dead bare key gave 3, not MAX(1,4)=4) as data loss. "
+             "Measured on the whole page in node: the fold is right; the spec's second seedLoad redefined "
+             "navigator.webdriver inside its one try, threw, and landed nothing, so the load ran on the FIRST seed "
+             "({helm:3, bare:2}) and MAX(3,2)=3 was correct. Pins the fold by MAX (dead key above, below and beside an "
+             "absent keeper; an owned pair) on disk and in the live count, and runs the spec's own seed body twice "
+             "to prove its second seed lands."),
+    Gate("test_a_perfect_base_files_from_the_planner",
+         [sys.executable, os.path.join(HERE, "test_a_perfect_base_files_from_the_planner.py")], 300,
+         needs_app=False,
+         why="#185 (REG-2532) - REG-2250 shipped dead in his world: _cbPerfectBaseMule named the keeper, but with his "
+             "Chronicle seeded (99 runewords forged) suggestMule answers a 4os Monarch 'nothing left - vendor it', "
+             "_vpRoute refused, and the planner printed the white-base sentence (v3746pb:150 x4). His 10-13 ruling now "
+             "outranks that one advice: the perfect base is filed to SOCKETED and the sentence says why; it is one name "
+             "before the re-roll checks and walks the common road (copy count, ledger row, deferred draw - counted, and "
+             "every filing survives it); a board with no SOCKETED mule refuses in the real reason; a later open's copy "
+             "re-rolled to a plain white is taken back on disk. The whole page runs in node."),
+    Gate("test_a_filed_pick_counts_a_copy_whatever_the_router_says",
+         [sys.executable, os.path.join(HERE, "test_a_filed_pick_counts_a_copy_whatever_the_router_says.py")], 300,
+         needs_app=False,
+         why="REG-2533 (the #183 sweep) - _vpRoute answered 'already filed' only after its advice checks, so a planner "
+             "pick of an item he had filed by hand whose router verdict had turned to throw-out (Axe of Fechmar, 'trade "
+             "value TRASH') said it 'stays unfiled' and a later open counted no copy. A filed name now answers 'already' "
+             "before the router is asked: the copy is counted, the filing is not moved, and a router that cannot answer "
+             "no longer refuses a filed pick. The whole page runs in node, real doors."),
+    Gate("test_a_held_picks_undo_takes_back_only_its_own_copy",
+         [sys.executable, os.path.join(HERE, "test_a_held_picks_undo_takes_back_only_its_own_copy.py")], 300,
+         needs_app=False,
+         why="REG-2534 (V1 round-3 review of REG-2530) - a held planner pick's clear or re-roll put back the copy count "
+             "it had seen at pick time, so a copy another tab counted (merged by _tabSyncMerge), his own HAVE stepper or "
+             "this tab's low-base register counted while the pick was held went with it, and the undo's write put the "
+             "loss on disk (Grief 3 -> gone, "
+             "expected 2). One copy now comes off the live count, only while it is above the count the pick started "
+             "from; a count already walked down is left alone and the answer says so. The whole page runs in node."),
+    Gate("test_a_socketed_tome_files_as_a_base",
+         [sys.executable, os.path.join(HERE, "test_a_socketed_tome_files_as_a_base.py")], 300,
+         needs_app=False,
+         why="REG-2535 (V1 round-3 review of REG-2532) - the furniture law matched the WORD 'tome', so the Warlock's "
+             "Tome, Dark Tome and Occult Tome (2 sockets: Rhyme, Splendor, Vigilance) were locked to his MAIN and the "
+             "door refused every perfect one (11 of 1,506 perfect bases, all tomes). A socket label - (2os), (Larzuk "
+             "base) - is a base, never furniture, on the board and in inventory_law alike (one pattern, pinned equal); "
+             "the perfect tomes file to SOCKETED, survive the draw on close, and the audit does not call them kit."),
+    Gate("test_the_planner_plate_says_what_the_pick_did",
+         [sys.executable, os.path.join(HERE, "test_the_planner_plate_says_what_the_pick_did.py")], 300,
+         needs_app=False,
+         why="REG-2536 (V1 round-3 review) - the planner plate read its headline off the pick's sentence with "
+             "/filed to|already filed/, and a refusal reads '... never filed to a mule': a pick the door refused (locked "
+             "to his MAIN) lit 'Saved into the vault' over nothing on disk. The headline is the pick's result now (filed, "
+             "a copy, already filed). The planner is opened, written and painted through its own doors in node."),
+    Gate("test_want_never_writes_have",
+         [sys.executable, os.path.join(HERE, "test_want_never_writes_have.py")], 300,
+         needs_app=False,
+         why="REG-2537 (V1 round-3 review) - the Multi-copy Keepers WANT controls wrote d2r_copies: lowering a target "
+             "below HAVE clamped the count to it, and removing a target deleted the count - counted copies dropped with "
+             "no word. A target now moves or goes and the count stays; the one reset of an inflated count (a row with "
+             "no target) asks first, in words, and a no changes nothing. The panel's functions run on the whole page "
+             "in node."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

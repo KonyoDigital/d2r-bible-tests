@@ -43053,15 +43053,33 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         +(tgt
           ? '<span class="vmk-grp"><span class="vmk-grp-lbl">want</span><button class="vmk-step" aria-label="want one fewer '+_d2artEsc(n)+'" onclick="window.vaultTargetBump(\''+jsArg(n)+'\',-1)">−</button><span class="vmk-num">'+want+'</span><button class="vmk-step" aria-label="want one more '+_d2artEsc(n)+'" onclick="window.vaultTargetBump(\''+jsArg(n)+'\',1)">+</button></span>'
           : '<span class="vmk-grp vmk-notarget" title="an inflated count with no keep-target — walk HAVE down to your true number, or ✕ to reset to one"><span class="vmk-grp-lbl">want</span><span class="vmk-num">—</span></span>')
-        +'<button class="vmk-rm" onclick="window.vaultMultiKeepRemove(\''+jsArg(n)+'\')" title="'+(tgt?'remove from multi-copy keepers (back to single)':'reset this inflated count to one')+'">✕</button></div>';
+        +'<button class="vmk-rm" onclick="window.vaultMultiKeepRemove(\''+jsArg(n)+'\')" title="'+(tgt?'remove the keep-target (the copies you have stay counted)':'reset this inflated count to one (asks first)')+'">✕</button></div>';
     }).join('');
     el.innerHTML='<details class="vmk-det"><summary class="vmk-sum to-sum"><span class="to-emblem">📦</span><span class="to-hd"><span class="to-hd-top"><span class="to-st">Multi-copy Keepers</span></span><span class="to-subt">staples you want several of — targets editable; a re-read under target is kept as a spare, not a discard</span></span><span class="to-rule"></span><span class="to-chev">▾</span></summary><div class="vmk-body">'
       +(rows||'<div style="padding:8px 4px;color:#8a9aa8;font-size:12px">No multi-copy items yet — add one below.</div>')
       +'<div class="vmk-add"><input id="vmk-add-input" aria-label="add an item to collect spares of" type="text" autocomplete="off" placeholder="Add an item to collect spares of (e.g. Gore Rider)" onkeydown="if(event.key===\'Enter\')window.vaultMultiKeepAdd()"><button onclick="window.vaultMultiKeepAdd()">+ Add</button></div></div></details>';
   }
   window.vaultCopyAdjust=function(n,d){ n=(window._vfCanon?window._vfCanon(n):n)||n; var want=multiTarget(n), cap=Math.max(want,copyCount(n)), nv=Math.max(0,Math.min(cap,copyCount(n)+d)); if(nv<=1){ delete copies[n]; } else { copies[n]=nv; } try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };   /* #76 v3753 — canonicalize to the slotted ledger key; cap at max(want,have) so an inflated count walks DOWN one step toward his true count instead of snapping */
-  window.vaultTargetBump=function(n,d){ n=(window._vfCanon?window._vfCanon(n):n)||n; var nt=multiTarget(n)+d; if(nt<2){ window.vaultMultiKeepRemove(n); return; } multiKeep[n]=nt; if(copies[n]&&copies[n]>nt) copies[n]=nt; try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };
-  window.vaultMultiKeepRemove=function(n){ n=(window._vfCanon?window._vfCanon(n):n)||n; delete multiKeep[n]; delete copies[n]; try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };
+  /* REG-2537 — WANT NEVER WRITES HAVE. A keep-target lowered below the copies he has clamped d2r_copies down to the target,
+     and removing a target row deleted the count outright: both dropped counted copies (the planner's among them) with no
+     word. The target is what he WANTS; the count is what intake, the planner and his HAVE stepper counted. A target now
+     moves or goes and the count stays. The one control that lowers a count is HAVE, in his hands: the ✕ on a row with NO
+     target resets an inflated count to one (#76 v3753), and it asks first, in words. */
+  window.vaultTargetBump=function(n,d){ n=(window._vfCanon?window._vfCanon(n):n)||n; var nt=multiTarget(n)+d; if(nt<2) delete multiKeep[n]; else multiKeep[n]=nt; try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };
+  window.vaultMultiKeepRemove=function(n){ n=(window._vfCanon?window._vfCanon(n):n)||n;
+    if (multiKeep[n] > 1) delete multiKeep[n];
+    else {
+      var have = copyCount(n);
+      if (have > 1){
+        var ask = 'Reset ' + n + ' to one copy? ' + have + ' are counted now, and the other ' + (have - 1) + ' come off the count.', yes = false;
+        try { yes = !!window.confirm(ask); } catch (eAsk) { yes = false; }
+        if (!yes){ try { status(n + ' — nothing was reset: ' + have + ' copies stay counted'); } catch (eSt) {} return { ok: false, refused: 'not-confirmed', have: have }; }
+        delete copies[n];
+      }
+    }
+    try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered();
+    return { ok: true };
+  };
   window.vaultMultiKeepAdd=function(){ var inp=document.getElementById('vmk-add-input'); if(!inp) return; var raw=(inp.value||'').trim(); if(!raw) return; var n=_resolveGrailName(raw); if(!n){ try{ if(window._vfCanon && window._vfIsSetPiece){ var _crMk=window._vfCanon(raw); if(_crMk && window._vfIsSetPiece(_crMk)) n=_crMk; } }catch(eRm){} }   /* #76 v3753 — a SET PIECE ("Natalya's Totem") is not in the grail vocab, so _resolveGrailName rejects it; fall back to the set-piece canon so he can collect/recount a set piece by name */ if(!n){ status('“'+raw+'” isn’t a chronicle item — check the spelling'); return; } try{ if(window._vfCanon){ var _cnMk=window._vfCanon(n); if(_cnMk) n=_cnMk; } }catch(eMk){}   /* #76 v3753 — the recount box resolves a BARE chronicle name; fold to the SLOTTED ledger key the vault owns set pieces under, or the stepper touches a dead key */ if(multiKeep[n]>1){ status(n+' is already a multi-copy keeper'); } else { multiKeep[n]=2; } inp.value=''; try{ (typeof persist==='function')?persist():persistOwned(); }catch(e){} renderMultiKeep(); renderVaultRegistered(); };
   // scrollable "Registered" triage panel — every ✓owned item tagged muled / unsorted / not-muled
   // (account-shared stash), each with a ✕ throw-out, so the AI read is observable and the intake
@@ -47807,6 +47825,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   var _vpMade = null;
   var _vpCopySeen = {};
   var _vpCopyBump = null;
+  var _vpCopyUndone = null;   /* REG-2534 — the last copy undo, {took, say}: whether it took a copy back, and the words */
   var VP_WHERE = 'the Vault planner — your search filed it where a reel of it would go';
   function _vpMods(entry){
     var out = [];
@@ -47928,10 +47947,23 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (assign[nm] != null && typeof window.vaultUnassign === 'function') window.vaultUnassign(nm);
     _vpForget(nm);
   }
-  function _vpRoute(nm){
+  function _vpRoute(nm, keeper){
+    /* REG-2533 — A NAME ALREADY FILED IS FILED, WHATEVER THE ROUTER NOW ADVISES, OR WHETHER IT CAN BE ASKED. This answer
+       sat below the advice checks, so a pick of an item he had filed, whose verdict had since turned to throw-out (Axe of
+       Fechmar: "trade value TRASH"), keep-on-MAIN or Unsorted, said "<name> stays unfiled" about a filed item and a later
+       open counted no copy - the copy was lost without a word. The filing stands and nothing is re-filed, so the router
+       is not asked at all; a disagreeing router is the audit's to show, never this door's. */
+    if (assign[nm] != null) return { ok: true, filed: false, mode: 'already', mule: assign[nm], why: nm + ' is already filed' };
     var sg, asked = false;
     try { sg = suggestMule(nm); asked = true; } catch (e) { sg = null; }
     if (!asked) return { ok: false, filed: false, why: nm + ' — the router could not be asked, so nothing was filed' };
+    /* REG-2532 (#185) — HIS 2026-10-13 RULING OUTRANKS THE ROUTER'S VENDOR ADVICE FOR A PERFECT BASE. In his world (the
+       seeded Chronicle, 99 runewords forged) suggestMule answers a 4os Monarch "nothing left for it: its runewords are
+       forged -> vendor it", which refused every perfect base the planner was ruled to keep (v3746pb:150 x4). `keeper` is
+       _cbPerfectBaseMule's answer; only the throw-out advice is overruled, into the drawer the router itself names for a
+       socketed keeper, and the sentence carries both. Every other refusal stands and is said as it is. */
+    if (keeper && keeper.home && sg && sg.id === '__throwout' && !sg.unsorted)
+      sg = { id: keeper.home, why: String(keeper.why || 'a perfect base') + ' — his 2026-10-13 ruling: a perfect base is never vendored, though the router said "' + String(sg.why || 'throw it out') + '"' };
     if (sg == null){
       var shared = false;
       try { shared = (typeof isSharedStash === 'function') && isSharedStash(nm); } catch (e2) { shared = false; }
@@ -47965,7 +47997,6 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return { ok: true, filed: true, mode: 'filed', mule: id, magicHome: true,
                why: nm + ' filed to ' + muleNameM + (why ? (' — ' + why) : '') };
     }
-    if (assign[nm] != null) return { ok: true, filed: false, mode: 'already', mule: assign[nm], why: nm + ' is already filed' };
     var at = new Date().toISOString();
     var filed = window.vaultFile(nm, { by: 'hand', at: at, where: VP_WHERE }, { mule: id });
     var muleName = home && home.name ? home.name : id;
@@ -47974,17 +48005,39 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   function _vpCopyUndo(token, name){
     var b = _vpCopyBump;
-    if (!b || !token || b.token !== token) return;
+    if (!b || !token || b.token !== token) return false;
     // REG-2240 (#108) — only undo the bump THIS pick made. The token/id check alone let a later pick
     // (bump still sitting on the FIRST pick) revert the earlier copy on a re-roll or a clear of the second.
-    if (name != null && b.name !== name) return;
+    if (name != null && b.name !== name) return false;
     _vpCopyBump = null;
+    /* REG-2534 — AN UNDO TAKES BACK THE ONE COPY THIS PICK COUNTED, FROM THE COUNT AS IT IS NOW. It put back the count it
+       had seen at pick time (b.prev), so a copy counted by anything else while the pick was held - another tab's write
+       merged by _tabSyncMerge, the folder poll's re-read of a socketed base, the low-base register - went with it, and
+       REG-2530's write put that loss on disk at once (Grief 3 -> gone on a clear: the review's repro). Now one copy comes
+       off the live count, and only while that count is above the one the pick started from. At or below it, the count
+       was already lowered elsewhere: nothing more is taken, and the sentence says so. */
+    _vpCopyUndone = null;
     if (typeof copies !== 'undefined' && copies){
-      if (b.prev > 1) copies[b.name] = b.prev;
-      else delete copies[b.name];
+      var cur = (copies[b.name] > 0) ? copies[b.name] : 1;
+      if (cur > b.prev){
+        if (cur - 1 > 1) copies[b.name] = cur - 1;
+        else delete copies[b.name];
+        _vpCopyUndone = { took: true, say: 'the copy of ' + b.name + ' this pick counted is taken back (' + (cur - 1) + ' counted now)' };
+      } else {
+        _vpCopyUndone = { took: false, say: 'nothing more of ' + b.name + ' was taken back: ' + cur + ' counted now, not above the '
+          + b.prev + ' there were before this pick, so the count was already lowered elsewhere' };
+        try { status(_vpCopyUndone.say); } catch (eUs) {}
+      }
     }
     if (b.prevSeen) _vpCopySeen[b.name] = b.prevSeen;
     else delete _vpCopySeen[b.name];
+    /* REG-2530 — THE COPY AN UNDO TAKES BACK REACHES DISK AT ONCE, WHICHEVER DOOR ASKED: a clear, or a re-roll of the pick
+       whose new answer then stops early (a perfect base turned back to a plain white stops at the white-base sentence).
+       The undo changed only the live count, so d2r_copies still said copy 2 and the next load put the taken-back copy
+       back. An open planner is told to draw the count on close. */
+    try { persistOwned(); } catch (eCp) {}
+    if (window._vaultPlannerOn) window._vaultPlannerDirty = true;
+    return true;
   }
   /* REG-2250 — HIS 2026-10-13 RULING. GrokBot #6197028243 confirmed the gap LIVE: a 4os Archon Plate
      and an eth Berserker Axe were REFUSED here as a white / superior / low base. His rule: a PERFECT
@@ -48018,14 +48071,21 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       else return null;
       var pre = (!!entry.eth) ? 'Eth ' : (entry.q === 'sup' ? 'Superior ' : '');
       var label = pre + b[0] + ' (' + (sock >= 1 ? (sock + 'os') : 'Larzuk base') + ')';
-      return { name: label, why: why };
+      return { name: label, why: why, home: VP_PERFECT_HOME };
     } catch (e) { return null; }
   }
+  /* REG-2532 (#185) — where a perfect base is kept when the router would vendor it: SOCKETED, the drawer suggestMule
+     itself answers for every socketed keeper ({id:'bases'}) and the default roster's 🔩 locker. A board without it
+     refuses in those words (_vpRoute: "no mule on this board has id bases"). */
+  var VP_PERFECT_HOME = 'bases';
   window._cbPerfectBaseMule = _cbPerfectBaseMule;
   window.vaultPlannerFile = function(entry, token){
     if (!entry){
+      /* REG-2530 — a clear takes back only what the HELD pick made; _vpCopyUndo writes it to d2r_copies itself */
+      _vpCopyUndone = null;
       if (_vpMade && token && _vpMade.token === token){ _vpCopyUndo(token, _vpMade.name); _vpDrop(); }
-      return { ok: true, mode: 'cleared', filed: false, why: 'the pick was cleared' };
+      /* REG-2534 — the clear says what it did to the count, and that it took nothing more when the count was lowered elsewhere */
+      return { ok: true, mode: 'cleared', filed: false, why: 'the pick was cleared' + (_vpCopyUndone ? (' — ' + _vpCopyUndone.say) : '') };
     }
     var it = null, shown = null;
     try { it = (typeof window._cbItem === 'function') ? window._cbItem(entry.id) : null; } catch (e) { it = null; }
@@ -48056,8 +48116,25 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (_resolved) nm = _resolved;
       } catch (eRes) {}
     }
-    if (_vpMade && _vpMade.token === token && _vpMade.name && _vpMade.name !== nm) _vpCopyUndo(token, _vpMade.name);   /* #76 v3753 (REG-2267) — a SWAP (same planner slot/token, a DIFFERENT pick) must also drop the swapped-away pick's phantom extra copy, not only a same-id re-roll; the id check stranded it, leaving a copy with no item behind it — the #76 defect class. _vpCopyUndo's REG-2240 name-check + token-check still scope the undo to the previous pick's own bump. Guard: test_a_planner_pick_files_where_a_reel_of_it_would_go (griefAfterSwap). */
+    /* REG-2532 (#185) — A PERFECT BASE IS ONE NAME FROM HERE ON. REG-2250 asked _cbPerfectBaseMule only at the end, in
+       the white-base arm, routed the socketed label beside the pick and returned early: a router refusal came out as the
+       white-base sentence, and the copy count, the ledger row and the deferred draw every other pick gets were skipped.
+       The label (registered as the socketed base it is, so ownedPool keeps it - v324) is now `nm` before the re-roll
+       checks compare names, and the pick walks the common road below. A plain base (null here) is unchanged. */
+    var _pb = null;
+    if (!magicQ && !kind && !(typeof _vaultKeeps === 'function' && _vaultKeeps(nm))){
+      try { _pb = (typeof window._cbPerfectBaseMule === 'function') ? window._cbPerfectBaseMule(entry) : null; } catch (ePb) { _pb = null; }
+      if (_pb && _pb.name){
+        nm = String(_pb.name);
+        try { if (typeof window._ensureSocketBaseEntry === 'function') window._ensureSocketBaseEntry(nm); } catch (eEn) {}
+      } else _pb = null;
+    }
+    _vpCopyUndone = null;
+    if (_vpMade && _vpMade.token === token && _vpMade.id === entry.id && _vpMade.name && _vpMade.name !== nm) _vpCopyUndo(token, _vpMade.name);   /* #183 (REG-2530) — ONLY A RE-ROLL OF THE SAME PICK TAKES ITS COPY BACK. REG-2267 (v3753) dropped this id check to undo a "swap", and the REG-2240 name check could not hold, because the name it compares IS the first pick's: Grief (copy 2) then Spirit in the same open left d2r_copies with no Grief (GrokBot V0, v3740:63 / v3742r:72), and "copy 2 filed" stayed on screen. A different item in the same open is a SECOND ADD, exactly as _vpDrop below has always ruled for a fresh pick. Guard: tv/test_a_second_planner_pick_keeps_the_first_picks_copy.py. */
     if (_vpMade && _vpMade.token === token && _vpMade.id === entry.id && _vpMade.name !== nm && _vpMade.fresh) _vpDrop();
+    /* REG-2534 — a re-roll whose copy undo found the count already lowered elsewhere took nothing back; its answer says so */
+    var _undoHeld = (_vpCopyUndone && !_vpCopyUndone.took) ? _vpCopyUndone.say : '';
+    var _withUndo = function(w){ return _undoHeld ? (String(w || '') + ' — ' + _undoHeld) : w; };
     var baseName = _vpBase(entry, shown);
     var mods = _vpMods(entry);
     var keepFresh = !!(_vpMade && _vpMade.token === token && _vpMade.id === entry.id && _vpMade.name === nm && _vpMade.fresh);
@@ -48066,7 +48143,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     var beforeAssign = assign[nm];
     if (magicQ){
       if (typeof magicFinds === 'undefined' || !magicFinds){
-        var whyM = 'Magic and Rare is not on this page — nothing was filed';
+        var whyM = _withUndo('Magic and Rare is not on this page — nothing was filed');
         try { status(whyM); } catch (e3) {}
         return { ok: false, filed: false, why: whyM };
       }
@@ -48085,42 +48162,26 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         magicFinds[nm] = { q: magicQ, base: baseName, mods: mods };
       }
       try { LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch (e4) {}
+    } else if (_pb){
+      /* REG-2532 — a perfect base is owned and filed by the router's own door below (window.vaultFile), as REG-2250 did */
     } else if (kind || (typeof _vaultKeeps === 'function' && _vaultKeeps(nm))){
       var add = (typeof window.vaultHandAdd === 'function')
         ? window.vaultHandAdd(nm, new Date().toISOString(), { kind: kind, by: 'the Vault planner', where: 'the Vault planner' })
         : null;
       if (!add || add.ok === false){
-        var whyA = (add && add.why) || (nm + ' was not added');
+        var whyA = _withUndo((add && add.why) || (nm + ' was not added'));
         try { status(whyA); } catch (e5) {}
         return { ok: false, filed: false, why: whyA };
       }
     } else {
-      /* REG-2250 — HIS 2026-10-13 RULING (GrokBot #6197028243 confirmed the gap live: a 4os Archon Plate
-         and an eth Berserker Axe were REFUSED here as a white / superior / low base). Before the
-         stays-unfiled verdict, ask whether THIS pick is a PERFECT socketable base — its actual sockets
-         at / within one of CB_DB's _cbMaxSock, or an elite ethereal base. If so it is a keeper: register
-         it as the socketed base it is (so ownedPool / renderVault keep it — the v324 rule) and route it
-         through the SAME door every socketed base uses (→ the SOCKETED base mule). The white / superior
-         sentence below still stands for an ACTUAL plain base. [[unknown-stays-unknown]] */
-      var _pb = null;
-      try { _pb = (typeof window._cbPerfectBaseMule === 'function') ? window._cbPerfectBaseMule(entry) : null; } catch (ePb) { _pb = null; }
-      if (_pb && _pb.name){
-        try { if (typeof window._ensureSocketBaseEntry === 'function') window._ensureSocketBaseEntry(_pb.name); } catch (eEn) {}
-        var _pbWasOwned = !!(typeof owned !== 'undefined' && owned && owned.has && owned.has(_pb.name));
-        var _pbWasAssigned = assign[_pb.name] != null;
-        var _pbRouted = _vpRoute(_pb.name);
-        if (_pbRouted && (_pbRouted.filed || _pbRouted.mode === 'already')){
-          try { status(_pbRouted.why); } catch (ePs) {}
-          _vpMade = { token: token, id: entry.id, name: _pb.name, fresh: !!(!_pbWasOwned && !_pbWasAssigned && _pbRouted.filed), magic: false };
-          return _pbRouted;
-        }
-      }
-      var whyB = nm + ' stays unfiled — a white, superior or low base is not given a mule from its name';
+      /* REG-2250 — HIS 2026-10-13 RULING: only a PERFECT socketable base is a keeper (_cbPerfectBaseMule, asked above,
+         before the names are compared - REG-2532). This arm is the ACTUAL plain base, and its sentence stands. */
+      var whyB = _withUndo(nm + ' stays unfiled — a white, superior or low base is not given a mule from its name');
       try { status(whyB); } catch (e6) {}
       return { ok: true, filed: false, why: whyB };
     }
     if (kind === 'runeword') _vpRemember(nm, entry, shown, baseName, keepFresh);
-    var routed = _vpRoute(nm);
+    var routed = _vpRoute(nm, _pb);
     if (routed && routed.magicHome && beforeMagic)
       routed = { ok: true, filed: false, mode: 'already', mule: routed.mule, why: nm + ' is already filed' };
     if (routed && (routed.filed || routed.mode === 'already') && token){
@@ -48166,6 +48227,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       try { renderVault(); } catch (e10) {}
       try { if (typeof refreshOpenCard === 'function') refreshOpenCard(); } catch (e12) {}
     }
+    if (_undoHeld && routed) routed.why = _withUndo(routed.why);
     if (routed && routed.why){ try { status(routed.why); } catch (e11) {} }
     return routed || { ok: false, filed: false, why: nm + ' was not filed' };
   };
@@ -48856,12 +48918,22 @@ var _FURNITURE_WORDS = ['horadric cube', 'tome of identify', 'tome of town porta
 var _FURNITURE_WHOLE = ['key', 'keys'];
 window._FURNITURE_WORDS = _FURNITURE_WORDS;
 window._FURNITURE_WHOLE = _FURNITURE_WHOLE;
+/* REG-2535 — FURNITURE IS NEVER SOCKETED. A name carrying the board's own socket label - "(2os)", "(3os low base)",
+   "(Larzuk base)", the label _ensureSocketBaseEntry registers and the planner files a perfect base under - is a socketed
+   or Larzuk BASE. The Warlock's Tome, Dark Tome and Occult Tome take 2 sockets and make Rhyme, Splendor and Vigilance;
+   the word 'tome' locked every one of them to his MAIN, so the door refused a perfect "Tome (2os)" (the V1 review's sweep:
+   1,495 of 1,506 perfect bases filed, the 11 refused were all tomes). A bare Tome, the Tome of Town Portal and the Tome
+   of Identify stay furniture. inventory_law.SOCKET_LABEL is this pattern, character for character, and
+   tv/test_a_socketed_tome_files_as_a_base.py pins the two equal. [[copy-drift]] */
+var _FURNITURE_SOCKET_LABEL = /\(\s*(?:[0-9]+\s*os(?:\s+low base)?|larzuk base)\s*\)$/;
+window._FURNITURE_SOCKET_LABEL = _FURNITURE_SOCKET_LABEL;
 function _lockFold(n){
   return String(n == null ? '' : n).replace(/[‘’ʼ`]/g, "'").toLowerCase().split(/\s+/).join(' ').trim();
 }
 window._furnitureLocked = function(name){
   var low = _lockFold(name);
   if (!low) return false;
+  if (_FURNITURE_SOCKET_LABEL.test(low)) return false;   /* REG-2535 — a socketed or Larzuk base is never furniture */
   /* a stack count on either side, as inventory_law.is_locked strips it: "12x Key", "Key (3)", "Keys x12" */
   var bare = low.replace(/^[0-9][0-9,.]*\s*(?:x\s*)?/, '').replace(/\s*(?:\(\s*[0-9][0-9,.]*\s*\)|x\s*[0-9][0-9,.]*)$/, '');
   if (_FURNITURE_WHOLE.indexOf(bare) >= 0) return true;
@@ -69693,9 +69765,12 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
   /* the modal's markup, drawn inside the mule window's own render (so its unit and type scale reach it). `locker` is what
      the mule window listed for this slot: {html, n (it offers), total (the locker holds)} - the tab in front is chosen
      here, once: the locker's list when it offers anything, the whole database when it offers nothing */
-  function _vpPlateHtml(say){
+  function _vpPlateHtml(say, saved){
     var s = String(say || '');
-    var saved = /filed to|already filed/.test(s);
+    /* REG-2536 — THE HEADLINE IS THE PICK'S RESULT, NEVER A WORD IN ITS SENTENCE. It was /filed to|already filed/ on the
+       sentence, and a refusal reads "...so it is never filed to a mule": a pick the door refused (locked to his MAIN) lit
+       "Saved into the vault" over nothing on disk. ctx.write keeps the result's own verdict (filed, a copy, already filed). */
+    saved = (saved === true);
     return '<div class="vp-plate' + (saved ? ' vp-plate-saved' : ' vp-plate-wait') + '" role="status">'
       + '<div class="vp-plate-k">' + (saved ? 'Saved into the vault' : 'Not in a locker yet') + '</div>'
       + '<div class="vp-plate-say">' + esc(s || 'Search, choose the base and the rolls. The vault files the pick when the route has a locker.') + '</div>'
@@ -69706,7 +69781,7 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
     var p = st.pick; if (!p || p.host !== 'mule' || !st.host) return '';
     st.host.locker = locker || { html: '', n: 0, total: 0 };
     if (p.tab === 'auto') p.tab = (st.host.locker.n > 0) ? 'locker' : 'select';
-    var foot = (st.host.planner) ? _vpPlateHtml(st.host.say)
+    var foot = (st.host.planner) ? _vpPlateHtml(st.host.say, st.host.saved)
       : (st.host.desk === 'd2jsp' && typeof window._d2jspPlateHtml === 'function') ? window._d2jspPlateHtml(st.host.say)
       : '';
     return '<div class="cb-modal cb-host" id="cb-modal" role="dialog" aria-modal="true" aria-label="choose the ' + esc(p.kind === 'inv' ? 'item for ' + (st.host.where || 'this inventory cell') : (CB_SLOT_SAY[p.slot] || p.slot))
@@ -69804,6 +69879,8 @@ select.cb-roll{width:auto;height:1.5em;font-family:var(--sans);font-size:var(--f
         held = entry;
         var r = window.vaultPlannerFile(entry, token);
         ctx.say = (r && r.why) || '';
+        /* REG-2536 — saved = what vaultPlannerFile itself counts as kept: filed (a copy too) or already filed */
+        ctx.saved = !!(r && r.ok !== false && (r.filed === true || r.mode === 'already'));
         return { ok: !r || r.ok !== false, why: ctx.say || 'not saved' };
       },
       render: function(){ window.vaultPlannerPaint(); },
