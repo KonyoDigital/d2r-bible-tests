@@ -21,6 +21,10 @@ Driven through the REAL heart2._prove_one / _prove_gate (only the law runs and t
   7. "node" and "bash" answer from PATH, the question the laws' own skips ask;
   8. a BLIND filed under an older BLIND_RULE is owed again though its file is unchanged, a slice takes it off the list
      whatever it finds, and self_prove reads a census that still carries one as stale.
+  9. REG-2359 (round 3) - 6's skips must be NODE's: a reason that is not node's (his D2R install, his footage), one such
+     reason among node's, a skip the watch did not see, or no watch at all is BLIND as before, and the ELSEWHERE line
+     says only what was measured. The reasons come from the run itself - gate_trace's skip watch, at any verbosity, the
+     run's own process only - driven over a real fixture law.
  10. REG-2357 (round 3) - a proof of a law whose every case skips off POSIX, declaring no need, is INVALID where it can
      be judged (it files BLIND on Windows); declared, it is judged on POSIX and ELSEWHERE on Windows; a law with one
      case that runs on Windows is judged as before; a proof caught only by off-POSIX cases is said, never refused. The
@@ -122,18 +126,32 @@ class AnAllSkippedProofOnAPcWithNoNode(_Sandbox):
 
     ALL = "Ran 4 tests in 0.002s\n\nOK (skipped=4)"
     SOME = "Ran 4 tests in 0.002s\n\nOK (skipped=2)"
+    GONE = "node is absent - this law is UNMEASURED, not passing"
+    NODE_GONE = [("__main__.A.test_a", GONE), ("__main__.A.test_b", GONE), ("__main__.A.test_c", GONE),
+                 ("__main__.B.test_d", "no node on PATH")]
+    #: a law like T5's reader-cap law: one class needs node, the other runs only on POSIX
+    NODE_AND_POSIX = ("import os, shutil, unittest\nNODE = shutil.which('node')\n"
+                      "@unittest.skipIf(NODE is None, 'node is absent')\nclass A(unittest.TestCase):\n"
+                      "    def test_a(self): pass\n    def test_b(self): pass\n    def test_c(self): pass\n"
+                      "@unittest.skipUnless(os.name == 'posix', 'no shell on Windows')\nclass P(unittest.TestCase):\n"
+                      "    def test_p(self): pass\n")
 
-    def skipping(self, node, tail=None, names_node=True):
+    def skipping(self, node, tail=None, names_node=True, reasons="node", posix=True, src=None):
+        """`reasons`: what the skip watch says the run's own process skipped, [(case, reason)] (REG-2359) - "node" is
+        four that name node; None is a run no watch could read. `posix`: whether this PC is POSIX."""
         with io.open(os.path.join(self.tv, "test_law.py"), "w", encoding="utf-8") as fh:
-            fh.write("NODE = shutil.which('node')\n" if names_node else "pass\n")
+            fh.write(src or ("NODE = shutil.which('node')\n" if names_node else "pass\n"))
         out = tail or self.ALL
+        said = self.NODE_GONE if reasons == "node" else reasons
 
         def run_gate(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=None):
             with io.open(os.path.join(sandbox_tv, "subject.py"), encoding="utf-8") as fh:
                 self.runs.append("tampered" if "ANCHOR = 2" in fh.read() else "clean")
+            H._LAST_SKIPS[threading.get_ident()] = None if said is None else list(said)
             return True, out
-        probe = {"node": ("_elsewhere_probe", "have", "Node.js on PATH")}
-        sys.modules["_elsewhere_probe"] = types.SimpleNamespace(have=lambda: node)
+        probe = {"node": ("_elsewhere_probe", "have", "Node.js on PATH"),
+                 "posix": ("_elsewhere_probe", "posix", "a POSIX process table")}
+        sys.modules["_elsewhere_probe"] = types.SimpleNamespace(have=lambda: node, posix=lambda: posix)
         self.addCleanup(sys.modules.pop, "_elsewhere_probe", None)
         with mock.patch.object(H, "_run_gate", run_gate), mock.patch.object(H, "PROOF_NEEDS_HOST", probe):
             return H._prove_one(self.tv, "test_law", "test_law.py", self.proof(), 0, _say)
@@ -155,6 +173,91 @@ class AnAllSkippedProofOnAPcWithNoNode(_Sandbox):
     def test_laws_that_ran_and_stayed_green_are_still_blind(self):
         self.assertEqual(self.skipping(node=False, tail=self.SOME), H.BLIND,
                          "laws that RAN and stayed green were excused because others skipped")
+
+    # REG-2359 (the round-3 review) - the COUNTS were the whole rule: a gate that mentions node, on a PC without it, whose
+    # every case skipped for ANY reason - his D2R install, his footage - was excused. Each skip must be for what this PC
+    # lacks: node, by its reason, or POSIX, by a case that runs only there.
+    def test_a_law_that_skipped_for_another_reason_is_still_blind(self):
+        v = self.skipping(node=False, reasons=[(c, "the D2R install is not on this PC") for c, _r in self.NODE_GONE])
+        self.assertEqual(v, H.BLIND, "a law that skipped for want of his D2R install was excused by node's absence")
+
+    def test_one_skip_that_is_not_nodes_keeps_it_blind(self):
+        v = self.skipping(node=False, reasons=self.NODE_GONE[:3] + [("__main__.B.test_d", "his footage is not here")])
+        self.assertEqual(v, H.BLIND, "a run with a skip that was not node's was excused")
+
+    def test_a_skip_the_watch_did_not_see_keeps_it_blind(self):
+        self.assertEqual(self.skipping(node=False, reasons=self.NODE_GONE[:3]), H.BLIND,
+                         "a run whose skips the watch saw only 3 of 4 of was excused on the 3 it saw")
+        self.assertEqual(self.skipping(node=False, reasons=None), H.BLIND,
+                         "a run no skip watch could read was excused on its counts alone")
+        self.assertEqual(self.skipping(node=False, reasons=[]), H.BLIND)
+
+    def test_a_case_that_runs_only_on_posix_is_excused_only_where_posix_is_not(self):
+        """T5's reader-cap law on Dean's PC (Windows, no node): its node class skips for node, its POSIX class for being
+        on Windows - every case skipped for what that PC lacks."""
+        skips = self.NODE_GONE[:3] + [("__main__.P.test_p", "no shell on Windows")]
+        self.assertEqual(self.skipping(node=False, posix=False, reasons=skips, src=self.NODE_AND_POSIX), H.ELSEWHERE,
+                         "a law whose every skip was for what this PC lacks (node, POSIX) was filed BLIND")
+        self.assertTrue(any("1 case(s) run only on POSIX" in l for l in LINES), LINES)
+        self.assertEqual(self.skipping(node=False, posix=True, reasons=skips, src=self.NODE_AND_POSIX), H.BLIND,
+                         "on a POSIX PC a POSIX-only case that skipped was excused as if POSIX were missing")
+        self.assertEqual(self.skipping(node=False, posix=False, src=self.NODE_AND_POSIX,
+                                       reasons=self.NODE_GONE[:3] + [("__main__.A.test_x", "no shell on Windows")]),
+                         H.BLIND, "a skip of a case that is not POSIX-only was excused as POSIX's")
+        self.assertEqual(self.skipping(node=False, posix=False, src=self.NODE_AND_POSIX,
+                                       reasons=[(c, "no shell on Windows") for c in
+                                                ("__main__.P.test_p",) * 4]), H.BLIND,
+                         "a run with no node skip at all was excused for want of node")
+
+    def test_the_line_says_only_what_was_measured(self):
+        self.assertEqual(self.skipping(node=False), H.ELSEWHERE)
+        line = [l for l in LINES if "ELSEWHERE" in l][-1]
+        for words in ("BOTH runs", "4 skip reason(s) name node", "node is absent", "no node on PATH",
+                      "never judged here"):
+            self.assertIn(words, line, "the ELSEWHERE line does not say %r: %s" % (words, line))
+        self.assertNotIn("POSIX", line, "the line names POSIX skips the run did not have: %s" % line)
+        self.assertNotIn("is proven on", line, "the ELSEWHERE line claims a proof that was never made: %s" % line)
+        self.assertNotIn("runs the page's own JavaScript", line, "the line claims what this law runs: %s" % line)
+
+
+class TheSkipWatchSaysWhyEachCaseSkipped(unittest.TestCase):
+    """REG-2359 - the reasons come from the run itself: gate_trace's skip watch writes one line per case the run's OWN
+    process skipped, at any verbosity (at verbosity 1 a log carries only an `s`), and never a child's."""
+
+    LAW = (
+        "import subprocess, sys, unittest\n"
+        "CHILD = ('import unittest\\nclass C(unittest.TestCase):\\n    @unittest.skip(\"a child skip about node\")\\n'\n"
+        "         '    def test_c(self): pass\\nunittest.main()\\n')\n"
+        "@unittest.skipIf(True, 'node is absent - this law is UNMEASURED, not passing')\n"
+        "class A(unittest.TestCase):\n"
+        "    def test_a(self): pass\n"
+        "    def test_b(self): pass\n"
+        "class B(unittest.TestCase):\n"
+        "    def test_child(self):\n"
+        "        r = subprocess.run([sys.executable, '-c', CHILD], capture_output=True, text=True)\n"
+        "        self.assertIn('skipped=1', r.stderr)\n"
+        "    def test_s(self):\n"
+        "        self.skipTest('no node on PATH')\n"
+        "if __name__ == '__main__':\n"
+        "    unittest.main()\n")
+
+    def test_a_real_run_says_the_reason_of_each_of_its_own_skips(self):
+        d = tempfile.mkdtemp(prefix="skipwatch_")
+        self.addCleanup(shutil.rmtree, d, True)
+        tv = os.path.join(d, "tv")
+        os.makedirs(tv)
+        with io.open(os.path.join(tv, "law_gate.py"), "w", encoding="utf-8") as fh:
+            fh.write(self.LAW)
+        ok, tail = H._run_gate_once(tv, "law_gate.py", timeout=120)
+        skips = H._LAST_SKIPS.get(threading.get_ident())
+        self.assertIs(ok, True, "PREMISE: the fixture law is green with 3 of its 4 cases skipped: %s" % tail)
+        self.assertIn("skipped=3", tail)
+        gone = "node is absent - this law is UNMEASURED, not passing"
+        self.assertEqual(skips, [("__main__.A.test_a", gone), ("__main__.A.test_b", gone),
+                                 ("__main__.B.test_s", "no node on PATH")],
+                         "the skip watch did not say which case of the run's own process skipped and why (or said a "
+                         "child's skip): %r" % (skips,))
+        self.assertEqual(H._skipped_for_want(tail, skips), (skips, []))
 
 
 #: REG-2357 - every skip shape the off-POSIX reader must tell apart, one case each
@@ -552,6 +655,84 @@ RED_PROOF = [
      "file": "heart2.py",
      "find": "        if not got or not all(i in got[0] for i in ids):  # POSIX-ONLY-CATCH\n",
      "replace": "        if True:  # POSIX-ONLY-CATCH\n",
+     "matches": 1},
+    # REG-2359 (the round-3 review) - the node rule read only skip COUNTS: each skip must be for what this PC lacks
+    {"why": "REG-2359 - the skips are never asked: a law that skipped for want of his D2R install is excused by node's "
+            "absence",
+     "file": "heart2.py",
+     "find": "            _want = _skipped_for_want(tail2, _skips, (_posix_only_of(sandbox, filename) or (frozenset(),))[0],\n",
+     "replace": "            _want = ([(\"\", \"node\")], []) or _skipped_for_want(tail2, _skips, (_posix_only_of(sandbox, filename) or (frozenset(),))[0],\n",
+     "matches": 1},
+    {"why": "REG-2359 - the gate's POSIX-only cases are never read, so a law like T5's reader-cap law files BLIND on Dean's "
+            "PC again",
+     "file": "heart2.py",
+     "find": "            _want = _skipped_for_want(tail2, _skips, (_posix_only_of(sandbox, filename) or (frozenset(),))[0],\n",
+     "replace": "            _want = _skipped_for_want(tail2, _skips, frozenset(),\n",
+     "matches": 1},
+    {"why": "REG-2359 - this PC is never asked whether it is POSIX, so a POSIX-only skip is never excused on Windows",
+     "file": "heart2.py",
+     "find": "                                      host_lacks(\"posix\")[0] is True)  # REG-2359 - the skips are node's\n",
+     "replace": "                                      False)  # REG-2359 - the skips are node's\n",
+     "matches": 1},
+    {"why": "REG-2359 - a run is excused on the skips the watch happened to see, not every skip it reported",
+     "file": "heart2.py",
+     "find": "    if not _sk or int(_sk.group(1)) != len(skips):  # SKIPS-ALL-SEEN\n",
+     "replace": "    if not _sk:  # SKIPS-ALL-SEEN\n",
+     "matches": 1},
+    {"why": "REG-2359 - one skip for another reason rides along with node's and the run is excused",
+     "file": "heart2.py",
+     "find": "    if not node or len(node) + len(posix) != len(skips):  # SKIPS-ALL-WANTED\n",
+     "replace": "    if not node:  # SKIPS-ALL-WANTED\n",
+     "matches": 1},
+    {"why": "REG-2359 - a run with no skip for node at all is excused for want of node",
+     "file": "heart2.py",
+     "find": "    if not node or len(node) + len(posix) != len(skips):  # SKIPS-ALL-WANTED\n",
+     "replace": "    if len(node) + len(posix) != len(skips):  # SKIPS-ALL-WANTED\n",
+     "matches": 1},
+    {"why": "REG-2359 - a POSIX-only case that skipped on a POSIX PC is excused as if POSIX were missing",
+     "file": "heart2.py",
+     "find": "    posix = [s for s in skips if s not in node and posix_gone and _case_key(s[0]) in off_posix]  # SKIP-OFF-POSIX-CASE\n",
+     "replace": "    posix = [s for s in skips if s not in node and _case_key(s[0]) in off_posix]  # SKIP-OFF-POSIX-CASE\n",
+     "matches": 1},
+    {"why": "REG-2359 - any skip on a PC without POSIX is excused as POSIX's, POSIX-only case or not",
+     "file": "heart2.py",
+     "find": "    posix = [s for s in skips if s not in node and posix_gone and _case_key(s[0]) in off_posix]  # SKIP-OFF-POSIX-CASE\n",
+     "replace": "    posix = [s for s in skips if s not in node and posix_gone]  # SKIP-OFF-POSIX-CASE\n",
+     "matches": 1},
+    {"why": "REG-2359 - unittest's case id is never matched to the source's (`__main__.P.test_p` vs `P.test_p`)",
+     "file": "heart2.py",
+     "find": "    return \".\".join(parts[-2:]) if len(parts) >= 2 else str(case or \"\")\n",
+     "replace": "    return str(case or \"\")\n",
+     "matches": 1},
+    {"why": "REG-2359 - heart2 never arms the skip watch, so no run can say why its cases skipped",
+     "file": "heart2.py",
+     "find": "    env[\"TV_GATE_SKIPS\"] = \"1\"                # REG-2359 - and the run's own process writes the reason of every skip\n",
+     "replace": "    env[\"TV_GATE_SKIPS_OFF\"] = \"1\"            # REG-2359 - and the run's own process writes the reason of every skip\n",
+     "matches": 1},
+    {"why": "REG-2359 - the skip watch's lines are never read back from the run",
+     "file": "heart2.py",
+     "find": "        _LAST_SKIPS[threading.get_ident()] = _skips_in(_watch) if _watch else None   # REG-2359 - why each case skipped\n",
+     "replace": "        _LAST_SKIPS[threading.get_ident()] = None   # REG-2359 - why each case skipped\n",
+     "matches": 1},
+    {"why": "REG-2359 - the hook records no skip at all",
+     "file": "gate_trace/sitecustomize.py",
+     "find": "                emit(\"O\", \"case=%s reason=%s\" % (case, \" \".join(str(reason).split())[:300]))  # SKIP-WATCH-SAID\n",
+     "replace": "                pass  # SKIP-WATCH-SAID\n",
+     "matches": 1},
+    {"why": "REG-2359 - the hook never says WHICH case skipped, so a POSIX-only case can never be told from any other",
+     "file": "gate_trace/sitecustomize.py",
+     "find": "                case = \"\".join(str(test.id() if hasattr(test, \"id\") else test).split())[:200] or \"-\"\n",
+     "replace": "                case = \"-\"\n",
+     "matches": 1},
+    {"why": "REG-2359 - the hook never wraps unittest's skip, so a verbosity-1 law's reasons are never seen",
+     "file": "gate_trace/sitecustomize.py",
+     "find": "                    watch_skips()  # SKIP-WATCH-ARM\n",
+     "replace": "                    pass  # SKIP-WATCH-ARM\n",
+     "matches": 1},
+    {"why": "REG-2359 - a child of the run inherits the skip watch: a fixture suite's skips are counted as the law's own",
+     "file": "gate_trace/sitecustomize.py",
+     "find": "    skips = os.environ.pop(\"TV_GATE_SKIPS\", None) == \"1\"  # SKIP-WATCH-OWN\n",
+     "replace": "    skips = os.environ.get(\"TV_GATE_SKIPS\", None) == \"1\"  # SKIP-WATCH-OWN\n",
      "matches": 1},
 ]
 

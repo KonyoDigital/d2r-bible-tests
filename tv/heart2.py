@@ -112,9 +112,10 @@ except Exception:
 
 STATE = os.path.join(HERE, ".heart2.json")
 PROPOSALS = os.path.join(HERE, ".heart2_proposals.md")
-#: REG-2355 — the rule a census's BLIND list was judged under. 2: a proof whose every law skipped in both runs on a PC with
-#: no node is ELSEWHERE, never BLIND. A census filed under an older rule owes those BLIND gates again, by name
-#: (blind_rule_owed), until each has been judged under this one; self_prove reads the census stale till then.
+#: REG-2355 — the rule a census's BLIND list was judged under. 2: a proof whose every case skipped FOR NODE in both runs,
+#: on a PC with no node, is ELSEWHERE, never BLIND (REG-2354, REG-2359). A census filed under an older rule owes those
+#: BLIND gates again, by name (blind_rule_owed), until each has been judged under this one; self_prove reads the census
+#: stale till then.
 BLIND_RULE = 2
 
 PROVEN, BLIND, UNPROVEN, UNPROVABLE, INVALID = "PROVEN", "BLIND", "UNPROVEN", "UNPROVABLE", "INVALID"
@@ -139,9 +140,9 @@ PROOF_NEEDS_HOST = {
     "numpy": ("heart2", "_host_has_numpy", "numpy (the inventory lattice reads a frame only with it)"),
     "posix": ("heart2", "_host_is_posix", "a POSIX process table (ps through fork_exec; Windows reads births another way)"),
     # REG-2354 — MEASURED on Dean's PC 2026-10-21: no node and no bash on PATH (tv/install-tvd.ps1 installs neither), so
-    # its census filed 56 gates BLIND - 53 whose every law skipped "no node on PATH", 1 whose catching laws skip for want
-    # of node, 1 for want of bash, 1 stale tamper - and one BLIND shuts every lock on a PC: 0 of 9 permitted there, 135
-    # reels on disk and not one ever tombstoned. Measured where the tool is, never BLIND here.
+    # its census filed 56 gates BLIND - 53 JS laws whose every case skipped for want of node in both runs, 1 whose
+    # catching laws skip for want of node, 1 for want of bash, 1 stale tamper - and one BLIND shuts every lock on a PC:
+    # 0 of 9 permitted there, 135 reels on disk and not one ever tombstoned. Measured where the tool is, never BLIND here.
     "node": ("heart2", "_host_has_node", "Node.js on PATH (the law runs the page's own JavaScript through node)"),
     "bash": ("heart2", "_host_has_bash", "bash on PATH (the law runs a hook script through bash)"),
 }
@@ -1266,6 +1267,38 @@ def _skipped_every_law(tail):
     return bool(_sk and _rn and int(_rn.group(1)) > 0 and int(_sk.group(1)) >= int(_rn.group(1)))
 
 
+#: REG-2359 — a skip reason that names node ("node is absent", "no node on PATH", "Node.js ..."; never node_modules)
+_NAMES_NODE = re.compile(r"\bnode(?:\.?js)?\b", re.I)
+
+
+def _case_key(case):
+    """REG-2359 — unittest's case id (`__main__.Class.test_x`, or `pkg.mod.Class.test_x`) as posix_only_cases() names a
+    case (`Class.test_x`). -> str"""
+    parts = str(case or "").split(".")
+    return ".".join(parts[-2:]) if len(parts) >= 2 else str(case or "")
+
+
+def _skipped_for_want(tail, skips, off_posix=frozenset(), posix_gone=False):
+    """REG-2359 — did EVERY case this run skipped skip for want of something this PC lacks? -> (node skips, POSIX skips)
+    when it did, None when it did not
+
+    The skip watch saw exactly as many skips as the run reported (`skipped=N` in its tail), at least one reason names
+    node, and every other skip is a case that runs only on POSIX (posix_only_cases, read from the gate's source) on a
+    PC without POSIX. Anything else is None and the proof is judged exactly as before: no watch (None), a skip the watch
+    could not see (a result class that never reaches TestResult.addSkip), a count that does not match, or ONE skip for
+    any other reason - a law that skips for want of his D2R install is not excused by node's absence."""
+    if not isinstance(skips, list) or not skips:
+        return None
+    _sk = re.search(r"skipped=(\d+)", tail or "")
+    if not _sk or int(_sk.group(1)) != len(skips):  # SKIPS-ALL-SEEN
+        return None
+    node = [s for s in skips if _NAMES_NODE.search(str(s[1]))]
+    posix = [s for s in skips if s not in node and posix_gone and _case_key(s[0]) in off_posix]  # SKIP-OFF-POSIX-CASE
+    if not node or len(node) + len(posix) != len(skips):  # SKIPS-ALL-WANTED
+        return None
+    return node, posix
+
+
 #: REG-2354 — how a gate reaches for node: measured, these three spellings cover all 54 node gates Dean's PC filed BLIND.
 _GATE_NAMES_NODE = re.compile(r"""shutil\.which\(\s*["']node["']\s*\)|["']node["']|\bNODE\b""")
 
@@ -1594,6 +1627,11 @@ _SIGNAL_RUNS = {"n": 0}
 _SIGNAL_LOCK = threading.Lock()
 _KILL_LINE = re.compile(r"^([KX])\t\d+\t(.*)$")
 _KILL_FIELD = re.compile(r"(\w+)=(\S+)")
+#: REG-2359 — the skip watch's line (gate_trace/sitecustomize.py): one per case the run's own process skipped
+_SKIP_LINE = re.compile(r"^O\t\d+\tcase=(\S*) reason=(.*)$")
+#: REG-2359 — thread id -> the skips of that thread's last run, [(case id, reason)] ([] none; None: no watch could say).
+#: A side channel like _LAST_RED, so a stand-in _run_gate stays valid.
+_LAST_SKIPS = {}
 
 
 def _signal_words(n):
@@ -1627,6 +1665,7 @@ def _kill_watch(env):
     except OSError:
         return None
     env["TV_GATE_KILLS"] = path
+    env["TV_GATE_SKIPS"] = "1"                # REG-2359 - and the run's own process writes the reason of every skip
     hook_dir = os.path.join(HERE, "gate_trace")
     old = env.get("PYTHONPATH") or ""
     if hook_dir not in old.split(os.pathsep):
@@ -1705,6 +1744,18 @@ def _kills_in(path):
     return out
 
 
+def _skips_in(path):
+    """REG-2359 — the cases the run's own process skipped and the reason it gave for each (the skip watch's O lines), in
+    the order it skipped them. -> [(case id, reason)]; None when the watch file cannot be read (UNKNOWN - never "it
+    skipped nothing"). A case id is unittest's own (`__main__.Class.test_x`)."""
+    try:
+        with io.open(path, encoding="utf-8", errors="replace") as fh:
+            lines = fh.read().splitlines()
+    except (OSError, TypeError):
+        return None
+    return [(m.group(1), m.group(2)) for m in (_SKIP_LINE.match(ln) for ln in lines) if m]
+
+
 def _run_gate_once(sandbox_tv, filename, timeout=180, extra=(), script=None, widths=None):
     # v2882 — `extra` carries the registered gate's argv tail (e.g. `--selftest`). Without
     # it a gate runs a command the suite never issues, and its verdict is about something
@@ -1753,6 +1804,7 @@ def _run_gate_once(sandbox_tv, filename, timeout=180, extra=(), script=None, wid
         return None, "timed out after %ss" % timeout
     finally:
         _killed = _kills_in(_watch) if _watch else []
+        _LAST_SKIPS[threading.get_ident()] = _skips_in(_watch) if _watch else None   # REG-2359 - why each case skipped
         if _watch:
             try:
                 os.unlink(_watch)
@@ -4372,6 +4424,7 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
     with io.open(tgt, "w", encoding="utf-8") as fh:
         fh.write(_tampered)
     _LAST_RED.pop(threading.get_ident(), None)
+    _LAST_SKIPS.pop(threading.get_ident(), None)         # REG-2359 - only the tampered run's own skips are read below
     _mark(a="full")                                      # REG-2353 - the full tampered run is the path taken
     try:
         ok_tampered, tail2 = _run_gate(sandbox, filename, timeout=_to, extra=_extra, script=_script, **_w)
@@ -4379,6 +4432,7 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
         with io.open(tgt, "w", encoding="utf-8") as fh:
             fh.write(original)
     _caught = list(_LAST_RED.get(threading.get_ident()) or []) if ok_tampered is False else []  # REG-2357 - who caught it
+    _skips = _LAST_SKIPS.pop(threading.get_ident(), None)                    # REG-2359 - why each of its cases skipped
     if ok_tampered is False and _rk:
         _red_remember(_rk, name, idx, _LAST_RED.pop(threading.get_ident(), None))   # #42 lever 1 — learn what caught it
 
@@ -4386,17 +4440,29 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
         say("     %-52s %s — tampered run%s: %s" % (label, UNPROVABLE, _at_widths(widths), tail2))
         return UNPROVABLE
     if ok_tampered:
-        # ⚠⚠ REG-2354 — EVERY LAW SKIPPED IN BOTH RUNS ON A PC WITH NO NODE: THE TAMPER WAS NEVER JUDGED HERE. The line
-        # below says exactly that ("ALL n law(s) SKIPPED - the tamper was never judged") and filed BLIND anyway, and one
-        # BLIND shuts every lock on a PC. MEASURED on Dean's PC 2026-10-21: 53 of its 56 BLIND were JS laws skipping "no
-        # node on PATH" in the clean run and the tampered one - 0 of 9 locks permitted, 0 reels ever tombstoned. It is
-        # REG-1686's case without the declaration. All three must hold - both runs skipped every law, this PC has no
-        # node, the gate reaches for node - so a PC with node judges as before, and a law that opts out for any other
-        # reason is still BLIND. [[unknown-stays-unknown]]
+        # ⚠⚠ REG-2354 — EVERY CASE SKIPPED FOR WANT OF NODE, IN BOTH RUNS, ON A PC WITH NO NODE: THE TAMPER WAS NEVER JUDGED
+        # HERE. The BLIND line below says exactly that ("ALL n law(s) SKIPPED - the tamper was never judged") and filed
+        # BLIND anyway, and one BLIND shuts every lock on a PC. MEASURED on Dean's PC 2026-10-21 (no node on PATH): 53 of
+        # its 56 BLIND were JS laws whose every case skipped in the clean run and the tampered one - 0 of 9 locks
+        # permitted, 0 reels ever tombstoned. It is REG-1686's case without the declaration, so ALL of these must hold:
+        # both runs skipped every case (the counts in their tails); this PC has no node on PATH; the gate's own source
+        # reaches for node; and the skip watch saw each of the tampered run's skips, every one for what this PC lacks
+        # (REG-2359 - the counts alone also excused a law that skipped for any other reason, his D2R install, his
+        # footage, as long as its file mentioned node): node, by a reason that names it - at least one - or POSIX, by a
+        # case the gate's source runs only on POSIX, on a PC that is not (Dean's PC is Windows too). Anything less is
+        # judged as before - a PC with node, a skip the watch could not see, a skip for anything else - and a law that
+        # should be excused anyway declares `"needs": "node"` on its proof (REG-1686). [[unknown-stays-unknown]]
+        _want = None                                     # REG-2359 - what the skips were for, when every one was wanted
         if (not widths and _skipped_every_law(tail) and _skipped_every_law(tail2)
                 and host_lacks("node")[0] is True and _gate_reaches_for_node(sandbox, filename)):
-            say("     %-52s %s — every law skipped in BOTH runs and this PC has no %s: the tamper was never judged "
-                "here; it is proven on a PC that has it" % (label, ELSEWHERE, host_lacks("node")[1]))
+            _want = _skipped_for_want(tail2, _skips, (_posix_only_of(sandbox, filename) or (frozenset(),))[0],
+                                      host_lacks("posix")[0] is True)  # REG-2359 - the skips are node's
+        if _want:
+            say("     %-52s %s — every case skipped in BOTH runs, each for what this PC lacks: %d skip reason(s) name "
+                "node (%r)%s, and this PC has no node on PATH. The tamper was never judged here; it is judged on a PC "
+                "that has node" % (label, ELSEWHERE, len(_want[0]), str(_want[0][0][1])[:70],
+                                   (", %d case(s) run only on POSIX, which this PC is not" % len(_want[1]))
+                                   if _want[1] else ""))
             return ELSEWHERE
         say("     %-52s %s ← %s" % (label, BLIND, blind_reason(pr.get("why"), got, tail2, widths=widths)))
         if widths:

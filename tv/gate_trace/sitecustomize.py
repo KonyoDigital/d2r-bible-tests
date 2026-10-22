@@ -46,6 +46,16 @@ every member it can see already dead. Nothing is reaped here: kill() on a zombie
 raises ESRCH (measured), so a reap would change what the law's own os.kill returns.
 Two copies of this folder on sys.path (heart2 arms its own, and a law arms its sandbox's for a fixture gate) boot
 ONCE: the chain below skips every gate_trace folder - before, they chained into each other 160 times.
+
+REG-2359 - THE SKIP WATCH, armed by TV_GATE_SKIPS=1 beside TV_GATE_KILLS (heart2 arms both on every proof run):
+
+    O  a case this process's unittest run SKIPPED: `case=<its id, no spaces> reason=<the skip's own words, one line>`
+
+Written from unittest.result.TestResult.addSkip, which every skip reaches (a skipped class, a skipTest, a setUpClass
+SkipTest), so the reasons are seen whatever verbosity the law prints at - at verbosity 1 its log carries only an `s`.
+The variable is taken off the environment at boot: only the run's OWN process writes O lines, never a child of it. heart2
+reads them to tell a law that skipped for want of what this PC lacks (node, by the reason; POSIX, by the case) from
+one that skipped for any other reason (REG-2354).
 """
 import _thread
 import os
@@ -343,7 +353,11 @@ def _boot():
 
 def _boot_kills():
     """REG-2350 (#42 R5) - K and X lines into TV_GATE_KILLS (see the docstring). Never raises; a process that cannot
-    open the file runs unwatched, exactly as before. Booted once per process, whichever copy of this file loads."""
+    open the file runs unwatched, exactly as before. Booted once per process, whichever copy of this file loads.
+    REG-2359 - and O lines, when TV_GATE_SKIPS=1 is set too (see the docstring)."""
+    # REG-2359 - the skip watch belongs to the run's OWN process: taken off the environment before anything else, so no
+    # child inherits it (a law that runs a fixture suite in a child would add that suite's skips to its own)
+    skips = os.environ.pop("TV_GATE_SKIPS", None) == "1"  # SKIP-WATCH-OWN
     out = os.environ.get("TV_GATE_KILLS") or ""
     if not out or getattr(sys, "_tv_gate_kills", False):
         return
@@ -358,8 +372,8 @@ def _boot_kills():
     getpgid = getattr(os, "getpgid", None)
     getpgrp = getattr(os, "getpgrp", None)
     getframe = sys._getframe
-    st = {"cls": None, "live": None}
-    events = frozenset(("os.kill", "os.killpg", "subprocess.Popen"))
+    st = {"cls": None, "live": None, "skips": not skips}    # "skips": True once the skip watch is in (or not wanted)
+    events = frozenset(("os.kill", "os.killpg", "subprocess.Popen") + (("import",) if skips else ()))
 
     def emit(kind, text):
         try:
@@ -464,10 +478,35 @@ def _boot_kills():
             except Exception:
                 pass
 
+    def watch_skips():
+        """REG-2359 - once unittest's result module has loaded, every case it records as skipped is written as an O line
+        with its reason, whatever the verbosity the law prints at. Asked at each import until then: unittest/__init__
+        imports .result first and .case right after, so the next import event finds TestResult defined."""
+        m = sys.modules.get("unittest.result")
+        cls = getattr(m, "TestResult", None) if m is not None else None
+        real = getattr(cls, "addSkip", None) if cls is not None else None
+        if real is None:
+            return
+        st["skips"] = True
+
+        def addSkip(self, test, reason):
+            try:
+                case = "".join(str(test.id() if hasattr(test, "id") else test).split())[:200] or "-"
+                emit("O", "case=%s reason=%s" % (case, " ".join(str(reason).split())[:300]))  # SKIP-WATCH-SAID
+            except Exception:
+                pass
+            return real(self, test, reason)
+        addSkip.__wrapped__, addSkip.__name__, addSkip.__doc__ = real, real.__name__, real.__doc__
+        cls.addSkip = addSkip
+
     def hook(event, args):
         if event not in events:
             return
         try:
+            if event == "import":
+                if not st["skips"]:
+                    watch_skips()  # SKIP-WATCH-ARM
+                return
             if event == "subprocess.Popen":
                 sp = sys.modules.get("subprocess")
                 if sp is None:
