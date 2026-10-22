@@ -1706,6 +1706,7 @@ def make_sandbox(say=print):
     return tv, root
 
 
+
 def _skipped_every_law(tail):
     """REG-2354 — did this run skip EVERY law it ran? -> bool. The two numbers blind_reason's "ALL n law(s) SKIPPED" line
     is printed from; a run that did not say how many it ran answers False here and is judged exactly as before."""
@@ -4989,8 +4990,10 @@ def _prove_gate_push(sandbox, name, filename, proofs, say, run):
     _CLEAN.runs = {}
     _CLEAN.pending = []                                  # (index, key, entry) a PROVEN waits in until the closing run
     _CLEAN.served = []                                   # REG-2587 - (index, tree) of each proof the cache served
+    ck = {"sealed": set(), "t": None}                    # R8 (REG-2437) - this gate's checkpoints
     try:
-        for i in (run.order.get(name) or list(range(len(proofs)))):
+        _order = list(run.order.get(name) or list(range(len(proofs))))
+        for _n_done, i in enumerate(_order, 1):
             if run.stop.is_set():
                 break
             why = {}
@@ -5014,10 +5017,25 @@ def _prove_gate_push(sandbox, name, filename, proofs, say, run):
                         "  ⛔ #42 FAIL FAST — %s[%d] %s: %s. The run stops here: every proof not yet run is NOT RUN, "
                         "and the push is refused on this one." % (name, i, got[i], reason))
                 break
+            # R8 (REG-2437) - a long gate banks what a green clean run brackets NOW; a red one stops the gate
+            _ckv = [got.get(j) for j in range(len(proofs))]
+            _co = _checkpoint(name, _ckv, ck, say, run.cache, _CLEAN.pending,
+                              0 if run.stop.is_set() else len(_order) - _n_done)
+            got.update((j, v) for j, v in enumerate(_ckv) if v is not None)
+            with run._lock:
+                for j in ck.pop("banked", []):
+                    run.proofs.setdefault((name, j), {}).update(b=True)       # REG-2353 - banked at a checkpoint
+            if _co == "red":
+                for j in range(len(proofs)):
+                    got.setdefault(j, UNPROVABLE)        # never NOT RUN: nothing stopped the push, the sandbox drifted
+                break
         per = [got.get(i) for i in range(len(proofs))]
         per = _clean_here(sandbox, name, filename, proofs, per, say, run)   # REG-2587 - #242 on a push with no wave
+        per = [None if i in ck["sealed"] else v for i, v in enumerate(per)]   # R8 - SEALED-EXCLUDED: its checkpoint stands
         _before = list(per)
         per = _closing_clean(name, per, say)             # REG-1988 - None (NOT RUN) passes through untouched
+        for i in ck["sealed"]:
+            per[i] = got.get(i)
         _f = run.first if (run.first and run.first[0] == name) else None
         if _f is not None and _before[_f[1]] in (BLIND, INVALID) and per[_f[1]] == UNPROVABLE:
             # FAIL CLOSED: the stop already stands. Only its REASON is corrected - the failure may be the drift.
@@ -5245,8 +5263,15 @@ def _prove_gate_census(sandbox, name, filename, proofs, say, run):
     served = {}
     _CLEAN.pending = []                                         # (index, key, entry) a census PROVEN waits in
     _CLEAN.runs = {}
+    ck = {"sealed": set(), "t": None}                           # R8 (REG-2437) - this gate's checkpoints
+    _ck_red = False
     try:
         for i, pr in enumerate(proofs):
+            if _ck_red:
+                got[i] = UNPROVABLE                             # a red checkpoint stopped the gate: never NOT RUN
+                with run._lock:
+                    run.proofs[(name, i)] = {"v": UNPROVABLE, "s": 0.0, "a": "none"}
+                continue
             _MARK.m = {"t0": time.time()}
             try:
                 if _decided_before_a_run(sandbox, name, filename, pr, i) is not None:
@@ -5264,6 +5289,13 @@ def _prove_gate_census(sandbox, name, filename, proofs, say, run):
                 _m, _MARK.m = (getattr(_MARK, "m", None) or {}), None
             with run._lock:
                 run.proofs[(name, i)] = dict(_m, v=got[i], s=round(time.time() - _m.get("t0", time.time()), 1))
+            # R8 (REG-2437) - a long gate banks what a green clean run brackets NOW; a red one stops the gate
+            if _checkpoint(name, got, ck, say, run.cache, _CLEAN.pending, len(proofs) - i - 1) == "red":
+                _ck_red = True
+                say("     %-52s   ↳ R8 CHECKPOINT: RED - this gate stops here; its unrun proofs are UNPROVABLE" % name)
+            with run._lock:
+                for j in ck.pop("banked", []):
+                    run.proofs.setdefault((name, j), {}).update(b=True)
         # #242 — SERVED FROM ANOTHER TREE, THIS TREE STILL OWES ONE CLEAN RUN: a law that reads live state only that tree
         # held can be red here and green there. A clean run this gate already paid (a proof that ran) answers it.
         if any(e.get("tree") != TREE_ID for e in served.values()) and not _CLEAN.runs:
@@ -5282,7 +5314,9 @@ def _prove_gate_census(sandbox, name, filename, proofs, say, run):
             else:
                 say("     %-52s   ↳ #242: proved in another tree - its one clean run here is green, the served proofs stand"
                     % name)
-        per = _closing_clean(name, got, say)                     # REG-1988 - the census's PROVENs wait for it too
+        per = _closing_clean(name, [None if i in ck["sealed"] else v for i, v in enumerate(got)], say)  # REG-1988
+        for i in ck["sealed"]:
+            per[i] = got[i]                                      # R8 - a sealed proof stands on its own green checkpoint
         if run.cache is not None:
             for _i, _key, _entry in (getattr(_CLEAN, "pending", None) or []):
                 if _bankable(per[_i]):
@@ -5941,6 +5975,7 @@ def _closing_clean(name, verdicts, say):
     proof, so the REG-1988 bracket holds."""
     runs = getattr(_CLEAN, "runs", None) or {}
     shared = [r for r in runs.values() if r.get("reused")]
+    _CLEAN.closing = None           # R8 (REG-2437) - what this call found: None (nothing to ask) | green | red | unknown
     if not shared or not any(v in (PROVEN, BLIND, INVALID) for v in verdicts):
         return verdicts
     _reused = set()
@@ -5957,12 +5992,98 @@ def _closing_clean(name, verdicts, say):
             say("     %-52s   ↳ REG-2351: the CLOSING clean run could not finish (%s) - asked once more before this "
                 "gate's proofs are discarded" % (name, str(tail)[:80]))
         if not ok:
+            _CLEAN.closing = "unknown" if ok is None else "red"
             say("     %-52s %s - the CLOSING clean run is %s (%s): its proofs shared one clean run and the sandbox did "
                 "not stay clean across them, so no PROVEN of this gate is kept, and no BLIND judged on the shared run"
                 % (name, UNPROVABLE, "UNKNOWN" if ok is None else "RED", str(tail)[:60]))
             return [UNPROVABLE if (v == PROVEN or (j in _reused and v in (BLIND, INVALID))) else v
                     for j, v in enumerate(verdicts)]
+    _CLEAN.closing = "green"
     return verdicts
+
+
+# ══ R8 (#150, REG-2437) — A LONG GATE CHECKPOINTS ITS PROOFS, SO A KILL KEEPS ALL BUT THE LAST STRETCH ══════════════════
+# His order, 2026-10-21: "heart proofs also need memory registered so they pull and fetch, same for interrupted process".
+# A gate's PROVENs wait for its CLOSING clean run (REG-1988) and are banked only then, so a hard kill - the hook's
+# deadline, Ctrl-C, the Mac sleeping, the console relaunching - lost every proof of the gate in flight: war_stash is 29
+# proofs x ~70 s in ONE gate, test_control 27. Now, after a proof, when the time since the gate's last GREEN clean run has
+# passed max(HEART2_CHECKPOINT_MIN minutes - default 15 -, 10 x this gate's clean run), and proofs remain to run: the
+# closing clean run is asked NOW over the proofs since the last checkpoint (the sealed ones are not asked again).
+#   green -> those proofs are banked and the cache is flushed at once, they are SEALED (no later closing run takes them
+#            back - a green clean run brackets them on both sides), and the shared run starts counting afresh;
+#   red   -> that batch is UNPROVABLE (REG-1988's rule), and so is every proof not yet run - never NOT RUN, which reads as
+#            a push's fail-fast stop - and the gate stops: a sandbox that drifted judges nothing more;
+#   unknown -> asked once more (R7, inside _closing_clean); still unknown reads as red.
+# Fast gates (most) never reach the threshold and pay nothing. Both paths: the push (_prove_gate_push) and the census
+# (_prove_gate_census). HEART2_CHECKPOINT_S is a law's seam: the threshold in seconds, exactly.
+# ⚠ NOT BUILT, said on purpose: the spec's "os._exit only on a SECOND signal". self_prove stands a prover aside with
+# killpg SIGTERM and REG-1624 needs it gone at once (a slice that ignored one signal would hold his Mac while he plays);
+# the checkpoint flush is what a kill keeps. The law: test_a_long_gate_checkpoints_its_proofs.
+CHECKPOINT_MIN = 15
+
+
+def _checkpoint_after_s(runs):
+    """R8 — how long after the last green clean run a gate checkpoints. -> seconds"""
+    raw = os.environ.get("HEART2_CHECKPOINT_S")
+    if raw not in (None, ""):
+        try:
+            return max(0.0, float(raw))
+        except ValueError:
+            pass                                # junk is not a seam: the default below holds
+    try:
+        mins = float(os.environ.get("HEART2_CHECKPOINT_MIN") or CHECKPOINT_MIN)
+    except ValueError:
+        mins = float(CHECKPOINT_MIN)
+    clean_s = max([float(r.get("s") or 0) for r in (runs or {}).values()] or [0.0])
+    return max(mins * 60.0, 10.0 * clean_s)
+
+
+def _checkpoint(name, verdicts, ck, say, cache, pending, left):
+    """R8 (REG-2437) — after a proof: bank what a green clean run brackets NOW, or stop the gate on a red one.
+
+    verdicts  [verdict | None per proof] - updated in place (a red batch turns UNPROVABLE)
+    ck        this gate's checkpoint state: {"sealed": set of indices, "t": time of the last green clean run | None}
+    pending   the gate's (index, key, entry) list a PROVEN waits in (_CLEAN.pending) - what is banked here leaves it
+    left      how many proofs of this gate are still to run (0: the closing run comes next anyway - no checkpoint)
+    -> "green" | "red" | None (not due)"""
+    runs = getattr(_CLEAN, "runs", None) or {}
+    if left <= 0 or not runs or cache is None:           # no cache (HEART2_PROVE_CACHE=0): nothing to bank, no run paid
+        return None
+    t_last = ck.get("t") or min([r.get("at") or time.time() for r in runs.values()])
+    if time.time() - t_last < _checkpoint_after_s(runs):
+        return None
+    batch = [None if i in ck["sealed"] else v for i, v in enumerate(verdicts)]
+    judged = [i for i, v in enumerate(batch) if v is not None]
+    if not judged:
+        return None
+    say("     %-52s   ↳ R8 CHECKPOINT: %d proof(s) since the last green clean run - its closing run is asked now"
+        % (name, len(judged)))
+    res = _closing_clean(name, batch, say)
+    outcome = getattr(_CLEAN, "closing", None)
+    if outcome in ("red", "unknown"):                    # CHECKPOINT-RED: nothing of the batch is banked
+        for i in judged:
+            verdicts[i] = res[i]
+        return "red"
+    banked, keep = 0, []
+    for item in list(pending or []):
+        if item[0] not in judged:
+            keep.append(item)
+        elif _bankable(verdicts[item[0]]) and cache is not None:
+            cache.store(item[1], item[2])
+            cache.count("stores")
+            banked += 1
+            ck.setdefault("banked", []).append(item[0])
+    if pending is not None:
+        pending[:] = keep
+    if cache is not None:
+        cache.flush()                                    # CHECKPOINT-FLUSH: what a kill after this line keeps
+    ck["sealed"].update(judged)
+    ck["t"] = time.time()
+    for r in runs.values():                              # the shared run brackets only what comes after this
+        r["by"], r["reused"] = [], 0
+    say("     %-52s   ↳ R8 CHECKPOINT: the clean run is green - %d PROVEN banked now, %d proof(s) sealed "
+        "(checkpoint banked)" % (name, banked, len(judged)))
+    return "green"
 
 
 def _prove_gate_proofs(sandbox, name, filename, proofs, say):

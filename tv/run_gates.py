@@ -11940,6 +11940,14 @@ GATES = [
              "re-proves the HEART2_AUDIT_K oldest served PROVENs over the same bytes; a BLIND/INVALID evicts the entry "
              "under the store lock, is said, is the gate's verdict (a push is refused) and is counted; K=0 says NOT "
              "AUDITED, never clean."),
+    Gate("test_a_long_gate_checkpoints_its_proofs",
+         [sys.executable, os.path.join(HERE, "test_a_long_gate_checkpoints_its_proofs.py")], 300,
+         needs_app=False,
+         why="R8 (#150, REG-2437) - a gate's PROVENs were banked only after its closing clean run, so a hard kill lost "
+             "the whole gate in flight (war_stash: 29 proofs in one gate). Past a time threshold the closing run is asked "
+             "over the proofs since the last checkpoint: green banks and flushes them now and seals them, red makes the "
+             "batch and every unrun proof UNPROVABLE. The real CLI SIGKILLed after 'checkpoint banked' keeps the prefix; "
+             "a graceful fail-fast stop banks its bracketed prefix."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
