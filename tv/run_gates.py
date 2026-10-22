@@ -11076,6 +11076,22 @@ GATES = [
              "and with window._vaultMemoOff = true; every door's answer, every name's router / seam / footprint / picture / "
              "keeper / home / canon, the MOVE TASKS, dock and shelf HTML, the records and every store must be identical. "
              "ITEMS and ITEM_REGISTRY keep their one writer (the BOSSES build), which the catalogue memos lean on."),
+    Gate("test_a_door_that_refuses_is_never_walked_around",
+         [sys.executable, os.path.join(HERE, "test_a_door_that_refuses_is_never_walked_around.py")], 120,
+         needs_app=False,
+         why="V1 merge join (V1a REG-2404 x V1b REG-2415) - merged, the Magic & Rare toss read the removal door's REFUSAL "
+             "(the witness store held) as 'took nothing' and fell back: the record dropped, the owned name deleted with no "
+             "journal row and persisted - a loss no undo could reach while the board said the vault is held. The toss now "
+             "waits with the door (record back, name kept, refusal said); with the store readable it still goes through "
+             "the door. The shipped door, journal, vaultRemove and vaultThrowFind run in node."),
+    Gate("test_a_frame_verdict_reads_a_quarantined_store_as_unknown",
+         [sys.executable, os.path.join(HERE, "test_a_frame_verdict_reads_a_quarantined_store_as_unknown.py")], 120,
+         needs_app=False,
+         why="V1 merge join (V1a REG-2401 x V1b REG-2410) - merged, the frame verdict read the DEFAULT the page runs on for a "
+             "quarantined d2r_owned / d2r_magicFinds as his vault, so every recorded screenshot read 'gone': the poll said "
+             "his items had left and a Scan offered to read them again (an AI read). held() now answers UNKNOWN for a "
+             "store the door quarantined, so the verdict says 'unknown', never 'gone'; with nothing quarantined a silent "
+             "loss still reads 'gone'. The shipped door, boot readers and verdict block run in node."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

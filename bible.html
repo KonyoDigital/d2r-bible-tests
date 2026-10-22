@@ -46761,6 +46761,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         r = window.vaultRemove([nm], { lane: 'card-click', quiet: true, why: 'thrown out of Magic & Rare', magic: mg });
       }
     } catch(e){ r = null; }
+    /* V1 merge join (V1a's ✕ x V1b's hold) — A DOOR THAT SAID NO IS NOT WALKED AROUND. The fallback below is for a door
+       that is not there or took nothing. vaultRemove now also REFUSES, in words, while a store a removal writes is UNKNOWN
+       or held (REG-2415: the witness rows) - and on the merged tree the fallback took the name out of owned anyway, with
+       no journal row, and the record above was already gone: his ✕ became a loss the undo cannot reach. So the ✕ waits
+       with the door: the Magic & Rare record goes back, the name stays owned, and the refusal is said.
+       Law: tv/test_a_door_that_refuses_is_never_walked_around.py */
+    if (nm && r && r.refused){
+      try { if (rec != null && !Object.prototype.hasOwnProperty.call(magicFinds, nm)) magicFinds[nm] = rec; } catch(e){}
+      status('⚠ "' + name + '" was not thrown out of Magic & Rare - ' + (r.why || 'the removal door refused'));
+      return;
+    }
     if (nm && !(r && r.batch)){
       /* the door is not there or took nothing: his ✕ still takes the name out (the un-tick's own fallback), on record */
       try { if (typeof owned !== 'undefined' && owned && typeof owned.has === 'function' && owned.has(nm)) owned['delete'](nm); } catch(e){}
@@ -55794,7 +55805,15 @@ function renderJournal(){
       world: (window.D2R_PROFILE === 'ladder') ? 'ladder' : 'main',
       held: function(n){
         if (typeof owned === 'undefined' || !owned || typeof owned.has !== 'function') return null;
+        /* V1 merge join (V1a's verdict x V1b's quarantine, REG-2410) — a store the door QUARANTINED is UNKNOWN: what this
+           page holds in memory for it is its default, not his vault, so "not in it" is never "gone". Without this the
+           verdict read the default as his vault and called every frame 'gone' while d2r_owned or d2r_magicFinds would
+           not read. Law: tv/test_a_frame_verdict_reads_a_quarantined_store_as_unknown.py */
+        var _qd = function(k){ try { var e = (window.LSR && typeof window.LSR.quarantined === 'function') ? window.LSR.quarantined(k) : null;
+                                     return !!(e && e.kind === 'quarantine'); } catch (eQ) { return false; } };
+        if (_qd('d2r_owned')) return null;
         if (owned.has(n)) return true;
+        if (_qd('d2r_magicFinds')) return null;
         return !!(typeof magicFinds === 'object' && magicFinds && Object.prototype.hasOwnProperty.call(magicFinds, n));
       },
       removedAfter: function(n, at){
