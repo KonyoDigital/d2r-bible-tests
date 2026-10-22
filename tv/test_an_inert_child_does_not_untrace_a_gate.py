@@ -6,6 +6,10 @@ that cost test_the_bump_refuses_a_tree_that_does_not_parse (pgrep, 39 s) and tes
 (sleep, 12 s) a full run every time. `sleep` reads a clock, and `ps` / `pgrep` read the process table: a
 path inside a pgrep pattern is matched against command lines, never opened. They are inert now. lsof
 with a path in this checkout still is not, and every other child (bash, sh, chrome, perl) still is.
+
+REG-2443 - a child whose OWN environment carries TV_GATE_TRACE_CDP=1 (render_check's Chrome) is written C, not U. The
+ledger never allows an attested Chrome: read_trace() without allow_cdp_chrome reads C exactly like U, so a ledger run
+that started one is still never carried.
 """
 import io
 import os
@@ -31,6 +35,10 @@ _CHILD = ("import subprocess, sys\n"
           "    subprocess.run(sys.argv[1:], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)\n"
           "except OSError:\n"
           "    pass\n")
+# REG-2443 - the same child, started with the attestation in ITS OWN environment (this process's own has none)
+_MARKED_CHILD = ("import os, subprocess, sys\n"
+                 "subprocess.run(sys.argv[1:], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,\n"
+                 "               env=dict(os.environ, TV_GATE_TRACE_CDP='1'))\n")
 
 
 class AnInertChildKeepsTheTrace(unittest.TestCase):
@@ -42,14 +50,26 @@ class AnInertChildKeepsTheTrace(unittest.TestCase):
         with io.open(self.law, "w", encoding="utf-8") as fh:
             fh.write(_CHILD)
 
-    def _why(self, *argv):
+    def _why(self, *argv, **kw):
         trace = GL.trace_path()
         self.addCleanup(lambda: os.path.exists(trace) and os.remove(trace))
         env = GL.trace_env(dict(os.environ), self.root, trace)
-        subprocess.run([sys.executable, self.law] + list(argv), cwd=self.root, env=env,
+        subprocess.run([sys.executable, kw.get("law", self.law)] + list(argv), cwd=self.root, env=env,
                        capture_output=True, text=True, timeout=60)
         _facts, why = GL.read_trace(trace)
+        self.allowed = GL.read_trace(trace, allow_cdp_chrome=True)
         return why
+
+    @unittest.skipUnless(shutil.which("git"), "no git on PATH - the attested child here is `git --version`")
+    def test_an_attested_chrome_still_untraces_a_ledger_run(self):
+        marked = os.path.join(self.root, "tv", "t_marked.py")
+        with io.open(marked, "w", encoding="utf-8") as fh:
+            fh.write(_MARKED_CHILD)
+        why = self._why("git", "--version", law=marked)
+        self.assertIn("a Chrome this run started for its pages", why or "",
+                      "the ledger carried a run whose child was an attested Chrome: %r" % (why,))
+        self.assertIsNotNone(self.allowed[0], "PREMISE: the child was not written as an attested C line: %r"
+                             % (self.allowed[1],))
 
     def test_sleep_is_inert(self):
         self.assertIsNone(self._why("sleep", "0"))
@@ -111,6 +131,8 @@ RED_PROOF = [
     {"why": "an untraced line is ignored by the reader", "file": "gate_ledger.py",
      "find": "            return None, \"the gate %s, which the trace cannot follow\" % text  # LEDGER-UNTRACED\n",
      "replace": "            continue  # LEDGER-UNTRACED\n", "matches": 1},
+    {"why": "REG-2443 - the ledger accepts an attested Chrome (a C line)", "file": "gate_ledger.py",
+     "find": "        if kind in (\"U\", \"C\"):\n", "replace": "        if kind == \"U\":\n", "matches": 1},
 ]
 
 if __name__ == "__main__":

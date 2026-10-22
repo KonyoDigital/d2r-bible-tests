@@ -25,6 +25,33 @@ os._exit and a kill keep what was already seen. gate_ledger.read_trace() turns t
 set, and a gate with any U line, or with no B line for a child it started, is never carried.
 After installing the hook, the next `sitecustomize` on sys.path (the system's own) still runs.
 
+REG-2442 (#147 R1) - THE FACTS A KEY NEEDS, so a proof can be remembered by what its run read (gate_ledger.facts_of /
+facts_hold). Five more line kinds, written beside the ones above - every line above is unchanged:
+
+    Z  a stat's answer: `<kind> <size> <path>` - kind f (a file), l (a link, from lstat), d (a directory) or o (anything
+       else); size is st_size for f and l, `-` for d and o. S stays presence-only, so the ledger reads as before.
+    E  a SINGLE-NAME read of the environment - os.environ[X], .get(X), X in os.environ, os.getenv(X):
+       `<sha256 of the value | -> <NAME>`. Never a value, only its digest. Not for the PLUMBING names a prover sets per
+       run (_PLUMBING), not for a name this process set or deleted first, and in a child only when the value is the one
+       the run's ROOT process had: a value a parent made is covered by the facts of the process that made it. A bulk
+       copy (dict(os.environ), .copy(), .items(), {**os.environ}) and a walk of the names write nothing - a python
+       child that receives the copy traces its own reads. FLOOR: a run that decides by WHICH names exist, and a C
+       library's own getenv(), are outside this trace.
+    N  the root's environment, once, at the root's boot: `<sha256> <NAME>` per non-plumbing name. A child reads it to
+       tell an inherited value from one the run made.
+    T  `git ls-files` with its scope (`=` or `?` - a flag the check cannot repeat -, the cwd under the root, the pathspecs,
+       joined by \\x1f): the tracked SET is an input, not just the root listing (L "" stays for the ledger).
+    C  a non-python child whose OWN environment carries TV_GATE_TRACE_CDP=1 (render_check's Chrome) while this process's
+       does not: an attested Chrome the run started for its pages. gate_ledger.read_trace() reads C exactly like U
+       unless its caller passes allow_cdp_chrome=True (REG-2443).
+
+TV_GATE_TRACE_DENY and TV_GATE_TRACE_ALLOW (os.pathsep lists): any open, stat, listing or git child that reaches a path
+under a DENIED root (given or real path) that is under no ALLOWED root writes U - a heart2 sandbox's read of the real
+checkout, of a backup folder or of the shared temp dir is a read no key of the sandbox can name; before, rel() dropped
+every path outside the root without a word. TV_GATE_TRACE_STRICT=1 adds two U's: importing sqlite3, mmap, ctypes or
+dbm (their reads raise no open event) and os.path.getmtime/getctime/getatime on a path under the root (a copy's times
+are the copy's). FLOOR, said: a raw os.stat(p).st_mtime is not seen; Z keeps the size, never the times.
+
 REG-2350 (#42 R5) - THE KILL WATCH, armed by TV_GATE_KILLS alone (heart2 arms it on every proof run), into its
 own file, in the same line shape:
 
@@ -70,12 +97,94 @@ import _thread
 import os
 import sys
 
+#: REG-2442 - the environment names a prover sets PER RUN (temp dirs, lane ports, its own and the trace's switches): a
+#: read of one is never an E fact and the root's N block leaves them out. gate_ledger.TRACE_PLUMBING and node_trace.cjs
+#: carry the same set; test_a_trace_names_every_read_a_key_needs holds the three equal. [[copy-drift]]
+_PLUMBING = frozenset(("TMPDIR", "TEMP", "TMP", "TV_LANE_PORT_BASE", "TV_PORT", "TV_CONTROL_PORT", "TV_LAW_PORT",
+                       "TV_RENDER_PORT", "PYTHONPATH", "PYTHONDONTWRITEBYTECODE", "PYTHONPYCACHEPREFIX",
+                       "NODE_OPTIONS"))  # TRACE-PLUMBING
+_PLUMBING_PREFIXES = ("HEART2_", "TV_GATE_")
+#: REG-2442 - under TV_GATE_TRACE_STRICT=1 importing one of these is a U: their reads raise no open audit event
+_STRICT_MODULES = frozenset(("sqlite3", "_sqlite3", "mmap", "ctypes", "_ctypes", "dbm", "_dbm", "_gdbm"))
+
+
+def _plumbing(name):
+    """A name the prover sets per run (case-blind, as Windows' environment is). -> bool"""
+    u = str(name).upper()
+    return u in _PLUMBING or u.startswith(_PLUMBING_PREFIXES)
+
+
+def _trace_forms(spec):
+    """An os.pathsep list of roots -> every form each is reached by: as given, absolute, and its real path. -> [str]"""
+    out = []
+    for part in str(spec or "").split(os.pathsep):
+        part = part.strip()
+        if not part:
+            continue
+        p = os.path.normpath(os.path.abspath(os.path.expanduser(part)))
+        for cand in (p, os.path.normpath(os.path.realpath(p))):
+            cand = os.path.normcase(cand)
+            if cand not in out:
+                out.append(cand)
+    return out
+
+
+def _root_env(out):
+    """REG-2442 - whose environment this process's E facts are measured against. -> (is_root, {name: digest} | None)
+
+    The run's ROOT - its parent wrote no B line in this trace - answers (True, None) and writes the N block itself. A
+    child walks its parents through the B lines to the nearest one that wrote an N block and answers (False, that
+    block). A traced ancestry with no block answers (False, None): every read is then a fact - over-wide, never under.
+    A trace that cannot be read makes this process a root of its own subtree, the same over-wide direction.
+    Read before any hook is armed, so this read is never a fact of the run."""
+    try:
+        rfd = os.open(out, os.O_RDONLY)
+    except OSError:
+        return True, None
+    chunks = []
+    try:
+        while True:
+            b = os.read(rfd, 1 << 20)
+            if not b:
+                break
+            chunks.append(b)
+    except OSError:
+        return True, None
+    finally:
+        os.close(rfd)
+    data = b"\n" + b"".join(chunks)
+    parent, block = {}, {}
+    for tag in (b"\nB\t", b"\nN\t"):  # found by find(), so a long trace costs one C scan, not a split per line
+        i = data.find(tag)
+        while i >= 0:
+            j = data.find(b"\n", i + 1)
+            parts = data[i + 1:(j if j >= 0 else len(data))].split(b"\t", 2)
+            i = data.find(tag, i + 1)
+            if len(parts) != 3:
+                continue
+            if tag == b"\nB\t":
+                parent[parts[1]] = parts[2]
+            else:
+                d, _sp, n = parts[2].partition(b" ")
+                block.setdefault(parts[1], {})[n.decode("utf-8", "surrogateescape")] = d.decode("ascii", "replace")
+    p = str(os.getppid()).encode("ascii")
+    if p not in parent:
+        return True, None  # TRACE-ENV-ROOT
+    walked = set()
+    while p in parent and p not in walked:
+        if p in block:
+            return False, block[p]
+        walked.add(p)
+        p = parent[p]
+    return False, None
+
 
 def _boot():
     out = os.environ.get("TV_GATE_TRACE") or ""
     root = os.environ.get("TV_GATE_TRACE_ROOT") or ""
     if not out or not root:
         return
+    is_root, root_env = _root_env(out)
     try:
         fd = os.open(out, os.O_WRONLY | os.O_APPEND | os.O_CREAT, 0o600)
     except OSError:
@@ -85,6 +194,11 @@ def _boot():
         cand = os.path.normpath(cand)
         if cand not in roots:
             roots.append(cand)
+    deny = _trace_forms(os.environ.get("TV_GATE_TRACE_DENY"))     # REG-2442 - roots no key of this run can name
+    allow = _trace_forms(os.environ.get("TV_GATE_TRACE_ALLOW"))   # ... except these, inside them (the run's own temp)
+    strict = os.environ.get("TV_GATE_TRACE_STRICT") == "1"
+    import hashlib
+    import stat as _stat
     here = os.path.dirname(os.path.abspath(__file__))
     state = {"pid": os.getpid(), "n": 0}
     # one guard PER THREAD: emit() drops the GIL in os.write, so a process-wide flag skipped
@@ -102,6 +216,8 @@ def _boot():
     stdlib = frozenset(getattr(sys, "stdlib_module_names", ())) | frozenset(sys.builtin_module_names) | frozenset(
         ("sitecustomize", "usercustomize", "apport_python_hook"))
     wflags = os.O_WRONLY | os.O_RDWR | os.O_CREAT | os.O_TRUNC | os.O_APPEND
+    normcase = os.path.normcase
+    realdirs = {}
 
     def emit(kind, text, once=True):
         if once:
@@ -135,7 +251,32 @@ def _boot():
                 if out_rel.startswith("tv/gate_trace/") or "__pycache__" in out_rel.split("/"):
                     return None
                 return out_rel
+        if deny and denied(path):
+            emit("U", "reached %s, under a root no key of this run can name" % path)  # TRACE-DENY
         return None
+
+    def under(path, bases):
+        for b in bases:
+            if path == b or path.startswith(b if b.endswith(sep) else b + sep):
+                return True
+        return False
+
+    def denied(path):
+        """REG-2442 - an absolute path under a DENIED root and under no ALLOWED one, as given or by its real folder.
+        -> bool. The real folder is asked once per folder (a symlinked /tmp or /var reaches /private/... on macOS)."""
+        folder, tail = os.path.split(path)
+        real = realdirs.get(folder)
+        if real is None:
+            try:
+                real = os.path.realpath(folder)
+            except Exception:
+                real = folder
+            if len(realdirs) < 8192:
+                realdirs[folder] = real
+        forms = (normcase(path), normcase(join(real, tail)))
+        if allow and any(under(f, allow) for f in forms):
+            return False
+        return any(under(f, deny) for f in forms)
 
     def by_importer():
         try:
@@ -176,7 +317,8 @@ def _boot():
                 return False
         except Exception:
             return False
-        if rel(where if where is not None else getcwd()) is None:
+        at = rel(where if where is not None else getcwd())
+        if at is None:
             return True  # a fixture repository outside this checkout
         sub = rest[0] if rest else ""
         opts = rest[1:]
@@ -184,6 +326,10 @@ def _boot():
                                                          "-s", "--stage", "--with-tree", "--error-unmatch"))
                                          for o in opts):
             emit("L", "")  # the tracked set: any added or deleted file
+            # REG-2442 - and WHICH set: a check repeats this ls-files (same cwd, same pathspecs); a flag it cannot
+            # repeat marks the scope `?`, which no tree ever matches
+            odd = any(o.startswith("-") and o not in ("-z", "--full-name", "-c", "--cached", "--") for o in opts)
+            emit("T", "\x1f".join(["?" if odd else "=", at] + [o for o in opts if not o.startswith("-")]))  # TRACE-TRACKED-SET
             return True
         if sub == "rev-parse" and opts and all(o in ("--show-toplevel", "--git-dir", "--is-inside-work-tree",
                                                      "--show-cdup", "--show-prefix", "--git-common-dir")
@@ -231,7 +377,23 @@ def _boot():
             state["n"] += 1
             emit("P", "%d" % state["n"], once=False)
             return
+        if env is not None and not is_py and not is_node and cdp_marked(env):
+            emit("C", "started %s, a Chrome this run started for its pages" % (head or "a process"))  # TRACE-CDP-ATTESTED
+            return
         emit("U", "started %s" % (head or "a process"))
+
+    def cdp_marked(env):
+        """REG-2443 - the child's OWN environment says render_check started it for its pages, and this process's own
+        does not: a marker this process carries itself is inheritance, never an attestation for this child. -> bool"""
+        try:
+            theirs = env.get("TV_GATE_TRACE_CDP")
+            if theirs is None:
+                theirs = env.get(b"TV_GATE_TRACE_CDP")
+            if isinstance(theirs, bytes):
+                theirs = theirs.decode("ascii", "replace")
+            return theirs == "1" and os.environ.get("TV_GATE_TRACE_CDP") != "1"
+        except Exception:
+            return False
 
     def busy():
         return getattr(local, "busy", False)
@@ -250,6 +412,10 @@ def _boot():
                     return
                 writes = (isinstance(mode, str) and any(c in mode for c in "wax+")) or (
                     mode is None and isinstance(flags, int) and flags & wflags)
+                making = (isinstance(mode, str) and any(c in mode for c in "wx")) or (
+                    mode is None and isinstance(flags, int) and flags & (os.O_TRUNC | os.O_EXCL))
+                if not writes or not making:
+                    bytes_fact(r)  # a read, or a write that keeps the bytes it finds (append, r+): what it found
                 if writes:
                     emit("W", r)
                 if not writes or (isinstance(mode, str) and "+" in mode) or (
@@ -259,6 +425,7 @@ def _boot():
                 r = rel(args[0] if args else None)
                 if r is not None and not by_importer():
                     emit("L", r)
+                    listing_fact(r)
             elif event in ("glob.glob", "glob.glob/2"):
                 pat = args[0] if args else None
                 if isinstance(pat, (str, bytes)):
@@ -280,6 +447,8 @@ def _boot():
                     emit("W", r)
             elif event == "import":
                 name = str(args[0] or "").split(".")[0]
+                if strict and name in _STRICT_MODULES:
+                    emit("U", "imported %s, whose reads raise no open event" % name)  # TRACE-STRICT-IMPORT
                 if name and name not in stdlib:
                     emit("I", name)
             elif event == "subprocess.Popen":
@@ -296,7 +465,7 @@ def _boot():
         finally:
             local.busy = False
 
-    def stat_wrap(real):
+    def stat_wrap(real, follows=True):
         def wrapped(path, *a, **k):
             if busy() or k.get("dir_fd") is not None:
                 return real(path, *a, **k)
@@ -305,8 +474,110 @@ def _boot():
             except FileNotFoundError:
                 note(path, "A")
                 raise
-            note(path, "S")
+            note(path, "S", (out_stat, follows and k.get("follow_symlinks", True) is not False))
             return out_stat
+        wrapped.__wrapped__ = real
+        return wrapped
+
+    def size_of(st, follows=True):
+        """REG-2442 - the Z fact's `<kind> <size>` of one stat answer: the size of a file or a link, a directory and
+        anything else by kind alone (a directory's st_size is the filesystem's bookkeeping, not its contents). A stat
+        that did not follow links (lstat) says F, D or O for a name that is no link, so a check asks it the same way."""
+        m = st.st_mode
+        if _stat.S_ISLNK(m):
+            return "l %d" % st.st_size
+        kind = "f" if _stat.S_ISREG(m) else ("d" if _stat.S_ISDIR(m) else "o")
+        size = ("%d" % st.st_size) if kind == "f" else "-"
+        return "%s %s" % (kind if follows else kind.upper(), size)
+
+    base_root = roots[0]
+
+    def under_root(r):
+        return join(base_root, *r.split("/")) if r else base_root
+
+    def file_sha(full):
+        h = hashlib.sha256()
+        try:
+            rfd = os.open(full, os.O_RDONLY)
+        except OSError:
+            return "?"
+        try:
+            while True:
+                chunk = os.read(rfd, 1 << 20)
+                if not chunk:
+                    break
+                h.update(chunk)
+        except OSError:
+            return "?"
+        finally:
+            os.close(rfd)
+        return h.hexdigest()
+
+    def bytes_fact(r):
+        """REG-2442 - H: the bytes a read finds, measured as it opens: `<sha256 | - absent | d a folder | ? no bytes a
+        check could hold> <path>`. Once per path per process; gate_ledger keeps the first that came before any write."""
+        key = ("H:", r)
+        if key in seen:
+            return
+        seen.add(key)
+        full = under_root(r)
+        try:
+            st = os.stat(full)  # busy: the real stat, no S line
+        except FileNotFoundError:
+            d = "-"
+        except OSError:
+            d = "?"
+        else:
+            if _stat.S_ISDIR(st.st_mode):
+                d = "d"
+            elif not _stat.S_ISREG(st.st_mode):
+                d = "?"  # a fifo or a device: reading it here could block, and it holds no bytes to keep
+            else:
+                d = file_sha(full)
+        emit("H", "%s %s" % (d, r))  # TRACE-BYTES-FACT
+
+    def listing_fact(r):
+        """REG-2442 - D: what a listed folder held as it was listed - each name with its kind and a file's size (never a
+        time), sorted, as one sha256; gate_ledger._listing_digest is the same rule. Once per folder per process."""
+        key = ("D:", r)
+        if key in seen:
+            return
+        seen.add(key)
+        rows = []
+        try:
+            with os.scandir(under_root(r)) as it:
+                for e in it:
+                    if e.name == "__pycache__":
+                        continue
+                    st = e.stat(follow_symlinks=False)
+                    kind = "l" if _stat.S_ISLNK(st.st_mode) else ("f" if _stat.S_ISREG(st.st_mode) else (
+                        "d" if _stat.S_ISDIR(st.st_mode) else "o"))
+                    rows.append("%s\t%s\t%s" % (e.name, kind, ("%d" % st.st_size) if kind in "fl" else "-"))
+        except FileNotFoundError:
+            d = "-"
+        except NotADirectoryError:
+            d = "f"
+        except OSError:
+            d = "?"
+        else:
+            d = hashlib.sha256("\n".join(sorted(rows)).encode("utf-8", "surrogateescape")).hexdigest()
+        emit("D", "%s %s" % (d, r))  # TRACE-LISTING-FACT
+
+    def mtime_wrap(real, what):
+        """REG-2442 - TV_GATE_TRACE_STRICT=1: a time read from a file under the root is a U - a copy of the tree keeps
+        its bytes, never its times. Any path outside the root reads as before."""
+        def wrapped(filename, *a, **k):
+            if not busy():
+                local.busy = True
+                try:
+                    r = rel(filename)
+                    if r is not None:
+                        emit("U", "read the %s of %s, which a copy of the tree does not keep" % (what, r))  # TRACE-STRICT-TIME
+                except Exception:
+                    emit("U", "the trace hook raised")
+                finally:
+                    local.busy = False
+            return real(filename, *a, **k)
         wrapped.__wrapped__ = real
         return wrapped
 
@@ -331,16 +602,111 @@ def _boot():
         wrapped.__wrapped__ = real
         return wrapped
 
-    def note(path, kind):
+    def note(path, kind, st=None):
         local.busy = True
         try:
             r = rel(path)
             if r is not None:
                 emit(kind, r)
+                if st is not None:
+                    emit("Z", "%s %s" % (size_of(st[0], st[1]), r))  # TRACE-SIZE-FACT
         except Exception:
             pass
         finally:
             local.busy = False
+
+    def env_digest(value):
+        if isinstance(value, str):
+            value = value.encode("utf-8", "surrogateescape")
+        return hashlib.sha256(value).hexdigest()
+
+    # REG-2442 - E facts. The ROOT's environment is the run's input; a child compares against the N block its root
+    # wrote, so a value a parent of the run made (a fixture's TV_HIST=<its temp dir>) is not a fact of the child.
+    env_seen, env_written = set(), set()
+
+    def env_name(envmap, key):
+        try:
+            k = envmap.encodekey(key)
+        except Exception:
+            return None
+        if isinstance(k, bytes):
+            k = k.decode("utf-8", "surrogateescape")
+        return str(k)
+
+    def env_note(envmap, key, value, present):
+        local.busy = True
+        try:
+            name = env_name(envmap, key)
+            if name is None or _plumbing(name) or name in env_written or name in env_seen:
+                return
+            env_seen.add(name)
+            d = env_digest(value) if present else "-"
+            if root_env is not None and root_env.get(name, "-") != d:
+                return  # the run made this value: the process that made it holds the fact  # TRACE-ENV-MADE
+            emit("E", "%s %s" % (d, name))  # TRACE-ENV-FACT
+        except Exception:
+            emit("U", "the trace hook raised")
+        finally:
+            local.busy = False
+
+    def arm_env():
+        """REG-2442 - os._Environ's single-name reads write E. A bulk read is told apart by WHO asks: dict(), {**e}
+        and .copy() call keys() first and then read every name from the same frame at the same instruction; .items()
+        and .values() read from collections.abc's own views. Mapping.get and __contains__ reach __getitem__, so
+        .get(X), X in os.environ and os.getenv(X) are single-name reads too."""
+        cls = getattr(os, "_Environ", None)
+        if cls is None:
+            return
+        import _collections_abc as _abc
+        views = frozenset(f.__code__ for f in (_abc.ItemsView.__iter__, _abc.ValuesView.__iter__,
+                                                 _abc.ValuesView.__contains__))
+        real_get, real_set, real_del, real_keys = cls.__getitem__, cls.__setitem__, cls.__delitem__, cls.keys
+
+        def getitem(self, key):
+            if busy():
+                return real_get(self, key)
+            try:
+                f = getframe(1)
+            except ValueError:
+                f = None  # no python caller at all: nothing to tell a bulk read by, so a single-name read
+            mark = getattr(local, "bulk", None)
+            bulk = f is not None and (f.f_code in views or (mark is not None and mark[0] == id(f)
+                                                              and mark[1] is f.f_code and mark[2] == f.f_lasti))
+            if mark is not None and not bulk:
+                local.bulk = None
+            try:
+                value = real_get(self, key)
+            except KeyError:
+                if not bulk:
+                    env_note(self, key, None, False)
+                raise
+            if not bulk:
+                env_note(self, key, value, True)
+            return value
+
+        def keys(self):
+            if not busy():
+                try:
+                    f = getframe(1)
+                    local.bulk = (id(f), f.f_code, f.f_lasti)  # TRACE-ENV-BULK
+                except ValueError:
+                    local.bulk = None
+            return real_keys(self)
+
+        def setitem(self, key, value):
+            n = env_name(self, key)
+            if n is not None:
+                env_written.add(n)  # a value this process set is not one it found
+            return real_set(self, key, value)
+
+        def delitem(self, key):
+            n = env_name(self, key)
+            if n is not None:
+                env_written.add(n)
+            return real_del(self, key)
+        for fn, real in ((getitem, real_get), (keys, real_keys), (setitem, real_set), (delitem, real_del)):
+            fn.__wrapped__, fn.__name__, fn.__doc__ = real, real.__name__, real.__doc__
+        cls.__getitem__, cls.keys, cls.__setitem__, cls.__delitem__ = getitem, keys, setitem, delitem
 
     def after_fork():
         parent = state["pid"]
@@ -349,11 +715,26 @@ def _boot():
         emit("B", "%d" % parent)
 
     emit("B", "%d" % os.getppid())
+    if is_root:
+        # REG-2442 - the run's environment, once, before any child can start: what a child's E facts are held to
+        for _k, _v in list(os.environ.items()):
+            if not _plumbing(_k):
+                emit("N", "%s %s" % (env_digest(_v), _k))  # TRACE-ENV-ROOT-BLOCK
     os.stat = stat_wrap(os.stat)
-    os.lstat = stat_wrap(os.lstat)
+    os.lstat = stat_wrap(os.lstat, False)
     os.access = probe_wrap(os.access)
     os.readlink = probe_wrap(os.readlink)  # LEDGER-TRACE-PROBE
     # os.path.realpath needs no wrap: it walks the path through os.lstat, which is wrapped above
+    if strict:
+        for _name in sorted(_STRICT_MODULES & set(sys.modules)):
+            emit("U", "had %s loaded before the trace began" % _name)
+        import genericpath as _gp
+        for _mod in (os.path, _gp):
+            for _fn, _what in (("getmtime", "mtime"), ("getctime", "ctime"), ("getatime", "atime")):
+                _cur = getattr(_mod, _fn, None)
+                if _cur is not None and getattr(_cur, "__wrapped__", None) is None:
+                    setattr(_mod, _fn, mtime_wrap(_cur, _what))
+    arm_env()
     if hasattr(os, "register_at_fork"):
         os.register_at_fork(after_in_child=after_fork)
     sys.addaudithook(hook)

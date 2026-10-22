@@ -1456,9 +1456,21 @@ def trace_path():
     return path
 
 
-def trace_env(env, root, path):
-    """The gate's environment with gate_trace/sitecustomize.py armed. -> dict (a copy)"""
+def trace_env(env, root, path, deny=None, allow=None, strict=False):
+    """The gate's environment with gate_trace/sitecustomize.py armed. -> dict (a copy)
+
+    REG-2442 - `deny` / `allow` (lists of folders) arm TV_GATE_TRACE_DENY / _ALLOW, `strict` TV_GATE_TRACE_STRICT=1. A
+    switch the caller did not ask for is never inherited from `env`, and neither is TV_GATE_TRACE_CDP: that marker is
+    render_check's word about ONE child, never a run's."""
     env = dict(env)
+    for _k in ("TV_GATE_TRACE_DENY", "TV_GATE_TRACE_ALLOW", "TV_GATE_TRACE_STRICT", "TV_GATE_TRACE_CDP"):
+        env.pop(_k, None)
+    if deny:
+        env["TV_GATE_TRACE_DENY"] = os.pathsep.join(os.path.abspath(str(p)) for p in deny)
+    if allow:
+        env["TV_GATE_TRACE_ALLOW"] = os.pathsep.join(os.path.abspath(str(p)) for p in allow)
+    if strict:
+        env["TV_GATE_TRACE_STRICT"] = "1"
     env["TV_GATE_TRACE"] = path
     env["TV_GATE_TRACE_ROOT"] = os.path.abspath(root)
     old = env.get("PYTHONPATH") or ""
@@ -1473,12 +1485,19 @@ def trace_env(env, root, path):
     return env
 
 
-def read_trace(path):
+def read_trace(path, allow_cdp_chrome=False):
     """What one traced run read. -> (facts|None, why)
 
     No B line means the gate never ran under the hook (a node gate, `python -I`). A U line is a
     child or a call the hook cannot follow. A python child that started without writing its own B
-    line ran untraced. Each of those is a run whose reads are UNKNOWN, so it is never carried."""
+    line ran untraced. Each of those is a run whose reads are UNKNOWN, so it is never carried.
+
+    REG-2442 - the facts beside the sets: E {name: sha256 | "-" absent | "?" two values}, Z {path: {kind: size}}, H
+    {path: the bytes' sha256 as the run first opened them}, D {folder: its listing digest as first listed} - a Z or an H
+    after the run wrote the path measured the run's own bytes and is left out - and T {ls-files scope}. N lines are a
+    child's lookup table and no fact. REG-2443 - C, render_check's attested Chrome, reads EXACTLY like U unless the
+    caller passes allow_cdp_chrome=True; then facts["C"] lists them and the caller owes a key for what that browser
+    loaded (the ledger never passes it, so a ledger run reads byte for byte as before)."""
     try:
         with open(path, encoding="utf-8", errors="surrogateescape") as fh:
             lines = fh.read().splitlines()
@@ -1488,12 +1507,16 @@ def read_trace(path):
     first = {}
     boots = {}
     spawns = {}
+    env, sizes, scopes, chrome, wrote, hashed, listed = {}, {}, set(), [], set(), {}, {}
     for line in lines:
         parts = line.split("\t", 2)
         if len(parts) != 3:
             continue
         kind, pid, text = parts
-        if kind == "U":
+        if kind == "C" and allow_cdp_chrome:  # LEDGER-CDP-ATTESTED
+            chrome.append(text)
+            continue
+        if kind in ("U", "C"):
             return None, "the gate %s, which the trace cannot follow" % text  # LEDGER-UNTRACED
         if kind == "B":
             boots.setdefault(text, 0)
@@ -1505,6 +1528,24 @@ def read_trace(path):
             facts[kind].add(text)
             if kind in ("R", "S", "A", "W", "L"):
                 first.setdefault(text, kind)
+            if kind == "W":
+                wrote.add(text)
+        elif kind == "E":
+            digest, _sp, name = text.partition(" ")
+            if name:
+                env[name] = digest if env.get(name, digest) == digest else "?"  # LEDGER-ENV-FACT
+        elif kind == "Z":
+            bits = text.split(" ", 2)
+            if len(bits) == 3 and bits[2] not in wrote:  # LEDGER-SIZE-FACT
+                sizes.setdefault(bits[2], {}).setdefault(bits[0], bits[1])
+        elif kind == "T":
+            scopes.add(text)
+        elif kind in ("H", "D"):
+            digest, _sp, where = text.partition(" ")
+            if kind == "D":
+                listed.setdefault(where, digest)
+            elif where not in wrote:  # LEDGER-BYTES-FACT
+                hashed.setdefault(where, digest)
     if not any(k.startswith("pid:") for k in boots):
         return None, "the gate's reads were not traced"  # LEDGER-UNTRACED-BOOT
     for pid, n in spawns.items():
@@ -1512,7 +1553,228 @@ def read_trace(path):
             return None, "a python child of the gate ran without the trace"
     # made by this run before anything looked at it, so it is not state the run found
     facts["M"] = set(p for p, k in first.items() if k == "W" or (k == "A" and p in facts["W"]))  # LEDGER-MADE-FIRST
+    facts["E"], facts["Z"], facts["T"], facts["C"], facts["H"], facts["D"] = env, sizes, scopes, chrome, hashed, listed
     return facts, None
+
+
+# ══ REG-2442 (#147 R1) — WHAT A LATER TREE MUST STILL HOLD FOR A RUN'S VERDICT TO STAND ═══════════════════════════════
+# The ledger carries a PASS by git's word (a diff since its commit). A proof memory that serves a verdict on another
+# tree - a heart2 sandbox built for the next push - needs the run's own facts checked against THAT tree, byte for byte:
+# facts_of() turns one run's read_trace() facts into a record, facts_hold() asks a tree and an environment whether every
+# fact in it still holds. ONE copy, for heart2's memory (track heart-memory) and for the ledger if it adopts it.
+#   R  a file's sha256 (a folder opened by descriptor: its listing digest; "-" absent)    Z  kind and size per stat
+#   S  a stat whose answer kept no size (os.access, os.readlink): present / dangling       A  still absent (no name)
+#   L  a listed folder's names, each with its kind and a file's size, as one digest      E  each env value's digest
+#   I  for each imported name, which tv/, root or source-folder module could answer it - no new one may shadow it
+#   G  every tracked .gitignore's bytes (and which there are)                              T  each ls-files scope's set
+# FLOORS, said: the times of a file (a raw os.stat().st_mtime; STRICT refuses the os.path getters), a C library's own
+# reads and getenv(), what a Chrome loads (a C fact - its caller keys the pages), .git/info/exclude and the global git
+# excludes file (a check-ignore's other inputs), and a file the run rewrote is held as the run left it.
+FACTS_VERSION = 1
+#: REG-2442 - the environment names a prover sets PER RUN: never an E fact. gate_trace/sitecustomize.py's _PLUMBING and
+#: node_trace.cjs carry the same set (test_a_trace_names_every_read_a_key_needs holds the three equal). [[copy-drift]]
+TRACE_PLUMBING = frozenset(("TMPDIR", "TEMP", "TMP", "TV_LANE_PORT_BASE", "TV_PORT", "TV_CONTROL_PORT", "TV_LAW_PORT",
+                            "TV_RENDER_PORT", "PYTHONPATH", "PYTHONDONTWRITEBYTECODE", "PYTHONPYCACHEPREFIX",
+                            "NODE_OPTIONS"))
+TRACE_PLUMBING_PREFIXES = ("HEART2_", "TV_GATE_")
+
+
+def _fact_path(root, rel):
+    return os.path.join(root, *rel.split("/")) if rel else root
+
+
+def _kind_size(st, follows=True):
+    """The Z fact's (kind, size) of one stat answer - gate_trace's size_of: f, l, d or o, and F, D or O for a name a
+    stat that did not follow links found to be no link. -> (str, str)"""
+    import stat as _st
+    if _st.S_ISLNK(st.st_mode):
+        return "l", str(st.st_size)
+    kind = "f" if _st.S_ISREG(st.st_mode) else ("d" if _st.S_ISDIR(st.st_mode) else "o")
+    return (kind if follows else kind.upper()), (str(st.st_size) if kind == "f" else "-")
+
+
+def _listing_digest(root, rel):
+    """One folder's names, each with its kind and a file's size (never a time) - gate_trace's listing_fact, the same
+    rule. -> sha256 | "-" absent | "f" a file | "?" unreadable. A bytecode folder is left out: the trace never names it.
+    Nothing the run made is left out: a name it found listed is a name a later tree must hold."""
+    full = _fact_path(root, rel)
+    rows = []
+    try:
+        with os.scandir(full) as it:
+            for e in it:
+                if e.name == "__pycache__":
+                    continue
+                kind, size = _kind_size(e.stat(follow_symlinks=False))
+                rows.append("%s\t%s\t%s" % (e.name, kind.lower(), size))
+    except FileNotFoundError:
+        return "-"
+    except NotADirectoryError:
+        return "f"
+    except OSError:
+        return "?"
+    return hashlib.sha256("\n".join(sorted(rows)).encode("utf-8", "surrogateescape")).hexdigest()
+
+
+def _fact_bytes(root, rel):
+    """A read path's bytes. -> sha256 | "-" absent | "d:<listing>" a folder (read by descriptor) | "?" no bytes to hold"""
+    import stat as _st
+    full = _fact_path(root, rel)
+    try:
+        st = os.stat(full)
+    except FileNotFoundError:
+        return "-"
+    except OSError:
+        return "?"
+    if _st.S_ISDIR(st.st_mode):
+        return "d:" + _listing_digest(root, rel)
+    if not _st.S_ISREG(st.st_mode):
+        return "?"                     # a fifo or a device: no bytes a later tree could be held to
+    return _file_hash(full) or "?"
+
+
+def _presence(root, rel):
+    """S without a size (os.access, os.readlink): "e" there, "n" a link to nothing, "-" absent. -> str"""
+    full = _fact_path(root, rel)
+    if os.path.exists(full):
+        return "e"
+    return "n" if os.path.lexists(full) else "-"
+
+
+def _module_homes(root, names, dirs):
+    """For each imported name, the modules in `dirs` that could answer it. -> {name: [rel path]}"""
+    out = {}
+    for name in sorted(names):
+        found = []
+        for d in sorted(dirs):
+            for cand, is_dir in ((name + ".py", False), (name + "/__init__.py", False), (name, True)):
+                rel = (d + "/" + cand) if d else cand
+                full = _fact_path(root, rel)
+                if (os.path.isdir(full) if is_dir else os.path.isfile(full)):
+                    found.append(rel)
+        out[name] = found
+    return out
+
+
+def _gitignores(root):
+    """Every tracked .gitignore's sha256. -> {rel: sha} | None (git could not list them)"""
+    proc = _git(root, ["ls-files", "-z"])
+    if proc is None or proc.returncode != 0:
+        return None
+    rels = [p for p in (proc.stdout or "").split("\0") if p and p.rsplit("/", 1)[-1] == ".gitignore"]
+    return dict((p, _file_hash(_fact_path(root, p)) or "?") for p in sorted(rels))
+
+
+def _tracked_scope(root, scope):
+    """One T fact: the tracked set `git ls-files` named in that cwd for those pathspecs. -> sha256 | "?" """
+    bits = scope.split("\x1f")
+    if len(bits) < 2 or bits[0] != "=":
+        return "?"                     # a flag the check cannot repeat
+    proc = _git(_fact_path(root, bits[1]), ["ls-files", "-z", "--"] + bits[2:])
+    if proc is None or proc.returncode != 0:
+        return "?"
+    names = sorted(p for p in (proc.stdout or "").split("\0") if p)
+    return hashlib.sha256("\0".join(names).encode("utf-8", "surrogateescape")).hexdigest()
+
+
+def _env_digest(env, name):
+    """An environment's value for `name` as an E fact digest (case-blind on Windows). -> sha256 | "-" """
+    if os.name == "nt":
+        value = None
+        for k, v in env.items():
+            if str(k).upper() == name.upper():
+                value = v
+    else:
+        value = env.get(name)
+    if value is None:
+        return "-"
+    if not isinstance(value, bytes):
+        value = str(value).encode("utf-8", "surrogateescape")
+    return hashlib.sha256(value).hexdigest()
+
+
+def facts_of(root, facts):
+    """REG-2442 - one run's read_trace() facts as a record a later tree is held to. -> dict (JSON-safe)
+
+    Bytes, sizes, listings and env digests come from the trace, measured AS the run read them (H, Z, D, E). What the
+    trace could not measure - a node read's bytes is measured, a listing by descriptor or by glob's pattern is not -
+    is measured in `root`, which must be the tree the run read, right after the run (a heart2 sandbox before anything
+    else touches it), as are the module homes, the .gitignores and the tracked sets. A path the run made before it
+    read it (M) is not a fact; a write that kept the bytes it found (append, r+) measured them first (H)."""
+    hashed = facts.get("H") or {}
+    made = set(facts.get("M") or ()) - set(hashed)
+    sizes = facts.get("Z") or {}
+    listed = facts.get("D") or {}
+    rec = {"v": FACTS_VERSION}
+    rec["R"] = {}
+    for p in sorted((set(facts.get("R") or ()) | set(hashed)) - made):
+        d = hashed.get(p)
+        rec["R"][p] = (("d:" + _listing_digest(root, p)) if d == "d" else d) if d is not None else _fact_bytes(root, p)
+    rec["Z"] = dict((p, dict(k)) for p, k in sorted(sizes.items()) if p not in made)
+    rec["S"] = dict((p, _presence(root, p)) for p in sorted(set(facts.get("S") or ()) - made - set(sizes)))
+    rec["A"] = sorted(set(facts.get("A") or ()) - made)
+    rec["L"] = dict((p, listed.get(p) or _listing_digest(root, p)) for p in sorted(set(facts.get("L") or ()) - made))
+    homes = set(["", "tv"]) | set(os.path.dirname(p).replace(os.sep, "/") for p in rec["R"] if p.endswith(".py"))
+    rec["I"] = _module_homes(root, set(facts.get("I") or ()), homes)
+    rec["Ihomes"] = sorted(homes)
+    rec["G"] = (_gitignores(root) if facts.get("G") else {})
+    rec["T"] = dict((s, _tracked_scope(root, s)) for s in sorted(facts.get("T") or ()))
+    rec["E"] = dict(sorted((facts.get("E") or {}).items()))
+    rec["C"] = list(facts.get("C") or ())
+    return rec
+
+
+def facts_hold(root, facts, env=None, allow_cdp_chrome=False):
+    """REG-2442 - does every fact of one run's record still hold in `root` and `env`? -> (bool, why)
+
+    `facts` is facts_of()'s record; `env` the environment the next run would start with (default os.environ). The first
+    fact that moved is the why. A record of another version, an unmeasured fact ("?"), and - unless the caller passes
+    allow_cdp_chrome=True and keys what that browser loaded itself - a run with an attested Chrome never hold."""
+    if not isinstance(facts, dict) or facts.get("v") != FACTS_VERSION:
+        return False, "the facts are unreadable or of another version"
+    if facts.get("C") and not allow_cdp_chrome:
+        return False, "a Chrome the run started read pages no fact names"
+    env = os.environ if env is None else env
+    for name, d in sorted((facts.get("E") or {}).items()):
+        if d == "?" or _env_digest(env, name) != d:
+            return False, "the environment's %s is not the value the run read" % name  # FACTS-ENV
+    for p in facts.get("A") or ():
+        if os.path.lexists(_fact_path(root, p)):
+            return False, "%s exists now; the run found it absent" % p
+    for p, was in sorted((facts.get("S") or {}).items()):
+        if _presence(root, p) != was:
+            return False, "%s is not there as the run found it" % p
+    for p, kinds in sorted((facts.get("Z") or {}).items()):
+        full = _fact_path(root, p)
+        for kind, size in sorted(kinds.items()):
+            follows = kind not in ("l", "F", "D", "O")
+            try:
+                now = _kind_size(os.stat(full) if follows else os.lstat(full), follows)
+            except OSError:
+                now = ("-", "-")
+            if now != (kind, size):  # FACTS-SIZE
+                return False, "%s is %s now; the run's stat said %s" % (p, " ".join(now), " ".join((kind, size)))
+    for p, d in sorted((facts.get("R") or {}).items()):
+        if d == "?" or _fact_bytes(root, p) != d:
+            return False, "%s is not the bytes the run read" % p  # FACTS-BYTES
+    for p, d in sorted((facts.get("L") or {}).items()):
+        if d == "?" or _listing_digest(root, p) != d:
+            return False, "%s does not hold what the run listed" % (p or "the root")  # FACTS-LISTING
+    homes = facts.get("Ihomes")
+    if facts.get("I") and not isinstance(homes, list):
+        return False, "the imported names' homes were not recorded"
+    now_homes = _module_homes(root, set(facts.get("I") or {}), set(homes or ()))
+    for name, was in sorted((facts.get("I") or {}).items()):
+        if now_homes.get(name) != was:
+            return False, "the module that answers `import %s` is not the one the run found" % name  # FACTS-SHADOW
+    if facts.get("G") is None:
+        return False, "the run asked git check-ignore and its .gitignore files were not measured"
+    if facts.get("G"):
+        if any(v == "?" for v in facts["G"].values()) or _gitignores(root) != facts["G"]:
+            return False, "a .gitignore is not the one git answered the run from"  # FACTS-GITIGNORE
+    for scope, d in sorted((facts.get("T") or {}).items()):
+        if d == "?" or _tracked_scope(root, scope) != d:
+            return False, "the tracked files `git ls-files` listed are not the ones the run listed"  # FACTS-TRACKED
+    return True, None
 
 
 def _console_own_records():

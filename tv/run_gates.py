@@ -11875,6 +11875,31 @@ GATES = [
              "PC's slice serves from its bank only gates the bank keys whole; the ALT's bank-only run beside his "
              "game serves and never proves; keys are raw bytes with /-separated names; an export carries no "
              "machine path"),
+    Gate("test_a_trace_names_every_read_a_key_needs",
+         [sys.executable, os.path.join(HERE, "test_a_trace_names_every_read_a_key_needs.py")], 300,
+         needs_app=False,
+         why="REG-2442 (#147 R1) - gate_trace dropped every path outside its root without a word, wrote no fact for an "
+             "env read, kept a stat as presence only, and sqlite3/mmap/ctypes/dbm read files no open event names. Now "
+             "TV_GATE_TRACE_DENY/_ALLOW make a read of a denied root a U, STRICT makes those imports and getmtime/"
+             "getctime under the root a U, single-name env reads are E facts (never plumbing, a bulk copy, or a value "
+             "the run made), Z keeps a stat's size, H the bytes as read, D a listing as listed, T the tracked set; "
+             "gate_ledger.facts_of/facts_hold hold a later tree to every one. Driven on fixture trees under the real "
+             "hook, python and node."),
+    Gate("test_a_chrome_the_run_did_not_start_untraces_it",
+         [sys.executable, os.path.join(HERE, "test_a_chrome_the_run_did_not_start_untraces_it.py")], 300,
+         needs_app=False,
+         why="REG-2443 (#147 R1) - every Chrome a traced run started read as U, and render_check._chrome_up silently "
+             "adopted whatever answered on its port. Traced, its Chrome carries TV_GATE_TRACE_CDP=1 and is written C "
+             "(read like U unless the reader allows it); an answering port it did not start is a U line before it is "
+             "adopted (and never adopted unsaid); an unmarked or merely inheriting child is U. A stub Chrome via "
+             "TV_CHROME answers /json/version - no browser runs."),
+    Gate("test_no_page_loads_python_or_markdown",
+         [sys.executable, os.path.join(HERE, "test_no_page_loads_python_or_markdown.py")], 120,
+         needs_app=False,
+         why="REG-2444 (#147 R1) - a browser key can name what a page loads only if no page loads a .py or a .md: no "
+             "tracked .html/.js/.css/.mjs/.cjs names one in src=, a stylesheet/preload/import link, url(), import(), "
+             "@import, a Worker, importScripts, a service worker or fetch(). The page list is the law's own bytes, "
+             "held to git ls-files (a new tracked page must be added there)."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

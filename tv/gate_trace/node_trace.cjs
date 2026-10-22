@@ -5,6 +5,14 @@
 // Lines are `KIND<TAB>PID<TAB>TEXT`, repo-relative, appended to TV_GATE_TRACE. A child that is
 // not node or python, and an ES module loaded from this checkout (its imports do not go through
 // fs), are a U line: that run is never carried.
+//
+// REG-2442 (#147 R1) - the facts sitecustomize.py writes, written the same way here: Z (a stat's kind and size), E (a
+// single-name read of process.env, `<sha256|-> <NAME>`, never for _PLUMBING, a name this process set, or - in a child -
+// a value the run's root did not have), N (the root's environment, once), C (a child whose own env carries
+// TV_GATE_TRACE_CDP=1 while this process's does not) and the U of TV_GATE_TRACE_DENY / _ALLOW. A bulk read of
+// process.env (spread, Object.entries, a spawn with no env) reads each name right after enumerating it, and is not a
+// fact. FLOOR, said: a name read directly in the same tick right after an enumeration that read no values (Object.keys)
+// passes for a bulk read when it is exactly the last name enumerated; a C++ addon's getenv() is not seen.
 'use strict';
 (function () {
   const out = process.env.TV_GATE_TRACE;
@@ -15,11 +23,81 @@
   const url = require('url');
   const roots = [path.normalize(root)];
   try { const r = fs.realpathSync(root); if (!roots.includes(r)) roots.push(r); } catch (e) { /* keep one */ }
+  const realRealpath = fs.realpathSync;
+  const realStat = fs.statSync;
+  const realReadFile = fs.readFileSync;
+  const realEnv = process.env;
+  const crypto = require('crypto');
+  // REG-2442 - the names a prover sets per run: the same set as sitecustomize.py's _PLUMBING  // TRACE-PLUMBING
+  const PLUMBING = new Set(['TMPDIR', 'TEMP', 'TMP', 'TV_LANE_PORT_BASE', 'TV_PORT', 'TV_CONTROL_PORT', 'TV_LAW_PORT',
+    'TV_RENDER_PORT', 'PYTHONPATH', 'PYTHONDONTWRITEBYTECODE', 'PYTHONPYCACHEPREFIX', 'NODE_OPTIONS']);
+  const plumbing = (n) => { const u = String(n).toUpperCase(); return PLUMBING.has(u) || u.startsWith('HEART2_') || u.startsWith('TV_GATE_'); };
+  const digestOf = (v) => crypto.createHash('sha256').update(Buffer.from(String(v), 'utf8')).digest('hex');
+  const win = process.platform === 'win32';
+  function formsOf(spec) {
+    const found = [];
+    for (let part of String(spec || '').split(path.delimiter)) {
+      part = part.trim();
+      if (!part) continue;
+      if (part === '~' || part.startsWith('~/') || part.startsWith('~\\')) part = require('os').homedir() + part.slice(1);
+      const p = path.resolve(part);
+      const cands = [p];
+      try { cands.push(realRealpath(p)); } catch (e) { /* the given form stands alone */ }
+      for (let c of cands) { c = path.normalize(c); if (win) c = c.toLowerCase(); if (!found.includes(c)) found.push(c); }
+    }
+    return found;
+  }
+  const deny = formsOf(realEnv.TV_GATE_TRACE_DENY);
+  const allow = formsOf(realEnv.TV_GATE_TRACE_ALLOW);
+  // whose environment this process's E facts are held to: the nearest traced ancestor that wrote an N block
+  let isRoot = true;
+  let rootEnv = null;
+  try {
+    const parent = new Map();
+    const block = new Map();
+    for (const line of fs.readFileSync(out, 'utf8').split('\n')) {
+      if (!(line.startsWith('B\t') || line.startsWith('N\t'))) continue;
+      const i = line.indexOf('\t', 2);
+      if (i < 0) continue;
+      const pid = line.slice(2, i);
+      const text = line.slice(i + 1);
+      if (line[0] === 'B') { parent.set(pid, text); continue; }
+      const sp = text.indexOf(' ');
+      if (!block.has(pid)) block.set(pid, new Map());
+      block.get(pid).set(text.slice(sp + 1), text.slice(0, sp));
+    }
+    let p = String(process.ppid);
+    if (parent.has(p)) {
+      isRoot = false;
+      const walked = new Set();
+      while (parent.has(p) && !walked.has(p)) {
+        if (block.has(p)) { rootEnv = block.get(p); break; }
+        walked.add(p);
+        p = parent.get(p);
+      }
+    }
+  } catch (e) { /* unreadable: a root of its own subtree, every read a fact (over-wide, never under) */ }
   let fd;
   try { fd = fs.openSync(out, 'a'); } catch (e) { return; }
   const writeSync = fs.writeSync;
   const seen = new Set();
   let busy = false;
+  const realdirs = new Map();
+  function under(p, bases) {
+    for (const b of bases) if (p === b || p.startsWith(b.endsWith(path.sep) ? b : b + path.sep)) return true;
+    return false;
+  }
+  function denied(p) {
+    const dir = path.dirname(p);
+    let real = realdirs.get(dir);
+    if (real === undefined) {
+      try { real = realRealpath(dir); } catch (e) { real = dir; }
+      if (realdirs.size < 8192) realdirs.set(dir, real);
+    }
+    const forms = [p, path.join(real, path.basename(p))].map((f) => (win ? f.toLowerCase() : f));
+    if (allow.length && forms.some((f) => under(f, allow))) return false;
+    return forms.some((f) => under(f, deny));
+  }
   function emit(kind, text, once) {
     const key = kind + '\t' + text;
     if (once !== false) { if (seen.has(key)) return; seen.add(key); }
@@ -40,6 +118,7 @@
           return r;
         }
       }
+      if (deny.length && denied(p)) emit('U', 'reached ' + p + ', under a root no key of this run can name');  // TRACE-DENY
     } catch (e) { /* not a path */ }
     return null;
   }
@@ -57,40 +136,76 @@
     };
   }
   const R = (p) => note('R', p);
+  // REG-2442 - H: the bytes a read finds, measured as it opens (sitecustomize.py's bytes_fact): once per path
+  function H(p) {
+    const r = rel(p);
+    if (r === null || seen.has('H:' + r)) return;
+    seen.add('H:' + r);
+    let d;
+    try {
+      const st = realStat(p);
+      d = st.isDirectory() ? 'd' : (st.isFile() ? crypto.createHash('sha256').update(realReadFile(p)).digest('hex') : '?');
+    } catch (e) { d = (e && e.code === 'ENOENT') ? '-' : '?'; }
+    emit('H', d + ' ' + r);  // TRACE-BYTES-FACT
+  }
+  const RH = (p) => { R(p); H(p); };
   const W = (p) => note('W', p);
   const L = (p) => note('L', p);
   const realLstat = fs.lstatSync;
+  // the Z fact: an lstat names a non-link F, D or O (sitecustomize.py's size_of), a followed stat f, d or o
+  const sizeOf = (st, follows) => {
+    const k = st.isSymbolicLink() ? 'l' : st.isFile() ? 'f' : st.isDirectory() ? 'd' : 'o';
+    return (follows || k === 'l' ? k : k.toUpperCase()) + ' ' + ((k === 'f' || k === 'l') ? String(st.size) : '-');
+  };
   const S = (p) => {
     const r = rel(p);
     if (r === null) return;
     let there = true;
-    try { realLstat(p); } catch (e) { there = false; }
+    let st = null;
+    try { st = realLstat(p); } catch (e) { there = false; }
     emit(there ? 'S' : 'A', r);
+    if (!st) return;
+    emit('Z', sizeOf(st, false) + ' ' + r);  // TRACE-SIZE-FACT
+    if (st.isSymbolicLink()) {
+      let to = '- -';  // a followed stat finds nothing: the link dangles
+      try { to = sizeOf(realStat(p), true); } catch (e) { /* kept as '- -' */ }
+      emit('Z', to + ' ' + r);
+    }
   };
   const P = fs.promises;
-  for (const n of ['readFileSync', 'readFile', 'createReadStream']) wrap(fs, n, R);
-  for (const n of ['readFile']) wrap(P, n, R);
-  for (const n of ['openSync', 'open']) wrap(fs, n, (p, flags) => (writes(flags) ? W(p) : R(p)));
-  wrap(P, 'open', (p, flags) => (writes(flags) ? W(p) : R(p)));
+  for (const n of ['readFileSync', 'readFile', 'createReadStream']) wrap(fs, n, RH);
+  for (const n of ['readFile']) wrap(P, n, RH);
+  // a write that keeps the bytes it finds (append, r+, no truncate) measured them first, as a read does
+  const keeps = (flags) => (typeof flags === 'string' ? !/[wx]/.test(flags)
+    : (typeof flags === 'number' && (flags & (fs.constants.O_TRUNC | fs.constants.O_EXCL)) === 0));
+  const opened = (p, flags) => { if (!writes(flags)) { RH(p); return; } if (keeps(flags)) H(p); W(p); };
+  for (const n of ['openSync', 'open']) wrap(fs, n, opened);
+  wrap(P, 'open', opened);
   for (const n of ['readdirSync', 'readdir', 'opendirSync', 'opendir']) wrap(fs, n, L);
   for (const n of ['readdir', 'opendir']) wrap(P, n, L);
   for (const n of ['existsSync', 'statSync', 'lstatSync', 'stat', 'lstat', 'accessSync', 'access', 'exists', 'realpathSync']) wrap(fs, n, S);
   for (const n of ['stat', 'lstat', 'access']) wrap(P, n, S);
-  for (const n of ['writeFileSync', 'writeFile', 'appendFileSync', 'appendFile', 'mkdirSync', 'mkdir', 'createWriteStream']) wrap(fs, n, W);
-  for (const n of ['writeFile', 'appendFile', 'mkdir']) wrap(P, n, W);
+  for (const n of ['writeFileSync', 'writeFile', 'mkdirSync', 'mkdir', 'createWriteStream']) wrap(fs, n, W);
+  for (const n of ['appendFileSync', 'appendFile']) wrap(fs, n, (p) => { H(p); W(p); });
+  for (const n of ['writeFile', 'mkdir']) wrap(P, n, W);
+  wrap(P, 'appendFile', (p) => { H(p); W(p); });
   for (const n of ['renameSync', 'rename']) wrap(fs, n, (a, b) => W(b));
   wrap(P, 'rename', (a, b) => W(b));
-  for (const n of ['copyFileSync', 'copyFile']) wrap(fs, n, (a, b) => { R(a); W(b); });
+  for (const n of ['copyFileSync', 'copyFile']) wrap(fs, n, (a, b) => { RH(a); W(b); });
   let kids = 0;
   function child(file, env) {
     const head = path.basename(String(file || ''));
-    const source = env || process.env;
+    const source = env || realEnv;
     const traced = source.TV_GATE_TRACE === out;
     const isNode = head === 'node' || head === 'nodejs' || file === process.execPath;
     const isPy = head.startsWith('python');
     if (traced && (isPy || (isNode && String(source.NODE_OPTIONS || '').includes('node_trace.cjs')))) {
       kids += 1;
       emit('P', String(kids), false);
+      return;
+    }
+    if (env && !isPy && !isNode && String(env.TV_GATE_TRACE_CDP || '') === '1' && String(realEnv.TV_GATE_TRACE_CDP || '') !== '1') {
+      emit('C', 'started ' + (head || 'a process') + ', a Chrome this run started for its pages');  // TRACE-CDP-ATTESTED
       return;
     }
     emit('U', 'started ' + (head || 'a process'));
@@ -108,6 +223,49 @@
     child(process.execPath, opts && opts.env);
   });
   emit('B', String(process.ppid));
+  if (isRoot) {
+    for (const k of Object.keys(realEnv)) if (!plumbing(k)) emit('N', digestOf(realEnv[k]) + ' ' + k);  // TRACE-ENV-ROOT-BLOCK
+  }
+  // REG-2442 - E facts: process.env behind a Proxy that tells a single-name read from a bulk one
+  const envSeen = new Set();
+  const envWritten = new Set();
+  let pending = null;
+  let enumerating = false;
+  const envName = (k) => (win ? String(k).toUpperCase() : String(k));
+  function envNote(k) {
+    if (busy || typeof k !== 'string') return;
+    const name = envName(k);
+    if (plumbing(name) || envWritten.has(name) || envSeen.has(name)) return;
+    envSeen.add(name);
+    const v = Reflect.get(realEnv, k);
+    const d = v === undefined ? '-' : (String(v).includes('\ufffd') ? '?' : digestOf(v));
+    if (rootEnv !== null && /^[\x00-\x7f]*$/.test(name) && (rootEnv.get(name) || '-') !== d) return;  // TRACE-ENV-MADE
+    emit('E', d + ' ' + name);  // TRACE-ENV-FACT
+  }
+  function settle() { enumerating = false; pending = null; }
+  try {
+    process.env = new Proxy(realEnv, {
+      get(t, k) {
+        if (typeof k === 'string') {
+          if (pending === k) pending = null;  // a bulk copy reads the name it just enumerated
+          else { settle(); envNote(k); }
+        }
+        return Reflect.get(t, k);
+      },
+      has(t, k) { settle(); envNote(k); return Reflect.has(t, k); },
+      ownKeys(t) { enumerating = true; pending = null; process.nextTick(settle); return Reflect.ownKeys(t); },
+      getOwnPropertyDescriptor(t, k) {
+        if (enumerating) pending = k;
+        else envNote(k);
+        return Reflect.getOwnPropertyDescriptor(t, k);
+      },
+      set(t, k, v) { if (typeof k === 'string') envWritten.add(envName(k)); return Reflect.set(t, k, v); },
+      deleteProperty(t, k) { if (typeof k === 'string') envWritten.add(envName(k)); return Reflect.deleteProperty(t, k); },
+      defineProperty(t, k, d) { if (typeof k === 'string') envWritten.add(envName(k)); return Reflect.defineProperty(t, k, d); },
+    });
+  } catch (e) {
+    emit('U', 'could not watch its environment');
+  }
   const main = process.argv[1];
   const esm = process.execArgv.some((a) => a.startsWith('--input-type=module') || a.startsWith('--experimental-loader') || a.startsWith('--import'));
   if (esm || (main && rel(main) !== null && /\.mjs$/.test(main))) {
