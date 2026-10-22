@@ -23,6 +23,13 @@ cached - the law file only, never the closure; the cache's OWN failure (key_for 
 verdict; and a stored PROVEN with no readable provedAt is not reused, because a verdict nobody can date cannot keep its
 age.
 
+R4 (REG-2341, 2026-10-21) - the v1 file reached 320 MB because every entry kept its whole inputs list and the cap ran
+before the merge with the disk, which undid it. An entry now keeps nInputs and a digest of the names; the cap runs AFTER
+the merge and evicts the least useful first (an entry no reader could serve, then one superseded by a newer proof of
+the same gate/proof/target/widths, then one whose gate is gone, then the least recently USED or proved); and an entry
+that stands on facts - a traced kind, a facts reference - is never served by this byte key (the critic: missing or
+unreadable facts are a MISS, always). The store lives in git's common dir (REG-2340), gitignored side files and all.
+
 EVERYTHING HERE IS A FIXTURE: a throwaway repo copy holding a ten-line law, its helper, its subject and a bible.html; the
 cache file lives beside them. No browser starts, the real tree is never copied, nothing of his is read or written -
 except the cases that READ the real registry, .gitignore and the CI workflows, because that is where the wiring lives.
@@ -200,8 +207,10 @@ class AProvenVerdictIsReusedOnlyOnIdenticalBytes(_Case):
         self.assertEqual(len(ent), 1, "one PROVEN was proved and %d entr(ies) were banked" % len(ent))
         e = list(ent.values())[0]
         self.assertEqual((e["verdict"], e["gate"], e["proof"], e["target"]), (H.PROVEN, _GATE, 0, "subject.txt"))
-        self.assertIn("tv/subject.txt", e["inputs"])
-        self.assertTrue(all(not os.path.isabs(p) for p in e["inputs"]), "an absolute path in the record: %s" % e["inputs"])
+        # R4 - the key digests every byte; the entry keeps only HOW MANY inputs and a digest of their names
+        self.assertNotIn("inputs", e, "the entry still carries its whole inputs list (the 320 MB file)")
+        self.assertGreaterEqual(e.get("nInputs") or 0, 4, "the entry does not say how many inputs it was keyed on")
+        self.assertRegex(str(e.get("inputsDigest")), r"^[0-9a-f]{16}$", "the entry carries no digest of its inputs")
         self.assertTrue(any("#42 P3 CACHE: 0 of 1 proof(s) reused" in l and "1 proved and banked" in l for l in said),
                         "PRINT THE DENOMINATOR (cold): %s" % [l for l in said if "P3 CACHE" in l])
         results, per, stopped, runs, said = self.push()
@@ -414,14 +423,17 @@ class AProvenVerdictIsReusedOnlyOnIdenticalBytes(_Case):
             fh.write("{not json")
         results, per, stopped, runs, said = self.push()
         self.assertRan(runs, said, "an unreadable cache")
-        self.assertTrue(any("UNREADABLE" in l and "would not parse" in l for l in said),
-                        "the unreadable cache was not said out loud: %s" % said[:3])
+        # the OPENER's line (R4: the writer that later sets the file aside says so too - one saying must not stand in
+        # for the other, so the open's own words are asked for)
+        self.assertTrue(any("#42 P3 CACHE" in l and "UNREADABLE" in l and "would not parse" in l for l in said),
+                        "the unreadable cache was not said out loud when it was opened: %s" % said[:3])
         self.assertEqual(len(self.entries()), 1, "the unreadable file was not rewritten by the first PROVEN")
         with io.open(self.cache_path, "w", encoding="utf-8") as fh:
             json.dump(["a list, not the map"], fh)
         results, per, stopped, runs, said = self.push()
         self.assertRan(runs, said, "a cache of the wrong shape")
-        self.assertTrue(any("UNREADABLE" in l and "no 'entries' map" in l for l in said), said[:3])
+        self.assertTrue(any("#42 P3 CACHE" in l and "UNREADABLE" in l and "no 'entries' map" in l for l in said),
+                        said[:3])
 
     def test_the_tree_moving_under_a_proof_is_not_banked(self):
         """★ the key is taken again after the run: the law writes beside itself (P3_MUTATE), the key differs, PROVEN
@@ -508,13 +520,108 @@ class AProvenVerdictIsReusedOnlyOnIdenticalBytes(_Case):
             ignored = [l.strip() for l in fh if l.strip() and not l.startswith("#")]
         self.assertIn("tv/.heart2_cache.json", ignored, "the cache is not gitignored - one Mac's proofs would travel")
         self.assertIn("tv/.heart2_cache.json.tmp", ignored)
-        # #242 (REG-1996) - ONE CACHE PER MACHINE: beside the census of the MAIN checkout. In the main checkout that is this
-        # tree's own STATE; in a worktree it is the main checkout's tv/ (heart2._shared_cache_path), never the worktree's.
+        # R9 (REG-2340) - no generation or side file of a store ever shows in git status: a writer's own tmp, a .prev, an
+        # .unreadable-<ms> kept aside, a checkout's own fallback store dir
+        import fnmatch
+        for name in ("tv/.heart2_cache.json.123.4.tmp", "tv/.heart2_cache.json.prev", "tv/.heart2_cache.json.unreadable-9",
+                     "tv/.heart2_red.json.123.4.tmp", "tv/.heart2_red.json.prev"):
+            self.assertTrue(any(fnmatch.fnmatch(name, pat) for pat in ignored),
+                            "%s would show in git status - no .gitignore pattern covers it" % name)
+        self.assertIn("tv/.heart2_v2/", ignored, "a checkout's own fallback store dir would show in git status")
+        # #242 (REG-1996) - ONE CACHE PER MACHINE, and REG-2340: it is in git's common dir - shared by main and every
+        # worktree, never copied, never listed by git, and never the tv/ file the code before REG-2341 still writes
         self.assertEqual(H.CACHE, H._shared_cache_path(), "the cache is not the machine's one shared cache")
         self.assertEqual(os.path.basename(H.CACHE), ".heart2_cache.json")
-        self.assertEqual(os.path.basename(os.path.dirname(H.CACHE)), "tv", "the cache is not in a tv/ beside a census")
-        if not os.path.isfile(os.path.join(os.path.dirname(H.HERE), ".git")):       # the main checkout, not a worktree
-            self.assertEqual(os.path.dirname(H.CACHE), os.path.dirname(H.STATE), "the cache is not beside the census")
+        mine = H._shared_cache_path(env={})
+        self.assertEqual(os.path.dirname(mine), H._shared_store()[0], "the cache is not in the machine's store dir")
+        self.assertNotEqual(os.path.dirname(mine), H.HERE, "the cache is old code's tv/ file again")
+        common, _why = H._git_common_dir(H.REPO)
+        if common:                                      # a real checkout (a heart2 sandbox has no git dir)
+            self.assertEqual(os.path.dirname(mine), os.path.join(common, "heart2"))
+
+
+class TheStoreKeepsWhatItCanServe(unittest.TestCase):
+    """R4 (REG-2341) - the cap AFTER the merge, eviction by use, and nothing served that stands on facts it cannot check."""
+
+    def setUp(self):
+        self.dir = tempfile.mkdtemp(prefix="p3cap.")
+        self.addCleanup(shutil.rmtree, self.dir, True)
+        self.path = os.path.join(self.dir, ".heart2_cache.json")
+
+    def _write(self, entries):
+        with io.open(self.path, "w", encoding="utf-8") as fh:
+            json.dump({"format": 2, "entries": entries}, fh)
+
+    def _flush(self, mine, cap, live=None):
+        """One run banks `mine` over what is on disk, with CACHE_MAX = cap. -> the entries on disk after"""
+        with _Patch(CACHE_MAX=cap, _live_gate_names=lambda: live):
+            c = H._VerdictCache(path=self.path, say=lambda *a, **k: None)
+            for k, e in mine.items():
+                c.store(k, e)
+            self.assertTrue(c.flush(), "PREMISE: the flush failed")
+        with io.open(self.path, encoding="utf-8") as fh:
+            return json.load(fh)["entries"]
+
+    @staticmethod
+    def _e(gate, proof, t, **kw):
+        e = {"verdict": H.PROVEN, "gate": gate, "proof": proof, "target": "s.txt", "at": "", "why": "w", "provedAt": t}
+        e.update(kw)
+        return e
+
+    def test_the_cap_is_counted_after_the_merge(self):
+        """★ three on disk, two banked by this run, a cap of three: three on disk after - the merge cannot undo the cap"""
+        self._write(dict(("d%d" % i, self._e("g", i, i)) for i in range(3)))
+        got = self._flush({"m1": self._e("g", 10, 10), "m2": self._e("g", 11, 11)}, cap=3)
+        self.assertEqual(len(got), 3, "the store holds %d entries over a cap of 3 - the cap ran before the merge"
+                         % len(got))
+        self.assertIn("m1", got)
+        self.assertIn("m2", got)
+
+    def test_a_superseded_entry_leaves_before_an_older_live_one(self):
+        """★ at the cap, a proof superseded by a newer proof of the SAME gate/proof/target/widths leaves first - even
+        when an unrelated entry is older"""
+        self._write({"old_x": self._e("x", 0, 2), "y": self._e("y", 0, 3), "sup": self._e("g", 0, 4)})
+        got = self._flush({"new": self._e("g", 0, 5)}, cap=3)
+        self.assertEqual(sorted(got), ["new", "old_x", "y"], "the superseded entry stayed while a live one left: %s"
+                         % sorted(got))
+
+    def test_a_used_entry_outlives_a_newer_unused_one(self):
+        """★ eviction is by USE: an old proof a push served yesterday outlives a newer one nobody has asked for"""
+        self._write({"used": self._e("a", 0, 1, usedAt=100), "idle": self._e("b", 0, 2), "z": self._e("c", 0, 3)})
+        got = self._flush({"m": self._e("d", 0, 50)}, cap=3)
+        self.assertEqual(sorted(got), ["m", "used", "z"], "the used entry left before an unused one: %s" % sorted(got))
+
+    def test_a_hit_is_a_use_written_at_the_flush(self):
+        """★ a lookup that serves an entry stamps its usedAt, and the next flush writes it"""
+        self._write({"k": self._e("a", 0, 1)})
+        c = H._VerdictCache(path=self.path, say=lambda *a, **k: None)
+        self.assertIsNotNone(c.lookup("k"))
+        self.assertTrue(c.flush(), "a hit alone did not reach the disk")
+        with io.open(self.path, encoding="utf-8") as fh:
+            self.assertIsInstance(json.load(fh)["entries"]["k"].get("usedAt"), int, "the hit was not written as a use")
+
+    def test_an_entry_whose_gate_is_gone_leaves_before_a_live_one(self):
+        """★ a gate no longer registered: its proofs leave before an older proof of a live gate"""
+        self._write({"live_old": self._e("live", 0, 1), "gone_new": self._e("gone", 0, 9)})
+        got = self._flush({"m": self._e("live", 1, 10)}, cap=2, live={"live"})
+        self.assertEqual(sorted(got), ["live_old", "m"], "a dead gate's entry outlived a live one: %s" % sorted(got))
+
+    def test_a_corrupt_stamp_never_blocks_a_write(self):
+        """★ an entry whose usedAt is not a number is read as never used - it never raises inside the merge, where it
+        would block every later write of the store"""
+        self._write({"k": self._e("a", 0, 1, usedAt="never")})
+        got = self._flush({"k": self._e("a", 0, 2)}, cap=10)
+        self.assertEqual(got["k"]["provedAt"], 2, "a corrupt stamp on disk blocked the write of this run's proof")
+
+    def test_an_entry_standing_on_facts_is_never_served_by_the_byte_key(self):
+        """★ (critic) MISSING OR UNREADABLE FACTS ARE A MISS, ALWAYS: an entry of a kind this reader cannot check - a traced
+        kind, a facts table it does not hold, a facts reference to nothing - is never a hit, never 'no requirement'"""
+        c = H._VerdictCache(path=self.path, say=lambda *a, **k: None)
+        c.entries = {"plain": self._e("a", 0, 1), "traced": self._e("a", 1, 1, kind="traced"),
+                     "facts": self._e("a", 2, 1, facts={}), "ref": self._e("a", 3, 1, factsRef="gone")}
+        self.assertIsNotNone(c.lookup("plain"), "BASELINE: a static entry is a hit")
+        for k in ("traced", "facts", "ref"):
+            self.assertIsNone(c.lookup(k), "an entry standing on facts was served by the byte key: %s" % k)
 
 
 class TheKeyNamesEveryInput(unittest.TestCase):
@@ -615,6 +722,69 @@ class TheKeyNamesEveryInput(unittest.TestCase):
 
 RED_PROOF = [
     {
+        "why": "R4 - an entry keeps its whole inputs list again, and the store grows back to hundreds of MB",
+        "file": "heart2.py",
+        "find": "    out = dict((k, v) for k, v in entry.items() if k != \"inputs\")\n",
+        "replace": "    out = dict(entry)\n",
+        "matches": 1,
+    },
+    {
+        "why": "R4 - the cap runs before the merge with the disk, which undoes it: the store outgrows its cap",
+        "file": "heart2.py",
+        "find": "                ent = _merged_cache((disk or {}).get(\"entries\"), mine, used)\n                out[\"evicted\"] = _cache_evict(ent, CACHE_MAX)\n",
+        "replace": "                _cache_evict(mine, CACHE_MAX)\n                ent = _merged_cache((disk or {}).get(\"entries\"), mine, used)\n                out[\"evicted\"] = 0\n",
+        "matches": 1,
+    },
+    {
+        "why": "R4 - eviction ignores use: an old proof pushes still serve leaves before a newer one nobody asks for",
+        "file": "heart2.py",
+        "find": "        return (3, max(_proven_at(e), _num(e.get(\"usedAt\"))))\n",
+        "replace": "        return (3, _proven_at(e))\n",
+        "matches": 1,
+    },
+    {
+        "why": "R4 - a corrupt stamp raises inside the merge, and the store can never be written again",
+        "file": "heart2.py",
+        "find": "            if d is not None and _num(d.get(\"usedAt\")) > _num(e.get(\"usedAt\")):\n",
+        "replace": "            if d is not None and (d.get(\"usedAt\") or 0) > (e.get(\"usedAt\") or 0):\n",
+        "matches": 1,
+    },
+    {
+        "why": "R4 - a superseded proof is evicted no sooner than a live one",
+        "file": "heart2.py",
+        "find": "        if newest.get((e.get(\"gate\"), e.get(\"proof\"), e.get(\"target\"), e.get(\"at\"), e.get(\"why\"))) != k:\n",
+        "replace": "        if False:\n",
+        "matches": 1,
+    },
+    {
+        "why": "R4 - a gate no longer registered keeps its proofs ahead of live ones",
+        "file": "heart2.py",
+        "find": "        if live is not None and e.get(\"gate\") not in live:\n            return (2, _proven_at(e))\n",
+        "replace": "        if False:\n            return (2, _proven_at(e))\n",
+        "matches": 1,
+    },
+    {
+        "why": "R4 - a hit is not recorded as a use, so eviction can never tell a served proof from an idle one",
+        "file": "heart2.py",
+        "find": "                self.used[key] = int(time.time() * 1000)       # R4 - usedAt: eviction is by use, written at the flush\n",
+        "replace": "                pass\n",
+        "matches": 1,
+    },
+    {
+        "why": "(critic) an entry standing on facts is served by the byte key - absent facts read as no requirement",
+        "file": "heart2.py",
+        "find": "        if e.get(\"kind\", \"static\") != \"static\" or \"facts\" in e or \"factsRef\" in e:\n            return None\n",
+        "replace": "        if False:\n            return None\n",
+        "matches": 1,
+    },
+    {
+        "why": "R9 - a writer's tmp is no longer ignored by git: a leftover shows in git status, one `git add -A` from public",
+        "file": "../.gitignore",
+        "find": "\ntv/.heart2_cache*\n",
+        "replace": "\n",
+        "matches": 1,
+    },
+    {
         "why": "#242 (2026-10-08) - an untracked runtime file named in a law's closure is a key input again, so every key moves",
         "file": "tv/heart2.py",
         "find": "            named = {q for q in named if os.path.relpath(q, repo).replace(os.sep, \"/\") in tracked}\n",
@@ -687,8 +857,8 @@ RED_PROOF = [
     {
         "why": "the cache writes wherever it is pointed - a guard's name included",
         "file": "heart2.py",
-        "find": "            if os.path.basename(self.path) != os.path.basename(CACHE):\n",
-        "replace": "            if False:\n",
+        "find": "        if os.path.basename(self.path) != os.path.basename(CACHE) and os.path.basename(self.path) != _RED_NAME:\n",
+        "replace": "        if False:\n",
         "matches": 1,
     },
     {

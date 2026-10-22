@@ -52,6 +52,9 @@ HEAVY = (
     # not only `.claude/worktrees` - deliberate (the Grok CLI's lens review flagged the breadth; there
     # is no other `worktrees` dir in the repo, and a checkout is never sabotage-test input).
     "worktrees",
+    # REG-2340 (R9) - heart2's per-machine stores when no git dir could be found (a pointer that will not read): the
+    # proofs and red memory of THIS checkout, never source a sabotage test reads
+    ".heart2_v2",
 )
 
 #: FILE names never copied, at any depth, and file SUFFIXES never copied. REG-1845 — MEASURED on his Mac 2026-10-06:
@@ -61,6 +64,12 @@ HEAVY = (
 #: per-machine proof cache (105.9 MB) and a reel-seed archive of his sessions (97.8 MB). Without them: 216.7 MB.
 HEAVY_FILES = (".heart2_cache.json",)
 HEAVY_SUFFIXES = (".tgz",)
+#: REG-2340 (R9) - A STORE NEVER TRAVELS, IN ANY GENERATION. The exact name let every sibling through: a writer's
+#: per-process tmp (`.heart2_cache.json.<pid>.<tid>.tmp` - a 320 MB tmp left in main's tv/ would push every main-tree
+#: sandbox over the 400 MB refusal again, REG-1845), a `.prev`, an `.unreadable-<ms>` kept aside, Windows' lock file
+#: (`.heart2_cache.lock`), the red memory, and this checkout's gate ledger and input map with their tmps. They are
+#: records of this machine's runs, never source a sabotage test reads.
+STORE_PREFIXES = (".heart2_cache", ".heart2_red", ".gate_ledger.json", ".gate_inputs.json")
 #: REG-2123 - FILES THAT NAME A LIVE PROCESS ON THIS MACHINE NEVER TRAVEL. tv/control_agent.pid holds HIS live agent's pid;
 #: copied into a prover sandbox, a private control_app there read it as its own agent, and its STOP path SIGTERMed it -
 #: measured on 2026-10-09: "closing session (signal:SIGTERM)" in his agent log at 02:16 and 02:26, both during a push-time
@@ -69,7 +78,8 @@ LIVE_SUFFIXES = (".pid",)
 
 
 def _heavy_file(name):
-    return name in HEAVY_FILES or name.endswith(HEAVY_SUFFIXES) or name.endswith(LIVE_SUFFIXES)
+    return (name in HEAVY_FILES or name.startswith(STORE_PREFIXES) or name.endswith(HEAVY_SUFFIXES)
+            or name.endswith(LIVE_SUFFIXES))
 
 
 #: Refuse outright above this. A sabotage copy that needs a gigabyte is not a sabotage copy, it is

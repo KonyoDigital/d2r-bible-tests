@@ -10923,6 +10923,20 @@ GATES = [
              "/ full / UNKEYABLE with its reason) before any proving and never fails; every --push appends a record "
              "(per proof the forecast path beside the path taken, verdict, seconds; seams; runs a signal ended; "
              "prove-once violations) to a per-machine file in git's common dir, read by `--pushes`."),
+    Gate("test_two_provers_never_tear_the_store",
+         [sys.executable, os.path.join(HERE, "test_two_provers_never_tear_the_store.py")], 120,
+         needs_app=False,
+         why="R4 (REG-2341) - heart2's verdict cache and red memory wrote through one fixed tmp name with no lock while a "
+             "worktree's pre-flight ran beside main's push. Two REAL processes released by a barrier, held inside one "
+             "window (TV_STORE_HOLD_S), keep both writes in both stores - under flock, and under Windows' msvcrt lock "
+             "file; with no lock each writer renames only its own tmp; a dead writer's tmp is swept; an old-code flush "
+             "never reaches the v2 store."),
+    Gate("test_an_unreadable_store_is_kept_not_overwritten",
+         [sys.executable, os.path.join(HERE, "test_an_unreadable_store_is_kept_not_overwritten.py")], 60,
+         needs_app=False,
+         why="R4 (REG-2341) - an unreadable cache was read as empty and rewritten, and a failed merge-read wrote one "
+             "run's entries alone. Every write keeps a .prev generation; an unreadable store is renamed aside, the newest "
+             "one kept, and .prev stands in at the open and the write - nothing it held is thinned."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)
