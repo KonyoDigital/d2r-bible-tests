@@ -29,6 +29,12 @@ tv/test_a_refused_map_write_never_drops_a_filing.py (3 red-proofs). Open minors 
 vaultKeepAsBase still say "registered" over a refused filing; the in-flight reading window (15 min) is shorter than a 40-file
 read, and a duplicated tab inherits the scan session id.
 
+Round 2 (Grok CLI review of REG-2564, 2026-10-23, FAIL, 3 majors 2 minors): the map hook forced the wait off for ANY map
+(now: it stays while the map still files the missing mule, and lifts at the prune once roster and map agree - never stuck);
+the vaultFixSockets refusal and the witness rollback had no case (now pinned, 6 red-proofs); the rollback snapshot was the
+live row object (now a copy, and no undo when it could not be read); the restore throw path is now driven. Finding 1 (a
+refused restore drops an existing filing) does not apply: the restore door returns 'already' for any filed name first.
+
 ### REG-2563 - A GATE CALLED THE CLAUDE CLI (test_screen_parity, `claude auth status`) - Elad 2026-10-22: never
 
 A run_gates --changed logged "test_screen_parity not stored - the gate started claude". Traced with a logging fake `claude`

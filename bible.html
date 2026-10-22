@@ -41731,7 +41731,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        until that tab's map arrives, the paint's prune must not drop those filings against it: a later saveA() here would
        write the map without them, and if no map ever comes (not this board's delete) they would be gone for good. */
     window._TAB_SYNC[AK] = { kind: 'map', get: function(){ return assign; },
-                             after: function(){ _rosterMapPending = false; return _vaultTabAfter.apply(this, arguments); },
+                             after: function(){ try { _rosterMapPending = !!_rosterMapWhy(roster, assign); } catch (eP) { _rosterMapPending = true; } return _vaultTabAfter.apply(this, arguments); },   /* REG-2564 r2 — a map that still files the missing mule keeps the wait */
                              shape: function(v){ return _muleShapeWhy(AK, v); },
                              adopted: function(){ delete _muleUnread[AK]; } };
     window._TAB_SYNC[RK] = { kind: 'list', get: function(){ return roster; },
@@ -44132,11 +44132,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     });
     /* REG-2411 — held: the pool and the roster in memory are the page's default for a quarantined store, not his vault,
        so no filing is dropped against them (the mule map keeps every row, and _guardedSet does not write it anyway) */
+    if (_rosterMapPending){ try { if (!_rosterMapWhy(roster, assign)) _rosterMapPending = false; } catch (eRp) {} }   /* REG-2564 r2 — never stuck */
     var _pruneHeld = (_pvW6 === null)
       || ((typeof window !== 'undefined' && typeof window._vaultBasisHeld === 'function') && !!window._vaultBasisHeld());
     Object.keys(assign).forEach(function(n){
       if (_pruneHeld) return;
-      if (assign[n]!=='__keep' && !muleById(assign[n])) { if (_rosterMapPending) return; delete assign[n]; return; }
+      if (assign[n]!=='__keep' && !muleById(assign[n])) { if (_rosterMapPending) return; delete assign[n]; return; }   /* REG-2564 r2 — the wait lifts below once roster and map agree */
       if (pool.indexOf(n) >= 0) return;
       if (Object.prototype.hasOwnProperty.call(_pvW6, n)) return;
       delete assign[n];
@@ -45666,7 +45667,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         why: nm + ' is locked to your MAIN (' + lk + ') — a restore never puts a MAIN item into a mule' };
       var rowR = (opts.prov && typeof opts.prov === 'object' && !Array.isArray(opts.prov) && opts.prov.source)
                ? JSON.parse(JSON.stringify(opts.prov)) : null;
-      var _rowPrevR; try { _rowPrevR = _provAll()[nm]; } catch (e) { _rowPrevR = undefined; }
+      /* REG-2564 r2 — a COPY of the row it replaces (never the live object), and no undo at all when it could not be read */
+      var _rowPrevR, _rowPrevOk = true; try { var _rp0 = _provAll()[nm]; _rowPrevR = (_rp0 && typeof _rp0 === 'object') ? JSON.parse(JSON.stringify(_rp0)) : _rp0; } catch (e) { _rowPrevOk = false; }
       if (rowR){
         rowR.mule = toR; rowR.holder = _vHomeName(toR); rowR.restoredAt = new Date().toISOString();
         try { var _pr2 = _provAll()[nm]; if (_pr2 && _pr2.kind === 'owned' && !rowR.ownedBy) rowR.ownedBy = _pr2; } catch (e) {}
@@ -45677,7 +45679,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       var _okR; try { _okR = saveA() !== false; } catch (e) { _okR = false; }
       if (!_okR){
         delete assign[nm];
-        if (rowR){ try { var paB = _provAll(); if (_rowPrevR === undefined) delete paB[nm]; else paB[nm] = _rowPrevR; _provWrite(paB); } catch (e) {} }
+        if (rowR && _rowPrevOk){ try { var paB = _provAll(); if (_rowPrevR === undefined) delete paB[nm]; else paB[nm] = _rowPrevR; _provWrite(paB); } catch (e) {} }
         return { ok: false, refused: 'not-written', why: 'the mule map could not be written, so ' + nm + ' was not put back into ' + _vHomeName(toR) };
       }
       return { ok: true, mode: 'restored', mule: toR, witnessed: !!rowR, prov: rowR };

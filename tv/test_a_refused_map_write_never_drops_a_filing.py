@@ -31,7 +31,9 @@ import vault_page_node as VPN  # noqa: E402
 SEED = r"""
 localStorage.setItem('d2r_ownerClaim', '*');
 localStorage.setItem('d2r_owned', JSON.stringify(['Grief', 'Shako']));
-localStorage.setItem('d2r_muleAssign', JSON.stringify({ 'Grief': 'uni-weap' }));
+localStorage.setItem('d2r_muleAssign', JSON.stringify({ 'Grief': 'uni-weap', 'Monarch (4os)': 'bases' }));
+localStorage.setItem('d2r_owned', JSON.stringify(['Grief', 'Shako', 'Monarch (4os)']));
+localStorage.setItem('d2r_vaultProv', JSON.stringify({ 'Shako': { kind: 'owned', source: 'hand', by: 'law seed', at: '2026-10-01T00:00:00Z' } }));
 """
 
 BODY = r"""
@@ -48,6 +50,13 @@ OUT.afterNext = disk();
 W.vaultUnassign('Shako');
 mode = 'false'; var r = W.vaultFile('Shako', null, { restore: true, mule: 'uni-armor', prov: null }); mode = null;
 OUT.r = { ok: r && r.ok, refused: (r && r.refused) || null };
+mode = 'throw'; var rt = W.vaultFile('Shako', null, { restore: true, mule: 'uni-armor', prov: { source: 'stash', where: 'law' } }); mode = null;
+OUT.rt = { ok: rt && rt.ok, refused: (rt && rt.refused) || null };
+var pv = JSON.parse(W.LSR.getItem('d2r_vaultProv') || '{}'); OUT.shakoRow = pv['Shako'] || null;
+var _vf = W.vaultFile; W.vaultFile = function(){ return undefined; };   /* a refile that answers nothing */
+var fx = W.vaultFixSockets('Monarch (4os)', 3); W.vaultFile = _vf;
+OUT.fx = fx ? { ok: fx.ok, refused: fx.refused || null } : null;
+OUT.flailOwned = JSON.parse(W.LSR.getItem('d2r_owned') || '[]').indexOf('Monarch (4os)') >= 0;
 var u3 = W.vaultUnassign('Grief'); OUT.u3 = !!(u3 && u3.ok);
 OUT.disk = disk();
 })();
@@ -80,6 +89,9 @@ other(RK, JSON.stringify(base));          /* the roster arrives first; its map h
 try { renderVault(); } catch (e) { OUT.rerr = String(e); }
 OUT.after = save();                        /* any good map write from this tab */
 OUT.disk = OUT.after.disk;
+other(AK, JSON.stringify({ 'Grief': 'war1', 'Shako': 'uni-armor' }));   /* a map that STILL files the missing mule */
+try { renderVault(); } catch (e) {}
+OUT.stillFiled = save().disk['Grief'] || null;
 other(AK, JSON.stringify({}));            /* that tab's map now arrives: the delete is complete */
 try { renderVault(); } catch (e) {}
 OUT.afterMap = save().disk['Grief'] || null;
@@ -114,6 +126,17 @@ class ARefusedMapWriteNeverDropsAFiling(unittest.TestCase):
         self.assertTrue(o["u3"], "PREMISE: the next good map write did not happen")
         self.assertNotIn("Shako", o["disk"], "a refused restore stayed in the live map and the next save wrote it: %r" % o["disk"])
 
+    def test_4_a_throwing_restore_puts_the_old_row_back(self):
+        o = page()
+        self.assertEqual(o["rt"]["refused"], "not-written", "a restore whose save threw must answer not-written: %r" % o["rt"])
+        self.assertEqual((o["shakoRow"] or {}).get("by"), "law seed", "the refused restore left its own witness row: %r" % o["shakoRow"])
+
+    def test_5_a_socket_fix_with_no_refile_is_refused(self):
+        o = page()
+        self.assertEqual((o["fx"] or {}).get("refused"), "no-home", "a filed label with no refile must be refused: %r" % o["fx"])
+        self.assertTrue(o["flailOwned"], "the refused socket fix let the old label go")
+        self.assertEqual(o["disk"].get("Monarch (4os)"), "bases", "the refused socket fix dropped the old filing: %r" % o["disk"])
+
     def test_3_another_tabs_roster_ahead_of_its_map_prunes_nothing(self):
         o = VPN.run(SYNC_BODY, prelude=SYNC_PRELUDE, timeout=300)
         self.assertEqual(o["__boot"]["errors"], [], "a page script did not run: %r" % o["__boot"])
@@ -121,10 +144,19 @@ class ARefusedMapWriteNeverDropsAFiling(unittest.TestCase):
         self.assertIsNone(o.get("lerr"))
         self.assertTrue(o["after"]["ok"], "PREMISE: no good map write after the roster: %r" % o["after"])
         self.assertEqual(o["disk"].get("Grief"), "war1", "this tab's next save wrote the map without the filing: %r" % o["disk"])
+        self.assertEqual(o.get("stillFiled"), "war1", "a map that still files the missing mule lifted the wait: %r" % o)
         self.assertIsNone(o.get("afterMap"), "the other tab's map (its delete) must still be taken once it arrives: %r" % o)
 
 
 RED_PROOF = [
+    {"why": "REG-2564 r2 - a socket fix of a filed label with no refile lets the old label go again",
+     "file": "bible.html", "find": "      if (_rfNeed && !_rfF) _rfF = { ok: false,", "replace": "      if (false) _rfF = { ok: false,",
+     "matches": 1, "needs": "node"},
+    {"why": "REG-2564 r2 - any map from another tab lifts the wait, even one still filing the missing mule",
+     "file": "bible.html", "find": "after: function(){ try { _rosterMapPending = !!_rosterMapWhy(roster, assign); } catch (eP) { _rosterMapPending = true; } return _vaultTabAfter",
+     "replace": "after: function(){ _rosterMapPending = false; return _vaultTabAfter", "matches": 1, "needs": "node"},
+    {"why": "REG-2564 r2 - a refused restore leaves its own witness row in place of the old one",
+     "file": "bible.html", "find": "        if (rowR && _rowPrevOk){", "replace": "        if (false){", "matches": 1, "needs": "node"},
     {"why": "REG-2564 - a refused map write leaves the filing deleted in the live map, and the next save drops it",
      "file": "bible.html", "find": "      if (_prevU !== undefined) assign[name] = _prevU;",
      "replace": "      /* tamper */", "matches": 1, "needs": "node"},
