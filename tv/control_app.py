@@ -28779,7 +28779,11 @@ def _orphan_fold_loop():
     _first = True
     while True:
         try:
-            time.sleep(_ORPHAN_FOLD_FIRST_S if _first else _ORPHAN_FOLD_EVERY_S)
+            # two plain sleeps, the tooltip loop's shape: BLUEPRINT's lane table reads the cadence off each constant
+            if _first:
+                time.sleep(_ORPHAN_FOLD_FIRST_S)
+            else:
+                time.sleep(_ORPHAN_FOLD_EVERY_S)
             _first = False
             _lane_tick('tvd-orphan-fold', _ORPHAN_FOLD_EVERY_S)
             import orphan_fold as _of
