@@ -4785,6 +4785,11 @@ def _tracked_files(repo=None):
     data); the named-file half of the key counts only files git tracks. The closure, the tampered target, PROOF_NEEDS and
     the prover are unchanged. None (git not answering) leaves the key as it was - over-inclusion, never a stale PROVEN."""
     repo = REPO if repo is None else repo
+    if not _git_reachable(repo):
+        # REG-2440 - no .git here or above: nothing git could list, so UNKNOWN - git's own failure's answer, without its
+        # child. In a git-less heart2 sandbox that child was a `git ls-files` every law building a verdict cache ran, and a
+        # traced run can only note it as a fact no git-less tree can measure: not one such law was ever banked by facts.
+        return None
     try:
         r = subprocess.run(["git", "-C", repo, "ls-files", "-z"], capture_output=True, timeout=30, env=_git_free_env())
     except (OSError, subprocess.SubprocessError):
@@ -4792,6 +4797,18 @@ def _tracked_files(repo=None):
     if r.returncode != 0:
         return None
     return frozenset(x.decode("utf-8", "replace") for x in r.stdout.split(b"\0") if x)
+
+
+def _git_reachable(path):
+    """Is there a .git in `path` or above it - the only places git's own discovery looks? -> bool"""
+    p = os.path.abspath(path)
+    while True:
+        if os.path.lexists(os.path.join(p, ".git")):          # GIT-REACHABLE
+            return True
+        parent = os.path.dirname(p)
+        if parent == p:
+            return False
+        p = parent
 
 
 def law_inputs(sandbox, filename, proofs, parsed=None, tracked=None, allow_listing=False, skip_modules=()):

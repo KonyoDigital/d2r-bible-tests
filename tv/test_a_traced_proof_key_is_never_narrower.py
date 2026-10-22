@@ -19,7 +19,9 @@ _run_gate, the real trace and gate_ledger) over a throwaway fixture tree heart2 
      banked by it only; one with none pays one full clean run and is banked by its facts;
   3. a path the runs both read and wrote (its time put back, so only that rule can tell), and a read of a file an
      earlier gate in the same sandbox changed, are banked by their static key only - never by facts;
-  4. facts that are missing, or that are not the bytes their name says, are never served.
+  4. facts that are missing, or that are not the bytes their name says, are never served;
+  5. a tree with no .git reachable is answered UNKNOWN without asking git (a sandbox has none), so a law that builds a
+     verdict cache is not untraceable for a `git ls-files` child; a tree with a .git above it is still asked.
 RED_PROOF below.
 """
 import io
@@ -375,6 +377,35 @@ class AbsentFactsAreAMiss(_Case):
                                          "over a law edited since:\n%s" % "\n".join(said))
 
 
+class AGitLessTreeAsksGitNothing(unittest.TestCase):
+
+    def test_a_tree_with_no_git_reachable_is_unknown_without_a_git_child(self):
+        """★ a heart2 sandbox has no .git, and every law that builds a verdict cache asked `git ls-files` there: a traced
+        run can only note that child as a fact no git-less tree can measure, so not one such law was ever banked by its
+        facts. Where no .git is reachable the answer is UNKNOWN (None) without the child; where one is, git is asked"""
+        calls = []
+        real = H.subprocess.run
+
+        def spy(cmd, *a, **k):
+            calls.append(list(cmd) if isinstance(cmd, (list, tuple)) else [cmd])
+            return real(cmd, *a, **k)
+
+        d = tempfile.mkdtemp(prefix="gitless_")
+        self.addCleanup(shutil.rmtree, d, True)
+        H.subprocess.run = spy
+        try:
+            self.assertIsNone(H._tracked_files(d), "a git-less tree read as one git lists")
+            self.assertEqual([c for c in calls if c[:1] == ["git"]], [], "a tree with no .git reachable was asked by git")
+            os.makedirs(os.path.join(d, "sub"))
+            with io.open(os.path.join(d, ".git"), "w", encoding="utf-8") as fh:
+                fh.write("gitdir: %s\n" % os.path.join(d, "nowhere"))         # a .git ABOVE the tree: git's discovery
+            H._tracked_files(os.path.join(d, "sub"))
+        finally:
+            H.subprocess.run = real
+        self.assertTrue([c for c in calls if c[:1] == ["git"]], "a tree with a .git above it was never asked - the "
+                                                                "check is not where git's own discovery looks")
+
+
 RED_PROOF = [
     {"why": "REG-2440 - the key is taken from the gate's clean runs only: a read only the tampered run made is no fact",
      "file": "heart2.py",
@@ -429,6 +460,12 @@ RED_PROOF = [
              "of it\n",
      "replace": "            if leaf != \"__pycache__\":                     # \"\" is the root itself, never a row "
                 "of it\n",
+     "matches": 1},
+    {"why": "REG-2440 - a git-less tree asks git anyway: every law building a verdict cache gets a fact no sandbox can "
+            "measure, and none of them is ever banked by its facts",
+     "file": "heart2.py",
+     "find": "    if not _git_reachable(repo):\n",
+     "replace": "    if False:\n",
      "matches": 1},
     {"why": "REG-2440 - a tampered run is filed as a clean one: the target's tampered bytes become the gate's fact",
      "file": "heart2.py",
