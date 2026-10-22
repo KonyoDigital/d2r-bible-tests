@@ -1,9 +1,9 @@
 {
   "platform": "windows",
-  "ver": "v3788",
+  "ver": "v3789",
   "product": "TV DIABLO",
   "name": "TV DIABLO Windows",
-  "note": "v3788: REG-2556 to 2558 from the Grok CLI look on v3787, REG-2559 a triage law never launches claude (189)",
+  "note": "v3789: A barren held reel now cools (6 h doubling to 7 days) and a relaunch or padlock open no longer restarts it",
   "launcher": "start_tvd_win.ps1",
   "installer": "install-tvd.ps1",
   "capture": "capture_win.ps1",
