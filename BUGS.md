@@ -80,7 +80,10 @@ heart2's own git questions; law_env drops every GIT_* and keeps TV_PUSHED_*; eve
 shard_suite and gate_ledger passes env= and none builds an environment from os.environ by hand). RED proofs [4]-[8]: the helper
 keeps GIT_*; law_env copies its base whole; ls-files, and `_git`, under the caller's GIT_DIR; the law run built from os.environ.
 The law: 9/9 OK plain; heart2 --prove 10/10 PROVEN. Every one of the 92 non-browser laws that read the changed files was run plain:
-91 green at once, the 92nd is the fold law below.
+91 green at once, the 92nd is the fold law below. ⚠ The fixture law is held as TEXT inside the law and is a plain script: its first
+cut was a unittest module, and the column-0 main guard in that text made test_folder_scans (which reads every tv/test_*.py, and
+which heart2 classes as a browser gate, so the plain sweep had skipped it) report every class below it as "defined after
+unittest.main()" - the push-context pre-flight's clean wave refused on it before a single tamper, and before any push.
 ALSO FIXED, found by running every law that reads the changed files (92 non-browser, plain): the spy in
 tv/test_a_gate_crash_still_folds_the_banked_rows.py told a GATE run by "the defer variable is in its environment". gate_ledger's git
 questions now carry a (GIT_*-free) copy of the run's environment, defer variable included, so the spy counted them as gates and

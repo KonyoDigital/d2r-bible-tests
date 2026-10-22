@@ -63,11 +63,13 @@ HISTORY_NEED = "../.git"
 #: environment from os.environ by hand - so every one comes from run_gates.git_free_env. Literal names: the heart keys
 #: this law on their bytes.
 SPAWNERS = ("heart2.py", "suite_verdict.py", "shard_suite.py", "gate_ledger.py")
-#: REG-2396 - a fixture law: what git and the environment look like from inside a law run, written beside itself
+#: REG-2396 - a fixture law: what git and the environment look like from inside a law run, written beside itself. A
+#: plain script, not a unittest module: its text sits inside this file, and test_folder_scans reads every column-0 main
+#: guard in a suite as that suite's own (a guard line here put every class below it "after unittest.main()").
 PROBE = "t_reads_its_own_git.py"
 _PROBE_SRC = u'''# -*- coding: utf-8 -*-
 """fixture law (REG-2396): what a law run sees of git and of its environment, written to seen.json beside itself"""
-import json, os, subprocess, unittest
+import json, os, subprocess
 HERE = os.path.dirname(os.path.abspath(__file__))
 _ID = ["-c", "user.name=probe", "-c", "user.email=probe@example.invalid", "-c", "commit.gpgsign=false"]
 
@@ -77,20 +79,14 @@ def _git(*a):
     return [r.returncode, (r.stdout or "").strip(), (r.stderr or "").strip()[-200:]]
 
 
-class ReadsItsOwnGit(unittest.TestCase):
-    def test_reads(self):
-        seen = {"git": sorted(k for k in os.environ if k.upper().startswith("GIT_")),
-                "pushed": [os.environ.get("TV_PUSHED_GIT_DIR"), os.environ.get("TV_PUSHED_COMMIT")],
-                "gitDir": _git("rev-parse", "--absolute-git-dir"),
-                "head": _git("rev-parse", "HEAD"),
-                "commit": _git("commit", "-q", "--allow-empty", "-m", "a law's own commit"),
-                "bare": _git("config", "core.bare", "true")}
-        with open(os.path.join(HERE, "seen.json"), "w") as fh:
-            json.dump(seen, fh)
-
-
-if __name__ == "__main__":
-    unittest.main()
+seen = {"git": sorted(k for k in os.environ if k.upper().startswith("GIT_")),
+        "pushed": [os.environ.get("TV_PUSHED_GIT_DIR"), os.environ.get("TV_PUSHED_COMMIT")],
+        "gitDir": _git("rev-parse", "--absolute-git-dir"),
+        "head": _git("rev-parse", "HEAD"),
+        "commit": _git("commit", "-q", "--allow-empty", "-m", "a law's own commit"),
+        "bare": _git("config", "core.bare", "true")}
+with open(os.path.join(HERE, "seen.json"), "w") as fh:
+    json.dump(seen, fh)
 '''
 _IDENT = ["-c", "user.name=fixture", "-c", "user.email=fixture@example.invalid", "-c", "commit.gpgsign=false",
           "-c", "init.defaultBranch=main"]
