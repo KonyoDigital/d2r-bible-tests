@@ -11570,6 +11570,14 @@ GATES = [
              "not have, so its CPU half was None on every tick there (Dean's runaway cpu: null) and 'late AND "
              "burning' could never fire. _cpu_seconds() falls back to time.process_time(); with `resource` "
              "unimportable the reading is a float that rises across a busy loop."),
+    Gate("test_the_console_fetches_node_at_boot",
+         [sys.executable, os.path.join(HERE, "test_the_console_fetches_node_at_boot.py")], 60,
+         needs_app=False,
+         why="REG-2465 (#167) - a Windows console never asked for Node, and a self-updated console never re-runs the "
+             "installer, so a PC without node stayed without it: every node-only law skipped there and the intake "
+             "lane never ran. The boot step asks node_runtime.ensure(blocking=False) once on Windows - never off "
+             "Windows or on a scratch console - and an import failure, a raise or a non-record is UNKNOWN while boot "
+             "goes on. Driven with a stand-in node_runtime; main() starts the step."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

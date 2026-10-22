@@ -7,6 +7,16 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2465 - A WINDOWS CONSOLE NEVER ASKED FOR NODE, SO A PC WITHOUT IT STAYED WITHOUT IT (#167, the console's half)
+
+Measured on Dean's PC (by the agent, 2026-10-21/22): no node on PATH. Every node-only law skipped there (heart2 asks PATH), the eagle's 'their tooltip rows' read "node absent ... the composition was NOT run" for 14 days, and the subscription intake lane - which spawns a bare `node` - never ran, so his reads went to the hosted site. Node was put there by hand over SSH (2026-10-22). His ruling 2026-10-21: "BOTH" - the installer and the console's own dependency step fetch Node on every PC. A self-updated console never re-runs the installer (REG-1260, the Pillow lesson), so the console must ask for itself.
+
+FIX: control_app `_ensure_node_at_boot()`, started at boot beside the Pillow and numpy steps: Windows only, never on a scratch console; it soft-imports tv/node_runtime.py and calls `ensure(blocking=False, why="console boot")` once, keeping the answer on `NODE_BOOT` and saying it in the console log. node_runtime (Track C) does the work - resolve, or fetch the pinned portable zip on a background thread with its SHA-256 checked before it is extracted, then prepend its folder to os.environ['PATH'] for this process only, which reaches the intake lane's spawn, heart2's question and every child the console starts. A node_runtime that cannot be imported, raises, or answers no record is recorded UNKNOWN, and boot goes on.
+
+GUARD: tv/test_the_console_fetches_node_at_boot.py (registered), with a stand-in node_runtime in sys.modules: asked exactly once and not blocking on Windows; never off Windows or on a scratch console; an import failure, a raise and a non-record are UNKNOWN; main() starts the step. RED proofs: the ask removed; the boot thread removed.
+
+LEFT: this is the console's half. tv/node_runtime.py and the installer's fetch are Track C's; until node_runtime lands this step records UNKNOWN on every Windows boot ("node_runtime could not be imported"). No doctor row reads NODE_BOOT yet.
+
 ### REG-2464 - THE RUNAWAY WATCH WAS BLIND TO CPU ON EVERY WINDOWS PC: `resource` IS POSIX-ONLY (#171)
 
 Seen by the agent on Dean's PC 2026-10-21: the console's runaway record read `cpu: null`. Read from the code: control_app's `_cpu_seconds()` asked only `resource.getrusage(RUSAGE_SELF)`, `resource` does not exist on Windows, so every tick's CPU was None and the CPU half of the runaway watch (REG-699, "late AND burning") could never fire there - a console spinning a core while refusing status reads would only ever read "late but idle".
