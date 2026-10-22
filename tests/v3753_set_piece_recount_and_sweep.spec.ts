@@ -16,18 +16,27 @@ import { test, expect } from '@playwright/test';
 const URL = 'file://' + process.cwd() + '/bible.html';
 const BARE = "Natalya's Totem", HELM = "Natalya's Totem (helm)", RAVEN = 'Raven Frost';
 
-async function seedLoad(page: any, owned: string[], assign: any, copies: any, multiKeep: any) {
-  await page.addInitScript(({ owned, assign, copies, multiKeep }: any) => {
+// #184 (REG-2531) — THE SEED AND THE WEBDRIVER FLAG ARE SEPARATE STEPS. A second seedLoad on the same page registers a
+// second init script, and both run on the next load. navigator.webdriver is by then this page's own non-configurable
+// property, so redefining it threw, the one catch swallowed it, and every write after it was skipped: the second load ran
+// on the FIRST seed ({helm: 3, bare: 2}) and the fold answered MAX(3,2) = 3 where the test asked MAX(1,4) = 4. `stamp`
+// tells the page's own load-time pass (1.5 s after load) that it already ran, so only the test's forced pass folds;
+// otherwise it can sweep the dead key first and the forced pass finds none (the CI retry of run 39726369389).
+async function seedLoad(page: any, owned: string[], assign: any, copies: any, multiKeep: any, stamp?: boolean) {
+  await page.addInitScript(({ owned, assign, copies, multiKeep, stamp }: any) => {
     try {
       localStorage.setItem('d2r_ownerClaim', '*');
-      Object.defineProperty(navigator, 'webdriver', { get: () => true });
       localStorage.setItem('d2r_owned', JSON.stringify(owned));
       localStorage.setItem('d2r_muleAssign', JSON.stringify(assign));
       localStorage.setItem('d2r_copies', JSON.stringify(copies));
       localStorage.setItem('d2r_multiKeep', JSON.stringify(multiKeep));
-      localStorage.removeItem('d2r_setPieceReconcile');
+      if (stamp) localStorage.setItem('d2r_setPieceReconcile', JSON.stringify({ ver: 1e9, by: 'spec' }));
+      else localStorage.removeItem('d2r_setPieceReconcile');
     } catch (e) {}
-  }, { owned, assign, copies, multiKeep });
+    try {
+      if (!Object.getOwnPropertyDescriptor(navigator, 'webdriver')) Object.defineProperty(navigator, 'webdriver', { get: () => true });
+    } catch (e) {}
+  }, { owned, assign, copies, multiKeep, stamp: !!stamp });
   await page.goto(URL);
   await page.waitForFunction(() => {
     const w = window as any;
@@ -81,14 +90,14 @@ async function sweepRun(page: any) {
 test('the reconcile sweeps a dead bare copies key, folding its count onto the keeper by MAX — never lost (#76)', async ({ page }) => {
   // a prior version removed the bare from owned but left a copies["Natalya's Totem"] key behind.
   // dead count (2) BELOW the keeper (3): keeper unchanged, orphan swept
-  await seedLoad(page, [HELM], { [HELM]: 'sets-rest' }, { [HELM]: 3, [BARE]: 2 }, {});
+  await seedLoad(page, [HELM], { [HELM]: 'sets-rest' }, { [HELM]: 3, [BARE]: 2 }, {}, true);
   let r = await sweepRun(page);
   expect(r.dead).toContain(BARE);
   expect(r.cpBare).toBeUndefined();
   expect(r.cpHelm).toBe(3);            // MAX(3,2) — keeper not over-raised
   expect(r.stamped).toBe(true);
   // dead count (4) ABOVE the keeper (absent -> 1): MOVED onto the keeper, never deleted-and-lost
-  await seedLoad(page, [HELM], { [HELM]: 'sets-rest' }, { [BARE]: 4 }, {});
+  await seedLoad(page, [HELM], { [HELM]: 'sets-rest' }, { [BARE]: 4 }, {}, true);
   r = await sweepRun(page);
   expect(r.dead).toContain(BARE);
   expect(r.cpBare).toBeUndefined();

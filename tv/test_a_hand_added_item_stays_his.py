@@ -728,13 +728,17 @@ process.stdout.write(JSON.stringify(OUT));
         self.assertEqual(o["griefSame"]["mode"], "already", "saving the same open again counted a third copy")
         self.assertEqual(o["griefCopies"], 2)
         self.assertEqual(len(o["griefFiles"]), 1, "the second Grief rewrote the filing")
-        self.assertEqual(o["griefAfterSwap"], 0, "leaving that open left the extra Grief behind")
+        # #183 (REG-2530): a DIFFERENT item picked in the same open is a second add, never a swap - REG-2267's "0" here
+        # took back the copy the Grief pick had just filed (GrokBot V0: v3740:63 / v3742r:72 red, d2r_copies lost Grief).
+        # Only a re-roll or a clear of the Grief pick itself takes its copy back
+        # (tv/test_a_second_planner_pick_keeps_the_first_picks_copy.py).
+        self.assertEqual(o["griefAfterSwap"], 2, "a different pick in the same open took back the Grief copy it had filed")
         self.assertEqual(o["griefStill"], "shared", "leaving that open unfiled the first Grief")
         self.assertTrue(o["griefOwned"])
         self.assertTrue(o["swapped"]["filed"], o["swapped"])
         self.assertEqual(o["swapped"]["mule"], "uni-armor")
         self.assertEqual(o["griefThree"]["mode"], "copy", o["griefThree"])
-        self.assertEqual(o["griefEnd"], 2)
+        self.assertEqual(o["griefEnd"], 3, "a later open of Grief did not file the next copy beside the first two")
         filed_why = "|filed-by-hand|%s|you filed it from the vault planner"
         self.assertEqual(o["ledger"].count("Harlequin Crest" + filed_why % "uni-armor"), 1, o["ledger"])
         self.assertEqual(o["ledger"].count("Shimmering Grand Charm of Vita" + filed_why % "magic-rare"), 0, o["ledger"])

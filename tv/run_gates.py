@@ -11092,6 +11092,43 @@ GATES = [
              "his items had left and a Scan offered to read them again (an AI read). held() now answers UNKNOWN for a "
              "store the door quarantined, so the verdict says 'unknown', never 'gone'; with nothing quarantined a silent "
              "loss still reads 'gone'. The shipped door, boot readers and verdict block run in node."),
+    Gate("test_a_second_planner_pick_keeps_the_first_picks_copy",
+         [sys.executable, os.path.join(HERE, "test_a_second_planner_pick_keeps_the_first_picks_copy.py")], 300,
+         needs_app=False,
+         why="#183 (REG-2530) - GrokBot V0 on v3784: Grief already filed, a planner pick files copy 2, a pick of a DIFFERENT "
+             "item in the same open, and d2r_copies had no Grief (v3740:63, v3742r:72: expected 2, actual undefined). "
+             "REG-2267 had dropped the id check from the name-change undo, and REG-2240's name check compares the first "
+             "pick's own name. Only a re-roll (same id) or a clear of the pick that made a copy takes it back, and the "
+             "undo now writes d2r_copies itself (it changed only the live count, so after a clear, or a re-roll that "
+             "stops at the white-base sentence, the next load put the copy back). The whole page runs in node with the "
+             "specs' own seed and stubs."),
+    Gate("test_a_dead_bare_copies_key_folds_by_max",
+         [sys.executable, os.path.join(HERE, "test_a_dead_bare_copies_key_folds_by_max.py")], 300,
+         needs_app=False,
+         why="#184 (REG-2531) - GrokBot filed v3753:95 (fold of a dead bare key gave 3, not MAX(1,4)=4) as data loss. "
+             "Measured on the whole page in node: the fold is right; the spec's second seedLoad redefined "
+             "navigator.webdriver inside its one try, threw, and landed nothing, so the load ran on the FIRST seed "
+             "({helm:3, bare:2}) and MAX(3,2)=3 was correct. Pins the fold by MAX (dead key above, below and beside an "
+             "absent keeper; an owned pair) on disk and in the live count, and runs the spec's own seed body twice "
+             "to prove its second seed lands."),
+    Gate("test_a_perfect_base_files_from_the_planner",
+         [sys.executable, os.path.join(HERE, "test_a_perfect_base_files_from_the_planner.py")], 300,
+         needs_app=False,
+         why="#185 (REG-2532) - REG-2250 shipped dead in his world: _cbPerfectBaseMule named the keeper, but with his "
+             "Chronicle seeded (99 runewords forged) suggestMule answers a 4os Monarch 'nothing left - vendor it', "
+             "_vpRoute refused, and the planner printed the white-base sentence (v3746pb:150 x4). His 10-13 ruling now "
+             "outranks that one advice: the perfect base is filed to SOCKETED and the sentence says why; it is one name "
+             "before the re-roll checks and walks the common road (copy count, ledger row, deferred draw - counted, and "
+             "every filing survives it); a board with no SOCKETED mule refuses in the real reason; a later open's copy "
+             "re-rolled to a plain white is taken back on disk. The whole page runs in node."),
+    Gate("test_a_filed_pick_counts_a_copy_whatever_the_router_says",
+         [sys.executable, os.path.join(HERE, "test_a_filed_pick_counts_a_copy_whatever_the_router_says.py")], 300,
+         needs_app=False,
+         why="REG-2533 (the #183 sweep) - _vpRoute answered 'already filed' only after its advice checks, so a planner "
+             "pick of an item he had filed by hand whose router verdict had turned to throw-out (Axe of Fechmar, 'trade "
+             "value TRASH') said it 'stays unfiled' and a later open counted no copy. A filed name now answers 'already' "
+             "before the router is asked: the copy is counted, the filing is not moved, and a router that cannot answer "
+             "no longer refuses a filed pick. The whole page runs in node, real doors."),
 ]
 
 SKIP_EXIT = 77          # a gate that could not run (must match tv/js_syntax_gate.py)

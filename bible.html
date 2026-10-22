@@ -47265,10 +47265,23 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     if (assign[nm] != null && typeof window.vaultUnassign === 'function') window.vaultUnassign(nm);
     _vpForget(nm);
   }
-  function _vpRoute(nm){
+  function _vpRoute(nm, keeper){
+    /* REG-2533 — A NAME ALREADY FILED IS FILED, WHATEVER THE ROUTER NOW ADVISES, OR WHETHER IT CAN BE ASKED. This answer
+       sat below the advice checks, so a pick of an item he had filed, whose verdict had since turned to throw-out (Axe of
+       Fechmar: "trade value TRASH"), keep-on-MAIN or Unsorted, said "<name> stays unfiled" about a filed item and a later
+       open counted no copy - the copy was lost without a word. The filing stands and nothing is re-filed, so the router
+       is not asked at all; a disagreeing router is the audit's to show, never this door's. */
+    if (assign[nm] != null) return { ok: true, filed: false, mode: 'already', mule: assign[nm], why: nm + ' is already filed' };
     var sg, asked = false;
     try { sg = suggestMule(nm); asked = true; } catch (e) { sg = null; }
     if (!asked) return { ok: false, filed: false, why: nm + ' — the router could not be asked, so nothing was filed' };
+    /* REG-2532 (#185) — HIS 2026-10-13 RULING OUTRANKS THE ROUTER'S VENDOR ADVICE FOR A PERFECT BASE. In his world (the
+       seeded Chronicle, 99 runewords forged) suggestMule answers a 4os Monarch "nothing left for it: its runewords are
+       forged -> vendor it", which refused every perfect base the planner was ruled to keep (v3746pb:150 x4). `keeper` is
+       _cbPerfectBaseMule's answer; only the throw-out advice is overruled, into the drawer the router itself names for a
+       socketed keeper, and the sentence carries both. Every other refusal stands and is said as it is. */
+    if (keeper && keeper.home && sg && sg.id === '__throwout' && !sg.unsorted)
+      sg = { id: keeper.home, why: String(keeper.why || 'a perfect base') + ' — his 2026-10-13 ruling: a perfect base is never vendored, though the router said "' + String(sg.why || 'throw it out') + '"' };
     if (sg == null){
       var shared = false;
       try { shared = (typeof isSharedStash === 'function') && isSharedStash(nm); } catch (e2) { shared = false; }
@@ -47302,7 +47315,6 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       return { ok: true, filed: true, mode: 'filed', mule: id, magicHome: true,
                why: nm + ' filed to ' + muleNameM + (why ? (' — ' + why) : '') };
     }
-    if (assign[nm] != null) return { ok: true, filed: false, mode: 'already', mule: assign[nm], why: nm + ' is already filed' };
     var at = new Date().toISOString();
     var filed = window.vaultFile(nm, { by: 'hand', at: at, where: VP_WHERE }, { mule: id });
     var muleName = home && home.name ? home.name : id;
@@ -47311,10 +47323,10 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   }
   function _vpCopyUndo(token, name){
     var b = _vpCopyBump;
-    if (!b || !token || b.token !== token) return;
+    if (!b || !token || b.token !== token) return false;
     // REG-2240 (#108) — only undo the bump THIS pick made. The token/id check alone let a later pick
     // (bump still sitting on the FIRST pick) revert the earlier copy on a re-roll or a clear of the second.
-    if (name != null && b.name !== name) return;
+    if (name != null && b.name !== name) return false;
     _vpCopyBump = null;
     if (typeof copies !== 'undefined' && copies){
       if (b.prev > 1) copies[b.name] = b.prev;
@@ -47322,6 +47334,13 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     }
     if (b.prevSeen) _vpCopySeen[b.name] = b.prevSeen;
     else delete _vpCopySeen[b.name];
+    /* REG-2530 — THE COPY AN UNDO TAKES BACK REACHES DISK AT ONCE, WHICHEVER DOOR ASKED: a clear, or a re-roll of the pick
+       whose new answer then stops early (a perfect base turned back to a plain white stops at the white-base sentence).
+       The undo changed only the live count, so d2r_copies still said copy 2 and the next load put the taken-back copy
+       back. An open planner is told to draw the count on close. */
+    try { persistOwned(); } catch (eCp) {}
+    if (window._vaultPlannerOn) window._vaultPlannerDirty = true;
+    return true;
   }
   /* REG-2250 — HIS 2026-10-13 RULING. GrokBot #6197028243 confirmed the gap LIVE: a 4os Archon Plate
      and an eth Berserker Axe were REFUSED here as a white / superior / low base. His rule: a PERFECT
@@ -47355,12 +47374,17 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
       else return null;
       var pre = (!!entry.eth) ? 'Eth ' : (entry.q === 'sup' ? 'Superior ' : '');
       var label = pre + b[0] + ' (' + (sock >= 1 ? (sock + 'os') : 'Larzuk base') + ')';
-      return { name: label, why: why };
+      return { name: label, why: why, home: VP_PERFECT_HOME };
     } catch (e) { return null; }
   }
+  /* REG-2532 (#185) — where a perfect base is kept when the router would vendor it: SOCKETED, the drawer suggestMule
+     itself answers for every socketed keeper ({id:'bases'}) and the default roster's 🔩 locker. A board without it
+     refuses in those words (_vpRoute: "no mule on this board has id bases"). */
+  var VP_PERFECT_HOME = 'bases';
   window._cbPerfectBaseMule = _cbPerfectBaseMule;
   window.vaultPlannerFile = function(entry, token){
     if (!entry){
+      /* REG-2530 — a clear takes back only what the HELD pick made; _vpCopyUndo writes it to d2r_copies itself */
       if (_vpMade && token && _vpMade.token === token){ _vpCopyUndo(token, _vpMade.name); _vpDrop(); }
       return { ok: true, mode: 'cleared', filed: false, why: 'the pick was cleared' };
     }
@@ -47393,7 +47417,20 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         if (_resolved) nm = _resolved;
       } catch (eRes) {}
     }
-    if (_vpMade && _vpMade.token === token && _vpMade.name && _vpMade.name !== nm) _vpCopyUndo(token, _vpMade.name);   /* #76 v3753 (REG-2267) — a SWAP (same planner slot/token, a DIFFERENT pick) must also drop the swapped-away pick's phantom extra copy, not only a same-id re-roll; the id check stranded it, leaving a copy with no item behind it — the #76 defect class. _vpCopyUndo's REG-2240 name-check + token-check still scope the undo to the previous pick's own bump. Guard: test_a_planner_pick_files_where_a_reel_of_it_would_go (griefAfterSwap). */
+    /* REG-2532 (#185) — A PERFECT BASE IS ONE NAME FROM HERE ON. REG-2250 asked _cbPerfectBaseMule only at the end, in
+       the white-base arm, routed the socketed label beside the pick and returned early: a router refusal came out as the
+       white-base sentence, and the copy count, the ledger row and the deferred draw every other pick gets were skipped.
+       The label (registered as the socketed base it is, so ownedPool keeps it - v324) is now `nm` before the re-roll
+       checks compare names, and the pick walks the common road below. A plain base (null here) is unchanged. */
+    var _pb = null;
+    if (!magicQ && !kind && !(typeof _vaultKeeps === 'function' && _vaultKeeps(nm))){
+      try { _pb = (typeof window._cbPerfectBaseMule === 'function') ? window._cbPerfectBaseMule(entry) : null; } catch (ePb) { _pb = null; }
+      if (_pb && _pb.name){
+        nm = String(_pb.name);
+        try { if (typeof window._ensureSocketBaseEntry === 'function') window._ensureSocketBaseEntry(nm); } catch (eEn) {}
+      } else _pb = null;
+    }
+    if (_vpMade && _vpMade.token === token && _vpMade.id === entry.id && _vpMade.name && _vpMade.name !== nm) _vpCopyUndo(token, _vpMade.name);   /* #183 (REG-2530) — ONLY A RE-ROLL OF THE SAME PICK TAKES ITS COPY BACK. REG-2267 (v3753) dropped this id check to undo a "swap", and the REG-2240 name check could not hold, because the name it compares IS the first pick's: Grief (copy 2) then Spirit in the same open left d2r_copies with no Grief (GrokBot V0, v3740:63 / v3742r:72), and "copy 2 filed" stayed on screen. A different item in the same open is a SECOND ADD, exactly as _vpDrop below has always ruled for a fresh pick. Guard: tv/test_a_second_planner_pick_keeps_the_first_picks_copy.py. */
     if (_vpMade && _vpMade.token === token && _vpMade.id === entry.id && _vpMade.name !== nm && _vpMade.fresh) _vpDrop();
     var baseName = _vpBase(entry, shown);
     var mods = _vpMods(entry);
@@ -47422,6 +47459,8 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         magicFinds[nm] = { q: magicQ, base: baseName, mods: mods };
       }
       try { LS.setItem('d2r_magicFinds', JSON.stringify(magicFinds)); } catch (e4) {}
+    } else if (_pb){
+      /* REG-2532 — a perfect base is owned and filed by the router's own door below (window.vaultFile), as REG-2250 did */
     } else if (kind || (typeof _vaultKeeps === 'function' && _vaultKeeps(nm))){
       var add = (typeof window.vaultHandAdd === 'function')
         ? window.vaultHandAdd(nm, new Date().toISOString(), { kind: kind, by: 'the Vault planner', where: 'the Vault planner' })
@@ -47432,32 +47471,14 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
         return { ok: false, filed: false, why: whyA };
       }
     } else {
-      /* REG-2250 — HIS 2026-10-13 RULING (GrokBot #6197028243 confirmed the gap live: a 4os Archon Plate
-         and an eth Berserker Axe were REFUSED here as a white / superior / low base). Before the
-         stays-unfiled verdict, ask whether THIS pick is a PERFECT socketable base — its actual sockets
-         at / within one of CB_DB's _cbMaxSock, or an elite ethereal base. If so it is a keeper: register
-         it as the socketed base it is (so ownedPool / renderVault keep it — the v324 rule) and route it
-         through the SAME door every socketed base uses (→ the SOCKETED base mule). The white / superior
-         sentence below still stands for an ACTUAL plain base. [[unknown-stays-unknown]] */
-      var _pb = null;
-      try { _pb = (typeof window._cbPerfectBaseMule === 'function') ? window._cbPerfectBaseMule(entry) : null; } catch (ePb) { _pb = null; }
-      if (_pb && _pb.name){
-        try { if (typeof window._ensureSocketBaseEntry === 'function') window._ensureSocketBaseEntry(_pb.name); } catch (eEn) {}
-        var _pbWasOwned = !!(typeof owned !== 'undefined' && owned && owned.has && owned.has(_pb.name));
-        var _pbWasAssigned = assign[_pb.name] != null;
-        var _pbRouted = _vpRoute(_pb.name);
-        if (_pbRouted && (_pbRouted.filed || _pbRouted.mode === 'already')){
-          try { status(_pbRouted.why); } catch (ePs) {}
-          _vpMade = { token: token, id: entry.id, name: _pb.name, fresh: !!(!_pbWasOwned && !_pbWasAssigned && _pbRouted.filed), magic: false };
-          return _pbRouted;
-        }
-      }
+      /* REG-2250 — HIS 2026-10-13 RULING: only a PERFECT socketable base is a keeper (_cbPerfectBaseMule, asked above,
+         before the names are compared - REG-2532). This arm is the ACTUAL plain base, and its sentence stands. */
       var whyB = nm + ' stays unfiled — a white, superior or low base is not given a mule from its name';
       try { status(whyB); } catch (e6) {}
       return { ok: true, filed: false, why: whyB };
     }
     if (kind === 'runeword') _vpRemember(nm, entry, shown, baseName, keepFresh);
-    var routed = _vpRoute(nm);
+    var routed = _vpRoute(nm, _pb);
     if (routed && routed.magicHome && beforeMagic)
       routed = { ok: true, filed: false, mode: 'already', mule: routed.mule, why: nm + ' is already filed' };
     if (routed && (routed.filed || routed.mode === 'already') && token){

@@ -7,6 +7,86 @@
 > only link between a bug and the ship that fixed it. Every duplicated heading now carries its
 > date, so the pair can be told apart at a glance. New entries continue from REG-088.
 
+### REG-2530 - A SECOND, DIFFERENT PLANNER PICK TOOK BACK THE COPY THE FIRST PICK HAD JUST FILED (#183, vault batch V1 round 3)
+
+GrokBot's V0 triage (2026-10-22, Routine I run 39726369389 on v3784, 2/2 headless, and the same assertion in that run's CI log):
+v3740:63 and v3742r:72 - Grief already filed, a planner pick of it files copy 2 ("Grief - copy 2 filed to uni-weap"), then a
+pick of a DIFFERENT item in the same open (same token, a different builder id) and d2r_copies has no Grief: expected 2, actual
+undefined. REG-2227 (v3740) had put `_vpMade.id === entry.id` on vaultPlannerFile's name-change undo; REG-2267 (v3753) dropped it
+to undo a "swap", trusting REG-2240's name check - which compares the FIRST pick's own name, so it could not hold. MEASURED on
+the merged V1 tree (0ea211717), the whole page in node with the specs' own seed and stubs: after the second pick d2r_copies held
+no Grief, on disk and in the live count. The planner had two rules for one gesture: a fresh first pick survives a different
+second pick (_vpDrop has always required the same id; test_a_hand_added_item_stays_his asserts it for Gamma/Delta) while a copy
+pick was taken back by it. The sentence he had read stayed on screen and the copy was gone without a word.
+FIX: the id check is back on the name-change undo - only a RE-ROLL of the same pick (same id, a new composed name) or a clear of
+the held pick takes back what that pick made; a different item in one open is a second add. A copy he did mean to swap away is
+walked down with the HAVE stepper, in his hands - never dropped for him. Measured in the same runs: an undo changed only the live
+count, so after a clear d2r_copies still said copy 2 and the next load put the cleared copy back - and so did a re-roll whose new
+pick stops before the pick's own write (a perfect base turned back into a plain white stops at the white-base sentence).
+_vpCopyUndo now writes d2r_copies itself, whichever door asked, and tells an open planner to draw on close. REG-2267's own guard,
+test_a_hand_added_item_stays_his `griefAfterSwap`, asserted the opposite of v3740/v3742r on the same gesture; it now asserts 2,
+and `griefEnd` 3 (the later open files the next copy beside the first two); its red-proofs re-proven 20/20 PROVEN.
+GUARD: tv/test_a_second_planner_pick_keeps_the_first_picks_copy.py (7 cases: v3740:63 with its own stubs, v3742r:72, a clear of
+the second pick, a re-roll and a clear of the copy pick itself - on disk, a re-roll that stops early, same-open and later-open
+counting; 2 RED proofs, heart2 2/2 PROVEN). Browser half (CI, unchanged - their assertions read against the fixed code):
+tests/v3740_planner_copy_survives_second_pick.spec.ts, tests/v3742_planner_copy_survives_second_item_reroll.spec.ts.
+
+### REG-2531 - "THE RECONCILE FOLD LOSES A COPY" WAS THE SPEC'S FIRST SEED: ITS SECOND SEED NEVER LANDED (#184, vault batch V1 round 3)
+
+GrokBot filed v3753:95 as REAL data loss: after the reconcile folds a dead bare copies key the slotted keeper read 3, not
+MAX(1,4) = 4. MEASURED on the whole page in node: the fold is right - {"Natalya's Totem": 4} beside an owned "Natalya's Totem
+(helm)" folds to 4, and so does every other shape (a dead key above, below and beside an absent keeper; an owned pair). The 3 is
+the spec's own first seed. Its second seedLoad registers a second init script on the same page and both run on the next load;
+navigator.webdriver is by then the page's own non-configurable property, so the second Object.defineProperty threw ("Cannot
+redefine property: webdriver"), the one catch swallowed it, and every storage write after it was skipped. The "MAX(1,4)" load
+ran on {helm: 3, bare: 2} and answered MAX(3,2) = 3, correctly - reproduced in node by running the spec's original seed body
+twice over a Chromium-shaped navigator. The run's CI log shows a race beside it: the retry failed at :86 with no dead key at
+all, because the page's own load-time reconcile (1.5 s after load) had already swept it before the test's forced pass.
+FIX (the spec, not the product): seedLoad writes the seed in its own step and flags webdriver after it, only when the page does
+not already own the property; the sweep test seeds a done-stamp so the load-time pass does not race the forced one.
+GUARD: tv/test_a_dead_bare_copies_key_folds_by_max.py (6 cases: the four fold shapes on disk and in the live count with their
+receipts, and the spec's seed body cut from the spec and run twice over a prototype-getter navigator as Chromium's is; 3 RED
+proofs - each MAX turned into "keep the keeper's", and the spec's flag put back inside its seed - heart2 3/3 PROVEN). Browser
+half (CI): tests/v3753_set_piece_recount_and_sweep.spec.ts (parsed with Playwright's own --list: 4 tests in 1 file).
+
+### REG-2532 - A PERFECT BASE PICKED IN THE PLANNER WAS CALLED A WHITE BASE AND LEFT UNFILED IN HIS WORLD (REG-2250 shipped dead, #185, vault batch V1 round 3)
+
+GrokBot's V0 triage: v3746pb:150 x4 - a 4os Monarch, a 4os Archon Plate, a 5os War Scepter and an eth Berserker Axe all
+"stay unfiled - a white, superior or low base is not given a mule from its name"; the probe said _cbPerfectBaseMule returns
+null. It never did: the spec's own helper assertion (:141) passed before :150 failed, and MEASURED on the whole page in node it
+named "Monarch (4os)", "Archon Plate (4os)", "War Scepter (5os)" and "Eth Berserker Axe (Larzuk base)". The planner routed that
+label, and in the world a spec runs in - the owner's seeded Chronicle, 99 runewords forged, which is HIS world - suggestMule
+answers each "nothing left for it: its runewords are forged -> vendor it". _vpRoute refused on that advice and vaultPlannerFile
+threw the reason away and printed the white-base sentence about a perfect base. On a fresh install (nothing forged) the same
+pick filed to SOCKETED, which is why REG-2250 looked done. The early return also skipped the copy count, the ledger row and the
+deferred draw every other pick gets.
+FIX: his 2026-10-13 ruling (a perfect base is never vendored) outranks that one advice: _vpRoute takes _cbPerfectBaseMule's
+answer as `keeper`, and only a throw-out verdict for it becomes SOCKETED (VP_PERFECT_HOME 'bases', the drawer the router itself
+names for a socketed keeper), with the sentence saying the ruling and what the router said. The perfect base is now ONE name
+before the re-roll checks compare names and walks the common road: a later open counts copy 2, the same open does not, a re-roll
+of that pick back to a plain white takes the copy back on disk; the ledger records the filing; the open planner draws it on
+close, and every filing survives that draw. A board with no SOCKETED mule refuses in the real reason ("no mule on this board has
+id bases"), never the white-base sentence. A plain base keeps its sentence. The router's advice is unchanged everywhere else:
+the vault audit will still show a filed perfect base as should-review until suggestMule learns the rule (routing, V2/V5).
+GUARD: tv/test_a_perfect_base_files_from_the_planner.py (9 cases in his world, a board with no SOCKETED mule and a fresh
+install; 4 RED proofs - the override off, the white-base sentence put back, the label not registered as a socketed base (v324),
+the undo's write removed - heart2 4/4 PROVEN). Browser half (CI, unchanged): tests/v3746_perfect_base_auto_mules.spec.ts.
+
+### REG-2533 - A PLANNER PICK OF AN ITEM HE HAD FILED SAID IT "STAYS UNFILED", AND ITS NEXT COPY WAS LOST (the #183 sweep, vault batch V1 round 3)
+
+Found sweeping #183's class (a copy that never reaches d2r_copies). _vpRoute answered "already filed" only after its advice
+checks, so a pick of an item he had filed by hand whose router verdict had since become throw-out, keep-on-MAIN or Unsorted
+answered "<name> stays unfiled - ..." about an item sitting in his mule, and a later open counted no copy. MEASURED on the
+merged V1 tree (0ea211717), the whole page in node through the real doors: Axe of Fechmar, owned and filed by hand to
+uni-weap, is "trade value TRASH" to the router; two later planner opens each answered "Axe of Fechmar stays unfiled -
+throw-out advice - trade value TRASH ..." about the axe sitting in uni-weap, and d2r_copies never moved; with the router
+unable to answer, the same pick said "the router could not be asked, so nothing was filed".
+FIX: a filed name answers 'already' before the router is even asked, so the copy is counted ("copy 2 filed to uni-weap"), the
+filing is not moved, and a router that cannot answer at all (it throws) no longer turns a filed pick into "nothing was filed";
+the duplicate check below the advice is gone. The router's disagreement stays the vault audit's to show.
+GUARD: tv/test_a_filed_pick_counts_a_copy_whatever_the_router_says.py (4 cases through the real doors, the router taken down by a
+patch to its own function; 2 RED proofs - the early answer removed, the router asked first again - heart2 2/2 PROVEN).
+
 ### REG-2400 - A RELOAD SILENTLY DELETED ~55% OF THE ITEMS FRAMES HAD READ, FOR GOOD (#162 item 1 + #144 item 6, vault batch V1)
 
 GrokBot #230 on v3783, 292 of his real frames x 3 rounds headless, and again on v3784: d2r_owned went 272 -> 113 on ONE reload (the
