@@ -41677,7 +41677,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
   var _rosterSaved = load(RK, null);   /* null: nothing saved yet, or UNKNOWN (_muleUnread says which) */
   var roster = _rosterSaved || DEFAULT_ROSTER.map(function(m){ return Object.assign({}, m); });
   var assign = load(AK, {});
-  var _rosterMapPending = false;   /* REG-2570 — another tab's roster arrived ahead of its map: no mule-rule prune yet */
+  window._rosterMapPending = false;   /* REG-2570 — another tab's roster arrived ahead of its map: no mule-rule prune yet */
   /* a roster rebuilt from a list of mules, keeping every filing: each mule the list holds VERBATIM (his name, note, icon,
      boundChar, added), each core locker it lacks at its default place, and a stand-in for each mule id the mule map
      still files items to that the list does not hold. REG-2522 fix round — Start it fresh rebuilt from the map's ids
@@ -41731,11 +41731,11 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
        until that tab's map arrives, the paint's prune must not drop those filings against it: a later saveA() here would
        write the map without them, and if no map ever comes (not this board's delete) they would be gone for good. */
     window._TAB_SYNC[AK] = { kind: 'map', get: function(){ return assign; },
-                             after: function(){ try { _rosterMapPending = !!_rosterMapWhy(roster, assign); } catch (eP) { _rosterMapPending = true; } return _vaultTabAfter.apply(this, arguments); },   /* REG-2570 r2 — a map that still files the missing mule keeps the wait */
+                             after: function(){ try { window._rosterMapPending = !!_rosterMapWhy(roster, assign); } catch (eP) { window._rosterMapPending = true; } return _vaultTabAfter.apply(this, arguments); },   /* REG-2570 r2 — a map that still files the missing mule keeps the wait */
                              shape: function(v){ return _muleShapeWhy(AK, v); },
                              adopted: function(){ delete _muleUnread[AK]; } };
     window._TAB_SYNC[RK] = { kind: 'list', get: function(){ return roster; },
-                             after: function(){ try { _rosterMapPending = !!_rosterMapWhy(roster, assign); } catch (eP) { _rosterMapPending = true; }
+                             after: function(){ try { window._rosterMapPending = !!_rosterMapWhy(roster, assign); } catch (eP) { window._rosterMapPending = true; }
                                                 return _vaultTabAfter.apply(this, arguments); },
                              shape: function(v){ return _muleShapeWhy(RK, v) || _rosterCoreWhy(v); },
                              absent: function(){ return DEFAULT_ROSTER.map(function(m){ return Object.assign({}, m); }); },
@@ -42034,8 +42034,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      runs the same adds both ways and requires the same answers. */
   var _sugFoldMemo = null, _sugFoldDeps = null;
   function _sugFoldCanon(name){
-    var memo = typeof name === 'string' && name !== '' && name === name.trim() && window._vaultMemoOff !== true
-               && typeof Map === 'function';
+    var memo = typeof name === 'string' && name !== '' && name === name.trim() && window._vaultMemoOff !== true;
     if (memo){
       var deps = [window.d2rInboxEngine, window.d2rResolveItem, window._gUniqueRoster, window.D2R_INBOX_FOLD];
       var same = !!_sugFoldDeps;
@@ -42091,7 +42090,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      it returns the very object the walk found, and window._vaultMemoOff = true asks the walk every time. */
   var _ilMemo = null, _ilSig = null;
   function _d2rItemLookupMemo(){
-    if (window._vaultMemoOff === true || typeof Map !== 'function' || typeof ITEMS === 'undefined' || !ITEMS) return null;
+    if (window._vaultMemoOff === true || typeof ITEMS === 'undefined' || !ITEMS) return null;
     var R = (typeof ITEM_REGISTRY !== 'undefined') ? ITEM_REGISTRY : (window.ITEM_REGISTRY || null);
     if (!(_ilSig && _ilSig[0] === ITEMS && _ilSig[1] === ITEMS.length && _ilSig[2] === R)){
       _ilMemo = new Map(); _ilSig = [ITEMS, ITEMS.length, R];
@@ -42810,7 +42809,7 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
      _vaultSameItemNames, which folds every pool name, and every locker card re-derives the records. The fold is a
      pure function of the string, so each string is folded once (the memo is cleared past 5,000 names, and
      window._vaultMemoOff = true folds every time). */
-  var _spNormMemo = (typeof Map === 'function') ? new Map() : null, _spNormBy = null;
+  var _spNormMemo = new Map(), _spNormBy = null;
   function _spNorm(s){
     var en = (typeof _etherNorm === 'function') ? _etherNorm : null;
     var memo = !!_spNormMemo && typeof s === 'string' && window._vaultMemoOff !== true;
@@ -44132,12 +44131,12 @@ html.glb-lock, html.glb-lock body{ overflow:hidden; }
     });
     /* REG-2411 — held: the pool and the roster in memory are the page's default for a quarantined store, not his vault,
        so no filing is dropped against them (the mule map keeps every row, and _guardedSet does not write it anyway) */
-    if (_rosterMapPending){ try { if (!_rosterMapWhy(roster, assign)) _rosterMapPending = false; } catch (eRp) {} }   /* REG-2570 r2 — never stuck */
+    if (window._rosterMapPending){ try { if (!_rosterMapWhy(roster, assign)) window._rosterMapPending = false; } catch (eRp) {} }   /* REG-2570 r2 — never stuck */
     var _pruneHeld = (_pvW6 === null)
       || ((typeof window !== 'undefined' && typeof window._vaultBasisHeld === 'function') && !!window._vaultBasisHeld());
     Object.keys(assign).forEach(function(n){
       if (_pruneHeld) return;
-      if (assign[n]!=='__keep' && !muleById(assign[n])) { if (_rosterMapPending) return; delete assign[n]; return; }   /* REG-2570 r2 — the wait lifts below once roster and map agree */
+      if (assign[n]!=='__keep' && !muleById(assign[n])) { if (window._rosterMapPending) return; delete assign[n]; return; }   /* REG-2570 r2 — the wait lifts below once roster and map agree */
       if (pool.indexOf(n) >= 0) return;
       if (Object.prototype.hasOwnProperty.call(_pvW6, n)) return;
       delete assign[n];
@@ -50915,7 +50914,7 @@ window.vaultAutoAssign = function(){
      per paint, 12% of a hand add at 300 items. The same walk, in the same key order and with the same rule (lowest
      copy whose saved target is a shared-stash cell), now runs once per bag object; window._warKeepBag is a fresh bag
      whenever a paint resets it, and nothing writes a bag after it is built. -> Map(name -> lowest copy) | null */
-  var _vaultWarKeeperIxOf = (typeof WeakMap === 'function' && typeof Map === 'function') ? new WeakMap() : null;
+  var _vaultWarKeeperIxOf = new WeakMap();
   function _vaultWarKeeperIx(bag){
     if (!_vaultWarKeeperIxOf || !bag || typeof bag !== 'object' || window._vaultMemoOff === true) return null;
     var ix = _vaultWarKeeperIxOf.get(bag);

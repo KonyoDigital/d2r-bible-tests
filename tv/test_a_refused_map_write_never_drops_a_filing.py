@@ -153,8 +153,8 @@ RED_PROOF = [
      "file": "bible.html", "find": "      if (_rfNeed && !_rfF) _rfF = { ok: false,", "replace": "      if (false) _rfF = { ok: false,",
      "matches": 1, "needs": "node"},
     {"why": "REG-2570 r2 - any map from another tab lifts the wait, even one still filing the missing mule",
-     "file": "bible.html", "find": "after: function(){ try { _rosterMapPending = !!_rosterMapWhy(roster, assign); } catch (eP) { _rosterMapPending = true; } return _vaultTabAfter",
-     "replace": "after: function(){ _rosterMapPending = false; return _vaultTabAfter", "matches": 1, "needs": "node"},
+     "file": "bible.html", "find": "after: function(){ try { window._rosterMapPending = !!_rosterMapWhy(roster, assign); } catch (eP) { window._rosterMapPending = true; } return _vaultTabAfter",
+     "replace": "after: function(){ window._rosterMapPending = false; return _vaultTabAfter", "matches": 1, "needs": "node"},
     {"why": "REG-2570 r2 - a refused restore leaves its own witness row in place of the old one",
      "file": "bible.html", "find": "        if (rowR && _rowPrevOk){", "replace": "        if (false){", "matches": 1, "needs": "node"},
     {"why": "REG-2570 - a refused map write leaves the filing deleted in the live map, and the next save drops it",
@@ -164,7 +164,7 @@ RED_PROOF = [
      "file": "bible.html", "find": "      if (!_okR){\n        delete assign[nm];",
      "replace": "      if (false){\n        delete assign[nm];", "matches": 1, "needs": "node"},
     {"why": "REG-2570 - another tab's roster, ahead of its map, lets the paint prune drop the filings",
-     "file": "bible.html", "find": "{ if (_rosterMapPending) return; delete assign[n]; return; }",
+     "file": "bible.html", "find": "{ if (window._rosterMapPending) return; delete assign[n]; return; }",
      "replace": "{ delete assign[n]; return; }", "matches": 1, "needs": "node"},
 ]
 

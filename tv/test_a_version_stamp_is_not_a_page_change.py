@@ -327,7 +327,9 @@ class TheFastShardsFollowMeasuredDuration(unittest.TestCase):
         for path in heavy:
             owners.append(next(i for i, shard in enumerate(shards) if path in shard))
         self.assertEqual(len(set(owners)), 6, heavy)
-        loads = [sum(costs.get(p, 0.0) for p in shard) for shard in shards]
+        # V1: weigh each file the way deal() weighs it - a spec the table has not timed yet weighs the median,
+        # not 0, or every new spec reads as an imbalance the deal never made
+        loads = [sum(S.file_weight(p, specs, costs) for p in shard) for shard in shards]
         self.assertLess(max(loads) - min(loads), 30, loads)
 
     def test_a_file_the_table_has_not_seen_weighs_the_median(self):
