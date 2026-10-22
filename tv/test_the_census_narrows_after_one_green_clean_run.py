@@ -54,10 +54,15 @@ class Catches(unittest.TestCase):
 
 class Other(unittest.TestCase):
     def test_other(self):
+        import time
+        time.sleep(float(os.environ.get("CENSUS_FULL_S") or 0))   # the rest of a big suite: what a narrowed run skips
         self.assertFalse(os.environ.get("CENSUS_RED_HERE"), "red untampered - something else in the suite")
 
 
 if __name__ == "__main__":
+    if [a for a in sys.argv[1:] if not a.startswith("-")] and os.environ.get("CENSUS_SUBSET_S"):
+        import time
+        time.sleep(float(os.environ["CENSUS_SUBSET_S"]))         # a law whose setup dwarfs its cases
     log = os.environ.get("CENSUS_LAW_LOG")
     if log:
         ids = [a for a in sys.argv[1:] if not a.startswith("-")]
@@ -119,8 +124,10 @@ class _Case(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.d, True)
         self.log = os.path.join(self.d, "runs.log")
         self.memory = os.path.join(self.d, ".heart2_red.json")
+        # a full run of the fixture costs 1 s more than a narrowed one, as a big suite's does (REG-2431: a census narrows
+        # only while a pair costs less than the gate's full run)
         e = _Env(HEART2_RED_MEMORY=None, HEART2_RED_PATH=None, HEART2_PROVE_WORKERS="1", TV_LAW_WIDTHS=None,
-                 CENSUS_LAW_LOG=self.log, CENSUS_RED_HERE=None)
+                 CENSUS_LAW_LOG=self.log, CENSUS_RED_HERE=None, CENSUS_FULL_S="1", CENSUS_SUBSET_S=None)
         e.__enter__()
         self.addCleanup(e.__exit__)
         # the red memory is THIS law's file, read and written through the real memory code - and the module's memory
@@ -208,6 +215,19 @@ class TheCensusNarrowsAfterItsCleanRun(_Case):
         self.assertEqual(len([r for r in runs if r[0] == "full"]), 2,
                          "the next census did not narrow on what it learned: %s" % runs)
 
+    def test_a_gate_whose_pair_costs_more_than_its_full_run_stops_narrowing(self):
+        """MEASURED 2026-10-22: test_a_killed_run_is_never_a_red narrowed all 34 proofs and its census took 241.7 s against
+        225.3 s in full - a pair is two runs, each paying the law's setup. Once a pair costs more than the gate's measured
+        full clean run, the gate's other proofs run in full, and the line says why."""
+        self.seed()
+        with _Env(CENSUS_FULL_S="0", CENSUS_SUBSET_S="1"):
+            results, per, runs, said, run = self.census()
+        self.assertEqual(results, {_GATE: H.PROVEN}, "\n".join(said))
+        self.assertEqual([r[:2] for r in runs], [["full", "clean"], ["subset", "clean"], ["subset", "tampered"],
+                                                 ["full", "tampered"], ["full", "clean"]],
+                         "a gate whose narrowed pair cost more than its full run kept narrowing: %s" % runs)
+        self.assertTrue(any("more than this gate's full run" in l for l in said), said)
+
     def test_a_gate_run_with_an_argv_tail_is_never_narrowed(self):
         """The narrowed pair hands the law its case ids as its only arguments: a gate registered with its own argv tail
         (or a -c script) would run something else entirely, so it is asked in full, whatever the memory says."""
@@ -234,6 +254,12 @@ RED_PROOF = [
      "file": "heart2.py",
      "find": "        _crids = _red_recall(_crk)\n",
      "replace": "        _crids = None\n",
+     "matches": 1},
+    {"why": "REG-2431 - a gate whose narrowed pair costs more than its full run keeps narrowing (241.7 s vs 225.3 s)",
+     "file": "heart2.py",
+     "find": "        if _cs.get(\"pairS\") is not None and _cs.get(\"s\") is not None and _cs[\"pairS\"] > _cs[\"s\"]:  "
+             "# NARROW-PAYS\n",
+     "replace": "        if False:  # NARROW-PAYS\n",
      "matches": 1},
     {"why": "REG-2431 - the census's narrowed pair is asked when the proof's run has an argv tail or a -c script",
      "file": "heart2.py",

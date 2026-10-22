@@ -3679,7 +3679,10 @@ def _named_files(tree, sandbox, repo):
             continue
         for base in (sandbox, repo):
             p = os.path.normpath(os.path.join(base, s))
-            if _inside(repo, p) and os.path.isfile(p):
+            # REG-2433 - one stat first: MEASURED 2026-10-22, a census that served all 34 proofs of one law spent 19 of
+            # its 44 s in realpath - two per string constant, 124,482 constants in a heart2 law's closure - though most
+            # name no file at all. Both conditions are still required; only the cheap one is asked first.
+            if os.path.isfile(p) and _inside(repo, p):
                 out.add(p)
     return out
 
@@ -6795,7 +6798,7 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
         # reaches here - it stopped the run in the wave.
         _wv = (getattr(_PUSH, "clean_wave", None) or {}).get(_ck)
         if _wv is not None and _wv[0] is True:
-            _hit = _runs[_ck] = {"ok": True, "tail": _wv[1], "reused": 0,
+            _hit = _runs[_ck] = {"ok": True, "tail": _wv[1], "reused": 0, "at": time.time(), "s": None,
                                  "again": (lambda: _run_gate(sandbox, filename, timeout=_to, extra=_extra,
                                                              script=_script, **_w))}
     if _hit is not None:
@@ -6803,9 +6806,11 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
         _hit["reused"] += 1
         _hit.setdefault("by", []).append(idx)                # REG-1677 — which proofs were judged on a reused clean run
     else:
+        _t_clean = time.time()
         ok_clean, tail = _run_gate(sandbox, filename, timeout=_to, extra=_extra, script=_script, **_w)
         if isinstance(_runs, dict) and ok_clean is not None:
-            _runs[_ck] = {"ok": ok_clean, "tail": tail, "reused": 0,
+            # R8 (REG-2437) - `at`: when this green clean run ended; `s`: what it cost - a checkpoint is timed from both
+            _runs[_ck] = {"ok": ok_clean, "tail": tail, "reused": 0, "at": time.time(), "s": time.time() - _t_clean,
                           "again": (lambda: _run_gate(sandbox, filename, timeout=_to, extra=_extra,
                                                       script=_script, **_w))}
     if ok_clean is None:
@@ -6839,14 +6844,30 @@ def _prove_one(sandbox, name, filename, pr, idx, say, widths=None, why=None, cle
         # REG-2431 (#186) — THE CENSUS'S NARROWED PAIR, asked only now: this gate's FULL clean run is green in THIS sandbox
         # (just above, shared by its proofs and bracketed by the closing run), and the anchor matches as declared. PROVEN
         # here is that pair; anything else falls through to the full tampered run below, which also teaches the memory.
-        _crids = _red_recall(_crk)
+        # ⚠ A PAIR IS TWO RUNS, EACH PAYING THE LAW'S IMPORT AND SETUP. MEASURED 2026-10-22 on test_a_killed_run_is_never_a_red
+        # (34 proofs, ~6 s a full run, ~3.4 s a narrowed one): every proof narrowed, the census took 241.7 s against 225.3 s
+        # in full. Narrowing pays only where a full run is long (test_control: ~4 min against seconds). So the gate's own
+        # numbers decide: once a pair has cost more than this gate's full clean run, the rest of the gate runs in full.
+        _cs = _runs.get(_ck) if isinstance(_runs, dict) else None
+        _cs = _cs if isinstance(_cs, dict) else {}
+        _crids = None
+        if _cs.get("pairS") is not None and _cs.get("s") is not None and _cs["pairS"] > _cs["s"]:  # NARROW-PAYS
+            if not _cs.get("pairSaid"):
+                _cs["pairSaid"] = True
+                say("     %-52s   ↳ REG-2431: a narrowed pair cost %.1f s, more than this gate's full run (%.1f s) - its "
+                    "other proofs run in full" % (label, _cs["pairS"], _cs["s"]))
+        else:
+            _crids = _red_recall(_crk)
+        _t_pair = time.time()
         if _crids and _prove_narrow(sandbox, label, tgt, tgt_rel, find, repl, want, filename, _to, _w, _crids, widths,
                                     say) == PROVEN:
+            _cs["pairS"] = time.time() - _t_pair
             _how = "narrow"
             _mark(a=_how)                                  # REG-2353 - the path it took (the census record reads it too)
             _say_posix_only_catch(sandbox, filename, label, _need, _crids, say)  # REG-2357 - its catching cases
             return PROVEN
         if _crids:
+            _cs["pairS"] = time.time() - _t_pair
             _mark(fellThrough=True)
         _rk = _crk                                         # the full run below teaches the memory what caught it
 
